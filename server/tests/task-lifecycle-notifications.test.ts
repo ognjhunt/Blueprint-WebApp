@@ -72,8 +72,9 @@ describe("task lifecycle notifications", () => {
     const first = sharedFakeFirestoreState.docs.get("captureOutbox/req-1:results_ready:run_a") as Record<string, string>;
     expect(first.body).toContain("12 of 50 simulated episodes succeeded");
     expect(first.body).toMatch(/not a physical test/i);
-    // A screening result is diagnostic; only the finalists' full scoring recommends.
-    expect(first.body).toMatch(/simulation result for one candidate, not a physical test or a recommendation; a recommendation comes only from the finalists' full scoring/);
+    // One candidate's run is a bounded estimate; there is no separate full-evaluation tier (owner, 2026-10-28).
+    expect(first.body).toMatch(/bounded simulation estimate for one candidate, not a physical test; it never certifies physical performance or safety/);
+    expect(first.body).not.toMatch(/finalists|full scoring|full evaluation/);
     expect(sharedFakeFirestoreState.docs.has("captureOutbox/req-1:results_ready:run_b")).toBe(true);
   });
 
@@ -254,7 +255,8 @@ describe("a waiting job hears what it is waiting on", () => {
     const row = sharedFakeFirestoreState.docs.get("captureOutbox/req-1:no_team_passed:run_b") as Record<string, string>;
     expect(row.subject).toBe("No evaluation of your job has passed yet");
     expect(row.body).not.toMatch(/robot teams?/i);
-    expect(row.body).toMatch(/none passed\. These runs do not support a pilot recommendation/);
+    expect(row.body).toMatch(/none passed\. /);
+    expect(row.body).not.toMatch(/pilot recommendation|full evaluation/);
 
     run("run_c", "requested", null);
     expect((await notifyIfNoTeamPassed("req-1", "run_a")).enqueued).toBe(false);

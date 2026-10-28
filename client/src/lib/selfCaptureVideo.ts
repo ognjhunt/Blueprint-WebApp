@@ -104,7 +104,8 @@ export async function retrySelfCaptureProcessing(token: string): Promise<VideoUp
  * Post the original file to the token route with progress.
  *
  * Never rejects: every outcome is a result the caller can render, because the
- * callers are forms with a person waiting on them.
+ * callers are forms with a person waiting on them. A browser that cannot read
+ * the video still sends it; the server and the pipeline measure the file.
  */
 export async function uploadSelfCaptureVideo(
   token: string,

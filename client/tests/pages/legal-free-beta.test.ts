@@ -30,7 +30,7 @@ const privacy = JSON.stringify({ privacyPolicySections, californiaPrivacyRows, i
 describe("terms for the free beta", () => {
   it("is reissued with a future effective date and keeps the previous version in force", () => {
     // Owner decision 2026-10-15: published 2026-10-15, in force 30+ days later.
-    expect(TERMS_VERSION).toBe("2026-11-15.2");
+    expect(TERMS_VERSION).toBe("2026-11-15.3");
     expect(PRIVACY_VERSION).toBe("2026-11-15.4");
     expect([PREVIOUS_TERMS_VERSION, PREVIOUS_PRIVACY_VERSION]).toEqual(["2026-10-14.1", "2026-10-13.1"]);
     expect(legalEffectiveDate(TERMS_VERSION)).toBe("November 15, 2026");
@@ -39,16 +39,17 @@ describe("terms for the free beta", () => {
   });
 
   it("charges nothing and invoices nothing", () => {
-    expect(terms).toMatch(/booking the recommended pilot cost the site nothing/);
+    expect(terms).toMatch(/the evaluation and its result cost the site nothing/);
     expect(terms).toMatch(/no Blueprint fee, invoice or payment step/);
     expect(terms).not.toMatch(/\$2,500|\$99\b|invoices the site|No pilot, no fee/);
     expect(terms).not.toMatch(/refund your fee/i);
   });
 
-  it("recommends one team whose evaluation passed and keeps the pilot between the site and the team", () => {
-    expect(terms).toMatch(/recommends one robot team whose evaluation on your job passed/);
-    expect(terms).toMatch(/do not have to compare teams/);
-    expect(terms).toMatch(/site and the robot team agree the physical pilot/);
+  it("has Blueprint run the evaluation and keeps the pilot between the site and the deployment company", () => {
+    expect(terms).toMatch(/run candidate robot policies in that simulation ourselves/);
+    expect(terms).toMatch(/Teams do not run their own evaluations of a site's job/);
+    expect(terms).toMatch(/site and the deployment company agree the physical pilot/);
+    expect(terms).not.toMatch(/recommended pilot|invite robot teams|book the recommended/i);
     expect(terms).toMatch(/takes no percentage of any pilot or deployment/);
     expect(terms).not.toMatch(/\bmatch(?:ed|es|ing)?\b/i);
   });

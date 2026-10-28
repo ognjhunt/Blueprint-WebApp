@@ -194,9 +194,8 @@ export interface SiteRobotFit {
 }
 
 export const SITE_ROBOT_FIT_NOTE =
-  "Blueprint evaluates candidate robots and policies that look right for this job in a simulation of your site. "
-  + "If Blueprint recommends an approach, it will be one that passed a full evaluation on your job. This is a first read from your "
-  + "video, not a promise that any robot can do the job.";
+  "Blueprint runs candidate robots and policies that look right for this job in a simulation of your site and shows you a "
+  + "bounded estimate of what works. This is a first read from your video, not a promise that any robot can do the job.";
 
 export interface AdminRobotFitResponse {
   job: RobotFitJob;

@@ -209,13 +209,13 @@ export const sourcingLoop = [
   },
   {
     step: "05",
-    label: "Many teams evaluate",
+    label: "Blueprint runs the candidates",
     detail: "Simulated first, on the same twin, scored on the same rubric.",
   },
   {
     step: "06",
-    label: "The site chooses",
-    detail: "Results, timelines and terms side by side. A comparison, not an auction.",
+    label: "The site sees what works",
+    detail: "A bounded estimate, or held when the job cannot be simulated yet.",
   },
   {
     step: "07",

@@ -190,7 +190,7 @@ export default function Overview() {
                 <h2>Review your results</h2>
                 <p>{nextResult.title} · Evaluation complete</p>
                 <p className="ws-muted">
-                  Your result is ready. Blueprint shares it with the site and recommends one pilot.
+                  Your result is ready. Blueprint shares it with the site as a bounded estimate.
                 </p>
               </div>
               <ActionLink href={`/app/evaluations/${nextResult.id}`}>

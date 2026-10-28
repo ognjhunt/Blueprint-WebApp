@@ -117,7 +117,7 @@ for (const mobile of [false, true]) test(`${mobile ? "phone" : "desktop"}: exist
   await context.close();
 });
 for (const mobile of [false, true]) {
-  test(`${mobile ? "phone" : "desktop"}: browse before setup and request a free invited evaluation`, async ({ browser }) => {
+  test(`${mobile ? "phone" : "desktop"}: browse before setup and offer a system for a job`, async ({ browser }) => {
     const context = await browser.newContext({ viewport: mobile ? { width: 390, height: 844 } : { width: 1440, height: 900 }, ...(mobile ? { userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148", isMobile: true, hasTouch: true } : {}) });
     const page = await context.newPage(); const errors: string[] = []; page.on("pageerror", error => errors.push(error.message));
     const mutations = await fixtures(page);
@@ -133,11 +133,11 @@ for (const mobile of [false, true]) {
     await expect(page.getByRole("heading", { name: card.title })).toHaveCount(0);
     await page.getByLabel("Filter by availability").selectOption("open");
     const selected = page.getByRole("listitem").filter({ has: page.getByRole("heading", { name: card.title }) });
-    await expect(selected.getByRole("link", { name: "Request a free invited evaluation" })).toHaveAttribute("href", "/app");
+    await expect(selected.getByRole("link", { name: "Offer your system for this job" })).toHaveAttribute("href", "/app");
     await expect(selected.getByText("Site's proposed pilot price")).toBeVisible();
     await expect(selected.getByText("Four weeks including setup and provider support")).toBeVisible();
     await expect(selected.getByText("$5,000 per month")).toBeVisible();
-    await expect(page.getByText("Approved beta evaluations are free and share results with the site.")).toBeVisible();
+    await expect(page.getByText("Blueprint runs approved systems free during the beta and shares the results with the site.")).toBeVisible();
     await expect(page.getByRole("button", { name: /Private evaluation|See what we would run|Queue these runs/ })).toHaveCount(0);
     expect(mutations).toEqual([]);
     expect(errors).toEqual([]); await context.close();
@@ -258,7 +258,7 @@ test("free beta does not restore paid checkout controls after a reload", async (
   const mutations = await fixtures(page);
   await page.goto("/contact/robot-team");
   for (let attempt = 0; attempt < 2; attempt++) {
-    await expect(page.getByRole("link", { name: "Request a free invited evaluation" }).first()).toHaveAttribute("href", "/app");
+    await expect(page.getByRole("link", { name: "Offer your system for this job" }).first()).toHaveAttribute("href", "/app");
     await expect(page.getByRole("button", { name: /Private evaluation|See what we would run|Queue these runs/ })).toHaveCount(0);
     await expect(page.locator("#plan-hardware")).toHaveCount(0);
     expect(mutations).toEqual([]);

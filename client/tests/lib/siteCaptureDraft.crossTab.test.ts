@@ -11,10 +11,10 @@ vi.mock("@/lib/siteCaptureDurability", () => ({
     const current = durability.rows.get(key);
     if (!replaceIdentity && current && (current.retired || current.value?.requestId !== value.requestId
       || current.value?.retryToken !== value.retryToken)) throw new Error("Fixture durability transaction aborted");
-    const { task, location, email, company, method, region, regionManuallySet } = value.draft;
+    const { task, location, email, method, region, regionManuallySet } = value.draft;
     durability.rows.set(key, { retired: false, value: {
       version: value.version, savedAt: value.savedAt, requestId: value.requestId, retryToken: value.retryToken,
-      draft: { task, location, email, company, method, region, regionManuallySet },
+      draft: { task, location, email, method, region, regionManuallySet },
       pending: value.pending ? { body: value.pending.body, endpoint: value.pending.endpoint, acknowledged: value.pending.acknowledged } : null,
     } });
   },

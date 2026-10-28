@@ -113,7 +113,7 @@ export function buildRobotAgentAccessManifest() {
         runtimes: ["policy_endpoint", "customer_hosted", "container_image", "controller_adapter", "model_artifact", "skill_trace"],
         modelUpload: "Multipart model, interface JSON, and optional label. The approved ONNX runner is onnx_state_mlp_cpu_v1; upload requires a verified account bound to the team.",
         privateCredentials: "After registering a checkpoint, attach {kind:registry,username,secret} for a private container/controller image or {kind:bearer,token} for an HTTPS policy. Account-bound team ownership is required. Responses contain a version reference only. DELETE revokes that version.",
-        newEvaluation: "Submit a free evaluation request from the workspace. Execution requires an approved invitation binding the team, policy, task and sponsor limits.",
+        newEvaluation: "Offer your policy on a job from the workspace; Blueprint runs it free during the beta. Execution requires Blueprint's approval of the exact team, policy, task and sponsor limits.",
         observationAccess: "Blueprint retains scene files and the scoring harness. Controlled policies receive the permitted observations and return actions. Compatible task, robot, and runner profiles are required; a skill trace alone is not execution evidence.",
       },
       /**
@@ -129,8 +129,8 @@ export function buildRobotAgentAccessManifest() {
           "Blueprint is in early access for robot teams. Apply at https://tryblueprint.io/contact/robot-team; Blueprint approves the team's email. An approved, verified account is required; approval alone does not authorize execution.",
         sequence: [
           "Apply at /contact/robot-team and verify the approved account.",
-          "Register a compatible robot policy and request a free evaluation from the workspace.",
-          "Blueprint reviews the invitation and authorized scope before execution.",
+          "Register a compatible robot policy and offer it on a job from the workspace.",
+          "Blueprint reviews the authorized scope and runs the policy itself.",
           "Read permitted results in the workspace or GET /api/agent-team/results.",
         ],
         noGates:
@@ -138,7 +138,7 @@ export function buildRobotAgentAccessManifest() {
 
       },
       spendModel: {
-        summary: "Evaluations are free during the beta and run only on Blueprint's invitation; nothing is charged to the team. Paid and private runs are disabled. Blueprint-funded execution requires separately authorized limits.",
+        summary: "Evaluations are free during the beta and Blueprint runs each one itself; nothing is charged to the team. Paid and private runs are disabled. Blueprint-funded execution requires separately authorized limits.",
       },
     },
     siteWorldSearch: {
@@ -299,7 +299,7 @@ export function buildRobotAgentOpenApiContract() {
       version: ROBOT_AGENT_CONTRACT_VERSION,
       summary: "Headless discovery of scoped site jobs and bounded evaluation tools for robot teams.",
       description:
-        "Blueprint starts with required site video, drafts the job description from its analysis, reconstructs the work area in simulation, compares compatible robots and policies, and helps sites review delivery proposals for a measured pilot. The customer chooses and contracts with a delivery partner. The beta is free for sites and partners; Blueprint takes no cut of pilot costs. This API exposes capture-backed job discovery, grounded questions and bounded Task Evaluation Run intake. It does not grant an invitation, authorize physical access or award a contract. Simulation results are bounded estimates, not proof of physical performance or safety. Pipeline owns evidence-method routing and scientific verdicts. Historical order, entitlement and hosted-session access controls remain unchanged; standalone purchasing is retired.",
+        "Blueprint starts with required site video, drafts the job description from its analysis, reconstructs the work area in simulation, runs compatible robots and policies itself, and shows the site a bounded estimate of what works, or “held” when it can't simulate that kind of job yet. Blueprint then works alongside a deployment company on the real site; the customer contracts with the deployment company. The beta is free for sites and partners; Blueprint takes no cut of pilot costs. This API exposes capture-backed job discovery, grounded questions and bounded Task Evaluation Run intake. It does not grant an invitation, authorize physical access or award a contract. Simulation results are bounded estimates, not proof of physical performance or safety. Pipeline owns evidence-method routing and scientific verdicts. Historical order, entitlement and hosted-session access controls remain unchanged; standalone purchasing is retired.",
     },
     servers: [
       {
@@ -315,7 +315,7 @@ export function buildRobotAgentOpenApiContract() {
       { name: "Discovery", description: "Public site and API discovery for agents." },
       { name: "Ask", description: "Grounded, citation-backed question answering for agents." },
       { name: "Catalog", description: "Public site-world catalog and detail endpoints." },
-      { name: "Team", description: "Register an approved robot team and manage its agent key. Robot teams join by invitation after application review, so registration needs the invitation from the approval email (or an approved account); it grants no evaluation: evaluations are free during the beta and run only on Blueprint's invitation and approval." },
+      { name: "Team", description: "Register an approved robot team and manage its agent key. Robot teams apply to give Blueprint access to a policy; after application review, registration needs the invitation from the approval email (or an approved account). It grants no evaluation: Blueprint runs each evaluation itself, free during the beta, after its approval." },
       { name: "Legacy commerce", description: "Read-only compatibility for historical orders and entitlements; the purchase endpoints are retired and return 410." },
       { name: "Hosted sessions", description: "Compatibility lifecycle for previously entitled hosted-session records." },
     ],
@@ -382,7 +382,7 @@ export function buildRobotAgentOpenApiContract() {
           responses: {
             "201": {
               description:
-                "Team registered. `agentKey` is returned once. Registration authorizes no evaluation; evaluations run only on Blueprint's invitation and approval.",
+                "Team registered. `agentKey` is returned once. Registration authorizes no evaluation; Blueprint runs each evaluation itself after its approval.",
               content: {
                 "application/json": { schema: { type: "object" } },
               },

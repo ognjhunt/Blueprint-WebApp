@@ -488,7 +488,8 @@ describe("registration to plan, without an operator", () => {
     expect(next.join(" ")).not.toContain("tab=agent");
     expect(next.join(" ")).toContain("/app");
     expect(next.join(" ")).toContain("/contact/robot-team");
-    expect(next.join(" ")).toContain("free invited evaluations");
+    expect(next.join(" ")).toContain("Blueprint runs it free during the beta");
+    expect(next.join(" ")).not.toContain("invited evaluation");
     expect(next.join(" ")).not.toMatch(/\/api\/agent-team\/(?:plan|runs|funding|policy)\b/);
   });
 });

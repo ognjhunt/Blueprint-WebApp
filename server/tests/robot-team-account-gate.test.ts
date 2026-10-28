@@ -1,6 +1,6 @@
 // @vitest-environment node
 /**
- * Registration describes the free invited beta without granting execution.
+ * Registration describes the free beta (Blueprint runs the policy) without granting execution.
  * Verified accounts manage team access; neither registration nor account
  * ownership enables the disabled planning, running or funding entrypoints.
  */
@@ -130,12 +130,13 @@ async function register(checkpoint?: { label: string; runtime: string; reference
 }
 
 describe("free beta refuses paid entrypoints for every account", () => {
-  it.each([false, true])("registration instructions stay within the free invited beta (checkpoint: %s)", async (withCheckpoint) => {
+  it.each([false, true])("registration instructions stay within the free beta (checkpoint: %s)", async (withCheckpoint) => {
     const reply = await register(withCheckpoint ? {
       label: "Registered policy", runtime: "policy_endpoint", reference: "https://example.test/policy",
     } : undefined);
     expect(reply.grants).toMatchObject({ balanceUsd: 0, agentSpendEnabled: false, accountBound: false });
-    expect(reply.grants.note).toContain("free invited evaluations only");
+    expect(reply.grants.note).toContain("free access for Blueprint to run your policy");
+    expect(reply.grants.note).not.toContain("invited evaluation");
     const instructions = reply.next.join(" ");
     expect(instructions).toContain(withCheckpoint ? "GET /api/agent-team/checkpoints" : "POST /api/agent-team/checkpoints");
     expect(instructions).toContain("registration does not start an evaluation");
@@ -156,7 +157,7 @@ describe("free beta refuses paid entrypoints for every account", () => {
     const reply = await response.json();
     expect(reply.checkpoint.status).toBe("registered");
     expect(reply.next).toContain("Registration does not start an evaluation");
-    expect(reply.next).toContain("free invited evaluations");
+    expect(reply.next).toContain("Blueprint runs it free during the beta");
     expect(reply.next).toContain("verified Blueprint account");
     expect(reply.next).toContain("/app");
     expect(reply.next).toContain("/contact/robot-team");

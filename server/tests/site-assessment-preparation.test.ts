@@ -1,10 +1,12 @@
-// OFFLINE: actual admission/sponsorship functions, existing fake Firestore, no providers or robot-quality evidence.
+// OFFLINE: actual sponsorship functions, existing fake Firestore, no providers or robot-quality evidence.
+// Owner decision 2026-10-28: the received video is enough to prepare the scene.
+// A seeded assessment is present only to show it neither gates nor binds the grant.
 // @vitest-environment node
 import { createHash } from "node:crypto";
 import { createServer } from "node:http";
 import express from "express";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { sharedFakeFirestore as db, sharedFakeFirestoreState as state } from "./helpers/fake-firestore";
+import { sharedFakeFirestoreState as state } from "./helpers/fake-firestore";
 vi.mock("../../client/src/lib/firebaseAdmin", async () => ({ default: {firestore:{FieldValue:{serverTimestamp:()=>"offline-time"}}},
   dbAdmin: (await import("./helpers/fake-firestore")).sharedFakeFirestore, storageAdmin: null }));
 vi.mock("../logger", () => ({ logger: {info: vi.fn(),warn: vi.fn(),error: vi.fn(),debug: vi.fn()} }));
@@ -19,7 +21,6 @@ vi.mock("../utils/worldReconstruction", () => ({startWorldReconstruction:vi.fn()
 vi.mock("../utils/taskLifecycleNotifications", () => ({enqueueTaskLifecycleNotification:vi.fn(),reconstructionIsViewable:vi.fn()}));
 vi.mock("../utils/pipelineSyncSecurity", () => ({createPipelineSyncRateLimiter:()=> (_r:unknown,_s:unknown,next:()=>void)=>next(),
   verifyPipelineSyncRequest:()=>({ok:true})}));
-import { assessmentProposesPreparation, loadAssessmentPreparationProposal, assertAssessmentPreparationCurrent } from "../utils/siteAssessmentPreparation";
 import { loadWebsiteSceneSponsorship, websiteSceneSponsorship, currentWebsitePreparationStatusContext, reserveWebsitePreparationSpend, amendWebsitePreparationRequestLimit,
   amendWebsitePreparationSpendLimit } from "../utils/websiteSceneSponsorship";
 import { advisoryContextDigest, advisoryJobId } from "../utils/siteAssessmentContext";
@@ -63,90 +64,51 @@ beforeEach(() => {state.docs.clear();seams.marker=true;seams.onBinding=()=>{};se
   vi.stubEnv("BLUEPRINT_WEBSITE_SCENE_SPONSORSHIP_JSON",JSON.stringify({owner:{user_id:"blueprint",organization_id:"blueprint"},
     upstream_max_spend_usd:1,native_max_spend_usd:1,max_total_spend_usd:2,max_paid_attempts:2,ttl_seconds:3600,provider_terms_reference:`sha256:${"c".repeat(64)}`}));});
 afterEach(() => vi.unstubAllEnvs());
-it("allows existing scene preparation with owner questions, preserving advisory and physical-execution limits",async()=>{
-  const {record}=seed();const prepared=await loadAssessmentPreparationProposal("one","walkthrough-one");
-  expect(prepared?.proposal).toMatchObject({questions_pending:true,scope:"scene_preparation_only",robot_suitability_verified:false,physical_trial_authorized:false});
-  const grant=await loadWebsiteSceneSponsorship("one",true);
-  expect(grant.assessment_preparation_proposal).toEqual(prepared?.proposal);
-  expect(state.docs.get("inboundRequests/one")?.site_task_triage).toEqual(record.site_task_triage);
-  const original=state.docs.get("inboundRequests/one")?.website_scene_sponsorship as any;
-  expect((await loadWebsiteSceneSponsorship("one",true)).expires_at_epoch).toBe(original.expires_at_epoch);
+it("prepares the scene from the received video with no assessment at all",async()=>{
+  const {job}=seed(packet(),false,false);
+  delete (state.docs.get("inboundRequests/one") as any).site_advisory;
+  state.docs.delete(`siteAssessmentJobs/${job}`);state.docs.delete("agentRuns/assessment-one");
+  const grant=await loadWebsiteSceneSponsorship("one",true,"walkthrough-one",prepOptions());
+  expect(grant).toMatchObject({purpose:"scene_preparation",sponsor:"blueprint",consent:{task_confirmed:false,spend_authorized:true}});
+  expect(grant).not.toHaveProperty("assessment_preparation_proposal");
+  expect(state.docs.get("inboundRequests/one")?.website_scene_sponsorship).toEqual(grant);
+  expect(state.docs.get("inboundRequests/one")).not.toHaveProperty("account_owner_uid");
 });
-// read_robot_registry returns up to 200 teams and each becomes a source; a
-// 100-source cap held the 2026-10-23 dishwasher scene (109 sources) at 409.
-const registrySources = (count: number) => Array.from({length: count}, (_, index) => {
-  const content = {id:`team-${index}`,name:`Synthetic team ${index}`,website:null,status:"prospect",willing_supply:false,
-    supply_agreements_missing:["supported_interface"],capability:{embodiments:["fixed_arm"],payload_kg:5,reach_m:0.9},
-    fieldProvenance:{capability:"self_reported"},capabilityDescription:"Synthetic fixed-arm pick and place ".repeat(20),evidenceBar:null,updatedAt:null};
-  return {source_id:`robotTeam:team-${index}`,kind:"robot_registry",canonical_ref:`robotTeams/team-${index}`,sha256:hash(content),checked_at:null,content};
+it.each(["queued","running","needs_review","unverified_claim","no_plausible_approach"])("prepares while the assessment is %s",async(change)=>{
+  const p=packet();
+  if(change==="unverified_claim")p.raw_model_assessment.job[0].evidence[0].selector.observation_index=9;
+  if(change==="no_plausible_approach")p.raw_model_assessment.approaches[0].disposition="needs_evidence";
+  const {job}=seed(p,false,false);
+  if(["queued","running","needs_review"].includes(change))(state.docs.get(`siteAssessmentJobs/${job}`) as any).state=change;
+  const grant=await loadWebsiteSceneSponsorship("one",true,"walkthrough-one",prepOptions());
+  expect(grant).toMatchObject({purpose:"scene_preparation"});expect(grant).not.toHaveProperty("assessment_preparation_proposal");
 });
-it("admits a packet carrying every team the registry read returns",async()=>{
-  const p:any=packet();p.sources=[source,...registrySources(200)];seed(p);
-  expect((await loadAssessmentPreparationProposal("one","walkthrough-one"))?.proposal).toMatchObject({scope:"scene_preparation_only"});
-  expect((await loadWebsiteSceneSponsorship("one",true)).assessment_preparation_proposal).toMatchObject({capture_id:"walkthrough-one"});
-});
-it("still refuses a packet past the source bound",async()=>{
-  const {SITE_ASSESSMENT_MAX_PACKET_SOURCES}=await import("../agents/site-assessment");
-  const p:any=packet();p.sources=[source,...registrySources(SITE_ASSESSMENT_MAX_PACKET_SOURCES)];seed(p);
-  await expect(loadWebsiteSceneSponsorship("one",true)).rejects.toThrow("website_assessment_preparation_pending");
-});
-it.each(["no_robot","process_change"])("keeps scene-only preparation available alongside the advisory next action %s",async(kind)=>{
-  const p=packet();p.raw_model_assessment.next_action.kind=kind;seed(p);
-  expect((await loadAssessmentPreparationProposal("one","walkthrough-one"))?.proposal)
-    .toMatchObject({scope:"scene_preparation_only",robot_suitability_verified:false});
-});
-it("rejects unsupported factual bindings and leaves ambiguous approaches pending",async()=>{
-  const p=packet();p.raw_model_assessment.job[0].evidence[0].selector.observation_index=9;
-  expect(await assessmentProposesPreparation(p,30)).toBe(false);
-  const ambiguous=packet();ambiguous.raw_model_assessment.approaches[0].disposition="needs_evidence";
-  expect(await assessmentProposesPreparation(ambiguous,30)).toBe(false);
-});
-it.each(["queued","running","needs_review"])("requires durable completion instead of treating %s as a positive assessment",async(status)=>{
-  const {job}=seed();(state.docs.get(`siteAssessmentJobs/${job}`) as any).state=status;
-  await expect(loadWebsiteSceneSponsorship("one",true)).rejects.toThrow("pending");
-});
-it("refuses stale source, context, packet and missing marker independently",async()=>{
-  for(const change of [()=>{(state.docs.get("captureUploadSessions/walkthrough-one") as any).browser_pending_delivery.video.generation="3";},
-    ()=>{(state.docs.get("siteTaskBriefs/one") as any).operatorAnswers={workload:"20"};},
-    ()=>{(state.docs.get("agentRuns/assessment-one") as any).artifacts.site_assessment_packet.request_id="other";},()=>{seams.marker=false;}]) {
-    state.docs.clear();seed();seams.marker=true;change();
-    await expect(loadWebsiteSceneSponsorship("one",true)).rejects.toThrow("pending");
-    expect(state.docs.get("inboundRequests/one")?.website_scene_sponsorship).toBeUndefined();
-  }
-});
-it("revalidates the private run inside the grant transaction before any write",async()=>{
-  seed();seams.onBinding=()=>{(state.docs.get("agentRuns/assessment-one") as any).status="failed";};
-  await expect(loadWebsiteSceneSponsorship("one",true)).rejects.toThrow("pending");
-  expect(state.docs.get("inboundRequests/one")?.website_scene_sponsorship).toBeUndefined();
-});
-it("withdrawal and a new source hold every fresh preparation reservation without resetting past unknown spend",async()=>{
-  seed();const grant=await loadWebsiteSceneSponsorship("one",true);
+it("still refuses preparation and every fresh reservation once rights end, without resetting past unknown spend",async()=>{
+  seed(packet(),false,false);const grant=await loadWebsiteSceneSponsorship("one",true,"walkthrough-one",prepOptions());
   const record=state.docs.get("inboundRequests/one") as any;
   record.website_preparation_reservations={unknown:{admission:{maximum_cost_usd:1,request_count:1},settlement:null}};
   record.future_processing_allowed=false;
   const prior=structuredClone(record.website_preparation_reservations);
   await expect(reserveWebsitePreparationSpend("one",{task_context_digest:grant.task_context_digest,allocation_binding_digest:`sha256:${"d".repeat(64)}`,
-    resource_class:"gpu_render",provider:"vast",maximum_cost_usd:1,request_count:1})).rejects.toThrow("pending");
+    resource_class:"gpu_render",provider:"vast",maximum_cost_usd:1,request_count:1})).rejects.toThrow("source_revoked");
   expect(record.website_preparation_reservations).toEqual(prior);
+  state.docs.clear();seed(packet(),false,false);
+  (state.docs.get("inboundRequests/one") as any).request.consent_attestation.revoked_at_iso="2026-10-28T00:00:00Z";
+  await expect(loadWebsiteSceneSponsorship("one",true,"walkthrough-one",prepOptions())).rejects.toThrow("source_revoked");
+  expect(state.docs.get("inboundRequests/one")?.website_scene_sponsorship).toBeUndefined();
 });
-it("transaction snapshot refuses a concurrent customer answer and retains the existing native producer",async()=>{
-  seed();const prepared=await loadAssessmentPreparationProposal("one","walkthrough-one");
-  (state.docs.get("siteTaskBriefs/one") as any).operatorAnswers={rate:"20"};
-  await expect(db.runTransaction(tx=>assertAssessmentPreparationCurrent(tx as any,prepared,state.docs.get("inboundRequests/one")!,
-    {requestId:"one",captureId:"walkthrough-one"}))).rejects.toThrow("pending");
-  expect(await loadAssessmentPreparationProposal("native","native-capture")).toBeNull();
-});
-it("actual signed-route handler returns a typed hold and settles prior receipts after assessment authority ends",async()=>{
-  const {job}=seed();
+it("actual signed-route handler grants preparation while the assessment is queued and settles prior receipts after rights end",async()=>{
+  const {job}=seed(packet(),false,false);
   (state.docs.get(`siteAssessmentJobs/${job}`) as any).state="queued";
   const app=express();app.use(express.json());app.use((await import("../routes/internal-capture-worlds")).default);
   const server=createServer(app);await new Promise<void>(resolve=>server.listen(0,"127.0.0.1",resolve));
   const base=`http://127.0.0.1:${(server.address() as any).port}/creator-captures/walkthrough-one`;
   const send=(operation:string,body:unknown)=>fetch(`${base}/${operation}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});
   try {
-    const pending=await send("scene-sponsorship",{request_id:"one",scene_id:"site-one"});
-    expect(pending.status).toBe(409);expect(await pending.json()).toEqual({code:"website_assessment_preparation_pending"});
-    const record=state.docs.get("inboundRequests/one") as any;record.future_processing_allowed=false;
+    const created=await send("scene-sponsorship",{request_id:"one",scene_id:"site-one",...prepOptions()});
+    expect(created.status).toBe(200);const grant=await created.json();
+    const record=state.docs.get("inboundRequests/one") as any;expect(record.website_scene_sponsorship).toEqual(grant);
+    record.future_processing_allowed=false;
     record.website_preparation_reservations={["d".repeat(64)]:{admission:{provider:"world_labs",resource_class:"provider_reconstruction_api",
       task_context_digest:`sha256:${"e".repeat(64)}`,maximum_cost_usd:1,request_count:1},settlement:null},
       otherUnknown:{admission:{maximum_cost_usd:2,request_count:1},settlement:null}};
@@ -158,53 +120,12 @@ it("actual signed-route handler returns a typed hold and settles prior receipts 
     expect(settled.status).toBe(200);expect(await settled.json()).toMatchObject({status:"settled",actual_cost_usd:0.4});
     const current=state.docs.get("inboundRequests/one") as any;
     expect(current.website_preparation_reservations.otherUnknown).toEqual(unknown);
-    expect(current.website_scene_sponsorship).toBeUndefined();
+    expect(current.website_scene_sponsorship).toEqual(grant);
     const invalid=await send("preparation-settlement",{request_id:"one",scene_id:"site-one",settlement:{...settlement,allocation_binding_digest:`sha256:${"0".repeat(64)}`}});
     expect(invalid.status).toBe(409);expect(await invalid.json()).toEqual({code:"website_scene_preparation_settlement_invalid"});
+    const revoked=await send("scene-sponsorship",{request_id:"one",scene_id:"site-one",...prepOptions()});
+    expect(revoked.status).toBe(409);expect(await revoked.json()).toEqual({code:"source_revoked"});
   } finally {await new Promise<void>((resolve,reject)=>server.close(error=>error?reject(error):resolve()));}
-});
-it("refreshes the returned proposal for a later positive assessment without renewing or mutating the stored allowance",async()=>{
-  const {job}=seed();const first=await loadWebsiteSceneSponsorship("one",true);
-  const record=state.docs.get("inboundRequests/one") as any;
-  const root=structuredClone(record.website_scene_sponsorship);
-  record.website_preparation_reservations={unknown:{admission:{maximum_cost_usd:1},settlement:null}};
-  const reservations=structuredClone(record.website_preparation_reservations);
-  const run=structuredClone(state.docs.get("agentRuns/assessment-one")) as any;
-  const later=packet();later.raw_model_assessment.questions.push({question:"What final state is required?",decision_it_changes:"Scorer target"});
-  run.artifacts.site_assessment_packet=later;run.artifacts.site_assessment_packet_sha256=hash(later);
-  state.docs.set("agentRuns/assessment-two",run);
-  Object.assign(state.docs.get(`siteAssessmentJobs/${job}`)!,{run_id:"assessment-two",packet_sha256:hash(later)});
-  const second=await loadWebsiteSceneSponsorship("one",false);
-  expect(second.assessment_preparation_proposal.run_id).toBe("assessment-two");
-  expect(second.assessment_parent_authority_digest).toBe(first.authority_digest);
-  expect(second.expires_at_epoch).toBe(first.expires_at_epoch);
-  expect((state.docs.get("inboundRequests/one") as any).website_scene_sponsorship).toEqual(root);
-  expect((state.docs.get("inboundRequests/one") as any).website_preparation_reservations).toEqual(reservations);
-  const legacy=structuredClone(root);delete legacy.assessment_preparation_proposal;delete legacy.authority_digest;
-  const {crossRuntimeDigest}=await import("../utils/crossRuntimeCanonical");legacy.authority_digest=crossRuntimeDigest(legacy);
-  (state.docs.get("inboundRequests/one") as any).website_scene_sponsorship=legacy;
-  expect((await loadWebsiteSceneSponsorship("one",false)).assessment_preparation_proposal.run_id).toBe("assessment-two");
-  expect((state.docs.get("inboundRequests/one") as any).website_scene_sponsorship).toEqual(legacy);
-});
-it("does not relabel an existing browser grant as legacy after the canonical source session is lost",async()=>{
-  for (const remove of [()=>state.docs.delete("captureUploadSessions/walkthrough-one"),
-    ()=>{delete (state.docs.get("captureUploadSessions/walkthrough-one") as any).browser_pending_delivery;}]) {
-    state.docs.clear();seed();const grant=await loadWebsiteSceneSponsorship("one",true);remove();
-    await expect(loadWebsiteSceneSponsorship("one",false)).rejects.toThrow("pending");
-    await expect(reserveWebsitePreparationSpend("one",{task_context_digest:grant.task_context_digest,allocation_binding_digest:`sha256:${"d".repeat(64)}`,
-      resource_class:"gpu_render",provider:"vast",maximum_cost_usd:1,request_count:1})).rejects.toThrow("pending");
-    expect((state.docs.get("inboundRequests/one") as any).website_preparation_reservations).toBeUndefined();
-  }
-});
-it("publication wins over a legacy classification before the final grant transaction",async()=>{
-  seed();const session=structuredClone(state.docs.get("captureUploadSessions/walkthrough-one"))!;
-  const record=state.docs.get("inboundRequests/one") as any;
-  delete record.site_advisory;delete record.capture_privacy_source_bound_decision;
-  record.site_task_triage.disposition="qualified";state.docs.delete("captureUploadSessions/walkthrough-one");
-  expect(await loadAssessmentPreparationProposal("one","walkthrough-one")).toBeNull();
-  seams.onBinding=()=>{state.docs.set("captureUploadSessions/walkthrough-one",session);};
-  await expect(loadWebsiteSceneSponsorship("one",true)).rejects.toThrow("pending");
-  expect((state.docs.get("inboundRequests/one") as any).website_scene_sponsorship).toBeUndefined();
 });
 
 // SYNTHETIC offline preparation contract v2. Actual existing handlers, no production operations.
@@ -222,16 +143,19 @@ it("v2 explicit current preparation admits unknown task/account without confirmi
   seed(packet(),false,false);const briefBefore=structuredClone(state.docs.get("siteTaskBriefs/one"));
   const opts=prepOptions();const grant=await (loadWebsiteSceneSponsorship as any)("one",true,"walkthrough-one",opts);
   expect(grant).toMatchObject({purpose:"scene_preparation",task_context_digest:opts.expected_task_context_digest,
-    consent:{task_confirmed:false},assessment_preparation_proposal:{questions_pending:true,physical_trial_authorized:false}});
+    consent:{task_confirmed:false}});
+  expect(grant).not.toHaveProperty("assessment_preparation_proposal");
   expect(state.docs.get("siteTaskBriefs/one")).toEqual(briefBefore);
   expect(state.docs.get("inboundRequests/one")).not.toHaveProperty("account_owner_uid");
   const stored=structuredClone(state.docs.get("inboundRequests/one")?.website_scene_sponsorship);
   const later=await loadWebsiteSceneSponsorship("one",false);
   expect(later).toEqual(grant);expect(state.docs.get("inboundRequests/one")?.website_scene_sponsorship).toEqual(stored);
 });
-it("v2 absent purpose leaves confirmation and account gates strict",async()=>{
+it("v2 absent purpose leaves confirmation, site screen and account gates strict, whatever the assessment says",async()=>{
   seed(packet(),false,false);await expect(loadWebsiteSceneSponsorship("one",true)).rejects.toThrow("website_task_context_not_confirmed");
-  seed(packet(),true,false);await expect(loadWebsiteSceneSponsorship("one",true)).rejects.toThrow("website_scene_site_unclaimed");
+  seed(packet(),true,true);await expect(loadWebsiteSceneSponsorship("one",true)).rejects.toThrow("website_scene_site_not_qualified");
+  seed(packet(),true,false);(state.docs.get("inboundRequests/one") as any).site_task_triage.disposition="qualified";
+  await expect(loadWebsiteSceneSponsorship("one",true)).rejects.toThrow("website_scene_site_unclaimed");
 });
 it("v2 preparation cannot create a grant without the exact current expected context",async()=>{
   seed(packet(),false,false);
@@ -419,7 +343,7 @@ it("v2 context adds only purpose and proposal refresh cannot churn its digest",(
   const {purpose,_unused,...rest}=prep as any;const {context_digest,...payload}=rest;const {context_digest:old,...base}=legacy;
   expect(payload).toEqual(base);
 });
-it("v2 signed task-context data purpose and sponsorship admission are separate",async()=>{
+it("v2 signed task-context data purpose and sponsorship admission are separate, with no assessment wait",async()=>{
   const {job}=seed(packet(),false,false);(state.docs.get(`siteAssessmentJobs/${job}`) as any).state="queued";
   const app=express();app.use(express.json());app.use((await import("../routes/internal-capture-worlds")).default);
   const server=createServer(app);await new Promise<void>(resolve=>server.listen(0,"127.0.0.1",resolve));
@@ -430,9 +354,9 @@ it("v2 signed task-context data purpose and sponsorship admission are separate",
     const data=await send("task-context",body);expect(data.status).toBe(200);
     expect(await data.json()).toMatchObject({purpose:"scene_preparation",confirmed:false,confirmed_at:null});
     expect((await send("task-context",{...body,purpose:"evaluation"})).status).toBe(400);
-    const held=await send("scene-sponsorship",{...body,expected_task_context_digest:prepOptions().expected_task_context_digest});
-    expect(held.status).toBe(409);expect(await held.json()).toEqual({code:"website_assessment_preparation_pending"});
-    expect(state.docs.get("inboundRequests/one")?.website_scene_sponsorship).toBeUndefined();
+    const granted=await send("scene-sponsorship",{...body,expected_task_context_digest:prepOptions().expected_task_context_digest});
+    expect(granted.status).toBe(200);
+    expect(state.docs.get("inboundRequests/one")?.website_scene_sponsorship).toEqual(await granted.json());
   } finally {await new Promise<void>(resolve=>server.close(()=>resolve()));}
 });
 
@@ -532,8 +456,11 @@ it("v2 actual signed item/visual/intake handlers retain purpose through transact
     const stored=state.docs.get(`taskEvaluationSceneIntakes/${receipt.id}`) as any;
     expect(stored.command.consent.task_confirmed).toBe(false);expect(stored.state).toBe("forward_pending");
     expect(state.docs.get("siteTaskBriefs/one")?.confirmedAtIso).toBeNull();
+    // A re-queued assessment does not hold the prepared scene; withdrawn rights do.
     const job=(state.docs.get("inboundRequests/one") as any).site_advisory.job_id;
     (state.docs.get(`siteAssessmentJobs/${job}`) as any).state="queued";
+    expect((await send("prepared-scene",body)).status).toBe(202);
+    (state.docs.get("inboundRequests/one") as any).future_processing_allowed=false;
     expect((await send("prepared-scene",body)).status).toBe(409);
     expect((await send("visual-scene",{request_id:"one",scene_id:"site-one",task_context_digest:grant.task_context_digest,
       world_id:"SYNTHETIC-world",operation_id:"SYNTHETIC-operation",model:"marble-1.1-plus",thumbnail_url:null,pano_url:null,launch_url:"https://marble.worldlabs.ai/world/SYNTHETIC"})).status).toBe(409);
@@ -575,63 +502,36 @@ it("v2 managed authoring keeps the exact preparation digest allowlist and cannot
   expect(await loadWebsiteSceneSponsorship("one",true,"walkthrough-one",prepOptions())).toMatchObject({purpose:"scene_preparation",authoring_agent_runtime:"openai_agents_api"});
 });
 it("v2 existing legacy grant cannot be relabeled as preparation or renewed by an explicit purpose request",async()=>{
-  seed();const legacy=await loadWebsiteSceneSponsorship("one",true);
+  seed();(state.docs.get("inboundRequests/one") as any).site_task_triage.disposition="qualified";
+  const legacy=await loadWebsiteSceneSponsorship("one",true);
   await expect(loadWebsiteSceneSponsorship("one",true,"walkthrough-one",prepOptions())).rejects.toThrow("website_scene_sponsorship_changed");
   expect(state.docs.get("inboundRequests/one")?.website_scene_sponsorship).toEqual(legacy);
 });
 
-it("v2 status validates an actual loader-persisted expired base grant and rejects inherited child proposal/advisory drift",async()=>{
+it("v2 status validates an actual loader-persisted expired base grant without any assessment",async()=>{
   seed(packet(),false,false);const first=await loadWebsiteSceneSponsorship("one",true,"walkthrough-one",prepOptions());
   const record=state.docs.get("inboundRequests/one") as any,brief=state.docs.get("siteTaskBriefs/one") as any;
-  const prepared=await loadAssessmentPreparationProposal("one","walkthrough-one");
   const before=structuredClone(record.website_scene_sponsorship);
-  const input={requestId:"one",captureId:"walkthrough-one",brief,record,assessmentPreparationProposal:prepared!.proposal};
+  delete record.site_advisory;
+  const input={requestId:"one",captureId:"walkthrough-one",brief,record};
   vi.spyOn(Date,"now").mockReturnValue((first.expires_at_epoch+1)*1000);
   try {expect(currentWebsitePreparationStatusContext(input).context_digest).toBe(first.task_context_digest);
     await expect(loadWebsiteSceneSponsorship("one",false)).rejects.toThrow("consent_expired");
-    const child="supplement-synthetic-child";
-    const parent={capture_id:"walkthrough-one",raw_bundle_digest:`sha256:${"a".repeat(64)}`,raw_manifest_uri:"gs://synthetic/scenes/site-one/captures/walkthrough-one/raw/manifest.json",upload_completion_digest:`sha256:${"b".repeat(64)}`,completion_generation:"1",completion_record_generation:"2",manifest_generation:"3"};
-    const source={...parent,capture_id:child,raw_manifest_uri:`gs://synthetic/scenes/site-one/captures/${child}/raw/manifest.json`,raw_bundle_digest:`sha256:${"d".repeat(64)}`};
-    const captureBinding={schema_version:"website_capture_continuation.v1",original_capture_id:"walkthrough-one",capture_id:child,coordinate_frames_independent:true,
-      lineage:[{child:source,parent,supplement:{parent_capture_id:parent.capture_id,parent_bundle_digest:parent.raw_bundle_digest,parent_manifest_uri:parent.raw_manifest_uri}}]};
-    const full=projectWebsiteTaskContext(brief,projectWebsiteCaptureRights(record),{purpose:"scene_preparation",captureId:child,captureBinding});
-    expect(full.context_digest).not.toBe(first.task_context_digest);
-    expect(()=>currentWebsitePreparationStatusContext({...input,captureId:child,captureBinding})).toThrow("website_assessment_preparation_pending");
-    // Even a coherently edited pointer/proposal cannot override actual current request facts.
-    const proposal={...prepared!.proposal,context_digest:"f".repeat(64)};
-    const forged={...record,site_advisory:{...record.site_advisory,context_digest:proposal.context_digest}};
-    expect(()=>currentWebsitePreparationStatusContext({...input,record:forged,assessmentPreparationProposal:proposal})).toThrow("website_assessment_preparation_pending");
+    const forged={...record,website_scene_sponsorship:{...record.website_scene_sponsorship,max_total_spend_usd:999}};
+    expect(()=>currentWebsitePreparationStatusContext({...input,record:forged})).toThrow("website_scene_sponsorship_binding_invalid");
     expect(record.website_scene_sponsorship).toEqual(before);
   } finally {vi.restoreAllMocks();}
 });
 
-it("prepares an arbitrary accepted task from the admitted assessment without granting native scoring",async()=>{
+it("prepares an arbitrary accepted task without granting native scoring",async()=>{
   const {record}=seed();record.site_task_scope={supported:false,kind:null,reason:"deformable",disposition:"accepted_for_analysis"};
-  const prepared=await loadAssessmentPreparationProposal("one","walkthrough-one");
-  const {websiteSceneSponsorship}=await import("../utils/websiteSceneSponsorship");
   const brief=state.docs.get("siteTaskBriefs/one") as any;
-  const {projectWebsiteTaskContext,projectWebsiteCaptureRights}=await import("../utils/websiteTaskContext");
   const expected=projectWebsiteTaskContext(brief,projectWebsiteCaptureRights(record),{purpose:"scene_preparation"}).context_digest;
-  const authority=websiteSceneSponsorship({requestId:"one",record,brief,purpose:"scene_preparation",expected_task_context_digest:expected,
-    assessmentPreparationProposal:prepared!.proposal,now:Date.now()/1000});
-  expect(authority).toMatchObject({purpose:"scene_preparation",assessment_preparation_proposal:{robot_suitability_verified:false,physical_trial_authorized:false}});
-  expect(()=>websiteSceneSponsorship({requestId:"one",record,brief,assessmentPreparationProposal:prepared!.proposal,now:Date.now()/1000}))
+  const authority=websiteSceneSponsorship({requestId:"one",record,brief,purpose:"scene_preparation",expected_task_context_digest:expected,now:Date.now()/1000});
+  expect(authority).toMatchObject({purpose:"scene_preparation"});
+  record.site_task_triage.disposition="qualified";
+  expect(()=>websiteSceneSponsorship({requestId:"one",record,brief,now:Date.now()/1000}))
     .toThrow("website_scene_site_not_qualified");
-});
-
-it("does not borrow an assessment when current typed task semantics change",async()=>{
-  seed(packet(),true,true,{}, {taskFamily:"rigid_pick_and_place"});
-  (state.docs.get("siteTaskBriefs/one") as any).summary="Fold towels";
-  await expect(loadAssessmentPreparationProposal("one","walkthrough-one")).rejects.toThrow("pending");
-});
-it("binds current legacy confirmed novel proposals as general task semantics",async()=>{
-  const {record}=seed(packet(),true,true,{}, {summary:"Fold towels"});
-  record.site_task_scope={supported:false,reason:"deformable"};
-  const proposal=await loadAssessmentPreparationProposal("one","walkthrough-one");
-  const {projectWebsiteTaskContext,projectWebsiteCaptureRights}=await import("../utils/websiteTaskContext");
-  const context=projectWebsiteTaskContext(state.docs.get("siteTaskBriefs/one") as any,projectWebsiteCaptureRights(record),{purpose:"scene_preparation"});
-  expect(proposal?.proposal.scope).toBe("scene_preparation_only");
-  expect(context).toMatchObject({confirmed:true,task_family:"general_task"});
 });
 
 function currentPreparationRequest() {
@@ -639,32 +539,7 @@ function currentPreparationRequest() {
     projectWebsiteCaptureRights(state.docs.get("inboundRequests/one")), {purpose:"scene_preparation"});
   return {purpose:"scene_preparation" as const,expected_task_context_digest:context.context_digest};
 }
-it("refreshes a stale context once through the existing assessment queue, without recreating its grant",async()=>{
-  vi.stubEnv("BLUEPRINT_SITE_VIDEO_EVIDENCE_ENABLED","true");
-  const {job}=seed(packet(),false,false);
-  await loadWebsiteSceneSponsorship("one",true,"walkthrough-one",currentPreparationRequest());
-  const original=structuredClone(state.docs.get("inboundRequests/one")!.website_scene_sponsorship);
-  (state.docs.get("siteTaskBriefs/one") as any).taskFamily="general_task";
-  const options=currentPreparationRequest();
-  await expect(loadWebsiteSceneSponsorship("one",true,"walkthrough-one",options)).rejects.toThrow("website_assessment_preparation_pending");
-  const pointer=(state.docs.get("inboundRequests/one") as any).site_advisory;
-  expect(pointer).toMatchObject({state:"queued"});expect(pointer.job_id).not.toBe(job);
-  expect(state.docs.get(`siteAssessmentJobs/${pointer.job_id}`)).toMatchObject({state:"queued",claim_id:null,packet_sha256:null});
-  expect(state.docs.get(`siteAssessmentJobs/${job}`)).toMatchObject({state:"completed"});
-  expect(state.docs.get("agentRuns/assessment-one")).toMatchObject({status:"completed"});
-  expect(state.docs.get("inboundRequests/one")!.website_scene_sponsorship).toEqual(original);
-  const after=[...state.docs];
-  await expect(loadWebsiteSceneSponsorship("one",true,"walkthrough-one",options)).rejects.toThrow("website_assessment_preparation_pending");
-  expect([...state.docs]).toEqual(after);
-});
-it("keeps stale assessment status reads observational",async()=>{
-  vi.stubEnv("BLUEPRINT_SITE_VIDEO_EVIDENCE_ENABLED","true");seed(packet(),false,false);
-  (state.docs.get("siteTaskBriefs/one") as any).taskFamily="general_task";
-  const before=structuredClone([...state.docs]);
-  await expect(loadWebsiteSceneSponsorship("one",false,"walkthrough-one",currentPreparationRequest())).rejects.toThrow("pending");
-  expect([...state.docs]).toEqual(before);
-});
-it("rejects a stale caller snapshot before queuing a new assessment",async()=>{
+it("rejects a stale caller snapshot without any write",async()=>{
   vi.stubEnv("BLUEPRINT_SITE_VIDEO_EVIDENCE_ENABLED","true");seed(packet(),false,false);
   const options=currentPreparationRequest();
   (state.docs.get("siteTaskBriefs/one") as any).operatorAnswers={workload:"20"};
@@ -672,13 +547,14 @@ it("rejects a stale caller snapshot before queuing a new assessment",async()=>{
   await expect(loadWebsiteSceneSponsorship("one",true,"walkthrough-one",options)).rejects.toThrow("website_task_context_changed");
   expect([...state.docs]).toEqual(before);
 });
-it("preserves revoked source and disabled assessment admission",async()=>{
+it("refuses a revoked source and prepares with assessment evidence disabled",async()=>{
   for(const disabled of [false,true]) {
     state.docs.clear();seed(packet(),false,false);vi.stubEnv("BLUEPRINT_SITE_VIDEO_EVIDENCE_ENABLED",disabled?"false":"true");
     (state.docs.get("siteTaskBriefs/one") as any).taskFamily="general_task";
     if(!disabled)(state.docs.get("inboundRequests/one") as any).request.consent_attestation.revoked_at_iso="2026-10-27T00:00:00Z";
     const options=currentPreparationRequest(),before=structuredClone([...state.docs]);
-    await expect(loadWebsiteSceneSponsorship("one",true,"walkthrough-one",options)).rejects.toThrow(disabled?"pending":"source_revoked");
+    if(disabled) {expect(await loadWebsiteSceneSponsorship("one",true,"walkthrough-one",options)).toMatchObject({purpose:"scene_preparation"});continue;}
+    await expect(loadWebsiteSceneSponsorship("one",true,"walkthrough-one",options)).rejects.toThrow("source_revoked");
     expect([...state.docs]).toEqual(before);
   }
 });
@@ -694,7 +570,7 @@ async function legacyRoutingGrant(requestExtras: Record<string, unknown> = {}) {
   state.docs.get("inboundRequests/one")!.website_scene_sponsorship=retained;
   return {current,retained,job};
 }
-it("continues only the exact old routing projection under its retained allowance and a current assessment",async()=>{
+it("continues only the exact old routing projection under its retained allowance",async()=>{
   const {current,retained}=await legacyRoutingGrant();
   const before=structuredClone([...state.docs]);
   const grant=await loadWebsiteSceneSponsorship("one",false,"walkthrough-one",currentPreparationRequest());
@@ -704,35 +580,28 @@ it("continues only the exact old routing projection under its retained allowance
     expect(grant[field]).toEqual(retained[field as keyof typeof retained]);
   const record=state.docs.get("inboundRequests/one")!;
   expect(currentWebsitePreparationStatusContext({requestId:"one",captureId:"walkthrough-one",brief:state.docs.get("siteTaskBriefs/one") as any,
-    record,assessmentPreparationProposal:grant.assessment_preparation_proposal}).context_digest).toBe(current.context_digest);
+    record}).context_digest).toBe(current.context_digest);
   expect([...state.docs]).toEqual(before);
 });
-it.each(["source","owner_facts","invalid_parent","different_projection"])("refuses a legacy routing continuation with changed %s",async(change)=>{
+it.each(["owner_facts","invalid_parent","different_projection"])("refuses a legacy routing continuation with changed %s",async(change)=>{
   const {retained}=await legacyRoutingGrant();
   const record=state.docs.get("inboundRequests/one")!;
-  const proposal=(await loadAssessmentPreparationProposal("one","walkthrough-one"))!.proposal;
   const brief=state.docs.get("siteTaskBriefs/one") as any;
   const {crossRuntimeDigest}=await import("../utils/crossRuntimeCanonical");
-  if(change==="source") {
-    retained.assessment_preparation_proposal={...retained.assessment_preparation_proposal,source_key:`sha256:${"f".repeat(64)}`};
-    const {authority_digest:_digest,...payload}=retained;retained.authority_digest=crossRuntimeDigest(payload);
-  } else if(change==="owner_facts")brief.operatorAnswers={workload:"20"};
+  if(change==="owner_facts")brief.operatorAnswers={workload:"20"};
   else if(change==="invalid_parent")retained.max_total_spend_usd=999;
   else {retained.task_context_digest=`sha256:${"f".repeat(64)}`;const {authority_digest:_digest,...payload}=retained;retained.authority_digest=crossRuntimeDigest(payload);}
-  expect(()=>websiteSceneSponsorship({requestId:"one",record,brief,purpose:"scene_preparation",
-    assessmentPreparationProposal:proposal,now:Date.now()/1000})).toThrow();
-  expect(()=>currentWebsitePreparationStatusContext({requestId:"one",captureId:"walkthrough-one",record,brief,
-    assessmentPreparationProposal:proposal})).toThrow();
+  expect(()=>websiteSceneSponsorship({requestId:"one",record,brief,purpose:"scene_preparation",now:Date.now()/1000})).toThrow();
+  expect(()=>currentWebsitePreparationStatusContext({requestId:"one",captureId:"walkthrough-one",record,brief})).toThrow();
 });
 it("keeps expired legacy routing authority closed to dispatch while allowing exact status evidence",async()=>{
   const {retained,current}=await legacyRoutingGrant();
   retained.expires_at_epoch=Date.now()/1000-1;
   const {authority_digest:_digest,...payload}=retained;
   retained.authority_digest=(await import("../utils/crossRuntimeCanonical")).crossRuntimeDigest(payload);
-  const proposal=(await loadAssessmentPreparationProposal("one","walkthrough-one"))!.proposal;
   await expect(loadWebsiteSceneSponsorship("one",false,"walkthrough-one",currentPreparationRequest())).rejects.toThrow("consent_expired");
   expect(currentWebsitePreparationStatusContext({requestId:"one",captureId:"walkthrough-one",record:state.docs.get("inboundRequests/one")!,
-    brief:state.docs.get("siteTaskBriefs/one") as any,assessmentPreparationProposal:proposal}).context_digest).toBe(current.context_digest);
+    brief:state.docs.get("siteTaskBriefs/one") as any}).context_digest).toBe(current.context_digest);
 });
 
 it("preserves the exact managed-agent task allowlist across the routing projection",async()=>{
@@ -754,60 +623,46 @@ it("preserves the exact managed-agent task allowlist across the routing projecti
 });
 
 
-it("quarantines an optional unsupported claim without blocking a separately supported preparation candidate", async () => {
+it("prepares without using or rewriting unsupported advisory claims", async () => {
   const p=packet();
   p.raw_model_assessment.known.push({...fact(),evidence:[{...fact().evidence[0],selector:{kind:"video_observation",observation_index:9,field_path:null}}]} as never);
   seed(p);
-  const prepared=await loadAssessmentPreparationProposal("one","walkthrough-one");
-  expect(prepared?.proposal).toMatchObject({scope:"scene_preparation_only",robot_suitability_verified:false,physical_trial_authorized:false});
+  const grant=await loadWebsiteSceneSponsorship("one",true,"walkthrough-one",prepOptions());
+  expect(grant).toMatchObject({purpose:"scene_preparation"});
+  expect(grant).not.toHaveProperty("assessment_preparation_proposal");
   expect(state.docs.get("agentRuns/assessment-one")?.artifacts.site_assessment_packet).toEqual(p);
 });
 
-it("ignores an unsupported alternative but never uses its reasons to authorize construction", async () => {
-  const p=packet();
-  const unsupported=structuredClone(p.raw_model_assessment.approaches[0]);
-  unsupported.reasons[0].evidence[0].selector.observation_index=9;
-  p.raw_model_assessment.approaches.unshift(unsupported);
-  expect(await assessmentProposesPreparation(p,30)).toBe(true);
-  p.raw_model_assessment.approaches.pop();
-  expect(await assessmentProposesPreparation(p,30)).toBe(false);
-});
-
-it("requires actual supported reasons and a supported job before preparation", async () => {
-  const p=packet();p.raw_model_assessment.approaches[0].reasons=[];
-  expect(await assessmentProposesPreparation(p,30)).toBe(false);
-  const noJob=packet();noJob.raw_model_assessment.job=[];
-  expect(await assessmentProposesPreparation(noJob,30)).toBe(false);
-  const unknownReason=packet();unknownReason.raw_model_assessment.approaches[0].reasons=[{text:"Guess",basis:"unknown",evidence:[]} as never];
-  expect(await assessmentProposesPreparation(unknownReason,30)).toBe(false);
-});
-
-it("rebinds a verified child assessment to the existing source-independent task allowance without resetting caps", async () => {
+it("rebinds a verified child source without a new advisory or a fresh allowance", async () => {
   seed(packet(), false, false);
-  const root = await loadWebsiteSceneSponsorship("one", true, "walkthrough-one", prepOptions());
+  let root = await loadWebsiteSceneSponsorship("one", true, "walkthrough-one", prepOptions());
   const record = state.docs.get("inboundRequests/one") as any;
   const brief = state.docs.get("siteTaskBriefs/one") as any;
   const child = `supplement-${"a".repeat(40)}`;
-  const proposal = { ...root.assessment_preparation_proposal, capture_id: child, source_key: "new-source", job_id: "new-job" };
-  record.site_advisory = { ...record.site_advisory, source_key: proposal.source_key, job_id: proposal.job_id };
+  // Old stored grants can retain an advisory proposal for their original source.
+  // The child continuation needs no new proposal and must not send the old one as child authority.
+  const {authority_digest: _originalDigest, ...legacyPayload} = root;
+  legacyPayload.assessment_preparation_proposal = {schema_version:"site_assessment_preparation_proposal.v1",
+    capture_id:"walkthrough-one",source_key:"retained-source",job_id:"retained-advisory"};
+  root = {...legacyPayload,authority_digest:(await import("../utils/crossRuntimeCanonical")).crossRuntimeDigest(legacyPayload)};
+  record.website_scene_sponsorship = root;
   const binding = { schema_version: "website_capture_continuation.v1", capture_id: child, original_capture_id: "walkthrough-one",
     coordinate_frames_independent: true, lineage: [{ child: {capture_id: child}, parent: {capture_id: "walkthrough-one"} }] };
   const context = projectWebsiteTaskContext(brief, projectWebsiteCaptureRights(record), { captureId: child,
     captureBinding: binding, purpose: "scene_preparation" });
   const input = { requestId: "one", brief, record, now: Date.now() / 1000, captureId: child, captureBinding: binding,
-    assessmentPreparationProposal: proposal, purpose: "scene_preparation" as const, expected_task_context_digest: context.context_digest };
+    purpose: "scene_preparation" as const, expected_task_context_digest: context.context_digest };
   const renewedContext = websiteSceneSponsorship(input);
   expect(renewedContext).toMatchObject({ capture_id: child, task_context_digest: context.context_digest,
     continuation_parent_authority_digest: root.authority_digest, expires_at_epoch: root.expires_at_epoch,
     max_total_spend_usd: root.max_total_spend_usd, max_paid_attempts: root.max_paid_attempts });
+  expect(renewedContext).not.toHaveProperty("assessment_preparation_proposal");
   expect(record.website_scene_sponsorship).toEqual(root);
   // A replacement video does not authorize different task instructions under
-  // the parent's per-task provider policy, even if an assessment was resealed.
+  // the parent's per-task provider policy.
   const changed = { ...brief, summary: "A materially different robot job" };
-  const changedProposal = { ...proposal, context_digest: advisoryContextDigest(record, changed) };
-  record.site_advisory.context_digest = changedProposal.context_digest;
   const changedContext = projectWebsiteTaskContext(changed, projectWebsiteCaptureRights(record), { captureId: child,
     captureBinding: binding, purpose: "scene_preparation" });
-  expect(() => websiteSceneSponsorship({ ...input, brief: changed, assessmentPreparationProposal: changedProposal,
+  expect(() => websiteSceneSponsorship({ ...input, brief: changed,
     expected_task_context_digest: changedContext.context_digest })).toThrow("website_scene_sponsorship_changed");
 });

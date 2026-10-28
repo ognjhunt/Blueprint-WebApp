@@ -73,7 +73,7 @@ test("mobile navigation works and the method steps are visible without a click",
   await expect(page).toHaveURL(/\/how-it-works$/);
   await expect(page.locator("h1")).toContainText("Start with your task.");
   await page.goto("/");
-  await expect(page.getByText("Review comparable proposals, agree the pilot with your chosen partner and measure the result against your criteria.")).toBeVisible();
+  await expect(page.getByText("When an approach works in simulation, we work alongside a deployment company to run a pilot at your site and measure the result against your criteria.")).toBeVisible();
 });
 
 test("old marketing links resolve to the minimal website without losing source context", async ({ page }) => {

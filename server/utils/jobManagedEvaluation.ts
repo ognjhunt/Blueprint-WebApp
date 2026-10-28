@@ -38,7 +38,7 @@ export function managedJobTask(args: {
   brief: Record<string, any> | undefined;
   inventory?: TaskItemInventoryRecord | null;
   sourceSession?: Record<string, any> | null;
-  /** Only diagnostic screening may inspect the exact retained preparation task before owner confirmation. */
+  /** Only the automatic job evaluation may inspect the exact retained preparation task before the site confirms the brief. */
   allowProposedScreening?: boolean;
   screeningCapture?: { captureId: string; captureBinding?: Record<string, any> };
 }) {
@@ -188,7 +188,10 @@ export function projectManagedJobEvidence(
   if (!result || result.record_id !== run.result_record_id) return base;
   const publication = publicationFromResultRecord(result);
   if (!publication) return base;
-  if (publication.schema_version === "beta_policy_screening_publication.v1") {
+  if (publication.schema_version === "beta_policy_screening_publication.v2"
+    || publication.schema_version === "beta_policy_screening_publication.v1") {
+    // The automatic run under the site's allowance is the job's evaluation
+    // (owner decision 2026-10-28). Retained v1 rows read the same way.
     const value = parseBetaPolicyScreeningPublication(publication);
     if (!value || value.campaign_id !== runId || run.run_kind !== "beta_policy_screening"
       || value.publication_digest !== run.publication_digest || value.revision !== run.publication_revision
@@ -196,13 +199,25 @@ export function projectManagedJobEvidence(
       || value.source.scene_revision_digest !== run.source_scene_revision_digest
       || value.source.task_context_digest !== run.job_task_context_digest || value.site_id !== `site-${jobId}`) return base;
     const completed = value.candidates.filter(row => row.status === "completed").length;
-    const scored = value.candidates.reduce((total, row) => total + row.episodes_scored, 0);
-    return { ...base, state: value.status, resultDigest: ["completed", "blocked"].includes(value.status) ? value.publication_digest : null,
-      summary: `Early policy screening: ${completed} of ${value.candidates.length} candidates completed; ${scored} episodes scored against the job's success criteria.`,
-      nextAction: value.status === "completed" ? "Blueprint can use these early checks to choose which approaches need a full evaluation."
-        : value.status === "blocked" || value.status === "reconciliation_required" ? "Blueprint is reviewing the recorded limitations before any further run."
+    const total = value.candidates.length;
+    const scored = value.candidates.reduce((sum, row) => sum + row.episodes_scored, 0);
+    const notRun = value.candidates.filter(row => ["blocked", "unavailable", "deferred"].includes(row.status)).length;
+    const candidates = (count: number) => `${count} candidate${count === 1 ? "" : "s"}`;
+    // A run whose candidates finished with no scored episode has no estimate to show.
+    const status = value.status === "completed" && scored === 0 ? "blocked" : value.status;
+    return { ...base, state: status, resultDigest: ["completed", "blocked"].includes(status) ? value.publication_digest : null,
+      summary: status === "completed"
+        ? `Your job's simulation estimate: ${completed} of ${total} candidates ran, with ${scored} episodes scored against the job's success criteria.`
+        : status === "blocked" ? `No simulation estimate yet: none of the ${candidates(total)} produced a scored result.`
+          : `Simulation evaluation of your job: ${completed} of ${total} candidates finished; ${scored} episodes scored so far.`,
+      nextAction: status === "completed" ? "Blueprint uses this estimate to recommend the next step for your job, then works with a deployment company on any physical pilot."
+        : status === "blocked" || status === "reconciliation_required" ? "Blueprint is reviewing the recorded limitations before any further run."
           : "Candidate progress will update as each test finishes.",
-      limitations: ["Screening is diagnostic. It does not declare a winner, qualify a pilot, or prove physical deployment performance."],
+      limitations: [
+        ...(scored ? [`A bounded simulation estimate from ${scored} scored episode${scored === 1 ? "" : "s"} across ${candidates(completed)}, for this job's recorded task and simulated conditions only.`] : []),
+        "A simulation result is a bounded estimate. It does not certify physical performance or safety.",
+        ...(notRun ? [`${candidates(notRun)} did not run; each row lists why.`] : []),
+      ],
       screening: { budget: { limitUsd: value.budget.limit_usd, committedUpperBoundUsd: value.budget.committed_upper_bound_usd,
         spentUpperBoundUsd: value.budget.spent_upper_bound_usd, reservedUsd: value.budget.reserved_usd },
         candidates: value.candidates.map(row => ({ candidateId: row.candidate_id, name: row.display_name,

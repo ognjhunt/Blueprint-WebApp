@@ -63,7 +63,7 @@ export function BetaCohortGuidePage({ guide }: BetaCohortGuidePageProps) {
                   <img src={guide.heroImage} alt={guide.heroAlt} className="h-full w-full object-cover" />
                 </div>
                 <div className="mt-6 flex flex-wrap gap-3">
-                  <SurfacePill className={metaPill}>By invitation</SurfacePill>
+                  <SurfacePill className={metaPill}>Reviewed access</SurfacePill>
                   <SurfacePill className={metaPill}>Free</SurfacePill>
                 </div>
               </div>

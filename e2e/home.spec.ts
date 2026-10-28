@@ -17,5 +17,5 @@ test("homepage speaks to sites, with partners one nav link away", async ({ page 
   for (const start of await starts.all()) await expect(start).toHaveAttribute("href", "/contact/site-operator");
   await expect(main.getByText("Free during the beta. Start with a video; we draft the job description from it.")).toBeVisible();
   await expect(main.getByRole("link", { name: /robot-team beta|early access/i })).toHaveCount(0);
-  await expect(main.getByText("Review comparable proposals, agree the pilot with your chosen partner and measure the result against your criteria.")).toBeVisible();
+  await expect(main.getByText("When an approach works in simulation, we work alongside a deployment company to run a pilot at your site and measure the result against your criteria.")).toBeVisible();
 });

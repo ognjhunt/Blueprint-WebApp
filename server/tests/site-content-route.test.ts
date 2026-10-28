@@ -56,15 +56,15 @@ describe("site-content route", () => {
       );
       expect(payload.safety).toContain("provider execution");
       expect(payload.safety).toContain("owner-system evidence");
-      expect(JSON.stringify(payload)).toContain("free when invited");
+      expect(JSON.stringify(payload)).toContain("free access to its policy or an integration");
       expect(JSON.stringify(payload)).toContain("no private paid evaluations");
-      // The free beta: no site fee, one evaluated recommendation, open site sign-up.
+      // The free beta: no site fee, Blueprint's own evaluation, open site sign-up.
       expect(JSON.stringify(payload)).toContain("Free for sites and partners");
-      // Blueprint runs the candidates and recommends deployment companies (owner, 2026-10-26).
+      // Blueprint runs the candidates itself and shows a bounded estimate or "held" (owner, 2026-10-28).
       expect(JSON.stringify(payload)).toContain("Blueprint runs the candidate evaluations itself");
-      expect(payload.summary).toContain("recommends the approach that wins for the site plus deployment companies that support it");
-      expect(JSON.stringify(payload)).toContain("compare delivery proposals");
-      expect(JSON.stringify(payload)).toContain("customer chooses and contracts with the delivery partner");
+      expect(payload.summary).toContain("The site sees a bounded estimate of what works");
+      expect(payload.summary).toContain("works alongside a deployment company on the real site");
+      expect(JSON.stringify(payload)).not.toMatch(/compare delivery proposals|full evaluation|join by invitation|evaluated free when invited/);
       expect(JSON.stringify(payload)).not.toContain("books it in one step");
       expect(JSON.stringify(payload)).toContain("anyone can start a job");
       expect(JSON.stringify(payload)).not.toMatch(/\$2,500|No pilot, no fee/);

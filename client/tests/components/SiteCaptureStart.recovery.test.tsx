@@ -18,10 +18,10 @@ vi.mock("@/lib/siteCaptureDurability", () => ({
     const current = durability.rows.get(key);
     if (!replaceIdentity && current && (current.retired || current.value?.requestId !== value.requestId
       || current.value?.retryToken !== value.retryToken)) throw new Error("Fixture durability transaction aborted");
-    const { task, location, email, company, method, region, regionManuallySet } = value.draft;
+    const { task, location, email, method, region, regionManuallySet } = value.draft;
     durability.rows.set(key, { retired: false, value: {
       version: value.version, savedAt: value.savedAt, requestId: value.requestId, retryToken: value.retryToken,
-      draft: { task, location, email, company, method, region, regionManuallySet },
+      draft: { task, location, email, method, region, regionManuallySet },
       pending: value.pending ? { body: value.pending.body, endpoint: value.pending.endpoint, acknowledged: value.pending.acknowledged } : null,
     } });
   },
@@ -40,7 +40,6 @@ function fill(task = "Move sealed cartons") {
   fireEvent.change(document.querySelector("#start-task")!, {target: {value: task}});
   fireEvent.change(document.querySelector("#start-location")!, {target: {value: "Austin, TX"}});
   fireEvent.change(document.querySelector("#start-email")!, {target: {value: "operator@example.test"}});
-  fireEvent.change(document.querySelector("#start-company")!, {target: {value: "Fixture company"}});
 }
 function submit() { fireEvent.submit(screen.getByRole("form")); }
 /**
@@ -54,7 +53,7 @@ async function renderAsSiteOwner() {
   await screen.findByText(/Saving to your workspace as owner@example.test/);
   return view;
 }
-/** A site account is asked for neither an email nor a company: the account has both. */
+/** A site account is not asked for an email: the account has one. */
 function fillSigned(task = "Move sealed cartons") {
   fireEvent.change(document.querySelector("#start-task")!, {target: {value: task}});
   fireEvent.change(document.querySelector("#start-location")!, {target: {value: "Austin, TX"}});

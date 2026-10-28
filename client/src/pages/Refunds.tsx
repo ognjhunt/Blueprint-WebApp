@@ -13,7 +13,7 @@ export default function Refunds() {
       <p>This page explains the refund commitments in our <a href={applicableTerms}>applicable Terms of Service</a>. It does not replace the terms of a prior purchase or a signed agreement.</p>
       <section>
         <h2>The beta is free</h2>
-        <p>Blueprint charges sites and robot teams nothing for submitting a job, screening, invited evaluations, a recommendation or booking the recommended pilot. There are no paid private evaluations, top-ups or checkout during the beta, so there is no new Blueprint fee to refund.</p>
+        <p>Blueprint charges sites and partners nothing for submitting a job, building the simulation, the evaluation or its result. There are no paid private evaluations, top-ups or checkout during the beta, so there is no new Blueprint fee to refund.</p>
       </section>
       <section>
         <h2>Purchases made before the free beta</h2>
@@ -23,7 +23,7 @@ export default function Refunds() {
       </section>
       <section>
         <h2>Physical pilots and cancellations</h2>
-        <p>The site and robot team agree the physical pilot&rsquo;s scope, dates, price and cancellation terms directly. Blueprint takes no cut. Contact the party you contracted with about those payments; Blueprint cannot refund money paid directly to a robot team.</p>
+        <p>The site and the deployment company agree the physical pilot&rsquo;s scope, dates, price and cancellation terms directly. Blueprint takes no cut. Contact the party you contracted with about those payments; Blueprint cannot refund money paid directly to a deployment company.</p>
         <p>{pilotReplacementPolicy} Contact <a href={`mailto:${COMPANY.emails.hello}`}>{COMPANY.emails.hello}</a> with your job link to discuss a replacement or a cancellation.</p>
       </section>
       <section>

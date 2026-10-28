@@ -1,9 +1,9 @@
 /**
  * Two public entry points. Sites start a job openly (the form comes before the
- * supporting details); partners apply for an invitation. Blueprint runs the
- * candidate evaluations itself (owner decision 2026-10-26). Everything in the
- * beta is free, and the physical pilot is agreed between the site and its
- * chosen deployment partner.
+ * supporting details); technology providers apply to give Blueprint access to
+ * a policy or an integration. Blueprint runs the candidate evaluations itself
+ * (owner direction 2026-10-28). Everything in the beta is free, and the
+ * physical pilot is agreed between the site and the deployment company.
  */
 import { useLocation } from "wouter";
 import { useState } from "react";
@@ -52,9 +52,9 @@ export default function Contact() {
           <details className="ms-task-interest ms-visitor-detail">
             <summary>What happens after applying?</summary>
             <p>We review your robot's capabilities against a real site task, then email the next step. Your application remains pending until manual approval. Applying or creating an account does not grant access. Approved teams see anonymized cards authorized when sites start a job; sites can edit or hide them afterward.</p>
-            <p>Blueprint runs each evaluation itself, comparing candidate robots and policies in a site simulation reconstructed from the site's video. You supply access to your policy or robot, or the integration needed to run it. Each evaluation is evidence for a bounded decision. Before any delivery recommendation, the provider confirms the configuration, timing, site conditions and support it can offer.</p>
+            <p>Blueprint runs each evaluation itself, comparing candidate robots and policies in a site simulation reconstructed from the site's video. You supply access to your policy or robot, or the integration needed to run it. Each evaluation is a bounded estimate for the site. Teams do not run their own evaluations of a site's job.</p>
             <p>Before an evaluation, confirm the task, robot and gripper, observation and action interfaces, and any adapter work. You serve your policy at one HTTPS URL that accepts a bearer token, and register it as a policy endpoint with that token; containers and private checkpoints are not admitted. Each evaluation is 200 hidden episodes.</p>
-            <p>Evaluations are free during the beta. The customer chooses its delivery partner and agrees the physical pilot's scope, price, dates and terms with that company directly; Blueprint takes no cut. An invitation does not guarantee a run, a recommendation, or a deployment.</p>
+            <p>Access is free during the beta. Any physical pilot's scope, price, dates and terms are agreed between the site and the deployment company directly; Blueprint takes no cut. Approval does not guarantee a run or a deployment.</p>
             <p><a href="/agent-access.openapi.json">Technical API reference</a> · <a href="mailto:hello@tryblueprint.io">Ask about job fit or integration</a></p>
           </details>
           <p className="ms-field-hint" style={{ marginTop: "24px" }}>
@@ -71,7 +71,7 @@ export default function Contact() {
     <>
       <SEO
         title="Submit a job | Blueprint"
-          description="Send video of one recurring job at your site. Blueprint drafts the brief from it, builds a site simulation, runs candidate robots and policies against the job and recommends the approach that wins. No budget is required to start."
+          description="Send video of one recurring job at your site. Blueprint drafts the brief from it, builds a site simulation, runs candidate robots and policies against the job and shows you a bounded estimate of what works. No budget is required to start."
           canonical="/contact/site-operator"
       />
       <section className={`ms-inquiry ms-container${savedJob ? " ms-intake-saved" : ""}`}>
@@ -82,7 +82,7 @@ export default function Contact() {
           {!savedJob && <p className="ms-eyebrow">For site owners</p>}
           <h1>{savedJob ? "Your saved job" : "What work would you like automated?"}</h1>
           {!savedJob && <p className="ms-inquiry-description">
-            Send video of one recurring job. We draft the description from it, build a site simulation and run candidate robots and policies against the job. We recommend the approach that wins and deployment companies that support it; you choose the delivery partner for a measured pilot. Free during the beta; no budget is required to start.
+            Send video of one recurring job. We draft the description from it, build a site simulation and run candidate robots and policies against the job. You see a bounded estimate of what works, and we work alongside a deployment company on your site. Free during the beta; no budget is required to start.
           </p>}
         </div>
         <div className="ms-inquiry-forms">
@@ -92,8 +92,8 @@ export default function Contact() {
             {savedJob ? <p className="ms-field-hint">Your private job link shows the brief, progress, follow-up questions and the next decision. Keep it to return.</p> : <><p className="ms-field-hint">
               We analyze your video and draft a brief for you to correct.
               We then reconstruct your work area in simulation and run candidate policies, policy APIs and robots against the job ourselves.
-              Quick screening runs are diagnostic; we recommend only from the finalists&apos; full scoring.
-              Before deployment companies propose, we clarify the required result, budget and responsibilities. You choose the delivery partner and agree the pilot contract directly with them.
+              You see a bounded estimate of what works, or &ldquo;held&rdquo; if we can&apos;t simulate that kind of job yet.
+              We then work alongside a deployment company on your site; you agree the pilot contract directly with that company.
               Simulation is an estimate, not proof of physical performance or safety.
             </p>
             <p className="ms-field-hint">

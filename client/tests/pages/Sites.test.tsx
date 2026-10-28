@@ -154,7 +154,7 @@ describe("Sites", () => {
     expect(screen.queryByText(/qualified ready|qualified_ready/i)).not.toBeInTheDocument();
     // The page sits inside the layout's <main>; it must not open a second one.
     expect(document.querySelectorAll("main")).toHaveLength(0);
-    expect(screen.getByRole("link", { name: /Ask to evaluate this job/ }).getAttribute("href")).toContain("site=Owner-backed+warehouse");
+    expect(screen.getByRole("link", { name: /Offer your system for this job/ }).getAttribute("href")).toContain("site=Owner-backed+warehouse");
   });
 
   it("gives the loading state a heading", () => {

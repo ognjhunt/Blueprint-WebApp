@@ -14,6 +14,7 @@ import { CaptureRecorder } from "@/components/site/CaptureRecorder";
 vi.mock("@/lib/csrf", () => ({ withCsrfHeader: async (headers: Record<string, string>) => headers }));
 
 const fetchMock = vi.fn();
+let trackSettings: MediaTrackSettings = {};
 
 class FakeRecorder {
   static isTypeSupported() { return true; }
@@ -29,6 +30,7 @@ class FakeRecorder {
 }
 
 beforeEach(() => {
+  trackSettings = { width: 1920, height: 1080, frameRate: 30 };
   fetchMock.mockReset();
   fetchMock.mockImplementation(async (url: string) => {
     if (String(url).includes("/parts/complete")) return { ok: true, json: async () => ({ message: "Saved." }) };
@@ -36,7 +38,7 @@ beforeEach(() => {
   });
   vi.stubGlobal("fetch", fetchMock);
   vi.stubGlobal("MediaRecorder", FakeRecorder);
-  const track = { getSettings: () => ({ width: 1920, height: 1080, frameRate: 30 }), stop: () => undefined };
+  const track = { getSettings: () => trackSettings, stop: () => undefined };
   Object.defineProperty(window.navigator, "mediaDevices", {
     configurable: true,
     value: { getUserMedia: async () => ({ getVideoTracks: () => [track], getTracks: () => [track] }) },
@@ -59,4 +61,20 @@ it("reports the camera track's dimensions even though the stopped preview report
   expect(document.querySelector("video")!.videoWidth).toBe(0);
   expect(metadata).toMatchObject({ widthPx: 1920, heightPx: 1080, fps: 30 });
   expect(screen.queryByRole("alert")).toBeNull();
+});
+
+it("leaves out what the camera does not report instead of defaulting it", async () => {
+  trackSettings = {};
+  render(<CaptureRecorder token="tok" checklist={[{ id: "a", label: "The conveyor" }]} />);
+  fireEvent.click(await screen.findByRole("button", { name: "Open the camera" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Start recording" }));
+  await screen.findByText(/Show: The conveyor/);
+  fireEvent.click(screen.getByRole("button", { name: "Finish" }));
+  await screen.findByText("Saved.", { selector: "h2" });
+
+  const complete = fetchMock.mock.calls.find((call) => String(call[0]).includes("/parts/complete"))!;
+  const { metadata } = JSON.parse(complete[1].body);
+  expect(metadata).not.toHaveProperty("fps");
+  expect(metadata).not.toHaveProperty("widthPx");
+  expect(metadata.recordedAtEpochMs).toBeLessThanOrEqual(Date.now());
 });

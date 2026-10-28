@@ -484,9 +484,9 @@ export function PilotPreview() {
             <div><dt>Evidence needed</dt><dd>Site video, simulation comparisons and a measured physical pilot</dd></div>
             <div><dt>What you provide</dt><dd>{example.provide}</dd></div>
             <div><dt>Delivery scope</dt><dd>{example.teamProvides}</dd></div>
-            <div><dt>Budget</dt><dd>Agreed with you before delivery proposals</dd></div>
-            <div><dt>Pilot price</dt><dd>Quoted by a delivery partner and agreed before the pilot</dd></div>
-            <div><dt>Support</dt><dd>Provider and support terms confirmed in the proposal</dd></div>
+            <div><dt>Budget</dt><dd>Agreed with you before any pilot</dd></div>
+            <div><dt>Pilot price</dt><dd>Quoted by the deployment company and agreed before the pilot</dd></div>
+            <div><dt>Support</dt><dd>Agreed with the deployment company</dd></div>
             <div><dt>Still uncertain</dt><dd>{example.uncertain}</dd></div>
           </dl>
         </div>

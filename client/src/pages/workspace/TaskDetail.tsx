@@ -141,7 +141,7 @@ export default function TaskDetail() {
                   {linkState === "working" ? "Opening…" : "Open your job page"}
                 </button>
                 <p className="ws-note">
-                  Review the brief, update planning details, compare delivery proposals{task.sceneReady ? ", open your scene," : ""} and follow the next action.
+                  Review the brief, update planning details{task.sceneReady ? ", open your scene," : ""} and follow the next action.
                 </p>
                 {linkError && <p role="alert">{linkError}</p>}
               </div>
@@ -366,7 +366,7 @@ export default function TaskDetail() {
                   </>
                 ) : (
                   <Empty title="No evaluation results yet">
-                    Results will appear here when evaluations report measured outcomes. Delivery proposals and the next action are on your job page.
+                    Results will appear here when Blueprint's simulation of your job reports them. The next action is on your job page.
                   </Empty>
                 )}
               </section>
@@ -393,8 +393,8 @@ export default function TaskDetail() {
                   ) : (
                     <p className="ws-muted">
                       {task.pilot.notes || (task.pilotRecommended
-                        ? "Review the proposed approach, cost, support and evidence on your job page. Choose a delivery partner, then agree pilot terms directly."
-                        : "No pilot proposal is ready yet. Blueprint will assess suitable options and explain any checks still needed. Your job page holds planning details and delivery proposals as they become available.")}
+                        ? "Review the proposed approach, cost, support and evidence on your job page. If you go ahead, you agree pilot terms directly with the deployment company."
+                        : "No pilot is planned yet. When the simulation shows what works, Blueprint works alongside a deployment company on your site. Your job page shows the next step.")}
                     </p>
                   )}
                   {task.pilot.siteVisitAnswer && (

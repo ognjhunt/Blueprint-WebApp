@@ -24,11 +24,11 @@ export function PartnerDetail({ role }: { role: PartnerRole }) {
       <div className="ms-partner-explainer">
         <h2>{deployment ? "A clear scope before a proposal." : "A clear test before an integration."}</h2>
         <p>{deployment
-          ? "Review the required output, site conditions, available evidence and budget assumptions. Your proposal sets out equipment, installation, ongoing costs, timing and support. The customer chooses and contracts with the delivery company."
+          ? "Review the required output, site conditions, available evidence and budget assumptions. Your proposal sets out equipment, installation, ongoing costs, timing and support. The customer decides whether to proceed and contracts with you directly."
           : "We review supported hardware, observations, actions and access arrangements. Existing deployment evidence, simulation and physical trials answer different questions; the evaluation scope states what each result supports."}</p>
         <h3>{deployment ? "Who does what" : "What we need to understand"}</h3>
         <ul>{(deployment ? [
-          "Blueprint: the job brief, the candidate evaluations, the recommendation and pilot coordination.",
+          "Blueprint: the job brief, the simulation, the candidate evaluations and their bounded result, and working alongside you on the site.",
           "Your team: the equipment and implementation you quote, commissioning and agreed support.",
           "The customer: site access, the contract decision and acceptance against agreed criteria.",
         ] : [
