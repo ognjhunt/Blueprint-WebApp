@@ -255,11 +255,10 @@ export function assessReadiness(input: ReadinessInput): ReadinessVerdict {
     // retained processing. A measured gap cannot authorize same-link additions.
     const nextAction = input.evidence.hasVisual && input.evidence.explainsTask
       ? (input.evidence.missingCoverage?.length
-        ? "Your footage shows the job clearly. To prepare the scene we also need "
+        ? "Your footage shows the job clearly. Coverage to review: "
           + `${input.evidence.missingCoverage.join(", ")}.`
-        : "Your footage shows the job clearly. To prepare the scene we need a few more views of "
-          + "the work area — we will tell you which.")
-        + " Contact hello@tryblueprint.io with your job reference for help starting a new job with a complete walkthrough and fresh recording permission. Your original footage stays saved; this link cannot add to or replace it. The new job needs its own review before evaluation."
+        : "Your footage shows the job clearly, but some work-area views are missing.")
+        + " Blueprint will first check what reconstruction can recover. If additional source views are still necessary, contact hello@tryblueprint.io with your job reference for help starting a new job with a complete walkthrough and fresh recording permission. Your original footage stays saved; this link cannot add to or replace it. The new job needs its own review before evaluation."
       : blockingEvaluation.length
         ? "We have enough to guide the recording. Some answers are still needed before we can "
           + "evaluate this, and you can film the work area now."

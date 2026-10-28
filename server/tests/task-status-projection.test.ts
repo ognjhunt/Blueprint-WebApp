@@ -151,8 +151,8 @@ describe("the decision ladder", () => {
   });
 });
 
-describe("a measured coverage shortfall takes priority, because it is the most actionable", () => {
-  it("names the views and requires a new job instead of promising supplemental continuation", () => {
+describe("source coverage remains an explicit gap without preempting reconstruction", () => {
+  it("reviews reconstruction first and preserves immutable-source rules if more views remain necessary", () => {
     const status = projectTaskStatus(
       base({
         briefDrafted: true,
@@ -168,6 +168,21 @@ describe("a measured coverage shortfall takes priority, because it is the most a
     expect(status.headline).not.toMatch(/would finish/i);
     expect(status.operatorAction).toMatch(/new job.*complete walkthrough.*fresh recording permission/i);
     expect(status.operatorAction).toMatch(/cannot add to or replace/i);
+    expect(status.operatorAction).toMatch(/first check what reconstruction can recover/i);
+    expect(status.operatorAction).toMatch(/if additional source views are still necessary/i);
+    expect(status.headline).not.toMatch(/before we can build/i);
+  });
+
+  it.each([
+    {scenePreviewReady: true},
+    {preparationStatus: {state: "handed_off" as const, correlationId: null}},
+    {screening: {teams: 1, queued: 0, running: 0, reported: 1, noResult: 0}},
+  ])("does not hide retained scene or run progress behind an earlier coverage hint: %j", progress => {
+    const status = projectTaskStatus(base({briefDrafted: true, briefConfirmed: true, hasStoredCapture: true,
+      coversScene: false, missingViews: ["the rear of the shelves"], ...progress}));
+    expect(status.decision).not.toBe("add_views");
+    expect(status.operatorAction ?? "").not.toMatch(/new job|additional source views/i);
+    if ("screening" in progress) expect(status.decision).toBe("results");
   });
 
   it("does not claim a supplement will finish it when it would not", () => {
@@ -312,7 +327,7 @@ describe("screening and results rungs", () => {
     expect(status.decision).toBe("assessing");
   });
 
-  it("still puts a coverage shortfall ahead of screening", () => {
+  it("keeps a coverage shortfall visible without hiding recorded screening activity", () => {
     const status = projectTaskStatus(
       base({
         ...assessed,
@@ -321,7 +336,8 @@ describe("screening and results rungs", () => {
         screening: { teams: 1, queued: 1, running: 0, reported: 0, noResult: 0 },
       }),
     );
-    expect(status.decision).toBe("add_views");
+    expect(status.decision).toBe("screening");
+    expect(status.missingViews).toEqual(["the pallet position"]);
   });
 
   it("passes screening through taskStatusInputFrom", () => {
