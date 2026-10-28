@@ -104,6 +104,7 @@ async function runFreshWorker(stage: string) {
 }
 async function fill(kind: string) {
   await page.goto(`${base}/contact/site-operator`);
+  await page.getByText("Add job details and buying plans (optional)", { exact: true }).click();
   await page.locator("#start-task").fill(kind === "missing_task" ? "" : "Inspect a synthetic test pattern. No robot capability is asserted.");
   await page.locator("#start-location").fill(kind.includes("non_us") ? "Toronto, Canada" : kind === "unknown_country" ? "Unknown location" : "Austin, TX");
   await page.locator("#start-email").fill(kind === "missing_email" ? "" : `${activeCase.toLowerCase()}@example.com`);
@@ -116,7 +117,8 @@ async function fill(kind: string) {
     await page.locator("#start-method-upload").check();
     if (kind === "invalid_video_extension") await page.locator("#start-footage").setInputFiles({ name: "bad.txt", mimeType: "text/plain", buffer: Buffer.from("invalid") });
     else await page.locator("#start-footage").setInputFiles(fixture);
-    await page.locator("#start-rights").check();
+    await expect(page.locator("#start-rights")).toHaveCount(0);
+    await expect(page.locator("#start-password")).toHaveCount(0);
   }
 }
 function requestRows() { return [...state.docs.entries()].filter(([key]) => key.startsWith("inboundRequests/")); }

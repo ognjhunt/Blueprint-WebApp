@@ -32,11 +32,10 @@ test.afterAll(async () => {
     await writeFile(path.join(outputRoot, "source-after-run.json"), JSON.stringify(after,null,2));
     expect(after.files, "Source changed after launcher start; restart before scoring").toEqual(launchedSource.files);
 });
-// Footage waits for a saved job (owner decision 2026-10-18): a guest no longer sends its video
-// with the form, and the local backend refuses it. These cases need a signed-in site account
-// against the local backend (as playwright.reliability-intake.config.ts now has) before they can run.
+// Guest uploads retain a server-owned capture subject before account setup.
+// The isolated real-handler harness exercises receipt recovery without login.
 for (const [index, boundary] of ["acknowledged-upload", "browser-kill-after-stored-upload"].entries())
-    test.fixme(`${index === 0 ? "A-UJ-1" : "A-UJ-3"} normal UI ${boundary}`, async ({}, testInfo) => {
+    test(`${index === 0 ? "A-UJ-1" : "A-UJ-3"} normal UI ${boundary}`, async ({}, testInfo) => {
         const { execFileSync } = await import("node:child_process");
         const caseId = index === 0 ? "A-UJ-1" : "A-UJ-3";
         const source = await sourceReceipt();
@@ -98,7 +97,7 @@ for (const [index, boundary] of ["acknowledged-upload", "browser-kill-after-stor
             await page.locator("#start-company").fill("Owned isolated reliability fixture");
 
             await page.locator("#start-method-upload").check();
-            await page.locator("#start-upload-without-account").check();
+            await expect(page.locator("#start-password")).toHaveCount(0);
             await page.locator("#start-footage").setInputFiles(fixture);
             await page.getByRole("button", { name: "Start free assessment", exact: true }).click();
             if (boundary === "browser-kill-after-stored-upload") {
