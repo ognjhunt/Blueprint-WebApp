@@ -58,6 +58,10 @@ import type { GateAnswerSources } from "../../client/src/lib/gateProvenance";
 import type { SitePilotIntent } from "../../client/src/data/sitePilotIntent";
 import { gateAnswersOnFile } from "./gateAnswersOnFile";
 import { screenTaskScope, taskScopeRecord, type SiteTaskScope } from "./siteTaskScope";
+import { confirmFamilyTaskAnswer, familyTaskCaptureFingerprint, familyTaskContextBasis,
+  familyTaskQuestionBinding, familyTaskFactsEnabled, type FamilyTaskAnswer, type FamilyTaskBriefState } from "./siteTaskFamilyFacts";
+import { projectWebsiteTaskContext, projectWebsiteCaptureRights } from "./websiteTaskContext";
+import type { TaskItemInventoryRecord } from "./taskItemInventory";
 
 export const TASK_BRIEFS_COLLECTION = "siteTaskBriefs";
 
@@ -96,7 +100,7 @@ export interface ProposedGateAnswer {
   sourceQuote?: string;
 }
 
-export interface SiteTaskBriefRecord {
+export interface SiteTaskBriefRecord extends FamilyTaskBriefState {
   requestId: string;
   /** One line: what we think the job is. */
   summary: string;
@@ -401,6 +405,7 @@ export async function confirmBrief(params: {
   pilotIntent?: SitePilotIntent;
   /** The job in the site's own sentence, replacing the drafted summary. Required while that is a placeholder. */
   summary?: string;
+  familyTaskFacts?: FamilyTaskAnswer;
 }): Promise<ConfirmationResult | null> {
   const brief = await getBrief(params.requestId);
   if (!brief) return null;
@@ -413,6 +418,13 @@ export async function confirmBrief(params: {
   const supplied = { ...brief.operatorAnswers, ...params.operatorAnswers };
   const previousRequest = db
     ? (await db.collection("inboundRequests").doc(params.requestId).get()).data() : null;
+  if (params.familyTaskFacts) {
+    const retained = brief.familyTaskAuthoring;
+    const currentSource = retained ? await (await import("./websitePreparationStatus"))
+      .loadCurrentFamilyTaskAuthoring(params.requestId, retained.status.capture_id) : null;
+    if (!currentSource || currentSource.projection_digest !== retained?.status.projection_digest)
+      throw new Error("family_task_facts_source_changed");
+  }
   const answers: Record<string, string> = { ...gateAnswersOnFile(previousRequest ?? {}) };
   for (const fieldId of unknown) delete answers[fieldId];
 
@@ -469,6 +481,13 @@ export async function confirmBrief(params: {
 
   confirmed.taskFamily = scope.kind ?? "general_task";
 
+  // Repeating the same factual confirmation must not change its source context
+  // through a fresh timestamp alone. An actual edit or new fact keeps its new
+  // confirmation time and the ordinary exact-context/funding reconciliation.
+  if (familyTaskFactsEnabled() && !params.familyTaskFacts && brief.familyTaskFacts && brief.confirmedAtIso
+    && humanDecisionDigest({ ...brief, confirmedAtIso: confirmed.confirmedAtIso, confirmedBy: confirmed.confirmedBy })
+      === humanDecisionDigest(confirmed)) confirmed.confirmedAtIso = brief.confirmedAtIso;
+
   // Confirmation attests to answers, not to footage we have never received.
   const evidence = { hasAny: true, hasVisual: false, explainsTask: true,
     coversScene: false, missingCoverage: undefined as string[] | undefined };
@@ -481,6 +500,8 @@ export async function confirmBrief(params: {
       const requestSnapshot = await tx.get(requestRef);
       const requestedScope = { summary, answers, unknown: [...unknown].sort(), success: confirmed.successCriteria ?? null, pilotIntent: confirmed.pilotIntent ?? null };
       const priorScope = { summary: brief.summary, answers: brief.operatorAnswers ?? {}, unknown: [...(brief.operatorUnknown ?? [])].sort(), success: brief.successCriteria ?? null, pilotIntent: brief.pilotIntent ?? null };
+      if (requestSnapshot.data()?.job_marketplace?.agreement && params.familyTaskFacts)
+        throw new BriefPilotScopeLockedError("A pilot agreement is recorded. Agree scope changes with Blueprint and the delivery partner before changing this brief.");
       if (requestSnapshot.data()?.job_marketplace?.agreement && humanDecisionDigest(requestedScope) !== humanDecisionDigest(priorScope)) {
         throw new BriefPilotScopeLockedError("A pilot agreement is recorded. Agree scope changes with Blueprint and the delivery partner before changing this brief.");
       }
@@ -495,9 +516,45 @@ export async function confirmBrief(params: {
       if (humanDecisionDigest(current.data()) !== humanDecisionDigest(brief)) throw new Error("brief_changed_before_confirmation");
       if (previousRequest && humanDecisionDigest(gateAnswersOnFile(requestSnapshot.data() ?? {})) !== humanDecisionDigest(gateAnswersOnFile(previousRequest)))
         throw new Error("brief_answers_changed_before_confirmation");
+      let factVersion: { ref: FirebaseFirestore.DocumentReference; value: NonNullable<SiteTaskBriefRecord["familyTaskFacts"]> } | null = null;
+      if (params.familyTaskFacts) {
+        const source = brief.familyTaskAuthoring;
+        if (!source || requestSnapshot.data()?.active_capture_id
+          && requestSnapshot.data()!.active_capture_id !== source.status.capture_id)
+          throw new Error("family_task_facts_source_changed");
+        const session = (await tx.get(db!.collection("captureUploadSessions").doc(source.status.capture_id))).data();
+        const items = (await tx.get(db!.collection("siteTaskItemInventories").doc(params.requestId))).data() as TaskItemInventoryRecord | undefined;
+        const rights = projectWebsiteCaptureRights(requestSnapshot.data());
+        if (!session || !rights.derived_scene_generation_allowed || session.capture_access?.future_processing_allowed === false
+          || session.completed_capture_lifecycle || ["revoked", "revocation_in_progress", "cancelled"].includes(session.status)
+          || familyTaskCaptureFingerprint(session) !== source.sourceFingerprint)
+          throw new Error("family_task_facts_source_changed");
+        const evidence = { inventory: items, captureId: source.status.capture_id,
+          ...(requestSnapshot.data()?.website_scene_sponsorship?.purpose === "scene_preparation"
+            ? { purpose: "scene_preparation" as const } : {}) };
+        const previousContext = projectWebsiteTaskContext(brief, rights, evidence);
+        if (previousContext.context_digest !== source.status.task_context_digest)
+          throw new Error("family_task_facts_source_changed");
+        const context = familyTaskContextBasis(projectWebsiteTaskContext({ ...confirmed, familyTaskFacts: null }, rights, evidence));
+        confirmed.familyTaskFacts = confirmFamilyTaskAnswer(brief, params.familyTaskFacts, context, params.confirmedBy,
+          familyTaskContextBasis(previousContext));
+        confirmed.familyTaskDeferred = params.familyTaskFacts.answer === null
+          ? { authoringDigest: params.familyTaskFacts.authoringDigest,
+            ...("requirementId" in params.familyTaskFacts ? {requirementId: params.familyTaskFacts.requirementId}
+              : {operationId: params.familyTaskFacts.operationId, field: params.familyTaskFacts.field}),
+            bindingDigest: familyTaskQuestionBinding(source) } : null;
+        if (confirmed.familyTaskFacts) {
+          const ref = briefRef.collection("familyTaskFacts").doc(confirmed.familyTaskFacts.confirmation_digest.slice(7));
+          const priorVersion = (await tx.get(ref)).data();
+          if (priorVersion && humanDecisionDigest(priorVersion) !== humanDecisionDigest(confirmed.familyTaskFacts))
+            throw new Error("family_task_facts_version_conflict");
+          if (!priorVersion) factVersion = { ref, value: confirmed.familyTaskFacts };
+        }
+      }
       const materialChange = humanDecisionDigest({ summary: brief.summary, taskFamily: brief.taskFamily ?? null, answers: gateAnswersOnFile(previousRequest ?? {}),
-        unknown: [...(brief.operatorUnknown ?? [])].sort(), success: brief.successCriteria ?? null }) !== humanDecisionDigest({ summary: confirmed.summary, taskFamily: confirmed.taskFamily ?? null, answers,
-        unknown: [...unknown].sort(), success: confirmed.successCriteria ?? null });
+        unknown: [...(brief.operatorUnknown ?? [])].sort(), success: brief.successCriteria ?? null,
+        familyFacts: brief.familyTaskFacts?.confirmation_digest ?? null }) !== humanDecisionDigest({ summary: confirmed.summary, taskFamily: confirmed.taskFamily ?? null, answers,
+        unknown: [...unknown].sort(), success: confirmed.successCriteria ?? null, familyFacts: confirmed.familyTaskFacts?.confirmation_digest ?? null });
       const nextRecord = { ...requestSnapshot.data(), siteTaskGates: answers };
       const refresh = requestSnapshot.data()?.site_advisory
         ? await (await import("./siteAssessmentQueue")).prepareBriefContextSiteAssessment(
@@ -545,6 +602,7 @@ export async function confirmBrief(params: {
         { merge: true },
       );
       refresh?.();
+      if (factVersion) tx.set(factVersion.ref, factVersion.value);
     });
   }
 

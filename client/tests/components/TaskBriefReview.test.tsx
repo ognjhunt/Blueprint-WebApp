@@ -188,6 +188,221 @@ const confirmed = (extra: Record<string, unknown> = {}) => ({
   json: async () => ({ ok: true, disposition: "qualified", stage: "capture_needed", nextAction: "Film it.", ...extra }),
 });
 
+describe("source-bound task details on the same brief", () => {
+  const question = { authoringDigest: `sha256:${"a".repeat(64)}`, requirementId: "operation-001:minimum_hold_seconds",
+    operationId: "operation-001", operationLabel: "Press the red button", kind: "hold_seconds" as const,
+    question: "How long must the button stay pressed?", targets: [], deferred: false };
+  const details: NonNullable<DraftedBrief["familyTaskDetails"]> = [{
+    authoringDigest: question.authoringDigest, operationId: question.operationId, operationLabel: question.operationLabel,
+    targetId: "red", targetLabel: "Red button", holdSeconds: 0.2,
+    targets: [{targetId: "red", label: "Red button"}, {targetId: "green", label: "Green button"}],
+  }, {
+    authoringDigest: question.authoringDigest, operationId: "operation-002", operationLabel: "Move the carton",
+    targetId: "pallet", targetLabel: "Pallet", holdSeconds: null, targets: [{targetId: "pallet", label: "Pallet"}],
+  }];
+  function openRecordedDetails() {
+    fireEvent.click(screen.getByText("Recorded job details (optional corrections)"));
+  }
+  it("sends one normal hold outcome with the existing confirmation, without simulator fields", async () => {
+    fetchMock.mockResolvedValueOnce(confirmed());
+    render(<TaskBriefReview token="tok" brief={brief({confirmedBy: "Dana", familyTaskQuestion: question})} />);
+    fireEvent.change(screen.getByLabelText(/required stable outcome/i), {target: {value: "0.2"}});
+    fireEvent.click(screen.getByRole("button", {name: /confirm it/i}));
+    await screen.findByText(/that is confirmed/i);
+    expect(lastConfirmBody().familyTaskFacts).toEqual({authoringDigest: question.authoringDigest,
+      requirementId: question.requirementId, answer: 0.2});
+    expect(screen.queryByText(/joint|contact force|geometry json/i)).toBeNull();
+  });
+  it("selects a named captured target rather than asking for IDs or coordinates", async () => {
+    fetchMock.mockResolvedValueOnce(confirmed());
+    render(<TaskBriefReview token="tok" brief={brief({confirmedBy: "Dana", familyTaskQuestion: {...question, kind: "target",
+      requirementId: "operation-001:target_id", targets: [{targetId: "red", label: "Red button"}]}})} />);
+    fireEvent.change(screen.getByLabelText(/which captured target/i), {target: {value: "red"}});
+    fireEvent.click(screen.getByRole("button", {name: /confirm it/i}));
+    await screen.findByText(/that is confirmed/i);
+    expect(lastConfirmBody().familyTaskFacts).toMatchObject({answer: "red"});
+  });
+  it("records unknown without fabricating a zero-duration outcome", async () => {
+    fetchMock.mockResolvedValueOnce(confirmed());
+    render(<TaskBriefReview token="tok" brief={brief({confirmedBy: "Dana", familyTaskQuestion: question})} />);
+    fireEvent.click(screen.getByLabelText(/don't know this detail/i));
+    fireEvent.click(screen.getByRole("button", {name: /confirm it/i}));
+    await screen.findByText(/that is confirmed/i);
+    expect(lastConfirmBody().familyTaskFacts).toMatchObject({answer: null});
+  });
+  it("saves a corrected task without attaching answers to its old reading", async () => {
+    fetchMock.mockResolvedValueOnce(confirmed());
+    render(<TaskBriefReview token="tok" brief={brief({confirmedBy: "Dana", familyTaskQuestion: question})} />);
+    fireEvent.change(screen.getByLabelText(/required stable outcome/i), {target: {value: "0.2"}});
+    fireEvent.change(screen.getByLabelText(/what is the job, in one sentence/i), {target: {value: "Press the green button"}});
+    expect(screen.getByText(/refresh this detail for the corrected job/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", {name: /confirm it/i}));
+    await screen.findByText(/that is confirmed/i);
+    expect(lastConfirmBody()).toHaveProperty("summary", "Press the green button");
+    expect(lastConfirmBody()).not.toHaveProperty("familyTaskFacts");
+  });
+  it("clears an unsaved answer when a new source-bound question arrives", () => {
+    const {rerender} = render(<TaskBriefReview token="tok" brief={brief({familyTaskQuestion: question})} />);
+    fireEvent.change(screen.getByLabelText(/required stable outcome/i), {target: {value: "0.2"}});
+    rerender(<TaskBriefReview token="tok" brief={brief({familyTaskQuestion: {...question, authoringDigest: `sha256:${"b".repeat(64)}`}})} />);
+    expect(screen.getByLabelText(/required stable outcome/i)).toHaveValue(null);
+  });
+  it("corrects a recorded target in the same confirmation and retains the other facts", async () => {
+    const onConfirmed = vi.fn();
+    fetchMock.mockResolvedValueOnce(confirmed());
+    render(<TaskBriefReview token="tok" brief={brief({confirmedBy: "Dana", familyTaskDetails: details,
+      operatorAnswers: {sceneStability: "stable"}})} onConfirmed={onConfirmed} />);
+    expect(screen.getByText("Recorded job details (optional corrections)").closest("details")).not.toHaveAttribute("open");
+    openRecordedDetails();
+    expect(screen.getByText("Target: Red button")).toBeInTheDocument();
+    expect(screen.getByText("Required stable outcome: 0.2 seconds")).toBeInTheDocument();
+    expect(screen.getByText("Required stable outcome: Not known yet")).toBeInTheDocument();
+    expect(screen.queryByRole("button", {name: /change required time for move the carton/i})).toBeNull();
+    expect(screen.queryByText(/operation-001|sha256:|hold_seconds/i)).toBeNull();
+    const changeTarget = screen.getByRole("button", {name: /change target for press/i});
+    expect(changeTarget).toHaveAttribute("type", "button");
+    fireEvent.click(changeTarget);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(screen.getByLabelText(/which captured target/i)).toHaveValue("red");
+    fireEvent.change(screen.getByLabelText(/which captured target/i), {target: {value: "green"}});
+    fireEvent.click(screen.getByRole("button", {name: /confirm it/i}));
+    await screen.findByText(/that is confirmed/i);
+    expect(lastConfirmBody().familyTaskFacts).toEqual({authoringDigest: question.authoringDigest,
+      operationId: question.operationId, field: "target", answer: "green"});
+    expect(lastConfirmBody().answers).toEqual({sceneStability: "stable"});
+    expect(onConfirmed.mock.calls[0][0].familyTaskDetails).toEqual([
+      {...details[0], targetId: "green", targetLabel: "Green button"}, details[1],
+    ]);
+  });
+  it("corrects the recorded hold time with only one task-detail editor active", async () => {
+    const onConfirmed = vi.fn();
+    fetchMock.mockResolvedValueOnce(confirmed());
+    render(<TaskBriefReview token="tok" brief={brief({confirmedBy: "Dana", familyTaskDetails: details,
+      familyTaskQuestion: {...question, kind: "target", requirementId: "operation-002:target_id",
+        question: "Where should the carton go?", targets: details[1].targets}})} onConfirmed={onConfirmed} />);
+    openRecordedDetails();
+    const changeTime = screen.getByRole("button", {name: /change required time for press/i});
+    expect(changeTime).toHaveAttribute("type", "button");
+    fireEvent.click(changeTime);
+    expect(screen.queryByText("Where should the carton go?")).toBeNull();
+    expect(screen.queryByLabelText(/which captured target/i)).toBeNull();
+    expect(screen.getAllByLabelText(/don't know this detail/i)).toHaveLength(1);
+    expect(screen.getByLabelText(/required stable outcome/i)).toHaveValue(0.2);
+    fireEvent.change(screen.getByLabelText(/required stable outcome/i), {target: {value: "0.5"}});
+    fireEvent.click(screen.getByRole("button", {name: /confirm it/i}));
+    await screen.findByText(/that is confirmed/i);
+    expect(lastConfirmBody().familyTaskFacts).toEqual({authoringDigest: question.authoringDigest,
+      operationId: question.operationId, field: "hold_seconds", answer: 0.5});
+    expect(onConfirmed.mock.calls[0][0].familyTaskDetails).toEqual([{...details[0], holdSeconds: 0.5}, details[1]]);
+  });
+  it.each(["target", "hold_seconds"] as const)("clears only the recorded %s when it is unknown", async field => {
+    const onConfirmed = vi.fn();
+    fetchMock.mockResolvedValueOnce(confirmed());
+    render(<TaskBriefReview token="tok" brief={brief({confirmedBy: "Dana", familyTaskDetails: details})}
+      onConfirmed={onConfirmed} />);
+    openRecordedDetails();
+    fireEvent.click(screen.getByRole("button", {name: field === "target"
+      ? /change target for press/i : /change required time for press/i}));
+    fireEvent.click(screen.getByLabelText(/don't know this detail/i));
+    fireEvent.click(screen.getByRole("button", {name: /confirm it/i}));
+    await screen.findByText(/that is confirmed/i);
+    expect(lastConfirmBody().familyTaskFacts).toEqual({authoringDigest: question.authoringDigest,
+      operationId: question.operationId, field, answer: null});
+    expect(onConfirmed.mock.calls[0][0].familyTaskDetails).toEqual([
+      {...details[0], ...(field === "target" ? {targetId: null, targetLabel: null} : {holdSeconds: null})}, details[1],
+    ]);
+  });
+  it.each(["target", "hold_seconds"] as const)("asks for a value or unknown when the corrected %s is blank", async field => {
+    fetchMock.mockResolvedValueOnce(confirmed());
+    render(<TaskBriefReview token="tok" brief={brief({confirmedBy: "Dana", familyTaskDetails: details})} />);
+    openRecordedDetails();
+    fireEvent.click(screen.getByRole("button", {name: field === "target"
+      ? /change target for press/i : /change required time for press/i}));
+    fireEvent.change(screen.getByLabelText(field === "target" ? /which captured target/i : /required stable outcome/i),
+      {target: {value: ""}});
+    fireEvent.click(screen.getByRole("button", {name: /confirm it/i}));
+    expect(await screen.findByRole("alert")).toHaveTextContent(field === "target" ? /choose a captured target/i : /enter how long/i);
+    expect(fetchMock).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByLabelText(/don't know this detail/i));
+    fireEvent.click(screen.getByRole("button", {name: /confirm it/i}));
+    await screen.findByText(/that is confirmed/i);
+    expect(lastConfirmBody().familyTaskFacts).toMatchObject({field, answer: null});
+  });
+  it("removes the local recorded row only when its last known detail is cleared", async () => {
+    const onConfirmed = vi.fn();
+    fetchMock.mockResolvedValueOnce(confirmed());
+    render(<TaskBriefReview token="tok" brief={brief({confirmedBy: "Dana",
+      familyTaskDetails: [{...details[0], holdSeconds: null}, details[1]]})} onConfirmed={onConfirmed} />);
+    openRecordedDetails();
+    fireEvent.click(screen.getByRole("button", {name: /change target for press/i}));
+    fireEvent.click(screen.getByLabelText(/don't know this detail/i));
+    fireEvent.click(screen.getByRole("button", {name: /confirm it/i}));
+    await screen.findByText(/that is confirmed/i);
+    expect(lastConfirmBody().familyTaskFacts).toMatchObject({field: "target", answer: null});
+    expect(onConfirmed.mock.calls[0][0].familyTaskDetails).toEqual([details[1]]);
+  });
+  it.each(["authoring source", "recorded fact"])("discards an unsaved correction when the %s changes", async change => {
+    fetchMock.mockResolvedValueOnce(confirmed());
+    const {rerender} = render(<TaskBriefReview token="tok" brief={brief({confirmedBy: "Dana",
+      familyTaskQuestion: question, familyTaskDetails: details})} />);
+    openRecordedDetails();
+    fireEvent.click(screen.getByRole("button", {name: /change target for press/i}));
+    fireEvent.change(screen.getByLabelText(/which captured target/i), {target: {value: "green"}});
+    const nextDigest = `sha256:${"b".repeat(64)}`;
+    rerender(<TaskBriefReview token="tok" brief={brief({confirmedBy: "Dana",
+      familyTaskQuestion: change === "authoring source" ? {...question, authoringDigest: nextDigest} : question,
+      familyTaskDetails: details.map(detail => change === "authoring source"
+        ? {...detail, authoringDigest: nextDigest} : {...detail, holdSeconds: 0.7})})} />);
+    expect(screen.queryByLabelText(/which captured target/i)).toBeNull();
+    expect(screen.queryByRole("button", {name: /cancel correction/i})).toBeNull();
+    expect(screen.getByLabelText(/required stable outcome/i)).toHaveValue(null);
+    fireEvent.click(screen.getByRole("button", {name: /confirm it/i}));
+    await screen.findByText(/that is confirmed/i);
+    expect(lastConfirmBody()).not.toHaveProperty("familyTaskFacts");
+  });
+  it("keeps an unsaved correction when a refresh contains the same source facts", () => {
+    const {rerender} = render(<TaskBriefReview token="tok" brief={brief({familyTaskDetails: details})} />);
+    openRecordedDetails();
+    fireEvent.click(screen.getByRole("button", {name: /change required time for press/i}));
+    fireEvent.change(screen.getByLabelText(/required stable outcome/i), {target: {value: "0.5"}});
+    rerender(<TaskBriefReview token="tok" brief={brief({confirmedBy: "Dana",
+      familyTaskDetails: details.map(detail => ({...detail, targets: detail.targets.map(target => ({...target}))}))})} />);
+    expect(screen.getByLabelText(/required stable outcome/i)).toHaveValue(0.5);
+  });
+  it.each(["summary", "success criteria"])("omits a correction when the %s changes", async change => {
+    const onConfirmed = vi.fn();
+    fetchMock.mockResolvedValueOnce(confirmed());
+    render(<TaskBriefReview token="tok" brief={brief({confirmedBy: "Dana", familyTaskDetails: details})}
+      onConfirmed={onConfirmed} />);
+    openRecordedDetails();
+    fireEvent.click(screen.getByRole("button", {name: /change required time for press/i}));
+    fireEvent.change(screen.getByLabelText(/required stable outcome/i), {target: {value: "0.5"}});
+    fireEvent.change(screen.getByLabelText(change === "summary" ? /what is the job, in one sentence/i : /successful cycle/i),
+      {target: {value: "Press the green button and keep it pressed"}});
+    expect(screen.getByText(/refresh this detail for the corrected job/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", {name: /confirm it/i}));
+    await screen.findByText(/that is confirmed/i);
+    expect(lastConfirmBody()).not.toHaveProperty("familyTaskFacts");
+    expect(onConfirmed.mock.calls[0][0].familyTaskDetails).toEqual(details);
+  });
+  it("returns to the missing question when a correction is cancelled", async () => {
+    fetchMock.mockResolvedValueOnce(confirmed());
+    render(<TaskBriefReview token="tok" brief={brief({confirmedBy: "Dana",
+      familyTaskQuestion: question, familyTaskDetails: details})} />);
+    openRecordedDetails();
+    fireEvent.click(screen.getByRole("button", {name: /change target for press/i}));
+    fireEvent.change(screen.getByLabelText(/which captured target/i), {target: {value: "green"}});
+    const cancel = screen.getByRole("button", {name: /cancel correction/i});
+    expect(cancel).toHaveAttribute("type", "button");
+    fireEvent.click(cancel);
+    expect(screen.getByText(question.question)).toBeInTheDocument();
+    expect(screen.getByLabelText(/required stable outcome/i)).toHaveValue(null);
+    fireEvent.click(screen.getByRole("button", {name: /confirm it/i}));
+    await screen.findByText(/that is confirmed/i);
+    expect(lastConfirmBody()).not.toHaveProperty("familyTaskFacts");
+  });
+});
+
 describe("bounded progressive review", () => {
   it("saves a factual correction without requiring a goal or an account", async () => {
     fetchMock.mockResolvedValueOnce(confirmed());

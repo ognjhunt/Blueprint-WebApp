@@ -77,3 +77,36 @@ stop. A fresh successful response clears that hold when preparation recovers.
 Verification includes source/rights isolation and malformed-evidence negatives,
 v1/v2/v3 negotiation, both real route handlers, the saved production receipt,
 and desktop/mobile rendering through the existing workspace browser harness.
+
+## Source-bound task details on the existing brief
+
+`BLUEPRINT_WEBSITE_FAMILY_TASK_FACTS_V4_ENABLED` defaults off. When enabled, the
+existing status reader requests v4, whose nullable `family_authoring` contains
+the bounded `website_family_authoring_status.v1` projection. The signed status
+receipt and its ordinary source/rights verification still precede persistence.
+No raw report paths or provider errors enter the projection. Older Pipeline
+versions may answer v1/v2/v3; they produce no family question.
+
+The owner brief presents one current task question: a captured target, the
+required duration of an outcome, or clarification of the job description. It
+does not ask the site to write simulator JSON, measurement geometry, material
+parameters or force limits. Unknown remains unknown and is recorded without
+repeating the same source-bound question on every preparation generation.
+Previously stated targets and durations can be corrected through the same
+confirmation route. Film-only credentials receive neither this question nor
+the owner's recorded details.
+
+The confirmation transaction binds facts to the current capture, retained
+source fingerprint, operation/target IDs, description and success criteria. It
+refuses changed source generations, stale questions and ended processing
+permission. Each accepted fact version is retained under the existing brief;
+corrections change the current projection without overwriting prior versions.
+The inner facts and outer task context explicitly select RFC 8785 hashing;
+unflagged legacy contexts keep their existing bytes and digest algorithm.
+
+Rollout requires the paired Pipeline v4 producer/context readers and the
+existing funding continuation to support the changed context before enabling
+this flag. A fact correction does not create a grant, reset consumed funds or
+uncertain reservations, extend expiry or increase limits. The status/facts
+integration alone does not establish simulator execution, measurement fidelity
+or production acceptance.
