@@ -117,8 +117,8 @@ async function fill(kind: string) {
     await page.locator("#start-method-upload").check();
     if (kind === "invalid_video_extension") await page.locator("#start-footage").setInputFiles({ name: "bad.txt", mimeType: "text/plain", buffer: Buffer.from("invalid") });
     else await page.locator("#start-footage").setInputFiles(fixture);
-    await expect(page.locator("#start-rights")).toHaveCount(0);
-    await expect(page.locator("#start-password")).toHaveCount(0);
+    expect(await page.locator("#start-rights").count()).toBe(0);
+    expect(await page.locator("#start-password").count()).toBe(0);
   }
 }
 function requestRows() { return [...state.docs.entries()].filter(([key]) => key.startsWith("inboundRequests/")); }
