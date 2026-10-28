@@ -17,6 +17,6 @@ Verification:
 - `site-capture-bundle-routes.test.ts`, `website-capture-binding.test.ts`, `self-capture-owner-withdrawal.test.ts`, `self-capture-manifest.test.ts`, and `website-capture-owner-observation.test.ts`: 116 tests passed, protecting native/browser conflicts, retained lineage, permission withdrawal, canonical manifest fields and owner readback.
 - Required Graphify AST refresh: passed.
 
-A local browser check of the combined guest intake at 390 px showed the video/location/email flow with no password input, no horizontal overflow and no console errors. It submitted no form and used synthetic Firebase configuration.
+A local browser check of the combined guest intake at 390 px showed the video/location/email flow with no password input, no horizontal overflow and no console errors. It submitted no form and used synthetic Firebase configuration. All 103 existing intake component tests passed after correcting the recovery copy to match the existing complete-walkthrough update path; short-angle fusion with prior geometry remains outside this implementation.
 
 The broader simplification consumer is Pipeline #3026. Its owner continues to own that pair's merge and rollout; this change is a reviewable addition to the WebApp upload slice. No live account, provider call, upload, production mutation or deployment was performed by these checks.
