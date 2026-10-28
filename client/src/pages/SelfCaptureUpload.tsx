@@ -660,7 +660,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
       </h1>
 
       {saved && (link.status === "valid" || link.status === "held") && scope === "owner"
-        && <JobWorkspace token={token} preparationOutcome={status?.outcome} currentStatusKnown={currentStatusKnown} currentNextAction={status ? {text: status.operatorAction || status.headline, owner: status.operatorAction ? "site" : "blueprint"} : undefined} />}
+        && <JobWorkspace token={token} preparationOutcome={status?.outcome} currentStatusKnown={currentStatusKnown} currentNextAction={status ? {text: status.operatorAction || status.headline, owner: status.operatorAction || status.decision === "confirm_brief" ? "site" : "blueprint"} : undefined} />}
       {link.status !== "valid" && statusCard}
 
       {isVideoUpdate && !saved && <p className="ms-field-hint" role="status">Film or upload a complete updated walkthrough of the job, including the missing views. This updates the same job and keeps your original video.</p>}

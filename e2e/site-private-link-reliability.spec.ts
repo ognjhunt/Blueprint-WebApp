@@ -105,11 +105,13 @@ test("returning owner keeps the received recording and gets same-job update guid
   await page.goto(`/capture-upload/${token}?video=existing`);
   await expect(page.getByText("Video received.", { exact: true })).toBeVisible();
   await expect(page.getByRole("region", { name: "Confirm your job brief", exact: true })).toBeVisible();
+  await expect(page.getByText("Next action · You", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Upload a new recording", exact: true })).toHaveCount(0);
   await expect(page.locator('input[type="file"]')).toHaveCount(0);
   expect(writes).toEqual([]);
   await page.reload();
   await expect(page.getByText("Video received.", { exact: true })).toBeVisible();
+  await expect(page.getByText("Next action · You", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Upload a new recording", exact: true })).toHaveCount(0);
   await expect(page.locator('input[type="file"]')).toHaveCount(0);
   const update = page.getByRole("region", { name: "Update job video", exact: true });
