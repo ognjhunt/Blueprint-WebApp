@@ -183,10 +183,12 @@ export interface TaskPreparationStatus {
  * on our side that may clear; `completed` is a built scene not yet tested;
  * `testing` is a finished scene, task objects in, whose first internal test
  * has started: the point the site is told it is ready (owner decision
- * 2026-10-22). Coarse by design: no Pipeline detail reaches a site.
+ * 2026-10-22). `evaluated` is a finished automatic evaluation whose simulation
+ * estimate is the job's result (owner decision 2026-10-28). Coarse by design:
+ * no Pipeline detail reaches a site.
  */
 export interface TaskSceneProgression {
-  state: "in_progress" | "waiting" | "ended" | "completed" | "testing";
+  state: "in_progress" | "waiting" | "ended" | "completed" | "testing" | "evaluated";
 }
 
 /** One sentence per reason the Pipeline can give; an unknown reason adds nothing. */
@@ -571,12 +573,14 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
       operatorAction: null,
     };
   }
-  const sceneTesting = input.sceneProgression?.state === "testing";
+  const sceneEvaluated = input.sceneProgression?.state === "evaluated";
+  const sceneTesting = sceneEvaluated || input.sceneProgression?.state === "testing";
+  const evaluatedHeadline = "Your job's simulation estimate is ready on your job page. It is a bounded estimate from a simulation of your site, not a certified result.";
   if ((input.scenePreviewReady || sceneTesting) && input.listed === false) {
     return {
       ...base,
       decision: "not_listed",
-      headline: `${sceneTesting ? "Your scene is ready, and we are running our first tests on it." : "Your scene preview is ready."} Your job card is not published, so approved partners cannot see this job in the job library or ask to have their systems evaluated on it.`,
+      headline: `${sceneEvaluated ? evaluatedHeadline : sceneTesting ? "Your scene is ready, and we are running our first tests on it." : "Your scene preview is ready."} Your job card is not published, so approved partners cannot see this job in the job library or ask to have their systems evaluated on it.`,
       operatorAction: "To share it with partners approved for the beta, publish its job card from your job page.",
     };
   }
@@ -596,7 +600,7 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
     return {
       ...base,
       decision: "assessing",
-      headline: "Your scene is ready, and we are running our first tests on it. Nothing is needed from you.",
+      headline: `${sceneEvaluated ? evaluatedHeadline : "Your scene is ready, and we are running our first tests on it."} Nothing is needed from you.`,
       operatorAction: null,
     };
   }

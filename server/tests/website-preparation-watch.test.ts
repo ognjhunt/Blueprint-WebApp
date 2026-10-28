@@ -412,6 +412,11 @@ describe("scene progression after hand-off", () => {
     expect(await loadWebsiteSceneProgression("r1", "walkthrough-r1")).toEqual({ state: "completed" });
     state.docs.set("taskEvaluationPolicyRuns/screening-one", { ...run, screening_execution_observed: true });
     expect(await loadWebsiteSceneProgression("r1", "walkthrough-r1")).toEqual({ state: "testing" });
+    // A finished evaluation is the job's estimate, never left reading as an open test.
+    state.docs.set("taskEvaluationPolicyRuns/screening-one", { ...run, state: "completed", screening_execution_observed: true });
+    expect(await loadWebsiteSceneProgression("r1", "walkthrough-r1")).toEqual({ state: "evaluated" });
+    state.docs.set("taskEvaluationPolicyRuns/screening-one", { ...run, state: "completed", team_namespace: "team-b" });
+    expect(await loadWebsiteSceneProgression("r1", "walkthrough-r1")).toEqual({ state: "completed" });
   });
   it("PROG-003 alerts once per website scene that stopped after hand-off", async () => {
     state.docs.set("taskEvaluationSceneIntakes/scene-a", { website_request_id: "r1", source_session_id: "walkthrough-r1", state: "blocked" });
