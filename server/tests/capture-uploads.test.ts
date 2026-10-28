@@ -914,6 +914,7 @@ describe("resumable capture uploads", () => {
   it.each([
     ["provided_scene_mesh", "scene.usda"],
     ["provided_scene_splat", "scene.ply"],
+    ["monocular_video", "clip.mp4"],
   ])("transports a small %s as one bounded file without inventing multipart receipts", async (profile, filename) => {
     const { server, socketPath } = await startServer();
     try {
@@ -927,16 +928,17 @@ describe("resumable capture uploads", () => {
           original_file: {
             original_filename: filename,
             size_bytes: bytes.length,
-            media_type: "application/octet-stream",
+            media_type: profile === "monocular_video" ? "video/mp4" : "application/octet-stream",
           },
           available_sensor_streams: [
-            { stream_type: "provided_geometry", status: "available" },
+            { stream_type: profile === "monocular_video" ? "retained_video" : "provided_geometry", status: "available" },
           ],
         }),
       );
       expect(response.status).toBe(201);
       const session = (await response.json()) as any;
       expect(session.expected_part_count).toBe(1);
+      expect(session.upload_transport).toBe("single_file");
       expect(state.start).not.toHaveBeenCalled();
       state.smallUpload.mockImplementation(async (input) => ({
         fileId: "small-file-1",
@@ -1011,7 +1013,8 @@ describe("resumable capture uploads", () => {
           },
         }),
       );
-      expect(video.status).toBe(400);
+      expect(video.status).toBe(201);
+      expect((await video.json() as any).upload_transport).toBe("single_file");
     } finally {
       await stopServer(server, socketPath);
     }

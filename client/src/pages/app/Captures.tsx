@@ -42,7 +42,6 @@ import {
 } from "@/lib/captureUploads";
 import { Helmet } from "@/lib/helmet";
 
-const MIN_RESUMABLE_BYTES = 5 * 1024 * 1024 + 1;
 const MAX_CAPTURE_BYTES = 50 * 1024 * 1024 * 1024;
 
 /** Each type's one-line hint states what that kind of file can and can't show. */
@@ -433,8 +432,8 @@ export default function Captures() {
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (!currentUser || !file) return;
-    if (file.size < (providedAsset ? 1 : MIN_RESUMABLE_BYTES) || file.size > MAX_CAPTURE_BYTES) {
-      setError(providedAsset ? "The file is empty or larger than 50 GB." : "Videos must be larger than 5 MB and no larger than 50 GB.");
+    if (file.size < 1 || file.size > MAX_CAPTURE_BYTES) {
+      setError("The file is empty or larger than 50 GB.");
       return;
     }
     if (!activeSession && (!rightsAccepted || !consentAccepted)) {

@@ -15,6 +15,14 @@ function source() {
   return {file, session, currentUser: {} as User};
 }
 describe("browser owner upload transport", () => {
+  it("uploads a short native video through the server-declared single-file transport", async () => {
+    const input=source();input.session.upload_transport="single_file";
+    const fetch=vi.fn(async(_url:string,_init:RequestInit)=>new Response(JSON.stringify({status:"stored"})));vi.stubGlobal("fetch",fetch);
+    expect(await uploadCaptureFile(input)).toEqual({status:"stored"});
+    expect(fetch).toHaveBeenCalledOnce();
+    expect(fetch.mock.calls[0][0]).toBe("/api/capture-uploads/capture-owned-1/file");
+    expect(fetch.mock.calls[0][1].body).toBeInstanceOf(FormData);
+  });
   it("sends existing Firebase parts through the authenticated same-origin API without a B2 grant", async () => {
     vi.stubGlobal("crypto", webcrypto);
     const requests: Array<{url: string; init: RequestInit}> = [];

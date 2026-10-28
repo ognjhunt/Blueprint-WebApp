@@ -149,9 +149,6 @@ const sessionRequestSchema = z
   })
   .strict()
   .superRefine((value, context) => {
-    if (!value.capture_authority_profile.startsWith("provided_scene_") && value.original_file.size_bytes < MIN_RESUMABLE_FILE_BYTES) {
-      context.addIssue({code:z.ZodIssueCode.custom,path:["original_file","size_bytes"],message:"Video multipart uploads must exceed 5 MiB"});
-    }
     if (value.source_type !== value.capture_authority_profile) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
@@ -448,6 +445,7 @@ function publicSession(record: SessionRecord, uploadedParts: StoredCapturePart[]
     part_size_bytes: record.part_size_bytes,
     expected_part_count: record.expected_part_count,
     storage_provider: record.provider || "backblaze",
+    upload_transport: record.upload_transport || "multipart",
     uploaded_parts: uploadedParts,
     storage_uri: record.status === "uploaded_verification_pending" ? record.storage_uri || null : null,
     upload_validation: record.upload_validation || { status: "pending" },
@@ -1089,7 +1087,7 @@ router.post("/", async (req, res) => {
   }
 
   const now = new Date().toISOString();
-  const smallMesh = request.capture_authority_profile.startsWith("provided_scene_") && request.original_file.size_bytes < MIN_RESUMABLE_FILE_BYTES;
+  const smallMesh = request.original_file.size_bytes < MIN_RESUMABLE_FILE_BYTES;
   const partSize = smallMesh ? request.original_file.size_bytes : Math.min(
     configuredPartSize(request.original_file.size_bytes), providerName === "firebase" ? 32 * MEBIBYTE : MAX_CAPTURE_FILE_BYTES);
   const expectedPartCount = Math.ceil(request.original_file.size_bytes / partSize);
@@ -2795,13 +2793,12 @@ router.post(
         .status(owned.status)
         .json({ error: "Capture upload not found" });
     if (
-      !owned.record.request.capture_authority_profile.startsWith("provided_scene_") ||
       owned.record.request.original_file.size_bytes >= MIN_RESUMABLE_FILE_BYTES
     )
       return res
         .status(409)
         .json({
-          error: "Single-file transport is only for small provided scene assets",
+          error: "Use multipart transport for files larger than 5 MiB",
         });
     res.locals.smallMeshRecord = owned.record;
     next();
@@ -2822,7 +2819,7 @@ router.post(
       return res
         .status(422)
         .json({
-          error: "Selected mesh does not match the retained upload session",
+          error: "Selected file does not match the retained upload session",
         });
     const sha256 = `sha256:${createHash("sha256").update(file.buffer).digest("hex")}`;
     const sha1 = createHash("sha1").update(file.buffer).digest("hex");

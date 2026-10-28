@@ -26,6 +26,7 @@ export type CaptureUploadSession = {
   part_size_bytes: number;
   expected_part_count: number;
   storage_provider?: "firebase" | "backblaze";
+  upload_transport?: "single_file" | "multipart";
   uploaded_parts: Array<{
     partNumber: number;
     contentLength: number;
@@ -850,7 +851,8 @@ export async function uploadCaptureFile(params: {
   ) {
     throw new Error("The selected file does not match this resumable upload session.");
   }
-  if (params.session.capture_authority_profile.startsWith("provided_scene_") && params.session.size_bytes <= 5*1024*1024) {
+  if (params.session.upload_transport === "single_file" ||
+    (params.session.capture_authority_profile.startsWith("provided_scene_") && params.session.size_bytes <= 5*1024*1024)) {
     const form=new FormData();form.append("file",params.file);
     const result=await apiRequest<CaptureUploadSession>(params.currentUser,`/api/capture-uploads/${encodeURIComponent(params.session.session_id)}/file`,{method:"POST",body:form});
     params.onProgress?.(1,1);return result;
