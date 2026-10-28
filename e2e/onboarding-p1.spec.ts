@@ -74,7 +74,7 @@ for (const mobile of [false, true]) test(`${mobile ? "phone" : "desktop"}: retai
   await page.goBack();
   await expect(page.getByRole("button", { name: "Retry processing", exact: true })).toBeHidden();
   await screenshot(page, `${mobile ? "phone" : "desktop"}-retained-processing-pending`);
-  await page.getByText("Processing details", { exact: true }).click();
+  await page.getByText("Processing details (optional)", { exact: true }).click();
   await expect(page.getByRole("button", { name: "Retry processing", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Retry processing", exact: true }).click();
   await expect(page.getByRole("button", { name: /Retry.*processing/ })).toHaveCount(0);

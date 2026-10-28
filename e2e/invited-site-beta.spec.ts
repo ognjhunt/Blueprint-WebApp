@@ -155,7 +155,7 @@ for (const width of [390, 1440]) {
     await page.reload();
     await expect(page.getByText("Your video is saved.", { exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "Retry processing", exact: true })).toBeHidden();
-    await page.getByText("Processing details", { exact: true }).click();
+    await page.getByText("Processing details (optional)", { exact: true }).click();
     await page.getByRole("button", { name: "Retry processing", exact: true }).click();
     await expect(page.getByRole("button", { name: "Retry processing", exact: true })).toHaveCount(0);
     expect(posts.filter(entry => entry.path.endsWith("/processing-retry"))).toHaveLength(1);
