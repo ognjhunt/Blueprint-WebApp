@@ -214,7 +214,7 @@ describe("guest video intake with stable source ownership", () => {
     const again = await sendFootage(token);
     expect(again.status).toBe(409);
     expect(again.body.code).toBe("capture_already_saved");
-    expect(again.body.error).toMatch(/Update video on this job/);
+    expect(again.body.error).toMatch(/Update walkthrough on this job/);
     expect(doc(`captureUploadSessions/walkthrough-${jobId}`)).toEqual(before);
     expect((await sharedUploadBucket.bucket.file(rawVideo).getMetadata())[0]).toEqual(videoBefore);
     expect((await sharedUploadBucket.bucket.file(rawVideo).download())[0]).toEqual(quickTime());

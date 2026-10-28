@@ -39,3 +39,11 @@ It does not require optional extra recordings (WebApp #1136 / Pipeline #3037).
 Deployment and a supported real upload-to-result journey remain release-owner
 acceptance work. Existing founder holds and stopped worker settings stay in
 force.
+
+Release reconciliation incorporates quiet-customer commit
+`fba19d72bd39f71fe227a6d83049aa673594f78b` and its exact-source authority
+changes from the integration branch. All 325 cases in fourteen affected server
+suites pass together, including retained-video recovery, spend observation,
+evaluation control, Atlas outcomes and the revised receipt/result journey.
+TypeScript and whitespace also pass. These are local contract checks;
+deployed-source and real-job acceptance remain unobserved in this lane.

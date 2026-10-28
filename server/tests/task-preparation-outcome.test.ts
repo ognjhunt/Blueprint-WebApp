@@ -66,6 +66,23 @@ describe("source-bound preparation closeout", () => {
     expect(outcome.scope).toMatch(/not proof.*impossible.*every robot.*physically/);
     expect(outcome.evidence[0].digest).toBe(sha);
   });
+  it.each(["atlas_preserved_completion_no_exportable_geometry", "atlas_generated_view_registration_unresolved",
+    "atlas_source_visibility_uncertain"])("keeps unresolved geometry separate from robot incompatibility: %s", (reason) => {
+    const receipt = atlas("needs_input", reason);
+    const outcome = projectAtlasPreparationOutcome(current(receipt));
+    expect(outcome).toMatchObject({category: "insufficient_evidence", actionOwner: "blueprint"});
+    expect(outcome!.reason).toMatch(/registered geometry/);
+    expect(outcome!.evidence[0].digest).toBe(receipt.preview_digest);
+    expect(projectTaskStatus({...base, preparationOutcome: outcome}).decision).toBe("insufficient_evidence");
+  });
+  it("asks Blueprint to use already saved source views without asking for another upload", () => {
+    const receipt = atlas("needs_input", "atlas_recorded_source_views_must_be_recovered_before_generation");
+    const outcome = projectAtlasPreparationOutcome(current(receipt));
+    expect(outcome).toMatchObject({category: "processing_failure", actionOwner: "blueprint"});
+    expect(outcome!.reason).toMatch(/useful views in your saved video/);
+    expect(outcome!.nextStep).toMatch(/no new upload is required/);
+    expect(outcome!.scope).toMatch(/No robot pass, failure or physical-world validation/);
+  });
   it("rejects cross-capture and tampered receipts, and clears a stop on a newer processing state", () => {
     expect(current(atlas("failed", "atlas_preview_expired", "walkthrough-other"))).toBeNull();
     expect(current({...atlas(), reason: "forged_reason"})).toBeNull();
