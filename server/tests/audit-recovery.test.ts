@@ -180,25 +180,32 @@ describe("coverage continuation", () => {
 });
 
 describe("supplementary evidence and owner clarification", () => {
-  it("reuses the child identity, preserves parent bytes, and keeps film-only scope and expiry", async () => {
-    const parent = { requestId: "req", sceneId: "scene", captureId: "capture", scope: "film" as const, exp: Math.floor(Date.now() / 1000) + 1000 };
-    const source = { site_capture_bundle: { request_id: "req", scene_id: "scene" }, immutable_upload_identity: {
-      raw_bundle_digest: `sha256:${"a".repeat(64)}`, raw_manifest_uri: "gs://bucket/scenes/scene/captures/capture/raw/manifest.json" } };
-    put("captureUploadSessions/capture", source); put("inboundRequests/req", { capture_coverage: { capture_id: "capture", covers_scene: false, missing_coverage: ["Side view"] } });
+  it("reuses the child identity, preserves parent bytes and expiry, and requires owner scope", async () => {
+    const parent = { requestId: "req", sceneId: "site-req", captureId: "walkthrough-req", scope: "owner" as const, exp: Math.floor(Date.now() / 1000) + 1000 };
+    const source = { site_capture_bundle: { request_id: "req", scene_id: "site-req", capture_id: parent.captureId }, immutable_upload_identity: {
+      raw_bundle_digest: `sha256:${"a".repeat(64)}`, raw_manifest_uri: "gs://bucket/scenes/site-req/captures/walkthrough-req/raw/manifest.json" } };
+    const originalSource = structuredClone(source);
+    put(`captureUploadSessions/${parent.captureId}`, source); put("inboundRequests/req", { capture_coverage: { capture_id: parent.captureId, covers_scene: false, missing_coverage: ["Side view"] } });
+    await expect(issueCaptureSupplement({ ...parent, scope: "film" })).rejects.toThrow("supplement_owner_required");
     const first = await issueCaptureSupplement(parent), second = await issueCaptureSupplement(parent);
     expect(first.captureId).toBe(second.captureId); expect(first.captureId).not.toBe(parent.captureId);
     const child = verifyCaptureUploadToken(first.token)!;
-    expect(child.scope).toBe("film"); expect(child.exp).toBeLessThanOrEqual(parent.exp);
-    await validateCaptureSupplement(child); expect(read("captureUploadSessions/capture")).toEqual(source);
-    await expect(validateCaptureSupplement({ ...child, requestId: "other" })).rejects.toThrow("supplement_parent_changed");
-    put(`captureUploadSessions/${child.captureId}`, { ...source, immutable_upload_identity: {
-      raw_bundle_digest: `sha256:${"b".repeat(64)}`, raw_manifest_uri: `gs://bucket/scenes/scene/captures/${child.captureId}/raw/manifest.json` } });
-    put("inboundRequests/req", { capture_coverage: { capture_id: child.captureId, covers_scene: false, missing_coverage: ["Top view"] } });
+    expect(child.scope).toBe("owner"); expect(child.exp).toBeLessThanOrEqual(parent.exp);
+    expect(read(`captureSupplements/${child.captureId}`).recording_scope).toBe("complete_walkthrough");
+    await validateCaptureSupplement(child); expect(read(`captureUploadSessions/${parent.captureId}`)).toEqual(originalSource);
+    await expect(validateCaptureSupplement({ ...child, requestId: "other" })).rejects.toThrow("website_capture_binding_source_mismatch");
+    await expect(validateCaptureSupplement({ ...child, supplement: { ...child.supplement!, parent_bundle_digest: `sha256:${"f".repeat(64)}` } }))
+      .rejects.toThrow("supplement_parent_changed");
+    put(`captureUploadSessions/${child.captureId}`, { ...source,
+      site_capture_bundle: { ...source.site_capture_bundle, capture_id: child.captureId }, immutable_upload_identity: {
+      raw_bundle_digest: `sha256:${"b".repeat(64)}`, raw_manifest_uri: `gs://bucket/scenes/site-req/captures/${child.captureId}/raw/manifest.json` } });
+    put("inboundRequests/req", { active_capture_id: child.captureId, capture_coverage: { capture_id: child.captureId, covers_scene: false, missing_coverage: ["Top view"] } });
     const next = verifyCaptureUploadToken((await issueCaptureSupplement(parent)).token)!;
     expect(next.supplement?.parent_capture_id).toBe(child.captureId);
     await validateCaptureSupplement(next);
     put("inboundRequests/req", { capture_coverage: { capture_id: "unrelated", covers_scene: false, missing_coverage: ["Top view"] } });
-    await expect(issueCaptureSupplement(parent)).rejects.toThrow("supplement_parent_mismatch");
+    await expect(issueCaptureSupplement(parent)).rejects.toThrow("website_capture_binding_source_mismatch");
+    expect(read(`captureUploadSessions/${parent.captureId}`)).toEqual(originalSource);
   });
   it("retains a written explanation without clearing marginal gates and rejects a stale revision", async () => {
     put("siteTaskBriefs/req", { summary: "Pack cartons" }); put("inboundRequests/req", {

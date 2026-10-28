@@ -1,4 +1,5 @@
 import { siteWalkthroughIdentity } from "../utils/siteWalkthrough";
+import { isWebsiteCaptureId } from "../utils/websiteCaptureIdentity";
 import { loadCurrentSiteAdvisory } from "../utils/siteAssessmentPublic";
 import { projectAtlasPreparationOutcome } from "../utils/taskPreparationOutcome";
 import { closeWebsiteRun, projectWebsiteRunClosure } from "../utils/websiteRunClosure";
@@ -186,7 +187,7 @@ function safeSceneViewUrl(value: unknown): string | null {
 }
 
 /** Just the fields status needs, so this route does not decrypt a whole lead. */
-async function readRequestForStatus(requestId: string, captureId = `walkthrough-${requestId}`): Promise<{
+async function readRequestForStatus(requestId: string, captureId = `walkthrough-${requestId}`, sceneId = `site-${requestId}`): Promise<{
   active_capture_id?: string;
   siteTaskGates?: Record<string, string> | null;
   site_task_brief_confirmed_at?: unknown;
@@ -219,7 +220,11 @@ async function readRequestForStatus(requestId: string, captureId = `walkthrough-
   const snap = await db.collection("inboundRequests").doc(requestId).get();
   if (!snap.exists) return null;
   const data = snap.data() as Record<string, unknown>;
-  const selectedCaptureId = siteWalkthroughIdentity(requestId, data).captureId;
+  const websiteIdentity = siteWalkthroughIdentity(requestId, data);
+  // Only an explicitly selected website revision supersedes a website job
+  // link. Legacy/app links retain the scene and capture they authenticated.
+  const selectedCaptureId = data.active_capture_id === websiteIdentity.captureId
+    && isWebsiteCaptureId(requestId, sceneId, captureId) ? websiteIdentity.captureId : captureId;
   const contact = data.contact as { email?: unknown; firstName?: unknown } | undefined;
   // Contact fields may be stored encrypted. Reading only plain strings meant an
   // encrypted address came back null and every email from this route was
@@ -986,7 +991,7 @@ router.get("/:token/status", async (req: Request, res: Response) => {
   let payload = verifiedPayload;
   try {
     const [brief, request] = await Promise.all([
-      getBrief(payload.requestId), readRequestForStatus(payload.requestId, payload.captureId),
+      getBrief(payload.requestId), readRequestForStatus(payload.requestId, payload.captureId, payload.sceneId),
     ]);
     // A job link authenticates the same job after a video update. Current
     // progress follows the selected immutable revision; old receipts remain.
