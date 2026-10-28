@@ -110,7 +110,7 @@ it("joins the existing job, bounded review, proposal acceptance and evidence-gat
     expect(draft.assessment, JSON.stringify(draft)).toBeTruthy();
     expect(draft.assessment).not.toHaveProperty("decisionEvidence");
     const assessment = render(<SiteAdvisoryReport advisory={draft.assessment} />);
-    expect(screen.getByText("Your job assessment")).toBeInTheDocument();
+    expect(screen.getByText("Processing details").closest("details")).not.toHaveAttribute("open");
     expect(screen.queryByText(/A carton moves onto the pallet/)).toBeNull();
     expect(screen.queryByText(/Untrusted prose/)).toBeNull(); assessment.unmount();
     expect(draft.sources.successCondition).toMatch(/siteTaskBriefs\/req-1/);

@@ -39,14 +39,17 @@ describe("task lifecycle notifications", () => {
     expect(reconstructionIsViewable({ state: "ready", worldId: "w", assets: { spzUrlsByDetail: { full: "https://assets/scene.spz" } } })).toBe(false);
     expect(reconstructionIsViewable({ state: "ready", worldId: "w", assets: { launchUrl: "https://view" } })).toBe(true);
   });
-  it("decrypts the owner, uses an owner-scoped task link, and deduplicates retries", async () => {
+  it("acknowledges a draft job without another confirmation step and deduplicates the private owner notice", async () => {
+    sharedFakeFirestoreState.docs.set("siteTaskBriefs/req-1", { requestId: "req-1", summary: "Move cartons", confirmedAtIso: null });
+    sharedFakeFirestoreState.docs.get("inboundRequests/req-1")!.request = { buyerType: "site_operator" };
     expect((await enqueueTaskLifecycleNotification({ requestId: "req-1", milestone: "video_received" })).enqueued).toBe(true);
     expect((await enqueueTaskLifecycleNotification({ requestId: "req-1", milestone: "video_received" })).enqueued).toBe(false);
 
     const row = sharedFakeFirestoreState.docs.get("captureOutbox/req-1:video_received") as Record<string, unknown>;
     expect(row.to).toBe("owner@example.com");
     expect(row.kind).toBe("video_received");
-    expect(row.body).toMatch(/investigate the observed task and prepare a recommendation/i);
+    expect(row.body).toMatch(/Blueprint handles reconstruction and evaluation/i);
+    expect(`${row.subject} ${row.body}`).not.toMatch(/confirm|create an account|save this site to your account/i);
     expect(row.body).toMatch(/\/capture-upload\//);
     expect([...sharedFakeFirestoreState.docs.keys()].filter(key => key.startsWith("captureOutbox/"))).toHaveLength(1);
   });
@@ -82,7 +85,8 @@ describe("task lifecycle notifications", () => {
     await enqueueTaskLifecycleNotification({ requestId: "req-1", milestone: "task_received" });
     const row = sharedFakeFirestoreState.docs.get("captureOutbox/req-1:task_received") as Record<string, string>;
     expect(row.body).toMatch(/\/capture-upload\//);
-    expect(row.body).toMatch(/meaningful findings and questions that need your input/i);
+    expect(row.body).toMatch(/Blueprint handles reconstruction and evaluation/i);
+    expect(row.body).not.toMatch(/questions that need your input|confirm.*brief/i);
   });
 
   it("does not enqueue without an authoritative owner contact", async () => {
@@ -280,4 +284,13 @@ describe("a waiting job hears what it is waiting on", () => {
     expect([...sharedFakeFirestoreState.docs.keys()].some(key => key.includes(":no_team_passed:"))).toBe(false);
     expect([...sharedFakeFirestoreState.docs.keys()].filter(key => key.endsWith(":no_qualified_evaluation"))).toHaveLength(1);
   });
+});
+
+it.each(["results_ready", "run_no_result", "no_team_passed", "no_qualified_evaluation"] as const)("keeps %s on the private job page without an account step", async milestone => {
+  const { buildTaskLifecycleNotification } = await import("../utils/taskLifecycleNotifications");
+  const notice = buildTaskLifecycleNotification({ requestId: "req-1", to: "owner@example.com", milestone,
+    captureUrl: "https://example.invalid/capture-upload/private-owner-link", workspaceUrl: null });
+  expect(notice.body).toContain("https://example.invalid/capture-upload/private-owner-link");
+  expect(notice.body).toMatch(/private job page/i);
+  expect(notice.body).not.toMatch(/create.*account|save.*account|results open in.*account|confirm.*brief/i);
 });

@@ -79,14 +79,13 @@ function workspaceTaskUrl(requestId: string): string {
 }
 
 /**
- * Where a site sees its runs. Results open in the site's account, so a
- * claimed site is sent there; an unclaimed one is told first that its job page
- * will ask it to save the site to an account (audit N12).
+ * A claimed site may use its workspace. The private owner link shows the
+ * same job results without adding an account step.
  */
 function whereRunsAre(url: string, workspaceUrl: string | null, action: string): string {
   return workspaceUrl
     ? `${action} in your workspace:\n${workspaceUrl}`
-    : `Run results open in your Blueprint account. ${action} there: open your job and save this site to your account; your private link keeps working.\n\nOpen your job:\n${url}`;
+    : `${action} on your private job page:\n${url}`;
 }
 
 const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string, detail: string, counterpart: string, workspaceUrl: string | null) => string }> = {
@@ -101,11 +100,11 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
   },
   task_received: {
     subject: "We have your Blueprint job — here is your link",
-    body: (url) => `Thanks for sending us your job. This private link shows the same job and lets you correct details when needed. We need video of the work before the site assessment can continue. We analyze the recording, draft a job brief for you to correct, then reconstruct the site in simulation and run candidate robots and policies against your job. You can also reply to a job conversation without completing another form. If your video is not uploaded yet, use your job page to record or upload it after arranging filming permission. It opens your site's job without a password, so please don't forward it.\n\nOpen your job:\n${url}\n\nBlueprint will follow through with meaningful findings and questions that need your input.`,
+    body: (url) => `Thanks for sending us your job. This private link shows the same job and lets you correct details if you choose. Once your video arrives, Blueprint handles reconstruction and evaluation and updates this job with the results and any delivery proposal. If your video is not uploaded yet, use your job page to record or upload it after arranging filming permission. It opens your site's job without a password, so please don't forward it.\n\nOpen your job:\n${url}`,
   },
   video_received: {
     subject: "We received your Blueprint walkthrough",
-    body: (url) => `Your walkthrough arrived safely. Blueprint will investigate the observed task and prepare a recommendation or concrete next step. Reconstruction and evaluation are used when they help that decision. We will ask only when a missing fact, permission or real commitment blocks progress.\n\nOpen your job:\n${url}`,
+    body: (url) => `Your walkthrough arrived safely. Blueprint handles reconstruction and evaluation from the recording. Your job page will show the reconstruction, results and any delivery proposal as they become available. You can review or correct job details at any time.\n\nOpen your job:\n${url}`,
   },
   scene_ready: {
     subject: "Your Blueprint scene is ready to view",
@@ -188,25 +187,6 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
 };
 
 /**
- * `video_received` for a site whose drafted brief is still unconfirmed. Same
- * event, same outbox key, so still one email when the footage lands; it names
- * the step that is the site's own, because a job can be evaluated only once
- * its brief is confirmed (`teamJobAccess`).
- */
-const VIDEO_RECEIVED_CONFIRM_BRIEF = {
-  subject: "We received your walkthrough. Next, confirm your job brief",
-  body: (url: string) => `Your walkthrough arrived safely. Next, confirm your job brief so the options are assessed against the work you actually need done. A site-specific evaluation still needs your confirmed brief. Open your job, check the summary and the answers we drafted from what you sent, correct anything that is wrong, and confirm it.\n\nOpen your job:\n${url}`,
-};
-
-/** A drafted brief the site has not confirmed. Read only for `video_received`. */
-async function briefAwaitsConfirmation(requestId: string, record: Record<string, any> | undefined): Promise<boolean> {
-  if (record?.request?.buyerType !== "site_operator" || record.site_task_brief_confirmed_at) return false;
-  const { getBrief } = await import("./siteTaskBrief");
-  const brief = await getBrief(requestId);
-  return Boolean(brief && !brief.confirmedAtIso);
-}
-
-/**
  * Resolve the owner from the authoritative encrypted request and enqueue one
  * message per request and milestone. Calling this again repairs a missed
  * enqueue while the outbox document id prevents a duplicate delivery intent.
@@ -247,12 +227,10 @@ export async function enqueueTaskLifecycleNotification(params: {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
     return { enqueued: false, reason: "contact_missing" };
   }
-  const briefConfirmationNeeded = params.milestone === "video_received"
-    && await briefAwaitsConfirmation(requestId, snapshot.data());
   // Run results open in the site's account; only a claimed site has one.
   const workspaceUrl = typeof snapshot.data()?.account_owner_uid === "string" && snapshot.data()?.account_owner_uid
     ? workspaceTaskUrl(requestId) : null;
-  return enqueueOutbox(buildTaskLifecycleNotification({ ...params, requestId, to, briefConfirmationNeeded, workspaceUrl }));
+  return enqueueOutbox(buildTaskLifecycleNotification({ ...params, requestId, to, workspaceUrl }));
 }
 
 /** Build the existing notice without a database write or delivery. Atomic
@@ -271,8 +249,6 @@ export function buildTaskLifecycleNotification(params: {
   runProgress?: NoResultObservation;
   /** `preparation_ended` only: rendered through a fixed sentence per known reason. */
   terminalReason?: string | null;
-  /** `video_received` only: the drafted brief still awaits the site's confirmation. */
-  briefConfirmationNeeded?: boolean;
   /** The job in the site's workspace, when the site is claimed. Run notices send it there. */
   workspaceUrl?: string | null;
 }): Parameters<typeof enqueueOutbox>[0] {
@@ -280,8 +256,7 @@ export function buildTaskLifecycleNotification(params: {
   if (isWebsitePreparationNotice(params.milestone) && !/^sha256:[a-f0-9]{64}$/.test(params.eventId || "")) {
     throw new Error("website_preparation_event_invalid");
   }
-  const message = params.milestone === "video_received" && params.briefConfirmationNeeded
-    ? VIDEO_RECEIVED_CONFIRM_BRIEF : copy[params.milestone];
+  const message = copy[params.milestone];
   const url = params.captureUrl ?? captureUploadUrlFor(requestId, "owner");
   const eventId = params.eventId?.trim().replace(/[^A-Za-z0-9._-]/g, "_").slice(0, 120);
   // Preparation notices never carry caller text: only a validated reference and,
@@ -420,6 +395,7 @@ export async function footageBeforeAccountShown(requestId: string): Promise<bool
   const consentRevoked = projectWebsiteCaptureRights(record).consent_revoked;
   const reconstruction = session.data()?.world_reconstruction;
   const status = projectTaskStatus(taskStatusInputFrom({
+    active_capture_id: typeof record.active_capture_id === "string" ? record.active_capture_id : null,
     site_task_brief_confirmed_at: record.site_task_brief_confirmed_at,
     capture_coverage: record.capture_coverage ?? null,
     briefDrafted: Boolean(brief),
