@@ -330,13 +330,15 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
     };
   }
 
-  // Name measured gaps without promising an unsupported same-link supplement.
-  if (input.coversScene === false && input.missingViews.length) {
+  // Source coverage is an observation hint, not a reconstruction verdict.
+  // Retained scene outputs and actual run activity supersede that earlier hint.
+  if (input.coversScene === false && input.missingViews.length
+    && !input.scenePreviewReady && !nativeProgress && !hasRuns) {
     return {
       ...base,
       decision: "add_views",
-      headline: "Your footage is saved, but it needs more coverage before we can build the scene.",
-      operatorAction: `Still needed: ${input.missingViews.join(", ")}. Contact hello@tryblueprint.io with your job reference for help starting a new job with a complete walkthrough and fresh recording permission. This link cannot add to or replace the original recording; the new job needs its own review before evaluation.`,
+      headline: "Your footage is saved. Blueprint is reviewing its scene coverage gaps.",
+      operatorAction: `Coverage to review: ${input.missingViews.join(", ")}. Blueprint will first check what reconstruction can recover. If additional source views are still necessary, contact hello@tryblueprint.io with your job reference for help starting a new job with a complete walkthrough and fresh recording permission. This link cannot add to or replace the original recording; the new job needs its own review before evaluation.`,
     };
   }
 
