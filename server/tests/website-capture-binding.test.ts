@@ -15,7 +15,7 @@ vi.mock("../utils/pipelineSyncSecurity", () => ({
   verifyPipelineSyncRequest: (req: any) => req.headers["x-synthetic-signed"] === "1" ? { ok: true } : { ok: false, status: 401, code: "unauthorized" },
 }));
 import { resolveWebsiteCaptureBinding, assertWebsiteCaptureBindingInTransaction } from "../utils/websiteCaptureBinding";
-import { supplementIdentity } from "../utils/captureSupplement";
+import { issueCaptureSupplement, supplementIdentity } from "../utils/captureSupplement";
 import { bundleDigest } from "../utils/siteCaptureBundle";
 import { projectWebsiteTaskContext } from "../utils/websiteTaskContext";
 import continuationVector from "./fixtures/website-continuation-vector.json";
@@ -76,6 +76,26 @@ it("exports an authoritative supplementary context consumed by the shared Pipeli
   const captureBinding = await resolveWebsiteCaptureBinding("req1", "site-req1", captureId, storage);
   expect(projectWebsiteTaskContext(continuationVector.brief as any, continuationVector.rights as any,
     { captureId, captureBinding })).toEqual(continuationVector.context);
+});
+
+it.each(["missing", "earlier_recording"])("allows a complete update from an old owner link with %s coverage", async coverageState => {
+  const current = child();
+  const record = { active_capture_id: current, ...(coverageState === "earlier_recording" ? {
+    capture_coverage: { capture_id: "walkthrough-req1", covers_scene: false, missing_coverage: ["pallet"] },
+  } : {}) };
+  sharedFakeFirestoreState.docs.set("inboundRequests/req1", record);
+  const before = structuredClone(record);
+  const original = structuredClone(sharedFakeFirestoreState.docs.get("captureUploadSessions/walkthrough-req1"));
+  const input = { requestId: "req1", sceneId: "site-req1", captureId: "walkthrough-req1", exp: Math.floor(Date.now() / 1000) + 60 };
+  const intent = { mode: "replacement" as const, requestId: "00000000-0000-4000-8000-000000000001" };
+  const update = await issueCaptureSupplement(input, intent);
+  expect(sharedFakeFirestoreState.docs.get(`captureSupplements/${update.captureId}`)).toMatchObject({
+    requestId: "req1", sceneId: "site-req1", recording_scope: "complete_walkthrough", state: "awaiting_upload",
+    supplement: { parent_capture_id: current },
+  });
+  expect((await issueCaptureSupplement(input, intent)).captureId).toBe(update.captureId);
+  expect(sharedFakeFirestoreState.docs.get("captureUploadSessions/walkthrough-req1")).toEqual(original);
+  expect(sharedFakeFirestoreState.docs.get("inboundRequests/req1")).toEqual(before);
 });
 
 it("screens a verified supplementary scene and keeps changed or withdrawn capture evidence historical", async () => {

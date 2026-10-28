@@ -259,9 +259,12 @@ describe("video first owner return", () => {
     expect(videoUpload.send).not.toHaveBeenCalled();
     expect(screen.queryByRole("button", { name: "Add footage when you are ready (optional)" })).not.toBeInTheDocument();
   });
-  it("opens an immutable video update on the same job without sending another upload", async () => {
+  it.each([{ missingViews: [] }, { missingViews: ["pallet"] }])("opens one complete same-job update with missing views $missingViews without sending another upload", async ({ missingViews }) => {
     const fallback = ownerFetch(false, true);
     const fetcher = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).endsWith(`/api/site-task-brief/${TOKEN}/status`)) return Promise.resolve({ ok: true,
+        json: async () => ({ captureReceived: true, status: { decision: missingViews.length ? "add_views" : "footage_received",
+          headline: "Your video is saved.", operatorAction: null, missingViews } }) });
       if (String(input).endsWith("/supplement")) return Promise.resolve({ ok: true,
         json: async () => ({ ok: true, url: "/capture-upload/signed-same-job-update" }) });
       return fallback(input);
@@ -269,6 +272,7 @@ describe("video first owner return", () => {
     vi.stubGlobal("fetch", fetcher);
     render(<SelfCaptureUpload />);
     await screen.findByText("Video received.");
+    expect(screen.queryByRole("button", { name: "Upload a replacement walkthrough" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Update walkthrough" }));
     await waitFor(() => expect(route.navigate).toHaveBeenCalledWith("/capture-upload/signed-same-job-update"));
     const call = fetcher.mock.calls.find(([input]) => String(input).endsWith("/supplement"))!;
