@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { TaskClarification } from "./TaskClarification";
 import type { User } from "firebase/auth";
+import type { FamilyTaskAnswer, FamilyTaskDetail, FamilyTaskQuestion } from "@/types/siteTaskFamilyFacts";
 
 import { gateFields } from "@/data/siteTaskQualification";
 import { deploymentPathOptions, pilotConsiderationOptions, type SitePilotIntent } from "@/data/sitePilotIntent";
@@ -44,9 +45,12 @@ export interface DraftedBrief {
   successCriteria?: { successDefinition: string | null; successRate: number | null; cycleTimeSeconds: number | null; unknown: boolean } | null;
   pilotIntent?: SitePilotIntent | null;
   confirmedBy?: string | null;
+  familyTaskQuestion?: FamilyTaskQuestion | null;
+  familyTaskDetails?: FamilyTaskDetail[];
 }
 
 type Screening = { headline: string; detail: string; bookingUrl: string | null };
+type FamilyTaskCorrection = { detail: FamilyTaskDetail; field: "target" | "hold_seconds" };
 
 /** Whether the site is saved to an account yet, from the brief GET (owner link only). */
 export interface SiteAccount {
@@ -121,6 +125,26 @@ export function TaskBriefReview(props: {
   const [successRate, setSuccessRate] = useState(props.brief.successCriteria?.successRate?.toString() ?? "");
   const [cycleTimeSeconds, setCycleTimeSeconds] = useState(props.brief.successCriteria?.cycleTimeSeconds?.toString() ?? "");
   const [successUnknown, setSuccessUnknown] = useState(props.brief.successCriteria?.unknown ?? false);
+  const [familyValue, setFamilyValue] = useState("");
+  const [familyUnknown, setFamilyUnknown] = useState(props.brief.familyTaskQuestion?.deferred ?? false);
+  const [familyCorrection, setFamilyCorrection] = useState<FamilyTaskCorrection | null>(null);
+  const touchedFamily = useRef(false);
+  const familyDeferred = props.brief.familyTaskQuestion?.deferred ?? false;
+  const familySource = JSON.stringify([props.brief.familyTaskQuestion, props.brief.familyTaskDetails]);
+  const familyQuestion = familyCorrection ? {
+    kind: familyCorrection.field,
+    operationLabel: familyCorrection.detail.operationLabel,
+    question: familyCorrection.field === "target"
+      ? "Which captured target should the robot use?"
+      : "How long must the outcome remain stable?",
+    targets: familyCorrection.detail.targets,
+  } : props.brief.familyTaskQuestion;
+  useEffect(() => {
+    setFamilyCorrection(null);
+    setFamilyValue("");
+    setFamilyUnknown(familyDeferred);
+    touchedFamily.current = false;
+  }, [familySource, familyDeferred]);
   const [pilotConsideration, setPilotConsideration] = useState<SitePilotIntent["pilotConsideration"] | "">(props.brief.pilotIntent?.pilotConsideration ?? "");
   const [deploymentPath, setDeploymentPath] = useState<SitePilotIntent["deploymentPath"] | "">(props.brief.pilotIntent?.deploymentPath ?? "");
 
@@ -210,10 +234,33 @@ export function TaskBriefReview(props: {
     setUnknown((current) => new Set(current).add(fieldId));
   }
 
+  function correctFamilyDetail(detail: FamilyTaskDetail, field: FamilyTaskCorrection["field"]) {
+    const value = field === "target" ? detail.targetId : detail.holdSeconds;
+    setFamilyCorrection({ detail, field });
+    setFamilyValue(value?.toString() ?? "");
+    setFamilyUnknown(value === null);
+    touchedFamily.current = false;
+  }
+
+  function cancelFamilyCorrection() {
+    setFamilyCorrection(null);
+    setFamilyValue("");
+    setFamilyUnknown(familyDeferred);
+    touchedFamily.current = false;
+  }
+
   function problem(): string | null {
     if (!summary.trim()) return "Describe the job in one sentence, so we know what the robot should do.";
     if (!name.trim()) return "Please add your name so we know who confirmed this.";
     if (touchedSuccess.current && !successUnknown && !successDefinition.trim() && (successRate || cycleTimeSeconds)) return "Describe which outcome the edited target measures, or leave the targets open.";
+    const familyAnswerApplies = summary.trim() === props.brief.summary.trim() && !touchedSuccess.current;
+    if (familyAnswerApplies && familyCorrection && touchedFamily.current && !familyUnknown && !familyValue.trim())
+      return familyCorrection.field === "target"
+        ? "Choose a captured target, or say you don't know this detail yet."
+        : "Enter how long the outcome must remain stable, in seconds, or choose that you do not know yet.";
+    if (familyAnswerApplies && touchedFamily.current && !familyUnknown && familyValue && familyQuestion?.kind === "hold_seconds"
+      && (!Number.isFinite(Number(familyValue)) || Number(familyValue) < 0 || Number(familyValue) > 86400))
+      return "Enter how long the outcome must remain stable, in seconds, or choose that you do not know yet.";
     return null;
   }
 
@@ -258,6 +305,18 @@ export function TaskBriefReview(props: {
     }
 
     const summaryChanged = summary.trim() !== props.brief.summary.trim();
+    let familyTaskFacts: FamilyTaskAnswer | undefined;
+    if (!summaryChanged && !touchedSuccess.current && touchedFamily.current && familyQuestion
+      && (familyQuestion.kind !== "task_intent" || familyUnknown) && (familyUnknown || familyValue.trim())) {
+      const answer = familyUnknown ? null : familyQuestion.kind === "hold_seconds" ? Number(familyValue) : familyValue;
+      if (familyCorrection) {
+        familyTaskFacts = { authoringDigest: familyCorrection.detail.authoringDigest,
+          operationId: familyCorrection.detail.operationId, field: familyCorrection.field, answer };
+      } else if (props.brief.familyTaskQuestion) {
+        familyTaskFacts = { authoringDigest: props.brief.familyTaskQuestion.authoringDigest,
+          requirementId: props.brief.familyTaskQuestion.requirementId, answer };
+      }
+    }
     const confirmedBrief: DraftedBrief = {
       ...props.brief,
       summary: summary.trim(),
@@ -284,6 +343,7 @@ export function TaskBriefReview(props: {
           ...(confirmedBrief.successCriteria ? { successCriteria: confirmedBrief.successCriteria } : {}),
           ...(confirmedBrief.pilotIntent ? { pilotIntent: confirmedBrief.pilotIntent } : {}),
           ...(summaryChanged ? { summary: confirmedBrief.summary } : {}),
+          ...(familyTaskFacts ? { familyTaskFacts } : {}),
         }),
       });
       const body = (await response.json().catch(() => ({}))) as Partial<Verdict> & {
@@ -306,6 +366,19 @@ export function TaskBriefReview(props: {
       return;
     }
 
+    if (familyTaskFacts && "operationId" in familyTaskFacts) {
+      const correction = familyTaskFacts;
+      confirmedBrief.familyTaskDetails = props.brief.familyTaskDetails?.map(detail => {
+        if (detail.operationId !== correction.operationId || detail.authoringDigest !== correction.authoringDigest) return detail;
+        if (correction.field === "target") {
+          const targetId = typeof correction.answer === "string" ? correction.answer : null;
+          return { ...detail, targetId,
+            targetLabel: detail.targets.find(target => target.targetId === targetId)?.label ?? null };
+        }
+        return { ...detail, holdSeconds: typeof correction.answer === "number" ? correction.answer : null };
+      }).filter(detail => detail.operationId !== correction.operationId || detail.authoringDigest !== correction.authoringDigest
+        || detail.targetId !== null || detail.holdSeconds !== null);
+    }
     setState({ status: "confirmed", verdict });
     props.onConfirmed?.(confirmedBrief);
     if (user) await saveToAccount(user);
@@ -509,6 +582,46 @@ export function TaskBriefReview(props: {
           </select>
         </fieldset>
       ))}
+
+      {Boolean(props.brief.familyTaskDetails?.length) && <details>
+        <summary>Recorded job details (optional corrections)</summary>
+        {props.brief.familyTaskDetails?.map(detail => <div key={detail.operationId}>
+          <p style={{ fontWeight: 600 }}>{detail.operationLabel}</p>
+          <p>Target: {detail.targetLabel ?? "Not known yet"}</p>
+          {detail.targetId !== null && <button type="button" className="ms-text-link" disabled={state.status === "confirming"}
+            aria-label={`Change target for ${detail.operationLabel}`} onClick={() => correctFamilyDetail(detail, "target")}>
+            Change target
+          </button>}
+          <p>Required stable outcome: {detail.holdSeconds === null ? "Not known yet" : `${detail.holdSeconds} seconds`}</p>
+          {detail.holdSeconds !== null && <button type="button" className="ms-text-link" disabled={state.status === "confirming"}
+            aria-label={`Change required time for ${detail.operationLabel}`} onClick={() => correctFamilyDetail(detail, "hold_seconds")}>
+            Change required time
+          </button>}
+        </div>)}
+      </details>}
+
+      {familyQuestion && <fieldset style={{ border: "1px solid var(--ms-rule)", padding: "14px", margin: "18px 0" }}>
+        <legend style={{ padding: "0 6px", fontWeight: 600 }}>One detail about this job</legend>
+        {familyQuestion.operationLabel && <p>{familyQuestion.operationLabel}</p>}
+        <p>{familyQuestion.question}</p>
+        {familyQuestion.kind === "task_intent" ? <p className="ms-field-hint">Describe the order in the job description above.</p>
+          : familyQuestion.kind === "target" ? <label htmlFor="family-task-target"><span>Which captured target?</span>
+            <select id="family-task-target" value={familyValue} disabled={familyUnknown}
+              onChange={event => { touchedFamily.current = true; setFamilyValue(event.target.value); }}>
+              <option value="">Choose a target…</option>
+              {familyQuestion.targets.map(target => <option key={target.targetId} value={target.targetId}>{target.label}</option>)}
+            </select>
+          </label> : <label htmlFor="family-task-hold"><span>Required stable outcome (seconds)</span>
+            <input id="family-task-hold" type="number" min="0" max="86400" step="any" value={familyValue} disabled={familyUnknown}
+              onChange={event => { touchedFamily.current = true; setFamilyValue(event.target.value); }} />
+          </label>}
+        <label htmlFor="family-task-unknown"><input id="family-task-unknown" type="checkbox" checked={familyUnknown}
+          onChange={event => { touchedFamily.current = true; setFamilyUnknown(event.target.checked); }} />I don't know this detail yet</label>
+        {familyCorrection && <button type="button" className="ms-text-link" disabled={state.status === "confirming"}
+          onClick={cancelFamilyCorrection}>Cancel correction</button>}
+        {(summary.trim() !== props.brief.summary.trim() || touchedSuccess.current)
+          && <p className="ms-field-hint">Save the task changes first. Blueprint will refresh this detail for the corrected job.</p>}
+      </fieldset>}
 
       <fieldset style={{ border: "1px solid var(--ms-rule)", padding: "14px", margin: "18px 0" }}>
         <legend style={{ padding: "0 6px", fontWeight: 600 }}>What counts as success? (optional)</legend>

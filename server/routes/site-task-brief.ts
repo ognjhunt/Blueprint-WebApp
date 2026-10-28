@@ -67,7 +67,9 @@ import {
   projectTaskStatus,
   taskStatusInputFrom,
 } from "../utils/taskStatusProjection";
-import { loadCurrentWebsitePreparationStatus } from "../utils/websitePreparationStatus";
+import { loadCurrentFamilyTaskAuthoring, loadCurrentWebsitePreparationStatus } from "../utils/websitePreparationStatus";
+import { familyTaskAnswerSchema, projectFamilyTaskDetails, projectFamilyTaskQuestion } from "../utils/siteTaskFamilyFacts";
+import type { FamilyTaskDetail, FamilyTaskQuestion } from "../../client/src/types/siteTaskFamilyFacts";
 import { websitePreparationOverdue } from "../utils/websitePreparationWatch";
 import { loadWebsiteSceneProgression } from "../utils/websiteSceneProgression";
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
@@ -342,13 +344,14 @@ const confirmSchema = z
       successRate: z.number().finite().min(0).max(100).nullable(),
       cycleTimeSeconds: z.number().finite().positive().max(86400).nullable(),
       unknown: z.boolean(),
-    }).strict().refine((value) => value.unknown || Boolean(value.successDefinition)),
+    }).strict().refine((value) => value.unknown || Boolean(value.successDefinition)).optional(),
     pilotIntent: z.object({
       pilotConsideration: z.enum(["yes", "subject_to_review", "evaluation_only", "undecided"]),
       deploymentPath: z.enum(["this_site", "multiple_sites", "pilot_only", "undecided"]),
     }).strict().optional(),
     /** The job in the site's own sentence. Required while the drafted summary is a placeholder. */
     summary: z.string().trim().min(1).max(300).optional(),
+    familyTaskFacts: familyTaskAnswerSchema.optional(),
   })
   .strict();
 
@@ -405,7 +408,7 @@ const SHOT_LABELS: Record<string, string> = {
  * carries what it rests on and why we read it that way, because an answer the
  * operator cannot see the basis of is one they cannot meaningfully correct.
  */
-function presentBrief(brief: SiteTaskBriefRecord) {
+function presentBrief(brief: SiteTaskBriefRecord, familyTaskQuestion: FamilyTaskQuestion | null = null, familyTaskDetails: FamilyTaskDetail[] = []) {
   return {
     requestId: brief.requestId,
     confirmedBy: brief.confirmedBy,
@@ -430,6 +433,8 @@ function presentBrief(brief: SiteTaskBriefRecord) {
     operatorUnknown: brief.operatorUnknown ?? null,
     successCriteria: brief.successCriteria ?? null,
     pilotIntent: brief.pilotIntent ?? null,
+    ...(familyTaskQuestion ? { familyTaskQuestion } : {}),
+    ...(familyTaskDetails.length ? {familyTaskDetails} : {}),
   };
 }
 
@@ -479,7 +484,15 @@ router.get("/:token", async (req: Request, res: Response) => {
       ? (await db.collection("inboundRequests").doc(payload.requestId).get()).data() : null;
     const recordedAnswers = { ...gateAnswersOnFile(recorded ?? {}), ...brief.operatorAnswers };
     for (const id of brief.operatorUnknown ?? []) delete recordedAnswers[id];
-    const presented = payload.scope === "owner" ? presentBrief({ ...brief, operatorAnswers: recordedAnswers }) : presentBriefForFilming(brief);
+    const familySource = payload.scope === "owner" ? await loadCurrentFamilyTaskAuthoring(payload.requestId,
+      recorded?.active_capture_id ?? payload.captureId) : null;
+    const familyQuestion = familySource && brief.familyTaskAuthoring?.status.projection_digest === familySource.projection_digest
+      ? projectFamilyTaskQuestion(brief, familySource) : null;
+    const familyContext = familySource ? (await import("../utils/websiteTaskContext")).projectWebsiteTaskContext(brief,
+      projectWebsiteCaptureRights(recorded ?? undefined), {captureId: familySource.capture_id, inventory: await getItemInventory(payload.requestId),
+        ...(recorded?.website_scene_sponsorship?.purpose === "scene_preparation" ? {purpose: "scene_preparation" as const} : {})}) : null;
+    const familyDetails = familySource && familyContext ? projectFamilyTaskDetails(brief, familyContext, familySource) : [];
+    const presented = payload.scope === "owner" ? presentBrief({ ...brief, operatorAnswers: recordedAnswers }, familyQuestion, familyDetails) : presentBriefForFilming(brief);
     if (payload.supplement && db) {
       const supplement = (await db.collection("captureSupplements").doc(payload.captureId).get()).data();
       const views = supplement?.parent_coverage?.missing_coverage;
@@ -834,6 +847,7 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
       successCriteria: parsed.data.successCriteria,
       pilotIntent: parsed.data.pilotIntent,
       summary: parsed.data.summary,
+      familyTaskFacts: parsed.data.familyTaskFacts,
     }).catch((error: unknown) => {
       if (error instanceof BriefSummaryRequiredError) return "summary_required" as const;
       throw error;
@@ -959,6 +973,10 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
     });
   } catch (error) {
     if (error instanceof BriefPilotScopeLockedError) return res.status(409).json({ code: "pilot_scope_locked", error: error.message });
+    if (error instanceof Error && /^family_task_facts_/.test(error.message)) return res.status(409).json({
+      code: "family_task_facts_changed", field: "familyTaskFacts",
+      error: "The recording or task question changed. Your saved job is retained. Refresh this brief before confirming those details.",
+    });
     logger.error(
       { error, requestId: payload.requestId },
       "Could not confirm a task brief",

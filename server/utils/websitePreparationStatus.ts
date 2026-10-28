@@ -20,6 +20,8 @@ import type { BrowserPending } from "./websiteBrowserPending";
 import { retainedWebsiteScenePurpose, currentWebsitePreparationStatusContext } from "./websiteSceneSponsorship";
 import { nextWebsitePreparationWatch, parseWebsitePreparationWatch, WEBSITE_PREPARATION_WATCH_DUE_FIELD,
   WEBSITE_PREPARATION_WATCH_FIELD } from "./websitePreparationWatch";
+import { familyAuthoringStatusSchema, familyTaskCaptureFingerprint, familyTaskFactsEnabled,
+  type FamilyAuthoringStatus } from "./siteTaskFamilyFacts";
 
 const id = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/);
 const sceneId = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,124}$/);
@@ -59,8 +61,10 @@ const receiptV3 = receiptV2.extend({
   schema_version: z.literal("website_preparation_status.v3"),
   outcome: preparationOutcomeSchema.nullable(),
 }).strict();
+const receiptV4 = receiptV3.extend({ schema_version: z.literal("website_preparation_status.v4"),
+  family_authoring: familyAuthoringStatusSchema.nullable() }).strict();
 /** Older Pipelines keep answering v1/v2; v3 adds a retained evidence finding. */
-export const websitePreparationReceiptSchema = z.union([receiptV1, receiptV2, receiptV3]);
+export const websitePreparationReceiptSchema = z.union([receiptV1, receiptV2, receiptV3, receiptV4]);
 export type WebsitePreparationReceipt = z.infer<typeof websitePreparationReceiptSchema>;
 type PreparationState = typeof statesV2[number];
 /** Asks for v3; older Pipelines cap negotiation at their newest known version. */
@@ -113,8 +117,11 @@ function parseReceipt(raw: unknown, selector: WebsitePreparationSelector): Websi
   if (crossRuntimeDigest(receiptSelectors(receipt)) !== crossRuntimeDigest(selector)
       || codes[receipt.state] !== receipt.code
       || (receipt.state === "failed_terminal") !== (terminalReasonOf(receipt) !== null)
-      || receipt.schema_version === "website_preparation_status.v3" && receipt.outcome !== null
+      || (receipt.schema_version === "website_preparation_status.v3" || receipt.schema_version === "website_preparation_status.v4") && receipt.outcome !== null
         && !["awaiting_inputs", "failed_retryable", "failed_terminal"].includes(receipt.state)
+      || receipt.schema_version === "website_preparation_status.v4" && receipt.family_authoring !== null
+        && (receipt.family_authoring.request_id !== selector.request_id || receipt.family_authoring.scene_id !== selector.scene_id
+          || receipt.family_authoring.capture_id !== selector.capture_id || receipt.family_authoring.task_context_digest !== selector.task_context_digest)
       || crossRuntimeArtifactDigest(receipt as unknown as Record<string, unknown>, "status_digest") !== receipt.status_digest)
     throw unavailable();
   return receipt;
@@ -158,20 +165,19 @@ async function readCanonicalLedger(selector: WebsitePreparationSelector, signal?
   const body = JSON.stringify(selector);
   const signed = signedWebsitePipelineRequest("/api/live-pipeline/website-preparation-status", body);
   if (!signed) throw unavailable();
+  const version = familyTaskFactsEnabled() ? "4" : "3", maximum = version === "4" ? 65536 : 8192;
   const response = await fetch(signed.url, {method: "POST", redirect: "error", signal: signal ?? AbortSignal.timeout(5_000),
-    body, headers: {"content-type": "application/json", ...signed.headers, [WEBSITE_PREPARATION_STATUS_VERSION_HEADER]: "3"}});
-  if (!response.ok || !response.body || Number(response.headers.get("content-length")) > 8192) throw unavailable();
+    body, headers: {"content-type": "application/json", ...signed.headers, [WEBSITE_PREPARATION_STATUS_VERSION_HEADER]: version}});
+  if (!response.ok || !response.body || Number(response.headers.get("content-length")) > maximum) throw unavailable();
   const reader = response.body.getReader(); let length = 0; const chunks: Buffer[] = [];
   try {
     for (;;) { const chunk = await reader.read(); if (chunk.done) break;
-      length += chunk.value.length; if (length > 8192) throw unavailable(); chunks.push(Buffer.from(chunk.value)); }
-    return strictBoundedProofJson(Buffer.concat(chunks), 8192);
+      length += chunk.value.length; if (length > maximum) throw unavailable(); chunks.push(Buffer.from(chunk.value)); }
+    return strictBoundedProofJson(Buffer.concat(chunks), maximum);
   } finally { await reader.cancel().catch(() => undefined); }
 }
 function sourceFingerprint(session: Record<string, any>): string {
-  return crossRuntimeDigest({pending: session.browser_pending_delivery ?? null,
-    stored: session.browser_stored_upload ?? null, reservation: session.browser_upload_reservation ?? null,
-    identity: session.immutable_upload_identity ?? null, bundle: session.site_capture_bundle ?? null});
+  return familyTaskCaptureFingerprint(session);
 }
 async function verifyCurrent(selector: WebsitePreparationSelector, transaction?: FirebaseFirestore.Transaction, signal?: AbortSignal): Promise<PreparationAuthority> {
   if (!db || !storageAdmin || selector.capture_id !== `walkthrough-${selector.request_id}`) throw unavailable();
@@ -252,6 +258,12 @@ const defaultDeps: WebsitePreparationDeps = {
       const preparation = mergeWebsitePreparationStatus(parseStored(session.website_preparation), selector, status);
       const watch = nextWebsitePreparationWatch(parseWebsitePreparationWatch(session[WEBSITE_PREPARATION_WATCH_FIELD]),
         preparation, Date.now());
+      if (familyTaskFactsEnabled() && status.schema_version === "website_preparation_status.v4") {
+        tx.set(store.collection(TASK_BRIEFS_COLLECTION).doc(selector.request_id), {
+          familyTaskAuthoring: status.family_authoring
+            ? { status: status.family_authoring, sourceFingerprint: authority.fingerprint } : null,
+        }, { mergeFields: ["familyTaskAuthoring"] });
+      }
       // mergeFields replaces each named field whole: Firestore's merge would keep
       // a v2-only key such as terminal_reason under a later v1 receipt.
       tx.set(ref, {website_preparation: preparation,
@@ -330,9 +342,18 @@ export async function loadCurrentWebsitePreparationStatus(requestId: string, cap
     // Customer correlation is company-derived; never trust caller supplied correlation text.
     return {state: status.state, correlationId: `bp-prep-${status.status_digest.slice(7, 23)}`,
       terminalReason: terminalReasonOf(status),
-      ...(status.schema_version === "website_preparation_status.v3"
+      ...(status.schema_version === "website_preparation_status.v3" || status.schema_version === "website_preparation_status.v4"
         ? {outcome: status.outcome ? projectPreparationOutcome(status.outcome) : null} : {})};
   } catch { return {state: "unavailable", correlationId: null}; }
+}
+/** Owner brief only: canonical current-source verification still precedes any question. */
+export async function loadCurrentFamilyTaskAuthoring(requestId: string, captureId: string,
+  deps = defaultDeps): Promise<FamilyAuthoringStatus | null> {
+  if (!familyTaskFactsEnabled()) return null;
+  try {
+    const { status } = await fresh(captureId, requestId, deps);
+    return status.schema_version === "website_preparation_status.v4" ? status.family_authoring : null;
+  } catch { return null; }
 }
 export async function canNotifyCurrentWebsitePreparationIssue(requestId: string, eventId: string,
   transactionOrDeps?: FirebaseFirestore.Transaction | WebsitePreparationDeps,

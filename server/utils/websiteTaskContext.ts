@@ -4,6 +4,8 @@ import { canonicalArtifactDigest } from "./taskCandidateContract";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { hasCurrentRecordingConsent } from "./recordingConsent";
 import type { TaskItem, TaskItemInventoryRecord } from "./taskItemInventory";
+import { currentFamilyTaskFacts } from "./siteTaskFamilyFacts";
+import { crossRuntimeArtifactDigest } from "./crossRuntimeCanonical";
 
 /** The recorded site grant covers scene building/evaluation, never resale. */
 export function projectWebsiteCaptureRights(record: Record<string, any> | undefined) {
@@ -87,7 +89,11 @@ export function projectWebsiteTaskContext(brief: SiteTaskBriefRecord, captureRig
     ...(evidence?.inventory?.items.some(countsTowardTask) ? { task_items: evidence.inventory.items.filter(countsTowardTask)
       .map(item => projectTaskItem(item, brief.requestId)) } : {}),
   };
-  return { ...value, context_digest: canonicalArtifactDigest(value, "context_digest") };
+  const familyFacts = currentFamilyTaskFacts(brief, value);
+  const projected = familyFacts ? { ...value, canonicalization: "rfc8785" as const,
+    operator_answers: { ...value.operator_answers, family_task_facts: familyFacts } } : value;
+  return { ...projected, context_digest: familyFacts ? crossRuntimeArtifactDigest(projected, "context_digest")
+    : canonicalArtifactDigest(projected, "context_digest") };
 }
 
 /** Reconstruct only the earlier v1 routing projection; no owner fact is removed.

@@ -7,6 +7,11 @@ import { advisoryContextDigest } from "../utils/siteAssessmentContext";
 import { buildBrowserDelivery } from "../utils/websiteCaptureDelivery";
 import { projectWebsiteTaskContext, projectWebsiteCaptureRights } from "../utils/websiteTaskContext";
 import { crossRuntimeArtifactDigest, crossRuntimeDigest } from "../utils/crossRuntimeCanonical";
+import { familyTaskCaptureFingerprint, familyAuthoringStatusSchema } from "../utils/siteTaskFamilyFacts";
+import { loadWebsiteSceneSponsorship, websiteSceneSponsorship, reserveWebsitePreparationSpend,
+  observeWebsitePreparationSpend, settleWebsitePreparationSpend } from "../utils/websiteSceneSponsorship";
+import briefRouter from "../routes/site-task-brief";
+import { createCaptureUploadToken } from "../utils/captureUploadToken";
 import { buildPipelineSyncSignature } from "../utils/pipelineSyncSecurity";
 import oldPipelineRouter from "../routes/internal-capture-worlds";
 import { createWebsitePreparationRouter, websitePreparationRawBody } from "../routes/internal-website-preparation";
@@ -19,6 +24,7 @@ import { canNotifyCurrentWebsitePreparationIssue, drainPendingWebsitePreparation
 // No real database, credentials, transport, provider or mail is used.
 const runtime = vi.hoisted(() => ({records: new Map<string, any>(), objects: new Map<string, {metadata: any; bytes: Buffer}>(),
   observation: null as any, beforeTransaction: null as (() => void) | null, txReads: [] as string[], txWrites: 0, observationInputs: [] as any[]}));
+const browserFetch = globalThis.fetch;
 vi.mock("../../client/src/lib/firebaseAdmin", async original => {
   const actual = await original<typeof import("../../client/src/lib/firebaseAdmin")>();
   const snap = (key: string) => ({exists: runtime.records.has(key), data: () => runtime.records.get(key)});
@@ -30,12 +36,15 @@ vi.mock("../../client/src/lib/firebaseAdmin", async original => {
       .sort(([a],[b])=>a.localeCompare(b)).filter(([key])=>key.split("/")[1]>this.cursor).slice(0,this.bound)
       .map(([key]) => ({...snap(key),id:key.split("/")[1]}));return {docs};
   }});
-  const store = {collection(collection: string) {return {doc(id: string) {const key = `${collection}/${id}`;
-    return {key,async get(){return snap(key);},async set(value:any){runtime.records.set(key,{...runtime.records.get(key),...value});}};},where:query};},
+  const reference = (key: string): any => ({key, async get(){return snap(key);},
+    async set(value:any){runtime.records.set(key,{...runtime.records.get(key),...value});},
+    collection(name: string){return {doc(id: string){return reference(`${key}/${name}/${id}`);}};}});
+  const store = {collection(collection: string) {return {doc(id: string) {return reference(`${collection}/${id}`);},where:query};},
     async runTransaction(action: (tx:any)=>Promise<unknown>) {
       runtime.beforeTransaction?.(); const writes: [string,any][]=[];
       const tx={async get(ref:any){runtime.txReads.push(ref.key??ref.field); return ref.key?snap(ref.key):ref.get();},
-        set(ref:any,value:any){writes.push([ref.key,value]);}};
+        set(ref:any,value:any){writes.push([ref.key,value]);},
+        update(ref:any,value:any){writes.push([ref.key,value]);}};
       const result=await action(tx);for(const [key,value] of writes){runtime.records.set(key,{...runtime.records.get(key),...value});runtime.txWrites++;}
       return result;
     }};
@@ -277,6 +286,236 @@ function productionFixture() {
   return {selected,video,pending,request,brief,get reads(){return reads;},ledger(next:WebsitePreparationReceipt){canonical=next;}};
 }
 describe("production source verifier + transaction with isolated Firestore/GCS doubles",()=>{
+  it("retains negotiated v4 task questions through the existing canonical callback and confirms immutable owner facts", async () => {
+    vi.stubEnv("BLUEPRINT_WEBSITE_FAMILY_TASK_FACTS_V4_ENABLED", "true");
+    const f = productionFixture();
+    Object.assign(f.brief, { summary: "Press the red button", taskFamily: "general_task", captureMode: "self_capture",
+      proposed: [], draftedAtIso: "2026-09-29T00:00:00.000Z", draftedFrom: ["description"], operatorUnknown: [],
+      successCriteria: {successDefinition: "The button remains pressed", successRate: 99, cycleTimeSeconds: 1, unknown: false} });
+    f.selected.task_context_digest = projectWebsiteTaskContext(f.brief as never, projectWebsiteCaptureRights(f.request)).context_digest;
+    const next = {requirement_id: "operation-001:minimum_hold_seconds", stage_id: "operation-001", category: "task_fact",
+      owner: "task_owner", status: "required", question: "How long must the button stay pressed?",
+      quantity: "minimum_hold_seconds", unit: "s", authority_created: false};
+    const raw = {schema_version: "website_family_authoring_status.v1", request_id: "r1", scene_id: "site-r1", capture_id: "walkthrough-r1",
+      pipeline_source_commit: "a".repeat(40), task_context_digest: f.selected.task_context_digest,
+      source_video_digest: `sha256:${createHash("sha256").update(Buffer.from("video-1")).digest("hex")}`,
+      task_description_digest: crossRuntimeDigest({description: f.brief.summary}),
+      task_success_criteria_digest: crossRuntimeDigest({success_criteria: (f.brief as any).successCriteria}),
+      source_geometry_digest: `sha256:${"b".repeat(64)}`, task_masks_digest: `sha256:${"c".repeat(64)}`,
+      authoring_request_digest: `sha256:${"d".repeat(64)}`,
+      operations: [{operation_id: "operation-001", order: 1, task_family: "button_press", source_quote: "Press the red button"}],
+      source_targets: [{target_id: "red", label: "Red button"}], requirements: [next], next_action: next,
+      claim_ceiling: "development_only", automatic_paid_execution_authorized: false};
+    const family = familyAuthoringStatusSchema.parse({...raw, projection_digest: crossRuntimeDigest(raw)});
+    const status = {...receipt("awaiting_inputs", 1, 3, f.selected), schema_version: "website_preparation_status.v4" as const,
+      terminal_reason: null, outcome: null, family_authoring: family};
+    f.ledger({...status, status_digest: crossRuntimeArtifactDigest(status, "status_digest")});
+    const originalVideo = Buffer.from(runtime.objects.get(f.video.object_name)!.bytes);
+    await syncWebsitePreparationStatus(f.selected);
+    expect((globalThis.fetch as any).mock.calls[0][1].headers["x-blueprint-preparation-status-version"]).toBe("4");
+    const retained = runtime.records.get("siteTaskBriefs/r1").familyTaskAuthoring;
+    expect(retained.status).toEqual(family);
+    expect(retained.sourceFingerprint).toBe(familyTaskCaptureFingerprint(runtime.records.get("captureUploadSessions/walkthrough-r1")));
+    const app = express(); app.use(express.json()); app.use("/api/site-task-brief", briefRouter);
+    server = createServer(app); await new Promise<void>(resolve => server!.listen(0, "127.0.0.1", resolve));
+    const port = (server.address() as {port: number}).port;
+    const post = async (scope: "owner" | "film", authoringDigest = family.authoring_request_digest,
+      correction?: {operationId: string; field: "hold_seconds"; answer: number | null}) => {
+      const token = createCaptureUploadToken({requestId: "r1", sceneId: "site-r1", captureId: "walkthrough-r1", scope});
+      return browserFetch(`http://127.0.0.1:${port}/api/site-task-brief/${token}/confirm`, {method: "POST",
+        headers: {"content-type": "application/json"}, body: JSON.stringify({confirmedBy: "Site owner",
+          familyTaskFacts: correction ? {authoringDigest, ...correction}
+            : {authoringDigest, requirementId: next.requirement_id, answer: 0.2}})});
+    };
+    expect((await post("film")).status).toBe(403);
+    const currentVideo = runtime.objects.get(f.video.object_name)!;
+    const generation = currentVideo.metadata.generation; currentVideo.metadata.generation = "99999999999999999";
+    expect((await post("owner")).status).toBe(409);
+    expect(runtime.records.get("siteTaskBriefs/r1").familyTaskFacts).toBeUndefined();
+    currentVideo.metadata.generation = generation;
+    expect((await post("owner", `sha256:${"9".repeat(64)}`)).status).toBe(409);
+    const confirmed = await post("owner");
+    expect(confirmed.status, await confirmed.clone().text()).toBe(200);
+    const current = runtime.records.get("siteTaskBriefs/r1");
+    expect(current.familyTaskFacts.payload.operations).toEqual([{operation_id: "operation-001", minimum_hold_seconds: 0.2}]);
+    expect(runtime.records.get(`siteTaskBriefs/r1/familyTaskFacts/${current.familyTaskFacts.confirmation_digest.slice(7)}`))
+      .toEqual(current.familyTaskFacts);
+    expect(projectWebsiteTaskContext(current, projectWebsiteCaptureRights(f.request)))
+      .toMatchObject({canonicalization: "rfc8785", operator_answers: {family_task_facts: {confirmed: true}}});
+    expect(runtime.objects.get(f.video.object_name)!.bytes).toEqual(originalVideo);
+    expect(current.familyTaskFacts.payload.operations[0]).not.toHaveProperty("minimum_button_travel_m");
+    expect(current.familyTaskFacts.payload.operations[0]).not.toHaveProperty("maximum_contact_force_n");
+    expect(current.successCriteria).toEqual((f.brief as any).successCriteria);
+    const firstVersion = structuredClone(current.familyTaskFacts);
+    const currentContext = projectWebsiteTaskContext(current, projectWebsiteCaptureRights(f.request));
+    const originalConfirmationTime = current.confirmedAtIso;
+    await new Promise(resolve => setTimeout(resolve, 10));
+    const repeatedToken = createCaptureUploadToken({requestId: "r1", sceneId: "site-r1", captureId: "walkthrough-r1", scope: "owner"});
+    const repeated = await browserFetch(`http://127.0.0.1:${port}/api/site-task-brief/${repeatedToken}/confirm`, {
+      method: "POST", headers: {"content-type": "application/json"}, body: JSON.stringify({confirmedBy: "Site owner"}),
+    });
+    expect(repeated.status, await repeated.clone().text()).toBe(200);
+    const repeatedBrief = runtime.records.get("siteTaskBriefs/r1");
+    expect(repeatedBrief.confirmedAtIso).toBe(originalConfirmationTime);
+    expect(repeatedBrief.familyTaskFacts).toEqual(firstVersion);
+    expect(projectWebsiteTaskContext(repeatedBrief, projectWebsiteCaptureRights(f.request))).toEqual(currentContext);
+    f.selected.task_context_digest = currentContext.context_digest;
+    const updatedFamily = {...family, task_context_digest: currentContext.context_digest,
+      authoring_request_digest: `sha256:${"1".repeat(64)}`, requirements: [], next_action: null};
+    updatedFamily.projection_digest = crossRuntimeArtifactDigest(updatedFamily, "projection_digest");
+    const updatedStatus = {...receipt("awaiting_inputs", 1, 4, f.selected), schema_version: "website_preparation_status.v4" as const,
+      terminal_reason: null, outcome: null, family_authoring: updatedFamily};
+    f.ledger({...updatedStatus, status_digest: crossRuntimeArtifactDigest(updatedStatus, "status_digest")});
+    await syncWebsitePreparationStatus(f.selected);
+    const ownerToken = createCaptureUploadToken({requestId: "r1", sceneId: "site-r1", captureId: "walkthrough-r1", scope: "owner"});
+    const readback = await browserFetch(`http://127.0.0.1:${port}/api/site-task-brief/${ownerToken}`);
+    expect(readback.status).toBe(200);
+    expect((await readback.json()).brief.familyTaskDetails).toMatchObject([{operationId: "operation-001", holdSeconds: 0.2}]);
+    const correction = await post("owner", updatedFamily.authoring_request_digest,
+      {operationId: "operation-001", field: "hold_seconds", answer: 0.4});
+    expect(correction.status, await correction.clone().text()).toBe(200);
+    expect(runtime.records.get("siteTaskBriefs/r1").familyTaskFacts.payload.operations)
+      .toEqual([{operation_id: "operation-001", minimum_hold_seconds: 0.4}]);
+    expect(runtime.records.get(`siteTaskBriefs/r1/familyTaskFacts/${firstVersion.confirmation_digest.slice(7)}`)).toEqual(firstVersion);
+  });
+  it("continues funded task facts through the real callback and owner route without resetting lost-response reservations", async () => {
+    vi.stubEnv("BLUEPRINT_WEBSITE_FAMILY_TASK_FACTS_V4_ENABLED", "true");
+    const sha = (c: string) => `sha256:${c.repeat(64)}`;
+    const terms = sha("9");
+    vi.stubEnv("BLUEPRINT_WEBSITE_SCENE_SPONSORSHIP_JSON", JSON.stringify({owner: {user_id: "blueprint", organization_id: "blueprint"},
+      upstream_max_spend_usd: 1, native_max_spend_usd: 1, max_total_spend_usd: 2, max_paid_attempts: 1,
+      ttl_seconds: 3600, provider_terms_reference: terms}));
+    vi.stubEnv("TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON", JSON.stringify({vast: {digest: terms, label: "Fixture", url: "https://example.com/terms"}}));
+    const f = productionFixture();
+    Object.assign(f.brief, {summary: "Press the red button", taskFamily: "general_task", captureMode: "self_capture",
+      proposed: [], draftedAtIso: "2026-09-29T00:00:00.000Z", draftedFrom: ["description"], operatorUnknown: [],
+      successCriteria: {successDefinition: "The button stays pressed", successRate: 99, cycleTimeSeconds: 1, unknown: false}});
+    const projected = () => projectWebsiteTaskContext(runtime.records.get("siteTaskBriefs/r1"),
+      projectWebsiteCaptureRights(runtime.records.get("inboundRequests/r1")), {purpose: "scene_preparation"});
+    const before = projected();
+    const root = websiteSceneSponsorship({requestId: "r1", brief: f.brief as never, record: f.request,
+      now: Date.now() / 1000, purpose: "scene_preparation", expected_task_context_digest: before.context_digest});
+    (f.request as any).website_scene_sponsorship = structuredClone(root);
+    const amendment = {authority_digest: root.authority_digest, approved_by: "blueprint", approval_reference: "Existing fixture approval",
+      approved_at_epoch: Date.now() / 1000};
+    const spendAmendment = {...amendment, upstream_max_spend_usd: 3};
+    const requestAmendment = {...amendment, max_requests: 4};
+    Object.assign(f.request, {website_preparation_spend_amendment: {...spendAmendment, amendment_digest: crossRuntimeDigest(spendAmendment)},
+      website_preparation_limit_amendment: {...requestAmendment, amendment_digest: crossRuntimeDigest(requestAmendment)}});
+    runtime.observation.purpose = "scene_preparation";
+    const originalGrantAndAmendments = {root: structuredClone(root),
+      spend: structuredClone((f.request as any).website_preparation_spend_amendment),
+      requests: structuredClone((f.request as any).website_preparation_limit_amendment)};
+    const oldCommand = {task_context_digest: before.context_digest, allocation_binding_digest: sha("5"),
+      provider: "vast" as const, resource_class: "gpu_render" as const, maximum_cost_usd: 1, request_count: 1};
+    // Actual reservation transaction commits; the caller then loses its response.
+    await expect((async () => {await reserveWebsitePreparationSpend("r1", oldCommand); throw Error("fixture_response_lost");})())
+      .rejects.toThrow("fixture_response_lost");
+    const oldRow = structuredClone(runtime.records.get("inboundRequests/r1").website_preparation_reservations["5".repeat(64)]);
+    let revision = 2, family: ReturnType<typeof familyAuthoringStatusSchema.parse>;
+    const publish = async (quantity: "target_id" | "minimum_hold_seconds" | null) => {
+      f.selected.task_context_digest = projected().context_digest;
+      const next = quantity ? {requirement_id: `operation-001:${quantity}`, stage_id: "operation-001", category: "task_fact",
+        owner: "task_owner", status: "required", question: quantity === "target_id" ? "Which captured button?" : "How long must it stay pressed?",
+        quantity, unit: quantity === "target_id" ? null : "s", authority_created: false} : null;
+      const raw = {schema_version: "website_family_authoring_status.v1", request_id: "r1", scene_id: "site-r1", capture_id: "walkthrough-r1",
+        pipeline_source_commit: "a".repeat(40), task_context_digest: f.selected.task_context_digest,
+        source_video_digest: `sha256:${createHash("sha256").update(Buffer.from("video-1")).digest("hex")}`,
+        task_description_digest: crossRuntimeDigest({description: f.brief.summary}),
+        task_success_criteria_digest: crossRuntimeDigest({success_criteria: (f.brief as any).successCriteria}),
+        source_geometry_digest: sha("b"), task_masks_digest: sha("c"), authoring_request_digest: crossRuntimeDigest({revision: ++revision}),
+        operations: [{operation_id: "operation-001", order: 1, task_family: "button_press", source_quote: f.brief.summary}],
+        source_targets: [{target_id: "red", label: "Red button"}], requirements: next ? [next] : [], next_action: next,
+        claim_ceiling: "development_only", automatic_paid_execution_authorized: false};
+      family = familyAuthoringStatusSchema.parse({...raw, projection_digest: crossRuntimeDigest(raw)});
+      const value = {...receipt("awaiting_inputs", 1, revision, f.selected), schema_version: "website_preparation_status.v4" as const,
+        terminal_reason: null, outcome: null, family_authoring: family};
+      f.ledger({...value, status_digest: crossRuntimeArtifactDigest(value, "status_digest")});
+      await syncWebsitePreparationStatus(f.selected);
+    };
+    const app = express(); app.use(express.json()); app.use("/api/site-task-brief", briefRouter);
+    server = createServer(app); await new Promise<void>(resolve => server!.listen(0, "127.0.0.1", resolve));
+    const port = (server.address() as {port: number}).port;
+    const post = async (command?: Record<string, unknown>) => {
+      const token = createCaptureUploadToken({requestId: "r1", sceneId: "site-r1", captureId: "walkthrough-r1", scope: "owner"});
+      return browserFetch(`http://127.0.0.1:${port}/api/site-task-brief/${token}/confirm`, {method: "POST",
+        headers: {"content-type": "application/json"}, body: JSON.stringify({confirmedBy: "Site owner",
+          ...(command ? {familyTaskFacts: {authoringDigest: family.authoring_request_digest, ...command}} : {})})});
+    };
+    const assertRoot = () => {
+      const request = runtime.records.get("inboundRequests/r1");
+      expect(request.website_scene_sponsorship).toEqual(originalGrantAndAmendments.root);
+      expect(request.website_preparation_spend_amendment).toEqual(originalGrantAndAmendments.spend);
+      expect(request.website_preparation_limit_amendment).toEqual(originalGrantAndAmendments.requests);
+      expect(request.website_preparation_reservations["5".repeat(64)]).toEqual(oldRow);
+    };
+    await publish("target_id");
+    const first = await post({requirementId: "operation-001:target_id", answer: "red"});
+    expect(first.status, await first.clone().text()).toBe(200);
+    const firstFact = structuredClone(runtime.records.get("siteTaskBriefs/r1").familyTaskFacts);
+    const firstTransition = structuredClone(runtime.records.get("siteTaskBriefs/r1").familyTaskFactContinuation);
+    expect(firstTransition.origin.authority_digest).toBe(root.authority_digest);
+    expect(runtime.records.get(`siteTaskBriefs/r1/familyTaskFacts/transition-${firstTransition.transition_digest.slice(7)}`)).toEqual(firstTransition);
+    const continued = await loadWebsiteSceneSponsorship("r1", false);
+    expect(continued).toMatchObject({task_context_digest: projected().context_digest, expires_at_epoch: root.expires_at_epoch,
+      assessment_parent_authority_digest: root.authority_digest});
+    await publish(null);
+    const unchangedContext = projected(), unchangedTime = runtime.records.get("siteTaskBriefs/r1").confirmedAtIso;
+    const unchangedHistoryCount = [...runtime.records.keys()].filter(key => key.includes("/familyTaskFacts/")).length;
+    expect((await post({operationId: "operation-001", field: "target", answer: "red"})).status).toBe(200);
+    expect(projected()).toEqual(unchangedContext);
+    expect(runtime.records.get("siteTaskBriefs/r1").confirmedAtIso).toBe(unchangedTime);
+    expect(runtime.records.get("siteTaskBriefs/r1").familyTaskFactContinuation).toEqual(firstTransition);
+    expect([...runtime.records.keys()].filter(key => key.includes("/familyTaskFacts/")).length).toBe(unchangedHistoryCount);
+    const readWrites = runtime.txWrites;
+    expect(await observeWebsitePreparationSpend("r1", oldCommand)).toMatchObject({status: "reserved", dispatch_authorized: false, admission: oldRow.admission});
+    expect(runtime.txWrites).toBe(readWrites);
+    assertRoot();
+    const newerCommand = {...oldCommand, task_context_digest: projected().context_digest,
+      allocation_binding_digest: sha("6"), maximum_cost_usd: 2};
+    const admitted = await reserveWebsitePreparationSpend("r1", newerCommand);
+    expect(admitted).toMatchObject({status: "admitted", expires_at_epoch: root.expires_at_epoch});
+    await expect(reserveWebsitePreparationSpend("r1", {...newerCommand, allocation_binding_digest: sha("7"), maximum_cost_usd: 0.01}))
+      .rejects.toThrow("website_scene_preparation_budget_exhausted");
+    await publish("minimum_hold_seconds");
+    expect((await post({requirementId: "operation-001:minimum_hold_seconds", answer: 0.2})).status).toBe(200);
+    await publish(null);
+    expect((await post({operationId: "operation-001", field: "hold_seconds", answer: 0.4})).status).toBe(200);
+    await publish(null);
+    expect((await post({operationId: "operation-001", field: "target", answer: null})).status).toBe(200);
+    expect(runtime.records.get("siteTaskBriefs/r1").familyTaskFacts.payload.operations)
+      .toEqual([{operation_id: "operation-001", minimum_hold_seconds: 0.4}]);
+    await publish(null);
+    expect((await post({operationId: "operation-001", field: "hold_seconds", answer: null})).status).toBe(200);
+    const cleared = runtime.records.get("siteTaskBriefs/r1"), clearedContext = projected();
+    expect(cleared.familyTaskFacts).toBeNull();
+    expect(cleared.familyTaskFactContinuation).toMatchObject({facts_digest: null, origin: {authority_digest: root.authority_digest}});
+    await new Promise(resolve => setTimeout(resolve, 10));
+    expect((await post()).status).toBe(200);
+    expect(runtime.records.get("siteTaskBriefs/r1").confirmedAtIso).toBe(cleared.confirmedAtIso);
+    expect(projected()).toEqual(clearedContext);
+    expect((await loadWebsiteSceneSponsorship("r1", false)).task_context_digest).toBe(clearedContext.context_digest);
+    await publish("target_id");
+    expect((await post({requirementId: "operation-001:target_id", answer: "red"})).status).toBe(200);
+    expect(runtime.records.get(`siteTaskBriefs/r1/familyTaskFacts/${firstFact.confirmation_digest.slice(7)}`)).toEqual(firstFact);
+    expect(runtime.records.get(`siteTaskBriefs/r1/familyTaskFacts/transition-${firstTransition.transition_digest.slice(7)}`)).toEqual(firstTransition);
+    assertRoot();
+    const stored = runtime.records.get("inboundRequests/r1");
+    const originalTime = Date.now;
+    vi.spyOn(Date, "now").mockReturnValue((root.expires_at_epoch + 1) * 1000);
+    try {await expect(loadWebsiteSceneSponsorship("r1", false)).rejects.toThrow("consent_expired");}
+    finally {vi.spyOn(Date, "now").mockImplementation(originalTime);}
+    stored.request.consent_attestation.revoked_at_iso = "2026-10-28T00:00:00.000Z";
+    await expect(loadWebsiteSceneSponsorship("r1", false)).rejects.toThrow("source_revoked");
+    const settlement = {task_context_digest: oldCommand.task_context_digest, allocation_binding_digest: oldCommand.allocation_binding_digest,
+      provider: "vast" as const, instance_id: "991", provider_charge_source: "instance-991", provider_charge_amount_usd: 0.6,
+      provider_charge_receipt_digest: sha("a"), execution_result_digest: sha("b"), teardown_receipt_digest: sha("c"), provider_zero_digest: sha("d")};
+    expect(await settleWebsitePreparationSpend("r1", settlement)).toMatchObject({status: "settled", actual_cost_usd: 0.6});
+    expect(await observeWebsitePreparationSpend("r1", oldCommand)).toMatchObject({status: "reserved", dispatch_authorized: false,
+      admission: oldRow.admission, settlement: {task_context_digest: oldCommand.task_context_digest}});
+    expect(runtime.records.get("inboundRequests/r1").website_preparation_reservations["6".repeat(64)].settlement).toBeUndefined();
+    expect(runtime.records.get("inboundRequests/r1").website_scene_sponsorship).toEqual(root);
+  });
   it("PREP-026 real verifier accepts only current canonical browser video/marker/pending and persists intent",async()=>{
     const f=productionFixture();await syncWebsitePreparationStatus(f.selected);
     expect(runtime.records.get("captureUploadSessions/walkthrough-r1").website_preparation.status.state).toBe("failed_retryable");

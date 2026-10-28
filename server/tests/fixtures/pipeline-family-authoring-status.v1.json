@@ -1,0 +1,55 @@
+{
+ "authoring_request_digest": "sha256:714bfc755cb3a2fbef5624408a399ffd0efb19345225b00a2fc38eb7a242c6c3",
+ "automatic_paid_execution_authorized": false,
+ "capture_id": "walkthrough-req1",
+ "claim_ceiling": "development_only",
+ "next_action": {
+  "authority_created": false,
+  "category": "task_fact",
+  "owner": "task_owner",
+  "quantity": "minimum_hold_seconds",
+  "question": "For how long must the completed state remain stable?",
+  "requirement_id": "operation-001:minimum_hold_seconds",
+  "stage_id": "operation-001",
+  "status": "required",
+  "unit": "s"
+ },
+ "operations": [
+  {
+   "operation_id": "operation-001",
+   "order": 1,
+   "source_quote": "Press the red button.",
+   "task_family": "button_press"
+  }
+ ],
+ "pipeline_source_commit": "88b257f5cd5a57c881f7cfa7a378ac91629460e5",
+ "projection_digest": "sha256:ab5c5996b4bd676f04b9dcd3c35447adc344c3ba90e3682ee45a1199763dd7b9",
+ "request_id": "req1",
+ "requirements": [
+  {
+   "authority_created": false,
+   "category": "task_fact",
+   "owner": "task_owner",
+   "quantity": "minimum_hold_seconds",
+   "question": "For how long must the completed state remain stable?",
+   "requirement_id": "operation-001:minimum_hold_seconds",
+   "stage_id": "operation-001",
+   "status": "required",
+   "unit": "s"
+  }
+ ],
+ "scene_id": "site-req1",
+ "schema_version": "website_family_authoring_status.v1",
+ "source_geometry_digest": "sha256:12194c47cedaf693c662f530fe10faf7b800dcb6fc2dc3ec8e8cb53ae337f01e",
+ "source_targets": [
+  {
+   "label": "red button",
+   "target_id": "red"
+  }
+ ],
+ "source_video_digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+ "task_context_digest": "sha256:e9a0b53c6c7ef434133ed0804c7d4193ad060505ce76bcad1c08ecdd0fad2c2e",
+ "task_description_digest": "sha256:09ca6c9d310b90d04efa2dc7296a60d299520e4e4087661940b5a7777c9d3abc",
+ "task_masks_digest": "sha256:5734ce5db06a407ef9328b7f4663c1775be87a5c6e91ddeb5ddf20edf52ee53a",
+ "task_success_criteria_digest": "sha256:03180564ee5d295e6d99cd43e6a3a67ff19525c1cb65e7641c39dc79c6e652b0"
+}
