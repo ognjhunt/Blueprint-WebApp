@@ -421,8 +421,8 @@ export function TaskBriefReview(props: {
       </h2>
       <p className="ms-field-hint" style={{ marginBottom: "20px" }}>
         {drafted
-          ? "We used what you sent to prefill this summary. Correct anything we got wrong, then confirm what the work requires before we assess options or prepare a proposal."
-          : "These help us assess suitable options for your site. Answer what you know; anything you are not sure about can stay open and be clarified in writing or on a call. Confirm the job brief before a site-specific evaluation or proposal."}
+          ? "We used what you sent to prefill this summary. Correct anything we got wrong, then confirm your review. Blueprint can prepare and evaluate the job while you review it."
+          : "Answer what you know and correct anything we misunderstood. Unknowns can stay open; Blueprint can prepare and evaluate the job while you review it."}
       </p>
 
       <label htmlFor="brief-summary">

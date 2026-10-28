@@ -126,6 +126,42 @@ test("returning owner keeps the received recording and gets same-job update guid
   expect(writes).toEqual([]);
 });
 
+test("the current simulation estimate is visible while technical references stay folded", async ({ page }, info) => {
+  const token = "scored-result-fixture";
+  const writes: string[] = [];
+  await page.route("**/api/**", route => {
+    const request = route.request(), url = new URL(request.url());
+    if (request.method() !== "GET" && url.pathname !== "/api/analytics/ingest") writes.push(url.pathname);
+    if (url.pathname.startsWith("/api/job-workflow/owner/")) return route.fulfill({ json: {
+      ...legacyJobWorkflow(), managedEvidence: [{ runId: "accepted-evaluation", state: "completed", current: true,
+        resultDigest: "sha256:fixture-result", summary: "Your job's simulation estimate: 1 candidate ran, with 3 episodes scored.",
+        nextAction: "Blueprint uses this estimate to recommend the next step.",
+        limitations: ["Simulation does not certify physical performance or safety."], href: "#managed-evidence-accepted-evaluation",
+        screening: { candidates: [{ candidateId: "candidate-1", name: "Current candidate", state: "completed",
+          planned: 3, scored: 3, succeeded: 2, failed: 1, void: 0, blockers: [] }] } }],
+    } });
+    if (url.pathname === `/api/self-capture/uploads/${token}/status`) return route.fulfill({ json: {
+      ok: true, state: "open", captureReceived: true, uploadState: "processing_ready", accepts: ["mov", "mp4"],
+    } });
+    if (url.pathname === `/api/site-task-brief/${token}`) return route.fulfill({ json: {
+      ready: true, scope: "owner", brief: { summary: "Cartons onto a pallet", captureMode: "self_capture", proposed: [], unresolved: [], confirmedAtIso: null },
+    } });
+    if (url.pathname === `/api/site-task-brief/${token}/status`) return route.fulfill({ json: {
+      scope: "owner", captureReceived: true, status: { decision: "confirm_brief", headline: "Review your job brief.", operatorAction: null, missingViews: [] },
+    } });
+    return route.fulfill({ status: 503, json: { error: "Unstubbed local API" } });
+  });
+  await page.goto(`/capture-upload/${token}?video=existing`);
+  await expect(page.getByRole("heading", { name: "Your simulation estimate" })).toBeVisible();
+  await expect(page.getByRole("table", { name: "Candidates evaluated for your job" })).toBeVisible();
+  await expect(page.getByText("2 succeeded · 1 failed · 0 unscorable")).toBeVisible();
+  await expect(page.getByText("Simulation does not certify physical performance or safety.")).toBeVisible();
+  await expect(page.getByText("Technical evidence and test details").locator("..")).not.toHaveAttribute("open");
+  await expect(page.getByText(/Run: accepted-evaluation/)).not.toBeVisible();
+  expect(writes).toEqual([]);
+  await page.screenshot({ path: info.outputPath("current-simulation-result-visible.png"), fullPage: true });
+});
+
 test.beforeEach(async ({ context, baseURL }) => {
   // Fresh, anonymous browser context. No inherited auth or real API traffic.
   const localOrigin = new URL(baseURL!).origin;

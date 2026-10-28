@@ -361,7 +361,7 @@ export function buildQualifiedEmail(params: {
       "We then work alongside a deployment company on your site. You agree the physical pilot's scope, price, timing and acceptance criteria directly with that company.",
     ]),
     "",
-    "Blueprint's assessment and coordination are free during the beta, and Blueprint takes no cut of a physical pilot. You agree any physical work and its cost directly with the delivery company. A simulation result is an estimate, not proof of how a robot will perform at your site or that it will be safe there.",
+    "Blueprint's assessment and coordination are free during the beta, and Blueprint takes no cut of a physical pilot. You agree any physical work and its cost directly with the deployment company. A simulation result is an estimate, not proof of how a robot will perform at your site or that it will be safe there.",
     "",
     EMAIL_SIGN_OFF,
   ]

@@ -861,7 +861,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
               {scope === "owner" && brief && !briefConfirmed && !editingBrief && !blueprintActionPending && (
                 <section aria-label="Confirm your job brief" style={{ border: "1px solid var(--ms-rule)", padding: "16px", margin: "16px 0" }}>
                   <h2 style={{ marginTop: 0 }}>Confirm your job brief</h2>
-                  <p className="ms-field-hint">We can evaluate your job only after you confirm this brief. Check the summary and answers, correct anything that is wrong, then confirm it.</p>
+                  <p className="ms-field-hint">Blueprint can prepare and evaluate your job while you review this brief. Check the summary and answers, correct anything that is wrong, then confirm your review.</p>
                   <TaskBriefReview
                     key={token}
                     token={token}

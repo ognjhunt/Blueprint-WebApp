@@ -273,6 +273,29 @@ it("shows every screened candidate without creating a pilot recommendation", asy
   expect(screen.queryByRole("button", { name: /Choose this pilot proposal/ })).not.toBeInTheDocument();
 });
 
+it("shows the current simulation result before opening technical history", async () => {
+  const result = {
+    runId: "current-evaluation", state: "completed", current: true, resultDigest: "sha256:accepted-result",
+    summary: "Your job's simulation estimate: 1 candidate ran, with 3 episodes scored.",
+    nextAction: "Blueprint uses this estimate to recommend the next step.",
+    limitations: ["Simulation does not certify physical performance or safety."],
+    href: "#managed-evidence-current-evaluation", screening: { candidates: [{ candidateId: "candidate-1", name: "Current candidate",
+      state: "completed", planned: 3, scored: 3, succeeded: 2, failed: 1, void: 0, blockers: [] }] },
+  };
+  fetchMock.mockResolvedValue(response(workflow({ managedEvidence: [result, { ...result,
+    runId: "previous-evaluation", current: false, summary: "An estimate for the previous recording.", screening: undefined,
+  }] })));
+  render(<JobWorkspace token="owner-token" />);
+  expect(await screen.findByText(result.summary)).toBeVisible();
+  expect(screen.getByRole("table", { name: "Candidates evaluated for your job" })).toBeVisible();
+  expect(screen.getByText("2 succeeded · 1 failed · 0 unscorable")).toBeVisible();
+  expect(within(screen.getByRole("region", { name: "Simulation results for your job" })).getByText(result.limitations[0])).toBeVisible();
+  expect(screen.getByText("Technical evidence and test details").closest("details")).not.toHaveAttribute("open");
+  expect(screen.getByText("An estimate for the previous recording.")).not.toBeVisible();
+  expect(screen.getByText(/Run: current-evaluation/)).not.toBeVisible();
+  expect(screen.queryByRole("button", { name: /Choose this pilot proposal/ })).not.toBeInTheDocument();
+});
+
 
 it("uses one current preparation action until delivery proposals are available", async () => {
   fetchMock.mockResolvedValue(response(workflow({actionOwner:"site",nextAction:"Confirm the old brief."})));

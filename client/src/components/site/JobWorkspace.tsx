@@ -148,6 +148,14 @@ function JobWorkspaceForToken({ token, preparationOutcome, currentStatusKnown = 
       {currentStatusKnown && !preparationOutcome && !currentAction && workflow.review.nextAction !== workflow.nextAction && <p className="ms-field-hint">{workflow.review.nextAction}</p>}
     </div>}
     {workflow.managedEvidenceUnavailable && <p role="status" className="ms-field-hint">Policy results are temporarily unavailable. Reload this page to retry.</p>}
+    {(workflow.managedEvidence ?? []).filter(item => item.current && item.screening).map(item => <section
+      key={item.runId} className="job-review" aria-label="Simulation results for your job">
+      <h3>{item.state === "completed" && item.screening!.candidates.some(candidate => candidate.scored > 0)
+        ? "Your simulation estimate" : "Simulation evaluation"}</h3>
+      <p>{item.summary}</p>
+      <PolicyScreeningCandidates screening={item.screening!} />
+      {item.limitations.map((limit, index) => <p className="ms-field-hint" key={index}>{limit}</p>)}
+    </section>)}
     {((workflow.evidence ?? []).length > 0 || (workflow.managedEvidence ?? []).length > 0) && <details className="job-planning-details">
       <summary>Technical evidence and test details</summary>
     {(workflow.evidence ?? []).length > 0 && <section className="job-review" aria-label="Evidence for your job">
@@ -165,9 +173,11 @@ function JobWorkspaceForToken({ token, preparationOutcome, currentStatusKnown = 
       <h3>Policy evidence for your job</h3>
       {workflow.managedEvidence!.map(item => <article key={item.runId} id={`managed-evidence-${encodeURIComponent(item.runId)}`} className="mt-3">
         <h4>{item.current ? item.state.replace(/_/g, " ") : "Historical — the job scope changed"}</h4>
+        {(!item.current || !item.screening) && <>
         <p>{item.summary}</p><p>Next: {item.nextAction}</p>
         {item.screening && <PolicyScreeningCandidates screening={item.screening} />}
         {item.limitations.map((limit, index) => <p className="ms-field-hint" key={index}>{limit}</p>)}
+        </>}
         <p className="ms-field-hint break-all">Run: {item.runId}{item.resultDigest ? ` · Result: ${item.resultDigest}` : ""}</p>
       </article>)}
     </section>}

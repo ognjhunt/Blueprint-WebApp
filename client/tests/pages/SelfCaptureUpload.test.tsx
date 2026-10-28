@@ -758,17 +758,17 @@ describe("SelfCaptureUpload asks for the brief confirmation an evaluation needs"
     });
   }
 
-  it("shows an unconfirmed brief as an open, required step once footage is in", async () => {
+  it("keeps draft review open while automatic evaluation can continue", async () => {
     setUserAgent(DESKTOP_UA);
     vi.stubGlobal("fetch", ownerFetch({ captureReceived: true, confirmedAtIso: null }));
     render(<SelfCaptureUpload />);
 
     const step = await screen.findByRole("region", { name: "Confirm your job brief" });
     expect(step.closest("details")).toBeNull();
-    expect(step).toHaveTextContent(/We can evaluate your job only after you confirm this brief/);
+    expect(step).toHaveTextContent(/Blueprint can prepare and evaluate your job while you review this brief/);
     // The confirm control is on the page, with nothing to open first.
     expect(screen.getByRole("button", { name: "This is right — confirm it" })).toBeVisible();
-    // The brief, never the job card's own optional extras, is what must not read as optional.
+    // The draft remains directly editable without claiming evaluation waits for it.
     expect(screen.queryByText("Correct job details (optional)")).not.toBeInTheDocument();
     expect(screen.queryByText(/no confirmation is required|without confirming/i)).not.toBeInTheDocument();
   });
