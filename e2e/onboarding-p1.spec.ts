@@ -266,14 +266,19 @@ test("free beta does not restore paid checkout controls after a reload", async (
   }
 });
 
-test("site owner receives a claim link alongside completed screening status", async ({ page }) => {
-  await fixtures(page);
+test("site owner sees results before optional account saving", async ({ page }) => {
+  const mutations = await fixtures(page);
   await page.route("**/api/site-task-brief/*/status", route => route.fulfill({ json: {
     ok: true, status: { decision: "results", headline: "Results are in from 2 screening runs. Review each run separately.", operatorAction: null, missingViews: [], nextUpdateIso: null },
     claimUrl: "/sign-in?claim=owner-fixture", sceneViewUrl: "https://scene.example.test/view/owner-scene",
   } }));
   await page.goto("/capture-upload/owner-fixture");
   await expect(page.getByText("Results are in from 2 screening runs. Review each run separately.")).toBeVisible();
-  await expect(page.getByRole("link", { name: "Claim your site to see the results" })).toHaveAttribute("href", "/sign-in?claim=owner-fixture");
+  const optionalAccount = page.getByText("Save this job to an account (optional)", { exact: true });
+  await expect(optionalAccount).toBeVisible();
+  await expect(page.getByRole("link", { name: "Save this job to your account", exact: true })).toBeHidden();
   await expect(page.getByRole("link", { name: "View your scene" })).toHaveAttribute("href", "https://scene.example.test/view/owner-scene");
+  await optionalAccount.click();
+  await expect(page.getByRole("link", { name: "Save this job to your account", exact: true })).toHaveAttribute("href", "/sign-in?claim=owner-fixture");
+  expect(mutations).toEqual([]);
 });
