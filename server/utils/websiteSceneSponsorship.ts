@@ -741,7 +741,11 @@ export async function observeWebsitePreparationSpend(requestId: string, input: z
     await assertWebsiteCaptureBindingInTransaction(transaction, requestId, captureBinding);
     const record = request.data()!;
     const reservations = record.website_preparation_reservations === undefined ? {} : record.website_preparation_reservations;
-    if (!reservations || typeof reservations !== "object" || Array.isArray(reservations))
+    const ledgerPrototype = reservations && typeof reservations === "object" ? Object.getPrototypeOf(reservations) : undefined;
+    // Firestore maps are plain records; Timestamp and other native scalar
+    // classes cannot establish that an exact reservation key is absent.
+    if (!reservations || typeof reservations !== "object"
+      || ledgerPrototype !== Object.prototype && ledgerPrototype !== null)
       throw new Error("website_scene_preparation_observation_invalid");
     const key = command.allocation_binding_digest.slice(7), row = reservations[key];
     const commandDigest = digest(command);

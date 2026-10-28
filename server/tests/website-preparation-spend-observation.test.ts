@@ -3,6 +3,7 @@
 import express from "express";
 import { createHmac } from "node:crypto";
 import { createServer, type Server } from "node:http";
+import { GeoPoint, Timestamp } from "firebase-admin/firestore";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { crossRuntimeDigest as digest } from "../utils/crossRuntimeCanonical";
 import { assertWebsiteRunOpen } from "../utils/websiteRunClosure";
@@ -16,7 +17,14 @@ const state = vi.hoisted(() => ({ rows: new Map<string, any>(), reads: [] as str
 vi.mock("../../client/src/lib/firebaseAdmin", () => {
   const reference = (key: string): any => ({ key, get: async () => {
     state.reads.push(key);
-    return { exists: state.rows.has(key), data: () => structuredClone(state.rows.get(key)) };
+    return { exists: state.rows.has(key), data: () => {
+      const original = state.rows.get(key), snapshot = structuredClone(original);
+      // Firestore preserves native scalar classes in data(). structuredClone
+      // erases Timestamp's prototype, which would hide a non-map ledger.
+      if (original && Object.hasOwn(original, "website_preparation_reservations"))
+        snapshot.website_preparation_reservations = original.website_preparation_reservations;
+      return snapshot;
+    } };
   } });
   const write = (operation: string) => () => { state.writes.push(operation); throw new Error("read_only_write_attempt"); };
   return { default: { firestore: { FieldValue: {} } }, dbAdmin: {
@@ -152,6 +160,35 @@ it("refuses unknown absence instead of treating an expired/revoked source as no 
   expect(result.status).toBe(409);
   expect(result.body.code).toBe("website_scene_preparation_observation_source_unknown");
   expect(result.body.status).toBeUndefined();
+  expect(state.writes).toEqual([]);
+});
+
+it.each([
+  ["native Timestamp", () => Timestamp.fromMillis(1)],
+  ["native GeoPoint", () => new GeoPoint(1, 2)],
+  ["Date", () => new Date(1)],
+  ["Map", () => new Map()],
+  ["Set", () => new Set()],
+  ["Buffer", () => Buffer.from("not a Firestore map")],
+] as const)("refuses a non-map reservation ledger (%s) instead of reporting known absence", async (_name, create) => {
+  seed(false);
+  const ledger = create();
+  state.rows.get(REQUEST).website_preparation_reservations = ledger;
+  const result = await post();
+  expect(result.status).toBe(409);
+  expect(result.body).toEqual({ code: "website_scene_preparation_observation_invalid" });
+  expect(state.rows.get(REQUEST).website_preparation_reservations).toBe(ledger);
+  expect(state.writes).toEqual([]);
+});
+
+it.each([false, true])("preserves a null-prototype plain reservation map (reserved=%s)", async reserved => {
+  seed(reserved);
+  const record = state.rows.get(REQUEST);
+  record.website_preparation_reservations = Object.assign(Object.create(null), record.website_preparation_reservations);
+  const result = await post();
+  expect(result.status).toBe(200);
+  expect(result.body).toMatchObject({ status: reserved ? "reserved" : "not_reserved", dispatch_authorized: false });
+  expect(Object.getPrototypeOf(record.website_preparation_reservations)).toBeNull();
   expect(state.writes).toEqual([]);
 });
 
