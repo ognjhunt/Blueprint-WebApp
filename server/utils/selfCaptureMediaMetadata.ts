@@ -129,16 +129,25 @@ export async function probeCaptureVideo(filePath: string, options: ProbeOptions 
 /** Probe exactly the completed compose generation, with bounded disk-backed I/O. */
 export async function probeStoredCaptureVideo(video: WrittenObject, open: () => Readable,
   options: ProbeOptions = {}): Promise<ProbedVideoMetadata> {
+  const binary = await (options.resolveBinary ?? resolveFfmpegBinary)();
+  if (!binary) throw new VideoProbeError("video_probe_unavailable");
   const directory = await mkdtemp(path.join(os.tmpdir(), "self-capture-probe-"));
   const filePath = path.join(directory, "source.mov");
   let bytes = 0;
   try {
-    await pipeline(open(), new Transform({ transform(chunk: Buffer, _encoding, callback) {
-      bytes += chunk.length;
-      callback(bytes > video.size_bytes ? new VideoProbeError("video_unreadable") : null, chunk);
-    } }), createWriteStream(filePath, { flags: "wx", mode: 0o600 }));
+    const download = new AbortController();
+    const deadline = setTimeout(() => download.abort(), options.timeoutMs ?? 120_000);
+    try {
+      await pipeline(open(), new Transform({ transform(chunk: Buffer, _encoding, callback) {
+        bytes += chunk.length;
+        callback(bytes > video.size_bytes ? new VideoProbeError("video_unreadable") : null, chunk);
+      } }), createWriteStream(filePath, { flags: "wx", mode: 0o600 }), { signal: download.signal });
+    } catch (error) {
+      if (download.signal.aborted) throw new VideoProbeError("video_probe_timeout");
+      throw error;
+    } finally { clearTimeout(deadline); }
     if (bytes !== video.size_bytes) throw new VideoProbeError("video_unreadable");
-    return await probeCaptureVideo(filePath, options);
+    return await probeCaptureVideo(filePath, { ...options, resolveBinary: async () => binary });
   } finally {
     await rm(directory, { recursive: true, force: true });
   }

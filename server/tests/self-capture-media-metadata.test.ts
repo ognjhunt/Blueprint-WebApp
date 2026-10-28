@@ -67,4 +67,18 @@ describe("real uploaded media, independently of browser decoding", () => {
     await expect(probeCaptureVideo(video, { resolveBinary: async () => null }))
       .rejects.toMatchObject({ code: "video_probe_unavailable" });
   });
+  it("does not download a retained original when the probe runtime is unavailable", async () => {
+    let opened = false;
+    await expect(probeStoredCaptureVideo({ object_name: "capture/original.mov", generation: "17",
+      size_bytes: 7, crc32c: "AAAAAA==" }, () => { opened = true; return Readable.from([Buffer.from("stored")]); },
+    { resolveBinary: async () => null })).rejects.toMatchObject({ code: "video_probe_unavailable" });
+    expect(opened).toBe(false);
+  });
+  it("bounds a stalled retained-video read and closes its stream", async () => {
+    const source = new Readable({ read() {} });
+    await expect(probeStoredCaptureVideo({ object_name: "capture/original.mov", generation: "17",
+      size_bytes: 7, crc32c: "AAAAAA==" }, () => source, { timeoutMs: 10, resolveBinary: async () => binary }))
+      .rejects.toMatchObject({ code: "video_probe_timeout" });
+    expect(source.destroyed).toBe(true);
+  });
 });

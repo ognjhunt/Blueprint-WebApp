@@ -802,12 +802,11 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
                   {blueprintActionPending
                     ? currentStatusKnown ? "Your recording is saved. The next step is with Blueprint."
                       : "Blueprint is checking the current status. Keep your original recording."
-                    : upload.status === "processing_pending" || upload.status === "held" || (upload.status === "done" && upload.message)
+                    : upload.status === "processing_pending"
+                    ? "Blueprint will continue from this saved recording and update this job. You can leave this page."
+                    : upload.status === "held" || (upload.status === "done" && upload.message)
                     ? upload.message
                     : "Blueprint handles reconstruction and evaluation. The next update will appear in this job."}{" "}
-                  {!blueprintActionPending && (upload.status === "processing_pending" || upload.status === "held")
-                    ? "You can check the job brief while processing is pending."
-                    : null}
                 </p>}
               </div>
               {scope === "owner" && link.status === "valid" && <details aria-label="Update job video" style={{ margin: "16px 0" }}>
@@ -818,10 +817,14 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
                 </button>
                 {videoUpdateError && <p role="alert">{videoUpdateError}</p>}
               </details>}
-              {!blueprintActionPending && upload.status === "processing_pending" && upload.processingRetryAvailable && (
-                <p><button type="button" className="ms-button" disabled={retryingProcessing} onClick={() => void retryProcessing()}>
+              {!blueprintActionPending && upload.status === "processing_pending" && (
+                <details aria-label="Processing details" style={{ margin: "16px 0" }}>
+                  <summary>Processing details (optional)</summary>
+                  <p className="ms-field-hint">{upload.message}</p>
+                  {upload.processingRetryAvailable && <button type="button" className="ms-text-link" disabled={retryingProcessing} onClick={() => void retryProcessing()}>
                   {retryingProcessing ? "Retrying processing…" : "Retry processing"}
-                </button></p>
+                  </button>}
+                </details>
               )}
               {scope === "owner" && brief && blueprintActionPending && !editingBrief && <details style={{margin: "16px 0"}}>
                 <summary>Saved job brief</summary>

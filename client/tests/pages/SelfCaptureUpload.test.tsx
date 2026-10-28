@@ -320,26 +320,32 @@ describe("retained video processing recovery", () => {
       : mockFetch()(input));
   }
 
-  it.each(["", PHONE_UA])("restores a processing failure on refresh without a camera or QR (%s)", async (ua) => {
+  it.each(["", PHONE_UA])("restores a saved upload with automatic recovery and optional details (%s)", async (ua) => {
     setUserAgent(ua);
     vi.stubGlobal("fetch", retainedFetch({ captureReceived: true, uploadState: "processing_pending", processingRetryAvailable: true }));
     const first = render(<SelfCaptureUpload />);
-    expect(await screen.findByRole("button", { name: "Retry processing" })).toBeInTheDocument();
-    expect(screen.getByText(/You do not need to upload or record it again/)).toBeInTheDocument();
+    expect(await screen.findByText(/Blueprint will continue from this saved recording/)).toBeVisible();
+    expect(screen.getByRole("button", { name: "Retry processing" })).not.toBeVisible();
+    expect(screen.getByLabelText("Processing details")).not.toHaveAttribute("open");
+    fireEvent.click(screen.getByText("Processing details (optional)"));
+    expect(screen.getByText(/You do not need to upload or record it again/)).toBeVisible();
     expect(screen.queryByRole("button", { name: /Open the camera|Upload a video file|Choose or record/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("img", { name: /phone|device/i })).not.toBeInTheDocument();
     first.unmount(); render(<SelfCaptureUpload />);
-    await screen.findByRole("button", { name: "Retry processing" });
+    await screen.findByText(/Blueprint will continue from this saved recording/);
+    expect(screen.getByRole("button", { name: "Retry processing" })).not.toBeVisible();
     expect(videoUpload.retry).not.toHaveBeenCalled();
     expect(videoUpload.send).not.toHaveBeenCalled();
   });
 
-  it("requires an explicit retry, guards repeated clicks, and keeps the saved layout", async () => {
+  it("keeps a manual retry inside optional details and guards repeated clicks", async () => {
     vi.stubGlobal("fetch", retainedFetch({ captureReceived: true, uploadState: "processing_pending", processingRetryAvailable: true }));
     let complete!: (result: { status: "done" }) => void;
     videoUpload.retry.mockImplementation(() => new Promise(resolve => { complete = resolve; }));
     render(<SelfCaptureUpload />);
-    const button = await screen.findByRole("button", { name: "Retry processing" });
+    await screen.findByText(/Blueprint will continue from this saved recording/);
+    fireEvent.click(screen.getByText("Processing details (optional)"));
+    const button = screen.getByRole("button", { name: "Retry processing" });
     expect(videoUpload.retry).not.toHaveBeenCalled();
     fireEvent.click(button); fireEvent.click(button);
     expect(videoUpload.retry).toHaveBeenCalledTimes(1);
@@ -397,7 +403,9 @@ describe("retained video processing recovery", () => {
     expect(videoUpload.send).toHaveBeenCalledTimes(1);
     complete({ status: "failed", message: "This browser could not read the video. Keep the original." });
     fireEvent.click(await screen.findByRole("button", { name: "Try the selected video again" }));
-    await screen.findByText(/Saved; processing pending/);
+    await screen.findByText(/Blueprint will continue from this saved recording/);
+    fireEvent.click(screen.getByText("Processing details (optional)"));
+    expect(screen.getByText(/Saved; processing pending/)).toBeVisible();
     expect(videoUpload.send.mock.calls[1][1]).toBe(file);
     expect(window.location.search).toBe("?video=existing");
     expect(screen.queryByText(/Nothing was saved/)).not.toBeInTheDocument();

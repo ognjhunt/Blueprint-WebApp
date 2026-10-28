@@ -362,8 +362,10 @@ export async function publishBrowserPending(selected: BrowserPending): Promise<v
       // older already-published row is intentionally never backfilled.
       const requestRef = db!.collection("inboundRequests").doc(value.request_id);
       const request = (await transaction.get(requestRef)).data();
+      if (!projectWebsiteCaptureRights(request).derived_scene_generation_allowed) throw new Error("capture_processing_not_authorized");
+      if (value.capture_id === `walkthrough-${value.request_id}` && request?.active_capture_id
+        && request.active_capture_id !== value.capture_id) throw new Error("capture_update_superseded");
       if (value.capture_id !== `walkthrough-${value.request_id}`) {
-        if (!projectWebsiteCaptureRights(request).derived_scene_generation_allowed) throw new Error("capture_processing_not_authorized");
         const link = (await transaction.get(db!.collection("captureSupplements").doc(value.capture_id))).data();
         if (link?.requestId !== value.request_id || link.sceneId !== value.scene_id || link.captureId !== value.capture_id)
           throw new Error("capture_lineage_unverified");
