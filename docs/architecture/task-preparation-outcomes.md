@@ -5,6 +5,38 @@ projection. It serves beta journey L3/L6 and rehearses ADP-009D's day-28 typed
 abstention/delivery seam. The office floor-to-table case remains development-only;
 it completes neither the sealed public-scene gate nor physical trials.
 
+## Owner closure of a capture run
+
+An owner may close a run as a conservative abstention through the existing signed
+owner link: `POST /api/site-task-brief/:token/run-closure` with
+`{"decision":"conservative_abstention","confirmed":true}`. It requires the
+owner-scoped credential and the normal CSRF cookie/header. A film-only credential
+cannot close the run or read the owner's closure evidence.
+
+The transaction retains a digest-bound `website_run_closure.v1` receipt under
+the capture ID in the existing inbound request. It verifies the uploaded source
+identity and is idempotent; a changed source or malformed receipt refuses. It
+preserves the raw recording, recording consent, task facts, commercial state,
+existing reservations and billing records. It is not numeric task acceptance,
+a robot verdict, or physical proof.
+
+Current task-context reads return the typed 409 `website_run_closed_by_owner`.
+The existing Atlas worker treats that refusal as terminal and runs its normal
+provider cleanup. New preparation reservations (including reuse of a retained
+admission) and coverage/assessment model calls are refused transactionally.
+Settlement of already admitted calls remains possible. The owner and account
+status views show the closure before unconfirmed-brief or older progress states;
+withdrawn recording rights continue to take precedence. No automatic renewal or
+ordinary task edit removes the closure. Resumption requires a new explicit
+owner instruction and a separately authorized operation.
+
+Observed blocker: the floor-to-table run had been resumed by another work lane
+after the earlier abstention and was again processing at the mesh stage when
+the owner chose to close it. Existing controls exposed retry or recording
+withdrawal, not a run-specific stop that retained the recording. This is the
+minimal beta results/ADP-040 day-28 owner-abstention control; no Pipeline deploy,
+new provider purchase, policy run or general infrastructure is introduced.
+
 | Finding | Customer outcome | Evidence and next action |
 | --- | --- | --- |
 | Retained robot carry check rejected the checked configuration | `robot_incompatibility`, explicitly `conservative_configuration_check` | Source/context-bound preparation, collision/runtime and verdict digests; Blueprint reviews scale, grasp and checked stations before another configuration. This is not exhaustive impossibility proof. |

@@ -5,6 +5,7 @@ import { SiteAssessmentBudget } from "../agents/adapters/site-assessment-budget"
 import { reconcileModelReviewSpend, releaseModelReviewSpend, reserveModelReviewSpend } from "./betaAbuseCaps";
 import { humanDecisionDigest } from "./human-reply-admission";
 import { projectWebsiteCaptureRights } from "./websiteTaskContext";
+import { assertWebsiteRunOpen } from "./websiteRunClosure";
 import { browserPendingDecisionKey, type BrowserPending } from "./websiteBrowserPending";
 import { advisoryContextDigest } from "./siteAssessmentContext";
 import { hydrateAgentEvidence } from "../agents/private-evidence";
@@ -44,6 +45,7 @@ export async function reserveCaptureCoverageInference(model: string, metadata: R
       : job.state !== "running" || job.claim_token !== claim || job.captureId !== captureId)) throw new Error("coverage_budget_claim_changed");
     const [requestSnap, briefSnap] = await Promise.all([tx.get(db!.collection("inboundRequests").doc(requestId)), tx.get(db!.collection("siteTaskBriefs").doc(requestId))]);
     const request = requestSnap.data(), brief = briefSnap.data() ?? null, source = assessment ? metadata.assessment_source : job.binding?.source;
+    assertWebsiteRunOpen(request, requestId, captureId);
     assertSource(request, captureId, source);
     if (!assessment && (!briefSnap.exists || digest(brief) !== job.binding?.brief_digest)) throw new Error("coverage_budget_source_changed");
     const context = advisoryContextDigest(request!, brief);

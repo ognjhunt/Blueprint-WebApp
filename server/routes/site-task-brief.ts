@@ -1,5 +1,6 @@
 import { loadCurrentSiteAdvisory } from "../utils/siteAssessmentPublic";
 import { projectAtlasPreparationOutcome } from "../utils/taskPreparationOutcome";
+import { closeWebsiteRun, projectWebsiteRunClosure } from "../utils/websiteRunClosure";
 import { selectWebsiteAtlasPreview } from "../utils/websiteAtlasPreview";
 import type { TaskOutcome } from "../../client/src/types/taskOutcome";
 import { describeSiteAssessmentRetry } from "../utils/siteAssessmentQueue";
@@ -28,6 +29,7 @@ import { describeSiteAssessmentRetry } from "../utils/siteAssessmentQueue";
 import { Router, type Request, type Response } from "express";
 import { readSiteClarification, submitSiteClarification } from "../utils/siteTaskClarifications";
 import { z } from "zod";
+import { csrfProtection } from "../middleware/csrf";
 
 import { logger } from "../logger";
 import { captureUploadUrlFor, requestIdFromExpiredCaptureUploadToken, verifyCaptureUploadToken } from "../utils/captureUploadToken";
@@ -109,6 +111,23 @@ router.use("/:token", async (req, res, next) => {
   }
 });
 
+/** Closing a run preserves its recording and rights; it grants no resume authority. */
+router.post("/:token/run-closure", csrfProtection, async (req, res) => {
+  const payload = verifyCaptureUploadToken(String(req.params.token || ""));
+  if (!payload || payload.scope !== "owner") return res.status(403).json({ code: "run_closure_owner_required" });
+  if (!z.object({ decision: z.literal("conservative_abstention"), confirmed: z.literal(true) }).strict().safeParse(req.body).success)
+    return res.status(400).json({ code: "run_closure_decision_required" });
+  try {
+    const closure = await closeWebsiteRun(payload.requestId, payload.captureId);
+    return res.json({ accepted: true, closure });
+  } catch (error) {
+    const code = error instanceof Error ? error.message : "website_run_closure_unavailable";
+    const conflict = ["website_run_request_missing", "website_run_source_unavailable", "website_run_source_changed",
+      "website_run_closure_invalid"].includes(code);
+    return res.status(conflict ? 409 : 503).json({ code: conflict ? code : "website_run_closure_unavailable" });
+  }
+});
+
 
 /**
  * The printable brief, by its read-only link (`readinessBriefToken.ts`). It
@@ -166,7 +185,7 @@ function safeSceneViewUrl(value: unknown): string | null {
 }
 
 /** Just the fields status needs, so this route does not decrypt a whole lead. */
-async function readRequestForStatus(requestId: string): Promise<{
+async function readRequestForStatus(requestId: string, captureId = `walkthrough-${requestId}`): Promise<{
   siteTaskGates?: Record<string, string> | null;
   site_task_brief_confirmed_at?: unknown;
   capture_coverage?: {
@@ -185,6 +204,7 @@ async function readRequestForStatus(requestId: string): Promise<{
   siteName?: string | null;
   captureRights: ReturnType<typeof projectWebsiteCaptureRights>;
   preparationOutcome: TaskOutcome | null;
+  ownerClosureOutcome: TaskOutcome | null;
   /** Whether robot teams can see the job and request an evaluation. */
   jobAccess: ReturnType<typeof teamJobAccess> | null;
   recommended: boolean;
@@ -208,6 +228,7 @@ async function readRequestForStatus(requestId: string): Promise<{
   const contactFirstName = await plain(contact?.firstName);
   return {
     captureRights: projectWebsiteCaptureRights(data),
+    ownerClosureOutcome: projectWebsiteRunClosure(data, requestId, captureId),
     preparationOutcome: projectWebsiteCaptureRights(data).derived_scene_generation_allowed
       ? projectAtlasPreparationOutcome(selectWebsiteAtlasPreview(data, `walkthrough-${requestId}`)) : null,
     siteTaskGates: gateAnswersOnFile(data),
@@ -957,7 +978,7 @@ router.get("/:token/status", async (req: Request, res: Response) => {
   try {
     const [brief, request, captureSession] = await Promise.all([
       getBrief(payload.requestId),
-      readRequestForStatus(payload.requestId),
+      readRequestForStatus(payload.requestId, payload.captureId),
       db
         ? db.collection("captureUploadSessions").doc(payload.captureId).get().catch(() => null)
         : Promise.resolve(null),
@@ -1031,6 +1052,7 @@ router.get("/:token/status", async (req: Request, res: Response) => {
         footageReviewAutomated: isSiteVideoEvidenceEnabled(),
         scenePreviewReady: Boolean(sceneViewUrl),
         scenePreparationFailed: reconstruction?.state === "failed",
+        ownerClosureOutcome: payload.scope === "owner" ? request?.ownerClosureOutcome : null,
         preparationOutcome: payload.scope === "owner" && request && !request.captureRights.consent_revoked
           && payload.captureId === `walkthrough-${payload.requestId}` ? request.preparationOutcome : null,
         preparationStatus,

@@ -221,6 +221,7 @@ interface TaskStatusInput {
   /** Current persisted preview reconstruction failed; not a robot-run verdict. */
   scenePreparationFailed?: boolean;
   preparationOutcome?: TaskOutcome | null;
+  ownerClosureOutcome?: TaskOutcome | null;
   preparationStatus?: TaskPreparationStatus | null;
   /**
    * The WebApp's own watch says preparation has gone quiet past its bound: no
@@ -286,6 +287,10 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
       nextUpdateIso: null,
     };
   }
+
+  if (input.ownerClosureOutcome) return { ...base, stage: null, missingViews: [], nextUpdateIso: null,
+    decision: input.ownerClosureOutcome.category, headline: input.ownerClosureOutcome.title,
+    operatorAction: null, outcome: input.ownerClosureOutcome };
 
   // A preparation stop must not be hidden by an unconfirmed brief or a generic
   // intake gate. Actual evaluation activity/results outrank an older stop.
@@ -680,6 +685,7 @@ export function taskStatusInputFrom(record: {
   scenePreviewReady?: boolean;
   scenePreparationFailed?: boolean;
   preparationOutcome?: TaskOutcome | null;
+  ownerClosureOutcome?: TaskOutcome | null;
   preparationStatus?: TaskPreparationStatus | null;
   preparationOverdue?: boolean;
   sceneProgression?: TaskSceneProgression | null;
@@ -705,6 +711,7 @@ export function taskStatusInputFrom(record: {
     scenePreviewReady: Boolean(record.scenePreviewReady),
     scenePreparationFailed: record.scenePreparationFailed === true,
     preparationOutcome: record.preparationOutcome ?? null,
+    ownerClosureOutcome: record.ownerClosureOutcome ?? null,
     preparationStatus: record.preparationStatus ?? null,
     ...(record.preparationOverdue === true ? { preparationOverdue: true } : {}),
     sceneProgression: record.sceneProgression ?? null,

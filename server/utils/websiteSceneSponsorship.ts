@@ -2,6 +2,7 @@ import { taskScopeNotSupported } from "./siteTaskScope";
 import { websiteDevelopmentTestEnvironment } from "./websiteDevelopmentTest";
 /** Blueprint funds preparation; capture consent never authorizes a site-owner charge. */
 import { z } from "zod";
+import { assertWebsiteRunOpen } from "./websiteRunClosure";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { TASK_BRIEFS_COLLECTION, type SiteTaskBriefRecord } from "./siteTaskBrief";
 import { projectWebsiteCaptureRights, projectWebsiteTaskContext, legacySuggestedTaskContextDigest, legacyRoutingTaskContextDigest } from "./websiteTaskContext";
@@ -258,6 +259,7 @@ export function currentWebsiteSceneContext(input: {
   inventory?: TaskItemInventoryRecord | null; captureBinding?: Record<string, any>;
   assessmentPreparationProposal?: AssessmentPreparationProposal;
 }) {
+  assertWebsiteRunOpen(input.record, input.requestId, input.captureId);
   const purpose = retainedWebsiteScenePurpose(input.record);
   const context = projectWebsiteTaskContext(input.brief, projectWebsiteCaptureRights(input.record), {
     inventory: input.inventory, captureId: input.captureId, captureBinding: input.captureBinding, purpose });
@@ -768,6 +770,7 @@ export async function reserveWebsitePreparationSpend(requestId: string, input: z
     if (!request.exists || !brief.exists) throw new Error("task_brief_missing");
     await assertWebsiteCaptureBindingInTransaction(transaction, requestId, captureBinding);
     const record = request.data()!;
+    assertWebsiteRunOpen(record, requestId, captureId);
     if (!automaticAtlas) await assertAssessmentPreparationCurrent(transaction, assessment, record, {requestId, captureId});
     if (!record.website_scene_sponsorship && !automaticAtlas) throw new Error("website_scene_sponsorship_missing");
     // Reservations never create a grant; only atlas-configuration does.

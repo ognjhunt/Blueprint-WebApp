@@ -5,12 +5,13 @@ import { createServer } from "node:http";
 import { projectWebsiteCaptureRights, projectWebsiteTaskContext } from "../utils/websiteTaskContext";
 import type { SiteTaskBriefRecord } from "../utils/siteTaskBrief";
 import vector from "./fixtures/website-context-vector.json";
+import { ownerClosure } from "./fixtures/website-run-closure";
 
-const state = vi.hoisted(() => ({ authorized: true, brief: null as SiteTaskBriefRecord | null, consent: null as Record<string, unknown> | null, persisted: [] as Record<string, unknown>[] }));
+const state = vi.hoisted(() => ({ authorized: true, brief: null as SiteTaskBriefRecord | null, consent: null as Record<string, unknown> | null, persisted: [] as Record<string, unknown>[], closures: {} as Record<string, unknown> }));
 vi.mock("../utils/siteTaskBrief", () => ({ getBrief: async () => state.brief, TASK_BRIEFS_COLLECTION: "siteTaskBriefs" }));
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({ default: { firestore: { FieldValue: { serverTimestamp: () => "server-time" } } }, dbAdmin: {
   runTransaction: async (callback: any) => callback({ get: (ref: any) => ref.get(), set: (ref: any, value: any) => ref.set(value) }),
-  collection: (name: string) => ({ doc: () => ({ set: async (value: Record<string, unknown>) => { state.persisted.push(value); }, get: async () => ({ exists: name !== "siteTaskItemInventories", data: () => name === "siteTaskItemInventories" ? undefined : name === "siteTaskBriefs" ? state.brief : ({ request: { consent_attestation: state.consent }, notification_request_id: "req1" }) }) }) }),
+  collection: (name: string) => ({ doc: () => ({ set: async (value: Record<string, unknown>) => { state.persisted.push(value); }, get: async () => ({ exists: name !== "siteTaskItemInventories", data: () => name === "siteTaskItemInventories" ? undefined : name === "siteTaskBriefs" ? state.brief : ({ request: { consent_attestation: state.consent }, notification_request_id: "req1", website_run_closures: state.closures }) }) }) }),
 } }));
 vi.mock("../utils/captureFootageReview", () => ({ buildCaptureFootageReviewer: vi.fn() }));
 vi.mock("../utils/taskLifecycleNotifications", () => ({ enqueueTaskLifecycleNotification: vi.fn(), reconstructionIsViewable: vi.fn() }));
@@ -27,7 +28,26 @@ function brief(confirmed: boolean): SiteTaskBriefRecord {
     confirmedBy: "private owner identity", operatorAnswers: confirmed ? { item_rigidity: "rigid" } : null,
     operatorUnknown: confirmed ? ["cycle"] : null };
 }
-afterEach(() => { state.authorized = true; state.brief = null; state.consent = null; state.persisted = []; });
+afterEach(() => { state.authorized = true; state.brief = null; state.consent = null; state.persisted = []; state.closures = {}; });
+
+it("returns the terminal owner-close code to the worker without revoking source consent", async () => {
+  state.brief = brief(false);
+  state.closures = { "walkthrough-req1": ownerClosure() };
+  const application = express(); application.use(express.json());
+  application.use((await import("../routes/internal-capture-worlds")).default);
+  const server = createServer(application);
+  await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+  try {
+    const address = server.address(); if (!address || typeof address === "string") throw new Error("bind");
+    const post = () => fetch(`http://127.0.0.1:${address.port}/creator-captures/walkthrough-req1/task-context`, {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ request_id: "req1", scene_id: "site-req1" }) });
+    const stopped = await post(); expect(stopped.status).toBe(409);
+    expect(await stopped.json()).toEqual({ code: "website_run_closed_by_owner" });
+    state.closures = { "walkthrough-other": ownerClosure("other") };
+    expect((await post()).status).toBe(200);
+    expect(state.persisted).toEqual([]);
+  } finally { await new Promise<void>(resolve => server.close(() => resolve())); }
+});
 
 it("binds task content and confirmation without disclosing owner identity", () => {
   const draft = projectWebsiteTaskContext(brief(false));
