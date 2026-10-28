@@ -420,6 +420,7 @@ export async function footageBeforeAccountShown(requestId: string): Promise<bool
   const consentRevoked = projectWebsiteCaptureRights(record).consent_revoked;
   const reconstruction = session.data()?.world_reconstruction;
   const status = projectTaskStatus(taskStatusInputFrom({
+    active_capture_id: typeof record.active_capture_id === "string" ? record.active_capture_id : null,
     site_task_brief_confirmed_at: record.site_task_brief_confirmed_at,
     capture_coverage: record.capture_coverage ?? null,
     briefDrafted: Boolean(brief),

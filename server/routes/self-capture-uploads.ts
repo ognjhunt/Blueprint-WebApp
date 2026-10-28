@@ -407,7 +407,7 @@ async function beginBrowserCanonicalWrite(
   }
 }
 
-const NEW_CAPTURE_JOB_MESSAGE = "Your original recording stays saved. Use Update walkthrough on this job to send a complete updated recording, including any missing views.";
+const NEW_CAPTURE_JOB_MESSAGE = "Your original recording stays saved. Use the video update options on this job to add a missing view or send a complete updated walkthrough.";
 
 /** The write request carries no source identity; expose its retained receipt without claiming a replay. */
 async function finalizedCaptureResponse(payload: CaptureIdentity, res: Response) {
@@ -908,6 +908,7 @@ async function respondCaptureUploadStatus(req: Request, res: Response, recoverLe
       ok: true,
       captureId: payload.captureId,
       isVideoUpdate: Boolean(payload.supplement),
+      recordingScope: payload.supplement?.recording_scope ?? "complete_walkthrough",
       expiresAt: new Date(payload.exp * 1000).toISOString(),
       accepts: [...ALLOWED_EXTENSIONS],
       ...(bundle ? { bundle } : {}),
@@ -1646,7 +1647,7 @@ router.post("/:token/supplement", async (req, res) => {
   const gate = await bundleGate(req, res);
   if (!gate) return;
   if (gate.payload.scope === "film") return res.status(403).json({ code: "supplement_owner_required", error: "Open the owner's job link to update the video." });
-  const parsed = z.object({ mode: z.enum(["replacement", "additional_views"]), requestId: z.string().uuid() }).strict().safeParse(req.body);
+  const parsed = z.object({ mode: z.enum(["replacement", "additional_views", "append_views"]), requestId: z.string().uuid() }).strict().safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ code: "supplement_request_invalid", error: "Choose how to update your video and try again." });
   try {
     const result = await issueCaptureSupplement(gate.payload, parsed.data);

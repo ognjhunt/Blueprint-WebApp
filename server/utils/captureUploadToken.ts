@@ -38,6 +38,8 @@ export interface CaptureSupplementBinding {
   parent_bundle_digest: string;
   parent_manifest_uri: string;
   coverage_digest: string;
+  /** Absent on retained full-walkthrough updates. Included in the signed lineage. */
+  recording_scope?: "additional_views";
 }
 
 interface CaptureUploadTokenPayload {

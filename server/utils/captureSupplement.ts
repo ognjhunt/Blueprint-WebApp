@@ -11,23 +11,32 @@ export function supplementIdentity(parent: ParentLink, identity: Record<string, 
     || !Array.isArray(coverage.missing_coverage) || !coverage.missing_coverage.length) throw new Error("supplement_not_requested");
   const supplement: CaptureSupplementBinding = { parent_capture_id: parent.captureId,
     parent_bundle_digest: identity.raw_bundle_digest, parent_manifest_uri: identity.raw_manifest_uri,
-    coverage_digest: humanDecisionDigest(coverage) };
+    coverage_digest: humanDecisionDigest(coverage),
+    ...(coverage.recording_scope === "additional_views" ? { recording_scope: "additional_views" as const } : {}) };
   return { captureId: `supplement-${humanDecisionDigest({ requestId: parent.requestId, sceneId: parent.sceneId, supplement }).slice(0, 40)}`, supplement };
 }
 
-export async function issueCaptureSupplement(parent: ParentLink, repair?: { mode: "replacement" | "additional_views"; requestId: string }) {
+export async function issueCaptureSupplement(parent: ParentLink, repair?: { mode: "replacement" | "additional_views" | "append_views"; requestId: string }) {
   if (parent.scope === "film") throw new Error("supplement_owner_required");
   if (repair && (!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(repair.requestId)
-    || !["replacement", "additional_views"].includes(repair.mode))) throw new Error("supplement_request_invalid");
+    || !["replacement", "additional_views", "append_views"].includes(repair.mode))) throw new Error("supplement_request_invalid");
   if (!db) throw new Error("capture_store_unavailable");
   const result = await db.runTransaction(async tx => {
     const request = await tx.get(db!.collection("inboundRequests").doc(parent.requestId));
     const record = request.data();
     const selectedId = String(record?.active_capture_id || record?.capture_coverage?.capture_id || parent.captureId);
     const retainedCoverage = record?.capture_coverage;
-    const coverage = repair?.mode === "replacement" ? { status: "owner_requested_update",
+    // The retained additional_views request meant a complete walkthrough.
+    // append_views explicitly opts into the new multi-recording input contract.
+    const coverage = repair && repair.mode !== "append_views" ? { status: "owner_requested_update",
       capture_id: selectedId, covers_scene: false, missing_coverage: ["An updated complete walkthrough of the job"],
-      supplement_would_finish: false, repair_request_id: repair.requestId } : retainedCoverage;
+      supplement_would_finish: false, repair_request_id: repair.requestId }
+      : repair?.mode === "append_views" ? { status: "owner_requested_additional_views", capture_id: selectedId,
+        covers_scene: false, missing_coverage: retainedCoverage?.capture_id === selectedId
+          && Array.isArray(retainedCoverage.missing_coverage) && retainedCoverage.missing_coverage.length
+          ? retainedCoverage.missing_coverage : ["Additional views of the job"],
+        supplement_would_finish: false, repair_request_id: repair.requestId, recording_scope: "additional_views" }
+      : retainedCoverage;
     // An owner link remains a capability for this job even if a newer revision
     // was selected on another device. Always bind the update to the current
     // retained source; never redirect bytes into an earlier capture.
@@ -45,7 +54,8 @@ export async function issueCaptureSupplement(parent: ParentLink, repair?: { mode
     const ref = db!.collection("captureSupplements").doc(result.captureId);
     const prior = await tx.get(ref);
     if (!prior.exists) tx.create(ref, { ...result, requestId: parent.requestId, sceneId: parent.sceneId,
-      parent_coverage: coverage, recording_scope: "complete_walkthrough", state: "awaiting_upload", created_at: new Date().toISOString() });
+      parent_coverage: coverage, recording_scope: result.supplement.recording_scope ?? "complete_walkthrough",
+      state: "awaiting_upload", created_at: new Date().toISOString() });
     return result;
   });
   return { captureId: result.captureId, token: createCaptureUploadToken({ ...parent, ...result,
@@ -61,6 +71,7 @@ export async function validateCaptureSupplement(payload: { requestId: string; sc
   const source = websiteSessionSource(parent.data(), payload.requestId, payload.sceneId, payload.supplement.parent_capture_id);
   if (record?.requestId !== payload.requestId || record.sceneId !== payload.sceneId
     || humanDecisionDigest(record.supplement) !== humanDecisionDigest(payload.supplement)
+    || (record.recording_scope ?? "complete_walkthrough") !== (payload.supplement.recording_scope ?? "complete_walkthrough")
     || source.identity.raw_bundle_digest !== payload.supplement.parent_bundle_digest
     || source.identity.raw_manifest_uri !== payload.supplement.parent_manifest_uri) throw new Error("supplement_parent_changed");
 }
@@ -80,6 +91,7 @@ export async function activateCaptureSupplement(payload: { requestId: string; sc
     if (!projectWebsiteCaptureRights(current).derived_scene_generation_allowed) throw new Error("source_revoked");
     if (current?.active_capture_id && ![payload.supplement!.parent_capture_id, payload.captureId].includes(current.active_capture_id))
       throw new Error("capture_update_superseded");
-    tx.set(ref, { active_capture_id: payload.captureId }, { merge: true });
+    tx.set(ref, { active_capture_id: payload.captureId,
+      active_recording_scope: payload.supplement?.recording_scope ?? "complete_walkthrough" }, { merge: true });
   });
 }

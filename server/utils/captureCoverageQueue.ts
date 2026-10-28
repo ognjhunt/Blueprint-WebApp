@@ -11,6 +11,7 @@ import { mergeFootageIntoBrief } from "./siteTaskBriefReading";
 import { authorizeCaptureUpload } from "./captureUploadAuthorization";
 import { modelReviewHeadroom } from "./betaAbuseCaps";
 import { GEMINI_VIDEO_CALL_RESERVATION_USD } from "../agents/adapters/site-assessment-budget";
+import { isAdditionalViewSource } from "./websiteCaptureSource";
 
 let activePass: Promise<void> | null = null;
 /** Admission defers another same-capture traversal while this worker is busy. */
@@ -31,6 +32,11 @@ export async function enqueueCoverageReview(params: { requestId: string; sceneId
     if (!hasCurrentRecordingConsent(current?.request?.consent_attestation)
       || privacy?.capture_id !== params.captureId || privacy.proceeded !== true || !privacy.producer_source?.key)
       throw new Error("capture_review_current_clearance_required");
+    const link = params.captureId === `walkthrough-${params.requestId}` ? undefined
+      : (await tx.get(db!.collection("captureSupplements").doc(params.captureId))).data();
+    // The Pipeline reviews the combined observations. Reviewing this fragment
+    // as a whole new job would ask for earlier views again and rewrite its brief.
+    if (isAdditionalViewSource(link, params.requestId, params.sceneId, params.captureId)) return;
     tx.set(ref, { capture_coverage_pending: true, capture_coverage_request: params }, { merge: true });
   });
 }
@@ -73,6 +79,15 @@ export async function reconcileCoverageReviews(limit = 10, options: { notifyOwne
     const value = request.data();
     const params = value.capture_coverage_request;
     const privacy = value.capture_privacy_source_bound_decision || value.capture_privacy_screen;
+    if (value.active_recording_scope === "additional_views") {
+      await db.runTransaction(async tx => {
+        const current = (await tx.get(request.ref)).data();
+        if (current?.active_recording_scope === "additional_views" && current.active_capture_id === value.active_capture_id
+          && humanDecisionDigest(current.capture_coverage_request) === humanDecisionDigest(params))
+          tx.set(request.ref, { capture_coverage_pending: false }, { merge: true });
+      });
+      continue;
+    }
     if (!hasCurrentRecordingConsent(value.request?.consent_attestation)) continue;
     if (!params || params.requestId !== request.id || privacy?.capture_id !== params.captureId
       || !privacy.proceeded || !privacy.producer_source?.key) continue;

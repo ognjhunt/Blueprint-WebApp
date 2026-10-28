@@ -417,7 +417,7 @@ async function uploadFor(baseUrl: string, requestId: string, bytes = "x", extens
 function expectSameJobVideoRepair(body: Record<string, unknown>) {
   expect(body.repairAvailable).toBe(true);
   expect(body.message).toMatch(/original recording stays saved/i);
-  expect(body.message).toMatch(/Update walkthrough on this job/i);
+  expect(body.message).toMatch(/video update options on this job/i);
   expect(body.message).not.toMatch(/start a new job|original recording (was|has been) replaced/i);
 }
 
@@ -442,6 +442,46 @@ async function waitForUploadRelease(requestId: string) {
 }
 
 describe("saved footage and processing are separate receipts", () => {
+  it("adds a short-view recording as the current same-job source while retaining its exact original", async () => {
+    const requestId = "req-extra-angle";
+    seedRequest(requestId, { disposition: "qualified" });
+    // Both writes have a complete source-bound privacy result. An omitted
+    // eligibility in an older single-upload fixture cannot be merged as a
+    // second real Firestore decision.
+    screenCaptureForPrivacy.mockResolvedValue({ proceed: true, eligibility: "unscreened", outcome: "not_reviewed", detail: null, evidence: null });
+    const { logger } = await import("../logger");
+    const errors: string[] = [];
+    const log = vi.spyOn(logger, "error").mockImplementation((...call: any[]) => {
+      errors.push(String(call[0]?.error?.message ?? JSON.stringify(call[0]?.captureWriteFailure) ?? call[1] ?? ""));
+    });
+    try { await withRoutes(async baseUrl => {
+      expect((await uploadFor(baseUrl, requestId, "original views")).status).toBe(201);
+      await waitForUploadRelease(requestId);
+      const originalId = `walkthrough-${requestId}`;
+      const original = structuredClone(sharedFakeFirestoreState.docs.get(`captureUploadSessions/${originalId}`)!.browser_pending_delivery);
+      const originalVersions = [...storedVersions.keys()].filter(key => key.includes(`/${originalId}/raw/walkthrough.mov@`));
+      const token = tokenFrom(captureUploadUrlFor(requestId));
+      const response = await fetch(`${baseUrl}/api/self-capture/uploads/${token}/supplement`, { method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ mode: "append_views", requestId: "00000000-0000-4000-8000-000000000001" }) });
+      expect(response.status, await response.clone().text()).toBe(200);
+      const update = await response.json();
+      const status = await fetch(`${baseUrl}/api/self-capture/uploads/${update.token}/status`);
+      expect(await status.json()).toMatchObject({ isVideoUpdate: true, recordingScope: "additional_views" });
+      const form = new FormData();
+      form.append("video", new Blob([quickTime("missing view")], { type: "video/quicktime" }), "extra.mov");
+      const uploaded = await fetch(`${baseUrl}/api/self-capture/uploads/${update.token}`, { method: "POST", body: form });
+      expect(uploaded.status, `${await uploaded.clone().text()} ${JSON.stringify(errors)}`).toBe(201);
+      const { resolveWebsiteCaptureBinding } = await import("../utils/websiteCaptureBinding");
+      const binding = await resolveWebsiteCaptureBinding(requestId, `site-${requestId}`, update.captureId);
+      expect(binding).toMatchObject({ schema_version: "website_capture_continuation.v2",
+        recording_capture_ids: [originalId, update.captureId], coordinate_frames_independent: true });
+      expect(sharedFakeFirestoreState.docs.get(`inboundRequests/${requestId}`)!.active_capture_id).toBe(update.captureId);
+      expect(sharedFakeFirestoreState.docs.get(`captureUploadSessions/${originalId}`)!.browser_pending_delivery).toEqual(original);
+      expect([...storedVersions.keys()].filter(key => key.includes(`/${originalId}/raw/walkthrough.mov@`))).toEqual(originalVersions);
+    }); } finally { log.mockRestore(); }
+  });
+
   it("retains the original before a probe outage and retries its exact generation without another upload", async () => {
     seedRequest("req-probe-outage", { disposition: "qualified" });
     const { VideoProbeError } = await import("../utils/selfCaptureMediaMetadata");

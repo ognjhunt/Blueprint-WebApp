@@ -86,23 +86,76 @@ export function websiteAtlasGrantPolicy(): WebsiteAtlasGrantPolicy | null {
 }
 
 /** The uploaded raw video's immutable identity. Mutable verification fields are excluded. */
-const sourceVideoIdentity = z.union([
+const uploadedSourceVideoIdentity = z.union([
   z.object({ kind: z.literal("website_browser_video"), object_name: z.string().min(1).max(1024),
     generation: z.string().regex(/^[1-9][0-9]{0,19}$/), size_bytes: z.number().int().positive(),
     crc32c: z.string().min(1).max(64) }).strict(),
   z.object({ kind: z.literal("site_capture_bundle"), raw_bundle_digest: sha,
     raw_manifest_uri: z.string().min(1).max(800), upload_completion_digest: sha }).strict(),
 ]);
+const recordingVideo = z.object({ object_name: z.string().min(1).max(1024), generation: z.string().regex(/^[1-9][0-9]{0,19}$/),
+  size_bytes: z.number().int().positive(), crc32c: z.string().regex(/^[A-Za-z0-9+/]{6}==$/), sha256: sha.optional() }).strict();
+const recordingSetIdentity = z.object({ kind: z.literal("website_recording_set"), capture_binding_digest: sha,
+  recordings: z.array(z.object({ capture_id: z.string().min(1), raw_bundle_digest: sha,
+    raw_manifest_uri: z.string().min(1).max(800), raw_video: recordingVideo }).strict()).min(1).max(9) }).strict();
+const sourceVideoIdentity = z.union([uploadedSourceVideoIdentity, recordingSetIdentity]);
 
 export function websiteAtlasSourceVideoIdentity(session: Record<string, any> | undefined) {
   const pending = session?.browser_pending_delivery, upload = session?.immutable_upload_identity;
   // Exactly one finalized producer may own a capture; ambiguity grants nothing.
   if (Boolean(pending) === Boolean(upload) || pending && pending.state !== "published") return null;
-  const parsed = sourceVideoIdentity.safeParse(pending
+  const parsed = uploadedSourceVideoIdentity.safeParse(pending
     ? { kind: "website_browser_video", object_name: pending.video?.object_name, generation: pending.video?.generation,
       size_bytes: pending.video?.size_bytes, crc32c: pending.video?.crc32c }
     : { kind: "site_capture_bundle", raw_bundle_digest: upload.raw_bundle_digest,
       raw_manifest_uri: upload.raw_manifest_uri, upload_completion_digest: upload.upload_completion_digest });
+  return parsed.success ? parsed.data : null;
+}
+
+/** Called only with the current storage-verified binding from websiteCaptureBinding.
+ * The method video is derived; its grant binds every original, not just the new clip. */
+export function websiteAtlasProcessingSourceIdentity(session: Record<string, any> | undefined,
+  binding?: Record<string, any>) {
+  const uploaded = websiteAtlasSourceVideoIdentity(session);
+  if (!uploaded || !binding) return uploaded;
+  if (binding.schema_version === "website_capture_continuation.v1") return binding.lineage?.some((entry: any) =>
+    entry.recording_scope === "additional_views" || entry.supplement?.recording_scope === "additional_views") ? null : uploaded;
+  if (binding.schema_version !== "website_capture_continuation.v2") return null;
+  if (!Array.isArray(binding.lineage) || !Array.isArray(binding.recording_capture_ids)
+    || binding.coordinate_frames_independent !== true) return null;
+  const byId = new Map<string, Record<string, any>>();
+  let expected = binding.capture_id, collecting = true;
+  const active = [expected];
+  for (const entry of binding.lineage) {
+    if (entry.child?.capture_id !== expected || !entry.parent
+      || !["additional_views", "complete_walkthrough"].includes(entry.recording_scope)
+      || entry.recording_scope !== (entry.supplement?.recording_scope ?? "complete_walkthrough")) return null;
+    if (collecting) {
+      if (entry.recording_scope === "additional_views") active.push(entry.parent.capture_id);
+      else collecting = false;
+    }
+    expected = entry.parent.capture_id;
+    for (const source of [entry.child, entry.parent]) {
+      if (!source || typeof source.capture_id !== "string") return null;
+      if (byId.has(source.capture_id) && digest(byId.get(source.capture_id)) !== digest(source)) return null;
+      byId.set(source.capture_id, source);
+    }
+  }
+  const ids = binding.recording_capture_ids;
+  if (!ids.length || ids.at(-1) !== binding.capture_id || new Set(ids).size !== ids.length
+    || expected !== binding.original_capture_id || digest(ids) !== digest(active.reverse())) return null;
+  const current = byId.get(binding.capture_id);
+  if (!current || uploaded.kind === "website_browser_video"
+    && ["object_name", "generation", "size_bytes", "crc32c"].some(key => current.raw_video?.[key] !== uploaded[key as keyof typeof uploaded])
+    || uploaded.kind === "site_capture_bundle"
+      && (current.raw_bundle_digest !== uploaded.raw_bundle_digest || current.raw_manifest_uri !== uploaded.raw_manifest_uri)) return null;
+  const lineage = { original_capture_id: binding.original_capture_id, capture_id: binding.capture_id,
+    recording_capture_ids: ids, links: binding.lineage.map((entry: any) => ({ recording_scope: entry.recording_scope,
+      child_capture_id: entry.child.capture_id, supplement: entry.supplement })) };
+  const parsed = recordingSetIdentity.safeParse({ kind: "website_recording_set", capture_binding_digest: digest(lineage),
+    recordings: ids.map(id => { const source = byId.get(id); return source && {
+      capture_id: id, raw_bundle_digest: source.raw_bundle_digest, raw_manifest_uri: source.raw_manifest_uri, raw_video: source.raw_video,
+    }; }) });
   return parsed.success ? parsed.data : null;
 }
 
@@ -151,6 +204,7 @@ export function websiteAtlasGrantOwner(record: Record<string, any>, grant: { acc
  */
 export async function resolveWebsiteAtlasGrant(input: EnvRowMatch & GrantChecks & {
   record: Record<string, any>; readSession: () => Promise<Record<string, any> | undefined>;
+  captureBinding?: Record<string, any>;
   captureRights: { derived_scene_generation_allowed: boolean; consent_revoked: boolean };
   auxiliaryTermsDigests?: Partial<Record<AtlasAuxiliaryProvider, string>>;
   create?: boolean;
@@ -160,7 +214,7 @@ export async function resolveWebsiteAtlasGrant(input: EnvRowMatch & GrantChecks 
   if (rows.length === 1) return { grant: checkedGrant(rows[0], input), created: null };
   const policy = websiteAtlasGrantPolicy();
   if (!policy) throw new Error("website_atlas_source_consent_required");
-  const identity = websiteAtlasSourceVideoIdentity(await input.readSession());
+  const identity = websiteAtlasProcessingSourceIdentity(await input.readSession(), input.captureBinding);
   const stored = input.record.website_atlas_grants?.[input.captureId];
   if (stored !== undefined) {
     const parsed = storedGrant.safeParse(stored);

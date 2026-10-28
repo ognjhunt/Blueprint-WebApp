@@ -19,6 +19,7 @@ import { issueCaptureSupplement, supplementIdentity } from "../utils/captureSupp
 import { bundleDigest } from "../utils/siteCaptureBundle";
 import { projectWebsiteTaskContext } from "../utils/websiteTaskContext";
 import continuationVector from "./fixtures/website-continuation-vector.json";
+import additionalVector from "./fixtures/website-additional-views-vector.json";
 import type { BundleStorage, BundleObjectInfo } from "../utils/siteCaptureBundleStorage";
 import { projectWebsiteCaptureRights } from "../utils/websiteTaskContext";
 import { crossRuntimeDigest, crossRuntimeArtifactDigest } from "../utils/crossRuntimeCanonical";
@@ -49,11 +50,13 @@ function finalized(captureId: string) {
     site_capture_bundle: { request_id: "req1", scene_id: "site-req1", capture_id: captureId }, immutable_upload_identity: identity });
   return identity;
 }
-function child(parent = "walkthrough-req1") {
+function child(parent = "walkthrough-req1", scope?: "additional_views") {
   const identity = finalized(parent);
-  const coverage = { status: "needs_more", capture_id: parent, covers_scene: false, missing_coverage: ["destination"] };
+  const coverage = { status: "needs_more", capture_id: parent, covers_scene: false, missing_coverage: ["destination"],
+    ...(scope ? { recording_scope: scope } : {}) };
   const value = supplementIdentity({ requestId: "req1", sceneId: "site-req1", captureId: parent, exp: 1 }, identity, coverage);
-  sharedFakeFirestoreState.docs.set(`captureSupplements/${value.captureId}`, { ...value, requestId: "req1", sceneId: "site-req1", parent_coverage: coverage });
+  sharedFakeFirestoreState.docs.set(`captureSupplements/${value.captureId}`, { ...value, requestId: "req1", sceneId: "site-req1",
+    parent_coverage: coverage, ...(scope ? { recording_scope: scope } : {}) });
   finalized(value.captureId);
   return value.captureId;
 }
@@ -76,6 +79,96 @@ it("exports an authoritative supplementary context consumed by the shared Pipeli
   const captureBinding = await resolveWebsiteCaptureBinding("req1", "site-req1", captureId, storage);
   expect(projectWebsiteTaskContext(continuationVector.brief as any, continuationVector.rights as any,
     { captureId, captureBinding })).toEqual(continuationVector.context);
+});
+
+it("binds an added view to both exact recordings without claiming their camera frames are registered", async () => {
+  const captureId = child("walkthrough-req1", "additional_views");
+  const binding = await resolveWebsiteCaptureBinding("req1", "site-req1", captureId, storage);
+  expect(binding).toMatchObject({ schema_version: "website_capture_continuation.v2", capture_id: captureId,
+    recording_capture_ids: ["walkthrough-req1", captureId], coordinate_frames_independent: true });
+  expect(projectWebsiteTaskContext(additionalVector.brief as any, additionalVector.rights as any,
+    { captureId, captureBinding: binding })).toEqual(additionalVector.context);
+  const entry = binding!.lineage[0];
+  expect(entry.recording_scope).toBe("additional_views");
+  for (const source of [entry.parent, entry.child]) expect(source.raw_video).toEqual({
+    object_name: `scenes/site-req1/captures/${source.capture_id}/raw/walkthrough.mov`,
+    generation: "123", size_bytes: 9, crc32c: "AAAAAA==", sha256: `sha256:${sha("synthetic")}`,
+  });
+  await sharedFakeFirestore.runTransaction(tx => assertWebsiteCaptureBindingInTransaction(tx, "req1", binding));
+  binding!.recording_capture_ids = [captureId];
+  await expect(sharedFakeFirestore.runTransaction(tx => assertWebsiteCaptureBindingInTransaction(tx, "req1", binding)))
+    .rejects.toThrow("website_capture_binding_lineage_changed");
+});
+
+it("keeps the retained additional_views request compatible with a complete walkthrough", async () => {
+  finalized("walkthrough-req1");
+  const update = await issueCaptureSupplement({ requestId: "req1", sceneId: "site-req1", captureId: "walkthrough-req1",
+    scope: "owner", exp: Math.floor(Date.now() / 1000) + 3600 }, {
+    mode: "additional_views", requestId: "00000000-0000-4000-8000-000000000001" });
+  const record = sharedFakeFirestoreState.docs.get(`captureSupplements/${update.captureId}`)!;
+  expect(record.recording_scope).toBe("complete_walkthrough");
+  expect(record.supplement).not.toHaveProperty("recording_scope");
+});
+
+it("adds views to the latest replacement and keeps earlier observations historical", async () => {
+  const earlier = child("walkthrough-req1", "additional_views");
+  const replacement = child(earlier);
+  const latest = child(replacement, "additional_views");
+  const binding = await resolveWebsiteCaptureBinding("req1", "site-req1", latest, storage);
+  expect(binding!.lineage).toHaveLength(3);
+  expect(binding!.recording_capture_ids).toEqual([replacement, latest]);
+  expect(binding!.coordinate_frames_independent).toBe(true);
+});
+
+it("keeps additional-view intent private, repeatable and independent of stale coverage", async () => {
+  const current = child();
+  sharedFakeFirestoreState.docs.set("inboundRequests/req1", { active_capture_id: current,
+    capture_coverage: { capture_id: "walkthrough-req1", covers_scene: false, missing_coverage: ["old gap"] } });
+  const input = { requestId: "req1", sceneId: "site-req1", captureId: "walkthrough-req1", exp: Math.floor(Date.now() / 1000) + 60 };
+  const intent = { mode: "append_views" as const, requestId: "00000000-0000-4000-8000-000000000001" };
+  const update = await issueCaptureSupplement(input, intent);
+  const record = sharedFakeFirestoreState.docs.get(`captureSupplements/${update.captureId}`)!;
+  expect(record).toMatchObject({ requestId: "req1", sceneId: "site-req1", recording_scope: "additional_views",
+    supplement: { parent_capture_id: current, recording_scope: "additional_views" } });
+  expect((await issueCaptureSupplement(input, intent)).captureId).toBe(update.captureId);
+  expect((await issueCaptureSupplement(input, { ...intent, requestId: "00000000-0000-4000-8000-000000000002" })).captureId)
+    .not.toBe(update.captureId);
+});
+
+it("uses one remaining job allowance for an added view and never resets earlier spending", async () => {
+  const captureId = child("walkthrough-req1", "additional_views");
+  const binding = await resolveWebsiteCaptureBinding("req1", "site-req1", captureId, storage);
+  const sha = (letter: string) => `sha256:${letter.repeat(64)}`;
+  const record = { account_owner_uid: "site-owner", active_capture_id: captureId,
+    request: { consent_attestation: { granted: true, statement_version: "2026-09-18.v1", recorded_at_iso: "2026-10-06T00:00:00Z" } },
+    website_preparation_reservations: { earlier: { admission: { provider: "world_labs_atlas", maximum_cost_usd: .75, request_count: 1 },
+      settlement: { actual_cost_usd: .5 } } } };
+  sharedFakeFirestoreState.docs.set("inboundRequests/req1", record);
+  sharedFakeFirestoreState.docs.set("siteTaskBriefs/req1", additionalVector.brief);
+  const task = projectWebsiteTaskContext(additionalVector.brief as any, projectWebsiteCaptureRights(record), { captureId, captureBinding: binding });
+  vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_AUTHORIZATIONS_JSON", "[]");
+  vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_GRANT_POLICY_JSON", JSON.stringify({ schema_version: "website_atlas_grant_policy.v1",
+    maximum_cost_usd: 2, maximum_requests: 4, validity_seconds: 3600, provider_retention: "account_does_not_retain",
+    approval_reference: "synthetic existing allowance", approved_by: "synthetic owner" }));
+  vi.stubEnv("TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON", JSON.stringify({
+    world_labs_atlas: { digest: sha("a"), label: "synthetic terms", url: "https://example.test/atlas" },
+    openai: { digest: sha("b"), label: "synthetic terms", url: "https://example.test/planner" } }));
+  vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_RUNTIME_POLICY_JSON", JSON.stringify({ schema_version: "website_atlas_runtime_policy.v1",
+    model: "gpt-6.1-sol", maximum_review_cost_usd: .5, pose_input_cost_usd: .01, rgbd_view_cost_usd: .05,
+    rate_card_reference: "https://example.test/rates", reviewed_by: "synthetic operator", reviewed_on: "2026-10-28" }));
+  try {
+    const { loadWebsiteAtlasConfiguration, reserveWebsitePreparationSpend } = await import("../utils/websiteSceneSponsorship");
+    const configuration = await loadWebsiteAtlasConfiguration("req1", captureId, {
+      task_context_digest: task.context_digest, source_video_digest: sha("9") });
+    expect(configuration.remaining_cost_usd).toBe(1.5);
+    expect(configuration.authority).toMatchObject({ source_video_identity: { kind: "website_recording_set" } });
+    const command = { task_context_digest: task.context_digest, source_video_digest: sha("9"), allocation_binding_digest: sha("1"),
+      resource_class: "provider_reconstruction_api" as const, provider: "world_labs_atlas" as const, maximum_cost_usd: 1.25, request_count: 1 };
+    expect(await reserveWebsitePreparationSpend("req1", command, captureId)).toMatchObject({ status: "admitted" });
+    expect(await reserveWebsitePreparationSpend("req1", command, captureId)).toMatchObject({ status: "already_reserved" });
+    await expect(reserveWebsitePreparationSpend("req1", { ...command, allocation_binding_digest: sha("2"), maximum_cost_usd: .3 }, captureId))
+      .rejects.toThrow("website_scene_preparation_budget_exhausted");
+  } finally { vi.unstubAllEnvs(); }
 });
 
 it.each(["missing", "earlier_recording"])("allows a complete update from an old owner link with %s coverage", async coverageState => {

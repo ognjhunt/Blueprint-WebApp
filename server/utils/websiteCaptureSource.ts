@@ -4,6 +4,13 @@ import { crossRuntimeDigest } from "./crossRuntimeCanonical";
 import { buildBrowserDelivery } from "./websiteCaptureDelivery";
 import { isWebsiteCaptureId } from "./websiteCaptureIdentity";
 
+/** The issued, source-bound update declares extra observations of the same job. */
+export function isAdditionalViewSource(link: Record<string, any> | undefined,
+  requestId: string, sceneId: string, captureId: string) {
+  return link?.requestId === requestId && link.sceneId === sceneId && link.captureId === captureId
+    && link.recording_scope === "additional_views" && link.supplement?.recording_scope === "additional_views";
+}
+
 export function websiteSessionSource(record: Record<string, any> | undefined,
   requestId: string, sceneId: string, captureId: string, bucket = process.env.FIREBASE_STORAGE_BUCKET || "blueprint-8c1ca.appspot.com") {
   if (!isWebsiteCaptureId(requestId, sceneId, captureId)) throw new Error("website_capture_binding_source_mismatch");
