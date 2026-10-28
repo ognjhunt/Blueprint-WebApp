@@ -47,6 +47,15 @@ describe("source-bound preparation closeout", () => {
     expect(preparationOutcomeSchema.safeParse({ category: "robot_incompatibility", reason: "desk_too_high",
       basis: "verified", robot_id: "franka_panda", evidence_digest: sha }).success).toBe(false);
   });
+  it("keeps a no-object scene preservation refusal separate from a robot verdict", () => {
+    const outcome = projectAtlasPreparationOutcome(current(atlas("needs_input", "atlas_scene_requires_preserved_capture")));
+    expect(outcome).toMatchObject({category: "insufficient_evidence", basis: "missing_evidence", actionOwner: "blueprint"});
+    expect(outcome!.reason).toMatch(/preserve the captured objects/);
+    expect(outcome!.evidence[0].digest).toBe(atlas("needs_input", "atlas_scene_requires_preserved_capture").preview_digest);
+    expect(projectTaskStatus({...base, preparationOutcome: outcome}).decision).toBe("insufficient_evidence");
+    expect(projectAtlasPreparationOutcome(current({...atlas("needs_input", "atlas_scene_requires_preserved_capture"),
+      preview_digest: sha}))).toBeNull();
+  });
   it("retains a conservative robot refusal's scope and evidence without claiming impossibility", () => {
     const outcome = projectPreparationOutcome(preparationOutcomeSchema.parse({ category: "robot_incompatibility",
       reason: "robot_carry_path_rejected", basis: "conservative_configuration_check",
