@@ -58,10 +58,10 @@ describe("current source-bound preparation projection", () => {
     [{ consentRevoked: true }, "withdrawn"],
     [{ briefDrafted: false }, "reading"],
     [{ coversScene: false, missingViews: ["destination"] }, "coverage"],
-    [{ disposition: "not_now" }, "Not yet"],
-    [{ disposition: "needs_conversation" }, "specific open questions"],
-    [{ claimed: false }, "Save it"],
-  ])("preserves earlier consent, evidence and admission gates %j", (override, phrase) => {
+    [{ disposition: "not_now" }, "needs more information"],
+    [{ disposition: "needs_conversation" }, "needs more information"],
+    [{ claimed: false }, "needs more information"],
+  ])("preserves consent and source evidence while showing observed preparation above old intake hints %j", (override, phrase) => {
     const status = projectTaskStatus({ ...base, ...override,
       preparationStatus: { state: "awaiting_inputs", correlationId: reference } } as never);
     expect(status.headline).toContain(phrase);

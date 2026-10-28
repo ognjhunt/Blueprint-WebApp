@@ -752,3 +752,32 @@ it("preserves the exact managed-agent task allowlist across the routing projecti
   vi.stubEnv("BLUEPRINT_WEBSITE_AGENTS_API_TASK_DIGESTS","[]");
   await expect(loadWebsiteSceneSponsorship("one",false,"walkthrough-one",currentPreparationRequest())).rejects.toThrow("website_agents_api_task_not_authorized");
 });
+
+
+it("quarantines an optional unsupported claim without blocking a separately supported preparation candidate", async () => {
+  const p=packet();
+  p.raw_model_assessment.known.push({...fact(),evidence:[{...fact().evidence[0],selector:{kind:"video_observation",observation_index:9,field_path:null}}]} as never);
+  seed(p);
+  const prepared=await loadAssessmentPreparationProposal("one","walkthrough-one");
+  expect(prepared?.proposal).toMatchObject({scope:"scene_preparation_only",robot_suitability_verified:false,physical_trial_authorized:false});
+  expect(state.docs.get("agentRuns/assessment-one")?.artifacts.site_assessment_packet).toEqual(p);
+});
+
+it("ignores an unsupported alternative but never uses its reasons to authorize construction", async () => {
+  const p=packet();
+  const unsupported=structuredClone(p.raw_model_assessment.approaches[0]);
+  unsupported.reasons[0].evidence[0].selector.observation_index=9;
+  p.raw_model_assessment.approaches.unshift(unsupported);
+  expect(await assessmentProposesPreparation(p,30)).toBe(true);
+  p.raw_model_assessment.approaches.pop();
+  expect(await assessmentProposesPreparation(p,30)).toBe(false);
+});
+
+it("requires actual supported reasons and a supported job before preparation", async () => {
+  const p=packet();p.raw_model_assessment.approaches[0].reasons=[];
+  expect(await assessmentProposesPreparation(p,30)).toBe(false);
+  const noJob=packet();noJob.raw_model_assessment.job=[];
+  expect(await assessmentProposesPreparation(noJob,30)).toBe(false);
+  const unknownReason=packet();unknownReason.raw_model_assessment.approaches[0].reasons=[{text:"Guess",basis:"unknown",evidence:[]} as never];
+  expect(await assessmentProposesPreparation(unknownReason,30)).toBe(false);
+});

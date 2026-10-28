@@ -34,8 +34,18 @@ export async function assessmentProposesPreparation(packet: Record<string, any>,
     || Buffer.byteLength(JSON.stringify(packet)) > SITE_ASSESSMENT_MAX_PACKET_BYTES) throw unavailable();
   const raw = siteAssessmentSchema.parse(packet.raw_model_assessment);
   const rendered = renderSourceBoundAssessment(raw, new Map(packet.sources.map((s: any) => [s.source_id, s])), duration);
-  return rendered.verification.unverified_claims === 0
-    && raw.approaches.some(approach => approach.disposition === "plausible");
+  const bound = (claim: unknown) => (claim as { verification_status?: string }).verification_status === "source_bound";
+  // Construction needs a supported job and a supported reason to explore at
+  // least one candidate. An unrelated optional claim or a different candidate
+  // cannot veto that work. Keep the complete original packet and its unknowns;
+  // this admits preparation only, never the model's feasibility conclusion.
+  const requiredFields = ["objects_motions_conditions_variations", "operator_success"] as const;
+  if (!rendered.assessment.job.length || !rendered.assessment.job.every(bound)
+    || requiredFields.some(field => raw[field].some((claim, index) =>
+      !["unknown", "estimate"].includes(claim.basis) && !bound(rendered.assessment[field][index])))) return false;
+  return raw.approaches.some((approach, index) => approach.disposition === "plausible"
+    && rendered.assessment.approaches[index].reasons.length > 0
+    && rendered.assessment.approaches[index].reasons.every(bound));
 }
 
 type Read = { collection: string; id: string; value: Record<string, any> | null };

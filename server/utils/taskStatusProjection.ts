@@ -251,6 +251,8 @@ interface TaskStatusInput {
    * claimed site. Absent on callers that cannot tell, which skips the rung.
    */
   claimed?: boolean;
+  /** Stable source ownership permits guest preparation without an account. */
+  sourceOwned?: boolean;
   /** Robot teams may request an evaluation now (`teamJobAccess`). */
   openForEvaluations?: boolean;
   /** False when the job card is not published, so no team can see the job. */
@@ -298,6 +300,8 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
   const hasRuns = input.screening && input.screening.queued + input.screening.running
     + input.screening.reported + input.screening.noResult > 0;
   const nativeProgress = input.preparationStatus?.state === "handed_off" || Boolean(input.sceneProgression);
+  const observedPreparation = Boolean(input.scenePreviewReady || nativeProgress
+    || input.preparationStatus && input.preparationStatus.state !== "unavailable");
   const stopped = input.preparationStatus?.outcome
     ?? (!nativeProgress && !input.scenePreviewReady ? input.preparationOutcome : null)
     ?? (input.preparationStatus?.state === "failed_terminal" || input.preparationStatus?.state === "failed_retryable"
@@ -320,7 +324,7 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
       missingViews: [], nextUpdateIso: null, outcome };
   }
 
-  if (input.taskScope) {
+  if (input.taskScope && !observedPreparation && !hasRuns) {
     const notYet = taskScopeNotYet(input.taskScope.reason);
     return {
       ...base,
@@ -337,8 +341,12 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
     return {
       ...base,
       decision: "add_views",
-      headline: "Your footage is saved. Blueprint is reviewing its scene coverage gaps.",
-      operatorAction: `Coverage to review: ${input.missingViews.join(", ")}. Blueprint will first check what reconstruction can recover. If additional source views are still necessary, contact hello@tryblueprint.io with your job reference for help starting a new job with a complete walkthrough and fresh recording permission. This link cannot add to or replace the original recording; the new job needs its own review before evaluation.`,
+      headline: input.supplementWouldFinish
+        ? "Your footage is saved. One extra view is needed."
+        : `Your footage is saved. Blueprint is reviewing its scene coverage gaps, starting with ${input.missingViews[0]}.`,
+      operatorAction: input.supplementWouldFinish
+        ? `Add a view of ${input.missingViews[0]} to this job. Keep the original recording; the extra view stays linked to it.`
+        : null,
     };
   }
 
@@ -429,9 +437,9 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
     };
   }
 
-  // No scene is built for a site our screen has not cleared, so neither of
-  // these may fall through to a rung that says we are preparing one.
-  if (input.disposition === "not_now") {
+  // Source-bound preparation may proceed while commercial questions remain
+  // open. Actual progress outranks an older intake-screen hint.
+  if (input.disposition === "not_now" && !observedPreparation) {
     return {
       ...base,
       decision: "not_now",
@@ -440,7 +448,7 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
       operatorAction: "Open your job brief to see what is in the way. When it changes, update the brief.",
     };
   }
-  if (input.disposition === "needs_conversation") {
+  if (input.disposition === "needs_conversation" && !observedPreparation) {
     return {
       ...base,
       decision: "call_needed",
@@ -466,14 +474,16 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
     return {
       ...base,
       decision: "confirm_brief",
-      headline: "We have your recording. Next, confirm your job brief: we can evaluate your job only after you confirm it.",
+      headline: observedPreparation
+        ? "We are preparing your job from the recording. Confirm your job brief before we evaluate it."
+        : "We have your recording. Next, confirm your job brief: we can evaluate your job only after you confirm it.",
       operatorAction: confirmationAsk,
     };
   }
 
-  // Cleared, but Blueprint builds the scene only for a site saved to an
-  // account. Until then "we are preparing it" would not be true.
-  if (input.disposition === "qualified" && input.claimed === false && !input.scenePreviewReady) {
+  // Legacy jobs without a retained source owner still need an account claim.
+  // A signed guest recording already has its own source authority.
+  if (input.disposition === "qualified" && input.claimed === false && !input.sourceOwned && !observedPreparation) {
     return {
       ...base,
       decision: "save_account",
@@ -491,7 +501,7 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
   // and step of the site's own above stays truer than it, and a scene preview
   // or any run proves otherwise. The notice is sent only while this rung is
   // what the job page shows (`footageBeforeAccountShown`).
-  if (input.footageBeforeAccount && !input.scenePreviewReady
+  if (input.footageBeforeAccount && !input.sourceOwned && !observedPreparation
       && !(input.screening && input.screening.queued + input.screening.running + input.screening.reported + input.screening.noResult > 0)) {
     const unsaved = input.claimed === false;
     return {
@@ -699,6 +709,8 @@ export function taskStatusInputFrom(record: {
   bookingUrl?: string | null;
   /** Pass the owner uid (or null) when the caller read it; omit when it did not. */
   account_owner_uid?: string | null;
+  /** Immutable recording owner; does not confer account or workspace access. */
+  capture_owner_uid?: string | null;
   /** `teamJobAccess` on the record, when the caller read it. */
   jobAccess?: { evaluationAvailable: boolean; reason: string | null } | null;
   /** Whether a recommended pilot is recorded, when the caller read it. */
@@ -707,6 +719,7 @@ export function taskStatusInputFrom(record: {
   const coverage = record.capture_coverage;
   return {
     hasStoredCapture: Boolean(record.hasStoredCapture),
+    sourceOwned: typeof record.capture_owner_uid === "string" && Boolean(record.capture_owner_uid.trim()),
     ...(record.footageBeforeAccount === true ? { footageBeforeAccount: true } : {}),
     consentRevoked: record.consentRevoked === true,
     ...(record.footageReviewAutomated === false ? { footageReviewAutomated: false } : {}),
