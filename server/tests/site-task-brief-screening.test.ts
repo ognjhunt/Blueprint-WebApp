@@ -152,7 +152,8 @@ describe("the confirmation says what our screen decided", () => {
     expect(sent.body).toMatch(/^Hi Dana,/);
     expect(sent.body).toMatch(/upload it here: http\S+\/capture-upload\//);
     expect(sent.body).toMatch(/run candidate robots, policies and policy APIs against your job ourselves/);
-    expect(sent.body).toMatch(/review their proposals covering scope, total cost, timing and support/);
+    expect(sent.body).toMatch(/bounded estimate of what works, or “held” if we can't simulate that kind of job yet/);
+    expect(sent.body).toMatch(/agree the physical pilot's scope, price, timing and acceptance criteria directly with that company/);
     expect(sent.body).toMatch(/If no candidate is suitable, we explain what is missing/);
     expect(sent.body).toMatch(/free during the beta/);
     expect(sent.body).not.toMatch(/\bmatch|\bteams? on our list|budget|Austin/i);
