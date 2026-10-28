@@ -45,3 +45,11 @@ correction and collapsed support details. Actual local browser reads confirm
 all three bounded outcomes at 390 px and 1440 px, the optional correction form,
 unavailable status and support visibility. The API is synthetic and read only;
 hosted browser CI and production acceptance remain separate.
+
+The release reconciliation incorporates integration commit
+`edf8ebefba45016a9bc7c9e4956cb8e6bc6c0397`, preserving exact-source spend
+observation, evaluation control and Atlas geometry outcomes. Across seventeen
+focused suites, 548 cases passed initially; four historical journey expectations
+still required confirmation or account creation. After updating those expectations,
+all ten cases in that journey suite passed on replay. TypeScript and whitespace
+also pass. The core PR targets the current integration branch directly.

@@ -35,8 +35,8 @@ import { assertWebsiteCaptureBindingInTransaction, resolveWebsiteCaptureBinding 
 import { assertWebsiteRunOpen } from "../utils/websiteRunClosure";
 import { loadWebsiteSceneSponsorship, validateWebsiteSponsoredIntake,
   validateWebsiteSponsoredProviderTerms,
-  preparationSpendRequest, reserveWebsitePreparationSpend,
-  preparationSettlementRequest, settleWebsitePreparationSpend, currentWebsiteSceneContext,
+  preparationSpendRequest, reserveWebsitePreparationSpend, observeWebsitePreparationSpend,
+  preparationSettlementRequest, settleWebsitePreparationSpend, retainedWebsiteScenePurpose, currentWebsiteSceneContext,
   loadWebsiteAtlasConfiguration } from "../utils/websiteSceneSponsorship";
 import { SCENE_INTAKE_COLLECTION, sceneDigest, sceneIntakeCommand } from "../utils/taskEvaluationSceneIntake";
 import {
@@ -247,7 +247,7 @@ for (const operation of ["scene-sponsorship", "prepared-scene", "preparation-spe
       ...(operation === "scene-sponsorship" ? { purpose: z.literal("scene_preparation").optional(),
         expected_task_context_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/).optional(), create: z.literal(false).optional() } : {}),
       ...(operation === "prepared-scene" ? { request: sponsoredSceneRequest } : {}),
-      ...(operation === "preparation-spend" ? { spend: preparationSpendRequest } : {}),
+      ...(operation === "preparation-spend" ? { spend: preparationSpendRequest, create: z.literal(false).optional() } : {}),
       ...(operation === "preparation-settlement" ? { settlement: preparationSettlementRequest } : {}),
       ...(operation === "atlas-configuration" ? {
         task_context_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
@@ -272,8 +272,12 @@ for (const operation of ["scene-sponsorship", "prepared-scene", "preparation-spe
       // The reservation transaction validates current source/task rights and
       // the provider's own authority. Atlas has a fresh source-bound allowance
       // that must not inherit an expired native/Marble sponsorship's expiry.
-      if (operation === "preparation-spend") return res.json(await reserveWebsitePreparationSpend(requestId,
-        preparationSpendRequest.parse(req.body.spend), req.params.captureId));
+      if (operation === "preparation-spend") {
+        const spend = preparationSpendRequest.parse(req.body.spend);
+        return res.json(req.body.create === false
+          ? await observeWebsitePreparationSpend(requestId, spend, req.params.captureId)
+          : await reserveWebsitePreparationSpend(requestId, spend, req.params.captureId));
+      }
       const authority = await loadWebsiteSceneSponsorship(requestId, operation === "scene-sponsorship" && req.body.create !== false, req.params.captureId,
         operation === "scene-sponsorship" ? { purpose: req.body.purpose, expected_task_context_digest: req.body.expected_task_context_digest } : undefined);
       res.setHeader("Cache-Control", "no-store");

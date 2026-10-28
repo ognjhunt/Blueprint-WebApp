@@ -1,15 +1,13 @@
 // @vitest-environment node
 /**
- * Audit N1 and N11: a site that sends its footage is told, on its job page
- * and by email, that confirming its job brief is the one step left that is
- * its own, and the brief-confirmed email never asks a filmed site to film.
- * Footage waits for a saved job (owner decision 2026-10-18), so each site here
- * saves its job through the real claim before its video goes.
+ * A received, authorized recording continues without a required brief
+ * confirmation. The job page and receipt email agree that Blueprint owns the
+ * work. Optional correction does not ask a filmed site to film again. These
+ * fixtures claim the job to exercise the existing authorized upload route;
+ * guest result notices still open the private job without an account step.
  *
- * Robot teams can evaluate a job only once its brief is confirmed
- * (`teamJobAccess` → `isRunnableTask`). The owner page used to call that step
- * optional, the status headline said the assessment needed no confirmation, and
- * no email asked for it, so a site that filmed first waited with nothing to do.
+ * Team-library access retains its confirmed-brief boundary (`teamJobAccess` →
+ * `isRunnableTask`); automatic Blueprint evaluation uses source-bound authority.
  *
  * Nothing here is a hand-built job record. The job starts from the real
  * `POST /api/inbound-request` handler with the exact body the public start form
@@ -211,7 +209,7 @@ async function workspaceTask(jobId: string) {
 }
 
 describe("a site that sends its footage before confirming its brief", () => {
-  it("is told on its job page that confirming the brief is its step, and why", async () => {
+  it("continues on its job page without requiring brief confirmation", async () => {
     const { jobId, token } = await startJob();
     await claim(jobId);
     await sendFootage(token);
@@ -222,22 +220,21 @@ describe("a site that sends its footage before confirming its brief", () => {
 
     const { status, captureReceived } = await jobStatus(token);
     expect(captureReceived).toBe(true);
-    expect(status.decision).toBe("confirm_brief");
-    expect(status.headline).toMatch(/confirm your job brief/i);
-    expect(status.headline).toMatch(/can prepare and evaluate the job while you review it/i);
-    expect(status.headline).not.toMatch(/without confirming|optional|no confirmation/i);
-    expect(status.operatorAction).toMatch(/confirm/i);
+    expect(status.decision).toBe("footage_received");
+    expect(status.headline).toMatch(/have your recording/i);
+    expect(status.headline).not.toMatch(/confirm your job brief|film again/i);
+    expect(status.operatorAction).toBeNull();
   });
 
-  it("gets one email when the footage lands, and it asks for the confirmation", async () => {
+  it("gets one receipt email that leaves reconstruction and evaluation with Blueprint", async () => {
     const { jobId, token } = await startJob();
     await claim(jobId);
     await sendFootage(token);
     const notice = outbox(`${jobId}:video_received`);
     expect(notice?.kind).toBe("video_received");
-    expect(notice?.subject).toMatch(/confirm your job brief/i);
-    expect(notice?.body).toMatch(/confirm your job brief/i);
-    expect(notice?.body).toMatch(/A site-specific evaluation still needs your confirmed brief/i);
+    expect(notice?.subject).toBe("We received your Blueprint walkthrough");
+    expect(notice?.body).toMatch(/Blueprint handles reconstruction and evaluation/i);
+    expect(notice?.body).not.toMatch(/confirm your job brief|needs your confirmed brief/i);
     expect(notice?.body).toContain(`/capture-upload/`);
     // One email for the event: the intake receipt, then the footage notice.
     expect(queuedKinds(jobId)).toEqual(["task_received", "video_received"]);
@@ -249,7 +246,7 @@ describe("a site that sends its footage before confirming its brief", () => {
     expect(duplicate).toMatchObject({ captureReceived: true,
       uploadState: "processing_ready", code: "capture_already_saved", repairAvailable: true });
     expect(duplicate.message).toMatch(/original recording stays saved/i);
-    expect(duplicate.message).toMatch(/Update video on this job/i);
+    expect(duplicate.message).toMatch(/Update walkthrough on this job/i);
     expect(duplicate.message).not.toMatch(/start a new job|original recording (was|has been) replaced/i);
     expect(doc(`captureUploadSessions/walkthrough-${jobId}`).browser_pending_delivery).toEqual(original);
     const originalFile = sharedUploadBucket.bucket.file(original.video.object_name);
@@ -301,9 +298,8 @@ describe("a site that confirms before it films", () => {
 });
 
 /**
- * Audit N12: run results open in the site's account, and the job page tells an
- * unclaimed owner to save the site to one first. The results emails used to say
- * "see it on your job page", which then asked for a claim nobody had mentioned.
+ * Result notices use the existing private job link for a guest and the
+ * workspace for an account owner; neither notice adds an account-creation step.
  */
 describe("the results emails say where a site sees its runs", () => {
   // `no_team_passed` is sent only while it is true (every run concluded, none
@@ -313,14 +309,14 @@ describe("the results emails say where a site sees its runs", () => {
     { milestone: "run_no_result" },
   ] as const;
 
-  it("tells an unclaimed site that runs open in its account, and how to get there", async () => {
+  it("sends an unclaimed site to its private job without an account step", async () => {
     const { enqueueTaskLifecycleNotification } = await import("../utils/taskLifecycleNotifications");
     const { jobId } = await startJob();
     for (const notice of notices) {
       await enqueueTaskLifecycleNotification({ requestId: jobId, eventId: "run-1", ...notice });
       const body = outbox(`${jobId}:${notice.milestone}:run-1`)?.body ?? "";
-      expect(body, notice.milestone).toMatch(/open in your Blueprint account/);
-      expect(body, notice.milestone).toMatch(/save this site to your account/);
+      expect(body, notice.milestone).toMatch(/on your private job page/);
+      expect(body, notice.milestone).not.toMatch(/open in your Blueprint account|save this site to your account/);
       expect(body, notice.milestone).toContain("/capture-upload/");
       expect(body, notice.milestone).not.toMatch(/See it on your job page|Review the run on your job page|Your job page shows each run/);
     }
@@ -342,8 +338,9 @@ describe("the results emails say where a site sees its runs", () => {
 it("words the no-pass notice the same way, for unclaimed and claimed sites", async () => {
   const { buildTaskLifecycleNotification } = await import("../utils/taskLifecycleNotifications");
   const unclaimed = buildTaskLifecycleNotification({ requestId: "job-1", milestone: "no_team_passed", to: "site@example.test" });
-  expect(unclaimed.body).toMatch(/open in your Blueprint account/);
-  expect(unclaimed.body).toMatch(/save this site to your account/);
+  expect(unclaimed.body).toMatch(/on your private job page/);
+  expect(unclaimed.body).toContain("/capture-upload/");
+  expect(unclaimed.body).not.toMatch(/open in your Blueprint account|save this site to your account/);
   expect(unclaimed.body).not.toMatch(/Your job page shows each run/);
   const claimed = buildTaskLifecycleNotification({ requestId: "job-1", milestone: "no_team_passed", to: "site@example.test",
     workspaceUrl: "https://tryblueprint.io/app/tasks/job-1" });
