@@ -2,6 +2,7 @@
 import { z } from "zod";
 import { crossRuntimeArtifactDigest, crossRuntimeDigest } from "./crossRuntimeCanonical";
 import type { FamilyTaskDetail, FamilyTaskQuestion } from "../../client/src/types/siteTaskFamilyFacts";
+import type { FamilyTaskFactContinuation } from "./websiteFamilyTaskContinuation";
 
 const id = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$/);
 const sha = z.string().regex(/^sha256:[a-f0-9]{64}$/);
@@ -59,6 +60,8 @@ export interface FamilyTaskAuthoringRecord { status: FamilyAuthoringStatus; sour
 export interface FamilyTaskBriefState {
   familyTaskAuthoring?: FamilyTaskAuthoringRecord | null;
   familyTaskFacts?: FamilyTaskFactConfirmation | null;
+  /** Private current confirmation ancestry, including explicit last-fact clears. */
+  familyTaskFactContinuation?: FamilyTaskFactContinuation | null;
   familyTaskDeferred?: { authoringDigest: string; requirementId?: string; operationId?: string;
     field?: "target" | "hold_seconds"; bindingDigest: string } | null;
 }

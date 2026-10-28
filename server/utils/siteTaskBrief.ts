@@ -58,10 +58,11 @@ import type { GateAnswerSources } from "../../client/src/lib/gateProvenance";
 import type { SitePilotIntent } from "../../client/src/data/sitePilotIntent";
 import { gateAnswersOnFile } from "./gateAnswersOnFile";
 import { screenTaskScope, taskScopeRecord, type SiteTaskScope } from "./siteTaskScope";
-import { confirmFamilyTaskAnswer, familyTaskCaptureFingerprint, familyTaskContextBasis,
+import { confirmFamilyTaskAnswer, currentFamilyTaskFacts, familyTaskCaptureFingerprint, familyTaskContextBasis,
   familyTaskQuestionBinding, familyTaskFactsEnabled, type FamilyTaskAnswer, type FamilyTaskBriefState } from "./siteTaskFamilyFacts";
 import { projectWebsiteTaskContext, projectWebsiteCaptureRights } from "./websiteTaskContext";
 import type { TaskItemInventoryRecord } from "./taskItemInventory";
+import { familyTaskNonFactContextDigest, retainFamilyTaskFactContinuation } from "./websiteFamilyTaskContinuation";
 
 export const TASK_BRIEFS_COLLECTION = "siteTaskBriefs";
 
@@ -484,7 +485,7 @@ export async function confirmBrief(params: {
   // Repeating the same factual confirmation must not change its source context
   // through a fresh timestamp alone. An actual edit or new fact keeps its new
   // confirmation time and the ordinary exact-context/funding reconciliation.
-  if (familyTaskFactsEnabled() && !params.familyTaskFacts && brief.familyTaskFacts && brief.confirmedAtIso
+  if (familyTaskFactsEnabled() && !params.familyTaskFacts && (brief.familyTaskFacts || brief.familyTaskFactContinuation) && brief.confirmedAtIso
     && humanDecisionDigest({ ...brief, confirmedAtIso: confirmed.confirmedAtIso, confirmedBy: confirmed.confirmedBy })
       === humanDecisionDigest(confirmed)) confirmed.confirmedAtIso = brief.confirmedAtIso;
 
@@ -517,6 +518,7 @@ export async function confirmBrief(params: {
       if (previousRequest && humanDecisionDigest(gateAnswersOnFile(requestSnapshot.data() ?? {})) !== humanDecisionDigest(gateAnswersOnFile(previousRequest)))
         throw new Error("brief_answers_changed_before_confirmation");
       let factVersion: { ref: FirebaseFirestore.DocumentReference; value: NonNullable<SiteTaskBriefRecord["familyTaskFacts"]> } | null = null;
+      let transitionVersion: { ref: FirebaseFirestore.DocumentReference; value: NonNullable<SiteTaskBriefRecord["familyTaskFactContinuation"]> } | null = null;
       if (params.familyTaskFacts) {
         const source = brief.familyTaskAuthoring;
         if (!source || requestSnapshot.data()?.active_capture_id
@@ -538,11 +540,40 @@ export async function confirmBrief(params: {
         const context = familyTaskContextBasis(projectWebsiteTaskContext({ ...confirmed, familyTaskFacts: null }, rights, evidence));
         confirmed.familyTaskFacts = confirmFamilyTaskAnswer(brief, params.familyTaskFacts, context, params.confirmedBy,
           familyTaskContextBasis(previousContext));
+        // An explicit replay of the same factual value must not create a new
+        // task context through its timestamp/confirmation metadata alone.
+        if (brief.confirmedAtIso && familyTaskNonFactContextDigest(previousContext)
+          === familyTaskNonFactContextDigest(projectWebsiteTaskContext(confirmed, rights, evidence))
+          && humanDecisionDigest(currentFamilyTaskFacts(brief, familyTaskContextBasis(previousContext)))
+            === humanDecisionDigest(confirmed.familyTaskFacts?.payload ?? null)) {
+          confirmed.confirmedAtIso = brief.confirmedAtIso;
+          confirmed.familyTaskFacts = currentFamilyTaskFacts(brief, familyTaskContextBasis(previousContext))
+            ? brief.familyTaskFacts : null;
+        }
         confirmed.familyTaskDeferred = params.familyTaskFacts.answer === null
           ? { authoringDigest: params.familyTaskFacts.authoringDigest,
             ...("requirementId" in params.familyTaskFacts ? {requirementId: params.familyTaskFacts.requirementId}
               : {operationId: params.familyTaskFacts.operationId, field: params.familyTaskFacts.field}),
             bindingDigest: familyTaskQuestionBinding(source) } : null;
+        const nextContext = projectWebsiteTaskContext(confirmed, rights, evidence);
+        let parentContextProven = false;
+        if (requestSnapshot.data()?.website_scene_sponsorship) {
+          try {
+            const { currentWebsitePreparationStatusContext } = await import("./websiteSceneSponsorship");
+            parentContextProven = currentWebsitePreparationStatusContext({ requestId: params.requestId,
+              captureId: source.status.capture_id, brief, record: requestSnapshot.data()!, inventory: items,
+            }).context_digest === previousContext.context_digest;
+          } catch { /* Factual confirmation may remain unfunded; it never repairs a grant. */ }
+        }
+        confirmed.familyTaskFactContinuation = retainFamilyTaskFactContinuation({ previousBrief: brief, brief: confirmed,
+          previousContext, context: nextContext, root: requestSnapshot.data()?.website_scene_sponsorship,
+          parentContextProven });
+        const transitionRef = briefRef.collection("familyTaskFacts")
+          .doc(`transition-${confirmed.familyTaskFactContinuation.transition_digest.slice(7)}`);
+        const priorTransition = (await tx.get(transitionRef)).data();
+        if (priorTransition && humanDecisionDigest(priorTransition) !== humanDecisionDigest(confirmed.familyTaskFactContinuation))
+          throw new Error("family_task_facts_version_conflict");
+        if (!priorTransition) transitionVersion = { ref: transitionRef, value: confirmed.familyTaskFactContinuation };
         if (confirmed.familyTaskFacts) {
           const ref = briefRef.collection("familyTaskFacts").doc(confirmed.familyTaskFacts.confirmation_digest.slice(7));
           const priorVersion = (await tx.get(ref)).data();
@@ -603,6 +634,7 @@ export async function confirmBrief(params: {
       );
       refresh?.();
       if (factVersion) tx.set(factVersion.ref, factVersion.value);
+      if (transitionVersion) tx.set(transitionVersion.ref, transitionVersion.value);
     });
   }
 

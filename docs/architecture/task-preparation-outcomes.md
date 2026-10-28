@@ -110,3 +110,31 @@ this flag. A fact correction does not create a grant, reset consumed funds or
 uncertain reservations, extend expiry or increase limits. The status/facts
 integration alone does not establish simulator execution, measurement fidelity
 or production acceptance.
+
+A fact-only confirmation now retains private continuation metadata on the same
+brief and immutable `transition-*` versions in its existing `familyTaskFacts`
+history. The metadata binds the verified parent context, new current context,
+exact fact version, source fingerprint, operation/target identity and original
+sponsorship. Its bounded parent and origin context copies are private ancestry
+proof; neither is returned in the customer status or Pipeline task context.
+Recomputed context digests and the unchanged non-fact basis anchor the proof to
+the actual original grant. The only allowed non-fact difference is the factual
+confirmation timestamp. Clearing the final known fact retains an explicit
+transition with null facts, rather than a fabricated fact value.
+
+The existing sponsorship reader may derive a context continuation from that
+proof. The retained root sponsorship, caps, expiry, provider terms, owner-approved
+amendments and every reservation row remain unchanged. All prior unsettled or
+unknown native reservations still count against the same root allowance; a
+lost response is not a spending reset. Exact historical observation and
+settlement continue against their original command and context after a fact
+change or revocation. A changed current context still invalidates an old active
+evaluation; the continuation never relabels its invocation or results.
+
+Missing or invalid parent/root ancestry, changed description, success criteria,
+gates, rights, source, inventory or operation identity does not acquire this
+exception. Factual edits may be retained with an unproven funding origin, but
+cannot repair or renew a grant. Legacy task-context reads keep their existing
+bytes; a legacy fact record without proved ancestry remains unfunded. The v4
+flag still defaults off and requires independent composition review, exact-head
+CI, coordinated deployment and source-bound readback before enablement.

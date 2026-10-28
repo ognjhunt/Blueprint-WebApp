@@ -18,6 +18,7 @@ import { assertWebsiteCaptureBindingInTransaction, resolveWebsiteCaptureBinding 
 import { isTaskFamilyStrategy, websiteFamilySourceBinding } from "./taskFamilySceneIntake";
 import { websitePreparationAccounting } from "./websitePreparationAccounting";
 import { websiteCaptureInferenceAccounting } from "./websiteCaptureInferenceAccounting";
+import { familyTaskFactContinuationMatches } from "./websiteFamilyTaskContinuation";
 
 function continuationAuthority(authority: Record<string, any>, input: {
   brief: SiteTaskBriefRecord; record: Record<string, any>; inventory?: TaskItemInventoryRecord | null;
@@ -137,6 +138,7 @@ export function websiteSceneSponsorship(input: {
   // Preparation uses the received, consented source; advisory completion is not admission.
   if (!context.confirmed && !preparationOnly) throw new Error("website_task_context_not_confirmed");
   const previous = input.record.website_scene_sponsorship;
+  const factContinuation = preparationOnly && familyTaskFactContinuationMatches(input.brief, current, previous);
   const sourceContinuation = preparationOnly && input.captureBinding && previous
     && input.captureBinding.original_capture_id === `walkthrough-${input.requestId}`
     && input.captureBinding.capture_id === current.capture_id
@@ -145,7 +147,7 @@ export function websiteSceneSponsorship(input: {
       || entry.child?.capture_id === previous.capture_id)
     && previous.consent?.rights_reference === digest(rights);
   // Rebind verified source updates while retaining this job's allowance, clock and spending history.
-  const grantContextDigest = sourceContinuation || preparationOnly && routingProjectionMatches(context, previous)
+  const grantContextDigest = sourceContinuation || factContinuation || preparationOnly && routingProjectionMatches(context, previous)
     ? previous.task_context_digest : context.context_digest;
   const managedConsent = input.record.request?.sol_agents_api_consent;
   const managedAgents = managedConsent !== undefined && managedConsent !== null;
@@ -278,6 +280,7 @@ export function currentWebsitePreparationStatusContext(input: {
       || entry.child?.capture_id === retained.capture_id)
     && retained.consent?.rights_reference === digest(context.capture_rights);
   const authority = sourceContinuation || routingProjectionMatches(baseContext, retained)
+    || familyTaskFactContinuationMatches(input.brief, context, retained)
     ? continuationAuthority(retained, input) : retained;
   const {authority_digest, ...payload} = authority;
   if (authority_digest !== digest(payload) || authority.schema_version !== "website_scene_sponsorship.v1"
