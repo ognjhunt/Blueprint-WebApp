@@ -178,7 +178,7 @@ test("desktop owner opens video capture with one status and explicit public card
   await expect(page.getByRole("heading", { name: "Point your phone at this." })).toBeVisible();
   await expect(page.getByText("We have your task and are checking your footage.")).toHaveCount(1);
   // One status keeps progress visible without promising a deadline.
-  await expect(page.getByText("Updates appear on this job page. Return here to check progress.", { exact: true })).toHaveCount(1);
+  await expect(page.getByText("Blueprint will update this job as the work progresses.", { exact: true })).toHaveCount(1);
   await expect(page.getByRole("link", { name: "Blueprint home" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Open the camera" })).toHaveCount(0);
   const upload = await page.getByRole("button", { name: "Upload a video file" }).boundingBox();
@@ -210,7 +210,7 @@ test("phone owner opens the recorder and keeps progress visible", async ({ brows
   await page.route("**/api/site-task-brief/*/status", route => route.fulfill({ json: { status: { decision: "assessing", headline: "Preparing your scene", nextUpdateIso: "2020-01-01T12:00:00Z" } } }));
   await page.goto("/capture-upload/phone-fixture");
   // A stale deadline left on the record is ignored: timed check-ins are retired.
-  await expect(page.getByText("Updates appear on this job page. Return here to check progress.", { exact: true })).toHaveCount(1);
+  await expect(page.getByText("Blueprint will update this job as the work progresses.", { exact: true })).toHaveCount(1);
   await expect(page.getByText(/Update overdue|Next status update by/)).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Point your phone at this." })).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Your job summary", exact: true })).toHaveCount(0);

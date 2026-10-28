@@ -28,8 +28,12 @@ for (const width of [1440, 390]) {
     await expect(page.locator("#start-password")).toHaveCount(0);
     await page.getByRole("button", { name: "Start free assessment", exact: true }).click();
     const signup = page.getByRole("link", { name: "Create an account for this job", exact: true });
+    const optionalAccount = page.getByText("Save this job to your account (optional)", { exact: true });
+    await expect(optionalAccount).toBeVisible();
+    await expect(signup).toBeHidden();
+    expect(mutations).toEqual(["/api/inbound-request"]);
+    await optionalAccount.click();
     await expect(signup).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Save this job to your account (optional)", exact: true })).toBeVisible();
     await expect(page.getByRole("link", { name: "Sign in to save this job" })).toHaveAttribute("href", "/claim/fixture.claim?mode=signin");
     expect(mutations).toEqual(["/api/inbound-request"]);
     await signup.click();
