@@ -596,16 +596,6 @@
       "sha256": "3c03e251b644696403ff07e70cd1a84dc4f0fb0deadbb4b67fee55a13cf37bcb"
     },
     {
-      "id": "RETURN-STORAGE-024",
-      "family": "return",
-      "meaningful_condition": "company exceeds 200 characters",
-      "operation": "company_overlong",
-      "expected": "reject",
-      "layer": "local-storage-helper",
-      "source": "client/tests/lib/siteCaptureDraft.reliability.test.ts",
-      "sha256": "cdb1a7040a1dce91e2a53cfe339a132fe5750d0daacf5a125240c770ad41c27d"
-    },
-    {
       "id": "RETURN-STORAGE-025",
       "family": "return",
       "meaningful_condition": "unknown capture method",

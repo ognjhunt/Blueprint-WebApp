@@ -3,14 +3,14 @@ import { COMPANY } from "@/data/company";
 import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 
 const description =
-  "Blueprint runs candidate robots and policies against a business's recurring job, recommends the approach that wins and the deployment companies that support it, and helps plan a measured pilot. Start with the work you need done.";
+  "Blueprint runs candidate robots and policies against a business's recurring job in a simulation of its site and shows a bounded estimate of what works. Start with the work you need done.";
 
 const principles = [
   "Start from the real job at a real site, not a demo.",
   "Keep a site's footage and details private unless the site chooses to share them.",
   "Say what a result does not show: a simulation result is not a physical test.",
   "Report failures and unknowns instead of manufacturing a green light.",
-  "Make the evidence, total costs and responsibilities clear before a customer chooses a delivery partner.",
+  "Make the evidence, total costs and responsibilities clear before a customer agrees a pilot.",
 ] as const;
 
 export default function About() {
@@ -34,8 +34,8 @@ export default function About() {
         <p className="ms-about-lead">
           Blueprint helps businesses find a suitable way to automate recurring work. Start with the job:
           we analyze your video, reconstruct the site, run candidate robots, policies and policy APIs against the job, and
-          recommend the approach that wins and the deployment companies that support it. You choose the delivery partner for a
-          measured pilot. The beta is free for sites and partners.
+          show you a bounded estimate of what works. Then we work alongside a deployment company on your site.
+          The beta is free for sites and partners.
         </p>
 
         <section>
@@ -43,8 +43,8 @@ export default function About() {
           <ol>
             <li>A site sends video of recurring work. We analyze it and draft a job brief for the site to review.</li>
             <li>We reconstruct the site in simulation and run many candidate policies, policy APIs and robots against the job ourselves.</li>
-            <li>We compare them and recommend the approach that wins for the site, plus deployment companies that support it.</li>
-            <li>The customer reviews delivery proposals, chooses a partner and agrees a measured pilot directly with that company.</li>
+            <li>The site sees a bounded estimate of what works, or &ldquo;held&rdquo; if we can&apos;t simulate that kind of job yet.</li>
+            <li>We work alongside a deployment company on the real site; the site agrees the pilot directly with that company.</li>
             <li>We record the outcome so the next decision can build on what was learned.</li>
           </ol>
           <p><a href="/how-it-works">More on how it works</a> · <a href="/beta">Beta program</a></p>

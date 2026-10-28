@@ -16,7 +16,7 @@
  * notice, and the previous version stays in force until the new date. The
  * previous versions below are frozen at /terms/previous and /privacy/previous.
  */
-export const TERMS_VERSION = "2026-11-15.2";
+export const TERMS_VERSION = "2026-11-15.3";
 export const PRIVACY_VERSION = "2026-11-15.4";
 
 /** The versions in force until TERMS_VERSION / PRIVACY_VERSION take effect. */

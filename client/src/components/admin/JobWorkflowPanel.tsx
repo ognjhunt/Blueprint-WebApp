@@ -3,7 +3,6 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { User as FirebaseUser } from "firebase/auth";
 
 import { JobManagedEvaluation } from "./JobManagedEvaluation";
-import { AdmitBetaPolicyFinalistForm } from "./AdmitBetaPolicyFinalistForm";
 import { Button, StatusChip } from "@/components/blueprint";
 import { withCsrfHeader } from "@/lib/csrf";
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
@@ -274,11 +273,8 @@ export function JobWorkflowPanel({ requestId, currentUser, onChanged }: {
               {(workflow.managedEvidence ?? []).map(item => <article key={item.runId} id={`managed-evidence-${encodeURIComponent(item.runId)}`} className="grid gap-2 border-t border-runway-line pt-3 text-sm">
                 <p className="font-semibold">Managed policy run · {item.current ? item.state.replace(/_/g, " ") : "Historical — scope changed"}</p>
                 <p>{item.summary}</p><p>Next: {item.nextAction}</p>
-                {item.current && item.finalist?.approvalPending && item.finalist.planDigest
-                  ? <AdmitBetaPolicyFinalistForm jobId={requestId} runId={item.runId} finalist={item.finalist}
-                    currentUser={currentUser} onAdmitted={() => { void load(); onChanged?.(); }} /> : null}
                 {item.screening && <PolicyScreeningCandidates screening={item.screening} />}
-                {item.screening?.budget && <p className="text-runway-mute">{item.finalist ? "Finalist scoring budget" : "Shared site screening budget"}: up to ${item.screening.budget.committedUpperBoundUsd} committed
+                {item.screening?.budget && <p className="text-runway-mute">Shared site screening budget: up to ${item.screening.budget.committedUpperBoundUsd} committed
                   of ${item.screening.budget.limitUsd}, including ${item.screening.budget.reservedUsd} reserved for unresolved runs. These are conservative bounds, not invoices.</p>}
                 {item.limitations.map((limit, index) => <p className="text-runway-mute" key={index}>{limit}</p>)}
                 <p className="break-all text-xs">Run {item.runId}{item.resultDigest ? ` · Result ${item.resultDigest}` : ""}</p>

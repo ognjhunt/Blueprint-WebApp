@@ -1,4 +1,11 @@
-/** Diagnostic multi-candidate screening; deliberately separate from the frozen v4 canary. */
+/**
+ * The beta job's automatic multi-candidate evaluation; separate from the frozen v4 canary.
+ *
+ * One tier (owner decision 2026-10-28): the run under the site's allowance is
+ * the job's evaluation, published as a bounded simulation estimate. v1 rows
+ * were labelled diagnostic-only before that decision; they stay readable and
+ * are shown the same way. Neither version is physical or ADP evidence.
+ */
 import { z } from "zod";
 import { crossRuntimeArtifactDigest, crossRuntimeDigest } from "./crossRuntimeCanonical";
 
@@ -30,35 +37,30 @@ const candidate = z.object({
   }
 });
 
-export const betaPolicyScreeningPublicationSchema = z.object({
-  schema_version: z.literal("beta_policy_screening_publication.v1"),
+const publicationFields = {
   campaign_id: identifier, site_id: identifier, revision: z.number().int().min(1).max(Number.MAX_SAFE_INTEGER),
   plan_digest: digest, catalog_digest: digest, scenario_plan_digest: digest,
   source: z.object({ scene_intent_id: identifier, scene_intent_digest: digest, capture_id: identifier,
     task_id: identifier, task_context_digest: digest, scene_revision_digest: digest }).strict(),
   status: z.enum(["queued", "running", "completed", "blocked", "reconciliation_required"]),
-  purpose: z.enum(["screening", "finalist"]),
-  finalist_binding: z.object({ finalist_id: identifier, screening_campaign_id: identifier,
-    screening_publication_digest: digest, job_id: identifier, brief_digest: digest,
-    source_fingerprint: digest, owner_authority_digest: digest }).strict().optional(),
   execution_operator: z.object({ kind: z.literal("blueprint") }).strict(),
-  claim_ceiling: z.literal("diagnostic_policy_execution"), recommendation_eligible: z.literal(false),
   candidates: z.array(candidate).min(1).max(256),
   budget: z.object({ currency: z.literal("USD"), limit_usd: dollars, committed_upper_bound_usd: dollars,
     spent_upper_bound_usd: dollars, reserved_usd: dollars }).strict(),
   generated_at: z.string().datetime({ offset: true }), publication_digest: digest,
-}).strict().superRefine((value, ctx) => {
+};
+const jobEvaluationPublication = z.object({ ...publicationFields, schema_version: z.literal("beta_policy_screening_publication.v2"),
+  purpose: z.literal("job_evaluation"), claim_ceiling: z.literal("simulation_estimate") }).strict();
+const retainedPublication = z.object({ ...publicationFields, schema_version: z.literal("beta_policy_screening_publication.v1"),
+  purpose: z.literal("screening"), claim_ceiling: z.literal("diagnostic_policy_execution"), recommendation_eligible: z.literal(false) }).strict();
+export const betaPolicyScreeningPublicationSchema = z.discriminatedUnion("schema_version", [jobEvaluationPublication, retainedPublication])
+  .superRefine((value, ctx) => {
   const budget = value.budget;
   if (![budget.limit_usd, budget.committed_upper_bound_usd, budget.spent_upper_bound_usd, budget.reserved_usd]
     .every(amount => dollars.safeParse(amount).success)) return;
   const limit = screeningMoneyMicros(budget.limit_usd), committed = screeningMoneyMicros(budget.committed_upper_bound_usd);
-  const maximum = value.purpose === "finalist" ? BigInt(20_000_000) : BigInt(15_000_000);
-  if (limit > maximum || screeningMoneyMicros(budget.spent_upper_bound_usd) + screeningMoneyMicros(budget.reserved_usd) !== committed
-    || committed > limit) ctx.addIssue({ code: "custom", path: ["budget"], message: "Execution must retain its bounded Blueprint sponsor cap" });
-  if (value.purpose === "screening" ? value.finalist_binding !== undefined
-    : !value.finalist_binding || value.finalist_binding.finalist_id !== value.campaign_id
-      || value.candidates.length !== 1 || value.candidates[0].episodes_planned !== 200)
-    ctx.addIssue({ code: "custom", path: ["finalist_binding"], message: "Full scoring requires its exact owner-authorized finalist binding" });
+  if (limit > BigInt(15_000_000) || screeningMoneyMicros(budget.spent_upper_bound_usd) + screeningMoneyMicros(budget.reserved_usd) !== committed
+    || committed > limit) ctx.addIssue({ code: "custom", path: ["budget"], message: "Screening must retain the shared $15 site ceiling" });
   if (new Set(value.candidates.map(row => row.candidate_id)).size !== value.candidates.length)
     ctx.addIssue({ code: "custom", path: ["candidates"], message: "Candidate identities must be unique" });
   const states = new Set<string>(value.candidates.map(row => row.status));
@@ -79,7 +81,6 @@ export function parseBetaPolicyScreeningPublication(value: unknown): BetaPolicyS
 export function screeningCampaignIdentity(value: BetaPolicyScreeningPublication) {
   return crossRuntimeDigest({ campaign_id: value.campaign_id, site_id: value.site_id, source: value.source,
     plan_digest: value.plan_digest, catalog_digest: value.catalog_digest, scenario_plan_digest: value.scenario_plan_digest,
-    ...(value.purpose === "finalist" ? { purpose: value.purpose, finalist_binding: value.finalist_binding } : {}),
     candidates: value.candidates.map(row => ({ candidate_id: row.candidate_id, configuration_digest: row.configuration_digest,
       display_name: row.display_name, episodes_planned: row.episodes_planned })), budget_limit: value.budget.limit_usd });
 }

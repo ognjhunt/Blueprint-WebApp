@@ -8,8 +8,6 @@ import { encodeTaskEvaluationRunPublication, publicationFromResultRecord } from 
 import { parseBetaPolicyScreeningPublication, screeningPublicationTransition, type BetaPolicyScreeningPublication } from "./betaPolicyScreeningContract";
 import type { TaskItemInventoryRecord } from "./taskItemInventory";
 import { isTaskFamilyStrategy, preparationPhaseMatchesTask } from "./taskFamilySceneIntake";
-import { buildFinalistContinuations, finalistIdForRequest } from "./betaPolicyFinalist";
-import { screeningMoneyMicros } from "./betaPolicyScreeningContract";
 
 export function assertScreeningSceneSource(publication: BetaPolicyScreeningPublication, intake: Record<string, any>,
   scope: ReturnType<typeof managedJobTask>) {
@@ -79,68 +77,31 @@ export async function ingestBetaPolicyScreening(publication: BetaPolicyScreening
       inventory: inventory.exists ? inventory.data() as TaskItemInventoryRecord : null,
       sourceSession: await readManagedJobSourceSession(job.data(), ref => transaction.get(ref)) });
     assertScreeningSceneSource(publication, intake, scope);
-    const finalist = publication.purpose === "finalist";
-    const runKind = finalist ? "beta_policy_finalist" : "beta_policy_screening";
-    if (finalist) {
-      const retained = oldRun.data();
-      const bound = publication.finalist_binding!;
-      const request = retained?.finalist_request;
-      const authority = retained?.finalist_authority;
-      if (!retained || retained.run_kind !== runKind || !request || !authority
-        || retained.run_id !== finalistIdForRequest(request) || bound.finalist_id !== retained.run_id
-        || bound.screening_campaign_id !== request.campaign_id || bound.screening_publication_digest !== request.publication_digest
-        || bound.job_id !== jobId || bound.brief_digest !== binding.brief_digest
-        || bound.source_fingerprint !== scope.sourceFingerprint || bound.owner_authority_digest !== retained.finalist_owner_authority_digest
-        || crossRuntimeDigest(authority) !== bound.owner_authority_digest
-        || publication.candidates[0].candidate_id !== request.candidate_id
-        || publication.candidates[0].configuration_digest !== retained.finalist_candidate_configuration_digest
-        || screeningMoneyMicros(publication.budget.limit_usd) > BigInt(Math.round(authority.approval.sponsorCapUsd * 1_000_000)))
-        throw new Error("screening_finalist_authority_mismatch");
-    }
-    // No-spend continuation intents are retained in the same transaction as
-    // completed screening. Provider execution still requires exact owner authority.
-    const continuations = buildFinalistContinuations(publication, { jobId, briefDigest: binding.brief_digest,
-      sourceFingerprint: scope.sourceFingerprint, intakeId: intakeRef.id,
-      ownerUserId: intake.request.owner.user_id, teamNamespace: scope.teamNamespace, now: new Date().toISOString() });
-    const existingContinuations = await Promise.all(continuations.map(row =>
-      transaction.get(store.collection("taskEvaluationPolicyRuns").doc(row.run_id))));
-    const retainContinuations = () => continuations.forEach((row, index) => {
-      if (!existingContinuations[index].exists)
-        transaction.set(store.collection("taskEvaluationPolicyRuns").doc(row.run_id), row);
-    });
-    if (oldResult.exists || oldRun.exists && !finalist) {
+    if (oldRun.exists || oldResult.exists) {
       const previous = oldResult.exists ? parseBetaPolicyScreeningPublication(publicationFromResultRecord(oldResult.data()!)) : null;
-      if (!previous || oldRun.data()?.run_kind !== runKind
+      if (!previous || oldRun.data()?.run_kind !== "beta_policy_screening"
         || oldRun.data()?.result_record_id !== resultId || oldRun.data()?.job_evidence_binding?.job_id !== jobId
         || oldRun.data()?.job_source_fingerprint !== scope.sourceFingerprint)
         throw new Error("screening_campaign_identity_conflict");
       const transition = screeningPublicationTransition(previous, publication);
-      if (transition !== "updated") {
-        // Recover an intent lost before this integration was deployed; the
-        // immutable terminal evidence does not need another scientific run.
-        if (transition === "replayed") retainContinuations();
-        return { status: transition, run_id: publication.campaign_id,
-          publication_digest: previous.publication_digest, revision: previous.revision };
-      }
+      if (transition !== "updated") return { status: transition, run_id: publication.campaign_id,
+        publication_digest: previous.publication_digest, revision: previous.revision };
     }
     const now = new Date().toISOString();
     transaction.set(resultRef, { schema_version: "capture_task_evaluation_run_record.v2", record_id: resultId,
       run_id: publication.campaign_id, owner_user_id: intake.request.owner.user_id, organization_id: scope.teamNamespace,
       access_visibility: "private", created_at_iso: oldResult.data()?.created_at_iso ?? now, updated_at_iso: now,
       publication_storage: encodeTaskEvaluationRunPublication(publication) });
-    transaction.set(runRef, { ...(finalist ? oldRun.data() : {}),
-      run_id: publication.campaign_id, run_kind: runKind, state: publication.status,
-      ...(finalist ? { finalist_state: publication.status,
-        finalist_forward_pending: !["completed", "blocked"].includes(publication.status) } : {}),
+    transaction.set(runRef, { run_id: publication.campaign_id, run_kind: "beta_policy_screening", state: publication.status,
       owner_user_id: intake.request.owner.user_id, team_namespace: scope.teamNamespace,
       source_scene_intent_id: publication.source.scene_intent_id, source_scene_intake_id: intakeRef.id,
       source_scene_revision_digest: publication.source.scene_revision_digest, configuration_digest: publication.plan_digest,
       job_evidence_binding: binding, job_task_context_digest: scope.taskContextDigest, job_source_fingerprint: scope.sourceFingerprint,
       publication_digest: publication.publication_digest, publication_revision: publication.revision, result_record_id: resultId,
+      episodes_scored: publication.candidates.reduce<number>((sum, row) => sum + row.episodes_scored, 0),
       screening_execution_observed: oldRun.data()?.screening_execution_observed === true
         || publication.candidates.some(row => ["running", "completed"].includes(row.status) || row.episodes_scored > 0),
       created_at_iso: oldRun.data()?.created_at_iso ?? now, updated_at_iso: now });
-    retainContinuations();
     return { status: oldRun.exists ? "updated" : "created", run_id: publication.campaign_id,
       publication_digest: publication.publication_digest, revision: publication.revision };
   });

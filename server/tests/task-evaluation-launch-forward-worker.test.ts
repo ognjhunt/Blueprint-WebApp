@@ -2,12 +2,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const authority = vi.hoisted(()=>({enabled:true, advisoryTick: vi.fn(), coverageTick: vi.fn(), db: null as any,
-  jobEvidenceTick: vi.fn(async () => {}), sceneIntakeTick: vi.fn(async () => {}), finalistTick: vi.fn(async () => {})}));
+  jobEvidenceTick: vi.fn(async () => {}), sceneIntakeTick: vi.fn(async () => {})}));
 vi.mock("../utils/jobEvidenceForwardWorker", () => ({processJobEvidenceForwardQueue: authority.jobEvidenceTick}));
 vi.mock("../utils/captureCoverageQueue", () => ({tickCoverageReviews: authority.coverageTick}));
 vi.mock("../utils/siteAssessmentQueue", () => ({tickSiteAssessments: authority.advisoryTick}));
 vi.mock("../utils/taskEvaluationSceneIntake", () => ({processSceneIntakeQueue: authority.sceneIntakeTick}));
-vi.mock("../utils/betaPolicyFinalist", () => ({processBetaPolicyFinalistQueue: authority.finalistTick}));
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({ get dbAdmin() { return authority.db; }, authAdmin:{getUser:async()=>({customClaims:{admin:authority.enabled},disabled:false})} }));
 
 import {
@@ -79,7 +78,6 @@ afterEach(() => {
   authority.enabled=true;
   authority.db=null;
   authority.sceneIntakeTick.mockReset().mockResolvedValue(undefined);
-  authority.finalistTick.mockReset().mockResolvedValue(undefined);
   authority.jobEvidenceTick.mockReset().mockResolvedValue(undefined);
   authority.advisoryTick.mockReset();
   authority.coverageTick.mockReset();
@@ -92,9 +90,8 @@ it("does not overlap slow scene or forwarding batches while terminal lanes keep 
   vi.stubEnv("BLUEPRINT_SITE_VIDEO_EVIDENCE_ENABLED", "false");
   vi.stubEnv("TASK_EVALUATION_LAUNCH_FORWARD_WORKER_INTERVAL_MS", "10000");
   vi.stubEnv("TASK_EVALUATION_LAUNCH_STORE_TIMEOUT_MS", "60000");
-  let finishScene!: () => void, finishFinalist!: () => void, finishForward!: (value: {docs: never[]}) => void;
+  let finishScene!: () => void, finishForward!: (value: {docs: never[]}) => void;
   authority.sceneIntakeTick.mockImplementationOnce(() => new Promise<void>(resolve => { finishScene = resolve; }));
-  authority.finalistTick.mockImplementationOnce(() => new Promise<void>(resolve => { finishFinalist = resolve; }));
   const forwardReads = vi.fn(() => new Promise<{docs: never[]}>(resolve => { finishForward = resolve; }));
   const terminalReads = vi.fn(async () => ({docs: []}));
   authority.db = { collection: (collection: string) => {
@@ -108,14 +105,12 @@ it("does not overlap slow scene or forwarding batches while terminal lanes keep 
   try {
     await vi.advanceTimersByTimeAsync(30000);
     expect(authority.sceneIntakeTick).toHaveBeenCalledTimes(1);
-    expect(authority.finalistTick).toHaveBeenCalledTimes(1);
     expect(forwardReads).toHaveBeenCalledTimes(1);
     expect(authority.jobEvidenceTick).toHaveBeenCalledTimes(4);
     expect(terminalReads).toHaveBeenCalledTimes(8); // Two other lanes over four ticks.
-    finishScene(); finishFinalist(); finishForward({docs: []});
+    finishScene(); finishForward({docs: []});
     await vi.advanceTimersByTimeAsync(10000);
     expect(authority.sceneIntakeTick).toHaveBeenCalledTimes(2);
-    expect(authority.finalistTick).toHaveBeenCalledTimes(2);
     expect(forwardReads).toHaveBeenCalledTimes(2);
     stop(); finishForward({docs: []});
     await vi.advanceTimersByTimeAsync(10000);

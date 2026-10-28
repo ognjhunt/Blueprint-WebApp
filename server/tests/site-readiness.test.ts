@@ -182,14 +182,14 @@ describe("steps to a pilot", () => {
       inputs({ request: { requestId: "job-1", request: {}, ...SCREENED, pilot_recommendation: recommendation, ...extra } });
     const bookable = request({ id: "r1", evidence: { qualified: true } });
     expect(states(bookable)).toMatchObject({ evaluation: "done", recommendation: "done", booking: "pending" });
-    expect(trackerOf(bookable).meanwhile).toBe("Blueprint has recommended a pilot for your job. You can review and book it on your job page.");
+    expect(trackerOf(bookable).meanwhile).toBe("Blueprint has a result and a proposed pilot for your job. You can review them on your job page.");
     for (const held of [request({ id: "r1", evidence: { qualified: true }, reviewRequired: true }), request({ id: "r1", evidence: {} })]) {
       expect(states(held)).toMatchObject({ evaluation: "done", recommendation: "in_progress" });
-      expect(trackerOf(held).meanwhile).toBe("Blueprint is reviewing its recommendation against your job brief.");
+      expect(trackerOf(held).meanwhile).toBe("Blueprint is reviewing the result against your job brief.");
     }
     const booked = request({ id: "r1", evidence: { qualified: true }, reviewRequired: true }, { pilot_booking: { recommendationId: "r1" } });
     expect(states(booked)).toMatchObject({ recommendation: "done", booking: "done" });
-    expect(trackerOf(booked).meanwhile).toBe("Your pilot is booked. You and the delivery partner agree its details directly.");
+    expect(trackerOf(booked).meanwhile).toBe("You chose to go ahead with a pilot. You and the deployment company agree its details directly.");
   });
 
   it("says so when a job is out of scope, rather than promising robot teams", () => {
@@ -204,7 +204,7 @@ describe("steps to a pilot", () => {
       .toBe("Next, Blueprint evaluates candidate robots and policies that look right for your job in a simulation of your site.");
     expect(trackerOf(inputs({ reconstructionState: "ready", sceneViewable: true })).steps.map((entry) => entry.label)).toEqual([
       "Video received", "Job brief confirmed", "Your site rebuilt in 3D", "Blueprint evaluates candidate robots and policies in simulation",
-      "Blueprint recommends the approach that wins", "You book the pilot"]);
+      "Blueprint shows you what works", "You decide whether to pilot"]);
     expect(trackerOf(inputs({ reconstructionState: "failed" })).meanwhile).toBeNull();
   });
 

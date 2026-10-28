@@ -1,7 +1,7 @@
 /**
  * The exact body `client/src/components/site/SiteCaptureStart.tsx` posts to
  * `/api/workspace/capture-start` when a new site starts a job by uploading the
- * footage it already has, under the account it creates with the form.
+ * footage it already has, under the account it creates from the email alone.
  *
  * `client/tests/components/SiteCaptureStart.test.tsx` checks the component's
  * real request against this function, and the server journey in
@@ -21,7 +21,6 @@ export const SITE_CAPTURE_START_FORM = {
   task: "Pick up each packed carton and place it at the end of the table",
   location: "Austin, TX",
   email: "owner@example.com",
-  company: "Acme Foods",
 } as const;
 
 export function siteCaptureStartSubmission(params: {
@@ -40,7 +39,6 @@ export function siteCaptureStartSubmission(params: {
     firstName: "",
     lastName: "",
     email: params.email ?? SITE_CAPTURE_START_FORM.email,
-    company: SITE_CAPTURE_START_FORM.company,
     roleTitle: "Site operator",
     buyerType: "site_operator",
     accountSignup: false,

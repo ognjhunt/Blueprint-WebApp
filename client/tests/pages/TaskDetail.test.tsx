@@ -121,7 +121,7 @@ describe("booking a pilot", () => {
   it("offers no booking until Blueprint recommends a pilot, and says what comes first", () => {
     render(<TaskDetail />);
     expect(screen.queryByRole("button", { name: /Book it/ })).not.toBeInTheDocument();
-    expect(screen.getByText(/No pilot proposal is ready yet\. Blueprint will assess suitable options/)).toBeInTheDocument();
+    expect(screen.getByText(/No pilot is planned yet\. When the simulation shows what works, Blueprint works alongside a deployment company/)).toBeInTheDocument();
   });
 
   it("offers to book the pilot Blueprint recommended", () => {

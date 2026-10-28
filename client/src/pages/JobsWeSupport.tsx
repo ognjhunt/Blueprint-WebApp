@@ -9,7 +9,7 @@ const examples = [
 
 export default function JobsWeSupport() {
   return <>
-    <SEO title="Jobs we support | Blueprint" description="Start with one recurring job, known objects and a clear outcome. Blueprint evaluates candidate robots and policies on it and checks which deployment companies support the approach before recommending a pilot." canonical="/jobs-we-support" />
+    <SEO title="Jobs we support | Blueprint" description="Start with one recurring job, known objects and a clear outcome. Blueprint runs candidate robots and policies on it in a simulation of your site and shows you a bounded estimate of what works." canonical="/jobs-we-support" />
     <section className="ms-container ms-supported-page" aria-labelledby="supported-title">
       <p className="ms-eyebrow">Jobs we support</p>
       <h1 id="supported-title">Start with one repeatable job.</h1>

@@ -27,7 +27,6 @@ test("lost create response survives reload with the same private retry identity"
   await fillJobDescription(page, "Move sealed cartons onto a pallet");
   await page.locator("#start-location").fill("Austin, TX");
   await page.locator("#start-email").fill("qa@example.invalid");
-  await page.locator("#start-company").fill("Synthetic QA");
   await page.getByRole("button", { name: "Start free assessment", exact: true }).click();
   await expect(page.getByRole("alert")).toContainText("could not reach Blueprint");
   await page.reload();
@@ -92,7 +91,6 @@ for (const receipt of ["not-received", "received-pending"] as const) test(`brows
     await fillJobDescription(page, "Move sealed cartons onto a pallet");
     await page.locator("#start-location").fill("Austin TX");
     await page.locator("#start-email").fill("qa@example.invalid");
-    await page.locator("#start-company").fill("Owned synthetic QA");
 
     await page.locator("#start-method-upload").check();
     await expect(page.locator("#start-password")).toHaveCount(0);

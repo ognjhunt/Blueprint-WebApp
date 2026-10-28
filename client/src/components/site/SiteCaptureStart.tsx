@@ -321,7 +321,8 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
     const data = new FormData(formRef.current);
     const field = (name: string) => String(data.get(name) ?? "");
     retain({ ...recovery.current, savedAt: Date.now(), draft: {
-      task: field("startTask"), location: place ? place.label : field("startLocation"), email: field("startEmail"), company: field("startCompany"),
+      task: field("startTask"), location: place ? place.label : field("startLocation"), email: field("startEmail"),
+      ...(recovery.current.draft.company !== undefined ? { company: recovery.current.draft.company } : {}),
       ...(field("startFrequency") ? { jobFrequency: field("startFrequency") } : {}),
       ...(field("startReadiness") ? { purchaseReadiness: field("startReadiness") as SiteCaptureRecovery["draft"]["purchaseReadiness"] } : {}),
       method, region: place ? (place.countryCode ? (place.countryCode === "US" ? "us" : "non_us") : "") : region,
@@ -384,7 +385,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
     const data = new FormData(formRef.current!);
     const operationRecovery = recovery.current;
     let savedAnswers = retained ? JSON.parse(retained.body) as Record<string, unknown> : null;
-    const savedFields: Record<string, string> = { startTask: "taskStatement", startLocation: "siteLocation", startEmail: "email", startCompany: "company" };
+    const savedFields: Record<string, string> = { startTask: "taskStatement", startLocation: "siteLocation", startEmail: "email" };
     const read = (key: string) => String(savedAnswers ? savedAnswers[savedFields[key]] ?? "" : data.get(key) ?? "").trim();
     let email = currentUser?.email || read("startEmail");
     const location = read("startLocation");
@@ -401,7 +402,6 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
           firstName: "",
           lastName: "",
           email: email.toLowerCase(),
-          company: read("startCompany"),
           roleTitle: "Site operator",
           buyerType: "site_operator",
           // No account: the capture link is the credential. Terms and Privacy
@@ -531,7 +531,6 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
           JSON.stringify({
             name: "",
             email,
-            company: read("startCompany"),
           }),
         );
       } catch {
@@ -851,7 +850,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
         <span className="ms-field-hint">
           Where we send your private link to record or upload the video, review the brief and follow progress.
         </span>
-        <input id="start-email" name="startEmail" type="email" defaultValue={recovery.current.draft.email} required maxLength={320} />
+        <input id="start-email" name="startEmail" type="email" defaultValue={recovery.current.draft.email} required autoComplete="email" maxLength={320} />
       </label>
 
 
@@ -863,10 +862,6 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
 
       <details className="ms-task-interest ms-visitor-detail">
         <summary>Add job details and buying plans (optional)</summary>
-        <label htmlFor="start-company">
-          <span>Company (optional)</span>
-          <input id="start-company" name="startCompany" type="text" defaultValue={recovery.current.draft.company} autoComplete="organization" maxLength={200} />
-        </label>
         <label htmlFor="start-task">
           <span>Anything we should know?</span>
           <span className="ms-field-hint">We draft the job description from your video. Add details here only if they help.</span>
@@ -884,10 +879,10 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
             <option value="">Not sure yet</option>
             <option value="exploring">Exploring whether automation makes sense</option>
             <option value="planning">Planning a pilot</option>
-            <option value="ready_for_proposals">Ready to review delivery proposals</option>
+            <option value="ready_for_proposals">Ready to run a pilot</option>
           </select>
         </label>
-        <p className="ms-field-hint">A budget is not required to start. We can clarify output targets, installation and ongoing costs before asking providers for proposals. Submitting does not authorize spending.</p>
+        <p className="ms-field-hint">A budget is not required to start. We can clarify output targets, installation and ongoing costs before any pilot. Submitting does not authorize spending.</p>
       </details>
 
       {/* Bot bait: hidden from people, honoured by the server. */}

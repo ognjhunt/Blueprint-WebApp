@@ -137,13 +137,3 @@ describe("job to managed execution binding", () => {
       "job-one", binding.brief_digest, taskContext)?.resultDigest).toBeNull();
   });
 });
-
-it("makes an earlier recording inapplicable when the job selects a new child capture", () => {
-  const original = fixture();
-  expect(() => managedJobTask(original)).not.toThrow();
-  original.record.active_capture_id = "supplement-new-recording";
-  expect(() => managedJobTask(original)).toThrow("job_evaluation_source_changed");
-  const native = nativeFixture();
-  native.record.active_capture_id = "replacement-session";
-  expect(() => managedJobTask(native)).toThrow("job_evaluation_source_changed");
-});

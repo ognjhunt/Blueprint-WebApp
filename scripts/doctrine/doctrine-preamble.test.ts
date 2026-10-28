@@ -8,12 +8,9 @@ const root = process.cwd();
 const read = (file: string) => fs.readFileSync(path.resolve(root, file), "utf-8");
 
 /**
- * The shared blocks are cross-repo doctrine and are already guarded by
- * `doctrine:verify`. What is not otherwise guarded is the repo-local preamble
- * that states what ships and how the public surface and the shared blocks are
- * kept in agreement — delete it and the next lane reads a description of a
- * company that no longer matches what ships, which is the exact failure this
- * preamble exists to prevent.
+ * The shared blocks are guarded by `doctrine:verify`. This pins the short
+ * repo-local guidance around them (owner direction 2026-10-28): what Blueprint
+ * does, and that privacy, rights and money are the only hard stops.
  */
 describe("platform context preamble", () => {
   const contents = read("PLATFORM_CONTEXT.md");
@@ -21,71 +18,31 @@ describe("platform context preamble", () => {
   it("keeps the preamble outside the locked block", () => {
     const start = contents.indexOf("<!-- SHARED_PLATFORM_CONTEXT_START -->");
     expect(start).toBeGreaterThan(-1);
-    const preamble = contents.slice(0, start);
-    expect(preamble).toMatch(/Read this before the shared block/i);
-    // The digest must be unaffected by anything the preamble says.
+    expect(contents.slice(0, start)).toMatch(/Read this before the shared block/i);
     const lock = loadLock(root);
-    const expected = lock.blocks.SHARED_PLATFORM_CONTEXT.canonical_sha256;
-    expect(digestBlock(extractBlock(contents, "SHARED_PLATFORM_CONTEXT"))).toBe(expected);
+    expect(digestBlock(extractBlock(contents, "SHARED_PLATFORM_CONTEXT")))
+      .toBe(lock.blocks.SHARED_PLATFORM_CONTEXT.canonical_sha256);
   });
 
-  it("states what the public surface currently ships", () => {
-    expect(contents).toMatch(/recommended pilot/i);
-    // Founder decision, 2026-10-13: a free beta with an evaluated recommendation.
-    expect(contents).toMatch(/completely free/i);
-    expect(contents).toMatch(/evaluation result on that job passed/i);
-    expect(contents).toMatch(/open for sites/i);
-    expect(contents).toMatch(/qualifying-environment standard/i);
-  });
-
-  it("records the current owner direction through canonical shared synchronization", () => {
-    // October 21 corrected the journey; canonical synchronization preserves ADP authority.
-    expect(contents).toMatch(/Current owner direction.*October 21, 2026/i);
-    expect(contents).toMatch(/preserves the capture-first foundation/i);
+  it("describes the product Blueprint runs itself", () => {
+    expect(contents).toMatch(/runs the candidate robot policies/i);
+    expect(contents).toMatch(/deployment company/i);
     const block = extractBlock(contents, "SHARED_PLATFORM_CONTEXT");
-    expect(block).toMatch(/### Active Programs/);
-    expect(block).toMatch(/Free Beta: Job-First Automation/);
-    expect(block).toMatch(/requires actual retained video before assessment/);
-    expect(block).toMatch(/substitute for a successful storage receipt/);
-    expect(block).toMatch(/Existing video analysis drafts/);
-    expect(block).toMatch(/Arm\s+Decision Proof keeps sole authority over physical-validation claims/);
-    expect(block).toMatch(/free-beta-evaluated-pilot/);
+    expect(block).toMatch(/### The Only Hard Stops/);
     expect(block).toMatch(/Arm Decision Proof v1/);
-    expect(block).not.toMatch(/sole active program/i);
+    expect(block).toMatch(/never certify physical\s+performance or safety/i);
   });
 
-  it("forbids forking doctrine with a local edit", () => {
-    expect(contents).toMatch(/Do not.*edit the shared block here/is);
-    expect(contents).toMatch(/fork doctrine across/i);
-  });
-
-  it("preserves the engineering invariants the reposition does not loosen", () => {
-    expect(contents).toMatch(/bounded estimates or abstentions/i);
-    expect(contents).toMatch(/never certifies physical performance or safety/i);
-  });
-
-  it("names the cross-repo path for changing the offer or the doctrine", () => {
+  it("names the cross-repo path for changing the doctrine", () => {
     expect(contents).toMatch(/BlueprintCapturePipeline\/doctrine\//);
-    expect(contents).toMatch(/shared-doctrine\.lock\.json.*all three repos/is);
-    expect(contents).toMatch(/Changing the active programs is a founder decision/);
+    expect(contents).toMatch(/shared-doctrine\.lock\.json/);
   });
 });
 
 describe("repo-local agent guides agree with the preamble", () => {
-  it("points CLAUDE.md at the preamble and forbids editing the locked blocks", () => {
-    const claude = read("CLAUDE.md");
-    expect(claude).toMatch(/Start with `PLATFORM_CONTEXT\.md`'s preamble/);
-    expect(claude).toMatch(/Never edit\s+inside a shared block/i);
-    expect(claude).toMatch(/never update the lock digest to match a local edit/i);
-    // The evidence discipline the public surface runs on.
-    expect(claude).toMatch(/There is no third grade/i);
-    expect(claude).toMatch(/brand-polish/);
-  });
-
-  it("updates the AGENTS.md mission to describe the surface that ships", () => {
-    const agents = read("AGENTS.md");
-    expect(agents).toMatch(/show one recurring job on video/i);
-    expect(agents).toMatch(/Existing video analysis drafts the description and brief/i);
-    expect(agents).toMatch(/read its preamble first; never edit inside a shared block/i);
+  it.each(["AGENTS.md", "CLAUDE.md"])("%s keeps privacy, rights and money as the only hard stops", (file) => {
+    const guide = read(file);
+    expect(guide).toMatch(/privacy, rights\s+and money|\*\*Privacy:\*\*[\s\S]*\*\*Rights:\*\*[\s\S]*\*\*Money:\*\*/i);
+    expect(guide).toMatch(/shared block/i);
   });
 });

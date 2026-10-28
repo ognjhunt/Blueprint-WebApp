@@ -266,7 +266,7 @@ it("shows every screened candidate without creating a pilot recommendation", asy
         state: index ? "pending" : "running", planned: 3, scored: 0, succeeded: 0, failed: 0, void: 0, blockers: [] })) } }] })));
   render(<JobWorkspace token="owner-token" />);
   fireEvent.click(await screen.findByText("Technical evidence and test details"));
-  const table = await screen.findByRole("table", { name: "Early policy screening candidates" });
+  const table = await screen.findByRole("table", { name: "Candidates evaluated for your job" });
   expect(within(table).getAllByRole("row")).toHaveLength(37);
   expect(within(table).getByText("Candidate 35")).toBeVisible();
   expect(screen.getByText("Screening does not qualify a pilot.")).toBeVisible();

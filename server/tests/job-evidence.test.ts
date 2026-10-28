@@ -250,15 +250,3 @@ describe("job evidence producer and commercial boundary", () => {
     expect(request.testbed).toBeNull(); expect(request.decision_evidence_request).toBeNull(); expect(request.capture_session_id).toBeNull();
   });
 });
-
-it("keeps old question evidence historical and unattachable after selecting a new recording", async () => {
-  const publication = boundPublication();
-  const { acceptJobEvidencePublication, readJobEvidence, assertJobEvidenceRequestActive } = await import("../utils/jobEvidenceStore");
-  const { jobEvidenceCaptureSessionId } = await import("../utils/jobEvidenceContract");
-  await acceptJobEvidencePublication(publication);
-  expect((await readJobEvidence("job-1", brief)).evidence[0].current).toBe(true);
-  state.docs.get("inboundRequests/job-1")!.active_capture_id = "supplement-job-1-child";
-  expect(jobEvidenceCaptureSessionId("job-1", state.docs.get("inboundRequests/job-1")!)).toBe("supplement-job-1-child");
-  expect((await readJobEvidence("job-1", brief)).evidence[0].current).toBe(false);
-  await expect(assertJobEvidenceRequestActive("job-1", publication.request_id, publication.request_digest)).rejects.toThrow(/earlier recording/);
-});

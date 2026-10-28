@@ -1,15 +1,16 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
-import { parseBetaPolicyScreeningPublication, screeningPublicationTransition, screeningCampaignIdentity } from "../utils/betaPolicyScreeningContract";
+import { parseBetaPolicyScreeningPublication, screeningPublicationTransition } from "../utils/betaPolicyScreeningContract";
 import { assertScreeningSceneSource } from "../utils/betaPolicyScreeningIngest";
 import { managedJobTask, projectManagedJobEvidence } from "../utils/jobManagedEvaluation";
 import { scientificBriefDigest } from "../utils/jobEvidenceContract";
 import { crossRuntimeArtifactDigest, crossRuntimeDigest } from "../utils/crossRuntimeCanonical";
 import { familyScreeningFixture, screeningFixture, screeningSha, sealScreening } from "./fixtures/beta-policy-screening";
-import producerPublication from "./fixtures/pipeline-beta-policy-screening-publication.v1.json";
+import producerPublication from "./fixtures/pipeline-beta-policy-screening-publication.v2.json";
+import retainedProducerPublication from "./fixtures/pipeline-beta-policy-screening-publication.v1.json";
 import producerFamilyStatus from "./fixtures/pipeline-family-prepared-status.v1.json";
 
-describe("many-candidate diagnostic screening", () => {
+describe("automatic many-candidate job evaluation", () => {
   it("accepts a screening source emitted by the actual Python family handoff and canonical progression", () => {
     const { publication, brief, job } = screeningFixture();
     const source = producerFamilyStatus.source;
@@ -84,18 +85,30 @@ describe("many-candidate diagnostic screening", () => {
     expect(() => managedJobTask({ binding, record: job, brief: { ...brief, confirmedAtIso: "2026-10-26T13:00:00Z" },
       allowProposedScreening: true })).toThrow("job_scene_task_changed");
   });
-  it("verifies the real Python coordinator's fractional scores and exact decimal budget", () => {
-    const value = parseBetaPolicyScreeningPublication(producerPublication);
-    expect(value).not.toBeNull();
-    expect(value?.candidates[0].success_rate).toBe(2 / 3);
-    expect(value?.budget.spent_upper_bound_usd).toBe("4.25");
+  it.each([["v2", producerPublication], ["retained v1", retainedProducerPublication]])(
+    "verifies the real Python coordinator's fractional scores and exact decimal budget (%s)", (_version, fixture) => {
+      const value = parseBetaPolicyScreeningPublication(fixture);
+      expect(value).not.toBeNull();
+      expect(value?.candidates[0].success_rate).toBe(2 / 3);
+      expect(value?.budget.spent_upper_bound_usd).toBe("4.25");
+    });
+  it("accepts a retained v1 result republished as v2 at a new revision, never as a same-revision rewrite", () => {
+    const previous = parseBetaPolicyScreeningPublication(retainedProducerPublication)!;
+    const { schema_version: _v, purpose: _p, claim_ceiling: _c, recommendation_eligible: _r, publication_digest: _d, ...rest } = previous as any;
+    const upgraded = { ...rest, schema_version: "beta_policy_screening_publication.v2", purpose: "job_evaluation", claim_ceiling: "simulation_estimate" };
+    const sameRevision = parseBetaPolicyScreeningPublication(sealScreening(upgraded))!;
+    expect(sameRevision).not.toBeNull();
+    expect(() => screeningPublicationTransition(previous, sameRevision)).toThrow("screening_revision_conflict");
+    const next = parseBetaPolicyScreeningPublication(sealScreening({ ...upgraded, revision: previous.revision + 1 }))!;
+    expect(screeningPublicationTransition(previous, next)).toBe("updated");
   });
-  it("accepts dozens of candidates with a sealed, diagnostic-only contract", () => {
+  it("accepts dozens of candidates with a sealed simulation-estimate contract", () => {
     const { publication } = screeningFixture();
     expect(parseBetaPolicyScreeningPublication(publication)?.candidates).toHaveLength(36);
     expect(parseBetaPolicyScreeningPublication({ ...publication, status: "completed" })).toBeNull();
     expect(parseBetaPolicyScreeningPublication(sealScreening({ ...publication, status: "running" }))).toBeNull();
-    for (const change of [{ recommendation_eligible: true }, { claim_ceiling: "qualified" }, { endpoint: "https://private.invalid" }])
+    for (const change of [{ recommendation_eligible: false }, { claim_ceiling: "qualified" }, { claim_ceiling: "diagnostic_policy_execution" },
+      { purpose: "screening" }, { endpoint: "https://private.invalid" }])
       expect(parseBetaPolicyScreeningPublication(sealScreening({ ...publication, ...change }))).toBeNull();
   });
 
@@ -151,7 +164,26 @@ describe("many-candidate diagnostic screening", () => {
     expect(() => screeningPublicationTransition(completed, sealScreening({ ...completed, revision: 4, status: "running" }))).toThrow("screening_revision_conflict");
   });
 
-  it("projects diagnostic outcomes only, and retains stale source as historical", () => {
+  it("shows no estimate for a completed run whose candidates scored no episode", () => {
+    const { publication, brief, job } = screeningFixture();
+    const binding = { job_id: brief.requestId, brief_digest: scientificBriefDigest(brief) };
+    const scope = managedJobTask({ binding, record: job, brief });
+    const voided = sealScreening({ ...publication, revision: 2, status: "completed", candidates: publication.candidates.map((row, index) => index > 0
+      ? { ...row, status: "blocked", blockers: ["beta_screening_site_budget_exhausted"] }
+      : { ...row, status: "completed", episodes_scored: 0, episodes_succeeded: 0, episodes_failed: 0, episodes_void: 3, success_rate: null, session_result_digest: screeningSha("9") }) });
+    const run = { run_id: voided.campaign_id, run_kind: "beta_policy_screening", state: "completed", result_record_id: "result-one",
+      job_evidence_binding: binding, job_task_context_digest: scope.taskContextDigest, job_source_fingerprint: scope.sourceFingerprint,
+      configuration_digest: voided.plan_digest, source_scene_intent_id: voided.source.scene_intent_id,
+      source_scene_revision_digest: voided.source.scene_revision_digest, publication_digest: voided.publication_digest, publication_revision: 2 };
+    const projected = projectManagedJobEvidence(voided.campaign_id, run, { record_id: "result-one", publication: voided },
+      brief.requestId, binding.brief_digest, scope.taskContextDigest, scope.sourceFingerprint)!;
+    expect(projected.state).toBe("blocked");
+    expect(projected.summary).toMatch(/^No simulation estimate yet/);
+    expect(projected.limitations.join(" ")).not.toMatch(/estimate from 0 scored/);
+    expect(projected.limitations.join(" ")).toMatch(/does not certify physical performance or safety/);
+  });
+
+  it("projects the run as the job's simulation estimate, and retains stale source as historical", () => {
     const { publication, brief, job } = screeningFixture();
     const binding = { job_id: brief.requestId, brief_digest: scientificBriefDigest(brief) };
     const scope = managedJobTask({ binding, record: job, brief });
@@ -164,16 +196,20 @@ describe("many-candidate diagnostic screening", () => {
       brief.requestId, binding.brief_digest, scope.taskContextDigest, fingerprint)!;
     expect(project().screening?.candidates).toHaveLength(36);
     expect(project().resultDigest).toBeNull();
-    expect(project().limitations.join(" ")).toMatch(/does not declare a winner/);
+    expect(project().limitations.join(" ")).toMatch(/does not certify physical performance or safety/);
     expect(project(crossRuntimeDigest("changed source")).current).toBe(false);
+    const completed = sealScreening({ ...publication, revision: 2, status: "completed", candidates: publication.candidates.map((row, index) => index > 1
+      ? { ...row, status: "blocked", blockers: ["beta_screening_site_budget_exhausted"] }
+      : { ...row, status: "completed", episodes_scored: 3, episodes_succeeded: 2, episodes_failed: 1, success_rate: 2 / 3, session_result_digest: screeningSha("8") }) });
+    const finished = projectManagedJobEvidence(completed.campaign_id, { ...run, state: "completed", publication_digest: completed.publication_digest,
+      publication_revision: 2 }, { record_id: "result-one", publication: completed }, brief.requestId, binding.brief_digest,
+      scope.taskContextDigest, scope.sourceFingerprint)!;
+    // A finished run within the allowance is the job's result, visible and referenceable.
+    expect(finished.resultDigest).toBe(completed.publication_digest);
+    expect(finished.summary).toBe("Your job's simulation estimate: 2 of 36 candidates ran, with 6 episodes scored against the job's success criteria.");
+    expect(finished.nextAction).toMatch(/recommend the next step/);
+    expect(finished.limitations).toEqual([expect.stringMatching(/^A bounded simulation estimate from 6 scored episodes across 2 candidates, for this job's recorded task and simulated conditions only\.$/),
+      "A simulation result is a bounded estimate. It does not certify physical performance or safety.",
+      "34 candidates did not run; each row lists why."]);
   });
-});
-
-it("preserves the original screening campaign identity digest shape", () => {
-  const { publication: value } = screeningFixture();
-  const historical = crossRuntimeDigest({ campaign_id: value.campaign_id, site_id: value.site_id, source: value.source,
-    plan_digest: value.plan_digest, catalog_digest: value.catalog_digest, scenario_plan_digest: value.scenario_plan_digest,
-    candidates: value.candidates.map(row => ({ candidate_id: row.candidate_id, configuration_digest: row.configuration_digest,
-      display_name: row.display_name, episodes_planned: row.episodes_planned })), budget_limit: value.budget.limit_usd });
-  expect(screeningCampaignIdentity(value)).toBe(historical);
 });

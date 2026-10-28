@@ -159,12 +159,12 @@ export function trackerOf(inputs: ReadinessInputs): Tracker {
     step("brief", "Job brief confirmed", inputs.brief?.confirmedAtIso ? "done" : "pending", "site"),
     step("scene", "Your site rebuilt in 3D", sceneState, "blueprint"),
     step("evaluation", "Blueprint evaluates candidate robots and policies in simulation", booked || proposed ? "done" : "pending", "blueprint"),
-    step("recommendation", "Blueprint recommends the approach that wins", booked || bookable ? "done" : proposed ? "in_progress" : "pending", "blueprint"),
-    step("booking", "You book the pilot", booked ? "done" : "pending", "site"),
+    step("recommendation", "Blueprint shows you what works", booked || bookable ? "done" : proposed ? "in_progress" : "pending", "blueprint"),
+    step("booking", "You decide whether to pilot", booked ? "done" : "pending", "site"),
   ];
-  const meanwhile = booked ? "Your pilot is booked. You and the delivery partner agree its details directly."
-    : bookable ? "Blueprint has recommended a pilot for your job. You can review and book it on your job page."
-      : proposed ? "Blueprint is reviewing its recommendation against your job brief."
+  const meanwhile = booked ? "You chose to go ahead with a pilot. You and the deployment company agree its details directly."
+    : bookable ? "Blueprint has a result and a proposed pilot for your job. You can review them on your job page."
+      : proposed ? "Blueprint is reviewing the result against your job brief."
         : scope?.supported === false ? taskScopeNotYet(scope.reason).headline
           : sceneState === "in_progress" ? "Blueprint is rebuilding your work area in 3D from your video."
             : sceneState === "done" ? "Next, Blueprint evaluates candidate robots and policies that look right for your job in a simulation of your site."

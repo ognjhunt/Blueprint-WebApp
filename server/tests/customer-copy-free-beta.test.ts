@@ -2,9 +2,9 @@
 /**
  * The messages a site or a robot team actually receives say what the free beta is.
  *
- * The beta remains free. The 2026-10-21 owner-authorized job-first journey
- * assesses suitable options, uses evidence/testing when needed and helps the
- * customer compare delivery proposals before selecting a partner. It does not
+ * The beta remains free. Blueprint runs the candidates in a simulation of the
+ * site itself and shows a bounded estimate or "held", then works alongside a
+ * deployment company on the real site (owner, 2026-10-28). It does not
  * promise a simulation for every submission, a supplier or a signed pilot.
  * No fees, balances, top-ups, checkout or announced future platform pricing.
  *
@@ -179,14 +179,14 @@ describe("site screening emails", () => {
     }
   });
 
-  it("states the video-backed simulation, Blueprint's own candidate runs, customer selection and the free-beta boundary", () => {
+  it("states the video-backed simulation, Blueprint's own candidate runs, the bounded result and the free-beta boundary", () => {
     for (const nextStep of NEXT_STEPS) {
       const { body } = buildQualifiedEmail({ firstName: "Dana", nextStep });
       expect(body).toMatch(/review the job brief, required output and site constraints/);
       expect(body).toMatch(/reconstruct the work area in simulation and run candidate robots, policies and policy APIs against your job ourselves/);
-      expect(body).toMatch(/a recommendation comes only from the finalists' full scoring/);
-      expect(body).toMatch(/review their proposals covering scope, total cost, timing and support/);
-      expect(body).toMatch(/You choose the delivery partner/);
+      expect(body).toMatch(/You see a bounded estimate of what works/);
+      expect(body).toMatch(/work alongside a deployment company on your site/);
+      expect(body).not.toMatch(/finalists' full scoring|review their proposals/);
       expect(body).toMatch(/If no candidate is suitable, we explain what is missing/);
       expect(body).not.toMatch(/book the pilot in one step|We prepare a simplified simulation/);
       expect(body).toMatch(/free during the beta/);

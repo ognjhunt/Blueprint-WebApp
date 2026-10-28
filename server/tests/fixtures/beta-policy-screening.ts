@@ -25,12 +25,12 @@ export function screeningFixture(proposed = false) {
     owner: request.owner, result_reference: { uri: "gs://fixture/revision/configured_scene_revision.v1.json", digest: screeningSha("e"), size_bytes: 300 } };
   const intake = { website_request_id: brief.requestId, source_session_id: context.capture_id, state: "completed", request, request_digest: crossRuntimeDigest(request),
     receipt: { ...receipt, receipt_digest: crossRuntimeDigest(receipt) }, pipeline_status: { ...status, status_digest: crossRuntimeDigest(status) } };
-  const publication = sealScreening({ schema_version: "beta_policy_screening_publication.v1", campaign_id: "campaign-one",
+  const publication = sealScreening({ schema_version: "beta_policy_screening_publication.v2", campaign_id: "campaign-one",
     site_id: context.scene_id, revision: 1, plan_digest: screeningSha("b"), catalog_digest: screeningSha("c"), scenario_plan_digest: screeningSha("d"),
     source: { scene_intent_id: receipt.intent_id, scene_intent_digest: receipt.intent_digest, capture_id: context.capture_id,
       task_id: request.task.task_id, task_context_digest: context.context_digest, scene_revision_digest: screeningSha("e") },
-    status: "queued", purpose: "screening", execution_operator: { kind: "blueprint" },
-    claim_ceiling: "diagnostic_policy_execution", recommendation_eligible: false,
+    status: "queued", purpose: "job_evaluation", execution_operator: { kind: "blueprint" },
+    claim_ceiling: "simulation_estimate",
     candidates: Array.from({ length: 36 }, (_, index) => ({ candidate_id: `candidate-${index}`, display_name: `Candidate ${index}`,
       configuration_digest: screeningSha("f"), status: "pending", blockers: [], episodes_planned: 3, episodes_scored: 0,
       episodes_succeeded: 0, episodes_failed: 0, episodes_void: 0, success_rate: null, session_result_digest: null })),

@@ -46,7 +46,6 @@ for (const [index, parameters] of cases.entries()) test(`A-J-${String(index + 1)
     await page.locator("#start-task").fill("Move sealed cartons from the conveyor onto a pallet.");
     await page.locator("#start-location").fill(parameters.location);
     await page.locator("#start-email").fill(`reliability-${index + 1}@example.invalid`);
-    await page.locator("#start-company").fill("Owned synthetic reliability fixture");
     await page.locator(`#start-method-${parameters.method}`).check();
     if (parameters.boundary === "draft-reload") {
       await page.reload();

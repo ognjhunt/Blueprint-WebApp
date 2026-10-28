@@ -541,14 +541,14 @@ function buildHelpPayload(topic: unknown) {
       // The team surface: acting for one team rather than reading the public
       // catalogue. `help` is where an agent finds out this path exists, so
       // leaving it out made the whole thing undiscoverable.
-      { command: "team register --invitation <invitation> --team-name <name>", description: "Register your approved team and get an agent key. Robot teams join by invitation after application review: pass the invitation from your approval email. The key is returned once. Registering grants no evaluations: during the free beta Blueprint invites teams to a job after review." },
+      { command: "team register --invitation <invitation> --team-name <name>", description: "Register your approved team and get an agent key. Registration needs Blueprint's approval of your application: pass the invitation from your approval email. The key is returned once. Registering grants no evaluations: during the free beta Blueprint runs your policy on a job after review." },
       { command: "team me", description: "This team's record, its checkpoints, and why spending is off during the free beta." },
       { command: "team checkpoint register", description: "Register your policy endpoint (runtime policy_endpoint, your HTTPS URL), then attach its bearer token. Team evaluations call only that endpoint; containers and private checkpoints are not admitted." },
       { command: "team checkpoint", description: "List this team's checkpoints." },
-      { command: "team plan --checkpoint-id <id>", description: "Retired for the free beta: returns paid_evaluations_disabled. Invited evaluations are set up by Blueprint for the job." },
+      { command: "team plan --checkpoint-id <id>", description: "Retired for the free beta: returns paid_evaluations_disabled. Blueprint sets up each run of your policy for the job." },
       { command: "team fund --amount <usd>", description: "Retired for the free beta: returns paid_evaluations_disabled. No payment is taken." },
       { command: "team policy set --daily-limit <usd> --per-run-limit <usd> --enable", description: "The team's own spending limits on its agent. Kept for historical records; nothing is spent during the free beta." },
-      { command: "team runs --checkpoint-id <id>", description: "Retired for the free beta: returns paid_evaluations_disabled. Blueprint starts invited evaluations." },
+      { command: "team runs --checkpoint-id <id>", description: "Retired for the free beta: returns paid_evaluations_disabled. Blueprint starts each run." },
       { command: "team runs list", description: "This team's runs, including historical ones from before the free beta." },
       { command: "team results", description: "Every evaluation result this team can see, with the observation and the claim kept apart." },
       { command: "team results <run-id>", description: "One run's result." },
