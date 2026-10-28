@@ -177,7 +177,8 @@ export function projectManagedJobEvidence(
   const base: ManagedJobEvidenceSummary = {
     runId, state: String(run.state || "unavailable"), current: binding.data.brief_digest === currentBriefDigest
       && currentTaskContextDigest !== null && run.job_task_context_digest === currentTaskContextDigest
-      && currentSourceFingerprint !== null && run.job_source_fingerprint === currentSourceFingerprint,
+      && currentSourceFingerprint !== null && run.job_source_fingerprint === currentSourceFingerprint
+      && !(run.run_kind === "beta_policy_screening" && (run.cancellationRequested === true || ["cancelled", "closed"].includes(run.state))),
     resultDigest: null, summary: `Policy run status: ${String(run.state || "unavailable")}. No accepted scientific result is attached.`,
     nextAction: ["blocked", "failed", "cancelled"].includes(run.state)
       ? "Blueprint can inspect the recorded runtime limitation and choose the next useful action. No retry is automatic."

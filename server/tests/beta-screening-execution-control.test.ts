@@ -5,6 +5,8 @@ import { ingestBetaPolicyScreening, observeBetaScreeningExecutionControl, parseB
   type BetaScreeningExecutionControlRequest } from "../utils/betaPolicyScreeningIngest";
 import { screeningFixture, screeningSha, sealScreening } from "./fixtures/beta-policy-screening";
 import { projectWebsiteCaptureRights, projectWebsiteTaskContext } from "../utils/websiteTaskContext";
+import { loadManagedJobEvidence } from "../utils/jobManagedEvaluation";
+import { scientificBriefDigest } from "../utils/jobEvidenceContract";
 
 const store = vi.hoisted(() => ({ state: { docs: new Map<string, any>() }, fail: false }));
 vi.mock("../../client/src/lib/firebaseAdmin", async () => {
@@ -200,6 +202,41 @@ it("preserves retained stops and run cancellation across later signed publicatio
   expect(controls()).toEqual(saved);
   expect(row("taskEvaluationPolicyRuns/campaign-one").cancellationRequested).toBe(true);
   expect(await observeBetaScreeningExecutionControl(fixture.request)).toEqual(stopped);
+});
+
+it.each(["cancelled", "closed"])("late publication cannot reopen campaign-level %s authority for another existing attempt", async state => {
+  const other = { ...fixture.request, candidate_id: fixture.publication.candidates[1].candidate_id,
+    attempt_id: "second-attempt", invocation_id: screeningSha("8"), prepared_digest: screeningSha("7"),
+    authority_digest: screeningSha("6"), resource_name: "second-owned-resource" };
+  await observeBetaScreeningExecutionControl(fixture.request); await observeBetaScreeningExecutionControl(other);
+  row("taskEvaluationPolicyRuns/campaign-one").state = state;
+  expect((await observeBetaScreeningExecutionControl(fixture.request)).status).toBe("stopped");
+  const next = sealScreening({ ...fixture.publication, revision: 2, status: "running",
+    candidates: fixture.publication.candidates.map((candidate, index) => index ? candidate : { ...candidate, status: "running" }) });
+  await ingestBetaPolicyScreening(next);
+  expect(row("taskEvaluationPolicyRuns/campaign-one").state).toBe(state);
+  expect(row("taskEvaluationPolicyRuns/campaign-one").cancellationRequested).toBe(true);
+  expect((await observeBetaScreeningExecutionControl(other)).status).toBe("stopped");
+});
+
+it.each([false, true])("retains late owner-closed evidence historically in actual readback (prior control observation=%s)", async observed => {
+  await observeBetaScreeningExecutionControl(fixture.request);
+  const closure = { schema_version: "website_run_closure.v1", request_id: "job-one", capture_id: fixture.request.source.capture_id,
+    decision: "conservative_abstention", actor: "signed_owner_link", source_identity_digest: screeningSha("7"),
+    closed_at_iso: new Date(NOW).toISOString(), new_execution_authorized: false, explicit_resume_required: true, physical_validation: false };
+  row("inboundRequests/job-one").website_run_closures = { [closure.capture_id]: { ...closure, closure_digest: crossRuntimeDigest(closure) } };
+  if (observed) expect((await observeBetaScreeningExecutionControl(fixture.request)).stop_reason).toBe("website_run_closed_by_owner");
+  const next = sealScreening({ ...fixture.publication, status: "queued", revision: 2,
+    candidates: fixture.publication.candidates.map((candidate, index) => index ? candidate : { ...candidate,
+      status: "completed", episodes_scored: 3, episodes_succeeded: 2, episodes_failed: 1,
+      success_rate: 2 / 3, session_result_digest: screeningSha("8") }) });
+  await ingestBetaPolicyScreening(next);
+  const evidence = await loadManagedJobEvidence("job-one", scientificBriefDigest(row("siteTaskBriefs/job-one")));
+  expect(evidence[0].current).toBe(false);
+  expect(evidence[0].screening?.candidates[0].state).toBe("completed");
+  expect(evidence[0].screening?.candidates[0].scored).toBe(3);
+  expect(row("taskEvaluationPolicyRuns/campaign-one").publication_digest).toBe(next.publication_digest);
+  expect((await observeBetaScreeningExecutionControl(fixture.request)).status).toBe("stopped");
 });
 
 it("never treats a completed candidate as permission to resume processing", async () => {

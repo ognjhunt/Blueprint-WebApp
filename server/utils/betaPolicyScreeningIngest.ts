@@ -10,7 +10,7 @@ import { betaPolicyScreeningPublicationSchema, parseBetaPolicyScreeningPublicati
   screeningTerminalCandidateStates, type BetaPolicyScreeningPublication } from "./betaPolicyScreeningContract";
 import type { TaskItemInventoryRecord } from "./taskItemInventory";
 import { isTaskFamilyStrategy, preparationPhaseMatchesTask } from "./taskFamilySceneIntake";
-import { assertWebsiteRunOpen } from "./websiteRunClosure";
+import { assertWebsiteRunOpen, websiteRunClosure } from "./websiteRunClosure";
 
 const controlId = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$/);
 const controlSha = z.string().regex(/^sha256:[a-f0-9]{64}$/);
@@ -149,7 +149,11 @@ export async function observeBetaScreeningExecutionControl(request: BetaScreenin
       new_execution_authorized: false as const, read_only_closeout_allowed: true as const,
       applicability: stopReason ? "historical_only" as const : "current" as const };
     const control = executionControlSchema.parse({ ...value, control_digest: crossRuntimeDigest(value) });
-    transaction.set(runRef, { screening_execution_controls: { ...controls, [controlKey]: control } }, { mergeFields: ["screening_execution_controls"] });
+    const ownerClosed = stopReason === "website_run_closed_by_owner";
+    const campaignCancelled = ownerClosed || stopReason === "screening_run_cancelled";
+    const update = { screening_execution_controls: { ...controls, [controlKey]: control },
+      ...(campaignCancelled ? { cancellationRequested: true, ...(ownerClosed ? { state: "closed" } : {}) } : {}) };
+    transaction.set(runRef, update, { mergeFields: Object.keys(update) });
     return control;
   });
 }
@@ -222,6 +226,7 @@ export async function ingestBetaPolicyScreening(publication: BetaPolicyScreening
       inventory: inventory.exists ? inventory.data() as TaskItemInventoryRecord : null,
       sourceSession: await readManagedJobSourceSession(job.data(), ref => transaction.get(ref)) });
     assertScreeningSceneSource(publication, intake, scope);
+    const ownerClosed = Boolean(websiteRunClosure(job.data(), jobId, publication.source.capture_id));
     if (oldRun.exists || oldResult.exists) {
       const previous = oldResult.exists ? parseBetaPolicyScreeningPublication(publicationFromResultRecord(oldResult.data()!)) : null;
       if (!previous || oldRun.data()?.run_kind !== "beta_policy_screening"
@@ -239,8 +244,10 @@ export async function ingestBetaPolicyScreening(publication: BetaPolicyScreening
       publication_storage: encodeTaskEvaluationRunPublication(publication) });
     transaction.set(runRef, { ...(oldRun.data()?.screening_execution_controls !== undefined
       ? { screening_execution_controls: oldRun.data()!.screening_execution_controls } : {}),
-      ...(oldRun.data()?.cancellationRequested === true ? { cancellationRequested: true } : {}),
-      run_id: publication.campaign_id, run_kind: "beta_policy_screening", state: publication.status,
+      ...(oldRun.data()?.cancellationRequested === true || ["cancelled", "closed"].includes(oldRun.data()?.state) || ownerClosed
+        ? { cancellationRequested: true } : {}),
+      run_id: publication.campaign_id, run_kind: "beta_policy_screening",
+      state: ["cancelled", "closed"].includes(oldRun.data()?.state) ? oldRun.data()!.state : ownerClosed ? "closed" : publication.status,
       owner_user_id: intake.request.owner.user_id, team_namespace: scope.teamNamespace,
       source_scene_intent_id: publication.source.scene_intent_id, source_scene_intake_id: intakeRef.id,
       source_scene_revision_digest: publication.source.scene_revision_digest, configuration_digest: publication.plan_digest,
