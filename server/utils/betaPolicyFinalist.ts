@@ -7,7 +7,7 @@ import { parseBetaPolicyScreeningPublication, type BetaPolicyScreeningPublicatio
 import { publicationFromResultRecord } from "./taskEvaluationRunPublicationStorage";
 import { managedJobTask, assertManagedScreeningCaptureCurrent, readManagedJobSourceSession, readManagedScreeningCapture } from "./jobManagedEvaluation";
 import { reservationTtlMs } from "./agentRunRecord";
-import { TEAM_EVALUATION_PROVIDER_CAP_USD } from "./teamEvaluationSelection";
+import { MAX_FREE_SPONSOR_CAP_USD } from "./freeBeta";
 import { resolveExecutionAccessContext } from "./access-control";
 import type { Response } from "express";
 import type { TaskItemInventoryRecord } from "./taskItemInventory";
@@ -21,7 +21,7 @@ export const finalistRequestSchema = z.object({
 }).strict();
 export type FinalistRequest = z.infer<typeof finalistRequestSchema>;
 export const finalistApprovalSchema = z.object({
-  episodes: z.literal(200), sponsorCapUsd: z.number().finite().positive().max(TEAM_EVALUATION_PROVIDER_CAP_USD),
+  episodes: z.literal(200), sponsorCapUsd: z.number().finite().positive().max(MAX_FREE_SPONSOR_CAP_USD),
   expiresAtIso: z.string().datetime(), maxAttempts: z.literal(1), evidenceScope: z.literal("development_only"),
 }).strict();
 export const admitFinalistSchema = finalistApprovalSchema.extend({ finalistId: id, planDigest: digest }).strict();
@@ -67,7 +67,7 @@ export function parseFinalistReceipt(value: unknown, record: Record<string, any>
     || raw.source_fingerprint !== request.source_fingerprint || raw.candidate_id !== request.candidate_id
     || raw.episodes !== 200 || raw.recommendation_eligible !== false
     || typeof raw.maximum_planned_cost_usd !== "string" || !/^(0|[1-9][0-9]*)(\.[0-9]{1,6})?$/.test(raw.maximum_planned_cost_usd)
-    || !(Number(raw.maximum_planned_cost_usd) > 0 && Number(raw.maximum_planned_cost_usd) <= TEAM_EVALUATION_PROVIDER_CAP_USD)
+    || !(Number(raw.maximum_planned_cost_usd) > 0 && Number(raw.maximum_planned_cost_usd) <= MAX_FREE_SPONSOR_CAP_USD)
     || crossRuntimeDigest(raw.source) !== crossRuntimeDigest(record.finalist_source)
     || !["awaiting_owner_authority", "authorized", "preparing", "launching", "queued", "running", "completed", "blocked", "reconciliation_required"].includes(raw.state))
     throw new Error("finalist_receipt_binding_invalid");

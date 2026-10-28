@@ -14,7 +14,7 @@ import { parseBetaPolicyScreeningPublication } from "./betaPolicyScreeningContra
 import { assertWebsiteCaptureBindingInTransaction, resolveWebsiteCaptureBinding } from "./websiteCaptureBinding";
 import { isTaskFamilyStrategy, preparationPhaseMatchesTask } from "./taskFamilySceneIntake";
 import { reservationTtlMs } from "./agentRunRecord";
-import { TEAM_EVALUATION_PROVIDER_CAP_USD } from "./teamEvaluationSelection";
+import { MAX_FREE_SPONSOR_CAP_USD } from "./freeBeta";
 
 export const jobManagedEvidenceBindingSchema = z.object({
   job_id: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$/),
@@ -194,8 +194,8 @@ export function projectManagedJobEvidence(
       candidateId: String(run.finalist_request?.candidate_id ?? ""),
       planDigest: typeof run.finalist_preparation?.plan_digest === "string" ? run.finalist_preparation.plan_digest : null,
       episodes: 200 as const, approvalPending: run.finalist_state === "awaiting_owner_authority" && !run.finalist_authority,
-      approvalCapUsd: TEAM_EVALUATION_PROVIDER_CAP_USD,
-      minimumCapUsd: Number(run.finalist_preparation?.maximum_planned_cost_usd ?? TEAM_EVALUATION_PROVIDER_CAP_USD),
+      approvalCapUsd: MAX_FREE_SPONSOR_CAP_USD,
+      minimumCapUsd: Number(run.finalist_preparation?.maximum_planned_cost_usd ?? MAX_FREE_SPONSOR_CAP_USD),
       approvalTtlMs: reservationTtlMs(),
     } } : {}),
   };
