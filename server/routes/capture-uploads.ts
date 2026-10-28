@@ -24,6 +24,7 @@ import { verifyProducerArtifact } from "../utils/producerCanonicalArtifact";
 import { resolveAccessContext } from "../utils/access-control";
 import { scientificBriefDigest, jobEvidenceTaskInventoryDigest } from "../utils/jobEvidenceContract";
 import { projectWebsiteCaptureRights } from "../utils/websiteTaskContext";
+import { currentCaptureTestbedAccess } from "../utils/currentCaptureTestbedAccess";
 import {
   parseVerifiedTaskEvaluationRunAuthorization,
   parseVerifiedTaskEvaluationRunPreparation,
@@ -1444,10 +1445,25 @@ router.post("/:sessionId/testbed/compile", async (req, res) => {
 router.get("/:sessionId/testbed", async (req, res) => {
   const user = authenticatedUser(res);
   if (!user.uid) return res.status(401).json({ error: "Missing authenticated user" });
-  const result = await readOwnedSession(req.params.sessionId, user.uid);
-  if (!result.record) return res.status(result.status).json({ error: "Capture upload not found" });
-  const projection = siteTaskTestbedProjection(result.record);
   res.set("Cache-Control", "no-store");
+  if (!db) return res.status(503).json({ error: "Capture testbed store is unavailable" });
+  let current: { record: SessionRecord; access: Awaited<ReturnType<typeof currentCaptureTestbedAccess>> } | null;
+  try {
+    current = await db.runTransaction(async transaction => {
+      const snapshot = await transaction.get(db!.collection("captureUploadSessions").doc(req.params.sessionId));
+      const record = snapshot.data() as SessionRecord | undefined;
+      if (!snapshot.exists || !record || record.owner_user_id !== user.uid) return null;
+      const access = await currentCaptureTestbedAccess(record, record.pipeline_site_task_testbed,
+        (collection, id) => transaction.get(db!.collection(collection).doc(id)));
+      return { record, access };
+    });
+  } catch { return res.status(503).json({ error: "Capture testbed store is unavailable" }); }
+  if (!current) return res.status(404).json({ error: "Capture upload not found" });
+  if (current.access === "processing_denied") return res.status(410).json({
+    error: "Current capture processing permission has ended", code: "capture_testbed_processing_denied" });
+  if (current.access === "source_mismatch") return res.status(409).json({
+    error: "Current job source binding does not match", code: "capture_testbed_source_changed" });
+  const projection = siteTaskTestbedProjection(current.record);
   if (projection.summary.state === "not_available") {
     return res.status(404).json({ error: "Maintained Site-Task Testbed is not available" });
   }
@@ -1459,8 +1475,8 @@ router.get("/:sessionId/testbed", async (req, res) => {
   }
   return res.status(200).json({
     schema_version: "capture_site_task_testbed_inspection.v1",
-    session_id: result.record.session_id,
-    intake_id: result.record.request.intake_id,
+    session_id: current.record.session_id,
+    intake_id: current.record.request.intake_id,
     status: "testbed_ready",
     artifact_reference: projection.summary.artifact_reference,
     testbed: projection.testbed,
