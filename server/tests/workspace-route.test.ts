@@ -9,6 +9,8 @@ import { PRIVACY_VERSION, TERMS_VERSION } from "../../client/src/lib/legalAccept
 import { buildLegalAcceptanceRecord } from "../../client/src/lib/legalAcceptance";
 import { syntheticQualifiedRun } from "./helpers/recommendation-evidence";
 import { deploymentCatalogWithDigest } from "../../client/src/lib/deploymentEmbodimentSupport";
+import configurationFixture from "./fixtures/deployment-embodiment/configuration-preflight.v1.json";
+import { dreamRobotFixture } from "./helpers/dream-robot";
 const state = vi.hoisted(() => ({
   records: new Map<string, any>(),
   messages: vi.fn(),
@@ -684,6 +686,60 @@ describe("workspace requests and lifecycle", () => {
     expect((await (await api("/", "robot-2")).json()).setups).toEqual([]);
     await api("/setups/setup-1", "robot-2", undefined, "DELETE");
     expect(state.records.has("users/robot-1/robotSetups/setup-1")).toBe(true);
+  });
+  it("lets existing Ops configure only their own integration without changing account type or opening private jobs", async()=>{
+    state.records.set("users/operator",{role:"ops",name:"Operator"});
+    const saved=await api("/setups","operator",setup);
+    expect(saved.status).toBe(200);
+    expect(await (await api("/setups","operator")).json()).toMatchObject({setups:[{id:setup.id}]});
+    expect(await (await api("/setups","robot-1")).json()).toEqual({setups:[]});
+    expect((await api("/","operator")).status).toBe(403);
+    expect(state.records.get("users/operator")).not.toHaveProperty("buyerType");
+    state.records.set("inboundRequests/task-1",task());
+    expect((await api("/evaluations","operator",{id:"ops-eval",opportunityId:"task-1",setupId:setup.id,notes:"",licenseToRun:true})).status).toBe(409);
+    expect(state.intakes).toHaveLength(0);
+    const unverified=await fetch(`${base}/setups`,{method:"POST",headers:{"x-user":"operator","x-unverified":"1","Content-Type":"application/json"},body:JSON.stringify(setup)});
+    expect(unverified.status).toBe(403);
+  });
+  it("lets Ops request private Blueprint-managed evidence under the site's grant while keeping team access private",async()=>{
+    state.records.set("users/operator",{role:"ops",name:"Blueprint operator"});
+    const privateJob={...task(),public_task_listing:{enabled:false},
+      request:{...task().request,pilotOpportunity:{requested:true,visibility:"private"},capture_mode:"self_capture",
+        consent_attestation:{granted:true,statement_version:"2026-09-18.v1",recorded_at_iso:"2026-10-01T00:00:00Z"}},
+      siteTaskGates:{sceneStability:"stable",taskShape:"single",objectVariety:"under_10",deploymentTimeline:"this_quarter",accessWindow:"scheduled"},
+      site_task_triage:{disposition:"qualified"},site_task_brief_confirmed_at:"2026-10-01T00:00:00Z",
+      pipeline:{artifacts:{worldlabs_world_manifest_uri:"gs://fixture/world.json"}},
+      evaluation_readiness:{runtime_launchable:true,benchmark_coverage_status:"ready",rights_review_status:"cleared"}};
+    state.records.set("inboundRequests/task-1",privateJob);
+    const ownSetup={...setup,delivery:"endpoint",reference:"https://policy.test/action",robotEmbodiment:configurationFixture.request.robot_embodiment};
+    expect((await api("/setups","operator",ownSetup)).status).toBe(200);
+    state.records.set("robotTeams/ops-team",{accountUid:"operator"});
+    state.records.set("robotCheckpoints/selected",{checkpointId:"selected",teamId:"ops-team",runtime:"policy_endpoint",reference:ownSetup.reference,
+      policyCredential:{kind:"bearer",ref:"credential",expiresAtIso:"2100-01-01T00:00:00Z"}});
+    const request={id:"private-eval",opportunityId:"task-1",setupId:setup.id,checkpointId:"selected",notes:"",licenseToRun:true};
+    expect((await api("/evaluations","operator",request)).status).toBe(201);
+    expect(state.intakes[0].metadata).toMatchObject({account_owner_uid:"operator",workspace_evaluation:{
+      opportunityId:"task-1",checkpointId:"selected",executionOrigin:"blueprint_managed"}});
+    expect(state.records.get("inboundRequests/task-1").public_task_listing).toEqual({enabled:false});
+    expect(state.notices).not.toHaveBeenCalledWith(expect.objectContaining({milestone:"pilot_request"}));
+    expect((await api("/evaluations","robot-1",{...request,id:"team-private"})).status).toBeGreaterThanOrEqual(400);
+    expect((await api("/evaluations","robot-1",{...request,id:"forged",executionOrigin:"blueprint_managed"})).status).toBe(400);
+    const policyConfig={policy_interface_id:"dreamlabs_dream1.v1",model_id:"account/model-v2",camera_roles:{overhead:"overview",wrist_l:"left_wrist",wrist_r:"right_wrist"}};
+    const dreamSetup={...ownSetup,reference:"https://api.dreamlabs.ai/v1/get_action",robotEmbodiment:dreamRobotFixture(),policyConfig};
+    expect((await api("/setups","operator",dreamSetup)).status).toBe(200);
+    const credentials={kind:"bearer",ref:"credential",expiresAtIso:"2100-01-01T00:00:00Z"};
+    state.records.set("robotCheckpoints/selected",{checkpointId:"selected",teamId:"ops-team",runtime:"policy_endpoint",reference:dreamSetup.reference,
+      policyConfig:{...policyConfig,model_id:"account/old-model"},policyCredential:credentials});
+    state.records.set("robotCheckpoints/current",{checkpointId:"current",teamId:"ops-team",runtime:"policy_endpoint",reference:dreamSetup.reference,policyConfig,policyCredential:credentials});
+    expect((await api("/evaluations","operator",{...request,id:"wrong-model"})).status).toBe(409);
+    expect((await api("/evaluations","operator",{...request,id:"correct-model",checkpointId:"current"})).status).toBe(201);
+    for(const change of [{consent_revoked:true},{workspace_task:{paused:true}},
+      {evaluation_readiness:{...privateJob.evaluation_readiness,rights_review_status:"needs_review"}},
+      {evaluation_readiness:{runtime_launchable:false}}]) {
+      state.records.set("inboundRequests/task-1",{...privateJob,...change});
+      expect((await api("/evaluations","operator",{...request,id:"changed-eval"})).status).toBe(409);
+    }
+    expect(state.intakes).toHaveLength(2);
   });
   it("keeps model descriptions private and prevents arbitrary runtime binding", async () => {
     const robotDescription={source:"model",format:"urdf",reference:"https://example.test/robot.urdf",mobility:"mobile",details:"Wrist camera"};

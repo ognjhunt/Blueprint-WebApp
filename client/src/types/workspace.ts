@@ -20,6 +20,7 @@ export type RobotSetup = {
   robotDescription?: RobotDescription;
   /** The team's own robot and cameras for evaluation; absent means the DROID Franka. */
   robotEmbodiment?: RobotEmbodiment;
+  nativePreflight?: import("./robotConfiguration").RobotConfigurationPreflight;
   policyConfig?: PolicyAdapter;
   executionBindingId?: string;
   id: string;

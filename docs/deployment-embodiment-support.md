@@ -1,4 +1,4 @@
-# Deployment embodiment planning support
+# Deployment embodiment configuration and planning
 
 Owner direction, October 21, 2026: keep deployment-company embodiment research,
 asset preparation, policy adapters and planning handoffs in Pipeline and internal
@@ -32,7 +32,43 @@ validation status, with hidden fields preserving its descriptor; customers can
 switch to their own model or an admitted native configuration. The forms expose
 no planning route picker, asset browser or shortlist export. An unchanged saved
 planning choice never acquires execution authority. Evaluation and checkpoint
-onboarding refuse it until an explicit validated execution configuration is used.
+onboarding refuse it until an explicit matching robot manifest is attached.
+
+Within a selected job, the existing `/admin/jobs` console also saves an actual
+robot configuration for any listed single-arm or paired variant. The saved
+manifest binds the self-contained USD URL/SHA, driven joints, controller and
+reset values, tool contacts, camera poses and action timing. V2 adds ordered,
+independent named grippers; paired arms require two channels. The existing JSON
+manifest upload in Settings remains available to technology teams without
+exposing the internal planning catalog.
+
+Save and validate calls the signed Pipeline native-preflight endpoint using
+only the operator's saved setup. The exact response is retained with that setup;
+its request digest binds the whole configuration, including cameras and controls.
+`configured_not_executed` is structural configuration evidence only. It grants
+no model rights, scene fit, runtime qualification, scientific pass or spending.
+Missing joints, models or interface inputs remain explicit limitations.
+
+The same job disclosure reuses checkpoint registration and its separate encrypted
+policy-token input. Choosing a checkpoint requests the normal free evaluation;
+the existing admission form still binds its exact policy, configuration license,
+qualified method, budget and expiry. A later different checkpoint is refused.
+Authenticated, verified Ops can use their own saved setup for Blueprint-managed
+evaluation of a private site job under its existing robot-evaluation permission.
+This does not publish a team card or grant third-party access. Pauses, withdrawal,
+rights holds, task support and proven scene readiness remain required at request
+and admission. Technology-team requests retain the existing card/access boundary.
+
+Pipeline must deploy the additive native-preflight/v2 runtime consumer before
+this WebApp consumer. No fresh provider execution or physical compatibility is
+established by the software fixtures.
+
+The existing Dream protocol settings also survive setup edits and checkpoint
+selection. Its v2 manifest can bind independent left/right joint groups and
+base/tool/TCP frames; the adapter separately requires its exact account model
+and three camera roles. A checkpoint for another model at the same endpoint is
+not interchangeable. These declarations still need the matching Pipeline
+adapter, licensed account access and actual runtime qualification.
 
 The downloaded portable JSON uses
 `deployment_embodiment_shortlist.v1`, has `claim_ceiling: "planning_only"`, and

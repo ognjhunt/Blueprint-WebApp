@@ -14,9 +14,10 @@ import {
   Tag,
   useAction,
 } from "@/components/workspace/WorkspaceUI";
-import { RobotDescriptionFields, readRobotDescription } from "@/components/workspace/RobotDescriptionFields";
-import { robotEmbodimentSchema, type RobotEmbodiment } from "@/types/robotEmbodiment";
-import { policyAdapterSchema, type PolicyAdapter } from "@/types/policyAdapter";
+import { RobotDescriptionFields, RobotEmbodimentFields, readRobotDescription, readRobotEmbodiment } from "@/components/workspace/RobotDescriptionFields";
+import type { RobotEmbodiment } from "@/types/robotEmbodiment";
+import { PolicyAdapterFields, readPolicyAdapter } from "@/components/workspace/PolicyAdapterFields";
+import type { PolicyAdapter } from "@/types/policyAdapter";
 import PolicyInterfaceGuide from "@/components/workspace/PolicyInterfaceGuide";
 import { CheckpointRegistration } from "@/components/workspace/CheckpointRegistration";
 import type { RobotSetup } from "@/types/workspace";
@@ -259,28 +260,15 @@ function WorkspaceSettings() {
                   setSetupError(error instanceof Error ? error.message : "Choose a robot and policy route.");
                   return;
                 }
-                // A declared robot is evaluated as itself; without one the policy drives the DROID Franka.
-                const manifestField = event.currentTarget.elements.namedItem("robotEmbodiment") as HTMLTextAreaElement | null;
                 let robotEmbodiment: RobotEmbodiment | undefined;
-                if (value("robotEmbodiment").trim()) {
-                  try {
-                    const parsed = robotEmbodimentSchema.safeParse(JSON.parse(value("robotEmbodiment")));
-                    if (!parsed.success) {
-                      const issue = parsed.error.issues[0];
-                      throw new Error(`${issue?.path.join(".") || "manifest"}: ${issue?.message ?? "invalid"}`);
-                    }
-                    robotEmbodiment = parsed.data;
-                  } catch (error) {
-                    manifestField?.setCustomValidity(`Robot manifest ${error instanceof SyntaxError ? "is not valid JSON" : `— ${(error as Error).message}`}`);
-                    manifestField?.reportValidity();
-                    return;
-                  }
+                try { robotEmbodiment = readRobotEmbodiment(values); }
+                catch (error) {
+                  setSetupError(error instanceof Error ? error.message : "Enter the robot configuration.");
+                  return;
                 }
                 let policyConfig: PolicyAdapter | undefined;
-                if (value("policyConfig").trim()) {
-                  try { policyConfig = policyAdapterSchema.parse(JSON.parse(value("policyConfig"))); }
-                  catch { setSetupError("Check the Dream model ID and its three named camera roles."); return; }
-                }
+                try { policyConfig = readPolicyAdapter(values); }
+                catch (error) { setSetupError((error as Error).message); return; }
                 void action.perform(
                   "/setups",
                   {
@@ -354,41 +342,9 @@ function WorkspaceSettings() {
                   />
                 </Field>
               </div>
-              <details className="ws-section" open={editing !== "new" && Boolean(editing.robotEmbodiment)}>
-                <summary>Your own robot (optional)</summary>
-                <p className="ws-note">
-                  Leave empty to run your policy on Blueprint&rsquo;s simulated DROID Franka. To be evaluated on
-                  your own robot (an arm, two arms, a mobile manipulator or a wheeled or legged humanoid), paste
-                  its robot manifest (<code>blueprint.robot_embodiment.v1</code>): a USD model with its SHA-256;
-                  its base, <code>fixed</code> (it stands at the scene&rsquo;s robot station and must reach the job
-                  from there) or <code>free</code> (it starts on the floor facing the job, with its standing height,
-                  footprint, fall height and the feet or wheels it stands on); the joints your policy drives in
-                  action order, each by position or, for wheels, by velocity; your gripper&rsquo;s joints and contact
-                  links; your cameras; and your control rate (15, 30, 60 or 120 Hz). A robot the simulator cannot
-                  place is refused by name before anything runs.
-                </p>
-                <Field label="Robot manifest (JSON)" wide>
-                  <textarea
-                    name="robotEmbodiment"
-                    rows={8}
-                    maxLength={40000}
-                    spellCheck={false}
-                    onInput={(event) => event.currentTarget.setCustomValidity("")}
-                    defaultValue={editing !== "new" && editing.robotEmbodiment
-                      ? JSON.stringify(editing.robotEmbodiment, null, 2) : ""}
-                  />
-                </Field>
-              </details>
+              <RobotEmbodimentFields value={editing === "new" ? undefined : editing.robotEmbodiment} />
               <PolicyInterfaceGuide />
-              <details className="ws-section" open={editing !== "new" && Boolean(editing.policyConfig)}>
-                <summary>Dream API adapter</summary>
-                <Field label="Protocol settings (JSON)" wide>
-                  <textarea name="policyConfig" rows={5} maxLength={2000} spellCheck={false}
-                    defaultValue={editing !== "new" && editing.policyConfig ? JSON.stringify(editing.policyConfig, null, 2) : ""}
-                    placeholder={'{"policy_interface_id":"dreamlabs_dream1.v1","model_id":"dreamlabs/dream-1","camera_roles":{"overhead":"overview","wrist_l":"left_wrist","wrist_r":"right_wrist"}}'} />
-                </Field>
-                <p className="ws-note">Use the exact model ID available to your Dream account and camera names from your robot manifest. Save the token in Policy token.</p>
-              </details>
+              <PolicyAdapterFields value={editing === "new" ? undefined : editing.policyConfig} />
               <details className="ws-section">
                 <summary>Additional notes</summary>
                 <Field label="Notes">

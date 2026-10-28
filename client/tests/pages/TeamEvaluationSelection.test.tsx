@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import TeamEvaluationSelection from "@/pages/app/TeamEvaluationSelection";
 import { workspaceRequest } from "@/lib/workspace";
+import robotFixture from "../../../server/tests/fixtures/deployment-embodiment/configuration-preflight.v1.json";
 const user={uid:"owner"};
 vi.mock("wouter",()=>({useParams:()=>({sourceLaunchId:"source-one"}),Link:({children,href}:any)=><a href={href}>{children}</a>}));
 vi.mock("@/contexts/AuthContext",()=>({useAuth:()=>({currentUser:user})}));
@@ -10,6 +11,7 @@ vi.mock("@/lib/firebaseAuthHeaders",()=>({withFirebaseAuthHeaders:async(_u:any,h
 vi.mock("@/components/blueprint/app/OfferingThumbnail",()=>({OfferingThumbnail:()=> <img alt="Job preview"/>}));
 vi.mock("@/lib/csrf",()=>({withCsrfHeader:async(h:any)=>h}));
 vi.mock("@/lib/workspace",()=>({workspaceRequest:vi.fn(async()=>({}))}));
+vi.mock("@/components/workspace/CheckpointRegistration",()=>({CheckpointRegistration:()=> <p>Existing checkpoint registration</p>}));
 const context={taskDetails:{title:"Move the blue container",description:"Pick up the container and place it on the target.",requirements:[{label:"Time limit",value:"30 seconds"}]},
   thumbnailUrl:"/api/task/thumbnail",dataSummary:{sceneVersion:"v1",sceneRevisionDigest:"revision",bundleSizeBytes:1024},
   checkout:{priceCents:0,currency:"USD",developmentNoCharge:true,paymentsEnabled:false},sourceLaunchId:"source-one",sourceProfileDigest:"profile",sceneRevisionDigest:"revision",
@@ -35,6 +37,29 @@ async function select() {
   fireEvent.click(screen.getByRole("checkbox"));
 }
 describe("team evaluation choice",()=>{
+  it("requests the real source job with an explicit own-robot checkpoint instead of fabricating a frozen configuration",async()=>{
+    const original=context.setups;
+    const custom={...original[0],delivery:"endpoint",reference:"https://policy.fixture/actions",robotEmbodiment:robotFixture.request.robot_embodiment,
+      robotDescription:{source:"model",format:"usd",reference:robotFixture.request.robot_embodiment.model.url,mobility:"fixed",details:""}};
+    context.setups=[custom] as any;Object.assign(context,{opportunityId:"actual-job"});
+    vi.mocked(workspaceRequest).mockImplementation(async(_user,path)=>path==="/checkpoints"?{checkpoints:[{
+      checkpointId:"chosen-checkpoint",reference:custom.reference,runtime:"policy_endpoint",label:"Exact checkpoint",status:"registered",tokenExpiresAtIso:"2100-01-01T00:00:00Z",
+    }]}:{});
+    try {
+      render(<TeamEvaluationSelection/>);await screen.findByText("My saved robot · GR00T");
+      fireEvent.change(screen.getByLabelText("Saved robot and policy"),{target:{value:"saved-one"}});
+      await screen.findByRole("option",{name:"Exact checkpoint · registered"});
+      fireEvent.change(screen.getByLabelText("Registered policy checkpoint"),{target:{value:"chosen-checkpoint"}});
+      fireEvent.click(screen.getByRole("checkbox"));
+      fireEvent.submit(screen.getByRole("button",{name:"Request free evaluation"}).closest("form")!);
+      await screen.findByRole("heading",{name:"Evaluation requested"});
+      expect(workspaceRequest).toHaveBeenCalledWith(user,"/evaluations","POST",expect.objectContaining({
+        opportunityId:"actual-job",setupId:"saved-one",checkpointId:"chosen-checkpoint",licenseToRun:true,
+      }));
+      expect(posts).toHaveLength(0);
+      expect(workspaceRequest).not.toHaveBeenCalledWith(user,"/setups","POST",expect.objectContaining({executionBindingId:expect.anything()}));
+    } finally {context.setups=original;delete (context as any).opportunityId;vi.mocked(workspaceRequest).mockResolvedValue({});}
+  });
   it("requires explicit selection and saves the executable setup before queueing",async()=>{
     render(<TeamEvaluationSelection/>);await select();
     fireEvent.submit(screen.getByRole("button",{name:"Start free evaluation"}).closest("form")!);

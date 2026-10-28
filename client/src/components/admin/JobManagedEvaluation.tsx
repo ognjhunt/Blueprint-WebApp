@@ -73,6 +73,7 @@ export function JobManagedEvaluation({ currentUser, jobId, briefDigest }: {
     {runHref ? <p><Link href={runHref}>Open the run status and its exact results →</Link></p> : <>
       {offerings.map(offering => <div key={offering.source_launch_id} className="space-y-2">
         <p className="text-sm">{offering.next_action}</p>
+        <p className="text-sm"><Link href={`/app/packs/${encodeURIComponent(offering.source_launch_id)}/evaluate?select=team&job=${encodeURIComponent(jobId)}`}>Use a saved robot and registered policy for this job</Link></p>
         {offering.availability === "available" ? <button type="button" className="ws-secondary"
           disabled={busy} onClick={() => void choose(offering.source_launch_id)}>Use this job's policy setup</button>
           : offering.diagnostic_only ? <p className="text-sm">This scene currently supports a diagnostic canary only; it cannot supply a qualified evaluation result.</p> : null}

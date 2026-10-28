@@ -234,10 +234,11 @@ async function admissionCandidate(id: string, record: Record<string, any>, job: 
       // A team evaluation runs only an authenticated HTTPS policy: those come first, so the
       // form's default is one admission accepts.
       const blockerOf = (checkpoint: Record<string, any>) =>
-        offersTeamEvaluation(job) ? teamPolicyBlocker(checkpoint, { robotEmbodiment, robotDescription }) : null;
+        selection.executionOrigin === "blueprint_managed" || offersTeamEvaluation(job) ? teamPolicyBlocker(checkpoint, { robotEmbodiment, robotDescription }) : null;
       const matching = (await listCheckpoints(team.teamId))
         .filter((checkpoint) => checkpoint.reference === setup.reference
-          && samePolicyAdapter(checkpoint.policyConfig, policyConfig) && checkpoint.status !== "retired")
+          && samePolicyAdapter(checkpoint.policyConfig, policyConfig) && checkpoint.status !== "retired"
+          && (!selection.checkpointId || checkpoint.checkpointId === selection.checkpointId))
         .sort((a, b) => Number(Boolean(blockerOf(a))) - Number(Boolean(blockerOf(b))));
       teamBlocker = teamBlocker || (matching.length ? blockerOf(matching[0]) : null);
       matchingCheckpoints = matching.map((checkpoint) => ({ checkpointId: checkpoint.checkpointId, label: checkpoint.label,

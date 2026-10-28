@@ -9,6 +9,7 @@ import { SiteMeasurementsConsole } from "@/components/admin/SiteMeasurementsCons
 import { AccountDeletionQueue } from "@/components/admin/AccountDeletionQueue";
 import { DeploymentEmbodimentShortlist } from "@/components/workspace/DeploymentEmbodimentShortlist";
 import { JobWorkflowPanel } from "@/components/admin/JobWorkflowPanel";
+import { JobRobotConfiguration } from "@/components/admin/JobRobotConfiguration";
 import { useAuth } from "@/contexts/AuthContext";
 import { withCsrfHeader } from "@/lib/csrf";
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
@@ -177,6 +178,8 @@ function JobDetail({ requestId, onClose }: { requestId: string; onClose: () => v
           <SiteMeasurementsConsole requestId={requestId} currentUser={api.currentUser} />
           <JobWorkflowPanel key={requestId} requestId={requestId} currentUser={api.currentUser} onChanged={() => queryClient.invalidateQueries({ queryKey: ["admin-job-console"] })} />
           <RobotFitConsole key={requestId} requestId={requestId} currentUser={api.currentUser} />
+          <JobRobotConfiguration key={`robot-${requestId}`} jobId={requestId}
+            onRequested={() => { void queryClient.invalidateQueries({ queryKey: ["admin-job-console"] }); }} />
 
           <div>
             <h3 className="runway-rule-head runway-meta">Evaluation requests</h3>
