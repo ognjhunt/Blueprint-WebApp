@@ -4,6 +4,7 @@ import { sharedFakeFirestoreState } from "./helpers/fake-firestore";
 vi.mock("../../client/src/lib/firebaseAdmin", async () => ({ dbAdmin: (await import("./helpers/fake-firestore")).sharedFakeFirestore, storageAdmin: null }));
 import { SiteAssessmentBudget, normalizeSiteAssessmentUsage } from "../agents/adapters/site-assessment-budget";
 import { reserveCaptureCoverageInference } from "../utils/captureCoverageInferenceBudget";
+import { ownerClosure } from "./fixtures/website-run-closure";
 import { browserPendingDecisionKey, type BrowserPending } from "../utils/websiteBrowserPending";
 import { inferenceProgrammeContextDigest } from "../utils/inferenceProgrammeAdmission";
 import { humanDecisionDigest } from "../utils/human-reply-admission";
@@ -26,6 +27,17 @@ function seed() {
     capture_privacy_source_bound_decision: { proceeded: true, capture_id: metadata.capture_id, producer_source: structuredClone(source) } });
 }
 beforeEach(() => { vi.restoreAllMocks(); sharedFakeFirestoreState.docs.clear(); vi.stubEnv("BLUEPRINT_OPENAI_AGENT_MAX_INFERENCE_COST_USD", "5"); seed(); });
+it("blocks a new inference call after owner closure without changing prior accounting", async () => {
+  const request = sharedFakeFirestoreState.docs.get("inboundRequests/one")!;
+  request.website_run_closures = { "walkthrough-one": ownerClosure("one") };
+  const before = structuredClone([...sharedFakeFirestoreState.docs]);
+  await expect(reserveCaptureCoverageInference("gemini-3.8-flash", metadata)).rejects.toThrow("website_run_closed_by_owner");
+  for (const [key, value] of before) expect(sharedFakeFirestoreState.docs.get(key)).toEqual(value);
+  for (const [key, value] of sharedFakeFirestoreState.docs) if (!before.some(([prior]) => prior === key)) {
+    expect(key).toMatch(/^durableDailyCaps\//);
+    expect(value.used).toBe(0);
+  }
+});
 describe("durable customer inference accounting without spending gates",()=>{
  const budgetPath=`captureCoverageReviews/budget-${humanDecisionDigest({capture_id:metadata.capture_id})}`;
  const read=(path:string):any=>sharedFakeFirestoreState.docs.get(path);

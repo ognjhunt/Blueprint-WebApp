@@ -123,6 +123,41 @@ async function status() {
 }
 
 describe("GET /api/site-task-brief/:token/status", () => {
+  it("closes an owner's run idempotently without confirming the brief or withdrawing the video", async () => {
+    const owner = savedRecording("published").token;
+    const before = structuredClone(sharedFakeFirestoreState.docs.get("inboundRequests/req-1")!);
+    const post = (body: unknown, credential = owner) => fetch(`${baseUrl}/api/site-task-brief/${credential}/run-closure`, {
+      method: "POST", headers: { "content-type": "application/json", cookie: "csrf_token=closure-test", "x-csrf-token": "closure-test" }, body: JSON.stringify(body),
+    });
+    expect((await fetch(`${baseUrl}/api/site-task-brief/${owner}/run-closure`, { method: "POST",
+      headers: { "content-type": "application/json" }, body: JSON.stringify({ decision: "conservative_abstention", confirmed: true }) })).status).toBe(403);
+    expect((await post({ decision: "conservative_abstention" })).status).toBe(400);
+    const first = await post({ decision: "conservative_abstention", confirmed: true });
+    expect(first.status).toBe(200);
+    const accepted = await first.json();
+    expect(accepted).toMatchObject({ accepted: true, closure: { decision: "conservative_abstention", new_execution_authorized: false,
+      explicit_resume_required: true, physical_validation: false } });
+    expect(await (await post({ decision: "conservative_abstention", confirmed: true })).json()).toEqual(accepted);
+    const status = await (await fetch(`${baseUrl}/api/site-task-brief/${owner}/status`)).json();
+    expect(status.status).toMatchObject({ decision: "insufficient_evidence", headline: "Run closed with a conservative abstention",
+      operatorAction: null, outcome: { actionOwner: "blueprint", basis: "missing_evidence" } });
+    const after = sharedFakeFirestoreState.docs.get("inboundRequests/req-1")!;
+    expect(after.request).toEqual(before.request);
+    expect(after.site_task_brief_confirmed_at).toBe(before.site_task_brief_confirmed_at);
+    expect(enqueueOutbox).not.toHaveBeenCalled();
+    const film = createCaptureUploadToken({ requestId: "req-1", captureId: "walkthrough-req-1", sceneId: "site-req-1", scope: "film" });
+    const filmStatus = await (await fetch(`${baseUrl}/api/site-task-brief/${film}/status`)).json();
+    expect(JSON.stringify(filmStatus)).not.toMatch(/bp-close-|Run closed with a conservative abstention/);
+  });
+
+  it("refuses a film-only closure before changing any run", async () => {
+    const film = createCaptureUploadToken({ requestId: "req-1", captureId: "walkthrough-req-1", sceneId: "site-req-1", scope: "film" });
+    const response = await fetch(`${baseUrl}/api/site-task-brief/${film}/run-closure`, { method: "POST",
+      headers: { "content-type": "application/json", cookie: "csrf_token=closure-test", "x-csrf-token": "closure-test" }, body: JSON.stringify({ decision: "conservative_abstention", confirmed: true }) });
+    expect(response.status).toBe(403);
+    expect(sharedFakeFirestoreState.docs.get("inboundRequests/req-1")).not.toHaveProperty("website_run_closures");
+  });
+
   it("PREP-UI-001 shows verified preparation failure through the customer handler", async () => {
     sharedFakeFirestoreState.docs.set("captureUploadSessions/cap-1", { website_preparation: { selector: {} } });
     const before = structuredClone([...sharedFakeFirestoreState.docs]);

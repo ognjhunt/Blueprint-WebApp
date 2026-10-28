@@ -9,7 +9,10 @@
  * the one line that must never appear: a decision the Pipeline gap means we
  * cannot stand behind.
  */
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+vi.mock("../../client/src/lib/firebaseAdmin", () => ({ dbAdmin: null }));
+import { projectWebsiteRunClosure } from "../utils/websiteRunClosure";
+import { ownerClosure } from "./fixtures/website-run-closure";
 
 import {
   projectTaskStatus,
@@ -27,6 +30,15 @@ function base(overrides: Partial<Parameters<typeof projectTaskStatus>[0]> = {}) 
     ...overrides,
   };
 }
+
+it("keeps owner closure above stale preparation progress and confirmation while preserving withdrawal", () => {
+  const outcome = projectWebsiteRunClosure({ website_run_closures: { "walkthrough-req1": ownerClosure() } }, "req1", "walkthrough-req1");
+  const input = base({ briefDrafted: true, briefConfirmed: false, scenePreviewReady: true,
+    screening: { teams: 1, queued: 1, running: 0, reported: 0, noResult: 0 }, ownerClosureOutcome: outcome });
+  expect(projectTaskStatus(input)).toMatchObject({ decision: "insufficient_evidence",
+    headline: "Run closed with a conservative abstention", operatorAction: null, outcome });
+  expect(projectTaskStatus({ ...input, consentRevoked: true }).headline).toMatch(/withdrawn/i);
+});
 
 describe("a persisted preview preparation failure", () => {
   const failed = () => base({ briefDrafted: true, briefConfirmed: true,

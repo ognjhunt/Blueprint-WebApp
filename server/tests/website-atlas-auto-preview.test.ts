@@ -3,6 +3,7 @@ import express from "express";
 import { createServer, type Server } from "node:http";
 import { createHash, createHmac } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { ownerClosure } from "./fixtures/website-run-closure";
 
 vi.mock("../utils/captureFootageReview", () => ({ buildCaptureFootageReviewer: vi.fn() }));
 vi.mock("../utils/taskLifecycleNotifications", () => ({ enqueueTaskLifecycleNotification: vi.fn(), reconstructionIsViewable: vi.fn() }));
@@ -37,7 +38,7 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => {
   } };
 });
 
-import { loadWebsiteAtlasConfiguration, reserveWebsitePreparationSpend } from "../utils/websiteSceneSponsorship";
+import { loadWebsiteAtlasConfiguration, reserveWebsitePreparationSpend, settleWebsitePreparationSpend } from "../utils/websiteSceneSponsorship";
 import { websitePreparationAccounting } from "../utils/websitePreparationAccounting";
 import { humanDecisionDigest } from "../utils/human-reply-admission";
 import { projectWebsiteCaptureRights, projectWebsiteTaskContext } from "../utils/websiteTaskContext";
@@ -402,6 +403,31 @@ describe("non-authorizing Atlas configuration read", () => {
 });
 
 describe("Atlas reservations under an automatic grant", () => {
+  it("fences new and reused admissions after owner closure while retaining the grant and prior ledger", async () => {
+    vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_GRANT_POLICY_JSON", JSON.stringify(policy));
+    upload();
+    await configure();
+    await reserveWebsitePreparationSpend("req1", atlasSpend());
+    const record = store.rows.get(REQUEST);
+    record.website_run_closures = { "walkthrough-req1": ownerClosure() };
+    const before = structuredClone(record);
+    await expect(reserveWebsitePreparationSpend("req1", atlasSpend())).rejects.toThrow("website_run_closed_by_owner");
+    await expect(reserveWebsitePreparationSpend("req1", atlasSpend({ allocation_binding_digest: sha("2") })))
+      .rejects.toThrow("website_run_closed_by_owner");
+    expect(store.rows.get(REQUEST)).toEqual(before);
+  });
+  it("still settles a previously admitted call after closure without reopening the run", async () => {
+    upload();
+    const record = store.rows.get(REQUEST);
+    const closed = ownerClosure();
+    record.website_run_closures = { "walkthrough-req1": closed };
+    record.website_preparation_reservations = { ["f".repeat(64)]: { admission: { provider: "openai",
+      resource_class: "openai_api_candidate", task_context_digest: contextDigest(), request_count: 1, maximum_cost_usd: 0.5 } } };
+    const result = await settleWebsitePreparationSpend("req1", { provider: "openai", task_context_digest: contextDigest(),
+      allocation_binding_digest: sha("f"), completed_request_count: 1, provider_charge_amount_usd: 0.1, usage_receipt_digest: sha("e") });
+    expect(result).toMatchObject({ status: "settled", actual_cost_usd: 0.1 });
+    expect(record.website_run_closures["walkthrough-req1"]).toEqual(closed);
+  });
   it("admit Atlas spend within the grant without a sponsorship or the preparation assessment, and never create one", async () => {
     vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_GRANT_POLICY_JSON", JSON.stringify(policy));
     upload();

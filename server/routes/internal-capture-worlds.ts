@@ -31,6 +31,7 @@ import { getBrief, TASK_BRIEFS_COLLECTION, type SiteTaskBriefRecord } from "../u
 import { TASK_ITEM_INVENTORY_COLLECTION, type TaskItemInventoryRecord } from "../utils/taskItemInventory";
 import { countsTowardTask, loadWebsiteCaptureRights, loadWebsiteTaskInventory, projectWebsiteCaptureRights, projectWebsiteTaskContext } from "../utils/websiteTaskContext";
 import { assertWebsiteCaptureBindingInTransaction, resolveWebsiteCaptureBinding } from "../utils/websiteCaptureBinding";
+import { assertWebsiteRunOpen } from "../utils/websiteRunClosure";
 import { loadWebsiteSceneSponsorship, validateWebsiteSponsoredIntake,
   validateWebsiteSponsoredProviderTerms,
   preparationSpendRequest, reserveWebsitePreparationSpend,
@@ -512,6 +513,8 @@ router.post(
     }
     try {
       const captureBinding = await resolveWebsiteCaptureBinding(requestId, sceneId, req.params.captureId);
+      if (!db) return res.status(503).json({ code: "task_context_unavailable" });
+      assertWebsiteRunOpen((await db.collection("inboundRequests").doc(requestId).get()).data(), requestId, req.params.captureId);
       const brief = await getBrief(requestId);
       if (!brief) return res.status(404).json({ code: "task_brief_missing" });
       res.setHeader("Cache-Control", "no-store");
@@ -520,7 +523,7 @@ router.post(
         inventory, captureId: req.params.captureId, captureBinding, purpose: parsed.data.purpose }));
     } catch (error) {
       const code = error instanceof Error ? error.message : "";
-      if (code === "task_context_capture_mismatch" || code.startsWith("website_capture_binding_"))
+      if (code === "task_context_capture_mismatch" || code.startsWith("website_capture_binding_") || code.startsWith("website_run_"))
         return res.status(409).json({ code });
       return res.status(503).json({ code: "task_context_unavailable" });
     }

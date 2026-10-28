@@ -9,6 +9,7 @@ import { PRIVACY_VERSION, TERMS_VERSION } from "../../client/src/lib/legalAccept
 import { buildLegalAcceptanceRecord } from "../../client/src/lib/legalAcceptance";
 import { syntheticQualifiedRun } from "./helpers/recommendation-evidence";
 import { deploymentCatalogWithDigest } from "../../client/src/lib/deploymentEmbodimentSupport";
+import { ownerClosure } from "./fixtures/website-run-closure";
 const state = vi.hoisted(() => ({
   records: new Map<string, any>(),
   messages: vi.fn(),
@@ -327,6 +328,23 @@ describe("workspace access and projections", () => {
     preparation.read.mockClear();
     expect((await api("/tasks/task-1", "site-2")).status).toBe(404);
     expect(preparation.read).not.toHaveBeenCalled();
+    expect([...state.records]).toEqual(before);
+    expect(state.messages).not.toHaveBeenCalled();
+  });
+  it("shows an owner-closed run consistently in the authenticated workspace without advancing it", async () => {
+    state.records.set("inboundRequests/task-1", { ...task(), website_run_closures: {
+      "walkthrough-task-1": ownerClosure("task-1") } });
+    state.records.set("siteTaskBriefs/task-1", { requestId: "task-1", summary: "Task reading",
+      proposed: [], unresolved: [], captureMode: "self_capture", draftedFrom: ["observation"],
+      draftedAtIso: "2026-09-17T00:00:00Z", confirmedAtIso: null });
+    const before = structuredClone([...state.records]);
+    const response = await api("/tasks/task-1", "site-1");
+    expect(response.status).toBe(200);
+    const viewed = await response.json();
+    expect(viewed.readiness).toMatchObject({ decision: "insufficient_evidence", operatorAction: null,
+      headline: "Run closed with a conservative abstention", outcome: { actionOwner: "blueprint" } });
+    expect(viewed.status).toBe("Run closed with a conservative abstention");
+    expect((await api("/tasks/task-1", "site-2")).status).toBe(404);
     expect([...state.records]).toEqual(before);
     expect(state.messages).not.toHaveBeenCalled();
   });

@@ -1,5 +1,6 @@
 import { buildPolicyRunLicense } from "../utils/policyRunLicense";
 import { projectAtlasPreparationOutcome } from "../utils/taskPreparationOutcome";
+import { projectWebsiteRunClosure } from "../utils/websiteRunClosure";
 import { taskListingSchema, listingConsentVersion } from "../utils/taskListingDetails";
 import { updatePreferencesInputSchema } from "../../client/src/types/updatePreferences";
 import { buildUpdatePreferences, savedUpdatePreferences, bindVerifiedPreferenceAccount } from "../utils/updatePreferences";
@@ -697,6 +698,8 @@ async function hydrateTask(requestId: string, record: Record<string, any>) {
         footageReviewAutomated: isSiteVideoEvidenceEnabled(),
         scenePreviewReady,
         scenePreparationFailed: reconstruction?.state === "failed",
+        ownerClosureOutcome: !consentRevoked
+          ? projectWebsiteRunClosure(record, requestId, `walkthrough-${requestId}`) : null,
         preparationOutcome: !consentRevoked
           ? projectAtlasPreparationOutcome(selectWebsiteAtlasPreview(record, `walkthrough-${requestId}`)) : null,
         preparationStatus,
