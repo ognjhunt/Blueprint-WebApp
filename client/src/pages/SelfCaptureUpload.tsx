@@ -567,6 +567,13 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
   const accountHold = link.status === "held"
     && (link.holdReason === "site_account_required" || link.holdReason === "footage_before_account");
 
+  // Older status writers can still project optional corrections as a next
+  // step. A received, authorized source stays with Blueprint; real holds and
+  // bounded outcomes keep their own visible explanation.
+  const optionalCorrectionHint = saved && link.status === "valid" && !status?.outcome
+    && (status?.decision === "confirm_brief" || status?.decision === "add_views");
+  const preparationUpdate = "Blueprint is preparing your reconstruction.";
+
   // One current update. Saved jobs show it before results; a fresh capture
   // keeps the recorder first. Optional corrections do not become next steps.
   const statusCard = status && currentStatusKnown ? (
@@ -580,10 +587,11 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
     >
       <strong>{status.outcome ? status.headline : upload.status === "processing_pending" || upload.status === "held"
         ? "Your video is saved."
+        : optionalCorrectionHint ? preparationUpdate
         : existingVideoOnly && !saved && status.decision !== "add_views"
           ? "Your job is saved."
           : status.headline}</strong>
-      {status.operatorAction && (
+      {status.operatorAction && !optionalCorrectionHint && (
         <p className="ms-field-hint" style={{ margin: "8px 0 0" }}>
           {status.operatorAction}
         </p>
@@ -654,7 +662,9 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
 
       {(saved || link.status !== "valid") && statusCard}
       {saved && (link.status === "valid" || link.status === "held") && scope === "owner"
-        && <JobWorkspace token={token} preparationOutcome={status?.outcome} currentStatusKnown={currentStatusKnown} currentNextAction={status ? {text: status.operatorAction || status.headline, owner: status.operatorAction || status.decision === "confirm_brief" ? "site" : "blueprint"} : undefined} />}
+        && <JobWorkspace token={token} preparationOutcome={status?.outcome} currentStatusKnown={currentStatusKnown} currentNextAction={currentStatusKnown && status ? optionalCorrectionHint
+          ? {text: preparationUpdate, owner: "blueprint"}
+          : {text: status.operatorAction || status.headline, owner: status.operatorAction || status.decision === "confirm_brief" ? "site" : "blueprint"} : undefined} />}
 
       {isVideoUpdate && !saved && <p className="ms-field-hint" role="status">Film or upload a complete updated walkthrough. This updates the same job and keeps your original video.</p>}
       {/* A filming link opens the recorder; a held link explains its hold. */}

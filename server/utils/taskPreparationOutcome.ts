@@ -38,7 +38,7 @@ export function processingFailure(evidence?: {label: string; digest: string}): T
 function evidenceNeeded(reason: string, evidenceDigest: string, label: string): TaskOutcome {
   return { category: "insufficient_evidence", basis: "missing_evidence", title: "There is not enough evidence for a robot decision",
     reason, scope: "The current capture and task evidence. No robot incompatibility or qualified evaluation result has been established.",
-    nextStep: "Blueprint must review the saved evidence and identify the exact missing measurement, view or task fact. We will request only what is needed; do not record or upload the same video again.",
+    nextStep: "Blueprint will review the saved evidence and identify the exact missing measurement, view or task fact. We will continue the work this recording supports and report its limits here. Your recording stays saved; no repeat upload is needed.",
     actionOwner: "blueprint", evidence: [{ label, digest: evidenceDigest }] };
 }
 

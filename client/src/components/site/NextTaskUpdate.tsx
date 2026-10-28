@@ -2,7 +2,7 @@
 export function NextTaskUpdate(_props: { nextUpdateIso?: string | null }) {
   return (
     <p className="ms-field-hint" style={{ margin: "8px 0 0" }}>
-      Updates appear on this job page. Return here to check progress.
+      Blueprint will update this job as the work progresses.
     </p>
   );
 }
