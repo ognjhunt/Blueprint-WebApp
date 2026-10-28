@@ -6,7 +6,7 @@ import { scientificBriefDigest } from "./jobEvidenceContract";
 import { assertManagedScreeningCaptureCurrent, managedJobTask, readManagedJobSourceSession, readManagedScreeningCapture } from "./jobManagedEvaluation";
 import { SCENE_INTAKE_COLLECTION } from "./taskEvaluationSceneIntake";
 import { encodeTaskEvaluationRunPublication, publicationFromResultRecord } from "./taskEvaluationRunPublicationStorage";
-import { betaPolicyScreeningPublicationSchema, parseBetaPolicyScreeningPublication, screeningPublicationTransition,
+import { betaPolicyScreeningSourceSchema, parseBetaPolicyScreeningPublication, screeningPublicationTransition,
   screeningTerminalCandidateStates, type BetaPolicyScreeningPublication } from "./betaPolicyScreeningContract";
 import type { TaskItemInventoryRecord } from "./taskItemInventory";
 import { isTaskFamilyStrategy, preparationPhaseMatchesTask } from "./taskFamilySceneIntake";
@@ -19,7 +19,7 @@ const executionControlBindingSchema = z.object({
   campaign_id: controlId, site_id: controlId, plan_digest: controlSha, candidate_id: controlId,
   configuration_digest: controlSha, attempt_id: controlId, invocation_id: controlSha,
   prepared_digest: controlSha, authority_digest: controlSha, resource_name: controlId,
-  source: betaPolicyScreeningPublicationSchema.shape.source,
+  source: betaPolicyScreeningSourceSchema,
 }).strict();
 const executionControlRequestSchema = executionControlBindingSchema.extend({
   schema_version: z.literal("blueprint.beta_policy_screening_execution_control_request.v1"),

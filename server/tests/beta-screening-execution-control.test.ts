@@ -26,7 +26,7 @@ function resealIntake(intake: any) {
   intake.pipeline_status.request_digest = intake.request_digest;
   intake.pipeline_status.status_digest = crossRuntimeArtifactDigest(intake.pipeline_status, "status_digest");
 }
-async function seed(jobId = "job-one", campaignId = "campaign-one") {
+async function seed(jobId = "job-one", campaignId = "campaign-one", publicationVersion: "v1" | "v2" = "v2") {
   const fixture = screeningFixture();
   fixture.brief.requestId = jobId;
   const context = projectWebsiteTaskContext(fixture.brief, projectWebsiteCaptureRights(fixture.job));
@@ -41,7 +41,10 @@ async function seed(jobId = "job-one", campaignId = "campaign-one") {
   intake.receipt.intent_id = `scene-${jobId}`;
   intake.pipeline_status.intent_id = intake.receipt.intent_id;
   resealIntake(intake);
-  const publication = sealScreening({ ...fixture.publication, campaign_id: campaignId, site_id: context.scene_id,
+  const publication = sealScreening({ ...fixture.publication,
+    ...(publicationVersion === "v1" ? { schema_version: "beta_policy_screening_publication.v1" as const,
+      purpose: "screening" as const, claim_ceiling: "diagnostic_policy_execution" as const, recommendation_eligible: false as const } : {}),
+    campaign_id: campaignId, site_id: context.scene_id,
     source: { ...fixture.publication.source, scene_intent_id: intake.receipt.intent_id, capture_id: context.capture_id,
       task_id: intake.request.task.task_id, task_context_digest: context.context_digest } });
   store.state.docs.set(`inboundRequests/${jobId}`, fixture.job);
@@ -65,6 +68,16 @@ beforeEach(async () => {
 });
 afterEach(() => { vi.useRealTimers(); store.fail = false; });
 const controls = () => row("taskEvaluationPolicyRuns/campaign-one").screening_execution_controls;
+
+it.each(["v1", "v2"] as const)("joins execution control to the same exact source for publication %s", async version => {
+  store.state.docs.clear();
+  const seeded = await seed("job-one", "campaign-one", version);
+  expect(seeded.publication.schema_version).toBe(`beta_policy_screening_publication.${version}`);
+  const control = await observeBetaScreeningExecutionControl(seeded.request);
+  expect(control).toMatchObject({ status: "current", new_execution_authorized: false, binding: { source: seeded.publication.source } });
+  const changed = { ...seeded.request, source: { ...seeded.request.source, task_context_digest: screeningSha("9") } };
+  await expect(observeBetaScreeningExecutionControl(changed)).rejects.toThrow("screening_control_identity_conflict");
+});
 
 it("observes the exact existing attempt with only one control map write and no execution or budget grant", async () => {
   const before = structuredClone([...store.state.docs]), control = await observeBetaScreeningExecutionControl(fixture.request);
