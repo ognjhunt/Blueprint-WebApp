@@ -212,3 +212,19 @@ describe("Capture upload Pipeline forwarding", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });
+
+it('forwards a generation-bound native GCS source and admits current producer metadata without transmitting an owner credential',async()=>{
+  const fetchMock=vi.fn(async(_url:string,init:RequestInit)=>{
+    const payload=JSON.parse(String(init.body));
+    expect(payload.transfer).toMatchObject({provider:'firebase',authorization:'',generation:'1793207002780033'});
+    expect(payload.transfer.url).toMatch(/^gs:\/\/blueprint-8c1ca.appspot.com\//);
+    return new Response(JSON.stringify({...processingResult({capture_upload_received_at:'2026-10-28T18:00:00+00:00',
+      capture_profile_validation_status:'not_applicable_to_profile',capture_profile_validation_digest:null}),
+      task_evaluation_supervisor:{status:'held',physical_task_success_established:false}}),{status:200});
+  });vi.stubGlobal('fetch',fetchMock);
+  const result=await forwardCaptureUploadToPipeline({captureSessionId:'capture-session-1',customerId:'buyer-1',organizationId:'org-1',request,
+    transfer:{provider:'firebase',url:'gs://blueprint-8c1ca.appspot.com/operations/capture-uploads/buyer-1/capture-session-1/capture-session-1.mp4',
+      authorizationToken:'',generation:'1793207002780033',expiresAtIso:'2026-10-28T19:00:00.000Z'},
+    endpointUrl:'https://pipeline.example.test/capture-upload-intakes',token:'forward-secret'});
+  expect(result.status).toBe('forwarded');expect(result.receipt?.capture_profile_validation_status).toBe('not_applicable_to_profile');
+});

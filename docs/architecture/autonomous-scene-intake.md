@@ -8,14 +8,27 @@ not a claim that all seven checks have deployed or executed.
 
 ## User workflow
 
+Normal owner uploads follow the deployment's existing storage provider. Firebase
+uploads use the existing server-side part/compose helpers in a server-only
+`operations/capture-uploads` namespace, preserve immutable part generations and
+reconcile interrupted composition against actual bytes. The browser sends parts
+through the authenticated same-origin API. The completed source is read by
+Pipeline with its existing host credentials at one exact GCS generation; no
+owner token or new storage credential is forwarded. Backblaze retains its
+existing multipart and single-file transports. Source creation reports missing
+forwarding configuration before the file is uploaded. Neither storage completion
+nor a supervisor progress record upgrades the verified Capture QA result.
+
 `/app/captures` accepts normal video/360 uploads and explicitly typed
 `provided_scene_mesh` files (`usd`, `usda`, `usdc`, `glb`, `ply`). Meshes carry
 provided-geometry authority, never observed-capture or measured-physics truth.
-Meshes through 5 MiB use the existing B2 single-file upload adapter; larger
-files retain the existing multipart path. Video uploads retain their >5 MiB
-minimum. The small-file route binds actual server-received bytes and reconciles
-an ambiguous B2 upload using exact path, length, and provider SHA-1 before
-creating another version. Pipeline still performs storage-byte SHA-256,
+Videos and provided scenes through 5 MiB use their provider's existing bounded
+single-file adapter; larger files use multipart. The server declares the
+transport so short valid videos do not inherit a multipart minimum. The small-file
+route binds actual server-received bytes and reconciles an ambiguous B2 upload
+using exact path, length, and provider SHA-1 before creating another version;
+Firebase uses create-only writes and byte-identical generation reconciliation.
+Pipeline still performs storage-byte SHA-256,
 malware/content admission, and source validation. Neither upload path invents
 part receipts or scientific evidence.
 
@@ -164,3 +177,13 @@ privilege before signing delivery. Retrying an already retained command returns
 the original record without depending on catalog availability or refreshing its
 consent. Publisher installation and source preparation belong to the existing
 Pipeline controller after intake; catalog availability is not execution proof.
+
+### Source-specific inference bounds
+
+An intake may declare `governance.provider_constraints.automatic_model_inference_allowed=false`
+for deterministic source preparation. Pipeline then runs the existing supervisor
+with live agents disabled and a zero model budget, even when the service permits
+live inference for other captures. `external_processing_allowed=false` applies
+that same stricter bound. Neither flag grants provider, scene-build or policy
+execution authority. The non-secret Pipeline health view is also available at
+`/api/live-pipeline/health` through the canonical production route.
