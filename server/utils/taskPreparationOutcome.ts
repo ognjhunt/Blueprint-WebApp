@@ -53,6 +53,9 @@ export function projectAtlasPreparationOutcome(preview: WebsiteAtlasPreview | nu
   if (preview.state === "needs_input" && COVERAGE_REASONS.has(preview.reason ?? ""))
     return evidenceNeeded("The available source views did not establish enough scene coverage for this task.",
       preview.preview_digest, "Scene coverage finding");
+  if (preview.state === "needs_input" && preview.reason === "atlas_scene_requires_preserved_capture")
+    return evidenceNeeded("The scene-preparation plan could not preserve the captured objects required by this task.",
+      preview.preview_digest, "Scene preservation finding");
   if (preview.state === "needs_input" && TASK_REASONS.has(preview.reason ?? ""))
     return evidenceNeeded("The task subject and the captured objects could not be bound consistently without changing the observed scene.",
       preview.preview_digest, "Task subject finding");
