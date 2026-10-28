@@ -822,10 +822,10 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
               {scope === "owner" && link.status === "valid" && <section aria-label="Update job video" style={{ margin: "16px 0" }}>
                 <p className="ms-field-hint">Send a complete updated walkthrough, including any missing views. Your job and original video stay saved.</p>
                 <button type="button" className="ms-button" disabled={startingVideoUpdate}
-                  onClick={() => void updateVideo(status?.missingViews.length ? "additional_views" : "replacement")}>
+                  onClick={() => void updateVideo(status?.missingViews?.length ? "additional_views" : "replacement")}>
                   {startingVideoUpdate ? "Opening video update…" : "Update walkthrough"}
                 </button>
-                {Boolean(status?.missingViews.length) && <button type="button" className="ms-text-link" disabled={startingVideoUpdate}
+                {Boolean(status?.missingViews?.length) && <button type="button" className="ms-text-link" disabled={startingVideoUpdate}
                   style={{ marginLeft: "16px" }} onClick={() => void updateVideo("replacement")}>Upload a replacement walkthrough</button>}
                 {videoUpdateError && <p role="alert">{videoUpdateError}</p>}
               </section>}

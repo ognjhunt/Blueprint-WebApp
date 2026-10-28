@@ -81,7 +81,7 @@ test("owner can request an authorized assessment retry while keeping the saved r
   await expect(page.getByText("Your job brief is confirmed.", { exact: false })).toHaveCount(0);
 });
 
-test("returning owner keeps the received recording and gets fresh-job recovery guidance without new writes", async ({ page }, info) => {
+test("returning owner keeps the received recording and gets same-job update guidance without new writes", async ({ page }, info) => {
   const token = "retained-recording-fixture";
   const writes: string[] = [];
   await page.route("**/api/**", route => {
@@ -112,16 +112,14 @@ test("returning owner keeps the received recording and gets fresh-job recovery g
   await expect(page.getByText("Video received.", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Upload a new recording", exact: true })).toHaveCount(0);
   await expect(page.locator('input[type="file"]')).toHaveCount(0);
-  await expect(page.getByText(/This link keeps your original recording/)).toContainText(
-    "for help starting a new job with a complete walkthrough and fresh recording permission.");
-  await expect(page.getByText(/This link keeps your original recording/)).toContainText(
-    "Your existing job stays saved; the new job needs its own review before evaluation.");
-  const support = page.getByRole("link", { name: "contact Blueprint", exact: true });
-  await expect(support).toHaveAttribute("href", "mailto:hello@tryblueprint.io?subject=Help%20with%20a%20new%20capture%20job");
-  expect(await support.getAttribute("href")).not.toContain(token);
+  const update = page.getByRole("region", { name: "Update job video", exact: true });
+  await expect(update).toContainText("Send a complete updated walkthrough, including any missing views. Your job and original video stay saved.");
+  await expect(update.getByRole("button", { name: "Update walkthrough", exact: true })).toBeEnabled();
+  await expect(page.getByRole("link", { name: "contact Blueprint", exact: true })).toHaveCount(0);
+  await expect(page.getByText(/starting a new job|new job needs its own review/i)).toHaveCount(0);
   await expect(page.getByRole("region", { name: "Confirm your job brief", exact: true })).toBeVisible();
   await expect(page.getByText("Your job brief is confirmed.", { exact: false })).toHaveCount(0);
-  await page.screenshot({ path: info.outputPath("retained-recording-fresh-job-guidance.png"), fullPage: true });
+  await page.screenshot({ path: info.outputPath("retained-recording-same-job-guidance.png"), fullPage: true });
   // Neither returning nor reloading uploads bytes, grants new permission, or confirms the brief.
   expect(writes).toEqual([]);
 });
