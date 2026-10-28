@@ -140,7 +140,7 @@ it("retains correction lineage through actual free admission and signed failed-r
     capture_privacy_source_bound_decision: { proceeded: true, capture_id: PARENT, producer_source: parentSource },
   });
   state.docs.set(`captureUploadSessions/${PARENT}`, {
-    site_capture_bundle: { request_id: SITE, scene_id: SCENE },
+    site_capture_bundle: { request_id: SITE, scene_id: SCENE, capture_id: PARENT },
     immutable_upload_identity: { raw_bundle_digest: sha("a"), raw_manifest_uri: `gs://fixture/${PARENT}/manifest.json` },
   });
   const originalParent = structuredClone(doc(`captureUploadSessions/${PARENT}`));
@@ -168,14 +168,15 @@ it("retains correction lineage through actual free admission and signed failed-r
   expect(token).toMatchObject({ requestId: SITE, sceneId: SCENE, captureId: issued.captureId,
     supplement: { parent_capture_id: PARENT, parent_bundle_digest: sha("a") } });
   await validateCaptureSupplement(token);
-  await expect(validateCaptureSupplement({ ...token, requestId: "another-task" })).rejects.toThrow("supplement_parent_changed");
+  await expect(validateCaptureSupplement({ ...token, requestId: "another-task" })).rejects.toThrow("website_capture_binding_source_mismatch");
   expect(doc(`captureSupplements/${issued.captureId}`).parent_coverage.missing_coverage).toEqual(["Show the destination bin from above"]);
+  expect(doc(`captureSupplements/${issued.captureId}`).recording_scope).toBe("complete_walkthrough");
 
   // External boundary: a synthetic, already verified child publication. No
   // upload, privacy/model call, reconstruction, policy or provider ran here.
   const child = issued.captureId, childSource = { kind: "app_bundle", fixture_only: true, capture_id: child };
   state.docs.set(`captureUploadSessions/${child}`, {
-    fixture_only: true, site_capture_bundle: { request_id: SITE, scene_id: SCENE },
+    fixture_only: true, site_capture_bundle: { request_id: SITE, scene_id: SCENE, capture_id: child },
     immutable_upload_identity: { raw_bundle_digest: sha("c"), raw_manifest_uri: `gs://fixture/${child}/manifest.json` },
     pipeline_site_task_testbed: { testbed_id: "testbed-journey", version: "1", testbed_digest: sha("b"), testbed: {
       approved_task_definition: { approved_task_id: "pick-carton", task: { task_family: "pick_place" } },
@@ -183,7 +184,7 @@ it("retains correction lineage through actual free admission and signed failed-r
     } },
   });
   const task = doc(`inboundRequests/${SITE}`);
-  state.docs.set(`inboundRequests/${SITE}`, { ...task,
+  state.docs.set(`inboundRequests/${SITE}`, { ...task, active_capture_id: child,
     capture_privacy_source_bound_decision: { proceeded: true, capture_id: child, producer_source: childSource },
     pipeline: { capture_job_id: child, capture_id: child, artifacts: { worldlabs_world_manifest_uri: "gs://fixture/world.json" } },
     evaluation_readiness: { runtime_launchable: true, benchmark_coverage_status: "ready" },
@@ -192,10 +193,11 @@ it("retains correction lineage through actual free admission and signed failed-r
       episode_specs_sha256: sha("e"), policy_execution_profiles: ["controlled_observation_v1"] },
   });
   await recordCoverageFinding(SITE, child, { coversScene: true, missingCoverage: [], supplementWouldFinish: false,
-    confidence: .9, unreadableReasons: [], sourceCaptures: [{ capture_id: PARENT, bundle_digest: sha("a") }] },
+    confidence: .9, unreadableReasons: [] },
   { source: childSource, capture_id: child, brief_digest: humanDecisionDigest(brief) });
   expect(doc(`captureUploadSessions/${PARENT}`)).toEqual(originalParent);
-  expect(doc(`inboundRequests/${SITE}`).capture_coverage.source_captures[0].capture_id).toBe(PARENT);
+  expect(doc(`inboundRequests/${SITE}`).capture_coverage.capture_id).toBe(child);
+  expect(doc(`inboundRequests/${SITE}`).capture_coverage.source_captures).toBeUndefined();
   const created = await admitFreeWorkspaceEvaluation(APPLICATION, approval, "fixture-operator");
   expect(created.created).toBe(true);
   expect(await admitFreeWorkspaceEvaluation(APPLICATION, approval, "fixture-operator")).toEqual({ ...created, created: false });
