@@ -35,7 +35,6 @@ export type TaskLifecycleMilestone = Extract<
   | "preparation_needs_attention"
   | "preparation_ended"
   | "listing_live"
-  | "screening_cleared"
   | "screening_not_now"
   | "results_ready"
   | "run_no_result"
@@ -121,10 +120,6 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
     // A site that came in by link alone may have no account, so the account
     // workspace is not the way to hide it.
     body: (url) => `Partners approved for the beta can now see the job card you approved. It shows only the text and image you reviewed; your contact details, footage and scene stay private. You can hide it at any time: open your job from the link below and untick "Show this card in the job library". If the link has expired, the page will send you a fresh one.\n\nOpen your job:\n${url}`,
-  },
-  screening_cleared: {
-    subject: "Your job cleared our screen",
-    body: (url, detail) => `The reviewed information now clears the recorded assessment blocker. Blueprint can continue the useful, authorized investigation${detail ? ` ${detail}` : ""}.\n\nOpen your job:\n${url}`,
   },
   screening_not_now: {
     subject: "An update on your Blueprint job",

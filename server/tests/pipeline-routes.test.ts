@@ -1845,7 +1845,7 @@ describe("pipeline integration routes", () => {
       await stopServer(server);
     }
   });
-  it("invites the operator to claim the site once it enters supply", async () => {
+  it("accepts scene attachments without demanding an account claim", async () => {
     process.env.PIPELINE_SYNC_TOKEN = "secret";
     state.docExists = true;
     state.docData = {
@@ -1867,11 +1867,9 @@ describe("pipeline integration routes", () => {
       expect(first.status).toBe(200);
       await fetch(`${baseUrl}/attachments`, { method: "POST", ...signedRequest });
 
-      const invites = findCollectionWrites("captureOutbox");
-      expect(invites).toHaveLength(1);
-      expect(invites[0].payload.kind).toBe("assessment_ready");
-      expect(invites[0].payload.to).toBe("owner@example.com");
-      expect(String(invites[0].payload.body)).toContain("/claim/");
+      const invites = findCollectionWrites("captureOutbox")
+        .filter(row => row.payload.kind === "assessment_ready");
+      expect(invites).toHaveLength(0);
     } finally {
       await stopServer(server);
     }

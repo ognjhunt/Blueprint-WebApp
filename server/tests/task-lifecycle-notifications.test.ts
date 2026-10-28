@@ -108,7 +108,7 @@ it("recovers a persisted ready scene notice without another controller poll", as
 });
 
 describe('withdrawal fences capture-derived notices without suppressing recovery',()=>{
- it.each(['video_received','scene_ready','screening_cleared','results_ready','run_no_result'] as const)('does not enqueue %s after persisted withdrawal',async milestone=>{
+ it.each(['video_received','scene_ready','results_ready','run_no_result'] as const)('does not enqueue %s after persisted withdrawal',async milestone=>{
   sharedFakeFirestoreState.docs.set('inboundRequests/req-1',{contact:{email:'encrypted:owner@example.com'},request:{consent_attestation:{granted:false,withdrawn_at_iso:'2026-10-08T00:00:00Z'}}});
   expect(await enqueueTaskLifecycleNotification({requestId:'req-1',milestone})).toEqual({enqueued:false,reason:'consent_withdrawn'});
   expect([...sharedFakeFirestoreState.docs.keys()].some(key=>key.startsWith('captureOutbox/'))).toBe(false);

@@ -200,7 +200,7 @@ describe("site screening emails", () => {
 describe("site lifecycle notices", () => {
   const milestones = [
     "task_received", "video_received", "scene_ready", "preparation_needs_attention", "preparation_ended", "listing_live",
-    "screening_cleared", "screening_not_now", "results_ready", "run_no_result",
+    "screening_not_now", "results_ready", "run_no_result",
     "pilot_request", "pilot_recommended", "pilot_booked", "pilot_scheduled",
   ] as const;
 

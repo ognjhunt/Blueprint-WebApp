@@ -300,6 +300,12 @@ describe("a job whose video arrived before its account", () => {
     expect(notices(jobId, "footage_before_account")).toHaveLength(1);
     expect(notices(jobId, "footage_before_account")[0].body).not.toMatch(/\bsave\b.*account|verify.*email|confirm.*brief/i);
     expect(notices(jobId, "footage_before_account")[0].body).toContain("Follow the same job:");
+    const { taskLifecycleNotificationIsCurrent } = await import("../utils/taskLifecycleNotificationAuthority");
+    const currentNotice = { requestId: jobId, kind: "footage_before_account" as const,
+      body: notices(jobId, "footage_before_account")[0].body };
+    expect(await taskLifecycleNotificationIsCurrent(currentNotice)).toBe(true);
+    expect(await taskLifecycleNotificationIsCurrent({ ...currentNotice,
+      body: "Save the job to your account from your job page, so you can follow it there." })).toBe(false);
 
     await confirmBrief(token);
     expect((await jobStatus(token)).status).toMatchObject({ decision: "footage_before_account", operatorAction: null });
