@@ -82,11 +82,13 @@ describe("JobWorkflowPanel", () => {
     expect(screen.getByText(/The customer must choose an available proposal/)).toBeInTheDocument();
   });
 
-  it("saves a real scoped proposal with missing prices represented as unknown rather than zero", async () => {
-    await open();
+  it("prepares a scoped proposal without draft confirmation and keeps unknown prices explicit", async () => {
+    await open({ briefAgreed: false, stage: "job_submitted" });
+    expect(screen.getByRole("button", { name: "Add delivery proposal" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Ask Pipeline" })).toBeDisabled();
     fireEvent.click(screen.getByRole("button", { name: "Add delivery proposal" }));
     completeProposal();
-    fetchMock.mockResolvedValueOnce(json(workflow({ proposals: [{ ...proposal, installationCostUsd: null }] })));
+    fetchMock.mockResolvedValueOnce(json(workflow({ briefAgreed: false, proposals: [{ ...proposal, installationCostUsd: null }] })));
     fireEvent.click(screen.getByRole("button", { name: "Save proposal" }));
     expect(await screen.findByRole("status")).toHaveTextContent("Delivery proposal saved and available to the customer.");
     expect(screen.getByText("Example Delivery")).toBeInTheDocument();

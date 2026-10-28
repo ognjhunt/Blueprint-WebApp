@@ -46,12 +46,7 @@ type TaskStatus = {
   outcome?: TaskOutcome | null;
   missingViews: string[];
   nextUpdateIso: string | null;
-  /**
-   * Offered by the server at exactly one moment: robot teams have run against
-   * the scene and nobody owns the site yet. Everything before that stays
-   * account-free; everything after it (results, listing control) needs an
-   * authority a forwardable link cannot carry.
-   */
+  /** Optional account saving; the signed owner link already opens this job. */
   claimUrl?: string | null;
   /** Owner-only URL projected from a persisted ready reconstruction. */
   sceneViewUrl?: string | null;
@@ -60,9 +55,6 @@ type TaskStatus = {
   /** Coverage is checked automatically; false means a person reviews it. */
   footageReviewAutomated?: boolean;
 };
-
-/** Robot teams have runs on the job: the account is where they open, not a step before the scene. */
-const RUN_DECISIONS = new Set(["screening", "results", "no_team_passed", "no_qualified_evaluation"]);
 
 const retryUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 function retainedAssessmentRetryIdentity(jobId: string, runId: string): string {
@@ -615,24 +607,13 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
         </p>
       )}
       {status.claimUrl && !accountHold && (
-        /* The account moment, offered from the start: footage waits for a
-           saved job. The URL is minted server-side for the owner's link alone;
-           a film-only link never receives one. While the link waits for the
-           account, the held section below carries the step instead. */
-        <p style={{ margin: "10px 0 0" }}>
+        <details style={{ marginTop: "10px" }}>
+          <summary>Save this job to an account (optional)</summary>
+          <p className="ms-field-hint">Your private job link already opens this job, its results and proposals. Save it to an account if you want it in your workspace.</p>
           <a className="ms-text-link" href={status.claimUrl}>
-            {RUN_DECISIONS.has(status.decision)
-              ? "Claim your site to see the results"
-              : status.sceneViewUrl
-                ? "Save your scene and follow progress"
-                : "Claim your site to follow this job"}
+            Save this job to your account
           </a>
-          {!RUN_DECISIONS.has(status.decision) && (
-            <span className="ms-field-hint" style={{ display: "block", marginTop: "4px" }}>
-              Create and verify your site account before Blueprint builds the scene. Your filming link keeps working while you do that.
-            </span>
-          )}
-        </p>
+        </details>
       )}
     </div>
   ) : null;

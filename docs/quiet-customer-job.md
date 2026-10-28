@@ -19,6 +19,18 @@ checking update and clears the old outcome; a retained next-step projection
 cannot hide that update. Evidence gaps stay Blueprint's work, with the limits
 visible in the job rather than an automatic request for another recording.
 
+Account saving stays closed and optional at intake, during reconstruction and
+when results arrive. The private owner link already opens the result and delivery
+proposals; it does not tell the customer to claim an account to see them.
+
+A delivery company can publish a scoped proposal against Blueprint's current
+draft after the recording is received. The customer reviews and chooses that
+exact quote without a separate brief-confirmation step. The brief's confirmed
+flag is never fabricated. A changed scope or evidence still invalidates the
+affected proposal; rights, staff authority, CSRF, exact quote revisions and both
+parties' physical-work agreement remain. The optional task-specific scientific
+evidence request retains its existing authority contract.
+
 This is based on the existing v1 intake and complete-walkthrough update. It has
 no dependency on extra-clip inputs, the v2 continuation, a new Pipeline consumer,
 new grants, new services or new customer controls. Optional extra recordings are
@@ -53,3 +65,15 @@ focused suites, 548 cases passed initially; four historical journey expectations
 still required confirmation or account creation. After updating those expectations,
 all ten cases in that journey suite passed on replay. TypeScript and whitespace
 also pass. The core PR targets the current integration branch directly.
+
+The guest-result follow-up exercises the real local HTTP proposal routes with
+an unclaimed job and unconfirmed draft, including selection, scope-change refusal
+and the absence of an automatic agreement. Customer and operator suites cover
+closed account controls, direct scene/result viewing and proposal preparation.
+After correcting one remaining historical signup expectation, all 61 page cases
+passed on replay; all 24 current-action/customer-journey cases also passed.
+TypeScript, Graphify and whitespace pass. Actual components against a read-only
+synthetic API show the result and proposal at 390 px and 1280 px, one proposal
+action, no account demand, zero open details and no horizontal overflow or
+console warning/error. Optional account saving opens and closes. These are
+local observations; no customer account or proposal was accepted.

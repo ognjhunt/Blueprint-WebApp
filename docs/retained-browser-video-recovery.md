@@ -47,3 +47,10 @@ suites pass together, including retained-video recovery, spend observation,
 evaluation control, Atlas outcomes and the revised receipt/result journey.
 TypeScript and whitespace also pass. These are local contract checks;
 deployed-source and real-job acceptance remain unobserved in this lane.
+
+Recovery also composes with core `4f98bde8a62a92a45a8825087c2d742eb46fee11`,
+which removes guest account demands and separate draft confirmation from
+delivery proposals. All 308 focused upload-route, proposal-route and customer
+page/workspace cases pass on the combined source, as does TypeScript. Actual
+quote revisions, source permissions, retained-video requirements and physical
+agreement controls remain. No live run or proposal acceptance occurred.

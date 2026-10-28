@@ -313,3 +313,13 @@ it("keeps the exact proposal choice as the action after preparation", async () =
   expect(screen.getByText("Next action · You")).toBeVisible();
   expect(screen.queryByText("Preparing the recording.")).not.toBeInTheDocument();
 });
+
+it("shows an already visible proposal action once", async () => {
+  const nextAction = "Review the proposal below.";
+  fetchMock.mockResolvedValue(response(workflow({stage:"proposals_ready",proposals:[proposal],actionOwner:"site",nextAction})));
+  render(<><p>{nextAction}</p><JobWorkspace token="owner-token" currentNextAction={{text:nextAction,owner:"site"}} /></>);
+  await screen.findByRole("article", {name:"Example Delivery delivery proposal"});
+  expect(screen.getAllByText(nextAction)).toHaveLength(1);
+  expect(screen.queryByText("Next action · You")).not.toBeInTheDocument();
+  expect(screen.getByRole("button", {name:"Choose this proposal"})).toBeInTheDocument();
+});
