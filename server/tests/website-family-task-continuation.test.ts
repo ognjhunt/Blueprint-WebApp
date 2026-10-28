@@ -247,3 +247,35 @@ it.each(["root", "consent", "both"])("keeps valid own null-prototype %s maps wit
     captureId: context(f).capture_id, brief: f.brief, record: f.record })).toEqual(context(f));
   expect(f.record.website_scene_sponsorship).toEqual(original);
 });
+
+it.each(["upstream_max_spend_usd", "max_paid_attempts", "max_total_spend_usd", "preparation_max_total_spend_usd"])(
+  "refuses a hidden %s instead of continuing a differently serialized allowance", field => {
+    const f = fixture(); answer(f, { requirementId: "press:target_id", answer: "red" });
+    const root = f.record.website_scene_sponsorship;
+    Object.defineProperty(root, field, { value: root[field], enumerable: false });
+    const { authority_digest: _old, ...payload } = root;
+    root.authority_digest = digest(payload);
+    const proof = f.brief.familyTaskFactContinuation;
+    proof.origin.authority_digest = root.authority_digest;
+    proof.transition_digest = crossRuntimeArtifactDigest(proof, "transition_digest");
+    expect(familyTaskFactContinuationMatches(f.brief, context(f), root)).toBe(false);
+    expect(() => currentGrant(f)).toThrow("website_scene_sponsorship_changed");
+    expect(() => currentWebsitePreparationStatusContext({ requestId: f.brief.requestId,
+      captureId: context(f).capture_id, brief: f.brief, record: f.record }))
+      .toThrow("website_scene_sponsorship_binding_invalid");
+    expect(f.record.website_scene_sponsorship).toBe(root);
+  },
+);
+
+it.each(["root_accessor", "consent_accessor", "hidden_extra", "symbol_extra"])(
+  "rejects %s without executing fields outside the serialized root payload", shape => {
+    const f = fixture(); answer(f, { requirementId: "press:target_id", answer: "red" });
+    const root = f.record.website_scene_sponsorship, getter = vi.fn(() => 10);
+    if (shape === "root_accessor") Object.defineProperty(root, "upstream_max_spend_usd", { get: getter, enumerable: true });
+    if (shape === "consent_accessor") Object.defineProperty(root.consent, "provider_terms_reference", { get: getter, enumerable: true });
+    if (shape === "hidden_extra") Object.defineProperty(root, "not_in_payload", { value: 10, enumerable: false });
+    if (shape === "symbol_extra") root[Symbol("not_in_payload")] = 10;
+    expect(familyTaskFactContinuationMatches(f.brief, context(f), root)).toBe(false);
+    expect(getter).not.toHaveBeenCalled();
+  },
+);

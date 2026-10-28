@@ -79,7 +79,11 @@ function plainOwnMap(value: unknown, required: readonly string[]): value is Reco
   const prototype = Object.getPrototypeOf(value);
   if (prototype !== Object.prototype && prototype !== null) return false;
   const fields = Object.getOwnPropertyDescriptors(value);
-  return required.every(key => fields[key]?.enumerable === true && Object.hasOwn(fields[key], "value"));
+  // Hashing and continuation both consume JSON fields. Hidden values and
+  // accessors must not become allowance data outside that same payload.
+  return required.every(key => Object.hasOwn(fields, key))
+    && Reflect.ownKeys(fields).every(key => typeof key === "string"
+      && fields[key].enumerable === true && Object.hasOwn(fields[key], "value"));
 }
 function rootMatches(root: Record<string, any> | undefined, context: Context): root is Record<string, any> {
   try {
