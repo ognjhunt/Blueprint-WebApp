@@ -6,7 +6,9 @@ import {
   ALLOWED_EXTENSIONS,
   buildBrowserCaptureManifest,
   parseVideoMetadata,
+  withContainerMeasurements,
 } from "../routes/self-capture-uploads";
+import { parseContainerHeader, probeVideoContainer } from "../utils/videoContainerProbe";
 
 /**
  * Copied from `validateManifest` in BlueprintCapture's `cloud/extract-frames`.
@@ -25,13 +27,14 @@ const EXTRACTOR_REQUIRED_NUMBERS = [
 ];
 const EXTRACTOR_REQUIRED_BOOLEANS = ["has_lidar"];
 
-const VIDEO = {
+const HINT = {
   widthPx: 1920,
   heightPx: 1080,
   fps: 29.97,
   durationSeconds: 47.2,
   recordedAtEpochMs: 1_757_980_800_000,
 };
+const VIDEO = parseVideoMetadata(HINT);
 
 function manifest() {
   return buildBrowserCaptureManifest({
@@ -120,44 +123,89 @@ describe("a browser capture produces a bundle the extractor will actually proces
     expect(built.fps_source).toBe(29.97);
     expect(built.width).toBe(1920);
     expect(built.height).toBe(1080);
-    expect(built.capture_start_epoch_ms).toBe(VIDEO.recordedAtEpochMs);
+    expect(built.capture_start_epoch_ms).toBe(HINT.recordedAtEpochMs);
+    expect(built.video_metadata_sources).toEqual({ fps_source: "browser_reported", width: "browser_reported",
+      height: "browser_reported", capture_start_epoch_ms: "browser_reported", duration_seconds: "browser_reported" });
+  });
+
+  it("records unknown values as null with no source when nobody could read them", () => {
+    const built = buildBrowserCaptureManifest({
+      payload: { sceneId: "s", captureId: "c", requestId: "r" },
+      objectPath: "raw/walkthrough.mov", video: parseVideoMetadata(undefined), sizeBytes: 100,
+    });
+    for (const field of EXTRACTOR_REQUIRED_NUMBERS) {
+      expect(built[field]).toBeNull();
+      expect((built.video_metadata_sources as Record<string, unknown>)[field]).toBeNull();
+    }
   });
 });
 
-describe("nothing about the video is guessed", () => {
-  it("accepts a complete set of measurements", () => {
-    expect(parseVideoMetadata(VIDEO)).toEqual(VIDEO);
+describe("nothing about the video is guessed, and nothing missing refuses it", () => {
+  const unknown = { widthPx: null, heightPx: null, fps: null, durationSeconds: null, recordedAtEpochMs: null, sources: {} };
+
+  it("accepts a complete set of browser values and names their source", () => {
+    expect(VIDEO).toMatchObject(HINT);
+    expect(VIDEO.sources.fps).toBe("browser_reported");
   });
 
-  it("refuses rather than defaulting a missing frame rate", () => {
-    // The tempting alternative is 30. A number nobody measured would then sit
-    // in the capture record looking exactly like one somebody did.
-    const { fps: _fps, ...withoutFps } = VIDEO;
-    expect(parseVideoMetadata(withoutFps)).toBeNull();
+  it("leaves a missing frame rate unknown rather than defaulting it", () => {
+    const { fps: _fps, ...withoutFps } = HINT;
+    const parsed = parseVideoMetadata(withoutFps);
+    expect(parsed.fps).toBeNull();
+    expect(parsed.sources.fps).toBeUndefined();
+    expect(parsed.widthPx).toBe(1920);
   });
 
-  it.each(["widthPx", "heightPx", "durationSeconds", "recordedAtEpochMs"])(
-    "refuses when %s is missing",
-    (field) => {
-      const partial: Record<string, number> = { ...VIDEO };
-      delete partial[field];
-      expect(parseVideoMetadata(partial)).toBeNull();
-    },
-  );
-
-  it("refuses zero and negative values, which are not measurements", () => {
-    expect(parseVideoMetadata({ ...VIDEO, fps: 0 })).toBeNull();
-    expect(parseVideoMetadata({ ...VIDEO, widthPx: -1920 })).toBeNull();
+  it("treats zero, negative and non-numeric values as unknown, not as measurements", () => {
+    expect(parseVideoMetadata({ ...HINT, fps: 0, widthPx: -1920, heightPx: "tall" }))
+      .toMatchObject({ fps: null, widthPx: null, heightPx: null });
   });
 
-  it("refuses anything that is not an object", () => {
-    expect(parseVideoMetadata(null)).toBeNull();
-    expect(parseVideoMetadata("1920x1080")).toBeNull();
-    expect(parseVideoMetadata(undefined)).toBeNull();
+  it("treats anything that is not an object as no metadata at all", () => {
+    for (const input of [null, "1920x1080", undefined]) expect(parseVideoMetadata(input)).toEqual(unknown);
   });
 
   it("takes numbers that arrived as strings, since multipart fields are text", () => {
-    expect(parseVideoMetadata({ ...VIDEO, fps: "29.97" })).toEqual(VIDEO);
+    expect(parseVideoMetadata({ ...HINT, fps: "29.97" })).toEqual(VIDEO);
+  });
+
+  it("fills only the gaps from the server's container read, and says so", () => {
+    const merged = withContainerMeasurements(parseVideoMetadata({ widthPx: 1080, heightPx: 1920 }),
+      { widthPx: 1920, heightPx: 1080, fps: 29.97, durationSeconds: 12.5 });
+    expect(merged).toMatchObject({ widthPx: 1080, heightPx: 1920, fps: 29.97, durationSeconds: 12.5, recordedAtEpochMs: null });
+    expect(merged.sources).toEqual({ widthPx: "browser_reported", heightPx: "browser_reported",
+      fps: "server_container_probe", durationSeconds: "server_container_probe" });
+  });
+});
+
+describe("the server reads the container header a browser could not", () => {
+  const header = [
+    "Input #0, mov,mp4,m4a,3gp,3g2,mj2, from '/tmp/self-capture-x':",
+    "  Metadata:",
+    "    creation_time   : 2026-10-01T12:00:00.000000Z",
+    "  Duration: 00:01:02.50, start: 0.000000, bitrate: 9000 kb/s",
+    "  Stream #0:0[0x1](und): Video: hevc (Main) (hvc1 / 0x31637668), yuv420p(tv, bt709), 1920x1080, 8000 kb/s, 29.97 fps, 29.97 tbr, 600 tbn (default)",
+    "      Metadata:",
+    "        handler_name    : Core Media Video",
+    "      Side data:",
+    "        displaymatrix: rotation of -90.00 degrees",
+    "  Stream #0:1[0x2](und): Audio: aac (LC) (mp4a / 0x6134706D), 44100 Hz, mono, fltp, 96 kb/s (default)",
+    "At least one output file must be specified",
+  ].join("\n");
+
+  it("reads an iPhone HEVC portrait header as displayed", () => {
+    expect(parseContainerHeader(header)).toEqual({ widthPx: 1080, heightPx: 1920, fps: 29.97,
+      durationSeconds: 62.5, recordedAtEpochMs: Date.parse("2026-10-01T12:00:00Z") });
+  });
+
+  it("reads nothing from output that is not a parsed input", () => {
+    expect(parseContainerHeader("/tmp/x: Invalid data found when processing input")).toEqual({});
+  });
+
+  it("returns nothing, rather than throwing, when no ffmpeg is available or it fails", async () => {
+    expect(await probeVideoContainer("/tmp/x", { resolveBinary: async () => null })).toEqual({});
+    expect(await probeVideoContainer("/tmp/x", { resolveBinary: async () => "/bin/ffmpeg",
+      run: async () => { throw new Error("spawn failed"); } })).toEqual({});
   });
 });
 

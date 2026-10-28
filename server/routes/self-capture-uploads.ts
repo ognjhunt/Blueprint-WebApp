@@ -28,6 +28,7 @@ import {
   storedPartIndices,
 } from "../utils/captureParts";
 import { isAcceptedVideoHeader, VIDEO_NOT_RECOGNIZED, VIDEO_SIGNATURE_BYTES } from "../utils/videoMagicBytes";
+import { probeVideoContainer, type ContainerVideoMetadata } from "../utils/videoContainerProbe";
 import { z } from "zod";
 
 import { storageAdmin } from "../../client/src/lib/firebaseAdmin";
@@ -227,46 +228,53 @@ function storageBucketName() {
 }
 
 /**
- * What the page measured about the video, as opposed to what it assumed.
+ * What is known about the video, and who said so.
  *
- * `validateManifest` in `cloud/extract-frames` requires width, height,
- * `fps_source` and `capture_start_epoch_ms`, and a capture whose manifest fails
- * validation produces a blocked report rather than a scene. None of those four
- * can be read from the file server-side — this deployment has no ffprobe — so
- * the browser reads them off a `<video>` element and sends them here.
+ * Every field may be unknown. A browser that cannot play the file it sends
+ * (an iPhone HEVC `.MOV` in Chrome on Windows or Android, for one) reports
+ * nothing, and the upload is accepted anyway: the only hard stops here are
+ * privacy, rights and the file's type and size. The server fills what it can
+ * from the file's own container header (`probeVideoContainer`), and the
+ * pipeline measures the video it decodes.
  *
- * Every one is a measurement. Nothing is defaulted to a plausible number,
- * because a fabricated frame rate would ride along in the capture record as
- * though somebody had observed it.
+ * Nothing is defaulted to a plausible number. An unknown value is `null` in
+ * the manifest, and `video_metadata_sources` names where each known one came
+ * from, so a hint is never read as a measurement.
  */
-export type BrowserVideoMetadata = {
-  widthPx: number;
-  heightPx: number;
-  fps: number;
-  durationSeconds: number;
-  recordedAtEpochMs: number;
+export type VideoMetadataSource = "browser_reported" | "server_container_probe";
+const VIDEO_METADATA_FIELDS = ["widthPx", "heightPx", "fps", "durationSeconds", "recordedAtEpochMs"] as const;
+type VideoMetadataField = (typeof VIDEO_METADATA_FIELDS)[number];
+
+export type BrowserVideoMetadata = Record<VideoMetadataField, number | null> & {
+  sources: Partial<Record<VideoMetadataField, VideoMetadataSource>>;
 };
 
-export function parseVideoMetadata(input: unknown): BrowserVideoMetadata | null {
-  if (!input || typeof input !== "object") return null;
-  const source = input as Record<string, unknown>;
-
-  const positive = (value: unknown) => {
-    const parsed = typeof value === "number" ? value : Number(value);
-    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
-  };
-
-  const widthPx = positive(source.widthPx);
-  const heightPx = positive(source.heightPx);
-  const fps = positive(source.fps);
-  const durationSeconds = positive(source.durationSeconds);
-  const recordedAtEpochMs = positive(source.recordedAtEpochMs);
-
-  if (!widthPx || !heightPx || !fps || !durationSeconds || !recordedAtEpochMs) {
-    return null;
+/** The browser's hint. Absent, malformed and non-positive fields are unknown. */
+export function parseVideoMetadata(input: unknown): BrowserVideoMetadata {
+  const source = input && typeof input === "object" ? input as Record<string, unknown> : {};
+  const metadata = { sources: {} } as BrowserVideoMetadata;
+  for (const field of VIDEO_METADATA_FIELDS) {
+    const value = source[field];
+    const parsed = typeof value === "number" ? value : typeof value === "string" && value.trim() ? Number(value) : NaN;
+    metadata[field] = Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+    if (metadata[field] !== null) metadata.sources[field] = "browser_reported";
   }
+  return metadata;
+}
 
-  return { widthPx, heightPx, fps, durationSeconds, recordedAtEpochMs };
+/** Fill only the fields the browser could not report from the server's own read. */
+export function withContainerMeasurements(
+  metadata: BrowserVideoMetadata, measured: ContainerVideoMetadata,
+): BrowserVideoMetadata {
+  const merged: BrowserVideoMetadata = { ...metadata, sources: { ...metadata.sources } };
+  for (const field of VIDEO_METADATA_FIELDS) {
+    const value = measured[field];
+    if (merged[field] === null && typeof value === "number" && Number.isFinite(value) && value > 0) {
+      merged[field] = value;
+      merged.sources[field] = "server_container_probe";
+    }
+  }
+  return merged;
 }
 
 /**
@@ -322,6 +330,14 @@ export function buildBrowserCaptureManifest(input: {
     height: input.video.heightPx,
     capture_start_epoch_ms: input.video.recordedAtEpochMs,
     duration_seconds: input.video.durationSeconds,
+    // Per manifest field: who reported it, or null when nobody could.
+    video_metadata_sources: {
+      fps_source: input.video.sources.fps ?? null,
+      width: input.video.sources.widthPx ?? null,
+      height: input.video.sources.heightPx ?? null,
+      capture_start_epoch_ms: input.video.sources.recordedAtEpochMs ?? null,
+      duration_seconds: input.video.sources.durationSeconds ?? null,
+    },
     size_bytes: input.sizeBytes,
   };
 }
@@ -1087,11 +1103,12 @@ router.post("/:token/processing-retry", async (req: Request, res: Response) => {
     }
     if (stored) {
       reservation = await reserveBrowserStoredUploadRetry(stored);
+      // The stored manifest bytes are replayed as written; nothing is
+      // re-measured or rebuilt here, so its recorded values stand.
       const original = JSON.parse(stored.manifest_json);
       const metadata = parseVideoMetadata({ widthPx: original.width, heightPx: original.height,
         fps: original.fps_source, durationSeconds: original.duration_seconds,
         recordedAtEpochMs: original.capture_start_epoch_ms });
-      if (!metadata) throw new Error("browser_pending_invalid");
       const outcome = await finishStoredCapture({ payload, objectPath: stored.video.object_name,
         rawPrefix: stored.video.object_name.slice(0, stored.video.object_name.lastIndexOf("/")),
         videoMetadata: metadata, sizeBytes: stored.video.size_bytes, video: stored.video,
@@ -1266,17 +1283,11 @@ router.post("/:token", requireAppCheck("upload_walkthrough"), authorizeBeforeCap
     return res.status(503).json({ error: "Uploads are unavailable right now. Try again shortly." });
   }
 
-  // Refused before the bytes are stored rather than after. Without these the
-  // manifest cannot validate, and an invalid manifest means the extractor
-  // writes a blocked report instead of a scene -- which would look, from the
-  // site's side, exactly like a successful upload.
-  const videoMetadata = parseVideoMetadata(safeJsonParse(req.body?.metadata));
-  if (!videoMetadata) {
-    return res.status(400).json({
-      error: "We could not read this video's dimensions. Try recording in your phone's camera app.",
-      code: "video_metadata_missing",
-    });
-  }
+  // Never a reason to refuse: whatever the browser could not report is read
+  // from the spooled file's container header, and what neither knows stays
+  // null for the pipeline to measure.
+  const videoMetadata = withContainerMeasurements(
+    parseVideoMetadata(safeJsonParse(req.body?.metadata)), await probeVideoContainer(file.path));
 
   // The destination comes from the signed token, never from the request body,
   // so a caller cannot aim someone else's capture prefix at their own file.
@@ -1512,17 +1523,10 @@ router.post("/:token/parts/complete", requireAppCheck("upload_parts_complete"), 
     return res.status(415).json({ error: "Record as .mov or .mp4." });
   }
 
-  // Same refusal as the single POST, and for the same reason: without these the
-  // manifest cannot validate, and an invalid manifest means the extractor
-  // writes a blocked report instead of a scene -- which looks, from the site's
-  // side, exactly like a successful upload.
+  // The recorder's hints, as for the single POST never a reason to refuse.
+  // The composed video is never on this server's disk, so there is no
+  // container read here; unknown fields stay null for the pipeline.
   const videoMetadata = parseVideoMetadata(parsed.data.metadata);
-  if (!videoMetadata) {
-    return res.status(400).json({
-      error: "We could not read this video's dimensions.",
-      code: "video_metadata_missing",
-    });
-  }
 
   if (!storageAdmin) {
     return res.status(503).json({ error: "Uploads are unavailable right now." });

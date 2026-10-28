@@ -126,3 +126,31 @@ it.each(transportCases)("$caseId transport $event HTTP $http receipt $receipt", 
   if (event !== "load" || receipt === "absent") expect(fetch).toHaveBeenCalledExactlyOnceWith(`/api/self-capture/uploads/${token}/status`);
   else expect(fetch).not.toHaveBeenCalled();
 });
+
+describe("the browser never blocks an upload because it cannot read the video", () => {
+  const sentBodies: FormData[] = [];
+  class RecordingRequest extends UploadRequest {
+    send = vi.fn((body: FormData) => { sentBodies.push(body); queueMicrotask(() => this.dispatchEvent(new Event("load"))); });
+  }
+  beforeEach(() => { sentBodies.length = 0; vi.stubGlobal("XMLHttpRequest", RecordingRequest); });
+
+  it("sends the file with no metadata when the browser cannot decode it", async () => {
+    vi.mocked(document.createElement).mockImplementation(((name: string) => {
+      if (name !== "video") throw new Error(`unexpected element ${name}`);
+      return { set onerror(callback: () => void) { queueMicrotask(callback); } } as unknown as HTMLVideoElement;
+    }) as typeof document.createElement);
+    const file = new File(["hevc"], "IMG_0001.MOV", { lastModified: 1_757_980_800_000 });
+    expect(await uploadSelfCaptureVideo(token, file)).toMatchObject({ status: "processing_pending" });
+    expect(sentBodies).toHaveLength(1);
+    expect(sentBodies[0].get("video")).toBe(file);
+    // Only the file's own timestamp; nothing the browser could not read.
+    expect(JSON.parse(String(sentBodies[0].get("metadata")))).toEqual({ recordedAtEpochMs: 1_757_980_800_000 });
+  });
+
+  it("sends what the browser could read as a hint, with no frame rate", async () => {
+    const file = new File(["mp4"], "walk.mp4", { lastModified: 1_757_980_800_000 });
+    await uploadSelfCaptureVideo(token, file);
+    expect(JSON.parse(String(sentBodies[0].get("metadata"))))
+      .toEqual({ widthPx: 1920, heightPx: 1080, durationSeconds: 10, recordedAtEpochMs: 1_757_980_800_000 });
+  });
+});

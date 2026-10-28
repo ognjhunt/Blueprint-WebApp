@@ -1639,12 +1639,15 @@ describe("a link is a destination, not a permission", () => {
       return { status: response.status, body: (await response.json()) as Record<string, unknown> };
     });
 
-    // Past authorization and past the file and extension checks, stopped by the
-    // metadata this request deliberately omits. That is the next check and a
-    // different one, so it proves the gate opened rather than that the upload
-    // succeeded; only a 409 would mean it had not.
-    expect(result.status).toBe(400);
-    expect(result.body.code).toBe("video_metadata_missing");
+    // Past authorization and the file and extension checks. The request
+    // deliberately sends no metadata, as a browser that cannot play the file
+    // would, and that no longer stops anything: the video is accepted and what
+    // nobody could read is recorded as unknown rather than refused or guessed.
+    expect(result.status).toBe(201);
+    const manifestPath = [...written.keys()].find((path) => path.endsWith("/manifest.json"))!;
+    const manifest = JSON.parse(written.get(manifestPath)!);
+    expect(manifest.fps_source).toBeNull();
+    expect(manifest.video_metadata_sources.fps_source).toBeNull();
   });
 });
 

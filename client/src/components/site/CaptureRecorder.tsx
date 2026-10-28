@@ -128,15 +128,14 @@ export function CaptureRecorder(props: {
   const sendingRef = useRef(false);
   const sentBytesRef = useRef(0);
   const mimeRef = useRef<string>("video/mp4");
-  // Measured, not assumed: when the recording starts we read the frame rate
-  // the camera is actually delivering, and the duration is wall-clock time.
-  // A hardcoded 30 used to ride along in the capture record as though
-  // somebody had observed it, and parts × slice was not a duration — a
-  // retried or dropped part made it wrong.
+  // Hints, not requirements: the camera track's reported frame rate and size
+  // at record start, and wall-clock duration. A value the browser does not
+  // report is left out rather than defaulted, and the upload goes ahead; the
+  // pipeline measures the file it decodes.
   const measuredFpsRef = useRef<number | null>(null);
   const recordingStartedAtRef = useRef<number | null>(null);
   // Read when recording starts. By completion the stream is stopped, and on
-  // iOS the preview element then reports 0x0, which the server refuses.
+  // iOS the preview element then reports 0x0.
   const dimensionsRef = useRef<{ widthPx: number; heightPx: number } | null>(null);
   /**
    * The drain that is actually running, if any. `finish` has to wait for the
@@ -382,17 +381,15 @@ export function CaptureRecorder(props: {
           parts: nextIndexRef.current,
           extension: "mp4",
           sizeBytes: sentBytesRef.current,
+          // `JSON.stringify` drops the undefined fields: unknown stays absent.
           metadata: {
-            widthPx: dimensionsRef.current?.widthPx || video?.videoWidth || 0,
-            heightPx: dimensionsRef.current?.heightPx || video?.videoHeight || 0,
-            // Measured off the camera track at record start; the 30 here is
-            // the last resort for a browser that reports no frameRate at
-            // all, not the default answer it used to be.
-            fps: measuredFpsRef.current ?? 30,
+            widthPx: dimensionsRef.current?.widthPx || video?.videoWidth || undefined,
+            heightPx: dimensionsRef.current?.heightPx || video?.videoHeight || undefined,
+            fps: measuredFpsRef.current ?? undefined,
             durationSeconds: recordingStartedAtRef.current
               ? Math.max(1, Math.round((Date.now() - recordingStartedAtRef.current) / 1000))
-              : Math.max(1, Math.round((nextIndexRef.current * TIMESLICE_MS) / 1000)),
-            recordedAtEpochMs: Date.now(),
+              : undefined,
+            recordedAtEpochMs: recordingStartedAtRef.current ?? undefined,
           },
         }),
       },
