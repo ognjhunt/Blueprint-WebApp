@@ -1,3 +1,4 @@
+import { siteWalkthroughIdentity } from "../utils/siteWalkthrough";
 import { loadCurrentSiteAdvisory } from "../utils/siteAssessmentPublic";
 import { projectAtlasPreparationOutcome } from "../utils/taskPreparationOutcome";
 import { closeWebsiteRun, projectWebsiteRunClosure } from "../utils/websiteRunClosure";
@@ -186,6 +187,7 @@ function safeSceneViewUrl(value: unknown): string | null {
 
 /** Just the fields status needs, so this route does not decrypt a whole lead. */
 async function readRequestForStatus(requestId: string, captureId = `walkthrough-${requestId}`): Promise<{
+  active_capture_id?: string;
   siteTaskGates?: Record<string, string> | null;
   site_task_brief_confirmed_at?: unknown;
   capture_coverage?: {
@@ -217,6 +219,7 @@ async function readRequestForStatus(requestId: string, captureId = `walkthrough-
   const snap = await db.collection("inboundRequests").doc(requestId).get();
   if (!snap.exists) return null;
   const data = snap.data() as Record<string, unknown>;
+  const selectedCaptureId = siteWalkthroughIdentity(requestId, data).captureId;
   const contact = data.contact as { email?: unknown; firstName?: unknown } | undefined;
   // Contact fields may be stored encrypted. Reading only plain strings meant an
   // encrypted address came back null and every email from this route was
@@ -229,10 +232,11 @@ async function readRequestForStatus(requestId: string, captureId = `walkthrough-
   const contactEmail = await plain(contact?.email);
   const contactFirstName = await plain(contact?.firstName);
   return {
+    active_capture_id: selectedCaptureId,
     captureRights: projectWebsiteCaptureRights(data),
-    ownerClosureOutcome: projectWebsiteRunClosure(data, requestId, captureId),
+    ownerClosureOutcome: projectWebsiteRunClosure(data, requestId, selectedCaptureId),
     preparationOutcome: projectWebsiteCaptureRights(data).derived_scene_generation_allowed
-      ? projectAtlasPreparationOutcome(selectWebsiteAtlasPreview(data, `walkthrough-${requestId}`)) : null,
+      ? projectAtlasPreparationOutcome(selectWebsiteAtlasPreview(data, selectedCaptureId)) : null,
     siteTaskGates: gateAnswersOnFile(data),
     site_task_brief_confirmed_at: data.site_task_brief_confirmed_at,
     capture_coverage: (data.capture_coverage as never) ?? null,
@@ -974,19 +978,20 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
  */
 router.get("/:token/status", async (req: Request, res: Response) => {
   res.setHeader("Cache-Control", "no-store");
-  const payload = verifyCaptureUploadToken(String(req.params.token || ""));
-  if (!payload) {
+  const verifiedPayload = verifyCaptureUploadToken(String(req.params.token || ""));
+  if (!verifiedPayload) {
     return res.status(404).json({ error: "That link is not valid any more.", code: "capture_token_invalid" });
   }
 
+  let payload = verifiedPayload;
   try {
-    const [brief, request, captureSession] = await Promise.all([
-      getBrief(payload.requestId),
-      readRequestForStatus(payload.requestId, payload.captureId),
-      db
-        ? db.collection("captureUploadSessions").doc(payload.captureId).get().catch(() => null)
-        : Promise.resolve(null),
+    const [brief, request] = await Promise.all([
+      getBrief(payload.requestId), readRequestForStatus(payload.requestId, payload.captureId),
     ]);
+    // A job link authenticates the same job after a video update. Current
+    // progress follows the selected immutable revision; old receipts remain.
+    if (request?.active_capture_id) payload = { ...payload, captureId: request.active_capture_id };
+    const captureSession = db ? await db.collection("captureUploadSessions").doc(payload.captureId).get().catch(() => null) : null;
     // Best-effort: an unreadable run queue is a missing rung, not a broken page.
     // Passes are counted against the pass mark the job itself set.
     const screening = request
@@ -1058,7 +1063,7 @@ router.get("/:token/status", async (req: Request, res: Response) => {
         scenePreparationFailed: reconstruction?.state === "failed",
         ownerClosureOutcome: payload.scope === "owner" ? request?.ownerClosureOutcome : null,
         preparationOutcome: payload.scope === "owner" && request && !request.captureRights.consent_revoked
-          && payload.captureId === `walkthrough-${payload.requestId}` ? request.preparationOutcome : null,
+          ? request.preparationOutcome : null,
         preparationStatus,
         preparationOverdue,
         sceneProgression,

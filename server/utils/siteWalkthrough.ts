@@ -1,4 +1,6 @@
 import { websiteCaptureOwnerUid } from "./websiteCaptureOwner";
+
+import { isWebsiteCaptureId } from "./websiteCaptureIdentity";
 /**
  * Whether a website job's walkthrough is saved, as every job page reads it.
  *
@@ -13,8 +15,9 @@ import { describeBrowserUpload } from "./websiteBrowserUploadStatus";
 type CaptureIdentity = { requestId: string; sceneId: string; captureId: string };
 
 /** The walkthrough every website job films into (`captureUploadUrlFor`). */
-export function siteWalkthroughIdentity(requestId: string): CaptureIdentity {
-  return { requestId, sceneId: `site-${requestId}`, captureId: `walkthrough-${requestId}` };
+export function siteWalkthroughIdentity(requestId: string, record?: { active_capture_id?: unknown }): CaptureIdentity {
+  return { requestId, sceneId: `site-${requestId}`, captureId: typeof record?.active_capture_id === "string"
+    && isWebsiteCaptureId(requestId, `site-${requestId}`, record.active_capture_id) ? record.active_capture_id : `walkthrough-${requestId}` };
 }
 
 /**

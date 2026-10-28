@@ -163,3 +163,60 @@ it.each(["unknown", "cross_site", "changed_parent", "unfinished", "source_genera
   if (fault === "changed_lineage") record.parent_coverage.status = "changed";
   await expect(resolveWebsiteCaptureBinding("req1", "site-req1", captureId, storage)).rejects.toThrow();
 });
+
+// Browser updates retain the same lineage contract as native bundles; their
+// identity binds exact object generations rather than pretending to hash video.
+import { buildBrowserDelivery } from "../utils/websiteCaptureDelivery";
+import { websiteSessionSource } from "../utils/websiteCaptureSource";
+import { issueCaptureSupplement, validateCaptureSupplement } from "../utils/captureSupplement";
+import { verifyCaptureUploadToken } from "../utils/captureUploadToken";
+function browserFinalized(captureId: string, held = false) {
+  const raw = `scenes/site-req1/captures/${captureId}/raw`;
+  const manifestText = JSON.stringify({ request_id: "req1", site_submission_id: "req1", scene_id: "site-req1", capture_id: captureId });
+  put(`${raw}/manifest.json`, manifestText); put(`${raw}/walkthrough.mov`, "synthetic");
+  const video = { object_name: `${raw}/walkthrough.mov`, generation: "123", size_bytes: 9, crc32c: "AAAAAA==" };
+  const manifest = { object_name: `${raw}/manifest.json`, generation: "123", size_bytes: Buffer.byteLength(manifestText),
+    crc32c: "AAAAAA==", sha256: `sha256:${sha(manifestText)}` };
+  const pending = { schema_version: "website_browser_pending.v1", request_id: "req1", scene_id: "site-req1", capture_id: captureId,
+    state: held ? "held" : "published", completed_at_iso: "2026-10-28T00:00:00.000Z", video, manifest };
+  sharedFakeFirestoreState.docs.set(`captureUploadSessions/${captureId}`, { browser_pending_delivery: pending });
+  const delivery = buildBrowserDelivery({ requestId: "req1", sceneId: "site-req1", captureId, rawPrefix: raw,
+    video, manifest, completedAtIso: pending.completed_at_iso });
+  if (!held) { put(`${raw}/capture_upload_complete.json`, delivery.record.marker_json); put(delivery.objectName, delivery.recordBytes.toString()); }
+  return websiteSessionSource({ browser_pending_delivery: pending }, "req1", "site-req1", captureId, "synthetic");
+}
+
+it.each([false, true])("repairs the same job with retained original history (original held=%s)", async held => {
+  process.env.FIREBASE_STORAGE_BUCKET = "synthetic";
+  try {
+    browserFinalized("walkthrough-req1", held);
+    sharedFakeFirestoreState.docs.set("inboundRequests/req1", {});
+    const parent = { requestId: "req1", sceneId: "site-req1", captureId: "walkthrough-req1", scope: "owner" as const,
+      exp: Math.floor(Date.now() / 1000) + 3600 };
+    const repair = { mode: "replacement" as const, requestId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" };
+    const before = structuredClone(sharedFakeFirestoreState.docs.get("captureUploadSessions/walkthrough-req1"));
+    const issued = await issueCaptureSupplement(parent, repair);
+    expect((await issueCaptureSupplement(parent, repair)).captureId).toBe(issued.captureId);
+    const payload = verifyCaptureUploadToken(issued.token)!;
+    await validateCaptureSupplement(payload);
+    browserFinalized(issued.captureId);
+    const binding = await resolveWebsiteCaptureBinding("req1", "site-req1", issued.captureId, storage);
+    expect(binding?.original_capture_id).toBe("walkthrough-req1");
+    expect(binding?.lineage[0].parent.capture_id).toBe("walkthrough-req1");
+    expect(binding?.lineage[0].parent.source_state).toBe(held ? "retained_unprocessed" : undefined);
+    expect(binding?.lineage[0].parent.completion_generation).toBe(held ? null : "123");
+    await sharedFakeFirestore.runTransaction(tx => assertWebsiteCaptureBindingInTransaction(tx, "req1", binding));
+    expect(sharedFakeFirestoreState.docs.get("captureUploadSessions/walkthrough-req1")).toEqual(before);
+    infos.get(`scenes/site-req1/captures/${issued.captureId}/raw/walkthrough.mov`)!.generation = "999";
+    await expect(resolveWebsiteCaptureBinding("req1", "site-req1", issued.captureId, storage)).rejects.toThrow("source_changed");
+  } finally { delete process.env.FIREBASE_STORAGE_BUCKET; }
+});
+
+it("film links cannot create a replacement and a forged cross-job parent cannot upload", async () => {
+  await expect(issueCaptureSupplement({ requestId: "req1", sceneId: "site-req1", captureId: "walkthrough-req1", scope: "film", exp: 1 },
+    { mode: "replacement", requestId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" })).rejects.toThrow("owner_required");
+  const captureId = child();
+  const record = sharedFakeFirestoreState.docs.get(`captureSupplements/${captureId}`) as any;
+  await expect(validateCaptureSupplement({ requestId: "another-job", sceneId: "site-another-job", captureId,
+    supplement: record.supplement })).rejects.toThrow();
+});

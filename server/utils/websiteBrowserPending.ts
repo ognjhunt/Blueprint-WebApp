@@ -1,3 +1,6 @@
+import { projectWebsiteCaptureRights } from "./websiteTaskContext";
+import { websiteSessionSource } from "./websiteCaptureSource";
+import { isWebsiteCaptureId } from "./websiteCaptureIdentity";
 /** The exact browser write awaiting (or having passed) privacy admission. */
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { createHash, randomUUID } from "node:crypto";
@@ -47,7 +50,7 @@ function validStoredUpload(value: unknown): value is BrowserStoredUpload {
   const p = value as Partial<BrowserStoredUpload>;
   if (p.schema_version !== "website_browser_stored_upload.v1"
       || typeof p.request_id !== "string" || p.scene_id !== `site-${p.request_id}`
-      || p.capture_id !== `walkthrough-${p.request_id}`
+      || !isWebsiteCaptureId(p.request_id, String(p.scene_id), String(p.capture_id))
       || typeof p.completed_at_iso !== "string" || !Number.isFinite(Date.parse(p.completed_at_iso))
       || typeof p.manifest_json !== "string" || Buffer.byteLength(p.manifest_json) > 65_536
       || p.manifest_sha256 !== `sha256:${createHash("sha256").update(p.manifest_json).digest("hex")}`
@@ -126,7 +129,7 @@ export async function reserveBrowserUpload(input: { request_id: string; scene_id
   if (!db || !Number.isSafeInteger(nowMs) || nowMs < 1
       || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/.test(input.request_id)
       || input.scene_id !== `site-${input.request_id}`
-      || input.capture_id !== `walkthrough-${input.request_id}`
+      || !isWebsiteCaptureId(input.request_id, input.scene_id, input.capture_id)
       || (input.canonical_video_name !== undefined && !["mov", "mp4"].some(extension =>
         input.canonical_video_name === `scenes/${input.scene_id}/captures/${input.capture_id}/raw/walkthrough.${extension}`)))
     throw new Error("browser_pending_unavailable");
@@ -171,7 +174,7 @@ export async function prepareLegacyBrowserFinish(input: { request_id: string; sc
   Promise<"legacy" | "modern" | "blocked"> {
   if (!db || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/.test(input.request_id)
       || input.scene_id !== `site-${input.request_id}`
-      || input.capture_id !== `walkthrough-${input.request_id}`) throw new Error("browser_pending_unavailable");
+      || !isWebsiteCaptureId(input.request_id, input.scene_id, input.capture_id)) throw new Error("browser_pending_unavailable");
   const sessionRef = db.collection(SITE_CAPTURE_SESSIONS_COLLECTION).doc(input.capture_id);
   const requestRef = db.collection("inboundRequests").doc(input.request_id);
   return db.runTransaction(async (transaction) => {
@@ -318,7 +321,23 @@ export async function publishBrowserPending(selected: BrowserPending): Promise<v
     if (value.state !== "published") {
       // New source publication and its advisory intent share one commit. An
       // older already-published row is intentionally never backfilled.
+      const requestRef = db!.collection("inboundRequests").doc(value.request_id);
+      const request = (await transaction.get(requestRef)).data();
+      if (value.capture_id !== `walkthrough-${value.request_id}`) {
+        if (!projectWebsiteCaptureRights(request).derived_scene_generation_allowed) throw new Error("capture_processing_not_authorized");
+        const link = (await transaction.get(db!.collection("captureSupplements").doc(value.capture_id))).data();
+        if (link?.requestId !== value.request_id || link.sceneId !== value.scene_id || link.captureId !== value.capture_id)
+          throw new Error("capture_lineage_unverified");
+        const parent = (await transaction.get(db!.collection("captureUploadSessions").doc(link.supplement?.parent_capture_id))).data();
+        const source = websiteSessionSource(parent, value.request_id, value.scene_id, link.supplement.parent_capture_id);
+        if (source.identity.raw_bundle_digest !== link.supplement.parent_bundle_digest
+          || source.identity.raw_manifest_uri !== link.supplement.parent_manifest_uri)
+          throw new Error("capture_lineage_unverified");
+        if (request?.active_capture_id && ![link.supplement.parent_capture_id, value.capture_id].includes(request.active_capture_id))
+          throw new Error("capture_update_superseded");
+      }
       await enqueueNewPublishedSiteAssessment(transaction, value);
+      transaction.set(requestRef, { active_capture_id: value.capture_id }, { merge: true });
       // The preparation watch starts with the upload (beta L3/L6), so an upload
       // the Pipeline never reports on still reaches an operator.
       transaction.set(ref, { browser_pending_delivery: { ...value, state: "published" },
@@ -329,7 +348,7 @@ export async function publishBrowserPending(selected: BrowserPending): Promise<v
   });
   // Dispatch begins only after durable publication; the HTTP upload response
   // does not wait for providers. Return visits can wake retained queued work.
-  if (newlyPublished && selected.capture_id === `walkthrough-${selected.request_id}` && isSiteVideoEvidenceEnabled()) {
+  if (newlyPublished && isWebsiteCaptureId(selected.request_id, selected.scene_id, selected.capture_id) && isSiteVideoEvidenceEnabled()) {
     void import("./siteAssessmentQueue").then(({ tickSiteAssessments }) => tickSiteAssessments(1)).catch(() => {
       logger.warn("Site advisory publication wake-up unavailable");
     });

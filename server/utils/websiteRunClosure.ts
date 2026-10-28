@@ -32,6 +32,7 @@ export function websiteRunClosure(record: Record<string, any> | undefined, reque
 }
 
 export function assertWebsiteRunOpen(record: Record<string, any> | undefined, requestId: string, captureId: string) {
+  if (record?.active_capture_id && record.active_capture_id !== captureId) throw new Error("website_run_capture_superseded");
   if (websiteRunClosure(record, requestId, captureId)) throw new Error("website_run_closed_by_owner");
 }
 

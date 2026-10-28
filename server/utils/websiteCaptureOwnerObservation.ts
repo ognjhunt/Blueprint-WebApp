@@ -7,6 +7,8 @@ import { buildBrowserDelivery, capturedWriteIdentity, matchesBrowserDeliveryReco
 import { projectWebsiteCaptureRights } from "./websiteTaskContext";
 import { bundleDigest, planDigestOf, SITE_CAPTURE_BUNDLE_PLAN_SCHEMA,
   SITE_CAPTURE_COMPLETION_SCHEMA, type BundlePlanRecord } from "./siteCaptureBundle";
+import { isWebsiteCaptureId } from "./websiteCaptureIdentity";
+import { resolveWebsiteCaptureBinding } from "./websiteCaptureBinding";
 import { strictBoundedProofJson } from "./strictBoundedProofJson";
 
 type Metadata = Record<string, unknown>;
@@ -16,6 +18,7 @@ export interface OwnerObservationDeps {
   bucket: string;
   now(): number;
   readRequest(requestId: string): Promise<Snapshot | null>;
+  readCaptureBinding?(requestId: string, sceneId: string, captureId: string): Promise<Record<string, any> | undefined>;
   readPinned(name: string, generation: string, limit: number): Promise<{ metadata: Metadata; bytes: Buffer }>;
   readMetadata(name: string, generation: string | null): Promise<Metadata>;
 }
@@ -144,7 +147,7 @@ export async function observeWebsiteCaptureOwner(
   if (input.purpose !== undefined && input.purpose !== "scene_preparation"
       || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/.test(input.request_id)
       || input.scene_id !== `site-${input.request_id}`
-      || input.capture_id !== `walkthrough-${input.request_id}`
+      || !isWebsiteCaptureId(input.request_id, input.scene_id, input.capture_id)
       || !generation(input.completion_marker_generation)
       || !/^[A-Za-z0-9][A-Za-z0-9._-]{1,250}$/.test(deps.bucket)) {
     throw new Error("owner_request_invalid");
@@ -222,6 +225,13 @@ export async function observeWebsiteCaptureOwner(
     producer = await observeBundleDelivery({ requestId: input.request_id, sceneId: input.scene_id,
       captureId: input.capture_id, prefix, marker, markerBytes: markerRead.bytes }, deps);
   }
+  const captureBinding = input.capture_id === `walkthrough-${input.request_id}` ? undefined
+    : await (deps.readCaptureBinding ?? resolveWebsiteCaptureBinding)(input.request_id, input.scene_id, input.capture_id);
+  if (input.capture_id !== `walkthrough-${input.request_id}` && (!captureBinding
+    || captureBinding.capture_id !== input.capture_id || captureBinding.original_capture_id !== `walkthrough-${input.request_id}`
+    || captureBinding.coordinate_frames_independent !== true || !Array.isArray(captureBinding.lineage)
+    || !captureBinding.lineage.length || captureBinding.lineage[0]?.child?.completion_generation !== input.completion_marker_generation))
+    throw new Error("owner_capture_lineage_invalid");
   const second = await deps.readRequest(input.request_id);
   if (!second || !validUpdateTime(second.updateTime)
       || !sameUpdateTime(first.updateTime, second.updateTime)) throw new Error("owner_document_changed");
@@ -233,7 +243,7 @@ export async function observeWebsiteCaptureOwner(
     ownership_record: { claimed_at_iso: claimed }, consent_attestation: consent, capture_rights: rights,
     completion_marker: { object_name: markerName, generation: markerIdentity.generation,
       size_bytes: markerIdentity.size_bytes, sha256: sha(markerRead.bytes) },
-    producer_delivery: producer };
+    producer_delivery: producer, ...(captureBinding ? { capture_binding: captureBinding } : {}) };
   const response = { schema_version: "website_capture_owner_observation.v1", ...source,
     source_document: { collection: "inboundRequests", document_id: input.request_id,
       update_time: first.updateTime }, source_projection_digest: crossRuntimeDigest(source),

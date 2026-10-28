@@ -28,11 +28,12 @@ function continuationAuthority(authority: Record<string, any>, input: {
 }) {
   const context = projectWebsiteTaskContext(input.brief, projectWebsiteCaptureRights(input.record), {
     inventory: input.inventory, captureId: input.captureId, captureBinding: input.captureBinding, purpose: authority.purpose });
-  if (!input.captureBinding && authority.task_context_digest === context.context_digest
+  if (authority.capture_id === context.capture_id && authority.task_context_digest === context.context_digest
     && (!input.assessmentPreparationProposal
       || digest(authority.assessment_preparation_proposal ?? null) === digest(input.assessmentPreparationProposal))) return authority;
   const { authority_digest: parentDigest, ...retained } = authority;
   const value = { ...retained, capture_id: context.capture_id, task_context_digest: context.context_digest,
+    consent: { ...retained.consent, task_confirmed: context.confirmed },
     ...(input.captureBinding ? { continuation_parent_authority_digest: parentDigest } : { assessment_parent_authority_digest: parentDigest }),
     ...(input.assessmentPreparationProposal ? { assessment_preparation_proposal: input.assessmentPreparationProposal } : {}) };
   return { ...value, authority_digest: digest(value) };
@@ -147,7 +148,7 @@ export function websiteSceneSponsorship(input: {
     throw new Error("website_assessment_preparation_pending");
   if (!context.confirmed && !(preparationOnly && proposal)) throw new Error("website_task_context_not_confirmed");
   if (proposal && (proposal.schema_version !== "site_assessment_preparation_proposal.v1"
-    || proposal.request_id !== input.requestId || proposal.capture_id !== `walkthrough-${input.requestId}`
+    || proposal.request_id !== input.requestId || proposal.capture_id !== current.capture_id
     || proposal.scope !== "scene_preparation_only" || proposal.physical_trial_authorized !== false
     || proposal.robot_suitability_verified !== false || proposal.context_digest !== advisoryContextDigest(input.record, input.brief)
     || input.record.site_advisory?.state !== "completed" || input.record.site_advisory.job_id !== proposal.job_id
@@ -157,7 +158,16 @@ export function websiteSceneSponsorship(input: {
   // A fresh admitted assessment must cover the new routing identity. Only the
   // exact earlier projection of these same owner/rights/source facts may retain
   // its parent allowance; budgets, expiry, terms and reservations stay intact.
-  const grantContextDigest = preparationOnly && routingProjectionMatches(context, previous, proposal)
+  const sourceContinuation = preparationOnly && input.captureBinding && previous
+    && input.captureBinding.original_capture_id === `walkthrough-${input.requestId}`
+    && input.captureBinding.capture_id === current.capture_id
+    && (previous.source_task_context_digest ?? previous.task_context_digest) === context.context_digest
+    && input.captureBinding.lineage?.some((entry: any) => entry.parent?.capture_id === previous.capture_id
+      || entry.child?.capture_id === previous.capture_id)
+    && previous.consent?.rights_reference === digest(rights);
+  // A verified update rebinds the current preparation inputs while retaining
+  // this job's exact allowance, clock and spending history.
+  const grantContextDigest = sourceContinuation || preparationOnly && routingProjectionMatches(context, previous, proposal)
     ? previous.task_context_digest : context.context_digest;
   const managedConsent = input.record.request?.sol_agents_api_consent;
   const managedAgents = managedConsent !== undefined && managedConsent !== null;
@@ -226,6 +236,7 @@ export function websiteSceneSponsorship(input: {
     ...(input.purpose ? { purpose: input.purpose } : {}),
     request_id: input.requestId, capture_id: context.capture_id, scene_id: context.scene_id,
     task_context_digest: context.context_digest, policy_digest: policyDigest,
+    ...(input.captureBinding ? { source_task_context_digest: context.context_digest } : {}),
     ...(input.assessmentPreparationProposal ? { assessment_preparation_proposal: input.assessmentPreparationProposal } : {}),
     ...(developmentSiteTest ? { development_test_site: {
       claim_scope: "development_only", commercial_site_qualification: false,
@@ -288,12 +299,12 @@ export function currentWebsitePreparationStatusContext(input: {
   const baseContext = projectWebsiteTaskContext(input.brief, projectWebsiteCaptureRights(input.record), {inventory: input.inventory, purpose});
   const {authority_digest: retainedDigest, ...retainedPayload} = retained ?? {};
   if (retainedDigest !== digest(retainedPayload)) throw new Error("website_assessment_preparation_pending");
-  const authority = routingProjectionMatches(baseContext, retained, proposal)
+  const authority = input.captureBinding || routingProjectionMatches(baseContext, retained, proposal)
     ? continuationAuthority(retained, input) : retained;
   const {authority_digest, ...payload} = authority;
   if (!proposal || authority_digest !== digest(payload) || authority.schema_version !== "website_scene_sponsorship.v1"
-    || authority.sponsor !== "blueprint" || authority.request_id !== input.requestId || authority.capture_id !== baseContext.capture_id
-    || authority.scene_id !== context.scene_id || authority.task_context_digest !== baseContext.context_digest
+    || authority.sponsor !== "blueprint" || authority.request_id !== input.requestId || authority.capture_id !== context.capture_id
+    || authority.scene_id !== context.scene_id || authority.task_context_digest !== context.context_digest
     || authority.consent?.task_confirmed !== context.confirmed || authority.consent?.private_processing_authorized !== true
     || authority.consent?.provider_training_authorized !== false || authority.consent?.spend_authorized !== true
     || !context.capture_rights.derived_scene_generation_allowed
@@ -358,9 +369,9 @@ export async function loadWebsiteSceneSponsorship(requestId: string, create = fa
       throw new Error("website_assessment_preparation_pending");
     // Validate the caller's full child snapshot BEFORE creating the immutable
     // original allowance. Only the returned continuation binds the child.
-    const baseContext = projectWebsiteTaskContext(input.brief, projectWebsiteCaptureRights(record), {inventory: input.inventory, purpose});
-    const authority = websiteSceneSponsorship({...input, now: Date.now() / 1000,
-      ...(options?.expected_task_context_digest !== undefined ? {expected_task_context_digest: baseContext.context_digest} : {})});
+    const authority = websiteSceneSponsorship({...input, ...(assessment ? { captureId, captureBinding } : {}), now: Date.now() / 1000,
+      ...(options?.expected_task_context_digest !== undefined ? {expected_task_context_digest: assessment ? current.context_digest
+        : projectWebsiteTaskContext(input.brief, projectWebsiteCaptureRights(record), {inventory: input.inventory, purpose}).context_digest} : {})});
     if (!record.website_scene_sponsorship) transaction.update(ref, { website_scene_sponsorship: authority });
     return continuationAuthority(authority, {...input, captureId, captureBinding});
   }));

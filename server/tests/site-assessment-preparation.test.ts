@@ -781,3 +781,33 @@ it("requires actual supported reasons and a supported job before preparation", a
   const unknownReason=packet();unknownReason.raw_model_assessment.approaches[0].reasons=[{text:"Guess",basis:"unknown",evidence:[]} as never];
   expect(await assessmentProposesPreparation(unknownReason,30)).toBe(false);
 });
+
+it("rebinds a verified child assessment to the existing source-independent task allowance without resetting caps", async () => {
+  seed(packet(), false, false);
+  const root = await loadWebsiteSceneSponsorship("one", true, "walkthrough-one", prepOptions());
+  const record = state.docs.get("inboundRequests/one") as any;
+  const brief = state.docs.get("siteTaskBriefs/one") as any;
+  const child = `supplement-${"a".repeat(40)}`;
+  const proposal = { ...root.assessment_preparation_proposal, capture_id: child, source_key: "new-source", job_id: "new-job" };
+  record.site_advisory = { ...record.site_advisory, source_key: proposal.source_key, job_id: proposal.job_id };
+  const binding = { schema_version: "website_capture_continuation.v1", capture_id: child, original_capture_id: "walkthrough-one",
+    coordinate_frames_independent: true, lineage: [{ child: {capture_id: child}, parent: {capture_id: "walkthrough-one"} }] };
+  const context = projectWebsiteTaskContext(brief, projectWebsiteCaptureRights(record), { captureId: child,
+    captureBinding: binding, purpose: "scene_preparation" });
+  const input = { requestId: "one", brief, record, now: Date.now() / 1000, captureId: child, captureBinding: binding,
+    assessmentPreparationProposal: proposal, purpose: "scene_preparation" as const, expected_task_context_digest: context.context_digest };
+  const renewedContext = websiteSceneSponsorship(input);
+  expect(renewedContext).toMatchObject({ capture_id: child, task_context_digest: context.context_digest,
+    continuation_parent_authority_digest: root.authority_digest, expires_at_epoch: root.expires_at_epoch,
+    max_total_spend_usd: root.max_total_spend_usd, max_paid_attempts: root.max_paid_attempts });
+  expect(record.website_scene_sponsorship).toEqual(root);
+  // A replacement video does not authorize different task instructions under
+  // the parent's per-task provider policy, even if an assessment was resealed.
+  const changed = { ...brief, summary: "A materially different robot job" };
+  const changedProposal = { ...proposal, context_digest: advisoryContextDigest(record, changed) };
+  record.site_advisory.context_digest = changedProposal.context_digest;
+  const changedContext = projectWebsiteTaskContext(changed, projectWebsiteCaptureRights(record), { captureId: child,
+    captureBinding: binding, purpose: "scene_preparation" });
+  expect(() => websiteSceneSponsorship({ ...input, brief: changed, assessmentPreparationProposal: changedProposal,
+    expected_task_context_digest: changedContext.context_digest })).toThrow("website_scene_sponsorship_changed");
+});

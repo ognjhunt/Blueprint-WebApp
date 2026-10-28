@@ -1,3 +1,4 @@
+import { isWebsiteCaptureId } from "./websiteCaptureIdentity";
 import { createHash } from "node:crypto";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { hydrateAgentEvidence } from "../agents/private-evidence";
@@ -189,14 +190,14 @@ export function projectCurrentSiteAssessmentView(packet: Record<string, any>, co
 /** Reader is observational; caller establishes owner-token or account authority before invoking it. */
 async function readCurrentSiteAdvisory(requestId: string, captureId: string,
   authorization: { ownerUid?: string; expectedOwnerUid?: string | null }, includeDecisionBases: boolean): Promise<CurrentSiteAssessmentView> {
-  if (!db || !id(requestId) || captureId !== `walkthrough-${requestId}`) return decisionView(empty("unavailable"));
+  if (!db || !id(requestId) || !isWebsiteCaptureId(requestId, `site-${requestId}`, captureId)) return decisionView(empty("unavailable"));
   try {
     const requestRef = db.collection("inboundRequests").doc(requestId);
     const briefRef = db.collection("siteTaskBriefs").doc(requestId);
     const sessionRef = db.collection("captureUploadSessions").doc(captureId);
     const [requestSnap, briefSnap, sessionSnap] = await Promise.all([requestRef.get(), briefRef.get(), sessionRef.get()]);
     const raw = requestSnap.data(), brief = briefSnap.data() ?? null, session = sessionSnap.data();
-    if (!raw) return decisionView(empty("unavailable"));
+    if (!raw || raw.active_capture_id && raw.active_capture_id !== captureId) return decisionView(empty("unavailable"));
     if (Object.prototype.hasOwnProperty.call(authorization, "expectedOwnerUid") && (raw.account_owner_uid ?? null) !== authorization.expectedOwnerUid) return decisionView(empty("unavailable"));
     if (authorization.ownerUid && raw.account_owner_uid !== authorization.ownerUid) return decisionView(empty("unavailable"));
     const pointer = raw.site_advisory;

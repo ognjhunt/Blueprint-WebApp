@@ -1,3 +1,4 @@
+import { isWebsiteCaptureId } from "./websiteCaptureIdentity";
 /** Internal proposal admission for the existing website scene-preparation producer. */
 import { createHash } from "node:crypto";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
@@ -64,7 +65,7 @@ export async function loadAssessmentPreparationProposal(requestId: string, captu
     if (browserAssessmentRequired(request.value, session.value, requestId, captureId)) throw unavailable();
     return null;
   }
-  if (captureId !== `walkthrough-${requestId}`) throw unavailable();
+  if (!isWebsiteCaptureId(requestId, `site-${requestId}`, captureId)) throw unavailable();
   const { loadCurrentSiteAdvisory } = await import("./siteAssessmentPublic");
   const admitted = await loadCurrentSiteAdvisory(requestId, captureId);
   if (admitted?.state !== "ready") throw unavailable();
@@ -124,7 +125,7 @@ export async function refreshCurrentPreparationAssessment(input: {
   requestId: string; captureId: string; captureBinding?: Record<string, any>;
   expectedTaskContextDigest: string;
 }) {
-  if (!db || input.captureId !== `walkthrough-${input.requestId}`) return;
+  if (!db || !isWebsiteCaptureId(input.requestId, `site-${input.requestId}`, input.captureId)) return;
   const store = db;
   await store.runTransaction(async tx => {
     const [request, brief, inventory] = await Promise.all([

@@ -1,3 +1,4 @@
+import { isWebsiteCaptureId } from "../utils/websiteCaptureIdentity";
 /**
  * Machine-driven world reconstruction.
  *
@@ -163,7 +164,7 @@ router.post("/creator-captures/:captureId/capture-owner", createPipelineSyncRate
     const verified = verifyPipelineSyncRequest(req);
     if (!verified.ok) return res.status(verified.status).json({ code: verified.code });
     const body = req.body as CaptureOwnerBody;
-    if (req.params.captureId !== `walkthrough-${body.request_id}`
+    if (!isWebsiteCaptureId(body.request_id, body.scene_id, req.params.captureId)
         || body.scene_id !== `site-${body.request_id}`) {
       return res.status(409).json({ code: "website_capture_owner_identity_mismatch" });
     }

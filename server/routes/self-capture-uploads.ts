@@ -86,6 +86,7 @@ import { browserPendingDecisionKey, storedCapturePrivacyCleared, loadBrowserPend
   reserveBrowserStoredUploadRetry, type BrowserStoredUpload, type BrowserPending,
   type BrowserWriteReservation } from "../utils/websiteBrowserPending";
 
+import { activateCaptureSupplement, issueCaptureSupplement, validateCaptureSupplement } from "../utils/captureSupplement";
 import { admitUploadBytes, uploadRefusal } from "../utils/betaAbuseCaps";
 import { requireAppCheck } from "../middleware/appCheck";
 
@@ -406,7 +407,7 @@ async function beginBrowserCanonicalWrite(
   }
 }
 
-const NEW_CAPTURE_JOB_MESSAGE = "This link cannot replace or extend the job's original recording. No new recording was accepted. Contact hello@tryblueprint.io with your job reference so we can help you start a new job with a complete walkthrough and fresh recording permission. The new job needs its own review before evaluation.";
+const NEW_CAPTURE_JOB_MESSAGE = "Your original recording stays saved. Use Update video on this job to add the missing views or send an updated walkthrough.";
 
 /** The write request carries no source identity; expose its retained receipt without claiming a replay. */
 async function finalizedCaptureResponse(payload: CaptureIdentity, res: Response) {
@@ -414,7 +415,7 @@ async function finalizedCaptureResponse(payload: CaptureIdentity, res: Response)
   const receipt = await describeBrowserUpload(payload, authorization.allowed);
   const message = `${receipt.captureReceived ? "Your original recording is saved. " : "Keep your original file while its saved status is checked. "}${NEW_CAPTURE_JOB_MESSAGE}`;
   return res.status(409).json({
-    ...receipt, code: "capture_replacement_requires_new_job", retryable: false,
+    ...receipt, code: "capture_already_saved", retryable: false, repairAvailable: true,
     message, detail: message, error: message,
   });
 }
@@ -749,8 +750,8 @@ async function refuseIfAppBundle(
   res: Response,
 ): Promise<boolean> {
   if (payload.supplement) {
-    res.status(409).json({ error: NEW_CAPTURE_JOB_MESSAGE, code: "capture_replacement_requires_new_job" });
-    return true;
+    try { await validateCaptureSupplement(payload as Parameters<typeof validateCaptureSupplement>[0]); }
+    catch { res.status(409).json({ code: "capture_lineage_unverified", error: "We could not verify this video update. Reopen your job and try again." }); return true; }
   }
   let occupied = false;
   try {
@@ -830,7 +831,9 @@ async function resumeStoredCapture(payload: NonNullable<ReturnType<typeof verify
         if (currentSource && ((freshlyCleared && screenedSource?.kind === currentSource.kind
             && screenedSource.key === currentSource.key)
             || await storedCapturePrivacyCleared(payload.requestId, payload.captureId, currentSource))) {
-          if (await finishClearedBundle(payload, bundleServiceDeps(bundleStorage), currentSource) === "conflict") {
+          const finished = await finishClearedBundle(payload, bundleServiceDeps(bundleStorage), currentSource);
+          if (finished === "finished") await activateCaptureSupplement(payload);
+          if (finished === "conflict") {
             logger.error({ requestId: payload.requestId, captureId: payload.captureId },
               "A cleared app bundle could not be finished: its completion source changed");
           }
@@ -860,8 +863,9 @@ async function respondCaptureUploadStatus(req: Request, res: Response, recoverLe
     const authorization = await authorizeCaptureUpload(payload.requestId);
     // Existing app/legacy consumers still recover through their status polling
     // contract. Modern browser receipts use the explicit retry route below.
-    if (recoverLegacy && !payload.supplement) {
+    if (recoverLegacy) {
       try {
+        if (payload.supplement) await validateCaptureSupplement(payload);
         if (await legacyStatusRecoveryAllowed(payload, authorization.allowed)) await resumeStoredCapture(payload);
       } catch (error) {
         logger.warn({ error, captureId: payload.captureId }, "Legacy capture status recovery remains held");
@@ -888,6 +892,7 @@ async function respondCaptureUploadStatus(req: Request, res: Response, recoverLe
     return res.json({
       ok: true,
       captureId: payload.captureId,
+      isVideoUpdate: Boolean(payload.supplement),
       expiresAt: new Date(payload.exp * 1000).toISOString(),
       accepts: [...ALLOWED_EXTENSIONS],
       ...(bundle ? { bundle } : {}),
@@ -1043,7 +1048,10 @@ router.post("/:token/advisory-retry", async (req: Request, res: Response) => {
 router.post("/:token/processing-retry", async (req: Request, res: Response) => {
   const payload = verifyCaptureUploadToken(String(req.params.token || ""));
   if (!payload) return res.status(404).json({ error: "This upload link is not valid or has expired." });
-  if (payload.supplement) return res.status(409).json({ code: "capture_replacement_requires_new_job", error: NEW_CAPTURE_JOB_MESSAGE });
+  if (payload.supplement) {
+    try { await validateCaptureSupplement(payload); }
+    catch { return res.status(409).json({ code: "capture_lineage_unverified", error: "Reopen your job to update its video." }); }
+  }
   res.setHeader("Cache-Control", "no-store");
   const authorization = await authorizeCaptureUpload(payload.requestId);
   if (!authorization.allowed) return res.status(409).json({ state: "held", processingRetryAvailable: false,
@@ -1197,7 +1205,10 @@ function authorizeBeforeCaptureBody(kind: "walkthrough" | "part" | "item_image")
       if (!payload) return res.status(404).json({ error: "This upload link is not valid or has expired." });
       const authorization = await authorizeCaptureUpload(payload.requestId);
       if (!authorization.allowed) return res.status(409).json({ code: authorization.holdReason, error: authorization.detail });
-      if (payload.supplement) return res.status(409).json({ code: "capture_replacement_requires_new_job", error: NEW_CAPTURE_JOB_MESSAGE });
+      if (payload.supplement) {
+        try { await validateCaptureSupplement(payload); }
+        catch { return res.status(409).json({ code: "capture_lineage_unverified", error: "Reopen your job to update its video." }); }
+      }
       if (!(await admitUploadRequest(req, res, kind, payload))) return;
       res.once("finish", () => { void discardUploadedFile((req as UploadRequest).file); });
       next();
@@ -1608,8 +1619,8 @@ async function bundleGate(req: Request, res: Response) {
   }
   const authorization = await authorizeCaptureUpload(payload.requestId);
   if (payload.supplement) {
-    res.status(409).json({ code: "capture_replacement_requires_new_job", error: NEW_CAPTURE_JOB_MESSAGE });
-    return null;
+    try { await validateCaptureSupplement(payload); }
+    catch { res.status(409).json({ code: "capture_lineage_unverified", error: "Reopen your job to update its video." }); return null; }
   }
   if (!authorization.allowed) {
     res.status(409).json({
@@ -1630,9 +1641,17 @@ async function bundleGate(req: Request, res: Response) {
 router.post("/:token/supplement", async (req, res) => {
   const gate = await bundleGate(req, res);
   if (!gate) return;
-  // Existing supplemental records remain retained and inspectable. The current
-  // Pipeline owner observer cannot admit them, so do not issue another token.
-  return res.status(409).json({ code: "capture_replacement_requires_new_job", error: NEW_CAPTURE_JOB_MESSAGE });
+  if (gate.payload.scope === "film") return res.status(403).json({ code: "supplement_owner_required", error: "Open the owner's job link to update the video." });
+  const parsed = z.object({ mode: z.enum(["replacement", "additional_views"]), requestId: z.string().uuid() }).strict().safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ code: "supplement_request_invalid", error: "Choose how to update your video and try again." });
+  try {
+    const result = await issueCaptureSupplement(gate.payload, parsed.data);
+    res.setHeader("Cache-Control", "no-store");
+    return res.json({ ok: true, ...result, url: `/capture-upload/${result.token}`, originalRetained: true });
+  } catch (error) {
+    const code = error instanceof Error ? error.message : "capture_update_unavailable";
+    return res.status(409).json({ code, error: "Your original video is saved. We could not start this update. Refresh the job and try again." });
+  }
 });
 router.post("/:token/bundle", async (req: Request, res: Response) => {
   const gate = await bundleGate(req, res);
@@ -1667,6 +1686,7 @@ router.post("/:token/bundle/complete", async (req: Request, res: Response) => {
   if (!gate) return;
   try {
     const outcome = await completeBundle(gate.payload, req.body, gate.deps);
+    if (outcome.status === 201) await activateCaptureSupplement(gate.payload);
     res.setHeader("Cache-Control", "no-store");
     return res.status(outcome.status).json(outcome.body);
   } catch (error) {

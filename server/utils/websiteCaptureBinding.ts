@@ -5,6 +5,8 @@ import { humanDecisionDigest } from "./human-reply-admission";
 import { supplementIdentity } from "./captureSupplement";
 import { resolveBundleStorage, type BundleStorage } from "./siteCaptureBundleStorage";
 import { bundleDigest } from "./siteCaptureBundle";
+import { websiteSessionSource } from "./websiteCaptureSource";
+import { matchesBrowserDeliveryRecord } from "./websiteCaptureDelivery";
 
 const sha = (bytes: string) => `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
 const digest = (value: unknown) => humanDecisionDigest(value);
@@ -19,19 +21,52 @@ export async function assertWebsiteCaptureBindingInTransaction(tx: { get(ref: an
       || digest(link.supplement) !== digest(entry.supplement)) throw new Error("website_capture_binding_lineage_changed");
     for (const source of [entry.child, entry.parent]) {
       const stored = (await tx.get(db.collection("captureUploadSessions").doc(source.capture_id))).data();
-      if (stored?.site_capture_bundle?.request_id !== requestId || stored.site_capture_bundle.scene_id !== `site-${requestId}`
-        || stored.immutable_upload_identity?.raw_bundle_digest !== source.raw_bundle_digest
-        || stored.immutable_upload_identity?.raw_manifest_uri !== source.raw_manifest_uri
-        || stored.immutable_upload_identity?.upload_completion_digest !== source.upload_completion_digest)
+      const sourceBucket = new URL(source.raw_manifest_uri).hostname;
+      const identity = websiteSessionSource(stored, requestId, `site-${requestId}`, source.capture_id, sourceBucket).identity;
+      if (identity.raw_bundle_digest !== source.raw_bundle_digest
+        || identity.raw_manifest_uri !== source.raw_manifest_uri
+        || identity.upload_completion_digest !== source.upload_completion_digest)
         throw new Error("website_capture_binding_source_changed");
     }
   }
 }
 
-async function finalized(captureId: string, requestId: string, sceneId: string, storage: BundleStorage) {
+async function finalized(captureId: string, requestId: string, sceneId: string, storage: BundleStorage, allowRetained = false) {
   const snap = await db!.collection("captureUploadSessions").doc(captureId).get();
   const record = snap.data();
-  const identity = record?.immutable_upload_identity;
+  const { identity, delivery, retained } = websiteSessionSource(record, requestId, sceneId, captureId, storage.bucketName);
+  if (retained) {
+    if (!allowRetained) throw new Error("website_capture_binding_not_finalized");
+    const before = await storage.info(retained.video.object_name);
+    if (!before || before.generation !== retained.video.generation || before.size !== retained.video.size_bytes
+      || before.crc32c !== retained.video.crc32c) throw new Error("website_capture_binding_source_changed");
+    const after = await storage.info(retained.video.object_name);
+    const latest = (await db!.collection("captureUploadSessions").doc(captureId).get()).data();
+    if (digest(before) !== digest(after)
+      || digest(websiteSessionSource(latest, requestId, sceneId, captureId, storage.bucketName).identity) !== digest(identity))
+      throw new Error("website_capture_binding_source_changed");
+    return { capture_id: captureId, ...identity, source_state: "retained_unprocessed",
+      completion_generation: null, completion_record_generation: null, manifest_generation: null };
+  }
+  if (delivery) {
+    const markerName = `${delivery.record.raw_prefix}/capture_upload_complete.json`;
+    const names = [markerName, delivery.objectName, delivery.record.manifest.object_name, delivery.record.raw_video.object_name];
+    const before = await Promise.all(names.map(name => storage.info(name)));
+    if (before.some(value => !value?.generation)) throw new Error("website_capture_binding_not_finalized");
+    const [marker, receipt, manifest] = await Promise.all(names.slice(0, 3).map(name => storage.readText(name)));
+    const selected = [delivery.record.manifest, delivery.record.raw_video];
+    if (marker !== delivery.record.marker_json || !receipt || !matchesBrowserDeliveryRecord(Buffer.from(receipt), delivery.record)
+      || !manifest || sha(manifest) !== delivery.record.manifest.sha256
+      || selected.some((value, index) => before[index + 2]?.generation !== value.generation
+        || before[index + 2]?.size !== value.size_bytes || before[index + 2]?.crc32c !== value.crc32c))
+      throw new Error("website_capture_binding_source_changed");
+    const after = await Promise.all(names.map(name => storage.info(name)));
+    const latest = (await db!.collection("captureUploadSessions").doc(captureId).get()).data();
+    if (digest(before) !== digest(after) || digest(websiteSessionSource(latest, requestId, sceneId, captureId, storage.bucketName).identity) !== digest(identity))
+      throw new Error("website_capture_binding_source_changed");
+    return { capture_id: captureId, ...identity, completion_generation: before[0]!.generation!,
+      completion_record_generation: before[1]!.generation!, manifest_generation: before[2]!.generation! };
+  }
   const prefix = `scenes/${sceneId}/captures/${captureId}`;
   if (record?.site_capture_bundle?.request_id !== requestId || record.site_capture_bundle.scene_id !== sceneId
     || record.site_capture_bundle.capture_id !== captureId
@@ -46,7 +81,8 @@ async function finalized(captureId: string, requestId: string, sceneId: string, 
   const marker = JSON.parse(markerBytes), completion = JSON.parse(completionBytes);
   if (marker.status !== "complete" || marker.capture_id !== captureId || marker.scene_id !== sceneId
     || completion.request_id !== requestId || completion.scene_id !== sceneId || completion.capture_id !== captureId
-    || completion.completion_marker_json !== markerBytes || digest(completion.identity) !== digest(identity))
+    || completion.completion_marker_json !== markerBytes
+    || ["raw_bundle_digest", "raw_manifest_uri", "upload_completion_digest"].some(key => completion.identity?.[key] !== identity[key]))
     throw new Error("website_capture_binding_source_mismatch");
   const hashes = JSON.parse(completion.hashes_json);
   if (`sha256:${bundleDigest(hashes.artifacts)}` !== identity.raw_bundle_digest
@@ -107,7 +143,7 @@ export async function resolveWebsiteCaptureBinding(requestId: string, sceneId: s
     if (expected.captureId !== current || digest(expected.supplement) !== digest(record.supplement))
       throw new Error("website_capture_binding_lineage_changed");
     const child = await finalized(current, requestId, sceneId, storage);
-    const parent = await finalized(parentId, requestId, sceneId, storage);
+    const parent = await finalized(parentId, requestId, sceneId, storage, true);
     if (parent.raw_bundle_digest !== record.supplement.parent_bundle_digest
       || parent.raw_manifest_uri !== record.supplement.parent_manifest_uri)
       throw new Error("website_capture_binding_source_changed");

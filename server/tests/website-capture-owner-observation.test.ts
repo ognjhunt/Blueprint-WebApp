@@ -260,3 +260,46 @@ it.each([{capture_owner_uid:null}, {capture_owner_uid:""}, {capture_owner_uid:"s
     await expect(observeWebsiteCaptureOwner({request_id:"r1",scene_id:"site-r1",capture_id:"walkthrough-r1",
       completion_marker_generation:"100",purpose:"scene_preparation"},f.deps)).rejects.toThrow("owner_identity_invalid");
   });
+
+it("observes a new same-job browser revision only with its server-verified original lineage", async () => {
+  const captureId = `supplement-${"a".repeat(40)}`;
+  const raw = `scenes/site-r1/captures/${captureId}/raw`;
+  const childVideo = { ...video, object_name: `${raw}/walkthrough.mp4` };
+  const childManifest = { ...manifest, object_name: `${raw}/manifest.json` };
+  const childDelivery = buildBrowserDelivery({ requestId: "r1", sceneId: "site-r1", captureId, rawPrefix: raw,
+    video: childVideo, manifest: childManifest, completedAtIso: "2026-09-29T00:00:00.000Z" });
+  const childMarker = `${raw}/capture_upload_complete.json`;
+  const objects = new Map([
+    [`${childMarker}@100`, object(childMarker, "100", childDelivery.markerBytes)],
+    [`${childDelivery.objectName}@101`, object(childDelivery.objectName, "101", childDelivery.recordBytes)],
+    [`${childManifest.object_name}@${childManifest.generation}`, object(childManifest.object_name, childManifest.generation, manifestBytes)],
+  ]);
+  const childSource = { capture_id: captureId, completion_generation: "100", completion_record_generation: "101",
+    manifest_generation: childManifest.generation, raw_bundle_digest: childDelivery.record.delivery_key,
+    raw_manifest_uri: `gs://test-bucket/${childManifest.object_name}`, upload_completion_digest: childDelivery.record.marker_sha256 };
+  const parentSource = { ...childSource, capture_id: "walkthrough-r1", raw_manifest_uri: `gs://test-bucket/${manifest.object_name}`,
+    raw_bundle_digest: delivery.record.delivery_key, upload_completion_digest: delivery.record.marker_sha256 };
+  const binding = { schema_version: "website_capture_continuation.v1", original_capture_id: "walkthrough-r1", capture_id: captureId,
+    coordinate_frames_independent: true, lineage: [{ child: childSource, parent: parentSource, supplement: {
+      parent_capture_id: parentSource.capture_id, parent_bundle_digest: parentSource.raw_bundle_digest,
+      parent_manifest_uri: parentSource.raw_manifest_uri, coverage_digest: "f".repeat(64) } }] };
+  const deps = { ...fixture().deps,
+    readCaptureBinding: async () => binding,
+    readPinned: async (name: string, generation: string) => {
+      const value = objects.get(`${name}@${generation}`); if (!value) throw new Error("missing_pinned_object"); return value;
+    },
+    readMetadata: async (name: string, generation: string | null) => {
+      if (name === childVideo.object_name) return { name, generation: childVideo.generation, size: "7", crc32c: childVideo.crc32c };
+      const value = generation ? objects.get(`${name}@${generation}`) : [...objects.values()].find(row => row.metadata.name === name);
+      if (!value) throw new Error("missing_object"); return value.metadata;
+    },
+  };
+  const observed = await observeWebsiteCaptureOwner({ request_id: "r1", scene_id: "site-r1", capture_id: captureId,
+    completion_marker_generation: "100" }, deps);
+  expect(observed.capture_binding).toEqual(binding);
+  expect(observed.producer_delivery.raw_video.object_name).toBe(childVideo.object_name);
+  expect(observed.source_document.document_id).toBe("r1");
+  childSource.completion_generation = "999";
+  await expect(observeWebsiteCaptureOwner({ request_id: "r1", scene_id: "site-r1", capture_id: captureId,
+    completion_marker_generation: "100" }, deps)).rejects.toThrow("lineage_invalid");
+});
