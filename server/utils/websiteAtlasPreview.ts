@@ -124,7 +124,8 @@ const STATUS_COPY = {
 /** Owner task view. Plain copy only: Pipeline reason codes never reach the customer. */
 export function projectWebsiteAtlasPreview(record: Record<string, any> | undefined): AtlasPreviewView | null {
   if (!record || !projectWebsiteCaptureRights(record).derived_scene_generation_allowed) return null;
-  const preview = selectWebsiteAtlasPreview(record);
+  const currentCapture = typeof record.active_capture_id === "string" ? record.active_capture_id : undefined;
+  const preview = selectWebsiteAtlasPreview(record, currentCapture);
   if (!preview || preview.state === "withdrawn") return null;
   const updated = new Date(preview.updated_at_epoch * 1000);
   return {

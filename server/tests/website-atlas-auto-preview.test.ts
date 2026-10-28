@@ -565,6 +565,30 @@ describe("Pipeline Atlas preview status", () => {
     record.consent_revoked = true;
     expect(projectWebsiteAtlasPreview(record)).toBeNull();
   });
+
+  it("shows the selected update's progress instead of an older ready preview", () => {
+    upload();
+    const record = store.rows.get(REQUEST), child = `supplement-${"a".repeat(40)}`;
+    const original = ready();
+    record.active_capture_id = child;
+    record.website_atlas_previews = { "walkthrough-req1": original,
+      [child]: preview({ capture_id: child, state: "processing", revision: 1 }) };
+    expect(projectWebsiteAtlasPreview(record)).toMatchObject({ captureId: child,
+      state: "processing", downloadAvailable: false });
+    expect(record.website_atlas_previews["walkthrough-req1"]).toEqual(original);
+    record.consent_revoked = true;
+    expect(projectWebsiteAtlasPreview(record)).toBeNull();
+  });
+
+  it("keeps the old preview historical while a selected update has no preview yet", () => {
+    upload();
+    const record = store.rows.get(REQUEST);
+    record.website_atlas_previews = { "walkthrough-req1": ready() };
+    record.active_capture_id = `supplement-${"a".repeat(40)}`;
+    expect(projectWebsiteAtlasPreview(record)).toBeNull();
+    delete record.active_capture_id;
+    expect(projectWebsiteAtlasPreview(record)).toMatchObject({ captureId: "walkthrough-req1", state: "ready" });
+  });
 });
 
 describe("owner Atlas preview download", () => {
