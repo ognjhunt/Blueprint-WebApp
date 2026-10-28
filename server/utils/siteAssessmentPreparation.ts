@@ -34,8 +34,14 @@ export async function assessmentProposesPreparation(packet: Record<string, any>,
     || Buffer.byteLength(JSON.stringify(packet)) > SITE_ASSESSMENT_MAX_PACKET_BYTES) throw unavailable();
   const raw = siteAssessmentSchema.parse(packet.raw_model_assessment);
   const rendered = renderSourceBoundAssessment(raw, new Map(packet.sources.map((s: any) => [s.source_id, s])), duration);
-  return rendered.verification.unverified_claims === 0
-    && raw.approaches.some(approach => approach.disposition === "plausible");
+  const sourceBound = (claim: unknown) => (claim as { verification_status?: string }).verification_status === "source_bound";
+  // Preparation consumes the job and the proposed approach's source facts.
+  // Unrelated advisory claims stay quarantined by the renderer; they cannot
+  // veto construction or become robot-suitability or execution authority.
+  return rendered.assessment.job.some(sourceBound)
+    && raw.approaches.some((approach, index) => approach.disposition === "plausible"
+      && rendered.assessment.approaches[index].reasons.length > 0
+      && rendered.assessment.approaches[index].reasons.every(sourceBound));
 }
 
 type Read = { collection: string; id: string; value: Record<string, any> | null };

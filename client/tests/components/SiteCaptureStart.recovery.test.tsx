@@ -76,6 +76,8 @@ it("RETURN-001: restores the draft after remount", async () => {
   view.unmount(); await renderReady(<SiteCaptureStart />);
   expect(document.querySelector("#start-task")).toHaveValue("Move sealed cartons");
   expect(document.querySelector("#start-location")).toHaveValue("Austin, TX");
+  expect(document.querySelector("#start-email")).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Use email and password instead" }));
   expect(document.querySelector("#start-email")).toHaveValue("operator@example.test");
 });
 it("RETURN-001b: a phone capture restores without any recording checkbox", async () => {

@@ -32,6 +32,7 @@ export function siteCaptureStartSubmission(params: {
   keepPrivate?: boolean;
   task?: string;
   email?: string;
+  company?: string;
 }) {
   const task = params.task ?? SITE_CAPTURE_START_FORM.task;
   return {
@@ -40,7 +41,7 @@ export function siteCaptureStartSubmission(params: {
     firstName: "",
     lastName: "",
     email: params.email ?? SITE_CAPTURE_START_FORM.email,
-    company: SITE_CAPTURE_START_FORM.company,
+    company: params.company ?? SITE_CAPTURE_START_FORM.company,
     roleTitle: "Site operator",
     buyerType: "site_operator",
     accountSignup: false,

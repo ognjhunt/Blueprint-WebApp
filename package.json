@@ -126,6 +126,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.52.0",
+    "@ffprobe-installer/ffprobe": "2.1.2",
     "@google-cloud/kms": "^5.2.1",
     "@google/generative-ai": "^0.21.0",
     "@googlemaps/js-api-loader": "^1.16.8",

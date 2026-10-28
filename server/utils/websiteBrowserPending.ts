@@ -4,6 +4,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { SITE_CAPTURE_SESSIONS_COLLECTION } from "./siteCaptureUploadIdentity";
 import { crossRuntimeDigest } from "./crossRuntimeCanonical";
 import type { WrittenManifest, WrittenObject } from "./websiteCaptureDelivery";
+import type { CaptureVideoMetadata } from "./captureVideoMetadata";
 import type { CapturePrivacyProducerSource } from "./capturePrivacyRecord";
 import { logger } from "../logger";
 import { isSiteVideoEvidenceEnabled } from "../config/env";
@@ -40,6 +41,7 @@ export interface BrowserStoredUpload {
   video: WrittenObject;
   manifest_json: string;
   manifest_sha256: string;
+  probe_failure?: "video_probe_unreadable";
 }
 
 function validStoredUpload(value: unknown): value is BrowserStoredUpload {
@@ -261,6 +263,47 @@ export async function loadBrowserStoredUpload(captureId: string): Promise<Browse
   if (value == null) return null;
   if (!validStoredUpload(value) || value.capture_id !== captureId) throw new Error("browser_pending_invalid");
   return value;
+}
+
+/** Complete the existing receipt after measurement, preserving its original
+ * owner/task/permission snapshot and exact source generation. No marker or new
+ * source write is authorized by this transition. */
+export async function completeBrowserStoredUploadProbe(selected: BrowserStoredUpload,
+  metadata: CaptureVideoMetadata, reservation: BrowserWriteReservation): Promise<BrowserStoredUpload> {
+  if (!db || !validStoredUpload(selected) || !validReservation(reservation)
+      || selected.request_id !== reservation.request_id || selected.capture_id !== reservation.capture_id
+      || selected.scene_id !== reservation.scene_id) throw new Error("browser_pending_invalid");
+  const { media_probe_pending: pending, ...original } = JSON.parse(selected.manifest_json);
+  if (pending !== true) throw new Error("browser_pending_changed");
+  const manifestJson = JSON.stringify({ ...original, fps_source: metadata.fps,
+    width: metadata.widthPx, height: metadata.heightPx, duration_seconds: metadata.durationSeconds,
+    capture_start_epoch_ms: metadata.recordedAtEpochMs,
+    capture_start_time_basis: metadata.recordedAtBasis ?? "client_reported",
+    media_metadata_source: "server_file_probe" }, null, 2);
+  const completed = { ...selected, manifest_json: manifestJson,
+    manifest_sha256: `sha256:${createHash("sha256").update(manifestJson).digest("hex")}` };
+  await replaceBrowserProbeReceipt(selected, completed, reservation);
+  return completed;
+}
+
+export async function recordBrowserVideoProbeFailure(selected: BrowserStoredUpload, reservation: BrowserWriteReservation) {
+  await replaceBrowserProbeReceipt(selected, { ...selected, probe_failure: "video_probe_unreadable" }, reservation);
+}
+
+async function replaceBrowserProbeReceipt(selected: BrowserStoredUpload, completed: BrowserStoredUpload,
+  reservation: BrowserWriteReservation) {
+  if (!db || !validStoredUpload(selected) || !validStoredUpload(completed) || !validReservation(reservation)
+      || selected.request_id !== reservation.request_id || selected.capture_id !== reservation.capture_id
+      || selected.scene_id !== reservation.scene_id) throw new Error("browser_pending_invalid");
+  const ref = db.collection(SITE_CAPTURE_SESSIONS_COLLECTION).doc(selected.capture_id);
+  await db.runTransaction(async transaction => {
+    const current = (await transaction.get(ref)).data();
+    if (current?.site_capture_bundle_claim || current?.browser_pending_delivery
+        || crossRuntimeDigest(current?.browser_stored_upload) !== crossRuntimeDigest(selected)
+        || crossRuntimeDigest(current?.browser_upload_reservation) !== crossRuntimeDigest(reservation))
+      throw new Error("browser_pending_changed");
+    transaction.set(ref, { browser_stored_upload: completed }, { merge: true });
+  });
 }
 
 /** Retry keeps the original receipt and never grants a canonical video write. */

@@ -14,10 +14,11 @@
  */
 
 import { Router, type Request, type Response } from "express";
-import { createReadStream } from "node:fs";
+import { createReadStream, createWriteStream } from "node:fs";
 import { createHash, randomUUID } from "node:crypto";
 import os from "node:os";
-import { open, unlink } from "node:fs/promises";
+import { mkdtemp, open, rm, stat, unlink } from "node:fs/promises";
+import path from "node:path";
 import { pipeline } from "node:stream/promises";
 import multer from "multer";
 import {
@@ -81,11 +82,12 @@ import { buildBrowserDelivery, capturedWriteIdentity, captureWriteFailureDiagnos
 import { browserPendingDecisionKey, storedCapturePrivacyCleared, loadBrowserPending, prepareLegacyBrowserFinish,
   publishBrowserPending, recordBrowserPending,
   releaseBrowserUpload, reserveBrowserUpload, recordBrowserStoredUpload, loadBrowserStoredUpload,
-  reserveBrowserStoredUploadRetry, type BrowserStoredUpload, type BrowserPending,
+  reserveBrowserStoredUploadRetry, completeBrowserStoredUploadProbe, recordBrowserVideoProbeFailure, type BrowserStoredUpload, type BrowserPending,
   type BrowserWriteReservation } from "../utils/websiteBrowserPending";
 
 import { admitUploadBytes, uploadRefusal } from "../utils/betaAbuseCaps";
 import { requireAppCheck } from "../middleware/appCheck";
+import { probeCaptureVideo, type CaptureVideoMetadata } from "../utils/captureVideoMetadata";
 
 import { ALLOWED_EXTENSIONS, resolveStoredObjectPath, verifiedStoredVideo,
   originalManifestConsent, verifiedPendingManifest, verifiedPendingMarker,
@@ -208,15 +210,6 @@ async function spooledFileHead(path: string): Promise<Buffer> {
   }
 }
 
-function safeJsonParse(value: unknown): unknown {
-  if (typeof value !== "string" || !value.trim()) return null;
-  try {
-    return JSON.parse(value);
-  } catch {
-    return null;
-  }
-}
-
 function extensionOf(fileName: string) {
   const match = /\.([a-z0-9]+)$/i.exec(fileName.trim());
   return match ? match[1].toLowerCase() : "";
@@ -227,25 +220,10 @@ function storageBucketName() {
 }
 
 /**
- * What the page measured about the video, as opposed to what it assumed.
- *
- * `validateManifest` in `cloud/extract-frames` requires width, height,
- * `fps_source` and `capture_start_epoch_ms`, and a capture whose manifest fails
- * validation produces a blocked report rather than a scene. None of those four
- * can be read from the file server-side — this deployment has no ffprobe — so
- * the browser reads them off a `<video>` element and sends them here.
- *
- * Every one is a measurement. Nothing is defaulted to a plausible number,
- * because a fabricated frame rate would ride along in the capture record as
- * though somebody had observed it.
+ * Media metadata retained in the manifest. Fresh uploads use a server probe;
+ * this parser also reads older measured manifests during processing recovery.
  */
-export type BrowserVideoMetadata = {
-  widthPx: number;
-  heightPx: number;
-  fps: number;
-  durationSeconds: number;
-  recordedAtEpochMs: number;
-};
+export type BrowserVideoMetadata = CaptureVideoMetadata;
 
 export function parseVideoMetadata(input: unknown): BrowserVideoMetadata | null {
   if (!input || typeof input !== "object") return null;
@@ -284,7 +262,7 @@ export function parseVideoMetadata(input: unknown): BrowserVideoMetadata | null 
 export function buildBrowserCaptureManifest(input: {
   payload: { sceneId: string; captureId: string; requestId: string };
   objectPath: string;
-  video: BrowserVideoMetadata;
+  video: BrowserVideoMetadata | null;
   sizeBytes: number;
   taskContext?: { description: string; confirmed: boolean; confirmed_at: string | null };
   captureRights?: ReturnType<typeof projectWebsiteCaptureRights>;
@@ -317,11 +295,11 @@ export function buildBrowserCaptureManifest(input: {
     retention: websiteCaptureRetention(input.firstReceivedAtIso ?? null),
     capture_tier_hint: "video_only",
     has_lidar: false,
-    fps_source: input.video.fps,
-    width: input.video.widthPx,
-    height: input.video.heightPx,
-    capture_start_epoch_ms: input.video.recordedAtEpochMs,
-    duration_seconds: input.video.durationSeconds,
+    ...(input.video ? { fps_source: input.video.fps, width: input.video.widthPx,
+      height: input.video.heightPx, capture_start_epoch_ms: input.video.recordedAtEpochMs,
+      duration_seconds: input.video.durationSeconds,
+      capture_start_time_basis: input.video.recordedAtBasis ?? "client_reported" }
+      : { media_probe_pending: true }),
     size_bytes: input.sizeBytes,
   };
 }
@@ -508,11 +486,27 @@ async function writeLegacyHeldMarker(requestId: string, sceneId: string, capture
  *   marker would bypass the screen, and no later gate can un-copy the frames
  *   that would follow.
  */
+async function measureStoredVideo(video: WrittenObject, receivedAt: number, localFile?: string) {
+  if (localFile) {
+    if ((await stat(localFile)).size !== video.size_bytes) throw new Error("browser_delivery_source_changed");
+    return probeCaptureVideo(localFile, receivedAt);
+  }
+  const directory = await mkdtemp(path.join(os.tmpdir(), "blueprint-video-probe-"));
+  const file = path.join(directory, "walkthrough.mov");
+  try {
+    await pipeline(storageAdmin!.bucket(storageBucketName()).file(video.object_name,
+      { generation: video.generation }).createReadStream(), createWriteStream(file, { flags: "wx", mode: 0o600 }));
+    if ((await stat(file)).size !== video.size_bytes) throw new Error("browser_delivery_source_changed");
+    return await probeCaptureVideo(file, receivedAt);
+  } finally { await rm(directory, { recursive: true, force: true }); }
+}
+
 async function finishStoredCapture(params: {
   payload: { requestId: string; sceneId: string; captureId: string };
   objectPath: string;
   rawPrefix: string;
-  videoMetadata: BrowserVideoMetadata;
+  videoMetadata: BrowserVideoMetadata | null;
+  probeFilePath?: string;
   sizeBytes: number;
   video: WrittenObject;
   reservation: BrowserWriteReservation;
@@ -574,6 +568,17 @@ async function finishStoredCapture(params: {
     }
     captureWriteStage = "stored_video_verify";
     if (!(await verifiedStoredVideo(storedUpload.video))) throw new Error("browser_delivery_source_changed");
+    if (JSON.parse(storedUpload.manifest_json).media_probe_pending === true) {
+      if (!originalManifestConsent(storedUpload.manifest_json)) throw new Error("source_revoked");
+      try {
+        const measured = await measureStoredVideo(storedUpload.video, Date.parse(storedUpload.completed_at_iso), params.probeFilePath);
+        storedUpload = await completeBrowserStoredUploadProbe(storedUpload, measured, params.reservation);
+      } catch (error) {
+        if ((error as Error).message === "video_probe_unreadable")
+          await recordBrowserVideoProbeFailure(storedUpload, params.reservation);
+        throw error;
+      }
+    }
     const manifestName = `${rawPrefix}/manifest.json`;
     const manifestBytes = Buffer.from(storedUpload.manifest_json);
     const manifestFile = bucket.file(manifestName);
@@ -1091,7 +1096,7 @@ router.post("/:token/processing-retry", async (req: Request, res: Response) => {
       const metadata = parseVideoMetadata({ widthPx: original.width, heightPx: original.height,
         fps: original.fps_source, durationSeconds: original.duration_seconds,
         recordedAtEpochMs: original.capture_start_epoch_ms });
-      if (!metadata) throw new Error("browser_pending_invalid");
+      if (!metadata && original.media_probe_pending !== true) throw new Error("browser_pending_invalid");
       const outcome = await finishStoredCapture({ payload, objectPath: stored.video.object_name,
         rawPrefix: stored.video.object_name.slice(0, stored.video.object_name.lastIndexOf("/")),
         videoMetadata: metadata, sizeBytes: stored.video.size_bytes, video: stored.video,
@@ -1266,18 +1271,6 @@ router.post("/:token", requireAppCheck("upload_walkthrough"), authorizeBeforeCap
     return res.status(503).json({ error: "Uploads are unavailable right now. Try again shortly." });
   }
 
-  // Refused before the bytes are stored rather than after. Without these the
-  // manifest cannot validate, and an invalid manifest means the extractor
-  // writes a blocked report instead of a scene -- which would look, from the
-  // site's side, exactly like a successful upload.
-  const videoMetadata = parseVideoMetadata(safeJsonParse(req.body?.metadata));
-  if (!videoMetadata) {
-    return res.status(400).json({
-      error: "We could not read this video's dimensions. Try recording in your phone's camera app.",
-      code: "video_metadata_missing",
-    });
-  }
-
   // The destination comes from the signed token, never from the request body,
   // so a caller cannot aim someone else's capture prefix at their own file.
   const objectPath = selfCaptureObjectPath({
@@ -1320,7 +1313,11 @@ router.post("/:token", requireAppCheck("upload_walkthrough"), authorizeBeforeCap
     // The shared finish path writes the manifest before that marker and passes
     // both streamed and composed uploads through the same privacy gate.
     const outcome = await finishStoredCapture({ payload, objectPath, rawPrefix,
-      videoMetadata, sizeBytes: file.size, video: writtenVideo, reservation: write.reservation });
+      videoMetadata: null, probeFilePath: file.path, sizeBytes: file.size, video: writtenVideo, reservation: write.reservation });
+    // A saved-source retry may start as soon as this response arrives. Release
+    // our write before acknowledging it, rather than after res.json().
+    await discardUploadedFile(file);
+    await releaseBrowserUpload(write.reservation);
     return res.status(outcome.status).json(outcome.body);
   } catch (error) {
     logger.error({ error, captureId: payload.captureId }, "Self-capture canonical write failed");
@@ -1512,18 +1509,6 @@ router.post("/:token/parts/complete", requireAppCheck("upload_parts_complete"), 
     return res.status(415).json({ error: "Record as .mov or .mp4." });
   }
 
-  // Same refusal as the single POST, and for the same reason: without these the
-  // manifest cannot validate, and an invalid manifest means the extractor
-  // writes a blocked report instead of a scene -- which looks, from the site's
-  // side, exactly like a successful upload.
-  const videoMetadata = parseVideoMetadata(parsed.data.metadata);
-  if (!videoMetadata) {
-    return res.status(400).json({
-      error: "We could not read this video's dimensions.",
-      code: "video_metadata_missing",
-    });
-  }
-
   if (!storageAdmin) {
     return res.status(503).json({ error: "Uploads are unavailable right now." });
   }
@@ -1577,11 +1562,12 @@ router.post("/:token/parts/complete", requireAppCheck("upload_parts_complete"), 
     writtenVideo = composition.video;
 
     const outcome = await finishStoredCapture({ payload, objectPath, rawPrefix,
-      videoMetadata, sizeBytes: parsed.data.sizeBytes, video: composition.video,
+      videoMetadata: null, sizeBytes: parsed.data.sizeBytes, video: composition.video,
       reservation: write.reservation });
 
     // Keep parts after a failed finish so a retry can recover without reupload.
     if (outcome.status === 201 || outcome.body.state === "held") await discardParts(bucket, rawPrefix);
+    await releaseBrowserUpload(write.reservation);
     return res.status(outcome.status).json(outcome.body);
   } catch (error) {
     logger.error({ error, captureId: payload.captureId },

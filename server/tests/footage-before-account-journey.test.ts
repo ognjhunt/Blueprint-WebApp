@@ -27,6 +27,7 @@ import { sharedFakeFirestoreState as state } from "./helpers/fake-firestore";
 import { sharedUploadBucket } from "./helpers/fake-upload-bucket";
 import { siteCaptureStartSubmission } from "./helpers/siteCaptureStartSubmission";
 import { syntheticQualifiedRun } from "./helpers/recommendation-evidence";
+import { captureVideoFixture } from "./helpers/captureVideoFixture";
 
 vi.mock("../../client/src/lib/firebaseAdmin", async () => {
   const { sharedFakeFirestore, FAKE_FIELD_DELETE, fakeArrayUnion } = await import("./helpers/fake-firestore");
@@ -143,13 +144,9 @@ async function startJob(task?: string) {
   return { jobId, token: captureUrl.split("/capture-upload/")[1] };
 }
 
-/** A minimal QuickTime file: the route checks the header, not the picture. */
+/** A playable synthetic recording; ownership tests still use the real media probe. */
 function quickTime(): Buffer {
-  const header = Buffer.alloc(20);
-  header.writeUInt32BE(20, 0);
-  header.write("ftypqt  ", 4, "latin1");
-  header.write("qt  ", 16, "latin1");
-  return Buffer.concat([header, Buffer.from("walkthrough-bytes")]);
+  return captureVideoFixture("walkthrough-bytes");
 }
 
 /** The video the site has, sent through its job link. */

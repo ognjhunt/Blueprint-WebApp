@@ -39,6 +39,16 @@ beforeEach(() => {
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); vi.useRealTimers(); });
 
 describe("verified receipt versus processing", () => {
+  it("sends the original even when this browser cannot decode video", async () => {
+    const originalCreateElement = document.createElement.bind(document);
+    vi.spyOn(document, "createElement").mockImplementation(((name: string) => {
+      if (name === "video") throw new Error("Unsupported browser codec");
+      return originalCreateElement(name);
+    }) as typeof document.createElement);
+    expect(await uploadSelfCaptureVideo(token, new File(["original"], "original.mov")))
+      .toMatchObject({ status: "processing_pending" });
+    expect(URL.createObjectURL).not.toHaveBeenCalled();
+  });
   it("does not interpret an unsupported retained claim as receipt", () => {
     expect(receivedVideoResult({ state: "processing_pending", processingRetryAvailable: true })).toBeNull();
     expect(receivedVideoResult({ ok: true })).toBeNull();

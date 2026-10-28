@@ -9,7 +9,7 @@
  * this one is shared so a journey can start from the real intake and land real
  * footage through the real route.
  */
-import { Writable } from "node:stream";
+import { Readable, Writable } from "node:stream";
 
 interface Metadata {
   name: string;
@@ -91,6 +91,11 @@ export function createFakeUploadBucket(name = "fake-upload-bucket") {
           const version = at(object, options?.generation);
           if (!version) throw missing(object);
           return [version.body];
+        },
+        createReadStream: () => {
+          const version = at(object, options?.generation);
+          if (!version) throw missing(object);
+          return Readable.from(version.body);
         },
         delete: async () => {
           if (!options?.generation) throw new Error("Deletion must bind the exact generation");

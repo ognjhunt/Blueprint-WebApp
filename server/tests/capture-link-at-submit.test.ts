@@ -26,6 +26,7 @@ import type { Server } from "node:http";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { sharedFakeFirestore, sharedFakeFirestoreState } from "./helpers/fake-firestore";
+import { captureVideoFixture } from "./helpers/captureVideoFixture";
 
 // The privacy screen is exercised in its own file; here it only has to be
 // controllable, so the marker-writing path can be tested on both answers.
@@ -52,7 +53,7 @@ const written = vi.hoisted(() => new Map<string, string>());
 const storedVersions = vi.hoisted(() => new Map<string, { body: Buffer; metadata: Record<string, string> }>());
 const generations = vi.hoisted(() => ({ next: 1 }));
 const writeGate = vi.hoisted(() => ({ current: null as null | { entered(): void; wait: Promise<void> } }));
-const cleanupGate = vi.hoisted(() => ({ current: null as null | { wait: Promise<void> } }));
+const cleanupGate = vi.hoisted(() => ({ current: null as null | { wait: Promise<void>; entered?: () => void } }));
 const writeFault = vi.hoisted(() => ({ manifestOnce: false, markerOnce: false, readUnavailable: false,
   manifestError: null as unknown, manifestResponseSize: undefined as unknown,
   beforeManifestExists: null as null | (() => void) }));
@@ -61,14 +62,14 @@ vi.mock("node:fs/promises", async importOriginal => {
   const original = await importOriginal<typeof import("node:fs/promises")>();
   return { ...original, unlink: async (path: Parameters<typeof original.unlink>[0]) => {
     const gate = cleanupGate.current;
-    if (gate && typeof path === "string" && path.includes("/self-capture-")) await gate.wait;
+    if (gate && typeof path === "string" && path.includes("/self-capture-")) { gate.entered?.(); await gate.wait; }
     return original.unlink(path);
   } };
 });
 
 vi.mock("../../client/src/lib/firebaseAdmin", async () => {
   const { sharedFakeFirestore, FAKE_FIELD_DELETE } = await import("./helpers/fake-firestore");
-  const { Writable } = await import("node:stream");
+  const { Readable, Writable } = await import("node:stream");
   return {
     default: {
       firestore: {
@@ -159,6 +160,11 @@ vi.mock("../../client/src/lib/firebaseAdmin", async () => {
             const value = current();
             if (!value) throw Object.assign(new Error("missing"), { code: 404 });
             return [value.body];
+          },
+          createReadStream: () => {
+            const value = current();
+            if (!value) throw Object.assign(new Error("missing"), { code: 404 });
+            return Readable.from(value.body);
           },
           // The route now streams uploads to disk-backed temp files and into
           // storage through a write stream, so the fake has to speak that
@@ -364,11 +370,7 @@ describe("description-only owner can explicitly authorize future footage", () =>
  * fixtures stay distinct.
  */
 function quickTime(content: string | Buffer = "x"): Buffer {
-  const header = Buffer.alloc(20);
-  header.writeUInt32BE(20, 0);
-  header.write("ftypqt  ", 4, "latin1");
-  header.write("qt  ", 16, "latin1");
-  return Buffer.concat([header, Buffer.isBuffer(content) ? content : Buffer.from(content)]);
+  return captureVideoFixture(content);
 }
 
 /** A well-formed upload for a site that cleared the screen. */
@@ -418,11 +420,18 @@ describe("saved footage and processing are separate receipts", () => {
     seedRequest("req-cleanup-drain", { disposition: "qualified" });
     writeFault.manifestOnce = true;
     let releaseCleanup!: () => void;
-    cleanupGate.current = { wait: new Promise<void>(resolve => { releaseCleanup = resolve; }) };
+    let notifyCleanup!: () => void;
+    const cleanupStarted = new Promise<void>(resolve => { notifyCleanup = resolve; });
+    cleanupGate.current = { wait: new Promise<void>(resolve => { releaseCleanup = resolve; }), entered: notifyCleanup };
     try {
       await withRoutes(async baseUrl => {
-        expect(await uploadFor(baseUrl, "req-cleanup-drain", "original video"))
-          .toMatchObject({ status: 502, body: { captureReceived: true, state: "processing_pending" } });
+        let acknowledged = false;
+        const upload = uploadFor(baseUrl, "req-cleanup-drain", "original video").then(result => {
+          acknowledged = true;
+          return result;
+        });
+        await Promise.race([cleanupStarted, upload.then(() => { throw Error("Cleanup gate was bypassed"); })]);
+        expect(acknowledged).toBe(false);
         const sessionPath = "captureUploadSessions/walkthrough-req-cleanup-drain";
         const originalReservation = sharedFakeFirestoreState.docs.get(sessionPath)?.browser_upload_reservation;
         expect(originalReservation).toMatchObject({ capture_id: "walkthrough-req-cleanup-drain" });
@@ -432,6 +441,7 @@ describe("saved footage and processing are separate receipts", () => {
         expect(sharedFakeFirestoreState.docs.get(sessionPath)?.browser_upload_reservation).toEqual(originalReservation);
         expect([...storedVersions.keys()].filter(name => name.includes("/walkthrough.mov@"))).toEqual(versions);
         releaseCleanup();
+        expect(await upload).toMatchObject({ status: 502, body: { captureReceived: true, state: "processing_pending" } });
         await waitForUploadRelease("req-cleanup-drain");
         expect(await retryProcessing(baseUrl, "req-cleanup-drain"))
           .toMatchObject({ status: 200, body: { state: "processing_ready" } });
@@ -499,7 +509,7 @@ describe("saved footage and processing are separate receipts", () => {
         captureReceived: true, processingRetryAvailable: true } });
       const session = sharedFakeFirestoreState.docs.get("captureUploadSessions/walkthrough-req-manifest-recovery") as Record<string, any>;
       const original = structuredClone(session.browser_stored_upload);
-      expect(original.manifest_json).toContain('"fps_source": 30');
+      expect(JSON.parse(original.manifest_json).fps_source).toBeCloseTo(30000 / 1001, 8);
       const videoBefore = [...storedVersions.keys()].filter(name => name.includes("/walkthrough.mov@"));
       const markerName = "scenes/site-req-manifest-recovery/captures/walkthrough-req-manifest-recovery/raw/capture_upload_complete.json";
       // Refresh and Back only ask a question; they cannot enqueue processing.
@@ -551,13 +561,14 @@ describe("saved footage and processing are separate receipts", () => {
     await withRoutes(async baseUrl => {
       const token = tokenFrom(captureUploadUrlFor("req-parts-recovery"));
       const part = new FormData();
-      part.append("part", new Blob([quickTime("original video")]), "part.bin");
+      const originalVideo = quickTime("original video");
+      part.append("part", new Blob([originalVideo]), "part.bin");
       expect((await fetch(`${baseUrl}/api/self-capture/uploads/${token}/parts/0?extension=mov`, {
         method: "PUT", body: part,
       })).status).toBe(200);
       const response = await fetch(`${baseUrl}/api/self-capture/uploads/${token}/parts/complete`, {
         method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ parts: 1, extension: "mov", sizeBytes: 34,
+        body: JSON.stringify({ parts: 1, extension: "mov", sizeBytes: originalVideo.length,
           metadata: { widthPx: 1920, heightPx: 1080, fps: 30, durationSeconds: 61,
             recordedAtEpochMs: 1_758_000_000_000 } }),
       });
@@ -1639,12 +1650,10 @@ describe("a link is a destination, not a permission", () => {
       return { status: response.status, body: (await response.json()) as Record<string, unknown> };
     });
 
-    // Past authorization and past the file and extension checks, stopped by the
-    // metadata this request deliberately omits. That is the next check and a
-    // different one, so it proves the gate opened rather than that the upload
-    // succeeded; only a 409 would mean it had not.
-    expect(result.status).toBe(400);
-    expect(result.body.code).toBe("video_metadata_missing");
+    // The uploaded source supplies its own measurements. Browser metadata is
+    // no longer a prerequisite, and authorization remains the same boundary.
+    expect(result.status).toBe(201);
+    expect(result.body.captureReceived).toBe(true);
   });
 });
 

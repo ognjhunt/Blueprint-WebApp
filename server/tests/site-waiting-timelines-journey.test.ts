@@ -25,6 +25,7 @@
  * analytics, model calls and the privacy screen's model step.
  */
 import express from "express";
+import { captureVideoFixture as quickTime } from "./helpers/captureVideoFixture";
 import { createServer, type Server } from "node:http";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { sharedFakeFirestoreState as state } from "./helpers/fake-firestore";
@@ -144,14 +145,6 @@ async function completeBriefReview() {
   await recoverCaptureReviews();
 }
 
-/** A minimal QuickTime file: the route checks the header, not the picture. */
-function quickTime(): Buffer {
-  const header = Buffer.alloc(20);
-  header.writeUInt32BE(20, 0);
-  header.write("ftypqt  ", 4, "latin1");
-  header.write("qt  ", 16, "latin1");
-  return Buffer.concat([header, Buffer.from("walkthrough-bytes")]);
-}
 
 /** The video the site already had, sent through its job link. */
 async function sendFootage(token: string) {

@@ -22,6 +22,7 @@
  */
 import express from "express";
 import { createServer, type Server } from "node:http";
+import { readFileSync } from "node:fs";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { sharedFakeFirestoreState as state } from "./helpers/fake-firestore";
 import { sharedUploadBucket } from "./helpers/fake-upload-bucket";
@@ -109,32 +110,26 @@ afterAll(async () => {
 beforeEach(() => { state.docs.clear(); sharedUploadBucket.clear(); });
 
 /** A site starts a job on the public form, exactly as the browser sends it, and keeps its link. */
-async function startJob() {
+async function startJob(company?: string) {
   const jobId = `saved-footage-${++sequence}`;
   const response = await fetch(`${base}/api/inbound-request`, { method: "POST",
     headers: { "content-type": "application/json", "x-forwarded-for": `203.0.113.${(sequence % 250) + 1}` },
     body: JSON.stringify(siteCaptureStartSubmission({ requestId: jobId, retryToken: `r${jobId}`.padEnd(64, "x"),
-      sourcePageUrl: "https://tryblueprint.io/contact/site-operator", email: `${jobId}@example.test` })) });
+      sourcePageUrl: "https://tryblueprint.io/contact/site-operator", email: `${jobId}@example.test`, company })) });
   expect(response.status, await response.clone().text()).toBe(201);
   const { captureUrl } = await response.json() as { captureUrl: string };
   return { jobId, token: captureUrl.split("/capture-upload/")[1] };
 }
 
-/** A minimal QuickTime file: the route checks the header, not the picture. */
+/** A real synthetic MOV-compatible MP4, also measured by the server probe. */
 function quickTime(): Buffer {
-  const header = Buffer.alloc(20);
-  header.writeUInt32BE(20, 0);
-  header.write("ftypqt  ", 4, "latin1");
-  header.write("qt  ", 16, "latin1");
-  return Buffer.concat([header, Buffer.from("walkthrough-bytes")]);
+  return readFileSync(new URL("./fixtures/capture-video-metadata.mp4", import.meta.url));
 }
 
 /** The video the site has, sent through its job link. */
-async function sendFootage(token: string) {
+async function sendFootage(token: string, bytes = quickTime()) {
   const form = new FormData();
-  form.append("video", new Blob([quickTime()], { type: "video/quicktime" }), "walkthrough.mov");
-  form.append("metadata", JSON.stringify({ widthPx: 1920, heightPx: 1080, durationSeconds: 61, fps: 30,
-    recordedAtEpochMs: 1_758_000_000_000 }));
+  form.append("video", new Blob([bytes], { type: "video/quicktime" }), "walkthrough.mov");
   const response = await fetch(`${base}/api/self-capture/uploads/${token}`, { method: "POST", body: form });
   return { status: response.status, body: await response.json() as { code?: string; error?: string; captureReceived?: boolean } };
 }
@@ -174,6 +169,10 @@ async function jobStatus(token: string) {
 }
 
 describe("footage waits for a saved job", () => {
+  it("accepts a site job without requiring a company profile", async () => {
+    const { jobId } = await startJob("");
+    expect(state.docs.get(`inboundRequests/${jobId}`)).toBeDefined();
+  });
   it("refuses a guest's video on every upload route, and says what to do", async () => {
     const { token } = await startJob();
     const whole = await sendFootage(token);
@@ -206,5 +205,38 @@ describe("footage waits for a saved job", () => {
     const sent = await sendFootage(token);
     expect([200, 201]).toContain(sent.status);
     expect(sent.body.captureReceived).toBe(true);
+    const [manifestBytes] = await sharedUploadBucket.bucket.file(`scenes/site-${jobId}/captures/walkthrough-${jobId}/raw/manifest.json`).download();
+    const manifest = JSON.parse(manifestBytes.toString());
+    expect(manifest).toMatchObject({ width: 160, height: 120, media_metadata_source: "server_file_probe" });
+    expect(manifest.fps_source).toBeCloseTo(30000 / 1001, 8);
+  });
+  it("retains unreadable original bytes and withholds the processing marker", async () => {
+    const { jobId, token } = await startJob();
+    await claim(jobId);
+    const bytes = Buffer.alloc(24);
+    bytes.writeUInt32BE(24); bytes.write("ftypqt  ", 4); bytes.write("qt  ", 16);
+    const sent = await sendFootage(token, bytes);
+    expect(sent).toMatchObject({ status: 409, body: { captureReceived: true, code: "video_probe_unreadable" } });
+    const raw = `scenes/site-${jobId}/captures/walkthrough-${jobId}/raw`;
+    const [saved] = await sharedUploadBucket.bucket.file(`${raw}/walkthrough.mov`).download();
+    expect(saved).toEqual(bytes);
+    expect(sharedUploadBucket.objectNames()).not.toContain(`${raw}/capture_upload_complete.json`);
+    const status = await fetch(`${base}/api/self-capture/uploads/${token}/status`).then(response => response.json());
+    expect(status).toMatchObject({ captureReceived: true, processingHold: { code: "video_probe_unreadable" } });
+  });
+  it("retries the saved source after a probe deployment failure without uploading again", async () => {
+    const { jobId, token } = await startJob();
+    await claim(jobId);
+    const media = await import("../utils/captureVideoMetadata");
+    const probe = vi.spyOn(media, "probeCaptureVideo").mockRejectedValueOnce(new Error("video_probe_unavailable"));
+    try {
+      expect((await sendFootage(token))).toMatchObject({ status: 502, body: { captureReceived: true } });
+      const saved = await sharedUploadBucket.bucket.file(`scenes/site-${jobId}/captures/walkthrough-${jobId}/raw/walkthrough.mov`).getMetadata();
+      const response = await fetch(`${base}/api/self-capture/uploads/${token}/processing-retry`, { method: "POST" });
+      expect(response.status, await response.clone().text()).toBe(200);
+      expect(await response.json()).toMatchObject({ captureReceived: true, state: "processing_ready" });
+      const after = await sharedUploadBucket.bucket.file(`scenes/site-${jobId}/captures/walkthrough-${jobId}/raw/walkthrough.mov`).getMetadata();
+      expect(after).toEqual(saved);
+    } finally { probe.mockRestore(); }
   });
 });

@@ -33,9 +33,9 @@ vi.mock("@/lib/selfCaptureVideo", async (importOriginal) => ({
 
 const account = vi.hoisted(() => ({ user: null as any, loading: false }));
 // The account a guest creates with the form, held off the page's own sign-in.
-const created = vi.hoisted(() => ({ create: vi.fn(), verify: vi.fn(), current: vi.fn() }));
+const created = vi.hoisted(() => ({ create: vi.fn(), google: vi.fn(), verify: vi.fn(), current: vi.fn() }));
 vi.mock("@/lib/accountAuth", () => ({ createDetachedPasswordAccount: created.create, sendAccountVerification: created.verify,
-  detachedAccountUser: created.current }));
+  createDetachedGoogleAccount: created.google, detachedAccountUser: created.current }));
 // Explicit unit durability contract fake; native storage is exercised separately.
 // Native strict IndexedDB execution is a separate layer.
 const durability = vi.hoisted(() => ({ rows: new Map<string, { value: any; retired: boolean }>() }));
@@ -82,6 +82,7 @@ beforeEach(() => {
   upload.send.mockReset();
   upload.retry.mockReset();
   created.create.mockReset().mockResolvedValue({ uid: "new-site", email: "owner@example.com", getIdToken: async () => "new-site-token" });
+  created.google.mockReset().mockResolvedValue({ uid: "google-site", email: "google-owner@example.com", getIdToken: async () => "google-site-token" });
   created.verify.mockReset().mockResolvedValue(undefined);
   created.current.mockReset().mockResolvedValue(null);
   vi.stubGlobal("fetch", fetchMock);
@@ -416,7 +417,8 @@ it("asks one question about the video and offers no separate rights step", async
   expect(document.querySelector("#start-rights")).toBeNull();
   // A guest creates its account with the form, so the video is asked for here.
   expect(document.querySelector("#start-footage")).toBeRequired();
-  expect(document.querySelector("#start-password")).toBeRequired();
+  expect(document.querySelector("#start-password")).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Use email and password instead" }));
   fireEvent.change(document.querySelector("#start-task")!, { target: { value: "Pack cartons" } });
   fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Austin, TX" } });
   fireEvent.change(document.querySelector("#start-email")!, { target: { value: "fixture@example.invalid" } });
@@ -667,6 +669,7 @@ describe("SiteCaptureStart and a video that already exists", () => {
     await renderReady(<SiteCaptureStart />);
     fireEvent.change(document.querySelector("#start-task")!, { target: { value: SITE_CAPTURE_START_FORM.task } });
     fireEvent.click(document.querySelector("#start-method-upload")!);
+    fireEvent.click(screen.getByRole("button", { name: "Use email and password instead" }));
     fireEvent.change(document.querySelector("#start-footage")!, { target: { files: [video()] } });
     fireEvent.change(document.querySelector("#start-location")!, { target: { value: SITE_CAPTURE_START_FORM.location } });
     fireEvent.change(document.querySelector("#start-email")!, { target: { value: SITE_CAPTURE_START_FORM.email } });
@@ -770,12 +773,12 @@ describe("SiteCaptureStart and a video that already exists", () => {
 });
 
 describe("SiteCaptureStart identity fields", () => {
-  it("asks for an email and a company, not a name", async () => {
+  it("needs an email for a recording link and defers the company profile", async () => {
     await renderReady(<SiteCaptureStart />);
     expect(document.querySelector("#start-name")).toBeNull();
     expect(document.querySelector("#start-email")).toBeRequired();
-    expect(document.querySelector("#start-company")).toBeRequired();
-    expect(document.querySelector('label[for="start-company"]')!.textContent).not.toMatch(/optional/i);
+    expect(document.querySelector("#start-company")).not.toBeRequired();
+    expect(document.querySelector('label[for="start-company"]')!.textContent).toMatch(/optional/i);
   });
 
   it("asks a signed-in account for neither, since the account has both", async () => {
@@ -857,6 +860,7 @@ it("replays uncertain original answers, ignoring later edits", async () => {
   fireEvent.submit(screen.getByRole("form"));
   await screen.findByText("Uncertain save");
   chooseUploadNow();
+  fireEvent.click(screen.getByRole("button", { name: "Use email and password instead" }));
   fireEvent.change(document.querySelector("#start-email")!, { target: { value: "other@example.invalid" } });
   fireEvent.submit(screen.getByRole("form"));
   await screen.findByRole("heading", { name: "Film the work area." });
@@ -1055,6 +1059,7 @@ describe("SiteCaptureStart creates a guest's account with the form so its video 
   }
   function fillGuest(password = "correct horse") {
     fireEvent.click(document.querySelector("#start-method-upload")!);
+    fireEvent.click(screen.getByRole("button", { name: "Use email and password instead" }));
     fireEvent.change(document.querySelector("#start-footage")!, { target: { files: [video()] } });
     fireEvent.change(document.querySelector("#start-location")!, { target: { value: SITE_CAPTURE_START_FORM.location } });
     fireEvent.change(document.querySelector("#start-email")!, { target: { value: "Owner@Example.com" } });
@@ -1062,11 +1067,15 @@ describe("SiteCaptureStart creates a guest's account with the form so its video 
     fireEvent.change(document.querySelector("#start-password")!, { target: { value: password } });
   }
 
-  it("asks a guest for the video and a password, with nothing else to read", async () => {
+  it("offers password-free ownership first and keeps email sign-up as an explicit alternative", async () => {
     await renderReady(<SiteCaptureStart />);
     expect(document.querySelector("#start-password")).toBeNull();
     fireEvent.click(document.querySelector("#start-method-upload")!);
     expect(document.querySelector("#start-footage")).toBeRequired();
+    expect(document.querySelector("#start-password")).toBeNull();
+    expect(document.querySelector("#start-email")).toBeNull();
+    expect(document.querySelector("#start-company")).not.toBeRequired();
+    fireEvent.click(screen.getByRole("button", { name: "Use email and password instead" }));
     const password = document.querySelector("#start-password") as HTMLInputElement;
     expect(password).toBeRequired();
     expect(password).toHaveAttribute("type", "password");
@@ -1081,11 +1090,27 @@ describe("SiteCaptureStart creates a guest's account with the form so its video 
   it("remembers the form when the guest signs in first", async () => {
     await renderReady(<SiteCaptureStart />);
     fireEvent.click(document.querySelector("#start-method-upload")!);
+    fireEvent.click(screen.getByRole("button", { name: "Use email and password instead" }));
     fireEvent.click(screen.getByRole("link", { name: "Sign in first" }));
     expect(window.sessionStorage.getItem("redirectAfterAuth")).toBe(`${window.location.pathname}${window.location.search}`);
   });
 
-  it("creates the account, saves the job under it and sends the video in one step", async () => {
+  it("saves an owned job and sends its video without company details or a password", async () => {
+    answer({ captureUrl }); upload.send.mockResolvedValue({ status: "done" });
+    await renderReady(<SiteCaptureStart />);
+    fireEvent.click(document.querySelector("#start-method-upload")!);
+    fireEvent.change(document.querySelector("#start-location")!, { target: { value: SITE_CAPTURE_START_FORM.location } });
+    fireEvent.change(document.querySelector("#start-footage")!, { target: { files: [video()] } });
+    fireEvent.submit(screen.getByRole("form"));
+    await screen.findByRole("heading", { name: "Your recording is in." });
+    expect(created.google).toHaveBeenCalledOnce(); expect(created.create).not.toHaveBeenCalled();
+    const saved = postsTo("/api/workspace/capture-start")[0][1];
+    expect(saved.headers).toMatchObject({ Authorization: "Bearer google-site-token" });
+    expect(JSON.parse(saved.body)).toMatchObject({ email: "google-owner@example.com", company: "" });
+    expect(created.verify).not.toHaveBeenCalled();
+    expect(upload.send).toHaveBeenCalledWith("tok.signed", expect.any(File), expect.any(Function));
+  });
+  it("creates an optional password account, saves the job under it and sends the video in one step", async () => {
     answer({ captureUrl });
     upload.send.mockResolvedValue({ status: "done" });
     await renderReady(<SiteCaptureStart />);

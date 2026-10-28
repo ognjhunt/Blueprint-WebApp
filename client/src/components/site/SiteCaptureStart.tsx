@@ -21,7 +21,7 @@ import { PRIVACY_URL, TERMS_URL } from "@/lib/legalAcceptance";
 import { FILMING_NOTICE, FOOTAGE_UPLOAD_NOTICE } from "@/lib/footageNotice";
 import { DESCRIPTION_AUTHORITY_STATEMENT, DESCRIPTION_AUTHORITY_VERSION } from "@/lib/siteSubmissionAuthority";
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
-import { createDetachedPasswordAccount, detachedAccountUser, sendAccountVerification } from "@/lib/accountAuth";
+import { createDetachedGoogleAccount, createDetachedPasswordAccount, detachedAccountUser, sendAccountVerification } from "@/lib/accountAuth";
 import { MIN_PASSWORD_LENGTH } from "@/lib/passwordPolicy";
 import { friendlyAuthError } from "@/lib/siteClaim";
 import {
@@ -288,6 +288,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
   // form (owner decision 2026-10-22); only their video goes with the form, and
   // the upload routes refuse any other.
   const newAccount = !currentUser && hasFootage && region !== "non_us";
+  const [accountMethod, setAccountMethod] = useState<"google" | "password">("google");
   const videoWithForm = siteWorkspace || newAccount;
   const [footage, setFootage] = useState<File | null>(null);
   const [footageError, setFootageError] = useState<string | null>(null);
@@ -335,7 +336,9 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
     const data = new FormData(formRef.current);
     const field = (name: string) => String(data.get(name) ?? "");
     retain({ ...recovery.current, savedAt: Date.now(), draft: {
-      task: field("startTask"), location: place ? place.label : field("startLocation"), email: field("startEmail"), company: field("startCompany"),
+      task: field("startTask"), location: place ? place.label : field("startLocation"),
+      email: data.has("startEmail") ? field("startEmail") : recovery.current.draft.email,
+      company: field("startCompany"),
       ...(field("startFrequency") ? { jobFrequency: field("startFrequency") } : {}),
       ...(field("startReadiness") ? { purchaseReadiness: field("startReadiness") as SiteCaptureRecovery["draft"]["purchaseReadiness"] } : {}),
       method, region: place ? (place.countryCode ? (place.countryCode === "US" ? "us" : "non_us") : "") : region,
@@ -412,7 +415,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
     let email = currentUser?.email || read("startEmail");
     const location = read("startLocation");
     const password = String(data.get("startPassword") ?? "");
-    if (!retained && newAccount && password.length < MIN_PASSWORD_LENGTH) {
+    if (!retained && newAccount && accountMethod === "password" && password.length < MIN_PASSWORD_LENGTH) {
       setState({ status: "failed", message: `Choose a password of ${MIN_PASSWORD_LENGTH} characters or more.` });
       document.querySelector<HTMLInputElement>("#start-password")?.focus();
       return;
@@ -427,9 +430,13 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
       let owner = currentUser ?? (retained?.endpoint === "/api/workspace/capture-start" ? await detachedAccountUser() : null);
       // A filled honeypot is a bot: it gets the guest path's fake success, not an account.
       const createsAccount = !retained && newAccount && !read("honeypot");
-      if (createsAccount) {
+      if (createsAccount || !owner && retained?.endpoint === "/api/workspace/capture-start") {
         try {
-          owner = await createDetachedPasswordAccount(email.toLowerCase(), password);
+          owner = accountMethod === "password"
+            ? await createDetachedPasswordAccount(email.toLowerCase(), password)
+            : await createDetachedGoogleAccount();
+          if (!owner.email) throw new Error("Choose an account with an email address for your private job link.");
+          email = owner.email;
         } catch (error) {
           if (!active.current) return;
           setState({ status: "failed", message: (error as { code?: string } | null)?.code === "auth/email-already-in-use"
@@ -437,7 +444,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
             : friendlyAuthError(error, "We could not create your account. Please try again.") });
           return;
         }
-        void sendAccountVerification(owner, `${window.location.origin}/app`).catch(() => {});
+        if (accountMethod === "password") void sendAccountVerification(owner, `${window.location.origin}/app`).catch(() => {});
         if (!active.current) return;
       }
       const headers = await withAppCheckHeader(await withFirebaseAuthHeaders(owner, await withCsrfHeader({ "Content-Type": "application/json" })));
@@ -927,28 +934,30 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
       </div>
 
       {!currentUser && <>
-      <label htmlFor="start-email">
+      {(!newAccount || accountMethod === "password") && <label htmlFor="start-email">
         <span>Work email</span>
         <span className="ms-field-hint">
           Where we send your private link to record or upload the video, review the brief and follow progress.
         </span>
-        <input id="start-email" name="startEmail" type="email" defaultValue={recovery.current.draft.email} required maxLength={320} />
-      </label>
-
-      <label htmlFor="start-company">
-        <span>Company</span>
-        <input id="start-company" name="startCompany" type="text" defaultValue={recovery.current.draft.company} required autoComplete="organization" maxLength={200} />
-      </label>
+        <input id="start-email" name="startEmail" type="email" defaultValue={recovery.current.draft.email} required={!newAccount || accountMethod === "password"} maxLength={320} />
+      </label>}
 
       {/* Never retained in a draft or a recovery body. */}
-      {newAccount && <label htmlFor="start-password">
+      {newAccount && accountMethod === "google" && <p className="ms-field-hint">
+        Continue with Google to keep this job and its video securely yours. No password or company profile is needed.
+        {" "}<button type="button" className="ms-text-link" onClick={() => setAccountMethod("password")}>Use email and password instead</button>
+      </p>}
+      {newAccount && accountMethod === "password" && <><label htmlFor="start-password">
         <span>Create a password</span>
         <span className="ms-field-hint">
           {MIN_PASSWORD_LENGTH} characters or more. Have an account?{" "}
           <a className="ms-text-link" href="/sign-in" onClick={rememberThisForm}>Sign in first</a>
         </span>
         <input id="start-password" name="startPassword" type="password" required minLength={MIN_PASSWORD_LENGTH} autoComplete="new-password" maxLength={128} />
-      </label>}
+      </label><p className="ms-field-hint"><button type="button" className="ms-text-link" onClick={() => {
+        retainDraft();
+        setAccountMethod("google");
+      }}>Continue with Google instead</button></p></>}
 
       </>}
       {currentUser && workspaceType !== undefined && (siteWorkspace
@@ -957,6 +966,10 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
 
       <details className="ms-task-interest ms-visitor-detail">
         <summary>Add job details and buying plans (optional)</summary>
+        {!currentUser && <label htmlFor="start-company">
+          <span>Company (optional)</span>
+          <input id="start-company" name="startCompany" type="text" defaultValue={recovery.current.draft.company} autoComplete="organization" maxLength={200} />
+        </label>}
         <label htmlFor="start-task">
           <span>Anything we should know?</span>
           <span className="ms-field-hint">We draft the job description from your video. Add details here only if they help.</span>

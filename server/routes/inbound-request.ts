@@ -1101,10 +1101,11 @@ export async function submitInboundRequest(req: Request, res: Response) {
     );
     const missingFields: string[] = [];
     if (!payload.requestId) missingFields.push("requestId");
-    // A site starts with a task, an email and a company; no name is asked.
+    // Site footage supplies the job. Company profile details can follow later.
     if (buyerType !== "site_operator" && !payload.firstName?.trim()) missingFields.push("firstName");
     if (buyerType !== "site_operator" && !payload.lastName?.trim()) missingFields.push("lastName");
-    if (!payload.company?.trim()) missingFields.push("company");
+    if (buyerType !== "site_operator" && !payload.company?.trim()) missingFields.push("company");
+    if (buyerType === "site_operator") payload.company = payload.company?.trim() ?? "";
     if (!payload.email?.trim()) missingFields.push("email");
     // The video supplies the observed task. Its authorized capture setup can
     // exist before filming; creating that draft grants no recording rights.

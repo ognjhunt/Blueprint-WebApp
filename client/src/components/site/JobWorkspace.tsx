@@ -139,17 +139,18 @@ function JobWorkspaceForToken({ token, preparationOutcome, currentStatusKnown = 
     {workflow.review && <div className="job-review">
       <h3>{workflow.review.disposition === "no_suitable_option" ? "No suitable option yet" : workflow.review.disposition === "more_information" ? "A little more information is needed" : "What we know so far"}</h3>
       <p>{workflow.review.summary}</p>
-      {currentStatusKnown && !preparationOutcome && workflow.review.nextAction !== workflow.nextAction && <p className="ms-field-hint">{workflow.review.nextAction}</p>}
     </div>}
     {(workflow.evidence ?? []).length > 0 && <section className="job-review" aria-label="Evidence for your job">
       <h3>Evidence for your job</h3>
       {workflow.evidence!.map(item => <article key={item.requestId} className="mt-3">
         <h4>{item.question}</h4>
         <p>{item.current ? item.state.replace(/_/g, " ") : "Historical — the job scope changed"}: {item.summary}</p>
+        {item.limitations.map((limit, index) => <p className="ms-field-hint" key={index}>{limit}</p>)}
+        <details><summary>View supporting evidence</summary>
         {item.claims.map(claim => <p key={claim.claimId}>{claim.claimId}: {claim.verdict.replace(/_/g, " ")} — {claim.rationale}</p>)}
         <p>Next: {item.nextAction}</p>
-        {item.limitations.map((limit, index) => <p className="ms-field-hint" key={index}>{limit}</p>)}
         <p className="ms-field-hint break-all">Reference: {item.publicationDigest ?? item.requestId}{item.decisionDigest ? ` · Decision: ${item.decisionDigest}` : ""}</p>
+        </details>
       </article>)}
     </section>}
     {workflow.managedEvidenceUnavailable && <p role="status" className="ms-field-hint">Policy results are temporarily unavailable. Reload this page to retry.</p>}
@@ -157,10 +158,13 @@ function JobWorkspaceForToken({ token, preparationOutcome, currentStatusKnown = 
       <h3>Policy evidence for your job</h3>
       {workflow.managedEvidence!.map(item => <article key={item.runId} id={`managed-evidence-${encodeURIComponent(item.runId)}`} className="mt-3">
         <h4>{item.current ? item.state.replace(/_/g, " ") : "Historical — the job scope changed"}</h4>
-        <p>{item.summary}</p><p>Next: {item.nextAction}</p>
-        {item.screening && <PolicyScreeningCandidates screening={item.screening} />}
+        <p>{item.summary}</p>
         {item.limitations.map((limit, index) => <p className="ms-field-hint" key={index}>{limit}</p>)}
+        <details><summary>View test details</summary>
+        <p>Next: {item.nextAction}</p>
+        {item.screening && <PolicyScreeningCandidates screening={item.screening} />}
         <p className="ms-field-hint break-all">Run: {item.runId}{item.resultDigest ? ` · Result: ${item.resultDigest}` : ""}</p>
+        </details>
       </article>)}
     </section>}
     {workflow.jobId && (workflow.evidence ?? []).some(item => item.current && ["information_required", "blocked", "unavailable"].includes(item.state)) ? <p className="ms-field-hint"><a className="ms-text-link" href={`/app/captures?jobId=${encodeURIComponent(workflow.jobId!)}`}>Add task-specific capture evidence</a> when Blueprint needs it. Use the account that owns this job; the existing recording permissions still apply.</p> : null}

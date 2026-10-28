@@ -53,18 +53,28 @@ let detachedAuth: Promise<import("firebase/auth").Auth> | null = null;
  * that creates it; the site signs in normally afterwards.
  */
 export async function createDetachedPasswordAccount(email: string, password: string): Promise<User> {
+  const { createUserWithEmailAndPassword } = await import("firebase/auth");
+  return (await createUserWithEmailAndPassword(await intakeAuth(), email, password)).user;
+}
+
+/** One-click ownership before capture, without a company profile or password. */
+export async function createDetachedGoogleAccount(): Promise<User> {
+  const { GoogleAuthProvider, signInWithPopup } = await import("firebase/auth");
+  return (await signInWithPopup(await intakeAuth(), new GoogleAuthProvider())).user;
+}
+
+function intakeAuth(): Promise<import("firebase/auth").Auth> {
   detachedAuth ??= (async () => {
-    const [{ auth }, { getApps, initializeApp }, { initializeAuth, inMemoryPersistence }] = await Promise.all([
+    const [{ auth }, { getApps, initializeApp }, { initializeAuth, inMemoryPersistence, browserPopupRedirectResolver }] = await Promise.all([
       import("@/lib/firebase"),
       import("firebase/app"),
       import("firebase/auth"),
     ]);
     const app = getApps().find(existing => existing.name === "site-intake-account")
       ?? initializeApp(auth.app.options, "site-intake-account");
-    return initializeAuth(app, { persistence: inMemoryPersistence });
+    return initializeAuth(app, { persistence: inMemoryPersistence, popupRedirectResolver: browserPopupRedirectResolver });
   })().catch((error) => { detachedAuth = null; throw error; });
-  const { createUserWithEmailAndPassword } = await import("firebase/auth");
-  return (await createUserWithEmailAndPassword(await detachedAuth, email, password)).user;
+  return detachedAuth;
 }
 
 /** The account created above, for retrying its own job while this page stays open. */

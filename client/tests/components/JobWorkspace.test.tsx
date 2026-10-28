@@ -228,6 +228,8 @@ it("shows exact abstention limits without advancing a job or selecting a proposa
   render(<JobWorkspace token="owner-token" />);
   expect(await screen.findByText(/available geometry cannot answer clearance/)).toBeVisible();
   expect(screen.getByText("Physical success has not been established.")).toBeVisible();
+  expect(screen.getByText(/Missing metric observation/)).not.toBeVisible();
+  fireEvent.click(screen.getByText("View supporting evidence"));
   expect(screen.getByText(/Missing metric observation/)).toBeVisible();
   expect(screen.queryByRole("button", { name: /Choose this proposal/ })).not.toBeInTheDocument();
   expect(screen.getByRole("list", { name: "Job milestones" }).querySelector('[aria-current="step"]')).toHaveTextContent("Brief agreed");
@@ -254,13 +256,17 @@ it("keeps legacy pilot details read-only when new job evidence has no commercial
   expect(screen.queryByRole("button", { name: /Choose this pilot proposal/ })).not.toBeInTheDocument();
 });
 
-it("shows every screened candidate without creating a pilot recommendation", async () => {
+it("keeps screening details available on demand without creating a pilot recommendation", async () => {
   fetchMock.mockResolvedValue(response(workflow({ briefAgreed: true, managedEvidence: [{ runId: "screening-one", state: "running", current: true,
     resultDigest: null, summary: "Early policy screening: 36 candidates.", nextAction: "Candidate progress will update.",
     limitations: ["Screening does not qualify a pilot."], href: "#managed-evidence-screening-one", screening: {
       candidates: Array.from({ length: 36 }, (_, index) => ({ candidateId: `candidate-${index}`, name: `Candidate ${index}`,
         state: index ? "pending" : "running", planned: 3, scored: 0, succeeded: 0, failed: 0, void: 0, blockers: [] })) } }] })));
   render(<JobWorkspace token="owner-token" />);
+  expect(await screen.findByText("Early policy screening: 36 candidates.")).toBeVisible();
+  expect(screen.getByText("Candidate 35")).not.toBeVisible();
+  expect(screen.getByText(/Run: screening-one/)).not.toBeVisible();
+  fireEvent.click(screen.getByText("View test details"));
   const table = await screen.findByRole("table", { name: "Early policy screening candidates" });
   expect(within(table).getAllByRole("row")).toHaveLength(37);
   expect(within(table).getByText("Candidate 35")).toBeVisible();

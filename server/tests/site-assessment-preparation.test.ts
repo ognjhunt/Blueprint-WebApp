@@ -101,6 +101,22 @@ it("rejects unsupported factual bindings and leaves ambiguous approaches pending
   const ambiguous=packet();ambiguous.raw_model_assessment.approaches[0].disposition="needs_evidence";
   expect(await assessmentProposesPreparation(ambiguous,30)).toBe(false);
 });
+it("prepares a grounded job while unrelated advisory claims remain unverified",async()=>{
+  const p:any=packet();
+  p.raw_model_assessment.known=[fact()];
+  p.raw_model_assessment.known[0].evidence[0].selector.observation_index=9;
+  seed(p);
+  expect(await assessmentProposesPreparation(p,30)).toBe(true);
+  expect((await loadAssessmentPreparationProposal("one","walkthrough-one"))?.proposal)
+    .toMatchObject({scope:"scene_preparation_only",robot_suitability_verified:false,physical_trial_authorized:false});
+});
+it("requires source facts for the proposed approach instead of trusting its model disposition",async()=>{
+  const p=packet();
+  p.raw_model_assessment.approaches[0].reasons[0].evidence[0].selector.observation_index=9;
+  expect(await assessmentProposesPreparation(p,30)).toBe(false);
+  p.raw_model_assessment.approaches[0].reasons=[];
+  expect(await assessmentProposesPreparation(p,30)).toBe(false);
+});
 it.each(["queued","running","needs_review"])("requires durable completion instead of treating %s as a positive assessment",async(status)=>{
   const {job}=seed();(state.docs.get(`siteAssessmentJobs/${job}`) as any).state=status;
   await expect(loadWebsiteSceneSponsorship("one",true)).rejects.toThrow("pending");
