@@ -13,8 +13,6 @@ import { parsePipelinePolicyCanaryPublication } from "./policyCanaryWebappSyncCo
 import { parseBetaPolicyScreeningPublication } from "./betaPolicyScreeningContract";
 import { assertWebsiteCaptureBindingInTransaction, resolveWebsiteCaptureBinding } from "./websiteCaptureBinding";
 import { isTaskFamilyStrategy, preparationPhaseMatchesTask } from "./taskFamilySceneIntake";
-import { reservationTtlMs } from "./agentRunRecord";
-import { MAX_FREE_SPONSOR_CAP_USD } from "./freeBeta";
 
 export const jobManagedEvidenceBindingSchema = z.object({
   job_id: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$/),
@@ -109,8 +107,6 @@ export function managedJobTask(args: {
       websiteCaptureId = captureId;
     }
   }
-  if (record.active_capture_id != null && record.active_capture_id !== (sourceCaptureSessionId ?? websiteCaptureId))
-    throw new Error("job_evaluation_source_changed");
   return {
     taskIds: sourceCaptureSessionId ? [] : [
       `website-${selectedContext.context_digest.slice(7, 27)}`,
@@ -165,8 +161,6 @@ export function assertManagedOfferingForJob(
 export type ManagedJobEvidenceSummary = {
   runId: string; state: string; current: boolean; resultDigest: string | null;
   summary: string; nextAction: string; limitations: string[]; href: string;
-  finalist?: { candidateId: string; planDigest: string | null; episodes: 200; approvalPending: boolean;
-    approvalCapUsd: number; minimumCapUsd: number; approvalTtlMs: number };
   screening?: { budget?: { limitUsd: string; committedUpperBoundUsd: string; spentUpperBoundUsd: string; reservedUsd: string };
     candidates: Array<{ candidateId: string; name: string; state: string; planned: number;
     scored: number; succeeded: number; failed: number; void: number; blockers: string[] }> };
@@ -190,31 +184,13 @@ export function projectManagedJobEvidence(
       : "Blueprint can inspect the existing run status before deciding whether any further evidence is needed.",
     limitations: ["A prepared or running setup does not prove task performance or physical delivery."],
     href: `#managed-evidence-${encodeURIComponent(runId)}`,
-    ...(run.run_kind === "beta_policy_finalist" ? { finalist: {
-      candidateId: String(run.finalist_request?.candidate_id ?? ""),
-      planDigest: typeof run.finalist_preparation?.plan_digest === "string" ? run.finalist_preparation.plan_digest : null,
-      episodes: 200 as const, approvalPending: run.finalist_state === "awaiting_owner_authority" && !run.finalist_authority,
-      approvalCapUsd: MAX_FREE_SPONSOR_CAP_USD,
-      minimumCapUsd: Number(run.finalist_preparation?.maximum_planned_cost_usd ?? MAX_FREE_SPONSOR_CAP_USD),
-      approvalTtlMs: reservationTtlMs(),
-    } } : {}),
-  };
-  if (run.run_kind === "beta_policy_finalist" && !result) return { ...base,
-    summary: run.finalist_state === "blocked" ? "Full finalist scoring needs additional preparation."
-      : run.finalist_state === "awaiting_owner_authority"
-        ? "Full finalist scoring is prepared; Blueprint's existing owner approval is pending."
-        : "Blueprint is preparing or running full finalist scoring for this job.",
-    nextAction: run.finalist_state === "blocked" ? "Blueprint will review the recorded run limitation."
-      : run.finalist_state === "awaiting_owner_authority"
-        ? "Blueprint's owner can approve this exact run; no customer payment or setup is needed."
-        : "Progress stays attached to this job as the existing worker continues.",
   };
   if (!result || result.record_id !== run.result_record_id) return base;
   const publication = publicationFromResultRecord(result);
   if (!publication) return base;
   if (publication.schema_version === "beta_policy_screening_publication.v1") {
     const value = parseBetaPolicyScreeningPublication(publication);
-    if (!value || value.campaign_id !== runId || run.run_kind !== (value.purpose === "finalist" ? "beta_policy_finalist" : "beta_policy_screening")
+    if (!value || value.campaign_id !== runId || run.run_kind !== "beta_policy_screening"
       || value.publication_digest !== run.publication_digest || value.revision !== run.publication_revision
       || value.plan_digest !== run.configuration_digest || value.source.scene_intent_id !== run.source_scene_intent_id
       || value.source.scene_revision_digest !== run.source_scene_revision_digest
@@ -222,17 +198,11 @@ export function projectManagedJobEvidence(
     const completed = value.candidates.filter(row => row.status === "completed").length;
     const scored = value.candidates.reduce((total, row) => total + row.episodes_scored, 0);
     return { ...base, state: value.status, resultDigest: ["completed", "blocked"].includes(value.status) ? value.publication_digest : null,
-      summary: value.purpose === "finalist"
-        ? `Full finalist scoring: ${scored} of 200 episodes scored on the retained job and configuration.`
-        : `Early policy screening: ${completed} of ${value.candidates.length} candidates completed; ${scored} episodes scored against the job's success criteria.`,
-      nextAction: value.status === "completed" ? value.purpose === "finalist"
-        ? "Blueprint can review the full scoring and its qualified scope before proposing the next step."
-        : "Blueprint prepares full scoring automatically; further execution uses the existing owner approval."
+      summary: `Early policy screening: ${completed} of ${value.candidates.length} candidates completed; ${scored} episodes scored against the job's success criteria.`,
+      nextAction: value.status === "completed" ? "Blueprint can use these early checks to choose which approaches need a full evaluation."
         : value.status === "blocked" || value.status === "reconciliation_required" ? "Blueprint is reviewing the recorded limitations before any further run."
           : "Candidate progress will update as each test finishes.",
-      limitations: [value.purpose === "finalist"
-        ? "Full scoring remains diagnostic until its qualification and agreed pass mark support a recommendation; it does not prove physical deployment performance."
-        : "Screening is diagnostic. It does not declare a winner, qualify a pilot, or prove physical deployment performance."],
+      limitations: ["Screening is diagnostic. It does not declare a winner, qualify a pilot, or prove physical deployment performance."],
       screening: { budget: { limitUsd: value.budget.limit_usd, committedUpperBoundUsd: value.budget.committed_upper_bound_usd,
         spentUpperBoundUsd: value.budget.spent_upper_bound_usd, reservedUsd: value.budget.reserved_usd },
         candidates: value.candidates.map(row => ({ candidateId: row.candidate_id, name: row.display_name,
@@ -299,7 +269,7 @@ export async function loadManagedJobEvidence(jobId: string, currentBriefDigest: 
   const rows = await Promise.all(snapshot.docs.map(async document => {
     const run = document.data();
     let screeningScope: ReturnType<typeof managedJobTask> | null = null;
-    if (["beta_policy_screening", "beta_policy_finalist"].includes(run.run_kind) && typeof run.source_scene_intake_id === "string") {
+    if (run.run_kind === "beta_policy_screening" && typeof run.source_scene_intake_id === "string") {
       const scopeKey = `${run.source_scene_intake_id}:${run.source_scene_intent_id}:${run.source_scene_revision_digest}`;
       if (!screeningScopes.has(scopeKey)) screeningScopes.set(scopeKey, (async () => {
         try {
@@ -330,8 +300,8 @@ export async function loadManagedJobEvidence(jobId: string, currentBriefDigest: 
     const result = typeof run.result_record_id === "string"
       ? await store.collection("captureTaskEvaluationRuns").doc(run.result_record_id).get() : null;
     return projectManagedJobEvidence(document.id, run, result?.exists ? result.data()! : null, jobId, currentBriefDigest,
-      ["beta_policy_screening", "beta_policy_finalist"].includes(run.run_kind) ? screeningScope?.taskContextDigest ?? null : taskContextDigest,
-      ["beta_policy_screening", "beta_policy_finalist"].includes(run.run_kind) ? screeningScope?.sourceFingerprint ?? null : sourceFingerprint);
+      run.run_kind === "beta_policy_screening" ? screeningScope?.taskContextDigest ?? null : taskContextDigest,
+      run.run_kind === "beta_policy_screening" ? screeningScope?.sourceFingerprint ?? null : sourceFingerprint);
   }));
   return rows.filter((row): row is ManagedJobEvidenceSummary => row !== null);
 }
@@ -359,32 +329,14 @@ export async function assertManagedJobEvidenceReference(jobId: string, currentBr
     read(store.collection("inboundRequests").doc(jobId)), read(store.collection("siteTaskBriefs").doc(jobId)),
     read(store.collection("siteTaskItemInventories").doc(jobId)),
   ]);
+  const scope = managedJobTask({ binding: { job_id: jobId, brief_digest: currentBriefDigest }, record: job.data(),
+    brief: brief.data(), inventory: inventory.exists ? inventory.data() as TaskItemInventoryRecord : null,
+    sourceSession: await readManagedJobSourceSession(job.data(), read) });
   const run = snapshot.data();
   if (!run || run.job_evidence_binding?.job_id !== jobId || typeof run.result_record_id !== "string") {
     throw new Error("job_managed_evidence_reference_unavailable_or_stale");
   }
-  if (!brief.data()?.confirmedAtIso) throw new Error("job_brief_not_agreed");
   const result = await read(store.collection("captureTaskEvaluationRuns").doc(run.result_record_id));
-  const sourceSession = await readManagedJobSourceSession(job.data(), read);
-  let screeningCapture: Awaited<ReturnType<typeof readManagedScreeningCapture>> | undefined;
-  let intake: Record<string, any> | undefined;
-  if (["beta_policy_screening", "beta_policy_finalist"].includes(run.run_kind)) {
-    if (typeof run.source_scene_intake_id !== "string") throw new Error("job_evaluation_source_changed");
-    intake = (await read(store.collection("taskEvaluationSceneIntakes").doc(run.source_scene_intake_id))).data();
-    if (!intake || typeof intake.source_session_id !== "string") throw new Error("job_evaluation_source_changed");
-    screeningCapture = sourceSession ? { captureId: intake.source_session_id }
-      : await readManagedScreeningCapture(jobId, intake.source_session_id);
-    await assertManagedScreeningCaptureCurrent(jobId, screeningCapture, read);
-  }
-  const scope = managedJobTask({ binding: { job_id: jobId, brief_digest: currentBriefDigest }, record: job.data(),
-    brief: brief.data(), inventory: inventory.exists ? inventory.data() as TaskItemInventoryRecord : null,
-    sourceSession, ...(screeningCapture ? { screeningCapture, allowProposedScreening: true } : {}) });
-  if (intake) {
-    const publication = parseBetaPolicyScreeningPublication(publicationFromResultRecord(result.data() ?? {}));
-    if (!publication) throw new Error("job_managed_evidence_reference_unavailable_or_stale");
-    const { assertScreeningSceneSource } = await import("./betaPolicyScreeningIngest");
-    assertScreeningSceneSource(publication, intake, scope);
-  }
   const row = projectManagedJobEvidence(snapshot.id, run, result.exists ? result.data()! : null,
     jobId, currentBriefDigest, scope.taskContextDigest, scope.sourceFingerprint);
   if (!row || !row.current || row.resultDigest !== reference.resultDigest) throw new Error("job_managed_evidence_reference_unavailable_or_stale");

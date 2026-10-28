@@ -124,8 +124,6 @@ export interface JobManagedEvidenceSummary {
   nextAction: string;
   limitations: string[];
   href: string;
-  finalist?: { candidateId: string; planDigest: string | null; episodes: 200; approvalPending: boolean;
-    approvalCapUsd: number; minimumCapUsd: number; approvalTtlMs: number };
   screening?: { budget?: { limitUsd: string; committedUpperBoundUsd: string; spentUpperBoundUsd: string; reservedUsd: string };
     candidates: Array<{ candidateId: string; name: string; state: string; planned: number;
     scored: number; succeeded: number; failed: number; void: number; blockers: string[] }> };
