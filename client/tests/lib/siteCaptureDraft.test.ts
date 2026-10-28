@@ -6,7 +6,7 @@ import { readSiteCaptureRecovery, writeSiteCaptureRecovery, forgetSiteCaptureRec
 const now = 1000000000;
 const make = (): SiteCaptureRecovery => ({ version: 1, savedAt: now,
     requestId: "capture-00000000-0000-4000-8000-000000000001", retryToken: "00000000-0000-4000-8000-000000000002",
-    draft: { task: "Synthetic task", location: "Austin TX", email: "qa@example.invalid", company: "Owned fixture", method: "phone", region: "us", regionManuallySet: false }, pending: null });
+    draft: { task: "Synthetic task", location: "Austin TX", email: "qa@example.invalid", method: "phone", region: "us", regionManuallySet: false }, pending: null });
 function pending(row: SiteCaptureRecovery, acknowledged = false) {
     return { endpoint: "/api/inbound-request" as const, acknowledged,
         body: JSON.stringify({ requestId: row.requestId, retryToken: row.retryToken, buyerType: "site_operator", taskStatement: row.draft.task, siteLocation: row.draft.location, captureRegion: row.draft.region }) };

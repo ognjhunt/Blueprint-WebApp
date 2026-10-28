@@ -107,7 +107,6 @@ async function fill(kind: string) {
   await page.locator("#start-task").fill(kind === "missing_task" ? "" : "Inspect a synthetic test pattern. No robot capability is asserted.");
   await page.locator("#start-location").fill(kind.includes("non_us") ? "Toronto, Canada" : kind === "unknown_country" ? "Unknown location" : "Austin, TX");
   await page.locator("#start-email").fill(kind === "missing_email" ? "" : `${activeCase.toLowerCase()}@example.com`);
-  await page.locator("#start-company").fill("Synthetic reliability fixture");
   if (kind !== "unknown_country" && await page.locator("#start-region").count()) {
     await page.locator("#start-region").selectOption(kind.includes("non_us") ? "non_us" : "us");
   }

@@ -17,7 +17,7 @@ const fixtureLink = "/capture-upload/reliability-fixture";
 // on the second, fake-signed-in frontend and create the job in its workspace.
 const siteOrigin = "http://127.0.0.1:42880";
 const siteCreate = "/api/workspace/capture-start";
-/** A signed-in site account is asked for neither an email nor a company. */
+/** A signed-in site account is not asked for an email. */
 async function fillSite(page: Page) {
   await fillJobDescription(page, "Move sealed cartons to the pallet");
   await page.locator("#start-location").fill("Austin, TX");
@@ -26,7 +26,6 @@ async function fill(page: Page) {
   await fillJobDescription(page, "Move sealed cartons to the pallet");
   await page.locator("#start-location").fill("Austin, TX");
   await page.locator("#start-email").fill("operator@example.test");
-  await page.locator("#start-company").fill("Fixture site");
 }
 test.beforeEach(async ({ context }) => {
   await context.route("**/*", route => {
@@ -384,7 +383,7 @@ test("UI-CLEAR-001 acknowledged clear commits both stores before reload",async({
   await expect(page.locator("#start-task")).toHaveValue("");
   const cleared=await recoveryMirrors(page);expect(cleared.durable.retired).toBe(false);expect(cleared.durable.value).toEqual(cleared.local);
   expect(cleared.local.requestId).not.toBe(original.local.requestId);expect(cleared.local.pending).toBeNull();
-  for(const field of ["task","location","email","company"])expect(cleared.local.draft[field]).toBe("");
+  for(const field of ["task","location","email"])expect(cleared.local.draft[field]).toBe("");
   await page.reload();await expect(page.locator("#start-task")).toHaveValue("");
   const returned=await recoveryMirrors(page);expect(returned.local.requestId).toBe(cleared.local.requestId);expect(returned.durable.value).toEqual(returned.local);
   await expect(lock.holder.locator("#start-task")).toHaveValue("");

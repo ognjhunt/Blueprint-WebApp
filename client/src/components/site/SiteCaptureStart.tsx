@@ -21,8 +21,7 @@ import { PRIVACY_URL, TERMS_URL } from "@/lib/legalAcceptance";
 import { FILMING_NOTICE, FOOTAGE_UPLOAD_NOTICE } from "@/lib/footageNotice";
 import { DESCRIPTION_AUTHORITY_STATEMENT, DESCRIPTION_AUTHORITY_VERSION } from "@/lib/siteSubmissionAuthority";
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
-import { createDetachedPasswordAccount, detachedAccountUser, sendAccountVerification } from "@/lib/accountAuth";
-import { MIN_PASSWORD_LENGTH } from "@/lib/passwordPolicy";
+import { createDetachedEmailAccount, detachedAccountUser, sendAccountVerification } from "@/lib/accountAuth";
 import { friendlyAuthError } from "@/lib/siteClaim";
 import {
   CAPTURE_VIDEO_ACCEPT,
@@ -58,6 +57,9 @@ type State =
       // Set when a signed-in account could not own the site (it is not a site
       // workspace) and the save fell back to the emailed link instead.
       linkOnlyNote: string | null;
+      // The form created this job's account from the email alone; the person
+      // sets its password later from the reset email.
+      accountNeedsPassword: boolean;
       selfRecording: boolean;
       email: string;
       regionApproved: boolean;
@@ -284,9 +286,10 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
   // before its job has an account is born with no owner, and saving the job
   // afterwards is an owner change the Pipeline refuses for that capture. A
   // signed-in site workspace (or an account this form sets up as one) owns the
-  // job from the start, and so does a guest who creates its account with this
-  // form (owner decision 2026-10-22); only their video goes with the form, and
-  // the upload routes refuse any other.
+  // job from the start, and so does a guest whose account this form creates
+  // (owner decision 2026-10-22) from the email alone, with no password asked
+  // (owner decision 2026-10-28); only their video goes with the form, and the
+  // upload routes refuse any other.
   const newAccount = !currentUser && hasFootage && region !== "non_us";
   const videoWithForm = siteWorkspace || newAccount;
   const [footage, setFootage] = useState<File | null>(null);
@@ -335,7 +338,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
     const data = new FormData(formRef.current);
     const field = (name: string) => String(data.get(name) ?? "");
     retain({ ...recovery.current, savedAt: Date.now(), draft: {
-      task: field("startTask"), location: place ? place.label : field("startLocation"), email: field("startEmail"), company: field("startCompany"),
+      task: field("startTask"), location: place ? place.label : field("startLocation"), email: field("startEmail"),
       ...(field("startFrequency") ? { jobFrequency: field("startFrequency") } : {}),
       ...(field("startReadiness") ? { purchaseReadiness: field("startReadiness") as SiteCaptureRecovery["draft"]["purchaseReadiness"] } : {}),
       method, region: place ? (place.countryCode ? (place.countryCode === "US" ? "us" : "non_us") : "") : region,
@@ -407,16 +410,10 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
     const data = new FormData(formRef.current!);
     const operationRecovery = recovery.current;
     let savedAnswers = retained ? JSON.parse(retained.body) as Record<string, unknown> : null;
-    const savedFields: Record<string, string> = { startTask: "taskStatement", startLocation: "siteLocation", startEmail: "email", startCompany: "company" };
+    const savedFields: Record<string, string> = { startTask: "taskStatement", startLocation: "siteLocation", startEmail: "email" };
     const read = (key: string) => String(savedAnswers ? savedAnswers[savedFields[key]] ?? "" : data.get(key) ?? "").trim();
     let email = currentUser?.email || read("startEmail");
     const location = read("startLocation");
-    const password = String(data.get("startPassword") ?? "");
-    if (!retained && newAccount && password.length < MIN_PASSWORD_LENGTH) {
-      setState({ status: "failed", message: `Choose a password of ${MIN_PASSWORD_LENGTH} characters or more.` });
-      document.querySelector<HTMLInputElement>("#start-password")?.focus();
-      return;
-    }
     operationInFlight.current = true;
     setState({ status: "working" });
 
@@ -429,7 +426,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
       const createsAccount = !retained && newAccount && !read("honeypot");
       if (createsAccount) {
         try {
-          owner = await createDetachedPasswordAccount(email.toLowerCase(), password);
+          owner = await createDetachedEmailAccount(email.toLowerCase());
         } catch (error) {
           if (!active.current) return;
           setState({ status: "failed", message: (error as { code?: string } | null)?.code === "auth/email-already-in-use"
@@ -448,7 +445,6 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
           firstName: "",
           lastName: "",
           email: email.toLowerCase(),
-          company: read("startCompany"),
           roleTitle: "Site operator",
           buyerType: "site_operator",
           // No account: the capture link is the credential. Terms and Privacy
@@ -578,7 +574,6 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
           JSON.stringify({
             name: "",
             email,
-            company: read("startCompany"),
           }),
         );
       } catch {
@@ -619,6 +614,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
         linkOnlyNote: currentUser && !savedToWorkspace
           ? `This account is not a site workspace, so this site is saved to the link we email ${email}. You can claim it from that link later.`
           : null,
+        accountNeedsPassword: createsAccount,
         captureUrl,
         claimUrl: typeof result.claimUrl === "string" && /^\/claim\/[A-Za-z0-9_.-]+$/.test(result.claimUrl) ? result.claimUrl : null,
         selfRecording: frozen.value.draft.method !== "visit",
@@ -752,6 +748,10 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
         )}
         {state.workspaceUrl && <p><a className="ms-text-link" href={state.workspaceUrl}>Saved in your workspace</a></p>}
         {state.linkOnlyNote && <p className="ms-field-hint">{state.linkOnlyNote}</p>}
+        {state.accountNeedsPassword && <p className="ms-field-hint">
+          Your job is saved to an account for {state.email}. To sign in to it later,{" "}
+          <a className="ms-text-link" href="/forgot-password">set a password</a> from the link we email you.
+        </p>}
         {!state.workspaceUrl && state.claimUrl && !state.videoAwaitsAccount && <section className="ms-intake-account" aria-label="Save this job to your account">
           <h2>Save this job to your account</h2>
           {/* Not optional for evaluation: the scene candidates run against is
@@ -931,25 +931,11 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
         <span>Work email</span>
         <span className="ms-field-hint">
           Where we send your private link to record or upload the video, review the brief and follow progress.
+          {newAccount && <>{" "}Have an account?{" "}
+            <a className="ms-text-link" href="/sign-in" onClick={rememberThisForm}>Sign in first</a></>}
         </span>
-        <input id="start-email" name="startEmail" type="email" defaultValue={recovery.current.draft.email} required maxLength={320} />
+        <input id="start-email" name="startEmail" type="email" defaultValue={recovery.current.draft.email} required autoComplete="email" maxLength={320} />
       </label>
-
-      <label htmlFor="start-company">
-        <span>Company</span>
-        <input id="start-company" name="startCompany" type="text" defaultValue={recovery.current.draft.company} required autoComplete="organization" maxLength={200} />
-      </label>
-
-      {/* Never retained in a draft or a recovery body. */}
-      {newAccount && <label htmlFor="start-password">
-        <span>Create a password</span>
-        <span className="ms-field-hint">
-          {MIN_PASSWORD_LENGTH} characters or more. Have an account?{" "}
-          <a className="ms-text-link" href="/sign-in" onClick={rememberThisForm}>Sign in first</a>
-        </span>
-        <input id="start-password" name="startPassword" type="password" required minLength={MIN_PASSWORD_LENGTH} autoComplete="new-password" maxLength={128} />
-      </label>}
-
       </>}
       {currentUser && workspaceType !== undefined && (siteWorkspace
         ? <p className="ms-field-hint">Saving to your workspace as {currentUser.email}.</p>

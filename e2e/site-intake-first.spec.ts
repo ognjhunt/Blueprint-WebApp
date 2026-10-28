@@ -24,7 +24,6 @@ for (const width of [1440, 390]) {
     await expect(page).toHaveURL(/\/contact\/site-operator$/);
     await page.locator("#start-location").fill("Austin, TX");
     await page.locator("#start-email").fill("qa@example.invalid");
-    await page.locator("#start-company").fill("Synthetic QA site");
     await page.getByRole("button", { name: "Start free assessment", exact: true }).click();
     const signup = page.getByRole("link", { name: "Create an account for this job", exact: true });
     await expect(signup).toBeVisible();

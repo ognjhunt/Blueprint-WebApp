@@ -11,10 +11,10 @@ vi.mock("@/lib/siteCaptureDurability", () => ({
     const current = durability.rows.get(key);
     if (!replaceIdentity && current && (current.retired || current.value?.requestId !== value.requestId
       || current.value?.retryToken !== value.retryToken)) throw new Error("Fixture durability transaction aborted");
-    const { task, location, email, company, method, region, regionManuallySet, privateHandling } = value.draft;
+    const { task, location, email, method, region, regionManuallySet, privateHandling } = value.draft;
     durability.rows.set(key, { retired: false, value: {
       version: value.version, savedAt: value.savedAt, requestId: value.requestId, retryToken: value.retryToken,
-      draft: { task, location, email, company, method, region, regionManuallySet, ...(privateHandling === true ? { privateHandling } : {}) },
+      draft: { task, location, email, method, region, regionManuallySet, ...(privateHandling === true ? { privateHandling } : {}) },
       pending: value.pending ? { body: value.pending.body, endpoint: value.pending.endpoint, acknowledged: value.pending.acknowledged } : null,
     } });
   },
@@ -27,7 +27,7 @@ import { newSiteCaptureRecovery, readSiteCaptureRecovery, writeSiteCaptureRecove
 const fixedTime = Date.UTC(2026, 9, 8, 4);
 const key = siteCaptureDraftKey(null, "default");
 function base(): SiteCaptureRecovery {
-  const value = newSiteCaptureRecovery(); value.draft = {...value.draft, task: "Move cartons", location: "Austin, TX", email: "operator@example.test", company: "Fixture company", region: "us"};
+  const value = newSiteCaptureRecovery(); value.draft = {...value.draft, task: "Move cartons", location: "Austin, TX", email: "operator@example.test", region: "us"};
   return value;
 }
 function pending(value: SiteCaptureRecovery) {
@@ -46,7 +46,7 @@ for (const item of catalog.cases.filter(item => item.layer === "local-storage-he
       switch (item.operation) {
         case "valid_empty": value.draft.task = ""; value.draft.location = ""; break;
         case "valid_unicode": value.draft.task = "搬运 cartons — café"; break;
-        case "valid_maximum": value.draft.task = "t".repeat(2000); value.draft.location = "l".repeat(300); value.draft.email = "e".repeat(320); value.draft.company = "c".repeat(200); break;
+        case "valid_maximum": value.draft.task = "t".repeat(2000); value.draft.location = "l".repeat(300); value.draft.email = "e".repeat(320); break;
         case "valid_inferred_us": value.draft.regionManuallySet = false; break;
         case "valid_manual_non_us": value.draft.region = "non_us"; value.draft.regionManuallySet = true; break;
         case "valid_upload": value.draft.method = "upload"; break;
@@ -67,7 +67,6 @@ for (const item of catalog.cases.filter(item => item.layer === "local-storage-he
         case "task_overlong": value.draft.task = "t".repeat(2001); break;
         case "location_overlong": value.draft.location = "l".repeat(301); break;
         case "email_overlong": value.draft.email = "e".repeat(321); break;
-        case "company_overlong": value.draft.company = "c".repeat(201); break;
         case "wrong_method": value.draft.method = "unknown"; break;
         case "wrong_region": value.draft.region = "europe"; break;
         case "wrong_manual_flag": value.draft.regionManuallySet = "true"; break;
