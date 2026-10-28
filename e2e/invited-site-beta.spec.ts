@@ -62,6 +62,7 @@ for (const width of [390, 1440]) {
         return route.fulfill({ json: jobWorkflow() });
       }
       if (path === "/api/csrf") return route.fulfill({ json: { csrfToken: "synthetic" } });
+      if (path === "/api/location-autocomplete" && route.request().method() === "GET") return route.fulfill({ json: { features: [] } });
       if (path === "/api/analytics/ingest") return route.fulfill({ status: 204, body: "" });
       if (path === "/api/workspace/setup") return route.fulfill({ json: { workspaceType: "robot_team" } });
       if (path === "/api/inbound-request" && post) {
