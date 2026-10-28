@@ -244,8 +244,12 @@ describe("a site that sends its footage before confirming its brief", () => {
     const [originalBytes] = await sharedUploadBucket.bucket.file(original.video.object_name,
       { generation: original.video.generation }).download();
     // An ambiguous new upload is refused; the retained original creates no second notice.
-    expect(await sendFootage(token, 409)).toMatchObject({ captureReceived: true,
-      uploadState: "processing_ready", code: "capture_replacement_requires_new_job" });
+    const duplicate = await sendFootage(token, 409);
+    expect(duplicate).toMatchObject({ captureReceived: true,
+      uploadState: "processing_ready", code: "capture_already_saved", repairAvailable: true });
+    expect(duplicate.message).toMatch(/original recording stays saved/i);
+    expect(duplicate.message).toMatch(/Update video on this job/i);
+    expect(duplicate.message).not.toMatch(/start a new job|original recording (was|has been) replaced/i);
     expect(doc(`captureUploadSessions/walkthrough-${jobId}`).browser_pending_delivery).toEqual(original);
     const originalFile = sharedUploadBucket.bucket.file(original.video.object_name);
     expect((await originalFile.getMetadata())[0].generation).toBe(original.video.generation);

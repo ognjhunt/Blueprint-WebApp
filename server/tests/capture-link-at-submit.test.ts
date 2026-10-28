@@ -414,6 +414,13 @@ async function uploadFor(baseUrl: string, requestId: string, bytes = "x", extens
   return { status: response.status, body: (await response.json()) as Record<string, unknown> };
 }
 
+function expectSameJobVideoRepair(body: Record<string, unknown>) {
+  expect(body.repairAvailable).toBe(true);
+  expect(body.message).toMatch(/original recording stays saved/i);
+  expect(body.message).toMatch(/Update video on this job/i);
+  expect(body.message).not.toMatch(/start a new job|original recording (was|has been) replaced/i);
+}
+
 async function uploadStatus(baseUrl: string, requestId: string) {
   const token = tokenFrom(captureUploadUrlFor(requestId));
   const response = await fetch(`${baseUrl}/api/self-capture/uploads/${token}`);
@@ -985,9 +992,11 @@ describe("the privacy question is asked before anything is derived", () => {
       const sessionPath = "captureUploadSessions/walkthrough-req-legacy-no-session";
       sharedFakeFirestoreState.docs.delete(sessionPath);
       const before = [...storedVersions];
-      expect(await uploadFor(baseUrl, "req-legacy-no-session", "replacement", "mp4"))
+      const refused = await uploadFor(baseUrl, "req-legacy-no-session", "replacement", "mp4");
+      expect(refused)
         .toMatchObject({ status: 409, body: { captureReceived: true, uploadState: "retained",
-          code: "capture_replacement_requires_new_job" } });
+          code: "capture_already_saved" } });
+      expectSameJobVideoRepair(refused.body);
       expect(sharedFakeFirestoreState.docs.has(sessionPath)).toBe(false);
       expect([...storedVersions]).toEqual(before);
     });
@@ -1007,7 +1016,9 @@ describe("the privacy question is asked before anything is derived", () => {
         method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body),
       });
       expect(result.status).toBe(409);
-      expect((await result.json()).code).toBe("capture_replacement_requires_new_job");
+      const refused = await result.json();
+      expect(refused.code).toBe("capture_already_saved");
+      expectSameJobVideoRepair(refused);
     });
   });
 
@@ -1238,8 +1249,8 @@ describe("the privacy question is asked before anything is derived", () => {
       const before = [...storedVersions];
       const refused = await uploadFor(baseUrl, "req-privacy-generation", "V2", extension);
       expect(refused).toMatchObject({ status: 409, body: { captureReceived: true,
-        uploadState: "processing_ready", code: "capture_replacement_requires_new_job" } });
-      expect(refused.body.message).toContain("No new recording was accepted");
+        uploadState: "processing_ready", code: "capture_already_saved" } });
+      expectSameJobVideoRepair(refused.body);
       expect(refused.body.state).toBeUndefined();
       expect([...storedVersions]).toEqual(before);
       expect(screenCaptureForPrivacy).toHaveBeenCalledTimes(1);
@@ -1264,8 +1275,10 @@ describe("the privacy question is asked before anything is derived", () => {
             metadata: { widthPx: 1920, heightPx: 1080, durationSeconds: 61, fps: 30, recordedAtEpochMs: 1_758_000_000_000 } }),
         });
         expect(response.status).toBe(409);
-        expect(await response.json()).toMatchObject({ captureReceived: true, uploadState: "processing_ready",
-          code: "capture_replacement_requires_new_job" });
+        const refused = await response.json();
+        expect(refused).toMatchObject({ captureReceived: true, uploadState: "processing_ready",
+          code: "capture_already_saved" });
+        expectSameJobVideoRepair(refused);
       }
       expect([...storedVersions]).toEqual(before);
     });
