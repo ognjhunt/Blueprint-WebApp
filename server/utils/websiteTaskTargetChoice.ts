@@ -1,12 +1,14 @@
-/** The site's answer to "which object should the robot move?", bound to the job's exact capture
- * source, the question and the candidate list it answered. The Pipeline reads it through its signed
- * control transport and resumes the same job from retained work; "none of these" sends the site to
- * the existing same-job walkthrough update instead. No new grant, queue or approval step. */
+/** The site's answer to "we picked this object; is it the one the robot should move?", bound to the
+ * job's exact capture source, the question, its guess and the candidate list it answered. Optional:
+ * the job never waits on it. The Pipeline reads it through its signed control transport: a confirmation
+ * changes nothing, another candidate reruns the same job from retained work, and "none of these" sends
+ * the site to the existing same-job walkthrough update. No new grant, queue or approval step. */
 import { z } from "zod";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { crossRuntimeArtifactDigest, crossRuntimeDigest } from "./crossRuntimeCanonical";
-import { TASK_TARGET_CHOICE_ANSWER_SCHEMA, taskTargetChoiceSchema, taskTargetChoiceSelectorShape, taskTargetIdSchema,
-  type TaskTargetChoice, type TaskTargetChoiceQuestion } from "./taskTargetChoiceContract";
+import { TASK_TARGET_CHOICE_ANSWER_SCHEMA, taskTargetCandidateIdSchema, taskTargetChoiceSchema,
+  taskTargetChoiceSelectorShape, taskTargetIdSchema, type TaskTargetChoice, type TaskTargetChoiceQuestion,
+  type TaskTargetChoiceRequest } from "./taskTargetChoiceContract";
 import { loadCurrentTaskTargetChoiceQuestion, type WebsitePreparationSelector } from "./websitePreparationStatus";
 
 export const WEBSITE_TASK_TARGET_CHOICE_FIELD = "website_task_target_choice";
@@ -15,8 +17,11 @@ const selectorShape = taskTargetChoiceSelectorShape;
 export const taskTargetChoiceAnswerSchema = z.object({
   schema_version: z.literal(TASK_TARGET_CHOICE_ANSWER_SCHEMA), ...selectorShape,
   question_digest: digest, target_id: taskTargetIdSchema, candidate_set_digest: digest,
+  guessed_candidate_id: taskTargetCandidateIdSchema,
   choice: taskTargetChoiceSchema, answered_at: z.string().max(40), answer_digest: digest,
-}).strict();
+}).strict().refine(value => value.choice.kind === "none_of_these"
+  || (value.choice.kind === "confirm_guess") === (value.choice.candidate_id === value.guessed_candidate_id),
+  "choice does not match the guess");
 export type TaskTargetChoiceAnswer = z.infer<typeof taskTargetChoiceAnswerSchema>;
 /** What the Pipeline asks with: the exact status selectors plus the question it is waiting on. */
 export const taskTargetChoiceReadSchema = z.object({...selectorShape, question_digest: digest}).strict();
@@ -36,14 +41,14 @@ export function parseStoredTaskTargetChoice(value: unknown): TaskTargetChoiceAns
 export function answerForQuestion(stored: unknown, question: TaskTargetChoiceQuestion | null | undefined) {
   const answer = parseStoredTaskTargetChoice(stored);
   return answer && question && answer.question_digest === question.question_digest
-    && answer.candidate_set_digest === question.candidate_set_digest ? answer : null;
+    && answer.candidate_set_digest === question.candidate_set_digest
+    && answer.guessed_candidate_id === question.guessed_candidate_id ? answer : null;
 }
 
-/** The site's stored answer to the question this preparation is parked on (the Pipeline keeps
- * reporting the question for as long as the job waits on it), or null. */
+/** The site's stored answer to the question the Pipeline currently reports, or null. */
 export function currentTaskTargetChoiceAnswer(session: Record<string, any> | undefined,
   status: {state: string; question?: TaskTargetChoiceQuestion | null}): TaskTargetChoice["kind"] | null {
-  if (status.state !== "awaiting_inputs" || !session || !status.question) return null;
+  if (status.state === "authority_ended" || !session || !status.question) return null;
   return answerForQuestion(session[WEBSITE_TASK_TARGET_CHOICE_FIELD], status.question)?.choice.kind ?? null;
 }
 
@@ -51,7 +56,8 @@ export function buildTaskTargetChoiceAnswer(selector: WebsitePreparationSelector
   choice: TaskTargetChoice, answeredAt: string): TaskTargetChoiceAnswer {
   const record = {schema_version: TASK_TARGET_CHOICE_ANSWER_SCHEMA, ...selectorOf(selector),
     question_digest: question.question_digest, target_id: question.target_id,
-    candidate_set_digest: question.candidate_set_digest, choice, answered_at: answeredAt};
+    candidate_set_digest: question.candidate_set_digest, guessed_candidate_id: question.guessed_candidate_id,
+    choice, answered_at: answeredAt};
   return taskTargetChoiceAnswerSchema.parse({...record,
     answer_digest: crossRuntimeArtifactDigest(record as Record<string, unknown>, "answer_digest")});
 }
@@ -88,14 +94,17 @@ const defaultDeps: TaskTargetChoiceDeps = {
 
 /** One answer per question. The question is re-read from the Pipeline first, so a stale page cannot answer. */
 export async function answerTaskTargetChoice(requestId: string, captureId: string,
-  body: {questionDigest: string; choice: TaskTargetChoice}, deps = defaultDeps, now = () => new Date()) {
+  body: {questionDigest: string; choice: TaskTargetChoiceRequest}, deps = defaultDeps, now = () => new Date()) {
   const current = await deps.loadQuestion(requestId, captureId);
   if (!current || current.question.question_digest !== body.questionDigest)
     throw new Error("task_target_choice_question_changed");
-  if (body.choice.kind === "candidate"
-    && !current.question.candidates.some(row => row.candidate_id === (body.choice as {candidate_id: string}).candidate_id))
+  const guessed = current.question.guessed_candidate_id;
+  const request = body.choice;
+  if (request.kind === "other_candidate" && (request.candidate_id === guessed
+    || !current.question.candidates.some(row => row.candidate_id === request.candidate_id)))
     throw new Error("task_target_choice_candidate_unknown");
-  const answer = buildTaskTargetChoiceAnswer(current.selector, current.question, body.choice, now().toISOString());
+  const choice: TaskTargetChoice = request.kind === "confirm_guess" ? {kind: "confirm_guess", candidate_id: guessed} : request;
+  const answer = buildTaskTargetChoiceAnswer(current.selector, current.question, choice, now().toISOString());
   const stored = await deps.commit(answer);
   // An answer, once stored, is what the Pipeline may already have applied: it does not change.
   if (crossRuntimeDigest(stored.choice) !== crossRuntimeDigest(answer.choice)) throw new Error("task_target_choice_already_answered");

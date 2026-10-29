@@ -1,4 +1,6 @@
-/** The one in-job question "which object should the robot move?" (website_preparation_status.v4).
+/** The one optional in-job question (website_preparation_status.v4): preparation already went on with
+ * its best supported guess of the object the robot moves; the site may confirm it, pick another found
+ * object (the same job reruns from retained work) or say none of these (same-job walkthrough update).
  * Mirrors contracts/pipeline/website-task-target-choice.v1.schema.json. Candidates are opaque ids
  * and position labels the Pipeline derived from segmentation masks; no image or pixel data. */
 import { z } from "zod";
@@ -12,19 +14,29 @@ export const taskTargetChoiceQuestionSchema = z.object({
   target_id: taskTargetIdSchema,
   semantic_label: z.string().min(1).max(60),
   candidate_set_digest: digest,
+  guessed_candidate_id: taskTargetCandidateIdSchema,
   candidates: z.array(z.object({
     candidate_id: taskTargetCandidateIdSchema,
     label: z.string().min(1).max(120),
     reference_time_ms: z.number().int().min(0).max(86_400_000).nullable(),
   }).strict()).min(1).max(8),
-}).strict().refine(value => new Set(value.candidates.map(row => row.candidate_id)).size === value.candidates.length,
-  "candidate ids repeat");
+}).strict().refine(value => new Set(value.candidates.map(row => row.candidate_id)).size === value.candidates.length
+  && value.candidates.some(row => row.candidate_id === value.guessed_candidate_id), "candidate ids repeat or miss the guess");
 export type TaskTargetChoiceQuestion = z.infer<typeof taskTargetChoiceQuestionSchema>;
 
+/** As stored and read by the Pipeline: confirm_guess names the guess; other_candidate names a different one. */
 export const taskTargetChoiceSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("candidate"), candidate_id: taskTargetCandidateIdSchema }).strict(),
+  z.object({ kind: z.literal("confirm_guess"), candidate_id: taskTargetCandidateIdSchema }).strict(),
+  z.object({ kind: z.literal("other_candidate"), candidate_id: taskTargetCandidateIdSchema }).strict(),
   z.object({ kind: z.literal("none_of_these") }).strict(),
 ]);
+/** What the job page sends: confirm the guess, choose another found object, or none of these. */
+export const taskTargetChoiceRequestSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("confirm_guess") }).strict(),
+  z.object({ kind: z.literal("other_candidate"), candidate_id: taskTargetCandidateIdSchema }).strict(),
+  z.object({ kind: z.literal("none_of_these") }).strict(),
+]);
+export type TaskTargetChoiceRequest = z.infer<typeof taskTargetChoiceRequestSchema>;
 export type TaskTargetChoice = z.infer<typeof taskTargetChoiceSchema>;
 export const TASK_TARGET_CHOICE_ANSWER_SCHEMA = "website_task_target_choice_answer.v1";
 /** The website_preparation_status selectors an answer is bound to (same rules as the status selector). */

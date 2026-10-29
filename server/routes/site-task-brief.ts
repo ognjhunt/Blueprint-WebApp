@@ -69,7 +69,7 @@ import {
 } from "../utils/taskStatusProjection";
 import { loadCurrentWebsitePreparationStatus } from "../utils/websitePreparationStatus";
 import { answerTaskTargetChoice, currentTaskTargetChoiceAnswer } from "../utils/websiteTaskTargetChoice";
-import { taskTargetChoiceSchema } from "../utils/taskTargetChoiceContract";
+import { taskTargetChoiceRequestSchema } from "../utils/taskTargetChoiceContract";
 import { websitePreparationOverdue } from "../utils/websitePreparationWatch";
 import { loadWebsiteSceneProgression } from "../utils/websiteSceneProgression";
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
@@ -179,7 +179,7 @@ router.post("/:token/clarification", async (req, res) => {
     .json({ error: "The questions may have changed. Reload this page and try again." }); }
 });
 
-/** The site answers the one question its job waits on; "none of these" leads to the same-job walkthrough update. */
+/** The site confirms or corrects the guessed object to move; "none of these" leads to the same-job walkthrough update. */
 router.post("/:token/task-target-choice", csrfProtection, async (req, res) => {
   res.setHeader("Cache-Control", "no-store");
   const verified = verifyCaptureUploadToken(String(req.params.token || ""));
@@ -187,8 +187,8 @@ router.post("/:token/task-target-choice", csrfProtection, async (req, res) => {
   if (verified.scope !== "owner") return res.status(403).json({ code: "task_target_choice_owner_required",
     error: "Open the owner's job link to answer this question." });
   const parsed = z.object({ questionDigest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
-    choice: taskTargetChoiceSchema }).strict().safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ code: "task_target_choice_invalid", error: "Choose one of the objects, or None of these." });
+    choice: taskTargetChoiceRequestSchema }).strict().safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ code: "task_target_choice_invalid", error: "Confirm our pick, choose another object, or None of these." });
   try {
     const request = await readRequestForStatus(verified.requestId, verified.captureId, verified.sceneId);
     if (!request || request.captureRights.consent_revoked)
@@ -1084,11 +1084,11 @@ router.get("/:token/status", async (req: Request, res: Response) => {
       && websitePreparationOverdue(captureSession?.data()?.website_preparation_watch);
     const sceneProgression = preparationStatus?.state === "handed_off"
       ? await loadWebsiteSceneProgression(payload.requestId, payload.captureId) : null;
-    // The site's answer to the one question preparation waits on, bound to this exact source.
+    // The site's answer to the optional question about the guessed object to move, bound to this exact source.
     const targetChoiceAnswer = payload.scope === "owner" && preparationStatus
       ? currentTaskTargetChoiceAnswer(captureSession?.data(), preparationStatus) : null;
     const question = payload.scope === "owner" && !targetChoiceAnswer
-      && preparationStatus?.state === "awaiting_inputs" ? preparationStatus.question ?? null : null;
+      && preparationStatus?.state !== "authority_ended" ? preparationStatus?.question ?? null : null;
 
     const status = projectTaskStatus(
       taskStatusInputFrom({
@@ -1191,6 +1191,7 @@ router.get("/:token/status", async (req: Request, res: Response) => {
       sceneViewUrl,
       // Opaque ids and position labels only; no frame or person pixels.
       targetChoice: question ? { questionDigest: question.question_digest, semanticLabel: question.semantic_label,
+        guessedCandidateId: question.guessed_candidate_id,
         candidates: question.candidates.map(row => ({ id: row.candidate_id, label: row.label,
           referenceTimeMs: row.reference_time_ms })) } : null,
     });

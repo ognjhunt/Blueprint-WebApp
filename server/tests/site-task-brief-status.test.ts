@@ -211,24 +211,26 @@ describe("GET /api/site-task-brief/:token/status", () => {
     expect(body.status.outcome.actionOwner).toBe("blueprint");
     expect(JSON.stringify(body)).not.toContain("PRIVATE_detail");
   });
-  it("PREP-UI-007 asks which object the robot moves, stores one bound answer and sends none of these to the same-job update", async () => {
+  it("PREP-UI-007 offers the guessed object as an optional correction, stores one bound answer and sends none of these to the same-job update", async () => {
     const selector = { request_id: "req-1", scene_id: "site-req-1", capture_id: "cap-1", completion_marker_generation: "17",
       producer_delivery_key: `sha256:${"a".repeat(64)}`, source_payload_sha256: "b".repeat(64),
       task_context_digest: `sha256:${"c".repeat(64)}` };
     const question = { kind: "task_target_choice", question_digest: `sha256:${"1".repeat(64)}`, target_id: "target-1",
-      semantic_label: "Tote", candidate_set_digest: `sha256:${"2".repeat(64)}`, candidates: [
+      semantic_label: "Tote", candidate_set_digest: `sha256:${"2".repeat(64)}`, guessed_candidate_id: "c0123456789abcdef", candidates: [
         { candidate_id: "c0123456789abcdef", label: "Tote 1: left side, center of the view", reference_time_ms: 4000 },
         { candidate_id: "cfedcba9876543210", label: "Tote 2: right side, center of the view", reference_time_ms: null }] };
     sharedFakeFirestoreState.docs.set("captureUploadSessions/cap-1", { website_preparation: { selector } });
     const original = preparation.read.getMockImplementation();
-    preparation.read.mockImplementation(async () => ({ state: "awaiting_inputs", correlationId: "bp-prep-1234567890abcdef", question }));
+    preparation.read.mockImplementation(async () => ({ state: "preparing", correlationId: "bp-prep-1234567890abcdef", question }));
     preparation.question.mockImplementation(async () => ({ selector, question }));
     try {
       const asked = await status();
-      expect(asked.body.status).toMatchObject({ decision: "choose_task_object", headline: "Which object should the robot move?" });
-      expect(asked.body.targetChoice).toEqual({ questionDigest: question.question_digest, semanticLabel: "Tote", candidates: [
-        { id: "c0123456789abcdef", label: "Tote 1: left side, center of the view", referenceTimeMs: 4000 },
-        { id: "cfedcba9876543210", label: "Tote 2: right side, center of the view", referenceTimeMs: null }] });
+      // The job keeps its own status; the question rides alongside it.
+      expect(asked.body.status.decision).toBe("assessing");
+      expect(asked.body.targetChoice).toEqual({ questionDigest: question.question_digest, semanticLabel: "Tote",
+        guessedCandidateId: "c0123456789abcdef", candidates: [
+          { id: "c0123456789abcdef", label: "Tote 1: left side, center of the view", referenceTimeMs: 4000 },
+          { id: "cfedcba9876543210", label: "Tote 2: right side, center of the view", referenceTimeMs: null }] });
       const film = createCaptureUploadToken({ requestId: "req-1", captureId: "cap-1", sceneId: "scene-1", scope: "film" });
       expect((await status(film)).body.targetChoice ?? null).toBeNull();
       const answer = (body: unknown, credential = token(), csrf = true) => fetch(`${baseUrl}/api/site-task-brief/${credential}/task-target-choice`, {
@@ -238,12 +240,13 @@ describe("GET /api/site-task-brief/:token/status", () => {
       expect((await answer(none, token(), false)).status).toBe(403);
       expect((await answer(none, film)).status).toBe(403);
       expect((await answer({ ...none, questionDigest: `sha256:${"9".repeat(64)}` })).status).toBe(409);
+      expect((await answer({ ...none, choice: { kind: "other_candidate", candidate_id: "c0123456789abcdef" } })).status).toBe(409);
       expect(sharedFakeFirestoreState.docs.get("captureUploadSessions/cap-1")!.website_task_target_choice).toBeUndefined();
       const saved = await answer(none);
       expect(saved.status).toBe(200); expect(await saved.json()).toEqual({ ok: true, choice: "none_of_these" });
       expect(sharedFakeFirestoreState.docs.get("captureUploadSessions/cap-1")!.website_task_target_choice).toMatchObject({
         ...selector, question_digest: question.question_digest, candidate_set_digest: question.candidate_set_digest,
-        choice: { kind: "none_of_these" } });
+        guessed_candidate_id: "c0123456789abcdef", choice: { kind: "none_of_these" } });
       const after = await status();
       expect(after.body.targetChoice).toBeNull();
       expect(after.body.status.decision).toBe("add_views");
