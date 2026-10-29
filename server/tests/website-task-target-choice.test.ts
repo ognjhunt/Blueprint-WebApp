@@ -56,6 +56,7 @@ function preparation(ledger: unknown) {
 function choiceStore(current: TaskTargetChoiceQuestion | null = question) {
   let stored: TaskTargetChoiceAnswer | null = null;
   const deps: TaskTargetChoiceDeps = {
+    async verifyCurrent(value) { if (crossRuntimeDigest(value) !== crossRuntimeDigest(selector)) throw Error('source_changed'); },
     async loadQuestion() { return current ? { selector, question: current } : null; },
     async commit(answer) { if (stored?.question_digest !== answer.question_digest || stored.choice.kind === 'none_of_these'
       && crossRuntimeDigest(stored.choice) !== crossRuntimeDigest(answer.choice)) stored = answer; return stored!; },
@@ -124,8 +125,11 @@ describe("the site's answer", () => {
       { questionDigest: question.question_digest, choice: { kind: "none_of_these" } }, store.deps);
     const read = { ...selector, question_digest: question.question_digest };
     expect(await readTaskTargetChoiceForPipeline("walkthrough-r1", read, store.deps)).toEqual(answer);
+    store.ask(null);
+    expect(await readTaskTargetChoiceForPipeline("walkthrough-r1", read, store.deps)).toEqual(answer);
+    store.ask(question);
     expect(await readTaskTargetChoiceForPipeline("walkthrough-r1", { ...read, question_digest: `sha256:${"8".repeat(64)}` }, store.deps)).toBeNull();
-    expect(await readTaskTargetChoiceForPipeline("walkthrough-r1", { ...read, completion_marker_generation: "18" }, store.deps)).toBeNull();
+    await expect(readTaskTargetChoiceForPipeline("walkthrough-r1", { ...read, completion_marker_generation: "18" }, store.deps)).rejects.toThrow('source_changed');
     await expect(readTaskTargetChoiceForPipeline("walkthrough-other", read, store.deps)).rejects.toThrow();
     const session = { website_task_target_choice: answer, website_preparation: {selector} };
     expect(currentTaskTargetChoiceAnswer(session, { state: "preparing", question })).toBe("none_of_these");

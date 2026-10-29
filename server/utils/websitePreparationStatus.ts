@@ -353,6 +353,12 @@ export async function loadCurrentTaskTargetChoiceQuestion(requestId: string, cap
   return status.schema_version === "website_preparation_status.v4" && status.question
     ? {selector, question: status.question} : null;
 }
+/** Recheck ownership, rights and current task without calling back into the
+ * Pipeline worker that is reading an already retained owner selection. */
+export async function verifyCurrentWebsitePreparationSelector(raw: unknown, deps = defaultDeps): Promise<void> {
+  const selector = websitePreparationSelectorSchema.parse(raw);
+  await boundedRead(signal => deps.verifyCurrent(selector, undefined, signal));
+}
 export async function canNotifyCurrentWebsitePreparationIssue(requestId: string, eventId: string,
   transactionOrDeps?: FirebaseFirestore.Transaction | WebsitePreparationDeps,
   injectedDeps = defaultDeps): Promise<boolean> {

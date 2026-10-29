@@ -9,7 +9,8 @@ import { crossRuntimeArtifactDigest, crossRuntimeDigest } from "./crossRuntimeCa
 import { TASK_TARGET_CHOICE_ANSWER_SCHEMA, taskTargetCandidateIdSchema, taskTargetChoiceSchema,
   taskTargetChoiceSelectorShape, taskTargetIdSchema, type TaskTargetChoice, type TaskTargetChoiceQuestion,
   type TaskTargetChoiceRequest } from "./taskTargetChoiceContract";
-import { loadCurrentTaskTargetChoiceQuestion, type WebsitePreparationSelector } from "./websitePreparationStatus";
+import { loadCurrentTaskTargetChoiceQuestion, verifyCurrentWebsitePreparationSelector,
+  type WebsitePreparationSelector } from "./websitePreparationStatus";
 
 export const WEBSITE_TASK_TARGET_CHOICE_FIELD = "website_task_target_choice";
 export const WEBSITE_TASK_TARGET_CHOICES_FIELD = "website_task_target_choices";
@@ -77,7 +78,7 @@ export function taskTargetSelectionApplies(session: Record<string, any> | null |
 /** The site's stored answer to the question the Pipeline currently reports, or null. */
 export function currentTaskTargetChoiceAnswer(session: Record<string, any> | undefined,
   status: {state: string; question?: TaskTargetChoiceQuestion | null}): TaskTargetChoice["kind"] | null {
-  if (status.state === "authority_ended" || !session) return null;
+  if (["authority_ended", "unavailable"].includes(status.state) || !session) return null;
   if (!status.question) {
     const selection = taskTargetSelection(session);
     return selection.rejected ? "none_of_these" : selection.correctionsDigest ? "other_candidate" : null;
@@ -101,6 +102,7 @@ export function buildTaskTargetChoiceAnswer(selector: WebsitePreparationSelector
 }
 
 export interface TaskTargetChoiceDeps {
+  verifyCurrent(selector: WebsitePreparationSelector): Promise<void>;
   loadQuestion(requestId: string, captureId: string):
     Promise<{selector: WebsitePreparationSelector; question: TaskTargetChoiceQuestion} | null>;
   /** Writes `answer` unless one is stored; returns the answer that is stored afterwards. */
@@ -125,15 +127,21 @@ export async function commitTaskTargetChoiceAnswer(answer: TaskTargetChoiceAnswe
         // later, but only while this same source-bound question is still current.
         if (prior.choice.kind !== "none_of_these") return prior;
       }
-      if (prior) tx.set(ref.collection("taskTargetChoiceHistory").doc(prior.answer_digest.slice(7)), prior);
+      const history = prior ? ref.collection("taskTargetChoiceHistory").doc(prior.answer_digest.slice(7)) : null;
+      const retained = history ? (await tx.get(history)).data() : null;
+      if (retained && crossRuntimeDigest(retained) !== crossRuntimeDigest(prior))
+        throw new Error('task_target_choice_history_changed');
+      if (history && !retained) tx.set(history, prior!);
       tx.set(ref, {[WEBSITE_TASK_TARGET_CHOICE_FIELD]: answer,
-        [WEBSITE_TASK_TARGET_CHOICES_FIELD]: {...session[WEBSITE_TASK_TARGET_CHOICES_FIELD], [answer.question_digest]: answer}},
+        [WEBSITE_TASK_TARGET_CHOICES_FIELD]: {...session[WEBSITE_TASK_TARGET_CHOICES_FIELD],
+          ...(prior ? {[prior.question_digest]: prior} : {}), [answer.question_digest]: answer}},
         {mergeFields: [WEBSITE_TASK_TARGET_CHOICE_FIELD, WEBSITE_TASK_TARGET_CHOICES_FIELD]});
       return answer;
     });
 }
 
 const defaultDeps: TaskTargetChoiceDeps = {
+  verifyCurrent: selector => verifyCurrentWebsitePreparationSelector(selector),
   loadQuestion: (requestId, captureId) => loadCurrentTaskTargetChoiceQuestion(requestId, captureId),
   commit: answer => commitTaskTargetChoiceAnswer(answer),
   async readStored(captureId, questionDigest) {
@@ -167,9 +175,10 @@ export async function answerTaskTargetChoice(requestId: string, captureId: strin
 export async function readTaskTargetChoiceForPipeline(captureId: string, raw: unknown, deps = defaultDeps) {
   const request = taskTargetChoiceReadSchema.parse(raw);
   if (request.capture_id !== captureId) throw new Error("task_target_choice_read_invalid");
-  const current = await deps.loadQuestion(request.request_id, captureId);
-  if (!current || current.question.question_digest !== request.question_digest
-    || crossRuntimeDigest(selectorOf(current.selector)) !== crossRuntimeDigest(selectorOf(request))) return null;
+  // The question disappears once its answer is applied. Its retained fact is
+  // still readable, under fresh source/rights/task validation, without recursion
+  // through the Pipeline status endpoint while that same worker is progressing.
+  await deps.verifyCurrent(selectorOf(request));
   const answer = parseStoredTaskTargetChoice(await deps.readStored(captureId, request.question_digest));
   if (!answer || answer.question_digest !== request.question_digest
     || crossRuntimeDigest(selectorOf(answer)) !== crossRuntimeDigest(selectorOf(request))) return null;

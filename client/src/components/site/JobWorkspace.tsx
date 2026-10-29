@@ -126,7 +126,7 @@ function JobWorkspaceForToken({ token, preparationOutcome, currentStatusKnown = 
     <h2 id="job-progress-title">Results and proposals</h2>
     {!currentAction && <div className="job-next-action">
       <p className="job-eyebrow">Next action · {currentStatusKnown
-        ? preparationOutcome ? owners[preparationOutcome.actionOwner] : owners[workflow.actionOwner]
+        ? resultSuperseded ? owners.blueprint : preparationOutcome ? owners[preparationOutcome.actionOwner] : owners[workflow.actionOwner]
         : owners.blueprint}</p>
       <p>{!currentStatusKnown ? "Checking the current job status. Your saved job remains available."
         : resultSuperseded ? preparationOutcome?.nextStep ?? currentNextAction?.text ?? "Blueprint is updating the object selection using your saved video."
@@ -154,7 +154,7 @@ function JobWorkspaceForToken({ token, preparationOutcome, currentStatusKnown = 
       <h3>Evidence for your job</h3>
       {workflow.evidence!.map(item => <article key={item.requestId} className="mt-3">
         <h4>{item.question}</h4>
-        <p>{item.current && !resultSuperseded ? item.state.replace(/_/g, " ") : "Earlier object selection"}: {item.summary}</p>
+        <p>{resultSuperseded ? "Earlier object selection" : item.current ? item.state.replace(/_/g, " ") : "Historical — the job scope changed"}: {item.summary}</p>
         {item.claims.map(claim => <p key={claim.claimId}>{claim.claimId}: {claim.verdict.replace(/_/g, " ")} — {claim.rationale}</p>)}
         <p>Next: {item.nextAction}</p>
         {item.limitations.map((limit, index) => <p className="ms-field-hint" key={index}>{limit}</p>)}
@@ -164,7 +164,7 @@ function JobWorkspaceForToken({ token, preparationOutcome, currentStatusKnown = 
     {(workflow.managedEvidence ?? []).length > 0 && <section className="job-review" aria-label="Managed policy evidence for your job">
       <h3>Policy evidence for your job</h3>
       {workflow.managedEvidence!.map(item => <article key={item.runId} id={`managed-evidence-${encodeURIComponent(item.runId)}`} className="mt-3">
-        <h4>{item.current && !resultSuperseded ? item.state.replace(/_/g, " ") : "Earlier object selection"}</h4>
+        <h4>{resultSuperseded ? "Earlier object selection" : item.current ? item.state.replace(/_/g, " ") : "Historical — the job scope changed"}</h4>
         {(resultSuperseded || !item.current || !item.screening) && <>
         <p>{item.summary}</p><p>Next: {item.nextAction}</p>
         {item.screening && <PolicyScreeningCandidates screening={item.screening} />}
