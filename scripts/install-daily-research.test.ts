@@ -30,15 +30,15 @@ describe("pinned daily research package", () => {
     try {
       const install = spawnSync("python3", ["scripts/install-daily-research.py", "--verify-only", "--target", join(target, "dist/daily-research")], { encoding: "utf8" });
       expect(install.status, install.stderr).toBe(0);
-      const proof = spawnSync("node", ["--import", "tsx", "--input-type=module", "-e", `
+      const proofSource = `
         import assert from 'node:assert/strict';
         import {readFileSync} from 'node:fs';
         import {createHash} from 'node:crypto';
         import {gzipSync} from 'node:zlib';
         import {pathToFileURL} from 'node:url';
         globalThis.fetch = () => { throw Error('external_call_forbidden'); };
-        const {readScreenAdmissionSnapshot, screenAdmission} = await import(pathToFileURL(process.argv[1]).href);
-        const expected = JSON.parse(readFileSync(process.argv[2], 'utf8')).snapshot;
+        const {readScreenAdmissionSnapshot, screenAdmission} = await import(pathToFileURL(process.argv[2]).href);
+        const expected = JSON.parse(readFileSync(process.argv[3], 'utf8')).snapshot;
         const root = 'blueprintDailyResearch/sites-first', records = new Map();
         function blob(raw, hash) {
           assert.equal(createHash('sha256').update(raw).digest('hex'), hash);
@@ -73,7 +73,14 @@ describe("pinned daily research package", () => {
         records.get(bundlePath).bytes++;
         await assert.rejects(readScreenAdmissionSnapshot(db, expected.admission_id), /firestore_blob_digest_mismatch/);
         assert.equal(writes, 0); assert.ok(reads > 0);
-      `, resolve("server/agents/communications-screen-research.ts"), resolve("server/tests/fixtures/screen-admission-snapshot.json")], { cwd: target, encoding: "utf8" });
+      `;
+      // Imported dependencies can start file-backed workers. Do not let them
+      // inherit an eval-only --input-type flag from this read-only proof.
+      const proofFile = join(target, "screen-reader-proof.mjs");
+      writeFileSync(proofFile, proofSource);
+      const proof = spawnSync("node", ["--import", "tsx", proofFile,
+        resolve("server/agents/communications-screen-research.ts"), resolve("server/tests/fixtures/screen-admission-snapshot.json")],
+      { cwd: target, encoding: "utf8" });
       expect(proof.status, proof.stderr).toBe(0);
     } finally { rmSync(target, { recursive: true, force: true }); }
   });
