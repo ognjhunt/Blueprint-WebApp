@@ -2,6 +2,7 @@ import { crossRuntimeArtifactDigest, crossRuntimeDigest } from "../../utils/cros
 import { projectWebsiteCaptureRights, projectWebsiteTaskContext } from "../../utils/websiteTaskContext";
 import type { SiteTaskBriefRecord } from "../../utils/siteTaskBrief";
 import type { BetaPolicyScreeningPublication } from "../../utils/betaPolicyScreeningContract";
+import allCandidatePublication from "./pipeline-beta-policy-screening-all-candidates.v2.json";
 export const screeningSha = (character: string) => `sha256:${character.repeat(64)}`;
 export function sealScreening(value: any): BetaPolicyScreeningPublication {
   return { ...value, publication_digest: crossRuntimeArtifactDigest(value, "publication_digest") };
@@ -58,4 +59,22 @@ export function familyScreeningFixture() {
   return { ...fixture, intake: { ...fixture.intake, request, request_digest: requestDigest,
     receipt: { ...receipt, receipt_digest: crossRuntimeArtifactDigest(receipt, "receipt_digest") },
     pipeline_status: { ...status, status_digest: crossRuntimeArtifactDigest(status, "status_digest") } } };
+}
+
+/** Real Python coordinator rows, with development-only WebApp source lineage. */
+export function allCandidateFamilyScreeningFixture() {
+  const fixture = familyScreeningFixture();
+  const seed = allCandidatePublication.candidates.find(row => row.candidate_id === "pi05_droid")!;
+  const request = { ...fixture.intake.request, task: { ...fixture.intake.request.task,
+    policy_selection: { candidate_id: seed.candidate_id, catalog_digest: screeningSha("c"),
+      configuration_digest: seed.configuration_digest } } };
+  const requestDigest = crossRuntimeDigest(request);
+  const receipt = { ...fixture.intake.receipt, request_digest: requestDigest };
+  const status = { ...fixture.intake.pipeline_status, request_digest: requestDigest };
+  return { ...fixture, publication: sealScreening({ ...allCandidatePublication,
+    campaign_id: fixture.publication.campaign_id, site_id: fixture.publication.site_id,
+    source: fixture.publication.source }),
+    intake: { ...fixture.intake, request, request_digest: requestDigest,
+      receipt: { ...receipt, receipt_digest: crossRuntimeArtifactDigest(receipt, "receipt_digest") },
+      pipeline_status: { ...status, status_digest: crossRuntimeArtifactDigest(status, "status_digest") } } };
 }
