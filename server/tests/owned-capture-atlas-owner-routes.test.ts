@@ -87,7 +87,7 @@ it("inspects without creating/rechecking a processing grant and does not adverti
   expect(native.inspect).toHaveBeenCalledWith(fixture.plan, owner);
   expect(native.configuration).not.toHaveBeenCalled();
   expect(native.retain).toHaveBeenCalledWith(record.session_id, owner, execution);
-  expect((await fetch(endpoint() + "/bundle")).status).toBe(409);
+  expect((await fetch(endpoint() + "/bundle")).status).toBe(410);
   expect(native.bundle).not.toHaveBeenCalled(); expect(native.stream).not.toHaveBeenCalled();
 });
 
@@ -100,12 +100,31 @@ it("refuses a result whose source changed before its normal reconstruction could
   expect(native.execute).not.toHaveBeenCalled();
 });
 
-it("delivers a ready bundle through the same digest verifier using signed POST with Range disabled", async () => {
+it("never advertises a ready retained model as a customer download", async () => {
   execution.state = "ready"; execution.bundle = { digest: "sha256:" + "7".repeat(64), size_bytes: 22,
     filename: "fixture.zip", manifest_digest: "sha256:" + "8".repeat(64) };
+  const response = await fetch(endpoint());
+  expect(response.status).toBe(200);
+  expect((await response.json() as any).download_available).toBe(false);
+  expect(native.retain).toHaveBeenCalledWith(record.session_id, owner, execution);
+  expect(native.bundle).not.toHaveBeenCalled(); expect(native.stream).not.toHaveBeenCalled();
+});
+
+it.each(["queued", "ready"])("retires %s model downloads without reading native bundle bytes", async state => {
+  execution.state = state;
   const response = await fetch(endpoint() + "/bundle", { headers: { range: "bytes=0-1" } });
-  expect(response.status).toBe(200); expect(native.bundle).toHaveBeenCalledWith(fixture.plan.plan_id, owner, execution.bundle.digest);
-  expect(native.stream).toHaveBeenCalledWith(expect.objectContaining({ forwardRange: false,
-    expected: { sha256: execution.bundle.digest, size_bytes: execution.bundle.size_bytes },
-    originRequest: { method: "POST", body: "signed-owner-target" } }));
+  expect(response.status).toBe(410);
+  expect(await response.json()).toMatchObject({ code: "website_atlas_preview_download_retired" });
+  expect(native.inspect).not.toHaveBeenCalled(); expect(native.retain).not.toHaveBeenCalled();
+  expect(native.bundle).not.toHaveBeenCalled(); expect(native.stream).not.toHaveBeenCalled();
+});
+
+it.each(["unauthenticated", "other_owner", "revoked"])("keeps %s sources protected on the retired route", async change => {
+  if (change === "unauthenticated") owner = "";
+  if (change === "other_owner") owner = "different-owner";
+  if (change === "revoked") record.capture_access = { future_processing_allowed: false };
+  const response = await fetch(endpoint() + "/bundle");
+  expect(response.status).toBe(change === "unauthenticated" ? 401 : change === "other_owner" ? 404 : 410);
+  expect(native.inspect).not.toHaveBeenCalled(); expect(native.bundle).not.toHaveBeenCalled();
+  expect(native.stream).not.toHaveBeenCalled();
 });

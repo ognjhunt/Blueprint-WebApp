@@ -4,9 +4,8 @@ import { z } from "zod";
 import { requireOwnedCaptureAtlasSource } from "../utils/ownedCaptureAtlasContext";
 import { loadOwnedCaptureAtlasConfiguration } from "../utils/ownedCaptureAtlasPreparation";
 import { ownedCaptureAtlasPreparationPlanSchema } from "../utils/reconstructionForwarding";
-import { executeOwnedAtlas, retryOwnedAtlas, inspectOwnedAtlas, ownedAtlasBundleRequest,
+import { executeOwnedAtlas, retryOwnedAtlas, inspectOwnedAtlas,
   type OwnedAtlasExecution } from "../utils/ownedCaptureAtlasExecution";
-import { streamVerifiedPipelineArtifact } from "../utils/taskEvaluationResultArtifactProxy";
 
 const executeCommand = z.object({ schema_version: z.literal("capture_owned_atlas_execute_command.v1"),
   idempotency_key: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{7,191}$/) }).strict();
@@ -68,7 +67,7 @@ export function ownedCaptureAtlasExecutionRouter(dependencies: {
       await dependencies.retainReconstruction(req.params.sessionId, user.uid, execution);
       res.set("Cache-Control", "private, no-store");
       return res.json({ schema_version: "capture_owned_atlas_execution_inspection.v1", execution,
-        download_available: execution.state === "ready" && execution.bundle !== null });
+        download_available: false });
     } catch (error) { return failure(res, error); }
   });
 
@@ -78,17 +77,12 @@ export function ownedCaptureAtlasExecutionRouter(dependencies: {
     try {
       const owned = await source(req.params.sessionId, req.params.planId, user.uid);
       if (!owned.plan) return res.status(owned.status).json({ error: "Capture reconstruction not found" });
-      const execution = await inspectOwnedAtlas(owned.plan, user.uid), bundle = execution.bundle;
-      await dependencies.retainReconstruction(req.params.sessionId, user.uid, execution);
-      if (execution.state !== "ready" || !bundle) return res.status(409).json({ error: "Reconstruction bundle is not ready" });
-      const origin = ownedAtlasBundleRequest(owned.plan.plan_id, user.uid, bundle.digest);
-      if (!origin) return res.status(503).json({ error: "Reconstruction delivery is not configured" });
-      await streamVerifiedPipelineArtifact({ endpoint: origin.url, headers: origin.headers, req, res,
-        originRequest: { method: "POST", body: origin.body },
-        expected: { sha256: bundle.digest, size_bytes: bundle.size_bytes }, forwardRange: false,
-        label: "Reconstruction bundle", forcedHeaders: { "Content-Type": "application/zip",
-          "Content-Disposition": `attachment; filename="${owned.plan.plan_id}.zip"` } });
-    } catch (error) { if (!res.headersSent) return failure(res, error); res.destroy(); }
+      // The owner decision of 2026-10-29 also covers retained-upload scenes:
+      // Blueprint retains the model; customer result reads never export it.
+      res.set("Cache-Control", "private, no-store");
+      return res.status(410).json({ error: "Reconstruction downloads are retired",
+        code: "website_atlas_preview_download_retired" });
+    } catch (error) { return failure(res, error); }
   });
   return router;
 }
