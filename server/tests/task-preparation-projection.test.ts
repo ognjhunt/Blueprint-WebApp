@@ -160,6 +160,9 @@ describe("preparation that waits on capacity or ends for good (beta L3/L6)", () 
     const evaluated = projectTaskStatus({ ...handedOff, sceneProgression: { state: "evaluated" } } as never);
     expect(evaluated.decision).toBe("assessing");
     expect(evaluated.headline).toBe("Your job's simulation estimate is ready on your job page. It is a bounded estimate from a simulation of your site, not a certified result. Nothing is needed from you.");
+    const held = projectTaskStatus({ ...handedOff, sceneProgression: { state: "held" } } as never);
+    expect(held.decision).toBe("assessing");
+    expect(held.headline).toBe("Held: we can't simulate this kind of job yet. It counts as demand for what we build next. Nothing is needed from you.");
     const built = projectTaskStatus({ ...handedOff, sceneProgression: { state: "completed" } } as never);
     expect(built.decision).toBe("assessing");
     expect(built.headline).toBe("We are preparing your job for simulation. Nothing is needed from you.");

@@ -184,11 +184,12 @@ export interface TaskPreparationStatus {
  * `testing` is a finished scene, task objects in, whose first internal test
  * has started: the point the site is told it is ready (owner decision
  * 2026-10-22). `evaluated` is a finished automatic evaluation whose simulation
- * estimate is the job's result (owner decision 2026-10-28). Coarse by design:
+ * estimate is the job's result, and `held` one where no candidate can do this
+ * kind of job yet (owner decision 2026-10-28). Coarse by design:
  * no Pipeline detail reaches a site.
  */
 export interface TaskSceneProgression {
-  state: "in_progress" | "waiting" | "ended" | "completed" | "testing" | "evaluated";
+  state: "in_progress" | "waiting" | "ended" | "completed" | "testing" | "evaluated" | "held";
 }
 
 /** One sentence per reason the Pipeline can give; an unknown reason adds nothing. */
@@ -580,14 +581,17 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
       operatorAction: null,
     };
   }
+  const sceneHeld = input.sceneProgression?.state === "held";
   const sceneEvaluated = input.sceneProgression?.state === "evaluated";
-  const sceneTesting = sceneEvaluated || input.sceneProgression?.state === "testing";
-  const evaluatedHeadline = "Your job's simulation estimate is ready on your job page. It is a bounded estimate from a simulation of your site, not a certified result.";
+  const sceneTesting = sceneEvaluated || sceneHeld || input.sceneProgression?.state === "testing";
+  const resultHeadline = sceneHeld
+    ? "Held: we can't simulate this kind of job yet. It counts as demand for what we build next."
+    : "Your job's simulation estimate is ready on your job page. It is a bounded estimate from a simulation of your site, not a certified result.";
   if ((input.scenePreviewReady || sceneTesting) && input.listed === false) {
     return {
       ...base,
       decision: "not_listed",
-      headline: `${sceneEvaluated ? evaluatedHeadline : sceneTesting ? "Your scene is ready, and we are running our first tests on it." : "Your scene preview is ready."} Your job card is not published, so approved partners cannot see this job in the job library or ask to have their systems evaluated on it.`,
+      headline: `${sceneEvaluated || sceneHeld ? resultHeadline : sceneTesting ? "Your scene is ready, and we are running our first tests on it." : "Your scene preview is ready."} Your job card is not published, so approved partners cannot see this job in the job library or ask to have their systems evaluated on it.`,
       operatorAction: "To share it with partners approved for the beta, publish its job card from your job page.",
     };
   }
@@ -607,7 +611,7 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
     return {
       ...base,
       decision: "assessing",
-      headline: `${sceneEvaluated ? evaluatedHeadline : "Your scene is ready, and we are running our first tests on it."} Nothing is needed from you.`,
+      headline: `${sceneEvaluated || sceneHeld ? resultHeadline : "Your scene is ready, and we are running our first tests on it."} Nothing is needed from you.`,
       operatorAction: null,
     };
   }

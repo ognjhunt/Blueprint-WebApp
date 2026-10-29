@@ -418,6 +418,13 @@ describe("scene progression after hand-off", () => {
     // A completed run with no scored episode has no estimate to show.
     state.docs.set("taskEvaluationPolicyRuns/screening-one", { ...run, state: "completed", screening_execution_observed: true, episodes_scored: 0 });
     expect(await loadWebsiteSceneProgression("r1", "walkthrough-r1")).toEqual({ state: "testing" });
+    // No candidate can do this kind of job yet: held, not an open test.
+    state.docs.set("taskEvaluationPolicyRuns/screening-one", { ...run, state: "blocked", screening_execution_observed: true,
+      episodes_scored: 0, no_estimate_reason: "held" });
+    expect(await loadWebsiteSceneProgression("r1", "walkthrough-r1")).toEqual({ state: "held" });
+    state.docs.set("taskEvaluationPolicyRuns/screening-one", { ...run, state: "blocked", screening_execution_observed: true,
+      episodes_scored: 0, no_estimate_reason: "budget" });
+    expect(await loadWebsiteSceneProgression("r1", "walkthrough-r1")).toEqual({ state: "testing" });
     state.docs.set("taskEvaluationPolicyRuns/screening-one", { ...run, state: "completed", team_namespace: "team-b" });
     expect(await loadWebsiteSceneProgression("r1", "walkthrough-r1")).toEqual({ state: "completed" });
   });

@@ -76,6 +76,25 @@ export const betaPolicyScreeningPublicationSchema = z.discriminatedUnion("schema
 });
 export type BetaPolicyScreeningPublication = z.infer<typeof betaPolicyScreeningPublicationSchema>;
 
+/**
+ * Why a finished run has no estimate, by who can fix it (owner decision
+ * 2026-10-28). `held`: every candidate is refused for capability or license,
+ * so the job waits for something we have to build. `budget`: a candidate
+ * needs more than the site's allowance, which only the owner can approve.
+ * `setup`: anything else, ours to fix and rerun.
+ */
+export type NoEstimateReason = "held" | "budget" | "setup";
+const HELD_BLOCKERS = new Set(["task_kind_not_supported_by_candidate", "candidate_disabled", "commercial_use_not_admitted"]);
+
+export function noEstimateReason(candidates: ReadonlyArray<{ status: string; blockers: readonly string[] }>): NoEstimateReason {
+  const open = candidates.filter(row => row.status !== "completed");
+  if (open.some(row => row.blockers.some(code => code.includes("budget")))) return "budget";
+  // A completed candidate with only void episodes is a broken scene, not a capability gap.
+  return open.length > 0 && open.length === candidates.length
+    && open.every(row => row.blockers.length > 0 && row.blockers.every(code => HELD_BLOCKERS.has(code)))
+    ? "held" : "setup";
+}
+
 export function parseBetaPolicyScreeningPublication(value: unknown): BetaPolicyScreeningPublication | null {
   const parsed = betaPolicyScreeningPublicationSchema.safeParse(value);
   if (!parsed.success || crossRuntimeArtifactDigest(parsed.data, "publication_digest") !== parsed.data.publication_digest) return null;
