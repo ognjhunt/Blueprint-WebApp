@@ -1107,7 +1107,8 @@ router.get("/:token/status", async (req: Request, res: Response) => {
           ? request.preparationOutcome : null,
         preparationStatus,
         targetChoiceAnswer,
-        targetChoiceRestoringGuess: payload.scope === 'owner' && preparationStatus?.state === 'awaiting_inputs'
+        targetChoiceRestoringGuess: payload.scope === 'owner' && targetChoiceAnswer === 'confirm_guess'
+          && preparationStatus?.state === 'awaiting_inputs'
           && taskTargetSelection(captureSession?.data()).restoringGuess,
         preparationOverdue,
         sceneProgression,

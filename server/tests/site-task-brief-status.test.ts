@@ -18,6 +18,7 @@ import type { Server } from "node:http";
 
 import { sharedFakeFirestoreState } from "./helpers/fake-firestore";
 import { listedTaskCard } from "./helpers/listedTaskCard";
+import { processingFailure } from '../utils/taskPreparationOutcome';
 
 const preparation = vi.hoisted(() => ({ read: vi.fn(async (): Promise<Record<string, unknown>> => ({
   state: "failed_retryable", correlationId: "bp-prep-1234567890abcdef",
@@ -267,6 +268,8 @@ describe("GET /api/site-task-brief/:token/status", () => {
       expect(clarified.body.status.operatorAction).toBeNull();
       expect(clarified.body.status.headline).toContain('saved video');
       expect(sharedFakeFirestoreState.docs.get(`captureUploadSessions/cap-1/taskTargetChoiceHistory/${negative.answer_digest.slice(7)}`)).toEqual(negative);
+      preparation.read.mockImplementation(async () => ({state: 'awaiting_inputs', question: null, outcome: processingFailure()}));
+      expect((await status()).body.status.decision).toBe('processing_failure');
       expect(enqueueOutbox).not.toHaveBeenCalled();
     } finally {
       preparation.read.mockImplementation(original!);
