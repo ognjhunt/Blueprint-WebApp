@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 for (const width of [1440, 390]) {
   test(`saved site job offers optional account setup at ${width}px`, async ({ page, context, baseURL }) => {
     await page.setViewportSize({ width, height: 1000 });
-    const mutations: string[] = [], errors: string[] = [];
+    const mutations: string[] = [], errors: string[] = [], intakeBodies: Record<string, unknown>[] = [];
     page.on("pageerror", error => errors.push(error.message));
     await context.addInitScript(() => localStorage.setItem("blueprint_cookie_consent", JSON.stringify({ necessary: true, analytics: false, marketing: false })));
     await context.route("**/*", async route => {
@@ -12,7 +12,11 @@ for (const width of [1440, 390]) {
       if (url.pathname === "/api/analytics/ingest") return send({ ok: true });
       if (request.method() !== "GET" && request.method() !== "HEAD") {
         mutations.push(url.pathname);
-        if (url.pathname === "/api/inbound-request") return send({ ok: true, requestId: request.postDataJSON().requestId, captureUrl: "/capture-upload/fixture.capture", claimUrl: "/claim/fixture.claim" }, 201);
+        if (url.pathname === "/api/inbound-request") {
+          const body = request.postDataJSON();
+          intakeBodies.push(body);
+          return send({ ok: true, requestId: body.requestId, captureUrl: "/capture-upload/fixture.capture", claimUrl: "/claim/fixture.claim" }, 201);
+        }
         return send({ error: "Unexpected QA mutation" }, 409);
       }
       if (url.pathname === "/api/csrf") return send({ csrfToken: "synthetic-csrf" });
@@ -22,7 +26,9 @@ for (const width of [1440, 390]) {
     });
     await page.goto("/signup/business?buyerType=site_operator");
     await expect(page).toHaveURL(/\/contact\/site-operator$/);
-    await page.locator("#start-location").fill("Austin, TX");
+    await page.locator("#start-region").selectOption("us");
+    await expect(page.locator("#start-location")).not.toHaveAttribute("required", "");
+    await expect(page.locator("#start-location")).toHaveValue("");
     await page.locator("#start-email").fill("qa@example.invalid");
     await expect(page.locator("#start-company")).toHaveCount(0);
     await expect(page.locator("#start-password")).toHaveCount(0);
@@ -32,6 +38,7 @@ for (const width of [1440, 390]) {
     await expect(optionalAccount).toBeVisible();
     await expect(signup).toBeHidden();
     expect(mutations).toEqual(["/api/inbound-request"]);
+    expect(intakeBodies).toEqual([expect.objectContaining({ siteName: "", siteLocation: "", captureRegion: "us", accountSignup: false })]);
     await optionalAccount.click();
     await expect(signup).toBeVisible();
     await expect(page.getByRole("link", { name: "Sign in to save this job" })).toHaveAttribute("href", "/claim/fixture.claim?mode=signin");

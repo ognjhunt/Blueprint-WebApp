@@ -1424,6 +1424,14 @@ describe("capture-first workspace intake", () => {
     captureMode: "self_capture", captureRegion: "us", hasExistingFootage: false,
     consentAttestation: { granted: true, statementVersion: "2026-09-18.v1" },
   };
+  it.each([undefined, "", "   "])("keeps a self-recorded site's omitted location unknown (%s)", async siteLocation => {
+    expect((await api("/capture-start", "site-1", { ...capture, siteLocation, taskStatement: "", hasExistingFootage: true })).status).toBe(201);
+    expect(state.intakes.at(-1).body).toMatchObject({ siteName: "", siteLocation: "", captureRegion: "us", taskStatement: "" });
+  });
+  it("requires the address only for a Blueprint filming visit", async () => {
+    expect((await api("/capture-start", "site-1", { ...capture, siteLocation: "", captureMode: "site_visit" })).status).toBe(400);
+    expect(state.intakes).toHaveLength(0);
+  });
   it("accepts authorized capture or recording setup without a required description or goal", async () => {
     expect((await api("/capture-start", "site-1", { ...capture, taskStatement: "", hasExistingFootage: true })).status).toBe(201);
     expect(state.intakes.at(-1).body).toMatchObject({ taskStatement: "", taskDescription: "", hasExistingFootage: true,

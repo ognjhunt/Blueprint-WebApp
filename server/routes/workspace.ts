@@ -1210,7 +1210,7 @@ router.post(
     requireRole(res, "site_operator");
     const input = z.object({
       requestId: id,
-      siteLocation: z.string().trim().min(1).max(300),
+      siteLocation: z.string().trim().max(300).default(""),
       taskStatement: z.string().trim().max(2000).default(""),
       siteTaskSpec: z.object({
         jobFrequency: z.string().trim().max(120).optional(),
@@ -1230,6 +1230,8 @@ router.post(
       solAgentsApiConsent: z.object({ granted: z.literal(true),
         statementVersion: z.literal("2026-09-24.v1") }).optional(),
       honeypot: z.string().optional(),
+    }).refine(input => input.captureMode !== "site_visit" || Boolean(input.siteLocation), {
+      path: ["siteLocation"], message: "Add the street address for a Blueprint filming visit.",
     }).refine(input => Boolean(input.taskStatement)
       || (input.captureMode === "self_capture" && input.descriptionOnly !== true
         && input.consentAttestation?.granted === true)
