@@ -354,6 +354,8 @@ export async function mergeBriefProposals(params: {
 
 export interface ConfirmationResult {
   brief: SiteTaskBriefRecord;
+  /** No new attestation or work was created for this already-confirmed scope. */
+  reusedConfirmation?: boolean;
   /** The gate answers now on file, all operator-stated. */
   answers: Record<string, string>;
   sources: GateAnswerSources;
@@ -469,6 +471,21 @@ export async function confirmBrief(params: {
 
   confirmed.taskFamily = scope.kind ?? "general_task";
 
+  const requestedScope = { summary, answers, unknown: [...unknown].sort(), success: confirmed.successCriteria ?? null, pilotIntent: confirmed.pilotIntent ?? null };
+  const priorScope = { summary: brief.summary, answers: brief.operatorAnswers ?? {}, unknown: [...(brief.operatorUnknown ?? [])].sort(), success: brief.successCriteria ?? null, pilotIntent: brief.pilotIntent ?? null };
+  const sameScope = humanDecisionDigest(requestedScope) === humanDecisionDigest(priorScope);
+  const reuseConfirmation = Boolean(brief.confirmedAtIso) && sameScope;
+  if (reuseConfirmation) {
+    // An unchanged click is not new task evidence. Keep its original
+    // attestation and legacy projection, including unknown-field ordering.
+    confirmed.confirmedAtIso = brief.confirmedAtIso;
+    confirmed.confirmedBy = brief.confirmedBy;
+    confirmed.operatorUnknown = brief.operatorUnknown;
+    confirmed.unresolved = brief.unresolved;
+    if (brief.taskFamily === undefined) delete confirmed.taskFamily;
+    else confirmed.taskFamily = brief.taskFamily;
+  }
+
   // Confirmation attests to answers, not to footage we have never received.
   const evidence = { hasAny: true, hasVisual: false, explainsTask: true,
     coversScene: false, missingCoverage: undefined as string[] | undefined };
@@ -479,9 +496,7 @@ export async function confirmBrief(params: {
       const current = await tx.get(briefRef);
       const requestRef = db!.collection("inboundRequests").doc(params.requestId);
       const requestSnapshot = await tx.get(requestRef);
-      const requestedScope = { summary, answers, unknown: [...unknown].sort(), success: confirmed.successCriteria ?? null, pilotIntent: confirmed.pilotIntent ?? null };
-      const priorScope = { summary: brief.summary, answers: brief.operatorAnswers ?? {}, unknown: [...(brief.operatorUnknown ?? [])].sort(), success: brief.successCriteria ?? null, pilotIntent: brief.pilotIntent ?? null };
-      if (requestSnapshot.data()?.job_marketplace?.agreement && humanDecisionDigest(requestedScope) !== humanDecisionDigest(priorScope)) {
+      if (requestSnapshot.data()?.job_marketplace?.agreement && !sameScope) {
         throw new BriefPilotScopeLockedError("A pilot agreement is recorded. Agree scope changes with Blueprint and the delivery partner before changing this brief.");
       }
       if (requestSnapshot.data()?.job_marketplace?.agreement) {
@@ -495,6 +510,14 @@ export async function confirmBrief(params: {
       if (humanDecisionDigest(current.data()) !== humanDecisionDigest(brief)) throw new Error("brief_changed_before_confirmation");
       if (previousRequest && humanDecisionDigest(gateAnswersOnFile(requestSnapshot.data() ?? {})) !== humanDecisionDigest(gateAnswersOnFile(previousRequest)))
         throw new Error("brief_answers_changed_before_confirmation");
+      // Fresh transaction reads still fence concurrent edits. A no-op leaves
+      // timestamps, pending coverage, allowances and advisory jobs alone.
+      if (reuseConfirmation) {
+        if (requestSnapshot.exists && !requestSnapshot.data()?.site_task_brief_confirmed_at) {
+          tx.set(requestRef, { site_task_brief_confirmed_at: brief.confirmedAtIso }, { merge: true });
+        }
+        return;
+      }
       const materialChange = humanDecisionDigest({ summary: brief.summary, taskFamily: brief.taskFamily ?? null, answers: gateAnswersOnFile(previousRequest ?? {}),
         unknown: [...(brief.operatorUnknown ?? [])].sort(), success: brief.successCriteria ?? null }) !== humanDecisionDigest({ summary: confirmed.summary, taskFamily: confirmed.taskFamily ?? null, answers,
         unknown: [...unknown].sort(), success: confirmed.successCriteria ?? null });
@@ -571,6 +594,7 @@ export async function confirmBrief(params: {
 
   return {
     brief: confirmed,
+    reusedConfirmation: reuseConfirmation,
     answers,
     sources,
     disposition: verdict.disposition,

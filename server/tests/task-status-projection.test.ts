@@ -31,6 +31,25 @@ function base(overrides: Partial<Parameters<typeof projectTaskStatus>[0]> = {}) 
   };
 }
 
+it("keeps a ready visual reconstruction current when native status and advisory coverage cannot establish the next step", () => {
+  const input = taskStatusInputFrom({ briefDrafted: true, hasStoredCapture: true, stage: null,
+    visualReconstructionReady: true, preparationStatus: { state: "unavailable", correlationId: null },
+    capture_coverage: { covers_scene: false, missing_coverage: ["A closer walkthrough along the shelving units"] } });
+  const status = projectTaskStatus(input);
+  expect(status).toMatchObject({ decision: "preview_ready", operatorAction: null,
+    headline: "Your 3D preview is ready. Blueprint is checking the next processing step. Nothing is needed from you." });
+  expect(status.headline).not.toMatch(/evaluation.*ready|simulation.*ready|record|upload/i);
+  expect(status.missingViews).toEqual(["A closer walkthrough along the shelving units"]);
+  expect(projectTaskStatus({ ...input, consentRevoked: true }).headline).toMatch(/withdrawn/i);
+  expect(projectTaskStatus({ ...input, preparationStatus: { state: "authority_ended", correlationId: null } }).headline).toMatch(/authorization/i);
+  const ownerStep = { category: "insufficient_evidence", basis: "missing_evidence", title: "Owner decision needed",
+    reason: "A current owner permission is required.", scope: "This recording", nextStep: "Review the recording permission.",
+    actionOwner: "site", evidence: [] } as const;
+  expect(projectTaskStatus({ ...input, preparationStatus: { state: "awaiting_inputs", correlationId: null,
+    outcome: { ...ownerStep, evidence: [] } } })).toMatchObject({ decision: "insufficient_evidence", operatorAction: ownerStep.nextStep });
+  expect(projectTaskStatus({ ...input, screening: { teams: 1, queued: 0, running: 0, reported: 1, noResult: 0 } }).decision).toBe("results");
+});
+
 it("keeps owner closure above stale preparation progress and confirmation while preserving withdrawal", () => {
   const outcome = projectWebsiteRunClosure({ website_run_closures: { "walkthrough-req1": ownerClosure() } }, "req1", "walkthrough-req1");
   const input = base({ briefDrafted: true, briefConfirmed: false, scenePreviewReady: true,

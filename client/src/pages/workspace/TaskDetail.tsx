@@ -123,9 +123,11 @@ export default function TaskDetail() {
                 <p>{task.readiness.headline}</p>
                 <TaskOutcomeNotice showTitle={false} outcome={query.error ? null : task.readiness.outcome} />
                 {task.readiness.operatorAction && <p>{task.readiness.operatorAction}</p>}
-                {task.readiness.missingViews.length > 0 && task.readiness.decision !== "add_views" && (
-                  <p>Still needed: {task.readiness.missingViews.join(", ")}.</p>
-                )}
+                {task.readiness.missingViews.length > 0 && <details>
+                  <summary>Processing details</summary>
+                  <p>Earlier coverage notes are retained for Blueprint to review.</p>
+                  <ul>{task.readiness.missingViews.map((note, index) => <li key={index}>{note}</li>)}</ul>
+                </details>}
                 {waitingTimeline(task.readiness.decision) && <p>{waitingTimeline(task.readiness.decision)}</p>}
                 <p className="ws-note">Check this page for updates.</p>
               </div>
@@ -455,12 +457,9 @@ export default function TaskDetail() {
             <section className="ws-section" aria-label="Your recording">
               <h2>Your recording</h2>
               <p>
-                You film this job yourself on your phone. Your job page shows what has been
-                received, what is still needed, and lets you add more footage.
+                Review your saved recording and processing updates on your job page.
+                You can also add footage there.
               </p>
-              {task.readiness?.missingViews?.length ? (
-                <p className="ws-muted">Still needed: {task.readiness.missingViews.join(", ")}.</p>
-              ) : null}
               {!task.archived && !task.recordingPermissionWithdrawn && (
                 <button className="ws-primary" type="button" onClick={() => void openTaskPage()} disabled={linkState === "working"}>
                   {linkState === "working" ? "Opening…" : "Add or review footage"}
