@@ -150,33 +150,17 @@ describe("development-only 3D preview", () => {
     statusText: "Your 3D preview is ready to download.", developmentOnly: true, splatAvailable: true,
     meshAvailable: true, sizeBytes: 4096, updatedAtIso: "2026-10-22T12:00:00.000Z", downloadAvailable: true };
 
-  it("downloads a ready preview through a fresh owner ticket", async () => {
-    const url = `/api/website-atlas-preview-downloads/owned-task/walkthrough-owned-task?expires=1&signature=${"a".repeat(64)}`;
-    request.mockResolvedValue({ download_url: url });
-    const navigate = vi.spyOn(window.location, "assign").mockImplementation(() => {});
-    fixture.task = { atlasPreview: ready };
+  // Owner decision 2026-10-29: Blueprint owns the reconstruction; the site sees it is ready but never downloads it.
+  it("shows a ready preview with no download and never asks for a ticket", () => {
+    fixture.task = { atlasPreview: { ...ready, statusText: "Your 3D preview is ready. Blueprint keeps the model for your job.",
+      downloadAvailable: false } };
     render(<TaskDetail />);
     expect(screen.getByRole("heading", { name: "3D preview (beta, unscaled)" })).toBeInTheDocument();
-    expect(screen.getByText("Your 3D preview is ready to download.")).toBeInTheDocument();
-    expect(screen.getByText(/is not to scale, and is not a measurement of\s+your site/)).toBeInTheDocument();
-    await act(async () => fireEvent.click(screen.getByRole("button", { name: "Download 3D preview" })));
-    expect(request).toHaveBeenCalledWith("/tasks/owned-task/atlas-preview/download-ticket", "POST",
-      { captureId: "walkthrough-owned-task" }, { timeoutMs: 15000 });
-    expect(navigate).toHaveBeenCalledWith(url);
-  });
-
-  it("keeps the download retryable when the ticket is refused or malformed", async () => {
-    request.mockRejectedValueOnce(new Error("This 3D preview is not available to download."))
-      .mockResolvedValueOnce({ download_url: "https://elsewhere.example/file.zip" });
-    const navigate = vi.spyOn(window.location, "assign").mockImplementation(() => {});
-    fixture.task = { atlasPreview: ready };
-    render(<TaskDetail />);
-    await act(async () => fireEvent.click(screen.getByRole("button", { name: "Download 3D preview" })));
-    expect(screen.getByRole("alert")).toHaveTextContent("not available to download");
-    await act(async () => fireEvent.click(screen.getByRole("button", { name: "Download 3D preview" })));
-    expect(screen.getByRole("alert")).toHaveTextContent("download link was missing");
-    expect(navigate).not.toHaveBeenCalled();
-    expect(screen.getByRole("button", { name: "Download 3D preview" })).toBeEnabled();
+    expect(screen.getByText("Your 3D preview is ready. Blueprint keeps the model for your job.")).toBeInTheDocument();
+    expect(screen.getByText(/Blueprint keeps this model; it is not available to download/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Download 3D preview/ })).not.toBeInTheDocument();
+    expect(request).not.toHaveBeenCalledWith("/tasks/owned-task/atlas-preview/download-ticket", expect.anything(),
+      expect.anything(), expect.anything());
   });
 
   it("shows only a status while it is being made, and nothing once consent is withdrawn", () => {

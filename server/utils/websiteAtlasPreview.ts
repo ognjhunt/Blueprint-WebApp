@@ -116,7 +116,7 @@ export function downloadableWebsiteAtlasPreview(record: Record<string, any> | un
 
 const STATUS_COPY = {
   processing: "Your 3D preview is being made from your recording.",
-  ready: "Your 3D preview is ready to download.",
+  ready: "Your 3D preview is ready. Blueprint keeps the model for your job.",
   needs_input: "A 3D preview could not be made from this recording.",
   failed: "A 3D preview could not be made from this recording.",
 } as const;
@@ -134,7 +134,8 @@ export function projectWebsiteAtlasPreview(record: Record<string, any> | undefin
     splatAvailable: preview.splat_available, meshAvailable: preview.mesh_available,
     sizeBytes: preview.bundle?.size_bytes ?? null,
     updatedAtIso: Number.isFinite(updated.getTime()) ? updated.toISOString() : null,
-    downloadAvailable: preview.state === "ready" && preview.bundle !== null,
+    // Owner decision 2026-10-29: Blueprint owns the reconstruction; the site never downloads it.
+    downloadAvailable: false,
   };
 }
 
