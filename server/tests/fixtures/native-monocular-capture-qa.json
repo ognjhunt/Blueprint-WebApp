@@ -1,0 +1,375 @@
+{
+  "schema_version": "capture_qa_publication.v1",
+  "capture_session_id": "capture-upload-ce3c0fe0de91e2916f4666e5f0e87b6f",
+  "intake_id": "real-video-library-854533-20261028-v1",
+  "capture_authority_profile": "monocular_video",
+  "envelope_digest": "sha256:b811e5e972dae7217d180cb44d0656a6044313348e71fad6800ec6374a60693e",
+  "qa_report_digest": "sha256:c3a4e214faa1f9a4fe89dc7ace27858ef6baa676045337e6d8592ca053a5fab6",
+  "status": "accepted",
+  "state": "capture_accepted",
+  "report": {
+    "capture_authority_profile": "monocular_video",
+    "checks": [
+      {
+        "check_id": "camera_pose_availability",
+        "claim_impact": [
+          "calibrated_camera_poses",
+          "metric_geometry"
+        ],
+        "evidence_source": "capture_intake_envelope",
+        "measurement": "undeclared",
+        "recapture_code": null,
+        "recapture_instruction": null,
+        "status": "not_measured",
+        "threshold": null
+      },
+      {
+        "check_id": "codec",
+        "claim_impact": [
+          "media_processing"
+        ],
+        "evidence_source": "decoded_media_probe",
+        "measurement": "h264",
+        "recapture_code": null,
+        "recapture_instruction": null,
+        "status": "pass",
+        "threshold": {
+          "supported": [
+            "av1",
+            "h264",
+            "hevc",
+            "vp9"
+          ]
+        }
+      },
+      {
+        "check_id": "compression_quality_fraction",
+        "claim_impact": [
+          "object_identification",
+          "reconstruction"
+        ],
+        "evidence_source": "quality_observations",
+        "measurement": 1.0,
+        "recapture_code": null,
+        "recapture_instruction": null,
+        "status": "pass",
+        "threshold": {
+          "maximum": null,
+          "minimum": 0.8
+        }
+      },
+      {
+        "check_id": "decoded_pts_continuity",
+        "claim_impact": [
+          "calibrated_camera_poses",
+          "captured_observation_timing"
+        ],
+        "evidence_source": "decoded_media_probe",
+        "measurement": {
+          "decoded_timestamp_count": 437,
+          "maximum_delta_seconds": 0.04,
+          "median_delta_seconds": 0.04,
+          "non_monotonic_delta_count": 0
+        },
+        "recapture_code": null,
+        "recapture_instruction": null,
+        "status": "pass",
+        "threshold": {
+          "maximum_gap_seconds": 0.25,
+          "strictly_monotonic": true
+        }
+      },
+      {
+        "check_id": "depth_availability",
+        "claim_impact": [
+          "metric_geometry"
+        ],
+        "evidence_source": "capture_intake_envelope",
+        "measurement": "unavailable",
+        "recapture_code": null,
+        "recapture_instruction": null,
+        "status": "not_measured",
+        "threshold": null
+      },
+      {
+        "check_id": "duration",
+        "claim_impact": [
+          "visual_coverage"
+        ],
+        "evidence_source": "decoded_media_probe",
+        "measurement": 17.493333,
+        "recapture_code": null,
+        "recapture_instruction": null,
+        "status": "pass",
+        "threshold": {
+          "minimum_seconds": 5.0
+        }
+      },
+      {
+        "check_id": "dynamic_people_detected",
+        "claim_impact": [
+          "reconstruction",
+          "task_scene_stability"
+        ],
+        "evidence_source": "quality_observations",
+        "measurement": null,
+        "recapture_code": "dynamic_people_present",
+        "recapture_instruction": "Repeat the affected pass with people outside the task area and preserve the original as restricted evidence if retention permits.",
+        "status": "not_measured",
+        "threshold": null
+      },
+      {
+        "check_id": "frame_rate",
+        "claim_impact": [
+          "captured_observation_timing"
+        ],
+        "evidence_source": "decoded_media_probe",
+        "measurement": 25.0,
+        "recapture_code": null,
+        "recapture_instruction": null,
+        "status": "pass",
+        "threshold": {
+          "maximum_fps": 120.0,
+          "minimum_fps": 15.0
+        }
+      },
+      {
+        "check_id": "intrinsics_availability",
+        "claim_impact": [
+          "calibrated_camera_poses",
+          "reconstruction"
+        ],
+        "evidence_source": "capture_intake_envelope",
+        "measurement": "undeclared",
+        "recapture_code": null,
+        "recapture_instruction": null,
+        "status": "not_measured",
+        "threshold": null
+      },
+      {
+        "check_id": "media_decodable",
+        "claim_impact": [
+          "captured_observation_review",
+          "task_candidate_discovery"
+        ],
+        "evidence_source": "decoded_media_probe",
+        "measurement": {
+          "format_name": "mov,mp4,m4a,3gp,3g2,mj2"
+        },
+        "recapture_code": null,
+        "recapture_instruction": null,
+        "status": "pass",
+        "threshold": null
+      },
+      {
+        "check_id": "moving_task_objects_detected",
+        "claim_impact": [
+          "reconstruction",
+          "task_reset"
+        ],
+        "evidence_source": "quality_observations",
+        "measurement": null,
+        "recapture_code": "task_objects_moved_during_capture",
+        "recapture_instruction": "Reset task objects to one documented state and repeat the affected views without moving them during the pass.",
+        "status": "not_measured",
+        "threshold": null
+      },
+      {
+        "check_id": "privacy_sensitive_content_detected",
+        "claim_impact": [
+          "artifact_download",
+          "external_provider_use"
+        ],
+        "evidence_source": "quality_observations",
+        "measurement": null,
+        "recapture_code": "privacy_sensitive_content",
+        "recapture_instruction": "Recapture without faces, license plates, screens, documents, or bystanders, or create and approve a privacy-safe derivative before provider use.",
+        "status": "not_measured",
+        "threshold": null
+      },
+      {
+        "check_id": "resolution",
+        "claim_impact": [
+          "captured_observation_review",
+          "object_identification"
+        ],
+        "evidence_source": "decoded_media_probe",
+        "measurement": {
+          "height": 2160,
+          "width": 3840
+        },
+        "recapture_code": null,
+        "recapture_instruction": null,
+        "status": "pass",
+        "threshold": {
+          "minimum_short_edge_pixels": 720
+        }
+      },
+      {
+        "check_id": "robot_placement_area_covered",
+        "claim_impact": [
+          "reachability",
+          "robot_placement"
+        ],
+        "evidence_source": "quality_observations",
+        "measurement": null,
+        "recapture_code": "robot_placement_area_missing",
+        "recapture_instruction": "Capture the full proposed robot placement area, floor support, access path, human clearance, and approach direction.",
+        "status": "not_measured",
+        "threshold": null
+      },
+      {
+        "check_id": "rolling_shutter_symptom_fraction",
+        "claim_impact": [
+          "camera_motion",
+          "reconstruction"
+        ],
+        "evidence_source": "quality_observations",
+        "measurement": 0.0,
+        "recapture_code": null,
+        "recapture_instruction": null,
+        "status": "pass",
+        "threshold": {
+          "maximum": 0.1,
+          "minimum": null
+        }
+      },
+      {
+        "check_id": "scale_anchor_verified",
+        "claim_impact": [
+          "metric_geometry",
+          "metric_scale"
+        ],
+        "evidence_source": "quality_observations",
+        "measurement": null,
+        "recapture_code": "scale_anchor_missing",
+        "recapture_instruction": "Include the metric calibration board in multiple sharp views and provide its exact dimensions and units.",
+        "status": "not_measured",
+        "threshold": {
+          "required_for": [
+            "metric_scale",
+            "metric_geometry"
+          ]
+        }
+      },
+      {
+        "check_id": "sharp_frame_fraction",
+        "claim_impact": [
+          "captured_observation_review",
+          "object_identification"
+        ],
+        "evidence_source": "quality_observations",
+        "measurement": 1.0,
+        "recapture_code": null,
+        "recapture_instruction": null,
+        "status": "pass",
+        "threshold": {
+          "maximum": null,
+          "minimum": 0.7
+        }
+      },
+      {
+        "check_id": "task_critical_occlusion_detected",
+        "claim_impact": [
+          "task_candidate_discovery",
+          "task_object_geometry"
+        ],
+        "evidence_source": "quality_observations",
+        "measurement": null,
+        "recapture_code": "task_critical_occlusion",
+        "recapture_instruction": "Capture the underside or rear of the work surface and a close orbit around each occluded task object.",
+        "status": "not_measured",
+        "threshold": null
+      },
+      {
+        "check_id": "visual_overlap_fraction",
+        "claim_impact": [
+          "reconstruction",
+          "spatial_coverage"
+        ],
+        "evidence_source": "quality_observations",
+        "measurement": 1.0,
+        "recapture_code": null,
+        "recapture_instruction": null,
+        "status": "pass",
+        "threshold": {
+          "maximum": null,
+          "minimum": 0.6
+        }
+      },
+      {
+        "check_id": "well_exposed_frame_fraction",
+        "claim_impact": [
+          "captured_observation_review",
+          "object_identification"
+        ],
+        "evidence_source": "quality_observations",
+        "measurement": 1.0,
+        "recapture_code": null,
+        "recapture_instruction": null,
+        "status": "pass",
+        "threshold": {
+          "maximum": null,
+          "minimum": 0.8
+        }
+      }
+    ],
+    "claim_ceiling": {
+      "calibrated_camera_poses": false,
+      "capture_admitted": true,
+      "captured_observation_review": true,
+      "collision_geometry": false,
+      "comparative_policy_ranking": false,
+      "comparative_policy_ranking_verdict": "thesis_not_supported",
+      "contact_or_articulation": false,
+      "deployment_readiness": false,
+      "external_reconstruction_is_raw_capture_authority": false,
+      "generated_completion_upgrades_observed_or_physical_claims": false,
+      "metric_geometry": false,
+      "metric_scale": false,
+      "physical_task_success": false,
+      "safety_certification": false,
+      "task_candidate_discovery": true
+    },
+    "comparative_policy_ranking_verdict": "thesis_not_supported",
+    "envelope_digest": "sha256:b811e5e972dae7217d180cb44d0656a6044313348e71fad6800ec6374a60693e",
+    "intake_id": "real-video-library-854533-20261028-v1",
+    "missing_evidence": [
+      "camera_pose_availability",
+      "depth_availability",
+      "dynamic_people_detected",
+      "intrinsics_availability",
+      "moving_task_objects_detected",
+      "privacy_sensitive_content_detected",
+      "robot_placement_area_covered",
+      "scale_anchor_verified",
+      "task_critical_occlusion_detected"
+    ],
+    "next_cheapest_experiment": {
+      "code": "measure_camera_pose_availability",
+      "instruction": "Measure and record camera_pose_availability with a provenance-labeled local analyzer or bounded operator review before making claims that depend on it.",
+      "kind": "local_or_operator_measurement"
+    },
+    "prohibited_claims": [
+      "physical_task_success",
+      "deployment_readiness",
+      "safety_certification",
+      "general_policy_ranking_validity"
+    ],
+    "qa_report_digest": "sha256:c3a4e214faa1f9a4fe89dc7ace27858ef6baa676045337e6d8592ca053a5fab6",
+    "quality_analysis_errors": [],
+    "quality_observations_digest": "sha256:d262140d528b3f0a7719b57b8d0ffb8a179535bcf8a1e7f69738707058602a58",
+    "recapture_plan": [],
+    "required_analysis": [],
+    "schema_version": "capture_qa_report.v1",
+    "state": "capture_accepted",
+    "status": "accepted"
+  },
+  "proof_boundary": {
+    "qa_is_task_success": false,
+    "qa_is_physical_success": false,
+    "deployment_or_safety_approved": false,
+    "comparative_policy_ranking_verdict": "thesis_not_supported"
+  },
+  "qa_report_canonical_json": "{\"capture_authority_profile\":\"monocular_video\",\"checks\":[{\"check_id\":\"camera_pose_availability\",\"claim_impact\":[\"calibrated_camera_poses\",\"metric_geometry\"],\"evidence_source\":\"capture_intake_envelope\",\"measurement\":\"undeclared\",\"recapture_code\":null,\"recapture_instruction\":null,\"status\":\"not_measured\",\"threshold\":null},{\"check_id\":\"codec\",\"claim_impact\":[\"media_processing\"],\"evidence_source\":\"decoded_media_probe\",\"measurement\":\"h264\",\"recapture_code\":null,\"recapture_instruction\":null,\"status\":\"pass\",\"threshold\":{\"supported\":[\"av1\",\"h264\",\"hevc\",\"vp9\"]}},{\"check_id\":\"compression_quality_fraction\",\"claim_impact\":[\"object_identification\",\"reconstruction\"],\"evidence_source\":\"quality_observations\",\"measurement\":1.0,\"recapture_code\":null,\"recapture_instruction\":null,\"status\":\"pass\",\"threshold\":{\"maximum\":null,\"minimum\":0.8}},{\"check_id\":\"decoded_pts_continuity\",\"claim_impact\":[\"calibrated_camera_poses\",\"captured_observation_timing\"],\"evidence_source\":\"decoded_media_probe\",\"measurement\":{\"decoded_timestamp_count\":437,\"maximum_delta_seconds\":0.04,\"median_delta_seconds\":0.04,\"non_monotonic_delta_count\":0},\"recapture_code\":null,\"recapture_instruction\":null,\"status\":\"pass\",\"threshold\":{\"maximum_gap_seconds\":0.25,\"strictly_monotonic\":true}},{\"check_id\":\"depth_availability\",\"claim_impact\":[\"metric_geometry\"],\"evidence_source\":\"capture_intake_envelope\",\"measurement\":\"unavailable\",\"recapture_code\":null,\"recapture_instruction\":null,\"status\":\"not_measured\",\"threshold\":null},{\"check_id\":\"duration\",\"claim_impact\":[\"visual_coverage\"],\"evidence_source\":\"decoded_media_probe\",\"measurement\":17.493333,\"recapture_code\":null,\"recapture_instruction\":null,\"status\":\"pass\",\"threshold\":{\"minimum_seconds\":5.0}},{\"check_id\":\"dynamic_people_detected\",\"claim_impact\":[\"reconstruction\",\"task_scene_stability\"],\"evidence_source\":\"quality_observations\",\"measurement\":null,\"recapture_code\":\"dynamic_people_present\",\"recapture_instruction\":\"Repeat the affected pass with people outside the task area and preserve the original as restricted evidence if retention permits.\",\"status\":\"not_measured\",\"threshold\":null},{\"check_id\":\"frame_rate\",\"claim_impact\":[\"captured_observation_timing\"],\"evidence_source\":\"decoded_media_probe\",\"measurement\":25.0,\"recapture_code\":null,\"recapture_instruction\":null,\"status\":\"pass\",\"threshold\":{\"maximum_fps\":120.0,\"minimum_fps\":15.0}},{\"check_id\":\"intrinsics_availability\",\"claim_impact\":[\"calibrated_camera_poses\",\"reconstruction\"],\"evidence_source\":\"capture_intake_envelope\",\"measurement\":\"undeclared\",\"recapture_code\":null,\"recapture_instruction\":null,\"status\":\"not_measured\",\"threshold\":null},{\"check_id\":\"media_decodable\",\"claim_impact\":[\"captured_observation_review\",\"task_candidate_discovery\"],\"evidence_source\":\"decoded_media_probe\",\"measurement\":{\"format_name\":\"mov,mp4,m4a,3gp,3g2,mj2\"},\"recapture_code\":null,\"recapture_instruction\":null,\"status\":\"pass\",\"threshold\":null},{\"check_id\":\"moving_task_objects_detected\",\"claim_impact\":[\"reconstruction\",\"task_reset\"],\"evidence_source\":\"quality_observations\",\"measurement\":null,\"recapture_code\":\"task_objects_moved_during_capture\",\"recapture_instruction\":\"Reset task objects to one documented state and repeat the affected views without moving them during the pass.\",\"status\":\"not_measured\",\"threshold\":null},{\"check_id\":\"privacy_sensitive_content_detected\",\"claim_impact\":[\"artifact_download\",\"external_provider_use\"],\"evidence_source\":\"quality_observations\",\"measurement\":null,\"recapture_code\":\"privacy_sensitive_content\",\"recapture_instruction\":\"Recapture without faces, license plates, screens, documents, or bystanders, or create and approve a privacy-safe derivative before provider use.\",\"status\":\"not_measured\",\"threshold\":null},{\"check_id\":\"resolution\",\"claim_impact\":[\"captured_observation_review\",\"object_identification\"],\"evidence_source\":\"decoded_media_probe\",\"measurement\":{\"height\":2160,\"width\":3840},\"recapture_code\":null,\"recapture_instruction\":null,\"status\":\"pass\",\"threshold\":{\"minimum_short_edge_pixels\":720}},{\"check_id\":\"robot_placement_area_covered\",\"claim_impact\":[\"reachability\",\"robot_placement\"],\"evidence_source\":\"quality_observations\",\"measurement\":null,\"recapture_code\":\"robot_placement_area_missing\",\"recapture_instruction\":\"Capture the full proposed robot placement area, floor support, access path, human clearance, and approach direction.\",\"status\":\"not_measured\",\"threshold\":null},{\"check_id\":\"rolling_shutter_symptom_fraction\",\"claim_impact\":[\"camera_motion\",\"reconstruction\"],\"evidence_source\":\"quality_observations\",\"measurement\":0.0,\"recapture_code\":null,\"recapture_instruction\":null,\"status\":\"pass\",\"threshold\":{\"maximum\":0.1,\"minimum\":null}},{\"check_id\":\"scale_anchor_verified\",\"claim_impact\":[\"metric_geometry\",\"metric_scale\"],\"evidence_source\":\"quality_observations\",\"measurement\":null,\"recapture_code\":\"scale_anchor_missing\",\"recapture_instruction\":\"Include the metric calibration board in multiple sharp views and provide its exact dimensions and units.\",\"status\":\"not_measured\",\"threshold\":{\"required_for\":[\"metric_scale\",\"metric_geometry\"]}},{\"check_id\":\"sharp_frame_fraction\",\"claim_impact\":[\"captured_observation_review\",\"object_identification\"],\"evidence_source\":\"quality_observations\",\"measurement\":1.0,\"recapture_code\":null,\"recapture_instruction\":null,\"status\":\"pass\",\"threshold\":{\"maximum\":null,\"minimum\":0.7}},{\"check_id\":\"task_critical_occlusion_detected\",\"claim_impact\":[\"task_candidate_discovery\",\"task_object_geometry\"],\"evidence_source\":\"quality_observations\",\"measurement\":null,\"recapture_code\":\"task_critical_occlusion\",\"recapture_instruction\":\"Capture the underside or rear of the work surface and a close orbit around each occluded task object.\",\"status\":\"not_measured\",\"threshold\":null},{\"check_id\":\"visual_overlap_fraction\",\"claim_impact\":[\"reconstruction\",\"spatial_coverage\"],\"evidence_source\":\"quality_observations\",\"measurement\":1.0,\"recapture_code\":null,\"recapture_instruction\":null,\"status\":\"pass\",\"threshold\":{\"maximum\":null,\"minimum\":0.6}},{\"check_id\":\"well_exposed_frame_fraction\",\"claim_impact\":[\"captured_observation_review\",\"object_identification\"],\"evidence_source\":\"quality_observations\",\"measurement\":1.0,\"recapture_code\":null,\"recapture_instruction\":null,\"status\":\"pass\",\"threshold\":{\"maximum\":null,\"minimum\":0.8}}],\"claim_ceiling\":{\"calibrated_camera_poses\":false,\"capture_admitted\":true,\"captured_observation_review\":true,\"collision_geometry\":false,\"comparative_policy_ranking\":false,\"comparative_policy_ranking_verdict\":\"thesis_not_supported\",\"contact_or_articulation\":false,\"deployment_readiness\":false,\"external_reconstruction_is_raw_capture_authority\":false,\"generated_completion_upgrades_observed_or_physical_claims\":false,\"metric_geometry\":false,\"metric_scale\":false,\"physical_task_success\":false,\"safety_certification\":false,\"task_candidate_discovery\":true},\"comparative_policy_ranking_verdict\":\"thesis_not_supported\",\"envelope_digest\":\"sha256:b811e5e972dae7217d180cb44d0656a6044313348e71fad6800ec6374a60693e\",\"intake_id\":\"real-video-library-854533-20261028-v1\",\"missing_evidence\":[\"camera_pose_availability\",\"depth_availability\",\"dynamic_people_detected\",\"intrinsics_availability\",\"moving_task_objects_detected\",\"privacy_sensitive_content_detected\",\"robot_placement_area_covered\",\"scale_anchor_verified\",\"task_critical_occlusion_detected\"],\"next_cheapest_experiment\":{\"code\":\"measure_camera_pose_availability\",\"instruction\":\"Measure and record camera_pose_availability with a provenance-labeled local analyzer or bounded operator review before making claims that depend on it.\",\"kind\":\"local_or_operator_measurement\"},\"prohibited_claims\":[\"physical_task_success\",\"deployment_readiness\",\"safety_certification\",\"general_policy_ranking_validity\"],\"quality_analysis_errors\":[],\"quality_observations_digest\":\"sha256:d262140d528b3f0a7719b57b8d0ffb8a179535bcf8a1e7f69738707058602a58\",\"recapture_plan\":[],\"required_analysis\":[],\"schema_version\":\"capture_qa_report.v1\",\"state\":\"capture_accepted\",\"status\":\"accepted\"}"
+}

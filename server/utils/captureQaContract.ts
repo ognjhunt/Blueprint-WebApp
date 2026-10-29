@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { canonicalArtifactDigest, stableJson } from "./taskCandidateContract";
+import { verifyProducerArtifact } from "./producerCanonicalArtifact";
 
 const digest = z.string().regex(/^sha256:[0-9a-f]{64}$/);
 const nonEmpty = z.string().trim().min(1);
@@ -58,6 +59,9 @@ export const captureQaPublicationSchema = z.object({
     "failed",
   ]),
   report: captureQaReportSchema,
+  // Preserve Pipeline's existing digest: JSON numbers such as 25.0 otherwise
+  // become 25 when the Website parses and reserializes the report.
+  qa_report_canonical_json: z.string().max(750_000).optional(),
   proof_boundary: z.object({
     qa_is_task_success: z.literal(false),
     qa_is_physical_success: z.literal(false),
@@ -85,7 +89,10 @@ export function parseVerifiedCaptureQaPublication(value: unknown) {
   const publication = parsed.data;
   const report = publication.report;
   const blockers: string[] = [];
-  if (canonicalArtifactDigest(report, "qa_report_digest") !== report.qa_report_digest) {
+  const reportMatches = publication.qa_report_canonical_json === undefined
+    ? canonicalArtifactDigest(report, "qa_report_digest") === report.qa_report_digest
+    : verifyProducerArtifact(report, "qa_report_digest", publication.qa_report_canonical_json);
+  if (!reportMatches) {
     blockers.push("capture_qa_report_digest_mismatch");
   }
   const expectedState = {
