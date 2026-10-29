@@ -284,6 +284,23 @@ export function mergeProposals(
  *
  * Returns the merged brief, or null when there is nothing to merge into.
  */
+/**
+ * Name the job of a brief that still describes none.
+ *
+ * Owner decision 2026-10-29: a site that only uploads a video gets its job drafted
+ * from the footage, and writes one line only when the footage shows no task. This
+ * fills the placeholder alone; a named job or a confirmed brief is corrected through
+ * the confirmation flow, never here.
+ */
+export async function nameUnnamedTask(params: { requestId: string; summary: string }): Promise<SiteTaskBriefRecord | null> {
+  const summary = params.summary.trim().slice(0, 300);
+  if (isPlaceholderSummary(summary)) return null;
+  const brief = await getBrief(params.requestId);
+  if (!brief || brief.confirmedAtIso || !isPlaceholderSummary(brief.summary)) return null;
+  const named = await mergeBriefProposals({ requestId: params.requestId, proposals: [], observedSummary: summary });
+  return named?.summary === summary ? named : null;
+}
+
 export async function mergeBriefProposals(params: {
   requestId: string;
   proposals: readonly ProposedGateAnswer[];

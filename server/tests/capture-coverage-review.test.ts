@@ -139,3 +139,25 @@ describe("a measurement cannot authorise a spend on its own", () => {
     expect(decision.reason).toMatch(/has not been confirmed/i);
   });
 });
+
+describe("drafting the job from the footage", () => {
+  it("keeps only a proposed instruction an evaluation can run", async () => {
+    const { draftedTaskStatement } = await import("../utils/captureCoverageReview");
+    expect(draftedTaskStatement({ proposed_task_statement: " Pick up the glass vase and place it on the sideboard ",
+      unreadable_reasons: [] })).toBe("Pick up the glass vase and place it on the sideboard");
+    expect(draftedTaskStatement({ proposed_task_statement: "Open the dishwasher door", unreadable_reasons: [] }))
+      .toBe("Open the dishwasher door");
+    // A description of the room is not a job, and an unreadable clip names nothing.
+    expect(draftedTaskStatement({ proposed_task_statement: "A dining room with a table and chairs", unreadable_reasons: [] })).toBeNull();
+    expect(draftedTaskStatement({ proposed_task_statement: "Pick up the vase", unreadable_reasons: ["too dark"] })).toBeNull();
+    expect(draftedTaskStatement({ proposed_task_statement: null, unreadable_reasons: [] })).toBeNull();
+    expect(draftedTaskStatement({ unreadable_reasons: [] })).toBeNull();
+  });
+  it("still reads coverage outputs stored before the proposed job existed", async () => {
+    const { captureCoverageOutputSchema } = await import("../agents/tasks/capture-coverage");
+    const stored = { covers_scene: false, views: [], missing_views: ["A view of the floor"], supplement_would_finish: false,
+      unreadable_reasons: [], confidence: 0.9, job_estimates: null };
+    expect(captureCoverageOutputSchema.safeParse(stored).success).toBe(true);
+    expect(captureCoverageOutputSchema.safeParse({ ...stored, proposed_task_statement: "Pick up the vase" }).success).toBe(true);
+  });
+});
