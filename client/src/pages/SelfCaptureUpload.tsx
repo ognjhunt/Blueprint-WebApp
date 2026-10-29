@@ -5,6 +5,7 @@ import type { TaskOutcome } from "@/types/taskOutcome";
 import { isLikelyPhone } from "@/lib/device";
 import { PublicTaskListing } from "@/components/site/PublicTaskListing";
 import { JobWorkspace } from "@/components/site/JobWorkspace";
+import { TaskTargetChoice, type TaskTargetChoiceView } from "@/components/site/TaskTargetChoice";
 import { NextTaskUpdate } from "@/components/site/NextTaskUpdate";
 /**
  * The page an operator or filmer opens from a private job link.
@@ -44,6 +45,7 @@ type TaskStatus = {
   headline: string;
   operatorAction: string | null;
   outcome?: TaskOutcome | null;
+  resultSuperseded?: boolean;
   missingViews: string[];
   nextUpdateIso: string | null;
   /** Optional account saving; the signed owner link already opens this job. */
@@ -54,7 +56,18 @@ type TaskStatus = {
   captureReceived?: boolean;
   /** Coverage is checked automatically; false means a person reviews it. */
   footageReviewAutomated?: boolean;
+  /** The optional correction of the guessed object to move, for the owner only. */
+  targetChoice?: TaskTargetChoiceView | null;
 };
+
+function isTargetChoice(value: unknown): value is TaskTargetChoiceView {
+  const item = value as Partial<TaskTargetChoiceView> | null;
+  return Boolean(item) && typeof item!.questionDigest === "string" && /^sha256:[a-f0-9]{64}$/.test(item!.questionDigest)
+    && typeof item!.semanticLabel === "string" && typeof item!.guessedCandidateId === "string"
+    && Array.isArray(item!.candidates) && item!.candidates.some(row => row?.id === item!.guessedCandidateId)
+    && item!.candidates.every(row => typeof row?.id === "string" && typeof row.label === "string"
+      && (row.referenceTimeMs === null || Number.isInteger(row.referenceTimeMs)));
+}
 
 const retryUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 function retainedAssessmentRetryIdentity(jobId: string, runId: string): string {
@@ -531,6 +544,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
             sceneViewUrl: data.sceneViewUrl ?? null,
             captureReceived: data.captureReceived === true,
             footageReviewAutomated: data.footageReviewAutomated !== false,
+            targetChoice: data.scope === "owner" && isTargetChoice(data.targetChoice) ? data.targetChoice : null,
           });
         } else if (alive) {
           setCurrentStatusKnown(false);
@@ -643,9 +657,12 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
 
       {(saved || link.status !== "valid") && statusCard}
       {saved && (link.status === "valid" || link.status === "held") && scope === "owner"
-        && <JobWorkspace token={token} preparationOutcome={status?.outcome} currentStatusKnown={currentStatusKnown} currentNextAction={currentStatusKnown && status ? optionalCorrectionHint
+        && <JobWorkspace token={token} preparationOutcome={status?.outcome} resultSuperseded={status?.resultSuperseded} currentStatusKnown={currentStatusKnown} currentNextAction={currentStatusKnown && status ? optionalCorrectionHint
           ? {text: preparationUpdate, owner: "blueprint"}
           : {text: status.operatorAction || status.headline, owner: status.operatorAction || status.decision === "confirm_brief" ? "site" : "blueprint"} : undefined} />}
+      {saved && scope === "owner" && currentStatusKnown && status?.targetChoice
+        && <TaskTargetChoice key={status.targetChoice.questionDigest} token={token} question={status.targetChoice}
+          onAnswered={() => setStatusRefresh(value => value + 1)} />}
 
       {isVideoUpdate && !saved && <p className="ms-field-hint" role="status">Film or upload a complete updated walkthrough. This updates the same job and keeps your original video.</p>}
       {/* A filming link opens the recorder; a held link explains its hold. */}

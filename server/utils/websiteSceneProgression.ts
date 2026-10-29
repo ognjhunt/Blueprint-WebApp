@@ -17,6 +17,7 @@
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { SCENE_INTAKE_COLLECTION } from "./taskEvaluationSceneIntake";
 import type { TaskSceneProgression } from "./taskStatusProjection";
+import { taskTargetSelection, taskTargetSelectionApplies } from "./websiteTaskTargetChoice";
 
 // Pipeline blocks that stay blocked once hit (task_evaluation_scene_progression):
 // the configuration failed for good, the policy canary blocked, the intent's
@@ -43,10 +44,10 @@ export function policyTestAccepted(run: Record<string, any> | null | undefined):
 }
 
 export function projectWebsiteSceneProgression(record: Record<string, any> | null | undefined,
-  testAccepted: boolean | "evaluated" = false): TaskSceneProgression | null {
+  testAccepted: boolean | "evaluated" | "held" = false): TaskSceneProgression | null {
   const state = record?.state;
   const phase = record?.pipeline_status?.phase;
-  if (state === "completed") return { state: testAccepted === "evaluated" ? "evaluated"
+  if (state === "completed") return { state: testAccepted === "evaluated" || testAccepted === "held" ? testAccepted
     : testAccepted || phase === "policy_canary_complete" ? "testing" : "completed" };
   // The worker's own terminal states: a typed terminal refusal, or the intent's authority ended.
   if (state === "blocked" || state === "expired" || state === "revoked") return { state: "ended" };
@@ -62,16 +63,39 @@ export function projectWebsiteSceneProgression(record: Record<string, any> | nul
 }
 
 /** Every page of a query, in document order: history is never cut at a result count. */
-export async function* queryPages(query: FirebaseFirestore.Query, size = 100) {
+export async function* queryPages(query: FirebaseFirestore.Query, size = 100,
+  read: (query: FirebaseFirestore.Query) => Promise<FirebaseFirestore.QuerySnapshot> = query => query.get()) {
   let cursor: string | null = null;
   for (;;) {
     let page = query.orderBy("__name__").limit(size);
     if (cursor) page = page.startAfter(cursor);
-    const snapshot = await page.get();
+    const snapshot = await read(page);
     if (snapshot.docs.length) yield snapshot.docs;
     if (snapshot.docs.length < size) return;
     cursor = snapshot.docs[snapshot.docs.length - 1].id;
   }
+}
+
+/** Commercial scope follows the same retained correction as scene progression.
+ * A matching intake was produced from the corrected ready preparation; the
+ * earlier intake cannot release a pending selection, even with an unchanged brief. */
+export async function readWebsiteTargetScope(requestId: string, captureId: string,
+  session: Record<string, any> | null | undefined,
+  read?: (query: FirebaseFirestore.Query) => Promise<FirebaseFirestore.QuerySnapshot>) {
+  const selection = taskTargetSelection(session);
+  const {correctionsDigest, rejected} = selection;
+  if (!correctionsDigest || rejected) return {correctionsDigest, superseded: rejected};
+  if (!db) throw new Error('website_scene_progression_unavailable');
+  for await (const rows of queryPages(db.collection(SCENE_INTAKE_COLLECTION)
+    .where('website_request_id', '==', requestId), 100, read)) {
+    for (const row of rows) {
+      const value = row.data();
+      if (value.source_session_id !== captureId || !taskTargetSelectionApplies(session, value)) continue;
+      const state = projectWebsiteSceneProgression(value)?.state;
+      if (state && state !== 'ended') return {correctionsDigest, superseded: false};
+    }
+  }
+  return {correctionsDigest, superseded: true};
 }
 
 /**
@@ -79,10 +103,13 @@ export async function* queryPages(query: FirebaseFirestore.Query, size = 100) {
  * intake's task, in the intake's own team. A configured scene carries the
  * task's objects, so this is the first internal test of the finished scene.
  */
-async function firstTestAccepted(store: FirebaseFirestore.Firestore, intake: Record<string, any>): Promise<boolean | "evaluated"> {
+async function firstTestAccepted(store: FirebaseFirestore.Firestore, intake: Record<string, any>): Promise<boolean | "evaluated" | "held"> {
   const taskId = intake.request?.task?.task_id;
   const team = intake.request?.owner?.organization_id;
   if (typeof taskId !== "string" || !taskId || typeof team !== "string" || !team) return false;
+  // Held is a fallback: any estimate or other running test for this scene wins,
+  // whatever order the campaigns are read in.
+  let held = false;
   if (typeof intake.receipt?.intent_id === "string") {
     let observed = false;
     for await (const rows of queryPages(store.collection(POLICY_RUN_COLLECTION)
@@ -92,6 +119,8 @@ async function firstTestAccepted(store: FirebaseFirestore.Firestore, intake: Rec
         if (run?.run_kind !== "beta_policy_screening" || run.team_namespace !== team) continue;
         // A completed campaign with a scored episode is the job's estimate.
         if (run.state === "completed" && run.episodes_scored > 0) return "evaluated";
+        // No candidate can do this kind of job yet: held, not an open test.
+        if (["completed", "blocked"].includes(run.state) && run.no_estimate_reason === "held") { held = true; continue; }
         observed ||= run.screening_execution_observed === true;
       }
     }
@@ -109,16 +138,21 @@ async function firstTestAccepted(store: FirebaseFirestore.Firestore, intake: Rec
       if (rows.some(row => policyTestAccepted(row.data()))) return true;
     }
   }
-  return false;
+  return held ? "held" : false;
 }
 
 /** The site's latest scene intake for this capture, projected. Throws when it cannot be read. */
 export async function readWebsiteSceneProgression(requestId: string, captureId: string): Promise<TaskSceneProgression | null> {
   if (!db) throw new Error("website_scene_progression_unavailable");
-  const rows = await db.collection(SCENE_INTAKE_COLLECTION).where("website_request_id", "==", requestId).limit(20).get();
-  const latest = rows.docs.map(row => row.data())
-    .filter(row => row?.source_session_id === captureId)
-    .sort((a, b) => String(b.created_at_iso || "").localeCompare(String(a.created_at_iso || "")))[0];
+  let latest: Record<string, any> | undefined;
+  const session = (await db.collection('captureUploadSessions').doc(captureId).get()).data();
+  for await (const rows of queryPages(db.collection(SCENE_INTAKE_COLLECTION).where("website_request_id", "==", requestId))) {
+    for (const row of rows) {
+      const value = row.data();
+      if (value.source_session_id === captureId && taskTargetSelectionApplies(session, value) && (!latest
+        || String(value.created_at_iso || "") > String(latest.created_at_iso || ""))) latest = value;
+    }
+  }
   const tested = latest?.state === "completed" && latest.pipeline_status?.phase !== "policy_canary_complete"
     && await firstTestAccepted(db, latest);
   return projectWebsiteSceneProgression(latest, tested);

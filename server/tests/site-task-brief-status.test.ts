@@ -18,11 +18,13 @@ import type { Server } from "node:http";
 
 import { sharedFakeFirestoreState } from "./helpers/fake-firestore";
 import { listedTaskCard } from "./helpers/listedTaskCard";
+import { processingFailure } from '../utils/taskPreparationOutcome';
 
-const preparation = vi.hoisted(() => ({ read: vi.fn(async () => ({
+const preparation = vi.hoisted(() => ({ read: vi.fn(async (): Promise<Record<string, unknown>> => ({
   state: "failed_retryable", correlationId: "bp-prep-1234567890abcdef",
-})) }));
-vi.mock("../utils/websitePreparationStatus", () => ({ loadCurrentWebsitePreparationStatus: preparation.read }));
+})), question: vi.fn(async (): Promise<unknown> => null) }));
+vi.mock("../utils/websitePreparationStatus", () => ({ loadCurrentWebsitePreparationStatus: preparation.read,
+  loadCurrentTaskTargetChoiceQuestion: preparation.question }));
 
 const storage = vi.hoisted(() => ({
   objects: new Map<string, { generation: string; size: string; crc32c: string; bytes?: Buffer }>(),
@@ -210,6 +212,71 @@ describe("GET /api/site-task-brief/:token/status", () => {
     expect(body.status.outcome.actionOwner).toBe("blueprint");
     expect(JSON.stringify(body)).not.toContain("PRIVATE_detail");
   });
+  it.each(['other_candidate', 'confirm_guess'] as const)("PREP-UI-007 retires the rejected guess and permits same-job %s without requiring recording", async recoveryKind => {
+    const selector = { request_id: "req-1", scene_id: "site-req-1", capture_id: "cap-1", completion_marker_generation: "17",
+      producer_delivery_key: `sha256:${"a".repeat(64)}`, source_payload_sha256: "b".repeat(64),
+      task_context_digest: `sha256:${"c".repeat(64)}` };
+    const question = { kind: "task_target_choice", question_digest: `sha256:${"1".repeat(64)}`, target_id: "target-1",
+      semantic_label: "Tote", candidate_set_digest: `sha256:${"2".repeat(64)}`, guessed_candidate_id: "c0123456789abcdef", candidates: [
+        { candidate_id: "c0123456789abcdef", label: "Tote 1: left side, center of the view", reference_time_ms: 4000 },
+        { candidate_id: "cfedcba9876543210", label: "Tote 2: right side, center of the view", reference_time_ms: null }] };
+    sharedFakeFirestoreState.docs.set("captureUploadSessions/cap-1", { website_preparation: { selector } });
+    const original = preparation.read.getMockImplementation();
+    preparation.read.mockImplementation(async () => ({ state: "preparing", correlationId: "bp-prep-1234567890abcdef", question }));
+    preparation.question.mockImplementation(async () => ({ selector, question }));
+    try {
+      const asked = await status();
+      // The job keeps its own status; the question rides alongside it.
+      expect(asked.body.status.decision).toBe("assessing");
+      expect(asked.body.targetChoice).toEqual({ questionDigest: question.question_digest, semanticLabel: "Tote",
+        guessedCandidateId: "c0123456789abcdef", candidates: [
+          { id: "c0123456789abcdef", label: "Tote 1: left side, center of the view", referenceTimeMs: 4000 },
+          { id: "cfedcba9876543210", label: "Tote 2: right side, center of the view", referenceTimeMs: null }] });
+      const film = createCaptureUploadToken({ requestId: "req-1", captureId: "cap-1", sceneId: "scene-1", scope: "film" });
+      expect((await status(film)).body.targetChoice ?? null).toBeNull();
+      const answer = (body: unknown, credential = token(), csrf = true) => fetch(`${baseUrl}/api/site-task-brief/${credential}/task-target-choice`, {
+        method: "POST", body: JSON.stringify(body), headers: { "content-type": "application/json",
+          ...(csrf ? { cookie: "csrf_token=choice-test", "x-csrf-token": "choice-test" } : {}) } });
+      const none = { questionDigest: question.question_digest, choice: { kind: "none_of_these" } };
+      expect((await answer(none, token(), false)).status).toBe(403);
+      expect((await answer(none, film)).status).toBe(403);
+      expect((await answer({ ...none, questionDigest: `sha256:${"9".repeat(64)}` })).status).toBe(409);
+      expect((await answer({ ...none, choice: { kind: "other_candidate", candidate_id: "c0123456789abcdef" } })).status).toBe(409);
+      expect(sharedFakeFirestoreState.docs.get("captureUploadSessions/cap-1")!.website_task_target_choice).toBeUndefined();
+      const saved = await answer(none);
+      expect(saved.status).toBe(200); expect(await saved.json()).toEqual({ ok: true, choice: "none_of_these" });
+      expect(sharedFakeFirestoreState.docs.get("captureUploadSessions/cap-1")!.website_task_target_choice).toMatchObject({
+        ...selector, question_digest: question.question_digest, candidate_set_digest: question.candidate_set_digest,
+        guessed_candidate_id: "c0123456789abcdef", choice: { kind: "none_of_these" } });
+      const after = await status();
+      expect(after.body.targetChoice).toMatchObject({questionDigest: question.question_digest, rejected: true});
+      expect(after.body.status.decision).toBe("insufficient_evidence");
+      expect(after.body.status.resultSuperseded).toBe(true);
+      expect(after.body.status.operatorAction).toBeNull();
+      expect(after.body.status.outcome.actionOwner).toBe('blueprint');
+      expect(after.body.status.outcome.nextStep).not.toMatch(/record|walkthrough|upload/i);
+      expect(after.body.sceneViewUrl).toBeNull();
+      const negative = sharedFakeFirestoreState.docs.get('captureUploadSessions/cap-1')!.website_task_target_choice;
+      preparation.read.mockImplementation(async () => ({state: 'awaiting_inputs', question,
+        outcome: {category: 'insufficient_evidence', basis: 'missing_evidence', title: 'Evidence limit',
+          reason: 'The prior selection was rejected.', scope: 'The retained objects', nextStep: 'Send another walkthrough.',
+          actionOwner: 'site', evidence: []}}));
+      expect((await answer({...none, choice: recoveryKind === 'confirm_guess'
+        ? {kind: 'confirm_guess'} : {kind: 'other_candidate', candidate_id: 'cfedcba9876543210'}})).status).toBe(200);
+      const clarified = await status();
+      expect(clarified.body.status).toMatchObject({decision: 'assessing', resultSuperseded: true});
+      expect(clarified.body.status.operatorAction).toBeNull();
+      expect(clarified.body.status.headline).toContain('saved video');
+      expect(sharedFakeFirestoreState.docs.get(`captureUploadSessions/cap-1/taskTargetChoiceHistory/${negative.answer_digest.slice(7)}`)).toEqual(negative);
+      preparation.read.mockImplementation(async () => ({state: 'awaiting_inputs', question: null, outcome: processingFailure()}));
+      expect((await status()).body.status.decision).toBe('processing_failure');
+      expect(enqueueOutbox).not.toHaveBeenCalled();
+    } finally {
+      preparation.read.mockImplementation(original!);
+      preparation.question.mockImplementation(async () => null);
+    }
+  });
+
   it("PREP-UI-002 keeps preparation readback outside film-link scope", async () => {
     sharedFakeFirestoreState.docs.set("captureUploadSessions/cap-1", { website_preparation: { selector: {} } });
     const film = createCaptureUploadToken({ requestId: "req-1", captureId: "cap-1", sceneId: "scene-1", scope: "film" });

@@ -84,6 +84,8 @@ export type TaskDecision =
   | "footage_before_account";
 
 export interface TaskStatus {
+  /** Earlier results belong to an object selection the owner has rejected. */
+  resultSuperseded?: boolean;
   outcome?: TaskOutcome | null;
   decision: TaskDecision;
   /** The readiness stage this came from, for anyone who wants the finer grain. */
@@ -175,6 +177,8 @@ export interface TaskPreparationStatus {
   correlationId: string | null;
   /** Why preparation ended for good; only with `failed_terminal`. */
   terminalReason?: string | null;
+  /** The optional question about the guessed object to move (v4); the job never waits on it. */
+  question?: { semantic_label: string } | null;
 }
 
 /**
@@ -184,11 +188,12 @@ export interface TaskPreparationStatus {
  * `testing` is a finished scene, task objects in, whose first internal test
  * has started: the point the site is told it is ready (owner decision
  * 2026-10-22). `evaluated` is a finished automatic evaluation whose simulation
- * estimate is the job's result (owner decision 2026-10-28). Coarse by design:
+ * estimate is the job's result, and `held` one where no candidate can do this
+ * kind of job yet (owner decision 2026-10-28). Coarse by design:
  * no Pipeline detail reaches a site.
  */
 export interface TaskSceneProgression {
-  state: "in_progress" | "waiting" | "ended" | "completed" | "testing" | "evaluated";
+  state: "in_progress" | "waiting" | "ended" | "completed" | "testing" | "evaluated" | "held";
 }
 
 /** One sentence per reason the Pipeline can give; an unknown reason adds nothing. */
@@ -225,6 +230,9 @@ interface TaskStatusInput {
   preparationOutcome?: TaskOutcome | null;
   ownerClosureOutcome?: TaskOutcome | null;
   preparationStatus?: TaskPreparationStatus | null;
+  /** The site's stored answer to the question this preparation waits on, if any. */
+  targetChoiceAnswer?: "confirm_guess" | "other_candidate" | "none_of_these" | null;
+  targetChoiceRestoringGuess?: boolean;
   /**
    * The WebApp's own watch says preparation has gone quiet past its bound: no
    * status since the upload, or one state unchanged too long. Our team is
@@ -302,6 +310,34 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
   // A native handoff supersedes an optional reconstruction preview's failure.
   const hasRuns = input.screening && input.screening.queued + input.screening.running
     + input.screening.reported + input.screening.noResult > 0;
+  // An explicit rejection supersedes estimates on the guessed object. Keep
+  // the footage and the repair with Blueprint; more recording is optional.
+  if (input.targetChoiceAnswer === "none_of_these") {
+    const outcome: TaskOutcome = { category: "insufficient_evidence", basis: "missing_evidence",
+      title: "Object selection needs review",
+      reason: "The owner rejected the suggested objects. Earlier results used that selection.",
+      scope: "The task object in this job's saved video.",
+      nextStep: "The saved video does not yet support an object selection. Blueprint owns the next review; you can also clarify the object in your job details.",
+      actionOwner: "blueprint", evidence: [] };
+    return { ...base, decision: outcome.category, stage: null, missingViews: [],
+      headline: outcome.title, operatorAction: null, outcome, resultSuperseded: true };
+  }
+  if (input.targetChoiceAnswer === 'other_candidate' && !input.sceneProgression) {
+    // A stopped correction shows its stop, not an update that never comes.
+    // A still-published question means the Pipeline has not yet consumed the
+    // new owner choice. Its prior rejection/failure is not the B attempt's stop.
+    const correctionStopped = input.preparationStatus?.question ? null : input.preparationStatus?.outcome
+      ?? (input.preparationStatus?.state === "failed_terminal" || input.preparationStatus?.state === "failed_retryable"
+        ? processingFailure() : null);
+    if (correctionStopped) return {...base, decision: correctionStopped.category, stage: null, missingViews: [],
+      headline: correctionStopped.title, operatorAction: null, outcome: correctionStopped, resultSuperseded: true};
+    return {...base, decision: 'assessing', stage: null, missingViews: [], operatorAction: null,
+      headline: 'Blueprint is updating this job for the corrected object using your saved video.', resultSuperseded: true};
+  }
+  if (input.targetChoiceRestoringGuess) {
+    return {...base, decision: 'assessing', stage: null, missingViews: [], operatorAction: null,
+      headline: 'Blueprint is resuming this job with the confirmed object using your saved video.', resultSuperseded: true};
+  }
   const nativeProgress = input.preparationStatus?.state === "handed_off" || Boolean(input.sceneProgression);
   const observedPreparation = Boolean(input.scenePreviewReady || nativeProgress
     || input.preparationStatus && input.preparationStatus.state !== "unavailable");
@@ -544,14 +580,17 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
       operatorAction: null,
     };
   }
+  const sceneHeld = input.sceneProgression?.state === "held";
   const sceneEvaluated = input.sceneProgression?.state === "evaluated";
-  const sceneTesting = sceneEvaluated || input.sceneProgression?.state === "testing";
-  const evaluatedHeadline = "Your job's simulation estimate is ready on your job page. It is a bounded estimate from a simulation of your site, not a certified result.";
+  const sceneTesting = sceneEvaluated || sceneHeld || input.sceneProgression?.state === "testing";
+  const resultHeadline = sceneHeld
+    ? "Held: we can't simulate this kind of job yet. It counts as demand for what we build next."
+    : "Your job's simulation estimate is ready on your job page. It is a bounded estimate from a simulation of your site, not a certified result.";
   if ((input.scenePreviewReady || sceneTesting) && input.listed === false) {
     return {
       ...base,
       decision: "not_listed",
-      headline: `${sceneEvaluated ? evaluatedHeadline : sceneTesting ? "Your scene is ready, and we are running our first tests on it." : "Your scene preview is ready."} Your job card is not published, so approved partners cannot see this job in the job library or ask to have their systems evaluated on it.`,
+      headline: `${sceneEvaluated || sceneHeld ? resultHeadline : sceneTesting ? "Your scene is ready, and we are running our first tests on it." : "Your scene preview is ready."} Your job card is not published, so approved partners cannot see this job in the job library or ask to have their systems evaluated on it.`,
       operatorAction: "To share it with partners approved for the beta, publish its job card from your job page.",
     };
   }
@@ -571,7 +610,7 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
     return {
       ...base,
       decision: "assessing",
-      headline: `${sceneEvaluated ? evaluatedHeadline : "Your scene is ready, and we are running our first tests on it."} Nothing is needed from you.`,
+      headline: `${sceneEvaluated || sceneHeld ? resultHeadline : "Your scene is ready, and we are running our first tests on it."} Nothing is needed from you.`,
       operatorAction: null,
     };
   }
@@ -666,6 +705,8 @@ export function taskStatusInputFrom(record: {
   preparationOutcome?: TaskOutcome | null;
   ownerClosureOutcome?: TaskOutcome | null;
   preparationStatus?: TaskPreparationStatus | null;
+  targetChoiceAnswer?: "confirm_guess" | "other_candidate" | "none_of_these" | null;
+  targetChoiceRestoringGuess?: boolean;
   preparationOverdue?: boolean;
   sceneProgression?: TaskSceneProgression | null;
   stage: ReadinessStage | null;
@@ -698,6 +739,8 @@ export function taskStatusInputFrom(record: {
     preparationOutcome: record.preparationOutcome ?? null,
     ownerClosureOutcome: record.ownerClosureOutcome ?? null,
     preparationStatus: record.preparationStatus ?? null,
+    ...(record.targetChoiceAnswer ? { targetChoiceAnswer: record.targetChoiceAnswer } : {}),
+    ...(record.targetChoiceRestoringGuess ? {targetChoiceRestoringGuess: true} : {}),
     ...(record.preparationOverdue === true ? { preparationOverdue: true } : {}),
     sceneProgression: record.sceneProgression ?? null,
     briefDrafted: record.briefDrafted,

@@ -27,14 +27,14 @@ function isWorkflow(value: unknown): value is JobMarketplaceWorkflow {
 }
 
 /** The signed owner link is the credential; remounting keeps every record scoped to that link. */
-type JobWorkspaceProps = { token: string; preparationOutcome?: TaskOutcome | null; currentStatusKnown?: boolean;
+type JobWorkspaceProps = { token: string; preparationOutcome?: TaskOutcome | null; currentStatusKnown?: boolean; resultSuperseded?: boolean;
   currentNextAction?: { text: string; owner: "site" | "blueprint" };
 };
 export function JobWorkspace(props: JobWorkspaceProps) {
   return <JobWorkspaceForToken key={props.token} {...props} />;
 }
 
-function JobWorkspaceForToken({ token, preparationOutcome, currentStatusKnown = true, currentNextAction }: JobWorkspaceProps) {
+function JobWorkspaceForToken({ token, preparationOutcome, currentStatusKnown = true, currentNextAction, resultSuperseded = false }: JobWorkspaceProps) {
   const [workflow, setWorkflow] = useState<JobMarketplaceWorkflow | null>(null);
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
@@ -75,6 +75,7 @@ function JobWorkspaceForToken({ token, preparationOutcome, currentStatusKnown = 
   }, [endpoint, refresh]);
 
   async function save(path: string, method: "PATCH" | "POST", body: unknown) {
+    if (resultSuperseded && path === "select") throw new Error("Blueprint is reviewing the object selection before a new proposal choice.");
     if (inFlight.current) throw new Error("Another change is being saved. Please wait a moment.");
     inFlight.current = true;
     ++generation.current;
@@ -104,28 +105,42 @@ function JobWorkspaceForToken({ token, preparationOutcome, currentStatusKnown = 
   const available = workflow.proposals.filter(proposal => proposal.status === "available");
   const visibleProposals = workflow.proposals.filter(proposal => proposal.status !== "withdrawn");
   const selected = workflow.proposals.find(proposal => proposal.id === workflow.selection?.proposalId && proposal.revision === workflow.selection.proposalRevision);
+  const proposalSection = (
+    <section className="job-proposals" aria-labelledby="delivery-proposals-title">
+      <h3 id="delivery-proposals-title">Delivery proposals</h3>
+      {resultSuperseded ? <p className="ms-field-hint">These proposals use the earlier object selection. Blueprint is reviewing the job before another choice.</p> : !available.length ? <p className="ms-field-hint">No delivery proposal is ready to review. Blueprint will identify suitable options and explain any checks still needed.</p>
+        : <p className="ms-field-hint">Compare the complete cost, commitments and support. Choosing a proposal starts the agreement process; it does not sign a contract or reserve a date.</p>}
+      {visibleProposals.map(proposal => <ProposalCard key={`${proposal.id}:${proposal.revision}`} proposal={proposal}
+        selected={selected?.id === proposal.id} locked={resultSuperseded || Boolean(workflow.agreement) || proposal.status !== "available"} hasSelection={Boolean(workflow.selection)} pending={pending}
+        evidenceHref={digest => `${endpoint}/evidence/${encodeURIComponent(digest)}`}
+        onSelect={() => save("select", "POST", { proposalId: proposal.id, expectedRevision: proposal.revision, authorized: true })} />)}
+      {workflow.selection && (!selected || selected.status !== "available") && <p role="status">Your selected proposal changed or is no longer available. Ask Blueprint to review the updated scope before making another commitment.</p>}
+    </section>
+  );
   // Keep the current update once. A distinct commercial choice still takes
   // priority over an older preparation update when a proposal arrives.
-  const currentAction = currentStatusKnown && ((!visibleProposals.length && !workflow.selection && !workflow.agreement && !workflow.outcome)
+  const currentAction = currentStatusKnown && !resultSuperseded && ((!visibleProposals.length && !workflow.selection && !workflow.agreement && !workflow.outcome)
     || (currentNextAction?.text === workflow.nextAction && currentNextAction.owner === workflow.actionOwner))
     ? currentNextAction : undefined;
   return <><section className="job-workspace" aria-labelledby="job-progress-title">
     <h2 id="job-progress-title">Results and proposals</h2>
     {!currentAction && <div className="job-next-action">
       <p className="job-eyebrow">Next action · {currentStatusKnown
-        ? preparationOutcome ? owners[preparationOutcome.actionOwner] : owners[workflow.actionOwner]
+        ? resultSuperseded ? owners.blueprint : preparationOutcome ? owners[preparationOutcome.actionOwner] : owners[workflow.actionOwner]
         : owners.blueprint}</p>
       <p>{!currentStatusKnown ? "Checking the current job status. Your saved job remains available."
+        : resultSuperseded ? preparationOutcome?.nextStep ?? currentNextAction?.text ?? "Blueprint is updating the object selection using your saved video."
         : preparationOutcome?.nextStep ?? workflow.nextAction}</p>
     </div>}
+    {resultSuperseded && <p role="status" className="ms-field-hint">Earlier results belong to the previous object selection. They remain in the job history.</p>}
     {error && <p role="status" className="ms-field-hint">Updates could not be refreshed. Last loaded details are shown. <button type="button" className="ms-text-link" onClick={() => setRefresh(value => value + 1)}>Try again</button></p>}
-    {workflow.review && <div className="job-review">
+    {!resultSuperseded && workflow.review && <div className="job-review">
       <h3>{workflow.review.disposition === "no_suitable_option" ? "No suitable option yet" : workflow.review.disposition === "more_information" ? "A little more information is needed" : "What we know so far"}</h3>
       <p>{workflow.review.summary}</p>
       {currentStatusKnown && !preparationOutcome && !currentAction && workflow.review.nextAction !== workflow.nextAction && <p className="ms-field-hint">{workflow.review.nextAction}</p>}
     </div>}
     {workflow.managedEvidenceUnavailable && <p role="status" className="ms-field-hint">Policy results are temporarily unavailable. Reload this page to retry.</p>}
-    {(workflow.managedEvidence ?? []).filter(item => item.current && item.screening).map(item => <section
+    {(workflow.managedEvidence ?? []).filter(item => !resultSuperseded && item.current && item.screening).map(item => <section
       key={item.runId} className="job-review" aria-label="Simulation results for your job">
       <h3>{item.state === "completed" && item.screening!.candidates.some(candidate => candidate.scored > 0)
         ? "Your simulation estimate" : "Simulation evaluation"}</h3>
@@ -139,7 +154,7 @@ function JobWorkspaceForToken({ token, preparationOutcome, currentStatusKnown = 
       <h3>Evidence for your job</h3>
       {workflow.evidence!.map(item => <article key={item.requestId} className="mt-3">
         <h4>{item.question}</h4>
-        <p>{item.current ? item.state.replace(/_/g, " ") : "Historical — the job scope changed"}: {item.summary}</p>
+        <p>{resultSuperseded ? "Earlier object selection" : item.current ? item.state.replace(/_/g, " ") : "Historical — the job scope changed"}: {item.summary}</p>
         {item.claims.map(claim => <p key={claim.claimId}>{claim.claimId}: {claim.verdict.replace(/_/g, " ")} — {claim.rationale}</p>)}
         <p>Next: {item.nextAction}</p>
         {item.limitations.map((limit, index) => <p className="ms-field-hint" key={index}>{limit}</p>)}
@@ -149,8 +164,8 @@ function JobWorkspaceForToken({ token, preparationOutcome, currentStatusKnown = 
     {(workflow.managedEvidence ?? []).length > 0 && <section className="job-review" aria-label="Managed policy evidence for your job">
       <h3>Policy evidence for your job</h3>
       {workflow.managedEvidence!.map(item => <article key={item.runId} id={`managed-evidence-${encodeURIComponent(item.runId)}`} className="mt-3">
-        <h4>{item.current ? item.state.replace(/_/g, " ") : "Historical — the job scope changed"}</h4>
-        {(!item.current || !item.screening) && <>
+        <h4>{resultSuperseded ? "Earlier object selection" : item.current ? item.state.replace(/_/g, " ") : "Historical — the job scope changed"}</h4>
+        {(resultSuperseded || !item.current || !item.screening) && <>
         <p>{item.summary}</p><p>Next: {item.nextAction}</p>
         {item.screening && <PolicyScreeningCandidates screening={item.screening} />}
         {item.limitations.map((limit, index) => <p className="ms-field-hint" key={index}>{limit}</p>)}
@@ -160,16 +175,9 @@ function JobWorkspaceForToken({ token, preparationOutcome, currentStatusKnown = 
     </section>}
     {workflow.jobId && (workflow.evidence ?? []).some(item => item.current && ["information_required", "blocked", "unavailable"].includes(item.state)) ? <p className="ms-field-hint"><a className="ms-text-link" href={`/app/captures?jobId=${encodeURIComponent(workflow.jobId!)}`}>Add task-specific capture evidence</a> when Blueprint needs it. Use the account that owns this job; the existing recording permissions still apply.</p> : null}
     </details>}
-    <section className="job-proposals" aria-labelledby="delivery-proposals-title">
-      <h3 id="delivery-proposals-title">Delivery proposals</h3>
-      {!available.length ? <p className="ms-field-hint">No delivery proposal is ready to review. Blueprint will identify suitable options and explain any checks still needed.</p>
-        : <p className="ms-field-hint">Compare the complete cost, commitments and support. Choosing a proposal starts the agreement process; it does not sign a contract or reserve a date.</p>}
-      {visibleProposals.map(proposal => <ProposalCard key={`${proposal.id}:${proposal.revision}`} proposal={proposal}
-        selected={selected?.id === proposal.id} locked={Boolean(workflow.agreement) || proposal.status !== "available"} hasSelection={Boolean(workflow.selection)} pending={pending}
-        evidenceHref={digest => `${endpoint}/evidence/${encodeURIComponent(digest)}`}
-        onSelect={() => save("select", "POST", { proposalId: proposal.id, expectedRevision: proposal.revision, authorized: true })} />)}
-      {workflow.selection && (!selected || selected.status !== "available") && <p role="status">Your selected proposal changed or is no longer available. Ask Blueprint to review the updated scope before making another commitment.</p>}
-    </section>
+    {resultSuperseded ? <details className="job-planning-details">
+      <summary>Earlier delivery proposals</summary>{proposalSection}
+    </details> : proposalSection}
 
     <BuyingRequirements key="requirements" locked={Boolean(workflow.agreement)} requirements={workflow.requirements} pending={pending} onSave={value => save("requirements", "PATCH", value)} />
 

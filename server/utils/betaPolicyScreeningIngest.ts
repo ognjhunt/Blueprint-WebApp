@@ -7,7 +7,7 @@ import { assertManagedScreeningCaptureCurrent, assertScreeningSceneSource, manag
 import { SCENE_INTAKE_COLLECTION } from "./taskEvaluationSceneIntake";
 import { encodeTaskEvaluationRunPublication, publicationFromResultRecord } from "./taskEvaluationRunPublicationStorage";
 import { betaPolicyScreeningSourceSchema, parseBetaPolicyScreeningPublication, screeningPublicationTransition,
-  screeningTerminalCandidateStates, type BetaPolicyScreeningPublication } from "./betaPolicyScreeningContract";
+  screeningTerminalCandidateStates, noEstimateReason, type BetaPolicyScreeningPublication } from "./betaPolicyScreeningContract";
 import type { TaskItemInventoryRecord } from "./taskItemInventory";
 import { assertWebsiteRunOpen, websiteRunClosure } from "./websiteRunClosure";
 
@@ -234,6 +234,9 @@ export async function ingestBetaPolicyScreening(publication: BetaPolicyScreening
       job_evidence_binding: binding, job_task_context_digest: scope.taskContextDigest, job_source_fingerprint: scope.sourceFingerprint,
       publication_digest: publication.publication_digest, publication_revision: publication.revision, result_record_id: resultId,
       episodes_scored: publication.candidates.reduce<number>((sum, row) => sum + row.episodes_scored, 0),
+      no_estimate_reason: publication.status === "blocked"
+        || publication.status === "completed" && publication.candidates.every(row => row.episodes_scored === 0)
+        ? noEstimateReason(publication.candidates) : null,
       screening_execution_observed: oldRun.data()?.screening_execution_observed === true
         || publication.candidates.some(row => ["running", "completed"].includes(row.status) || row.episodes_scored > 0),
       created_at_iso: oldRun.data()?.created_at_iso ?? now, updated_at_iso: now });

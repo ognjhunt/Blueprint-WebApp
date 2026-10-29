@@ -1,3 +1,4 @@
+import { websitePreparationCaptureId, websitePreparationRevision } from "./websitePreparationRevision";
 import { websiteCaptureOwnerUid } from "./websiteCaptureOwner";
 import { taskScopeNotSupported } from "./siteTaskScope";
 import { websiteDevelopmentTestEnvironment } from "./websiteDevelopmentTest";
@@ -1006,6 +1007,8 @@ const WEBSITE_SUBJECT_ORIGINS = new Set(["removed_before_reconstruction", "synth
 
 export function validateWebsiteSponsoredIntake(request: Record<string, any>, authority: Record<string, any>) {
   const preparationOnly = request.execution?.purpose === "scene_preparation";
+  const revision = websitePreparationRevision(request);
+  if (revision && authority.purpose !== "scene_preparation") throw new Error("website_scene_sponsorship_binding_invalid");
   const family = isTaskFamilyStrategy(request.task?.strategy);
   if (family) {
     websiteFamilySourceBinding(request.task, authority as Parameters<typeof websiteFamilySourceBinding>[1]);
@@ -1033,7 +1036,7 @@ export function validateWebsiteSponsoredIntake(request: Record<string, any>, aut
   }
   const prefix = development ? "website-development-" : "website-splat-";
 
-  if (request.submission_id !== authority.capture_id
+  if (websitePreparationCaptureId(request) !== authority.capture_id
     || digest(request.owner) !== digest(authority.owner)
     || digest(request.consent) !== digest(authority.consent)
     || request.source?.kind !== (development ? "mesh" : "gaussian_splat")

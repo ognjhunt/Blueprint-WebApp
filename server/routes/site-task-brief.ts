@@ -68,6 +68,8 @@ import {
   taskStatusInputFrom,
 } from "../utils/taskStatusProjection";
 import { loadCurrentWebsitePreparationStatus } from "../utils/websitePreparationStatus";
+import { answerTaskTargetChoice, currentTaskTargetChoiceAnswer, taskTargetSelection } from "../utils/websiteTaskTargetChoice";
+import { taskTargetChoiceRequestSchema } from "../utils/taskTargetChoiceContract";
 import { websitePreparationOverdue } from "../utils/websitePreparationWatch";
 import { loadWebsiteSceneProgression } from "../utils/websiteSceneProgression";
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
@@ -175,6 +177,34 @@ router.post("/:token/clarification", async (req, res) => {
   try { return res.json(await submitSiteClarification(payload.requestId, parsed.data.revision, parsed.data.explanation, parsed.data.mode)); }
   catch (error) { return res.status(error instanceof Error && error.message === "clarification_revision_changed" ? 409 : 503)
     .json({ error: "The questions may have changed. Reload this page and try again." }); }
+});
+
+/** The site confirms or corrects the guessed object to move; "none of these" leads to the same-job walkthrough update. */
+router.post("/:token/task-target-choice", csrfProtection, async (req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+  const verified = verifyCaptureUploadToken(String(req.params.token || ""));
+  if (!verified) return res.status(404).json({ code: "capture_token_invalid", error: "That link is not valid any more." });
+  if (verified.scope !== "owner") return res.status(403).json({ code: "task_target_choice_owner_required",
+    error: "Open the owner's job link to answer this question." });
+  const parsed = z.object({ questionDigest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+    choice: taskTargetChoiceRequestSchema }).strict().safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ code: "task_target_choice_invalid", error: "Confirm our pick, choose another object, or None of these." });
+  try {
+    const request = await readRequestForStatus(verified.requestId, verified.captureId, verified.sceneId);
+    if (!request || request.captureRights.consent_revoked)
+      return res.status(409).json({ code: "task_target_choice_unavailable", error: "This job can no longer be prepared from its recording." });
+    const captureId = request.active_capture_id ?? verified.captureId;
+    const answer = await answerTaskTargetChoice(verified.requestId, captureId, parsed.data);
+    return res.json({ ok: true, choice: answer.choice.kind });
+  } catch (error) {
+    const code = error instanceof Error ? error.message : "";
+    if (code === "task_target_choice_question_changed" || code === "task_target_choice_candidate_unknown")
+      return res.status(409).json({ code, error: "This question has changed. Refresh your job to see the current one." });
+    if (code === "task_target_choice_already_answered")
+      return res.status(409).json({ code, error: "You already answered this question. Refresh your job to see where it stands." });
+    logger.error({ error, requestId: verified.requestId }, "Could not record a task object choice");
+    return res.status(503).json({ code: "task_target_choice_unavailable", error: "Your answer could not be saved. Try again shortly." });
+  }
 });
 
 function safeSceneViewUrl(value: unknown): string | null {
@@ -1054,6 +1084,11 @@ router.get("/:token/status", async (req: Request, res: Response) => {
       && websitePreparationOverdue(captureSession?.data()?.website_preparation_watch);
     const sceneProgression = preparationStatus?.state === "handed_off"
       ? await loadWebsiteSceneProgression(payload.requestId, payload.captureId) : null;
+    // The site's answer to the optional question about the guessed object to move, bound to this exact source.
+    const targetChoiceAnswer = payload.scope === "owner" && preparationStatus
+      ? currentTaskTargetChoiceAnswer(captureSession?.data(), preparationStatus) : null;
+    const question = payload.scope === "owner" && (!targetChoiceAnswer || targetChoiceAnswer === "none_of_these")
+      && preparationStatus?.state !== "authority_ended" ? preparationStatus?.question ?? null : null;
 
     const status = projectTaskStatus(
       taskStatusInputFrom({
@@ -1071,6 +1106,10 @@ router.get("/:token/status", async (req: Request, res: Response) => {
         preparationOutcome: payload.scope === "owner" && request && !request.captureRights.consent_revoked
           ? request.preparationOutcome : null,
         preparationStatus,
+        targetChoiceAnswer,
+        targetChoiceRestoringGuess: payload.scope === 'owner' && targetChoiceAnswer === 'confirm_guess'
+          && preparationStatus?.state === 'awaiting_inputs'
+          && taskTargetSelection(captureSession?.data()).restoringGuess,
         preparationOverdue,
         sceneProgression,
         stage,
@@ -1152,7 +1191,13 @@ router.get("/:token/status", async (req: Request, res: Response) => {
       footageReviewAutomated: isSiteVideoEvidenceEnabled(),
       summary: request?.captureRights.consent_revoked ? null : brief?.summary ?? null,
       claimUrl,
-      sceneViewUrl,
+      sceneViewUrl: status.resultSuperseded ? null : sceneViewUrl,
+      // Opaque ids and position labels only; no frame or person pixels.
+      targetChoice: question ? { questionDigest: question.question_digest, semanticLabel: question.semantic_label,
+        ...(targetChoiceAnswer === 'none_of_these' ? {rejected: true} : {}),
+        guessedCandidateId: question.guessed_candidate_id,
+        candidates: question.candidates.map(row => ({ id: row.candidate_id, label: row.label,
+          referenceTimeMs: row.reference_time_ms })) } : null,
     });
   } catch (error) {
     logger.error({ error, requestId: payload.requestId }, "Could not load task status");

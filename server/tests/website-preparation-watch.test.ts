@@ -418,6 +418,21 @@ describe("scene progression after hand-off", () => {
     // A completed run with no scored episode has no estimate to show.
     state.docs.set("taskEvaluationPolicyRuns/screening-one", { ...run, state: "completed", screening_execution_observed: true, episodes_scored: 0 });
     expect(await loadWebsiteSceneProgression("r1", "walkthrough-r1")).toEqual({ state: "testing" });
+    // No candidate can do this kind of job yet: held, not an open test.
+    state.docs.set("taskEvaluationPolicyRuns/screening-one", { ...run, state: "blocked", screening_execution_observed: true,
+      episodes_scored: 0, no_estimate_reason: "held" });
+    expect(await loadWebsiteSceneProgression("r1", "walkthrough-r1")).toEqual({ state: "held" });
+    // An estimate from another campaign wins, even when the held one is read first.
+    state.docs.set("taskEvaluationPolicyRuns/screening-zz", { ...run, run_id: "screening-zz", state: "completed",
+      screening_execution_observed: true, episodes_scored: 3, no_estimate_reason: null });
+    state.docs.set("taskEvaluationPolicyRuns/screening-aa", { ...run, run_id: "screening-aa", state: "blocked",
+      screening_execution_observed: true, episodes_scored: 0, no_estimate_reason: "held" });
+    expect(await loadWebsiteSceneProgression("r1", "walkthrough-r1")).toEqual({ state: "evaluated" });
+    state.docs.delete("taskEvaluationPolicyRuns/screening-zz");
+    state.docs.delete("taskEvaluationPolicyRuns/screening-aa");
+    state.docs.set("taskEvaluationPolicyRuns/screening-one", { ...run, state: "blocked", screening_execution_observed: true,
+      episodes_scored: 0, no_estimate_reason: "budget" });
+    expect(await loadWebsiteSceneProgression("r1", "walkthrough-r1")).toEqual({ state: "testing" });
     state.docs.set("taskEvaluationPolicyRuns/screening-one", { ...run, state: "completed", team_namespace: "team-b" });
     expect(await loadWebsiteSceneProgression("r1", "walkthrough-r1")).toEqual({ state: "completed" });
   });

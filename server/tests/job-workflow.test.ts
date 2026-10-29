@@ -5,6 +5,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import { sharedFakeFirestoreState as state } from "./helpers/fake-firestore";
 import type { DeliveryProposalInput, JobMarketplaceWorkflow } from "../../client/src/types/jobMarketplace";
 import { screeningFixture } from "./fixtures/beta-policy-screening";
+import { buildTaskTargetChoiceAnswer, taskTargetSelection } from '../utils/websiteTaskTargetChoice';
 
 const captures = vi.hoisted(() => ({ received: true as boolean | null }));
 vi.mock("../utils/siteWalkthrough", () => ({
@@ -65,6 +66,19 @@ async function api(path: string, method = "GET", body?: unknown, auth?: string, 
 const admin = (path = "", method = "GET", body?: unknown, extra?: Record<string, string>) => api(`/admin/job-1${path}`, method, body, "ops-token", extra);
 const owner = (path = "", method = "GET", body?: unknown) => api(`/owner/${token()}${path}`, method, body);
 async function publish() { const created = await admin("/proposals", "POST", proposal); expect(created.status).toBe(201); return created.body.proposals[0]; }
+function rejectSelection(jobId: string, contextDigest = `sha256:${'c'.repeat(64)}`, otherCandidate = false) {
+  const selector = {request_id: jobId, scene_id: `site-${jobId}`, capture_id: `walkthrough-${jobId}`,
+    task_context_digest: contextDigest, completion_marker_generation: '1', producer_delivery_key: `sha256:${'a'.repeat(64)}`,
+    source_payload_sha256: 'b'.repeat(64)};
+  const question = {kind: 'task_target_choice' as const, question_digest: `sha256:${'1'.repeat(64)}`,
+    target_id: 'box', semantic_label: 'Box', candidate_set_digest: `sha256:${'2'.repeat(64)}`,
+    guessed_candidate_id: 'c0123456789abcdef', candidates: [{candidate_id: 'c0123456789abcdef', label: 'Box at left', reference_time_ms: 1000},
+      {candidate_id: 'cfedcba9876543210', label: 'Box at right', reference_time_ms: 1000}]};
+  state.docs.set(`captureUploadSessions/walkthrough-${jobId}`, {website_preparation: {selector},
+    website_task_target_choice: buildTaskTargetChoiceAnswer(selector, question, otherCandidate
+      ? {kind: 'other_candidate', candidate_id: 'cfedcba9876543210'} : {kind: 'none_of_these'}, '2026-10-29T00:00:00Z'),
+    originalAllowance: {id: 'same', maximum: 15}});
+}
 const selectBody = (row: { id: string; revision: string }) => ({ proposalId: row.id, expectedRevision: row.revision, authorized: true });
 const reportBody = (row: { id: string; revision: string }) => ({ ...selectBody(row), summary: "The site trial completed.", metCriteria: true,
   measuredUnitsPerHour: 60, interventionsPerHour: 1, notes: "Owner-reported operating observation." });
@@ -83,6 +97,62 @@ describe("job workflow authority and durable decisions", () => {
     expect(view.body.managedEvidence?.[0]).toMatchObject({ current: true, state: "queued", resultDigest: null });
     expect(view.body.managedEvidence?.[0].screening?.candidates).toHaveLength(36);
     expect(view.body.proposals).toEqual([]);
+    rejectSelection('job-one', job.website_scene_sponsorship.task_context_digest);
+    const rejected = await api(`/owner/${token('job-one')}`);
+    expect(rejected.status).toBe(200);
+    expect(rejected.body.managedEvidence?.[0]).toMatchObject({current: false, state: 'queued'});
+  });
+
+  it('keeps rejected-object proposals in history and rejects selecting their old scope', async () => {
+    const row = await publish();
+    rejectSelection('job-1');
+    const view = await owner();
+    expect(view.status).toBe(200);
+    expect(view.body.proposals[0]).toMatchObject({id: row.id, status: 'review_required'});
+    expect(view.body.actionOwner).toBe('blueprint');
+    expect(view.body.nextAction).toMatch(/saved video/);
+    expect((await owner('/select', 'POST', selectBody(row))).status).toBe(409);
+    expect(state.docs.get('inboundRequests/job-1')?.job_marketplace.proposals[0]).toMatchObject({id: row.id, status: 'available'});
+    expect(state.docs.get('captureUploadSessions/walkthrough-job-1')?.originalAllowance).toEqual({id: 'same', maximum: 15});
+  });
+
+  it('binds unreferenced proposals to B and releases only its current corrected intake', async () => {
+    const old = await publish();
+    rejectSelection('job-1', undefined, true);
+    const before = await owner();
+    expect(before.body.proposals[0]).toMatchObject({id: old.id, status: 'review_required'});
+    expect((await owner('/select', 'POST', selectBody(old))).status).toBe(409);
+    // A reviewed B proposal can be prepared while reconstruction continues;
+    // it cannot be selected against A's intake or the absence of B's intake.
+    const revised = await admin(`/proposals/${old.id}`, 'PUT', {...proposal, expectedRevision: old.revision});
+    expect(revised.status).toBe(200);
+    const b = revised.body.proposals[0];
+    expect(b.briefRevision).not.toBe(old.briefRevision);
+    expect((await owner('/select', 'POST', selectBody(b))).status).toBe(409);
+    const session = state.docs.get('captureUploadSessions/walkthrough-job-1')!;
+    const correction = taskTargetSelection(session).correctionsDigest;
+    const currentIntake = {website_request_id: 'job-1', source_session_id: 'walkthrough-job-1', state: 'completed',
+      request: {task: {task_id: `website-${session.website_preparation.selector.task_context_digest.slice(7, 27)}`,
+        subject: {website_preparation_revision: {capture_id: 'walkthrough-job-1', corrections_digest: correction}}}}};
+    state.docs.set('taskEvaluationSceneIntakes/old-a', {...currentIntake, request: {task: {task_id: currentIntake.request.task.task_id}}});
+    expect((await owner('/select', 'POST', selectBody(b))).status).toBe(409);
+    state.docs.set('taskEvaluationSceneIntakes/b', currentIntake);
+    expect((await owner()).body.proposals[0]).toMatchObject({id: b.id, status: 'available'});
+    expect((await owner('/select', 'POST', selectBody(old))).status).toBe(409);
+    expect((await owner('/select', 'POST', selectBody(b))).status).toBe(200);
+    expect(state.docs.get('captureUploadSessions/walkthrough-job-1')?.originalAllowance).toEqual({id: 'same', maximum: 15});
+  });
+
+  it('does not record an A agreement from an earlier selection while B is pending', async () => {
+    const old = await publish();
+    expect((await owner('/select', 'POST', selectBody(old))).status).toBe(200);
+    rejectSelection('job-1', undefined, true);
+    const response = await admin('/agreement', 'POST', {proposalId: old.id, expectedRevision: old.revision,
+      agreedAtIso: '2026-10-20T10:00:00Z', plannedStartIso: null, siteAgreementReference: 'recorded-site-agreement',
+      providerAgreementReference: 'recorded-provider-agreement', outcomeRecordingAuthorized: false});
+    expect(response.status).toBe(409);
+    expect(state.docs.get('inboundRequests/job-1')?.job_marketplace.agreement).toBeNull();
+    expect(state.docs.get('inboundRequests/job-1')?.job_marketplace.selection).toMatchObject({proposalId: old.id});
   });
 
   it("lets a guest review and choose an exact scoped proposal without confirming the draft", async () => {
