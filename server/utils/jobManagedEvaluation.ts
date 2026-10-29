@@ -11,7 +11,7 @@ import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { publicationFromResultRecord } from "./taskEvaluationRunPublicationStorage";
 import { parseVerifiedTaskEvaluationRunPublication } from "./taskEvaluationRunContract";
 import { parsePipelinePolicyCanaryPublication } from "./policyCanaryWebappSyncContract";
-import { parseBetaPolicyScreeningPublication, type BetaPolicyScreeningPublication } from "./betaPolicyScreeningContract";
+import { noEstimateReason, parseBetaPolicyScreeningPublication, type BetaPolicyScreeningPublication } from "./betaPolicyScreeningContract";
 import { assertWebsiteCaptureBindingInTransaction, resolveWebsiteCaptureBinding } from "./websiteCaptureBinding";
 import { isTaskFamilyStrategy, preparationPhaseMatchesTask } from "./taskFamilySceneIntake";
 import { assertWebsiteRunOpen } from "./websiteRunClosure";
@@ -239,14 +239,22 @@ export function projectManagedJobEvidence(
     const notRun = value.candidates.filter(row => ["blocked", "unavailable", "deferred"].includes(row.status)).length;
     const candidates = (count: number) => `${count} candidate${count === 1 ? "" : "s"}`;
     // A run whose candidates finished with no scored episode has no estimate to show.
-    const status = value.status === "completed" && scored === 0 ? "blocked" : value.status;
-    return { ...base, state: status, resultDigest: ["completed", "blocked"].includes(status) ? value.publication_digest : null,
+    const finished = value.status === "completed" && scored === 0 ? "blocked" : value.status;
+    // No estimate ends as held only when no candidate can do the job; budget and
+    // setup gaps stay in progress for the owner or for us (owner decision 2026-10-28).
+    const reason = finished === "blocked" ? noEstimateReason(value.candidates) : null;
+    const status = reason === "held" ? "held" : reason === "budget" ? "awaiting_spend_approval" : reason === "setup" ? "setup_repair" : finished;
+    return { ...base, state: status, resultDigest: ["completed", "blocked"].includes(finished) ? value.publication_digest : null,
       summary: status === "completed"
         ? `Your job's simulation estimate: ${completed} of ${total} candidates ran, with ${scored} episodes scored against the job's success criteria.`
-        : status === "blocked" ? `No simulation estimate yet: none of the ${candidates(total)} produced a scored result.`
+        : status === "held" ? "Held: we can't simulate this kind of job yet. It counts as demand for what we build next."
+        : status === "awaiting_spend_approval" || status === "setup_repair" ? "Simulation evaluation in progress. We'll run your job again and show the estimate here."
           : `Simulation evaluation of your job: ${completed} of ${total} candidates finished; ${scored} episodes scored so far.`,
       nextAction: status === "completed" ? "Blueprint uses this estimate to recommend the next step for your job, then works with a deployment company on any physical pilot."
-        : status === "blocked" || status === "reconciliation_required" ? "Blueprint is reviewing the recorded limitations before any further run."
+        : status === "held" ? "Nothing is needed from the site. No candidate Blueprint can run supports this job yet; each row lists why."
+        : status === "awaiting_spend_approval" ? "Owner approval needed: this job's candidates need more than the site's simulation budget. Nothing is needed from the site."
+        : status === "setup_repair" ? "Fix the setup blockers listed per candidate, then rerun. Nothing is needed from the site."
+        : status === "reconciliation_required" ? "Blueprint is reviewing the recorded limitations before any further run."
           : "Candidate progress will update as each test finishes.",
       limitations: [
         ...(scored ? [`A bounded simulation estimate from ${scored} scored episode${scored === 1 ? "" : "s"} across ${candidates(completed)}, for this job's recorded task and simulated conditions only.`] : []),
