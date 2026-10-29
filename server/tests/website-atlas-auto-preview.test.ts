@@ -45,6 +45,8 @@ import { projectWebsiteCaptureRights, projectWebsiteTaskContext } from "../utils
 import { crossRuntimeDigest } from "../utils/crossRuntimeCanonical";
 import { verifyTaskEvaluationResultDownloadTicket } from "../utils/taskEvaluationResultDownloadTicket";
 import { projectWebsiteAtlasPreview, websiteAtlasPreviewDownloadUrl } from "../utils/websiteAtlasPreview";
+import { crc32, extractZipMember, websiteAtlasPreviewViewerUrl } from "../utils/websiteAtlasPreviewView";
+import { deflateRawSync } from "node:zlib";
 
 const sha = (char: string) => `sha256:${char.repeat(64)}`;
 const realFetch = globalThis.fetch;
@@ -90,6 +92,7 @@ async function app() {
   application.use(express.json());
   application.use("/internal", (await import("../routes/internal-capture-worlds")).default);
   application.use("/api/website-atlas-preview-downloads", (await import("../routes/website-atlas-preview-downloads")).default);
+  application.use("/api/website-atlas-preview-views", (await import("../routes/website-atlas-preview-views")).default);
   server = createServer(application);
   await new Promise<void>(resolve => server!.listen(0, "127.0.0.1", resolve));
   return `http://127.0.0.1:${(server.address() as any).port}`;
@@ -504,7 +507,27 @@ function preview(overrides: Record<string, unknown> = {}) {
     mesh_available: false, claim_ceiling: "development_only", scale_status: "unscaled_provider_world_units", ...overrides };
   return { ...value, preview_digest: crossRuntimeDigest(value) };
 }
-const bundleBytes = Buffer.from("PK\u0003\u0004 fixture atlas preview bundle");
+const splatBytes = Buffer.from("ply\nformat binary_little_endian 1.0\nelement vertex 0\nend_header\n");
+function zipFixture(members: { name: string; data: Buffer; deflate?: boolean }[]) {
+  const locals: Buffer[] = [], central: Buffer[] = [];
+  let offset = 0;
+  for (const member of members) {
+    const body = member.deflate ? deflateRawSync(member.data) : member.data, name = Buffer.from(member.name);
+    const local = Buffer.alloc(30); local.writeUInt32LE(0x04034b50, 0); local.writeUInt16LE(member.deflate ? 8 : 0, 8);
+    local.writeUInt32LE(crc32(member.data), 14); local.writeUInt32LE(body.length, 18); local.writeUInt32LE(member.data.length, 22);
+    local.writeUInt16LE(name.length, 26);
+    const entry = Buffer.alloc(46); entry.writeUInt32LE(0x02014b50, 0); entry.writeUInt16LE(member.deflate ? 8 : 0, 10);
+    entry.writeUInt32LE(crc32(member.data), 16); entry.writeUInt32LE(body.length, 20); entry.writeUInt32LE(member.data.length, 24);
+    entry.writeUInt16LE(name.length, 28); entry.writeUInt32LE(offset, 42);
+    locals.push(local, name, body); central.push(entry, name); offset += 30 + name.length + body.length;
+  }
+  const directory = Buffer.concat(central), end = Buffer.alloc(22);
+  end.writeUInt32LE(0x06054b50, 0); end.writeUInt16LE(members.length, 8); end.writeUInt16LE(members.length, 10);
+  end.writeUInt32LE(directory.length, 12); end.writeUInt32LE(offset, 16);
+  return Buffer.concat([...locals, directory, end]);
+}
+const bundleBytes = zipFixture([{ name: "atlas-scene-fixture/views/000-image.jpg", data: Buffer.from("jpeg bytes"), deflate: true },
+  { name: "atlas-scene-fixture/splat/atlas_depth_splat.ply", data: splatBytes }]);
 const bundleDigest = `sha256:${createHash("sha256").update(bundleBytes).digest("hex")}`;
 const ready = (revision = 2) => preview({ revision, state: "ready", updated_at_epoch: 1_761_138_000,
   bundle: { digest: bundleDigest, size_bytes: bundleBytes.length, filename: "atlas-preview-walkthrough-req1.zip" },
@@ -557,7 +580,7 @@ describe("Pipeline Atlas preview status", () => {
     expect(projectWebsiteAtlasPreview(record)).toEqual({ captureId: "walkthrough-req1", label: "3D preview (beta, unscaled)",
       state: "ready", statusText: "Your 3D preview is ready. Blueprint keeps the model for your job.", developmentOnly: true,
       splatAvailable: true, meshAvailable: true, sizeBytes: bundleBytes.length,
-      updatedAtIso: new Date(1_761_138_000_000).toISOString(), downloadAvailable: false });
+      updatedAtIso: new Date(1_761_138_000_000).toISOString(), downloadAvailable: false, viewAvailable: true });
     // A tampered entry is never shown.
     record.website_atlas_previews["walkthrough-req1"] = { ...ready(), mesh_available: false };
     expect(projectWebsiteAtlasPreview(record)).toBeNull();
@@ -684,4 +707,49 @@ it("gives an automatic preview its own SAM and review consent, pinned to their t
   await expect(reserveWebsitePreparationSpend("req1", atlasSpend({ allocation_binding_digest: sha("4"),
     provider: "meta", resource_class: "evaluator_api", maximum_cost_usd: .1, atlas_auxiliary: true })))
     .rejects.toThrow("source_revoked");
+});
+
+
+// Owner decision 2026-10-29: the site views its preview in the vendored viewer, never downloads it.
+describe("owner Atlas preview view", () => {
+  beforeEach(() => {
+    vi.stubEnv("TASK_EVALUATION_RESULT_DOWNLOAD_SIGNING_SECRET", "fixture-ticket-secret");
+    vi.stubEnv("CAPTURE_LIFECYCLE_PIPELINE_BASE_URL", "https://pipeline.invalid");
+    vi.stubEnv("CAPTURE_UPLOAD_INTAKE_FORWARD_TOKEN", "fixture-read-token");
+  });
+
+  it("reads one zip member, stored or deflated, and refuses a corrupt one", () => {
+    expect(crc32(Buffer.from("123456789"))).toBe(0xcbf43926);
+    expect(extractZipMember(bundleBytes, name => name.endsWith("/splat/atlas_depth_splat.ply"))).toEqual(splatBytes);
+    expect(extractZipMember(bundleBytes, name => name.endsWith(".jpg"))).toEqual(Buffer.from("jpeg bytes"));
+    expect(extractZipMember(bundleBytes, name => name.endsWith(".glb"))).toBeNull();
+    const corrupt = Buffer.from(bundleBytes);
+    corrupt[bundleBytes.indexOf(splatBytes)] ^= 0xff;
+    expect(() => extractZipMember(corrupt, name => name.endsWith(".ply"))).toThrow("zip_member_corrupt");
+  });
+
+  it("lets only the viewer fetch the splat of a ready preview, for the right ticket and current consent", async () => {
+    upload();
+    store.rows.get(REQUEST).website_atlas_previews = { "walkthrough-req1": ready() };
+    const origin = vi.fn(async () => new Response(bundleBytes, { status: 200 }));
+    vi.stubGlobal("fetch", origin);
+    const base = await app();
+    const viewer = websiteAtlasPreviewViewerUrl("req1", "walkthrough-req1")!;
+    expect(viewer).toMatch(/^\/splat-viewer\/index\.html\?content=/);
+    const content = new URL(viewer, "https://webapp.invalid").searchParams.get("content")!;
+    expect(content).toMatch(/^\/api\/website-atlas-preview-views\/req1\/walkthrough-req1\/scene\.ply\?expires=\d+&signature=[0-9a-f]{64}$/);
+    const viewed = await realFetch(`${base}${content}`, { headers: { "sec-fetch-dest": "empty", "sec-fetch-mode": "cors" } });
+    expect(viewed.status).toBe(200);
+    expect(Buffer.from(await viewed.arrayBuffer())).toEqual(splatBytes);
+    expect(viewed.headers.get("cache-control")).toBe("private, no-store");
+    expect(viewed.headers.get("content-disposition")).toBe("inline");
+    // Pasting the link into the address bar is not a way to save the file.
+    const opened = await realFetch(`${base}${content}`, { headers: { "sec-fetch-dest": "document", "sec-fetch-mode": "navigate" } });
+    expect(opened.status).toBe(403);
+    // A retired download ticket never opens the view route, nor does a forged one.
+    const download = new URL(websiteAtlasPreviewDownloadUrl("req1", "walkthrough-req1")!, "https://webapp.invalid").searchParams;
+    expect((await realFetch(`${base}/api/website-atlas-preview-views/req1/walkthrough-req1/scene.ply?${download}`)).status).toBe(404);
+    store.rows.get(REQUEST).consent_revoked = true;
+    expect((await realFetch(`${base}${content}`, { headers: { "sec-fetch-dest": "empty" } })).status).toBe(404);
+  });
 });

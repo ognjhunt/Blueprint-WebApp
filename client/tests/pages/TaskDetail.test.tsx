@@ -148,7 +148,7 @@ describe("job progress timelines", () => {
 describe("development-only 3D preview", () => {
   const ready = { captureId: "walkthrough-owned-task", label: "3D preview (beta, unscaled)", state: "ready",
     statusText: "Your 3D preview is ready to download.", developmentOnly: true, splatAvailable: true,
-    meshAvailable: true, sizeBytes: 4096, updatedAtIso: "2026-10-22T12:00:00.000Z", downloadAvailable: true };
+    meshAvailable: true, sizeBytes: 4096, updatedAtIso: "2026-10-22T12:00:00.000Z", downloadAvailable: true, viewAvailable: false };
 
   // Owner decision 2026-10-29: Blueprint owns the reconstruction; the site sees it is ready but never downloads it.
   it("shows a ready preview with no download and never asks for a ticket", () => {
@@ -161,6 +161,23 @@ describe("development-only 3D preview", () => {
     expect(screen.queryByRole("button", { name: /Download 3D preview/ })).not.toBeInTheDocument();
     expect(request).not.toHaveBeenCalledWith("/tasks/owned-task/atlas-preview/download-ticket", expect.anything(),
       expect.anything(), expect.anything());
+  });
+
+  it("opens a ready preview in the viewer through a fresh view ticket", async () => {
+    const url = `/splat-viewer/index.html?content=${encodeURIComponent("/api/website-atlas-preview-views/owned-task/walkthrough-owned-task/scene.ply?expires=1&signature=a")}`;
+    request.mockResolvedValue({ viewer_url: url });
+    const navigate = vi.spyOn(window.location, "assign").mockImplementation(() => {});
+    fixture.task = { atlasPreview: { ...ready, downloadAvailable: false, viewAvailable: true } };
+    render(<TaskDetail />);
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: "View 3D preview" })));
+    expect(request).toHaveBeenCalledWith("/tasks/owned-task/atlas-preview/view-ticket", "POST",
+      { captureId: "walkthrough-owned-task" }, { timeoutMs: 15000 });
+    expect(navigate).toHaveBeenCalledWith(url);
+    request.mockResolvedValueOnce({ viewer_url: "https://elsewhere.example/viewer" });
+    navigate.mockClear();
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: "View 3D preview" })));
+    expect(screen.getByRole("alert")).toHaveTextContent("3D preview link was missing");
+    expect(navigate).not.toHaveBeenCalled();
   });
 
   it("shows only a status while it is being made, and nothing once consent is withdrawn", () => {

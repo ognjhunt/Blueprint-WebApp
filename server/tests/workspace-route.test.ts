@@ -1671,7 +1671,7 @@ describe("development-only Atlas 3D preview", () => {
     expect(viewed.atlasPreview).toEqual({ captureId: "walkthrough-task-1", label: "3D preview (beta, unscaled)",
       state: "ready", statusText: "Your 3D preview is ready. Blueprint keeps the model for your job.", developmentOnly: true,
       splatAvailable: true, meshAvailable: false, sizeBytes: 4096,
-      updatedAtIso: new Date(1_761_138_000_000).toISOString(), downloadAvailable: false });
+      updatedAtIso: new Date(1_761_138_000_000).toISOString(), downloadAvailable: false, viewAvailable: true });
     expect(JSON.stringify(viewed)).not.toContain("pipeline_private_detail");
     const path = "/tasks/task-1/atlas-preview/download-ticket";
     expect((await api(path, "site-2", {})).status).toBe(404);
@@ -1679,6 +1679,27 @@ describe("development-only Atlas 3D preview", () => {
     expect(refused.status).toBe(410);
     expect(refused.headers.get("cache-control")).toBe("private, no-store");
     expect(await refused.json()).toMatchObject({ code: "website_atlas_preview_download_retired" });
+  });
+
+  it("issues a short-lived view ticket only for the owner's ready preview with a splat", async () => {
+    process.env.TASK_EVALUATION_RESULT_DOWNLOAD_SIGNING_SECRET = "fixture-ticket-secret";
+    consentedTask({ "walkthrough-task-1": await preview({}) });
+    const path = "/tasks/task-1/atlas-preview/view-ticket";
+    expect((await api(path, "site-2", {})).status).toBe(404);
+    expect((await api(path, "site-1", { captureId: "walkthrough-task-1", extra: true })).status).toBe(400);
+    const ticket = await api(path, "site-1", { captureId: "walkthrough-task-1" });
+    expect(ticket.status).toBe(201);
+    expect(ticket.headers.get("cache-control")).toBe("private, no-store");
+    const { viewer_url: url } = await ticket.json();
+    const content = new URL(url, "https://webapp.invalid").searchParams.get("content");
+    expect(url.startsWith("/splat-viewer/index.html?content=")).toBe(true);
+    expect(content).toMatch(/^\/api\/website-atlas-preview-views\/task-1\/walkthrough-task-1\/scene\.ply\?expires=\d+&signature=[0-9a-f]{64}$/);
+    consentedTask({ "walkthrough-task-1": await preview({ splat_available: false }) });
+    expect((await (await api("/tasks/task-1", "site-1")).json()).atlasPreview).toMatchObject({ viewAvailable: false });
+    expect((await api(path, "site-1", {})).status).toBe(404);
+    consentedTask({ "walkthrough-task-1": await preview({}) });
+    delete process.env.TASK_EVALUATION_RESULT_DOWNLOAD_SIGNING_SECRET;
+    expect((await api(path, "site-1", {})).status).toBe(503);
   });
 
   it("disappears as soon as recording consent is withdrawn", async () => {

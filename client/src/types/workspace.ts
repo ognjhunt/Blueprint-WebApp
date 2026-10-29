@@ -78,6 +78,8 @@ export type AtlasPreviewView = {
   sizeBytes: number | null;
   updatedAtIso: string | null;
   downloadAvailable: boolean;
+  /** View-only, in the vendored SuperSplat viewer: a ready preview with a splat. */
+  viewAvailable: boolean;
 };
 export type CaptureVisit = {
   id: string;
