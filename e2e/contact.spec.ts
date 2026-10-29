@@ -45,7 +45,7 @@ test("phone: video capture choices are on the first screen and optional details 
   await page.screenshot({ path: "/tmp/onboarding-p2-site-phone.png", fullPage: true });
 });
 
-test("capture takes the country from the address and asks only when it cannot", async ({ page }) => {
+test("capture accepts country permission without an address and keeps non-US filming held", async ({ page }) => {
   const submissions: any[] = [];
   await page.route("**/api/inbound-request", route => {
     submissions.push(route.request().postDataJSON());
@@ -54,16 +54,18 @@ test("capture takes the country from the address and asks only when it cannot", 
   await page.goto("/contact/site-operator", { waitUntil: "domcontentloaded" });
   await page.locator("#start-location").fill("Berlin");
   await page.locator("#start-email").fill("owner@example.test");
-  // A city alone does not name its country, so Start asks for it in the address.
+  // An ambiguous optional city cannot supply permission. Native country
+  // validation stops the request without requiring a fuller address.
   await page.getByRole("button", { name: "Start free assessment", exact: true }).click();
-  await expect(page.getByText(/Add the country to the address/)).toBeVisible();
-  await expect(page.locator("#start-location")).toBeFocused();
-  await expect(page.locator("#start-region")).toHaveCount(0);
+  await expect(page.locator("#start-region")).toBeFocused();
+  await expect(page.locator("#start-region")).toHaveValue("");
+  await expect(page.locator("#start-location")).not.toHaveAttribute("required", "");
   expect(submissions).toHaveLength(0);
-  await page.locator("#start-location").fill("Berlin, Germany");
+  await page.locator("#start-location").fill("");
+  await page.locator("#start-region").selectOption("non_us");
   await page.getByRole("button", { name: "Start free assessment", exact: true }).click();
   await expect.poll(() => submissions.length).toBe(1);
-  expect(submissions[0]).toMatchObject({ buyerType: "site_operator", captureRegion: "non_us", siteTaskGates: {}, consentAttestation: null });
+  expect(submissions[0]).toMatchObject({ buyerType: "site_operator", siteLocation: "", captureRegion: "non_us", siteTaskGates: {}, consentAttestation: null });
   await expect(page.getByText(/We are not sending a camera link yet/)).toBeVisible();
   await expect(page.getByRole("link", { name: "Open the camera" })).toHaveCount(0);
 });
