@@ -61,14 +61,15 @@ type TaskStatus = {
   captureReceived?: boolean;
   /** Coverage is checked automatically; false means a person reviews it. */
   footageReviewAutomated?: boolean;
-  /** The one question preparation waits on, for the owner only. */
+  /** The optional correction of the guessed object to move, for the owner only. */
   targetChoice?: TaskTargetChoiceView | null;
 };
 
 function isTargetChoice(value: unknown): value is TaskTargetChoiceView {
   const item = value as Partial<TaskTargetChoiceView> | null;
   return Boolean(item) && typeof item!.questionDigest === "string" && /^sha256:[a-f0-9]{64}$/.test(item!.questionDigest)
-    && typeof item!.semanticLabel === "string" && Array.isArray(item!.candidates) && item!.candidates.length > 0
+    && typeof item!.semanticLabel === "string" && typeof item!.guessedCandidateId === "string"
+    && Array.isArray(item!.candidates) && item!.candidates.some(row => row?.id === item!.guessedCandidateId)
     && item!.candidates.every(row => typeof row?.id === "string" && typeof row.label === "string"
       && (row.referenceTimeMs === null || Number.isInteger(row.referenceTimeMs)));
 }

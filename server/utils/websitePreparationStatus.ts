@@ -60,7 +60,7 @@ const receiptV3 = receiptV2.extend({
   schema_version: z.literal("website_preparation_status.v3"),
   outcome: preparationOutcomeSchema.nullable(),
 }).strict();
-/** v4 adds the one question the site can answer inside this job, while preparation waits on it. */
+/** v4 adds the one optional question the site can answer inside this job; it never makes the job wait. */
 const receiptV4 = receiptV3.extend({
   schema_version: z.literal("website_preparation_status.v4"),
   question: taskTargetChoiceQuestionSchema.nullable(),
@@ -75,7 +75,7 @@ export type PublicWebsitePreparationStatus = {
   state: PreparationState | "unavailable"; correlationId: string | null;
   terminalReason?: WebsitePreparationTerminalReason | null;
   outcome?: TaskOutcome | null;
-  /** Only from a v4 receipt that is waiting on this answer. */
+  /** Only from a v4 receipt: the optional correction of the guessed object to move. */
   question?: TaskTargetChoiceQuestion | null;
 };
 export type WebsitePreparationNoticeMilestone = "preparation_needs_attention" | "preparation_ended";
@@ -124,7 +124,7 @@ function parseReceipt(raw: unknown, selector: WebsitePreparationSelector): Websi
       || (receipt.schema_version === "website_preparation_status.v3" || receipt.schema_version === "website_preparation_status.v4")
         && receipt.outcome !== null && !["awaiting_inputs", "failed_retryable", "failed_terminal"].includes(receipt.state)
       || receipt.schema_version === "website_preparation_status.v4" && receipt.question !== null
-        && receipt.state !== "awaiting_inputs"
+        && receipt.state === "authority_ended"
       || crossRuntimeArtifactDigest(receipt as unknown as Record<string, unknown>, "status_digest") !== receipt.status_digest)
     throw unavailable();
   return receipt;

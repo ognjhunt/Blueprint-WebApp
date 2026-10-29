@@ -4,6 +4,7 @@ import { withCsrfHeader } from "@/lib/csrf";
 export type TaskTargetChoiceView = {
   questionDigest: string;
   semanticLabel: string;
+  guessedCandidateId: string;
   candidates: Array<{ id: string; label: string; referenceTimeMs: number | null }>;
 };
 
@@ -13,13 +14,16 @@ function at(ms: number | null): string {
   return ` · at ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")} in your video`;
 }
 
-/** The one question a job can wait on. Answering never starts a new job or upload. */
+/** An optional correction: the job already continues with Blueprint's pick. Never a new job or upload. */
 export function TaskTargetChoice({ token, question, onAnswered }: {
   token: string; question: TaskTargetChoiceView; onAnswered: () => void;
 }) {
   const [selected, setSelected] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const guess = question.candidates.find(candidate => candidate.id === question.guessedCandidateId);
+  const others = question.candidates.filter(candidate => candidate.id !== question.guessedCandidateId);
+  if (!guess) return null;
   async function submit() {
     if (!selected || busy) return;
     setBusy(true); setError("");
@@ -27,7 +31,8 @@ export function TaskTargetChoice({ token, question, onAnswered }: {
       const response = await fetch(`/api/site-task-brief/${encodeURIComponent(token)}/task-target-choice`, {
         method: "POST", headers: await withCsrfHeader({ "Content-Type": "application/json" }), referrerPolicy: "no-referrer",
         body: JSON.stringify({ questionDigest: question.questionDigest,
-          choice: selected === "none" ? { kind: "none_of_these" } : { kind: "candidate", candidate_id: selected } }),
+          choice: selected === "confirm" ? { kind: "confirm_guess" } : selected === "none" ? { kind: "none_of_these" }
+            : { kind: "other_candidate", candidate_id: selected } }),
       });
       const result = await response.json().catch(() => null);
       if (!response.ok || result?.ok !== true) throw new Error(result?.error || "Your answer could not be saved. Try again shortly.");
@@ -35,21 +40,19 @@ export function TaskTargetChoice({ token, question, onAnswered }: {
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Your answer could not be saved. Try again shortly."); }
     finally { setBusy(false); }
   }
+  const option = (value: string, text: string) => <label key={value} style={{ display: "flex", gap: "10px", alignItems: "flex-start", margin: "6px 0" }}>
+    <input type="radio" name="task-target-choice" value={value} checked={selected === value}
+      onChange={() => setSelected(value)} style={{ width: "auto", minHeight: 0, marginTop: "4px" }} />
+    <span>{text}</span>
+  </label>;
   return <section className="job-review" aria-labelledby="task-target-choice-title">
-    <h3 id="task-target-choice-title">Which object should the robot move?</h3>
-    <p className="ms-field-hint">Blueprint could not tell for sure which {question.semanticLabel.toLowerCase()} in your video the robot should move. Pick it and Blueprint keeps preparing this same job from your saved video.</p>
+    <h3 id="task-target-choice-title">We picked {guess.label}{at(guess.referenceTimeMs)}. Is that the object the robot should move?</h3>
+    <p className="ms-field-hint">Blueprint could not tell for sure which {question.semanticLabel.toLowerCase()} in your video the robot should move, so it kept preparing this job with its best guess. Answering is optional; if it is not the right one, pick the right one and Blueprint reruns this same job from your saved video.</p>
     <fieldset disabled={busy} style={{ border: 0, padding: 0, margin: "12px 0" }}>
-      <legend className="ms-field-hint">Choose one</legend>
-      {question.candidates.map(candidate => <label key={candidate.id} style={{ display: "flex", gap: "10px", alignItems: "flex-start", margin: "6px 0" }}>
-        <input type="radio" name="task-target-choice" value={candidate.id} checked={selected === candidate.id}
-          onChange={() => setSelected(candidate.id)} style={{ width: "auto", minHeight: 0, marginTop: "4px" }} />
-        <span>{candidate.label}{at(candidate.referenceTimeMs)}</span>
-      </label>)}
-      <label style={{ display: "flex", gap: "10px", alignItems: "flex-start", margin: "6px 0" }}>
-        <input type="radio" name="task-target-choice" value="none" checked={selected === "none"}
-          onChange={() => setSelected("none")} style={{ width: "auto", minHeight: 0, marginTop: "4px" }} />
-        <span>None of these. I will send an updated walkthrough of this job that shows the object clearly.</span>
-      </label>
+      <legend className="ms-field-hint">Your answer</legend>
+      {option("confirm", "Yes, that is the one")}
+      {others.map(candidate => option(candidate.id, `No, it is ${candidate.label}${at(candidate.referenceTimeMs)}`))}
+      {option("none", "None of these. I will send an updated walkthrough of this job that shows the object clearly.")}
     </fieldset>
     <button type="button" className="ms-button" disabled={!selected || busy} onClick={() => void submit()}>
       {busy ? "Saving your answer…" : "Save answer"}
