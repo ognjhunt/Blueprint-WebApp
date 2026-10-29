@@ -298,6 +298,29 @@ async function api(
   });
 }
 describe("workspace access and projections", () => {
+  it.each(["legacy", "current", "stale"])("requires displayed versions for an unverified source-bound acceptance (%s)", async mode => {
+    const explicit = mode === "current";
+    const acceptance = { ...buildLegalAcceptanceRecord({ acceptedAt: "2026-10-23T12:00:00Z" }),
+      terms_version: "2026-11-15.2", privacy_version: "2026-11-15.4" };
+    state.records.set("inboundRequests/unverified-job", { ...task(), account_owner_uid: undefined,
+      contact: { email: "site-1@example.com" }, terms_acceptance: acceptance });
+    const token = createSiteClaimToken("unverified-job");
+    const clock = vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-10-29T04:50:00Z"));
+    try {
+      const response = await fetch(`${base}/setup`, { method: "POST",
+        headers: { "Content-Type": "application/json", "x-user": "site-1", "x-unverified": "1" },
+        body: JSON.stringify({ name: "Site Owner", organization: "Company", workspaceType: "site_operator",
+          siteClaimToken: token, acceptedTerms: true,
+          ...(mode !== "legacy" ? { termsVersion: explicit ? TERMS_VERSION : "2026-11-15.2", privacyVersion: PRIVACY_VERSION } : {}) }) });
+      expect(response.status).toBe(explicit ? 200 : 400);
+      if (explicit) expect(state.records.get("users/site-1")).toMatchObject({
+        termsAcceptance: { accepted_terms: true, terms_version: TERMS_VERSION, privacy_version: PRIVACY_VERSION } });
+      else expect(state.records.get("users/site-1")).not.toHaveProperty("termsAcceptance");
+      expect(state.records.get("inboundRequests/unverified-job").terms_acceptance).toEqual(acceptance);
+      expect(state.records.get("inboundRequests/unverified-job").account_owner_uid).toBeUndefined();
+    } finally { clock.mockRestore(); }
+  });
+
   it.each(["setup", "claim"])("retains the older acceptance versions when %s reuses intake consent", async mode => {
     const clock = vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-10-29T04:50:00Z"));
     try {

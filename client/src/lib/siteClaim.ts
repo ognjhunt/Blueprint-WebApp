@@ -9,6 +9,7 @@
 import type { User } from "firebase/auth";
 import { WorkspaceRequestError, workspaceRequest } from "@/lib/workspace";
 import { MIN_PASSWORD_LENGTH } from "@/lib/passwordPolicy";
+import { TERMS_VERSION, PRIVACY_VERSION } from "@/lib/legalAcceptance";
 
 export interface ClaimContext {
   /** The submission's own email, which the account must use. */
@@ -49,6 +50,7 @@ export async function setUpSiteWorkspace(user: User, context: ClaimContext, acce
     organization: context.organization || context.siteName || "My site",
     workspaceType: "site_operator",
     acceptedTerms,
+    ...(acceptedTerms ? { termsVersion: TERMS_VERSION, privacyVersion: PRIVACY_VERSION } : {}),
     siteClaimToken,
   });
 }

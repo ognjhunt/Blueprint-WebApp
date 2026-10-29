@@ -209,6 +209,8 @@ const accountSetupSchema = z
     name: short,
     organization: short,
     acceptedTerms: z.boolean().optional(),
+    termsVersion: z.literal(TERMS_VERSION).optional(),
+    privacyVersion: z.literal(PRIVACY_VERSION).optional(),
     optionalUpdates: z.boolean().optional(),
     siteClaimToken: z.string().min(1).max(4000).optional(),
   })
@@ -316,7 +318,12 @@ router.post(
       }
       const needsTerms = !currentTermsAccepted(user);
       const intakeTermsApply = Boolean(auth.email_verified === true && siteIntake && isCurrentLegalAcceptance(siteIntake.terms_acceptance));
-      if (needsTerms && !intakeTermsApply && input.acceptedTerms !== true)
+      // Old unverified claim clients used true for prior-intake reuse. On that
+      // path, creating a new record requires the displayed document versions.
+      const acceptsDisplayedTerms = input.acceptedTerms === true && (auth.email_verified === true
+        || (!siteIntake && !input.siteClaimToken)
+        || input.termsVersion === TERMS_VERSION && input.privacyVersion === PRIVACY_VERSION);
+      if (needsTerms && !intakeTermsApply && !acceptsDisplayedTerms)
         refuse(
           400,
           "Accept the Terms and Privacy Policy to set up your workspace.",
