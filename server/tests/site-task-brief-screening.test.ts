@@ -55,7 +55,7 @@ const briefRouter = (await import("../routes/site-task-brief")).default;
 const { gateFields } = await import("../../client/src/data/siteTaskQualification");
 const { createCaptureUploadToken } = await import("../utils/captureUploadToken");
 const { draftBrief, saveBrief, confirmBrief } = await import("../utils/siteTaskBrief");
-const { enqueueOutbox } = await import("../utils/captureOutbox");
+const { enqueueOutbox, deliverOutbox } = await import("../utils/captureOutbox");
 
 let server: Server;
 let baseUrl: string;
@@ -118,6 +118,27 @@ const clearAnswers = () =>
   );
 
 describe("the confirmation says what our screen decided", () => {
+  it.each(["needs_conversation", "qualified"])("an unchanged HTTP confirmation does not repeat %s messages or work", async disposition => {
+    const answers = disposition === "qualified" ? clearAnswers() : {};
+    const first = await confirm(answers);
+    expect(first.status).toBe(200);
+    expect((await first.json()).disposition).toBe(disposition);
+    if (disposition === "needs_conversation") {
+      await vi.waitFor(() => expect(notifySlackScreeningCallNeeded).toHaveBeenCalledTimes(1));
+    }
+    const before = structuredClone([...sharedFakeFirestoreState.docs.entries()]);
+    const queued = vi.mocked(enqueueOutbox).mock.calls.length;
+    const delivered = vi.mocked(deliverOutbox).mock.calls.length;
+    const notified = notifySlackScreeningCallNeeded.mock.calls.length;
+    const response = await confirm(answers);
+    expect(response.status).toBe(200);
+    expect((await response.json()).disposition).toBe(disposition);
+    expect([...sharedFakeFirestoreState.docs.entries()]).toEqual(before);
+    expect(enqueueOutbox).toHaveBeenCalledTimes(queued);
+    expect(deliverOutbox).toHaveBeenCalledTimes(delivered);
+    expect(notifySlackScreeningCallNeeded).toHaveBeenCalledTimes(notified);
+  });
+
   it("offers written clarification or a call without clearing the preparation gate", async () => {
     const response = await confirm();
     expect(response.status).toBe(200);

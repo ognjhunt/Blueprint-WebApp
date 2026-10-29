@@ -899,7 +899,7 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
     try {
       const request = await readRequestForStatus(payload.requestId);
       coverageMeasured = typeof request?.capture_coverage?.covers_scene === "boolean";
-      if (request?.contactEmail && !scoreable) {
+      if (!result.reusedConfirmation && request?.contactEmail && !scoreable) {
         const email = buildTaskNotYetSupportedEmail({
           firstName: request.contactFirstName || "there",
           siteName: request.siteName,
@@ -916,7 +916,7 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
         });
         void deliverOutbox({ limit: 5 }).catch((error) =>
           logger.warn({ error, requestId: payload.requestId }, "Task scope email delivery deferred to outbox"));
-      } else if (request?.contactEmail) {
+      } else if (!result.reusedConfirmation && request?.contactEmail) {
         // The verdict `confirmBrief` just wrote. Its own disposition stands in
         // for a record that has not caught up, so a qualified site always hears
         // its next step.
@@ -961,7 +961,7 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
     // A site that needs a call gets no scene until ops records the call, so
     // ops has to hear about it: the request carries the next step and Slack
     // rings. Best-effort; neither may fail the operator's confirmation.
-    if (scoreable && result.disposition === "needs_conversation" && db) {
+    if (!result.reusedConfirmation && scoreable && result.disposition === "needs_conversation" && db) {
       const agenda = await db.collection("inboundRequests").doc(payload.requestId).get()
         .then((snap) => (snap.data()?.site_task_triage?.open_questions as string[] | undefined) ?? [])
         .catch(() => []);
