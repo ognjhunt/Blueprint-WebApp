@@ -40,6 +40,8 @@ import {
   BriefPilotScopeLockedError,
   confirmBrief,
   getBrief,
+  isPlaceholderSummary,
+  nameUnnamedTask,
   type SiteTaskBriefRecord,
 } from "../utils/siteTaskBrief";
 import {
@@ -520,6 +522,9 @@ router.get("/:token", async (req: Request, res: Response) => {
       scope: payload.scope,
       brief: presented,
       account: payload.scope === "owner" ? await siteAccountFor(payload.requestId) : null,
+      // Asked only once the footage was read and showed no job to draft.
+      ...(payload.scope === "owner" ? { taskStatementNeeded: !brief.confirmedAtIso && isPlaceholderSummary(brief.summary)
+        && recorded?.capture_task_statement_draft?.state === "none_seen" } : {}),
     });
   } catch (error) {
     logger.error({ error, requestId: payload.requestId }, "Could not load a task brief");
@@ -815,6 +820,32 @@ router.post("/:token/fresh-link", async (req: Request, res: Response) => {
     logger.warn({ error, requestId }, "Could not queue a fresh task link");
   }
   return reply();
+});
+
+// Owner decision 2026-10-29: the job is drafted from the video; when the footage
+// shows none, the site names it in one line. Only an unnamed, unconfirmed brief.
+router.post("/:token/task-statement", async (req: Request, res: Response) => {
+  const payload = verifyCaptureUploadToken(String(req.params.token || ""));
+  if (!payload) {
+    return res.status(404).json({ error: "That link is not valid any more.", code: "capture_token_invalid" });
+  }
+  if (payload.scope !== "owner") {
+    return res.status(403).json({ error: "This link is for recording only.", code: "capture_token_film_only" });
+  }
+  const summary = typeof req.body?.summary === "string" ? req.body.summary.trim() : "";
+  if (!summary || summary.length > 300 || isPlaceholderSummary(summary)) {
+    return res.status(400).json({ error: "Describe the job in one line.", code: "task_statement_invalid" });
+  }
+  try {
+    const named = await nameUnnamedTask({ requestId: payload.requestId, summary });
+    if (!named) {
+      return res.status(409).json({ error: "This job already has a description.", code: "task_statement_already_named" });
+    }
+    return res.status(200).json({ brief: presentBrief(named) });
+  } catch (error) {
+    logger.error({ error, requestId: payload.requestId }, "Could not name the job");
+    return res.status(503).json({ error: "The job could not be saved", code: "task_brief_unavailable" });
+  }
 });
 
 router.post("/:token/confirm", async (req: Request, res: Response) => {

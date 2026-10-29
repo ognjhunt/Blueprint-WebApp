@@ -77,6 +77,8 @@ export interface CaptureCoverageInput {
    * every real one.
    */
   requestedViews: { id: string; label: string }[];
+  /** True while the site has not described its job: the reviewer then proposes one from the footage. */
+  draftTaskStatement?: boolean;
 }
 
 export const captureCoverageOutputSchema = z
@@ -122,6 +124,12 @@ export const captureCoverageOutputSchema = z
     confidence: z.number().min(0).max(1),
     /** Educated estimates of the job; never a coverage claim. */
     job_estimates: jobEstimatesField,
+    /**
+     * The job the footage shows, as one instruction, while the site has not
+     * described it. A proposal the site corrects; never a coverage claim.
+     * Absent from reviews stored before it existed.
+     */
+    proposed_task_statement: z.string().trim().min(1).max(300).nullish(),
   })
   .strict();
 
@@ -185,6 +193,7 @@ Then:
 - missing_views: what to film to finish, phrased so somebody standing in the room could act on it. "A view of where the cartons are placed" — not "insufficient coverage of the destination zone" and never "a better video".
 - supplement_would_finish: true when one more short clip would do it. False when the recording would need doing again. Do not say true to be kind; being wrong here sends somebody out for a clip that will not help.
 - unreadable_reasons: only when something stopped you reading the footage at all.
+${input.draftTaskStatement ? `- proposed_task_statement: the site has not described its job yet. Name the one job a robot arm would do in this footage: an object it would pick up and where that object goes, or a door or drawer it would open. Write it as one instruction naming the object and its destination, for example "Pick up the blue tote from the left shelf and place it on the cart." Use only what the footage shows; the site corrects it. null when the footage shows no such job.` : "- proposed_task_statement: null."}
 
 ${input.supplementaryViewsOnly ? "job_estimates: null. A supplementary recording shows part of the work, so it estimates nothing." : `${JOB_ESTIMATES_INSTRUCTIONS}
 - Here they never change covers_scene, views, missing_views or supplement_would_finish. The hard limits below still apply.`}
@@ -208,6 +217,7 @@ Hard limits:
         unreadable_reasons: [""],
         confidence: 0.0,
         job_estimates: input.supplementaryViewsOnly ? null : JOB_ESTIMATES_RETURN_SHAPE,
+        proposed_task_statement: input.draftTaskStatement ? "" : null,
       },
       payload: input,
     });
