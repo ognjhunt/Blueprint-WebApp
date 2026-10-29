@@ -5,11 +5,11 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { sharedFakeFirestore as db, sharedFakeFirestoreState as store } from "./helpers/fake-firestore";
 const sdk = vi.hoisted(() => vi.fn());
-const authority = vi.hoisted(() => vi.fn(async (): Promise<"current" | "obsolete" | "review_required"> => "current"));
+const authority = vi.hoisted(() => vi.fn(async () => true));
 vi.mock("resend", () => ({ Resend: class { emails = { send: sdk }; } }));
 vi.mock("../../client/src/lib/firebaseAdmin", async () => ({default:{firestore:{FieldValue:{serverTimestamp:()=>"SERVER_TIMESTAMP"}}},dbAdmin:(await import("./helpers/fake-firestore")).sharedFakeFirestore}));
 vi.mock("../logger", () => ({logger:{warn:vi.fn(),error:vi.fn(),info:vi.fn(),debug:vi.fn()}}));
-vi.mock("../utils/robotTeamAccessNotificationAuthority",()=>({robotTeamAccessNotificationAuthority:authority}));
+vi.mock("../utils/pilotRecommendationNotifications", () => ({pilotRecommendationNotificationIsCurrent:authority}));
 import { deliverOutbox, enqueueOutbox, reconcileOutboxDeliveries } from "../utils/captureOutbox";
 const row = () => store.docs.get("captureOutbox/reliability:notice") as Record<string, any>;
 const input = () => ({idempotencyKey:"reliability:notice",requestId:"reliability",kind:"task_received" as const,to:"sink@example.invalid",subject:"synthetic",body:"synthetic"});
@@ -24,7 +24,7 @@ function define(family:string, name:string, parameters:Record<string,any>, expec
  cases.push({caseId,family:canonicalFamily,parameters,expectedTransitions,assertions:["durable fake state matches transition", "provider effects bounded by persisted attempts", "no uncertain automatic replay"],layer:"fake-provider-integration/fake-firestore",providerMode:"mocked Resend SDK transport; actual sendEmail wrapper",semanticHash,replayCommand:`npx vitest run server/tests/reliability-queue-program.test.ts -t '${caseId}'`});
  it(caseId, async()=>{const start=performance.now();try{await run();results.push({caseId,status:"passed",attempted:true,repeat:1,latencyMs:performance.now()-start,providerCalls:sdk.mock.calls.length});}catch(error){results.push({caseId,status:"failed",attempted:true,repeat:1,latencyMs:performance.now()-start,providerCalls:sdk.mock.calls.length,error:error instanceof Error?error.message:"failed"});throw error;}});
 }
-beforeEach(()=>{store.docs.clear();store.docs.set("inboundRequests/reliability",{request:{consent_attestation:{granted:true,statement_version:"2026-09-18.v1",recorded_at_iso:"2026-01-01T00:00:00Z"}}});sdk.mockReset().mockResolvedValue({data:{id:"synthetic-accepted"},error:null});authority.mockReset().mockResolvedValue("current");vi.stubEnv("RESEND_API_KEY","synthetic-sink-only");vi.stubEnv("RESEND_FROM_EMAIL","sink@example.invalid");vi.stubEnv("NODE_ENV","test");});
+beforeEach(()=>{store.docs.clear();store.docs.set("inboundRequests/reliability",{request:{consent_attestation:{granted:true,statement_version:"2026-09-18.v1",recorded_at_iso:"2026-01-01T00:00:00Z"}}});sdk.mockReset().mockResolvedValue({data:{id:"synthetic-accepted"},error:null});authority.mockReset().mockResolvedValue(true);vi.stubEnv("RESEND_API_KEY","synthetic-sink-only");vi.stubEnv("RESEND_FROM_EMAIL","sink@example.invalid");vi.stubEnv("NODE_ENV","test");});
 afterEach(()=>{vi.restoreAllMocks();vi.unstubAllEnvs();});
 afterAll(()=>{const output=process.env.BLUEPRINT_RELIABILITY_B_OUTPUT;if(!output)return;mkdirSync(output,{recursive:true});writeFileSync(`${output}/cases.json`,JSON.stringify({schemaVersion:1,freezeVersion:"charter-v1",cases},null,2));writeFileSync(`${output}/results.json`,JSON.stringify({schemaVersion:1,layer:"actual outbox/email handlers, serialized in-memory Firestore, mocked Resend SDK",generated:cases.length,deduplicated:new Set(cases.map(c=>c.semanticHash)).size,attempted:results.length,passed:results.filter(r=>r.status==="passed").length,failed:results.filter(r=>r.status==="failed").length,skipped:0,blocked:0,partiallyExecuted:0,results},null,2));});
 function failWrite(status:string){const original=db.runTransaction.bind(db);return vi.spyOn(db,"runTransaction").mockImplementation(async (callback:any)=>original(async(tx:any)=>callback({...tx,set:(ref:any,data:any,options:any)=>{if(data.status===status)throw new Error(`synthetic-write-failed-${status}`);return tx.set(ref,data,options);}})));}
@@ -46,7 +46,7 @@ describe("provider failure semantics",()=>{
 
 describe("ordering semantics",()=>{
  for(const field of ["idempotencyKey","requestId","kind","to","subject","body","replyTo"])define("ordering",`changed-${field}-before-dispatch`,{field,boundary:"claim-to-dispatch",change:"successor"},["pending","claimed","pending"],async()=>{
-  await enqueueOutbox(input());authority.mockImplementation(async()=>{row()[field]="successor";return "current";});
+  await enqueueOutbox(input());authority.mockImplementation(async()=>{row()[field]="successor";return true;});
   // Change before the dispatch transaction reads the row, rather than after digest validation.
   const original=db.runTransaction.bind(db);let transactions=0;vi.spyOn(db,"runTransaction").mockImplementation(async(callback:any)=>{transactions++;if(transactions===2)row()[field]="successor";return original(callback);});
   await deliverOutbox();expect(row().status).toBe("pending");expect(row().attempts).toBe(0);expect(sdk).not.toHaveBeenCalled();

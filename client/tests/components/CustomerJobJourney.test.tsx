@@ -1,14 +1,17 @@
 // @vitest-environment jsdom
 // One joined software proof, using the existing req-1 intake fixture pattern.
-// Video analysis is a safe fixture; nothing here arranges a physical pilot.
+// Video analysis and Calendar are safe fixtures; this never books a physical pilot.
 import { afterEach, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import express from "express";
 import nodeFetch from "node-fetch";
 import { createServer } from "node:http";
 import { sharedFakeFirestore as store, sharedFakeFirestoreState as state } from "../../../server/tests/helpers/fake-firestore";
+import { completeSupplyAgreement, syntheticSupplyExecutionAdmission } from "../../../server/tests/helpers/supply-agreement";
+import { syntheticQualifiedRun } from "../../../server/tests/helpers/recommendation-evidence";
 import { TaskBriefReview } from "@/components/site/TaskBriefReview";
 import { PublicTaskListing } from "@/components/site/PublicTaskListing";
+import { RecommendedPilot } from "@/components/site/RecommendedPilot";
 import { SiteAdvisoryReport } from "@/components/site/SiteAdvisoryReport";
 
 vi.mock("@/lib/csrf", () => ({ withCsrfHeader: async (headers: Record<string, string>) => headers }));
@@ -23,6 +26,8 @@ vi.mock("../../../server/utils/email", () => ({ sendEmail: vi.fn(() => { throw n
 vi.mock("../../../server/utils/captureOutbox", async original => ({ ...(await original<typeof import("../../../server/utils/captureOutbox")>()), deliverOutbox: vi.fn(async () => ({ sent: 0 })) }));
 const participant = vi.hoisted(() => ({ email: "team@example.test" }));
 vi.mock("../../../server/middleware/verifyFirebaseToken", () => ({ default: (_req: unknown, res: any, next: () => void) => { res.locals.firebaseUser = { uid: "fixture-team-user", email: participant.email, email_verified: true }; next(); } }));
+const calendar = vi.hoisted(() => vi.fn(async () => ({ calendarEventId: "fixture_calendar", calendarId: "simulated", startsAt: "2026-11-10T15:00:00Z", endsAt: "2026-11-10T17:00:00Z" })));
+vi.mock("../../../server/utils/google-calendar", () => ({ readPilotCalendarEvent: calendar }));
 vi.mock("../../../server/utils/siteAssessmentPublic", async original => {
   const module = await original<typeof import("../../../server/utils/siteAssessmentPublic")>();
   const packet = { schema_version: "site_assessment.v2", sources: [{ source_id: "video:synthetic", kind: "video", content: { duration_seconds: 10,
@@ -39,13 +44,24 @@ const adminRouter = (await import("../../../server/routes/admin-robot-teams")).d
 const { draftBrief, saveBrief, confirmBrief } = await import("../../../server/utils/siteTaskBrief");
 const { createCaptureUploadToken } = await import("../../../server/utils/captureUploadToken");
 const { accessRecordId } = await import("../../../server/utils/robotTeamEarlyAccess");
+const { humanDecisionDigest } = await import("../../../server/utils/human-reply-admission");
 afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
-it("joins the existing job, bounded review, team interest and Blueprint's reviewed decision", async () => {
-  state.docs.clear();
+it("joins the existing job, bounded review, proposal acceptance and evidence-gated simulated scheduling", async () => {
+  state.docs.clear(); calendar.mockClear();
   state.docs.set("inboundRequests/req-1", { requestId: "req-1", contact: { firstName: "Dana", email: "owner@example.test" },
     request: { buyerType: "site_operator", capture_mode: "self_capture", taskStatement: "Move cartons onto a pallet" },
     siteTaskGates: { sceneStability: "stable", taskShape: "single", objectVariety: "under_10" } });
+  // Engaged only with its recorded supply agreement; the status word alone is not supply.
+  state.docs.set("robotTeams/fixture-team", { id: "fixture-team", name: "Fixture admitted team", status: "engaged", contactEmail: "team@example.test",
+    supplyAgreement: completeSupplyAgreement() });
+  // Synthetic qualified simulation evidence only: it is never physical proof.
+  const qualified = syntheticQualifiedRun("req-1", "run_fixture");
+  state.docs.set("evaluationRuns/run_fixture", { ...qualified, teamId: "fixture-team", checkpointId: "ckpt_fixture",
+    executionAdmission: { ...qualified.executionAdmission, envelope: { ...qualified.executionAdmission!.envelope,
+      canonical_execution_request: syntheticSupplyExecutionAdmission().envelope.canonical_execution_request } },
+    result: { ...qualified.result!, teamId: "fixture-team", checkpointId: "ckpt_fixture",
+      observed: { ...qualified.result!.observed, medianCycleSeconds: 12 } } });
   state.docs.set(`robotTeamAccess/${accessRecordId("team@example.test")}`, { status: "approved", company: "Fixture admitted team" });
   const initial = draftBrief({ requestId: "req-1", summary: "Move cartons onto a pallet", captureMode: "self_capture", proposed: [
     { fieldId: "sceneStability", value: "stable", basis: "observation", reading: "Station position in this clip only", atSeconds: 2, confidence: 0.9 },
@@ -58,6 +74,7 @@ it("joins the existing job, bounded review, team interest and Blueprint's review
   const request = (path: string, body?: unknown) => originalFetch(`${base}${path}`, body ? { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) } : undefined);
   vi.stubGlobal("fetch", (path: string, options?: RequestInit) => originalFetch(path.startsWith("/") ? `${base}${path}` : path, options));
   const job = () => state.docs.get("inboundRequests/req-1") as any;
+  const notices = (kind: string) => [...state.docs.values()].filter(row => row.kind === kind);
   try {
     const intake = await (await request(`/api/site-task-brief/${token}`)).json();
     expect(intake.brief.requestId).toBe("req-1");
@@ -96,29 +113,73 @@ it("joins the existing job, bounded review, team interest and Blueprint's review
     expect(screen.getByText("Your job assessment")).toBeInTheDocument();
     expect(screen.queryByText(/A carton moves onto the pallet/)).toBeNull();
     expect(screen.queryByText(/Untrusted prose/)).toBeNull(); assessment.unmount();
-    expect(draft).not.toHaveProperty("recommendation");
+    expect(draft.sources.successCondition).toMatch(/siteTaskBriefs\/req-1/);
+    expect(draft.teams).toHaveLength(1);
     expect(draft.communications.route).toBe("/api/admin/robot-teams/jobs/req-1/communications");
     const decision = { sourceDigest: draft.decisionSourceDigest, recommendation: "Investigate an isolated carton-handling pilot with the admitted team",
       why: "The observed transfer is technically plausible; weight and guarding remain unverified", decisiveUncertainty: "Actual carton weight is not established by the video",
-      nextAction: "Blueprint will obtain the team’s scope and written quote before any physical commitment", question: null };
+      nextAction: "Blueprint will obtain the team’s scope and written quote before proposing a physical commitment", question: null };
     expect((await request("/api/admin/robot-teams/recommendations/req-1/decision", decision)).status).toBe(200);
     expect((await request("/api/admin/robot-teams/recommendations/req-1/decision", decision)).status).toBe(200);
-    expect(job().customer_decision).toMatchObject({ recommendation: decision.recommendation, nextAction: decision.nextAction });
-    expect((await (await request("/api/admin/robot-teams/recommendations/req-1")).json()).decision).toMatchObject({ recommendation: decision.recommendation });
+    const decidedView = render(<RecommendedPilot token={token} />);
+    expect(await screen.findByText(decision.recommendation)).toBeInTheDocument();
+    expect(screen.getByText(decision.why)).toBeInTheDocument();
+    expect(screen.getByText(decision.nextAction)).toBeInTheDocument();
+    expect(job().pilot_booking).toBeUndefined(); decidedView.unmount();
+    const plan = { ...draft.draft, evaluationRunId: "run_fixture", teamId: "fixture-team", briefRevision: draft.briefRevision,
+      siteProvides: "Escort and isolated station", teamProvides: "Robot, operator and setup", pilotCost: "Fixture quote $18,000", costBasis: "Simulated quote, not an authorized purchase", window: "November, provisional",
+      sitePreparation: "Site isolates the station; team reviews guarding", humanWork: "Named escort and robot operator", capabilityBasis: "Hypothesis from admitted team's supplied capability; untested here", providerCommitment: "Not yet committed" };
+    const proposal = await (await request("/api/admin/robot-teams/recommendations/req-1", plan)).json();
+    expect(proposal.ok).toBe(true);
+    expect((await (await request("/api/admin/robot-teams/recommendations/req-1", plan)).json()).id).toBe(proposal.id);
+    expect(notices("pilot_recommended")).toHaveLength(1);
     const teamResponse = (body: unknown) => originalFetch(`${base}/api/site-worlds/tasks/req-1/interest`, { method: "POST", headers: { "content-type": "application/json", "x-csrf-token": "fixture-csrf", cookie: "csrf_token=fixture-csrf", authorization: "Bearer fixture" }, body: JSON.stringify(body) });
-    const interest = { state: "interested", inputs: "Simulated provider can scope this carton transfer" };
+    const commitment = { state: "committed", inputs: "Simulated provider confirms quoted scope; date still subject to site agreement", recommendationId: proposal.id, authorized: true };
     participant.email = "unadmitted@example.test";
-    expect((await teamResponse(interest)).status).toBe(403);
+    expect((await teamResponse(commitment)).status).toBe(403);
+    participant.email = "other@example.test";
+    state.docs.set(`robotTeamAccess/${accessRecordId(participant.email)}`, { status: "approved", company: "Other team" });
+    expect((await teamResponse(commitment)).status).toBe(409);
     participant.email = "team@example.test";
-    // A team can no longer commit to a recommended pilot; the old state is refused.
-    expect((await teamResponse({ ...interest, state: "committed" })).status).toBe(400);
-    expect((await teamResponse(interest)).status).toBe(200);
-    expect((await teamResponse(interest)).status).toBe(200);
+    expect((await teamResponse({ ...commitment, authorized: false })).status).toBe(400);
+    expect((await teamResponse({ ...commitment, recommendationId: "obsolete" })).status).toBe(409);
+    expect((await teamResponse(commitment)).status).toBe(200);
+    expect((await teamResponse(commitment)).status).toBe(200);
     expect([...state.docs.keys()].filter(key => key.startsWith("inboundRequests/req-1/robotTeamInterest/"))).toHaveLength(1);
-    // Material corrections retain the public customer edits, deliberately pausing the card.
+    expect(job().pilot_booking).toBeUndefined();
+    const pilot = render(<RecommendedPilot token={token} />);
+    fireEvent.click(await screen.findByLabelText(/authorized to choose this delivery partner/i));
+    fireEvent.click(screen.getByRole("button", { name: /Choose this pilot proposal/i }));
+    expect(await screen.findByRole("status")).toHaveTextContent(/Delivery partner selected.*pilot terms still need agreement/);
+    const acceptance = { recommendationId: proposal.id, authorized: true };
+    expect((await request(`/api/task-listings/owner/${token}/book`, acceptance)).status).toBe(200);
+    expect(notices("pilot_booked")).toHaveLength(1);
+    expect(notices("pilot_booked")[0].body).toMatch(/No contract is signed or date reserved by this selection/);
+    expect(job().pilot_booking.bookedAtIso).toBeUndefined();
+    pilot.unmount();
+    // Material corrections retain the public customer edits and accepted commercial record, deliberately pausing dependent grants.
+    const accepted = { ...job().pilot_booking };
     await confirmBrief({ requestId: "req-1", confirmedBy: "Dana", successCriteria: { successDefinition: "Carton reaches pallet intact", successRate: 98, cycleTimeSeconds: 20, unknown: false } });
     expect(job().public_task_listing).toMatchObject({ enabled: false, reviewRequired: true, details: { title: "Public customer-edited job title" } });
-    expect(job().pilot_booking).toBeUndefined();
+    expect(job().pilot_booking).toEqual(accepted);
+    const latestBrief = state.docs.get("siteTaskBriefs/req-1");
+    const evidence = { providerAgreement: { agreedBy: "Fixture provider representative", evidenceRef: "https://example.test/simulated-provider-agreement" }, siteAgreement: { agreedBy: "Fixture site representative", evidenceRef: "https://example.test/simulated-site-agreement" } };
+    const coordinate = { recommendationId: proposal.id, calendarEventId: "fixture_calendar", ...evidence, sitePreparation: "Site isolates station; team provides robot operator and verifies guarding", verifiedAgreements: true };
+    expect((await request("/api/admin/robot-teams/recommendations/req-1/coordination", coordinate)).status).toBe(409);
+    expect((await request("/api/admin/robot-teams/recommendations/req-1/reconcile", { recommendationId: proposal.id, briefRevision: humanDecisionDigest(latestBrief), ...evidence, verifiedUnchangedScope: true })).status).toBe(200);
+    expect((await request("/api/admin/robot-teams/recommendations/req-1/coordination", { ...coordinate, verifiedAgreements: false })).status).toBe(400);
+    const scheduled = await request("/api/admin/robot-teams/recommendations/req-1/coordination", coordinate);
+    expect(scheduled.status).toBe(200);
+    expect((await scheduled.json()).coordination.state).toBe("scheduled");
+    expect((await request("/api/admin/robot-teams/recommendations/req-1/coordination", coordinate)).status).toBe(200);
+    expect(notices("pilot_scheduled")).toHaveLength(1);
+    const scheduledView = render(<RecommendedPilot token={token} />);
+    expect(await screen.findByRole("status")).toHaveTextContent(/Scheduled:/);
+    expect(screen.getByRole("status")).toHaveTextContent(/Site isolates station/);
+    scheduledView.unmount();
+    const retry = await (await request(`/api/task-listings/owner/${token}/book`, acceptance)).json();
+    expect(retry.coordination.state).toBe("scheduled");
+    expect(job().pilot_booking.amountUsd).toBe(accepted.amountUsd);
     expect(state.docs.has("inboundRequests/req-2")).toBe(false);
   } finally { await new Promise<void>(resolve => server.close(() => resolve())); }
 });

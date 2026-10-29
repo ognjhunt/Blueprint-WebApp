@@ -134,3 +134,16 @@ export async function updateGoogleCalendarEvent(params: {
 
   return params.eventId;
 }
+
+/** Read an already arranged event. An event alone never proves either party's agreement. */
+export async function readPilotCalendarEvent(eventId: string) {
+  const calendarId = resolveCalendarId();
+  const calendar = google.calendar({ version: "v3", auth: getGoogleAuth() });
+  const { data } = await calendar.events.get({ calendarId, eventId });
+  const startsAt = data.start?.dateTime, endsAt = data.end?.dateTime;
+  if (data.status !== "confirmed" || !startsAt || !endsAt
+    || !Number.isFinite(Date.parse(startsAt)) || !Number.isFinite(Date.parse(endsAt)) || Date.parse(endsAt) <= Date.parse(startsAt)) {
+    throw new Error("pilot_calendar_date_unconfirmed");
+  }
+  return { calendarEventId: eventId, startsAt, endsAt, calendarId };
+}

@@ -76,9 +76,11 @@ import { alertOpsEvaluationNeedsAdmission } from "../utils/pilotOpsAlerts";
 import { accessRecordId, ensureApprovedTeamForAccount, resolveViewerAccess } from "../utils/robotTeamEarlyAccess";
 import { accountHasAdmission } from "../utils/accountInvitations";
 import { resolveAccessContext } from "../utils/access-control";
+import { siteVisitOptions } from "../../client/src/data/sitePilotIntent";
 import { projectWebsiteCaptureWithdrawal, recordWebsiteCaptureWithdrawal } from "../utils/websiteCaptureWithdrawal";
 import { downloadableWebsiteAtlasPreview, projectWebsiteAtlasPreview, selectWebsiteAtlasPreview, WEBSITE_ATLAS_CAPTURE_ID,
   websiteAtlasPreviewDownloadUrl } from "../utils/websiteAtlasPreview";
+import { projectPilotBooking } from "../utils/pilotContactExchange";
 import { listCheckpoints } from "../utils/robotCheckpoints";
 import { offersTeamEvaluation, TEAM_POLICY_BLOCKER_MESSAGES, teamPolicyBlocker, robotSetupIntegrationBlocker, type TeamPolicyBlocker } from "../utils/policyIntegration";
 import { notCountedReason } from "../utils/pilotRecommendationEvidence";
@@ -730,6 +732,8 @@ async function hydrateTask(requestId: string, record: Record<string, any>) {
   }
   // Development-only, unscaled; gone the moment recording consent is withdrawn.
   task.atlasPreview = consentRevoked ? null : projectWebsiteAtlasPreview(record);
+  // The booked pilot with the robot team's contact, while both consents stand.
+  task.pilotBooking = await projectPilotBooking(record, "site").catch(() => null);
   return task;
 }
 async function listSetups(uid: string): Promise<RobotSetup[]> {
@@ -782,17 +786,29 @@ router.get(
       .limit(200)
       .get();
     const evaluations: WorkspaceEvaluation[] = [];
+    // A booked pilot is shown, with the site's contact, only to the team it
+    // was recommended with.
+    const callerTeamIds = new Set((await teamsForAccount(caller.uid)).map((team) => team.id));
+    const bookedWithCaller = async (record: Record<string, any>) => {
+      const recommendation = object(record.pilot_recommendation);
+      const teamIds = [recommendation.teamId, ...(Array.isArray(recommendation.registryTeamIds) ? recommendation.registryTeamIds : [])];
+      return teamIds.some((teamId) => typeof teamId === "string" && callerTeamIds.has(teamId))
+        ? projectPilotBooking(record, "team").catch(() => null)
+        : null;
+    };
     for (const item of requests.filter(
       (item) => item.record.workspace_evaluation,
     )) {
       const application = object(item.record.workspace_evaluation);
       let task: WorkspaceTask | null = null;
+      let pilotBooking: Awaited<ReturnType<typeof projectPilotBooking>> = null;
       try {
         const source = await readRequest(text(application.opportunityId));
         task = projectWorkspaceTask(
           text(application.opportunityId),
           source.record,
         );
+        pilotBooking = await bookedWithCaller(source.record);
       } catch (error) {
         if ((error as any).status !== 404) throw error;
       }
@@ -860,6 +876,7 @@ router.get(
           "pilot_complete",
         ].includes(outcome || ""),
         createdAt: iso(item.record.createdAt),
+        pilotBooking,
       });
     }
     for (const run of runs.docs.filter(
@@ -1590,19 +1607,41 @@ router.post(
     const item = await ownedTask(req.params.taskId, res);
     const input = z
       .object({
-        action: z.enum(["start", "complete", "deploy", "close"]),
+        action: z.enum(["invite", "start", "complete", "deploy", "close"]),
         resultId: id.nullable(),
         notes: z.string().trim().min(1).max(2000),
+        siteVisitAnswer: z.enum(siteVisitOptions.map((option) => option.value) as ["yes", "subject_to_approval", "no", "undecided"]).optional(),
       })
       .strict()
       .parse(req.body);
+    if (input.action === "invite" && !input.siteVisitAnswer)
+      refuse(400, "Say whether the selected partner could work on site before inviting a pilot.");
+    if (input.action === "invite" && projectWebsiteCaptureRights(item.record).consent_revoked)
+      refuse(409, "Recording permission for this job was withdrawn, so a pilot can no longer be arranged.", "site_consent_withdrawn");
+    const task = await hydrateTask(req.params.taskId, item.record);
+    const selected = task.results.find(
+      (result) => result.id === input.resultId,
+    );
+    if (
+      input.action === "invite" &&
+      (!selected ||
+        selected.targetsMet !== true ||
+        selected.sampleCount === null ||
+        selected.sampleCount <= 0)
+    )
+      refuse(
+        409,
+        "Choose a team whose recorded evaluation meets the current job targets before inviting a pilot.",
+      );
     const transitions: Record<string, string> = {
+      invite: "selected",
       start: "pilot",
       complete: "pilot_complete",
       deploy: "deployed",
       close: "closed",
     };
     const allowed: Record<string, string[]> = {
+      invite: ["not_selected"],
       start: ["selected", "invited"],
       complete: ["pilot"],
       deploy: ["pilot_complete"],
@@ -1617,7 +1656,7 @@ router.post(
     };
     const encryptedNotes = await encryptFieldValue(input.notes);
     const auditNote = await encryptFieldValue(
-      `Site decision: ${transitions[input.action]}. ${input.notes}`,
+      `Site decision: ${transitions[input.action]}. ${input.action === "invite" && selected ? `Application ${selected.id}; ${selected.teamAlias}; ${selected.successRate}% success; ${selected.cycleTimeSeconds ?? "unrecorded"} sec/cycle; ${selected.sampleCount} trials; ${selected.evidenceLabel}. ` : ""}${input.notes}`,
     );
     const noteRef = item.ref.collection("notes").doc();
     await db!.runTransaction(async (transaction) => {
@@ -1637,9 +1676,14 @@ router.post(
       const pilot = {
         state: transitions[input.action],
         selectedResultId:
-          object(object(data.workspace_task).pilot).selectedResultId || null,
+          input.action === "invite"
+            ? input.resultId
+            : object(object(data.workspace_task).pilot).selectedResultId ||
+              null,
         notes: encryptedNotes,
-        siteVisitAnswer: object(object(data.workspace_task).pilot).siteVisitAnswer ?? null,
+        siteVisitAnswer: input.action === "invite"
+          ? input.siteVisitAnswer
+          : object(object(data.workspace_task).pilot).siteVisitAnswer ?? null,
         recordedBy: identity(res).uid,
         recordedAt: new Date().toISOString(),
         source: "site_reported",
@@ -1654,10 +1698,19 @@ router.post(
       transaction.update(item.ref, {
         "workspace_task.pilot": pilot,
         "workspace_task.archived": input.action === "close",
-        "ops.next_step": `Site recorded ${pilot.state}. Review request notes.`,
+        "ops.next_step":
+          input.action === "invite"
+            ? "Site selected a pilot team. Coordinate the invitation and agree pilot terms."
+            : `Site recorded ${pilot.state}. Review request notes.`,
       });
     });
-    return res.json({ ok: true, message: "Outcome recorded." });
+    return res.json({
+      ok: true,
+      message:
+        input.action === "invite"
+          ? "Partner selected for a pilot. Blueprint passes on your invitation; you and the partner agree the pilot's dates and terms directly."
+          : "Outcome recorded.",
+    });
   }),
 );
 router.post(

@@ -78,14 +78,15 @@ describe("job overview", () => {
   });
 });
 
-describe("historical pilot follow-through", () => {
-  it("records start, outcome and deployment separately against a previously selected run", async () => {
+describe("booked pilot follow-through", () => {
+  it("records start, outcome and deployment separately against the booked run", async () => {
     window.history.replaceState({}, "", "/app/tasks/owned-task?tab=results");
     request.mockResolvedValue({ ok: true });
-    fixture.task = { status: "Pilot booked", pilot: { state: "selected", selectedResultId: "qualified-run" } };
+    fixture.task = { status: "Pilot booked", pilot: { state: "selected", selectedResultId: "qualified-run" },
+      pilotBooking: { recommendationId: "rec_book", contact: { email: "team@example.test" } } };
     const view = render(<TaskDetail />);
-    expect(screen.queryByRole("heading", { name: "Delivery partner selected" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /@/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Delivery partner selected" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "team@example.test" })).toHaveAttribute("href", "mailto:team@example.test");
     expect(screen.queryByText("Outcome recorded by your site.")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Record pilot outcome/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Record deployment/ })).not.toBeInTheDocument();
@@ -110,13 +111,24 @@ describe("historical pilot follow-through", () => {
   });
 });
 
-describe("the pilot section", () => {
+/**
+ * Audit N14: the job page said "Book it on your task page" before Blueprint had
+ * recommended anything, so a site went looking for a booking that did not exist.
+ */
+describe("booking a pilot", () => {
   beforeEach(() => window.history.replaceState({}, "", "/app/tasks/owned-task?tab=results"));
 
-  it("offers no booking or proposal action, and says Blueprint works with a deployment company", () => {
+  it("offers no booking until Blueprint recommends a pilot, and says what comes first", () => {
     render(<TaskDetail />);
-    expect(screen.queryByRole("button", { name: /Book it|Review the proposal/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Book it/ })).not.toBeInTheDocument();
     expect(screen.getByText(/No pilot is planned yet\. When the simulation shows what works, Blueprint works alongside a deployment company/)).toBeInTheDocument();
+  });
+
+  it("offers to book the pilot Blueprint recommended", () => {
+    fixture.task = { pilotRecommended: true };
+    render(<TaskDetail />);
+    expect(screen.getByRole("button", { name: "Review the proposal on your job page →" })).toBeInTheDocument();
+    expect(screen.getByText(/Review the proposed approach, cost, support and evidence on your job page/)).toBeInTheDocument();
   });
 });
 

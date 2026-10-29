@@ -11,7 +11,7 @@ const outcomeCases = [processingFailure({label: "Reconstruction status", digest:
 for (const width of [1440, 390]) for (const outcome of outcomeCases) {
   test(`preparation outcome ${outcome.category} is readable at ${width}px`, async ({page}, info) => {
     const snapshot = await seed(page, "site_operator");
-    snapshot.tasks = [{...structuredClone(task), results: [],
+    snapshot.tasks = [{...structuredClone(task), results: [], pilotRecommended: false,
       status: outcome.title, nextStep: outcome.nextStep,
       readiness: {decision: outcome.category, headline: outcome.title, operatorAction: null,
         missingViews: [], nextUpdateIso: null, outcome}}];
@@ -54,7 +54,7 @@ for (const width of [1440, 390]) for (const outcome of outcomeCases) {
       if (pathname === `/api/job-workflow/owner/${token}`) return route.fulfill({json: {
         schemaVersion: "job_marketplace.v1", revision: "workflow-1", stage: "job_submitted", briefAgreed: false,
         optionsAssessed: false, reviewRequired: false, nextAction: "Review the saved brief.", actionOwner: "site",
-        requirements: {}, review: null,
+        requirements: {}, review: null, proposals: [], selection: null, agreement: null, outcome: null,
       }});
       return route.fallback();
     });
@@ -159,6 +159,8 @@ const task = {
     },
   ],
   pilot: { state: "not_selected", selectedResultId: null, notes: null },
+  // Blueprint has recommended one bookable pilot (server `pilotRecommended`).
+  pilotRecommended: true,
   createdAt: "2026-09-10T12:00:00Z",
 };
 const evaluation = {
@@ -209,6 +211,7 @@ async function seed(
               status: "Capture scheduled",
               results: [],
               published: false,
+              pilotRecommended: false,
             },
             {
               ...structuredClone(task),
@@ -520,9 +523,12 @@ test("site reviews results and continues to the pilot on the job page", async ({
   await page.goto("/app/tasks/task-1");
   await expect(page.getByRole("button", { name: /Invite to pilot/ })).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Pilot", exact: true })).toBeVisible();
-  // Blueprint works alongside a deployment company; the site is offered no proposal or booking action.
-  await expect(page.getByText(/No pilot is planned yet\. When the simulation shows what works, Blueprint works alongside a deployment company on your site\./)).toBeVisible();
-  await expect(page.getByRole("button", { name: /Review the proposal|Book/ })).toHaveCount(0);
+  await expect(page.getByText(/Review the proposed approach, cost, support and evidence on your job page\. If you go ahead, you agree pilot terms directly with the deployment company\./)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Review the proposal on your job page →" })).toBeVisible();
+  // No proposal action appears before Blueprint has a pilot proposal.
+  await page.goto("/app/tasks/task-2");
+  await expect(page.getByText(/No pilot is planned yet\./)).toBeVisible();
+  await expect(page.getByRole("button", { name: /Review the proposal on your job page/ })).toHaveCount(0);
 });
 test("robot team saves a setup and requests an evaluation from an opening", async ({
   page,
@@ -616,13 +622,16 @@ test("existing connection page uses the shared workspace design", async ({
 });
 
 
-test("a previously selected team progresses only through explicit site-reported outcomes", async ({ page }, info) => {
+test("a selected team progresses only through explicit site-reported outcomes", async ({ page }, info) => {
   const snapshot = await seed(page, "site_operator");
   snapshot.tasks[0].pilot = { state: "selected", selectedResultId: "application-1", notes: null };
+  snapshot.tasks[0].pilotBooking = { recommendationId: "synthetic-booking", bookedAtIso: "2026-10-18T00:00:00Z",
+    contact: { name: "Synthetic team", organization: "Fixture Robotics", email: "team@example.test", phone: null },
+    consentWithdrawn: false };
   await page.goto("/app/tasks/task-1?tab=results");
-  await expect(page.getByRole("heading", { name: "Delivery partner selected", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Delivery partner selected", exact: true })).toBeVisible();
   await expect(page.getByText("Outcome recorded by your site.")).toHaveCount(0);
-  await expect(page.getByRole("link", { name: "team@example.test" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "team@example.test" })).toBeVisible();
   for (const label of ["Record pilot start", "Record pilot outcome", "Record deployment"]) {
     await page.getByRole("button", { name: new RegExp(label) }).click();
     const dialog = page.getByRole("dialog");
@@ -633,5 +642,5 @@ test("a previously selected team progresses only through explicit site-reported 
   }
   await expect(page.getByRole("heading", { name: "Deployed", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: /Record deployment/ })).toHaveCount(0);
-  await page.screenshot({ path: info.outputPath("selected-pilot-site-reported-outcome.png"), fullPage: true });
+  await page.screenshot({ path: info.outputPath("booked-pilot-site-reported-outcome.png"), fullPage: true });
 });

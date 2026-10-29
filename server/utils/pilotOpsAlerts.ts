@@ -1,12 +1,15 @@
 /**
- * A bell for ops, on the channel ops already reads: a robot team asked to
- * evaluate a job, and the free evaluation waits on a founder's admission
- * (`/api/admin/free-evaluations/:requestId/admit`).
+ * Two bells for ops, on the channel ops already reads.
  *
- * The job record is the record; this is only the bell. It carries ids and an
- * admin link, never names, emails or job text. Each event rings once: a marker
- * document is created before the send, so a resubmitted request cannot ring
- * twice. A failed send is logged, not retried.
+ * - A site booked its recommended pilot: each side has been sent the other's
+ *   contact, and they agree dates and terms directly.
+ * - A robot team asked to evaluate a job: the free evaluation waits on a
+ *   founder's admission (`/api/admin/free-evaluations/:requestId/admit`).
+ *
+ * The job record is the record; these are only the bell. Each carries ids and
+ * an admin link, never names, emails or job text. Each event rings once: a
+ * marker document is created before the send, so a retried booking or a
+ * resubmitted request cannot ring twice. A failed send is logged, not retried.
  */
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
@@ -43,6 +46,16 @@ async function ringOnce(key: string, text: string): Promise<{ sent: boolean; rea
     .catch(() => undefined);
   if (!result.sent) logger.warn({ key }, "Pilot ops alert was not delivered to Slack");
   return { sent: result.sent };
+}
+
+export function pilotBookedAlertText(params: { requestId: string; recommendationId: string; teamId: string }): string {
+  return `:handshake: *Site booked its recommended pilot* — job \`${safeId(params.requestId)}\`, `
+    + `recommendation \`${safeId(params.recommendationId)}\`, team \`${safeId(params.teamId)}\`. `
+    + `Contacts go to both sides; the site and team agree dates and terms directly.\nOpen: ${appUrl()}/admin/robot-team-access?job=${encodeURIComponent(safeId(params.requestId))}`;
+}
+
+export async function alertOpsPilotBooked(params: { requestId: string; recommendationId: string; teamId: string }) {
+  return ringOnce(`pilot_booked:${params.requestId}:${params.recommendationId}`, pilotBookedAlertText(params));
 }
 
 export function evaluationAdmissionAlertText(params: { workspaceRequestId: string; jobId: string; teamIds: readonly string[] }): string {

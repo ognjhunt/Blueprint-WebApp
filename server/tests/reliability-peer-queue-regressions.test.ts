@@ -6,6 +6,7 @@ const m=vi.hoisted(()=>({send:vi.fn(),read:vi.fn(),save:vi.fn()}));
 vi.mock('../../client/src/lib/firebaseAdmin',async()=>({dbAdmin:(await import('./helpers/fake-firestore')).sharedFakeFirestore,default:{firestore:{FieldValue:{serverTimestamp:()=> 'SYNTHETIC'}}}}));
 vi.mock('../logger',()=>({logger:{info:vi.fn(),warn:vi.fn(),error:vi.fn(),debug:vi.fn()}}));
 vi.mock('../utils/email',()=>({sendEmail:m.send}));
+vi.mock('../utils/pilotRecommendationNotifications',()=>({pilotRecommendationNotificationIsCurrent:async()=>true}));
 vi.mock('../utils/field-encryption',()=>({decryptFieldValue:async(v:unknown)=>v}));
 vi.mock('../utils/siteTaskBrief',()=>({getBrief:async(id:string)=>store.docs.get(`siteTaskBriefs/${id}`)||null,draftBrief:(v:unknown)=>v,saveBrief:m.save}));
 vi.mock('../utils/siteTaskBriefReading',()=>({readBriefFromDescription:m.read}));
