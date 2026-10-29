@@ -555,9 +555,9 @@ describe("Pipeline Atlas preview status", () => {
     expect(JSON.stringify(failed)).not.toContain("atlas_input_rejected");
     record.website_atlas_previews["walkthrough-req1"] = ready();
     expect(projectWebsiteAtlasPreview(record)).toEqual({ captureId: "walkthrough-req1", label: "3D preview (beta, unscaled)",
-      state: "ready", statusText: "Your 3D preview is ready to download.", developmentOnly: true, splatAvailable: true,
-      meshAvailable: true, sizeBytes: bundleBytes.length, updatedAtIso: new Date(1_761_138_000_000).toISOString(),
-      downloadAvailable: true });
+      state: "ready", statusText: "Your 3D preview is ready. Blueprint keeps the model for your job.", developmentOnly: true,
+      splatAvailable: true, meshAvailable: true, sizeBytes: bundleBytes.length,
+      updatedAtIso: new Date(1_761_138_000_000).toISOString(), downloadAvailable: false });
     // A tampered entry is never shown.
     record.website_atlas_previews["walkthrough-req1"] = { ...ready(), mesh_available: false };
     expect(projectWebsiteAtlasPreview(record)).toBeNull();
@@ -591,70 +591,22 @@ describe("Pipeline Atlas preview status", () => {
   });
 });
 
+// Owner decision 2026-10-29: Blueprint owns the reconstruction; the site may view it, never download it.
 describe("owner Atlas preview download", () => {
-  beforeEach(() => {
-    vi.stubEnv("TASK_EVALUATION_RESULT_DOWNLOAD_SIGNING_SECRET", "fixture-ticket-secret");
-    vi.stubEnv("CAPTURE_LIFECYCLE_PIPELINE_BASE_URL", "https://pipeline.invalid");
-    vi.stubEnv("CAPTURE_UPLOAD_INTAKE_FORWARD_TOKEN", "fixture-read-token");
-  });
-  const pipeline = (headers: Record<string, string> = {}, bytes = bundleBytes) => vi.fn(async (_url: unknown, _init?: RequestInit) =>
-    new Response(bytes, { status: 200, headers: { "content-type": "application/zip", "content-length": String(bytes.length),
-      "content-disposition": 'attachment; filename="atlas-preview-walkthrough-req1.zip"',
-      "x-blueprint-artifact-sha256": bundleDigest, "cache-control": "private, no-store", ...headers } }));
+  beforeEach(() => vi.stubEnv("TASK_EVALUATION_RESULT_DOWNLOAD_SIGNING_SECRET", "fixture-ticket-secret"));
 
-  it("streams the whole verified bundle through a signed Pipeline read, without forwarding Range", async () => {
+  it("serves nothing, even for a validly signed ticket to a ready preview", async () => {
     upload();
     store.rows.get(REQUEST).website_atlas_previews = { "walkthrough-req1": ready() };
-    const origin = pipeline();
+    const origin = vi.fn();
     vi.stubGlobal("fetch", origin);
     const base = await app();
     const url = websiteAtlasPreviewDownloadUrl("req1", "walkthrough-req1")!;
-    expect(url).toMatch(/^\/api\/website-atlas-preview-downloads\/req1\/walkthrough-req1\?expires=\d+&signature=[0-9a-f]{64}$/);
-    const response = await realFetch(`${base}${url}`, { headers: { range: "bytes=0-3" } });
-    expect(response.status).toBe(200);
-    expect(Buffer.from(await response.arrayBuffer())).toEqual(bundleBytes);
-    expect(response.headers.get("content-type")).toBe("application/zip");
-    expect(response.headers.get("content-disposition")).toBe('attachment; filename="atlas-preview-walkthrough-req1.zip"');
+    const response = await realFetch(`${base}${url}`);
+    expect(response.status).toBe(410);
+    expect(await response.json()).toMatchObject({ code: "website_atlas_preview_download_retired" });
     expect(response.headers.get("cache-control")).toBe("private, no-store");
-    expect(response.headers.get("x-blueprint-artifact-verification")).toBe("sha256-on-completion");
-    const [target, init] = origin.mock.calls[0] as [URL, RequestInit & { headers: Record<string, string> }];
-    expect(String(target)).toBe("https://pipeline.invalid/api/live-pipeline/website-atlas-previews/walkthrough-req1/bundle"
-      + `?request_id=req1&digest=${encodeURIComponent(bundleDigest)}`);
-    expect(init.redirect).toBe("error");
-    expect(init.headers).not.toHaveProperty("range");
-    const signed = init.headers;
-    expect(signed["x-blueprint-pipeline-client-id"]).toBe("blueprint-webapp");
-    expect(signed["x-blueprint-pipeline-signature"]).toBe(`sha256=${createHmac("sha256", "fixture-read-token")
-      .update(`${signed["x-blueprint-pipeline-timestamp"]}.blueprint-webapp.${signed["x-blueprint-pipeline-nonce"]}.`).digest("hex")}`);
-    // Domain-separated: the same fields never sign a result-download URL.
-    const ticket = new URL(url, "https://webapp.invalid").searchParams;
-    expect(verifyTaskEvaluationResultDownloadTicket("website_atlas_preview", "req1", ticket.get("expires"), ticket.get("signature"))).toBe(false);
-  });
-
-  it("refuses bad tickets, withdrawn consent, unready previews and mismatched bytes", async () => {
-    upload();
-    store.rows.get(REQUEST).website_atlas_previews = { "walkthrough-req1": ready() };
-    const origin = pipeline({ "x-blueprint-artifact-sha256": sha("0") });
-    vi.stubGlobal("fetch", origin);
-    const base = await app();
-    const url = websiteAtlasPreviewDownloadUrl("req1", "walkthrough-req1")!;
-    const read = async (target: string) => {
-      const response = await realFetch(`${base}${target}`);
-      return { status: response.status, body: await response.json() };
-    };
-    expect((await read(url.replace(/signature=([0-9a-f])/, (_match, first: string) =>
-      `signature=${first === "0" ? "1" : "0"}`))).status).toBe(404);
-    expect((await read(url.replace("/req1/", "/req2/"))).status).toBe(404);
-    expect((await read(websiteAtlasPreviewDownloadUrl("req1", "walkthrough-other")!)).status).toBe(404);
     expect(origin).not.toHaveBeenCalled();
-    expect(await read(url)).toEqual({ status: 502,
-      body: { error: "3D preview stream was interrupted or failed integrity verification; retry the download" } });
-    store.rows.get(REQUEST).website_atlas_previews["walkthrough-req1"] = preview({ revision: 3 });
-    expect((await read(url)).status).toBe(404);
-    store.rows.get(REQUEST).website_atlas_previews["walkthrough-req1"] = ready(4);
-    store.rows.get(REQUEST).consent_revoked = true;
-    expect((await read(url)).status).toBe(404);
-    expect(origin).toHaveBeenCalledTimes(1);
   });
 });
 

@@ -6,7 +6,8 @@ import { websiteDevelopmentTestEnvironment } from "./websiteDevelopmentTest";
 import { z } from "zod";
 import { assertWebsiteRunOpen } from "./websiteRunClosure";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
-import { TASK_BRIEFS_COLLECTION, type SiteTaskBriefRecord } from "./siteTaskBrief";
+import { TASK_BRIEFS_COLLECTION, isPlaceholderSummary, type SiteTaskBriefRecord } from "./siteTaskBrief";
+import { preparationGrantFollowsBrief, UNNAMED_TASK_GRANT_FIELD } from "./preparationGrantTask";
 import { projectWebsiteCaptureRights, projectWebsiteTaskContext, legacySuggestedTaskContextDigest, legacyRoutingTaskContextDigest } from "./websiteTaskContext";
 import { crossRuntimeDigest as digest } from "./crossRuntimeCanonical";
 import { withTaskEvaluationLaunchStoreTimeout as storeTimeout } from "./taskEvaluationLaunchStore";
@@ -146,8 +147,8 @@ export function websiteSceneSponsorship(input: {
       || entry.child?.capture_id === previous.capture_id)
     && previous.consent?.rights_reference === digest(rights);
   // Rebind verified source updates while retaining this job's allowance, clock and spending history.
-  const grantContextDigest = sourceContinuation || preparationOnly && routingProjectionMatches(context, previous)
-    ? previous.task_context_digest : context.context_digest;
+  const grantContextDigest = sourceContinuation || preparationOnly && (routingProjectionMatches(context, previous)
+    || preparationGrantFollowsBrief(previous, input)) ? previous.task_context_digest : context.context_digest;
   const managedConsent = input.record.request?.sol_agents_api_consent;
   const managedAgents = managedConsent !== undefined && managedConsent !== null;
   if (managedAgents && (managedConsent.granted !== true
@@ -279,7 +280,7 @@ export function currentWebsitePreparationStatusContext(input: {
       || entry.child?.capture_id === retained.capture_id)
     && retained.consent?.rights_reference === digest(context.capture_rights);
   const authority = sourceContinuation || routingProjectionMatches(baseContext, retained)
-    ? continuationAuthority(retained, input) : retained;
+    || preparationGrantFollowsBrief(retained, input) ? continuationAuthority(retained, input) : retained;
   const {authority_digest, ...payload} = authority;
   if (authority_digest !== digest(payload) || authority.schema_version !== "website_scene_sponsorship.v1"
     || authority.sponsor !== "blueprint" || authority.request_id !== input.requestId || authority.capture_id !== context.capture_id
@@ -327,7 +328,9 @@ export async function loadWebsiteSceneSponsorship(requestId: string, create = fa
     const authority = websiteSceneSponsorship({...input, ...(purpose === "scene_preparation" ? { captureId, captureBinding } : {}), now: Date.now() / 1000,
       ...(options?.expected_task_context_digest !== undefined ? {expected_task_context_digest: purpose === "scene_preparation" ? current.context_digest
         : projectWebsiteTaskContext(input.brief, projectWebsiteCaptureRights(record), {inventory: input.inventory, purpose}).context_digest} : {})});
-    if (!record.website_scene_sponsorship) transaction.update(ref, { website_scene_sponsorship: authority });
+    if (!record.website_scene_sponsorship) transaction.update(ref, { website_scene_sponsorship: authority,
+      ...(authority.purpose === "scene_preparation" && isPlaceholderSummary(input.brief.summary)
+        ? { [UNNAMED_TASK_GRANT_FIELD]: authority.authority_digest } : {}) });
     return continuationAuthority(authority, {...input, captureId, captureBinding});
   }));
 }

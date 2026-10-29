@@ -183,6 +183,11 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
    */
   const [brief, setBrief] = useState<DraftedBrief | null>(null);
   const [briefConfirmed, setBriefConfirmed] = useState(false);
+  // Set only when the footage was read and showed no job to draft from.
+  const [taskStatementNeeded, setTaskStatementNeeded] = useState(false);
+  const [taskStatement, setTaskStatement] = useState("");
+  const [savingTaskStatement, setSavingTaskStatement] = useState(false);
+  const [taskStatementError, setTaskStatementError] = useState<string | null>(null);
   // Links expire after a week; the expired page asks for a new one itself.
   const [freshLink, setFreshLink] = useState<"idle" | "sending" | "sent" | "failed">("idle");
   async function requestFreshLink() {
@@ -340,6 +345,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
           ready?: boolean;
           scope?: "owner" | "film";
           brief?: (DraftedBrief & { shotList?: ChecklistItem[]; confirmedAtIso?: string | null });
+          taskStatementNeeded?: boolean;
           account?: SiteAccount | null;
         } | null;
         if (cancelled || !response.ok) return;
@@ -358,6 +364,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
           confirmedBy: data.brief.confirmedBy ?? null,
         });
         setBriefConfirmed(Boolean(data.brief.confirmedAtIso));
+        setTaskStatementNeeded(data.taskStatementNeeded === true);
         setSiteAccount(data.account ?? null);
       } catch {
         // No list. The camera still works.
@@ -833,6 +840,37 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
                   {retryingProcessing ? "Retrying processing…" : "Retry processing"}
                   </button>}
                 </details>
+              )}
+              {scope === "owner" && brief && taskStatementNeeded && (
+                <form aria-label="Name the job" style={{ margin: "16px 0" }} onSubmit={(event) => {
+                  event.preventDefault();
+                  setSavingTaskStatement(true);
+                  setTaskStatementError(null);
+                  void (async () => {
+                    try {
+                      const response = await fetch(`/api/site-task-brief/${encodeURIComponent(token ?? "")}/task-statement`, {
+                        method: "POST", headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ summary: taskStatement }),
+                      });
+                      const data = await response.json().catch(() => null) as { brief?: DraftedBrief; error?: string } | null;
+                      if (!response.ok || !data?.brief) throw new Error(data?.error || "The job could not be saved.");
+                      setBrief(current => current ? { ...current, summary: data.brief!.summary } : current);
+                      setTaskStatementNeeded(false);
+                    } catch (error) {
+                      setTaskStatementError(error instanceof Error ? error.message : "The job could not be saved.");
+                    } finally {
+                      setSavingTaskStatement(false);
+                    }
+                  })();
+                }}>
+                  <label htmlFor="task-statement">We could not tell the job from your video. In one line, what should the robot do?</label>
+                  <input id="task-statement" value={taskStatement} maxLength={300} required
+                    placeholder="Pick up the … and place it on the …" onChange={(event) => setTaskStatement(event.target.value)} />
+                  <button type="submit" disabled={savingTaskStatement || !taskStatement.trim()}>
+                    {savingTaskStatement ? "Saving…" : "Save"}
+                  </button>
+                  {taskStatementError && <p role="alert">{taskStatementError}</p>}
+                </form>
               )}
               {scope === "owner" && brief && blueprintActionPending && !editingBrief && <details style={{margin: "16px 0"}}>
                 <summary>Saved job brief</summary>

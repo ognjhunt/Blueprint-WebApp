@@ -246,3 +246,15 @@ describe("automatic many-candidate job evaluation", () => {
       "34 candidates did not run; each row lists why."]);
   });
 });
+
+it("evaluates the named task of a job whose preparation grant was issued before the task was named", () => {
+  const { brief, job } = screeningFixture(true);
+  const binding = { job_id: brief.requestId, brief_digest: scientificBriefDigest(brief) };
+  // The retained grant was bound to the placeholder brief's context when the video arrived.
+  const placeholderEra = { ...job, website_scene_sponsorship: { ...job.website_scene_sponsorship,
+    task_context_digest: `sha256:${"9".repeat(64)}`, authority_digest: `sha256:${"8".repeat(64)}` } };
+  expect(() => managedJobTask({ binding, record: placeholderEra, brief, allowProposedScreening: true })).toThrow("job_scene_task_changed");
+  const marked = { ...placeholderEra, website_scene_sponsorship_unnamed_task: placeholderEra.website_scene_sponsorship.authority_digest };
+  expect(managedJobTask({ binding, record: marked, brief, allowProposedScreening: true }))
+    .toEqual(managedJobTask({ binding, record: job, brief, allowProposedScreening: true }));
+});

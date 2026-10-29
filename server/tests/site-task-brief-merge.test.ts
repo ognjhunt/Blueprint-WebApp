@@ -32,7 +32,7 @@ vi.mock("../logger", () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }));
 
-const { draftBrief, saveBrief, getBrief, mergeBriefProposals, mergeProposals, confirmBrief, PLACEHOLDER_TASK_SUMMARY } =
+const { draftBrief, saveBrief, getBrief, mergeBriefProposals, mergeProposals, confirmBrief, nameUnnamedTask, PLACEHOLDER_TASK_SUMMARY } =
   await import("../utils/siteTaskBrief");
 
 const REQUEST = "req-1";
@@ -200,5 +200,35 @@ describe("mergeBriefProposals", () => {
 
   it("returns null when there is no brief to merge into", async () => {
     expect(await mergeBriefProposals({ requestId: "req-none", proposals: [footageStability] })).toBeNull();
+  });
+});
+
+// Owner decision 2026-10-29: a site that only uploads a video gets its job drafted
+// from the footage; only when the footage shows no task does the site write one line.
+describe("naming an unnamed job", () => {
+  beforeEach(() => sharedFakeFirestoreState.docs.clear());
+  async function placeholderBrief() {
+    await saveBrief(draftBrief({ requestId: REQUEST, captureMode: "self_capture", summary: PLACEHOLDER_TASK_SUMMARY, proposed: [] }));
+    sharedFakeFirestoreState.docs.set(`inboundRequests/${REQUEST}`, {});
+  }
+  it("names a placeholder brief and screens its task family", async () => {
+    await placeholderBrief();
+    const named = await nameUnnamedTask({ requestId: REQUEST,
+      summary: "Pick up the glass vase and place it at the other end of the table" });
+    expect(named).toMatchObject({ summary: "Pick up the glass vase and place it at the other end of the table",
+      taskFamily: "rigid_pick_and_place" });
+    expect(await getBrief(REQUEST)).toMatchObject({ summary: named!.summary, confirmedAtIso: null });
+  });
+  it("never replaces a named job, touches a confirmed brief, or accepts an empty line", async () => {
+    await placeholderBrief();
+    expect(await nameUnnamedTask({ requestId: REQUEST, summary: "   " })).toBeNull();
+    expect(await nameUnnamedTask({ requestId: REQUEST, summary: PLACEHOLDER_TASK_SUMMARY })).toBeNull();
+    await nameUnnamedTask({ requestId: REQUEST, summary: "Open the dishwasher door" });
+    expect(await nameUnnamedTask({ requestId: REQUEST, summary: "Move the bins" })).toBeNull();
+    expect((await getBrief(REQUEST))!.summary).toBe("Open the dishwasher door");
+    await placeholderBrief();
+    const brief = (await getBrief(REQUEST))!;
+    await saveBrief({ ...brief, confirmedAtIso: "2026-10-29T00:00:00Z" });
+    expect(await nameUnnamedTask({ requestId: REQUEST, summary: "Move the bins" })).toBeNull();
   });
 });

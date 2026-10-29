@@ -16,7 +16,10 @@ vi.mock("../../client/src/lib/firebaseAdmin", async () => ({
   storageAdmin: { bucket: source.bucket },
 }));
 vi.mock("../config/env", () => ({ isSiteVideoEvidenceEnabled: () => true }));
-vi.mock("../utils/siteTaskBrief", () => ({ getBrief: async () => source.brief }));
+vi.mock("../utils/siteTaskBrief", async importOriginal => ({
+  isPlaceholderSummary: (await importOriginal<typeof import("../utils/siteTaskBrief")>()).isPlaceholderSummary,
+  getBrief: async () => source.brief, nameUnnamedTask: vi.fn(async () => null),
+}));
 vi.mock("../utils/websiteBrowserPending", async importOriginal => ({
   ...await importOriginal<typeof import("../utils/websiteBrowserPending")>(),
   loadBrowserPending: async () => source.pending,

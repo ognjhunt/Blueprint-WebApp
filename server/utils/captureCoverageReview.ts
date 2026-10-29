@@ -32,7 +32,8 @@ import {
 import type { SiteVideoJobEstimatesOutput } from "../agents/tasks/site-video-evidence";
 import { isSiteVideoEvidenceEnabled } from "../config/env";
 import { selfCaptureObjectPath } from "./captureUploadToken";
-import { getBrief } from "./siteTaskBrief";
+import { getBrief, isPlaceholderSummary, nameUnnamedTask } from "./siteTaskBrief";
+import { screenTaskScope } from "./siteTaskScope";
 
 /** Long enough for a model to fetch the video, short enough not to be a handle. */
 const SIGNED_URL_TTL_MS = 30 * 60 * 1000;
@@ -101,6 +102,13 @@ export interface CoverageFinding {
  * different from "it does not cover the scene" and very different from "it
  * does".
  */
+/** The reviewer's proposed job, only when it names one an evaluation can run (a rigid move or open/close). */
+export function draftedTaskStatement(output: { proposed_task_statement?: string | null; unreadable_reasons?: readonly string[] }) {
+  const statement = output.proposed_task_statement?.trim().slice(0, 300);
+  if (!statement || output.unreadable_reasons?.length || isPlaceholderSummary(statement)) return null;
+  return screenTaskScope({ summary: statement }).supported ? statement : null;
+}
+
 export async function reviewCaptureCoverage(params: {
   /** Compatibility input; coverage findings no longer request customer action. */
   notifyOwner?: boolean;
@@ -141,6 +149,8 @@ export async function reviewCaptureCoverage(params: {
     { id: "work-area", label: "The whole work area, from a few steps back" },
     ...brief.proposed.map((answer) => ({ id: answer.fieldId, label: answer.reading })),
   ];
+  // Only the site's own walkthrough drafts the job, and only while nothing names it.
+  const draftTask = !additive && params.captureId === `walkthrough-${params.requestId}` && isPlaceholderSummary(brief.summary);
 
   let output: CaptureCoverageOutput | null = null;
   try {
@@ -167,6 +177,7 @@ export async function reviewCaptureCoverage(params: {
         supplementaryViewsOnly: additive,
         taskSummary: brief.summary,
         requestedViews,
+        ...(draftTask ? { draftTaskStatement: true } : {}),
       },
     });
     output = (result?.output as CaptureCoverageOutput) ?? null;
@@ -208,6 +219,20 @@ export async function reviewCaptureCoverage(params: {
   const estimates = params.captureId === `walkthrough-${params.requestId}` && !finding.unreadableReasons.length
     ? output.job_estimates ?? null : null;
   await recordCoverageFinding(params.requestId, params.captureId, finding, params.binding, estimates);
+
+  // Owner decision 2026-10-29: the job is drafted from the video; the site is asked
+  // for one line only when the footage shows none. A failed draft never fails the review.
+  if (draftTask && db) {
+    try {
+      const statement = draftedTaskStatement(output);
+      const named = statement ? await nameUnnamedTask({ requestId: params.requestId, summary: statement }) : null;
+      await db.collection("inboundRequests").doc(params.requestId).set({ capture_task_statement_draft: {
+        capture_id: params.captureId, state: named ? "drafted" : "none_seen", reviewed_at_iso: new Date().toISOString(),
+      } }, { merge: true });
+    } catch (error) {
+      logger.warn({ error, ...params }, "Could not draft the job from the coverage review");
+    }
+  }
 
   // Retain missing observations for Blueprint's recovery work. They do not
   // automatically become a request for the customer to record more footage.
