@@ -43,6 +43,128 @@ const { gateFields } = await import("../../client/src/data/siteTaskQualification
 
 const REQUEST = "req-1";
 
+it("repeating an unchanged confirmation preserves the context and all retained work", async () => {
+  const { projectWebsiteTaskContext } = await import("../utils/websiteTaskContext");
+  vi.useFakeTimers();
+  try {
+    vi.setSystemTime(new Date("2026-10-29T06:00:00Z"));
+    sharedFakeFirestoreState.docs.set(`inboundRequests/${REQUEST}`, {
+      request: { buyerType: "site_operator", capture_mode: "self_capture" },
+    });
+    await saveBrief(draftBrief({ requestId: REQUEST, summary: "Move one sealed part into its tray",
+      captureMode: "self_capture", proposed: [] }));
+    await confirmBrief({ requestId: REQUEST, confirmedBy: "Dana" });
+    const prior = structuredClone(sharedFakeFirestoreState.docs.get(`siteTaskBriefs/${REQUEST}`));
+    const request = sharedFakeFirestoreState.docs.get(`inboundRequests/${REQUEST}`)!;
+    sharedFakeFirestoreState.docs.set(`inboundRequests/${REQUEST}`, { ...request,
+      capture_coverage_request: { state: "completed" }, capture_coverage_pending: false });
+    const before = structuredClone([...sharedFakeFirestoreState.docs.entries()]);
+    vi.setSystemTime(new Date("2026-10-29T06:01:00Z"));
+    await confirmBrief({ requestId: REQUEST, confirmedBy: "Dana" });
+    const next = sharedFakeFirestoreState.docs.get(`siteTaskBriefs/${REQUEST}`);
+    const firstContext = projectWebsiteTaskContext(prior);
+    const nextContext = projectWebsiteTaskContext(next);
+    const { context_digest: firstDigest, confirmed_at: firstTime, ...firstInputs } = firstContext;
+    const { context_digest: nextDigest, confirmed_at: nextTime, ...nextInputs } = nextContext;
+    expect(nextInputs).toEqual(firstInputs);
+    expect(nextTime).toBe(firstTime);
+    expect(nextDigest).toBe(firstDigest);
+    expect([...sharedFakeFirestoreState.docs.entries()]).toEqual(before);
+  } finally { vi.useRealTimers(); }
+});
+
+async function confirmedExample(operatorUnknown?: string[]) {
+  sharedFakeFirestoreState.docs.set(`inboundRequests/${REQUEST}`, {
+    request: { buyerType: "site_operator", capture_mode: "self_capture" },
+  });
+  await saveBrief(draftBrief({ requestId: REQUEST, summary: "Move one sealed part into its tray",
+    captureMode: "self_capture", proposed: [] }));
+  return confirmBrief({ requestId: REQUEST, confirmedBy: "Dana", operatorUnknown });
+}
+
+it("keeps unknown-field ordering and the original attester on an unchanged confirmation", async () => {
+  const { projectWebsiteTaskContext } = await import("../utils/websiteTaskContext");
+  const first = (await confirmedExample(["sceneStability", "taskShape"]))!;
+  const before = structuredClone([...sharedFakeFirestoreState.docs.entries()]);
+  const next = (await confirmBrief({ requestId: REQUEST, confirmedBy: "Another operator",
+    operatorUnknown: ["taskShape", "sceneStability"] }))!;
+  expect(next.brief.confirmedBy).toBe("Dana");
+  expect(projectWebsiteTaskContext(next.brief)).toEqual(projectWebsiteTaskContext(first.brief));
+  expect([...sharedFakeFirestoreState.docs.entries()]).toEqual(before);
+});
+
+it("reuses a legacy confirmation without adding task-family or unknown-field semantics", async () => {
+  const { projectWebsiteTaskContext } = await import("../utils/websiteTaskContext");
+  await confirmedExample();
+  const legacy = sharedFakeFirestoreState.docs.get(`siteTaskBriefs/${REQUEST}`)!;
+  delete legacy.taskFamily;
+  legacy.operatorUnknown = null;
+  legacy.unresolved = ["sceneStability"];
+  sharedFakeFirestoreState.docs.set(`siteTaskBriefs/${REQUEST}`, legacy);
+  const prior = projectWebsiteTaskContext(legacy as any);
+  const before = structuredClone([...sharedFakeFirestoreState.docs.entries()]);
+  const next = (await confirmBrief({ requestId: REQUEST, confirmedBy: "Dana" }))!;
+  expect(next.brief).not.toHaveProperty("taskFamily");
+  expect(projectWebsiteTaskContext(next.brief)).toEqual(prior);
+  expect([...sharedFakeFirestoreState.docs.entries()]).toEqual(before);
+});
+
+it("backfills only a missing confirmation alias using the retained original time", async () => {
+  const first = (await confirmedExample())!;
+  const raw = sharedFakeFirestoreState.docs.get(`inboundRequests/${REQUEST}`)!;
+  delete raw.site_task_brief_confirmed_at;
+  raw.capture_coverage_request = { state: "completed" };
+  raw.capture_coverage_pending = false;
+  const expected = structuredClone([...sharedFakeFirestoreState.docs.entries()]);
+  expected.find(([path]) => path === `inboundRequests/${REQUEST}`)![1]
+    .site_task_brief_confirmed_at = first.brief.confirmedAtIso;
+  await confirmBrief({ requestId: REQUEST, confirmedBy: "Dana" });
+  expect([...sharedFakeFirestoreState.docs.entries()]).toEqual(expected);
+});
+
+it("does not recreate a missing job from a retained confirmed brief", async () => {
+  await confirmedExample();
+  sharedFakeFirestoreState.docs.delete(`inboundRequests/${REQUEST}`);
+  const before = structuredClone([...sharedFakeFirestoreState.docs.entries()]);
+  await confirmBrief({ requestId: REQUEST, confirmedBy: "Dana" });
+  expect([...sharedFakeFirestoreState.docs.entries()]).toEqual(before);
+});
+
+it("a real task edit still creates a fresh confirmation and processing identity", async () => {
+  const { projectWebsiteTaskContext } = await import("../utils/websiteTaskContext");
+  vi.useFakeTimers();
+  try {
+    vi.setSystemTime(new Date("2026-10-29T06:00:00Z"));
+    const first = (await confirmedExample())!;
+    vi.setSystemTime(new Date("2026-10-29T06:01:00Z"));
+    const next = (await confirmBrief({ requestId: REQUEST, confirmedBy: "Another operator",
+      summary: "Move the sealed part into a different tray" }))!;
+    expect(next.brief.confirmedAtIso).toBe("2026-10-29T06:01:00.000Z");
+    expect(next.brief.confirmedBy).toBe("Another operator");
+    expect(projectWebsiteTaskContext(next.brief).context_digest)
+      .not.toBe(projectWebsiteTaskContext(first.brief).context_digest);
+    expect(sharedFakeFirestoreState.docs.get(`siteTaskBriefs/${REQUEST}`)?.summary).toBe(next.brief.summary);
+  } finally { vi.useRealTimers(); }
+});
+
+it.each(["brief", "answers"])("a no-op confirmation still fences a concurrent %s edit", async kind => {
+  const { sharedFakeFirestore } = await import("./helpers/fake-firestore");
+  await confirmedExample();
+  const original = sharedFakeFirestore.runTransaction.bind(sharedFakeFirestore);
+  const intercept = vi.spyOn(sharedFakeFirestore, "runTransaction").mockImplementationOnce(async callback => {
+    const path = kind === "brief" ? `siteTaskBriefs/${REQUEST}` : `inboundRequests/${REQUEST}`;
+    const record = sharedFakeFirestoreState.docs.get(path)!;
+    sharedFakeFirestoreState.docs.set(path, { ...record, ...(kind === "brief"
+      ? { summary: "A concurrent task correction" }
+      : { siteTaskGates: { sceneStability: clearValue("sceneStability") } }) });
+    return original(callback);
+  });
+  try {
+    await expect(confirmBrief({ requestId: REQUEST, confirmedBy: "Dana" }))
+      .rejects.toThrow(kind === "brief" ? "brief_changed_before_confirmation" : "brief_answers_changed_before_confirmation");
+  } finally { intercept.mockRestore(); }
+});
+
 /** The clear option for a gate, which is what a passing answer looks like. */
 function clearValue(fieldId: string): string {
   const field = gateFields.find((candidate) => candidate.id === fieldId);
