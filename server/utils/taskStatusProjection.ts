@@ -322,6 +322,12 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
       headline: outcome.title, operatorAction: null, outcome, resultSuperseded: true };
   }
   if (input.targetChoiceAnswer === 'other_candidate' && !input.sceneProgression) {
+    // A stopped correction shows its stop, not an update that never comes.
+    const correctionStopped = input.preparationStatus?.outcome
+      ?? (input.preparationStatus?.state === "failed_terminal" || input.preparationStatus?.state === "failed_retryable"
+        ? processingFailure() : null);
+    if (correctionStopped) return {...base, decision: correctionStopped.category, stage: null, missingViews: [],
+      headline: correctionStopped.title, operatorAction: null, outcome: correctionStopped, resultSuperseded: true};
     return {...base, decision: 'assessing', stage: null, missingViews: [], operatorAction: null,
       headline: 'Blueprint is updating this job for the corrected object using your saved video.', resultSuperseded: true};
   }

@@ -154,6 +154,15 @@ describe("the job page keeps the job moving", () => {
     expect(projectTaskStatus({...base, preparationStatus: preparing, targetChoiceAnswer: 'other_candidate',
       sceneProgression: {state: 'evaluated'}}).resultSuperseded).not.toBe(true);
   });
+  it('shows a stopped correction instead of an update that never comes', () => {
+    for (const state of ['failed_terminal', 'failed_retryable'] as const) {
+      const status = projectTaskStatus({...base, targetChoiceAnswer: 'other_candidate',
+        preparationStatus: {state, correlationId: null}, screening: {queued: 0, running: 0, reported: 1, noResult: 0}});
+      expect(status).toMatchObject({resultSuperseded: true});
+      expect(status.decision).not.toBe('assessing');
+      expect(status.headline).not.toMatch(/updating this job/);
+    }
+  });
   it.each([undefined,
     { queued: 0, running: 0, reported: 1, noResult: 0 },
     { queued: 0, running: 0, reported: 0, noResult: 1 },
