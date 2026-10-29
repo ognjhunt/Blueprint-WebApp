@@ -298,6 +298,103 @@ async function api(
   });
 }
 describe("workspace access and projections", () => {
+  it.each(["legacy", "current", "stale"])("requires displayed versions for an unverified source-bound acceptance (%s)", async mode => {
+    const explicit = mode === "current";
+    const acceptance = { ...buildLegalAcceptanceRecord({ acceptedAt: "2026-10-23T12:00:00Z" }),
+      terms_version: "2026-11-15.2", privacy_version: "2026-11-15.4" };
+    state.records.set("inboundRequests/unverified-job", { ...task(), account_owner_uid: undefined,
+      contact: { email: "site-1@example.com" }, terms_acceptance: acceptance });
+    const token = createSiteClaimToken("unverified-job");
+    const clock = vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-10-29T04:50:00Z"));
+    try {
+      const response = await fetch(`${base}/setup`, { method: "POST",
+        headers: { "Content-Type": "application/json", "x-user": "site-1", "x-unverified": "1" },
+        body: JSON.stringify({ name: "Site Owner", organization: "Company", workspaceType: "site_operator",
+          siteClaimToken: token, acceptedTerms: true,
+          ...(mode !== "legacy" ? { termsVersion: explicit ? TERMS_VERSION : "2026-11-15.2", privacyVersion: PRIVACY_VERSION } : {}) }) });
+      expect(response.status).toBe(explicit ? 200 : 400);
+      if (explicit) expect(state.records.get("users/site-1")).toMatchObject({
+        termsAcceptance: { accepted_terms: true, terms_version: TERMS_VERSION, privacy_version: PRIVACY_VERSION } });
+      else expect(state.records.get("users/site-1")).not.toHaveProperty("termsAcceptance");
+      expect(state.records.get("inboundRequests/unverified-job").terms_acceptance).toEqual(acceptance);
+      expect(state.records.get("inboundRequests/unverified-job").account_owner_uid).toBeUndefined();
+    } finally { clock.mockRestore(); }
+  });
+
+  it.each(["setup", "claim"])("retains the older acceptance versions when %s reuses intake consent", async mode => {
+    const clock = vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-10-29T04:50:00Z"));
+    try {
+      const acceptance = { ...buildLegalAcceptanceRecord({ acceptedAt: "2026-10-23T12:00:00Z" }),
+        terms_version: "2026-11-15.2", privacy_version: "2026-11-15.4" };
+      state.records.set("inboundRequests/continuity-job", { ...task(), account_owner_uid: undefined,
+        contact: { email: "site-1@example.com" }, terms_acceptance: acceptance });
+      const token = createSiteClaimToken("continuity-job");
+      const response = mode === "setup"
+        ? await api("/setup", "site-1", { name: "Site Owner", organization: "Company", workspaceType: "site_operator", siteClaimToken: token })
+        : await api("/claim", "site-1", { token });
+      expect(response.status).toBe(200);
+      const recorded = structuredClone(state.records.get("users/site-1"));
+      expect(recorded).toMatchObject({ acceptedTerms: true, termsVersion: acceptance.terms_version,
+        privacyVersion: acceptance.privacy_version, termsAcceptance: acceptance });
+      expect((await (await api("/setup", "site-1")).json()).termsRequired).toBe(false);
+      clock.mockReturnValue(Date.parse("2026-11-15T08:00:00.000Z"));
+      expect((await (await api("/setup", "site-1")).json()).termsRequired).toBe(true);
+      expect(state.records.get("users/site-1")).toEqual(recorded);
+    } finally { clock.mockRestore(); }
+  });
+
+  it.each([true, false])("uses the actual recorded acceptance (%s) when legacy fields claim a newer version", async accepted => {
+    const acceptance = { ...buildLegalAcceptanceRecord({ acceptedAt: "2026-10-23T12:00:00Z" }),
+      accepted_terms: accepted, terms_version: "2026-11-15.2", privacy_version: "2026-11-15.4" };
+    const recorded = { ...state.records.get("users/site-1"), acceptedTerms: true,
+      termsVersion: TERMS_VERSION, privacyVersion: PRIVACY_VERSION, termsAcceptance: acceptance };
+    state.records.set("users/site-1", recorded);
+    const retained = structuredClone(recorded);
+    const effective = Date.parse("2026-11-15T08:00:00.000Z");
+    const clock = vi.spyOn(Date, "now").mockReturnValue(effective - 1);
+    try {
+      expect((await (await api("/setup", "site-1")).json()).termsRequired).toBe(!accepted);
+      clock.mockReturnValue(effective);
+      const response = await api("/setup", "site-1");
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({ termsRequired: true });
+      expect(state.records.get("users/site-1")).toEqual(retained);
+    } finally { clock.mockRestore(); }
+  });
+
+  it.each(["nested", "legacy"])("uses the recorded pending terms pair in the %s account shape until its effective date", async shape => {
+    const acceptance = { ...buildLegalAcceptanceRecord({ acceptedAt: "2026-10-23T12:00:00Z" }),
+      terms_version: "2026-11-15.2", privacy_version: "2026-11-15.4" };
+    const record = { ...state.records.get("users/site-1"), ...(shape === "nested"
+      ? { termsAcceptance: acceptance }
+      : { acceptedTerms: true, termsVersion: acceptance.terms_version, privacyVersion: acceptance.privacy_version }) };
+    state.records.set("users/site-1", record);
+    const retained = structuredClone(record);
+    const effective = Date.parse("2026-11-15T08:00:00.000Z");
+    const clock = vi.spyOn(Date, "now");
+    try {
+      for (const [now, termsRequired] of [[effective - 1, false], [effective, true], [effective + 1, true]] as const) {
+        clock.mockReturnValue(now);
+        const response = await api("/setup", "site-1");
+        expect(response.status).toBe(200);
+        expect(await response.json()).toMatchObject({ termsRequired });
+        expect(state.records.get("users/site-1")).toEqual(retained);
+      }
+    } finally { clock.mockRestore(); }
+  });
+
+  it.each([false, undefined])("does not infer pending terms acceptance from an accepted flag of %s", async accepted => {
+    state.records.set("users/site-1", { ...state.records.get("users/site-1"),
+      termsAcceptance: { ...buildLegalAcceptanceRecord({ acceptedAt: "2026-10-23T12:00:00Z" }),
+        accepted_terms: accepted, terms_version: "2026-11-15.2", privacy_version: "2026-11-15.4" } });
+    const clock = vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-10-29T04:50:00Z"));
+    try {
+      const response = await api("/setup", "site-1");
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({ termsRequired: true });
+    } finally { clock.mockRestore(); }
+  });
+
   it("leaves the progress line out, never asking a site to film, when its footage status cannot be read", async () => {
     state.records.set("inboundRequests/task-1", { ...task(), site_task_brief_confirmed_at: "2026-09-18T00:00:00Z" });
     state.records.set("siteTaskBriefs/task-1", { requestId: "task-1", summary: "Task reading",

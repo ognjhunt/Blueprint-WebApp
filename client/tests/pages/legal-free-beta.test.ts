@@ -3,7 +3,7 @@
  * Blueprint does is charged, Blueprint recommends one team whose evaluation
  * passed, and the physical pilot is agreed between the site and the team.
  */
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   betaRetentionSchedule,
@@ -153,6 +153,38 @@ describe("recording notice, sound and the listing choice", () => {
 });
 
 describe("acceptance while a reissue is announced", () => {
+  it("keeps an earlier announced pair usable only before its existing effective date", async () => {
+    const legal = await import("@/lib/legalAcceptance");
+    const effective = Date.parse("2026-11-15T08:00:00.000Z");
+    expect(legal.acceptedVersionsAreCurrent("2026-11-15.2", "2026-11-15.4", effective - 1)).toBe(true);
+    for (const now of [effective, effective + 1, effective + 86400000]) {
+      expect(legal.acceptedVersionsAreCurrent("2026-11-15.2", "2026-11-15.4", now)).toBe(false);
+      expect(legal.acceptedVersionsAreCurrent(legal.TERMS_VERSION, legal.PRIVACY_VERSION, now)).toBe(true);
+    }
+    for (const [terms, privacy] of [
+      ["2026-11-15.1", "2026-11-15.4"], ["2026-11-15.2", "2026-11-15.3"],
+      ["2026-11-15.2", legal.PREVIOUS_PRIVACY_VERSION], [undefined, "2026-11-15.4"],
+    ]) expect(legal.acceptedVersionsAreCurrent(terms, privacy, effective - 1)).toBe(false);
+  });
+
+  it("preserves the recorded acceptance and writes the latest versions for a new acceptance", async () => {
+    const legal = await import("@/lib/legalAcceptance");
+    const clock = vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-10-29T04:50:00Z"));
+    try {
+      const record = { ...legal.buildLegalAcceptanceRecord({ acceptedAt: "2026-10-23T12:00:00Z" }),
+        terms_version: "2026-11-15.2", privacy_version: "2026-11-15.4" };
+      const retained = structuredClone(record);
+      expect(legal.isCurrentLegalAcceptance(record)).toBe(true);
+      expect(legal.isCurrentLegalAcceptance({ ...record, accepted_terms: false })).toBe(false);
+      expect(legal.isCurrentLegalAcceptance({ ...record, accepted_terms: undefined })).toBe(false);
+      expect(legal.isCurrentLegalAcceptance({ ...record, accepted_at: null })).toBe(false);
+      expect(record).toEqual(retained);
+      expect(legal.buildLegalAcceptanceRecord({ acceptedAt: "2026-10-29T04:50:00Z" })).toMatchObject({
+        accepted_terms: true, terms_version: legal.TERMS_VERSION, privacy_version: legal.PRIVACY_VERSION,
+      });
+    } finally { clock.mockRestore(); }
+  });
+
   it("counts the versions in force until the new ones take effect, and only the new ones after", async () => {
     const legal = await import("@/lib/legalAcceptance");
     const before = legal.legalEffectiveAtMs(legal.TERMS_VERSION) - 1;

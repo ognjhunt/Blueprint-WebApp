@@ -213,7 +213,7 @@ function ClaimSiteForToken({ token }: { token: string }) {
         // on this page: the claim that follows the verification link runs on
         // its own and has no checkbox to read. A refusal here leaves the form
         // path, which reports the real error.
-        await setUpSiteWorkspace(user, accountContext(summary), terms || summary.siteTermsAcceptedCurrent, token)
+        if (terms) await setUpSiteWorkspace(user, accountContext(summary), true, token)
           .catch(() => undefined);
         await sendEmailVerification(user, { url: verificationActionUrl(token) });
         setStage({ status: "verify", summary, user });
