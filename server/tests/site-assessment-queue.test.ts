@@ -50,6 +50,22 @@ it("ADVISORY-PRODUCER-001 normal new publication durably creates one source-boun
   expect([...state.docs.keys()].filter(key => key.startsWith("siteAssessmentJobs/"))).toHaveLength(1);
 });
 
+it("an old unfinished original cannot select itself over the owner's newer recording", async () => {
+  const current = `supplement-${"f".repeat(40)}`;
+  state.docs.get(`inboundRequests/${pending.request_id}`)!.active_capture_id = current;
+  await expect(publishBrowserPending(pending)).rejects.toThrow("capture_update_superseded");
+  expect(state.docs.get(`inboundRequests/${pending.request_id}`)!.active_capture_id).toBe(current);
+  expect(state.docs.get(`captureUploadSessions/${pending.capture_id}`)!.browser_pending_delivery.state).toBe("held");
+  expect([...state.docs.keys()].some(key => key.startsWith("siteAssessmentJobs/"))).toBe(false);
+});
+
+it("an unfinished original cannot publish after its recording authority is withdrawn", async () => {
+  state.docs.get(`inboundRequests/${pending.request_id}`)!.consent_revoked = true;
+  await expect(publishBrowserPending(pending)).rejects.toThrow("capture_processing_not_authorized");
+  expect(state.docs.get(`captureUploadSessions/${pending.capture_id}`)!.browser_pending_delivery.state).toBe("held");
+  expect([...state.docs.keys()].some(key => key.startsWith("siteAssessmentJobs/"))).toBe(false);
+});
+
 it("publication starts the website preparation watch once, in the same commit (beta L3/L6)", async () => {
   const before = Date.now();
   await publishBrowserPending(pending);

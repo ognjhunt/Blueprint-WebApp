@@ -61,8 +61,10 @@ for (const width of [1440, 390]) for (const outcome of outcomeCases) {
     await page.setViewportSize({width, height: 1024});
     await page.goto(`/capture-upload/${token}`);
     await expect(page.getByRole("region", {name: "Preparation outcome"})).toContainText(outcome.scope);
-    await expect(page.getByText("Next action · Blueprint", {exact: true})).toBeVisible();
-    await expect(page.getByText("Your recording is saved. The next step is with Blueprint.", {exact: true})).toBeVisible();
+    await expect(page.getByText("Next action · Blueprint", {exact: true})).toHaveCount(0);
+    await expect(page.getByText(outcome.nextStep)).toHaveCount(1);
+    await expect(page.getByRole("region", {name: "Preparation outcome"}).getByText(outcome.nextStep)).toBeVisible();
+    await expect(page.getByText("Video received.", {exact: true})).toBeVisible();
     await expect(page.getByText("Saved job brief", {exact: true})).toBeVisible();
     await expect(page.getByRole("region", {name: "Confirm your job brief"})).toHaveCount(0);
     await expect(page.getByRole("button", {name: /confirm it|Retry processing/})).toHaveCount(0);
@@ -78,8 +80,13 @@ for (const width of [1440, 390]) for (const outcome of outcomeCases) {
       await expect(page.getByRole("region", {name: "Confirm your job brief"})).toHaveCount(0);
       statusAvailable = true;
       stopped = false;
-      await expect(page.getByRole("region", {name: "Confirm your job brief"})).toBeVisible();
-      await expect(page.getByText("Next action · You", {exact: true})).toBeVisible();
+      const correction = page.getByText("Review or correct job details (optional)", {exact: true});
+      await expect(correction).toBeVisible();
+      await expect(page.getByText("Blueprint is preparing your reconstruction.", {exact: true})).toBeVisible();
+      await expect(page.getByRole("region", {name: "Confirm your job brief"})).not.toBeVisible();
+      await expect(page.getByText("Next action · You", {exact: true})).toHaveCount(0);
+      await correction.click();
+      await expect(page.getByRole("button", {name: "This is right — confirm it", exact: true})).toBeVisible();
       expect(writes).toEqual([]);
     }
   });
@@ -490,14 +497,15 @@ for (const width of [1440, 390]) {
     await expect(page.getByRole("heading", { name: "No evaluation results yet" })).toHaveCount(1);
     await expect(page.getByRole("heading", { name: "Evaluation results", exact: true })).toHaveCount(0);
     await expect(page.getByText("fixture-support-reference", { exact: true })).not.toBeVisible();
-    await expect(page.getByRole("link", { name: "Contact Blueprint about this job" })).toHaveCSS("color", "rgb(32, 61, 46)");
+    await expect(page.getByRole("link", { name: "Contact Blueprint about this job" })).not.toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.screenshot({ path: info.outputPath(`task-detail-${width}.png`), fullPage: true });
     // The site sends its video and nothing else: the assessment's questions stay with Blueprint.
     await expect(page.getByText(/Open questions/)).toHaveCount(0);
     await expect(page.getByText(snapshot.tasks[0].siteAdvisory.unknowns[0], { exact: true })).toHaveCount(0);
-    await page.getByText("Support reference", { exact: true }).click();
-    await expect(page.getByText("fixture-support-reference", { exact: true })).toBeVisible();
+    await page.getByText("Processing details", { exact: true }).click();
+    await expect(page.getByRole("link", { name: "Contact Blueprint about this job" })).toHaveCSS("color", "rgb(32, 61, 46)");
+    await expect(page.getByText("Reference: fixture-support-reference", { exact: true })).toBeVisible();
     await page.getByRole("tab", { name: "Overview", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Success criteria", exact: true })).toBeVisible();
     await page.getByRole("button", { name: "Request an edit" }).click();

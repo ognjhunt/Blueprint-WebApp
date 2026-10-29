@@ -28,8 +28,7 @@ import {
   storedPartIndices,
 } from "../utils/captureParts";
 import { isAcceptedVideoHeader, VIDEO_NOT_RECOGNIZED, VIDEO_SIGNATURE_BYTES } from "../utils/videoMagicBytes";
-import { probeCaptureVideo, probeStoredCaptureVideo, VideoProbeError,
-  type VideoProbe } from "../utils/selfCaptureMediaMetadata";
+import { probeStoredCaptureVideo, VideoProbeError } from "../utils/selfCaptureMediaMetadata";
 import { z } from "zod";
 
 import { storageAdmin } from "../../client/src/lib/firebaseAdmin";
@@ -59,7 +58,6 @@ import { OWNER_WITHDRAWAL_CONFIRMATION, projectWebsiteCaptureWithdrawal,
   recordWebsiteCaptureWithdrawal } from "../utils/websiteCaptureWithdrawal";
 import { dbAdmin } from "../../client/src/lib/firebaseAdmin";
 import { bundleLimitsFromEnv } from "../utils/siteCaptureBundle";
-import { websiteCaptureRetention } from "../utils/websiteCaptureRetention";
 import {
   acceptBundlePlan,
   appBundlePrivacySource,
@@ -75,15 +73,11 @@ import {
   recordSiteCaptureUploadIdentity,
   siteCaptureBundleClaimed,
 } from "../utils/siteCaptureUploadIdentity";
-import { isSiteVideoEvidenceEnabled } from "../config/env";
 import { retrySiteAssessment, tickSiteAssessments } from "../utils/siteAssessmentQueue";
-import { notifySlackFootageNeedsReview } from "../utils/slack";
-import { buildBrowserDelivery, capturedWriteIdentity, captureWriteFailureDiagnostic, publishBrowserDelivery,
-  type CaptureWriteStage, type WrittenObject, type WrittenManifest } from "../utils/websiteCaptureDelivery";
+import { capturedWriteIdentity, type WrittenObject } from "../utils/websiteCaptureDelivery";
 import { browserPendingDecisionKey, storedCapturePrivacyCleared, loadBrowserPending, prepareLegacyBrowserFinish,
-  publishBrowserPending, recordBrowserPending,
-  releaseBrowserUpload, reserveBrowserUpload, recordBrowserStoredUpload, loadBrowserStoredUpload,
-  reserveBrowserStoredUploadRetry, completeBrowserStoredUploadProbe, recordBrowserVideoProbeFailure,
+  releaseBrowserUpload, reserveBrowserUpload, loadBrowserStoredUpload,
+  reserveBrowserStoredUploadRetry,
   type BrowserStoredUpload, type BrowserPending,
   type BrowserWriteReservation } from "../utils/websiteBrowserPending";
 
@@ -94,6 +88,12 @@ import { requireAppCheck } from "../middleware/appCheck";
 import { ALLOWED_EXTENSIONS, resolveStoredObjectPath, verifiedStoredVideo,
   originalManifestConsent, verifiedPendingManifest, verifiedPendingMarker,
   belongsToLink, describeBrowserUpload } from "../utils/websiteBrowserUploadStatus";
+
+import { currentObjectGeneration, finishStoredCapture, processingPendingMessage,
+  retainedProcessingFailure, writeCompletionMarker } from "../utils/browserCaptureProcessing";
+import { parseVideoMetadata, type BrowserVideoMetadata } from "../utils/browserCaptureManifest";
+export { parseVideoMetadata, buildBrowserCaptureManifest } from "../utils/browserCaptureManifest";
+export type { BrowserVideoMetadata } from "../utils/browserCaptureManifest";
 
 const router = Router();
 type CaptureIdentity = { requestId: string; sceneId: string; captureId: string };
@@ -221,98 +221,6 @@ function storageBucketName() {
   return process.env.FIREBASE_STORAGE_BUCKET || "blueprint-8c1ca.appspot.com";
 }
 
-/** Retained manifest metadata; new uploads are measured locally by the server. */
-export type BrowserVideoMetadata = {
-  widthPx: number;
-  heightPx: number;
-  fps: number;
-  durationSeconds: number;
-  recordedAtEpochMs: number;
-  captureStartBasis?: "server_upload_received";
-  probe?: VideoProbe;
-};
-
-export function parseVideoMetadata(input: unknown): BrowserVideoMetadata | null {
-  if (!input || typeof input !== "object") return null;
-  const source = input as Record<string, unknown>;
-
-  const positive = (value: unknown) => {
-    const parsed = typeof value === "number" ? value : Number(value);
-    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
-  };
-
-  const widthPx = positive(source.widthPx);
-  const heightPx = positive(source.heightPx);
-  const fps = positive(source.fps);
-  const durationSeconds = positive(source.durationSeconds);
-  const recordedAtEpochMs = positive(source.recordedAtEpochMs);
-
-  if (!widthPx || !heightPx || !fps || !durationSeconds || !recordedAtEpochMs) {
-    return null;
-  }
-
-  return { widthPx, heightPx, fps, durationSeconds, recordedAtEpochMs };
-}
-
-/**
- * The raw-bundle manifest for a capture with no ARKit behind it.
- *
- * Deliberately a v1 manifest: declaring `schema_version: "v3"` would pull in
- * `coordinate_frame_session_id`, `capture_profile_id` and the rest of the
- * on-device contract, none of which exists for a video someone filmed in a
- * browser. Claiming that shape would be describing a capture we did not make.
- *
- * `has_lidar: false` and an unrecognised `capture_source` are both honest:
- * `normalizeCaptureSource` maps anything it does not know to `unknown`, and the
- * extractor already handles pose-free video that way.
- */
-export function buildBrowserCaptureManifest(input: {
-  payload: { sceneId: string; captureId: string; requestId: string };
-  objectPath: string;
-  video: BrowserVideoMetadata | null;
-  sizeBytes: number;
-  taskContext?: { description: string; confirmed: boolean; confirmed_at: string | null };
-  captureRights?: ReturnType<typeof projectWebsiteCaptureRights>;
-  firstReceivedAtIso?: string;
-}): Record<string, unknown> {
-  return {
-    schema_version: "v1",
-    scene_id: input.payload.sceneId,
-    capture_id: input.payload.captureId,
-    // The extractor blocks a capture that cannot name the submission behind it,
-    // and rightly: a walkthrough nobody can trace to a request is an orphan.
-    // Self-capture does have one, so it carries it. What it has no equivalent
-    // of is `capture_job_id` -- nobody was dispatched and nobody is owed -- and
-    // the extractor treats that absence as a warning for this source rather
-    // than demanding a job that never existed.
-    site_submission_id: input.payload.requestId,
-    request_id: input.payload.requestId,
-    ...(input.taskContext ? { site_task_context: {
-      schema_version: "website_site_task_context.v1",
-      request_id: input.payload.requestId,
-      ...input.taskContext,
-    } } : {}),
-    video_uri: input.objectPath,
-    // Not a device we ever saw. Naming it for what it is beats inventing a
-    // handset model to satisfy a required string.
-    device_model: "browser_self_capture",
-    os_version: "unknown",
-    capture_source: "browser_self_capture",
-    capture_rights: input.captureRights ?? projectWebsiteCaptureRights(undefined),
-    retention: websiteCaptureRetention(input.firstReceivedAtIso ?? null),
-    capture_tier_hint: "video_only",
-    has_lidar: false,
-    ...(input.video ? { fps_source: input.video.fps,
-    width: input.video.widthPx, height: input.video.heightPx,
-    capture_start_epoch_ms: input.video.recordedAtEpochMs,
-    duration_seconds: input.video.durationSeconds } : { media_probe_pending: true }),
-    ...(input.video?.probe ? { video_metadata_provenance: input.video.probe,
-      capture_start_epoch_ms_basis: input.video.captureStartBasis,
-      recording_time_known: false } : {}),
-    size_bytes: input.sizeBytes,
-  };
-}
-
 /**
  * What the link opens to: enough for the page to tell someone what to film, or
  * why they cannot yet.
@@ -326,39 +234,6 @@ export function buildBrowserCaptureManifest(input: {
  * status page while something is in the way and an upload page the moment it
  * is not. Nobody has to send a second link.
  */
-async function currentObjectGeneration(bucket: ReturnType<NonNullable<typeof storageAdmin>["bucket"]>,
-  objectPath: string): Promise<number | string> {
-  try {
-    const [metadata] = await bucket.file(objectPath).getMetadata();
-    return capturedWriteIdentity(objectPath, metadata).generation;
-  } catch (error) {
-    if ((error as { code?: unknown })?.code === 404) return 0;
-    throw error;
-  }
-}
-
-const processingPendingMessage = "Your video is saved. We could not confirm that processing started. You do not need to upload or record it again.";
-
-async function retainedProcessingFailure(video: WrittenObject, retryAvailable: boolean, payload: CaptureIdentity) {
-  let retained = false;
-  try { retained = await verifiedStoredVideo(video); } catch { /* Retention stays unconfirmed. */ }
-  const authorization = await authorizeCaptureUpload(payload.requestId);
-  const status = await describeBrowserUpload(payload, authorization.allowed);
-  const hold = authorization.allowed ? status.processingHold : {
-    code: authorization.holdReason ?? "capture_held",
-    detail: authorization.detail ?? "Your video is saved. Processing is on hold for this site.",
-  };
-  return { status: retained && hold ? 409 : 502, body: retained ? {
-    error: hold?.detail ?? processingPendingMessage, message: hold?.detail ?? processingPendingMessage,
-    state: hold ? "held" : "processing_pending", captureReceived: true,
-    ...(hold ? { code: hold.code, detail: hold.detail } : {}),
-    processingRetryAvailable: retryAvailable && status.processingRetryAvailable,
-  } : {
-    error: "We could not confirm whether your video was saved. Keep the original file and check this upload link before sending it again.",
-    state: "status_unavailable", captureReceived: false, processingRetryAvailable: false,
-  } };
-}
-
 /** Retained legacy/app polling keeps its old contract under current and original grants. */
 async function legacyStatusRecoveryAllowed(payload: CaptureIdentity, allowed: boolean): Promise<boolean> {
   if (!allowed || !storageAdmin) return false;
@@ -428,32 +303,6 @@ async function finalizedCaptureResponse(payload: CaptureIdentity, res: Response)
  * the extractor checks `raw_prefix` against the object's own path and a second
  * copy of that contract would be a second chance to get it wrong.
  */
-async function writeCompletionMarker(pending: BrowserPending): Promise<void> {
-  if (!storageAdmin) throw new Error("Storage is unavailable");
-  const [authorization, rights] = await Promise.all([
-    authorizeCaptureUpload(pending.request_id), loadWebsiteCaptureRights(pending.request_id),
-  ]);
-  if (!authorization.allowed || !rights.derived_scene_generation_allowed)
-    throw new Error("capture_processing_not_authorized");
-  const manifest = await verifiedPendingManifest(pending);
-  if (!manifest || !originalManifestConsent(manifest)) throw new Error("capture_processing_not_authorized");
-  const current = await loadBrowserPending(pending.capture_id);
-  if (!current || current.video.generation !== pending.video.generation
-      || current.manifest.generation !== pending.manifest.generation
-      || current.completed_at_iso !== pending.completed_at_iso) {
-    throw new Error("browser_pending_changed");
-  }
-  const rawPrefix = pending.video.object_name.slice(0, pending.video.object_name.lastIndexOf("/"));
-  const delivery = buildBrowserDelivery({
-    requestId: pending.request_id, sceneId: pending.scene_id,
-    captureId: pending.capture_id, rawPrefix, video: pending.video,
-    manifest: pending.manifest, completedAtIso: pending.completed_at_iso,
-  });
-  await enqueueCoverageReview({ requestId: pending.request_id, sceneId: pending.scene_id, captureId: pending.capture_id });
-  await publishBrowserDelivery(storageAdmin.bucket(storageBucketName()), delivery);
-  await publishBrowserPending(pending);
-}
-
 /** Finish a pre-receipt held upload without granting it original-owner proof. */
 async function writeLegacyHeldMarker(requestId: string, sceneId: string, captureId: string): Promise<boolean> {
   if (!storageAdmin) throw new Error("Storage is unavailable");
@@ -478,232 +327,6 @@ async function writeLegacyHeldMarker(requestId: string, sceneId: string, capture
       preconditionOpts: { ifGenerationMatch: 0 } },
   );
   return true;
-}
-
-/**
- * Everything that happens once the bytes are in the bucket.
- *
- * Extracted because there are two ways in now -- a single POST and a composed
- * set of resumable parts -- and only one of them may exist as code. The
- * sequence it owns is load-bearing in two places:
- *
- * - **Manifest before marker.** The marker starts extraction and extraction
- *   reads the manifest, so the reverse order produces a blocked report rather
- *   than a scene.
- * - **Privacy screen between them.** This is the only moment the video is in
- *   hand and nothing has been derived from it. A parts route that wrote its own
- *   marker would bypass the screen, and no later gate can un-copy the frames
- *   that would follow.
- */
-async function finishStoredCapture(params: {
-  payload: { requestId: string; sceneId: string; captureId: string };
-  objectPath: string;
-  rawPrefix: string;
-  videoMetadata: BrowserVideoMetadata | null;
-  probeFilePath?: string;
-  sizeBytes: number;
-  video: WrittenObject;
-  reservation: BrowserWriteReservation;
-  storedUpload?: BrowserStoredUpload;
-}): Promise<{ status: number; body: Record<string, unknown> }> {
-  const { payload, objectPath, rawPrefix } = params;
-
-  if (!storageAdmin) {
-    return {
-      status: 503,
-      body: { error: "Uploads are unavailable right now. Try again shortly." },
-    };
-  }
-  const bucket = storageAdmin.bucket(storageBucketName());
-  if (params.video.object_name !== objectPath || params.video.size_bytes !== params.sizeBytes) {
-    return { status: 409, body: { error: "The stored video does not match this upload.", code: "video_identity_mismatch" } };
-  }
-  const currentAuthority = await authorizeCaptureUpload(payload.requestId);
-  if (!currentAuthority.allowed) {
-    // A retry reuses an earlier retained source; withdrawn authority cannot
-    // turn that replay into deletion of the original upload.
-    if (params.storedUpload) return retainedProcessingFailure(params.video, false, payload);
-    if (currentAuthority.holdReason === "recording_consent_required") {
-      // Delete only the exact generation this request just wrote; never a replacement.
-      await bucket.file(objectPath, { generation: params.video.generation,
-        preconditionOpts: { ifGenerationMatch: params.video.generation } }).delete({ ignoreNotFound: true });
-    }
-    return { status: 409, body: { code: currentAuthority.holdReason, error: currentAuthority.detail } };
-  }
-
-  let pending: BrowserPending;
-  let storedUpload = params.storedUpload;
-  let journalRecorded = Boolean(storedUpload);
-  let captureWriteStage: CaptureWriteStage = "task_context_read";
-  try {
-    if (!storedUpload) {
-      // Keep the exact server-built manifest with the observed write response.
-      // A manifest-write retry must not fabricate measurements or rebuild the
-      // original consent/task snapshot from a later state.
-      const brief = await getBrief(payload.requestId);
-      captureWriteStage = "capture_rights_read";
-      const captureRights = await loadWebsiteCaptureRights(payload.requestId);
-      captureWriteStage = "manifest_build";
-      const firstReceivedAtIso = new Date().toISOString();
-      const manifestJson = JSON.stringify(buildBrowserCaptureManifest({ payload,
-        objectPath, video: params.videoMetadata, sizeBytes: params.sizeBytes,
-        captureRights, firstReceivedAtIso,
-        taskContext: { description: brief?.summary ?? "", confirmed: Boolean(brief?.confirmedAtIso),
-          confirmed_at: brief?.confirmedAtIso ?? null },
-      }), null, 2);
-      storedUpload = { schema_version: "website_browser_stored_upload.v1",
-        request_id: payload.requestId, scene_id: payload.sceneId, capture_id: payload.captureId,
-        completed_at_iso: firstReceivedAtIso, video: params.video,
-        manifest_json: manifestJson,
-        manifest_sha256: `sha256:${createHash("sha256").update(manifestJson).digest("hex")}` };
-      captureWriteStage = "stored_upload_record";
-      await recordBrowserStoredUpload(storedUpload, params.reservation);
-      journalRecorded = true;
-    }
-    captureWriteStage = "stored_video_verify";
-    if (!(await verifiedStoredVideo(storedUpload.video))) throw new Error("browser_delivery_source_changed");
-    if (JSON.parse(storedUpload.manifest_json).media_probe_pending === true) {
-      if (!originalManifestConsent(storedUpload.manifest_json)) throw new Error("source_revoked");
-      try {
-        const options = { receivedAtEpochMs: Date.parse(storedUpload.completed_at_iso) };
-        const measured = params.probeFilePath ? await probeCaptureVideo(params.probeFilePath, options)
-          : await probeStoredCaptureVideo(storedUpload.video, () => bucket.file(storedUpload!.video.object_name,
-            { generation: storedUpload!.video.generation }).createReadStream(), options);
-        storedUpload = await completeBrowserStoredUploadProbe(storedUpload, measured, params.reservation);
-      } catch (error) {
-        if (error instanceof VideoProbeError && error.code === "video_unreadable")
-          await recordBrowserVideoProbeFailure(storedUpload, params.reservation);
-        throw error;
-      }
-    }
-    const manifestName = `${rawPrefix}/manifest.json`;
-    const manifestBytes = Buffer.from(storedUpload.manifest_json);
-    const manifestFile = bucket.file(manifestName);
-    captureWriteStage = "manifest_generation_read";
-    const priorManifest = await currentObjectGeneration(bucket, manifestName);
-    captureWriteStage = "manifest_write";
-    await manifestFile.save(manifestBytes, { contentType: "application/json",
-      preconditionOpts: { ifGenerationMatch: priorManifest } });
-    captureWriteStage = "manifest_identity";
-    const written = capturedWriteIdentity(manifestName, manifestFile.metadata);
-    if (written.size_bytes !== manifestBytes.length) throw new Error("browser_manifest_write_unverified");
-    const manifestIdentity: WrittenManifest = { ...written,
-      sha256: `sha256:${createHash("sha256").update(manifestBytes).digest("hex")}` };
-    captureWriteStage = "pending_record";
-    pending = await recordBrowserPending({
-      schema_version: "website_browser_pending.v1", request_id: payload.requestId,
-      scene_id: payload.sceneId, capture_id: payload.captureId, state: "held",
-      completed_at_iso: storedUpload.completed_at_iso, video: params.video, manifest: manifestIdentity,
-    }, params.reservation);
-  } catch (error) {
-    logger.error(
-      { captureWriteFailure: captureWriteFailureDiagnostic(captureWriteStage, error), captureId: payload.captureId },
-      "Self-capture video stored but its exact manifest or pending identity failed",
-    );
-    return retainedProcessingFailure(params.video, journalRecorded, payload);
-  }
-
-  const currentRights = await loadWebsiteCaptureRights(payload.requestId);
-  if (!currentRights.derived_scene_generation_allowed || !originalManifestConsent(storedUpload.manifest_json)) {
-    return { status: 200, body: { ok: true, state: "held", uploadState: "retained", captureReceived: true,
-      processingRetryAvailable: false, code: "capture_processing_not_authorized",
-      message: "Your video is saved. Processing is on hold until its existing consent can be verified." } };
-  }
-
-  // The manifest is the durable proof that the upload is complete. Notify
-  // before privacy review, while saying exactly that review is still pending.
-  // A retried completion reaches this call again and repairs a missed enqueue;
-  // the outbox key keeps that retry from creating a second message.
-  try {
-    await enqueueTaskLifecycleNotification({
-      requestId: payload.requestId,
-      milestone: "video_received",
-    });
-  } catch (error) {
-    logger.warn({ error, requestId: payload.requestId }, "Could not enqueue video-received notice");
-  }
-  if (!isSiteVideoEvidenceEnabled()) {
-    void notifySlackFootageNeedsReview({ requestId: payload.requestId }).catch(() => undefined);
-  }
-
-  const producerSource = { kind: "browser_pending" as const, key: browserPendingDecisionKey(pending) };
-  const claim = await claimCapturePrivacyScreen({ requestId: payload.requestId,
-    captureId: payload.captureId, producerSource });
-  if (!claim) return retainedProcessingFailure(params.video, true, payload);
-  let privacy;
-  try {
-    privacy = await screenCaptureForPrivacy({
-      requestId: payload.requestId,
-      sceneId: payload.sceneId,
-      captureId: payload.captureId,
-    });
-    await recordCapturePrivacyScreen({
-      requestId: payload.requestId,
-      captureId: payload.captureId,
-      result: privacy,
-      producerSource,
-      claim,
-    });
-  } catch (error) {
-    await releaseCapturePrivacyScreenClaim(claim);
-    throw error;
-  }
-
-  if (!privacy.proceed) {
-    // 200 and `ok: true`, because the upload genuinely succeeded. Accepting
-    // fails open; only deriving fails closed. Telling someone their video
-    // failed when we are holding it would send them off to re-film something
-    // we already have.
-    //
-    // The two cases read differently to whoever is looking at them.
-    // `rejected` needs a person and asking again will not change it.
-    // `pending` is our problem and retries on its own.
-    return {
-      status: 200,
-      body: {
-        ok: true,
-        captureId: payload.captureId,
-        state: "held",
-        uploadState: "retained",
-        captureReceived: true,
-        processingRetryAvailable: privacy.retryable ?? false,
-        eligibility: privacy.eligibility,
-        retryable: privacy.retryable ?? false,
-        code:
-          privacy.eligibility === "pending"
-            ? "capture_review_unavailable"
-            : "capture_privacy_review",
-        message: privacy.detail,
-      },
-    };
-  }
-
-  try {
-    await writeCompletionMarker(pending);
-  } catch (error) {
-    // The video is already stored, so this is recoverable by rewriting the
-    // marker rather than re-uploading hundreds of megabytes. Say so plainly
-    // instead of reporting a success that will never produce a scene.
-    logger.error(
-      { error, captureId: payload.captureId, sceneId: payload.sceneId },
-      "Self-capture video stored but completion marker failed; capture will not extract",
-    );
-    return retainedProcessingFailure(params.video, true, payload);
-  }
-
-  return {
-    status: 201,
-    body: {
-      ok: true,
-      captureId: payload.captureId,
-      state: "processing_ready",
-      uploadState: "processing_ready",
-      captureReceived: true,
-      processingRetryAvailable: false,
-      eligibility: privacy.eligibility,
-      message: "Got it. We'll build the scene and come back to you.",
-    },
-  };
 }
 
 /* ------------------------------------------------------------ app bundles */

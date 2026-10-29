@@ -1092,6 +1092,7 @@ router.get("/:token/status", async (req: Request, res: Response) => {
 
     const status = projectTaskStatus(
       taskStatusInputFrom({
+        active_capture_id: request?.active_capture_id,
         site_task_brief_confirmed_at: request?.site_task_brief_confirmed_at,
         capture_coverage: request?.capture_coverage ?? null,
         briefDrafted: Boolean(brief),

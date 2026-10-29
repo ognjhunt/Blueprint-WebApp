@@ -14,9 +14,17 @@ const CAPTURE_DEPENDENT_NOTICES=new Set<OutboxKind>([
  * existing authority checks; this grants no deletion/cancellation claim.
  * A missing capture source denies dispatch. A read failure stays recoverable. */
 export async function taskLifecycleNotificationIsCurrent(
- entry:{kind:OutboxKind;requestId:string;preparationEventId?:string;to?:string},
+ entry:{kind:OutboxKind;requestId:string;preparationEventId?:string;to?:string;body?:string},
  transaction?:FirebaseFirestore.Transaction,
 ):Promise<boolean>{
+ // Coverage repair and candidate starts are internal work. Suppress old
+ // queued notices without deleting findings or changing execution authority.
+ if(entry.kind==='coverage_shortfall'||entry.kind==='screening_started'
+  ||entry.kind==='screening_cleared'||entry.kind==='assessment_ready')return false;
+ // Older queued ownership notices asked for an account that cannot repair
+ // the recording. Keep their history, but do not dispatch that stale request.
+ if(entry.kind==='footage_before_account'&&typeof entry.body==='string'
+  &&/\bsave\b[^.\n]*\baccount\b/i.test(entry.body))return false;
  // Both preparation notices: current consent and recipient, and the same current event.
  if(entry.kind==='preparation_needs_attention'||entry.kind==='preparation_ended'){
   if(!/^sha256:[a-f0-9]{64}$/.test(entry.preparationEventId||''))return false;

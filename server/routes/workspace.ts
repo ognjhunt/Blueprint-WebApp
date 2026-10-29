@@ -690,6 +690,7 @@ async function hydrateTask(requestId: string, record: Record<string, any>) {
     if (!consentRevoked && !walkthrough) throw new Error("walkthrough_status_unavailable");
     task.readiness = projectTaskStatus(
       taskStatusInputFrom({
+        active_capture_id: typeof record.active_capture_id === "string" ? record.active_capture_id : null,
         site_task_brief_confirmed_at: record.site_task_brief_confirmed_at,
         capture_coverage: (record.capture_coverage as never) ?? null,
         briefDrafted: Boolean(brief),
@@ -1209,7 +1210,7 @@ router.post(
     requireRole(res, "site_operator");
     const input = z.object({
       requestId: id,
-      siteLocation: z.string().trim().min(1).max(300),
+      siteLocation: z.string().trim().max(300).default(""),
       taskStatement: z.string().trim().max(2000).default(""),
       siteTaskSpec: z.object({
         jobFrequency: z.string().trim().max(120).optional(),
@@ -1229,6 +1230,8 @@ router.post(
       solAgentsApiConsent: z.object({ granted: z.literal(true),
         statementVersion: z.literal("2026-09-24.v1") }).optional(),
       honeypot: z.string().optional(),
+    }).refine(input => input.captureMode !== "site_visit" || Boolean(input.siteLocation), {
+      path: ["siteLocation"], message: "Add the street address for a Blueprint filming visit.",
     }).refine(input => Boolean(input.taskStatement)
       || (input.captureMode === "self_capture" && input.descriptionOnly !== true
         && input.consentAttestation?.granted === true)

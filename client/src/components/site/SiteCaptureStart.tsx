@@ -264,8 +264,9 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
   const [method, setMethod] = useState<"upload" | "phone" | "visit">(initial.draft.method);
   const selfRecording = method === "phone";
   const [region, setRegion] = useState<CaptureRegion | "">(initial.draft.region);
-  // The address is the only place the country comes from. An address that does
-  // not resolve to one is flagged at Start, next to the address itself.
+  const [regionManuallySet, setRegionManuallySet] = useState(initial.draft.regionManuallySet);
+  // Recording permission needs a country, not a street address. An explicit
+  // country can stand alone; changing the address rechecks that declaration.
   const [countryMissing, setCountryMissing] = useState(false);
   // Asked because it changes what we say next, not to route them into a
   // different funnel. Existing footage gets assessed for both purposes -- does
@@ -310,6 +311,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
     recovery.current = other;
     requestId.current = other.requestId; retryToken.current = other.retryToken;
     setMethod(other.draft.method); setRegion(other.draft.region);
+    setRegionManuallySet(other.draft.regionManuallySet);
     setPending(other.pending);
     if (changed && resetChanged) {
       setClaudeConsent(false); setSolAgentsConsent(false);
@@ -326,10 +328,10 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
       ...(field("startFrequency") ? { jobFrequency: field("startFrequency") } : {}),
       ...(field("startReadiness") ? { purchaseReadiness: field("startReadiness") as SiteCaptureRecovery["draft"]["purchaseReadiness"] } : {}),
       method, region: place ? (place.countryCode ? (place.countryCode === "US" ? "us" : "non_us") : "") : region,
-      regionManuallySet: false,
+      regionManuallySet: place ? false : regionManuallySet,
     } });
   }
-  useEffect(() => { retainDraft(); }, [interactive, method, region]);
+  useEffect(() => { retainDraft(); }, [interactive, method, region, regionManuallySet]);
   useEffect(() => {
     const onStorage = (event: StorageEvent) => {
       if (event.key !== storageKey || operationInFlight.current) return;
@@ -352,7 +354,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
       recovery.current = fresh;
       requestId.current = fresh.requestId; retryToken.current = fresh.retryToken;
       setRecoveryUnavailable(false); setPending(null); setState({ status: "idle" }); setClaudeConsent(false); setSolAgentsConsent(false);
-      setMethod("phone"); setRegion(""); setCountryMissing(false);
+      setMethod("phone"); setRegion(""); setRegionManuallySet(false); setCountryMissing(false);
       setFootage(null); setFootageError(null); setCaptureReceived(false);
       setResetVersion(value => value + 1);
       // A completion is visible only after both stores commit the fresh authority.
@@ -373,11 +375,11 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
     if (recoveryUnavailable || operationInFlight.current || state.status === "working" || loading
       || (!retained && claudeAuthoringRequested && !claudeConsent)
       || (!retained && solAgentsRequested && !solAgentsConsent)) return;
-    // The address has to say which country it is in. The country decides whether
-    // we may collect footage at all, so we do not guess it.
+    // Keep the existing capture-region permission without requiring an address
+    // from someone who is supplying their own recording. Never guess a country.
     if (!retained && !region) {
       setCountryMissing(true);
-      document.querySelector<HTMLInputElement>("#start-location")?.focus();
+      document.querySelector<HTMLElement>(method === "visit" ? "#start-location" : "#start-region")?.focus();
       return;
     }
     if (!retained && footageWanted && !footage) return;
@@ -605,16 +607,23 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
           </>
         ) : state.selfRecording && state.captureUrl && captureReceived ? (
           <>
-            <h2 style={{ marginTop: 0 }}>{state.uploaded === "processing_pending" ? "Video received. Processing is not confirmed." : "Your recording is in."}</h2>
-            {state.uploaded !== "done" && state.uploadMessage && (
+            <h2 style={{ marginTop: 0 }}>Your recording is in.</h2>
+            {state.uploaded === "processing_pending" && <p className="ms-field-hint">
+              Blueprint will continue from this saved recording and update your job. You can leave this page.
+            </p>}
+            {state.uploaded !== "done" && state.uploaded !== "processing_pending" && state.uploadMessage && (
               <p className="ms-field-hint">{state.uploadMessage}</p>
             )}
-            {state.uploaded === "processing_pending" && state.processingRetryAvailable && (
-              <p><button type="button" className="ms-button" disabled={retryingProcessing} onClick={() => void retryProcessing()}>
+            {state.uploaded === "processing_pending" && (
+              <details aria-label="Processing details">
+                <summary>Processing details (optional)</summary>
+                {state.uploadMessage && <p className="ms-field-hint">{state.uploadMessage}</p>}
+                {state.processingRetryAvailable && <button type="button" className="ms-text-link" disabled={retryingProcessing} onClick={() => void retryProcessing()}>
                 {retryingProcessing ? "Retrying processing…" : "Retry processing"}
-              </button></p>
+                </button>}
+              </details>
             )}
-            <CaptureLiveStatus compact captureUrl={state.captureUrl} />
+            {state.uploaded === "done" && <CaptureLiveStatus compact captureUrl={state.captureUrl} />}
             <p style={{ marginTop: "20px" }}>
               <a className="ms-button ms-button-large ms-intake-job-link" href={state.captureUrl}>Open your job and assessment</a>
             </p>
@@ -680,15 +689,17 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
         {state.workspaceUrl && <p><a className="ms-text-link" href={state.workspaceUrl}>Saved in your workspace</a></p>}
         {state.linkOnlyNote && <p className="ms-field-hint">{state.linkOnlyNote}</p>}
         {!state.workspaceUrl && state.claimUrl && <section className="ms-intake-account" aria-label="Save this job to your account">
-          <h2>Save this job to your account (optional)</h2>
+          <details>
+          <summary>Save this job to your account (optional)</summary>
           <p className="ms-field-hint">
-            Your private job link lets you upload, review the brief and follow progress.
+            Your private job link already lets you upload, see results and review proposals.
             Create an account with {state.email} if you want this job in your workspace.
           </p>
           <div className="ms-intake-account-links">
             <a className="ms-text-link" href={state.claimUrl}>Create an account for this job</a>
             <a className="ms-text-link" href={`${state.claimUrl}?mode=signin`}>Sign in to save this job</a>
           </div>
+          </details>
         </section>}
         <div className="ms-intake-reset">
           <ClearDraftControl status={clearStatus} onClear={forgetDraft} />
@@ -806,8 +817,24 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
       ) : null}
 
       <div style={{ display: "flex", flexDirection: "column", gap: "9px" }}>
+        {(selfRecording || hasFootage) && (!region || regionManuallySet) && (
+          <label htmlFor="start-region">
+            <span>Site country</span>
+            <span className="ms-field-hint">This determines whether we can receive the recording. No address is needed.</span>
+            <select id="start-region" name="startRegion" required value={region}
+              onChange={(event) => {
+                setRegion(event.target.value as CaptureRegion | "");
+                setRegionManuallySet(true);
+                setCountryMissing(false);
+              }}>
+              <option value="">Choose the site country</option>
+              <option value="us">United States</option>
+              <option value="non_us">Outside the United States</option>
+            </select>
+          </label>
+        )}
         <label htmlFor="start-location">
-          <span>Where does the work happen?</span>
+          <span>{selfRecording || hasFootage ? "City or address (optional)" : "Where does the work happen?"}</span>
           {!(selfRecording || hasFootage) && (
             <span className="ms-field-hint">We are sending someone to film it, so we need the street address.</span>
           )}
@@ -816,11 +843,12 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
           id="start-location"
           name="startLocation"
           defaultValue={recovery.current.draft.location}
-          required
+          required={method === "visit"}
           maxLength={300}
           placeholder={selfRecording || hasFootage ? "City or address" : "Street address"}
           onSelectionChange={(place) => {
             setCountryMissing(false);
+            setRegionManuallySet(false);
             setRegion(place?.countryCode ? (place.countryCode === "US" ? "us" : "non_us") : "");
             // A programmatic fill may keep the same region and emit no form
             // change. Retain the chosen value directly in that case too.
@@ -828,6 +856,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
           }}
           onInputChange={(text) => {
             setCountryMissing(false);
+            setRegionManuallySet(false);
             const country = inferLocationCountryCode(text);
             setRegion(country ? (country === "US" ? "us" : "non_us") : "");
           }}
@@ -835,7 +864,9 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
 
         {countryMissing && !region && (
           <p className="ms-error" role="alert" style={{ margin: 0 }}>
-            Add the country to the address, for example Sacramento, California, United States.
+            {method === "visit"
+              ? "Add the country to the address, for example Sacramento, California, United States."
+              : "Choose the site country so we can check recording permission."}
           </p>
         )}
 

@@ -70,7 +70,7 @@ const reportBody = (row: { id: string; revision: string }) => ({ ...selectBody(r
   measuredUnitsPerHour: 60, interventionsPerHour: 1, notes: "Owner-reported operating observation." });
 
 describe("job workflow authority and durable decisions", () => {
-  it("shows diagnostic screening on a proposed preparation task while keeping commercial proposals blocked", async () => {
+  it("shows diagnostic screening on a proposed task without inventing a delivery proposal", async () => {
     const { publication, job, brief, intake } = screeningFixture(true);
     state.docs.set("inboundRequests/job-one", job);
     state.docs.set("siteTaskBriefs/job-one", brief);
@@ -82,9 +82,33 @@ describe("job workflow authority and durable decisions", () => {
     expect(view.body.briefAgreed).toBe(false);
     expect(view.body.managedEvidence?.[0]).toMatchObject({ current: true, state: "queued", resultDigest: null });
     expect(view.body.managedEvidence?.[0].screening?.candidates).toHaveLength(36);
-    const refused = await api("/admin/job-one/proposals", "POST", proposal, "ops-token");
-    expect(refused.status).toBe(409);
-    expect(refused.body.code).toBe("brief_not_agreed");
+    expect(view.body.proposals).toEqual([]);
+  });
+
+  it("lets a guest review and choose an exact scoped proposal without confirming the draft", async () => {
+    const record = state.docs.get("inboundRequests/job-1")!;
+    state.docs.set("inboundRequests/job-1", { ...record, account_owner_uid: null });
+    const brief = { ...state.docs.get("siteTaskBriefs/job-1"), confirmedAtIso: null, confirmedBy: null };
+    state.docs.set("siteTaskBriefs/job-1", brief);
+    const waiting = await owner();
+    expect(waiting.status).toBe(200);
+    expect(waiting.body).toMatchObject({ briefAgreed: false, actionOwner: "blueprint" });
+    const published = await admin("/proposals", "POST", proposal);
+    expect(published.status).toBe(201);
+    expect(published.body).toMatchObject({ briefAgreed: false, stage: "proposals_ready", actionOwner: "site" });
+    const row = published.body.proposals[0];
+    expect(row.scope).toBe(proposal.scope);
+    expect(row.evidence).toEqual(proposal.evidence);
+    const selected = await owner("/select", "POST", selectBody(row));
+    expect(selected.status).toBe(200);
+    expect(selected.body.selection).toMatchObject({ proposalId: row.id, proposalRevision: row.revision });
+    expect(selected.body.briefAgreed).toBe(false);
+    expect(selected.body.agreement).toBeNull();
+    expect(selected.body.outcome).toBeNull();
+    expect(state.docs.get("siteTaskBriefs/job-1")).toEqual(brief);
+    state.docs.set("siteTaskBriefs/job-1", { ...brief, summary: "Move cases into a different workcell" });
+    expect((await owner()).body.proposals[0].status).toBe("review_required");
+    expect((await owner("/select", "POST", selectBody(row))).body.code).toBe("brief_changed");
   });
   it("rejects anonymous/nonstaff admin access, forged and film-only links, and missing CSRF", async () => {
     expect((await api("/admin/job-1")).status).toBe(401);
@@ -175,7 +199,8 @@ describe("job workflow authority and durable decisions", () => {
     expect(revised.body.proposals[0].status).toBe("available");
     state.docs.set("siteTaskBriefs/job-1", { summary: "A changed unconfirmed job", confirmedAtIso: null });
     const waiting = await owner(); expect(waiting.body.stage).toBe("job_submitted");
-    expect(waiting.body.proposals).toEqual([]); expect(waiting.body.selection).toBeNull();
+    expect(waiting.body.proposals[0]).toMatchObject({ id: row.id, status: "review_required" });
+    expect(waiting.body.selection).toBeNull();
   });
 
   it("idempotently publishes quotes and rejects concurrent stale edits", async () => {

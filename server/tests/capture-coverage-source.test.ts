@@ -121,7 +121,7 @@ describe("the walkthrough's job estimates ride on its coverage review", () => {
       .other_items_likely).toEqual([]);
   });
 
-  it.each([false, true])("records a useful shortfall with notifyOwner=%s without broadening send authority", async notifyOwner => {
+  it.each([false, true])("keeps a useful shortfall internal even with legacy notifyOwner=%s", async notifyOwner => {
     const record = sharedFakeFirestoreState.docs.get("inboundRequests/r1")!;
     sharedFakeFirestoreState.docs.set("inboundRequests/r1", { ...record, contact: { email: "site@synthetic.invalid" } });
     source.agent.mockResolvedValueOnce({ status: "completed", output: output({ covers_scene: false,
@@ -130,7 +130,7 @@ describe("the walkthrough's job estimates ride on its coverage review", () => {
       missingCoverage: ["The destination"] });
     expect(sharedFakeFirestoreState.docs.get("inboundRequests/r1")?.capture_coverage).toMatchObject({
       covers_scene: false, missing_coverage: ["The destination"] });
-    expect(commitTaskUpdate).toHaveBeenCalledTimes(notifyOwner ? 1 : 0);
+    expect(commitTaskUpdate).not.toHaveBeenCalled();
   });
 
   it("keeps none from a clip it could not read, while the finding still lands", async () => {

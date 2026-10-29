@@ -442,6 +442,99 @@ async function waitForUploadRelease(requestId: string) {
 }
 
 describe("saved footage and processing are separate receipts", () => {
+  async function retainedAfterProbeFailure(requestId: string, code: "video_probe_unavailable" | "video_unreadable" = "video_probe_unavailable") {
+    seedRequest(requestId, { disposition: "qualified" });
+    const { VideoProbeError } = await import("../utils/selfCaptureMediaMetadata");
+    mediaProbe.local.mockRejectedValueOnce(new VideoProbeError(code));
+    screenCaptureForPrivacy.mockResolvedValue({ proceed: true, eligibility: "unscreened", outcome: "not_reviewed", detail: null, evidence: null } as any);
+    await withRoutes(async baseUrl => {
+      expect(await uploadFor(baseUrl, requestId, "immutable original"))
+        .toMatchObject({ status: code === "video_unreadable" ? 409 : 502, body: { captureReceived: true } });
+      await waitForUploadRelease(requestId);
+    }); // The browser-facing HTTP server is closed before recovery runs.
+    return structuredClone(sharedFakeFirestoreState.docs.get(`captureUploadSessions/walkthrough-${requestId}`)!.browser_stored_upload);
+  }
+
+  it("the existing worker finishes the retained generation after the browser and HTTP server are gone", async () => {
+    const requestId = "req-worker-probe";
+    const saved = await retainedAfterProbeFailure(requestId);
+    const before = [...storedVersions.keys()].filter(name => name.includes("/walkthrough.mov@"));
+    const { reconcileBrowserCaptureProcessing } = await import("../utils/browserCaptureRecovery");
+    expect(await reconcileBrowserCaptureProcessing()).toMatchObject({ processedCount: 1, failedCount: 0 });
+    const finished = sharedFakeFirestoreState.docs.get(`captureUploadSessions/walkthrough-${requestId}`)!;
+    expect(finished).toMatchObject({ browser_stored_upload: null, browser_upload_reservation: null,
+      browser_pending_delivery: { state: "published", video: saved.video, completed_at_iso: saved.completed_at_iso } });
+    const manifest = JSON.parse(written.get(finished.browser_pending_delivery.manifest.object_name)!);
+    const original = JSON.parse(saved.manifest_json);
+    expect(manifest.capture_rights).toEqual(original.capture_rights);
+    expect(manifest.site_task_context).toEqual(original.site_task_context);
+    expect([...storedVersions.keys()].filter(name => name.includes("/walkthrough.mov@"))).toEqual(before);
+    expect(mediaProbe.stored).toHaveBeenCalledExactlyOnceWith(saved.video, expect.any(Function),
+      { receivedAtEpochMs: Date.parse(saved.completed_at_iso) });
+    await reconcileBrowserCaptureProcessing();
+    expect(mediaProbe.stored).toHaveBeenCalledTimes(1);
+    expect(screenCaptureForPrivacy).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(["withdrawn", "superseded", "unreadable", "busy"] as const)("worker recovery preserves a %s source without re-probing it", async mode => {
+    const requestId = `req-worker-${mode}`;
+    const saved = await retainedAfterProbeFailure(requestId, mode === "unreadable" ? "video_unreadable" : "video_probe_unavailable");
+    const request = sharedFakeFirestoreState.docs.get(`inboundRequests/${requestId}`)!;
+    if (mode === "withdrawn") request.request.consent_attestation.granted = false;
+    if (mode === "superseded") request.active_capture_id = `supplement-${"f".repeat(40)}`;
+    const pending = await import("../utils/websiteBrowserPending");
+    const lease = mode === "busy" ? await pending.reserveBrowserStoredUploadRetry(saved) : null;
+    const { reconcileBrowserCaptureProcessing } = await import("../utils/browserCaptureRecovery");
+    await reconcileBrowserCaptureProcessing();
+    expect(mediaProbe.stored).not.toHaveBeenCalled();
+    expect(screenCaptureForPrivacy).not.toHaveBeenCalled();
+    const session = sharedFakeFirestoreState.docs.get(`captureUploadSessions/walkthrough-${requestId}`)!;
+    expect(session.browser_stored_upload).toEqual(saved);
+    expect(session.browser_pending_delivery).toBeUndefined();
+    if (lease) expect(session.browser_upload_reservation).toEqual(lease);
+    if (mode === "superseded") expect(request.active_capture_id).toBe(`supplement-${"f".repeat(40)}`);
+  });
+
+  it("the worker retries only publication after a marker outage without re-uploading or re-probing", async () => {
+    const requestId = "req-worker-marker";
+    seedRequest(requestId, { disposition: "qualified" });
+    screenCaptureForPrivacy.mockResolvedValue({ proceed: true, eligibility: "unscreened", outcome: "not_reviewed", detail: null, evidence: null } as any);
+    writeFault.markerOnce = true;
+    await withRoutes(async baseUrl => {
+      expect(await uploadFor(baseUrl, requestId, "immutable original")).toMatchObject({ status: 502, body: { captureReceived: true } });
+      await waitForUploadRelease(requestId);
+    });
+    const sessionPath = `captureUploadSessions/walkthrough-${requestId}`;
+    const before = structuredClone(sharedFakeFirestoreState.docs.get(sessionPath)!.browser_pending_delivery);
+    expect(before.state).toBe("held");
+    const { reconcileBrowserCaptureProcessing } = await import("../utils/browserCaptureRecovery");
+    expect(await reconcileBrowserCaptureProcessing()).toMatchObject({ processedCount: 1, failedCount: 0 });
+    expect(sharedFakeFirestoreState.docs.get(sessionPath)!.browser_pending_delivery).toEqual({ ...before, state: "published" });
+    expect(mediaProbe.local).toHaveBeenCalledTimes(1);
+    expect(mediaProbe.stored).not.toHaveBeenCalled();
+    expect(screenCaptureForPrivacy).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps later originals and held publication moving past an unreadable source", async () => {
+    const blockedId = "req-worker-a-blocked", readyId = "req-worker-c-ready", markerId = "req-worker-b-marker";
+    const blocked = await retainedAfterProbeFailure(blockedId, "video_unreadable");
+    const ready = await retainedAfterProbeFailure(readyId);
+    seedRequest(markerId, { disposition: "qualified" });
+    writeFault.markerOnce = true;
+    await withRoutes(async baseUrl => {
+      expect(await uploadFor(baseUrl, markerId, "retained marker source")).toMatchObject({ status: 502, body: { captureReceived: true } });
+      await waitForUploadRelease(markerId);
+    });
+    const { reconcileBrowserCaptureProcessing } = await import("../utils/browserCaptureRecovery");
+    expect(await reconcileBrowserCaptureProcessing()).toEqual({ processedCount: 1, blockedCount: 1, failedCount: 0 });
+    expect(sharedFakeFirestoreState.docs.get(`captureUploadSessions/walkthrough-${markerId}`)!.browser_pending_delivery.state).toBe("published");
+    expect(mediaProbe.stored).not.toHaveBeenCalled();
+    expect(await reconcileBrowserCaptureProcessing()).toMatchObject({ processedCount: 1, failedCount: 0 });
+    expect(mediaProbe.stored).toHaveBeenCalledExactlyOnceWith(ready.video, expect.any(Function),
+      { receivedAtEpochMs: Date.parse(ready.completed_at_iso) });
+    expect(sharedFakeFirestoreState.docs.get(`captureUploadSessions/walkthrough-${blockedId}`)!.browser_stored_upload).toEqual(blocked);
+  });
+
   it("retains the original before a probe outage and retries its exact generation without another upload", async () => {
     seedRequest("req-probe-outage", { disposition: "qualified" });
     const { VideoProbeError } = await import("../utils/selfCaptureMediaMetadata");

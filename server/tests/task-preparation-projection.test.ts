@@ -27,8 +27,8 @@ describe("current source-bound preparation projection", () => {
     expect(status.headline).toContain("Keep your original recording");
     expect(status.headline).not.toContain("our team has been told");
     expect(status.headline).not.toContain("we are preparing it");
-    // Teams evaluate only a confirmed job, so the problem carries the site's step.
-    expect(status.operatorAction).toMatch(/confirm it/i);
+    // Blueprint owns preparation and recovery; confirmation does not repair it.
+    expect(status.operatorAction).toBeNull();
     const confirmed = projectTaskStatus({ ...base, preparationStatus: { state, correlationId: reference } } as never);
     expect(confirmed.headline).toBe(status.headline);
     expect(confirmed.operatorAction).toBeNull();
@@ -57,7 +57,7 @@ describe("current source-bound preparation projection", () => {
   it.each([
     [{ consentRevoked: true }, "withdrawn"],
     [{ briefDrafted: false }, "reading"],
-    [{ coversScene: false, missingViews: ["destination"] }, "coverage"],
+    [{ coversScene: false, missingViews: ["destination"] }, "needs more information"],
     [{ disposition: "not_now" }, "needs more information"],
     [{ disposition: "needs_conversation" }, "needs more information"],
     [{ claimed: false }, "needs more information"],
@@ -66,6 +66,10 @@ describe("current source-bound preparation projection", () => {
       preparationStatus: { state: "awaiting_inputs", correlationId: reference } } as never);
     expect(status.headline).toContain(phrase);
     expect(status.headline).not.toContain("encountered a problem");
+    if ("missingViews" in override) {
+      expect(status.missingViews).toEqual(override.missingViews);
+      expect(status.operatorAction).toBeNull();
+    }
   });
   it.each([
     [{ teams: 1, queued: 0, running: 0, reported: 1, noResult: 0 }, "results"],
@@ -187,12 +191,13 @@ describe("preparation that waits on capacity or ends for good (beta L3/L6)", () 
   });
 });
 
-describe("the site's brief confirmation alongside v2 preparation states", () => {
+describe("optional brief confirmation alongside v2 preparation states", () => {
   const unconfirmed = { ...base, briefConfirmed: false };
-  it("waiting for capacity, like preparing, leaves the confirmation as the site's step", () => {
+  it("waiting for capacity, like preparing, remains Blueprint's work", () => {
     const status = projectTaskStatus({ ...unconfirmed,
       preparationStatus: { state: "capacity_delayed", correlationId: reference } } as never);
-    expect(status.decision).toBe("confirm_brief");
+    expect(status.decision).toBe("assessing");
+    expect(status.operatorAction).toBeNull();
   });
   it("an ending keeps its own outcome and does not delegate repair to brief confirmation", () => {
     const status = projectTaskStatus({ ...unconfirmed,

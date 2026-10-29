@@ -288,18 +288,27 @@ describe("a job whose video arrived before its account", () => {
     const rawVideo = `scenes/site-${jobId}/captures/walkthrough-${jobId}/raw/walkthrough.mov`;
     const [videoIdentity] = await sharedUploadBucket.bucket.file(rawVideo).getMetadata();
 
-    // Unsaved and unconfirmed: the site's own steps stay ahead of it, so no email yet.
-    expect((await jobStatus(token)).status.decision).toBe("confirm_brief");
+    // This legacy recording lacks usable source authority. Neither confirmation
+    // nor an account makes it usable, so the hold is Blueprint's work throughout.
+    expect((await jobStatus(token)).status).toMatchObject({ decision: "footage_before_account", operatorAction: null });
     // Sending it again cannot help, so the upload says that instead of taking it.
     const again = await sendFootage(token);
     expect(again.status).toBe(409);
     expect(again.body.code).toBe("footage_before_account");
     expect(again.body.error).toMatch(/you don't need to send it again/i);
     await reconcile();
-    expect(notices(jobId, "footage_before_account")).toHaveLength(0);
+    expect(notices(jobId, "footage_before_account")).toHaveLength(1);
+    expect(notices(jobId, "footage_before_account")[0].body).not.toMatch(/\bsave\b.*account|verify.*email|confirm.*brief/i);
+    expect(notices(jobId, "footage_before_account")[0].body).toContain("Follow the same job:");
+    const { taskLifecycleNotificationIsCurrent } = await import("../utils/taskLifecycleNotificationAuthority");
+    const currentNotice = { requestId: jobId, kind: "footage_before_account" as const,
+      body: notices(jobId, "footage_before_account")[0].body };
+    expect(await taskLifecycleNotificationIsCurrent(currentNotice)).toBe(true);
+    expect(await taskLifecycleNotificationIsCurrent({ ...currentNotice,
+      body: "Save the job to your account from your job page, so you can follow it there." })).toBe(false);
 
     await confirmBrief(token);
-    expect((await jobStatus(token)).status.decision).toBe("save_account");
+    expect((await jobStatus(token)).status).toMatchObject({ decision: "footage_before_account", operatorAction: null });
 
     // Saved: the same truth on both pages, with nothing asked of the site.
     await claim(jobId);

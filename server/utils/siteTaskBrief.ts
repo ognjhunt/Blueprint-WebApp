@@ -707,17 +707,14 @@ export async function recordSiteTaskCallOutcome(params: {
     "Site screening call outcome recorded",
   );
 
-  // The site hears what the call decided. Still needing a conversation is not
-  // news to them -- they were on the call -- so only a decision is emailed.
-  if (disposition !== "needs_conversation") {
+  // Share an actual held outcome. Clearing an internal screen continues
+  // Blueprint's work without another account invitation or progress email.
+  if (disposition === "not_now") {
     const { enqueueTaskLifecycleNotification } = await import("./taskLifecycleNotifications");
     await enqueueTaskLifecycleNotification({
       requestId: params.requestId,
-      milestone: disposition === "qualified" ? "screening_cleared" : "screening_not_now",
+      milestone: "screening_not_now",
       eventId: String(Date.now()),
-      detail: disposition === "qualified" && !record.account_owner_uid
-        ? "once the site is saved to your account (claim it from your job page)"
-        : undefined,
     }).catch((error) => logger.warn({ error, requestId: params.requestId }, "Could not queue the call-outcome email"));
   }
 

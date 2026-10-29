@@ -1,13 +1,8 @@
 // @vitest-environment jsdom
 /**
- * The country, from the address rather than beside it.
- *
- * The form used to ask "which country" as a question of its own, right under
- * "where is it", which made a legal residency decision the operator's job twice
- * over. The address answers it, so the country is not asked for at all. The
- * select opens only when a typed or picked location does not resolve to a
- * country. That fallback is visible before Start, because the country decides
- * whether we may collect footage at all.
+ * Country permission is explicit when no optional address establishes it.
+ * An inferred country is not asked twice; a street address is required only
+ * for a requested Blueprint filming visit.
  */
 import { act, fireEvent, render as renderView, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -158,13 +153,13 @@ describe("SiteCaptureStart and the country", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it.each(["Paris", "Georgia", "Vancouver, CA", "Austin, TX, Germany", "123 Main St", "123 Main St.", "10 High ST", "Warehouse near us"])("asks for the country in the address at Start for unresolved geography (%s)", async (location) => {
+  it.each(["Paris", "Georgia", "Vancouver, CA", "Austin, TX, Germany", "123 Main St", "123 Main St.", "10 High ST", "Warehouse near us"])("asks for country permission without requiring a fuller address (%s)", async (location) => {
     await renderReady(<SiteCaptureStart />);
     fireEvent.change(document.querySelector("#start-location")!, { target: { value: location } });
-    expect(region()).toBeNull();
+    expect(region()).toBeInTheDocument();
     expect(screen.queryByText(nonUsNotice)).toBeNull();
     fireEvent.submit(screen.getByRole("form"));
-    expect(screen.getByText(/Add the country to the address/)).toBeInTheDocument();
+    expect(screen.getByText(/Choose the site country so/)).toBeInTheDocument();
     expect(postsTo("/api/inbound-request")).toHaveLength(0);
     expect(postsTo("/api/workspace/capture-start")).toHaveLength(0);
   });
@@ -203,7 +198,7 @@ describe("SiteCaptureStart and the country", () => {
     fireEvent.change(location, { target: { value: "Paris, France" } });
     expectInferredOutsideUnitedStates();
     fireEvent.change(location, { target: { value: "" } });
-    expect(region()).toBeNull();
+    expect(region()).toBeInTheDocument();
     expect(screen.queryByText(nonUsNotice)).toBeNull();
   });
 
@@ -253,7 +248,7 @@ describe("SiteCaptureStart and the country", () => {
       await waitFor(() => expect(resolveDetails).toBeTypeOf("function"));
       await act(async () => { resolveDetails!({ countryCode: null }); });
       fireEvent.submit(screen.getByRole("form"));
-      expect(screen.getByText(/Add the country to the address/)).toBeInTheDocument();
+      expect(screen.getByText(/Choose the site country so/)).toBeInTheDocument();
       expect(postsTo("/api/inbound-request")).toHaveLength(0);
       expect(postsTo("/api/workspace/capture-start")).toHaveLength(0);
       fireEvent.change(location, { target: { value: "Austin, TX" } });
@@ -266,10 +261,10 @@ describe("SiteCaptureStart and the country", () => {
     } finally { vi.unstubAllEnvs(); }
   });
 
-  it("does not ask for a country up front", async () => {
+  it("offers country permission without requiring an address or guessing a country", async () => {
     await renderReady(<SiteCaptureStart />);
-    expect(region()).toBeNull();
-    expect(screen.queryByText("Which country is the site in?")).toBeNull();
+    expect(region()).toHaveValue("");
+    expect(document.querySelector("#start-location")).not.toBeRequired();
   });
 
   it("takes the country from the address that was picked", async () => {
@@ -292,15 +287,15 @@ describe("SiteCaptureStart and the country", () => {
     expect(await screen.findByText(nonUsNotice)).toBeInTheDocument();
   });
 
-  it("asks for the country in the address and focuses it if an incomplete form is submitted", async () => {
+  it("focuses country permission if no country was supplied", async () => {
     await renderReady(<SiteCaptureStart />);
     fireEvent.change(document.querySelector("#start-task")!, { target: { value: "Pack cartons" } });
     fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Berlin" } });
 
     fireEvent.submit(screen.getByRole("form"));
 
-    expect(screen.getByText(/Add the country to the address/)).toBeInTheDocument();
-    expect(document.activeElement).toBe(document.querySelector("#start-location"));
+    expect(screen.getByText(/Choose the site country so/)).toBeInTheDocument();
+    expect(document.activeElement).toBe(region());
     expect(fetchMock.mock.calls.filter((call) => call[1]?.method === "POST")).toHaveLength(0);
   });
 });
@@ -308,19 +303,19 @@ describe("SiteCaptureStart and the country", () => {
 vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ currentUser: account.user, loading: account.loading }) }));
 
 
-it("asks where the robot would do the task, not where the video was filmed", async () => {
+it("makes a self-recorded site's city or address optional", async () => {
   await renderReady(<SiteCaptureStart />);
   const label = document.querySelector('label[for="start-location"]')!;
-  expect(label).toHaveTextContent(/^Where does the work happen\?/);
+  expect(label).toHaveTextContent(/^City or address \(optional\)/);
   expect(label).not.toHaveTextContent(/filmed/i);
 });
 
 it("keeps location controls out of the address field's spoken label", async () => {
   await renderReady(<SiteCaptureStart />);
-  const input = screen.getByRole("combobox", { name: "Where does the work happen?", exact: true });
+  const input = screen.getByRole("combobox", { name: "City or address (optional)", exact: true });
   fireEvent.click(screen.getByRole("button", { name: "Use my location" }));
   expect(screen.getByRole("status", { name: "Location preference" })).toHaveTextContent("Couldn’t find your location");
-  expect(input).toHaveAccessibleName("Where does the work happen?");
+  expect(input).toHaveAccessibleName("City or address (optional)");
   expect(input.closest("label")).toBeNull();
 });
 
@@ -699,16 +694,20 @@ describe("SiteCaptureStart and a video that already exists", () => {
     expect(fetchMock.mock.calls.filter(call => call[1]?.method === "POST")).toHaveLength(1);
   });
 
-  it("shows a retained processing failure and retries without another file upload", async () => {
+  it("keeps processing recovery optional after receipt and retries without another file upload", async () => {
     answerPosts({ captureUrl });
     upload.send.mockResolvedValue({ status: "processing_pending", message: "Your video is saved. We could not confirm that processing started.", processingRetryAvailable: true });
     let finishRetry!: (result: { status: "done" }) => void;
     upload.retry.mockImplementation(() => new Promise((resolve) => { finishRetry = resolve; }));
     await renderAsSiteAccount();
     fillFor(video());
-    await screen.findByRole("heading", { name: "Video received. Processing is not confirmed." });
+    await screen.findByRole("heading", { name: "Your recording is in." });
+    expect(screen.getByText(/Blueprint will continue from this saved recording/)).toBeVisible();
+    expect(screen.getByRole("button", { name: "Retry processing" })).not.toBeVisible();
+    expect(upload.retry).not.toHaveBeenCalled();
     expect(screen.queryByText(/The video did not send|Nothing was lost/)).not.toBeInTheDocument();
     expect(screen.queryByRole("img", { name: /film/i })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText("Processing details (optional)"));
     const button = screen.getByRole("button", { name: "Retry processing" });
     fireEvent.click(button); fireEvent.click(button);
     expect(upload.retry).toHaveBeenCalledTimes(1);
@@ -1021,11 +1020,15 @@ it("offers account setup only after the site and job have been saved", async () 
   await renderReady(<SiteCaptureStart />);
   expect(screen.queryByRole("link", { name: "Create an account for this job" })).not.toBeInTheDocument();
   fireEvent.change(document.querySelector("#start-email")!, { target: { value: "owner@example.com" } }); fillAndSubmit();
-  expect(await screen.findByRole("link", { name: "Create an account for this job" })).toHaveAttribute("href", "/claim/job.signed");
+  const optional = await screen.findByText("Save this job to your account (optional)");
+  expect(optional.closest("details")).not.toHaveAttribute("open");
+  expect(screen.getByText("Create an account for this job")).not.toBeVisible();
+  fireEvent.click(optional);
+  expect(screen.getByRole("link", { name: "Create an account for this job" })).toHaveAttribute("href", "/claim/job.signed");
   expect(screen.getByRole("link", { name: "Sign in to save this job" })).toHaveAttribute("href", "/claim/job.signed?mode=signin");
   // The private link already supports this job; account setup stays optional.
   const account = screen.getByRole("region", { name: "Save this job to your account" });
-  expect(account).toHaveTextContent("Your private job link lets you upload, review the brief and follow progress.");
+  expect(account).toHaveTextContent("Your private job link already lets you upload, see results and review proposals.");
   expect(account).toHaveTextContent(/optional/i);
   expect(screen.queryByLabelText(/password/i)).not.toBeInTheDocument();
   expect(postsTo("/api/inbound-request")).toHaveLength(1);
@@ -1045,6 +1048,41 @@ describe("guest intake without account ceremony", () => {
     fireEvent.change(document.querySelector("#start-location")!,{target:{value:"Austin, TX"}});
     fireEvent.change(document.querySelector("#start-email")!,{target:{value:"Owner@Example.com"}});
   }
+  it("uploads with email and country permission while leaving the site address unknown", async () => {
+    answer(); upload.send.mockResolvedValue({ status: "done" });
+    await renderReady(<SiteCaptureStart />);
+    chooseUploadNow();
+    fireEvent.change(region()!, { target: { value: "us" } });
+    fireEvent.change(document.querySelector("#start-footage")!, { target: { files: [video()] } });
+    fireEvent.change(document.querySelector("#start-email")!, { target: { value: "owner@example.com" } });
+    expect(document.querySelector("#start-location")).not.toBeRequired();
+    fireEvent.submit(screen.getByRole("form"));
+    await screen.findByRole("heading", { name: "Your recording is in." });
+    const [[, request]] = postsTo("/api/inbound-request");
+    expect(JSON.parse(request.body)).toMatchObject({ siteName: "", siteLocation: "", captureRegion: "us",
+      email: "owner@example.com", taskStatement: "", accountSignup: false });
+    expect(created.create).not.toHaveBeenCalled();
+    expect(upload.send).toHaveBeenCalledWith("tok.signed", expect.any(File), expect.any(Function));
+  });
+  it("retains country permission across reload without manufacturing an address", async () => {
+    answer();
+    const view = await renderReady(<SiteCaptureStart />);
+    fireEvent.change(region()!, { target: { value: "us" } });
+    const key = siteCaptureDraftKey(null, "default");
+    await waitFor(() => expect(durability.rows.get(key)?.value.draft).toMatchObject({ location: "", region: "us", regionManuallySet: true }));
+    view.unmount();
+    await renderReady(<SiteCaptureStart />);
+    expect(region()).toHaveValue("us");
+    expect(document.querySelector("#start-location")).toHaveValue("");
+  });
+  it("keeps the outside-US recording hold without requiring a city or address", async () => {
+    await renderReady(<SiteCaptureStart />);
+    chooseUploadNow();
+    fireEvent.change(region()!, { target: { value: "non_us" } });
+    expectInferredOutsideUnitedStates();
+    expect(document.querySelector("#start-footage")).toBeNull();
+    expect(upload.send).not.toHaveBeenCalled();
+  });
   it("sends the video under the signed private job link without company or password",async()=>{
     answer(); upload.send.mockResolvedValue({status:"done"}); await renderReady(<SiteCaptureStart/>);fillGuest();
     expect(document.querySelector("#start-password")).toBeNull();

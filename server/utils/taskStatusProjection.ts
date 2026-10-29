@@ -273,8 +273,8 @@ function countLabel(count: number, noun: string): string {
 }
 
 /**
- * What the site does about an unconfirmed brief. Robot teams can evaluate only
- * a confirmed job (`teamJobAccess` → `isRunnableTask`), so this is never optional.
+ * Legacy brief review before a recording. Once authorized footage arrives,
+ * Blueprint owns automatic preparation and evaluation.
  */
 const CONFIRM_BRIEF_ACTION = "Open your job brief, check the summary and answers, correct anything that is wrong, and confirm it.";
 
@@ -283,9 +283,10 @@ const CONFIRM_BRIEF_ACTION = "Open your job brief, check the summary and answers
  */
 export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
   const base = { stage: input.stage, missingViews: input.missingViews, nextUpdateIso: null };
-  // A drafted brief the site has not confirmed. Where a rung's headline is
-  // ours to resolve (a preparation problem), the confirmation rides with it.
-  const confirmationAsk = input.briefDrafted && !input.briefConfirmed ? CONFIRM_BRIEF_ACTION : null;
+  // Once footage arrives, reconstruction and evaluation belong to Blueprint.
+  // Reviewing the inferred brief remains available in the job details.
+  const confirmationAsk = input.briefDrafted && !input.briefConfirmed && !input.hasStoredCapture
+    && !input.scenePreviewReady && !input.preparationStatus ? CONFIRM_BRIEF_ACTION : null;
   if (input.consentRevoked) {
     return {
       decision: input.hasStoredCapture ? "footage_received" : "received",
@@ -345,22 +346,6 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
       decision: "not_yet_supported",
       headline: notYet.headline,
       operatorAction: `${notYet.detail} ${notYet.nextStep}`,
-    };
-  }
-
-  // Source coverage is an observation hint, not a reconstruction verdict.
-  // Retained scene outputs and actual run activity supersede that earlier hint.
-  if (input.coversScene === false && input.missingViews.length
-    && !input.scenePreviewReady && !nativeProgress && !hasRuns) {
-    return {
-      ...base,
-      decision: "add_views",
-      headline: input.supplementWouldFinish
-        ? "Your recording is saved. Update the walkthrough to include the missing view."
-        : `Your footage is saved. Blueprint is reviewing its scene coverage gaps, starting with ${input.missingViews[0]}.`,
-      operatorAction: input.supplementWouldFinish
-        ? `Upload an updated walkthrough of the full job cycle, including ${input.missingViews[0]}, to this job. Your original recording stays saved and linked to this job.`
-        : null,
     };
   }
 
@@ -453,7 +438,7 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
 
   // Source-bound preparation may proceed while commercial questions remain
   // open. Actual progress outranks an older intake-screen hint.
-  if (input.disposition === "not_now" && !observedPreparation) {
+  if (input.disposition === "not_now" && !observedPreparation && !input.hasStoredCapture) {
     return {
       ...base,
       decision: "not_now",
@@ -462,7 +447,7 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
       operatorAction: "Open your job brief to see what is in the way. When it changes, update the brief.",
     };
   }
-  if (input.disposition === "needs_conversation" && !observedPreparation) {
+  if (input.disposition === "needs_conversation" && !observedPreparation && !input.hasStoredCapture) {
     return {
       ...base,
       decision: "call_needed",
@@ -474,27 +459,9 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
     };
   }
 
-  // Keep the owner's draft review available without presenting it as a
-  // prerequisite for the automatic job evaluation. Preparation failures keep
-  // their own current action; waiting for capacity remains preparation.
-  const preparationProblem = input.scenePreparationFailed === true || Boolean(input.preparationStatus
-    && input.preparationStatus.state !== "preparing" && input.preparationStatus.state !== "capacity_delayed"
-    && input.preparationStatus.state !== "handed_off");
-  if (confirmationAsk && !preparationProblem
-    && (input.hasStoredCapture || input.scenePreviewReady || input.coversScene === true)) {
-    return {
-      ...base,
-      decision: "confirm_brief",
-      headline: observedPreparation
-        ? "We are preparing your job from the recording while you review and confirm your job brief."
-        : "Your recording is saved. Review and confirm your job brief; Blueprint can prepare and evaluate the job while you review it.",
-      operatorAction: confirmationAsk,
-    };
-  }
-
   // Legacy jobs without a retained source owner still need an account claim.
   // A signed guest recording already has its own source authority.
-  if (input.disposition === "qualified" && input.claimed === false && !input.sourceOwned && !observedPreparation) {
+  if (input.disposition === "qualified" && input.claimed === false && !input.sourceOwned && !observedPreparation && !input.footageBeforeAccount) {
     return {
       ...base,
       decision: "save_account",
@@ -514,15 +481,12 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
   // what the job page shows (`footageBeforeAccountShown`).
   if (input.footageBeforeAccount && !input.sourceOwned && !observedPreparation
       && !(input.screening && input.screening.queued + input.screening.running + input.screening.reported + input.screening.noResult > 0)) {
-    const unsaved = input.claimed === false;
     return {
       decision: "footage_before_account",
       stage: null,
       headline: "Your video arrived before this job was saved to an account, so we can't use it to build your scene yet. "
-        + (unsaved
-          ? "You don't need to send it again: save the job to your account, and we email you when that changes."
-          : "You don't need to send it again; we email you when that changes."),
-      operatorAction: unsaved ? "Save this job to your account." : null,
+        + "Blueprint needs to review this older recording. You don't need to send it again; we email you when that changes.",
+      operatorAction: null,
       missingViews: [],
       nextUpdateIso: null,
     };
@@ -669,7 +633,7 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
       // off, a person reviews it, and that is what the site is told.
       headline: input.footageReviewAutomated === false
         ? "We have your recording. Our team reviews it and emails you with the next step."
-        : "We have your recording and are checking whether it covers the work area.",
+        : "We have your recording. Blueprint handles reconstruction and evaluation; the next update will appear in this job.",
       operatorAction: null,
     };
   }
@@ -696,8 +660,10 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
  * where the coverage block or the confirmation timestamp live.
  */
 export function taskStatusInputFrom(record: {
+  active_capture_id?: string | null;
   site_task_brief_confirmed_at?: unknown;
   capture_coverage?: {
+    capture_id?: string | null;
     covers_scene?: boolean | null;
     missing_coverage?: string[] | null;
     supplement_would_finish?: boolean | null;
@@ -733,7 +699,10 @@ export function taskStatusInputFrom(record: {
   /** Whether a recommended pilot is recorded, when the caller read it. */
   recommended?: boolean;
 }): TaskStatusInput {
-  const coverage = record.capture_coverage;
+  const retainedCoverage = record.capture_coverage;
+  const coverage = record.active_capture_id && (retainedCoverage?.capture_id
+    ? retainedCoverage.capture_id !== record.active_capture_id
+    : record.active_capture_id.startsWith("supplement-")) ? null : retainedCoverage;
   return {
     hasStoredCapture: Boolean(record.hasStoredCapture),
     sourceOwned: typeof record.capture_owner_uid === "string" && Boolean(record.capture_owner_uid.trim()),
