@@ -190,10 +190,10 @@ What you are deciding:
 
 Then:
 - covers_scene: true only if a reconstruction has enough to work with. Judge sufficiency, not beauty — a shaky dim clip showing every surface is worth more here than a lovely one showing a third of the room.
-- missing_views: what to film to finish, phrased so somebody standing in the room could act on it. "A view of where the cartons are placed" — not "insufficient coverage of the destination zone" and never "a better video".
+- missing_views: what to film to finish, phrased so somebody standing in the room could act on it. "A view of where the object is put down" — not "insufficient coverage of the destination zone" and never "a better video".
 - supplement_would_finish: true when one more short clip would do it. False when the recording would need doing again. Do not say true to be kind; being wrong here sends somebody out for a clip that will not help.
 - unreadable_reasons: only when something stopped you reading the footage at all.
-${input.draftTaskStatement ? `- proposed_task_statement: the site has not described its job yet. Name the one job a robot arm would do in this footage: an object it would pick up and where that object goes, or a door or drawer it would open. Write it as one instruction naming the object and its destination, for example "Pick up the blue tote from the left shelf and place it on the cart." Use only what the footage shows; the site corrects it. null when the footage shows no such job.` : "- proposed_task_statement: null."}
+${input.draftTaskStatement ? `- proposed_task_statement: the site has not described its job yet. Name the one job a robot arm would do in this footage: an object it would pick up and where that object goes, or a part of a fixture it would open or close. Write it as one instruction naming the object and its destination as they appear, in the form "Pick up the <object> from <where it is> and place it <where it goes>." Use only what the footage shows; the site corrects it. null when the footage shows no such job.` : "- proposed_task_statement: null."}
 
 ${input.supplementaryViewsOnly ? "job_estimates: null. A supplementary recording shows part of the work, so it estimates nothing." : `${JOB_ESTIMATES_INSTRUCTIONS}
 - Here they never change covers_scene, views, missing_views or supplement_would_finish. The hard limits below still apply.`}

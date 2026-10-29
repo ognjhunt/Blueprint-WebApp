@@ -164,6 +164,29 @@ describe("agent task prompts", () => {
     expect(prompt).not.toMatch(/booking fee|MATCHING WORKFLOW|promises a match/i);
   });
 
+  // Owner rule 2026-10-29: one general harness for every site, task and object.
+  // The website-video agents name roles (task object, destination, fixture,
+  // person), never a kind of room or object; only the per-job payload may.
+  it("keeps website-video agent instructions free of particular rooms and objects", () => {
+    const particular = new RegExp("\\b(?:dishwashers?|ovens?|stoves?|refrigerators?|fridges?|microwaves?|sinks?|"
+      + "kitchens?|bathrooms?|cupboards?|cabinets?|countertops?|worktops?|drawers?|desks?|backpacks?|chairs?|"
+      + "sofas?|trays?|vases?|mugs?|cups?|bottles?|dish(?:es)?|balls?|cartons?|cardboard|tables?|counters?|"
+      + "lids?|doors?|shelf|shelves|appliances?|totes?|pallets?|conveyors?|forklifts?)\\b", "gi");
+    // The one deliberate list: standardized dimensions any kind of site may show.
+    const catalogue = "a doorway (about 2 m tall), a work surface (about 0.75 to 0.9 m high), a stair riser "
+      + "(about 0.18 m), a floor or ceiling tile, a standard pallet (1.2 m by 1.0 m)";
+    const renders: Array<[AgentTaskKind, unknown]> = [
+      ...(["capture_coverage", "site_video_evidence", "site_task_brief_reading", "capture_video_privacy",
+        "site_assessment"] as const).map((kind): [AgentTaskKind, unknown] => [kind, sampleInputs[kind]]),
+      ["capture_coverage", { ...(sampleInputs.capture_coverage as object), draftTaskStatement: true }],
+    ];
+    for (const [kind, input] of renders) {
+      const prompt = taskDefinitions[kind].build_prompt(input as never);
+      const policy = prompt.slice(0, prompt.lastIndexOf("Dynamic payload:")).replace(catalogue, "");
+      expect(policy.match(particular), kind).toBeNull();
+    }
+  });
+
   it("keeps stable policy and return schema before dynamic JSON payloads", () => {
     for (const [kind, definition] of Object.entries(taskDefinitions) as Array<
       [AgentTaskKind, (typeof taskDefinitions)[AgentTaskKind]]
