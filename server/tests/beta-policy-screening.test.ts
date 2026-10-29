@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
-import { parseBetaPolicyScreeningPublication, screeningPublicationTransition } from "../utils/betaPolicyScreeningContract";
+import { noEstimateReason, parseBetaPolicyScreeningPublication, screeningPublicationTransition } from "../utils/betaPolicyScreeningContract";
 import { assertScreeningSceneSource } from "../utils/betaPolicyScreeningIngest";
 import { managedJobTask, projectManagedJobEvidence } from "../utils/jobManagedEvaluation";
 import { scientificBriefDigest } from "../utils/jobEvidenceContract";
@@ -164,6 +164,37 @@ describe("automatic many-candidate job evaluation", () => {
     expect(() => screeningPublicationTransition(completed, sealScreening({ ...completed, revision: 4, status: "running" }))).toThrow("screening_revision_conflict");
   });
 
+  it("sorts a run with no estimate by who can fix it", () => {
+    const row = (status: string, blockers: string[]) => ({ status, blockers });
+    expect(noEstimateReason([row("blocked", ["task_kind_not_supported_by_candidate"]),
+      row("unavailable", ["candidate_disabled"]), row("blocked", ["commercial_use_not_admitted"])])).toBe("held");
+    // Any candidate a fix or approval could still run keeps the job in progress.
+    expect(noEstimateReason([row("blocked", ["task_kind_not_supported_by_candidate"]),
+      row("deferred", ["site_screening_budget_insufficient"])])).toBe("budget");
+    expect(noEstimateReason([row("blocked", ["task_kind_not_supported_by_candidate"]),
+      row("blocked", ["runtime_candidate_binding_missing"])])).toBe("setup");
+    expect(noEstimateReason([row("completed", []), row("blocked", ["task_kind_not_supported_by_candidate"])])).toBe("setup");
+    expect(noEstimateReason([row("blocked", [])])).toBe("setup");
+  });
+
+  it("shows held when no candidate Blueprint can run supports the job", () => {
+    const { publication, brief, job } = screeningFixture();
+    const binding = { job_id: brief.requestId, brief_digest: scientificBriefDigest(brief) };
+    const scope = managedJobTask({ binding, record: job, brief });
+    const held = sealScreening({ ...publication, revision: 2, status: "blocked", candidates: publication.candidates.map(row =>
+      ({ ...row, status: "blocked", blockers: ["task_kind_not_supported_by_candidate"] })) });
+    const run = { run_id: held.campaign_id, run_kind: "beta_policy_screening", state: "blocked", result_record_id: "result-one",
+      job_evidence_binding: binding, job_task_context_digest: scope.taskContextDigest, job_source_fingerprint: scope.sourceFingerprint,
+      configuration_digest: held.plan_digest, source_scene_intent_id: held.source.scene_intent_id,
+      source_scene_revision_digest: held.source.scene_revision_digest, publication_digest: held.publication_digest, publication_revision: 2 };
+    const projected = projectManagedJobEvidence(held.campaign_id, run, { record_id: "result-one", publication: held },
+      brief.requestId, binding.brief_digest, scope.taskContextDigest, scope.sourceFingerprint)!;
+    expect(projected.state).toBe("held");
+    expect(projected.summary).toBe("Held: we can't simulate this kind of job yet. It counts as demand for what we build next.");
+    expect(projected.nextAction).toMatch(/^Nothing is needed from the site/);
+    expect(projected.resultDigest).toBe(held.publication_digest);
+  });
+
   it("shows no estimate for a completed run whose candidates scored no episode", () => {
     const { publication, brief, job } = screeningFixture();
     const binding = { job_id: brief.requestId, brief_digest: scientificBriefDigest(brief) };
@@ -177,8 +208,10 @@ describe("automatic many-candidate job evaluation", () => {
       source_scene_revision_digest: voided.source.scene_revision_digest, publication_digest: voided.publication_digest, publication_revision: 2 };
     const projected = projectManagedJobEvidence(voided.campaign_id, run, { record_id: "result-one", publication: voided },
       brief.requestId, binding.brief_digest, scope.taskContextDigest, scope.sourceFingerprint)!;
-    expect(projected.state).toBe("blocked");
-    expect(projected.summary).toMatch(/^No simulation estimate yet/);
+    // The other candidates hit the site budget, so this waits on the owner, not on the site.
+    expect(projected.state).toBe("awaiting_spend_approval");
+    expect(projected.summary).toMatch(/^Simulation evaluation in progress/);
+    expect(projected.nextAction).toMatch(/^Owner approval needed/);
     expect(projected.limitations.join(" ")).not.toMatch(/estimate from 0 scored/);
     expect(projected.limitations.join(" ")).toMatch(/does not certify physical performance or safety/);
   });
