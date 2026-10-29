@@ -1,13 +1,14 @@
 // @vitest-environment node
 import express from "express";
 import { createServer, request as httpRequest, type Server } from "node:http";
-import { unlinkSync } from "node:fs";
+import { unlinkSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { canonicalArtifactDigest } from "../utils/taskCandidateContract";
+import { crossRuntimeArtifactDigest } from "../utils/crossRuntimeCanonical";
 import { scientificBriefDigest, jobEvidenceTaskInventoryDigest } from "../utils/jobEvidenceContract";
 
 const state = vi.hoisted(() => ({
@@ -35,6 +36,7 @@ const state = vi.hoisted(() => ({
   lifecycleEvidence: vi.fn(),
   lifecycleInspect: vi.fn(),
   reconstructionPlan: vi.fn(),
+  ownedAtlasPlan: vi.fn(),
   reconstructionAuthorization: vi.fn(),
   reconstructionExecution: vi.fn(),
   reconstructionInspect: vi.fn(),
@@ -157,6 +159,7 @@ vi.mock("../utils/captureLifecycleForwarding", () => ({
 vi.mock("../utils/reconstructionForwarding", async (importOriginal) => ({
   ...await importOriginal<typeof import("../utils/reconstructionForwarding")>(),
   forwardReconstructionPlanToPipeline: state.reconstructionPlan,
+  forwardOwnedCaptureAtlasPlanToPipeline: state.ownedAtlasPlan,
   forwardReconstructionAuthorizationToPipeline: state.reconstructionAuthorization,
   forwardReconstructionExecutionToPipeline: state.reconstructionExecution,
   inspectReconstructionInPipeline: state.reconstructionInspect,
@@ -899,6 +902,7 @@ afterEach(() => {
   state.lifecycleEvidence.mockReset();
   state.lifecycleInspect.mockReset();
   state.reconstructionPlan.mockReset();
+  state.ownedAtlasPlan.mockReset();
   state.reconstructionAuthorization.mockReset();
   state.reconstructionExecution.mockReset();
   state.reconstructionInspect.mockReset();
@@ -2967,4 +2971,122 @@ describe('normal owner captures on current Firebase storage',()=>{
       expect(state.intakeForward).not.toHaveBeenCalled();
     } finally {await stopServer(server,socketPath);}
   });
+});
+
+it("plans owned Atlas preparation on the real owner path without creating a site or provider grant", async () => {
+  const fixture = JSON.parse(readFileSync(new URL("./fixtures/owned-capture-atlas-plan.json", import.meta.url), "utf8"));
+  const sessionId = fixture.session.session_id;
+  state.records.set(sessionId, fixture.session);
+  state.ownedAtlasPlan.mockResolvedValue({ status: "forwarded", performed: true,
+    endpoint_configured: true, value: fixture.plan });
+  const { server, socketPath } = await startServer({ uid: fixture.session.owner_user_id });
+  const body = { schema_version: "capture_owned_atlas_plan_command.v1",
+    requested_claim_types: ["navigation_clearance", "task_discovery"], idempotency_key: "owned-plan-owner-1" };
+  try {
+    const planned = await postJson(socketPath, `/capture-uploads/${sessionId}/reconstructions/atlas/plan`, body);
+    expect(planned.status).toBe(201);
+    await expect(planned.json()).resolves.toMatchObject({ already_exists: false,
+      pipeline_plan: { plan_id: fixture.plan.plan_id, proof_boundary: { provider_disclosure_authorized: false } } });
+    const repeated = await postJson(socketPath, `/capture-uploads/${sessionId}/reconstructions/atlas/plan`, body);
+    expect(repeated.status).toBe(200);
+    await expect(repeated.json()).resolves.toMatchObject({ already_exists: true });
+    expect(state.ownedAtlasPlan).toHaveBeenCalledTimes(1);
+    const changed = await postJson(socketPath, `/capture-uploads/${sessionId}/reconstructions/atlas/plan`, {
+      ...body, requested_claim_types: ["appearance_review"],
+    });
+    expect(changed.status).toBe(409);
+    expect([...state.records.keys()]).toEqual([sessionId]);
+    const stored = state.records.get(sessionId) as Record<string, any>;
+    expect(stored.pipeline_owned_atlas_preparation.plans[fixture.plan.plan_id].source_context.task_confirmation_status)
+      .toBe("proposed_unconfirmed");
+    expect(stored.pipeline_owned_atlas_preparation.allowance).toBeUndefined();
+    expect(stored.pipeline_reconstruction).toBeUndefined();
+  } finally { await stopServer(server, socketPath); }
+});
+
+it("cannot prepare another owner's source", async () => {
+  const fixture = JSON.parse(readFileSync(new URL("./fixtures/owned-capture-atlas-plan.json", import.meta.url), "utf8"));
+  state.records.set(fixture.session.session_id, fixture.session);
+  const { server, socketPath } = await startServer({ uid: "some-other-account" });
+  try {
+    const response = await postJson(socketPath, `/capture-uploads/${fixture.session.session_id}/reconstructions/atlas/plan`, {
+      schema_version: "capture_owned_atlas_plan_command.v1", requested_claim_types: ["task_discovery"],
+      idempotency_key: "owned-plan-owner-1",
+    });
+    expect(response.status).toBe(404);
+    expect(state.ownedAtlasPlan).not.toHaveBeenCalled();
+  } finally { await stopServer(server, socketPath); }
+});
+
+it.each(["revocation", "task"])("reopens %s after the Pipeline responds and retains no stale owned plan", async change => {
+  const fixture = JSON.parse(readFileSync(new URL("./fixtures/owned-capture-atlas-plan.json", import.meta.url), "utf8"));
+  const sessionId = fixture.session.session_id;
+  state.records.set(sessionId, fixture.session);
+  state.ownedAtlasPlan.mockResolvedValue({ status: "forwarded", performed: true,
+    endpoint_configured: true, value: fixture.plan });
+  state.beforeTransaction = () => {
+    const record = state.records.get(sessionId) as Record<string, any>;
+    if (change === "revocation") record.capture_access = { future_processing_allowed: false };
+    else record.request.known_task_specification.description = "A different and easier task.";
+  };
+  const { server, socketPath } = await startServer({ uid: fixture.session.owner_user_id });
+  try {
+    const response = await postJson(socketPath, `/capture-uploads/${sessionId}/reconstructions/atlas/plan`, {
+      schema_version: "capture_owned_atlas_plan_command.v1",
+      requested_claim_types: fixture.plan.requested_claim_types, idempotency_key: "owned-plan-owner-1",
+    });
+    expect(response.status).toBe(change === "revocation" ? 410 : 409);
+    expect(state.records.get(sessionId)?.pipeline_owned_atlas_preparation).toBeUndefined();
+  } finally { await stopServer(server, socketPath); }
+});
+
+it("rejects a colon key before forwarding an owned Atlas plan to the stricter native contract", async () => {
+  const fixture = JSON.parse(readFileSync(new URL("./fixtures/owned-capture-atlas-plan.json", import.meta.url), "utf8"));
+  state.records.set(fixture.session.session_id, fixture.session);
+  state.ownedAtlasPlan.mockResolvedValue({ status: "forwarded", performed: true,
+    endpoint_configured: true, value: fixture.plan });
+  const { server, socketPath } = await startServer({ uid: fixture.session.owner_user_id });
+  try {
+    const response = await postJson(socketPath, `/capture-uploads/${fixture.session.session_id}/reconstructions/atlas/plan`, {
+      schema_version: "capture_owned_atlas_plan_command.v1", requested_claim_types: fixture.plan.requested_claim_types,
+      idempotency_key: "owned:plan-1",
+    });
+    expect(response.status).toBe(400);
+    expect(state.ownedAtlasPlan).not.toHaveBeenCalled();
+  } finally { await stopServer(server, socketPath); }
+});
+
+it("refuses a coherent source and returned plan update during forwarding instead of storing an old fingerprint", async () => {
+  const fixture = JSON.parse(readFileSync(new URL("./fixtures/owned-capture-atlas-plan.json", import.meta.url), "utf8"));
+  const sessionId = fixture.session.session_id;
+  state.records.set(sessionId, fixture.session);
+  state.ownedAtlasPlan.mockImplementation(async () => {
+    const current = state.records.get(sessionId) as Record<string, any>;
+    const envelope = `sha256:${"6".repeat(64)}`;
+    const qa = current.pipeline_capture_qa;
+    qa.envelope_digest = qa.report.envelope_digest = envelope;
+    qa.qa_report_digest = qa.report.qa_report_digest = canonicalArtifactDigest(qa.report, "qa_report_digest");
+    current.pipeline_capture_intake_receipt.envelope_digest = envelope;
+    current.pipeline_capture_intake_receipt.artifact_reference.envelope_digest = envelope;
+    current.pipeline_capture_intake_receipt.capture_qa_report = structuredClone(qa.report);
+    const plan = structuredClone(fixture.plan);
+    plan.plan_id = `reconstruction-atlas-${"a".repeat(24)}`;
+    plan.source_context.request_id = plan.plan_id;
+    plan.source_context.source_capture.envelope_digest = envelope;
+    plan.source_context.source_capture.qa_report_digest = qa.qa_report_digest;
+    plan.source_context.source_capture.object_manifest_digest = `sha256:${"8".repeat(64)}`;
+    plan.source_context.context_digest = crossRuntimeArtifactDigest(plan.source_context, "context_digest");
+    plan.plan_digest = crossRuntimeArtifactDigest(plan, "plan_digest");
+    return { status: "forwarded", performed: true, endpoint_configured: true, value: plan };
+  });
+  const { server, socketPath } = await startServer({ uid: fixture.session.owner_user_id });
+  try {
+    const response = await postJson(socketPath, `/capture-uploads/${sessionId}/reconstructions/atlas/plan`, {
+      schema_version: "capture_owned_atlas_plan_command.v1", requested_claim_types: fixture.plan.requested_claim_types,
+      idempotency_key: "owned-plan-owner-1",
+    });
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({ code: "owned_capture_atlas_source_changed_during_planning" });
+    expect(state.records.get(sessionId)?.pipeline_owned_atlas_preparation).toBeUndefined();
+  } finally { await stopServer(server, socketPath); }
 });

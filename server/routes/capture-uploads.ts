@@ -48,11 +48,14 @@ import {
   forwardReconstructionAuthorizationToPipeline,
   forwardReconstructionExecutionToPipeline,
   forwardReconstructionPlanToPipeline,
+  forwardOwnedCaptureAtlasPlanToPipeline,
+  ownedCaptureAtlasPreparationPlanSchema,
   forwardTestbedCompilationToPipeline,
   inspectReconstructionInPipeline,
   jobEvidenceSourceBindingSchema,
   type JobEvidenceSourceBinding,
 } from "../utils/reconstructionForwarding";
+import { requireOwnedCaptureAtlasSource } from "../utils/ownedCaptureAtlasContext";
 import {
   authorizeBackblazeCapturePart,
   cancelBackblazeResumableCapture,
@@ -208,6 +211,11 @@ const reconstructionPlanCommandSchema = z.object({
   schema_version: z.literal("capture_reconstruction_plan_command.v1"),
   requested_claim_types: z.array(reconstructionClaimTypeSchema).min(1).max(16),
   idempotency_key: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{7,191}$/),
+}).strict();
+
+const ownedCaptureAtlasPlanCommandSchema = reconstructionPlanCommandSchema.extend({
+  schema_version: z.literal("capture_owned_atlas_plan_command.v1"),
+  idempotency_key: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{7,191}$/),
 }).strict();
 
 const reconstructionAuthorizationCommandSchema = z.object({
@@ -2129,6 +2137,96 @@ router.post("/:sessionId/task-decisions", async (req, res) => {
         }
       : {}),
   });
+});
+
+router.post("/:sessionId/reconstructions/atlas/plan", async (req, res) => {
+  const user = authenticatedUser(res);
+  if (!user.uid) return res.status(401).json({ error: "Missing authenticated user" });
+  if (!db) return res.status(503).json({ error: "Reconstruction control store is unavailable" });
+  const command = ownedCaptureAtlasPlanCommandSchema.safeParse(req.body);
+  if (!command.success) return res.status(400).json({ error: "Owned Atlas plan command is invalid" });
+  const owned = await readOwnedSession(req.params.sessionId, user.uid);
+  if (!owned.record) return res.status(owned.status).json({ error: "Capture upload not found" });
+  const record = owned.record, qa = captureQaProjection(record);
+  if (qa.publication?.status !== "accepted" || qa.publication.state !== "capture_accepted")
+    return res.status(409).json({ error: "Capture must be accepted before reconstruction planning" });
+  if (record.capture_access?.future_processing_allowed === false || record.completed_capture_lifecycle)
+    return res.status(410).json({ error: "Capture is revoked or pending deletion" });
+  const receipt = record.pipeline_capture_intake_receipt as Record<string, any> | undefined;
+  const captureDigest = String(receipt?.capture_digest || "");
+  if (!receipt || receipt.capture_session_id !== record.session_id || receipt.intake_id !== record.request.intake_id
+    || !/^sha256:[0-9a-f]{64}$/.test(captureDigest))
+    return res.status(409).json({ error: "A bound completed Pipeline intake receipt is required" });
+  const claims = [...new Set(command.data.requested_claim_types)].sort();
+  const fingerprintFor = (source: typeof record) => {
+    const sourceReceipt = source.pipeline_capture_intake_receipt as Record<string, any> | undefined;
+    return `sha256:${sha256Text(stableJson({ session_id: source.session_id,
+      intake_id: source.request.intake_id, capture_digest: sourceReceipt?.capture_digest,
+      envelope_digest: sourceReceipt?.envelope_digest, requested_claim_types: claims,
+      idempotency_key: command.data.idempotency_key }))}`;
+  };
+  const fingerprint = fingerprintFor(record);
+  const key = sha256Text(command.data.idempotency_key);
+  const retained = record.pipeline_owned_atlas_preparation as Record<string, any> | undefined;
+  const previousRequest = retained?.requests?.[key];
+  if (previousRequest && previousRequest.fingerprint !== fingerprint)
+    return res.status(409).json({ error: "Owned Atlas plan idempotency conflict" });
+  let plan = previousRequest ? retained?.plans?.[previousRequest.plan_id] : undefined;
+  if (plan) {
+    try {
+      plan = ownedCaptureAtlasPreparationPlanSchema.parse(plan);
+      requireOwnedCaptureAtlasSource({ session: record, ownerUid: user.uid, context: plan.source_context });
+      if (JSON.stringify(plan.requested_claim_types) !== JSON.stringify(claims))
+        throw new Error("owned_capture_atlas_plan_claims_changed");
+    } catch {
+      return res.status(409).json({ error: "Retained owned Atlas plan no longer matches its source" });
+    }
+    res.set("Cache-Control", "no-store");
+    return res.json({ schema_version: "capture_owned_atlas_plan_receipt.v1", already_exists: true,
+      status: plan.state, pipeline_plan: plan });
+  }
+  const forwarded = await forwardOwnedCaptureAtlasPlanToPipeline({ captureSessionId: record.session_id,
+    intakeId: record.request.intake_id, captureDigest, requestedClaimTypes: claims,
+    idempotencyKey: command.data.idempotency_key });
+  if (forwarded.status !== "forwarded" || !forwarded.value)
+    return res.status(forwarded.status === "not_configured" || forwarded.status === "blocked" ? 503 : 502)
+      .json({ error: "Pipeline could not plan Atlas preparation", blocker: forwarded.blocker });
+  const store = db, ref = store.collection("captureUploadSessions").doc(record.session_id);
+  try {
+    const saved = await store.runTransaction(async transaction => {
+      const snapshot = await transaction.get(ref);
+      const current = snapshot.data();
+      if (!current) throw new Error("owned_capture_atlas_source_missing");
+      requireOwnedCaptureAtlasSource({ session: current, ownerUid: user.uid, context: forwarded.value!.source_context });
+      if (fingerprintFor(current) !== fingerprint)
+        throw new Error("owned_capture_atlas_source_changed_during_planning");
+      const control = current.pipeline_owned_atlas_preparation || {
+        schema_version: "capture_owned_atlas_preparation_control.v1", requests: {}, plans: {},
+      };
+      if (control.schema_version !== "capture_owned_atlas_preparation_control.v1"
+        || !control.requests || !control.plans || Array.isArray(control.requests) || Array.isArray(control.plans))
+        throw new Error("owned_capture_atlas_control_invalid");
+      const existing = control.requests[key];
+      if (existing && existing.fingerprint !== fingerprint) throw new Error("owned_capture_atlas_idempotency_conflict");
+      const previous = control.plans[forwarded.value!.plan_id];
+      if (previous && ownedCaptureAtlasPreparationPlanSchema.parse(previous).plan_digest !== forwarded.value!.plan_digest)
+        throw new Error("owned_capture_atlas_plan_conflict");
+      const storedPlan = previous || forwarded.value!;
+      transaction.set(ref, { pipeline_owned_atlas_preparation: { ...control,
+        requests: { ...control.requests, [key]: { fingerprint, plan_id: storedPlan.plan_id } },
+        plans: { ...control.plans, [storedPlan.plan_id]: storedPlan },
+      } }, { merge: true });
+      return { plan: storedPlan, alreadyExists: Boolean(previous) };
+    });
+    res.set("Cache-Control", "no-store");
+    return res.status(saved.alreadyExists ? 200 : 201).json({ schema_version: "capture_owned_atlas_plan_receipt.v1",
+      already_exists: saved.alreadyExists, status: saved.plan.state, pipeline_plan: saved.plan });
+  } catch (error) {
+    const code = error instanceof Error && /^(owned_capture_atlas_[a-z_]+|capture_revoked_or_expired)$/.test(error.message)
+      ? error.message : "owned_capture_atlas_plan_persistence_failed";
+    return res.status(code === "capture_revoked_or_expired" ? 410 : 409)
+      .json({ error: "Owned Atlas plan source could not be retained", code });
+  }
 });
 
 router.post("/:sessionId/reconstructions/plan", async (req, res) => {

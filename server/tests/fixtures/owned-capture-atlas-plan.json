@@ -1,0 +1,266 @@
+{
+  "fixture_scope": "Hermetic cross-runtime contract only; synthetic receipt/QA is never production proof.",
+  "generator_source_file_sha256": "9fb6253ebaa98a97f37540b5dbea185a7515ac799577c3f79d7a915a9cd92f12",
+  "plan": {
+    "claim_ceiling": {
+      "deployment_readiness": false,
+      "physical_task_success": false,
+      "safety_certification": false
+    },
+    "plan_digest": "sha256:28259d9892c86c9df85bd9b9c91e77e76d4131526e751f94ef861fc413a15e41",
+    "plan_id": "reconstruction-atlas-964c72411704e1353da553d3",
+    "proof_boundary": {
+      "derived_reconstruction_upgrades_raw_capture": false,
+      "metric_or_collision_qualification_established": false,
+      "paid_compute_authorized": false,
+      "plan_is_execution_authorization": false,
+      "provider_disclosure_authorized": false,
+      "robot_execution_established": false
+    },
+    "provider_id": "world_labs_atlas",
+    "requested_claim_types": [
+      "navigation_clearance",
+      "task_discovery"
+    ],
+    "schema_version": "owned_capture_atlas_preparation_plan.v1",
+    "source_context": {
+      "authority_issued": false,
+      "capture_id": "capture-session-1",
+      "context_digest": "sha256:04b10d08864badb9ee2d73fabf04336c8a1d6c2046f1475cfc3100795e91f74b",
+      "coordinate_frame_declaration": {
+        "status": "not_available_from_video"
+      },
+      "description": "Navigate to the end of the aisle, avoid both shelves, and stop before the end bookshelf.",
+      "governance": {
+        "allowed_uses": [
+          "evaluation"
+        ],
+        "consent": "not_required",
+        "privacy": "cleared",
+        "provider_constraints": {
+          "external_processing_allowed": false
+        },
+        "retention": {
+          "max_days": 30
+        },
+        "revocation": {
+          "historical_tombstone_retained": true,
+          "supported": true
+        },
+        "rights": "accepted"
+      },
+      "intake_id": "intake-1",
+      "permitted_evidence_uses": [
+        "captured_observation",
+        "task_discovery"
+      ],
+      "permitted_reconstruction_providers": [
+        "local_only"
+      ],
+      "purpose": "scene_preparation",
+      "request_id": "reconstruction-atlas-964c72411704e1353da553d3",
+      "scene_id": "scene-1",
+      "scene_identity_basis": "source_scene_id",
+      "schema_version": "owned_capture_atlas_context.v1",
+      "source_capture": {
+        "capture_authority_profile": "monocular_video",
+        "capture_digest": "sha256:955d8464f4d31b93bdd62e09087277ba8cfb335b35f47701911ebbf513a45a7b",
+        "envelope_digest": "sha256:91235b9c280bbeff27e332593895addd37cc6836a677a3e36151198d50bb38d5",
+        "object_manifest_digest": "sha256:bc505265ef647a4d7a4678c3d07ec67297d6399e135d9732f0b9b91931cf0afb",
+        "qa_report_digest": "sha256:2fcf0cae560fe429dda649e44ed6ab1758e0d7db799ae10998552bb38b31d69e"
+      },
+      "source_scene_id": "scene-1",
+      "task_confirmation_status": "proposed_unconfirmed",
+      "task_family": "customer_navigation_and_stopping",
+      "task_specification": {
+        "description": "Navigate to the end of the aisle, avoid both shelves, and stop before the end bookshelf.",
+        "operations": [
+          "navigate",
+          "avoid_side_shelves",
+          "stop_before_end_shelving"
+        ],
+        "success_parameters_status": "proposed_unconfirmed",
+        "task_family": "customer_navigation_and_stopping"
+      }
+    },
+    "source_video_digest": "sha256:955d8464f4d31b93bdd62e09087277ba8cfb335b35f47701911ebbf513a45a7b",
+    "state": "authorization_required"
+  },
+  "session": {
+    "session_id": "capture-session-1",
+    "owner_user_id": "customer-1",
+    "request": {
+      "schema_version": "capture_intake_envelope.v1",
+      "intake_id": "intake-1",
+      "idempotency_key": "org-1-intake-1",
+      "capture_authority_profile": "monocular_video",
+      "source_type": "monocular_video",
+      "scene_id": "scene-1",
+      "customer_id": "customer-1",
+      "organization_id": "org-1",
+      "capture_device": {
+        "manufacturer": "fixture",
+        "model": "camera"
+      },
+      "timing_declaration": {
+        "clock": "media_pts"
+      },
+      "coordinate_frame_declaration": {
+        "status": "not_available_from_video"
+      },
+      "available_sensor_streams": [
+        {
+          "stream_type": "retained_video",
+          "status": "available",
+          "source_relative_path": "capture.mp4"
+        }
+      ],
+      "governance": {
+        "rights": "accepted",
+        "consent": "not_required",
+        "privacy": "cleared",
+        "retention": {
+          "max_days": 30
+        },
+        "revocation": {
+          "supported": true,
+          "historical_tombstone_retained": true
+        },
+        "provider_constraints": {
+          "external_processing_allowed": false
+        },
+        "allowed_uses": [
+          "evaluation"
+        ]
+      },
+      "requested_task_evaluation_run_audience": "design_partner",
+      "known_task_specification": {
+        "description": "Navigate to the end of the aisle, avoid both shelves, and stop before the end bookshelf.",
+        "task_family": "customer_navigation_and_stopping",
+        "success_parameters_status": "proposed_unconfirmed",
+        "operations": [
+          "navigate",
+          "avoid_side_shelves",
+          "stop_before_end_shelving"
+        ]
+      },
+      "calibration_board_dimensions": null,
+      "operator_notes": [],
+      "permitted_reconstruction_providers": [
+        "local_only"
+      ],
+      "permitted_evidence_uses": [
+        "captured_observation",
+        "task_discovery"
+      ],
+      "upload_validation": {
+        "status": "passed"
+      },
+      "malware_content_validation": {
+        "status": "passed"
+      },
+      "envelope_digest": "sha256:91235b9c280bbeff27e332593895addd37cc6836a677a3e36151198d50bb38d5",
+      "original_file": {
+        "original_filename": "capture.mp4",
+        "size_bytes": 14,
+        "media_type": "video/mp4"
+      }
+    },
+    "pipeline_capture_intake_receipt": {
+      "schema_version": "capture_upload_intake_receipt.v1",
+      "capture_session_id": "capture-session-1",
+      "intake_id": "intake-1",
+      "envelope_digest": "sha256:91235b9c280bbeff27e332593895addd37cc6836a677a3e36151198d50bb38d5",
+      "capture_digest": "sha256:955d8464f4d31b93bdd62e09087277ba8cfb335b35f47701911ebbf513a45a7b",
+      "admission_status": "accepted",
+      "state": "capture_accepted",
+      "claim_ceiling": {
+        "physical_task_success": false,
+        "deployment_readiness": false,
+        "safety_certification": false
+      },
+      "artifact_reference": {
+        "uri": "intakes/intake-1/91235b9c280bbeff27e332593895addd37cc6836a677a3e36151198d50bb38d5",
+        "envelope_digest": "sha256:91235b9c280bbeff27e332593895addd37cc6836a677a3e36151198d50bb38d5"
+      },
+      "capture_qa_report": {
+        "schema_version": "capture_qa_report.v1",
+        "intake_id": "intake-1",
+        "envelope_digest": "sha256:91235b9c280bbeff27e332593895addd37cc6836a677a3e36151198d50bb38d5",
+        "capture_authority_profile": "monocular_video",
+        "status": "accepted",
+        "state": "capture_accepted",
+        "checks": [],
+        "recapture_plan": [],
+        "missing_evidence": [],
+        "required_analysis": [],
+        "next_cheapest_experiment": null,
+        "quality_observations_digest": null,
+        "quality_analysis_errors": [],
+        "claim_ceiling": {
+          "physical_task_success": false,
+          "deployment_readiness": false,
+          "safety_certification": false
+        },
+        "prohibited_claims": [],
+        "comparative_policy_ranking_verdict": "thesis_not_supported",
+        "qa_report_digest": "sha256:2fcf0cae560fe429dda649e44ed6ab1758e0d7db799ae10998552bb38b31d69e"
+      },
+      "request_digest": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+      "size_bytes": 14,
+      "malware_content_validation": {
+        "status": "passed",
+        "scanner": "fixture-only"
+      },
+      "already_exists": false,
+      "proof_boundary": {
+        "server_sha256_verified": true,
+        "raw_input_content_addressed": true,
+        "capture_qa_completed": true,
+        "task_success_established": false,
+        "physical_task_success_established": false,
+        "deployment_or_safety_approved": false,
+        "comparative_policy_ranking_verdict": "thesis_not_supported"
+      }
+    },
+    "pipeline_capture_qa": {
+      "schema_version": "capture_qa_publication.v1",
+      "capture_session_id": "capture-session-1",
+      "intake_id": "intake-1",
+      "capture_authority_profile": "monocular_video",
+      "envelope_digest": "sha256:91235b9c280bbeff27e332593895addd37cc6836a677a3e36151198d50bb38d5",
+      "qa_report_digest": "sha256:2fcf0cae560fe429dda649e44ed6ab1758e0d7db799ae10998552bb38b31d69e",
+      "status": "accepted",
+      "state": "capture_accepted",
+      "report": {
+        "schema_version": "capture_qa_report.v1",
+        "intake_id": "intake-1",
+        "envelope_digest": "sha256:91235b9c280bbeff27e332593895addd37cc6836a677a3e36151198d50bb38d5",
+        "capture_authority_profile": "monocular_video",
+        "status": "accepted",
+        "state": "capture_accepted",
+        "checks": [],
+        "recapture_plan": [],
+        "missing_evidence": [],
+        "required_analysis": [],
+        "next_cheapest_experiment": null,
+        "quality_observations_digest": null,
+        "quality_analysis_errors": [],
+        "claim_ceiling": {
+          "physical_task_success": false,
+          "deployment_readiness": false,
+          "safety_certification": false
+        },
+        "prohibited_claims": [],
+        "comparative_policy_ranking_verdict": "thesis_not_supported",
+        "qa_report_digest": "sha256:2fcf0cae560fe429dda649e44ed6ab1758e0d7db799ae10998552bb38b31d69e"
+      },
+      "proof_boundary": {
+        "qa_is_task_success": false,
+        "qa_is_physical_success": false,
+        "deployment_or_safety_approved": false,
+        "comparative_policy_ranking_verdict": "thesis_not_supported"
+      }
+    }
+  }
+}

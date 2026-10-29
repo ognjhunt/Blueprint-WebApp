@@ -1,11 +1,14 @@
 // @vitest-environment node
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
+import { crossRuntimeArtifactDigest } from "../utils/crossRuntimeCanonical";
 
 import { canonicalArtifactDigest } from "../utils/taskCandidateContract";
 import {
   forwardReconstructionAuthorizationToPipeline,
   forwardReconstructionExecutionToPipeline,
   forwardReconstructionPlanToPipeline,
+  forwardOwnedCaptureAtlasPlanToPipeline,
   forwardTestbedCompilationToPipeline,
   inspectReconstructionInPipeline,
 } from "../utils/reconstructionForwarding";
@@ -378,4 +381,45 @@ describe("reconstruction forwarding", () => {
       blocker: "pipeline_reconstruction_plan_binding_mismatch",
     });
   });
+});
+
+it("forwards the actual Python-owned Atlas plan through the signed reconstruction transport", async () => {
+  const fixture = JSON.parse(readFileSync(new URL("./fixtures/owned-capture-atlas-plan.json", import.meta.url), "utf8"));
+  vi.stubEnv("CAPTURE_UPLOAD_INTAKE_FORWARD_URL", "https://pipeline.example.com/api/live-pipeline/capture-upload-intakes");
+  vi.stubEnv("CAPTURE_UPLOAD_INTAKE_FORWARD_TOKEN", "fixture-only-signing-secret");
+  const fetch = vi.fn().mockResolvedValue(Response.json(fixture.plan));
+  vi.stubGlobal("fetch", fetch);
+  const result = await forwardOwnedCaptureAtlasPlanToPipeline({ captureSessionId: fixture.session.session_id,
+    intakeId: fixture.session.request.intake_id, captureDigest: fixture.plan.source_video_digest,
+    requestedClaimTypes: ["task_discovery", "navigation_clearance"], idempotencyKey: "owned-plan-fixture" });
+  expect(result.status).toBe("forwarded");
+  expect(result.value).toEqual(fixture.plan);
+  const [url, request] = fetch.mock.calls[0];
+  expect(url).toBe("https://pipeline.example.com/api/live-pipeline/reconstructions/atlas-plan");
+  expect(request.headers["x-blueprint-pipeline-signature"]).toMatch(/^sha256=[0-9a-f]{64}$/);
+  expect(JSON.parse(request.body)).toEqual({ schema_version: "owned_capture_atlas_plan_submission.v1",
+    capture_session_id: fixture.session.session_id, intake_id: fixture.session.request.intake_id,
+    requested_claim_types: ["navigation_clearance", "task_discovery"], idempotency_key: "owned-plan-fixture" });
+  expect(result.value?.source_context.task_specification.operations).toEqual([
+    "navigate", "avoid_side_shelves", "stop_before_end_shelving"]);
+  expect(result.value?.proof_boundary.provider_disclosure_authorized).toBe(false);
+});
+
+it.each(["claims", "capture", "authority", "digest"])("refuses an owned Atlas response with changed %s", async changed => {
+  const fixture = JSON.parse(readFileSync(new URL("./fixtures/owned-capture-atlas-plan.json", import.meta.url), "utf8"));
+  const plan = structuredClone(fixture.plan);
+  if (changed === "claims") plan.requested_claim_types = ["appearance_review"];
+  if (changed === "capture") plan.source_context.capture_id = "some-other-capture";
+  if (changed === "authority") plan.proof_boundary.paid_compute_authorized = true;
+  plan.source_context.context_digest = crossRuntimeArtifactDigest(plan.source_context, "context_digest");
+  plan.plan_digest = crossRuntimeArtifactDigest(plan, "plan_digest");
+  if (changed === "digest") plan.plan_digest = `sha256:${"0".repeat(64)}`;
+  vi.stubEnv("CAPTURE_UPLOAD_INTAKE_FORWARD_URL", "https://pipeline.example.com/api/live-pipeline/capture-upload-intakes");
+  vi.stubEnv("CAPTURE_UPLOAD_INTAKE_FORWARD_TOKEN", "fixture-only-signing-secret");
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json(plan)));
+  const result = await forwardOwnedCaptureAtlasPlanToPipeline({ captureSessionId: fixture.session.session_id,
+    intakeId: fixture.session.request.intake_id, captureDigest: fixture.plan.source_video_digest,
+    requestedClaimTypes: fixture.plan.requested_claim_types, idempotencyKey: "owned-plan-fixture" });
+  expect(result.status).toBe("failed");
+  expect(result.value).toBeUndefined();
 });

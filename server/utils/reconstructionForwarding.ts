@@ -1,7 +1,8 @@
 import { createHmac, randomUUID } from "node:crypto";
 
 import { z } from "zod";
-import { crossRuntimeDigest } from "./crossRuntimeCanonical";
+import { ownedCaptureAtlasContextSchema, validateOwnedCaptureAtlasContext } from "./ownedCaptureAtlasContext";
+import { crossRuntimeDigest, matchesCrossRuntimeArtifactDigest } from "./crossRuntimeCanonical";
 
 const DIGEST = /^sha256:[0-9a-f]{64}$/;
 const DEFAULT_TIMEOUT_MS = 60_000;
@@ -304,6 +305,29 @@ type ForwardResult<T> = {
   value?: T;
 };
 
+export const ownedCaptureAtlasPreparationPlanSchema = z.object({
+  schema_version: z.literal("owned_capture_atlas_preparation_plan.v1"),
+  plan_id: z.string().regex(/^reconstruction-atlas-[0-9a-f]{24}$/),
+  state: z.literal("authorization_required"), provider_id: z.literal("world_labs_atlas"),
+  source_context: ownedCaptureAtlasContextSchema,
+  requested_claim_types: z.array(z.string().min(1)).min(1),
+  source_video_digest: z.string().regex(DIGEST), claim_ceiling: z.record(z.string(), z.unknown()),
+  proof_boundary: z.object({ plan_is_execution_authorization: z.literal(false),
+    provider_disclosure_authorized: z.literal(false), paid_compute_authorized: z.literal(false),
+    derived_reconstruction_upgrades_raw_capture: z.literal(false),
+    metric_or_collision_qualification_established: z.literal(false), robot_execution_established: z.literal(false),
+  }).strict(),
+  plan_digest: z.string().regex(DIGEST),
+}).strict().superRefine((plan, result) => {
+  let validContext = false;
+  try { validateOwnedCaptureAtlasContext(plan.source_context); validContext = true; } catch { /* Refuse below. */ }
+  if (!validContext || !matchesCrossRuntimeArtifactDigest(plan, "plan_digest")
+    || plan.source_context.request_id !== plan.plan_id
+    || plan.source_context.source_capture.capture_digest !== plan.source_video_digest)
+    result.addIssue({ code: "custom", message: "owned_capture_atlas_plan_binding_invalid" });
+});
+export type OwnedCaptureAtlasPreparationPlan = z.infer<typeof ownedCaptureAtlasPreparationPlanSchema>;
+
 function text(value: unknown) {
   return String(value || "").trim();
 }
@@ -419,6 +443,25 @@ export async function forwardReconstructionPlanToPipeline(params: {
     || JSON.stringify(plan.requested_claim_types) !== JSON.stringify(claims)
   )) return { ...result, status: "failed" as const, performed: false, value: undefined,
     blocker: "pipeline_reconstruction_plan_binding_mismatch" };
+  return result;
+}
+
+export async function forwardOwnedCaptureAtlasPlanToPipeline(params: {
+  captureSessionId: string; intakeId: string; captureDigest: string;
+  requestedClaimTypes: string[]; idempotencyKey: string;
+}) {
+  const claims = [...new Set(params.requestedClaimTypes)].sort();
+  const result = await signedRequest({ path: "/reconstructions/atlas-plan", method: "POST",
+    body: { schema_version: "owned_capture_atlas_plan_submission.v1",
+      capture_session_id: params.captureSessionId, intake_id: params.intakeId,
+      requested_claim_types: claims, idempotency_key: params.idempotencyKey },
+    schema: ownedCaptureAtlasPreparationPlanSchema, blocker: "pipeline_owned_atlas_plan_rejected" });
+  const plan = result.value;
+  if (plan && (plan.source_context.capture_id !== params.captureSessionId
+    || plan.source_context.intake_id !== params.intakeId || plan.source_video_digest !== params.captureDigest
+    || JSON.stringify(plan.requested_claim_types) !== JSON.stringify(claims)))
+    return { ...result, status: "failed" as const, performed: false, value: undefined,
+      blocker: "pipeline_owned_atlas_plan_binding_mismatch" };
   return result;
 }
 
