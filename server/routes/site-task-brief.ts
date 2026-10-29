@@ -899,7 +899,10 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
     try {
       const request = await readRequestForStatus(payload.requestId);
       coverageMeasured = typeof request?.capture_coverage?.covers_scene === "boolean";
-      if (!result.reusedConfirmation && request?.contactEmail && !scoreable) {
+      // The brief can be a no-op while its notification intent is missing.
+      // Reuse the durable outbox key to recover failed enqueues without
+      // creating another message or changing the confirmed work.
+      if (request?.contactEmail && !scoreable) {
         const email = buildTaskNotYetSupportedEmail({
           firstName: request.contactFirstName || "there",
           siteName: request.siteName,
@@ -916,7 +919,7 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
         });
         void deliverOutbox({ limit: 5 }).catch((error) =>
           logger.warn({ error, requestId: payload.requestId }, "Task scope email delivery deferred to outbox"));
-      } else if (!result.reusedConfirmation && request?.contactEmail) {
+      } else if (request?.contactEmail) {
         // The verdict `confirmBrief` just wrote. Its own disposition stands in
         // for a record that has not caught up, so a qualified site always hears
         // its next step.
