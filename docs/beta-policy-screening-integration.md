@@ -50,6 +50,16 @@ check cross-runtime digests, source/permission refusal, exact retries, progress
 ordering, fractional scores, budget accounting and the diagnostic claim ceiling.
 The existing v4 two-candidate canary contract is unchanged.
 
+The site-assessment agent's existing `read_robot_registry` tool also returns
+`integration_inventory`, derived from the shared deployment embodiment catalog.
+It enumerates every recorded body/policy-route combination and links exact
+company-name associations to the actual returned RobotTeam IDs. Unmatched
+configurations remain visible. The inventory retains its catalog digest and
+source URLs and is planning context, separate from the registry's graded facts
+and delivery agreements. Current task screening publications continue to own
+runtime availability and observed outcomes; neither a public robot asset nor a
+catalogued API route implies private policy access or completed execution.
+
 Deploy through the existing exact-SHA CI-gated Render workflow. Deploy this
 consumer before enabling producer publication. A green website deployment proves
 the consumer is present; it does not prove a RoboLab GPU run completed.
