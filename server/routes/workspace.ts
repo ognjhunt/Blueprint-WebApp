@@ -690,6 +690,7 @@ async function hydrateTask(requestId: string, record: Record<string, any>) {
     if (!consentRevoked && !walkthrough) throw new Error("walkthrough_status_unavailable");
     task.readiness = projectTaskStatus(
       taskStatusInputFrom({
+        active_capture_id: typeof record.active_capture_id === "string" ? record.active_capture_id : null,
         site_task_brief_confirmed_at: record.site_task_brief_confirmed_at,
         capture_coverage: (record.capture_coverage as never) ?? null,
         briefDrafted: Boolean(brief),

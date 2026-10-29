@@ -5,19 +5,8 @@ import { hydrateAgentEvidence } from "../agents/private-evidence";
 /**
  * Running the coverage read, and writing what it found where readers look.
  *
- * ## What this makes true
- *
- * `EvidenceOnFile.coversScene` and `.missingCoverage` were inferred from
- * adjacent facts: a scene exists, therefore coverage was sufficient. Sound at
- * the two call sites that used it, and useless for the case in between —
- * footage uploaded, nothing reconstructed, and an operator who could add one
- * more view in thirty seconds if we could tell them which.
- *
- * The capture page says "we check next whether it covers the work area well
- * enough... including if one more view would finish the job". This is what
- * makes that a mechanism rather than a promise.
- *
- * ## Structured exactly like the footage reviewer, on purpose
+ * Source-bound observations stay available to Blueprint's reconstruction and
+ * recovery work. Missing views do not automatically become a customer request.
  *
  * `buildCaptureFootageReviewer` signs a short-lived read URL, loads the
  * operator's own context, and hands back a callable. Same shape here, and the
@@ -26,12 +15,8 @@ import { hydrateAgentEvidence } from "../agents/private-evidence";
  * review was attempted and failed. Conflating those is how a switched-off lane
  * starts looking like a clean bill of health.
  *
- * ## It can withhold and never grant
- *
- * `coversScene: false` with named missing views is actionable. `true` does not
- * authorise anything on its own: `shouldSpendOnReconstruction` still requires a
- * confirmed brief and every binding gate answered, so a model that likes the
- * footage cannot move money. Same one-way door as the rest of the funnel.
+ * A favorable coverage finding grants neither source rights nor spending
+ * authority; those remain with the existing admission controls.
  */
 
 import admin, { dbAdmin as db, storageAdmin } from "../../client/src/lib/firebaseAdmin";
@@ -48,10 +33,6 @@ import type { SiteVideoJobEstimatesOutput } from "../agents/tasks/site-video-evi
 import { isSiteVideoEvidenceEnabled } from "../config/env";
 import { selfCaptureObjectPath } from "./captureUploadToken";
 import { getBrief } from "./siteTaskBrief";
-import { commitTaskUpdate } from "./taskUpdateCommitment";
-import { EMAIL_SIGN_OFF, emailGreeting } from "./emailLayout";
-import { decryptFieldValue } from "./field-encryption";
-import type { ContactInfoStored } from "../types/inbound-request";
 
 /** Long enough for a model to fetch the video, short enough not to be a handle. */
 const SIGNED_URL_TTL_MS = 30 * 60 * 1000;
@@ -121,7 +102,7 @@ export interface CoverageFinding {
  * does".
  */
 export async function reviewCaptureCoverage(params: {
-  /** The bounded launch worker records findings without enabling external sends. */
+  /** Compatibility input; coverage findings no longer request customer action. */
   notifyOwner?: boolean;
   binding?: { source: unknown; brief_digest: string; capture_id: string };
   reviewId?: string;
@@ -228,38 +209,8 @@ export async function reviewCaptureCoverage(params: {
     ? output.job_estimates ?? null : null;
   await recordCoverageFinding(params.requestId, params.captureId, finding, params.binding, estimates);
 
-  // A named shortfall is the one coverage outcome worth an email: it is a
-  // specific, cheap thing the operator can do. "Covers the scene" needs no
-  // message -- the assessment simply proceeds -- and an unnamed shortfall is
-  // nothing they could act on. Queued through the outbox so it survives a crash.
-  if (params.notifyOwner !== false && !finding.coversScene && finding.missingCoverage.length) {
-    try {
-      const snap = await db?.collection("inboundRequests").doc(params.requestId).get();
-      const storedContact = snap?.data()?.contact as Partial<ContactInfoStored> | undefined;
-      // Intake retains encrypted contact fields. Decrypt only the notification
-      // destination and greeting; never rewrite the canonical contact record.
-      const contact = storedContact?.email ? {
-        email: await decryptFieldValue(storedContact.email),
-        firstName: storedContact.firstName ? await decryptFieldValue(storedContact.firstName) : undefined,
-      } : undefined;
-      if (typeof contact?.email === "string" && contact.email.trim()) {
-        await commitTaskUpdate({
-          requestId: params.requestId,
-          to: contact.email,
-          kind: "coverage_shortfall",
-          subject: "Blueprint — next steps for your capture coverage",
-          body:
-            `${emailGreeting(contact.firstName)}\n\n`
-            + "Your footage is saved. These views are still needed before we can build the scene:\n\n"
-            + finding.missingCoverage.map((view) => `- ${view}`).join("\n")
-            + "\n\nOpen your existing job link and choose Add missing views or Update video. Your job and original footage stay saved; there is no need to start a new job.\n\n"
-            + EMAIL_SIGN_OFF,
-        });
-      }
-    } catch (error) {
-      logger.warn({ error, requestId: params.requestId }, "Could not queue a coverage-shortfall email");
-    }
-  }
+  // Retain missing observations for Blueprint's recovery work. They do not
+  // automatically become a request for the customer to record more footage.
 
   return finding;
 }

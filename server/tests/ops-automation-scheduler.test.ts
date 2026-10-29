@@ -21,6 +21,7 @@ const deliverOutbox = vi.hoisted(() =>
   vi.fn(async () => ({ examined: 0, sent: 0, failed: 0, exhausted: 0 })),
 );
 const sendSlackMessage = vi.hoisted(() => vi.fn());
+const tickBrowserCaptureProcessing = vi.hoisted(() => vi.fn());
 const workerStatusSetMock = vi.hoisted(() => vi.fn());
 const workerFailureAlertState = vi.hoisted(() => new Map<string, string>());
 const maybeAlertOnWorkerStatusTransition = vi.hoisted(() =>
@@ -83,6 +84,10 @@ vi.mock("../utils/ops-alerts", () => ({
 
 vi.mock("../utils/captureOutbox", () => ({
   deliverOutbox,
+}));
+
+vi.mock("../utils/browserCaptureRecovery", () => ({
+  tickBrowserCaptureProcessing,
 }));
 
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({
@@ -159,6 +164,7 @@ beforeEach(() => {
   workerStatusSetMock.mockReset();
   workerFailureAlertState.clear();
   deliverOutbox.mockClear();
+  tickBrowserCaptureProcessing.mockClear();
   runWaitlistAutomationLoop.mockResolvedValue({ processedCount: 1, failedCount: 0 });
   runInboundQualificationLoop.mockResolvedValue({ processedCount: 2, failedCount: 0 });
   runSupportTriageLoop.mockResolvedValue({ processedCount: 3, failedCount: 0 });
@@ -369,6 +375,7 @@ describe("ops automation scheduler", () => {
     await vi.advanceTimersByTimeAsync(31_000);
 
     expect(deliverOutbox).toHaveBeenCalled();
+    expect(tickBrowserCaptureProcessing).toHaveBeenCalledTimes(1);
 
     stop();
   });
@@ -383,6 +390,7 @@ describe("ops automation scheduler", () => {
     await vi.advanceTimersByTimeAsync(31_000);
 
     expect(deliverOutbox).not.toHaveBeenCalled();
+    expect(tickBrowserCaptureProcessing).not.toHaveBeenCalled();
 
     stop();
   });

@@ -699,16 +699,20 @@ describe("SiteCaptureStart and a video that already exists", () => {
     expect(fetchMock.mock.calls.filter(call => call[1]?.method === "POST")).toHaveLength(1);
   });
 
-  it("shows a retained processing failure and retries without another file upload", async () => {
+  it("keeps processing recovery optional after receipt and retries without another file upload", async () => {
     answerPosts({ captureUrl });
     upload.send.mockResolvedValue({ status: "processing_pending", message: "Your video is saved. We could not confirm that processing started.", processingRetryAvailable: true });
     let finishRetry!: (result: { status: "done" }) => void;
     upload.retry.mockImplementation(() => new Promise((resolve) => { finishRetry = resolve; }));
     await renderAsSiteAccount();
     fillFor(video());
-    await screen.findByRole("heading", { name: "Video received. Processing is not confirmed." });
+    await screen.findByRole("heading", { name: "Your recording is in." });
+    expect(screen.getByText(/Blueprint will continue from this saved recording/)).toBeVisible();
+    expect(screen.getByRole("button", { name: "Retry processing" })).not.toBeVisible();
+    expect(upload.retry).not.toHaveBeenCalled();
     expect(screen.queryByText(/The video did not send|Nothing was lost/)).not.toBeInTheDocument();
     expect(screen.queryByRole("img", { name: /film/i })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText("Processing details (optional)"));
     const button = screen.getByRole("button", { name: "Retry processing" });
     fireEvent.click(button); fireEvent.click(button);
     expect(upload.retry).toHaveBeenCalledTimes(1);
@@ -1021,11 +1025,15 @@ it("offers account setup only after the site and job have been saved", async () 
   await renderReady(<SiteCaptureStart />);
   expect(screen.queryByRole("link", { name: "Create an account for this job" })).not.toBeInTheDocument();
   fireEvent.change(document.querySelector("#start-email")!, { target: { value: "owner@example.com" } }); fillAndSubmit();
-  expect(await screen.findByRole("link", { name: "Create an account for this job" })).toHaveAttribute("href", "/claim/job.signed");
+  const optional = await screen.findByText("Save this job to your account (optional)");
+  expect(optional.closest("details")).not.toHaveAttribute("open");
+  expect(screen.getByText("Create an account for this job")).not.toBeVisible();
+  fireEvent.click(optional);
+  expect(screen.getByRole("link", { name: "Create an account for this job" })).toHaveAttribute("href", "/claim/job.signed");
   expect(screen.getByRole("link", { name: "Sign in to save this job" })).toHaveAttribute("href", "/claim/job.signed?mode=signin");
   // The private link already supports this job; account setup stays optional.
   const account = screen.getByRole("region", { name: "Save this job to your account" });
-  expect(account).toHaveTextContent("Your private job link lets you upload, review the brief and follow progress.");
+  expect(account).toHaveTextContent("Your private job link already lets you upload, see results and review proposals.");
   expect(account).toHaveTextContent(/optional/i);
   expect(screen.queryByLabelText(/password/i)).not.toBeInTheDocument();
   expect(postsTo("/api/inbound-request")).toHaveLength(1);

@@ -91,6 +91,61 @@ describe("video first owner return", () => {
       return mockFetch()(input);
     });
   }
+  it.each(["confirm_brief", "add_views"])("keeps legacy %s hints optional for a received recording", async decision => {
+    const fallback = ownerFetch(false, true);
+    const read = vi.fn((input: RequestInfo | URL, init?: RequestInit) => String(input) === `/api/site-task-brief/${TOKEN}/status`
+      ? Promise.resolve({ ok: true, json: async () => ({ captureReceived: true, status: {
+        decision, headline: "Review your saved job brief.", operatorAction: "Please record another view before continuing.",
+        missingViews: ["rear of shelf"], nextUpdateIso: null,
+      } }) }) : fallback(input, init));
+    vi.stubGlobal("fetch", read);
+    render(<SelfCaptureUpload />);
+    await screen.findByText("Blueprint is preparing your reconstruction.", { selector: "strong" });
+    expect(screen.queryByText("Please record another view before continuing.")).not.toBeInTheDocument();
+    expect(screen.queryByText("Review your saved job brief.")).not.toBeInTheDocument();
+    expect(read.mock.calls.every(([, init]) => !init?.method || init.method === "GET")).toBe(true);
+    expect(videoUpload.send).not.toHaveBeenCalled();
+    expect(videoUpload.retry).not.toHaveBeenCalled();
+  });
+  it("keeps one current update when a processing stop becomes unavailable and resumes", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    let available = true, stopped = true;
+    const outcome = processingFailure(), fallback = ownerFetch(false, true);
+    const read = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === `/api/site-task-brief/${TOKEN}`) return Promise.resolve({ ok: true, json: async () => ({
+        ready: true, scope: "owner", brief: { summary: "Move a ball from floor to tabletop", captureMode: "self_capture",
+          proposed: [], unresolved: [], confirmedAtIso: null },
+      }) });
+      if (url === `/api/site-task-brief/${TOKEN}/status`) return Promise.resolve({ ok: available,
+        json: async () => available ? { captureReceived: true, status: stopped
+          ? { decision: outcome.category, headline: outcome.title, outcome, operatorAction: null, missingViews: [] }
+          : { decision: "confirm_brief", headline: "Review the saved brief.", operatorAction: null, missingViews: [] } }
+          : { error: "Status unavailable" } });
+      if (url === `/api/job-workflow/owner/${TOKEN}`) return Promise.resolve({ ok: true, json: async () => ({
+        schemaVersion: "job_marketplace.v1", revision: "workflow-1", stage: "job_submitted", briefAgreed: false,
+        optionsAssessed: false, reviewRequired: false, nextAction: "Review the saved brief.", actionOwner: "site",
+        requirements: {}, review: null, proposals: [], selection: null, agreement: null, outcome: null,
+      }) });
+      return fallback(input, init);
+    });
+    vi.stubGlobal("fetch", read);
+    const page = render(<SelfCaptureUpload />);
+    try {
+      await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+      expect(screen.getByRole("region", { name: "Preparation outcome" })).toBeVisible();
+      available = false;
+      await act(async () => { await vi.advanceTimersByTimeAsync(6000); });
+      expect(screen.getAllByText("Checking the current job status. Your saved job remains available.")).toHaveLength(1);
+      expect(screen.queryByRole("region", { name: "Preparation outcome" })).not.toBeInTheDocument();
+      available = true; stopped = false;
+      await act(async () => { await vi.advanceTimersByTimeAsync(6000); });
+      expect(screen.getByText("Blueprint is preparing your reconstruction.", { selector: "strong" })).toBeVisible();
+      expect(screen.getByLabelText("Review your job brief")).not.toHaveAttribute("open");
+      expect(screen.queryByText("Review the saved brief.")).not.toBeInTheDocument();
+      expect(read.mock.calls.every(([, init]) => !init?.method || init.method === "GET")).toBe(true);
+    } finally { page.unmount(); vi.useRealTimers(); }
+  });
   it.each([null, "2026-10-01T00:00:00Z"])("keeps a Blueprint processing stop consistent with brief confirmation %s", async confirmedAtIso => {
     const fallback = ownerFetch(false, true);
     const outcome = processingFailure();
@@ -113,8 +168,8 @@ describe("video first owner return", () => {
     vi.stubGlobal("fetch", fetcher);
     render(<SelfCaptureUpload />);
     expect(await screen.findByRole("region", { name: "Preparation outcome" })).toHaveTextContent(outcome.scope);
-    expect(await screen.findByText("Next action · Blueprint")).toBeVisible();
-    expect(screen.getByText("Your recording is saved. The next step is with Blueprint.")).toBeVisible();
+    expect(screen.getByText(outcome.nextStep)).toBeVisible();
+    expect(screen.getAllByText(outcome.nextStep)).toHaveLength(1);
     expect(screen.getByText("Saved job brief")).toBeVisible();
     expect(screen.queryByRole("region", { name: "Confirm your job brief" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /confirm it|Retry processing/ })).not.toBeInTheDocument();
@@ -126,15 +181,16 @@ describe("video first owner return", () => {
     expect(videoUpload.retry).not.toHaveBeenCalled();
   });
 
-  it("keeps optional account saving inside the post-video brief confirmation", async () => {
+  it("keeps account saving inside optional post-video job details", async () => {
     const fetcher = ownerFetch(false, true);
     vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL) => String(input) === `/api/site-task-brief/${TOKEN}`
       ? Promise.resolve({ ok: true, json: async () => ({ ready: true, scope: "owner", account: { claimed: false, email: "owner@example.test", claimToken: "synthetic-claim-token" },
         brief: { summary: "Pack cartons", captureMode: "self_capture", proposed: [], unresolved: [], confirmedAtIso: null } }) })
       : fetcher(input)));
     render(<SelfCaptureUpload />);
-    await screen.findByRole("region", { name: "Confirm your job brief" });
+    await screen.findByLabelText("Review your job brief");
     expect(screen.queryByLabelText("Choose a password")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText("Review or correct job details (optional)"));
     fireEvent.click(screen.getByLabelText("Also save this job to my account (optional)"));
     expect(screen.getByLabelText("Choose a password")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "This is right — confirm and save" })).toBeInTheDocument();
@@ -242,24 +298,27 @@ describe("video first owner return", () => {
     expect(videoUpload.send).not.toHaveBeenCalled();
     expect(videoUpload.retry).not.toHaveBeenCalled();
   });
-  it("keeps a measured coverage gap on the saved job and offers missing views under the same job", async () => {
+  it("keeps owner corrections optional when a saved job has a coverage gap", async () => {
     const fetcher = ownerFetch(false);
     vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL) => {
       const url = String(input);
       if (url.endsWith(`/api/site-task-brief/${TOKEN}/status`)) return Promise.resolve({ ok: true,
-        json: async () => ({ captureReceived: true, status: { decision: "add_views", headline: "Add a view of the pallet.", operatorAction: "Film the pallet.", missingViews: ["pallet"] } }) });
+        json: async () => ({ captureReceived: true, status: { decision: "footage_received", headline: "Blueprint is preparing your reconstruction.", operatorAction: null, missingViews: ["pallet"] } }) });
       return fetcher(input);
     }));
     render(<SelfCaptureUpload />);
     expect(await screen.findByText("Video received.")).toBeVisible();
+    expect(screen.getByText("Update walkthrough (optional)").closest("details")).not.toHaveAttribute("open");
+    expect(screen.getByRole("button", { name: "Update walkthrough" })).not.toBeVisible();
+    fireEvent.click(screen.getByText("Update walkthrough (optional)"));
     expect(screen.getByRole("button", { name: "Update walkthrough" })).toBeEnabled();
     expect(screen.queryByRole("button", { name: "Upload a video file" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Upload a new recording" })).not.toBeInTheDocument();
-    expect(screen.getByText(/Your job and original video stay saved/)).toBeInTheDocument();
+    expect(screen.getByText(/your job and original video stay saved/i)).toBeInTheDocument();
     expect(videoUpload.send).not.toHaveBeenCalled();
     expect(screen.queryByRole("button", { name: "Add footage when you are ready (optional)" })).not.toBeInTheDocument();
   });
-  it.each([{ missingViews: [] }, { missingViews: ["pallet"] }])("opens one complete same-job update with missing views $missingViews without sending another upload", async ({ missingViews }) => {
+  it.each([{ missingViews: [] }, { missingViews: ["pallet"] }])("opens one primary same-job update with missing views $missingViews without sending another upload", async ({ missingViews }) => {
     const fallback = ownerFetch(false, true);
     const fetcher = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
       if (String(input).endsWith(`/api/site-task-brief/${TOKEN}/status`)) return Promise.resolve({ ok: true,
@@ -273,6 +332,7 @@ describe("video first owner return", () => {
     render(<SelfCaptureUpload />);
     await screen.findByText("Video received.");
     expect(screen.queryByRole("button", { name: "Upload a replacement walkthrough" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText("Update walkthrough (optional)"));
     fireEvent.click(screen.getByRole("button", { name: "Update walkthrough" }));
     await waitFor(() => expect(route.navigate).toHaveBeenCalledWith("/capture-upload/signed-same-job-update"));
     const call = fetcher.mock.calls.find(([input]) => String(input).endsWith("/supplement"))!;
@@ -315,26 +375,32 @@ describe("retained video processing recovery", () => {
       : mockFetch()(input));
   }
 
-  it.each(["", PHONE_UA])("restores a processing failure on refresh without a camera or QR (%s)", async (ua) => {
+  it.each(["", PHONE_UA])("restores a saved upload with automatic recovery and optional details (%s)", async (ua) => {
     setUserAgent(ua);
     vi.stubGlobal("fetch", retainedFetch({ captureReceived: true, uploadState: "processing_pending", processingRetryAvailable: true }));
     const first = render(<SelfCaptureUpload />);
-    expect(await screen.findByRole("button", { name: "Retry processing" })).toBeInTheDocument();
-    expect(screen.getByText(/You do not need to upload or record it again/)).toBeInTheDocument();
+    expect(await screen.findByText(/Blueprint will continue from this saved recording/)).toBeVisible();
+    expect(screen.getByRole("button", { name: "Retry processing" })).not.toBeVisible();
+    expect(screen.getByLabelText("Processing details")).not.toHaveAttribute("open");
+    fireEvent.click(screen.getByText("Processing details (optional)"));
+    expect(screen.getByText(/You do not need to upload or record it again/)).toBeVisible();
     expect(screen.queryByRole("button", { name: /Open the camera|Upload a video file|Choose or record/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("img", { name: /phone|device/i })).not.toBeInTheDocument();
     first.unmount(); render(<SelfCaptureUpload />);
-    await screen.findByRole("button", { name: "Retry processing" });
+    await screen.findByText(/Blueprint will continue from this saved recording/);
+    expect(screen.getByRole("button", { name: "Retry processing" })).not.toBeVisible();
     expect(videoUpload.retry).not.toHaveBeenCalled();
     expect(videoUpload.send).not.toHaveBeenCalled();
   });
 
-  it("requires an explicit retry, guards repeated clicks, and keeps the saved layout", async () => {
+  it("keeps a manual retry inside optional details and guards repeated clicks", async () => {
     vi.stubGlobal("fetch", retainedFetch({ captureReceived: true, uploadState: "processing_pending", processingRetryAvailable: true }));
     let complete!: (result: { status: "done" }) => void;
     videoUpload.retry.mockImplementation(() => new Promise(resolve => { complete = resolve; }));
     render(<SelfCaptureUpload />);
-    const button = await screen.findByRole("button", { name: "Retry processing" });
+    await screen.findByText(/Blueprint will continue from this saved recording/);
+    fireEvent.click(screen.getByText("Processing details (optional)"));
+    const button = screen.getByRole("button", { name: "Retry processing" });
     expect(videoUpload.retry).not.toHaveBeenCalled();
     fireEvent.click(button); fireEvent.click(button);
     expect(videoUpload.retry).toHaveBeenCalledTimes(1);
@@ -372,7 +438,7 @@ describe("retained video processing recovery", () => {
     const read = retainedFetch({ captureReceived, uploadState, processingRetryAvailable: false });
     vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL) => String(input).startsWith("/api/site-task-brief/") && String(input).endsWith("/status")
       ? Promise.resolve({ ok: true, json: async () => ({ captureReceived, status: {
-        decision: "footage_received", headline: "We are checking your footage.", operatorAction: null, missingViews: [], nextUpdateIso: null,
+        decision: captureReceived ? "confirm_brief" : "footage_received", headline: "We are checking your footage.", operatorAction: null, missingViews: [], nextUpdateIso: null,
       } }) }) : read(input)));
     render(<SelfCaptureUpload />);
     await screen.findByText(headline, { selector: "strong" });
@@ -392,7 +458,9 @@ describe("retained video processing recovery", () => {
     expect(videoUpload.send).toHaveBeenCalledTimes(1);
     complete({ status: "failed", message: "This browser could not read the video. Keep the original." });
     fireEvent.click(await screen.findByRole("button", { name: "Try the selected video again" }));
-    await screen.findByText(/Saved; processing pending/);
+    await screen.findByText(/Blueprint will continue from this saved recording/);
+    fireEvent.click(screen.getByText("Processing details (optional)"));
+    expect(screen.getByText(/Saved; processing pending/)).toBeVisible();
     expect(videoUpload.send.mock.calls[1][1]).toBe(file);
     expect(window.location.search).toBe("?video=existing");
     expect(screen.queryByText(/Nothing was saved/)).not.toBeInTheDocument();
@@ -443,15 +511,16 @@ describe("explicit assessment retry", () => {
   it("keeps the acknowledged video and brief through a current-source retry refusal", async () => {
     const read = retryFetch({ available: true }); vi.stubGlobal("fetch", read);
     render(<SelfCaptureUpload />);
-    fireEvent.click(await screen.findByRole("button", { name: "Try assessment again" }));
+    fireEvent.click(await screen.findByText("Processing details"));
+    fireEvent.click(screen.getByRole("button", { name: "Try assessment again" }));
     await screen.findByText("The current assessment could not be retried. Your recording is saved. Check this page for the next step.");
     expect(screen.queryByText("private provider detail")).not.toBeInTheDocument();
     expect(await screen.findByText("Video received.")).toBeVisible();
-    expect(screen.getByRole("heading", { name: "Your saved job" })).toBeVisible();
-    expect(screen.getByText("Job reference: bp-advisory-aaaaaaaaaaaaaaaa")).toBeVisible();
-    // The brief stays the site's open, required step through the refusal.
-    expect(screen.getByRole("region", { name: "Confirm your job brief" })).toBeVisible();
-    expect(screen.getByRole("region", { name: "Confirm your job brief" }).closest("details")).toBeNull();
+    expect(screen.getByText("Reference: bp-advisory-aaaaaaaaaaaaaaaa")).toBeVisible();
+    expect(screen.getByText("Processing details").closest("details")).toHaveAttribute("open");
+    // The draft remains available without interrupting the job after refusal.
+    expect(screen.getByText("Review or correct job details (optional)")).toBeVisible();
+    expect(screen.getByLabelText("Review your job brief")).not.toHaveAttribute("open");
     expect(read.mock.calls.filter(call => call[1]?.method === "POST")).toHaveLength(1);
     expect(videoUpload.send).not.toHaveBeenCalled();
     expect(videoUpload.retry).not.toHaveBeenCalled();
@@ -461,7 +530,8 @@ describe("explicit assessment retry", () => {
     const read = retryFetch({ available: true, post: () => new Promise(resolve => { finish = resolve; }) });
     vi.stubGlobal("fetch", read);
     const { rerender } = render(<SelfCaptureUpload />);
-    fireEvent.click(await screen.findByRole("button", { name: "Try assessment again" }));
+    fireEvent.click(await screen.findByText("Processing details"));
+    fireEvent.click(screen.getByRole("button", { name: "Try assessment again" }));
     await waitFor(() => expect(read.mock.calls.some(call => String(call[0]).endsWith("/advisory-retry"))).toBe(true));
     route.token = "second-token"; rerender(<SelfCaptureUpload />);
     await screen.findByText("This link was withdrawn.");
@@ -544,9 +614,9 @@ describe("SelfCaptureUpload after the phone has uploaded", () => {
     vi.stubGlobal("fetch", fetchMock);
     render(<SelfCaptureUpload />);
 
-    // Teams evaluate only a confirmed job: the brief is open on the page.
-    const brief = await screen.findByRole("region", { name: "Confirm your job brief" });
-    expect(brief.closest("details")).toBeNull();
+    // Reviewing the inferred brief is optional after the video is saved.
+    const brief = await screen.findByLabelText("Review your job brief");
+    expect(brief).not.toHaveAttribute("open");
     expect(screen.queryByRole("heading", { name: "Point your phone at this." })).not.toBeInTheDocument();
     // The site sends its video and nothing else: no follow-up questions, item photos or measurements.
     expect(screen.queryByText("What throughput is required?")).not.toBeInTheDocument();
@@ -554,7 +624,7 @@ describe("SelfCaptureUpload after the phone has uploaded", () => {
     expect(screen.queryByText("Add photos of the job items")).not.toBeInTheDocument();
     expect(screen.queryByText(/Add measurements/)).not.toBeInTheDocument();
     expect(fetchMock.mock.calls.map(([input]) => String(input)).filter((url) => /\/(clarification|items|measurements|follow-up)\b/.test(url))).toEqual([]);
-    expect(screen.queryByRole("button", { name: "Add another video" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Update walkthrough" })).not.toBeVisible();
   });
 
   it("shows a held video's status on a return visit, and asks nothing", async () => {
@@ -611,25 +681,34 @@ describe("SelfCaptureUpload once robot teams have run", () => {
     nextUpdateIso: null,
   };
 
-  it("offers the claim link when results exist and nobody owns the site", async () => {
+  it("keeps account saving optional when the private job already shows results", async () => {
     setUserAgent(DESKTOP_UA);
     vi.stubGlobal("fetch", mockFetchWithStatus(results, "http://localhost/claim/tok-claim"));
     render(<SelfCaptureUpload />);
 
     expect(await screen.findAllByText(/41 of 50 episodes/)).not.toHaveLength(0);
-    const link = screen.getByRole("link", { name: /claim your site to see the results/i });
+    const optional = screen.getByText("Save this job to an account (optional)");
+    expect(optional.closest("details")).not.toHaveAttribute("open");
+    expect(screen.getByText("Save this job to your account")).not.toBeVisible();
+    expect(screen.queryByText(/claim your site to see the results/i)).not.toBeInTheDocument();
+    fireEvent.click(optional);
+    const link = screen.getByRole("link", { name: "Save this job to your account" });
     expect(link).toHaveAttribute("href", "http://localhost/claim/tok-claim");
   });
 
-  it("offers the claim as a way to follow the task before any results exist", async () => {
+  it("does not require an account while Blueprint prepares a saved recording", async () => {
     setUserAgent(DESKTOP_UA);
     const waiting = { decision: "footage_received", headline: "We have your recording and are checking whether it covers the work area.", operatorAction: null, missingViews: [], nextUpdateIso: null };
     vi.stubGlobal("fetch", mockFetchWithStatus(waiting, "http://localhost/claim/tok-claim"));
     render(<SelfCaptureUpload />);
 
-    const link = await screen.findByRole("link", { name: /claim your site to follow this job/i });
+    const optional = await screen.findByText("Save this job to an account (optional)");
+    expect(optional.closest("details")).not.toHaveAttribute("open");
+    expect(screen.queryByText(/Create and verify your site account before Blueprint builds the scene/)).not.toBeInTheDocument();
+    fireEvent.click(optional);
+    const link = screen.getByRole("link", { name: "Save this job to your account" });
     expect(link).toHaveAttribute("href", "http://localhost/claim/tok-claim");
-    expect(screen.getByText(/Create and verify your site account before Blueprint builds the scene/)).toBeInTheDocument();
+    expect(link).toBeVisible();
   });
 
   it("offers no claim link when the server offered none", async () => {
@@ -639,6 +718,7 @@ describe("SelfCaptureUpload once robot teams have run", () => {
 
     expect(await screen.findAllByText(/41 of 50 episodes/)).not.toHaveLength(0);
     expect(screen.queryByRole("link", { name: /claim your site/i })).not.toBeInTheDocument();
+    expect(screen.queryByText("Save this job to an account (optional)")).not.toBeInTheDocument();
   });
 
   it("shows the owner-only persisted scene viewer returned by status", async () => {
@@ -650,14 +730,17 @@ describe("SelfCaptureUpload once robot teams have run", () => {
     expect(link).toHaveAttribute("href", "https://viewer.example/world-1");
   });
 
-  it("offers signup at the visual scene milestone before any robot evaluation", async () => {
+  it("opens the scene directly while account saving stays optional", async () => {
     setUserAgent(DESKTOP_UA);
     vi.stubGlobal("fetch", mockFetchWithStatus({ ...results, decision: "assessing",
       headline: "Preparing your task", operatorAction: null }, "/claim/scene-owner", "https://viewer.example/world-1"));
     render(<SelfCaptureUpload />);
-    expect(await screen.findByRole("link", { name: "Save your scene and follow progress" }))
-      .toHaveAttribute("href", "/claim/scene-owner");
-    expect(screen.getByRole("link", { name: "View your scene" })).toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: "View your scene" })).toBeVisible();
+    const optional = screen.getByText("Save this job to an account (optional)");
+    expect(optional.closest("details")).not.toHaveAttribute("open");
+    expect(screen.getByText("Save this job to your account")).not.toBeVisible();
+    fireEvent.click(optional);
+    expect(screen.getByRole("link", { name: "Save this job to your account" })).toHaveAttribute("href", "/claim/scene-owner");
     expect(screen.queryByText(/41 of 50 episodes/)).not.toBeInTheDocument();
   });
 });
@@ -731,7 +814,7 @@ describe("SelfCaptureUpload for a site that asked for a visit", () => {
  * once footage is in, confirming the brief is a visible, required step on the
  * owner page, never a collapsed "optional" correction.
  */
-describe("SelfCaptureUpload asks for the brief confirmation an evaluation needs", () => {
+describe("SelfCaptureUpload keeps job corrections optional during automatic evaluation", () => {
   const DESKTOP_UA =
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/126.0 Safari/537.36";
 
@@ -762,15 +845,17 @@ describe("SelfCaptureUpload asks for the brief confirmation an evaluation needs"
     });
   }
 
-  it("keeps draft review open while automatic evaluation can continue", async () => {
+  it("keeps draft review collapsed while automatic evaluation continues", async () => {
     setUserAgent(DESKTOP_UA);
     vi.stubGlobal("fetch", ownerFetch({ captureReceived: true, confirmedAtIso: null }));
     render(<SelfCaptureUpload />);
 
-    const step = await screen.findByRole("region", { name: "Confirm your job brief" });
-    expect(step.closest("details")).toBeNull();
-    expect(step).toHaveTextContent(/Blueprint can prepare and evaluate your job while you review this brief/);
-    // The confirm control is on the page, with nothing to open first.
+    const step = await screen.findByLabelText("Review your job brief");
+    expect(step).not.toHaveAttribute("open");
+    expect(step).toHaveTextContent(/Blueprint prepares and evaluates your job from the recording/);
+    // The normal journey does not ask for another confirmation.
+    expect(screen.getByRole("button", { name: "This is right — confirm it" })).not.toBeVisible();
+    fireEvent.click(screen.getByText("Review or correct job details (optional)"));
     expect(screen.getByRole("button", { name: "This is right — confirm it" })).toBeVisible();
     // The draft remains directly editable without claiming evaluation waits for it.
     expect(screen.queryByText("Correct job details (optional)")).not.toBeInTheDocument();
@@ -814,7 +899,7 @@ describe("SelfCaptureUpload for footage sent with no description", () => {
   });
 });
 
-describe("SelfCaptureUpload says how long a waiting stage takes", () => {
+describe("SelfCaptureUpload shows the current update without a generic waiting checklist", () => {
   function withStatus(decision: string) {
     vi.stubGlobal("fetch", vi.fn().mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
@@ -827,11 +912,12 @@ describe("SelfCaptureUpload says how long a waiting stage takes", () => {
     ["assessing", "We confirm the checks needed for your job and explain the next step. Timing depends on the evidence and compatible systems available."],
     ["awaiting_teams", "We are checking compatible options and delivery support. Your job page shows who needs to act next; we email you when there is an update."],
     ["received", "We usually reply within an hour."],
-  ])("shows the expected wait while %s", async (decision, line) => {
+  ])("shows the current %s update without another timeline", async (decision, line) => {
     setUserAgent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/126.0 Safari/537.36");
     withStatus(decision);
     render(<SelfCaptureUpload />);
-    expect(await screen.findByText(line)).toBeInTheDocument();
+    expect(await screen.findByText(`Status for ${decision}.`)).toBeInTheDocument();
+    expect(screen.queryByText(line)).not.toBeInTheDocument();
   });
   it("shows no wait for a step that is the site's own", async () => {
     setUserAgent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/126.0 Safari/537.36");
@@ -843,7 +929,7 @@ describe("SelfCaptureUpload says how long a waiting stage takes", () => {
 });
 
 describe("SelfCaptureUpload once evaluations settle without a pass", () => {
-  it.each(["no_team_passed", "no_qualified_evaluation"])("offers the claim as the way to see the runs (%s)", async (decision) => {
+  it.each(["no_team_passed", "no_qualified_evaluation"])("keeps settled results independent of optional account saving (%s)", async (decision) => {
     setUserAgent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/126.0 Safari/537.36");
     vi.stubGlobal("fetch", vi.fn().mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
@@ -853,7 +939,11 @@ describe("SelfCaptureUpload once evaluations settle without a pass", () => {
       return mockFetch()(input);
     }));
     render(<SelfCaptureUpload />);
-    expect(await screen.findByRole("link", { name: "Claim your site to see the results" })).toHaveAttribute("href", "/claim/settled");
+    const optional = await screen.findByText("Save this job to an account (optional)");
+    expect(optional.closest("details")).not.toHaveAttribute("open");
+    expect(screen.getByText("Save this job to your account")).not.toBeVisible();
+    fireEvent.click(optional);
+    expect(screen.getByRole("link", { name: "Save this job to your account" })).toHaveAttribute("href", "/claim/settled");
     expect(screen.queryByText(/before Blueprint builds the scene/)).not.toBeInTheDocument();
   });
 });

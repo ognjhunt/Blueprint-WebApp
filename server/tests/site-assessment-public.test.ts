@@ -222,7 +222,9 @@ describe("customer advisory decision details through the existing DTO", () => {
     // The site sends its video and nothing else (founder direction, 2026-10-20): its report asks nothing.
     for (const asked of ["How many rack operations", "Whether a slower assisted workflow", "Confirm the required hourly rate",
       "Clarify unresolved job facts"]) expect(html).not.toContain(asked);
-    expect(html).toContain("Your video has been reviewed against the job details.");
+    expect(html).toContain("Blueprint reviewed your video and job details.");
+    expect(html).toContain('<summary>Processing details</summary>');
+    expect(html).not.toMatch(/<details[^>]*\bopen(?:[\s=>])/);
   });
   it("retains safe questions while refusing the raw recommendation when factual bindings failed", () => {
     const raw = assessment(); raw.job[0].evidence[0].selector = null;

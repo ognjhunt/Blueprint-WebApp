@@ -123,16 +123,17 @@ for (const width of [390, 1440]) {
     await expect(page.getByRole("region", { name: "Confirm recording permission", exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "Confirm recording permission", exact: true })).toBeDisabled();
     await expect(page.getByRole("heading", { name: "Your job summary", exact: true })).toHaveCount(0);
-    await expect(page.getByRole("region", { name: "Confirm your job brief", exact: true })).toHaveCount(0);
+    await expect(page.getByText("Review or correct job details (optional)", { exact: true })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Add footage when you are ready (optional)", exact: true })).toHaveCount(0);
 
     // Simulate an actual retained receipt from this existing fixture job. The
     // analyzed brief is reviewed only after video; no real capture or execution occurs.
     received = true;
     await page.reload();
-    await expect(page.getByRole("region", { name: "Confirm your job brief", exact: true })).toBeVisible();
-    await expect(page.getByRole("region", { name: "Confirm your job brief", exact: true })
-      .getByRole("button", { name: "This is right — confirm it", exact: true })).toBeVisible();
+    await expect(page.getByText("Review or correct job details (optional)", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "This is right — confirm it", exact: true })).toBeHidden();
+    await page.getByText("Review or correct job details (optional)", { exact: true }).click();
+    await expect(page.getByRole("button", { name: "This is right — confirm it", exact: true })).toBeVisible();
     await page.getByText("Your recorded pilot preferences (optional corrections)", { exact: true }).click();
     await expect(page.getByRole("combobox", { name: /would you consider a physical pilot/ })).toHaveValue("subject_to_review");
     await page.locator("#confirm-name").fill("Synthetic site owner");
@@ -152,7 +153,9 @@ for (const width of [390, 1440]) {
 
     // The retained video is still available through a processing retry.
     await page.reload();
-    await expect(page.getByText(/could not confirm that processing started/i)).toBeVisible();
+    await expect(page.getByText("Your video is saved.", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Retry processing", exact: true })).toBeHidden();
+    await page.getByText("Processing details (optional)", { exact: true }).click();
     await page.getByRole("button", { name: "Retry processing", exact: true }).click();
     await expect(page.getByRole("button", { name: "Retry processing", exact: true })).toHaveCount(0);
     expect(posts.filter(entry => entry.path.endsWith("/processing-retry"))).toHaveLength(1);

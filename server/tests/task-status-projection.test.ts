@@ -92,17 +92,15 @@ describe("the decision ladder", () => {
     expect(status.operatorAction).toMatch(/confirm it/i);
   });
 
-  it("keeps asking for the confirmation once a recording lands, whatever is waiting on us", () => {
-    for (const filmed of [{ hasStoredCapture: true }, { coversScene: true }, { scenePreviewReady: true },
-      { hasStoredCapture: true, preparationStatus: { state: "preparing", correlationId: null } }] as const) {
-      const status = projectTaskStatus(base({ briefDrafted: true, ...filmed }));
-      expect(status.decision).toBe("confirm_brief");
-      expect(status.headline).toMatch(/confirm your job brief/i);
-      expect(status.operatorAction).toMatch(/confirm it/i);
+  it("keeps reconstruction with Blueprint after footage arrives, including when coverage or the draft is incomplete", () => {
+    for (const progress of [{}, { coversScene: false, missingViews: ["infeed"], supplementWouldFinish: true },
+      { scenePreviewReady: true }, { preparationStatus: { state: "preparing", correlationId: null } }] as const) {
+      const status = projectTaskStatus(base({ briefDrafted: true, hasStoredCapture: true, ...progress }));
+      expect(status.decision).not.toBe("confirm_brief");
+      expect(status.decision).not.toBe("add_views");
+      expect(status.operatorAction).toBeNull();
+      expect(status.headline).not.toMatch(/confirm|film|upload|missing view/i);
     }
-    // A named coverage gap is still the most actionable step.
-    expect(projectTaskStatus(base({ briefDrafted: true, hasStoredCapture: true, coversScene: false,
-      missingViews: ["infeed"] })).decision).toBe("add_views");
   });
 
   it("asks for a recording once the brief is confirmed and coverage is unknown", () => {
@@ -137,7 +135,7 @@ describe("the decision ladder", () => {
     expect(manual.headline).not.toMatch(/checking/i);
   });
 
-  it("keeps a measured shortfall above the footage-received state", () => {
+  it("keeps a measured shortfall internal while the saved footage is processed", () => {
     const status = projectTaskStatus(
       base({
         briefDrafted: true,
@@ -147,29 +145,19 @@ describe("the decision ladder", () => {
         missingViews: ["the conveyor infeed"],
       }),
     );
-    expect(status.decision).toBe("add_views");
+    expect(status.decision).toBe("footage_received");
+    expect(status.operatorAction).toBeNull();
   });
 });
 
 describe("source coverage remains an explicit gap without preempting reconstruction", () => {
-  it("gives one same-job action for a requested supplementary view", () => {
-    const status = projectTaskStatus(
-      base({
-        briefDrafted: true,
-        briefConfirmed: true,
-        coversScene: false,
-        missingViews: ["a view of the pallet area"],
-        supplementWouldFinish: true,
-      }),
-    );
-
-    expect(status.decision).toBe("add_views");
-    expect(status.operatorAction).toContain("a view of the pallet area");
-    expect(status.headline).not.toMatch(/would finish/i);
-    expect(status.operatorAction).toMatch(/to this job/i);
-    expect(status.operatorAction).toMatch(/original recording.*linked/i);
-    expect(status.operatorAction).not.toMatch(/new job|contact|hello@/i);
-    expect(status.headline).not.toMatch(/before we can build/i);
+  it("does not turn an advisory missing view into another customer step", () => {
+    const status = projectTaskStatus(base({ briefDrafted: true, hasStoredCapture: true,
+      coversScene: false, missingViews: ["a view of the pallet area"], supplementWouldFinish: true }));
+    expect(status.decision).toBe("footage_received");
+    expect(status.operatorAction).toBeNull();
+    expect(status.missingViews).toEqual(["a view of the pallet area"]);
+    expect(status.headline).not.toMatch(/film|upload|missing|ready/i);
   });
 
   it.each([
@@ -184,21 +172,13 @@ describe("source coverage remains an explicit gap without preempting reconstruct
     if ("screening" in progress) expect(status.decision).toBe("results");
   });
 
-  it("does not claim a supplement will finish it when it would not", () => {
-    const status = projectTaskStatus(
-      base({
-        briefDrafted: true,
-        briefConfirmed: true,
-        coversScene: false,
-        missingViews: ["most of the room"],
-        supplementWouldFinish: false,
-      }),
-    );
-
-    expect(status.decision).toBe("add_views");
-    expect(status.headline).not.toMatch(/would finish/i);
+  it("retains broad coverage uncertainty without claiming ready or requesting another recording", () => {
+    const status = projectTaskStatus(base({ briefDrafted: true, hasStoredCapture: true,
+      coversScene: false, missingViews: ["most of the room"], supplementWouldFinish: false }));
+    expect(status.decision).toBe("footage_received");
     expect(status.operatorAction).toBeNull();
-    expect(status.headline).toContain("most of the room");
+    expect(status.missingViews).toEqual(["most of the room"]);
+    expect(status.headline).not.toMatch(/ready|film|upload/i);
   });
 
   it("does not fire on a shortfall with no named views, which nobody could act on", () => {
@@ -235,7 +215,7 @@ describe("what it will not say", () => {
       }
     }
     expect([...reachable].sort()).toEqual(
-      ["add_views", "assessing", "confirm_brief", "footage_received", "received", "record"].sort(),
+      ["assessing", "confirm_brief", "footage_received", "received", "record"].sort(),
     );
   });
 
@@ -542,13 +522,13 @@ describe("a video that arrived before the job's account", () => {
       screening: { queued: 1, running: 0, reported: 0, noResult: 0 } as never })).decision).not.toBe("footage_before_account");
   });
 
-  it("never outranks a scope verdict, a step of the site's own or saving the job", () => {
+  it("preserves scope limits while keeping legacy-source recovery with Blueprint", () => {
     const arrived = { briefDrafted: true, hasStoredCapture: true, footageBeforeAccount: true } as const;
     expect(projectTaskStatus(base({ ...arrived, briefConfirmed: true,
       taskScope: { supported: false, reason: "container" } } as never)).decision).toBe("not_yet_supported");
-    expect(projectTaskStatus(base({ ...arrived, briefConfirmed: false })).decision).toBe("confirm_brief");
-    expect(projectTaskStatus(base({ ...arrived, briefConfirmed: true, disposition: "qualified", claimed: false })).decision)
-      .toBe("save_account");
+    expect(projectTaskStatus(base({ ...arrived, briefConfirmed: false })).decision).toBe("footage_before_account");
+    expect(projectTaskStatus(base({ ...arrived, briefConfirmed: true, disposition: "qualified", claimed: false })))
+      .toMatchObject({ decision: "footage_before_account", operatorAction: null });
   });
 
   it("never outranks withdrawn consent", () => {
@@ -568,13 +548,12 @@ describe("source-bound preparation supersedes earlier intake hints", () => {
     expect(status.operatorAction).toBeNull();
     expect(status.headline).not.toMatch(/not building|account|call/i);
   });
-  it("keeps confirmation as the only site action while preparation continues", () => {
+  it("does not interrupt automatic preparation for brief confirmation or an advisory conversation", () => {
     const status = projectTaskStatus(base({briefDrafted: true, briefConfirmed: false, hasStoredCapture: true,
       claimed: false, disposition: "needs_conversation", preparationStatus: {state: "preparing", correlationId: null}}));
-    expect(status.decision).toBe("confirm_brief");
-    expect(status.headline).toMatch(/preparing your job.*confirm your job brief/i);
-    expect(status.operatorAction).toMatch(/confirm/i);
-    expect(status.operatorAction).not.toMatch(/account|call/i);
+    expect(status.decision).toBe("assessing");
+    expect(status.headline).toMatch(/preparing your job/i);
+    expect(status.operatorAction).toBeNull();
   });
   it("does not turn unavailable preparation into proof of progress", () => {
     const status = projectTaskStatus(base({briefDrafted: true, briefConfirmed: true, disposition: "needs_conversation",
@@ -593,4 +572,14 @@ it("projects guest source ownership without inventing an account claim", () => {
   const input = taskStatusInputFrom({briefDrafted: true, stage: null, capture_owner_uid: "source-owner", account_owner_uid: null});
   expect(input.sourceOwned).toBe(true);
   expect(input.claimed).toBe(false);
+});
+
+it("does not present historical coverage as an instruction for the selected recording", () => {
+  for (const coverageCapture of ["walkthrough-rq", undefined]) {
+    const input = taskStatusInputFrom({ active_capture_id: `supplement-${"a".repeat(40)}`,
+      capture_coverage: { capture_id: coverageCapture, covers_scene: false, missing_coverage: ["old view"], supplement_would_finish: true },
+      briefDrafted: true, hasStoredCapture: true, stage: null });
+    expect(input.missingViews).toEqual([]);
+    expect(projectTaskStatus(input).operatorAction).toBeNull();
+  }
 });

@@ -296,7 +296,7 @@ export function JobWorkflowPanel({ requestId, currentUser, onChanged }: {
               <form className="mt-4 grid gap-4" aria-label="Options assessment" onSubmit={(event) => {
                 event.preventDefault(); void mutate("/review", review, "Options assessment saved.");
               }}>
-                <fieldset disabled={mutationDisabled || !workflow.briefAgreed} className="grid gap-4">
+                <fieldset disabled={mutationDisabled} className="grid gap-4">
                   <div><label className="runway-label" htmlFor={`${prefix}-disposition`}>Assessment</label>
                     <select id={`${prefix}-disposition`} className="runway-input" value={review.disposition} onChange={(event) => setReview({ ...review, disposition: event.target.value as JobOptionsReview["disposition"] })}>
                       <option value="options_identified">Suitable options identified</option><option value="more_information">More information needed</option><option value="no_suitable_option">No suitable option found</option>
@@ -328,7 +328,7 @@ export function JobWorkflowPanel({ requestId, currentUser, onChanged }: {
                   {withdrawId === proposal.id ? <div className="grid gap-3 border-t border-runway-line pt-3"><p className="text-sm text-runway-body">Withdraw this proposal from customer selection? Its record will remain in the job history.</p><div className="flex flex-wrap gap-2"><Button type="button" size="sm" disabled={mutationDisabled} onClick={async () => { if (await mutate(`/proposals/${encodeURIComponent(proposal.id)}/withdraw`, { expectedRevision: proposal.revision }, "Proposal withdrawn.")) setWithdrawId(null); }}>Confirm withdrawal</Button><Button type="button" size="sm" variant="secondary" disabled={busy} onClick={() => setWithdrawId(null)}>Keep proposal</Button></div></div> : null}
                 </article>;
               })}
-              {!showProposal ? <div><Button type="button" variant="secondary" size="sm" disabled={mutationDisabled || !workflow.briefAgreed || Boolean(workflow.agreement) || workflow.proposals.length >= 20} onClick={() => beginProposal(null)}>Add delivery proposal</Button></div> : null}
+              {!showProposal ? <div><Button type="button" variant="secondary" size="sm" disabled={mutationDisabled || Boolean(workflow.agreement) || workflow.proposals.length >= 20} onClick={() => beginProposal(null)}>Add delivery proposal</Button></div> : null}
             </section>
 
             {showProposal ? <form onSubmit={saveProposal} className="grid gap-4 border border-runway-line p-4" aria-label={editing ? "Edit delivery proposal" : "New delivery proposal"}>

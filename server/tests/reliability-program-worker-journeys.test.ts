@@ -43,7 +43,7 @@ const definitions = ["covered", "missing_views", "contradictory", "low_confidenc
     const parameters = { evidence, boundary };
     const hash = createHash("sha256").update(JSON.stringify({ version: "RQ-journey.v1", parameters })).digest("hex");
     return { id: `RQJ-${hash.slice(0, 12)}`, hash, parameters, source: "synthetic-publication-fixture",
-      expected: "Current consent and source bind publication; missing/null output stays unknown; covered and contradictions stay distinct; send once; durable producer intent restored before worker" };
+      expected: "Current consent and source bind publication; missing/null output stays unknown; covered and contradictions stay distinct; coverage repair asks no customer question; durable producer intent restored before worker" };
   }));
 beforeEach(() => { state.docs.clear(); mocks.model.mockReset(); mocks.send.mockReset().mockResolvedValue({ sent: true, provider: "resend", messageId: "fixture-notification" }); });
 afterAll(() => writeFileSync(resolve(outputDir, "worker-journeys.json"), JSON.stringify({
@@ -110,12 +110,12 @@ describe("joined producer -> worker -> evidence publication -> customer status -
         expect(record.capture_coverage_review.state).toBe("completed"); expect(record.capture_coverage_pending).toBe(false);
       }
       const projection = projectTaskStatus(taskStatusInputFrom({ ...record, briefDrafted: true, hasStoredCapture: true, stage: null }));
-      expect(projection.decision).toBe(invalidated || !hasOutput || definition.parameters.evidence === "low_confidence" ? "footage_received"
-        : definition.parameters.evidence === "covered" ? "assessing" : "add_views");
+      expect(projection.decision).toBe(!invalidated && hasOutput && definition.parameters.evidence === "covered"
+        ? "assessing" : "footage_received");
+      expect(projection.operatorAction).toBeNull();
       transitions.push({ boundary: "customer-status", decision: projection.decision });
       await deliverOutbox(); await deliverOutbox(); snapshot("notification-sink");
-      const expectedSend = !invalidated && hasOutput && ["missing_views", "contradictory"].includes(definition.parameters.evidence);
-      expect(mocks.send).toHaveBeenCalledTimes(expectedSend ? 1 : 0);
+      expect(mocks.send).not.toHaveBeenCalled();
       if (!invalidated && hasOutput) {
         await enqueueCoverageReview(params); await tickUntilProcessed();
         expect(mocks.model).toHaveBeenCalledTimes(1);

@@ -605,16 +605,23 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
           </>
         ) : state.selfRecording && state.captureUrl && captureReceived ? (
           <>
-            <h2 style={{ marginTop: 0 }}>{state.uploaded === "processing_pending" ? "Video received. Processing is not confirmed." : "Your recording is in."}</h2>
-            {state.uploaded !== "done" && state.uploadMessage && (
+            <h2 style={{ marginTop: 0 }}>Your recording is in.</h2>
+            {state.uploaded === "processing_pending" && <p className="ms-field-hint">
+              Blueprint will continue from this saved recording and update your job. You can leave this page.
+            </p>}
+            {state.uploaded !== "done" && state.uploaded !== "processing_pending" && state.uploadMessage && (
               <p className="ms-field-hint">{state.uploadMessage}</p>
             )}
-            {state.uploaded === "processing_pending" && state.processingRetryAvailable && (
-              <p><button type="button" className="ms-button" disabled={retryingProcessing} onClick={() => void retryProcessing()}>
+            {state.uploaded === "processing_pending" && (
+              <details aria-label="Processing details">
+                <summary>Processing details (optional)</summary>
+                {state.uploadMessage && <p className="ms-field-hint">{state.uploadMessage}</p>}
+                {state.processingRetryAvailable && <button type="button" className="ms-text-link" disabled={retryingProcessing} onClick={() => void retryProcessing()}>
                 {retryingProcessing ? "Retrying processing…" : "Retry processing"}
-              </button></p>
+                </button>}
+              </details>
             )}
-            <CaptureLiveStatus compact captureUrl={state.captureUrl} />
+            {state.uploaded === "done" && <CaptureLiveStatus compact captureUrl={state.captureUrl} />}
             <p style={{ marginTop: "20px" }}>
               <a className="ms-button ms-button-large ms-intake-job-link" href={state.captureUrl}>Open your job and assessment</a>
             </p>
@@ -680,15 +687,17 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
         {state.workspaceUrl && <p><a className="ms-text-link" href={state.workspaceUrl}>Saved in your workspace</a></p>}
         {state.linkOnlyNote && <p className="ms-field-hint">{state.linkOnlyNote}</p>}
         {!state.workspaceUrl && state.claimUrl && <section className="ms-intake-account" aria-label="Save this job to your account">
-          <h2>Save this job to your account (optional)</h2>
+          <details>
+          <summary>Save this job to your account (optional)</summary>
           <p className="ms-field-hint">
-            Your private job link lets you upload, review the brief and follow progress.
+            Your private job link already lets you upload, see results and review proposals.
             Create an account with {state.email} if you want this job in your workspace.
           </p>
           <div className="ms-intake-account-links">
             <a className="ms-text-link" href={state.claimUrl}>Create an account for this job</a>
             <a className="ms-text-link" href={`${state.claimUrl}?mode=signin`}>Sign in to save this job</a>
           </div>
+          </details>
         </section>}
         <div className="ms-intake-reset">
           <ClearDraftControl status={clearStatus} onClear={forgetDraft} />

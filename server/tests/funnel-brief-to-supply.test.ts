@@ -288,11 +288,10 @@ describe("a screening call settles a needs_conversation site", () => {
 
     expect(result.disposition).toBe("qualified");
     expect(stored().site_task_triage.disposition).toBe("qualified");
-    // The site hears what the call decided, including that the scene waits on its account.
+    // The recorded correction stands; it creates no account prerequisite email.
     const notice = [...sharedFakeFirestoreState.docs.entries()]
       .find(([key]) => key.startsWith(`captureOutbox/${REQUEST}:screening_cleared:`));
-    expect(notice?.[1]).toMatchObject({ to: "ops@acme.example", kind: "screening_cleared" });
-    expect(String((notice?.[1] as { body: string }).body)).toMatch(/saved to your account/);
+    expect(notice).toBeUndefined();
     expect(stored().site_task_triage.call_resolution).toMatchObject({
       cleared_field_ids: ["sceneStability"],
       resolved_by: "ops@tryblueprint.io",

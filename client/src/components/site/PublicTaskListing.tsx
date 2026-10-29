@@ -60,11 +60,11 @@ function PublicTaskListingForToken({ token, jobRevision }: { token: string; jobR
   const field = (key: Exclude<keyof TaskListingDetails, "targeting">, label: string, maxLength: number, required = false) =>
     <label key={key}>{label}<input value={details[key] ?? ""} maxLength={maxLength} minLength={key === "title" ? 8 : undefined} required={required}
       onChange={e => { dirty.current = true; setDetails({ ...details, [key]: e.target.value }); setConsent(false); setState("idle"); }} /></label>;
-  return <>{published === false && <p className="ms-field-hint" role="status">
-    Your job card is not published, so approved partners cannot see this job in the job library or ask to have their systems evaluated on it.
-    To share it with partners approved for the beta, review and publish the card under &ldquo;Manage opportunity sharing&rdquo;.
-  </p>}
-  <details className="ms-task-interest"><summary>Manage opportunity sharing (optional)</summary>
+  return <details className="ms-task-interest"><summary>Manage opportunity sharing (optional)</summary>
+    {published === false && <p className="ms-field-hint" role="status">
+      Your job card is not published. Sharing it lets approved partners find the job and ask for their systems to be evaluated.
+      Blueprint can process your recording while the card stays private.
+    </p>}
     <p className="ms-field-hint">Unless you chose to keep this job private when you started it, its anonymized card is listed in the job library for partners approved for the beta. Edit or hide it here. Your contact details, full footage and scene stay private. Use a general region and leave out identifying details.</p>
     <p className="ms-field-hint">This card belongs to the same job. {sources.title ? "The title comes from your job brief. " : ""}{sources.cycleTarget ? "The cycle target comes from your stated success criteria, not an observed video rate. " : ""}Review changes for public use; saving a private draft does not publish it.</p>
     {reviewRequired && <p role="alert">Your brief changed. The card is hidden for renewed review; your public edits are retained.</p>}
@@ -92,5 +92,5 @@ function PublicTaskListingForToken({ token, jobRevision }: { token: string; jobR
         {state === "saved" && <p role="status">{enabled ? "Public card saved. Listing pauses and rights restrictions still apply." : "Your card is hidden."}</p>}
         {state === "error" && <p role="alert">{error}</p>}
       </form>}
-  </details></>;
+  </details>;
 }

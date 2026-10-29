@@ -40,7 +40,7 @@ describe("the site's job workspace", () => {
     expect(screen.getByText(outcome.nextStep)).toBeVisible();
     expect(screen.queryByText("Review the saved brief.")).not.toBeInTheDocument();
     expect(screen.queryByText("Confirm the saved brief.")).not.toBeInTheDocument();
-    expect(screen.getByText("Brief agreed").closest("li")).not.toHaveAttribute("data-complete", "true");
+    expect(screen.queryByText("Brief agreed")).not.toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledTimes(1);
 
     rerender(<JobWorkspace token="owner-token" preparationOutcome={null} />);
@@ -57,14 +57,13 @@ describe("the site's job workspace", () => {
     expect(screen.queryByText("Review the saved brief.")).not.toBeInTheDocument();
   });
 
-  it("shows recorded milestones and an honest empty proposal state", async () => {
+  it("shows the current update and honest empty proposals without a customer checklist", async () => {
     fetchMock.mockResolvedValue(response(workflow()));
     render(<JobWorkspace token="owner-token" />);
-    expect(await screen.findByRole("heading", { name: "Your job, step by step" })).toBeVisible();
-    const milestones = screen.getByRole("list", { name: "Job milestones" });
-    expect(within(milestones).getAllByRole("listitem")).toHaveLength(6);
-    expect(within(milestones).getByText("Job submitted").closest("li")).toHaveAttribute("aria-current", "step");
-    expect(within(milestones).getByText("Pilot agreed").closest("li")).not.toHaveAttribute("data-complete", "true");
+    expect(await screen.findByRole("heading", { name: "Results and proposals" })).toBeVisible();
+    expect(screen.queryByRole("list", { name: "Job milestones" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Brief agreed")).not.toBeInTheDocument();
+    expect(screen.queryByText("Options assessed")).not.toBeInTheDocument();
     expect(screen.getByText(/No delivery proposal is ready/)).toBeVisible();
     expect(screen.getByText("Blueprint will prepare a brief for you to review.")).toBeVisible();
     expect(fetchMock).toHaveBeenCalledWith("/api/job-workflow/owner/owner-token", expect.objectContaining({ cache: "no-store", referrerPolicy: "no-referrer" }));
@@ -139,7 +138,7 @@ describe("the site's job workspace", () => {
     fetchMock.mockResolvedValue(response(workflow({ managedEvidenceUnavailable: true })));
     render(<JobWorkspace token="owner-token" />);
     expect(await screen.findByText("Policy results are temporarily unavailable. Reload this page to retry.")).toBeVisible();
-    expect(screen.getByRole("heading", { name: "Your job, step by step" })).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Results and proposals" })).toBeVisible();
     expect(screen.queryByRole("region", { name: "Managed policy evidence for your job" })).toBeNull();
   });
 
@@ -204,7 +203,7 @@ describe("the site's job workspace", () => {
     rerender(<JobWorkspace token="second" />);
     expect(screen.queryByText("Example Delivery")).toBeNull();
     resolveSecond(response(workflow()));
-    await screen.findByRole("heading", { name: "Your job, step by step" });
+    await screen.findByRole("heading", { name: "Results and proposals" });
     expect(screen.queryByText("Example Delivery")).toBeNull();
   });
 
@@ -213,7 +212,7 @@ describe("the site's job workspace", () => {
     render(<JobWorkspace token="owner-token" />);
     expect(await screen.findByRole("status")).toHaveTextContent(/Job planning could not be loaded/);
     fireEvent.click(screen.getByRole("button", { name: "Try loading job planning again" }));
-    await waitFor(() => expect(screen.getByRole("heading", { name: "Your job, step by step" })).toBeVisible());
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Results and proposals" })).toBeVisible());
   });
 });
 
@@ -234,7 +233,7 @@ it("shows exact abstention limits without advancing a job or selecting a proposa
   expect(screen.getByText("Physical success has not been established.")).toBeVisible();
   expect(screen.getByText(/Missing metric observation/)).toBeVisible();
   expect(screen.queryByRole("button", { name: /Choose this proposal/ })).not.toBeInTheDocument();
-  expect(screen.getByRole("list", { name: "Job milestones" }).querySelector('[aria-current="step"]')).toHaveTextContent("Brief agreed");
+  expect(screen.queryByRole("list", { name: "Job milestones" })).not.toBeInTheDocument();
 });
 
 it("links missing task-specific evidence to the existing capture surface without creating a run", async () => {
@@ -297,12 +296,14 @@ it("shows the current simulation result before opening technical history", async
 });
 
 
-it("uses one current preparation action until delivery proposals are available", async () => {
+it("leaves the parent's current update in one place without repeating a stale workflow action", async () => {
   fetchMock.mockResolvedValue(response(workflow({actionOwner:"site",nextAction:"Confirm the old brief."})));
-  render(<JobWorkspace token="owner-token" currentNextAction={{text:"Blueprint is preparing the recording; nothing is needed from you.",owner:"blueprint"}} />);
-  expect(await screen.findByText("Next action · Blueprint")).toBeVisible();
-  expect(screen.getByText("Blueprint is preparing the recording; nothing is needed from you.")).toBeVisible();
+  const current = "Blueprint is preparing the recording; nothing is needed from you.";
+  render(<><p>{current}</p><JobWorkspace token="owner-token" currentNextAction={{text:current,owner:"blueprint"}} /></>);
+  await screen.findByRole("heading", {name:"Results and proposals"});
+  expect(screen.getAllByText(current)).toHaveLength(1);
   expect(screen.queryByText("Confirm the old brief.")).not.toBeInTheDocument();
+  expect(screen.queryByText("Next action · You")).not.toBeInTheDocument();
 });
 
 it("keeps the exact proposal choice as the action after preparation", async () => {
@@ -311,4 +312,14 @@ it("keeps the exact proposal choice as the action after preparation", async () =
   expect(await screen.findByText("Choose a delivery proposal.")).toBeVisible();
   expect(screen.getByText("Next action · You")).toBeVisible();
   expect(screen.queryByText("Preparing the recording.")).not.toBeInTheDocument();
+});
+
+it("shows an already visible proposal action once", async () => {
+  const nextAction = "Review the proposal below.";
+  fetchMock.mockResolvedValue(response(workflow({stage:"proposals_ready",proposals:[proposal],actionOwner:"site",nextAction})));
+  render(<><p>{nextAction}</p><JobWorkspace token="owner-token" currentNextAction={{text:nextAction,owner:"site"}} /></>);
+  await screen.findByRole("article", {name:"Example Delivery delivery proposal"});
+  expect(screen.getAllByText(nextAction)).toHaveLength(1);
+  expect(screen.queryByText("Next action · You")).not.toBeInTheDocument();
+  expect(screen.getByRole("button", {name:"Choose this proposal"})).toBeInTheDocument();
 });

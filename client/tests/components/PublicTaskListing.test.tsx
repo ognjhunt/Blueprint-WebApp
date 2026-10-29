@@ -18,11 +18,14 @@ const savedCard = (opportunity: string) => ({
 });
 
 describe("the task page's public card", () => {
-  it("says up front when the card is not published, and no longer once it is", async () => {
+  it("keeps private-card sharing guidance inside the optional control until the owner chooses to publish", async () => {
     fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ listing: null, draft: { details: { title: "Move cartons onto a pallet", taskFamily: "Palletizing", opportunity: "not_seeking" } }, thumbnailPng: null }) })
       .mockResolvedValueOnce({ ok: true, json: async () => ({ ok: true }) });
     render(<PublicTaskListing token="tok" />);
-    expect(await screen.findByText(/Your job card is not published, so approved partners cannot see this job in the job library/)).toBeInTheDocument();
+    expect(await screen.findByText(/Your job card is not published/)).not.toBeVisible();
+    expect(screen.getByText("Manage opportunity sharing (optional)").closest("details")).not.toHaveAttribute("open");
+    fireEvent.click(screen.getByText("Manage opportunity sharing (optional)"));
+    expect(screen.getByText(/Blueprint can process your recording while the card stays private/)).toBeVisible();
     fireEvent.click(screen.getByLabelText(/show this card in the job library/i));
     fireEvent.click(screen.getByLabelText(/authorized to make them public/i));
     fireEvent.click(screen.getByRole("button", { name: /publish reviewed card/i }));
