@@ -1,3 +1,4 @@
+import { websitePreparationCaptureId } from "./websitePreparationRevision";
 /** Bind managed simulator runs to the agreed job without changing scientific results. */
 import { z } from "zod";
 import { jobEvidenceSourceBindingSchema, jobEvidenceTaskInventoryDigest, scientificBriefDigest, scientificContext } from "./jobEvidenceContract";
@@ -144,7 +145,7 @@ export function assertScreeningSceneSource(publication: BetaPolicyScreeningPubli
     || status.intent_id !== source.scene_intent_id || status.intent_digest !== source.scene_intent_digest
     || status.request_digest !== intake.request_digest || crossRuntimeDigest(status.owner) !== crossRuntimeDigest(intake.request.owner)
     || status.result_reference?.digest !== source.scene_revision_digest
-    || intake.request.submission_id !== source.capture_id || intake.request.task?.task_id !== source.task_id
+    || websitePreparationCaptureId(intake.request) !== source.capture_id || intake.request.task?.task_id !== source.task_id
     || intake.source_session_id !== (scope.sourceCaptureSessionId ?? scope.sourceWebsiteCaptureId)
     || source.capture_id !== (scope.sourceCaptureSessionId ?? scope.sourceWebsiteCaptureId)
     || intake.request.owner?.organization_id !== scope.teamNamespace

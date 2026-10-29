@@ -1,3 +1,4 @@
+import { websitePreparationCaptureId } from "../utils/websitePreparationRevision";
 import { isWebsiteCaptureId } from "../utils/websiteCaptureIdentity";
 /**
  * Machine-driven world reconstruction.
@@ -285,7 +286,7 @@ for (const operation of ["scene-sponsorship", "prepared-scene", "preparation-spe
       const request = sponsoredSceneRequest.parse(req.body.request);
       validateWebsiteSponsoredIntake(request, authority);
       const { accepted_by: _acceptedBy, accepted_at_epoch: _acceptedAt, ...consent } = request.consent;
-      const command = { submission_id: request.submission_id, source_session_id: request.submission_id,
+      const command = { submission_id: request.submission_id, source_session_id: websitePreparationCaptureId(request),
         task: request.task, execution: request.execution, consent };
       validateWebsiteSponsoredProviderTerms(command, authority);
       if (!db) throw new Error("website_capture_rights_store_unavailable");
@@ -308,7 +309,7 @@ for (const operation of ["scene-sponsorship", "prepared-scene", "preparation-spe
         }
         transaction.create(ref, {
           owner_user_id: request.owner.user_id, organization_id: request.owner.organization_id,
-          source_session_id: request.submission_id, website_request_id: requestId,
+          source_session_id: websitePreparationCaptureId(request), website_request_id: requestId,
           sponsorship_digest: authority.authority_digest,
           root_sponsorship_digest: current!.website_scene_sponsorship.authority_digest,
           command, command_digest: sceneDigest(command),

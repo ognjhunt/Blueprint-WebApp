@@ -115,10 +115,14 @@ async function firstTestAccepted(store: FirebaseFirestore.Firestore, intake: Rec
 /** The site's latest scene intake for this capture, projected. Throws when it cannot be read. */
 export async function readWebsiteSceneProgression(requestId: string, captureId: string): Promise<TaskSceneProgression | null> {
   if (!db) throw new Error("website_scene_progression_unavailable");
-  const rows = await db.collection(SCENE_INTAKE_COLLECTION).where("website_request_id", "==", requestId).limit(20).get();
-  const latest = rows.docs.map(row => row.data())
-    .filter(row => row?.source_session_id === captureId)
-    .sort((a, b) => String(b.created_at_iso || "").localeCompare(String(a.created_at_iso || "")))[0];
+  let latest: Record<string, any> | undefined;
+  for await (const rows of queryPages(db.collection(SCENE_INTAKE_COLLECTION).where("website_request_id", "==", requestId))) {
+    for (const row of rows) {
+      const value = row.data();
+      if (value.source_session_id === captureId && (!latest
+        || String(value.created_at_iso || "") > String(latest.created_at_iso || ""))) latest = value;
+    }
+  }
   const tested = latest?.state === "completed" && latest.pipeline_status?.phase !== "policy_canary_complete"
     && await firstTestAccepted(db, latest);
   return projectWebsiteSceneProgression(latest, tested);

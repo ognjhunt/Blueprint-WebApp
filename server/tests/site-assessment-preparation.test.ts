@@ -456,6 +456,34 @@ it("v2 actual signed item/visual/intake handlers retain purpose through transact
     const stored=state.docs.get(`taskEvaluationSceneIntakes/${receipt.id}`) as any;
     expect(stored.command.consent.task_confirmed).toBe(false);expect(stored.state).toBe("forward_pending");
     expect(state.docs.get("siteTaskBriefs/one")?.confirmedAtIso).toBeNull();
+    // A corrected prepared derivative gets immutable intake bytes, while the
+    // customer job, source and existing funding reservations stay the same.
+    const rootBefore = structuredClone(state.docs.get("inboundRequests/one"));
+    stored.forward_attempt_count = 3;
+    const corrected = structuredClone(request) as any;
+    corrected.task.subject.website_preparation_revision = {
+      capture_id: grant.capture_id, corrections_digest: `sha256:${"c".repeat(64)}` };
+    const {submission_id: _oldSubmission, ...correctedBody} = corrected;
+    corrected.submission_id = `website-correction-${sceneDigest(correctedBody).slice(7)}`;
+    const correctionResponse = await send("prepared-scene", {...body, request: corrected});
+    expect(correctionResponse.status).toBe(202);
+    const correctionReceipt = await correctionResponse.json();
+    expect(correctionReceipt.id).not.toBe(receipt.id);
+    expect(await (await send("prepared-scene", {...body, request: corrected})).json()).toEqual(correctionReceipt);
+    const revised = state.docs.get(`taskEvaluationSceneIntakes/${correctionReceipt.id}`) as any;
+    expect(revised.source_session_id).toBe(grant.capture_id);
+    expect(revised.command.source_session_id).toBe(grant.capture_id);
+    expect(revised.request.execution).toEqual(request.execution);
+    expect(revised.sponsorship_digest).toBe(grant.authority_digest);
+    expect(stored.forward_attempt_count).toBe(3);
+    expect(stored.request).toEqual(request);
+    expect(state.docs.get("inboundRequests/one")).toEqual(rootBefore);
+    const forged = structuredClone(corrected);
+    forged.task.subject.website_preparation_revision.capture_id = "other-capture";
+    expect((await send("prepared-scene", {...body, request: forged})).status).toBe(409);
+    const {submission_id: _forgedSubmission, ...forgedBody} = forged;
+    forged.submission_id = `website-correction-${sceneDigest(forgedBody).slice(7)}`;
+    expect((await send("prepared-scene", {...body, request: forged})).status).toBe(409);
     // A re-queued assessment does not hold the prepared scene; withdrawn rights do.
     const job=(state.docs.get("inboundRequests/one") as any).site_advisory.job_id;
     (state.docs.get(`siteAssessmentJobs/${job}`) as any).state="queued";
