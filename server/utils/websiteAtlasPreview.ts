@@ -136,6 +136,7 @@ export function projectWebsiteAtlasPreview(record: Record<string, any> | undefin
     updatedAtIso: Number.isFinite(updated.getTime()) ? updated.toISOString() : null,
     // Owner decision 2026-10-29: Blueprint owns the reconstruction; the site never downloads it.
     downloadAvailable: false,
+    viewAvailable: preview.state === "ready" && preview.bundle !== null && preview.splat_available === true,
   };
 }
 

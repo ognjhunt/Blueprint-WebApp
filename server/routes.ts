@@ -17,6 +17,7 @@ import taskEvaluationSceneIntakesRouter from "./routes/task-evaluation-scene-int
 import taskEvaluationResultsRouter from "./routes/task-evaluation-results";
 import taskEvaluationResultDownloadsRouter from "./routes/task-evaluation-result-downloads";
 import websiteAtlasPreviewDownloadsRouter from "./routes/website-atlas-preview-downloads";
+import websiteAtlasPreviewViewsRouter from "./routes/website-atlas-preview-views";
 import nativeG1PrivateReviewsRouter, { nativeG1PrivateReviewDownloadsRouter, nativeG1PrivateReviewIngestRouter } from "./routes/native-g1-private-reviews";
 import nativeG1TeamCampaignsRouter from "./routes/native-g1-team-campaigns";
 import postSignupWorkflowsHandler from "./routes/post-signup-workflows";
@@ -201,6 +202,7 @@ export function registerRoutes(app: Express) {
   app.use("/api/task-evaluation-result-downloads", taskEvaluationResultDownloadsRouter);
   app.use("/api/native-g1-review-downloads", nativeG1PrivateReviewDownloadsRouter);
   app.use("/api/website-atlas-preview-downloads", websiteAtlasPreviewDownloadsRouter);
+  app.use("/api/website-atlas-preview-views", websiteAtlasPreviewViewsRouter);
   app.use("/api/robot-eval/job-requests", robotEvalJobRequestsRouter);
 
   // API routes for Express

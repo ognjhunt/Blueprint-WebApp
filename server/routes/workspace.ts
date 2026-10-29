@@ -78,7 +78,8 @@ import { accountHasAdmission } from "../utils/accountInvitations";
 import { resolveAccessContext } from "../utils/access-control";
 import { siteVisitOptions } from "../../client/src/data/sitePilotIntent";
 import { projectWebsiteCaptureWithdrawal, recordWebsiteCaptureWithdrawal } from "../utils/websiteCaptureWithdrawal";
-import { projectWebsiteAtlasPreview, selectWebsiteAtlasPreview } from "../utils/websiteAtlasPreview";
+import { projectWebsiteAtlasPreview, selectWebsiteAtlasPreview, WEBSITE_ATLAS_CAPTURE_ID } from "../utils/websiteAtlasPreview";
+import { viewableWebsiteAtlasPreview, websiteAtlasPreviewViewerUrl } from "../utils/websiteAtlasPreviewView";
 import { projectPilotBooking } from "../utils/pilotContactExchange";
 import { listCheckpoints } from "../utils/robotCheckpoints";
 import { offersTeamEvaluation, TEAM_POLICY_BLOCKER_MESSAGES, teamPolicyBlocker, robotSetupIntegrationBlocker, type TeamPolicyBlocker } from "../utils/policyIntegration";
@@ -1607,6 +1608,18 @@ router.post("/tasks/:taskId/atlas-preview/download-ticket", handle(async (req, r
   await ownedTask(req.params.taskId, res);
   res.set("Cache-Control", "private, no-store");
   refuse(410, "3D previews can be viewed but not downloaded.", "website_atlas_preview_download_retired");
+}));
+/** Owner decision 2026-10-29: the site views its 3D preview in the vendored viewer. This
+ * ticket only lets that viewer fetch the splat for 15 minutes; it never names a file to save. */
+router.post("/tasks/:taskId/atlas-preview/view-ticket", handle(async (req, res) => {
+  const item = await ownedTask(req.params.taskId, res);
+  const input = z.object({ captureId: z.string().regex(WEBSITE_ATLAS_CAPTURE_ID).optional() }).strict().parse(req.body ?? {});
+  res.set("Cache-Control", "private, no-store");
+  const preview = viewableWebsiteAtlasPreview(item.record, input.captureId);
+  if (!preview) refuse(404, "This 3D preview is not available to view.", "website_atlas_preview_unavailable");
+  const viewerUrl = websiteAtlasPreviewViewerUrl(req.params.taskId, preview.capture_id);
+  if (!viewerUrl) refuse(503, "3D preview viewing is not configured.", "website_atlas_preview_view_not_configured");
+  return res.status(201).json({ viewer_url: viewerUrl });
 }));
 router.post(
   "/tasks/:taskId/pilot",
