@@ -54,7 +54,7 @@ describe("site assessment agent", () => {
     expect(analyze).toHaveBeenCalledTimes(1); // Identical probes reuse the retained reading.
     expect(history).toHaveBeenCalledTimes(2);
     expect(authorize).toHaveBeenCalledTimes(6);
-    expect(result.sources.map(row => row.kind)).toEqual(["operator", "video", "knowledge"]);
+    expect(result.sources.map(row => row.kind)).toEqual(["operator", "video", "knowledge", "knowledge"]);
     expect(result.sources.find(row => row.kind === "knowledge")?.checked_at).toBe("2026-09-01");
     expect(result.tool_receipts).toHaveLength(5);
     const invented = structuredClone(result.assessment);

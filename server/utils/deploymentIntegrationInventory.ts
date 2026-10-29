@@ -38,3 +38,24 @@ export function deploymentIntegrationInventory(teams: readonly Pick<RobotTeamRec
     }))),
   };
 }
+
+/** Every citable leaf keeps its planning limit; no selector can turn it into runtime evidence. */
+export function deploymentIntegrationEvidence(inventory: ReturnType<typeof deploymentIntegrationInventory>) {
+  const statements = Object.fromEntries(inventory.configurations.map(configuration => {
+    const body = inventory.embodiments.find(row => row.embodiment_id === configuration.embodiment_id)!;
+    const route = inventory.policy_routes.find(row => row.route_id === configuration.policy_route_id)!;
+    return [configuration.configuration_id,
+      `Blueprint's integration catalog records ${body.display_name} with ${route.display_name}`
+      + ` (${configuration.compatibility_evidence}). Reference: ${configuration.compatibility_source_url}.`
+      + " Planning only: this record does not establish task compatibility, policy access, runtime availability or an executed outcome."];
+  }));
+  const content = { current: true, content: { configuration_statements: statements } };
+  return {
+    source_id: `integrationCatalog:${inventory.catalog_digest.slice("sha256:".length)}`,
+    kind: "knowledge" as const,
+    canonical_ref: `Blueprint-WebApp/client/src/data/deploymentEmbodimentSupport.v1.json#${inventory.catalog_digest}`,
+    sha256: createHash("sha256").update(deploymentCanonicalJson(content)).digest("hex"),
+    checked_at: null,
+    content,
+  };
+}

@@ -3,8 +3,8 @@ import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { Usage, type Model, type ModelResponse } from "@openai/agents";
 import { deploymentCanonicalJson, deploymentEmbodimentCatalog } from "../../client/src/lib/deploymentEmbodimentSupport";
-import { deploymentIntegrationInventory } from "../utils/deploymentIntegrationInventory";
-import { createSiteAssessmentAgent, type SiteAssessment } from "../agents/site-assessment";
+import { deploymentIntegrationEvidence, deploymentIntegrationInventory } from "../utils/deploymentIntegrationInventory";
+import { createSiteAssessmentAgent, renderSourceBoundAssessment, type SiteAssessment } from "../agents/site-assessment";
 
 describe("company-led simulation integration inventory", () => {
   it("preserves every body-policy route and its source without a fixed candidate quota", () => {
@@ -40,8 +40,14 @@ describe("company-led simulation integration inventory", () => {
 
   it("makes the complete inventory available in the real SDK tool loop without promoting it into measured registry facts", async () => {
     let turn = 0;
+    const catalogSource = deploymentIntegrationEvidence(deploymentIntegrationInventory([]));
     const assessment: SiteAssessment = {
-      status: "assessment", job: [], objects_motions_conditions_variations: [], operator_success: [], known: [],
+      status: "assessment", job: [], objects_motions_conditions_variations: [], operator_success: [],
+      known: [{ text: "Dream's policy has already run this task.", basis: "published", evidence: [{
+        source_id: catalogSource.source_id, at_seconds: null,
+        selector: { kind: "qualified_field", observation_index: null,
+          field_path: ["configuration_statements", "i2rt_yam_bimanual:dreamlabs_dream1"] },
+      }] }],
       estimates: [], missing: [], approaches: [], questions: [],
       next_action: { kind: "research", action: "Bind compatible configurations to the task.",
         why: { text: "Runtime availability remains to be determined.", basis: "unknown", evidence: [] } },
@@ -82,5 +88,16 @@ describe("company-led simulation integration inventory", () => {
     const source = result.sources.find(row => row.source_id === "robotTeam:dream");
     expect(source?.content).not.toHaveProperty("integration_inventory");
     expect(source?.content).toMatchObject({ capability: {}, fieldProvenance: {}, willing_supply: false });
+    expect(result.sources.find(row => row.source_id === catalogSource.source_id)).toEqual(catalogSource);
+    expect(result.assessment.known[0]).toMatchObject({ basis: "published", verification_status: "source_bound" });
+    expect(result.assessment.known[0].text).toContain("Planning only:");
+    expect(result.assessment.known[0].text).toContain("does not establish task compatibility, policy access, runtime availability or an executed outcome");
+    expect(result.assessment.known[0].text).not.toContain("has already run this task");
+    expect(result.raw_model_assessment.known[0].text).toBe("Dream's policy has already run this task.");
+    const measured = structuredClone(assessment);
+    measured.known[0].basis = "measured";
+    expect(renderSourceBoundAssessment(measured, new Map(result.sources.map(row => [row.source_id, row])), null)
+      .assessment.known[0]).toMatchObject({ basis: "unknown", verification_status: "unverified" });
+    expect(JSON.stringify(receipt).length).toBeLessThan(150_000);
   });
 });

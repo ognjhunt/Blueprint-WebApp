@@ -59,6 +59,10 @@ source URLs and is planning context, separate from the registry's graded facts
 and delivery agreements. Current task screening publications continue to own
 runtime availability and observed outcomes; neither a public robot asset nor a
 catalogued API route implies private policy access or completed execution.
+The tool supplies a separate digest-bound `integration_catalog_source`. Its
+`configuration_statements` leaves retain their planning/access limitations when
+cited through the existing knowledge-source binding; they never become graded
+RobotTeam capabilities or measured results.
 
 Deploy through the existing exact-SHA CI-gated Render workflow. Deploy this
 consumer before enabling producer publication. A green website deployment proves

@@ -9,7 +9,7 @@ import { factSchema as capabilityFactSchema } from "../research-learning/prior-r
 import { isQuotableGrade, listMatchableRobotTeams, toMatchCandidate } from "../utils/robotTeamRegistry";
 import { effectiveTeamStatus, supplySummary } from "../utils/robotTeamSupply";
 import { matchRobotTeam, type SiteRequirement } from "../../client/src/lib/robotMatch";
-import { deploymentIntegrationInventory } from "../utils/deploymentIntegrationInventory";
+import { deploymentIntegrationEvidence, deploymentIntegrationInventory } from "../utils/deploymentIntegrationInventory";
 
 export { SITE_ASSESSMENT_MODEL } from "./provider-config";
 import { SITE_ASSESSMENT_MODEL } from "./provider-config";
@@ -169,6 +169,9 @@ remaining candidate; do not reduce the candidate set to a fixed pair or a model'
 An integration catalog describes preparation paths, not current runtime availability, private policy access or
 completed trials. Read current task screening results for execution status. Public robot assets do not establish
 policy compatibility, and an independent baseline on a company's robot is not that company's proprietary policy.
+To cite a catalogued route, use integration_catalog_source.source_id with published basis and a qualified_field
+selector ["configuration_statements", configuration_id]. These complete statements preserve the planning limit;
+they are separate from RobotTeam capability facts and do not establish a live provider claim.
 Missing public-asset import, tools, cameras, controller or interface work belongs to Blueprint preparation;
 do not require the site to supply material we can obtain ourselves. Team delivery agreement remains separate.
 Task-family labels, robot-form labels and the native simulator's adapter inventory alone
@@ -408,6 +411,8 @@ Question (data): ${JSON.stringify(question)}\nOperator statements (claims, not v
       execute: async () => {
         const teams = await (options.read_robot_teams ?? listMatchableRobotTeams)();
         const integration_inventory = deploymentIntegrationInventory(teams);
+        const integration_catalog_source = deploymentIntegrationEvidence(integration_inventory);
+        sources.set(integration_catalog_source.source_id, integration_catalog_source);
         const rows = teams.map(team => {
           const source_id = `robotTeam:${team.id}`;
           const supply = supplySummary(team);
@@ -424,7 +429,8 @@ Question (data): ${JSON.stringify(question)}\nOperator statements (claims, not v
         });
         return retained("read_robot_registry", {}, { rows, coverage: "applied_engaged_prospect_only_default_limit_200",
           willing_supply_count: rows.filter(row => row.team.willing_supply).length,
-          complete_robot_universe: false, freshness: "Inspect per-field provenance; no general age cutoff.", integration_inventory });
+          complete_robot_universe: false, freshness: "Inspect per-field provenance; no general age cutoff.",
+          integration_inventory, integration_catalog_source });
       },
     }),
   ];
