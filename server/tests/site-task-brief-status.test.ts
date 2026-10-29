@@ -19,10 +19,11 @@ import type { Server } from "node:http";
 import { sharedFakeFirestoreState } from "./helpers/fake-firestore";
 import { listedTaskCard } from "./helpers/listedTaskCard";
 
-const preparation = vi.hoisted(() => ({ read: vi.fn(async () => ({
+const preparation = vi.hoisted(() => ({ read: vi.fn(async (): Promise<Record<string, unknown>> => ({
   state: "failed_retryable", correlationId: "bp-prep-1234567890abcdef",
-})) }));
-vi.mock("../utils/websitePreparationStatus", () => ({ loadCurrentWebsitePreparationStatus: preparation.read }));
+})), question: vi.fn(async (): Promise<unknown> => null) }));
+vi.mock("../utils/websitePreparationStatus", () => ({ loadCurrentWebsitePreparationStatus: preparation.read,
+  loadCurrentTaskTargetChoiceQuestion: preparation.question }));
 
 const storage = vi.hoisted(() => ({
   objects: new Map<string, { generation: string; size: string; crc32c: string; bytes?: Buffer }>(),
@@ -210,6 +211,50 @@ describe("GET /api/site-task-brief/:token/status", () => {
     expect(body.status.outcome.actionOwner).toBe("blueprint");
     expect(JSON.stringify(body)).not.toContain("PRIVATE_detail");
   });
+  it("PREP-UI-007 asks which object the robot moves, stores one bound answer and sends none of these to the same-job update", async () => {
+    const selector = { request_id: "req-1", scene_id: "site-req-1", capture_id: "cap-1", completion_marker_generation: "17",
+      producer_delivery_key: `sha256:${"a".repeat(64)}`, source_payload_sha256: "b".repeat(64),
+      task_context_digest: `sha256:${"c".repeat(64)}` };
+    const question = { kind: "task_target_choice", question_digest: `sha256:${"1".repeat(64)}`, target_id: "target-1",
+      semantic_label: "Tote", candidate_set_digest: `sha256:${"2".repeat(64)}`, candidates: [
+        { candidate_id: "c0123456789abcdef", label: "Tote 1: left side, center of the view", reference_time_ms: 4000 },
+        { candidate_id: "cfedcba9876543210", label: "Tote 2: right side, center of the view", reference_time_ms: null }] };
+    sharedFakeFirestoreState.docs.set("captureUploadSessions/cap-1", { website_preparation: { selector } });
+    const original = preparation.read.getMockImplementation();
+    preparation.read.mockImplementation(async () => ({ state: "awaiting_inputs", correlationId: "bp-prep-1234567890abcdef", question }));
+    preparation.question.mockImplementation(async () => ({ selector, question }));
+    try {
+      const asked = await status();
+      expect(asked.body.status).toMatchObject({ decision: "choose_task_object", headline: "Which object should the robot move?" });
+      expect(asked.body.targetChoice).toEqual({ questionDigest: question.question_digest, semanticLabel: "Tote", candidates: [
+        { id: "c0123456789abcdef", label: "Tote 1: left side, center of the view", referenceTimeMs: 4000 },
+        { id: "cfedcba9876543210", label: "Tote 2: right side, center of the view", referenceTimeMs: null }] });
+      const film = createCaptureUploadToken({ requestId: "req-1", captureId: "cap-1", sceneId: "scene-1", scope: "film" });
+      expect((await status(film)).body.targetChoice ?? null).toBeNull();
+      const answer = (body: unknown, credential = token(), csrf = true) => fetch(`${baseUrl}/api/site-task-brief/${credential}/task-target-choice`, {
+        method: "POST", body: JSON.stringify(body), headers: { "content-type": "application/json",
+          ...(csrf ? { cookie: "csrf_token=choice-test", "x-csrf-token": "choice-test" } : {}) } });
+      const none = { questionDigest: question.question_digest, choice: { kind: "none_of_these" } };
+      expect((await answer(none, token(), false)).status).toBe(403);
+      expect((await answer(none, film)).status).toBe(403);
+      expect((await answer({ ...none, questionDigest: `sha256:${"9".repeat(64)}` })).status).toBe(409);
+      expect(sharedFakeFirestoreState.docs.get("captureUploadSessions/cap-1")!.website_task_target_choice).toBeUndefined();
+      const saved = await answer(none);
+      expect(saved.status).toBe(200); expect(await saved.json()).toEqual({ ok: true, choice: "none_of_these" });
+      expect(sharedFakeFirestoreState.docs.get("captureUploadSessions/cap-1")!.website_task_target_choice).toMatchObject({
+        ...selector, question_digest: question.question_digest, candidate_set_digest: question.candidate_set_digest,
+        choice: { kind: "none_of_these" } });
+      const after = await status();
+      expect(after.body.targetChoice).toBeNull();
+      expect(after.body.status.decision).toBe("add_views");
+      expect(after.body.status.operatorAction).toMatch(/Update walkthrough.*same job/);
+      expect(enqueueOutbox).not.toHaveBeenCalled();
+    } finally {
+      preparation.read.mockImplementation(original!);
+      preparation.question.mockImplementation(async () => null);
+    }
+  });
+
   it("PREP-UI-002 keeps preparation readback outside film-link scope", async () => {
     sharedFakeFirestoreState.docs.set("captureUploadSessions/cap-1", { website_preparation: { selector: {} } });
     const film = createCaptureUploadToken({ requestId: "req-1", captureId: "cap-1", sceneId: "scene-1", scope: "film" });

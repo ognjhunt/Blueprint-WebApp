@@ -5,6 +5,7 @@ import type { TaskOutcome } from "@/types/taskOutcome";
 import { isLikelyPhone } from "@/lib/device";
 import { PublicTaskListing } from "@/components/site/PublicTaskListing";
 import { JobWorkspace } from "@/components/site/JobWorkspace";
+import { TaskTargetChoice, type TaskTargetChoiceView } from "@/components/site/TaskTargetChoice";
 import { NextTaskUpdate } from "@/components/site/NextTaskUpdate";
 import { waitingTimeline } from "@/data/betaTimelines";
 /**
@@ -60,7 +61,17 @@ type TaskStatus = {
   captureReceived?: boolean;
   /** Coverage is checked automatically; false means a person reviews it. */
   footageReviewAutomated?: boolean;
+  /** The one question preparation waits on, for the owner only. */
+  targetChoice?: TaskTargetChoiceView | null;
 };
+
+function isTargetChoice(value: unknown): value is TaskTargetChoiceView {
+  const item = value as Partial<TaskTargetChoiceView> | null;
+  return Boolean(item) && typeof item!.questionDigest === "string" && /^sha256:[a-f0-9]{64}$/.test(item!.questionDigest)
+    && typeof item!.semanticLabel === "string" && Array.isArray(item!.candidates) && item!.candidates.length > 0
+    && item!.candidates.every(row => typeof row?.id === "string" && typeof row.label === "string"
+      && (row.referenceTimeMs === null || Number.isInteger(row.referenceTimeMs)));
+}
 
 /** Robot teams have runs on the job: the account is where they open, not a step before the scene. */
 const RUN_DECISIONS = new Set(["screening", "results", "no_team_passed", "no_qualified_evaluation"]);
@@ -540,6 +551,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
             sceneViewUrl: data.sceneViewUrl ?? null,
             captureReceived: data.captureReceived === true,
             footageReviewAutomated: data.footageReviewAutomated !== false,
+            targetChoice: data.scope === "owner" && isTargetChoice(data.targetChoice) ? data.targetChoice : null,
           });
         } else if (alive) {
           setCurrentStatusKnown(false);
@@ -664,6 +676,9 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
 
       {saved && (link.status === "valid" || link.status === "held") && scope === "owner"
         && <JobWorkspace token={token} preparationOutcome={status?.outcome} currentStatusKnown={currentStatusKnown} currentNextAction={status ? {text: status.operatorAction || status.headline, owner: status.operatorAction || status.decision === "confirm_brief" ? "site" : "blueprint"} : undefined} />}
+      {saved && scope === "owner" && currentStatusKnown && status?.targetChoice
+        && <TaskTargetChoice key={status.targetChoice.questionDigest} token={token} question={status.targetChoice}
+          onAnswered={() => setStatusRefresh(value => value + 1)} />}
       {link.status !== "valid" && statusCard}
 
       {isVideoUpdate && !saved && <p className="ms-field-hint" role="status">Film or upload a complete updated walkthrough of the job, including the missing views. This updates the same job and keeps your original video.</p>}

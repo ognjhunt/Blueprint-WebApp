@@ -3,9 +3,10 @@ import express, { type Request, type RequestHandler } from "express";
 import { createPipelineSyncRateLimiter, verifyPipelineSyncRequest } from "../utils/pipelineSyncSecurity";
 import { strictBoundedProofJson } from "../utils/strictBoundedProofJson";
 import { syncWebsitePreparationStatus, websitePreparationSelectorSchema, type WebsitePreparationDeps } from "../utils/websitePreparationStatus";
+import { readTaskTargetChoiceForPipeline, type TaskTargetChoiceDeps } from "../utils/websiteTaskTargetChoice";
 
 type AdmittedRequest = Request & {rawBody?: string; websitePreparationBodyAdmitted?: boolean};
-const callbackPath = /^\/api\/internal\/pipeline\/creator-captures\/[A-Za-z0-9][A-Za-z0-9._-]{0,131}\/preparation-status\/?$/;
+const callbackPath = /^\/api\/internal\/pipeline\/creator-captures\/[A-Za-z0-9][A-Za-z0-9._-]{0,131}\/(?:preparation-status|task-target-choice)\/?$/;
 const rawParser = express.raw({type: "application/json", limit: 4096, inflate: false});
 /** Mount beside captureOwnerRawBody before global JSON; auth/router remain after global controls. */
 export const websitePreparationRawBody: RequestHandler = (req, res, next) => {
@@ -24,8 +25,30 @@ export const websitePreparationRawBody: RequestHandler = (req, res, next) => {
   });
 };
 
-export function createWebsitePreparationRouter(deps?: WebsitePreparationDeps) {
+export function createWebsitePreparationRouter(deps?: WebsitePreparationDeps, choiceDeps?: TaskTargetChoiceDeps) {
   const router = express.Router();
+  // The Pipeline asks whether the site answered the question its parked job waits on.
+  router.post("/creator-captures/:captureId/task-target-choice", createPipelineSyncRateLimiter(), async (req, res) => {
+    res.setHeader("Cache-Control", "no-store");
+    const request = req as AdmittedRequest;
+    if (!request.websitePreparationBodyAdmitted || !request.rawBody || Buffer.byteLength(request.rawBody) > 4096)
+      return res.status(400).json({code: "website_task_target_choice_read_invalid"});
+    if (!req.header("X-Blueprint-Pipeline-Timestamp") || !req.header("X-Blueprint-Pipeline-Signature"))
+      return res.status(401).json({code: "missing_pipeline_sync_signature"});
+    const auth = verifyPipelineSyncRequest(request);
+    if (!auth.ok) return res.status(auth.status).json({code: auth.code});
+    let raw: unknown;
+    try { raw = strictBoundedProofJson(Buffer.from(request.rawBody), 4096); }
+    catch { return res.status(400).json({code: "website_task_target_choice_read_invalid"}); }
+    try {
+      const answer = await readTaskTargetChoiceForPipeline(req.params.captureId, raw, choiceDeps);
+      return answer ? res.status(200).json(answer) : res.status(404).json({code: "website_task_target_choice_pending"});
+    } catch (error) {
+      return (error as Error)?.name === "ZodError" || (error as Error)?.message === "task_target_choice_read_invalid"
+        ? res.status(400).json({code: "website_task_target_choice_read_invalid"})
+        : res.status(503).json({code: "website_task_target_choice_unavailable"});
+    }
+  });
   // Reuse production's captureRawBody parser, or own exact bytes when mounted without the global parser.
   router.post("/creator-captures/:captureId/preparation-status", createPipelineSyncRateLimiter(),
     async (req, res) => {
