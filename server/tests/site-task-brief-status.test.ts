@@ -211,7 +211,7 @@ describe("GET /api/site-task-brief/:token/status", () => {
     expect(body.status.outcome.actionOwner).toBe("blueprint");
     expect(JSON.stringify(body)).not.toContain("PRIVATE_detail");
   });
-  it("PREP-UI-007 offers the guessed object as an optional correction, stores one bound answer and sends none of these to the same-job update", async () => {
+  it("PREP-UI-007 retires the rejected guess and permits a same-job clarification without requiring recording", async () => {
     const selector = { request_id: "req-1", scene_id: "site-req-1", capture_id: "cap-1", completion_marker_generation: "17",
       producer_delivery_key: `sha256:${"a".repeat(64)}`, source_payload_sha256: "b".repeat(64),
       task_context_digest: `sha256:${"c".repeat(64)}` };
@@ -248,9 +248,18 @@ describe("GET /api/site-task-brief/:token/status", () => {
         ...selector, question_digest: question.question_digest, candidate_set_digest: question.candidate_set_digest,
         guessed_candidate_id: "c0123456789abcdef", choice: { kind: "none_of_these" } });
       const after = await status();
-      expect(after.body.targetChoice).toBeNull();
-      expect(after.body.status.decision).toBe("add_views");
-      expect(after.body.status.operatorAction).toMatch(/Update walkthrough.*same job/);
+      expect(after.body.targetChoice).toMatchObject({questionDigest: question.question_digest, rejected: true});
+      expect(after.body.status.decision).toBe("insufficient_evidence");
+      expect(after.body.status.resultSuperseded).toBe(true);
+      expect(after.body.status.operatorAction).toBeNull();
+      expect(after.body.status.outcome.actionOwner).toBe('blueprint');
+      expect(after.body.status.outcome.nextStep).not.toMatch(/record|walkthrough|upload/i);
+      expect(after.body.sceneViewUrl).toBeNull();
+      const negative = sharedFakeFirestoreState.docs.get('captureUploadSessions/cap-1')!.website_task_target_choice;
+      expect((await answer({...none, choice: {kind: 'other_candidate', candidate_id: 'cfedcba9876543210'}})).status).toBe(200);
+      const clarified = await status();
+      expect(clarified.body.status).toMatchObject({decision: 'assessing', resultSuperseded: true});
+      expect(sharedFakeFirestoreState.docs.get(`captureUploadSessions/cap-1/taskTargetChoiceHistory/${negative.answer_digest.slice(7)}`)).toEqual(negative);
       expect(enqueueOutbox).not.toHaveBeenCalled();
     } finally {
       preparation.read.mockImplementation(original!);

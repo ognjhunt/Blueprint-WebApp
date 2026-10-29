@@ -1191,7 +1191,7 @@ router.get("/:token/status", async (req: Request, res: Response) => {
       sceneViewUrl: status.resultSuperseded ? null : sceneViewUrl,
       // Opaque ids and position labels only; no frame or person pixels.
       targetChoice: question ? { questionDigest: question.question_digest, semanticLabel: question.semantic_label,
-        rejected: targetChoiceAnswer === 'none_of_these',
+        ...(targetChoiceAnswer === 'none_of_these' ? {rejected: true} : {}),
         guessedCandidateId: question.guessed_candidate_id,
         candidates: question.candidates.map(row => ({ id: row.candidate_id, label: row.label,
           referenceTimeMs: row.reference_time_ms })) } : null,
