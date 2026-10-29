@@ -93,12 +93,12 @@ beforeEach(() => { vi.useRealTimers(); });
 afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
 
 describe("v2 receipt contract", () => {
-  it("TERM-001 asks the Pipeline for v3 on every signed read and accepts a v1 answer", async () => {
+  it("TERM-001 asks the Pipeline for v4 on every signed read and accepts a v1 answer", async () => {
     const f = production();
     f.ledger(receipt(f.selected, "failed_retryable", 1, 3, "v1"));
     expect((await status.syncWebsitePreparationStatus(f.selected)).schema_version).toBe("website_preparation_status.v1");
     for (const sent of runtime.requests)
-      expect((sent.headers as Record<string, string>)[status.WEBSITE_PREPARATION_STATUS_VERSION_HEADER]).toBe("3");
+      expect((sent.headers as Record<string, string>)[status.WEBSITE_PREPARATION_STATUS_VERSION_HEADER]).toBe("4");
     expect(f.session().website_preparation.status.state).toBe("failed_retryable");
   });
   it.each(["permanent_invalid", "retry_exhausted", "budget_exhausted", "capacity_blocked", "out_of_scope"])(

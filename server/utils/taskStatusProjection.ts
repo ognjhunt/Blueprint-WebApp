@@ -81,7 +81,9 @@ export type TaskDecision =
    * cannot be built from it yet and sending it again would not help (owner
    * decision 2026-10-18).
    */
-  | "footage_before_account";
+  | "footage_before_account"
+  /** Preparation waits on one answer from the site: which object the robot moves. */
+  | "choose_task_object";
 
 export interface TaskStatus {
   outcome?: TaskOutcome | null;
@@ -175,6 +177,8 @@ export interface TaskPreparationStatus {
   correlationId: string | null;
   /** Why preparation ended for good; only with `failed_terminal`. */
   terminalReason?: string | null;
+  /** The one question preparation is parked on (v4), for as long as it waits on it. */
+  question?: { semantic_label: string } | null;
 }
 
 /**
@@ -225,6 +229,8 @@ interface TaskStatusInput {
   preparationOutcome?: TaskOutcome | null;
   ownerClosureOutcome?: TaskOutcome | null;
   preparationStatus?: TaskPreparationStatus | null;
+  /** The site's stored answer to the question this preparation waits on, if any. */
+  targetChoiceAnswer?: "candidate" | "none_of_these" | null;
   /**
    * The WebApp's own watch says preparation has gone quiet past its bound: no
    * status since the upload, or one state unchanged too long. Our team is
@@ -302,6 +308,22 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
   // A native handoff supersedes an optional reconstruction preview's failure.
   const hasRuns = input.screening && input.screening.queued + input.screening.running
     + input.screening.reported + input.screening.noResult > 0;
+  // One question inside this job: which object the robot moves. Preparation
+  // waits on it with nothing spent; "none of these" is the existing same-job
+  // walkthrough update. Actual runs outrank it.
+  const awaitingChoice = input.preparationStatus?.state === "awaiting_inputs" && Boolean(input.preparationStatus.question);
+  if (awaitingChoice && !hasRuns) {
+    if (input.targetChoiceAnswer === "candidate") return { ...base, decision: "assessing", stage: null,
+      headline: "Thanks. Blueprint is continuing to prepare your job from your saved video, using the object you chose.",
+      operatorAction: confirmationAsk };
+    if (input.targetChoiceAnswer === "none_of_these") return { ...base, decision: "add_views", stage: null,
+      headline: "None of the objects Blueprint found is the one the robot should move. Send an updated walkthrough of this job that shows that object clearly.",
+      operatorAction: "Use Update walkthrough to film or upload a complete updated walkthrough. It updates this same job and keeps your original video." };
+    const label = input.preparationStatus!.question!.semantic_label.toLowerCase();
+    return { ...base, decision: "choose_task_object", stage: null,
+      headline: "Which object should the robot move?",
+      operatorAction: `Blueprint could not tell for sure which ${label} in your video the robot should move. Choose it below; Blueprint then keeps preparing this job from your saved video. If none of them is right, choose None of these.` };
+  }
   const nativeProgress = input.preparationStatus?.state === "handed_off" || Boolean(input.sceneProgression);
   const observedPreparation = Boolean(input.scenePreviewReady || nativeProgress
     || input.preparationStatus && input.preparationStatus.state !== "unavailable");
@@ -666,6 +688,7 @@ export function taskStatusInputFrom(record: {
   preparationOutcome?: TaskOutcome | null;
   ownerClosureOutcome?: TaskOutcome | null;
   preparationStatus?: TaskPreparationStatus | null;
+  targetChoiceAnswer?: "candidate" | "none_of_these" | null;
   preparationOverdue?: boolean;
   sceneProgression?: TaskSceneProgression | null;
   stage: ReadinessStage | null;
@@ -698,6 +721,7 @@ export function taskStatusInputFrom(record: {
     preparationOutcome: record.preparationOutcome ?? null,
     ownerClosureOutcome: record.ownerClosureOutcome ?? null,
     preparationStatus: record.preparationStatus ?? null,
+    ...(record.targetChoiceAnswer ? { targetChoiceAnswer: record.targetChoiceAnswer } : {}),
     ...(record.preparationOverdue === true ? { preparationOverdue: true } : {}),
     sceneProgression: record.sceneProgression ?? null,
     briefDrafted: record.briefDrafted,
