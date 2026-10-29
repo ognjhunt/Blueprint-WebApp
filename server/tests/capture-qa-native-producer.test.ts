@@ -63,7 +63,8 @@ describe("Pipeline-owned Capture QA producer bytes", () => {
     });
   });
 
-  it("verifies forwarding and every binding with the real native QA report", async () => {
+  it.each(["unchanged", "receipt-report", "receipt-ceiling", "receipt-extra-field"])(
+    "verifies forwarding with the real native QA report and refuses %s receipt changes", async (kind) => {
     // Transfer receipt is synthetic; the original native QA report is unchanged.
     const request = { intake_id: native.intake_id, capture_authority_profile: "monocular_video",
       original_file: { size_bytes: 12 } };
@@ -77,12 +78,15 @@ describe("Pipeline-owned Capture QA producer bytes", () => {
       admission_status: "accepted", state: "capture_accepted", claim_ceiling: native.report.claim_ceiling,
       artifact_reference: { uri: "intakes/fixture", envelope_digest: native.envelope_digest },
       malware_content_validation: { status: "passed", scanner: "fixture-scanner" },
-      capture_qa_report: native.report, already_exists: true,
+      capture_qa_report: structuredClone(native.report), already_exists: true,
       proof_boundary: { server_sha256_verified: true, raw_input_content_addressed: true,
         capture_qa_completed: true, task_success_established: false,
         physical_task_success_established: false, deployment_or_safety_approved: false,
         comparative_policy_ranking_verdict: "thesis_not_supported" },
     };
+    if (kind === "receipt-report") receipt.capture_qa_report.checks[0].measurement = "fabricated";
+    if (kind === "receipt-ceiling") receipt.capture_qa_report.claim_ceiling.physical_task_success = true;
+    if (kind === "receipt-extra-field") receipt.capture_qa_report.unverified_extra = true;
     vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({
       schema_version: "capture_upload_processing_result.v1", receipt, capture_qa_publication: native,
     }), { status: 200 })));
@@ -92,8 +96,14 @@ describe("Pipeline-owned Capture QA producer bytes", () => {
       transfer: { provider: "backblaze", url: "https://storage.invalid/fixture",
         authorizationToken: "fixture-only", expiresAtIso: "2099-01-01T00:00:00Z" },
     });
-    expect(result.status).toBe("forwarded");
-    expect(result.receipt?.capture_qa_report.qa_report_digest).toBe(native.qa_report_digest);
-    expect(result.captureQaPublication).toEqual(native);
+    if (kind === "unchanged") {
+      expect(result.status).toBe("forwarded");
+      expect(result.receipt?.capture_qa_report.qa_report_digest).toBe(native.qa_report_digest);
+      expect(result.captureQaPublication).toEqual(native);
+    } else {
+      expect(result.status).toBe("failed");
+      expect(result.blocker).toBe("pipeline_capture_upload_receipt_binding_mismatch");
+      expect(result.receipt).toBeUndefined();
+    }
   });
 });

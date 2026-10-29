@@ -71,7 +71,13 @@ export interface LegalAcceptanceRecord<TAcceptedAt = unknown> {
  */
 export function acceptedVersionsAreCurrent(terms: unknown, privacy: unknown, nowMs = Date.now()): boolean {
   if (terms === TERMS_VERSION && privacy === PRIVACY_VERSION) return true;
-  return legalUpdatePending(nowMs) && terms === PREVIOUS_TERMS_VERSION && privacy === PREVIOUS_PRIVACY_VERSION;
+  // Keep the pair published October 22 usable until its announced deadline,
+  // without rewriting its record as acceptance of the later Terms revision.
+  return legalUpdatePending(nowMs) && (
+    (terms === PREVIOUS_TERMS_VERSION && privacy === PREVIOUS_PRIVACY_VERSION)
+    || (terms === "2026-11-15.2" && privacy === "2026-11-15.4"
+      && nowMs < legalEffectiveAtMs("2026-11-15.2"))
+  );
 }
 
 /** Recognize a prior server-recorded acceptance of the current documents. */
