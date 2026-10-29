@@ -211,7 +211,7 @@ describe("GET /api/site-task-brief/:token/status", () => {
     expect(body.status.outcome.actionOwner).toBe("blueprint");
     expect(JSON.stringify(body)).not.toContain("PRIVATE_detail");
   });
-  it("PREP-UI-007 retires the rejected guess and permits a same-job clarification without requiring recording", async () => {
+  it.each(['other_candidate', 'confirm_guess'] as const)("PREP-UI-007 retires the rejected guess and permits same-job %s without requiring recording", async recoveryKind => {
     const selector = { request_id: "req-1", scene_id: "site-req-1", capture_id: "cap-1", completion_marker_generation: "17",
       producer_delivery_key: `sha256:${"a".repeat(64)}`, source_payload_sha256: "b".repeat(64),
       task_context_digest: `sha256:${"c".repeat(64)}` };
@@ -256,9 +256,16 @@ describe("GET /api/site-task-brief/:token/status", () => {
       expect(after.body.status.outcome.nextStep).not.toMatch(/record|walkthrough|upload/i);
       expect(after.body.sceneViewUrl).toBeNull();
       const negative = sharedFakeFirestoreState.docs.get('captureUploadSessions/cap-1')!.website_task_target_choice;
-      expect((await answer({...none, choice: {kind: 'other_candidate', candidate_id: 'cfedcba9876543210'}})).status).toBe(200);
+      preparation.read.mockImplementation(async () => ({state: 'awaiting_inputs', question,
+        outcome: {category: 'insufficient_evidence', basis: 'missing_evidence', title: 'Evidence limit',
+          reason: 'The prior selection was rejected.', scope: 'The retained objects', nextStep: 'Send another walkthrough.',
+          actionOwner: 'site', evidence: []}}));
+      expect((await answer({...none, choice: recoveryKind === 'confirm_guess'
+        ? {kind: 'confirm_guess'} : {kind: 'other_candidate', candidate_id: 'cfedcba9876543210'}})).status).toBe(200);
       const clarified = await status();
       expect(clarified.body.status).toMatchObject({decision: 'assessing', resultSuperseded: true});
+      expect(clarified.body.status.operatorAction).toBeNull();
+      expect(clarified.body.status.headline).toContain('saved video');
       expect(sharedFakeFirestoreState.docs.get(`captureUploadSessions/cap-1/taskTargetChoiceHistory/${negative.answer_digest.slice(7)}`)).toEqual(negative);
       expect(enqueueOutbox).not.toHaveBeenCalled();
     } finally {

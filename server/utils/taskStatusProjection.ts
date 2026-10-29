@@ -232,6 +232,7 @@ interface TaskStatusInput {
   preparationStatus?: TaskPreparationStatus | null;
   /** The site's stored answer to the question this preparation waits on, if any. */
   targetChoiceAnswer?: "confirm_guess" | "other_candidate" | "none_of_these" | null;
+  targetChoiceRestoringGuess?: boolean;
   /**
    * The WebApp's own watch says preparation has gone quiet past its bound: no
    * status since the upload, or one state unchanged too long. Our team is
@@ -324,6 +325,10 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
   if (input.targetChoiceAnswer === 'other_candidate' && !input.sceneProgression) {
     return {...base, decision: 'assessing', stage: null, missingViews: [], operatorAction: null,
       headline: 'Blueprint is updating this job for the corrected object using your saved video.', resultSuperseded: true};
+  }
+  if (input.targetChoiceRestoringGuess) {
+    return {...base, decision: 'assessing', stage: null, missingViews: [], operatorAction: null,
+      headline: 'Blueprint is resuming this job with the confirmed object using your saved video.', resultSuperseded: true};
   }
   const nativeProgress = input.preparationStatus?.state === "handed_off" || Boolean(input.sceneProgression);
   const observedPreparation = Boolean(input.scenePreviewReady || nativeProgress
@@ -693,6 +698,7 @@ export function taskStatusInputFrom(record: {
   ownerClosureOutcome?: TaskOutcome | null;
   preparationStatus?: TaskPreparationStatus | null;
   targetChoiceAnswer?: "confirm_guess" | "other_candidate" | "none_of_these" | null;
+  targetChoiceRestoringGuess?: boolean;
   preparationOverdue?: boolean;
   sceneProgression?: TaskSceneProgression | null;
   stage: ReadinessStage | null;
@@ -726,6 +732,7 @@ export function taskStatusInputFrom(record: {
     ownerClosureOutcome: record.ownerClosureOutcome ?? null,
     preparationStatus: record.preparationStatus ?? null,
     ...(record.targetChoiceAnswer ? { targetChoiceAnswer: record.targetChoiceAnswer } : {}),
+    ...(record.targetChoiceRestoringGuess ? {targetChoiceRestoringGuess: true} : {}),
     ...(record.preparationOverdue === true ? { preparationOverdue: true } : {}),
     sceneProgression: record.sceneProgression ?? null,
     briefDrafted: record.briefDrafted,

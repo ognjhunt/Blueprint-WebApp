@@ -64,7 +64,10 @@ export function taskTargetSelection(session: Record<string, any> | null | undefi
     target_id: row.target_id, question_digest: row.question_digest,
     ...(row.choice.kind === "none_of_these" ? {kind: "none_of_these"} : {candidate_id: row.choice.candidate_id}),
   }));
-  return { answers, rejected: answers.some(row => row.choice.kind === "none_of_these"),
+  const prior = parseStoredTaskTargetChoice(session?.website_task_target_choice_prior);
+  const restoringGuess = Boolean(prior?.choice.kind === 'none_of_these' && answers.some(row => row.choice.kind === 'confirm_guess'
+    && row.question_digest === prior.question_digest && crossRuntimeDigest(selectorOf(row)) === crossRuntimeDigest(selectorOf(prior))));
+  return { answers, restoringGuess, rejected: answers.some(row => row.choice.kind === "none_of_these"),
     correctionsDigest: corrections.length ? crossRuntimeDigest({corrections}) : null };
 }
 
@@ -137,9 +140,11 @@ export async function commitTaskTargetChoiceAnswer(answer: TaskTargetChoiceAnswe
         throw new Error('task_target_choice_history_changed');
       if (history && !retained) tx.set(history, prior!);
       tx.set(ref, {[WEBSITE_TASK_TARGET_CHOICE_FIELD]: answer,
+        ...(prior ? {website_task_target_choice_prior: prior} : {}),
         [WEBSITE_TASK_TARGET_CHOICES_FIELD]: {...session[WEBSITE_TASK_TARGET_CHOICES_FIELD],
           ...(prior ? {[prior.question_digest]: prior} : {}), [answer.question_digest]: answer}},
-        {mergeFields: [WEBSITE_TASK_TARGET_CHOICE_FIELD, WEBSITE_TASK_TARGET_CHOICES_FIELD]});
+        {mergeFields: [WEBSITE_TASK_TARGET_CHOICE_FIELD, WEBSITE_TASK_TARGET_CHOICES_FIELD,
+          ...(prior ? ['website_task_target_choice_prior'] : [])]});
       return answer;
     });
 }

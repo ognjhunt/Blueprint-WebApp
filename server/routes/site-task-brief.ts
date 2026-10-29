@@ -68,7 +68,7 @@ import {
   taskStatusInputFrom,
 } from "../utils/taskStatusProjection";
 import { loadCurrentWebsitePreparationStatus } from "../utils/websitePreparationStatus";
-import { answerTaskTargetChoice, currentTaskTargetChoiceAnswer } from "../utils/websiteTaskTargetChoice";
+import { answerTaskTargetChoice, currentTaskTargetChoiceAnswer, taskTargetSelection } from "../utils/websiteTaskTargetChoice";
 import { taskTargetChoiceRequestSchema } from "../utils/taskTargetChoiceContract";
 import { websitePreparationOverdue } from "../utils/websitePreparationWatch";
 import { loadWebsiteSceneProgression } from "../utils/websiteSceneProgression";
@@ -1107,6 +1107,8 @@ router.get("/:token/status", async (req: Request, res: Response) => {
           ? request.preparationOutcome : null,
         preparationStatus,
         targetChoiceAnswer,
+        targetChoiceRestoringGuess: payload.scope === 'owner' && preparationStatus?.state === 'awaiting_inputs'
+          && taskTargetSelection(captureSession?.data()).restoringGuess,
         preparationOverdue,
         sceneProgression,
         stage,
