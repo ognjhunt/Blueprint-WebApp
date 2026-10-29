@@ -45,7 +45,9 @@ import { projectWebsiteCaptureRights, projectWebsiteTaskContext } from "../utils
 import { crossRuntimeDigest } from "../utils/crossRuntimeCanonical";
 import { verifyTaskEvaluationResultDownloadTicket } from "../utils/taskEvaluationResultDownloadTicket";
 import { projectWebsiteAtlasPreview, websiteAtlasPreviewDownloadUrl } from "../utils/websiteAtlasPreview";
-import { crc32, extractZipMember, orientPlyForViewer, viewerSettingsFromAtlasCamera, websiteAtlasPreviewViewerUrl } from "../utils/websiteAtlasPreviewView";
+import { crc32, extractZipMember, orientPlyForViewer, viewerSettingsFromAtlasCamera, websiteAtlasPreviewViewerFiles,
+  websiteAtlasPreviewViewerUrl } from "../utils/websiteAtlasPreviewView";
+import { rm } from "node:fs/promises";
 import { deflateRawSync } from "node:zlib";
 
 const sha = (char: string) => `sha256:${char.repeat(64)}`;
@@ -740,7 +742,7 @@ describe("owner Atlas preview view", () => {
   });
 
   it("turns an Atlas splat so the viewer's 180-degree load rotation leaves it upright", () => {
-    const turned = orientPlyForViewer(splatBytes);
+    const turned = orientPlyForViewer(Buffer.from(splatBytes));
     const header = splatBytes.indexOf("end_header\n") + "end_header\n".length;
     expect(turned.subarray(0, header)).toEqual(splatBytes.subarray(0, header));
     const row = Array.from(new Float32Array(new Uint8Array(turned.subarray(header)).buffer));
@@ -758,6 +760,19 @@ describe("owner Atlas preview view", () => {
     expect(viewerSettingsFromAtlasCamera(null)).toMatchObject({ version: 2, startMode: "default" });
   });
 
+  it("prepares a bundle once when the viewer asks for its splat and start view together", async () => {
+    // 2026-10-29: two parallel first views of an 80 MB bundle exhausted the web instance's memory.
+    const other = zipFixture([{ name: "atlas-scene-other/splat/atlas_depth_splat.ply", data: plyFixture([[4, 5, 6, 0, 0, 0, 1, -5, -5, -5, 1, 0, 0, 0]]) }]);
+    const bundle = { digest: `sha256:${createHash("sha256").update(other).digest("hex")}`, size_bytes: other.length };
+    const origin = vi.fn(async () => new Response(other, { status: 200 }));
+    vi.stubGlobal("fetch", origin);
+    const [first, second] = await Promise.all([websiteAtlasPreviewViewerFiles("req1", "walkthrough-req1", bundle),
+      websiteAtlasPreviewViewerFiles("req1", "walkthrough-req1", bundle)]);
+    expect(origin).toHaveBeenCalledTimes(1);
+    expect(second).toEqual(first);
+    await Promise.all([rm(first.splat, { force: true }), rm(first.settings, { force: true })]);
+  });
+
   it("lets only the viewer fetch the splat of a ready preview, for the right ticket and current consent", async () => {
     upload();
     store.rows.get(REQUEST).website_atlas_previews = { "walkthrough-req1": ready() };
@@ -770,7 +785,7 @@ describe("owner Atlas preview view", () => {
     expect(content).toMatch(/^\/api\/website-atlas-preview-views\/req1\/walkthrough-req1\/scene\.ply\?expires=\d+&signature=[0-9a-f]{64}$/);
     const viewed = await realFetch(`${base}${content}`, { headers: { "sec-fetch-dest": "empty", "sec-fetch-mode": "cors" } });
     expect(viewed.status).toBe(200);
-    expect(Buffer.from(await viewed.arrayBuffer())).toEqual(orientPlyForViewer(splatBytes));
+    expect(Buffer.from(await viewed.arrayBuffer())).toEqual(orientPlyForViewer(Buffer.from(splatBytes)));
     const settings = await realFetch(`${base}${content.replace("/scene.ply?", "/settings.json?")}`, { headers: { "sec-fetch-dest": "empty" } });
     expect(settings.status).toBe(200);
     expect((await settings.json()).cameras).toEqual([{ initial: { position: [1, 2, 3], target: [1, 2, 1], fov: 53.1 } }]);

@@ -89,7 +89,8 @@ export function extractZipMember(zip: Buffer, matches: (name: string) => boolean
  * The viewer turns every .ply 180° about Z on load (the COLMAP y-down correction). Atlas
  * splats are already y-up, so turn them the opposite way first: positions and normals
  * negate x and y, and each (w, x, y, z) orientation becomes Rz(180°)·q = (−z, −y, x, w).
- * Only binary float32 splats are accepted; colours and scales are unchanged.
+ * Only binary float32 splats are accepted; colours and scales are unchanged. Turns the
+ * buffer in place: a 93 MB splat must not be copied on a small web instance.
  */
 export function orientPlyForViewer(ply: Buffer): Buffer {
   const end = ply.indexOf("end_header\n");
@@ -105,16 +106,18 @@ export function orientPlyForViewer(ply: Buffer): Buffer {
   if (x < 0 || y < 0 || [w, qx, qy, qz].some(position => position < 0)) throw new Error("ply_properties_unsupported");
   const start = end + "end_header\n".length, stride = properties.length;
   if (ply.length - start !== count * stride * 4) throw new Error("ply_size_mismatch");
-  // A copy: the header length leaves the vertex block unaligned for a Float32Array view.
-  const values = new Float32Array(count * stride);
-  new Uint8Array(values.buffer).set(ply.subarray(start));
-  for (let row = 0; row < count * stride; row += stride) {
-    values[row + x] = -values[row + x]!; values[row + y] = -values[row + y]!;
-    if (nx >= 0 && ny >= 0) { values[row + nx] = -values[row + nx]!; values[row + ny] = -values[row + ny]!; }
-    const [qw, qi, qj, qk] = [values[row + w]!, values[row + qx]!, values[row + qy]!, values[row + qz]!];
-    values[row + w] = -qk; values[row + qx] = -qj; values[row + qy] = qi; values[row + qz] = qw;
+  // A DataView, because the header length leaves the vertex block unaligned for a Float32Array.
+  const view = new DataView(ply.buffer, ply.byteOffset + start, count * stride * 4);
+  const negate = (offset: number) => view.setFloat32(offset, -view.getFloat32(offset, true), true);
+  for (let base = 0; base < count * stride * 4; base += stride * 4) {
+    negate(base + x * 4); negate(base + y * 4);
+    if (nx >= 0 && ny >= 0) { negate(base + nx * 4); negate(base + ny * 4); }
+    const qw = view.getFloat32(base + w * 4, true), qi = view.getFloat32(base + qx * 4, true);
+    const qj = view.getFloat32(base + qy * 4, true), qk = view.getFloat32(base + qz * 4, true);
+    view.setFloat32(base + w * 4, -qk, true); view.setFloat32(base + qx * 4, -qj, true);
+    view.setFloat32(base + qy * 4, qi, true); view.setFloat32(base + qz * 4, qw, true);
   }
-  return Buffer.concat([ply.subarray(0, start), Buffer.from(values.buffer)]);
+  return ply;
 }
 
 /** The package's defaultSettings() (see client/public/splat-viewer/README.md). */
@@ -155,6 +158,21 @@ export async function websiteAtlasPreviewViewerFiles(requestId: string, captureI
   const files = { splat: path.join(directory, `${digestHex}.viewer-v2.ply`),
     settings: path.join(directory, `${digestHex}.viewer-v2.settings.json`) };
   if ((await stat(files.splat).catch(() => null))?.isFile() && (await stat(files.settings).catch(() => null))?.isFile()) return files;
+  // One preparation per bundle: the viewer asks for the splat and its start view at once,
+  // and two parallel 80 MB bundles exhausted the web instance's memory (2026-10-29).
+  const pending = preparing.get(digestHex);
+  if (pending) return pending;
+  const job = prepareViewerFiles(requestId, captureId, bundle, digestHex, directory, files)
+    .finally(() => preparing.delete(digestHex));
+  preparing.set(digestHex, job);
+  return job;
+}
+
+const preparing = new Map<string, Promise<{ splat: string; settings: string }>>();
+
+/** The bundle is dropped once its two members are read, before the splat is turned. */
+async function readViewerMembers(requestId: string, captureId: string, bundle: { digest: string; size_bytes: number },
+  digestHex: string) {
   const origin = websiteAtlasPreviewBundleRequest(requestId, captureId, bundle.digest);
   if (!origin) throw new Error("website_atlas_preview_delivery_not_configured");
   const response = await fetch(origin.url, { headers: origin.headers, redirect: "error" });
@@ -168,6 +186,12 @@ export async function websiteAtlasPreviewViewerFiles(requestId: string, captureI
   try {
     camera = JSON.parse(extractZipMember(zip, name => FIRST_CAMERA_MEMBER.test(name))?.toString("utf8") ?? "null");
   } catch { camera = null; }
+  return { splat, camera };
+}
+
+async function prepareViewerFiles(requestId: string, captureId: string, bundle: { digest: string; size_bytes: number },
+  digestHex: string, directory: string, files: { splat: string; settings: string }) {
+  const { splat, camera } = await readViewerMembers(requestId, captureId, bundle, digestHex);
   await mkdir(directory, { recursive: true });
   for (const [file, bytes] of [[files.settings, Buffer.from(JSON.stringify(viewerSettingsFromAtlasCamera(camera)))],
     [files.splat, orientPlyForViewer(splat)]] as const) {
