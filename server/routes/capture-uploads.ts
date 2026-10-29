@@ -56,6 +56,7 @@ import {
   type JobEvidenceSourceBinding,
 } from "../utils/reconstructionForwarding";
 import { requireOwnedCaptureAtlasSource } from "../utils/ownedCaptureAtlasContext";
+import { loadOwnedCaptureAtlasConfiguration, ownedAtlasAuthorizationCommand } from "../utils/ownedCaptureAtlasPreparation";
 import {
   authorizeBackblazeCapturePart,
   cancelBackblazeResumableCapture,
@@ -2137,6 +2138,28 @@ router.post("/:sessionId/task-decisions", async (req, res) => {
         }
       : {}),
   });
+});
+
+router.post("/:sessionId/reconstructions/atlas/authorize", async (req, res) => {
+  const user = authenticatedUser(res);
+  if (!user.uid) return res.status(401).json({ error: "Missing authenticated user" });
+  const parsed = ownedAtlasAuthorizationCommand.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Owned Atlas authorization command is invalid" });
+  const owned = await readOwnedSession(req.params.sessionId, user.uid);
+  if (!owned.record) return res.status(owned.status).json({ error: "Capture upload not found" });
+  const { maximum_cost_usd: _cost, maximum_requests: _requests, provider_identity: _identity, ...binding } = parsed.data;
+  try {
+    const configuration = await loadOwnedCaptureAtlasConfiguration(req.params.sessionId, binding,
+      { ownerUid: user.uid, command: parsed.data });
+    res.set("Cache-Control", "no-store");
+    return res.json({ schema_version: "capture_owned_atlas_authorization_receipt.v1",
+      configuration, provider_execution_started: false, robot_execution_established: false });
+  } catch (error) {
+    const code = error instanceof Error && /^(owned_capture_atlas_|website_atlas_|capture_revoked_or_expired$|provider_terms_not_configured_or_changed$)/.test(error.message)
+      ? error.message : "owned_capture_atlas_authorization_unavailable";
+    return res.status(code === "capture_revoked_or_expired" ? 410 : 409)
+      .json({ error: "Source-specific Atlas authorization is unavailable", code });
+  }
 });
 
 router.post("/:sessionId/reconstructions/atlas/plan", async (req, res) => {
