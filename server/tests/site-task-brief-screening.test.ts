@@ -42,11 +42,24 @@ vi.mock("../logger", () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }));
 
-// The outbox delivery the confirm route fires must not reach a real provider.
-vi.mock("../utils/captureOutbox", () => ({
-  enqueueOutbox: vi.fn(async () => ({ enqueued: true })),
-  deliverOutbox: vi.fn(async () => ({ examined: 0, sent: 0, failed: 0, exhausted: 0 })),
-}));
+// Exercise real durable intent creation/deduplication; delivery stays offline.
+vi.mock("../utils/captureOutbox", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../utils/captureOutbox")>();
+  return { ...actual, enqueueOutbox: vi.fn(actual.enqueueOutbox),
+    deliverOutbox: vi.fn(async () => ({ examined: 0, sent: 0, failed: 0, exhausted: 0 })) };
+});
+vi.mock("../utils/email", () => ({ sendEmail: vi.fn(async () => ({ sent: true })) }));
+const notificationRead = vi.hoisted(() => ({ unavailable: false }));
+vi.mock("../utils/field-encryption", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../utils/field-encryption")>();
+  return { ...actual, decryptFieldValue: vi.fn(async (value) => {
+    if (notificationRead.unavailable && value === "ops@acme.example") {
+      notificationRead.unavailable = false;
+      throw new Error("notification contact temporarily unavailable");
+    }
+    return actual.decryptFieldValue(value);
+  }) };
+});
 
 const notifySlackScreeningCallNeeded = vi.hoisted(() => vi.fn(async () => ({ sent: true })));
 vi.mock("../utils/slack", () => ({ notifySlackScreeningCallNeeded }));
@@ -63,6 +76,7 @@ let baseUrl: string;
 beforeEach(async () => {
   sharedFakeFirestoreState.docs.clear();
   storage.unreadable = false;
+  notificationRead.unavailable = false;
   notifySlackScreeningCallNeeded.mockClear();
   vi.mocked(enqueueOutbox).mockClear();
   const app = express();
@@ -118,6 +132,43 @@ const clearAnswers = () =>
   );
 
 describe("the confirmation says what our screen decided", () => {
+  it.each(["needs_conversation", "qualified"])("an unchanged HTTP confirmation preserves one %s intent and completed work", async disposition => {
+    const answers = disposition === "qualified" ? clearAnswers() : {};
+    const first = await confirm(answers);
+    expect(first.status).toBe(200);
+    expect((await first.json()).disposition).toBe(disposition);
+    if (disposition === "needs_conversation") {
+      await vi.waitFor(() => expect(notifySlackScreeningCallNeeded).toHaveBeenCalledTimes(1));
+    }
+    const before = structuredClone([...sharedFakeFirestoreState.docs.entries()]);
+    const notified = notifySlackScreeningCallNeeded.mock.calls.length;
+    const response = await confirm(answers);
+    expect(response.status).toBe(200);
+    expect((await response.json()).disposition).toBe(disposition);
+    expect([...sharedFakeFirestoreState.docs.entries()]).toEqual(before);
+    expect([...sharedFakeFirestoreState.docs.keys()].filter(key => key.startsWith("captureOutbox/"))).toHaveLength(1);
+    expect(notifySlackScreeningCallNeeded).toHaveBeenCalledTimes(notified);
+  });
+
+  it.each(["outbox_write", "contact_read"].flatMap(failure => [
+    { failure, unsupported: false }, { failure, unsupported: true },
+  ]))("an unchanged retry repairs a missing intent after $failure (unsupported=$unsupported) without replacing the brief", async ({ failure, unsupported }) => {
+    if (unsupported) await saveBrief(draftBrief({ requestId: "req-1", summary: "Folding towels for wash-and-fold orders", captureMode: "self_capture", proposed: [] }));
+    if (failure === "outbox_write") vi.mocked(enqueueOutbox).mockResolvedValueOnce({ enqueued: false });
+    else notificationRead.unavailable = true;
+    const answers = clearAnswers();
+    expect((await confirm(answers)).status).toBe(200);
+    const before = structuredClone([...sharedFakeFirestoreState.docs.entries()]);
+    expect([...sharedFakeFirestoreState.docs.keys()].filter(key => key.startsWith("captureOutbox/"))).toHaveLength(0);
+    expect((await confirm(answers)).status).toBe(200);
+    expect([...sharedFakeFirestoreState.docs.entries()].filter(([key]) => !key.startsWith("captureOutbox/"))).toEqual(before);
+    const key = unsupported ? "task-not-yet-supported" : "qualified";
+    expect(sharedFakeFirestoreState.docs.get(`captureOutbox/req-1:brief-screening:${key}`)).toMatchObject({ status: "pending", attempts: 0, kind: unsupported ? "screening_not_now" : "brief_confirmed" });
+    const repaired = structuredClone([...sharedFakeFirestoreState.docs.entries()]);
+    expect((await confirm(answers)).status).toBe(200);
+    expect([...sharedFakeFirestoreState.docs.entries()]).toEqual(repaired);
+  });
+
   it("offers written clarification or a call without clearing the preparation gate", async () => {
     const response = await confirm();
     expect(response.status).toBe(200);

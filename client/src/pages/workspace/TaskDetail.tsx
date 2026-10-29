@@ -45,8 +45,27 @@ export default function TaskDetail() {
     [details, setDetails] = useState<WorkspaceResult | null>(null),
     [editing, setEditing] = useState(false),
     [linkState, setLinkState] = useState<"idle" | "working">("idle"),
-    [linkError, setLinkError] = useState("");
+    [linkError, setLinkError] = useState(""),
+    [previewState, setPreviewState] = useState<"idle" | "working">("idle"),
+    [previewError, setPreviewError] = useState("");
   const endpoint = `/tasks/${encodeURIComponent(taskId || "")}`;
+  // A short-lived view ticket per click; the viewer route re-checks consent and readiness.
+  async function viewPreview(captureId: string) {
+    if (previewState === "working") return;
+    setPreviewState("working");
+    setPreviewError("");
+    try {
+      const { viewer_url: url } = await query.request<{ viewer_url: string }>(
+        `${endpoint}/atlas-preview/view-ticket`, "POST", { captureId }, { timeoutMs: 15000 });
+      if (typeof url !== "string" || !url.startsWith("/splat-viewer/index.html?"))
+        throw new Error("The 3D preview link was missing. Please try again.");
+      window.location.assign(url);
+    } catch (error) {
+      setPreviewError(error instanceof Error ? error.message : "The 3D preview could not be opened. Please try again.");
+    } finally {
+      setPreviewState("idle");
+    }
+  }
   // The task page is where the brief is reviewed or edited, footage is added
   // and the scene is opened. The emailed link expires; the account mints a
   // fresh one on demand.
@@ -104,9 +123,11 @@ export default function TaskDetail() {
                 <p>{task.readiness.headline}</p>
                 <TaskOutcomeNotice showTitle={false} outcome={query.error ? null : task.readiness.outcome} />
                 {task.readiness.operatorAction && <p>{task.readiness.operatorAction}</p>}
-                {task.readiness.missingViews.length > 0 && task.readiness.decision !== "add_views" && (
-                  <p>Still needed: {task.readiness.missingViews.join(", ")}.</p>
-                )}
+                {task.readiness.missingViews.length > 0 && <details>
+                  <summary>Processing details</summary>
+                  <p>Earlier coverage notes are retained for Blueprint to review.</p>
+                  <ul>{task.readiness.missingViews.map((note, index) => <li key={index}>{note}</li>)}</ul>
+                </details>}
                 {waitingTimeline(task.readiness.decision) && <p>{waitingTimeline(task.readiness.decision)}</p>}
                 <p className="ws-note">Check this page for updates.</p>
               </div>
@@ -135,10 +156,21 @@ export default function TaskDetail() {
             <section className="ws-section" aria-label={task.atlasPreview.label}>
               <h2>{task.atlasPreview.label}</h2>
               <p>{task.atlasPreview.statusText}</p>
+              {task.atlasPreview.viewAvailable && (
+                <button
+                  className="ws-link"
+                  type="button"
+                  onClick={() => void viewPreview(task.atlasPreview!.captureId)}
+                  disabled={previewState === "working"}
+                >
+                  {previewState === "working" ? "Opening 3D preview…" : "View 3D preview"}
+                </button>
+              )}
               <p className="ws-note">
                 Blueprint keeps this model; it is not available to download. It is generated from your recording,
                 is not to scale, and is not a measurement of your site.
               </p>
+              {previewError && <p role="alert">{previewError}</p>}
             </section>
           )}
 
@@ -425,12 +457,9 @@ export default function TaskDetail() {
             <section className="ws-section" aria-label="Your recording">
               <h2>Your recording</h2>
               <p>
-                You film this job yourself on your phone. Your job page shows what has been
-                received, what is still needed, and lets you add more footage.
+                Review your saved recording and processing updates on your job page.
+                You can also add footage there.
               </p>
-              {task.readiness?.missingViews?.length ? (
-                <p className="ws-muted">Still needed: {task.readiness.missingViews.join(", ")}.</p>
-              ) : null}
               {!task.archived && !task.recordingPermissionWithdrawn && (
                 <button className="ws-primary" type="button" onClick={() => void openTaskPage()} disabled={linkState === "working"}>
                   {linkState === "working" ? "Opening…" : "Add or review footage"}

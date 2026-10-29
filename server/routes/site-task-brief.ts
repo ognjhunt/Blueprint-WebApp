@@ -240,6 +240,7 @@ async function readRequestForStatus(requestId: string, captureId = `walkthrough-
   site_task_scope?: { supported?: unknown; reason?: unknown } | null;
   siteName?: string | null;
   captureRights: ReturnType<typeof projectWebsiteCaptureRights>;
+  visualReconstructionReady: boolean;
   preparationOutcome: TaskOutcome | null;
   ownerClosureOutcome: TaskOutcome | null;
   /** Whether robot teams can see the job and request an evaluation. */
@@ -268,12 +269,15 @@ async function readRequestForStatus(requestId: string, captureId = `walkthrough-
   };
   const contactEmail = await plain(contact?.email);
   const contactFirstName = await plain(contact?.firstName);
+  const captureRights = projectWebsiteCaptureRights(data);
+  const preview = captureRights.derived_scene_generation_allowed
+    ? selectWebsiteAtlasPreview(data, selectedCaptureId) : null;
   return {
     active_capture_id: selectedCaptureId,
-    captureRights: projectWebsiteCaptureRights(data),
+    captureRights,
+    visualReconstructionReady: preview?.state === "ready",
     ownerClosureOutcome: projectWebsiteRunClosure(data, requestId, selectedCaptureId),
-    preparationOutcome: projectWebsiteCaptureRights(data).derived_scene_generation_allowed
-      ? projectAtlasPreparationOutcome(selectWebsiteAtlasPreview(data, selectedCaptureId)) : null,
+    preparationOutcome: projectAtlasPreparationOutcome(preview),
     siteTaskGates: gateAnswersOnFile(data),
     site_task_brief_confirmed_at: data.site_task_brief_confirmed_at,
     capture_coverage: (data.capture_coverage as never) ?? null,
@@ -930,6 +934,9 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
     try {
       const request = await readRequestForStatus(payload.requestId);
       coverageMeasured = typeof request?.capture_coverage?.covers_scene === "boolean";
+      // The brief can be a no-op while its notification intent is missing.
+      // Reuse the durable outbox key to recover failed enqueues without
+      // creating another message or changing the confirmed work.
       if (request?.contactEmail && !scoreable) {
         const email = buildTaskNotYetSupportedEmail({
           firstName: request.contactFirstName || "there",
@@ -992,7 +999,7 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
     // A site that needs a call gets no scene until ops records the call, so
     // ops has to hear about it: the request carries the next step and Slack
     // rings. Best-effort; neither may fail the operator's confirmation.
-    if (scoreable && result.disposition === "needs_conversation" && db) {
+    if (!result.reusedConfirmation && scoreable && result.disposition === "needs_conversation" && db) {
       const agenda = await db.collection("inboundRequests").doc(payload.requestId).get()
         .then((snap) => (snap.data()?.site_task_triage?.open_questions as string[] | undefined) ?? [])
         .catch(() => []);
@@ -1132,6 +1139,7 @@ router.get("/:token/status", async (req: Request, res: Response) => {
         consentRevoked: request?.captureRights.consent_revoked,
         footageReviewAutomated: isSiteVideoEvidenceEnabled(),
         scenePreviewReady: Boolean(sceneViewUrl),
+        visualReconstructionReady: payload.scope === "owner" && request?.visualReconstructionReady === true,
         scenePreparationFailed: reconstruction?.state === "failed",
         ownerClosureOutcome: payload.scope === "owner" ? request?.ownerClosureOutcome : null,
         preparationOutcome: payload.scope === "owner" && request && !request.captureRights.consent_revoked

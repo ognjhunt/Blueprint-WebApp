@@ -1663,6 +1663,39 @@ describe("development-only Atlas 3D preview", () => {
   }
   afterEach(() => { delete process.env.TASK_EVALUATION_RESULT_DOWNLOAD_SIGNING_SECRET; });
 
+  it.each(["unverified", "read_failed"])("retains the ready preview and Blueprint action over %s native status and raw advisory coverage", async failure => {
+    consentedTask({ "walkthrough-task-1": await preview({}) });
+    Object.assign(state.records.get("inboundRequests/task-1"), {
+      capture_coverage: { covers_scene: false, missing_coverage: ["A closer walkthrough along the shelving units"] },
+    });
+    state.records.set("captureUploadSessions/walkthrough-task-1", { website_preparation: { state: "queued" } });
+    if (failure === "read_failed") preparation.read.mockRejectedValueOnce(new Error("native projection unavailable"));
+    else preparation.read.mockResolvedValueOnce({ state: "unavailable" } as never);
+    const viewed = await (await api("/tasks/task-1", "site-1")).json();
+    expect(viewed.atlasPreview).toMatchObject({ state: "ready", downloadAvailable: false, viewAvailable: true });
+    expect(viewed.status).toBe("3D preview ready");
+    expect(viewed.readiness).toMatchObject({ decision: "preview_ready", operatorAction: null });
+    expect(viewed.readiness.headline).toMatch(/Blueprint is checking/);
+    expect(viewed.readiness.missingViews).toEqual(["A closer walkthrough along the shelving units"]);
+    expect(viewed.results).toEqual([]);
+    expect(viewed.sceneReady).not.toBe(true);
+  });
+
+  it.each(["authority_ended", "failed_terminal"])("keeps verified %s above a ready preview when the optional recording lookup fails", async nativeState => {
+    consentedTask({ "walkthrough-task-1": await preview({}) });
+    const { draftBrief } = await import("../utils/siteTaskBrief");
+    state.records.set("siteTaskBriefs/task-1", draftBrief({ requestId: "task-1", summary: "Move the carton to the pallet", captureMode: "self_capture", proposed: [] }));
+    state.records.set("captureUploadSessions/walkthrough-task-1", { website_preparation: { state: "queued" } });
+    preparation.read.mockResolvedValueOnce({ state: nativeState, correlationId: "bp-prep-1234567890abcdef" } as never);
+    storage.readable = false;
+    const viewed = await (await api("/tasks/task-1", "site-1")).json();
+    expect(viewed.atlasPreview).toMatchObject({ state: "ready", downloadAvailable: false });
+    expect(viewed.readiness.decision).not.toBe("preview_ready");
+    expect(viewed.readiness.headline).toMatch(nativeState === "authority_ended" ? /authorization/i : /could not finish processing/i);
+    expect(viewed.readiness.operatorAction).toBeNull();
+    expect(viewed.results).toEqual([]);
+  });
+
   // Owner decision 2026-10-29: Blueprint owns the reconstruction; the site sees it is ready but never downloads it.
   it("shows the owner plain copy of a ready preview and never issues a download ticket", async () => {
     process.env.TASK_EVALUATION_RESULT_DOWNLOAD_SIGNING_SECRET = "fixture-ticket-secret";
@@ -1671,7 +1704,7 @@ describe("development-only Atlas 3D preview", () => {
     expect(viewed.atlasPreview).toEqual({ captureId: "walkthrough-task-1", label: "3D preview (beta, unscaled)",
       state: "ready", statusText: "Your 3D preview is ready. Blueprint keeps the model for your job.", developmentOnly: true,
       splatAvailable: true, meshAvailable: false, sizeBytes: 4096,
-      updatedAtIso: new Date(1_761_138_000_000).toISOString(), downloadAvailable: false });
+      updatedAtIso: new Date(1_761_138_000_000).toISOString(), downloadAvailable: false, viewAvailable: true });
     expect(JSON.stringify(viewed)).not.toContain("pipeline_private_detail");
     const path = "/tasks/task-1/atlas-preview/download-ticket";
     expect((await api(path, "site-2", {})).status).toBe(404);
@@ -1679,6 +1712,27 @@ describe("development-only Atlas 3D preview", () => {
     expect(refused.status).toBe(410);
     expect(refused.headers.get("cache-control")).toBe("private, no-store");
     expect(await refused.json()).toMatchObject({ code: "website_atlas_preview_download_retired" });
+  });
+
+  it("issues a short-lived view ticket only for the owner's ready preview with a splat", async () => {
+    process.env.TASK_EVALUATION_RESULT_DOWNLOAD_SIGNING_SECRET = "fixture-ticket-secret";
+    consentedTask({ "walkthrough-task-1": await preview({}) });
+    const path = "/tasks/task-1/atlas-preview/view-ticket";
+    expect((await api(path, "site-2", {})).status).toBe(404);
+    expect((await api(path, "site-1", { captureId: "walkthrough-task-1", extra: true })).status).toBe(400);
+    const ticket = await api(path, "site-1", { captureId: "walkthrough-task-1" });
+    expect(ticket.status).toBe(201);
+    expect(ticket.headers.get("cache-control")).toBe("private, no-store");
+    const { viewer_url: url } = await ticket.json();
+    const content = new URL(url, "https://webapp.invalid").searchParams.get("content");
+    expect(url.startsWith("/splat-viewer/index.html?content=")).toBe(true);
+    expect(content).toMatch(/^\/api\/website-atlas-preview-views\/task-1\/walkthrough-task-1\/scene\.ply\?expires=\d+&signature=[0-9a-f]{64}$/);
+    consentedTask({ "walkthrough-task-1": await preview({ splat_available: false }) });
+    expect((await (await api("/tasks/task-1", "site-1")).json()).atlasPreview).toMatchObject({ viewAvailable: false });
+    expect((await api(path, "site-1", {})).status).toBe(404);
+    consentedTask({ "walkthrough-task-1": await preview({}) });
+    delete process.env.TASK_EVALUATION_RESULT_DOWNLOAD_SIGNING_SECRET;
+    expect((await api(path, "site-1", {})).status).toBe(503);
   });
 
   it("disappears as soon as recording consent is withdrawn", async () => {

@@ -78,7 +78,8 @@ import { accountHasAdmission } from "../utils/accountInvitations";
 import { resolveAccessContext } from "../utils/access-control";
 import { siteVisitOptions } from "../../client/src/data/sitePilotIntent";
 import { projectWebsiteCaptureWithdrawal, recordWebsiteCaptureWithdrawal } from "../utils/websiteCaptureWithdrawal";
-import { projectWebsiteAtlasPreview, selectWebsiteAtlasPreview } from "../utils/websiteAtlasPreview";
+import { projectWebsiteAtlasPreview, selectWebsiteAtlasPreview, WEBSITE_ATLAS_CAPTURE_ID } from "../utils/websiteAtlasPreview";
+import { viewableWebsiteAtlasPreview, websiteAtlasPreviewViewerUrl } from "../utils/websiteAtlasPreviewView";
 import { projectPilotBooking } from "../utils/pilotContactExchange";
 import { listCheckpoints } from "../utils/robotCheckpoints";
 import { offersTeamEvaluation, TEAM_POLICY_BLOCKER_MESSAGES, teamPolicyBlocker, robotSetupIntegrationBlocker, type TeamPolicyBlocker } from "../utils/policyIntegration";
@@ -646,6 +647,10 @@ async function hydrateTask(requestId: string, record: Record<string, any>) {
   // account-free capture page uses. Best-effort: a failure to read the brief is
   // a missing readiness line, not a failed task load.
   const currentCapture = siteWalkthroughIdentity(requestId, record);
+  const atlasPreview = consentRevoked ? null : projectWebsiteAtlasPreview(record);
+  const visualReconstructionReady = atlasPreview?.state === "ready"
+    && atlasPreview.captureId === currentCapture.captureId && !task.archived
+    && ["none", "not_selected"].includes(task.pilot.state) && task.status !== "Review results";
   try {
     const brief = await getBrief(requestId);
     let stage: ReturnType<typeof assessReadiness>["stage"] | null = null;
@@ -691,10 +696,10 @@ async function hydrateTask(requestId: string, record: Record<string, any>) {
       ?? (/^[a-f0-9]{64}$/.test(String(record.public_task_listing?.thumbnailDigest ?? "")) && record.public_task_listing?.enabled === true
         ? `/api/site-worlds/tasks/${encodeURIComponent(requestId)}/thumbnail` : null);
     // Whether the site has filmed, read as the private job page reads it, so a
-    // filmed site is never told to film. Unreadable is not "not filmed": it
-    // leaves the readiness line out (the catch below) rather than guess.
+    // filmed site is never told to film. A verified preview makes this
+    // optional lookup nonfatal, preserving native context already read above.
     const walkthrough = consentRevoked ? null : await savedWalkthrough(currentCapture);
-    if (!consentRevoked && !walkthrough) throw new Error("walkthrough_status_unavailable");
+    if (!consentRevoked && !walkthrough && !visualReconstructionReady) throw new Error("walkthrough_status_unavailable");
     task.readiness = projectTaskStatus(
       taskStatusInputFrom({
         active_capture_id: typeof record.active_capture_id === "string" ? record.active_capture_id : null,
@@ -706,6 +711,7 @@ async function hydrateTask(requestId: string, record: Record<string, any>) {
         consentRevoked,
         footageReviewAutomated: isSiteVideoEvidenceEnabled(),
         scenePreviewReady,
+        visualReconstructionReady,
         scenePreparationFailed: reconstruction?.state === "failed",
         ownerClosureOutcome: !consentRevoked
           ? projectWebsiteRunClosure(record, requestId, currentCapture.captureId) : null,
@@ -725,7 +731,13 @@ async function hydrateTask(requestId: string, record: Record<string, any>) {
       }),
     );
   } catch {
-    task.readiness = null;
+    // A failed native/brief read cannot erase independently verified visual
+    // output or turn old advisory notes into another recording request.
+    task.readiness = visualReconstructionReady ? projectTaskStatus(taskStatusInputFrom({
+      briefDrafted: false, stage: null, visualReconstructionReady: true,
+      active_capture_id: record.active_capture_id, capture_coverage: record.capture_coverage ?? null,
+      ownerClosureOutcome: projectWebsiteRunClosure(record, requestId, currentCapture.captureId),
+    })) : null;
   }
 
   task.siteAdvisory = consentRevoked ? null : await loadCurrentSiteAdvisory(requestId, currentCapture.captureId, { expectedOwnerUid: record.account_owner_uid ?? null });
@@ -737,9 +749,12 @@ async function hydrateTask(requestId: string, record: Record<string, any>) {
   else if (task.readiness?.outcome) {
     task.status = task.readiness.outcome.title;
     task.nextStep = task.readiness.outcome.nextStep;
+  } else if (task.readiness?.decision === "preview_ready") {
+    task.status = "3D preview ready";
+    task.nextStep = task.readiness.headline;
   }
   // Development-only, unscaled; gone the moment recording consent is withdrawn.
-  task.atlasPreview = consentRevoked ? null : projectWebsiteAtlasPreview(record);
+  task.atlasPreview = atlasPreview;
   // The booked pilot with the robot team's contact, while both consents stand.
   task.pilotBooking = await projectPilotBooking(record, "site").catch(() => null);
   return task;
@@ -1607,6 +1622,18 @@ router.post("/tasks/:taskId/atlas-preview/download-ticket", handle(async (req, r
   await ownedTask(req.params.taskId, res);
   res.set("Cache-Control", "private, no-store");
   refuse(410, "3D previews can be viewed but not downloaded.", "website_atlas_preview_download_retired");
+}));
+/** Owner decision 2026-10-29: the site views its 3D preview in the vendored viewer. This
+ * ticket only lets that viewer fetch the splat for 15 minutes; it never names a file to save. */
+router.post("/tasks/:taskId/atlas-preview/view-ticket", handle(async (req, res) => {
+  const item = await ownedTask(req.params.taskId, res);
+  const input = z.object({ captureId: z.string().regex(WEBSITE_ATLAS_CAPTURE_ID).optional() }).strict().parse(req.body ?? {});
+  res.set("Cache-Control", "private, no-store");
+  const preview = viewableWebsiteAtlasPreview(item.record, input.captureId);
+  if (!preview) refuse(404, "This 3D preview is not available to view.", "website_atlas_preview_unavailable");
+  const viewerUrl = websiteAtlasPreviewViewerUrl(req.params.taskId, preview.capture_id);
+  if (!viewerUrl) refuse(503, "3D preview viewing is not configured.", "website_atlas_preview_view_not_configured");
+  return res.status(201).json({ viewer_url: viewerUrl });
 }));
 router.post(
   "/tasks/:taskId/pilot",
