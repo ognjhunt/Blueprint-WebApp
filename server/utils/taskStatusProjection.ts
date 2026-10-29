@@ -324,7 +324,9 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
   }
   if (input.targetChoiceAnswer === 'other_candidate' && !input.sceneProgression) {
     // A stopped correction shows its stop, not an update that never comes.
-    const correctionStopped = input.preparationStatus?.outcome
+    // A still-published question means the Pipeline has not yet consumed the
+    // new owner choice. Its prior rejection/failure is not the B attempt's stop.
+    const correctionStopped = input.preparationStatus?.question ? null : input.preparationStatus?.outcome
       ?? (input.preparationStatus?.state === "failed_terminal" || input.preparationStatus?.state === "failed_retryable"
         ? processingFailure() : null);
     if (correctionStopped) return {...base, decision: correctionStopped.category, stage: null, missingViews: [],
