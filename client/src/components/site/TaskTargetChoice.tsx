@@ -18,6 +18,7 @@ function at(ms: number | null): string {
 export function TaskTargetChoice({ token, question, onAnswered }: {
   token: string; question: TaskTargetChoiceView; onAnswered: () => void;
 }) {
+  const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -45,9 +46,12 @@ export function TaskTargetChoice({ token, question, onAnswered }: {
       onChange={() => setSelected(value)} style={{ width: "auto", minHeight: 0, marginTop: "4px" }} />
     <span>{text}</span>
   </label>;
-  return <section className="job-review" aria-labelledby="task-target-choice-title">
-    <h3 id="task-target-choice-title">We picked {guess.label}{at(guess.referenceTimeMs)}. Is that the object the robot should move?</h3>
-    <p className="ms-field-hint">Blueprint could not tell for sure which {question.semanticLabel.toLowerCase()} in your video the robot should move, so it kept preparing this job with its best guess. Answering is optional; if it is not the right one, pick the right one and Blueprint reruns this same job from your saved video.</p>
+  return <section aria-label="Object selection">
+    <p className="ms-field-hint">Object used: {guess.label}{at(guess.referenceTimeMs)}. Preparation continues automatically.</p>
+    <button type="button" className="ms-text-button" aria-expanded={open} aria-controls="task-target-choice-options"
+      onClick={() => setOpen(value => !value)}>{open ? "Close object selection" : "Review or correct object selection"}</button>
+    {open && <div id="task-target-choice-options">
+    <p className="ms-field-hint">This is Blueprint’s best supported selection. A correction updates this same job using your saved video.</p>
     <fieldset disabled={busy} style={{ border: 0, padding: 0, margin: "12px 0" }}>
       <legend className="ms-field-hint">Your answer</legend>
       {option("confirm", "Yes, that is the one")}
@@ -58,5 +62,6 @@ export function TaskTargetChoice({ token, question, onAnswered }: {
       {busy ? "Saving your answer…" : "Save answer"}
     </button>
     {error && <p role="alert">{error}</p>}
+    </div>}
   </section>;
 }
