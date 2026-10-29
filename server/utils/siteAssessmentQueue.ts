@@ -14,6 +14,7 @@ import { assessmentCustomerStatementRefs, siteCustomerStatementDigest, type Site
 import { communicationsDigest } from "../agents/communications-contract";
 import { modelReviewHeadroom, type ModelReviewHeadroom } from "./betaAbuseCaps";
 import { GEMINI_VIDEO_CALL_RESERVATION_USD } from "../agents/adapters/site-assessment-budget";
+import { isAdditionalViewSource } from "./websiteCaptureSource";
 
 export const SITE_ASSESSMENT_JOBS = "siteAssessmentJobs";
 type State = "queued" | "running" | "completed" | "needs_review" | "authority_ended";
@@ -44,6 +45,7 @@ const queuedJob = (pending: BrowserPending, contextDigest: string): SiteAssessme
 function currentAuthority(job: Pick<SiteAssessmentJob, "request_id" | "capture_id" | "source_key" | "context_digest">,
   raw: Record<string, any> | undefined, brief: Record<string, any> | null, session: Record<string, any> | undefined) {
   const pending = session?.browser_pending_delivery as BrowserPending | undefined;
+  if (raw?.active_recording_scope === "additional_views") return null;
   const privacy = raw?.capture_privacy_source_bound_decision;
   if (raw?.active_capture_id && raw.active_capture_id !== job.capture_id) return null;
   if (!raw || raw.request?.buyerType !== "site_operator" || !projectWebsiteCaptureRights(raw).derived_scene_generation_allowed
@@ -59,12 +61,16 @@ function currentAuthority(job: Pick<SiteAssessmentJob, "request_id" | "capture_i
 /** Called only inside the first actual held→published transaction. No backfill. */
 export async function enqueueNewPublishedSiteAssessment(tx: FirebaseFirestore.Transaction, pending: BrowserPending) {
   if (!db || !isSiteVideoEvidenceEnabled() || !isWebsiteCaptureId(pending.request_id, pending.scene_id, pending.capture_id)) return;
+  const link = pending.capture_id === `walkthrough-${pending.request_id}` ? undefined
+    : (await tx.get(db.collection("captureSupplements").doc(pending.capture_id))).data();
+  if (isAdditionalViewSource(link, pending.request_id, pending.scene_id, pending.capture_id)) return;
   const requestRef = db.collection("inboundRequests").doc(pending.request_id);
   const [request, brief] = await Promise.all([tx.get(requestRef), tx.get(db.collection("siteTaskBriefs").doc(pending.request_id))]);
   const raw = request.data(), ownerContext = brief.exists ? brief.data()! : null;
   const sourceKey = browserPendingDecisionKey(pending), contextDigest = advisoryContextDigest(raw || {}, ownerContext);
   const candidate = { request_id: pending.request_id, capture_id: pending.capture_id, source_key: sourceKey, context_digest: contextDigest };
-  if (!currentAuthority(candidate, raw ? { ...raw, active_capture_id: pending.capture_id } : raw, ownerContext, { browser_pending_delivery: { ...pending, state: "published" } })) return;
+  if (!currentAuthority(candidate, raw ? { ...raw, active_capture_id: pending.capture_id,
+    active_recording_scope: "complete_walkthrough" } : raw, ownerContext, { browser_pending_delivery: { ...pending, state: "published" } })) return;
   const id = advisoryJobId(pending.request_id, sourceKey, contextDigest);
   const ref = db.collection(SITE_ASSESSMENT_JOBS).doc(id), prior = await tx.get(ref);
   const job: SiteAssessmentJob = prior.exists ? prior.data() as SiteAssessmentJob : queuedJob(pending, contextDigest);

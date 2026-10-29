@@ -298,7 +298,7 @@ describe("video first owner return", () => {
     expect(videoUpload.send).not.toHaveBeenCalled();
     expect(videoUpload.retry).not.toHaveBeenCalled();
   });
-  it("keeps owner corrections optional when a saved job has a coverage gap", async () => {
+  it("keeps extra footage optional when a saved job has a coverage gap", async () => {
     const fetcher = ownerFetch(false);
     vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL) => {
       const url = String(input);
@@ -308,15 +308,29 @@ describe("video first owner return", () => {
     }));
     render(<SelfCaptureUpload />);
     expect(await screen.findByText("Video received.")).toBeVisible();
-    expect(screen.getByText("Update walkthrough (optional)").closest("details")).not.toHaveAttribute("open");
-    expect(screen.getByRole("button", { name: "Update walkthrough" })).not.toBeVisible();
-    fireEvent.click(screen.getByText("Update walkthrough (optional)"));
-    expect(screen.getByRole("button", { name: "Update walkthrough" })).toBeEnabled();
+    expect(screen.getByText("Add or update video (optional)").closest("details")).not.toHaveAttribute("open");
+    expect(screen.getByRole("button", { name: "Add another video" })).not.toBeVisible();
+    fireEvent.click(screen.getByText("Add or update video (optional)"));
+    expect(screen.getByRole("button", { name: "Add another video" })).toBeEnabled();
     expect(screen.queryByRole("button", { name: "Upload a video file" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Upload a new recording" })).not.toBeInTheDocument();
     expect(screen.getByText(/your job and original video stay saved/i)).toBeInTheDocument();
     expect(videoUpload.send).not.toHaveBeenCalled();
     expect(screen.queryByRole("button", { name: "Add footage when you are ready (optional)" })).not.toBeInTheDocument();
+  });
+  it("asks an additional-view link for just the missing area instead of a complete walkthrough", async () => {
+    const fallback = ownerFetch(false);
+    vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).endsWith(`/api/self-capture/uploads/${TOKEN}/status`)) return Promise.resolve({ ok: true,
+        json: async () => ({ ok: true, state: "ready", accepts: ["mov", "mp4"], isVideoUpdate: true,
+          recordingScope: "additional_views", captureReceived: false }) });
+      return fallback(input, init);
+    }));
+    render(<SelfCaptureUpload />);
+    expect(await screen.findByText(/Film only the missing area/)).toBeVisible();
+    expect(screen.queryByText(/Film or upload a complete updated walkthrough/)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Upload a video file" })).toBeEnabled();
+    expect(videoUpload.send).not.toHaveBeenCalled();
   });
   it.each([{ missingViews: [] }, { missingViews: ["pallet"] }])("opens one primary same-job update with missing views $missingViews without sending another upload", async ({ missingViews }) => {
     const fallback = ownerFetch(false, true);
@@ -332,11 +346,11 @@ describe("video first owner return", () => {
     render(<SelfCaptureUpload />);
     await screen.findByText("Video received.");
     expect(screen.queryByRole("button", { name: "Upload a replacement walkthrough" })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByText("Update walkthrough (optional)"));
-    fireEvent.click(screen.getByRole("button", { name: "Update walkthrough" }));
+    fireEvent.click(screen.getByText("Add or update video (optional)"));
+    fireEvent.click(screen.getByRole("button", { name: "Add another video" }));
     await waitFor(() => expect(route.navigate).toHaveBeenCalledWith("/capture-upload/signed-same-job-update"));
     const call = fetcher.mock.calls.find(([input]) => String(input).endsWith("/supplement"))!;
-    expect(JSON.parse(String(call[1]?.body))).toMatchObject({ mode: "replacement", requestId: expect.any(String) });
+    expect(JSON.parse(String(call[1]?.body))).toMatchObject({ mode: "append_views", requestId: expect.any(String) });
     expect(videoUpload.send).not.toHaveBeenCalled();
   });
   it("lets the owner link withdraw recording permission after an explicit confirmation", async () => {
@@ -616,7 +630,7 @@ describe("SelfCaptureUpload after the phone has uploaded", () => {
     expect(screen.queryByText("Add photos of the job items")).not.toBeInTheDocument();
     expect(screen.queryByText(/Add measurements/)).not.toBeInTheDocument();
     expect(fetchMock.mock.calls.map(([input]) => String(input)).filter((url) => /\/(clarification|items|measurements|follow-up)\b/.test(url))).toEqual([]);
-    expect(screen.getByRole("button", { name: "Update walkthrough" })).not.toBeVisible();
+    expect(screen.getByRole("button", { name: "Add another video" })).not.toBeVisible();
   });
 
   it("shows a held video's status on a return visit, and asks nothing", async () => {

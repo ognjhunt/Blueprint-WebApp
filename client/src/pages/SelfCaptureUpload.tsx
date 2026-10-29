@@ -115,19 +115,19 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
   const [, navigate] = useLocation();
   const [startingVideoUpdate, setStartingVideoUpdate] = useState(false);
   const [isVideoUpdate, setIsVideoUpdate] = useState(false);
+  const [additionalViewsOnly, setAdditionalViewsOnly] = useState(false);
   const [videoUpdateError, setVideoUpdateError] = useState<string | null>(null);
-  const videoUpdateIntent = useRef<string | null>(null);
-  async function updateVideo() {
+  const videoUpdateIntent = useRef<{ mode: "replacement" | "append_views"; id: string } | null>(null);
+  async function updateVideo(mode: "replacement" | "append_views" = "replacement") {
     if (startingVideoUpdate || scope !== "owner") return;
     setStartingVideoUpdate(true); setVideoUpdateError(null);
-    videoUpdateIntent.current ??= crypto.randomUUID();
+    if (videoUpdateIntent.current?.mode !== mode) videoUpdateIntent.current = { mode, id: crypto.randomUUID() };
     try {
       const response = await fetch(`/api/self-capture/uploads/${encodeURIComponent(token)}/supplement`, {
         method: "POST", headers: await withCsrfHeader({ "Content-Type": "application/json" }),
-        // The current processing path takes a complete walkthrough. A coverage
-        // report may still describe an earlier recording, so it must not gate
-        // this owner-requested update or choose a different upload contract.
-        body: JSON.stringify({ mode: "replacement", requestId: videoUpdateIntent.current }),
+        // Both owner-requested modes bind the current source without waiting
+        // for a coverage report. Added views preserve the previous input set.
+        body: JSON.stringify({ mode, requestId: videoUpdateIntent.current.id }),
       });
       const result = await response.json().catch(() => null);
       if (!response.ok || !result?.ok || typeof result.url !== "string" || !result.url.startsWith("/capture-upload/"))
@@ -366,6 +366,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
         }
 
         setIsVideoUpdate(data.isVideoUpdate === true);
+        setAdditionalViewsOnly(data.recordingScope === "additional_views");
         const received = receivedVideoResult(data);
         if (received) {
           setLink({
@@ -647,7 +648,9 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
           ? {text: preparationUpdate, owner: "blueprint"}
           : {text: status.operatorAction || status.headline, owner: status.operatorAction || status.decision === "confirm_brief" ? "site" : "blueprint"} : undefined} />}
 
-      {isVideoUpdate && !saved && <p className="ms-field-hint" role="status">Film or upload a complete updated walkthrough. This updates the same job and keeps your original video.</p>}
+      {isVideoUpdate && !saved && <p className="ms-field-hint" role="status">{additionalViewsOnly
+        ? "Film only the missing area. Start with a view that overlaps your earlier recording, then show the missing area. We use both recordings on this job and keep the originals."
+        : "Film or upload a complete updated walkthrough of the job, including the missing views. This updates the same job and keeps your original video."}</p>}
       {/* A filming link opens the recorder; a held link explains its hold. */}
       {link.status === "checking" && (
         <p style={{ color: "var(--ms-muted)" }}>Checking your link…</p>
@@ -802,11 +805,18 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
                 </p>}
               </div>
               {scope === "owner" && link.status === "valid" && <details aria-label="Update job video" style={{ margin: "16px 0" }}>
-                <summary>Update walkthrough (optional)</summary>
-                <p className="ms-field-hint">If your job or recording has changed, you can send a complete updated walkthrough. Your job and original video stay saved.</p>
-                <button type="button" className="ms-text-link" disabled={startingVideoUpdate} onClick={() => void updateVideo()}>
-                  {startingVideoUpdate ? "Opening video update…" : "Update walkthrough"}
+                <summary>Add or update video (optional)</summary>
+                <p className="ms-field-hint">Blueprint handles reconstruction from the recording you supplied. If you want to add another angle, your job and original video stay saved.</p>
+                <button type="button" className="ms-text-link" disabled={startingVideoUpdate}
+                  onClick={() => void updateVideo("append_views")}>
+                  {startingVideoUpdate ? "Opening video update…" : "Add another video"}
                 </button>
+                <details style={{ marginTop: "12px" }}>
+                  <summary>Replace the complete walkthrough instead</summary>
+                  <p className="ms-field-hint">Use this if the job or recording has changed. Earlier videos stay saved.</p>
+                  <button type="button" className="ms-text-link" disabled={startingVideoUpdate}
+                    onClick={() => void updateVideo("replacement")}>Update walkthrough</button>
+                </details>
                 {videoUpdateError && <p role="alert">{videoUpdateError}</p>}
               </details>}
               {!blueprintActionPending && upload.status === "processing_pending" && upload.processingRetryAvailable && (

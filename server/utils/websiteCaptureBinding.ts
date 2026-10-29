@@ -11,6 +11,17 @@ import { matchesBrowserDeliveryRecord } from "./websiteCaptureDelivery";
 const sha = (bytes: string) => `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
 const digest = (value: unknown) => humanDecisionDigest(value);
 
+/** Original-to-new observation set, stopping at the latest complete replacement. */
+export function activeRecordingCaptureIds(lineage: Record<string, any>[]): string[] {
+  const ids: string[] = [];
+  for (const entry of lineage) {
+    if (!ids.length) ids.push(entry.child.capture_id);
+    if (entry.recording_scope !== "additional_views") break;
+    ids.push(entry.parent.capture_id);
+  }
+  return ids.reverse();
+}
+
 export async function assertWebsiteCaptureBindingInTransaction(tx: { get(ref: any): Promise<any> }, requestId: string,
   binding: Record<string, any> | undefined) {
   if (!binding) return;
@@ -18,7 +29,10 @@ export async function assertWebsiteCaptureBindingInTransaction(tx: { get(ref: an
   for (const entry of binding.lineage) {
     const link = (await tx.get(db.collection("captureSupplements").doc(entry.child.capture_id))).data();
     if (link?.requestId !== requestId || link.sceneId !== `site-${requestId}`
-      || digest(link.supplement) !== digest(entry.supplement)) throw new Error("website_capture_binding_lineage_changed");
+      || digest(link.supplement) !== digest(entry.supplement)
+      || entry.recording_scope !== undefined
+        && (link.recording_scope ?? "complete_walkthrough") !== entry.recording_scope)
+      throw new Error("website_capture_binding_lineage_changed");
     for (const source of [entry.child, entry.parent]) {
       const stored = (await tx.get(db.collection("captureUploadSessions").doc(source.capture_id))).data();
       const sourceBucket = new URL(source.raw_manifest_uri).hostname;
@@ -29,9 +43,13 @@ export async function assertWebsiteCaptureBindingInTransaction(tx: { get(ref: an
         throw new Error("website_capture_binding_source_changed");
     }
   }
+  if (binding.schema_version === "website_capture_continuation.v2"
+    && digest(activeRecordingCaptureIds(binding.lineage)) !== digest(binding.recording_capture_ids))
+    throw new Error("website_capture_binding_lineage_changed");
 }
 
-async function finalized(captureId: string, requestId: string, sceneId: string, storage: BundleStorage, allowRetained = false) {
+async function finalized(captureId: string, requestId: string, sceneId: string, storage: BundleStorage, allowRetained = false,
+  videos?: Map<string, Record<string, any>>) {
   const snap = await db!.collection("captureUploadSessions").doc(captureId).get();
   const record = snap.data();
   const { identity, delivery, retained } = websiteSessionSource(record, requestId, sceneId, captureId, storage.bucketName);
@@ -45,6 +63,7 @@ async function finalized(captureId: string, requestId: string, sceneId: string, 
     if (digest(before) !== digest(after)
       || digest(websiteSessionSource(latest, requestId, sceneId, captureId, storage.bucketName).identity) !== digest(identity))
       throw new Error("website_capture_binding_source_changed");
+    videos?.set(captureId, retained.video);
     return { capture_id: captureId, ...identity, source_state: "retained_unprocessed",
       completion_generation: null, completion_record_generation: null, manifest_generation: null };
   }
@@ -64,6 +83,7 @@ async function finalized(captureId: string, requestId: string, sceneId: string, 
     const latest = (await db!.collection("captureUploadSessions").doc(captureId).get()).data();
     if (digest(before) !== digest(after) || digest(websiteSessionSource(latest, requestId, sceneId, captureId, storage.bucketName).identity) !== digest(identity))
       throw new Error("website_capture_binding_source_changed");
+    videos?.set(captureId, delivery.record.raw_video);
     return { capture_id: captureId, ...identity, completion_generation: before[0]!.generation!,
       completion_record_generation: before[1]!.generation!, manifest_generation: before[2]!.generation! };
   }
@@ -110,6 +130,11 @@ async function finalized(captureId: string, requestId: string, sceneId: string, 
   const latest = (await db!.collection("captureUploadSessions").doc(captureId).get()).data();
   if (digest(before) !== digest(after) || digest(manifestInfo) !== digest(manifestAfter)
     || digest(latest?.immutable_upload_identity) !== digest(identity)) throw new Error("website_capture_binding_source_changed");
+  const rawVideo = deviceObjects["walkthrough.mov"];
+  if (rawVideo && /^[a-f0-9]{64}$/.test(hashes.artifacts?.["walkthrough.mov"] ?? "")) videos?.set(captureId, {
+    object_name: `${prefix}/raw/walkthrough.mov`, generation: rawVideo.generation, size_bytes: rawVideo.size_bytes,
+    crc32c: rawVideo.crc32c, sha256: `sha256:${hashes.artifacts["walkthrough.mov"]}`,
+  });
   return { capture_id: captureId, ...identity, completion_generation: before[0]!.generation!,
     completion_record_generation: before[1]!.generation!, manifest_generation: manifestInfo.generation };
 }
@@ -128,6 +153,8 @@ export async function resolveWebsiteCaptureBinding(requestId: string, sceneId: s
   const storage = storageOverride ?? resolveBundleStorage();
   if (!storage) throw new Error("website_capture_binding_store_unavailable");
   const chain: Record<string, any>[] = [];
+  const videos = new Map<string, Record<string, any>>();
+  const scopes: string[] = [];
   const seen = new Set<string>();
   let current = captureId;
   while (current !== original) {
@@ -142,15 +169,29 @@ export async function resolveWebsiteCaptureBinding(requestId: string, sceneId: s
       record.parent_coverage);
     if (expected.captureId !== current || digest(expected.supplement) !== digest(record.supplement))
       throw new Error("website_capture_binding_lineage_changed");
-    const child = await finalized(current, requestId, sceneId, storage);
-    const parent = await finalized(parentId, requestId, sceneId, storage, true);
+    const scope = record.recording_scope ?? "complete_walkthrough";
+    if (!["complete_walkthrough", "additional_views"].includes(scope)
+      || scope !== (record.supplement.recording_scope ?? "complete_walkthrough"))
+      throw new Error("website_capture_binding_lineage_changed");
+    const child = await finalized(current, requestId, sceneId, storage, false, videos);
+    const parent = await finalized(parentId, requestId, sceneId, storage, true, videos);
     if (parent.raw_bundle_digest !== record.supplement.parent_bundle_digest
       || parent.raw_manifest_uri !== record.supplement.parent_manifest_uri)
       throw new Error("website_capture_binding_source_changed");
     const latest = (await db.collection("captureSupplements").doc(current).get()).data();
     if (digest(latest) !== digest(record)) throw new Error("website_capture_binding_lineage_changed");
     chain.push({ supplement: record.supplement, child, parent });
+    scopes.push(scope);
     current = parentId;
+  }
+  if (scopes.includes("additional_views")) {
+    const lineage = chain.map((entry, index) => ({ ...entry, recording_scope: scopes[index],
+      child: { ...entry.child, ...(videos.has(entry.child.capture_id) ? { raw_video: videos.get(entry.child.capture_id) } : {}) },
+      parent: { ...entry.parent, ...(videos.has(entry.parent.capture_id) ? { raw_video: videos.get(entry.parent.capture_id) } : {}) } }));
+    const ids = activeRecordingCaptureIds(lineage);
+    if (ids.some(id => !videos.has(id))) throw new Error("website_capture_binding_video_unknown");
+    return { schema_version: "website_capture_continuation.v2", original_capture_id: original, capture_id: captureId,
+      lineage, recording_capture_ids: ids, coordinate_frames_independent: true };
   }
   return { schema_version: "website_capture_continuation.v1", original_capture_id: original,
     capture_id: captureId, lineage: chain, coordinate_frames_independent: true };

@@ -855,6 +855,7 @@ export async function reserveWebsitePreparationSpend(requestId: string, input: z
       now: Date.now() / 1000,
       planning: command.provider === "openai", plannerTermsDigest: sceneProviderTerms().openai?.digest,
       record, captureRights: projectWebsiteCaptureRights(record), create: false,
+      captureBinding,
       readSession: async () => (await transaction.get(store.collection("captureUploadSessions").doc(captureId))).data(),
     })).grant : null;
     const rights = projectWebsiteCaptureRights(record);
@@ -969,6 +970,7 @@ export async function loadWebsiteAtlasConfiguration(requestId: string, captureId
       plannerTermsDigest: sceneProviderTerms().openai?.digest, planning: true, now: Date.now() / 1000,
       auxiliaryTermsDigests: { meta: sceneProviderTerms().meta?.digest, google: sceneProviderTerms().google?.digest },
       record, captureRights: rights, create: input.create !== false,
+      captureBinding: binding,
       readSession: async () => (await transaction.get(store.collection("captureUploadSessions").doc(captureId))).data() });
     if (authority.accepted_by !== websiteAtlasGrantOwner(record, authority))
       throw new Error("website_atlas_source_owner_mismatch");

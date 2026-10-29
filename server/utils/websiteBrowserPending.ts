@@ -1,5 +1,5 @@
 import { projectWebsiteCaptureRights } from "./websiteTaskContext";
-import { websiteSessionSource } from "./websiteCaptureSource";
+import { isAdditionalViewSource, websiteSessionSource } from "./websiteCaptureSource";
 import { isWebsiteCaptureId } from "./websiteCaptureIdentity";
 /** The exact browser write awaiting (or having passed) privacy admission. */
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
@@ -362,11 +362,13 @@ export async function publishBrowserPending(selected: BrowserPending): Promise<v
       // older already-published row is intentionally never backfilled.
       const requestRef = db!.collection("inboundRequests").doc(value.request_id);
       const request = (await transaction.get(requestRef)).data();
+      let additionalViews = false;
       if (value.capture_id !== `walkthrough-${value.request_id}`) {
         if (!projectWebsiteCaptureRights(request).derived_scene_generation_allowed) throw new Error("capture_processing_not_authorized");
         const link = (await transaction.get(db!.collection("captureSupplements").doc(value.capture_id))).data();
         if (link?.requestId !== value.request_id || link.sceneId !== value.scene_id || link.captureId !== value.capture_id)
           throw new Error("capture_lineage_unverified");
+        additionalViews = isAdditionalViewSource(link, value.request_id, value.scene_id, value.capture_id);
         const parent = (await transaction.get(db!.collection("captureUploadSessions").doc(link.supplement?.parent_capture_id))).data();
         const source = websiteSessionSource(parent, value.request_id, value.scene_id, link.supplement.parent_capture_id);
         if (source.identity.raw_bundle_digest !== link.supplement.parent_bundle_digest
@@ -376,7 +378,8 @@ export async function publishBrowserPending(selected: BrowserPending): Promise<v
           throw new Error("capture_update_superseded");
       }
       await enqueueNewPublishedSiteAssessment(transaction, value);
-      transaction.set(requestRef, { active_capture_id: value.capture_id }, { merge: true });
+      transaction.set(requestRef, { active_capture_id: value.capture_id,
+        active_recording_scope: additionalViews ? "additional_views" : "complete_walkthrough" }, { merge: true });
       // The preparation watch starts with the upload (beta L3/L6), so an upload
       // the Pipeline never reports on still reaches an operator.
       transaction.set(ref, { browser_pending_delivery: { ...value, state: "published" },

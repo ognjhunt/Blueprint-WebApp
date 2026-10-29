@@ -62,6 +62,56 @@ it("publication starts the website preparation watch once, in the same commit (b
   expect((state.docs.get(`captureUploadSessions/${pending.capture_id}`) as Record<string, any>).website_preparation_watch).toEqual(first);
 });
 
+async function publishUpdate(captureId: string, additional: boolean) {
+  const requestPath = `inboundRequests/${pending.request_id}`;
+  const raw = state.docs.get(requestPath)!;
+  const parentId = String(raw.active_capture_id);
+  const parent = state.docs.get(`captureUploadSessions/${parentId}`)!;
+  const source = (await import("../utils/websiteCaptureSource")).websiteSessionSource(parent, pending.request_id, pending.scene_id, parentId);
+  const update: BrowserPending = { ...pending, capture_id: captureId,
+    video: { ...pending.video, object_name: pending.video.object_name.replace(pending.capture_id, captureId) },
+    manifest: { ...pending.manifest, object_name: pending.manifest.object_name.replace(pending.capture_id, captureId) } };
+  state.docs.set(`captureSupplements/${captureId}`, { requestId: pending.request_id, sceneId: pending.scene_id, captureId,
+    recording_scope: additional ? "additional_views" : "complete_walkthrough", supplement: {
+      parent_capture_id: parentId, parent_bundle_digest: source.identity.raw_bundle_digest,
+      parent_manifest_uri: source.identity.raw_manifest_uri, coverage_digest: "b".repeat(64),
+      ...(additional ? { recording_scope: "additional_views" } : {}) } });
+  state.docs.set(`captureUploadSessions/${captureId}`, { browser_pending_delivery: update });
+  state.docs.set(requestPath, { ...raw, capture_privacy_source_bound_decision: { ...raw.capture_privacy_source_bound_decision,
+    capture_id: captureId, producer_source: { kind: "browser_pending", key: browserPendingDecisionKey(update) } } });
+  await publishBrowserPending(update);
+  return update;
+}
+
+it("does not re-read an extra fragment as a new job or replace the original brief and spending history", async () => {
+  await publishBrowserPending(pending);
+  const originalJobs = structuredClone([...state.docs].filter(([key]) => key.startsWith("siteAssessmentJobs/")));
+  const brief = { summary: "Move a bin; keep the original task", requestId: pending.request_id };
+  state.docs.set(`siteTaskBriefs/${pending.request_id}`, brief);
+  const costs = { actual_cost_usd: .5, attempts: 2, reservations: ["retained-call"] };
+  state.docs.set("inferencePrograms/retained-original", costs);
+  const child = await publishUpdate(`supplement-${"c".repeat(40)}`, true);
+  expect(state.docs.get(`inboundRequests/${pending.request_id}`)).toMatchObject({ active_capture_id: child.capture_id,
+    active_recording_scope: "additional_views" });
+  expect([...state.docs].filter(([key]) => key.startsWith("siteAssessmentJobs/"))).toEqual(originalJobs);
+  const queue = await import("../utils/siteAssessmentQueue");
+  await queue.reconcileSiteAssessments();
+  expect(seams.run).not.toHaveBeenCalled();
+  expect(state.docs.get(`siteTaskBriefs/${pending.request_id}`)).toEqual(brief);
+  expect(state.docs.get("inferencePrograms/retained-original")).toEqual(costs);
+});
+
+it("can assess a complete replacement after an extra-view update without inheriting its fragment scope", async () => {
+  await publishBrowserPending(pending);
+  await publishUpdate(`supplement-${"c".repeat(40)}`, true);
+  const replacement = await publishUpdate(`supplement-${"d".repeat(40)}`, false);
+  const jobs = [...state.docs].filter(([key]) => key.startsWith("siteAssessmentJobs/"));
+  expect(jobs).toHaveLength(2);
+  expect(jobs.map(([, value]) => value.capture_id)).toContain(replacement.capture_id);
+  expect(state.docs.get(`inboundRequests/${pending.request_id}`)).toMatchObject({ active_capture_id: replacement.capture_id,
+    active_recording_scope: "complete_walkthrough", site_advisory: { capture_id: replacement.capture_id, state: "queued" } });
+});
+
 const hash = (packet: unknown) => createHash("sha256").update(JSON.stringify(packet)).digest("hex");
 const selectedJob = () => [...state.docs].find(([key]) => key.startsWith("siteAssessmentJobs/"))!;
 const storedPacket = (id: string, job: any) => {
