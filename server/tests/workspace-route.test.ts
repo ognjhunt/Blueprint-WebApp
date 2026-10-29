@@ -298,6 +298,39 @@ async function api(
   });
 }
 describe("workspace access and projections", () => {
+  it.each(["nested", "legacy"])("uses the recorded pending terms pair in the %s account shape until its effective date", async shape => {
+    const acceptance = { ...buildLegalAcceptanceRecord({ acceptedAt: "2026-10-23T12:00:00Z" }),
+      terms_version: "2026-11-15.2", privacy_version: "2026-11-15.4" };
+    const record = { ...state.records.get("users/site-1"), ...(shape === "nested"
+      ? { termsAcceptance: acceptance }
+      : { acceptedTerms: true, termsVersion: acceptance.terms_version, privacyVersion: acceptance.privacy_version }) };
+    state.records.set("users/site-1", record);
+    const retained = structuredClone(record);
+    const effective = Date.parse("2026-11-15T08:00:00.000Z");
+    const clock = vi.spyOn(Date, "now");
+    try {
+      for (const [now, termsRequired] of [[effective - 1, false], [effective, true], [effective + 1, true]] as const) {
+        clock.mockReturnValue(now);
+        const response = await api("/setup", "site-1");
+        expect(response.status).toBe(200);
+        expect(await response.json()).toMatchObject({ termsRequired });
+        expect(state.records.get("users/site-1")).toEqual(retained);
+      }
+    } finally { clock.mockRestore(); }
+  });
+
+  it.each([false, undefined])("does not infer pending terms acceptance from an accepted flag of %s", async accepted => {
+    state.records.set("users/site-1", { ...state.records.get("users/site-1"),
+      termsAcceptance: { ...buildLegalAcceptanceRecord({ acceptedAt: "2026-10-23T12:00:00Z" }),
+        accepted_terms: accepted, terms_version: "2026-11-15.2", privacy_version: "2026-11-15.4" } });
+    const clock = vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-10-29T04:50:00Z"));
+    try {
+      const response = await api("/setup", "site-1");
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({ termsRequired: true });
+    } finally { clock.mockRestore(); }
+  });
+
   it("leaves the progress line out, never asking a site to film, when its footage status cannot be read", async () => {
     state.records.set("inboundRequests/task-1", { ...task(), site_task_brief_confirmed_at: "2026-09-18T00:00:00Z" });
     state.records.set("siteTaskBriefs/task-1", { requestId: "task-1", summary: "Task reading",
