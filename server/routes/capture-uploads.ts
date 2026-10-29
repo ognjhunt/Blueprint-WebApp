@@ -24,6 +24,7 @@ import { verifyProducerArtifact } from "../utils/producerCanonicalArtifact";
 import { resolveAccessContext } from "../utils/access-control";
 import { scientificBriefDigest, jobEvidenceTaskInventoryDigest } from "../utils/jobEvidenceContract";
 import { projectWebsiteCaptureRights } from "../utils/websiteTaskContext";
+import { currentCaptureTestbedAccess } from "../utils/currentCaptureTestbedAccess";
 import {
   parseVerifiedTaskEvaluationRunAuthorization,
   parseVerifiedTaskEvaluationRunPreparation,
@@ -533,7 +534,92 @@ function reconstructionProjection(record: SessionRecord) {
   };
 }
 
+class CaptureIntakeSourceError extends Error {
+  constructor(readonly code: string, readonly status: number) { super(code); }
+}
+
+/** Only immutable source identity is compared; receipts and closeout may advance. */
+function assertCaptureIntakeIdentity(expected: SessionRecord, current: SessionRecord | undefined,
+  includeGeneration = true) {
+  if (!current || current.session_id !== expected.session_id || current.owner_user_id !== expected.owner_user_id)
+    throw new CaptureIntakeSourceError("capture_source_not_found", 404);
+  const identity = (record: SessionRecord) => ({
+    organization_id: record.organization_id ?? null,
+    request_fingerprint_sha256: record.request_fingerprint_sha256,
+    request: record.request,
+    provider: record.provider || "backblaze",
+    object_path: record.object_path ?? null,
+    part_size_bytes: record.part_size_bytes,
+    expected_part_count: record.expected_part_count,
+    job_evidence_source_binding: record.job_evidence_source_binding ?? null,
+    site_capture_bundle: record.site_capture_bundle ?? null,
+    ...(includeGeneration ? {provider_file_id: record.provider_file_id ?? null,
+      storage_uri: record.storage_uri ?? null} : {}),
+  });
+  if (stable(identity(expected)) !== stable(identity(current)))
+    throw new CaptureIntakeSourceError("capture_source_changed", 409);
+}
+
+type CaptureIntakeObservedScope = {jobId?: string};
+async function assertCaptureIntakeProcessing(record: SessionRecord,
+  read: (collection: string, id: string) => Promise<{exists: boolean; data(): any}>,
+  observed: CaptureIntakeObservedScope = {}) {
+  // Reuse the current native/bound-source policy; an unbound first intake does
+  // not require a scientific task approval or a new website approval stage.
+  const access = await currentCaptureTestbedAccess(record, undefined, read);
+  if (access !== "current") throw new CaptureIntakeSourceError(
+    access === "processing_denied" ? "capture_processing_denied" : "capture_source_changed",
+    access === "processing_denied" ? 410 : 409);
+  if (!Object.hasOwn(record, "job_evidence_source_binding")) {
+    const jobId = sourceJobId(record);
+    if (jobId) {
+      const job = await read("inboundRequests", jobId);
+      if (job.exists && job.data()?.request?.buyerType === "site_operator") {
+        observed.jobId = jobId;
+        if (!projectWebsiteCaptureRights(job.data()).derived_scene_generation_allowed)
+          throw new CaptureIntakeSourceError("capture_processing_denied", 410);
+      } else if (observed.jobId === jobId) {
+        // A previously resolved job cannot become a generic capture across an await.
+        throw new CaptureIntakeSourceError("capture_processing_denied", 410);
+      }
+    }
+  }
+}
+
+async function currentCaptureIntakeSource(expected: SessionRecord, processing = true,
+  observed: CaptureIntakeObservedScope = {}) {
+  return db!.runTransaction(async transaction => {
+    const current = (await transaction.get(db!.collection("captureUploadSessions").doc(expected.session_id))).data() as SessionRecord | undefined;
+    assertCaptureIntakeIdentity(expected, current);
+    if (processing) {
+      await assertCaptureIntakeProcessing(current!, (collection, id) =>
+        transaction.get(db!.collection(collection).doc(id)), observed);
+      if (current!.status !== "uploaded_verification_pending")
+        throw new CaptureIntakeSourceError("capture_source_changed", 409);
+    }
+    return current!;
+  });
+}
+
+function captureIntakeSourceFailure(res: Response, error: unknown) {
+  return error instanceof CaptureIntakeSourceError
+    ? res.status(error.status).json({error: error.code}) : null;
+}
+
+async function completedCaptureIntakeResponse(res: Response, record: SessionRecord,
+  parts: StoredCapturePart[] = [], extra: Record<string, unknown> = {}) {
+  try {
+    return res.status(200).json({...publicSession(await processCompletedCaptureIntake(record), parts), ...extra});
+  } catch (error) {
+    const refusal = captureIntakeSourceFailure(res, error);
+    if (refusal) return refusal;
+    throw error;
+  }
+}
+
 async function processCompletedCaptureIntake(record: SessionRecord): Promise<SessionRecord> {
+  const observed: CaptureIntakeObservedScope = {};
+  record = await currentCaptureIntakeSource(record, false);
   if (record.provider === "firebase" && record.firebase_parts_cleanup_pending === true) {
     try {
       const {storage, target} = firebaseUpload(record);
@@ -546,6 +632,7 @@ async function processCompletedCaptureIntake(record: SessionRecord): Promise<Ses
     }
   }
   if (record.pipeline_capture_intake_receipt) return record;
+  record = await currentCaptureIntakeSource(record, true, observed);
   const readiness = captureUploadIntakeForwardingReadiness();
   if (!readiness.endpointConfigured) {
     const updates = {
@@ -591,6 +678,8 @@ async function processCompletedCaptureIntake(record: SessionRecord): Promise<Ses
     const transfer = record.provider === "firebase"
       ? await firebaseUpload(record).storage.downloadGrant(firebaseUpload(record).target, record.provider_file_id!)
       : await createBackblazeCaptureDownloadGrant({objectPath: record.object_path});
+    record = await currentCaptureIntakeSource(record, true, observed);
+    if (record.pipeline_capture_intake_receipt) return record;
     forwardResult = await forwardCaptureUploadToPipeline({
       captureSessionId: record.session_id,
       customerId: record.owner_user_id,
@@ -599,6 +688,7 @@ async function processCompletedCaptureIntake(record: SessionRecord): Promise<Ses
       transfer,
     });
   } catch (error) {
+    if (error instanceof CaptureIntakeSourceError) throw error;
     forwardResult = {
       status: "failed" as const,
       performed: false,
@@ -1444,10 +1534,25 @@ router.post("/:sessionId/testbed/compile", async (req, res) => {
 router.get("/:sessionId/testbed", async (req, res) => {
   const user = authenticatedUser(res);
   if (!user.uid) return res.status(401).json({ error: "Missing authenticated user" });
-  const result = await readOwnedSession(req.params.sessionId, user.uid);
-  if (!result.record) return res.status(result.status).json({ error: "Capture upload not found" });
-  const projection = siteTaskTestbedProjection(result.record);
   res.set("Cache-Control", "no-store");
+  if (!db) return res.status(503).json({ error: "Capture testbed store is unavailable" });
+  let current: { record: SessionRecord; access: Awaited<ReturnType<typeof currentCaptureTestbedAccess>> } | null;
+  try {
+    current = await db.runTransaction(async transaction => {
+      const snapshot = await transaction.get(db!.collection("captureUploadSessions").doc(req.params.sessionId));
+      const record = snapshot.data() as SessionRecord | undefined;
+      if (!snapshot.exists || !record || record.owner_user_id !== user.uid) return null;
+      const access = await currentCaptureTestbedAccess(record, record.pipeline_site_task_testbed,
+        (collection, id) => transaction.get(db!.collection(collection).doc(id)));
+      return { record, access };
+    });
+  } catch { return res.status(503).json({ error: "Capture testbed store is unavailable" }); }
+  if (!current) return res.status(404).json({ error: "Capture upload not found" });
+  if (current.access === "processing_denied") return res.status(410).json({
+    error: "Current capture processing permission has ended", code: "capture_testbed_processing_denied" });
+  if (current.access === "source_mismatch") return res.status(409).json({
+    error: "Current job source binding does not match", code: "capture_testbed_source_changed" });
+  const projection = siteTaskTestbedProjection(current.record);
   if (projection.summary.state === "not_available") {
     return res.status(404).json({ error: "Maintained Site-Task Testbed is not available" });
   }
@@ -1459,8 +1564,8 @@ router.get("/:sessionId/testbed", async (req, res) => {
   }
   return res.status(200).json({
     schema_version: "capture_site_task_testbed_inspection.v1",
-    session_id: result.record.session_id,
-    intake_id: result.record.request.intake_id,
+    session_id: current.record.session_id,
+    intake_id: current.record.request.intake_id,
     status: "testbed_ready",
     artifact_reference: projection.summary.artifact_reference,
     testbed: projection.testbed,
@@ -2824,10 +2929,12 @@ router.post(
     const sha256 = `sha256:${createHash("sha256").update(file.buffer).digest("hex")}`;
     const sha1 = createHash("sha1").update(file.buffer).digest("hex");
     const ref = db!.collection("captureUploadSessions").doc(record.session_id);
+    const observed: CaptureIntakeObservedScope = {};
     try {
       const claimed = await db!.runTransaction(async (transaction) => {
         const snapshot = await transaction.get(ref);
         const latest = snapshot.data() as SessionRecord;
+        assertCaptureIntakeIdentity(record, latest);
         if (latest.small_upload_sha256 && latest.small_upload_sha256 !== sha256)
           throw new Error("small_mesh_bytes_conflict");
         if (
@@ -2835,6 +2942,8 @@ router.post(
           latest.pipeline_capture_intake_receipt
         )
           return latest;
+        await assertCaptureIntakeProcessing(latest, (collection, id) =>
+          transaction.get(db!.collection(collection).doc(id)), observed);
         if (
           !["upload_pending", "uploading"].includes(latest.status) ||
           Number(latest.small_upload_lease_until_ms || 0) > Date.now()
@@ -2852,9 +2961,7 @@ router.post(
         claimed.status === "uploaded_verification_pending" ||
         claimed.pipeline_capture_intake_receipt
       )
-        return res.json(
-          publicSession(await processCompletedCaptureIntake(claimed)),
-        );
+        return await completedCaptureIntakeResponse(res, claimed);
       const uploaded = record.provider === "firebase"
         ? await firebaseUpload(record).storage.uploadSmall(firebaseUpload(record).target, file.buffer)
         : await uploadSmallBackblazeCapture({
@@ -2863,8 +2970,7 @@ router.post(
         contentType: record.request.original_file.media_type,
         sha1,
       });
-      const completed: SessionRecord = {
-        ...claimed,
+      const completed = {
         status: "uploaded_verification_pending",
         provider_file_id: uploaded.fileId,
         storage_uri: uploaded.storageUri,
@@ -2879,12 +2985,15 @@ router.post(
       };
       const retained = await db!.runTransaction(async transaction => {
         const snapshot=await transaction.get(ref);const latest=snapshot.data() as SessionRecord;
+        assertCaptureIntakeIdentity(claimed, latest);
         if (["cancelled","revoked","revocation_in_progress"].includes(latest.status)) {
           transaction.set(ref,{provider_file_id:uploaded.fileId,storage_uri:uploaded.storageUri,small_upload_cleanup_pending:true},{merge:true});
           return null;
         }
         if (latest.small_upload_sha256!==sha256) throw new Error("small_mesh_bytes_conflict");
         if (latest.status==="uploaded_verification_pending" || latest.pipeline_capture_intake_receipt) return latest;
+        await assertCaptureIntakeProcessing(latest, (collection, id) =>
+          transaction.get(db!.collection(collection).doc(id)), observed);
         if (latest.status!=="uploading" || latest.small_upload_lease_until_ms!==claimed.small_upload_lease_until_ms) throw new Error("small_mesh_upload_lease_changed");
         transaction.set(ref,{...latest,...completed},{merge:false});return {...latest,...completed};
       });
@@ -2893,10 +3002,10 @@ router.post(
         await ref.set({small_upload_cleanup_pending:false},{merge:true});
         return res.status(409).json({error:"small_mesh_upload_cancelled_before_admission"});
       }
-      return res.json(
-        publicSession(await processCompletedCaptureIntake(retained)),
-      );
+      return await completedCaptureIntakeResponse(res, retained);
     } catch (error) {
+      const refusal = captureIntakeSourceFailure(res, error);
+      if (refusal) return refusal;
       logger.warn(
         { sessionId: record.session_id, err: error },
         "Small mesh upload requires retry or reconciliation",
@@ -2923,13 +3032,13 @@ router.post("/:sessionId/complete", async (req, res) => {
   if (!result.record) return res.status(result.status).json({ error: "Capture upload not found" });
   const record = result.record;
   if (record.status === "uploaded_verification_pending") {
-    const processed = await processCompletedCaptureIntake(record);
-    return res.status(200).json({ ...publicSession(processed), already_complete: true });
+    return completedCaptureIntakeResponse(res, record, [], {already_complete: true});
   }
   if (record.provider === "firebase") {
     if (!["upload_pending", "uploading"].includes(record.status))
       return res.status(409).json({error: "Capture upload cannot be completed from its current state"});
     const ref = db!.collection("captureUploadSessions").doc(record.session_id);
+    const observed: CaptureIntakeObservedScope = {};
     try {
       const {storage, target} = firebaseUpload(record);
       const parts = await storage.listParts(target, record.firebase_parts || []);
@@ -2938,8 +3047,10 @@ router.post("/:sessionId/complete", async (req, res) => {
       const completion = {parts, digest: `sha256:${sha256Text(stable(parts))}`};
       const frozen = await db!.runTransaction(async transaction => {
         const latest = (await transaction.get(ref)).data() as SessionRecord;
+        assertCaptureIntakeIdentity(record, latest);
+        await assertCaptureIntakeProcessing(latest, (collection, id) =>
+          transaction.get(db!.collection(collection).doc(id)), observed);
         if (!["upload_pending", "uploading"].includes(latest.status)
-          || latest.capture_access?.future_processing_allowed === false
           || stable(latest.firebase_parts || []) !== stable(record.firebase_parts || []))
           throw Error("capture_firebase_upload_changed");
         const prior = latest.firebase_completion as typeof completion | undefined;
@@ -2950,7 +3061,15 @@ router.post("/:sessionId/complete", async (req, res) => {
       const written = await storage.finish(target, frozen.firebase_completion.parts);
       const completed = await db!.runTransaction(async transaction => {
         const latest = (await transaction.get(ref)).data() as SessionRecord;
-        if (latest.status === "uploaded_verification_pending" || latest.pipeline_capture_intake_receipt) return latest;
+        assertCaptureIntakeIdentity(frozen, latest, false);
+        if (latest.status === "uploaded_verification_pending" || latest.pipeline_capture_intake_receipt) {
+          if (latest.provider_file_id !== written.fileId || latest.storage_uri !== written.storageUri)
+            throw new CaptureIntakeSourceError("capture_source_changed", 409);
+          return latest;
+        }
+        assertCaptureIntakeIdentity(frozen, latest);
+        await assertCaptureIntakeProcessing(latest, (collection, id) =>
+          transaction.get(db!.collection(collection).doc(id)), observed);
         if (!["upload_pending", "uploading"].includes(latest.status)
           || (latest.firebase_completion as typeof completion | undefined)?.digest !== completion.digest)
           throw Error("capture_firebase_completion_changed");
@@ -2964,8 +3083,10 @@ router.post("/:sessionId/complete", async (req, res) => {
         transaction.set(ref, next, {merge: false});
         return next;
       });
-      return res.status(200).json(publicSession(await processCompletedCaptureIntake(completed), parts));
+      return await completedCaptureIntakeResponse(res, completed, parts);
     } catch (error) {
+      const refusal = captureIntakeSourceFailure(res, error);
+      if (refusal) return refusal;
       logger.warn({sessionId: record.session_id, errorName: error instanceof Error ? error.name : "unknown"}, "Capture completion needs reconciliation");
       return res.status(503).json({error: "Capture completion requires reconciliation; resume the same upload"});
     }
@@ -2974,12 +3095,22 @@ router.post("/:sessionId/complete", async (req, res) => {
     return res.status(409).json({ error: "Capture upload cannot be completed from its current state" });
   }
   try {
+    const ref = db!.collection("captureUploadSessions").doc(record.session_id);
+    const observed: CaptureIntakeObservedScope = {};
     const parts = (await listBackblazeCaptureParts(record.provider_file_id))
       .sort((left, right) => left.partNumber - right.partNumber);
     const blockers = validateProviderParts(record, parts, parsed.data.part_sha1_array);
     if (blockers.length) {
       return res.status(422).json({ error: "Capture upload parts are incomplete or mismatched", blockers });
     }
+    await db!.runTransaction(async transaction => {
+      const latest = (await transaction.get(ref)).data() as SessionRecord;
+      assertCaptureIntakeIdentity(record, latest);
+      await assertCaptureIntakeProcessing(latest, (collection, id) =>
+        transaction.get(db!.collection(collection).doc(id)), observed);
+      if (!["upload_pending", "uploading"].includes(latest.status))
+        throw new CaptureIntakeSourceError("capture_source_changed", 409);
+    });
     try {
       await finishBackblazeResumableCapture({
         fileId: record.provider_file_id,
@@ -2995,8 +3126,7 @@ router.post("/:sessionId/complete", async (req, res) => {
         throw finishError;
       }
     }
-    const completed: SessionRecord = {
-      ...record,
+    const completed = {
       status: "uploaded_verification_pending",
       upload_validation: {
         status: "provider_parts_verified",
@@ -3008,10 +3138,22 @@ router.post("/:sessionId/complete", async (req, res) => {
       updated_at_iso: new Date().toISOString(),
       error: null,
     };
-    await db!.collection("captureUploadSessions").doc(record.session_id).set(completed, { merge: false });
-    const processed = await processCompletedCaptureIntake(completed);
-    return res.status(200).json(publicSession(processed, parts));
+    const retained = await db!.runTransaction(async transaction => {
+      const latest = (await transaction.get(ref)).data() as SessionRecord;
+      assertCaptureIntakeIdentity(record, latest);
+      if (latest.status === "uploaded_verification_pending" || latest.pipeline_capture_intake_receipt) return latest;
+      await assertCaptureIntakeProcessing(latest, (collection, id) =>
+        transaction.get(db!.collection(collection).doc(id)), observed);
+      if (!["upload_pending", "uploading"].includes(latest.status))
+        throw new CaptureIntakeSourceError("capture_source_changed", 409);
+      const next = {...latest, ...completed};
+      transaction.set(ref, next, {merge: false});
+      return next;
+    });
+    return await completedCaptureIntakeResponse(res, retained, parts);
   } catch (error) {
+    const refusal = captureIntakeSourceFailure(res, error);
+    if (refusal) return refusal;
     logger.error({ sessionId: record.session_id, err: error }, "Failed to complete capture upload");
     return res.status(502).json({ error: "Capture storage provider could not finalize the upload" });
   }
@@ -3025,8 +3167,7 @@ router.post("/:sessionId/process", async (req, res) => {
   if (result.record.status !== "uploaded_verification_pending") {
     return res.status(409).json({ error: "Capture upload bytes are not ready for Pipeline intake" });
   }
-  const processed = await processCompletedCaptureIntake(result.record);
-  return res.status(200).json(publicSession(processed));
+  return completedCaptureIntakeResponse(res, result.record);
 });
 
 router.delete("/:sessionId", async (req, res) => {

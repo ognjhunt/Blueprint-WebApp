@@ -7,6 +7,7 @@ import { createPipelineSyncRateLimiter, verifyPipelineSyncRequest } from "../uti
 import { canonicalArtifactDigest } from "../utils/taskCandidateContract";
 import { verifyProducerArtifact } from "../utils/producerCanonicalArtifact";
 import { jobEvidenceSourceBindingSchema } from "../utils/reconstructionForwarding";
+import { currentCaptureTestbedAccess } from "../utils/currentCaptureTestbedAccess";
 import {
   exactTestbedPublicationFingerprint,
   parseVerifiedMaintainedSiteTaskTestbed,
@@ -110,6 +111,7 @@ router.post(
       | { kind: "intake_mismatch" }
       | { kind: "approved_task_mismatch" }
       | { kind: "job_source_mismatch" }
+      | { kind: "processing_denied" }
       | { kind: "version_conflict" }
       | { kind: "predecessor_mismatch" }
       | { kind: "immutable_conflict" };
@@ -140,6 +142,10 @@ router.post(
             return { kind: "job_source_mismatch" };
           }
         }
+        const access = await currentCaptureTestbedAccess(session, publication,
+          (collection, id) => transaction.get(db!.collection(collection).doc(id)));
+        if (access === "processing_denied") return { kind: "processing_denied" };
+        if (access === "source_mismatch") return { kind: "job_source_mismatch" };
         const current = session.pipeline_site_task_testbed as
           | Record<string, any>
           | undefined;
@@ -227,6 +233,8 @@ router.post(
     if (outcome.kind === "intake_mismatch") return res.status(409).json({ error: "Capture intake binding does not match" });
     if (outcome.kind === "approved_task_mismatch") return res.status(409).json({ error: "Approved task binding does not match" });
     if (outcome.kind === "job_source_mismatch") return res.status(409).json({ error: "Approved job source binding does not match" });
+    if (outcome.kind === "processing_denied") return res.status(410).json({
+      error: "Current capture processing permission has ended", code: "capture_testbed_processing_denied" });
     if (outcome.kind === "version_conflict") return res.status(409).json({ error: "Testbed version already has a different digest" });
     if (outcome.kind === "predecessor_mismatch") return res.status(409).json({ error: "Testbed predecessor does not match the current version" });
     if (outcome.kind === "immutable_conflict") return res.status(409).json({ error: "Immutable testbed record conflicts" });

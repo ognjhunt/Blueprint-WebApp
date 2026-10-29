@@ -9,6 +9,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { canonicalArtifactDigest, stableJson } from "../utils/taskCandidateContract";
 import { verifyProducerArtifact } from "../utils/producerCanonicalArtifact";
+import { scientificBriefDigest, jobEvidenceTaskInventoryDigest } from "../utils/jobEvidenceContract";
 
 const state = vi.hoisted(() => ({
   collections: new Map<string, Map<string, Record<string, unknown>>>(),
@@ -310,10 +311,12 @@ describe("internal Pipeline maintained testbed publication", () => {
   it("requires the approved real source binding for a job-scoped native publication", async () => {
     const body = JSON.parse(readFileSync(new URL("./fixtures/pipeline-testbed-publication-v2.json", import.meta.url), "utf8"));
     body.job_id = "job-source-1";
-    body.brief_digest = `sha256:${"d".repeat(64)}`;
+    const brief = { requestId: body.job_id, summary: "Move the captured object",
+      confirmedAtIso: "2026-09-29T00:00:00Z" };
+    body.brief_digest = scientificBriefDigest(brief);
     const binding = {
       schema_version: "job_evidence_source_binding.v1", job_id: body.job_id,
-      brief_digest: body.brief_digest, task_inventory_digest: `sha256:${"e".repeat(64)}`,
+      brief_digest: body.brief_digest, task_inventory_digest: jobEvidenceTaskInventoryDigest(brief),
       capture_session_id: body.capture_session_id, intake_id: body.intake_id,
       source_capture_digest: body.testbed.source_capture_bundles[0].digest,
       command_request_id: "task-command-1", approved_task_digest: body.approved_task_digest,
@@ -325,6 +328,10 @@ describe("internal Pipeline maintained testbed publication", () => {
       latest_task_decision_command: { command_request_id: "task-command-1", pipeline_approval_status: "approved" },
     };
     state.collections.set("captureUploadSessions", new Map([[body.capture_session_id, session]]));
+    state.collections.set("siteTaskBriefs", new Map([[body.job_id, brief]]));
+    state.collections.set("inboundRequests", new Map([[body.job_id, { request: { buyerType: "site_operator",
+      consent_attestation: { granted: true, statement_version: "2026-09-18.v1", recorded_at_iso: "2026-09-29T00:00:00Z" } },
+      job_evidence_source: binding }]]));
     const { server, socketPath } = await startServer();
     try {
       expect((await postSigned(socketPath, body)).status).toBe(409);
