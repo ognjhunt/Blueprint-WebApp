@@ -123,7 +123,11 @@ export type CaptureReconstructionSummary = {
   result_count?: number;
   missing_representations?: string[];
   next_cheapest_experiments?: string[];
-  cost_usd?: number;
+  cost_usd?: number | null;
+  cost_basis?: "actual" | "estimate";
+  cost_status?: "unknown";
+  cost_reason?: string;
+  known_cost_subtotal_usd?: number;
   blocker?: string | null;
   proof_boundary?: Record<string, unknown>;
 };

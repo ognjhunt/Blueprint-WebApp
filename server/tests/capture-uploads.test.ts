@@ -37,6 +37,7 @@ const state = vi.hoisted(() => ({
   lifecycleInspect: vi.fn(),
   reconstructionPlan: vi.fn(),
   ownedAtlasPlan: vi.fn(),
+  ownedAtlasInspect: vi.fn(),
   reconstructionAuthorization: vi.fn(),
   reconstructionExecution: vi.fn(),
   reconstructionInspect: vi.fn(),
@@ -59,11 +60,11 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => ({
           reference: {
             set: (
               payload: Record<string, unknown>,
-              options?: { merge?: boolean },
+              options?: { merge?: boolean; mergeFields?: string[] },
             ) => Promise<void>;
           },
           payload: Record<string, unknown>,
-          options?: { merge?: boolean },
+          options?: { merge?: boolean; mergeFields?: string[] },
         ) => void;
       }) => Promise<T>,
     ) => {
@@ -99,8 +100,8 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => ({
           if (state.records.has(id)) throw new Error("already exists");
           state.records.set(id, structuredClone(payload));
         },
-        set: async (payload: Record<string, unknown>, options?: { merge?: boolean }) => {
-          const next = options?.merge
+        set: async (payload: Record<string, unknown>, options?: { merge?: boolean; mergeFields?: string[] }) => {
+          const next = options?.merge || options?.mergeFields
             ? { ...(state.records.get(id) || {}), ...structuredClone(payload) }
             : structuredClone(payload);
           state.records.set(id, next);
@@ -129,6 +130,11 @@ vi.mock("../utils/storage-provider", async (importOriginal) => {
 
 vi.mock("../utils/taskCandidateForwarding", () => ({
   forwardTaskCandidateDecisionToPipeline: state.forward,
+}));
+
+vi.mock("../utils/ownedCaptureAtlasExecution", async original => ({
+  ...await original<typeof import("../utils/ownedCaptureAtlasExecution")>(),
+  inspectOwnedAtlas: state.ownedAtlasInspect,
 }));
 
 vi.mock("../utils/firebaseCaptureStorage", async (original) => ({
@@ -1211,6 +1217,49 @@ describe("resumable capture uploads", () => {
     }
   });
 
+  it.each(["unchanged", "revoked", "task_changed", "owner_changed", "conflicting_result"])(
+    "retains a verified owned-Atlas result only while its live source remains valid (%s)", async changed => {
+      const fixture = JSON.parse(readFileSync(new URL("./fixtures/owned-atlas-ready-owner.json", import.meta.url), "utf8"));
+      const record = fixture.session, sessionId = record.session_id;
+      state.records.set(sessionId, structuredClone(record));
+      state.ownedAtlasInspect.mockResolvedValue(fixture.execution);
+      if (changed !== "unchanged") state.beforeTransaction = () => {
+        const current = state.records.get(sessionId)! as Record<string, any>;
+        if (changed === "revoked") current.capture_access = { future_processing_allowed: false };
+        if (changed === "task_changed") current.request.known_task_specification.description = "A different task";
+        if (changed === "owner_changed") current.owner_user_id = "another-owner";
+        if (changed === "conflicting_result") current.pipeline_reconstruction = { plan_id: "another-plan" };
+      };
+      const { server, socketPath } = await startServer({ uid: record.owner_user_id });
+      const route = `/capture-uploads/${sessionId}/reconstructions/atlas/${fixture.plan.plan_id}`;
+      try {
+        const inspected = await getJson(socketPath, route);
+        if (changed !== "unchanged") {
+          expect([409, 410]).toContain(inspected.status);
+          expect(state.records.get(sessionId)?.pipeline_reconstruction).toEqual(
+            changed === "conflicting_result" ? { plan_id: "another-plan" } : undefined,
+          );
+          return;
+        }
+        expect(inspected.status).toBe(200);
+        const stored = state.records.get(sessionId)! as Record<string, any>;
+        expect(stored.request).toEqual(record.request);
+        expect(stored.owner_user_id).toBe(record.owner_user_id);
+        expect(stored.pipeline_reconstruction.pipeline_execution).toEqual(fixture.execution.reconstruction.execution_result);
+        expect(stored.pipeline_reconstruction.pipeline_plan.reconstruction_plan_canonical_json)
+          .toBe(fixture.execution.reconstruction.reconstruction_plan_canonical_json);
+        const immutable = structuredClone(stored.pipeline_reconstruction);
+        expect((await getJson(socketPath, route)).status).toBe(200);
+        expect(state.records.get(sessionId)?.pipeline_reconstruction).toEqual(immutable);
+        const detail = await getJson(socketPath, `/capture-uploads/${sessionId}`);
+        expect(detail.status).toBe(200);
+        await expect(detail.json()).resolves.toMatchObject({ reconstruction: {
+          plan_id: fixture.plan.plan_id, cost_usd: null, cost_status: "unknown", cost_basis: "actual",
+        } });
+      } finally { await stopServer(server, socketPath); }
+    },
+  );
+
   it("plans, authorizes, executes, and inspects only Pipeline-selected local reconstruction adapters", async () => {
     const sessionId = "capture-reconstruction-owner-1";
     const captureDigest = `sha256:${"7".repeat(64)}`;
@@ -1444,6 +1493,17 @@ describe("resumable capture uploads", () => {
           },
         },
       });
+      const stored = state.records.get(sessionId)!;
+      stored.pipeline_reconstruction.pipeline_execution = {
+        ...execution, cost_usd: null, cost_status: "unknown",
+        cost_reason: "provider_usage_unreported", known_cost_subtotal_usd: 0,
+      };
+      stored.pipeline_reconstruction.pipeline_plan.reconstruction_plan.estimated_cost_usd = 2.5;
+      const pendingCost = await getJson(socketPath, `/capture-uploads/${sessionId}`);
+      await expect(pendingCost.json()).resolves.toMatchObject({ reconstruction: {
+        cost_usd: null, cost_basis: "actual", cost_status: "unknown",
+        cost_reason: "provider_usage_unreported", known_cost_subtotal_usd: 0,
+      } });
     } finally {
       await stopServer(server, socketPath);
     }

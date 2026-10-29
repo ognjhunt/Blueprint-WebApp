@@ -4,7 +4,8 @@ import { z } from "zod";
 import { requireOwnedCaptureAtlasSource } from "../utils/ownedCaptureAtlasContext";
 import { loadOwnedCaptureAtlasConfiguration } from "../utils/ownedCaptureAtlasPreparation";
 import { ownedCaptureAtlasPreparationPlanSchema } from "../utils/reconstructionForwarding";
-import { executeOwnedAtlas, retryOwnedAtlas, inspectOwnedAtlas, ownedAtlasBundleRequest } from "../utils/ownedCaptureAtlasExecution";
+import { executeOwnedAtlas, retryOwnedAtlas, inspectOwnedAtlas, ownedAtlasBundleRequest,
+  type OwnedAtlasExecution } from "../utils/ownedCaptureAtlasExecution";
 import { streamVerifiedPipelineArtifact } from "../utils/taskEvaluationResultArtifactProxy";
 
 const executeCommand = z.object({ schema_version: z.literal("capture_owned_atlas_execute_command.v1"),
@@ -14,6 +15,7 @@ const retryCommand = executeCommand.extend({ schema_version: z.literal("capture_
 export function ownedCaptureAtlasExecutionRouter(dependencies: {
   authenticatedUser: (res: Response) => { uid?: string | null };
   readOwnedSession: (sessionId: string, ownerUid: string) => Promise<{ status: number; record?: Record<string, any> | null }>;
+  retainReconstruction: (sessionId: string, ownerUid: string, execution: OwnedAtlasExecution) => Promise<void>;
 }) {
   const router = Router({ mergeParams: true });
 
@@ -49,6 +51,7 @@ export function ownedCaptureAtlasExecutionRouter(dependencies: {
       await loadOwnedCaptureAtlasConfiguration(req.params.sessionId, { plan_id: plan.plan_id,
         task_context_digest: plan.source_context.context_digest, source_video_digest: plan.source_video_digest });
       const execution = await (operation === "execute" ? executeOwnedAtlas : retryOwnedAtlas)(plan, user.uid, parsed.data.idempotency_key);
+      await dependencies.retainReconstruction(req.params.sessionId, user.uid, execution);
       res.set("Cache-Control", "private, no-store");
       return res.json({ schema_version: "capture_owned_atlas_execution_receipt.v1", execution });
     } catch (error) { return failure(res, error); }
@@ -62,6 +65,7 @@ export function ownedCaptureAtlasExecutionRouter(dependencies: {
       const owned = await source(req.params.sessionId, req.params.planId, user.uid);
       if (!owned.plan) return res.status(owned.status).json({ error: "Capture reconstruction not found" });
       const execution = await inspectOwnedAtlas(owned.plan, user.uid);
+      await dependencies.retainReconstruction(req.params.sessionId, user.uid, execution);
       res.set("Cache-Control", "private, no-store");
       return res.json({ schema_version: "capture_owned_atlas_execution_inspection.v1", execution,
         download_available: execution.state === "ready" && execution.bundle !== null });
@@ -75,6 +79,7 @@ export function ownedCaptureAtlasExecutionRouter(dependencies: {
       const owned = await source(req.params.sessionId, req.params.planId, user.uid);
       if (!owned.plan) return res.status(owned.status).json({ error: "Capture reconstruction not found" });
       const execution = await inspectOwnedAtlas(owned.plan, user.uid), bundle = execution.bundle;
+      await dependencies.retainReconstruction(req.params.sessionId, user.uid, execution);
       if (execution.state !== "ready" || !bundle) return res.status(409).json({ error: "Reconstruction bundle is not ready" });
       const origin = ownedAtlasBundleRequest(owned.plan.plan_id, user.uid, bundle.digest);
       if (!origin) return res.status(503).json({ error: "Reconstruction delivery is not configured" });

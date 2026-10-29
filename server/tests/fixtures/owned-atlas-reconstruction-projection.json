@@ -1,0 +1,409 @@
+{
+  "context": {
+    "capture_authority_profile": "monocular_video",
+    "capture_digest": "sha256:955d8464f4d31b93bdd62e09087277ba8cfb335b35f47701911ebbf513a45a7b",
+    "capture_session_id": "capture-session-1",
+    "context_digest": "sha256:4bbbbbc595ebd88569685b8221e7bf693a741b7e97f04e36609ad2683e492ce1",
+    "envelope_digest": "sha256:91235b9c280bbeff27e332593895addd37cc6836a677a3e36151198d50bb38d5",
+    "intake_id": "intake-1",
+    "object_manifest_digest": "sha256:bc505265ef647a4d7a4678c3d07ec67297d6399e135d9732f0b9b91931cf0afb",
+    "owned_atlas_plan_id": "reconstruction-atlas-9158189c1a534e13c5a66904",
+    "owned_source_context_digest": "sha256:76e60bcdd1edbfcec8bcca842b6c8df7e5167118dc7c184bba2424aa01691d79",
+    "qa_report_digest": "sha256:d95982d4d7413c11d09ed128383da17e9a797b52df49d614e520002390cadeec",
+    "schema_version": "reconstruction_control_plane_context.v1"
+  },
+  "execution_result": {
+    "already_exists": false,
+    "authorization_digest": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+    "context_digest": "sha256:4bbbbbc595ebd88569685b8221e7bf693a741b7e97f04e36609ad2683e492ce1",
+    "cost_reason": "provider_usage_unreported",
+    "cost_status": "unknown",
+    "cost_usd": null,
+    "errors": [],
+    "execution_result_digest": "sha256:1ba9c7e3cdac2c3a11d3e93b9746464d79ec91de8246ba7fdd53d3e2998ca247",
+    "known_cost_subtotal_usd": 0.0,
+    "missing_representations": [
+      "metric_reference_layer"
+    ],
+    "next_cheapest_experiments": [],
+    "plan_id": "reconstruction-atlas-9158189c1a534e13c5a66904",
+    "proof_boundary": {
+      "comparative_policy_ranking_verdict": "thesis_not_supported",
+      "deployment_or_safety_approved": false,
+      "derived_reconstruction_upgrades_raw_capture": false,
+      "execution_was_local_and_explicitly_authorized": true,
+      "physical_task_success_established": false,
+      "provider_dispatch_performed": false,
+      "provider_reconstruction_was_remote": true,
+      "retained_artifact_adoption_only": true
+    },
+    "reconstruction_plan_digest": "sha256:9094599ccb9feec30eace762016598477e6acf378645b24d8cf93d315e353348",
+    "results": [
+      {
+        "asset_references": {
+          "retained_asset_0": {
+            "bundle_digest": "sha256:e5b1fda3fecfbe042211e44eb12c0ae9f3424a4eb86482133b9766383cc34e5e",
+            "bundle_manifest_digest": "sha256:9cd767f0c3c14155f8e644942560868a8629d64dd68b26cf57050b4171f5ec5c",
+            "digest": "sha256:c5b0cb9c62bccfaf37ebe14555891a7a22e80d926d27f81531224d9c85a15436",
+            "member_path": "splat/draft.ply",
+            "size_bytes": 49,
+            "uri": "local-reconstruction://c5b0cb9c62bccfaf37ebe14555891a7a22e80d926d27f81531224d9c85a15436"
+          }
+        },
+        "camera_solution": {
+          "calibrated": false,
+          "pose_result_digest": null,
+          "status": "provider_estimated"
+        },
+        "capture_digest": "sha256:955d8464f4d31b93bdd62e09087277ba8cfb335b35f47701911ebbf513a45a7b",
+        "claim_ceiling": {
+          "appearance_review": true,
+          "calibrated_camera_poses": false,
+          "collision_geometry": false,
+          "deployment_readiness": false,
+          "metric_geometry": false,
+          "metric_scale": false,
+          "physical_task_success": false,
+          "physics": false,
+          "safety_certification": false
+        },
+        "coordinate_system": {
+          "metric_scale_established": false,
+          "scale_status": "unscaled_provider_world_units"
+        },
+        "cost_reason": "provider_usage_unreported",
+        "cost_status": "unknown",
+        "cost_usd": null,
+        "coverage_map": {
+          "status": "not_independently_qualified"
+        },
+        "deletion_evidence": {
+          "owned_plan_id": "reconstruction-atlas-9158189c1a534e13c5a66904",
+          "status": "see_current_owned_job_cleanup_receipts"
+        },
+        "duration_scope": "enqueue_to_archive_wall_time",
+        "duration_seconds": 10.0,
+        "generated_regions": [],
+        "implementation_digest": "sha256:d2d476002cf706912cf9fe54d5cf0b8981d25826b0a0610886833a54a1c99533",
+        "intake_id": "intake-1",
+        "invalid_regions": [
+          {
+            "reason": "observed_generated_partition_not_qualified_for_physics",
+            "region_id": "unverified_asset_extent"
+          }
+        ],
+        "known_cost_subtotal_usd": 0.0,
+        "method_id": "owned_atlas_retained_draft",
+        "method_profile_digest": "sha256:78ca0dc063d575e2cf17c5c28e7ddf329554fcbfd08fbf31bf3f44001146edde",
+        "method_version": "1",
+        "observed_regions": [],
+        "outputs": [
+          "appearance_layer"
+        ],
+        "provider_identity": "world_labs_atlas",
+        "provider_receipt": {
+          "authorization_digest": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+          "bundle_digest": "sha256:e5b1fda3fecfbe042211e44eb12c0ae9f3424a4eb86482133b9766383cc34e5e",
+          "bundle_manifest_digest": "sha256:9cd767f0c3c14155f8e644942560868a8629d64dd68b26cf57050b4171f5ec5c",
+          "owned_plan_digest": "sha256:883774a8da9bbe4a0379fbcfc911bb736e4b950257a785bbf749daac9717e19a",
+          "owned_plan_id": "reconstruction-atlas-9158189c1a534e13c5a66904",
+          "owned_result_digest": "sha256:3417e60985e02e26629c6e5580a78a85f789448be1df9d030555dd1ba6e3db2c",
+          "owner_user_id": "owner",
+          "source_context_digest": "sha256:76e60bcdd1edbfcec8bcca842b6c8df7e5167118dc7c184bba2424aa01691d79"
+        },
+        "reconstruction_result_digest": "sha256:46ac6bae251058f2c1659d9854860c1b8ccf62b9eaf6aacd6cd0b5a764a708ae",
+        "result_id": "owned-atlas-d5393fc440e1487a421c08c9",
+        "rights_and_retention": {
+          "allowed_uses": [
+            "evaluation"
+          ],
+          "consent": "not_required",
+          "privacy": "cleared",
+          "provider_constraints": {
+            "external_processing_allowed": false
+          },
+          "retention": {
+            "max_days": 30
+          },
+          "revocation": {
+            "historical_tombstone_retained": true,
+            "supported": true
+          },
+          "rights": "accepted"
+        },
+        "runtime_digest": "sha256:5d98d413d57bdddd237542e64f5a5c8d20bb2fca64509257c44ff6510c558be0",
+        "runtime_identity": "blueprint-owned-atlas-retained-projection-v1",
+        "schema_version": "reconstruction_result.v1",
+        "source_frames": {
+          "provider_views_are_raw_capture": false,
+          "source_capture": {
+            "capture_authority_profile": "monocular_video",
+            "capture_digest": "sha256:955d8464f4d31b93bdd62e09087277ba8cfb335b35f47701911ebbf513a45a7b",
+            "envelope_digest": "sha256:91235b9c280bbeff27e332593895addd37cc6836a677a3e36151198d50bb38d5",
+            "object_manifest_digest": "sha256:bc505265ef647a4d7a4678c3d07ec67297d6399e135d9732f0b9b91931cf0afb",
+            "qa_report_digest": "sha256:d95982d4d7413c11d09ed128383da17e9a797b52df49d614e520002390cadeec"
+          }
+        },
+        "uncertainty_map": {
+          "collision": "unverified",
+          "generated_extent": "unknown",
+          "metric_scale": "unverified"
+        },
+        "validation_metrics": {
+          "qualified_metric_validation": false,
+          "retained_bundle_binding_verified": true
+        }
+      }
+    ],
+    "schema_version": "reconstruction_control_plane_execution_result.v1",
+    "state": "partial"
+  },
+  "reconstruction_plan": {
+    "cost_scope": "local_adoption_only",
+    "estimated_cost_usd": 0,
+    "missing_representations": [
+      {
+        "next_cheapest_experiment": "obtain a verified collision/physics asset or targeted object capture",
+        "rejected_candidates": [],
+        "representation": "metric_reference_layer"
+      }
+    ],
+    "proof_boundary": {
+      "generated_completion_upgrades_metric_or_physics_claims": false,
+      "physical_task_success_established": false,
+      "provider_availability_is_qualification": false
+    },
+    "reconstruction_plan_digest": "sha256:9094599ccb9feec30eace762016598477e6acf378645b24d8cf93d315e353348",
+    "requested_claim_types": [
+      "navigation_clearance"
+    ],
+    "required_representations": [
+      "metric_reference_layer"
+    ],
+    "schema_version": "reconstruction_plan.v1",
+    "selected_methods": [
+      {
+        "expected_cost_usd": 0.0,
+        "method_id": "owned_atlas_retained_draft",
+        "method_profile_digest": "sha256:78ca0dc063d575e2cf17c5c28e7ddf329554fcbfd08fbf31bf3f44001146edde",
+        "method_version": "1",
+        "provider_identity": "world_labs_atlas",
+        "representations": [
+          "appearance_layer"
+        ]
+      }
+    ],
+    "source_capture": {
+      "capture_authority_profile": "monocular_video",
+      "capture_digest": "sha256:955d8464f4d31b93bdd62e09087277ba8cfb335b35f47701911ebbf513a45a7b",
+      "intake_id": "intake-1"
+    },
+    "status": "partial_plan"
+  },
+  "reconstruction_results": [
+    {
+      "asset_references": {
+        "retained_asset_0": {
+          "bundle_digest": "sha256:e5b1fda3fecfbe042211e44eb12c0ae9f3424a4eb86482133b9766383cc34e5e",
+          "bundle_manifest_digest": "sha256:9cd767f0c3c14155f8e644942560868a8629d64dd68b26cf57050b4171f5ec5c",
+          "digest": "sha256:c5b0cb9c62bccfaf37ebe14555891a7a22e80d926d27f81531224d9c85a15436",
+          "member_path": "splat/draft.ply",
+          "size_bytes": 49,
+          "uri": "local-reconstruction://c5b0cb9c62bccfaf37ebe14555891a7a22e80d926d27f81531224d9c85a15436"
+        }
+      },
+      "camera_solution": {
+        "calibrated": false,
+        "pose_result_digest": null,
+        "status": "provider_estimated"
+      },
+      "capture_digest": "sha256:955d8464f4d31b93bdd62e09087277ba8cfb335b35f47701911ebbf513a45a7b",
+      "claim_ceiling": {
+        "appearance_review": true,
+        "calibrated_camera_poses": false,
+        "collision_geometry": false,
+        "deployment_readiness": false,
+        "metric_geometry": false,
+        "metric_scale": false,
+        "physical_task_success": false,
+        "physics": false,
+        "safety_certification": false
+      },
+      "coordinate_system": {
+        "metric_scale_established": false,
+        "scale_status": "unscaled_provider_world_units"
+      },
+      "cost_reason": "provider_usage_unreported",
+      "cost_status": "unknown",
+      "cost_usd": null,
+      "coverage_map": {
+        "status": "not_independently_qualified"
+      },
+      "deletion_evidence": {
+        "owned_plan_id": "reconstruction-atlas-9158189c1a534e13c5a66904",
+        "status": "see_current_owned_job_cleanup_receipts"
+      },
+      "duration_scope": "enqueue_to_archive_wall_time",
+      "duration_seconds": 10.0,
+      "generated_regions": [],
+      "implementation_digest": "sha256:d2d476002cf706912cf9fe54d5cf0b8981d25826b0a0610886833a54a1c99533",
+      "intake_id": "intake-1",
+      "invalid_regions": [
+        {
+          "reason": "observed_generated_partition_not_qualified_for_physics",
+          "region_id": "unverified_asset_extent"
+        }
+      ],
+      "known_cost_subtotal_usd": 0.0,
+      "method_id": "owned_atlas_retained_draft",
+      "method_profile_digest": "sha256:78ca0dc063d575e2cf17c5c28e7ddf329554fcbfd08fbf31bf3f44001146edde",
+      "method_version": "1",
+      "observed_regions": [],
+      "outputs": [
+        "appearance_layer"
+      ],
+      "provider_identity": "world_labs_atlas",
+      "provider_receipt": {
+        "authorization_digest": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "bundle_digest": "sha256:e5b1fda3fecfbe042211e44eb12c0ae9f3424a4eb86482133b9766383cc34e5e",
+        "bundle_manifest_digest": "sha256:9cd767f0c3c14155f8e644942560868a8629d64dd68b26cf57050b4171f5ec5c",
+        "owned_plan_digest": "sha256:883774a8da9bbe4a0379fbcfc911bb736e4b950257a785bbf749daac9717e19a",
+        "owned_plan_id": "reconstruction-atlas-9158189c1a534e13c5a66904",
+        "owned_result_digest": "sha256:3417e60985e02e26629c6e5580a78a85f789448be1df9d030555dd1ba6e3db2c",
+        "owner_user_id": "owner",
+        "source_context_digest": "sha256:76e60bcdd1edbfcec8bcca842b6c8df7e5167118dc7c184bba2424aa01691d79"
+      },
+      "reconstruction_result_digest": "sha256:46ac6bae251058f2c1659d9854860c1b8ccf62b9eaf6aacd6cd0b5a764a708ae",
+      "result_id": "owned-atlas-d5393fc440e1487a421c08c9",
+      "rights_and_retention": {
+        "allowed_uses": [
+          "evaluation"
+        ],
+        "consent": "not_required",
+        "privacy": "cleared",
+        "provider_constraints": {
+          "external_processing_allowed": false
+        },
+        "retention": {
+          "max_days": 30
+        },
+        "revocation": {
+          "historical_tombstone_retained": true,
+          "supported": true
+        },
+        "rights": "accepted"
+      },
+      "runtime_digest": "sha256:5d98d413d57bdddd237542e64f5a5c8d20bb2fca64509257c44ff6510c558be0",
+      "runtime_identity": "blueprint-owned-atlas-retained-projection-v1",
+      "schema_version": "reconstruction_result.v1",
+      "source_frames": {
+        "provider_views_are_raw_capture": false,
+        "source_capture": {
+          "capture_authority_profile": "monocular_video",
+          "capture_digest": "sha256:955d8464f4d31b93bdd62e09087277ba8cfb335b35f47701911ebbf513a45a7b",
+          "envelope_digest": "sha256:91235b9c280bbeff27e332593895addd37cc6836a677a3e36151198d50bb38d5",
+          "object_manifest_digest": "sha256:bc505265ef647a4d7a4678c3d07ec67297d6399e135d9732f0b9b91931cf0afb",
+          "qa_report_digest": "sha256:d95982d4d7413c11d09ed128383da17e9a797b52df49d614e520002390cadeec"
+        }
+      },
+      "uncertainty_map": {
+        "collision": "unverified",
+        "generated_extent": "unknown",
+        "metric_scale": "unverified"
+      },
+      "validation_metrics": {
+        "qualified_metric_validation": false,
+        "retained_bundle_binding_verified": true
+      }
+    }
+  ],
+  "capture_intake_envelope": {
+    "schema_version": "capture_intake_envelope.v1",
+    "intake_id": "intake-1",
+    "idempotency_key": "org-1-intake-1",
+    "capture_authority_profile": "monocular_video",
+    "source_type": "monocular_video",
+    "original_files": [
+      {
+        "original_filename": "capture.mp4",
+        "relative_path": "capture.mp4",
+        "sha256": "sha256:955d8464f4d31b93bdd62e09087277ba8cfb335b35f47701911ebbf513a45a7b",
+        "size_bytes": 14,
+        "media_type": "video/mp4"
+      }
+    ],
+    "scene_id": "scene-1",
+    "customer_id": "customer-1",
+    "organization_id": "org-1",
+    "capture_device": {
+      "manufacturer": "fixture",
+      "model": "camera"
+    },
+    "timing_declaration": {
+      "clock": "media_pts"
+    },
+    "coordinate_frame_declaration": {
+      "status": "not_available_from_video"
+    },
+    "available_sensor_streams": [
+      {
+        "stream_type": "retained_video",
+        "status": "available",
+        "source_relative_path": "capture.mp4"
+      }
+    ],
+    "governance": {
+      "rights": "accepted",
+      "consent": "not_required",
+      "privacy": "cleared",
+      "retention": {
+        "max_days": 30
+      },
+      "revocation": {
+        "supported": true,
+        "historical_tombstone_retained": true
+      },
+      "provider_constraints": {
+        "external_processing_allowed": false
+      },
+      "allowed_uses": [
+        "evaluation"
+      ]
+    },
+    "requested_task_evaluation_run_audience": "design_partner",
+    "known_task_specification": {
+      "description": "Navigate to the end of the aisle, avoid both shelves, and stop before the end bookshelf.",
+      "task_family": "customer_navigation_and_stopping",
+      "success_parameters_status": "proposed_unconfirmed",
+      "operations": [
+        "navigate",
+        "avoid_side_shelves",
+        "stop_before_end_shelving"
+      ]
+    },
+    "calibration_board_dimensions": null,
+    "operator_notes": [],
+    "permitted_reconstruction_providers": [
+      "local_only"
+    ],
+    "permitted_evidence_uses": [
+      "captured_observation",
+      "task_discovery"
+    ],
+    "upload_validation": {
+      "status": "passed"
+    },
+    "malware_content_validation": {
+      "status": "passed"
+    },
+    "envelope_digest": "sha256:91235b9c280bbeff27e332593895addd37cc6836a677a3e36151198d50bb38d5"
+  },
+  "capture_qa_report": {
+    "schema_version": "capture_qa_report.v1",
+    "status": "accepted",
+    "state": "capture_accepted",
+    "intake_id": "intake-1",
+    "envelope_digest": "sha256:91235b9c280bbeff27e332593895addd37cc6836a677a3e36151198d50bb38d5",
+    "qa_report_digest": "sha256:d95982d4d7413c11d09ed128383da17e9a797b52df49d614e520002390cadeec"
+  }
+}

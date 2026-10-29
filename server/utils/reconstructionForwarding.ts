@@ -13,7 +13,7 @@ const sourceCaptureSchema = z.object({
   capture_authority_profile: z.string().min(1),
 }).strict();
 
-const reconstructionPlanSchema = z.object({
+export const reconstructionPlanSchema = z.object({
   schema_version: z.literal("reconstruction_plan.v1"),
   source_capture: sourceCaptureSchema,
   requested_claim_types: z.array(z.string().min(1)),
@@ -29,6 +29,7 @@ const reconstructionPlanSchema = z.object({
   }).strict()),
   missing_representations: z.array(z.record(z.string(), z.unknown())),
   estimated_cost_usd: z.number().nonnegative(),
+  cost_scope: z.literal("local_adoption_only").optional(),
   status: z.enum(["planned", "partial_plan"]),
   proof_boundary: z.object({
     provider_availability_is_qualification: z.literal(false),
@@ -78,7 +79,7 @@ const authorizationSchema = z.object({
   authorization_digest: z.string().regex(DIGEST),
 }).strict();
 
-const executionSchema = z.object({
+export const reconstructionExecutionSchema = z.object({
   schema_version: z.literal("reconstruction_control_plane_execution_result.v1"),
   plan_id: z.string().min(1),
   state: z.enum(["completed", "partial", "abstained"]),
@@ -89,9 +90,15 @@ const executionSchema = z.object({
   errors: z.array(z.record(z.string(), z.unknown())),
   missing_representations: z.array(z.string()),
   next_cheapest_experiments: z.array(z.string()),
-  cost_usd: z.number().nonnegative(),
+  cost_usd: z.number().finite().nonnegative().nullable(),
+  cost_status: z.literal("unknown").optional(),
+  cost_reason: z.string().min(1).refine(value => value.trim().length > 0).optional(),
+  known_cost_subtotal_usd: z.number().finite().nonnegative().optional(),
   proof_boundary: z.object({
     execution_was_local_and_explicitly_authorized: z.literal(true),
+    retained_artifact_adoption_only: z.literal(true).optional(),
+    provider_dispatch_performed: z.literal(false).optional(),
+    provider_reconstruction_was_remote: z.literal(true).optional(),
     derived_reconstruction_upgrades_raw_capture: z.literal(false),
     physical_task_success_established: z.literal(false),
     deployment_or_safety_approved: z.literal(false),
@@ -99,7 +106,31 @@ const executionSchema = z.object({
   }).strict(),
   already_exists: z.boolean(),
   execution_result_digest: z.string().regex(DIGEST),
-}).strict();
+}).strict().superRefine((execution, context) => {
+  const hasCostMetadata = execution.cost_status !== undefined
+    || execution.cost_reason !== undefined || execution.known_cost_subtotal_usd !== undefined;
+  if (execution.cost_usd === null) {
+    if (execution.cost_status !== "unknown" || execution.cost_reason === undefined
+      || execution.known_cost_subtotal_usd === undefined) {
+      context.addIssue({ code: z.ZodIssueCode.custom, message: "Unknown actual cost requires its reason and known subtotal" });
+    }
+  } else if (hasCostMetadata) {
+    context.addIssue({ code: z.ZodIssueCode.custom, message: "A known total cannot carry unknown-cost metadata" });
+  }
+  const boundary = execution.proof_boundary;
+  if (boundary.retained_artifact_adoption_only !== undefined
+    || boundary.provider_dispatch_performed !== undefined
+    || boundary.provider_reconstruction_was_remote !== undefined) {
+    if (boundary.retained_artifact_adoption_only !== true
+      || boundary.provider_dispatch_performed !== false
+      || boundary.provider_reconstruction_was_remote !== true) {
+      context.addIssue({ code: z.ZodIssueCode.custom, message: "Retained adoption requires complete provider provenance" });
+    }
+    if (!matchesCrossRuntimeArtifactDigest(execution, "execution_result_digest")) {
+      context.addIssue({ code: z.ZodIssueCode.custom, message: "Retained adoption digest does not match its contents" });
+    }
+  }
+});
 
 const inspectionSchema = z.object({
   schema_version: z.literal("reconstruction_control_plane_inspection.v1"),
@@ -116,7 +147,7 @@ const inspectionSchema = z.object({
   }).strict(),
   reconstruction_plan: reconstructionPlanSchema,
   execution_authorization: authorizationSchema.nullable(),
-  execution_result: executionSchema.nullable(),
+  execution_result: reconstructionExecutionSchema.nullable(),
   proof_boundary: z.object({
     inspection_recomputes_scientific_truth: z.literal(false),
     physical_task_success_established: z.literal(false),
@@ -291,7 +322,7 @@ const testbedCompilationSubmissionSchema = z.discriminatedUnion("schema_version"
 
 export type ReconstructionPlanResult = z.infer<typeof planResultSchema>;
 export type ReconstructionExecutionAuthorization = z.infer<typeof authorizationSchema>;
-export type ReconstructionExecutionResult = z.infer<typeof executionSchema>;
+export type ReconstructionExecutionResult = z.infer<typeof reconstructionExecutionSchema>;
 export type ReconstructionInspection = z.infer<typeof inspectionSchema>;
 export type TestbedCompilationResult = z.infer<typeof testbedCompilationSchema>;
 
@@ -506,7 +537,7 @@ export async function forwardReconstructionExecutionToPipeline(params: {
   const result = await signedRequest({
     path: `/reconstructions/${encodeURIComponent(params.planId)}/execute`,
     method: "POST",
-    schema: executionSchema,
+    schema: reconstructionExecutionSchema,
     blocker: "pipeline_reconstruction_execution_rejected",
   });
   const execution = result.value;

@@ -58,6 +58,7 @@ import {
 import { requireOwnedCaptureAtlasSource } from "../utils/ownedCaptureAtlasContext";
 import { loadOwnedCaptureAtlasConfiguration, ownedAtlasAuthorizationCommand } from "../utils/ownedCaptureAtlasPreparation";
 import { ownedCaptureAtlasExecutionRouter } from "./owned-capture-atlas";
+import type { OwnedAtlasExecution } from "../utils/ownedCaptureAtlasExecution";
 import {
   authorizeBackblazeCapturePart,
   cancelBackblazeResumableCapture,
@@ -533,7 +534,13 @@ function reconstructionProjection(record: SessionRecord) {
     next_cheapest_experiments: execution?.next_cheapest_experiments
       || plan?.next_cheapest_experiments
       || [],
-    cost_usd: execution?.cost_usd ?? plan?.reconstruction_plan?.estimated_cost_usd ?? 0,
+    cost_usd: execution ? execution.cost_usd : plan?.reconstruction_plan?.estimated_cost_usd ?? null,
+    cost_basis: execution ? "actual" : "estimate",
+    ...(execution?.cost_status === "unknown" ? {
+      cost_status: execution.cost_status,
+      cost_reason: execution.cost_reason,
+      known_cost_subtotal_usd: execution.known_cost_subtotal_usd,
+    } : {}),
     blocker: reconstruction.blocker || null,
     proof_boundary: execution?.proof_boundary || plan?.proof_boundary || {
       derived_reconstruction_upgrades_raw_capture: false,
@@ -2163,7 +2170,49 @@ router.post("/:sessionId/reconstructions/atlas/authorize", async (req, res) => {
   }
 });
 
-router.use("/:sessionId/reconstructions/atlas", ownedCaptureAtlasExecutionRouter({ authenticatedUser, readOwnedSession }));
+async function retainOwnedAtlasReconstruction(sessionId: string, ownerUid: string, execution: OwnedAtlasExecution) {
+  if (!execution.reconstruction) return;
+  if (!db) throw new Error("owned_capture_atlas_store_unavailable");
+  const ref = db.collection("captureUploadSessions").doc(sessionId);
+  await db.runTransaction(async transaction => {
+    const snapshot = await transaction.get(ref);
+    const current = snapshot.data() as SessionRecord | undefined;
+    if (!current || current.owner_user_id !== ownerUid) throw new Error("owned_capture_atlas_source_changed");
+    const control = current.pipeline_owned_atlas_preparation as { plans?: Record<string, unknown> } | undefined;
+    const plan = ownedCaptureAtlasPreparationPlanSchema.parse(
+      control?.plans?.[execution.plan_id],
+    );
+    requireOwnedCaptureAtlasSource({ session: current, ownerUid, context: plan.source_context });
+    if (plan.plan_digest !== execution.plan_digest) throw new Error("owned_capture_atlas_source_changed");
+    const projection = execution.reconstruction!;
+    const existing = current.pipeline_reconstruction;
+    if (existing?.plan_id && existing.plan_id !== projection.plan_id) {
+      throw new Error("owned_capture_atlas_reconstruction_conflict");
+    }
+    const retainedDigest = existing?.pipeline_execution?.execution_result_digest;
+    if (retainedDigest) {
+      if (retainedDigest !== projection.execution_result.execution_result_digest) {
+        throw new Error("owned_capture_atlas_reconstruction_conflict");
+      }
+      return;
+    }
+    const updated = new Date().toISOString();
+    transaction.set(ref, { pipeline_reconstruction: {
+      schema_version: "capture_reconstruction_control_record.v1",
+      source_kind: "owned_atlas_retained", status: projection.execution_result.state,
+      plan_id: projection.plan_id,
+      pipeline_plan: { plan_id: projection.plan_id, reconstruction_plan: projection.reconstruction_plan,
+        ...(projection.reconstruction_plan_canonical_json !== undefined
+          ? { reconstruction_plan_canonical_json: projection.reconstruction_plan_canonical_json } : {}) },
+      pipeline_execution: projection.execution_result, pipeline_authorization: null,
+      source_owned_execution_digest: execution.execution_digest,
+      blocker: null, updated_at_iso: updated,
+    }, updated_at_iso: updated }, { mergeFields: ["pipeline_reconstruction", "updated_at_iso"] });
+  });
+}
+
+router.use("/:sessionId/reconstructions/atlas", ownedCaptureAtlasExecutionRouter({ authenticatedUser, readOwnedSession,
+  retainReconstruction: retainOwnedAtlasReconstruction }));
 
 router.post("/:sessionId/reconstructions/atlas/plan", async (req, res) => {
   const user = authenticatedUser(res);

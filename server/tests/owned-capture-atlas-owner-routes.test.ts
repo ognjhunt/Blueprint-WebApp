@@ -5,7 +5,7 @@ import type { Server } from "node:http";
 import express from "express";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
-const native = vi.hoisted(() => ({ execute: vi.fn(), retry: vi.fn(), inspect: vi.fn(), bundle: vi.fn(), configuration: vi.fn(), stream: vi.fn() }));
+const native = vi.hoisted(() => ({ execute: vi.fn(), retry: vi.fn(), inspect: vi.fn(), bundle: vi.fn(), configuration: vi.fn(), stream: vi.fn(), retain: vi.fn() }));
 vi.mock("../utils/ownedCaptureAtlasExecution", () => ({ executeOwnedAtlas: native.execute,
   retryOwnedAtlas: native.retry, inspectOwnedAtlas: native.inspect, ownedAtlasBundleRequest: native.bundle }));
 vi.mock("../utils/ownedCaptureAtlasPreparation", () => ({ loadOwnedCaptureAtlasConfiguration: native.configuration }));
@@ -28,6 +28,7 @@ beforeEach(async () => {
   native.execute.mockImplementation(async () => execution); native.inspect.mockImplementation(async () => execution);
   native.retry.mockImplementation(async () => execution);
   native.configuration.mockResolvedValue({ grant_creation_allowed: false });
+  native.retain.mockResolvedValue(undefined);
   native.bundle.mockReturnValue({ url: new URL("https://pipeline.example.test/reconstructions/atlas-bundle"),
     headers: { "content-type": "application/json", "x-blueprint-pipeline-signature": "fixture" }, body: "signed-owner-target" });
   native.stream.mockImplementation(async ({ res }) => { res.status(200).send("verified fixture bytes"); });
@@ -36,6 +37,7 @@ beforeEach(async () => {
     authenticatedUser: () => ({ uid: owner }),
     readOwnedSession: async (id, uid) => ({ status: id === record.session_id && uid === record.owner_user_id ? 200 : 404,
       record: id === record.session_id && uid === record.owner_user_id ? record : undefined }),
+    retainReconstruction: native.retain,
   }));
   server = app.listen(0, "127.0.0.1"); await once(server, "listening");
   origin = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
@@ -48,6 +50,7 @@ it("queues from the actual retained owner plan using a noncreating configuration
     task_context_digest: fixture.plan.source_context.context_digest, source_video_digest: fixture.plan.source_video_digest });
   expect(native.execute).toHaveBeenCalledWith(fixture.plan, owner, executeBody.idempotency_key);
   expect((await response.json() as any).execution).toEqual(execution);
+  expect(native.retain).toHaveBeenCalledWith(record.session_id, owner, execution);
   expect(record.request).toEqual(fixture.session.request);
 });
 
@@ -83,8 +86,18 @@ it("inspects without creating/rechecking a processing grant and does not adverti
   expect((await response.json() as any).download_available).toBe(false);
   expect(native.inspect).toHaveBeenCalledWith(fixture.plan, owner);
   expect(native.configuration).not.toHaveBeenCalled();
+  expect(native.retain).toHaveBeenCalledWith(record.session_id, owner, execution);
   expect((await fetch(endpoint() + "/bundle")).status).toBe(409);
   expect(native.bundle).not.toHaveBeenCalled(); expect(native.stream).not.toHaveBeenCalled();
+});
+
+it("refuses a result whose source changed before its normal reconstruction could be retained", async () => {
+  native.retain.mockRejectedValue(new Error("owned_capture_atlas_source_changed"));
+  const response = await fetch(endpoint());
+  expect(response.status).toBe(409);
+  expect(await response.json()).toMatchObject({ code: "owned_capture_atlas_source_changed" });
+  expect(native.configuration).not.toHaveBeenCalled();
+  expect(native.execute).not.toHaveBeenCalled();
 });
 
 it("delivers a ready bundle through the same digest verifier using signed POST with Range disabled", async () => {

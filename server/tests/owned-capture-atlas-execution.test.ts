@@ -36,6 +36,39 @@ it("accepts the exact Python-generated draft execution with no robot or metric u
   expect(value.scale_status).toBe("unscaled_provider_world_units");
 });
 
+it("accepts the actual Python ready status and preserves its normal reconstruction and unknown bill", () => {
+  const ready = JSON.parse(readFileSync(new URL("./fixtures/owned-atlas-ready-status.json", import.meta.url), "utf8"));
+  const parsed = ownedAtlasExecutionSchema.parse(ready);
+  expect(parsed).toEqual(ready);
+  expect(parsed.reconstruction?.execution_result.cost_usd).toBeNull();
+  expect(parsed.reconstruction?.execution_result.cost_status).toBe("unknown");
+  expect(parsed.reconstruction?.execution_result.proof_boundary.provider_reconstruction_was_remote).toBe(true);
+  expect(parsed.scale_status).toBe("unscaled_provider_world_units");
+});
+
+it.each(["plan", "source", "intake", "authorization", "non-ready", "nested-digest", "outer-digest", "producer-bytes", "producer-body"])(
+  "refuses a ready projection with changed %s", change => {
+    const ready = JSON.parse(readFileSync(new URL("./fixtures/owned-atlas-ready-status.json", import.meta.url), "utf8"));
+    const reconstruction = ready.reconstruction;
+    if (change === "plan") reconstruction.plan_id = "another-plan";
+    if (change === "source") reconstruction.reconstruction_plan.source_capture.capture_digest = "sha256:" + "f".repeat(64);
+    if (change === "intake") reconstruction.reconstruction_plan.source_capture.intake_id = "another-intake";
+    if (["source", "intake"].includes(change)) {
+      reconstruction.reconstruction_plan.reconstruction_plan_digest = crossRuntimeArtifactDigest(reconstruction.reconstruction_plan, "reconstruction_plan_digest");
+      reconstruction.execution_result.reconstruction_plan_digest = reconstruction.reconstruction_plan.reconstruction_plan_digest;
+    }
+    if (change === "authorization") reconstruction.execution_result.authorization_digest = "sha256:" + "f".repeat(64);
+    if (change === "non-ready") { ready.state = "failed"; ready.bundle = null; }
+    if (change === "producer-bytes") reconstruction.reconstruction_plan_canonical_json += " ";
+    if (change === "producer-body") reconstruction.reconstruction_plan_canonical_json = reconstruction.reconstruction_plan_canonical_json.replace("local_adoption_only", "provider_execution");
+    if (change !== "nested-digest") reconstruction.execution_result.execution_result_digest = crossRuntimeArtifactDigest(reconstruction.execution_result, "execution_result_digest");
+    else reconstruction.execution_result.known_cost_subtotal_usd = 1;
+    if (change !== "outer-digest") ready.execution_digest = crossRuntimeArtifactDigest(ready, "execution_digest");
+    else ready.revision++;
+    expect(ownedAtlasExecutionSchema.safeParse(ready).success).toBe(false);
+  },
+);
+
 it("signs the entire owner/source/task execute command and rejects redirects", async () => {
   await expect(executeOwnedAtlas(plan, "real-fixture-owner", "owned-execution-1")).resolves.toEqual(value);
   expect(sent).toHaveLength(1); const command = sent[0];

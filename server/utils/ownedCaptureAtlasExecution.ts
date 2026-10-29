@@ -2,7 +2,9 @@
 import { z } from "zod";
 import { signedWebsitePipelineRequest } from "./websitePipelineSignedRequest";
 import { matchesCrossRuntimeArtifactDigest } from "./crossRuntimeCanonical";
-import type { OwnedCaptureAtlasPreparationPlan } from "./reconstructionForwarding";
+import { verifyProducerArtifact } from "./producerCanonicalArtifact";
+import { reconstructionPlanSchema, reconstructionExecutionSchema,
+  type OwnedCaptureAtlasPreparationPlan } from "./reconstructionForwarding";
 
 const sha = z.string().regex(/^sha256:[0-9a-f]{64}$/);
 export const ownedAtlasExecutionSchema = z.object({
@@ -17,6 +19,11 @@ export const ownedAtlasExecutionSchema = z.object({
     filename: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,299}\.zip$/), manifest_digest: sha }).strict().nullable(),
   splat_available: z.boolean(), mesh_available: z.boolean(),
   provider_cleanup_state: z.enum(["not_started", "pending", "complete", "failed"]),
+  reconstruction: z.object({ plan_id: z.string().min(1),
+    reconstruction_plan: reconstructionPlanSchema,
+    reconstruction_plan_canonical_json: z.string().min(1).max(750_000).optional(),
+    execution_result: reconstructionExecutionSchema,
+  }).strict().nullable().optional(),
   claim_ceiling: z.literal("development_only"), scale_status: z.literal("unscaled_provider_world_units"),
   proof_boundary: z.object({ derived_reconstruction_upgrades_raw_capture: z.literal(false),
     metric_or_collision_qualification_established: z.literal(false), robot_execution_established: z.literal(false),
@@ -26,6 +33,21 @@ export const ownedAtlasExecutionSchema = z.object({
   if (!matchesCrossRuntimeArtifactDigest(value, "execution_digest")
     || value.state !== "ready" && value.bundle !== null)
     issue.addIssue({ code: "custom", message: "owned_atlas_execution_binding_invalid" });
+  const reconstruction = value.reconstruction;
+  if (reconstruction && (value.state !== "ready" || !value.bundle
+    || reconstruction.plan_id !== value.plan_id
+    || reconstruction.reconstruction_plan.source_capture.capture_digest !== value.source_video_digest
+    || reconstruction.reconstruction_plan.source_capture.intake_id !== value.intake_id
+    || !(reconstruction.reconstruction_plan_canonical_json !== undefined
+      ? verifyProducerArtifact(reconstruction.reconstruction_plan, "reconstruction_plan_digest", reconstruction.reconstruction_plan_canonical_json)
+      : matchesCrossRuntimeArtifactDigest(reconstruction.reconstruction_plan, "reconstruction_plan_digest"))
+    || reconstruction.execution_result.plan_id !== value.plan_id
+    || reconstruction.execution_result.authorization_digest !== value.authorization_digest
+    || reconstruction.execution_result.reconstruction_plan_digest !== reconstruction.reconstruction_plan.reconstruction_plan_digest
+    || reconstruction.execution_result.proof_boundary.retained_artifact_adoption_only !== true
+    || reconstruction.execution_result.results.some(result => result.capture_digest !== value.source_video_digest))) {
+    issue.addIssue({ code: "custom", message: "owned_atlas_reconstruction_binding_invalid" });
+  }
 });
 export type OwnedAtlasExecution = z.infer<typeof ownedAtlasExecutionSchema>;
 
