@@ -1,0 +1,210 @@
+{
+  "fixture_scope": "Cross-runtime contract regression only; synthetic evidence is never production admission.",
+  "context": {
+    "schema_version": "owned_capture_atlas_context.v1",
+    "request_id": "reconstruction-owned-fixture",
+    "capture_id": "capture-session-reference",
+    "intake_id": "licensed-reference-intake",
+    "scene_id": "reference-scene",
+    "source_scene_id": "reference-scene",
+    "scene_identity_basis": "source_scene_id",
+    "purpose": "scene_preparation",
+    "description": "Move the object from the shelf into the box, close its lid, and return to the start.",
+    "task_specification": {
+      "task_id": "reference-task",
+      "description": "Move the object from the shelf into the box, close its lid, and return to the start.",
+      "task_family": "customer_defined_multistage_operation",
+      "success_parameters_status": "proposed_unconfirmed",
+      "operations": [
+        "pickup",
+        "containment",
+        "articulation",
+        "return"
+      ],
+      "tolerances": {
+        "one": 1.0,
+        "negative_zero": -0.0,
+        "tiny": 1e-07
+      }
+    },
+    "task_family": "customer_defined_multistage_operation",
+    "task_confirmation_status": "proposed_unconfirmed",
+    "source_capture": {
+      "capture_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+      "envelope_digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+      "qa_report_digest": "sha256:932b0fbb67e5359de801ccd1746264d4eae036fd60472bea0d80bb30e495eec3",
+      "object_manifest_digest": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+      "capture_authority_profile": "monocular_video"
+    },
+    "governance": {
+      "rights": "accepted",
+      "consent": "not_required",
+      "privacy": "cleared",
+      "provider_constraints": {
+        "external_processing_allowed": false,
+        "automatic_model_inference_allowed": false
+      },
+      "retention": {
+        "max_days": 30
+      }
+    },
+    "permitted_reconstruction_providers": [
+      "local",
+      "world_labs_atlas"
+    ],
+    "permitted_evidence_uses": [
+      "scene_assessment",
+      "reconstruction"
+    ],
+    "coordinate_frame_declaration": {
+      "metric_scale": "unverified"
+    },
+    "authority_issued": false,
+    "context_digest": "sha256:2b8f51e1dd6d8eac4d91b47cb4eb51add88a2651ea4bdbffe25fd083d26a845f"
+  },
+  "session": {
+    "session_id": "capture-session-reference",
+    "owner_user_id": "reference-owner",
+    "request": {
+      "capture_authority_profile": "monocular_video",
+      "known_task_specification": {
+        "task_id": "reference-task",
+        "description": "Move the object from the shelf into the box, close its lid, and return to the start.",
+        "task_family": "customer_defined_multistage_operation",
+        "success_parameters_status": "proposed_unconfirmed",
+        "operations": [
+          "pickup",
+          "containment",
+          "articulation",
+          "return"
+        ],
+        "tolerances": {
+          "one": 1.0,
+          "negative_zero": -0.0,
+          "tiny": 1e-07
+        }
+      },
+      "governance": {
+        "rights": "accepted",
+        "consent": "not_required",
+        "privacy": "cleared",
+        "provider_constraints": {
+          "external_processing_allowed": false,
+          "automatic_model_inference_allowed": false
+        },
+        "retention": {
+          "max_days": 30
+        }
+      },
+      "permitted_reconstruction_providers": [
+        "local",
+        "world_labs_atlas"
+      ],
+      "permitted_evidence_uses": [
+        "scene_assessment",
+        "reconstruction"
+      ],
+      "coordinate_frame_declaration": {
+        "metric_scale": "unverified"
+      },
+      "scene_id": "reference-scene",
+      "intake_id": "licensed-reference-intake"
+    },
+    "pipeline_capture_intake_receipt": {
+      "schema_version": "capture_upload_intake_receipt.v1",
+      "capture_session_id": "capture-session-reference",
+      "intake_id": "licensed-reference-intake",
+      "capture_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+      "envelope_digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+      "request_digest": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+      "size_bytes": 42,
+      "admission_status": "accepted",
+      "state": "capture_accepted",
+      "claim_ceiling": {
+        "physical_task_success": false,
+        "deployment_readiness": false,
+        "safety_certification": false
+      },
+      "artifact_reference": {
+        "uri": "intakes/reference",
+        "envelope_digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+      },
+      "malware_content_validation": {
+        "status": "passed",
+        "scanner": "fixture-only"
+      },
+      "capture_qa_report": {
+        "schema_version": "capture_qa_report.v1",
+        "intake_id": "licensed-reference-intake",
+        "envelope_digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+        "capture_authority_profile": "monocular_video",
+        "status": "accepted",
+        "state": "capture_accepted",
+        "checks": [],
+        "recapture_plan": [],
+        "missing_evidence": [],
+        "required_analysis": [],
+        "next_cheapest_experiment": null,
+        "quality_observations_digest": null,
+        "quality_analysis_errors": [],
+        "claim_ceiling": {
+          "physical_task_success": false,
+          "deployment_readiness": false,
+          "safety_certification": false
+        },
+        "prohibited_claims": [],
+        "comparative_policy_ranking_verdict": "thesis_not_supported",
+        "qa_report_digest": "sha256:932b0fbb67e5359de801ccd1746264d4eae036fd60472bea0d80bb30e495eec3"
+      },
+      "already_exists": false,
+      "proof_boundary": {
+        "server_sha256_verified": true,
+        "raw_input_content_addressed": true,
+        "capture_qa_completed": true,
+        "task_success_established": false,
+        "physical_task_success_established": false,
+        "deployment_or_safety_approved": false,
+        "comparative_policy_ranking_verdict": "thesis_not_supported"
+      }
+    },
+    "pipeline_capture_qa": {
+      "schema_version": "capture_qa_publication.v1",
+      "capture_session_id": "capture-session-reference",
+      "intake_id": "licensed-reference-intake",
+      "capture_authority_profile": "monocular_video",
+      "envelope_digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+      "qa_report_digest": "sha256:932b0fbb67e5359de801ccd1746264d4eae036fd60472bea0d80bb30e495eec3",
+      "status": "accepted",
+      "state": "capture_accepted",
+      "report": {
+        "schema_version": "capture_qa_report.v1",
+        "intake_id": "licensed-reference-intake",
+        "envelope_digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+        "capture_authority_profile": "monocular_video",
+        "status": "accepted",
+        "state": "capture_accepted",
+        "checks": [],
+        "recapture_plan": [],
+        "missing_evidence": [],
+        "required_analysis": [],
+        "next_cheapest_experiment": null,
+        "quality_observations_digest": null,
+        "quality_analysis_errors": [],
+        "claim_ceiling": {
+          "physical_task_success": false,
+          "deployment_readiness": false,
+          "safety_certification": false
+        },
+        "prohibited_claims": [],
+        "comparative_policy_ranking_verdict": "thesis_not_supported",
+        "qa_report_digest": "sha256:932b0fbb67e5359de801ccd1746264d4eae036fd60472bea0d80bb30e495eec3"
+      },
+      "proof_boundary": {
+        "qa_is_task_success": false,
+        "qa_is_physical_success": false,
+        "deployment_or_safety_approved": false,
+        "comparative_policy_ranking_verdict": "thesis_not_supported"
+      }
+    }
+  }
+}

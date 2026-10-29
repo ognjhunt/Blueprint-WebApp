@@ -666,7 +666,8 @@ export default function Captures() {
                     <>
                       <p className="mt-2">
                         Planned methods: {(reconstruction.authorization_candidates || []).map((candidate) => candidate.method_id).join(", ") || "none"}
-                        {" "}· estimated ${Number(reconstruction.cost_usd || 0).toFixed(2)}
+                        {" "}· {typeof reconstruction.cost_usd === "number"
+                          ? `estimated $${reconstruction.cost_usd.toFixed(2)}` : "cost estimate pending"}
                       </p>
                       <button type="button" className="ws-primary mt-5" disabled={reconstructionBusy} onClick={() => void authorizeReconstruction(detail)}>Approve the plan</button>
                     </>
@@ -683,6 +684,7 @@ export default function Captures() {
                       {reconstruction.missing_representations?.length ? ` Missing: ${reconstruction.missing_representations.map(humanize).join(", ")}.` : ""}
                     </p>
                   ) : null}
+                  {reconstruction.cost_status === "unknown" ? <p className="mt-2 text-sm text-ink-600">Final cost is pending.</p> : null}
                   {reconstruction.next_cheapest_experiments?.length ? (
                     <p className="mt-2 text-sm text-ink-600">Next: {reconstruction.next_cheapest_experiments.map(humanize).join("; ")}</p>
                   ) : null}

@@ -1,11 +1,14 @@
 // @vitest-environment node
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
+import { crossRuntimeArtifactDigest } from "../utils/crossRuntimeCanonical";
 
 import { canonicalArtifactDigest } from "../utils/taskCandidateContract";
 import {
   forwardReconstructionAuthorizationToPipeline,
   forwardReconstructionExecutionToPipeline,
   forwardReconstructionPlanToPipeline,
+  forwardOwnedCaptureAtlasPlanToPipeline,
   forwardTestbedCompilationToPipeline,
   inspectReconstructionInPipeline,
 } from "../utils/reconstructionForwarding";
@@ -224,6 +227,75 @@ afterEach(() => {
 });
 
 describe("reconstruction forwarding", () => {
+  it("preserves an actual Python retained-Atlas result with unknown billing and estimated scale", async () => {
+    const fixture = JSON.parse(readFileSync(new URL("./fixtures/owned-atlas-reconstruction-projection.json", import.meta.url), "utf8"));
+    process.env.RECONSTRUCTION_PIPELINE_BASE_URL = "https://pipeline.example/api/live-pipeline";
+    process.env.RECONSTRUCTION_FORWARD_TOKEN = "reconstruction-secret";
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json(fixture.execution_result)));
+    const execution = fixture.execution_result;
+    const forwarded = await forwardReconstructionExecutionToPipeline({
+      planId: execution.plan_id,
+      reconstructionPlanDigest: execution.reconstruction_plan_digest,
+      authorizationDigest: execution.authorization_digest,
+    });
+    expect(forwarded.status).toBe("forwarded");
+    expect(forwarded.value).toEqual(execution);
+    expect(forwarded.value?.cost_usd).toBeNull();
+    expect(forwarded.value?.known_cost_subtotal_usd).toBe(0);
+    expect(forwarded.value?.proof_boundary.provider_dispatch_performed).toBe(false);
+    expect(forwarded.value?.results[0].claim_ceiling).toMatchObject({
+      metric_scale: false, collision_geometry: false, physics: false,
+    });
+    const context = fixture.context;
+    const inspection = {
+      schema_version: "reconstruction_control_plane_inspection.v1",
+      plan_id: execution.plan_id, state: execution.state,
+      source_binding: Object.fromEntries([
+        "capture_session_id", "intake_id", "capture_digest", "envelope_digest",
+        "qa_report_digest", "object_manifest_digest", "context_digest",
+      ].map(key => [key, context[key]])),
+      reconstruction_plan: fixture.reconstruction_plan,
+      execution_authorization: null, execution_result: execution,
+      proof_boundary: {
+        inspection_recomputes_scientific_truth: false,
+        physical_task_success_established: false,
+        comparative_policy_ranking_verdict: "thesis_not_supported",
+      },
+    };
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json(inspection)));
+    const inspected = await inspectReconstructionInPipeline({
+      planId: execution.plan_id, captureSessionId: context.capture_session_id,
+      intakeId: context.intake_id, captureDigest: context.capture_digest,
+    });
+    expect(inspected.status).toBe("forwarded");
+    expect(inspected.value?.reconstruction_plan).toEqual(fixture.reconstruction_plan);
+    expect(inspected.value?.execution_result).toEqual(execution);
+  });
+
+  it.each(["status", "reason", "subtotal", "known-total", "partial-provenance", "digest"])(
+    "refuses retained-Atlas billing or provenance with changed %s", async (changed) => {
+      const fixture = JSON.parse(readFileSync(new URL("./fixtures/owned-atlas-reconstruction-projection.json", import.meta.url), "utf8"));
+      const execution = fixture.execution_result;
+      if (changed === "status") delete execution.cost_status;
+      if (changed === "reason") delete execution.cost_reason;
+      if (changed === "subtotal") delete execution.known_cost_subtotal_usd;
+      if (changed === "known-total") execution.cost_usd = 0;
+      if (changed === "partial-provenance") delete execution.proof_boundary.provider_reconstruction_was_remote;
+      if (changed !== "digest") execution.execution_result_digest = crossRuntimeArtifactDigest(execution, "execution_result_digest");
+      else execution.known_cost_subtotal_usd = 1;
+      process.env.RECONSTRUCTION_PIPELINE_BASE_URL = "https://pipeline.example/api/live-pipeline";
+      process.env.RECONSTRUCTION_FORWARD_TOKEN = "reconstruction-secret";
+      vi.stubGlobal("fetch", vi.fn(async () => Response.json(execution)));
+      const forwarded = await forwardReconstructionExecutionToPipeline({
+        planId: execution.plan_id,
+        reconstructionPlanDigest: execution.reconstruction_plan_digest,
+        authorizationDigest: execution.authorization_digest,
+      });
+      expect(forwarded.status).toBe("failed");
+      expect(forwarded.value).toBeUndefined();
+    },
+  );
+
   it("validates exact source, plan, authorization, execution, and inspection bindings", async () => {
     process.env.RECONSTRUCTION_PIPELINE_BASE_URL = "https://pipeline.example/api/live-pipeline";
     process.env.RECONSTRUCTION_FORWARD_TOKEN = "reconstruction-secret";
@@ -260,6 +332,8 @@ describe("reconstruction forwarding", () => {
       authorizationDigest: value.authorization.authorization_digest,
     });
     expect(executed.status).toBe("forwarded");
+    expect(executed.value).toEqual(value.execution);
+    expect(executed.value).not.toHaveProperty("cost_status");
     const inspected = await inspectReconstructionInPipeline({
       planId: "reconstruction-1",
       captureSessionId: "capture-session-1",
@@ -378,4 +452,45 @@ describe("reconstruction forwarding", () => {
       blocker: "pipeline_reconstruction_plan_binding_mismatch",
     });
   });
+});
+
+it("forwards the actual Python-owned Atlas plan through the signed reconstruction transport", async () => {
+  const fixture = JSON.parse(readFileSync(new URL("./fixtures/owned-capture-atlas-plan.json", import.meta.url), "utf8"));
+  vi.stubEnv("CAPTURE_UPLOAD_INTAKE_FORWARD_URL", "https://pipeline.example.com/api/live-pipeline/capture-upload-intakes");
+  vi.stubEnv("CAPTURE_UPLOAD_INTAKE_FORWARD_TOKEN", "fixture-only-signing-secret");
+  const fetch = vi.fn().mockResolvedValue(Response.json(fixture.plan));
+  vi.stubGlobal("fetch", fetch);
+  const result = await forwardOwnedCaptureAtlasPlanToPipeline({ captureSessionId: fixture.session.session_id,
+    intakeId: fixture.session.request.intake_id, captureDigest: fixture.plan.source_video_digest,
+    requestedClaimTypes: ["task_discovery", "navigation_clearance"], idempotencyKey: "owned-plan-fixture" });
+  expect(result.status).toBe("forwarded");
+  expect(result.value).toEqual(fixture.plan);
+  const [url, request] = fetch.mock.calls[0];
+  expect(url).toBe("https://pipeline.example.com/api/live-pipeline/reconstructions/atlas-plan");
+  expect(request.headers["x-blueprint-pipeline-signature"]).toMatch(/^sha256=[0-9a-f]{64}$/);
+  expect(JSON.parse(request.body)).toEqual({ schema_version: "owned_capture_atlas_plan_submission.v1",
+    capture_session_id: fixture.session.session_id, intake_id: fixture.session.request.intake_id,
+    requested_claim_types: ["navigation_clearance", "task_discovery"], idempotency_key: "owned-plan-fixture" });
+  expect(result.value?.source_context.task_specification.operations).toEqual([
+    "navigate", "avoid_side_shelves", "stop_before_end_shelving"]);
+  expect(result.value?.proof_boundary.provider_disclosure_authorized).toBe(false);
+});
+
+it.each(["claims", "capture", "authority", "digest"])("refuses an owned Atlas response with changed %s", async changed => {
+  const fixture = JSON.parse(readFileSync(new URL("./fixtures/owned-capture-atlas-plan.json", import.meta.url), "utf8"));
+  const plan = structuredClone(fixture.plan);
+  if (changed === "claims") plan.requested_claim_types = ["appearance_review"];
+  if (changed === "capture") plan.source_context.capture_id = "some-other-capture";
+  if (changed === "authority") plan.proof_boundary.paid_compute_authorized = true;
+  plan.source_context.context_digest = crossRuntimeArtifactDigest(plan.source_context, "context_digest");
+  plan.plan_digest = crossRuntimeArtifactDigest(plan, "plan_digest");
+  if (changed === "digest") plan.plan_digest = `sha256:${"0".repeat(64)}`;
+  vi.stubEnv("CAPTURE_UPLOAD_INTAKE_FORWARD_URL", "https://pipeline.example.com/api/live-pipeline/capture-upload-intakes");
+  vi.stubEnv("CAPTURE_UPLOAD_INTAKE_FORWARD_TOKEN", "fixture-only-signing-secret");
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json(plan)));
+  const result = await forwardOwnedCaptureAtlasPlanToPipeline({ captureSessionId: fixture.session.session_id,
+    intakeId: fixture.session.request.intake_id, captureDigest: fixture.plan.source_video_digest,
+    requestedClaimTypes: fixture.plan.requested_claim_types, idempotencyKey: "owned-plan-fixture" });
+  expect(result.status).toBe("failed");
+  expect(result.value).toBeUndefined();
 });

@@ -51,6 +51,8 @@ import { isTeamEvaluationProfile, TEAM_EVALUATION_EPISODES, TEAM_EVALUATION_PROF
 import { observeWebsiteCaptureOwner } from "../utils/websiteCaptureOwnerObservation";
 import { withWebsiteOwnerDeps } from "../utils/websiteCaptureOwnerTransport";
 import { recordWebsiteAtlasPreview, websiteAtlasPreviewDigestValid, websiteAtlasPreviewSchema } from "../utils/websiteAtlasPreview";
+import { loadOwnedCaptureAtlasConfiguration, ownedAtlasConfigurationRequest,
+  reserveOwnedCaptureAtlasSpend, settleOwnedCaptureAtlasSpend } from "../utils/ownedCaptureAtlasPreparation";
 
 const router = Router();
 
@@ -240,6 +242,34 @@ const sponsoredSceneRequest = z.object({
 
 // The Pipeline credential, current site consent and configured Blueprint cap
 // authorize preparation. No robot-team payment or site account is required.
+for (const operation of ["atlas-configuration", "preparation-spend", "preparation-settlement"] as const) router.post(
+  `/owned-captures/:captureId/${operation}`, createPipelineSyncRateLimiter(), guard,
+  async (req: Request, res: Response) => {
+    const schema = operation === "preparation-settlement"
+      ? z.object({ settlement: preparationSettlementRequest }).strict()
+      : ownedAtlasConfigurationRequest.extend(operation === "preparation-spend"
+        ? { spend: preparationSpendRequest, create: z.literal(false).optional() }
+        : { create: z.literal(false).optional() }).strict();
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ code: "owned_capture_atlas_command_invalid" });
+    try {
+      res.setHeader("Cache-Control", "no-store");
+      if (operation === "preparation-settlement")
+        return res.json(await settleOwnedCaptureAtlasSpend(req.params.captureId,
+          preparationSettlementRequest.parse(req.body.settlement)));
+      const binding = ownedAtlasConfigurationRequest.parse({ plan_id: req.body.plan_id,
+        task_context_digest: req.body.task_context_digest, source_video_digest: req.body.source_video_digest });
+      if (operation === "atlas-configuration")
+        return res.json(await loadOwnedCaptureAtlasConfiguration(req.params.captureId, binding));
+      return res.json(await reserveOwnedCaptureAtlasSpend(req.params.captureId, binding,
+        preparationSpendRequest.parse(req.body.spend), req.body.create === false));
+    } catch (error) {
+      const code = error instanceof Error && /^(owned_capture_atlas_|website_atlas_|capture_revoked_or_expired$|provider_terms_not_configured_or_changed$|idempotency_conflict$)/.test(error.message)
+        ? error.message : "owned_capture_atlas_control_unavailable";
+      return res.status(409).json({ code });
+    }
+  });
+
 for (const operation of ["scene-sponsorship", "prepared-scene", "preparation-spend", "preparation-settlement", "atlas-configuration"] as const) router.post(
   `/creator-captures/:captureId/${operation}`, createPipelineSyncRateLimiter(), guard,
   async (req: Request, res: Response) => {

@@ -3,7 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Writable } from 'node:stream';
 import {createHash} from 'node:crypto';
 const sha=(value:string)=>'sha256:'+createHash('sha256').update(value).digest('hex');
-import { ARTIFACT_ORIGIN_HEADER_TIMEOUT_MS, ARTIFACT_ORIGIN_IDLE_TIMEOUT_MS, probeTaskEvaluationResultArtifactMetadata, streamTaskEvaluationResultArtifact } from '../utils/taskEvaluationResultArtifactProxy';
+import { ARTIFACT_ORIGIN_HEADER_TIMEOUT_MS, ARTIFACT_ORIGIN_IDLE_TIMEOUT_MS, probeTaskEvaluationResultArtifactMetadata, streamTaskEvaluationResultArtifact,
+  streamVerifiedPipelineArtifact } from '../utils/taskEvaluationResultArtifactProxy';
 
 class ResponseSink extends Writable {
   code = 200; headers = new Map<string,string>(); chunks: Buffer[] = []; headersSent = false;
@@ -22,6 +23,40 @@ afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); vi.useRealTimers();
 const invoke = (res:ResponseSink, range='bytes=0-2') => streamTaskEvaluationResultArtifact({runId:'fixture',artifactId:'artifact',req:{headers:{range}} as any,res:res as any});
 
 describe('controlled media streams', () => {
+  it('forwards exact signed POST bytes for owned archives and fully verifies the complete body', async () => {
+    const bytes = 'owned fixture archive', body = '{"owner":"fixture","digest":"bound"}';
+    const fetcher = vi.fn().mockResolvedValue(new Response(bytes, { headers: {
+      'content-length': String(Buffer.byteLength(bytes)), 'x-blueprint-artifact-sha256': sha(bytes),
+    } }));
+    vi.stubGlobal('fetch', fetcher); const res = new ResponseSink();
+    await streamVerifiedPipelineArtifact({ endpoint: 'https://fixture.invalid/atlas-bundle',
+      headers: { 'content-type': 'application/json', 'x-blueprint-pipeline-signature': 'fixture-signature' },
+      originRequest: { method: 'POST', body }, expected: { sha256: sha(bytes), size_bytes: Buffer.byteLength(bytes) },
+      forwardRange: false, req: { headers: { range: 'bytes=0-1' } } as any, res: res as any });
+    await flush();
+    expect(res.writableFinished).toBe(true); expect(res.code).toBe(200);
+    expect(Buffer.concat(res.chunks).toString()).toBe(bytes);
+    expect(fetcher.mock.calls[0][1]).toEqual(expect.objectContaining({ method: 'POST', body, redirect: 'error' }));
+    expect(fetcher.mock.calls[0][1].headers).not.toHaveProperty('range');
+    expect(res.headers.get('x-blueprint-artifact-verification')).toBe('sha256-on-completion');
+  });
+  it('keeps byte-integrity refusal on signed POST and disallows Range for a signed whole-bundle request', async () => {
+    const bytes = 'wrong bytes', expected = { sha256: sha('right bytes'), size_bytes: Buffer.byteLength(bytes) };
+    const fetcher = vi.fn().mockResolvedValue(new Response(bytes, { headers: {
+      'content-length': String(expected.size_bytes), 'x-blueprint-artifact-sha256': expected.sha256,
+    } }));
+    vi.stubGlobal('fetch', fetcher); const res = new ResponseSink();
+    const args = { endpoint: 'https://fixture.invalid/atlas-bundle', headers: {},
+      originRequest: { method: 'POST' as const, body: 'exact signed target' }, expected,
+      forwardRange: false, req: { headers: {} } as any, res: res as any };
+    await streamVerifiedPipelineArtifact(args); await flush(); await flush();
+    // Headers and earlier bytes have already streamed. Withhold the final byte
+    // and abort, so an invalid Content-Length download cannot complete.
+    expect(res.destroyed).toBe(true); expect(res.writableFinished).toBe(false);
+    expect(Buffer.concat(res.chunks).length).toBe(Buffer.byteLength(bytes) - 1);
+    await expect(streamVerifiedPipelineArtifact({ ...args, forwardRange: true })).rejects.toThrow('cannot_forward_range');
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
   it('probes and fully verifies a zero-byte telemetry response', async () => {
     const expected = { sha256: sha(''), size_bytes: 0 };
     const fetcher = vi.fn(async () => new Response('', { headers: {
