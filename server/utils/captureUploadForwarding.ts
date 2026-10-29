@@ -1,4 +1,5 @@
 import { createHash, createHmac, randomUUID } from "node:crypto";
+import { isDeepStrictEqual } from "node:util";
 
 import { z } from "zod";
 
@@ -216,6 +217,7 @@ export async function forwardCaptureUploadToPipeline(params: {
       || qa.capture_authority_profile !== params.request.capture_authority_profile
       || qa.envelope_digest !== receipt.envelope_digest
       || qa.qa_report_digest !== receipt.capture_qa_report.qa_report_digest
+      || !isDeepStrictEqual(receipt.capture_qa_report, qa.report)
     ) return {
       status: "failed",
       performed: false,
