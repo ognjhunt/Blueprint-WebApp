@@ -83,6 +83,9 @@ async function firstTestAccepted(store: FirebaseFirestore.Firestore, intake: Rec
   const taskId = intake.request?.task?.task_id;
   const team = intake.request?.owner?.organization_id;
   if (typeof taskId !== "string" || !taskId || typeof team !== "string" || !team) return false;
+  // Held is a fallback: any estimate or other running test for this scene wins,
+  // whatever order the campaigns are read in.
+  let held = false;
   if (typeof intake.receipt?.intent_id === "string") {
     let observed = false;
     for await (const rows of queryPages(store.collection(POLICY_RUN_COLLECTION)
@@ -93,7 +96,7 @@ async function firstTestAccepted(store: FirebaseFirestore.Firestore, intake: Rec
         // A completed campaign with a scored episode is the job's estimate.
         if (run.state === "completed" && run.episodes_scored > 0) return "evaluated";
         // No candidate can do this kind of job yet: held, not an open test.
-        if (["completed", "blocked"].includes(run.state) && run.no_estimate_reason === "held") return "held";
+        if (["completed", "blocked"].includes(run.state) && run.no_estimate_reason === "held") { held = true; continue; }
         observed ||= run.screening_execution_observed === true;
       }
     }
@@ -111,7 +114,7 @@ async function firstTestAccepted(store: FirebaseFirestore.Firestore, intake: Rec
       if (rows.some(row => policyTestAccepted(row.data()))) return true;
     }
   }
-  return false;
+  return held ? "held" : false;
 }
 
 /** The site's latest scene intake for this capture, projected. Throws when it cannot be read. */
