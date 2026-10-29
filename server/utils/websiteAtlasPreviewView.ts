@@ -19,6 +19,7 @@ const VIEW_TICKET_DOMAIN = "website_atlas_preview_view";
 export const WEBSITE_ATLAS_PREVIEW_VIEW_ROUTE = "/api/website-atlas-preview-views";
 /** The bundle member the viewer renders. The viewer picks the format from the extension. */
 const SPLAT_MEMBER = /(^|\/)splat\/[^/]+\.ply$/;
+const FIRST_CAMERA_MEMBER = /(^|\/)views\/000-camera\.json$/;
 const MAX_BUNDLE_BYTES = 512 * 1024 * 1024;
 
 /** A ready preview whose bundle holds a splat; consent is re-read by the caller's record. */
@@ -85,17 +86,75 @@ export function extractZipMember(zip: Buffer, matches: (name: string) => boolean
 }
 
 /**
- * The preview's splat as a local file: the bundle is fetched once through the signed
- * Pipeline read, verified against its stored digest and size, and only its splat kept,
- * cached by bundle digest.
+ * The viewer turns every .ply 180° about Z on load (the COLMAP y-down correction). Atlas
+ * splats are already y-up, so turn them the opposite way first: positions and normals
+ * negate x and y, and each (w, x, y, z) orientation becomes Rz(180°)·q = (−z, −y, x, w).
+ * Only binary float32 splats are accepted; colours and scales are unchanged.
  */
-export async function websiteAtlasPreviewSplatFile(requestId: string, captureId: string,
+export function orientPlyForViewer(ply: Buffer): Buffer {
+  const end = ply.indexOf("end_header\n");
+  if (end < 0) throw new Error("ply_header_missing");
+  const header = ply.subarray(0, end).toString("latin1").split("\n").map(line => line.trim());
+  if (!header.includes("format binary_little_endian 1.0")) throw new Error("ply_format_unsupported");
+  const count = Number(/^element vertex (\d+)$/m.exec(header.join("\n"))?.[1]);
+  const properties = header.filter(line => line.startsWith("property ")).map(line => line.split(" "));
+  if (!Number.isInteger(count) || properties.some(([, type]) => type !== "float"))
+    throw new Error("ply_properties_unsupported");
+  const index = (name: string) => properties.findIndex(([, , property]) => property === name);
+  const [x, y, nx, ny, w, qx, qy, qz] = ["x", "y", "nx", "ny", "rot_0", "rot_1", "rot_2", "rot_3"].map(index);
+  if (x < 0 || y < 0 || [w, qx, qy, qz].some(position => position < 0)) throw new Error("ply_properties_unsupported");
+  const start = end + "end_header\n".length, stride = properties.length;
+  if (ply.length - start !== count * stride * 4) throw new Error("ply_size_mismatch");
+  // A copy: the header length leaves the vertex block unaligned for a Float32Array view.
+  const values = new Float32Array(count * stride);
+  new Uint8Array(values.buffer).set(ply.subarray(start));
+  for (let row = 0; row < count * stride; row += stride) {
+    values[row + x] = -values[row + x]!; values[row + y] = -values[row + y]!;
+    if (nx >= 0 && ny >= 0) { values[row + nx] = -values[row + nx]!; values[row + ny] = -values[row + ny]!; }
+    const [qw, qi, qj, qk] = [values[row + w]!, values[row + qx]!, values[row + qy]!, values[row + qz]!];
+    values[row + w] = -qk; values[row + qx] = -qj; values[row + qy] = qi; values[row + qz] = qw;
+  }
+  return Buffer.concat([ply.subarray(0, start), Buffer.from(values.buffer)]);
+}
+
+/** The package's defaultSettings() (see client/public/splat-viewer/README.md). */
+const DEFAULT_VIEWER_SETTINGS = { version: 2, tonemapping: "linear", highPrecisionRendering: false, background: { color: [0, 0, 0] },
+  postEffectSettings: { sharpness: { enabled: false, amount: 0 }, bloom: { enabled: false, intensity: 0.1, blurLevel: 2 },
+    grading: { enabled: false, brightness: 1, contrast: 1, saturation: 1, tint: [1, 1, 1] },
+    vignette: { enabled: false, intensity: 0.5, inner: 0.3, outer: 0.75, curvature: 1 }, fringing: { enabled: false, intensity: 0.5 } },
+  animTracks: [], cameras: [{ initial: { position: [0, 2, 0], target: [2, 2, 0], fov: 85 } }], annotations: [], startMode: "default" };
+
+/** Start where the recording starts: Atlas's first posed view (right-up-back, quaternion x,y,z,w). */
+export function viewerSettingsFromAtlasCamera(camera: unknown) {
+  const pose = camera as { extrinsics?: { coordinateSystem?: string; position?: number[]; quaternion?: number[] };
+    intrinsics?: { fy?: number; height?: number } } | null;
+  const position = pose?.extrinsics?.position, quaternion = pose?.extrinsics?.quaternion;
+  const fy = pose?.intrinsics?.fy, height = pose?.intrinsics?.height;
+  if (pose?.extrinsics?.coordinateSystem !== "rub" || position?.length !== 3 || quaternion?.length !== 4
+    || ![...position, ...quaternion, fy, height].every(value => typeof value === "number" && Number.isFinite(value))
+    || !(fy! > 0 && height! > 0)) return DEFAULT_VIEWER_SETTINGS;
+  const [qx, qy, qz, qw] = quaternion;
+  // The camera looks down its own −Z: forward = −(third column of the rotation).
+  const forward = [-(2 * (qx! * qz! + qy! * qw!)), -(2 * (qy! * qz! - qx! * qw!)), -(1 - 2 * (qx! * qx! + qy! * qy!))];
+  const fov = Math.min(75, Math.max(40, (2 * Math.atan(height! / 2 / fy!) * 180) / Math.PI));
+  return { ...DEFAULT_VIEWER_SETTINGS, cameras: [{ initial: { position,
+    target: position.map((value, axis) => value + 2 * forward[axis]!), fov: Math.round(fov * 10) / 10 } }] };
+}
+
+/**
+ * The preview's splat (turned for the viewer) and its start view as local files: the
+ * bundle is fetched once through the signed Pipeline read, verified against its stored
+ * digest and size, and only the splat and first camera kept, cached by bundle digest.
+ */
+export async function websiteAtlasPreviewViewerFiles(requestId: string, captureId: string,
   bundle: { digest: string; size_bytes: number }) {
   const digestHex = /^sha256:([a-f0-9]{64})$/.exec(bundle.digest)?.[1];
   if (!digestHex || !(bundle.size_bytes > 0 && bundle.size_bytes <= MAX_BUNDLE_BYTES)) throw new Error("website_atlas_preview_bundle_invalid");
   const directory = path.join(tmpdir(), "blueprint-atlas-preview-views");
-  const file = path.join(directory, `${digestHex}.ply`);
-  if ((await stat(file).catch(() => null))?.isFile()) return file;
+  // Versioned: a splat cached before it was turned for the viewer is never reused.
+  const files = { splat: path.join(directory, `${digestHex}.viewer-v2.ply`),
+    settings: path.join(directory, `${digestHex}.viewer-v2.settings.json`) };
+  if ((await stat(files.splat).catch(() => null))?.isFile() && (await stat(files.settings).catch(() => null))?.isFile()) return files;
   const origin = websiteAtlasPreviewBundleRequest(requestId, captureId, bundle.digest);
   if (!origin) throw new Error("website_atlas_preview_delivery_not_configured");
   const response = await fetch(origin.url, { headers: origin.headers, redirect: "error" });
@@ -105,9 +164,16 @@ export async function websiteAtlasPreviewSplatFile(requestId: string, captureId:
     throw new Error("website_atlas_preview_bundle_mismatch");
   const splat = extractZipMember(zip, name => SPLAT_MEMBER.test(name));
   if (!splat) throw new Error("website_atlas_preview_splat_missing");
+  let camera: unknown = null;
+  try {
+    camera = JSON.parse(extractZipMember(zip, name => FIRST_CAMERA_MEMBER.test(name))?.toString("utf8") ?? "null");
+  } catch { camera = null; }
   await mkdir(directory, { recursive: true });
-  const partial = `${file}.${randomUUID()}.partial`;
-  await writeFile(partial, splat, { mode: 0o600 });
-  await rename(partial, file);
-  return file;
+  for (const [file, bytes] of [[files.settings, Buffer.from(JSON.stringify(viewerSettingsFromAtlasCamera(camera)))],
+    [files.splat, orientPlyForViewer(splat)]] as const) {
+    const partial = `${file}.${randomUUID()}.partial`;
+    await writeFile(partial, bytes, { mode: 0o600 });
+    await rename(partial, file);
+  }
+  return files;
 }

@@ -45,7 +45,7 @@ import { projectWebsiteCaptureRights, projectWebsiteTaskContext } from "../utils
 import { crossRuntimeDigest } from "../utils/crossRuntimeCanonical";
 import { verifyTaskEvaluationResultDownloadTicket } from "../utils/taskEvaluationResultDownloadTicket";
 import { projectWebsiteAtlasPreview, websiteAtlasPreviewDownloadUrl } from "../utils/websiteAtlasPreview";
-import { crc32, extractZipMember, websiteAtlasPreviewViewerUrl } from "../utils/websiteAtlasPreviewView";
+import { crc32, extractZipMember, orientPlyForViewer, viewerSettingsFromAtlasCamera, websiteAtlasPreviewViewerUrl } from "../utils/websiteAtlasPreviewView";
 import { deflateRawSync } from "node:zlib";
 
 const sha = (char: string) => `sha256:${char.repeat(64)}`;
@@ -507,7 +507,17 @@ function preview(overrides: Record<string, unknown> = {}) {
     mesh_available: false, claim_ceiling: "development_only", scale_status: "unscaled_provider_world_units", ...overrides };
   return { ...value, preview_digest: crossRuntimeDigest(value) };
 }
-const splatBytes = Buffer.from("ply\nformat binary_little_endian 1.0\nelement vertex 0\nend_header\n");
+const PLY_PROPERTIES = ["x", "y", "z", "f_dc_0", "f_dc_1", "f_dc_2", "opacity", "scale_0", "scale_1", "scale_2",
+  "rot_0", "rot_1", "rot_2", "rot_3"];
+function plyFixture(rows: number[][]) {
+  // A header whose length is not a multiple of 4, as Atlas's is.
+  const header = `ply\nformat binary_little_endian 1.0\nelement vertex ${rows.length}\n`
+    + PLY_PROPERTIES.map(name => `property float ${name}\n`).join("") + "end_header\n";
+  return Buffer.concat([Buffer.from(header, "latin1"), Buffer.from(new Float32Array(rows.flat()).buffer)]);
+}
+const splatBytes = plyFixture([[1, 2, 3, 0.1, 0.2, 0.3, 2, -5, -5, -7, 0.9, 0.1, 0.2, 0.3]]);
+const firstCamera = { extrinsics: { coordinateSystem: "rub", position: [1, 2, 3], quaternion: [0, 0, 0, 1] },
+  intrinsics: { cx: 640, cy: 360, fx: 720, fy: 720, height: 720, width: 1280 } };
 function zipFixture(members: { name: string; data: Buffer; deflate?: boolean }[]) {
   const locals: Buffer[] = [], central: Buffer[] = [];
   let offset = 0;
@@ -527,6 +537,7 @@ function zipFixture(members: { name: string; data: Buffer; deflate?: boolean }[]
   return Buffer.concat([...locals, directory, end]);
 }
 const bundleBytes = zipFixture([{ name: "atlas-scene-fixture/views/000-image.jpg", data: Buffer.from("jpeg bytes"), deflate: true },
+  { name: "atlas-scene-fixture/views/000-camera.json", data: Buffer.from(JSON.stringify(firstCamera)), deflate: true },
   { name: "atlas-scene-fixture/splat/atlas_depth_splat.ply", data: splatBytes }]);
 const bundleDigest = `sha256:${createHash("sha256").update(bundleBytes).digest("hex")}`;
 const ready = (revision = 2) => preview({ revision, state: "ready", updated_at_epoch: 1_761_138_000,
@@ -728,6 +739,25 @@ describe("owner Atlas preview view", () => {
     expect(() => extractZipMember(corrupt, name => name.endsWith(".ply"))).toThrow("zip_member_corrupt");
   });
 
+  it("turns an Atlas splat so the viewer's 180-degree load rotation leaves it upright", () => {
+    const turned = orientPlyForViewer(splatBytes);
+    const header = splatBytes.indexOf("end_header\n") + "end_header\n".length;
+    expect(turned.subarray(0, header)).toEqual(splatBytes.subarray(0, header));
+    const row = Array.from(new Float32Array(new Uint8Array(turned.subarray(header)).buffer));
+    // x, y negate; colour, opacity and scale stay; (w, x, y, z) becomes (-z, -y, x, w).
+    expect(row.map(value => Number(value.toFixed(4)))).toEqual([-1, -2, 3, 0.1, 0.2, 0.3, 2, -5, -5, -7, -0.3, -0.2, 0.1, 0.9]);
+    expect(() => orientPlyForViewer(Buffer.from("ply\nformat ascii 1.0\nelement vertex 0\nend_header\n"))).toThrow("ply_format_unsupported");
+    expect(() => orientPlyForViewer(Buffer.from("ply\nformat binary_little_endian 1.0\nelement vertex 1\nproperty uchar x\nend_header\n\u0000")))
+      .toThrow("ply_properties_unsupported");
+  });
+
+  it("starts the viewer at the recording's first posed view, else the package defaults", () => {
+    expect(viewerSettingsFromAtlasCamera(firstCamera).cameras).toEqual([{ initial: { position: [1, 2, 3], target: [1, 2, 1], fov: 53.1 } }]);
+    expect(viewerSettingsFromAtlasCamera({ ...firstCamera, extrinsics: { ...firstCamera.extrinsics, coordinateSystem: "rdf" } }).cameras)
+      .toEqual([{ initial: { position: [0, 2, 0], target: [2, 2, 0], fov: 85 } }]);
+    expect(viewerSettingsFromAtlasCamera(null)).toMatchObject({ version: 2, startMode: "default" });
+  });
+
   it("lets only the viewer fetch the splat of a ready preview, for the right ticket and current consent", async () => {
     upload();
     store.rows.get(REQUEST).website_atlas_previews = { "walkthrough-req1": ready() };
@@ -740,7 +770,10 @@ describe("owner Atlas preview view", () => {
     expect(content).toMatch(/^\/api\/website-atlas-preview-views\/req1\/walkthrough-req1\/scene\.ply\?expires=\d+&signature=[0-9a-f]{64}$/);
     const viewed = await realFetch(`${base}${content}`, { headers: { "sec-fetch-dest": "empty", "sec-fetch-mode": "cors" } });
     expect(viewed.status).toBe(200);
-    expect(Buffer.from(await viewed.arrayBuffer())).toEqual(splatBytes);
+    expect(Buffer.from(await viewed.arrayBuffer())).toEqual(orientPlyForViewer(splatBytes));
+    const settings = await realFetch(`${base}${content.replace("/scene.ply?", "/settings.json?")}`, { headers: { "sec-fetch-dest": "empty" } });
+    expect(settings.status).toBe(200);
+    expect((await settings.json()).cameras).toEqual([{ initial: { position: [1, 2, 3], target: [1, 2, 1], fov: 53.1 } }]);
     expect(viewed.headers.get("cache-control")).toBe("private, no-store");
     expect(viewed.headers.get("content-disposition")).toBe("inline");
     // Pasting the link into the address bar is not a way to save the file.

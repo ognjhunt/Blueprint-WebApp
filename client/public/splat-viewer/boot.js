@@ -10,7 +10,10 @@ if (!contentUrl.startsWith("/api/website-atlas-preview-views/")) {
 } else {
   createViewer({
     container: document.body,
-    settings: fetch("./settings.json").then((response) => response.json()),
+    // The preview's own start view (where the recording starts), else the package defaults.
+    settings: fetch(contentUrl.replace("/scene.ply?", "/settings.json?"))
+      .then((response) => (response.ok ? response.json() : Promise.reject(new Error("no start view"))))
+      .catch(() => fetch("./settings.json").then((response) => response.json())),
     contentUrl,
     contents: fetch(contentUrl),
     renderer: params.has("webgl") ? "webgl" : "webgpu",
