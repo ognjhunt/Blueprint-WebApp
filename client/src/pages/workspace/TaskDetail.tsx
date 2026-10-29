@@ -1,6 +1,5 @@
 import { SiteAdvisoryReport } from "@/components/site/SiteAdvisoryReport";
 import { TaskOutcomeNotice } from "@/components/site/TaskOutcomeNotice";
-import { PilotBookingDetails } from "@/components/site/PilotBookingDetails";
 import { useState } from "react";
 import { Link, useParams } from "wouter";
 import { useWorkspace, dateLabel, money, statusLabel } from "@/lib/workspace";
@@ -41,7 +40,6 @@ export default function TaskDetail() {
       "request" | "reschedule" | "cancel" | null
     >(null),
     [pilotAction, setPilotAction] = useState<string | null>(null),
-    [selection, setSelection] = useState<WorkspaceResult | null>(null),
     [details, setDetails] = useState<WorkspaceResult | null>(null),
     [editing, setEditing] = useState(false),
     [linkState, setLinkState] = useState<"idle" | "working">("idle"),
@@ -380,23 +378,13 @@ export default function TaskDetail() {
               <section className="ws-task-pilot ws-section">
                 <div>
                   <h2>
-                    {["pilot", "pilot_complete", "deployed"].includes(task.pilot.state)
+                    {task.pilot.selectedResultId || ["pilot", "pilot_complete", "deployed"].includes(task.pilot.state)
                       ? statusLabel(task.pilot.state)
-                      : task.pilotBooking
-                        ? "Delivery partner selected"
-                        : task.pilot.selectedResultId
-                          ? statusLabel(task.pilot.state)
-                          : "Pilot"}
+                      : "Pilot"}
                   </h2>
-                  {task.pilotBooking ? (
-                    <PilotBookingDetails booking={task.pilotBooking} other="delivery partner" />
-                  ) : (
-                    <p className="ws-muted">
-                      {task.pilot.notes || (task.pilotRecommended
-                        ? "Review the proposed approach, cost, support and evidence on your job page. If you go ahead, you agree pilot terms directly with the deployment company."
-                        : "No pilot is planned yet. When the simulation shows what works, Blueprint works alongside a deployment company on your site. Your job page shows the next step.")}
-                    </p>
-                  )}
+                  <p className="ws-muted">
+                    {task.pilot.notes || "No pilot is planned yet. When the simulation shows what works, Blueprint works alongside a deployment company on your site. Your job page shows the next step."}
+                  </p>
                   {task.pilot.siteVisitAnswer && (
                     <p className="ws-note">Partner site access: {optionLabel(siteVisitOptions, task.pilot.siteVisitAnswer)}. A visit still needs separate approval and agreed terms.</p>
                   )}
@@ -406,17 +394,6 @@ export default function TaskDetail() {
                     <p className="ws-note">Outcome recorded by your site.</p>
                   )}
                 </div>
-                {/* Only a pilot Blueprint recommended can be booked (audit N14). */}
-                {!task.archived && task.pilotRecommended && !task.pilot.selectedResultId && !task.pilotBooking && (
-                  <button
-                    className="ws-link"
-                    type="button"
-                    onClick={() => void openTaskPage()}
-                    disabled={linkState === "working"}
-                  >
-                    Review the proposal on your job page →
-                  </button>
-                )}
                 {!task.archived &&
                   task.pilot.selectedResultId &&
                   task.pilot.state !== "deployed" && (
@@ -659,19 +636,13 @@ export default function TaskDetail() {
           {pilotAction && (
             <Modal
               title={
-                pilotAction === "invite"
-                  ? `Invite ${selection?.teamAlias} to pilot`
-                  : pilotAction === "close"
-                    ? "Close this job"
-                    : "Record pilot / deployment outcome"
+                pilotAction === "close"
+                  ? "Close this job"
+                  : "Record pilot / deployment outcome"
               }
               onClose={() => setPilotAction(null)}
             >
-              <p>
-                {pilotAction === "invite"
-                  ? "Blueprint passes on your invitation to this partner. You and the partner agree pilot scope, dates and terms directly before work starts."
-                  : "Record the site's decision and any notes. This doesn't change evaluation scores."}
-              </p>
+              <p>Record the site's decision and any notes. This doesn't change evaluation scores.</p>
               <Feedback error={action.error} />
               <form
                 onSubmit={(event) => {
@@ -680,35 +651,21 @@ export default function TaskDetail() {
                     `${endpoint}/pilot`,
                     {
                       action: pilotAction,
-                      resultId: selection?.id || task.pilot.selectedResultId,
+                      resultId: task.pilot.selectedResultId,
                       notes: String(
                         new FormData(event.currentTarget).get("notes") || "",
                       ),
-                      ...(pilotAction === "invite" ? {
-                        siteVisitAnswer: String(new FormData(event.currentTarget).get("siteVisitAnswer") || ""),
-                      } : {}),
                     },
                     () => setPilotAction(null),
                   );
                 }}
               >
-                {pilotAction === "invite" && (
-                  <Field label="Could this partner bring people and equipment on site for a scoped visit or pilot?">
-                    <select name="siteVisitAnswer" aria-label="Partner on-site access" required defaultValue="">
-                      <option value="" disabled>Choose…</option>
-                      {siteVisitOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-                    </select>
-                    <p className="ws-note">This records your current answer. It does not grant site access or start physical work.</p>
-                  </Field>
-                )}
                 <Field label="Decision notes">
                   <textarea name="notes" required maxLength={2000} />
                 </Field>
                 <div className="ws-form-actions">
                   <button className="ws-primary" disabled={action.pending}>
-                    {pilotAction === "invite"
-                      ? "Confirm pilot selection"
-                      : "Save decision"}
+                    Save decision
                   </button>
                   <button
                     type="button"

@@ -117,23 +117,19 @@ function TeamJobResponse({ jobId, user }: { jobId: string; user: User }) {
     event.preventDefault(); if (saving) return;
     const data = new FormData(event.currentTarget); setSaving(true); setMessage("");
     try {
-      const state = String(data.get("state")), recommendationId = String(data.get("recommendationId") || "").trim();
+      const state = String(data.get("state"));
       const response = await fetch(`/api/site-worlds/tasks/${encodeURIComponent(jobId)}/interest`, { method: "POST", credentials: "include",
         headers: await withFirebaseAuthHeaders(user, await withCsrfHeader({ "Content-Type": "application/json" })),
-        body: JSON.stringify({ state, inputs: data.get("inputs"), ...(state === "committed" ? { recommendationId, authorized: data.get("authorized") === "on" } : {}) }) });
+        body: JSON.stringify({ state, inputs: data.get("inputs") }) });
       const body = await response.json();
       setMessage(response.ok ? body.nextAction : body.error || "Your response was not saved.");
     } catch { setMessage("Your response was not confirmed. Try again from this job."); }
     finally { setSaving(false); }
   }
   return <details><summary>Respond about this job</summary><form onSubmit={submit} className="ms-form" aria-label="Respond about this job">
-    <p className="ms-field-hint">Only the shared card is available here. Give the quote basis, available timing, evidence of capability or one question needed to scope a proposal. Interest does not commit your team.</p>
-    <label>Your decision<select name="state"><option value="interested">Interested — review for a proposal</option><option value="declined">Not a fit</option><option value="committed">Confirm our current proposal commitment</option></select></label>
-    <label>Proposal inputs or question<textarea name="inputs" required minLength={4} maxLength={2000} /></label>
-    <details><summary>For a commitment already reviewed with Blueprint</summary>
-      <label>Proposal reference<input name="recommendationId" maxLength={120} /></label>
-      <label className="ms-check-row"><input name="authorized" type="checkbox" />I reviewed that proposal and have authority to commit this team's scope, cost and proposed timing. A confirmed date and site agreement are still required.</label>
-    </details>
+    <p className="ms-field-hint">Only the shared card is available here. Give the quote basis, available timing, evidence of capability or one question needed to scope the work. Interest does not commit your team.</p>
+    <label>Your decision<select name="state"><option value="interested">Interested</option><option value="declined">Not a fit</option></select></label>
+    <label>Inputs or question<textarea name="inputs" required minLength={4} maxLength={2000} /></label>
     <button className="ms-button" disabled={saving}>{saving ? "Saving…" : "Save response"}</button>{message && <p role="status">{message}</p>}
   </form></details>;
 }

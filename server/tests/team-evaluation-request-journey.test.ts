@@ -287,13 +287,6 @@ describe("a job started from the public form", () => {
     expect(terms?.policyInterfaces.map(row => row.robot)).toEqual(["droid_franka", "team_declared"]);
     expect(JSON.stringify(terms)).not.toMatch(/destination_box_world_m/);
 
-    // The team's notification email links to this job's opening page.
-    const { teamPilotNoticeBody } = await import("../utils/robotTeamPilotNotifications");
-    const notice = teamPilotNoticeBody({ kind: "team_pilot_recommended", requestId: jobId, recommendation: { id: "rec-1", teamId: TEAM } });
-    const linked = /\/app\/opportunities\/([^\s/]+)/.exec(notice.body)?.[1];
-    expect(linked && decodeURIComponent(linked)).toBe(jobId);
-    expect((await workspaceApi(`/openings/${linked}`, ROBOT)).status).toBe(200);
-
     // A team evaluation is one attempt: without a policy token on file it is refused before it is asked for.
     const { policyCredential: token, ...untokened } = doc(`robotCheckpoints/${CHECKPOINT}`);
     state.docs.set(`robotCheckpoints/${CHECKPOINT}`, untokened);

@@ -256,8 +256,9 @@ it("retains correction lineage through actual free admission and signed failed-r
   expect(tasks).toHaveLength(1);
   expect(tasks[0].id).toBe(SITE);
   expect(tasks[0].results.filter((row: any) => row.id === created.runId)).toHaveLength(1);
+  // A site can no longer select a team for a pilot from its workspace.
   expect((await api(`/tasks/${SITE}/pilot`, OWNER, { action: "invite", resultId: created.runId,
-    siteVisitAnswer: "yes", notes: "A fixture must not qualify a real pilot" })).status).toBe(409);
+    siteVisitAnswer: "yes", notes: "A fixture must not qualify a real pilot" })).status).toBe(400);
   expect((await api(`/tasks/${SITE}`, OWNER)).status).toBe(200);
   expect((await api(`/tasks/${SITE}`, STRANGER)).status).toBe(404);
   expect((await (await api("", STRANGER)).json()).tasks).toEqual([]);

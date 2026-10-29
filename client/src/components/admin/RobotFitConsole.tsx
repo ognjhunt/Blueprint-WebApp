@@ -1,5 +1,5 @@
 /**
- * Robot fit for staff, in the job console and beside a pilot proposal.
+ * Robot fit for staff, in the job console and beside a reviewed job decision.
  *
  * Three parts. What the job needs and how every form of robot rates against
  * it (one arm, two arms, an arm on a wheeled base, wheeled and walking

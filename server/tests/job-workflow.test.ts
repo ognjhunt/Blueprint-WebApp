@@ -3,7 +3,7 @@ import express from "express";
 import { createServer, type Server } from "node:http";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { sharedFakeFirestoreState as state } from "./helpers/fake-firestore";
-import type { DeliveryProposalInput, JobMarketplaceWorkflow } from "../../client/src/types/jobMarketplace";
+import type { JobMarketplaceWorkflow } from "../../client/src/types/jobMarketplace";
 import { screeningFixture } from "./fixtures/beta-policy-screening";
 
 const captures = vi.hoisted(() => ({ received: true as boolean | null }));
@@ -30,16 +30,6 @@ const { csrfProtection } = await import("../middleware/csrf");
 const token = (requestId = "job-1", scope: "owner" | "film" = "owner") => createCaptureUploadToken({ requestId,
   captureId: `walkthrough-${requestId}`, sceneId: `site-${requestId}`, scope });
 const csrf = { cookie: "csrf_token=workflow-test", "x-csrf-token": "workflow-test" };
-const proposal: DeliveryProposalInput = {
-  providerName: "Example Delivery Co", scope: "Move sealed cases between the agreed tote and tray.",
-  equipment: "Fixed arm and parallel gripper", software: "Pinned policy and local controller",
-  deliveryCommitment: "Install the cell and demonstrate the agreed acceptance test.",
-  installationCostUsd: 10000, monthlyCostUsd: 500, currency: "USD", exclusions: "Building electrical work excluded.",
-  sitePreparation: "Clear the workcell and provide power.", humanAssistance: "Operator replenishes the tote.",
-  timing: "Dates agreed after site review.", support: "Business-hours support, next-day on-site response.",
-  evidence: [{ level: "unverified", summary: "Customer-specific trial is still required." }],
-  acceptanceCriteria: "Complete 100 placements within the agreed cycle time and damage limit.", recommendationReason: null,
-};
 let server: Server, base = "";
 beforeAll(async () => {
   const app = express(); app.use(express.json()); app.use("/api/job-workflow", csrfProtection, router);
@@ -64,13 +54,10 @@ async function api(path: string, method = "GET", body?: unknown, auth?: string, 
 }
 const admin = (path = "", method = "GET", body?: unknown, extra?: Record<string, string>) => api(`/admin/job-1${path}`, method, body, "ops-token", extra);
 const owner = (path = "", method = "GET", body?: unknown) => api(`/owner/${token()}${path}`, method, body);
-async function publish() { const created = await admin("/proposals", "POST", proposal); expect(created.status).toBe(201); return created.body.proposals[0]; }
-const selectBody = (row: { id: string; revision: string }) => ({ proposalId: row.id, expectedRevision: row.revision, authorized: true });
-const reportBody = (row: { id: string; revision: string }) => ({ ...selectBody(row), summary: "The site trial completed.", metCriteria: true,
-  measuredUnitsPerHour: 60, interventionsPerHour: 1, notes: "Owner-reported operating observation." });
+const review = { disposition: "options_identified" as const, summary: "A fixed arm can do the scoped transfer.", nextAction: "Blueprint is checking delivery for the approach that worked." };
 
 describe("job workflow authority and durable decisions", () => {
-  it("shows diagnostic screening on a proposed preparation task while keeping commercial proposals blocked", async () => {
+  it("shows diagnostic screening on a proposed preparation task without assessing options early", async () => {
     const { publication, job, brief, intake } = screeningFixture(true);
     state.docs.set("inboundRequests/job-one", job);
     state.docs.set("siteTaskBriefs/job-one", brief);
@@ -82,7 +69,7 @@ describe("job workflow authority and durable decisions", () => {
     expect(view.body.briefAgreed).toBe(false);
     expect(view.body.managedEvidence?.[0]).toMatchObject({ current: true, state: "queued", resultDigest: null });
     expect(view.body.managedEvidence?.[0].screening?.candidates).toHaveLength(36);
-    const refused = await api("/admin/job-one/proposals", "POST", proposal, "ops-token");
+    const refused = await api("/admin/job-one/review", "POST", review, "ops-token");
     expect(refused.status).toBe(409);
     expect(refused.body.code).toBe("brief_not_agreed");
   });
@@ -106,97 +93,57 @@ describe("job workflow authority and durable decisions", () => {
     const saved = await owner("/requirements", "PATCH", { ongoingBudget: "Not sure yet", purchaseReadiness: "exploring" });
     expect(saved.status).toBe(200);
     expect(saved.body.requirements.ongoingBudget).toBe("Not sure yet");
-    expect(saved.body.proposals).toEqual([]);
+    expect(saved.body).not.toHaveProperty("proposals");
     expect((await owner("/requirements", "PATCH", { purchaseReadiness: "funded_automatically" })).status).toBe(400);
     expect((await owner("/requirements", "PATCH", { installationBudget: "x".repeat(501) })).status).toBe(400);
     expect(state.docs.get("inboundRequests/job-1")?.pilot_booking).toBeUndefined();
   });
 
-  it("requires the customer to select an exact reviewed quote and records agreements separately", async () => {
-    const row = await publish();
-    expect((await owner("/select", "POST", { ...selectBody(row), expectedRevision: "0".repeat(64) })).status).toBe(409);
-    expect((await api(`/owner/${token("job-2")}/select`, "POST", selectBody(row))).status).toBe(409);
-    expect((await admin("/agreement", "POST", { proposalId: row.id, expectedRevision: row.revision, agreedAtIso: "2026-10-20T12:00:00.000Z",
-      plannedStartIso: null, siteAgreementReference: "Site signed quote", providerAgreementReference: "Provider signed quote" })).body.code).toBe("selection_required");
-    const selected = await owner("/select", "POST", selectBody(row));
-    expect(selected.status).toBe(200);
-    expect(selected.body.selection?.proposalId).toBe(row.id);
-    expect(selected.body.agreement).toBeNull();
-    expect(selected.body.stage).toBe("proposals_ready");
-    expect((await owner("/outcome", "POST", reportBody(row))).body.code).toBe("pilot_agreement_required");
-    expect((await admin(`/proposals/${row.id}`, "PUT", { ...proposal, expectedRevision: row.revision })).body.code).toBe("proposal_selected");
-    expect((await admin(`/proposals/${row.id}/withdraw`, "POST", { expectedRevision: row.revision })).body.code).toBe("proposal_selected");
-    const agreed = await admin("/agreement", "POST", { proposalId: row.id, expectedRevision: row.revision, agreedAtIso: "2026-10-20T12:00:00.000Z",
-      plannedStartIso: "2026-11-01T12:00:00.000Z", siteAgreementReference: "Site signed quote reference", providerAgreementReference: "Provider signed quote reference",
-      outcomeRecordingAuthorized: true, outcomeRecordingPermissionReference: "Both parties' signed outcome-recording permission" });
-    expect(agreed.status).toBe(200); expect(agreed.body.stage).toBe("pilot_agreed");
-    // Historical commitments stay visible even if their video cannot be read.
-    captures.received = null;
-    state.docs.set("siteTaskBriefs/job-1", { ...state.docs.get("siteTaskBriefs/job-1"),
-      confirmedAtIso: "2026-10-21T10:00:00.000Z", confirmedBy: "Another authorized site owner", draftedAtIso: "2026-10-21T09:00:00.000Z" });
-    const reconfirmed = await owner();
-    expect(reconfirmed.body.stage).toBe("pilot_agreed");
-    expect(reconfirmed.body.proposals[0].status).toBe("available");
-    expect(reconfirmed.body.agreement).toEqual(agreed.body.agreement);
-    expect((await owner("/requirements", "PATCH", { ongoingBudget: "Changed after agreement" })).body.code).toBe("pilot_already_agreed");
-    const reported = await owner("/outcome", "POST", reportBody(row));
-    expect(reported.status).toBe(200); expect(reported.body.outcome?.source).toBe("customer_reported");
-    expect(reported.body.stage).toBe("results_recorded");
+  it("offers no proposal, selection, agreement or outcome route", async () => {
+    const body = JSON.stringify({ proposalId: "proposal-1", expectedRevision: "0".repeat(64), authorized: true });
+    const status = async (path: string, method: string, auth?: string) => (await fetch(`${base}${path}`, { method, body,
+      headers: { ...csrf, "content-type": "application/json", ...(auth ? { authorization: `Bearer ${auth}` } : {}) } })).status;
+    for (const path of ["/select", "/outcome"]) expect(await status(`/owner/${token()}${path}`, "POST")).toBe(404);
+    for (const [path, method] of [["/proposals", "POST"], ["/proposals/proposal-1", "PUT"], ["/proposals/proposal-1/withdraw", "POST"], ["/agreement", "POST"]]) {
+      expect(await status(`/admin/job-1${path}`, method, "ops-token")).toBe(404);
+    }
+    expect(state.docs.get("inboundRequests/job-1")?.job_marketplace).toBeUndefined();
+  });
+
+  it("leaves stored legacy proposal records untouched and never projects them", async () => {
+    const legacy = { schemaVersion: "job_marketplace.v1", proposals: [{ id: "legacy-proposal" }],
+      selection: { proposalId: "legacy-proposal", proposalRevision: "0".repeat(64), selectedAtIso: "2026-10-20T12:00:00.000Z" },
+      agreement: { proposalId: "legacy-proposal" }, outcome: { summary: "Legacy owner report" } };
     const record: any = state.docs.get("inboundRequests/job-1");
-    expect(record.pilot_booking).toBeUndefined(); expect(record.physical_outcome_join).toBeUndefined();
-    expect(record.job_marketplace.outcome.summary).toBe("The site trial completed.");
-    expect([...state.docs.keys()].filter(key => key.includes("jobWorkflowEvents/"))).toHaveLength(4);
+    state.docs.set("inboundRequests/job-1", { ...record, job_marketplace: legacy });
+    const view = await owner();
+    for (const field of ["proposals", "selection", "agreement", "outcome"]) expect(view.body).not.toHaveProperty(field);
+    const saved = await owner("/requirements", "PATCH", { ongoingBudget: "Not sure yet" });
+    expect(saved.status).toBe(200);
+    const stored: any = state.docs.get("inboundRequests/job-1");
+    expect(stored.job_marketplace).toMatchObject({ proposals: legacy.proposals, selection: legacy.selection, agreement: legacy.agreement, outcome: legacy.outcome,
+      requirements: { ongoingBudget: "Not sure yet" } });
+    expect(JSON.stringify(saved.body)).not.toMatch(/legacy-proposal|Legacy owner report/);
   });
 
-  it("requires separate recorded permission to report outcomes, including for legacy agreements", async () => {
-    const row = await publish(); await owner("/select", "POST", selectBody(row));
-    const agreement = { proposalId: row.id, expectedRevision: row.revision, agreedAtIso: "2026-10-20T12:00:00.000Z",
-      plannedStartIso: null, siteAgreementReference: "Site signed scope", providerAgreementReference: "Provider signed scope" };
-    expect((await admin("/agreement", "POST", { ...agreement, outcomeRecordingAuthorized: true })).status).toBe(400);
-    const agreed = await admin("/agreement", "POST", agreement);
-    expect(agreed.status).toBe(200); expect(agreed.body.agreement?.outcomeRecordingAuthorized).toBe(false);
-    expect((await owner("/outcome", "POST", reportBody(row))).body.code).toBe("outcome_permission_required");
-    expect((await owner()).body.outcome).toBeNull();
-  });
-
-  it("invalidates proposals when requirements or the confirmed brief change", async () => {
-    const row = await publish();
+  it("assesses options against the confirmed brief and asks for re-review when it changes", async () => {
+    const assessed = await admin("/review", "POST", review);
+    expect(assessed.status).toBe(200);
+    expect(assessed.body).toMatchObject({ stage: "options_assessed", optionsAssessed: true, actionOwner: "blueprint", nextAction: review.nextAction });
+    // Who confirmed the same brief does not change its scope.
     state.docs.set("siteTaskBriefs/job-1", { ...state.docs.get("siteTaskBriefs/job-1"),
       confirmedAtIso: "2026-10-21T10:00:00.000Z", confirmedBy: "Another authorized site owner" });
-    expect((await owner()).body.proposals[0].status).toBe("available");
-    await owner("/select", "POST", selectBody(row));
+    expect((await owner()).body.stage).toBe("options_assessed");
     const changed = await owner("/requirements", "PATCH", { requiredOutput: "Now requires twice the original output" });
-    expect(changed.body.proposals[0].status).toBe("review_required");
-    expect(changed.body.reviewRequired).toBe(true); expect(changed.body.stage).toBe("brief_agreed");
-    expect((await owner("/select", "POST", selectBody(row))).body.code).toBe("brief_changed");
-    const revised = await admin(`/proposals/${row.id}`, "PUT", { ...proposal, deliveryCommitment: "Revised performance commitment", expectedRevision: row.revision });
-    expect(revised.status).toBe(200); expect(revised.body.selection).toBeNull();
-    expect(revised.body.proposals[0].revision).not.toBe(row.revision);
-    expect(revised.body.proposals[0].status).toBe("available");
-    state.docs.set("siteTaskBriefs/job-1", { summary: "A changed unconfirmed job", confirmedAtIso: null });
-    const waiting = await owner(); expect(waiting.body.stage).toBe("job_submitted");
-    expect(waiting.body.proposals).toEqual([]); expect(waiting.body.selection).toBeNull();
-  });
-
-  it("idempotently publishes quotes and rejects concurrent stale edits", async () => {
-    const key = "quote-request-1";
-    const first = await admin("/proposals", "POST", proposal, { "Idempotency-Key": key });
-    const repeated = await admin("/proposals", "POST", proposal, { "Idempotency-Key": key });
-    expect(repeated.body.proposals).toHaveLength(1);
-    expect(repeated.body.revision).toBe(first.body.revision);
-    expect((await admin("/proposals", "POST", { ...proposal, installationCostUsd: 12000 }, { "Idempotency-Key": key })).body.code).toBe("idempotency_conflict");
-    const row = first.body.proposals[0];
-    const revisions = await Promise.all([11000, 12000].map(installationCostUsd => admin(`/proposals/${row.id}`, "PUT", { ...proposal, installationCostUsd, expectedRevision: row.revision })));
-    expect(revisions.map(result => result.status).sort()).toEqual([200, 409]);
+    expect(changed.body).toMatchObject({ reviewRequired: true, stage: "brief_agreed", review: null });
     const event = [...state.docs.entries()].find(([path]) => path.includes("jobWorkflowEvents/"))![1];
-    expect(event).not.toHaveProperty("before.proposals"); expect(event).toHaveProperty("changedProposals");
+    expect(event).toHaveProperty("previousState"); expect(event).toHaveProperty("nextState");
+    state.docs.set("siteTaskBriefs/job-1", { summary: "A changed unconfirmed job", confirmedAtIso: null });
+    expect((await owner()).body.stage).toBe("job_submitted");
   });
 
-  it("blocks revoked jobs and conflicting legacy pilot selections", async () => {
-    const row = await publish();
+  it("blocks revoked jobs", async () => {
     const record: any = state.docs.get("inboundRequests/job-1");
-    state.docs.set("inboundRequests/job-1", { ...record, pilot_booking: { recommendationId: "legacy-rec" } });
-    expect((await owner("/select", "POST", selectBody(row))).body.code).toBe("pilot_selection_conflict");
     state.docs.set("inboundRequests/job-1", { ...record, consent_revoked: true });
     expect((await owner()).body.code).toBe("capture_processing_not_authorized");
     expect((await admin()).status).toBe(409);
@@ -208,11 +155,11 @@ describe("job workflow authority and durable decisions", () => {
       proposals: [], selection: { proposalId: "made-up", proposalRevision: "0".repeat(64), selectedAtIso: "2026-10-20T12:00:00.000Z" },
       agreement: { proposalId: "made-up" }, outcome: { metCriteria: true } } };
     const projected = projectJobMarketplace(record, null);
-    expect(projected.stage).toBe("job_submitted"); expect(projected.selection).toBeNull();
-    expect(projected.agreement).toBeNull(); expect(projected.outcome).toBeNull();
+    expect(projected.stage).toBe("job_submitted");
+    for (const field of ["proposals", "selection", "agreement", "outcome"]) expect(projected).not.toHaveProperty(field);
   });
 
-  it("requires a retained video before advancing a written brief to assessment or a deployment proposal", async () => {
+  it("requires a retained video before advancing a written brief to assessment", async () => {
     captures.received = false;
     const record = state.docs.get("inboundRequests/job-1")!;
     state.docs.set("inboundRequests/job-1", { ...record, request: { ...record.request, hasExistingFootage: true } });
@@ -221,13 +168,7 @@ describe("job workflow authority and durable decisions", () => {
     expect(draft.body.briefAgreed).toBe(false);
     expect(draft.body.nextAction).toMatch(/Record or upload a video/);
     expect((await admin("/review", "POST", { disposition: "options_identified", summary: "Written scope", nextAction: "Compare options" })).body.code).toBe("video_required");
-    expect((await admin("/proposals", "POST", proposal)).body.code).toBe("video_required");
     expect(state.docs.get("inboundRequests/job-1")?.job_marketplace).toBeUndefined();
-    captures.received = true;
-    const row = await publish();
-    captures.received = false;
-    expect((await owner("/select", "POST", selectBody(row))).body.code).toBe("video_required");
-    expect((await owner()).body.proposals).toEqual([]);
     captures.received = null;
     expect((await admin("/review", "POST", { disposition: "more_information", summary: "Video status unknown", nextAction: "Retry" })).status).toBe(503);
     expect((await owner()).body.nextAction).toMatch(/could not read your recording status/);

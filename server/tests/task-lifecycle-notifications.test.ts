@@ -129,8 +129,8 @@ describe('withdrawal fences capture-derived notices without suppressing recovery
  });
 });
 
-describe("pilot and listing notices describe the free beta", () => {
-  const build = async (milestone: "listing_live" | "pilot_recommended" | "pilot_booked", detail?: string) => {
+describe("listing notices describe the free beta", () => {
+  const build = async (milestone: "listing_live", detail?: string) => {
     const { buildTaskLifecycleNotification } = await import("../utils/taskLifecycleNotifications");
     return buildTaskLifecycleNotification({ requestId: "req-1", milestone, to: "owner@example.com",
       captureUrl: "https://tryblueprint.io/capture-upload/owner-token", detail });
@@ -143,26 +143,12 @@ describe("pilot and listing notices describe the free beta", () => {
     expect(notice.body).not.toMatch(/Blueprint account|\/app\/tasks/);
   });
 
-  it("asks the customer to review a delivery option without treating selection as a contract", async () => {
-    const notice = await build("pilot_recommended");
-    expect(notice.body).toMatch(/Review the scope, total cost and support before choosing/);
-    expect(notice.body).toMatch(/paid to the delivery company, not to Blueprint/);
-    expect(notice.body).toMatch(/Selection does not itself sign a contract or reserve a date/);
-    expect(notice.body).not.toMatch(/book it there in one step/i);
-  });
-
-  it("confirms a booking, leaves the agreement to the site and team, and states no Blueprint fee", async () => {
-    const free = await build("pilot_booked", "invited_beta_free");
-    expect(free.subject).toBe("Your pilot selection is recorded");
-    expect(free.body).toMatch(/^Your selection is recorded\./);
-    expect(free.body).toContain("You and the delivery company agree the physical pilot's scope, price, dates and acceptance criteria directly.");
-    expect(free.body).toContain("No contract is signed or date reserved by this selection.");
-    expect(free.body).not.toMatch(/Blueprint owns/);
-    expect(free.body).toContain("Blueprint charges nothing during the beta and takes no cut; the pilot's cost is agreed with the delivery company.");
-    // A pre-beta booking keeps its accepted terms; the email neither restates a fee nor waives one.
-    const historical = await build("pilot_booked");
-    expect(historical.body).toContain("Your previously accepted commercial terms remain on file.");
-    expect(historical.body).not.toMatch(/\bfee\b/i);
+  it("no longer offers a recommended-pilot or booking notice", async () => {
+    const { buildTaskLifecycleNotification } = await import("../utils/taskLifecycleNotifications");
+    for (const milestone of ["pilot_recommended", "pilot_booked", "pilot_scheduled"]) {
+      expect(() => buildTaskLifecycleNotification({ requestId: "req-1", milestone: milestone as never, to: "owner@example.com",
+        captureUrl: "https://tryblueprint.io/capture-upload/owner-token" })).toThrow();
+    }
   });
 });
 

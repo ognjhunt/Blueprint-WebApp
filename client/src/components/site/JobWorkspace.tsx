@@ -1,10 +1,8 @@
 import { PolicyScreeningCandidates } from "@/components/shared/PolicyScreeningCandidates";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { withCsrfHeader } from "@/lib/csrf";
-import { RecommendedPilot } from "./RecommendedPilot";
 import type { TaskOutcome } from "@/types/taskOutcome";
 import type {
-  DeliveryProposal,
   JobBuyingRequirements,
   JobMarketplaceWorkflow,
   MarketplaceJobStage,
@@ -14,14 +12,9 @@ const stages: Array<[MarketplaceJobStage, string]> = [
   ["job_submitted", "Job submitted"],
   ["brief_agreed", "Brief agreed"],
   ["options_assessed", "Options assessed"],
-  ["proposals_ready", "Proposals ready"],
-  ["pilot_agreed", "Pilot agreed"],
-  ["results_recorded", "Results recorded"],
 ];
 
-const owners = { site: "You", blueprint: "Blueprint", deployment_partner: "Delivery partner", none: "No action needed" };
-const evidenceLabels = { prior_deployment: "Prior deployment", simulation: "Simulation", physical_trial: "Physical trial", unverified: "Not yet verified" };
-const money = (value: number | null) => value === null ? "Quote needed" : new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(value);
+const owners = { site: "You", blueprint: "Blueprint", none: "No action needed" };
 
 /** Progress is based on recorded milestones, never an elapsed-time estimate. */
 export function JobProgress({ stage, completed = [] }: { stage: MarketplaceJobStage; completed?: MarketplaceJobStage[] }) {
@@ -37,7 +30,7 @@ function isWorkflow(value: unknown): value is JobMarketplaceWorkflow {
   if (!value || typeof value !== "object") return false;
   const item = value as Partial<JobMarketplaceWorkflow>;
   return item.schemaVersion === "job_marketplace.v1" && typeof item.revision === "string"
-    && stages.some(([id]) => id === item.stage) && Array.isArray(item.proposals)
+    && stages.some(([id]) => id === item.stage)
     && Boolean(item.requirements) && typeof item.nextAction === "string"
     && Object.prototype.hasOwnProperty.call(owners, item.actionOwner ?? "");
 }
@@ -117,35 +110,25 @@ function JobWorkspaceForToken({ token, preparationOutcome, currentStatusKnown = 
       : <p className="ms-field-hint">Loading job progress…</p>}
   </section>;
 
-  const available = workflow.proposals.filter(proposal => proposal.status === "available");
-  const visibleProposals = workflow.proposals.filter(proposal => proposal.status !== "withdrawn");
-  const selected = workflow.proposals.find(proposal => proposal.id === workflow.selection?.proposalId && proposal.revision === workflow.selection.proposalRevision);
-  // The current source/preparation read owns the next step until proposals
-  // arrive. Later commercial commitments keep their own exact quote action.
-  const currentAction = !visibleProposals.length && !workflow.selection && !workflow.agreement && !workflow.outcome
-    ? currentNextAction : undefined;
   const completed: MarketplaceJobStage[] = ["job_submitted"];
   if (workflow.briefAgreed) completed.push("brief_agreed");
   if (workflow.optionsAssessed) completed.push("options_assessed");
-  if (available.length) completed.push("proposals_ready");
-  if (workflow.agreement) completed.push("pilot_agreed");
-  if (workflow.outcome) completed.push("results_recorded");
 
-  return <><section className="job-workspace" aria-labelledby="job-progress-title">
+  return <section className="job-workspace" aria-labelledby="job-progress-title">
     <h2 id="job-progress-title">Your job, step by step</h2>
     <JobProgress stage={workflow.stage} completed={completed} />
     <div className="job-next-action">
       <p className="job-eyebrow">Next action · {currentStatusKnown
-        ? preparationOutcome ? owners[preparationOutcome.actionOwner] : owners[currentAction?.owner ?? workflow.actionOwner]
+        ? preparationOutcome ? owners[preparationOutcome.actionOwner] : owners[currentNextAction?.owner ?? workflow.actionOwner]
         : owners.blueprint}</p>
       <p>{!currentStatusKnown ? "Checking the current job status. Your saved job remains available."
-        : preparationOutcome?.nextStep ?? currentAction?.text ?? workflow.nextAction}</p>
+        : preparationOutcome?.nextStep ?? currentNextAction?.text ?? workflow.nextAction}</p>
     </div>
     {error && <p role="status" className="ms-field-hint">Updates could not be refreshed. Last loaded details are shown. <button type="button" className="ms-text-link" onClick={() => setRefresh(value => value + 1)}>Try again</button></p>}
     {workflow.review && <div className="job-review">
       <h3>{workflow.review.disposition === "no_suitable_option" ? "No suitable option yet" : workflow.review.disposition === "more_information" ? "A little more information is needed" : "What we know so far"}</h3>
       <p>{workflow.review.summary}</p>
-      {currentStatusKnown && !preparationOutcome && !currentAction && workflow.review.nextAction !== workflow.nextAction && <p className="ms-field-hint">{workflow.review.nextAction}</p>}
+      {currentStatusKnown && !preparationOutcome && !currentNextAction && workflow.review.nextAction !== workflow.nextAction && <p className="ms-field-hint">{workflow.review.nextAction}</p>}
     </div>}
     {workflow.managedEvidenceUnavailable && <p role="status" className="ms-field-hint">Policy results are temporarily unavailable. Reload this page to retry.</p>}
     {(workflow.managedEvidence ?? []).filter(item => item.current && item.screening).map(item => <section
@@ -183,45 +166,12 @@ function JobWorkspaceForToken({ token, preparationOutcome, currentStatusKnown = 
     </section>}
     {workflow.jobId && (workflow.evidence ?? []).some(item => item.current && ["information_required", "blocked", "unavailable"].includes(item.state)) ? <p className="ms-field-hint"><a className="ms-text-link" href={`/app/captures?jobId=${encodeURIComponent(workflow.jobId!)}`}>Add task-specific capture evidence</a> when Blueprint needs it. Use the account that owns this job; the existing recording permissions still apply.</p> : null}
     </details>}
-    <BuyingRequirements key="requirements" locked={Boolean(workflow.agreement)} requirements={workflow.requirements} pending={pending} onSave={value => save("requirements", "PATCH", value)} />
-
-    <section className="job-proposals" aria-labelledby="delivery-proposals-title">
-      <h3 id="delivery-proposals-title">Delivery proposals</h3>
-      {!available.length ? <p className="ms-field-hint">No delivery proposal is ready to review. Blueprint will identify suitable options and explain any checks still needed.</p>
-        : <p className="ms-field-hint">Compare the complete cost, commitments and support. Choosing a proposal starts the agreement process; it does not sign a contract or reserve a date.</p>}
-      {visibleProposals.map(proposal => <ProposalCard key={`${proposal.id}:${proposal.revision}`} proposal={proposal}
-        selected={selected?.id === proposal.id} locked={Boolean(workflow.agreement) || proposal.status !== "available"} hasSelection={Boolean(workflow.selection)} pending={pending}
-        evidenceHref={digest => `${endpoint}/evidence/${encodeURIComponent(digest)}`}
-        onSelect={() => save("select", "POST", { proposalId: proposal.id, expectedRevision: proposal.revision, authorized: true })} />)}
-      {workflow.selection && (!selected || selected.status !== "available") && <p role="status">Your selected proposal changed or is no longer available. Ask Blueprint to review the updated scope before making another commitment.</p>}
-    </section>
-
-    {selected && selected.status !== "withdrawn" && <section className="job-agreement" aria-labelledby="pilot-agreement-title">
-      <h3 id="pilot-agreement-title">{selected.status === "review_required" ? "Your previous choice needs review" : workflow.agreement ? "Pilot agreement recorded" : "Your choice is recorded"}</h3>
-      <p>{selected.providerName}{workflow.agreement ? " — the site and delivery partner's agreement is on record." : " — agree the scope, price, dates and support directly before physical work starts."}</p>
-      {workflow.agreement?.plannedStartIso && <p>Planned start: {new Date(workflow.agreement.plannedStartIso).toLocaleString()}.</p>}
-      <p className="ms-field-hint">The customer awards the contract. The delivery partner installs, commissions and supports the system. Blueprint coordinates the decision and records the outcome.</p>
-      {!workflow.agreement && <p className="ms-field-hint">Blueprint will record the agreed pilot after both parties confirm it. A proposal selection alone is not an agreement.</p>}
-      {workflow.agreement && (workflow.agreement.outcomeRecordingAuthorized !== true || !workflow.agreement.outcomeRecordingPermissionReference) && !workflow.outcome && <p className="ms-field-hint">Ask Blueprint to confirm both parties’ permission before recording pilot results.</p>}
-    </section>}
-    {workflow.outcome ? <section className="job-outcome" aria-labelledby="reported-outcome-title">
-      <h3 id="reported-outcome-title">Outcome reported by your site</h3>
-      <p>{workflow.outcome.summary}</p>
-      <dl className="job-facts">
-        <div><dt>Agreed criteria met</dt><dd>{workflow.outcome.metCriteria === null ? "Not determined" : workflow.outcome.metCriteria ? "Yes, reported by the site" : "No, reported by the site"}</dd></div>
-        {workflow.outcome.measuredUnitsPerHour !== null && <div><dt>Completed units per hour</dt><dd>{workflow.outcome.measuredUnitsPerHour}</dd></div>}
-        {workflow.outcome.interventionsPerHour !== null && <div><dt>Human interventions per hour</dt><dd>{workflow.outcome.interventionsPerHour}</dd></div>}
-      </dl>
-      {workflow.outcome.notes && <p>{workflow.outcome.notes}</p>}
-      <p className="ms-field-hint">This is your site's report. It does not change evaluation scores or establish independent physical validation.</p>
-    </section> : selected && selected.status !== "withdrawn" && workflow.agreement?.outcomeRecordingAuthorized === true && Boolean(workflow.agreement.outcomeRecordingPermissionReference) ? <OutcomeForm historical={selected.status === "review_required"} proposal={selected} pending={pending} onSave={value => save("outcome", "POST", value)} /> : null}
-  </section>
-    <RecommendedPilot token={token} bookedOnly />
-  </>;
+    <BuyingRequirements key="requirements" requirements={workflow.requirements} pending={pending} onSave={value => save("requirements", "PATCH", value)} />
+  </section>;
 }
 
-function BuyingRequirements({ requirements, pending, locked = false, onSave }: {
-  requirements: JobBuyingRequirements; pending: boolean; locked?: boolean; onSave: (value: JobBuyingRequirements) => Promise<void>;
+function BuyingRequirements({ requirements, pending, onSave }: {
+  requirements: JobBuyingRequirements; pending: boolean; onSave: (value: JobBuyingRequirements) => Promise<void>;
 }) {
   const [draft, setDraft] = useState(requirements);
   const [message, setMessage] = useState("");
@@ -230,7 +180,7 @@ function BuyingRequirements({ requirements, pending, locked = false, onSave }: {
   useEffect(() => { setDraft(JSON.parse(stored)); }, [stored]);
   async function submit(event: FormEvent) {
     event.preventDefault(); setError(""); setMessage("");
-    try { await onSave(draft); setMessage("Planning details saved. They are targets for proposals, not an approval to spend."); }
+    try { await onSave(draft); setMessage("Planning details saved. They are planning targets, not an approval to spend."); }
     catch (cause) { setError(cause instanceof Error ? cause.message : "Planning details could not be saved."); }
   }
   const fields: Array<[Exclude<keyof JobBuyingRequirements, "purchaseReadiness">, string, string]> = [
@@ -241,96 +191,18 @@ function BuyingRequirements({ requirements, pending, locked = false, onSave }: {
     ["ongoingBudget", "Acceptable ongoing cost", "For example, a monthly range or cost per unit"],
     ["targetStartDate", "Preferred timing", "A target date or a flexible window"],
   ];
-  if (locked) return <details className="job-planning-details">
-    <summary>Planning details for the agreed pilot</summary>
-    <p className="ms-field-hint">These details belong to the agreed pilot. Contact <a href="mailto:hello@tryblueprint.io">Blueprint</a> to review a scope or budget change with the delivery partner.</p>
-    <dl className="job-facts job-facts-full">{fields.map(([key, label]) => <div key={key}><dt>{label}</dt><dd>{requirements[key] || "Not recorded"}</dd></div>)}</dl>
-  </details>;
   return <details className="job-planning-details">
     <summary>Planning details <span className="ms-field-hint">Optional · update as you learn more</span></summary>
-    <p className="ms-field-hint">These help Blueprint scope useful proposals. Leave anything you do not know blank. No budget or spending approval is needed to assess your job.</p>
+    <p className="ms-field-hint">These help Blueprint scope the work. Leave anything you do not know blank. No budget or spending approval is needed to assess your job.</p>
     <form className="ms-form" aria-label="Job planning details" onSubmit={submit}>
       <label>Where are you in the buying process?
         <select value={draft.purchaseReadiness} onChange={event => setDraft({ ...draft, purchaseReadiness: event.target.value as JobBuyingRequirements["purchaseReadiness"] })}>
-          <option value="unsure">Not sure yet</option><option value="exploring">Exploring automation</option><option value="planning">Planning a project</option><option value="ready_for_proposals">Ready to review proposals</option>
+          <option value="unsure">Not sure yet</option><option value="exploring">Exploring automation</option><option value="planning">Planning a project</option><option value="ready_for_proposals">Ready to plan a pilot</option>
         </select>
       </label>
       {fields.map(([key, label, placeholder]) => <label key={key}>{label}<input value={draft[key] ?? ""} maxLength={key === "requiredOutput" ? 2000 : 500} placeholder={placeholder} onChange={event => setDraft({ ...draft, [key]: event.target.value || null })} /></label>)}
       <button className="ms-button" disabled={pending}>{pending ? "Saving…" : "Save planning details"}</button>
       {error && <p role="alert">{error}</p>}{message && <p role="status">{message}</p>}
-    </form>
-  </details>;
-}
-
-function ProposalCard({ proposal, selected, locked, hasSelection, pending, onSelect, evidenceHref }: {
-  proposal: DeliveryProposal; selected: boolean; locked: boolean; hasSelection: boolean; pending: boolean; onSelect: () => Promise<void>; evidenceHref: (digest: string) => string;
-}) {
-  const [authorized, setAuthorized] = useState(false);
-  const [error, setError] = useState("");
-  async function submit(event: FormEvent) {
-    event.preventDefault();
-    if (!authorized || pending || locked || selected) return;
-    setError("");
-    try { await onSelect(); setAuthorized(false); }
-    catch (cause) { setAuthorized(false); setError(cause instanceof Error ? cause.message : "Your choice could not be confirmed."); }
-  }
-  return <article className="job-proposal-card" aria-label={`${proposal.providerName} delivery proposal`}>
-    <div className="job-proposal-heading"><h4>{proposal.providerName}</h4>{selected && <span className="job-selection-label">Your choice</span>}</div>
-    <p>{proposal.scope}</p>
-    {proposal.status === "review_required" && <p role="status">The job or its supporting evidence changed. Blueprint must review this proposal before you can choose it.</p>}
-    <dl className="job-facts">
-      <div><dt>Installation</dt><dd>{money(proposal.installationCostUsd)}</dd></div>
-      <div><dt>Ongoing monthly cost</dt><dd>{money(proposal.monthlyCostUsd)}</dd></div>
-      <div><dt>Proposed timing</dt><dd>{proposal.timing}</dd></div>
-    </dl>
-    {proposal.recommendationReason && <p><strong>Why Blueprint included this option:</strong> {proposal.recommendationReason}</p>}
-    <details className="job-proposal-details"><summary>Review scope, evidence and support</summary>
-      <dl className="job-facts job-facts-full">
-        <div><dt>Equipment</dt><dd>{proposal.equipment}</dd></div>
-        <div><dt>Software and policy</dt><dd>{proposal.software}</dd></div>
-        <div><dt>Delivery commitment</dt><dd>{proposal.deliveryCommitment}</dd></div>
-        <div><dt>Site preparation</dt><dd>{proposal.sitePreparation}</dd></div>
-        <div><dt>Human assistance still needed</dt><dd>{proposal.humanAssistance}</dd></div>
-        <div><dt>Support</dt><dd>{proposal.support}</dd></div>
-        <div><dt>Exclusions and additional costs</dt><dd>{proposal.exclusions}</dd></div>
-        <div><dt>Pilot acceptance criteria</dt><dd>{proposal.acceptanceCriteria}</dd></div>
-      </dl>
-      <h5>Evidence for this proposal</h5>
-      {!proposal.evidence.length ? <p>No capability evidence is attached.</p> : <ul className="job-evidence-list">{proposal.evidence.map((evidence, index) => <li key={index}><strong>{evidenceLabels[evidence.level]}:</strong> <span>{evidence.summary}</span>{evidence.reference ? <p className="ms-field-hint break-all"><a className="ms-text-link" href={evidence.reference.kind === "managed_run" ? `#managed-evidence-${encodeURIComponent(evidence.reference.runId)}` : evidenceHref(evidence.reference.publicationDigest)} target={evidence.reference.kind === "managed_run" ? undefined : "_blank"} rel="noreferrer">Read this evidence</a> · Pipeline reference: {evidence.reference.kind === "managed_run" ? `${evidence.reference.runId} · ${evidence.reference.resultDigest}` : `${evidence.reference.requestId} · ${evidence.reference.publicationDigest}`}</p> : null}</li>)}</ul>}
-      <p className="ms-field-hint">A prior deployment or simulation does not establish performance at your site. Agree what the physical pilot must demonstrate.</p>
-    </details>
-    {!selected && !locked && <form className="ms-form job-proposal-choice" onSubmit={submit} aria-label={`Choose ${proposal.providerName}`}>
-      <label className="ms-check-row"><input type="checkbox" checked={authorized} onChange={event => setAuthorized(event.target.checked)} required />I am authorized to choose this proposal for my site. I understand the contract, price and dates still need agreement.{hasSelection ? " This will replace my previous choice." : ""}</label>
-      <button className="ms-button" disabled={pending || !authorized}>{pending ? "Saving…" : "Choose this proposal"}</button>
-      {error && <p role="alert">{error}</p>}
-    </form>}
-  </article>;
-}
-
-function OutcomeForm({ proposal, pending, historical = false, onSave }: { proposal: DeliveryProposal; pending: boolean; historical?: boolean; onSave: (value: Record<string, unknown>) => Promise<void> }) {
-  const [error, setError] = useState("");
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    if (form.get("authorized") !== "on" || pending) return;
-    const number = (key: string) => String(form.get(key) ?? "").trim() ? Number(form.get(key)) : null;
-    setError("");
-    try { await onSave({ proposalId: proposal.id, expectedRevision: proposal.revision, summary: String(form.get("summary") ?? ""),
-      metCriteria: form.get("metCriteria") === "yes" ? true : form.get("metCriteria") === "no" ? false : null,
-      measuredUnitsPerHour: number("measuredUnitsPerHour"), interventionsPerHour: number("interventionsPerHour"), notes: String(form.get("notes") ?? "") || null, authorized: true }); }
-    catch (cause) { setError(cause instanceof Error ? cause.message : "The outcome could not be saved."); }
-  }
-  return <details className="job-planning-details"><summary>Record your pilot outcome</summary>
-    <p className="ms-field-hint">{historical ? "Report against the originally agreed proposal. Later job changes need separate review. " : "Record what happened against the agreed criteria. "}This site report stays separate from independently verified evaluation evidence.</p>
-    <form className="ms-form" aria-label="Pilot outcome" onSubmit={submit}>
-      <label>What happened?<textarea name="summary" required maxLength={2000} /></label>
-      <label>Were the agreed criteria met?<select name="metCriteria" defaultValue="unknown"><option value="unknown">Not determined yet</option><option value="yes">Yes</option><option value="no">No</option></select></label>
-      <label>Completed units per hour (optional)<input name="measuredUnitsPerHour" type="number" min="0" max="1000000000" step="any" /></label>
-      <label>Human interventions per hour (optional)<input name="interventionsPerHour" type="number" min="0" max="1000000000" step="any" /></label>
-      <label>Other observations (optional)<textarea name="notes" maxLength={2000} /></label>
-      <label className="ms-check-row"><input name="authorized" type="checkbox" required />I am authorized to record this site's pilot outcome.</label>
-      <button className="ms-button" disabled={pending}>{pending ? "Saving…" : "Save pilot outcome"}</button>
-      {error && <p role="alert">{error}</p>}
     </form>
   </details>;
 }

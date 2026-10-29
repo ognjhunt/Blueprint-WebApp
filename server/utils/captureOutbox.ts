@@ -16,7 +16,6 @@ import { enqueueDueTaskStatusUpdates, acknowledgeTaskStatusUpdate, taskStatusUpd
 
 import { createHash, randomUUID } from "node:crypto";
 import { automationBatch } from "./automationBatch";
-import { pilotRecommendationNotificationIsCurrent } from "./pilotRecommendationNotifications";
 import { taskLifecycleNotificationIsCurrent } from "./taskLifecycleNotificationAuthority";
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
@@ -57,7 +56,7 @@ export type OutboxKind =
   /** The job's video arrived before it was saved to an account (owner decision 2026-10-18). */
   | "footage_before_account"
   | "pilot_request"
-  /** Blueprint's one recommended pilot, and the site booking it. */
+  /** Retired with the pilot recommendation and booking flow. Kept so stored rows still type-check; never sent. */
   | "pilot_recommended"
   | "pilot_booked"
   | "pilot_scheduled"
@@ -70,7 +69,7 @@ export type OutboxKind =
   /** To the robot team that bought a run, when it reports. */
   | "team_run_result"
   | "team_run_no_result"
-  /** To the recommended robot team: recommended, booked by the site, scheduled. */
+  /** Retired with the pilot recommendation and booking flow. Kept so stored rows still type-check; never sent. */
   | "team_pilot_recommended"
   | "team_pilot_booked"
   | "team_pilot_scheduled"
@@ -102,6 +101,10 @@ export interface OutboxEntry {
   sentAtIso: string | null;
   lastError: string | null;
 }
+
+/** Kinds whose feature is gone. A stored row of one is cancelled at dispatch, never sent. */
+const RETIRED_KINDS: ReadonlySet<string> = new Set(["pilot_recommended", "pilot_booked", "pilot_scheduled",
+  "team_pilot_recommended", "team_pilot_booked", "team_pilot_scheduled"]);
 
 /** Give up sending after this many tries, and say so rather than retrying forever. */
 const MAX_ATTEMPTS = 6;
@@ -304,16 +307,14 @@ export async function deliverOutbox(params?: { limit?: number }): Promise<Outbox
         tx.set(doc.ref, { status: "review_required", lastError: "robot_team_access_notice_revision_unverified" }, { merge: true });
         return false;
       }
-      // Re-read recommendation/recipient authority in this same transaction.
-      // A source read/decrypt failure leaves a recoverable pre-dispatch claim;
-      // an obsolete notice is cancelled without consuming a send attempt.
-      const currentRecommendation = await pilotRecommendationNotificationIsCurrent(entry, tx);
+      // A retired notice is cancelled without consuming a send attempt.
+      const retired = RETIRED_KINDS.has(entry.kind);
       // Withdrawal can race a retained producer or a claim. Read its current
       // authority before the durable dispatch marker; in-flight receipts below
       // still describe the provider effect and are never recast as cancelled.
       const currentCaptureNotice = await taskLifecycleNotificationIsCurrent(entry, tx);
       const currentJobAlert = await jobAlertIsCurrent(entry, tx);
-      if (accessNotice === "obsolete" || !currentNotice || !currentRecommendation || !currentCaptureNotice || !currentJobAlert) {
+      if (accessNotice === "obsolete" || !currentNotice || retired || !currentCaptureNotice || !currentJobAlert) {
         tx.set(doc.ref, { status: "cancelled" }, { merge: true });
         return false;
       }

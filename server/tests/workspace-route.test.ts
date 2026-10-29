@@ -574,21 +574,16 @@ describe("workspace requests and lifecycle", () => {
     const source: any = task();
     source.workspace_task.terms.successDefinition = "";
     source.request.taskDescription = "encrypted:Pack cartons without drops";
+    // A selection recorded before pilot booking was retired keeps its follow-through.
+    source.workspace_task.pilot = { state: "selected", selectedResultId: "qualified-run", siteVisitAnswer: "subject_to_approval" };
     state.records.set("inboundRequests/task-1", source);
-    state.records.set("inboundRequests/application-1", {
-      account_owner_uid: "robot-1",
-      workspace_evaluation: { opportunityId: "task-1", targetSnapshot: terms },
-    });
-    state.records.set("robotEvalJobRequests/run-1", run());
-    state.records.set("evaluationRuns/qualified-run", qualifiedRunForTask());
     const response = await api("/tasks/task-1/pilot", "site-1", {
-      action: "invite",
+      action: "start",
       resultId: "qualified-run",
       notes: "Review terms",
-      siteVisitAnswer: "subject_to_approval",
     });
     expect(response.status).toBe(200);
-    expect(state.records.get("inboundRequests/task-1").workspace_task.pilot.siteVisitAnswer).toBe("subject_to_approval");
+    expect(state.records.get("inboundRequests/task-1").workspace_task.pilot).toMatchObject({ state: "pilot", selectedResultId: "qualified-run", siteVisitAnswer: "subject_to_approval" });
     expect(
       state.records.get("inboundRequests/task-1").workspace_task.pilot.notes,
     ).toMatch(/^encrypted:/);
@@ -623,16 +618,6 @@ describe("workspace requests and lifecycle", () => {
     const response = await (await api("/tasks/task-1", "site-1")).json();
     expect(response.results[0].status).toBe("criteria_changed");
     expect(response.results[0].targetsMet).toBeNull();
-    expect(
-      (
-        await api("/tasks/task-1/pilot", "site-1", {
-          action: "invite",
-          resultId: "application-1",
-          notes: "Select",
-          siteVisitAnswer: "undecided",
-        })
-      ).status,
-    ).toBe(409);
   });
   it("does not promote failed or zero-sample runs into scored results", async () => {
     const failed = run();
@@ -909,61 +894,23 @@ describe("workspace requests and lifecycle", () => {
     );
     expect(response.message).toContain("queued");
   });
-  it("requires an actual result for selection and a pilot before deployment", async () => {
+  it("no longer lets a site select a team for a pilot, and requires a pilot before deployment", async () => {
     state.records.set("inboundRequests/task-1", task());
-    expect(
-      (
-        await api("/tasks/task-1/pilot", "site-1", {
-          action: "invite",
-          resultId: "invented",
-          notes: "Pick",
-          siteVisitAnswer: "undecided",
-        })
-      ).status,
-    ).toBe(409);
+    state.records.set("inboundRequests/application-1", {
+      account_owner_uid: "robot-1",
+      workspace_evaluation: { opportunityId: "task-1", targetSnapshot: terms },
+    });
+    state.records.set("evaluationRuns/qualified-run", qualifiedRunForTask());
+    expect((await api("/tasks/task-1/pilot", "site-1", {
+      action: "invite", resultId: "qualified-run", notes: "Review pilot terms", siteVisitAnswer: "yes",
+    })).status).toBe(400);
+    expect(state.records.get("inboundRequests/task-1").workspace_task?.pilot?.state ?? "not_selected").toBe("not_selected");
     expect(
       (
         await api("/tasks/task-1/pilot", "site-1", {
           action: "deploy",
           resultId: null,
           notes: "Deploy",
-        })
-      ).status,
-    ).toBe(409);
-    state.records.set("inboundRequests/application-1", {
-      account_owner_uid: "robot-1",
-      workspace_evaluation: { opportunityId: "task-1", targetSnapshot: terms },
-    });
-    state.records.set("robotEvalJobRequests/run-1", run());
-    expect((await api("/tasks/task-1/pilot", "site-1", {
-      action: "invite", resultId: "application-1", notes: "Review pilot terms",
-    })).status).toBe(400);
-    // A complete legacy benchmark remains an observation, not qualified pilot evidence.
-    expect((await api("/tasks/task-1/pilot", "site-1", {
-      action: "invite", resultId: "application-1", notes: "Review pilot terms", siteVisitAnswer: "yes",
-    })).status).toBe(409);
-    state.records.set("evaluationRuns/qualified-run", qualifiedRunForTask());
-    expect(
-      (
-        await api("/tasks/task-1/pilot", "site-1", {
-          action: "invite",
-          resultId: "qualified-run",
-          notes: "Review pilot terms",
-          siteVisitAnswer: "yes",
-        })
-      ).status,
-    ).toBe(200);
-    expect(
-      state.records.get("inboundRequests/task-1").workspace_task.pilot.state,
-    ).toBe("selected");
-    expect(state.records.get("inboundRequests/task-1").workspace_task.pilot.siteVisitAnswer).toBe("yes");
-    expect(
-      (
-        await api("/tasks/task-1/pilot", "site-1", {
-          action: "invite",
-          resultId: "qualified-run",
-          notes: "Again",
-          siteVisitAnswer: "yes",
         })
       ).status,
     ).toBe(409);
@@ -1409,9 +1356,6 @@ describe("agent screening runs on the site's task", () => {
     const privateOnly = await (await api("/", "site-1")).json();
     const privateTask = privateOnly.tasks.find((item: any) => item.id === "task-1");
     expect(privateTask.results).toEqual([]);
-    expect((await api("/tasks/task-1/pilot", "site-1", {
-      action: "invite", resultId: "private-secret", notes: "Attempt to consider private run", siteVisitAnswer: "yes",
-    })).status).toBe(409);
     expect(privateTask.status).not.toBe("Review results");
     expect(privateTask.readiness?.decision).not.toBe("results");
   });

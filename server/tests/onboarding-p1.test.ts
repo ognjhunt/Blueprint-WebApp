@@ -7,8 +7,6 @@ const { sanitizeTaskThumbnail } = await import("../utils/taskThumbnail");
 import { createServer, type Server } from "node:http";
 import { sharedFakeFirestoreState as state } from "./helpers/fake-firestore";
 import type { InboundRequest } from "../types/inbound-request";
-import { syntheticQualifiedRun } from "./helpers/recommendation-evidence";
-import { completeSupplyAgreement } from "./helpers/supply-agreement";
 const sendEmail = vi.hoisted(() => vi.fn());
 vi.mock("../../client/src/lib/firebaseAdmin", async () => {
   const { sharedFakeFirestore, FAKE_FIELD_DELETE } = await import("./helpers/fake-firestore");
@@ -22,7 +20,6 @@ const { isRunnableTask } = await import("../utils/teamEvalCandidates");
 const { ensureTaskStatusUpdate, TASK_STATUS_UPDATES } = await import("../utils/taskStatusUpdates");
 const { deliverOutbox } = await import("../utils/captureOutbox");
 const { createCaptureUploadToken } = await import("../utils/captureUploadToken");
-const { verifyRecommendationEvidence, passMarkForJob } = await import("../utils/pilotRecommendationEvidence");
 const router = (await import("../routes/task-listings")).default;
 const publicRouter = (await import("../routes/site-worlds")).default;
 const thumbnail = () => PNG.sync.write({ width: 24, height: 15, data: Buffer.alloc(24 * 15 * 4, 160) }).toString("base64");
@@ -135,28 +132,18 @@ describe("owner authorization and durable demand", () => {
     expect((await post("owner", { enabled: false, details, consent: true })).status).toBe(200);
     expect(await listTaskBrowseCards()).toHaveLength(0);
   });
-  it("opens a card to proposals and accepts only the recommended pilot without reserving dates", async () => {
-    const { TERMS_VERSION } = await import("../../client/src/lib/legalAcceptance");
+  it("opens a card to evaluations for free and offers no pilot booking", async () => {
     const post = (body: unknown) => fetch(`${base}/owner/${token("owner")}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
     const book = (body: unknown) => fetch(`${base}/owner/${token("owner")}/book`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
-    const doc = () => state.docs.get("inboundRequests/req1") as { public_task_listing: Record<string, unknown>; pilot_booking?: { amountUsd: number; termsVersion: string; recommendationId: string } };
+    const doc = () => state.docs.get("inboundRequests/req1") as { public_task_listing: Record<string, unknown>; pilot_booking?: unknown };
     const open = { ...details, opportunity: "open" };
     // Opening is free: no fee step and no fee record.
     expect((await post({ enabled: true, details: open, consent: true })).status).toBe(200);
     expect(doc().public_task_listing).not.toHaveProperty("matchFee");
-    // Nothing to book until Blueprint recommends a pilot, and only the one shown.
-    expect((await book({ recommendationId: "rec_1", authorized: true })).status).toBe(404);
+    // Booking a recommended pilot is retired, even for a stored recommendation.
     state.docs.set("inboundRequests/req1", { ...doc(), pilot_recommendation: { id: "rec_1", teamName: "Acme Robotics" } } as never);
-    expect((await book({ recommendationId: "rec_0", authorized: true })).status).toBe(409);
-    const run = syntheticQualifiedRun();
-    const verified = verifyRecommendationEvidence({ run, requestId: "req1", passMark: passMarkForJob({}, null) });
-    if (!verified.ok) throw new Error("Synthetic qualified fixture did not qualify");
-    state.docs.set(`evaluationRuns/${run.runId}`, run as never);
-    state.docs.set(`robotTeams/${run.teamId}`, { id: run.teamId, name: "Acme Robotics", status: "engaged", supplyAgreement: completeSupplyAgreement() });
-    state.docs.set("inboundRequests/req1", { ...doc(), pilot_recommendation: { id: "rec_1", teamName: "Acme Robotics",
-      teamId: run.teamId, evaluationRunId: run.runId, evidence: verified.evidence } } as never);
-    expect((await book({ recommendationId: "rec_1", authorized: true })).status).toBe(200);
-    expect(doc().pilot_booking).toMatchObject({ recommendationId: "rec_1", amountUsd: 0, termsVersion: TERMS_VERSION, state: "awaiting_coordination", commercialBasis: "invited_beta_free" });
+    expect((await book({ recommendationId: "rec_1", authorized: true })).status).toBe(404);
+    expect(doc().pilot_booking).toBeUndefined();
   });
   it("emails the site once when its card goes live, and again only if it is switched off and on", async () => {
     const post = (enabled: boolean) => fetch(`${base}/owner/${token("owner")}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ enabled, details, consent: true }) });

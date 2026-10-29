@@ -6,7 +6,7 @@ const legacyJobWorkflow = () => ({
     installationBudget: null, ongoingBudget: null, currentProcessCost: null, targetStartDate: null },
   briefAgreed: false, optionsAssessed: false, reviewRequired: false,
   nextAction: "Review the job brief with Blueprint.", actionOwner: "site",
-  review: null, proposals: [], selection: null, agreement: null, outcome: null,
+  review: null,
 });
 
 const summary = (name: string, email = "operator@example.test") => ({
