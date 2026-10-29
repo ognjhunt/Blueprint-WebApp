@@ -78,8 +78,7 @@ import { accountHasAdmission } from "../utils/accountInvitations";
 import { resolveAccessContext } from "../utils/access-control";
 import { siteVisitOptions } from "../../client/src/data/sitePilotIntent";
 import { projectWebsiteCaptureWithdrawal, recordWebsiteCaptureWithdrawal } from "../utils/websiteCaptureWithdrawal";
-import { downloadableWebsiteAtlasPreview, projectWebsiteAtlasPreview, selectWebsiteAtlasPreview, WEBSITE_ATLAS_CAPTURE_ID,
-  websiteAtlasPreviewDownloadUrl } from "../utils/websiteAtlasPreview";
+import { projectWebsiteAtlasPreview, selectWebsiteAtlasPreview } from "../utils/websiteAtlasPreview";
 import { projectPilotBooking } from "../utils/pilotContactExchange";
 import { listCheckpoints } from "../utils/robotCheckpoints";
 import { offersTeamEvaluation, TEAM_POLICY_BLOCKER_MESSAGES, teamPolicyBlocker, robotSetupIntegrationBlocker, type TeamPolicyBlocker } from "../utils/policyIntegration";
@@ -1602,17 +1601,12 @@ router.post("/tasks/:taskId/recording-consent/withdraw", handle(async (req, res)
     } });
   return res.status(202).json({ ok: true, receipt: withdrawal, withdrawal: projectWebsiteCaptureWithdrawal(withdrawal) });
 }));
-/** Owner-only ticket for the development-only 3D preview. The download route
- * re-reads consent and readiness before any byte is served. */
+/** Owner decision 2026-10-29: Blueprint owns the 3D reconstruction. The site may
+ * view its preview but never download it, so no download ticket is issued. */
 router.post("/tasks/:taskId/atlas-preview/download-ticket", handle(async (req, res) => {
-  const item = await ownedTask(req.params.taskId, res);
-  const input = z.object({ captureId: z.string().regex(WEBSITE_ATLAS_CAPTURE_ID).optional() }).strict().parse(req.body ?? {});
+  await ownedTask(req.params.taskId, res);
   res.set("Cache-Control", "private, no-store");
-  const preview = downloadableWebsiteAtlasPreview(item.record, input.captureId);
-  if (!preview) refuse(404, "This 3D preview is not available to download.", "website_atlas_preview_unavailable");
-  const downloadUrl = websiteAtlasPreviewDownloadUrl(req.params.taskId, preview.capture_id);
-  if (!downloadUrl) refuse(503, "3D preview downloads are not configured.", "website_atlas_preview_download_not_configured");
-  return res.status(201).json({ download_url: downloadUrl });
+  refuse(410, "3D previews can be viewed but not downloaded.", "website_atlas_preview_download_retired");
 }));
 router.post(
   "/tasks/:taskId/pilot",
