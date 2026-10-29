@@ -1,8 +1,8 @@
 /** The site's answer to "we picked this object; is it the one the robot should move?", bound to the
  * job's exact capture source, the question, its guess and the candidate list it answered. Optional:
  * the job never waits on it. The Pipeline reads it through its signed control transport: a confirmation
- * changes nothing, another candidate reruns the same job from retained work, and "none of these" sends
- * the site to the existing same-job walkthrough update. No new grant, queue or approval step. */
+ * changes nothing, another candidate reruns the same job from retained work, and "none of these" retires
+ * the guessed result with an honest evidence limit. No new grant, job or approval step. */
 import { z } from "zod";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { crossRuntimeArtifactDigest, crossRuntimeDigest } from "./crossRuntimeCanonical";
@@ -12,6 +12,7 @@ import { TASK_TARGET_CHOICE_ANSWER_SCHEMA, taskTargetCandidateIdSchema, taskTarg
 import { loadCurrentTaskTargetChoiceQuestion, type WebsitePreparationSelector } from "./websitePreparationStatus";
 
 export const WEBSITE_TASK_TARGET_CHOICE_FIELD = "website_task_target_choice";
+export const WEBSITE_TASK_TARGET_CHOICES_FIELD = "website_task_target_choices";
 const digest = z.string().regex(/^sha256:[a-f0-9]{64}$/);
 const selectorShape = taskTargetChoiceSelectorShape;
 export const taskTargetChoiceAnswerSchema = z.object({
@@ -45,11 +46,48 @@ export function answerForQuestion(stored: unknown, question: TaskTargetChoiceQue
     && answer.guessed_candidate_id === question.guessed_candidate_id ? answer : null;
 }
 
+/** Current source facts survive the question disappearing after a correction.
+ * They do not issue authority, or turn a previous scene's result into a new one. */
+export function taskTargetSelection(session: Record<string, any> | null | undefined) {
+  const selector = session?.website_preparation?.selector;
+  const latest = new Map<string, TaskTargetChoiceAnswer>();
+  if (selector) for (const value of [...Object.values(session?.[WEBSITE_TASK_TARGET_CHOICES_FIELD] ?? {}),
+    session?.[WEBSITE_TASK_TARGET_CHOICE_FIELD]]) {
+    const answer = parseStoredTaskTargetChoice(value);
+    if (!answer || crossRuntimeDigest(selectorOf(answer)) !== crossRuntimeDigest(selectorOf(selector))) continue;
+    const prior = latest.get(answer.target_id);
+    if (!prior || answer.answered_at >= prior.answered_at) latest.set(answer.target_id, answer);
+  }
+  const answers = [...latest.values()].sort((a, b) => a.target_id.localeCompare(b.target_id));
+  const corrections = answers.filter(row => row.choice.kind !== "confirm_guess").map(row => ({
+    target_id: row.target_id, question_digest: row.question_digest,
+    ...(row.choice.kind === "none_of_these" ? {kind: "none_of_these"} : {candidate_id: row.choice.candidate_id}),
+  }));
+  return { answers, rejected: answers.some(row => row.choice.kind === "none_of_these"),
+    correctionsDigest: corrections.length ? crossRuntimeDigest({corrections}) : null };
+}
+
+export function taskTargetSelectionApplies(session: Record<string, any> | null | undefined,
+  intake?: Record<string, any> | null) {
+  const selection = taskTargetSelection(session);
+  return !selection.rejected && (!selection.correctionsDigest || intake?.request?.task?.subject
+    ?.website_preparation_revision?.corrections_digest === selection.correctionsDigest);
+}
+
 /** The site's stored answer to the question the Pipeline currently reports, or null. */
 export function currentTaskTargetChoiceAnswer(session: Record<string, any> | undefined,
   status: {state: string; question?: TaskTargetChoiceQuestion | null}): TaskTargetChoice["kind"] | null {
-  if (status.state === "authority_ended" || !session || !status.question) return null;
-  return answerForQuestion(session[WEBSITE_TASK_TARGET_CHOICE_FIELD], status.question)?.choice.kind ?? null;
+  if (status.state === "authority_ended" || !session) return null;
+  if (!status.question) {
+    const selection = taskTargetSelection(session);
+    return selection.rejected ? "none_of_these" : selection.correctionsDigest ? "other_candidate" : null;
+  }
+  const stored = session[WEBSITE_TASK_TARGET_CHOICES_FIELD]?.[status.question.question_digest]
+    ?? session[WEBSITE_TASK_TARGET_CHOICE_FIELD];
+  const answer = answerForQuestion(stored, status.question);
+  const selector = session.website_preparation?.selector;
+  return answer && selector && crossRuntimeDigest(selectorOf(answer)) === crossRuntimeDigest(selectorOf(selector))
+    ? answer.choice.kind : null;
 }
 
 export function buildTaskTargetChoiceAnswer(selector: WebsitePreparationSelector, question: TaskTargetChoiceQuestion,
@@ -67,12 +105,10 @@ export interface TaskTargetChoiceDeps {
     Promise<{selector: WebsitePreparationSelector; question: TaskTargetChoiceQuestion} | null>;
   /** Writes `answer` unless one is stored; returns the answer that is stored afterwards. */
   commit(answer: TaskTargetChoiceAnswer): Promise<TaskTargetChoiceAnswer>;
-  readStored(captureId: string): Promise<unknown>;
+  readStored(captureId: string, questionDigest?: string): Promise<unknown>;
 }
-const defaultDeps: TaskTargetChoiceDeps = {
-  loadQuestion: (requestId, captureId) => loadCurrentTaskTargetChoiceQuestion(requestId, captureId),
-  async commit(answer) {
-    if (!db) throw new Error("task_target_choice_unavailable"); const store = db;
+export async function commitTaskTargetChoiceAnswer(answer: TaskTargetChoiceAnswer, store = db) {
+    if (!store) throw new Error("task_target_choice_unavailable");
     return store.runTransaction(async tx => {
       const ref = store.collection("captureUploadSessions").doc(answer.capture_id);
       const session = (await tx.get(ref)).data();
@@ -80,15 +116,31 @@ const defaultDeps: TaskTargetChoiceDeps = {
       const stored = session?.website_preparation?.selector;
       if (!session || !stored || crossRuntimeDigest(selectorOf(stored)) !== crossRuntimeDigest(selectorOf(answer)))
         throw new Error("task_target_choice_question_changed");
-      const prior = parseStoredTaskTargetChoice(session[WEBSITE_TASK_TARGET_CHOICE_FIELD]);
-      if (prior && prior.question_digest === answer.question_digest) return prior;
-      tx.set(ref, {[WEBSITE_TASK_TARGET_CHOICE_FIELD]: answer}, {mergeFields: [WEBSITE_TASK_TARGET_CHOICE_FIELD]});
+      const prior = parseStoredTaskTargetChoice(session[WEBSITE_TASK_TARGET_CHOICES_FIELD]?.[answer.question_digest]
+        ?? session[WEBSITE_TASK_TARGET_CHOICE_FIELD]);
+      const sameSource = prior && crossRuntimeDigest(selectorOf(prior)) === crossRuntimeDigest(selectorOf(answer));
+      if (sameSource && prior.question_digest === answer.question_digest) {
+        if (crossRuntimeDigest(prior.choice) === crossRuntimeDigest(answer.choice)) return prior;
+        // A negative answer never consumes the question. An owner may clarify it
+        // later, but only while this same source-bound question is still current.
+        if (prior.choice.kind !== "none_of_these") return prior;
+      }
+      if (prior) tx.set(ref.collection("taskTargetChoiceHistory").doc(prior.answer_digest.slice(7)), prior);
+      tx.set(ref, {[WEBSITE_TASK_TARGET_CHOICE_FIELD]: answer,
+        [WEBSITE_TASK_TARGET_CHOICES_FIELD]: {...session[WEBSITE_TASK_TARGET_CHOICES_FIELD], [answer.question_digest]: answer}},
+        {mergeFields: [WEBSITE_TASK_TARGET_CHOICE_FIELD, WEBSITE_TASK_TARGET_CHOICES_FIELD]});
       return answer;
     });
-  },
-  async readStored(captureId) {
+}
+
+const defaultDeps: TaskTargetChoiceDeps = {
+  loadQuestion: (requestId, captureId) => loadCurrentTaskTargetChoiceQuestion(requestId, captureId),
+  commit: answer => commitTaskTargetChoiceAnswer(answer),
+  async readStored(captureId, questionDigest) {
     if (!db) throw new Error("task_target_choice_unavailable");
-    return (await db.collection("captureUploadSessions").doc(captureId).get()).data()?.[WEBSITE_TASK_TARGET_CHOICE_FIELD];
+    const session = (await db.collection("captureUploadSessions").doc(captureId).get()).data();
+    return (questionDigest && session?.[WEBSITE_TASK_TARGET_CHOICES_FIELD]?.[questionDigest])
+      ?? session?.[WEBSITE_TASK_TARGET_CHOICE_FIELD];
   },
 };
 
@@ -115,7 +167,10 @@ export async function answerTaskTargetChoice(requestId: string, captureId: strin
 export async function readTaskTargetChoiceForPipeline(captureId: string, raw: unknown, deps = defaultDeps) {
   const request = taskTargetChoiceReadSchema.parse(raw);
   if (request.capture_id !== captureId) throw new Error("task_target_choice_read_invalid");
-  const answer = parseStoredTaskTargetChoice(await deps.readStored(captureId));
+  const current = await deps.loadQuestion(request.request_id, captureId);
+  if (!current || current.question.question_digest !== request.question_digest
+    || crossRuntimeDigest(selectorOf(current.selector)) !== crossRuntimeDigest(selectorOf(request))) return null;
+  const answer = parseStoredTaskTargetChoice(await deps.readStored(captureId, request.question_digest));
   if (!answer || answer.question_digest !== request.question_digest
     || crossRuntimeDigest(selectorOf(answer)) !== crossRuntimeDigest(selectorOf(request))) return null;
   return answer;

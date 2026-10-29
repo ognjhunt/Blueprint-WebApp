@@ -10,6 +10,7 @@ import { verifyCaptureUploadToken } from "../utils/captureUploadToken";
 import { projectWebsiteCaptureRights } from "../utils/websiteTaskContext";
 import { savedWalkthrough, siteWalkthroughIdentity } from "../utils/siteWalkthrough";
 import { logger } from "../logger";
+import { taskTargetSelection } from '../utils/websiteTaskTargetChoice';
 import { loadManagedJobEvidenceForWorkspace, assertManagedJobEvidenceReference } from "../utils/jobManagedEvaluation";
 import { buildJobEvidenceRequest, jobEvidenceId, jobEvidenceQuestionSchema, jobEvidenceDigest, scientificBriefDigest, scientificContext, jobEvidenceSummary, jobEvidenceCaptureSessionId } from "../utils/jobEvidenceContract";
 import { assertJobEvidenceRequestActive, readJobEvidence, readJobEvidencePublication } from "../utils/jobEvidenceStore";
@@ -61,12 +62,15 @@ async function readWorkflow(requestId: string, admin = false) {
     db.collection("siteTaskBriefs").doc(requestId).get(), savedWalkthrough(siteWalkthroughIdentity(requestId))]);
   const record = snapshot.data(); assertJob(record);
   const briefValue = brief.exists ? brief.data()! : null;
+  const selectionSession = (await db.collection('captureUploadSessions')
+    .doc(record.active_capture_id || `walkthrough-${requestId}`).get()).data();
+  const selectionRejected = taskTargetSelection(selectionSession).rejected;
   const evidenceReviewProposalIds = new Set((await Promise.all(storedMarketplace(record).proposals.map(async proposal => {
     if (proposal.status !== "available" || !proposal.evidence.some(row => row.reference)) return null;
     try { await assertProposalEvidence(requestId, proposal); return null; }
     catch { return proposal.id; } // Preserve unavailable evidence as history, affecting only its own quote.
   }))).filter((id): id is string => id !== null));
-  return { ...projectJobMarketplace(record, briefValue, walkthrough?.received ?? null, evidenceReviewProposalIds), jobId: requestId, ...await readJobEvidence(requestId, briefValue, admin),
+  return { ...projectJobMarketplace(record, briefValue, walkthrough?.received ?? null, evidenceReviewProposalIds, selectionRejected), jobId: requestId, ...await readJobEvidence(requestId, briefValue, admin),
     ...(briefValue ? await loadManagedJobEvidenceForWorkspace(requestId, scientificBriefDigest(briefValue)) : { managedEvidence: [] }) };
 }
 async function mutateWorkflow(requestId: string, actor: string, event: string,
@@ -83,6 +87,11 @@ async function mutateWorkflow(requestId: string, actor: string, event: string,
     const briefSnap = await transaction.get(briefRef);
     const record = snapshot.data(); assertJob(record);
     const brief = briefSnap.exists ? briefSnap.data()! : null;
+    const selectionSession = (await transaction.get(store.collection('captureUploadSessions')
+      .doc(record.active_capture_id || `walkthrough-${requestId}`))).data();
+    if (taskTargetSelection(selectionSession).rejected && ['proposal_selected', 'pilot_agreement_recorded'].includes(event)) {
+      throw new JobMarketplaceError('proposal_selection_changed', 'The owner rejected the object selection. Earlier proposals retain their original scope while Blueprint reviews the saved video.');
+    }
     const before = storedMarketplace(record);
     // Monotone event timestamps also make successive identical quote edits different revisions.
     const now = new Date(Math.max(Date.now(), (Date.parse(before.updatedAtIso) || 0) + 1)).toISOString();

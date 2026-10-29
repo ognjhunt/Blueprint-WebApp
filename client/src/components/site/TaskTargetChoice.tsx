@@ -2,6 +2,7 @@ import { useState } from "react";
 import { withCsrfHeader } from "@/lib/csrf";
 
 export type TaskTargetChoiceView = {
+  rejected?: boolean;
   questionDigest: string;
   semanticLabel: string;
   guessedCandidateId: string;
@@ -47,7 +48,8 @@ export function TaskTargetChoice({ token, question, onAnswered }: {
     <span>{text}</span>
   </label>;
   return <section aria-label="Object selection">
-    <p className="ms-field-hint">Object used: {guess.label}{at(guess.referenceTimeMs)}. Preparation continues automatically.</p>
+    <p className="ms-field-hint">{question.rejected ? 'The previous object selection was rejected. The saved video and earlier work remain in this job.'
+      : <>Object used: {guess.label}{at(guess.referenceTimeMs)}. Preparation continues automatically.</>}</p>
     <button type="button" className="ms-text-button" aria-expanded={open} aria-controls="task-target-choice-options"
       onClick={() => setOpen(value => !value)}>{open ? "Close object selection" : "Review or correct object selection"}</button>
     {open && <div id="task-target-choice-options">
@@ -56,7 +58,7 @@ export function TaskTargetChoice({ token, question, onAnswered }: {
       <legend className="ms-field-hint">Your answer</legend>
       {option("confirm", "Yes, that is the one")}
       {others.map(candidate => option(candidate.id, `No, it is ${candidate.label}${at(candidate.referenceTimeMs)}`))}
-      {option("none", "None of these. I will send an updated walkthrough of this job that shows the object clearly.")}
+      {option("none", "None of these objects")}
     </fieldset>
     <button type="button" className="ms-button" disabled={!selected || busy} onClick={() => void submit()}>
       {busy ? "Saving your answer…" : "Save answer"}

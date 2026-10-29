@@ -15,6 +15,7 @@ import { noEstimateReason, parseBetaPolicyScreeningPublication, type BetaPolicyS
 import { assertWebsiteCaptureBindingInTransaction, resolveWebsiteCaptureBinding } from "./websiteCaptureBinding";
 import { isTaskFamilyStrategy, preparationPhaseMatchesTask } from "./taskFamilySceneIntake";
 import { assertWebsiteRunOpen } from "./websiteRunClosure";
+import { taskTargetSelectionApplies } from "./websiteTaskTargetChoice";
 
 export const jobManagedEvidenceBindingSchema = z.object({
   job_id: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$/),
@@ -314,6 +315,8 @@ async function currentManagedScreeningScope(args: {
     if (!intake || typeof intake.source_session_id !== "string" || intake.website_request_id !== jobId || intake.receipt?.intent_id !== run.source_scene_intent_id
       || intake.request?.owner?.user_id !== run.owner_user_id
       || intake.pipeline_status?.result_reference?.digest !== run.source_scene_revision_digest) return null;
+    const selectionSession = sourceSession ?? (await read(db!.collection('captureUploadSessions').doc(intake.source_session_id))).data();
+    if (!taskTargetSelectionApplies(selectionSession, intake)) return null;
     assertWebsiteRunOpen(record, jobId, intake.source_session_id);
     const capture = sourceSession ? { captureId: intake.source_session_id }
       : await readManagedScreeningCapture(jobId, intake.source_session_id);
@@ -356,6 +359,9 @@ export async function loadManagedJobEvidence(jobId: string, currentBriefDigest: 
   }
   const snapshot = await store.collection("taskEvaluationPolicyRuns").where("job_evidence_binding.job_id", "==", jobId)
     .orderBy("created_at_iso", "desc").limit(20).get();
+  const selectionSession = sourceSession ?? (await store.collection('captureUploadSessions')
+    .doc(job.data()?.active_capture_id || `walkthrough-${jobId}`).get()).data();
+  const uncorrectedSelectionApplies = taskTargetSelectionApplies(selectionSession);
   const rows = await Promise.all(snapshot.docs.map(async document => {
     const run = document.data();
     const result = typeof run.result_record_id === "string"
@@ -369,7 +375,7 @@ export async function loadManagedJobEvidence(jobId: string, currentBriefDigest: 
         sourceSession, read: reference => reference.get() });
     }
     return projectManagedJobEvidence(document.id, run, scientificResult, jobId, currentBriefDigest,
-      run.run_kind === "beta_policy_screening" ? screeningScope?.taskContextDigest ?? null : taskContextDigest,
+      run.run_kind === "beta_policy_screening" ? screeningScope?.taskContextDigest ?? null : uncorrectedSelectionApplies ? taskContextDigest : null,
       run.run_kind === "beta_policy_screening" ? screeningScope?.sourceFingerprint ?? null : sourceFingerprint);
   }));
   return rows.filter((row): row is ManagedJobEvidenceSummary => row !== null);
@@ -403,6 +409,11 @@ export async function assertManagedJobEvidenceReference(jobId: string, currentBr
     throw new Error("job_managed_evidence_reference_unavailable_or_stale");
   }
   const sourceSession = await readManagedJobSourceSession(job.data(), read);
+  if (run.run_kind !== 'beta_policy_screening') {
+    const selectionSession = sourceSession ?? (await read(store.collection('captureUploadSessions')
+      .doc(job.data()?.active_capture_id || `walkthrough-${jobId}`))).data();
+    if (!taskTargetSelectionApplies(selectionSession)) throw new Error('job_managed_evidence_reference_unavailable_or_stale');
+  }
   const result = await read(store.collection("captureTaskEvaluationRuns").doc(run.result_record_id));
   const scope = run.run_kind === "beta_policy_screening"
     ? await currentManagedScreeningScope({ jobId, currentBriefDigest, run, result: result.exists ? result.data()! : null,

@@ -45,6 +45,7 @@ type TaskStatus = {
   headline: string;
   operatorAction: string | null;
   outcome?: TaskOutcome | null;
+  resultSuperseded?: boolean;
   missingViews: string[];
   nextUpdateIso: string | null;
   /** Optional account saving; the signed owner link already opens this job. */
@@ -656,7 +657,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
 
       {(saved || link.status !== "valid") && statusCard}
       {saved && (link.status === "valid" || link.status === "held") && scope === "owner"
-        && <JobWorkspace token={token} preparationOutcome={status?.outcome} currentStatusKnown={currentStatusKnown} currentNextAction={currentStatusKnown && status ? optionalCorrectionHint
+        && <JobWorkspace token={token} preparationOutcome={status?.outcome} resultSuperseded={status?.resultSuperseded} currentStatusKnown={currentStatusKnown} currentNextAction={currentStatusKnown && status ? optionalCorrectionHint
           ? {text: preparationUpdate, owner: "blueprint"}
           : {text: status.operatorAction || status.headline, owner: status.operatorAction || status.decision === "confirm_brief" ? "site" : "blueprint"} : undefined} />}
       {saved && scope === "owner" && currentStatusKnown && status?.targetChoice

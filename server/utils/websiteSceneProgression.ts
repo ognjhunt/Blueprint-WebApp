@@ -17,6 +17,7 @@
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { SCENE_INTAKE_COLLECTION } from "./taskEvaluationSceneIntake";
 import type { TaskSceneProgression } from "./taskStatusProjection";
+import { taskTargetSelectionApplies } from "./websiteTaskTargetChoice";
 
 // Pipeline blocks that stay blocked once hit (task_evaluation_scene_progression):
 // the configuration failed for good, the policy canary blocked, the intent's
@@ -121,10 +122,11 @@ async function firstTestAccepted(store: FirebaseFirestore.Firestore, intake: Rec
 export async function readWebsiteSceneProgression(requestId: string, captureId: string): Promise<TaskSceneProgression | null> {
   if (!db) throw new Error("website_scene_progression_unavailable");
   let latest: Record<string, any> | undefined;
+  const session = (await db.collection('captureUploadSessions').doc(captureId).get()).data();
   for await (const rows of queryPages(db.collection(SCENE_INTAKE_COLLECTION).where("website_request_id", "==", requestId))) {
     for (const row of rows) {
       const value = row.data();
-      if (value.source_session_id === captureId && (!latest
+      if (value.source_session_id === captureId && taskTargetSelectionApplies(session, value) && (!latest
         || String(value.created_at_iso || "") > String(latest.created_at_iso || ""))) latest = value;
     }
   }

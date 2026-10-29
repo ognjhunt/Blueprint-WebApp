@@ -84,6 +84,8 @@ export type TaskDecision =
   | "footage_before_account";
 
 export interface TaskStatus {
+  /** Earlier results belong to an object selection the owner has rejected. */
+  resultSuperseded?: boolean;
   outcome?: TaskOutcome | null;
   decision: TaskDecision;
   /** The readiness stage this came from, for anyone who wants the finer grain. */
@@ -307,13 +309,22 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
   // A native handoff supersedes an optional reconstruction preview's failure.
   const hasRuns = input.screening && input.screening.queued + input.screening.running
     + input.screening.reported + input.screening.noResult > 0;
-  // The optional question about the guessed object to move never holds the
-  // job; only the site's own "none of these" changes its next step, to the
-  // existing same-job walkthrough update. Actual runs outrank it.
-  if (input.preparationStatus?.question && input.targetChoiceAnswer === "none_of_these" && !hasRuns)
-    return { ...base, decision: "add_views", stage: null,
-      headline: "None of the objects Blueprint found is the one the robot should move. Send an updated walkthrough of this job that shows that object clearly.",
-      operatorAction: "Use Update walkthrough to film or upload a complete updated walkthrough. It updates this same job and keeps your original video." };
+  // An explicit rejection supersedes estimates on the guessed object. Keep
+  // the footage and the repair with Blueprint; more recording is optional.
+  if (input.targetChoiceAnswer === "none_of_these") {
+    const outcome: TaskOutcome = { category: "insufficient_evidence", basis: "missing_evidence",
+      title: "Object selection needs review",
+      reason: "The owner rejected the suggested objects. Earlier results used that selection.",
+      scope: "The task object in this job's saved video.",
+      nextStep: "The saved video does not yet support an object selection. Blueprint owns the next review; you can also clarify the object in your job details.",
+      actionOwner: "blueprint", evidence: [] };
+    return { ...base, decision: outcome.category, stage: null, missingViews: [],
+      headline: outcome.title, operatorAction: null, outcome, resultSuperseded: true };
+  }
+  if (input.targetChoiceAnswer === 'other_candidate' && !input.sceneProgression) {
+    return {...base, decision: 'assessing', stage: null, missingViews: [], operatorAction: null,
+      headline: 'Blueprint is updating this job for the corrected object using your saved video.', resultSuperseded: true};
+  }
   const nativeProgress = input.preparationStatus?.state === "handed_off" || Boolean(input.sceneProgression);
   const observedPreparation = Boolean(input.scenePreviewReady || nativeProgress
     || input.preparationStatus && input.preparationStatus.state !== "unavailable");

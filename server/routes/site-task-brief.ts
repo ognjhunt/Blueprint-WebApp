@@ -1087,7 +1087,7 @@ router.get("/:token/status", async (req: Request, res: Response) => {
     // The site's answer to the optional question about the guessed object to move, bound to this exact source.
     const targetChoiceAnswer = payload.scope === "owner" && preparationStatus
       ? currentTaskTargetChoiceAnswer(captureSession?.data(), preparationStatus) : null;
-    const question = payload.scope === "owner" && !targetChoiceAnswer
+    const question = payload.scope === "owner" && (!targetChoiceAnswer || targetChoiceAnswer === "none_of_these")
       && preparationStatus?.state !== "authority_ended" ? preparationStatus?.question ?? null : null;
 
     const status = projectTaskStatus(
@@ -1188,9 +1188,10 @@ router.get("/:token/status", async (req: Request, res: Response) => {
       footageReviewAutomated: isSiteVideoEvidenceEnabled(),
       summary: request?.captureRights.consent_revoked ? null : brief?.summary ?? null,
       claimUrl,
-      sceneViewUrl,
+      sceneViewUrl: status.resultSuperseded ? null : sceneViewUrl,
       // Opaque ids and position labels only; no frame or person pixels.
       targetChoice: question ? { questionDigest: question.question_digest, semanticLabel: question.semantic_label,
+        rejected: targetChoiceAnswer === 'none_of_these',
         guessedCandidateId: question.guessed_candidate_id,
         candidates: question.candidates.map(row => ({ id: row.candidate_id, label: row.label,
           referenceTimeMs: row.reference_time_ms })) } : null,

@@ -15,6 +15,7 @@ import { taskTargetChoiceQuestionSchema, type TaskTargetChoiceQuestion } from ".
 import { loadCurrentWebsitePreparationStatus, mergeWebsitePreparationStatus, syncWebsitePreparationStatus,
   type StoredWebsitePreparation, type WebsitePreparationDeps, type WebsitePreparationSelector } from "../utils/websitePreparationStatus";
 import { answerTaskTargetChoice, currentTaskTargetChoiceAnswer, parseStoredTaskTargetChoice,
+  buildTaskTargetChoiceAnswer, commitTaskTargetChoiceAnswer, taskTargetSelection, taskTargetSelectionApplies,
   readTaskTargetChoiceForPipeline, taskTargetChoiceAnswerSchema, type TaskTargetChoiceAnswer,
   type TaskTargetChoiceDeps } from "../utils/websiteTaskTargetChoice";
 import { createWebsitePreparationRouter, websitePreparationRawBody } from "../routes/internal-website-preparation";
@@ -56,7 +57,8 @@ function choiceStore(current: TaskTargetChoiceQuestion | null = question) {
   let stored: TaskTargetChoiceAnswer | null = null;
   const deps: TaskTargetChoiceDeps = {
     async loadQuestion() { return current ? { selector, question: current } : null; },
-    async commit(answer) { if (stored?.question_digest !== answer.question_digest) stored = answer; return stored!; },
+    async commit(answer) { if (stored?.question_digest !== answer.question_digest || stored.choice.kind === 'none_of_these'
+      && crossRuntimeDigest(stored.choice) !== crossRuntimeDigest(answer.choice)) stored = answer; return stored!; },
     async readStored() { return stored; },
   };
   return { deps, get stored() { return stored; }, ask(next: TaskTargetChoiceQuestion | null) { current = next; } };
@@ -125,7 +127,7 @@ describe("the site's answer", () => {
     expect(await readTaskTargetChoiceForPipeline("walkthrough-r1", { ...read, question_digest: `sha256:${"8".repeat(64)}` }, store.deps)).toBeNull();
     expect(await readTaskTargetChoiceForPipeline("walkthrough-r1", { ...read, completion_marker_generation: "18" }, store.deps)).toBeNull();
     await expect(readTaskTargetChoiceForPipeline("walkthrough-other", read, store.deps)).rejects.toThrow();
-    const session = { website_task_target_choice: answer };
+    const session = { website_task_target_choice: answer, website_preparation: {selector} };
     expect(currentTaskTargetChoiceAnswer(session, { state: "preparing", question })).toBe("none_of_these");
     expect(currentTaskTargetChoiceAnswer(session, { state: "preparing",
       question: { ...question, question_digest: `sha256:${"7".repeat(64)}` } })).toBeNull();
@@ -139,13 +141,60 @@ describe("the job page keeps the job moving", () => {
   const preparing = { state: "preparing" as const, correlationId: null, question };
   it("an unanswered question, a confirmation or a correction leaves the job's own status", () => {
     const plain = projectTaskStatus({ ...base, preparationStatus: { state: "preparing", correlationId: null } });
-    for (const targetChoiceAnswer of [null, "confirm_guess", "other_candidate"] as const)
+    for (const targetChoiceAnswer of [null, "confirm_guess"] as const)
       expect(projectTaskStatus({ ...base, preparationStatus: preparing, targetChoiceAnswer })).toEqual(plain);
   });
-  it("routes none of these to the existing same-job walkthrough update", () => {
-    const status = projectTaskStatus({ ...base, preparationStatus: preparing, targetChoiceAnswer: "none_of_these" });
-    expect(status.decision).toBe("add_views");
-    expect(status.operatorAction).toMatch(/Update walkthrough.*same job and keeps your original video/);
+  it('keeps old runs historical while a positive correction has no matching scene intake', () => {
+    expect(projectTaskStatus({...base, preparationStatus: preparing, targetChoiceAnswer: 'other_candidate',
+      screening: {queued: 0, running: 0, reported: 1, noResult: 0}})).toMatchObject({decision: 'assessing', resultSuperseded: true});
+    expect(projectTaskStatus({...base, preparationStatus: preparing, targetChoiceAnswer: 'other_candidate',
+      sceneProgression: {state: 'evaluated'}}).resultSuperseded).not.toBe(true);
+  });
+  it.each([undefined,
+    { queued: 0, running: 0, reported: 1, noResult: 0 },
+    { queued: 0, running: 0, reported: 0, noResult: 1 },
+    { queued: 0, running: 1, reported: 0, noResult: 0 },
+  ])("retires a rejected guessed result even when runs exist (%j), without requiring recording", screening => {
+    const status = projectTaskStatus({ ...base, preparationStatus: preparing, targetChoiceAnswer: "none_of_these", screening });
+    expect(status.decision).toBe("insufficient_evidence");
+    expect(status.resultSuperseded).toBe(true);
+    expect(status.operatorAction).toBeNull();
+    expect(status.outcome?.actionOwner).toBe("blueprint");
+    expect(status.outcome?.nextStep).toMatch(/saved video/);
+    expect(status.outcome?.nextStep).not.toMatch(/must|upload|record|walkthrough/i);
+  });
+});
+
+describe('negative answer, retained history and a later owner clarification', () => {
+  it('commits none→B in the same capture, retains the rejection, and changes no allowance', async () => {
+    const records = new Map<string, any>([['captureUploadSessions/walkthrough-r1',
+      {website_preparation: {selector}, grant: {id: 'original', expires: 'unchanged', cap: 15}}]]);
+    const ref = (key: string): any => ({key, collection: (name: string) => ({doc: (id: string) => ref(`${key}/${name}/${id}`)})});
+    const store: any = {collection: (name: string) => ({doc: (id: string) => ref(`${name}/${id}`)}),
+      runTransaction: async (fn: any) => fn({get: async (r: any) => ({data: () => records.get(r.key)}),
+        set: (r: any, data: any, options: any) => records.set(r.key, options?.mergeFields ? {...records.get(r.key), ...data} : data)})};
+    const no = buildTaskTargetChoiceAnswer(selector, question, {kind: 'none_of_these'}, '2026-10-29T12:00:00Z');
+    await commitTaskTargetChoiceAnswer(no, store);
+    let session = records.get('captureUploadSessions/walkthrough-r1');
+    expect(taskTargetSelection(session).rejected).toBe(true);
+    // The rejection still applies after the question disappears from Pipeline status.
+    expect(currentTaskTargetChoiceAnswer(session, {state: 'preparing'})).toBe('none_of_these');
+    expect(projectTaskStatus({briefDrafted: true, briefConfirmed: false, stage: null, coversScene: null,
+      missingViews: [], supplementWouldFinish: false, targetChoiceAnswer: currentTaskTargetChoiceAnswer(session, {state: 'preparing'}),
+      screening: {queued: 0, running: 0, reported: 1, noResult: 0}})).toMatchObject({resultSuperseded: true, decision: 'insufficient_evidence'});
+    const yes = buildTaskTargetChoiceAnswer(selector, question, {kind: 'other_candidate', candidate_id: OTHER}, '2026-10-29T12:01:00Z');
+    expect(await commitTaskTargetChoiceAnswer(yes, store)).toEqual(yes);
+    expect(await commitTaskTargetChoiceAnswer({...yes, answered_at: 'later'}, store)).toEqual(yes);
+    session = records.get('captureUploadSessions/walkthrough-r1');
+    expect(records.get(`captureUploadSessions/walkthrough-r1/taskTargetChoiceHistory/${no.answer_digest.slice(7)}`)).toEqual(no);
+    expect(session.grant).toEqual({id: 'original', expires: 'unchanged', cap: 15});
+    expect(taskTargetSelectionApplies(session, {})).toBe(false);
+    const digest = taskTargetSelection(session).correctionsDigest;
+    expect(digest).toBe(crossRuntimeDigest({corrections: [{target_id: question.target_id,
+      question_digest: question.question_digest, candidate_id: OTHER}]}));
+    expect(taskTargetSelectionApplies(session, {request: {task: {subject: {website_preparation_revision: {corrections_digest: digest}}}}})).toBe(true);
+    session.website_preparation.selector = {...selector, task_context_digest: `sha256:${'f'.repeat(64)}`};
+    expect(taskTargetSelection(session).correctionsDigest).toBeNull();
   });
 });
 

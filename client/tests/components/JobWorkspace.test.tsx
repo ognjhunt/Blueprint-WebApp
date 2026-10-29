@@ -29,6 +29,19 @@ function workflow(overrides: Partial<JobMarketplaceWorkflow> = {}): JobMarketpla
 const response = (value: unknown, status = 200) => ({ ok: status >= 200 && status < 300, status, json: async () => value });
 
 describe("the site's job workspace", () => {
+  it('retains rejected-object proposals as history and prevents a new selection', async () => {
+    fetchMock.mockResolvedValue(response(workflow({stage: 'proposals_ready', proposals: [proposal],
+      review: {disposition: 'options_identified', summary: 'Old object selection review', nextAction: 'Choose the old proposal',
+        reviewedAtIso: '2026-10-29T00:00:00Z', scopeRevision: 'brief-1'}})));
+    render(<JobWorkspace token='owner-token' resultSuperseded currentNextAction={{text: 'Blueprint is reviewing saved video.', owner: 'blueprint'}} />);
+    const history = await screen.findByText('Earlier delivery proposals');
+    expect(history.closest('details')).not.toHaveAttribute('open');
+    expect(screen.queryByText('Old object selection review')).toBeNull();
+    fireEvent.click(history);
+    expect(screen.getByText('Example Delivery')).toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: 'Choose this proposal'})).toBeNull();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
   it("gives a current preparation stop priority without accepting the brief or changing the workflow", async () => {
     const current = workflow({ actionOwner: "site", nextAction: "Review the saved brief.",
       review: { disposition: "more_information", summary: "The brief is still a draft.", nextAction: "Confirm the saved brief.",

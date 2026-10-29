@@ -135,7 +135,7 @@ export function storedMarketplace(record: Record<string, any>): StoredJobMarketp
 
 /** A commercial projection; an assessment, selected quote or owner report never manufactures a simulator result. */
 export function projectJobMarketplace(record: Record<string, any>, brief: Record<string, any> | null,
-  captureReceived: boolean | null = false, evidenceReviewProposalIds: ReadonlySet<string> = new Set()): JobMarketplaceWorkflow {
+  captureReceived: boolean | null = false, evidenceReviewProposalIds: ReadonlySet<string> = new Set(), objectSelectionSuperseded = false): JobMarketplaceWorkflow {
   const value = storedMarketplace(record);
   // Keep recorded commitments visible if a historical capture is unavailable.
   // A written draft alone never advances a new video-backed assessment.
@@ -143,9 +143,9 @@ export function projectJobMarketplace(record: Record<string, any>, brief: Record
   const scopeAvailable = assessmentStarted && hasProposalScope(brief);
   const briefAgreed = assessmentStarted && Boolean(brief?.confirmedAtIso && Number.isFinite(Date.parse(brief.confirmedAtIso)));
   const currentBriefRevision = proposalScopeRevision(brief, value.requirements);
-  const proposals = value.proposals.map(proposal => proposal.status === "available" && (proposal.briefRevision !== currentBriefRevision || evidenceReviewProposalIds.has(proposal.id))
+  const proposals = value.proposals.map(proposal => proposal.status === "available" && (objectSelectionSuperseded || proposal.briefRevision !== currentBriefRevision || evidenceReviewProposalIds.has(proposal.id))
     ? { ...proposal, status: "review_required" as const } : proposal);
-  const review = value.review?.scopeRevision === currentBriefRevision ? value.review : null;
+  const review = !objectSelectionSuperseded && value.review?.scopeRevision === currentBriefRevision ? value.review : null;
   const reviewRequired = proposals.some(proposal => proposal.status === "review_required") || Boolean(value.review && !review);
   const optionsAssessed = scopeAvailable && Boolean(review || proposals.some(proposal => proposal.status === "available"));
   let stage: JobMarketplaceWorkflow["stage"] = "job_submitted";
@@ -168,6 +168,11 @@ export function projectJobMarketplace(record: Record<string, any>, brief: Record
   if (scopeAvailable && blockingReview) { stage = briefAgreed ? "brief_agreed" : "job_submitted"; nextAction = selected && evidenceReviewProposalIds.has(selected.id)
     ? "Evidence supporting this proposal no longer applies to the current task or configuration. Blueprint and the delivery partner must review the affected proposal before you proceed. Recorded agreements and reports retain their original scope."
     : "The job brief changed. Blueprint and the delivery partner must review the affected proposals before you proceed. Recorded agreements and reports refer to their original proposal scope."; actionOwner = "blueprint"; }
+  if (objectSelectionSuperseded) {
+    stage = briefAgreed ? 'brief_agreed' : 'job_submitted';
+    nextAction = 'The object selection changed. Earlier proposals remain in the history while Blueprint reviews this job using the saved video.';
+    actionOwner = 'blueprint';
+  }
   return { schemaVersion: "job_marketplace.v1", revision: workflowDigest(value), requirements: value.requirements,
     briefAgreed, optionsAssessed, reviewRequired, stage, nextAction, actionOwner, review,
     proposals: scopeAvailable ? proposals : [], selection: scopeAvailable ? value.selection : null,
