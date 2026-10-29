@@ -1117,7 +1117,7 @@ export async function submitInboundRequest(req: Request, res: Response) {
         || (payload.descriptionOnly === true && payload.acceptedTerms === true
           && hasCurrentDescriptionAuthority(buildConsentAttestation(payload.descriptionAuthority))));
     if (!taskStatement && !captureWithoutDescription) missingFields.push("taskStatement");
-    if (buyerType === "site_operator") {
+    if (buyerType === "site_operator" && payload.captureMode !== "self_capture") {
       if (!siteName) missingFields.push("siteName");
       if (!siteLocation) missingFields.push("siteLocation");
     }

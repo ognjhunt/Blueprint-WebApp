@@ -98,6 +98,33 @@ async function saveWithoutFirstEmail(baseUrl: string, requestId: string) {
 }
 
 describe("atomic inbound request ownership", () => {
+  it("saves a consented video-first guest job without a site name, address, company or description", async () => {
+    const { server, baseUrl } = await start();
+    try {
+      const body = { ...payload("video-no-address", "owner@example.test"), company: undefined,
+        siteName: "", siteLocation: "", taskStatement: "", taskDescription: "", hasExistingFootage: true,
+        descriptionOnly: false, acceptedTerms: true, retryToken: "a".repeat(64) };
+      const response = await fetch(`${baseUrl}/`, { method: "POST",
+        headers: { "content-type": "application/json", "x-forwarded-for": `192.0.2.${++syntheticIpSuffix}` }, body: JSON.stringify(body) });
+      expect(response.status).toBe(201);
+      expect((await response.json()).captureUrl).toContain("/capture-upload/");
+      const saved = sharedFakeFirestoreState.docs.get("inboundRequests/video-no-address")!;
+      expect(saved.request).toMatchObject({ siteName: "", siteLocation: "", capture_region: "us", taskStatement: "" });
+      expect(saved.capture_owner_uid).toMatch(/^site-job-[a-f0-9]{40}$/);
+      expect(saved.account_owner_uid).toBeUndefined();
+    } finally { await new Promise<void>(resolve => server.close(() => resolve())); }
+  });
+  it("refuses an address-free filming visit before saving a job or sending its notice", async () => {
+    const { server, baseUrl } = await start();
+    try {
+      const body = { ...payload("visit-no-address", "owner@example.test"), siteName: "", siteLocation: "", captureMode: "site_visit" };
+      const response = await fetch(`${baseUrl}/`, { method: "POST",
+        headers: { "content-type": "application/json", "x-forwarded-for": `192.0.2.${++syntheticIpSuffix}` }, body: JSON.stringify(body) });
+      expect(response.status).toBe(400);
+      expect(sharedFakeFirestoreState.docs.has("inboundRequests/visit-no-address")).toBe(false);
+      expect([...sharedFakeFirestoreState.docs.keys()].filter(key => key.startsWith("captureOutbox/"))).toEqual([]);
+    } finally { await new Promise<void>(resolve => server.close(() => resolve())); }
+  });
   it("accepts video-first intake and authorized recording setup without requiring text", async () => {
     const { server, baseUrl } = await start();
     try {
