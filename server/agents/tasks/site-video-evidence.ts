@@ -199,7 +199,7 @@ export const jobEstimatesField = z.any().optional().transform((value): SiteVideo
 /** How to estimate the job, for any reader that watches the site's footage. */
 export const JOB_ESTIMATES_INSTRUCTIONS = `Estimating the job (job_estimates):
 Blueprint never asks the site to measure anything, so estimate what a robot would need to know from what the footage shows. These are educated estimates and are always shown as estimates. They never change any other field of your answer.
-- Size things against references in frame: a standard pallet (1.2 m by 1.0 m), a door (about 2 m tall), a table, bench or counter (about 0.75 to 0.9 m high), a tote, a carton, a floor tile.
+- Size things against standardized references in frame, whatever kind of site it is: a doorway (about 2 m tall), a work surface (about 0.75 to 0.9 m high), a stair riser (about 0.18 m), a floor or ceiling tile, a standard pallet (1.2 m by 1.0 m).
 - object: the main item the job handles, in a few words. object_largest_side_m: its largest side, in metres.
 - object_mass_kg_low and object_mass_kg_high: a plausible weight range from its size, its material, how full it looks and how it is lifted (one hand or two, the effort it takes).
 - object_surface: matte, shiny, transparent or mixed, from how it looks.
@@ -338,7 +338,7 @@ Use "job" in operator-facing explanations for the work the site wants automated.
 Report only what the footage shows. Output JSON only. No markdown.
 
 What you are checking, and nothing else:
-- sceneStability — do fixtures, stations and pallet positions stay put across the clip, or does the layout move?
+- sceneStability — do fixtures, stations and stored items stay put across the clip, or does the layout move?
 - taskShape — is this one repeated job, or several different jobs?
 - objectVariety — could the handled items be enumerated in advance, or is the variety open-ended?
 - accessWindow — is the work area clear of untrained people while the task runs?
