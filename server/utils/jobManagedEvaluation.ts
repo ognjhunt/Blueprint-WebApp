@@ -4,6 +4,7 @@ import { z } from "zod";
 import { jobEvidenceSourceBindingSchema, jobEvidenceTaskInventoryDigest, scientificBriefDigest, scientificContext } from "./jobEvidenceContract";
 import { crossRuntimeArtifactDigest, crossRuntimeDigest } from "./crossRuntimeCanonical";
 import { projectWebsiteCaptureRights, projectWebsiteTaskContext } from "./websiteTaskContext";
+import { preparationGrantFollowsBrief } from "./preparationGrantTask";
 import type { SiteTaskBriefRecord } from "./siteTaskBrief";
 import type { TaskItemInventoryRecord } from "./taskItemInventory";
 import type { ConfiguredSceneOffering } from "./configuredSceneOfferingContract";
@@ -61,7 +62,8 @@ export function managedJobTask(args: {
     inventory: args.inventory,
     ...(sponsorship.purpose ? { purpose: sponsorship.purpose } : {}),
   });
-  if (context.context_digest !== sponsorship.task_context_digest) throw new Error("job_scene_task_changed");
+  if (context.context_digest !== sponsorship.task_context_digest && !preparationGrantFollowsBrief(sponsorship,
+    { brief: brief as SiteTaskBriefRecord, record, inventory: args.inventory })) throw new Error("job_scene_task_changed");
   let sourceFingerprint: string;
   let sourceCaptureSessionId: string | null = null;
   let sourceCaptureDigest: string | null = null;

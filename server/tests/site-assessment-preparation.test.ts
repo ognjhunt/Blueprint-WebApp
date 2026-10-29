@@ -694,3 +694,52 @@ it("rebinds a verified child source without a new advisory or a fresh allowance"
   expect(() => websiteSceneSponsorship({ ...input, brief: changed,
     expected_task_context_digest: changedContext.context_digest })).toThrow("website_scene_sponsorship_changed");
 });
+
+import { currentWebsiteSceneContext } from "../utils/websiteSceneSponsorship";
+import { PLACEHOLDER_TASK_SUMMARY } from "../utils/siteTaskBrief";
+// Owner decision 2026-10-28: preparation starts from the received video, before the
+// site has named its job. A grant issued for the placeholder brief authorized no task
+// instructions, so naming, correcting or confirming the task continues that grant.
+it("a preparation grant issued before the task was named follows the site's naming, corrections and confirmation", async () => {
+  seed(packet(), false, false, {}, { summary: PLACEHOLDER_TASK_SUMMARY });
+  const root = await loadWebsiteSceneSponsorship("one", true, "walkthrough-one", prepOptions());
+  const record = state.docs.get("inboundRequests/one") as any, brief = state.docs.get("siteTaskBriefs/one") as any;
+  expect(record.website_scene_sponsorship).toEqual(root);
+  brief.summary = "Pick up the glass vase and place it at the other end of the same table";
+  brief.operatorAnswers = { workload: "daily" };
+  const named = await loadWebsiteSceneSponsorship("one", true, "walkthrough-one", prepOptions());
+  expect(named).toMatchObject({ purpose: "scene_preparation", task_context_digest: prepOptions().expected_task_context_digest,
+    assessment_parent_authority_digest: root.authority_digest, expires_at_epoch: root.expires_at_epoch,
+    max_total_spend_usd: root.max_total_spend_usd, max_paid_attempts: root.max_paid_attempts });
+  expect(record.website_scene_sponsorship).toEqual(root);
+  expect(currentWebsiteSceneContext({ requestId: "one", captureId: "walkthrough-one", brief, record }).context_digest)
+    .toBe(named.task_context_digest);
+  expect(currentWebsitePreparationStatusContext({ requestId: "one", captureId: "walkthrough-one", brief, record }).context_digest)
+    .toBe(named.task_context_digest);
+  brief.summary = "Pick up the glass vase and place it beside the chair";
+  brief.confirmedAtIso = "2026-10-29T00:00:00Z";
+  expect(await loadWebsiteSceneSponsorship("one", true, "walkthrough-one", prepOptions()))
+    .toMatchObject({ consent: { task_confirmed: true }, assessment_parent_authority_digest: root.authority_digest });
+});
+it("a placeholder grant issued before its marker follows only a provable first naming", async () => {
+  seed(packet(), false, false, {}, { summary: PLACEHOLDER_TASK_SUMMARY });
+  const root = await loadWebsiteSceneSponsorship("one", true, "walkthrough-one", prepOptions());
+  const record = state.docs.get("inboundRequests/one") as any, brief = state.docs.get("siteTaskBriefs/one") as any;
+  delete record.website_scene_sponsorship_unnamed_task;
+  brief.summary = "Pick up the glass vase and place it at the other end of the same table";
+  expect(await loadWebsiteSceneSponsorship("one", true, "walkthrough-one", prepOptions()))
+    .toMatchObject({ assessment_parent_authority_digest: root.authority_digest });
+  // A fact the retained placeholder context cannot be shown to have held.
+  brief.operatorAnswers = { workload: "daily" };
+  await expect(loadWebsiteSceneSponsorship("one", true, "walkthrough-one", prepOptions())).rejects.toThrow("website_scene_sponsorship_changed");
+});
+it("a grant issued for a named task still refuses different task instructions", async () => {
+  seed(packet(), false, false);
+  const root = await loadWebsiteSceneSponsorship("one", true, "walkthrough-one", prepOptions());
+  const record = state.docs.get("inboundRequests/one") as any, brief = state.docs.get("siteTaskBriefs/one") as any;
+  expect(record).not.toHaveProperty("website_scene_sponsorship_unnamed_task");
+  brief.summary = "Move bins and stack crates";
+  await expect(loadWebsiteSceneSponsorship("one", true, "walkthrough-one", prepOptions())).rejects.toThrow("website_scene_sponsorship_changed");
+  expect(() => currentWebsiteSceneContext({ requestId: "one", captureId: "walkthrough-one", brief, record })).toThrow("website_scene_sponsorship_changed");
+  expect(record.website_scene_sponsorship).toEqual(root);
+});
