@@ -2968,3 +2968,137 @@ describe('normal owner captures on current Firebase storage',()=>{
     } finally {await stopServer(server,socketPath);}
   });
 });
+
+function retainedFirebaseCompletion(id: string) {
+  const saved = state.records.get(id)!;
+  const size = Number(saved.part_size_bytes), count = Number(saved.expected_part_count);
+  const total = (saved.request as any).original_file.size_bytes;
+  const parts = Array.from({length: count}, (_, i) => ({partNumber: i + 1,
+    contentLength: i === count - 1 ? total - i * size : size,
+    contentSha1: String(i + 1).repeat(40), generation: String(1793207002780000 + i)}));
+  state.records.set(id, {...saved, status: "uploading", firebase_parts: parts});
+  return {schema_version: "capture_upload_completion_request.v1", part_sha1_array: parts.map(part => part.contentSha1)};
+}
+
+function configureCaptureIntake() {
+  process.env.CAPTURE_UPLOAD_INTAKE_FORWARD_URL = "https://pipeline.fixture.invalid/capture-upload-intakes";
+  process.env.CAPTURE_UPLOAD_INTAKE_FORWARD_TOKEN = "isolated-dummy-token";
+  state.firebase.downloadGrant.mockImplementation(async (target, version) => ({provider: "firebase",
+    url: state.firebase.storageUri(target), generation: version, authorizationToken: "",
+    expiresAtIso: "2027-01-01T00:00:00Z"}));
+  state.intakeForward.mockResolvedValue({status: "failed", performed: false, required: true,
+    endpoint_configured: true, blocker: "fixture_no_real_processing", http_status: 503});
+}
+
+describe("current capture authority at completion and intake boundaries", () => {
+  it.each(["before completion", "during finish", "during grant"])("stops a revoked capture %s", async stage => {
+    useFirebaseStorage(); configureCaptureIntake();
+    const {server, socketPath} = await startServer();
+    try {
+      const created = await createSession(socketPath), id = String(created.session_id);
+      const command = retainedFirebaseCompletion(id);
+      const revoke = () => state.records.set(id, {...state.records.get(id)!, capture_access: {future_processing_allowed: false}});
+      if (stage === "before completion") revoke();
+      if (stage === "during finish") state.firebase.finish.mockImplementation(async target => {
+        revoke(); return {provider: "firebase", fileId: "1793207002780033", storageUri: state.firebase.storageUri(target)};
+      });
+      if (stage === "during grant") {
+        state.records.set(id, {...state.records.get(id)!, status: "uploaded_verification_pending", provider_file_id: "1793207002780033"});
+        const grant = state.firebase.downloadGrant.getMockImplementation()!;
+        state.firebase.downloadGrant.mockImplementation(async (...args) => {const value = await grant(...args); revoke(); return value;});
+      }
+      const response = await postJson(socketPath, `/capture-uploads/${id}/complete`, command);
+      expect(response.status).toBe(410);
+      expect(state.records.get(id)?.capture_access).toEqual({future_processing_allowed: false});
+      expect(state.firebase.downloadGrant).toHaveBeenCalledTimes(stage === "during grant" ? 1 : 0);
+      expect(state.intakeForward).not.toHaveBeenCalled();
+      if (stage !== "during grant") expect(state.records.get(id)?.status).toBe("uploading");
+    } finally {await stopServer(server, socketPath);}
+  });
+
+  it.each([
+    {capture_access: {serve_allowed: false}},
+    {completed_capture_lifecycle: {status: "revocation_in_progress"}},
+  ])("refuses a missing completed handoff under current native denial %j", async denial => {
+    useFirebaseStorage(); configureCaptureIntake();
+    const {server, socketPath} = await startServer();
+    try {
+      const created = await createSession(socketPath), id = String(created.session_id);
+      const command = retainedFirebaseCompletion(id);
+      state.records.set(id, {...state.records.get(id)!, status: "uploaded_verification_pending",
+        provider_file_id: "1793207002780033", ...denial});
+      expect((await postJson(socketPath, `/capture-uploads/${id}/complete`, command)).status).toBe(410);
+      expect((await postJson(socketPath, `/capture-uploads/${id}/process`, {})).status).toBe(410);
+      expect(state.firebase.downloadGrant).not.toHaveBeenCalled(); expect(state.intakeForward).not.toHaveBeenCalled();
+    } finally {await stopServer(server, socketPath);}
+  });
+
+  it.each(["revoked", "missing"])("does not forward when the linked site's current consent becomes %s during a grant", async change => {
+    useFirebaseStorage(); configureCaptureIntake();
+    const {server, socketPath} = await startServer();
+    try {
+      const response = await postJson(socketPath, "/capture-uploads", request({scene_id: "site-job-intake-1"}));
+      expect(response.status).toBe(201);
+      const id = String((await response.json() as any).session_id), command = retainedFirebaseCompletion(id);
+      state.records.set(id, {...state.records.get(id)!, status: "uploaded_verification_pending", provider_file_id: "1793207002780033"});
+      state.records.set("inboundRequests/job-intake-1", {request: {buyerType: "site_operator",
+        consent_attestation: {granted: true, statement_version: "2026-09-18.v1", recorded_at_iso: "2026-10-01T00:00:00Z"}}});
+      const grant = state.firebase.downloadGrant.getMockImplementation()!;
+      state.firebase.downloadGrant.mockImplementation(async (...args) => {
+        const value = await grant(...args);
+        if (change === "missing") state.records.delete("inboundRequests/job-intake-1");
+        else state.records.set("inboundRequests/job-intake-1", {...state.records.get("inboundRequests/job-intake-1")!,
+          capture_rights: {future_processing_allowed: false}});
+        return value;
+      });
+      expect((await postJson(socketPath, `/capture-uploads/${id}/complete`, command)).status).toBe(410);
+      expect(state.firebase.downloadGrant).toHaveBeenCalledOnce(); expect(state.intakeForward).not.toHaveBeenCalled();
+    } finally {await stopServer(server, socketPath);}
+  });
+
+  it.each(["owner", "object", "generation", "request"])("refuses %s drift during a source grant", async field => {
+    useFirebaseStorage(); configureCaptureIntake();
+    const {server, socketPath} = await startServer();
+    try {
+      const created = await createSession(socketPath), id = String(created.session_id), command = retainedFirebaseCompletion(id);
+      state.records.set(id, {...state.records.get(id)!, status: "uploaded_verification_pending", provider_file_id: "1793207002780033"});
+      const grant = state.firebase.downloadGrant.getMockImplementation()!;
+      state.firebase.downloadGrant.mockImplementation(async (...args) => {
+        const value = await grant(...args), latest = state.records.get(id)!;
+        const patch = field === "owner" ? {owner_user_id: "different-owner"}
+          : field === "object" ? {object_path: "other-source.mp4"}
+          : field === "generation" ? {provider_file_id: "1793207002780034"}
+          : {request: {...latest.request as Record<string, unknown>, intake_id: "different-intake"}};
+        state.records.set(id, {...latest, ...patch}); return value;
+      });
+      expect((await postJson(socketPath, `/capture-uploads/${id}/complete`, command)).status).toBe(field === "owner" ? 404 : 409);
+      expect(state.intakeForward).not.toHaveBeenCalled();
+    } finally {await stopServer(server, socketPath);}
+  });
+
+  it("retries a healthy retained generation and preserves funding, reservations and historical receipts", async () => {
+    useFirebaseStorage(); configureCaptureIntake();
+    const {server, socketPath} = await startServer();
+    try {
+      const created = await createSession(socketPath), id = String(created.session_id), command = retainedFirebaseCompletion(id);
+      const history = {funding: {root: "unchanged", cap: 4, expires_at_iso: "2026-10-30T00:00:00Z"},
+        unknown_reservation: {request_id: "original-request", state: "outcome_unknown"}};
+      state.records.set(id, {...state.records.get(id)!, status: "uploaded_verification_pending", provider_file_id: "1793207002780033", ...history});
+      state.firebase.downloadGrant.mockRejectedValueOnce(Error("transient grant response"));
+      expect((await postJson(socketPath, `/capture-uploads/${id}/complete`, command)).status).toBe(200);
+      expect(state.intakeForward).not.toHaveBeenCalled();
+      expect((await postJson(socketPath, `/capture-uploads/${id}/complete`, command)).status).toBe(200);
+      expect(state.intakeForward).toHaveBeenCalledOnce();
+      expect(state.intakeForward.mock.calls[0][0].transfer.generation).toBe("1793207002780033");
+      const receipt = {schema_version: "retained-historical-receipt"};
+      state.records.set(id, {...state.records.get(id)!, capture_access: {future_processing_allowed: false},
+        completed_capture_lifecycle: {status: "revoked"}, pipeline_capture_intake_receipt: receipt,
+        firebase_parts_cleanup_pending: true});
+      expect((await postJson(socketPath, `/capture-uploads/${id}/complete`, command)).status).toBe(200);
+      expect(state.records.get(id)).toMatchObject({...history, pipeline_capture_intake_receipt: receipt,
+        capture_access: {future_processing_allowed: false}, completed_capture_lifecycle: {status: "revoked"},
+        firebase_parts_cleanup_pending: false});
+      expect(state.firebase.finish).not.toHaveBeenCalled(); expect(state.intakeForward).toHaveBeenCalledOnce();
+    } finally {await stopServer(server, socketPath);}
+  });
+});
