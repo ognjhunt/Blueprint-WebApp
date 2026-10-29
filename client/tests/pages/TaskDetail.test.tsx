@@ -150,6 +150,21 @@ describe("development-only 3D preview", () => {
     statusText: "Your 3D preview is ready to download.", developmentOnly: true, splatAvailable: true,
     meshAvailable: true, sizeBytes: 4096, updatedAtIso: "2026-10-22T12:00:00.000Z", downloadAvailable: true };
 
+  it("shows one Blueprint-owned next step and keeps raw coverage notes in closed processing details", () => {
+    const note = "A closer walkthrough along the shelving units";
+    fixture.task = { status: "3D preview ready", atlasPreview: ready,
+      readiness: { decision: "preview_ready", headline: "Your 3D preview is ready. Blueprint is checking the next processing step.",
+        operatorAction: null, missingViews: [note], nextUpdateIso: null } };
+    render(<TaskDetail />);
+    expect(screen.getByRole("button", { name: "Download 3D preview" })).toBeEnabled();
+    expect(screen.getByText(/Blueprint is checking the next processing step/)).toBeVisible();
+    expect(screen.queryAllByText(/Still needed:|We usually reply within an hour|In review/)).toHaveLength(0);
+    expect(screen.getByText(note)).not.toBeVisible();
+    fireEvent.click(screen.getByText("Processing details"));
+    expect(screen.getByText(note)).toBeVisible();
+    expect(screen.getByText(/is not to scale/)).toBeVisible();
+  });
+
   it("downloads a ready preview through a fresh owner ticket", async () => {
     const url = `/api/website-atlas-preview-downloads/owned-task/walkthrough-owned-task?expires=1&signature=${"a".repeat(64)}`;
     request.mockResolvedValue({ download_url: url });

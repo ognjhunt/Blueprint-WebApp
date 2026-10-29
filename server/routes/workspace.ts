@@ -647,6 +647,10 @@ async function hydrateTask(requestId: string, record: Record<string, any>) {
   // account-free capture page uses. Best-effort: a failure to read the brief is
   // a missing readiness line, not a failed task load.
   const currentCapture = siteWalkthroughIdentity(requestId, record);
+  const atlasPreview = consentRevoked ? null : projectWebsiteAtlasPreview(record);
+  const visualReconstructionReady = atlasPreview?.state === "ready"
+    && atlasPreview.captureId === currentCapture.captureId && !task.archived
+    && ["none", "not_selected"].includes(task.pilot.state) && task.status !== "Review results";
   try {
     const brief = await getBrief(requestId);
     let stage: ReturnType<typeof assessReadiness>["stage"] | null = null;
@@ -707,6 +711,7 @@ async function hydrateTask(requestId: string, record: Record<string, any>) {
         consentRevoked,
         footageReviewAutomated: isSiteVideoEvidenceEnabled(),
         scenePreviewReady,
+        visualReconstructionReady,
         scenePreparationFailed: reconstruction?.state === "failed",
         ownerClosureOutcome: !consentRevoked
           ? projectWebsiteRunClosure(record, requestId, currentCapture.captureId) : null,
@@ -726,7 +731,13 @@ async function hydrateTask(requestId: string, record: Record<string, any>) {
       }),
     );
   } catch {
-    task.readiness = null;
+    // A failed native/brief read cannot erase independently verified visual
+    // output or turn old advisory notes into another recording request.
+    task.readiness = visualReconstructionReady ? projectTaskStatus(taskStatusInputFrom({
+      briefDrafted: false, stage: null, visualReconstructionReady: true,
+      active_capture_id: record.active_capture_id, capture_coverage: record.capture_coverage ?? null,
+      ownerClosureOutcome: projectWebsiteRunClosure(record, requestId, currentCapture.captureId),
+    })) : null;
   }
 
   task.siteAdvisory = consentRevoked ? null : await loadCurrentSiteAdvisory(requestId, currentCapture.captureId, { expectedOwnerUid: record.account_owner_uid ?? null });
@@ -738,9 +749,12 @@ async function hydrateTask(requestId: string, record: Record<string, any>) {
   else if (task.readiness?.outcome) {
     task.status = task.readiness.outcome.title;
     task.nextStep = task.readiness.outcome.nextStep;
+  } else if (task.readiness?.decision === "preview_ready") {
+    task.status = "3D preview ready";
+    task.nextStep = task.readiness.headline;
   }
   // Development-only, unscaled; gone the moment recording consent is withdrawn.
-  task.atlasPreview = consentRevoked ? null : projectWebsiteAtlasPreview(record);
+  task.atlasPreview = atlasPreview;
   // The booked pilot with the robot team's contact, while both consents stand.
   task.pilotBooking = await projectPilotBooking(record, "site").catch(() => null);
   return task;
