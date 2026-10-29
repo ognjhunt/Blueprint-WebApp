@@ -57,6 +57,7 @@ import {
 } from "../utils/reconstructionForwarding";
 import { requireOwnedCaptureAtlasSource } from "../utils/ownedCaptureAtlasContext";
 import { loadOwnedCaptureAtlasConfiguration, ownedAtlasAuthorizationCommand } from "../utils/ownedCaptureAtlasPreparation";
+import { ownedCaptureAtlasExecutionRouter } from "./owned-capture-atlas";
 import {
   authorizeBackblazeCapturePart,
   cancelBackblazeResumableCapture,
@@ -2162,6 +2163,8 @@ router.post("/:sessionId/reconstructions/atlas/authorize", async (req, res) => {
   }
 });
 
+router.use("/:sessionId/reconstructions/atlas", ownedCaptureAtlasExecutionRouter({ authenticatedUser, readOwnedSession }));
+
 router.post("/:sessionId/reconstructions/atlas/plan", async (req, res) => {
   const user = authenticatedUser(res);
   if (!user.uid) return res.status(401).json({ error: "Missing authenticated user" });
@@ -2181,10 +2184,11 @@ router.post("/:sessionId/reconstructions/atlas/plan", async (req, res) => {
     || !/^sha256:[0-9a-f]{64}$/.test(captureDigest))
     return res.status(409).json({ error: "A bound completed Pipeline intake receipt is required" });
   const claims = [...new Set(command.data.requested_claim_types)].sort();
-  const fingerprintFor = (source: typeof record) => {
+  const fingerprintFor = (source: Record<string, unknown>) => {
     const sourceReceipt = source.pipeline_capture_intake_receipt as Record<string, any> | undefined;
+    const sourceRequest = source.request as Record<string, unknown> | undefined;
     return `sha256:${sha256Text(stableJson({ session_id: source.session_id,
-      intake_id: source.request.intake_id, capture_digest: sourceReceipt?.capture_digest,
+      intake_id: sourceRequest?.intake_id, capture_digest: sourceReceipt?.capture_digest,
       envelope_digest: sourceReceipt?.envelope_digest, requested_claim_types: claims,
       idempotency_key: command.data.idempotency_key }))}`;
   };

@@ -249,9 +249,11 @@ export async function streamVerifiedPipelineArtifact(params: {
   forwardRange: boolean;
   forcedHeaders?: Record<string, string>;
   label?: string;
+  originRequest?: { method: "POST"; body: string };
 }) {
   const { req, res, endpoint, headers } = params;
   const label = params.label ?? "Result artifact";
+  if (params.originRequest && params.forwardRange) throw new Error("signed_artifact_post_cannot_forward_range");
   const range = params.forwardRange ? req.headers.range : undefined;
   res.set("Cache-Control", "private, no-store");
   res.set("X-Content-Type-Options", "nosniff");
@@ -289,7 +291,8 @@ export async function streamVerifiedPipelineArtifact(params: {
   armTimeout(ARTIFACT_ORIGIN_HEADER_TIMEOUT_MS);
   let upstream: globalThis.Response;
   try {
-    upstream = await fetch(endpoint, { method: "GET", redirect: "error", signal: controller.signal,
+    upstream = await fetch(endpoint, { method: params.originRequest?.method ?? "GET",
+      ...(params.originRequest ? { body: params.originRequest.body } : {}), redirect: "error", signal: controller.signal,
       headers: { ...headers, "accept-encoding": "identity", ...(range ? { range } : {}) } });
   } catch {
     fail(); return;

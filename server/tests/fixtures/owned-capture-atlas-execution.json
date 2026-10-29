@@ -1,0 +1,31 @@
+{
+  "fixture_scope": "hermetic_python_wire_only_not_a_provider_run_or_authorization",
+  "execution": {
+    "schema_version": "owned_capture_atlas_execution.v1",
+    "plan_id": "reconstruction-atlas-964c72411704e1353da553d3",
+    "capture_id": "capture-session-1",
+    "intake_id": "intake-1",
+    "plan_digest": "sha256:28259d9892c86c9df85bd9b9c91e77e76d4131526e751f94ef861fc413a15e41",
+    "task_context_digest": "sha256:04b10d08864badb9ee2d73fabf04336c8a1d6c2046f1475cfc3100795e91f74b",
+    "source_video_digest": "sha256:955d8464f4d31b93bdd62e09087277ba8cfb335b35f47701911ebbf513a45a7b",
+    "authorization_digest": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+    "state": "processing",
+    "stage": "queued",
+    "reason": null,
+    "revision": 1,
+    "updated_at_epoch": 1793194800,
+    "bundle": null,
+    "splat_available": false,
+    "mesh_available": false,
+    "provider_cleanup_state": "not_started",
+    "claim_ceiling": "development_only",
+    "scale_status": "unscaled_provider_world_units",
+    "proof_boundary": {
+      "derived_reconstruction_upgrades_raw_capture": false,
+      "metric_or_collision_qualification_established": false,
+      "robot_execution_established": false,
+      "physical_task_success_established": false
+    },
+    "execution_digest": "sha256:c0d497594301c4e70532c31585685cdcc2fb96eb63be5584065c17c43c28bdff"
+  }
+}
