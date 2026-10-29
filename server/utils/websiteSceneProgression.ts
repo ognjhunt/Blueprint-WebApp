@@ -17,7 +17,7 @@
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { SCENE_INTAKE_COLLECTION } from "./taskEvaluationSceneIntake";
 import type { TaskSceneProgression } from "./taskStatusProjection";
-import { taskTargetSelectionApplies } from "./websiteTaskTargetChoice";
+import { taskTargetSelection, taskTargetSelectionApplies } from "./websiteTaskTargetChoice";
 
 // Pipeline blocks that stay blocked once hit (task_evaluation_scene_progression):
 // the configuration failed for good, the policy canary blocked, the intent's
@@ -63,16 +63,39 @@ export function projectWebsiteSceneProgression(record: Record<string, any> | nul
 }
 
 /** Every page of a query, in document order: history is never cut at a result count. */
-export async function* queryPages(query: FirebaseFirestore.Query, size = 100) {
+export async function* queryPages(query: FirebaseFirestore.Query, size = 100,
+  read: (query: FirebaseFirestore.Query) => Promise<FirebaseFirestore.QuerySnapshot> = query => query.get()) {
   let cursor: string | null = null;
   for (;;) {
     let page = query.orderBy("__name__").limit(size);
     if (cursor) page = page.startAfter(cursor);
-    const snapshot = await page.get();
+    const snapshot = await read(page);
     if (snapshot.docs.length) yield snapshot.docs;
     if (snapshot.docs.length < size) return;
     cursor = snapshot.docs[snapshot.docs.length - 1].id;
   }
+}
+
+/** Commercial scope follows the same retained correction as scene progression.
+ * A matching intake was produced from the corrected ready preparation; the
+ * earlier intake cannot release a pending selection, even with an unchanged brief. */
+export async function readWebsiteTargetScope(requestId: string, captureId: string,
+  session: Record<string, any> | null | undefined,
+  read?: (query: FirebaseFirestore.Query) => Promise<FirebaseFirestore.QuerySnapshot>) {
+  const selection = taskTargetSelection(session);
+  const {correctionsDigest, rejected} = selection;
+  if (!correctionsDigest || rejected) return {correctionsDigest, superseded: rejected};
+  if (!db) throw new Error('website_scene_progression_unavailable');
+  for await (const rows of queryPages(db.collection(SCENE_INTAKE_COLLECTION)
+    .where('website_request_id', '==', requestId), 100, read)) {
+    for (const row of rows) {
+      const value = row.data();
+      if (value.source_session_id !== captureId || !taskTargetSelectionApplies(session, value)) continue;
+      const state = projectWebsiteSceneProgression(value)?.state;
+      if (state && state !== 'ended') return {correctionsDigest, superseded: false};
+    }
+  }
+  return {correctionsDigest, superseded: true};
 }
 
 /**

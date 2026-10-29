@@ -76,9 +76,9 @@ export function workflowDigest(value: unknown): string {
 }
 
 /** Quote scope follows the job's content, not who or when a draft was confirmed. */
-export function proposalScopeRevision(brief: unknown, requirements: JobBuyingRequirements): string {
+export function proposalScopeRevision(brief: unknown, requirements: JobBuyingRequirements, objectSelectionDigest?: string | null): string {
   const value = brief && typeof brief === "object" ? brief as Record<string, any> : {};
-  return workflowDigest({ brief: {
+  return workflowDigest({ ...(objectSelectionDigest ? {objectSelectionDigest} : {}), brief: {
     summary: value.summary ?? null,
     captureMode: value.captureMode ?? null,
     operatorAnswers: value.operatorAnswers ?? {},
@@ -135,14 +135,15 @@ export function storedMarketplace(record: Record<string, any>): StoredJobMarketp
 
 /** A commercial projection; an assessment, selected quote or owner report never manufactures a simulator result. */
 export function projectJobMarketplace(record: Record<string, any>, brief: Record<string, any> | null,
-  captureReceived: boolean | null = false, evidenceReviewProposalIds: ReadonlySet<string> = new Set(), objectSelectionSuperseded = false): JobMarketplaceWorkflow {
+  captureReceived: boolean | null = false, evidenceReviewProposalIds: ReadonlySet<string> = new Set(), objectSelectionSuperseded = false,
+  objectSelectionDigest?: string | null): JobMarketplaceWorkflow {
   const value = storedMarketplace(record);
   // Keep recorded commitments visible if a historical capture is unavailable.
   // A written draft alone never advances a new video-backed assessment.
   const assessmentStarted = captureReceived === true || Boolean(value.agreement);
   const scopeAvailable = assessmentStarted && hasProposalScope(brief);
   const briefAgreed = assessmentStarted && Boolean(brief?.confirmedAtIso && Number.isFinite(Date.parse(brief.confirmedAtIso)));
-  const currentBriefRevision = proposalScopeRevision(brief, value.requirements);
+  const currentBriefRevision = proposalScopeRevision(brief, value.requirements, objectSelectionDigest);
   const proposals = value.proposals.map(proposal => proposal.status === "available" && (objectSelectionSuperseded || proposal.briefRevision !== currentBriefRevision || evidenceReviewProposalIds.has(proposal.id))
     ? { ...proposal, status: "review_required" as const } : proposal);
   const review = !objectSelectionSuperseded && value.review?.scopeRevision === currentBriefRevision ? value.review : null;

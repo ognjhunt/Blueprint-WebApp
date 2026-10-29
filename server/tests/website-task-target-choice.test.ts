@@ -196,7 +196,10 @@ describe('negative answer, retained history and a later owner clarification', ()
     const digest = taskTargetSelection(session).correctionsDigest;
     expect(digest).toBe(crossRuntimeDigest({corrections: [{target_id: question.target_id,
       question_digest: question.question_digest, candidate_id: OTHER}]}));
-    expect(taskTargetSelectionApplies(session, {request: {task: {subject: {website_preparation_revision: {corrections_digest: digest}}}}})).toBe(true);
+    expect(taskTargetSelectionApplies(session, {request: {task: {task_id: `website-${selector.task_context_digest.slice(7, 27)}`,
+      subject: {website_preparation_revision: {corrections_digest: digest}}}}})).toBe(true);
+    expect(taskTargetSelectionApplies(session, {request: {task: {task_id: 'website-an-older-task',
+      subject: {website_preparation_revision: {corrections_digest: digest}}}}})).toBe(false);
     session.website_preparation.selector = {...selector, task_context_digest: `sha256:${'f'.repeat(64)}`};
     expect(taskTargetSelection(session).correctionsDigest).toBeNull();
   });

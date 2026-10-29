@@ -59,7 +59,7 @@ export function taskTargetSelection(session: Record<string, any> | null | undefi
     const prior = latest.get(answer.target_id);
     if (!prior || answer.answered_at >= prior.answered_at) latest.set(answer.target_id, answer);
   }
-  const answers = [...latest.values()].sort((a, b) => a.target_id.localeCompare(b.target_id));
+  const answers = [...latest.values()].sort((a, b) => a.target_id < b.target_id ? -1 : a.target_id > b.target_id ? 1 : 0);
   const corrections = answers.filter(row => row.choice.kind !== "confirm_guess").map(row => ({
     target_id: row.target_id, question_digest: row.question_digest,
     ...(row.choice.kind === "none_of_these" ? {kind: "none_of_these"} : {candidate_id: row.choice.candidate_id}),
@@ -71,8 +71,12 @@ export function taskTargetSelection(session: Record<string, any> | null | undefi
 export function taskTargetSelectionApplies(session: Record<string, any> | null | undefined,
   intake?: Record<string, any> | null) {
   const selection = taskTargetSelection(session);
-  return !selection.rejected && (!selection.correctionsDigest || intake?.request?.task?.subject
-    ?.website_preparation_revision?.corrections_digest === selection.correctionsDigest);
+  if (selection.rejected) return false;
+  if (!selection.correctionsDigest) return true;
+  const context = selection.answers[0]?.task_context_digest;
+  const taskId = context ? `website-${context.slice(7, 27)}` : null;
+  return Boolean(taskId && [taskId, `${taskId}-development`].includes(intake?.request?.task?.task_id)
+    && intake?.request?.task?.subject?.website_preparation_revision?.corrections_digest === selection.correctionsDigest);
 }
 
 /** The site's stored answer to the question the Pipeline currently reports, or null. */
