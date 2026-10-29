@@ -1663,6 +1663,24 @@ describe("development-only Atlas 3D preview", () => {
   }
   afterEach(() => { delete process.env.TASK_EVALUATION_RESULT_DOWNLOAD_SIGNING_SECRET; });
 
+  it.each(["unverified", "read_failed"])("retains the ready preview and Blueprint action over %s native status and raw advisory coverage", async failure => {
+    consentedTask({ "walkthrough-task-1": await preview({}) });
+    Object.assign(state.records.get("inboundRequests/task-1"), {
+      capture_coverage: { covers_scene: false, missing_coverage: ["A closer walkthrough along the shelving units"] },
+    });
+    state.records.set("captureUploadSessions/walkthrough-task-1", { website_preparation: { state: "queued" } });
+    if (failure === "read_failed") preparation.read.mockRejectedValueOnce(new Error("native projection unavailable"));
+    else preparation.read.mockResolvedValueOnce({ state: "unavailable" } as never);
+    const viewed = await (await api("/tasks/task-1", "site-1")).json();
+    expect(viewed.atlasPreview).toMatchObject({ state: "ready", downloadAvailable: false });
+    expect(viewed.status).toBe("3D preview ready");
+    expect(viewed.readiness).toMatchObject({ decision: "preview_ready", operatorAction: null });
+    expect(viewed.readiness.headline).toMatch(/Blueprint is checking/);
+    expect(viewed.readiness.missingViews).toEqual(["A closer walkthrough along the shelving units"]);
+    expect(viewed.results).toEqual([]);
+    expect(viewed.sceneReady).not.toBe(true);
+  });
+
   // Owner decision 2026-10-29: Blueprint owns the reconstruction; the site sees it is ready but never downloads it.
   it("shows the owner plain copy of a ready preview and never issues a download ticket", async () => {
     process.env.TASK_EVALUATION_RESULT_DOWNLOAD_SIGNING_SECRET = "fixture-ticket-secret";

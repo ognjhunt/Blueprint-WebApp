@@ -395,6 +395,24 @@ async function completedBriefAssessment(summary = "Move a rigid carton to the sh
   return { brief, path, job };
 }
 
+it("an unchanged confirmation keeps completed assessment, pending spend and coverage untouched", async () => {
+  const { confirmBrief } = await import("../utils/siteTaskBrief");
+  const { projectWebsiteTaskContext } = await import("../utils/websiteTaskContext");
+  const previous = await completedBriefAssessment();
+  const raw = state.docs.get(`inboundRequests/${pending.request_id}`)!;
+  raw.site_task_brief_confirmed_at = previous.brief.confirmedAtIso;
+  raw.capture_coverage_request = { state: "completed" };
+  raw.capture_coverage_pending = false;
+  state.docs.set("captureCoverageReviews/retained-unknown-budget", {
+    exposure_usd: 4, pending_token: "unknown-call", calls: 1,
+  });
+  const before = structuredClone([...state.docs.entries()]);
+  const result = (await confirmBrief({ requestId: pending.request_id, confirmedBy: "fixture-owner" }))!;
+  expect(projectWebsiteTaskContext(result.brief)).toEqual(projectWebsiteTaskContext(previous.brief));
+  expect([...state.docs.entries()]).toEqual(before);
+  expect(seams.run).not.toHaveBeenCalled();
+});
+
 it("an owner correction atomically queues its current context without reusing a stale result or resetting spend", async () => {
   const { confirmBrief } = await import("../utils/siteTaskBrief");
   const { humanDecisionDigest } = await import("../utils/human-reply-admission");

@@ -150,6 +150,22 @@ describe("development-only 3D preview", () => {
     statusText: "Your 3D preview is ready to download.", developmentOnly: true, splatAvailable: true,
     meshAvailable: true, sizeBytes: 4096, updatedAtIso: "2026-10-22T12:00:00.000Z", downloadAvailable: true };
 
+  it("shows one Blueprint-owned next step and keeps raw coverage notes in closed processing details", () => {
+    const note = "A closer walkthrough along the shelving units";
+    fixture.task = { status: "3D preview ready", atlasPreview: { ...ready, downloadAvailable: false,
+      statusText: "Your 3D preview is ready. Blueprint keeps the model for your job." },
+      readiness: { decision: "preview_ready", headline: "Your 3D preview is ready. Blueprint is checking the next processing step.",
+        operatorAction: null, missingViews: [note], nextUpdateIso: null } };
+    render(<TaskDetail />);
+    expect(screen.queryByRole("button", { name: "Download 3D preview" })).not.toBeInTheDocument();
+    expect(screen.getByText(/Blueprint is checking the next processing step/)).toBeVisible();
+    expect(screen.queryAllByText(/Still needed:|We usually reply within an hour|In review/)).toHaveLength(0);
+    expect(screen.getByText(note)).not.toBeVisible();
+    fireEvent.click(screen.getByText("Processing details"));
+    expect(screen.getByText(note)).toBeVisible();
+    expect(screen.getByText(/is not to scale/)).toBeVisible();
+  });
+
   // Owner decision 2026-10-29: Blueprint owns the reconstruction; the site sees it is ready but never downloads it.
   it("shows a ready preview with no download and never asks for a ticket", () => {
     fixture.task = { atlasPreview: { ...ready, statusText: "Your 3D preview is ready. Blueprint keeps the model for your job.",
