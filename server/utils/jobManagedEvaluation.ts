@@ -14,7 +14,7 @@ import { parseVerifiedTaskEvaluationRunPublication } from "./taskEvaluationRunCo
 import { parsePipelinePolicyCanaryPublication } from "./policyCanaryWebappSyncContract";
 import { noEstimateReason, parseBetaPolicyScreeningPublication, type BetaPolicyScreeningPublication } from "./betaPolicyScreeningContract";
 import { assertWebsiteCaptureBindingInTransaction, resolveWebsiteCaptureBinding } from "./websiteCaptureBinding";
-import { isTaskFamilyStrategy, preparationPhaseMatchesTask } from "./taskFamilySceneIntake";
+import { preparationPhaseMatchesTask } from "./taskFamilySceneIntake";
 import { assertWebsiteRunOpen } from "./websiteRunClosure";
 import { taskTargetSelectionApplies } from "./websiteTaskTargetChoice";
 
@@ -131,15 +131,13 @@ export function assertScreeningSceneSource(publication: BetaPolicyScreeningPubli
   scope: ReturnType<typeof managedJobTask>) {
   const source = publication.source;
   const status = intake.pipeline_status;
-  const family = isTaskFamilyStrategy(intake.request?.task?.strategy);
   const prepared = preparationPhaseMatchesTask(intake.request, status);
-  const selection = family ? intake.request.task.policy_selection : undefined;
-  const selectedPolicyMatches = selection === undefined || selection !== null && typeof selection === "object"
-    && publication.catalog_digest === selection.catalog_digest
-    && publication.candidates.length === 1 && publication.candidates[0].candidate_id === selection.candidate_id
-    && publication.candidates[0].configuration_digest === selection.configuration_digest;
+  // A family preparation's policy_selection records its compilation seed.
+  // Pipeline evaluates every compatible configuration against these exact
+  // prepared task/scene bytes; its signed campaign owns that candidate set.
+  // The seed remains bound by the immutable request and preparation checks.
   if (!intake.request || !intake.receipt || !intake.website_request_id
-    || intake.revocation_requested || intake.state !== "completed" || status?.status !== "completed" || !prepared || !selectedPolicyMatches
+    || intake.revocation_requested || intake.state !== "completed" || status?.status !== "completed" || !prepared
     || crossRuntimeDigest(intake.request) !== intake.request_digest
     || intake.receipt.request_digest !== intake.request_digest
     || crossRuntimeArtifactDigest(intake.receipt, "receipt_digest") !== intake.receipt.receipt_digest

@@ -5,10 +5,11 @@ import { assertScreeningSceneSource } from "../utils/betaPolicyScreeningIngest";
 import { managedJobTask, projectManagedJobEvidence } from "../utils/jobManagedEvaluation";
 import { scientificBriefDigest } from "../utils/jobEvidenceContract";
 import { crossRuntimeArtifactDigest, crossRuntimeDigest } from "../utils/crossRuntimeCanonical";
-import { familyScreeningFixture, screeningFixture, screeningSha, sealScreening } from "./fixtures/beta-policy-screening";
+import { allCandidateFamilyScreeningFixture, familyScreeningFixture, screeningFixture, screeningSha, sealScreening } from "./fixtures/beta-policy-screening";
 import producerPublication from "./fixtures/pipeline-beta-policy-screening-publication.v2.json";
 import retainedProducerPublication from "./fixtures/pipeline-beta-policy-screening-publication.v1.json";
 import producerFamilyStatus from "./fixtures/pipeline-family-prepared-status.v1.json";
+import allCandidatePublication from "./fixtures/pipeline-beta-policy-screening-all-candidates.v2.json";
 
 describe("automatic many-candidate job evaluation", () => {
   it("accepts a screening source emitted by the actual Python family handoff and canonical progression", () => {
@@ -22,7 +23,7 @@ describe("automatic many-candidate job evaluation", () => {
       receipt: producerFamilyStatus.receipt, pipeline_status: producerFamilyStatus.status };
     expect(() => assertScreeningSceneSource({ ...publication, site_id: producerFamilyStatus.site_id, source }, intake, scope)).not.toThrow();
   });
-  it.each(["valid", "catalog", "configuration", "candidate", "extra"])("honors an explicitly selected family policy identity (%s)", fault => {
+  it.each(["unchanged", "catalog", "configuration", "candidate", "extra"])("reuses a family compilation seed for an independently planned candidate set (%s)", change => {
     const fixture = familyScreeningFixture();
     const candidate = fixture.publication.candidates[0];
     const request = { ...fixture.intake.request, task: { ...fixture.intake.request.task,
@@ -35,15 +36,38 @@ describe("automatic many-candidate job evaluation", () => {
       receipt: { ...receipt, receipt_digest: crossRuntimeArtifactDigest(receipt, "receipt_digest") },
       pipeline_status: { ...status, status_digest: crossRuntimeArtifactDigest(status, "status_digest") } };
     const publication = { ...fixture.publication, candidates: [structuredClone(candidate)] };
-    if (fault === "catalog") publication.catalog_digest = screeningSha("9");
-    if (fault === "configuration") publication.candidates[0].configuration_digest = screeningSha("9");
-    if (fault === "candidate") publication.candidates[0].candidate_id = "another-candidate";
-    if (fault === "extra") publication.candidates.push(fixture.publication.candidates[1]);
+    if (change === "catalog") publication.catalog_digest = screeningSha("9");
+    if (change === "configuration") publication.candidates[0].configuration_digest = screeningSha("9");
+    if (change === "candidate") publication.candidates[0].candidate_id = "another-candidate";
+    if (change === "extra") publication.candidates.push(fixture.publication.candidates[1]);
     const scope = managedJobTask({ binding: { job_id: fixture.brief.requestId, brief_digest: scientificBriefDigest(fixture.brief) },
       record: fixture.job, brief: fixture.brief });
-    const check = () => assertScreeningSceneSource(publication, intake, scope);
-    if (fault === "valid") expect(check).not.toThrow();
-    else expect(check).toThrow("screening_scene_source_mismatch");
+    expect(() => assertScreeningSceneSource(publication, intake, scope)).not.toThrow();
+  });
+  it("accepts all 84 Python coordinator outcomes without changing their identities or reasons", () => {
+    const parsed = parseBetaPolicyScreeningPublication(allCandidatePublication)!;
+    expect(parsed).not.toBeNull();
+    expect(parsed.candidates).toHaveLength(84);
+    expect(parsed.candidates).toEqual(allCandidatePublication.candidates);
+    const { publication, intake, brief, job } = allCandidateFamilyScreeningFixture();
+    const scope = managedJobTask({ binding: { job_id: brief.requestId, brief_digest: scientificBriefDigest(brief) }, record: job, brief });
+    expect(publication.catalog_digest).not.toBe(intake.request.task.policy_selection.catalog_digest);
+    expect(() => assertScreeningSceneSource(publication, intake, scope)).not.toThrow();
+  });
+
+  it.each(["scene_intent_id", "scene_intent_digest", "capture_id", "task_id", "task_context_digest", "scene_revision_digest"] as const)(
+    "rejects a changed %s for an 84-candidate family publication", field => {
+      const { publication, intake, brief, job } = allCandidateFamilyScreeningFixture();
+      publication.source[field] = field.endsWith("_digest") ? screeningSha("9") : "another-source";
+      const scope = managedJobTask({ binding: { job_id: brief.requestId, brief_digest: scientificBriefDigest(brief) }, record: job, brief });
+      expect(() => assertScreeningSceneSource(publication, intake, scope)).toThrow("screening_scene_source_mismatch");
+    });
+
+  it("keeps the original compilation seed bound to its immutable request", () => {
+    const { publication, intake, brief, job } = allCandidateFamilyScreeningFixture();
+    intake.request.task.policy_selection.candidate_id = "rewritten-seed";
+    const scope = managedJobTask({ binding: { job_id: brief.requestId, brief_digest: scientificBriefDigest(brief) }, record: job, brief });
+    expect(() => assertScreeningSceneSource(publication, intake, scope)).toThrow("screening_scene_source_mismatch");
   });
   it("accepts a source-bound CPU family preparation without claiming native application or policy execution", () => {
     const { publication, intake, brief, job } = familyScreeningFixture();

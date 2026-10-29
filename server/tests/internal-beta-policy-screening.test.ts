@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import express from "express";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { buildPipelineSyncSignature } from "../utils/pipelineSyncSecurity";
-import { familyScreeningFixture, screeningFixture, screeningSha, sealScreening } from "./fixtures/beta-policy-screening";
+import { allCandidateFamilyScreeningFixture, familyScreeningFixture, screeningFixture, screeningSha, sealScreening } from "./fixtures/beta-policy-screening";
 import { crossRuntimeArtifactDigest } from "../utils/crossRuntimeCanonical";
 import { publicationFromResultRecord } from "../utils/taskEvaluationRunPublicationStorage";
 import { scientificBriefDigest } from "../utils/jobEvidenceContract";
@@ -120,6 +120,44 @@ it("stores signed single-candidate family results against typed CPU preparation 
     store.rows.set("taskEvaluationSceneIntakes/intake-one", changed);
     expect((await loadManagedJobEvidence("job-one", briefDigest))[0].current).toBe(false);
   }
+});
+
+it("stores and projects all 84 family candidate outcomes while preserving exact scene, task and capture authority", async () => {
+  const { publication, intake } = allCandidateFamilyScreeningFixture();
+  store.rows.set("taskEvaluationSceneIntakes/intake-one", intake);
+  const completed = sealScreening({ ...publication, status: "completed", candidates: publication.candidates.map((row, index) =>
+    index < 2 ? { ...row, status: "completed", blockers: [], episodes_planned: 3,
+      episodes_scored: 3, episodes_succeeded: 2, episodes_failed: 1,
+      success_rate: 2 / 3, session_result_digest: screeningSha(index ? "7" : "6") } : row) });
+  expect(Buffer.byteLength(JSON.stringify(completed))).toBeLessThan(1024 * 1024);
+  const url = await endpoint();
+  for (const field of ["scene_revision_digest", "task_id", "capture_id"] as const) {
+    const wrongSource = sealScreening({ ...completed, source: { ...completed.source,
+      [field]: field.endsWith("_digest") ? screeningSha("9") : "another-source" } });
+    const rejected = await send(url, signed(wrongSource));
+    expect(rejected.status).toBe(409);
+    expect((await rejected.json()).code).toBe("screening_scene_source_mismatch");
+    expect([...store.rows.keys()].some(key => /taskEvaluationPolicyRuns|captureTaskEvaluationRuns/.test(key))).toBe(false);
+  }
+  expect((await send(url, signed(completed))).status).toBe(201);
+  expect((await (await send(url, signed(completed))).json()).status).toBe("replayed");
+  const run = store.rows.get("taskEvaluationPolicyRuns/campaign-one");
+  const retained = publicationFromResultRecord(store.rows.get(`captureTaskEvaluationRuns/${run.result_record_id}`));
+  expect(retained).toEqual(completed);
+  const briefDigest = scientificBriefDigest(store.rows.get("siteTaskBriefs/job-one"));
+  const [evidence] = await loadManagedJobEvidence("job-one", briefDigest);
+  expect(evidence.current).toBe(true);
+  expect(evidence.screening?.candidates).toHaveLength(84);
+  expect(evidence.screening?.candidates).toEqual(completed.candidates.map(row => ({
+    candidateId: row.candidate_id, name: row.display_name, state: row.status,
+    planned: row.episodes_planned, scored: row.episodes_scored, succeeded: row.episodes_succeeded,
+    failed: row.episodes_failed, void: row.episodes_void, blockers: row.blockers,
+  })));
+  // Separate policy routes for one body remain separate rows, including their reasons.
+  expect(evidence.screening?.candidates.filter(row => row.candidateId.startsWith("universal_robots_ur5e__")).length).toBeGreaterThan(1);
+  store.rows.get("inboundRequests/job-one").request.consent_attestation.revoked_at_iso = "2026-10-26T13:00:00Z";
+  expect((await send(url, signed(completed))).status).toBe(409);
+  expect((await loadManagedJobEvidence("job-one", briefDigest))[0].current).toBe(false);
 });
 
 it("refuses cross-site and revoked source publications without partial records", async () => {
