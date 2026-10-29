@@ -9,6 +9,7 @@ import { factSchema as capabilityFactSchema } from "../research-learning/prior-r
 import { isQuotableGrade, listMatchableRobotTeams, toMatchCandidate } from "../utils/robotTeamRegistry";
 import { effectiveTeamStatus, supplySummary } from "../utils/robotTeamSupply";
 import { matchRobotTeam, type SiteRequirement } from "../../client/src/lib/robotMatch";
+import { deploymentIntegrationEvidence, deploymentIntegrationInventory } from "../utils/deploymentIntegrationInventory";
 
 export { SITE_ASSESSMENT_MODEL } from "./provider-config";
 import { SITE_ASSESSMENT_MODEL } from "./provider-config";
@@ -160,7 +161,20 @@ to invent values. Define success criteria before scoring a pass and resolve nece
 the affected physical trial. Keep assumptions explicit; preparation is not proof of successful deployment.
 
 Use the existing robotTeams capability database through read_robot_registry, and search relevant authorized
-company knowledge. Task-family labels, robot-form labels and the native simulator's adapter inventory alone
+company knowledge. Its integration_inventory links recorded deployment companies to exact robot bodies and
+policy routes, with public source references and remaining engineering inputs. Prioritize those company/task
+matches while considering every compatible robot-policy configuration, including independent public baselines.
+The harness executes what fits the existing budget and retains an individual result or reason for every
+remaining candidate; do not reduce the candidate set to a fixed pair or a model's shortlist.
+An integration catalog describes preparation paths, not current runtime availability, private policy access or
+completed trials. Read current task screening results for execution status. Public robot assets do not establish
+policy compatibility, and an independent baseline on a company's robot is not that company's proprietary policy.
+To cite a catalogued route, use integration_catalog_source.source_id with published basis and a qualified_field
+selector ["configuration_statements", configuration_id]. These complete statements preserve the planning limit;
+they are separate from RobotTeam capability facts and do not establish a live provider claim.
+Missing public-asset import, tools, cameras, controller or interface work belongs to Blueprint preparation;
+do not require the site to supply material we can obtain ourselves. Team delivery agreement remains separate.
+Task-family labels, robot-form labels and the native simulator's adapter inventory alone
 do not establish physical capability or incompatibility. Compare the actual job with applicable current source evidence for the
 robot, tooling, interfaces and demonstrated work. A missing simulator/scorer is evaluation preparation work;
 a missing research result is missing evidence, not proof that no team can do it. Keep arbitrary task families
@@ -392,10 +406,13 @@ Question (data): ${JSON.stringify(question)}\nOperator statements (claims, not v
         return retained("fetch_robot_knowledge", args, { ...result, source_id });
       },
     }),
-    tool({ name: "read_robot_registry", description: "Read matchable Firestore robot teams and source provenance, with deterministic site-band findings. Published/self-reported specs are not measured deployment fit. Only rows with willing_supply true have agreed, on record, to run on the supported interface, accept a free evaluation and take the pilot if it passes; never describe any other row as a team that will evaluate or pilot this job. The returned corpus is bounded and may be incomplete.",
+    tool({ name: "read_robot_registry", description: "Read matchable Firestore robot teams, source provenance, site-band findings and exact company/body/policy integration candidates. Integration paths are planning facts; current task screening results own runtime status. Published/self-reported specs are not measured deployment fit. Only rows with willing_supply true have agreed, on record, to run on the supported interface, accept a free evaluation and take the pilot if it passes; never describe any other row as a team that will evaluate or pilot this job. The returned corpus is bounded and may be incomplete.",
       parameters: z.object({}),
       execute: async () => {
         const teams = await (options.read_robot_teams ?? listMatchableRobotTeams)();
+        const integration_inventory = deploymentIntegrationInventory(teams);
+        const integration_catalog_source = deploymentIntegrationEvidence(integration_inventory);
+        sources.set(integration_catalog_source.source_id, integration_catalog_source);
         const rows = teams.map(team => {
           const source_id = `robotTeam:${team.id}`;
           const supply = supplySummary(team);
@@ -406,11 +423,14 @@ Question (data): ${JSON.stringify(question)}\nOperator statements (claims, not v
             updatedAt: team.updatedAt };
           sources.set(source_id, { source_id, kind: "robot_registry", canonical_ref: `robotTeams/${team.id}`,
             sha256: hash(capabilityRecord), checked_at: null, content: capabilityRecord });
-          return { source_id, team: capabilityRecord, screening: matchRobotTeam(input.site_requirement, toMatchCandidate(team)) };
+          return { source_id, team: capabilityRecord, screening: matchRobotTeam(input.site_requirement, toMatchCandidate(team)),
+            integration_configuration_ids: integration_inventory.configurations.filter(row => row.registry_team_ids.includes(team.id))
+              .map(row => row.configuration_id) };
         });
         return retained("read_robot_registry", {}, { rows, coverage: "applied_engaged_prospect_only_default_limit_200",
           willing_supply_count: rows.filter(row => row.team.willing_supply).length,
-          complete_robot_universe: false, freshness: "Inspect per-field provenance; no general age cutoff." });
+          complete_robot_universe: false, freshness: "Inspect per-field provenance; no general age cutoff.",
+          integration_inventory, integration_catalog_source });
       },
     }),
   ];
