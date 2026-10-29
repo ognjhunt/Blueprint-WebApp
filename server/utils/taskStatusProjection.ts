@@ -48,6 +48,8 @@ export type TaskDecision =
   | "record"
   /** A recording landed. Coverage has not been measured yet — that is ours. */
   | "footage_received"
+  /** A view-only reconstruction is ready; task processing remains Blueprint's. */
+  | "preview_ready"
   /** Footage is short of what a scene needs, and we can name the views. */
   | "add_views"
   /** Confirmed, but our screen needs a short call before we fund a scene. */
@@ -225,6 +227,8 @@ interface TaskStatusInput {
   /** False when no automated footage review runs, so a person reviews it. */
   footageReviewAutomated?: boolean;
   scenePreviewReady?: boolean;
+  /** Verified, current-capture visual output only; never runnable or evaluated. */
+  visualReconstructionReady?: boolean;
   /** Current persisted preview reconstruction failed; not a robot-run verdict. */
   scenePreparationFailed?: boolean;
   preparationOutcome?: TaskOutcome | null;
@@ -361,6 +365,13 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
     return { decision: outcome.category, stage: null, headline: outcome.title,
       operatorAction: outcome.actionOwner === "site" ? outcome.nextStep : null,
       missingViews: [], nextUpdateIso: null, outcome };
+  }
+
+  if (input.visualReconstructionReady && !nativeProgress && !hasRuns
+    && (!input.preparationStatus || input.preparationStatus.state === "unavailable")) {
+    return { ...base, decision: "preview_ready", stage: null,
+      headline: "Your 3D preview is ready. Blueprint is checking the next processing step.",
+      operatorAction: null };
   }
 
   if (input.taskScope && !observedPreparation && !hasRuns) {
@@ -701,6 +712,7 @@ export function taskStatusInputFrom(record: {
   consentRevoked?: boolean;
   footageReviewAutomated?: boolean;
   scenePreviewReady?: boolean;
+  visualReconstructionReady?: boolean;
   scenePreparationFailed?: boolean;
   preparationOutcome?: TaskOutcome | null;
   ownerClosureOutcome?: TaskOutcome | null;
@@ -735,6 +747,7 @@ export function taskStatusInputFrom(record: {
     consentRevoked: record.consentRevoked === true,
     ...(record.footageReviewAutomated === false ? { footageReviewAutomated: false } : {}),
     scenePreviewReady: Boolean(record.scenePreviewReady),
+    visualReconstructionReady: record.visualReconstructionReady === true,
     scenePreparationFailed: record.scenePreparationFailed === true,
     preparationOutcome: record.preparationOutcome ?? null,
     ownerClosureOutcome: record.ownerClosureOutcome ?? null,
