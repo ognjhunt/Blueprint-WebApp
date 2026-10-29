@@ -215,12 +215,10 @@ const accountSetupSchema = z
   .strict();
 function currentTermsAccepted(user: Record<string, any>) {
   const accepted = object(user.termsAcceptance);
-  return (
-    (accepted.accepted_terms === true &&
-      acceptedVersionsAreCurrent(accepted.terms_version, accepted.privacy_version)) ||
-    (user.acceptedTerms === true &&
-      acceptedVersionsAreCurrent(user.termsVersion, user.privacyVersion))
-  );
+  // A recorded decision takes precedence over flattened compatibility fields.
+  if (typeof accepted.accepted_terms === "boolean")
+    return accepted.accepted_terms && acceptedVersionsAreCurrent(accepted.terms_version, accepted.privacy_version);
+  return user.acceptedTerms === true && acceptedVersionsAreCurrent(user.termsVersion, user.privacyVersion);
 }
 // A profile with a workspace type or a legacy role is never set up as a site
 // by the start form; any other signed-in account is, when it submits.
@@ -325,6 +323,9 @@ router.post(
           "workspace_terms_required",
         );
       const now = admin.firestore.FieldValue.serverTimestamp();
+      const termsAcceptance = needsTerms
+        ? intakeTermsApply ? siteIntake!.terms_acceptance : buildLegalAcceptanceRecord({ acceptedAt: now })
+        : null;
       const reuseSiteDetails = Boolean(siteIntake && input.siteClaimToken && !user.workspaceSetupCompletedAt);
       const submittedName = [siteIntake?.contact?.firstName, siteIntake?.contact?.lastName]
         .filter(value => typeof value === "string" && value.trim() && !["there", "—"].includes(value.trim().toLowerCase()))
@@ -340,12 +341,12 @@ router.post(
         ...(!snapshot.exists
           ? { uid: auth.uid, email: text(auth.email), createdDate: now }
           : {}),
-        ...(needsTerms
+        ...(termsAcceptance
           ? {
               acceptedTerms: true,
-              termsVersion: TERMS_VERSION,
-              privacyVersion: PRIVACY_VERSION,
-              termsAcceptance: intakeTermsApply ? siteIntake!.terms_acceptance : buildLegalAcceptanceRecord({ acceptedAt: now }),
+              termsVersion: termsAcceptance.terms_version,
+              privacyVersion: termsAcceptance.privacy_version,
+              termsAcceptance,
               ...(intakeTermsApply ? { termsAcceptanceSource: { kind: "site_capture_intake", requestId: siteIntakeId } } : {}),
             }
           : {}),
@@ -999,9 +1000,13 @@ router.post(
         refuse(403, "Sign in with the submission email to claim this site.", "claim_email_mismatch");
       const sourceTerms = site.terms_acceptance;
       const needsTerms = !currentTermsAccepted(user);
-      if (needsTerms && !isCurrentLegalAcceptance(sourceTerms) && object(req.body).acceptedTerms !== true)
+      const intakeTermsApply = isCurrentLegalAcceptance(sourceTerms);
+      if (needsTerms && !intakeTermsApply && object(req.body).acceptedTerms !== true)
         refuse(400, "Accept the Terms and Privacy Policy to claim this site.", "workspace_terms_required");
       const now = admin.firestore.FieldValue.serverTimestamp();
+      const termsAcceptance = needsTerms
+        ? intakeTermsApply ? sourceTerms : buildLegalAcceptanceRecord({ acceptedAt: now })
+        : null;
       transaction.update(item.ref, {
         account_owner_uid: caller.uid,
         claimed_at: now,
@@ -1011,14 +1016,12 @@ router.post(
         ...(caller.role === "site_operator" ? { finishedOnboarding: true, onboardingStep: "completed" } : {}),
         ...(!text(user.structuredIntakeRequestId)
           ? { structuredIntakeRequestId: payload.requestId } : {}),
-        ...(needsTerms ? {
+        ...(termsAcceptance ? {
           acceptedTerms: true,
-          termsVersion: TERMS_VERSION,
-          privacyVersion: PRIVACY_VERSION,
-          termsAcceptance: isCurrentLegalAcceptance(sourceTerms)
-            ? sourceTerms
-            : buildLegalAcceptanceRecord({ acceptedAt: now }),
-          termsAcceptanceSource: isCurrentLegalAcceptance(sourceTerms)
+          termsVersion: termsAcceptance.terms_version,
+          privacyVersion: termsAcceptance.privacy_version,
+          termsAcceptance,
+          termsAcceptanceSource: intakeTermsApply
             ? { kind: "site_capture_intake", requestId: payload.requestId }
             : { kind: "site_claim", requestId: payload.requestId },
         } : {}),

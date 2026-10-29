@@ -298,6 +298,47 @@ async function api(
   });
 }
 describe("workspace access and projections", () => {
+  it.each(["setup", "claim"])("retains the older acceptance versions when %s reuses intake consent", async mode => {
+    const clock = vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-10-29T04:50:00Z"));
+    try {
+      const acceptance = { ...buildLegalAcceptanceRecord({ acceptedAt: "2026-10-23T12:00:00Z" }),
+        terms_version: "2026-11-15.2", privacy_version: "2026-11-15.4" };
+      state.records.set("inboundRequests/continuity-job", { ...task(), account_owner_uid: undefined,
+        contact: { email: "site-1@example.com" }, terms_acceptance: acceptance });
+      const token = createSiteClaimToken("continuity-job");
+      const response = mode === "setup"
+        ? await api("/setup", "site-1", { name: "Site Owner", organization: "Company", workspaceType: "site_operator", siteClaimToken: token })
+        : await api("/claim", "site-1", { token });
+      expect(response.status).toBe(200);
+      const recorded = structuredClone(state.records.get("users/site-1"));
+      expect(recorded).toMatchObject({ acceptedTerms: true, termsVersion: acceptance.terms_version,
+        privacyVersion: acceptance.privacy_version, termsAcceptance: acceptance });
+      expect((await (await api("/setup", "site-1")).json()).termsRequired).toBe(false);
+      clock.mockReturnValue(Date.parse("2026-11-15T08:00:00.000Z"));
+      expect((await (await api("/setup", "site-1")).json()).termsRequired).toBe(true);
+      expect(state.records.get("users/site-1")).toEqual(recorded);
+    } finally { clock.mockRestore(); }
+  });
+
+  it.each([true, false])("uses the actual recorded acceptance (%s) when legacy fields claim a newer version", async accepted => {
+    const acceptance = { ...buildLegalAcceptanceRecord({ acceptedAt: "2026-10-23T12:00:00Z" }),
+      accepted_terms: accepted, terms_version: "2026-11-15.2", privacy_version: "2026-11-15.4" };
+    const recorded = { ...state.records.get("users/site-1"), acceptedTerms: true,
+      termsVersion: TERMS_VERSION, privacyVersion: PRIVACY_VERSION, termsAcceptance: acceptance };
+    state.records.set("users/site-1", recorded);
+    const retained = structuredClone(recorded);
+    const effective = Date.parse("2026-11-15T08:00:00.000Z");
+    const clock = vi.spyOn(Date, "now").mockReturnValue(effective - 1);
+    try {
+      expect((await (await api("/setup", "site-1")).json()).termsRequired).toBe(!accepted);
+      clock.mockReturnValue(effective);
+      const response = await api("/setup", "site-1");
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({ termsRequired: true });
+      expect(state.records.get("users/site-1")).toEqual(retained);
+    } finally { clock.mockRestore(); }
+  });
+
   it.each(["nested", "legacy"])("uses the recorded pending terms pair in the %s account shape until its effective date", async shape => {
     const acceptance = { ...buildLegalAcceptanceRecord({ acceptedAt: "2026-10-23T12:00:00Z" }),
       terms_version: "2026-11-15.2", privacy_version: "2026-11-15.4" };
