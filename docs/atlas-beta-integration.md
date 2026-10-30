@@ -32,9 +32,41 @@ approved allowance; older Atlas reservations remain counted when configuration
 changes. The separate allowance neither renews an expired native/Marble grant
 nor replenishes their budgets. All other providers keep their existing caps.
 
-The first implementation keeps each full reservation charged because Atlas's
-documented operation response carries no actual bill. A rate-card estimate is
-not settlement. Read the Developer Usage page for actual billed usage.
+Atlas's documented operation response carries no actual bill, so a hold settles
+from the Pipeline's retained outcome for that attempt, over the signed
+`preparation-settlement` route (`provider: "world_labs_atlas"`, `outcome`,
+`operation_id`, `outcome_receipt_digest`). A `completed` operation settles at the
+reviewed price it was reserved at; a `failed` operation or a `refused`
+submission bought nothing and settles at zero, which releases its hold. An
+attempt whose outcome is unknown (a send that may have bought an operation, or
+an operation that can no longer be found) reports nothing and stays fully held.
+Settlement is idempotent; a different outcome for the same hold is refused as
+`idempotency_conflict`. Read the Developer Usage page for actual billed usage.
+
+## One dollar ceiling per job (owner decision 2026-10-30)
+
+Every WebApp admission of new spend for a website job (`preparation-spend`, and
+a new `prepared-scene` intake's native allowance) counts all of the job's
+ledgers against one ceiling, each at its settled cost where known, otherwise
+its held maximum:
+
+- every row of `website_preparation_reservations`: the Atlas allowance and the
+  preparation-only sponsorship's upstream rows;
+- each sponsored scene intake's native allowance (`request.execution.max_total_spend_usd`,
+  or a recorded extension), held in full until the intake closes, then what its
+  attempts reserved;
+- the beta-screening site ledger, from its latest published snapshot
+  (`committed_upper_bound_usd`); a run without a readable publication counts the
+  whole $15 screening site limit.
+
+The ceiling is the Atlas authorization the admission is made under, else the
+job's stored Atlas grant for that capture, else
+`BLUEPRINT_WEBSITE_ATLAS_GRANT_POLICY_JSON.maximum_cost_usd`, else the owner
+default of $40 (`WEBSITE_JOB_CEILING_DEFAULT_USD`). Over it, admission refuses
+`website_scene_preparation_budget_exhausted`, which the Pipeline already holds as
+`budget_exhausted`. The per-ledger caps still apply inside it; no reservation,
+grant or settlement is rewritten. The non-creating `atlas-configuration` read
+adds a `job_ceiling` summary; its other figures stay Atlas-only.
 
 Pipeline retains the input selection, original frame hashes, normalized RGB,
 camera, linear-depth EXR, confidence maps, provider asset IDs, and operation

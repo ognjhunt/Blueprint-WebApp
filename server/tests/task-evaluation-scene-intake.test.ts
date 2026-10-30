@@ -42,7 +42,15 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => {
     filters: Array<[string, string, any]> = [],
     order?: [string, string],
   ): any {
+    const field = (value: any, path: string) => path.split(".").reduce((item, key) => item?.[key], value);
     return {
+      // Equality only, for the job-ceiling ledger reads inside a transaction.
+      get: async () => ({
+        docs: [...store.rows.keys()]
+          .filter((key) => key.startsWith(`${collection}/`) && !key.slice(collection.length + 1).includes("/")
+            && filters.every(([path, , value]) => field(store.rows.get(key), path) === value))
+          .map(snapshot),
+      }),
       where: (field: string, op: string, value: unknown) =>
         query(collection, [...filters, [field, op, value]], order),
       orderBy: (field: string, direction: string) =>
@@ -505,6 +513,42 @@ it.each(["evaluation", "preparation", "family"])("queues the signed prepared web
   expect(stored()[1].state).toBe("closeout_pending");
   expect(stored()[1].revocation_receipt.scope).toBe("future_execution");
   expect(fetcher).toHaveBeenCalledTimes(2);
+});
+
+it("grants a new prepared scene its native allowance only while the job's one ceiling has room", async () => {
+  sponsoredCapture();
+  const base = (await app()).replace(/\/intakes$/, "/internal/creator-captures/walkthrough-req1");
+  const post = (operation: string, extra = {}) => realFetch(`${base}/${operation}`, {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ request_id: "req1", scene_id: "site-req1", ...extra }),
+  });
+  const grant = await (await post("scene-sponsorship")).json();
+  const request = {
+    schema_version: "task_evaluation_scene_intake_request.v1", submission_id: grant.capture_id,
+    owner: grant.owner, consent: grant.consent,
+    source: { kind: "gaussian_splat", binding_id: `website-splat-${"a".repeat(32)}`, content_digest: sha("a") },
+    task: { ...command().task, task_id: `website-${grant.task_context_digest.slice(7, 27)}`,
+      subject: { description: "box", geometry_origin: "removed_before_reconstruction" } },
+    execution: { ...command().execution, max_total_spend_usd: grant.max_total_spend_usd,
+      max_paid_attempts: grant.max_paid_attempts, expires_at_epoch: grant.expires_at_epoch,
+      allowed_providers: ["vast", "openai"], purpose: "scene_preparation", policy_candidates: [] },
+  };
+  // No Atlas grant or policy names a ceiling here, so the owner default ($40) applies:
+  // $20.50 already held plus this intake's $20 native allowance does not fit.
+  const record = store.rows.get("inboundRequests/req1");
+  record.website_preparation_reservations = { ["b".repeat(64)]: { admission: { provider: "world_labs_atlas",
+    resource_class: "provider_reconstruction_api", maximum_cost_usd: 20.5, request_count: 1 } } };
+  const refused = await post("prepared-scene", { request });
+  expect(refused.status).toBe(409);
+  expect(await refused.json()).toEqual({ code: "website_scene_preparation_budget_exhausted" });
+  expect([...store.rows.keys()].filter(key => key.startsWith("taskEvaluationSceneIntakes/"))).toHaveLength(0);
+  // Settling the hold below its maximum makes room; nothing was reset or rewritten.
+  record.website_preparation_reservations["b".repeat(64)].settlement = { actual_cost_usd: 20, status: "settled" };
+  expect((await post("prepared-scene", { request })).status).toBe(202);
+  // The existing intake is never re-admitted, so a replay is unaffected by later holds.
+  record.website_preparation_reservations["c".repeat(64)] = { admission: { maximum_cost_usd: 5 } };
+  expect((await post("prepared-scene", { request })).status).toBe(202);
+  expect([...store.rows.keys()].filter(key => key.startsWith("taskEvaluationSceneIntakes/"))).toHaveLength(1);
 });
 
 it.each(["scope", "success_digest", "native_digest", "runtime_digest", "context", "revoked", "expired"])("rejects changed family %s before forwarding without granting spend", async corruption => {

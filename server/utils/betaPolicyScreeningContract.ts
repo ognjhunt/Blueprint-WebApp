@@ -17,6 +17,8 @@ export const screeningMoneyMicros = (value: string) => {
   const [whole, fraction = ""] = value.split(".");
   return BigInt(whole) * BigInt(1_000_000) + BigInt(fraction.padEnd(6, "0"));
 };
+/** The beta-screening site ledger's standing allowance, shared across a site's campaigns. */
+export const SCREENING_SITE_LIMIT_USD = 15;
 export const screeningTerminalCandidateStates = new Set(["completed", "blocked", "unavailable", "deferred"]);
 export const screeningExecutionEvidenceFields = ["execution_evidence_kind", "action_source", "scripted_rollout_count",
   "learned_policy_rollout_count", "scripted_controller_invoked", "candidate_policy_queried"] as const;
@@ -89,7 +91,7 @@ export const betaPolicyScreeningPublicationSchema = z.discriminatedUnion("schema
   if (![budget.limit_usd, budget.committed_upper_bound_usd, budget.spent_upper_bound_usd, budget.reserved_usd]
     .every(amount => dollars.safeParse(amount).success)) return;
   const limit = screeningMoneyMicros(budget.limit_usd), committed = screeningMoneyMicros(budget.committed_upper_bound_usd);
-  if (limit > BigInt(15_000_000) || screeningMoneyMicros(budget.spent_upper_bound_usd) + screeningMoneyMicros(budget.reserved_usd) !== committed
+  if (limit > BigInt(SCREENING_SITE_LIMIT_USD * 1_000_000) || screeningMoneyMicros(budget.spent_upper_bound_usd) + screeningMoneyMicros(budget.reserved_usd) !== committed
     || committed > limit) ctx.addIssue({ code: "custom", path: ["budget"], message: "Screening must retain the shared $15 site ceiling" });
   if (new Set(value.candidates.map(row => row.candidate_id)).size !== value.candidates.length)
     ctx.addIssue({ code: "custom", path: ["candidates"], message: "Candidate identities must be unique" });
