@@ -253,7 +253,17 @@ Anything the door refuses comes back with its rule (`secret_name_refused`,
 
    A missing input comes back as a blocker naming its path; pull that path and
    rerun. Never pass `--allow-paid`.
-2. Fix on a branch, open a PR, merge when CI is green.
+
+   A stopped Atlas preview job replays the same way: pull its capture root's
+   `pipeline/atlas/preview_job.json`, `configuration.json`,
+   `pipeline/website_task_context.json` and `raw/` to the same absolute paths,
+   then `python -m blueprint_pipeline.atlas_preview_replay --job <that job>
+   --configuration <current allowance>`. It runs the job's next steps on a
+   scratch copy with every paid call stubbed and reports the first stop and
+   what it would buy; a `missing_input` names the next path to pull.
+2. Fix on a branch and replay again on that branch; put the first stop in the
+   PR. Open the PR and merge when CI is green. Deploy to find out only what a
+   replay cannot show, such as provider behavior.
 3. Deploy the merged commit: `door deploy <sha on main> --wait`. The door only
    deploys commits on `origin/main`. It waits for the progression oneshots to
    go idle, refuses while another deploy runs, and the deploy tool refuses
