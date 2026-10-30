@@ -921,12 +921,15 @@ export async function reserveWebsitePreparationSpend(requestId: string, input: z
     const micros = (amount: number) => Math.ceil(amount * 1_000_000);
     const usage = atlas ? atlasAllowanceUsage(reservations) : null;
     const reserved = usage ? micros(usage.cost) : previous.reduce((sum, row) => sum + micros(row.settlement?.actual_cost_usd ?? row.admission.maximum_cost_usd), 0);
-    const attempts = usage?.requests ?? previous.reduce((sum, row) => sum + row.admission.request_count, 0);
     // Amendments and reservations belong to the original retained allowance.
     const rootAuthority = record.website_scene_sponsorship;
+    // Owner decision 2026-10-30: money is the Atlas allowance's hard stop. Its
+    // request counts are recorded on every reservation, never a separate ceiling.
+    // The native ledger keeps its amendable request limit for now.
     if (reserved + micros(command.maximum_cost_usd) > Math.floor((atlas?.maximum_cost_usd
           ?? preparationSpendLimit(record, rootAuthority)) * 1_000_000)
-        || attempts + command.request_count > (atlas?.maximum_requests ?? preparationRequestLimit(record, rootAuthority)))
+        || (!atlas && previous.reduce((sum, row) => sum + row.admission.request_count, 0) + command.request_count
+          > preparationRequestLimit(record, rootAuthority)))
       throw new Error("website_scene_preparation_budget_exhausted");
     const admission = { ...command, schema_version: "paid_lane_admission.v1", status: "admitted",
       blockers: [], external_disclosure_allowed: true, sponsorship_digest: authority.authority_digest,
@@ -993,7 +996,7 @@ export async function loadWebsiteAtlasConfiguration(requestId: string, captureId
       transaction.update(ref, { website_atlas_grants: { ...(record.website_atlas_grants ?? {}), [captureId]: created } });
     const configuration = { schema_version: "website_atlas_configuration.v1", authority, policy,
       reserved_or_settled_cost_usd: usage.cost, remaining_cost_usd: Math.max(0, authority.maximum_cost_usd - usage.cost),
-      remaining_requests: Math.max(0, authority.maximum_requests - usage.requests), task_context_digest: context.context_digest,
+      task_context_digest: context.context_digest,
       source_video_digest: input.source_video_digest, dispatch_authorized: false,
       ...(accounting ? { grant_creation_allowed: false, ...accounting, capture_inference_accounting: inferenceAccounting } : {}) };
     // Authority/policy strings are configuration-owned and not all have schema
