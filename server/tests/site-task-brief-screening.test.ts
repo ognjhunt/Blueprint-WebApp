@@ -227,7 +227,7 @@ describe("the confirmation says what our screen decided", () => {
     expect((await (await confirm(clearAnswers())).json()).disposition).toBe("qualified");
     const sent = vi.mocked(enqueueOutbox).mock.calls[0][0] as { body: string };
     expect(sent.body).toMatch(/Your job card is not published, so partners cannot discover it through the shared library/);
-    expect(sent.body).toMatch(/We ask before sharing details with a provider/);
+    expect(sent.body).toMatch(/We ask before sharing details with any partner/);
   });
 
   it("answers a visit request without assuming where the site is", async () => {

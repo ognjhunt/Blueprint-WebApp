@@ -291,7 +291,7 @@ describe("the qualified reply", () => {
       triage: triage({ disposition: "qualified", blockers: [], blocking_field_ids: [] }) })!.body;
     expect(body).toMatch(/Video is required before the site assessment/);
     expect(body).toMatch(/partners cannot discover it through the shared library/);
-    expect(body).toMatch(/We ask before sharing details with a provider/);
+    expect(body).toMatch(/We ask before sharing details with any partner/);
     expect(body).toMatch(/publish its card from your job page/);
     expect(body).not.toMatch(/We prepare a simplified simulation|book the pilot in one step/);
   });

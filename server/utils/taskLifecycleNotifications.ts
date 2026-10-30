@@ -159,7 +159,7 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
   },
   pilot_recommended: {
     subject: "Your recommended pilot is ready",
-    body: (url, detail) => `A recommended delivery option is ready for your review${detail ? `: ${detail}` : ""}. Your job page shows the provider, supporting evidence, what the pilot tests, what you provide, the pilot's cost (paid to the deployment company, not to Blueprint), proposed timing and what is still uncertain. Review the scope, total cost and support before choosing. Blueprint's coordination is free during the beta. If you choose this option, contact details are shared under the recorded permissions so you and the provider can agree the pilot's scope, price, dates and acceptance criteria directly. Selection does not itself sign a contract or reserve a date. If it does not look right, reply and tell us why.\n\nOpen your job:\n${url}`,
+    body: (url, detail) => `A recommended delivery option is ready for your review${detail ? `: ${detail}` : ""}. Your job page shows the deployment company, supporting evidence, what the pilot tests, what you provide, the pilot's cost (paid to the deployment company, not to Blueprint), proposed timing and what is still uncertain. Review the scope, total cost and support before choosing. Blueprint's coordination is free during the beta. If you choose this option, contact details are shared under the recorded permissions so you and the deployment company can agree the pilot's scope, price, dates and acceptance criteria directly. Selection does not itself sign a contract or reserve a date. If it does not look right, reply and tell us why.\n\nOpen your job:\n${url}`,
   },
   pilot_booked: {
     subject: "Your pilot selection is recorded",
@@ -172,7 +172,7 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
   },
   pilot_scheduled: {
     subject: "Your pilot is scheduled",
-    body: (url) => `The provider and site agreement, date and preparation responsibilities have been recorded and checked against the calendar. Open your job for the agreed date and responsibilities.\n\nOpen your job:\n${url}`,
+    body: (url) => `Your site's agreement with the deployment company, the date and the preparation responsibilities have been recorded and checked against the calendar. Open your job for the agreed date and responsibilities.\n\nOpen your job:\n${url}`,
   },
 };
 
