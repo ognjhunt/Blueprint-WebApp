@@ -17,13 +17,21 @@ export const screeningMoneyMicros = (value: string) => {
   const [whole, fraction = ""] = value.split(".");
   return BigInt(whole) * BigInt(1_000_000) + BigInt(fraction.padEnd(6, "0"));
 };
-export const screeningTerminalCandidateStates = new Set(["completed", "blocked", "unavailable", "deferred"]);
+export const screeningTerminalCandidateStates = new Set(["completed", "blocked", "unavailable", "deferred", "infeasible"]);
+/**
+ * `infeasible` is measured out of reach on the reconstructed site. Until the
+ * Pipeline publishes it natively it sends `unavailable` with this blocker;
+ * both read as infeasible.
+ */
+export const SCREENING_INFEASIBLE_BLOCKER = "candidate_infeasible_measured_geometry";
+export const screeningCandidateState = (row: { status: string; blockers: readonly string[] }) =>
+  row.status === "unavailable" && row.blockers.includes(SCREENING_INFEASIBLE_BLOCKER) ? "infeasible" : row.status;
 export const screeningExecutionEvidenceFields = ["execution_evidence_kind", "action_source", "scripted_rollout_count",
   "learned_policy_rollout_count", "scripted_controller_invoked", "candidate_policy_queried"] as const;
 
 const candidate = z.object({
   candidate_id: identifier, configuration_digest: digest, display_name: z.string().trim().min(1).max(200),
-  status: z.enum(["pending", "preparing", "launching", "running", "reconciliation_required", "completed", "blocked", "unavailable", "deferred"]),
+  status: z.enum(["pending", "preparing", "launching", "running", "reconciliation_required", "completed", "blocked", "unavailable", "deferred", "infeasible"]),
   blockers: z.array(z.string().min(1).max(300)).max(100),
   episodes_planned: count, episodes_scored: count, episodes_succeeded: count, episodes_failed: count, episodes_void: count,
   success_rate: z.number().finite().min(0).max(1).nullable(), session_result_digest: digest.nullable(),

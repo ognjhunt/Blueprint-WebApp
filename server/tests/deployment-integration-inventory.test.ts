@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { Usage, type Model, type ModelResponse } from "@openai/agents";
 import { deploymentCanonicalJson, deploymentEmbodimentCatalog } from "../../client/src/lib/deploymentEmbodimentSupport";
-import { deploymentIntegrationEvidence, deploymentIntegrationInventory } from "../utils/deploymentIntegrationInventory";
+import { deploymentIntegrationEvidence, deploymentIntegrationInventory, registryTeamsNamed } from "../utils/deploymentIntegrationInventory";
 import { createSiteAssessmentAgent, renderSourceBoundAssessment, type SiteAssessment } from "../agents/site-assessment";
 
 describe("company-led simulation integration inventory", () => {
@@ -36,6 +36,14 @@ describe("company-led simulation integration inventory", () => {
     expect(inventory.embodiments.find(body => body.embodiment_id === "kuka_lbr_iiwa_14")?.registry_team_ids).toEqual([]);
     expect(inventory.policy_routes.find(route => route.route_id === "pi_api")?.model_id).toBeNull();
     expect(inventory.policy_routes.find(route => route.route_id === "pi_api")?.required_artifacts).toContain("authorized_access_and_usage_terms");
+  });
+
+  it("joins a chosen configuration's recorded companies to registry teams by name only", () => {
+    const teams = [{ id: "jacobi", name: "Jacobi Robotics" }, { id: "delta", name: " the Delta-Technology " },
+      { id: "oem", name: "FANUC" }, { id: "substring", name: "Jacobi" }, { id: "blank", name: "" }];
+    expect(registryTeamsNamed(teams, ["Jacobi Robotics", "Delta Technology"]).map(team => team.id)).toEqual(["jacobi", "delta"]);
+    expect(registryTeamsNamed(teams, [])).toEqual([]);
+    expect(registryTeamsNamed(teams, [" ", "!"])).toEqual([]);
   });
 
   it("makes the complete inventory available in the real SDK tool loop without promoting it into measured registry facts", async () => {

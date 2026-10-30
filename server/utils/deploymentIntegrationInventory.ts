@@ -10,13 +10,18 @@ import type { RobotTeamRecord } from "../types/robot-team-registry";
 const companyKey = (name: unknown) => typeof name === "string"
   ? name.trim().toLowerCase().replace(/^the\s+/, "").replace(/[^a-z0-9]/g, "") : "";
 
+/** Registry teams whose recorded name is one of these company names; never a partner by inference. */
+export function registryTeamsNamed<T extends Pick<RobotTeamRecord, "id" | "name">>(teams: readonly T[], names: readonly string[]) {
+  const keys = new Set(names.map(companyKey).filter(Boolean));
+  return teams.filter(team => keys.has(companyKey(team.name)));
+}
+
 /** Public integration facts for planning; exact task execution remains Pipeline-owned. */
 export function deploymentIntegrationInventory(teams: readonly Pick<RobotTeamRecord, "id" | "name">[]) {
   const catalog = structuredClone(deploymentEmbodimentCatalog);
   const embodiments = catalog.embodiments.map(body => ({
     ...body,
-    registry_team_ids: [...new Set(teams.filter(team => body.related_teams.some(name =>
-      companyKey(name) === companyKey(team.name))).map(team => team.id))].sort(),
+    registry_team_ids: [...new Set(registryTeamsNamed(teams, body.related_teams).map(team => team.id))].sort(),
   }));
   return {
     schema_version: "blueprint.deployment_integration_inventory.v1" as const,
