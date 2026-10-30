@@ -119,8 +119,8 @@ async function firstTestAccepted(store: FirebaseFirestore.Firestore, intake: Rec
         if (run?.run_kind !== "beta_policy_screening" || run.team_namespace !== team) continue;
         // A completed campaign with a scored episode is the job's estimate.
         if (run.state === "completed" && run.episodes_scored > 0) return "evaluated";
-        // No candidate can do this kind of job yet: held, not an open test.
-        if (["completed", "blocked"].includes(run.state) && run.no_estimate_reason === "held") { held = true; continue; }
+        // No candidate can do this kind of job yet, or none reached it: held, not an open test.
+        if (["completed", "blocked"].includes(run.state) && ["held", "no_match"].includes(run.no_estimate_reason)) { held = true; continue; }
         observed ||= run.screening_execution_observed === true;
       }
     }

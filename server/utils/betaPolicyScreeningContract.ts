@@ -122,18 +122,22 @@ export function screeningExecutionEvidence(row: BetaPolicyScreeningPublication["
  * 2026-10-28). `held`: every candidate is refused for capability or license,
  * so the job waits for something we have to build. `budget`: a candidate
  * needs more than the site's allowance, which only the owner can approve.
- * `setup`: anything else, ours to fix and rerun.
+ * `setup`: anything else, ours to fix and rerun. `no_match`: no candidate can
+ * run it and at least one was measured out of reach in the reconstructed site,
+ * so the site is told plainly there is no match (owner decision 2026-10-30).
  */
-export type NoEstimateReason = "held" | "budget" | "setup";
+export type NoEstimateReason = "held" | "no_match" | "budget" | "setup";
 const HELD_BLOCKERS = new Set(["task_kind_not_supported_by_candidate", "candidate_disabled", "commercial_use_not_admitted"]);
 
 export function noEstimateReason(candidates: ReadonlyArray<{ status: string; blockers: readonly string[] }>): NoEstimateReason {
   const open = candidates.filter(row => row.status !== "completed");
   if (open.some(row => row.blockers.some(code => code.includes("budget")))) return "budget";
   // A completed candidate with only void episodes is a broken scene, not a capability gap.
-  return open.length > 0 && open.length === candidates.length
-    && open.every(row => row.blockers.length > 0 && row.blockers.every(code => HELD_BLOCKERS.has(code)))
-    ? "held" : "setup";
+  const infeasible = (row: { status: string; blockers: readonly string[] }) => screeningCandidateState(row) === "infeasible";
+  if (open.length === 0 || open.length !== candidates.length
+      || !open.every(row => infeasible(row) || (row.blockers.length > 0 && row.blockers.every(code => HELD_BLOCKERS.has(code)))))
+    return "setup";
+  return open.some(infeasible) ? "no_match" : "held";
 }
 
 export function parseBetaPolicyScreeningPublication(value: unknown): BetaPolicyScreeningPublication | null {

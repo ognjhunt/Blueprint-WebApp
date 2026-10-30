@@ -202,6 +202,14 @@ describe("automatic many-candidate job evaluation", () => {
       row("blocked", ["runtime_candidate_binding_missing"])])).toBe("setup");
     expect(noEstimateReason([row("completed", []), row("blocked", ["task_kind_not_supported_by_candidate"])])).toBe("setup");
     expect(noEstimateReason([row("blocked", [])])).toBe("setup");
+    // Measured out of reach, alone or beside capability gaps, is a plain "no match".
+    expect(noEstimateReason([row("infeasible", ["candidate_infeasible_measured_geometry"]),
+      row("blocked", ["task_kind_not_supported_by_candidate"])])).toBe("no_match");
+    expect(noEstimateReason([row("unavailable", ["candidate_infeasible_measured_geometry"])])).toBe("no_match");
+    expect(noEstimateReason([row("infeasible", ["candidate_infeasible_measured_geometry"]),
+      row("deferred", ["site_screening_budget_insufficient"])])).toBe("budget");
+    expect(noEstimateReason([row("infeasible", ["candidate_infeasible_measured_geometry"]),
+      row("blocked", ["runtime_candidate_binding_missing"])])).toBe("setup");
   });
 
   it("shows held when no candidate Blueprint can run supports the job", () => {
