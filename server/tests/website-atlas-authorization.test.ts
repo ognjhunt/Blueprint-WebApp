@@ -56,6 +56,14 @@ it("accepts an optional reviewed mesh export price and still refuses unknown or 
   expect(websiteAtlasRuntimePolicy()).not.toHaveProperty("mesh_export_cost_usd");
   vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_RUNTIME_POLICY_JSON", JSON.stringify({ ...policy, mesh_export_cost_usd: .5 }));
   expect(websiteAtlasRuntimePolicy()).toMatchObject({ mesh_export_cost_usd: .5 });
+  const nativeRates = { additional_rgbd_view_cost_usd: .01, rgb_view_cost_usd: .04,
+    additional_rgb_view_cost_usd: .008, refined_splat_cost_usd: 5 };
+  vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_RUNTIME_POLICY_JSON", JSON.stringify({ ...policy, ...nativeRates }));
+  expect(websiteAtlasRuntimePolicy()).toMatchObject(nativeRates);
+  for (const key of Object.keys(nativeRates)) {
+    vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_RUNTIME_POLICY_JSON", JSON.stringify({ ...policy, [key]: 0 }));
+    expect(() => websiteAtlasRuntimePolicy()).toThrow("runtime_policy_required");
+  }
   for (const changed of [{ mesh_export_cost_usd: 0 }, { splat_cost_usd: 1 }]) {
     vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_RUNTIME_POLICY_JSON", JSON.stringify({ ...policy, ...changed }));
     expect(() => websiteAtlasRuntimePolicy()).toThrow("runtime_policy_required");
