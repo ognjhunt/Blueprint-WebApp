@@ -11,6 +11,7 @@ import { crossRuntimeArtifactDigest } from "../utils/crossRuntimeCanonical";
 import { publicationFromResultRecord } from "../utils/taskEvaluationRunPublicationStorage";
 import { scientificBriefDigest } from "../utils/jobEvidenceContract";
 import { loadManagedJobEvidence } from "../utils/jobManagedEvaluation";
+import { readCurrentTaskScreening } from "../utils/taskScreeningEvidence";
 
 const store = vi.hoisted(() => ({ rows: new Map<string, any>() }));
 vi.mock("../utils/pipelineSyncSecurity", async importOriginal => ({
@@ -21,9 +22,18 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => {
   const reference = (name: string, id: string): any => ({ id, path: `${name}/${id}`, get: async () => snapshot(reference(name, id)) });
   const snapshot = (ref: any) => ({ id: ref.id, ref, exists: store.rows.has(ref.path), data: () => structuredClone(store.rows.get(ref.path)) });
   return { dbAdmin: { collection: (name: string) => ({ doc: (id: string) => reference(name, id),
-    where: (key: string, _operator: string, value: unknown) => { const query = { orderBy: () => query, limit: (limit: number) => ({ get: async () => ({ docs: [...store.rows.entries()]
-      .filter(([path, data]) => path.startsWith(`${name}/`) && key.split(".").reduce((current, part) => current?.[part], data) === value)
-      .slice(0, limit).map(([path]) => snapshot(reference(name, path.slice(name.length + 1)))) }) }) }; return query; } }),
+    where: (key: string, _operator: string, value: unknown) => {
+      const query = (limit = 20, cursor?: string): any => ({ orderBy: () => query(limit, cursor),
+        limit: (count: number) => query(count, cursor), startAfter: (document: { id: string }) => query(limit, document.id),
+        get: async () => {
+          const rows = [...store.rows.entries()].filter(([path, data]) => path.startsWith(`${name}/`)
+            && key.split(".").reduce((current, part) => current?.[part], data) === value)
+            .sort((left, right) => String(right[1].created_at_iso).localeCompare(String(left[1].created_at_iso)));
+          const start = cursor ? rows.findIndex(([path]) => path === `${name}/${cursor}`) + 1 : 0;
+          return { docs: rows.slice(start, start + limit).map(([path]) => snapshot(reference(name, path.slice(name.length + 1)))) };
+        } });
+      return query();
+    } }),
     runTransaction: async (fn: any) => {
       const writes: Array<[string, any]> = [];
       const result = await fn({ get: async (ref: any) => snapshot(ref), set: (ref: any, value: any) => writes.push([ref.path, value]) });
@@ -150,14 +160,34 @@ it("stores and projects all 84 family candidate outcomes while preserving exact 
   expect(evidence.screening?.candidates).toHaveLength(84);
   expect(evidence.screening?.candidates).toEqual(completed.candidates.map(row => ({
     candidateId: row.candidate_id, name: row.display_name, state: row.status,
+    configurationDigest: row.configuration_digest,
     planned: row.episodes_planned, scored: row.episodes_scored, succeeded: row.episodes_succeeded,
     failed: row.episodes_failed, void: row.episodes_void, blockers: row.blockers,
   })));
   // Separate policy routes for one body remain separate rows, including their reasons.
   expect(evidence.screening?.candidates.filter(row => row.candidateId.startsWith("universal_robots_ur5e__")).length).toBeGreaterThan(1);
+  const scope = { requestId: "job-one", briefDigest, captureId: completed.source.capture_id };
+  // The current task result remains discoverable below a page of unrelated
+  // or historical campaigns; the workspace's default page stays unchanged.
+  for (let index = 0; index < 25; index++) store.rows.set(`taskEvaluationPolicyRuns/historical-${index}`, {
+    run_id: `historical-${index}`, job_evidence_binding: { job_id: "job-one", brief_digest: screeningSha("9") },
+    created_at_iso: `2099-01-${String(index + 1).padStart(2, "0")}T00:00:00Z`, state: "blocked",
+  });
+  expect((await loadManagedJobEvidence("job-one", briefDigest)).some(row => row.current)).toBe(false);
+  const readback = await readCurrentTaskScreening(scope);
+  expect(readback.status).toBe("recorded");
+  expect(readback.runs[0].candidates).toEqual(evidence.screening?.candidates);
+  expect(readback.runs[0].provenance).toMatchObject({ source: completed.source,
+    generated_at: completed.generated_at, publication_digest: completed.publication_digest });
+  expect(Object.keys(readback.evidence_source!.content.content.candidate_statements)).toHaveLength(84);
+  for (const different of [{ requestId: "other-job" }, { captureId: "other-capture" }, { briefDigest: screeningSha("9") }]) {
+    const inaccessible = await readCurrentTaskScreening({ ...scope, ...different });
+    expect(inaccessible).toMatchObject({ status: "unavailable", runs: [], evidence_source: null });
+  }
   store.rows.get("inboundRequests/job-one").request.consent_attestation.revoked_at_iso = "2026-10-26T13:00:00Z";
   expect((await send(url, signed(completed))).status).toBe(409);
-  expect((await loadManagedJobEvidence("job-one", briefDigest))[0].current).toBe(false);
+  expect((await loadManagedJobEvidence("job-one", briefDigest, { pageAll: true })).some(row => row.current)).toBe(false);
+  expect(await readCurrentTaskScreening(scope)).toMatchObject({ status: "unavailable", runs: [], evidence_source: null });
 });
 
 it("refuses cross-site and revoked source publications without partial records", async () => {

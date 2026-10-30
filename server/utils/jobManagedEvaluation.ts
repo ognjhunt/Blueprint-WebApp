@@ -197,8 +197,10 @@ export type ManagedJobEvidenceSummary = {
   runId: string; state: string; current: boolean; resultDigest: string | null;
   summary: string; nextAction: string; limitations: string[]; href: string;
   screening?: { budget?: { limitUsd: string; committedUpperBoundUsd: string; spentUpperBoundUsd: string; reservedUsd: string };
+    provenance?: Pick<BetaPolicyScreeningPublication, "schema_version" | "claim_ceiling" | "source" | "generated_at"
+      | "publication_digest" | "catalog_digest" | "plan_digest">;
     candidates: Array<{ candidateId: string; name: string; state: string; planned: number;
-    scored: number; succeeded: number; failed: number; void: number; blockers: string[] }> };
+    scored: number; succeeded: number; failed: number; void: number; blockers: string[]; configurationDigest?: string }> };
 };
 
 /** A projection of already accepted publications, never a second report store. */
@@ -262,9 +264,13 @@ export function projectManagedJobEvidence(
         "A simulation result is a bounded estimate. It does not certify physical performance or safety.",
         ...(notRun ? [`${candidates(notRun)} did not run; each row lists why.`] : []),
       ],
-      screening: { budget: { limitUsd: value.budget.limit_usd, committedUpperBoundUsd: value.budget.committed_upper_bound_usd,
+      screening: { provenance: { schema_version: value.schema_version, claim_ceiling: value.claim_ceiling,
+        source: value.source, generated_at: value.generated_at, publication_digest: value.publication_digest,
+        catalog_digest: value.catalog_digest, plan_digest: value.plan_digest },
+        budget: { limitUsd: value.budget.limit_usd, committedUpperBoundUsd: value.budget.committed_upper_bound_usd,
         spentUpperBoundUsd: value.budget.spent_upper_bound_usd, reservedUsd: value.budget.reserved_usd },
         candidates: value.candidates.map(row => ({ candidateId: row.candidate_id, name: row.display_name,
+        configurationDigest: row.configuration_digest,
         state: row.status, planned: row.episodes_planned, scored: row.episodes_scored, succeeded: row.episodes_succeeded,
         failed: row.episodes_failed, void: row.episodes_void, blockers: row.blockers })) } };
   }
@@ -332,7 +338,8 @@ async function currentManagedScreeningScope(args: {
   }
 }
 
-export async function loadManagedJobEvidence(jobId: string, currentBriefDigest: string): Promise<ManagedJobEvidenceSummary[]> {
+export async function loadManagedJobEvidence(jobId: string, currentBriefDigest: string,
+  options: { pageAll?: boolean } = {}): Promise<ManagedJobEvidenceSummary[]> {
   if (!db) return [];
   const store = db;
   const [job, brief, inventory] = await Promise.all([
@@ -357,12 +364,18 @@ export async function loadManagedJobEvidence(jobId: string, currentBriefDigest: 
     // history. An unrelated storage failure must not be hidden as empty proof.
     if (!(error instanceof Error) || !/^job_[a-z_]+$/.test(error.message)) throw error;
   }
-  const snapshot = await store.collection("taskEvaluationPolicyRuns").where("job_evidence_binding.job_id", "==", jobId)
-    .orderBy("created_at_iso", "desc").limit(20).get();
+  const query = store.collection("taskEvaluationPolicyRuns").where("job_evidence_binding.job_id", "==", jobId)
+    .orderBy("created_at_iso", "desc").limit(20);
+  let snapshot = await query.get();
+  const documents = [...snapshot.docs];
+  while (options.pageAll && snapshot.docs.length === 20) {
+    snapshot = await query.startAfter(snapshot.docs[snapshot.docs.length - 1]).get();
+    documents.push(...snapshot.docs);
+  }
   const selectionSession = sourceSession ?? (await store.collection('captureUploadSessions')
     .doc(job.data()?.active_capture_id || `walkthrough-${jobId}`).get()).data();
   const uncorrectedSelectionApplies = taskTargetSelectionApplies(selectionSession);
-  const rows = await Promise.all(snapshot.docs.map(async document => {
+  const rows = await Promise.all(documents.map(async document => {
     const run = document.data();
     const result = typeof run.result_record_id === "string"
       ? await store.collection("captureTaskEvaluationRuns").doc(run.result_record_id).get() : null;

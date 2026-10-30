@@ -64,6 +64,24 @@ The tool supplies a separate digest-bound `integration_catalog_source`. Its
 cited through the existing knowledge-source binding; they never become graded
 RobotTeam capabilities or measured results.
 
+The assessment agent also has `read_current_task_screening`, a read-only tool
+with no model-supplied request or task identifier. The authenticated assessment
+host binds it to the current request, brief and capture and rechecks source and
+consent before and after reading. It uses the workspace's canonical publication
+validation, pages the request's authorized run history and returns the latest
+current screening campaign for each task. Each campaign retains every delivered candidate,
+including newly registered policy identities, its configuration digest, status,
+reasons, scored counts and dated publication provenance. Older campaigns remain
+available in workspace history.
+
+The separate `evidence_source` exposes complete `candidate_statements` for
+published citations. Their simulation and task limits cannot be removed by
+selecting a bare count. Missing records, unavailable readback, queued candidates
+and prepared runtimes do not establish successful execution. This tool reads
+accepted results; it neither starts runs nor upgrades the planning inventory.
+The explicit internal `video-only` diagnostic does not receive this task reader,
+preserving its existing suppression of task descriptions and context.
+
 Deploy through the existing exact-SHA CI-gated Render workflow. Deploy this
 consumer before enabling producer publication. A green website deployment proves
 the consumer is present; it does not prove a RoboLab GPU run completed.
