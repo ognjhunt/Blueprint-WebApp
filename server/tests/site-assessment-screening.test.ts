@@ -72,7 +72,7 @@ describe("task-bound screening readback for the assessment agent", () => {
     const otherCapture = structuredClone(row); otherCapture.screening!.provenance!.source.capture_id = "another-capture";
     const result = taskScreeningEvidence(scope, [historical, otherCapture, row, previous], "2026-10-30T00:00:00Z");
     expect(result.runs.map(run => run.run_id)).toEqual([row.runId]);
-    expect(result.coverage).toContain("latest_20_job_run_records");
+    expect(result.coverage).toContain("across_job_history");
   });
 
   it("does not infer runtime support when no current task brief or result exists", async () => {

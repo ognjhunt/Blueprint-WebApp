@@ -338,7 +338,8 @@ async function currentManagedScreeningScope(args: {
   }
 }
 
-export async function loadManagedJobEvidence(jobId: string, currentBriefDigest: string): Promise<ManagedJobEvidenceSummary[]> {
+export async function loadManagedJobEvidence(jobId: string, currentBriefDigest: string,
+  options: { pageAll?: boolean } = {}): Promise<ManagedJobEvidenceSummary[]> {
   if (!db) return [];
   const store = db;
   const [job, brief, inventory] = await Promise.all([
@@ -363,12 +364,18 @@ export async function loadManagedJobEvidence(jobId: string, currentBriefDigest: 
     // history. An unrelated storage failure must not be hidden as empty proof.
     if (!(error instanceof Error) || !/^job_[a-z_]+$/.test(error.message)) throw error;
   }
-  const snapshot = await store.collection("taskEvaluationPolicyRuns").where("job_evidence_binding.job_id", "==", jobId)
-    .orderBy("created_at_iso", "desc").limit(20).get();
+  const query = store.collection("taskEvaluationPolicyRuns").where("job_evidence_binding.job_id", "==", jobId)
+    .orderBy("created_at_iso", "desc").limit(20);
+  let snapshot = await query.get();
+  const documents = [...snapshot.docs];
+  while (options.pageAll && snapshot.docs.length === 20) {
+    snapshot = await query.startAfter(snapshot.docs[snapshot.docs.length - 1]).get();
+    documents.push(...snapshot.docs);
+  }
   const selectionSession = sourceSession ?? (await store.collection('captureUploadSessions')
     .doc(job.data()?.active_capture_id || `walkthrough-${jobId}`).get()).data();
   const uncorrectedSelectionApplies = taskTargetSelectionApplies(selectionSession);
-  const rows = await Promise.all(snapshot.docs.map(async document => {
+  const rows = await Promise.all(documents.map(async document => {
     const run = document.data();
     const result = typeof run.result_record_id === "string"
       ? await store.collection("captureTaskEvaluationRuns").doc(run.result_record_id).get() : null;

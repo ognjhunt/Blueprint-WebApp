@@ -68,8 +68,8 @@ The assessment agent also has `read_current_task_screening`, a read-only tool
 with no model-supplied request or task identifier. The authenticated assessment
 host binds it to the current request, brief and capture and rechecks source and
 consent before and after reading. It uses the workspace's canonical publication
-validation and returns the latest current screening campaign for each task within
-the latest 20 job run records. Each campaign retains every delivered candidate,
+validation, pages the request's authorized run history and returns the latest
+current screening campaign for each task. Each campaign retains every delivered candidate,
 including newly registered policy identities, its configuration digest, status,
 reasons, scored counts and dated publication provenance. Older campaigns remain
 available in workspace history.

@@ -33,7 +33,7 @@ export function taskScreeningEvidence(scope: TaskScreeningScope, rows: ManagedJo
   // success count cannot discard the publication's scope and evidence ceiling.
   const content = { current: true, content: { candidate_statements: statements } };
   const readback = { request_id: scope.requestId, capture_id: scope.captureId, brief_digest: scope.briefDigest,
-    observed_at: observedAt, coverage: "latest_current_screening_campaign_per_task_within_latest_20_job_run_records" as const,
+    observed_at: observedAt, coverage: "latest_current_screening_campaign_per_task_across_job_history" as const,
     status: runs.length ? "recorded" as const : "unavailable" as const,
     unavailable_reason: runs.length ? null : "current_task_screening_not_found_in_readback",
     limitation: LIMIT, runs };
@@ -51,7 +51,7 @@ export async function readCurrentTaskScreening(scope: TaskScreeningScope): Promi
   const unavailable = (reason: string) => ({ ...taskScreeningEvidence(scope, [], new Date().toISOString()), unavailable_reason: reason });
   if (!scope.briefDigest) return unavailable("current_task_brief_unavailable");
   try {
-    return taskScreeningEvidence(scope, await loadManagedJobEvidence(scope.requestId, scope.briefDigest), new Date().toISOString());
+    return taskScreeningEvidence(scope, await loadManagedJobEvidence(scope.requestId, scope.briefDigest, { pageAll: true }), new Date().toISOString());
   } catch {
     return unavailable("current_task_screening_readback_unavailable");
   }
