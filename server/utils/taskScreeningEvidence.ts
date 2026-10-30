@@ -27,7 +27,7 @@ export function taskScreeningEvidence(scope: TaskScreeningScope, rows: ManagedJo
         + `learned policy queried ${evidence.candidate_policy_queried}. Retained episode records include attempts that failed before invocation. `
         + "These outcomes do not establish learned-policy or vendor-policy performance. "
       : evidence?.execution_evidence_kind === "learned_policy"
-        ? `Recorded learned-policy execution: ${evidence.learned_policy_rollout_count} retained episode records; `
+        ? `Recorded execution kind: learned policy; ${evidence.learned_policy_rollout_count} retained episode records; `
           + `policy queried ${evidence.candidate_policy_queried}. `
         : "Execution kind was not recorded; learned or scripted provenance is not established. ";
     statements[`${run.run_id}:${candidate.candidateId}`] =

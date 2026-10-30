@@ -69,6 +69,15 @@ describe("typed scripted simulation publication", () => {
       scripted_rollout_count: 10, scripted_controller_invoked: false, learned_policy_rollout_count: 0 });
   });
 
+  it.each(["scripted_simulator_state_baseline", "learned_policy"])("requires a retained record for a %s invocation", kind => {
+    const value = sealScreening({ ...scriptedFixture, candidates: [{ ...scriptedFixture.candidates[0],
+      episodes_scored: 0, episodes_succeeded: 0, episodes_failed: 0, episodes_void: 10, success_rate: null,
+      execution_evidence_kind: kind, action_source: kind === "learned_policy" ? "learned_policy" : "scripted_simulator_state",
+      scripted_rollout_count: 0, learned_policy_rollout_count: 0,
+      scripted_controller_invoked: kind !== "learned_policy", candidate_policy_queried: kind === "learned_policy" }] });
+    expect(parseBetaPolicyScreeningPublication(value)).toBeNull();
+  });
+
   it("binds execution kind before any outcome and refuses relabelling within a campaign", () => {
     const pending = sealScreening({ ...scriptedFixture, revision: 1, status: "queued", candidates: [{ ...scriptedFixture.candidates[0],
       status: "pending", episodes_scored: 0, episodes_succeeded: 0, episodes_failed: 0, episodes_void: 0,

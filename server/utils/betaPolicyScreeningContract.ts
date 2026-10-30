@@ -46,6 +46,8 @@ const candidate = z.object({
     if (screeningExecutionEvidenceFields.some(key => row[key] === undefined)
       || row.action_source !== (scripted ? "scripted_simulator_state" : "learned_policy")
       || row.scripted_rollout_count! + row.learned_policy_rollout_count! > row.episodes_planned
+      || row.scripted_controller_invoked === true && row.scripted_rollout_count === 0
+      || row.candidate_policy_queried === true && row.learned_policy_rollout_count === 0
       || (row.status !== "completed" && (row.scripted_rollout_count !== 0 || row.learned_policy_rollout_count !== 0
         || row.scripted_controller_invoked !== false || row.candidate_policy_queried !== false))
       || (scripted ? row.learned_policy_rollout_count !== 0 || row.candidate_policy_queried !== false
