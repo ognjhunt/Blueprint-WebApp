@@ -1,4 +1,6 @@
 import { inferenceProgrammeContextDigest } from "../../utils/inferenceProgrammeAdmission";
+import { scientificBriefDigest } from "../../utils/jobEvidenceContract";
+import { readCurrentTaskScreening } from "../../utils/taskScreeningEvidence";
 import { reserveCaptureCoverageInference } from "../../utils/captureCoverageInferenceBudget";
 import { createHash } from "node:crypto";
 import OpenAI from "openai";
@@ -267,6 +269,16 @@ export async function runSiteAssessmentTask(task: NormalizedAgentTask, host: { r
       })(), model: task.model, model_provider: provider,
       video_bytes: { body: video.body, byteLength: video.body.length, contentType: video.contentType },
       allowed_tools: task.tool_policy.allowed_actions,
+      // The explicit video-discovery diagnostic suppresses task descriptions
+      // and results; production assessments retain their current task reader.
+      read_current_task_screening: host.experiment?.model_context === "video-only" ? undefined : async () => {
+        await host.assertActive(); await assertSourceCurrent();
+        const currentBrief = await getBrief(input.context.request_id);
+        const result = await readCurrentTaskScreening({ requestId: input.context.request_id,
+          briefDigest: currentBrief ? scientificBriefDigest(currentBrief) : null, captureId: pending.capture_id });
+        await host.assertActive(); await assertSourceCurrent();
+        return result;
+      },
       assert_video_processing_allowed: async () => {
         await host.assertActive(); await assertSourceCurrent();
       },

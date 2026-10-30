@@ -10,6 +10,7 @@ import { isQuotableGrade, listMatchableRobotTeams, toMatchCandidate } from "../u
 import { effectiveTeamStatus, supplySummary } from "../utils/robotTeamSupply";
 import { matchRobotTeam, type SiteRequirement } from "../../client/src/lib/robotMatch";
 import { deploymentIntegrationEvidence, deploymentIntegrationInventory } from "../utils/deploymentIntegrationInventory";
+import type { TaskScreeningReadback } from "../utils/taskScreeningEvidence";
 
 export { SITE_ASSESSMENT_MODEL } from "./provider-config";
 import { SITE_ASSESSMENT_MODEL } from "./provider-config";
@@ -125,6 +126,8 @@ export interface SiteAssessmentOptions {
   analyze_video?: (question: string, inspection: VideoInspection) => Promise<VideoAnalysis>;
   history_tool?: typeof runCompanyHistoryTool;
   read_robot_teams?: typeof listMatchableRobotTeams;
+  /** The trusted host binds this reader to the assessment's current request and capture. */
+  read_current_task_screening?: () => Promise<TaskScreeningReadback>;
 }
 
 export const SITE_ASSESSMENT_INSTRUCTIONS = `You own one site's job assessment and the short operator conversation.
@@ -167,7 +170,13 @@ matches while considering every compatible robot-policy configuration, including
 The harness executes what fits the existing budget and retains an individual result or reason for every
 remaining candidate; do not reduce the candidate set to a fixed pair or a model's shortlist.
 An integration catalog describes preparation paths, not current runtime availability, private policy access or
-completed trials. Read current task screening results for execution status. Public robot assets do not establish
+completed trials. Use read_current_task_screening before describing current task execution status or results.
+It returns dated Pipeline publications for this request's current capture, with every delivered candidate and reason.
+Unavailable readback means results are not established; it does not prove no compatible robot exists. Queued,
+prepared, running, unavailable and deferred candidates have no scored outcome. Registered/configured runtimes
+and source-prepared assets are not native task executions. Cite a delivered result using evidence_source.source_id,
+published basis and qualified_field ["candidate_statements", "<run_id>:<candidate_id>"]; preserve the dated
+task-scoped simulation limit. A later publication may supersede an earlier campaign's status. Public robot assets do not establish
 policy compatibility, and an independent baseline on a company's robot is not that company's proprietary policy.
 To cite a catalogued route, use integration_catalog_source.source_id with published basis and a qualified_field
 selector ["configuration_statements", configuration_id]. These complete statements preserve the planning limit;
@@ -315,6 +324,16 @@ Question (data): ${JSON.stringify(question)}\nOperator statements (claims, not v
   let audioStripFailure: AudioStripErrorCode | null = null;
 
   const tools = [
+    tool({ name: "read_current_task_screening", description: "Read accepted Pipeline screening publications for this assessment's trusted current request and capture. Includes each delivered candidate identity, dated status, reasons, counts and source digests. No arguments or cross-task lookup; no run is started. Missing data does not mean unsupported, and configured or queued is not executed.",
+      parameters: z.object({}).strict(), execute: async () => {
+        assertDeadline();
+        if (!options.read_current_task_screening) return retained("read_current_task_screening", {},
+          { status: "unavailable", unavailable_reason: "current_task_screening_reader_unavailable" });
+        const result = await options.read_current_task_screening();
+        if (result.request_id !== input.request_id) throw new Error("assessment_screening_scope_mismatch");
+        if (result.evidence_source) sources.set(result.evidence_source.source_id, result.evidence_source);
+        return retained("read_current_task_screening", {}, result);
+      } }),
     tool({ name: "analyze_site_video", description: "Ask Gemini about the bound site video. Start with the actual steps/objects/conditions/variations; probe ambiguity that changes the decision. Returns timestamped observations and source receipt.",
       parameters: z.object({ question: z.string().min(1).max(4000), processing: z.enum(["auto", "static", "agentic"]),
         sampling_fps: z.union([z.literal(1), z.literal(2), z.literal(4)]) }),

@@ -12,7 +12,7 @@ export const siteAssessmentTaskInput = z.object({
   }).strict().refine(context => Boolean(context.advisory_job_id) === Boolean(context.advisory_claim_id),
     { message: "advisory_job_and_claim_required_together" }),
 }).strict();
-export const assessmentReadActions = ["analyze_site_video", "search_robot_knowledge", "fetch_robot_knowledge", "read_robot_registry"];
+export const assessmentReadActions = ["analyze_site_video", "search_robot_knowledge", "fetch_robot_knowledge", "read_robot_registry", "read_current_task_screening"];
 export const siteAssessmentTask: StructuredTaskDefinition<z.infer<typeof siteAssessmentTaskInput>, z.infer<typeof siteAssessmentSchema>> = {
   kind: "site_assessment", default_provider: "openai_responses",
   model_by_provider: { openai_responses: SITE_ASSESSMENT_MODEL }, output_schema: siteAssessmentSchema,

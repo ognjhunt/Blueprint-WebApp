@@ -11,6 +11,7 @@ import { crossRuntimeArtifactDigest } from "../utils/crossRuntimeCanonical";
 import { publicationFromResultRecord } from "../utils/taskEvaluationRunPublicationStorage";
 import { scientificBriefDigest } from "../utils/jobEvidenceContract";
 import { loadManagedJobEvidence } from "../utils/jobManagedEvaluation";
+import { readCurrentTaskScreening } from "../utils/taskScreeningEvidence";
 
 const store = vi.hoisted(() => ({ rows: new Map<string, any>() }));
 vi.mock("../utils/pipelineSyncSecurity", async importOriginal => ({
@@ -150,14 +151,27 @@ it("stores and projects all 84 family candidate outcomes while preserving exact 
   expect(evidence.screening?.candidates).toHaveLength(84);
   expect(evidence.screening?.candidates).toEqual(completed.candidates.map(row => ({
     candidateId: row.candidate_id, name: row.display_name, state: row.status,
+    configurationDigest: row.configuration_digest,
     planned: row.episodes_planned, scored: row.episodes_scored, succeeded: row.episodes_succeeded,
     failed: row.episodes_failed, void: row.episodes_void, blockers: row.blockers,
   })));
   // Separate policy routes for one body remain separate rows, including their reasons.
   expect(evidence.screening?.candidates.filter(row => row.candidateId.startsWith("universal_robots_ur5e__")).length).toBeGreaterThan(1);
+  const scope = { requestId: "job-one", briefDigest, captureId: completed.source.capture_id };
+  const readback = await readCurrentTaskScreening(scope);
+  expect(readback.status).toBe("recorded");
+  expect(readback.runs[0].candidates).toEqual(evidence.screening?.candidates);
+  expect(readback.runs[0].provenance).toMatchObject({ source: completed.source,
+    generated_at: completed.generated_at, publication_digest: completed.publication_digest });
+  expect(Object.keys(readback.evidence_source!.content.content.candidate_statements)).toHaveLength(84);
+  for (const different of [{ requestId: "other-job" }, { captureId: "other-capture" }, { briefDigest: screeningSha("9") }]) {
+    const inaccessible = await readCurrentTaskScreening({ ...scope, ...different });
+    expect(inaccessible).toMatchObject({ status: "unavailable", runs: [], evidence_source: null });
+  }
   store.rows.get("inboundRequests/job-one").request.consent_attestation.revoked_at_iso = "2026-10-26T13:00:00Z";
   expect((await send(url, signed(completed))).status).toBe(409);
   expect((await loadManagedJobEvidence("job-one", briefDigest))[0].current).toBe(false);
+  expect(await readCurrentTaskScreening(scope)).toMatchObject({ status: "unavailable", runs: [], evidence_source: null });
 });
 
 it("refuses cross-site and revoked source publications without partial records", async () => {
