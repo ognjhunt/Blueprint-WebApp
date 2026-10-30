@@ -35,7 +35,7 @@ type EvaluationEvidence = {
 };
 
 const BETA_FREE = "Blueprint charges nothing during the beta. Agree the pilot price and terms with the delivery partner before work starts.";
-const DIRECT_AGREEMENT = "You and the delivery partner must agree the scope, price, dates and support directly. No date or delivery contract is confirmed by this selection.";
+const DIRECT_AGREEMENT = "You and the delivery partner agree the scope, price, dates and support directly. This choice does not confirm a date or a delivery contract.";
 const percent = (fraction: number) => `${Math.round(fraction * 1000) / 10}%`;
 
 function EvidenceLine({ evidence }: { evidence: EvaluationEvidence }) {
@@ -43,14 +43,14 @@ function EvidenceLine({ evidence }: { evidence: EvaluationEvidence }) {
     ? `Blueprint's pass mark of ${percent(evidence.passMarkSuccessRate)}`
     : `your pass mark of ${percent(evidence.passMarkSuccessRate)}`;
   return <>
-    <p>In Blueprint&apos;s evaluation of this approach on your job, {evidence.episodesSucceeded} of {evidence.episodesRun} simulated episodes succeeded ({percent(evidence.successRate)}), meeting {mark}.</p>
-    {evidence.episodeAccounting && <p className="ms-field-hint">{evidence.episodeAccounting.planned} prescribed episodes: {evidence.episodeAccounting.scored} scored ({evidence.episodeAccounting.succeeded} successes, {evidence.episodeAccounting.failed} failures), {evidence.episodeAccounting.void} void and excluded from the success-rate denominator.</p>}
-    {evidence.uncertainty && <p className="ms-field-hint">95% Wilson interval: {percent(evidence.uncertainty.lower)}–{percent(evidence.uncertainty.upper)}. The pass mark uses the observed success rate. {evidence.uncertainty.boundary}</p>}
+    <p>In simulation, this approach succeeded in {evidence.episodesSucceeded} of {evidence.episodesRun} episodes on your job ({percent(evidence.successRate)}). That meets {mark}.</p>
+    {evidence.episodeAccounting && <p className="ms-field-hint">{evidence.episodeAccounting.planned} episodes planned: {evidence.episodeAccounting.scored} scored ({evidence.episodeAccounting.succeeded} succeeded, {evidence.episodeAccounting.failed} failed). {evidence.episodeAccounting.void} could not be scored and do not count toward the success rate.</p>}
+    {evidence.uncertainty && <p className="ms-field-hint">95% confidence range (Wilson interval): {percent(evidence.uncertainty.lower)}–{percent(evidence.uncertainty.upper)}. The pass mark is checked against the observed success rate. {evidence.uncertainty.boundary}</p>}
     {evidence.cycleTimeTargetSeconds !== null && <>
-      <p>Simulated median cycle: {evidence.medianCycleSeconds}s; target: at most {evidence.cycleTimeTargetSeconds}s.</p>
-      <p className="ms-field-hint">Includes settling in the simulator; excludes policy-service latency. The physical pilot measures actual throughput.</p>
+      <p>Median cycle time in simulation: {evidence.medianCycleSeconds}s (target: {evidence.cycleTimeTargetSeconds}s or less).</p>
+      <p className="ms-field-hint">This includes time for objects to settle in the simulator, but not the delay of calling the policy service. The pilot measures real throughput.</p>
     </>}
-    <p className="ms-field-hint">Simulation estimate — the physical pilot measures the real result. It does not certify physical performance or safety.</p>
+    <p className="ms-field-hint">This is a simulation estimate. It does not certify physical performance or safety; the pilot measures the real result.</p>
     {evidence.resultUrl && <p><a className="ms-text-link" href={evidence.resultUrl}>See the evaluation results</a></p>}
   </>;
 }
@@ -130,7 +130,7 @@ function RecommendedPilotForToken({ token, bookedOnly }: { token: string; booked
   if (!recommendation) return decisionSummary;
   return (
     <>{decisionSummary}<section className="ms-task-interest" aria-labelledby="recommended-pilot-title">
-      <h2 id="recommended-pilot-title">Evaluation-backed pilot proposal</h2>
+      <h2 id="recommended-pilot-title">Proposed pilot</h2>
       <dl>
         <dt>Delivery partner</dt><dd>{recommendation.teamName}</dd>
         <dt>What the pilot tests</dt><dd>{recommendation.purpose}</dd>
@@ -138,19 +138,19 @@ function RecommendedPilotForToken({ token, bookedOnly }: { token: string; booked
           <p>{recommendation.scoredTask ? `${recommendation.scoredTask}.` : "Not recorded. Ask Blueprint what the simulation tested before you choose this proposal."}</p>
           <p className="ms-field-hint">This is the task the simulation scored. It can be narrower than your job; compare the two before you choose this proposal.</p>
         </dd>
-        <dt>Measurable success condition</dt><dd>{recommendation.successCondition || "Not yet recorded — agree the pass condition before a physical commitment."}</dd>
-        <dt>Scope exclusions</dt><dd>{recommendation.exclusions || "Not yet agreed."}</dd>
-        <dt>Evaluation evidence</dt><dd>{recommendation.evidence
+        <dt>How success is measured</dt><dd>{recommendation.successCondition || "Not recorded yet. Agree on the pass condition before committing to physical work."}</dd>
+        <dt>Not included</dt><dd>{recommendation.exclusions || "Not yet agreed."}</dd>
+        <dt>Simulation results</dt><dd>{recommendation.evidence
           ? <EvidenceLine evidence={recommendation.evidence} />
-          : recommendation.capabilityBasis || "No demonstrated capability evidence is recorded here; this is a proposed fit to test."}</dd>
-        <dt>Provider commitment</dt><dd>{coordination?.state === "scheduled" ? "Provider and site agreement recorded for the confirmed date and scope." : recommendation.providerCommitment || "Proposed delivery partner; availability and commitment are not yet confirmed."}</dd>
+          : recommendation.capabilityBasis || "No results are recorded yet. This is a proposed fit to test."}</dd>
+        <dt>Delivery partner commitment</dt><dd>{coordination?.state === "scheduled" ? "The delivery partner and your site have agreed the confirmed date and scope." : recommendation.providerCommitment || "Proposed. The delivery partner has not yet confirmed availability or commitment."}</dd>
         <dt>What you provide</dt><dd>{recommendation.siteProvides}</dd>
         <dt>Equipment and work the delivery partner provides</dt><dd>{recommendation.teamProvides}</dd>
         <dt>Pilot cost</dt><dd>{recommendation.pilotCost}, paid to the delivery partner under your agreement</dd>
-        <dt>Cost basis</dt><dd>{recommendation.costBasis || "Provisional — confirm the provider quote and applicable agreement."}</dd>
+        <dt>Cost basis</dt><dd>{recommendation.costBasis || "Provisional. Confirm the delivery partner's quote and agreement."}</dd>
         <dt>Proposed timing</dt><dd>{recommendation.window} {coordination?.state === "scheduled" ? "(original proposal window; confirmed date below)" : "(not a reserved date)"}</dd>
         <dt>Site preparation</dt><dd>{recommendation.sitePreparation || "Responsibilities still need agreement."}</dd>
-        <dt>Human work still needed</dt><dd>{recommendation.humanWork || "Provider/site coordination, safety review and installation authority remain to be confirmed."}</dd>
+        <dt>Human work still needed</dt><dd>{recommendation.humanWork || "Still to confirm: coordination between your site and the delivery partner, the safety review, and who authorizes installation."}</dd>
         {recommendation.uncertainties ? <><dt>Still uncertain</dt><dd>{recommendation.uncertainties}</dd></> : null}
         {recommendation.alternative ? <><dt>Alternative</dt><dd>{recommendation.alternative}</dd></> : null}
       </dl>

@@ -76,7 +76,7 @@ function JobWorkspaceForToken({ token, preparationOutcome, currentStatusKnown = 
   }, [endpoint, refresh]);
 
   async function save(path: string, method: "PATCH" | "POST", body: unknown) {
-    if (resultSuperseded && path === "select") throw new Error("Blueprint is reviewing the object selection before a new proposal choice.");
+    if (resultSuperseded && path === "select") throw new Error("Blueprint is reviewing the object selection. You can choose a proposal again once that is done.");
     if (inFlight.current) throw new Error("Another change is being saved. Please wait a moment.");
     inFlight.current = true;
     ++generation.current;
@@ -109,8 +109,8 @@ function JobWorkspaceForToken({ token, preparationOutcome, currentStatusKnown = 
   const proposalSection = (
     <section className="job-proposals" aria-labelledby="delivery-proposals-title">
       <h3 id="delivery-proposals-title">Delivery proposals</h3>
-      {resultSuperseded ? <p className="ms-field-hint">These proposals use the earlier object selection. Blueprint is reviewing the job before another choice.</p> : !available.length ? <p className="ms-field-hint">No delivery proposal is ready to review. Blueprint will identify suitable options and explain any checks still needed.</p>
-        : <p className="ms-field-hint">Compare the complete cost, commitments and support. Choosing a proposal starts the agreement process; it does not sign a contract or reserve a date.</p>}
+      {resultSuperseded ? <p className="ms-field-hint">These proposals are based on the earlier object selection. Blueprint is reviewing the job before you choose again.</p> : !available.length ? <p className="ms-field-hint">No delivery proposal is ready to review. Blueprint will identify suitable options and explain any checks still needed.</p>
+        : <p className="ms-field-hint">Compare the full cost, commitments and support. Choosing a proposal starts the agreement process. It does not sign a contract or reserve a date.</p>}
       {visibleProposals.map(proposal => <ProposalCard key={`${proposal.id}:${proposal.revision}`} proposal={proposal}
         selected={selected?.id === proposal.id} locked={resultSuperseded || Boolean(workflow.agreement) || proposal.status !== "available"} hasSelection={Boolean(workflow.selection)} pending={pending}
         evidenceHref={digest => `${endpoint}/evidence/${encodeURIComponent(digest)}`}
@@ -175,7 +175,7 @@ function JobWorkspaceForToken({ token, preparationOutcome, currentStatusKnown = 
         <p className="ms-field-hint break-all">Run: {item.runId}{item.resultDigest ? ` · Result: ${item.resultDigest}` : ""}</p>
       </article>)}
     </section>}
-    {workflow.jobId && (workflow.evidence ?? []).some(item => item.current && ["information_required", "blocked", "unavailable"].includes(item.state)) ? <p className="ms-field-hint"><a className="ms-text-link" href={`/app/captures?jobId=${encodeURIComponent(workflow.jobId!)}`}>Add task-specific capture evidence</a> when Blueprint needs it. Use the account that owns this job; the existing recording permissions still apply.</p> : null}
+    {workflow.jobId && (workflow.evidence ?? []).some(item => item.current && ["information_required", "blocked", "unavailable"].includes(item.state)) ? <p className="ms-field-hint"><a className="ms-text-link" href={`/app/captures?jobId=${encodeURIComponent(workflow.jobId!)}`}>Add more video of the task</a> if Blueprint asks for it. Use the account that owns this job; your existing recording permissions still apply.</p> : null}
     </details>}
     {resultSuperseded ? <details className="job-planning-details">
       <summary>Earlier delivery proposals</summary>{proposalSection}
@@ -200,7 +200,7 @@ function JobWorkspaceForToken({ token, preparationOutcome, currentStatusKnown = 
         {workflow.outcome.interventionsPerHour !== null && <div><dt>Human interventions per hour</dt><dd>{workflow.outcome.interventionsPerHour}</dd></div>}
       </dl>
       {workflow.outcome.notes && <p>{workflow.outcome.notes}</p>}
-      <p className="ms-field-hint">This is your site's report. It does not change evaluation scores or establish independent physical validation.</p>
+      <p className="ms-field-hint">This is your site's own report. It does not change the evaluation scores, and it is not independent physical validation.</p>
     </section> : selected && selected.status !== "withdrawn" && workflow.agreement?.outcomeRecordingAuthorized === true && Boolean(workflow.agreement.outcomeRecordingPermissionReference) ? <OutcomeForm historical={selected.status === "review_required"} proposal={selected} pending={pending} onSave={value => save("outcome", "POST", value)} /> : null}
   </section>
     <RecommendedPilot token={token} bookedOnly />
@@ -283,8 +283,8 @@ function ProposalCard({ proposal, selected, locked, hasSelection, pending, onSel
         <div><dt>Pilot acceptance criteria</dt><dd>{proposal.acceptanceCriteria}</dd></div>
       </dl>
       <h5>Evidence for this proposal</h5>
-      {!proposal.evidence.length ? <p>No capability evidence is attached.</p> : <ul className="job-evidence-list">{proposal.evidence.map((evidence, index) => <li key={index}><strong>{evidenceLabels[evidence.level]}:</strong> <span>{evidence.summary}</span>{evidence.reference ? <p className="ms-field-hint break-all"><a className="ms-text-link" href={evidence.reference.kind === "managed_run" ? `#managed-evidence-${encodeURIComponent(evidence.reference.runId)}` : evidenceHref(evidence.reference.publicationDigest)} target={evidence.reference.kind === "managed_run" ? undefined : "_blank"} rel="noreferrer">Read this evidence</a> · Pipeline reference: {evidence.reference.kind === "managed_run" ? `${evidence.reference.runId} · ${evidence.reference.resultDigest}` : `${evidence.reference.requestId} · ${evidence.reference.publicationDigest}`}</p> : null}</li>)}</ul>}
-      <p className="ms-field-hint">A prior deployment or simulation does not establish performance at your site. Agree what the physical pilot must demonstrate.</p>
+      {!proposal.evidence.length ? <p>No evidence is attached to this proposal yet.</p> : <ul className="job-evidence-list">{proposal.evidence.map((evidence, index) => <li key={index}><strong>{evidenceLabels[evidence.level]}:</strong> <span>{evidence.summary}</span>{evidence.reference ? <p className="ms-field-hint break-all"><a className="ms-text-link" href={evidence.reference.kind === "managed_run" ? `#managed-evidence-${encodeURIComponent(evidence.reference.runId)}` : evidenceHref(evidence.reference.publicationDigest)} target={evidence.reference.kind === "managed_run" ? undefined : "_blank"} rel="noreferrer">Read this evidence</a> · Reference: {evidence.reference.kind === "managed_run" ? `${evidence.reference.runId} · ${evidence.reference.resultDigest}` : `${evidence.reference.requestId} · ${evidence.reference.publicationDigest}`}</p> : null}</li>)}</ul>}
+      <p className="ms-field-hint">Neither a past deployment nor a simulation proves performance at your site. Agree on what the pilot must show.</p>
     </details>
     {!selected && !locked && <form className="ms-form job-proposal-choice" onSubmit={submit} aria-label={`Choose ${proposal.providerName}`}>
       <label className="ms-check-row"><input type="checkbox" checked={authorized} onChange={event => setAuthorized(event.target.checked)} required />I am authorized to choose this proposal for my site. I understand the contract, price and dates still need agreement.{hasSelection ? " This will replace my previous choice." : ""}</label>

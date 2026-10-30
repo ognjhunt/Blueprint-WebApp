@@ -432,7 +432,7 @@ describe("GET /api/site-task-brief/:token/status", () => {
     const response = await fetch(`${baseUrl}/api/site-task-brief/${saved.token}/status`);
     expect(await response.json()).toMatchObject({ captureReceived: true,
       processingHold: { code: "capture_processing_not_authorized" },
-      status: { headline: "Your video is saved. Recording consent was withdrawn. Capture-derived review and the scene preview are unavailable.", operatorAction: null } });
+      status: { headline: "Your video is saved. Recording consent was withdrawn, so we can no longer review the video or show the scene preview.", operatorAction: null } });
     expect([...sharedFakeFirestoreState.docs]).toEqual(before);
     expect(storage.write).not.toHaveBeenCalled();
     expect(deliverOutbox).not.toHaveBeenCalled();
@@ -460,7 +460,7 @@ describe("GET /api/site-task-brief/:token/status", () => {
     const response = await fetch(`${baseUrl}/api/site-task-brief/${saved.token}/status`);
     expect(await response.json()).toMatchObject({ captureReceived: true, uploadState: "processing_ready",
       processingHold: { code: "capture_processing_not_authorized" },
-      status: { headline: "Your video is saved. Recording consent was withdrawn. Capture-derived review and the scene preview are unavailable.", operatorAction: null } });
+      status: { headline: "Your video is saved. Recording consent was withdrawn, so we can no longer review the video or show the scene preview.", operatorAction: null } });
     expect(storage.write).not.toHaveBeenCalled();
     expect(deliverOutbox).not.toHaveBeenCalled();
   });
@@ -692,7 +692,7 @@ describe("GET /api/site-task-brief/:token/status", () => {
     // flight the site hears that none can support a recommendation yet.
     const settled = (await status()).body;
     expect(settled.status.decision).toBe("no_qualified_evaluation");
-    expect(settled.status.headline).toMatch(/none can support a recommendation yet: 1 run could not be scored against your job's pass mark/);
+    expect(settled.status.headline).toMatch(/none can support a recommendation yet\. 1 run could not be scored against your pass mark/);
     expect(settled.status.headline).not.toMatch(/passed|failed|without passing/i);
 
     sharedFakeFirestoreState.docs.set("evaluationRuns/run_q1", {
@@ -701,7 +701,7 @@ describe("GET /api/site-task-brief/:token/status", () => {
     const { body } = await status();
 
     expect(body.status.decision).toBe("results");
-    expect(body.status.headline).toContain("Review each run's observed episodes separately");
+    expect(body.status.headline).toContain("Each run's episodes are shown separately");
     expect(body.status.operatorAction).toBe("Review the results.");
   });
 

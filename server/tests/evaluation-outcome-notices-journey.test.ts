@@ -153,7 +153,7 @@ describe("when every evaluation of a job has finished without a pass", () => {
 
     const status = await jobStatus(token);
     expect(status.decision).toBe("no_qualified_evaluation");
-    expect(status.headline).toMatch(/2 runs could not be scored against your job's pass mark/);
+    expect(status.headline).toMatch(/2 runs could not be scored against your pass mark/);
   });
 
   it("tells the site what would change a qualified evaluation that did not pass", async () => {
@@ -162,13 +162,13 @@ describe("when every evaluation of a job has finished without a pass", () => {
     await concluded(jobId, "run-short");
     const notice = outbox(`${jobId}:no_team_passed:run-short`);
     expect(notice?.kind).toBe("no_team_passed");
-    expect(notice?.body).toMatch(/The closest qualified evaluation succeeded in 172 of 200 episodes \(86%\), against your pass mark of 90%\./);
+    expect(notice?.body).toMatch(/The closest scored evaluation succeeded in 172 of 200 episodes \(86%\); your pass mark is 90%\./);
     expect(notice?.body).toMatch(/To pass in this simulation, a candidate needs to reach 90%/);
     expect(queuedKinds(jobId)).not.toContain("no_qualified_evaluation");
 
     const status = await jobStatus(token);
     expect(status.decision).toBe("no_team_passed");
-    expect(status.headline).toMatch(/172 of 200 episodes \(86%\), against your pass mark of 90%/);
+    expect(status.headline).toMatch(/172 of 200 episodes \(86%\); your pass mark is 90%/);
   });
 
   it("sends neither while a qualified evaluation passed", async () => {

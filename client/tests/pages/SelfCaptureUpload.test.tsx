@@ -281,7 +281,7 @@ describe("video first owner return", () => {
     render(<SelfCaptureUpload />);
     const permission = await screen.findByRole("region", { name: "Confirm recording permission" });
     expect(permission.closest("details")).toBeNull();
-    expect(permission).toHaveTextContent(/video is needed to build the site simulation/);
+    expect(permission).toHaveTextContent(/need your video to build the site simulation/);
     expect(screen.queryByRole("heading", { name: "Your job summary" })).not.toBeInTheDocument();
     // Said before the grant: people in the work area are told, and sound is not analysed.
     expect(screen.getByText(/Tell people in the work area that you are filming for Blueprint, and avoid filming conversations\. We remove sound before any automated review\./)).toBeInTheDocument();
