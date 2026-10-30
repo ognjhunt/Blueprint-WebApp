@@ -3,8 +3,8 @@ import { expect, it } from "vitest";
 import { CandidatePreparation } from "../src/components/shared/CandidatePreparation";
 it("shows preparation for every candidate without invented scores or learned-policy claims", () => {
   render(<CandidatePreparation preview={{state: "available", revision: "opaque", catalogCandidateCount: 2, candidates: [
-    {candidateId: "a", name: "Robot A policy", compatibility: "not_evaluated", kind: "learned_policy", notes: ["Access has not been verified."]},
-    {candidateId: "b", name: "Robot B script", compatibility: "not_evaluated", kind: "scripted_baseline", notes: []},
+    {candidateId: "a", configurationDigest: "opaque-a", name: "Robot A policy", compatibility: "not_evaluated", kind: "learned_policy", notes: ["Access has not been verified."]},
+    {candidateId: "b", configurationDigest: "opaque-b", name: "Robot B script", compatibility: "not_evaluated", kind: "scripted_baseline", notes: []},
   ]}} />);
   expect(screen.getAllByText("Not yet evaluated")).toHaveLength(2);
   expect(screen.getByText("Scripted simulation baseline")).toBeTruthy();

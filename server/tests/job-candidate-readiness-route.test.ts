@@ -41,10 +41,10 @@ beforeEach(() => {
     state.docs.set(`captureUploadSessions/walkthrough-${id}`, {website_preparation: {selector: {request_id: id}}});
   }
   preview.load.mockImplementation(async (requestId: string) => ({state: "available", revision: "opaque", catalogCandidateCount: 2,
-    candidates: ["a", "b"].map(candidateId => ({candidateId, name: `${requestId} ${candidateId}`, compatibility: "not_evaluated", kind: "learned_policy", notes: []}))}));
+    candidates: ["a", "b"].map(candidateId => ({candidateId, configurationDigest: "sha256:" + "a".repeat(64), name: `${requestId} ${candidateId}`, compatibility: "not_evaluated", kind: "learned_policy", notes: []}))}));
 });
 it("owner route uses its verified job identity, no-cache and separate preparation, with genuine published IDs taking precedence", async () => {
-  preview.evidence = [{current: true, screening: {candidates: [{candidateId: "a"}]}}];
+  preview.evidence = [{current: true, screening: {candidates: [{candidateId: "a", configurationDigest: "sha256:" + "a".repeat(64)}]}}];
   const response = await get(`/owner/${token()}`);
   expect(response.status).toBe(200); expect(response.cache).toBe("no-store");
   expect(preview.load).toHaveBeenCalledWith("development-job", "walkthrough-development-job");

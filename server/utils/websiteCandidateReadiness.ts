@@ -81,7 +81,7 @@ export async function loadJobCandidateReadiness(requestId: string, captureId: st
       const after = await deps.proof(requestId, captureId);
       if (controller.signal.aborted || crossRuntimeDigest(before) !== crossRuntimeDigest(after)) throw unavailable();
       return {state: "available", revision: value.readiness_digest, catalogCandidateCount: value.candidate_count,
-        candidates: value.candidates.map(row => ({candidateId: row.candidate_id, name: row.display_name,
+        candidates: value.candidates.map(row => ({candidateId: row.candidate_id, configurationDigest: row.configuration_digest, name: row.display_name,
           compatibility: "not_evaluated", kind: row.policy_kind === "scripted" ? "scripted_baseline" : "learned_policy",
           notes: candidatePreparationNotes(row.known_reasons)}))};
     })()]);
@@ -90,9 +90,18 @@ export async function loadJobCandidateReadiness(requestId: string, captureId: st
     : "Candidate preparation details are temporarily unavailable. Refresh to try again."}; }
   finally {clearTimeout(timer!); controller.abort();}
 }
-/** Current Pipeline publication wins by stable ID. Historical results do not hide new preparation. */
+/** Only current publication for the exact configuration supersedes preparation.
+ * A tested older configuration remains valid history, never proof for its replacement. */
 export function omitPublishedCandidates(preview: JobCandidateReadiness, evidence: JobManagedEvidenceSummary[]): JobCandidateReadiness {
   if (preview.state !== "available") return preview;
-  const published = new Set(evidence.filter(row => row.current).flatMap(row => row.screening?.candidates.map(candidate => candidate.candidateId) ?? []));
-  return {...preview, candidates: preview.candidates.filter(row => !published.has(row.candidateId))};
+  const published = evidence.filter(row => row.current).flatMap(row => row.screening?.candidates ?? []);
+  return {...preview, candidates: preview.candidates.flatMap(row => {
+    const matches = published.filter(candidate => candidate.candidateId === row.candidateId);
+    if (matches.some(candidate => candidate.configurationDigest === row.configurationDigest)) return [];
+    if (!matches.length) return [row];
+    const note = matches.every(candidate => candidate.configurationDigest)
+      ? "Existing results used a different configuration. This configuration has not been evaluated."
+      : "Existing results do not identify this configuration. This configuration has not been evaluated.";
+    return [{...row, notes: [note, ...row.notes]}];
+  })};
 }

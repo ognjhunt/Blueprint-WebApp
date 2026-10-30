@@ -58,7 +58,7 @@ describe("read-only candidate preparation", () => {
   });
   it("current genuine publication replaces the same IDs; history does not suppress preparation", async () => {
     const preview = await loadJobCandidateReadiness(selector.request_id, selector.capture_id, deps(fixture()));
-    const evidence = [{current: true, screening: {candidates: [{candidateId: "public-policy"}]}},
+    const evidence = [{current: true, screening: {candidates: [{candidateId: "public-policy", configurationDigest: hash}]}},
       {current: false, screening: {candidates: [{candidateId: "blueprint-script"}]}}] as JobManagedEvidenceSummary[];
     const result = omitPublishedCandidates(preview, evidence);
     expect(result.state === "available" && result.candidates.map(row => row.candidateId)).toEqual(["blueprint-script"]);
@@ -97,4 +97,17 @@ it("reports a complete-list overflow instead of silently displaying a subset", a
     {...deps(null), read: readCandidateReadinessCompanion});
   expect(result).toMatchObject({state: "unavailable", message: expect.stringContaining("complete candidate list exceeds")});
   expect(result).not.toHaveProperty("candidates");
+});
+
+it.each(["different", "missing", "historical"])("keeps untested preparation when publication configuration is %s", async kind => {
+  const preview = await loadJobCandidateReadiness(selector.request_id, selector.capture_id, deps(fixture()));
+  const evidence = [{current: kind !== "historical", screening: {candidates: [{candidateId: "public-policy",
+    ...(kind === "missing" ? {} : {configurationDigest: kind === "different" ? "sha256:" + "d".repeat(64) : hash})}]}}] as JobManagedEvidenceSummary[];
+  const result = omitPublishedCandidates(preview, evidence);
+  if (result.state !== "available") throw Error();
+  expect(result.candidates).toHaveLength(2);
+  expect(result.candidates[0].configurationDigest).toBe(hash);
+  if (kind === "historical") expect(result.candidates[0].notes[0]).not.toContain("Existing results");
+  else expect(result.candidates[0].notes[0]).toContain("This configuration has not been evaluated.");
+  expect(evidence[0].screening?.candidates).toHaveLength(1);
 });

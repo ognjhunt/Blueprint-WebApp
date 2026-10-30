@@ -25,7 +25,9 @@ the optional view.
 
 The client displays fixed plain-English notes rather than raw blockers, hashes,
 host paths, credential names or endpoints. Genuine current screening rows replace
-preview rows by candidate ID, while superseded/historical results remain history.
+preview rows only when candidate ID and configuration digest both match. A changed
+or unidentified configuration stays in preparation with an explicit note; existing
+results remain untouched. Superseded/historical results do not suppress preparation.
 The live Firestore RobotTeam routing and deployment inventory remain unchanged.
 
 Tests exercise strict payload/source/digest/size refusal, overflow copy, two-phase
