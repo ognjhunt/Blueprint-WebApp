@@ -350,14 +350,14 @@ export function buildQualifiedEmail(params: {
     "How we help you make the decision:",
     "",
     bulletList(params.jobCardPublished === false ? [
-      "We review the job brief, required output and site constraints with you. Video is required before the site assessment: we analyze it, draft the brief, then reconstruct the work area in simulation and run candidate robots, policies and policy APIs against your job ourselves.",
+      "We review the job brief, required output and site constraints with you. We need your video before the site assessment. We analyze it, draft the brief, build a simulation of your work area and test robots and policies on your job ourselves.",
       "Your job card is not published, so partners cannot discover it through the shared library. We ask before sharing details with any partner.",
       "You can publish its card from your job page when you want approved partners to see it. The card shows only the anonymized text you approve.",
       "Any physical pilot is agreed with the deployment company: its scope, price, timing and acceptance criteria.",
     ] : [
       "We review the job brief, required output and site constraints with you.",
-      "Video is required for the site assessment. We analyze it, draft the brief, then reconstruct the work area in simulation and run candidate robots, policies and policy APIs against your job ourselves.",
-      "You see a bounded estimate of what works, or “held” if we can't simulate that kind of job yet. If no candidate is suitable, we explain what is missing.",
+      "We need your video for the site assessment. We analyze it, draft the brief, build a simulation of your work area and test robots and policies on your job ourselves.",
+      "You see an estimate of what's likely to work, or “held” if we can't simulate that kind of job yet. If no candidate is suitable, we explain what is missing.",
       "We then work alongside a deployment company on your site. You agree the physical pilot's scope, price, timing and acceptance criteria directly with that company.",
     ]),
     "",

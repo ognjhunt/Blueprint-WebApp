@@ -123,19 +123,19 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
   },
   screening_not_now: {
     subject: "An update on your Blueprint job",
-    body: (url) => `The reviewed information leaves a consequential assessment blocker unresolved. Your job page shows the reason and what is needed. Blueprint owns the follow-through; reply in your job conversation with a correction or use the optional job page when that information changes.\n\nOpen your job:\n${url}`,
+    body: (url) => `Something in the information we reviewed still blocks the assessment. Your job page shows what it is and what is needed. Blueprint will follow up. Reply in your job conversation with a correction, or update your job page when that information changes.\n\nOpen your job:\n${url}`,
   },
   results_ready: {
     subject: "Results are in from an evaluation of your job",
-    body: (url, detail, _counterpart, workspaceUrl) => `An evaluation run of one candidate against your scene has finished${detail ? `: ${detail}` : ""}. This is a bounded simulation estimate for one candidate, not a physical test; it never certifies physical performance or safety.\n\n${whereRunsAre(url, workspaceUrl, "See the run")}`,
+    body: (url, detail, _counterpart, workspaceUrl) => `An evaluation run of one candidate in the simulation of your site has finished${detail ? `: ${detail}` : ""}. This is a simulation estimate for that one candidate, not a physical test. It never certifies physical performance or safety.\n\n${whereRunsAre(url, workspaceUrl, "See the run")}`,
   },
   run_no_result: {
     subject: "An evaluation run ended without a result",
-    body: (url, detail, _counterpart, workspaceUrl) => `An evaluation run against your scene ended without a complete scored result. ${detail || noResultObservationText()} Reply if you need help understanding what happened.\n\n${whereRunsAre(url, workspaceUrl, "Review the run")}`,
+    body: (url, detail, _counterpart, workspaceUrl) => `An evaluation run in the simulation of your site ended without a complete scored result. ${detail || noResultObservationText()} Reply if you need help understanding what happened.\n\n${whereRunsAre(url, workspaceUrl, "Review the run")}`,
   },
   awaiting_evaluations: {
     subject: "Your job is ready for evaluation",
-    body: (url) => `Your job is ready for evaluation in a simplified simulation of your task, informed by your footage. Next, Blueprint evaluates candidate robots and policies against it, and approved partners, who see only its anonymized card, can ask for their systems to be evaluated too. Your job page shows where the evaluations stand. Nothing is needed from you.\n\nOpen your job:\n${url}`,
+    body: (url) => `Your job is ready for evaluation in a simplified simulation of your task, informed by your footage. Next, Blueprint tests robots and policies on it. Approved partners, who see only its anonymized card, can also ask to have their systems evaluated. Your job page shows where the evaluations stand. Nothing is needed from you.\n\nOpen your job:\n${url}`,
   },
   no_team_passed: {
     subject: "No evaluation of your job has passed yet",
@@ -145,7 +145,7 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
   no_qualified_evaluation: {
     subject: "Your job's evaluations finished, with no result that counts yet",
     // Never a failure: diagnostic, unqualified or unscored runs count neither way.
-    body: (url, _detail, _counterpart, workspaceUrl) => `The evaluations of your job so far have finished, but none can support a recommendation yet: they were diagnostic runs, ran before your scene was qualified for scored evaluations, could not be scored against your job's pass mark, or ended without an observed episode. So none counts as a pass or a failure. Nothing is needed from you. We email you when a qualified evaluation finishes.\n\n${whereRunsAre(url, workspaceUrl, "See each run")}`,
+    body: (url, _detail, _counterpart, workspaceUrl) => `The evaluations of your job so far have finished, but none can support a recommendation yet. They were diagnostic runs, ran before your scene was ready for scored evaluations, could not be scored against your pass mark, or ended before any episode was recorded. So none counts as a pass or a fail. Nothing is needed from you. We email you when a scored evaluation finishes.\n\n${whereRunsAre(url, workspaceUrl, "See each run")}`,
   },
   footage_before_account: {
     subject: "Your video arrived before your job was saved to an account",

@@ -38,7 +38,7 @@ export async function notifyTeamOfRunOutcome(params: {
   const body = result
     ? [
         "Hi,",
-        `Your evaluation run finished: ${result.episodesSucceeded} of ${result.episodesRun} simulated episodes succeeded. This is a simulation result against one site's job: a bounded estimate, not a physical test, and not proof of performance or safety on site.`,
+        `Your evaluation run finished: ${result.episodesSucceeded} of ${result.episodesRun} simulated episodes succeeded. This is a simulation result on one site's job. It is an estimate, not a physical test, and not proof of performance or safety on site.`,
         `See this evaluation and its result in your Blueprint workspace:\n${EVALUATIONS_URL}`,
         EMAIL_SIGN_OFF,
       ].join("\n\n")

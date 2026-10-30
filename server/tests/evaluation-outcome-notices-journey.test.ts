@@ -141,7 +141,7 @@ describe("when every evaluation of a job has finished without a pass", () => {
     const notice = outbox(`${jobId}:no_qualified_evaluation`);
     expect(notice?.kind).toBe("no_qualified_evaluation");
     expect(notice?.body).toMatch(/none can support a recommendation yet/);
-    expect(notice?.body).toMatch(/We email you when a qualified evaluation finishes/);
+    expect(notice?.body).toMatch(/We email you when a scored evaluation finishes/);
     expect(`${notice?.subject}\n${notice?.body}`).not.toMatch(/passed|failed|without passing/i);
     // Never the no-pass notice for ineligible evidence.
     expect(queuedKinds(jobId)).not.toContain("no_team_passed");

@@ -202,8 +202,8 @@ describe("the confirmation says what our screen decided", () => {
     const sent = vi.mocked(enqueueOutbox).mock.calls[0][0] as { body: string };
     expect(sent.body).toMatch(/^Hi Dana,/);
     expect(sent.body).toMatch(/upload it here: http\S+\/capture-upload\//);
-    expect(sent.body).toMatch(/run candidate robots, policies and policy APIs against your job ourselves/);
-    expect(sent.body).toMatch(/bounded estimate of what works, or “held” if we can't simulate that kind of job yet/);
+    expect(sent.body).toMatch(/test robots and policies on your job ourselves/);
+    expect(sent.body).toMatch(/an estimate of what's likely to work, or “held” if we can't simulate that kind of job yet/);
     expect(sent.body).toMatch(/work alongside a deployment company on your site\. You agree the physical pilot's scope, price, timing and acceptance criteria directly with that company/);
     expect(sent.body).toMatch(/If no candidate is suitable, we explain what is missing/);
     expect(sent.body).toMatch(/free during the beta/);
