@@ -235,8 +235,8 @@ describe("the qualified reply", () => {
     expect(email.body).toContain("Thanks for confirming the job brief for Riverside DC");
     expect(email.body).toContain("upload it here: https://example.test/capture-upload/abc");
     // Blueprint runs the candidates itself and shows a bounded estimate or "held" (owner, 2026-10-28).
-    expect(email.body).toMatch(/reconstruct the work area in simulation and run candidate robots, policies and policy APIs against your job ourselves/);
-    expect(email.body).toMatch(/You see a bounded estimate of what works, or “held” if we can't simulate that kind of job yet/);
+    expect(email.body).toMatch(/build a simulation of your work area and test robots and policies on your job ourselves/);
+    expect(email.body).toMatch(/You see an estimate of what's likely to work, or “held” if we can't simulate that kind of job yet/);
     expect(email.body).toMatch(/We then work alongside a deployment company on your site/);
     expect(email.body).not.toMatch(/Screening runs are diagnostic|full scoring|review their proposals/);
     expect(email.body).toMatch(/If no candidate is suitable, we explain what is missing/);
@@ -289,7 +289,7 @@ describe("the qualified reply", () => {
     const step = { kind: "self_capture", uploadUrl: "https://example.test/capture-upload/abc" } as const;
     const body = buildQualificationEmail({ firstName: "Dana", stage: "brief_confirmed", nextStep: step, jobCardPublished: false,
       triage: triage({ disposition: "qualified", blockers: [], blocking_field_ids: [] }) })!.body;
-    expect(body).toMatch(/Video is required before the site assessment/);
+    expect(body).toMatch(/We need your video before the site assessment/);
     expect(body).toMatch(/partners cannot discover it through the shared library/);
     expect(body).toMatch(/We ask before sharing details with any partner/);
     expect(body).toMatch(/publish its card from your job page/);

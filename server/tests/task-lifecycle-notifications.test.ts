@@ -73,7 +73,7 @@ describe("task lifecycle notifications", () => {
     expect(first.body).toContain("12 of 50 simulated episodes succeeded");
     expect(first.body).toMatch(/not a physical test/i);
     // One candidate's run is a bounded estimate; there is no separate full-evaluation tier (owner, 2026-10-28).
-    expect(first.body).toMatch(/bounded simulation estimate for one candidate, not a physical test; it never certifies physical performance or safety/);
+    expect(first.body).toMatch(/simulation estimate for that one candidate, not a physical test\. It never certifies physical performance or safety/);
     expect(first.body).not.toMatch(/finalists|full scoring|full evaluation/);
     expect(sharedFakeFirestoreState.docs.has("captureOutbox/req-1:results_ready:run_b")).toBe(true);
   });
@@ -188,7 +188,7 @@ describe("a waiting job hears what it is waiting on", () => {
     const row = sharedFakeFirestoreState.docs.get("captureOutbox/req-1:awaiting_evaluations") as Record<string, string>;
     expect(row.subject).toBe("Your job is ready for evaluation");
     // Blueprint runs the candidates; partners can ask to be evaluated too (owner, 2026-10-26).
-    expect(row.body).toMatch(/Next, Blueprint evaluates candidate robots and policies against it/);
+    expect(row.body).toMatch(/Next, Blueprint tests robots and policies on it\./);
     expect(row.body).toMatch(/Your job page shows where the evaluations stand\. Nothing is needed from you\./);
     expect(row.body).not.toMatch(/robot teams?/i);
     sharedFakeFirestoreState.docs.delete("captureOutbox/req-1:awaiting_evaluations");

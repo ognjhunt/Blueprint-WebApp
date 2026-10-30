@@ -183,8 +183,8 @@ describe("site screening emails", () => {
     for (const nextStep of NEXT_STEPS) {
       const { body } = buildQualifiedEmail({ firstName: "Dana", nextStep });
       expect(body).toMatch(/review the job brief, required output and site constraints/);
-      expect(body).toMatch(/reconstruct the work area in simulation and run candidate robots, policies and policy APIs against your job ourselves/);
-      expect(body).toMatch(/You see a bounded estimate of what works/);
+      expect(body).toMatch(/build a simulation of your work area and test robots and policies on your job ourselves/);
+      expect(body).toMatch(/You see an estimate of what's likely to work/);
       expect(body).toMatch(/work alongside a deployment company on your site/);
       expect(body).not.toMatch(/finalists' full scoring|review their proposals/);
       expect(body).toMatch(/If no candidate is suitable, we explain what is missing/);
