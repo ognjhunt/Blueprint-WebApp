@@ -34,8 +34,8 @@ type EvaluationEvidence = {
   uncertainty?: { method: "wilson_two_sided_95"; lower: number; upper: number; boundary: string };
 };
 
-const BETA_FREE = "Blueprint charges nothing during the beta. Agree the pilot price and terms with the delivery partner before work starts.";
-const DIRECT_AGREEMENT = "You and the delivery partner agree the scope, price, dates and support directly. This choice does not confirm a date or a delivery contract.";
+const BETA_FREE = "Blueprint charges nothing during the beta. Agree the pilot price and terms with the deployment company before work starts.";
+const DIRECT_AGREEMENT = "You and the deployment company agree the scope, price, dates and support directly. This choice does not confirm a date or a delivery contract.";
 const percent = (fraction: number) => `${Math.round(fraction * 1000) / 10}%`;
 
 function EvidenceLine({ evidence }: { evidence: EvaluationEvidence }) {
@@ -132,7 +132,7 @@ function RecommendedPilotForToken({ token, bookedOnly }: { token: string; booked
     <>{decisionSummary}<section className="ms-task-interest" aria-labelledby="recommended-pilot-title">
       <h2 id="recommended-pilot-title">Proposed pilot</h2>
       <dl>
-        <dt>Delivery partner</dt><dd>{recommendation.teamName}</dd>
+        <dt>Deployment company</dt><dd>{recommendation.teamName}</dd>
         <dt>What the pilot tests</dt><dd>{recommendation.purpose}</dd>
         <dt>What the simulation tested</dt><dd>
           <p>{recommendation.scoredTask ? `${recommendation.scoredTask}.` : "Not recorded. Ask Blueprint what the simulation tested before you choose this proposal."}</p>
@@ -143,22 +143,22 @@ function RecommendedPilotForToken({ token, bookedOnly }: { token: string; booked
         <dt>Simulation results</dt><dd>{recommendation.evidence
           ? <EvidenceLine evidence={recommendation.evidence} />
           : recommendation.capabilityBasis || "No results are recorded yet. This is a proposed fit to test."}</dd>
-        <dt>Delivery partner commitment</dt><dd>{coordination?.state === "scheduled" ? "The delivery partner and your site have agreed the confirmed date and scope." : recommendation.providerCommitment || "Proposed. The delivery partner has not yet confirmed availability or commitment."}</dd>
+        <dt>Deployment company commitment</dt><dd>{coordination?.state === "scheduled" ? "The deployment company and your site have agreed the confirmed date and scope." : recommendation.providerCommitment || "Proposed. The deployment company has not yet confirmed availability or commitment."}</dd>
         <dt>What you provide</dt><dd>{recommendation.siteProvides}</dd>
-        <dt>Equipment and work the delivery partner provides</dt><dd>{recommendation.teamProvides}</dd>
-        <dt>Pilot cost</dt><dd>{recommendation.pilotCost}, paid to the delivery partner under your agreement</dd>
-        <dt>Cost basis</dt><dd>{recommendation.costBasis || "Provisional. Confirm the delivery partner's quote and agreement."}</dd>
+        <dt>Equipment and work the deployment company provides</dt><dd>{recommendation.teamProvides}</dd>
+        <dt>Pilot cost</dt><dd>{recommendation.pilotCost}, paid to the deployment company under your agreement</dd>
+        <dt>Cost basis</dt><dd>{recommendation.costBasis || "Provisional. Confirm the deployment company's quote and agreement."}</dd>
         <dt>Proposed timing</dt><dd>{recommendation.window} {coordination?.state === "scheduled" ? "(original proposal window; confirmed date below)" : "(not a reserved date)"}</dd>
         <dt>Site preparation</dt><dd>{recommendation.sitePreparation || "Responsibilities still need agreement."}</dd>
-        <dt>Human work still needed</dt><dd>{recommendation.humanWork || "Still to confirm: coordination between your site and the delivery partner, the safety review, and who authorizes installation."}</dd>
+        <dt>Human work still needed</dt><dd>{recommendation.humanWork || "Still to confirm: coordination between your site and the deployment company, the safety review, and who authorizes installation."}</dd>
         {recommendation.uncertainties ? <><dt>Still uncertain</dt><dd>{recommendation.uncertainties}</dd></> : null}
         {recommendation.alternative ? <><dt>Alternative</dt><dd>{recommendation.alternative}</dd></> : null}
       </dl>
       {recommendation.reviewRequired && <p role="alert">The job changed. Blueprint must review this proposal against the new brief before any new commitment.</p>}
       {booked ? (
-        <div role="status"><p>{coordination?.state === "scheduled" ? `Scheduled: ${new Date(coordination.startsAt!).toLocaleString()}.` : "Delivery partner selected · pilot terms still need agreement."}</p>
+        <div role="status"><p>{coordination?.state === "scheduled" ? `Scheduled: ${new Date(coordination.startsAt!).toLocaleString()}.` : "Deployment company selected · pilot terms still need agreement."}</p>
           <p>{coordination?.nextAction || DIRECT_AGREEMENT}</p>
-          {pilotBooking && <PilotBookingDetails booking={pilotBooking} other="delivery partner" showAgreement={false} />}
+          {pilotBooking && <PilotBookingDetails booking={pilotBooking} other="deployment company" showAgreement={false} />}
           {coordination?.sitePreparation && <p>{coordination.sitePreparation}</p>}
           <p>{coordination?.feeUsd === 0 ? BETA_FREE : typeof coordination?.feeUsd === "number" ? `Previously agreed Blueprint fee: ${formatPrice(coordination.feeUsd)}, due when the pilot is booked. Your accepted terms remain on file.` : "No Blueprint price is recorded here. Your existing accepted terms remain on file."}</p>
         </div>
@@ -166,12 +166,12 @@ function RecommendedPilotForToken({ token, bookedOnly }: { token: string; booked
         <form className="ms-form" onSubmit={book}>
           <label className="ms-check-row">
             <input type="checkbox" checked={authorized} onChange={e => setAuthorized(e.target.checked)} required />
-            I am authorized to choose this delivery partner for pilot discussions. This selection does not sign a delivery contract. {BETA_FREE}
+            I am authorized to choose this deployment company for pilot discussions. This selection does not sign a delivery contract. {BETA_FREE}
           </label>
           <button className="ms-button" disabled={state === "booking" || recommendation.reviewRequired}>
             {state === "booking" ? "Saving your choice…" : "Choose this pilot proposal"}
           </button>
-          <p className="ms-field-hint">Choosing this proposal shares your name, company and email with the delivery partner, and gives you its contact. Agree scope, price, dates, preparation and support with the partner before signing or starting work. Blueprint takes no cut during the beta.</p>
+          <p className="ms-field-hint">Choosing this proposal shares your name, company and email with the deployment company, and gives you its contact. Agree scope, price, dates, preparation and support with them before signing or starting work. Blueprint takes no cut during the beta.</p>
           {state === "error" && <p role="alert">{message}</p>}
         </form>
       )}

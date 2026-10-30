@@ -514,7 +514,7 @@ export async function confirmBrief(params: {
       const requestRef = db!.collection("inboundRequests").doc(params.requestId);
       const requestSnapshot = await tx.get(requestRef);
       if (requestSnapshot.data()?.job_marketplace?.agreement && !sameScope) {
-        throw new BriefPilotScopeLockedError("A pilot agreement is recorded. Agree scope changes with Blueprint and the delivery partner before changing this brief.");
+        throw new BriefPilotScopeLockedError("A pilot agreement is recorded. Agree scope changes with Blueprint and the deployment company before changing this brief.");
       }
       if (requestSnapshot.data()?.job_marketplace?.agreement) {
         confirmed.confirmedAtIso = brief.confirmedAtIso;

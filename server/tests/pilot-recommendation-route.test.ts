@@ -743,7 +743,7 @@ describe("recording Blueprint's recommended pilot", () => {
     const bookedRows = () => [...state.docs.entries()].filter(([key, row]) => key.startsWith("captureOutbox/")
       && key.split("/").length === 2 && row.kind === "pilot_booked").map(([, row]) => row);
     const siteRow = bookedRows()[0];
-    expect(String(siteRow.body)).toContain("Delivery partner contact:\nAcme Robotics\nteam@example.test");
+    expect(String(siteRow.body)).toContain("Deployment company contact:\nAcme Robotics\nteam@example.test");
     expect(String(siteRow.body)).toMatch(/agree the physical pilot's scope, price, dates and acceptance criteria directly/);
     expect(String(siteRow.body)).not.toMatch(/owns that next step/);
     expect(String(teamRows("team_pilot_booked")[0][1].body)).toContain("Site contact:\nDana Reyes, Fixture Foods\nowner@example.test");

@@ -37,7 +37,7 @@ export const betaFeeUsd = 0;
  * is no Blueprint fee during the beta, so there is nothing to refund.
  */
 export const pilotReplacementPolicy =
-  "If a delivery partner withdraws or changes its proposed scope before agreement, Blueprint helps review suitable alternatives. A replacement needs its own evidence and your approval. Blueprint charges no fee during the beta, so there is no fee to refund.";
+  "If a deployment company withdraws or changes its proposed scope before agreement, Blueprint helps review suitable alternatives. A replacement needs its own evidence and your approval. Blueprint charges no fee during the beta, so there is no fee to refund.";
 
 /** What a site pays for the simulation, the evaluation and its result: nothing. */
 export const siteAssessment = {

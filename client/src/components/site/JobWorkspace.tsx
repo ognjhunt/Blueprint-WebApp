@@ -14,7 +14,7 @@ import type {
 const stages: MarketplaceJobStage[] = ["job_submitted", "brief_agreed", "options_assessed",
   "proposals_ready", "pilot_agreed", "results_recorded"];
 
-const owners = { site: "You", blueprint: "Blueprint", deployment_partner: "Delivery partner", none: "No action needed" };
+const owners = { site: "You", blueprint: "Blueprint", deployment_partner: "Deployment company", none: "No action needed" };
 const evidenceLabels = { prior_deployment: "Prior deployment", simulation: "Simulation", physical_trial: "Physical trial", unverified: "Not yet verified" };
 const money = (value: number | null) => value === null ? "Quote needed" : new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(value);
 
@@ -185,9 +185,9 @@ function JobWorkspaceForToken({ token, preparationOutcome, currentStatusKnown = 
 
     {selected && selected.status !== "withdrawn" && <section className="job-agreement" aria-labelledby="pilot-agreement-title">
       <h3 id="pilot-agreement-title">{selected.status === "review_required" ? "Your previous choice needs review" : workflow.agreement ? "Pilot agreement recorded" : "Your choice is recorded"}</h3>
-      <p>{selected.providerName}{workflow.agreement ? " — the site and delivery partner's agreement is on record." : " — agree the scope, price, dates and support directly before physical work starts."}</p>
+      <p>{selected.providerName}{workflow.agreement ? " — the site and deployment company's agreement is on record." : " — agree the scope, price, dates and support directly before physical work starts."}</p>
       {workflow.agreement?.plannedStartIso && <p>Planned start: {new Date(workflow.agreement.plannedStartIso).toLocaleString()}.</p>}
-      <p className="ms-field-hint">The customer awards the contract. The delivery partner installs, commissions and supports the system. Blueprint coordinates the decision and records the outcome.</p>
+      <p className="ms-field-hint">The customer awards the contract. The deployment company installs, commissions and supports the system. Blueprint coordinates the decision and records the outcome.</p>
       {!workflow.agreement && <p className="ms-field-hint">Blueprint will record the agreed pilot after both parties confirm it. A proposal selection alone is not an agreement.</p>}
       {workflow.agreement && (workflow.agreement.outcomeRecordingAuthorized !== true || !workflow.agreement.outcomeRecordingPermissionReference) && !workflow.outcome && <p className="ms-field-hint">Ask Blueprint to confirm both parties’ permission before recording pilot results.</p>}
     </section>}
@@ -230,7 +230,7 @@ function BuyingRequirements({ requirements, pending, locked = false, onSave }: {
   ];
   if (locked) return <details className="job-planning-details">
     <summary>Planning details for the agreed pilot</summary>
-    <p className="ms-field-hint">These details belong to the agreed pilot. Contact <a href="mailto:hello@tryblueprint.io">Blueprint</a> to review a scope or budget change with the delivery partner.</p>
+    <p className="ms-field-hint">These details belong to the agreed pilot. Contact <a href="mailto:hello@tryblueprint.io">Blueprint</a> to review a scope or budget change with the deployment company.</p>
     <dl className="job-facts job-facts-full">{fields.map(([key, label]) => <div key={key}><dt>{label}</dt><dd>{requirements[key] || "Not recorded"}</dd></div>)}</dl>
   </details>;
   return <details className="job-planning-details">

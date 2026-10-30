@@ -85,7 +85,7 @@ describe("booked pilot follow-through", () => {
     fixture.task = { status: "Pilot booked", pilot: { state: "selected", selectedResultId: "qualified-run" },
       pilotBooking: { recommendationId: "rec_book", contact: { email: "team@example.test" } } };
     const view = render(<TaskDetail />);
-    expect(screen.getByRole("heading", { name: "Delivery partner selected" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Deployment company selected" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "team@example.test" })).toHaveAttribute("href", "mailto:team@example.test");
     expect(screen.queryByText("Outcome recorded by your site.")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Record pilot outcome/ })).not.toBeInTheDocument();
