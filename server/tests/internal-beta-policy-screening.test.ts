@@ -103,12 +103,14 @@ it("atomically stores diagnostic progress in existing managed evidence and accep
   expect((await loadManagedJobEvidence("job-one", briefDigest))[0].current).toBe(false);
 });
 
-it("stores signed single-candidate family results against typed CPU preparation and replays the exact publication", async () => {
+it.each(["legacy", "scripted"])("stores signed single-candidate family results (%s) and replays the exact publication", async kind => {
   const { publication, intake } = familyScreeningFixture();
   store.rows.set("taskEvaluationSceneIntakes/intake-one", intake);
   const completed = sealScreening({ ...publication, status: "completed", candidates: [{ ...publication.candidates[0],
     status: "completed", episodes_scored: 3, episodes_succeeded: 2, episodes_failed: 1,
-    success_rate: 2 / 3, session_result_digest: screeningSha("6") }] });
+    success_rate: 2 / 3, session_result_digest: screeningSha("6"),
+    ...(kind === "scripted" ? { execution_evidence_kind: "scripted_simulator_state_baseline", action_source: "scripted_simulator_state",
+      scripted_rollout_count: 3, learned_policy_rollout_count: 0, scripted_controller_invoked: true, candidate_policy_queried: false } : {}) }] });
   const url = await endpoint();
   expect((await send(url, signed(completed))).status).toBe(201);
   expect((await (await send(url, signed(completed))).json()).status).toBe("replayed");
@@ -118,6 +120,12 @@ it("stores signed single-candidate family results against typed CPU preparation 
   expect(run.screening_execution_observed).toBe(true);
   const briefDigest = scientificBriefDigest(store.rows.get("siteTaskBriefs/job-one"));
   expect((await loadManagedJobEvidence("job-one", briefDigest))[0].current).toBe(true);
+  if (kind === "scripted") {
+    const readback = await readCurrentTaskScreening({ requestId: "job-one", briefDigest, captureId: completed.source.capture_id });
+    expect(readback.runs[0].candidates[0].executionEvidence).toMatchObject({ execution_evidence_kind: "scripted_simulator_state_baseline",
+      scripted_rollout_count: 3, learned_policy_rollout_count: 0, candidate_policy_queried: false });
+    expect(Object.values(readback.evidence_source!.content.content.candidate_statements)[0]).toContain("do not establish learned-policy or vendor-policy performance");
+  }
   for (const field of ["native_runtime_contract_digest", "runtime_catalog_digest", "request_digest"] as const) {
     const changed = structuredClone(intake);
     if (field === "native_runtime_contract_digest") changed.pipeline_status.result_reference.native_runtime_contract_digest = screeningSha("9");
