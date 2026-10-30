@@ -71,7 +71,7 @@ export const qualifyingConditions: readonly QualifyingCondition[] = [
   {
     id: "known-objects",
     name: "Known objects",
-    test: "Can the things being handled be enumerated in advance?",
+    test: "Can the things being handled be listed in advance?",
     failure:
       "The long tail nobody listed is where grasp success quietly stops being the number you measured.",
   },

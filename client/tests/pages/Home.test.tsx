@@ -17,7 +17,7 @@ describe("Site-led homepage", () => {
     // One example of the deliverable, clearly marked, instead of staged imagery.
     expect(screen.getAllByRole("tab").map(tab => tab.textContent)).toEqual(["Warehouse", "Café", "Laundromat", "Factory", "Hotel", "Lab"]);
     const panel = screen.getByRole("tabpanel");
-    expect(panel).toHaveTextContent(/Job.*full totes.*Possible approach.*Humanoid robot.*Evidence needed.*Site video.*simulation comparisons.*Budget.*before any pilot.*Pilot price.*deployment company.*Support/);
+    expect(panel).toHaveTextContent(/Job.*full totes.*Possible approach.*Humanoid robot.*Evidence needed.*Site video.*simulation results.*Budget.*before any pilot.*Pilot price.*deployment company.*Support/);
     expect(screen.getByText(/not available offers or measured results/)).toBeInTheDocument();
     expect(panel).not.toHaveTextContent(/Passed on your task/);
     expect(screen.queryByText("Book this pilot")).not.toBeInTheDocument();
@@ -139,7 +139,7 @@ describe("Site-led homepage", () => {
     expect(steps).toHaveLength(3);
     expect(steps[0]).toHaveTextContent(/Show us the work.*analyze the video.*draft a job brief/);
     // Blueprint runs the candidates itself and shows a bounded estimate or "held" (owner, 2026-10-28).
-    expect(steps[1]).toHaveTextContent(/Compare robots in simulation.*run candidate policies, policy APIs and robots against the job ourselves.*bounded estimate of what works.*“held”/i);
+    expect(steps[1]).toHaveTextContent(/Compare robots in simulation.*test robots and policies on the job ourselves.*estimate of what’s likely to work.*“held”/i);
     expect(steps[2]).toHaveTextContent(/Pilot it on your site.*work alongside a deployment company.*measure the result against your criteria/);
     expect(screen.getByRole("region", { name: "From a recurring job to a measured pilot." })).not.toHaveTextContent(/screening runs|scored in full|comparable proposals|recommend the approach/i);
     expect(screen.getByRole("region", { name: "From a recurring job to a measured pilot." })).not.toHaveTextContent(/robot teams?/i);

@@ -71,7 +71,7 @@ export default function Contact() {
     <>
       <SEO
         title="Submit a job | Blueprint"
-          description="Send video of one recurring job at your site. Blueprint drafts the brief from it, builds a site simulation, runs candidate robots and policies against the job and shows you a bounded estimate of what works. No budget is required to start."
+          description="Send a video of one recurring job at your site. Blueprint drafts the job brief, builds a simulation of your site, tests robots and policies on the job and shows you an estimate of what's likely to work. No budget is required to start."
           canonical="/contact/site-operator"
       />
       <section className={`ms-inquiry ms-container${savedJob ? " ms-intake-saved" : ""}`}>
@@ -82,7 +82,7 @@ export default function Contact() {
           {!savedJob && <p className="ms-eyebrow">For site owners</p>}
           <h1>{savedJob ? "Your saved job" : "What work would you like automated?"}</h1>
           {!savedJob && <p className="ms-inquiry-description">
-            Send video of one recurring job. We draft the description from it, build a site simulation and run candidate robots and policies against the job. You see a bounded estimate of what works, and we work alongside a deployment company on your site. Free during the beta; no budget is required to start.
+            Send a video of one recurring job. We draft the job brief from it, build a simulation of your site and test robots and policies on the job. You see an estimate of what&apos;s likely to work, and we work alongside a deployment company on your site. Free during the beta; no budget is required to start.
           </p>}
         </div>
         <div className="ms-inquiry-forms">
@@ -91,15 +91,15 @@ export default function Contact() {
             <summary>How this works</summary>
             {savedJob ? <p className="ms-field-hint">Your private job link shows the brief, progress, follow-up questions and the next decision. Keep it to return.</p> : <><p className="ms-field-hint">
               We analyze your video and draft a brief for you to correct.
-              We then reconstruct your work area in simulation and run candidate policies, policy APIs and robots against the job ourselves.
-              You see a bounded estimate of what works, or &ldquo;held&rdquo; if we can&apos;t simulate that kind of job yet.
+              We then reconstruct your work area in simulation and test robots and policies on the job ourselves.
+              You see an estimate of what&apos;s likely to work, or &ldquo;held&rdquo; if we can&apos;t simulate that kind of job yet.
               We then work alongside a deployment company on your site; you agree the pilot contract directly with that company.
               Simulation is an estimate, not proof of physical performance or safety.
             </p>
             <p className="ms-field-hint">
-              Geography, plainly: sending a person is an Austin-metro thing; anywhere in the US you
-              can record the walkthrough yourself; outside the US we set up transfer terms before
-              anything is recorded.
+              Where we work: we can send someone to film in the Austin metro. Anywhere else in the
+              US, you record the walkthrough yourself. Outside the US, we set up data transfer terms
+              before anything is recorded.
             </p></>}
           </details>
           {!savedJob && <details className="ms-task-interest ms-visitor-detail">
@@ -119,7 +119,7 @@ export default function Contact() {
         </div>
         {!savedJob && <section className="ms-inquiry-fit" aria-labelledby="inquiry-fit-title">
           <h2 id="inquiry-fit-title">Is your job a fit?</h2>
-          <p>We start with bounded jobs, known objects and a work area that can be assessed. Not sure whether yours fits? Show us the work on video and we will assess the fit. We do not turn a job away because of its type; if we cannot score yours yet, we hold it while we prepare its evaluation.</p>
+          <p>We start with bounded jobs: known objects in a stable work area. Not sure if yours fits? Show us the work on video and we&apos;ll assess it. We do not turn a job away because of its type; if we can&apos;t simulate yours yet, we hold it while we prepare its evaluation.</p>
           <JobFitQuestions />
           <a className="ms-text-link" href="/how-it-works#job-fit">Why each one matters <ArrowRight size={16} aria-hidden="true" /></a>
         </section>}
