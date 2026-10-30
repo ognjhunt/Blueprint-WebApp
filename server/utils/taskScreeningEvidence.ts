@@ -20,11 +20,22 @@ export function taskScreeningEvidence(scope: TaskScreeningScope, rows: ManagedJo
   const statements: Record<string, string> = {};
   for (const run of runs) for (const candidate of run.candidates) {
     const provenance = run.provenance!;
+    const evidence = candidate.executionEvidence;
+    const execution = evidence?.execution_evidence_kind === "scripted_simulator_state_baseline"
+      ? `This is a scripted simulator-state baseline: ${evidence.scripted_rollout_count} retained scripted episode records, `
+        + `controller invoked ${evidence.scripted_controller_invoked}, ${evidence.learned_policy_rollout_count} learned-policy rollouts, `
+        + `learned policy queried ${evidence.candidate_policy_queried}. Retained episode records include attempts that failed before invocation. `
+        + "These outcomes do not establish learned-policy or vendor-policy performance. "
+      : evidence?.execution_evidence_kind === "learned_policy"
+        ? `Recorded execution kind: learned policy; ${evidence.learned_policy_rollout_count} retained episode records; `
+          + `policy queried ${evidence.candidate_policy_queried}. `
+        : "Execution kind was not recorded; learned or scripted provenance is not established. ";
     statements[`${run.run_id}:${candidate.candidateId}`] =
       `For this recorded task and capture, the Pipeline report generated ${provenance.generated_at} records `
       + `${candidate.name}: status ${candidate.state}; ${candidate.scored}/${candidate.planned} episodes scored, `
       + `${candidate.succeeded} succeeded, ${candidate.failed} failed, ${candidate.void} unscorable. `
       + `Recorded reasons: ${candidate.blockers.length ? candidate.blockers.join(", ") : "none"}. `
+      + execution
       + (candidate.scored ? "These are bounded simulation outcomes for this task. " : "No scored task outcome is established by this row. ")
       + LIMIT;
   }

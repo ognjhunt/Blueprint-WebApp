@@ -12,7 +12,8 @@ import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { publicationFromResultRecord } from "./taskEvaluationRunPublicationStorage";
 import { parseVerifiedTaskEvaluationRunPublication } from "./taskEvaluationRunContract";
 import { parsePipelinePolicyCanaryPublication } from "./policyCanaryWebappSyncContract";
-import { noEstimateReason, parseBetaPolicyScreeningPublication, type BetaPolicyScreeningPublication } from "./betaPolicyScreeningContract";
+import { noEstimateReason, parseBetaPolicyScreeningPublication, screeningExecutionEvidence,
+  type BetaPolicyScreeningPublication, type ScreeningExecutionEvidence } from "./betaPolicyScreeningContract";
 import { assertWebsiteCaptureBindingInTransaction, resolveWebsiteCaptureBinding } from "./websiteCaptureBinding";
 import { preparationPhaseMatchesTask } from "./taskFamilySceneIntake";
 import { assertWebsiteRunOpen } from "./websiteRunClosure";
@@ -200,7 +201,8 @@ export type ManagedJobEvidenceSummary = {
     provenance?: Pick<BetaPolicyScreeningPublication, "schema_version" | "claim_ceiling" | "source" | "generated_at"
       | "publication_digest" | "catalog_digest" | "plan_digest">;
     candidates: Array<{ candidateId: string; name: string; state: string; planned: number;
-    scored: number; succeeded: number; failed: number; void: number; blockers: string[]; configurationDigest?: string }> };
+    scored: number; succeeded: number; failed: number; void: number; blockers: string[]; configurationDigest?: string;
+    executionEvidence?: ScreeningExecutionEvidence }> };
 };
 
 /** A projection of already accepted publications, never a second report store. */
@@ -260,6 +262,8 @@ export function projectManagedJobEvidence(
         : status === "reconciliation_required" ? "Blueprint is reviewing the recorded limitations before any further run."
           : "Candidate progress will update as each test finishes.",
       limitations: [
+        ...(value.candidates.some(row => row.execution_evidence_kind === "scripted_simulator_state_baseline")
+          ? ["Scripted baselines use simulator state. Their outcomes do not establish learned-policy or vendor-policy performance."] : []),
         ...(scored ? [`A bounded simulation estimate from ${scored} scored episode${scored === 1 ? "" : "s"} across ${candidates(completed)}, for this job's recorded task and simulated conditions only.`] : []),
         "A simulation result is a bounded estimate. It does not certify physical performance or safety.",
         ...(notRun ? [`${candidates(notRun)} did not run; each row lists why.`] : []),
@@ -271,6 +275,7 @@ export function projectManagedJobEvidence(
         spentUpperBoundUsd: value.budget.spent_upper_bound_usd, reservedUsd: value.budget.reserved_usd },
         candidates: value.candidates.map(row => ({ candidateId: row.candidate_id, name: row.display_name,
         configurationDigest: row.configuration_digest,
+        ...(row.execution_evidence_kind ? { executionEvidence: screeningExecutionEvidence(row) } : {}),
         state: row.status, planned: row.episodes_planned, scored: row.episodes_scored, succeeded: row.episodes_succeeded,
         failed: row.episodes_failed, void: row.episodes_void, blockers: row.blockers })) } };
   }

@@ -82,6 +82,22 @@ accepted results; it neither starts runs nor upgrades the planning inventory.
 The explicit internal `video-only` diagnostic does not receive this task reader,
 preserving its existing suppression of task descriptions and context.
 
+Publication v2 can carry explicit candidate execution provenance. A
+`scripted_simulator_state_baseline` row uses `scripted_simulator_state` as its
+action source and retains separate scripted and learned rollout counts,
+controller invocation, and learned-policy query flags. Scripted results require
+zero learned-policy rollouts and no learned-policy query. The ordinary episode
+scores remain deterministic task simulation outcomes; the shared candidate
+display and complete citable statements preserve their scripted scope. They do
+not establish learned-policy, vendor-policy, or physical performance.
+
+Rollout counts include retained failures before invocation; the independent
+invocation flag must not be inferred from a nonzero count. Old v1/v2 publications
+remain byte-compatible and keep unspecified execution provenance unspecified.
+Execution kind and action source form part of campaign identity, so later
+publications cannot relabel a scripted campaign. Deploy this consumer before
+the producer begins sending the optional typed v2 fields.
+
 Deploy through the existing exact-SHA CI-gated Render workflow. Deploy this
 consumer before enabling producer publication. A green website deployment proves
 the consumer is present; it does not prove a RoboLab GPU run completed.

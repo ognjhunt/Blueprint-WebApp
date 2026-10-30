@@ -18,6 +18,8 @@ export const screeningMoneyMicros = (value: string) => {
   return BigInt(whole) * BigInt(1_000_000) + BigInt(fraction.padEnd(6, "0"));
 };
 export const screeningTerminalCandidateStates = new Set(["completed", "blocked", "unavailable", "deferred"]);
+export const screeningExecutionEvidenceFields = ["execution_evidence_kind", "action_source", "scripted_rollout_count",
+  "learned_policy_rollout_count", "scripted_controller_invoked", "candidate_policy_queried"] as const;
 
 const candidate = z.object({
   candidate_id: identifier, configuration_digest: digest, display_name: z.string().trim().min(1).max(200),
@@ -25,6 +27,10 @@ const candidate = z.object({
   blockers: z.array(z.string().min(1).max(300)).max(100),
   episodes_planned: count, episodes_scored: count, episodes_succeeded: count, episodes_failed: count, episodes_void: count,
   success_rate: z.number().finite().min(0).max(1).nullable(), session_result_digest: digest.nullable(),
+  execution_evidence_kind: z.enum(["learned_policy", "scripted_simulator_state_baseline"]).optional(),
+  action_source: z.enum(["learned_policy", "scripted_simulator_state"]).optional(),
+  scripted_rollout_count: count.optional(), learned_policy_rollout_count: count.optional(),
+  scripted_controller_invoked: z.boolean().optional(), candidate_policy_queried: z.boolean().optional(),
 }).strict().superRefine((row, ctx) => {
   const expectedRate = row.episodes_scored ? row.episodes_succeeded / row.episodes_scored : null;
   if (row.episodes_succeeded + row.episodes_failed !== row.episodes_scored
@@ -34,6 +40,22 @@ const candidate = z.object({
       || row.episodes_scored + row.episodes_void !== row.episodes_planned))
     || (row.status !== "completed" && (row.episodes_scored !== 0 || row.episodes_void !== 0 || row.session_result_digest !== null))) {
     ctx.addIssue({ code: "custom", message: "Screening counts and independent result evidence disagree" });
+  }
+  if (screeningExecutionEvidenceFields.some(key => row[key] !== undefined)) {
+    const scripted = row.execution_evidence_kind === "scripted_simulator_state_baseline";
+    if (screeningExecutionEvidenceFields.some(key => row[key] === undefined)
+      || row.action_source !== (scripted ? "scripted_simulator_state" : "learned_policy")
+      || row.scripted_rollout_count! + row.learned_policy_rollout_count! > row.episodes_planned
+      || row.scripted_controller_invoked === true && row.scripted_rollout_count === 0
+      || row.candidate_policy_queried === true && row.learned_policy_rollout_count === 0
+      || (row.status !== "completed" && (row.scripted_rollout_count !== 0 || row.learned_policy_rollout_count !== 0
+        || row.scripted_controller_invoked !== false || row.candidate_policy_queried !== false))
+      || (scripted ? row.learned_policy_rollout_count !== 0 || row.candidate_policy_queried !== false
+        || row.episodes_scored > row.scripted_rollout_count! || row.episodes_scored > 0 && row.scripted_controller_invoked !== true
+        : row.scripted_rollout_count !== 0 || row.scripted_controller_invoked !== false
+          || row.episodes_scored > row.learned_policy_rollout_count! || row.episodes_scored > 0 && row.candidate_policy_queried !== true)) {
+      ctx.addIssue({ code: "custom", message: "Screening execution kind and witnessed episode evidence disagree" });
+    }
   }
 });
 
@@ -59,6 +81,10 @@ const retainedPublication = z.object({ ...publicationFields, schema_version: z.l
   purpose: z.literal("screening"), claim_ceiling: z.literal("diagnostic_policy_execution"), recommendation_eligible: z.literal(false) }).strict();
 export const betaPolicyScreeningPublicationSchema = z.discriminatedUnion("schema_version", [jobEvaluationPublication, retainedPublication])
   .superRefine((value, ctx) => {
+  if (value.schema_version === "beta_policy_screening_publication.v1"
+    && value.candidates.some(row => screeningExecutionEvidenceFields.some(key => row[key] !== undefined))) {
+    ctx.addIssue({ code: "custom", path: ["candidates"], message: "Typed execution evidence requires publication v2" });
+  }
   const budget = value.budget;
   if (![budget.limit_usd, budget.committed_upper_bound_usd, budget.spent_upper_bound_usd, budget.reserved_usd]
     .every(amount => dollars.safeParse(amount).success)) return;
@@ -75,6 +101,13 @@ export const betaPolicyScreeningPublicationSchema = z.discriminatedUnion("schema
     ctx.addIssue({ code: "custom", path: ["status"], message: "Campaign status must match candidate progress" });
 });
 export type BetaPolicyScreeningPublication = z.infer<typeof betaPolicyScreeningPublicationSchema>;
+export type ScreeningExecutionEvidence = Required<Pick<BetaPolicyScreeningPublication["candidates"][number],
+  typeof screeningExecutionEvidenceFields[number]>>;
+
+/** Missing metadata on retained publications does not establish a policy kind. */
+export function screeningExecutionEvidence(row: BetaPolicyScreeningPublication["candidates"][number]): ScreeningExecutionEvidence | undefined {
+  return row.execution_evidence_kind ? Object.fromEntries(screeningExecutionEvidenceFields.map(key => [key, row[key]])) as ScreeningExecutionEvidence : undefined;
+}
 
 /**
  * Why a finished run has no estimate, by who can fix it (owner decision
@@ -105,7 +138,9 @@ export function screeningCampaignIdentity(value: BetaPolicyScreeningPublication)
   return crossRuntimeDigest({ campaign_id: value.campaign_id, site_id: value.site_id, source: value.source,
     plan_digest: value.plan_digest, catalog_digest: value.catalog_digest, scenario_plan_digest: value.scenario_plan_digest,
     candidates: value.candidates.map(row => ({ candidate_id: row.candidate_id, configuration_digest: row.configuration_digest,
-      display_name: row.display_name, episodes_planned: row.episodes_planned })), budget_limit: value.budget.limit_usd });
+      display_name: row.display_name, episodes_planned: row.episodes_planned,
+      ...(row.execution_evidence_kind ? { execution_evidence_kind: row.execution_evidence_kind, action_source: row.action_source } : {}) })),
+    budget_limit: value.budget.limit_usd });
 }
 
 /** Retried or delayed deliveries cannot rewrite a campaign or its completed candidate results. */
@@ -133,6 +168,9 @@ export function screeningPublicationTransition(previous: BetaPolicyScreeningPubl
       || (!waitingForCapacity && rank[updated.status] !== undefined && rank[row.status] !== undefined && rank[updated.status] < rank[row.status]))
       throw new Error("screening_progress_regression");
     if (updated.episodes_scored < row.episodes_scored || updated.episodes_void < row.episodes_void)
+      throw new Error("screening_progress_regression");
+    if ((updated.scripted_rollout_count ?? 0) < (row.scripted_rollout_count ?? 0)
+      || (updated.learned_policy_rollout_count ?? 0) < (row.learned_policy_rollout_count ?? 0))
       throw new Error("screening_progress_regression");
   });
   return "updated" as const;

@@ -126,5 +126,8 @@ export interface JobManagedEvidenceSummary {
   href: string;
   screening?: { budget?: { limitUsd: string; committedUpperBoundUsd: string; spentUpperBoundUsd: string; reservedUsd: string };
     candidates: Array<{ candidateId: string; name: string; state: string; planned: number;
-    scored: number; succeeded: number; failed: number; void: number; blockers: string[] }> };
+    scored: number; succeeded: number; failed: number; void: number; blockers: string[];
+    executionEvidence?: { execution_evidence_kind: "learned_policy" | "scripted_simulator_state_baseline";
+      action_source: "learned_policy" | "scripted_simulator_state"; scripted_rollout_count: number;
+      learned_policy_rollout_count: number; scripted_controller_invoked: boolean; candidate_policy_queried: boolean } }> };
 }
