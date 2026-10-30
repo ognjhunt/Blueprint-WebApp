@@ -21,9 +21,8 @@ export function taskScreeningEvidence(scope: TaskScreeningScope, rows: ManagedJo
   for (const run of runs) for (const candidate of run.candidates) {
     const provenance = run.provenance!;
     statements[`${run.run_id}:${candidate.candidateId}`] =
-      `Pipeline publication ${provenance.publication_digest}, generated ${provenance.generated_at}, reports `
-      + `${candidate.name} (${candidate.candidateId}, configuration ${candidate.configurationDigest}) for task ${provenance.source.task_id} `
-      + `in capture ${provenance.source.capture_id}: status ${candidate.state}; ${candidate.scored}/${candidate.planned} episodes scored, `
+      `For this recorded task and capture, the Pipeline report generated ${provenance.generated_at} records `
+      + `${candidate.name}: status ${candidate.state}; ${candidate.scored}/${candidate.planned} episodes scored, `
       + `${candidate.succeeded} succeeded, ${candidate.failed} failed, ${candidate.void} unscorable. `
       + `Recorded reasons: ${candidate.blockers.length ? candidate.blockers.join(", ") : "none"}. `
       + (candidate.scored ? "These are bounded simulation outcomes for this task. " : "No scored task outcome is established by this row. ")

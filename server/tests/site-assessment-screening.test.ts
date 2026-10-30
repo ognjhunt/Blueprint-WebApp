@@ -60,6 +60,8 @@ describe("task-bound screening readback for the assessment agent", () => {
     expect(delivered.assessment.known[0].text).toContain("No scored task outcome is established");
     expect(delivered.assessment.known[0].text).toContain("does not establish physical performance");
     expect(delivered.assessment.known[0].text).toContain(readback.runs[0].provenance!.generated_at);
+    expect(delivered.assessment.known[0].text).not.toContain("sha256:");
+    expect((delivered.tool_receipts[0].result as typeof readback).runs[0].provenance).toEqual(readback.runs[0].provenance);
     expect(delivered.assessment.known[0].text).not.toContain("All robots have already succeeded");
     const measured = structuredClone(result); measured.known[0].basis = "measured";
     expect(renderSourceBoundAssessment(measured, new Map([[source.source_id, source]]), null).assessment.known[0].basis).toBe("unknown");
