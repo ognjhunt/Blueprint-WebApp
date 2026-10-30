@@ -162,11 +162,11 @@ export function qualifiedGap(closest: ClosestQualifiedRun | null | undefined): {
   if (!closest || closest.episodesRun <= 0) return { shortfall: "", requirement: "pass" };
   const mark = percent(closest.passMarkRate);
   const cycle = closest.cycleTimeMissed && closest.medianCycleSeconds !== null && closest.cycleTimeSeconds !== null
-    ? `, and its median cycle time was ${Math.round(closest.medianCycleSeconds * 10) / 10} s against your target of ${closest.cycleTimeSeconds} s`
+    ? `. Its median cycle time was ${Math.round(closest.medianCycleSeconds * 10) / 10} s; your target is ${closest.cycleTimeSeconds} s`
     : "";
   return {
-    shortfall: `The closest qualified evaluation succeeded in ${closest.episodesSucceeded} of ${closest.episodesRun} episodes `
-      + `(${percent(closest.episodesSucceeded / closest.episodesRun)}), against your pass mark of ${mark}${cycle}.`,
+    shortfall: `The closest scored evaluation succeeded in ${closest.episodesSucceeded} of ${closest.episodesRun} episodes `
+      + `(${percent(closest.episodesSucceeded / closest.episodesRun)}); your pass mark is ${mark}${cycle}.`,
     requirement: `reach ${mark}${closest.cycleTimeSeconds !== null ? ` with a median cycle time of ${closest.cycleTimeSeconds} s or less` : ""}`,
   };
 }
@@ -298,7 +298,7 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
     return {
       decision: input.hasStoredCapture ? "footage_received" : "received",
       stage: null,
-      headline: `${input.hasStoredCapture ? "Your video is saved. " : ""}Recording consent was withdrawn. Capture-derived review and the scene preview are unavailable.`,
+      headline: `${input.hasStoredCapture ? "Your video is saved. " : ""}Recording consent was withdrawn, so we can no longer review the video or show the scene preview.`,
       operatorAction: null,
       missingViews: [],
       nextUpdateIso: null,
@@ -407,7 +407,7 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
     return {
       ...base,
       decision: "no_team_passed",
-      headline: `No evaluation of your job has passed yet. ${runs} on your job finished without passing. ${gap.shortfall ? `${gap.shortfall} ` : ""}A candidate needs to ${gap.requirement} on your job${input.openForEvaluations ? "; your job stays open for evaluation, and we email you when another one starts" : ""}.`,
+      headline: `No evaluation of your job has passed yet. ${runs} finished without passing. ${gap.shortfall ? `${gap.shortfall} ` : ""}To pass, a candidate needs to ${gap.requirement} on your job.${input.openForEvaluations ? " Your job stays open for evaluation, and we email you when another one starts." : ""}`,
       operatorAction: null,
     };
   }
@@ -419,25 +419,25 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
     && screening.reported - screening.ineligible === 0 && input.recommended === false) {
     const reasons = [
       screening.ineligible > 0
-        ? `${countLabel(screening.ineligible, "run")} could not be scored against your job's pass mark (for example, a diagnostic run, or a scene not yet qualified for scored evaluations)`
+        ? `${countLabel(screening.ineligible, "run")} could not be scored against your pass mark (for example, a diagnostic run, or a scene not yet ready for scored evaluations)`
         : "",
-      screening.noResult > 0 ? `${countLabel(screening.noResult, "run")} ended without an observed episode` : "",
+      screening.noResult > 0 ? `${countLabel(screening.noResult, "run")} ended before any episode was recorded` : "",
     ].filter(Boolean).join(", and ");
     return {
       ...base,
       decision: "no_qualified_evaluation",
-      headline: `Evaluations on your job have finished, but none can support a recommendation yet: ${reasons}, so none counts as a pass or a failure. We email you when a qualified evaluation finishes.`,
+      headline: `Evaluations on your job have finished, but none can support a recommendation yet. ${reasons.charAt(0).toUpperCase()}${reasons.slice(1)}, so none counts as a pass or a fail. We email you when a scored evaluation finishes.`,
       operatorAction: null,
     };
   }
   if (screening && screening.reported > 0) {
     const noResult = screening.noResult > 0
-      ? ` ${countLabel(screening.noResult, "other run")} ended without an observed episode.`
+      ? ` ${countLabel(screening.noResult, "other run")} ended before any episode was recorded.`
       : "";
     return {
       ...base,
       decision: "results",
-      headline: `Results are in from ${countLabel(screening.reported, "screening run")}.${noResult} Review each run's observed episodes separately.`,
+      headline: `Results are in from ${countLabel(screening.reported, "screening run")}.${noResult} Each run's episodes are shown separately.`,
       operatorAction: "Review the results.",
     };
   }
@@ -445,7 +445,7 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
     return {
       ...base,
       decision: "results",
-      headline: `${countLabel(screening.noResult, "screening run")} ended without an observed episode.`,
+      headline: `${countLabel(screening.noResult, "screening run")} ended before any episode was recorded.`,
       operatorAction: "Review the run status.",
     };
   }
@@ -466,7 +466,7 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
     return {
       ...base,
       decision: "awaiting_teams",
-      headline: "Your job is open for evaluation. Next, Blueprint evaluates candidate robots and policies against it; approved partners can also ask for their systems to be evaluated.",
+      headline: "Your job is open for evaluation. Next, Blueprint tests robots and policies on it in simulation. Approved partners can also ask to have their systems evaluated.",
       operatorAction: null,
     };
   }
@@ -478,7 +478,7 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
       ...base,
       decision: "not_now",
       headline:
-        "Not yet. One of your answers means a robot evaluation would not hold up at this site today, so we are not building a scene.",
+        "Not yet. One of your answers means a robot evaluation wouldn't be reliable at this site today, so we aren't building a scene.",
       operatorAction: "Open your job brief to see what is in the way. When it changes, update the brief.",
     };
   }
@@ -487,10 +487,10 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
       ...base,
       decision: "call_needed",
       headline:
-        "Some operating details still affect the assessment. Review the specific open questions in your job details; facts you cannot establish can remain unknown.",
+        "A few operating details still affect the assessment. See the open questions in your job details. You can leave anything you don't know.",
       operatorAction: input.bookingUrl
         ? `You can discuss the remaining questions here: ${input.bookingUrl}`
-        : "Answer the consequential questions in your job details.",
+        : "Answer the open questions in your job details.",
     };
   }
 
@@ -540,7 +540,7 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
     const headlines: Record<Exclude<TaskPreparationStatus["state"], "handed_off">, string> = {
       preparing: "We are preparing your job. Keep your original recording.",
       awaiting_inputs: "Job preparation needs more information. Keep your original recording; our team needs to review it.",
-      capacity_delayed: "Your recording is saved and queued. Preparation is waiting for processing capacity on our side; nothing is needed from you. Keep your original recording.",
+      capacity_delayed: "Your recording is saved and queued. It is waiting for processing capacity on our side; nothing is needed from you. Keep your original recording.",
       failed_retryable: "Job preparation encountered a problem. Keep your original recording; our team needs to review it.",
       failed_terminal: `Scene preview preparation could not finish, and we have stopped trying.${ended ? ` ${ended}` : ""} Nothing more is needed from you. This needs our team's review. Keep your original recording.`,
       authority_ended: "Processing is on hold while our team checks its authorization. Keep your original recording.",
@@ -596,7 +596,7 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
   const sceneTesting = sceneEvaluated || sceneHeld || input.sceneProgression?.state === "testing";
   const resultHeadline = sceneHeld
     ? "Held: we can't simulate this kind of job yet. It counts as demand for what we build next."
-    : "Your job's simulation estimate is ready on your job page. It is a bounded estimate from a simulation of your site, not a certified result.";
+    : "Your simulation estimate is ready on your job page. It is an estimate from a simulation of your site, not a certified result.";
   if ((input.scenePreviewReady || sceneTesting) && input.listed === false) {
     return {
       ...base,

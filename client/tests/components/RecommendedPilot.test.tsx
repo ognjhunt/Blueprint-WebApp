@@ -24,14 +24,14 @@ describe("the recommended pilot", () => {
     fetchMock.mockResolvedValueOnce(loaded());
     render(<RecommendedPilot token="tok" bookedOnly />);
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
-    expect(screen.queryByRole("heading", { name: "Evaluation-backed pilot proposal" })).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Proposed pilot" })).toBeNull();
     expect(screen.queryByRole("button")).toBeNull();
   });
 
   it("requires an authorized choice and explains the separate pilot agreement", async () => {
     fetchMock.mockResolvedValueOnce(loaded()).mockResolvedValueOnce({ ok: true, json: async () => ({ ok: true }) });
     render(<RecommendedPilot token="tok" />);
-    expect(await screen.findByRole("heading", { name: "Evaluation-backed pilot proposal" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Proposed pilot" })).toBeInTheDocument();
     expect(screen.getByText("Acme Robotics")).toBeInTheDocument();
     expect(screen.getByText("Shrink-wrapped cartons")).toBeInTheDocument();
 
@@ -52,9 +52,9 @@ describe("the recommended pilot", () => {
     fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ recommendation: { ...recommendation, evidence }, booking: null }) });
     render(<RecommendedPilot token="tok" />);
     // Blueprint ran the evaluation; the delivery partner is named in its own row.
-    expect(await screen.findByText(/In Blueprint's evaluation of this approach on your job, 19 of 20 simulated episodes succeeded \(95%\), meeting your pass mark of 90%/)).toBeInTheDocument();
+    expect(await screen.findByText(/In simulation, this approach succeeded in 19 of 20 episodes on your job \(95%\)\. That meets your pass mark of 90%/)).toBeInTheDocument();
     expect(screen.getByText("Delivery partner").nextElementSibling).toHaveTextContent("Acme Robotics");
-    expect(screen.getByText(/Simulation estimate — the physical pilot measures the real result/)).toBeInTheDocument();
+    expect(screen.getByText(/This is a simulation estimate\. It does not certify physical performance or safety; the pilot measures the real result/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "See the evaluation results" })).toHaveAttribute("href", "/app/tasks/req1");
     expect(screen.getByLabelText(/authorized to choose this delivery partner/i).closest("label")).toHaveTextContent(
       "Blueprint charges nothing during the beta. Agree the pilot price and terms with the delivery partner before work starts.");
@@ -80,7 +80,7 @@ describe("the recommended pilot", () => {
       evidenceScope: "development_only", boundary: "Simulation estimate.", resultUrl: null };
     fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ recommendation: { ...recommendation, evidence }, booking: null }) });
     render(<RecommendedPilot token="tok" />);
-    expect(await screen.findByText(/meeting Blueprint's pass mark of 90%/)).toBeInTheDocument();
+    expect(await screen.findByText(/That meets Blueprint's pass mark of 90%/)).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "See the evaluation results" })).toBeNull();
   });
 
@@ -93,10 +93,10 @@ describe("the recommended pilot", () => {
         boundary: "Assumes independent episodes in this tested scene; correlation and other sites remain unmeasured." } };
     fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ recommendation: { ...recommendation, evidence }, booking: null }) });
     render(<RecommendedPilot token="tok" />);
-    expect(await screen.findByText(/200 prescribed episodes: 190 scored \(171 successes, 19 failures\), 10 void and excluded/)).toBeInTheDocument();
-    expect(screen.getByText(/95% Wilson interval: 84.9%–93.5%.*pass mark uses the observed success rate/)).toBeInTheDocument();
-    expect(screen.getByText(/Simulated median cycle: 24s; target: at most 30s/)).toBeInTheDocument();
-    expect(screen.getByText(/excludes policy-service latency/)).toBeInTheDocument();
+    expect(await screen.findByText(/200 episodes planned: 190 scored \(171 succeeded, 19 failed\)\. 10 could not be scored and do not count toward the success rate/)).toBeInTheDocument();
+    expect(screen.getByText(/95% confidence range \(Wilson interval\): 84.9%–93.5%.*pass mark is checked against the observed success rate/)).toBeInTheDocument();
+    expect(screen.getByText(/Median cycle time in simulation: 24s \(target: 30s or less\)/)).toBeInTheDocument();
+    expect(screen.getByText(/not the delay of calling the policy service/)).toBeInTheDocument();
   });
 
   it("shows a booked pilot without a button", async () => {

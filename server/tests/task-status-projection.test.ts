@@ -309,7 +309,7 @@ describe("screening and results rungs", () => {
       }),
     );
     expect(status.decision).toBe("results");
-    expect(status.headline).toContain("Review each run's observed episodes separately");
+    expect(status.headline).toContain("Each run's episodes are shown separately");
     expect(status.operatorAction).toBe("Review the results.");
   });
 
@@ -354,7 +354,7 @@ describe("screening and results rungs", () => {
       base({ ...assessed, screening: { teams: 1, queued: 0, running: 0, reported: 0, noResult: 1 } }),
     );
     expect(status.decision).toBe("results");
-    expect(status.headline).toContain("without an observed episode");
+    expect(status.headline).toContain("ended before any episode was recorded");
     expect(status.operatorAction).toBe("Review the run status.");
   });
 });
@@ -375,8 +375,8 @@ describe("what a waiting job is waiting on", () => {
   it("says the job is open for evaluation while none has started", () => {
     const status = projectTaskStatus({ ...ready, ...taskStatusInputFrom({ briefDrafted: true, stage: null, jobAccess: open }), screening: none });
     expect(status.decision).toBe("awaiting_teams");
-    expect(status.headline).toBe("Your job is open for evaluation. Next, Blueprint evaluates candidate robots and policies against it; "
-      + "approved partners can also ask for their systems to be evaluated.");
+    expect(status.headline).toBe("Your job is open for evaluation. Next, Blueprint tests robots and policies on it in simulation. "
+      + "Approved partners can also ask to have their systems evaluated.");
     expect(status.headline).not.toMatch(/robot teams?/i);
     expect(projectTaskStatus({ ...ready, openForEvaluations: true, screening: { ...none, teams: 1, queued: 1 } }).decision).toBe("screening");
     // Not told it is open when the caller did not look at the runs.
@@ -388,7 +388,7 @@ describe("what a waiting job is waiting on", () => {
     const status = projectTaskStatus({ ...ready, openForEvaluations: true, recommended: false, screening: settled });
     expect(status.decision).toBe("no_team_passed");
     expect(status.headline).toMatch(/^No evaluation of your job has passed yet\. 2 evaluation runs/);
-    expect(status.headline).toMatch(/your job stays open for evaluation, and we email you when another one starts/);
+    expect(status.headline).toMatch(/Your job stays open for evaluation, and we email you when another one starts\./);
     // A pass, a run still in flight, an uncounted pass mark or a recommendation keeps the results rung.
     expect(projectTaskStatus({ ...ready, recommended: false, screening: { ...settled, passed: 1 } }).decision).toBe("results");
     expect(projectTaskStatus({ ...ready, recommended: false, screening: { ...settled, running: 1 } }).decision).toBe("results");
@@ -405,15 +405,15 @@ describe("what a waiting job is waiting on", () => {
     const status = projectTaskStatus({ ...ready, openForEvaluations: true, recommended: false, screening: unqualified });
     expect(status.decision).toBe("no_qualified_evaluation");
     expect(status.headline).toMatch(/^Evaluations on your job have finished, but none can support a recommendation yet/);
-    expect(status.headline).toMatch(/2 runs could not be scored against your job's pass mark/);
-    expect(status.headline).toMatch(/We email you when a qualified evaluation finishes\.$/);
+    expect(status.headline).toMatch(/2 runs could not be scored against your pass mark/);
+    expect(status.headline).toMatch(/We email you when a scored evaluation finishes\.$/);
     expect(status.headline).not.toMatch(/passed|failed|without passing/i);
     expect(status.operatorAction).toBeNull();
     // Runs that ended without an observed episode cannot support one either.
     const noResult = projectTaskStatus({ ...ready, recommended: false,
       screening: { ...none, teams: 1, noResult: 1, passed: 0, ineligible: 0 } });
     expect(noResult.decision).toBe("no_qualified_evaluation");
-    expect(noResult.headline).toMatch(/1 run ended without an observed episode/);
+    expect(noResult.headline).toMatch(/1 run ended before any episode was recorded/);
     // Still in flight, a recommendation, or an uncounted pass mark keeps the earlier rungs.
     expect(projectTaskStatus({ ...ready, recommended: false, screening: { ...unqualified, running: 1 } }).decision).toBe("results");
     expect(projectTaskStatus({ ...ready, recommended: true, screening: unqualified }).decision).toBe("results");
@@ -429,12 +429,12 @@ describe("what a waiting job is waiting on", () => {
         cycleTimeSeconds: 30, belowPassMark: true, cycleTimeMissed: true } };
     const status = projectTaskStatus({ ...ready, openForEvaluations: true, recommended: false, screening: settled });
     expect(status.decision).toBe("no_team_passed");
-    expect(status.headline).toMatch(/The closest qualified evaluation succeeded in 172 of 200 episodes \(86%\), against your pass mark of 95%/);
-    expect(status.headline).toMatch(/its median cycle time was 34 s against your target of 30 s/);
-    expect(status.headline).toMatch(/A candidate needs to reach 95% with a median cycle time of 30 s or less on your job/);
+    expect(status.headline).toMatch(/The closest scored evaluation succeeded in 172 of 200 episodes \(86%\); your pass mark is 95%/);
+    expect(status.headline).toMatch(/Its median cycle time was 34 s; your target is 30 s/);
+    expect(status.headline).toMatch(/To pass, a candidate needs to reach 95% with a median cycle time of 30 s or less on your job/);
     const rateOnly = projectTaskStatus({ ...ready, recommended: false, screening: { ...settled,
       closestQualified: { ...settled.closestQualified, medianCycleSeconds: null, cycleTimeSeconds: null, cycleTimeMissed: false } } });
-    expect(rateOnly.headline).toMatch(/A candidate needs to reach 95% on your job\./);
+    expect(rateOnly.headline).toMatch(/To pass, a candidate needs to reach 95% on your job\./);
     expect(rateOnly.headline).not.toMatch(/cycle time/);
   });
 
@@ -458,7 +458,7 @@ describe("a confirmed site our screen has not cleared", () => {
       base({ briefDrafted: true, briefConfirmed: true, coversScene: true, disposition: "not_now" }),
     );
     expect(status.decision).toBe("not_now");
-    expect(status.headline).toMatch(/not building a scene/);
+    expect(status.headline).toMatch(/aren't building a scene/);
     expect(status.operatorAction).toMatch(/update the brief/);
   });
 

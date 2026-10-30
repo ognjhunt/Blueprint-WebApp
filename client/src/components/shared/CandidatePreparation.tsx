@@ -5,8 +5,8 @@ export function CandidatePreparation({preview}: {preview?: JobCandidateReadiness
   if (!preview || preview.state === "available" && preview.candidates.length === 0) return null;
   if (preview.state === "unavailable") return <p role="status" className="ms-field-hint">{preview.message}</p>;
   return <section className="job-review" aria-label="Candidate preparation">
-    <h3>Candidates awaiting evaluation</h3>
-    <p>Task compatibility has not been evaluated. A prepared scene is needed to check compatibility and choose which configurations to test.</p>
+    <h3>Candidates not yet evaluated</h3>
+    <p>These have not been tested on your job yet. Once the simulation of your site is ready, we check which ones are compatible and choose which configurations to test.</p>
     <div className="overflow-x-auto">
       <table className="w-full text-left text-sm">
         <caption className="sr-only">Preparation status for each robot and policy configuration</caption>

@@ -20,7 +20,7 @@ describe("How it works", () => {
     expect(evaluation).toHaveTextContent(/estimate, not proof of real performance or safety/);
     const result = screen.getByRole("region", { name: "See what works on your job." });
     expect(result).toHaveTextContent(/No approved budget is needed to start/);
-    expect(result).toHaveTextContent(/bounded simulation estimate of what works on your job.*“held”/);
+    expect(result).toHaveTextContent(/simulation estimate of what's likely to work on your job.*“held”/);
     expect(result).toHaveTextContent(/works alongside a deployment company/);
     expect(result).toHaveTextContent(/agree the pilot price and terms directly with that company/);
     expect(result).not.toHaveTextContent(/delivery proposals|comparable|invite those companies|recommends the approach/i);

@@ -15,7 +15,7 @@ export function PartnerDetail({ role }: { role: PartnerRole }) {
       <p className="ms-eyebrow">{deployment ? "Deployment partners" : "Robot technology providers"}</p>
       <h1 id="partner-title">{title}</h1>
       <p className="ms-partner-lead">{deployment
-        ? "Bring your integration and service expertise. Blueprint defines the job and runs candidate robots and policies against it. When an approach you support wins for a site, we may invite you to propose what your team can deliver."
+        ? "Bring your integration and service expertise. Blueprint scopes the job and tests robots and policies on it in simulation. When an approach you support wins for a site, we may invite you to propose what your team can deliver."
         : "Bring hardware, a policy or a model API. Blueprint runs the assessment itself; you supply access or the integration needed to run your system. We agree which jobs and robot configurations it can be assessed on before arranging access."}</p>
       <a className="ms-button" href="#partner-application">{deployment ? "Apply as a deployment partner" : "Make your system available"}<ArrowRight size={18} aria-hidden="true" /></a>
       <p className="ms-field-hint">Free during the beta. Applications are reviewed; access and job invitations are confirmed separately.</p>
@@ -28,7 +28,7 @@ export function PartnerDetail({ role }: { role: PartnerRole }) {
           : "We review supported hardware, observations, actions and access arrangements. Existing deployment evidence, simulation and physical trials answer different questions; the evaluation scope states what each result supports."}</p>
         <h3>{deployment ? "Who does what" : "What we need to understand"}</h3>
         <ul>{(deployment ? [
-          "Blueprint: the job brief, the simulation, the candidate evaluations and their bounded result, and working alongside you on the site.",
+          "Blueprint: the job brief, the simulation, the candidate evaluations and their results (estimates, not guarantees), and working alongside you on site.",
           "Your team: the equipment and implementation you quote, commissioning and agreed support.",
           "The customer: site access, the contract decision and acceptance against agreed criteria.",
         ] : [

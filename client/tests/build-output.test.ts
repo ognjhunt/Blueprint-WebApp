@@ -86,9 +86,9 @@ describe("build output", () => {
     const html = fs.readFileSync(distPath("how-it-works/index.html"), "utf8");
     const manifest = JSON.parse(fs.readFileSync("docs/design/warehouse-pilot-sequence-2026-10-06.json", "utf8"));
     expect(html).toContain("Choose the approach that fits the job.");
-    expect(html).toContain("Fixed arms, humanoids, wheeled humanoids and mobile manipulators can be considered where the specific setup is compatible.");
+    expect(html).toContain("Fixed arms, humanoids, wheeled humanoids and mobile manipulators can all be considered if the specific setup is compatible.");
     expect(html).toContain("Warehouse walkthrough contents");
-    expect(html).toContain("The video is required to reconstruct and evaluate your site.");
+    expect(html).toContain("The video is required to reconstruct your site and run the evaluation.");
     expect(html).toContain("Compare suitable robots and policies in simulation.");
     expect(html).toContain("See what works on your job.");
     expect(html).not.toContain("Compare delivery proposals");
@@ -259,7 +259,7 @@ describe("build output", () => {
     expect(homeHtml).toContain("work alongside a deployment company");
     expect(homeHtml).not.toContain("Review comparable proposals");
     expect(homeHtml).toContain("Free during the beta");
-    expect(homeHtml).toContain("Site video, simulation comparisons and a measured physical pilot");
+    expect(homeHtml).toContain("Site video, simulation results and a measured pilot at your site");
     expect(homeHtml).not.toContain('aria-hidden="true">Book this pilot</span>');
     // Organization and WebSite structured data ride on the homepage.
     expect(homeHtml).toContain('"@type":"Organization"');
@@ -280,7 +280,7 @@ describe("build output", () => {
     expect(siteHtml).toContain("Loading your account and saved draft");
     expect(siteHtml).not.toContain('aria-label="Start a site capture"');
     expect(siteHtml).not.toContain('id="start-task"');
-    expect(siteHtml).toContain("Send video of one recurring job. We draft the description from it, build a site simulation and run candidate robots and policies against the job.");
+    expect(siteHtml).toContain("Send a video of one recurring job. We draft the job brief from it, build a simulation of your site and test robots and policies on the job.");
     expect(siteHtml).toContain("Free during the beta; no budget is required to start.");
     expect(siteHtml).toContain("How this works");
     // The country comes from the address; its select opens only to correct it.

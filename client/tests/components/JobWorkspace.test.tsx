@@ -113,7 +113,7 @@ describe("the site's job workspace", () => {
     expect(within(card).getByText("Pinned policy and local controller")).toBeInTheDocument();
     expect(within(card).getByText("Refill supply totes")).toBeInTheDocument();
     expect(within(card).getByText("Conveyor changes excluded")).toBeInTheDocument();
-    expect(within(card).getByText(/does not establish performance at your site/)).toBeInTheDocument();
+    expect(within(card).getByText(/Neither a past deployment nor a simulation proves performance at your site/)).toBeInTheDocument();
   });
 
   it("preserves cents in provider quotes", async () => {
@@ -185,7 +185,7 @@ describe("the site's job workspace", () => {
     fireEvent.click(screen.getByRole("button", { name: "Save pilot outcome" }));
     expect(await screen.findByRole("heading", { name: "Outcome reported by your site" })).toBeVisible();
     expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toMatchObject({ proposalId: proposal.id, expectedRevision: proposal.revision, metCriteria: true, measuredUnitsPerHour: 140, interventionsPerHour: 0, authorized: true });
-    expect(screen.getByText(/does not change evaluation scores or establish independent physical validation/)).toBeVisible();
+    expect(screen.getByText(/does not change the evaluation scores, and it is not independent physical validation/)).toBeVisible();
   });
 
   it("requires recorded outcome permission and preserves agreed planning details", async () => {
@@ -256,7 +256,7 @@ it("links missing task-specific evidence to the existing capture surface without
     limitations: [], runId: null, decisionDigest: null, planDigest: null, testbedDigest: null, approvedTaskDigest: null, claims: [],
   }] })));
   render(<JobWorkspace token="owner-token" />);
-  expect(await screen.findByRole("link", { name: "Add task-specific capture evidence" })).toHaveAttribute("href", "/app/captures?jobId=job-1");
+  expect(await screen.findByRole("link", { name: "Add more video of the task" })).toHaveAttribute("href", "/app/captures?jobId=job-1");
   expect(fetchMock).toHaveBeenCalledTimes(1);
 });
 

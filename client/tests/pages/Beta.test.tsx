@@ -13,12 +13,12 @@ describe("the beta page", () => {
   });
 
   // Owner direction, 2026-10-28: Blueprint runs the candidates itself and shows a bounded estimate or "held".
-  it("says Blueprint runs the candidates, shows a bounded estimate and holds jobs it cannot simulate yet", () => {
+  it("says Blueprint runs the candidates, shows an estimate and holds jobs it cannot simulate yet", () => {
     render(<Beta />);
     const receive = screen.getByRole("heading", { name: "What do I receive?" }).closest("section")!;
-    expect(receive).toHaveTextContent(/run the candidates ourselves in simulation: accessible policies, policy APIs and robot configurations/);
+    expect(receive).toHaveTextContent(/run every candidate ourselves in simulation, including policies served through APIs and different robot configurations/);
     expect(receive).toHaveTextContent(/its technology provider supplies it/);
-    expect(receive).toHaveTextContent(/bounded simulation estimate of which candidates work on your job/);
+    expect(receive).toHaveTextContent(/simulation estimate of which robots and policies are likely to work on your job/);
     expect(receive).toHaveTextContent(/We do not turn a job away because of its type.*“held”/);
     expect(receive).not.toHaveTextContent(/screening runs|full scoring|delivery proposals|technology teams where their involvement is needed/i);
     expect(screen.getByRole("article")).not.toHaveTextContent(/full evaluation|comparable proposals|join by invitation|book the pilot/i);

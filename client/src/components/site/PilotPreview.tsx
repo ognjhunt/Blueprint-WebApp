@@ -442,7 +442,7 @@ export function PilotPreview() {
       <div className="ms-pilot-preview-intro">
         <p className="ms-eyebrow">What you get</p>
         <h2 id="pilot-preview-title">One job. A clear pilot plan.</h2>
-        <p>The work, a suitable approach, the remaining questions and what a delivery partner would need to provide. You choose whether to proceed.</p>
+        <p>The job, a robot that could fit, the open questions and what the deployment company would provide. You choose whether to proceed.</p>
         <svg ref={artRef} className="ms-pilot-art" viewBox="0 0 320 196" role="img" aria-label={`Illustration of the ${example.site.toLowerCase()} example: ${example.embodiment.toLowerCase()}`}>
           <g key={example.site} className="ms-pilot-art-scene">
             <path d="M8 180 H312" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" />
@@ -481,7 +481,7 @@ export function PilotPreview() {
           <dl>
             <div><dt>Job</dt><dd>{example.tests}</dd></div>
             <div><dt>Possible approach</dt><dd>{example.embodiment}</dd></div>
-            <div><dt>Evidence needed</dt><dd>Site video, simulation comparisons and a measured physical pilot</dd></div>
+            <div><dt>Evidence needed</dt><dd>Site video, simulation results and a measured pilot at your site</dd></div>
             <div><dt>What you provide</dt><dd>{example.provide}</dd></div>
             <div><dt>Delivery scope</dt><dd>{example.teamProvides}</dd></div>
             <div><dt>Budget</dt><dd>Agreed with you before any pilot</dd></div>
@@ -491,7 +491,7 @@ export function PilotPreview() {
           </dl>
         </div>
         <div className="ms-pilot-card-foot">
-          <span>Examples show possible jobs and robot forms, not available offers or measured results. Physical performance and safety require on-site validation.</span>
+          <span>These examples show possible jobs and robots, not available offers or measured results. Physical performance and safety must be validated on site.</span>
         </div>
       </div>
     </section>

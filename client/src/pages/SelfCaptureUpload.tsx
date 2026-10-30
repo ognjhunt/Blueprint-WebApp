@@ -682,7 +682,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
           {scope === "owner" && link.recordingConsentAvailable && (
             <section aria-label="Confirm recording permission" style={{ marginBottom: "24px" }}>
               <h2>Record your job</h2>
-              <p className="ms-field-hint">Your video is needed to build the site simulation and compare robot options. Confirm recording permission to continue; Blueprint drafts the job description from your video.</p>
+              <p className="ms-field-hint">We need your video to build the site simulation and compare robot options. Confirm recording permission to continue. Blueprint drafts the job description from it.</p>
               <p className="ms-field-hint">{FILMING_NOTICE}</p>
               <label style={{ display: "flex", gap: "10px", alignItems: "flex-start" }}>
                 <input type="checkbox" checked={recordingConsent} onChange={event => setRecordingConsent(event.target.checked)}
@@ -890,7 +890,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
               {scope === "owner" && brief && !briefConfirmed && !editingBrief && !blueprintActionPending && (
                 <details aria-label="Review your job brief" style={{ margin: "16px 0" }}>
                   <summary>Review or correct job details (optional)</summary>
-                  <p className="ms-field-hint">Blueprint prepares and evaluates your job from the recording. You can correct the inferred summary and answers here.</p>
+                  <p className="ms-field-hint">Blueprint prepares and evaluates your job from the recording. You can correct the summary and answers we drafted here.</p>
                   <TaskBriefReview
                     key={token}
                     token={token}
