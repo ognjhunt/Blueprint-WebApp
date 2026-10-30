@@ -385,13 +385,13 @@ export default function TaskDetail() {
                     {["pilot", "pilot_complete", "deployed"].includes(task.pilot.state)
                       ? statusLabel(task.pilot.state)
                       : task.pilotBooking
-                        ? "Delivery partner selected"
+                        ? "Deployment company selected"
                         : task.pilot.selectedResultId
                           ? statusLabel(task.pilot.state)
                           : "Pilot"}
                   </h2>
                   {task.pilotBooking ? (
-                    <PilotBookingDetails booking={task.pilotBooking} other="delivery partner" />
+                    <PilotBookingDetails booking={task.pilotBooking} other="deployment company" />
                   ) : (
                     <p className="ws-muted">
                       {task.pilot.notes || (task.pilotRecommended

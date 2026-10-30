@@ -157,7 +157,7 @@ ownerRouter.patch("/owner/:token/requirements", handle(async (req, res) => {
   return res.json(await mutateWorkflow(res.locals.jobWorkflowRequestId, "signed_owner_link", "requirements_updated", state => {
     const requirements = { ...state.requirements, ...input };
     if (state.agreement && workflowDigest(requirements) !== workflowDigest(state.requirements)) {
-      throw new JobMarketplaceError("pilot_already_agreed", "A pilot agreement is recorded. Contact Blueprint and the delivery partner to agree changes to its scope or buying requirements.");
+      throw new JobMarketplaceError("pilot_already_agreed", "A pilot agreement is recorded. Contact Blueprint and the deployment company to agree changes to its scope or buying requirements.");
     }
     return { ...state, requirements };
   }));
@@ -173,7 +173,7 @@ ownerRouter.post("/owner/:token/select", handle(async (req, res) => {
     assertCurrentBrief(proposal, brief, state, objectSelectionDigest);
     await assertProposalEvidence(res.locals.jobWorkflowRequestId, proposal, transaction);
     if (state.agreement && (state.agreement.proposalId !== proposal.id || state.agreement.proposalRevision !== proposal.revision)) {
-      throw new JobMarketplaceError("pilot_already_agreed", "A pilot agreement is recorded. Reconcile any change with Blueprint and the delivery partner first.");
+      throw new JobMarketplaceError("pilot_already_agreed", "A pilot agreement is recorded. Reconcile any change with Blueprint and the deployment company first.");
     }
     if (state.selection?.proposalId === proposal.id && state.selection.proposalRevision === proposal.revision) return state;
     return { ...state, selection: { proposalId: proposal.id, proposalRevision: proposal.revision, selectedAtIso: now } };

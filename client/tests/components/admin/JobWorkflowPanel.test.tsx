@@ -52,7 +52,7 @@ async function open(patch: Partial<JobMarketplaceWorkflow> = {}) {
 }
 
 const formLabels = {
-  providerName: "Delivery company", scope: "Job scope", deliveryCommitment: "Delivery commitment",
+  providerName: "Deployment company", scope: "Job scope", deliveryCommitment: "Delivery commitment",
   equipment: "Equipment", software: "Software and inference", sitePreparation: "Site preparation",
   humanAssistance: "Human assistance", timing: "Delivery timing", support: "Support commitments",
   exclusions: "Exclusions and remaining costs", acceptanceCriteria: "Pilot acceptance criteria",
@@ -111,7 +111,7 @@ describe("JobWorkflowPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Save proposal" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Refresh the workflow before trying again.");
     expect(screen.getByRole("button", { name: "Save proposal" })).toBeDisabled();
-    expect(screen.getByLabelText("Delivery company")).toHaveValue("Example Delivery");
+    expect(screen.getByLabelText("Deployment company")).toHaveValue("Example Delivery");
     fetchMock.mockResolvedValueOnce(json(workflow({ proposals: [proposal] })));
     fireEvent.click(screen.getByRole("button", { name: "Refresh delivery records" }));
     await waitFor(() => expect(screen.getByRole("button", { name: "Save proposal" })).not.toBeDisabled());
@@ -127,7 +127,7 @@ describe("JobWorkflowPanel", () => {
   it("binds edits to the exact quoted revision and leaves the form intact on a conflict", async () => {
     await open({ proposals: [proposal] });
     fireEvent.click(screen.getByRole("button", { name: "Edit proposal" }));
-    expect(screen.getByLabelText("Delivery company")).toHaveValue("Example Delivery");
+    expect(screen.getByLabelText("Deployment company")).toHaveValue("Example Delivery");
     fireEvent.change(screen.getByLabelText("Support commitments"), { target: { value: "Updated service window." } });
     fetchMock.mockResolvedValueOnce(json({ error: "The proposal changed. Refresh before editing." }, 409));
     fireEvent.click(screen.getByRole("button", { name: "Save proposal" }));
@@ -149,7 +149,7 @@ describe("JobWorkflowPanel", () => {
     fireEvent.change(screen.getByLabelText("Agreement date and time (your local time)"), { target: { value: "2026-10-21T12:30" } });
     fireEvent.change(screen.getByLabelText("Site agreement reference"), { target: { value: "customer-signed-scope-v1" } });
     fireEvent.change(screen.getByLabelText("Provider agreement reference"), { target: { value: "provider-signed-quote-v1" } });
-    fireEvent.click(screen.getByLabelText(/I have recorded evidence that the site and delivery company agreed/));
+    fireEvent.click(screen.getByLabelText(/I have recorded evidence that the site and deployment company agreed/));
     fetchMock.mockResolvedValueOnce(json(workflow({ proposals: [proposal], selection, agreement: {
       proposalId: proposal.id, proposalRevision: proposal.revision, agreedAtIso: "2026-10-21T12:30:00.000Z",
       plannedStartIso: null, siteAgreementReference: "customer-signed-scope-v1", providerAgreementReference: "provider-signed-quote-v1",
@@ -181,7 +181,7 @@ describe("JobWorkflowPanel", () => {
     fireEvent.change(screen.getByLabelText("Agreement date and time (your local time)"), { target: { value: "2026-10-21T12:30" } });
     fireEvent.change(screen.getByLabelText("Site agreement reference"), { target: { value: "site-scope" } });
     fireEvent.change(screen.getByLabelText("Provider agreement reference"), { target: { value: "provider-quote" } });
-    fireEvent.click(screen.getByLabelText(/I have recorded evidence that the site and delivery company agreed/));
+    fireEvent.click(screen.getByLabelText(/I have recorded evidence that the site and deployment company agreed/));
     fireEvent.click(screen.getByLabelText(/Both parties have authorized Blueprint to record pilot outcomes/));
     fireEvent.submit(screen.getByRole("form", { name: "Record pilot agreement" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Record the written permission covering both parties");

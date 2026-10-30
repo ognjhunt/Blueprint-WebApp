@@ -121,7 +121,7 @@ const AGENT_KNOWLEDGE_ENTRIES: AgentKnowledgeEntry[] = [
       "apply",
     ],
     answer:
-      "There is nothing to buy: during the beta Blueprint charges nothing for job assessment, evaluation or coordination. A site starts with an email and video of one recurring job at /contact/site-operator; no budget is required to start. Blueprint analyzes the video, drafts the job description for the site to correct, reconstructs the work area in simulation, runs candidate robots, policies and policy APIs against the job itself, and shows the site a bounded estimate of what works, or “held” when it can't simulate that kind of job yet. Blueprint then works alongside a deployment company on the real site; the customer agrees any physical pilot's scope, price, dates and acceptance criteria directly with that company. Partners apply at /partners as delivery companies, robot technology providers, or both. A technology provider's application is reviewed first; once approved, it gives Blueprint access to its system or an integration and Blueprint runs it. Teams do not run their own evaluations of a site's job. Retired purchase endpoints return 410 and create no Stripe session, order, charge, or entitlement.",
+      "There is nothing to buy: during the beta Blueprint charges nothing for job assessment, evaluation or coordination. A site starts with an email and video of one recurring job at /contact/site-operator; no budget is required to start. Blueprint analyzes the video, drafts the job description for the site to correct, reconstructs the work area in simulation, runs candidate robots, policies and policy APIs against the job itself, and shows the site a bounded estimate of what works, or “held” when it can't simulate that kind of job yet. Blueprint then works alongside a deployment company on the real site; the customer agrees any physical pilot's scope, price, dates and acceptance criteria directly with that company. Partners apply at /partners as deployment companies, robot technology providers, or both. A technology provider's application is reviewed first; once approved, it gives Blueprint access to its system or an integration and Blueprint runs it. Teams do not run their own evaluations of a site's job. Retired purchase endpoints return 410 and create no Stripe session, order, charge, or entitlement.",
     citations: [`${CANONICAL_ORIGIN}/how-it-works`, `${CANONICAL_ORIGIN}/partners`, `${CANONICAL_ORIGIN}/beta`],
     actions: [
       { description: "Choose a partner role", method: "GET", endpoint: "/partners?interest=task-evaluation-run" },
@@ -215,7 +215,7 @@ const AGENT_KNOWLEDGE_ENTRIES: AgentKnowledgeEntry[] = [
     answer: [
       siteAssessment.allIn,
       "Partner applications and authorized evaluations are free as well.",
-      "A budget is optional to start. Before any pilot, the customer and Blueprint clarify the spending limits and required outcome. The physical pilot's scope, price and terms are agreed directly between the customer and delivery company, and Blueprint takes no cut of it.",
+      "A budget is optional to start. Before any pilot, the customer and Blueprint clarify the spending limits and required outcome. The physical pilot's scope, price and terms are agreed directly between the customer and deployment company, and Blueprint takes no cut of it.",
     ].join(" "),
     citations: [`${CANONICAL_ORIGIN}/beta`],
     actions: [

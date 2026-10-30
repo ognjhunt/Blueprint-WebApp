@@ -155,11 +155,11 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
   },
   pilot_request: {
     subject: "A partner asked to have its system evaluated on your job",
-    body: (url) => `An approved partner asked to have its system evaluated on your job for a possible pilot. Your details stay private, and there is nothing for you to do for this request. We review the partner's fit, evidence and delivery capabilities before including its system or presenting it as an option. You choose the delivery partner and agree any physical pilot directly with them.\n\nOpen your job:\n${url}`,
+    body: (url) => `An approved partner asked to have its system evaluated on your job for a possible pilot. Your details stay private, and there is nothing for you to do for this request. We review the partner's fit, evidence and delivery capabilities before including its system or presenting it as an option. You choose the deployment company and agree any physical pilot directly with them.\n\nOpen your job:\n${url}`,
   },
   pilot_recommended: {
     subject: "Your recommended pilot is ready",
-    body: (url, detail) => `A recommended delivery option is ready for your review${detail ? `: ${detail}` : ""}. Your job page shows the provider, supporting evidence, what the pilot tests, what you provide, the pilot's cost (paid to the delivery company, not to Blueprint), proposed timing and what is still uncertain. Review the scope, total cost and support before choosing. Blueprint's coordination is free during the beta. If you choose this option, contact details are shared under the recorded permissions so you and the provider can agree the pilot's scope, price, dates and acceptance criteria directly. Selection does not itself sign a contract or reserve a date. If it does not look right, reply and tell us why.\n\nOpen your job:\n${url}`,
+    body: (url, detail) => `A recommended delivery option is ready for your review${detail ? `: ${detail}` : ""}. Your job page shows the provider, supporting evidence, what the pilot tests, what you provide, the pilot's cost (paid to the deployment company, not to Blueprint), proposed timing and what is still uncertain. Review the scope, total cost and support before choosing. Blueprint's coordination is free during the beta. If you choose this option, contact details are shared under the recorded permissions so you and the provider can agree the pilot's scope, price, dates and acceptance criteria directly. Selection does not itself sign a contract or reserve a date. If it does not look right, reply and tell us why.\n\nOpen your job:\n${url}`,
   },
   pilot_booked: {
     subject: "Your pilot selection is recorded",
@@ -168,7 +168,7 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
     // is the one the job page shows beside the booking button. The site and the
     // team agree the pilot directly (owner decision 2026-10-15), so the email
     // carries the team's contact; dispatch re-checks both consents.
-    body: (url, detail, counterpart) => `Your selection is recorded. You and the delivery company agree the physical pilot's scope, price, dates and acceptance criteria directly. No contract is signed or date reserved by this selection.${counterpart ? `\n\nDelivery partner contact:\n${counterpart}` : ""}\n\n${detail === "invited_beta_free" ? "Blueprint charges nothing during the beta and takes no cut; the pilot's cost is agreed with the delivery company." : "Your previously accepted commercial terms remain on file."}\n\nOpen your job:\n${url}`,
+    body: (url, detail, counterpart) => `Your selection is recorded. You and the deployment company agree the physical pilot's scope, price, dates and acceptance criteria directly. No contract is signed or date reserved by this selection.${counterpart ? `\n\nDeployment company contact:\n${counterpart}` : ""}\n\n${detail === "invited_beta_free" ? "Blueprint charges nothing during the beta and takes no cut; the pilot's cost is agreed with the deployment company." : "Your previously accepted commercial terms remain on file."}\n\nOpen your job:\n${url}`,
   },
   pilot_scheduled: {
     subject: "Your pilot is scheduled",
@@ -234,7 +234,7 @@ export function buildTaskLifecycleNotification(params: {
   detail?: string;
   correlationId?: string;
   captureUrl?: string;
-  /** `pilot_booked` only: the delivery partner's contact, shared at booking. */
+  /** `pilot_booked` only: the deployment company's contact, shared at booking. */
   counterpart?: PilotContact | null;
   runProgress?: NoResultObservation;
   /** `preparation_ended` only: rendered through a fixed sentence per known reason. */

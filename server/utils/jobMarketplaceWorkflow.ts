@@ -160,15 +160,15 @@ export function projectJobMarketplace(record: Record<string, any>, brief: Record
   if (scopeAvailable && proposals.some(p => p.status === "available")) {
     stage = "proposals_ready"; nextAction = "Review the scope, cost, support and acceptance criteria, then choose a proposal."; actionOwner = "site";
   }
-  if (scopeAvailable && value.selection) { stage = "proposals_ready"; nextAction = "Agree the pilot's scope, price and terms with the delivery partner. Selection alone is not a contract."; actionOwner = "deployment_partner"; }
+  if (scopeAvailable && value.selection) { stage = "proposals_ready"; nextAction = "Agree the pilot's scope, price and terms with the deployment company. Selection alone is not a contract."; actionOwner = "deployment_partner"; }
   if (scopeAvailable && value.agreement) { stage = "pilot_agreed"; nextAction = "Run the agreed pilot and measure its outcome against the acceptance criteria."; actionOwner = "deployment_partner"; }
   if (scopeAvailable && value.outcome) { stage = "results_recorded"; nextAction = "Review the reported outcome together and decide whether to expand, change the setup or stop."; actionOwner = "site"; }
   const selected = value.selection && proposals.find(proposal => proposal.id === value.selection!.proposalId);
   const blockingReview = selected ? selected.status === "review_required"
     : reviewRequired && !proposals.some(proposal => proposal.status === "available");
   if (scopeAvailable && blockingReview) { stage = briefAgreed ? "brief_agreed" : "job_submitted"; nextAction = selected && evidenceReviewProposalIds.has(selected.id)
-    ? "Evidence supporting this proposal no longer applies to the current task or configuration. Blueprint and the delivery partner must review the affected proposal before you proceed. Recorded agreements and reports retain their original scope."
-    : "The job brief changed. Blueprint and the delivery partner must review the affected proposals before you proceed. Recorded agreements and reports refer to their original proposal scope."; actionOwner = "blueprint"; }
+    ? "Evidence supporting this proposal no longer applies to the current task or configuration. Blueprint and the deployment company must review the affected proposal before you proceed. Recorded agreements and reports retain their original scope."
+    : "The job brief changed. Blueprint and the deployment company must review the affected proposals before you proceed. Recorded agreements and reports refer to their original proposal scope."; actionOwner = "blueprint"; }
   if (objectSelectionSuperseded) {
     stage = briefAgreed ? 'brief_agreed' : 'job_submitted';
     nextAction = 'The object selection changed. Earlier proposals remain in the history while Blueprint reviews this job using the saved video.';

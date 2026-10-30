@@ -265,7 +265,7 @@ router.post("/owner/:token/book", async (req, res) => {
     if (outcome === "site_consent_withdrawn") return res.status(409).json({ code: outcome,
       error: "Recording permission for this job was withdrawn, so this pilot can no longer be booked." });
     if (outcome === "team_consent_withdrawn") return res.status(409).json({ code: outcome,
-      error: "The recommended delivery partner withdrew from this pilot, so it can no longer be booked." });
+      error: "The recommended deployment company withdrew from this pilot, so it can no longer be booked." });
     // Ops hears once that a pilot was booked. Ids only.
     const newlyBooked = booked as { recommendationId: string; teamId: string } | null;
     if (newlyBooked) void alertOpsPilotBooked({ requestId: token.requestId, ...newlyBooked })

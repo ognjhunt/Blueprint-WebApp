@@ -25,7 +25,7 @@ for (const width of [390, 1440]) {
     let pilotIntent = { pilotConsideration: "subject_to_review", deploymentPath: "multiple_sites" };
     const proposal = {
       id: "synthetic-proposal-1", revision: "a".repeat(64), briefRevision: "b".repeat(64),
-      status: "available", providerName: "Synthetic delivery partner", scope: "Proposed carton transfer against site targets",
+      status: "available", providerName: "Synthetic deployment company", scope: "Proposed carton transfer against site targets",
       equipment: "Fixture robot and gripper", software: "Fixture controller", deliveryCommitment: "Scope remains subject to the parties' agreement",
       installationCostUsd: null, monthlyCostUsd: null, currency: "USD", exclusions: "Fixture proposal only",
       sitePreparation: "Named task owner and agreed trial window", humanAssistance: "Operator and reset assistance",
@@ -37,7 +37,7 @@ for (const width of [390, 1440]) {
     const jobWorkflow = () => ({
       ...initialJobWorkflow(), briefAgreed: confirmed, optionsAssessed: proposalsReady,
       stage: proposalsReady ? "proposals_ready" : confirmed ? "brief_agreed" : "job_submitted",
-      nextAction: selected ? "Agree pilot scope, price, dates and support directly with the delivery partner." : "Review the current job brief and proposal.",
+      nextAction: selected ? "Agree pilot scope, price, dates and support directly with the deployment company." : "Review the current job brief and proposal.",
       actionOwner: selected ? "deployment_partner" : "site", proposals: proposalsReady ? [proposal] : [],
       selection: selected ? { proposalId: proposal.id, proposalRevision: proposal.revision, selectedAtIso: "2026-10-21T01:00:00Z" } : null,
       agreement: null, outcome: null,

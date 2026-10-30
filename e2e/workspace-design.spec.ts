@@ -637,7 +637,7 @@ test("a selected team progresses only through explicit site-reported outcomes", 
     contact: { name: "Synthetic team", organization: "Fixture Robotics", email: "team@example.test", phone: null },
     consentWithdrawn: false };
   await page.goto("/app/tasks/task-1?tab=results");
-  await expect(page.getByRole("heading", { name: "Delivery partner selected", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Deployment company selected", exact: true })).toBeVisible();
   await expect(page.getByText("Outcome recorded by your site.")).toHaveCount(0);
   await expect(page.getByRole("link", { name: "team@example.test" })).toBeVisible();
   for (const label of ["Record pilot start", "Record pilot outcome", "Record deployment"]) {
