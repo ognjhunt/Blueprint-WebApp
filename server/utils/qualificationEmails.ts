@@ -351,7 +351,7 @@ export function buildQualifiedEmail(params: {
     "",
     bulletList(params.jobCardPublished === false ? [
       "We review the job brief, required output and site constraints with you. Video is required before the site assessment: we analyze it, draft the brief, then reconstruct the work area in simulation and run candidate robots, policies and policy APIs against your job ourselves.",
-      "Your job card is not published, so partners cannot discover it through the shared library. We ask before sharing details with a provider.",
+      "Your job card is not published, so partners cannot discover it through the shared library. We ask before sharing details with any partner.",
       "You can publish its card from your job page when you want approved partners to see it. The card shows only the anonymized text you approve.",
       "Any physical pilot is agreed with the deployment company: its scope, price, timing and acceptance criteria.",
     ] : [
