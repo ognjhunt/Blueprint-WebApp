@@ -1,3 +1,4 @@
+import { CandidatePreparation } from "../shared/CandidatePreparation";
 import { PolicyScreeningCandidates } from "@/components/shared/PolicyScreeningCandidates";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { User as FirebaseUser } from "firebase/auth";
@@ -270,6 +271,7 @@ export function JobWorkflowPanel({ requestId, currentUser, onChanged }: {
                 </div>
               </article>)}
               {currentUser && workflow.evidenceContext ? <JobManagedEvaluation key={`${requestId}:${workflow.evidenceContext.briefDigest}`} currentUser={currentUser} jobId={requestId} briefDigest={workflow.evidenceContext.briefDigest} /> : null}
+              <CandidatePreparation preview={workflow.candidateReadiness} />
               {(workflow.managedEvidence ?? []).map(item => <article key={item.runId} id={`managed-evidence-${encodeURIComponent(item.runId)}`} className="grid gap-2 border-t border-runway-line pt-3 text-sm">
                 <p className="font-semibold">Managed policy run · {item.current ? item.state.replace(/_/g, " ") : "Historical — scope changed"}</p>
                 <p>{item.summary}</p><p>Next: {item.nextAction}</p>

@@ -1,4 +1,5 @@
 /** Durable commercial decisions, separate from Pipeline-owned evaluation and physical proof. */
+import { loadJobCandidateReadiness, omitPublishedCandidates } from "../utils/websiteCandidateReadiness";
 import { randomUUID } from "node:crypto";
 import { Router, type Request, type Response } from "express";
 import { z } from "zod";
@@ -71,9 +72,14 @@ async function readWorkflow(requestId: string, admin = false) {
     try { await assertProposalEvidence(requestId, proposal); return null; }
     catch { return proposal.id; } // Preserve unavailable evidence as history, affecting only its own quote.
   }))).filter((id): id is string => id !== null));
+  const [managed, preview] = await Promise.all([
+    briefValue ? loadManagedJobEvidenceForWorkspace(requestId, scientificBriefDigest(briefValue)) : {managedEvidence: []},
+    selectionSession?.website_preparation ? loadJobCandidateReadiness(requestId, record.active_capture_id || `walkthrough-${requestId}`) : undefined,
+  ]);
   return { ...projectJobMarketplace(record, briefValue, walkthrough?.received ?? null, evidenceReviewProposalIds, targetScope.superseded,
     targetScope.correctionsDigest), jobId: requestId, ...await readJobEvidence(requestId, briefValue, admin),
-    ...(briefValue ? await loadManagedJobEvidenceForWorkspace(requestId, scientificBriefDigest(briefValue)) : { managedEvidence: [] }) };
+    ...managed, ...(preview ? {candidateReadiness: omitPublishedCandidates(preview,
+      targetScope.superseded ? [] : managed.managedEvidence)} : {}) };
 }
 async function mutateWorkflow(requestId: string, actor: string, event: string,
   mutate: (state: StoredJobMarketplace, brief: Record<string, any> | null, now: string, record: Record<string, any>, transaction: FirebaseFirestore.Transaction,

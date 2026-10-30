@@ -1,3 +1,4 @@
+import { CandidatePreparation } from "../shared/CandidatePreparation";
 import { PolicyScreeningCandidates } from "@/components/shared/PolicyScreeningCandidates";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { withCsrfHeader } from "@/lib/csrf";
@@ -139,6 +140,7 @@ function JobWorkspaceForToken({ token, preparationOutcome, currentStatusKnown = 
       <p>{workflow.review.summary}</p>
       {currentStatusKnown && !preparationOutcome && !currentAction && workflow.review.nextAction !== workflow.nextAction && <p className="ms-field-hint">{workflow.review.nextAction}</p>}
     </div>}
+    <CandidatePreparation preview={workflow.candidateReadiness} />
     {workflow.managedEvidenceUnavailable && <p role="status" className="ms-field-hint">Policy results are temporarily unavailable. Reload this page to retry.</p>}
     {(workflow.managedEvidence ?? []).filter(item => !resultSuperseded && item.current && item.screening).map(item => <section
       key={item.runId} className="job-review" aria-label="Simulation results for your job">

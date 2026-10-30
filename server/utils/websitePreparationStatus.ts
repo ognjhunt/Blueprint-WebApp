@@ -332,6 +332,11 @@ async function fresh(captureId: string, requestId: string, deps: WebsitePreparat
     return {status, selector: stored.selector};
   });
 }
+/** Server-only source proof for the signed, read-only candidate companion. */
+export async function loadCurrentWebsitePreparationProof(requestId: string, captureId: string, deps = defaultDeps) {
+  id.parse(requestId); websitePreparationSelectorSchema.shape.capture_id.parse(captureId);
+  return fresh(captureId, requestId, deps);
+}
 export async function loadCurrentWebsitePreparationStatus(requestId: string, captureId: string,
   deps = defaultDeps): Promise<PublicWebsitePreparationStatus> {
   try {

@@ -88,6 +88,7 @@ export interface JobMarketplaceWorkflow {
   evidence?: JobEvidenceSummary[];
   managedEvidence?: JobManagedEvidenceSummary[];
   managedEvidenceUnavailable?: boolean;
+  candidateReadiness?: JobCandidateReadiness;
   evidenceContext?: { briefDigest: string; question: string | null; testbedDigest: string | null } | null;
   proposals: DeliveryProposal[];
   selection: JobProposalSelection | null;
@@ -131,3 +132,10 @@ export interface JobManagedEvidenceSummary {
       action_source: "learned_policy" | "scripted_simulator_state"; scripted_rollout_count: number;
       learned_policy_rollout_count: number; scripted_controller_invoked: boolean; candidate_policy_queried: boolean } }> };
 }
+
+/** Preparation inventory only. Compatibility and task outcomes have not been evaluated. */
+export type JobCandidateReadiness = {state: "unavailable"; message: string} | {
+  state: "available"; revision: string; catalogCandidateCount: number;
+  candidates: Array<{candidateId: string; name: string; compatibility: "not_evaluated";
+    kind: "learned_policy" | "scripted_baseline"; notes: string[]}>;
+};
