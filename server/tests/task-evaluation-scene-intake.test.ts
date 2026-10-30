@@ -1563,11 +1563,15 @@ it("requires source-bound Atlas consent and preserves separate budgets across re
       rate_card_reference: "https://atlas-beta.worldlabs.ai/docs/billing", reviewed_by: "operator", reviewed_on: "2026-10-21" });
     const configuration = await loadWebsiteAtlasConfiguration("req1", "walkthrough-req1", {
       task_context_digest: grant.task_context_digest, source_video_digest: sha("a") });
-    expect(configuration).toMatchObject({ remaining_cost_usd: 2, remaining_requests: 1, dispatch_authorized: false });
+    expect(configuration).toMatchObject({ remaining_cost_usd: 2, dispatch_authorized: false });
+    expect(configuration).not.toHaveProperty("remaining_requests");
     await reserveWebsitePreparationSpend("req1", { ...spend, allocation_binding_digest: sha("7"),
       provider: "openai", resource_class: "openai_api_candidate", maximum_cost_usd: .5 });
     expect((await loadWebsiteAtlasConfiguration("req1", "walkthrough-req1", {
       task_context_digest: grant.task_context_digest, source_video_digest: sha("a") })).remaining_cost_usd).toBe(1.5);
+    // Money is the hard stop: a third request past maximum_requests is admitted while dollars remain.
+    expect(await reserveWebsitePreparationSpend("req1", { ...spend, allocation_binding_digest: sha("8"),
+      maximum_cost_usd: .01 })).toMatchObject({ status: "admitted" });
     await expect(reserveWebsitePreparationSpend("req1", { ...spend, allocation_binding_digest: sha("2") }))
       .rejects.toThrow("budget_exhausted");
     store.rows.get("inboundRequests/req1").website_scene_sponsorship = original;

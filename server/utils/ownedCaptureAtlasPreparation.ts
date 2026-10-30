@@ -106,8 +106,7 @@ function configuration(record: Record<string, any>, input: ConfigurationRequest,
       policy: websiteAtlasRuntimePolicy(), task_context_digest: context.context_digest,
       source_video_digest: input.source_video_digest, dispatch_authorized: false,
       grant_creation_allowed: false, reserved_or_settled_cost_usd: usage.cost,
-      remaining_cost_usd: Math.max(0, authority.maximum_cost_usd - usage.cost),
-      remaining_requests: Math.max(0, authority.maximum_requests - usage.requests) } };
+      remaining_cost_usd: Math.max(0, authority.maximum_cost_usd - usage.cost) } };
 }
 
 /** Only the authenticated owner command can retain the first explicit allowance.
@@ -160,8 +159,8 @@ export async function reserveOwnedCaptureAtlasSpend(captureId: string, input: Co
     }
     if (observeOnly) throw new Error("owned_capture_atlas_reservation_missing");
     const usage = atlasAllowanceUsage(reservations);
-    if (Math.ceil(usage.cost * 1e6) + Math.ceil(command.maximum_cost_usd * 1e6) > Math.floor(authority.maximum_cost_usd * 1e6)
-      || usage.requests + command.request_count > authority.maximum_requests)
+    // Money is the hard stop; request counts are recorded, never a separate ceiling.
+    if (Math.ceil(usage.cost * 1e6) + Math.ceil(command.maximum_cost_usd * 1e6) > Math.floor(authority.maximum_cost_usd * 1e6))
       throw new Error("owned_capture_atlas_budget_exhausted");
     const admission = { ...command, schema_version: "paid_lane_admission.v1", status: "admitted", blockers: [],
       external_disclosure_allowed: true, sponsorship_digest: authority.authorization_digest,

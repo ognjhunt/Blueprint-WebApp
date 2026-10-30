@@ -193,7 +193,7 @@ it("does not replenish the source allowance when another compatible task plan is
   binding = { ...binding, plan_id: plan.plan_id, task_context_digest: plan.source_context.context_digest };
   company.request_id = binding.plan_id; company.task_context_digest = binding.task_context_digest; configureCompany();
   const result = await loadOwnedCaptureAtlasConfiguration(state.record.session_id, binding);
-  expect(result.remaining_cost_usd).toBe(0.5); expect(result.remaining_requests).toBe(2);
+  expect(result.remaining_cost_usd).toBe(0.5); expect(result).not.toHaveProperty("remaining_requests");
   await expect(reserveOwnedCaptureAtlasSpend(state.record.session_id, binding, spend("d", 0.6))).rejects.toThrow("budget_exhausted");
   expect(state.writes).toHaveLength(2);
 });

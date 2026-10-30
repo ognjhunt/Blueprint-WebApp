@@ -159,7 +159,7 @@ describe("automatic consented Atlas grant", () => {
     expect(stored).not.toHaveProperty("task_context_digest");
     expect(first).toEqual({ schema_version: "website_atlas_configuration.v1",
       authority: { ...stored, authorization_digest: crossRuntimeDigest(stored) }, policy: runtime,
-      reserved_or_settled_cost_usd: 0, remaining_cost_usd: 2, remaining_requests: 4,
+      reserved_or_settled_cost_usd: 0, remaining_cost_usd: 2,
       task_context_digest: contextDigest(), source_video_digest: sha("5"), dispatch_authorized: false });
     // Byte-stable on resume, created once, and unchanged by a task edit.
     expect(JSON.stringify((await configure()).authority)).toBe(JSON.stringify(first.authority));
@@ -313,7 +313,7 @@ describe("non-authorizing Atlas configuration read", () => {
     store.writes.length = 0;
     const read = await configure({ create: false });
     expect(read).toMatchObject({ grant_creation_allowed: false, authority,
-      reserved_or_settled_cost_usd: 2, remaining_cost_usd: 0, remaining_requests: 1,
+      reserved_or_settled_cost_usd: 2, remaining_cost_usd: 0,
       allowance_accounting: { schema_version: "website_atlas_allowance_accounting.v1", source_scope: "request_atlas_allowance",
         settled_cost_usd: .2, held_cost_usd: 1.8, reserved_or_settled_cost_usd: 2, request_count: 3,
         external_capture_assessment_costs: "not_in_preparation_ledger" },
@@ -703,7 +703,7 @@ it("gives an automatic preview its own SAM and review consent, pinned to their t
   const review = await reserveWebsitePreparationSpend("req1", atlasSpend({ allocation_binding_digest: sha("3"),
     provider: "google", resource_class: "evaluator_api", maximum_cost_usd: .2, atlas_auxiliary: true }));
   expect(review).toMatchObject({ status: "admitted", provider: "google", provider_terms_reference: sha("f") });
-  expect(await configure()).toMatchObject({ remaining_cost_usd: expect.closeTo(1.4), remaining_requests: 2 });
+  expect(await configure()).toMatchObject({ remaining_cost_usd: expect.closeTo(1.4) });
   expect(store.rows.get(REQUEST).website_scene_sponsorship).toBeUndefined();
   // Changed terms refuse: the grant pinned the ones in force when it was made.
   vi.stubEnv("TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON", JSON.stringify({ ...terms, google: { ...google, digest: sha("7") } }));
