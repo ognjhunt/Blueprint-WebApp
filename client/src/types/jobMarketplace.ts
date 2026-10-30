@@ -88,6 +88,7 @@ export interface JobMarketplaceWorkflow {
   evidence?: JobEvidenceSummary[];
   managedEvidence?: JobManagedEvidenceSummary[];
   managedEvidenceUnavailable?: boolean;
+  candidateReadiness?: JobCandidateReadiness;
   evidenceContext?: { briefDigest: string; question: string | null; testbedDigest: string | null } | null;
   proposals: DeliveryProposal[];
   selection: JobProposalSelection | null;
@@ -125,9 +126,16 @@ export interface JobManagedEvidenceSummary {
   limitations: string[];
   href: string;
   screening?: { budget?: { limitUsd: string; committedUpperBoundUsd: string; spentUpperBoundUsd: string; reservedUsd: string };
-    candidates: Array<{ candidateId: string; name: string; state: string; planned: number;
+    candidates: Array<{ candidateId: string; name: string; state: string; planned: number; configurationDigest?: string;
     scored: number; succeeded: number; failed: number; void: number; blockers: string[];
     executionEvidence?: { execution_evidence_kind: "learned_policy" | "scripted_simulator_state_baseline";
       action_source: "learned_policy" | "scripted_simulator_state"; scripted_rollout_count: number;
       learned_policy_rollout_count: number; scripted_controller_invoked: boolean; candidate_policy_queried: boolean } }> };
 }
+
+/** Preparation inventory only. Compatibility and task outcomes have not been evaluated. */
+export type JobCandidateReadiness = {state: "unavailable"; message: string} | {
+  state: "available"; revision: string; catalogCandidateCount: number;
+  candidates: Array<{candidateId: string; configurationDigest: string; name: string; compatibility: "not_evaluated";
+    kind: "learned_policy" | "scripted_baseline"; notes: string[]}>;
+};
