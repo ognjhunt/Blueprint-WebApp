@@ -169,7 +169,10 @@ describe("existing blocked-job saved-output recovery UI", () => {
     const fetchMock = savedTransport({ lostAck: true }); await prepareSavedRecovery();
     fireEvent.click(screen.getByRole("checkbox")); fireEvent.click(screen.getByRole("button", { name: "Recover saved output" }));
     expect(await screen.findByText(/synthetic lost acknowledgement/)).toBeVisible();
-    expect(screen.getByRole("checkbox")).not.toBeChecked();
+    // onError clears `reviewed` at default priority (React's scheduler task), but the
+    // error reaches the alert through useSyncExternalStore at sync priority, so the
+    // alert can commit first; findByText's setTimeout(0) drain may beat that task.
+    await waitFor(() => expect(screen.getByRole("checkbox")).not.toBeChecked());
     fireEvent.click(screen.getByRole("button", { name: "Check recovery status" }));
     expect(await screen.findByText(/Saved output for .* is in Approvals/)).toBeVisible();
     expect(fetchMock.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(1);
