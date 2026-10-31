@@ -9,9 +9,12 @@ on:
   pull_request:
 
 # Supersede in-flight runs for the same ref, but never cancel a main run —
-# the CI-gated deploy workflow keys off completed main runs.
+# the CI-gated deploy workflow keys off completed main runs. Each main commit has
+# its own group, so a merge's CI does not wait for the previous merge's. Deploy
+# ships only main's head and serializes deploys, so an older commit's run finishing
+# late cannot roll production back.
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.ref == 'refs/heads/main' && format('main-{0}', github.sha) || github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:

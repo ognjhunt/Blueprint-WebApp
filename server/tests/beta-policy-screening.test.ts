@@ -5,7 +5,10 @@ import { assertScreeningSceneSource } from "../utils/betaPolicyScreeningIngest";
 import { managedJobTask, projectManagedJobEvidence } from "../utils/jobManagedEvaluation";
 import { scientificBriefDigest } from "../utils/jobEvidenceContract";
 import { crossRuntimeArtifactDigest, crossRuntimeDigest } from "../utils/crossRuntimeCanonical";
-import { allCandidateFamilyScreeningFixture, familyScreeningFixture, screeningFixture, screeningSha, sealScreening } from "./fixtures/beta-policy-screening";
+import { allCandidateFamilyScreeningFixture, familyScreeningFixture, finishedScreening, screeningFixture, screeningSha, sealScreening,
+  sealSelection, selectionFixture } from "./fixtures/beta-policy-screening";
+import { parseBetaCandidateSelection, selectionMatchesPublication } from "../utils/betaCandidateSelection";
+import producerSelection from "./fixtures/pipeline-website-candidate-selection.v1.json";
 import producerPublication from "./fixtures/pipeline-beta-policy-screening-publication.v2.json";
 import retainedProducerPublication from "./fixtures/pipeline-beta-policy-screening-publication.v1.json";
 import producerFamilyStatus from "./fixtures/pipeline-family-prepared-status.v1.json";
@@ -199,6 +202,17 @@ describe("automatic many-candidate job evaluation", () => {
       row("blocked", ["runtime_candidate_binding_missing"])])).toBe("setup");
     expect(noEstimateReason([row("completed", []), row("blocked", ["task_kind_not_supported_by_candidate"])])).toBe("setup");
     expect(noEstimateReason([row("blocked", [])])).toBe("setup");
+    // Measured out of reach beside capability gaps is a plain "no match".
+    expect(noEstimateReason([row("infeasible", ["candidate_infeasible_measured_geometry"]),
+      row("blocked", ["task_kind_not_supported_by_candidate"])])).toBe("no_match");
+    // Every candidate measured out of reach, in either published form, is held with that reason.
+    expect(noEstimateReason([row("unavailable", ["candidate_infeasible_measured_geometry"])])).toBe("infeasible");
+    expect(noEstimateReason([row("infeasible", ["team_embodiment_station_out_of_reach"]),
+      row("unavailable", ["candidate_infeasible_measured_geometry", "team_embodiment_station_out_of_reach"])])).toBe("infeasible");
+    expect(noEstimateReason([row("infeasible", ["candidate_infeasible_measured_geometry"]),
+      row("deferred", ["site_screening_budget_insufficient"])])).toBe("budget");
+    expect(noEstimateReason([row("infeasible", ["candidate_infeasible_measured_geometry"]),
+      row("blocked", ["runtime_candidate_binding_missing"])])).toBe("setup");
   });
 
   it("shows held when no candidate Blueprint can run supports the job", () => {
@@ -217,6 +231,39 @@ describe("automatic many-candidate job evaluation", () => {
     expect(projected.summary).toBe("Held: we can't simulate this kind of job yet. It counts as demand for what we build next.");
     expect(projected.nextAction).toMatch(/^Nothing is needed from the site/);
     expect(projected.resultDigest).toBe(held.publication_digest);
+  });
+
+  it("shows held with the measured reason when every candidate is out of reach, never a setup fix", () => {
+    const { publication, brief, job } = screeningFixture();
+    const binding = { job_id: brief.requestId, brief_digest: scientificBriefDigest(brief) };
+    const scope = managedJobTask({ binding, record: job, brief });
+    const project = (blockers: (index: number) => { status: "unavailable" | "infeasible" | "blocked"; blockers: string[] }) => {
+      const value = sealScreening({ ...publication, revision: 2, status: "blocked",
+        candidates: publication.candidates.map((row, index) => ({ ...row, ...blockers(index) })) });
+      const run = { run_id: value.campaign_id, run_kind: "beta_policy_screening", state: "blocked", result_record_id: "result-one",
+        job_evidence_binding: binding, job_task_context_digest: scope.taskContextDigest, job_source_fingerprint: scope.sourceFingerprint,
+        configuration_digest: value.plan_digest, source_scene_intent_id: value.source.scene_intent_id,
+        source_scene_revision_digest: value.source.scene_revision_digest, publication_digest: value.publication_digest, publication_revision: 2 };
+      return projectManagedJobEvidence(value.campaign_id, run, { record_id: "result-one", publication: value },
+        brief.requestId, binding.brief_digest, scope.taskContextDigest, scope.sourceFingerprint)!;
+    };
+    // The Pipeline's current form (unavailable plus the measured blocker) and the native status read the same.
+    const outOfReach = project(index => index === 0
+      ? { status: "unavailable", blockers: ["candidate_infeasible_measured_geometry", "team_embodiment_station_out_of_reach"] }
+      : { status: "infeasible", blockers: ["team_embodiment_station_out_of_reach"] });
+    expect(outOfReach.state).toBe("held");
+    expect(outOfReach.summary).toBe("Held: from the robot position planned in the scene built from your video, none of the robots we can simulate could reach this task.");
+    expect(outOfReach.nextAction).toBe("Nothing is needed from the site. Each row lists the measured reason or why it could not run.");
+    expect(`${outOfReach.summary} ${outOfReach.nextAction}`).not.toMatch(/setup blockers|rerun/);
+    // Measured from the scene's planned robot position only: no task-level or site-wide verdict.
+    expect(outOfReach.summary).toMatch(/^Held: from the robot position planned in the scene/);
+    expect(outOfReach.summary).not.toMatch(/can't do|cannot do|anywhere/);
+    expect(outOfReach.screening!.candidates.every(row => row.state === "infeasible")).toBe(true);
+    // Measured out of reach beside a capability gap keeps its "no match" wording.
+    const mixed = project(index => index === 0 ? { status: "infeasible", blockers: ["team_embodiment_station_out_of_reach"] }
+      : { status: "blocked", blockers: ["task_kind_not_supported_by_candidate"] });
+    expect(mixed.state).toBe("held");
+    expect(mixed.summary).toBe("No match: none of the robots we can simulate could reach this task in the scene built from your video.");
   });
 
   it("shows no estimate for a completed run whose candidates scored no episode", () => {
@@ -281,4 +328,85 @@ it("evaluates the named task of a job whose preparation grant was issued before 
   const marked = { ...placeholderEra, website_scene_sponsorship_unnamed_task: placeholderEra.website_scene_sponsorship.authority_digest };
   expect(managedJobTask({ binding, record: marked, brief, allowProposedScreening: true }))
     .toEqual(managedJobTask({ binding, record: job, brief, allowProposedScreening: true }));
+});
+
+describe("measured infeasible candidates and the rule's choice", () => {
+  const project = (publication: ReturnType<typeof finishedScreening>, candidateSelection?: unknown) => {
+    const { brief, job } = screeningFixture();
+    const binding = { job_id: brief.requestId, brief_digest: scientificBriefDigest(brief) };
+    const scope = managedJobTask({ binding, record: job, brief });
+    const run = { run_id: publication.campaign_id, run_kind: "beta_policy_screening", state: "completed", result_record_id: "result-one",
+      job_evidence_binding: binding, job_task_context_digest: scope.taskContextDigest, job_source_fingerprint: scope.sourceFingerprint,
+      configuration_digest: publication.plan_digest, source_scene_intent_id: publication.source.scene_intent_id,
+      source_scene_revision_digest: publication.source.scene_revision_digest, publication_digest: publication.publication_digest,
+      publication_revision: publication.revision, ...(candidateSelection ? { candidate_selection: candidateSelection } : {}) };
+    return projectManagedJobEvidence(publication.campaign_id, run, { record_id: "result-one", publication },
+      brief.requestId, binding.brief_digest, scope.taskContextDigest, scope.sourceFingerprint)!;
+  };
+
+  it("accepts infeasible as a terminal state and shows the Pipeline's current unavailable form as infeasible", () => {
+    const finished = finishedScreening(screeningFixture().publication);
+    const native = sealScreening({ ...finished, candidates: finished.candidates.map((row, index) => index === 2
+      ? { ...row, status: "infeasible", blockers: ["team_embodiment_station_out_of_reach"] } : row) });
+    expect(parseBetaPolicyScreeningPublication(native)?.candidates[2].status).toBe("infeasible");
+    // A measured refusal is final: a later revision of a running campaign cannot reopen it.
+    const running = sealScreening({ ...native, status: "running", candidates: native.candidates.map((row, index) => index === 1
+      ? { ...row, status: "running", episodes_scored: 0, episodes_succeeded: 0, episodes_failed: 0, success_rate: null, session_result_digest: null } : row) });
+    expect(parseBetaPolicyScreeningPublication(running)).not.toBeNull();
+    expect(() => screeningPublicationTransition(running, sealScreening({ ...running, revision: 3, candidates: running.candidates.map((row, index) =>
+      index === 2 ? { ...row, status: "unavailable" } : row) }))).toThrow("screening_terminal_candidate_conflict");
+    for (const publication of [finished, native]) {
+      const projected = project(publication);
+      expect(projected.screening?.candidates[2].state).toBe("infeasible");
+      expect(projected.screening?.candidates[3].state).toBe("blocked");
+      expect(projected.limitations).toContain("34 candidates did not run; each row lists why.");
+    }
+  });
+
+  it("verifies the Python rule's record against the Python publication it was chosen from", () => {
+    const selection = parseBetaCandidateSelection(producerSelection)!;
+    expect(selection).not.toBeNull();
+    expect(selection.chosen?.partner_blockers).toEqual(["catalog_row_unavailable"]);
+    expect(selectionMatchesPublication(selection, parseBetaPolicyScreeningPublication(producerPublication)!)).toBe(true);
+    expect(parseBetaCandidateSelection({ ...producerSelection, selection_digest: screeningSha("0") })).toBeNull();
+  });
+
+  it("refuses a choice its rows or the accepted result do not support, and never a partner without a recorded company", () => {
+    const finished = finishedScreening(screeningFixture().publication);
+    const selection = selectionFixture(finished);
+    expect(parseBetaCandidateSelection(selection)).not.toBeNull();
+    expect(selectionMatchesPublication(selection, finished)).toBe(true);
+    const { selection_digest: _digest, ...body } = selection;
+    for (const forged of [
+      { ...body, chosen: { ...body.chosen!, deployment_companies: [], partner_blockers: [] } },
+      { ...body, chosen: { ...body.chosen!, candidate_id: "candidate-1", display_name: "Candidate 1" } },
+      { ...body, chosen: { ...body.chosen!, success_rate: 1 } },
+      { ...body, status: "no_successful_candidate", chosen: null },
+      { ...body, tied_with: ["candidate-3"] },
+      { ...body, candidates: body.candidates.map((row, index) => index === 3 ? { ...row, choice_blocker: null, result_rank: 3 } : row) },
+    ]) expect(parseBetaCandidateSelection(sealSelection(forged))).toBeNull();
+    const altered = sealSelection({ ...body, candidates: body.candidates.map((row, index) => index === 1 ? { ...row, episodes_succeeded: 2,
+      episodes_failed: 1, success_rate: 2 / 3 } : row) });
+    expect(parseBetaCandidateSelection(altered)).not.toBeNull();
+    expect(selectionMatchesPublication(altered, finished)).toBe(false);
+    expect(selectionMatchesPublication(selectionFixture(sealScreening({ ...finished, plan_digest: screeningSha("9") })), finished)).toBe(false);
+  });
+
+  it("projects the choice, its recorded companies and every candidate's outcome while it restates the result", () => {
+    const finished = finishedScreening(screeningFixture().publication);
+    const stored = { record: selectionFixture(finished), registry_teams: [{ id: "jacobi", name: "Jacobi Robotics" }] };
+    const selection = project(finished, stored).screening?.selection;
+    expect(selection).toMatchObject({ status: "chosen", tiedWith: [], chosen: { candidateId: "candidate-0", successRate: 2 / 3,
+      deploymentCompanies: ["Jacobi Robotics", "Delta Technology"], partnerBlockers: [], registryTeams: [{ id: "jacobi", name: "Jacobi Robotics" }] } });
+    expect(selection?.candidates.slice(0, 4)).toEqual([
+      { candidateId: "candidate-0", resultRank: 1, choiceBlocker: null }, { candidateId: "candidate-1", resultRank: 2, choiceBlocker: null },
+      { candidateId: "candidate-2", resultRank: null, choiceBlocker: "not_evaluated" }, { candidateId: "candidate-3", resultRank: null, choiceBlocker: "not_evaluated" }]);
+    // A later budget-only revision keeps the choice; a changed result drops it.
+    const budget = sealScreening({ ...finished, revision: 3, budget: { ...finished.budget, reserved_usd: "1", committed_upper_bound_usd: "1" } });
+    expect(project(budget, stored).screening?.selection?.selectionDigest).toBe(stored.record.selection_digest);
+    const rerun = sealScreening({ ...finished, revision: 3, candidates: finished.candidates.map((row, index) => index ? row
+      : { ...row, episodes_succeeded: 3, episodes_failed: 0, success_rate: 1 }) });
+    expect(project(rerun, stored).screening?.selection).toBeUndefined();
+    expect(project(finished, { ...stored, record: { ...stored.record, selection_digest: screeningSha("0") } }).screening?.selection).toBeUndefined();
+  });
 });

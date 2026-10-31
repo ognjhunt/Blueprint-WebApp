@@ -1,0 +1,53 @@
+{
+  "campaign_id": "campaign-1",
+  "candidates": [
+    {
+      "blockers": [],
+      "candidate_id": "candidate-000",
+      "choice_blocker": null,
+      "display_name": "candidate-000",
+      "episodes_failed": 1,
+      "episodes_planned": 10,
+      "episodes_scored": 3,
+      "episodes_succeeded": 2,
+      "episodes_void": 7,
+      "plan_status": "selected",
+      "priority_rank": 1,
+      "result_rank": 1,
+      "result_status": "completed",
+      "session_result_digest": "sha256:08572e9c55ef820909dcc4d83156464dc4a8dfbb1b1a58487fd1064d96a9827b",
+      "success_rate": 0.6666666666666666
+    }
+  ],
+  "catalog_basis": "catalog_unavailable",
+  "catalog_digest": "sha256:062891064b414e27ee37e454392a00981eb0d44f94a2a9baafd04edadc5971a1",
+  "chosen": {
+    "candidate_id": "candidate-000",
+    "configuration_digest": "sha256:d0fe07a1db1f5ca7135355ff8d1245491268aa2a3570ee9319ffadcc891c626d",
+    "configuration_id": null,
+    "deployment_companies": [],
+    "display_name": "candidate-000",
+    "episodes_scored": 3,
+    "episodes_succeeded": 2,
+    "evidence_url": null,
+    "partner_blockers": [
+      "catalog_row_unavailable"
+    ],
+    "policy_route_id": null,
+    "related_teams": [],
+    "relationship": null,
+    "success_rate": 0.6666666666666666
+  },
+  "claim_ceiling": "simulation_estimate",
+  "decided_by": "deterministic_rule_no_human_input",
+  "plan_digest": "sha256:a32b68f9104e7f333ae7757ca4cfc226d104c4938874c6eb5838b68bb70a9b03",
+  "publication_digest": "sha256:65ab6b77e1ab91a04bf7655327daa13ee3c78532fcff69e2926acd9e4c16dcea",
+  "publication_revision": 6,
+  "result_status": "completed",
+  "rule": "success_rate_then_scored_then_void_then_priority_then_identifier.v1",
+  "schema_version": "website_candidate_selection.v1",
+  "selection_digest": "sha256:a4d82c515a46f79df5b8d8ca645a3224dae993365c910d2cd552445524884334",
+  "site_id": "site-job-1",
+  "status": "chosen",
+  "tied_with": []
+}

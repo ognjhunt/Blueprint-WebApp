@@ -60,6 +60,21 @@ describe("Render deploy-on-green contract", () => {
     expect(deploymentDoc).toContain("RENDER_WORKER_SERVICE_ID");
   });
 
+  it("runs main CI once per commit, which is safe only while Deploy ships main's head one at a time", () => {
+    const repoRoot = process.cwd();
+    const ciWorkflow = fs.readFileSync(path.join(repoRoot, ".github/workflows/ci.yml"), "utf-8");
+    const deployWorkflow = fs.readFileSync(path.join(repoRoot, ".github/workflows/deploy.yml"), "utf-8");
+
+    expect(ciWorkflow).toContain(
+      "group: ci-${{ github.ref == 'refs/heads/main' && format('main-{0}', github.sha) || github.ref }}",
+    );
+    expect(ciWorkflow).toContain("cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}");
+    expect(deployWorkflow).toContain("group: render-deploy-main");
+    expect(deployWorkflow).toContain("cancel-in-progress: false");
+    expect(deployWorkflow).toContain('if [ "${deploy_ref}" != "${main_head}" ]; then');
+    expect(deployWorkflow).toContain('if [ "${DEPLOY_REF}" != "${main_head}" ]; then');
+  });
+
   it("deploys automatically only main's current head, so a late green CI re-run cannot roll production back", () => {
     const repoRoot = process.cwd();
     const deployWorkflow = fs.readFileSync(path.join(repoRoot, ".github/workflows/deploy.yml"), "utf-8");

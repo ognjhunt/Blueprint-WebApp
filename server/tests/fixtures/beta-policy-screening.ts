@@ -2,6 +2,7 @@ import { crossRuntimeArtifactDigest, crossRuntimeDigest } from "../../utils/cros
 import { projectWebsiteCaptureRights, projectWebsiteTaskContext } from "../../utils/websiteTaskContext";
 import type { SiteTaskBriefRecord } from "../../utils/siteTaskBrief";
 import type { BetaPolicyScreeningPublication } from "../../utils/betaPolicyScreeningContract";
+import type { BetaCandidateSelection } from "../../utils/betaCandidateSelection";
 import allCandidatePublication from "./pipeline-beta-policy-screening-all-candidates.v2.json";
 export const screeningSha = (character: string) => `sha256:${character.repeat(64)}`;
 export function sealScreening(value: any): BetaPolicyScreeningPublication {
@@ -77,4 +78,47 @@ export function allCandidateFamilyScreeningFixture() {
     intake: { ...fixture.intake, request, request_digest: requestDigest,
       receipt: { ...receipt, receipt_digest: crossRuntimeArtifactDigest(receipt, "receipt_digest") },
       pipeline_status: { ...status, status_digest: crossRuntimeArtifactDigest(status, "status_digest") } } };
+}
+
+export function sealSelection(value: any): BetaCandidateSelection {
+  return { ...value, selection_digest: crossRuntimeArtifactDigest(value, "selection_digest") };
+}
+
+/** The Pipeline rule's record for a terminal publication, with a recorded deployment row for the choice. */
+export function selectionFixture(publication: BetaPolicyScreeningPublication, chosen: Record<string, unknown> = {}) {
+  const eligible = publication.candidates.map((row, index) => ({ row, index })).filter(({ row }) => row.status === "completed"
+    && row.episodes_scored > 0 && row.execution_evidence_kind !== "scripted_simulator_state_baseline")
+    .sort((left, right) => right.row.success_rate! - left.row.success_rate! || right.row.episodes_scored - left.row.episodes_scored
+      || left.row.episodes_void - right.row.episodes_void || left.index - right.index).map(({ row }) => row);
+  const best = eligible[0]?.episodes_succeeded ? eligible[0] : undefined;
+  return sealSelection({ schema_version: "website_candidate_selection.v1", campaign_id: publication.campaign_id,
+    site_id: publication.site_id, plan_digest: publication.plan_digest, publication_digest: publication.publication_digest,
+    publication_revision: publication.revision, result_status: publication.status, catalog_digest: publication.catalog_digest,
+    catalog_basis: "campaign_catalog", rule: "success_rate_then_scored_then_void_then_priority_then_identifier.v1",
+    decided_by: "deterministic_rule_no_human_input",
+    status: best ? "chosen" : eligible.length ? "no_successful_candidate" : "no_evaluated_candidate",
+    chosen: best ? { candidate_id: best.candidate_id, configuration_digest: best.configuration_digest, display_name: best.display_name,
+      success_rate: best.success_rate, episodes_scored: best.episodes_scored, episodes_succeeded: best.episodes_succeeded,
+      configuration_id: "fanuc_m710ic_45m", policy_route_id: "planning_endpoint",
+      deployment_companies: ["Jacobi Robotics", "Delta Technology"], relationship: "company_deployment",
+      evidence_url: "https://jacobirobotics.com/platform", related_teams: ["Jacobi Robotics", "Delta Technology"],
+      partner_blockers: [], ...chosen } : null,
+    tied_with: [], claim_ceiling: "simulation_estimate",
+    candidates: publication.candidates.map((row, index) => ({ candidate_id: row.candidate_id, display_name: row.display_name,
+      priority_rank: index + 1, plan_status: row.blockers.includes("candidate_infeasible_measured_geometry") ? "infeasible"
+        : ["unavailable", "deferred"].includes(row.status) ? row.status : "selected",
+      result_status: row.status, blockers: row.blockers, episodes_planned: row.episodes_planned, episodes_scored: row.episodes_scored,
+      episodes_succeeded: row.episodes_succeeded, episodes_failed: row.episodes_failed, episodes_void: row.episodes_void,
+      success_rate: row.success_rate, session_result_digest: row.session_result_digest,
+      choice_blocker: eligible.includes(row) ? null : row.status === "completed" ? "no_scored_episodes" : "not_evaluated",
+      ...(eligible.includes(row) ? { result_rank: eligible.indexOf(row) + 1 } : {}) })) });
+}
+
+/** A finished 36-candidate run: two scored, one measured out of reach, the rest stopped by the site budget. */
+export function finishedScreening(publication: BetaPolicyScreeningPublication, revision = 2) {
+  return sealScreening({ ...publication, revision, status: "completed", candidates: publication.candidates.map((row, index) =>
+    index < 2 ? { ...row, status: "completed", episodes_scored: 3, episodes_succeeded: 2 - index, episodes_failed: 1 + index,
+      success_rate: (2 - index) / 3, session_result_digest: screeningSha(index ? "7" : "6") }
+      : index === 2 ? { ...row, status: "unavailable", blockers: ["candidate_infeasible_measured_geometry", "team_embodiment_station_out_of_reach"] }
+        : { ...row, status: "blocked", blockers: ["beta_screening_site_budget_exhausted"] }) });
 }

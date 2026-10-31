@@ -192,10 +192,14 @@ export interface TaskPreparationStatus {
  * 2026-10-22). `evaluated` is a finished automatic evaluation whose simulation
  * estimate is the job's result, and `held` one where no candidate can do this
  * kind of job yet (owner decision 2026-10-28). Coarse by design:
- * no Pipeline detail reaches a site.
+ * no Pipeline detail reaches a site. `heldReason: "infeasible"` is a hold
+ * where every candidate was measured out of reach from the robot position the
+ * scene planned, which the site is told in plain words, station-relative and
+ * never as a task-level verdict (owner decision 2026-10-31).
  */
 export interface TaskSceneProgression {
   state: "in_progress" | "waiting" | "ended" | "completed" | "testing" | "evaluated" | "held";
+  heldReason?: "infeasible";
 }
 
 /** One sentence per reason the Pipeline can give; an unknown reason adds nothing. */
@@ -595,7 +599,9 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
   const sceneEvaluated = input.sceneProgression?.state === "evaluated";
   const sceneTesting = sceneEvaluated || sceneHeld || input.sceneProgression?.state === "testing";
   const resultHeadline = sceneHeld
-    ? "Held: we can't simulate this kind of job yet. It counts as demand for what we build next."
+    ? input.sceneProgression?.heldReason === "infeasible"
+      ? "Held: from the robot position planned in the scene built from your video, none of the robots we can simulate could reach this task."
+      : "Held: we can't simulate this kind of job yet. It counts as demand for what we build next."
     : "Your simulation estimate is ready on your job page. It is an estimate from a simulation of your site, not a certified result.";
   if ((input.scenePreviewReady || sceneTesting) && input.listed === false) {
     return {

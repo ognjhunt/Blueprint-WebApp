@@ -6,18 +6,20 @@ import { tmpdir } from "node:os";
 import express from "express";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { buildPipelineSyncSignature } from "../utils/pipelineSyncSecurity";
-import { allCandidateFamilyScreeningFixture, familyScreeningFixture, screeningFixture, screeningSha, sealScreening } from "./fixtures/beta-policy-screening";
+import { allCandidateFamilyScreeningFixture, familyScreeningFixture, finishedScreening, screeningFixture, screeningSha, sealScreening,
+  sealSelection, selectionFixture } from "./fixtures/beta-policy-screening";
 import { crossRuntimeArtifactDigest } from "../utils/crossRuntimeCanonical";
 import { publicationFromResultRecord } from "../utils/taskEvaluationRunPublicationStorage";
 import { scientificBriefDigest } from "../utils/jobEvidenceContract";
 import { loadManagedJobEvidence } from "../utils/jobManagedEvaluation";
 import { readCurrentTaskScreening } from "../utils/taskScreeningEvidence";
 
-const store = vi.hoisted(() => ({ rows: new Map<string, any>() }));
+const store = vi.hoisted(() => ({ rows: new Map<string, any>(), teams: [] as Array<{ id: string; name: string }> }));
 vi.mock("../utils/pipelineSyncSecurity", async importOriginal => ({
   ...await importOriginal<typeof import("../utils/pipelineSyncSecurity")>(),
   createPipelineSyncRateLimiter: () => (_req: unknown, _res: unknown, next: () => void) => next(),
 }));
+vi.mock("../utils/robotTeamRegistry", () => ({ listMatchableRobotTeams: async () => store.teams }));
 vi.mock("../../client/src/lib/firebaseAdmin", () => {
   const reference = (name: string, id: string): any => ({ id, path: `${name}/${id}`, get: async () => snapshot(reference(name, id)) });
   const snapshot = (ref: any) => ({ id: ref.id, ref, exists: store.rows.has(ref.path), data: () => structuredClone(store.rows.get(ref.path)) });
@@ -35,9 +37,10 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => {
       return query();
     } }),
     runTransaction: async (fn: any) => {
-      const writes: Array<[string, any]> = [];
-      const result = await fn({ get: async (ref: any) => snapshot(ref), set: (ref: any, value: any) => writes.push([ref.path, value]) });
-      writes.forEach(([path, value]) => store.rows.set(path, structuredClone(value)));
+      const writes: Array<[string, any, boolean]> = [];
+      const result = await fn({ get: async (ref: any) => snapshot(ref),
+        set: (ref: any, value: any, options?: { mergeFields?: string[] }) => writes.push([ref.path, value, Boolean(options?.mergeFields)]) });
+      writes.forEach(([path, value, merge]) => store.rows.set(path, structuredClone(merge ? { ...store.rows.get(path), ...value } : value)));
       return result;
     } } };
 });
@@ -45,6 +48,7 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => {
 let server: Server | undefined;
 beforeEach(() => {
   store.rows.clear();
+  store.teams = [];
   const { job, brief, intake } = screeningFixture();
   store.rows.set("inboundRequests/job-one", job);
   store.rows.set("siteTaskBriefs/job-one", brief);
@@ -232,9 +236,52 @@ it("accepts proposed preparation screening and shows it as current until the tas
   expect((await loadManagedJobEvidence("job-one", scientificBriefDigest(store.rows.get("siteTaskBriefs/job-one"))))[0].current).toBe(false);
 });
 
-async function send(socketPath: string, options: any) {
+it("keeps the Pipeline's choice on the job's run, joins registry teams by recorded name and shows it with every outcome", async () => {
+  store.teams = [{ id: "jacobi", name: "Jacobi Robotics" }, { id: "oem", name: "FANUC" }, { id: "substring", name: "Jacobi" }];
+  const url = await endpoint(), { publication } = screeningFixture();
+  const finished = finishedScreening(publication);
+  const selection = selectionFixture(finished);
+  const path = `/api/internal/pipeline/beta-policy-screening-runs/${finished.campaign_id}/candidate-selection`;
+  expect((await send(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(selection) }, path)).status).toBe(401);
+  // A choice needs the accepted result it restates.
+  expect((await send(url, signed(selection), path)).status).toBe(409);
+  expect((await send(url, signed(finished))).status).toBe(201);
+  const otherPlan = await send(url, signed(selectionFixture(sealScreening({ ...finished, plan_digest: screeningSha("9") }))), path);
+  expect([otherPlan.status, (await otherPlan.json()).code]).toEqual([409, "screening_selection_publication_mismatch"]);
+  expect((await send(url, signed(selection), `/api/internal/pipeline/beta-policy-screening-runs/another/candidate-selection`)).status).toBe(400);
+  const created = await send(url, signed(selection), path);
+  expect(created.status).toBe(201);
+  expect(await created.json()).toEqual({ status: "created", run_id: finished.campaign_id, publication_revision: 2,
+    selection_digest: selection.selection_digest });
+  expect((await (await send(url, signed(selection), path)).json()).status).toBe("replayed");
+  const { selection_digest: _digest, ...body } = selection;
+  const rewritten = await send(url, signed(sealSelection({ ...body, chosen: { ...body.chosen!, related_teams: [] } })), path);
+  expect([rewritten.status, (await rewritten.json()).code]).toEqual([409, "screening_selection_conflict"]);
+  const run = store.rows.get(`taskEvaluationPolicyRuns/${finished.campaign_id}`);
+  expect(run.candidate_selection.record).toEqual(selection);
+  expect(run.candidate_selection.registry_teams).toEqual([{ id: "jacobi", name: "Jacobi Robotics" }]);
+  expect(run.publication_revision).toBe(2);
+  const briefDigest = scientificBriefDigest(store.rows.get("siteTaskBriefs/job-one"));
+  let [evidence] = await loadManagedJobEvidence("job-one", briefDigest);
+  expect(evidence.current).toBe(true);
+  expect(evidence.screening?.selection?.chosen).toMatchObject({ candidateId: "candidate-0",
+    deploymentCompanies: ["Jacobi Robotics", "Delta Technology"], registryTeams: [{ id: "jacobi", name: "Jacobi Robotics" }] });
+  expect(evidence.screening?.selection?.candidates).toHaveLength(36);
+  expect(evidence.screening?.candidates[2].state).toBe("infeasible");
+  // A later budget-only revision keeps the stored choice; its re-derived record replaces it.
+  const budget = sealScreening({ ...finished, revision: 3, budget: { ...finished.budget, reserved_usd: "1", committed_upper_bound_usd: "1" } });
+  expect((await send(url, signed(budget))).status).toBe(200);
+  [evidence] = await loadManagedJobEvidence("job-one", briefDigest);
+  expect(evidence.screening?.selection?.selectionDigest).toBe(selection.selection_digest);
+  expect((await send(url, signed(selection), path)).status).toBe(409);
+  const next = selectionFixture(budget);
+  expect((await (await send(url, signed(next), path)).json()).status).toBe("updated");
+  expect(store.rows.get(`taskEvaluationPolicyRuns/${finished.campaign_id}`).candidate_selection.record).toEqual(next);
+});
+
+async function send(socketPath: string, options: any, path = "/api/internal/pipeline/beta-policy-screening-runs") {
   return new Promise<{status: number; json: () => Promise<any>}>((resolve, reject) => {
-    const request = httpRequest({ socketPath, path: "/api/internal/pipeline/beta-policy-screening-runs", method: options.method, headers: options.headers }, response => {
+    const request = httpRequest({ socketPath, path, method: options.method, headers: options.headers }, response => {
       let body = ""; response.setEncoding("utf8"); response.on("data", chunk => { body += chunk; });
       response.on("end", () => resolve({ status: response.statusCode!, json: async () => JSON.parse(body) }));
     });
