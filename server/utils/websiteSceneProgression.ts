@@ -44,9 +44,10 @@ export function policyTestAccepted(run: Record<string, any> | null | undefined):
 }
 
 export function projectWebsiteSceneProgression(record: Record<string, any> | null | undefined,
-  testAccepted: boolean | "evaluated" | "held" = false): TaskSceneProgression | null {
+  testAccepted: boolean | "evaluated" | "held" | "infeasible" = false): TaskSceneProgression | null {
   const state = record?.state;
   const phase = record?.pipeline_status?.phase;
+  if (state === "completed" && testAccepted === "infeasible") return { state: "held", heldReason: "infeasible" };
   if (state === "completed") return { state: testAccepted === "evaluated" || testAccepted === "held" ? testAccepted
     : testAccepted || phase === "policy_canary_complete" ? "testing" : "completed" };
   // The worker's own terminal states: a typed terminal refusal, or the intent's authority ended.
@@ -103,13 +104,14 @@ export async function readWebsiteTargetScope(requestId: string, captureId: strin
  * intake's task, in the intake's own team. A configured scene carries the
  * task's objects, so this is the first internal test of the finished scene.
  */
-async function firstTestAccepted(store: FirebaseFirestore.Firestore, intake: Record<string, any>): Promise<boolean | "evaluated" | "held"> {
+async function firstTestAccepted(store: FirebaseFirestore.Firestore, intake: Record<string, any>): Promise<boolean | "evaluated" | "held" | "infeasible"> {
   const taskId = intake.request?.task?.task_id;
   const team = intake.request?.owner?.organization_id;
   if (typeof taskId !== "string" || !taskId || typeof team !== "string" || !team) return false;
   // Held is a fallback: any estimate or other running test for this scene wins,
-  // whatever order the campaigns are read in.
-  let held = false;
+  // whatever order the campaigns are read in. The measured reason is given only
+  // when every held campaign measured all its candidates out of reach.
+  let held = false, measured = true;
   if (typeof intake.receipt?.intent_id === "string") {
     let observed = false;
     for await (const rows of queryPages(store.collection(POLICY_RUN_COLLECTION)
@@ -120,7 +122,11 @@ async function firstTestAccepted(store: FirebaseFirestore.Firestore, intake: Rec
         // A completed campaign with a scored episode is the job's estimate.
         if (run.state === "completed" && run.episodes_scored > 0) return "evaluated";
         // No candidate can do this kind of job yet, or none reached it: held, not an open test.
-        if (["completed", "blocked"].includes(run.state) && ["held", "no_match"].includes(run.no_estimate_reason)) { held = true; continue; }
+        if (["completed", "blocked"].includes(run.state) && ["held", "infeasible", "no_match"].includes(run.no_estimate_reason)) {
+          held = true;
+          measured &&= run.no_estimate_reason === "infeasible";
+          continue;
+        }
         observed ||= run.screening_execution_observed === true;
       }
     }
@@ -138,7 +144,7 @@ async function firstTestAccepted(store: FirebaseFirestore.Firestore, intake: Rec
       if (rows.some(row => policyTestAccepted(row.data()))) return true;
     }
   }
-  return held ? "held" : false;
+  return held ? measured ? "infeasible" : "held" : false;
 }
 
 /** The site's latest scene intake for this capture, projected. Throws when it cannot be read. */

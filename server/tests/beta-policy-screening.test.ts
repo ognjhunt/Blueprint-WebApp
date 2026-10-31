@@ -202,10 +202,13 @@ describe("automatic many-candidate job evaluation", () => {
       row("blocked", ["runtime_candidate_binding_missing"])])).toBe("setup");
     expect(noEstimateReason([row("completed", []), row("blocked", ["task_kind_not_supported_by_candidate"])])).toBe("setup");
     expect(noEstimateReason([row("blocked", [])])).toBe("setup");
-    // Measured out of reach, alone or beside capability gaps, is a plain "no match".
+    // Measured out of reach beside capability gaps is a plain "no match".
     expect(noEstimateReason([row("infeasible", ["candidate_infeasible_measured_geometry"]),
       row("blocked", ["task_kind_not_supported_by_candidate"])])).toBe("no_match");
-    expect(noEstimateReason([row("unavailable", ["candidate_infeasible_measured_geometry"])])).toBe("no_match");
+    // Every candidate measured out of reach, in either published form, is held with that reason.
+    expect(noEstimateReason([row("unavailable", ["candidate_infeasible_measured_geometry"])])).toBe("infeasible");
+    expect(noEstimateReason([row("infeasible", ["team_embodiment_station_out_of_reach"]),
+      row("unavailable", ["candidate_infeasible_measured_geometry", "team_embodiment_station_out_of_reach"])])).toBe("infeasible");
     expect(noEstimateReason([row("infeasible", ["candidate_infeasible_measured_geometry"]),
       row("deferred", ["site_screening_budget_insufficient"])])).toBe("budget");
     expect(noEstimateReason([row("infeasible", ["candidate_infeasible_measured_geometry"]),
@@ -228,6 +231,39 @@ describe("automatic many-candidate job evaluation", () => {
     expect(projected.summary).toBe("Held: we can't simulate this kind of job yet. It counts as demand for what we build next.");
     expect(projected.nextAction).toMatch(/^Nothing is needed from the site/);
     expect(projected.resultDigest).toBe(held.publication_digest);
+  });
+
+  it("shows held with the measured reason when every candidate is out of reach, never a setup fix", () => {
+    const { publication, brief, job } = screeningFixture();
+    const binding = { job_id: brief.requestId, brief_digest: scientificBriefDigest(brief) };
+    const scope = managedJobTask({ binding, record: job, brief });
+    const project = (blockers: (index: number) => { status: "unavailable" | "infeasible" | "blocked"; blockers: string[] }) => {
+      const value = sealScreening({ ...publication, revision: 2, status: "blocked",
+        candidates: publication.candidates.map((row, index) => ({ ...row, ...blockers(index) })) });
+      const run = { run_id: value.campaign_id, run_kind: "beta_policy_screening", state: "blocked", result_record_id: "result-one",
+        job_evidence_binding: binding, job_task_context_digest: scope.taskContextDigest, job_source_fingerprint: scope.sourceFingerprint,
+        configuration_digest: value.plan_digest, source_scene_intent_id: value.source.scene_intent_id,
+        source_scene_revision_digest: value.source.scene_revision_digest, publication_digest: value.publication_digest, publication_revision: 2 };
+      return projectManagedJobEvidence(value.campaign_id, run, { record_id: "result-one", publication: value },
+        brief.requestId, binding.brief_digest, scope.taskContextDigest, scope.sourceFingerprint)!;
+    };
+    // The Pipeline's current form (unavailable plus the measured blocker) and the native status read the same.
+    const outOfReach = project(index => index === 0
+      ? { status: "unavailable", blockers: ["candidate_infeasible_measured_geometry", "team_embodiment_station_out_of_reach"] }
+      : { status: "infeasible", blockers: ["team_embodiment_station_out_of_reach"] });
+    expect(outOfReach.state).toBe("held");
+    expect(outOfReach.summary).toBe("Held: from the robot position planned in the scene built from your video, none of the robots we can simulate could reach this task.");
+    expect(outOfReach.nextAction).toBe("Nothing is needed from the site. Each row lists the measured reason or why it could not run.");
+    expect(`${outOfReach.summary} ${outOfReach.nextAction}`).not.toMatch(/setup blockers|rerun/);
+    // Measured from the scene's planned robot position only: no task-level or site-wide verdict.
+    expect(outOfReach.summary).toMatch(/^Held: from the robot position planned in the scene/);
+    expect(outOfReach.summary).not.toMatch(/can't do|cannot do|anywhere/);
+    expect(outOfReach.screening!.candidates.every(row => row.state === "infeasible")).toBe(true);
+    // Measured out of reach beside a capability gap keeps its "no match" wording.
+    const mixed = project(index => index === 0 ? { status: "infeasible", blockers: ["team_embodiment_station_out_of_reach"] }
+      : { status: "blocked", blockers: ["task_kind_not_supported_by_candidate"] });
+    expect(mixed.state).toBe("held");
+    expect(mixed.summary).toBe("No match: none of the robots we can simulate could reach this task in the scene built from your video.");
   });
 
   it("shows no estimate for a completed run whose candidates scored no episode", () => {

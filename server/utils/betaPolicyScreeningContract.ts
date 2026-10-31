@@ -125,8 +125,12 @@ export function screeningExecutionEvidence(row: BetaPolicyScreeningPublication["
  * `setup`: anything else, ours to fix and rerun. `no_match`: no candidate can
  * run it and at least one was measured out of reach in the reconstructed site,
  * so the site is told plainly there is no match (owner decision 2026-10-30).
+ * `infeasible`: every candidate was measured out of reach from the robot
+ * position the scene planned (the packet's station), so the job is held with
+ * that measured reason, never a setup fix (owner decision 2026-10-31). It is
+ * station-relative, not a verdict that no robot could do the task anywhere.
  */
-export type NoEstimateReason = "held" | "no_match" | "budget" | "setup";
+export type NoEstimateReason = "held" | "infeasible" | "no_match" | "budget" | "setup";
 const HELD_BLOCKERS = new Set(["task_kind_not_supported_by_candidate", "candidate_disabled", "commercial_use_not_admitted"]);
 
 export function noEstimateReason(candidates: ReadonlyArray<{ status: string; blockers: readonly string[] }>): NoEstimateReason {
@@ -137,7 +141,7 @@ export function noEstimateReason(candidates: ReadonlyArray<{ status: string; blo
   if (open.length === 0 || open.length !== candidates.length
       || !open.every(row => infeasible(row) || (row.blockers.length > 0 && row.blockers.every(code => HELD_BLOCKERS.has(code)))))
     return "setup";
-  return open.some(infeasible) ? "no_match" : "held";
+  return open.every(infeasible) ? "infeasible" : open.some(infeasible) ? "no_match" : "held";
 }
 
 export function parseBetaPolicyScreeningPublication(value: unknown): BetaPolicyScreeningPublication | null {
