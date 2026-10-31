@@ -53,6 +53,7 @@ import { withWebsiteOwnerDeps } from "../utils/websiteCaptureOwnerTransport";
 import { recordWebsiteAtlasPreview, websiteAtlasPreviewDigestValid, websiteAtlasPreviewSchema } from "../utils/websiteAtlasPreview";
 import { loadOwnedCaptureAtlasConfiguration, ownedAtlasConfigurationRequest,
   reserveOwnedCaptureAtlasSpend, settleOwnedCaptureAtlasSpend } from "../utils/ownedCaptureAtlasPreparation";
+import { assertWithinWebsiteJobCeiling, transactionJobLedgerReader } from "../utils/websiteJobCeiling";
 
 const router = Router();
 
@@ -338,6 +339,11 @@ for (const operation of ["scene-sponsorship", "prepared-scene", "preparation-spe
           if (prior.data()?.request_digest !== sceneDigest(request)) throw new Error("idempotency_conflict");
           return;
         }
+        // One dollar ceiling per job (owner, 2026-10-30): a new intake grants native
+        // construction its allowance only while every ledger the job spends from fits.
+        await assertWithinWebsiteJobCeiling({ record: current ?? {}, captureId: req.params.captureId,
+          reader: transactionJobLedgerReader(db!, transaction, requestId),
+          additionalCostUsd: request.execution.max_total_spend_usd });
         transaction.create(ref, {
           owner_user_id: request.owner.user_id, organization_id: request.owner.organization_id,
           source_session_id: websitePreparationCaptureId(request), website_request_id: requestId,
