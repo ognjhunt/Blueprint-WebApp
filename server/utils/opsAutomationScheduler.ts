@@ -27,6 +27,7 @@ import { runGapClosureLoop } from "./gap-closure";
 import { runHumanReplyEmailWatcher } from "./human-reply-worker";
 import { runOperatingGraphProjectionLoop } from "./operatingGraphEvidenceProjectors";
 import { runRobotCapabilityRefreshLoop } from "./robotCapabilityRefresh";
+import { runRobotTeamIntelligenceTick } from "../robot-team-intelligence/worker";
 import { reconcileAgentRunSettlements } from "./agentEvalRuns";
 import { deliverOutbox } from "./captureOutbox";
 import { recoverCaptureReviews } from "./captureReviewRecovery";
@@ -399,6 +400,19 @@ const workers: WorkerDefinition[] = [
     maxBatchSize: 25,
     defaultStartupDelayMs: 120 * 1000,
     run: ({ limit }) => runRobotCapabilityRefreshLoop({ limit }),
+  },
+  {
+    key: "robot_team_intelligence",
+    enabledEnv: "BLUEPRINT_ROBOT_TEAM_INTELLIGENCE_ENABLED",
+    intervalEnv: "BLUEPRINT_ROBOT_TEAM_INTELLIGENCE_INTERVAL_MS",
+    batchEnv: "BLUEPRINT_ROBOT_TEAM_INTELLIGENCE_BATCH_SIZE",
+    startupDelayEnv: "BLUEPRINT_ROBOT_TEAM_INTELLIGENCE_STARTUP_DELAY_MS",
+    explicitEnable: true,
+    defaultIntervalMs: 30 * 1000,
+    defaultBatchSize: 1,
+    maxBatchSize: 1,
+    defaultStartupDelayMs: 120 * 1000,
+    run: () => runRobotTeamIntelligenceTick(),
   },
   {
     key: "operating_graph_projection",
