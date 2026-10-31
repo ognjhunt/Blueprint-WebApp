@@ -10,7 +10,7 @@ import { betaPolicyScreeningSourceSchema, parseBetaPolicyScreeningPublication, s
   screeningTerminalCandidateStates, noEstimateReason, type BetaPolicyScreeningPublication } from "./betaPolicyScreeningContract";
 import type { TaskItemInventoryRecord } from "./taskItemInventory";
 import { assertWebsiteRunOpen, websiteRunClosure } from "./websiteRunClosure";
-import { effectiveSceneExecutionExpiry } from "./sceneExecutionWindowExtension";
+import { effectiveSceneExecutionExpiry, verifiedSceneExecutionWindowExtensions } from "./sceneExecutionWindowExtension";
 
 export { assertScreeningSceneSource } from "./jobManagedEvaluation";
 
@@ -111,10 +111,11 @@ export async function observeBetaScreeningExecutionControl(request: BetaScreenin
     // A missing expiry is uncertainty, not an unlimited grant. No decision is
     // written and the existing bounded monitor grace must expire closed.
     if (!controlTime.safeParse(sourceDeadline).success) throw new Error("screening_control_authority_unavailable");
-    // A deadline observed at the sealed window may follow that window's extension;
-    // a caller's own shorter deadline is never lengthened.
+    // A deadline observed at a source window (the sealed expiry or a verified
+    // extension) follows later extensions; a caller's own shorter deadline is never lengthened.
     const priorDeadline = previous?.execution_deadline_at_ms;
-    const lifted = typeof rawExpiry === "number" && priorDeadline === Math.floor(rawExpiry * 1000);
+    const sourceWindows = [rawExpiry, ...verifiedSceneExecutionWindowExtensions(intake).map(row => row.expires_at_epoch)];
+    const lifted = sourceWindows.some(window => typeof window === "number" && priorDeadline === Math.floor(window * 1000));
     const deadline = Math.min(sourceDeadline, requestedDeadline ?? sourceDeadline,
       lifted ? sourceDeadline : priorDeadline ?? sourceDeadline);
     const now = Date.now();

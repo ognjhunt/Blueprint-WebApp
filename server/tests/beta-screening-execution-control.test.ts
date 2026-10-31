@@ -450,6 +450,21 @@ describe("owner-approved time-only extension of the scene intent", () => {
       .toMatchObject({ status: "stopped", stop_reason: "screening_authority_expired" });
   });
 
+  it("follows each later verified extension of a source-derived deadline", async () => {
+    expect((await observeBetaScreeningExecutionControl(fixture.request)).execution_deadline_at_ms).toBe(EXPIRY);
+    const first = EXPIRY / 1000 + 3 * 3600, second = EXPIRY / 1000 + 6 * 3600;
+    extend(first);
+    vi.setSystemTime(EXPIRY + 60_000);
+    expect((await observeBetaScreeningExecutionControl(fixture.request)).execution_deadline_at_ms).toBe(first * 1000);
+    const intake = row("taskEvaluationSceneIntakes/intake-job-one");
+    intake.execution_window_extensions = [...intake.execution_window_extensions,
+      { ...intake.execution_window_extensions[0], extension_digest: screeningSha("8"), expires_at_epoch: second,
+        issued_at_epoch: first - 60 }];
+    vi.setSystemTime(first * 1000 + 60_000);
+    expect(await observeBetaScreeningExecutionControl(fixture.request)).toMatchObject({ status: "current",
+      stop_reason: null, execution_deadline_at_ms: second * 1000 });
+  });
+
   it("never lengthens a caller's own shorter deadline or honours an extension that does not bind this intent", async () => {
     const shortened = NOW + 120_000;
     await observeBetaScreeningExecutionControl({ ...fixture.request, execution_deadline_at_ms: shortened });
