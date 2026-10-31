@@ -248,7 +248,7 @@ export async function ingestBetaPolicyScreening(publication: BetaPolicyScreening
       episodes_scored: publication.candidates.reduce<number>((sum, row) => sum + row.episodes_scored, 0),
       no_estimate_reason: publication.status === "blocked"
         || publication.status === "completed" && publication.candidates.every(row => row.episodes_scored === 0)
-        ? noEstimateReason(publication.candidates) : null,
+        ? noEstimateReason(publication.candidates, publication.budget) : null,
       screening_execution_observed: oldRun.data()?.screening_execution_observed === true
         || publication.candidates.some(row => ["running", "completed"].includes(row.status) || row.episodes_scored > 0),
       created_at_iso: oldRun.data()?.created_at_iso ?? now, updated_at_iso: now });

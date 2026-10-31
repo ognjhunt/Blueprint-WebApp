@@ -249,7 +249,7 @@ export function projectManagedJobEvidence(
     const finished = value.status === "completed" && scored === 0 ? "blocked" : value.status;
     // No estimate ends as held only when no candidate can do the job; budget and
     // setup gaps stay in progress for the owner or for us (owner decision 2026-10-28).
-    const reason = finished === "blocked" ? noEstimateReason(value.candidates) : null;
+    const reason = finished === "blocked" ? noEstimateReason(value.candidates, value.budget) : null;
     const status = reason === "held" || reason === "infeasible" || reason === "no_match" ? "held"
       : reason === "budget" ? "awaiting_spend_approval" : reason === "setup" ? "setup_repair" : finished;
     // The Pipeline's rule-based choice, kept only while it restates this result.
