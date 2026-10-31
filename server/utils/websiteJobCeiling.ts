@@ -79,19 +79,36 @@ function preparationRowMicros(row: any) {
   return amount(held) ? micros(held) : Infinity;
 }
 
+/** The Pipeline's own status shows the intent can start no further attempt. */
+function pipelineEnded(status: Record<string, any> | undefined) {
+  return ["completed", "expired", "revoked"].includes(status?.status)
+    || status?.status === "blocked" && status.phase === "policy_canary_blocked"
+    || Array.isArray(status?.blockers) && status!.blockers.some((blocker: unknown) =>
+      blocker === "scene_intake_authority_expired" || blocker === "scene_intake_authority_revoked");
+}
+
 /**
  * A sponsored scene intake grants native construction its own allowance
  * (`request.execution.max_total_spend_usd`, raised by any recorded budget
  * extension). It is held in full while the intake can still start an attempt.
  * Once closed, it counts what its attempts reserved, the most the Pipeline
  * reports for native work. An unreadable allowance counts as unbounded.
+ *
+ * The worker stores `forwarding_started` before every delivery POST. With no
+ * receipt, a lost response may hide an intent the Pipeline accepted and can
+ * still spend on, so it stays held in full whatever its local state says.
+ * A local `blocked` only ends the WebApp's own retries or polls: it releases
+ * when nothing was ever sent, or when the Pipeline's status shows it ended.
  */
 function nativeIntakeMicros(intake: Record<string, any>) {
   const status = intake.pipeline_status, attempts = Array.isArray(status?.attempts) ? status.attempts : [];
   const reserved = attempts.reduce((sum: number, attempt: any) =>
     sum + (amount(attempt?.maximum_spend_usd) ? micros(attempt.maximum_spend_usd) : Infinity), 0);
-  const unissued = !intake.receipt && ["revoked", "expired"].includes(intake.state);
-  if (intake.closeout_complete === true || ["completed", "blocked"].includes(intake.state) || unissued) return reserved;
+  const maySpend = !intake.receipt && intake.forwarding_started === true;
+  const unissued = !intake.receipt && !maySpend && ["revoked", "expired", "blocked"].includes(intake.state);
+  const ended = intake.closeout_complete === true || intake.state === "completed"
+    || intake.state === "blocked" && pipelineEnded(status);
+  if (!maySpend && (ended || unissued)) return reserved;
   const granted = intake.request?.execution?.max_total_spend_usd;
   const extended = status?.effective_execution_budget?.max_total_spend_usd;
   if (!amount(granted)) return Infinity;

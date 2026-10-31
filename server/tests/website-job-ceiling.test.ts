@@ -57,6 +57,32 @@ describe("what counts against it", () => {
     expect(await spend({ state: "revoked" })).toBe(0);
   });
 
+  it("keeps the whole native allowance once a delivery may have reached the Pipeline, until the Pipeline confirms it ended", async () => {
+    const intake = (value: Record<string, any>) => ({ request: { execution: { max_total_spend_usd: 20 } }, ...value });
+    const spend = async (value: Record<string, any>) =>
+      (await websiteJobSpend({ record: {}, reader: reader([intake(value)]) })).native_construction_micros;
+    // Every delivery's response was lost, so retries ran out with no receipt: the Pipeline may be running it.
+    const lost = { forwarding_started: true, forward_attempt_count: 20 };
+    expect(await spend({ ...lost, state: "blocked", blocker: "transport_retry_cap_exhausted" })).toBe(20_000_000);
+    expect(await spend({ ...lost, state: "blocked", blocker: "consent_expired" })).toBe(20_000_000);
+    // A local cancellation or expiry of that delivery closes it here, not downstream.
+    expect(await spend({ ...lost, state: "revoked", closeout_complete: true, revocation_receipt: {} })).toBe(20_000_000);
+    expect(await spend({ ...lost, state: "expired", closeout_complete: true })).toBe(20_000_000);
+    // Closeout polls that ran out without the Pipeline showing the intent can start nothing more.
+    const accepted = { forwarding_started: true, receipt: {}, state: "blocked", blocker: "terminal_closeout_poll_cap_exhausted" };
+    expect(await spend(accepted)).toBe(20_000_000);
+    expect(await spend({ ...accepted, pipeline_status: { status: "running", phase: null, blockers: [],
+      attempts: [{ maximum_spend_usd: 4 }] } })).toBe(20_000_000);
+    // Released on a positive signal: nothing was ever sent ...
+    expect(await spend({ state: "blocked", blocker: "consent_expired", forward_attempt_count: 0 })).toBe(0);
+    expect(await spend({ state: "blocked", blocker: "revocation_requested_before_delivery", forward_attempt_count: 1 })).toBe(0);
+    // ... or the Pipeline's own status shows it ended, counted at its attempts' reservations.
+    expect(await spend({ ...accepted, pipeline_status: { status: "expired", phase: "authority",
+      blockers: ["scene_intake_authority_expired"], attempts: [{ maximum_spend_usd: 4 }] } })).toBe(4_000_000);
+    expect(await spend({ ...accepted, blocker: null, pipeline_status: { status: "blocked", phase: "policy_canary_blocked",
+      blockers: [], attempts: [{ maximum_spend_usd: 3 }] } })).toBe(3_000_000);
+  });
+
   it("counts the screening site ledger once, from its latest snapshot, and an unreadable one at the site limit", async () => {
     const spend = async (runs: Parameters<typeof reader>[1]) =>
       (await websiteJobSpend({ record: {}, reader: reader([], runs) })).screening_micros;

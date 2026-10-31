@@ -108,6 +108,8 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => {
   };
 });
 import router from "../routes/task-evaluation-scene-intakes";
+import { dbAdmin } from "../../client/src/lib/firebaseAdmin";
+import { assertWithinWebsiteJobCeiling, transactionJobLedgerReader } from "../utils/websiteJobCeiling";
 import {
   buildSceneIntake,
   processSceneIntakeQueue,
@@ -549,6 +551,46 @@ it("grants a new prepared scene its native allowance only while the job's one ce
   record.website_preparation_reservations["c".repeat(64)] = { admission: { maximum_cost_usd: 5 } };
   expect((await post("prepared-scene", { request })).status).toBe(202);
   expect([...store.rows.keys()].filter(key => key.startsWith("taskEvaluationSceneIntakes/"))).toHaveLength(1);
+});
+
+it("keeps a prepared scene's native allowance held when every delivery's response was lost and retries ran out", async () => {
+  sponsoredCapture();
+  const base = (await app()).replace(/\/intakes$/, "/internal/creator-captures/walkthrough-req1");
+  const post = (operation: string, extra = {}) => realFetch(`${base}/${operation}`, {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ request_id: "req1", scene_id: "site-req1", ...extra }),
+  });
+  const grant = await (await post("scene-sponsorship")).json();
+  const request = {
+    schema_version: "task_evaluation_scene_intake_request.v1", submission_id: grant.capture_id,
+    owner: grant.owner, consent: grant.consent,
+    source: { kind: "gaussian_splat", binding_id: `website-splat-${"a".repeat(32)}`, content_digest: sha("a") },
+    task: { ...command().task, task_id: `website-${grant.task_context_digest.slice(7, 27)}`,
+      subject: { description: "box", geometry_origin: "removed_before_reconstruction" } },
+    execution: { ...command().execution, max_total_spend_usd: grant.max_total_spend_usd,
+      max_paid_attempts: grant.max_paid_attempts, expires_at_epoch: grant.expires_at_epoch,
+      allowed_providers: ["vast", "openai"], purpose: "scene_preparation", policy_candidates: [] },
+  };
+  expect((await post("prepared-scene", { request })).status).toBe(202);
+  const ceiling = (additionalCostUsd: number) => assertWithinWebsiteJobCeiling({
+    record: store.rows.get("inboundRequests/req1"), captureId: grant.capture_id, additionalCostUsd,
+    reader: transactionJobLedgerReader(dbAdmin as any, { get: (ref: any) => ref.get() }, "req1") });
+  // The Pipeline receives (and may accept) every delivery, but its response never arrives.
+  const fetcher = vi.fn(async () => { throw new TypeError("fetch failed"); });
+  vi.stubGlobal("fetch", fetcher);
+  for (let tick = 0; tick < 25 && stored()[1].state !== "blocked"; tick++) {
+    stored()[1].next_forward_at_ms = 0;
+    await processSceneIntakeQueue();
+  }
+  expect(stored()[1]).toMatchObject({ state: "blocked", blocker: "transport_retry_cap_exhausted",
+    forwarding_started: true, forward_attempt_count: 20 });
+  expect(stored()[1]).not.toHaveProperty("receipt");
+  expect(stored()[1]).not.toHaveProperty("pipeline_status");
+  expect(fetcher).toHaveBeenCalledTimes(20);
+  // A local "blocked" does not prove the Pipeline stopped: the whole $20 stays held
+  // against the owner default $40 ceiling, so only $20 of new spend fits.
+  expect((await ceiling(20)).spend.native_construction_micros).toBe(20_000_000);
+  await expect(ceiling(20.000001)).rejects.toThrow("website_scene_preparation_budget_exhausted");
 });
 
 it.each(["scope", "success_digest", "native_digest", "runtime_digest", "context", "revoked", "expired"])("rejects changed family %s before forwarding without granting spend", async corruption => {
