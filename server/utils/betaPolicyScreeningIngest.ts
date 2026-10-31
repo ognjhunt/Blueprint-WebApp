@@ -10,6 +10,7 @@ import { betaPolicyScreeningSourceSchema, parseBetaPolicyScreeningPublication, s
   screeningTerminalCandidateStates, noEstimateReason, type BetaPolicyScreeningPublication } from "./betaPolicyScreeningContract";
 import type { TaskItemInventoryRecord } from "./taskItemInventory";
 import { assertWebsiteRunOpen, websiteRunClosure } from "./websiteRunClosure";
+import { effectiveSceneExecutionExpiry } from "./sceneExecutionWindowExtension";
 
 export { assertScreeningSceneSource } from "./jobManagedEvaluation";
 
@@ -103,13 +104,19 @@ export async function observeBetaScreeningExecutionControl(request: BetaScreenin
       || result.data()?.owner_user_id !== run.owner_user_id || result.data()?.organization_id !== run.team_namespace)
       throw new Error("screening_control_identity_conflict");
     const intake = intakeSnapshot.data(), job = jobSnapshot.data(), retainedCapture = capture.data();
-    const expiry = intake?.request?.execution?.expires_at_epoch;
+    const rawExpiry = intake?.request?.execution?.expires_at_epoch;
+    // max(raw, latest verified owner-approved time-only extension), never past raw + 7 days.
+    const expiry: unknown = effectiveSceneExecutionExpiry(intake);
     const sourceDeadline = typeof expiry === "number" ? Math.floor(expiry * 1000) : NaN;
     // A missing expiry is uncertainty, not an unlimited grant. No decision is
     // written and the existing bounded monitor grace must expire closed.
     if (!controlTime.safeParse(sourceDeadline).success) throw new Error("screening_control_authority_unavailable");
+    // A deadline observed at the sealed window may follow that window's extension;
+    // a caller's own shorter deadline is never lengthened.
+    const priorDeadline = previous?.execution_deadline_at_ms;
+    const lifted = typeof rawExpiry === "number" && priorDeadline === Math.floor(rawExpiry * 1000);
     const deadline = Math.min(sourceDeadline, requestedDeadline ?? sourceDeadline,
-      previous?.execution_deadline_at_ms ?? sourceDeadline);
+      lifted ? sourceDeadline : priorDeadline ?? sourceDeadline);
     const now = Date.now();
     let stopReason: string | null = null;
     if (run.cancellationRequested === true || ["cancelled", "closed"].includes(run.state)) stopReason = "screening_run_cancelled";

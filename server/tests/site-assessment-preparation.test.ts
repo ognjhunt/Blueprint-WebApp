@@ -743,3 +743,58 @@ it("a grant issued for a named task still refuses different task instructions", 
   expect(() => currentWebsiteSceneContext({ requestId: "one", captureId: "walkthrough-one", brief, record })).toThrow("website_scene_sponsorship_changed");
   expect(record.website_scene_sponsorship).toEqual(root);
 });
+
+// Owner-approved, time-only extension of the bound scene intent (operator door -> Pipeline -> signed notice).
+it("the Pipeline's non-creating grant read follows a verified intent extension; nothing else does",async()=>{
+  seed(packet(),false,false);
+  const grant=await loadWebsiteSceneSponsorship("one",true,"walkthrough-one",prepOptions());
+  const record=state.docs.get("inboundRequests/one") as any;
+  const intake={website_request_id:"one",source_session_id:"walkthrough-one",state:"accepted",
+    root_sponsorship_digest:grant.authority_digest,sponsorship_digest:grant.authority_digest,
+    request:{execution:{expires_at_epoch:grant.expires_at_epoch,max_total_spend_usd:grant.max_total_spend_usd}},
+    receipt:{intent_id:"scene-one",intent_digest:`sha256:${"a".repeat(64)}`}} as any;
+  intake.request_digest=crossRuntimeDigest(intake.request);
+  intake.execution_window_extensions=[{schema_version:"task_evaluation_scene_execution_window_extension_notice.v1",
+    intent_id:"scene-one",intent_digest:`sha256:${"a".repeat(64)}`,extension_digest:`sha256:${"7".repeat(64)}`,
+    original_expires_at_epoch:grant.expires_at_epoch,expires_at_epoch:grant.expires_at_epoch+86400,
+    issued_at_epoch:grant.expires_at_epoch+60,authorization_reference:"founder approval (time only)",
+    authorized_via:"operator_door",received_at_iso:"2026-10-31T12:00:00Z"}];
+  state.docs.set("taskEvaluationSceneIntakes/intake-one",intake);
+  record.website_scene_sponsorship_execution_window={schema_version:"website_scene_sponsorship_execution_window.v1",
+    scope:"execution_time_only",authority_digest:grant.authority_digest,intent_id:"scene-one",intake_id:"intake-one",
+    extension_digest:`sha256:${"7".repeat(64)}`,original_expires_at_epoch:grant.expires_at_epoch,
+    expires_at_epoch:grant.expires_at_epoch+86400};
+  const stored=structuredClone(record.website_scene_sponsorship);
+  const app=express();app.use(express.json());app.use((await import("../routes/internal-capture-worlds")).default);
+  const server=createServer(app);await new Promise<void>(resolve=>server.listen(0,"127.0.0.1",resolve));
+  const base=`http://127.0.0.1:${(server.address() as any).port}/creator-captures/walkthrough-one`;
+  const read=()=>fetch(`${base}/scene-sponsorship`,{method:"POST",headers:{"content-type":"application/json"},
+    body:JSON.stringify({request_id:"one",scene_id:"site-one",...prepOptions(),create:false})});
+  const realNow=Date.now.bind(Date);
+  const clock=vi.spyOn(Date,"now").mockReturnValue((grant.expires_at_epoch+3600)*1000);
+  try {
+    const response=await read();
+    expect(response.status).toBe(200);
+    // The same retained grant: digest, caps, attempts and raw expiry unchanged.
+    expect(await response.json()).toEqual(grant);
+    expect(record.website_scene_sponsorship).toEqual(stored);
+    // Any other caller still sees the grant's own expiry, including every paid reservation.
+    await expect(loadWebsiteSceneSponsorship("one",false)).rejects.toThrow("consent_expired");
+    await expect(reserveWebsitePreparationSpend("one",{task_context_digest:grant.task_context_digest,
+      allocation_binding_digest:`sha256:${"d".repeat(64)}`,resource_class:"gpu_render",provider:"vast",
+      maximum_cost_usd:1,request_count:1})).rejects.toThrow("consent_expired");
+    // A revoked intake, or an extension the intake does not hold, ends it again.
+    intake.revocation_requested=true;
+    expect((await read()).status).toBe(409);
+    delete intake.revocation_requested;const extensions=intake.execution_window_extensions;
+    intake.execution_window_extensions=[];
+    expect(await (await read()).json()).toEqual({code:"consent_expired"});
+    // At the end of the extended window it is expired like any other grant.
+    intake.execution_window_extensions=extensions;expect((await read()).status).toBe(200);
+    clock.mockReturnValue((grant.expires_at_epoch+86400)*1000);
+    expect(await (await read()).json()).toEqual({code:"consent_expired"});
+  } finally {
+    clock.mockImplementation(realNow);vi.restoreAllMocks();
+    await new Promise<void>((resolve,reject)=>server.close(error=>error?reject(error):resolve()));
+  }
+});

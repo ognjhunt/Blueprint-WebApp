@@ -310,7 +310,8 @@ for (const operation of ["scene-sponsorship", "prepared-scene", "preparation-spe
           : await reserveWebsitePreparationSpend(requestId, spend, req.params.captureId));
       }
       const authority = await loadWebsiteSceneSponsorship(requestId, operation === "scene-sponsorship" && req.body.create !== false, req.params.captureId,
-        operation === "scene-sponsorship" ? { purpose: req.body.purpose, expected_task_context_digest: req.body.expected_task_context_digest } : undefined);
+        operation === "scene-sponsorship" ? { purpose: req.body.purpose, expected_task_context_digest: req.body.expected_task_context_digest,
+          ...(req.body.create === false ? { honour_execution_window: true as const } : {}) } : undefined);
       res.setHeader("Cache-Control", "no-store");
       if (operation === "scene-sponsorship") return res.json(authority);
       const request = sponsoredSceneRequest.parse(req.body.request);

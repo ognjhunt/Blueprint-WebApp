@@ -423,3 +423,42 @@ it("rejects unscoped or unknown request fields and non-finite or unsafe caller d
   for (const deadline of [NaN, Infinity, 0, -1, Number.MAX_SAFE_INTEGER])
     expect(parseBetaScreeningExecutionControlRequest({ ...fixture.request, execution_deadline_at_ms: deadline })).toBeNull();
 });
+
+describe("owner-approved time-only extension of the scene intent", () => {
+  const extend = (expiresAt: number, changes: Record<string, unknown> = {}) => {
+    const raw = fixture.intake.request.execution.expires_at_epoch;
+    row("taskEvaluationSceneIntakes/intake-job-one").execution_window_extensions = [{
+      schema_version: "task_evaluation_scene_execution_window_extension_notice.v1",
+      intent_id: fixture.intake.receipt.intent_id, intent_digest: fixture.intake.receipt.intent_digest,
+      extension_digest: screeningSha("7"), original_expires_at_epoch: raw, expires_at_epoch: expiresAt,
+      issued_at_epoch: raw + 30, authorization_reference: "founder approval 2026-10-31 (time only)",
+      authorized_via: "operator_door", received_at_iso: "2026-10-28T13:00:30Z", ...changes }];
+  };
+
+  it("is no longer screening_authority_expired after a valid extension, and stops at the extended end", async () => {
+    // Observed before the sealed expiry, at the sealed deadline.
+    expect((await observeBetaScreeningExecutionControl(fixture.request)).execution_deadline_at_ms).toBe(EXPIRY);
+    const extended = EXPIRY / 1000 + 3 * 3600;
+    extend(extended);
+    vi.setSystemTime(EXPIRY + 60_000);
+    const control = await observeBetaScreeningExecutionControl(fixture.request);
+    expect(control).toMatchObject({ status: "current", stop_reason: null, execution_deadline_at_ms: extended * 1000,
+      new_execution_authorized: false });
+    expect(row("taskEvaluationPolicyRuns/campaign-one").cancellationRequested).toBeUndefined();
+    vi.setSystemTime(extended * 1000);
+    expect(await observeBetaScreeningExecutionControl(fixture.request))
+      .toMatchObject({ status: "stopped", stop_reason: "screening_authority_expired" });
+  });
+
+  it("never lengthens a caller's own shorter deadline or honours an extension that does not bind this intent", async () => {
+    const shortened = NOW + 120_000;
+    await observeBetaScreeningExecutionControl({ ...fixture.request, execution_deadline_at_ms: shortened });
+    extend(EXPIRY / 1000 + 3600);
+    expect((await observeBetaScreeningExecutionControl(fixture.request)).execution_deadline_at_ms).toBe(shortened);
+    store.state.docs.clear(); fixture = await seed();
+    extend(EXPIRY / 1000 + 3600, { intent_digest: screeningSha("9") });
+    vi.setSystemTime(EXPIRY + 60_000);
+    expect(await observeBetaScreeningExecutionControl(fixture.request))
+      .toMatchObject({ status: "stopped", stop_reason: "screening_authority_expired" });
+  });
+});
