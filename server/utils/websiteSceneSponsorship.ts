@@ -22,6 +22,8 @@ import { websitePreparationAccounting } from "./websitePreparationAccounting";
 import { websiteCaptureInferenceAccounting } from "./websiteCaptureInferenceAccounting";
 import { assertWithinWebsiteJobCeiling, transactionJobLedgerReader, websiteJobCeiling, websiteJobCeilingSummary,
   websiteJobSpend } from "./websiteJobCeiling";
+import { SCENE_EXECUTION_WINDOW_MAX_SECONDS, sponsorshipExecutionWindowUntil,
+  sponsorshipWindowIntake } from "./sceneExecutionWindowExtension";
 
 function continuationAuthority(authority: Record<string, any>, input: {
   brief: SiteTaskBriefRecord; record: Record<string, any>; inventory?: TaskItemInventoryRecord | null;
@@ -126,6 +128,8 @@ export function websiteSceneSponsorship(input: {
   inventory?: TaskItemInventoryRecord | null; captureId?: string; captureBinding?: Record<string, any>;
   purpose?: "scene_preparation"; expected_task_context_digest?: string;
   retainedPolicy?: z.infer<typeof policySchema>; renewal?: SponsorshipRenewal;
+  /** A verified time-only extension of the bound scene intent (non-creating reads only). */
+  executionWindowUntil?: number;
 }) {
   const configured = input.retainedPolicy ?? policy();
   const rights = projectWebsiteCaptureRights(input.record);
@@ -179,7 +183,12 @@ export function websiteSceneSponsorship(input: {
       || previous.request_id !== input.requestId || previous.task_context_digest !== grantContextDigest
       || previous.purpose !== input.purpose)
       throw new Error("website_scene_sponsorship_changed");
-    if (previous.expires_at_epoch <= input.now) throw new Error("consent_expired");
+    // Only "still valid now" moves with an owner-approved extension; the grant,
+    // its caps and its issued window are returned exactly as retained.
+    const validUntil = input.executionWindowUntil === undefined ? previous.expires_at_epoch
+      : Math.min(Math.max(previous.expires_at_epoch, input.executionWindowUntil),
+        previous.expires_at_epoch + SCENE_EXECUTION_WINDOW_MAX_SECONDS);
+    if (validUntil <= input.now) throw new Error("consent_expired");
     return continuationAuthority(previous, input);
   }
   // Scene preparation proceeds while site questions remain open. This does not
@@ -294,8 +303,11 @@ export function currentWebsitePreparationStatusContext(input: {
   return context;
 }
 
-/** One retained grant per upload. Replays never renew its clock or its budget. */
-export type WebsiteSceneSponsorshipRequest = { purpose?: "scene_preparation"; expected_task_context_digest?: string };
+/** One retained grant per upload. Replays never renew its clock or its budget.
+ * `honour_execution_window` (the Pipeline's non-creating read only) lets a
+ * verified time-only extension of the bound scene intent keep the grant readable. */
+export type WebsiteSceneSponsorshipRequest = { purpose?: "scene_preparation"; expected_task_context_digest?: string;
+  honour_execution_window?: true };
 /** Trusted background reads reuse stored scope; explicit signed requests never infer new authority. */
 export function retainedWebsiteScenePurpose(record: Record<string, any> | undefined): "scene_preparation" | undefined {
   const purpose = record?.website_scene_sponsorship?.purpose;
@@ -318,8 +330,13 @@ export async function loadWebsiteSceneSponsorship(requestId: string, create = fa
     const record = request.data()!;
     if (!create && !record.website_scene_sponsorship) throw new Error("website_scene_sponsorship_missing");
     const purpose = options ? options.purpose : !create ? retainedWebsiteScenePurpose(record) : undefined;
+    const executionWindowUntil = !create && options?.honour_execution_window === true
+      && record.website_scene_sponsorship_execution_window
+      ? sponsorshipExecutionWindowUntil(record.website_scene_sponsorship, record,
+        await sponsorshipWindowIntake(transaction, record)) : undefined;
     const input = { requestId, record, purpose, brief: brief.data() as SiteTaskBriefRecord,
-      inventory: inventory.exists ? inventory.data() as TaskItemInventoryRecord : null };
+      inventory: inventory.exists ? inventory.data() as TaskItemInventoryRecord : null,
+      ...(executionWindowUntil === undefined ? {} : { executionWindowUntil }) };
     const current = projectWebsiteTaskContext(input.brief, projectWebsiteCaptureRights(record), {
       inventory: input.inventory, captureId, captureBinding, purpose });
     if (options?.expected_task_context_digest !== undefined && options.expected_task_context_digest !== current.context_digest
