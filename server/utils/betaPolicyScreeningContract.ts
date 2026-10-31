@@ -146,6 +146,11 @@ const HELD_BLOCKERS = new Set(["task_kind_not_supported_by_candidate", "candidat
  * later failed is never held: that is ours to fix and rerun.
  */
 const UNPREPARED_BLOCKERS = new Set(["prepared_robot_policy_registration_missing", "runtime_candidate_binding_missing"]);
+/** Rows the Pipeline closed when it planned them again in a newer run after a deploy. */
+export const SCREENING_REPLANNED_BLOCKER = "beta_screening_replanned_for_new_implementation";
+/** Held only because candidates that could take the job are not prepared in the simulator yet. */
+export const screeningHeldForPreparation = (candidates: ReadonlyArray<{ status: string; blockers: readonly string[] }>) =>
+  candidates.some(row => row.status === "unavailable" && row.blockers.some(code => UNPREPARED_BLOCKERS.has(code)));
 const heldRow = (row: { status: string; blockers: readonly string[] }) => row.blockers.length > 0
   && row.blockers.every(code => HELD_BLOCKERS.has(code) || row.status === "unavailable" && UNPREPARED_BLOCKERS.has(code));
 

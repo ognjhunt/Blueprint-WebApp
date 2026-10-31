@@ -347,6 +347,16 @@ describe("automatic many-candidate job evaluation", () => {
     const heldProjection = projectManagedJobEvidence(held.campaign_id, { ...run, publication_digest: held.publication_digest, publication_revision: 3 },
       { record_id: "result-one", publication: held }, brief.requestId, binding.brief_digest, scope.taskContextDigest, scope.sourceFingerprint)!;
     expect(heldProjection.state).toBe("held");
+    expect(heldProjection.summary).toBe("Held: the robots that could do this job aren't set up in our simulator yet. It counts as demand for what we build next.");
+    // A run whose rows were planned again in a newer run points there and cannot be cited.
+    const replanned = sealScreening({ ...unspent, revision: 4, candidates: unspent.candidates.map((row, index) => index === 1
+      ? { ...row, status: "blocked", blockers: ["beta_screening_replanned_for_new_implementation"] } : row) });
+    const replannedProjection = projectManagedJobEvidence(replanned.campaign_id, { ...run, publication_digest: replanned.publication_digest,
+      publication_revision: 4 }, { record_id: "result-one", publication: replanned }, brief.requestId, binding.brief_digest,
+    scope.taskContextDigest, scope.sourceFingerprint)!;
+    expect(replannedProjection.state).toBe("superseded");
+    expect(replannedProjection.resultDigest).toBeNull();
+    expect(replannedProjection.summary).toMatch(/^Continued in a newer run/);
   });
 
   it("projects the run as the job's simulation estimate, and retains stale source as historical", () => {
