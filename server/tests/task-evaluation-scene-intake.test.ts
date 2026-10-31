@@ -803,6 +803,48 @@ describe("persistent authenticated scene intake", () => {
     await processSceneIntakeQueue();
     expect(stored()[1].state).toBe("revoked");
   });
+  it("an owner-approved time-only extension of the same intent moves only the forward expiry", async () => {
+    const url = await app();
+    await realFetch(url, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(command()),
+    });
+    const record = stored()[1];
+    const raw = record.request.execution.expires_at_epoch;
+    const caps = structuredClone(record.request.execution);
+    record.receipt = { intent_id: "scene-one", intent_digest: sha("a") };
+    const extension = {
+      schema_version: "task_evaluation_scene_execution_window_extension_notice.v1",
+      intent_id: "scene-one", intent_digest: sha("a"), extension_digest: sha("7"),
+      original_expires_at_epoch: raw, expires_at_epoch: raw + 86400, issued_at_epoch: raw + 60,
+      authorization_reference: "founder approval (time only)", authorized_via: "operator_door",
+      received_at_iso: "2026-10-31T12:00:00Z",
+    };
+    record.execution_window_extensions = [{ ...extension, intent_digest: sha("b") }];
+    const fetcher = vi.fn(async () => new Response("{}", { status: 503 }));
+    vi.stubGlobal("fetch", fetcher);
+    const clock = vi.spyOn(Date, "now").mockReturnValue((raw + 3600) * 1000);
+    try {
+      // An extension that does not bind this intent changes nothing.
+      await processSceneIntakeQueue();
+      expect(stored()[1].blocker).toBe("consent_expired");
+      expect(fetcher).not.toHaveBeenCalled();
+      Object.assign(stored()[1], { state: "forward_pending", next_forward_at_ms: 0,
+        execution_window_extensions: [extension] });
+      await processSceneIntakeQueue();
+      expect(stored()[1].blocker).not.toBe("consent_expired");
+      expect(fetcher).toHaveBeenCalled();
+      expect(stored()[1].request.execution).toEqual(caps);
+      // Past the extended end it is expired again.
+      clock.mockReturnValue((raw + 86400) * 1000);
+      Object.assign(stored()[1], { state: "forward_pending", next_forward_at_ms: 0 });
+      await processSceneIntakeQueue();
+      expect(stored()[1].blocker).toBe("consent_expired");
+    } finally {
+      clock.mockRestore();
+    }
+  });
   it("expires original consent and rejects changed provider terms before delivery", async () => {
     const url = await app();
     await realFetch(url, {

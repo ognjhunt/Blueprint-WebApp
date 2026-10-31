@@ -12,6 +12,7 @@ import { assertWebsiteCaptureBindingInTransaction, resolveWebsiteCaptureBinding 
 import type { SiteTaskBriefRecord } from "./siteTaskBrief";
 import type { TaskItemInventoryRecord } from "./taskItemInventory";
 import { familyNativePreparationReference, familyPreparationMatchesTask, isTaskFamilyStrategy, taskFamilyIntakeTask } from "./taskFamilySceneIntake";
+import { effectiveSceneExecutionExpiry } from "./sceneExecutionWindowExtension";
 
 export { sceneCanonicalJson, sceneDigest };
 
@@ -756,7 +757,8 @@ export async function processSceneIntakeQueue(limit = 10) {
               : {}),
           };
         } else {
-          if (record.request.execution.expires_at_epoch <= now / 1000)
+          // An owner-approved, time-only extension moves only this expiry (raw + 7 days at most).
+          if (effectiveSceneExecutionExpiry(record) <= now / 1000)
             throw new Error("consent_expired");
           if (record.forward_attempt_count >= 20)
             throw new Error("transport_retry_cap_exhausted");
