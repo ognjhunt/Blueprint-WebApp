@@ -130,7 +130,21 @@ export interface JobManagedEvidenceSummary {
     scored: number; succeeded: number; failed: number; void: number; blockers: string[];
     executionEvidence?: { execution_evidence_kind: "learned_policy" | "scripted_simulator_state_baseline";
       action_source: "learned_policy" | "scripted_simulator_state"; scripted_rollout_count: number;
-      learned_policy_rollout_count: number; scripted_controller_invoked: boolean; candidate_policy_queried: boolean } }> };
+      learned_policy_rollout_count: number; scripted_controller_invoked: boolean; candidate_policy_queried: boolean } }>;
+    selection?: JobCandidateSelection };
+}
+
+/** The Pipeline's rule-based choice from a finished job evaluation: a simulation estimate, never a physical guarantee. */
+export interface JobCandidateSelection {
+  status: "chosen" | "no_successful_candidate" | "no_evaluated_candidate";
+  selectionDigest: string;
+  chosen: null | { candidateId: string; name: string; successRate: number; scored: number; succeeded: number;
+    configurationId: string | null; policyRouteId: string | null; deploymentCompanies: string[]; relationship: string | null;
+    evidenceUrl: string | null; relatedTeams: string[]; partnerBlockers: string[];
+    /** Staff only (empty in the site's view): registry teams whose recorded name matches a company or related team. */
+    registryTeams: Array<{ id: string; name: string }> };
+  tiedWith: string[];
+  candidates: Array<{ candidateId: string; resultRank: number | null; choiceBlocker: string | null }>;
 }
 
 /** Preparation inventory only. Compatibility and task outcomes have not been evaluated. */

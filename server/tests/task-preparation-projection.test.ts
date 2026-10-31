@@ -167,6 +167,10 @@ describe("preparation that waits on capacity or ends for good (beta L3/L6)", () 
     const held = projectTaskStatus({ ...handedOff, sceneProgression: { state: "held" } } as never);
     expect(held.decision).toBe("assessing");
     expect(held.headline).toBe("Held: we can't simulate this kind of job yet. It counts as demand for what we build next. Nothing is needed from you.");
+    const outOfReach = projectTaskStatus({ ...handedOff, sceneProgression: { state: "held", heldReason: "infeasible" } } as never);
+    expect(outOfReach.decision).toBe("assessing");
+    expect(outOfReach.headline).toBe("Held: from the robot position planned in the scene built from your video, none of the robots we can simulate could reach this task. Nothing is needed from you.");
+    expect(outOfReach.headline).not.toMatch(/setup blockers|rerun|can't do|cannot do|anywhere/);
     const built = projectTaskStatus({ ...handedOff, sceneProgression: { state: "completed" } } as never);
     expect(built.decision).toBe("assessing");
     expect(built.headline).toBe("We are preparing your job for simulation. Nothing is needed from you.");

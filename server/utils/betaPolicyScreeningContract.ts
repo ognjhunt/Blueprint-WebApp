@@ -17,13 +17,21 @@ export const screeningMoneyMicros = (value: string) => {
   const [whole, fraction = ""] = value.split(".");
   return BigInt(whole) * BigInt(1_000_000) + BigInt(fraction.padEnd(6, "0"));
 };
-export const screeningTerminalCandidateStates = new Set(["completed", "blocked", "unavailable", "deferred"]);
+export const screeningTerminalCandidateStates = new Set(["completed", "blocked", "unavailable", "deferred", "infeasible"]);
+/**
+ * `infeasible` is measured out of reach on the reconstructed site. Until the
+ * Pipeline publishes it natively it sends `unavailable` with this blocker;
+ * both read as infeasible.
+ */
+export const SCREENING_INFEASIBLE_BLOCKER = "candidate_infeasible_measured_geometry";
+export const screeningCandidateState = (row: { status: string; blockers: readonly string[] }) =>
+  row.status === "unavailable" && row.blockers.includes(SCREENING_INFEASIBLE_BLOCKER) ? "infeasible" : row.status;
 export const screeningExecutionEvidenceFields = ["execution_evidence_kind", "action_source", "scripted_rollout_count",
   "learned_policy_rollout_count", "scripted_controller_invoked", "candidate_policy_queried"] as const;
 
 const candidate = z.object({
   candidate_id: identifier, configuration_digest: digest, display_name: z.string().trim().min(1).max(200),
-  status: z.enum(["pending", "preparing", "launching", "running", "reconciliation_required", "completed", "blocked", "unavailable", "deferred"]),
+  status: z.enum(["pending", "preparing", "launching", "running", "reconciliation_required", "completed", "blocked", "unavailable", "deferred", "infeasible"]),
   blockers: z.array(z.string().min(1).max(300)).max(100),
   episodes_planned: count, episodes_scored: count, episodes_succeeded: count, episodes_failed: count, episodes_void: count,
   success_rate: z.number().finite().min(0).max(1).nullable(), session_result_digest: digest.nullable(),
@@ -114,18 +122,26 @@ export function screeningExecutionEvidence(row: BetaPolicyScreeningPublication["
  * 2026-10-28). `held`: every candidate is refused for capability or license,
  * so the job waits for something we have to build. `budget`: a candidate
  * needs more than the site's allowance, which only the owner can approve.
- * `setup`: anything else, ours to fix and rerun.
+ * `setup`: anything else, ours to fix and rerun. `no_match`: no candidate can
+ * run it and at least one was measured out of reach in the reconstructed site,
+ * so the site is told plainly there is no match (owner decision 2026-10-30).
+ * `infeasible`: every candidate was measured out of reach from the robot
+ * position the scene planned (the packet's station), so the job is held with
+ * that measured reason, never a setup fix (owner decision 2026-10-31). It is
+ * station-relative, not a verdict that no robot could do the task anywhere.
  */
-export type NoEstimateReason = "held" | "budget" | "setup";
+export type NoEstimateReason = "held" | "infeasible" | "no_match" | "budget" | "setup";
 const HELD_BLOCKERS = new Set(["task_kind_not_supported_by_candidate", "candidate_disabled", "commercial_use_not_admitted"]);
 
 export function noEstimateReason(candidates: ReadonlyArray<{ status: string; blockers: readonly string[] }>): NoEstimateReason {
   const open = candidates.filter(row => row.status !== "completed");
   if (open.some(row => row.blockers.some(code => code.includes("budget")))) return "budget";
   // A completed candidate with only void episodes is a broken scene, not a capability gap.
-  return open.length > 0 && open.length === candidates.length
-    && open.every(row => row.blockers.length > 0 && row.blockers.every(code => HELD_BLOCKERS.has(code)))
-    ? "held" : "setup";
+  const infeasible = (row: { status: string; blockers: readonly string[] }) => screeningCandidateState(row) === "infeasible";
+  if (open.length === 0 || open.length !== candidates.length
+      || !open.every(row => infeasible(row) || (row.blockers.length > 0 && row.blockers.every(code => HELD_BLOCKERS.has(code)))))
+    return "setup";
+  return open.every(infeasible) ? "infeasible" : open.some(infeasible) ? "no_match" : "held";
 }
 
 export function parseBetaPolicyScreeningPublication(value: unknown): BetaPolicyScreeningPublication | null {

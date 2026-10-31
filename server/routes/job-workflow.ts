@@ -13,6 +13,7 @@ import { savedWalkthrough, siteWalkthroughIdentity } from "../utils/siteWalkthro
 import { logger } from "../logger";
 import { readWebsiteTargetScope } from '../utils/websiteSceneProgression';
 import { loadManagedJobEvidenceForWorkspace, assertManagedJobEvidenceReference } from "../utils/jobManagedEvaluation";
+import { withoutRegistryTeams } from "../utils/betaCandidateSelection";
 import { buildJobEvidenceRequest, jobEvidenceId, jobEvidenceQuestionSchema, jobEvidenceDigest, scientificBriefDigest, scientificContext, jobEvidenceSummary, jobEvidenceCaptureSessionId } from "../utils/jobEvidenceContract";
 import { assertJobEvidenceRequestActive, readJobEvidence, readJobEvidencePublication } from "../utils/jobEvidenceStore";
 import { assertJobEvidenceVideo, deliverJobEvidenceRequest, jobEvidenceDeliveryIntent, jobEvidenceQueueMarker, queueJobEvidenceAction } from "../utils/jobEvidenceForwardWorker";
@@ -78,7 +79,8 @@ async function readWorkflow(requestId: string, admin = false) {
   ]);
   return { ...projectJobMarketplace(record, briefValue, walkthrough?.received ?? null, evidenceReviewProposalIds, targetScope.superseded,
     targetScope.correctionsDigest), jobId: requestId, ...await readJobEvidence(requestId, briefValue, admin),
-    ...managed, ...(preview ? {candidateReadiness: omitPublishedCandidates(preview,
+    ...managed, ...(admin ? {} : { managedEvidence: managed.managedEvidence.map(withoutRegistryTeams) }),
+    ...(preview ? {candidateReadiness: omitPublishedCandidates(preview,
       targetScope.superseded ? [] : managed.managedEvidence)} : {}) };
 }
 async function mutateWorkflow(requestId: string, actor: string, event: string,

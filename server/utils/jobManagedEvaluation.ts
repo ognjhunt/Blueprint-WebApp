@@ -12,8 +12,10 @@ import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { publicationFromResultRecord } from "./taskEvaluationRunPublicationStorage";
 import { parseVerifiedTaskEvaluationRunPublication } from "./taskEvaluationRunContract";
 import { parsePipelinePolicyCanaryPublication } from "./policyCanaryWebappSyncContract";
-import { noEstimateReason, parseBetaPolicyScreeningPublication, screeningExecutionEvidence,
+import { noEstimateReason, parseBetaPolicyScreeningPublication, screeningCandidateState, screeningExecutionEvidence,
   type BetaPolicyScreeningPublication, type ScreeningExecutionEvidence } from "./betaPolicyScreeningContract";
+import { projectCandidateSelection } from "./betaCandidateSelection";
+import type { JobCandidateSelection } from "../../client/src/types/jobMarketplace";
 import { assertWebsiteCaptureBindingInTransaction, resolveWebsiteCaptureBinding } from "./websiteCaptureBinding";
 import { preparationPhaseMatchesTask } from "./taskFamilySceneIntake";
 import { assertWebsiteRunOpen } from "./websiteRunClosure";
@@ -202,7 +204,7 @@ export type ManagedJobEvidenceSummary = {
       | "publication_digest" | "catalog_digest" | "plan_digest">;
     candidates: Array<{ candidateId: string; name: string; state: string; planned: number;
     scored: number; succeeded: number; failed: number; void: number; blockers: string[]; configurationDigest?: string;
-    executionEvidence?: ScreeningExecutionEvidence }> };
+    executionEvidence?: ScreeningExecutionEvidence }>; selection?: JobCandidateSelection };
 };
 
 /** A projection of already accepted publications, never a second report store. */
@@ -241,21 +243,29 @@ export function projectManagedJobEvidence(
     const completed = value.candidates.filter(row => row.status === "completed").length;
     const total = value.candidates.length;
     const scored = value.candidates.reduce((sum, row) => sum + row.episodes_scored, 0);
-    const notRun = value.candidates.filter(row => ["blocked", "unavailable", "deferred"].includes(row.status)).length;
+    const notRun = value.candidates.filter(row => ["blocked", "unavailable", "deferred", "infeasible"].includes(row.status)).length;
     const candidates = (count: number) => `${count} candidate${count === 1 ? "" : "s"}`;
     // A run whose candidates finished with no scored episode has no estimate to show.
     const finished = value.status === "completed" && scored === 0 ? "blocked" : value.status;
     // No estimate ends as held only when no candidate can do the job; budget and
     // setup gaps stay in progress for the owner or for us (owner decision 2026-10-28).
     const reason = finished === "blocked" ? noEstimateReason(value.candidates) : null;
-    const status = reason === "held" ? "held" : reason === "budget" ? "awaiting_spend_approval" : reason === "setup" ? "setup_repair" : finished;
+    const status = reason === "held" || reason === "infeasible" || reason === "no_match" ? "held"
+      : reason === "budget" ? "awaiting_spend_approval" : reason === "setup" ? "setup_repair" : finished;
+    // The Pipeline's rule-based choice, kept only while it restates this result.
+    const selection = projectCandidateSelection(run.candidate_selection, value);
     return { ...base, state: status, resultDigest: ["completed", "blocked"].includes(finished) ? value.publication_digest : null,
       summary: status === "completed"
         ? `Your job's simulation estimate: ${completed} of ${total} candidates ran, with ${scored} episodes scored against the job's success criteria.`
+        // Every candidate measured out of reach from the planned robot position: held, with that
+        // station-relative reason, not a task-level verdict (owner decision 2026-10-31).
+        : reason === "infeasible" ? "Held: from the robot position planned in the scene built from your video, none of the robots we can simulate could reach this task."
+        : reason === "no_match" ? "No match: none of the robots we can simulate could reach this task in the scene built from your video."
         : status === "held" ? "Held: we can't simulate this kind of job yet. It counts as demand for what we build next."
         : status === "awaiting_spend_approval" || status === "setup_repair" ? "Simulation evaluation in progress. We'll run your job again and show the estimate here."
           : `Simulation evaluation of your job: ${completed} of ${total} candidates finished; ${scored} episodes scored so far.`,
       nextAction: status === "completed" ? "Blueprint uses this estimate to recommend the next step for your job, then works with a deployment company on any physical pilot."
+        : reason === "infeasible" || reason === "no_match" ? "Nothing is needed from the site. Each row lists the measured reason or why it could not run."
         : status === "held" ? "Nothing is needed from the site. No candidate Blueprint can run supports this job yet; each row lists why."
         : status === "awaiting_spend_approval" ? "Owner approval needed: this job's candidates need more than the site's simulation budget. Nothing is needed from the site."
         : status === "setup_repair" ? "Fix the setup blockers listed per candidate, then rerun. Nothing is needed from the site."
@@ -276,8 +286,8 @@ export function projectManagedJobEvidence(
         candidates: value.candidates.map(row => ({ candidateId: row.candidate_id, name: row.display_name,
         configurationDigest: row.configuration_digest,
         ...(row.execution_evidence_kind ? { executionEvidence: screeningExecutionEvidence(row) } : {}),
-        state: row.status, planned: row.episodes_planned, scored: row.episodes_scored, succeeded: row.episodes_succeeded,
-        failed: row.episodes_failed, void: row.episodes_void, blockers: row.blockers })) } };
+        state: screeningCandidateState(row), planned: row.episodes_planned, scored: row.episodes_scored, succeeded: row.episodes_succeeded,
+        failed: row.episodes_failed, void: row.episodes_void, blockers: row.blockers })), ...(selection ? { selection } : {}) } };
   }
   if (publication.run_id !== runId) return base;
   if (publication.schema_version === "task_evaluation_run_publication.v4") {

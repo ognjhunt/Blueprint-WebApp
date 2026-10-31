@@ -10,6 +10,8 @@ import { betaPolicyScreeningSourceSchema, parseBetaPolicyScreeningPublication, s
   screeningTerminalCandidateStates, noEstimateReason, type BetaPolicyScreeningPublication } from "./betaPolicyScreeningContract";
 import type { TaskItemInventoryRecord } from "./taskItemInventory";
 import { assertWebsiteRunOpen, websiteRunClosure } from "./websiteRunClosure";
+import { parseBetaCandidateSelection, selectionMatchesPublication, type BetaCandidateSelection } from "./betaCandidateSelection";
+import { registryTeamsNamed } from "./deploymentIntegrationInventory";
 import { effectiveSceneExecutionExpiry, verifiedSceneExecutionWindowExtensions } from "./sceneExecutionWindowExtension";
 
 export { assertScreeningSceneSource } from "./jobManagedEvaluation";
@@ -232,6 +234,8 @@ export async function ingestBetaPolicyScreening(publication: BetaPolicyScreening
       publication_storage: encodeTaskEvaluationRunPublication(publication) });
     transaction.set(runRef, { ...(oldRun.data()?.screening_execution_controls !== undefined
       ? { screening_execution_controls: oldRun.data()!.screening_execution_controls } : {}),
+      // A budget-only revision keeps the choice; the readback rechecks it against each result.
+      ...(oldRun.data()?.candidate_selection !== undefined ? { candidate_selection: oldRun.data()!.candidate_selection } : {}),
       ...(oldRun.data()?.cancellationRequested === true || ["cancelled", "closed"].includes(oldRun.data()?.state) || ownerClosed
         ? { cancellationRequested: true } : {}),
       run_id: publication.campaign_id, run_kind: "beta_policy_screening",
@@ -250,5 +254,38 @@ export async function ingestBetaPolicyScreening(publication: BetaPolicyScreening
       created_at_iso: oldRun.data()?.created_at_iso ?? now, updated_at_iso: now });
     return { status: oldRun.exists ? "updated" : "created", run_id: publication.campaign_id,
       publication_digest: publication.publication_digest, revision: publication.revision };
+  });
+}
+
+/**
+ * The Pipeline's choice from an accepted terminal result, kept on its run.
+ * Exact replay is a no-op; only a choice from a newer revision replaces it.
+ */
+export async function ingestBetaCandidateSelection(selection: BetaCandidateSelection) {
+  if (!parseBetaCandidateSelection(selection)) throw new Error("screening_selection_invalid");
+  if (!db) throw new Error("screening_store_unavailable");
+  const store = db;
+  // A recorded company or related team joins a registry row by name only.
+  const { listMatchableRobotTeams } = await import("./robotTeamRegistry");
+  const registryTeams = selection.chosen ? registryTeamsNamed(await listMatchableRobotTeams(),
+    [...selection.chosen.deployment_companies, ...selection.chosen.related_teams]).map(({ id, name }) => ({ id, name })) : [];
+  const runRef = store.collection("taskEvaluationPolicyRuns").doc(selection.campaign_id);
+  return store.runTransaction(async transaction => {
+    const run = (await transaction.get(runRef)).data();
+    const result = run?.run_kind === "beta_policy_screening" && typeof run.result_record_id === "string"
+      ? await transaction.get(store.collection("captureTaskEvaluationRuns").doc(run.result_record_id)) : null;
+    const publication = result?.exists ? parseBetaPolicyScreeningPublication(publicationFromResultRecord(result.data()!)) : null;
+    if (!run || !publication || publication.campaign_id !== run.run_id || publication.publication_digest !== run.publication_digest
+      || publication.revision !== run.publication_revision || selection.publication_digest !== publication.publication_digest
+      || selection.publication_revision !== publication.revision || !selectionMatchesPublication(selection, publication))
+      throw new Error("screening_selection_publication_mismatch");
+    const previous = parseBetaCandidateSelection(run.candidate_selection?.record);
+    const receipt = (status: "created" | "updated" | "replayed") => ({ status, run_id: selection.campaign_id,
+      publication_revision: selection.publication_revision, selection_digest: selection.selection_digest });
+    if (previous?.selection_digest === selection.selection_digest) return receipt("replayed");
+    if (previous && previous.publication_revision >= selection.publication_revision) throw new Error("screening_selection_conflict");
+    transaction.set(runRef, { candidate_selection: { record: selection, registry_teams: registryTeams,
+      received_at_iso: new Date().toISOString() } }, { mergeFields: ["candidate_selection"] });
+    return receipt(run.candidate_selection === undefined ? "created" : "updated");
   });
 }

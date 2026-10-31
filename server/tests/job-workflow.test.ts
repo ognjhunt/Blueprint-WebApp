@@ -4,7 +4,7 @@ import { createServer, type Server } from "node:http";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { sharedFakeFirestoreState as state } from "./helpers/fake-firestore";
 import type { DeliveryProposalInput, JobMarketplaceWorkflow } from "../../client/src/types/jobMarketplace";
-import { screeningFixture } from "./fixtures/beta-policy-screening";
+import { finishedScreening, screeningFixture, selectionFixture } from "./fixtures/beta-policy-screening";
 import { buildTaskTargetChoiceAnswer, taskTargetSelection } from '../utils/websiteTaskTargetChoice';
 
 const captures = vi.hoisted(() => ({ received: true as boolean | null }));
@@ -101,6 +101,24 @@ describe("job workflow authority and durable decisions", () => {
     const rejected = await api(`/owner/${token('job-one')}`);
     expect(rejected.status).toBe(200);
     expect(rejected.body.managedEvidence?.[0]).toMatchObject({current: false, state: 'queued'});
+  });
+
+  it("shows the rule's choice to the site and staff, with registry matches for staff only", async () => {
+    const { publication, job, brief, intake } = screeningFixture();
+    state.docs.set("inboundRequests/job-one", job);
+    state.docs.set("siteTaskBriefs/job-one", brief);
+    state.docs.set("taskEvaluationSceneIntakes/intake-one", intake);
+    const { ingestBetaPolicyScreening } = await import("../utils/betaPolicyScreeningIngest");
+    const finished = finishedScreening(publication, 1);
+    await ingestBetaPolicyScreening(finished);
+    const run = state.docs.get(`taskEvaluationPolicyRuns/${finished.campaign_id}`)!;
+    state.docs.set(`taskEvaluationPolicyRuns/${finished.campaign_id}`, { ...run, candidate_selection: {
+      record: selectionFixture(finished), registry_teams: [{ id: "jacobi", name: "Jacobi Robotics" }] } });
+    const view = await api(`/owner/${token("job-one")}`);
+    expect(view.body.managedEvidence?.[0].screening?.selection?.chosen).toMatchObject({ candidateId: "candidate-0",
+      deploymentCompanies: ["Jacobi Robotics", "Delta Technology"], registryTeams: [] });
+    const staff = await api("/admin/job-one", "GET", undefined, "ops-token");
+    expect(staff.body.managedEvidence?.[0].screening?.selection?.chosen?.registryTeams).toEqual([{ id: "jacobi", name: "Jacobi Robotics" }]);
   });
 
   it('keeps rejected-object proposals in history and rejects selecting their old scope', async () => {

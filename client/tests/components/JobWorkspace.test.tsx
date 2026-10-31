@@ -308,6 +308,24 @@ it("shows the current simulation result before opening technical history", async
   expect(screen.queryByRole("button", { name: /Choose this pilot proposal/ })).not.toBeInTheDocument();
 });
 
+it("shows a job whose every candidate was measured out of reach as held, with that reason", async () => {
+  // The server's projection for an all-infeasible run (owner decision 2026-10-31).
+  const held = { runId: "out-of-reach", state: "held", current: true, resultDigest: "sha256:accepted-result",
+    summary: "Held: from the robot position planned in the scene built from your video, none of the robots we can simulate could reach this task.",
+    nextAction: "Nothing is needed from the site. Each row lists the measured reason or why it could not run.",
+    limitations: ["2 candidates did not run; each row lists why."], href: "#managed-evidence-out-of-reach",
+    screening: { candidates: ["a", "b"].map(id => ({ candidateId: id, name: `Candidate ${id}`, state: "infeasible", planned: 3,
+      scored: 0, succeeded: 0, failed: 0, void: 0, blockers: ["candidate_infeasible_measured_geometry", "team_embodiment_station_out_of_reach"] })) } };
+  fetchMock.mockResolvedValue(response(workflow({ briefAgreed: true, managedEvidence: [held] })));
+  render(<JobWorkspace token="owner-token" />);
+  const region = await screen.findByRole("region", { name: "Simulation results for your job" });
+  expect(within(region).getByText(held.summary)).toBeVisible();
+  expect(within(region).getAllByText(/^infeasible · 0\/3 scored/)).toHaveLength(2);
+  expect(screen.queryByText(/setup blockers|then rerun/)).toBeNull();
+  fireEvent.click(screen.getByText("Technical evidence and test details"));
+  expect(screen.getByRole("heading", { name: "held" })).toBeVisible();
+});
+
 
 it("leaves the parent's current update in one place without repeating a stale workflow action", async () => {
   fetchMock.mockResolvedValue(response(workflow({actionOwner:"site",nextAction:"Confirm the old brief."})));
