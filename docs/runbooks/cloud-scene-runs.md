@@ -233,6 +233,35 @@ door pull /var/lib/blueprint/pipeline-control-plane/task-evaluation-launch-runs/
 Anything the door refuses comes back with its rule (`secret_name_refused`,
 `path_outside_roots`, ...); archives list skipped files in their manifest.
 
+### 5a. Scene configuration: build step, launch and stuck launches
+
+- While the configured-controls timer is paused, run
+  `door unit start blueprint-task-evaluation-configured-controls-progression.service`
+  once the scene shows `awaiting_execution/scene_configuration`. That stages the
+  launch activation (the build step, about 55–66 min). Run it once more after the
+  activation leaves `task-evaluation-launch-activations/processing/` to submit the
+  launch. Pipeline #3196 moves both into scene progression.
+- `door deploy` waits while a scene-configuration activation is live
+  (`deploy_activation_hold` in `door status`). Pass
+  `--activation-hold-override <reason>` only for a fix to that activation.
+- A dispatcher refusal leaves the request in
+  `task-evaluation-launches/processing/` as
+  `unknown_requires_independent_reconciliation`. The launch reconciler timer
+  (always armed since Pipeline #3218) contains it after 15 min when no
+  dispatcher owns it and the launch never reached its allocator: either the run
+  directory was never created (#3207), or its one-use standing authorization was
+  never consumed (#3225). Otherwise it waits the profile's hard TTL. Scene
+  progression then settles that attempt's rows at $0 (#3223, #3225). Until
+  they settle, the scene shows `scene_intake_spend_cap_exhausted` or
+  `scene_progression_preparation_release_paid_reservation_exists`.
+- After a paid run tears down, the reconciler writes
+  `post_teardown_provider_zero_receipt.json`; scene completion waits for it.
+- Replay the dispatcher the way production starts it. The scene retirement
+  supervisor runs workers with `runpy.run_module(worker, run_name="__main__")`,
+  so a replay that imports the module can pass where the host fails (Pipeline
+  #3224). Mirror the request, profile, catalog and staged inputs at their host
+  paths, then run the module through `runpy` without `--execute`.
+
 ### 6. A stage fails: replay, fix, deploy
 
 1. Replay the failed child in the session against your branch's code. Nothing
