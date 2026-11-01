@@ -5,7 +5,7 @@ import { requireOwnedCaptureAtlasSource } from "./ownedCaptureAtlasContext";
 import { ownedCaptureAtlasPreparationPlanSchema } from "./reconstructionForwarding";
 import { sceneProviderTerms } from "./taskEvaluationSceneIntake";
 import { atlasAllowanceUsage, websiteAtlasAuthorization, websiteAtlasRuntimePolicy } from "./websiteAtlasAuthorization";
-import { preparationSpendRequest, preparationSettlementRequest } from "./websiteSceneSponsorship";
+import { preparationSettlementCost, preparationSpendRequest, preparationSettlementRequest } from "./websiteSceneSponsorship";
 import { withTaskEvaluationLaunchStoreTimeout as storeTimeout } from "./taskEvaluationLaunchStore";
 import { z } from "zod";
 
@@ -175,7 +175,8 @@ export async function reserveOwnedCaptureAtlasSpend(captureId: string, input: Co
 }
 
 /** Accounting for an admitted inference survives revocation and expired terms.
- * Atlas holds stay fully reserved until a supported provider-billing receipt exists. */
+ * An Atlas hold settles from the Pipeline's retained outcome: a completed
+ * operation at its reviewed price, a failed or refused one at zero. */
 export async function settleOwnedCaptureAtlasSpend(captureId: string,
   request: z.infer<typeof preparationSettlementRequest>) {
   identifier.parse(captureId);
@@ -187,13 +188,15 @@ export async function settleOwnedCaptureAtlasSpend(captureId: string,
     const record = (await transaction.get(ref)).data();
     const control = record?.pipeline_owned_atlas_preparation, key = command.allocation_binding_digest.slice(7);
     const row = control?.reservations?.[key];
-    if (command.provider !== "openai" || !row || row.admission.provider !== "openai"
-      || row.admission.resource_class !== "openai_api_candidate"
+    const resourceClass = { openai: "openai_api_candidate", world_labs_atlas: "provider_reconstruction_api" } as Record<string, string>;
+    if (!row || !resourceClass[command.provider] || row.admission.provider !== command.provider
+      || row.admission.resource_class !== resourceClass[command.provider]
       || row.admission.task_context_digest !== command.task_context_digest
-      || command.completed_request_count !== row.admission.request_count
-      || command.provider_charge_amount_usd > row.admission.maximum_cost_usd)
+      || command.provider === "openai" && command.completed_request_count !== row.admission.request_count)
       throw new Error("owned_capture_atlas_settlement_invalid");
-    const settlement = { ...command, actual_cost_usd: command.provider_charge_amount_usd, status: "settled" };
+    const actualCost = preparationSettlementCost(command, row.admission.maximum_cost_usd);
+    if (!(actualCost <= row.admission.maximum_cost_usd)) throw new Error("owned_capture_atlas_settlement_invalid");
+    const settlement = { ...command, actual_cost_usd: actualCost, status: "settled" };
     if (row.settlement) {
       if (digest(row.settlement) !== digest(settlement)) throw new Error("idempotency_conflict");
       return row.settlement;
