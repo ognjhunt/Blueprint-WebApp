@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
-import { noEstimateReason, parseBetaPolicyScreeningPublication, screeningPublicationTransition } from "../utils/betaPolicyScreeningContract";
+import { noEstimateReason as screeningNoEstimateReason, parseBetaPolicyScreeningPublication, screeningPublicationTransition } from "../utils/betaPolicyScreeningContract";
 import { assertScreeningSceneSource } from "../utils/betaPolicyScreeningIngest";
 import { managedJobTask, projectManagedJobEvidence } from "../utils/jobManagedEvaluation";
 import { scientificBriefDigest } from "../utils/jobEvidenceContract";
@@ -191,8 +191,33 @@ describe("automatic many-candidate job evaluation", () => {
     expect(() => screeningPublicationTransition(completed, sealScreening({ ...completed, revision: 4, status: "running" }))).toThrow("screening_revision_conflict");
   });
 
+  it("funds a waitlisted candidate from released money without reopening a closed one", () => {
+    const { publication } = screeningFixture();
+    const at = (base: typeof publication, revision: number, statuses: Record<number, [string, string[]]>) => sealScreening({
+      ...base, revision, generated_at: new Date(Date.parse(base.generated_at) + revision * 1000).toISOString(),
+      candidates: base.candidates.map((row, index) => statuses[index] ? { ...row, status: statuses[index][0], blockers: statuses[index][1] } : row) });
+    const waiting = at(publication, 2, { 0: ["blocked", ["beta_screening_static_preflight_blocked"]], 1: ["waitlisted", ["site_screening_budget_insufficient"]] });
+    expect(parseBetaPolicyScreeningPublication(waiting)?.status).toBe("queued");
+    // Only waitlisted rows left still read as queued, not as a finished run.
+    const onlyWaiting = sealScreening({ ...waiting, candidates: waiting.candidates.map((row, index) => index > 1
+      ? { ...row, status: "blocked", blockers: ["beta_screening_static_preflight_blocked"] } : row) });
+    expect(parseBetaPolicyScreeningPublication(onlyWaiting)?.status).toBe("queued");
+    expect(parseBetaPolicyScreeningPublication(sealScreening({ ...onlyWaiting, status: "blocked" }))).toBeNull();
+    const funded = at(waiting, 3, { 1: ["pending", []] });
+    expect(screeningPublicationTransition(waiting, funded)).toBe("updated");
+    expect(screeningPublicationTransition(funded, at(funded, 4, { 1: ["waitlisted", ["site_screening_budget_insufficient"]] }))).toBe("updated");
+    expect(screeningPublicationTransition(waiting, at(waiting, 3, { 1: ["deferred", ["beta_screening_site_budget_exhausted"]] }))).toBe("updated");
+    const preparing = at(funded, 4, { 1: ["preparing", []] });
+    expect(() => screeningPublicationTransition(preparing, at(preparing, 5, { 1: ["waitlisted", ["site_screening_budget_insufficient"]] })))
+      .toThrow("screening_progress_regression");
+    const closed = at(waiting, 3, { 1: ["deferred", ["beta_screening_site_budget_exhausted"]] });
+    expect(() => screeningPublicationTransition(closed, at(closed, 4, { 1: ["pending", []] }))).toThrow("screening_terminal_candidate_conflict");
+  });
+
   it("sorts a run with no estimate by who can fix it", () => {
     const row = (status: string, blockers: string[]) => ({ status, blockers });
+    const spent = { spent_upper_bound_usd: "4" };
+    const noEstimateReason = (rows: Array<{ status: string; blockers: string[] }>, budget = spent) => screeningNoEstimateReason(rows, budget);
     expect(noEstimateReason([row("blocked", ["task_kind_not_supported_by_candidate"]),
       row("unavailable", ["candidate_disabled"]), row("blocked", ["commercial_use_not_admitted"])])).toBe("held");
     // Any candidate a fix or approval could still run keeps the job in progress.
@@ -213,6 +238,18 @@ describe("automatic many-candidate job evaluation", () => {
       row("deferred", ["site_screening_budget_insufficient"])])).toBe("budget");
     expect(noEstimateReason([row("infeasible", ["candidate_infeasible_measured_geometry"]),
       row("blocked", ["runtime_candidate_binding_missing"])])).toBe("setup");
+    // Catalog rows never selected because nothing is prepared for them yet wait on what we build.
+    const unprepared = row("unavailable", ["prepared_robot_policy_registration_missing", "runtime_candidate_binding_missing"]);
+    expect(noEstimateReason([unprepared, row("unavailable", ["candidate_disabled", "runtime_candidate_binding_missing"])])).toBe("held");
+    expect(noEstimateReason([unprepared, row("infeasible", ["candidate_infeasible_measured_geometry"])])).toBe("no_match");
+    // Budget-deferred rows with nothing spent were left unfunded because the funded
+    // candidates failed before spend: ours to fix, never an owner approval.
+    const unspent = { spent_upper_bound_usd: "0" };
+    expect(noEstimateReason([unprepared, row("blocked", ["beta_screening_static_preflight_blocked:no_offer"]),
+      row("deferred", ["site_screening_budget_insufficient"])], unspent)).toBe("setup");
+    expect(noEstimateReason([unprepared, row("infeasible", ["candidate_infeasible_measured_geometry"]),
+      row("deferred", ["site_screening_budget_insufficient"])], unspent)).toBe("setup");
+    expect(noEstimateReason([unprepared, row("deferred", ["beta_screening_site_budget_exhausted"])])).toBe("budget");
   });
 
   it("shows held when no candidate Blueprint can run supports the job", () => {
@@ -270,7 +307,8 @@ describe("automatic many-candidate job evaluation", () => {
     const { publication, brief, job } = screeningFixture();
     const binding = { job_id: brief.requestId, brief_digest: scientificBriefDigest(brief) };
     const scope = managedJobTask({ binding, record: job, brief });
-    const voided = sealScreening({ ...publication, revision: 2, status: "completed", candidates: publication.candidates.map((row, index) => index > 0
+    const voided = sealScreening({ ...publication, revision: 2, status: "completed",
+      budget: { ...publication.budget, committed_upper_bound_usd: "4", spent_upper_bound_usd: "4" }, candidates: publication.candidates.map((row, index) => index > 0
       ? { ...row, status: "blocked", blockers: ["beta_screening_site_budget_exhausted"] }
       : { ...row, status: "completed", episodes_scored: 0, episodes_succeeded: 0, episodes_failed: 0, episodes_void: 3, success_rate: null, session_result_digest: screeningSha("9") }) });
     const run = { run_id: voided.campaign_id, run_kind: "beta_policy_screening", state: "completed", result_record_id: "result-one",
@@ -285,6 +323,40 @@ describe("automatic many-candidate job evaluation", () => {
     expect(projected.nextAction).toMatch(/^Owner approval needed/);
     expect(projected.limitations.join(" ")).not.toMatch(/estimate from 0 scored/);
     expect(projected.limitations.join(" ")).toMatch(/does not certify physical performance or safety/);
+  });
+
+  it("never asks for owner approval when budget-deferred candidates are unfunded and nothing was spent", () => {
+    const { publication, brief, job } = screeningFixture();
+    const binding = { job_id: brief.requestId, brief_digest: scientificBriefDigest(brief) };
+    const scope = managedJobTask({ binding, record: job, brief });
+    const unspent = sealScreening({ ...publication, revision: 2, status: "blocked", candidates: publication.candidates.map((row, index) => ({
+      ...row, ...(index === 0 ? { status: "blocked", blockers: ["beta_screening_static_preflight_blocked"] }
+        : index === 1 ? { status: "deferred", blockers: ["site_screening_budget_insufficient"] }
+          : { status: "unavailable", blockers: ["prepared_robot_policy_registration_missing", "runtime_candidate_binding_missing"] }) })) });
+    const run = { run_id: unspent.campaign_id, run_kind: "beta_policy_screening", state: "blocked", result_record_id: "result-one",
+      job_evidence_binding: binding, job_task_context_digest: scope.taskContextDigest, job_source_fingerprint: scope.sourceFingerprint,
+      configuration_digest: unspent.plan_digest, source_scene_intent_id: unspent.source.scene_intent_id,
+      source_scene_revision_digest: unspent.source.scene_revision_digest, publication_digest: unspent.publication_digest, publication_revision: 2 };
+    const projected = projectManagedJobEvidence(unspent.campaign_id, run, { record_id: "result-one", publication: unspent },
+      brief.requestId, binding.brief_digest, scope.taskContextDigest, scope.sourceFingerprint)!;
+    expect(projected.state).toBe("setup_repair");
+    expect(projected.nextAction).not.toMatch(/Owner approval/);
+    // With nothing funded at all, every row waits on what we build: held.
+    const held = sealScreening({ ...unspent, revision: 3, candidates: unspent.candidates.map(row => ({ ...row, status: "unavailable",
+      blockers: ["prepared_robot_policy_registration_missing", "runtime_candidate_binding_missing"] })) });
+    const heldProjection = projectManagedJobEvidence(held.campaign_id, { ...run, publication_digest: held.publication_digest, publication_revision: 3 },
+      { record_id: "result-one", publication: held }, brief.requestId, binding.brief_digest, scope.taskContextDigest, scope.sourceFingerprint)!;
+    expect(heldProjection.state).toBe("held");
+    expect(heldProjection.summary).toBe("Held: the robots that could do this job aren't set up in our simulator yet. It counts as demand for what we build next.");
+    // A run whose rows were planned again in a newer run points there and cannot be cited.
+    const replanned = sealScreening({ ...unspent, revision: 4, candidates: unspent.candidates.map((row, index) => index === 1
+      ? { ...row, status: "blocked", blockers: ["beta_screening_replanned_for_new_implementation"] } : row) });
+    const replannedProjection = projectManagedJobEvidence(replanned.campaign_id, { ...run, publication_digest: replanned.publication_digest,
+      publication_revision: 4 }, { record_id: "result-one", publication: replanned }, brief.requestId, binding.brief_digest,
+    scope.taskContextDigest, scope.sourceFingerprint)!;
+    expect(replannedProjection.state).toBe("superseded");
+    expect(replannedProjection.resultDigest).toBeNull();
+    expect(replannedProjection.summary).toMatch(/^Continued in a newer run/);
   });
 
   it("projects the run as the job's simulation estimate, and retains stale source as historical", () => {

@@ -19,6 +19,12 @@ export const screeningMoneyMicros = (value: string) => {
 };
 export const screeningTerminalCandidateStates = new Set(["completed", "blocked", "unavailable", "deferred", "infeasible"]);
 /**
+ * `waitlisted`: runnable, waiting for site budget a funded candidate may
+ * release before spend. Not terminal: the Pipeline funds it (`pending`) or,
+ * once nothing at the site can release money, closes it as `deferred`.
+ */
+export const screeningQueuedCandidateStates = new Set(["pending", "waitlisted"]);
+/**
  * `infeasible` is measured out of reach on the reconstructed site. Until the
  * Pipeline publishes it natively it sends `unavailable` with this blocker;
  * both read as infeasible.
@@ -31,7 +37,7 @@ export const screeningExecutionEvidenceFields = ["execution_evidence_kind", "act
 
 const candidate = z.object({
   candidate_id: identifier, configuration_digest: digest, display_name: z.string().trim().min(1).max(200),
-  status: z.enum(["pending", "preparing", "launching", "running", "reconciliation_required", "completed", "blocked", "unavailable", "deferred", "infeasible"]),
+  status: z.enum(["pending", "waitlisted", "preparing", "launching", "running", "reconciliation_required", "completed", "blocked", "unavailable", "deferred", "infeasible"]),
   blockers: z.array(z.string().min(1).max(300)).max(100),
   episodes_planned: count, episodes_scored: count, episodes_succeeded: count, episodes_failed: count, episodes_void: count,
   success_rate: z.number().finite().min(0).max(1).nullable(), session_result_digest: digest.nullable(),
@@ -104,7 +110,7 @@ export const betaPolicyScreeningPublicationSchema = z.discriminatedUnion("schema
   const states = new Set<string>(value.candidates.map(row => row.status));
   const expectedStatus = states.has("reconciliation_required") ? "reconciliation_required"
     : ["preparing", "launching", "running"].some(state => states.has(state)) ? "running"
-      : states.has("pending") ? "queued" : states.has("completed") ? "completed" : "blocked";
+      : [...screeningQueuedCandidateStates].some(state => states.has(state)) ? "queued" : states.has("completed") ? "completed" : "blocked";
   if (value.status !== expectedStatus)
     ctx.addIssue({ code: "custom", path: ["status"], message: "Campaign status must match candidate progress" });
 });
@@ -131,15 +137,37 @@ export function screeningExecutionEvidence(row: BetaPolicyScreeningPublication["
  * station-relative, not a verdict that no robot could do the task anywhere.
  */
 export type NoEstimateReason = "held" | "infeasible" | "no_match" | "budget" | "setup";
+/** Refusals that wait for something we have to build: wrong task kind, switched off, or no admitted license. */
 const HELD_BLOCKERS = new Set(["task_kind_not_supported_by_candidate", "candidate_disabled", "commercial_use_not_admitted"]);
+/**
+ * A catalog row never selected because nothing is prepared for it yet (no
+ * policy registration or runtime binding, e.g. rows listed before their first
+ * registration) is also something we have to build. A selected candidate that
+ * later failed is never held: that is ours to fix and rerun.
+ */
+const UNPREPARED_BLOCKERS = new Set(["prepared_robot_policy_registration_missing", "runtime_candidate_binding_missing"]);
+/** Rows the Pipeline closed when it planned them again in a newer run after a deploy. */
+export const SCREENING_REPLANNED_BLOCKER = "beta_screening_replanned_for_new_implementation";
+/** Held only because candidates that could take the job are not prepared in the simulator yet. */
+export const screeningHeldForPreparation = (candidates: ReadonlyArray<{ status: string; blockers: readonly string[] }>) =>
+  candidates.some(row => row.status === "unavailable" && row.blockers.some(code => UNPREPARED_BLOCKERS.has(code)));
+const heldRow = (row: { status: string; blockers: readonly string[] }) => row.blockers.length > 0
+  && row.blockers.every(code => HELD_BLOCKERS.has(code) || row.status === "unavailable" && UNPREPARED_BLOCKERS.has(code));
 
-export function noEstimateReason(candidates: ReadonlyArray<{ status: string; blockers: readonly string[] }>): NoEstimateReason {
+/**
+ * `budget` needs money actually committed at the site: a candidate deferred
+ * for budget while nothing was spent was left unfunded because funded ones
+ * failed before spend, which is ours to fix, not an owner approval.
+ */
+export function noEstimateReason(candidates: ReadonlyArray<{ status: string; blockers: readonly string[] }>,
+  budget: { spent_upper_bound_usd: string }): NoEstimateReason {
   const open = candidates.filter(row => row.status !== "completed");
-  if (open.some(row => row.blockers.some(code => code.includes("budget")))) return "budget";
+  const spent = dollars.safeParse(budget.spent_upper_bound_usd).success && screeningMoneyMicros(budget.spent_upper_bound_usd) > BigInt(0);
+  if (spent && open.some(row => row.blockers.some(code => code.includes("budget")))) return "budget";
   // A completed candidate with only void episodes is a broken scene, not a capability gap.
   const infeasible = (row: { status: string; blockers: readonly string[] }) => screeningCandidateState(row) === "infeasible";
   if (open.length === 0 || open.length !== candidates.length
-      || !open.every(row => infeasible(row) || (row.blockers.length > 0 && row.blockers.every(code => HELD_BLOCKERS.has(code)))))
+      || !open.every(row => infeasible(row) || heldRow(row)))
     return "setup";
   return open.every(infeasible) ? "infeasible" : open.some(infeasible) ? "no_match" : "held";
 }
@@ -180,7 +208,10 @@ export function screeningPublicationTransition(previous: BetaPolicyScreeningPubl
     // Pipeline retains a canonical no-allocation receipt before retrying a
     // busy slot. Waiting for that capacity is preparation, never execution.
     const waitingForCapacity = updated.status === "preparing" && updated.blockers.includes("beta_screening_waiting_for_capacity");
-    if ((updated.status === "pending" && row.status !== "pending")
+    // A waitlisted candidate becomes pending when released money funds it;
+    // only a pending one can wait for budget again.
+    if ((updated.status === "pending" && !screeningQueuedCandidateStates.has(row.status))
+      || (updated.status === "waitlisted" && !screeningQueuedCandidateStates.has(row.status))
       || (!waitingForCapacity && rank[updated.status] !== undefined && rank[row.status] !== undefined && rank[updated.status] < rank[row.status]))
       throw new Error("screening_progress_regression");
     if (updated.episodes_scored < row.episodes_scored || updated.episodes_void < row.episodes_void)
