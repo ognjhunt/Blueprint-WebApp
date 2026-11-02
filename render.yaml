@@ -83,5 +83,7 @@ services:
     envVars:
       - key: UPTIME_BASE_URL
         value: https://tryblueprint.io
+      - key: UPTIME_CONTROL_PLANE_HEALTH_URL
+        value: https://paperclip.tryblueprint.io/api/live-pipeline/operator/v1/healthz
       - key: SLACK_WEBHOOK_URL
         sync: false

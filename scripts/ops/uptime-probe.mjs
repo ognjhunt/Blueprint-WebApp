@@ -11,6 +11,10 @@
  *   /health         the web service answers ("healthy")
  *   /version.json   the deployed build is served ("git_sha")
  *   /health/worker  blueprint-webapp-worker wrote its heartbeat recently ("fresh")
+ *   control plane   when UPTIME_CONTROL_PLANE_HEALTH_URL is set: the Pipeline
+ *                   control-plane host answers through its operator door
+ *                   (`{"ok": true}`), so a down host, Caddy or door pages here
+ *                   instead of going unnoticed until a job stalls.
  *
  * On failure it posts to the ops Slack webhook (SLACK_WEBHOOK_URL), the same
  * channel the in-process alerts use, and exits 1 so the platform records a
@@ -18,7 +22,8 @@
  *
  * Env: UPTIME_BASE_URL (default https://tryblueprint.io), SLACK_WEBHOOK_URL,
  * UPTIME_ATTEMPTS (3), UPTIME_RETRY_DELAY_MS (15000), UPTIME_RUN_URL (optional
- * link added to the alert).
+ * link added to the alert), UPTIME_CONTROL_PLANE_HEALTH_URL (optional absolute
+ * URL of the operator door's unauthenticated /healthz).
  */
 import { pathToFileURL } from "node:url";
 
@@ -28,15 +33,21 @@ export const UPTIME_CHECKS = [
   { path: "/health/worker", expect: '"fresh"', meaning: "worker heartbeat stale or missing" },
 ];
 
+/** The control-plane host's operator door; it needs no token to answer /healthz. */
+export function controlPlaneCheck(url) {
+  return { path: "control-plane", url, expect: /"ok":\s*true/, meaning: "Pipeline control-plane host or operator door down" };
+}
+
 async function probeOnce(baseUrl, check, fetchImpl, timeoutMs) {
   try {
-    const response = await fetchImpl(`${baseUrl}${check.path}`, {
+    const response = await fetchImpl(check.url || `${baseUrl}${check.path}`, {
       redirect: "follow",
       signal: AbortSignal.timeout(timeoutMs),
       headers: { "user-agent": "blueprint-uptime-probe" },
     });
     const body = await response.text();
-    return { ok: response.status === 200 && body.includes(check.expect), status: String(response.status) };
+    const expected = check.expect instanceof RegExp ? check.expect.test(body) : body.includes(check.expect);
+    return { ok: response.status === 200 && expected, status: String(response.status) };
   } catch {
     return { ok: false, status: "none" };
   }
@@ -81,7 +92,9 @@ export async function main(env = process.env, fetchImpl = fetch) {
   const baseUrl = (env.UPTIME_BASE_URL || "https://tryblueprint.io").replace(/\/+$/, "");
   const attempts = Math.max(1, Number(env.UPTIME_ATTEMPTS) || 3);
   const retryDelayMs = Math.max(0, Number(env.UPTIME_RETRY_DELAY_MS ?? 15_000) || 0);
-  const { failures } = await runUptimeProbe({ baseUrl, attempts, retryDelayMs, fetchImpl });
+  const controlPlane = (env.UPTIME_CONTROL_PLANE_HEALTH_URL || "").trim();
+  const checks = controlPlane ? [...UPTIME_CHECKS, controlPlaneCheck(controlPlane)] : UPTIME_CHECKS;
+  const { failures } = await runUptimeProbe({ baseUrl, checks, attempts, retryDelayMs, fetchImpl });
   if (!failures.length) return 0;
   const text = uptimeAlertText({ baseUrl, failures, runUrl: env.UPTIME_RUN_URL });
   console.error(text);

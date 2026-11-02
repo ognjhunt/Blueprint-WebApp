@@ -8,7 +8,8 @@ name: Uptime
 # this one ran every 2-5 hours, not every 10 minutes) and disables schedules on
 # repositories with no activity for 60 days, so this schedule cannot be the
 # primary monitor. Both run the same script, scripts/ops/uptime-probe.mjs:
-# /health, /version.json and /health/worker (the background worker heartbeat).
+# /health, /version.json, /health/worker (the background worker heartbeat)
+# and the Pipeline control-plane host's operator door /healthz.
 # A failure fails the run (GitHub emails the repo owner on scheduled-run
 # failure) and, when the SLACK_WEBHOOK_URL repository secret is set, posts to
 # Slack. See docs/runbooks/beta-monitoring.md.
@@ -40,9 +41,10 @@ jobs:
           sparse-checkout: scripts/ops
           persist-credentials: false
 
-      - name: Probe /health, /version.json and /health/worker
+      - name: Probe /health, /version.json, /health/worker and the control-plane host
         env:
           UPTIME_BASE_URL: ${{ github.event.inputs.base_url || 'https://tryblueprint.io' }}
+          UPTIME_CONTROL_PLANE_HEALTH_URL: https://paperclip.tryblueprint.io/api/live-pipeline/operator/v1/healthz
           UPTIME_RETRY_DELAY_MS: "20000"
           UPTIME_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

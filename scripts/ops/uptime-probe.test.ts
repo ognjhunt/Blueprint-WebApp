@@ -40,4 +40,35 @@ describe("uptime probe", () => {
     expect(await main(env, up.fetchImpl)).toBe(0);
     expect(up.calls.some((url) => url.startsWith("https://hooks.example"))).toBe(false);
   });
+
+  describe("control-plane host", () => {
+    const door = "https://door.example/api/live-pipeline/operator/v1/healthz";
+    const website = { "/health": [[200, '"healthy"']], "/version.json": [[200, "git_sha"]], "/health/worker": [[200, '"fresh"']] } as Record<string, Array<[number, string]>>;
+    const env = { UPTIME_BASE_URL: "https://site.example", UPTIME_ATTEMPTS: "1", UPTIME_RETRY_DELAY_MS: "0", SLACK_WEBHOOK_URL: "https://hooks.example/x", UPTIME_CONTROL_PLANE_HEALTH_URL: door };
+
+    it("pages by name when the operator door does not answer ok", async () => {
+      vi.spyOn(console, "error").mockImplementation(() => undefined);
+      vi.spyOn(console, "log").mockImplementation(() => undefined);
+      const down = site({ ...website, "/api/live-pipeline/operator/v1/healthz": [[502, "Bad Gateway"]] });
+      expect(await main(env, down.fetchImpl)).toBe(1);
+      const slack = down.fetchImpl.mock.calls.find(([url]) => String(url).startsWith("https://hooks.example"))!;
+      expect(JSON.parse(String(slack[1]?.body)).text).toBe(
+        ":rotating_light: Blueprint uptime probe failed for https://site.example: control-plane=HTTP_502 (Pipeline control-plane host or operator door down)");
+    });
+
+    it.each(['{"ok": true, "version": "1.0.0"}', '{"ok":true}'])("accepts the door's healthy body %s", async (body) => {
+      vi.spyOn(console, "log").mockImplementation(() => undefined);
+      const up = site({ ...website, "/api/live-pipeline/operator/v1/healthz": [[200, body]] });
+      expect(await main(env, up.fetchImpl)).toBe(0);
+      expect(up.calls).toContain(door);
+    });
+
+    it("is not probed unless configured", async () => {
+      vi.spyOn(console, "log").mockImplementation(() => undefined);
+      const up = site(website);
+      const { UPTIME_CONTROL_PLANE_HEALTH_URL: _unset, ...unconfigured } = env;
+      expect(await main(unconfigured, up.fetchImpl)).toBe(0);
+      expect(up.calls.some((url) => url.includes("/operator/"))).toBe(false);
+    });
+  });
 });
