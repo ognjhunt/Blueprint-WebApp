@@ -246,6 +246,8 @@ describe("a waiting job hears what it is waiting on", () => {
     expect(notice.idempotencyKey).toBe(`req-1:evaluation_outcome:${event}`);
     expect(notice.subject).toBe("Your job's simulation evaluation has finished");
     expect(notice.body.startsWith(`${screeningOutcomeSentence("no_match")} Nothing is needed from you.`)).toBe(true);
+    // Only an estimate offers an introduction.
+    expect(notice.body).not.toMatch(/introduction/i);
     // Enqueue checks consent; dispatch also reads what the job page states now.
     expect(await taskLifecycleNotificationIsCurrent({ kind: "evaluation_outcome", requestId: "req-1" })).toBe(true);
     expect(await taskLifecycleNotificationIsCurrent(notice)).toBe(false);
@@ -339,7 +341,8 @@ it("sends a claimed site's evaluation outcome to its workspace, with the estimat
     captureUrl: "https://example.invalid/capture-upload/private-owner-link", workspaceUrl: "https://example.invalid/app/tasks/req-1" });
   expect(notice.subject).toBe("Your simulation estimate is ready");
   expect(notice.body).toMatch(/^Your simulation estimate is ready\. It is an estimate from a simulation of your site, not a certified result\. In the simulation, 2 of 36 candidates ran, with 6 episodes scored against the job's success criteria\. Nothing is needed from you\./);
-  expect(notice.body).toContain("This is a simulation estimate, not a physical test. It never certifies physical performance or safety.");
+  expect(notice.body).toContain("This is a simulation estimate, not a physical test. It never certifies physical performance or safety.\n\n"
+    + "If you'd like an introduction to a deployment company that could run a pilot of this, reply to this email.");
   expect(notice.body).toContain("See the result in your workspace:\nhttps://example.invalid/app/tasks/req-1");
   expect(notice.body).not.toContain("private-owner-link");
 });

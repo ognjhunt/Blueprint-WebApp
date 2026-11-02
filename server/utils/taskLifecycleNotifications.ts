@@ -281,9 +281,17 @@ export function buildTaskLifecycleNotification(params: {
 }
 
 /**
+ * An estimate's one next step (owner decision 2026-11-02): a reply reaches the
+ * job identity's reply-to inbox, and a person makes any introduction.
+ */
+export const ESTIMATE_INTRODUCTION_OFFER =
+  "If you'd like an introduction to a deployment company that could run a pilot of this, reply to this email.";
+
+/**
  * The page's own sentence for a result outcome, the estimate's episode count,
- * and the results disclaimer. The event id must name the same outcome, so the
- * dispatch check reads back exactly what the body says (F-01).
+ * the results disclaimer and, for an estimate, the introduction offer. The event
+ * id must name the same outcome, so the dispatch check reads back exactly what
+ * the body says (F-01).
  */
 function evaluationOutcomeDetail(params: { eventId?: string; screeningOutcome?: ScreeningOutcome;
   screeningCounts?: { ran: number; total: number; scored: number } }): string {
@@ -297,7 +305,7 @@ function evaluationOutcomeDetail(params: { eventId?: string; screeningOutcome?: 
   const result = counts ? `${screeningOutcomeSentence(outcome)} ${screeningEstimateCountSentence(counts.ran, counts.total, counts.scored)}`
     : screeningOutcomeSentence(outcome);
   return `${result} Nothing is needed from you.\n\n${outcome === "estimate"
-    ? "This is a simulation estimate, not a physical test. It never certifies physical performance or safety."
+    ? `This is a simulation estimate, not a physical test. It never certifies physical performance or safety.\n\n${ESTIMATE_INTRODUCTION_OFFER}`
     : "A simulation is not a physical test, and it never certifies physical performance or safety."}`;
 }
 
