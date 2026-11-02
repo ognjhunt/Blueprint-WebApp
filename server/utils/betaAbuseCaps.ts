@@ -42,8 +42,9 @@ function usdFromEnv(env: Env, key: string, fallback: number): number {
 /* ------------------------------------------------------------ intake */
 
 export const INTAKE_CAP_DEFAULTS = {
-  /** ~10x the invited cohort's busiest plausible day; keeps link-only ops emails at half the Resend free quota. */
-  global: 50,
+  /** Every intake can start Blueprint-paid preparation (~$40-70 a job, 2026-11 cost model), and the invited
+   * beta is 3-5 sites, so 5 a day caps open-intake exposure near one day of real use (owner decision D-13). */
+  global: 5,
   /** An office NAT can carry several honest sites; one network cannot open the day's whole quota. */
   perIp: 20,
   /** The 15-minute limiter allows 3; a person rarely starts more than a handful of jobs in a day. */
