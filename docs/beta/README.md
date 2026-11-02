@@ -1,40 +1,55 @@
-# Blueprint Beta — Tester Onboarding
+# Blueprint beta
 
-Welcome to the Blueprint beta. This folder is the tester-facing "what to expect / how it
-works / how to get help" set. It is written to be honest about what the beta does and does
-not do today.
+This folder explains the invited beta: what it does today, how it works and
+how to get help. It follows the owner's model of 2026-10-28, in the shared
+block of [`PLATFORM_CONTEXT.md`](../../PLATFORM_CONTEXT.md).
 
-**The beta is free for everyone** (founder decision, 2026-10-13). A site shows one recurring
-task; invited robot teams evaluate it free in a simulation built from the site's capture;
-Blueprint recommends **one** team whose evaluation on that job passed; the site books that
-pilot in one step. There is no site fee, no paid private evaluation, no balance, top-up or
-checkout. After booking, the site and the robot team agree the physical pilot's dates and
-terms directly, and Blueprint takes no cut.
+## How the beta works
 
-Sign-up is **open for sites** (anyone can start a job, and Blueprint also onboards sites by
-hand). Robot teams join **by invitation** after their application is reviewed.
+| Step | What happens |
+|---|---|
+| 1. Email and video | A site sends an email address and a video of one recurring job. |
+| 2. Brief | Blueprint drafts the job brief from the video. The site corrects it if needed. |
+| 3. Simulation | Blueprint builds a simulation of the site and runs the candidate robot policies in it itself. |
+| 4. Result | The site gets a bounded estimate, or "held — we can't simulate this kind of job yet". A held job counts as demand for what to build next. |
+
+- The beta is free for sites and partners. There are no fees and no checkout.
+  Blueprint pays for preparation and evaluation inside a fixed budget for each
+  site.
+- Blueprint does not refuse a job because of its task kind.
+- Robot teams do not run evaluations. A technology provider supplies access or
+  an integration only when Blueprint cannot run a policy itself.
+- After the result, Blueprint works alongside a deployment company on the real
+  site. The site agrees costs and the contract with the deployment company
+  directly. Blueprint takes no cut.
+- The only hard stops are privacy, rights and money. Anything else that is
+  missing is flagged, and the job continues.
+- A simulation result is a bounded estimate. It never certifies physical
+  performance or safety.
 
 ## Pick your guide
 
-| You are a… | Read | You will learn |
-|---|---|---|
-| **Site** (you have a recurring job) | [SITE_OPERATOR_BETA_GUIDE.md](./SITE_OPERATOR_BETA_GUIDE.md) | How to start a job, what the evaluation and recommendation mean, how booking works, and how to recover from a stuck step. |
-| **Robot team** (invited to evaluate) | [BUYER_BETA_GUIDE.md](./BUYER_BETA_GUIDE.md) | How invited evaluations work, what a result means, review states, and how a passed evaluation becomes a recommended pilot. |
-| ~~Capturer~~ | [CAPTURER_BETA_GUIDE.md](./CAPTURER_BETA_GUIDE.md) | **Retired.** Sites film their own job or Blueprint staff film it in person. |
+| You are | Read |
+|---|---|
+| A site with a recurring job | [SITE_OPERATOR_BETA_GUIDE.md](./SITE_OPERATOR_BETA_GUIDE.md) |
+| A robot team or a technology provider | [BUYER_BETA_GUIDE.md](./BUYER_BETA_GUIDE.md) |
+| A Blueprint operator | [INVITED_BETA_ACCEPTANCE.md](./INVITED_BETA_ACCEPTANCE.md) |
 
-Operators: the release evidence and launch checklist are in [INVITED_BETA_ACCEPTANCE.md](./INVITED_BETA_ACCEPTANCE.md). Recording what a robot team
-agreed to, before it counts as a team that will evaluate a site's job, is in
-[ROBOT_TEAM_SUPPLY_AGREEMENTS.md](./ROBOT_TEAM_SUPPLY_AGREEMENTS.md).
+Older records in this folder:
 
-## What this beta honestly is
+- [CAPTURER_BETA_GUIDE.md](./CAPTURER_BETA_GUIDE.md): retired on 2026-10-13.
+- [ROBOT_TEAM_SUPPLY_AGREEMENTS.md](./ROBOT_TEAM_SUPPLY_AGREEMENTS.md): how an
+  operator records what a robot team agreed to. Parts of it describe the
+  earlier rule, where a team evaluated a site's job and could deliver the
+  pilot. The code still has that rule.
+- [2026-10-06-acceptance-history.md](./2026-10-06-acceptance-history.md): the
+  acceptance record of 2026-10-06, kept unchanged.
 
-- An **evaluated recommendation**: robot teams' policies run on the site's job in a simulated
-  scene rebuilt from the site's capture, and only a team whose evaluation passed is recommended.
-- **Not** a live-robot certification, a physical-readiness guarantee, or a safety assessment.
-  A simulated pass is a bounded estimate; the physical pilot is where performance is measured.
+## Support
 
-## One support channel
+- Sites: email **hello@tryblueprint.io**.
+- Robot teams: email **support@tryblueprint.io**, the address in the public
+  robot-team guide.
 
-For anything — access blockers, capture problems, questions — email **hello@tryblueprint.io**.
-Include the exact page or job link (avoid forwarding a full private token), your organization,
-the expected outcome, and the actual blocker.
+Give the page or job link, your organization, what you expected and what
+happened. Do not forward a full private job token.
