@@ -58,6 +58,8 @@ import type { GateAnswerSources } from "../../client/src/lib/gateProvenance";
 import type { SitePilotIntent } from "../../client/src/data/sitePilotIntent";
 import { gateAnswersOnFile } from "./gateAnswersOnFile";
 import { screenTaskScope, taskScopeRecord, type SiteTaskScope } from "./siteTaskScope";
+import { projectWebsiteCaptureRights, projectWebsiteTaskContext } from "./websiteTaskContext";
+import type { TaskItemInventoryRecord } from "./taskItemInventory";
 
 export const TASK_BRIEFS_COLLECTION = "siteTaskBriefs";
 
@@ -301,6 +303,32 @@ export async function nameUnnamedTask(params: { requestId: string; summary: stri
   return named?.summary === summary ? named : null;
 }
 
+/**
+ * Whether folding later evidence into this brief would move the task a live
+ * scene grant was issued for.
+ *
+ * A grant is bound to the task context it was issued for. When that context
+ * moves, the grant no longer verifies and the intake worker ends the job's
+ * Pipeline intent. capture-447ae4f4 (2026-11-02): a description reading that
+ * ran three days late closed one open site question on a paid job's
+ * unconfirmed brief, and the intent was revoked 30 s later. A model's reading
+ * is not the site's word and is no reason to stop a job, so it waits for the
+ * site's own review instead, as it does on a confirmed brief. A grant that
+ * follows the brief (issued before the site named its job) still follows it.
+ */
+async function movesGrantedTask(transaction: FirebaseFirestore.Transaction, requestId: string,
+  record: Record<string, any>, grant: Record<string, any>, brief: SiteTaskBriefRecord, next: SiteTaskBriefRecord) {
+  const inventorySnapshot = await transaction.get(db!.collection("siteTaskItemInventories").doc(requestId));
+  const inventory = inventorySnapshot.exists ? inventorySnapshot.data() as TaskItemInventoryRecord : null;
+  const rights = projectWebsiteCaptureRights(record);
+  const purpose = grant.purpose === "scene_preparation" ? "scene_preparation" as const : undefined;
+  const context = (value: SiteTaskBriefRecord) => projectWebsiteTaskContext(value, rights, { inventory, purpose }).context_digest;
+  if (context(brief) === context(next)) return false;
+  // preparationGrantTask imports this module; load it when it is needed.
+  const { preparationGrantFollowsBrief } = await import("./preparationGrantTask");
+  return !preparationGrantFollowsBrief(grant, { brief: next, record, inventory });
+}
+
 export async function mergeBriefProposals(params: {
   requestId: string;
   proposals: readonly ProposedGateAnswer[];
@@ -311,6 +339,7 @@ export async function mergeBriefProposals(params: {
   if (!db) return null;
   const ref = db.collection(TASK_BRIEFS_COLLECTION).doc(params.requestId);
   let incoming: ProposedGateAnswer[] = [];
+  let heldForGrant = false;
   const merged = await db.runTransaction(async (transaction) => {
     const requestRef = db!.collection("inboundRequests").doc(params.requestId);
     const [snapshot, requestSnapshot] = await Promise.all([transaction.get(ref), transaction.get(requestRef)]);
@@ -342,6 +371,12 @@ export async function mergeBriefProposals(params: {
       draftedFrom: [...new Set([...brief.draftedFrom, ...proposed.map((answer) => answer.basis)])],
     };
     next.taskFamily = screenTaskScope({ summary: next.summary, successDefinition: next.successCriteria?.successDefinition }).kind ?? "general_task";
+    const grant = requestSnapshot.data()?.website_scene_sponsorship;
+    if (grant && await movesGrantedTask(transaction, params.requestId, requestSnapshot.data()!, grant, brief, next)) {
+      if (sourceNote) transaction.set(sourceNote.ref, { ...sourceNote.value, state: "grant_review_required" });
+      heldForGrant = true;
+      return null;
+    }
     const refresh = requestSnapshot.data()?.site_advisory
       ? await (await import("./siteAssessmentQueue")).prepareBriefContextSiteAssessment(
         transaction, params.requestId, requestSnapshot.data()!, next) : null;
@@ -357,6 +392,9 @@ export async function mergeBriefProposals(params: {
     refresh?.();
     return next;
   });
+  if (heldForGrant) logger.info({ requestId: params.requestId,
+    held: incoming.map((answer) => `${answer.fieldId}:${answer.basis}`) },
+  "Later evidence held: the brief is bound to a live scene grant");
   if (!merged) return null;
   logger.info(
     {
