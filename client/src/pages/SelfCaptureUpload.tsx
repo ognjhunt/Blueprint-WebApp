@@ -632,7 +632,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
       {status.claimUrl && !accountHold && (
         <details style={{ marginTop: "10px" }}>
           <summary>Save this job to an account (optional)</summary>
-          <p className="ms-field-hint">Your private job link already opens this job, its results and proposals. Save it to an account if you want it in your workspace.</p>
+          <p className="ms-field-hint">Your private job link already opens this job and its results. Save it to an account if you want it in your workspace.</p>
           <a className="ms-text-link" href={status.claimUrl}>
             Save this job to your account
           </a>

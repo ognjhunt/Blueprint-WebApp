@@ -4,7 +4,8 @@ import { COMMUNICATIONS_MODEL, communicationsDigest } from "./communications-con
 import { COMMUNICATIONS_DEFINITION, COMMUNICATIONS_HYPOTHESIS_INSTRUCTIONS, COMMUNICATIONS_OUTREACH_GUIDANCE } from "./communications-instructions";
 import { COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE, RETAINED_COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE_V4 } from "./communications-outreach-quality";
 import { COMMUNICATIONS_LAUNCH_GUIDANCE, COMMUNICATIONS_LAUNCH_GUIDANCE_V1, COMMUNICATIONS_FRAMING_V1,
-  COMMUNICATIONS_FRAMING_V2, COMMUNICATIONS_FRAMING_V3, COMMUNICATIONS_FOUNDER_GUIDANCE, COMMUNICATIONS_FOUNDER_GUIDANCE_V3,
+  COMMUNICATIONS_FRAMING_V2, COMMUNICATIONS_FRAMING_V3, COMMUNICATIONS_FRAMING_V4, COMMUNICATIONS_FOUNDER_GUIDANCE, COMMUNICATIONS_FOUNDER_GUIDANCE_V3,
+  COMMUNICATIONS_FOUNDER_GUIDANCE_V4,
   communicationsFramingVersion, type CommunicationsFramingVersion } from "./communications-launch-framing";
 
 /** The saved provider copy is checked against company-owned Git instructions.
@@ -407,12 +408,14 @@ export const COMMUNICATIONS_HYPOTHESIS_PROFILE = "outreach-ready-hypothesis-v1" 
 const HYPOTHESIS_SUFFIX = `\n${COMMUNICATIONS_HYPOTHESIS_INSTRUCTIONS}`;
 // Archived v9-v16 and saved provider definitions remain byte-exact. v17-v20 bind
 // the booking framing and v21-v24 founder prose (v3); v25-v44 are personalized
-// definitions below, so the free-beta founder framing (v4) takes v45-v48.
+// definitions below, so the free-beta founder framing (v4) takes v45-v48 and the
+// framing without the retired pilot booking (v5) takes v49-v52.
 const LAUNCH_HYPOTHESIS_SUFFIX = `\n${COMMUNICATIONS_LAUNCH_GUIDANCE_V1}
 For an outreach-ready hypothesis, follow firstTouchFraming and ask its question verbatim. Research qualification.openQuestions and openChecks remain historical evidence and unresolved checks; this inquiry does not prove them. The outreachContract is {version:"blueprint.outreach.v3",senderIdentity,opening,questions:[{question,checks:["interest"]}],recipientChoice}. Use the same cold opening and recipient addressing evidence as the historical hypothesis contract. No offer, workflow or capability claims. The body includes all anchors and exactly this one question mark; the subject has none. Hypothesis jobs remain draft-only, with no approval or send authority.`;
 const BOOKING_HYPOTHESIS_SUFFIX = LAUNCH_HYPOTHESIS_SUFFIX.replace(COMMUNICATIONS_LAUNCH_GUIDANCE_V1, COMMUNICATIONS_LAUNCH_GUIDANCE);
 const FOUNDER_V3_HYPOTHESIS_SUFFIX = `\n${COMMUNICATIONS_FOUNDER_GUIDANCE_V3}
 For an outreach-ready hypothesis, these prospective founder directions and firstTouchFraming replace the historical first-contact question directions above. The framing question is a suggestion; choose one natural interest question for this recipient and site. Keep qualification.openQuestions and openChecks as historical evidence and unresolved checks, never proof of manual work, automation or fit. Return outreachContract {version:"blueprint.outreach.v4",senderIdentity,opening,questions:[{question,checks:["interest"]}],recipientChoice}. Use the recorded cold opening and recipient addressing evidence. No offer, workflow or capability claims. All contract anchors occur in the body; the question anchor is the body's one question, with none in the subject. Anchors may overlap naturally, rather than becoming extra repeated sentences. Hypothesis jobs remain draft-only with no approval or send authority.`;
+const FOUNDER_V4_HYPOTHESIS_SUFFIX = FOUNDER_V3_HYPOTHESIS_SUFFIX.replace(COMMUNICATIONS_FOUNDER_GUIDANCE_V3, () => COMMUNICATIONS_FOUNDER_GUIDANCE_V4);
 const FOUNDER_HYPOTHESIS_SUFFIX = FOUNDER_V3_HYPOTHESIS_SUFFIX.replace(COMMUNICATIONS_FOUNDER_GUIDANCE_V3, () => COMMUNICATIONS_FOUNDER_GUIDANCE);
 type FramingSelection = boolean | CommunicationsFramingVersion | undefined;
 function hypothesisFraming(selection: FramingSelection) {
@@ -422,7 +425,8 @@ function hypothesisFraming(selection: FramingSelection) {
 function hypothesisSuffix(version: CommunicationsFramingVersion | undefined) {
   return version === undefined ? HYPOTHESIS_SUFFIX : version === COMMUNICATIONS_FRAMING_V1 ? LAUNCH_HYPOTHESIS_SUFFIX
     : version === COMMUNICATIONS_FRAMING_V2 ? BOOKING_HYPOTHESIS_SUFFIX
-    : version === COMMUNICATIONS_FRAMING_V3 ? FOUNDER_V3_HYPOTHESIS_SUFFIX : FOUNDER_HYPOTHESIS_SUFFIX;
+    : version === COMMUNICATIONS_FRAMING_V3 ? FOUNDER_V3_HYPOTHESIS_SUFFIX
+    : version === COMMUNICATIONS_FRAMING_V4 ? FOUNDER_V4_HYPOTHESIS_SUFFIX : FOUNDER_HYPOTHESIS_SUFFIX;
 }
 const HYPOTHESIS_VERSIONS: Record<string, string> = {
   [COMMUNICATIONS_HISTORY_DEFINITION.version]: "blueprint.communications-definition.v9",
@@ -435,7 +439,7 @@ export function communicationsHypothesisDefinition(base: { version: string; inst
   if (!version) throw new Error("communications_hypothesis_definition_unavailable");
   const framing = hypothesisFraming(launch), instructions = base.instructions + hypothesisSuffix(framing);
   const offset = framing === undefined ? 0 : framing === COMMUNICATIONS_FRAMING_V1 ? 4
-    : framing === COMMUNICATIONS_FRAMING_V2 ? 8 : framing === COMMUNICATIONS_FRAMING_V3 ? 12 : 36;
+    : framing === COMMUNICATIONS_FRAMING_V2 ? 8 : framing === COMMUNICATIONS_FRAMING_V3 ? 12 : framing === COMMUNICATIONS_FRAMING_V4 ? 36 : 40;
   return Object.freeze({ version: offset ? version.replace(/v(\d+)$/, (_, number) => `v${Number(number) + offset}`) : version,
     instructions, instructionsDigest: createHash("sha256").update(instructions).digest("hex") });
 }

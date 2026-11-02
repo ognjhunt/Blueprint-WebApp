@@ -30,8 +30,6 @@ function row(overrides: Partial<JobConsoleRow> = {}): JobConsoleRow {
     teamAccess: { listed: true, evaluationAvailable: true, reason: null, sceneHold: null },
     evaluations: { total: 1, pendingAdmission: 1, admitted: 0, pending: [{ requestId: "eval-1", teamName: "Atlas", setupName: "Arm v2" }] },
     runs: { queued: 0, running: 0, reported: 0, noResult: 0, passing: 0, belowTarget: 0, best: null },
-    recommendation: { state: "none", recommendationId: null, teamId: null, teamName: null, evaluationRunId: null },
-    booking: { state: "none", startsAt: null },
     withdrawal: { state: "none" },
     opsNotice: null,
     lastActivityIso: "2026-10-03T00:00:00.000Z",
@@ -82,9 +80,9 @@ beforeEach(() => {
     const url = String(input);
     if (url.startsWith("/api/admin/jobs?")) {
       const params = new URLSearchParams(url.split("?")[1]);
-      if (params.get("stage") === "recommend") return json({ jobs: [], nextCursor: null, scanned: 2, stages: [] });
-      return json({ jobs: [row(), row({ requestId: "job-b", siteName: "Cold Store", stage: "awaiting_booking",
-        nextAction: "Waiting on site to book Nova", actionOwner: "site", evaluations: { total: 0, pendingAdmission: 0, admitted: 0, pending: [] } })],
+      if (params.get("stage") === "passing_run") return json({ jobs: [], nextCursor: null, scanned: 2, stages: [] });
+      return json({ jobs: [row(), row({ requestId: "job-b", siteName: "Cold Store", stage: "passing_run",
+        nextAction: "Work with a deployment company on the passing result (1 passing run)", actionOwner: "blueprint", evaluations: { total: 0, pendingAdmission: 0, admitted: 0, pending: [] } })],
         nextCursor: null, scanned: 2, stages: [] });
     }
     if (url === "/api/admin/jobs/job-a") return json(detail);
@@ -115,7 +113,8 @@ describe("AdminJobConsole", () => {
     expect(within(items[0]).getByText("Dock 4")).toBeInTheDocument();
     expect(within(items[0]).getByText("Admit evaluation", { selector: "span" })).toBeInTheDocument();
     expect(within(items[0]).getByText("Admit evaluation for Atlas")).toBeInTheDocument();
-    expect(within(items[1]).getByText("Waiting on site to book Nova")).toBeInTheDocument();
+    expect(within(items[1]).getByText("Passing run", { selector: "span" })).toBeInTheDocument();
+    expect(within(items[1]).getByText("Work with a deployment company on the passing result (1 passing run)")).toBeInTheDocument();
     expect(screen.getByLabelText("Stage")).toBeInTheDocument();
     expect(screen.getByLabelText("Search site name")).toBeInTheDocument();
   });
@@ -136,9 +135,9 @@ describe("AdminJobConsole", () => {
   it("filters by stage and searches on the server", async () => {
     renderPage();
     await screen.findByRole("list", { name: "Site jobs" });
-    fireEvent.change(screen.getByLabelText("Stage"), { target: { value: "recommend" } });
+    fireEvent.change(screen.getByLabelText("Stage"), { target: { value: "passing_run" } });
     expect(await screen.findByText("No site jobs match this view.")).toBeInTheDocument();
-    expect(fetchMock.mock.calls.some(([url]) => String(url).includes("stage=recommend"))).toBe(true);
+    expect(fetchMock.mock.calls.some(([url]) => String(url).includes("stage=passing_run"))).toBe(true);
     fireEvent.change(screen.getByLabelText("Search site name"), { target: { value: "cold" } });
     fireEvent.submit(screen.getByRole("search"));
     await waitFor(() => expect(fetchMock.mock.calls.some(([url]) => String(url).includes("q=cold"))).toBe(true));

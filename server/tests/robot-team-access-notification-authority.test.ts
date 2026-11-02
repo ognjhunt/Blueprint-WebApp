@@ -14,7 +14,6 @@ vi.mock("../utils/taskStatusUpdates", () => ({ enqueueDueTaskStatusUpdates: vi.f
 vi.mock("../utils/taskLifecycleNotifications", () => ({ reconcileSceneReadyNotifications: vi.fn(), reconcileWebsitePreparationNotifications: vi.fn(), reconcileFootageBeforeAccountNotices: vi.fn() }));
 vi.mock("../utils/agentRunResultNotifications", () => ({ reconcileAgentRunResultNotifications: vi.fn() }));
 vi.mock("../utils/taskEvaluationNotificationRetry", () => ({ reconcileTaskEvaluationNotificationRetries: vi.fn() }));
-vi.mock("../utils/pilotRecommendationNotifications", () => ({ pilotRecommendationNotificationIsCurrent: vi.fn(async () => true) }));
 vi.mock("../utils/taskLifecycleNotificationAuthority", () => ({ taskLifecycleNotificationIsCurrent: vi.fn(async () => true) }));
 vi.mock("../utils/newJobAlerts", () => ({ jobAlertIsCurrent: vi.fn(async () => true), resumeNewJobFanout: vi.fn() }));
 

@@ -18,9 +18,10 @@ owner, the missing input, the next action and the agreed next update.
 | 4. Result | Blueprint | The job page shows one outcome sentence, and the site gets one email for it. |
 
 These are not part of the beta journey: evaluations that robot teams run,
-one-step pilot booking, and a choice between delivery proposals. The code on
-`main` still has the delivery-proposal screen and the booking route. WebApp
-PR #1143 removes them. It waits for the owner's decision.
+one-step pilot booking, and a choice between delivery proposals. The
+delivery-proposal screen and the booking route are removed; their routes
+return 404. After step 4, Blueprint works with a deployment company, and the
+site and that company agree any pilot directly.
 
 ## Current state
 
@@ -57,8 +58,8 @@ correction. It needs the owner's or counsel's approval (tracker G-04).
   on `main`, the `deploy.yml` run and `/version.json`
   ([`../runbooks/cloud-scene-runs.md`](../runbooks/cloud-scene-runs.md)).
 - The isolated browser rehearsal blocks external requests and uses synthetic
-  APIs. Never report it as production journey proof. It still covers the
-  earlier delivery-proposal choice.
+  APIs. Never report it as production journey proof. It checks that no
+  proposal, booking or outcome form is offered.
 
 ```bash
 npm run check

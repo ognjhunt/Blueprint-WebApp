@@ -8,7 +8,6 @@ import {
   ActionLink,
 } from "@/components/workspace/WorkspaceUI";
 import { RunRecord } from "@/pages/app/RunDetail";
-import { PilotBookingDetails } from "@/components/site/PilotBookingDetails";
 import type { EpisodeOutcomeRow, WorkspaceEvaluation } from "@/types/workspace";
 
 const OUTCOME_REASONS: Record<string, string> = {
@@ -228,16 +227,6 @@ export default function Evaluation() {
               </>
             )}
           </section>
-          {item.pilotBooking && (
-            <section className="ws-section" aria-labelledby="pilot-booking-title">
-              <h2 id="pilot-booking-title">Pilot booked</h2>
-              <p>
-                The site booked the pilot Blueprint recommended with your team
-                {item.pilotBooking.bookedAtIso ? ` on ${dateLabel(item.pilotBooking.bookedAtIso)}` : ""}.
-              </p>
-              <PilotBookingDetails booking={item.pilotBooking} other="site" />
-            </section>
-          )}
           <section className="ws-section">
             <h2>What happens next</h2>
             <p className="ws-section">

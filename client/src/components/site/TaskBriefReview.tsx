@@ -1,4 +1,4 @@
-/** Review the existing job; retain corrections and defer commitments to a concrete proposal. */
+/** Review the existing job; retain corrections and make no commitment for the site. */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { TaskClarification } from "./TaskClarification";
 import type { User } from "firebase/auth";
@@ -438,7 +438,7 @@ export function TaskBriefReview(props: {
       {props.brief.proposed.some(answer => answer.basis === "observation") && <details><summary>What your footage shows</summary>
         {props.brief.proposed.filter(answer => answer.basis === "observation").map(answer => <p key={answer.fieldId}>{answer.reading} <span className="ms-field-hint">(from your footage{answer.confidence !== undefined ? `; confidence ${Math.round(answer.confidence * 100)}%` : ""}{answer.atSeconds != null ? `; at ${answer.atSeconds}s` : ""}). This is an observation of the clip; the job across shifts remains a separate question.</span></p>)}
       </details>}
-      <p className="ms-field-hint">Blueprint helps assess this job and, where appropriate, prepares a concrete plan for an on-site pilot using the information and permissions you already supplied. Correct the job summary where it matters. Saving corrections does not grant new publication or sharing rights, authorize spending, or commit your site to a visit. A concrete proposal will show any new cost, disclosure, agreement or physical commitment for approval.</p>
+      <p className="ms-field-hint">Blueprint helps assess this job using the information and permissions you already supplied. Correct the job summary where it matters. Saving corrections does not grant new publication or sharing rights, authorize spending, or commit your site to a visit. Any pilot is agreed directly between you and the deployment company.</p>
 
       {/* What we think we know, each with where it came from. The operator can
           override any of it, or say they do not know. */}

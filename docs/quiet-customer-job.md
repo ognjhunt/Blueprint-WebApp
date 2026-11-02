@@ -1,7 +1,7 @@
 # The customer sends video; Blueprint handles the work
 
 The default after upload is one current update, reconstruction and evaluation,
-then the result and any delivery proposal. Atlas owns source-frame recovery
+then the result. Atlas owns source-frame recovery
 and bounded scene completion. Missing-view hints and an unconfirmed draft are
 internal context rather than another required customer step.
 
@@ -20,16 +20,17 @@ cannot hide that update. Evidence gaps stay Blueprint's work, with the limits
 visible in the job rather than an automatic request for another recording.
 
 Account saving stays closed and optional at intake, during reconstruction and
-when results arrive. The private owner link already opens the result and delivery
-proposals; it does not tell the customer to claim an account to see them.
+when results arrive. The private owner link already opens the result; it does
+not tell the customer to claim an account to see it.
 
-A delivery company can publish a scoped proposal against Blueprint's current
-draft after the recording is received. The customer reviews and chooses that
-exact quote without a separate brief-confirmation step. The brief's confirmed
-flag is never fabricated. A changed scope or evidence still invalidates the
-affected proposal; rights, staff authority, CSRF, exact quote revisions and both
-parties' physical-work agreement remain. The optional task-specific scientific
-evidence request retains its existing authority contract.
+Blueprint can record its options review against its own draft after the
+recording is received, without a separate brief-confirmation step. The brief's
+confirmed flag is never fabricated. A changed scope or object selection still
+invalidates the review. The delivery-proposal choice this slice first simplified
+was retired with the booking and proposal features (owner decision 2026-10-28):
+Blueprint works with a deployment company, and the site and that company agree
+any pilot directly. The optional task-specific scientific evidence request
+retains its existing authority contract.
 
 This is based on the existing v1 intake and complete-walkthrough update. It has
 no dependency on extra-clip inputs, the v2 continuation, a new Pipeline consumer,
@@ -37,10 +38,9 @@ new grants, new services or new customer controls. Optional extra recordings are
 separate work in WebApp #1136 and Pipeline #3037. Core simplification must ship
 independently of that feature.
 
-Rights, privacy, private ownership and spending controls remain. Failed work,
-unknown evidence and absent proposals stay honest; source/rendered checks do
-not establish reconstruction, scoring or physical performance. Proposal choice
-still does not sign a contract or authorize physical work.
+Rights, privacy, private ownership and spending controls remain. Failed work
+and unknown evidence stay honest; source/rendered checks do not establish
+reconstruction, scoring or physical performance.
 
 Validation: 413 focused tests across eleven suites, TypeScript, Graphify and
 whitespace passed. The actual components rendered against a read-only synthetic

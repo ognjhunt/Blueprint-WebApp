@@ -3,16 +3,15 @@
  *
  * The loop, in order: a site shows one job (intake, brief, capture, public
  * card); approved robot teams ask to evaluate it; Blueprint admits each free
- * evaluation; runs report; Blueprint recommends one team whose evaluation
- * passed; the site books it in one step; Blueprint coordinates the pilot.
+ * evaluation; runs report; on a passing run, Blueprint works with a deployment
+ * company, and the site and the company agree any pilot directly.
  *
  * Pure on purpose. The founder runs this loop by hand, and the console's only
  * job is to say, for every site, which step is next and whose it is. Keeping
  * the rule here, away from Firestore, means it can be tested exhaustively and
  * read in one place when someone asks why a row says what it says.
  *
- * Nothing here decides anything. "Recommend a team" is a prompt for a person;
- * the recommendation itself goes through the existing operator form.
+ * Nothing here decides anything. A passing run is a prompt for a person.
  *
  * Whether robot teams can evaluate a job is not decided here either. It is
  * `teamJobAccess`, the one answer every team-facing surface gives, carried in
@@ -148,8 +147,8 @@ export function deriveJobStage(facts: JobFacts): JobStageResult {
     }
   };
 
-  // Withdrawal overrides every downstream state: no evaluation, recommendation
-  // or booking may proceed on a recording the site took back.
+  // Withdrawal overrides every downstream state: no evaluation may proceed on a
+  // recording the site took back.
   if (facts.withdrawal.state !== "none") {
     const wording: Record<Exclude<WithdrawalState, "none">, string> = {
       requested: "Confirm the capture withdrawal reached the Pipeline",
@@ -163,39 +162,15 @@ export function deriveJobStage(facts: JobFacts): JobStageResult {
   }
   if (facts.archived) return result("closed", "No action: the site archived this job", "none");
 
-  // Booking and recommendation: the end of the loop wins over anything earlier.
-  if (facts.booking.state === "scheduled") {
-    return result("scheduled",
-      facts.booking.startsAt ? `Pilot scheduled for ${facts.booking.startsAt.slice(0, 10)}` : "Pilot scheduled",
-      "none");
-  }
-  if (facts.booking.state === "awaiting_coordination" || facts.booking.state === "booked") {
-    if (facts.recommendation.state === "review_required") {
-      return result("coordination", "Reconcile the changed job with the accepted pilot before scheduling", "blueprint");
-    }
-    if (facts.booking.state === "booked") {
-      return result("coordination", "Reconcile the booking with the current recommendation", "blueprint");
-    }
-    return result("coordination", `Schedule pilot with ${teamLabel(facts.recommendation.teamName)}`, "blueprint");
-  }
-  if (facts.recommendation.state === "review_required") {
-    return result("recommendation_review", "The brief changed: review the recommendation against the current job", "blueprint");
-  }
-  if (facts.recommendation.state === "recommended") {
-    return result("awaiting_booking",
-      `Waiting on site to book ${teamLabel(facts.recommendation.teamName)}`, "site");
-  }
-
   // Evaluation loop.
   const { runs, evaluations } = facts;
-  const recommendable = runs.passing;
   const active = runs.queued + runs.running;
-  if (evaluations.pendingAdmission > 0 && recommendable > 0) {
+  if (evaluations.pendingAdmission > 0 && runs.passing > 0) {
     attention.push(`${plural(evaluations.pendingAdmission, "evaluation request")} awaiting admission`);
   }
-  if (recommendable > 0) {
+  if (runs.passing > 0) {
     noteClosed();
-    return result("recommend", `Recommend a team (${plural(runs.passing, "passing run")})`, "blueprint");
+    return result("passing_run", `Work with a deployment company on the passing result (${plural(runs.passing, "passing run")})`, "blueprint");
   }
   if (evaluations.pendingAdmission > 0) {
     const first = evaluations.pending[0];

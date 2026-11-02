@@ -10,9 +10,9 @@
  * today never narrows which robots a site hears about.
  *
  * The server computes it (`server/utils/siteRobotFit.ts`); the job console,
- * the pilot proposal review and the owner's job page show it. It shapes whom
- * Blueprint invites to evaluate a job. It is never the basis of a
- * recommendation, which stands on a team's passing evaluation of the job.
+ * the job decision review and the owner's job page show it. It shapes whom
+ * Blueprint invites to evaluate a job. It is never the basis of a result,
+ * which stands only on an evaluation of the job.
  * Design: docs/superpowers/specs/2026-10-20-robot-fit-design.md.
  */
 import { ROBOT_FORMS } from "../types/robotEmbodiment";

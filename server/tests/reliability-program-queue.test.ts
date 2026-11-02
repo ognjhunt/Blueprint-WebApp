@@ -14,7 +14,7 @@ vi.mock("../../client/src/lib/firebaseAdmin", async () => ({
 }));
 vi.mock("../logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() } }));
 vi.mock("../utils/email", () => ({ sendEmail: mocks.send }));
-vi.mock("../utils/pilotRecommendationNotifications", () => ({ pilotRecommendationNotificationIsCurrent: mocks.authority }));
+vi.mock("../utils/robotTeamAccessNotificationAuthority",()=>({robotTeamAccessNotificationAuthority:mocks.authority }));
 vi.mock("../utils/taskLifecycleNotifications", () => ({ reconcileSceneReadyNotifications: vi.fn() }));
 vi.mock("../utils/agentRunResultNotifications", () => ({ reconcileAgentRunResultNotifications: vi.fn() }));
 vi.mock("../utils/taskEvaluationNotificationRetry", () => ({ reconcileTaskEvaluationNotificationRetries: vi.fn() }));
@@ -49,7 +49,7 @@ beforeEach(() => {
   // PR940 checks current capture-notice authority. A provider fault case needs
   // the normal authorized producer prerequisite, otherwise cancellation is correct.
   state.docs.set("inboundRequests/rq", queueAuthorityFixture());
-  mocks.authority.mockResolvedValue(true); mocks.send.mockResolvedValue(accepted);
+  mocks.authority.mockResolvedValue("current"); mocks.send.mockResolvedValue(accepted);
   mocks.description.mockResolvedValue(true);
   mocks.save.mockImplementation(async (v: any) => state.docs.set(`siteTaskBriefs/${v.requestId}`, v));
 });
@@ -170,7 +170,7 @@ describe("frozen queue cases: storage boundaries", () => {
     expect(mocks.send).toHaveBeenCalledTimes(dispatched ? 1 : 0);
     expect(row().status).toBe(dispatched ? "dispatching" : ["authority_read", "dispatch_write"].includes(boundary) ? "claimed" : "pending");
     expect(row().attempts).toBe(attempts + (dispatched ? 1 : 0));
-    restoreFault?.(); mocks.authority.mockResolvedValue(true);
+    restoreFault?.(); mocks.authority.mockResolvedValue("current");
     if (dispatched) {
       row().deliveryLeaseUntilMs = Date.now() - 1;
       await deliverOutbox(); await deliverOutbox();

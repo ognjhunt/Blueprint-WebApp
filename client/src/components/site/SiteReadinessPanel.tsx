@@ -19,7 +19,7 @@ import {
 export function TrackerView({ tracker }: { tracker: Tracker }) {
   return (
     <>
-      <ol className="ms-fit-list" aria-label="Steps to a pilot">
+      <ol className="ms-fit-list" aria-label="Job steps">
         {tracker.steps.map((step) => (
           <li key={step.id}>
             <p className="ms-fit-name">

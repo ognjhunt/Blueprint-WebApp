@@ -25,9 +25,9 @@ import {
 type Tone = "proof" | "warn" | "block" | "info" | "neutral";
 
 export function stageTone(stage: JobStage): Tone {
-  if (stage === "scheduled") return "proof";
+  if (stage === "passing_run") return "proof";
   if (stage === "withdrawn" || stage === "no_passing_run") return "block";
-  if (["admission", "recommend", "recommendation_review", "coordination"].includes(stage)) return "warn";
+  if (stage === "admission") return "warn";
   if (stage === "closed") return "neutral";
   return "info";
 }
@@ -155,8 +155,6 @@ function JobDetail({ requestId, onClose }: { requestId: string; onClose: () => v
             <Fact label="Brief">{job.brief.state.replace(/_/g, " ")}{job.brief.unresolvedGates ? ` · ${job.brief.unresolvedGates} open gates` : ""}</Fact>
             <Fact label="Capture">{job.capture.state.replace(/_/g, " ")}</Fact>
             <Fact label="Public card">{job.listing.state.replace(/_/g, " ")}</Fact>
-            <Fact label="Recommendation">{job.recommendation.state === "none" ? "None" : `${job.recommendation.state.replace(/_/g, " ")} · ${job.recommendation.teamName || job.recommendation.teamId}`}</Fact>
-            <Fact label="Booking">{job.booking.state.replace(/_/g, " ")}</Fact>
             <Fact label="Withdrawal">{job.withdrawal.state.replace(/_/g, " ")}</Fact>
             <Fact label="Ops notice">{job.opsNotice ? `${job.opsNotice.state}${job.opsNotice.summary ? ` · ${job.opsNotice.summary}` : ""}` : "None"}</Fact>
           </dl>

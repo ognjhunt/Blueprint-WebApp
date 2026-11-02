@@ -14,7 +14,7 @@
 import type { MarketSource } from "./deploymentMarket";
 import type { SiteRobotFit } from "./robotFit";
 
-/* ------------------------------------------------------- steps to a pilot */
+/* ---------------------------------------------------- where the job stands */
 
 /** "unknown" when a state could not be read just now; it never stands for "not done". */
 export type StepState = "done" | "in_progress" | "pending" | "unknown";

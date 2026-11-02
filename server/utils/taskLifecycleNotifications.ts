@@ -23,7 +23,6 @@ import { decryptFieldValue } from "./field-encryption";
 import { EMAIL_SIGN_OFF } from "./emailLayout";
 import { taskLifecycleNotificationIsCurrent } from "./taskLifecycleNotificationAuthority";
 import { drainPendingWebsitePreparationNotifications } from "./websitePreparationStatus";
-import { formatPilotContact, type PilotContact } from "./pilotContactExchange";
 import { preparationEndedSentence } from "./taskStatusProjection";
 import { isScreeningResultOutcome, screeningEstimateCountSentence, screeningOutcomeSentence,
   type ScreeningOutcome } from "./betaPolicyScreeningContract";
@@ -49,9 +48,6 @@ export type TaskLifecycleMilestone = Extract<
   | "no_qualified_evaluation"
   | "footage_before_account"
   | "pilot_request"
-  | "pilot_recommended"
-  | "pilot_booked"
-  | "pilot_scheduled"
 >;
 
 /** A ready label without viewable assets is not a scene-ready milestone. */
@@ -92,7 +88,7 @@ function whereRunsAre(url: string, workspaceUrl: string | null, action: string):
     : `${action} on your private job page:\n${url}`;
 }
 
-const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string, detail: string, counterpart: string, workspaceUrl: string | null) => string }> = {
+const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string, detail: string, workspaceUrl: string | null) => string }> = {
   preparation_needs_attention: {
     subject: "An update on your Blueprint job preparation",
     body: (url, detail) => `Job preparation needs our team's review. Keep your original recording. Open your job to see the latest status and next step.${detail ? ` ${detail}` : ""}\n\nOpen your job:\n${url}`,
@@ -104,11 +100,11 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
   },
   task_received: {
     subject: "We have your Blueprint job — here is your link",
-    body: (url) => `Thanks for sending us your job. This private link shows the same job and lets you correct details if you choose. Once your video arrives, Blueprint handles reconstruction and evaluation and updates this job with the results and any delivery proposal. If your video is not uploaded yet, use your job page to record or upload it after arranging filming permission. It opens your site's job without a password, so please don't forward it.\n\nOpen your job:\n${url}`,
+    body: (url) => `Thanks for sending us your job. This private link shows the same job and lets you correct details if you choose. Once your video arrives, Blueprint handles reconstruction and evaluation and updates this job with the results. If your video is not uploaded yet, use your job page to record or upload it after arranging filming permission. It opens your site's job without a password, so please don't forward it.\n\nOpen your job:\n${url}`,
   },
   video_received: {
     subject: "We received your Blueprint walkthrough",
-    body: (url) => `Your walkthrough arrived safely. Blueprint handles reconstruction and evaluation from the recording. Your job page will show the reconstruction, results and any delivery proposal as they become available. You can review or correct job details at any time.\n\nOpen your job:\n${url}`,
+    body: (url) => `Your walkthrough arrived safely. Blueprint handles reconstruction and evaluation from the recording. Your job page will show the reconstruction and results as they become available. You can review or correct job details at any time.\n\nOpen your job:\n${url}`,
   },
   scene_ready: {
     subject: "Your Blueprint scene is ready to view",
@@ -133,24 +129,24 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
   },
   results_ready: {
     subject: "Results are in from an evaluation of your job",
-    body: (url, detail, _counterpart, workspaceUrl) => `An evaluation run of one candidate in the simulation of your site has finished${detail ? `: ${detail}` : ""}. This is a simulation estimate for that one candidate, not a physical test. It never certifies physical performance or safety.\n\n${whereRunsAre(url, workspaceUrl, "See the run")}`,
+    body: (url, detail, workspaceUrl) => `An evaluation run of one candidate in the simulation of your site has finished${detail ? `: ${detail}` : ""}. This is a simulation estimate for that one candidate, not a physical test. It never certifies physical performance or safety.\n\n${whereRunsAre(url, workspaceUrl, "See the run")}`,
   },
   // One per result outcome of the job's evaluation and scene (F-01). The detail
   // is only the page's own sentence for that outcome, the estimate's episode
   // count and the results disclaimer, built from typed values, never caller text.
   evaluation_outcome: {
     subject: "Your job's simulation evaluation has finished",
-    body: (url, detail, _counterpart, workspaceUrl) => `${detail}\n\n${whereRunsAre(url, workspaceUrl, "See the result")}`,
+    body: (url, detail, workspaceUrl) => `${detail}\n\n${whereRunsAre(url, workspaceUrl, "See the result")}`,
   },
   // One per terminal outcome of the job's scene intent (C-04). The subject is the
   // ending's own, and the detail is only the job page's sentence for it.
   scene_outcome: {
     subject: "An update on your Blueprint job",
-    body: (url, detail, _counterpart, workspaceUrl) => `${detail}\n\n${whereRunsAre(url, workspaceUrl, "Open your job")}`,
+    body: (url, detail, workspaceUrl) => `${detail}\n\n${whereRunsAre(url, workspaceUrl, "Open your job")}`,
   },
   run_no_result: {
     subject: "An evaluation run ended without a result",
-    body: (url, detail, _counterpart, workspaceUrl) => `An evaluation run in the simulation of your site ended without a complete scored result. ${detail || noResultObservationText()} Reply if you need help understanding what happened.\n\n${whereRunsAre(url, workspaceUrl, "Review the run")}`,
+    body: (url, detail, workspaceUrl) => `An evaluation run in the simulation of your site ended without a complete scored result. ${detail || noResultObservationText()} Reply if you need help understanding what happened.\n\n${whereRunsAre(url, workspaceUrl, "Review the run")}`,
   },
   awaiting_evaluations: {
     subject: "Your job is ready for evaluation",
@@ -159,39 +155,22 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
   no_team_passed: {
     subject: "No evaluation of your job has passed yet",
     // `detail` is what would change that (`qualifiedGap`), as /beta promises.
-    body: (url, detail, _counterpart, workspaceUrl) => `Every simulation evaluation of your job so far has finished, and none passed. ${detail || "We need stronger evidence for this tested configuration."} Blueprint will assess what further evidence or another candidate would help the decision, and while your job card stays published, approved partners can still ask for their systems to be evaluated. Nothing is needed from you for these completed runs.\n\n${whereRunsAre(url, workspaceUrl, "See each run")}`,
+    body: (url, detail, workspaceUrl) => `Every simulation evaluation of your job so far has finished, and none passed. ${detail || "We need stronger evidence for this tested configuration."} Blueprint will assess what further evidence or another candidate would help the decision, and while your job card stays published, approved partners can still ask for their systems to be evaluated. Nothing is needed from you for these completed runs.\n\n${whereRunsAre(url, workspaceUrl, "See each run")}`,
   },
   no_qualified_evaluation: {
     subject: "Your job's evaluations finished, with no result that counts yet",
     // Never a failure: diagnostic, unqualified or unscored runs count neither way.
-    body: (url, _detail, _counterpart, workspaceUrl) => `The evaluations of your job so far have finished, but none can support a recommendation yet. They were diagnostic runs, ran before your scene was ready for scored evaluations, could not be scored against your pass mark, or ended before any episode was recorded. So none counts as a pass or a fail. Nothing is needed from you. We email you when a scored evaluation finishes.\n\n${whereRunsAre(url, workspaceUrl, "See each run")}`,
+    body: (url, _detail, workspaceUrl) => `The evaluations of your job so far have finished, but none can support a recommendation yet. They were diagnostic runs, ran before your scene was ready for scored evaluations, could not be scored against your pass mark, or ended before any episode was recorded. So none counts as a pass or a fail. Nothing is needed from you. We email you when a scored evaluation finishes.\n\n${whereRunsAre(url, workspaceUrl, "See each run")}`,
   },
   footage_before_account: {
     subject: "Your video arrived before your job was saved to an account",
     // Owner decision 2026-10-18: said once, plainly. A re-upload cannot help on
     // Pipeline main, so it is never asked for.
-    body: (url, _detail, _counterpart, workspaceUrl) => `Your video arrived before this job was saved to an account, so we can't use it to build your scene yet. Blueprint needs to review this older recording. You don't need to send it again. Follow the same job:\n${workspaceUrl || url}\n\nWe email you when that changes.`,
+    body: (url, _detail, workspaceUrl) => `Your video arrived before this job was saved to an account, so we can't use it to build your scene yet. Blueprint needs to review this older recording. You don't need to send it again. Follow the same job:\n${workspaceUrl || url}\n\nWe email you when that changes.`,
   },
   pilot_request: {
     subject: "A partner asked to have its system evaluated on your job",
-    body: (url) => `An approved partner asked to have its system evaluated on your job for a possible pilot. Your details stay private, and there is nothing for you to do for this request. We review the partner's fit, evidence and delivery capabilities before including its system or presenting it as an option. You choose the deployment company and agree any physical pilot directly with them.\n\nOpen your job:\n${url}`,
-  },
-  pilot_recommended: {
-    subject: "Your recommended pilot is ready",
-    body: (url, detail) => `A recommended delivery option is ready for your review${detail ? `: ${detail}` : ""}. Your job page shows the deployment company, supporting evidence, what the pilot tests, what you provide, the pilot's cost (paid to the deployment company, not to Blueprint), proposed timing and what is still uncertain. Review the scope, total cost and support before choosing. Blueprint's coordination is free during the beta. If you choose this option, contact details are shared under the recorded permissions so you and the deployment company can agree the pilot's scope, price, dates and acceptance criteria directly. Selection does not itself sign a contract or reserve a date. If it does not look right, reply and tell us why.\n\nOpen your job:\n${url}`,
-  },
-  pilot_booked: {
-    subject: "Your pilot selection is recorded",
-    // A booking made before the free beta keeps whatever terms were accepted
-    // then; this email does not restate or waive them. The free-beta sentence
-    // is the one the job page shows beside the booking button. The site and the
-    // team agree the pilot directly (owner decision 2026-10-15), so the email
-    // carries the team's contact; dispatch re-checks both consents.
-    body: (url, detail, counterpart) => `Your selection is recorded. You and the deployment company agree the physical pilot's scope, price, dates and acceptance criteria directly. No contract is signed or date reserved by this selection.${counterpart ? `\n\nDeployment company contact:\n${counterpart}` : ""}\n\n${detail === "invited_beta_free" ? "Blueprint charges nothing during the beta and takes no cut; the pilot's cost is agreed with the deployment company." : "Your previously accepted commercial terms remain on file."}\n\nOpen your job:\n${url}`,
-  },
-  pilot_scheduled: {
-    subject: "Your pilot is scheduled",
-    body: (url) => `Your site's agreement with the deployment company, the date and the preparation responsibilities have been recorded and checked against the calendar. Open your job for the agreed date and responsibilities.\n\nOpen your job:\n${url}`,
+    body: (url) => `An approved partner asked to have its system evaluated on your job for a possible pilot. Your details stay private, and there is nothing for you to do for this request. We review the partner's fit, evidence and delivery capabilities before including its system in your job's evaluation. Blueprint works with a deployment company on the result, and you and that company agree any physical pilot directly.\n\nOpen your job:\n${url}`,
   },
 };
 
@@ -258,8 +237,6 @@ export function buildTaskLifecycleNotification(params: {
   detail?: string;
   correlationId?: string;
   captureUrl?: string;
-  /** `pilot_booked` only: the deployment company's contact, shared at booking. */
-  counterpart?: PilotContact | null;
   runProgress?: NoResultObservation;
   /** `preparation_ended` only: rendered through a fixed sentence per known reason. */
   terminalReason?: string | null;
@@ -298,8 +275,7 @@ export function buildTaskLifecycleNotification(params: {
     body: `${message.body(url, params.milestone === "run_no_result" ? noResultObservationText(params.runProgress)
       : isWebsitePreparationNotice(params.milestone) ? preparationDetail
       : params.milestone === "evaluation_outcome" || params.milestone === "scene_outcome" ? outcomeDetail
-      : params.detail?.trim() ?? "", params.milestone === "pilot_booked" && params.counterpart ? formatPilotContact(params.counterpart) : "",
-      params.workspaceUrl ?? null)}\n\n${EMAIL_SIGN_OFF}`,
+      : params.detail?.trim() ?? "", params.workspaceUrl ?? null)}\n\n${EMAIL_SIGN_OFF}`,
     replyTo: "hello@tryblueprint.io",
   };
 }

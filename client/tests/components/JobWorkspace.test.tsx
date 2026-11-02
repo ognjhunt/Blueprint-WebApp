@@ -1,45 +1,32 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { JobWorkspace } from "@/components/site/JobWorkspace";
-import type { DeliveryProposal, JobMarketplaceWorkflow } from "@/types/jobMarketplace";
+import type { JobMarketplaceWorkflow } from "@/types/jobMarketplace";
 import { processingFailure } from "../../../server/utils/taskPreparationOutcome";
 
-const compatibilityPilot = vi.hoisted(() => ({ render: vi.fn() }));
-vi.mock("@/components/site/RecommendedPilot", () => ({ RecommendedPilot: (props: unknown) => { compatibilityPilot.render(props); return null; } }));
 vi.mock("@/lib/csrf", () => ({ withCsrfHeader: async (headers: Record<string, string>) => ({ ...headers, "X-CSRF-Token": "local-test" }) }));
 const fetchMock = vi.fn();
-beforeEach(() => { compatibilityPilot.render.mockClear(); fetchMock.mockReset(); vi.stubGlobal("fetch", fetchMock); });
-const proposal: DeliveryProposal = {
-  id: "proposal-1", revision: "revision-1", briefRevision: "brief-1", status: "available", providerName: "Example Delivery",
-  scope: "Move sealed cases from a tote into trays", equipment: "Fixed arm and parallel gripper", software: "Pinned policy and local controller",
-  deliveryCommitment: "Install and commission the scoped cell", installationCostUsd: 24000, monthlyCostUsd: 0, currency: "USD",
-  exclusions: "Conveyor changes excluded", sitePreparation: "Provide power and an approved work area", humanAssistance: "Refill supply totes",
-  timing: "Dates to be agreed", support: "Weekday response under the provider agreement", evidence: [{ level: "simulation", summary: "Tested on bounded case positions" }],
-  acceptanceCriteria: "Meet the agreed throughput and placement quality during the pilot", recommendationReason: "Compatible with the required payload and site layout",
-  createdAtIso: "2026-10-21T12:00:00Z", updatedAtIso: "2026-10-21T12:00:00Z",
-};
+beforeEach(() => { fetchMock.mockReset(); vi.stubGlobal("fetch", fetchMock); });
 function workflow(overrides: Partial<JobMarketplaceWorkflow> = {}): JobMarketplaceWorkflow {
   return {
     schemaVersion: "job_marketplace.v1", revision: "workflow-1", requirements: { jobFrequency: null, purchaseReadiness: "unsure", requiredOutput: null,
       installationBudget: null, ongoingBudget: null, currentProcessCost: null, targetStartDate: null },
     briefAgreed: false, optionsAssessed: false, reviewRequired: false, stage: "job_submitted", nextAction: "Blueprint will prepare a brief for you to review.", actionOwner: "blueprint",
-    review: null, proposals: [], selection: null, agreement: null, outcome: null, ...overrides,
+    review: null, ...overrides,
   };
 }
 const response = (value: unknown, status = 200) => ({ ok: status >= 200 && status < 300, status, json: async () => value });
 
 describe("the site's job workspace", () => {
-  it('retains rejected-object proposals as history and prevents a new selection', async () => {
-    fetchMock.mockResolvedValue(response(workflow({stage: 'proposals_ready', proposals: [proposal],
-      review: {disposition: 'options_identified', summary: 'Old object selection review', nextAction: 'Choose the old proposal',
+  it('keeps an earlier object selection review out of view while Blueprint reviews again', async () => {
+    fetchMock.mockResolvedValue(response(workflow({stage: 'options_assessed',
+      review: {disposition: 'options_identified', summary: 'Old object selection review', nextAction: 'Review the old object',
         reviewedAtIso: '2026-10-29T00:00:00Z', scopeRevision: 'brief-1'}})));
     render(<JobWorkspace token='owner-token' resultSuperseded currentNextAction={{text: 'Blueprint is reviewing saved video.', owner: 'blueprint'}} />);
-    const history = await screen.findByText('Earlier delivery proposals');
-    expect(history.closest('details')).not.toHaveAttribute('open');
+    expect(await screen.findByText('Earlier results belong to the previous object selection. They remain in the job history.')).toBeVisible();
+    expect(screen.getByText('Blueprint is reviewing saved video.')).toBeVisible();
     expect(screen.queryByText('Old object selection review')).toBeNull();
-    fireEvent.click(history);
-    expect(screen.getByText('Example Delivery')).toBeInTheDocument();
-    expect(screen.queryByRole('button', {name: 'Choose this proposal'})).toBeNull();
+    expect(screen.queryByText(/proposal/i)).toBeNull();
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
   it("gives a current preparation stop priority without accepting the brief or changing the workflow", async () => {
@@ -70,88 +57,25 @@ describe("the site's job workspace", () => {
     expect(screen.queryByText("Review the saved brief.")).not.toBeInTheDocument();
   });
 
-  it("shows the current update and honest empty proposals without a customer checklist", async () => {
+  it("shows the current update without a customer checklist or any proposal, booking or outcome action", async () => {
     fetchMock.mockResolvedValue(response(workflow()));
     render(<JobWorkspace token="owner-token" />);
-    expect(await screen.findByRole("heading", { name: "Results and proposals" })).toBeVisible();
+    expect(await screen.findByRole("heading", { name: "Results" })).toBeVisible();
     expect(screen.queryByRole("list", { name: "Job milestones" })).not.toBeInTheDocument();
     expect(screen.queryByText("Brief agreed")).not.toBeInTheDocument();
     expect(screen.queryByText("Options assessed")).not.toBeInTheDocument();
-    expect(screen.getByText(/No delivery proposal is ready/)).toBeVisible();
+    expect(screen.queryByText(/proposal/i)).toBeNull();
+    expect(screen.queryByRole("button", { name: /Choose this/ })).toBeNull();
+    expect(screen.queryByText("Record your pilot outcome")).toBeNull();
     expect(screen.getByText("Blueprint will prepare a brief for you to review.")).toBeVisible();
     expect(fetchMock).toHaveBeenCalledWith("/api/job-workflow/owner/owner-token", expect.objectContaining({ cache: "no-store", referrerPolicy: "no-referrer" }));
-  });
-
-  it("requires an authorized, revision-bound choice and keeps selection separate from agreement", async () => {
-    const current = workflow({ stage: "proposals_ready", briefAgreed: true, optionsAssessed: true, proposals: [proposal] });
-    const selected = workflow({ ...current, revision: "workflow-2", selection: { proposalId: proposal.id, proposalRevision: proposal.revision, selectedAtIso: "2026-10-21T12:01:00Z" }, actionOwner: "deployment_partner", nextAction: "Agree the pilot scope and terms." });
-    fetchMock.mockResolvedValueOnce(response(current)).mockResolvedValueOnce(response(selected));
-    render(<JobWorkspace token="owner-token" />);
-    const card = await screen.findByRole("article", { name: "Example Delivery delivery proposal" });
-    expect(within(card).getByText("$24,000")).toBeVisible();
-    expect(within(card).getByText("$0")).toBeVisible();
-    const button = within(card).getByRole("button", { name: "Choose this proposal" });
-    expect(button).toBeDisabled();
-    fireEvent.submit(button.closest("form")!);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    fireEvent.click(within(card).getByRole("checkbox"));
-    fireEvent.click(button);
-    expect(await screen.findByRole("heading", { name: "Your choice is recorded" })).toBeVisible();
-    expect(fetchMock.mock.calls[1][0]).toBe("/api/job-workflow/owner/owner-token/select");
-    expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toEqual({ proposalId: "proposal-1", expectedRevision: "revision-1", authorized: true });
-    expect(screen.queryByRole("heading", { name: "Pilot agreement recorded" })).toBeNull();
-    expect(screen.queryByText("Record your pilot outcome")).toBeNull();
-    expect(screen.getByText(/A proposal selection alone is not an agreement/)).toBeVisible();
-  });
-
-  it("retains evidence limits, required support and exclusions for inspection", async () => {
-    fetchMock.mockResolvedValue(response(workflow({ stage: "proposals_ready", proposals: [proposal] })));
-    render(<JobWorkspace token="owner-token" />);
-    const card = await screen.findByRole("article");
-    fireEvent.click(within(card).getByText("Review scope, evidence and support"));
-    expect(within(card).getByText("Fixed arm and parallel gripper")).toBeInTheDocument();
-    expect(within(card).getByText("Pinned policy and local controller")).toBeInTheDocument();
-    expect(within(card).getByText("Refill supply totes")).toBeInTheDocument();
-    expect(within(card).getByText("Conveyor changes excluded")).toBeInTheDocument();
-    expect(within(card).getByText(/Neither a past deployment nor a simulation proves performance at your site/)).toBeInTheDocument();
-  });
-
-  it("preserves cents in provider quotes", async () => {
-    fetchMock.mockResolvedValue(response(workflow({ proposals: [{ ...proposal, installationCostUsd: 24000.45, monthlyCostUsd: 499.99 }] })));
-    render(<JobWorkspace token="owner-token" />);
-    expect(await screen.findByText("$24,000.45")).toBeVisible();
-    expect(screen.getByText("$499.99")).toBeVisible();
-  });
-
-  it("keeps an agreed historical pilot reportable while requiring review before another choice", async () => {
-    fetchMock.mockResolvedValue(response(workflow({ stage: "options_assessed", reviewRequired: true,
-      proposals: [{ ...proposal, status: "review_required" }], selection: { proposalId: proposal.id, proposalRevision: proposal.revision, selectedAtIso: "2026-10-21T12:01:00Z" },
-      agreement: { proposalId: proposal.id, proposalRevision: proposal.revision, agreedAtIso: "2026-10-21T12:02:00Z", plannedStartIso: null, siteAgreementReference: "site-confirmed", providerAgreementReference: "provider-confirmed", outcomeRecordingAuthorized: true, outcomeRecordingPermissionReference: "both-parties-permission", recordedAtIso: "2026-10-21T12:02:00Z" },
-    })));
-    render(<JobWorkspace token="owner-token" />);
-    expect(await screen.findByText(/must review this proposal before you can choose it/)).toBeVisible();
-    expect(screen.queryByRole("button", { name: "Choose this proposal" })).toBeNull();
-    expect(screen.getByText("Record your pilot outcome")).toBeVisible();
-    expect(screen.getByText(/Report against the originally agreed proposal/)).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Your previous choice needs review" })).toBeVisible();
-  });
-
-  it("keeps a current proposal selectable when an unselected alternative needs review", async () => {
-    fetchMock.mockResolvedValue(response(workflow({ stage: "proposals_ready", reviewRequired: true,
-      proposals: [proposal, { ...proposal, id: "old-alternative", providerName: "Previous alternative", status: "review_required" }],
-    })));
-    render(<JobWorkspace token="owner-token" />);
-    const current = await screen.findByRole("article", { name: "Example Delivery delivery proposal" });
-    fireEvent.click(within(current).getByRole("checkbox"));
-    expect(within(current).getByRole("button", { name: "Choose this proposal" })).not.toBeDisabled();
-    expect(within(screen.getByRole("article", { name: "Previous alternative delivery proposal" })).queryByRole("button", { name: "Choose this proposal" })).toBeNull();
   });
 
   it("keeps saved job planning visible when policy results need a retry", async () => {
     fetchMock.mockResolvedValue(response(workflow({ managedEvidenceUnavailable: true })));
     render(<JobWorkspace token="owner-token" />);
     expect(await screen.findByText("Policy results are temporarily unavailable. Reload this page to retry.")).toBeVisible();
-    expect(screen.getByRole("heading", { name: "Results and proposals" })).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Results" })).toBeVisible();
     expect(screen.queryByRole("region", { name: "Managed policy evidence for your job" })).toBeNull();
   });
 
@@ -167,40 +91,6 @@ describe("the site's job workspace", () => {
     expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toMatchObject({ requiredOutput: "Cases sit flat in their assigned pockets", purchaseReadiness: "exploring", installationBudget: null, ongoingBudget: null });
   });
 
-  it("records a site-reported outcome only after the exact pilot agreement", async () => {
-    const agreed = workflow({ proposals: [proposal], stage: "pilot_agreed", briefAgreed: true, optionsAssessed: true,
-      selection: { proposalId: proposal.id, proposalRevision: proposal.revision, selectedAtIso: "2026-10-21T12:01:00Z" },
-      agreement: { proposalId: proposal.id, proposalRevision: proposal.revision, agreedAtIso: "2026-10-21T12:02:00Z", plannedStartIso: null, siteAgreementReference: "site-confirmed", providerAgreementReference: "provider-confirmed", outcomeRecordingAuthorized: true, outcomeRecordingPermissionReference: "both-parties-permission", recordedAtIso: "2026-10-21T12:02:00Z" },
-    });
-    fetchMock.mockResolvedValueOnce(response(agreed)).mockResolvedValueOnce(response(workflow({ ...agreed, stage: "results_recorded", outcome: { proposalId: proposal.id, proposalRevision: proposal.revision,
-      summary: "The measured pilot met our placement criteria", metCriteria: true, measuredUnitsPerHour: 140, interventionsPerHour: 0,
-      notes: null, recordedAtIso: "2026-10-21T13:00:00Z", source: "customer_reported" } })));
-    render(<JobWorkspace token="owner-token" />);
-    fireEvent.click(await screen.findByText("Record your pilot outcome"));
-    fireEvent.change(screen.getByLabelText("What happened?"), { target: { value: "The measured pilot met our placement criteria" } });
-    fireEvent.change(screen.getByLabelText("Were the agreed criteria met?"), { target: { value: "yes" } });
-    fireEvent.change(screen.getByLabelText("Completed units per hour (optional)"), { target: { value: "140" } });
-    fireEvent.change(screen.getByLabelText("Human interventions per hour (optional)"), { target: { value: "0" } });
-    fireEvent.click(screen.getByRole("checkbox", { name: /authorized to record/ }));
-    fireEvent.click(screen.getByRole("button", { name: "Save pilot outcome" }));
-    expect(await screen.findByRole("heading", { name: "Outcome reported by your site" })).toBeVisible();
-    expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toMatchObject({ proposalId: proposal.id, expectedRevision: proposal.revision, metCriteria: true, measuredUnitsPerHour: 140, interventionsPerHour: 0, authorized: true });
-    expect(screen.getByText(/does not change the evaluation scores, and it is not independent physical validation/)).toBeVisible();
-  });
-
-  it("requires recorded outcome permission and preserves agreed planning details", async () => {
-    fetchMock.mockResolvedValue(response(workflow({ proposals: [proposal], stage: "pilot_agreed",
-      selection: { proposalId: proposal.id, proposalRevision: proposal.revision, selectedAtIso: "2026-10-21T12:01:00Z" },
-      agreement: { proposalId: proposal.id, proposalRevision: proposal.revision, agreedAtIso: "2026-10-21T12:02:00Z", plannedStartIso: null,
-        siteAgreementReference: "site-confirmed", providerAgreementReference: "provider-confirmed", outcomeRecordingAuthorized: false, outcomeRecordingPermissionReference: null, recordedAtIso: "2026-10-21T12:02:00Z" },
-    })));
-    render(<JobWorkspace token="owner-token" />);
-    expect(await screen.findByText(/confirm both parties’ permission before recording pilot results/)).toBeVisible();
-    expect(screen.queryByText("Record your pilot outcome")).toBeNull();
-    expect(screen.queryByRole("button", { name: "Save planning details" })).toBeNull();
-    expect(screen.getByText("Planning details for the agreed pilot")).toBeVisible();
-  });
-
   it("shows a no-suitable-option decision instead of inventing a supplier", async () => {
     fetchMock.mockResolvedValue(response(workflow({ optionsAssessed: true, stage: "options_assessed", review: { disposition: "no_suitable_option", summary: "No supported setup meets the payload requirement.", nextAction: "Review the handling method with Blueprint.", reviewedAtIso: "2026-10-21T12:00:00Z" } })));
     render(<JobWorkspace token="owner-token" />);
@@ -208,16 +98,18 @@ describe("the site's job workspace", () => {
     expect(screen.queryByRole("article")).toBeNull();
   });
 
-  it("does not carry private proposals between owner links", async () => {
+  it("does not carry private job details between owner links", async () => {
     let resolveSecond!: (value: unknown) => void;
-    fetchMock.mockResolvedValueOnce(response(workflow({ proposals: [proposal] }))).mockImplementationOnce(() => new Promise(resolve => { resolveSecond = resolve; }));
+    const reviewed = workflow({ optionsAssessed: true, stage: "options_assessed", review: { disposition: "options_identified", summary: "Private review of the first job.",
+      nextAction: "Blueprint is checking delivery.", reviewedAtIso: "2026-10-27T15:00:00Z", scopeRevision: "brief-1" } });
+    fetchMock.mockResolvedValueOnce(response(reviewed)).mockImplementationOnce(() => new Promise(resolve => { resolveSecond = resolve; }));
     const { rerender } = render(<JobWorkspace token="first" />);
-    await screen.findByText("Example Delivery");
+    await screen.findByText("Private review of the first job.");
     rerender(<JobWorkspace token="second" />);
-    expect(screen.queryByText("Example Delivery")).toBeNull();
+    expect(screen.queryByText("Private review of the first job.")).toBeNull();
     resolveSecond(response(workflow()));
-    await screen.findByRole("heading", { name: "Results and proposals" });
-    expect(screen.queryByText("Example Delivery")).toBeNull();
+    await screen.findByRole("heading", { name: "Results" });
+    expect(screen.queryByText("Private review of the first job.")).toBeNull();
   });
 
   it("refuses malformed success responses and offers a retry", async () => {
@@ -225,7 +117,7 @@ describe("the site's job workspace", () => {
     render(<JobWorkspace token="owner-token" />);
     expect(await screen.findByRole("status")).toHaveTextContent(/Job planning could not be loaded/);
     fireEvent.click(screen.getByRole("button", { name: "Try loading job planning again" }));
-    await waitFor(() => expect(screen.getByRole("heading", { name: "Results and proposals" })).toBeVisible());
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Results" })).toBeVisible());
   });
 });
 
@@ -260,14 +152,14 @@ it("links missing task-specific evidence to the existing capture surface without
   expect(fetchMock).toHaveBeenCalledTimes(1);
 });
 
-it("keeps legacy pilot details read-only when new job evidence has no commercial proposal", async () => {
+it("shows managed job evidence without any pilot booking surface", async () => {
   fetchMock.mockResolvedValue(response(workflow({ briefAgreed: true, managedEvidence: [{ runId: "managed-run-1", state: "decided", current: true,
-    resultDigest: "sha256:result", summary: "Scoped simulator result retained.", nextAction: "Compare supplier delivery proposals.",
+    resultDigest: "sha256:result", summary: "Scoped simulator result retained.", nextAction: "Blueprint reviews the estimate.",
     limitations: ["Physical pilot agreement remains separate."], href: "#managed-evidence-managed-run-1" }] })));
   render(<JobWorkspace token="owner-token" />);
   await screen.findByText("Scoped simulator result retained.");
-  expect(compatibilityPilot.render).toHaveBeenLastCalledWith({ token: "owner-token", bookedOnly: true });
-  expect(screen.queryByRole("button", { name: /Choose this pilot proposal/ })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /Choose this/ })).not.toBeInTheDocument();
+  expect(screen.queryByText(/Pilot booked|Deployment company selected|Proposed pilot/)).not.toBeInTheDocument();
 });
 
 it("shows every screened candidate without creating a pilot recommendation", async () => {
@@ -370,26 +262,8 @@ it("leaves the parent's current update in one place without repeating a stale wo
   fetchMock.mockResolvedValue(response(workflow({actionOwner:"site",nextAction:"Confirm the old brief."})));
   const current = "Blueprint is preparing the recording; nothing is needed from you.";
   render(<><p>{current}</p><JobWorkspace token="owner-token" currentNextAction={{text:current,owner:"blueprint"}} /></>);
-  await screen.findByRole("heading", {name:"Results and proposals"});
+  await screen.findByRole("heading", {name:"Results"});
   expect(screen.getAllByText(current)).toHaveLength(1);
   expect(screen.queryByText("Confirm the old brief.")).not.toBeInTheDocument();
   expect(screen.queryByText("Next action · You")).not.toBeInTheDocument();
-});
-
-it("keeps the exact proposal choice as the action after preparation", async () => {
-  fetchMock.mockResolvedValue(response(workflow({stage:"proposals_ready",proposals:[proposal],actionOwner:"site",nextAction:"Choose a delivery proposal."})));
-  render(<JobWorkspace token="owner-token" currentNextAction={{text:"Preparing the recording.",owner:"blueprint"}} />);
-  expect(await screen.findByText("Choose a delivery proposal.")).toBeVisible();
-  expect(screen.getByText("Next action · You")).toBeVisible();
-  expect(screen.queryByText("Preparing the recording.")).not.toBeInTheDocument();
-});
-
-it("shows an already visible proposal action once", async () => {
-  const nextAction = "Review the proposal below.";
-  fetchMock.mockResolvedValue(response(workflow({stage:"proposals_ready",proposals:[proposal],actionOwner:"site",nextAction})));
-  render(<><p>{nextAction}</p><JobWorkspace token="owner-token" currentNextAction={{text:nextAction,owner:"site"}} /></>);
-  await screen.findByRole("article", {name:"Example Delivery delivery proposal"});
-  expect(screen.getAllByText(nextAction)).toHaveLength(1);
-  expect(screen.queryByText("Next action · You")).not.toBeInTheDocument();
-  expect(screen.getByRole("button", {name:"Choose this proposal"})).toBeInTheDocument();
 });

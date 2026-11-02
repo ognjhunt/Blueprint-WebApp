@@ -6,7 +6,7 @@ const legacyJobWorkflow = () => ({
     installationBudget: null, ongoingBudget: null, currentProcessCost: null, targetStartDate: null },
   briefAgreed: false, optionsAssessed: false, reviewRequired: false,
   nextAction: "Review the job brief with Blueprint.", actionOwner: "site",
-  review: null, proposals: [], selection: null, agreement: null, outcome: null,
+  review: null,
 });
 
 const summary = (name: string, email = "operator@example.test") => ({
@@ -349,7 +349,6 @@ function readinessFixture(overrides: Record<string, unknown> = {}) {
       { id: "scene", label: "Your site rebuilt in 3D", state: "in_progress", owner: "blueprint" },
       { id: "evaluation", label: "Blueprint evaluates candidate robots and policies in simulation", state: "pending", owner: "blueprint" },
       { id: "recommendation", label: "Blueprint shows you what works", state: "pending", owner: "blueprint" },
-      { id: "booking", label: "You decide whether to pilot", state: "pending", owner: "site" },
     ], meanwhile: "Blueprint is rebuilding your work area in 3D from your video." },
     briefPath: "/readiness-brief/brief-token.signature",
     report: {

@@ -1,5 +1,13 @@
 # World Model Strategy Context
 
+## Owner decision — October 28, 2026
+
+The delivery-proposal choice in the October 21 direction below is retired,
+together with the site-facing pilot recommendation and booking. Blueprint shows
+the site a bounded simulation estimate and works with a deployment company; the
+site and that company agree any pilot directly. The rest of the October 21
+direction stands.
+
 ## Current owner direction — October 21, 2026
 
 The owner approved the job-first automation buying journey and then clarified: “we cant continue on without a video” and “a description could even come from the video analysis - we've already built this.” The existing capture-to-simulation product remains the foundation. Do not interpret the job-first direction as permission to replace video with a mandatory written description or to skip the site simulation and evaluation.

@@ -5,7 +5,7 @@
  * robot fit, getting the site ready, what decides success, safety and where
  * jobs like this are on the public record. It opens with its own read-only
  * link, never the owner's job link, because browsers print a page's address on
- * the paper and the job link can book the pilot. Never a robot team.
+ * the paper and the job link opens and changes the site's private job. Never a robot team.
  */
 import { useEffect, useState } from "react";
 import { Helmet } from "@/lib/helmet";
