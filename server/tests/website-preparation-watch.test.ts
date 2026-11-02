@@ -333,6 +333,19 @@ describe("scene progression after hand-off", () => {
     [{ state: "expired" }, "ended"],
     [{ state: "accepted", pipeline_status: { status: "blocked", phase: "scene_configuration_failed", blockers: ["x"] } }, "ended"],
     [{ state: "accepted", pipeline_status: { status: "blocked", phase: "preparation", blockers: ["retry_cap_exhausted"] } }, "ended"],
+    // The Pipeline prefixes every code with the module that raised it; a spent cap ends the scene either way.
+    ...["scene_progression_retry_cap_exhausted", "scene_progression_submission_retry_cap_exhausted",
+      "scene_progression_preallocation_capacity_recovery_cap_exhausted", "scene_intake_retry_cap_exhausted",
+      "scene_intake_preallocation_capacity_recovery_cap_exhausted", "scene_intake_market_miss_recovery_cap_exhausted",
+      "submission_retry_cap_exhausted", "preallocation_capacity_recovery_cap_exhausted"].map(code =>
+      [{ state: "accepted", pipeline_status: { status: "blocked", phase: "preparation", blockers: [code] } }, "ended"] as const),
+    // A spent attempt or spend cap waits for the owner's money approval: never an ending.
+    ...["scene_intake_attempt_cap_exhausted", "scene_intake_spend_cap_exhausted"].map(code =>
+      [{ state: "accepted", pipeline_status: { status: "blocked", phase: "preparation", blockers: [code] } }, "waiting"] as const),
+    [{ state: "accepted", pipeline_status: { status: "blocked", phase: "preparation",
+      blockers: ["scene_progression_retry_cap_exhausted", "scene_intake_attempt_cap_exhausted"] } }, "waiting"],
+    [{ state: "accepted", pipeline_status: { status: "blocked", phase: "policy_canary_preprovider_blocked",
+      blockers: ["policy_canary_website_notification_pending"] } }, "ended"],
     [{ state: "accepted", pipeline_status: { status: "blocked", phase: "configuration_capacity", blockers: ["preallocation_capacity_not_recovered"] } }, "waiting"],
     [{ state: "accepted", pipeline_status: { status: "needs_input", phase: "source", blockers: [] } }, "waiting"],
     [{ state: "forward_blocked", blocker: "pipeline_transport_failed" }, "waiting"],

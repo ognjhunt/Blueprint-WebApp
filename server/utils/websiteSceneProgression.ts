@@ -21,11 +21,18 @@ import { taskTargetSelection, taskTargetSelectionApplies } from "./websiteTaskTa
 import { isScreeningHeldOutcome, storedScreeningOutcome, type ScreeningOutcome } from "./betaPolicyScreeningContract";
 
 // Pipeline blocks that stay blocked once hit (task_evaluation_scene_progression):
-// the configuration failed for good, the policy canary blocked, the intent's
-// authority ended, or a bounded retry/recovery allowance ran out.
-const ENDED_PHASES = new Set(["scene_configuration_failed", "policy_canary_blocked", "authority"]);
-const ENDED_BLOCKERS = new Set(["retry_cap_exhausted", "submission_retry_cap_exhausted",
-  "preallocation_capacity_recovery_cap_exhausted", "scene_intake_authority_expired", "scene_intake_authority_revoked"]);
+// the configuration failed for good, the policy canary blocked (at or before
+// its provider), the intent's authority ended, or a bounded retry/recovery
+// allowance ran out. The Pipeline prefixes each code with the module that
+// raised it (`scene_progression_`, `scene_intake_`); older records carry the
+// bare code. A spent attempt or spend cap waits on the owner's money approval
+// and is never an ending.
+const ENDED_PHASES = new Set(["scene_configuration_failed", "policy_canary_blocked", "policy_canary_preprovider_blocked", "authority"]);
+const EXHAUSTED_ALLOWANCES = ["retry_cap_exhausted", "submission_retry_cap_exhausted",
+  "preallocation_capacity_recovery_cap_exhausted", "market_miss_recovery_cap_exhausted"];
+const ENDED_BLOCKERS = new Set([
+  ...EXHAUSTED_ALLOWANCES.flatMap(code => [code, `scene_progression_${code}`, `scene_intake_${code}`]),
+  "scene_intake_authority_expired", "scene_intake_authority_revoked"]);
 const POLICY_RUN_COLLECTION = "taskEvaluationPolicyRuns";
 const IN_FLIGHT = new Set(["revocation_pending", "forward_pending", "forward_blocked",
   "commercial_authorization_required", "accepted", "closeout_pending"]);
