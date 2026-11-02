@@ -227,10 +227,11 @@ describe uncertainty alongside this rule.
 
 Blocked, incomplete and diagnostic observations remain inspectable. Unknown
 execution counts do not establish that nothing ran. These observations cannot
-support a recommendation. The existing team eligibility and supply agreement,
-current site consent and exact result checks still apply. See
-[pilot recommendation evidence](pilot-recommendation-evidence.md) for the
-recommendation, booking and site-reported physical follow-through contracts.
+count as a pass. The existing team eligibility and supply agreement, current
+site consent and exact result checks still apply. See
+[job pass mark and robot fit](pilot-recommendation-evidence.md) for the pass
+mark and site-reported physical follow-through. The pilot recommendation and
+booking flow is retired.
 An accepted historical receipt does not become invalid merely because somebody
 views it after its admission window expires.
 

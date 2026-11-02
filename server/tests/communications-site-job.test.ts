@@ -163,7 +163,15 @@ describe("inbound job communications uses the existing agent and actual email ev
     job.consent_revoked = true; job.customer_decision = { recommendation: "Stale derived decision" };
     const loaded = await loadSiteJobCommunicationsContext(f.db, "job-1");
     expect(loaded.context.brief).toBeNull(); expect(loaded.context.decision).toBeNull();
-    expect(loaded.context.recommendation).toBeNull(); expect(loaded.context.answers).toEqual({});
+    expect(loaded.context.answers).toEqual({});
+  });
+  it("gives the agent no stored pilot recommendation or booking from the retired flow", async () => {
+    const f = fixture(), job = f.db.records.get("inboundRequests/job-1");
+    job.pilot_booking = { recommendationId: "rec-1", acceptedAtIso: "2026-10-08T00:00:00Z" };
+    const loaded = await loadSiteJobCommunicationsContext(f.db, "job-1");
+    expect(loaded.context).not.toHaveProperty("recommendation");
+    expect(loaded.context).not.toHaveProperty("acceptance");
+    expect(JSON.stringify(loaded.context)).not.toMatch(/rec-1|Provider quote pending/);
   });
   it("retains an unknown paid create without letting HTTP retries create again", async () => {
     const f = fixture(), request = await f.request();

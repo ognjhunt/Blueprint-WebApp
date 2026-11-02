@@ -1043,7 +1043,7 @@ it("offers account setup only after the site and job have been saved", async () 
   expect(screen.getByRole("link", { name: "Sign in to save this job" })).toHaveAttribute("href", "/claim/job.signed?mode=signin");
   // The private link already supports this job; account setup stays optional.
   const account = screen.getByRole("region", { name: "Save this job to your account" });
-  expect(account).toHaveTextContent("Your private job link already lets you upload, see results and review proposals.");
+  expect(account).toHaveTextContent("Your private job link already lets you upload and see results.");
   expect(account).toHaveTextContent(/optional/i);
   expect(screen.queryByLabelText(/password/i)).not.toBeInTheDocument();
   expect(postsTo("/api/inbound-request")).toHaveLength(1);

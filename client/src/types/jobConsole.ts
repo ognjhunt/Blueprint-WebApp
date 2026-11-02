@@ -15,8 +15,6 @@ export type CaptureState =
   | "scene_ready"
   | "scene_failed";
 export type ListingState = "none" | "hidden" | "review_required" | "live" | "paused";
-export type RecommendationState = "none" | "recommended" | "review_required";
-export type BookingState = "none" | "booked" | "awaiting_coordination" | "scheduled";
 export type WithdrawalState =
   | "none" | "requested" | "cleanup_pending" | "legal_hold" | "external_pending" | "complete";
 
@@ -126,21 +124,13 @@ export interface JobFacts {
     reported: number;
     /** Concluded with no observation: blocked, or zero episodes. */
     noResult: number;
-    /** Reported runs that meet the pass mark a recommendation is verified against. */
+    /** Reported runs that meet the job's pass mark. */
     passing: number;
     /** Reported runs below that pass mark. */
     belowTarget: number;
     /** Reported runs with no target to compare against. */
     best: BestRunSummary | null;
   };
-  recommendation: {
-    state: RecommendationState;
-    recommendationId: string | null;
-    teamId: string | null;
-    teamName: string | null;
-    evaluationRunId: string | null;
-  };
-  booking: { state: BookingState; startsAt: string | null };
   withdrawal: { state: WithdrawalState };
   /** Written by a separate notice lane when present; read defensively. */
   opsNotice: { state: string; summary: string | null } | null;
@@ -157,11 +147,7 @@ export const JOB_STAGES = [
   "admission",
   "evaluating",
   "no_passing_run",
-  "recommend",
-  "recommendation_review",
-  "awaiting_booking",
-  "coordination",
-  "scheduled",
+  "passing_run",
   "withdrawn",
   "closed",
 ] as const;
@@ -177,11 +163,7 @@ export const JOB_STAGE_LABELS: Record<JobStage, string> = {
   admission: "Admit evaluation",
   evaluating: "Evaluating",
   no_passing_run: "No passing run",
-  recommend: "Recommend",
-  recommendation_review: "Recommendation review",
-  awaiting_booking: "Awaiting booking",
-  coordination: "Schedule pilot",
-  scheduled: "Pilot scheduled",
+  passing_run: "Passing run",
   withdrawn: "Withdrawn",
   closed: "Closed",
 };

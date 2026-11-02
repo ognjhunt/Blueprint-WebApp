@@ -3,7 +3,7 @@ import express from "express";
 import { createServer, type Server } from "node:http";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { sharedFakeFirestoreState as state } from "./helpers/fake-firestore";
-import type { DeliveryProposalInput, JobMarketplaceWorkflow } from "../../client/src/types/jobMarketplace";
+import type { JobMarketplaceWorkflow } from "../../client/src/types/jobMarketplace";
 import { finishedScreening, outcomePublication, screeningFixture, selectionFixture } from "./fixtures/beta-policy-screening";
 import { buildTaskTargetChoiceAnswer, taskTargetSelection } from '../utils/websiteTaskTargetChoice';
 
@@ -31,16 +31,6 @@ const { csrfProtection } = await import("../middleware/csrf");
 const token = (requestId = "job-1", scope: "owner" | "film" = "owner") => createCaptureUploadToken({ requestId,
   captureId: `walkthrough-${requestId}`, sceneId: `site-${requestId}`, scope });
 const csrf = { cookie: "csrf_token=workflow-test", "x-csrf-token": "workflow-test" };
-const proposal: DeliveryProposalInput = {
-  providerName: "Example Delivery Co", scope: "Move sealed cases between the agreed tote and tray.",
-  equipment: "Fixed arm and parallel gripper", software: "Pinned policy and local controller",
-  deliveryCommitment: "Install the cell and demonstrate the agreed acceptance test.",
-  installationCostUsd: 10000, monthlyCostUsd: 500, currency: "USD", exclusions: "Building electrical work excluded.",
-  sitePreparation: "Clear the workcell and provide power.", humanAssistance: "Operator replenishes the tote.",
-  timing: "Dates agreed after site review.", support: "Business-hours support, next-day on-site response.",
-  evidence: [{ level: "unverified", summary: "Customer-specific trial is still required." }],
-  acceptanceCriteria: "Complete 100 placements within the agreed cycle time and damage limit.", recommendationReason: null,
-};
 let server: Server, base = "";
 beforeAll(async () => {
   const app = express(); app.use(express.json()); app.use("/api/job-workflow", csrfProtection, router);
@@ -65,7 +55,6 @@ async function api(path: string, method = "GET", body?: unknown, auth?: string, 
 }
 const admin = (path = "", method = "GET", body?: unknown, extra?: Record<string, string>) => api(`/admin/job-1${path}`, method, body, "ops-token", extra);
 const owner = (path = "", method = "GET", body?: unknown) => api(`/owner/${token()}${path}`, method, body);
-async function publish() { const created = await admin("/proposals", "POST", proposal); expect(created.status).toBe(201); return created.body.proposals[0]; }
 function rejectSelection(jobId: string, contextDigest = `sha256:${'c'.repeat(64)}`, otherCandidate = false) {
   const selector = {request_id: jobId, scene_id: `site-${jobId}`, capture_id: `walkthrough-${jobId}`,
     task_context_digest: contextDigest, completion_marker_generation: '1', producer_delivery_key: `sha256:${'a'.repeat(64)}`,
@@ -79,12 +68,10 @@ function rejectSelection(jobId: string, contextDigest = `sha256:${'c'.repeat(64)
       ? {kind: 'other_candidate', candidate_id: 'cfedcba9876543210'} : {kind: 'none_of_these'}, '2026-10-29T00:00:00Z'),
     originalAllowance: {id: 'same', maximum: 15}});
 }
-const selectBody = (row: { id: string; revision: string }) => ({ proposalId: row.id, expectedRevision: row.revision, authorized: true });
-const reportBody = (row: { id: string; revision: string }) => ({ ...selectBody(row), summary: "The site trial completed.", metCriteria: true,
-  measuredUnitsPerHour: 60, interventionsPerHour: 1, notes: "Owner-reported operating observation." });
+const review = { disposition: "options_identified" as const, summary: "A fixed arm can do the scoped transfer.", nextAction: "Blueprint is checking delivery for the approach that worked." };
 
 describe("job workflow authority and durable decisions", () => {
-  it("shows diagnostic screening on a proposed task without inventing a delivery proposal", async () => {
+  it("shows diagnostic screening on a proposed task and drops it when the object is rejected", async () => {
     const { publication, job, brief, intake } = screeningFixture(true);
     state.docs.set("inboundRequests/job-one", job);
     state.docs.set("siteTaskBriefs/job-one", brief);
@@ -96,7 +83,7 @@ describe("job workflow authority and durable decisions", () => {
     expect(view.body.briefAgreed).toBe(false);
     expect(view.body.managedEvidence?.[0]).toMatchObject({ current: true, state: "queued", resultDigest: null });
     expect(view.body.managedEvidence?.[0].screening?.candidates).toHaveLength(36);
-    expect(view.body.proposals).toEqual([]);
+    expect(view.body).not.toHaveProperty("proposals");
     rejectSelection('job-one', job.website_scene_sponsorship.task_context_digest);
     const rejected = await api(`/owner/${token('job-one')}`);
     expect(rejected.status).toBe(200);
@@ -138,82 +125,56 @@ describe("job workflow authority and durable decisions", () => {
     expect(staff.screening?.budget).toMatchObject({ limitUsd: "15.00", spentUpperBoundUsd: "4" });
   });
 
-  it('keeps rejected-object proposals in history and rejects selecting their old scope', async () => {
-    const row = await publish();
+  it('returns the job to Blueprint and its saved video when the object selection is rejected', async () => {
+    expect((await admin('/review', 'POST', review)).body.stage).toBe('options_assessed');
     rejectSelection('job-1');
     const view = await owner();
     expect(view.status).toBe(200);
-    expect(view.body.proposals[0]).toMatchObject({id: row.id, status: 'review_required'});
-    expect(view.body.actionOwner).toBe('blueprint');
+    expect(view.body).toMatchObject({stage: 'brief_agreed', optionsAssessed: false, reviewRequired: true, review: null, actionOwner: 'blueprint'});
     expect(view.body.nextAction).toMatch(/saved video/);
-    expect((await owner('/select', 'POST', selectBody(row))).status).toBe(409);
-    expect(state.docs.get('inboundRequests/job-1')?.job_marketplace.proposals[0]).toMatchObject({id: row.id, status: 'available'});
+    expect(state.docs.get('inboundRequests/job-1')?.job_marketplace.review).toMatchObject({summary: review.summary});
     expect(state.docs.get('captureUploadSessions/walkthrough-job-1')?.originalAllowance).toEqual({id: 'same', maximum: 15});
   });
 
-  it('binds unreferenced proposals to B and releases only its current corrected intake', async () => {
-    const old = await publish();
+  it('binds a review to the corrected object and shows it only once that intake is current', async () => {
+    const before = await admin('/review', 'POST', review);
+    expect(before.body.stage).toBe('options_assessed');
     rejectSelection('job-1', undefined, true);
-    const before = await owner();
-    expect(before.body.proposals[0]).toMatchObject({id: old.id, status: 'review_required'});
-    expect((await owner('/select', 'POST', selectBody(old))).status).toBe(409);
-    // A reviewed B proposal can be prepared while reconstruction continues;
-    // it cannot be selected against A's intake or the absence of B's intake.
-    const revised = await admin(`/proposals/${old.id}`, 'PUT', {...proposal, expectedRevision: old.revision});
+    expect((await owner()).body).toMatchObject({optionsAssessed: false, review: null, actionOwner: 'blueprint'});
+    // Blueprint can review the corrected object while reconstruction continues.
+    const corrected = {...review, summary: 'A fixed arm can move the corrected box.'};
+    const revised = await admin('/review', 'POST', corrected);
     expect(revised.status).toBe(200);
-    const b = revised.body.proposals[0];
-    expect(b.briefRevision).not.toBe(old.briefRevision);
-    expect((await owner('/select', 'POST', selectBody(b))).status).toBe(409);
+    expect(revised.body.review).toBeNull();
+    expect(state.docs.get('inboundRequests/job-1')?.job_marketplace.review.scopeRevision).not.toBe(before.body.review!.scopeRevision);
     const session = state.docs.get('captureUploadSessions/walkthrough-job-1')!;
     const correction = taskTargetSelection(session).correctionsDigest;
     const currentIntake = {website_request_id: 'job-1', source_session_id: 'walkthrough-job-1', state: 'completed',
       request: {task: {task_id: `website-${session.website_preparation.selector.task_context_digest.slice(7, 27)}`,
         subject: {website_preparation_revision: {capture_id: 'walkthrough-job-1', corrections_digest: correction}}}}};
     state.docs.set('taskEvaluationSceneIntakes/old-a', {...currentIntake, request: {task: {task_id: currentIntake.request.task.task_id}}});
-    expect((await owner('/select', 'POST', selectBody(b))).status).toBe(409);
+    expect((await owner()).body.review).toBeNull();
     state.docs.set('taskEvaluationSceneIntakes/b', currentIntake);
-    expect((await owner()).body.proposals[0]).toMatchObject({id: b.id, status: 'available'});
-    expect((await owner('/select', 'POST', selectBody(old))).status).toBe(409);
-    expect((await owner('/select', 'POST', selectBody(b))).status).toBe(200);
+    expect((await owner()).body).toMatchObject({stage: 'options_assessed', optionsAssessed: true, review: {summary: corrected.summary}});
     expect(state.docs.get('captureUploadSessions/walkthrough-job-1')?.originalAllowance).toEqual({id: 'same', maximum: 15});
   });
 
-  it('does not record an A agreement from an earlier selection while B is pending', async () => {
-    const old = await publish();
-    expect((await owner('/select', 'POST', selectBody(old))).status).toBe(200);
-    rejectSelection('job-1', undefined, true);
-    const response = await admin('/agreement', 'POST', {proposalId: old.id, expectedRevision: old.revision,
-      agreedAtIso: '2026-10-20T10:00:00Z', plannedStartIso: null, siteAgreementReference: 'recorded-site-agreement',
-      providerAgreementReference: 'recorded-provider-agreement', outcomeRecordingAuthorized: false});
-    expect(response.status).toBe(409);
-    expect(state.docs.get('inboundRequests/job-1')?.job_marketplace.agreement).toBeNull();
-    expect(state.docs.get('inboundRequests/job-1')?.job_marketplace.selection).toMatchObject({proposalId: old.id});
-  });
-
-  it("lets a guest review and choose an exact scoped proposal without confirming the draft", async () => {
+  it("lets Blueprint assess a guest's job without the site confirming the draft", async () => {
     const record = state.docs.get("inboundRequests/job-1")!;
     state.docs.set("inboundRequests/job-1", { ...record, account_owner_uid: null });
     const brief = { ...state.docs.get("siteTaskBriefs/job-1"), confirmedAtIso: null, confirmedBy: null };
+    state.docs.set("siteTaskBriefs/job-1", { ...brief, summary: " " });
+    expect((await admin("/review", "POST", review)).body.code).toBe("job_scope_unavailable");
     state.docs.set("siteTaskBriefs/job-1", brief);
     const waiting = await owner();
     expect(waiting.status).toBe(200);
     expect(waiting.body).toMatchObject({ briefAgreed: false, actionOwner: "blueprint" });
-    const published = await admin("/proposals", "POST", proposal);
-    expect(published.status).toBe(201);
-    expect(published.body).toMatchObject({ briefAgreed: false, stage: "proposals_ready", actionOwner: "site" });
-    const row = published.body.proposals[0];
-    expect(row.scope).toBe(proposal.scope);
-    expect(row.evidence).toEqual(proposal.evidence);
-    const selected = await owner("/select", "POST", selectBody(row));
-    expect(selected.status).toBe(200);
-    expect(selected.body.selection).toMatchObject({ proposalId: row.id, proposalRevision: row.revision });
-    expect(selected.body.briefAgreed).toBe(false);
-    expect(selected.body.agreement).toBeNull();
-    expect(selected.body.outcome).toBeNull();
+    const assessed = await admin("/review", "POST", review);
+    expect(assessed.status).toBe(200);
+    expect(assessed.body).toMatchObject({ briefAgreed: false, stage: "options_assessed", optionsAssessed: true, actionOwner: "blueprint" });
     expect(state.docs.get("siteTaskBriefs/job-1")).toEqual(brief);
     state.docs.set("siteTaskBriefs/job-1", { ...brief, summary: "Move cases into a different workcell" });
-    expect((await owner()).body.proposals[0].status).toBe("review_required");
-    expect((await owner("/select", "POST", selectBody(row))).body.code).toBe("brief_changed");
+    expect((await owner()).body).toMatchObject({ stage: "job_submitted", optionsAssessed: false, reviewRequired: true, review: null });
   });
   it("rejects anonymous/nonstaff admin access, forged and film-only links, and missing CSRF", async () => {
     expect((await api("/admin/job-1")).status).toBe(401);
@@ -235,98 +196,57 @@ describe("job workflow authority and durable decisions", () => {
     const saved = await owner("/requirements", "PATCH", { ongoingBudget: "Not sure yet", purchaseReadiness: "exploring" });
     expect(saved.status).toBe(200);
     expect(saved.body.requirements.ongoingBudget).toBe("Not sure yet");
-    expect(saved.body.proposals).toEqual([]);
+    expect(saved.body).not.toHaveProperty("proposals");
     expect((await owner("/requirements", "PATCH", { purchaseReadiness: "funded_automatically" })).status).toBe(400);
     expect((await owner("/requirements", "PATCH", { installationBudget: "x".repeat(501) })).status).toBe(400);
     expect(state.docs.get("inboundRequests/job-1")?.pilot_booking).toBeUndefined();
   });
 
-  it("requires the customer to select an exact reviewed quote and records agreements separately", async () => {
-    const row = await publish();
-    expect((await owner("/select", "POST", { ...selectBody(row), expectedRevision: "0".repeat(64) })).status).toBe(409);
-    expect((await api(`/owner/${token("job-2")}/select`, "POST", selectBody(row))).status).toBe(409);
-    expect((await admin("/agreement", "POST", { proposalId: row.id, expectedRevision: row.revision, agreedAtIso: "2026-10-20T12:00:00.000Z",
-      plannedStartIso: null, siteAgreementReference: "Site signed quote", providerAgreementReference: "Provider signed quote" })).body.code).toBe("selection_required");
-    const selected = await owner("/select", "POST", selectBody(row));
-    expect(selected.status).toBe(200);
-    expect(selected.body.selection?.proposalId).toBe(row.id);
-    expect(selected.body.agreement).toBeNull();
-    expect(selected.body.stage).toBe("proposals_ready");
-    expect((await owner("/outcome", "POST", reportBody(row))).body.code).toBe("pilot_agreement_required");
-    expect((await admin(`/proposals/${row.id}`, "PUT", { ...proposal, expectedRevision: row.revision })).body.code).toBe("proposal_selected");
-    expect((await admin(`/proposals/${row.id}/withdraw`, "POST", { expectedRevision: row.revision })).body.code).toBe("proposal_selected");
-    const agreed = await admin("/agreement", "POST", { proposalId: row.id, expectedRevision: row.revision, agreedAtIso: "2026-10-20T12:00:00.000Z",
-      plannedStartIso: "2026-11-01T12:00:00.000Z", siteAgreementReference: "Site signed quote reference", providerAgreementReference: "Provider signed quote reference",
-      outcomeRecordingAuthorized: true, outcomeRecordingPermissionReference: "Both parties' signed outcome-recording permission" });
-    expect(agreed.status).toBe(200); expect(agreed.body.stage).toBe("pilot_agreed");
-    // Historical commitments stay visible even if their video cannot be read.
-    captures.received = null;
-    state.docs.set("siteTaskBriefs/job-1", { ...state.docs.get("siteTaskBriefs/job-1"),
-      confirmedAtIso: "2026-10-21T10:00:00.000Z", confirmedBy: "Another authorized site owner", draftedAtIso: "2026-10-21T09:00:00.000Z" });
-    const reconfirmed = await owner();
-    expect(reconfirmed.body.stage).toBe("pilot_agreed");
-    expect(reconfirmed.body.proposals[0].status).toBe("available");
-    expect(reconfirmed.body.agreement).toEqual(agreed.body.agreement);
-    expect((await owner("/requirements", "PATCH", { ongoingBudget: "Changed after agreement" })).body.code).toBe("pilot_already_agreed");
-    const reported = await owner("/outcome", "POST", reportBody(row));
-    expect(reported.status).toBe(200); expect(reported.body.outcome?.source).toBe("customer_reported");
-    expect(reported.body.stage).toBe("results_recorded");
+  it("offers no proposal, selection, agreement or outcome route", async () => {
+    const body = JSON.stringify({ proposalId: "proposal-1", expectedRevision: "0".repeat(64), authorized: true });
+    const status = async (path: string, method: string, auth?: string) => (await fetch(`${base}${path}`, { method, body,
+      headers: { ...csrf, "content-type": "application/json", ...(auth ? { authorization: `Bearer ${auth}` } : {}) } })).status;
+    for (const path of ["/select", "/outcome"]) expect(await status(`/owner/${token()}${path}`, "POST")).toBe(404);
+    for (const [path, method] of [["/proposals", "POST"], ["/proposals/proposal-1", "PUT"], ["/proposals/proposal-1/withdraw", "POST"], ["/agreement", "POST"]]) {
+      expect(await status(`/admin/job-1${path}`, method, "ops-token")).toBe(404);
+    }
+    expect(state.docs.get("inboundRequests/job-1")?.job_marketplace).toBeUndefined();
+  });
+
+  it("leaves stored legacy proposal records untouched and never projects them", async () => {
+    const legacy = { schemaVersion: "job_marketplace.v1", proposals: [{ id: "legacy-proposal" }],
+      selection: { proposalId: "legacy-proposal", proposalRevision: "0".repeat(64), selectedAtIso: "2026-10-20T12:00:00.000Z" },
+      agreement: { proposalId: "legacy-proposal" }, outcome: { summary: "Legacy owner report" } };
     const record: any = state.docs.get("inboundRequests/job-1");
-    expect(record.pilot_booking).toBeUndefined(); expect(record.physical_outcome_join).toBeUndefined();
-    expect(record.job_marketplace.outcome.summary).toBe("The site trial completed.");
-    expect([...state.docs.keys()].filter(key => key.includes("jobWorkflowEvents/"))).toHaveLength(4);
+    state.docs.set("inboundRequests/job-1", { ...record, job_marketplace: legacy });
+    const view = await owner();
+    for (const field of ["proposals", "selection", "agreement", "outcome"]) expect(view.body).not.toHaveProperty(field);
+    const saved = await owner("/requirements", "PATCH", { ongoingBudget: "Not sure yet" });
+    expect(saved.status).toBe(200);
+    const stored: any = state.docs.get("inboundRequests/job-1");
+    expect(stored.job_marketplace).toMatchObject({ proposals: legacy.proposals, selection: legacy.selection, agreement: legacy.agreement, outcome: legacy.outcome,
+      requirements: { ongoingBudget: "Not sure yet" } });
+    expect(JSON.stringify(saved.body)).not.toMatch(/legacy-proposal|Legacy owner report/);
   });
 
-  it("requires separate recorded permission to report outcomes, including for legacy agreements", async () => {
-    const row = await publish(); await owner("/select", "POST", selectBody(row));
-    const agreement = { proposalId: row.id, expectedRevision: row.revision, agreedAtIso: "2026-10-20T12:00:00.000Z",
-      plannedStartIso: null, siteAgreementReference: "Site signed scope", providerAgreementReference: "Provider signed scope" };
-    expect((await admin("/agreement", "POST", { ...agreement, outcomeRecordingAuthorized: true })).status).toBe(400);
-    const agreed = await admin("/agreement", "POST", agreement);
-    expect(agreed.status).toBe(200); expect(agreed.body.agreement?.outcomeRecordingAuthorized).toBe(false);
-    expect((await owner("/outcome", "POST", reportBody(row))).body.code).toBe("outcome_permission_required");
-    expect((await owner()).body.outcome).toBeNull();
-  });
-
-  it("invalidates proposals when requirements or the confirmed brief change", async () => {
-    const row = await publish();
+  it("assesses options against the confirmed brief and asks for re-review when it changes", async () => {
+    const assessed = await admin("/review", "POST", review);
+    expect(assessed.status).toBe(200);
+    expect(assessed.body).toMatchObject({ stage: "options_assessed", optionsAssessed: true, actionOwner: "blueprint", nextAction: review.nextAction });
+    // Who confirmed the same brief does not change its scope.
     state.docs.set("siteTaskBriefs/job-1", { ...state.docs.get("siteTaskBriefs/job-1"),
       confirmedAtIso: "2026-10-21T10:00:00.000Z", confirmedBy: "Another authorized site owner" });
-    expect((await owner()).body.proposals[0].status).toBe("available");
-    await owner("/select", "POST", selectBody(row));
+    expect((await owner()).body.stage).toBe("options_assessed");
     const changed = await owner("/requirements", "PATCH", { requiredOutput: "Now requires twice the original output" });
-    expect(changed.body.proposals[0].status).toBe("review_required");
-    expect(changed.body.reviewRequired).toBe(true); expect(changed.body.stage).toBe("brief_agreed");
-    expect((await owner("/select", "POST", selectBody(row))).body.code).toBe("brief_changed");
-    const revised = await admin(`/proposals/${row.id}`, "PUT", { ...proposal, deliveryCommitment: "Revised performance commitment", expectedRevision: row.revision });
-    expect(revised.status).toBe(200); expect(revised.body.selection).toBeNull();
-    expect(revised.body.proposals[0].revision).not.toBe(row.revision);
-    expect(revised.body.proposals[0].status).toBe("available");
-    state.docs.set("siteTaskBriefs/job-1", { summary: "A changed unconfirmed job", confirmedAtIso: null });
-    const waiting = await owner(); expect(waiting.body.stage).toBe("job_submitted");
-    expect(waiting.body.proposals[0]).toMatchObject({ id: row.id, status: "review_required" });
-    expect(waiting.body.selection).toBeNull();
-  });
-
-  it("idempotently publishes quotes and rejects concurrent stale edits", async () => {
-    const key = "quote-request-1";
-    const first = await admin("/proposals", "POST", proposal, { "Idempotency-Key": key });
-    const repeated = await admin("/proposals", "POST", proposal, { "Idempotency-Key": key });
-    expect(repeated.body.proposals).toHaveLength(1);
-    expect(repeated.body.revision).toBe(first.body.revision);
-    expect((await admin("/proposals", "POST", { ...proposal, installationCostUsd: 12000 }, { "Idempotency-Key": key })).body.code).toBe("idempotency_conflict");
-    const row = first.body.proposals[0];
-    const revisions = await Promise.all([11000, 12000].map(installationCostUsd => admin(`/proposals/${row.id}`, "PUT", { ...proposal, installationCostUsd, expectedRevision: row.revision })));
-    expect(revisions.map(result => result.status).sort()).toEqual([200, 409]);
+    expect(changed.body).toMatchObject({ reviewRequired: true, stage: "brief_agreed", review: null });
     const event = [...state.docs.entries()].find(([path]) => path.includes("jobWorkflowEvents/"))![1];
-    expect(event).not.toHaveProperty("before.proposals"); expect(event).toHaveProperty("changedProposals");
+    expect(event).toHaveProperty("previousState"); expect(event).toHaveProperty("nextState");
+    state.docs.set("siteTaskBriefs/job-1", { summary: "A changed unconfirmed job", confirmedAtIso: null });
+    expect((await owner()).body.stage).toBe("job_submitted");
   });
 
-  it("blocks revoked jobs and conflicting legacy pilot selections", async () => {
-    const row = await publish();
+  it("blocks revoked jobs", async () => {
     const record: any = state.docs.get("inboundRequests/job-1");
-    state.docs.set("inboundRequests/job-1", { ...record, pilot_booking: { recommendationId: "legacy-rec" } });
-    expect((await owner("/select", "POST", selectBody(row))).body.code).toBe("pilot_selection_conflict");
     state.docs.set("inboundRequests/job-1", { ...record, consent_revoked: true });
     expect((await owner()).body.code).toBe("capture_processing_not_authorized");
     expect((await admin()).status).toBe(409);
@@ -338,11 +258,11 @@ describe("job workflow authority and durable decisions", () => {
       proposals: [], selection: { proposalId: "made-up", proposalRevision: "0".repeat(64), selectedAtIso: "2026-10-20T12:00:00.000Z" },
       agreement: { proposalId: "made-up" }, outcome: { metCriteria: true } } };
     const projected = projectJobMarketplace(record, null);
-    expect(projected.stage).toBe("job_submitted"); expect(projected.selection).toBeNull();
-    expect(projected.agreement).toBeNull(); expect(projected.outcome).toBeNull();
+    expect(projected.stage).toBe("job_submitted");
+    for (const field of ["proposals", "selection", "agreement", "outcome"]) expect(projected).not.toHaveProperty(field);
   });
 
-  it("requires a retained video before advancing a written brief to assessment or a deployment proposal", async () => {
+  it("requires a retained video before advancing a written brief to assessment", async () => {
     captures.received = false;
     const record = state.docs.get("inboundRequests/job-1")!;
     state.docs.set("inboundRequests/job-1", { ...record, request: { ...record.request, hasExistingFootage: true } });
@@ -351,13 +271,7 @@ describe("job workflow authority and durable decisions", () => {
     expect(draft.body.briefAgreed).toBe(false);
     expect(draft.body.nextAction).toMatch(/Record or upload a video/);
     expect((await admin("/review", "POST", { disposition: "options_identified", summary: "Written scope", nextAction: "Compare options" })).body.code).toBe("video_required");
-    expect((await admin("/proposals", "POST", proposal)).body.code).toBe("video_required");
     expect(state.docs.get("inboundRequests/job-1")?.job_marketplace).toBeUndefined();
-    captures.received = true;
-    const row = await publish();
-    captures.received = false;
-    expect((await owner("/select", "POST", selectBody(row))).body.code).toBe("video_required");
-    expect((await owner()).body.proposals).toEqual([]);
     captures.received = null;
     expect((await admin("/review", "POST", { disposition: "more_information", summary: "Video status unknown", nextAction: "Retry" })).status).toBe(503);
     expect((await owner()).body.nextAction).toMatch(/could not read your recording status/);

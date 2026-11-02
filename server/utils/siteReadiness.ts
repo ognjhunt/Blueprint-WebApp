@@ -131,7 +131,7 @@ function cycleSeconds(inputs: RobotFitInputs): { seconds: number; measured: bool
   return video?.estimates?.cycleSeconds ? { seconds: video.estimates.cycleSeconds, measured: false } : null;
 }
 
-/* ------------------------------------------------------- steps to a pilot */
+/* ---------------------------------------------------- where the job stands */
 
 const REBUILDING = new Set(["generating", "processing", "exporting"]);
 
@@ -141,13 +141,12 @@ function step(id: string, label: string, state: TrackerStep["state"], owner: Tra
 
 /** Where the job stands, from recorded states only. The site's only steps are its video and its brief. */
 export function trackerOf(inputs: ReadinessInputs): Tracker {
+  // A result counts only through a pilot recommendation recorded before that flow
+  // was retired (owner decision 2026-10-28): not awaiting review, on qualified evidence.
   const recommendation = inputs.request?.pilot_recommendation as { id?: unknown; reviewRequired?: unknown; evidence?: unknown } | undefined;
   const proposed = typeof recommendation?.id === "string" && recommendation.id.length > 0;
-  // What the owner booking route accepts: a recorded recommendation, not awaiting
-  // review, on qualified evidence. Nothing else may read as "book it" (audit N14).
-  const bookable = proposed && recommendation!.reviewRequired !== true
+  const shown = proposed && recommendation!.reviewRequired !== true
     && isQualifiedRecommendationEvidence(recommendation!.evidence as Parameters<typeof isQualifiedRecommendationEvidence>[0]);
-  const booked = Boolean(inputs.request?.pilot_booking);
   const scope = inputs.request?.site_task_scope as { supported?: unknown; reason?: unknown } | undefined;
   // Done only once the scene can be viewed: a "ready" label without its world is not a rebuilt site.
   const sceneState = inputs.sceneViewable ? "done" : REBUILDING.has(inputs.reconstructionState ?? "") ? "in_progress" : "pending";
@@ -158,12 +157,10 @@ export function trackerOf(inputs: ReadinessInputs): Tracker {
     step("video", "Video received", video, "site"),
     step("brief", "Job brief confirmed", inputs.brief?.confirmedAtIso ? "done" : "pending", "site"),
     step("scene", "Your site rebuilt in 3D", sceneState, "blueprint"),
-    step("evaluation", "Blueprint evaluates candidate robots and policies in simulation", booked || proposed ? "done" : "pending", "blueprint"),
-    step("recommendation", "Blueprint shows you what works", booked || bookable ? "done" : proposed ? "in_progress" : "pending", "blueprint"),
-    step("booking", "You decide whether to pilot", booked ? "done" : "pending", "site"),
+    step("evaluation", "Blueprint evaluates candidate robots and policies in simulation", proposed ? "done" : "pending", "blueprint"),
+    step("recommendation", "Blueprint shows you what works", shown ? "done" : proposed ? "in_progress" : "pending", "blueprint"),
   ];
-  const meanwhile = booked ? "You chose to go ahead with a pilot. You and the deployment company agree its details directly."
-    : bookable ? "Blueprint has a result and a proposed pilot for your job. You can review them on your job page."
+  const meanwhile = shown ? "Blueprint has a result for your job. You can review it on your job page."
       : proposed ? "Blueprint is reviewing the result against your job brief."
         : scope?.supported === false ? taskScopeNotYet(scope.reason).headline
           : sceneState === "in_progress" ? "Blueprint is rebuilding your work area in 3D from your video."

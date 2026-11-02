@@ -687,7 +687,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
           <details>
           <summary>Save this job to your account (optional)</summary>
           <p className="ms-field-hint">
-            Your private job link already lets you upload, see results and review proposals.
+            Your private job link already lets you upload and see results.
             Create an account with {state.email} if you want this job in your workspace.
           </p>
           <div className="ms-intake-account-links">

@@ -5,7 +5,6 @@
  * interprets what it was handed. Missing fields read as unknown or absent,
  * never as a state nobody recorded.
  */
-import { projectPilotCoordination } from "./pilotCoordination";
 import { projectWebsiteCaptureRights } from "./websiteTaskContext";
 import { criteriaChangedSinceRequest, passMarkForJob, type PassMark } from "./pilotRecommendationEvidence";
 import { iso, object, text } from "./workspace-projection";
@@ -15,14 +14,12 @@ import { gateAnswersOnFile } from "./gateAnswersOnFile";
 import { assessReadiness } from "../../client/src/lib/siteTaskReadiness";
 import type {
   BestRunSummary,
-  BookingState,
   BriefState,
   CaptureState,
   JobFacts,
   ListingState,
   PendingAdmission,
   ProjectedRun,
-  RecommendationState,
   RunOutcome,
   SceneHold,
   TimelineEntry,
@@ -126,8 +123,7 @@ export function projectRuns(
         episodesSucceeded: hasSamples ? finite(observed?.episodesSucceeded) : null,
         successRatePct,
         medianCycleSeconds,
-        // The same rule a recommendation is verified against, so the console
-        // never calls a run passing that the recommendation route refuses.
+        // The job's pass mark, against the targets the site set before the run.
         meetsTarget: hasSamples
           ? !criteriaChangedSinceRequest(inputs.record, fundingByRun.get(run.runId))
             && meetsPassMark(episodesRun, finite(observed?.episodesSucceeded), medianCycleSeconds, passMark)
@@ -251,28 +247,6 @@ export function withdrawalStateOf(record: Record<string, any>): WithdrawalState 
   }
 }
 
-export function bookingOf(record: Record<string, any>): { state: BookingState; startsAt: string | null } {
-  if (!record.pilot_booking) return { state: "none", startsAt: null };
-  const coordination = projectPilotCoordination(record);
-  if (!coordination) return { state: "booked", startsAt: null };
-  return { state: coordination.state as BookingState, startsAt: "startsAt" in coordination ? String(coordination.startsAt) : null };
-}
-
-export function recommendationOf(record: Record<string, any>): JobFacts["recommendation"] {
-  const proposal = record.pilot_recommendation;
-  if (!proposal || typeof proposal !== "object") {
-    return { state: "none", recommendationId: null, teamId: null, teamName: null, evaluationRunId: null };
-  }
-  const state: RecommendationState = proposal.reviewRequired === true ? "review_required" : "recommended";
-  return {
-    state,
-    recommendationId: text(proposal.id) || null,
-    teamId: text(proposal.teamId) || null,
-    teamName: text(proposal.teamName) || null,
-    evaluationRunId: text(proposal.evaluationRunId) || null,
-  };
-}
-
 export function opsNoticeOf(record: Record<string, any>): JobFacts["opsNotice"] {
   const notice = record.ops_notice;
   if (!notice) return null;
@@ -304,8 +278,6 @@ export function projectJobFacts(inputs: RawJobInputs): JobFacts {
     });
   }
   const reported = runs.filter((run) => run.outcome === "reported");
-  const recommendation = recommendationOf(record);
-  const booking = bookingOf(record);
   const coverage = object(record.capture_coverage);
   const createdAtIso = iso(record.createdAt);
   return {
@@ -336,8 +308,6 @@ export function projectJobFacts(inputs: RawJobInputs): JobFacts {
       belowTarget: reported.filter((run) => run.meetsTarget === false).length,
       best: bestRun(runs),
     },
-    recommendation,
-    booking,
     withdrawal: { state: withdrawalStateOf(record) },
     opsNotice: opsNoticeOf(record),
     lastActivityIso: latest([
@@ -346,8 +316,6 @@ export function projectJobFacts(inputs: RawJobInputs): JobFacts {
       text(brief?.confirmedAtIso) || null,
       text(brief?.draftedAtIso) || null,
       text(object(record.public_task_listing).approvedAtIso) || null,
-      text(object(record.pilot_recommendation).recommendedAtIso) || null,
-      text(object(record.pilot_booking).acceptedAtIso) || null,
       text(object(record.capture_withdrawal).requestedAtIso) || null,
       ...inputs.evaluationRequests.map((request) => iso(object(request.record.workspace_evaluation).submittedAt) ?? iso(request.record.createdAt)),
       ...runs.flatMap((run) => [run.requestedAtIso, run.reportedAtIso]),
@@ -372,9 +340,6 @@ export function buildJobTimeline(inputs: RawJobInputs, facts: JobFacts): Timelin
     { key: "requested", label: "Evaluation requested", atIso: firstRequest, done: facts.evaluations.total > 0 },
     { key: "admitted", label: "Free evaluation admitted", atIso: null, done: facts.evaluations.admitted > 0 },
     { key: "reported", label: "Evaluation reported", atIso: firstReport, done: facts.runs.reported > 0 },
-    { key: "recommended", label: "Team recommended", atIso: text(object(record.pilot_recommendation).recommendedAtIso) || null, done: facts.recommendation.state !== "none" },
-    { key: "booked", label: "Site booked the pilot", atIso: text(object(record.pilot_booking).acceptedAtIso) || null, done: facts.booking.state !== "none" },
-    { key: "scheduled", label: "Pilot scheduled", atIso: facts.booking.startsAt, done: facts.booking.state === "scheduled" },
   ];
   if (facts.withdrawal.state !== "none") {
     entries.push({ key: "withdrawn", label: "Recording withdrawn", atIso: text(object(record.capture_withdrawal).requestedAtIso) || null, done: true });

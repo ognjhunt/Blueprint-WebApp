@@ -1,9 +1,11 @@
 # Vision: Free Beta and Arm Decision Proof v1
 
 `Blueprint-WebApp` owns the free beta's site and robot-team journeys (intake,
-consent, invitation, evaluation requests, recommendation, and booking) and Arm
-Decision Proof's partner intake, authorization, durable workflow state,
-evidence review, and bounded case-study presentation.
+consent, invitation, evaluation requests, and the bounded estimate a site sees;
+Blueprint then works with a deployment company, and the site and that company
+agree any pilot directly) and Arm Decision Proof's partner intake,
+authorization, durable workflow state, evidence review, and bounded case-study
+presentation.
 
 The shared block below is the complete active vision. Broader historical visions
 remain in git history and do not authorize work.

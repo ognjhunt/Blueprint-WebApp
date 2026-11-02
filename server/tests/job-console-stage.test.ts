@@ -35,8 +35,6 @@ function facts(overrides: DeepPartial<JobFacts> = {}): JobFacts {
     teamAccess: { listed: true, evaluationAvailable: true, reason: null, sceneHold: null },
     evaluations: { total: 0, pendingAdmission: 0, admitted: 0, pending: [] },
     runs: { queued: 0, running: 0, reported: 0, noResult: 0, passing: 0, belowTarget: 0, best: null },
-    recommendation: { state: "none", recommendationId: null, teamId: null, teamName: null, evaluationRunId: null },
-    booking: { state: "none", startsAt: null },
     withdrawal: { state: "none" },
     opsNotice: null,
     lastActivityIso: null,
@@ -268,10 +266,11 @@ describe("deriveJobStage", () => {
         .toMatchObject({ stage: "evaluating", nextAction: "Admitted; waiting for the run to be recorded" });
     });
 
-    it("asks for a recommendation with passing runs counted", () => {
+    it("asks Blueprint to work with a deployment company on a passing result, with passing runs counted", () => {
       const result = deriveJobStage(facts({ evaluations: { total: 2, pendingAdmission: 1, admitted: 1, pending: [
         { requestId: "eval-2", teamName: "B", setupName: null }] }, runs: { reported: 3, passing: 2, belowTarget: 1 } }));
-      expect(result).toMatchObject({ stage: "recommend", actionOwner: "blueprint", nextAction: "Recommend a team (2 passing runs)" });
+      expect(result).toMatchObject({ stage: "passing_run", actionOwner: "blueprint",
+        nextAction: "Work with a deployment company on the passing result (2 passing runs)" });
       expect(result.attention).toContain("1 evaluation request awaiting admission");
     });
 
@@ -287,41 +286,15 @@ describe("deriveJobStage", () => {
     });
   });
 
-  describe("recommendation and booking", () => {
-    const recommended = { state: "recommended" as const, recommendationId: "rec_1", teamId: "team-1", teamName: "Atlas", evaluationRunId: "run_1" };
-
-    it("waits on the site to book a recommendation", () => {
-      expect(deriveJobStage(facts({ recommendation: recommended, runs: { reported: 1, passing: 1 } })))
-        .toMatchObject({ stage: "awaiting_booking", actionOwner: "site", nextAction: "Waiting on site to book Atlas" });
-    });
-
-    it("asks Blueprint to review a recommendation after the brief changed", () => {
-      expect(deriveJobStage(facts({ recommendation: { ...recommended, state: "review_required" } })))
-        .toMatchObject({ stage: "recommendation_review", actionOwner: "blueprint" });
-    });
-
-    it("asks Blueprint to schedule a booked pilot", () => {
-      expect(deriveJobStage(facts({ recommendation: recommended, booking: { state: "awaiting_coordination" } })))
-        .toMatchObject({ stage: "coordination", nextAction: "Schedule pilot with Atlas" });
-    });
-
-    it("reconciles a booking whose job changed", () => {
-      expect(deriveJobStage(facts({ recommendation: { ...recommended, state: "review_required" }, booking: { state: "awaiting_coordination" } })).nextAction)
-        .toMatch(/Reconcile the changed job/);
-      expect(deriveJobStage(facts({ recommendation: recommended, booking: { state: "booked" } })).nextAction)
-        .toMatch(/Reconcile the booking/);
-    });
-
-    it("shows a scheduled pilot's date", () => {
-      expect(deriveJobStage(facts({ recommendation: recommended, booking: { state: "scheduled", startsAt: "2026-11-02T15:00:00.000Z" } })))
-        .toMatchObject({ stage: "scheduled", actionOwner: "none", nextAction: "Pilot scheduled for 2026-11-02" });
-    });
+  it("offers no recommendation, booking or pilot-scheduling stage", () => {
+    for (const retired of ["recommend", "recommendation_review", "awaiting_booking", "coordination", "scheduled"]) {
+      expect(JOB_STAGES as readonly string[]).not.toContain(retired);
+    }
   });
 
   describe("overrides and attention", () => {
     it("puts withdrawal above every downstream state", () => {
-      const result = deriveJobStage(facts({ withdrawal: { state: "cleanup_pending" }, booking: { state: "scheduled" },
-        recommendation: { state: "recommended" } }));
+      const result = deriveJobStage(facts({ withdrawal: { state: "cleanup_pending" }, runs: { reported: 1, passing: 1 } }));
       expect(result).toMatchObject({ stage: "withdrawn", actionOwner: "blueprint", nextAction: "Confirm capture withdrawal cleanup" });
       expect(deriveJobStage(facts({ withdrawal: { state: "legal_hold" } })).actionOwner).toBe("none");
       expect(deriveJobStage(facts({ withdrawal: { state: "complete" } })).actionOwner).toBe("none");
@@ -367,7 +340,7 @@ describe("projectJobFacts", () => {
     expect(result).toMatchObject({
       siteName: "Dock 4", claimed: true,
       brief: { state: "confirmed" }, capture: { state: "covered" }, listing: { state: "live" },
-      recommendation: { state: "none" }, booking: { state: "none" }, withdrawal: { state: "none" },
+      withdrawal: { state: "none" },
     });
     // `enabled: true` alone is not a card grant teams are shown, so the console does not invite them.
     expect(result.teamAccess).toEqual({ listed: false, evaluationAvailable: false, reason: "not_listed", sceneHold: null });
@@ -478,7 +451,7 @@ describe("projectJobFacts", () => {
     ] }));
     expect(result.runs).toMatchObject({ queued: 1, running: 1, reported: 2, noResult: 1, passing: 1, belowTarget: 1 });
     expect(result.runs.best).toMatchObject({ runId: "r1", teamName: "Atlas", successRatePct: 90, meetsTarget: true });
-    expect(deriveJobStage(result).nextAction).toBe("Recommend a team (1 passing run)");
+    expect(deriveJobStage(result).nextAction).toBe("Work with a deployment company on the passing result (1 passing run)");
   });
 
   it("never counts a run as passing once the site re-targeted the job after requesting it", () => {
@@ -493,13 +466,14 @@ describe("projectJobFacts", () => {
     expect(unchanged.runs).toMatchObject({ reported: 1, passing: 1 });
   });
 
-  it("reads recommendation, booking, coordination and withdrawal from the record", () => {
-    const recommendation = { id: "rec_1", teamId: "team-a", teamName: "Atlas", recommendedAtIso: "2026-10-07T00:00:00.000Z", evaluationRunId: "r1" };
-    const booked = projectJobFacts(inputs({ record: { ...inputs().record, pilot_recommendation: recommendation,
-      pilot_booking: { recommendationId: "rec_1", state: "awaiting_coordination", acceptedAtIso: "2026-10-08T00:00:00.000Z" } } }));
-    expect(booked.recommendation).toEqual({ state: "recommended", recommendationId: "rec_1", teamId: "team-a", teamName: "Atlas", evaluationRunId: "r1" });
-    expect(booked.booking.state).toBe("awaiting_coordination");
-    expect(booked.lastActivityIso).toBe("2026-10-08T00:00:00.000Z");
+  it("reads withdrawal from the record, and ignores a stored recommendation or booking from the retired flow", () => {
+    const recommendation = { id: "rec_1", teamId: "team-a", teamName: "Atlas", recommendedAtIso: "2099-10-07T00:00:00.000Z", evaluationRunId: "r1" };
+    const legacy = projectJobFacts(inputs({ record: { ...inputs().record, pilot_recommendation: recommendation,
+      pilot_booking: { recommendationId: "rec_1", state: "awaiting_coordination", acceptedAtIso: "2099-10-08T00:00:00.000Z" } } }));
+    expect(legacy).not.toHaveProperty("recommendation");
+    expect(legacy).not.toHaveProperty("booking");
+    expect(legacy).toEqual(projectJobFacts(inputs()));
+    expect(buildJobTimeline(inputs(), legacy).map(entry => entry.key)).not.toContain("booked");
 
     const withdrawn = projectJobFacts(inputs({ record: { ...inputs().record, consent_revoked: true,
       capture_withdrawal: { state: "cleanup_retained_legal_hold", requestedAtIso: "2026-10-09T00:00:00.000Z" } } }));

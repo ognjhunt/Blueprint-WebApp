@@ -133,7 +133,7 @@ describe("GET /api/admin/jobs", () => {
       evaluations: { total: 1, pendingAdmission: 1, admitted: 0 } });
     expect(body.jobs[1]).toMatchObject({ stage: "listing", actionOwner: "site" });
     expect(body.nextCursor).toBeNull();
-    expect(body.stages).toContain("recommend");
+    expect(body.stages).toContain("passing_run");
   });
 
   it("filters by stage and searches by site name", async () => {

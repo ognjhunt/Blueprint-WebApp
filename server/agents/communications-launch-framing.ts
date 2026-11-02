@@ -7,17 +7,18 @@ import { LEGACY_COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE as COMMUNICATIONS_FOUNDE
 export const COMMUNICATIONS_FRAMING_V1 = "blueprint.outreach-framing.v1" as const;
 export const COMMUNICATIONS_FRAMING_V2 = "blueprint.outreach-framing.v2" as const;
 export const COMMUNICATIONS_FRAMING_V3 = "blueprint.outreach-framing.v3" as const;
-export const COMMUNICATIONS_FRAMING_VERSION = "blueprint.outreach-framing.v4" as const;
+export const COMMUNICATIONS_FRAMING_V4 = "blueprint.outreach-framing.v4" as const;
+export const COMMUNICATIONS_FRAMING_VERSION = "blueprint.outreach-framing.v5" as const;
 export type CommunicationsFramingVersion = typeof COMMUNICATIONS_FRAMING_V1 | typeof COMMUNICATIONS_FRAMING_V2
-  | typeof COMMUNICATIONS_FRAMING_V3 | typeof COMMUNICATIONS_FRAMING_VERSION;
+  | typeof COMMUNICATIONS_FRAMING_V3 | typeof COMMUNICATIONS_FRAMING_V4 | typeof COMMUNICATIONS_FRAMING_VERSION;
 export function communicationsFramingVersion(value: unknown): CommunicationsFramingVersion | undefined {
   if (value === undefined || value === COMMUNICATIONS_FRAMING_V1 || value === COMMUNICATIONS_FRAMING_V2
-    || value === COMMUNICATIONS_FRAMING_V3 || value === COMMUNICATIONS_FRAMING_VERSION) return value;
+    || value === COMMUNICATIONS_FRAMING_V3 || value === COMMUNICATIONS_FRAMING_V4 || value === COMMUNICATIONS_FRAMING_VERSION) return value;
   throw new Error("communications_framing_version_unsupported");
 }
-/** v3 and v4 share the natural founder-prose behavior; only their guidance text and digest differ. */
+/** v3, v4 and v5 share the natural founder-prose behavior; only their guidance text and digest differ. */
 export function communicationsNaturalFraming(version: unknown) {
-  return version === COMMUNICATIONS_FRAMING_V3 || version === COMMUNICATIONS_FRAMING_VERSION;
+  return version === COMMUNICATIONS_FRAMING_V3 || version === COMMUNICATIONS_FRAMING_V4 || version === COMMUNICATIONS_FRAMING_VERSION;
 }
 export const COMMUNICATIONS_AUDIENCE_ROLES = ["site", "robot_team", "policy_team", "world_model_evaluation"] as const;
 export type CommunicationsAudienceRole = typeof COMMUNICATIONS_AUDIENCE_ROLES[number];
@@ -40,16 +41,24 @@ export const COMMUNICATIONS_FOUNDER_GUIDANCE_V3 = COMMUNICATIONS_LAUNCH_GUIDANCE
 export const COMMUNICATIONS_FOUNDER_FRAMING_V3_DIGEST = createHash("sha256").update(COMMUNICATIONS_FOUNDER_GUIDANCE_V3).digest("hex");
 // v3 above stays byte-exact for in-flight jobs. v4 carries the founder's free beta
 // (2026-10-13) in place of the archived site fee; it is otherwise the v3 text.
-export const COMMUNICATIONS_FOUNDER_GUIDANCE = COMMUNICATIONS_FOUNDER_GUIDANCE_V3.replace(
+export const COMMUNICATIONS_FOUNDER_GUIDANCE_V4 = COMMUNICATIONS_FOUNDER_GUIDANCE_V3.replace(
   "Robot-team beta evaluation is free when invited; hardware, integration and site matching are not thereby free. Site assessment and opening pilot proposals are free; the separate site fee is $2,500 per task only when the site books Blueprint's recommended pilot, with no cut of a pilot. Booking is tied to the specific recommendation/version presented. A recommendation is not a booking, customer commitment or payment; do not imply team availability or an accepted offer without evidence. Do not invent a price or a match promise.",
   () => "During the beta Blueprint is free for sites and invited robot teams: site assessment, invited evaluation in simulation, Blueprint's one recommended pilot and booking it cost nothing. The physical pilot is priced and run by the robot team and agreed directly with the site; Blueprint takes no cut. Booking is tied to the specific recommendation/version presented. A recommendation is not a booking, customer commitment or payment; do not imply team availability or an accepted offer without evidence. Do not invent a price or quote future pricing.")
   // Blueprint recommends one evaluated team; it does not "match" sites and teams.
   .replace("demand-led matching", "demand-led introductions");
+export const COMMUNICATIONS_FOUNDER_FRAMING_V4_DIGEST = createHash("sha256").update(COMMUNICATIONS_FOUNDER_GUIDANCE_V4).digest("hex");
+// v4 above stays byte-exact for in-flight jobs. v5 drops the retired pilot
+// recommendation and booking (owner decision 2026-10-28): Blueprint shows the site a
+// bounded estimate and works with a deployment company. It is otherwise the v4 text.
+export const COMMUNICATIONS_FOUNDER_GUIDANCE = COMMUNICATIONS_FOUNDER_GUIDANCE_V4.replace(
+  "During the beta Blueprint is free for sites and invited robot teams: site assessment, invited evaluation in simulation, Blueprint's one recommended pilot and booking it cost nothing. The physical pilot is priced and run by the robot team and agreed directly with the site; Blueprint takes no cut. Booking is tied to the specific recommendation/version presented. A recommendation is not a booking, customer commitment or payment; do not imply team availability or an accepted offer without evidence.",
+  () => "During the beta Blueprint is free for sites and invited robot teams: site assessment and invited evaluation in simulation cost nothing. Blueprint shows the site a bounded simulation estimate and works with a deployment company. Any physical pilot is priced and run by the deployment company and agreed directly with the site; Blueprint takes no cut. An estimate is not a recommendation, customer commitment or payment; do not imply team availability or an accepted offer without evidence.");
 export const COMMUNICATIONS_FOUNDER_FRAMING_DIGEST = createHash("sha256").update(COMMUNICATIONS_FOUNDER_GUIDANCE).digest("hex");
 const FRAMING_GUIDANCE: Record<CommunicationsFramingVersion, readonly [string, string]> = {
   [COMMUNICATIONS_FRAMING_V1]: [COMMUNICATIONS_LAUNCH_GUIDANCE_V1, COMMUNICATIONS_FRAMING_V1_DIGEST],
   [COMMUNICATIONS_FRAMING_V2]: [COMMUNICATIONS_LAUNCH_GUIDANCE, COMMUNICATIONS_FRAMING_DIGEST],
   [COMMUNICATIONS_FRAMING_V3]: [COMMUNICATIONS_FOUNDER_GUIDANCE_V3, COMMUNICATIONS_FOUNDER_FRAMING_V3_DIGEST],
+  [COMMUNICATIONS_FRAMING_V4]: [COMMUNICATIONS_FOUNDER_GUIDANCE_V4, COMMUNICATIONS_FOUNDER_FRAMING_V4_DIGEST],
   [COMMUNICATIONS_FRAMING_VERSION]: [COMMUNICATIONS_FOUNDER_GUIDANCE, COMMUNICATIONS_FOUNDER_FRAMING_DIGEST],
 };
 

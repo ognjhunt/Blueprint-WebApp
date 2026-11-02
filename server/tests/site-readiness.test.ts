@@ -8,11 +8,11 @@
  * - the video reader's estimates fill what nobody measured, always labelled
  *   "estimated from your video", and anything the site measured or told us
  *   still comes first;
- * - nothing asks the site anything: its only steps are its video, its brief
- *   and booking, and every checklist item is ready or one to confirm with the
+ * - nothing asks the site anything: its only steps are its video and its
+ *   brief, and every checklist item is ready or one to confirm with the
  *   robot team, never a check no process runs;
- * - the tracker reports recorded states only, calls a recommendation bookable
- *   exactly as the booking route does, and says when a job is out of scope;
+ * - the tracker reports recorded states only, offers the site no pilot
+ *   booking step, and says when a job is out of scope;
  * - the simulation is credited only with what the evaluation contract tests;
  * - exceptions are read from real exceptions, not lookalike phrases;
  * - examples are deployments on the public record, by environment, with no
@@ -166,30 +166,31 @@ describe("estimates from the video", () => {
   });
 });
 
-describe("steps to a pilot", () => {
+describe("where the job stands", () => {
   const states = (value: Inputs) => Object.fromEntries(trackerOf(value).steps.map((entry) => [entry.id, entry.state]));
 
   it("asks the site only for its video and its brief, and reports recorded states only", () => {
     const tracker = trackerOf(inputs({ reconstructionState: "processing" }));
     expect(tracker.steps.map((entry) => [entry.id, entry.state, entry.owner])).toEqual([
       ["video", "done", "site"], ["brief", "done", "site"], ["scene", "in_progress", "blueprint"],
-      ["evaluation", "pending", "blueprint"], ["recommendation", "pending", "blueprint"], ["booking", "pending", "site"]]);
+      ["evaluation", "pending", "blueprint"], ["recommendation", "pending", "blueprint"]]);
     expect(tracker.meanwhile).toBe("Blueprint is rebuilding your work area in 3D from your video.");
   });
 
-  it("calls a recommendation bookable only as the booking route does", () => {
+  it("credits a result only from a reviewed recommendation on qualified evidence, and offers no booking", () => {
     const request = (recommendation: Record<string, unknown>, extra: Record<string, unknown> = {}) =>
       inputs({ request: { requestId: "job-1", request: {}, ...SCREENED, pilot_recommendation: recommendation, ...extra } });
-    const bookable = request({ id: "r1", evidence: { qualified: true } });
-    expect(states(bookable)).toMatchObject({ evaluation: "done", recommendation: "done", booking: "pending" });
-    expect(trackerOf(bookable).meanwhile).toBe("Blueprint has a result and a proposed pilot for your job. You can review them on your job page.");
+    const shown = request({ id: "r1", evidence: { qualified: true } });
+    expect(states(shown)).toEqual({ video: "done", brief: "done", scene: "pending", evaluation: "done", recommendation: "done" });
+    expect(trackerOf(shown).meanwhile).toBe("Blueprint has a result for your job. You can review it on your job page.");
     for (const held of [request({ id: "r1", evidence: { qualified: true }, reviewRequired: true }), request({ id: "r1", evidence: {} })]) {
       expect(states(held)).toMatchObject({ evaluation: "done", recommendation: "in_progress" });
       expect(trackerOf(held).meanwhile).toBe("Blueprint is reviewing the result against your job brief.");
     }
+    // A stored booking from the retired flow changes nothing the site sees.
     const booked = request({ id: "r1", evidence: { qualified: true }, reviewRequired: true }, { pilot_booking: { recommendationId: "r1" } });
-    expect(states(booked)).toMatchObject({ recommendation: "done", booking: "done" });
-    expect(trackerOf(booked).meanwhile).toBe("You chose to go ahead with a pilot. You and the deployment company agree its details directly.");
+    expect(states(booked)).toMatchObject({ evaluation: "done", recommendation: "in_progress" });
+    expect(trackerOf(booked).meanwhile).toBe("Blueprint is reviewing the result against your job brief.");
   });
 
   it("says so when a job is out of scope, rather than promising robot teams", () => {
@@ -204,7 +205,7 @@ describe("steps to a pilot", () => {
       .toBe("Next, Blueprint evaluates candidate robots and policies that look right for your job in a simulation of your site.");
     expect(trackerOf(inputs({ reconstructionState: "ready", sceneViewable: true })).steps.map((entry) => entry.label)).toEqual([
       "Video received", "Job brief confirmed", "Your site rebuilt in 3D", "Blueprint evaluates candidate robots and policies in simulation",
-      "Blueprint shows you what works", "You decide whether to pilot"]);
+      "Blueprint shows you what works"]);
     expect(trackerOf(inputs({ reconstructionState: "failed" })).meanwhile).toBeNull();
   });
 

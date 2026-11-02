@@ -78,7 +78,7 @@ function PublicTaskListingForToken({ token, jobRevision }: { token: string; jobR
           {field("siteType", "Site type", 80)}{field("cycleTarget", "Cycle target", 80)}
           {field("pilotTiming", "Pilot timing", 80)}
           <label>Pilot conditions (optional)<textarea value={details.pilotConditions ?? ""} maxLength={320} onChange={e => { dirty.current = true; setDetails({ ...details, pilotConditions: e.target.value }); setConsent(false); setState("idle"); }} placeholder="For example: four weeks, including setup and provider support" /></label>
-          <p className="ms-field-hint">You do not need to propose a budget. Any provider cost belongs in a concrete pilot proposal for applicable approval. Previously supplied price information stays on this job; this form does not amend an agreement.</p>
+          <p className="ms-field-hint">You do not need to propose a budget. Any provider cost is agreed directly with the deployment company before a pilot. Previously supplied price information stays on this job; this form does not amend an agreement.</p>
         </details>
         <label>Pilot availability<select value={details.opportunity} onChange={e => { dirty.current = true; setDetails({ ...details, opportunity: e.target.value as TaskListingDetails["opportunity"] }); setConsent(false); }}>
           {Object.entries(opportunityLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}

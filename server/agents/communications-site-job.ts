@@ -80,8 +80,8 @@ export async function loadSiteJobCommunicationsContext(db: FirebaseFirestore.Fir
     // Already source-checked and scrubbed by the existing customer projection;
     // its questions/unknowns are proposals, never launch or send authority.
     assessment: assessment?.state === "ready" ? assessment : null,
-    answers: revoked ? {} : gateAnswersOnFile(record), recommendation: revoked ? null : record.pilot_recommendation ?? null,
-    acceptance: record.pilot_booking ?? null, decision: revoked ? null : projectCurrentSiteJobDecision(record, b,
+    // A stored pilot recommendation or booking from the retired flow is not context.
+    answers: revoked ? {} : gateAnswersOnFile(record), decision: revoked ? null : projectCurrentSiteJobDecision(record, b,
       view?.decisionAssessment ?? null, view?.compatibleDecisionAssessments ?? []),
     intake: revoked ? null : {
       buyerType: record.request?.buyerType ?? null,

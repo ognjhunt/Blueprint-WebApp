@@ -5,7 +5,6 @@ import type {
   WorkspaceTask,
 } from "../../client/src/types/workspace";
 import { teamJobAccess } from "./teamJobAccess";
-import { isQualifiedRecommendationEvidence } from "./pilotRecommendationEvidence";
 import { hasQualifiedSimulationEvidence, type RunResultScoring } from "./runResultScoring";
 import type { EpisodeOutcome } from "./agentRunResults";
 import { sitePilotIntentFrom, siteVisitOptions } from "../../client/src/data/sitePilotIntent";
@@ -124,9 +123,6 @@ export function projectWorkspaceTask(
   // rather than an "In review" that never ends.
   const access = teamJobAccess(record);
   const published = access.evaluationAvailable;
-  const booking = object(record.pilot_booking), recommendation = object(record.pilot_recommendation);
-  const bookedSelection = Boolean(booking.recommendationId && booking.recommendationId === recommendation.id
-    && pilot.selectedResultId && pilot.selectedResultId === recommendation.evaluationRunId);
   return {
     id,
     recordingPermissionWithdrawn: record.consent_revoked === true,
@@ -143,17 +139,15 @@ export function projectWorkspaceTask(
           ? "Pilot complete"
           : pilot.state === "pilot"
             ? "Pilot underway"
-            : bookedSelection
-              ? "Pilot booked"
-              : pilot.selectedResultId
-                ? pilot.state === "invited"
-                  ? "Pilot invited"
-                  : "Pilot selected"
-                : published
-                  ? "Open for evaluations"
-                  : access.reason === "not_listed"
-                    ? "Private"
-                    : "In review",
+            : pilot.selectedResultId
+              ? pilot.state === "invited"
+                ? "Pilot invited"
+                : "Pilot selected"
+              : published
+                ? "Open for evaluations"
+                : access.reason === "not_listed"
+                  ? "Private"
+                  : "In review",
     nextStep: text(object(record.ops).next_step) || null,
     terms: termsFor(record),
     pilotIntent: sitePilotIntentFrom(workspace.pilotIntent),
@@ -188,11 +182,6 @@ export function projectWorkspaceTask(
       notes: text(pilot.notes) || null,
       siteVisitAnswer: siteVisitOptions.find((option) => option.value === pilot.siteVisitAnswer)?.value ?? null,
     },
-    // What the owner booking route accepts for a new booking (`task-listings.ts`):
-    // a recorded recommendation, not awaiting review, on qualified evidence.
-    // Nothing else may read as "book it" (audit N14).
-    pilotRecommended: Boolean(text(recommendation.id)) && recommendation.reviewRequired !== true
-      && isQualifiedRecommendationEvidence(recommendation.evidence),
     createdAt: iso(record.createdAt),
   };
 }

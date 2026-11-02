@@ -1,6 +1,7 @@
-import { COMMUNICATIONS_FRAMING_VERSION, COMMUNICATIONS_FRAMING_V1, COMMUNICATIONS_FRAMING_V2, COMMUNICATIONS_FRAMING_V3, COMMUNICATIONS_FRAMING_V1_DIGEST,
-  COMMUNICATIONS_LAUNCH_GUIDANCE, COMMUNICATIONS_LAUNCH_GUIDANCE_V1, COMMUNICATIONS_FOUNDER_GUIDANCE, COMMUNICATIONS_FOUNDER_GUIDANCE_V3,
-  COMMUNICATIONS_FOUNDER_FRAMING_DIGEST, COMMUNICATIONS_FOUNDER_FRAMING_V3_DIGEST, COMMUNICATIONS_AUDIENCE_ROLES, communicationsLaunchFraming } from "../agents/communications-launch-framing";
+import { COMMUNICATIONS_FRAMING_VERSION, COMMUNICATIONS_FRAMING_V1, COMMUNICATIONS_FRAMING_V2, COMMUNICATIONS_FRAMING_V3, COMMUNICATIONS_FRAMING_V4, COMMUNICATIONS_FRAMING_V1_DIGEST,
+  COMMUNICATIONS_LAUNCH_GUIDANCE, COMMUNICATIONS_LAUNCH_GUIDANCE_V1, COMMUNICATIONS_FOUNDER_GUIDANCE, COMMUNICATIONS_FOUNDER_GUIDANCE_V3, COMMUNICATIONS_FOUNDER_GUIDANCE_V4,
+  COMMUNICATIONS_FOUNDER_FRAMING_DIGEST, COMMUNICATIONS_FOUNDER_FRAMING_V3_DIGEST, COMMUNICATIONS_FOUNDER_FRAMING_V4_DIGEST, COMMUNICATIONS_AUDIENCE_ROLES,
+  communicationsLaunchFraming } from "../agents/communications-launch-framing";
 import { createHash } from "node:crypto";
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -1070,10 +1071,12 @@ describe("declared MCP connection failure observations", () => {
 
 describe("prospective founder framing versions", () => {
   const brief = { boundedJob: "restocking shelves", facilityName: "Acme Store" };
-  it("makes free-beta v4 current, with no site fee, match fee or booking-conditioned charge", () => {
-    expect(COMMUNICATIONS_FRAMING_VERSION).toBe("blueprint.outreach-framing.v4");
+  it("makes v5 current: free beta, no fee, and no pilot recommendation or booking", () => {
+    expect(COMMUNICATIONS_FRAMING_VERSION).toBe("blueprint.outreach-framing.v5");
     expect(COMMUNICATIONS_FOUNDER_GUIDANCE).not.toMatch(/\$2,500|match fee|only when the site books|site fee/);
+    expect(COMMUNICATIONS_FOUNDER_GUIDANCE).not.toMatch(/\bbook|recommended pilot/i);
     expect(COMMUNICATIONS_FOUNDER_GUIDANCE).toContain("During the beta Blueprint is free for sites and invited robot teams");
+    expect(COMMUNICATIONS_FOUNDER_GUIDANCE).toContain("Blueprint shows the site a bounded simulation estimate and works with a deployment company.");
     expect(COMMUNICATIONS_FOUNDER_GUIDANCE).toContain("agreed directly with the site; Blueprint takes no cut");
     expect(COMMUNICATIONS_FOUNDER_GUIDANCE).toContain("Do not invent a price or quote future pricing.");
     expect(COMMUNICATIONS_FOUNDER_FRAMING_DIGEST).toBe(createHash("sha256").update(COMMUNICATIONS_FOUNDER_GUIDANCE).digest("hex"));
@@ -1094,8 +1097,19 @@ describe("prospective founder framing versions", () => {
         instructionsDigest: COMMUNICATIONS_FOUNDER_FRAMING_V3_DIGEST, guidance: COMMUNICATIONS_FOUNDER_GUIDANCE_V3 }).toEqual(v3[index]);
     }
     const [before, after] = COMMUNICATIONS_FOUNDER_GUIDANCE_V3.split(/Robot-team beta evaluation .*? Do not invent a price or a match promise\./);
-    expect(COMMUNICATIONS_FOUNDER_GUIDANCE.startsWith(before)
-      && COMMUNICATIONS_FOUNDER_GUIDANCE.endsWith(after.replace("demand-led matching", "demand-led introductions"))).toBe(true);
+    expect(COMMUNICATIONS_FOUNDER_GUIDANCE_V4.startsWith(before)
+      && COMMUNICATIONS_FOUNDER_GUIDANCE_V4.endsWith(after.replace("demand-led matching", "demand-led introductions"))).toBe(true);
+    expect(COMMUNICATIONS_FOUNDER_GUIDANCE_V4).not.toMatch(/\bmatch(?:ing|ed|es)?\b/i);
+  });
+  it("keeps v4 byte-exact for in-flight jobs; v5 differs only in its commercial direction", () => {
+    // Computed from the v4 text before v5 existed.
+    expect(COMMUNICATIONS_FOUNDER_FRAMING_V4_DIGEST).toBe("4648e98b290b5409ad864f784ed539281be88d389ecb53bc1c86de400b47070a");
+    expect(createHash("sha256").update(COMMUNICATIONS_FOUNDER_GUIDANCE_V4).digest("hex")).toBe(COMMUNICATIONS_FOUNDER_FRAMING_V4_DIGEST);
+    expect(COMMUNICATIONS_FOUNDER_GUIDANCE_V4).toContain("Blueprint's one recommended pilot and booking it cost nothing");
+    expect(communicationsLaunchFraming(brief, COMMUNICATIONS_FRAMING_V4)).toMatchObject({ version: COMMUNICATIONS_FRAMING_V4,
+      instructionsDigest: COMMUNICATIONS_FOUNDER_FRAMING_V4_DIGEST, guidance: COMMUNICATIONS_FOUNDER_GUIDANCE_V4, questionIsSuggestion: true });
+    const [before, after] = COMMUNICATIONS_FOUNDER_GUIDANCE_V4.split(/During the beta Blueprint is free .*? do not imply team availability or an accepted offer without evidence\./);
+    expect(COMMUNICATIONS_FOUNDER_GUIDANCE.startsWith(before) && COMMUNICATIONS_FOUNDER_GUIDANCE.endsWith(after)).toBe(true);
     expect(COMMUNICATIONS_FOUNDER_GUIDANCE).not.toMatch(/\bmatch(?:ing|ed|es)?\b/i);
   });
 });
@@ -1193,7 +1207,7 @@ describe("outreach-ready hypothesis session definitions (hypothesis jobs only)",
     expect(creates).toBe(1);
     expect(f.reservePaidDraft).toHaveBeenCalledOnce();
   });
-  it.each([undefined, COMMUNICATIONS_FRAMING_V1, COMMUNICATIONS_FRAMING_V2, COMMUNICATIONS_FRAMING_V3, COMMUNICATIONS_FRAMING_VERSION])("creates and reads back a hypothesis session with framing=%s, retaining archived hashes", async version => {
+  it.each([undefined, COMMUNICATIONS_FRAMING_V1, COMMUNICATIONS_FRAMING_V2, COMMUNICATIONS_FRAMING_V3, COMMUNICATIONS_FRAMING_V4, COMMUNICATIONS_FRAMING_VERSION])("creates and reads back a hypothesis session with framing=%s, retaining archived hashes", async version => {
     const f = apiFixture();
     const result = await f.api.run({ ...f.params, checkpoint: { ...hypothesisCheckpoint(), ...(version ? { framingVersion: version } : {}) } as any });
     const body = JSON.parse(String(f.calls.find(call => call.init.method === "POST")!.init.body));
@@ -1201,9 +1215,10 @@ describe("outreach-ready hypothesis session definitions (hypothesis jobs only)",
     expect(definition.version).toBe(version === undefined ? "blueprint.communications-definition.v9"
       : version === COMMUNICATIONS_FRAMING_V1 ? "blueprint.communications-definition.v13"
       : version === COMMUNICATIONS_FRAMING_V2 ? "blueprint.communications-definition.v17"
-      : version === COMMUNICATIONS_FRAMING_V3 ? "blueprint.communications-definition.v21" : "blueprint.communications-definition.v45");
+      : version === COMMUNICATIONS_FRAMING_V3 ? "blueprint.communications-definition.v21"
+      : version === COMMUNICATIONS_FRAMING_V4 ? "blueprint.communications-definition.v45" : "blueprint.communications-definition.v49");
     expect(definition.instructions.startsWith(`${COMMUNICATIONS_HISTORY_DEFINITION.instructions}\n`)).toBe(true);
-    expect(definition.instructions).toContain(version === COMMUNICATIONS_FRAMING_V3 || version === COMMUNICATIONS_FRAMING_VERSION
+    expect(definition.instructions).toContain(version === COMMUNICATIONS_FRAMING_V3 || version === COMMUNICATIONS_FRAMING_V4 || version === COMMUNICATIONS_FRAMING_VERSION
       ? "blueprint.outreach.v4" : version ? "blueprint.outreach.v3" : "blueprint.outreach.v2");
     expect(body.agent).toEqual(communicationsHypothesisConfiguration(COMMUNICATIONS_HISTORY_CONFIGURATION, version));
     expect(body.metadata).toMatchObject({ blueprint_communications_definition: definition.version,
@@ -1262,7 +1277,7 @@ describe("outreach-ready hypothesis session definitions (hypothesis jobs only)",
   it("gives free-beta founder framing v4 its own v45-v48 definitions without touching v3", () => {
     const bases = [COMMUNICATIONS_HISTORY_DEFINITION, COMMUNICATIONS_GMAIL_READ_DEFINITION,
       COMMUNICATIONS_GMAIL_NOTION_READ_DEFINITION, COMMUNICATIONS_GMAIL_NOTION_FIREBASE_READ_DEFINITION];
-    const current = bases.map(base => communicationsHypothesisDefinition(base, COMMUNICATIONS_FRAMING_VERSION));
+    const current = bases.map(base => communicationsHypothesisDefinition(base, COMMUNICATIONS_FRAMING_V4));
     expect(current.map(definition => definition.version)).toEqual([45, 46, 47, 48].map(version => `blueprint.communications-definition.v${version}`));
     const taken = new Set([undefined, COMMUNICATIONS_FRAMING_V1, COMMUNICATIONS_FRAMING_V2, COMMUNICATIONS_FRAMING_V3]
       .flatMap(version => bases.map(base => communicationsHypothesisDefinition(base, version ?? false).version)));
@@ -1272,12 +1287,34 @@ describe("outreach-ready hypothesis session definitions (hypothesis jobs only)",
     expect(Math.max(...[...taken].map(version => Number(version!.split(".v").at(-1))))).toBe(44);
     for (const definition of current) expect(taken.has(definition.version)).toBe(false);
     for (const [index, definition] of current.entries()) {
-      expect(definition.instructions).toContain(COMMUNICATIONS_FOUNDER_GUIDANCE);
+      expect(definition.instructions).toContain(COMMUNICATIONS_FOUNDER_GUIDANCE_V4);
       expect(definition.instructions).not.toContain(COMMUNICATIONS_FOUNDER_GUIDANCE_V3);
       expect(definition.instructions).not.toMatch(/\$2,500|match fee|only when the site books/);
       expect(definition.instructions).toContain("blueprint.outreach.v4");
-      expect(definition.instructions.replace(COMMUNICATIONS_FOUNDER_GUIDANCE, COMMUNICATIONS_FOUNDER_GUIDANCE_V3))
+      expect(definition.instructions.replace(COMMUNICATIONS_FOUNDER_GUIDANCE_V4, COMMUNICATIONS_FOUNDER_GUIDANCE_V3))
         .toBe(communicationsHypothesisDefinition(bases[index], COMMUNICATIONS_FRAMING_V3).instructions);
+    }
+    expect(communicationsHypothesisConfiguration(COMMUNICATIONS_HISTORY_CONFIGURATION, COMMUNICATIONS_FRAMING_V4).instructions)
+      .toBe(current[0].instructions);
+  });
+  it("gives framing v5, without the retired pilot booking, its own v49-v52 definitions without touching v4", () => {
+    const bases = [COMMUNICATIONS_HISTORY_DEFINITION, COMMUNICATIONS_GMAIL_READ_DEFINITION,
+      COMMUNICATIONS_GMAIL_NOTION_READ_DEFINITION, COMMUNICATIONS_GMAIL_NOTION_FIREBASE_READ_DEFINITION];
+    const current = bases.map(base => communicationsHypothesisDefinition(base, COMMUNICATIONS_FRAMING_VERSION));
+    expect(current.map(definition => definition.version)).toEqual([49, 50, 51, 52].map(version => `blueprint.communications-definition.v${version}`));
+    const taken = new Set([undefined, COMMUNICATIONS_FRAMING_V1, COMMUNICATIONS_FRAMING_V2, COMMUNICATIONS_FRAMING_V3, COMMUNICATIONS_FRAMING_V4]
+      .flatMap(version => bases.map(base => communicationsHypothesisDefinition(base, version ?? false).version)));
+    for (const base of bases)
+      for (const [hypothesis, historical, previousWriting] of [[false, false, false], [true, false, false], [false, true, false], [true, true, false], [false, false, true], [true, false, true]])
+        taken.add(communicationsPersonalizedDefinition(base, hypothesis, historical, previousWriting).version);
+    expect(Math.max(...[...taken].map(version => Number(version!.split(".v").at(-1))))).toBe(48);
+    for (const definition of current) expect(taken.has(definition.version)).toBe(false);
+    for (const [index, definition] of current.entries()) {
+      expect(definition.instructions).toContain(COMMUNICATIONS_FOUNDER_GUIDANCE);
+      expect(definition.instructions).not.toContain(COMMUNICATIONS_FOUNDER_GUIDANCE_V4);
+      expect(definition.instructions).toContain("blueprint.outreach.v4");
+      expect(definition.instructions.replace(COMMUNICATIONS_FOUNDER_GUIDANCE, COMMUNICATIONS_FOUNDER_GUIDANCE_V4))
+        .toBe(communicationsHypothesisDefinition(bases[index], COMMUNICATIONS_FRAMING_V4).instructions);
     }
     expect(communicationsHypothesisConfiguration(COMMUNICATIONS_HISTORY_CONFIGURATION, COMMUNICATIONS_FRAMING_VERSION).instructions)
       .toBe(current[0].instructions);
@@ -1367,7 +1404,7 @@ describe("outreach-ready hypothesis session definitions (hypothesis jobs only)",
       .rejects.toMatchObject({ code: "agents_existing_session_history_binding_mismatch" });
     expect(f.reservePaidDraft).toHaveBeenCalledOnce();
   });
-  it.each([null, false, "blueprint.outreach-framing.v5", "", {}])("rejects unsupported framing %j before provider or paid admission", async framingVersion => {
+  it.each([null, false, "blueprint.outreach-framing.v6", "", {}])("rejects unsupported framing %j before provider or paid admission", async framingVersion => {
     const f = apiFixture(), checkpoint = { ...hypothesisCheckpoint(), framingVersion } as any;
     await expect(f.api.run({ ...f.params, checkpoint })).rejects.toThrow("communications_framing_version_unsupported");
     await expect(f.api.reconcileSaved(checkpoint, f.params.jobId)).rejects.toThrow("communications_framing_version_unsupported");

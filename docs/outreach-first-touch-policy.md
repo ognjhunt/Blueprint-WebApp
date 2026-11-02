@@ -47,6 +47,17 @@ sentences above remain only as the recorded direction of framing v1-v3, which
 stay byte-exact for historical and in-flight jobs. v4 hypothesis overrides use
 session definitions v45-v48.
 
+Owner direction, 2026-10-28 (in code 2026-11-02): new jobs consume
+`blueprint.outreach-framing.v5`. The site-facing pilot recommendation and
+booking are retired. During the beta, site assessment and invited evaluation in
+simulation cost nothing. Blueprint shows the site a bounded simulation estimate
+and works with a deployment company; any physical pilot is priced and run by the
+deployment company and agreed directly with the site, and Blueprint takes no cut.
+An estimate is not a recommendation, customer commitment or payment. The v4
+sentences above remain only as the recorded direction of framing v4, which stays
+byte-exact for in-flight jobs. v5 hypothesis overrides use session definitions
+v49-v52.
+
 Fresh hypothesis drafts use `blueprint.outreach.v3`: the framing question and
 `checks:["interest"]`, without promoting any research open check. The immutable
 Pipeline-produced qualification, question and source dates remain intact. Old
@@ -122,9 +133,10 @@ is available; it is not evidence that a network search was performed or required
    **confirmed deployment capacity** distinct. A reply, useful public research,
    willingness to learn, or consent to evaluate does not establish the others.
 4. Offer a bounded **readiness/learning brief** where useful. This is a learning
-   artifact, distinct from a recommended pilot and the pilot booking fee. It
-   does not certify readiness, promise deployment, or trigger a fee merely
-   because someone replies, provides information, or participates in evaluation.
+   artifact, distinct from any pilot, which the site and a deployment company
+   agree directly. It does not certify readiness, promise deployment, or trigger
+   a fee merely because someone replies, provides information, or participates
+   in evaluation.
 5. Build a **progressive job brief**: ask one easy job question first, then gather
    the smallest relevant detail after the recipient chooses to continue. Request
    footage and detailed operating information later, with purpose and limits
@@ -319,7 +331,7 @@ contract, or recorded evidence changes. Retry checks the stored attestation.
 | Warm kind/claim matches recorded verification fields | Source proves the connection/introduction/membership and wording implies no endorsement |
 | Offer, limits, and recipient-choice text appear in the body | Value is small, useful, task-specific, deliverable, and bounded; choice is unpressured |
 | One `?`, an anchored question, and explicit prohibited-pattern checks | One genuinely easy question tailored to verified site state, with public-signal provenance for claimed interest/pilot/deployment; no invented motivation/status, compound ask, confidential request, questionnaire, or default meeting |
-| Site-led learning/job-question contract, recorded team research, and exact Atlas/pipeline claim references | Separate talking/evaluation/capacity signals; learning vs pilot booking fee; later site-sharing consent, team configuration/support/timing, evidence-backed evaluation and consensual introduction/outcome feedback |
+| Site-led learning/job-question contract, recorded team research, and exact Atlas/pipeline claim references | Separate talking/evaluation/capacity signals; learning brief vs any pilot; later site-sharing consent, team configuration/support/timing, evidence-backed evaluation and consensual introduction/outcome feedback |
 | All five rule decisions plus workflow review pass, and digest matches | Honest review of the exact message before the existing separate send approval |
 
 Pattern checks reject explicit meeting/questionnaire, video/confidential requests,

@@ -83,7 +83,7 @@ const PRICING: readonly Banned[] = [
   { label: "buy runs", pattern: /\bbuy runs?\b/i },
 ];
 
-/** Matching and physical-provider proposals are part of the job-first journey. */
+/** Blueprint working with a deployment company is part of the job-first journey. */
 const PAIRING: readonly Banned[] = [];
 
 /** A site anywhere must not be told about one city's visits. */
@@ -201,7 +201,7 @@ describe("site lifecycle notices", () => {
   const milestones = [
     "task_received", "video_received", "scene_ready", "preparation_needs_attention", "preparation_ended", "listing_live",
     "screening_not_now", "results_ready", "run_no_result",
-    "pilot_request", "pilot_recommended", "pilot_booked", "pilot_scheduled",
+    "pilot_request",
   ] as const;
 
   it("never introduces platform charges or assumes a city in any notice", () => {

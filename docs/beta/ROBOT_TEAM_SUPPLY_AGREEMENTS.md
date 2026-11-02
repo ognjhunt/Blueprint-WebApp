@@ -10,8 +10,10 @@ availability/cost/support commitments. Company-policy onboarding uses its own
 rights, interface, credential and runtime contracts without a supply agreement.
 
 The all-three `engaged`/`willingSupply` rule below remains the legacy combined
-evaluate-and-deliver promise used by existing recommendation controls. An actual
-delivery proposal still needs its own current scope and partner commitments.
+evaluate-and-deliver promise. Blueprint no longer recommends a pilot to a site or
+takes a booking (owner decision 2026-10-28); delivery interest records which
+companies would take a pilot. Any pilot still needs its own current scope and
+commitments, agreed directly between the site and the deployment company.
 The existing withdrawal endpoint accepts an optional `terms` array to withdraw
 only named relationships; omitting it withdraws all, as before. Withdrawing
 delivery interest removes combined supply while retaining unrevoked interface
@@ -38,8 +40,6 @@ Until all three are on record, the team stays `prospect`, `applied` or
   recorded (`server/utils/robotTeamSupply.ts`).
 - A stored `engaged` with no agreement behind it is read back as the earlier
   status.
-- The recommendation route refuses a team without an agreement, with code
-  `team_supply_agreement_missing`. A passing evaluation is not enough.
 - A site's workspace counts only teams that agreed (`potentialMatches`).
 
 ## What "supported" means today
@@ -54,7 +54,7 @@ team's own declared robot of any form. There are two policy interfaces:
   `droid_franka_panda_robotiq_2f85_v1` remain valid for that preset.
   This preset is currently **diagnostic-only**: default runtime assets lack the
   exact model-byte binding required for qualified simulation evidence. Its
-  runs cannot support a pilot recommendation. Explain this before integration;
+  runs stay diagnostic and cannot back a pilot. Explain this before integration;
   an agreement does not remove that restriction.
 - **The team's own robot:** `blueprint_policy_https.v1`, with a complete
   `blueprint.robot_embodiment.v1` declaration. This can describe fixed arms,
@@ -78,7 +78,7 @@ route. Check the actual job's published offer and bounds.
 Do not reject a team merely because its robot is mobile, wheeled, or humanoid,
 and do not promise that every model or task can run.
 
-For a recommendation-capable evaluation, use the team's declared robot with
+For a qualified evaluation, use the team's declared robot with
 verified model bytes and a reviewed site/task qualification receipt. Confirm an
 approved delivery route for its self-contained USD model before asking for
 proprietary files; do not assume the team can publish a model or that its private
@@ -98,10 +98,10 @@ Tell them only what is true today:
 - **Cost:** the beta is free for everyone. There is no fee, and nothing is
   announced for later. Blueprint takes no cut of the pilot.
 - **The evaluation:** a site shows one recurring job. Invited teams evaluate it
-  in a simulation built from the site's capture. Blueprint recommends one team
-  whose evaluation on that job passed. The site books that pilot in one step.
-- **The pilot:** the site and the team agree the physical pilot, its dates and
-  its terms directly.
+  in a simulation built from the site's capture. Blueprint shows the site a
+  bounded estimate and works with a deployment company.
+- **The pilot:** the site and the deployment company agree any physical pilot,
+  its dates and its terms directly.
 - **What a result means:** a simulated result is a bounded estimate for that job
   and scene. It never certifies physical performance or safety. The physical
   pilot is where performance is measured.
@@ -210,7 +210,7 @@ with the header `x-blueprint-native-client: blueprint-capture`.
    ```
 
    This example records willingness for Blueprint's diagnostic DROID preset;
-   it does not make the preset eligible for recommendation. For the team's own robot,
+   it does not make the preset eligible for qualified evaluation. For the team's own robot,
    set that term's `interfaceId` to `blueprint_policy_https.v1` and include
    `robotEmbodiment` containing the complete validated declaration; never
    substitute a preset, a form label, or an empty object. The other two terms
@@ -238,12 +238,10 @@ POST /api/admin/robot-teams/<team id>/supply-agreement/withdraw
 - The team stops counting as supply at once and returns to its earlier status.
 - Its agreements move to history.
 - To count again, it must give all three agreements again.
-- A recommendation already shown to a site still names the team. Replace that
-  recommendation before the site books.
 
 ## Checks
 
 ```bash
 npx tsc -p tsconfig.full.json --noEmit
-node node_modules/vitest/vitest.mjs run server/tests/robot-team-supply.test.ts server/tests/pilot-recommendation-route.test.ts
+node node_modules/vitest/vitest.mjs run server/tests/robot-team-supply.test.ts
 ```

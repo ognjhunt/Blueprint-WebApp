@@ -1,17 +1,24 @@
-# Pilot recommendation evidence — API contract
+# Job pass mark and robot fit
 
-Beta rule (founder decision, 2026-10-13): Blueprint recommends ONE robot team
-whose evaluation of THAT site job passed; the site books in one step; the beta
-is free (booking records `amountUsd: 0`, `commercialBasis: "invited_beta_free"`).
-Evaluation results are simulation estimates and never certify physical
-performance or safety. Code: `server/utils/pilotRecommendationEvidence.ts`,
-`server/utils/robotTeamIdentity.ts`, `server/routes/admin-robot-teams.ts`.
+The pilot recommendation and booking API this runbook used to describe is
+retired (owner decision 2026-10-28). Its routes return 404: `GET
+/api/admin/robot-teams/jobs/:requestId/evaluations`, `POST
+/recommendations/:requestId` (with `/reconcile` and `/coordination`) and the
+site's `POST /api/task-listings/owner/:token/book`. Blueprint shows the site a
+bounded simulation estimate and works with a deployment company; the site and
+that company agree any pilot directly. Stored `pilot_recommendation` and
+`pilot_booking` fields on older records are left untouched, and any queued `pilot_recommended`, `pilot_booked`, `pilot_scheduled` or
+`team_pilot_*` email is cancelled at dispatch, never sent.
 
-All routes below are under `/api/admin/robot-teams`, admin/ops only.
+What remains in use is below. Evaluation results are simulation estimates and
+never certify physical performance or safety. Code:
+`server/utils/pilotRecommendationEvidence.ts` (the pass mark and result checks,
+still used by the job console and evaluation scoring), `server/utils/siteRobotFit.ts`
+and `server/utils/robotTeamIdentity.ts`.
 
-## Robot fit: whom to ask, never whom to recommend
+## Robot fit: whom to ask
 
-The job console and the pilot proposal review both show **Robot fit**
+The job console and the job decision review both show **Robot fit**
 (`server/utils/siteRobotFit.ts`, routes under `/api/admin/jobs/:requestId/robot-fit`;
 design: `docs/superpowers/specs/2026-10-20-robot-fit-design.md`).
 
@@ -36,10 +43,8 @@ design: `docs/superpowers/specs/2026-10-20-robot-fit-design.md`).
   "estimated from your video". The console previews all of it before you share.
   Design: `docs/superpowers/specs/2026-10-20-site-readiness-report-design.md`.
 
-Use the ranking to choose which teams to invite to evaluate the job, and as
-reference while writing "why the evidence supports it". A prospect has agreed
-to nothing. The recommendation itself still names the team whose evaluation of
-the job passed, picked below.
+Use the ranking to choose which teams to invite to evaluate the job. A prospect
+has agreed to nothing.
 
 ## Pass mark
 
@@ -57,111 +62,22 @@ failure); at most 10 may be void. A retry within one prescribed cell is not
 another evidence episode. The observed
 `episodesSucceeded / episodesRun` must meet `passMark.successRate`. When the job
 has a cycle-time target, a finite, positive measured median at or below that
-target is required; missing or invalid cycle time prevents a recommendation.
+target is required; missing or invalid cycle time means the run does not pass.
 
 Qualified evidence retains the admitted simulator scoring bindings and the
 Pipeline registration and fidelity-review receipts for the exact capture and
 scene revision. `development_only`, unqualified scenes, and incomplete or
-inconsistent episode accounting cannot support a recommendation. The 95%
+inconsistent episode accounting cannot count as a pass. The 95%
 Wilson interval and confidence band describe uncertainty alongside the
 observed-rate pass rule; they are not an additional pass threshold or proof of
 physical performance.
 
-## GET `/jobs/:requestId/evaluations`
+## Site-reported follow-through
 
-```ts
-{
-  ok: true,
-  requestId: string,
-  passMark: { successRate: number /* 0..1 */, source: "job_terms" | "site_task_brief" | "blueprint_default",
-              minimumEpisodes: number, cycleTimeSeconds: number | null },
-  consentWithdrawn: boolean,          // true: nothing is recommendable
-  boundary: string,                   // simulation boundary sentence
-  currentRecommendation: { id: string, evaluationRunId: string | null, booked: boolean } | null,
-  evaluations: Array<{
-    runId: string, resultId: string | null /* sha256 of the stored result */,
-    state: string, evaluationPurpose: "private" | "pilot" | null,
-    teamId: string, teamName: string | null,
-    recommendedTeamId: string | null, recommendedTeamName: string | null, // canonical registry team, when eligible
-    checkpointId: string, requestedAtIso: string | null, evaluatedAtIso: string | null,
-    episodesRun: number | null, episodesSucceeded: number | null, successRate: number | null,
-    medianCycleSeconds: number | null, confidenceBand: string | null,
-    evidenceScope: "development_only" | "simulation" | null,
-    cycleTimeMet: boolean | null, passed: boolean | null,
-    refusals: Array<{ code: EvidenceRefusal, error: string }>,
-    teamRefusal: { code: string, error: string } | null,
-    recommendable: boolean,           // pick only these
-  }>  // recommendable first, newest first
-}
-```
-
-404 `{ ok: false, error }` when the job does not exist.
-
-## POST `/recommendations/:requestId`
-
-Request (strict JSON):
-
-```ts
-{
-  evaluationRunId: string,            // REQUIRED: a recommendable runId from the list
-  resultId?: string,                  // optional sha256 from the list; binds the exact result reviewed
-  teamId?: string,                    // optional; must resolve to the run's team (any linked registry row)
-  briefRevision?: string,             // as before
-  purpose: string, siteProvides: string, teamProvides: string,
-  pilotCost: string /* set by the robot team */, window: string,
-  successCondition?, exclusions?, costBasis?, sitePreparation?, humanWork?,
-  capabilityBasis?,                   // blank: stated from the evidence
-  providerCommitment?, uncertainties?, alternative?
-}
-```
-
-Success: `{ ok: true, id: "rec_…", teamId: string, evidence: PilotRecommendationEvidence, teamNotified: boolean }`.
-
-The stored `inboundRequests/{jobId}.pilot_recommendation` adds `evaluationRunId`,
-`evidenceScope`, `registryTeamIds` and an immutable `evidence` snapshot:
-`{ schemaVersion: "pilot_recommendation_evidence.v1", runId, resultId, teamId, checkpointId, sceneId,
-episodesRun, episodesSucceeded, successRate, medianCycleSeconds, confidenceBand, confidencePolicyVersion,
-passMark, cycleTimeMet, passed: true, evaluatedAtIso, evidenceScope, boundary }`.
-Replacing a recommendation creates a new id; a booked pilot is not replaced (409).
-
-Refusals (`{ ok: false, code, error }`):
-
-| status | code |
-| --- | --- |
-| 400 | `evaluation_run_required`, `evaluation_run_missing`, `evaluation_run_other_job`, `evaluation_run_private`, `evaluation_result_missing`, `evaluation_result_changed`, `evaluation_too_few_episodes`, `evaluation_below_pass_mark`, `evaluation_cycle_time_missed`, `evaluation_cycle_time_missing`, `evaluation_not_simulator_scored`, `evaluation_development_only`, `evaluation_scene_not_qualified`, `evaluation_episode_accounting_invalid`, `evaluation_criteria_changed` (the job's targets moved after the run's evaluation request froze them in `workspace_evaluation.targetSnapshot`) |
-| 400 | `evaluation_team_mismatch`, `team_not_registered`, `team_identity_ambiguous`, `team_declined`, `team_not_recommendable`, `team_supply_agreement_missing` (no recorded agreement to run on the supported interface, accept a free evaluation and take the pilot; see `docs/beta/ROBOT_TEAM_SUPPLY_AGREEMENTS.md`) |
-| 409 | `capture_consent_withdrawn`; booked pilot; brief changed; site contact missing |
-
-Team eligibility: registry status `applied`/`engaged` with approved access, or
-`self_registered` bound to a verified account whose email has approved access.
-No row of the team's identity may be `declined`.
-
-## Booking and site-reported follow-through
-
-A new owner booking rechecks the exact qualified recommendation and commits
-`pilot_booking`, the associated contact-exchange notice intents, and
-`workspace_task.pilot.selectedResultId` together. The selected result is the
-recommendation's `evaluationRunId`; its initial state is `selected` with
-`source: "site_booking"`. The workspace displays “Pilot booked” and offers
-“Record pilot start”. Booking does not assert that physical work started.
-
-The site records start, completion, and deployment through the existing
-workspace pilot actions, with notes and `source: "site_reported"`. Booking
-retries preserve recorded outcomes and historical booking terms. A new booking
-that would replace a different pilot selection is refused with
-`pilot_selection_conflict`; Blueprint must review that conflict first.
-
-## Notifications
-
-Written to `captureOutbox` in the same transaction as the record they describe:
-`team_pilot_recommended` (recommendation), `team_pilot_booked` (site booking,
-`POST /api/task-listings/owner/:token/book`), `team_pilot_scheduled`
-(`POST /recommendations/:requestId/coordination`). Key:
-`{jobId}:{kind}:{sha256([teamId, recommendationId|calendarEventId, email])}`;
-the dispatch guard cancels a notice whose recommendation, booking, schedule or
-recipient is no longer current. Slack (ids and an admin link only, once per
-event via `pilotOpsAlerts/{key}`): a booked pilot, and a robot team's
-`POST /api/workspace/evaluations` request awaiting founder admission.
+A run a site selected before the booking flow was retired keeps its
+follow-through: the site records start, completion and deployment through the
+existing workspace pilot actions, with notes and `source: "site_reported"`.
+A site can no longer select a run for a pilot.
 
 ## Identity splits
 

@@ -166,8 +166,8 @@ export const publicLaunchPosturePatterns: PublicLaunchPosturePattern[] = [
 
 /**
  * Copy that must never ship on a public page. The beta is free (founder
- * decision, 2026-10-13). The job-first buying journey allows proposals and
- * matching; it does not enable fees or pay-to-win ranking.
+ * decision, 2026-10-13). The job-first journey does not enable fees or
+ * pay-to-win ranking.
  */
 export const publicBannedCopyPatterns: PublicBannedCopyPattern[] = [
   {
