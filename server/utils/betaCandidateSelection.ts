@@ -30,8 +30,8 @@ const chosen = z.object({
 }).strict();
 const row = z.object({
   candidate_id: identifier, display_name: z.string().trim().min(1).max(200), priority_rank: rank,
-  plan_status: z.enum(["selected", "unavailable", "deferred", "infeasible"]),
-  result_status: z.enum(["pending", "preparing", "launching", "running", "reconciliation_required", "completed", "blocked", "unavailable", "deferred", "infeasible"]),
+  plan_status: z.enum(["selected", "waitlisted", "unavailable", "deferred", "infeasible"]),
+  result_status: z.enum(["pending", "waitlisted", "preparing", "launching", "running", "reconciliation_required", "completed", "blocked", "unavailable", "deferred", "infeasible"]),
   blockers: z.array(z.string().min(1).max(300)).max(100),
   episodes_planned: count, episodes_scored: count, episodes_succeeded: count, episodes_failed: count, episodes_void: count,
   success_rate: rate.nullable(), session_result_digest: digest.nullable(),

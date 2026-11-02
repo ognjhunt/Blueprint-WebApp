@@ -264,11 +264,17 @@ Anything the door refuses comes back with its rule (`secret_name_refused`,
 2. Fix on a branch and replay again on that branch; put the first stop in the
    PR. Open the PR and merge when CI is green. Deploy to find out only what a
    replay cannot show, such as provider behavior.
-3. Deploy the merged commit: `door deploy <sha on main> --wait`. The door only
-   deploys commits on `origin/main`. It waits for the progression oneshots to
-   go idle, refuses while another deploy runs, and the deploy tool refuses
-   while a paid launch holds a Vast lock. It keeps the configured-controls
-   pause.
+3. Deploy the merged commit right after merging: `door deploy <sha on main> --wait`.
+   The build overlaps main's CI, and the deploy waits for that CI's attestation
+   before it pauses anything. `door deploy --latest-attested --wait` picks the
+   newest attested commit instead. The door only deploys commits on
+   `origin/main`. A request made during another deploy waits its turn, for up to
+   8 hours: when that deploy ends, the newest commit that contains the others goes
+   out, and each request ends `deployed` or `superseded` once a receipt proves it.
+   If a commit fails, only the request that named it fails, and the others still
+   get their try. It waits for the progression oneshots to go idle, and the deploy
+   tool refuses while a paid launch holds a Vast lock. It keeps the
+   configured-controls pause.
 4. Confirm: `door status` shows `deployed.source_commit` equal to the sha,
    `commit_proven: true` and no blockers. Deploys quiesce timers; if the handoff
    listener did not come back, `door unit start
