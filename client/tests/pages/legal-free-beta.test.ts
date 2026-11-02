@@ -20,6 +20,7 @@ import {
   PREVIOUS_TERMS_VERSION,
   PRIVACY_VERSION,
   TERMS_VERSION,
+  acceptedVersionsAreCurrent,
   legalEffectiveDate,
   legalUpdatePending,
 } from "@/lib/legalAcceptance";
@@ -28,10 +29,26 @@ const terms = JSON.stringify(termsSections);
 const privacy = JSON.stringify({ privacyPolicySections, californiaPrivacyRows, inPersonVisitPrivacy, jobClosedDefinition, privacySubprocessorCategories });
 
 describe("terms for the free beta", () => {
+  it("describes footage processing as it happens: no person removal, faces blurred only for World Labs, Meta listed", () => {
+    // Owner decision D-16 (2026-11-02): footage is not screened or blurred for providers beyond the World Labs face blur.
+    expect(privacy).not.toMatch(/We remove people from the frames/);
+    expect(privacy).toMatch(/We do not remove people from job footage/);
+    expect(privacy).toMatch(/blur faces in the frames we send to World Labs/);
+    const providers = privacySubprocessorCategories.flatMap((group) => group.providers.map(([name]) => name));
+    expect(providers).toContain("Meta");
+    expect(privacy).not.toMatch(/to flag privacy issues/);
+  });
+
+  it("keeps an acceptance of the 2026-11-15.3/.4 pair until the .5 policy takes effect", () => {
+    expect(acceptedVersionsAreCurrent("2026-11-15.3", "2026-11-15.4", Date.parse("2026-11-14T23:59:00-08:00"))).toBe(true);
+    expect(acceptedVersionsAreCurrent("2026-11-15.3", "2026-11-15.4", Date.parse("2026-11-15T00:00:00-08:00"))).toBe(false);
+    expect(acceptedVersionsAreCurrent(TERMS_VERSION, PRIVACY_VERSION, Date.parse("2026-11-20T00:00:00Z"))).toBe(true);
+  });
+
   it("is reissued with a future effective date and keeps the previous version in force", () => {
     // Owner decision 2026-10-15: published 2026-10-15, in force 30+ days later.
-    expect(TERMS_VERSION).toBe("2026-11-15.3");
-    expect(PRIVACY_VERSION).toBe("2026-11-15.4");
+    expect(TERMS_VERSION).toBe("2026-11-15.4");
+    expect(PRIVACY_VERSION).toBe("2026-11-15.5");
     expect([PREVIOUS_TERMS_VERSION, PREVIOUS_PRIVACY_VERSION]).toEqual(["2026-10-14.1", "2026-10-13.1"]);
     expect(legalEffectiveDate(TERMS_VERSION)).toBe("November 15, 2026");
     expect(legalUpdatePending(Date.parse("2026-11-14T23:59:00-08:00"))).toBe(true);

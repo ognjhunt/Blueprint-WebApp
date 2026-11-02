@@ -15,7 +15,7 @@ export const privacyPolicySections = [
   {
     title: "Site footage",
     body:
-      "When a site films its job, or Blueprint staff film it during an in-person visit, we receive the video and photos, when and where they were taken, and the phone's motion and depth data where available. A phone video can show people and can include sound, such as conversations nearby. We keep the original upload as received, including any sound, for the uses and retention periods in this policy. We remove the sound before any automated review of the footage and before sending it to an AI or 3D-processing provider, and we do not analyze speech. We and our listed processing providers use the footage to draft the job brief, review the job, rebuild the work area as a simulated scene, and run the evaluations the site allows. We remove people from the frames used as input to reconstruction. The original recording may still show people, including hands or arms performing the job. We ask sites to avoid screens and paperwork and may blur or remove those details when practical.",
+      "When a site films its job, or Blueprint staff film it during an in-person visit, we receive the video and photos, when and where they were taken, and the phone's motion and depth data where available. A phone video can show people and can include sound, such as conversations nearby. We keep the original upload as received, including any sound, for the uses and retention periods in this policy. We remove the sound before any automated review of the footage and before sending it to an AI or 3D-processing provider, and we do not analyze speech. We and our listed processing providers use the footage to draft the job brief, review the job, rebuild the work area as a simulated scene, and run the evaluations the site allows. We do not remove people from job footage. We blur faces in the frames we send to World Labs to rebuild the work area; the other listed providers receive the footage, with its sound removed, or frames from it as recorded, which can show people, including hands or arms performing the job. We ask sites to avoid screens and paperwork and may blur or remove those details when practical.",
     icon: Waypoints,
   },
   {
@@ -43,7 +43,7 @@ export const capturePrivacyAnnex = [
   // sufficient: a policy served through an endpoint has to be sent something to
   // look at, and what it is sent is derived from the site.
   ["What a robot team's policy is sent", "Images rendered from the reconstructed scene, never the walkthrough. Those images can still show layout, equipment and stock, so they are kept and shared on the same terms as the scene, and they are not licensed for training unless a written agreement says so."],
-  ["People in job footage", "We remove people from the frames used as input to reconstruction. This does not remove them from the original recording, which Blueprint and the listed processing providers may process for job review and frame preparation. You must have authority to submit the footage, tell people in the work area that you are recording and sharing the video with Blueprint, and obtain any permission the law requires from people who can be seen or heard."],
+  ["People in job footage", "We do not remove people from job footage. We blur faces in the frames we send to World Labs to rebuild the work area; otherwise Blueprint and the listed processing providers process the footage, with its sound removed, and frames from it as recorded, for job review, scene preparation and evaluation. You must have authority to submit the footage, tell people in the work area that you are recording and sharing the video with Blueprint, and obtain any permission the law requires from people who can be seen or heard."],
   ["Sound", "Phone videos can record sound, including conversations; Blueprint's browser recorder films without it. We keep an uploaded original as received, remove the sound before any automated review or before sending footage to an AI or 3D-processing provider, and do not analyze speech. Avoid filming conversations, and turn sound off where your camera allows."],
   ["Screens and paperwork", "Avoided when filming where practical, and blurred or removed when practical before a robot team sees anything derived from the site."],
   ["Location", "Used to tie a result to the right site, and to keep restricted areas you mark out of the scene."],
@@ -181,7 +181,8 @@ export const privacySubprocessorCategories = [
     category: "AI, 3D processing and compute",
     providers: [
       ["OpenAI", "Reading the job description and frames from a site capture to draft the job brief and prepare the simulated scene, drafting replies, and sorting incoming requests"],
-      ["Google Gemini", "Watching site footage, with its sound removed, to check what it shows against the job brief and to flag privacy issues"],
+      ["Google Gemini", "Watching site footage, with its sound removed, and frames from it to draft and check the job brief and to find what the simulated scene needs"],
+      ["Meta", "Outlining objects and areas in site footage, with its sound removed, to prepare the simulated scene"],
       ["Anthropic", "Drafting the job brief from capture frames only when a site explicitly chooses that option, and drafting and sorting internal work where we configure it"],
       ["DeepSeek", "Drafting and sorting internal work, where we configure it"],
       ["World Labs", "Rebuilding a work area as a 3D scene from site footage, with its sound removed"],

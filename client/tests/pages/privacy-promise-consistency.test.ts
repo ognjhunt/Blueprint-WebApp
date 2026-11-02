@@ -24,13 +24,15 @@ function annexRow(label: string): string {
 }
 
 describe("raw walkthrough media", () => {
-  it("distinguishes removal from reconstruction inputs from processing the original recording", () => {
+  it("says people are not removed and faces are blurred only for World Labs, in both documents", () => {
+    // Owner decision D-16 (2026-11-02): no person removal or screening beyond the World Labs face blur.
     const detail = annexRow("People in job footage");
-    expect(detail).toContain("remove people from the frames used as input to reconstruction");
-    expect(detail).toContain("does not remove them from the original recording");
+    expect(detail).toContain("We do not remove people from job footage");
+    expect(detail).toContain("blur faces in the frames we send to World Labs");
     const terms = JSON.stringify(termsSections);
-    expect(terms).toContain("remove people from the frames used as input to reconstruction");
-    expect(terms).not.toContain("People are not automatically removed");
+    expect(terms).toContain("We do not remove people from the footage");
+    expect(terms).toContain("blur faces only in the frames we send to World Labs");
+    expect(terms + detail).not.toContain("remove people from the frames used as input to reconstruction");
   });
 
   it("is never delivered to a buyer, with no rights carve-out", () => {
