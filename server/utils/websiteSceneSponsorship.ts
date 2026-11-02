@@ -53,7 +53,9 @@ const policySchema = z.object({
   native_max_spend_usd: money,
   max_total_spend_usd: money,
   max_paid_attempts: z.number().int().min(1).max(32),
-  ttl_seconds: z.number().int().min(60).max(86400),
+  // Up to the Pipeline's own seven-day execution window (validate_execution),
+  // so a job is not stranded mid-run by a shorter Blueprint-issued window.
+  ttl_seconds: z.number().int().min(60).max(7 * 86400),
   provider_terms_reference: z.string().regex(/^sha256:[0-9a-f]{64}$/),
 }).strict().refine(p => p.upstream_max_spend_usd + p.native_max_spend_usd <= p.max_total_spend_usd);
 

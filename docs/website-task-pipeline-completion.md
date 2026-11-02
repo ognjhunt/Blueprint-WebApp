@@ -54,7 +54,8 @@ adds the website precursor without upgrading synthetic evidence to physical proo
 `BLUEPRINT_WEBSITE_SCENE_SPONSORSHIP_JSON` configures the Blueprint service
 owner (`user_id`, `organization_id`), `max_total_spend_usd`, disjoint
 `upstream_max_spend_usd` and `native_max_spend_usd` allowances,
-`max_paid_attempts`, `ttl_seconds` (at most one day), and
+`max_paid_attempts`, `ttl_seconds` (at most seven days, the Pipeline's own execution
+window; the beta default is 604800), and
 `provider_terms_reference`. The two allowances cannot exceed the total.
 This is server configuration, never an upload form field. Missing configuration
 holds automatic preparation; it does not request payment from the site owner.
