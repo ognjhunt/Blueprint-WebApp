@@ -526,6 +526,8 @@ it.each(["evaluation", "preparation", "family"])("queues the signed prepared web
   await processSceneIntakeQueue();
   expect(stored()[1].state).toBe("closeout_pending");
   expect(stored()[1].revocation_receipt.scope).toBe("future_execution");
+  // A rights revoke: the Pipeline's later withdrawn outcome is the site's own (C-04).
+  expect(stored()[1].revocation_cause).toBe("source_revoked");
   expect(fetcher).toHaveBeenCalledTimes(2);
 });
 
@@ -2328,6 +2330,165 @@ it("accepts the Pipeline's signed cumulative budget readback without rewriting c
     effective_execution_budget: { ...status.effective_execution_budget, max_paid_attempts: 0 },
   }))));
   await expect(scenePipelineRequest(request, "scene-one")).rejects.toThrow("pipeline_status_receipt_invalid");
+});
+
+// C-04: the Pipeline's one outcome for the intent, sealed by itself and inside status_digest.
+function sceneOutcome(kind: string, terminal: unknown, reasonCode: string, overrides: Record<string, unknown> = {}) {
+  const value = { schema_version: "task_evaluation_scene_intent_outcome.v1", intent_id: "scene-one",
+    intent_digest: sha("d"), kind, terminal, reason_category: "capability_limit", reason_code: reasonCode,
+    decided_at_epoch: 1793000000.25, ...overrides };
+  return { ...value, outcome_digest: sceneDigest(value) };
+}
+
+describe("the intent's outcome (C-04)", () => {
+  const request = { owner: { user_id: "owner", organization_id: "user:owner" } };
+  const respond = (fetcher: ReturnType<typeof vi.fn>, value: unknown) =>
+    fetcher.mockImplementationOnce(async () => new Response(JSON.stringify(value)));
+
+  it("reads a status with or without an outcome, and refuses an outcome that does not bind to it", async () => {
+    const fetcher = vi.fn();
+    vi.stubGlobal("fetch", fetcher);
+    // Older Pipelines send no outcome: the status reads exactly as before.
+    const plain = pipelineStatus(request, { status: "blocked", phase: "preparation", blockers: ["x"], attempts: [] });
+    respond(fetcher, plain);
+    expect(await scenePipelineRequest(request, "scene-one")).toEqual(plain);
+    // An outcome is kept as sent, sealed inside status_digest like result_run_id.
+    const held = pipelineStatus(request, { status: "blocked", phase: "preparation", attempts: [],
+      blockers: ["website_task_family_unknown"], outcome: sceneOutcome("held", true, "task_family_unsupported") });
+    respond(fetcher, held);
+    expect(await scenePipelineRequest(request, "scene-one")).toEqual(held);
+    // A reason added later still parses; only the kind is a closed set.
+    respond(fetcher, pipelineStatus(request, { outcome: sceneOutcome("setup_repair", false, "a_later_reason",
+      { reason_category: "a_later_category" }) }));
+    await expect(scenePipelineRequest(request, "scene-one")).resolves.toMatchObject({ outcome: { reason_code: "a_later_reason" } });
+    for (const outcome of [
+      sceneOutcome("finished", true, "task_family_unsupported"),
+      { ...sceneOutcome("held", true, "task_family_unsupported"), detail: "extra" },
+      sceneOutcome("held", "yes", "task_family_unsupported"),
+      sceneOutcome("held", true, "Task-Family Unsupported"),
+      sceneOutcome("held", true, "task_family_unsupported", { reason_category: "" }),
+      sceneOutcome("held", true, "task_family_unsupported", { decided_at_epoch: "now" }),
+      sceneOutcome("held", true, "task_family_unsupported", { schema_version: "task_evaluation_scene_intent_outcome.v2" }),
+      // Its own seal, and the intent it names, must match.
+      { ...sceneOutcome("held", true, "task_family_unsupported"), outcome_digest: sha("0") },
+      sceneOutcome("held", true, "task_family_unsupported", { intent_id: "scene-two" }),
+      sceneOutcome("held", true, "task_family_unsupported", { intent_digest: sha("1") }),
+    ]) {
+      respond(fetcher, pipelineStatus(request, { outcome }));
+      await expect(scenePipelineRequest(request, "scene-one")).rejects.toThrow("pipeline_status_receipt_invalid");
+    }
+    // status_digest still covers the outcome: one swapped after sealing is refused.
+    respond(fetcher, { ...held, outcome: sceneOutcome("withdrawn", true, "authority_revoked") });
+    await expect(scenePipelineRequest(request, "scene-one")).rejects.toThrow("pipeline_receipt_binding_invalid");
+  });
+
+  it("stops polling once the outcome is terminal and keeps polling a wait", async () => {
+    const url = await app();
+    await realFetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(command()) });
+    let outcome = sceneOutcome("awaiting_spend_approval", false, "spend_cap_reached", { reason_category: "spend_approval" });
+    const fetcher = vi.fn(async (_url: any, init: any) => new Response(JSON.stringify(init.method === "POST"
+      ? accepted(JSON.parse(init.body))
+      : pipelineStatus(stored()[1].request, { status: "blocked", phase: "preparation",
+        blockers: ["scene_intake_spend_cap_exhausted"], attempts: [], outcome }))));
+    vi.stubGlobal("fetch", fetcher);
+    const poll = async () => { stored()[1].next_forward_at_ms = 0; await processSceneIntakeQueue(); };
+    await processSceneIntakeQueue();
+    await poll();
+    expect(stored()[1]).toMatchObject({ state: "accepted", blocker: null,
+      pipeline_status: { outcome: { kind: "awaiting_spend_approval", terminal: false } } });
+    expect(stored()[1].next_forward_at_ms).toBeLessThan(Number.MAX_SAFE_INTEGER);
+    outcome = sceneOutcome("held", true, "task_family_unsupported");
+    await poll();
+    expect(stored()[1]).toMatchObject({ state: "blocked", blocker: null, next_forward_at_ms: Number.MAX_SAFE_INTEGER,
+      pipeline_status: { outcome: { kind: "held", terminal: true } } });
+    await poll();
+    expect(fetcher.mock.calls.map((call: any[]) => call[1]?.method)).toEqual(["POST", "GET", "GET"]);
+    // Not a website job: no site is owed an email.
+    expect(stored()[1].scene_outcome_notification_pending).toBeUndefined();
+  });
+
+  it("keeps the read-only closeout of a reserved attempt after a terminal outcome", async () => {
+    const url = await app();
+    await realFetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(command()) });
+    const fetcher = vi.fn(async (_url: any, init: any) => new Response(JSON.stringify(init.method === "POST"
+      ? accepted(JSON.parse(init.body))
+      // Expired with an attempt still reserved, and the expiry already decided as the ending.
+      : pipelineStatus(stored()[1].request, { outcome: sceneOutcome("setup_repair", true, "authority_expired",
+        { reason_category: "authority_expired" }) }))));
+    vi.stubGlobal("fetch", fetcher);
+    await processSceneIntakeQueue();
+    stored()[1].next_forward_at_ms = 0;
+    await processSceneIntakeQueue();
+    expect(stored()[1].state).toBe("closeout_pending");
+    expect(stored()[1].next_forward_at_ms).toBeLessThan(Number.MAX_SAFE_INTEGER);
+    stored()[1].next_forward_at_ms = 0;
+    await processSceneIntakeQueue();
+    expect(stored()[1].state).toBe("closeout_pending");
+    expect(fetcher.mock.calls.map((call: any[]) => call[1]?.method)).toEqual(["POST", "GET", "GET"]);
+  });
+
+  async function preparedWebsiteScene() {
+    sponsoredCapture();
+    const base = (await app()).replace(/\/intakes$/, "/internal/creator-captures/walkthrough-req1");
+    const post = (operation: string, extra = {}) => realFetch(`${base}/${operation}`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ request_id: "req1", scene_id: "site-req1", ...extra }),
+    });
+    const grant = await (await post("scene-sponsorship")).json();
+    const sceneRequest = {
+      schema_version: "task_evaluation_scene_intake_request.v1", submission_id: grant.capture_id,
+      owner: grant.owner, consent: grant.consent,
+      source: { kind: "gaussian_splat", binding_id: `website-splat-${"a".repeat(32)}`, content_digest: sha("a") },
+      task: { ...command().task, task_id: `website-${grant.task_context_digest.slice(7, 27)}`,
+        subject: { description: "box", geometry_origin: "removed_before_reconstruction" } },
+      execution: { ...command().execution, max_total_spend_usd: grant.max_total_spend_usd,
+        max_paid_attempts: grant.max_paid_attempts, expires_at_epoch: grant.expires_at_epoch,
+        allowed_providers: ["vast", "openai"], purpose: "scene_preparation", policy_candidates: [] },
+    };
+    expect((await post("prepared-scene", { request: sceneRequest })).status).toBe(202);
+    return sceneRequest;
+  }
+
+  it("owes a website job one email for a terminal outcome and none for a wait", async () => {
+    const sceneRequest = await preparedWebsiteScene();
+    let outcome = sceneOutcome("awaiting_site", false, "site_consent_required", { reason_category: "site_action" });
+    const fetcher = vi.fn(async (_url: any, init: any) => new Response(JSON.stringify(init.method === "POST"
+      ? accepted(JSON.parse(init.body))
+      : pipelineStatus(stored()[1].request, { status: "needs_input", phase: "source", attempts: [],
+        blockers: ["website_atlas_source_consent_required"], outcome }))));
+    vi.stubGlobal("fetch", fetcher);
+    const poll = async () => { stored()[1].next_forward_at_ms = 0; await processSceneIntakeQueue(); };
+    await processSceneIntakeQueue();
+    await poll();
+    expect(stored()[1]).toMatchObject({ state: "accepted", pipeline_status: { outcome: { kind: "awaiting_site" } } });
+    expect(stored()[1].scene_outcome_notification_pending).toBeUndefined();
+    outcome = sceneOutcome("held", true, "task_family_unsupported");
+    await poll();
+    const [key, intake] = stored();
+    expect(intake).toMatchObject({ state: "blocked", next_forward_at_ms: Number.MAX_SAFE_INTEGER,
+      scene_outcome_notification_pending: true, scene_outcome_notification_intent: {
+        schema_version: "scene_outcome_notification.v1", request_id: "req1", intake_id: key.split("/")[1],
+        kind: "held", outcome_digest: outcome.outcome_digest, event_id: `held-${outcome.outcome_digest.slice(7)}` } });
+    expect(fetcher.mock.calls.map((call: any[]) => call[1]?.method)).toEqual(["POST", "GET", "GET"]);
+  });
+
+  it("records why the WebApp revoked a website intent, so its own revoke never reads as the site's withdrawal", async () => {
+    const sceneRequest = await preparedWebsiteScene();
+    const fetcher = vi.fn(async (_url: any, init: any) => {
+      if (init.method === "GET") return new Response(JSON.stringify(pipelineStatus(stored()[1].request, {
+        status: "running", phase: "configuration", blockers: [], attempts: [] })));
+      const payload = JSON.parse(init.body);
+      return new Response(JSON.stringify(payload.intent_digest ? revocationReceipt(sceneRequest) : accepted(payload)));
+    });
+    vi.stubGlobal("fetch", fetcher);
+    await processSceneIntakeQueue();
+    // The brief behind the grant is gone: the WebApp revokes for its own reason, not a rights one.
+    store.rows.delete("siteTaskBriefs/req1");
+    stored()[1].next_forward_at_ms = 0;
+    await processSceneIntakeQueue();
+    expect(stored()[1]).toMatchObject({ state: "closeout_pending", revocation_cause: "task_brief_missing",
+      revocation_receipt: { scope: "future_execution" } });
+  });
 });
 
 it.each(["saved_execution_setup_required", "saved_setup_unreadable"])("reopens a team selection and retries %s without reserving a provider attempt", async (failure) => {

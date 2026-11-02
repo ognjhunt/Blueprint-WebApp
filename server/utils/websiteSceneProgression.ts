@@ -13,12 +13,19 @@
  * Pipeline accepted one on a configured scene of the intake's task. Once the
  * automatic evaluation completes, its estimate is the job's result
  * (`evaluated`, owner decision 2026-10-28).
+ *
+ * C-04: once the Pipeline sends the intent's one outcome, that outcome decides
+ * the state: a terminal hold is `held` (we can't simulate this kind of job
+ * yet), a terminal withdrawal or setup stop is `ended`, and anything not
+ * terminal is `waiting`. The blocker reading below is kept for older
+ * Pipelines that send no outcome.
  */
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { SCENE_INTAKE_COLLECTION } from "./taskEvaluationSceneIntake";
 import type { TaskSceneProgression } from "./taskStatusProjection";
 import { taskTargetSelection, taskTargetSelectionApplies } from "./websiteTaskTargetChoice";
 import { isScreeningHeldOutcome, storedScreeningOutcome, type ScreeningOutcome } from "./betaPolicyScreeningContract";
+import { adoptedSceneOutcome, sceneOutcomeReading } from "./sceneIntentOutcome";
 
 // Pipeline blocks that stay blocked once hit (task_evaluation_scene_progression):
 // the configuration failed for good, the policy canary blocked (at or before
@@ -56,6 +63,12 @@ export type SceneScreeningResult = { outcome: ScreeningOutcome; observed: boolea
 
 export function projectWebsiteSceneProgression(record: Record<string, any> | null | undefined,
   testAccepted: boolean | SceneScreeningResult = false): TaskSceneProgression | null {
+  const outcome = adoptedSceneOutcome(record);
+  if (outcome) {
+    const sceneOutcome = sceneOutcomeReading(outcome);
+    if (!outcome.terminal) return { state: "waiting", sceneOutcome };
+    return outcome.kind === "held" ? { state: "held", heldReason: "held_capability", sceneOutcome } : { state: "ended", sceneOutcome };
+  }
   const state = record?.state;
   const phase = record?.pipeline_status?.phase;
   if (state === "completed" && typeof testAccepted === "object") {

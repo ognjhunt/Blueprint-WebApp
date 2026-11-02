@@ -241,6 +241,24 @@ describe("the claim digest of existing notices", () => {
     expect(sharedFakeFirestoreState.docs.get("captureOutbox/req-1:results_ready:run_a")).toMatchObject({ status: "sent",
       deliveryDigest: digest(["req-1:results_ready:run_a", "req-1", "results_ready", "ops@acme.example", "s", "result", null]) });
   });
+
+  it("binds a scene outcome notice to the same seven fields, so adding the kind changes no claim (C-04)", async () => {
+    sendEmailMock.mockResolvedValue({ sent: true, provider: "resend", messageId: "accepted" });
+    const outcomeHex = "f".repeat(64);
+    // The job page shows this terminal outcome, so dispatch sends it.
+    sharedFakeFirestoreState.docs.set("taskEvaluationSceneIntakes/scene-1", { website_request_id: "req-1",
+      source_session_id: "walkthrough-req-1", created_at_iso: "2026-10-22T00:00:00Z", state: "blocked",
+      pipeline_status: { status: "blocked", phase: "preparation", blockers: ["x"], outcome: {
+        schema_version: "task_evaluation_scene_intent_outcome.v1", intent_id: "scene-one", intent_digest: `sha256:${"d".repeat(64)}`,
+        kind: "held", terminal: true, reason_category: "capability_limit", reason_code: "task_family_unsupported",
+        decided_at_epoch: 1793000000, outcome_digest: `sha256:${outcomeHex}` } } });
+    const key = `req-1:scene_outcome:held-${outcomeHex}`;
+    await enqueueOutbox(entry({ idempotencyKey: key, kind: "scene_outcome", body: "held" }));
+    await deliverOutbox();
+    const digest = (fields: unknown[]) => createHash("sha256").update(JSON.stringify(fields)).digest("hex");
+    expect(sharedFakeFirestoreState.docs.get(`captureOutbox/${key}`)).toMatchObject({ status: "sent",
+      deliveryDigest: digest([key, "req-1", "scene_outcome", "ops@acme.example", "s", "held", null]) });
+  });
 });
 
 describe("a failed send retries, then gives up", () => {

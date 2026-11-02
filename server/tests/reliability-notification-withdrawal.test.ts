@@ -9,7 +9,7 @@ vi.mock("../logger",()=>({logger:{info:vi.fn(),warn:vi.fn(),error:vi.fn(),debug:
 vi.mock("../utils/email",()=>({sendEmail:send}));
 vi.mock("../utils/pilotRecommendationNotifications",()=>({pilotRecommendationNotificationIsCurrent:recommendation}));
 import { deliverOutbox, enqueueOutbox, type OutboxKind } from "../utils/captureOutbox";
-const captureKinds: OutboxKind[] = ["video_received","scene_ready","screening_cleared","screening_started","results_ready","run_no_result","evaluation_outcome","brief_confirmed","coverage_shortfall","assessment_ready","input_needed"];
+const captureKinds: OutboxKind[] = ["video_received","scene_ready","screening_cleared","screening_started","results_ready","run_no_result","evaluation_outcome","scene_outcome","brief_confirmed","coverage_shortfall","assessment_ready","input_needed"];
 const granted = () => ({request:{consent_attestation:{granted:true,statement_version:"2026-09-18.v1",recorded_at_iso:"2026-01-01T00:00:00Z"}}});
 const request = () => store.docs.get("inboundRequests/withdrawal-fixture")!;
 const row = () => store.docs.get("captureOutbox/withdrawal-fixture:notice")!;

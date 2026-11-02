@@ -19,6 +19,8 @@ vi.mock("../utils/field-encryption", () => ({
 }));
 const jobAccess = vi.hoisted(() => ({ evaluationAvailable: false }));
 vi.mock("../utils/teamJobAccess", () => ({ teamJobAccess: () => jobAccess }));
+const send = vi.hoisted(() => vi.fn());
+vi.mock("../utils/email", () => ({ sendEmail: send }));
 
 const { enqueueTaskLifecycleNotification, reconstructionIsViewable, reconcileSceneReadyNotifications } = await import("../utils/taskLifecycleNotifications");
 
@@ -27,6 +29,7 @@ beforeEach(() => {
   sharedFakeFirestoreState.docs.set("inboundRequests/req-1", {
     contact: { email: "encrypted:owner@example.com" },
   });
+  send.mockReset().mockResolvedValue({ sent: true, provider: "resend", messageId: "accepted" });
 });
 
 describe("task lifecycle notifications", () => {
@@ -345,4 +348,167 @@ it("sends a claimed site's evaluation outcome to its workspace, with the estimat
   expect(notice.body).toContain("This is a simulation estimate, not a physical test. It never certifies physical performance or safety.");
   expect(notice.body).toContain("See the result in your workspace:\nhttps://example.invalid/app/tasks/req-1");
   expect(notice.body).not.toContain("private-owner-link");
+});
+
+describe("a website job's scene outcome is emailed once (C-04)", () => {
+  const docs = sharedFakeFirestoreState.docs;
+  const sha = (char: string) => `sha256:${char.repeat(64)}`;
+  const sealed = async (kind: string, terminal: boolean, reasonCode: string, decidedAt = 1793000000.25) => {
+    const { crossRuntimeDigest } = await import("../utils/crossRuntimeCanonical");
+    const value = { schema_version: "task_evaluation_scene_intent_outcome.v1", intent_id: "scene-one", intent_digest: sha("d"),
+      kind, terminal, reason_category: "capability_limit", reason_code: reasonCode, decided_at_epoch: decidedAt };
+    return { ...value, outcome_digest: crossRuntimeDigest(value) };
+  };
+  /** The intake as the worker leaves it after the poll that read the outcome, with the intent it writes beside it. */
+  const intake = async (outcome: Record<string, any>, extra: Record<string, unknown> = {}, id = "scene-1") => {
+    const { sceneOutcomeNoticeIntent } = await import("../utils/sceneIntentOutcome");
+    const record = { website_request_id: "req-1", source_session_id: "walkthrough-req-1", created_at_iso: "2026-10-22T00:00:00Z",
+      state: outcome.terminal ? "blocked" : "accepted", receipt: { intent_id: "scene-one", intent_digest: sha("d") },
+      pipeline_status: { status: "blocked", phase: "preparation", blockers: ["anything"], outcome }, ...extra };
+    const intent = sceneOutcomeNoticeIntent(id, record);
+    docs.set(`taskEvaluationSceneIntakes/${id}`, { ...record,
+      ...(intent ? { scene_outcome_notification_pending: true, scene_outcome_notification_intent: intent } : {}) });
+    return intent;
+  };
+  const rows = () => [...docs.entries()].filter(([path]) => path.startsWith("captureOutbox/req-1:scene_outcome:")
+    && !path.includes("/deliveryReceipts/")) as Array<[string, Record<string, any>]>;
+  const pending = (id = "scene-1") => (docs.get(`taskEvaluationSceneIntakes/${id}`) as Record<string, any>).scene_outcome_notification_pending;
+
+  it.each([
+    ["held", "task_family_unsupported", "Your Blueprint job is held for now", "Nothing is needed from you."],
+    ["withdrawn", "consent_expired", "Your Blueprint job has stopped", "You don't need to do anything; this job has stopped."],
+    ["setup_repair", "retry_cap_exhausted", "We stopped preparing your Blueprint job", "Nothing is needed from you."],
+  ] as const)("sends %s once, in the page's own sentence, with the job link", async (kind, reasonCode, subject, closing) => {
+    const { deliverOutbox } = await import("../utils/captureOutbox");
+    const { sceneOutcomeMessage } = await import("../utils/sceneIntentOutcome");
+    const outcome = await sealed(kind, true, reasonCode);
+    expect(await intake(outcome)).toMatchObject({ request_id: "req-1", intake_id: "scene-1", kind,
+      outcome_digest: outcome.outcome_digest, event_id: `${kind}-${outcome.outcome_digest.slice(7)}` });
+    await deliverOutbox();
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(rows().map(([path]) => path)).toEqual([`captureOutbox/req-1:scene_outcome:${kind}-${outcome.outcome_digest.slice(7)}`]);
+    const row = rows()[0][1];
+    expect(row).toMatchObject({ status: "sent", kind: "scene_outcome", to: "owner@example.com", subject });
+    expect(row.body.startsWith(`${sceneOutcomeMessage(kind)}\n\nOpen your job on your private job page:\n`)).toBe(true);
+    expect(sceneOutcomeMessage(kind).endsWith(closing)).toBe(true);
+    expect(row.body).toMatch(/\/capture-upload\//);
+    // Before the link: no code, no money and nothing Blueprint does next.
+    expect(row.body.slice(0, row.body.indexOf("Open your job"))).not.toMatch(/[a-z]_[a-z]|budget|\$|rerun|retry/i);
+    expect(pending()).toBe(false);
+    // The same outcome read again is the same email: re-polls never send twice.
+    await intake(outcome);
+    await deliverOutbox();
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(rows()).toHaveLength(1);
+    expect(pending()).toBe(false);
+  });
+
+  it("sends nothing for a wait, and no notice can be built for one", async () => {
+    const { deliverOutbox } = await import("../utils/captureOutbox");
+    const { buildTaskLifecycleNotification } = await import("../utils/taskLifecycleNotifications");
+    for (const [kind, reasonCode] of [["setup_repair", "pipeline_fault"], ["awaiting_spend_approval", "spend_cap_reached"],
+      ["awaiting_site", "site_consent_required"]]) {
+      expect(await intake(await sealed(kind, false, reasonCode))).toBeNull();
+      await deliverOutbox();
+    }
+    expect(rows()).toHaveLength(0);
+    expect(send).not.toHaveBeenCalled();
+    for (const [kind, eventId] of [["awaiting_site", `awaiting_site-${"a".repeat(64)}`], ["held", `withdrawn-${"a".repeat(64)}`],
+      ["held", `held-${"a".repeat(24)}`]])
+      expect(() => buildTaskLifecycleNotification({ requestId: "req-1", to: "owner@example.com", milestone: "scene_outcome",
+        eventId, sceneOutcomeKind: kind as never })).toThrow("scene_outcome_notice_invalid");
+  });
+
+  it("claims a site's next email for a new terminal outcome only, keyed by its digest", async () => {
+    const { deliverOutbox } = await import("../utils/captureOutbox");
+    const first = await sealed("setup_repair", true, "stalled");
+    await intake(first);
+    await deliverOutbox();
+    // A later intake for the same capture ends again: a different outcome, its own one email.
+    const second = await sealed("held", true, "policy_capability_unavailable");
+    await intake(second, { created_at_iso: "2026-10-25T00:00:00Z" }, "scene-2");
+    await deliverOutbox();
+    expect(rows().map(([path]) => path.split(":").pop())).toEqual([`setup_repair-${first.outcome_digest.slice(7)}`,
+      `held-${second.outcome_digest.slice(7)}`]);
+    expect(send).toHaveBeenCalledTimes(2);
+  });
+
+  it("is cancelled when recording permission is withdrawn, or the page no longer shows the outcome", async () => {
+    const { deliverOutbox } = await import("../utils/captureOutbox");
+    const { reconcileSceneOutcomeNotifications } = await import("../utils/sceneOutcomeNotifications");
+    await intake(await sealed("held", true, "task_family_unsupported"));
+    await reconcileSceneOutcomeNotifications();
+    expect(rows()[0][1]).toMatchObject({ status: "pending" });
+    expect(pending()).toBe(false);
+    docs.set("inboundRequests/req-1", { ...docs.get("inboundRequests/req-1"), consent_revoked: true });
+    await deliverOutbox();
+    expect(send).not.toHaveBeenCalled();
+    expect(rows()[0][1]).toMatchObject({ status: "cancelled", attempts: 0 });
+    // Withdrawn before anything was queued: nothing is queued, and the intent stays pending for the record.
+    docs.clear();
+    docs.set("inboundRequests/req-1", { contact: { email: "encrypted:owner@example.com" }, consent_revoked: true });
+    await intake(await sealed("withdrawn", true, "consent_withdrawn"));
+    await deliverOutbox();
+    expect(rows()).toHaveLength(0);
+    expect(pending()).toBe(true);
+    // A newer intake for the capture speaks for the job by dispatch: the queued ending is stale.
+    docs.clear();
+    docs.set("inboundRequests/req-1", { contact: { email: "encrypted:owner@example.com" } });
+    await intake(await sealed("setup_repair", true, "retry_cap_exhausted"));
+    await reconcileSceneOutcomeNotifications();
+    docs.set("taskEvaluationSceneIntakes/scene-2", { website_request_id: "req-1", source_session_id: "walkthrough-req-1",
+      created_at_iso: "2026-10-23T00:00:00Z", state: "accepted", pipeline_status: { status: "running", phase: "configuration" } });
+    await deliverOutbox();
+    expect(send).not.toHaveBeenCalled();
+    expect(rows()[0][1]).toMatchObject({ status: "cancelled", attempts: 0 });
+  });
+
+  it("sends nothing once the job's evaluation outcome email (F-01) went out, and is the one email when it did not", async () => {
+    const { deliverOutbox } = await import("../utils/captureOutbox");
+    const { reconcileSceneOutcomeNotifications } = await import("../utils/sceneOutcomeNotifications");
+    const screened = `captureOutbox/req-1:evaluation_outcome:estimate-${"a".repeat(24)}`;
+    docs.set(screened, { requestId: "req-1", kind: "evaluation_outcome", status: "sent" });
+    await intake(await sealed("held", true, "task_family_unsupported"));
+    await deliverOutbox();
+    expect(rows()).toHaveLength(0);
+    expect(send).not.toHaveBeenCalled();
+    expect(pending()).toBe(false);
+    // Queued first, then the screening email went out: cancelled at dispatch.
+    docs.delete(screened);
+    await intake(await sealed("held", true, "task_family_unsupported"));
+    await reconcileSceneOutcomeNotifications();
+    docs.set(screened, { requestId: "req-1", kind: "evaluation_outcome", status: "sent" });
+    await deliverOutbox();
+    expect(send).not.toHaveBeenCalled();
+    expect(rows()[0][1]).toMatchObject({ status: "cancelled", attempts: 0 });
+    // An older screening hold still queued is not what the page says once the scene's own hold speaks: one email, ours.
+    docs.clear();
+    docs.set("inboundRequests/req-1", { contact: { email: "encrypted:owner@example.com" } });
+    await enqueueTaskLifecycleNotification({ requestId: "req-1", milestone: "evaluation_outcome",
+      eventId: `held_capability-${"b".repeat(24)}`, screeningOutcome: "held_capability" });
+    await intake(await sealed("held", true, "task_family_unsupported"));
+    await deliverOutbox();
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(send.mock.calls[0][0].subject).toBe("Your Blueprint job is held for now");
+    expect(docs.get(`captureOutbox/req-1:evaluation_outcome:held_capability-${"b".repeat(24)}`)).toMatchObject({ status: "cancelled" });
+  });
+
+  it("does not tell the site it withdrew when the WebApp revoked the intent for its own reason", async () => {
+    const { deliverOutbox } = await import("../utils/captureOutbox");
+    const { taskLifecycleNotificationIsCurrent } = await import("../utils/taskLifecycleNotificationAuthority");
+    const revoked = await sealed("withdrawn", true, "authority_revoked");
+    expect(await intake(revoked, { state: "revoked", revocation_receipt: { scope: "future_execution" },
+      revocation_cause: "website_scene_sponsorship_changed" })).toBeNull();
+    await deliverOutbox();
+    expect(rows()).toHaveLength(0);
+    // Even a key naming that outcome is not sent, and a key naming no outcome never is.
+    const key = `req-1:scene_outcome:withdrawn-${revoked.outcome_digest.slice(7)}`;
+    expect(await taskLifecycleNotificationIsCurrent({ kind: "scene_outcome", requestId: "req-1", idempotencyKey: key })).toBe(false);
+    expect(await taskLifecycleNotificationIsCurrent({ kind: "scene_outcome", requestId: "req-1",
+      idempotencyKey: "req-1:scene_outcome" })).toBe(false);
+    // The same outcome after a rights revoke is the site's own: it is told once.
+    expect(await intake(revoked, { state: "revoked", revocation_receipt: { scope: "future_execution" },
+      revocation_cause: "source_revoked" })).toMatchObject({ kind: "withdrawn" });
+    expect(await taskLifecycleNotificationIsCurrent({ kind: "scene_outcome", requestId: "req-1", idempotencyKey: key })).toBe(true);
+  });
 });

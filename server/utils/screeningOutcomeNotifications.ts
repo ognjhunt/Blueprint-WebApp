@@ -97,8 +97,10 @@ function noticeOutcome(requestId: string, idempotencyKey: string) {
 /**
  * Whether the job page states the outcome a queued notice names: the same scene
  * progression of the job's current capture that the page and the
- * `scene_tests_started` check read. Throws when it cannot be read, which leaves
- * the claim recoverable rather than cancelling or sending it.
+ * `scene_tests_started` check read. A hold the scene's own outcome states (C-04)
+ * is that outcome's to tell, in its own one email, not an evaluation's. Throws
+ * when it cannot be read, which leaves the claim recoverable rather than
+ * cancelling or sending it.
  */
 export async function evaluationOutcomeShown(requestId: string, idempotencyKey: string): Promise<boolean> {
   const outcome = noticeOutcome(requestId, idempotencyKey);
@@ -108,5 +110,5 @@ export async function evaluationOutcomeShown(requestId: string, idempotencyKey: 
   const [{ readWebsiteSceneProgression }, { siteWalkthroughIdentity }, { sceneProgressionOutcome }] = await Promise.all([
     import("./websiteSceneProgression"), import("./siteWalkthrough"), import("./taskStatusProjection")]);
   const progression = await readWebsiteSceneProgression(requestId, siteWalkthroughIdentity(requestId, record).captureId);
-  return sceneProgressionOutcome(progression) === outcome;
+  return !progression?.sceneOutcome && sceneProgressionOutcome(progression) === outcome;
 }

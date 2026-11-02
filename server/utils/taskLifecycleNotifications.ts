@@ -27,6 +27,8 @@ import { formatPilotContact, type PilotContact } from "./pilotContactExchange";
 import { preparationEndedSentence } from "./taskStatusProjection";
 import { isScreeningResultOutcome, screeningEstimateCountSentence, screeningOutcomeSentence,
   type ScreeningOutcome } from "./betaPolicyScreeningContract";
+import { isTerminalSceneOutcomeKind, sceneOutcomeMessage, sceneOutcomeSubject,
+  type TerminalSceneOutcomeKind } from "./sceneIntentOutcome";
 
 export type TaskLifecycleMilestone = Extract<
   OutboxKind,
@@ -41,6 +43,7 @@ export type TaskLifecycleMilestone = Extract<
   | "results_ready"
   | "run_no_result"
   | "evaluation_outcome"
+  | "scene_outcome"
   | "awaiting_evaluations"
   | "no_team_passed"
   | "no_qualified_evaluation"
@@ -139,6 +142,12 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
     subject: "Your job's simulation evaluation has finished",
     body: (url, detail, _counterpart, workspaceUrl) => `${detail}\n\n${whereRunsAre(url, workspaceUrl, "See the result")}`,
   },
+  // One per terminal outcome of the job's scene intent (C-04). The subject is the
+  // ending's own, and the detail is only the job page's sentence for it.
+  scene_outcome: {
+    subject: "An update on your Blueprint job",
+    body: (url, detail, _counterpart, workspaceUrl) => `${detail}\n\n${whereRunsAre(url, workspaceUrl, "Open your job")}`,
+  },
   run_no_result: {
     subject: "An evaluation run ended without a result",
     body: (url, detail, _counterpart, workspaceUrl) => `An evaluation run in the simulation of your site ended without a complete scored result. ${detail || noResultObservationText()} Reply if you need help understanding what happened.\n\n${whereRunsAre(url, workspaceUrl, "Review the run")}`,
@@ -210,6 +219,8 @@ export async function enqueueTaskLifecycleNotification(params: {
   /** `evaluation_outcome` only: the run's result outcome, and an estimate's counts. */
   screeningOutcome?: ScreeningOutcome;
   screeningCounts?: { ran: number; total: number; scored: number };
+  /** `scene_outcome` only: the terminal outcome's kind; its event id must name it. */
+  sceneOutcomeKind?: TerminalSceneOutcomeKind;
 }): Promise<{ enqueued: boolean; reason?: "store_unavailable" | "request_missing" | "contact_missing" | "consent_withdrawn" }> {
   if (!db) return { enqueued: false, reason: "store_unavailable" };
   const requestId = params.requestId.trim();
@@ -258,12 +269,15 @@ export function buildTaskLifecycleNotification(params: {
   screeningOutcome?: ScreeningOutcome;
   /** `evaluation_outcome` estimate only: candidates that ran, of all, and episodes scored. */
   screeningCounts?: { ran: number; total: number; scored: number };
+  /** `scene_outcome` only: the terminal outcome's kind; its event id must name it. */
+  sceneOutcomeKind?: TerminalSceneOutcomeKind;
 }): Parameters<typeof enqueueOutbox>[0] {
   const requestId = params.requestId.trim();
   if (isWebsitePreparationNotice(params.milestone) && !/^sha256:[a-f0-9]{64}$/.test(params.eventId || "")) {
     throw new Error("website_preparation_event_invalid");
   }
-  const outcomeDetail = params.milestone === "evaluation_outcome" ? evaluationOutcomeDetail(params) : "";
+  const outcomeDetail = params.milestone === "evaluation_outcome" ? evaluationOutcomeDetail(params)
+    : params.milestone === "scene_outcome" ? sceneOutcomeDetail(params) : "";
   const message = copy[params.milestone];
   const url = params.captureUrl ?? captureUploadUrlFor(requestId, "owner");
   const eventId = params.eventId?.trim().replace(/[^A-Za-z0-9._-]/g, "_").slice(0, 120);
@@ -279,10 +293,11 @@ export function buildTaskLifecycleNotification(params: {
     ...(isWebsitePreparationNotice(params.milestone) ? {preparationEventId: params.eventId} : {}),
     to: params.to,
     subject: params.milestone === "evaluation_outcome" && params.screeningOutcome === "estimate"
-      ? "Your simulation estimate is ready" : message.subject,
+      ? "Your simulation estimate is ready"
+      : params.milestone === "scene_outcome" && params.sceneOutcomeKind ? sceneOutcomeSubject(params.sceneOutcomeKind) : message.subject,
     body: `${message.body(url, params.milestone === "run_no_result" ? noResultObservationText(params.runProgress)
       : isWebsitePreparationNotice(params.milestone) ? preparationDetail
-      : params.milestone === "evaluation_outcome" ? outcomeDetail
+      : params.milestone === "evaluation_outcome" || params.milestone === "scene_outcome" ? outcomeDetail
       : params.detail?.trim() ?? "", params.milestone === "pilot_booked" && params.counterpart ? formatPilotContact(params.counterpart) : "",
       params.workspaceUrl ?? null)}\n\n${EMAIL_SIGN_OFF}`,
     replyTo: "hello@tryblueprint.io",
@@ -308,6 +323,19 @@ function evaluationOutcomeDetail(params: { eventId?: string; screeningOutcome?: 
   return `${result} Nothing is needed from you.\n\n${outcome === "estimate"
     ? "This is a simulation estimate, not a physical test. It never certifies physical performance or safety."
     : "A simulation is not a physical test, and it never certifies physical performance or safety."}`;
+}
+
+/**
+ * The job page's own sentence for a terminal scene outcome and its closing
+ * (C-04). The event id must name the same kind and an outcome digest, so the
+ * dispatch check reads back exactly the outcome the body states.
+ */
+function sceneOutcomeDetail(params: { eventId?: string; sceneOutcomeKind?: TerminalSceneOutcomeKind }): string {
+  const kind = params.sceneOutcomeKind;
+  if (!isTerminalSceneOutcomeKind(kind) || !new RegExp(`^${kind}-[a-f0-9]{64}$`).test(params.eventId ?? "")) {
+    throw new Error("scene_outcome_notice_invalid");
+  }
+  return sceneOutcomeMessage(kind);
 }
 
 /**
