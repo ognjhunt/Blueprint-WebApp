@@ -1,64 +1,124 @@
 # Site beta guide
 
-The beta is **free** and **open to sites** (founder decision, 2026-10-13): anyone can start a job, and Blueprint also onboards sites by hand. Start with one recurring job at [Show us a task](https://tryblueprint.io/contact/site-operator). Describe where objects start, what happens, what success means, and what is difficult today. You can start without an account, a robot-team commitment, or footage. A submission does not schedule a visit or promise a robot partner.
+The beta is free. To start, send an email address and a video of one
+recurring job at [Submit a job](https://tryblueprint.io/contact/site-operator).
+You do not need an account, a budget or a chosen robot.
 
-How it works: invited robot teams evaluate your job free, in a simulation built from your capture. Blueprint recommends **one** team whose evaluation on your job passed, and you book that pilot in one step; you never have to compare teams. After booking, you and the robot team agree the physical pilot's dates and terms directly. Blueprint charges nothing and takes no cut.
+## What happens
 
-## Your next steps
+1. **Email and video.** Send a .mov or .mp4 of one full cycle of the job and
+   the work area around it. Upload existing footage, or record it with our
+   guidance. Keep the private job link that the form returns. We also email it
+   to you.
+2. **Brief.** Blueprint drafts the job brief from your video. Open your private
+   job link, read the brief and correct what matters. "I don't know" is an
+   acceptable answer.
+3. **Simulation.** Blueprint builds a simulation of your site. It runs the
+   candidate robot policies on your job in that simulation. You do not need to
+   do anything in this step.
+4. **Result.** Your job page shows one plain sentence for the outcome. We email
+   you once when your job reaches a result.
 
-1. Keep the private job link returned by the form. Review and correct the drafted brief, including open questions, success targets, and pilot preferences. “I don't know” is an acceptable answer; missing evidence stays visible.
-2. Send a video of the job, existing footage or a recording made later. That is all Blueprint needs from you: there is nothing to measure, weigh or photograph, and no follow-up form. See [What Blueprint works out from your video](#what-blueprint-works-out-from-your-video). Recording permission is separate from permission to describe the job. A description can still be reviewed while recording is on hold.
-3. Your job page shows where the job stands. Saved video, accepted processing, scene availability, completed evaluation, and physical results are separate states. A realistic scene or simulated result does not certify physical performance or safety.
-4. Your job card: before you start, the form shows the exact anonymized card that robot teams approved for the beta can see, and a **Keep this job private instead** checkbox. Leave it unticked to list the job, or tick it and no card is published. A listed card can be edited or hidden from your job page at any time; hiding it stops new evaluations. An account is offered when you save ownership and follow the job; the initial description does not require one. Robot teams join by invitation, and their evaluations are free.
-5. Blueprint presents one recommended pilot only when a team's evaluation on your job passed and that team wants the pilot. Review what the pilot tests, what each party provides, timing, and remaining uncertainty. **Book this pilot** is your one approval and costs nothing; there is no Blueprint fee, invoice or payment step. The robot team quotes any physical pilot cost to you directly. Site access, dates, and physical work are agreed between you and the team after booking.
+Blueprint does not refuse a job because of its task kind. If information is
+missing, we tell you what is missing. We only ask for measurements or other
+details when they change the simulation.
 
-Before recording, confirm the task with Blueprint. The current website evaluation route supports picking up one rigid object and placing it elsewhere on the same support surface. Moving between surfaces, placing into containers, or manipulating doors and other articulated objects needs a separately supported route. You can still describe the useful job you have; Blueprint should explain the specific compatibility gap before asking you to collect footage.
+## What the result means
+
+Your job page shows one of these sentences:
+
+| Sentence on your job page | What it means |
+|---|---|
+| "Your simulation estimate is ready. It is an estimate from a simulation of your site, not a certified result." | Blueprint ran candidates on your job. The page shows how many ran and how many episodes were scored. |
+| "Held: we can't simulate this kind of job yet. It counts as demand for what we build next." | Blueprint accepted the job but cannot simulate it yet. |
+| "Held: the robots that could do this job aren't set up in our simulator yet. It counts as demand for what we build next." | The robots that fit the job are not in the simulator yet. |
+| "Held: from the robot position planned in the scene built from your video, none of the robots we can simulate could reach this task." | Reach was measured in the scene, and no robot could reach the task. |
+| "No match: none of the robots we can simulate matched this job. ..." | No robot matched. At least one was measured out of reach. |
+| "No estimate yet: only scripted reference baselines were scored, ..." | No learned policy could run on your job yet. |
+| "Simulation evaluation in progress. ..." | Blueprint is still at work. Nothing is needed from you. |
+
+A simulation estimate is not a measurement of your real site. It never
+certifies physical performance or safety.
+
+After the result, Blueprint works alongside a deployment company on your real
+site. The deployment company quotes the on-site work, the equipment and the
+support. You approve those costs and agree the contract with the deployment
+company directly. Blueprint charges nothing during the beta and takes no cut.
+
+## Your job card
+
+Approved robot teams see an anonymized summary of your job. Your video, your
+address and your contacts stay private. You can edit or hide the card from your
+job page.
 
 ## Footage and permission
 
-Only provide footage you are authorized to share and use for the stated purpose. Before filming, tell people in the work area that you are recording and that the video will be shared with Blueprint, and get any permission the law requires. Film the work and objects; avoid identifiable people, conversations, confidential screens, restricted areas, and private records. Phone videos can record sound: turn it off where your camera allows. Blueprint keeps the original upload as received and removes the sound before any automated review or provider processing; it does not analyze speech. Review the [privacy policy](https://tryblueprint.io/privacy) and the permission statement before uploading. Do not put credentials or sensitive footage in support email. Keep your original file until receipt is confirmed.
+Only send footage that you are authorized to share. Before you film:
 
-The private owner link carries authority over the job; keep it private. Use the dedicated film-only link when asking an authorized colleague to record. Public listing approval does not make private footage public.
+- Tell the people in the work area that you will record, and that the video
+  goes to Blueprint.
+- Get any permission that the law requires.
+- Film the work and the objects. Do not film identifiable people,
+  conversations, confidential screens, restricted areas or private records.
+- Turn off sound if your camera allows it.
 
-To withdraw recording permission, open your private job link and choose **Withdraw recording permission**, then confirm. Uploads stop at once, the job pauses, queued evaluations are asked to cancel, and deletion of the stored footage starts. The page reports the footage as deleted only after the server confirms it; until then, withdrawal is not proof that every copy is gone. Results already produced may be kept as the Terms describe. Do not upload again to clear a withdrawal hold. If you no longer have the link, or want another handling or deletion request reviewed, contact **hello@tryblueprint.io** with the job reference.
+What Blueprint does with your video:
 
-## What Blueprint works out from your video
+- Blueprint keeps your original upload as received. It removes the sound
+  before any automated review, and before it sends footage to an AI or
+  3D-processing provider. It does not analyze speech.
+- Blueprint does not blur your footage or hold it because people appear in it.
+  The one exception: faces are blurred in the frames that go to World Labs to
+  rebuild your scene. Blueprint relies on your consent.
+- Read the [privacy policy](https://tryblueprint.io/privacy) before you upload.
+  Do not put credentials or sensitive footage in a support email. Keep your
+  original file until your job page confirms receipt.
 
-You send the video; Blueprint works out the rest. Its video reader estimates what a robot would need to know: the object's size and weight, how far it moves, the height of the surfaces it moves between, the open floor around the work, how long one cycle takes, whether people work nearby, and other items the station probably handles that the video did not show. It sizes things against what is in frame, such as a pallet or a door.
+The private job link gives control of the job. Keep it private. Approval of
+your job card does not make your footage public.
 
-These are estimates, never measurements. Wherever they appear they say "estimated from your video", and anything you already measured or told us comes first. An estimate never makes an evaluation pass.
+To withdraw recording permission, open your private job link and choose
+**Withdraw recording permission**, then confirm. New uploads are refused, the
+job pauses, queued evaluations are asked to cancel, and approved partners can
+no longer see the job.
+
+Withdrawal is not deletion. A copy of the recording and any results already
+produced are kept, as the privacy policy describes. For a deletion request,
+email **hello@tryblueprint.io** with your job reference.
 
 ## Your robot readiness report
 
-Once Blueprint has reviewed your job, your job page shows **Your robot readiness report**, folded. Its title shows how many kinds of robot fit. Inside:
+When Blueprint shares it, your job page shows **Your robot readiness report**,
+folded. It covers:
 
-- what your job needs, and how every kind of robot measures up: one arm or two arms on a fixed stand, an arm on a wheeled base, a wheeled humanoid, a walking humanoid and a legged robot with an arm;
-- getting your site ready, with each item either ready or one to confirm with the robot team;
-- what decides success here, and whether the simulation tests it or the pilot checks it;
-- safety in plain English;
-- jobs like this on the public record. None is a Blueprint customer.
+- what your job needs, and how each kind of robot measures up;
+- how to get your site ready;
+- what decides success;
+- safety;
+- similar jobs on the public record. None of those jobs is a Blueprint
+  customer.
 
-You can print it, or save it as a PDF, for anyone else who needs to agree. The printable brief has its own read-only link, so the printout never carries your private job link.
-
-The report names no robot team: Blueprint invites teams whose robots look right for the job, and if it recommends one, it will be a team whose evaluation of your job passed. It is a first read, not a promise that any robot can do the job.
+The printable brief has its own read-only link, so a printout never carries
+your private job link. The report is a first read. It does not promise that a
+robot can do the job.
 
 ## Recover a saved job
 
-| What you see | Next action |
-| --- | --- |
-| Interrupted description save | Retry from the same open form. If receipt is uncertain after closing it, check your return email or contact support before creating a duplicate job. |
-| Link cannot be checked or has expired | Reopen it; use **Email me a fresh link** if offered. A successful request is not proof of delivery. If it remains blocked, contact support. |
-| Upload failed or status is unknown | Keep the original video. Reopen the job page to check receipt before selecting it again. |
-| Video received; processing not confirmed | Use **Retry processing** only when offered. This reuses the saved video. Otherwise contact support with the displayed reason. |
-| More views or a replacement recording are needed after receipt | Contact support with the job reference. The accepted recording cannot be replaced or extended through its original link. Blueprint helps you start a new job with one complete walkthrough, fresh recording permission, and its own preparation and qualification review. Keep the original job and receipt; a new upload is not automatically joined to them. |
-| Consent or rights hold | Stop processing attempts. Resolve the named permission issue with the site owner/support. |
-| Brief correction failed | Keep the page open and retry the correction. Reopen the job link to verify the saved answers. |
-| Recommendation changed or booking acknowledgment interrupted | Reopen the job page to inspect the current recommendation and booking before retrying. Do not infer booking or payment from a missing response. |
+| What you see | What to do |
+|---|---|
+| The description save was interrupted | Retry from the same open form. If you closed it, check your email or contact support before you start a duplicate job. |
+| The link cannot be checked or has expired | Reopen it. Use **Email me a fresh link** if the page offers it. If it stays blocked, contact support. |
+| The upload failed, or its status is unknown | Keep the original video. Reopen the job page to check receipt before you select the video again. |
+| The video arrived, but processing is not confirmed | Use **Retry processing** only when the page offers it. It reuses the saved video. Otherwise, contact support with the reason the page shows. |
+| You need more views or a new recording | Contact support with the job reference. The accepted recording cannot be replaced or extended through its link. Blueprint helps you start a new job with one complete walkthrough and fresh recording permission. |
+| A consent or rights hold | Stop processing attempts. Resolve the permission issue with support. |
+| A brief correction failed | Keep the page open and retry. Reopen the job link to check the saved answers. |
 
-## Founder follow-through
+## Support
 
-Email **hello@tryblueprint.io** with your job reference (avoid forwarding the full private token), the page/step, approximate time, expected outcome, and exact error. The founder owns triage until a named helper accepts it. For each invited site, the existing operating record should hold: **owner, current evidence/status, smallest missing input, next action, and the next promised update time**. The founder agrees that update time with the participant; this guide does not promise a response-time guarantee.
+Email **hello@tryblueprint.io** with your job reference, the page or step, the
+approximate time, what you expected and the exact error. Do not forward the
+full private token. The founder owns triage until a named helper accepts it.
+This guide does not promise a response time.
 
-A useful follow-up names what was actually received, what remains uncertain, who acts next, and when to check again. If there is no corroborated willing partner or an evaluation is blocked, say so and continue bounded description review. A native evaluation dependency is not a prerequisite for an initial site conversation.
-
-Operator release evidence and the minimal launch checklist are in [INVITED_BETA_ACCEPTANCE.md](./INVITED_BETA_ACCEPTANCE.md).
+Operators: see [INVITED_BETA_ACCEPTANCE.md](./INVITED_BETA_ACCEPTANCE.md).

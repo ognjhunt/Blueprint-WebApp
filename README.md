@@ -1,18 +1,18 @@
 # Blueprint-WebApp
 
-The current owner-authorized website journey starts with required video of recurring work. Existing video analysis drafts the job description; capture-backed simulation and robot/policy evaluation support comparable delivery proposals and an agreed, measured pilot. See [implementation and verification](docs/design/job-first-automation-marketplace/IMPLEMENTATION.md). Existing scientific evaluation contracts, privacy controls and the free beta remain unchanged.
+A site sends an email and a video of one recurring job. Blueprint drafts the job brief from the video, and the site corrects it if needed. Blueprint builds a simulation of the site and runs the candidate robot policies in it itself. The site gets a bounded estimate, or "held — we can't simulate this kind of job yet". Blueprint then works alongside a deployment company on the real site. This is the owner's model of 2026-10-28; see [`PLATFORM_CONTEXT.md`](./PLATFORM_CONTEXT.md) and the [beta docs](./docs/beta/README.md).
 
-`Blueprint-WebApp` is Blueprint's buyer, licensing, ops, and hosted-access surface for real-site Task Evaluation Runs. It is not the capture client and it is not the Pipeline that qualifies evidence or creates scientific verdicts; it securely collects decision requests, gates and queues work, and projects Pipeline-owned results.
+`Blueprint-WebApp` is the customer side: a site starts a job, sends its video, sees the brief and sees the result. It also holds ops dashboards, Paperclip control-plane flows and runbooks. It is not the capture client, and it is not the Pipeline, which builds the simulation and runs the candidates.
 
 ## System Position
 
 Blueprint is a three-repo product system:
 
 1. `BlueprintCapture` collects real-site capture evidence and upload bundles.
-2. `BlueprintCapturePipeline` maintains Site-Task Testbeds, qualifies and routes evidence, normalizes results, creates Decision Envelopes, and links authoritative physical outcomes.
-3. `Blueprint-WebApp` exposes Task Evaluation Runs, testbed and evidence records, hosted review, licensing, entitlements, ops dashboards, Paperclip control-plane flows, and launch/runbooks.
+2. `BlueprintCapturePipeline` turns the video into a simulation of the site, runs the candidate robot policies and embodiments in it, and returns a bounded estimate or "held".
+3. `Blueprint-WebApp` is the customer side: job start, video upload, brief, result and status emails. It also holds ops dashboards, Paperclip control-plane flows and runbooks.
 
-The product doctrine is capture-first and real-site decision-evaluation first. Task Evaluation Run is the sole customer-facing product. World models, provider tools, site-world internals, generated media, simulation, readiness, and post-training eligibility are evidence or support layers inside a run—not separate offers.
+The beta is free: no fees and no checkout. Blueprint pays for preparation and evaluation inside a fixed budget for each site. Robot teams do not run evaluations; a technology provider supplies access or an integration only when Blueprint cannot run a policy itself. The only hard stops are privacy, rights and money (see [`AGENTS.md`](./AGENTS.md)). A simulation result is a bounded estimate and never certifies physical performance or safety.
 
 ## Blueprint OS Quick Start
 

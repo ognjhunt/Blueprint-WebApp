@@ -175,26 +175,23 @@ and scene ids from the confirmation, and the tokenized status link.
 
 ### 3a. A capture held at the privacy screen
 
-The upload screens the footage before anything is derived from it. A hold
-shows on the capture page as "Nothing is being processed from it yet".
-`inboundRequests/<requestId>.capture_privacy_screen` says why:
+There is no upload-time people screen any more. Since commit `87c17c21c`
+(2026-09-24), `screenCaptureForPrivacy` in `server/utils/capturePrivacyScreen.ts`
+returns `proceed: true`, `eligibility: "unscreened"`, `outcome: "not_reviewed"`
+for every capture, so people in the footage never hold an upload. Owner
+decision D-16 (2026-11-02) keeps it so: no blurring or screening beyond the
+Pipeline's face blur on frames sent to World Labs
+(`BlueprintCapturePipeline/src/blueprint_pipeline/atlas_privacy_screen.py`).
+Blueprint relies on the site's consent.
 
-- `eligibility: "pending"`, `outcome: "review_unavailable"`: we could not get
-  an answer. Opening the capture link (`GET /api/self-capture/uploads/<token>`)
-  retries. A review that outlives the 45-second wait is picked up by the next
-  retry without spending an attempt. `agentRuns` with
-  `metadata.capture_id == <captureId>` shows each review and its error.
-- `eligibility: "rejected"`: the reviewer saw identifiable people. That needs
-  a person, never a retry.
-
-When the attempts went on a defect we have since fixed, give the capture a
-fresh budget on the record (at most three times per capture). Preview, then
-apply:
-
-```bash
-node --import tsx scripts/rescreen-held-capture.ts <request-id> <capture-id> <your-email> "<what was fixed>"
-node --import tsx scripts/rescreen-held-capture.ts <request-id> <capture-id> <your-email> "<what was fixed>" --apply
-```
+A capture recorded before that commit can still carry
+`inboundRequests/<requestId>.capture_privacy_screen` with `eligibility:
+"pending"` or `"rejected"`. Opening its capture link
+(`GET /api/self-capture/uploads/<token>`) runs the screen again, which now
+proceeds, and records the clearance (`resumeHeldPrivacyScreen` in
+`server/utils/capturePrivacyResume.ts`). Processing still needs current
+recording permission and rights. `scripts/rescreen-held-capture.ts` is no
+longer needed: the same commit removed the retry limit that its budget reset.
 
 ### 4. Find the scene on the host and raise the preparation cap
 

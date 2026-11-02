@@ -1,5 +1,12 @@
 # Autonomous Org Launch Checklist
 
+> **Archived 2026-11-02, superseded (tracker H-01).** This April 2026 checklist
+> for the Hermes/Paperclip autonomous-org alpha is not a current launch gate.
+> For the beta journey and its checks, use
+> [`beta/INVITED_BETA_ACCEPTANCE.md`](./beta/INVITED_BETA_ACCEPTANCE.md). Live
+> beta status is in the Pipeline's
+> `docs/launch-readiness/2026-11-beta-launch-tracker.md`.
+
 Last audited: 2026-04-12
 
 This checklist is the execution-order runbook for deciding whether Blueprint's Hermes/Paperclip autonomous organization is ready for public alpha launch.

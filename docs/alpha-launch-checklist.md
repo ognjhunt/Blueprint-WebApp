@@ -1,5 +1,11 @@
 # Alpha Launch Checklist
 
+> **Archived 2026-11-02, superseded (tracker H-01).** This March 2026 alpha
+> launch gate is not a current launch gate. For the beta journey and its checks,
+> use [`beta/INVITED_BETA_ACCEPTANCE.md`](./beta/INVITED_BETA_ACCEPTANCE.md).
+> Live beta status is in the Pipeline's
+> `docs/launch-readiness/2026-11-beta-launch-tracker.md`.
+
 Last updated: 2026-03-22
 
 This checklist is the concrete launch gate for `Blueprint-WebApp`.
