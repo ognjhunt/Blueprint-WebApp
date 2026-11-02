@@ -149,7 +149,7 @@ describe("adjustDailyCap and readDailyCapUsage", () => {
 
 describe("beta abuse caps", () => {
   it("uses observed-scale defaults and env overrides", () => {
-    expect(intakeCapLimits({})).toEqual({ global: 50, perIp: 20, perEmail: 5 });
+    expect(intakeCapLimits({})).toEqual({ global: 5, perIp: 20, perEmail: 5 });
     expect(intakeCapLimits({ BLUEPRINT_INTAKE_DAILY_LIMIT: "0", BLUEPRINT_INTAKE_PER_IP_DAILY_LIMIT: "junk" })).toMatchObject({ global: 0, perIp: 20 });
     expect(uploadCapLimitsBytes({})).toEqual({ global: 20_480 * 1024 * 1024, perJob: 4_096 * 1024 * 1024 });
   });
