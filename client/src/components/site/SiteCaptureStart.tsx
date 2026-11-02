@@ -20,6 +20,7 @@ import { inferLocationCountryCode } from "@/lib/deploymentCoverage";
 import { PRIVACY_URL, TERMS_URL } from "@/lib/legalAcceptance";
 import { FILMING_NOTICE, FOOTAGE_UPLOAD_NOTICE } from "@/lib/footageNotice";
 import { DESCRIPTION_AUTHORITY_STATEMENT, DESCRIPTION_AUTHORITY_VERSION } from "@/lib/siteSubmissionAuthority";
+import { RECORDING_RIGHTS_STATEMENT, RECORDING_RIGHTS_STATEMENT_VERSION } from "@/lib/recordingRightsStatement";
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
 import {
   CAPTURE_VIDEO_ACCEPT,
@@ -36,12 +37,6 @@ import { newSiteCaptureRecovery, readSiteCaptureRecovery, writeSiteCaptureRecove
   forgetSiteCaptureRecovery, hasSiteCaptureRecoveryBytes, siteCaptureDraftKey, withSiteCaptureRecoveryLock,
   freezeSiteCaptureRecovery, type SiteCaptureRecovery } from "@/lib/siteCaptureDraft";
 
-/**
- * Same sentence version the screening form records: the attestation names the
- * exact rights sentence the operator agreed to. Keep the two in lockstep —
- * bump both together whenever either wording changes.
- */
-const RIGHTS_STATEMENT_VERSION = "2026-09-18.v1";
 const CONTACT_IDENTITY_STORAGE_KEY = "bp-contact-identity";
 
 type State =
@@ -433,7 +428,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
           // This flag records that filming permission has not been granted
           // yet. Preparing a capture link does not start an assessment.
           descriptionOnly: !footageWanted,
-          // Granted by starting: the statement is quoted verbatim next to the
+          // Granted by starting: each statement is quoted verbatim next to the
           // button, like the Terms, and recorded with its version.
           descriptionAuthority: {
             granted: true,
@@ -441,7 +436,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
           },
           consentAttestation: footageWanted ? {
             granted: true,
-            statementVersion: RIGHTS_STATEMENT_VERSION,
+            statementVersion: RECORDING_RIGHTS_STATEMENT_VERSION,
           } : null,
           ...(claudeAuthoringRequested ? { claudeAuthoringConsent: {
             granted: claudeConsent,
@@ -935,11 +930,14 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
       </>}
 
       {/* The irreducible minimum: what robot teams see (the listing grant sent
-          above) and the statements the server records as accepted here. */}
+          above) and the statements the server records as accepted here. The
+          recording-rights sentence is quoted only when starting grants it: a
+          video is attached now, from a site we can receive it from. */}
       <p className="ms-form-note">
         Approved robot teams see an anonymized summary of the job; your video, address and contacts stay private.
         By selecting Start free assessment, you agree to our <a href={TERMS_URL} target="_blank" rel="noreferrer">Terms</a> and{" "}
         <a href={PRIVACY_URL} target="_blank" rel="noreferrer">Privacy Policy</a> and confirm: “{DESCRIPTION_AUTHORITY_STATEMENT}”
+        {footageWanted && <> and “<span>{RECORDING_RIGHTS_STATEMENT}</span>”</>}
       </p>
 
       <p className="ms-form-note" role="note" aria-label="How long it takes">{REPLY_TIMELINE}</p>

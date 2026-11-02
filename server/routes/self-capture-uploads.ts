@@ -46,7 +46,8 @@ import {
 } from "../utils/taskItemInventory";
 import { authorizeCaptureUpload } from "../utils/captureUploadAuthorization";
 import { canGrantInitialRecordingConsent } from "../utils/descriptionAuthority";
-import { hasCurrentRecordingConsent, RECORDING_CONSENT_VERSION } from "../utils/recordingConsent";
+import { hasCurrentRecordingConsent } from "../utils/recordingConsent";
+import { RECORDING_RIGHTS_STATEMENT_VERSIONS } from "../../client/src/lib/recordingRightsStatement";
 import { screenCaptureForPrivacy } from "../utils/capturePrivacyScreen";
 import { resumeHeldPrivacyScreen } from "../utils/capturePrivacyResume";
 import { enqueueCoverageReview } from "../utils/captureCoverageQueue";
@@ -567,8 +568,11 @@ router.post("/:token/recording-consent", async (req: Request, res: Response) => 
   const payload = verifyCaptureUploadToken(String(req.params.token || ""));
   if (!payload) return res.status(404).json({ error: "This job link is not valid or has expired." });
   if (payload.scope !== "owner") return res.status(403).json({ error: "Use the site owner's job link to confirm recording permission." });
-  const parsed = z.object({ granted: z.literal(true), statementVersion: z.literal(RECORDING_CONSENT_VERSION) }).strict().safeParse(req.body);
+  // A closed set: a job page opened before the v2 sentence still sends v1.
+  const parsed = z.object({ granted: z.literal(true), statementVersion: z.enum(RECORDING_RIGHTS_STATEMENT_VERSIONS) }).strict().safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Review the recording permission and explicitly confirm it." });
+  // Recorded as the version of the sentence the owner actually confirmed.
+  const statementVersion = parsed.data.statementVersion;
   if (!dbAdmin) return res.status(503).json({ error: "We could not save recording permission. Try again shortly." });
   try {
     const outcome = await dbAdmin.runTransaction(async tx => {
@@ -578,7 +582,7 @@ router.post("/:token/recording-consent", async (req: Request, res: Response) => 
       if (record?.request?.buyerType === "site_operator" && hasCurrentRecordingConsent(record.request.consent_attestation)
         && !projectWebsiteCaptureRights(record).consent_revoked) return "existing";
       if (!canGrantInitialRecordingConsent(record)) return "held";
-      tx.set(ref, { request: { consent_attestation: { granted: true, statement_version: RECORDING_CONSENT_VERSION,
+      tx.set(ref, { request: { consent_attestation: { granted: true, statement_version: statementVersion,
         recorded_at_iso: new Date().toISOString(), recorded_by: "signed_owner_link" } } }, { merge: true });
       return "granted";
     });

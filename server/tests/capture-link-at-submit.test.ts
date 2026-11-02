@@ -333,7 +333,20 @@ describe("description-only owner can explicitly authorize future footage", () =>
       expect((await uploadFor(baseUrl, "req-description")).status).toBe(201);
     });
   });
-  it.each([{}, { granted: false }, { granted: true, statementVersion: "old" }, { ...grant, matchFee: true }])("does not infer permission from an incomplete or broadened request (%j)", async body => {
+  it.each(["2026-09-18.v1", "2026-11-02.v2"])("records the rights sentence version the owner confirmed (%s)", async statementVersion => {
+    // v1 is what a job page opened before the v2 sentence still sends.
+    const requestId = `req-description-${statementVersion.replace(/\W/g, "-")}`;
+    seedDescription(requestId);
+    await withRoutes(async baseUrl => {
+      expect((await consent(baseUrl, requestId, { granted: true, statementVersion })).status).toBe(200);
+      const record = sharedFakeFirestoreState.docs.get(`inboundRequests/${requestId}`) as Record<string, any>;
+      expect(record.request.consent_attestation).toMatchObject({ granted: true, statement_version: statementVersion,
+        recorded_by: "signed_owner_link" });
+      expect((await uploadFor(baseUrl, requestId)).status).toBe(201);
+    });
+  });
+  it.each([{}, { granted: false }, { granted: true, statementVersion: "old" }, { granted: true, statementVersion: "2026-11-02.v3" },
+    { granted: true, statementVersion: "2026-10-06.v1" }, { granted: true, statementVersion: null }, { ...grant, matchFee: true }])("does not infer permission from an incomplete or broadened request (%j)", async body => {
     seedDescription("req-description-denied");
     await withRoutes(async baseUrl => {
       expect((await consent(baseUrl, "req-description-denied", body)).status).toBe(400);

@@ -11,6 +11,7 @@ import { resetClientEnvCacheForTests } from "@/lib/client-env";
 
 import { SiteCaptureStart } from "@/components/site/SiteCaptureStart";
 import { siteCaptureDraftKey } from "@/lib/siteCaptureDraft";
+import { RECORDING_RIGHTS_STATEMENT } from "@/lib/recordingRightsStatement";
 import { anonymizedOpportunityDraft } from "@/types/taskBrowse";
 import { renderToString } from "react-dom/server";
 import { SITE_CAPTURE_START_FORM, siteCaptureStartSubmission } from "../../../server/tests/helpers/siteCaptureStartSubmission";
@@ -395,7 +396,7 @@ it("prepares the phone capture without a written description and waits for the v
   expect(upload.send).not.toHaveBeenCalled();
 });
 
-it("asks one question about the video and offers no separate rights step", async () => {
+it("asks one question about the video and quotes the rights sentence where starting attests it", async () => {
   await renderReady(<SiteCaptureStart />);
   const videoChoices = screen.getByRole("group", { name: "How will we see the task?" });
   expect(videoChoices.closest("details")).toBeNull();
@@ -405,9 +406,21 @@ it("asks one question about the video and offers no separate rights step", async
   expect(document.querySelector("#start-filmer")).toBeNull();
   expect(document.querySelector("#start-name")).toBeNull();
   expect(document.querySelector("#start-rights")).toBeNull();
+  // Filming later attests nothing here: the job link asks for permission first.
+  expect(screen.queryByText(RECORDING_RIGHTS_STATEMENT)).toBeNull();
 
   fireEvent.click(screen.getByRole("radio", { name: "Upload a video now" }));
+  // Starting with footage is the grant, so no separate box; the sentence it
+  // grants is quoted verbatim in the note right above the Start button.
   expect(document.querySelector("#start-rights")).toBeNull();
+  expect(screen.queryByRole("checkbox")).toBeNull();
+  const statement = screen.getByText(RECORDING_RIGHTS_STATEMENT);
+  const note = statement.closest("p")!;
+  expect(note).toHaveTextContent(/By selecting Start free assessment, you agree to our Terms and Privacy Policy and confirm: “I am authorized to share this job description with Blueprint on behalf of the site\.” and “I am authorized to record this site/);
+  expect(note).toHaveTextContent(`“${RECORDING_RIGHTS_STATEMENT}”`);
+  const start = screen.getByRole("button", { name: "Start free assessment" });
+  expect(note.compareDocumentPosition(start) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(note.parentElement).toBe(start.parentElement);
   // A guest's account comes from its email, so the video is asked for here.
   expect(document.querySelector("#start-footage")).toBeRequired();
   expect(document.querySelector("#start-password")).toBeNull();
@@ -607,12 +620,14 @@ describe("SiteCaptureStart and a video that already exists", () => {
     await renderAsSiteAccount();
     chooseUploadNow();
     expect(document.querySelector("#start-footage")).not.toBeNull();
+    expect(screen.getByText(RECORDING_RIGHTS_STATEMENT)).toBeInTheDocument();
 
     fireEvent.change(document.querySelector("#start-location")!, { target: { value: "munich" } });
     fireEvent.click(await screen.findByText("Munich, Germany"));
 
     await screen.findByText(/Hold on to the video for now/);
     expect(document.querySelector("#start-footage")).toBeNull();
+    expect(screen.queryByText(RECORDING_RIGHTS_STATEMENT)).toBeNull();
   });
 
   it("creates the task, then sends the video through the capture link", async () => {
@@ -627,7 +642,7 @@ describe("SiteCaptureStart and a video that already exists", () => {
     expect(JSON.parse(init.body)).toMatchObject({ captureMode: "self_capture", hasExistingFootage: true, captureRegion: "us" });
     expect(JSON.parse(init.body).filmerContact).toBeUndefined();
     expect(JSON.parse(init.body)).not.toHaveProperty("budgetBucket");
-    expect(JSON.parse(init.body).consentAttestation).toEqual({ granted: true, statementVersion: "2026-09-18.v1" });
+    expect(JSON.parse(init.body).consentAttestation).toEqual({ granted: true, statementVersion: "2026-11-02.v2" });
     expect(upload.send).toHaveBeenCalledWith("tok.signed", file, expect.any(Function));
     expect(screen.getByRole("link", { name: "Open your job and assessment" })).toHaveAttribute("href", captureUrl);
   });

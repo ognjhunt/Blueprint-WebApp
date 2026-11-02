@@ -1540,6 +1540,21 @@ describe("capture-first workspace intake", () => {
       consentAttestation: null, acceptedTerms: true, descriptionAuthority: { granted: true, statementVersion: "2026-10-06.v1" } })).status).toBe(201);
     expect((await api("/capture-start", "site-1", { ...capture, taskStatement: "", consentAttestation: null })).status).toBe(400);
   });
+  it("accepts a recording grant under the v1 or v2 rights sentence and refuses any other version", async () => {
+    // v1 is what a page opened before the v2 sentence still sends; v2 is the sentence shown now.
+    for (const statementVersion of ["2026-09-18.v1", "2026-11-02.v2"]) {
+      const consentAttestation = { granted: true, statementVersion };
+      expect((await api("/capture-start", "site-1", { ...capture, taskStatement: "", hasExistingFootage: true,
+        consentAttestation })).status).toBe(201);
+      expect(state.intakes.at(-1).body.consentAttestation).toEqual(consentAttestation);
+    }
+    const accepted = state.intakes.length;
+    for (const statementVersion of ["2026-11-02.v3", "2026-09-18.v2", "2026-11-02.V2", "2026-10-06.v1", "", null]) {
+      expect((await api("/capture-start", "site-1", { ...capture, taskStatement: "", hasExistingFootage: true,
+        consentAttestation: { granted: true, statementVersion } })).status).toBe(400);
+    }
+    expect(state.intakes).toHaveLength(accepted);
+  });
   it("preserves explicit Terms and description authority for a signed-in prose submission", async () => {
     const descriptionAuthority = { granted: true, statementVersion: "2026-10-06.v1" };
     const response = await api("/capture-start", "site-1", { ...capture, descriptionOnly: true,
