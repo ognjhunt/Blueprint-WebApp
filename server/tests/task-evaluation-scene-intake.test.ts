@@ -319,6 +319,18 @@ it("retains one Blueprint cap and expiry per upload and refuses changed, expired
   await expect(loadWebsiteSceneSponsorship("req1", true)).rejects.toThrow("not_configured");
 });
 
+it("issues a seven-day execution window, the most the Pipeline accepts, and refuses a longer one", async () => {
+  sponsoredCapture();
+  const policy = JSON.parse(process.env.BLUEPRINT_WEBSITE_SCENE_SPONSORSHIP_JSON!);
+  process.env.BLUEPRINT_WEBSITE_SCENE_SPONSORSHIP_JSON = JSON.stringify({ ...policy, ttl_seconds: 7 * 86400 });
+  const grant = await loadWebsiteSceneSponsorship("req1", true);
+  expect(grant.expires_at_epoch - grant.consent.accepted_at_epoch).toBe(7 * 86400);
+  store.rows.delete("inboundRequests/req1");
+  sponsoredCapture();
+  process.env.BLUEPRINT_WEBSITE_SCENE_SPONSORSHIP_JSON = JSON.stringify({ ...policy, ttl_seconds: 7 * 86400 + 1 });
+  await expect(loadWebsiteSceneSponsorship("req1", true)).rejects.toThrow("not_configured");
+});
+
 it("derives a supplementary preparation binding without renewing the original allowance or expiry", async () => {
   sponsoredCapture();
   const root = await loadWebsiteSceneSponsorship("req1", true);
