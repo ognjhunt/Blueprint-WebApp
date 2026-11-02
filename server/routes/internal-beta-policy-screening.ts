@@ -34,8 +34,11 @@ router.post("/beta-policy-screening-runs/:campaignId/execution-control", createP
   try { return res.status(200).json(await observeBetaScreeningExecutionControl(request)); }
   catch (error) {
     const code = error instanceof Error ? error.message : "";
+    // Only the store, or an unknown failure, may clear on its own (503): the
+    // Pipeline retries those. Every typed screening refusal is definite (409),
+    // so the Pipeline blocks or stops that candidate instead of holding it.
     if (/^screening_[a-z_]+$/.test(code))
-      return res.status(code.endsWith("unavailable") ? 503 : 409).json({ code });
+      return res.status(code.endsWith("store_unavailable") ? 503 : 409).json({ code });
     return res.status(503).json({ code: "screening_store_unavailable" });
   }
 });

@@ -24,6 +24,8 @@ const REASONS: Record<string, string> = {
   site_screening_budget_insufficient: NOT_RUN,
   beta_screening_site_budget_exhausted: NOT_RUN,
   beta_screening_waiting_for_capacity: "Waiting for room in our simulator.",
+  beta_screening_waiting_for_control: "Waiting to confirm this job can still run.",
+  beta_screening_transport_retry_cap_exhausted: "Not run: we could not confirm this job can still run. This is ours to fix.",
   beta_screening_static_preflight_blocked: "Could not start in our simulator. This is ours to fix.",
   beta_screening_replanned_for_new_implementation: "Continued in a newer run after a Blueprint update.",
 };
@@ -47,8 +49,16 @@ export function screeningReasonLabel(code: string): string {
   return CATEGORIES.find(([pattern]) => pattern.test(base))?.[1] ?? "Limited by something our simulator recorded.";
 }
 
+/**
+ * The Pipeline records the capacity wait beside a control wait only because the
+ * website accepts a return to preparing with that code. The control wait is the reason.
+ */
+const base = (code: string) => code.split(":")[0];
+const reasonCodes = (codes: readonly string[]) => codes.some(code => base(code) === "beta_screening_waiting_for_control")
+  ? codes.filter(code => base(code) !== "beta_screening_waiting_for_capacity") : codes;
+
 /** Each distinct plain reason once, in the order first recorded. */
-export const screeningReasonLabels = (codes: readonly string[]) => [...new Set(codes.map(screeningReasonLabel))];
+export const screeningReasonLabels = (codes: readonly string[]) => [...new Set(reasonCodes(codes).map(screeningReasonLabel))];
 
 const STATES: Record<string, string> = {
   pending: "Waiting to run", waitlisted: "Waiting to run", preparing: "Getting ready", launching: "Getting ready",

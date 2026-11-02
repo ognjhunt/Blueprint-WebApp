@@ -110,11 +110,18 @@ it("returns a durable historical stop on current withdrawal while allowing own-r
   expect(await send()).toEqual(stopped);
 });
 
-it("returns 503 with no decision for storage loss or missing real source expiry", async () => {
+it("returns 503 only for storage loss and a definite 409 for a missing real source expiry, with no decision", async () => {
   store.fail = true;
   expect(await send()).toMatchObject({ status: 503, body: { code: "screening_store_unavailable" } });
   store.fail = false;
+  // An intake without its sealed expiry will not gain one: the Pipeline must
+  // block the candidate, not retry it while holding the site's reservation.
   delete store.state.docs.get("taskEvaluationSceneIntakes/intake-one").request.execution;
-  expect(await send()).toMatchObject({ status: 503, body: { code: "screening_control_authority_unavailable" } });
+  expect(await send()).toMatchObject({ status: 409, body: { code: "screening_control_expiry_missing" } });
   expect(controlRows()).toBeUndefined();
+});
+
+it("returns a definite 409 for a stored control record it cannot read", async () => {
+  store.state.docs.get("taskEvaluationPolicyRuns/campaign-one").screening_execution_controls = null;
+  expect(await send()).toMatchObject({ status: 409, body: { code: "screening_control_record_invalid" } });
 });

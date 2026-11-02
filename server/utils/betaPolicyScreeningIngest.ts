@@ -74,12 +74,12 @@ export async function observeBetaScreeningExecutionControl(request: BetaScreenin
       throw new Error("screening_control_identity_conflict");
     const controls = run.screening_execution_controls === undefined ? {} : run.screening_execution_controls;
     if (!controls || typeof controls !== "object" || ![Object.prototype, null].includes(Object.getPrototypeOf(controls)))
-      throw new Error("screening_control_record_unavailable");
+      throw new Error("screening_control_record_invalid");
     // The same attempt, allocator invocation, or owned resource cannot be rebound
     // to a different preparation, authority, candidate, or source on restart.
     for (const [key, value] of Object.entries(controls)) {
       const parsed = executionControlSchema.safeParse(value);
-      if (!parsed.success || key !== parsed.data.binding_digest.slice(7)) throw new Error("screening_control_record_unavailable");
+      if (!parsed.success || key !== parsed.data.binding_digest.slice(7)) throw new Error("screening_control_record_invalid");
       if (key !== controlKey && (parsed.data.binding.attempt_id === binding.attempt_id
         || parsed.data.binding.invocation_id === binding.invocation_id || parsed.data.binding.resource_name === binding.resource_name))
         throw new Error("screening_control_identity_conflict");
@@ -111,9 +111,9 @@ export async function observeBetaScreeningExecutionControl(request: BetaScreenin
     // max(raw, latest verified owner-approved time-only extension), never past raw + 7 days.
     const expiry: unknown = effectiveSceneExecutionExpiry(intake);
     const sourceDeadline = typeof expiry === "number" ? Math.floor(expiry * 1000) : NaN;
-    // A missing expiry is uncertainty, not an unlimited grant. No decision is
-    // written and the existing bounded monitor grace must expire closed.
-    if (!controlTime.safeParse(sourceDeadline).success) throw new Error("screening_control_authority_unavailable");
+    // A missing or invalid expiry is no grant, and it will not appear later. No
+    // decision is written; the refusal is definite (409), never a retry.
+    if (!controlTime.safeParse(sourceDeadline).success) throw new Error("screening_control_expiry_missing");
     // A deadline observed at a source window (the sealed expiry or a verified
     // extension) follows later extensions; a caller's own shorter deadline is never lengthened.
     const priorDeadline = previous?.execution_deadline_at_ms;
