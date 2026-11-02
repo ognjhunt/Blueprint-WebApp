@@ -974,7 +974,7 @@ export async function reserveWebsitePreparationSpend(requestId: string, input: z
       throw new Error("website_scene_preparation_budget_exhausted");
     // Owner decision 2026-10-30: one dollar ceiling per job. The caps above stay;
     // every ledger this job spends from must also fit under the job's ceiling.
-    await assertWithinWebsiteJobCeiling({ record, captureId, atlas,
+    await assertWithinWebsiteJobCeiling({ record, captureId, requestId, atlas,
       reader: transactionJobLedgerReader(store, transaction, requestId), additionalCostUsd: command.maximum_cost_usd });
     const admission = { ...command, schema_version: "paid_lane_admission.v1", status: "admitted",
       blockers: [], external_disclosure_allowed: true, sponsorship_digest: authority.authority_digest,
@@ -1037,7 +1037,7 @@ export async function loadWebsiteAtlasConfiguration(requestId: string, captureId
     const usage = atlasAllowanceUsage(record.website_preparation_reservations || {});
     const policy = websiteAtlasRuntimePolicy();
     // The job's one ceiling across all of its ledgers; the allowance figures above stay Atlas-only.
-    const jobCeiling = websiteJobCeilingSummary(websiteJobCeiling({ record, captureId, atlas: authority }),
+    const jobCeiling = websiteJobCeilingSummary(websiteJobCeiling({ record, captureId, requestId, atlas: authority }),
       await websiteJobSpend({ record, reader: transactionJobLedgerReader(store, transaction, requestId) }));
     // First writer wins: a concurrent creation retries this transaction and then reads it.
     if (created && input.create !== false)
