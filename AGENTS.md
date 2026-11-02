@@ -22,7 +22,9 @@ generated from `BlueprintCapturePipeline/doctrine/`; never edit inside it here.
 
 Fail closed only for:
 
-- **Privacy:** people in captures are screened, and consent is respected.
+- **Privacy:** the site's consent is respected, including its withdrawal.
+  Faces are blurred in the frames sent to World Labs; people in captures are
+  not otherwise screened or blurred.
 - **Rights:** capture permissions, revocation, and licenses.
 - **Money:** spending stays inside its budget. Internal budgets are Blueprint's
   controls, never a step for the site.
