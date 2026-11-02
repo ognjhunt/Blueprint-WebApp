@@ -1,13 +1,13 @@
 // @vitest-environment node
 import { createServer, request as httpRequest, type Server } from "node:http";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import express from "express";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { buildPipelineSyncSignature } from "../utils/pipelineSyncSecurity";
-import { allCandidateFamilyScreeningFixture, familyScreeningFixture, finishedScreening, screeningFixture, screeningSha, sealScreening,
-  sealSelection, selectionFixture } from "./fixtures/beta-policy-screening";
+import { allCandidateFamilyScreeningFixture, familyScreeningFixture, finishedScreening, outcomePublication, screeningFixture, screeningSha,
+  sealScreening, sealSelection, selectionFixture } from "./fixtures/beta-policy-screening";
 import { crossRuntimeArtifactDigest } from "../utils/crossRuntimeCanonical";
 import { publicationFromResultRecord } from "../utils/taskEvaluationRunPublicationStorage";
 import { scientificBriefDigest } from "../utils/jobEvidenceContract";
@@ -105,6 +105,25 @@ it("atomically stores diagnostic progress in existing managed evidence and accep
   status.result_reference.digest = screeningSha("9");
   status.status_digest = crossRuntimeArtifactDigest(status, "status_digest");
   expect((await loadManagedJobEvidence("job-one", briefDigest))[0].current).toBe(false);
+});
+
+it("writes one pending result notice with the run's terminal outcome, kept through retries and budget refreshes (F-01)", async () => {
+  const url = await endpoint(), { publication } = screeningFixture(), path = "taskEvaluationPolicyRuns/campaign-one";
+  expect((await send(url, signed(publication))).status).toBe(201);
+  expect(store.rows.get(path).outcome_notification_pending).toBeUndefined();
+  const held = outcomePublication(publication, "held_capability");
+  expect((await send(url, signed(held))).status).toBe(200);
+  const intent = { schema_version: "screening_outcome_notification.v1", request_id: "job-one", run_id: "campaign-one",
+    outcome: "held_capability", event_id: `held_capability-${createHash("sha256").update("scene-one").digest("hex").slice(0, 24)}` };
+  expect(store.rows.get(path)).toMatchObject({ screening_outcome: "held_capability", outcome_notification_pending: true,
+    outcome_notification_intent: intent });
+  // Once the reconciler has queued it, a replay or a later budget-only revision writes no second intent.
+  store.rows.set(path, { ...store.rows.get(path), outcome_notification_pending: false });
+  expect((await (await send(url, signed(held))).json()).status).toBe("replayed");
+  const refreshed = sealScreening({ ...held, revision: 3, budget: { ...held.budget, committed_upper_bound_usd: "2", spent_upper_bound_usd: "2" } });
+  expect((await send(url, signed(refreshed))).status).toBe(200);
+  expect(store.rows.get(path)).toMatchObject({ publication_revision: 3, outcome_notification_pending: false,
+    outcome_notification_intent: expect.objectContaining(intent) });
 });
 
 it.each(["legacy", "scripted"])("stores signed single-candidate family results (%s) and replays the exact publication", async kind => {

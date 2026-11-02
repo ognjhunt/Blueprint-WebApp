@@ -6,6 +6,7 @@ import {canNotifyCurrentWebsitePreparationIssue} from './websitePreparationStatu
 import {decryptFieldValue} from './field-encryption';
 const CAPTURE_DEPENDENT_NOTICES=new Set<OutboxKind>([
  'video_received','scene_ready','scene_tests_started','screening_cleared','screening_started','results_ready','run_no_result',
+ 'evaluation_outcome',
  'awaiting_evaluations','no_team_passed','no_qualified_evaluation','footage_before_account',
  'brief_confirmed','coverage_shortfall','assessment_ready','input_needed',
 ]);
@@ -14,7 +15,7 @@ const CAPTURE_DEPENDENT_NOTICES=new Set<OutboxKind>([
  * existing authority checks; this grants no deletion/cancellation claim.
  * A missing capture source denies dispatch. A read failure stays recoverable. */
 export async function taskLifecycleNotificationIsCurrent(
- entry:{kind:OutboxKind;requestId:string;preparationEventId?:string;to?:string;body?:string},
+ entry:{kind:OutboxKind;requestId:string;preparationEventId?:string;to?:string;body?:string;idempotencyKey?:string},
  transaction?:FirebaseFirestore.Transaction,
 ):Promise<boolean>{
  // Coverage repair and candidate starts are internal work. Suppress old
@@ -51,6 +52,15 @@ export async function taskLifecycleNotificationIsCurrent(
  if(entry.kind==='scene_tests_started'){
   const notices=await import('./taskLifecycleNotifications');
   return notices.sceneTestsStarted(entry.requestId);
+ }
+ // A finished evaluation's outcome (F-01) is queued once its run ends, after
+ // the consent check above. A queued notice names its outcome in its key and is
+ // sent only while the job page still states it, so an estimate that has since
+ // won cancels a held notice instead of leaving it pending.
+ if(entry.kind==='evaluation_outcome'){
+  if(entry.idempotencyKey===undefined)return true;
+  const notices=await import('./screeningOutcomeNotifications');
+  return notices.evaluationOutcomeShown(entry.requestId,entry.idempotencyKey);
  }
  if(entry.kind==='awaiting_evaluations'||entry.kind==='no_team_passed'||entry.kind==='no_qualified_evaluation'){
   const notices=await import('./taskLifecycleNotifications');

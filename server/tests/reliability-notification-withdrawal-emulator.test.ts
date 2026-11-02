@@ -15,6 +15,7 @@ vi.mock("../utils/pilotRecommendationNotifications",()=>({pilotRecommendationNot
 vi.mock("../utils/taskStatusUpdates",()=>({enqueueDueTaskStatusUpdates:async()=>{},taskStatusUpdateIsCurrent:async()=>true,acknowledgeTaskStatusUpdate:async()=>{}}));
 vi.mock("../utils/taskLifecycleNotifications",()=>({reconcileSceneReadyNotifications:async()=>{}}));
 vi.mock("../utils/agentRunResultNotifications",()=>({reconcileAgentRunResultNotifications:async()=>{}}));
+vi.mock("../utils/screeningOutcomeNotifications",()=>({reconcileScreeningOutcomeNotifications:async()=>{}}));
 vi.mock("../utils/taskEvaluationNotificationRetry",()=>({reconcileTaskEvaluationNotificationRetries:async()=>{}}));
 import {dbAdmin as db} from "../../client/src/lib/firebaseAdmin";
 import {deliverOutbox,buildOutboxEntry} from "../utils/captureOutbox";

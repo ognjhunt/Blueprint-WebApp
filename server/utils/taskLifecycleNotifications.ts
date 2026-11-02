@@ -25,6 +25,8 @@ import { taskLifecycleNotificationIsCurrent } from "./taskLifecycleNotificationA
 import { drainPendingWebsitePreparationNotifications } from "./websitePreparationStatus";
 import { formatPilotContact, type PilotContact } from "./pilotContactExchange";
 import { preparationEndedSentence } from "./taskStatusProjection";
+import { isScreeningResultOutcome, screeningEstimateCountSentence, screeningOutcomeSentence,
+  type ScreeningOutcome } from "./betaPolicyScreeningContract";
 
 export type TaskLifecycleMilestone = Extract<
   OutboxKind,
@@ -38,6 +40,7 @@ export type TaskLifecycleMilestone = Extract<
   | "screening_not_now"
   | "results_ready"
   | "run_no_result"
+  | "evaluation_outcome"
   | "awaiting_evaluations"
   | "no_team_passed"
   | "no_qualified_evaluation"
@@ -129,6 +132,13 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
     subject: "Results are in from an evaluation of your job",
     body: (url, detail, _counterpart, workspaceUrl) => `An evaluation run of one candidate in the simulation of your site has finished${detail ? `: ${detail}` : ""}. This is a simulation estimate for that one candidate, not a physical test. It never certifies physical performance or safety.\n\n${whereRunsAre(url, workspaceUrl, "See the run")}`,
   },
+  // One per result outcome of the job's evaluation and scene (F-01). The detail
+  // is only the page's own sentence for that outcome, the estimate's episode
+  // count and the results disclaimer, built from typed values, never caller text.
+  evaluation_outcome: {
+    subject: "Your job's simulation evaluation has finished",
+    body: (url, detail, _counterpart, workspaceUrl) => `${detail}\n\n${whereRunsAre(url, workspaceUrl, "See the result")}`,
+  },
   run_no_result: {
     subject: "An evaluation run ended without a result",
     body: (url, detail, _counterpart, workspaceUrl) => `An evaluation run in the simulation of your site ended without a complete scored result. ${detail || noResultObservationText()} Reply if you need help understanding what happened.\n\n${whereRunsAre(url, workspaceUrl, "Review the run")}`,
@@ -197,6 +207,9 @@ export async function enqueueTaskLifecycleNotification(params: {
   runProgress?: NoResultObservation;
   /** `preparation_ended` only: the Pipeline's typed reason; unknown values add nothing. */
   terminalReason?: string | null;
+  /** `evaluation_outcome` only: the run's result outcome, and an estimate's counts. */
+  screeningOutcome?: ScreeningOutcome;
+  screeningCounts?: { ran: number; total: number; scored: number };
 }): Promise<{ enqueued: boolean; reason?: "store_unavailable" | "request_missing" | "contact_missing" | "consent_withdrawn" }> {
   if (!db) return { enqueued: false, reason: "store_unavailable" };
   const requestId = params.requestId.trim();
@@ -241,11 +254,16 @@ export function buildTaskLifecycleNotification(params: {
   terminalReason?: string | null;
   /** The job in the site's workspace, when the site is claimed. Run notices send it there. */
   workspaceUrl?: string | null;
+  /** `evaluation_outcome` only: the run's result outcome; its event id must name it. */
+  screeningOutcome?: ScreeningOutcome;
+  /** `evaluation_outcome` estimate only: candidates that ran, of all, and episodes scored. */
+  screeningCounts?: { ran: number; total: number; scored: number };
 }): Parameters<typeof enqueueOutbox>[0] {
   const requestId = params.requestId.trim();
   if (isWebsitePreparationNotice(params.milestone) && !/^sha256:[a-f0-9]{64}$/.test(params.eventId || "")) {
     throw new Error("website_preparation_event_invalid");
   }
+  const outcomeDetail = params.milestone === "evaluation_outcome" ? evaluationOutcomeDetail(params) : "";
   const message = copy[params.milestone];
   const url = params.captureUrl ?? captureUploadUrlFor(requestId, "owner");
   const eventId = params.eventId?.trim().replace(/[^A-Za-z0-9._-]/g, "_").slice(0, 120);
@@ -260,13 +278,36 @@ export function buildTaskLifecycleNotification(params: {
     kind: params.milestone,
     ...(isWebsitePreparationNotice(params.milestone) ? {preparationEventId: params.eventId} : {}),
     to: params.to,
-    subject: message.subject,
+    subject: params.milestone === "evaluation_outcome" && params.screeningOutcome === "estimate"
+      ? "Your simulation estimate is ready" : message.subject,
     body: `${message.body(url, params.milestone === "run_no_result" ? noResultObservationText(params.runProgress)
       : isWebsitePreparationNotice(params.milestone) ? preparationDetail
+      : params.milestone === "evaluation_outcome" ? outcomeDetail
       : params.detail?.trim() ?? "", params.milestone === "pilot_booked" && params.counterpart ? formatPilotContact(params.counterpart) : "",
       params.workspaceUrl ?? null)}\n\n${EMAIL_SIGN_OFF}`,
     replyTo: "hello@tryblueprint.io",
   };
+}
+
+/**
+ * The page's own sentence for a result outcome, the estimate's episode count,
+ * and the results disclaimer. The event id must name the same outcome, so the
+ * dispatch check reads back exactly what the body says (F-01).
+ */
+function evaluationOutcomeDetail(params: { eventId?: string; screeningOutcome?: ScreeningOutcome;
+  screeningCounts?: { ran: number; total: number; scored: number } }): string {
+  const outcome = params.screeningOutcome;
+  const counts = params.screeningCounts;
+  if (!isScreeningResultOutcome(outcome) || !new RegExp(`^${outcome}-[a-f0-9]{24}$`).test(params.eventId ?? "")
+    || (outcome === "estimate") !== Boolean(counts)
+    || (counts && ![counts.ran, counts.total, counts.scored].every(value => Number.isSafeInteger(value) && value >= 0))) {
+    throw new Error("evaluation_outcome_notice_invalid");
+  }
+  const result = counts ? `${screeningOutcomeSentence(outcome)} ${screeningEstimateCountSentence(counts.ran, counts.total, counts.scored)}`
+    : screeningOutcomeSentence(outcome);
+  return `${result} Nothing is needed from you.\n\n${outcome === "estimate"
+    ? "This is a simulation estimate, not a physical test. It never certifies physical performance or safety."
+    : "A simulation is not a physical test, and it never certifies physical performance or safety."}`;
 }
 
 /**

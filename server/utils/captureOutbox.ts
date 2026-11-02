@@ -48,6 +48,8 @@ export type OutboxKind =
   | "screening_started"
   | "results_ready"
   | "run_no_result"
+  /** The job's evaluation reached a result outcome: once per outcome and scene (F-01). */
+  | "evaluation_outcome"
   /** Robot teams can now request an evaluation, and none has yet. */
   | "awaiting_evaluations"
   /** Every evaluation so far finished, none passed, none is in flight. */
@@ -256,6 +258,10 @@ export async function deliverOutbox(params?: { limit?: number }): Promise<Outbox
     const { reconcileAgentRunResultNotifications } = await import("./agentRunResultNotifications");
     await reconcileAgentRunResultNotifications(limit);
   } catch (error) { logger.warn({ error }, "Could not reconcile evaluation-result notices"); }
+  try {
+    const { reconcileScreeningOutcomeNotifications } = await import("./screeningOutcomeNotifications");
+    await reconcileScreeningOutcomeNotifications(limit);
+  } catch (error) { logger.warn({ error }, "Could not reconcile evaluation-outcome notices"); }
   try {
     const { reconcileTaskEvaluationNotificationRetries } = await import("./taskEvaluationNotificationRetry");
     await reconcileTaskEvaluationNotificationRetries(db, limit);

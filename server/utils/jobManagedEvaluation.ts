@@ -12,8 +12,8 @@ import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { publicationFromResultRecord } from "./taskEvaluationRunPublicationStorage";
 import { parseVerifiedTaskEvaluationRunPublication } from "./taskEvaluationRunContract";
 import { parsePipelinePolicyCanaryPublication } from "./policyCanaryWebappSyncContract";
-import { isScreeningHeldOutcome, parseBetaPolicyScreeningPublication, screeningCandidateState, screeningEstimateRows,
-  screeningExecutionEvidence, screeningOutcome, screeningOutcomeSentence, SCREENING_REPLANNED_BLOCKER,
+import { isScreeningHeldOutcome, parseBetaPolicyScreeningPublication, screeningCandidateState, screeningEstimateCountSentence,
+  screeningEstimateRows, screeningExecutionEvidence, screeningOutcome, screeningOutcomeSentence, SCREENING_REPLANNED_BLOCKER,
   type BetaPolicyScreeningPublication, type ScreeningExecutionEvidence, type ScreeningOutcome } from "./betaPolicyScreeningContract";
 import { projectCandidateSelection } from "./betaCandidateSelection";
 import type { JobCandidateSelection } from "../../client/src/types/jobMarketplace";
@@ -277,8 +277,7 @@ export function projectManagedJobEvidence(
     // The Pipeline's rule-based choice, kept only while it restates this result.
     const selection = projectCandidateSelection(run.candidate_selection, value);
     return { ...base, state: status, outcome, resultDigest: outcome !== null && outcome !== "superseded" ? value.publication_digest : null,
-      summary: outcome === "estimate"
-        ? `${screeningOutcomeSentence(outcome)} In the simulation, ${completed} of ${total} candidates ran, with ${scored} episodes scored against the job's success criteria.`
+      summary: outcome === "estimate" ? `${screeningOutcomeSentence(outcome)} ${screeningEstimateCountSentence(completed, total, scored)}`
         : outcome ? screeningOutcomeSentence(outcome)
           : `Simulation evaluation of your job: ${completed} of ${total} candidates finished; ${scored} episodes scored so far.`,
       // The site reads what it needs to know; what Blueprint has to do is staff only.
