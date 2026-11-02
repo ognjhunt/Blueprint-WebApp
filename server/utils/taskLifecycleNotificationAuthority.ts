@@ -6,7 +6,7 @@ import {canNotifyCurrentWebsitePreparationIssue} from './websitePreparationStatu
 import {decryptFieldValue} from './field-encryption';
 const CAPTURE_DEPENDENT_NOTICES=new Set<OutboxKind>([
  'video_received','scene_ready','scene_tests_started','screening_cleared','screening_started','results_ready','run_no_result',
- 'evaluation_outcome',
+ 'evaluation_outcome','scene_outcome',
  'awaiting_evaluations','no_team_passed','no_qualified_evaluation','footage_before_account',
  'brief_confirmed','coverage_shortfall','assessment_ready','input_needed',
 ]);
@@ -61,6 +61,14 @@ export async function taskLifecycleNotificationIsCurrent(
   if(entry.idempotencyKey===undefined)return true;
   const notices=await import('./screeningOutcomeNotifications');
   return notices.evaluationOutcomeShown(entry.requestId,entry.idempotencyKey);
+ }
+ // A terminal scene outcome (C-04) names its outcome digest in its key, and is
+ // sent only while the job page still states that exact outcome and no
+ // evaluation outcome email (F-01) has told the site where its job stands.
+ if(entry.kind==='scene_outcome'){
+  if(entry.idempotencyKey===undefined)return true;
+  const notices=await import('./sceneOutcomeNotifications');
+  return notices.sceneOutcomeShown(entry.requestId,entry.idempotencyKey);
  }
  if(entry.kind==='awaiting_evaluations'||entry.kind==='no_team_passed'||entry.kind==='no_qualified_evaluation'){
   const notices=await import('./taskLifecycleNotifications');

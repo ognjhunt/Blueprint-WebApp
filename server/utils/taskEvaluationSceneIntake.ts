@@ -13,6 +13,7 @@ import type { SiteTaskBriefRecord } from "./siteTaskBrief";
 import type { TaskItemInventoryRecord } from "./taskItemInventory";
 import { familyNativePreparationReference, familyPreparationMatchesTask, isTaskFamilyStrategy, taskFamilyIntakeTask } from "./taskFamilySceneIntake";
 import { effectiveSceneExecutionExpiry } from "./sceneExecutionWindowExtension";
+import { sceneIntentOutcomeBinds, sceneIntentOutcomeSchema, sceneOutcomeNoticeIntent } from "./sceneIntentOutcome";
 
 export { sceneCanonicalJson, sceneDigest };
 
@@ -200,6 +201,9 @@ const statusSchema = z
       extension_digest: digest.nullable(),
       extension_count: z.number().int().nonnegative(),
     }).strict().optional(),
+    // C-04: the intent's one outcome, sent only once there is one. Optional so
+    // older Pipelines still parse; strict so a malformed one is refused.
+    outcome: sceneIntentOutcomeSchema.optional(),
     provider_mutation_performed_by_status_read: z.literal(false),
     status_digest: digest,
   })
@@ -588,6 +592,10 @@ export async function scenePipelineRequest(
       value.schema_version !== "task_evaluation_scene_intent_status.v1")
   )
     throw new Error("pipeline_status_owner_invalid");
+  // The outcome is the Pipeline's own sealed record for this exact intent; the
+  // email it may send is keyed by that seal.
+  if (intentId && value.outcome !== undefined && !sceneIntentOutcomeBinds(value.outcome, value))
+    throw new Error("pipeline_status_receipt_invalid");
   if (intentId && (value.phase === "family_native_prepared" || familyNativePreparationReference.safeParse(value.result_reference).success
       || isTaskFamilyStrategy(request.task?.strategy) && value.status === "completed")
     && (value.status !== "completed" || value.phase !== "family_native_prepared"
@@ -658,7 +666,10 @@ export async function processSceneIntakeQueue(limit = 10) {
       try {
         if (sceneDigest(record.request) !== record.request_digest)
           throw new Error("stored_request_digest_invalid");
-        let sponsorshipRevoked = false;
+        // Why the WebApp itself revokes a website intent. A revocation receipt
+        // carries no reason, so only `source_revoked` later reads as the site's
+        // own withdrawal (C-04); any other cause is Blueprint's.
+        let sponsorshipRevoked: string | null = null;
         if (record.website_request_id && state === "accepted") {
           try { await loadWebsiteSceneSponsorship(record.website_request_id, false, record.source_session_id); }
           catch (error) {
@@ -666,7 +677,7 @@ export async function processSceneIntakeQueue(limit = 10) {
             if (["source_revoked", "website_scene_sponsorship_changed", "website_scene_sponsorship_not_configured",
               "website_scene_sponsorship_missing", "website_task_context_not_confirmed", "task_brief_missing",
               "task_context_capture_mismatch", "supplement_not_requested"].includes(code)
-              || code.startsWith("website_capture_binding_")) sponsorshipRevoked = true;
+              || code.startsWith("website_capture_binding_")) sponsorshipRevoked = code;
             else if (code !== "consent_expired") throw error;
           }
         }
@@ -688,6 +699,7 @@ export async function processSceneIntakeQueue(limit = 10) {
             // cancellation remains terminal and never needs a Pipeline GET.
             state: record.receipt ? "closeout_pending" : "revoked",
             revocation_receipt: revocation,
+            ...(sponsorshipRevoked ? { revocation_cause: sponsorshipRevoked } : {}),
             ...(record.receipt ? { closeout_poll_count: 0 } : {}),
             blocker: null,
             next_forward_at_ms: now + 60000,
@@ -725,6 +737,10 @@ export async function processSceneIntakeQueue(limit = 10) {
               || blocker === "scene_intake_authority_revoked");
           const terminalFailure = status.status === "blocked"
             && status.phase === "policy_canary_blocked";
+          // C-04: a terminal outcome is the intent's one ending; the Pipeline
+          // starts nothing more for it, so neither does this poll. The
+          // read-only closeout of a reserved attempt below still runs.
+          const terminalOutcome = status.status !== "completed" && status.outcome?.terminal === true;
           const closeoutPollCount = storedCloseoutPollCount(record);
           const closeoutRequired = authorityEnded && hasReservedAttempt;
           const closeoutExhausted = closeoutRequired
@@ -739,12 +755,15 @@ export async function processSceneIntakeQueue(limit = 10) {
                   ? "closeout_pending"
                   : ["expired", "revoked"].includes(status.status)
                     ? status.status
-                    : "accepted";
+                    : terminalOutcome
+                      ? "blocked"
+                      : "accepted";
           patch = {
             pipeline_status: status,
             state: nextState,
             next_forward_at_ms: ["expired", "revoked"].includes(status.status)
               && !hasReservedAttempt
+              || terminalOutcome && !closeoutRequired
               ? Number.MAX_SAFE_INTEGER
               : now + 60000,
             blocker: null,
@@ -932,12 +951,18 @@ export async function processSceneIntakeQueue(limit = 10) {
           ...(closeoutPoll ? { closeout_poll_count: closeoutPollCount + 1 } : {}),
         };
       }
+      // A terminal outcome owes the website job one email (C-04). The intent is
+      // written with the status that carried it and queued by the outbox
+      // reconciler; the same outcome read again writes nothing new.
+      const notice = record.website_request_id ? sceneOutcomeNoticeIntent(row.id, { ...record, ...patch }) : null;
       await storeTimeout(
         db.runTransaction(async (transaction) => {
           const latest = await transaction.get(row.ref);
           if (latest.data()?.lease_id === claim)
             transaction.update(row.ref, {
               ...patch,
+              ...(notice && latest.data()?.scene_outcome_notification_intent?.event_id !== notice.event_id
+                ? { scene_outcome_notification_pending: true, scene_outcome_notification_intent: notice } : {}),
               ...(latest.data()?.revocation_requested &&
               patch.state !== "revoked" &&
               patch.state !== "closeout_pending" &&

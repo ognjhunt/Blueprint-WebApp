@@ -357,6 +357,58 @@ describe("scene progression after hand-off", () => {
   ])("PROG-001 %j projects to %s", (record, expected) => {
     expect(projectWebsiteSceneProgression(record)?.state ?? null).toBe(expected);
   });
+  // C-04: the Pipeline's one outcome for the intent, as the worker stores it from a verified status.
+  const outcome = (kind: string, terminal: boolean, reasonCode: string, reasonCategory = "blueprint_fault") => ({
+    schema_version: "task_evaluation_scene_intent_outcome.v1", intent_id: "scene-one", intent_digest: `sha256:${"d".repeat(64)}`,
+    kind, terminal, reason_category: reasonCategory, reason_code: reasonCode, decided_at_epoch: 1793000000.25,
+    outcome_digest: `sha256:${"f".repeat(64)}` });
+  const reading = (kind: string, terminal: boolean, reasonCode: string) =>
+    ({ kind, terminal, reasonCode, digest: `sha256:${"f".repeat(64)}` });
+  it.each([
+    ["held", true, "task_family_unsupported", { state: "held", heldReason: "held_capability" }],
+    ["held", true, "task_infeasible", { state: "held", heldReason: "held_capability" }],
+    ["withdrawn", true, "consent_withdrawn", { state: "ended" }],
+    ["withdrawn", true, "source_revoked", { state: "ended" }],
+    ["setup_repair", true, "scene_configuration_failed", { state: "ended" }],
+    ["setup_repair", true, "stalled", { state: "ended" }],
+    ["setup_repair", false, "pipeline_fault", { state: "waiting" }],
+    ["awaiting_spend_approval", false, "spend_cap_reached", { state: "waiting" }],
+    ["awaiting_site", false, "task_brief_required", { state: "waiting" }],
+  ] as const)("PROG-009 a %s outcome (terminal %s, %s) decides the scene's state ahead of its blockers (C-04)",
+    (kind, terminal, reasonCode, expected) => {
+      // The same row without an outcome (an older Pipeline) still reads by its blockers.
+      const status = { status: "blocked", phase: "preparation", blockers: ["scene_progression_retry_cap_exhausted"] };
+      expect(projectWebsiteSceneProgression({ state: "accepted", pipeline_status: status })).toEqual({ state: "ended" });
+      expect(projectWebsiteSceneProgression({ state: terminal ? "blocked" : "accepted",
+        pipeline_status: { ...status, outcome: outcome(kind, terminal, reasonCode) } }))
+        .toEqual({ ...expected, sceneOutcome: reading(kind, terminal, reasonCode) });
+    });
+  it("PROG-010 an outcome speaks for the scene only once nothing can still change it (C-04)", () => {
+    const expired = outcome("setup_repair", true, "authority_expired", "authority_expired");
+    const status = { status: "expired", phase: "authority", blockers: ["scene_intake_authority_expired"], outcome: expired };
+    // A completed status supersedes any outcome.
+    expect(projectWebsiteSceneProgression({ state: "completed", pipeline_status: { status: "completed", phase: "scene_prepared",
+      outcome: expired } })).toEqual({ state: "completed" });
+    // A reserved attempt can still finish while the read-only closeout runs: the ending waits for it.
+    expect(projectWebsiteSceneProgression({ state: "closeout_pending", pipeline_status: status })).toEqual({ state: "in_progress" });
+    expect(projectWebsiteSceneProgression({ state: "blocked", blocker: "terminal_closeout_poll_cap_exhausted", pipeline_status: status }))
+      .toEqual({ state: "ended", sceneOutcome: reading("setup_repair", true, "authority_expired") });
+    // A revoke the WebApp made for its own reason echoes back as authority_revoked: not the site's withdrawal.
+    const revoked = { state: "revoked", revocation_receipt: { scope: "future_execution" }, pipeline_status: { status: "revoked",
+      phase: "authority", blockers: ["scene_intake_authority_revoked"], outcome: outcome("withdrawn", true, "authority_revoked", "privacy_rights") } };
+    expect(projectWebsiteSceneProgression(revoked)).toEqual({ state: "ended" });
+    expect(projectWebsiteSceneProgression({ ...revoked, revocation_cause: "website_scene_sponsorship_changed" })).toEqual({ state: "ended" });
+    expect(projectWebsiteSceneProgression({ ...revoked, state: "revocation_pending", revocation_receipt: undefined,
+      revocation_requested: true })).toEqual({ state: "in_progress" });
+    // Revoked because the site's rights ended: that is the site's withdrawal.
+    expect(projectWebsiteSceneProgression({ ...revoked, revocation_cause: "source_revoked" }))
+      .toEqual({ state: "ended", sceneOutcome: reading("withdrawn", true, "authority_revoked") });
+    // A pairing the contract does not define, or an unreadable record, is not adopted.
+    const blocked = { status: "blocked", phase: "preparation", blockers: ["x"] };
+    for (const value of [outcome("awaiting_site", true, "site_consent_required"), outcome("held", false, "task_family_unsupported"),
+      { ...outcome("held", true, "task_family_unsupported"), kind: "finished" }, { kind: "held", terminal: true }])
+      expect(projectWebsiteSceneProgression({ state: "accepted", pipeline_status: { ...blocked, outcome: value } })).toEqual({ state: "waiting" });
+  });
   it("PROG-002 reads only this capture's latest intake and never fails the page", async () => {
     state.docs.set("taskEvaluationSceneIntakes/scene-a", { website_request_id: "r1", source_session_id: "walkthrough-r1",
       created_at_iso: "2026-10-01T00:00:00Z", state: "blocked" });

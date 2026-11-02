@@ -6,6 +6,7 @@ import { managedJobTask, projectManagedJobEvidence } from "../utils/jobManagedEv
 import { scientificBriefDigest } from "../utils/jobEvidenceContract";
 import { projectWebsiteSceneProgression, sceneScreening, sceneScreeningResult } from "../utils/websiteSceneProgression";
 import { outcomePublication, screeningFixture } from "./fixtures/beta-policy-screening";
+import { crossRuntimeDigest } from "../utils/crossRuntimeCanonical";
 
 const reference = "bp-prep-0123456789abcdef";
 const base = { briefDrafted: true, briefConfirmed: true, stage: null,
@@ -249,5 +250,79 @@ describe("optional brief confirmation alongside v2 preparation states", () => {
       preparationStatus: { state: "failed_terminal", correlationId: reference, terminalReason: "retry_exhausted" } } as never);
     expect(status.decision).toBe("processing_failure");
     expect(status.operatorAction).toBeNull();
+  });
+});
+
+describe("the Pipeline's one outcome for the job's scene (C-04)", () => {
+  const handedOff = { ...base, preparationStatus: { state: "handed_off", correlationId: reference } };
+  const sealed = (kind: string, terminal: boolean, reasonCode: string) => {
+    const value = { schema_version: "task_evaluation_scene_intent_outcome.v1", intent_id: "scene-one",
+      intent_digest: `sha256:${"d".repeat(64)}`, kind, terminal, reason_category: "blueprint_fault", reason_code: reasonCode,
+      decided_at_epoch: 1793000000.25 };
+    return { ...value, outcome_digest: crossRuntimeDigest(value) };
+  };
+  const progression = (kind: string, terminal: boolean, reasonCode: string) => projectWebsiteSceneProgression({
+    state: terminal ? "blocked" : "accepted", pipeline_status: { status: "blocked", phase: "preparation",
+      blockers: ["anything"], outcome: sealed(kind, terminal, reasonCode) } });
+  const project = (sceneProgression: unknown, extra: Record<string, unknown> = {}) =>
+    projectTaskStatus({ ...handedOff, ...extra, sceneProgression } as never);
+
+  it.each([
+    ["held", "task_family_unsupported", "Held: we can't simulate this kind of job yet. It counts as demand for what we build next. Nothing is needed from you."],
+    ["withdrawn", "consent_expired", "Permission to use this video for your job was withdrawn or has expired. You don't need to do anything; this job has stopped."],
+    ["setup_repair", "retry_cap_exhausted", "We could not finish preparing your job for robot evaluations, and we have stopped trying. Nothing is needed from you."],
+    ["setup_repair", "authority_expired", "We could not finish preparing your job for robot evaluations, and we have stopped trying. Nothing is needed from you."],
+  ] as const)("a terminal %s outcome (%s) says on the page exactly what its one email says", async (kind, reasonCode, sentence) => {
+    const { buildTaskLifecycleNotification } = await import("../utils/taskLifecycleNotifications");
+    const outcome = sealed(kind, true, reasonCode);
+    const notice = buildTaskLifecycleNotification({ requestId: "req-1", to: "owner@example.com", milestone: "scene_outcome",
+      eventId: `${kind}-${outcome.outcome_digest.slice(7)}`, sceneOutcomeKind: kind,
+      captureUrl: "https://example.invalid/capture-upload/private-owner-link" });
+    for (const scenePreviewReady of [false, true]) {
+      const status = project(progression(kind, true, reasonCode), { scenePreviewReady });
+      expect(status.headline).toBe(sentence);
+      expect(notice.body.startsWith(`${status.headline}\n\n`)).toBe(true);
+      expect(status.decision).toBe(kind === "held" ? "assessing" : "footage_received");
+      expect(status.operatorAction).toBeNull();
+      // No processing-failure card under a withdrawal or a stop it does not describe.
+      expect(status.outcome).toBeUndefined();
+      expect(`${status.headline} ${notice.subject}`).not.toMatch(/[a-z]+_[a-z]+|budget|retry|expired_/);
+    }
+    // An ending is said ahead of the optional card; a hold keeps its sentence first, like any evaluation hold.
+    const unlisted = project(progression(kind, true, reasonCode), { listed: false, scenePreviewReady: true });
+    expect(unlisted.headline.startsWith(kind === "held" ? sentence.replace(" Nothing is needed from you.", "") : sentence)).toBe(true);
+    expect(unlisted.decision).toBe(kind === "held" ? "not_listed" : "footage_received");
+    // Consent withdrawal still wins over every ending.
+    expect(project(progression(kind, true, reasonCode), { consentRevoked: true }).headline).toMatch(/consent was withdrawn/);
+  });
+
+  it.each([
+    ["setup_repair", "pipeline_fault", "We are fixing a setup problem on our side before your job's simulation can continue. Nothing is needed from you.", null],
+    ["setup_repair", "a_later_reason", "We are fixing a setup problem on our side before your job's simulation can continue. Nothing is needed from you.", null],
+    ["awaiting_spend_approval", "job_ceiling_reached", "Your job is waiting on an internal budget approval at Blueprint. Nothing is needed from you.", null],
+    ["awaiting_site", "site_consent_required", "Your job is waiting for you to confirm permission to process your video.", "hello@tryblueprint.io"],
+    ["awaiting_site", "task_brief_required", "Your job is waiting for a description of the job you filmed.", "hello@tryblueprint.io"],
+    ["awaiting_site", "a_later_reason", "Your job is waiting for something from you.", "hello@tryblueprint.io"],
+  ] as const)("a %s wait (%s) says what it waits on in one plain sentence", (kind, reasonCode, sentence, contact) => {
+    const status = project(progression(kind, false, reasonCode));
+    expect(status.decision).toBe("assessing");
+    expect(status.headline).toBe(sentence);
+    expect(project(progression(kind, false, reasonCode), { scenePreviewReady: true }).headline)
+      .toBe(`Your scene preview is ready. ${sentence}`);
+    if (contact) expect(status.operatorAction).toContain(contact);
+    else expect(status.operatorAction).toBeNull();
+    expect(`${status.headline} ${status.operatorAction ?? ""}`).not.toContain(reasonCode);
+    // A wait on the site is its one step, ahead of the optional card; a wait on us stays behind the card.
+    const unlisted = project(progression(kind, false, reasonCode), { listed: false, scenePreviewReady: true });
+    expect(unlisted.decision).toBe(kind === "awaiting_site" ? "assessing" : "not_listed");
+  });
+
+  it("an older Pipeline's ended or waiting scene reads as it did before", () => {
+    const ended = project(projectWebsiteSceneProgression({ state: "accepted", pipeline_status: { status: "blocked",
+      phase: "preparation", blockers: ["scene_progression_retry_cap_exhausted"] } }));
+    expect(ended).toMatchObject({ decision: "processing_failure", outcome: { actionOwner: "blueprint" } });
+    const waiting = project(projectWebsiteSceneProgression({ state: "accepted", pipeline_status: { status: "blocked",
+      phase: "preparation", blockers: ["scene_intake_spend_cap_exhausted"] } }));
+    expect(waiting.headline).toBe("Preparing the job for simulation is waiting on our team; nothing is needed from you.");
   });
 });

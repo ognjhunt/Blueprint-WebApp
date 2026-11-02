@@ -30,6 +30,7 @@ import { taskScopeNotYet } from "./siteTaskScope";
 import type { TaskOutcome } from "../../client/src/types/taskOutcome";
 import { processingFailure } from "./taskPreparationOutcome";
 import { screeningOutcomeSentence, type ScreeningHeldOutcome, type ScreeningOutcome } from "./betaPolicyScreeningContract";
+import { isTerminalSceneOutcomeKind, sceneOutcomeMessage, sceneWaitMessage, type SceneOutcomeReading } from "./sceneIntentOutcome";
 
 /**
  * The decision, in the operator's terms.
@@ -199,11 +200,22 @@ export interface TaskPreparationStatus {
  * same sentence the run's own summary gives (`screeningOutcomeSentence`, F-03);
  * a measured reason is station-relative, never a task-level verdict (owner
  * decision 2026-10-31). A held job with no reason reads as `held_capability`.
+ * `sceneOutcome` is the Pipeline's own outcome for the scene when it sent one
+ * (C-04): an ending and its one email say the same sentence, and a wait says
+ * what it waits on. It is read here only to pick that sentence.
  */
 export interface TaskSceneProgression {
   state: "in_progress" | "waiting" | "ended" | "completed" | "testing" | "evaluated" | "held";
   heldReason?: ScreeningHeldOutcome;
   progressOutcome?: Extract<ScreeningOutcome, "awaiting_spend_approval" | "setup_repair" | "superseded">;
+  sceneOutcome?: SceneOutcomeReading;
+}
+
+/** An ending the Pipeline decided (C-04), as the job page and its one email both say it; a hold says its own sentence. */
+function sceneEndingMessage(progression: TaskSceneProgression | null | undefined): string | null {
+  const outcome = progression?.state === "ended" ? progression.sceneOutcome : undefined;
+  return outcome?.terminal && isTerminalSceneOutcomeKind(outcome.kind) && outcome.kind !== "held"
+    ? sceneOutcomeMessage(outcome.kind) : null;
 }
 
 /** The job evaluation outcome a scene's progression states, if any. */
@@ -360,11 +372,17 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
   const nativeProgress = input.preparationStatus?.state === "handed_off" || Boolean(input.sceneProgression);
   const observedPreparation = Boolean(input.scenePreviewReady || nativeProgress
     || input.preparationStatus && input.preparationStatus.state !== "unavailable");
+  // The Pipeline's own ending for the scene (C-04) is said in its email's words,
+  // with no processing-failure card: a withdrawal is not a processing failure.
+  const sceneEnding = sceneEndingMessage(input.sceneProgression);
+  if (sceneEnding && !hasRuns) {
+    return { ...base, decision: "footage_received", stage: null, missingViews: [], headline: sceneEnding, operatorAction: null };
+  }
   const stopped = input.preparationStatus?.outcome
     ?? (!nativeProgress && !input.scenePreviewReady ? input.preparationOutcome : null)
     ?? (input.preparationStatus?.state === "failed_terminal" || input.preparationStatus?.state === "failed_retryable"
       || input.scenePreparationFailed && !nativeProgress
-      || input.sceneProgression?.state === "ended" ? processingFailure() : null);
+      || input.sceneProgression?.state === "ended" && !sceneEnding ? processingFailure() : null);
   if (stopped && !hasRuns) {
     const ended = input.preparationStatus?.state === "failed_terminal"
       ? preparationEndedSentence(input.preparationStatus.terminalReason) : "";
@@ -602,7 +620,7 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
       ...base,
       decision: "footage_received",
       stage: null,
-      headline: `${input.scenePreviewReady ? "Your scene preview is ready, but we" : "We"} could not finish preparing your job for robot evaluations, and we have stopped trying. Nothing more is needed from you. This needs our team's review. Keep your original recording.`,
+      headline: sceneEnding ?? `${input.scenePreviewReady ? "Your scene preview is ready, but we" : "We"} could not finish preparing your job for robot evaluations, and we have stopped trying. Nothing more is needed from you. This needs our team's review. Keep your original recording.`,
       operatorAction: null,
     };
   }
@@ -612,6 +630,14 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
   // The run's own summary opens with this same sentence (F-03).
   const sceneOutcome = sceneProgressionOutcome(input.sceneProgression);
   const resultHeadline = sceneOutcome ? screeningOutcomeSentence(sceneOutcome) : null;
+  // A wait the Pipeline named (C-04), in one plain sentence. Older Pipelines name none.
+  const sceneWait = input.sceneProgression?.state === "waiting" && input.sceneProgression.sceneOutcome
+    ? sceneWaitMessage(input.sceneProgression.sceneOutcome) : null;
+  const previewReady = input.scenePreviewReady ? "Your scene preview is ready. " : "";
+  // A wait on the site is its one step, so it comes ahead of the optional card below.
+  if (sceneWait?.operatorAction) {
+    return { ...base, decision: "assessing", headline: `${previewReady}${sceneWait.headline}`, operatorAction: sceneWait.operatorAction };
+  }
   if ((input.scenePreviewReady || sceneTesting) && input.listed === false) {
     return {
       ...base,
@@ -626,7 +652,7 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
     return {
       ...base,
       decision: "assessing",
-      headline: `${input.scenePreviewReady ? "Your scene preview is ready. " : ""}Preparing the job for simulation is waiting on our team; nothing is needed from you.`,
+      headline: `${previewReady}${sceneWait?.headline ?? "Preparing the job for simulation is waiting on our team; nothing is needed from you."}`,
       operatorAction: null,
     };
   }

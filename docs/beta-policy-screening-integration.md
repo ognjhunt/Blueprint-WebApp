@@ -57,6 +57,21 @@ re-checks recording permission and that the job page still states that outcome.
 A held email is cancelled if an estimate has since won. No backfill: no
 production campaign predates it.
 
+The scene intent's own outcome (C-04) works the same way. The Pipeline's intent
+status may carry one sealed `outcome` (`task_evaluation_scene_intent_outcome.v1`):
+`held`, `withdrawn` or `setup_repair` when terminal, and `setup_repair`,
+`awaiting_spend_approval` or `awaiting_site` as waits. When present it decides
+the scene's state on the job page; older statuses keep the blocker reading. A
+terminal outcome stops the status poll, except the read-only closeout of a
+reserved attempt, and owes one `scene_outcome` email keyed by the outcome's own
+digest. The page headline and the email say the same sentence. Waits send
+nothing. No email goes out once an `evaluation_outcome` email went out for the
+job. A held page that comes from the scene outcome cancels a queued
+`evaluation_outcome` hold, so the site still gets one email. A `withdrawn`
+outcome that echoes the WebApp's own revoke for a reason other than the site's
+rights (`revocation_cause` other than `source_revoked`) is not adopted and sends
+nothing.
+
 Each accepted revision also stores one `screening_outcome` (`screeningOutcome`):
 `estimate`, `reference_only`, `held_capability`, `held_unprepared`, `infeasible`,
 `no_match`, `awaiting_spend_approval`, `setup_repair` or `superseded`, or null
