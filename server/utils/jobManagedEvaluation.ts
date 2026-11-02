@@ -12,9 +12,9 @@ import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { publicationFromResultRecord } from "./taskEvaluationRunPublicationStorage";
 import { parseVerifiedTaskEvaluationRunPublication } from "./taskEvaluationRunContract";
 import { parsePipelinePolicyCanaryPublication } from "./policyCanaryWebappSyncContract";
-import { noEstimateReason, parseBetaPolicyScreeningPublication, screeningCandidateState, screeningExecutionEvidence,
-  SCREENING_REPLANNED_BLOCKER, screeningHeldForPreparation,
-  type BetaPolicyScreeningPublication, type ScreeningExecutionEvidence } from "./betaPolicyScreeningContract";
+import { isScreeningHeldOutcome, parseBetaPolicyScreeningPublication, screeningCandidateState, screeningEstimateRows,
+  screeningExecutionEvidence, screeningOutcome, screeningOutcomeSentence, SCREENING_REPLANNED_BLOCKER,
+  type BetaPolicyScreeningPublication, type ScreeningExecutionEvidence, type ScreeningOutcome } from "./betaPolicyScreeningContract";
 import { projectCandidateSelection } from "./betaCandidateSelection";
 import type { JobCandidateSelection } from "../../client/src/types/jobMarketplace";
 import { assertWebsiteCaptureBindingInTransaction, resolveWebsiteCaptureBinding } from "./websiteCaptureBinding";
@@ -199,13 +199,34 @@ export function assertManagedOfferingForJob(
 
 export type ManagedJobEvidenceSummary = {
   runId: string; state: string; current: boolean; resultDigest: string | null;
-  summary: string; nextAction: string; limitations: string[]; href: string;
+  /** A job evaluation's outcome (`screeningOutcome`); null while it still runs. */
+  outcome?: ScreeningOutcome | null;
+  /** `nextAction` is what the site may read; `opsNextAction` is staff only. */
+  summary: string; nextAction: string; opsNextAction?: string; limitations: string[]; href: string;
   screening?: { budget?: { limitUsd: string; committedUpperBoundUsd: string; spentUpperBoundUsd: string; reservedUsd: string };
     provenance?: Pick<BetaPolicyScreeningPublication, "schema_version" | "claim_ceiling" | "source" | "generated_at"
       | "publication_digest" | "catalog_digest" | "plan_digest">;
     candidates: Array<{ candidateId: string; name: string; state: string; planned: number;
     scored: number; succeeded: number; failed: number; void: number; blockers: string[]; configurationDigest?: string;
     executionEvidence?: ScreeningExecutionEvidence }>; selection?: JobCandidateSelection };
+};
+
+/** What the site is told to expect next, per outcome: never an instruction for Blueprint or the owner (F-03). */
+const SITE_NEXT_ACTION: Readonly<Record<ScreeningOutcome, string>> = {
+  estimate: "Blueprint uses this estimate to recommend the next step for your job, then works with a deployment company on any physical pilot.",
+  reference_only: "Nothing is needed from you. Each row shows what ran, or why it could not run.",
+  held_capability: "Nothing is needed from you. Each row lists why it could not run.",
+  held_unprepared: "Nothing is needed from you. Each row lists why it could not run.",
+  infeasible: "Nothing is needed from you. Each row lists the measured reason or why it could not run.",
+  no_match: "Nothing is needed from you. Each row lists the measured reason or why it could not run.",
+  awaiting_spend_approval: "Nothing is needed from you.",
+  setup_repair: "Nothing is needed from you.",
+  superseded: "Nothing is needed from you. The newer run shows this job's progress.",
+};
+/** Blueprint's own next step, shown in operations views only. */
+const OPS_NEXT_ACTION: Partial<Record<ScreeningOutcome, string>> = {
+  awaiting_spend_approval: "Owner approval needed: this job's candidates need more than the site's simulation budget. Nothing is needed from the site.",
+  setup_repair: "Fix the setup blockers listed per candidate, then rerun. Nothing is needed from the site.",
 };
 
 /** A projection of already accepted publications, never a second report store. */
@@ -246,47 +267,32 @@ export function projectManagedJobEvidence(
     const scored = value.candidates.reduce((sum, row) => sum + row.episodes_scored, 0);
     const notRun = value.candidates.filter(row => ["blocked", "unavailable", "deferred", "infeasible"].includes(row.status)).length;
     const candidates = (count: number) => `${count} candidate${count === 1 ? "" : "s"}`;
-    // A run whose candidates finished with no scored episode has no estimate to show.
-    const finished = value.status === "completed" && scored === 0 ? "blocked" : value.status;
-    // No estimate ends as held only when no candidate can do the job; budget and
-    // setup gaps stay in progress for the owner or for us (owner decision 2026-10-28).
-    const reason = finished === "blocked" ? noEstimateReason(value.candidates, value.budget) : null;
-    // Rows planned again in a newer run after a deploy: with nothing scored here,
-    // the newer run is the one to read (owner decision 2026-10-31).
+    // The one outcome the job page headline and the result email also state (F-03).
+    const outcome = screeningOutcome(value);
     const replanned = value.candidates.some(row => row.blockers.includes(SCREENING_REPLANNED_BLOCKER));
-    const status = replanned && scored === 0 && ["completed", "blocked"].includes(finished) ? "superseded"
-      : reason === "held" || reason === "infeasible" || reason === "no_match" ? "held"
-      : reason === "budget" ? "awaiting_spend_approval" : reason === "setup" ? "setup_repair" : finished;
+    const estimateRows = outcome === "estimate" ? screeningEstimateRows(value.candidates) : [];
+    const estimated = estimateRows.reduce((sum, row) => sum + row.episodes_scored, 0);
+    const status = outcome === null ? value.status : isScreeningHeldOutcome(outcome) && outcome !== "reference_only" ? "held"
+      : outcome === "estimate" ? "completed" : outcome;
     // The Pipeline's rule-based choice, kept only while it restates this result.
     const selection = projectCandidateSelection(run.candidate_selection, value);
-    return { ...base, state: status, resultDigest: status !== "superseded" && ["completed", "blocked"].includes(finished) ? value.publication_digest : null,
-      summary: status === "superseded" ? "Continued in a newer run after a Blueprint update. The newer run shows this job's progress."
-        : status === "completed"
-        ? `Your job's simulation estimate: ${completed} of ${total} candidates ran, with ${scored} episodes scored against the job's success criteria.`
-        // Every candidate measured out of reach from the planned robot position: held, with that
-        // station-relative reason, not a task-level verdict (owner decision 2026-10-31).
-        : reason === "infeasible" ? "Held: from the robot position planned in the scene built from your video, none of the robots we can simulate could reach this task."
-        : reason === "no_match" ? "No match: none of the robots we can simulate could reach this task in the scene built from your video."
-        : status === "held" && screeningHeldForPreparation(value.candidates)
-          ? "Held: the robots that could do this job aren't set up in our simulator yet. It counts as demand for what we build next."
-        : status === "held" ? "Held: we can't simulate this kind of job yet. It counts as demand for what we build next."
-        : status === "awaiting_spend_approval" || status === "setup_repair" ? "Simulation evaluation in progress. We'll run your job again and show the estimate here."
+    return { ...base, state: status, outcome, resultDigest: outcome !== null && outcome !== "superseded" ? value.publication_digest : null,
+      summary: outcome === "estimate"
+        ? `${screeningOutcomeSentence(outcome)} In the simulation, ${completed} of ${total} candidates ran, with ${scored} episodes scored against the job's success criteria.`
+        : outcome ? screeningOutcomeSentence(outcome)
           : `Simulation evaluation of your job: ${completed} of ${total} candidates finished; ${scored} episodes scored so far.`,
-      nextAction: status === "superseded" ? "Nothing is needed from the site. Read the newer run for this job."
-        : status === "completed" ? "Blueprint uses this estimate to recommend the next step for your job, then works with a deployment company on any physical pilot."
-        : reason === "infeasible" || reason === "no_match" ? "Nothing is needed from the site. Each row lists the measured reason or why it could not run."
-        : status === "held" ? "Nothing is needed from the site. No candidate Blueprint can run supports this job yet; each row lists why."
-        : status === "awaiting_spend_approval" ? "Owner approval needed: this job's candidates need more than the site's simulation budget. Nothing is needed from the site."
-        : status === "setup_repair" ? "Fix the setup blockers listed per candidate, then rerun. Nothing is needed from the site."
-        : status === "reconciliation_required" ? "Blueprint is reviewing the recorded limitations before any further run."
+      // The site reads what it needs to know; what Blueprint has to do is staff only.
+      nextAction: outcome ? SITE_NEXT_ACTION[outcome]
+        : value.status === "reconciliation_required" ? "Blueprint is reviewing the recorded limitations before any further run."
           : "Candidate progress will update as each test finishes.",
+      ...(outcome && OPS_NEXT_ACTION[outcome] ? { opsNextAction: OPS_NEXT_ACTION[outcome] } : {}),
       limitations: [
         ...(value.candidates.some(row => row.execution_evidence_kind === "scripted_simulator_state_baseline")
           ? ["Scripted baselines use simulator state. Their outcomes do not establish learned-policy or vendor-policy performance."] : []),
-        ...(scored ? [`A bounded simulation estimate from ${scored} scored episode${scored === 1 ? "" : "s"} across ${candidates(completed)}, for this job's recorded task and simulated conditions only.`] : []),
+        ...(estimated ? [`A bounded simulation estimate from ${estimated} scored episode${estimated === 1 ? "" : "s"} across ${candidates(estimateRows.length)}, for this job's recorded task and simulated conditions only.`] : []),
         "A simulation result is a bounded estimate. It does not certify physical performance or safety.",
         ...(notRun ? [`${candidates(notRun)} did not run; each row lists why.`] : []),
-        ...(replanned && status !== "superseded" ? ["Candidates that had not run yet continue in a newer run after a Blueprint update."] : []),
+        ...(replanned && outcome !== "superseded" ? ["Candidates that had not run yet continue in a newer run after a Blueprint update."] : []),
       ],
       screening: { provenance: { schema_version: value.schema_version, claim_ceiling: value.claim_ceiling,
         source: value.source, generated_at: value.generated_at, publication_digest: value.publication_digest,

@@ -122,8 +122,11 @@ it.each(["legacy", "scripted"])("stores signed single-candidate family results (
   const retained = publicationFromResultRecord(store.rows.get(`captureTaskEvaluationRuns/${run.result_record_id}`));
   expect(retained).toEqual(completed);
   expect(run.screening_execution_observed).toBe(true);
+  // The page and any notice read the one stored outcome: scripted baselines alone are no estimate (F-03).
+  expect(run.screening_outcome).toBe(kind === "scripted" ? "reference_only" : "estimate");
   const briefDigest = scientificBriefDigest(store.rows.get("siteTaskBriefs/job-one"));
   expect((await loadManagedJobEvidence("job-one", briefDigest))[0].current).toBe(true);
+  expect((await loadManagedJobEvidence("job-one", briefDigest))[0].outcome).toBe(run.screening_outcome);
   if (kind === "scripted") {
     const readback = await readCurrentTaskScreening({ requestId: "job-one", briefDigest, captureId: completed.source.capture_id });
     expect(readback.runs[0].candidates[0].executionEvidence).toMatchObject({ execution_evidence_kind: "scripted_simulator_state_baseline",

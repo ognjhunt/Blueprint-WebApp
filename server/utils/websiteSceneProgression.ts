@@ -18,13 +18,21 @@ import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { SCENE_INTAKE_COLLECTION } from "./taskEvaluationSceneIntake";
 import type { TaskSceneProgression } from "./taskStatusProjection";
 import { taskTargetSelection, taskTargetSelectionApplies } from "./websiteTaskTargetChoice";
+import { isScreeningHeldOutcome, storedScreeningOutcome, type ScreeningOutcome } from "./betaPolicyScreeningContract";
 
 // Pipeline blocks that stay blocked once hit (task_evaluation_scene_progression):
-// the configuration failed for good, the policy canary blocked, the intent's
-// authority ended, or a bounded retry/recovery allowance ran out.
-const ENDED_PHASES = new Set(["scene_configuration_failed", "policy_canary_blocked", "authority"]);
-const ENDED_BLOCKERS = new Set(["retry_cap_exhausted", "submission_retry_cap_exhausted",
-  "preallocation_capacity_recovery_cap_exhausted", "scene_intake_authority_expired", "scene_intake_authority_revoked"]);
+// the configuration failed for good, the policy canary blocked (at or before
+// its provider), the intent's authority ended, or a bounded retry/recovery
+// allowance ran out. The Pipeline prefixes each code with the module that
+// raised it (`scene_progression_`, `scene_intake_`); older records carry the
+// bare code. A spent attempt or spend cap waits on the owner's money approval
+// and is never an ending.
+const ENDED_PHASES = new Set(["scene_configuration_failed", "policy_canary_blocked", "policy_canary_preprovider_blocked", "authority"]);
+const EXHAUSTED_ALLOWANCES = ["retry_cap_exhausted", "submission_retry_cap_exhausted",
+  "preallocation_capacity_recovery_cap_exhausted", "market_miss_recovery_cap_exhausted"];
+const ENDED_BLOCKERS = new Set([
+  ...EXHAUSTED_ALLOWANCES.flatMap(code => [code, `scene_progression_${code}`, `scene_intake_${code}`]),
+  "scene_intake_authority_expired", "scene_intake_authority_revoked"]);
 const POLICY_RUN_COLLECTION = "taskEvaluationPolicyRuns";
 const IN_FLIGHT = new Set(["revocation_pending", "forward_pending", "forward_blocked",
   "commercial_authorization_required", "accepted", "closeout_pending"]);
@@ -43,13 +51,21 @@ export function policyTestAccepted(run: Record<string, any> | null | undefined):
   return TEST_ACCEPTED_STATES.has(state) || run?.launch_forward?.status === "forwarded";
 }
 
+/** A finished job evaluation's outcome for the scene, and whether any test on it executed. */
+export type SceneScreeningResult = { outcome: ScreeningOutcome; observed: boolean };
+
 export function projectWebsiteSceneProgression(record: Record<string, any> | null | undefined,
-  testAccepted: boolean | "evaluated" | "held" | "infeasible" = false): TaskSceneProgression | null {
+  testAccepted: boolean | SceneScreeningResult = false): TaskSceneProgression | null {
   const state = record?.state;
   const phase = record?.pipeline_status?.phase;
-  if (state === "completed" && testAccepted === "infeasible") return { state: "held", heldReason: "infeasible" };
-  if (state === "completed") return { state: testAccepted === "evaluated" || testAccepted === "held" ? testAccepted
-    : testAccepted || phase === "policy_canary_complete" ? "testing" : "completed" };
+  if (state === "completed" && typeof testAccepted === "object") {
+    const { outcome, observed } = testAccepted;
+    if (outcome === "estimate") return { state: "evaluated" };
+    if (isScreeningHeldOutcome(outcome)) return { state: "held", heldReason: outcome };
+    // Waiting on us or the owner, or planned again: the scene is tested only once a test executed.
+    return { state: observed ? "testing" : "completed", progressOutcome: outcome };
+  }
+  if (state === "completed") return { state: testAccepted || phase === "policy_canary_complete" ? "testing" : "completed" };
   // The worker's own terminal states: a typed terminal refusal, or the intent's authority ended.
   if (state === "blocked" || state === "expired" || state === "revoked") return { state: "ended" };
   if (!IN_FLIGHT.has(state)) return null;
@@ -99,39 +115,63 @@ export async function readWebsiteTargetScope(requestId: string, captureId: strin
   return {correctionsDigest, superseded: true};
 }
 
+/** What a scene's job evaluations say, read in any order. */
+export type SceneScreening = { estimate: boolean; running: boolean; observed: boolean; outcome: ScreeningOutcome | null };
+
+/**
+ * The scene's job evaluations in this team (F-03). Any campaign's estimate is
+ * the job's result. Otherwise a campaign still open with an executed test is
+ * testing. Otherwise the newest finished campaign speaks for the job (by
+ * creation time, then id): a newer campaign plans the current candidates
+ * again. A campaign closed as superseded speaks only through its successor,
+ * and only while no other campaign has finished.
+ */
+export function sceneScreening(runs: Iterable<{ id: string; run: Record<string, any> | undefined }>, team: string): SceneScreening {
+  let estimate = false, running = false, observed = false, superseded = false;
+  let newest: { key: string; outcome: ScreeningOutcome } | null = null;
+  for (const { id, run } of runs) {
+    if (run?.run_kind !== "beta_policy_screening" || run.team_namespace !== team) continue;
+    const outcome = storedScreeningOutcome(run.screening_outcome);
+    const executed = run.screening_execution_observed === true;
+    observed ||= executed;
+    if (!["completed", "blocked"].includes(run.state) || !outcome) { running ||= executed; continue; }
+    if (outcome === "estimate") estimate = true;
+    else if (outcome === "superseded") superseded = true;
+    else {
+      const key = `${String(run.created_at_iso ?? "")}\u0000${id}`;
+      if (!newest || key > newest.key) newest = { key, outcome };
+    }
+  }
+  return { estimate, running, observed, outcome: newest?.outcome ?? (superseded ? "superseded" : null) };
+}
+
+/** How the scene reads from its job evaluations alone: an outcome, an open test (true), or nothing yet (false). */
+export function sceneScreeningResult(scene: SceneScreening): boolean | SceneScreeningResult {
+  if (scene.estimate) return { outcome: "estimate", observed: true };
+  if (scene.running) return true;
+  return scene.outcome ? { outcome: scene.outcome, observed: scene.observed } : false;
+}
+
 /**
  * Whether the Pipeline accepted a policy test on a configured scene of this
  * intake's task, in the intake's own team. A configured scene carries the
  * task's objects, so this is the first internal test of the finished scene.
  */
-async function firstTestAccepted(store: FirebaseFirestore.Firestore, intake: Record<string, any>): Promise<boolean | "evaluated" | "held" | "infeasible"> {
+async function firstTestAccepted(store: FirebaseFirestore.Firestore, intake: Record<string, any>): Promise<boolean | SceneScreeningResult> {
   const taskId = intake.request?.task?.task_id;
   const team = intake.request?.owner?.organization_id;
   if (typeof taskId !== "string" || !taskId || typeof team !== "string" || !team) return false;
-  // Held is a fallback: any estimate or other running test for this scene wins,
-  // whatever order the campaigns are read in. The measured reason is given only
-  // when every held campaign measured all its candidates out of reach.
-  let held = false, measured = true;
+  const runs: Array<{ id: string; run: Record<string, any> | undefined }> = [];
   if (typeof intake.receipt?.intent_id === "string") {
-    let observed = false;
     for await (const rows of queryPages(store.collection(POLICY_RUN_COLLECTION)
       .where("source_scene_intent_id", "==", intake.receipt.intent_id))) {
-      for (const row of rows) {
-        const run = row.data();
-        if (run?.run_kind !== "beta_policy_screening" || run.team_namespace !== team) continue;
-        // A completed campaign with a scored episode is the job's estimate.
-        if (run.state === "completed" && run.episodes_scored > 0) return "evaluated";
-        // No candidate can do this kind of job yet, or none reached it: held, not an open test.
-        if (["completed", "blocked"].includes(run.state) && ["held", "infeasible", "no_match"].includes(run.no_estimate_reason)) {
-          held = true;
-          measured &&= run.no_estimate_reason === "infeasible";
-          continue;
-        }
-        observed ||= run.screening_execution_observed === true;
-      }
+      runs.push(...rows.map(row => ({ id: row.id, run: row.data() })));
     }
-    if (observed) return true;
   }
+  // An estimate, or a test still running, needs no launch lookup. A finished
+  // outcome without an estimate is a fallback behind any accepted launch test.
+  const scene = sceneScreening(runs, team);
+  if (scene.estimate || scene.running) return sceneScreeningResult(scene);
   const launchIds: string[] = [];
   for await (const rows of queryPages(store.collection("taskEvaluationLaunches")
     .where("configured_scene_offering.task.identity.id", "==", taskId))) {
@@ -144,7 +184,7 @@ async function firstTestAccepted(store: FirebaseFirestore.Firestore, intake: Rec
       if (rows.some(row => policyTestAccepted(row.data()))) return true;
     }
   }
-  return held ? measured ? "infeasible" : "held" : false;
+  return sceneScreeningResult(scene);
 }
 
 /** The site's latest scene intake for this capture, projected. Throws when it cannot be read. */

@@ -4,7 +4,7 @@ import { createServer, type Server } from "node:http";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { sharedFakeFirestoreState as state } from "./helpers/fake-firestore";
 import type { DeliveryProposalInput, JobMarketplaceWorkflow } from "../../client/src/types/jobMarketplace";
-import { finishedScreening, screeningFixture, selectionFixture } from "./fixtures/beta-policy-screening";
+import { finishedScreening, outcomePublication, screeningFixture, selectionFixture } from "./fixtures/beta-policy-screening";
 import { buildTaskTargetChoiceAnswer, taskTargetSelection } from '../utils/websiteTaskTargetChoice';
 
 const captures = vi.hoisted(() => ({ received: true as boolean | null }));
@@ -119,6 +119,23 @@ describe("job workflow authority and durable decisions", () => {
       deploymentCompanies: ["Jacobi Robotics", "Delta Technology"], registryTeams: [] });
     const staff = await api("/admin/job-one", "GET", undefined, "ops-token");
     expect(staff.body.managedEvidence?.[0].screening?.selection?.chosen?.registryTeams).toEqual([{ id: "jacobi", name: "Jacobi Robotics" }]);
+  });
+
+  it("gives the site its run's outcome without the operator's instruction or the shared budget (F-03)", async () => {
+    const { publication, job, brief, intake } = screeningFixture();
+    state.docs.set("inboundRequests/job-one", job);
+    state.docs.set("siteTaskBriefs/job-one", brief);
+    state.docs.set("taskEvaluationSceneIntakes/intake-one", intake);
+    const { ingestBetaPolicyScreening } = await import("../utils/betaPolicyScreeningIngest");
+    await ingestBetaPolicyScreening(outcomePublication(publication, "awaiting_spend_approval"));
+    const site = (await api(`/owner/${token("job-one")}`)).body.managedEvidence![0];
+    expect(site).toMatchObject({ state: "awaiting_spend_approval", outcome: "awaiting_spend_approval", nextAction: "Nothing is needed from you." });
+    expect(site).not.toHaveProperty("opsNextAction");
+    expect(site.screening).not.toHaveProperty("budget");
+    expect(JSON.stringify(site)).not.toMatch(/Owner approval|rerun|limitUsd|UpperBoundUsd|reservedUsd|\$/);
+    const staff = (await api("/admin/job-one", "GET", undefined, "ops-token")).body.managedEvidence![0];
+    expect(staff.opsNextAction).toMatch(/^Owner approval needed/);
+    expect(staff.screening?.budget).toMatchObject({ limitUsd: "15.00", spentUpperBoundUsd: "4" });
   });
 
   it('keeps rejected-object proposals in history and rejects selecting their old scope', async () => {

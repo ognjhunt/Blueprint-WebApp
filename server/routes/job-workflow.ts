@@ -12,7 +12,7 @@ import { projectWebsiteCaptureRights } from "../utils/websiteTaskContext";
 import { savedWalkthrough, siteWalkthroughIdentity } from "../utils/siteWalkthrough";
 import { logger } from "../logger";
 import { readWebsiteTargetScope } from '../utils/websiteSceneProgression';
-import { loadManagedJobEvidenceForWorkspace, assertManagedJobEvidenceReference } from "../utils/jobManagedEvaluation";
+import { loadManagedJobEvidenceForWorkspace, assertManagedJobEvidenceReference, type ManagedJobEvidenceSummary } from "../utils/jobManagedEvaluation";
 import { withoutRegistryTeams } from "../utils/betaCandidateSelection";
 import { buildJobEvidenceRequest, jobEvidenceId, jobEvidenceQuestionSchema, jobEvidenceDigest, scientificBriefDigest, scientificContext, jobEvidenceSummary, jobEvidenceCaptureSessionId } from "../utils/jobEvidenceContract";
 import { assertJobEvidenceRequestActive, readJobEvidence, readJobEvidencePublication } from "../utils/jobEvidenceStore";
@@ -59,6 +59,13 @@ function assertCurrentBrief(proposal: { briefRevision: string }, brief: Record<s
   assertProposalScope(brief);
   if (proposal.briefRevision !== proposalScopeRevision(brief, state.requirements, objectSelectionDigest)) throw new JobMarketplaceError("brief_changed", "The job scope, object selection or buying requirements changed. Blueprint must review this proposal against the current job before you proceed.");
 }
+/** A site's view of a run: no registry teams, operator instruction or budget figure, which are Blueprint's own records and controls (F-03). */
+function managedEvidenceForSite(item: ManagedJobEvidenceSummary): ManagedJobEvidenceSummary {
+  const { opsNextAction: _operator, ...site } = withoutRegistryTeams(item);
+  if (!site.screening?.budget) return site;
+  const { budget: _budget, ...screening } = site.screening;
+  return { ...site, screening };
+}
 async function readWorkflow(requestId: string, admin = false) {
   if (!db) throw new JobMarketplaceError("store_unavailable", "Job details are temporarily unavailable.", 503);
   const [snapshot, brief, walkthrough] = await Promise.all([db.collection("inboundRequests").doc(requestId).get(),
@@ -79,7 +86,7 @@ async function readWorkflow(requestId: string, admin = false) {
   ]);
   return { ...projectJobMarketplace(record, briefValue, walkthrough?.received ?? null, evidenceReviewProposalIds, targetScope.superseded,
     targetScope.correctionsDigest), jobId: requestId, ...await readJobEvidence(requestId, briefValue, admin),
-    ...managed, ...(admin ? {} : { managedEvidence: managed.managedEvidence.map(withoutRegistryTeams) }),
+    ...managed, ...(admin ? {} : { managedEvidence: managed.managedEvidence.map(managedEvidenceForSite) }),
     ...(preview ? {candidateReadiness: omitPublishedCandidates(preview,
       targetScope.superseded ? [] : managed.managedEvidence)} : {}) };
 }

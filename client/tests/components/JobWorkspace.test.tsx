@@ -287,7 +287,7 @@ it("shows every screened candidate without creating a pilot recommendation", asy
 
 it("shows the current simulation result before opening technical history", async () => {
   const result = {
-    runId: "current-evaluation", state: "completed", current: true, resultDigest: "sha256:accepted-result",
+    runId: "current-evaluation", state: "completed", outcome: "estimate" as const, current: true, resultDigest: "sha256:accepted-result",
     summary: "Your job's simulation estimate: 1 candidate ran, with 3 episodes scored.",
     nextAction: "Blueprint uses this estimate to recommend the next step.",
     limitations: ["Simulation does not certify physical performance or safety."],
@@ -299,6 +299,7 @@ it("shows the current simulation result before opening technical history", async
   }] })));
   render(<JobWorkspace token="owner-token" />);
   expect(await screen.findByText(result.summary)).toBeVisible();
+  expect(screen.getByRole("heading", { name: "Your simulation estimate" })).toBeVisible();
   expect(screen.getByRole("table", { name: "Candidates evaluated for your job" })).toBeVisible();
   expect(screen.getByText("2 succeeded · 1 failed · 0 unscorable")).toBeVisible();
   expect(within(screen.getByRole("region", { name: "Simulation results for your job" })).getByText(result.limitations[0])).toBeVisible();
@@ -310,9 +311,9 @@ it("shows the current simulation result before opening technical history", async
 
 it("shows a job whose every candidate was measured out of reach as held, with that reason", async () => {
   // The server's projection for an all-infeasible run (owner decision 2026-10-31).
-  const held = { runId: "out-of-reach", state: "held", current: true, resultDigest: "sha256:accepted-result",
+  const held = { runId: "out-of-reach", state: "held", outcome: "infeasible" as const, current: true, resultDigest: "sha256:accepted-result",
     summary: "Held: from the robot position planned in the scene built from your video, none of the robots we can simulate could reach this task.",
-    nextAction: "Nothing is needed from the site. Each row lists the measured reason or why it could not run.",
+    nextAction: "Nothing is needed from you. Each row lists the measured reason or why it could not run.",
     limitations: ["2 candidates did not run; each row lists why."], href: "#managed-evidence-out-of-reach",
     screening: { candidates: ["a", "b"].map(id => ({ candidateId: id, name: `Candidate ${id}`, state: "infeasible", planned: 3,
       scored: 0, succeeded: 0, failed: 0, void: 0, blockers: ["candidate_infeasible_measured_geometry", "team_embodiment_station_out_of_reach"] })) } };
@@ -320,10 +321,48 @@ it("shows a job whose every candidate was measured out of reach as held, with th
   render(<JobWorkspace token="owner-token" />);
   const region = await screen.findByRole("region", { name: "Simulation results for your job" });
   expect(within(region).getByText(held.summary)).toBeVisible();
-  expect(within(region).getAllByText(/^infeasible · 0\/3 scored/)).toHaveLength(2);
+  expect(within(region).getAllByText(/^Out of reach · 0\/3 scored/)).toHaveLength(2);
   expect(screen.queryByText(/setup blockers|then rerun/)).toBeNull();
   fireEvent.click(screen.getByText("Technical evidence and test details"));
-  expect(screen.getByRole("heading", { name: "held" })).toBeVisible();
+  expect(screen.getByRole("heading", { name: "Held" })).toBeVisible();
+  expect(document.body.textContent).not.toMatch(/candidate_infeasible|measured geometry|station out of reach|[a-z]_[a-z]/);
+});
+
+it("never shows a site raw codes, budget figures, operator instructions or a reference run called an estimate (F-03)", async () => {
+  const candidate = (id: string, state: string, blockers: string[], scored = 0) => ({ candidateId: id, name: `Candidate ${id}`, state,
+    planned: 3, scored, succeeded: scored ? 2 : 0, failed: scored ? 1 : 0, void: 0, blockers });
+  const budget = { limitUsd: "15.00", committedUpperBoundUsd: "4.25", spentUpperBoundUsd: "4.25", reservedUsd: "0" };
+  const repair = { runId: "setup-repair", state: "setup_repair", outcome: "setup_repair" as const, current: true, resultDigest: "sha256:setup",
+    summary: "Simulation evaluation in progress. We'll run your job again and show the estimate here.",
+    nextAction: "Nothing is needed from you.",
+    // An older or misconfigured server could still send these; the site page never shows them.
+    opsNextAction: "Fix the setup blockers listed per candidate, then rerun. Nothing is needed from the site.",
+    limitations: ["A simulation result is a bounded estimate. It does not certify physical performance or safety."],
+    href: "#managed-evidence-setup-repair", screening: { budget, candidates: [
+      candidate("a", "blocked", ["beta_screening_static_preflight_blocked:no_offer"]),
+      candidate("b", "deferred", ["site_screening_budget_insufficient"]),
+      candidate("c", "unavailable", ["prepared_robot_policy_registration_missing", "runtime_candidate_binding_missing"])] } };
+  const reference = { ...repair, runId: "reference-only", state: "reference_only", outcome: "reference_only" as const,
+    summary: "No estimate yet: only scripted reference baselines were scored, and no learned policy could be evaluated on your job yet.",
+    href: "#managed-evidence-reference-only", screening: { candidates: [{ ...candidate("s", "completed", [], 3),
+      executionEvidence: { execution_evidence_kind: "scripted_simulator_state_baseline" as const, action_source: "scripted_simulator_state" as const,
+        scripted_rollout_count: 3, learned_policy_rollout_count: 0, scripted_controller_invoked: true, candidate_policy_queried: false } }] } };
+  fetchMock.mockResolvedValue(response(workflow({ briefAgreed: true, managedEvidence: [repair, reference] })));
+  render(<JobWorkspace token="owner-token" />);
+  expect(await screen.findByText(reference.summary)).toBeVisible();
+  expect(screen.queryByRole("heading", { name: "Your simulation estimate" })).toBeNull();
+  expect(screen.getAllByRole("heading", { name: "Simulation evaluation" })).toHaveLength(2);
+  fireEvent.click(screen.getByText("Technical evidence and test details"));
+  expect(screen.getByRole("heading", { name: "In progress" })).toBeVisible();
+  expect(screen.getByRole("heading", { name: "Reference baselines only" })).toBeVisible();
+  // Everything the job evaluation shows; the site's own planning form below may speak of its budget.
+  const text = [...screen.getAllByRole("region", { name: "Simulation results for your job" }),
+    screen.getByRole("region", { name: "Managed policy evidence for your job" })].map(region => region.textContent).join(" ");
+  expect(text).not.toMatch(/[a-z]_[a-z]/);
+  expect(text).not.toMatch(/beta screening|budget insufficient|registration missing|binding missing/);
+  expect(text).not.toMatch(/development only|rerun|setup blockers|Owner approval|budget|\$|4\.25|15\.00/i);
+  expect(document.body.textContent).not.toMatch(/rerun|setup blockers|Owner approval|4\.25|15\.00|[a-z]_[a-z]/);
+  expect(screen.getAllByText("Not set up in our simulator yet.").length).toBeGreaterThan(0);
 });
 
 

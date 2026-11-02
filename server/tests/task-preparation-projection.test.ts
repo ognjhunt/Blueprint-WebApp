@@ -1,5 +1,11 @@
+// @vitest-environment node
 import { describe, expect, it } from "vitest";
 import { projectTaskStatus, taskStatusInputFrom } from "../utils/taskStatusProjection";
+import { screeningOutcome, screeningOutcomeSentence, SCREENING_OUTCOMES } from "../utils/betaPolicyScreeningContract";
+import { managedJobTask, projectManagedJobEvidence } from "../utils/jobManagedEvaluation";
+import { scientificBriefDigest } from "../utils/jobEvidenceContract";
+import { projectWebsiteSceneProgression, sceneScreening, sceneScreeningResult } from "../utils/websiteSceneProgression";
+import { outcomePublication, screeningFixture } from "./fixtures/beta-policy-screening";
 
 const reference = "bp-prep-0123456789abcdef";
 const base = { briefDrafted: true, briefConfirmed: true, stage: null,
@@ -163,7 +169,7 @@ describe("preparation that waits on capacity or ends for good (beta L3/L6)", () 
     expect(testing.operatorAction).toBeNull();
     const evaluated = projectTaskStatus({ ...handedOff, sceneProgression: { state: "evaluated" } } as never);
     expect(evaluated.decision).toBe("assessing");
-    expect(evaluated.headline).toBe("Your simulation estimate is ready on your job page. It is an estimate from a simulation of your site, not a certified result. Nothing is needed from you.");
+    expect(evaluated.headline).toBe("Your simulation estimate is ready. It is an estimate from a simulation of your site, not a certified result. Nothing is needed from you.");
     const held = projectTaskStatus({ ...handedOff, sceneProgression: { state: "held" } } as never);
     expect(held.decision).toBe("assessing");
     expect(held.headline).toBe("Held: we can't simulate this kind of job yet. It counts as demand for what we build next. Nothing is needed from you.");
@@ -181,6 +187,41 @@ describe("preparation that waits on capacity or ends for good (beta L3/L6)", () 
     expect(unlisted.headline).toContain("Your scene is ready, and we are running our first tests on it. Your job card is not published");
     expect(projectTaskStatus({ ...handedOff, listed: false, sceneProgression: { state: "completed" } } as never).decision)
       .not.toBe("not_listed");
+  });
+  it.each(SCREENING_OUTCOMES)("the headline and the run say the same sentence for %s (F-03)", outcome => {
+    // The run as it is stored, read back as the job page reads it, against that run's own summary.
+    const { publication, brief, job } = screeningFixture();
+    const value = outcomePublication(publication, outcome);
+    const binding = { job_id: brief.requestId, brief_digest: scientificBriefDigest(brief) };
+    const scope = managedJobTask({ binding, record: job, brief });
+    const stored = { run_id: value.campaign_id, run_kind: "beta_policy_screening", state: value.status, result_record_id: "result-one",
+      team_namespace: scope.teamNamespace, screening_outcome: screeningOutcome(value), created_at_iso: "2026-10-26T12:20:00Z",
+      screening_execution_observed: value.candidates.some(row => row.status === "completed"),
+      job_evidence_binding: binding, job_task_context_digest: scope.taskContextDigest, job_source_fingerprint: scope.sourceFingerprint,
+      configuration_digest: value.plan_digest, source_scene_intent_id: value.source.scene_intent_id,
+      source_scene_revision_digest: value.source.scene_revision_digest, publication_digest: value.publication_digest,
+      publication_revision: value.revision };
+    const sceneProgression = projectWebsiteSceneProgression({ state: "completed", pipeline_status: { phase: "scene_prepared" } },
+      sceneScreeningResult(sceneScreening([{ id: value.campaign_id, run: stored }], scope.teamNamespace)));
+    const headline = projectTaskStatus({ ...base, preparationStatus: { state: "handed_off", correlationId: reference },
+      sceneProgression } as never).headline;
+    const summary = projectManagedJobEvidence(value.campaign_id, stored, { record_id: "result-one", publication: value },
+      brief.requestId, binding.brief_digest, scope.taskContextDigest, scope.sourceFingerprint)!.summary;
+    const sentence = screeningOutcomeSentence(outcome);
+    expect(headline).toBe(`${sentence} Nothing is needed from you.`);
+    expect(summary.slice(0, sentence.length)).toBe(headline.slice(0, sentence.length));
+    if (outcome === "no_match") expect(headline).toMatch(/^No match: none of the robots we can simulate matched this job\./);
+    if (outcome !== "held_capability") expect(headline).not.toMatch(/can't simulate this kind of job/);
+    if (outcome !== "estimate") expect(headline).not.toMatch(/estimate is ready/);
+  });
+  it("an unpublished card keeps the outcome sentence ahead of the publishing step", () => {
+    const handedOff = { ...base, listed: false, preparationStatus: { state: "handed_off", correlationId: reference } };
+    for (const [sceneProgression, outcome] of [[{ state: "held", heldReason: "no_match" }, "no_match"],
+      [{ state: "held", heldReason: "reference_only" }, "reference_only"], [{ state: "evaluated" }, "estimate"]] as const) {
+      const status = projectTaskStatus({ ...handedOff, sceneProgression } as never);
+      expect(status.decision).toBe("not_listed");
+      expect(status.headline.startsWith(`${screeningOutcomeSentence(outcome)} Your job card is not published`)).toBe(true);
+    }
   });
   it("consent withdrawal and earlier gates still win over an ending", () => {
     expect(projectTaskStatus({ ...base, consentRevoked: true,
