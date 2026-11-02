@@ -56,6 +56,18 @@ function matchingAuthorizations(input: EnvRowMatch) {
     && v.task_context_digest === input.taskContextDigest && v.source_video_digest === input.sourceVideoDigest);
 }
 
+/** The owner's explicit per-job figure from this job's authorization rows, for the job's
+ * one dollar ceiling. Only the figure is read: no consent, terms or expiry is granted
+ * here. An unreadable setting or no row names none; several rows name the smallest. */
+export function websiteAtlasAuthorizationCeiling(requestId: string, captureId: string): number | null {
+  let values: z.infer<typeof authorization>[];
+  try {
+    values = z.array(authorization).parse(JSON.parse(process.env.BLUEPRINT_WEBSITE_ATLAS_AUTHORIZATIONS_JSON || "[]"));
+  } catch { return null; }
+  const rows = values.filter(v => v.request_id === requestId && v.capture_id === captureId);
+  return rows.length ? Math.min(...rows.map(row => row.maximum_cost_usd)) : null;
+}
+
 export function websiteAtlasAuthorization(input: EnvRowMatch & GrantChecks) {
   const rows = matchingAuthorizations(input);
   if (rows.length !== 1) throw new Error("website_atlas_source_consent_required");

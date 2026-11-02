@@ -341,7 +341,7 @@ for (const operation of ["scene-sponsorship", "prepared-scene", "preparation-spe
         }
         // One dollar ceiling per job (owner, 2026-10-30): a new intake grants native
         // construction its allowance only while every ledger the job spends from fits.
-        await assertWithinWebsiteJobCeiling({ record: current ?? {}, captureId: req.params.captureId,
+        await assertWithinWebsiteJobCeiling({ record: current ?? {}, captureId: req.params.captureId, requestId,
           reader: transactionJobLedgerReader(db!, transaction, requestId),
           additionalCostUsd: request.execution.max_total_spend_usd });
         transaction.create(ref, {

@@ -33,6 +33,43 @@ describe("where the job's ceiling comes from", () => {
   });
 });
 
+// capture-447ae4f4 (2026-11-02): a scene intake is admitted with no Atlas authorization in
+// hand, so it fell back to the $40 default and never read the owner's row for the job.
+describe("the owner's explicit row for the job", () => {
+  const row = (requestId: string, captureId: string, maximum: number) => ({
+    schema_version: "website_atlas_authorization.v1", request_id: requestId, capture_id: captureId,
+    task_context_digest: `sha256:${"a".repeat(64)}`, source_video_digest: `sha256:${"b".repeat(64)}`,
+    provider_terms_reference: `sha256:${"c".repeat(64)}`, accepted_by: "owner", approval_reference: "test",
+    private_processing_authorized: true, provider_training_authorized: false,
+    provider_retention: "account_does_not_retain", maximum_cost_usd: maximum, maximum_requests: 40,
+    expires_at_epoch: 1, claim_scope: "development_only" });
+
+  it("sets the ceiling of every admission for that job that is not made under an Atlas authorization", () => {
+    vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_GRANT_POLICY_JSON", "");
+    vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_AUTHORIZATIONS_JSON", JSON.stringify([
+      row("job-1", "capture-a", 130), row("job-2", "capture-a", 75)]));
+    const record = { website_atlas_grants: { "capture-a": { maximum_cost_usd: 25 } } };
+    expect(websiteJobCeiling({ record, captureId: "capture-a", requestId: "job-1" }))
+      .toEqual({ maximum_cost_usd: 130, source: "job_authorization_row" });
+    // The admission's own Atlas authorization still names its figure.
+    expect(websiteJobCeiling({ record, captureId: "capture-a", requestId: "job-1", atlas: { maximum_cost_usd: 40 } }))
+      .toEqual({ maximum_cost_usd: 40, source: "atlas_authorization" });
+    // Another job, another capture or no request id reads no row.
+    expect(websiteJobCeiling({ record, captureId: "capture-b", requestId: "job-1" }).source).toBe("owner_default");
+    expect(websiteJobCeiling({ record, captureId: "capture-a" })).toEqual({ maximum_cost_usd: 25, source: "retained_atlas_grant" });
+  });
+
+  it("names the smallest of several rows and ignores an unreadable setting", () => {
+    vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_GRANT_POLICY_JSON", "");
+    vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_AUTHORIZATIONS_JSON", JSON.stringify([
+      row("job-1", "capture-a", 130), row("job-1", "capture-a", 60)]));
+    expect(websiteJobCeiling({ record: {}, captureId: "capture-a", requestId: "job-1" }).maximum_cost_usd).toBe(60);
+    vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_AUTHORIZATIONS_JSON", "not json");
+    expect(websiteJobCeiling({ record: {}, captureId: "capture-a", requestId: "job-1" }))
+      .toEqual({ maximum_cost_usd: WEBSITE_JOB_CEILING_DEFAULT_USD, source: "owner_default" });
+  });
+});
+
 describe("what counts against it", () => {
   it("counts each preparation row at its settlement, else its full hold, rounded up per row", async () => {
     const record = { website_preparation_reservations: { a: held(1.0000001), b: held(5, 0), c: held(2, 1.25) } };
