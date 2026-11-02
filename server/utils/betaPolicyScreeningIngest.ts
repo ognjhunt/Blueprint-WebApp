@@ -7,7 +7,8 @@ import { assertManagedScreeningCaptureCurrent, assertScreeningSceneSource, manag
 import { SCENE_INTAKE_COLLECTION } from "./taskEvaluationSceneIntake";
 import { encodeTaskEvaluationRunPublication, publicationFromResultRecord } from "./taskEvaluationRunPublicationStorage";
 import { betaPolicyScreeningSourceSchema, parseBetaPolicyScreeningPublication, screeningPublicationTransition,
-  screeningTerminalCandidateStates, screeningOutcome, type BetaPolicyScreeningPublication } from "./betaPolicyScreeningContract";
+  screeningTerminalCandidateStates, screeningOutcome, storedScreeningOutcome, type BetaPolicyScreeningPublication } from "./betaPolicyScreeningContract";
+import { screeningOutcomeNoticeIntent } from "./screeningOutcomeNotifications";
 import type { TaskItemInventoryRecord } from "./taskItemInventory";
 import { assertWebsiteRunOpen, websiteRunClosure } from "./websiteRunClosure";
 import { parseBetaCandidateSelection, selectionMatchesPublication, type BetaCandidateSelection } from "./betaCandidateSelection";
@@ -228,6 +229,13 @@ export async function ingestBetaPolicyScreening(publication: BetaPolicyScreening
       }
     }
     const now = new Date().toISOString();
+    const previous = oldRun.data();
+    const closed = previous?.cancellationRequested === true || ["cancelled", "closed"].includes(previous?.state) || ownerClosed;
+    // The site hears once when the run first reaches a result outcome (F-01): the intent is
+    // written with the outcome itself and queued by the outbox reconciler. A cancelled or
+    // closed run, and one still in progress or superseded, owes no notice.
+    const notice = closed || screeningOutcome(publication) === storedScreeningOutcome(previous?.screening_outcome) ? null
+      : screeningOutcomeNoticeIntent(publication, jobId);
     transaction.set(resultRef, { schema_version: "capture_task_evaluation_run_record.v2", record_id: resultId,
       run_id: publication.campaign_id, owner_user_id: intake.request.owner.user_id, organization_id: scope.teamNamespace,
       access_visibility: "private", created_at_iso: oldResult.data()?.created_at_iso ?? now, updated_at_iso: now,
@@ -248,6 +256,9 @@ export async function ingestBetaPolicyScreening(publication: BetaPolicyScreening
       episodes_scored: publication.candidates.reduce<number>((sum, row) => sum + row.episodes_scored, 0),
       // The one outcome the job page, the run summary and any notice state (F-03).
       screening_outcome: screeningOutcome(publication),
+      ...(notice ? { outcome_notification_pending: true, outcome_notification_intent: notice }
+        : previous?.outcome_notification_intent !== undefined ? { outcome_notification_pending: previous.outcome_notification_pending === true,
+          outcome_notification_intent: previous.outcome_notification_intent } : {}),
       screening_execution_observed: oldRun.data()?.screening_execution_observed === true
         || publication.candidates.some(row => ["running", "completed"].includes(row.status) || row.episodes_scored > 0),
       created_at_iso: oldRun.data()?.created_at_iso ?? now, updated_at_iso: now });

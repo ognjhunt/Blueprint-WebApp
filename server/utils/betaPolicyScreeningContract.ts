@@ -238,6 +238,12 @@ const SCREENING_OUTCOME_SENTENCE: Readonly<Record<ScreeningOutcome, string>> = {
   superseded: "Continued in a newer run after a Blueprint update.",
 };
 export const screeningOutcomeSentence = (outcome: ScreeningOutcome) => SCREENING_OUTCOME_SENTENCE[outcome];
+/** How much of the job an estimate covers, said the same way on the page and in the email. */
+export const screeningEstimateCountSentence = (ran: number, total: number, scored: number) =>
+  `In the simulation, ${ran} of ${total} candidates ran, with ${scored} episodes scored against the job's success criteria.`;
+/** Outcomes the site is told by email once (F-01): an estimate, or why there is none. Never one still in progress. */
+export const isScreeningResultOutcome = (value: unknown): value is "estimate" | ScreeningHeldOutcome =>
+  value === "estimate" || isScreeningHeldOutcome(value);
 
 export function parseBetaPolicyScreeningPublication(value: unknown): BetaPolicyScreeningPublication | null {
   const parsed = betaPolicyScreeningPublicationSchema.safeParse(value);

@@ -232,6 +232,47 @@ describe("a waiting job hears what it is waiting on", () => {
     expect(await taskLifecycleNotificationIsCurrent(ready)).toBe(false);
   });
 
+  it("tells the site its evaluation's outcome in the page's sentence, only while the page states it (F-01)", async () => {
+    const { buildTaskLifecycleNotification } = await import("../utils/taskLifecycleNotifications");
+    const { taskLifecycleNotificationIsCurrent } = await import("../utils/taskLifecycleNotificationAuthority");
+    const { screeningOutcomeSentence } = await import("../utils/betaPolicyScreeningContract");
+    sharedFakeFirestoreState.docs.set("taskEvaluationSceneIntakes/scene-1", { website_request_id: "req-1",
+      source_session_id: "walkthrough-req-1", created_at_iso: "2026-10-22T00:00:00Z", state: "completed",
+      receipt: { intent_id: "intent-1" }, pipeline_status: { status: "completed", phase: "scene_prepared" },
+      request: { task: { task_id: `website-${"0".repeat(20)}` }, owner: { organization_id: "team-a" } } });
+    const screening = (outcome: string, extra: Record<string, unknown> = {}) => ({ run_kind: "beta_policy_screening",
+      source_scene_intent_id: "intent-1", team_namespace: "team-a", state: "blocked", screening_execution_observed: true,
+      screening_outcome: outcome, created_at_iso: "2026-10-23T00:00:00Z", ...extra });
+    const event = `no_match-${"a".repeat(24)}`;
+    const notice = buildTaskLifecycleNotification({ requestId: "req-1", to: "owner@example.com", milestone: "evaluation_outcome",
+      eventId: event, screeningOutcome: "no_match", captureUrl: "https://example.invalid/capture-upload/private-owner-link" });
+    expect(notice.idempotencyKey).toBe(`req-1:evaluation_outcome:${event}`);
+    expect(notice.subject).toBe("Your job's simulation evaluation has finished");
+    expect(notice.body.startsWith(`${screeningOutcomeSentence("no_match")} Nothing is needed from you.`)).toBe(true);
+    // Enqueue checks consent; dispatch also reads what the job page states now.
+    expect(await taskLifecycleNotificationIsCurrent({ kind: "evaluation_outcome", requestId: "req-1" })).toBe(true);
+    expect(await taskLifecycleNotificationIsCurrent(notice)).toBe(false);
+    sharedFakeFirestoreState.docs.set("taskEvaluationPolicyRuns/run-held", screening("no_match"));
+    expect(await taskLifecycleNotificationIsCurrent(notice)).toBe(true);
+    // A notice whose key names no outcome is never sent.
+    expect(await taskLifecycleNotificationIsCurrent({ ...notice, idempotencyKey: "req-1:evaluation_outcome" })).toBe(false);
+    // A newer finished campaign with another reason, or any estimate, takes the page: the held notice is stale.
+    sharedFakeFirestoreState.docs.set("taskEvaluationPolicyRuns/run-newer", screening("held_unprepared", { created_at_iso: "2026-10-24T00:00:00Z" }));
+    expect(await taskLifecycleNotificationIsCurrent(notice)).toBe(false);
+    sharedFakeFirestoreState.docs.delete("taskEvaluationPolicyRuns/run-newer");
+    sharedFakeFirestoreState.docs.set("taskEvaluationPolicyRuns/run-estimate", screening("estimate", { state: "completed" }));
+    expect(await taskLifecycleNotificationIsCurrent(notice)).toBe(false);
+    // Withdrawn recording permission cancels it like every capture notice.
+    sharedFakeFirestoreState.docs.delete("taskEvaluationPolicyRuns/run-estimate");
+    sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { contact: { email: "encrypted:owner@example.com" }, consent_revoked: true });
+    expect(await taskLifecycleNotificationIsCurrent(notice)).toBe(false);
+    // Only a result outcome with its own event id can be built.
+    expect(() => buildTaskLifecycleNotification({ requestId: "req-1", to: "owner@example.com", milestone: "evaluation_outcome",
+      eventId: `setup_repair-${"a".repeat(24)}`, screeningOutcome: "setup_repair" })).toThrow("evaluation_outcome_notice_invalid");
+    expect(() => buildTaskLifecycleNotification({ requestId: "req-1", to: "owner@example.com", milestone: "evaluation_outcome",
+      eventId: `estimate-${"a".repeat(24)}`, screeningOutcome: "no_match" })).toThrow("evaluation_outcome_notice_invalid");
+  });
+
   it("is not sent once it has become false between enqueue and dispatch", async () => {
     const { taskLifecycleNotificationIsCurrent } = await import("../utils/taskLifecycleNotificationAuthority");
     jobAccess.evaluationAvailable = true;
@@ -283,11 +324,25 @@ describe("a waiting job hears what it is waiting on", () => {
   });
 });
 
-it.each(["results_ready", "run_no_result", "no_team_passed", "no_qualified_evaluation"] as const)("keeps %s on the private job page without an account step", async milestone => {
+it.each(["results_ready", "run_no_result", "no_team_passed", "no_qualified_evaluation", "evaluation_outcome"] as const)("keeps %s on the private job page without an account step", async milestone => {
   const { buildTaskLifecycleNotification } = await import("../utils/taskLifecycleNotifications");
   const notice = buildTaskLifecycleNotification({ requestId: "req-1", to: "owner@example.com", milestone,
+    ...(milestone === "evaluation_outcome" ? { eventId: `estimate-${"a".repeat(24)}`, screeningOutcome: "estimate" as const,
+      screeningCounts: { ran: 2, total: 36, scored: 6 } } : {}),
     captureUrl: "https://example.invalid/capture-upload/private-owner-link", workspaceUrl: null });
   expect(notice.body).toContain("https://example.invalid/capture-upload/private-owner-link");
   expect(notice.body).toMatch(/private job page/i);
   expect(notice.body).not.toMatch(/create.*account|save.*account|results open in.*account|confirm.*brief/i);
+});
+
+it("sends a claimed site's evaluation outcome to its workspace, with the estimate's episode count (F-01)", async () => {
+  const { buildTaskLifecycleNotification } = await import("../utils/taskLifecycleNotifications");
+  const notice = buildTaskLifecycleNotification({ requestId: "req-1", to: "owner@example.com", milestone: "evaluation_outcome",
+    eventId: `estimate-${"a".repeat(24)}`, screeningOutcome: "estimate", screeningCounts: { ran: 2, total: 36, scored: 6 },
+    captureUrl: "https://example.invalid/capture-upload/private-owner-link", workspaceUrl: "https://example.invalid/app/tasks/req-1" });
+  expect(notice.subject).toBe("Your simulation estimate is ready");
+  expect(notice.body).toMatch(/^Your simulation estimate is ready\. It is an estimate from a simulation of your site, not a certified result\. In the simulation, 2 of 36 candidates ran, with 6 episodes scored against the job's success criteria\. Nothing is needed from you\./);
+  expect(notice.body).toContain("This is a simulation estimate, not a physical test. It never certifies physical performance or safety.");
+  expect(notice.body).toContain("See the result in your workspace:\nhttps://example.invalid/app/tasks/req-1");
+  expect(notice.body).not.toContain("private-owner-link");
 });

@@ -229,6 +229,20 @@ describe("delivery sends what is pending, once", () => {
   });
 });
 
+describe("the claim digest of existing notices", () => {
+  it("binds every existing kind to the same seven fields it always has, so retained claims still match", async () => {
+    sendEmailMock.mockResolvedValue({ sent: true, provider: "resend", messageId: "accepted" });
+    await enqueueOutbox(entry({ replyTo: "hello@tryblueprint.io" }));
+    await enqueueOutbox(entry({ idempotencyKey: "req-1:results_ready:run_a", kind: "results_ready", body: "result" }));
+    await deliverOutbox();
+    const digest = (fields: unknown[]) => createHash("sha256").update(JSON.stringify(fields)).digest("hex");
+    expect(sharedFakeFirestoreState.docs.get("captureOutbox/req-1:brief_confirmed")).toMatchObject({ status: "sent",
+      deliveryDigest: digest(["req-1:brief_confirmed", "req-1", "brief_confirmed", "ops@acme.example", "s", "b", "hello@tryblueprint.io"]) });
+    expect(sharedFakeFirestoreState.docs.get("captureOutbox/req-1:results_ready:run_a")).toMatchObject({ status: "sent",
+      deliveryDigest: digest(["req-1:results_ready:run_a", "req-1", "results_ready", "ops@acme.example", "s", "result", null]) });
+  });
+});
+
 describe("a failed send retries, then gives up", () => {
   it("stays pending and counts the attempt when a send fails", async () => {
     sendEmailMock.mockResolvedValue({ sent: false, provider: null, messageId: null, error: new Error("smtp down") });

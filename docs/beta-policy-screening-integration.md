@@ -41,7 +41,21 @@ Accepted progress is stored atomically in the existing `taskEvaluationPolicyRuns
 and `captureTaskEvaluationRuns` collections. The existing job evidence projection
 shows all candidate progress and outcomes in the site and operations workspaces.
 Operations also sees the conservative shared budget. Only observed execution marks
-the scene as testing; preparation alone does not. No new emails are sent.
+the scene as testing; preparation alone does not.
+
+The site gets one email when a run first reaches a result outcome: `estimate`,
+`reference_only`, a hold, `infeasible` or `no_match` (`evaluation_outcome`).
+Nothing is sent for `awaiting_spend_approval`, `setup_repair`, `superseded`, an
+open run, or a cancelled or closed one. Ingest writes the pending intent on the
+run in the same transaction as the outcome. The outbox pump's reconciler queues
+it and clears the flag only once the outbox row exists. Its event id is the
+outcome plus a hash of the scene intent, so a re-planned successor with the same
+outcome sends no second email. The email states the page's sentence for the
+outcome, the episode count for an estimate, the results disclaimer and the
+private job link (the workspace link once the site is claimed). Dispatch
+re-checks recording permission and that the job page still states that outcome.
+A held email is cancelled if an estimate has since won. No backfill: no
+production campaign predates it.
 
 Each accepted revision also stores one `screening_outcome` (`screeningOutcome`):
 `estimate`, `reference_only`, `held_capability`, `held_unprepared`, `infeasible`,
