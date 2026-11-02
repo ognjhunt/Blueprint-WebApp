@@ -108,7 +108,7 @@ it.each([
 ] as const)("refuses a persisted non-map execution control value without a write (%s)", async (_kind, makeValue) => {
   const value = makeValue();
   row("taskEvaluationPolicyRuns/campaign-one").screening_execution_controls = value;
-  await expect(observeBetaScreeningExecutionControl(fixture.request)).rejects.toThrow("screening_control_record_unavailable");
+  await expect(observeBetaScreeningExecutionControl(fixture.request)).rejects.toThrow("screening_control_record_invalid");
   expect(store.writes).toEqual([]);
   expect(controls()).toBe(value);
 });
@@ -169,7 +169,7 @@ describe("immutable source and invocation bindings", () => {
   it("rejects a retained control whose binding or digest has been corrupted", async () => {
     const control = await observeBetaScreeningExecutionControl(fixture.request);
     controls()[control.binding_digest.slice(7)].binding.authority_digest = screeningSha("9");
-    await expect(observeBetaScreeningExecutionControl(fixture.request)).rejects.toThrow("screening_control_record_unavailable");
+    await expect(observeBetaScreeningExecutionControl(fixture.request)).rejects.toThrow("screening_control_record_invalid");
   });
   it("serializes simultaneous exact reads without rebinding or creating another run", async () => {
     const [first, second] = await Promise.all([observeBetaScreeningExecutionControl(fixture.request), observeBetaScreeningExecutionControl(fixture.request)]);
@@ -190,7 +190,7 @@ it("only shortens the original, caller and previously observed deadlines", async
 
 it.each([undefined, null, "2026-10-28", NaN, Infinity, 0, -1, Number.MAX_SAFE_INTEGER])("missing/invalid real expiry %s never grants current authority", async expiry => {
   fixture.intake.request.execution.expires_at_epoch = expiry;
-  await expect(observeBetaScreeningExecutionControl(fixture.request)).rejects.toThrow("screening_control_authority_unavailable");
+  await expect(observeBetaScreeningExecutionControl(fixture.request)).rejects.toThrow("screening_control_expiry_missing");
   expect(controls()).toBeUndefined();
 });
 

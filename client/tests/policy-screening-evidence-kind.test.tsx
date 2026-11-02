@@ -1,6 +1,7 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, expect, it } from "vitest";
 import { PolicyScreeningCandidates } from "../src/components/shared/PolicyScreeningCandidates";
+import { screeningReasonLabel, screeningReasonLabels } from "../src/lib/screeningPlainLanguage";
 
 afterEach(cleanup);
 
@@ -87,4 +88,16 @@ it("says when nothing succeeded and names no partner without a recorded one", ()
         partnerBlockers: ["no_recorded_deployment_partner_for_configuration"] } } }} />);
   expect(screen.getByText("No recorded deployment partner for this configuration.")).toBeInTheDocument();
   expect(screen.queryByText(/robot team registry/)).toBeNull();
+});
+
+it("says plainly when a candidate waits to confirm its job can still run, never that the simulator is full", () => {
+  const control = "Waiting to confirm this job can still run.";
+  expect(screeningReasonLabel("beta_screening_waiting_for_control")).toBe(control);
+  // The Pipeline adds the capacity code only so a return to preparing is accepted.
+  expect(screeningReasonLabels(["beta_screening_waiting_for_capacity", "beta_screening_waiting_for_control"])).toEqual([control]);
+  expect(screeningReasonLabels(["beta_screening_waiting_for_capacity"])).toEqual(["Waiting for room in our simulator."]);
+  expect(screeningReasonLabels(["beta_screening_waiting_for_capacity", "beta_screening_unspent_invocation_recovery"]))
+    .toContain("Waiting for room in our simulator.");
+  expect(screeningReasonLabel("beta_screening_transport_retry_cap_exhausted"))
+    .toBe("Not run: we could not confirm this job can still run. This is ours to fix.");
 });
