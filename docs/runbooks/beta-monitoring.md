@@ -123,6 +123,14 @@ Redis outages fail open: rate limiting lets requests through within ~750 ms
    choice: starting a job authorizes the anonymized job card, which the site can
    hide at any time, and a job started without a card stays unlisted. Have
    counsel review that wording with the rest of the reissue.
+   **2026-11-02 (owner):** the corrected documents (Terms and Privacy
+   `2026-11-02.1`; D-16: people are not removed from job footage, faces are
+   blurred only in frames sent to World Labs, Meta is listed) took effect at
+   once instead of on November 15. An acceptance of the earlier November 15
+   pairs no longer counts; the identical `2026-11-15.4`/`2026-11-15.5` text
+   does. No account holder was emailed; Terms section 12 and the Privacy
+   Policy's "Changes" section still promise that, so it stays on the counsel
+   list (tracker G-01).
 9. **Uptime cron (every 10 minutes)**: Render → New → Cron Job, from this
    repo's `main`: name `blueprint-uptime-probe`, region Virginia, schedule
    `*/10 * * * *`, build command `node --version`, start command

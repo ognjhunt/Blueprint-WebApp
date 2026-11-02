@@ -39,20 +39,24 @@ describe("terms for the free beta", () => {
     expect(privacy).not.toMatch(/to flag privacy issues/);
   });
 
-  it("keeps an acceptance of the 2026-11-15.3/.4 pair until the .5 policy takes effect", () => {
-    expect(acceptedVersionsAreCurrent("2026-11-15.3", "2026-11-15.4", Date.parse("2026-11-14T23:59:00-08:00"))).toBe(true);
-    expect(acceptedVersionsAreCurrent("2026-11-15.3", "2026-11-15.4", Date.parse("2026-11-15T00:00:00-08:00"))).toBe(false);
-    expect(acceptedVersionsAreCurrent(TERMS_VERSION, PRIVACY_VERSION, Date.parse("2026-11-20T00:00:00Z"))).toBe(true);
+  it("counts the corrected text under either date, never the text that said people were removed", () => {
+    const now = Date.parse("2026-11-02T20:00:00Z");
+    expect(acceptedVersionsAreCurrent(TERMS_VERSION, PRIVACY_VERSION, now)).toBe(true);
+    expect(acceptedVersionsAreCurrent("2026-11-15.4", "2026-11-15.5", now)).toBe(true);
+    for (const [termsVersion, privacyVersion] of [["2026-11-15.3", "2026-11-15.4"], ["2026-11-15.2", "2026-11-15.4"],
+      [PREVIOUS_TERMS_VERSION, PREVIOUS_PRIVACY_VERSION]]) {
+      expect(acceptedVersionsAreCurrent(termsVersion, privacyVersion, now)).toBe(false);
+    }
   });
 
-  it("is reissued with a future effective date and keeps the previous version in force", () => {
-    // Owner decision 2026-10-15: published 2026-10-15, in force 30+ days later.
-    expect(TERMS_VERSION).toBe("2026-11-15.4");
-    expect(PRIVACY_VERSION).toBe("2026-11-15.5");
+  it("puts the corrected documents in force on 2026-11-02 and keeps the previous version frozen", () => {
+    // Owner, 2026-11-02: the D-16 correction takes effect at once, not on November 15.
+    expect(TERMS_VERSION).toBe("2026-11-02.1");
+    expect(PRIVACY_VERSION).toBe("2026-11-02.1");
     expect([PREVIOUS_TERMS_VERSION, PREVIOUS_PRIVACY_VERSION]).toEqual(["2026-10-14.1", "2026-10-13.1"]);
-    expect(legalEffectiveDate(TERMS_VERSION)).toBe("November 15, 2026");
-    expect(legalUpdatePending(Date.parse("2026-11-14T23:59:00-08:00"))).toBe(true);
-    expect(legalUpdatePending(Date.parse("2026-11-15T00:00:00-08:00"))).toBe(false);
+    expect(legalEffectiveDate(TERMS_VERSION)).toBe("November 2, 2026");
+    expect(legalUpdatePending(Date.parse("2026-11-02T07:59:59Z"))).toBe(true);
+    expect(legalUpdatePending(Date.parse("2026-11-02T08:00:00Z"))).toBe(false);
   });
 
   it("charges nothing and invoices nothing", () => {
@@ -170,26 +174,26 @@ describe("recording notice, sound and the listing choice", () => {
 });
 
 describe("acceptance while a reissue is announced", () => {
-  it("keeps an earlier announced pair usable only before its existing effective date", async () => {
+  it("keeps the versions in force usable only before the announced versions take effect", async () => {
     const legal = await import("@/lib/legalAcceptance");
-    const effective = Date.parse("2026-11-15T08:00:00.000Z");
-    expect(legal.acceptedVersionsAreCurrent("2026-11-15.2", "2026-11-15.4", effective - 1)).toBe(true);
+    const effective = Date.parse("2026-11-02T08:00:00.000Z");
+    expect(legal.acceptedVersionsAreCurrent(legal.PREVIOUS_TERMS_VERSION, legal.PREVIOUS_PRIVACY_VERSION, effective - 1)).toBe(true);
     for (const now of [effective, effective + 1, effective + 86400000]) {
-      expect(legal.acceptedVersionsAreCurrent("2026-11-15.2", "2026-11-15.4", now)).toBe(false);
+      expect(legal.acceptedVersionsAreCurrent(legal.PREVIOUS_TERMS_VERSION, legal.PREVIOUS_PRIVACY_VERSION, now)).toBe(false);
       expect(legal.acceptedVersionsAreCurrent(legal.TERMS_VERSION, legal.PRIVACY_VERSION, now)).toBe(true);
     }
     for (const [terms, privacy] of [
-      ["2026-11-15.1", "2026-11-15.4"], ["2026-11-15.2", "2026-11-15.3"],
+      ["2026-11-15.1", "2026-11-15.4"], ["2026-11-15.2", "2026-11-15.4"], ["2026-11-15.3", "2026-11-15.4"],
       ["2026-11-15.2", legal.PREVIOUS_PRIVACY_VERSION], [undefined, "2026-11-15.4"],
     ]) expect(legal.acceptedVersionsAreCurrent(terms, privacy, effective - 1)).toBe(false);
   });
 
   it("preserves the recorded acceptance and writes the latest versions for a new acceptance", async () => {
     const legal = await import("@/lib/legalAcceptance");
-    const clock = vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-10-29T04:50:00Z"));
+    const clock = vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-11-01T04:50:00Z"));
     try {
       const record = { ...legal.buildLegalAcceptanceRecord({ acceptedAt: "2026-10-23T12:00:00Z" }),
-        terms_version: "2026-11-15.2", privacy_version: "2026-11-15.4" };
+        terms_version: legal.PREVIOUS_TERMS_VERSION, privacy_version: legal.PREVIOUS_PRIVACY_VERSION };
       const retained = structuredClone(record);
       expect(legal.isCurrentLegalAcceptance(record)).toBe(true);
       expect(legal.isCurrentLegalAcceptance({ ...record, accepted_terms: false })).toBe(false);

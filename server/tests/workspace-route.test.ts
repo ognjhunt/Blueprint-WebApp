@@ -5,7 +5,7 @@ import { createHash } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { anonymizedOpportunityDraft } from "../../client/src/types/taskBrowse";
 import { createSiteClaimToken } from "../utils/request-review-auth";
-import { PRIVACY_VERSION, TERMS_VERSION } from "../../client/src/lib/legalAcceptance";
+import { PREVIOUS_PRIVACY_VERSION, PREVIOUS_TERMS_VERSION, PRIVACY_VERSION, TERMS_VERSION } from "../../client/src/lib/legalAcceptance";
 import { buildLegalAcceptanceRecord } from "../../client/src/lib/legalAcceptance";
 import { syntheticQualifiedRun } from "./helpers/recommendation-evidence";
 import { deploymentCatalogWithDigest } from "../../client/src/lib/deploymentEmbodimentSupport";
@@ -301,7 +301,7 @@ describe("workspace access and projections", () => {
   it.each(["legacy", "current", "stale"])("requires displayed versions for an unverified source-bound acceptance (%s)", async mode => {
     const explicit = mode === "current";
     const acceptance = { ...buildLegalAcceptanceRecord({ acceptedAt: "2026-10-23T12:00:00Z" }),
-      terms_version: "2026-11-15.2", privacy_version: "2026-11-15.4" };
+      terms_version: PREVIOUS_TERMS_VERSION, privacy_version: PREVIOUS_PRIVACY_VERSION };
     state.records.set("inboundRequests/unverified-job", { ...task(), account_owner_uid: undefined,
       contact: { email: "site-1@example.com" }, terms_acceptance: acceptance });
     const token = createSiteClaimToken("unverified-job");
@@ -325,7 +325,7 @@ describe("workspace access and projections", () => {
     const clock = vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-10-29T04:50:00Z"));
     try {
       const acceptance = { ...buildLegalAcceptanceRecord({ acceptedAt: "2026-10-23T12:00:00Z" }),
-        terms_version: "2026-11-15.2", privacy_version: "2026-11-15.4" };
+        terms_version: PREVIOUS_TERMS_VERSION, privacy_version: PREVIOUS_PRIVACY_VERSION };
       state.records.set("inboundRequests/continuity-job", { ...task(), account_owner_uid: undefined,
         contact: { email: "site-1@example.com" }, terms_acceptance: acceptance });
       const token = createSiteClaimToken("continuity-job");
@@ -337,7 +337,7 @@ describe("workspace access and projections", () => {
       expect(recorded).toMatchObject({ acceptedTerms: true, termsVersion: acceptance.terms_version,
         privacyVersion: acceptance.privacy_version, termsAcceptance: acceptance });
       expect((await (await api("/setup", "site-1")).json()).termsRequired).toBe(false);
-      clock.mockReturnValue(Date.parse("2026-11-15T08:00:00.000Z"));
+      clock.mockReturnValue(Date.parse("2026-11-02T08:00:00.000Z"));
       expect((await (await api("/setup", "site-1")).json()).termsRequired).toBe(true);
       expect(state.records.get("users/site-1")).toEqual(recorded);
     } finally { clock.mockRestore(); }
@@ -345,12 +345,12 @@ describe("workspace access and projections", () => {
 
   it.each([true, false])("uses the actual recorded acceptance (%s) when legacy fields claim a newer version", async accepted => {
     const acceptance = { ...buildLegalAcceptanceRecord({ acceptedAt: "2026-10-23T12:00:00Z" }),
-      accepted_terms: accepted, terms_version: "2026-11-15.2", privacy_version: "2026-11-15.4" };
+      accepted_terms: accepted, terms_version: PREVIOUS_TERMS_VERSION, privacy_version: PREVIOUS_PRIVACY_VERSION };
     const recorded = { ...state.records.get("users/site-1"), acceptedTerms: true,
       termsVersion: TERMS_VERSION, privacyVersion: PRIVACY_VERSION, termsAcceptance: acceptance };
     state.records.set("users/site-1", recorded);
     const retained = structuredClone(recorded);
-    const effective = Date.parse("2026-11-15T08:00:00.000Z");
+    const effective = Date.parse("2026-11-02T08:00:00.000Z");
     const clock = vi.spyOn(Date, "now").mockReturnValue(effective - 1);
     try {
       expect((await (await api("/setup", "site-1")).json()).termsRequired).toBe(!accepted);
@@ -364,13 +364,13 @@ describe("workspace access and projections", () => {
 
   it.each(["nested", "legacy"])("uses the recorded pending terms pair in the %s account shape until its effective date", async shape => {
     const acceptance = { ...buildLegalAcceptanceRecord({ acceptedAt: "2026-10-23T12:00:00Z" }),
-      terms_version: "2026-11-15.2", privacy_version: "2026-11-15.4" };
+      terms_version: PREVIOUS_TERMS_VERSION, privacy_version: PREVIOUS_PRIVACY_VERSION };
     const record = { ...state.records.get("users/site-1"), ...(shape === "nested"
       ? { termsAcceptance: acceptance }
       : { acceptedTerms: true, termsVersion: acceptance.terms_version, privacyVersion: acceptance.privacy_version }) };
     state.records.set("users/site-1", record);
     const retained = structuredClone(record);
-    const effective = Date.parse("2026-11-15T08:00:00.000Z");
+    const effective = Date.parse("2026-11-02T08:00:00.000Z");
     const clock = vi.spyOn(Date, "now");
     try {
       for (const [now, termsRequired] of [[effective - 1, false], [effective, true], [effective + 1, true]] as const) {
@@ -386,7 +386,7 @@ describe("workspace access and projections", () => {
   it.each([false, undefined])("does not infer pending terms acceptance from an accepted flag of %s", async accepted => {
     state.records.set("users/site-1", { ...state.records.get("users/site-1"),
       termsAcceptance: { ...buildLegalAcceptanceRecord({ acceptedAt: "2026-10-23T12:00:00Z" }),
-        accepted_terms: accepted, terms_version: "2026-11-15.2", privacy_version: "2026-11-15.4" } });
+        accepted_terms: accepted, terms_version: PREVIOUS_TERMS_VERSION, privacy_version: PREVIOUS_PRIVACY_VERSION } });
     const clock = vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-10-29T04:50:00Z"));
     try {
       const response = await api("/setup", "site-1");
