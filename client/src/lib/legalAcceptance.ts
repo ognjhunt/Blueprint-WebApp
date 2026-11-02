@@ -15,9 +15,14 @@
  * owner decided on 2026-10-15 that an update is published ahead of time with
  * notice, and the previous version stays in force until the new date. The
  * previous versions below are frozen at /terms/previous and /privacy/previous.
+ *
+ * Owner, 2026-11-02: the corrected documents (D-16: people are not removed from
+ * job footage; faces are blurred only in the frames sent to World Labs) take
+ * effect at once instead of on November 15. Every job with footage was the
+ * owner's own, and the corrected text is the accurate one.
  */
-export const TERMS_VERSION = "2026-11-15.4";
-export const PRIVACY_VERSION = "2026-11-15.5";
+export const TERMS_VERSION = "2026-11-02.1";
+export const PRIVACY_VERSION = "2026-11-02.1";
 
 /** The versions in force until TERMS_VERSION / PRIVACY_VERSION take effect. */
 export const PREVIOUS_TERMS_VERSION = "2026-10-14.1";
@@ -65,22 +70,17 @@ export interface LegalAcceptanceRecord<TAcceptedAt = unknown> {
 
 /**
  * Whether an accepted Terms/Privacy pair still counts. New acceptances record
- * the published versions (the signer has seen their date). Until those take
- * effect, an acceptance of the versions in force also counts, so nobody is
- * asked to accept documents early.
+ * the published versions (the signer has seen their date). While an update is
+ * announced but not yet in force, an acceptance of the versions in force also
+ * counts, so nobody is asked to accept documents early.
  */
 export function acceptedVersionsAreCurrent(terms: unknown, privacy: unknown, nowMs = Date.now()): boolean {
   if (terms === TERMS_VERSION && privacy === PRIVACY_VERSION) return true;
-  // Keep the pair published October 22 usable until its announced deadline,
-  // without rewriting its record as acceptance of the later Terms revision.
-  return legalUpdatePending(nowMs) && (
-    (terms === PREVIOUS_TERMS_VERSION && privacy === PREVIOUS_PRIVACY_VERSION)
-    || (terms === "2026-11-15.2" && privacy === "2026-11-15.4"
-      && nowMs < legalEffectiveAtMs("2026-11-15.2"))
-    // Terms .4 / Privacy .5 correct how footage is processed (owner decision D-16);
-    // an acceptance of the .3/.4 text counts until the corrected documents take effect.
-    || (terms === "2026-11-15.3" && privacy === "2026-11-15.4" && nowMs < legalEffectiveAtMs(PRIVACY_VERSION))
-  );
+  // The same corrected text, published earlier on 2026-11-02 under the announced
+  // November 15 date. The earlier November 15 pairs said people were removed
+  // from footage, so they no longer count.
+  if (terms === "2026-11-15.4" && privacy === "2026-11-15.5") return true;
+  return legalUpdatePending(nowMs) && terms === PREVIOUS_TERMS_VERSION && privacy === PREVIOUS_PRIVACY_VERSION;
 }
 
 /** Recognize a prior server-recorded acceptance of the current documents. */
