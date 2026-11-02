@@ -59,11 +59,14 @@ describe("the owner's explicit row for the job", () => {
     expect(websiteJobCeiling({ record, captureId: "capture-a" })).toEqual({ maximum_cost_usd: 25, source: "retained_atlas_grant" });
   });
 
-  it("names the smallest of several rows and ignores an unreadable setting", () => {
+  it("only raises the ceiling, names the smallest of several rows and ignores an unreadable setting", () => {
     vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_GRANT_POLICY_JSON", "");
     vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_AUTHORIZATIONS_JSON", JSON.stringify([
-      row("job-1", "capture-a", 130), row("job-1", "capture-a", 60)]));
+      row("job-1", "capture-a", 130), row("job-1", "capture-a", 60), row("job-3", "capture-a", 5)]));
     expect(websiteJobCeiling({ record: {}, captureId: "capture-a", requestId: "job-1" }).maximum_cost_usd).toBe(60);
+    // A row below today's figure caps only the Atlas allowance it authorizes.
+    expect(websiteJobCeiling({ record: {}, captureId: "capture-a", requestId: "job-3" }))
+      .toEqual({ maximum_cost_usd: WEBSITE_JOB_CEILING_DEFAULT_USD, source: "owner_default" });
     vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_AUTHORIZATIONS_JSON", "not json");
     expect(websiteJobCeiling({ record: {}, captureId: "capture-a", requestId: "job-1" }))
       .toEqual({ maximum_cost_usd: WEBSITE_JOB_CEILING_DEFAULT_USD, source: "owner_default" });

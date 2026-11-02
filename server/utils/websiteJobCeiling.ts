@@ -33,18 +33,25 @@ const amount = (value: unknown): value is number => typeof value === "number" &&
  * admission is made under (an explicit owner row or the job's stored automatic
  * grant, which pinned the configured policy's figure when it was made); else
  * the owner's explicit authorization row for this job and capture
- * (`BLUEPRINT_WEBSITE_ATLAS_AUTHORIZATIONS_JSON`), so a scene intake or a
- * screening admission counts against the same figure the owner set for the job;
- * else the job's stored grant for this capture; else the configured Atlas grant
- * policy; else the owner default. A stored grant keeps the figure it was made with.
+ * (`BLUEPRINT_WEBSITE_ATLAS_AUTHORIZATIONS_JSON`) when it is higher than what
+ * follows, so a scene intake counts against the figure the owner raised the job
+ * to; else the job's stored grant for this capture; else the configured Atlas
+ * grant policy; else the owner default. A stored grant keeps the figure it was made with.
  */
 export function websiteJobCeiling(input: { record: Record<string, any>; captureId: string; requestId?: string;
   atlas?: { maximum_cost_usd: number } | null }): { maximum_cost_usd: number; source: WebsiteJobCeilingSource } {
   if (input.atlas) return { maximum_cost_usd: input.atlas.maximum_cost_usd, source: "atlas_authorization" };
+  const fallback = storedOrDefaultCeiling(input);
   // capture-447ae4f4 (2026-11-02): its owner row was never read by the scene intake, which
-  // fell back to the $40 default whatever figure the owner set for the job.
+  // fell back to the $40 default whatever figure the owner set for the job. The row only
+  // raises the job's ceiling: a lower row still caps the Atlas allowance it authorizes,
+  // and other ledgers keep the figure they had before rows were read here.
   const row = input.requestId ? websiteAtlasAuthorizationCeiling(input.requestId, input.captureId) : null;
-  if (row !== null) return { maximum_cost_usd: row, source: "job_authorization_row" };
+  return row !== null && row > fallback.maximum_cost_usd ? { maximum_cost_usd: row, source: "job_authorization_row" } : fallback;
+}
+
+function storedOrDefaultCeiling(input: { record: Record<string, any>; captureId: string })
+  : { maximum_cost_usd: number; source: WebsiteJobCeilingSource } {
   const retained = input.record.website_atlas_grants?.[input.captureId]?.maximum_cost_usd;
   if (amount(retained) && retained > 0 && retained <= 1000) return { maximum_cost_usd: retained, source: "retained_atlas_grant" };
   const policy = websiteAtlasGrantPolicy();
