@@ -12,6 +12,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { sharedFakeFirestore, sharedFakeFirestoreState } from "./helpers/fake-firestore";
+import { humanDecisionDigest } from "../utils/human-reply-admission";
 
 vi.mock("../../client/src/lib/firebaseAdmin", async () => {
   const { sharedFakeFirestore, FAKE_FIELD_DELETE } = await import("./helpers/fake-firestore");
@@ -230,5 +231,52 @@ describe("naming an unnamed job", () => {
     const brief = (await getBrief(REQUEST))!;
     await saveBrief({ ...brief, confirmedAtIso: "2026-10-29T00:00:00Z" });
     expect(await nameUnnamedTask({ requestId: REQUEST, summary: "Move the bins" })).toBeNull();
+  });
+});
+
+// capture-447ae4f4 (2026-11-02): a description reading that ran three days late
+// closed one open site question on a paid job's unconfirmed brief. The grant no
+// longer verified and the intake worker revoked the job's Pipeline intent.
+describe("a brief bound to a live scene grant", () => {
+  const grant = { purpose: "scene_preparation", authority_digest: `sha256:${"a".repeat(64)}`,
+    task_context_digest: `sha256:${"b".repeat(64)}` };
+  beforeEach(() => sharedFakeFirestoreState.docs.clear());
+  async function grantedBrief(record: Record<string, unknown> = {}) {
+    await saveBrief(draftBrief({ requestId: REQUEST, captureMode: "self_capture", proposed: [],
+      summary: "Pick up the wooden tray and place it at the other end of the table" }));
+    sharedFakeFirestoreState.docs.set(`inboundRequests/${REQUEST}`, { website_scene_sponsorship: grant, ...record });
+  }
+
+  it("holds a reading that would move the granted task and leaves the brief as granted", async () => {
+    await grantedBrief();
+    const before = await getBrief(REQUEST);
+    expect(await mergeBriefProposals({ requestId: REQUEST, proposals: [intakeStability] })).toBeNull();
+    expect(await getBrief(REQUEST)).toEqual(before);
+    expect((sharedFakeFirestoreState.docs.get(`inboundRequests/${REQUEST}`) as any).capture_coverage_pending).toBeUndefined();
+  });
+
+  it("records a held sourced reading for the site's review", async () => {
+    await grantedBrief();
+    const before = (await getBrief(REQUEST))!;
+    const source = { capture_id: `walkthrough-${REQUEST}`, evidence_digest: `sha256:${"c".repeat(64)}`,
+      brief_digest: humanDecisionDigest(before) };
+    expect(await mergeBriefProposals({ requestId: REQUEST, proposals: [intakeStability], source })).toBeNull();
+    const notes = [...sharedFakeFirestoreState.docs.entries()].filter(([key]) => key.includes("/footageProposals/"));
+    expect(notes).toHaveLength(1);
+    expect(notes[0][1]).toMatchObject({ state: "grant_review_required", proposals: [intakeStability] });
+    expect(await getBrief(REQUEST)).toEqual(before);
+  });
+
+  it("still folds in evidence that leaves the granted task where it was", async () => {
+    await grantedBrief();
+    const merged = await mergeBriefProposals({ requestId: REQUEST, proposals: [guessedShape] });
+    expect(merged?.proposed).toEqual([guessedShape]);
+    expect(merged?.unresolved).toContain("taskShape");
+  });
+
+  it("lets a grant issued before the site named its job follow the brief", async () => {
+    await grantedBrief({ website_scene_sponsorship_unnamed_task: grant.authority_digest });
+    const merged = await mergeBriefProposals({ requestId: REQUEST, proposals: [intakeStability] });
+    expect(merged?.unresolved).not.toContain("sceneStability");
   });
 });
