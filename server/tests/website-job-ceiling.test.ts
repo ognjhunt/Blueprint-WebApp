@@ -57,6 +57,23 @@ describe("what counts against it", () => {
     expect(await spend({ state: "revoked" })).toBe(0);
   });
 
+  it("never counts native construction above the budget the Pipeline enforces, and skips cancelled attempts", async () => {
+    // The Pipeline refuses a reservation that would take its holds past the intent's
+    // (extended) budget, so that budget bounds what native construction can spend.
+    // capture-447ae4f4 (2026-11-02): $20 granted, extended to $70, 18 attempt rows
+    // whose maxima summed to about $361 because settled rows kept their full maximum.
+    const rows = Array.from({ length: 18 }, (_, index) => ({ maximum_spend_usd: index < 9 ? 30 : 10.1 }));
+    const intake = (value: Record<string, any>) => ({ request: { execution: { max_total_spend_usd: 20 } }, ...value });
+    const spend = async (value: Record<string, any>) =>
+      (await websiteJobSpend({ record: {}, reader: reader([intake(value)]) })).native_construction_micros;
+    const status = { attempts: rows, effective_execution_budget: { max_total_spend_usd: 70 } };
+    expect(await spend({ state: "accepted", pipeline_status: status })).toBe(70_000_000);
+    expect(await spend({ state: "completed", pipeline_status: status })).toBe(70_000_000);
+    // A cancellation the Pipeline validated before execution bought nothing.
+    expect(await spend({ state: "completed", pipeline_status: { attempts: [{ maximum_spend_usd: 4 },
+      { maximum_spend_usd: 6, status: "cancelled_before_execution" }] } })).toBe(4_000_000);
+  });
+
   it("keeps the whole native allowance once a delivery may have reached the Pipeline, until the Pipeline confirms it ended", async () => {
     const intake = (value: Record<string, any>) => ({ request: { execution: { max_total_spend_usd: 20 } }, ...value });
     const spend = async (value: Record<string, any>) =>

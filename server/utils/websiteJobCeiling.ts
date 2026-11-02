@@ -102,17 +102,22 @@ function pipelineEnded(status: Record<string, any> | undefined) {
  */
 function nativeIntakeMicros(intake: Record<string, any>) {
   const status = intake.pipeline_status, attempts = Array.isArray(status?.attempts) ? status.attempts : [];
-  const reserved = attempts.reduce((sum: number, attempt: any) =>
-    sum + (amount(attempt?.maximum_spend_usd) ? micros(attempt.maximum_spend_usd) : Infinity), 0);
+  // A cancellation the Pipeline validated before execution bought nothing.
+  const reserved = attempts.filter((attempt: any) => attempt?.status !== "cancelled_before_execution")
+    .reduce((sum: number, attempt: any) =>
+      sum + (amount(attempt?.maximum_spend_usd) ? micros(attempt.maximum_spend_usd) : Infinity), 0);
+  const granted = intake.request?.execution?.max_total_spend_usd;
+  const extended = status?.effective_execution_budget?.max_total_spend_usd;
+  // The Pipeline refuses any reservation that would take the intent's holds past
+  // this (extended) budget, so it bounds what native construction can spend.
+  // Settled rows keep their full maximum here, so their sum alone overcounts.
+  const budget = amount(granted) ? Math.max(micros(granted), amount(extended) ? micros(extended) : 0) : Infinity;
   const maySpend = !intake.receipt && intake.forwarding_started === true;
   const unissued = !intake.receipt && !maySpend && ["revoked", "expired", "blocked"].includes(intake.state);
   const ended = intake.closeout_complete === true || intake.state === "completed"
     || intake.state === "blocked" && pipelineEnded(status);
-  if (!maySpend && (ended || unissued)) return reserved;
-  const granted = intake.request?.execution?.max_total_spend_usd;
-  const extended = status?.effective_execution_budget?.max_total_spend_usd;
-  if (!amount(granted)) return Infinity;
-  return Math.max(micros(granted), amount(extended) ? micros(extended) : 0, reserved);
+  if (!maySpend && (ended || unissued)) return Math.min(reserved, budget);
+  return budget;
 }
 
 /**
