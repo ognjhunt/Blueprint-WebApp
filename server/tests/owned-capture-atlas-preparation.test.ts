@@ -181,6 +181,27 @@ it("settles completed admitted inference after revocation without granting any n
   await expect(reserveOwnedCaptureAtlasSpend(state.record.session_id, binding, spend("e"))).rejects.toThrow();
 });
 
+it("settles an Atlas hold from its retained outcome: completed at the reviewed price, failed or refused at zero", async () => {
+  await authorize();
+  for (const key of ["c", "d", "e"]) await reserveOwnedCaptureAtlasSpend(state.record.session_id, binding, spend(key, 1));
+  expect((await loadOwnedCaptureAtlasConfiguration(state.record.session_id, binding)).remaining_cost_usd).toBe(0);
+  const outcome = (key: string, value: "completed" | "failed" | "refused") => ({
+    task_context_digest: binding.task_context_digest, allocation_binding_digest: hash(key), provider: "world_labs_atlas" as const,
+    outcome: value, operation_id: value === "refused" ? null : `op-${key}`, outcome_receipt_digest: hash("9") });
+  expect(await settleOwnedCaptureAtlasSpend(state.record.session_id, outcome("c", "completed"))).toMatchObject({ actual_cost_usd: 1 });
+  expect(await settleOwnedCaptureAtlasSpend(state.record.session_id, outcome("d", "failed"))).toMatchObject({ actual_cost_usd: 0 });
+  // Accounting survives revocation; a replay is idempotent and a changed outcome conflicts.
+  state.record.capture_access = { future_processing_allowed: false };
+  expect(await settleOwnedCaptureAtlasSpend(state.record.session_id, outcome("e", "refused"))).toMatchObject({ actual_cost_usd: 0 });
+  await settleOwnedCaptureAtlasSpend(state.record.session_id, outcome("d", "failed"));
+  await expect(settleOwnedCaptureAtlasSpend(state.record.session_id, outcome("d", "completed"))).rejects.toThrow("idempotency_conflict");
+  await expect(settleOwnedCaptureAtlasSpend(state.record.session_id, { ...outcome("c", "completed"), provider: "openai" } as any))
+    .rejects.toThrow();
+  delete state.record.capture_access;
+  // The two released holds are available again; the completed one stays charged.
+  expect((await loadOwnedCaptureAtlasConfiguration(state.record.session_id, binding)).remaining_cost_usd).toBe(2);
+});
+
 it("does not replenish the source allowance when another compatible task plan is retained", async () => {
   await authorize(); await reserveOwnedCaptureAtlasSpend(state.record.session_id, binding, spend("c", 2.5));
   const plan = structuredClone(fixture.plan);

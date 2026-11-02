@@ -26,8 +26,15 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => {
     collection: (child: string) => query(`${key}/${child}`) });
   const snapshot = (key: string): any => ({ id: key.split("/").at(-1), exists: store.rows.has(key),
     data: () => structuredClone(store.rows.get(key)), ref: reference(key) });
+  // Equality on a (dotted) field, as the job-ceiling ledger reads use inside a transaction.
+  const field = (value: any, path: string) => path.split(".").reduce((item, key) => item?.[key], value);
+  const where = (collection: string, path: string, value: unknown): any => ({
+    get: async () => ({ docs: [...store.rows.keys()].filter(key => key.startsWith(`${collection}/`)
+      && !key.slice(collection.length + 1).includes("/") && field(store.rows.get(key), path) === value).sort().map(snapshot) }),
+  });
   return { dbAdmin: {
-    collection: (collection: string) => ({ doc: (id: string) => reference(`${collection}/${id}`) }),
+    collection: (collection: string) => ({ doc: (id: string) => reference(`${collection}/${id}`),
+      where: (path: string, _op: string, value: unknown) => where(collection, path, value) }),
     runTransaction: async (callback: any) => callback({
       get: (ref: any) => ref.get(),
       update: (ref: any, value: Record<string, unknown>) => {
@@ -38,7 +45,9 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => {
   } };
 });
 
-import { loadWebsiteAtlasConfiguration, reserveWebsitePreparationSpend, settleWebsitePreparationSpend } from "../utils/websiteSceneSponsorship";
+import { loadWebsiteAtlasConfiguration, observeWebsitePreparationSpend, reserveWebsitePreparationSpend,
+  settleWebsitePreparationSpend } from "../utils/websiteSceneSponsorship";
+import { screeningFixture, sealScreening } from "./fixtures/beta-policy-screening";
 import { websitePreparationAccounting } from "../utils/websitePreparationAccounting";
 import { humanDecisionDigest } from "../utils/human-reply-admission";
 import { projectWebsiteCaptureRights, projectWebsiteTaskContext } from "../utils/websiteTaskContext";
@@ -160,6 +169,9 @@ describe("automatic consented Atlas grant", () => {
     expect(first).toEqual({ schema_version: "website_atlas_configuration.v1",
       authority: { ...stored, authorization_digest: crossRuntimeDigest(stored) }, policy: runtime,
       reserved_or_settled_cost_usd: 0, remaining_cost_usd: 2,
+      job_ceiling: { schema_version: "website_job_ceiling.v1", maximum_cost_usd: 2, source: "atlas_authorization",
+        preparation_cost_usd: 0, native_construction_cost_usd: 0, screening_cost_usd: 0,
+        reserved_or_settled_cost_usd: 0, remaining_cost_usd: 2 },
       task_context_digest: contextDigest(), source_video_digest: sha("5"), dispatch_authorized: false });
     // Byte-stable on resume, created once, and unchanged by a task edit.
     expect(JSON.stringify((await configure()).authority)).toBe(JSON.stringify(first.authority));
@@ -545,6 +557,93 @@ const bundleDigest = `sha256:${createHash("sha256").update(bundleBytes).digest("
 const ready = (revision = 2) => preview({ revision, state: "ready", updated_at_epoch: 1_761_138_000,
   bundle: { digest: bundleDigest, size_bytes: bundleBytes.length, filename: "atlas-preview-walkthrough-req1.zip" },
   splat_available: true, mesh_available: true });
+
+describe("one dollar ceiling per job (owner, 2026-10-30)", () => {
+  const atlasOutcome = (key: string, outcome: "completed" | "failed" | "refused", overrides: Record<string, unknown> = {}) => ({
+    task_context_digest: contextDigest(), allocation_binding_digest: sha(key), provider: "world_labs_atlas" as const,
+    outcome, operation_id: outcome === "refused" ? null : `op-${key}`, outcome_receipt_digest: sha("9"), ...overrides });
+  const screening = (committed: string) => ({ publication: sealScreening({ ...screeningFixture().publication,
+    budget: { currency: "USD", limit_usd: "15.00", committed_upper_bound_usd: committed,
+      spent_upper_bound_usd: committed, reserved_usd: "0" } }) });
+
+  it("counts every ledger of the job against one ceiling, settled where known and otherwise held in full", async () => {
+    vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_GRANT_POLICY_JSON", JSON.stringify(policy));
+    upload();
+    await configure();
+    // A held upstream row from the preparation-only sponsorship, outside the Atlas allowance.
+    store.rows.get(REQUEST).website_preparation_reservations = { ["e".repeat(64)]: { command_digest: sha("0"),
+      admission: { allocation_binding_digest: sha("e"), provider: "meta", resource_class: "evaluator_api",
+        task_context_digest: contextDigest(), request_count: 1, maximum_cost_usd: .5 } } };
+    // The Atlas allowance alone has room for 1.6; the job ($2 here) does not.
+    await expect(reserveWebsitePreparationSpend("req1", atlasSpend({ maximum_cost_usd: 1.6 })))
+      .rejects.toThrow("website_scene_preparation_budget_exhausted");
+    expect(await reserveWebsitePreparationSpend("req1", atlasSpend())).toMatchObject({ status: "admitted" });
+    expect((await configure({ create: false })).job_ceiling).toEqual({ schema_version: "website_job_ceiling.v1",
+      maximum_cost_usd: 2, source: "atlas_authorization", preparation_cost_usd: 2, native_construction_cost_usd: 0,
+      screening_cost_usd: 0, reserved_or_settled_cost_usd: 2, remaining_cost_usd: 0 });
+    // A failed Atlas operation World Labs never charged releases its hold.
+    expect(await settleWebsitePreparationSpend("req1", atlasOutcome("1", "failed")))
+      .toMatchObject({ status: "settled", actual_cost_usd: 0 });
+    // A sponsored intake holds its whole native allowance while it can still start an attempt.
+    store.rows.set("taskEvaluationSceneIntakes/scene-one", { website_request_id: "req1", state: "accepted",
+      request: { execution: { max_total_spend_usd: 1 } }, pipeline_status: { attempts: [] } });
+    await expect(reserveWebsitePreparationSpend("req1", atlasSpend({ allocation_binding_digest: sha("2"), maximum_cost_usd: .6 })))
+      .rejects.toThrow("website_scene_preparation_budget_exhausted");
+    // Closed, it counts what its attempts reserved.
+    Object.assign(store.rows.get("taskEvaluationSceneIntakes/scene-one"), { state: "completed",
+      pipeline_status: { attempts: [{ maximum_spend_usd: .25 }] } });
+    expect(await reserveWebsitePreparationSpend("req1", atlasSpend({ allocation_binding_digest: sha("2"), maximum_cost_usd: .6 })))
+      .toMatchObject({ status: "admitted" });
+    // The screening site ledger counts its latest published snapshot.
+    store.rows.set("taskEvaluationPolicyRuns/campaign-one", { run_kind: "beta_policy_screening",
+      job_evidence_binding: { job_id: "req1" }, result_record_id: "screening-one" });
+    store.rows.set("captureTaskEvaluationRuns/screening-one", screening("0.6"));
+    expect((await configure({ create: false })).job_ceiling).toMatchObject({ preparation_cost_usd: 1.1,
+      native_construction_cost_usd: .25, screening_cost_usd: .6, remaining_cost_usd: expect.closeTo(.05) });
+    await expect(reserveWebsitePreparationSpend("req1", atlasSpend({ allocation_binding_digest: sha("3"), maximum_cost_usd: .1 })))
+      .rejects.toThrow("website_scene_preparation_budget_exhausted");
+    expect(await reserveWebsitePreparationSpend("req1", atlasSpend({ allocation_binding_digest: sha("3"), maximum_cost_usd: .05 })))
+      .toMatchObject({ status: "admitted" });
+    // An unreadable screening publication counts the whole screening site limit.
+    store.rows.set("captureTaskEvaluationRuns/screening-one", { publication: { schema_version: "unknown" } });
+    await expect(reserveWebsitePreparationSpend("req1", atlasSpend({ allocation_binding_digest: sha("4"), maximum_cost_usd: .01 })))
+      .rejects.toThrow("website_scene_preparation_budget_exhausted");
+    // Reservations already made stay admitted and are never rewritten.
+    expect(await reserveWebsitePreparationSpend("req1", atlasSpend({ allocation_binding_digest: sha("2"), maximum_cost_usd: .6 })))
+      .toMatchObject({ status: "already_reserved" });
+    expect(Object.keys(store.rows.get(REQUEST).website_preparation_reservations)).toHaveLength(4);
+  });
+
+  it("settles World Labs Atlas holds from the retained outcome and observes them afterwards", async () => {
+    vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_GRANT_POLICY_JSON", JSON.stringify(policy));
+    upload();
+    await configure();
+    for (const key of ["1", "2", "3"]) await reserveWebsitePreparationSpend("req1",
+      atlasSpend({ allocation_binding_digest: sha(key), maximum_cost_usd: .6 }));
+    // World Labs bills no operation; a completed one settles at the reviewed price it was reserved at.
+    expect(await settleWebsitePreparationSpend("req1", atlasOutcome("1", "completed")))
+      .toMatchObject({ status: "settled", outcome: "completed", actual_cost_usd: .6 });
+    expect(await settleWebsitePreparationSpend("req1", atlasOutcome("2", "refused")))
+      .toMatchObject({ status: "settled", actual_cost_usd: 0 });
+    // A refusal bought no operation and a finished operation names one.
+    await expect(settleWebsitePreparationSpend("req1", atlasOutcome("3", "refused", { operation_id: "op-3" }))).rejects.toThrow();
+    await expect(settleWebsitePreparationSpend("req1", atlasOutcome("3", "failed", { operation_id: null }))).rejects.toThrow();
+    // Idempotent replay; a different outcome for the same hold conflicts.
+    expect(await settleWebsitePreparationSpend("req1", atlasOutcome("2", "refused"))).toMatchObject({ actual_cost_usd: 0 });
+    await expect(settleWebsitePreparationSpend("req1", atlasOutcome("2", "completed"))).rejects.toThrow("idempotency_conflict");
+    // Only an Atlas reservation settles this way.
+    store.rows.get(REQUEST).website_preparation_reservations["e".repeat(64)] = { admission: { provider: "openai",
+      resource_class: "openai_api_candidate", task_context_digest: contextDigest(), request_count: 1, maximum_cost_usd: .1 } };
+    await expect(settleWebsitePreparationSpend("req1", atlasOutcome("e", "failed")))
+      .rejects.toThrow("website_scene_preparation_settlement_invalid");
+    delete store.rows.get(REQUEST).website_preparation_reservations["e".repeat(64)];
+    const read = await configure({ create: false });
+    expect(read).toMatchObject({ reserved_or_settled_cost_usd: 1.2, remaining_cost_usd: expect.closeTo(.8),
+      allowance_accounting: { settled_cost_usd: .6, held_cost_usd: .6 } });
+    const observed = await observeWebsitePreparationSpend("req1", atlasSpend({ allocation_binding_digest: sha("1"), maximum_cost_usd: .6 }));
+    expect(observed).toMatchObject({ status: "reserved", settlement: { outcome: "completed", actual_cost_usd: .6 } });
+  });
+});
 
 describe("Pipeline Atlas preview status", () => {
   it("accepts only strict, digest-verified, monotonic previews and only withdrawal after consent ends", async () => {
