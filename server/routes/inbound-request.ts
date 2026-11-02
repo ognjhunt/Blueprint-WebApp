@@ -112,15 +112,19 @@ function normalizeTaskVideoUrls(input: unknown): string[] {
 }
 
 /**
- * Turn the client's rights-checkbox report into the stored record.
+ * Turn the client's report of an attested statement into the stored record.
+ * For recording rights the site attests the sentence quoted where it starts
+ * with footage (`client/src/lib/recordingRightsStatement.ts`); there is no
+ * separate box on the start form.
  *
  * - `{granted: true}`  → the attestation fact, with the sentence version and
  *   the moment it was made. This is what a takedown request later proves
- *   its basis against.
+ *   its basis against. Whether the version can grant anything is checked by
+ *   the caller (`hasCurrentRecordingConsent` accepts a closed set).
  * - absent / null      → `null`: the client predated the field. Stored as
  *   "never asked", which must stay distinguishable from a grant.
  * - anything else      → `"refused"`: the caller rejects the submission, so
- *   an unchecked box can never be laundered into consent by a retry.
+ *   a withheld grant can never be laundered into consent by a retry.
  */
 function buildConsentAttestation(
   input: InboundRequestPayload["consentAttestation"],
@@ -1226,11 +1230,11 @@ export async function submitInboundRequest(req: Request, res: Response) {
       } satisfies SubmitInboundRequestResponse);
     }
 
-    // The rights checkbox is a legal act, so a recorded refusal or an
-    // incoherent attestation stops the submission — a grant nobody made must
-    // never look stored. An absent attestation is the older-client case: it
-    // is stored as null, which is "never asked", and is a different thing
-    // from a grant.
+    // The recording-rights attestation is a legal act, so a recorded refusal,
+    // an incoherent attestation or a statement version outside the closed set
+    // stops the submission — a grant nobody made must never look stored. An
+    // absent attestation is the older-client case: it is stored as null, which
+    // is "never asked", and is a different thing from a grant.
     const consentAttestation = buildConsentAttestation(payload.consentAttestation);
     const descriptionAuthority = buildConsentAttestation(payload.descriptionAuthority);
     const descriptionOnly = buyerType === "site_operator" && payload.descriptionOnly === true;
@@ -1256,7 +1260,7 @@ export async function submitInboundRequest(req: Request, res: Response) {
         ok: false,
         requestId: payload.requestId,
         status: "submitted",
-        message: "The recording-rights box was not ticked, so the request cannot be accepted",
+        message: "Recording permission was not confirmed, so the request cannot be accepted",
       } satisfies SubmitInboundRequestResponse);
     }
 

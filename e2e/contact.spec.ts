@@ -70,6 +70,36 @@ test("capture accepts country permission without an address and keeps non-US fil
   await expect(page.getByRole("link", { name: "Open the camera" })).toHaveCount(0);
 });
 
+test("starting with footage quotes the recording-rights sentence next to the button and records v2", async ({ page }) => {
+  const rights = "I am authorized to record this site and to let Blueprint use the recording to draft the job brief, "
+    + "build a simulation of the work area and run candidate robot policies in it.";
+  const submissions: any[] = [];
+  await page.route("**/api/inbound-request", route => {
+    submissions.push(route.request().postDataJSON());
+    return route.fulfill({ status: 202, json: { ok: true, requestId: "captured", captureUrl: null } });
+  });
+  await page.goto("/contact/site-operator", { waitUntil: "domcontentloaded" });
+  const start = page.getByRole("button", { name: "Start free assessment", exact: true });
+  await expect(start).toBeEnabled();
+  // Filming later grants nothing on this form, so nothing is quoted.
+  await expect(page.getByRole("radio", { name: "Film it on a phone · Right after this form", exact: true })).toBeChecked();
+  await expect(page.getByText(rights, { exact: true })).toHaveCount(0);
+  await page.getByRole("radio", { name: "Upload a video now", exact: true }).check();
+  // Starting with footage is the grant: no separate box, the sentence itself
+  // is quoted in the note right above the Start button.
+  const statement = page.getByText(rights, { exact: true });
+  await expect(statement).toBeVisible();
+  await expect(page.locator("#start-rights")).toHaveCount(0);
+  await expect(page.locator("p", { has: statement })).toContainText("By selecting Start free assessment, you agree to our Terms and Privacy Policy and confirm:");
+  await page.locator("#start-region").selectOption("us");
+  await page.locator("#start-footage").setInputFiles({ name: "cycle.mov", mimeType: "video/quicktime", buffer: Buffer.from("frames") });
+  await page.locator("#start-email").fill("owner@example.test");
+  await start.click();
+  await expect.poll(() => submissions.length).toBe(1);
+  expect(submissions[0]).toMatchObject({ captureRegion: "us", hasExistingFootage: true, descriptionOnly: false,
+    consentAttestation: { granted: true, statementVersion: "2026-11-02.v2" } });
+});
+
 test("robot teams can apply before approval without seeing private jobs", async ({ page }) => {
   await page.goto("/contact/robot-team");
   await expect(page.getByRole("form", { name: "Early access application" })).toBeVisible();

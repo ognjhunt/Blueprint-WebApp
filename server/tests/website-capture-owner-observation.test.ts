@@ -84,6 +84,28 @@ describe("authoritative original website capture owner read", () => {
       ...observed.producer_delivery, raw_video: { ...observed.producer_delivery.raw_video, generation: "200" },
     } })).not.toBe(observed.source_projection_digest);
   });
+  function attestedUnder(statementVersion: unknown) {
+    const { deps } = fixture();
+    const originalRead = deps.readRequest;
+    deps.readRequest = async () => {
+      const current = await originalRead();
+      return { ...current, data: { ...current.data, request: { ...current.data.request,
+        consent_attestation: { ...current.data.request.consent_attestation, statement_version: statementVersion } } } };
+    };
+    return observeWebsiteCaptureOwner({ request_id: "r1", scene_id: "site-r1",
+      capture_id: "walkthrough-r1", completion_marker_generation: "100" }, deps);
+  }
+  it.each(["2026-09-18.v1", "2026-11-02.v2"])("observes a recording grant attested under %s", async version => {
+    const observed = await attestedUnder(version);
+    expect(observed.consent_attestation).toEqual({ granted: true, statement_version: version,
+      recorded_at_iso: "2026-09-28T00:00:00.000Z" });
+    // The Pipeline refuses rights recorded under a different version than the attestation.
+    expect(observed.capture_rights).toMatchObject({ derived_scene_generation_allowed: true,
+      consent_status: "granted", statement_version: version });
+  });
+  it.each(["2026-11-02.v3", "2026-09-18.v2", "2026-11-02.V2", "", null])("refuses a recording grant attested under %j", async version => {
+    await expect(attestedUnder(version)).rejects.toThrow("owner_attestation_invalid");
+  });
   it("an intact historical browser receipt does not override current withdrawal", async () => {
     const { deps } = fixture();
     const originalRead = deps.readRequest;

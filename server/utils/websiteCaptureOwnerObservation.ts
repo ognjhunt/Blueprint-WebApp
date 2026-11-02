@@ -10,6 +10,7 @@ import { bundleDigest, planDigestOf, SITE_CAPTURE_BUNDLE_PLAN_SCHEMA,
 import { isWebsiteCaptureId } from "./websiteCaptureIdentity";
 import { resolveWebsiteCaptureBinding } from "./websiteCaptureBinding";
 import { strictBoundedProofJson } from "./strictBoundedProofJson";
+import { isRecordingRightsStatementVersion } from "../../client/src/lib/recordingRightsStatement";
 
 type Metadata = Record<string, unknown>;
 type Snapshot = { data: Record<string, any>; updateTime: { seconds: number; nanoseconds: number } };
@@ -168,7 +169,8 @@ export async function observeWebsiteCaptureOwner(
   const claimed = websiteCaptureOwnerClaimedAt(record) ?? null;
   if (claimed !== null && !cleanIso(claimed)) throw new Error("owner_claim_invalid");
   const attestation = record.request?.consent_attestation;
-  if (attestation?.granted !== true || attestation.statement_version !== "2026-09-18.v1"
+  // The closed set the Pipeline's owner read accepts too (v1 records stay valid).
+  if (attestation?.granted !== true || !isRecordingRightsStatementVersion(attestation.statement_version)
       || !cleanIso(attestation.recorded_at_iso)) throw new Error("owner_attestation_invalid");
   const consent = { granted: true, statement_version: attestation.statement_version,
     recorded_at_iso: attestation.recorded_at_iso };

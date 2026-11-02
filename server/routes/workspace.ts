@@ -15,6 +15,7 @@ import {
   type NextFunction,
 } from "express";
 import { z } from "zod";
+import { RECORDING_RIGHTS_STATEMENT_VERSIONS } from "../../client/src/lib/recordingRightsStatement";
 import {
   buildLegalAcceptanceRecord,
   TERMS_VERSION,
@@ -1245,7 +1246,7 @@ router.post(
       captureRegion: z.enum(["us", "non_us"]),
       hasExistingFootage: z.boolean(),
       filmerContact: z.string().email().max(320).optional(),
-      consentAttestation: z.object({ granted: z.literal(true), statementVersion: z.literal("2026-09-18.v1") }).nullable().optional(),
+      consentAttestation: z.object({ granted: z.literal(true), statementVersion: z.enum(RECORDING_RIGHTS_STATEMENT_VERSIONS) }).nullable().optional(),
       descriptionOnly: z.boolean().optional(),
       acceptedTerms: z.boolean().optional(),
       descriptionAuthority: z.object({ granted: z.literal(true), statementVersion: z.literal("2026-10-06.v1") }).optional(),

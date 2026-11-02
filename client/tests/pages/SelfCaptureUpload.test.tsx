@@ -10,6 +10,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import SelfCaptureUpload from "@/pages/SelfCaptureUpload";
+import { RECORDING_RIGHTS_STATEMENT } from "@/lib/recordingRightsStatement";
 import { processingFailure } from "../../../server/utils/taskPreparationOutcome";
 
 const route = vi.hoisted(() => ({ token: "tok-e2e", navigate: vi.fn() }));
@@ -288,13 +289,17 @@ describe("video first owner return", () => {
     const button = screen.getByRole("button", { name: "Confirm recording permission" });
     expect(button).toBeDisabled();
     expect(fetcher.mock.calls.filter(call => call[1]?.method === "POST")).toHaveLength(0);
-    fireEvent.click(screen.getByRole("checkbox", { name: /I am authorized to record this site/ }));
+    // The box is labelled with exactly the sentence its version records.
+    const box = screen.getByRole("checkbox", { name: RECORDING_RIGHTS_STATEMENT });
+    expect(permission).toContainElement(box);
+    expect(permission).not.toHaveTextContent(/robot teams/i);
+    fireEvent.click(box);
     fireEvent.click(button);
     await screen.findByRole("button", { name: "Upload a video file" });
     const posts = fetcher.mock.calls.filter(call => call[1]?.method === "POST");
     expect(posts).toHaveLength(1);
     expect(posts[0][0]).toContain("/recording-consent");
-    expect(JSON.parse(posts[0][1]!.body as string)).toEqual({ granted: true, statementVersion: "2026-09-18.v1" });
+    expect(JSON.parse(posts[0][1]!.body as string)).toEqual({ granted: true, statementVersion: "2026-11-02.v2" });
     expect(videoUpload.send).not.toHaveBeenCalled();
     expect(videoUpload.retry).not.toHaveBeenCalled();
   });

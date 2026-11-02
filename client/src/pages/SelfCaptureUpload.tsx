@@ -32,6 +32,7 @@ import { SiteReadinessPanel } from "@/components/site/SiteReadinessPanel";
 import { FilmLinkHandoff } from "@/components/site/FilmLinkHandoff";
 import { OwnerRecordingWithdrawal } from "@/components/site/OwnerRecordingWithdrawal";
 import { FILMING_NOTICE, FOOTAGE_UPLOAD_NOTICE } from "@/lib/footageNotice";
+import { RECORDING_RIGHTS_STATEMENT, RECORDING_RIGHTS_STATEMENT_VERSION } from "@/lib/recordingRightsStatement";
 import { withCsrfHeader } from "@/lib/csrf";
 import { receivedVideoResult, retrySelfCaptureProcessing, uploadSelfCaptureVideo, type VideoUploadResult } from "@/lib/selfCaptureVideo";
 
@@ -259,7 +260,8 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
     try {
       const response = await fetch(`/api/self-capture/uploads/${encodeURIComponent(token)}/recording-consent`, {
         method: "POST", headers: await withCsrfHeader({ "Content-Type": "application/json" }),
-        body: JSON.stringify({ granted: true, statementVersion: "2026-09-18.v1" }),
+        // The version of the exact sentence the checkbox below is labelled with.
+        body: JSON.stringify({ granted: true, statementVersion: RECORDING_RIGHTS_STATEMENT_VERSION }),
       });
       const result = await response.json().catch(() => null);
       if (!response.ok || !result?.ok) throw new Error(result?.error || "We could not save recording permission. Try again shortly.");
@@ -687,7 +689,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
               <label style={{ display: "flex", gap: "10px", alignItems: "flex-start" }}>
                 <input type="checkbox" checked={recordingConsent} onChange={event => setRecordingConsent(event.target.checked)}
                   style={{ width: "auto", minHeight: 0, marginTop: "4px" }} />
-                <span>I am authorized to record this site and to let Blueprint use the recording to build a scene robot teams can evaluate against.</span>
+                <span>{RECORDING_RIGHTS_STATEMENT}</span>
               </label>
               <button type="button" className="ms-button" disabled={!recordingConsent || savingConsent} onClick={() => void confirmRecordingConsent()}>
                 {savingConsent ? "Saving permission…" : "Confirm recording permission"}

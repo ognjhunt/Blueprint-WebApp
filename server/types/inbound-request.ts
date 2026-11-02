@@ -78,11 +78,12 @@ export type ProofPathPreference =
   | "need_guidance";
 
 /**
- * The rights checkbox, as the client reports it.
+ * An attested statement, as the client reports it.
  *
- * The checkbox is a legal act on the site forms; the grant is only real once
- * it is recorded against the submission. Absent means the client predated the
- * field, which is stored as null — never as a grant.
+ * For recording rights, starting with footage attests the sentence quoted next
+ * to the Start button (or the job link's labelled checkbox); the grant is only
+ * real once it is recorded against the submission. Absent means the client
+ * predated the field, which is stored as null — never as a grant.
  */
 export interface ConsentAttestationInput {
   granted?: boolean;
@@ -291,7 +292,7 @@ export interface RequestDetails {
   taskVideoUrl?: string | null;
   /** Every footage link the operator shared — the first also fills `taskVideoUrl`. */
   taskVideoUrls?: string[] | null;
-  /** The rights-checkbox grant, recorded with the sentence version. Null = never asked. */
+  /** The recording-rights grant, recorded with the sentence version. Null = never asked. */
   consent_attestation?: ConsentAttestationRecord | null;
   /** Authority to submit prose; grants no recording, publication or match fee. */
   description_authority?: ConsentAttestationRecord | null;
@@ -1278,7 +1279,7 @@ export interface InboundRequestPayload {
   taskVideoUrl?: string | null;
   /** Up to five footage links; the first mirrors into `taskVideoUrl`. */
   taskVideoUrls?: string[] | null;
-  /** The rights-checkbox grant from the site forms. Absent = client predated the field. */
+  /** The recording-rights grant from the site forms. Absent = client predated the field. */
   consentAttestation?: ConsentAttestationInput | null;
   /** Description-only admission preserves the recording hold until a separate grant. */
   descriptionOnly?: boolean;

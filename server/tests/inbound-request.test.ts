@@ -1263,6 +1263,37 @@ describe("inbound request: public-form payload contract", () => {
     }
   });
 
+  it("records footage attested under the v1 or v2 rights sentence and refuses any other version", async () => {
+    process.env.NODE_ENV = "development";
+    vi.resetModules();
+    const { server, baseUrl } = await startRouterServer();
+    try {
+      const post = (requestId: string, statementVersion: unknown) => fetch(`${baseUrl}/`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...buildSiteScreeningPayload(requestId, `${requestId}@example.com`),
+          consentAttestation: { granted: true, statementVersion } }),
+      });
+      const saved = (requestId: string) => fs.readFileSync(devLogPath, "utf8").trim().split("\n")
+        .map(line => JSON.parse(line)).find(row => row.requestId === requestId);
+      // v1 is what older open pages and stored records carry; v2 is the sentence shown now.
+      for (const version of ["2026-09-18.v1", "2026-11-02.v2"]) {
+        const requestId = `rights-${version.replace(/\W/g, "-")}-${crypto.randomUUID()}`;
+        expect((await post(requestId, version)).status).toBe(201);
+        expect(saved(requestId)?.request?.consent_attestation).toMatchObject({ granted: true, statement_version: version });
+      }
+      for (const version of ["2026-11-02.v3", "2026-09-18.v2", "2026-11-02.V2", "2026-10-06.v1", "", null]) {
+        const requestId = `rights-refused-${crypto.randomUUID()}`;
+        const response = await post(requestId, version);
+        expect(response.status).toBe(400);
+        // The site never ticks a box here: starting with footage is the grant.
+        expect((await response.json()).message).toBe("Recording permission was not confirmed, so the request cannot be accepted");
+        expect(saved(requestId)).toBeUndefined();
+      }
+    } finally {
+      await stopServer(server);
+    }
+  });
+
   it("retains explicit Claude disclosure only for an approved US self-capture", async () => {
     process.env.NODE_ENV = "development";
     vi.resetModules();

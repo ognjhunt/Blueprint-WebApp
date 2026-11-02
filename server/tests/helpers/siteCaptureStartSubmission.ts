@@ -62,7 +62,7 @@ export function siteCaptureStartSubmission(params: {
     hasExistingFootage: true,
     descriptionOnly: false,
     descriptionAuthority: { granted: true, statementVersion: "2026-10-06.v1" },
-    consentAttestation: { granted: true, statementVersion: "2026-09-18.v1" },
+    consentAttestation: { granted: true, statementVersion: "2026-11-02.v2" },
     context: { sourcePageUrl: params.sourcePageUrl },
   };
 }
