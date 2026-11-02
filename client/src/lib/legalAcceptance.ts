@@ -16,8 +16,8 @@
  * notice, and the previous version stays in force until the new date. The
  * previous versions below are frozen at /terms/previous and /privacy/previous.
  */
-export const TERMS_VERSION = "2026-11-15.3";
-export const PRIVACY_VERSION = "2026-11-15.4";
+export const TERMS_VERSION = "2026-11-15.4";
+export const PRIVACY_VERSION = "2026-11-15.5";
 
 /** The versions in force until TERMS_VERSION / PRIVACY_VERSION take effect. */
 export const PREVIOUS_TERMS_VERSION = "2026-10-14.1";
@@ -77,6 +77,9 @@ export function acceptedVersionsAreCurrent(terms: unknown, privacy: unknown, now
     (terms === PREVIOUS_TERMS_VERSION && privacy === PREVIOUS_PRIVACY_VERSION)
     || (terms === "2026-11-15.2" && privacy === "2026-11-15.4"
       && nowMs < legalEffectiveAtMs("2026-11-15.2"))
+    // Terms .4 / Privacy .5 correct how footage is processed (owner decision D-16);
+    // an acceptance of the .3/.4 text counts until the corrected documents take effect.
+    || (terms === "2026-11-15.3" && privacy === "2026-11-15.4" && nowMs < legalEffectiveAtMs(PRIVACY_VERSION))
   );
 }
 
