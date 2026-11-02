@@ -1,4 +1,4 @@
-import { websitePreparationCaptureId, websitePreparationRevision } from "./websitePreparationRevision";
+import { websitePreparationCaptureId, websitePreparationRenewal, websitePreparationRevision } from "./websitePreparationRevision";
 import { websiteCaptureOwnerUid } from "./websiteCaptureOwner";
 import { taskScopeNotSupported } from "./siteTaskScope";
 import { websiteDevelopmentTestEnvironment } from "./websiteDevelopmentTest";
@@ -1061,7 +1061,8 @@ const WEBSITE_SUBJECT_ORIGINS = new Set(["removed_before_reconstruction", "synth
 
 export function validateWebsiteSponsoredIntake(request: Record<string, any>, authority: Record<string, any>) {
   const preparationOnly = request.execution?.purpose === "scene_preparation";
-  const revision = websitePreparationRevision(request);
+  // A correction or a renewal is a derivative of a preparation grant's own capture.
+  const revision = websitePreparationRevision(request) ?? websitePreparationRenewal(request);
   if (revision && authority.purpose !== "scene_preparation") throw new Error("website_scene_sponsorship_binding_invalid");
   const family = isTaskFamilyStrategy(request.task?.strategy);
   if (family) {
