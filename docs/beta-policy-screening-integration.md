@@ -43,6 +43,18 @@ shows all candidate progress and outcomes in the site and operations workspaces.
 Operations also sees the conservative shared budget. Only observed execution marks
 the scene as testing; preparation alone does not. No new emails are sent.
 
+Each accepted revision also stores one `screening_outcome` (`screeningOutcome`):
+`estimate`, `reference_only`, `held_capability`, `held_unprepared`, `infeasible`,
+`no_match`, `awaiting_spend_approval`, `setup_repair` or `superseded`, or null
+while the run is open. An estimate needs a scored row that is not a scripted
+reference baseline; rows with no recorded execution kind count as before. The
+job page headline and the run's summary open with the same sentence for each
+outcome (`screeningOutcomeSentence`). Any campaign's estimate is the job's
+result; otherwise a test still running reads as testing, and otherwise the
+newest finished campaign speaks for the job. A site sees plain reasons and
+labels, never raw codes, the shared budget or Blueprint's own next step
+(`opsNextAction`); operations views keep all three.
+
 The producer fixture in
 `server/tests/fixtures/pipeline-beta-policy-screening-publication.v1.json` comes
 from Pipeline's actual coordinator and sealed native result path. Consumer tests

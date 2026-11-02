@@ -122,3 +122,33 @@ export function finishedScreening(publication: BetaPolicyScreeningPublication, r
       : index === 2 ? { ...row, status: "unavailable", blockers: ["candidate_infeasible_measured_geometry", "team_embodiment_station_out_of_reach"] }
         : { ...row, status: "blocked", blockers: ["beta_screening_site_budget_exhausted"] }) });
 }
+
+/** A scored scripted reference row: hand-coded simulator-state baseline, never a learned policy. */
+export const scriptedBaselineRow = { execution_evidence_kind: "scripted_simulator_state_baseline", action_source: "scripted_simulator_state",
+  scripted_rollout_count: 3, learned_policy_rollout_count: 0, scripted_controller_invoked: true, candidate_policy_queried: false } as const;
+
+/** One terminal or in-progress publication for each screening outcome, from the 36-candidate fixture. */
+export function outcomePublication(publication: BetaPolicyScreeningPublication, outcome: string, revision = 2) {
+  const scored = (row: any, extra: Record<string, unknown> = {}) => ({ ...row, status: "completed", episodes_scored: 3, episodes_succeeded: 2,
+    episodes_failed: 1, success_rate: 2 / 3, session_result_digest: screeningSha("6"), ...extra });
+  const every = (map: (row: any, index: number) => any, extra: Record<string, unknown> = {}) => sealScreening({ ...publication,
+    revision, status: "blocked", ...extra, candidates: publication.candidates.map(map) });
+  const blocked = (blockers: string[], status = "blocked") => (row: any) => ({ ...row, status, blockers });
+  switch (outcome) {
+    case "estimate": return finishedScreening(publication, revision);
+    case "reference_only": return every((row, index) => index === 0 ? scored(row, scriptedBaselineRow)
+      : blocked(["task_kind_not_supported_by_candidate"])(row), { status: "completed" });
+    case "held_capability": return every(blocked(["task_kind_not_supported_by_candidate"]));
+    case "held_unprepared": return every(blocked(["prepared_robot_policy_registration_missing", "runtime_candidate_binding_missing"], "unavailable"));
+    case "infeasible": return every(blocked(["candidate_infeasible_measured_geometry", "team_embodiment_station_out_of_reach"], "unavailable"));
+    case "no_match": return every((row, index) => index === 0 ? blocked(["candidate_infeasible_measured_geometry"], "unavailable")(row)
+      : blocked(["task_kind_not_supported_by_candidate"])(row));
+    case "awaiting_spend_approval": return every((row, index) => index === 0 ? blocked(["beta_screening_static_preflight_blocked"])(row)
+      : blocked(["site_screening_budget_insufficient"], "deferred")(row),
+    { budget: { ...publication.budget, committed_upper_bound_usd: "4", spent_upper_bound_usd: "4" } });
+    case "setup_repair": return every(blocked(["beta_screening_static_preflight_blocked:no_offer"]));
+    case "superseded": return every((row, index) => blocked([index ? "beta_screening_replanned_for_new_implementation"
+      : "beta_screening_static_preflight_blocked"])(row));
+    default: throw new Error(`unknown screening outcome ${outcome}`);
+  }
+}

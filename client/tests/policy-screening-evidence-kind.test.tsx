@@ -28,12 +28,50 @@ it("shows the rule's choice as a simulation estimate with its recorded companies
         { candidateId: "c", resultRank: null, choiceBlocker: "not_evaluated" }] } }} />);
   expect(screen.getByText(/^Chosen in simulation: Candidate a\. 2 of 3 scored episodes succeeded \(estimated success rate 67%\)\.$/)).toBeInTheDocument();
   expect(screen.getByText(/Deployment companies recorded for this configuration: Jacobi Robotics, Delta Technology/))
-    .toHaveTextContent("(company deployment) · source. A recorded association, not a commitment to this site.");
+    .toHaveTextContent("(a company deployment) · source. A recorded association, not a commitment to this site.");
   expect(screen.getByRole("link", { name: "source" })).toHaveAttribute("href", "https://jacobirobotics.com/platform");
   expect(screen.getByText("In Blueprint's robot team registry by name: Jacobi Robotics.")).toBeInTheDocument();
-  expect(screen.getByText(/estimate for development only; it is not a guarantee of physical performance or safety/)).toBeInTheDocument();
-  expect(screen.getAllByRole("row").slice(1).map(value => value.lastElementChild?.textContent)).toEqual(["Chosen", "Ranked 2", "Not chosen: not evaluated"]);
-  expect(screen.getByText(/^infeasible · 0\/3 scored/)).toBeInTheDocument();
+  expect(screen.getByText(/A simulation result is a bounded estimate; it does not certify physical performance or safety\./)).toBeInTheDocument();
+  expect(document.body.textContent).not.toMatch(/development only/);
+  expect(screen.getAllByRole("row").slice(1).map(value => value.lastElementChild?.textContent))
+    .toEqual(["Chosen", "Ranked 2", "Not chosen: it did not run in this evaluation"]);
+  expect(screen.getByText(/^Out of reach · 0\/3 scored/)).toBeInTheDocument();
+  expect(screen.getByText("Measured out of reach from the robot position planned in your scene.")).toBeInTheDocument();
+  expect(document.body.textContent).not.toMatch(/infeasible|measured geometry|not evaluated|_/);
+});
+
+it("maps every recorded code to a plain reason for the site, and shows raw codes only in operations views", () => {
+  const codes = ["task_kind_not_supported_by_candidate", "candidate_disabled", "commercial_use_not_admitted",
+    "prepared_robot_policy_registration_missing", "runtime_candidate_binding_missing", "policy_identity_not_pinned",
+    "beta_screening_static_preflight_blocked:no_offer", "site_screening_budget_insufficient", "beta_screening_site_budget_exhausted",
+    "beta_screening_waiting_for_capacity", "beta_screening_replanned_for_new_implementation", "team_embodiment_station_out_of_reach",
+    "an_unknown_code_from_a_newer_pipeline"];
+  const screening = { candidates: [row("a", "blocked", 0, codes), row("b", "deferred"), row("c", "waitlisted"),
+    row("d", "reconciliation_required"), row("e", "a_newer_state")],
+    selection: { status: "chosen" as const, selectionDigest: "sha256:selection", tiedWith: [],
+      chosen: { candidateId: "a", name: "Candidate a", successRate: 1, scored: 3, succeeded: 3, configurationId: null, policyRouteId: null,
+        deploymentCompanies: ["Example Co"], relationship: "planning_candidate" as const, evidenceUrl: null, relatedTeams: [], registryTeams: [],
+        partnerBlockers: ["catalog_row_unavailable", "an_unknown_partner_code"] },
+      candidates: [{ candidateId: "a", resultRank: 1, choiceBlocker: null }, { candidateId: "b", resultRank: null, choiceBlocker: "no_scored_episodes" },
+        { candidateId: "c", resultRank: null, choiceBlocker: "scripted_baseline_reference_only" },
+        { candidateId: "d", resultRank: null, choiceBlocker: "a_newer_choice_code" }, { candidateId: "e", resultRank: null, choiceBlocker: null }] } };
+  const { rerender } = render(<PolicyScreeningCandidates screening={screening} />);
+  const text = document.body.textContent!;
+  expect(text).toContain("Example Co (a planning candidate).");
+  for (const code of [...codes, "catalog_row_unavailable", "an_unknown_partner_code", "no_scored_episodes",
+    "scripted_baseline_reference_only", "a_newer_choice_code", "reconciliation_required", "a_newer_state"]) {
+    expect(text).not.toContain(code);
+    expect(text).not.toContain(code.replace(/_/g, " "));
+  }
+  expect(text).not.toMatch(/[a-z]_[a-z]/);
+  expect(text).not.toMatch(/budget|\$/i);
+  expect(screen.getByText("Not built for this kind of task.")).toBeInTheDocument();
+  expect(screen.getByText("Not set up in our simulator yet.")).toBeInTheDocument();
+  expect(screen.getByText("Not chosen: a scripted reference baseline, not a learned policy")).toBeInTheDocument();
+  rerender(<PolicyScreeningCandidates screening={screening} showCodes />);
+  expect(document.body.textContent).toContain("task_kind_not_supported_by_candidate");
+  expect(document.body.textContent).toContain("catalog_row_unavailable");
+  expect(document.body.textContent).toContain("Not chosen: no_scored_episodes");
 });
 
 it("says when nothing succeeded and names no partner without a recorded one", () => {

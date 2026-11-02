@@ -1,5 +1,6 @@
 import { CandidatePreparation } from "../shared/CandidatePreparation";
 import { PolicyScreeningCandidates } from "@/components/shared/PolicyScreeningCandidates";
+import { managedRunLabel } from "@/lib/screeningPlainLanguage";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { withCsrfHeader } from "@/lib/csrf";
 import { RecommendedPilot } from "./RecommendedPilot";
@@ -144,8 +145,8 @@ function JobWorkspaceForToken({ token, preparationOutcome, currentStatusKnown = 
     {workflow.managedEvidenceUnavailable && <p role="status" className="ms-field-hint">Policy results are temporarily unavailable. Reload this page to retry.</p>}
     {(workflow.managedEvidence ?? []).filter(item => !resultSuperseded && item.current && item.screening).map(item => <section
       key={item.runId} className="job-review" aria-label="Simulation results for your job">
-      <h3>{item.state === "completed" && item.screening!.candidates.some(candidate => candidate.scored > 0)
-        ? "Your simulation estimate" : "Simulation evaluation"}</h3>
+      {/* Only an estimate is called one: scripted reference baselines alone are not (F-03). */}
+      <h3>{item.outcome === "estimate" ? "Your simulation estimate" : "Simulation evaluation"}</h3>
       <p>{item.summary}</p>
       <PolicyScreeningCandidates screening={item.screening!} />
       {item.limitations.map((limit, index) => <p className="ms-field-hint" key={index}>{limit}</p>)}
@@ -166,7 +167,7 @@ function JobWorkspaceForToken({ token, preparationOutcome, currentStatusKnown = 
     {(workflow.managedEvidence ?? []).length > 0 && <section className="job-review" aria-label="Managed policy evidence for your job">
       <h3>Policy evidence for your job</h3>
       {workflow.managedEvidence!.map(item => <article key={item.runId} id={`managed-evidence-${encodeURIComponent(item.runId)}`} className="mt-3">
-        <h4>{resultSuperseded ? "Earlier object selection" : item.current ? item.state.replace(/_/g, " ") : "Historical — the job scope changed"}</h4>
+        <h4>{resultSuperseded ? "Earlier object selection" : item.current ? managedRunLabel(item) : "Historical — the job scope changed"}</h4>
         {(resultSuperseded || !item.current || !item.screening) && <>
         <p>{item.summary}</p><p>Next: {item.nextAction}</p>
         {item.screening && <PolicyScreeningCandidates screening={item.screening} />}

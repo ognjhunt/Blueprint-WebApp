@@ -8,6 +8,7 @@
  */
 import { z } from "zod";
 import { crossRuntimeArtifactDigest, crossRuntimeDigest } from "./crossRuntimeCanonical";
+import type { JobScreeningOutcome } from "../../client/src/types/jobMarketplace";
 
 const identifier = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$/);
 const digest = z.string().regex(/^sha256:[a-f0-9]{64}$/);
@@ -171,6 +172,70 @@ export function noEstimateReason(candidates: ReadonlyArray<{ status: string; blo
     return "setup";
   return open.every(infeasible) ? "infeasible" : open.some(infeasible) ? "no_match" : "held";
 }
+
+/**
+ * What a run means for the site, in one word (F-03). The job page headline,
+ * the run's summary and the result email all say the same sentence for it.
+ * `estimate`: a scored row that is not a scripted reference baseline (rows
+ * with no recorded execution kind count, as they always have).
+ * `reference_only`: only scripted reference baselines were scored, so no
+ * learned policy was evaluated and there is no estimate. `held_*`,
+ * `infeasible`, `no_match`: no candidate could run the job, by reason.
+ * `awaiting_spend_approval` and `setup_repair`: still in progress for the
+ * owner or for us. `superseded`: planned again in a newer run. A run still
+ * queued or running has no outcome yet (null).
+ */
+export const SCREENING_OUTCOMES = ["estimate", "reference_only", "held_capability", "held_unprepared", "infeasible", "no_match",
+  "awaiting_spend_approval", "setup_repair", "superseded"] as const satisfies readonly JobScreeningOutcome[];
+export type ScreeningOutcome = JobScreeningOutcome;
+/** Outcomes that leave the job with no estimate until we build or prepare something. */
+export type ScreeningHeldOutcome = Extract<ScreeningOutcome, "reference_only" | "held_capability" | "held_unprepared" | "infeasible" | "no_match">;
+const HELD_OUTCOMES = new Set<string>(["reference_only", "held_capability", "held_unprepared", "infeasible", "no_match"]);
+export const isScreeningHeldOutcome = (value: unknown): value is ScreeningHeldOutcome => typeof value === "string" && HELD_OUTCOMES.has(value);
+/** A stored outcome, or null for anything this version does not know. */
+export const storedScreeningOutcome = (value: unknown): ScreeningOutcome | null =>
+  (SCREENING_OUTCOMES as readonly unknown[]).includes(value) ? value as ScreeningOutcome : null;
+
+const scriptedBaseline = (row: { execution_evidence_kind?: string }) => row.execution_evidence_kind === "scripted_simulator_state_baseline";
+/** Rows an estimate can rest on: scored, and not a scripted reference baseline. */
+export const screeningEstimateRows = <Row extends { episodes_scored: number; execution_evidence_kind?: string }>(candidates: readonly Row[]) =>
+  candidates.filter(row => row.episodes_scored > 0 && !scriptedBaseline(row));
+
+export function screeningOutcome(publication: Pick<BetaPolicyScreeningPublication, "status" | "candidates" | "budget">): ScreeningOutcome | null {
+  const scored = publication.candidates.reduce((sum, row) => sum + row.episodes_scored, 0);
+  // A run whose candidates finished with no scored episode has no estimate to show.
+  const finished = publication.status === "completed" && scored === 0 ? "blocked" : publication.status;
+  if (finished !== "completed" && finished !== "blocked") return null;
+  // Rows planned again in a newer run after a deploy: with nothing scored here,
+  // the newer run is the one to read (owner decision 2026-10-31).
+  if (scored === 0 && publication.candidates.some(row => row.blockers.includes(SCREENING_REPLANNED_BLOCKER))) return "superseded";
+  if (finished === "completed") return screeningEstimateRows(publication.candidates).length ? "estimate" : "reference_only";
+  // No estimate ends as held only when no candidate can do the job; budget and
+  // setup gaps stay in progress for the owner or for us (owner decision 2026-10-28).
+  const reason = noEstimateReason(publication.candidates, publication.budget);
+  return reason === "budget" ? "awaiting_spend_approval" : reason === "setup" ? "setup_repair"
+    : reason === "held" ? screeningHeldForPreparation(publication.candidates) ? "held_unprepared" : "held_capability" : reason;
+}
+
+/**
+ * The one plain sentence for each outcome. Measured reasons are relative to
+ * the robot position the scene planned, never a task-level verdict (owner
+ * decision 2026-10-31); "No match" is said plainly (owner decision 2026-10-30).
+ * Waiting on the owner and waiting on us read the same to the site.
+ */
+const IN_PROGRESS_SENTENCE = "Simulation evaluation in progress. We'll run your job again and show the estimate here.";
+const SCREENING_OUTCOME_SENTENCE: Readonly<Record<ScreeningOutcome, string>> = {
+  estimate: "Your simulation estimate is ready. It is an estimate from a simulation of your site, not a certified result.",
+  reference_only: "No estimate yet: only scripted reference baselines were scored, and no learned policy could be evaluated on your job yet.",
+  held_capability: "Held: we can't simulate this kind of job yet. It counts as demand for what we build next.",
+  held_unprepared: "Held: the robots that could do this job aren't set up in our simulator yet. It counts as demand for what we build next.",
+  infeasible: "Held: from the robot position planned in the scene built from your video, none of the robots we can simulate could reach this task.",
+  no_match: "No match: none of the robots we can simulate matched this job. At least one was measured out of reach from the robot position planned in the scene built from your video.",
+  awaiting_spend_approval: IN_PROGRESS_SENTENCE,
+  setup_repair: IN_PROGRESS_SENTENCE,
+  superseded: "Continued in a newer run after a Blueprint update.",
+};
+export const screeningOutcomeSentence = (outcome: ScreeningOutcome) => SCREENING_OUTCOME_SENTENCE[outcome];
 
 export function parseBetaPolicyScreeningPublication(value: unknown): BetaPolicyScreeningPublication | null {
   const parsed = betaPolicyScreeningPublicationSchema.safeParse(value);

@@ -413,35 +413,60 @@ describe("scene progression after hand-off", () => {
     state.docs.set("taskEvaluationPolicyRuns/screening-one", { ...run, screening_execution_observed: true });
     expect(await loadWebsiteSceneProgression("r1", "walkthrough-r1")).toEqual({ state: "testing" });
     // A finished evaluation is the job's estimate, never left reading as an open test.
-    state.docs.set("taskEvaluationPolicyRuns/screening-one", { ...run, state: "completed", screening_execution_observed: true, episodes_scored: 3 });
+    state.docs.set("taskEvaluationPolicyRuns/screening-one", { ...run, state: "completed", screening_execution_observed: true,
+      episodes_scored: 3, screening_outcome: "estimate" });
     expect(await loadWebsiteSceneProgression("r1", "walkthrough-r1")).toEqual({ state: "evaluated" });
-    // A completed run with no scored episode has no estimate to show.
-    state.docs.set("taskEvaluationPolicyRuns/screening-one", { ...run, state: "completed", screening_execution_observed: true, episodes_scored: 0 });
-    expect(await loadWebsiteSceneProgression("r1", "walkthrough-r1")).toEqual({ state: "testing" });
-    // No candidate can do this kind of job yet: held, not an open test.
-    state.docs.set("taskEvaluationPolicyRuns/screening-one", { ...run, state: "blocked", screening_execution_observed: true,
-      episodes_scored: 0, no_estimate_reason: "held" });
-    expect(await loadWebsiteSceneProgression("r1", "walkthrough-r1")).toEqual({ state: "held" });
-    // Every candidate measured out of reach: held, and the site is told the measured reason.
-    state.docs.set("taskEvaluationPolicyRuns/screening-one", { ...run, state: "blocked", screening_execution_observed: false,
-      episodes_scored: 0, no_estimate_reason: "infeasible" });
+    // Scored episodes from scripted reference baselines alone are no estimate (F-03).
+    state.docs.set("taskEvaluationPolicyRuns/screening-one", { ...run, state: "completed", screening_execution_observed: true,
+      episodes_scored: 3, screening_outcome: "reference_only" });
+    expect(await loadWebsiteSceneProgression("r1", "walkthrough-r1")).toEqual({ state: "held", heldReason: "reference_only" });
+    // A completed run with no scored episode has no estimate to show; ours to fix, so still in progress.
+    state.docs.set("taskEvaluationPolicyRuns/screening-one", { ...run, state: "completed", screening_execution_observed: true,
+      episodes_scored: 0, screening_outcome: "setup_repair" });
+    expect(await loadWebsiteSceneProgression("r1", "walkthrough-r1")).toEqual({ state: "testing", progressOutcome: "setup_repair" });
+    // No candidate can do this kind of job yet, or none reached it: held with that reason, not an open test.
+    for (const heldReason of ["held_capability", "held_unprepared", "infeasible", "no_match"]) {
+      state.docs.set("taskEvaluationPolicyRuns/screening-one", { ...run, state: "blocked", screening_execution_observed: heldReason === "held_capability",
+        episodes_scored: 0, screening_outcome: heldReason });
+      expect(await loadWebsiteSceneProgression("r1", "walkthrough-r1")).toEqual({ state: "held", heldReason });
+    }
+    // The newest finished campaign speaks for the job, whatever order the campaigns are read in.
+    state.docs.set("taskEvaluationPolicyRuns/screening-aa", { ...run, run_id: "screening-aa", state: "blocked",
+      screening_execution_observed: true, episodes_scored: 0, screening_outcome: "held_capability", created_at_iso: "2026-10-03T00:00:00Z" });
+    state.docs.set("taskEvaluationPolicyRuns/screening-one", { ...run, state: "blocked", episodes_scored: 0,
+      screening_outcome: "infeasible", created_at_iso: "2026-10-02T00:00:00Z" });
+    expect(await loadWebsiteSceneProgression("r1", "walkthrough-r1")).toEqual({ state: "held", heldReason: "held_capability" });
+    state.docs.set("taskEvaluationPolicyRuns/screening-one", { ...run, state: "blocked", episodes_scored: 0,
+      screening_outcome: "infeasible", created_at_iso: "2026-10-04T00:00:00Z" });
     expect(await loadWebsiteSceneProgression("r1", "walkthrough-r1")).toEqual({ state: "held", heldReason: "infeasible" });
-    // Beside a campaign held for capability, only the general hold is stated.
-    state.docs.set("taskEvaluationPolicyRuns/screening-aa", { ...run, run_id: "screening-aa", state: "blocked",
-      screening_execution_observed: true, episodes_scored: 0, no_estimate_reason: "held" });
-    expect(await loadWebsiteSceneProgression("r1", "walkthrough-r1")).toEqual({ state: "held" });
+    // A campaign closed as superseded speaks only through its successor.
+    state.docs.set("taskEvaluationPolicyRuns/screening-zz", { ...run, run_id: "screening-zz", state: "blocked",
+      screening_execution_observed: true, episodes_scored: 0, screening_outcome: "superseded", created_at_iso: "2026-10-05T00:00:00Z" });
+    expect(await loadWebsiteSceneProgression("r1", "walkthrough-r1")).toEqual({ state: "held", heldReason: "infeasible" });
     state.docs.delete("taskEvaluationPolicyRuns/screening-aa");
-    // An estimate from another campaign wins, even when the held one is read first.
+    state.docs.set("taskEvaluationPolicyRuns/screening-one", { ...run, state: "running", screening_execution_observed: false });
+    expect(await loadWebsiteSceneProgression("r1", "walkthrough-r1")).toEqual({ state: "testing", progressOutcome: "superseded" });
+    // A test still running wins over any finished campaign but an estimate.
+    state.docs.set("taskEvaluationPolicyRuns/screening-one", { ...run, state: "running", screening_execution_observed: true });
+    expect(await loadWebsiteSceneProgression("r1", "walkthrough-r1")).toEqual({ state: "testing" });
+    state.docs.delete("taskEvaluationPolicyRuns/screening-zz");
+    // An estimate from another campaign wins, even when the held one is read first or is newer.
     state.docs.set("taskEvaluationPolicyRuns/screening-zz", { ...run, run_id: "screening-zz", state: "completed",
-      screening_execution_observed: true, episodes_scored: 3, no_estimate_reason: null });
+      screening_execution_observed: true, episodes_scored: 3, screening_outcome: "estimate", created_at_iso: "2026-10-02T00:00:00Z" });
     state.docs.set("taskEvaluationPolicyRuns/screening-aa", { ...run, run_id: "screening-aa", state: "blocked",
-      screening_execution_observed: true, episodes_scored: 0, no_estimate_reason: "held" });
+      screening_execution_observed: true, episodes_scored: 0, screening_outcome: "no_match", created_at_iso: "2026-10-06T00:00:00Z" });
+    state.docs.set("taskEvaluationPolicyRuns/screening-one", { ...run, state: "completed", screening_execution_observed: true,
+      episodes_scored: 3, screening_outcome: "reference_only", created_at_iso: "2026-10-07T00:00:00Z" });
     expect(await loadWebsiteSceneProgression("r1", "walkthrough-r1")).toEqual({ state: "evaluated" });
     state.docs.delete("taskEvaluationPolicyRuns/screening-zz");
     state.docs.delete("taskEvaluationPolicyRuns/screening-aa");
     state.docs.set("taskEvaluationPolicyRuns/screening-one", { ...run, state: "blocked", screening_execution_observed: true,
-      episodes_scored: 0, no_estimate_reason: "budget" });
-    expect(await loadWebsiteSceneProgression("r1", "walkthrough-r1")).toEqual({ state: "testing" });
+      episodes_scored: 0, screening_outcome: "awaiting_spend_approval" });
+    expect(await loadWebsiteSceneProgression("r1", "walkthrough-r1")).toEqual({ state: "testing", progressOutcome: "awaiting_spend_approval" });
+    // Waiting on us with nothing executed yet is not a test: the scene stays built, with that sentence.
+    state.docs.set("taskEvaluationPolicyRuns/screening-one", { ...run, state: "blocked", screening_execution_observed: false,
+      episodes_scored: 0, screening_outcome: "setup_repair" });
+    expect(await loadWebsiteSceneProgression("r1", "walkthrough-r1")).toEqual({ state: "completed", progressOutcome: "setup_repair" });
     state.docs.set("taskEvaluationPolicyRuns/screening-one", { ...run, state: "completed", team_namespace: "team-b" });
     expect(await loadWebsiteSceneProgression("r1", "walkthrough-r1")).toEqual({ state: "completed" });
   });

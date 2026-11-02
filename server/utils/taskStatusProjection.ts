@@ -29,6 +29,7 @@ import type { ReadinessStage } from "../../client/src/lib/siteTaskReadiness";
 import { taskScopeNotYet } from "./siteTaskScope";
 import type { TaskOutcome } from "../../client/src/types/taskOutcome";
 import { processingFailure } from "./taskPreparationOutcome";
+import { screeningOutcomeSentence, type ScreeningHeldOutcome, type ScreeningOutcome } from "./betaPolicyScreeningContract";
 
 /**
  * The decision, in the operator's terms.
@@ -192,14 +193,24 @@ export interface TaskPreparationStatus {
  * 2026-10-22). `evaluated` is a finished automatic evaluation whose simulation
  * estimate is the job's result, and `held` one where no candidate can do this
  * kind of job yet (owner decision 2026-10-28). Coarse by design:
- * no Pipeline detail reaches a site. `heldReason: "infeasible"` is a hold
- * where every candidate was measured out of reach from the robot position the
- * scene planned, which the site is told in plain words, station-relative and
- * never as a task-level verdict (owner decision 2026-10-31).
+ * no Pipeline detail reaches a site. `heldReason` is why a held job has no
+ * estimate, and `progressOutcome` a finished evaluation still in our or the
+ * owner's hands, or planned again in a newer run. Each outcome is told in the
+ * same sentence the run's own summary gives (`screeningOutcomeSentence`, F-03);
+ * a measured reason is station-relative, never a task-level verdict (owner
+ * decision 2026-10-31). A held job with no reason reads as `held_capability`.
  */
 export interface TaskSceneProgression {
   state: "in_progress" | "waiting" | "ended" | "completed" | "testing" | "evaluated" | "held";
-  heldReason?: "infeasible";
+  heldReason?: ScreeningHeldOutcome;
+  progressOutcome?: Extract<ScreeningOutcome, "awaiting_spend_approval" | "setup_repair" | "superseded">;
+}
+
+/** The job evaluation outcome a scene's progression states, if any. */
+export function sceneProgressionOutcome(progression: TaskSceneProgression | null | undefined): ScreeningOutcome | null {
+  if (progression?.state === "evaluated") return "estimate";
+  if (progression?.state === "held") return progression.heldReason ?? "held_capability";
+  return progression?.progressOutcome ?? null;
 }
 
 /** One sentence per reason the Pipeline can give; an unknown reason adds nothing. */
@@ -598,16 +609,14 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
   const sceneHeld = input.sceneProgression?.state === "held";
   const sceneEvaluated = input.sceneProgression?.state === "evaluated";
   const sceneTesting = sceneEvaluated || sceneHeld || input.sceneProgression?.state === "testing";
-  const resultHeadline = sceneHeld
-    ? input.sceneProgression?.heldReason === "infeasible"
-      ? "Held: from the robot position planned in the scene built from your video, none of the robots we can simulate could reach this task."
-      : "Held: we can't simulate this kind of job yet. It counts as demand for what we build next."
-    : "Your simulation estimate is ready on your job page. It is an estimate from a simulation of your site, not a certified result.";
+  // The run's own summary opens with this same sentence (F-03).
+  const sceneOutcome = sceneProgressionOutcome(input.sceneProgression);
+  const resultHeadline = sceneOutcome ? screeningOutcomeSentence(sceneOutcome) : null;
   if ((input.scenePreviewReady || sceneTesting) && input.listed === false) {
     return {
       ...base,
       decision: "not_listed",
-      headline: `${sceneEvaluated || sceneHeld ? resultHeadline : sceneTesting ? "Your scene is ready, and we are running our first tests on it." : "Your scene preview is ready."} Your job card is not published, so approved partners cannot see this job in the job library or ask to have their systems evaluated on it.`,
+      headline: `${resultHeadline ?? (sceneTesting ? "Your scene is ready, and we are running our first tests on it." : "Your scene preview is ready.")} Your job card is not published, so approved partners cannot see this job in the job library or ask to have their systems evaluated on it.`,
       operatorAction: "To share it with partners approved for the beta, publish its job card from your job page.",
     };
   }
@@ -623,11 +632,12 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
   }
 
   // Ready only once the task objects are in and our first test has started.
-  if (sceneTesting) {
+  // A finished evaluation's outcome is said even when no test executed.
+  if (sceneTesting || resultHeadline) {
     return {
       ...base,
       decision: "assessing",
-      headline: `${sceneEvaluated || sceneHeld ? resultHeadline : "Your scene is ready, and we are running our first tests on it."} Nothing is needed from you.`,
+      headline: `${resultHeadline ?? "Your scene is ready, and we are running our first tests on it."} Nothing is needed from you.`,
       operatorAction: null,
     };
   }

@@ -1,12 +1,13 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
-import { noEstimateReason as screeningNoEstimateReason, parseBetaPolicyScreeningPublication, screeningPublicationTransition } from "../utils/betaPolicyScreeningContract";
+import { noEstimateReason as screeningNoEstimateReason, parseBetaPolicyScreeningPublication, screeningOutcome, screeningOutcomeSentence,
+  screeningPublicationTransition, SCREENING_OUTCOMES } from "../utils/betaPolicyScreeningContract";
 import { assertScreeningSceneSource } from "../utils/betaPolicyScreeningIngest";
 import { managedJobTask, projectManagedJobEvidence } from "../utils/jobManagedEvaluation";
 import { scientificBriefDigest } from "../utils/jobEvidenceContract";
 import { crossRuntimeArtifactDigest, crossRuntimeDigest } from "../utils/crossRuntimeCanonical";
-import { allCandidateFamilyScreeningFixture, familyScreeningFixture, finishedScreening, screeningFixture, screeningSha, sealScreening,
-  sealSelection, selectionFixture } from "./fixtures/beta-policy-screening";
+import { allCandidateFamilyScreeningFixture, familyScreeningFixture, finishedScreening, outcomePublication, screeningFixture, screeningSha,
+  scriptedBaselineRow, sealScreening, sealSelection, selectionFixture } from "./fixtures/beta-policy-screening";
 import { parseBetaCandidateSelection, selectionMatchesPublication } from "../utils/betaCandidateSelection";
 import producerSelection from "./fixtures/pipeline-website-candidate-selection.v1.json";
 import producerPublication from "./fixtures/pipeline-beta-policy-screening-publication.v2.json";
@@ -265,8 +266,9 @@ describe("automatic many-candidate job evaluation", () => {
     const projected = projectManagedJobEvidence(held.campaign_id, run, { record_id: "result-one", publication: held },
       brief.requestId, binding.brief_digest, scope.taskContextDigest, scope.sourceFingerprint)!;
     expect(projected.state).toBe("held");
+    expect(projected.outcome).toBe("held_capability");
     expect(projected.summary).toBe("Held: we can't simulate this kind of job yet. It counts as demand for what we build next.");
-    expect(projected.nextAction).toMatch(/^Nothing is needed from the site/);
+    expect(projected.nextAction).toMatch(/^Nothing is needed from you/);
     expect(projected.resultDigest).toBe(held.publication_digest);
   });
 
@@ -290,17 +292,21 @@ describe("automatic many-candidate job evaluation", () => {
       : { status: "infeasible", blockers: ["team_embodiment_station_out_of_reach"] });
     expect(outOfReach.state).toBe("held");
     expect(outOfReach.summary).toBe("Held: from the robot position planned in the scene built from your video, none of the robots we can simulate could reach this task.");
-    expect(outOfReach.nextAction).toBe("Nothing is needed from the site. Each row lists the measured reason or why it could not run.");
+    expect(outOfReach.outcome).toBe("infeasible");
+    expect(outOfReach.nextAction).toBe("Nothing is needed from you. Each row lists the measured reason or why it could not run.");
     expect(`${outOfReach.summary} ${outOfReach.nextAction}`).not.toMatch(/setup blockers|rerun/);
     // Measured from the scene's planned robot position only: no task-level or site-wide verdict.
     expect(outOfReach.summary).toMatch(/^Held: from the robot position planned in the scene/);
     expect(outOfReach.summary).not.toMatch(/can't do|cannot do|anywhere/);
     expect(outOfReach.screening!.candidates.every(row => row.state === "infeasible")).toBe(true);
-    // Measured out of reach beside a capability gap keeps its "no match" wording.
+    // Measured out of reach beside a capability gap: the site is told plainly there is no match
+    // (owner decision 2026-10-30), never the generic "can't simulate" hold.
     const mixed = project(index => index === 0 ? { status: "infeasible", blockers: ["team_embodiment_station_out_of_reach"] }
       : { status: "blocked", blockers: ["task_kind_not_supported_by_candidate"] });
     expect(mixed.state).toBe("held");
-    expect(mixed.summary).toBe("No match: none of the robots we can simulate could reach this task in the scene built from your video.");
+    expect(mixed.outcome).toBe("no_match");
+    expect(mixed.summary).toBe("No match: none of the robots we can simulate matched this job. At least one was measured out of reach from the robot position planned in the scene built from your video.");
+    expect(mixed.summary).not.toMatch(/can't simulate|can't do|cannot do|anywhere/);
   });
 
   it("shows no estimate for a completed run whose candidates scored no episode", () => {
@@ -320,7 +326,9 @@ describe("automatic many-candidate job evaluation", () => {
     // The other candidates hit the site budget, so this waits on the owner, not on the site.
     expect(projected.state).toBe("awaiting_spend_approval");
     expect(projected.summary).toMatch(/^Simulation evaluation in progress/);
-    expect(projected.nextAction).toMatch(/^Owner approval needed/);
+    // The owner's approval is ours to seek: the site reads no instruction and no budget.
+    expect(projected.nextAction).toBe("Nothing is needed from you.");
+    expect(projected.opsNextAction).toMatch(/^Owner approval needed/);
     expect(projected.limitations.join(" ")).not.toMatch(/estimate from 0 scored/);
     expect(projected.limitations.join(" ")).toMatch(/does not certify physical performance or safety/);
   });
@@ -340,13 +348,15 @@ describe("automatic many-candidate job evaluation", () => {
     const projected = projectManagedJobEvidence(unspent.campaign_id, run, { record_id: "result-one", publication: unspent },
       brief.requestId, binding.brief_digest, scope.taskContextDigest, scope.sourceFingerprint)!;
     expect(projected.state).toBe("setup_repair");
-    expect(projected.nextAction).not.toMatch(/Owner approval/);
+    expect(projected.nextAction).not.toMatch(/Owner approval|setup blockers|rerun/);
+    expect(projected.opsNextAction).toBe("Fix the setup blockers listed per candidate, then rerun. Nothing is needed from the site.");
     // With nothing funded at all, every row waits on what we build: held.
     const held = sealScreening({ ...unspent, revision: 3, candidates: unspent.candidates.map(row => ({ ...row, status: "unavailable",
       blockers: ["prepared_robot_policy_registration_missing", "runtime_candidate_binding_missing"] })) });
     const heldProjection = projectManagedJobEvidence(held.campaign_id, { ...run, publication_digest: held.publication_digest, publication_revision: 3 },
       { record_id: "result-one", publication: held }, brief.requestId, binding.brief_digest, scope.taskContextDigest, scope.sourceFingerprint)!;
     expect(heldProjection.state).toBe("held");
+    expect(heldProjection.outcome).toBe("held_unprepared");
     expect(heldProjection.summary).toBe("Held: the robots that could do this job aren't set up in our simulator yet. It counts as demand for what we build next.");
     // A run whose rows were planned again in a newer run points there and cannot be cited.
     const replanned = sealScreening({ ...unspent, revision: 4, candidates: unspent.candidates.map((row, index) => index === 1
@@ -382,7 +392,8 @@ describe("automatic many-candidate job evaluation", () => {
       scope.taskContextDigest, scope.sourceFingerprint)!;
     // A finished run within the allowance is the job's result, visible and referenceable.
     expect(finished.resultDigest).toBe(completed.publication_digest);
-    expect(finished.summary).toBe("Your job's simulation estimate: 2 of 36 candidates ran, with 6 episodes scored against the job's success criteria.");
+    expect(finished.outcome).toBe("estimate");
+    expect(finished.summary).toBe("Your simulation estimate is ready. It is an estimate from a simulation of your site, not a certified result. In the simulation, 2 of 36 candidates ran, with 6 episodes scored against the job's success criteria.");
     expect(finished.nextAction).toMatch(/recommend the next step/);
     expect(finished.limitations).toEqual([expect.stringMatching(/^A bounded simulation estimate from 6 scored episodes across 2 candidates, for this job's recorded task and simulated conditions only\.$/),
       "A simulation result is a bounded estimate. It does not certify physical performance or safety.",
@@ -480,5 +491,66 @@ describe("measured infeasible candidates and the rule's choice", () => {
       : { ...row, episodes_succeeded: 3, episodes_failed: 0, success_rate: 1 }) });
     expect(project(rerun, stored).screening?.selection).toBeUndefined();
     expect(project(finished, { ...stored, record: { ...stored.record, selection_digest: screeningSha("0") } }).screening?.selection).toBeUndefined();
+  });
+});
+
+describe("one outcome per run, in one plain sentence (F-03)", () => {
+  const project = (publication: ReturnType<typeof finishedScreening>) => {
+    const { brief, job } = screeningFixture();
+    const binding = { job_id: brief.requestId, brief_digest: scientificBriefDigest(brief) };
+    const scope = managedJobTask({ binding, record: job, brief });
+    const run = { run_id: publication.campaign_id, run_kind: "beta_policy_screening", state: publication.status, result_record_id: "result-one",
+      job_evidence_binding: binding, job_task_context_digest: scope.taskContextDigest, job_source_fingerprint: scope.sourceFingerprint,
+      configuration_digest: publication.plan_digest, source_scene_intent_id: publication.source.scene_intent_id,
+      source_scene_revision_digest: publication.source.scene_revision_digest, publication_digest: publication.publication_digest,
+      publication_revision: publication.revision };
+    return projectManagedJobEvidence(publication.campaign_id, run, { record_id: "result-one", publication },
+      brief.requestId, binding.brief_digest, scope.taskContextDigest, scope.sourceFingerprint)!;
+  };
+  const operatorWords = /rerun|setup blocker|owner approval|budget|\$|development only/i;
+
+  it.each(SCREENING_OUTCOMES)("names %s once and says its sentence first, with no operator instruction for the site", outcome => {
+    const publication = outcomePublication(screeningFixture().publication, outcome);
+    expect(parseBetaPolicyScreeningPublication(publication)).not.toBeNull();
+    expect(screeningOutcome(publication)).toBe(outcome);
+    const projected = project(publication);
+    expect(projected.outcome).toBe(outcome);
+    expect(projected.summary.startsWith(screeningOutcomeSentence(outcome))).toBe(true);
+    expect(`${projected.summary} ${projected.nextAction}`).not.toMatch(operatorWords);
+  });
+
+  it("gives every outcome its own sentence, and only an estimate is called one", () => {
+    const sentences = SCREENING_OUTCOMES.map(screeningOutcomeSentence);
+    // Waiting on the owner and waiting on us read the same to the site: both are in progress.
+    expect(new Set(sentences).size).toBe(SCREENING_OUTCOMES.length - 1);
+    expect(screeningOutcomeSentence("awaiting_spend_approval")).toBe(screeningOutcomeSentence("setup_repair"));
+    for (const outcome of SCREENING_OUTCOMES) {
+      if (outcome !== "estimate") expect(screeningOutcomeSentence(outcome)).not.toMatch(/estimate is ready/);
+      if (outcome !== "held_capability") expect(screeningOutcomeSentence(outcome)).not.toBe(screeningOutcomeSentence("held_capability"));
+    }
+    expect(screeningOutcome(screeningFixture().publication)).toBeNull();
+  });
+
+  it("calls a run where only scripted reference baselines were scored reference-only, never an estimate", () => {
+    const publication = outcomePublication(screeningFixture().publication, "reference_only");
+    const projected = project(publication);
+    expect(projected.state).toBe("reference_only");
+    expect(projected.summary).toBe("No estimate yet: only scripted reference baselines were scored, and no learned policy could be evaluated on your job yet.");
+    expect(projected.limitations.join(" ")).not.toMatch(/bounded simulation estimate from/);
+    expect(projected.limitations.join(" ")).toMatch(/do not establish learned-policy or vendor-policy performance/);
+    // A learned policy that ran but scored nothing still leaves only the reference.
+    const voided = sealScreening({ ...publication, candidates: publication.candidates.map((row, index) => index === 1
+      ? { ...row, status: "completed", blockers: [], episodes_void: 3, session_result_digest: screeningSha("7") } : row) });
+    expect(screeningOutcome(voided)).toBe("reference_only");
+    // One scored learned policy beside the baseline is an estimate, from the learned rows only.
+    const mixed = sealScreening({ ...publication, candidates: publication.candidates.map((row, index) => index === 1
+      ? { ...row, status: "completed", blockers: [], episodes_scored: 3, episodes_succeeded: 1, episodes_failed: 2,
+        success_rate: 1 / 3, session_result_digest: screeningSha("7") } : row) });
+    expect(screeningOutcome(mixed)).toBe("estimate");
+    expect(project(mixed).limitations).toContain("A bounded simulation estimate from 3 scored episodes across 1 candidate, for this job's recorded task and simulated conditions only.");
+    // Rows that never recorded an execution kind keep reading as the estimate they always were.
+    const legacy = sealScreening({ ...publication, candidates: publication.candidates.map((row, index) => index === 0
+      ? Object.fromEntries(Object.entries(row).filter(([key]) => !(key in scriptedBaselineRow))) : row) });
+    expect(screeningOutcome(legacy)).toBe("estimate");
   });
 });

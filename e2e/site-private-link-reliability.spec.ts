@@ -143,7 +143,7 @@ test("the current simulation estimate is visible while technical references stay
     const request = route.request(), url = new URL(request.url());
     if (request.method() !== "GET" && url.pathname !== "/api/analytics/ingest") writes.push(url.pathname);
     if (url.pathname.startsWith("/api/job-workflow/owner/")) return route.fulfill({ json: {
-      ...legacyJobWorkflow(), managedEvidence: [{ runId: "accepted-evaluation", state: "completed", current: true,
+      ...legacyJobWorkflow(), managedEvidence: [{ runId: "accepted-evaluation", state: "completed", outcome: "estimate", current: true,
         resultDigest: "sha256:fixture-result", summary: "Your job's simulation estimate: 1 candidate ran, with 3 episodes scored.",
         nextAction: "Blueprint uses this estimate to recommend the next step.",
         limitations: ["Simulation does not certify physical performance or safety."], href: "#managed-evidence-accepted-evaluation",
@@ -170,6 +170,53 @@ test("the current simulation estimate is visible while technical references stay
   await expect(page.getByText(/Run: accepted-evaluation/)).not.toBeVisible();
   expect(writes).toEqual([]);
   await page.screenshot({ path: info.outputPath("current-simulation-result-visible.png"), fullPage: true });
+});
+
+test("a held result says the same plain sentence as the headline, with plain reasons and no operator words", async ({ page }, info) => {
+  const token = "held-result-fixture";
+  const sentence = "No match: none of the robots we can simulate matched this job. At least one was measured out of reach from the robot position planned in the scene built from your video.";
+  const writes: string[] = [];
+  await page.route("**/api/**", route => {
+    const request = route.request(), url = new URL(request.url());
+    if (request.method() !== "GET" && url.pathname !== "/api/analytics/ingest") writes.push(url.pathname);
+    // As the server sends a site's view: no operator instruction and no budget figure.
+    if (url.pathname.startsWith("/api/job-workflow/owner/")) return route.fulfill({ json: {
+      ...legacyJobWorkflow(), managedEvidence: [{ runId: "held-evaluation", state: "held", outcome: "no_match", current: true,
+        resultDigest: "sha256:fixture-held", summary: sentence,
+        nextAction: "Nothing is needed from you. Each row lists the measured reason or why it could not run.",
+        limitations: ["A simulation result is a bounded estimate. It does not certify physical performance or safety."],
+        href: "#managed-evidence-held-evaluation", screening: { candidates: [
+          { candidateId: "candidate-1", name: "Reach candidate", state: "infeasible", planned: 3, scored: 0, succeeded: 0, failed: 0, void: 0,
+            blockers: ["candidate_infeasible_measured_geometry", "team_embodiment_station_out_of_reach"] },
+          { candidateId: "candidate-2", name: "Other candidate", state: "blocked", planned: 3, scored: 0, succeeded: 0, failed: 0, void: 0,
+            blockers: ["task_kind_not_supported_by_candidate"] }] } }],
+    } });
+    if (url.pathname === `/api/self-capture/uploads/${token}/status`) return route.fulfill({ json: {
+      ok: true, state: "open", captureReceived: true, uploadState: "processing_ready", accepts: ["mov", "mp4"],
+    } });
+    if (url.pathname === `/api/site-task-brief/${token}`) return route.fulfill({ json: {
+      ready: true, scope: "owner", brief: { summary: "Cartons onto a pallet", captureMode: "self_capture", proposed: [], unresolved: [], confirmedAtIso: null },
+    } });
+    if (url.pathname === `/api/site-task-brief/${token}/status`) return route.fulfill({ json: {
+      scope: "owner", captureReceived: true, status: { decision: "assessing", headline: `${sentence} Nothing is needed from you.`,
+        operatorAction: null, missingViews: [] },
+    } });
+    return route.fulfill({ status: 503, json: { error: "Unstubbed local API" } });
+  });
+  await page.goto(`/capture-upload/${token}?video=existing`);
+  await expect(page.getByText(`${sentence} Nothing is needed from you.`, { exact: true })).toBeVisible();
+  const results = page.getByRole("region", { name: "Simulation results for your job" });
+  await expect(results.getByText(sentence, { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Simulation evaluation" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Your simulation estimate" })).toHaveCount(0);
+  await expect(results.getByText(/^Out of reach · 0\/3 scored/)).toBeVisible();
+  await results.getByText("Recorded limitations").first().click();
+  await expect(results.getByText("Measured out of reach from the robot position planned in your scene.")).toBeVisible();
+  const text = await results.textContent();
+  expect(text).not.toMatch(/[a-z]_[a-z]|measured geometry|task kind not supported|rerun|setup blockers|development only|budget|\$/i);
+  expect(text).not.toMatch(/can't simulate this kind of job/);
+  expect(writes).toEqual([]);
+  await page.screenshot({ path: info.outputPath("held-no-match-result.png"), fullPage: true });
 });
 
 test.beforeEach(async ({ context, baseURL }) => {

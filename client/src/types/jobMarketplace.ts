@@ -116,15 +116,28 @@ export interface JobEvidenceSummary {
   claims: Array<{ claimId: string; verdict: string; rationale: string }>;
 }
 
+/**
+ * What a finished job evaluation means for the site (F-03): its estimate, why
+ * there is none, or that it is still in progress. One plain sentence each.
+ */
+export type JobScreeningOutcome = "estimate" | "reference_only" | "held_capability" | "held_unprepared" | "infeasible" | "no_match"
+  | "awaiting_spend_approval" | "setup_repair" | "superseded";
+
 export interface JobManagedEvidenceSummary {
   runId: string;
   state: string;
+  /** A job evaluation's outcome; null while it is still running. Absent on other run kinds. */
+  outcome?: JobScreeningOutcome | null;
   current: boolean;
   resultDigest: string | null;
   summary: string;
+  /** What the site can read: never an operator instruction. */
   nextAction: string;
+  /** Staff only (absent in the site's view): what Blueprint has to do next. */
+  opsNextAction?: string;
   limitations: string[];
   href: string;
+  /** `budget` is staff only: Blueprint's internal control, absent in the site's view. */
   screening?: { budget?: { limitUsd: string; committedUpperBoundUsd: string; spentUpperBoundUsd: string; reservedUsd: string };
     candidates: Array<{ candidateId: string; name: string; state: string; planned: number; configurationDigest?: string;
     scored: number; succeeded: number; failed: number; void: number; blockers: string[];

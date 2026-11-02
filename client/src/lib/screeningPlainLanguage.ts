@@ -1,0 +1,94 @@
+/**
+ * Plain words for the codes a job evaluation records (F-03). A site never
+ * reads a raw code: every known code has a label, and an unknown one falls
+ * back to its category or to a general sentence, never to the code itself.
+ * Operations views show the raw codes instead.
+ */
+import type { JobManagedEvidenceSummary } from "@/types/jobMarketplace";
+
+const own = (map: Record<string, string>, key: string) => Object.prototype.hasOwnProperty.call(map, key);
+
+const MEASURED = "Measured out of reach from the robot position planned in your scene.";
+const NOT_SET_UP = "Not set up in our simulator yet.";
+const NOT_RUN = "Not run in this evaluation.";
+
+const REASONS: Record<string, string> = {
+  candidate_infeasible_measured_geometry: MEASURED,
+  team_embodiment_station_out_of_reach: MEASURED,
+  task_kind_not_supported_by_candidate: "Not built for this kind of task.",
+  task_kind_support_unverified: "Not yet shown to handle this kind of task.",
+  candidate_disabled: "Switched off in our simulator for now.",
+  commercial_use_not_admitted: "Not yet licensed for this use.",
+  prepared_robot_policy_registration_missing: NOT_SET_UP,
+  runtime_candidate_binding_missing: NOT_SET_UP,
+  site_screening_budget_insufficient: NOT_RUN,
+  beta_screening_site_budget_exhausted: NOT_RUN,
+  beta_screening_waiting_for_capacity: "Waiting for room in our simulator.",
+  beta_screening_static_preflight_blocked: "Could not start in our simulator. This is ours to fix.",
+  beta_screening_replanned_for_new_implementation: "Continued in a newer run after a Blueprint update.",
+};
+/** Codes the Pipeline adds later still say something true, by category. */
+const CATEGORIES: Array<[RegExp, string]> = [
+  [/infeasible|out_of_reach|unreachable/, MEASURED],
+  [/budget/, NOT_RUN],
+  [/capacity/, REASONS.beta_screening_waiting_for_capacity],
+  [/replanned/, REASONS.beta_screening_replanned_for_new_implementation],
+  [/licen[cs]e|commercial|entitlement|terms/, REASONS.commercial_use_not_admitted],
+  [/^task_kind/, REASONS.task_kind_not_supported_by_candidate],
+  [/disabled/, REASONS.candidate_disabled],
+  [/preflight|launch|session|gpu|render/, REASONS.beta_screening_static_preflight_blocked],
+  [/missing|not_bound|not_supplied|unverified|not_verified|not_pinned|checkpoint|adapter|controller|endpoint|access|registration|binding/, NOT_SET_UP],
+];
+
+/** Why a candidate did not run, in plain words. */
+export function screeningReasonLabel(code: string): string {
+  const base = code.split(":")[0];
+  if (own(REASONS, base)) return REASONS[base];
+  return CATEGORIES.find(([pattern]) => pattern.test(base))?.[1] ?? "Limited by something our simulator recorded.";
+}
+
+/** Each distinct plain reason once, in the order first recorded. */
+export const screeningReasonLabels = (codes: readonly string[]) => [...new Set(codes.map(screeningReasonLabel))];
+
+const STATES: Record<string, string> = {
+  pending: "Waiting to run", waitlisted: "Waiting to run", preparing: "Getting ready", launching: "Getting ready",
+  running: "Running", reconciliation_required: "Being checked", completed: "Finished", blocked: "Did not run",
+  unavailable: "Did not run", deferred: "Did not run", infeasible: "Out of reach",
+};
+export const screeningCandidateStateLabel = (state: string) => own(STATES, state) ? STATES[state] : "Recorded";
+
+const CHOICES: Record<string, string> = {
+  not_evaluated: "it did not run in this evaluation",
+  no_scored_episodes: "none of its episodes could be scored",
+  scripted_baseline_reference_only: "a scripted reference baseline, not a learned policy",
+};
+export const screeningChoiceLabel = (code: string) => own(CHOICES, code) ? `Not chosen: ${CHOICES[code]}` : "Not chosen";
+
+const PARTNERS: Record<string, string> = {
+  catalog_row_unavailable: "Our catalog has no deployment record for this configuration.",
+  no_recorded_deployment_partner_for_configuration: "No deployment partner is recorded for this configuration.",
+};
+export const screeningPartnerLabel = (code: string) => own(PARTNERS, code) ? PARTNERS[code]
+  : "A partner detail we could not confirm.";
+
+const RELATIONSHIPS: Record<string, string> = {
+  publisher_demonstrated: "demonstrated by the publisher", company_deployment: "a company deployment",
+  public_controller_integration: "a public controller integration", planning_candidate: "a planning candidate",
+};
+export const screeningRelationshipLabel = (relationship: string) => own(RELATIONSHIPS, relationship)
+  ? RELATIONSHIPS[relationship] : null;
+
+const OUTCOMES: Record<string, string> = {
+  estimate: "Simulation estimate", reference_only: "Reference baselines only", held_capability: "Held", held_unprepared: "Held",
+  infeasible: "Held", no_match: "No match", awaiting_spend_approval: "In progress", setup_repair: "In progress",
+  superseded: "Continued in a newer run",
+};
+const RUN_STATES: Record<string, string> = {
+  queued: "In progress", running: "In progress", preparing: "In progress", reconciliation_required: "Being checked",
+  completed: "Finished", held: "Held", blocked: "Stopped", failed: "Stopped", cancelled: "Stopped", closed: "Closed",
+};
+/** A short plain heading for a run in the site's history. */
+export function managedRunLabel(item: Pick<JobManagedEvidenceSummary, "outcome" | "state">): string {
+  if (item.outcome && own(OUTCOMES, item.outcome)) return OUTCOMES[item.outcome];
+  return own(RUN_STATES, item.state) ? RUN_STATES[item.state] : "Recorded run";
+}
