@@ -303,9 +303,28 @@ Blockers that are money, not code:
   the Mac and a new configuration revision.
 - `website_native_construction_budget_exceeds_authority`: the scene's budget
   is fully committed. A settled attempt keeps its full hold unless its evidence
-  proves less: the $5 compute allowance after an early-check failure, and the
-  whole attempt once authoring has started. Only an owner grant (`door
-  extend-scene-execution-budget`) adds room.
+  proves less. An early-check failure keeps only the $5 compute allowance, and
+  so does an ARTISAN stage 3 that stopped before its model cost gate. That
+  includes a sandbox preflight failure and a failed continuation restore
+  (#3244). Once authoring has started, the attempt keeps its whole hold. Only
+  an owner grant (`door extend-scene-execution-budget`) adds room. The settled
+  receipt shows the base hold; the smaller proven hold is applied when spend
+  is counted.
+
+Other stops seen on capture-447ae4f4 (2026-11-02), all fixed:
+
+- `scene_progression_unowned_preparation_already_exists` after a capacity
+  recovery: the successor rebuilt its predecessor's exact request under the
+  same release. Run IDs now carry the attempt (#3242).
+- `artisan_continuation_restored_inventory_mismatch` in stage 3's
+  `stage_producer.log`: the restored files were right but listed in the wrong
+  order (#3243). Activation now rehearses the restore on the host before a GPU
+  is rented (#3245). A source that cannot restore is rejected at $0 and the
+  attempt authors fresh.
+
+An ARTISAN continuation attempt still reserves the full authoring cap plus
+the $5 GPU allowance ($30 at a $25 cap), even though it can spend only the cap
+minus what its source already spent. Plan the scene budget for that.
 
 ### 6. A stage fails: replay, fix, deploy
 
