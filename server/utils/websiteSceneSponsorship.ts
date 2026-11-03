@@ -24,6 +24,8 @@ import { assertWithinWebsiteJobCeiling, transactionJobLedgerReader, websiteJobCe
   websiteJobSpend } from "./websiteJobCeiling";
 import { SCENE_EXECUTION_WINDOW_MAX_SECONDS, sponsorshipExecutionWindowUntil,
   sponsorshipWindowIntake } from "./sceneExecutionWindowExtension";
+import { WEBSITE_JOB_WINDOW_DEFAULT_SECONDS, WEBSITE_JOB_WINDOW_MAX_SECONDS, WEBSITE_JOB_WINDOW_MIN_SECONDS,
+  issuedWebsiteJobWindowSeconds } from "./websiteJobWindow";
 
 function continuationAuthority(authority: Record<string, any>, input: {
   brief: SiteTaskBriefRecord; record: Record<string, any>; inventory?: TaskItemInventoryRecord | null;
@@ -53,9 +55,10 @@ const policySchema = z.object({
   native_max_spend_usd: money,
   max_total_spend_usd: money,
   max_paid_attempts: z.number().int().min(1).max(32),
-  // Up to the Pipeline's own seven-day execution window (validate_execution),
-  // so a job is not stranded mid-run by a shorter Blueprint-issued window.
-  ttl_seconds: z.number().int().min(60).max(7 * 86400),
+  // The website job window (websiteJobWindow.ts): this grant and its scene intent
+  // share one expiry, at most the bound the Pipeline mirrors.
+  ttl_seconds: z.number().int().min(WEBSITE_JOB_WINDOW_MIN_SECONDS).max(WEBSITE_JOB_WINDOW_MAX_SECONDS)
+    .default(WEBSITE_JOB_WINDOW_DEFAULT_SECONDS),
   provider_terms_reference: z.string().regex(/^sha256:[0-9a-f]{64}$/),
 }).strict().refine(p => p.upstream_max_spend_usd + p.native_max_spend_usd <= p.max_total_spend_usd);
 
@@ -179,8 +182,8 @@ export function websiteSceneSponsorship(input: {
     throw new Error("website_agents_api_task_not_authorized");
   const managedPolicy = managedAgents ? agentsApiPolicy() : null;
   const developmentSiteTest = developmentTestSiteAuthorized(input.record, grantContextDigest);
-  const policyDigest = developmentSiteTest
-    ? digest({ policy: configured, development_test_site_context_digest: grantContextDigest,
+  const policyDigestFor = (sponsorPolicy: z.infer<typeof policySchema>) => developmentSiteTest
+    ? digest({ policy: sponsorPolicy, development_test_site_context_digest: grantContextDigest,
       ...(managedPolicy ? { agents_api_policy: managedPolicy } : {}),
       development_test_site_gates: input.record.siteTaskGates,
       development_test_site_triage: {
@@ -188,10 +191,16 @@ export function websiteSceneSponsorship(input: {
         blocking_field_ids: input.record.site_task_triage.blocking_field_ids,
         unanswered_field_ids: input.record.site_task_triage.unanswered_field_ids,
       } })
-    : digest(managedPolicy ? { policy: configured, agents_api_policy: managedPolicy } : configured);
+    : digest(managedPolicy ? { policy: sponsorPolicy, agents_api_policy: managedPolicy } : sponsorPolicy);
+  const policyDigest = policyDigestFor(configured);
   if (previous) {
     const { authority_digest: retainedDigest, ...payload } = previous;
-    if (digest(payload) !== retainedDigest || previous.policy_digest !== policyDigest
+    // A change to the window length alone leaves an issued grant on the window it
+    // was issued with; any other policy change still refuses it.
+    const issuedWindow = issuedWebsiteJobWindowSeconds(previous);
+    const issuedUnderThisPolicy = previous.policy_digest === policyDigest || issuedWindow !== null
+      && previous.policy_digest === policyDigestFor({ ...configured, ttl_seconds: issuedWindow });
+    if (digest(payload) !== retainedDigest || !issuedUnderThisPolicy
       || previous.request_id !== input.requestId || previous.task_context_digest !== grantContextDigest
       || previous.purpose !== input.purpose)
       throw new Error("website_scene_sponsorship_changed");

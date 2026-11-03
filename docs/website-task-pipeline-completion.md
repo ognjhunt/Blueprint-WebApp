@@ -54,9 +54,13 @@ adds the website precursor without upgrading synthetic evidence to physical proo
 `BLUEPRINT_WEBSITE_SCENE_SPONSORSHIP_JSON` configures the Blueprint service
 owner (`user_id`, `organization_id`), `max_total_spend_usd`, disjoint
 `upstream_max_spend_usd` and `native_max_spend_usd` allowances,
-`max_paid_attempts`, `ttl_seconds` (at most seven days, the Pipeline's own execution
-window; the beta default is 604800), and
+`max_paid_attempts`, `ttl_seconds` (the website job window, set in
+`server/utils/websiteJobWindow.ts`: at most seven days, 604800 when left out), and
 `provider_terms_reference`. The two allowances cannot exceed the total.
+The grant and its scene intent share that one expiry. The Pipeline accepts a
+grant whose window is at most its mirrored bound
+(`blueprint_pipeline/website_job_window.py`), so a longer window ships to the
+Pipeline first, then here.
 This is server configuration, never an upload form field. Missing configuration
 holds automatic preparation; it does not request payment from the site owner.
 
@@ -72,7 +76,9 @@ website scenes ($11 quote) working and holds articulated ones at
 `website_native_construction_budget_exceeds_authority`. The figure is derived
 in `server/tests/task-evaluation-scene-budget-parity.test.ts` from the shared
 budget profile. Changing the configuration changes the policy digest, so
-existing grants refuse with `website_scene_sponsorship_changed`.
+existing grants refuse with `website_scene_sponsorship_changed`. The one
+exception is `ttl_seconds` alone: each grant already issued keeps the window it
+was issued with, and only new grants get the new length.
 
 For a scoped Claude Opus 5.5 development capture, the operator opens the site
 start page with `?authoring=claude-opus-5-5` and explicitly authorizes selected
