@@ -134,6 +134,12 @@ export const configuredSceneOfferingSchema = z.object({
     image_bytes_modified_after_selection: z.literal(false),
   }).strict(),
   evaluation_preparation_binding: z.object({
+    // The Pipeline has sent these three since 2026-10-09 (Pipeline #2660); a
+    // strict binding without them refused every website publication sync.
+    // The binding prepares an evaluation and never claims one ran.
+    artifact_purpose: z.literal("evaluation_preparation").optional(),
+    robot_evaluation_performed: z.literal(false).optional(),
+    robot_setup_requirements: z.array(z.record(z.string(), z.unknown())).min(1).max(16).optional(),
     scene_mode: z.literal("reuse_configured_revision"),
     construction_mode: z.literal("reuse_configured_scene"),
     task_binding_mode: z.literal("reuse_configured_template"),

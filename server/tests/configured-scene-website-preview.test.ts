@@ -30,3 +30,33 @@ it.each(["review", "count", "warning", "reviewer", "public"])("rejects preview e
   value.offering_digest = canonicalArtifactDigest(value, "offering_digest");
   expect(configuredSceneOfferingSchema.safeParse(value).success).toBe(false);
 });
+
+function pipelineBinding(change?: (binding: any) => void) {
+  // The binding as the Pipeline sends it (task_evaluation_scene_configuration_publication.py).
+  const value: any = preview();
+  Object.assign(value.evaluation_preparation_binding, {
+    artifact_purpose: "evaluation_preparation",
+    robot_evaluation_performed: false,
+    robot_setup_requirements: [
+      { display_name: "Franka Panda", action_space: { dim: 7, representation: "7d_delta_end_effector_pose" },
+        claim_boundary: "setup_requirements_and_profile_configuration_not_execution_evidence" },
+    ],
+  });
+  change?.(value.evaluation_preparation_binding);
+  value.offering_digest = canonicalArtifactDigest(value, "offering_digest");
+  return value;
+}
+it("accepts the Pipeline's evaluation preparation binding with its robot setup requirements", () => {
+  const value = configuredSceneOfferingSchema.parse(pipelineBinding());
+  expect(value.evaluation_preparation_binding.robot_evaluation_performed).toBe(false);
+  expect(value.evaluation_preparation_binding.robot_setup_requirements).toHaveLength(1);
+});
+it.each([
+  ["evaluation claimed", (b: any) => { b.robot_evaluation_performed = true; }],
+  ["other purpose", (b: any) => { b.artifact_purpose = "robot_evaluation"; }],
+  ["requirement not an object", (b: any) => { b.robot_setup_requirements = ["Franka Panda"]; }],
+  ["empty requirements", (b: any) => { b.robot_setup_requirements = []; }],
+  ["unknown key", (b: any) => { b.robot_evaluation_result = {}; }],
+])("rejects a changed evaluation preparation binding: %s", (_name, change) => {
+  expect(configuredSceneOfferingSchema.safeParse(pipelineBinding(change)).success).toBe(false);
+});
