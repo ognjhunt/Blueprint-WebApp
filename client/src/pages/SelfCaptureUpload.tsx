@@ -6,6 +6,7 @@ import { isLikelyPhone } from "@/lib/device";
 import { PublicTaskListing } from "@/components/site/PublicTaskListing";
 import { JobWorkspace } from "@/components/site/JobWorkspace";
 import { TaskTargetChoice, type TaskTargetChoiceView } from "@/components/site/TaskTargetChoice";
+import { RobotFit, isRobotFit, type RobotFitView } from "@/components/site/RobotFit";
 import { NextTaskUpdate } from "@/components/site/NextTaskUpdate";
 /**
  * The page an operator or filmer opens from a private job link.
@@ -59,6 +60,8 @@ type TaskStatus = {
   footageReviewAutomated?: boolean;
   /** The optional correction of the guessed object to move, for the owner only. */
   targetChoice?: TaskTargetChoiceView | null;
+  /** Which robots fit the job by spec sheet, for the owner only: an estimate, never a physical test. */
+  robotFit?: RobotFitView | null;
 };
 
 function isTargetChoice(value: unknown): value is TaskTargetChoiceView {
@@ -554,6 +557,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
             captureReceived: data.captureReceived === true,
             footageReviewAutomated: data.footageReviewAutomated !== false,
             targetChoice: data.scope === "owner" && isTargetChoice(data.targetChoice) ? data.targetChoice : null,
+            robotFit: data.scope === "owner" && isRobotFit(data.robotFit) ? data.robotFit : null,
           });
         } else if (alive) {
           setCurrentStatusKnown(false);
@@ -672,6 +676,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
       {saved && scope === "owner" && currentStatusKnown && status?.targetChoice
         && <TaskTargetChoice key={status.targetChoice.questionDigest} token={token} question={status.targetChoice}
           onAnswered={() => setStatusRefresh(value => value + 1)} />}
+      {saved && scope === "owner" && currentStatusKnown && status?.robotFit && <RobotFit fit={status.robotFit} />}
 
       {isVideoUpdate && !saved && <p className="ms-field-hint" role="status">Film or upload a complete updated walkthrough. This updates the same job and keeps your original video.</p>}
       {/* A filming link opens the recorder; a held link explains its hold. */}

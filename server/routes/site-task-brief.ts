@@ -1237,6 +1237,8 @@ router.get("/:token/status", async (req: Request, res: Response) => {
         guessedCandidateId: question.guessed_candidate_id,
         candidates: question.candidates.map(row => ({ id: row.candidate_id, label: row.label,
           referenceTimeMs: row.reference_time_ms })) } : null,
+      // Which robots fit the job by spec sheet: an estimate for the owner, never a physical test.
+      robotFit: payload.scope === "owner" ? preparationStatus?.robotFit ?? null : null,
     });
   } catch (error) {
     logger.error({ error, requestId: payload.requestId }, "Could not load task status");
