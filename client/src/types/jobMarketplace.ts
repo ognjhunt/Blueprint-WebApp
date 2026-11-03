@@ -61,7 +61,7 @@ export interface JobEvidenceSummary {
  * there is none, or that it is still in progress. One plain sentence each.
  */
 export type JobScreeningOutcome = "estimate" | "reference_only" | "held_capability" | "held_unprepared" | "infeasible" | "no_match"
-  | "awaiting_spend_approval" | "setup_repair" | "superseded";
+  | "held_setup" | "held_budget" | "held_scene_check" | "awaiting_spend_approval" | "setup_repair" | "superseded";
 
 export interface JobManagedEvidenceSummary {
   runId: string;

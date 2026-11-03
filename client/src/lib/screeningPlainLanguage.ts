@@ -90,7 +90,8 @@ export const screeningRelationshipLabel = (relationship: string) => own(RELATION
 
 const OUTCOMES: Record<string, string> = {
   estimate: "Simulation estimate", reference_only: "Reference baselines only", held_capability: "Held", held_unprepared: "Held",
-  infeasible: "Held", no_match: "No match", awaiting_spend_approval: "In progress", setup_repair: "In progress",
+  infeasible: "Held", no_match: "No match", held_setup: "Held", held_budget: "Held", held_scene_check: "Held",
+  awaiting_spend_approval: "In progress", setup_repair: "In progress",
   superseded: "Continued in a newer run",
 };
 const RUN_STATES: Record<string, string> = {

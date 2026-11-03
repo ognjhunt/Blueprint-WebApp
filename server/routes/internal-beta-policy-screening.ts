@@ -4,6 +4,7 @@ import { parseBetaPolicyScreeningPublication } from "../utils/betaPolicyScreenin
 import { ingestBetaCandidateSelection, ingestBetaPolicyScreening, observeBetaScreeningExecutionControl,
   parseBetaScreeningExecutionControlRequest } from "../utils/betaPolicyScreeningIngest";
 import { parseBetaCandidateSelection } from "../utils/betaCandidateSelection";
+import { ingestBetaPolicyScreeningHold, parseBetaPolicyScreeningHold } from "../utils/betaPolicyScreeningHold";
 
 const router = Router();
 router.post("/beta-policy-screening-runs", createPipelineSyncRateLimiter(), async (req, res) => {
@@ -13,6 +14,24 @@ router.post("/beta-policy-screening-runs", createPipelineSyncRateLimiter(), asyn
   if (!publication) return res.status(400).json({ code: "screening_publication_invalid" });
   try {
     const receipt = await ingestBetaPolicyScreening(publication);
+    return res.status(receipt.status === "created" ? 201 : 200).json(receipt);
+  } catch (error) {
+    const code = error instanceof Error ? error.message : "";
+    if (/^(screening_|job_)[a-z_]+$/.test(code))
+      return res.status(code.endsWith("store_unavailable") ? 503 : 409).json({ code });
+    return res.status(503).json({ code: "screening_store_unavailable" });
+  }
+});
+// A job whose evaluation could not start (no campaign), held by name. A new delivery, so always signed.
+router.post("/beta-policy-screening-holds", createPipelineSyncRateLimiter(), async (req, res) => {
+  if (!req.header("X-Blueprint-Pipeline-Timestamp") || !req.header("X-Blueprint-Pipeline-Signature"))
+    return res.status(401).json({ code: "missing_pipeline_sync_signature" });
+  const auth = verifyPipelineSyncRequest(req);
+  if (!auth.ok) return res.status(auth.status).json({ error: auth.message, code: auth.code });
+  const hold = parseBetaPolicyScreeningHold(req.body);
+  if (!hold) return res.status(400).json({ code: "screening_hold_invalid" });
+  try {
+    const receipt = await ingestBetaPolicyScreeningHold(hold);
     return res.status(receipt.status === "created" ? 201 : 200).json(receipt);
   } catch (error) {
     const code = error instanceof Error ? error.message : "";

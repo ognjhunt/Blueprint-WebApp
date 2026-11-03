@@ -114,14 +114,14 @@ describe("job workflow authority and durable decisions", () => {
     state.docs.set("siteTaskBriefs/job-one", brief);
     state.docs.set("taskEvaluationSceneIntakes/intake-one", intake);
     const { ingestBetaPolicyScreening } = await import("../utils/betaPolicyScreeningIngest");
-    await ingestBetaPolicyScreening(outcomePublication(publication, "awaiting_spend_approval"));
+    await ingestBetaPolicyScreening(outcomePublication(publication, "held_budget"));
     const site = (await api(`/owner/${token("job-one")}`)).body.managedEvidence![0];
-    expect(site).toMatchObject({ state: "awaiting_spend_approval", outcome: "awaiting_spend_approval", nextAction: "Nothing is needed from you." });
+    expect(site).toMatchObject({ state: "held", outcome: "held_budget", nextAction: "Nothing is needed from you. Each row lists why it stopped." });
     expect(site).not.toHaveProperty("opsNextAction");
     expect(site.screening).not.toHaveProperty("budget");
     expect(JSON.stringify(site)).not.toMatch(/Owner approval|rerun|limitUsd|UpperBoundUsd|reservedUsd|\$/);
     const staff = (await api("/admin/job-one", "GET", undefined, "ops-token")).body.managedEvidence![0];
-    expect(staff.opsNextAction).toMatch(/^Owner approval needed/);
+    expect(staff.opsNextAction).toMatch(/^Held: the site's simulation allowance is spent/);
     expect(staff.screening?.budget).toMatchObject({ limitUsd: "15.00", spentUpperBoundUsd: "4" });
   });
 

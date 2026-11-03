@@ -24,7 +24,10 @@ import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { SCENE_INTAKE_COLLECTION } from "./taskEvaluationSceneIntake";
 import type { TaskSceneProgression } from "./taskStatusProjection";
 import { taskTargetSelection, taskTargetSelectionApplies } from "./websiteTaskTargetChoice";
-import { isScreeningHeldOutcome, storedScreeningOutcome, type ScreeningOutcome } from "./betaPolicyScreeningContract";
+import { isScreeningHeldOutcome, parseBetaPolicyScreeningPublication, screeningOutcome, storedScreeningOutcome,
+  type ScreeningOutcome } from "./betaPolicyScreeningContract";
+import { SCREENING_HOLD_RUN_KIND } from "./betaPolicyScreeningHold";
+import { publicationFromResultRecord } from "./taskEvaluationRunPublicationStorage";
 import { adoptedSceneOutcome, sceneOutcomeReading } from "./sceneIntentOutcome";
 
 // Pipeline blocks that stay blocked once hit (task_evaluation_scene_progression):
@@ -41,6 +44,8 @@ const ENDED_BLOCKERS = new Set([
   ...EXHAUSTED_ALLOWANCES.flatMap(code => [code, `scene_progression_${code}`, `scene_intake_${code}`]),
   "scene_intake_authority_expired", "scene_intake_authority_revoked"]);
 const POLICY_RUN_COLLECTION = "taskEvaluationPolicyRuns";
+// Outcomes a finished run was once stored with while it was in fact final (now `held_budget` or `held_setup`).
+const LEGACY_WAITS = new Set(["awaiting_spend_approval", "setup_repair"]);
 const IN_FLIGHT = new Set(["revocation_pending", "forward_pending", "forward_blocked",
   "commercial_authorization_required", "accepted", "closeout_pending"]);
 // The intake's own policy test ran (its terminal receipts are being joined) or finished.
@@ -137,13 +142,22 @@ export type SceneScreening = { estimate: boolean; running: boolean; observed: bo
  * testing. Otherwise the newest finished campaign speaks for the job (by
  * creation time, then id): a newer campaign plans the current candidates
  * again. A campaign closed as superseded speaks only through its successor,
- * and only while no other campaign has finished.
+ * and only while no other campaign has finished. A Pipeline hold (no campaign
+ * could start, `betaPolicyScreeningHold`) speaks only while no campaign was
+ * published for the scene at all, and not once it is released.
  */
 export function sceneScreening(runs: Iterable<{ id: string; run: Record<string, any> | undefined }>, team: string): SceneScreening {
-  let estimate = false, running = false, observed = false, superseded = false;
+  let estimate = false, running = false, observed = false, superseded = false, campaigns = false;
   let newest: { key: string; outcome: ScreeningOutcome } | null = null;
+  let hold: ScreeningOutcome | null = null;
   for (const { id, run } of runs) {
+    if (run?.run_kind === SCREENING_HOLD_RUN_KIND && run.team_namespace === team) {
+      const held = storedScreeningOutcome(run.screening_outcome);
+      if (run.state === "blocked" && isScreeningHeldOutcome(held)) hold = held;
+      continue;
+    }
     if (run?.run_kind !== "beta_policy_screening" || run.team_namespace !== team) continue;
+    campaigns = true;
     const outcome = storedScreeningOutcome(run.screening_outcome);
     const executed = run.screening_execution_observed === true;
     observed ||= executed;
@@ -155,7 +169,8 @@ export function sceneScreening(runs: Iterable<{ id: string; run: Record<string, 
       if (!newest || key > newest.key) newest = { key, outcome };
     }
   }
-  return { estimate, running, observed, outcome: newest?.outcome ?? (superseded ? "superseded" : null) };
+  return { estimate, running, observed,
+    outcome: newest?.outcome ?? (superseded ? "superseded" : campaigns ? null : hold) };
 }
 
 /** How the scene reads from its job evaluations alone: an outcome, an open test (true), or nothing yet (false). */
@@ -181,6 +196,17 @@ async function firstTestAccepted(store: FirebaseFirestore.Firestore, intake: Rec
       runs.push(...rows.map(row => ({ id: row.id, run: row.data() })));
     }
   }
+  // A run stored before every finished run had a final outcome may say it is
+  // still waiting on us or the owner: read its accepted publication again.
+  await Promise.all(runs.map(async row => {
+    const run = row.run;
+    if (run?.run_kind !== "beta_policy_screening" || !["completed", "blocked"].includes(run.state)
+      || !LEGACY_WAITS.has(run.screening_outcome) || typeof run.result_record_id !== "string") return;
+    const result = (await store.collection("captureTaskEvaluationRuns").doc(run.result_record_id).get()).data();
+    const publication = result ? parseBetaPolicyScreeningPublication(publicationFromResultRecord(result)) : null;
+    if (publication && publication.campaign_id === run.run_id && publication.publication_digest === run.publication_digest)
+      row.run = { ...run, screening_outcome: screeningOutcome(publication) };
+  }));
   // An estimate, or a test still running, needs no launch lookup. A finished
   // outcome without an estimate is a fallback behind any accepted launch test.
   const scene = sceneScreening(runs, team);

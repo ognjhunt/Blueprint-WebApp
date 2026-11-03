@@ -21,6 +21,14 @@ import { firstStatusAlertMs, isWebsitePreparationCapture, parseWebsitePreparatio
 const SESSIONS = "captureUploadSessions";
 const INTAKE_ALERT_COLLECTION = "opsWebsiteSceneIntakeAlerts";
 const OWNER_HOLD_ALERT_COLLECTION = "opsOwnerSuccessHoldAlerts";
+const EVALUATION_ALERT_COLLECTION = "opsWebsiteEvaluationHoldAlerts";
+const POLICY_RUNS = "taskEvaluationPolicyRuns";
+/**
+ * Finished evaluations that are ours to look at: held on our side, out of the
+ * site's allowance, or a failed scene check. The two older names are runs
+ * stored before such an end was final; they are just as stuck.
+ */
+const HELD_EVALUATION_OUTCOMES = ["held_setup", "held_budget", "held_scene_check", "setup_repair", "awaiting_spend_approval"];
 const LEASE_MS = 5 * 60 * 1000;
 const RETRY_MS = 15 * 60 * 1000;
 const MAX_RETRY_MS = 6 * 60 * 60 * 1000;
@@ -411,4 +419,72 @@ export async function scanHeldOwnerSuccessThresholds(deps: AlertDeps = {}): Prom
   }
   return { held: held.length, alerted: await report(claims, deps, "website_owner_success_held",
     "Site owners held their job's success thresholds") };
+}
+
+/**
+ * The same recoverable delivery for a website job whose evaluation finished
+ * held on our side (C-04 for evaluations): every hold is reported once per
+ * outcome, until the run's outcome changes or the site's consent is withdrawn.
+ */
+export async function scanHeldWebsiteEvaluations(deps: AlertDeps = {}): Promise<{ held: number; alerted: number }> {
+  const store = deps.store === undefined ? (dbAdmin as unknown as Store | null) : deps.store;
+  if (!store) return { held: 0, alerted: 0 };
+  const now = deps.now || Date.now, limit = Math.max(1, Math.min(deps.limit ?? 50, 100));
+  const held: { id: string; requestId: string; outcome: string; reason: string | null }[] = [];
+  for (const outcome of HELD_EVALUATION_OUTCOMES) {
+    const rows = await automationBatch(store as unknown as FirebaseFirestore.Firestore,
+      store.collection(POLICY_RUNS).where("screening_outcome", "==", outcome) as unknown as FirebaseFirestore.Query,
+      `website_evaluation_hold_alerts_${outcome}`, limit) as unknown as { docs: Doc[] };
+    for (const row of rows.docs) {
+      const data = row.data();
+      const requestId = data?.website_request_id ?? data?.job_evidence_binding?.job_id;
+      if (typeof requestId === "string" && ["completed", "blocked"].includes(data?.state) && data?.cancellationRequested !== true)
+        held.push({ id: row.id, requestId, outcome, reason: typeof data?.hold_reason_code === "string" ? data.hold_reason_code : null });
+    }
+  }
+  const claims: ClaimedAlert[] = [];
+  for (const run of held) {
+    const ref = store.collection(EVALUATION_ALERT_COLLECTION).doc(`${run.id}:${run.outcome}`);
+    const sourceRef = store.collection(POLICY_RUNS).doc(run.id), leaseId = randomUUID();
+    const stillHeld = (data: any) => data?.screening_outcome === run.outcome && ["completed", "blocked"].includes(data?.state)
+      && data?.cancellationRequested !== true;
+    try {
+      const claimed = await store.runTransaction(async tx => {
+        const source = (await tx.get(sourceRef)).data(), marker = (await tx.get(ref)).data() ?? {};
+        const request = (await tx.get(store.collection("inboundRequests").doc(run.requestId))).data(), nowMs = now();
+        if (!stillHeld(source) || projectWebsiteCaptureRights(request).consent_revoked
+          || (typeof marker.next_attempt_at_ms === "number" && marker.next_attempt_at_ms > nowMs)) return false;
+        const parsed = websitePreparationAlertDeliverySchema.safeParse(marker.delivery);
+        if (marker.delivery !== undefined && marker.delivery !== null && !parsed.success) return false;
+        const delivery = claimDelivery(parsed.success ? parsed.data : pendingDelivery(), nowMs, leaseId);
+        if (!delivery) return false;
+        tx.set(ref, { run_id: run.id, request_id: run.requestId, outcome: run.outcome, delivery,
+          next_attempt_at_ms: delivery.lease_until_ms, alerted_at_iso: null }, { merge: true });
+        return true;
+      });
+      if (!claimed) continue;
+      claims.push({ id: run.id, line: `- evaluation ${run.id} (request ${run.requestId}) finished without an estimate: `
+        + `${run.outcome}${run.reason ? ` (${run.reason})` : ""}. ${appBaseUrl()}/admin/leads/${encodeURIComponent(run.requestId)}`,
+      update: action => store.runTransaction(async tx => {
+        const source = (await tx.get(sourceRef)).data(), marker = (await tx.get(ref)).data() ?? {};
+        const request = (await tx.get(store.collection("inboundRequests").doc(run.requestId))).data(), nowMs = now();
+        const parsed = websitePreparationAlertDeliverySchema.safeParse(marker.delivery);
+        if (!parsed.success || parsed.data.lease_id !== leaseId || parsed.data.state !== "claimed"
+          || (parsed.data.lease_until_ms ?? 0) <= nowMs) return false;
+        if (!stillHeld(source) || projectWebsiteCaptureRights(request).consent_revoked) {
+          tx.set(ref, { delivery: { ...parsed.data, state: "cancelled", lease_id: null, lease_until_ms: null },
+            next_attempt_at_ms: null }, { merge: true });
+          return false;
+        }
+        const next = advanceDelivery(parsed.data, action, nowMs);
+        if (!next) return false;
+        tx.set(ref, { delivery: next.delivery, next_attempt_at_ms: next.due,
+          alerted_at_iso: next.delivery.acknowledged_at_iso }, { merge: true });
+        return true;
+      }) });
+    } catch (error) {
+      logger.warn({ err: error, runId: run.id }, "Could not claim a held website evaluation alert");
+    }
+  }
+  return { held: held.length, alerted: await report(claims, deps, "website_evaluation_held", "Website job evaluations finished held") };
 }

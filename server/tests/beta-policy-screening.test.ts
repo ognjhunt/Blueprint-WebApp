@@ -6,7 +6,7 @@ import { assertScreeningSceneSource } from "../utils/betaPolicyScreeningIngest";
 import { managedJobTask, projectManagedJobEvidence } from "../utils/jobManagedEvaluation";
 import { scientificBriefDigest } from "../utils/jobEvidenceContract";
 import { crossRuntimeArtifactDigest, crossRuntimeDigest } from "../utils/crossRuntimeCanonical";
-import { allCandidateFamilyScreeningFixture, familyScreeningFixture, finishedScreening, outcomePublication, screeningFixture, screeningSha,
+import { allCandidateFamilyScreeningFixture, familyScreeningFixture, finishedScreening, outcomePublication, PUBLISHED_SCREENING_OUTCOMES, screeningFixture, screeningSha,
   scriptedBaselineRow, sealScreening, sealSelection, selectionFixture } from "./fixtures/beta-policy-screening";
 import { parseBetaCandidateSelection, selectionMatchesPublication } from "../utils/betaCandidateSelection";
 import producerSelection from "./fixtures/pipeline-website-candidate-selection.v1.json";
@@ -323,12 +323,15 @@ describe("automatic many-candidate job evaluation", () => {
       source_scene_revision_digest: voided.source.scene_revision_digest, publication_digest: voided.publication_digest, publication_revision: 2 };
     const projected = projectManagedJobEvidence(voided.campaign_id, run, { record_id: "result-one", publication: voided },
       brief.requestId, binding.brief_digest, scope.taskContextDigest, scope.sourceFingerprint)!;
-    // The other candidates hit the site budget, so this waits on the owner, not on the site.
-    expect(projected.state).toBe("awaiting_spend_approval");
-    expect(projected.summary).toMatch(/^Simulation evaluation in progress/);
-    // The owner's approval is ours to seek: the site reads no instruction and no budget.
-    expect(projected.nextAction).toBe("Nothing is needed from you.");
-    expect(projected.opsNextAction).toMatch(/^Owner approval needed/);
+    // The other candidates hit the site's allowance after money was spent, and nothing reserves more:
+    // held by name, never "in progress" with no rerun coming.
+    expect([projected.state, projected.outcome]).toEqual(["held", "held_budget"]);
+    expect(projected.summary).toMatch(/^Held: your job reached the most the free beta can simulate for one job/);
+    expect(projected.summary).toMatch(/won't restart by itself\. Our team has been told/);
+    // Spending past it is the owner's to decide: the site reads no instruction and no budget.
+    expect(projected.nextAction).toBe("Nothing is needed from you. Each row lists why it stopped.");
+    expect(`${projected.summary} ${projected.nextAction}`).not.toMatch(/budget|owner approval|\$/i);
+    expect(projected.opsNextAction).toMatch(/^Held: the site's simulation allowance is spent/);
     expect(projected.limitations.join(" ")).not.toMatch(/estimate from 0 scored/);
     expect(projected.limitations.join(" ")).toMatch(/does not certify physical performance or safety/);
   });
@@ -347,9 +350,14 @@ describe("automatic many-candidate job evaluation", () => {
       source_scene_revision_digest: unspent.source.scene_revision_digest, publication_digest: unspent.publication_digest, publication_revision: 2 };
     const projected = projectManagedJobEvidence(unspent.campaign_id, run, { record_id: "result-one", publication: unspent },
       brief.requestId, binding.brief_digest, scope.taskContextDigest, scope.sourceFingerprint)!;
-    expect(projected.state).toBe("setup_repair");
+    // Nothing reruns a blocked campaign by itself: held on our side, by name.
+    expect([projected.state, projected.outcome]).toEqual(["held", "held_setup"]);
     expect(projected.nextAction).not.toMatch(/Owner approval|setup blockers|rerun/);
-    expect(projected.opsNextAction).toBe("Fix the setup blockers listed per candidate, then rerun. Nothing is needed from the site.");
+    expect(projected.opsNextAction).toMatch(/^Held on our side: fix the cause in each candidate's blockers, then rerun/);
+    // Only rows refused for code a deploy changed are planned again by the Pipeline: still in progress.
+    const commitChanged = sealScreening({ ...unspent, revision: 3, candidates: unspent.candidates.map((row, index) => index === 0
+      ? { ...row, blockers: ["beta_screening_implementation_commit_changed"] } : row) });
+    expect(screeningOutcome(commitChanged)).toBe("setup_repair");
     // With nothing funded at all, every row waits on what we build: held.
     const held = sealScreening({ ...unspent, revision: 3, candidates: unspent.candidates.map(row => ({ ...row, status: "unavailable",
       blockers: ["prepared_robot_policy_registration_missing", "runtime_candidate_binding_missing"] })) });
@@ -509,7 +517,7 @@ describe("one outcome per run, in one plain sentence (F-03)", () => {
   };
   const operatorWords = /rerun|setup blocker|owner approval|budget|\$|development only/i;
 
-  it.each(SCREENING_OUTCOMES)("names %s once and says its sentence first, with no operator instruction for the site", outcome => {
+  it.each(PUBLISHED_SCREENING_OUTCOMES)("names %s once and says its sentence first, with no operator instruction for the site", outcome => {
     const publication = outcomePublication(screeningFixture().publication, outcome);
     expect(parseBetaPolicyScreeningPublication(publication)).not.toBeNull();
     expect(screeningOutcome(publication)).toBe(outcome);

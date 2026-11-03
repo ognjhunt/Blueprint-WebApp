@@ -24,7 +24,8 @@ const { ingestBetaPolicyScreening } = await import("../utils/betaPolicyScreening
 const { deliverOutbox } = await import("../utils/captureOutbox");
 const { reconcileScreeningOutcomeNotifications } = await import("../utils/screeningOutcomeNotifications");
 
-const RESULT_OUTCOMES = ["estimate", "reference_only", "held_capability", "held_unprepared", "infeasible", "no_match"] as const;
+const RESULT_OUTCOMES = ["estimate", "reference_only", "held_capability", "held_unprepared", "infeasible", "no_match",
+  "held_setup", "held_budget"] as const;
 const scene = createHash("sha256").update("scene-one").digest("hex").slice(0, 24);
 const key = (outcome: string) => `captureOutbox/job-one:evaluation_outcome:${outcome}-${scene}`;
 const notices = () => [...state.docs.entries()].filter(([path]) => path.startsWith("captureOutbox/job-one:evaluation_outcome:")
@@ -76,7 +77,7 @@ describe("one email per terminal outcome of the job's evaluation (F-01)", () => 
     expect(notices()).toHaveLength(1);
   });
 
-  it.each(["awaiting_spend_approval", "setup_repair", "superseded"])("sends nothing for %s", async outcome => {
+  it.each(["setup_repair", "superseded"])("sends nothing for %s", async outcome => {
     await ingestBetaPolicyScreening(outcomePublication(base, outcome));
     expect(run()).toMatchObject({ screening_outcome: outcome });
     expect(run().outcome_notification_pending).toBeUndefined();

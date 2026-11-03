@@ -131,7 +131,7 @@ export function managedJobTask(args: {
 }
 
 /** The same retained source bytes govern ingestion and current evidence applicability. */
-export function assertScreeningSceneSource(publication: BetaPolicyScreeningPublication, intake: Record<string, any>,
+export function assertScreeningSceneSource(publication: Pick<BetaPolicyScreeningPublication, "source" | "site_id">, intake: Record<string, any>,
   scope: ReturnType<typeof managedJobTask>) {
   const source = publication.source;
   const status = intake.pipeline_status;
@@ -219,14 +219,20 @@ const SITE_NEXT_ACTION: Readonly<Record<ScreeningOutcome, string>> = {
   held_unprepared: "Nothing is needed from you. Each row lists why it could not run.",
   infeasible: "Nothing is needed from you. Each row lists the measured reason or why it could not run.",
   no_match: "Nothing is needed from you. Each row lists the measured reason or why it could not run.",
+  held_setup: "Nothing is needed from you. Each row lists why it stopped.",
+  held_budget: "Nothing is needed from you. Each row lists why it stopped.",
+  held_scene_check: "Nothing is needed from you.",
   awaiting_spend_approval: "Nothing is needed from you.",
   setup_repair: "Nothing is needed from you.",
   superseded: "Nothing is needed from you. The newer run shows this job's progress.",
 };
 /** Blueprint's own next step, shown in operations views only. */
 const OPS_NEXT_ACTION: Partial<Record<ScreeningOutcome, string>> = {
+  held_setup: "Held on our side: fix the cause in each candidate's blockers, then rerun; nothing reruns it by itself. Nothing is needed from the site.",
+  held_budget: "Held: the site's simulation allowance is spent and nothing reserves more. Spending past it is an owner decision. Nothing is needed from the site.",
+  held_scene_check: "Held: the scene failed its robot-free check, so no campaign started. Rebuild or re-probe the scene to continue. Nothing is needed from the site.",
   awaiting_spend_approval: "Owner approval needed: this job's candidates need more than the site's simulation budget. Nothing is needed from the site.",
-  setup_repair: "Fix the setup blockers listed per candidate, then rerun. Nothing is needed from the site.",
+  setup_repair: "Rows refused for code a deploy changed are planned again at the new release by the Pipeline itself. Nothing is needed from the site.",
 };
 
 /** A projection of already accepted publications, never a second report store. */
