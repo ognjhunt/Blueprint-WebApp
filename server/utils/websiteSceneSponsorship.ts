@@ -125,12 +125,22 @@ function developmentTestSiteAuthorized(record: Record<string, any>, contextDiges
     && developmentTestSiteEligible(record);
 }
 
+/** When a retained grant stops being valid: its own expiry, or the verified time-only
+ * window of its bound scene intent (sponsorshipExecutionWindowUntil), never past
+ * the grant's expiry + 7 days. The grant itself is unchanged. */
+export function sponsorshipValidUntil(grant: Record<string, any>, executionWindowUntil?: number): number {
+  return executionWindowUntil === undefined ? grant.expires_at_epoch
+    : Math.min(Math.max(grant.expires_at_epoch, executionWindowUntil),
+      grant.expires_at_epoch + SCENE_EXECUTION_WINDOW_MAX_SECONDS);
+}
+
 export function websiteSceneSponsorship(input: {
   requestId: string; brief: SiteTaskBriefRecord; record: Record<string, any>; now: number;
   inventory?: TaskItemInventoryRecord | null; captureId?: string; captureBinding?: Record<string, any>;
   purpose?: "scene_preparation"; expected_task_context_digest?: string;
   retainedPolicy?: z.infer<typeof policySchema>; renewal?: SponsorshipRenewal;
-  /** A verified time-only extension of the bound scene intent (non-creating reads only). */
+  /** A verified time-only extension of the bound scene intent: the non-creating read and
+   * native/Marble paid reservations only, never a new grant. */
   executionWindowUntil?: number;
 }) {
   const configured = input.retainedPolicy ?? policy();
@@ -187,10 +197,7 @@ export function websiteSceneSponsorship(input: {
       throw new Error("website_scene_sponsorship_changed");
     // Only "still valid now" moves with an owner-approved extension; the grant,
     // its caps and its issued window are returned exactly as retained.
-    const validUntil = input.executionWindowUntil === undefined ? previous.expires_at_epoch
-      : Math.min(Math.max(previous.expires_at_epoch, input.executionWindowUntil),
-        previous.expires_at_epoch + SCENE_EXECUTION_WINDOW_MAX_SECONDS);
-    if (validUntil <= input.now) throw new Error("consent_expired");
+    if (sponsorshipValidUntil(previous, input.executionWindowUntil) <= input.now) throw new Error("consent_expired");
     return continuationAuthority(previous, input);
   }
   // Scene preparation proceeds while site questions remain open. This does not
@@ -307,7 +314,8 @@ export function currentWebsitePreparationStatusContext(input: {
 
 /** One retained grant per upload. Replays never renew its clock or its budget.
  * `honour_execution_window` (the Pipeline's non-creating read only) lets a
- * verified time-only extension of the bound scene intent keep the grant readable. */
+ * verified time-only extension of the bound scene intent keep the grant readable;
+ * a native/Marble paid reservation follows the same window (reserveWebsitePreparationSpend). */
 export type WebsiteSceneSponsorshipRequest = { purpose?: "scene_preparation"; expected_task_context_digest?: string;
   honour_execution_window?: true };
 /** Trusted background reads reuse stored scope; explicit signed requests never infer new authority. */
@@ -910,12 +918,21 @@ export async function reserveWebsitePreparationSpend(requestId: string, input: z
       inventory: inventory.exists ? inventory.data() as TaskItemInventoryRecord : null,
       purpose: retainedWebsiteScenePurpose(record), captureId, captureBinding,
     }) : null;
+    // The native/Marble grant stays spendable inside an owner-approved, time-only
+    // window of its bound scene intent (operator door -> Pipeline -> signed notice,
+    // mirrored on this job), re-verified here against the intake in this transaction.
+    // Only the clock moves: caps, attempts, request limits, provider terms, rights and
+    // the run-open check below are unchanged. Atlas grants keep their own clock.
+    const executionWindowUntil = !atlas && record.website_scene_sponsorship_execution_window
+      ? sponsorshipExecutionWindowUntil(record.website_scene_sponsorship, record,
+        await sponsorshipWindowIntake(transaction, record)) : undefined;
     // This fresh Atlas-only grant does not renew the expired native/Marble
     // sponsorship or reopen any other preparation work.
     const authority = atlas ? { task_context_digest: atlasContext!.context_digest,
       authority_digest: atlas.authorization_digest, expires_at_epoch: atlas.expires_at_epoch } : websiteSceneSponsorship({ requestId, record, purpose: retainedWebsiteScenePurpose(record),
       brief: brief.data() as SiteTaskBriefRecord, inventory: inventory.exists ? inventory.data() as TaskItemInventoryRecord : null,
-      captureId, captureBinding, now: Date.now() / 1000 });
+      captureId, captureBinding, now: Date.now() / 1000,
+      ...(executionWindowUntil === undefined ? {} : { executionWindowUntil }) });
     if (command.task_context_digest !== authority.task_context_digest)
       throw new Error("website_scene_sponsorship_binding_invalid");
     if (!atlas && sceneProviderTerms()[command.provider]?.digest !== (authority as Record<string, any>).consent.provider_terms_reference)
@@ -983,7 +1000,10 @@ export async function reserveWebsitePreparationSpend(requestId: string, input: z
         provider_retention: auxiliaryTerms ? "accepted_auxiliary_provider_terms" : atlas.provider_retention,
         ...(auxiliaryConsentDigest ? { auxiliary_consent_digest: auxiliaryConsentDigest } : {}),
         provider_training_authorized: command.provider === "openai" || Boolean(auxiliaryTerms) ? false : atlas.provider_training_authorized } : {}),
-      expires_at_epoch: Math.min(authority.expires_at_epoch, atlas?.expires_at_epoch ?? authority.expires_at_epoch, auxiliaryExpiresAt) };
+      // The native grant's window (its own expiry unless a verified intent window
+      // extends it, never past expiry + 7 days), inside every other bound.
+      expires_at_epoch: Math.min(sponsorshipValidUntil(authority, executionWindowUntil),
+        atlas?.expires_at_epoch ?? Infinity, auxiliaryExpiresAt) };
     transaction.update(ref, { website_preparation_reservations: { ...reservations,
       [key]: { command_digest: digest(command), admission,
         observation_binding: preparationObservationBinding(requestId, captureId, command) } } });
