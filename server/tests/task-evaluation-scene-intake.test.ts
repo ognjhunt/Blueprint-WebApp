@@ -5,6 +5,7 @@ import { createHmac } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { loadWebsiteSceneSponsorship, websiteSceneSponsorship, reserveWebsitePreparationSpend, amendWebsitePreparationRequestLimit, amendWebsitePreparationSpendLimit, settleWebsitePreparationSpend, loadWebsiteAtlasConfiguration } from "../utils/websiteSceneSponsorship";
 import { projectWebsiteCaptureRights, projectWebsiteTaskContext } from "../utils/websiteTaskContext";
+import { WEBSITE_JOB_WINDOW_DEFAULT_SECONDS, WEBSITE_JOB_WINDOW_MAX_SECONDS } from "../utils/websiteJobWindow";
 import { familyScreeningFixture } from "./fixtures/beta-policy-screening";
 import producerFamilyStatus from "./fixtures/pipeline-family-prepared-status.v1.json";
 vi.mock("../utils/captureFootageReview", () => ({ buildCaptureFootageReviewer: vi.fn() }));
@@ -329,6 +330,103 @@ it("issues a seven-day execution window, the most the Pipeline accepts, and refu
   sponsoredCapture();
   process.env.BLUEPRINT_WEBSITE_SCENE_SPONSORSHIP_JSON = JSON.stringify({ ...policy, ttl_seconds: 7 * 86400 + 1 });
   await expect(loadWebsiteSceneSponsorship("req1", true)).rejects.toThrow("not_configured");
+});
+
+describe("the website job window is one policy value", () => {
+  const DAY = 86400;
+  const setPolicy = (changes: Record<string, unknown>, drop?: string) => {
+    const policy = { ...JSON.parse(process.env.BLUEPRINT_WEBSITE_SCENE_SPONSORSHIP_JSON!), ...changes };
+    if (drop) delete policy[drop];
+    process.env.BLUEPRINT_WEBSITE_SCENE_SPONSORSHIP_JSON = JSON.stringify(policy);
+  };
+
+  it("defaults to the proposed seven days, the bound the Pipeline mirrors", async () => {
+    // blueprint_pipeline/website_job_window.py WEBSITE_JOB_WINDOW_MAX_SECONDS must equal this.
+    expect(WEBSITE_JOB_WINDOW_MAX_SECONDS).toBe(7 * DAY);
+    expect(WEBSITE_JOB_WINDOW_DEFAULT_SECONDS).toBeLessThanOrEqual(WEBSITE_JOB_WINDOW_MAX_SECONDS);
+    sponsoredCapture();
+    setPolicy({}, "ttl_seconds");
+    const grant = await loadWebsiteSceneSponsorship("req1", true);
+    expect(grant.expires_at_epoch - grant.consent.accepted_at_epoch).toBe(WEBSITE_JOB_WINDOW_DEFAULT_SECONDS);
+    // Leaving the length out and naming the default are the same policy.
+    setPolicy({ ttl_seconds: WEBSITE_JOB_WINDOW_DEFAULT_SECONDS });
+    expect(await loadWebsiteSceneSponsorship("req1", false)).toEqual(grant);
+  });
+
+  it("keeps an issued grant on its own window when only the length changes, and refuses any other change", async () => {
+    sponsoredCapture();
+    setPolicy({ ttl_seconds: DAY });
+    const day = await loadWebsiteSceneSponsorship("req1", true);
+    expect(day.expires_at_epoch - day.consent.accepted_at_epoch).toBe(DAY);
+    // The owner moves the window to seven days: the one-day grant still reads, unchanged.
+    setPolicy({ ttl_seconds: 7 * DAY });
+    expect(await loadWebsiteSceneSponsorship("req1", false)).toEqual(day);
+    expect(await loadWebsiteSceneSponsorship("req1", true)).toEqual(day);
+    const input = { requestId: "req1", brief: store.rows.get("siteTaskBriefs/req1"),
+      record: store.rows.get("inboundRequests/req1") };
+    expect(websiteSceneSponsorship({ ...input, now: day.expires_at_epoch - 1 })).toEqual(day);
+    // It gains no time: it still ends at the expiry it was issued with.
+    expect(() => websiteSceneSponsorship({ ...input, now: day.expires_at_epoch })).toThrow("consent_expired");
+    expect(store.rows.get("inboundRequests/req1").website_scene_sponsorship).toEqual(day);
+    // Caps and attempts stay bound: any other policy change still refuses the grant.
+    setPolicy({ max_paid_attempts: 3 });
+    await expect(loadWebsiteSceneSponsorship("req1", false)).rejects.toThrow("website_scene_sponsorship_changed");
+    setPolicy({ max_paid_attempts: 2, native_max_spend_usd: 19 });
+    await expect(loadWebsiteSceneSponsorship("req1", false)).rejects.toThrow("website_scene_sponsorship_changed");
+    // A new upload gets the new length.
+    store.rows.delete("inboundRequests/req1");
+    sponsoredCapture();
+    setPolicy({ ttl_seconds: 7 * DAY });
+    const week = await loadWebsiteSceneSponsorship("req1", true);
+    expect(week.expires_at_epoch - week.consent.accepted_at_epoch).toBe(7 * DAY);
+  });
+
+  it("lets an owner extension add at most seven days past a seven-day grant's own expiry", async () => {
+    sponsoredCapture();
+    setPolicy({ ttl_seconds: 7 * DAY });
+    const grant = await loadWebsiteSceneSponsorship("req1", true);
+    const raw = grant.expires_at_epoch;
+    const input = { requestId: "req1", brief: store.rows.get("siteTaskBriefs/req1"),
+      record: store.rows.get("inboundRequests/req1"), now: raw + 6 * DAY };
+    expect(() => websiteSceneSponsorship(input)).toThrow("consent_expired");
+    expect(websiteSceneSponsorship({ ...input, executionWindowUntil: raw + 6 * DAY + 3600 })).toEqual(grant);
+    expect(() => websiteSceneSponsorship({ ...input, now: raw + 7 * DAY, executionWindowUntil: raw + 30 * DAY }))
+      .toThrow("consent_expired");
+    expect(store.rows.get("inboundRequests/req1").website_scene_sponsorship).toEqual(grant);
+  });
+
+  it("queues and forwards a scene prepared days after a seven-day grant was issued", async () => {
+    sponsoredCapture();
+    setPolicy({ ttl_seconds: 7 * DAY });
+    const record = store.rows.get("inboundRequests/req1");
+    // Issued three days ago: past the former one-day window, inside the new one.
+    record.website_scene_sponsorship = websiteSceneSponsorship({ requestId: "req1",
+      brief: store.rows.get("siteTaskBriefs/req1"), record, now: Date.now() / 1000 - 3 * DAY });
+    const base = (await app()).replace(/\/intakes$/, "/internal/creator-captures/walkthrough-req1");
+    const post = (operation: string, extra = {}) => realFetch(`${base}/${operation}`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ request_id: "req1", scene_id: "site-req1", ...extra }),
+    });
+    const grant = await (await post("scene-sponsorship")).json();
+    expect(grant).toEqual(record.website_scene_sponsorship);
+    expect(grant.expires_at_epoch - grant.consent.accepted_at_epoch).toBe(7 * DAY);
+    const request = {
+      schema_version: "task_evaluation_scene_intake_request.v1", submission_id: grant.capture_id,
+      owner: grant.owner, consent: grant.consent,
+      source: { kind: "gaussian_splat", binding_id: `website-splat-${"a".repeat(32)}`, content_digest: sha("a") },
+      task: { ...command().task, task_id: `website-${grant.task_context_digest.slice(7, 27)}`,
+        subject: { description: "box", geometry_origin: "removed_before_reconstruction" } },
+      execution: { ...command().execution, max_total_spend_usd: grant.max_total_spend_usd,
+        max_paid_attempts: grant.max_paid_attempts, expires_at_epoch: grant.expires_at_epoch,
+        allowed_providers: ["vast", "openai"] },
+    };
+    expect((await post("prepared-scene", { request })).status).toBe(202);
+    const fetcher = vi.fn(async (_url: any, init: any) => new Response(JSON.stringify(accepted(JSON.parse(init.body)))));
+    vi.stubGlobal("fetch", fetcher);
+    await processSceneIntakeQueue();
+    expect(stored()[1].state).toBe("accepted");
+    expect(JSON.parse(fetcher.mock.calls[0][1].body)).toEqual(request);
+  });
 });
 
 it("derives a supplementary preparation binding without renewing the original allowance or expiry", async () => {
