@@ -124,6 +124,8 @@ export type WorkspaceTask = {
     operatorAction: string | null;
     missingViews: string[];
     nextUpdateIso: string | null;
+    /** A corrected object selection replaced the job's earlier results (`projectTaskStatus`). */
+    resultSuperseded?: boolean;
   } | null;
   createdAt: string | null;
 };

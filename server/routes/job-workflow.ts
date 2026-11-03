@@ -13,7 +13,7 @@ import { savedWalkthrough, siteWalkthroughIdentity } from "../utils/siteWalkthro
 import { logger } from "../logger";
 import { readWebsiteTargetScope } from '../utils/websiteSceneProgression';
 import { loadManagedJobEvidenceForWorkspace, type ManagedJobEvidenceSummary } from "../utils/jobManagedEvaluation";
-import { withoutRegistryTeams } from "../utils/betaCandidateSelection";
+import { assertSiteJob, managedEvidenceForSite } from "../utils/siteManagedEvidence";
 import { buildJobEvidenceRequest, jobEvidenceId, jobEvidenceQuestionSchema, jobEvidenceDigest, scientificBriefDigest, jobEvidenceSummary, jobEvidenceCaptureSessionId } from "../utils/jobEvidenceContract";
 import { readJobEvidence, readJobEvidencePublication } from "../utils/jobEvidenceStore";
 import { assertJobEvidenceVideo, deliverJobEvidenceRequest, jobEvidenceDeliveryIntent, jobEvidenceQueueMarker, queueJobEvidenceAction } from "../utils/jobEvidenceForwardWorker";
@@ -42,29 +42,17 @@ const handle = (work: (req: Request, res: Response) => Promise<unknown>) => asyn
   try { return await work(req, res); } catch (error) { return refusal(res, error); }
 };
 
-function assertJob(record: Record<string, any> | undefined): asserts record is Record<string, any> {
-  if (!record || record.request?.buyerType !== "site_operator") throw new JobMarketplaceError("job_not_found", "Site job not found.", 404);
-  if (projectWebsiteCaptureRights(record).consent_revoked) throw new JobMarketplaceError("capture_processing_not_authorized",
-    "Recording permission was withdrawn. Contact Blueprint to review this job before continuing.");
-}
 function assertBrief(brief: Record<string, any> | null) {
   if (!brief?.confirmedAtIso || !Number.isFinite(Date.parse(brief.confirmedAtIso))) throw new JobMarketplaceError("brief_not_agreed", "Agree the job brief before requesting task-specific evidence.");
 }
 function assertReviewScope(brief: Record<string, any> | null) {
   if (!hasReviewScope(brief)) throw new JobMarketplaceError("job_scope_unavailable", "Blueprint needs to finish drafting this job before reviewing options.");
 }
-/** A site's view of a run: no registry teams, operator instruction or budget figure, which are Blueprint's own records and controls (F-03). */
-function managedEvidenceForSite(item: ManagedJobEvidenceSummary): ManagedJobEvidenceSummary {
-  const { opsNextAction: _operator, ...site } = withoutRegistryTeams(item);
-  if (!site.screening?.budget) return site;
-  const { budget: _budget, ...screening } = site.screening;
-  return { ...site, screening };
-}
 async function readWorkflow(requestId: string, admin = false) {
   if (!db) throw new JobMarketplaceError("store_unavailable", "Job details are temporarily unavailable.", 503);
   const [snapshot, brief, walkthrough] = await Promise.all([db.collection("inboundRequests").doc(requestId).get(),
     db.collection("siteTaskBriefs").doc(requestId).get(), savedWalkthrough(siteWalkthroughIdentity(requestId))]);
-  const record = snapshot.data(); assertJob(record);
+  const record = snapshot.data(); assertSiteJob(record);
   const briefValue = brief.exists ? brief.data()! : null;
   const selectionSession = (await db.collection('captureUploadSessions')
     .doc(record.active_capture_id || `walkthrough-${requestId}`).get()).data();
@@ -91,7 +79,7 @@ async function mutateWorkflow(requestId: string, actor: string, event: string,
   await store.runTransaction(async transaction => {
     const snapshot = await transaction.get(ref);
     const briefSnap = await transaction.get(briefRef);
-    const record = snapshot.data(); assertJob(record);
+    const record = snapshot.data(); assertSiteJob(record);
     const brief = briefSnap.exists ? briefSnap.data()! : null;
     const selectionSession = (await transaction.get(store.collection('captureUploadSessions')
       .doc(record.active_capture_id || `walkthrough-${requestId}`))).data();
@@ -166,7 +154,7 @@ router.post("/admin/:requestId/evidence", handle(async (req, res) => {
   const inventoryRef = db.collection("siteTaskItemInventories").doc(jobId);
   const request = await db.runTransaction(async tx => {
     const [job, brief, inventory] = await Promise.all([tx.get(jobRef), tx.get(briefRef), tx.get(inventoryRef)]);
-    assertJob(job.data()); assertBrief(brief.exists ? brief.data()! : null);
+    assertSiteJob(job.data()); assertBrief(brief.exists ? brief.data()! : null);
     const session = await tx.get(db!.collection("captureUploadSessions").doc(jobEvidenceCaptureSessionId(jobId, job.data()!)));
     await assertJobEvidenceVideo(jobId, job.data()!, brief.data()!, session.exists ? session.data()! : null, inventory.exists ? inventory.data() as any : null);
     const value = buildJobEvidenceRequest({ jobId, idempotencyKey: key, uid: res.locals.firebaseUser!.uid,
@@ -201,7 +189,7 @@ router.post("/admin/:requestId/evidence/:evidenceId/:action", handle(async (req,
     db.collection("siteTaskItemInventories").doc(jobId).get()]);
   if (action === "cancel") {
     if (!job.exists || job.data()!.request?.buyerType !== "site_operator") throw new JobMarketplaceError("job_not_found", "Site job not found.", 404);
-  } else assertJob(job.data());
+  } else assertSiteJob(job.data());
   if (!saved.exists) throw new JobMarketplaceError("evidence_request_not_found", "Evidence request not found.", 404);
   const request = saved.data()!.request;
   if (action !== "cancel") {
