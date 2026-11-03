@@ -158,17 +158,34 @@ const heldRow = (row: { status: string; blockers: readonly string[] }) => row.bl
   && row.blockers.every(code => HELD_BLOCKERS.has(code) || row.status === "unavailable" && UNPREPARED_BLOCKERS.has(code));
 
 /**
+ * The Pipeline defers a candidate the website job's one dollar ceiling (all of
+ * the job's ledgers together) cannot cover (Pipeline `JOB_CEILING_DEFERRED`).
+ */
+export const SCREENING_JOB_CEILING_BLOCKER = "website_job_ceiling_insufficient";
+const jobCeilingCode = (code: string) => code.split(":")[0] === SCREENING_JOB_CEILING_BLOCKER;
+const budgetCode = (code: string) => code.includes("budget") || jobCeilingCode(code);
+/** A candidate the job's dollar ceiling held back. */
+export const screeningJobCeilingRow = (row: { blockers: readonly string[] }) => row.blockers.some(jobCeilingCode);
+
+/**
  * `budget` needs money actually committed at the site: a candidate deferred
  * for budget while nothing was spent was left unfunded because funded ones
- * failed before spend, which is ours to fix, not an owner approval.
+ * failed before spend, which is ours to fix, not an owner approval. The job's
+ * dollar ceiling is the exception: with too little of it left, the Pipeline
+ * defers every runnable candidate before any screening spend, and only the
+ * owner can raise it. That stays `budget` unless a candidate also failed for
+ * a reason that is ours to fix.
  */
 export function noEstimateReason(candidates: ReadonlyArray<{ status: string; blockers: readonly string[] }>,
   budget: { spent_upper_bound_usd: string }): NoEstimateReason {
   const open = candidates.filter(row => row.status !== "completed");
   const spent = dollars.safeParse(budget.spent_upper_bound_usd).success && screeningMoneyMicros(budget.spent_upper_bound_usd) > BigInt(0);
-  if (spent && open.some(row => row.blockers.some(code => code.includes("budget")))) return "budget";
+  if (spent && open.some(row => row.blockers.some(budgetCode))) return "budget";
   // A completed candidate with only void episodes is a broken scene, not a capability gap.
   const infeasible = (row: { status: string; blockers: readonly string[] }) => screeningCandidateState(row) === "infeasible";
+  if (open.length > 0 && open.length === candidates.length && open.some(screeningJobCeilingRow)
+      && open.every(row => screeningJobCeilingRow(row) || infeasible(row) || heldRow(row)))
+    return "budget";
   if (open.length === 0 || open.length !== candidates.length
       || !open.every(row => infeasible(row) || heldRow(row)))
     return "setup";

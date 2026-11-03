@@ -4,7 +4,7 @@ import { Timestamp } from "firebase-admin/firestore";
 import { crossRuntimeArtifactDigest, crossRuntimeDigest } from "../utils/crossRuntimeCanonical";
 import { ingestBetaPolicyScreening, observeBetaScreeningExecutionControl, parseBetaScreeningExecutionControlRequest,
   type BetaScreeningExecutionControlRequest } from "../utils/betaPolicyScreeningIngest";
-import { screeningFixture, screeningSha, sealScreening } from "./fixtures/beta-policy-screening";
+import { screeningFixture, screeningRevisionLaunch, screeningSha, sealScreening } from "./fixtures/beta-policy-screening";
 import { projectWebsiteCaptureRights, projectWebsiteTaskContext } from "../utils/websiteTaskContext";
 import { loadManagedJobEvidence, assertManagedJobEvidenceReference } from "../utils/jobManagedEvaluation";
 import { jobEvidenceTaskInventoryDigest, scientificBriefDigest } from "../utils/jobEvidenceContract";
@@ -82,6 +82,7 @@ async function seed(jobId = "job-one", campaignId = "campaign-one", publicationV
   store.state.docs.set(`inboundRequests/${jobId}`, fixture.job);
   store.state.docs.set(`siteTaskBriefs/${jobId}`, fixture.brief);
   store.state.docs.set(`taskEvaluationSceneIntakes/intake-${jobId}`, intake);
+  store.state.docs.set(fixture.launch.path, fixture.launch.record);
   await ingestBetaPolicyScreening(publication);
   const request: BetaScreeningExecutionControlRequest = {
     schema_version: "blueprint.beta_policy_screening_execution_control_request.v1",
@@ -216,7 +217,13 @@ describe("current source refusals stop only the existing owned attempt", () => {
     ["scene revoked", () => { fixture.intake.revocation_requested = true; }, "screening_scene_authority_revoked"],
     ["scene closeout", () => { fixture.intake.state = "closeout_pending"; }, "screening_scene_authority_revoked"],
     ["scene bytes changed", () => { fixture.intake.request.task.task_id = "changed"; }, "screening_scene_source_mismatch"],
-    ["scene revision changed", () => { fixture.intake.pipeline_status.result_reference.digest = screeningSha("9"); resealIntake(fixture.intake); }, "screening_scene_source_mismatch"],
+    // A revision file no stored offering binds, then one bound to another revision's self-digest.
+    ["scene revision changed", () => { fixture.intake.pipeline_status.result_reference.digest = screeningSha("9"); resealIntake(fixture.intake); }, "screening_scene_revision_unbound"],
+    ["scene revision rebound", () => {
+      fixture.intake.pipeline_status.result_reference.digest = screeningSha("9"); resealIntake(fixture.intake);
+      const other = screeningRevisionLaunch(fixture.intake.pipeline_status.result_reference, screeningSha("8"));
+      store.state.docs.set("taskEvaluationLaunches/launch-scene-two", other.record);
+    }, "screening_scene_source_mismatch"],
     ["run cancellation", () => { row("taskEvaluationPolicyRuns/campaign-one").cancellationRequested = true; }, "screening_run_cancelled"],
   ] as const)("%s becomes an absorbing historical-only stop", async (_name, mutate, reason) => {
     await observeBetaScreeningExecutionControl(fixture.request); mutate();

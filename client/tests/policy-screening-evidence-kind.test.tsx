@@ -17,6 +17,35 @@ it("shows the typed scripted scope independently of a candidate's display name",
 const row = (candidateId: string, state: string, succeeded = 0, blockers: string[] = []) => ({ candidateId, name: `Candidate ${candidateId}`,
   state, planned: 3, scored: state === "completed" ? 3 : 0, succeeded, failed: state === "completed" ? 3 - succeeded : 0, void: 0, blockers });
 
+it("states each scored candidate's bounded estimate in plain words, and the chosen one's too", () => {
+  // The server's 95% Wilson ranges (successRateConfidence) for 7 of 10 and 2 of 3.
+  const scored = { candidateId: "a", name: "Candidate a", state: "completed", planned: 11, scored: 10, succeeded: 7, failed: 3, void: 1,
+    blockers: [], successRange: { lowerPercent: 40, upperPercent: 89, confidencePercent: 95 } };
+  render(<PolicyScreeningCandidates screening={{ candidates: [scored, { ...row("b", "completed", 2),
+    successRange: { lowerPercent: 21, upperPercent: 94, confidencePercent: 95 } }, row("c", "deferred", 0, ["website_job_ceiling_insufficient"])],
+    selection: { status: "chosen", selectionDigest: "sha256:selection", tiedWith: [],
+      chosen: { candidateId: "a", name: "Candidate a", successRate: 0.7, scored: 10, succeeded: 7, configurationId: null, policyRouteId: null,
+        deploymentCompanies: [], relationship: null, evidenceUrl: null, relatedTeams: [], partnerBlockers: [], registryTeams: [] },
+      candidates: [{ candidateId: "a", resultRank: 1, choiceBlocker: null }, { candidateId: "b", resultRank: 2, choiceBlocker: null },
+        { candidateId: "c", resultRank: null, choiceBlocker: "not_evaluated" }] } }} />);
+  expect(screen.getByText("Succeeded in 7 of 10 scored tries; likely between 40% and 89%.")).toBeInTheDocument();
+  expect(screen.getByText("3 failed · 1 unscorable")).toBeInTheDocument();
+  expect(screen.getByText("Succeeded in 2 of 3 scored tries; likely between 21% and 94%.")).toBeInTheDocument();
+  expect(screen.getByText("Chosen in simulation: Candidate a. 7 of 10 scored episodes succeeded "
+    + "(estimated success rate 70%; likely between 40% and 89%).")).toBeInTheDocument();
+  expect(screen.getByText("“Likely between” is a 95% confidence range from the scored tries, for this simulated scene only. "
+    + "It assumes each try is independent; fewer tries give a wider range.")).toBeInTheDocument();
+  // Held back by the job's dollar ceiling: the site reads that it did not run, never a money figure or code.
+  expect(screen.getByText("Not run in this evaluation.")).toBeInTheDocument();
+  expect(document.body.textContent).not.toMatch(/ceiling|budget|\$|[a-z]_[a-z]/i);
+});
+
+it("states no range for a candidate with nothing scored", () => {
+  render(<PolicyScreeningCandidates screening={{ candidates: [row("a", "deferred")] }} />);
+  expect(screen.getByText("0 succeeded · 0 failed · 0 unscorable")).toBeInTheDocument();
+  expect(document.body.textContent).not.toMatch(/likely between|confidence range/i);
+});
+
 it("shows the rule's choice as a simulation estimate with its recorded companies and every candidate's outcome", () => {
   render(<PolicyScreeningCandidates screening={{ candidates: [row("a", "completed", 2), row("b", "completed", 1),
     row("c", "infeasible", 0, ["candidate_infeasible_measured_geometry"])],
@@ -45,6 +74,7 @@ it("maps every recorded code to a plain reason for the site, and shows raw codes
   const codes = ["task_kind_not_supported_by_candidate", "candidate_disabled", "commercial_use_not_admitted",
     "prepared_robot_policy_registration_missing", "runtime_candidate_binding_missing", "policy_identity_not_pinned",
     "beta_screening_static_preflight_blocked:no_offer", "site_screening_budget_insufficient", "beta_screening_site_budget_exhausted",
+    "website_job_ceiling_insufficient",
     "beta_screening_waiting_for_capacity", "beta_screening_replanned_for_new_implementation", "team_embodiment_station_out_of_reach",
     "an_unknown_code_from_a_newer_pipeline"];
   const screening = { candidates: [row("a", "blocked", 0, codes), row("b", "deferred"), row("c", "waitlisted"),

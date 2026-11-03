@@ -1,0 +1,82 @@
+{
+  "budget": {
+    "committed_upper_bound_usd": "0",
+    "currency": "USD",
+    "limit_usd": "15",
+    "reserved_usd": "0",
+    "spent_upper_bound_usd": "0"
+  },
+  "campaign_id": "campaign1",
+  "candidates": [
+    {
+      "blockers": [
+        "website_job_ceiling_insufficient"
+      ],
+      "candidate_id": "policy_00",
+      "configuration_digest": "sha256:cf5212b52d4d83d476acb6df2e5a19790a55933a68f6a362819dedb438639d94",
+      "display_name": "\u03c00.5 DROID",
+      "episodes_failed": 0,
+      "episodes_planned": 0,
+      "episodes_scored": 0,
+      "episodes_succeeded": 0,
+      "episodes_void": 0,
+      "session_result_digest": null,
+      "status": "deferred",
+      "success_rate": null
+    },
+    {
+      "blockers": [
+        "website_job_ceiling_insufficient"
+      ],
+      "candidate_id": "policy_01",
+      "configuration_digest": "sha256:d361eda70aa2aa435b6e474c1af328e33fdb8b0633139bc0b13d6526dd7f6d99",
+      "display_name": "\u03c00.5 DROID",
+      "episodes_failed": 0,
+      "episodes_planned": 0,
+      "episodes_scored": 0,
+      "episodes_succeeded": 0,
+      "episodes_void": 0,
+      "session_result_digest": null,
+      "status": "deferred",
+      "success_rate": null
+    },
+    {
+      "blockers": [
+        "website_job_ceiling_insufficient"
+      ],
+      "candidate_id": "policy_02",
+      "configuration_digest": "sha256:6e8df85398c421d7d9496078aba7f362ee2a27c637e95f6a67ee835151320ccf",
+      "display_name": "\u03c00.5 DROID",
+      "episodes_failed": 0,
+      "episodes_planned": 0,
+      "episodes_scored": 0,
+      "episodes_succeeded": 0,
+      "episodes_void": 0,
+      "session_result_digest": null,
+      "status": "deferred",
+      "success_rate": null
+    }
+  ],
+  "catalog_digest": "sha256:9ee48f1298ec858195e10277fda3f3d64dad72c08d109f5a2858188b592e92e5",
+  "claim_ceiling": "simulation_estimate",
+  "execution_operator": {
+    "kind": "blueprint"
+  },
+  "generated_at": "2026-11-03T19:08:08.698704+00:00",
+  "plan_digest": "sha256:fd5d2d9db03679523fb64a34af09fbe5e97ecbcd4e015ba622b248d1fb91a7da",
+  "publication_digest": "sha256:adbbc74c74b744432fbe3e31d538029f87da20f8279fca5dd1dcc54779144905",
+  "purpose": "job_evaluation",
+  "revision": 1,
+  "scenario_plan_digest": "sha256:564c61b565fe1cbc205bd59d4b56a88d28826c0063a85fb7289a9e4029afb47c",
+  "schema_version": "beta_policy_screening_publication.v2",
+  "site_id": "site-request1",
+  "source": {
+    "capture_id": "capture1",
+    "scene_intent_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "scene_intent_id": "intent1",
+    "scene_revision_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "task_context_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "task_id": "task1"
+  },
+  "status": "blocked"
+}

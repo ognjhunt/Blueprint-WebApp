@@ -3,19 +3,15 @@ import { z } from "zod";
 
 import { canonicalArtifactDigest } from "./taskCandidateContract";
 import { rigidDestinationSchema, surfaceTargetSchema } from "./taskEvaluationLaunchPreparationContract";
+import { configuredSceneArtifactReference, evaluationPreparationBindingSchema, sameArtifactReference } from "./configuredSceneRevisionBinding";
 
 const digest = z.string().regex(/^sha256:[0-9a-f]{64}$/);
-const sourceCommit = z.string().regex(/^[0-9a-f]{40}$/);
 const identifier = z.string().min(1).max(192).regex(/^[A-Za-z0-9][A-Za-z0-9_.-]*$/);
 const identity = z.object({
   id: identifier,
   version: identifier,
 }).strict();
-const artifactReference = z.object({
-  uri: z.string().regex(/^(?:gs|s3|https):\/\/[^\s]+$/),
-  digest,
-  size_bytes: z.number().int().positive(),
-}).strict();
+const artifactReference = configuredSceneArtifactReference;
 const taskThumbnailReference = artifactReference.extend({
   size_bytes: z.number().int().positive().max(16 * 1024 * 1024),
 });
@@ -133,21 +129,7 @@ export const configuredSceneOfferingSchema = z.object({
     capture_or_physical_evidence: z.literal(false),
     image_bytes_modified_after_selection: z.literal(false),
   }).strict(),
-  evaluation_preparation_binding: z.object({
-    // The Pipeline has sent these three since 2026-10-09 (Pipeline #2660); a
-    // strict binding without them refused every website publication sync.
-    // The binding prepares an evaluation and never claims one ran.
-    artifact_purpose: z.literal("evaluation_preparation").optional(),
-    robot_evaluation_performed: z.literal(false).optional(),
-    robot_setup_requirements: z.array(z.record(z.string(), z.unknown())).min(1).max(16).optional(),
-    scene_mode: z.literal("reuse_configured_revision"),
-    construction_mode: z.literal("reuse_configured_scene"),
-    task_binding_mode: z.literal("reuse_configured_template"),
-    configuration_source_commit: sourceCommit,
-    configured_scene_revision: artifactReference,
-    configured_scene_revision_digest: digest,
-    configured_scene_bundle: artifactReference,
-  }).strict(),
+  evaluation_preparation_binding: evaluationPreparationBindingSchema,
   proof_boundary: z.object({
     test_environment: websiteDevelopmentTestEnvironment.optional(),
     thumbnail_is_derived_appearance_evidence: z.literal(true),
@@ -326,18 +308,6 @@ function sameIdentity(
   const record = left as Record<string, unknown>;
   if (Object.keys(record).sort().join(",") !== "id,version") return false;
   return record.id === right.id && record.version === right.version;
-}
-
-function sameArtifactReference(
-  left: unknown,
-  right: { uri: string; digest: string; size_bytes: number },
-) {
-  if (!left || typeof left !== "object" || Array.isArray(left)) return false;
-  const record = left as Record<string, unknown>;
-  if (Object.keys(record).sort().join(",") !== "digest,size_bytes,uri") return false;
-  return record.uri === right.uri
-    && record.digest === right.digest
-    && record.size_bytes === right.size_bytes;
 }
 
 export function configuredSceneOfferingBinding(

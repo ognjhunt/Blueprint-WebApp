@@ -120,6 +120,7 @@ it("screens a verified supplementary scene and keeps changed or withdrawn captur
   status.status_digest = crossRuntimeArtifactDigest(status, "status_digest");
   sharedFakeFirestoreState.docs.set("inboundRequests/req1", job);
   sharedFakeFirestoreState.docs.set("siteTaskBriefs/req1", brief);
+  sharedFakeFirestoreState.docs.set(fixture.launch.path, fixture.launch.record);
   sharedFakeFirestoreState.docs.set("taskEvaluationSceneIntakes/scene-one", { ...fixture.intake, website_request_id: "req1",
     source_session_id: captureId, request, request_digest: requestDigest, receipt, pipeline_status: status });
   const { ingestBetaPolicyScreening } = await import("../utils/betaPolicyScreeningIngest");

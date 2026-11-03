@@ -72,7 +72,8 @@ const review = { disposition: "options_identified" as const, summary: "A fixed a
 
 describe("job workflow authority and durable decisions", () => {
   it("shows diagnostic screening on a proposed task and drops it when the object is rejected", async () => {
-    const { publication, job, brief, intake } = screeningFixture(true);
+    const { publication, job, brief, intake, launch } = screeningFixture(true);
+    state.docs.set(launch.path, launch.record);
     state.docs.set("inboundRequests/job-one", job);
     state.docs.set("siteTaskBriefs/job-one", brief);
     state.docs.set("taskEvaluationSceneIntakes/intake-one", intake);
@@ -91,7 +92,8 @@ describe("job workflow authority and durable decisions", () => {
   });
 
   it("shows the rule's choice to the site and staff, with registry matches for staff only", async () => {
-    const { publication, job, brief, intake } = screeningFixture();
+    const { publication, job, brief, intake, launch } = screeningFixture();
+    state.docs.set(launch.path, launch.record);
     state.docs.set("inboundRequests/job-one", job);
     state.docs.set("siteTaskBriefs/job-one", brief);
     state.docs.set("taskEvaluationSceneIntakes/intake-one", intake);
@@ -109,7 +111,8 @@ describe("job workflow authority and durable decisions", () => {
   });
 
   it("gives the site its run's outcome without the operator's instruction or the shared budget (F-03)", async () => {
-    const { publication, job, brief, intake } = screeningFixture();
+    const { publication, job, brief, intake, launch } = screeningFixture();
+    state.docs.set(launch.path, launch.record);
     state.docs.set("inboundRequests/job-one", job);
     state.docs.set("siteTaskBriefs/job-one", brief);
     state.docs.set("taskEvaluationSceneIntakes/intake-one", intake);

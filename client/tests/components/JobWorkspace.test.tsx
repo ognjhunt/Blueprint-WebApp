@@ -184,7 +184,8 @@ it("shows the current simulation result before opening technical history", async
     nextAction: "Blueprint uses this estimate to recommend the next step.",
     limitations: ["Simulation does not certify physical performance or safety."],
     href: "#managed-evidence-current-evaluation", screening: { candidates: [{ candidateId: "candidate-1", name: "Current candidate",
-      state: "completed", planned: 3, scored: 3, succeeded: 2, failed: 1, void: 0, blockers: [] }] },
+      state: "completed", planned: 3, scored: 3, succeeded: 2, failed: 1, void: 0, blockers: [],
+      successRange: { lowerPercent: 21, upperPercent: 94, confidencePercent: 95 } }] },
   };
   fetchMock.mockResolvedValue(response(workflow({ managedEvidence: [result, { ...result,
     runId: "previous-evaluation", current: false, summary: "An estimate for the previous recording.", screening: undefined,
@@ -193,7 +194,10 @@ it("shows the current simulation result before opening technical history", async
   expect(await screen.findByText(result.summary)).toBeVisible();
   expect(screen.getByRole("heading", { name: "Your simulation estimate" })).toBeVisible();
   expect(screen.getByRole("table", { name: "Candidates evaluated for your job" })).toBeVisible();
-  expect(screen.getByText("2 succeeded · 1 failed · 0 unscorable")).toBeVisible();
+  // The bounded estimate in plain words, with what the range means.
+  expect(screen.getByText("Succeeded in 2 of 3 scored tries; likely between 21% and 94%.")).toBeVisible();
+  expect(screen.getByText("1 failed · 0 unscorable")).toBeVisible();
+  expect(screen.getByText(/^“Likely between” is a 95% confidence range from the scored tries, for this simulated scene only\./)).toBeVisible();
   expect(within(screen.getByRole("region", { name: "Simulation results for your job" })).getByText(result.limitations[0])).toBeVisible();
   expect(screen.getByText("Technical evidence and test details").closest("details")).not.toHaveAttribute("open");
   expect(screen.getByText("An estimate for the previous recording.")).not.toBeVisible();
@@ -233,6 +237,7 @@ it("never shows a site raw codes, budget figures, operator instructions or a ref
     href: "#managed-evidence-setup-repair", screening: { budget, candidates: [
       candidate("a", "blocked", ["beta_screening_static_preflight_blocked:no_offer"]),
       candidate("b", "deferred", ["site_screening_budget_insufficient"]),
+      candidate("d", "deferred", ["website_job_ceiling_insufficient"]),
       candidate("c", "unavailable", ["prepared_robot_policy_registration_missing", "runtime_candidate_binding_missing"])] } };
   const reference = { ...repair, runId: "reference-only", state: "reference_only", outcome: "reference_only" as const,
     summary: "No estimate yet: only scripted reference baselines were scored, and no learned policy could be evaluated on your job yet.",
@@ -251,7 +256,7 @@ it("never shows a site raw codes, budget figures, operator instructions or a ref
   const text = [...screen.getAllByRole("region", { name: "Simulation results for your job" }),
     screen.getByRole("region", { name: "Managed policy evidence for your job" })].map(region => region.textContent).join(" ");
   expect(text).not.toMatch(/[a-z]_[a-z]/);
-  expect(text).not.toMatch(/beta screening|budget insufficient|registration missing|binding missing/);
+  expect(text).not.toMatch(/beta screening|budget insufficient|ceiling|registration missing|binding missing/);
   expect(text).not.toMatch(/development only|rerun|setup blockers|Owner approval|budget|\$|4\.25|15\.00/i);
   expect(document.body.textContent).not.toMatch(/rerun|setup blockers|Owner approval|4\.25|15\.00|[a-z]_[a-z]/);
   expect(screen.getAllByText("Not set up in our simulator yet.").length).toBeGreaterThan(0);

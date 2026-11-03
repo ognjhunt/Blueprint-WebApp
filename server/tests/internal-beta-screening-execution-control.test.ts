@@ -24,7 +24,8 @@ const controlRows = () => store.state.docs.get("taskEvaluationPolicyRuns/campaig
 beforeEach(async () => {
   store.state.docs.clear(); store.fail = false;
   vi.stubEnv("PIPELINE_SYNC_TOKEN", SECRET); vi.stubEnv("PIPELINE_SYNC_ALLOW_LEGACY_BEARER", "false");
-  const { job, brief, intake, publication } = screeningFixture();
+  const { job, brief, intake, publication, launch } = screeningFixture();
+  store.state.docs.set(launch.path, launch.record);
   (intake.request as any).execution = { expires_at_epoch: Math.floor(Date.now() / 1000) + 3600 };
   intake.request_digest = crossRuntimeDigest(intake.request);
   intake.receipt.request_digest = intake.request_digest;

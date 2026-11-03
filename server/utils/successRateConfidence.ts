@@ -1,4 +1,6 @@
 export const CONFIDENCE_POLICY_VERSION = "wilson95-success-bands.v2";
+/** The two-sided confidence level of these intervals (z = 1.96). */
+export const WILSON_CONFIDENCE_PERCENT = 95;
 
 export function wilsonLowerBound(successes: number, trials: number): number {
   if (trials <= 0) return 0;
