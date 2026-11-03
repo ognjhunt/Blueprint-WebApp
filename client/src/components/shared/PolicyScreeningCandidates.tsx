@@ -2,14 +2,30 @@ import type { JobCandidateSelection, JobManagedEvidenceSummary } from "@/types/j
 import { screeningCandidateStateLabel, screeningChoiceLabel, screeningPartnerLabel, screeningReasonLabels,
   screeningRelationshipLabel } from "@/lib/screeningPlainLanguage";
 
+type Screening = NonNullable<JobManagedEvidenceSummary["screening"]>;
+type SuccessRange = NonNullable<Screening["candidates"][number]["successRange"]>;
+
+/** A bounded estimate in plain words: where the success rate likely lies. */
+const likelyBetween = (range: SuccessRange) => `likely between ${range.lowerPercent}% and ${range.upperPercent}%`;
+
+/** A candidate's scored outcomes, with the range its success rate likely lies in. */
+function scoredOutcomes(candidate: Screening["candidates"][number]) {
+  const rest = `${candidate.failed} failed · ${candidate.void} unscorable`;
+  if (!candidate.successRange || candidate.scored <= 0) return `${candidate.succeeded} succeeded · ${rest}`;
+  return <><span className="block">Succeeded in {candidate.succeeded} of {candidate.scored} scored tries; {likelyBetween(candidate.successRange)}.</span>
+    <span className="block">{rest}</span></>;
+}
+
 /** The rule's choice, stated as a simulation estimate; companies only where the catalog records them. */
-function CandidateChoice({ selection, names, showCodes }: { selection: JobCandidateSelection; names: Map<string, string>; showCodes: boolean }) {
+function CandidateChoice({ selection, names, ranges, showCodes }: { selection: JobCandidateSelection; names: Map<string, string>;
+  ranges: Map<string, SuccessRange>; showCodes: boolean }) {
   const chosen = selection.chosen;
+  const range = chosen ? ranges.get(chosen.candidateId) : undefined;
   const relationship = chosen?.relationship ? showCodes ? chosen.relationship : screeningRelationshipLabel(chosen.relationship) : null;
   const partnerLimits = chosen ? showCodes ? chosen.partnerBlockers : [...new Set(chosen.partnerBlockers.map(screeningPartnerLabel))] : [];
   return <div className="mb-3 grid gap-1" aria-label="Candidate choice">
     <p className="font-medium">{chosen
-      ? `Chosen in simulation: ${chosen.name}. ${chosen.succeeded} of ${chosen.scored} scored episodes succeeded (estimated success rate ${Math.round(chosen.successRate * 100)}%).`
+      ? `Chosen in simulation: ${chosen.name}. ${chosen.succeeded} of ${chosen.scored} scored episodes succeeded (estimated success rate ${Math.round(chosen.successRate * 100)}%${range ? `; ${likelyBetween(range)}` : ""}).`
       : selection.status === "no_successful_candidate" ? "No successful candidate: no evaluated candidate succeeded in simulation."
         : "No successful candidate: no candidate policy finished a scored simulation run."}</p>
     {selection.tiedWith.length > 0 && <p>Tied with the same estimate: {selection.tiedWith.map(id => names.get(id) ?? id).join(", ")}.</p>}
@@ -41,10 +57,13 @@ function choiceOutcome(selection: JobCandidateSelection, candidateId: string, sh
  * shows the raw state and reason codes instead.
  */
 export function PolicyScreeningCandidates({ screening, showCodes = false }: {
-  screening: NonNullable<JobManagedEvidenceSummary["screening"]>; showCodes?: boolean;
+  screening: Screening; showCodes?: boolean;
 }) {
   const selection = screening.selection;
-  return <div className="overflow-x-auto">{selection && <CandidateChoice selection={selection} showCodes={showCodes}
+  const ranges = new Map(screening.candidates.flatMap(row => row.successRange && row.scored > 0
+    ? [[row.candidateId, row.successRange] as const] : []));
+  const confidence = [...ranges.values()][0]?.confidencePercent;
+  return <div className="overflow-x-auto">{selection && <CandidateChoice selection={selection} showCodes={showCodes} ranges={ranges}
     names={new Map(screening.candidates.map(row => [row.candidateId, row.name]))} />}<table className="w-full text-left text-sm">
     <caption className="sr-only">Candidates evaluated for your job</caption>
     <thead><tr><th scope="col">Candidate</th><th scope="col">Progress</th><th scope="col">Scored outcomes</th>
@@ -58,9 +77,10 @@ export function PolicyScreeningCandidates({ screening, showCodes = false }: {
         <td className="py-2 pr-3">{showCodes ? candidate.state : screeningCandidateStateLabel(candidate.state)} · {candidate.scored}/{candidate.planned} scored
           {limits.length > 0 && <details><summary>Recorded limitations</summary>
             <ul>{limits.map((limit, index) => <li key={index}>{showCodes ? <code>{limit}</code> : limit}</li>)}</ul></details>}</td>
-        <td className="py-2">{candidate.succeeded} succeeded · {candidate.failed} failed · {candidate.void} unscorable</td>
+        <td className="py-2">{scoredOutcomes(candidate)}</td>
         {selection && <td className="py-2 pl-3">{choiceOutcome(selection, candidate.candidateId, showCodes)}</td>}
       </tr>;
     })}</tbody>
-  </table></div>;
+  </table>{confidence !== undefined && <p className="ms-field-hint">“Likely between” is a {confidence}% confidence range from the scored tries,
+    for this simulated scene only. It assumes each try is independent; fewer tries give a wider range.</p>}</div>;
 }
