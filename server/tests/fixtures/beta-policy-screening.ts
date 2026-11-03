@@ -4,7 +4,7 @@ import { canonicalArtifactDigest } from "../../utils/taskCandidateContract";
 import pipelineOffering from "./pipeline-configured-scene-offering.v1.json";
 import { projectWebsiteCaptureRights, projectWebsiteTaskContext } from "../../utils/websiteTaskContext";
 import type { SiteTaskBriefRecord } from "../../utils/siteTaskBrief";
-import type { BetaPolicyScreeningPublication } from "../../utils/betaPolicyScreeningContract";
+import { SCREENING_OUTCOMES, type BetaPolicyScreeningPublication } from "../../utils/betaPolicyScreeningContract";
 import type { BetaCandidateSelection } from "../../utils/betaCandidateSelection";
 import allCandidatePublication from "./pipeline-beta-policy-screening-all-candidates.v2.json";
 export const screeningSha = (character: string) => `sha256:${character.repeat(64)}`;
@@ -154,6 +154,9 @@ export function finishedScreening(publication: BetaPolicyScreeningPublication, r
 export const scriptedBaselineRow = { execution_evidence_kind: "scripted_simulator_state_baseline", action_source: "scripted_simulator_state",
   scripted_rollout_count: 3, learned_policy_rollout_count: 0, scripted_controller_invoked: true, candidate_policy_queried: false } as const;
 
+/** Outcomes a campaign publication can reach. `held_scene_check` comes only from a Pipeline hold (no campaign started). */
+export const PUBLISHED_SCREENING_OUTCOMES = SCREENING_OUTCOMES.filter(outcome => outcome !== "held_scene_check");
+
 /** One terminal or in-progress publication for each screening outcome, from the 36-candidate fixture. */
 export function outcomePublication(publication: BetaPolicyScreeningPublication, outcome: string, revision = 2) {
   const scored = (row: any, extra: Record<string, unknown> = {}) => ({ ...row, status: "completed", episodes_scored: 3, episodes_succeeded: 2,
@@ -170,10 +173,14 @@ export function outcomePublication(publication: BetaPolicyScreeningPublication, 
     case "infeasible": return every(blocked(["candidate_infeasible_measured_geometry", "team_embodiment_station_out_of_reach"], "unavailable"));
     case "no_match": return every((row, index) => index === 0 ? blocked(["candidate_infeasible_measured_geometry"], "unavailable")(row)
       : blocked(["task_kind_not_supported_by_candidate"])(row));
-    case "awaiting_spend_approval": return every((row, index) => index === 0 ? blocked(["beta_screening_static_preflight_blocked"])(row)
+    case "held_budget": return every((row, index) => index === 0 ? blocked(["beta_screening_static_preflight_blocked"])(row)
       : blocked(["site_screening_budget_insufficient"], "deferred")(row),
     { budget: { ...publication.budget, committed_upper_bound_usd: "4", spent_upper_bound_usd: "4" } });
-    case "setup_repair": return every(blocked(["beta_screening_static_preflight_blocked:no_offer"]));
+    case "held_setup": return every(blocked(["beta_screening_static_preflight_blocked:no_offer"]));
+    // Only the job's dollar ceiling held the candidates back: a wait on the owner's money decision.
+    case "awaiting_spend_approval": return every(blocked(["website_job_ceiling_insufficient"], "deferred"));
+    // Refused for code a deploy changed: the Pipeline plans these again by itself.
+    case "setup_repair": return every(blocked(["beta_screening_implementation_commit_changed"]));
     case "superseded": return every((row, index) => blocked([index ? "beta_screening_replanned_for_new_implementation"
       : "beta_screening_static_preflight_blocked"])(row));
     default: throw new Error(`unknown screening outcome ${outcome}`);

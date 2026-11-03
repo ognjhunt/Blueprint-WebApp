@@ -151,6 +151,14 @@ const HELD_BLOCKERS = new Set(["task_kind_not_supported_by_candidate", "candidat
 const UNPREPARED_BLOCKERS = new Set(["prepared_robot_policy_registration_missing", "runtime_candidate_binding_missing"]);
 /** Rows the Pipeline closed when it planned them again in a newer run after a deploy. */
 export const SCREENING_REPLANNED_BLOCKER = "beta_screening_replanned_for_new_implementation";
+/**
+ * Rows preparation refused because a deploy changed the code they were planned
+ * at. The Pipeline plans them again by itself (`replan_scope`), so a run they
+ * ended is still in progress, never held.
+ */
+export const SCREENING_COMMIT_CHANGED_BLOCKER = "beta_screening_implementation_commit_changed";
+export const screeningReplanPending = (candidates: ReadonlyArray<{ status: string; blockers: readonly string[] }>) =>
+  candidates.some(row => row.status === "blocked" && row.blockers.includes(SCREENING_COMMIT_CHANGED_BLOCKER));
 /** Held only because candidates that could take the job are not prepared in the simulator yet. */
 export const screeningHeldForPreparation = (candidates: ReadonlyArray<{ status: string; blockers: readonly string[] }>) =>
   candidates.some(row => row.status === "unavailable" && row.blockers.some(code => UNPREPARED_BLOCKERS.has(code)));
@@ -200,16 +208,31 @@ export function noEstimateReason(candidates: ReadonlyArray<{ status: string; blo
  * `reference_only`: only scripted reference baselines were scored, so no
  * learned policy was evaluated and there is no estimate. `held_*`,
  * `infeasible`, `no_match`: no candidate could run the job, by reason.
- * `awaiting_spend_approval` and `setup_repair`: still in progress for the
- * owner or for us. `superseded`: planned again in a newer run. A run still
- * queued or running has no outcome yet (null).
+ * `held_setup`: the run ended on a failure on our side (an infrastructure
+ * refusal, a run that timed out or returned no usable result, every candidate
+ * blocked) and nothing reruns it by itself. `held_budget`: the site's
+ * simulation allowance was spent before an estimate; nothing reserves more.
+ * `held_scene_check`: the scene failed its robot-free check, so no campaign
+ * could start (a Pipeline hold, `betaPolicyScreeningHold`). Each is final for
+ * the run and told once; a later run that gives a result replaces it.
+ * `setup_repair`: ended only on rows the Pipeline plans again after a deploy,
+ * so still in progress. `awaiting_spend_approval`: only the job's dollar
+ * ceiling held candidates back; it waits on Blueprint's money decision and is
+ * never emailed. `superseded`: planned again in a newer
+ * run. A run still queued or running has no outcome yet (null).
  */
 export const SCREENING_OUTCOMES = ["estimate", "reference_only", "held_capability", "held_unprepared", "infeasible", "no_match",
-  "awaiting_spend_approval", "setup_repair", "superseded"] as const satisfies readonly JobScreeningOutcome[];
+  "held_setup", "held_budget", "held_scene_check", "awaiting_spend_approval", "setup_repair", "superseded"] as const satisfies readonly JobScreeningOutcome[];
 export type ScreeningOutcome = JobScreeningOutcome;
-/** Outcomes that leave the job with no estimate until we build or prepare something. */
-export type ScreeningHeldOutcome = Extract<ScreeningOutcome, "reference_only" | "held_capability" | "held_unprepared" | "infeasible" | "no_match">;
-const HELD_OUTCOMES = new Set<string>(["reference_only", "held_capability", "held_unprepared", "infeasible", "no_match"]);
+/** Outcomes that leave the job with no estimate until we build, prepare or fix something. */
+export type ScreeningHeldOutcome = Extract<ScreeningOutcome, "reference_only" | "held_capability" | "held_unprepared" | "infeasible"
+  | "no_match" | "held_setup" | "held_budget" | "held_scene_check">;
+const HELD_OUTCOMES = new Set<string>(["reference_only", "held_capability", "held_unprepared", "infeasible", "no_match",
+  "held_setup", "held_budget", "held_scene_check"]);
+/** Holds that are ours to look at (a failure, a spent allowance, a scene check), not demand for a new capability. */
+export const SCREENING_ATTENTION_OUTCOMES = ["held_setup", "held_budget", "held_scene_check"] as const;
+export const isScreeningAttentionOutcome = (value: unknown): value is typeof SCREENING_ATTENTION_OUTCOMES[number] =>
+  (SCREENING_ATTENTION_OUTCOMES as readonly unknown[]).includes(value);
 export const isScreeningHeldOutcome = (value: unknown): value is ScreeningHeldOutcome => typeof value === "string" && HELD_OUTCOMES.has(value);
 /** A stored outcome, or null for anything this version does not know. */
 export const storedScreeningOutcome = (value: unknown): ScreeningOutcome | null =>
@@ -220,6 +243,17 @@ const scriptedBaseline = (row: { execution_evidence_kind?: string }) => row.exec
 export const screeningEstimateRows = <Row extends { episodes_scored: number; execution_evidence_kind?: string }>(candidates: readonly Row[]) =>
   candidates.filter(row => row.episodes_scored > 0 && !scriptedBaseline(row));
 
+/**
+ * Every money refusal among the open rows is the job's dollar ceiling: a
+ * Blueprint money decision the owner can raise, so the run waits on Blueprint
+ * (no email to the site; the ops monitor reports it). A spent site allowance
+ * is final.
+ */
+export function screeningJobCeilingWait(candidates: ReadonlyArray<{ status: string; blockers: readonly string[] }>): boolean {
+  const money = candidates.filter(row => row.status !== "completed" && row.blockers.some(budgetCode));
+  return money.length > 0 && money.every(screeningJobCeilingRow);
+}
+
 export function screeningOutcome(publication: Pick<BetaPolicyScreeningPublication, "status" | "candidates" | "budget">): ScreeningOutcome | null {
   const scored = publication.candidates.reduce((sum, row) => sum + row.episodes_scored, 0);
   // A run whose candidates finished with no scored episode has no estimate to show.
@@ -229,10 +263,13 @@ export function screeningOutcome(publication: Pick<BetaPolicyScreeningPublicatio
   // the newer run is the one to read (owner decision 2026-10-31).
   if (scored === 0 && publication.candidates.some(row => row.blockers.includes(SCREENING_REPLANNED_BLOCKER))) return "superseded";
   if (finished === "completed") return screeningEstimateRows(publication.candidates).length ? "estimate" : "reference_only";
-  // No estimate ends as held only when no candidate can do the job; budget and
-  // setup gaps stay in progress for the owner or for us (owner decision 2026-10-28).
+  // A finished run is final: nothing reruns a blocked campaign or reserves more
+  // than the site's allowance, so a budget or setup end is held by name. Two
+  // ends stay open: rows the Pipeline plans again after a deploy, and rows only
+  // the job's dollar ceiling held back, which the owner can raise.
   const reason = noEstimateReason(publication.candidates, publication.budget);
-  return reason === "budget" ? "awaiting_spend_approval" : reason === "setup" ? "setup_repair"
+  return reason === "budget" ? screeningJobCeilingWait(publication.candidates) ? "awaiting_spend_approval" : "held_budget"
+    : reason === "setup" ? screeningReplanPending(publication.candidates) ? "setup_repair" : "held_setup"
     : reason === "held" ? screeningHeldForPreparation(publication.candidates) ? "held_unprepared" : "held_capability" : reason;
 }
 
@@ -240,9 +277,11 @@ export function screeningOutcome(publication: Pick<BetaPolicyScreeningPublicatio
  * The one plain sentence for each outcome. Measured reasons are relative to
  * the robot position the scene planned, never a task-level verdict (owner
  * decision 2026-10-31); "No match" is said plainly (owner decision 2026-10-30).
- * Waiting on the owner and waiting on us read the same to the site.
+ * A hold that is ours to look at says what happened, that it does not restart
+ * by itself, and what the site hears next.
  */
 const IN_PROGRESS_SENTENCE = "Simulation evaluation in progress. We'll run your job again and show the estimate here.";
+const ATTENTION_NEXT = "It won't restart by itself. Our team has been told, and we'll email you if a later run gives a result.";
 const SCREENING_OUTCOME_SENTENCE: Readonly<Record<ScreeningOutcome, string>> = {
   estimate: "Your simulation estimate is ready. It is an estimate from a simulation of your site, not a certified result.",
   reference_only: "No estimate yet: only scripted reference baselines were scored, and no learned policy could be evaluated on your job yet.",
@@ -250,7 +289,10 @@ const SCREENING_OUTCOME_SENTENCE: Readonly<Record<ScreeningOutcome, string>> = {
   held_unprepared: "Held: the robots that could do this job aren't set up in our simulator yet. It counts as demand for what we build next.",
   infeasible: "Held: from the robot position planned in the scene built from your video, none of the robots we can simulate could reach this task.",
   no_match: "No match: none of the robots we can simulate matched this job. At least one was measured out of reach from the robot position planned in the scene built from your video.",
-  awaiting_spend_approval: IN_PROGRESS_SENTENCE,
+  held_setup: `Held: a problem on our side stopped the simulation of your job before it gave an estimate. ${ATTENTION_NEXT}`,
+  held_budget: `Held: your job reached the most the free beta can simulate for one job before it gave an estimate. ${ATTENTION_NEXT}`,
+  held_scene_check: `Held: the simulation built from your video failed the check we run before testing robots, so no robot was tested on your job. ${ATTENTION_NEXT}`,
+  awaiting_spend_approval: "Your job's simulation is waiting on an approval inside Blueprint before it can continue.",
   setup_repair: IN_PROGRESS_SENTENCE,
   superseded: "Continued in a newer run after a Blueprint update.",
 };

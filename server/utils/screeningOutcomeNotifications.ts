@@ -20,14 +20,15 @@ import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
 import { automationBatch } from "./automationBatch";
 import { crossRuntimeDigest } from "./crossRuntimeCanonical";
-import { isScreeningResultOutcome, screeningOutcome, type BetaPolicyScreeningPublication } from "./betaPolicyScreeningContract";
+import { isScreeningResultOutcome, screeningOutcome, type BetaPolicyScreeningPublication, type ScreeningOutcome } from "./betaPolicyScreeningContract";
 
 export const SCREENING_OUTCOME_NOTICE_SCHEMA = "screening_outcome_notification.v1";
 const identifier = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$/);
 const count = z.number().int().min(0).max(1_000_000);
 const intentSchema = z.object({
   schema_version: z.literal(SCREENING_OUTCOME_NOTICE_SCHEMA), request_id: identifier, run_id: identifier,
-  outcome: z.enum(["estimate", "reference_only", "held_capability", "held_unprepared", "infeasible", "no_match"]),
+  outcome: z.enum(["estimate", "reference_only", "held_capability", "held_unprepared", "infeasible", "no_match",
+    "held_setup", "held_budget", "held_scene_check"]),
   event_id: z.string().regex(/^[a-z_]+-[a-f0-9]{24}$/),
   counts: z.object({ ran: count, total: count, scored: count }).strict().optional(),
 }).strict().refine(value => value.event_id.startsWith(`${value.outcome}-`) && (value.outcome === "estimate") === Boolean(value.counts));
@@ -45,6 +46,14 @@ export function screeningOutcomeNoticeIntent(publication: BetaPolicyScreeningPub
     event_id: screeningOutcomeNoticeEventId(outcome, publication.source.scene_intent_id),
     ...(outcome === "estimate" ? { counts: { ran: publication.candidates.filter(row => row.status === "completed").length,
       total: publication.candidates.length, scored: publication.candidates.reduce((sum, row) => sum + row.episodes_scored, 0) } } : {}) };
+}
+
+/** The notice a Pipeline hold owes its site (no campaign started), or null. Same key as a run's: one email per outcome and scene. */
+export function heldOutcomeNoticeIntent(outcome: ScreeningOutcome | null, requestId: string, runId: string,
+  sceneIntentId: string): ScreeningOutcomeNoticeIntent | null {
+  if (!isScreeningResultOutcome(outcome) || outcome === "estimate") return null;
+  return parseScreeningOutcomeNoticeIntent({ schema_version: SCREENING_OUTCOME_NOTICE_SCHEMA, request_id: requestId, run_id: runId,
+    outcome, event_id: screeningOutcomeNoticeEventId(outcome, sceneIntentId) });
 }
 
 export function parseScreeningOutcomeNoticeIntent(value: unknown): ScreeningOutcomeNoticeIntent | null {

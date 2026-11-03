@@ -24,7 +24,8 @@ const { ingestBetaPolicyScreening } = await import("../utils/betaPolicyScreening
 const { deliverOutbox } = await import("../utils/captureOutbox");
 const { reconcileScreeningOutcomeNotifications } = await import("../utils/screeningOutcomeNotifications");
 
-const RESULT_OUTCOMES = ["estimate", "reference_only", "held_capability", "held_unprepared", "infeasible", "no_match"] as const;
+const RESULT_OUTCOMES = ["estimate", "reference_only", "held_capability", "held_unprepared", "infeasible", "no_match",
+  "held_setup", "held_budget"] as const;
 const scene = createHash("sha256").update("scene-one").digest("hex").slice(0, 24);
 const key = (outcome: string) => `captureOutbox/job-one:evaluation_outcome:${outcome}-${scene}`;
 const notices = () => [...state.docs.entries()].filter(([path]) => path.startsWith("captureOutbox/job-one:evaluation_outcome:")

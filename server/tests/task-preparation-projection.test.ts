@@ -5,7 +5,7 @@ import { screeningOutcome, screeningOutcomeSentence, SCREENING_OUTCOMES } from "
 import { managedJobTask, projectManagedJobEvidence } from "../utils/jobManagedEvaluation";
 import { scientificBriefDigest } from "../utils/jobEvidenceContract";
 import { projectWebsiteSceneProgression, sceneScreening, sceneScreeningResult } from "../utils/websiteSceneProgression";
-import { outcomePublication, screeningFixture } from "./fixtures/beta-policy-screening";
+import { outcomePublication, PUBLISHED_SCREENING_OUTCOMES, screeningFixture } from "./fixtures/beta-policy-screening";
 import { crossRuntimeDigest } from "../utils/crossRuntimeCanonical";
 
 const reference = "bp-prep-0123456789abcdef";
@@ -189,7 +189,7 @@ describe("preparation that waits on capacity or ends for good (beta L3/L6)", () 
     expect(projectTaskStatus({ ...handedOff, listed: false, sceneProgression: { state: "completed" } } as never).decision)
       .not.toBe("not_listed");
   });
-  it.each(SCREENING_OUTCOMES)("the headline and the run say the same sentence for %s (F-03)", outcome => {
+  it.each(PUBLISHED_SCREENING_OUTCOMES)("the headline and the run say the same sentence for %s (F-03)", outcome => {
     // The run as it is stored, read back as the job page reads it, against that run's own summary.
     const { publication, brief, job } = screeningFixture();
     const value = outcomePublication(publication, outcome);

@@ -176,7 +176,7 @@ export function preparedSceneRevisionDigest(status: Record<string, any> | undefi
  * applicability. `revisionOfferings` (`readPreparedRevisionOfferings`) relate
  * a configured scene's revision file to the revision digest the source names.
  */
-export function assertScreeningSceneSource(publication: BetaPolicyScreeningPublication, intake: Record<string, any>,
+export function assertScreeningSceneSource(publication: Pick<BetaPolicyScreeningPublication, "source" | "site_id">, intake: Record<string, any>,
   scope: ReturnType<typeof managedJobTask>, revisionOfferings: readonly unknown[]) {
   const source = publication.source;
   const status = intake.pipeline_status;
@@ -280,20 +280,27 @@ const SITE_NEXT_ACTION: Readonly<Record<ScreeningOutcome, string>> = {
   held_unprepared: "Nothing is needed from you. Each row lists why it could not run.",
   infeasible: "Nothing is needed from you. Each row lists the measured reason or why it could not run.",
   no_match: "Nothing is needed from you. Each row lists the measured reason or why it could not run.",
+  held_setup: "Nothing is needed from you. Each row lists why it stopped.",
+  held_budget: "Nothing is needed from you. Each row lists why it stopped.",
+  held_scene_check: "Nothing is needed from you.",
   awaiting_spend_approval: "Nothing is needed from you.",
   setup_repair: "Nothing is needed from you.",
   superseded: "Nothing is needed from you. The newer run shows this job's progress.",
 };
 /** Blueprint's own next step, shown in operations views only. */
 const OPS_NEXT_ACTION: Partial<Record<ScreeningOutcome, string>> = {
+  held_setup: "Held on our side: fix the cause in each candidate's blockers, then rerun; nothing reruns it by itself. Nothing is needed from the site.",
+  held_budget: "Held: the site's simulation allowance is spent and nothing reserves more. Spending past it is an owner decision. Nothing is needed from the site.",
+  held_scene_check: "Held: the scene failed its robot-free check, so no campaign started. Rebuild or re-probe the scene to continue. Nothing is needed from the site.",
   awaiting_spend_approval: "Owner approval needed: this job's candidates need more than the site's simulation budget. Nothing is needed from the site.",
-  setup_repair: "Fix the setup blockers listed per candidate, then rerun. Nothing is needed from the site.",
+  setup_repair: "Rows refused for code a deploy changed are planned again at the new release by the Pipeline itself. Nothing is needed from the site.",
 };
 /** When the job's dollar ceiling, not the screening budget, is what held the candidates back. */
 const OPS_JOB_CEILING_NEXT_ACTION = "Owner approval needed: this job's dollar ceiling, shared by all of its spending, has too little left "
   + "to run its candidates. Raising it is the owner's money decision. Nothing is needed from the site.";
 const opsNextAction = (outcome: ScreeningOutcome, candidates: BetaPolicyScreeningPublication["candidates"]) =>
-  outcome === "awaiting_spend_approval" && candidates.some(row => row.status !== "completed" && screeningJobCeilingRow(row))
+  (outcome === "awaiting_spend_approval" || outcome === "held_budget")
+    && candidates.some(row => row.status !== "completed" && screeningJobCeilingRow(row))
     ? OPS_JOB_CEILING_NEXT_ACTION : OPS_NEXT_ACTION[outcome];
 
 /** A projection of already accepted publications, never a second report store. */
