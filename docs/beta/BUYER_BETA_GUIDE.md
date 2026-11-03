@@ -70,14 +70,14 @@ Email **support@tryblueprint.io** with your team, the job link and the status
 text you see. Escalate at once for exposure of private content, an access
 problem, or a result that you think is wrong.
 
-## Difference from the public copy
+## Evaluation size
 
-The public guide and the robot-team page (`client/src/pages/Contact.tsx`) say
-that each evaluation is 200 hidden episodes. The beta screening, where
-Blueprint runs the candidates for a site, plans at most 10 episodes for each
-candidate. It stays inside the site's $15 screening budget and a default $4
-for each candidate (Pipeline `src/blueprint_pipeline/beta_policy_screening_plan.py`
-and `beta_policy_screening_capabilities.py`). The 200-episode figure belongs
-to the earlier evaluations that teams requested
-(`client/src/components/workspace/PolicyInterfaceGuide.tsx`,
-`server/utils/pilotRecommendationEvidence.ts`). The public copy still says 200.
+The beta screening, where Blueprint runs the candidates for a site, plans at
+most 10 episodes for each candidate. It stays inside the site's $15 screening
+budget and a default $4 for each candidate (Pipeline
+`src/blueprint_pipeline/beta_policy_screening_plan.py` and
+`beta_policy_screening_capabilities.py`). A full evaluation, the kind teams
+requested before, is 200 hidden episodes and runs only with Blueprint's
+approval (`client/src/components/workspace/PolicyInterfaceGuide.tsx`,
+`server/utils/pilotRecommendationEvidence.ts`). Since 2026-11-03 the public
+guide and the robot-team page (`client/src/pages/Contact.tsx`) say both.

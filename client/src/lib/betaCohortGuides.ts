@@ -61,7 +61,7 @@ export const buyerBetaGuide: BetaCohortGuide = {
         "Fixed arms, bimanual systems, mobile manipulators, wheeled humanoids and legged humanoids can be declared. Robot form alone does not decide admission; the Pipeline checks the model, controls, scene and task before execution and reports a specific incompatibility when a setup cannot run.",
         "Serve your policy at one HTTPS URL that accepts a bearer token. Register it as a policy endpoint checkpoint and attach that token; your weights stay on your system.",
         "Private checkpoints are refused, and containers are not admitted for team evaluations.",
-        "Each evaluation is 200 hidden episodes across the job's variations, the same for every candidate on the job.",
+        "Blueprint first screens every candidate on the job with up to 10 episodes across its variations, the same for each. A full evaluation is 200 hidden episodes and runs only with Blueprint's approval.",
       ],
     },
     {
