@@ -79,8 +79,9 @@ export function SuccessThresholds({ token, view, onDecided }: {
       ? <p role="status">You confirmed these goals. Blueprint scores robot candidates against them.</p>
       : <>
         {decision?.kind === "held" && decision.reason && <p role="status">
-          You said these goals are wrong: {REASONS[decision.reason].toLowerCase()}. Your job is on hold with that reason.
-          These numbers stay as they are. If Blueprint proposes new goals, they appear here for you to confirm.</p>}
+          You said these goals are wrong: {REASONS[decision.reason].toLowerCase()}. Your job is on hold, and Blueprint’s
+          team is alerted with your reason. Blueprint will review it and contact you. These numbers stay as they are
+          until then; if Blueprint proposes new goals, they appear here for you to confirm.</p>}
         <p className="ms-field-hint" style={{ marginTop: "12px" }}>{decision?.kind === "held"
           ? "If you change your mind, you can still use these goals."
           : "Robot scoring waits until you confirm these goals."}</p>
@@ -93,7 +94,8 @@ export function SuccessThresholds({ token, view, onDecided }: {
         </div>
         {wrongOpen && <div id="success-thresholds-wrong">
           <fieldset disabled={busy} style={{ border: 0, padding: 0, margin: "12px 0" }}>
-            <legend className="ms-field-hint">What is wrong? Your job holds with this reason; no number changes.</legend>
+            <legend className="ms-field-hint">What is wrong? Your job holds and Blueprint’s team reviews your reason;
+              no number changes.</legend>
             {REASON_IDS.map(id => <label key={id} style={{ display: "flex", gap: "10px", alignItems: "flex-start", margin: "6px 0" }}>
               <input type="radio" name="success-thresholds-reason" value={id} checked={reason === id}
                 onChange={() => setReason(id)} style={{ width: "auto", minHeight: 0, marginTop: "4px" }} />

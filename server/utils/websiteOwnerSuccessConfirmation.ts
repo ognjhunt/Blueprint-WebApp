@@ -20,6 +20,10 @@
  * "wrong" answer holds the job with its reason. A changed proposal has a new
  * digest and needs a new decision.
  *
+ * A hold is flagged on the intake (`owner_success_hold_open`) so the beta ops
+ * monitor alerts Blueprint's team with the reason
+ * (`websitePreparationOpsAlerts.scanHeldOwnerSuccessThresholds`).
+ *
  * Only privacy and rights stop it: a withdrawn capture or revoked consent is
  * refused on both sides. Nothing here starts compute or moves money.
  */
@@ -44,6 +48,9 @@ const MAX_DECISIONS = 64;
 const sha = z.string().regex(/^sha256:[0-9a-f]{64}$/);
 const intentId = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/);
 const identifier = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,131}$/);
+const token = z.string().regex(/^[a-z][a-z0-9_]{0,63}$/);
+/** Set on the intake while the owner's latest decision on its current proposal is a hold. */
+export const OWNER_SUCCESS_HOLD_FIELD = "owner_success_hold_open";
 
 function canonicalBytes(value: unknown): number | null {
   try { return Buffer.byteLength(crossRuntimeCanonicalJson(value)); } catch { return null; }
@@ -58,7 +65,11 @@ export const ownerSuccessProposalSchema = z.object({
   configured_scene_revision_digest: sha,
   configured_success_criteria: z.record(z.string(), z.unknown()).refine(value => Object.keys(value).length > 0
     && (canonicalBytes(value) ?? Infinity) <= MAX_CRITERIA_BYTES, "thresholds missing or too large"),
-  configured_success_criteria_digest: sha, proposal_authority_digest: sha, binding_digest: sha, proposal_digest: sha,
+  configured_success_criteria_digest: sha, proposal_authority_digest: sha,
+  // What each forbidden contact class counts and leaves out, as the Pipeline's scorer defines it.
+  forbidden_contacts: z.array(z.object({ contact_class: token, parts: z.array(token).max(4),
+    excluding: z.array(token).max(8) }).strict()).max(16),
+  binding_digest: sha, proposal_digest: sha,
 }).strict().refine(sealed("proposal_digest"), "proposal digest mismatch");
 export type OwnerSuccessProposal = z.infer<typeof ownerSuccessProposalSchema>;
 
@@ -102,6 +113,20 @@ export function currentOwnerSuccessProposal(intake: Intake | undefined): OwnerSu
   return proposal && proposal.intent_id === intake.receipt?.intent_id && proposal.intent_digest === intake.receipt?.intent_digest
     ? proposal : null;
 }
+
+/** The owner's open hold on the intake's current proposal (no confirmation of it), or null. */
+export function currentOwnerSuccessHold(intake: Intake | undefined): OwnerSuccessDecision | null {
+  const proposal = currentOwnerSuccessProposal(intake);
+  const decision = proposal ? ownerSuccessDecisionFor(intake, proposal) : null;
+  return decision?.decision === "held" ? decision : null;
+}
+
+/** Plain words for each hold reason, for the page and for ops. */
+export const OWNER_SUCCESS_HOLD_REASON_TEXT: Record<OwnerSuccessHoldReason, string> = {
+  wrong_goal: "The goal area is in the wrong place", too_strict: "These limits are stricter than the job needs",
+  too_loose: "These limits are looser than the job needs", wrong_task: "This is not the job the robot should do",
+  other: "Something else is wrong",
+};
 
 /** The owner's decision on exactly this proposal: a confirmation is final; otherwise the latest hold; else null. */
 export function ownerSuccessDecisionFor(intake: Intake | undefined, proposal: OwnerSuccessProposal): OwnerSuccessDecision | null {
@@ -155,10 +180,11 @@ export async function recordOwnerSuccessProposal(input: OwnerSuccessProposal, st
     if (!kept && history.length >= MAX_PROPOSALS) throw new Error("website_owner_success_proposal_history_full");
     const proposals = kept ? history : [...history, { proposal_digest: notice.proposal_digest,
       proposal_json: crossRuntimeCanonicalJson(notice), received_at_iso: new Date().toISOString() }];
+    const decision = ownerSuccessDecisionFor(intake, notice);
     if (!kept || intake.owner_success_proposal_current !== notice.proposal_digest)
       transaction.update(intakeRef, { owner_success_proposals: proposals,
-        owner_success_proposal_current: notice.proposal_digest, updated_at_iso: new Date().toISOString() });
-    const decision = ownerSuccessDecisionFor(intake, notice);
+        owner_success_proposal_current: notice.proposal_digest, [OWNER_SUCCESS_HOLD_FIELD]: decision?.decision === "held",
+        updated_at_iso: new Date().toISOString() });
     return { schema_version: OWNER_SUCCESS_RECEIPT_SCHEMA, status: decision ? decision.decision : "pending",
       intent_id: notice.intent_id, proposal_digest: notice.proposal_digest, decision };
   });
@@ -186,31 +212,76 @@ const round = (value: number, places = 1) => {
 };
 const cm = (meters: number) => `${round(meters * 100)} cm`;
 const isNumber = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value);
-const CONTACTS: Record<string, string> = {
-  robot_background: "the robot with the surroundings", robot_object: "the robot with the object",
-  object_background: "the object with the surroundings",
-};
 const tries = (count: number, none: string, some: string) => count === 0 ? none : `${some} ${count}`;
 const PRIVATE_LOCATOR = /(?:\b(?:s3|gs|file|https?):\/\/|\/(?:var|etc|opt|private|tmp|home|srv)\/|api[_ -]?key|credential|secret)/i;
+const humanize = (value: string) => value.replace(/_/g, " ");
+
+export type OwnerSuccessContact = { contact_class: string; parts: string[]; excluding: string[] };
+// The Pipeline's words for what a contact class counts (website_owner_success_confirmation.CONTACT_CLASS_SCOPE).
+// Each exclusion it names is said only where it applies; any other is said as sent.
+const FIRST: Record<string, (excluding: Set<string>) => string> = {
+  robot_protected_bodies: excluding => excluding.delete("admitted_gripper_task_contact_bodies")
+    ? "the robot's arm or body (not its gripper)" : "the robot",
+  task_object: () => "the object",
+  destination: () => "the container",
+};
+const SECOND: Record<string, (excluding: Set<string>) => string> = {
+  task_object: () => "the object",
+  scene_including_destination_support: () => "the surroundings, including the goal surface",
+  scene: excluding => excluding.delete("destination_support") ? "anything but the goal surface"
+    : excluding.delete("qualified_placement_support") ? "anything but the surface it stands on" : "the surroundings",
+};
+
+/** One forbidden contact in plain words, from what the Pipeline says the class counts and leaves out. */
+export function describeContact(contact: OwnerSuccessContact): string {
+  const [first, second] = contact.parts;
+  if (!first || !second || contact.parts.length !== 2) return humanize(contact.contact_class);
+  const excluding = new Set(contact.excluding);
+  const text = `${(FIRST[first] ?? (() => humanize(first)))(excluding)} with ${(SECOND[second] ?? (() => humanize(second)))(excluding)}`;
+  return excluding.size ? `${text} (except ${[...excluding].map(humanize).join(", ")})` : text;
+}
+
+function otherValue(label: string, value: unknown): OwnerSuccessRow {
+  const raw = typeof value === "boolean" ? (value ? "yes" : "no") : typeof value === "string" ? value : JSON.stringify(value);
+  // A storage or host locator never reaches the site's page, whatever the Pipeline sends.
+  const text = PRIVATE_LOCATOR.test(raw) ? "(internal reference)" : raw;
+  return { label: humanize(label), value: text.length > 240 ? `${text.slice(0, 237)}...` : text };
+}
 
 export type OwnerSuccessRow = { label: string; value: string };
 
 /**
  * The thresholds in plain words: each one Blueprint knows how to say, then every
- * other value exactly as the Pipeline sent it. Nothing is left out or changed.
+ * other value exactly as the Pipeline sent it, nested ones included. Nothing is
+ * left out or changed.
  */
-export function describeOwnerSuccessThresholds(criteria: Record<string, unknown>): { rows: OwnerSuccessRow[]; otherValues: OwnerSuccessRow[] } {
+export function describeOwnerSuccessThresholds(criteria: Record<string, unknown>,
+  contacts: OwnerSuccessContact[] = []): { rows: OwnerSuccessRow[]; otherValues: OwnerSuccessRow[] } {
   const rows: OwnerSuccessRow[] = [];
-  const used = new Set<string>(["owner_success_contract_required"]);
+  const used = new Set<string>();
+  const nested: OwnerSuccessRow[] = [];
   const target = criteria.surface_target as Record<string, unknown> | undefined;
-  if (target && typeof target === "object" && isNumber(target.radius_m)) {
+  if (target && typeof target === "object" && !Array.isArray(target) && isNumber(target.radius_m)) {
     used.add("surface_target");
+    const shown = new Set(["radius_m", "visible_label"]);
     const label = typeof target.visible_label === "string" && target.visible_label.trim() ? `the ${target.visible_label.trim()}` : "the goal area";
     rows.push({ label: "Goal area", value: `${label[0].toUpperCase()}${label.slice(1)}: a circle ${cm(2 * target.radius_m)} across. The whole object has to end up inside it.` });
-    if (isNumber(target.maximum_tilt_rad))
+    if (isNumber(target.maximum_tilt_rad)) {
+      shown.add("maximum_tilt_rad");
       rows.push({ label: "Upright", value: `It ends tilted no more than ${round(target.maximum_tilt_rad * 180 / Math.PI, 0)}°.` });
-    if (isNumber(target.stable_seconds))
-      rows.push({ label: "Settled", value: `It stays still there for at least ${round(target.stable_seconds)} s.` });
+    }
+    if (isNumber(target.stable_seconds)) {
+      shown.add("stable_seconds");
+      const limits = [
+        isNumber(target.maximum_linear_speed_m_s) && shown.add("maximum_linear_speed_m_s")
+          ? `moving under ${round(target.maximum_linear_speed_m_s * 100)} cm/s` : null,
+        isNumber(target.maximum_angular_speed_rad_s) && shown.add("maximum_angular_speed_rad_s")
+          ? `turning under ${round(target.maximum_angular_speed_rad_s * 180 / Math.PI, 0)}° a second` : null,
+      ].filter(Boolean);
+      rows.push({ label: "Settled", value: `It stays still there for at least ${round(target.stable_seconds)} s${limits.length ? `: ${limits.join(" and ")}` : ""}.` });
+    }
+    for (const key of Object.keys(target).filter(key => !shown.has(key)).sort())
+      nested.push(otherValue(`surface_target ${key}`, target[key]));
   }
   const number = (key: string, label: string, text: (value: number) => string) => {
     const value = criteria[key];
@@ -222,6 +293,7 @@ export function describeOwnerSuccessThresholds(criteria: Record<string, unknown>
   number("maximum_final_planar_target_error_m", "Final position", value => `Within ${cm(value)} of the goal point, measured across the surface.`);
   number("minimum_lift_m", "Lift", value => `The object is lifted at least ${cm(value)}.`);
   number("minimum_planar_displacement_m", "Distance moved", value => `It moves at least ${cm(value)} across the surface.`);
+  number("minimum_opening_fraction_of_usable_travel", "Opening", value => `Opened at least ${round(value * 100, 0)}% of its usable travel.`);
   number("minimum_opening_fraction_of_estimated_stroke", "Opening", value => `Opened at least ${round(value * 100, 0)}% of the estimated travel.`);
   number("minimum_hold_seconds", "Held", value => `Held there for at least ${round(value)} s.`);
   number("maximum_episode_seconds", "Time limit", value => `${round(value)} seconds.`);
@@ -229,10 +301,15 @@ export function describeOwnerSuccessThresholds(criteria: Record<string, unknown>
   flag("drop_events_allowed", false, "Drops", "The object is never dropped.");
   number("maximum_retries", "Second tries", value => tries(value, "None.", "At most"));
   number("maximum_regrasps", "Re-grabbing", value => tries(value, "None.", "At most"));
-  const contacts = criteria.forbidden_contact_classes;
-  if (criteria.forbidden_collision_allowed === false && Array.isArray(contacts) && contacts.every(row => typeof row === "string")) {
+  const classes = criteria.forbidden_contact_classes;
+  if (criteria.forbidden_collision_allowed === false && Array.isArray(classes) && classes.every(row => typeof row === "string")) {
     used.add("forbidden_collision_allowed"); used.add("forbidden_contact_classes");
-    rows.push({ label: "Collisions", value: `No contact between ${(contacts as string[]).map(row => CONTACTS[row] ?? row.replace(/_/g, " ")).join("; ")}.` });
+    const scoped = new Map(contacts.map(row => [row.contact_class, row]));
+    const phrases = (classes as string[]).map(name => describeContact(scoped.get(name) ?? { contact_class: name, parts: [], excluding: [] }));
+    const floor = criteria.collision_failure_minimum_force_n;
+    if (isNumber(floor)) used.add("collision_failure_minimum_force_n");
+    rows.push({ label: "Collisions", value: `No contact between ${phrases.join("; ")}.${isNumber(floor)
+      ? ` A touch counts from ${round(floor)} N.` : ""}` });
   }
   flag("release_required", true, "Release", "The robot lets go of the object at the end.");
   if (criteria.retreat_clearance_required === true && isNumber(criteria.retreat_clearance_m)) {
@@ -241,13 +318,8 @@ export function describeOwnerSuccessThresholds(criteria: Record<string, unknown>
   }
   flag("object_must_rest_on_destination_support", true, "Resting", "The object ends resting on the goal surface.");
   flag("joint_limit_violation_allowed", false, "Robot limits", "The robot stays within its joint limits.");
-  const otherValues = Object.keys(criteria).filter(key => !used.has(key)).sort().map(key => {
-    const value = criteria[key];
-    const raw = typeof value === "boolean" ? (value ? "yes" : "no") : typeof value === "string" ? value : JSON.stringify(value);
-    // A storage or host locator never reaches the site's page, whatever the Pipeline sends.
-    const text = PRIVATE_LOCATOR.test(raw) ? "(internal reference)" : raw;
-    return { label: key.replace(/_/g, " "), value: text.length > 240 ? `${text.slice(0, 237)}...` : text };
-  });
+  const otherValues = [...Object.keys(criteria).filter(key => !used.has(key)).map(key => otherValue(key, criteria[key])), ...nested]
+    .sort((a, b) => a.label < b.label ? -1 : a.label > b.label ? 1 : 0);
   return { rows, otherValues };
 }
 
@@ -263,7 +335,8 @@ export function ownerSuccessView(intake: Intake | undefined): OwnerSuccessView |
   const proposal = currentOwnerSuccessProposal(intake);
   if (!proposal) return null;
   const decision = ownerSuccessDecisionFor(intake, proposal);
-  return { proposalDigest: proposal.proposal_digest, ...describeOwnerSuccessThresholds(proposal.configured_success_criteria),
+  return { proposalDigest: proposal.proposal_digest,
+    ...describeOwnerSuccessThresholds(proposal.configured_success_criteria, proposal.forbidden_contacts),
     decision: decision ? { kind: decision.decision, reason: decision.reason, decidedAt: decision.decided_at } : null };
 }
 
@@ -308,7 +381,8 @@ export async function decideOwnerSuccessProposal(requestId: string, captureId: s
       decided_at: now().toISOString() };
     const decision = ownerSuccessDecisionSchema.parse({ ...record,
       decision_digest: crossRuntimeArtifactDigest(record as Record<string, unknown>, "decision_digest") });
-    transaction.update(latest.ref, { owner_success_decisions: [...history, decision], updated_at_iso: new Date().toISOString() });
+    transaction.update(latest.ref, { owner_success_decisions: [...history, decision],
+      [OWNER_SUCCESS_HOLD_FIELD]: kind === "held", updated_at_iso: new Date().toISOString() });
     return decision;
   });
 }

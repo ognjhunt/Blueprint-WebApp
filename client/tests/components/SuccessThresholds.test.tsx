@@ -54,7 +54,7 @@ describe("SuccessThresholds", () => {
     vi.stubGlobal("fetch", fetchMock);
     const { rerender } = render(<SuccessThresholds token="tok"
       view={{ ...view, decision: { kind: "held", reason: "wrong_goal", decidedAt: "2026-11-03T18:00:00.000Z" } }} onDecided={vi.fn()} />);
-    expect(screen.getByRole("status").textContent).toMatch(/the goal area is in the wrong place\. Your job is on hold with that reason/);
+    expect(screen.getByRole("status").textContent).toMatch(/the goal area is in the wrong place\. Your job is on hold, and Blueprint’s\s+team is alerted with your reason\. Blueprint will review it and contact you\./);
     fireEvent.click(screen.getByRole("button", { name: "Use these goals" }));
     expect((await screen.findByRole("alert")).textContent).toMatch(/goals have changed/);
     rerender(<SuccessThresholds token="tok"

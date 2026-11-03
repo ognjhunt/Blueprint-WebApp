@@ -42,6 +42,8 @@ const briefRouter = (await import("../routes/site-task-brief")).default;
 const internalRouter = (await import("../routes/internal-owner-success-proposal")).default;
 const { createCaptureUploadToken } = await import("../utils/captureUploadToken");
 const { describeOwnerSuccessThresholds, OWNER_SUCCESS_PROPOSAL_SCHEMA } = await import("../utils/websiteOwnerSuccessConfirmation");
+const { scanHeldOwnerSuccessThresholds } = await import("../utils/websitePreparationOpsAlerts");
+const { sharedFakeFirestore } = await import("./helpers/fake-firestore");
 
 const SECRET = "test-only-owner-success-signature";
 const sha = (character: string) => `sha256:${character.repeat(64)}`;
@@ -64,10 +66,18 @@ const CRITERIA = {
   target_center_xyz_m: [3.2742285, -6.7605156, 0.818319], whole_subject_containment_required: true,
 };
 
+// What each forbidden class counts and leaves out, exactly as the Pipeline sends it (CONTACT_CLASS_SCOPE).
+const CONTACTS = [
+  { contact_class: "robot_background", parts: ["robot_protected_bodies", "scene_including_destination_support"], excluding: [] },
+  { contact_class: "robot_object", parts: ["robot_protected_bodies", "task_object"], excluding: ["admitted_gripper_task_contact_bodies"] },
+  { contact_class: "object_background", parts: ["task_object", "scene"], excluding: ["destination_support"] },
+];
+
 function proposal(changes: Record<string, unknown> = {}) {
   const value = { schema_version: OWNER_SUCCESS_PROPOSAL_SCHEMA, intent_id: "scene-one", intent_digest: sha("a"),
     task_id: "pick-book", configured_scene_revision_digest: sha("b"), configured_success_criteria: CRITERIA,
-    configured_success_criteria_digest: sha("c"), proposal_authority_digest: sha("d"), binding_digest: sha("f"), ...changes };
+    configured_success_criteria_digest: sha("c"), proposal_authority_digest: sha("d"), forbidden_contacts: CONTACTS,
+    binding_digest: sha("f"), ...changes };
   return { ...value, proposal_digest: crossRuntimeArtifactDigest(value as Record<string, unknown>, "proposal_digest") };
 }
 
@@ -179,10 +189,34 @@ describe("the owner's decision on the job page", () => {
       { label: "Force", value: "The robot pushes on the object with no more than 100 N (about the weight of 10 kg)." },
       { label: "Drops", value: "The object is never dropped." },
       { label: "Upright", value: "It ends tilted no more than 15°." },
+      { label: "Settled", value: "It stays still there for at least 1 s: moving under 2 cm/s and turning under 6° a second." },
+      // What each contact class leaves out comes from the Pipeline: the gripper may hold the object, and the
+      // object may rest on the goal surface, so Release and Resting are not contradicted.
+      { label: "Collisions", value: "No contact between the robot with the surroundings, including the goal surface; "
+        + "the robot's arm or body (not its gripper) with the object; the object with anything but the goal surface. "
+        + "A touch counts from 1 N." },
+      { label: "Release", value: "The robot lets go of the object at the end." },
+      { label: "Resting", value: "The object ends resting on the goal surface." },
     ]));
-    // Every other value is listed as sent, so the owner confirms all of them knowingly.
-    expect(shown.otherValues.map((value: { label: string }) => value.label)).toEqual(expect.arrayContaining(
-      ["authority", "collision failure minimum force n", "robot workspace position bounds world m"]));
+    // Every other value is listed as sent, nested ones included, so the owner confirms all of them knowingly.
+    const values = shown.otherValues.map((value: { label: string }) => value.label);
+    expect(values).toEqual(expect.arrayContaining(["authority", "owner success contract required",
+      "robot workspace position bounds world m", "surface target shape", "surface target support prim path",
+      "surface target surface position world m", "surface target non colliding"]));
+    // Exactly: each value the rows do not say is listed once, top level and nested.
+    const said = new Set(["surface_target", "maximum_final_planar_target_error_m", "minimum_lift_m",
+      "minimum_planar_displacement_m", "maximum_task_contact_force_n", "drop_events_allowed", "maximum_retries",
+      "maximum_regrasps", "forbidden_collision_allowed", "forbidden_contact_classes", "collision_failure_minimum_force_n",
+      "release_required", "retreat_clearance_required", "retreat_clearance_m", "object_must_rest_on_destination_support",
+      "joint_limit_violation_allowed"]);
+    const saidOfTarget = new Set(["radius_m", "visible_label", "maximum_tilt_rad", "stable_seconds",
+      "maximum_linear_speed_m_s", "maximum_angular_speed_rad_s"]);
+    expect([...values].sort()).toEqual([
+      ...Object.keys(CRITERIA).filter(key => !said.has(key)).map(key => key.replace(/_/g, " ")),
+      ...Object.keys(CRITERIA.surface_target).filter(key => !saidOfTarget.has(key)).map(key => `surface target ${key.replace(/_/g, " ")}`),
+    ].sort());
+    const words = [...shown.rows, ...shown.otherValues].map((value: { value: string }) => value.value).join(" ");
+    expect(words).not.toMatch(/the robot with the object|the object with the surroundings/);
     expect(JSON.stringify(shown)).not.toContain("binding_digest");
     // A film link sees nothing and cannot decide; a missing CSRF token is refused.
     expect((await status(film())).body.successThresholds ?? null).toBeNull();
@@ -220,10 +254,28 @@ describe("the owner's decision on the job page", () => {
     expect((await notify(current)).body).toMatchObject({ status: "held", decision: { decision: "held", reason: "wrong_goal" } });
     expect((await status()).body.successThresholds.decision).toMatchObject({ kind: "held", reason: "wrong_goal" });
     expect(JSON.parse(row(INTAKE).owner_success_proposals[0].proposal_json)).toEqual(current);
+    // Blueprint's team is told once, with the reason, through the ops alert path (Slack first).
+    expect(row(INTAKE).owner_success_hold_open).toBe(true);
+    const alert = vi.fn(async () => ({ sent: true })), email = vi.fn(async () => ({ sent: true }));
+    const deps = { store: sharedFakeFirestore as never, alert, email };
+    expect(await scanHeldOwnerSuccessThresholds(deps)).toEqual({ held: 1, alerted: 1 });
+    const message = String((alert.mock.calls[0] as unknown as [string, string])[1]);
+    expect(message).toContain("request req-1");
+    expect(message).toContain('the site owner says the job\'s success thresholds are wrong ("The goal area is in the wrong place")');
+    expect(email).not.toHaveBeenCalled();
+    expect((await scanHeldOwnerSuccessThresholds(deps)).alerted).toBe(0);
+    // A new reason is a new hold, and is told again.
+    expect((await decide({ proposalDigest: current.proposal_digest, decision: "wrong", reason: "too_loose" })).status).toBe(200);
+    expect((await scanHeldOwnerSuccessThresholds(deps)).alerted).toBe(1);
+    expect(String((alert.mock.calls[1] as unknown as [string, string])[1])).toContain("These limits are looser than the job needs");
     // The owner may still confirm the same goals afterwards; both decisions are kept.
     expect((await decide({ proposalDigest: current.proposal_digest, decision: "confirm" })).body.decision).toBe("confirmed");
-    expect(row(INTAKE).owner_success_decisions.map((value: { decision: string }) => value.decision)).toEqual(["held", "confirmed"]);
+    expect(row(INTAKE).owner_success_decisions.map((value: { decision: string }) => value.decision))
+      .toEqual(["held", "held", "confirmed"]);
     expect((await notify(current)).body.status).toBe("confirmed");
+    // A confirmed job is no longer held: nothing more is sent to ops.
+    expect(row(INTAKE).owner_success_hold_open).toBe(false);
+    expect(await scanHeldOwnerSuccessThresholds(deps)).toEqual({ held: 0, alerted: 0 });
   });
 
   it("refuses a decision on a stale proposal and asks again when the proposal changes", async () => {
@@ -250,19 +302,35 @@ describe("the owner's decision on the job page", () => {
   it("refuses a decision once consent is withdrawn", async () => {
     const current = proposal();
     await notify(current);
+    expect((await decide({ proposalDigest: current.proposal_digest, decision: "wrong", reason: "other" })).status).toBe(200);
     row("inboundRequests/req-1").request.consent_attestation.revoked_at_iso = "2026-11-02T00:00:00Z";
     expect((await decide({ proposalDigest: current.proposal_digest, decision: "confirm" })).status).toBe(409);
-    expect(row(INTAKE).owner_success_decisions).toBeUndefined();
+    expect(row(INTAKE).owner_success_decisions).toHaveLength(1);
+    // Ops is not told about a job whose recording permission was withdrawn.
+    const alert = vi.fn(async () => ({ sent: true }));
+    expect(await scanHeldOwnerSuccessThresholds({ store: sharedFakeFirestore as never, alert, email: vi.fn() }))
+      .toEqual({ held: 1, alerted: 0 });
+    expect(alert).not.toHaveBeenCalled();
   });
 });
 
 describe("plain words", () => {
   it("names each threshold it knows and lists every other value unchanged", () => {
-    const { rows, otherValues } = describeOwnerSuccessThresholds({ minimum_opening_fraction_of_estimated_stroke: 0.8,
-      minimum_hold_seconds: 2, maximum_retries: 1, something_new: [1, 2], source: "s3://bucket/private/success.json" });
-    expect(rows).toEqual([{ label: "Opening", value: "Opened at least 80% of the estimated travel." },
+    // An articulated job's success document, as the Pipeline's adapter reads it.
+    const { rows, otherValues } = describeOwnerSuccessThresholds({ minimum_opening_fraction_of_usable_travel: 0.8,
+      minimum_hold_seconds: 2, maximum_retries: 1, maximum_settled_target_speed: 0.02, something_new: [1, 2],
+      source: "s3://bucket/private/success.json" });
+    expect(rows).toEqual([{ label: "Opening", value: "Opened at least 80% of its usable travel." },
       { label: "Held", value: "Held there for at least 2 s." }, { label: "Second tries", value: "At most 1" }]);
-    expect(otherValues).toEqual([{ label: "something new", value: "[1,2]" },
-      { label: "source", value: "(internal reference)" }]);
+    expect(otherValues).toEqual([{ label: "maximum settled target speed", value: "0.02" },
+      { label: "something new", value: "[1,2]" }, { label: "source", value: "(internal reference)" }]);
+  });
+
+  it("says a contact class it does not know by its name, and an unexpected exclusion as sent", () => {
+    const { rows } = describeOwnerSuccessThresholds({ forbidden_collision_allowed: false,
+      forbidden_contact_classes: ["robot_object", "new_class"] },
+      [{ contact_class: "robot_object", parts: ["robot_protected_bodies", "task_object"], excluding: ["cable_bodies"] }]);
+    expect(rows).toEqual([{ label: "Collisions",
+      value: "No contact between the robot with the object (except cable bodies); new class." }]);
   });
 });
