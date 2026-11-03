@@ -28,13 +28,13 @@ the stored figure (`terminal_launch_unreconciled`); budget admission derives the
 proven hold from its meter (Pipeline #3291). The successor attempt was sized at
 its full $18, which does not fit if $31 is counted.
 
-| Step | Evidence at 2026-11-03 07:10 UTC (1:10 AM CST) |
+| Step | Evidence at 2026-11-03 17:00 UTC (11:00 AM CST) |
 | --- | --- |
 | 1–9. Intake, upload, capture review, plan, masks, background, views, Atlas, registration | **done for preparation; not re-read on 11-03.** The attempt's preparation result `pipeline-control-plane/task-evaluation-owned-scene-preparations/results/website-f06d4da8…-16f5bee56419-preparation-ae002f49….json` is `queued_for_production_scene_configuration` with no blockers and no paid execution requested. Earlier sessions' evidence for these steps is not repeated here. |
 | 10. Task object (ARTISAN) and static qualification | **done.** CPU prestage on the control plane, no GPU: stages 1–2 23:47–23:49, stage 3 (ARTISAN) 23:49–00:49, stage 4 00:49–00:50 (5:47–6:50 PM CST). ARTISAN meter: 43 calls (42 `gpt-6.1-sol`, 1 image), all priced, $4.21 of the $12 cap. Receipt `<job>/immutable_execution/stages/stage-3/adapter/replacement_authoring_receipt.v1.json` (`task_object_artisan_candidate.v1`, backend `artisan_v1`, `rigid_body`, subject `website-subject-53e1ef5c8bf71f6d840a`). Static qualification `…/stage-4/adapter/static_qualification_receipt.v1.json`. Prestage result `<job>/cpu_prestage_provider_result.json`: `completed_prefix` to `stage-4`. |
 | 11. Captured-room integration | **built and published.** Stage 6 assembled the configured scene bundle (`…/stage-6/adapter/scene_assembly_receipt.v1.json`); see step 14 for publication. |
 | 12. Native import qualification | **done.** One Vast GPU (instance 58898824, $0.534/h) from 00:57:51; it restored the stage 1–4 capsule (`STAGE_PREFIX_RESTORED`, stages 1–4 `ADOPTED`, not rerun), ran stage 5 01:14–01:19 and stage 6 at 01:19; entrypoint exit 0. Receipt `…/stage-5/adapter/native_import_qualification_receipt.v1.json`. |
-| 13. Screening (policy episodes) | **not launched; last fix waiting on deploy approval.** The robot-team packet refused at 02:16 (owner contract `proposal_only`). At 02:27 the owner chose to confirm the built thresholds through a new door request (Pipeline #3304, deployed `2ace7c2d6` 03:48); the confirmation was applied at 03:50 (request `20261103T035039Z-confirm-owner-success-contract-6e323b9c`, outcome `confirmed`, revision `ae2703d0…`). Screening launch would then have refused because control trials are paused (owner decision 2026-09-21); Pipeline #3308 (deployed `6cec9f9b9` 04:15) screens such contracts under the existing diagnostic omission, scoring unchanged. The team packet then refused `native_task_appearance_layer_transform_spurious`, a false positive on the website splat's sealed Y-up-to-Z-up registration; Pipeline #3311 (deployed `6e9141fe5` 04:44) limits that rule to NuRec volumes. The blocked request was not re-driven by that deploy; Pipeline #3313 (merged `7cd76d9f3`, 05:12) retries a deterministic refusal once per new release and awaits deploy approval. The robot team's own saved-setup evaluation still refuses per-cell-controls scenes (`team_candidate_strict_controls_runtime_unavailable`). |
+| 13. Screening (policy episodes) | **not launched; robot-free probe waiting on a Pipeline fix.** Owner contract confirmed at 03:50 (request `20261103T035039Z-confirm-owner-success-contract-6e323b9c`, revision `ae2703d0…`); controls-pause screening (Pipeline #3308, `6cec9f9b9`) and team evaluations (#3314) deployed. The team packet then failed in turn on a frame-check false positive (#3311), a room-mesh station check (#3316), and kernel OOM kills of the compile on the 8 GB host (the tray hull ray cast in the third-camera search, about 5.6 GB; #3318, #3326, #3329, #3330). Each new release re-drove it once (#3313, #3321). It **compiled at 16:27 (10:27 AM CST)** on release `26004d8b5`: `pipeline-control-plane/team-scene-packets/status/31e12dca983b8837295ac911c44dee68.json` (`completed`, outcome `compiled`, no blockers, no paid execution). The robot-team offer is skipped until the robot-free probe receipt exists. The probe was queued at 16:27; from 16:28 every pass deferred `rigid_robot_free_probe_website_grant_expired` with nothing staged or spent: the job's renewed 24 h window ended 2026-11-03 15:36 UTC, and the Pipeline still reads the capture's Oct 30 grant copy. At 16:52 the owner approved a time-only extension to 2026-11-10 15:36:37 UTC (door request `20261103T165248Z-extend-scene-execution-window-90fa9fbb`, extension `sha256:908d2552…`, caps unchanged, WebApp receipt `sponsorship_window_mirrored: true`), and approved letting it cover the probe's ≤$1 booking. |
 | 14. Teardown and website result | **teardown done; scene published.** `<job>/vast_provider_run/vast_teardown_manifest.json` `completed`, no continuing spend; GPU spend guard provider zero at 01:23:39. GPU estimate $1.16 ($0.21 runtime, $0.95 transfer) in `vast_budget_ledger.json`; Vast's own charge not yet reconciled. Publication first refused `website_publication_evidence_invalid` (website publication accepted only the earlier authoring backend's receipt; fixed by Pipeline #3297, deployed as `ceddd0220` at 01:59). Publication recovery then republished the retained build without the provider (`<launch>/publication-recovery-ceddd0220…/configured_scene_publication/`, thumbnail = ARTISAN's tray render), and the website refused the sync with HTTP 400 because its offering schema did not accept three binding fields the Pipeline sends (fixed by WebApp #1201). The sync passed at 02:14 and the scene progression recorded `completed/scene_prepared` at 02:16 (8:16 PM CST). |
 
 Spend on this attempt so far: about $5.37 (ARTISAN $4.21 metered, GPU $1.16
@@ -42,26 +42,16 @@ estimated).
 
 ## Next
 
-Merged, awaiting the owner's deploy approval (main `d2b17f8c9`):
-
-- Pipeline #3313: a deterministic team-packet refusal is retried once per new
-  release, so capture-447's request (blocked under the earlier frame rule)
-  recompiles after the deploy.
-- Pipeline #3314: robot-team evaluations run a per-cell-controls contract under
-  the controls pause (diagnostic omission, scoring unchanged).
-- Pipeline #3316: capture-447's room collider is one 9.2 x 9.2 m scanned mesh
-  (`/Root/mesh_0000_GLTF`). The station search dropped it as an oversized box and
-  searched with no obstacles, which in a synthetic copy put the robot base
-  inside the table. Stances are now checked against the mesh's own triangles
-  (clear column, floor under the footprint), else refused as
-  `team_embodiment_room_mesh_no_clear_stance`. In the synthetic copy none of
-  the 8 closest clear stances can carry the tray, so the real result may be a
-  named hold rather than screening; that is decided on the host's real collider.
-
-After the deploy: the team packet recompiles, then either a clear station leads
-to the robot-free probe (cap $1) and screening (cap the smaller of $15 and what
-the $130 job ceiling leaves), or the job holds with its named reason before any
-GPU time.
+1. WebApp: the preparation spend booking honours the owner's verified window
+   extension (the Oct 31 rule kept paid bookings at the grant's own 24 h). The
+   Pipeline then reads the current grant from the WebApp, through the window,
+   instead of the capture's stale copy. Both are owner-approved (2026-11-03) and
+   go out as one WebApp merge plus one Pipeline deploy.
+2. The robot-free probe (one GPU session, cap $1, two funded attempts) records
+   its receipt: untouched tray scores not-success, tray scripted to the goal
+   scores success.
+3. Screening plans and launches, capped at the smaller of $15 and what the $130
+   job ceiling leaves.
 
 Separately (owner's timing): the job ceiling undercounts settled scene spend
 (the Pipeline commits $39.63 on the current intent, the website counts $18);
