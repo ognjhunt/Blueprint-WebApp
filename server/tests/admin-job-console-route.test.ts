@@ -136,6 +136,25 @@ describe("GET /api/admin/jobs", () => {
     expect(body.stages).toContain("passing_run");
   });
 
+  it("reads Blueprint's own scene as the job page does, only for a job with footage", async () => {
+    siteJob("job-scene", "2026-10-02T00:00:00.000Z");
+    table("captureUploadSessions").set("walkthrough-job-scene", { status: "uploaded" });
+    table("taskEvaluationSceneIntakes").set("intake-1", { website_request_id: "job-scene",
+      source_session_id: "walkthrough-job-scene", state: "accepted", created_at_iso: "2026-10-02T01:00:00.000Z" });
+    // No footage: its scene intake is never read.
+    siteJob("job-plain", "2026-10-01T00:00:00.000Z");
+    table("taskEvaluationSceneIntakes").set("intake-2", { website_request_id: "job-plain",
+      source_session_id: "walkthrough-job-plain", state: "accepted", created_at_iso: "2026-10-01T01:00:00.000Z" });
+
+    const body = await (await fetch(baseUrl, admin)).json();
+    const rows = Object.fromEntries(body.jobs.map((job: Row) => [job.requestId, job]));
+    expect(rows["job-scene"]).toMatchObject({ stage: "scene_preparation", actionOwner: "none",
+      nextAction: "Pipeline is preparing the scene",
+      scene: { state: "in_progress", heldReason: null, progressOutcome: null, ending: null } });
+    expect(rows["job-plain"].scene).toBeNull();
+    expect(body.stages).toEqual(expect.arrayContaining(["scene_preparation", "screening", "estimate", "held", "ended"]));
+  });
+
   it("filters by stage and searches by site name", async () => {
     // A current card grant, but no current recording grant: listed, and still not open to teams.
     siteJob("job-a", "2026-10-02T00:00:00.000Z", { public_task_listing: { enabled: true, consentVersion: "public-task-card-v1",

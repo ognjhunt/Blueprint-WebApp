@@ -25,10 +25,10 @@ import {
 type Tone = "proof" | "warn" | "block" | "info" | "neutral";
 
 export function stageTone(stage: JobStage): Tone {
-  if (stage === "passing_run") return "proof";
-  if (stage === "withdrawn" || stage === "no_passing_run") return "block";
+  if (stage === "passing_run" || stage === "estimate") return "proof";
+  if (stage === "withdrawn" || stage === "no_passing_run" || stage === "ended") return "block";
   if (stage === "admission") return "warn";
-  if (stage === "closed") return "neutral";
+  if (stage === "closed" || stage === "held") return "neutral";
   return "info";
 }
 

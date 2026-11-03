@@ -6,6 +6,8 @@
  * capture sessions by `getAll`, evaluation requests and runs by `in` queries
  * of at most 30 ids. A page can hold fewer rows than asked for when a stage or
  * search filter is applied; `nextCursor` continues the scan where it stopped.
+ * A job with footage also reads Blueprint's scene and screening the way its job
+ * page does (`loadWebsiteSceneProgression`), a few queries per job.
  * No index beyond Firestore's automatic single-field ones is required.
  */
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
@@ -20,6 +22,7 @@ import {
 import { ROBOT_TEAMS_COLLECTION, type RobotTeamRecord } from "../types/robot-team-registry";
 import { effectiveTeamStatus } from "./robotTeamSupply";
 import { object, text, iso } from "./workspace-projection";
+import { loadWebsiteSceneProgression } from "./websiteSceneProgression";
 import {
   buildJobTimeline,
   evaluationRequestAdmitted,
@@ -120,6 +123,8 @@ async function loadInputs(docs: Doc[]): Promise<RawJobInputs[]> {
       site: await decryptSite(record),
       brief: briefs.get(doc.id) ?? null,
       captureSession: sessions.get(`walkthrough-${doc.id}`) ?? null,
+      sceneProgression: sessions.has(`walkthrough-${doc.id}`)
+        ? await loadWebsiteSceneProgression(doc.id, `walkthrough-${doc.id}`) : null,
       evaluationRequests,
       runs: runs.filter((run) => (run as unknown as { sceneId?: string }).sceneId === doc.id),
       teamNames,

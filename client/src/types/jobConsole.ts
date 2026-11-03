@@ -19,6 +19,21 @@ export type WithdrawalState =
   | "none" | "requested" | "cleanup_pending" | "legal_hold" | "external_pending" | "complete";
 
 /**
+ * Blueprint's own scene and screening for the job, as its job page reads them
+ * (`loadWebsiteSceneProgression`): preparing the scene, screening the
+ * candidates, or the screening's outcome.
+ */
+export interface BlueprintScene {
+  state: "in_progress" | "waiting" | "completed" | "testing" | "evaluated" | "held" | "ended";
+  /** Why a held job is held, when the screening said. */
+  heldReason: string | null;
+  /** What a planned or running screening waits on. */
+  progressOutcome: "awaiting_spend_approval" | "setup_repair" | "superseded" | null;
+  /** The ending the Pipeline decided, when there is one. */
+  ending: string | null;
+}
+
+/**
  * Why approved robot teams cannot evaluate a job: `teamJobAccess`'s reasons
  * (`server/utils/teamJobAccess.ts`). `jobConsoleFacts.ts` stops compiling if
  * that predicate gains a reason this list does not name.
@@ -53,7 +68,7 @@ export type SceneHold =
   | "not_now"
   /** The brief is confirmed but no screening decision is on file. */
   | "unscreened"
-  /** Qualified, but the site has not saved the job to an account and no scene grant is on file; the scene is built only for a claimed site. */
+  /** Qualified, but the site has not saved the job to an account and no scene grant is on file; the scene waits for one or the other. */
   | "unclaimed"
   /** Qualified, and claimed or granted a scene; the Pipeline has not reported a built scene. */
   | "scene_not_built"
@@ -132,6 +147,8 @@ export interface JobFacts {
     best: BestRunSummary | null;
   };
   withdrawal: { state: WithdrawalState };
+  /** Absent or null when Blueprint has no scene for the job yet. */
+  scene?: BlueprintScene | null;
   /** Written by a separate notice lane when present; read defensively. */
   opsNotice: { state: string; summary: string | null } | null;
   lastActivityIso: string | null;
@@ -141,6 +158,11 @@ export const JOB_STAGES = [
   "intake",
   "brief_review",
   "capture",
+  "scene_preparation",
+  "screening",
+  "estimate",
+  "held",
+  "ended",
   "listing",
   "not_open",
   "awaiting_teams",
@@ -157,6 +179,11 @@ export const JOB_STAGE_LABELS: Record<JobStage, string> = {
   intake: "Intake",
   brief_review: "Brief review",
   capture: "Capture",
+  scene_preparation: "Scene preparation",
+  screening: "Screening",
+  estimate: "Estimate",
+  held: "Held",
+  ended: "Ended",
   listing: "Public card",
   not_open: "Not open to teams",
   awaiting_teams: "Awaiting teams",
