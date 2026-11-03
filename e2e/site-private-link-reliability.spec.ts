@@ -194,7 +194,8 @@ test("the current simulation estimate is visible while technical references stay
         nextAction: "Blueprint uses this estimate to recommend the next step.",
         limitations: ["Simulation does not certify physical performance or safety."], href: "#managed-evidence-accepted-evaluation",
         screening: { candidates: [{ candidateId: "candidate-1", name: "Current candidate", state: "completed",
-          planned: 3, scored: 3, succeeded: 2, failed: 1, void: 0, blockers: [] }] } }],
+          planned: 3, scored: 3, succeeded: 2, failed: 1, void: 0, blockers: [],
+          successRange: { lowerPercent: 21, upperPercent: 94, confidencePercent: 95 } }] } }],
     } });
     if (url.pathname === `/api/self-capture/uploads/${token}/status`) return route.fulfill({ json: {
       ok: true, state: "open", captureReceived: true, uploadState: "processing_ready", accepts: ["mov", "mp4"],
@@ -210,7 +211,8 @@ test("the current simulation estimate is visible while technical references stay
   await page.goto(`/capture-upload/${token}?video=existing`);
   await expect(page.getByRole("heading", { name: "Your simulation estimate" })).toBeVisible();
   await expect(page.getByRole("table", { name: "Candidates evaluated for your job" })).toBeVisible();
-  await expect(page.getByText("2 succeeded · 1 failed · 0 unscorable")).toBeVisible();
+  await expect(page.getByText("Succeeded in 2 of 3 scored tries; likely between 21% and 94%.")).toBeVisible();
+  await expect(page.getByText("1 failed · 0 unscorable")).toBeVisible();
   await expect(page.getByText("Simulation does not certify physical performance or safety.")).toBeVisible();
   await expect(page.getByText("Technical evidence and test details").locator("..")).not.toHaveAttribute("open");
   await expect(page.getByText(/Run: accepted-evaluation/)).not.toBeVisible();

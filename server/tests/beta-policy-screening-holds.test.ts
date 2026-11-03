@@ -42,8 +42,9 @@ const progression = () => readWebsiteSceneProgression("job-one", base.source.cap
 
 beforeEach(() => {
   state.docs.clear();
-  const { publication, job, brief, intake } = screeningFixture();
+  const { publication, job, brief, intake, launch } = screeningFixture();
   base = publication;
+  state.docs.set(launch.path, launch.record);
   state.docs.set("inboundRequests/job-one", { ...job, contact: { email: "encrypted:owner@example.com" } });
   state.docs.set("siteTaskBriefs/job-one", brief);
   state.docs.set("taskEvaluationSceneIntakes/intake-one", intake);
@@ -115,6 +116,50 @@ describe("a website evaluation held before any campaign started", () => {
     await expect(progression()).resolves.toMatchObject({ progressOutcome: "setup_repair" });
   });
 
+  it("keeps the owner's closure on a hold: never shown, emailed or reported", async () => {
+    state.docs.set("taskEvaluationPolicyRuns/" + holdId(base.source.scene_intent_id),
+      { run_kind: "beta_policy_screening_hold", source_scene_intent_id: base.source.scene_intent_id, website_request_id: "job-one",
+        state: "closed", cancellationRequested: true, hold_revision: 0, hold_digest: "sha256:" + "0".repeat(64) });
+    await ingestBetaPolicyScreeningHold(parseBetaPolicyScreeningHold(sealHold({ reason_code: "team_scene_packet_blocked" }))!);
+    expect(holdRun()).toMatchObject({ state: "closed", cancellationRequested: true, screening_outcome: "held_setup" });
+    expect(holdRun().outcome_notification_pending).toBeUndefined();
+    await expect(progression()).resolves.not.toMatchObject({ state: "held" });
+    await expect(scanHeldWebsiteEvaluations({ alert: vi.fn(async () => ({ sent: true })) })).resolves.toEqual({ held: 0, alerted: 0 });
+  });
+
+  it("reports only what the job page says now: no older wait an estimate replaced, never a re-plan in progress", async () => {
+    const alert = vi.fn(async () => ({ sent: true }));
+    // An older release stored a spent allowance as a wait; a newer campaign's estimate replaced it.
+    await ingestBetaPolicyScreening(outcomePublication(base, "held_budget"));
+    const stored = state.docs.get("taskEvaluationPolicyRuns/campaign-one") as Record<string, any>;
+    state.docs.set("taskEvaluationPolicyRuns/campaign-one", { ...stored, screening_outcome: "awaiting_spend_approval" });
+    await ingestBetaPolicyScreening(sealScreening({ ...outcomePublication(base, "estimate"), campaign_id: "campaign-two" }));
+    await expect(scanHeldWebsiteEvaluations({ alert })).resolves.toEqual({ held: 0, alerted: 0 });
+    // Rows planned again after a deploy are still in progress.
+    state.docs.clear();
+    const { job, brief, intake, launch } = screeningFixture();
+    state.docs.set(launch.path, launch.record);
+    state.docs.set("inboundRequests/job-one", job);
+    state.docs.set("siteTaskBriefs/job-one", brief);
+    state.docs.set("taskEvaluationSceneIntakes/intake-one", intake);
+    await ingestBetaPolicyScreening(outcomePublication(base, "setup_repair"));
+    await expect(scanHeldWebsiteEvaluations({ alert })).resolves.toEqual({ held: 0, alerted: 0 });
+    expect(alert).not.toHaveBeenCalled();
+  });
+
+  it("shows a job-ceiling deferral as waiting on Blueprint, reports it to our team and emails the site nothing", async () => {
+    const alert = vi.fn(async () => ({ sent: true }));
+    await ingestBetaPolicyScreening(outcomePublication(base, "awaiting_spend_approval"));
+    const stored = state.docs.get("taskEvaluationPolicyRuns/campaign-one") as Record<string, any>;
+    expect(stored.screening_outcome).toBe("awaiting_spend_approval");
+    expect(stored.outcome_notification_pending).toBeUndefined();
+    await expect(progression()).resolves.toMatchObject({ progressOutcome: "awaiting_spend_approval" });
+    await expect(scanHeldWebsiteEvaluations({ alert })).resolves.toEqual({ held: 1, alerted: 1 });
+    expect(String((alert.mock.calls[0] as unknown[])[1])).toMatch(/finished without an estimate: awaiting_spend_approval/);
+    await deliverOutbox();
+    expect(send).not.toHaveBeenCalled();
+  });
+
   it("refuses a hold for a source the job's scene intake does not bind", async () => {
     const other = sealScreening({ ...base, source: { ...base.source, scene_revision_digest: `sha256:${"9".repeat(64)}` } });
     const hold = parseBetaPolicyScreeningHold(sealHold({ source: other.source }))!;
@@ -126,12 +171,12 @@ describe("a website evaluation held before any campaign started", () => {
     const alert = vi.fn(async () => ({ sent: true }));
     await ingestBetaPolicyScreeningHold(parseBetaPolicyScreeningHold(sealHold({ reason_code: "robot_free_probe_unavailable_for_task" }))!);
     await expect(scanHeldWebsiteEvaluations({ alert })).resolves.toEqual({ held: 0, alerted: 0 });
-    await ingestBetaPolicyScreeningHold(parseBetaPolicyScreeningHold(sealHold({ reason_code: "team_scene_packet_blocked",
-      detail_code: "team_scene_packet_bundle_invalid", revision: 2 }))!);
+    await ingestBetaPolicyScreeningHold(parseBetaPolicyScreeningHold(sealHold({ reason_code: "robot_free_probe_failed",
+      detail_code: "not_passed", revision: 2 }))!);
     await expect(scanHeldWebsiteEvaluations({ alert })).resolves.toEqual({ held: 1, alerted: 1 });
     expect(alert).toHaveBeenCalledTimes(1);
     expect(String((alert.mock.calls[0] as unknown[])[1])).toMatch(
-      /finished without an estimate: held_setup \(team_scene_packet_blocked\)\. .*\/admin\/leads\/job-one/);
+      /finished without an estimate: held_scene_check \(robot_free_probe_failed\)\. .*\/admin\/leads\/job-one/);
     await expect(scanHeldWebsiteEvaluations({ alert })).resolves.toMatchObject({ alerted: 0 });
     // A campaign that ended on our side is reported the same way.
     await ingestBetaPolicyScreening(outcomePublication(base, "held_setup"));

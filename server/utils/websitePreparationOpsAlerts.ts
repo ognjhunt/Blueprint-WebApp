@@ -12,7 +12,7 @@ import { appBaseUrl, opsNoticeRecipient } from "./intakeOpsNotice";
 import { sendRateLimitedOpsAlert } from "./opsProcessAlerts";
 import { SCENE_INTAKE_COLLECTION } from "./taskEvaluationSceneIntake";
 import { projectWebsiteCaptureRights } from "./websiteTaskContext";
-import { projectWebsiteSceneProgression } from "./websiteSceneProgression";
+import { projectWebsiteSceneProgression, rederiveStoredWaits, sceneScreening } from "./websiteSceneProgression";
 import { currentOwnerSuccessHold, OWNER_SUCCESS_HOLD_FIELD, OWNER_SUCCESS_HOLD_REASON_TEXT } from "./websiteOwnerSuccessConfirmation";
 import { firstStatusAlertMs, isWebsitePreparationCapture, parseWebsitePreparationWatch, stuckAlertMs,
   websitePreparationAlertDeliverySchema, WEBSITE_PREPARATION_WATCH_DUE_FIELD, WEBSITE_PREPARATION_WATCH_FIELD,
@@ -25,10 +25,14 @@ const EVALUATION_ALERT_COLLECTION = "opsWebsiteEvaluationHoldAlerts";
 const POLICY_RUNS = "taskEvaluationPolicyRuns";
 /**
  * Finished evaluations that are ours to look at: held on our side, out of the
- * site's allowance, or a failed scene check. The two older names are runs
- * stored before such an end was final; they are just as stuck.
+ * site's allowance, a failed scene check, or waiting on the owner's raise of
+ * the job's dollar ceiling. `setup_repair` (a re-plan after a deploy) is still
+ * in progress and never reported.
  */
-const HELD_EVALUATION_OUTCOMES = ["held_setup", "held_budget", "held_scene_check", "setup_repair", "awaiting_spend_approval"];
+const ALERT_EVALUATION_OUTCOMES = new Set(["held_setup", "held_budget", "held_scene_check", "awaiting_spend_approval"]);
+/** Stored outcomes to look at: the reported ones, and older waits read again from their publications first. */
+const STORED_EVALUATION_OUTCOMES = ["held_setup", "held_budget", "held_scene_check", "awaiting_spend_approval", "setup_repair"];
+const TERMINAL_RUN = (data: any) => ["completed", "blocked"].includes(data?.state) && data?.cancellationRequested !== true;
 const LEASE_MS = 5 * 60 * 1000;
 const RETRY_MS = 15 * 60 * 1000;
 const MAX_RETRY_MS = 6 * 60 * 60 * 1000;
@@ -430,24 +434,39 @@ export async function scanHeldWebsiteEvaluations(deps: AlertDeps = {}): Promise<
   const store = deps.store === undefined ? (dbAdmin as unknown as Store | null) : deps.store;
   if (!store) return { held: 0, alerted: 0 };
   const now = deps.now || Date.now, limit = Math.max(1, Math.min(deps.limit ?? 50, 100));
-  const held: { id: string; requestId: string; outcome: string; reason: string | null }[] = [];
-  for (const outcome of HELD_EVALUATION_OUTCOMES) {
+  const held: { id: string; key: string; requestId: string; outcome: string; reason: string | null }[] = [];
+  const scenes = new Set<string>();
+  for (const stored of STORED_EVALUATION_OUTCOMES) {
     const rows = await automationBatch(store as unknown as FirebaseFirestore.Firestore,
-      store.collection(POLICY_RUNS).where("screening_outcome", "==", outcome) as unknown as FirebaseFirestore.Query,
-      `website_evaluation_hold_alerts_${outcome}`, limit) as unknown as { docs: Doc[] };
+      store.collection(POLICY_RUNS).where("screening_outcome", "==", stored) as unknown as FirebaseFirestore.Query,
+      `website_evaluation_hold_alerts_${stored}`, limit) as unknown as { docs: Doc[] };
     for (const row of rows.docs) {
       const data = row.data();
       const requestId = data?.website_request_id ?? data?.job_evidence_binding?.job_id;
-      if (typeof requestId === "string" && ["completed", "blocked"].includes(data?.state) && data?.cancellationRequested !== true)
-        held.push({ id: row.id, requestId, outcome, reason: typeof data?.hold_reason_code === "string" ? data.hold_reason_code : null });
+      const intent = data?.source_scene_intent_id, team = data?.team_namespace;
+      if (typeof requestId !== "string" || typeof intent !== "string" || typeof team !== "string" || !TERMINAL_RUN(data)
+        || scenes.has(`${intent}\u0000${team}`)) continue;
+      scenes.add(`${intent}\u0000${team}`);
+      // Only what the job page says now is reported: older waits are read again, and a newer
+      // estimate, an open run or a re-plan in progress speaks instead.
+      const runs = (await store.collection(POLICY_RUNS).where("source_scene_intent_id", "==", intent).limit(100).get())
+        .docs.map(doc => ({ id: doc.id, run: doc.data() }));
+      await rederiveStoredWaits(store as never, runs);
+      const scene = sceneScreening(runs, team);
+      if (scene.estimate || scene.running || !scene.outcome || !ALERT_EVALUATION_OUTCOMES.has(scene.outcome)) continue;
+      const speaking = runs.find(({ run }) => run?.screening_outcome === scene.outcome && run?.team_namespace === team);
+      if (!speaking) continue;
+      held.push({ id: speaking.id, key: `${intent}:${scene.outcome}`, requestId, outcome: scene.outcome,
+        reason: typeof speaking.run?.hold_reason_code === "string" ? speaking.run.hold_reason_code : null });
     }
   }
   const claims: ClaimedAlert[] = [];
   for (const run of held) {
-    const ref = store.collection(EVALUATION_ALERT_COLLECTION).doc(`${run.id}:${run.outcome}`);
+    const ref = store.collection(EVALUATION_ALERT_COLLECTION).doc(run.key);
     const sourceRef = store.collection(POLICY_RUNS).doc(run.id), leaseId = randomUUID();
-    const stillHeld = (data: any) => data?.screening_outcome === run.outcome && ["completed", "blocked"].includes(data?.state)
-      && data?.cancellationRequested !== true;
+    // The speaking run still ends the same way (an older wait still reads as one).
+    const stillHeld = (data: any) => TERMINAL_RUN(data)
+      && (data?.screening_outcome === run.outcome || ["awaiting_spend_approval", "setup_repair"].includes(data?.screening_outcome));
     try {
       const claimed = await store.runTransaction(async tx => {
         const source = (await tx.get(sourceRef)).data(), marker = (await tx.get(ref)).data() ?? {};

@@ -22,7 +22,7 @@ import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { crossRuntimeArtifactDigest } from "./crossRuntimeCanonical";
 import { scientificBriefDigest } from "./jobEvidenceContract";
 import { assertManagedScreeningCaptureCurrent, assertScreeningSceneSource, managedJobTask, readManagedJobSourceSession,
-  readManagedScreeningCapture } from "./jobManagedEvaluation";
+  readManagedScreeningCapture, readPreparedRevisionOfferings } from "./jobManagedEvaluation";
 import { SCENE_INTAKE_COLLECTION } from "./taskEvaluationSceneIntake";
 import { betaPolicyScreeningSourceSchema, isScreeningAttentionOutcome, storedScreeningOutcome,
   type ScreeningHeldOutcome } from "./betaPolicyScreeningContract";
@@ -98,6 +98,8 @@ export async function ingestBetaPolicyScreeningHold(hold: BetaPolicyScreeningHol
   const screeningCapture = selectedJob?.job_evidence_source ? { captureId: selected.source_session_id }
     : await readManagedScreeningCapture(selected.website_request_id, selected.source_session_id);
   const runRef = store.collection("taskEvaluationPolicyRuns").doc(hold.hold_id);
+  // The offerings that bind the intake's revision file, read outside the transaction as a campaign's are.
+  const revisionOfferings = await readPreparedRevisionOfferings(selected);
   return store.runTransaction(async transaction => {
     const intake = (await transaction.get(intakeRef)).data();
     const jobId = intake?.website_request_id;
@@ -115,7 +117,7 @@ export async function ingestBetaPolicyScreeningHold(hold: BetaPolicyScreeningHol
       record: job.data(), brief: brief.data(), allowProposedScreening: true, screeningCapture,
       inventory: inventory.exists ? inventory.data() as TaskItemInventoryRecord : null,
       sourceSession: await readManagedJobSourceSession(job.data(), ref => transaction.get(ref)) });
-    assertScreeningSceneSource(hold, intake!, scope);
+    assertScreeningSceneSource(hold, intake!, scope, revisionOfferings);
     const previous = oldRun.data();
     const receipt = (status: "created" | "updated" | "replayed", value: { hold_revision: number; hold_digest: string }) =>
       ({ status, hold_id: hold.hold_id, revision: value.hold_revision, hold_digest: value.hold_digest });
@@ -127,14 +129,18 @@ export async function ingestBetaPolicyScreeningHold(hold: BetaPolicyScreeningHol
       if (previous.hold_revision === hold.revision) throw new Error("screening_hold_revision_conflict");
     }
     const outcome = screeningHoldOutcome(hold);
-    const closed = Boolean(websiteRunClosure(job.data(), jobId, hold.source.capture_id));
+    // The owner's closure, or an earlier cancellation, is kept exactly as a campaign's is.
+    const ownerClosed = Boolean(websiteRunClosure(job.data(), jobId, hold.source.capture_id));
+    const kept = ["cancelled", "closed"].includes(previous?.state) ? previous!.state as string : null;
+    const closed = previous?.cancellationRequested === true || kept !== null || ownerClosed;
     // The site hears once when a hold first names an outcome (F-01); the same outcome again,
     // a release, or a run the owner closed owes nothing new.
     const notice = closed || outcome === storedScreeningOutcome(previous?.screening_outcome) ? null
       : heldOutcomeNoticeIntent(outcome, jobId, hold.hold_id, hold.source.scene_intent_id);
     const now = new Date().toISOString();
     transaction.set(runRef, {
-      run_id: hold.hold_id, run_kind: SCREENING_HOLD_RUN_KIND, state: outcome ? "blocked" : "released",
+      run_id: hold.hold_id, run_kind: SCREENING_HOLD_RUN_KIND,
+      state: kept ?? (ownerClosed ? "closed" : outcome ? "blocked" : "released"), ...(closed ? { cancellationRequested: true } : {}),
       website_request_id: jobId, owner_user_id: intake!.request.owner.user_id, team_namespace: scope.teamNamespace,
       source_scene_intent_id: hold.source.scene_intent_id, source_scene_intake_id: intakeRef.id,
       source_scene_revision_digest: hold.source.scene_revision_digest, job_task_context_digest: scope.taskContextDigest,

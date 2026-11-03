@@ -35,8 +35,9 @@ let base: ReturnType<typeof screeningFixture>["publication"];
 
 beforeEach(() => {
   state.docs.clear();
-  const { publication, job, brief, intake } = screeningFixture();
+  const { publication, job, brief, intake, launch } = screeningFixture();
   base = publication;
+  state.docs.set(launch.path, launch.record);
   state.docs.set("inboundRequests/job-one", { ...job, contact: { email: "encrypted:owner@example.com" } });
   state.docs.set("siteTaskBriefs/job-one", brief);
   state.docs.set("taskEvaluationSceneIntakes/intake-one", intake);
@@ -77,7 +78,7 @@ describe("one email per terminal outcome of the job's evaluation (F-01)", () => 
     expect(notices()).toHaveLength(1);
   });
 
-  it.each(["setup_repair", "superseded"])("sends nothing for %s", async outcome => {
+  it.each(["awaiting_spend_approval", "setup_repair", "superseded"])("sends nothing for %s", async outcome => {
     await ingestBetaPolicyScreening(outcomePublication(base, outcome));
     expect(run()).toMatchObject({ screening_outcome: outcome });
     expect(run().outcome_notification_pending).toBeUndefined();
@@ -139,7 +140,8 @@ describe("one email per terminal outcome of the job's evaluation (F-01)", () => 
     expect(state.docs.get(key("no_match"))).toMatchObject({ status: "cancelled", attempts: 0 });
     // Withdrawn before anything was queued: nothing is queued, and the intent stays for the record.
     state.docs.clear();
-    const { publication, job: fresh, brief, intake } = screeningFixture();
+    const { publication, job: fresh, brief, intake, launch } = screeningFixture();
+    state.docs.set(launch.path, launch.record);
     state.docs.set("inboundRequests/job-one", { ...fresh, contact: { email: "encrypted:owner@example.com" } });
     state.docs.set("siteTaskBriefs/job-one", brief);
     state.docs.set("taskEvaluationSceneIntakes/intake-one", intake);

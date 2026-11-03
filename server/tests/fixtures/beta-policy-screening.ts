@@ -1,10 +1,37 @@
+import { createHash } from "node:crypto";
 import { crossRuntimeArtifactDigest, crossRuntimeDigest } from "../../utils/crossRuntimeCanonical";
+import { canonicalArtifactDigest } from "../../utils/taskCandidateContract";
+import pipelineOffering from "./pipeline-configured-scene-offering.v1.json";
 import { projectWebsiteCaptureRights, projectWebsiteTaskContext } from "../../utils/websiteTaskContext";
 import type { SiteTaskBriefRecord } from "../../utils/siteTaskBrief";
 import { SCREENING_OUTCOMES, type BetaPolicyScreeningPublication } from "../../utils/betaPolicyScreeningContract";
 import type { BetaCandidateSelection } from "../../utils/betaCandidateSelection";
 import allCandidatePublication from "./pipeline-beta-policy-screening-all-candidates.v2.json";
 export const screeningSha = (character: string) => `sha256:${character.repeat(64)}`;
+/**
+ * A configured scene's two digests, as the Pipeline publishes them. The
+ * intent status's `result_reference.digest` is the sha256 of the revision
+ * file's bytes; the screening source's `scene_revision_digest` is the
+ * revision's own self-digest. They are never equal.
+ */
+export const SCREENING_REVISION_FILE_SHA = `sha256:${createHash("sha256").update("synthetic configured_scene_revision.v1.json bytes").digest("hex")}`;
+export const SCREENING_REVISION_DIGEST = screeningSha("e");
+/**
+ * The stored launch record the Pipeline's publication sync leaves for a
+ * configured scene: the real Pipeline offering shape, bound to `reference`
+ * (the revision file) and `revisionDigest` (its self-digest).
+ */
+export function screeningRevisionLaunch(reference: { uri: string; digest: string; size_bytes: number },
+  revisionDigest = SCREENING_REVISION_DIGEST, teamNamespace = "blueprint-operations") {
+  const offering: Record<string, any> = structuredClone(pipelineOffering);
+  offering.team_namespace = teamNamespace;
+  offering.evaluation_preparation_binding = { ...offering.evaluation_preparation_binding,
+    configured_scene_revision: { ...reference }, configured_scene_revision_digest: revisionDigest };
+  offering.offering_digest = canonicalArtifactDigest(offering, "offering_digest");
+  return { path: "taskEvaluationLaunches/launch-scene-one", record: { launch_id: "launch-scene-one", state: "completed",
+    configured_scene_offering: offering, configured_scene_offering_digest: offering.offering_digest,
+    configured_scene_offering_state: "launch_ready", configured_scene_offering_team_namespace: teamNamespace } };
+}
 export function sealScreening(value: any): BetaPolicyScreeningPublication {
   return { ...value, publication_digest: crossRuntimeArtifactDigest(value, "publication_digest") };
 }
@@ -24,13 +51,13 @@ export function screeningFixture(proposed = false) {
     provider_mutation_performed_inside_http_request: false };
   const status = { schema_version: "task_evaluation_scene_intent_status.v1", status: "completed", phase: "scene_prepared",
     intent_id: receipt.intent_id, intent_digest: receipt.intent_digest, request_digest: receipt.request_digest,
-    owner: request.owner, result_reference: { uri: "gs://fixture/revision/configured_scene_revision.v1.json", digest: screeningSha("e"), size_bytes: 300 } };
+    owner: request.owner, result_reference: { uri: "gs://fixture/revision/configured_scene_revision.v1.json", digest: SCREENING_REVISION_FILE_SHA, size_bytes: 300 } };
   const intake = { website_request_id: brief.requestId, source_session_id: context.capture_id, state: "completed", request, request_digest: crossRuntimeDigest(request),
     receipt: { ...receipt, receipt_digest: crossRuntimeDigest(receipt) }, pipeline_status: { ...status, status_digest: crossRuntimeDigest(status) } };
   const publication = sealScreening({ schema_version: "beta_policy_screening_publication.v2", campaign_id: "campaign-one",
     site_id: context.scene_id, revision: 1, plan_digest: screeningSha("b"), catalog_digest: screeningSha("c"), scenario_plan_digest: screeningSha("d"),
     source: { scene_intent_id: receipt.intent_id, scene_intent_digest: receipt.intent_digest, capture_id: context.capture_id,
-      task_id: request.task.task_id, task_context_digest: context.context_digest, scene_revision_digest: screeningSha("e") },
+      task_id: request.task.task_id, task_context_digest: context.context_digest, scene_revision_digest: SCREENING_REVISION_DIGEST },
     status: "queued", purpose: "job_evaluation", execution_operator: { kind: "blueprint" },
     claim_ceiling: "simulation_estimate",
     candidates: Array.from({ length: 36 }, (_, index) => ({ candidate_id: `candidate-${index}`, display_name: `Candidate ${index}`,
@@ -38,7 +65,7 @@ export function screeningFixture(proposed = false) {
       episodes_succeeded: 0, episodes_failed: 0, episodes_void: 0, success_rate: null, session_result_digest: null })),
     budget: { currency: "USD", limit_usd: "15.00", committed_upper_bound_usd: "0", spent_upper_bound_usd: "0", reserved_usd: "0" },
     generated_at: "2026-10-26T12:10:00Z" });
-  return { publication, job, brief, context, intake };
+  return { publication, job, brief, context, intake, launch: screeningRevisionLaunch(status.result_reference) };
 }
 
 export function familyScreeningFixture() {
@@ -127,13 +154,8 @@ export function finishedScreening(publication: BetaPolicyScreeningPublication, r
 export const scriptedBaselineRow = { execution_evidence_kind: "scripted_simulator_state_baseline", action_source: "scripted_simulator_state",
   scripted_rollout_count: 3, learned_policy_rollout_count: 0, scripted_controller_invoked: true, candidate_policy_queried: false } as const;
 
-/**
- * Outcomes a campaign publication can reach. `held_scene_check` comes only from
- * a Pipeline hold (no campaign started), and `awaiting_spend_approval` only from
- * runs stored before a spent allowance was final.
- */
-export const PUBLISHED_SCREENING_OUTCOMES = SCREENING_OUTCOMES.filter(outcome =>
-  outcome !== "held_scene_check" && outcome !== "awaiting_spend_approval");
+/** Outcomes a campaign publication can reach. `held_scene_check` comes only from a Pipeline hold (no campaign started). */
+export const PUBLISHED_SCREENING_OUTCOMES = SCREENING_OUTCOMES.filter(outcome => outcome !== "held_scene_check");
 
 /** One terminal or in-progress publication for each screening outcome, from the 36-candidate fixture. */
 export function outcomePublication(publication: BetaPolicyScreeningPublication, outcome: string, revision = 2) {
@@ -155,6 +177,8 @@ export function outcomePublication(publication: BetaPolicyScreeningPublication, 
       : blocked(["site_screening_budget_insufficient"], "deferred")(row),
     { budget: { ...publication.budget, committed_upper_bound_usd: "4", spent_upper_bound_usd: "4" } });
     case "held_setup": return every(blocked(["beta_screening_static_preflight_blocked:no_offer"]));
+    // Only the job's dollar ceiling held the candidates back: a wait on the owner's money decision.
+    case "awaiting_spend_approval": return every(blocked(["website_job_ceiling_insufficient"], "deferred"));
     // Refused for code a deploy changed: the Pipeline plans these again by itself.
     case "setup_repair": return every(blocked(["beta_screening_implementation_commit_changed"]));
     case "superseded": return every((row, index) => blocked([index ? "beta_screening_replanned_for_new_implementation"

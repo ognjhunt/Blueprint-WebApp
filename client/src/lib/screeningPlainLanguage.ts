@@ -23,6 +23,7 @@ const REASONS: Record<string, string> = {
   runtime_candidate_binding_missing: NOT_SET_UP,
   site_screening_budget_insufficient: NOT_RUN,
   beta_screening_site_budget_exhausted: NOT_RUN,
+  website_job_ceiling_insufficient: NOT_RUN,
   beta_screening_waiting_for_capacity: "Waiting for room in our simulator.",
   beta_screening_waiting_for_control: "Waiting to confirm this job can still run.",
   beta_screening_transport_retry_cap_exhausted: "Not run: we could not confirm this job can still run. This is ours to fix.",
@@ -32,7 +33,7 @@ const REASONS: Record<string, string> = {
 /** Codes the Pipeline adds later still say something true, by category. */
 const CATEGORIES: Array<[RegExp, string]> = [
   [/infeasible|out_of_reach|unreachable/, MEASURED],
-  [/budget/, NOT_RUN],
+  [/budget|ceiling/, NOT_RUN],
   [/capacity/, REASONS.beta_screening_waiting_for_capacity],
   [/replanned/, REASONS.beta_screening_replanned_for_new_implementation],
   [/licen[cs]e|commercial|entitlement|terms/, REASONS.commercial_use_not_admitted],

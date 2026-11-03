@@ -181,6 +181,24 @@ export function sceneScreeningResult(scene: SceneScreening): boolean | SceneScre
 }
 
 /**
+ * A run stored before every finished run had a final outcome may say it is
+ * still waiting on us or the owner: read its accepted publication again, in
+ * place. The job page and the ops monitor read the same outcome.
+ */
+export async function rederiveStoredWaits(store: { collection: (name: string) => { doc: (id: string) => { get: () => Promise<{ data: () => Record<string, any> | undefined }> } } },
+  runs: Array<{ id: string; run: Record<string, any> | undefined }>): Promise<void> {
+  await Promise.all(runs.map(async row => {
+    const run = row.run;
+    if (run?.run_kind !== "beta_policy_screening" || !["completed", "blocked"].includes(run.state)
+      || !LEGACY_WAITS.has(run.screening_outcome) || typeof run.result_record_id !== "string") return;
+    const result = (await store.collection("captureTaskEvaluationRuns").doc(run.result_record_id).get()).data();
+    const publication = result ? parseBetaPolicyScreeningPublication(publicationFromResultRecord(result)) : null;
+    if (publication && publication.campaign_id === run.run_id && publication.publication_digest === run.publication_digest)
+      row.run = { ...run, screening_outcome: screeningOutcome(publication) };
+  }));
+}
+
+/**
  * Whether the Pipeline accepted a policy test on a configured scene of this
  * intake's task, in the intake's own team. A configured scene carries the
  * task's objects, so this is the first internal test of the finished scene.
@@ -196,17 +214,7 @@ async function firstTestAccepted(store: FirebaseFirestore.Firestore, intake: Rec
       runs.push(...rows.map(row => ({ id: row.id, run: row.data() })));
     }
   }
-  // A run stored before every finished run had a final outcome may say it is
-  // still waiting on us or the owner: read its accepted publication again.
-  await Promise.all(runs.map(async row => {
-    const run = row.run;
-    if (run?.run_kind !== "beta_policy_screening" || !["completed", "blocked"].includes(run.state)
-      || !LEGACY_WAITS.has(run.screening_outcome) || typeof run.result_record_id !== "string") return;
-    const result = (await store.collection("captureTaskEvaluationRuns").doc(run.result_record_id).get()).data();
-    const publication = result ? parseBetaPolicyScreeningPublication(publicationFromResultRecord(result)) : null;
-    if (publication && publication.campaign_id === run.run_id && publication.publication_digest === run.publication_digest)
-      row.run = { ...run, screening_outcome: screeningOutcome(publication) };
-  }));
+  await rederiveStoredWaits(store, runs);
   // An estimate, or a test still running, needs no launch lookup. A finished
   // outcome without an estimate is a fallback behind any accepted launch test.
   const scene = sceneScreening(runs, team);
