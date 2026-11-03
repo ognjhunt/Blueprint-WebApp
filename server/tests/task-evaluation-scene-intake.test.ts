@@ -340,7 +340,7 @@ describe("the website job window is one policy value", () => {
     process.env.BLUEPRINT_WEBSITE_SCENE_SPONSORSHIP_JSON = JSON.stringify(policy);
   };
 
-  it("defaults to the proposed seven days, the bound the Pipeline mirrors", async () => {
+  it("defaults to the owner-approved seven days, the bound the Pipeline mirrors", async () => {
     // blueprint_pipeline/website_job_window.py WEBSITE_JOB_WINDOW_MAX_SECONDS must equal this.
     expect(WEBSITE_JOB_WINDOW_MAX_SECONDS).toBe(7 * DAY);
     expect(WEBSITE_JOB_WINDOW_DEFAULT_SECONDS).toBeLessThanOrEqual(WEBSITE_JOB_WINDOW_MAX_SECONDS);

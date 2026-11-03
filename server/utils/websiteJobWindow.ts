@@ -19,8 +19,7 @@
  * sceneExecutionWindowExtension.ts) still adds at most 7 days past the issued
  * expiry, so a job can run for at most the window plus 7 days.
  *
- * Proposed 2026-11-03 (up from one day in practice), held for the owner's
- * approval of the length.
+ * 7 days, owner-approved 2026-11-03 (up from one day in practice).
  */
 export const WEBSITE_JOB_WINDOW_MIN_SECONDS = 60;
 export const WEBSITE_JOB_WINDOW_MAX_SECONDS = 7 * 86400;
