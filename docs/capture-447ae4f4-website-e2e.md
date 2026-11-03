@@ -28,7 +28,7 @@ the stored figure (`terminal_launch_unreconciled`); budget admission derives the
 proven hold from its meter (Pipeline #3291). The successor attempt was sized at
 its full $18, which does not fit if $31 is counted.
 
-| Step | Evidence at 2026-11-03 05:15 UTC (11:15 PM CST, 11-02) |
+| Step | Evidence at 2026-11-03 07:10 UTC (1:10 AM CST) |
 | --- | --- |
 | 1–9. Intake, upload, capture review, plan, masks, background, views, Atlas, registration | **done for preparation; not re-read on 11-03.** The attempt's preparation result `pipeline-control-plane/task-evaluation-owned-scene-preparations/results/website-f06d4da8…-16f5bee56419-preparation-ae002f49….json` is `queued_for_production_scene_configuration` with no blockers and no paid execution requested. Earlier sessions' evidence for these steps is not repeated here. |
 | 10. Task object (ARTISAN) and static qualification | **done.** CPU prestage on the control plane, no GPU: stages 1–2 23:47–23:49, stage 3 (ARTISAN) 23:49–00:49, stage 4 00:49–00:50 (5:47–6:50 PM CST). ARTISAN meter: 43 calls (42 `gpt-6.1-sol`, 1 image), all priced, $4.21 of the $12 cap. Receipt `<job>/immutable_execution/stages/stage-3/adapter/replacement_authoring_receipt.v1.json` (`task_object_artisan_candidate.v1`, backend `artisan_v1`, `rigid_body`, subject `website-subject-53e1ef5c8bf71f6d840a`). Static qualification `…/stage-4/adapter/static_qualification_receipt.v1.json`. Prestage result `<job>/cpu_prestage_provider_result.json`: `completed_prefix` to `stage-4`. |
@@ -42,6 +42,27 @@ estimated).
 
 ## Next
 
-1. Deploy `7cd76d9f3` (owner approval). The team packet then recompiles once.
-2. Robot-free probe (cap $1), then screening of the selected candidates (cap the
-   smaller of $15 and what the $130 job ceiling leaves).
+Merged, awaiting the owner's deploy approval (main `d2b17f8c9`):
+
+- Pipeline #3313: a deterministic team-packet refusal is retried once per new
+  release, so capture-447's request (blocked under the earlier frame rule)
+  recompiles after the deploy.
+- Pipeline #3314: robot-team evaluations run a per-cell-controls contract under
+  the controls pause (diagnostic omission, scoring unchanged).
+- Pipeline #3316: capture-447's room collider is one 9.2 x 9.2 m scanned mesh
+  (`/Root/mesh_0000_GLTF`). The station search dropped it as an oversized box and
+  searched with no obstacles, which in a synthetic copy put the robot base
+  inside the table. Stances are now checked against the mesh's own triangles
+  (clear column, floor under the footprint), else refused as
+  `team_embodiment_room_mesh_no_clear_stance`. In the synthetic copy none of
+  the 8 closest clear stances can carry the tray, so the real result may be a
+  named hold rather than screening; that is decided on the host's real collider.
+
+After the deploy: the team packet recompiles, then either a clear station leads
+to the robot-free probe (cap $1) and screening (cap the smaller of $15 and what
+the $130 job ceiling leaves), or the job holds with its named reason before any
+GPU time.
+
+Separately (owner's timing): the job ceiling undercounts settled scene spend
+(the Pipeline commits $39.63 on the current intent, the website counts $18);
+fixes are WebApp #1204 then Pipeline #3315.
