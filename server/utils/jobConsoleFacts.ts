@@ -12,8 +12,10 @@ import { teamJobAccess } from "./teamJobAccess";
 import { sceneRunnableReadiness } from "./sceneRunnableReadiness";
 import { gateAnswersOnFile } from "./gateAnswersOnFile";
 import { assessReadiness } from "../../client/src/lib/siteTaskReadiness";
+import type { TaskSceneProgression } from "./taskStatusProjection";
 import type {
   BestRunSummary,
+  BlueprintScene,
   BriefState,
   CaptureState,
   JobFacts,
@@ -66,6 +68,19 @@ export interface RawJobInputs {
   evaluationRequests: RawEvaluationRequest[];
   runs: RawRun[];
   teamNames: ReadonlyMap<string, string>;
+  /** Blueprint's scene for the job, as the job page reads it; absent or null when it has none or it is unreadable. */
+  sceneProgression?: TaskSceneProgression | null;
+}
+
+/** Blueprint's own scene and screening, from the job page's projection. */
+export function blueprintSceneOf(progression: TaskSceneProgression | null | undefined): BlueprintScene | null {
+  if (!progression) return null;
+  return {
+    state: progression.state,
+    heldReason: progression.heldReason ?? null,
+    progressOutcome: progression.progressOutcome ?? null,
+    ending: progression.sceneOutcome?.kind ?? null,
+  };
 }
 
 
@@ -309,6 +324,7 @@ export function projectJobFacts(inputs: RawJobInputs): JobFacts {
       best: bestRun(runs),
     },
     withdrawal: { state: withdrawalStateOf(record) },
+    scene: blueprintSceneOf(inputs.sceneProgression),
     opsNotice: opsNoticeOf(record),
     lastActivityIso: latest([
       createdAtIso,

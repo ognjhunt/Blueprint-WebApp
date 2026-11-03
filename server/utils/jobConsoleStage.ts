@@ -4,7 +4,11 @@
  * The loop, in order: a site shows one job (intake, brief, capture, public
  * card); approved robot teams ask to evaluate it; Blueprint admits each free
  * evaluation; runs report; on a passing run, Blueprint works with a deployment
- * company, and the site and the company agree any pilot directly.
+ * company, and the site and the company agree any pilot directly. Since
+ * 2026-10-26 Blueprint also runs the candidates itself: its scene preparation,
+ * its screening and the screening's outcome come from the projection the job
+ * page shows (`facts.scene`), after any team's runs and before the site's own
+ * steps.
  *
  * Pure on purpose. The founder runs this loop by hand, and the console's only
  * job is to say, for every site, which step is next and whose it is. Keeping
@@ -22,6 +26,7 @@
 
 import type {
   ActionOwner,
+  BlueprintScene,
   JobFacts,
   JobStage,
   JobStageResult,
@@ -84,8 +89,7 @@ function sceneStep(hold: SceneHold | null): Step {
     case "screening_call": return step("brief_review", "Book the screening call", "blueprint");
     case "not_now": return step("not_open", "No action: screening said not now, so no scene is built", "none");
     case "unscreened": return step("brief_review", "No screening decision on file: re-screen the confirmed brief", "blueprint");
-    case "unclaimed":
-      return step("capture", "Waiting on site to save the job to an account (the scene is built only for a claimed site)", "site");
+    case "unclaimed": return step("capture", "Waiting on site to save the job to an account", "site");
     case "scene_not_built": return step("capture", "Waiting on the Pipeline to build the scene", "none");
     case "scene_not_proven": return step("capture", "Waiting on the Pipeline's runnable-scene proof", "none");
     case "gates_open": return step("brief_review", "Waiting on site to answer the brief's open questions", "site");
@@ -123,6 +127,36 @@ export function closedJobStep(facts: JobFacts): Step {
     case "pipeline_placeholder": return step("not_open", `No action: ${CLOSED_REASON_LABELS[reason]}`, "none");
     // Closed with no reason given: still never an invitation.
     case null: return step("not_open", "Not open to teams, and no reason is recorded: check the job record", "blueprint");
+  }
+}
+
+const SCREENING_WAITS: Record<NonNullable<BlueprintScene["progressOutcome"]>, string> = {
+  awaiting_spend_approval: "Screening waits for spend approval: check the job's screening budget",
+  setup_repair: "Screening waits for a setup repair: check the screening plan's blockers",
+  superseded: "Screening is planned again for the current candidates",
+};
+
+/** Blueprint's own scene and screening: the next step, and any money or setup wait worth a glance. */
+function blueprintSceneStep(scene: BlueprintScene, attention: string[]): Step {
+  const wait = scene.progressOutcome;
+  if (wait === "awaiting_spend_approval") attention.push("Money wait: the screening awaits spend approval");
+  if (wait === "setup_repair") attention.push("Setup wait: the screening needs a repair");
+  switch (scene.state) {
+    case "in_progress": return step("scene_preparation", "Pipeline is preparing the scene", "none");
+    case "waiting":
+      attention.push("Scene preparation is waiting");
+      return step("scene_preparation", "Scene preparation is waiting: check the job's preparation watch", "blueprint");
+    case "completed":
+    case "testing":
+      if (wait === "awaiting_spend_approval" || wait === "setup_repair") return step("screening", SCREENING_WAITS[wait], "blueprint");
+      if (scene.state === "testing") return step("screening", "Blueprint is running the candidates", "none");
+      return step("screening", wait ? SCREENING_WAITS[wait] : "Scene ready: the screening starts on its own", "none");
+    case "evaluated":
+      attention.push("Estimate published");
+      return step("estimate", "Estimate published: introduce a deployment company if the site replies", "blueprint");
+    case "held":
+      return step("held", `Held${scene.heldReason ? ` (${scene.heldReason})` : ""}: counted as demand for what to build next`, "none");
+    case "ended": return step("ended", `Preparation ended${scene.ending ? ` (${scene.ending})` : ""}`, "none");
   }
 }
 
@@ -196,6 +230,12 @@ export function deriveJobStage(facts: JobFacts): JobStageResult {
   if (evaluations.admitted > 0) {
     noteClosed();
     return result("evaluating", "Admitted; waiting for the run to be recorded", "none");
+  }
+
+  // Blueprint's own scene and screening: past the site's steps once it exists.
+  if (facts.scene) {
+    const scene = blueprintSceneStep(facts.scene, attention);
+    return result(scene.stage, scene.nextAction, scene.actionOwner);
   }
 
   // Before any team asked: the site's own steps.
