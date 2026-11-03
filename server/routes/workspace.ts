@@ -68,6 +68,7 @@ import { gateAnswersOnFile } from "../utils/gateAnswersOnFile";
 import { bookingUrl } from "../utils/bookingLink";
 import { bindTeamToAccount, teamsForAccount, teamAccountUid } from "../utils/robotTeamAccounts";
 import { captureUploadUrlFor } from "../utils/captureUploadToken";
+import { readSiteManagedEvidence } from "../utils/siteManagedEvidence";
 import { getTeamBalance } from "../utils/robotTeamBalance";
 import { listRunsForTeam } from "../utils/agentRunResults";
 import { issueAgentKey, listAgentKeys, resolveAgentKey, revokeAgentKey } from "../utils/robotTeamAgentKeys";
@@ -1194,6 +1195,18 @@ router.post(
   handle(async (req, res) => {
     await ownedTask(req.params.taskId, res);
     return res.json({ url: captureUploadUrlFor(req.params.taskId, "owner") });
+  }),
+);
+
+/**
+ * Blueprint's results for the owner's job, in the site's view: the same runs
+ * its job page shows, for the Results tab (F-05).
+ */
+router.get(
+  "/tasks/:taskId/results",
+  handle(async (req, res) => {
+    await ownedTask(req.params.taskId, res);
+    return res.json(await readSiteManagedEvidence(req.params.taskId));
   }),
 );
 

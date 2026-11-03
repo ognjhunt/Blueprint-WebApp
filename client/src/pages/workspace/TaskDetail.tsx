@@ -1,8 +1,12 @@
 import { SiteAdvisoryReport } from "@/components/site/SiteAdvisoryReport";
 import { TaskOutcomeNotice } from "@/components/site/TaskOutcomeNotice";
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "wouter";
-import { useWorkspace, dateLabel, money, statusLabel } from "@/lib/workspace";
+import { useAuth } from "@/contexts/AuthContext";
+import { useWorkspace, dateLabel, money, statusLabel, WorkspaceRequestError } from "@/lib/workspace";
+import { ManagedScreeningResults, currentScreenings } from "@/components/shared/ManagedScreeningResults";
+import type { JobManagedEvidenceSummary } from "@/types/jobMarketplace";
 import {
   Frame,
   Empty,
@@ -47,6 +51,20 @@ export default function TaskDetail() {
     [previewState, setPreviewState] = useState<"idle" | "working">("idle"),
     [previewError, setPreviewError] = useState("");
   const endpoint = `/tasks/${encodeURIComponent(taskId || "")}`;
+  const { currentUser } = useAuth();
+  // Blueprint's own results in the site's view: the runs the job page shows (F-05).
+  const managed = useQuery({
+    queryKey: ["workspace-task-results", currentUser?.uid, taskId],
+    enabled: tab === "results" && Boolean(task) && !task?.archived,
+    queryFn: () => query.request<{ managedEvidence: JobManagedEvidenceSummary[]; managedEvidenceUnavailable?: boolean }>(
+      `${endpoint}/results`),
+    staleTime: 30_000,
+    retry: false,
+  });
+  const resultSuperseded = task?.readiness?.resultSuperseded === true;
+  const screenings = currentScreenings(managed.data?.managedEvidence, resultSuperseded);
+  const managedUnavailable = managed.data?.managedEvidenceUnavailable === true
+    || (managed.isError && !(managed.error instanceof WorkspaceRequestError && managed.error.status < 500));
   // A short-lived view ticket per click; the viewer route re-checks consent and readiness.
   async function viewPreview(captureId: string) {
     if (previewState === "working") return;
@@ -299,6 +317,10 @@ export default function TaskDetail() {
                 </span>
               </div>
               <section className="ws-section">
+                {managedUnavailable && (
+                  <p role="status" className="ws-note">Simulation results are temporarily unavailable. Reload this page to retry.</p>
+                )}
+                <ManagedScreeningResults evidence={managed.data?.managedEvidence} superseded={resultSuperseded} />
                 {task.results.length ? (
                   <>
                     <h2>Evaluation results</h2>
@@ -364,10 +386,9 @@ export default function TaskDetail() {
                       how a robot does on site is confirmed in the pilot.
                     </p>
                   </>
-                ) : (
-                  <Empty title="Results are on your job page">
-                    When Blueprint runs the candidates for your job, their results appear on your job page, with the
-                    next action. Open it with the button above.
+                ) : screenings.length || managed.isLoading ? null : (
+                  <Empty title="No evaluation results yet">
+                    Results will appear here when Blueprint's simulation of your job reports them. The next action is on your job page.
                   </Empty>
                 )}
               </section>

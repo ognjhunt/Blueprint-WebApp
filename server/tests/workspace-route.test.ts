@@ -30,6 +30,12 @@ vi.mock("../utils/websitePreparationStatus", () => ({ loadCurrentWebsitePreparat
 vi.mock("../utils/taskLifecycleNotifications", () => ({
   enqueueTaskLifecycleNotification: state.notices,
 }));
+/** Blueprint's runs for a job as the evidence store reads them; the site's view is cut from these. */
+const managedEvidence = vi.hoisted(() => ({ load: vi.fn(async () => ({ managedEvidence: [] as any[] })) }));
+vi.mock("../utils/jobManagedEvaluation", async (original) => ({
+  ...await original<typeof import("../utils/jobManagedEvaluation")>(),
+  loadManagedJobEvidenceForWorkspace: managedEvidence.load,
+}));
 function ref(path: string): any {
   return {
     id: path.split("/").at(-1),
@@ -640,6 +646,26 @@ describe("a site finds its way back to its own task", () => {
     expect(response.status).toBe(200);
     expect((await response.json()).url).toMatch(/\/capture-upload\//);
     expect((await api("/tasks/task-1/task-link", "site-2", {})).status).toBe(404);
+  });
+
+  it("shows the owner Blueprint's results in the site's view, and no one else", async () => {
+    state.records.set("inboundRequests/task-1", task());
+    state.records.set("siteTaskBriefs/task-1", { confirmedAtIso: "2026-09-14T10:00:00Z", summary: "Pack cartons" });
+    managedEvidence.load.mockResolvedValueOnce({ managedEvidence: [{
+      runId: "run-1", state: "completed", outcome: "estimate", current: true, resultDigest: null,
+      summary: "One candidate met the pass mark.", nextAction: "", opsNextAction: "Staff only: settle the hold",
+      limitations: [], href: "",
+      screening: { budget: { limitUsd: "15", committedUpperBoundUsd: "9", spentUpperBoundUsd: "4", reservedUsd: "5" },
+        candidates: [] },
+    }] });
+    const response = await api("/tasks/task-1/results", "site-1");
+    expect(response.status).toBe(200);
+    const [item] = (await response.json()).managedEvidence;
+    expect(item).toMatchObject({ runId: "run-1", summary: "One candidate met the pass mark." });
+    // The site never sees Blueprint's own instruction or budget figures.
+    expect(item.opsNextAction).toBeUndefined();
+    expect(item.screening.budget).toBeUndefined();
+    expect((await api("/tasks/task-1/results", "site-2")).status).toBe(404);
   });
 
   it("projects the listing, the capture mode, and takes a closed task off the library", async () => {

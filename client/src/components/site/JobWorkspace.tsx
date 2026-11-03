@@ -1,5 +1,6 @@
 import { CandidatePreparation } from "../shared/CandidatePreparation";
 import { PolicyScreeningCandidates } from "@/components/shared/PolicyScreeningCandidates";
+import { ManagedScreeningResults } from "@/components/shared/ManagedScreeningResults";
 import { managedRunLabel } from "@/lib/screeningPlainLanguage";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { withCsrfHeader } from "@/lib/csrf";
@@ -119,14 +120,7 @@ function JobWorkspaceForToken({ token, preparationOutcome, currentStatusKnown = 
     </div>}
     <CandidatePreparation preview={workflow.candidateReadiness} />
     {workflow.managedEvidenceUnavailable && <p role="status" className="ms-field-hint">Policy results are temporarily unavailable. Reload this page to retry.</p>}
-    {(workflow.managedEvidence ?? []).filter(item => !resultSuperseded && item.current && item.screening).map(item => <section
-      key={item.runId} className="job-review" aria-label="Simulation results for your job">
-      {/* Only an estimate is called one: scripted reference baselines alone are not (F-03). */}
-      <h3>{item.outcome === "estimate" ? "Your simulation estimate" : "Simulation evaluation"}</h3>
-      <p>{item.summary}</p>
-      <PolicyScreeningCandidates screening={item.screening!} />
-      {item.limitations.map((limit, index) => <p className="ms-field-hint" key={index}>{limit}</p>)}
-    </section>)}
+    <ManagedScreeningResults evidence={workflow.managedEvidence} superseded={resultSuperseded} className="job-review" />
     {((workflow.evidence ?? []).length > 0 || (workflow.managedEvidence ?? []).length > 0) && <details className="job-planning-details">
       <summary>Technical evidence and test details</summary>
     {(workflow.evidence ?? []).length > 0 && <section className="job-review" aria-label="Evidence for your job">
