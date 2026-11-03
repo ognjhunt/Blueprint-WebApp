@@ -136,6 +136,52 @@ test("returning owner keeps the received recording and gets same-job update guid
   expect(writes).toEqual([]);
 });
 
+test("the owner confirms how success is judged, in plain words, with no number to edit", async ({ page }, info) => {
+  const token = "success-thresholds-fixture";
+  const proposalDigest = `sha256:${"1".repeat(64)}`;
+  const decisions: unknown[] = [];
+  const thresholds = (decision: unknown) => ({ proposalDigest, decision,
+    rows: [{ label: "Goal area", value: "The green spot: a circle 30 cm across. The whole object has to end up inside it." },
+      { label: "Force", value: "The robot pushes on the object with no more than 100 N (about the weight of 10 kg)." },
+      { label: "Drops", value: "The object is never dropped." }],
+    otherValues: [{ label: "authority", value: "deterministic_simulator_state" }] });
+  await page.route("**/api/**", route => {
+    const request = route.request(), url = new URL(request.url());
+    if (url.pathname.startsWith("/api/job-workflow/owner/") && request.method() === "GET") return route.fulfill({ json: legacyJobWorkflow() });
+    if (url.pathname === "/api/csrf") return route.fulfill({ json: { csrfToken: "fixture" } });
+    if (url.pathname === `/api/self-capture/uploads/${token}/status`) return route.fulfill({ json: {
+      ok: true, state: "open", captureReceived: true, uploadState: "processing_ready", accepts: ["mov", "mp4"] } });
+    if (url.pathname === `/api/site-task-brief/${token}`) return route.fulfill({ json: {
+      ready: true, scope: "owner", brief: { summary: "Book onto the green spot", captureMode: "self_capture", proposed: [], unresolved: [], confirmedAtIso: "2026-11-01T00:00:00Z" } } });
+    if (url.pathname === `/api/site-task-brief/${token}/status`) return route.fulfill({ json: {
+      ok: true, scope: "owner", captureReceived: true,
+      status: { decision: "assessing", headline: "Blueprint is preparing your scene.", operatorAction: null, missingViews: [] },
+      successThresholds: thresholds(decisions.length ? { kind: "confirmed", reason: null, decidedAt: "2026-11-03T18:00:00.000Z" } : null) } });
+    if (url.pathname === `/api/site-task-brief/${token}/success-thresholds` && request.method() === "POST") {
+      decisions.push(request.postDataJSON());
+      return route.fulfill({ json: { ok: true, decision: "confirmed", reason: null, decidedAt: "2026-11-03T18:00:00.000Z" } });
+    }
+    if (url.pathname.endsWith("/items")) return route.fulfill({ json: { items: [], allItemsCovered: false, requestedShots: [] } });
+    if (url.pathname.endsWith("/follow-up")) return route.fulfill({ json: { questions: [] } });
+    return route.fulfill({ status: 503, json: { error: "Unstubbed local API" } });
+  });
+  await page.goto(`/capture-upload/${token}?video=existing`);
+  const section = page.getByRole("region", { name: "How success is judged" });
+  await expect(section.getByRole("heading", { name: "How success is judged" })).toBeVisible();
+  await expect(section.getByText("The green spot: a circle 30 cm across. The whole object has to end up inside it.")).toBeVisible();
+  await expect(section.getByText("Robot scoring waits until you confirm these goals.")).toBeVisible();
+  await expect(section.getByText("deterministic_simulator_state")).toBeHidden();
+  await expect(section.locator("input:not([type=radio])")).toHaveCount(0);
+  await section.getByRole("button", { name: "Something is wrong" }).click();
+  await expect(section.getByRole("button", { name: "Hold the job" })).toBeDisabled();
+  await expect(section.getByLabel("The goal area is in the wrong place")).toBeVisible();
+  await page.screenshot({ path: info.outputPath("success-thresholds-proposed.png"), fullPage: true });
+  await section.getByRole("button", { name: "Use these goals" }).click();
+  await expect(section.getByText("You confirmed these goals. Blueprint scores robot candidates against them.")).toBeVisible();
+  expect(decisions).toEqual([{ proposalDigest, decision: "confirm" }]);
+  await page.screenshot({ path: info.outputPath("success-thresholds-confirmed.png"), fullPage: true });
+});
+
 test("the current simulation estimate is visible while technical references stay folded", async ({ page }, info) => {
   const token = "scored-result-fixture";
   const writes: string[] = [];

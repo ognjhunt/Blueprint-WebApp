@@ -267,12 +267,14 @@ async function checkLaunchReadiness() {
 }
 
 async function scanWebsitePreparations() {
-  const { backfillWebsitePreparationWatches, scanWebsitePreparationWatch, scanEndedWebsiteSceneIntakes } =
-    await import("./websitePreparationOpsAlerts");
+  const { backfillWebsitePreparationWatches, scanWebsitePreparationWatch, scanEndedWebsiteSceneIntakes,
+    scanHeldOwnerSuccessThresholds } = await import("./websitePreparationOpsAlerts");
   // Uploads recorded before the watch existed get one first, so a capture
   // already stuck is reported by the same pass.
   const backfill = await backfillWebsitePreparationWatches();
-  return { backfill, watch: await scanWebsitePreparationWatch(), intakes: await scanEndedWebsiteSceneIntakes() };
+  return { backfill, watch: await scanWebsitePreparationWatch(), intakes: await scanEndedWebsiteSceneIntakes(),
+    // A site owner said the job's success thresholds are wrong: the team reviews them.
+    ownerHolds: await scanHeldOwnerSuccessThresholds() };
 }
 
 export async function runBetaOpsMonitorPass() {

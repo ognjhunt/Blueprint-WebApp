@@ -13,12 +13,14 @@ import { sendRateLimitedOpsAlert } from "./opsProcessAlerts";
 import { SCENE_INTAKE_COLLECTION } from "./taskEvaluationSceneIntake";
 import { projectWebsiteCaptureRights } from "./websiteTaskContext";
 import { projectWebsiteSceneProgression } from "./websiteSceneProgression";
+import { currentOwnerSuccessHold, OWNER_SUCCESS_HOLD_FIELD, OWNER_SUCCESS_HOLD_REASON_TEXT } from "./websiteOwnerSuccessConfirmation";
 import { firstStatusAlertMs, isWebsitePreparationCapture, parseWebsitePreparationWatch, stuckAlertMs,
   websitePreparationAlertDeliverySchema, WEBSITE_PREPARATION_WATCH_DUE_FIELD, WEBSITE_PREPARATION_WATCH_FIELD,
   type WebsitePreparationAlertDelivery, type WebsitePreparationWatch } from "./websitePreparationWatch";
 
 const SESSIONS = "captureUploadSessions";
 const INTAKE_ALERT_COLLECTION = "opsWebsiteSceneIntakeAlerts";
+const OWNER_HOLD_ALERT_COLLECTION = "opsOwnerSuccessHoldAlerts";
 const LEASE_MS = 5 * 60 * 1000;
 const RETRY_MS = 15 * 60 * 1000;
 const MAX_RETRY_MS = 6 * 60 * 60 * 1000;
@@ -339,4 +341,74 @@ export async function scanEndedWebsiteSceneIntakes(deps: AlertDeps = {}): Promis
     }
   }
   return { ended: ended.length, alerted: await report(claims, deps, "website_scene_intake_ended", "Website scenes stopped after hand-off") };
+}
+
+/**
+ * A site owner said their job's success thresholds are wrong: the job holds,
+ * and Blueprint's team is told once per hold, with its reason, through the same
+ * recoverable delivery (Slack first, ops email as fallback). A hold the owner
+ * has since replaced with a confirmation, a new proposal, or withdrawn consent
+ * is never sent.
+ */
+export async function scanHeldOwnerSuccessThresholds(deps: AlertDeps = {}): Promise<{ held: number; alerted: number }> {
+  const store = deps.store === undefined ? (dbAdmin as unknown as Store | null) : deps.store;
+  if (!store) return { held: 0, alerted: 0 };
+  const now = deps.now || Date.now, limit = Math.max(1, Math.min(deps.limit ?? 50, 100));
+  const rows = await automationBatch(store as unknown as FirebaseFirestore.Firestore,
+    store.collection(SCENE_INTAKE_COLLECTION).where(OWNER_SUCCESS_HOLD_FIELD, "==", true) as unknown as FirebaseFirestore.Query,
+    "website_owner_success_holds", limit) as unknown as { docs: Doc[] };
+  const held = rows.docs.flatMap(row => {
+    const data = row.data(), hold = currentOwnerSuccessHold(data);
+    return hold && typeof data?.website_request_id === "string"
+      ? [{ id: row.id, requestId: data.website_request_id as string, hold }] : [];
+  });
+  const claims: ClaimedAlert[] = [];
+  for (const intake of held) {
+    const alertId = `${intake.id}-${intake.hold.decision_digest.slice(7, 23)}`;
+    const ref = store.collection(OWNER_HOLD_ALERT_COLLECTION).doc(alertId);
+    const sourceRef = store.collection(SCENE_INTAKE_COLLECTION).doc(intake.id), leaseId = randomUUID();
+    const stillHeld = (data: any) => data?.website_request_id === intake.requestId
+      && currentOwnerSuccessHold(data)?.decision_digest === intake.hold.decision_digest;
+    try {
+      const claimed = await store.runTransaction(async tx => {
+        const source = (await tx.get(sourceRef)).data(), marker = (await tx.get(ref)).data() ?? {};
+        const request = (await tx.get(store.collection("inboundRequests").doc(intake.requestId))).data(), nowMs = now();
+        if (!stillHeld(source) || projectWebsiteCaptureRights(request).consent_revoked
+          || (typeof marker.next_attempt_at_ms === "number" && marker.next_attempt_at_ms > nowMs)) return false;
+        const parsed = websitePreparationAlertDeliverySchema.safeParse(marker.delivery);
+        if (marker.delivery !== undefined && marker.delivery !== null && !parsed.success) return false;
+        const delivery = claimDelivery(parsed.success ? parsed.data : pendingDelivery(), nowMs, leaseId);
+        if (!delivery) return false;
+        tx.set(ref, { intake_id: intake.id, request_id: intake.requestId, decision_digest: intake.hold.decision_digest,
+          reason: intake.hold.reason, delivery, next_attempt_at_ms: delivery.lease_until_ms, alerted_at_iso: null }, { merge: true });
+        return true;
+      });
+      if (!claimed) continue;
+      const reason = intake.hold.reason ? OWNER_SUCCESS_HOLD_REASON_TEXT[intake.hold.reason] : "no reason given";
+      claims.push({ id: alertId, line: `- request ${intake.requestId} (scene intake ${intake.id}): the site owner says the job's `
+        + `success thresholds are wrong ("${reason}"). Robot scoring is held; review the thresholds and contact the site. `
+        + `${appBaseUrl()}/admin/leads/${encodeURIComponent(intake.requestId)}`,
+      update: action => store.runTransaction(async tx => {
+        const source = (await tx.get(sourceRef)).data(), marker = (await tx.get(ref)).data() ?? {};
+        const request = (await tx.get(store.collection("inboundRequests").doc(intake.requestId))).data(), nowMs = now();
+        const parsed = websitePreparationAlertDeliverySchema.safeParse(marker.delivery);
+        if (!parsed.success || parsed.data.lease_id !== leaseId || parsed.data.state !== "claimed"
+          || (parsed.data.lease_until_ms ?? 0) <= nowMs) return false;
+        if (!stillHeld(source) || projectWebsiteCaptureRights(request).consent_revoked) {
+          tx.set(ref, { delivery: { ...parsed.data, state: "cancelled", lease_id: null, lease_until_ms: null },
+            next_attempt_at_ms: null }, { merge: true });
+          return false;
+        }
+        const next = advanceDelivery(parsed.data, action, nowMs);
+        if (!next) return false;
+        tx.set(ref, { delivery: next.delivery, next_attempt_at_ms: next.due,
+          alerted_at_iso: next.delivery.acknowledged_at_iso }, { merge: true });
+        return true;
+      }) });
+    } catch (error) {
+      logger.warn({ err: error, intakeId: intake.id }, "Could not claim an owner success-threshold hold alert");
+    }
+  }
+  return { held: held.length, alerted: await report(claims, deps, "website_owner_success_held",
+    "Site owners held their job's success thresholds") };
 }
