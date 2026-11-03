@@ -50,6 +50,21 @@ it("keeps a ready visual reconstruction current when native status and advisory 
   expect(projectTaskStatus({ ...input, screening: { teams: 1, queued: 0, running: 0, reported: 1, noResult: 0 } }).decision).toBe("results");
 });
 
+it("tells a geometry-only job its robot fit check is its result, never a request for more information", () => {
+  const input = taskStatusInputFrom({ briefDrafted: true, hasStoredCapture: true, stage: null, preparationOverdue: true,
+    preparationStatus: { state: "awaiting_inputs", correlationId: null,
+      robotFit: { route: "geometry_only", status: "completed" } } });
+  const ready = projectTaskStatus(input);
+  expect(ready.headline).toMatch(/^Your robot fit check is ready/);
+  expect(ready.headline).toMatch(/estimate from published specs/);
+  expect(ready.headline).not.toMatch(/needs more information|taking longer/);
+  expect(projectTaskStatus({ ...input, preparationStatus: { state: "awaiting_inputs", correlationId: null,
+    robotFit: { route: "geometry_only", status: "not_run" } } }).headline).toMatch(/could not check robot fit/);
+  // A full-route job awaiting inputs keeps its own wording.
+  expect(projectTaskStatus({ ...input, preparationStatus: { state: "awaiting_inputs", correlationId: null,
+    robotFit: { route: "full", status: "completed" } } }).headline).toMatch(/needs more information.*taking longer/);
+});
+
 it("keeps owner closure above stale preparation progress and confirmation while preserving withdrawal", () => {
   const outcome = projectWebsiteRunClosure({ website_run_closures: { "walkthrough-req1": ownerClosure() } }, "req1", "walkthrough-req1");
   const input = base({ briefDrafted: true, briefConfirmed: false, scenePreviewReady: true,

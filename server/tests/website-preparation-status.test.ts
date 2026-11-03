@@ -12,7 +12,8 @@ import oldPipelineRouter from "../routes/internal-capture-worlds";
 import { createWebsitePreparationRouter, websitePreparationRawBody } from "../routes/internal-website-preparation";
 import { canNotifyCurrentWebsitePreparationIssue, drainPendingWebsitePreparationNotifications,
   loadCurrentWebsitePreparationStatus, mergeWebsitePreparationStatus, syncWebsitePreparationStatus,
-  websitePreparationEventId, websitePreparationSelectorSchema, type WebsitePreparationDeps, type WebsitePreparationReceipt,
+  websitePreparationEventId, websitePreparationReceiptSchema, websitePreparationSelectorSchema,
+  type WebsitePreparationDeps, type WebsitePreparationReceipt,
   type WebsitePreparationSelector, type StoredWebsitePreparation } from "../utils/websitePreparationStatus";
 
 // Production verifier controls use in-memory Firestore/GCS and a retained observer projection.
@@ -107,6 +108,49 @@ it("v3 keeps the exact source binding and exposes a bounded conservative verdict
   h.ledger({...tampered, status_digest: crossRuntimeArtifactDigest(tampered, "status_digest")});
   expect(await loadCurrentWebsitePreparationStatus("r1", "walkthrough-r1", h.deps))
     .toEqual({state: "unavailable", correlationId: null});
+});
+function robotFit(route: "full" | "geometry_only", change: Record<string, unknown> = {}) {
+  return {schema_version: "website_robot_fit_projection.v1", route, status: "completed", reason: null,
+    evidence_label: "spec_bounded_estimate", counts: {fits: 1, fits_spec: 1, doesnt_fit: 0, unknown: 1},
+    models: [{name: "Panda", manufacturer: "Franka Robotics", verdict: "fits", open_checks: []},
+      {name: "UR5e", manufacturer: "Universal Robots", verdict: "fits_spec", open_checks: ["access"]},
+      {name: "G1", manufacturer: "Unitree", verdict: "unknown", open_checks: ["reach", "payload"]}],
+    models_truncated: false, table_digest: `sha256:${"e".repeat(64)}`, ...change};
+}
+function v5(state: WebsitePreparationReceipt["state"], fit: unknown) {
+  const value = {...receipt(state), schema_version: "website_preparation_status.v5", terminal_reason: null,
+    outcome: null, question: null, robot_fit: fit};
+  return {...value, status_digest: crossRuntimeArtifactDigest(value, "status_digest")};
+}
+it("v5 shows the robot fit table, and a geometry-only job that ended at its fit check raises no notice", async () => {
+  const h = harness();
+  h.ledger(v5("awaiting_inputs", robotFit("geometry_only")));
+  await syncWebsitePreparationStatus(selector, h.deps);
+  expect(h.stored!.notification).toBeNull();
+  const projected = await loadCurrentWebsitePreparationStatus("r1", "walkthrough-r1", h.deps);
+  expect(projected.state).toBe("awaiting_inputs");
+  expect(projected.robotFit).toEqual({route: "geometry_only", status: "completed", reason: null,
+    counts: {fits: 1, fitsSpec: 1, doesntFit: 0, unknown: 1},
+    models: [{name: "Panda", manufacturer: "Franka Robotics", verdict: "fits", openChecks: []},
+      {name: "UR5e", manufacturer: "Universal Robots", verdict: "fits_spec", openChecks: ["access"]},
+      {name: "G1", manufacturer: "Unitree", verdict: "unknown", openChecks: ["reach", "payload"]}],
+    modelsTruncated: false});
+});
+it("v5 keeps the needs-attention notice for a full-route job awaiting inputs", async () => {
+  const h = harness();
+  h.ledger(v5("awaiting_inputs", robotFit("full")));
+  await syncWebsitePreparationStatus(selector, h.deps);
+  expect(h.stored!.notification).toEqual({eventId: websitePreparationEventId(selector), state: "pending"});
+});
+it.each([
+  ["a completed table without its digest", robotFit("full", {table_digest: null})],
+  ["a check that did not run but lists robots", robotFit("geometry_only", {status: "not_run",
+    reason: "task_family_not_modelled", evidence_label: null, counts: null, table_digest: null})],
+  ["a physical verdict", robotFit("full", {evidence_label: "physical_test"})],
+  ["an unknown verdict", robotFit("full", {models: [{name: "X", manufacturer: "Y", verdict: "probably", open_checks: []}]})],
+])("v5 with %s is refused, never shown", (_name, fit) => {
+  expect(websitePreparationReceiptSchema.safeParse(v5("handed_off", robotFit("full"))).success).toBe(true);
+  expect(websitePreparationReceiptSchema.safeParse(v5("handed_off", fit)).success).toBe(false);
 });
 afterEach(async()=>{if(server){await new Promise<void>(resolve=>server!.close(()=>resolve()));server=null;}vi.unstubAllEnvs();vi.unstubAllGlobals();runtime.beforeTransaction=null;});
 beforeEach(()=>{vi.stubEnv("PIPELINE_SYNC_TOKEN","isolated-test-secret");vi.stubEnv("PIPELINE_SYNC_ALLOW_LEGACY_BEARER","true");});

@@ -65,18 +65,62 @@ const receiptV4 = receiptV3.extend({
   schema_version: z.literal("website_preparation_status.v4"),
   question: taskTargetChoiceQuestionSchema.nullable(),
 }).strict();
-/** Older Pipelines keep answering v1/v2/v3; v3 adds a retained evidence finding. */
-export const websitePreparationReceiptSchema = z.union([receiptV1, receiptV2, receiptV3, receiptV4]);
+/** v5 adds the job's robot fit table: which catalog robots fit by spec sheet, a spec-bounded estimate
+ * (the Pipeline's docs/schemas/website_robot_fit_projection.v1.schema.json). Never a physical test. */
+const fitCount = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
+export const ROBOT_FIT_VERDICTS = ["fits", "fits_spec", "doesnt_fit", "unknown"] as const;
+export const ROBOT_FIT_NOT_RUN_REASONS = ["preparation_blocked", "task_strategy_not_modelled", "subject_not_excised",
+  "task_family_not_modelled"] as const;
+export const robotFitSchema = z.object({
+  schema_version: z.literal("website_robot_fit_projection.v1"),
+  route: z.enum(["full", "geometry_only"]),
+  status: z.enum(["completed", "not_run"]),
+  reason: z.enum(ROBOT_FIT_NOT_RUN_REASONS).nullable(),
+  evidence_label: z.literal("spec_bounded_estimate").nullable(),
+  counts: z.object({fits: fitCount, fits_spec: fitCount, doesnt_fit: fitCount, unknown: fitCount}).strict().nullable(),
+  models: z.array(z.object({name: z.string().min(1).max(120), manufacturer: z.string().min(1).max(120),
+    verdict: z.enum(ROBOT_FIT_VERDICTS), open_checks: z.array(z.string().regex(/^[a-z_]{1,40}$/)).max(12)}).strict())
+    .max(200),
+  models_truncated: z.boolean(),
+  table_digest: digest.nullable(),
+}).strict().refine(fit => fit.status === "completed"
+  ? fit.reason === null && fit.evidence_label === "spec_bounded_estimate" && fit.counts !== null && fit.table_digest !== null
+  : fit.reason !== null && fit.evidence_label === null && fit.counts === null && fit.models.length === 0
+    && fit.table_digest === null && !fit.models_truncated, "robot fit status mismatch");
+export type RobotFitReceipt = z.infer<typeof robotFitSchema>;
+const receiptV5 = receiptV4.extend({
+  schema_version: z.literal("website_preparation_status.v5"),
+  robot_fit: robotFitSchema.nullable(),
+}).strict();
+/** Older Pipelines keep answering v1–v4; v3 adds a retained evidence finding. */
+export const websitePreparationReceiptSchema = z.union([receiptV1, receiptV2, receiptV3, receiptV4, receiptV5]);
 export type WebsitePreparationReceipt = z.infer<typeof websitePreparationReceiptSchema>;
 type PreparationState = typeof statesV2[number];
-/** Asks for v4; older Pipelines cap negotiation at their newest known version. */
+/** Asks for v5; older Pipelines cap negotiation at their newest known version. */
 export const WEBSITE_PREPARATION_STATUS_VERSION_HEADER = "x-blueprint-preparation-status-version";
+/** The site's view of the robot fit table; robots that fit come first. */
+export type PublicRobotFit = {
+  route: RobotFitReceipt["route"]; status: RobotFitReceipt["status"]; reason: RobotFitReceipt["reason"];
+  counts: {fits: number; fitsSpec: number; doesntFit: number; unknown: number} | null;
+  models: {name: string; manufacturer: string; verdict: typeof ROBOT_FIT_VERDICTS[number]; openChecks: string[]}[];
+  modelsTruncated: boolean;
+};
+export function publicRobotFit(fit: RobotFitReceipt): PublicRobotFit {
+  return {route: fit.route, status: fit.status, reason: fit.reason,
+    counts: fit.counts && {fits: fit.counts.fits, fitsSpec: fit.counts.fits_spec, doesntFit: fit.counts.doesnt_fit,
+      unknown: fit.counts.unknown},
+    models: fit.models.map(row => ({name: row.name, manufacturer: row.manufacturer, verdict: row.verdict,
+      openChecks: row.open_checks})),
+    modelsTruncated: fit.models_truncated};
+}
 export type PublicWebsitePreparationStatus = {
   state: PreparationState | "unavailable"; correlationId: string | null;
   terminalReason?: WebsitePreparationTerminalReason | null;
   outcome?: TaskOutcome | null;
   /** Only from a v4 receipt: the optional correction of the guessed object to move. */
   question?: TaskTargetChoiceQuestion | null;
+  /** Only from a v5 receipt: which robots fit the job by spec sheet. */
+  robotFit?: PublicRobotFit | null;
 };
 export type WebsitePreparationNoticeMilestone = "preparation_needs_attention" | "preparation_ended";
 export type WebsitePreparationIntent = {requestId: string; captureId: string; eventId: string; correlationId: string;
@@ -110,6 +154,9 @@ function noticeFor(selector: WebsitePreparationSelector, status: WebsitePreparat
   {eventId: string; milestone: WebsitePreparationNoticeMilestone} | null {
   if (status.state === "failed_terminal")
     return {eventId: websitePreparationEndedEventId(selector, status.attempt_count), milestone: "preparation_ended"};
+  // A geometry-only job ends at its robot fit check by design: that end is its result, not a problem.
+  if (status.state === "awaiting_inputs" && "robot_fit" in status && status.robot_fit?.route === "geometry_only")
+    return null;
   return needsAttention(status.state)
     ? {eventId: websitePreparationEventId(selector), milestone: "preparation_needs_attention"} : null;
 }
@@ -121,10 +168,9 @@ function parseReceipt(raw: unknown, selector: WebsitePreparationSelector): Websi
   if (crossRuntimeDigest(receiptSelectors(receipt)) !== crossRuntimeDigest(selector)
       || codes[receipt.state] !== receipt.code
       || (receipt.state === "failed_terminal") !== (terminalReasonOf(receipt) !== null)
-      || (receipt.schema_version === "website_preparation_status.v3" || receipt.schema_version === "website_preparation_status.v4")
-        && receipt.outcome !== null && !["awaiting_inputs", "failed_retryable", "failed_terminal"].includes(receipt.state)
-      || receipt.schema_version === "website_preparation_status.v4" && receipt.question !== null
-        && receipt.state === "authority_ended"
+      || "outcome" in receipt && receipt.outcome !== null
+        && !["awaiting_inputs", "failed_retryable", "failed_terminal"].includes(receipt.state)
+      || "question" in receipt && receipt.question !== null && receipt.state === "authority_ended"
       || crossRuntimeArtifactDigest(receipt as unknown as Record<string, unknown>, "status_digest") !== receipt.status_digest)
     throw unavailable();
   return receipt;
@@ -169,7 +215,7 @@ async function readCanonicalLedger(selector: WebsitePreparationSelector, signal?
   const signed = signedWebsitePipelineRequest("/api/live-pipeline/website-preparation-status", body);
   if (!signed) throw unavailable();
   const response = await fetch(signed.url, {method: "POST", redirect: "error", signal: signal ?? AbortSignal.timeout(5_000),
-    body, headers: {"content-type": "application/json", ...signed.headers, [WEBSITE_PREPARATION_STATUS_VERSION_HEADER]: "4"}});
+    body, headers: {"content-type": "application/json", ...signed.headers, [WEBSITE_PREPARATION_STATUS_VERSION_HEADER]: "5"}});
   if (!response.ok || !response.body || Number(response.headers.get("content-length")) > 8192) throw unavailable();
   const reader = response.body.getReader(); let length = 0; const chunks: Buffer[] = [];
   try {
@@ -345,9 +391,9 @@ export async function loadCurrentWebsitePreparationStatus(requestId: string, cap
     // Customer correlation is company-derived; never trust caller supplied correlation text.
     return {state: status.state, correlationId: `bp-prep-${status.status_digest.slice(7, 23)}`,
       terminalReason: terminalReasonOf(status),
-      ...(status.schema_version === "website_preparation_status.v3" || status.schema_version === "website_preparation_status.v4"
-        ? {outcome: status.outcome ? projectPreparationOutcome(status.outcome) : null} : {}),
-      ...(status.schema_version === "website_preparation_status.v4" ? {question: status.question} : {})};
+      ...("outcome" in status ? {outcome: status.outcome ? projectPreparationOutcome(status.outcome) : null} : {}),
+      ...("question" in status ? {question: status.question} : {}),
+      ...("robot_fit" in status ? {robotFit: status.robot_fit ? publicRobotFit(status.robot_fit) : null} : {})};
   } catch { return {state: "unavailable", correlationId: null}; }
 }
 /** The current question with the exact selector it was read under, or null; re-verified with the Pipeline. */
@@ -355,8 +401,7 @@ export async function loadCurrentTaskTargetChoiceQuestion(requestId: string, cap
   Promise<{selector: WebsitePreparationSelector; question: TaskTargetChoiceQuestion} | null> {
   id.parse(requestId); websitePreparationSelectorSchema.shape.capture_id.parse(captureId);
   const {status, selector} = await fresh(captureId, requestId, deps);
-  return status.schema_version === "website_preparation_status.v4" && status.question
-    ? {selector, question: status.question} : null;
+  return "question" in status && status.question ? {selector, question: status.question} : null;
 }
 /** Recheck ownership, rights and current task without calling back into the
  * Pipeline worker that is reading an already retained owner selection. */

@@ -183,6 +183,8 @@ export interface TaskPreparationStatus {
   terminalReason?: string | null;
   /** The optional question about the guessed object to move (v4); the job never waits on it. */
   question?: { semantic_label: string } | null;
+  /** Which robots fit the job by spec sheet (v5). A geometry-only job ends at this check. */
+  robotFit?: { route: "full" | "geometry_only"; status: "completed" | "not_run" } | null;
 }
 
 /**
@@ -566,13 +568,19 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
   if (preparation && preparation.state !== "handed_off") {
     const reference = /^bp-prep-[a-f0-9]{16}$/.test(preparation.correlationId || "")
       ? ` Reference: ${preparation.correlationId}.` : "";
+    // A geometry-only job ends at its robot fit check by design: its result, not a hold.
+    const fitCheckEnd = preparation.state === "awaiting_inputs" && preparation.robotFit?.route === "geometry_only";
     // A terminal ending is final; "taking longer" is for a state that can still move.
     const overdue = input.preparationOverdue && preparation.state !== "failed_terminal" && preparation.state !== "unavailable"
-      ? " This is taking longer than it should and needs review." : "";
+      && !fitCheckEnd ? " This is taking longer than it should and needs review." : "";
     const ended = preparationEndedSentence(preparation.terminalReason);
     const headlines: Record<Exclude<TaskPreparationStatus["state"], "handed_off">, string> = {
       preparing: "We are preparing your job. Keep your original recording.",
-      awaiting_inputs: "Job preparation needs more information. Keep your original recording; our team needs to review it.",
+      awaiting_inputs: !fitCheckEnd
+        ? "Job preparation needs more information. Keep your original recording; our team needs to review it."
+        : preparation.robotFit?.status === "completed"
+          ? "Your robot fit check is ready: the robots that fit your job on paper are listed below. It is an estimate from published specs and your video; no robot has been tried on this job."
+          : "Blueprint could not check robot fit for this job. The reason is below. Keep your original recording.",
       capacity_delayed: "Your recording is saved and queued. It is waiting for processing capacity on our side; nothing is needed from you. Keep your original recording.",
       failed_retryable: "Job preparation encountered a problem. Keep your original recording; our team needs to review it.",
       failed_terminal: `Scene preview preparation could not finish, and we have stopped trying.${ended ? ` ${ended}` : ""} Nothing more is needed from you. This needs our team's review. Keep your original recording.`,
