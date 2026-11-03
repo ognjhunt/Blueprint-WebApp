@@ -101,11 +101,29 @@ function pipelineEnded(status: Record<string, any> | undefined) {
 }
 
 /**
+ * What the Pipeline still holds for one attempt row: a live row its full
+ * reservation, a never-started cancellation nothing. A row the Pipeline settled
+ * after a terminal attempt also reads `cancelled_before_execution`, but keeps the
+ * hold its evidence cannot prove unspent (capture-447ae4f4, 2026-11-03: $21.63
+ * of a $31 row counted here as nothing). Newer statuses report that hold as
+ * `retained_spend_usd`, the figure the Pipeline's own reservation counts; it only
+ * raises the row. An older status without it counts the row as before.
+ */
+function attemptMicros(attempt: any) {
+  const live = attempt?.status === "cancelled_before_execution" ? 0
+    : amount(attempt?.maximum_spend_usd) ? micros(attempt.maximum_spend_usd) : Infinity;
+  if (attempt?.retained_spend_usd === undefined) return live;
+  return Math.max(live, amount(attempt.retained_spend_usd) ? micros(attempt.retained_spend_usd) : Infinity);
+}
+
+/**
  * A sponsored scene intake grants native construction its own allowance
  * (`request.execution.max_total_spend_usd`, raised by any recorded budget
  * extension). It is held in full while the intake can still start an attempt.
- * Once closed, it counts what its attempts reserved, the most the Pipeline
+ * Once closed, it counts what its attempts hold, the most the Pipeline
  * reports for native work. An unreadable allowance counts as unbounded.
+ * Where the Pipeline reports settled holds, the count is never below what it
+ * reports its rows hold, open or closed.
  *
  * The worker stores `forwarding_started` before every delivery POST. With no
  * receipt, a lost response may hide an intent the Pipeline accepted and can
@@ -115,22 +133,20 @@ function pipelineEnded(status: Record<string, any> | undefined) {
  */
 function nativeIntakeMicros(intake: Record<string, any>) {
   const status = intake.pipeline_status, attempts = Array.isArray(status?.attempts) ? status.attempts : [];
-  // A cancellation the Pipeline validated before execution bought nothing.
-  const reserved = attempts.filter((attempt: any) => attempt?.status !== "cancelled_before_execution")
-    .reduce((sum: number, attempt: any) =>
-      sum + (amount(attempt?.maximum_spend_usd) ? micros(attempt.maximum_spend_usd) : Infinity), 0);
+  const reserved = attempts.reduce((sum: number, attempt: any) => sum + attemptMicros(attempt), 0);
+  const settledReported = attempts.some((attempt: any) => attempt?.retained_spend_usd !== undefined);
   const granted = intake.request?.execution?.max_total_spend_usd;
   const extended = status?.effective_execution_budget?.max_total_spend_usd;
   // The Pipeline refuses any reservation that would take the intent's holds past
   // this (extended) budget, so it bounds what native construction can spend.
-  // Settled rows keep their full maximum here, so their sum alone overcounts.
   const budget = amount(granted) ? Math.max(micros(granted), amount(extended) ? micros(extended) : 0) : Infinity;
   const maySpend = !intake.receipt && intake.forwarding_started === true;
   const unissued = !intake.receipt && !maySpend && ["revoked", "expired", "blocked"].includes(intake.state);
   const ended = intake.closeout_complete === true || intake.state === "completed"
     || intake.state === "blocked" && pipelineEnded(status);
-  if (!maySpend && (ended || unissued)) return Math.min(reserved, budget);
-  return budget;
+  // Reported holds are the Pipeline's own committed figure: the budget never trims them.
+  if (!maySpend && (ended || unissued)) return settledReported ? reserved : Math.min(reserved, budget);
+  return settledReported ? Math.max(budget, reserved) : budget;
 }
 
 /**

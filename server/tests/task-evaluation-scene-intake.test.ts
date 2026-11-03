@@ -2332,6 +2332,35 @@ it("accepts the Pipeline's signed cumulative budget readback without rewriting c
   await expect(scenePipelineRequest(request, "scene-one")).rejects.toThrow("pipeline_status_receipt_invalid");
 });
 
+it("reads a settled attempt's retained hold, sealed inside status_digest, and still reads statuses without it", async () => {
+  const request = { owner: { user_id: "owner", organization_id: "user:owner" } };
+  const row = { attempt_id: "scene-configuration-one", source_commit: "d".repeat(40), runtime_digest: sha("e"),
+    input_digest: sha("f"), provider: "vast", maximum_spend_usd: 31, status: "cancelled_before_execution" };
+  const settled = { ...row, retained_spend_usd: 21.630673, retained_spend_basis: "artisan_proven_authoring_without_allocation" };
+  const fetcher = vi.fn();
+  vi.stubGlobal("fetch", fetcher);
+  for (const attempts of [[row], [settled], [{ ...settled, retained_spend_usd: 0, retained_spend_basis: "launch_never_queued" }]]) {
+    const status = pipelineStatus(request, { attempts });
+    fetcher.mockImplementationOnce(async () => new Response(JSON.stringify(status)));
+    expect(await scenePipelineRequest(request, "scene-one")).toEqual(status);
+  }
+  // The figure is part of the Pipeline's seal.
+  const status = pipelineStatus(request, { attempts: [settled] });
+  fetcher.mockImplementationOnce(async () => new Response(JSON.stringify({ ...status,
+    attempts: [{ ...settled, retained_spend_usd: 0 }] })));
+  await expect(scenePipelineRequest(request, "scene-one")).rejects.toThrow("pipeline_receipt_binding_invalid");
+  for (const attempt of [
+    { ...settled, retained_spend_usd: -1 },
+    { ...settled, retained_spend_usd: "21.63" },
+    { ...settled, retained_spend_basis: "Proven Spend" },
+    { ...row, retained_spend_usd: 21.630673 },
+    { ...row, retained_spend_basis: "terminal_launch_unreconciled" },
+  ]) {
+    fetcher.mockImplementationOnce(async () => new Response(JSON.stringify(pipelineStatus(request, { attempts: [attempt] }))));
+    await expect(scenePipelineRequest(request, "scene-one")).rejects.toThrow("pipeline_status_receipt_invalid");
+  }
+});
+
 // C-04: the Pipeline's one outcome for the intent, sealed by itself and inside status_digest.
 function sceneOutcome(kind: string, terminal: unknown, reasonCode: string, overrides: Record<string, unknown> = {}) {
   const value = { schema_version: "task_evaluation_scene_intent_outcome.v1", intent_id: "scene-one",
