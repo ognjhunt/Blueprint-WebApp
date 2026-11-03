@@ -365,8 +365,9 @@ export default function TaskDetail() {
                     </p>
                   </>
                 ) : (
-                  <Empty title="No evaluation results yet">
-                    Results will appear here when Blueprint's simulation of your job reports them. The next action is on your job page.
+                  <Empty title="Results are on your job page">
+                    When Blueprint runs the candidates for your job, their results appear on your job page, with the
+                    next action. Open it with the button above.
                   </Empty>
                 )}
               </section>
