@@ -1725,6 +1725,59 @@ it("requires source-bound Atlas consent and preserves separate budgets across re
     delete process.env.BLUEPRINT_WEBSITE_ATLAS_RUNTIME_POLICY_JSON; }
 });
 
+// Owner-approved 2026-11-03: a verified, time-only window of the native grant's bound
+// scene intent keeps native/Marble reservations open; Atlas grants keep their own clock.
+it("an intent window extends a native reservation but never an Atlas one or Atlas auxiliary work", async () => {
+  sponsoredCapture();
+  const grant = await loadWebsiteSceneSponsorship("req1", true);
+  process.env.TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON = JSON.stringify({
+    ...JSON.parse(process.env.TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON!),
+    world_labs_atlas: { digest: sha("b"), label: "Atlas beta terms", url: "https://atlas-beta.worldlabs.ai/docs" },
+  });
+  const atlasExpiry = Date.now() / 1000 + 3600;
+  process.env.BLUEPRINT_WEBSITE_ATLAS_AUTHORIZATIONS_JSON = JSON.stringify([{
+    schema_version: "website_atlas_authorization.v1", request_id: "req1", capture_id: "walkthrough-req1",
+    task_context_digest: grant.task_context_digest, source_video_digest: sha("a"), provider_terms_reference: sha("b"),
+    accepted_by: "blueprint-preparation", approval_reference: "owner test", private_processing_authorized: true,
+    provider_training_authorized: false, provider_retention: "project_library_retention_approved",
+    maximum_cost_usd: 5, maximum_requests: 2, expires_at_epoch: atlasExpiry, claim_scope: "development_only",
+  }]);
+  try {
+    // The native grant expired an hour ago; its bound intent holds a verified window for six more days.
+    const record = store.rows.get("inboundRequests/req1");
+    const { authority_digest: _digest, ...raw } = { ...record.website_scene_sponsorship,
+      expires_at_epoch: Date.now() / 1000 - 3600 };
+    const expired = { ...raw, authority_digest: sceneDigest(raw) };
+    record.website_scene_sponsorship = expired;
+    const until = expired.expires_at_epoch + 6 * 86400;
+    store.rows.set("taskEvaluationSceneIntakes/intake-one", { website_request_id: "req1", state: "completed",
+      root_sponsorship_digest: expired.authority_digest, sponsorship_digest: expired.authority_digest,
+      request: { execution: { expires_at_epoch: expired.expires_at_epoch } },
+      receipt: { intent_id: "scene-one", intent_digest: sha("8") },
+      execution_window_extensions: [{ schema_version: "task_evaluation_scene_execution_window_extension_notice.v1",
+        intent_id: "scene-one", intent_digest: sha("8"), extension_digest: sha("7"),
+        original_expires_at_epoch: expired.expires_at_epoch, expires_at_epoch: until,
+        issued_at_epoch: expired.expires_at_epoch + 60, authorization_reference: "owner approval (time only)",
+        authorized_via: "operator_door", received_at_iso: new Date().toISOString() }] });
+    record.website_scene_sponsorship_execution_window = { schema_version: "website_scene_sponsorship_execution_window.v1",
+      scope: "execution_time_only", authority_digest: expired.authority_digest, intent_id: "scene-one",
+      intake_id: "intake-one", extension_digest: sha("7"), original_expires_at_epoch: expired.expires_at_epoch,
+      expires_at_epoch: until };
+    const atlas = { task_context_digest: grant.task_context_digest, allocation_binding_digest: sha("1"),
+      resource_class: "provider_reconstruction_api" as const, provider: "world_labs_atlas" as const,
+      source_video_digest: sha("a"), maximum_cost_usd: 1, request_count: 1 };
+    expect(await reserveWebsitePreparationSpend("req1", atlas))
+      .toMatchObject({ status: "admitted", expires_at_epoch: atlasExpiry });
+    await expect(reserveWebsitePreparationSpend("req1", { ...atlas, allocation_binding_digest: sha("2"),
+      provider: "meta", resource_class: "evaluator_api", atlas_auxiliary: true })).rejects.toThrow("consent_expired");
+    expect(await reserveWebsitePreparationSpend("req1", { task_context_digest: grant.task_context_digest,
+      allocation_binding_digest: sha("3"), resource_class: "gpu_render", provider: "vast",
+      maximum_cost_usd: 1, request_count: 1 }))
+      .toMatchObject({ status: "admitted", sponsorship_digest: expired.authority_digest, expires_at_epoch: until });
+    expect(store.rows.get("inboundRequests/req1").website_scene_sponsorship).toEqual(expired);
+  } finally { delete process.env.BLUEPRINT_WEBSITE_ATLAS_AUTHORIZATIONS_JSON; }
+});
+
 it("reserves hosted SAM from the Blueprint cap once and rejects overspend, changed requests and revoked consent", async () => {
   sponsoredCapture();
   const grant = await loadWebsiteSceneSponsorship("req1", true);
