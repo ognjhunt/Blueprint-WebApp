@@ -13,8 +13,8 @@
  */
 import { describe, expect, it } from "vitest";
 import {
-  SUPPORTED_TASK_LINES, SUPPORTED_TASK_SCOPE, screenTaskScope, scoredTaskDescription, taskScopeHeld, taskScopeNotYet,
-  taskScopeRecord,
+  MULTI_STEP_TASK_HOLD, SUPPORTED_TASK_LINES, SUPPORTED_TASK_SCOPE, multiStepHoldMessage, multiStepTaskHold, screenTaskScope,
+  scoredTaskDescription, taskScopeHeld, taskScopeNotYet, taskScopeRecord,
 } from "../utils/siteTaskScope";
 import { teamJobAccess } from "../utils/teamJobAccess";
 import { projectTaskStatus, taskStatusInputFrom } from "../utils/taskStatusProjection";
@@ -65,6 +65,49 @@ describe("screenTaskScope", () => {
       disposition: reason === "unclear" ? "needs_description" : "accepted_for_analysis" });
   });
 
+  // A sequence of same-kind steps is several steps, never one rigid move the Pipeline would narrow to one object.
+  it.each([
+    ["Take the plates to the kitchen then load the dishwasher", ["take the plates to the kitchen", "load the dishwasher"]],
+    ["Open the fridge and take out the milk", ["open the fridge", "take out the milk"]],
+    ["Take the plates to the kitchen and the cups to the sink", ["take the plates to the kitchen", "the cups to the sink"]],
+    ["Carry the plates to the kitchen and put them in the sink", ["carry the plates to the kitchen", "put them in the sink"]],
+    ["Unload the truck and stack the boxes on the pallet", ["unload the truck", "stack the boxes on the pallet"]],
+    ["Pick up the box, turn it over and put it back on the shelf",
+      ["pick up the box", "turn it over", "put it back on the shelf"]],
+    ["1. Pick up the tray 2. Put it on the counter 3. Bring the cups to the sink",
+      ["pick up the tray", "put it on the counter", "bring the cups to the sink"]],
+    ["The robot picks up the tray and then puts the cups on the counter",
+      ["the robot picks up the tray", "puts the cups on the counter"]],
+    ["Move the box to the shelf. After that, move the crate to the floor.",
+      ["move the box to the shelf", "move the crate to the floor"]],
+  ])("holds %j as several steps, naming them", (summary, steps) => {
+    expect(screen(summary)).toEqual({ supported: false, kind: null, reason: "multi_step",
+      disposition: "accepted_for_analysis", matched: steps });
+  });
+
+  it.each([
+    "Pick up the tray and put it on the counter",
+    "Pick up the tray, then put it on the counter",
+    "Pick the tray up and place it on the counter",
+    "Move the box from the table to the shelf",
+    "Grab the mug off the shelf and set it on the table",
+    "Take the milk out of the fridge",
+    "Put the salt and pepper on the shelf",
+    "Pick and place the bracket on the bench",
+    "Picking up trays and placing them on the counter",
+    "Take the dishes to the sink and put them in the sink",
+    "Pick up the red block and put the block on the plate",
+  ])("scores %j as one rigid move", summary => {
+    expect(screen(summary)).toMatchObject({ supported: true, kind: "rigid_pick_and_place", reason: null, disposition: "scorable" });
+  });
+
+  it("reads several steps from the success definition too", () => {
+    expect(screen("Your site task", "The plates are moved to the kitchen and the cups are put on the shelf"))
+      .toMatchObject({ reason: "multi_step" });
+    expect(screen("Pick up the tray and put it on the counter", "The tray is placed on the counter"))
+      .toMatchObject({ supported: true, kind: "rigid_pick_and_place" });
+  });
+
   it("records a held job as demand for what to build next, and an unreadable brief as not yet described", () => {
     const held = taskScopeRecord(screen("Folding towels for wash-and-fold orders"), "2026-10-26T00:00:00Z");
     expect(held).toMatchObject({ disposition: "accepted_for_analysis", demandKind: "deformable" });
@@ -110,6 +153,32 @@ describe("a job we cannot score", () => {
     expect(status.decision).toBe("not_yet_supported");
     expect(status.headline).toMatch(/preparing an evaluation/);
     expect(status.operatorAction).toMatch(/liquids.*cover: picking up one rigid object and placing it at another spot on a supported destination surface, and opening one door, drawer or lid/);
+  });
+
+  it("holds a job that names several steps by name, and asks the site to split it", () => {
+    const hold = multiStepTaskHold({ summary: "Take the plates to the kitchen then load the dishwasher" });
+    expect(hold).toEqual({ code: MULTI_STEP_TASK_HOLD, steps: ["take the plates to the kitchen", "load the dishwasher"] });
+    expect(MULTI_STEP_TASK_HOLD).toBe("website_multi_step_task_preparation_required");
+    expect(multiStepTaskHold({ summary: "Pick up the tray and put it on the counter" })).toBeNull();
+    expect(multiStepTaskHold({ summary: "Your site task" })).toBeNull();
+    expect(multiStepTaskHold(null)).toBeNull();
+    // A refused preparation reports a retryable stop; the job page says why it is held instead.
+    const status = projectTaskStatus(taskStatusInputFrom({ briefDrafted: true, stage: null, hasStoredCapture: true,
+      multiStepHold: hold, preparationStatus: { state: "failed_retryable", correlationId: null } }));
+    expect(status.decision).toBe("not_yet_supported");
+    expect(status.headline).toBe("Your job is on hold because it has more than one step.");
+    expect(status.operatorAction).toBe("Our simulation tests one step at a time, such as picking up one object and putting it "
+      + "down somewhere else. We read these steps: “take the plates to the kitchen”, “load the dishwasher”. We won't test "
+      + "only part of your job without asking you. To have one step tested, change your job description to that one step "
+      + "and confirm it. Otherwise your job stays on hold and your video stays saved; you do not need to send it again.");
+    expect(status.outcome).toBeUndefined();
+    // A run already reported, or a scene already handed off, keeps its own rung.
+    expect(projectTaskStatus(taskStatusInputFrom({ briefDrafted: true, stage: null, multiStepHold: hold,
+      screening: { teams: 1, queued: 0, running: 0, reported: 1, noResult: 0 } })).decision).not.toBe("not_yet_supported");
+    expect(multiStepHoldMessage(["one step"]).action).not.toMatch(/We read these steps/);
+    expect(taskScopeNotYet("multi_step")).toMatchObject({ headline: "Your job is on hold because it has more than one step.",
+      nextStep: expect.stringMatching(/change your job description to that one step and confirm it/) });
+    expect(taskScopeNotYet("multi_step").detail).toMatch(/tests one step at a time.*rather than test only part of it/);
   });
 
   it("shows an actual queued evaluation ahead of an older scope hint without claiming execution or results", () => {

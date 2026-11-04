@@ -147,7 +147,7 @@ export function buildTaskNotYetSupportedEmail(params: {
     "",
     unclear
       ? `${notYet.nextStep}${params.jobUrl ? ` Your job page: ${params.jobUrl}` : ""}`
-      : `If we read your job wrong, reply to this email.${params.jobUrl ? ` Your job page shows the same: ${params.jobUrl}` : ""}`,
+      : `${params.reason === "multi_step" ? `${notYet.nextStep} ` : ""}If we read your job wrong, reply to this email.${params.jobUrl ? ` Your job page shows the same: ${params.jobUrl}` : ""}`,
     "",
     EMAIL_SIGN_OFF,
   ].join("\n");

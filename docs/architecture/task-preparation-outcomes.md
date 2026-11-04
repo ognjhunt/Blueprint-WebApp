@@ -41,10 +41,13 @@ new provider purchase, policy run or general infrastructure is introduced.
 | --- | --- | --- |
 | Retained robot carry check rejected the checked configuration | `robot_incompatibility`, explicitly `conservative_configuration_check` | Source/context-bound preparation, collision/runtime and verdict digests; Blueprint reviews scale, grasp and checked stations before another configuration. This is not exhaustive impossibility proof. |
 | Named source coverage, geometry or task evidence is insufficient | `insufficient_evidence` | Current capture-specific finding; Blueprint identifies the exact missing fact/view/measurement before asking the site for anything. |
+| No robot Blueprint runs fits the task in its room, decided before any spend (Pipeline #3336, status v6) | `robot_incompatibility`, explicitly `conservative_pre_spend_fit_check` | The precheck's digest; the page names the hold cause (`website_robot_fit_none:<cause>`) in plain words and lists the robot bodies measured, for the owner only. A pre-spend estimate, not a physical test; the Pipeline rechecks it when the catalog or team registry changes. |
+| The job's description names more than one step | `not_yet_supported` with the typed hold `website_multi_step_task_preparation_required` | The WebApp's task screen (`siteTaskScope.multiStepEvidence`): verbs on different objects, more than one destination, or another act beside the move. No grant, Atlas allowance, reservation or scene intake is admitted, so nothing is spent and the task is never narrowed to one move. The page names the steps it read and asks the site to change the description to one step. |
 | Reconstruction or preparation stopped internally | `processing_failure` | Current retained failure receipt; Blueprint resolves/reconciles it before an authorized retry. The site's video stays saved and it is not asked to reupload or confirm the brief to fix our error. |
 
-The status reader requests `website_preparation_status.v3`. Older Pipeline
-releases continue returning v1/v2; all three schemas remain strict and readable.
+The status reader requests `website_preparation_status.v6`. Older Pipeline
+releases continue returning v1 to v5; every schema remains strict and readable,
+and only v6 may carry the robot fit hold.
 V3's optional-in-meaning, required-nullable `outcome` is hash-bound with the rest
 of the receipt. It is accepted only in a stopped state. A new receipt cannot
 smuggle in a verified constraint, physical validation or an arbitrary message.

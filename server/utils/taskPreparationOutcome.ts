@@ -7,15 +7,57 @@ import type { TaskOutcome } from "../../client/src/types/taskOutcome";
 import type { WebsiteAtlasPreview } from "./websiteAtlasPreview";
 
 const digest = z.string().regex(/^sha256:[a-f0-9]{64}$/);
-export const preparationOutcomeSchema = z.discriminatedUnion("reason", [
-  z.object({ reason: z.literal("robot_carry_path_rejected"), category: z.literal("robot_incompatibility"),
-    basis: z.literal("conservative_configuration_check"), robot_id: z.literal("franka_panda"), evidence_digest: digest }).strict(),
-  z.object({ reason: z.literal("task_evidence_incomplete"), category: z.literal("insufficient_evidence"),
-    basis: z.literal("missing_evidence"), robot_id: z.null(), evidence_digest: digest }).strict(),
-]);
-export type PreparationOutcomeReceipt = z.infer<typeof preparationOutcomeSchema>;
+const carryPathRejected = z.object({ reason: z.literal("robot_carry_path_rejected"), category: z.literal("robot_incompatibility"),
+  basis: z.literal("conservative_configuration_check"), robot_id: z.literal("franka_panda"), evidence_digest: digest }).strict();
+const taskEvidenceIncomplete = z.object({ reason: z.literal("task_evidence_incomplete"), category: z.literal("insufficient_evidence"),
+  basis: z.literal("missing_evidence"), robot_id: z.null(), evidence_digest: digest }).strict();
+/** Preparation status v3–v5 keep this closed vocabulary. */
+export const preparationOutcomeSchema = z.discriminatedUnion("reason", [carryPathRejected, taskEvidenceIncomplete]);
+/** v6 adds the early robot fit hold (Pipeline #3336): no robot Blueprint runs fits the task in this room,
+ * decided before any spend. Its evidence is the precheck's digest. */
+export const preparationOutcomeV6Schema = z.discriminatedUnion("reason", [carryPathRejected, taskEvidenceIncomplete,
+  z.object({ reason: z.literal("robot_fit_none"), category: z.literal("robot_incompatibility"),
+    basis: z.literal("conservative_pre_spend_fit_check"), robot_id: z.null(), evidence_digest: digest }).strict()]);
+export type PreparationOutcomeReceipt = z.infer<typeof preparationOutcomeV6Schema>;
 
-export function projectPreparationOutcome(receipt: PreparationOutcomeReceipt): TaskOutcome {
+/** What the v6 precheck says about a robot fit hold, when it binds to the same evidence as the outcome. */
+export type RobotFitHoldEvidence = { holdReason: string | null; precheckDigest: string;
+  counts: { fit: number; noFit: number; unknown: number; unavailable: number } };
+
+export const ROBOT_FIT_HOLD_PREFIX = "website_robot_fit_none:";
+/** The precheck's hold cause in plain words: why none of the robots fits. Never more than the precheck says. */
+const ROBOT_FIT_HOLD_CAUSES: Record<string, string> = {
+  reach: "the robot arms were ruled out on reach. Measured from your scene, the spot where the object is picked up or "
+    + "put down is farther than the arm can reach from any place it could be mounted level with the lower work surface.",
+  task_kind: "none of the robot software we run handles this kind of task yet.",
+  gpu_memory: "the robot software that could do this task needs more graphics-card (GPU) memory than any machine we can "
+    + "rent to test it.",
+  no_candidate_available: "none of the robot setups we run is available for this job right now, for example because it "
+    + "is switched off or not licensed for commercial use.",
+};
+export function robotFitHoldCause(holdReason: string | null | undefined): string | null {
+  return holdReason?.startsWith(ROBOT_FIT_HOLD_PREFIX)
+    ? ROBOT_FIT_HOLD_CAUSES[holdReason.slice(ROBOT_FIT_HOLD_PREFIX.length)] ?? null : null;
+}
+
+function robotFitHold(receipt: Extract<PreparationOutcomeReceipt, { reason: "robot_fit_none" }>,
+  precheck?: RobotFitHoldEvidence | null): TaskOutcome {
+  const bound = precheck && precheck.precheckDigest === receipt.evidence_digest ? precheck : null;
+  const cause = robotFitHoldCause(bound?.holdReason);
+  const total = bound ? bound.counts.fit + bound.counts.noFit + bound.counts.unknown + bound.counts.unavailable : 0;
+  const checked = total > 0 ? `None of the ${total} robot setups we checked fits this job` : "None of the robot setups we checked fits this job";
+  return {
+    category: "robot_incompatibility", basis: receipt.basis,
+    title: "Held: none of the robots we run fits this job yet",
+    reason: cause ? `${checked}. The main reason: ${cause}` : `${checked}.`,
+    scope: "A check made before any paid work, from your scene as rebuilt from your video. It is an estimate: no robot was tried on your job, and it does not show that no robot could ever do it.",
+    nextStep: "Nothing is needed from you. Blueprint checks this job again when the robots we run change. Your recording is saved; you do not need to send it again.",
+    actionOwner: "blueprint", evidence: [{ label: "Robot fit check before any spend", digest: receipt.evidence_digest }],
+  };
+}
+
+export function projectPreparationOutcome(receipt: PreparationOutcomeReceipt, precheck?: RobotFitHoldEvidence | null): TaskOutcome {
+  if (receipt.reason === "robot_fit_none") return robotFitHold(receipt, precheck);
   if (receipt.reason === "robot_carry_path_rejected") return {
     category: "robot_incompatibility", basis: receipt.basis, title: "The checked robot configuration was rejected",
     reason: "No collision-free pickup-to-placement path was found for the Franka configuration, top-down grasp and bounded set of stations checked. Paid construction and policy evaluation were not admitted by this check.",
