@@ -210,7 +210,9 @@ export function noEstimateReason(candidates: ReadonlyArray<{ status: string; blo
  * `infeasible`, `no_match`: no candidate could run the job, by reason.
  * `held_setup`: the run ended on a failure on our side (an infrastructure
  * refusal, a run that timed out or returned no usable result, every candidate
- * blocked) and nothing reruns it by itself. `held_budget`: the site's
+ * blocked). It is rerun once the cause is fixed: the Pipeline plans a run our
+ * harness failed again by itself after the fix deploys (a bounded number of
+ * times), and anything else is rerun by us. `held_budget`: the site's
  * simulation allowance was spent before an estimate; nothing reserves more.
  * `held_scene_check`: the scene failed its robot-free check, so no campaign
  * could start (a Pipeline hold, `betaPolicyScreeningHold`). Each is final for
@@ -282,6 +284,8 @@ export function screeningOutcome(publication: Pick<BetaPolicyScreeningPublicatio
  */
 const IN_PROGRESS_SENTENCE = "Simulation evaluation in progress. We'll run your job again and show the estimate here.";
 const ATTENTION_NEXT = "It won't restart by itself. Our team has been told, and we'll email you if a later run gives a result.";
+/** A failure on our side is rerun after its fix (the Pipeline replans harness failures once the fix deploys). */
+const SETUP_NEXT = "Our team has been told. We'll run it again once the cause is fixed, and email you if a later run gives a result.";
 const SCREENING_OUTCOME_SENTENCE: Readonly<Record<ScreeningOutcome, string>> = {
   estimate: "Your simulation estimate is ready. It is an estimate from a simulation of your site, not a certified result.",
   reference_only: "No estimate yet: only scripted reference baselines were scored, and no learned policy could be evaluated on your job yet.",
@@ -289,7 +293,7 @@ const SCREENING_OUTCOME_SENTENCE: Readonly<Record<ScreeningOutcome, string>> = {
   held_unprepared: "Held: the robots that could do this job aren't set up in our simulator yet. It counts as demand for what we build next.",
   infeasible: "Held: from the robot position planned in the scene built from your video, none of the robots we can simulate could reach this task.",
   no_match: "No match: none of the robots we can simulate matched this job. At least one was measured out of reach from the robot position planned in the scene built from your video.",
-  held_setup: `Held: a problem on our side stopped the simulation of your job before it gave an estimate. ${ATTENTION_NEXT}`,
+  held_setup: `Held: a problem on our side stopped the simulation of your job before it gave an estimate. ${SETUP_NEXT}`,
   held_budget: `Held: your job reached the most the free beta can simulate for one job before it gave an estimate. ${ATTENTION_NEXT}`,
   held_scene_check: `Held: the simulation built from your video failed the check we run before testing robots, so no robot was tested on your job. ${ATTENTION_NEXT}`,
   awaiting_spend_approval: "Your job's simulation is waiting on an approval inside Blueprint before it can continue.",

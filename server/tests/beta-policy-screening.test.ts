@@ -635,6 +635,12 @@ describe("one outcome per run, in one plain sentence (F-03)", () => {
     // A wait on Blueprint's money decision says so; a re-plan after a deploy is in progress.
     expect(new Set(sentences).size).toBe(SCREENING_OUTCOMES.length);
     expect(screeningOutcomeSentence("awaiting_spend_approval")).toMatch(/waiting on an approval inside Blueprint/);
+    // A failure on our side is rerun after its fix (the Pipeline replans a harness failure once the fix deploys),
+    // so the site is never told it won't restart; a spent allowance or a failed scene check does not restart.
+    expect(screeningOutcomeSentence("held_setup")).toMatch(/We'll run it again once the cause is fixed, and email you if a later run gives a result\.$/);
+    expect(screeningOutcomeSentence("held_setup")).not.toMatch(/won't restart/);
+    for (const outcome of ["held_budget", "held_scene_check"] as const)
+      expect(screeningOutcomeSentence(outcome)).toMatch(/It won't restart by itself\./);
     for (const outcome of SCREENING_OUTCOMES) {
       if (outcome !== "estimate") expect(screeningOutcomeSentence(outcome)).not.toMatch(/estimate is ready/);
       if (outcome !== "held_capability") expect(screeningOutcomeSentence(outcome)).not.toBe(screeningOutcomeSentence("held_capability"));

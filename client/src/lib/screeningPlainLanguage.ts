@@ -11,6 +11,14 @@ const own = (map: Record<string, string>, key: string) => Object.prototype.hasOw
 const MEASURED = "Measured out of reach from the robot position planned in your scene.";
 const NOT_SET_UP = "Not set up in our simulator yet.";
 const NOT_RUN = "Not run in this evaluation.";
+/**
+ * The Pipeline's harness failures: the candidate ran in our simulator (it was
+ * set up), but the run gave nothing that could be scored. Ours to fix, and the
+ * Pipeline plans it again once a fix is deployed.
+ */
+const NO_USABLE_RESULT = "Ran in our simulator, but the run returned no usable result. This is ours to fix, and it will run again after the fix.";
+/** The untyped fallback for a closed run with no result: not a typed harness failure, so nothing plans it again by itself. */
+const NO_RESULT_UNTYPED = "Ran in our simulator, but the run returned no usable result. This is ours to fix.";
 
 const REASONS: Record<string, string> = {
   candidate_infeasible_measured_geometry: MEASURED,
@@ -29,11 +37,22 @@ const REASONS: Record<string, string> = {
   beta_screening_transport_retry_cap_exhausted: "Not run: we could not confirm this job can still run. This is ours to fix.",
   beta_screening_static_preflight_blocked: "Could not start in our simulator. This is ours to fix.",
   beta_screening_replanned_for_new_implementation: "Continued in a newer run after a Blueprint update.",
+  beta_screening_native_result_missing_or_invalid: NO_USABLE_RESULT,
+  beta_screening_native_result_missing: NO_RESULT_UNTYPED,
+  beta_screening_native_result_invalid: NO_USABLE_RESULT,
+  g1_beta_native_result_missing_or_invalid: NO_USABLE_RESULT,
+  // Any stage (`:runtime_open`, `:observation_gate`, `:policy_load`): a cell stopped before its policy ran.
+  policy_canary_session_setup_failed: NO_USABLE_RESULT,
+  // Held unspent while another candidate's failed run in the same evaluation waits for its fix.
+  beta_screening_held_after_launch_failure: "Not run yet: it is waiting for a fix to another run in this evaluation first. This is ours to fix.",
+  beta_screening_control_unavailable_timeout: "Stopped: we could not confirm in time that this job could still run. This is ours to fix.",
+  beta_screening_authority_expired: "Stopped: the time allowed for this job's simulation ran out before it finished.",
 };
 /** Codes the Pipeline adds later still say something true, by category. */
 const CATEGORIES: Array<[RegExp, string]> = [
   [/infeasible|out_of_reach|unreachable/, MEASURED],
   [/budget|ceiling/, NOT_RUN],
+  [/native_result/, NO_USABLE_RESULT],
   [/capacity/, REASONS.beta_screening_waiting_for_capacity],
   [/replanned/, REASONS.beta_screening_replanned_for_new_implementation],
   [/licen[cs]e|commercial|entitlement|terms/, REASONS.commercial_use_not_admitted],
