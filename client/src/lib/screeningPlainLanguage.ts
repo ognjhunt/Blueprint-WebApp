@@ -17,6 +17,8 @@ const NOT_RUN = "Not run in this evaluation.";
  * Pipeline plans it again once a fix is deployed.
  */
 const NO_USABLE_RESULT = "Ran in our simulator, but the run returned no usable result. This is ours to fix, and it will run again after the fix.";
+/** The untyped fallback for a closed run with no result: not a typed harness failure, so nothing plans it again by itself. */
+const NO_RESULT_UNTYPED = "Ran in our simulator, but the run returned no usable result. This is ours to fix.";
 
 const REASONS: Record<string, string> = {
   candidate_infeasible_measured_geometry: MEASURED,
@@ -36,7 +38,7 @@ const REASONS: Record<string, string> = {
   beta_screening_static_preflight_blocked: "Could not start in our simulator. This is ours to fix.",
   beta_screening_replanned_for_new_implementation: "Continued in a newer run after a Blueprint update.",
   beta_screening_native_result_missing_or_invalid: NO_USABLE_RESULT,
-  beta_screening_native_result_missing: NO_USABLE_RESULT,
+  beta_screening_native_result_missing: NO_RESULT_UNTYPED,
   beta_screening_native_result_invalid: NO_USABLE_RESULT,
   g1_beta_native_result_missing_or_invalid: NO_USABLE_RESULT,
   // Any stage (`:runtime_open`, `:observation_gate`, `:policy_load`): a cell stopped before its policy ran.
