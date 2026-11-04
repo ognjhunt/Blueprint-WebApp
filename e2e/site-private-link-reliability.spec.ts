@@ -188,9 +188,9 @@ test("the owner is asked in plain words before a chair is moved out of the robot
   const token = "robot-access-fixture";
   const proposalDigest = `sha256:${"2".repeat(64)}`;
   const decisions: unknown[] = [];
-  const robotAccess = (decision: unknown) => ({ proposalDigest, decision, what: "1 chair",
-    why: "In the simulation of your site, the robot arm can't stand close enough to reach the job: 1 chair is in the way.",
-    question: "To give the robot room, Blueprint would move 1 chair away from the wooden dining table in the simulation. Approve?",
+  const robotAccess = (decision: unknown) => ({ proposalDigest, decision, question: "move", what: "1 chair",
+    why: "In the simulation of your site, the robot arm can't stand close enough to reach the job. 1 chair is in the way.",
+    ask: "To give the robot room, Blueprint would move 1 chair away from the wooden dining table in the simulation. Approve?",
     note: "Only the simulation changes; your site and your video stay as they are. The chair may still show in the simulation's pictures, but the robot is no longer blocked by it. Results stay estimates.",
     items: ["dining chair by the window"], approve: "Move it in the simulation", decline: "Keep it where it is",
     approved: "You approved this. Blueprint moves 1 chair in the simulation and checks again whether the robot can reach the job.",

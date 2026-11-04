@@ -5,9 +5,10 @@ import { RobotAccess, isRobotAccess, type RobotAccessView } from "@/components/s
 vi.mock("@/lib/csrf", () => ({ withCsrfHeader: async (headers: Record<string, string>) => ({ ...headers, "x-csrf-token": "t" }) }));
 const view: RobotAccessView = {
   proposalDigest: `sha256:${"1".repeat(64)}`,
+  question: "move",
   what: "1 chair",
-  why: "In the simulation of your site, the robot arm can't stand close enough to reach the job: 1 chair is in the way.",
-  question: "To give the robot room, Blueprint would move 1 chair away from the wooden dining table in the simulation. Approve?",
+  why: "In the simulation of your site, the robot arm can't stand close enough to reach the job. 1 chair is in the way.",
+  ask: "To give the robot room, Blueprint would move 1 chair away from the wooden dining table in the simulation. Approve?",
   note: "Only the simulation changes; your site and your video stay as they are. The chair may still show in the simulation's pictures, but the robot is no longer blocked by it. Results stay estimates.",
   items: ["dining chair by the window"],
   approve: "Move it in the simulation",
@@ -29,7 +30,7 @@ describe("RobotAccess", () => {
     const onDecided = vi.fn();
     render(<RobotAccess token="tok" view={view} onDecided={onDecided} />);
     expect(screen.getByRole("heading", { name: "Room for the robot" })).toBeTruthy();
-    expect(screen.getByText(view.question)).toBeTruthy();
+    expect(screen.getByText(view.ask)).toBeTruthy();
     expect(screen.getByText("dining chair by the window")).toBeTruthy();
     expect(screen.getByText("Nothing changes until you answer.")).toBeTruthy();
     expect(screen.queryByRole("textbox")).toBeNull();
@@ -63,11 +64,26 @@ describe("RobotAccess", () => {
     expect(screen.queryByRole("button", { name: "Move it in the simulation" })).toBeNull();
   });
 
+  it("asks first whether to measure, with Blueprint's own cost, and says nothing is measured unanswered", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ ok: true, decision: "approved" }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const measuring: RobotAccessView = { ...view, question: "measure", what: "chairs", items: ["dining chairs"],
+      ask: "Blueprint would measure the chairs in your video (at most $0.40 of Blueprint's own processing; you are not charged) so it can propose moving one. Approve?",
+      approve: "Measure the chairs", decline: "Not now" };
+    render(<RobotAccess token="tok" view={measuring} onDecided={vi.fn()} />);
+    expect(screen.getByText(measuring.ask)).toBeTruthy();
+    expect(screen.getByText("Nothing is measured until you answer.")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Measure the chairs" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    expect(bodyOf(fetchMock)).toEqual({ proposalDigest: view.proposalDigest, decision: "approve" });
+  });
+
   it("accepts only a well-formed view", () => {
     expect(isRobotAccess(view)).toBe(true);
     expect(isRobotAccess({ ...view, proposalDigest: "x" })).toBe(false);
     expect(isRobotAccess({ ...view, items: [] })).toBe(false);
-    expect(isRobotAccess({ ...view, question: "" })).toBe(false);
+    expect(isRobotAccess({ ...view, ask: "" })).toBe(false);
+    expect(isRobotAccess({ ...view, question: "spend" })).toBe(false);
     expect(isRobotAccess({ ...view, decision: { kind: "maybe", decidedAt: "x" } })).toBe(false);
   });
 });

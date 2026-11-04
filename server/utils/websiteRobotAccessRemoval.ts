@@ -1,13 +1,17 @@
 /**
- * Movable furniture moved out of the robot's way in a website job's
- * simulation, only with the job owner's approval on the job page.
+ * Movable furniture measured, then moved out of the robot's way in a website
+ * job's simulation, each only with the job owner's approval on the job page.
  *
  * When the robot arm can't stand within reach of the job in the simulation
- * of the site because chairs or stools are in the way, the Pipeline proposes
- * moving exactly the ones that would give it room. Only items the scene's
- * own analysis labels movable furniture are ever proposed; never walls,
- * counters or the table the job is on. This changes what the simulation
- * shows the robot, so nothing happens without the owner.
+ * of the site and chairs or stools plausibly block it, the Pipeline asks two
+ * questions, one at a time (`question`):
+ * - `measure`: may Blueprint measure the chairs in the video so it can propose
+ *   moving one? That is a bounded spend of Blueprint's own (at most
+ *   `maximum_cost_usd`, within the job's caps); the site is not charged.
+ * - `move`: may Blueprint move exactly these chairs out of the robot's way in
+ *   the simulation? This changes what the simulation shows the robot.
+ * Only items the scene's own analysis labels movable furniture are ever
+ * named; never walls, counters or the table the job is on.
  *
  * The Pipeline sends the proposal over its signed sync transport each time it
  * checks on the job (`recordRobotAccessProposal`), the same transport as the
@@ -49,22 +53,26 @@ const sealed = (field: string) => (value: Record<string, unknown>) => {
   try { return crossRuntimeArtifactDigest(value, field) === value[field]; } catch { return false; }
 };
 
+/** The most Blueprint may ask to spend on one measurement (robot_access_furniture.MAXIMUM_MEASUREMENT_USD). */
+export const ROBOT_ACCESS_MAXIMUM_MEASUREMENT_USD = 5;
 export const robotAccessProposalSchema = z.object({
   schema_version: z.literal(ROBOT_ACCESS_PROPOSAL_SCHEMA),
   intent_id: intentId, intent_digest: sha, task_id: z.string().min(1).max(192),
-  configured_scene_revision_digest: sha, removal_binding_digest: sha,
+  configured_scene_revision_digest: sha, question: z.enum(["measure", "move"]), binding_digest: sha,
   // The items in the scene analysis's own words; their measured bounds stay on the Pipeline.
   items: z.array(z.object({ target_id: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/), label: words,
     kind: z.enum(ROBOT_ACCESS_KINDS) }).strict()).min(1).max(4),
   support_label: words, reason: z.literal("no_ranked_stance_carries"), appearance: z.literal("unchanged"),
+  maximum_cost_usd: z.number().positive().max(ROBOT_ACCESS_MAXIMUM_MEASUREMENT_USD).nullable(),
   proposal_digest: sha,
-}).strict().refine(sealed("proposal_digest"), "proposal digest mismatch");
+}).strict().refine(value => (value.question === "measure") === (value.maximum_cost_usd !== null),
+  "only a measurement names a cost").refine(sealed("proposal_digest"), "proposal digest mismatch");
 export type RobotAccessProposal = z.infer<typeof robotAccessProposalSchema>;
 
 export const robotAccessDecisionSchema = z.object({
   schema_version: z.literal(ROBOT_ACCESS_DECISION_SCHEMA),
   intent_id: intentId, intent_digest: sha, request_id: identifier, capture_id: identifier,
-  proposal_digest: sha, configured_scene_revision_digest: sha, removal_binding_digest: sha,
+  proposal_digest: sha, configured_scene_revision_digest: sha, question: z.enum(["measure", "move"]), binding_digest: sha,
   decision: z.enum(["approved", "declined"]), decided_via: z.literal("owner_job_link"),
   decided_at: z.string().regex(/^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{3}Z$/),
   decision_digest: sha,
@@ -107,7 +115,8 @@ export function robotAccessDecisionFor(intake: Intake | undefined, proposal: Rob
     return parsed.success && parsed.data.proposal_digest === proposal.proposal_digest
       && parsed.data.intent_id === proposal.intent_id && parsed.data.intent_digest === proposal.intent_digest
       && parsed.data.configured_scene_revision_digest === proposal.configured_scene_revision_digest
-      && parsed.data.removal_binding_digest === proposal.removal_binding_digest ? [parsed.data] : [];
+      && parsed.data.question === proposal.question
+      && parsed.data.binding_digest === proposal.binding_digest ? [parsed.data] : [];
   });
   return bound.find(row => row.decision === "approved") ?? bound.filter(row => row.decision === "declined").at(-1) ?? null;
 }
@@ -168,18 +177,38 @@ function counted(items: RobotAccessProposal["items"]): string {
   return counts.map(([kind, count]) => `${NUMBERS[count] ?? count} ${kind}${count === 1 ? "" : "s"}`).join(" and ");
 }
 
-export type RobotAccessWords = { what: string; why: string; question: string; note: string; items: string[];
-  approve: string; decline: string; approved: string; declined: string };
+export type RobotAccessWords = { question: "measure" | "move"; what: string; why: string; ask: string; note: string;
+  items: string[]; approve: string; decline: string; approved: string; declined: string };
 
-/** The proposal in plain words, from what the Pipeline sent and nothing else. */
+const usd = (value: number) => `$${value.toFixed(2)}`;
+const sentence = (text: string) => `${text[0].toUpperCase()}${text.slice(1)}`;
+
+/** The question in plain words, from what the Pipeline sent and nothing else. */
 export function describeRobotAccessProposal(proposal: RobotAccessProposal): RobotAccessWords {
   const what = counted(proposal.items);
   const one = proposal.items.length === 1;
   const support = proposal.support_label.trim().replace(/^(the|a|an) /i, "");
+  const why = "In the simulation of your site, the robot arm can't stand close enough to reach the job.";
+  if (proposal.question === "measure") {
+    const furniture = ROBOT_ACCESS_KINDS.filter(kind => proposal.items.some(row => row.kind === kind))
+      .map(kind => `${kind}s`).join(" and ");
+    return {
+      question: "measure", what: furniture,
+      why: `${why} The ${furniture} around the ${support} may be in the way.`,
+      ask: `Blueprint would measure the ${furniture} in your video (at most ${usd(proposal.maximum_cost_usd ?? 0)} of `
+        + "Blueprint's own processing; you are not charged) so it can propose moving one. Approve?",
+      note: "Measuring changes nothing in the simulation. If moving one would give the robot room, Blueprint asks you first.",
+      items: proposal.items.map(row => row.label.replace(/_/g, " ")),
+      approve: `Measure the ${furniture}`, decline: "Not now",
+      approved: `You approved this. Blueprint measures the ${furniture}, then tells you whether moving one would give the robot room.`,
+      declined: `You chose not to measure the ${furniture}. The robot can't stand within reach, so this job is on hold. `
+        + "You can still approve if you change your mind.",
+    };
+  }
   return {
-    what,
-    why: `In the simulation of your site, the robot arm can't stand close enough to reach the job: ${what} ${one ? "is" : "are"} in the way.`,
-    question: `To give the robot room, Blueprint would move ${what} away from the ${support} in the simulation. Approve?`,
+    question: "move", what,
+    why: `${why} ${sentence(what)} ${one ? "is" : "are"} in the way.`,
+    ask: `To give the robot room, Blueprint would move ${what} away from the ${support} in the simulation. Approve?`,
     note: `Only the simulation changes; your site and your video stay as they are. The ${one ? proposal.items[0].kind : "furniture"} `
       + `may still show in the simulation's pictures, but the robot is no longer blocked by ${one ? "it" : "them"}. Results stay estimates.`,
     items: proposal.items.map(row => row.label),
@@ -241,7 +270,8 @@ export async function decideRobotAccessProposal(requestId: string, captureId: st
     const record = { schema_version: ROBOT_ACCESS_DECISION_SCHEMA, intent_id: proposal.intent_id,
       intent_digest: proposal.intent_digest, request_id: requestId, capture_id: captureId,
       proposal_digest: proposal.proposal_digest, configured_scene_revision_digest: proposal.configured_scene_revision_digest,
-      removal_binding_digest: proposal.removal_binding_digest, decision: kind, decided_via: "owner_job_link" as const,
+      question: proposal.question, binding_digest: proposal.binding_digest, decision: kind,
+      decided_via: "owner_job_link" as const,
       decided_at: now().toISOString() };
     const decision = robotAccessDecisionSchema.parse({ ...record,
       decision_digest: crossRuntimeArtifactDigest(record as Record<string, unknown>, "decision_digest") });

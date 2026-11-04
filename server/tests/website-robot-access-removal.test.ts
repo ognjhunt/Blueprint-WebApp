@@ -48,14 +48,19 @@ const sha = (character: string) => `sha256:${character.repeat(64)}`;
 const INTAKE = "taskEvaluationSceneIntakes/scene-intake-1";
 const row = (key: string) => sharedFakeFirestoreState.docs.get(key);
 const CHAIR = { target_id: "chair-east-1", label: "dining chair by the window", kind: "chair" as const };
+// The scene review's own grouped entry, as capture-447's review names its chairs.
+const MEASURE_ITEM = { target_id: "dining_chairs", label: "dining_chairs", kind: "chair" as const };
 
 function proposal(changes: Record<string, unknown> = {}) {
   const value = { schema_version: ROBOT_ACCESS_PROPOSAL_SCHEMA, intent_id: "scene-one", intent_digest: sha("a"),
-    task_id: "website-0123456789abcdef0123", configured_scene_revision_digest: sha("b"), removal_binding_digest: sha("c"),
-    items: [CHAIR], support_label: "wooden dining table", reason: "no_ranked_stance_carries", appearance: "unchanged",
-    ...changes };
+    task_id: "website-0123456789abcdef0123", configured_scene_revision_digest: sha("b"), question: "move",
+    binding_digest: sha("c"), items: [CHAIR], support_label: "wooden dining table", reason: "no_ranked_stance_carries",
+    appearance: "unchanged", maximum_cost_usd: null, ...changes };
   return { ...value, proposal_digest: crossRuntimeArtifactDigest(value as Record<string, unknown>, "proposal_digest") };
 }
+
+const measure = (changes: Record<string, unknown> = {}) => proposal({ question: "measure", binding_digest: sha("d"),
+  items: [MEASURE_ITEM], maximum_cost_usd: 0.4, ...changes });
 
 let server: Server;
 let baseUrl: string;
@@ -112,11 +117,17 @@ describe("the Pipeline's signed proposal", () => {
     // Sealed by the Pipeline's own robot_access_furniture.proposal_notice (cross-runtime canonical digest).
     const sealedByPipeline = { schema_version: "website_robot_access_proposal.v1", intent_id: "scene-one",
       intent_digest: sha("a"), task_id: "website-0123456789abcdef0123", configured_scene_revision_digest: sha("b"),
-      removal_binding_digest: sha("c"), items: [CHAIR], support_label: "wooden dining table",
-      reason: "no_ranked_stance_carries", appearance: "unchanged",
-      proposal_digest: "sha256:f4e9b231e4a9ac340887c5cc47992159e107d5815223b12a7945308393b22dd2" };
+      question: "move", binding_digest: sha("c"), items: [CHAIR], support_label: "wooden dining table",
+      reason: "no_ranked_stance_carries", appearance: "unchanged", maximum_cost_usd: null,
+      proposal_digest: "sha256:943d7190f9249381976770cf1205ef3e8a8a78de6b7b6f776f17d68ecdcd3e0c" };
     expect(robotAccessProposalSchema.safeParse(sealedByPipeline).success).toBe(true);
     expect(proposal().proposal_digest).toBe(sealedByPipeline.proposal_digest);
+    // The measurement question carries its cost, and the Pipeline's digest of that number is the WebApp's.
+    const measureByPipeline = { ...sealedByPipeline, question: "measure", binding_digest: sha("d"),
+      items: [MEASURE_ITEM], maximum_cost_usd: 0.4,
+      proposal_digest: "sha256:c03dba5630d092c698b1060be41401219471f9fb30f02c11c97ec473161a1c8f" };
+    expect(robotAccessProposalSchema.safeParse(measureByPipeline).success).toBe(true);
+    expect(measure().proposal_digest).toBe(measureByPipeline.proposal_digest);
   });
 
   it("is kept append-only and answered pending until the owner decides", async () => {
@@ -170,11 +181,12 @@ describe("the owner's decision on the job page", () => {
     await notify(current);
     const shown = (await status()).body.robotAccess;
     expect(shown).toMatchObject({ proposalDigest: current.proposal_digest, decision: null, what: "1 chair",
-      question: "To give the robot room, Blueprint would move 1 chair away from the wooden dining table in the simulation. Approve?",
-      why: "In the simulation of your site, the robot arm can't stand close enough to reach the job: 1 chair is in the way.",
+      question: "move",
+      ask: "To give the robot room, Blueprint would move 1 chair away from the wooden dining table in the simulation. Approve?",
+      why: "In the simulation of your site, the robot arm can't stand close enough to reach the job. 1 chair is in the way.",
       items: ["dining chair by the window"], approve: "Move it in the simulation", decline: "Keep it where it is" });
     expect(shown.note).toMatch(/^Only the simulation changes; your site and your video stay as they are\. The chair may still show/);
-    expect(JSON.stringify(shown)).not.toContain("removal_binding_digest");
+    expect(JSON.stringify(shown)).not.toContain("binding_digest");
     // A film link sees nothing and cannot decide; a missing CSRF token is refused; nothing else is a field.
     expect((await status(film())).body.robotAccess ?? null).toBeNull();
     expect((await decide({ proposalDigest: current.proposal_digest, decision: "approve" }, film())).status).toBe(403);
@@ -186,7 +198,7 @@ describe("the owner's decision on the job page", () => {
     const [decision] = row(INTAKE).robot_access_decisions;
     expect(decision).toMatchObject({ schema_version: "website_robot_access_decision.v1", intent_id: "scene-one",
       intent_digest: sha("a"), request_id: "req-1", capture_id: "cap-1", proposal_digest: current.proposal_digest,
-      configured_scene_revision_digest: sha("b"), removal_binding_digest: sha("c"), decision: "approved",
+      configured_scene_revision_digest: sha("b"), question: "move", binding_digest: sha("c"), decision: "approved",
       decided_via: "owner_job_link" });
     expect(decision.decision_digest).toBe(crossRuntimeArtifactDigest(decision, "decision_digest"));
     expect((await notify(current)).body).toMatchObject({ status: "approved", decision });
@@ -219,7 +231,7 @@ describe("the owner's decision on the job page", () => {
     await notify(first);
     expect((await decide({ proposalDigest: first.proposal_digest, decision: "approve" })).status).toBe(200);
     // The scene is republished: another binding, another proposal, with no decision yet.
-    const second = proposal({ configured_scene_revision_digest: sha("7"), removal_binding_digest: sha("8"),
+    const second = proposal({ configured_scene_revision_digest: sha("7"), binding_digest: sha("8"),
       items: [CHAIR, { target_id: "stool-2", label: "bar stool", kind: "stool" }] });
     expect((await notify(second)).body).toMatchObject({ status: "pending", proposal_digest: second.proposal_digest, decision: null });
     expect((await status()).body.robotAccess).toMatchObject({ proposalDigest: second.proposal_digest, decision: null,
@@ -241,13 +253,52 @@ describe("the owner's decision on the job page", () => {
   });
 });
 
+describe("the first question: may Blueprint measure the chairs", () => {
+  it("names its own bounded cost, says the site is not charged, and a decline holds the job", async () => {
+    const current = measure();
+    expect((await notify(current)).body.status).toBe("pending");
+    const shown = (await status()).body.robotAccess;
+    expect(shown).toMatchObject({ proposalDigest: current.proposal_digest, question: "measure", decision: null,
+      what: "chairs", items: ["dining chairs"], approve: "Measure the chairs", decline: "Not now",
+      ask: "Blueprint would measure the chairs in your video (at most $0.40 of Blueprint's own processing; you are not "
+        + "charged) so it can propose moving one. Approve?",
+      why: "In the simulation of your site, the robot arm can't stand close enough to reach the job. The chairs around "
+        + "the wooden dining table may be in the way." });
+    expect(shown.note).toBe("Measuring changes nothing in the simulation. If moving one would give the robot room, "
+      + "Blueprint asks you first.");
+    // Not now: recorded, bound to the measurement, and the Pipeline reads it as a hold.
+    expect((await decide({ proposalDigest: current.proposal_digest, decision: "decline" })).body.decision).toBe("declined");
+    const [declined] = row(INTAKE).robot_access_decisions;
+    expect(declined).toMatchObject({ question: "measure", binding_digest: sha("d"), decision: "declined" });
+    expect((await notify(current)).body).toMatchObject({ status: "declined", decision: declined });
+    expect((await status()).body.robotAccess.declined).toBe("You chose not to measure the chairs. The robot can't stand "
+      + "within reach, so this job is on hold. You can still approve if you change your mind.");
+    // Then approves; the next question (moving one chair) is a new proposal with no decision yet.
+    expect((await decide({ proposalDigest: current.proposal_digest, decision: "approve" })).body.decision).toBe("approved");
+    expect((await notify(current)).body.status).toBe("approved");
+    const next = proposal();
+    expect((await notify(next)).body).toMatchObject({ status: "pending", decision: null });
+    expect((await status()).body.robotAccess).toMatchObject({ question: "move", decision: null });
+  });
+
+  it.each([
+    ["a measurement without its cost", () => measure({ maximum_cost_usd: null })],
+    ["a move with a cost", () => proposal({ maximum_cost_usd: 0.4 })],
+    ["a cost above the bound", () => measure({ maximum_cost_usd: 5.01 })],
+    ["a free measurement", () => measure({ maximum_cost_usd: 0 })],
+  ])("refuses %s before any write", async (_name, make) => {
+    expect((await notify(make())).status).toBe(400);
+    expect(row(INTAKE).robot_access_proposals).toBeUndefined();
+  });
+});
+
 describe("plain words", () => {
   it("counts each kind and names each item as the analysis did", () => {
     const words = describeRobotAccessProposal(proposal({ support_label: "the kitchen island",
       items: [CHAIR, { ...CHAIR, target_id: "chair-2", label: "chair" }, { target_id: "s", label: "stool", kind: "stool" }] }));
     expect(words.what).toBe("2 chairs and 1 stool");
-    expect(words.question).toBe("To give the robot room, Blueprint would move 2 chairs and 1 stool away from the kitchen island in the simulation. Approve?");
-    expect(words.why).toMatch(/: 2 chairs and 1 stool are in the way\.$/);
+    expect(words.ask).toBe("To give the robot room, Blueprint would move 2 chairs and 1 stool away from the kitchen island in the simulation. Approve?");
+    expect(words.why).toMatch(/ 2 chairs and 1 stool are in the way\.$/);
     expect(words.items).toEqual(["dining chair by the window", "chair", "stool"]);
   });
 });
