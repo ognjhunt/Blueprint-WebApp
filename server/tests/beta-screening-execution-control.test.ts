@@ -234,6 +234,16 @@ describe("current source refusals stop only the existing owned attempt", () => {
     fixture.intake.revocation_requested = false;
     expect(await observeBetaScreeningExecutionControl(fixture.request)).toEqual(stopped);
   });
+  it("keeps authorizing a job its owner hid from partners: hiding is a visibility control, not a stop", async () => {
+    // capture-447 2026-11-04: "Hide from partners" stopped every screening launch as unauthorized processing.
+    row("inboundRequests/job-one").workspace_task = { archived: false, paused: true };
+    const control = await observeBetaScreeningExecutionControl(fixture.request);
+    expect(control).toMatchObject({ status: "current", applicability: "current", stop_reason: null });
+    // A withdrawal, which also hides the job, still stops it.
+    row("inboundRequests/job-one").capture_withdrawal = { state: "uploads_stopped_cleanup_pending" };
+    expect(await observeBetaScreeningExecutionControl(fixture.request)).toMatchObject({
+      status: "stopped", stop_reason: "job_capture_processing_not_authorized" });
+  });
   it("honors a durable signed owner closure without replacing consent or stored evidence", async () => {
     await observeBetaScreeningExecutionControl(fixture.request);
     const closure = { schema_version: "website_run_closure.v1", request_id: "job-one", capture_id: fixture.request.source.capture_id,
