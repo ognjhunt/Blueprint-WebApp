@@ -40,7 +40,7 @@ its full $18, which does not fit if $31 is counted.
 | 13c. Robot-free probe on a flat support | **ran clean; scoring awaits deploy approval.** The scanned table was planarized to the success plane in the evaluation half (#3349, deployed `283b79805` 00:26 UTC); the half's `task_support_pad` is `consistent` (plane z 0.80389, start and goal rest at the window centre, tilt 0). New probe job `…-9319f26e660a4c7c`: attempt 00 hit a Vast no-start ($0.09); later attempts were refused as `website_grant_exhausted` because the four earlier $1 holds were never settled; WebApp #1210 + Pipeline #3351 (deployed `88497b47`, 02:13 UTC) settled them to $0.62. Attempt 02 (04:27 UTC, $0.20) ran clean: the tray rests at z 0.81426 with tilt under 0.002 rad and settles at the goal at 0.81406, inside the window. Ingest refused it as `trace_conflict` beside the superseded request's trace; #3353 (merged, `d6f10b375`) re-ingests it at no cost, and a local replay predicts receipt `passed` (untouched `never_moved`, carried `placed_and_settled`). Deploy of main `f3717f0e1` awaits the owner's approval. A read-only lookahead predicts screening of scripted industrial arms only (learned Franka policies are out of reach from any clear stance), giving a `reference_only` hold. |
 
 Spend on this attempt so far: about $5.90 (ARTISAN $4.21 metered, GPU $1.16
-estimated, robot-free probe about $1.11 estimated across six runs).
+estimated, robot-free probe about $0.82 estimated across five GPU runs).
 
 ## Next
 
