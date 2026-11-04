@@ -65,6 +65,7 @@ import internalCaptureTaskEvaluationRunsRouter from "./routes/internal-capture-t
 import internalBetaPolicyScreeningRouter from "./routes/internal-beta-policy-screening";
 import internalSceneExecutionWindowRouter from "./routes/internal-scene-execution-window";
 import internalOwnerSuccessProposalRouter from "./routes/internal-owner-success-proposal";
+import internalRobotAccessProposalRouter from "./routes/internal-robot-access-proposal";
 import internalTaskEvaluationDeliveryReadbackRouter from "./routes/internal-task-evaluation-delivery-readback";
 import internalAgentExecutionRouter from "./routes/internal-agent-execution";
 import paperclipAdpExecutionRouter from "./routes/paperclip-adp-execution";
@@ -156,6 +157,7 @@ export function registerRoutes(app: Express) {
   app.use("/api/internal/pipeline", internalBetaPolicyScreeningRouter);
   app.use("/api/internal/pipeline", internalSceneExecutionWindowRouter);
   app.use("/api/internal/pipeline", internalOwnerSuccessProposalRouter);
+  app.use("/api/internal/pipeline", internalRobotAccessProposalRouter);
   app.use("/api/internal/pipeline", nativeG1PrivateReviewIngestRouter);
   app.use("/api/internal/pipeline", internalTaskEvaluationDeliveryReadbackRouter);
   app.use("/api/internal/pipeline", internalAgentExecutionRouter);

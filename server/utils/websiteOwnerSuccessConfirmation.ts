@@ -203,6 +203,8 @@ async function latestIntake(requestId: string, captureId: string, store = db) {
   }
   return latest;
 }
+/** The same lookup, for the owner's other decisions on this job (``websiteRobotAccessRemoval``). */
+export const latestSceneIntake = latestIntake;
 
 /* ------------------------------------------------------------ plain words */
 
