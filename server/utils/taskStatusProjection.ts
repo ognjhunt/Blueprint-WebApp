@@ -26,7 +26,7 @@
  */
 
 import type { ReadinessStage } from "../../client/src/lib/siteTaskReadiness";
-import { taskScopeNotYet } from "./siteTaskScope";
+import { multiStepHoldMessage, taskScopeNotYet } from "./siteTaskScope";
 import type { TaskOutcome } from "../../client/src/types/taskOutcome";
 import { processingFailure } from "./taskPreparationOutcome";
 import { screeningOutcomeSentence, type ScreeningHeldOutcome, type ScreeningOutcome } from "./betaPolicyScreeningContract";
@@ -287,6 +287,11 @@ interface TaskStatusInput {
    * Such a job is not opened to robot teams, so no later rung is true for it.
    */
   taskScope?: { supported: false; reason: string | null } | null;
+  /**
+   * The current brief names more than one step (`multiStepTaskHold`): held before any spend, so the
+   * Pipeline never narrows it to one move. The steps are the ones the screen read.
+   */
+  multiStepHold?: { steps: string[] } | null;
   /** Where the site books the screening call, when one is needed. */
   bookingUrl?: string | null;
   /**
@@ -343,6 +348,13 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
   // A native handoff supersedes an optional reconstruction preview's failure.
   const hasRuns = input.screening && input.screening.queued + input.screening.running
     + input.screening.reported + input.screening.noResult > 0;
+  // A job that names several steps gets no grant, reservation or scene intake, so it is held before any
+  // spend. Said by name, with the one step that moves it, ahead of whatever the refused preparation reports.
+  if (input.multiStepHold && !hasRuns && input.preparationStatus?.state !== "handed_off" && !input.sceneProgression) {
+    const held = multiStepHoldMessage(input.multiStepHold.steps);
+    return { ...base, decision: "not_yet_supported", stage: null, missingViews: [], headline: held.headline,
+      operatorAction: held.action };
+  }
   // An explicit rejection supersedes estimates on the guessed object. Keep
   // the footage and the repair with Blueprint; more recording is optional.
   if (input.targetChoiceAnswer === "none_of_these") {
@@ -767,6 +779,7 @@ export function taskStatusInputFrom(record: {
   preparationOutcome?: TaskOutcome | null;
   ownerClosureOutcome?: TaskOutcome | null;
   preparationStatus?: TaskPreparationStatus | null;
+  multiStepHold?: { steps: string[] } | null;
   targetChoiceAnswer?: "confirm_guess" | "other_candidate" | "none_of_these" | null;
   targetChoiceRestoringGuess?: boolean;
   preparationOverdue?: boolean;
@@ -802,6 +815,7 @@ export function taskStatusInputFrom(record: {
     preparationOutcome: record.preparationOutcome ?? null,
     ownerClosureOutcome: record.ownerClosureOutcome ?? null,
     preparationStatus: record.preparationStatus ?? null,
+    ...(record.multiStepHold ? { multiStepHold: { steps: [...record.multiStepHold.steps] } } : {}),
     ...(record.targetChoiceAnswer ? { targetChoiceAnswer: record.targetChoiceAnswer } : {}),
     ...(record.targetChoiceRestoringGuess ? {targetChoiceRestoringGuess: true} : {}),
     ...(record.preparationOverdue === true ? { preparationOverdue: true } : {}),
