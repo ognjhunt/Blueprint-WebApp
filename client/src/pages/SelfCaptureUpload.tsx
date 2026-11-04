@@ -9,6 +9,7 @@ import { TaskTargetChoice, type TaskTargetChoiceView } from "@/components/site/T
 import { RobotFit, isRobotFit, type RobotFitView } from "@/components/site/RobotFit";
 import { RobotFitHold, isRobotFitHold, type RobotFitHoldView } from "@/components/site/RobotFitHold";
 import { SuccessThresholds, isSuccessThresholds, type SuccessThresholdsView } from "@/components/site/SuccessThresholds";
+import { RobotAccess, isRobotAccess, type RobotAccessView } from "@/components/site/RobotAccess";
 import { NextTaskUpdate } from "@/components/site/NextTaskUpdate";
 /**
  * The page an operator or filmer opens from a private job link.
@@ -68,6 +69,8 @@ type TaskStatus = {
   robotFitHold?: RobotFitHoldView | null;
   /** The job's proposed success thresholds, for the owner only: confirm, or say they are wrong. */
   successThresholds?: SuccessThresholdsView | null;
+  /** Whether to move chairs or stools out of the robot's way in the simulation, for the owner only. */
+  robotAccess?: RobotAccessView | null;
 };
 
 function isTargetChoice(value: unknown): value is TaskTargetChoiceView {
@@ -566,6 +569,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
             robotFit: data.scope === "owner" && isRobotFit(data.robotFit) ? data.robotFit : null,
             robotFitHold: data.scope === "owner" && isRobotFitHold(data.robotFitHold) ? data.robotFitHold : null,
             successThresholds: data.scope === "owner" && isSuccessThresholds(data.successThresholds) ? data.successThresholds : null,
+            robotAccess: data.scope === "owner" && isRobotAccess(data.robotAccess) ? data.robotAccess : null,
           });
         } else if (alive) {
           setCurrentStatusKnown(false);
@@ -688,6 +692,9 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
       {saved && scope === "owner" && currentStatusKnown && status?.robotFit && <RobotFit fit={status.robotFit} />}
       {saved && scope === "owner" && currentStatusKnown && status?.successThresholds
         && <SuccessThresholds key={status.successThresholds.proposalDigest} token={token} view={status.successThresholds}
+          onDecided={() => setStatusRefresh(value => value + 1)} />}
+      {saved && scope === "owner" && currentStatusKnown && status?.robotAccess
+        && <RobotAccess key={status.robotAccess.proposalDigest} token={token} view={status.robotAccess}
           onDecided={() => setStatusRefresh(value => value + 1)} />}
 
       {isVideoUpdate && !saved && <p className="ms-field-hint" role="status">Film or upload a complete updated walkthrough. This updates the same job and keeps your original video.</p>}

@@ -184,6 +184,51 @@ test("the owner confirms how success is judged, in plain words, with no number t
   await page.screenshot({ path: info.outputPath("success-thresholds-confirmed.png"), fullPage: true });
 });
 
+test("the owner is asked in plain words before a chair is moved out of the robot's way in the simulation", async ({ page }, info) => {
+  const token = "robot-access-fixture";
+  const proposalDigest = `sha256:${"2".repeat(64)}`;
+  const decisions: unknown[] = [];
+  const robotAccess = (decision: unknown) => ({ proposalDigest, decision, what: "1 chair",
+    why: "In the simulation of your site, the robot arm can't stand close enough to reach the job: 1 chair is in the way.",
+    question: "To give the robot room, Blueprint would move 1 chair away from the wooden dining table in the simulation. Approve?",
+    note: "Only the simulation changes; your site and your video stay as they are. The chair may still show in the simulation's pictures, but the robot is no longer blocked by it. Results stay estimates.",
+    items: ["dining chair by the window"], approve: "Move it in the simulation", decline: "Keep it where it is",
+    approved: "You approved this. Blueprint moves 1 chair in the simulation and checks again whether the robot can reach the job.",
+    declined: "You chose to keep 1 chair where it is. The robot can't stand within reach, so this job is on hold. You can still approve if you change your mind." });
+  await page.route("**/api/**", route => {
+    const request = route.request(), url = new URL(request.url());
+    if (url.pathname.startsWith("/api/job-workflow/owner/") && request.method() === "GET") return route.fulfill({ json: legacyJobWorkflow() });
+    if (url.pathname === "/api/csrf") return route.fulfill({ json: { csrfToken: "fixture" } });
+    if (url.pathname === `/api/self-capture/uploads/${token}/status`) return route.fulfill({ json: {
+      ok: true, state: "open", captureReceived: true, uploadState: "processing_ready", accepts: ["mov", "mp4"] } });
+    if (url.pathname === `/api/site-task-brief/${token}`) return route.fulfill({ json: {
+      ready: true, scope: "owner", brief: { summary: "Tray to the other end of the table", captureMode: "self_capture", proposed: [], unresolved: [], confirmedAtIso: "2026-11-01T00:00:00Z" } } });
+    if (url.pathname === `/api/site-task-brief/${token}/status`) return route.fulfill({ json: {
+      ok: true, scope: "owner", captureReceived: true,
+      status: { decision: "assessing", headline: "Blueprint is preparing your scene.", operatorAction: null, missingViews: [] },
+      robotAccess: robotAccess(decisions.length ? { kind: "approved", decidedAt: "2026-11-04T09:00:00.000Z" } : null) } });
+    if (url.pathname === `/api/site-task-brief/${token}/robot-access` && request.method() === "POST") {
+      decisions.push(request.postDataJSON());
+      return route.fulfill({ json: { ok: true, decision: "approved", decidedAt: "2026-11-04T09:00:00.000Z" } });
+    }
+    if (url.pathname.endsWith("/items")) return route.fulfill({ json: { items: [], allItemsCovered: false, requestedShots: [] } });
+    if (url.pathname.endsWith("/follow-up")) return route.fulfill({ json: { questions: [] } });
+    return route.fulfill({ status: 503, json: { error: "Unstubbed local API" } });
+  });
+  await page.goto(`/capture-upload/${token}?video=existing`);
+  const section = page.getByRole("region", { name: "Room for the robot" });
+  await expect(section.getByRole("heading", { name: "Room for the robot" })).toBeVisible();
+  await expect(section.getByText("To give the robot room, Blueprint would move 1 chair away from the wooden dining table in the simulation. Approve?")).toBeVisible();
+  await expect(section.getByText("dining chair by the window")).toBeVisible();
+  await expect(section.getByText("Nothing changes until you answer.")).toBeVisible();
+  await expect(section.locator("input")).toHaveCount(0);
+  await page.screenshot({ path: info.outputPath("robot-access-proposed.png"), fullPage: true });
+  await section.getByRole("button", { name: "Move it in the simulation" }).click();
+  await expect(section.getByText("You approved this. Blueprint moves 1 chair in the simulation and checks again whether the robot can reach the job.")).toBeVisible();
+  expect(decisions).toEqual([{ proposalDigest, decision: "approve" }]);
+  await page.screenshot({ path: info.outputPath("robot-access-approved.png"), fullPage: true });
+});
+
 test("the current simulation estimate is visible while technical references stay folded", async ({ page }, info) => {
   const token = "scored-result-fixture";
   const writes: string[] = [];
