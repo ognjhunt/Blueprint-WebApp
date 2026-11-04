@@ -232,6 +232,21 @@ it("returns an exact retained settlement without refreshing its admission", asyn
   expect(state.writes).toEqual([]);
 });
 
+it("returns a ledger-estimate Vast settlement only at its own labelled estimate", async () => {
+  const { command } = seed();
+  const settlement = { task_context_digest: command.task_context_digest,
+    allocation_binding_digest: command.allocation_binding_digest, provider: "vast", instance_id: "59035045",
+    provider_charge_basis: "adapter_budget_ledger_estimate", provider_charge_amount_usd: .087939,
+    budget_ledger_digest: sha("1"), execution_result_digest: sha("2"), teardown_receipt_digest: sha("3"),
+    provider_zero_digest: sha("4"), continuing_spend_from_this_run: false, all_staged_objects_absent: true,
+    actual_cost_usd: .087939, status: "settled" };
+  state.rows.get(REQUEST).website_preparation_reservations["b".repeat(64)].settlement = settlement;
+  expect((await post()).body).toMatchObject({ status: "reserved", dispatch_authorized: false, settlement });
+  state.rows.get(REQUEST).website_preparation_reservations["b".repeat(64)].settlement.actual_cost_usd = .05;
+  expect((await post()).body.code).toBe("website_scene_preparation_observation_invalid");
+  expect(state.writes).toEqual([]);
+});
+
 it.each(["cost", "task", "source", "provider"])("refuses a mismatched %s under the same allocation key", async field => {
   seed();
   const command = { ...spend(), ...(field === "cost" ? { maximum_cost_usd: 5 } : field === "task"
