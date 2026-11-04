@@ -289,7 +289,7 @@ const SITE_NEXT_ACTION: Readonly<Record<ScreeningOutcome, string>> = {
 };
 /** Blueprint's own next step, shown in operations views only. */
 const OPS_NEXT_ACTION: Partial<Record<ScreeningOutcome, string>> = {
-  held_setup: "Held on our side: fix the cause in each candidate's blockers, then rerun; nothing reruns it by itself. Nothing is needed from the site.",
+  held_setup: "Held on our side: fix the cause in each candidate's blockers, then rerun. Once the fix deploys, the Pipeline plans a harness failure again by itself (a bounded number of times); rerun anything else by hand. Nothing is needed from the site.",
   held_budget: "Held: the site's simulation allowance is spent and nothing reserves more. Spending past it is an owner decision. Nothing is needed from the site.",
   held_scene_check: "Held: the scene failed its robot-free check, so no campaign started. Rebuild or re-probe the scene to continue. Nothing is needed from the site.",
   awaiting_spend_approval: "Owner approval needed: this job's candidates need more than the site's simulation budget. Nothing is needed from the site.",

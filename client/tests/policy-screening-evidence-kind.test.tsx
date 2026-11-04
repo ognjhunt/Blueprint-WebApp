@@ -131,3 +131,22 @@ it("says plainly when a candidate waits to confirm its job can still run, never 
   expect(screeningReasonLabel("beta_screening_transport_retry_cap_exhausted"))
     .toBe("Not run: we could not confirm this job can still run. This is ours to fix.");
 });
+
+it("says a run that gave no usable result ran in our simulator, is ours to fix and runs again after the fix", () => {
+  const noUsableResult = "Ran in our simulator, but the run returned no usable result. This is ours to fix, and it will run again after the fix.";
+  for (const code of ["beta_screening_native_result_missing_or_invalid", "beta_screening_native_result_missing",
+    "beta_screening_native_result_invalid", "g1_beta_native_result_missing_or_invalid", "policy_canary_session_setup_failed",
+    "policy_canary_session_setup_failed:runtime_open", "policy_canary_session_setup_failed:observation_gate",
+    "policy_canary_session_setup_failed:policy_load", "a_newer_native_result_code"]) {
+    expect(screeningReasonLabel(code)).toBe(noUsableResult);
+  }
+  expect(screeningReasonLabel("beta_screening_held_after_launch_failure"))
+    .toBe("Not run yet: it is waiting for a fix to another run in this evaluation first. This is ours to fix.");
+  expect(screeningReasonLabel("beta_screening_control_unavailable_timeout"))
+    .toBe("Stopped: we could not confirm in time that this job could still run. This is ours to fix.");
+  expect(screeningReasonLabel("beta_screening_authority_expired"))
+    .toBe("Stopped: the time allowed for this job's simulation ran out before it finished.");
+  // A candidate that ran is never described as one that was not set up.
+  expect(screeningReasonLabels(["beta_screening_native_result_missing_or_invalid", "beta_screening_native_result_missing"]))
+    .toEqual([noUsableResult]);
+});

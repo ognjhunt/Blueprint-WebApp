@@ -158,7 +158,9 @@ function blueprintSceneStep(scene: BlueprintScene, attention: string[]): Step {
     case "held":
       // A failure, a spent allowance or a failed scene check is ours to look at, not demand.
       if (isScreeningAttentionOutcome(scene.heldReason)) {
-        attention.push(`Evaluation held (${scene.heldReason}): it does not restart by itself`);
+        // A failure on our side reruns after its fix (the Pipeline replans a harness failure once the fix deploys).
+        attention.push(`Evaluation held (${scene.heldReason}): ${scene.heldReason === "held_setup"
+          ? "it reruns only after its cause is fixed" : "it does not restart by itself"}`);
         return step("held", `Held (${scene.heldReason}): check the run's blockers or the scene's hold reason`, "blueprint");
       }
       return step("held", `Held${scene.heldReason ? ` (${scene.heldReason})` : ""}: counted as demand for what to build next`, "none");
