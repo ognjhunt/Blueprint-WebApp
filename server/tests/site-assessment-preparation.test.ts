@@ -162,7 +162,8 @@ it("admits no new spend once the site names several steps for a job prepared bef
     .toMatchObject({status:"admitted"});
 });
 it("the signed route returns the multi-step hold by name, so the Pipeline holds the capture rather than fails it",async()=>{
-  seed(packet(),false,false,{},{summary:"Open the fridge and take out the milk"});
+  // Screened as "other" for its wiping, and still several steps: held all the same.
+  seed(packet(),false,false,{},{summary:"Put the mug in the sink, then wipe the counter"});
   const app=express();app.use(express.json());app.use((await import("../routes/internal-capture-worlds")).default);
   const server=createServer(app);await new Promise<void>(resolve=>server.listen(0,"127.0.0.1",resolve));
   const base=`http://127.0.0.1:${(server.address() as any).port}/creator-captures/walkthrough-one`;

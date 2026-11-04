@@ -122,20 +122,29 @@ function kindsIn(step: string): { kinds: Set<SupportedTaskKind>; matched: string
 
 /**
  * The parts verbs play in one move: picking up, putting down, moving in one go, or another act (opening,
- * turning, emptying). One step is one object, picked up and put down at one place at most.
+ * wiping, loading a machine, handing over). One step is one object, picked up and put down at one place
+ * at most. The act list is long on purpose: a verb it does not know cannot add a step, and a missed step
+ * narrows the job silently, while a wrong hold only asks the site to rephrase.
  */
 type VerbRole = "pickup" | "place" | "relocate" | "act";
 const VERB_LEMMAS: ReadonlyArray<[VerbRole, string]> = [
   ["pickup", "pick lift grab grasp collect remove retrieve fetch unload clear"],
-  ["place", "put place set lay drop stack store stow hang leave load return pack"],
+  ["place", "put place set lay drop stack store stow hang leave load return pack unpack restock"],
   ["relocate", "move carry bring transfer take deliver relocate shift"],
-  ["act", "open close shut turn flip rotate tip tilt shake twist hand give throw toss empty fill swap replace arrange rearrange align organize organise unlock lock press pull wait check"],
+  ["act", "open close shut turn flip rotate tip tilt shake twist hand give throw toss empty fill pour swap replace "
+    + "arrange rearrange align organize organise unlock lock press push pull slide wait check wipe clean wash rinse "
+    + "dry scrub sweep mop vacuum dust polish wrap unwrap fold unfold scan label sort count weigh measure inspect "
+    + "insert plug unplug screw unscrew tighten loosen attach detach cut slice peel chop cook heat stir mix scoop "
+    + "spray tape seal staple bag print sign mark switch start stop"],
 ];
 const IRREGULAR_FORMS: Record<string, string> = { took: "take", taken: "take", brought: "bring", laid: "lay",
   gave: "give", given: "give", threw: "throw", thrown: "throw", shook: "shake", shaken: "shake",
   hung: "hang", putting: "put", setting: "set", dropping: "drop", dropped: "drop", grabbing: "grab",
   grabbed: "grab", shutting: "shut", flipping: "flip", flipped: "flip", tipping: "tip", tipped: "tip",
-  swapping: "swap", swapped: "swap" };
+  swapping: "swap", swapped: "swap", mopping: "mop", mopped: "mop", cutting: "cut", chopping: "chop",
+  chopped: "chop", stirring: "stir", stirred: "stir", scooping: "scoop", bagging: "bag", bagged: "bag",
+  plugging: "plug", plugged: "plug", unplugging: "unplug", unplugged: "unplug", stopping: "stop", stopped: "stop",
+  dried: "dry", drying: "dry" };
 /** Each verb form and its role: the lemma, its -s, -ed and -ing forms, and the irregular ones. */
 const VERBS: ReadonlyMap<string, VerbRole> = (() => {
   const forms = new Map<string, VerbRole>();
@@ -151,7 +160,7 @@ const VERBS: ReadonlyMap<string, VerbRole> = (() => {
 /** A word before a verb form that makes it a noun: "the load", "a set", "its place". */
 const DETERMINERS = new Set(["the", "a", "an", "this", "that", "these", "those", "its", "their", "his", "her", "my",
   "our", "your", "each", "every", "all", "some", "any", "both", "one", "two", "three", "four", "five", "several",
-  "few", "many", "other", "another", "next", "same", "whole"]);
+  "few", "many", "other", "another", "next", "same", "whole", "no"]);
 const PRONOUNS = new Set(["it", "them", "this", "that", "these", "those", "one", "ones", "both", "all", "everything",
   "each", "they", "me", "us", "him", "her"]);
 const PARTICLES = new Set(["up", "down", "out", "off", "away", "back", "over"]);
@@ -163,11 +172,35 @@ const DESTINATION = new Set(["to", "onto", "into", "toward", "towards"]);
 /** Where a putting-down verb sets the object: "put it on the counter". */
 const PLACED_AT = new Set(["on", "in", "inside", "under", "beneath", "beside", "behind", "at", "by", "near", "against",
   "above", "over"]);
-/** Where one action ends and the next may begin. "And" is a break too: a second verb on the same
- * object ("pick up the tray and put it on the counter") still reads as one step below. */
-const ACTION_BREAK = /\s*(?:[;,.!?:]|\b(?:and then|then|after that|afterwards|finally|followed by|before|after|once|and|lastly)\b)\s*/;
+/** Words that always end one action: a second verb on the same object ("pick up the tray and put it on
+ * the counter") still reads as one step below, so "and" ends an action too. */
+const BREAKS = new Set([";", ",", ".", "!", "?", ":", "(", ")", "-", "•", "and", "then", "afterwards", "afterward",
+  "finally", "lastly", "subsequently", "also", "plus", "before", "after", "once"]);
 
 type Action = { role: VerbRole; object: string | null; destination: string | null; text: string };
+
+/** The text as words and punctuation, one action per run of words. Hyphenated words stay whole
+ * ("wash-and-fold"); "pick-and-place" is one verb pair. A numbered list's numbers end actions. */
+function actionSegments(text: string): string[][] {
+  const words = normalize(text).replace(/&/g, " and ").replace(/\bpick-and-place\b/g, "pick and place")
+    .replace(/(^|\s)\(?\d+[.)](?=\s)/g, " ; ").replace(/([;,.!?:()•])/g, " $1 ").replace(/\s-\s/g, " - ")
+    .split(" ").filter(Boolean);
+  const segments: string[][] = [[]];
+  for (let index = 0; index < words.length; index++) {
+    const word = words[index], following = words[index + 1];
+    // "after that", "after this", "followed by", and "next" as a step ("..., next load it"),
+    // never "the next box" or "next to the sink".
+    const twoWord = (word === "after" || word === "followed") && (following === "that" || following === "this" || following === "by");
+    const next = word === "next" && following !== "to" && !DETERMINERS.has(words[index - 1] ?? "");
+    if (BREAKS.has(word) || twoWord || next) {
+      if (twoWord) index++;
+      if (segments[segments.length - 1].length) segments.push([]);
+      continue;
+    }
+    segments[segments.length - 1].push(word);
+  }
+  return segments.filter(segment => segment.length);
+}
 
 /** "plates" and "plate" name the same thing. */
 function head(word: string): string {
@@ -205,8 +238,7 @@ function destinationOf(words: string[], start: number, role: VerbRole): string |
   return null;
 }
 
-function actionIn(segment: string): Omit<Action, "text"> | null {
-  const words = segment.split(" ").filter(Boolean);
+function actionIn(words: string[]): Omit<Action, "text"> | null {
   const at = words.findIndex((word, index) => VERBS.has(word) && (index === 0 || !DETERMINERS.has(words[index - 1])));
   if (at < 0) return null;
   const role = VERBS.get(words[at])!;
@@ -221,24 +253,23 @@ function actionIn(segment: string): Omit<Action, "text"> | null {
  * down at one place at most, whatever joins its verbs: "pick up the tray and put it on the counter" is one
  * step, as is "pick up the tray, then put it on the counter". More than one step is:
  *
- * - verbs on different objects: "open the fridge and take out the milk";
+ * - verbs on different objects: "open the fridge and take out the milk", "move the box …, then move the bottle …";
  * - more than one destination: "take the plates to the kitchen and the cups to the sink";
- * - another act beside the move: "pick up the box, turn it over and put it back".
+ * - another act beside the move: "put the mug in the sink, then wipe the counter", "pick up the box and turn it over".
  *
- * Sequencing words ("then", "after that", "finally", a numbered list) only mark where an action may end.
+ * Sequencing words ("then", "after that", "next", "before", "finally", a numbered list), with or without a
+ * comma, only mark where an action may end. Case and punctuation do not matter.
  */
-export function multiStepEvidence(text: string): string[] | null {
-  const segments = text.replace(/-/g, " ").replace(/(^|\s)\d+[.)](?=\s)/g, " ; ")
-    .split(ACTION_BREAK).map(segment => segment.trim()).filter(Boolean);
+export function multiStepEvidence(text: string | null | undefined): string[] | null {
   const actions: Action[] = [];
-  for (const segment of segments) {
-    const action = actionIn(segment);
+  for (const words of actionSegments(text ?? "")) {
+    const segment = words.join(" ");
+    const action = actionIn(words);
     if (action) { actions.push({ ...action, text: segment }); continue; }
     // No verb: "... and the cups to the sink" repeats the last move for another object and place;
     // "the cup and plate on the tray" names one move's extra object or its place.
     const last = actions[actions.length - 1];
     if (!last) continue;
-    const words = segment.split(" ").filter(Boolean);
     const phrase = nounPhrase(words, 0);
     const destination = destinationOf(words, phrase.end, last.role === "relocate" ? "relocate" : "place");
     if (destination && last.destination && phrase.noun)
@@ -376,12 +407,23 @@ export const MULTI_STEP_TASK_HOLD = "website_multi_step_task_preparation_require
 const MULTI_STEP_NEXT_STEP = "To have one step tested, change your job description to that one step and confirm it. "
   + "Otherwise your job stays on hold and your video stays saved; you do not need to send it again.";
 
-/** The current brief's multi-step hold, with the steps it was read from, or null. */
+/**
+ * The current brief's multi-step hold, with the steps it was read from, or null.
+ *
+ * Read from the steps themselves, whatever reason the screen gives: "put the mug in the sink, then wipe
+ * the counter" screens as `other` (wiping) and is still several steps. Pure, and never part of the task
+ * context, so a job it does not hold keeps its context digest: only `screenTaskScope`'s own verdict
+ * shapes that projection (`projectWebsiteTaskContext`), and it changes only for a job held here.
+ */
 export function multiStepTaskHold(brief: { summary?: string | null;
   successCriteria?: { successDefinition?: string | null } | null } | null | undefined):
   { code: typeof MULTI_STEP_TASK_HOLD; steps: string[] } | null {
   if (!brief) return null;
-  const verdict = screenTaskScope({ summary: brief.summary, successDefinition: brief.successCriteria?.successDefinition });
+  const success = brief.successCriteria?.successDefinition;
+  const steps = multiStepEvidence(brief.summary) ?? multiStepEvidence(success);
+  if (steps) return { code: MULTI_STEP_TASK_HOLD, steps };
+  // Steps of different kinds, or one the screen could not place ("pick up the box, then wait for approval").
+  const verdict = screenTaskScope({ summary: brief.summary, successDefinition: success });
   return verdict.reason === "multi_step" ? { code: MULTI_STEP_TASK_HOLD, steps: verdict.matched.slice(0, 6) } : null;
 }
 
