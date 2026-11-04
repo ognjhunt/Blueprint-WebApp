@@ -43,6 +43,7 @@ export type TaskLifecycleMilestone = Extract<
   | "run_no_result"
   | "evaluation_outcome"
   | "scene_outcome"
+  | "robot_access_question"
   | "awaiting_evaluations"
   | "no_team_passed"
   | "no_qualified_evaluation"
@@ -143,6 +144,12 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
   scene_outcome: {
     subject: "An update on your Blueprint job",
     body: (url, detail, workspaceUrl) => `${detail}\n\n${whereRunsAre(url, workspaceUrl, "Open your job")}`,
+  },
+  // One per robot access proposal the owner's job page asks about. The detail
+  // is only the page's own words for it, built from typed counts, never caller text.
+  robot_access_question: {
+    subject: "The simulation of your site needs one decision",
+    body: (url, detail) => `${detail}\n\nOpen your job:\n${url}`,
   },
   run_no_result: {
     subject: "An evaluation run ended without a result",
@@ -248,13 +255,16 @@ export function buildTaskLifecycleNotification(params: {
   screeningCounts?: { ran: number; total: number; scored: number };
   /** `scene_outcome` only: the terminal outcome's kind; its event id must name it. */
   sceneOutcomeKind?: TerminalSceneOutcomeKind;
+  /** `robot_access_question` only: how many chairs and stools the proposal moves; its event id is the proposal digest. */
+  robotAccessCounts?: RobotAccessCounts;
 }): Parameters<typeof enqueueOutbox>[0] {
   const requestId = params.requestId.trim();
   if (isWebsitePreparationNotice(params.milestone) && !/^sha256:[a-f0-9]{64}$/.test(params.eventId || "")) {
     throw new Error("website_preparation_event_invalid");
   }
   const outcomeDetail = params.milestone === "evaluation_outcome" ? evaluationOutcomeDetail(params)
-    : params.milestone === "scene_outcome" ? sceneOutcomeDetail(params) : "";
+    : params.milestone === "scene_outcome" ? sceneOutcomeDetail(params)
+    : params.milestone === "robot_access_question" ? robotAccessQuestionDetail(params) : "";
   const message = copy[params.milestone];
   const url = params.captureUrl ?? captureUploadUrlFor(requestId, "owner");
   const eventId = params.eventId?.trim().replace(/[^A-Za-z0-9._-]/g, "_").slice(0, 120);
@@ -274,7 +284,8 @@ export function buildTaskLifecycleNotification(params: {
       : params.milestone === "scene_outcome" && params.sceneOutcomeKind ? sceneOutcomeSubject(params.sceneOutcomeKind) : message.subject,
     body: `${message.body(url, params.milestone === "run_no_result" ? noResultObservationText(params.runProgress)
       : isWebsitePreparationNotice(params.milestone) ? preparationDetail
-      : params.milestone === "evaluation_outcome" || params.milestone === "scene_outcome" ? outcomeDetail
+      : params.milestone === "evaluation_outcome" || params.milestone === "scene_outcome"
+        || params.milestone === "robot_access_question" ? outcomeDetail
       : params.detail?.trim() ?? "", params.workspaceUrl ?? null)}\n\n${EMAIL_SIGN_OFF}`,
     replyTo: "hello@tryblueprint.io",
   };
@@ -320,6 +331,36 @@ function sceneOutcomeDetail(params: { eventId?: string; sceneOutcomeKind?: Termi
     throw new Error("scene_outcome_notice_invalid");
   }
   return sceneOutcomeMessage(kind);
+}
+
+/** How many of each kind of movable furniture a robot access proposal moves. */
+export type RobotAccessCounts = { chair: number; stool: number };
+
+/**
+ * The owner's one question about the simulation of their site, in the job
+ * page's own words (`describeRobotAccessProposal`): how many chairs or stools
+ * keep the robot arm from standing within reach, and the page's two choices.
+ * Built from typed counts only, so no cost or budget step can reach it:
+ * measuring the furniture is Blueprint's own preparation. The event id must be
+ * the proposal digest, so one proposal is one email.
+ */
+function robotAccessQuestionDetail(params: { eventId?: string; robotAccessCounts?: RobotAccessCounts }): string {
+  const counts = params.robotAccessCounts;
+  const rows = counts ? ([["chair", counts.chair], ["stool", counts.stool]] as const) : [];
+  const total = rows.reduce((sum, [, count]) => sum + count, 0);
+  if (!/^[a-f0-9]{64}$/.test(params.eventId ?? "") || !rows.length
+    || !rows.every(([, count]) => Number.isSafeInteger(count) && count >= 0) || total < 1 || total > 4) {
+    throw new Error("robot_access_question_notice_invalid");
+  }
+  const what = rows.filter(([, count]) => count > 0).map(([kind, count]) => `${count} ${kind}${count === 1 ? "" : "s"}`)
+    .join(" and ");
+  const one = total === 1;
+  return `The simulation of your site needs one decision from you. In the simulation, the robot arm can't stand close `
+    + `enough to reach the job because ${what} ${one ? "is" : "are"} in the way.\n\n`
+    + `Blueprint can move ${one ? "it" : "them"} out of the robot's way in the simulation. Only the simulation changes; `
+    + "your site and your video stay as they are. Results stay estimates, not a physical test.\n\n"
+    + `On your job page, choose "${one ? "Move it in the simulation" : "Move them in the simulation"}" or `
+    + `"${one ? "Keep it where it is" : "Keep them where they are"}". Nothing changes until you answer.`;
 }
 
 /**
