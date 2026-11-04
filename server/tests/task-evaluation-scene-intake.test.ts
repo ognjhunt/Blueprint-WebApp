@@ -2193,6 +2193,56 @@ it("releases only provider charged Vast capacity after a bound terminal rental",
     provider_charge_amount_usd: .51 })).rejects.toThrow("settlement_invalid");
 });
 
+it("settles torn-down Vast probe holds at their labelled ledger estimates so the upstream cap counts what ran", async () => {
+  // capture-447ae4f4: four $1 probe holds and $0.32 already used left $4.32 held of $5,
+  // so the next $1 hold was refused while the four runs' ledgers estimated $0.62.
+  sponsoredCapture();
+  const policy = JSON.parse(process.env.BLUEPRINT_WEBSITE_SCENE_SPONSORSHIP_JSON!);
+  process.env.BLUEPRINT_WEBSITE_SCENE_SPONSORSHIP_JSON = JSON.stringify({ ...policy, max_paid_attempts: 16 });
+  const grant = await loadWebsiteSceneSponsorship("req1", true);
+  const probe = (key: string) => ({ task_context_digest: grant.task_context_digest, allocation_binding_digest: sha(key),
+    resource_class: "gpu_render" as const, provider: "vast" as const, maximum_cost_usd: 1, request_count: 1 });
+  await reserveWebsitePreparationSpend("req1", { task_context_digest: grant.task_context_digest,
+    allocation_binding_digest: sha("0"), resource_class: "evaluator_api", provider: "meta",
+    maximum_cost_usd: .32, request_count: 1 });
+  const estimates: Record<string, number> = { 1: .133313, 2: .16524, 3: .234989, 4: .087939 };
+  for (const key of Object.keys(estimates)) await reserveWebsitePreparationSpend("req1", probe(key));
+  await expect(reserveWebsitePreparationSpend("req1", probe("5"))).rejects.toThrow("budget_exhausted");
+  const settlement = (key: string) => ({ task_context_digest: grant.task_context_digest,
+    allocation_binding_digest: sha(key), provider: "vast" as const, instance_id: `5903504${key}`,
+    provider_charge_basis: "adapter_budget_ledger_estimate" as const, provider_charge_amount_usd: estimates[key],
+    budget_ledger_digest: sha("b"), execution_result_digest: sha("c"), teardown_receipt_digest: sha("d"),
+    provider_zero_digest: sha("f"), continuing_spend_from_this_run: false as const,
+    all_staged_objects_absent: true as const });
+  const original = structuredClone(store.rows.get("inboundRequests/req1").website_preparation_reservations);
+  // Never for a run that may still spend or left objects staged, never as a posted charge, never above the quote.
+  for (const changed of [{ continuing_spend_from_this_run: true }, { all_staged_objects_absent: false },
+    { provider_charge_basis: "provider_billed" }, { provider_charge_source: "instance-59035041" },
+    { provider_charge_amount_usd: 1.000001 }, { provider_charge_amount_usd: -0.01 }, { instance_id: "0" },
+    { budget_ledger_digest: "missing" }, { task_context_digest: sha("e") }, { allocation_binding_digest: sha("9") }]) {
+    await expect(settleWebsitePreparationSpend("req1", { ...settlement("1"), ...changed } as any)).rejects.toThrow();
+    expect(store.rows.get("inboundRequests/req1").website_preparation_reservations).toEqual(original);
+  }
+  const base = (await app()).replace(/\/intakes$/, "/internal/creator-captures/walkthrough-req1/preparation-settlement");
+  const response = await realFetch(base, { method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ request_id: "req1", scene_id: "site-req1", settlement: settlement("1") }) });
+  expect(response.status).toBe(200);
+  const first = await response.json();
+  expect(first).toEqual({ ...settlement("1"), actual_cost_usd: .133313, status: "settled" });
+  expect(await settleWebsitePreparationSpend("req1", settlement("1"))).toEqual(first);
+  await expect(settleWebsitePreparationSpend("req1", { ...settlement("1"), provider_charge_amount_usd: .2 }))
+    .rejects.toThrow("idempotency_conflict");
+  for (const key of ["2", "3", "4"]) await settleWebsitePreparationSpend("req1", settlement(key));
+  const retained = store.rows.get("inboundRequests/req1").website_preparation_reservations;
+  for (const key of Object.keys(original)) {
+    // Append-only: each admission (and its request count) is kept as reserved.
+    expect(retained[key].admission).toEqual(original[key].admission);
+    expect(retained[key].command_digest).toEqual(original[key].command_digest);
+  }
+  // $0.32 + $0.621481 settled, so the next $1 probe hold fits under the $5 upstream cap.
+  expect(await reserveWebsitePreparationSpend("req1", probe("5"))).toMatchObject({ status: "admitted" });
+});
+
 
 it("settles a proved unallocated Vast refusal without replenishing requests or losing its admission", async () => {
   sponsoredCapture();

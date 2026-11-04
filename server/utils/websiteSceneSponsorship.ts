@@ -514,6 +514,24 @@ const vastSettlementRequest = z.object({
   teardown_receipt_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
   provider_zero_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
 }).strict().refine(value => value.provider_charge_source === `instance-${value.instance_id}`);
+// Vast's instance API reports no charge for a short rental, so a terminal run
+// with no posted bill settles at its adapter's budget-ledger estimate (observed
+// all-in hourly rate over the observed live time, plus the priced transfer),
+// labelled as an estimate, never as a provider charge. It is accepted only for
+// one torn-down instance with no continuing spend and nothing left staged; like
+// every settlement it is written once and never above the reservation's quote.
+const vastEstimatedSettlementRequest = z.object({
+  task_context_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+  allocation_binding_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+  provider: z.literal("vast"), instance_id: z.string().regex(/^[1-9][0-9]{0,17}$/),
+  provider_charge_basis: z.literal("adapter_budget_ledger_estimate"),
+  provider_charge_amount_usd: z.number().finite().min(0).max(1000),
+  budget_ledger_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+  execution_result_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+  teardown_receipt_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+  provider_zero_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+  continuing_spend_from_this_run: z.literal(false), all_staged_objects_absent: z.literal(true),
+}).strict();
 // A signed allocator refusal can release a hold without inventing an instance
 // or billing receipt. The original admission and request count stay retained.
 const vastNoAllocationSettlementRequest = z.object({
@@ -554,8 +572,8 @@ const atlasSettlementRequest = z.object({
 }).strict().refine(value => (value.outcome === "refused") === (value.operation_id === null),
   "website_atlas_settlement_operation_invalid");
 export const preparationSettlementRequest = z.union([
-  completedPreparationSettlement, rejectedPreparationSettlement, vastSettlementRequest, vastNoAllocationSettlementRequest,
-  openaiImageSettlementRequest, atlasSettlementRequest,
+  completedPreparationSettlement, rejectedPreparationSettlement, vastSettlementRequest, vastEstimatedSettlementRequest,
+  vastNoAllocationSettlementRequest, openaiImageSettlementRequest, atlasSettlementRequest,
 ]);
 type PreparationSettlement = z.infer<typeof preparationSettlementRequest>;
 
