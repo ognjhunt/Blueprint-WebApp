@@ -7,11 +7,11 @@ import type { SiteTaskBriefRecord } from "../utils/siteTaskBrief";
 import vector from "./fixtures/website-context-vector.json";
 import { ownerClosure } from "./fixtures/website-run-closure";
 
-const state = vi.hoisted(() => ({ authorized: true, brief: null as SiteTaskBriefRecord | null, consent: null as Record<string, unknown> | null, persisted: [] as Record<string, unknown>[], closures: {} as Record<string, unknown> }));
+const state = vi.hoisted(() => ({ authorized: true, brief: null as SiteTaskBriefRecord | null, consent: null as Record<string, unknown> | null, persisted: [] as Record<string, unknown>[], closures: {} as Record<string, unknown>, workspaceTask: undefined as Record<string, unknown> | undefined }));
 vi.mock("../utils/siteTaskBrief", () => ({ getBrief: async () => state.brief, TASK_BRIEFS_COLLECTION: "siteTaskBriefs" }));
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({ default: { firestore: { FieldValue: { serverTimestamp: () => "server-time" } } }, dbAdmin: {
   runTransaction: async (callback: any) => callback({ get: (ref: any) => ref.get(), set: (ref: any, value: any) => ref.set(value) }),
-  collection: (name: string) => ({ doc: () => ({ set: async (value: Record<string, unknown>) => { state.persisted.push(value); }, get: async () => ({ exists: name !== "siteTaskItemInventories", data: () => name === "siteTaskItemInventories" ? undefined : name === "siteTaskBriefs" ? state.brief : ({ request: { consent_attestation: state.consent }, notification_request_id: "req1", website_run_closures: state.closures }) }) }) }),
+  collection: (name: string) => ({ doc: () => ({ set: async (value: Record<string, unknown>) => { state.persisted.push(value); }, get: async () => ({ exists: name !== "siteTaskItemInventories", data: () => name === "siteTaskItemInventories" ? undefined : name === "siteTaskBriefs" ? state.brief : ({ request: { consent_attestation: state.consent }, notification_request_id: "req1", website_run_closures: state.closures, workspace_task: state.workspaceTask }) }) }) }),
 } }));
 vi.mock("../utils/captureFootageReview", () => ({ buildCaptureFootageReviewer: vi.fn() }));
 vi.mock("../utils/taskLifecycleNotifications", () => ({ enqueueTaskLifecycleNotification: vi.fn(), reconstructionIsViewable: vi.fn() }));
@@ -28,7 +28,7 @@ function brief(confirmed: boolean): SiteTaskBriefRecord {
     confirmedBy: "private owner identity", operatorAnswers: confirmed ? { item_rigidity: "rigid" } : null,
     operatorUnknown: confirmed ? ["cycle"] : null };
 }
-afterEach(() => { state.authorized = true; state.brief = null; state.consent = null; state.persisted = []; state.closures = {}; });
+afterEach(() => { state.authorized = true; state.brief = null; state.consent = null; state.persisted = []; state.closures = {}; state.workspaceTask = undefined; });
 
 it("returns the terminal owner-close code to the worker without revoking source consent", async () => {
   state.brief = brief(false);
@@ -46,6 +46,27 @@ it("returns the terminal owner-close code to the worker without revoking source 
     state.closures = { "walkthrough-other": ownerClosure("other") };
     expect((await post()).status).toBe(200);
     expect(state.persisted).toEqual([]);
+  } finally { await new Promise<void>(resolve => server.close(() => resolve())); }
+});
+
+it("serves a job its owner hid from partners with the same grant and context: hiding is not a processing stop", async () => {
+  state.brief = brief(true); state.consent = grant;
+  const application = express(); application.use(express.json());
+  application.use((await import("../routes/internal-capture-worlds")).default);
+  const server = createServer(application);
+  await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+  try {
+    const address = server.address(); if (!address || typeof address === "string") throw new Error("bind");
+    const post = () => fetch(`http://127.0.0.1:${address.port}/creator-captures/walkthrough-req1/task-context`, {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ request_id: "req1", scene_id: "site-req1" }) });
+    const shown = await (await post()).json();
+    state.workspaceTask = { archived: false, paused: true };
+    const hidden = await post();
+    expect(hidden.status).toBe(200);
+    const context = await hidden.json();
+    expect(context.capture_rights.derived_scene_generation_allowed).toBe(true);
+    // The screening worker compares this digest before every launch; the card's visibility is not part of it.
+    expect(context.context_digest).toBe(shown.context_digest);
   } finally { await new Promise<void>(resolve => server.close(() => resolve())); }
 });
 

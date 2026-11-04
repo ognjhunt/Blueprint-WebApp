@@ -71,7 +71,8 @@ export function projectWebsiteCaptureWithdrawal(withdrawal: Record<string, any>)
 /**
  * The one withdrawal effect, shared by the account route and the signed owner
  * link so their semantics cannot drift: consent revoked, uploads stop, the
- * task pauses, pending reviews stop, queued runs are asked to cancel, and a
+ * job's card is hidden from partners (`workspace_task.paused`; the stop itself
+ * is `capture_withdrawal`), pending reviews stop, queued runs are asked to cancel, and a
  * durable record queues the Pipeline handoff and WebApp storage deletion.
  * Idempotent: a repeated call returns the first withdrawal unchanged.
  */

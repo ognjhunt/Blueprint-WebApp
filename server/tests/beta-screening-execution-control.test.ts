@@ -244,6 +244,17 @@ describe("current source refusals stop only the existing owned attempt", () => {
     expect(await observeBetaScreeningExecutionControl(fixture.request)).toMatchObject({
       status: "stopped", stop_reason: "job_capture_processing_not_authorized" });
   });
+  it("admits the next campaign of a job that stays hidden from partners, and authorizes its first attempt", async () => {
+    // A stop cancels its whole campaign for good, so a hidden job recovers only through the
+    // Pipeline's next campaign: ingest must accept it and its attempts must run.
+    row("inboundRequests/job-one").workspace_task = { archived: false, paused: true };
+    const successor = sealScreening({ ...fixture.publication, campaign_id: "campaign-two" });
+    await expect(ingestBetaPolicyScreening(successor)).resolves.toMatchObject({ status: "created", run_id: "campaign-two" });
+    expect(row("taskEvaluationPolicyRuns/campaign-two").cancellationRequested).toBeUndefined();
+    expect(await observeBetaScreeningExecutionControl({ ...fixture.request, campaign_id: "campaign-two",
+      attempt_id: "attempt-campaign-two", invocation_id: crossRuntimeDigest({ invocation: "campaign-two" }),
+      resource_name: "blueprint-campaign-two" })).toMatchObject({ status: "current", stop_reason: null });
+  });
   it("honors a durable signed owner closure without replacing consent or stored evidence", async () => {
     await observeBetaScreeningExecutionControl(fixture.request);
     const closure = { schema_version: "website_run_closure.v1", request_id: "job-one", capture_id: fixture.request.source.capture_id,
