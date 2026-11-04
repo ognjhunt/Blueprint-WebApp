@@ -1,4 +1,6 @@
 import { expect, test } from "@playwright/test";
+import { projectPreparationOutcome } from "../server/utils/taskPreparationOutcome";
+import { multiStepHoldMessage, multiStepTaskHold } from "../server/utils/siteTaskScope";
 
 const legacyJobWorkflow = () => ({
   schemaVersion: "job_marketplace.v1", revision: "fixture-revision", stage: "job_submitted",
@@ -322,6 +324,70 @@ test.beforeEach(async ({ context, baseURL }) => {
     if (url.pathname.startsWith("/api/")) return route.fulfill({ status: 503, json: { error: "Unstubbed local API" } });
     return route.continue();
   });
+});
+
+function heldJobRoutes(page: import("@playwright/test").Page, token: string, summary: string, status: Record<string, unknown>,
+  writes: string[]) {
+  return page.route("**/api/**", route => {
+    const request = route.request(), url = new URL(request.url());
+    if (request.method() !== "GET" && url.pathname !== "/api/analytics/ingest") writes.push(url.pathname);
+    if (url.pathname.startsWith("/api/job-workflow/owner/")) return route.fulfill({ json: legacyJobWorkflow() });
+    if (url.pathname === `/api/self-capture/uploads/${token}/status`) return route.fulfill({ json: {
+      ok: true, state: "open", captureReceived: true, uploadState: "processing_ready", accepts: ["mov", "mp4"] } });
+    if (url.pathname === `/api/site-task-brief/${token}`) return route.fulfill({ json: {
+      ready: true, scope: "owner", brief: { summary, captureMode: "self_capture", proposed: [], unresolved: [], confirmedAtIso: null } } });
+    if (url.pathname === `/api/site-task-brief/${token}/status`) return route.fulfill({ json: status });
+    if (url.pathname.endsWith("/items")) return route.fulfill({ json: { items: [], allItemsCovered: false, requestedShots: [] } });
+    if (url.pathname.endsWith("/follow-up")) return route.fulfill({ json: { questions: [] } });
+    return route.fulfill({ status: 503, json: { error: "Unstubbed local API" } });
+  });
+}
+
+test("a job no robot we run fits is held, naming the robots checked and why, from the precheck alone", async ({ page }, info) => {
+  const token = "robot-fit-hold-fixture";
+  const digest = `sha256:${"f".repeat(64)}`;
+  const counts = { fit: 0, noFit: 8, unknown: 0, unavailable: 128 };
+  // The server's own projection of a v6 hold (Pipeline #3336), as the status route sends it to the owner.
+  const outcome = projectPreparationOutcome({ category: "robot_incompatibility", reason: "robot_fit_none",
+    basis: "conservative_pre_spend_fit_check", robot_id: null, evidence_digest: digest },
+  { holdReason: "website_robot_fit_none:reach", precheckDigest: digest, counts });
+  const writes: string[] = [];
+  await heldJobRoutes(page, token, "Pick up the tray and put it on the counter", {
+    ok: true, scope: "owner", captureReceived: true,
+    status: { decision: outcome.category, headline: outcome.title, operatorAction: null, missingViews: [], outcome },
+    robotFitHold: { status: "no_fit", holdReason: "website_robot_fit_none:reach", taskKind: "rigid_pick_place", counts,
+      embodiments: [{ embodiment: "droid_franka_panda_robotiq_2f85_v1", verdict: "no_fit", reasons: ["reach"] }],
+      embodimentsTruncated: false, precheckDigest: digest },
+  }, writes);
+  await page.goto(`/capture-upload/${token}?video=existing`);
+  await expect(page.getByText("Held: none of the robots we run fits this job yet", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText(/None of the 136 robot setups we checked fits this job\. The main reason: the robot arms were ruled out on reach/).first()).toBeVisible();
+  const checked = page.getByRole("region", { name: "Robots checked before any spend" });
+  await expect(checked.getByRole("heading", { name: "Robots we checked" })).toBeVisible();
+  await expect(checked.getByText("136 robot setups (a robot and the software that drives it): 8 ruled out, 128 not available for this job.")).toBeVisible();
+  await expect(checked.getByText(/Franka Panda arm with a Robotiq 2F-85 gripper: Ruled out/)).toBeVisible();
+  await expect(checked.getByText(/no robot was tried on your job/)).toBeVisible();
+  const text = await checked.textContent();
+  expect(text).not.toMatch(/[a-z]_[a-z]|website_robot_fit|sha256|physical test passed|certif/i);
+  expect(writes).toEqual([]);
+  await page.screenshot({ path: info.outputPath("robot-fit-hold.png"), fullPage: true });
+});
+
+test("a job with several steps is held by name and asks the site to split it, never narrowed", async ({ page }, info) => {
+  const token = "multi-step-hold-fixture";
+  const summary = "Take the plates to the kitchen then load the dishwasher";
+  // The server's own copy for this brief (siteTaskScope.multiStepHoldMessage), as projectTaskStatus sends it.
+  const held = multiStepHoldMessage(multiStepTaskHold({ summary })!.steps);
+  const writes: string[] = [];
+  await heldJobRoutes(page, token, summary, { ok: true, scope: "owner", captureReceived: true,
+    status: { decision: "not_yet_supported", headline: held.headline, operatorAction: held.action, missingViews: [] } }, writes);
+  await page.goto(`/capture-upload/${token}?video=existing`);
+  await expect(page.getByText("Your job is on hold because it has more than one step.", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText(/We read these steps: “take the plates to the kitchen”, “load the dishwasher”\./).first()).toBeVisible();
+  await expect(page.getByText(/change your job description to that one step and confirm it/).first()).toBeVisible();
+  await expect(page.getByText(/robot fit|Robots we checked/)).toHaveCount(0);
+  expect(writes).toEqual([]);
+  await page.screenshot({ path: info.outputPath("multi-step-hold.png"), fullPage: true });
 });
 
 test("private claim navigation resets credentials and consent before the next summary arrives", async ({ page }, info) => {

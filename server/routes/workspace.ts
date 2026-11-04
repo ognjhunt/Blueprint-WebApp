@@ -49,6 +49,7 @@ import { projectWebsiteCaptureRights } from "../utils/websiteTaskContext";
 import { assessReadiness } from "../../client/src/lib/siteTaskReadiness";
 import { projectTaskStatus, taskStatusInputFrom } from "../utils/taskStatusProjection";
 import { loadCurrentWebsitePreparationStatus } from "../utils/websitePreparationStatus";
+import { multiStepTaskHold } from "../utils/siteTaskScope";
 import { websitePreparationOverdue } from "../utils/websitePreparationWatch";
 import { loadWebsiteSceneProgression } from "../utils/websiteSceneProgression";
 import { listRunsForScene, loadSceneScreening } from "../utils/agentEvalRuns";
@@ -718,6 +719,7 @@ async function hydrateTask(requestId: string, record: Record<string, any>) {
         preparationOutcome: !consentRevoked
           ? projectAtlasPreparationOutcome(selectWebsiteAtlasPreview(record, currentCapture.captureId)) : null,
         preparationStatus,
+        multiStepHold: consentRevoked ? null : multiStepTaskHold(brief as never),
         preparationOverdue,
         sceneProgression,
         stage,

@@ -129,6 +129,52 @@ it("actual signed-route handler grants preparation while the assessment is queue
   } finally {await new Promise<void>((resolve,reject)=>server.close(error=>error?reject(error):resolve()));}
 });
 
+it("holds a job that names several steps before any spend: no grant, no reservation, a typed refusal",async()=>{
+  seed(packet(),false,false,{},{summary:"Take the plates to the kitchen then load the dishwasher"});
+  await expect(loadWebsiteSceneSponsorship("one",true,"walkthrough-one",prepOptions()))
+    .rejects.toThrow("website_multi_step_task_preparation_required");
+  expect(state.docs.get("inboundRequests/one")?.website_scene_sponsorship).toBeUndefined();
+  // The same job, split into one step by the site, is granted as any other.
+  (state.docs.get("siteTaskBriefs/one") as any).summary="Pick up the tray and put it on the counter";
+  const grant=await loadWebsiteSceneSponsorship("one",true,"walkthrough-one",prepOptions());
+  expect(grant).toMatchObject({purpose:"scene_preparation"});
+});
+it("admits no new spend once the site names several steps for a job prepared before it was named",async()=>{
+  // Preparation starts from the video before the site names the job; the grant then follows the brief.
+  seed(packet(),false,false,{},{summary:"Your site task"});
+  const grant=await loadWebsiteSceneSponsorship("one",true,"walkthrough-one",prepOptions());
+  vi.stubEnv("TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON",JSON.stringify({vast:{digest:grant.consent.provider_terms_reference,
+    label:"Synthetic",url:"https://example.com/terms"}}));
+  (state.docs.get("siteTaskBriefs/one") as any).summary="Open the fridge and take out the milk";
+  const named=prepOptions().expected_task_context_digest;
+  const spend=(digest:string)=>({task_context_digest:digest,
+    allocation_binding_digest:`sha256:${"d".repeat(64)}`,resource_class:"gpu_render",provider:"vast",maximum_cost_usd:1,request_count:1});
+  const before=structuredClone((state.docs.get("inboundRequests/one") as any).website_preparation_reservations ?? null);
+  expect(named).not.toBe(grant.task_context_digest);
+  await expect(reserveWebsitePreparationSpend("one",spend(named)))
+    .rejects.toThrow("website_multi_step_task_preparation_required");
+  expect((state.docs.get("inboundRequests/one") as any).website_preparation_reservations ?? null).toEqual(before);
+  await expect(loadWebsiteSceneSponsorship("one",true,"walkthrough-one",{purpose:"scene_preparation",
+    expected_task_context_digest:named})).rejects.toThrow("website_multi_step_task_preparation_required");
+  // Split into one step, the same grant admits spend again.
+  (state.docs.get("siteTaskBriefs/one") as any).summary="Take the milk out of the fridge";
+  expect(await reserveWebsitePreparationSpend("one",spend(prepOptions().expected_task_context_digest)))
+    .toMatchObject({status:"admitted"});
+});
+it("the signed route returns the multi-step hold by name, so the Pipeline holds the capture rather than fails it",async()=>{
+  // Screened as "other" for its wiping, and still several steps: held all the same.
+  seed(packet(),false,false,{},{summary:"Put the mug in the sink, then wipe the counter"});
+  const app=express();app.use(express.json());app.use((await import("../routes/internal-capture-worlds")).default);
+  const server=createServer(app);await new Promise<void>(resolve=>server.listen(0,"127.0.0.1",resolve));
+  const base=`http://127.0.0.1:${(server.address() as any).port}/creator-captures/walkthrough-one`;
+  try {
+    const refused=await fetch(`${base}/scene-sponsorship`,{method:"POST",headers:{"content-type":"application/json"},
+      body:JSON.stringify({request_id:"one",scene_id:"site-one",...prepOptions()})});
+    expect(refused.status).toBe(409);
+    expect(await refused.json()).toEqual({code:"website_multi_step_task_preparation_required"});
+  } finally {await new Promise<void>((resolve,reject)=>server.close(error=>error?reject(error):resolve()));}
+});
+
 // SYNTHETIC offline preparation contract v2. Actual existing handlers, no production operations.
 function prepOptions() {
   const brief=state.docs.get("siteTaskBriefs/one") as any,record=state.docs.get("inboundRequests/one") as any;

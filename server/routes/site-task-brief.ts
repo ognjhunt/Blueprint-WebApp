@@ -80,7 +80,7 @@ import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { deliverOutbox, enqueueOutbox } from "../utils/captureOutbox";
 import { decryptFieldValue } from "../utils/field-encryption";
 import { buildQualificationEmail, buildTaskNotYetSupportedEmail } from "../utils/qualificationEmails";
-import { taskScopeNotYet } from "../utils/siteTaskScope";
+import { multiStepTaskHold, taskScopeNotYet } from "../utils/siteTaskScope";
 import type { SiteTaskTriageSummary } from "../types/inbound-request";
 import { isSiteVideoEvidenceEnabled } from "../config/env";
 import { footageArrivedBeforeAccount, savedWalkthrough } from "../utils/siteWalkthrough";
@@ -1225,6 +1225,8 @@ router.get("/:token/status", async (req: Request, res: Response) => {
         preparationOutcome: payload.scope === "owner" && request && !request.captureRights.consent_revoked
           ? request.preparationOutcome : null,
         preparationStatus,
+        // The current brief, not a stored screen: a held job moves as soon as the site splits its task.
+        multiStepHold: request?.captureRights.consent_revoked ? null : multiStepTaskHold(brief),
         targetChoiceAnswer,
         targetChoiceRestoringGuess: payload.scope === 'owner' && targetChoiceAnswer === 'confirm_guess'
           && preparationStatus?.state === 'awaiting_inputs'
@@ -1319,6 +1321,9 @@ router.get("/:token/status", async (req: Request, res: Response) => {
           referenceTimeMs: row.reference_time_ms })) } : null,
       // Which robots fit the job by spec sheet: an estimate for the owner, never a physical test.
       robotFit: payload.scope === "owner" ? preparationStatus?.robotFit ?? null : null,
+      // The robots checked before any spend and why none fits, for the owner only, while the job is held on it.
+      robotFitHold: payload.scope === "owner" && preparationStatus?.state === "awaiting_inputs"
+        && preparationStatus.robotFitPrecheck?.status === "no_fit" ? preparationStatus.robotFitPrecheck : null,
       // How the robots are scored, for the owner only: confirm, or say it is wrong. Never a number to edit.
       successThresholds: payload.scope === "owner" && !request?.captureRights.consent_revoked ? successThresholds : null,
       // Whether to move named furniture out of the robot's way in the simulation, for the owner only.

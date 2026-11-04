@@ -38,7 +38,7 @@ import { loadWebsiteSceneSponsorship, validateWebsiteSponsoredIntake,
   validateWebsiteSponsoredProviderTerms,
   preparationSpendRequest, reserveWebsitePreparationSpend, observeWebsitePreparationSpend,
   preparationSettlementRequest, settleWebsitePreparationSpend, retainedWebsiteScenePurpose, currentWebsiteSceneContext,
-  loadWebsiteAtlasConfiguration } from "../utils/websiteSceneSponsorship";
+  loadWebsiteAtlasConfiguration, assertNoMultiStepTaskHold } from "../utils/websiteSceneSponsorship";
 import { SCENE_INTAKE_COLLECTION, sceneDigest, sceneIntakeCommand } from "../utils/taskEvaluationSceneIntake";
 import {
   enqueueTaskLifecycleNotification,
@@ -335,6 +335,8 @@ for (const operation of ["scene-sponsorship", "prepared-scene", "preparation-spe
         if (!currentBrief || currentWebsiteSceneContext({requestId, brief: currentBrief, record: current ?? {},
           inventory: currentInventory, captureId: req.params.captureId, captureBinding: preparedBinding }).context_digest !== authority.task_context_digest)
           throw new Error("website_task_context_changed");
+        // A new construction allowance is spend: a job held for its several steps gets none.
+        if (!prior.exists) assertNoMultiStepTaskHold({ brief: currentBrief, record: current ?? {}, inventory: currentInventory ?? null });
         if (prior.exists) {
           if (prior.data()?.request_digest !== sceneDigest(request)) throw new Error("idempotency_conflict");
           return;
@@ -357,7 +359,7 @@ for (const operation of ["scene-sponsorship", "prepared-scene", "preparation-spe
       return res.status(202).json({ id, request_digest: sceneDigest(request), state: "forward_pending" });
     } catch (error) {
       const code = error instanceof Error ? error.message : "website_scene_sponsorship_unavailable";
-      const known = /^(website_atlas_|website_scene_|website_task_context_|website_capture_binding_|task_context_capture_mismatch$|source_revoked$|consent_expired$|task_brief_missing$|idempotency_conflict$|provider_terms_not_configured_or_changed$)/.test(code);
+      const known = /^(website_atlas_|website_scene_|website_task_context_|website_capture_binding_|website_multi_step_task_preparation_required$|task_context_capture_mismatch$|source_revoked$|consent_expired$|task_brief_missing$|idempotency_conflict$|provider_terms_not_configured_or_changed$)/.test(code);
       return res.status(known ? 409 : 503).json({ code: known ? code : "website_scene_sponsorship_unavailable" });
     }
   },
