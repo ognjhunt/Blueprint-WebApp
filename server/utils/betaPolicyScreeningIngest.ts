@@ -129,7 +129,10 @@ export async function observeBetaScreeningExecutionControl(request: BetaScreenin
     else if (deadline <= now) stopReason = "screening_authority_expired";
     else if (intake?.revocation_requested || ["revoked", "closeout_pending", "cancelled"].includes(intake?.state))
       stopReason = "screening_scene_authority_revoked";
-    else if (job?.capture_withdrawal || job?.workspace_task?.paused === true
+    // "Hide from partners" (`workspace_task.paused`) only takes the job's card off
+    // the partner library; it never stops Blueprint's own run of the job. A
+    // withdrawal sets it too, and stops here by `capture_withdrawal`.
+    else if (job?.capture_withdrawal
       || retainedCapture?.capture_access?.future_processing_allowed === false || retainedCapture?.completed_capture_lifecycle
       || ["revoked", "revocation_in_progress", "cancelled"].includes(retainedCapture?.status))
       stopReason = "job_capture_processing_not_authorized";
