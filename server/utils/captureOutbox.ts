@@ -51,6 +51,8 @@ export type OutboxKind =
   | "evaluation_outcome"
   /** The job's scene intent reached a terminal outcome: once per outcome digest (C-04). */
   | "scene_outcome"
+  /** The owner's job page asks whether to move chairs out of the robot's way in the simulation: once per proposal digest. */
+  | "robot_access_question"
   /** Robot teams can now request an evaluation, and none has yet. */
   | "awaiting_evaluations"
   /** Every evaluation so far finished, none passed, none is in flight. */

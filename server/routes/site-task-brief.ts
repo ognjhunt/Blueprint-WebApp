@@ -1200,7 +1200,12 @@ router.get("/:token/status", async (req: Request, res: Response) => {
     const successThresholds = payload.scope === "owner" && preparationStatus?.state === "handed_off"
       ? await loadOwnerSuccessView(payload.requestId, payload.captureId) : null;
     // Blueprint's proposal to move chairs or stools out of the robot's way in the simulation, for the owner only.
-    const robotAccess = payload.scope === "owner" && preparationStatus?.state === "handed_off"
+    // Not gated on the live preparation read being handed_off: the proposal itself is past hand-off (the Pipeline
+    // sends one only from a screening request's completed scene, kept only on this job's verified scene intake),
+    // while that read is a bounded round trip to the Pipeline that says "unavailable" whenever it cannot be
+    // confirmed. The owner was emailed this question, so the page must show it while it waits. Rights still hide it.
+    const robotAccess = payload.scope === "owner" && !request?.captureRights.consent_revoked && !footageBeforeAccount
+      && preparationStatus?.state !== "authority_ended"
       ? await loadRobotAccessView(payload.requestId, payload.captureId) : null;
     // The site's answer to the optional question about the guessed object to move, bound to this exact source.
     const targetChoiceAnswer = payload.scope === "owner" && preparationStatus

@@ -30,7 +30,8 @@ vi.mock("../../client/src/lib/firebaseAdmin", async () => {
       delete: () => { throw new Error("Unexpected storage mutation"); } }) }) } };
 });
 vi.mock("../logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() } }));
-vi.mock("../utils/captureOutbox", () => ({ enqueueOutbox: vi.fn(async () => ({ enqueued: true })),
+vi.mock("../utils/captureOutbox", async importOriginal => ({
+  ...await importOriginal<typeof import("../utils/captureOutbox")>(), enqueueOutbox: vi.fn(async () => ({ enqueued: true })),
   deliverOutbox: vi.fn(async () => ({ examined: 0, sent: 0, failed: 0, exhausted: 0 })) }));
 vi.mock("../utils/pipelineSyncSecurity", async importOriginal => ({
   ...await importOriginal<typeof import("../utils/pipelineSyncSecurity")>(),

@@ -21,6 +21,13 @@
  * reads the decision for the proposal it sent; an approval rebuilds the
  * simulation without the items, a decline holds the job by name.
  *
+ * The owner hears of each question once, by email (`robot_access_question`):
+ * the outbox row is created in the same transaction that makes a proposal the
+ * job's current one, keyed by its digest, so a retry or replay of it is never
+ * a second email. Dispatch reads the job page again and cancels the email if
+ * the question was answered, replaced or withdrawn meanwhile
+ * (`robotAccessQuestionOpen`).
+ *
  * Measuring the chairs first is Blueprint's own preparation spend, reserved
  * within the job's approved caps on the Pipeline: it is never a question here,
  * and no cost or budget ever reaches the site.
@@ -34,6 +41,10 @@ import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { crossRuntimeArtifactDigest, crossRuntimeCanonicalJson } from "./crossRuntimeCanonical";
 import { projectWebsiteCaptureRights } from "./websiteTaskContext";
 import { latestSceneIntake } from "./websiteOwnerSuccessConfirmation";
+import { buildOutboxEntry, CAPTURE_OUTBOX_COLLECTION } from "./captureOutbox";
+import { buildTaskLifecycleNotification, type RobotAccessCounts } from "./taskLifecycleNotifications";
+import { decryptFieldValue } from "./field-encryption";
+import { logger } from "../logger";
 
 export const ROBOT_ACCESS_PROPOSAL_SCHEMA = "website_robot_access_proposal.v1";
 export const ROBOT_ACCESS_RECEIPT_SCHEMA = "website_robot_access_proposal_receipt.v1";
@@ -123,6 +134,57 @@ function assertRights(job: Record<string, any> | undefined) {
     throw new Error("website_robot_access_consent_revoked");
 }
 
+/* ------------------------------------------------------- the owner's email */
+
+const QUESTION_NOTICE = "robot_access_question";
+const questionKey = (requestId: string, proposalDigest: string) =>
+  `${requestId.trim()}:${QUESTION_NOTICE}:${proposalDigest.slice("sha256:".length)}`;
+const counts = (items: RobotAccessProposal["items"]): RobotAccessCounts =>
+  ({ chair: items.filter(row => row.kind === "chair").length, stool: items.filter(row => row.kind === "stool").length });
+
+/**
+ * The email telling the owner their job page asks this question, as a write
+ * for the transaction that makes the proposal current; or null when it is
+ * owed nothing: already queued for this digest (a retry or replay), or no
+ * contact address on file. Rights are checked by the caller. A missing
+ * address never holds the proposal: the page still asks, and a later replay
+ * queues the email once one is on file.
+ */
+async function questionEmail(transaction: FirebaseFirestore.Transaction, store: NonNullable<typeof db>,
+  requestId: string, proposal: RobotAccessProposal, job: Record<string, any> | undefined): Promise<(() => void) | null> {
+  const ref = store.collection(CAPTURE_OUTBOX_COLLECTION).doc(questionKey(requestId, proposal.proposal_digest));
+  if ((await transaction.get(ref)).exists) return null;
+  let to = "";
+  try { to = String(await decryptFieldValue(job?.contact?.email ?? "")).trim(); } catch { to = ""; }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
+    logger.warn({ requestId }, "A robot access question has no readable owner address; the job page still asks it");
+    return null;
+  }
+  const entry = buildTaskLifecycleNotification({ requestId, milestone: QUESTION_NOTICE, to,
+    eventId: proposal.proposal_digest.slice("sha256:".length), robotAccessCounts: counts(proposal.items) });
+  if (entry.idempotencyKey !== ref.id) throw new Error("website_robot_access_question_key_mismatch");
+  return () => { transaction.create(ref, buildOutboxEntry(entry)); };
+}
+
+/**
+ * Whether a queued question email still asks what the owner's job page asks:
+ * the proposal its key names is the current one on the same scene intake the
+ * page reads, unanswered, and the capture is neither withdrawn nor without
+ * consent. Throws when the intake cannot be read, which leaves the claim
+ * recoverable rather than cancelling or sending it.
+ */
+export async function robotAccessQuestionOpen(requestId: string, idempotencyKey: string,
+  job: Record<string, any> | undefined, store = db): Promise<boolean> {
+  const prefix = `${requestId}:${QUESTION_NOTICE}:`;
+  const named = idempotencyKey.startsWith(prefix) ? idempotencyKey.slice(prefix.length) : "";
+  if (!/^[a-f0-9]{64}$/.test(named)) return false;
+  try { assertRights(job); } catch { return false; }
+  const { siteWalkthroughIdentity } = await import("./siteWalkthrough");
+  const latest = await latestSceneIntake(requestId, siteWalkthroughIdentity(requestId, job).captureId, store);
+  const view = robotAccessView(latest?.data);
+  return view?.proposalDigest === `sha256:${named}` && view.decision === null;
+}
+
 export type RobotAccessReceipt = {
   schema_version: typeof ROBOT_ACCESS_RECEIPT_SCHEMA; status: "pending" | "approved" | "declined";
   intent_id: string; proposal_digest: string; decision: RobotAccessDecision | null;
@@ -147,17 +209,21 @@ export async function recordRobotAccessProposal(input: RobotAccessProposal, stor
     // Only a website job has an owner job page to ask.
     if (typeof intake.website_request_id !== "string" || !intake.website_request_id)
       throw new Error("website_robot_access_not_a_website_job");
-    assertRights((await transaction.get(store.collection("inboundRequests").doc(intake.website_request_id))).data());
+    const job = (await transaction.get(store.collection("inboundRequests").doc(intake.website_request_id))).data();
+    assertRights(job);
     const history: Record<string, any>[] = Array.isArray(intake.robot_access_proposals) ? intake.robot_access_proposals : [];
     const kept = history.find(row => row?.proposal_digest === notice.proposal_digest);
     if (kept && !storedProposal(kept)) throw new Error("website_robot_access_proposal_conflict");
     if (!kept && history.length >= MAX_PROPOSALS) throw new Error("website_robot_access_proposal_history_full");
     const decision = robotAccessDecisionFor(intake, notice);
+    // The owner hears of an unanswered question once per proposal digest.
+    const email = decision ? null : await questionEmail(transaction, store, intake.website_request_id, notice, job);
     if (!kept || intake.robot_access_proposal_current !== notice.proposal_digest)
       transaction.update(intakeRef, {
         robot_access_proposals: kept ? history : [...history, { proposal_digest: notice.proposal_digest,
           proposal_json: crossRuntimeCanonicalJson(notice), received_at_iso: new Date().toISOString() }],
         robot_access_proposal_current: notice.proposal_digest, updated_at_iso: new Date().toISOString() });
+    email?.();
     return { schema_version: ROBOT_ACCESS_RECEIPT_SCHEMA, status: decision ? decision.decision : "pending",
       intent_id: notice.intent_id, proposal_digest: notice.proposal_digest, decision };
   });
