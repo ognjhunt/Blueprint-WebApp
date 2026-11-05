@@ -6,7 +6,7 @@ import { logger } from "../logger";
 import { WEBSITE_ATLAS_REQUEST_ID } from "../utils/websiteAtlasPreview";
 import { projectWebsiteCaptureRights } from "../utils/websiteTaskContext";
 import {
-  forgetPracticeRunVideo,
+  forgetPracticeRunVideos,
   practiceRunVideoFile,
   practiceRunVideoOwner,
   publishedPracticeRunVideo,
@@ -18,13 +18,15 @@ import {
 
 const router = Router();
 const unavailable = { error: "This practice-run video is unavailable", code: "screening_practice_run_video_unavailable" };
+const notKept = { error: "This practice-run video is no longer kept.", code: "screening_practice_run_video_not_kept" };
 
 /**
  * The job page's video player fetches a practice-run video from here; the site is
  * never offered the file (as the 3D preview's view route, owner decision
  * 2026-10-29). Opening a link directly is refused, a ticket lasts 15 minutes and
  * is bound to the job's owner, and consent, owner and the published video are
- * re-read on every request, including each range the player asks for.
+ * re-read on every request, including each range the player asks for. When consent or
+ * the owner no longer stands, every cached copy of the job's videos goes at once.
  */
 router.get("/:requestId/:runId/:candidateId/:file", async (req, res) => {
   res.set("Cache-Control", "private, no-store");
@@ -43,12 +45,15 @@ router.get("/:requestId/:runId/:candidateId/:file", async (req, res) => {
     return res.status(503).json({ error: "Practice-run videos are temporarily unavailable" });
   }
   const owner = practiceRunVideoOwner(record);
-  if (!owner || !verifyPracticeRunVideoTicket(requestId, runId, candidateId, videoId, owner, req.query.expires, req.query.signature))
-    return res.status(404).json(unavailable);
-  if (!projectWebsiteCaptureRights(record).derived_scene_generation_allowed) {
-    await forgetPracticeRunVideo(videoId).catch(() => undefined);
+  const ticketValid = owner !== null
+    && verifyPracticeRunVideoTicket(requestId, runId, candidateId, videoId, owner, req.query.expires, req.query.signature);
+  const unexpired = Number(req.query.expires) >= Math.floor(Date.now() / 1000);
+  // No owner, a lapsed consent, or a live ticket the current owner did not get (the owner changed).
+  if (!owner || !projectWebsiteCaptureRights(record).derived_scene_generation_allowed || (!ticketValid && unexpired)) {
+    await forgetPracticeRunVideos(requestId).catch(() => undefined);
     return res.status(404).json(unavailable);
   }
+  if (!ticketValid) return res.status(404).json(unavailable);
   try {
     const video = await publishedPracticeRunVideo(requestId, runId, candidateId, videoId);
     if (!video) return res.status(404).json(unavailable);
@@ -66,6 +71,8 @@ router.get("/:requestId/:runId/:candidateId/:file", async (req, res) => {
     } else res.set("Content-Length", String(video.sizeBytes));
     createReadStream(path, range ?? undefined).on("error", () => res.destroy()).pipe(res);
   } catch (error) {
+    if (error instanceof Error && error.message === "screening_practice_run_video_not_kept" && !res.headersSent)
+      return res.status(410).json(notKept);
     logger.warn({ error, requestId, runId }, "practice-run video unavailable");
     if (!res.headersSent) return res.status(503).json(unavailable);
     res.destroy();

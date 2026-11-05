@@ -1776,12 +1776,38 @@ describe("practice-run videos of a job's simulation evaluation", () => {
     expect((await api(path, "site-1", body)).status).toBe(503);
   });
 
-  it("issues nothing once recording consent is withdrawn", async () => {
+  it("issues nothing once recording consent is withdrawn, and forgets the job's cached copies", async () => {
+    const { mkdir, stat, writeFile } = await import("node:fs/promises");
+    const { dirname } = await import("node:path");
+    const { practiceRunVideoCachePath, practiceRunVideoMarkerPath } = await import("../utils/screeningPracticeRunVideos");
     process.env.TASK_EVALUATION_RESULT_DOWNLOAD_SIGNING_SECRET = "fixture-ticket-secret";
     const body = await screeningRun();
+    for (const videoId of body.videoIds.slice(0, 2)) {
+      await mkdir(dirname(practiceRunVideoMarkerPath("task-1", videoId)), { recursive: true });
+      await writeFile(practiceRunVideoMarkerPath("task-1", videoId), "");
+      await mkdir(dirname(practiceRunVideoCachePath(videoId)), { recursive: true });
+      await writeFile(practiceRunVideoCachePath(videoId), "cached render");
+    }
     state.records.get("inboundRequests/task-1").request.consent_attestation.withdrawn_at_iso = "2026-11-05T12:00:00Z";
-    const refused = await api(path, "site-1", body);
+    const refused = await api(path, "site-1", { ...body, videoIds: body.videoIds.slice(2, 3) });
     expect(refused.status).toBe(403);
     expect(JSON.stringify(await refused.json())).not.toContain("practice-run-videos/");
+    // Every cached copy of the job goes, not only the one asked for.
+    for (const videoId of body.videoIds.slice(0, 2))
+      await expect(stat(practiceRunVideoCachePath(videoId))).rejects.toThrow();
+  });
+
+  it("forgets the job's cached copies when its recording permission is withdrawn", async () => {
+    const { mkdir, stat, writeFile } = await import("node:fs/promises");
+    const { dirname } = await import("node:path");
+    const { practiceRunVideoCachePath, practiceRunVideoMarkerPath } = await import("../utils/screeningPracticeRunVideos");
+    const body = await screeningRun();
+    const [videoId] = body.videoIds;
+    await mkdir(dirname(practiceRunVideoMarkerPath("task-1", videoId)), { recursive: true });
+    await writeFile(practiceRunVideoMarkerPath("task-1", videoId), "");
+    await mkdir(dirname(practiceRunVideoCachePath(videoId)), { recursive: true });
+    await writeFile(practiceRunVideoCachePath(videoId), "cached render");
+    expect((await api("/tasks/task-1/recording-consent/withdraw", "site-1", {})).status).toBe(202);
+    await expect(stat(practiceRunVideoCachePath(videoId))).rejects.toThrow();
   });
 });

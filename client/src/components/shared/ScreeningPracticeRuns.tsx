@@ -23,16 +23,17 @@ function length(seconds: number | null) {
   return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, "0")}`;
 }
 
-function Videos({ run, videos, urls, onError }: { run: PracticeRun; videos: PracticeRun["videos"];
-  urls: Record<string, string>; onError: () => void }) {
+function Videos({ run, videos, urls, gone, onError }: { run: PracticeRun; videos: PracticeRun["videos"];
+  urls: Record<string, string>; gone: ReadonlySet<string>; onError: (videoId: string, url: string) => void }) {
   return <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{[...videos].sort(byCamera).map(video => {
     const url = urls[video.videoId];
     const label = `${cameraLabel(video.camera)}, practice run ${run.number}`;
     return <figure key={`${video.phase}-${video.camera}-${video.videoId}`} className="grid gap-1">
-      {url ? <video src={url} controls preload="metadata" playsInline controlsList="nodownload noremoteplayback"
-        disablePictureInPicture disableRemotePlayback aria-label={label} onError={onError}
-        onContextMenu={event => event.preventDefault()} className="w-full rounded bg-black" />
-        : <p>This video is unavailable.</p>}
+      {gone.has(video.videoId) ? <p>This video is no longer kept.</p>
+        : url ? <video src={url} controls preload="metadata" playsInline controlsList="nodownload noremoteplayback"
+          disablePictureInPicture disableRemotePlayback aria-label={label} onError={() => onError(video.videoId, url)}
+          onContextMenu={event => event.preventDefault()} className="w-full rounded bg-black" />
+          : <p>This video is unavailable.</p>}
       <figcaption className="ms-field-hint">{cameraLabel(video.camera)}{length(video.durationSeconds)
         ? ` · ${length(video.durationSeconds)}` : ""}</figcaption>
     </figure>;
@@ -44,6 +45,17 @@ function PracticeRunItem({ candidateId, run, loadUrls }: { candidateId: string; 
   const [open, setOpen] = useState(false);
   const [urls, setUrls] = useState<Record<string, string> | null>(null);
   const [state, setState] = useState<"idle" | "loading" | "error">("idle");
+  const [gone, setGone] = useState<ReadonlySet<string>>(new Set());
+  // A video that will not load is asked about once: "no longer kept" (410) is said as such, not as a retry.
+  async function failed(videoId: string, url: string) {
+    try {
+      if ((await fetch(url, { headers: { Range: "bytes=0-0" } })).status === 410) {
+        setGone(previous => new Set([...previous, videoId]));
+        return;
+      }
+    } catch { /* an unanswered probe is a load failure */ }
+    setState("error");
+  }
   async function toggle() {
     if (open) {
       // Closing drops the tickets; opening again asks for fresh ones.
@@ -70,9 +82,9 @@ function PracticeRunItem({ candidateId, run, loadUrls }: { candidateId: string; 
       : state === "loading" ? <p role="status">Loading the videos…</p>
       : state === "error" || !urls ? <p role="alert">The videos could not be loaded. Close this practice run and open it again to retry.</p>
       : <div className="grid gap-3">
-        {played.length > 0 && <Videos run={run} videos={played} urls={urls} onError={() => setState("error")} />}
+        {played.length > 0 && <Videos run={run} videos={played} urls={urls} gone={gone} onError={failed} />}
         {setup.length > 0 && <div className="grid gap-2"><p className="font-medium">Before the robot started</p>
-          <Videos run={run} videos={setup} urls={urls} onError={() => setState("error")} /></div>}
+          <Videos run={run} videos={setup} urls={urls} gone={gone} onError={failed} /></div>}
       </div>)}
   </li>;
 }

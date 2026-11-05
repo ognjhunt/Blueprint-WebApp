@@ -2,7 +2,8 @@
 import express from "express";
 import { createServer, type Server } from "node:http";
 import { createHash } from "node:crypto";
-import { rm, stat } from "node:fs/promises";
+import { mkdir, rm, stat, truncate, utimes, writeFile } from "node:fs/promises";
+import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const store = vi.hoisted(() => ({ rows: new Map<string, any>() }));
@@ -18,7 +19,8 @@ import { parseBetaPolicyScreeningPublication, screeningPublicationTransition,
   type BetaPolicyScreeningPublication } from "../utils/betaPolicyScreeningContract";
 import { crossRuntimeArtifactDigest } from "../utils/crossRuntimeCanonical";
 import { projectManagedJobEvidence } from "../utils/jobManagedEvaluation";
-import { practiceRunVideoCachePath, practiceRunVideoUrl, videoByteRange } from "../utils/screeningPracticeRunVideos";
+import { forgetPracticeRunVideos, PRACTICE_RUN_VIDEO_CACHE_BYTES, PRACTICE_RUN_VIDEO_IDLE_MS, practiceRunVideoCachePath,
+  practiceRunVideoMarkerPath, practiceRunVideoUrl, sweepPracticeRunVideoCache, videoByteRange } from "../utils/screeningPracticeRunVideos";
 
 const realFetch = globalThis.fetch;
 const seal = (value: any): any => ({ ...value, publication_digest: crossRuntimeArtifactDigest(value, "publication_digest") });
@@ -26,13 +28,11 @@ const sha = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 const consent = { granted: true, statement_version: "2026-09-18.v1", recorded_at_iso: "2026-09-18T00:00:00.000Z" };
 const RUN = producer.campaign_id, CANDIDATE = producer.candidates[0].candidate_id;
 
-/** The Pipeline's publication with its first run's first video replaced by `bytes`. */
-function withVideo(bytes: Buffer, wrong?: Buffer) {
+/** The Pipeline's publication with its first run's first videos replaced by these bytes, in order. */
+function withVideos(...replacements: Buffer[]) {
   const value = structuredClone(producer) as any;
-  value.review_videos[0].practice_runs[0].videos[0] = { ...value.review_videos[0].practice_runs[0].videos[0],
-    sha256: `sha256:${sha(bytes)}`, size_bytes: bytes.length };
-  if (wrong) value.review_videos[0].practice_runs[0].videos[1] = { ...value.review_videos[0].practice_runs[0].videos[1],
-    sha256: `sha256:${sha(wrong)}`, size_bytes: wrong.length };
+  const videos = value.review_videos[0].practice_runs[0].videos;
+  replacements.forEach((bytes, index) => { videos[index] = { ...videos[index], sha256: `sha256:${sha(bytes)}`, size_bytes: bytes.length }; });
   return seal(value) as BetaPolicyScreeningPublication;
 }
 
@@ -96,27 +96,34 @@ describe("the publication's practice-run videos", () => {
 describe("the practice-run video view route", () => {
   const bytes = Buffer.from("synthetic practice run video bytes, not a real recording");
   const wrong = Buffer.from("the bytes the Pipeline was asked for");
-  const videoId = sha(bytes), wrongId = sha(wrong);
+  const gone = Buffer.from("a video of a retired workspace");
+  const many = [1, 2, 3, 4].map(index => Buffer.from(`another synthetic video ${index}`.repeat(4096)));
+  const videoId = sha(bytes), wrongId = sha(wrong), goneId = sha(gone), manyIds = many.map(sha);
   let server: Server, pipeline: Server, base = "";
   const asked: Array<{ path: string; search: string; signed: boolean }> = [];
+  let inFlight = 0, mostInFlight = 0;
 
   beforeEach(async () => {
     store.rows.clear(); asked.length = 0;
-    await Promise.all([videoId, wrongId].map(id => rm(practiceRunVideoCachePath(id), { force: true })));
+    inFlight = mostInFlight = 0;
+    await Promise.all([videoId, wrongId, goneId, ...manyIds].map(id => rm(practiceRunVideoCachePath(id), { force: true })));
+    await forgetPracticeRunVideos("job-1");
     pipeline = createServer((req, res) => {
       const url = new URL(req.url!, "http://pipeline.invalid");
       asked.push({ path: url.pathname, search: url.search, signed: /^sha256=[a-f0-9]{64}$/.test(String(req.headers["x-blueprint-pipeline-signature"])) });
-      // For the second video the Pipeline answers with other bytes than the published ones.
-      const body = url.pathname.endsWith(videoId) ? bytes : url.pathname.endsWith(wrongId) ? bytes : null;
+      // For the second video the Pipeline answers with other bytes than the published ones; the third it no longer keeps.
+      const index = manyIds.findIndex(id => url.pathname.endsWith(id));
+      const body = url.pathname.endsWith(videoId) ? bytes : url.pathname.endsWith(wrongId) ? bytes : index >= 0 ? many[index] : null;
       if (!body) { res.statusCode = 404; return res.end(); }
       res.setHeader("content-type", "video/mp4");
-      res.end(body);
+      inFlight += 1; mostInFlight = Math.max(mostInFlight, inFlight);
+      setTimeout(() => { inFlight -= 1; res.end(body); }, index >= 0 ? 60 : 0);
     });
     await new Promise<void>(resolve => pipeline.listen(0, "127.0.0.1", resolve));
     vi.stubEnv("CAPTURE_LIFECYCLE_PIPELINE_BASE_URL", `http://127.0.0.1:${(pipeline.address() as any).port}`);
     vi.stubEnv("CAPTURE_UPLOAD_INTAKE_FORWARD_TOKEN", "fixture-forward-token");
     vi.stubEnv("TASK_EVALUATION_RESULT_DOWNLOAD_SIGNING_SECRET", "fixture-ticket-secret");
-    const publication = withVideo(bytes, wrong);
+    const publication = withVideos(bytes, wrong, gone, ...many.slice(0, 3));
     store.rows.set("inboundRequests/job-1", { account_owner_uid: "owner-1", request: { buyerType: "site_operator", consent_attestation: { ...consent } } });
     store.rows.set(`taskEvaluationPolicyRuns/${RUN}`, { run_id: RUN, run_kind: "beta_policy_screening", result_record_id: "result-1",
       job_evidence_binding: { job_id: "job-1" }, publication_digest: publication.publication_digest });
@@ -146,7 +153,8 @@ describe("the practice-run video view route", () => {
       .map(name => [name, whole.headers.get(name)]))).toEqual({ "content-type": "video/mp4", "content-disposition": "inline",
       "cache-control": "private, no-store", "x-content-type-options": "nosniff", "accept-ranges": "bytes" });
     expect(asked).toEqual([{ path: `/api/live-pipeline/beta-screening-review-videos/${videoId}`,
-      search: "?request_id=job-1&capture_id=walkthrough-job-1", signed: true }]);
+      search: `?request_id=job-1&capture_id=walkthrough-job-1&manifest_digest=${encodeURIComponent(producer.review_videos[0].manifest_digest)}`,
+      signed: true }]);
     const part = await watch(url, { range: "bytes=0-8" });
     expect(part.status).toBe(206);
     expect(part.headers.get("content-range")).toBe(`bytes 0-8/${bytes.length}`);
@@ -168,22 +176,71 @@ describe("the practice-run video view route", () => {
     expect(asked).toEqual([]);
   });
 
-  it("re-reads ownership and consent on every request, and forgets a cached copy once consent is withdrawn", async () => {
-    const url = urlFor();
+  it("re-reads ownership and consent on every request, and forgets every cached copy of the job once either lapses", async () => {
+    const url = urlFor(), other = urlFor(manyIds[0]);
     expect((await watch(url)).status).toBe(200);
+    expect((await watch(other)).status).toBe(200);
     expect((await stat(practiceRunVideoCachePath(videoId))).size).toBe(bytes.length);
+    // A live ticket the new owner never got: refused, and all of the job's cached copies go.
     store.rows.get("inboundRequests/job-1").account_owner_uid = "new-owner";
     expect((await watch(url)).status).toBe(404);
+    for (const id of [videoId, manyIds[0]]) await expect(stat(practiceRunVideoCachePath(id))).rejects.toThrow();
     store.rows.get("inboundRequests/job-1").account_owner_uid = "owner-1";
+    expect((await watch(url)).status).toBe(200);
+    expect((await watch(other)).status).toBe(200);
     store.rows.get("inboundRequests/job-1").request.consent_attestation.withdrawn_at_iso = "2026-11-05T12:00:00Z";
     expect((await watch(url)).status).toBe(404);
-    await expect(stat(practiceRunVideoCachePath(videoId))).rejects.toThrow();
+    for (const id of [videoId, manyIds[0]]) await expect(stat(practiceRunVideoCachePath(id))).rejects.toThrow();
+    // An expired ticket alone forgets nothing.
+    store.rows.get("inboundRequests/job-1").request.consent_attestation.withdrawn_at_iso = undefined;
+    delete store.rows.get("inboundRequests/job-1").request.consent_attestation.withdrawn_at_iso;
+    expect((await watch(url)).status).toBe(200);
+    expect((await watch(urlFor(videoId, "owner-1", Math.floor(Date.now() / 1000) - 16 * 60))).status).toBe(404);
+    expect((await stat(practiceRunVideoCachePath(videoId))).size).toBe(bytes.length);
+  });
+
+  it("says a video the Pipeline no longer keeps is gone, distinctly from a failure", async () => {
+    const response = await watch(urlFor(goneId));
+    expect(response.status).toBe(410);
+    expect(await response.json()).toMatchObject({ code: "screening_practice_run_video_not_kept" });
+  });
+
+  it("reads at most two videos from the Pipeline at once and serves every one", async () => {
+    const responses = await Promise.all(manyIds.slice(0, 3).map(id => watch(urlFor(id))));
+    expect(responses.map(response => response.status)).toEqual([200, 200, 200]);
+    for (const [index, response] of responses.entries()) expect(Buffer.from(await response.arrayBuffer())).toEqual(many[index]);
+    expect(mostInFlight).toBe(2);
   });
 
   it("never serves bytes that do not match the published digest", async () => {
     const response = await watch(urlFor(wrongId));
     expect(response.status).toBe(503);
     await expect(stat(practiceRunVideoCachePath(wrongId))).rejects.toThrow();
+  });
+
+  it("expires copies unused longer than a ticket, keeps the cache under its cap, and drops orphaned markers", async () => {
+    const now = Date.now();
+    const seed = async (id: string, size: number, usedAgoMs: number) => {
+      const file = practiceRunVideoCachePath(id);
+      await mkdir(path.dirname(practiceRunVideoMarkerPath("job-1", id)), { recursive: true });
+      await writeFile(practiceRunVideoMarkerPath("job-1", id), "");
+      await writeFile(file, "");
+      await truncate(file, size);  // sparse: apparent size only
+      const used = new Date(now - usedAgoMs);
+      await utimes(file, used, used);
+    };
+    const [stale, oldest, newer, newest] = ["1", "2", "3", "4"].map(char => char.repeat(64));
+    await seed(stale, 10, PRACTICE_RUN_VIDEO_IDLE_MS + 1000);
+    await seed(oldest, PRACTICE_RUN_VIDEO_CACHE_BYTES / 2, 3000);
+    await seed(newer, PRACTICE_RUN_VIDEO_CACHE_BYTES / 2, 2000);
+    await seed(newest, 10, 1000);
+    await sweepPracticeRunVideoCache(now);
+    const present = async (id: string) => Boolean(await stat(practiceRunVideoCachePath(id)).catch(() => null));
+    expect(await Promise.all([stale, oldest, newer, newest].map(present))).toEqual([false, false, true, true]);
+    expect(Boolean(await stat(practiceRunVideoMarkerPath("job-1", stale)).catch(() => null))).toBe(false);
+    expect(Boolean(await stat(practiceRunVideoMarkerPath("job-1", newer)).catch(() => null))).toBe(true);
+    await Promise.all([newer, newest].map(id => rm(practiceRunVideoCachePath(id), { force: true })));
+    await forgetPracticeRunVideos("job-1");
   });
 
   it("reads one byte range at a time", () => {

@@ -4,7 +4,7 @@ import { ManagedScreeningResults } from "../../src/components/shared/ManagedScre
 import { ScreeningPracticeRuns } from "../../src/components/shared/ScreeningPracticeRuns";
 import type { JobManagedEvidenceSummary } from "../../src/types/jobMarketplace";
 
-afterEach(cleanup);
+afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 
 const id = (character: string) => character.repeat(64);
 const candidate = { candidateId: "candidate-a", name: "Candidate A", state: "completed", planned: 3, scored: 2, succeeded: 1,
@@ -74,4 +74,20 @@ it("shows practice runs only where the owner can ask for view tickets", async ()
   expect(urls).toHaveBeenCalledWith("run", "candidate-a", [id("d")]);
   // A video the ticket answer leaves out is said to be unavailable, never linked.
   expect(await screen.findByText("This video is unavailable.")).toBeInTheDocument();
+});
+
+it("says a video that is no longer kept is gone, and a failed one can be retried", async () => {
+  const probe = vi.fn(async (request: string) => new Response(null, { status: request.includes(id("a")) ? 410 : 503 }));
+  vi.stubGlobal("fetch", probe);
+  const loadUrls = vi.fn(async (_candidate: string, videoIds: string[]) => Object.fromEntries(videoIds.map(videoId => [videoId, url(videoId)])));
+  const { container } = render(<ScreeningPracticeRuns candidate={candidate} loadUrls={loadUrls} />);
+  fireEvent.click(screen.getByRole("button", { name: "Practice run 1 · Succeeded" }));
+  await waitFor(() => expect(container.querySelectorAll("video")).toHaveLength(3));
+  fireEvent.error(screen.getByLabelText("Wrist camera, practice run 1"));
+  expect(await screen.findByText("This video is no longer kept.")).toBeInTheDocument();
+  expect(probe).toHaveBeenCalledWith(url(id("a")), { headers: { Range: "bytes=0-0" } });
+  expect(screen.queryByRole("alert")).toBeNull();
+  expect(container.querySelectorAll("video")).toHaveLength(2);
+  fireEvent.error(screen.getByLabelText("Overview, practice run 1"));
+  expect(await screen.findByRole("alert")).toHaveTextContent("The videos could not be loaded.");
 });

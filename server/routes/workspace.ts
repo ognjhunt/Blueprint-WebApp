@@ -83,8 +83,8 @@ import { projectWebsiteCaptureWithdrawal, recordWebsiteCaptureWithdrawal } from 
 import { projectWebsiteAtlasPreview, selectWebsiteAtlasPreview, WEBSITE_ATLAS_CAPTURE_ID } from "../utils/websiteAtlasPreview";
 import { viewableWebsiteAtlasPreview, websiteAtlasPreviewViewerUrl } from "../utils/websiteAtlasPreviewView";
 import { SCREENING_REVIEW_VIDEOS_PER_CANDIDATE } from "../utils/betaPolicyScreeningContract";
-import { practiceRunVideoOwner, practiceRunVideoUrl, publishedPracticeRunVideos, SCREENING_IDENTIFIER,
-  SCREENING_VIDEO_ID } from "../utils/screeningPracticeRunVideos";
+import { forgetPracticeRunVideos, practiceRunVideoOwner, practiceRunVideoUrl, publishedPracticeRunVideos,
+  SCREENING_IDENTIFIER, SCREENING_VIDEO_ID } from "../utils/screeningPracticeRunVideos";
 import { listCheckpoints } from "../utils/robotCheckpoints";
 import { offersTeamEvaluation, TEAM_POLICY_BLOCKER_MESSAGES, teamPolicyBlocker, robotSetupIntegrationBlocker, type TeamPolicyBlocker } from "../utils/policyIntegration";
 import { notCountedReason } from "../utils/pilotRecommendationEvidence";
@@ -1646,9 +1646,12 @@ router.post("/tasks/:taskId/practice-run-videos/view-ticket", handle(async (req,
     videoIds: z.array(z.string().regex(SCREENING_VIDEO_ID)).min(1).max(SCREENING_REVIEW_VIDEOS_PER_CANDIDATE) })
     .strict().parse(req.body ?? {});
   res.set("Cache-Control", "private, no-store");
-  if (!projectWebsiteCaptureRights(item.record).derived_scene_generation_allowed)
-    refuse(403, "Recording permission was withdrawn, so practice-run videos can't be shown.", "capture_processing_not_authorized");
   const owner = practiceRunVideoOwner(item.record);
+  const consented = projectWebsiteCaptureRights(item.record).derived_scene_generation_allowed;
+  // Lapsed consent or no account owner: every cached copy of this job's videos goes, whatever was asked for.
+  if (!consented || !owner) await forgetPracticeRunVideos(req.params.taskId).catch(() => undefined);
+  if (!consented)
+    refuse(403, "Recording permission was withdrawn, so practice-run videos can't be shown.", "capture_processing_not_authorized");
   if (!owner) refuse(404, "Practice-run videos are shown once this job is linked to your account.", "screening_practice_run_video_owner_unlinked");
   const published = await publishedPracticeRunVideos(req.params.taskId, input.runId, input.candidateId);
   const videos = [...new Set(input.videoIds)].map(videoId => {

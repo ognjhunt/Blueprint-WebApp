@@ -13,9 +13,11 @@
  * lasts.
  */
 import { createHash, randomUUID } from "node:crypto";
-import { mkdir, rename, rm, stat, writeFile } from "node:fs/promises";
+import { mkdir, open, readdir, rename, rm, stat, utimes, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { Readable } from "node:stream";
+import type { ReadableStream as NodeReadableStream } from "node:stream/web";
 
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { parseBetaPolicyScreeningPublication, screeningReviewVideos, SCREENING_REVIEW_VIDEO_MAX_BYTES } from "./betaPolicyScreeningContract";
@@ -35,7 +37,7 @@ export function practiceRunVideoOwner(record: Record<string, any> | undefined): 
   return typeof owner === "string" && owner.length > 0 && owner.length <= 128 ? owner : null;
 }
 
-export type PublishedPracticeRunVideo = { captureId: string; digest: string; sizeBytes: number };
+export type PublishedPracticeRunVideo = { captureId: string; digest: string; sizeBytes: number; manifestDigest: string };
 
 /**
  * The videos the job's own accepted screening publication names for one
@@ -57,7 +59,8 @@ export async function publishedPracticeRunVideos(requestId: string, runId: strin
     || publication.publication_digest !== run.publication_digest) return found;
   const entry = screeningReviewVideos(publication).find(row => row.candidate_id === candidateId);
   for (const video of entry?.practice_runs.flatMap(row => row.videos) ?? [])
-    found.set(video.sha256.slice(7), { captureId: publication.source.capture_id, digest: video.sha256, sizeBytes: video.size_bytes });
+    found.set(video.sha256.slice(7), { captureId: publication.source.capture_id, digest: video.sha256,
+      sizeBytes: video.size_bytes, manifestDigest: entry!.manifest_digest });
   return found;
 }
 
@@ -84,27 +87,106 @@ export function verifyPracticeRunVideoTicket(requestId: string, runId: string, c
 }
 
 const CACHE_DIRECTORY = path.join(tmpdir(), "blueprint-screening-practice-run-videos");
+/** `jobs/<jobId>/<videoId>`: which job each cached copy was fetched for, so a job's copies can all go at once. */
+const JOBS_DIRECTORY = path.join(CACHE_DIRECTORY, "jobs");
+/** A cached copy lasts no longer unused than a view ticket (15 minutes); each view renews it. */
+export const PRACTICE_RUN_VIDEO_IDLE_MS = 15 * 60 * 1000;
+/** All cached copies together on this instance; the least recently viewed go first. */
+export const PRACTICE_RUN_VIDEO_CACHE_BYTES = 512 * 1024 * 1024;
+/** Pipeline reads at once, server-wide; the rest wait their turn. */
+export const PRACTICE_RUN_VIDEO_FETCHES = 2;
+const SWEEP_INTERVAL_MS = 5 * 60 * 1000;
+const CACHED = /^[a-f0-9]{64}\.mp4$/;
 export const practiceRunVideoCachePath = (videoId: string) => path.join(CACHE_DIRECTORY, `${videoId}.mp4`);
+export const practiceRunVideoMarkerPath = (requestId: string, videoId: string) => path.join(JOBS_DIRECTORY, requestId, videoId);
 const fetching = new Map<string, Promise<string>>();
 
-/** Drop a cached copy, as when the job's consent no longer stands. */
-export async function forgetPracticeRunVideo(videoId: string) {
-  if (SCREENING_VIDEO_ID.test(videoId)) await rm(practiceRunVideoCachePath(videoId), { force: true });
+/** Drop every cached copy of this job's videos on this instance: consent or ownership no longer stands. */
+export async function forgetPracticeRunVideos(requestId: string) {
+  if (!JOB_ID.test(requestId)) return;
+  const markers = path.join(JOBS_DIRECTORY, requestId);
+  const videoIds = await readdir(markers).catch(() => [] as string[]);
+  await Promise.all(videoIds.filter(videoId => SCREENING_VIDEO_ID.test(videoId))
+    .map(videoId => rm(practiceRunVideoCachePath(videoId), { force: true })));
+  await rm(markers, { recursive: true, force: true });
+}
+
+/**
+ * Drop copies unused for longer than a ticket lasts and, newest first, every copy
+ * past the size cap; then partial fetches as old, and markers left without a copy.
+ */
+export async function sweepPracticeRunVideoCache(now = Date.now(), keep?: string) {
+  const names = await readdir(CACHE_DIRECTORY).catch(() => [] as string[]);
+  const entries = (await Promise.all(names.map(async name => {
+    const file = path.join(CACHE_DIRECTORY, name), info = await stat(file).catch(() => null);
+    return info?.isFile() ? { name, file, size: info.size, used: info.mtimeMs } : null;
+  }))).filter(entry => entry !== null);
+  let total = 0;
+  for (const entry of entries.filter(entry => CACHED.test(entry.name)).sort((a, b) => b.used - a.used)) {
+    if (entry.file !== keep && (now - entry.used > PRACTICE_RUN_VIDEO_IDLE_MS || total + entry.size > PRACTICE_RUN_VIDEO_CACHE_BYTES)) {
+      await rm(entry.file, { force: true });
+      continue;
+    }
+    total += entry.size;
+  }
+  await Promise.all(entries.filter(entry => entry.name.endsWith(".partial") && now - entry.used > PRACTICE_RUN_VIDEO_IDLE_MS)
+    .map(entry => rm(entry.file, { force: true })));
+  for (const job of await readdir(JOBS_DIRECTORY).catch(() => [] as string[])) {
+    const markers = path.join(JOBS_DIRECTORY, job), videoIds = await readdir(markers).catch(() => [] as string[]);
+    const kept = await Promise.all(videoIds.map(async videoId => {
+      if ((await stat(practiceRunVideoCachePath(videoId)).catch(() => null))?.isFile()) return true;
+      await rm(path.join(markers, videoId), { force: true });
+      return false;
+    }));
+    if (!kept.some(Boolean)) await rm(markers, { recursive: true, force: true });
+  }
+}
+
+let sweeping: ReturnType<typeof setInterval> | null = null;
+function keepSweeping() {
+  if (sweeping) return;
+  sweeping = setInterval(() => void sweepPracticeRunVideoCache().catch(() => undefined), SWEEP_INTERVAL_MS);
+  sweeping.unref?.();
+}
+
+let active = 0;
+const waiting: Array<() => void> = [];
+async function withFetchSlot<T>(task: () => Promise<T>): Promise<T> {
+  while (active >= PRACTICE_RUN_VIDEO_FETCHES) await new Promise<void>(resolve => waiting.push(resolve));
+  active += 1;
+  try {
+    return await task();
+  } finally {
+    active -= 1;
+    waiting.shift()?.();
+  }
 }
 
 /**
  * A local copy of the video, fetched once through the signed Pipeline read and
- * checked against the published digest and size before it is ever served.
+ * checked against the published digest and size before it is ever served. Each
+ * view renews it; `screening_practice_run_video_not_kept` when the Pipeline no
+ * longer keeps it (a retired or deleted capture).
  */
 export async function practiceRunVideoFile(requestId: string, video: PublishedPracticeRunVideo) {
   const digestHex = /^sha256:([a-f0-9]{64})$/.exec(video.digest)?.[1];
-  if (!digestHex || !(video.sizeBytes > 0 && video.sizeBytes <= SCREENING_REVIEW_VIDEO_MAX_BYTES))
+  if (!JOB_ID.test(requestId) || !digestHex || !(video.sizeBytes > 0 && video.sizeBytes <= SCREENING_REVIEW_VIDEO_MAX_BYTES))
     throw new Error("screening_practice_run_video_invalid");
+  keepSweeping();
   const file = practiceRunVideoCachePath(digestHex);
-  if ((await stat(file).catch(() => null))?.size === video.sizeBytes) return file;
+  // The marker comes first, so a purge for this job never misses a copy being fetched for it.
+  await mkdir(path.join(JOBS_DIRECTORY, requestId), { recursive: true, mode: 0o700 });
+  await writeFile(practiceRunVideoMarkerPath(requestId, digestHex), "", { mode: 0o600 });
+  if ((await stat(file).catch(() => null))?.size === video.sizeBytes) {
+    const now = new Date();
+    await utimes(file, now, now).catch(() => undefined);
+    return file;
+  }
   const pending = fetching.get(digestHex);
   if (pending) return pending;
-  const job = fetchVideo(requestId, video, digestHex, file).finally(() => fetching.delete(digestHex));
+  const job = withFetchSlot(() => fetchVideo(requestId, video, digestHex, file))
+    .then(async fetched => { await sweepPracticeRunVideoCache(Date.now(), fetched).catch(() => undefined); return fetched; })
+    .finally(() => fetching.delete(digestHex));
   fetching.set(digestHex, job);
   return job;
 }
@@ -113,20 +195,34 @@ async function fetchVideo(requestId: string, video: PublishedPracticeRunVideo, d
   let origin: ReturnType<typeof signedWebsitePipelineRequest> = null;
   try {
     origin = signedWebsitePipelineRequest(`/api/live-pipeline/beta-screening-review-videos/${digestHex}`, "",
-      { request_id: requestId, capture_id: video.captureId });
+      { request_id: requestId, capture_id: video.captureId, manifest_digest: video.manifestDigest });
   } catch { origin = null; }
   if (!origin) throw new Error("screening_practice_run_video_delivery_not_configured");
   const response = await fetch(origin.url, { headers: origin.headers, redirect: "error" });
-  if (!response.ok) throw new Error("screening_practice_run_video_unavailable");
+  if (response.status === 404) throw new Error("screening_practice_run_video_not_kept");
+  if (!response.ok || !response.body) throw new Error("screening_practice_run_video_unavailable");
   const declared = Number(response.headers.get("content-length"));
   if (Number.isFinite(declared) && declared !== video.sizeBytes) throw new Error("screening_practice_run_video_mismatch");
-  const bytes = Buffer.from(await response.arrayBuffer());
-  if (bytes.length !== video.sizeBytes || createHash("sha256").update(bytes).digest("hex") !== digestHex)
-    throw new Error("screening_practice_run_video_mismatch");
   await mkdir(CACHE_DIRECTORY, { recursive: true, mode: 0o700 });
-  const partial = `${file}.${randomUUID()}.partial`;
-  await writeFile(partial, bytes, { mode: 0o600 });
-  await rename(partial, file);
+  // Streamed to disk while hashed: a video is never held whole in memory.
+  const partial = `${file}.${randomUUID()}.partial`, hash = createHash("sha256");
+  const handle = await open(partial, "wx", 0o600);
+  let received = 0;
+  try {
+    for await (const chunk of Readable.fromWeb(response.body as unknown as NodeReadableStream<Uint8Array>)) {
+      received += chunk.length;
+      if (received > video.sizeBytes) throw new Error("screening_practice_run_video_mismatch");
+      hash.update(chunk);
+      await handle.write(chunk);
+    }
+    await handle.close();
+    if (received !== video.sizeBytes || hash.digest("hex") !== digestHex) throw new Error("screening_practice_run_video_mismatch");
+    await rename(partial, file);
+  } catch (error) {
+    await handle.close().catch(() => undefined);
+    await rm(partial, { force: true });
+    throw error;
+  }
   return file;
 }
 
