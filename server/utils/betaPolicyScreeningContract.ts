@@ -352,13 +352,19 @@ export function parseBetaPolicyScreeningPublication(value: unknown): BetaPolicyS
   return parsed.data;
 }
 
+/**
+ * What a campaign is: its plan, source and candidates. The budget is the site's shared snapshot,
+ * never part of it: the site limit is Blueprint's own control and was raised for every site at once
+ * (2026-11-05, $15 to $30), after which every earlier campaign's next snapshot was refused here and
+ * its later revisions (finished runs' practice videos among them) never reached the site. The parser
+ * still bounds the limit and what is committed against it.
+ */
 export function screeningCampaignIdentity(value: BetaPolicyScreeningPublication) {
   return crossRuntimeDigest({ campaign_id: value.campaign_id, site_id: value.site_id, source: value.source,
     plan_digest: value.plan_digest, catalog_digest: value.catalog_digest, scenario_plan_digest: value.scenario_plan_digest,
     candidates: value.candidates.map(row => ({ candidate_id: row.candidate_id, configuration_digest: row.configuration_digest,
       display_name: row.display_name, episodes_planned: row.episodes_planned,
-      ...(row.execution_evidence_kind ? { execution_evidence_kind: row.execution_evidence_kind, action_source: row.action_source } : {}) })),
-    budget_limit: value.budget.limit_usd });
+      ...(row.execution_evidence_kind ? { execution_evidence_kind: row.execution_evidence_kind, action_source: row.action_source } : {}) })) });
 }
 
 /** Retried or delayed deliveries cannot rewrite a campaign or its completed candidate results. */
