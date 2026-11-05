@@ -82,6 +82,14 @@ export default function TaskDetail() {
       setPreviewState("idle");
     }
   }
+  // Practice-run videos: a short-lived, owner-bound view ticket per video, asked for when a run is opened.
+  async function practiceRunVideoUrls(runId: string, candidateId: string, videoIds: string[]) {
+    const { videos } = await query.request<{ videos: Array<{ video_id: string; url: string }> }>(
+      `${endpoint}/practice-run-videos/view-ticket`, "POST", { runId, candidateId, videoIds }, { timeoutMs: 15000 });
+    return Object.fromEntries((Array.isArray(videos) ? videos : [])
+      .filter(video => typeof video?.url === "string" && video.url.startsWith("/api/screening-practice-run-videos/"))
+      .map(video => [video.video_id, video.url]));
+  }
   // The task page is where the brief is reviewed or edited, footage is added
   // and the scene is opened. The emailed link expires; the account mints a
   // fresh one on demand.
@@ -320,7 +328,8 @@ export default function TaskDetail() {
                 {managedUnavailable && (
                   <p role="status" className="ws-note">Simulation results are temporarily unavailable. Reload this page to retry.</p>
                 )}
-                <ManagedScreeningResults evidence={managed.data?.managedEvidence} superseded={resultSuperseded} />
+                <ManagedScreeningResults evidence={managed.data?.managedEvidence} superseded={resultSuperseded}
+                  practiceRunVideoUrls={practiceRunVideoUrls} />
                 {task.results.length ? (
                   <>
                     <h2>Evaluation results</h2>
