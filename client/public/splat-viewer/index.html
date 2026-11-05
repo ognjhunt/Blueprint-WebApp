@@ -7,10 +7,24 @@
     <title>3D preview · Blueprint</title>
     <link rel="stylesheet" href="./index.css" />
     <style>html, body { height: 100%; margin: 0; overflow: hidden; background: #000; color: #fff; font-family: sans-serif; }
-      .bp-problem { position: fixed; z-index: 1000; top: 50%; left: 50%; transform: translate(-50%, -50%); box-sizing: border-box;
+      .bp-status, .bp-problem { position: fixed; z-index: 1000; top: 50%; left: 50%; transform: translate(-50%, -50%); box-sizing: border-box;
         width: min(28rem, calc(100vw - 32px)); margin: 0; padding: 16px 20px; border-radius: 8px; background: rgba(20, 20, 20, 0.92);
-        font-size: 16px; line-height: 1.5; text-align: center; }</style>
+        font-size: 16px; line-height: 1.5; text-align: center; }
+      .bp-status::before { content: ""; display: block; width: 28px; height: 28px; margin: 0 auto 12px; border-radius: 50%;
+        border: 3px solid rgba(255, 255, 255, 0.25); border-top-color: #fff; animation: bp-spin 0.9s linear infinite; }
+      @keyframes bp-spin { to { transform: rotate(360deg); } }
+      @media (prefers-reduced-motion: reduce) { .bp-status::before { animation: none; } }
+      .bp-back { position: fixed; z-index: 1001; top: max(16px, env(safe-area-inset-top)); left: max(16px, env(safe-area-inset-left));
+        padding: 8px 14px; border-radius: 999px; background: rgba(20, 20, 20, 0.85); color: #fff; font-size: 15px; line-height: 1.4;
+        text-decoration: none; }
+      .bp-back::before { content: "\2190\00a0"; }
+      .bp-back:hover { background: rgba(50, 50, 50, 0.92); }
+      .bp-back:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }</style>
     <script type="module" src="./boot.js"></script>
   </head>
-  <body></body>
+  <body>
+    <!-- Shown from the first frame, before any script runs; boot.js points the link at the job. -->
+    <a class="bp-back" href="/app/tasks">Back to your jobs</a>
+    <p class="bp-status" role="status">Getting your 3D preview ready…</p>
+  </body>
 </html>
