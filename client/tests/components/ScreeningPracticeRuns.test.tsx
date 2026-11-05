@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { ManagedScreeningResults } from "../../src/components/shared/ManagedScreeningResults";
 import { ScreeningPracticeRuns } from "../../src/components/shared/ScreeningPracticeRuns";
@@ -90,4 +90,42 @@ it("says a video that is no longer kept is gone, and a failed one can be retried
   expect(container.querySelectorAll("video")).toHaveLength(2);
   fireEvent.error(screen.getByLabelText("Overview, practice run 1"));
   expect(await screen.findByRole("alert")).toHaveTextContent("The videos could not be loaded.");
+});
+
+it("puts each candidate's practice runs directly under that candidate's row", () => {
+  const other = { ...candidate, candidateId: "candidate-b", name: "Candidate B", practiceRuns: [candidate.practiceRuns[1]] };
+  const evidence = [{ runId: "run", state: "completed", outcome: "estimate", current: true, resultDigest: null, summary: "Your simulation estimate is ready.",
+    nextAction: "", limitations: [], href: "#run", screening: { candidates: [candidate, other] } }] as JobManagedEvidenceSummary[];
+  render(<ManagedScreeningResults evidence={evidence} practiceRunVideoUrls={vi.fn(async () => ({}))} />);
+  const rows = within(screen.getByRole("table", { name: "Candidates evaluated for your job" })).getAllByRole("row").slice(1);
+  expect(rows.map(value => value.querySelector("th[scope=row], h4")?.textContent)).toEqual([
+    "Candidate A", "Practice runs: Candidate A", "Candidate B", "Practice runs: Candidate B"]);
+  expect(within(rows[3]).getByRole("button", { name: "Practice run 2 · Did not finish the task" })).toBeInTheDocument();
+  expect(within(rows[1]).queryByText("Candidate B")).toBeNull();
+});
+
+it("shows the newest evaluation and every earlier one with results, and folds the rest", () => {
+  const scored = { candidateId: "scored", name: "Scored candidate", state: "completed", planned: 10, scored: 10, succeeded: 0,
+    failed: 10, void: 0, blockers: [] };
+  const waiting = { candidateId: "waiting", name: "Waiting candidate", state: "pending", planned: 10, scored: 0, succeeded: 0,
+    failed: 0, void: 0, blockers: [] };
+  const run = (runId: string, summary: string, candidates: object[], outcome: string | null = null) => ({ runId, state: "running", outcome,
+    current: true, resultDigest: null, summary, nextAction: "", limitations: [], href: `#${runId}`, screening: { candidates } });
+  // Newest first, as the server sends them.
+  const evidence = [run("newest", "Simulation evaluation of your job: 0 of 1 candidates finished.", [waiting]),
+    run("replaced-a", "Continued in a newer run after a Blueprint update.", [waiting], "superseded"),
+    run("with-results", "Your simulation estimate is ready.", [scored], "estimate"),
+    run("replaced-b", "Held: a problem on our side stopped the simulation.", [{ ...waiting, state: "blocked" }], "held_setup"),
+  ] as JobManagedEvidenceSummary[];
+  render(<ManagedScreeningResults evidence={evidence} />);
+  const regions = screen.getAllByRole("region", { name: "Simulation results for your job" });
+  expect(regions.map(region => region.querySelector("h3")?.textContent)).toEqual(["Simulation evaluation", "Your simulation estimate"]);
+  expect(within(regions[0]).getByText(evidence[0].summary)).toBeVisible();
+  expect(within(regions[0]).queryByText("From an earlier evaluation run of your job.")).toBeNull();
+  expect(within(regions[1]).getByText("From an earlier evaluation run of your job.")).toBeVisible();
+  expect(within(regions[1]).getByText("Scored candidate")).toBeVisible();
+  const earlier = screen.getByText("Earlier evaluation runs (2)").closest("details")!;
+  expect(earlier).not.toHaveAttribute("open");
+  expect(within(earlier).getAllByRole("article", { hidden: true }).map(article => article.querySelector("p")?.textContent)).toEqual([
+    "Continued in a newer run after a Blueprint update.", "Held: a problem on our side stopped the simulation."]);
 });
