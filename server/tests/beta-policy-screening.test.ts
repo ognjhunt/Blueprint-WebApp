@@ -232,6 +232,25 @@ describe("automatic many-candidate job evaluation", () => {
     expect(() => screeningPublicationTransition(completed, sealScreening({ ...completed, revision: 4, status: "running" }))).toThrow("screening_revision_conflict");
   });
 
+  it("takes a raised site limit in a finished campaign's later snapshot and still bounds what is committed", () => {
+    // 2026-11-05: the shared site limit went from $15 to $30, and every earlier campaign's next snapshot was refused.
+    const { publication } = screeningFixture();
+    const finished = sealScreening({ ...publication, revision: 2, status: "completed",
+      budget: { ...publication.budget, limit_usd: "15" },
+      candidates: publication.candidates.map(row => ({ ...row, status: "completed", episodes_scored: 3, episodes_succeeded: 2,
+        episodes_failed: 1, success_rate: 2 / 3, session_result_digest: screeningSha("8") })) });
+    expect(parseBetaPolicyScreeningPublication(finished)).not.toBeNull();
+    const raised = sealScreening({ ...finished, revision: 3, budget: { ...finished.budget, limit_usd: "30" } });
+    expect(screeningPublicationTransition(finished, raised)).toBe("updated");
+    // A limit is never above the shared ceiling, and never below what is committed.
+    expect(parseBetaPolicyScreeningPublication(sealScreening({ ...raised, budget: { ...raised.budget, limit_usd: "30.000001" } }))).toBeNull();
+    expect(parseBetaPolicyScreeningPublication(sealScreening({ ...raised, budget: { ...raised.budget, limit_usd: "0",
+      committed_upper_bound_usd: "1", spent_upper_bound_usd: "1", reserved_usd: "0" } }))).toBeNull();
+    // Everything else that names the campaign is still fixed.
+    expect(() => screeningPublicationTransition(finished, sealScreening({ ...raised, plan_digest: screeningSha("9") })))
+      .toThrow("screening_campaign_identity_conflict");
+  });
+
   it("funds a waitlisted candidate from released money without reopening a closed one", () => {
     const { publication } = screeningFixture();
     const at = (base: typeof publication, revision: number, statuses: Record<number, [string, string[]]>) => sealScreening({
