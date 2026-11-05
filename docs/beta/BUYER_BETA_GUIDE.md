@@ -73,7 +73,7 @@ problem, or a result that you think is wrong.
 ## Evaluation size
 
 The beta screening, where Blueprint runs the candidates for a site, plans at
-most 10 episodes for each candidate. It stays inside the site's $15 screening
+most 10 episodes for each candidate. It stays inside the site's $30 screening
 budget and a default $4 for each candidate (Pipeline
 `src/blueprint_pipeline/beta_policy_screening_plan.py` and
 `beta_policy_screening_capabilities.py`). A full evaluation, the kind teams

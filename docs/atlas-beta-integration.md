@@ -57,7 +57,7 @@ its held maximum:
   attempts reserved;
 - the beta-screening site ledger, from its latest published snapshot
   (`committed_upper_bound_usd`); a run without a readable publication counts the
-  whole $15 screening site limit.
+  whole $30 screening site limit.
 
 The ceiling is the Atlas authorization the admission is made under, else the
 job's stored Atlas grant for that capture, else

@@ -185,7 +185,7 @@ describe("automatic many-candidate job evaluation", () => {
     for (const budget of [
       { ...publication.budget, committed_upper_bound_usd: "15.000001", reserved_usd: "15.000001" },
       { ...publication.budget, committed_upper_bound_usd: "2", spent_upper_bound_usd: "1", reserved_usd: "0" },
-      { ...publication.budget, limit_usd: "20" }, { ...publication.budget, reserved_usd: "NaN" },
+      { ...publication.budget, limit_usd: "30.000001" }, { ...publication.budget, reserved_usd: "NaN" },
     ]) expect(parseBetaPolicyScreeningPublication(sealScreening({ ...publication, budget }))).toBeNull();
     expect(parseBetaPolicyScreeningPublication(sealScreening({ ...publication, candidates: [publication.candidates[0], publication.candidates[0]] }))).toBeNull();
     expect(parseBetaPolicyScreeningPublication(sealScreening({ ...publication, candidates: [{ ...publication.candidates[0], episodes_scored: 1 }] }))).toBeNull();
