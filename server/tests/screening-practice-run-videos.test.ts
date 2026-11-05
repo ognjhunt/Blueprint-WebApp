@@ -101,11 +101,11 @@ describe("the practice-run video view route", () => {
   const videoId = sha(bytes), wrongId = sha(wrong), goneId = sha(gone), manyIds = many.map(sha);
   let server: Server, pipeline: Server, base = "";
   const asked: Array<{ path: string; search: string; signed: boolean }> = [];
-  let inFlight = 0, mostInFlight = 0;
+  let inFlight = 0, mostInFlight = 0, chunked = 0;
 
   beforeEach(async () => {
     store.rows.clear(); asked.length = 0;
-    inFlight = mostInFlight = 0;
+    inFlight = mostInFlight = chunked = 0;
     await Promise.all([videoId, wrongId, goneId, ...manyIds].map(id => rm(practiceRunVideoCachePath(id), { force: true })));
     await forgetPracticeRunVideos("job-1");
     pipeline = createServer((req, res) => {
@@ -117,7 +117,9 @@ describe("the practice-run video view route", () => {
       if (!body) { res.statusCode = 404; return res.end(); }
       res.setHeader("content-type", "video/mp4");
       inFlight += 1; mostInFlight = Math.max(mostInFlight, inFlight);
-      setTimeout(() => { inFlight -= 1; res.end(body); }, index >= 0 ? 60 : 0);
+      // These are streamed in two writes, chunked and with no Content-Length, as a proxy may send them.
+      if (index >= 0) { res.write(body.subarray(0, 7)); chunked += 1; }
+      setTimeout(() => { inFlight -= 1; res.end(index >= 0 ? body.subarray(7) : body); }, index >= 0 ? 60 : 0);
     });
     await new Promise<void>(resolve => pipeline.listen(0, "127.0.0.1", resolve));
     vi.stubEnv("CAPTURE_LIFECYCLE_PIPELINE_BASE_URL", `http://127.0.0.1:${(pipeline.address() as any).port}`);
@@ -210,6 +212,7 @@ describe("the practice-run video view route", () => {
     expect(responses.map(response => response.status)).toEqual([200, 200, 200]);
     for (const [index, response] of responses.entries()) expect(Buffer.from(await response.arrayBuffer())).toEqual(many[index]);
     expect(mostInFlight).toBe(2);
+    expect(chunked).toBe(3);  // a response without Content-Length is still checked by its bytes and served
   });
 
   it("never serves bytes that do not match the published digest", async () => {

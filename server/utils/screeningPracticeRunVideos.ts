@@ -201,8 +201,9 @@ async function fetchVideo(requestId: string, video: PublishedPracticeRunVideo, d
   const response = await fetch(origin.url, { headers: origin.headers, redirect: "error" });
   if (response.status === 404) throw new Error("screening_practice_run_video_not_kept");
   if (!response.ok || !response.body) throw new Error("screening_practice_run_video_unavailable");
-  const declared = Number(response.headers.get("content-length"));
-  if (Number.isFinite(declared) && declared !== video.sizeBytes) throw new Error("screening_practice_run_video_mismatch");
+  // A chunked response (a proxy may send one) states no length; its bytes are counted and hashed below.
+  const length = response.headers.get("content-length");
+  if (length !== null && Number(length) !== video.sizeBytes) throw new Error("screening_practice_run_video_mismatch");
   await mkdir(CACHE_DIRECTORY, { recursive: true, mode: 0o700 });
   // Streamed to disk while hashed: a video is never held whole in memory.
   const partial = `${file}.${randomUUID()}.partial`, hash = createHash("sha256");
