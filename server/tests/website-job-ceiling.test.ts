@@ -114,6 +114,45 @@ describe("what counts against it", () => {
       { maximum_spend_usd: 6, status: "cancelled_before_execution" }] } })).toBe(4_000_000);
   });
 
+  it("counts a row the Pipeline settled after a terminal attempt at the hold it reports, never lower", async () => {
+    // capture-447ae4f4 (2026-11-03): a $31 row settled after its CPU prestage was refused
+    // for credit keeps $21.630673 against the intent's cap (Pipeline committed_spend_usd);
+    // its successor holds $18. The status reads the settled row `cancelled_before_execution`.
+    const intake = (value: Record<string, any>) => ({ request: { execution: { max_total_spend_usd: 20 } }, ...value });
+    const spend = async (value: Record<string, any>) =>
+      (await websiteJobSpend({ record: {}, reader: reader([intake(value)]) })).native_construction_micros;
+    const successor = { maximum_spend_usd: 18, status: "reserved" };
+    const crashed = { maximum_spend_usd: 31, status: "cancelled_before_execution" };
+    const settled = { ...crashed, retained_spend_usd: 21.630673,
+      retained_spend_basis: "artisan_proven_authoring_without_allocation" };
+    const status = (attempts: unknown[], budget = 90) =>
+      ({ status: "completed", attempts, effective_execution_budget: { max_total_spend_usd: budget } });
+    // An older status without the figure counts the settled row as nothing, as before.
+    expect(await spend({ state: "completed", pipeline_status: status([successor, crashed]) })).toBe(18_000_000);
+    expect(await spend({ state: "completed", pipeline_status: status([successor, settled]) })).toBe(39_630_673);
+    // While the intake is open its whole (extended) budget is held, or the reported holds if larger.
+    expect(await spend({ state: "accepted", pipeline_status: status([successor, settled]) })).toBe(90_000_000);
+    const unproven = { ...crashed, retained_spend_usd: 31, retained_spend_basis: "terminal_launch_unreconciled" };
+    expect(await spend({ state: "accepted", pipeline_status: status([successor, unproven], 20) })).toBe(49_000_000);
+    expect(await spend({ state: "completed", pipeline_status: status([successor, unproven], 20) })).toBe(49_000_000);
+    // A never-started cancellation, or a settlement that released everything, still holds nothing.
+    expect(await spend({ state: "completed", pipeline_status: status([successor, crashed,
+      { ...crashed, retained_spend_usd: 0, retained_spend_basis: "launch_never_queued" }]) })).toBe(18_000_000);
+    // The figure only raises a row: a live row keeps its whole reservation.
+    expect(await spend({ state: "completed", pipeline_status: status([{ ...successor, retained_spend_usd: 1,
+      retained_spend_basis: "terminal_launch_unreconciled" }]) })).toBe(18_000_000);
+    // The earlier capture-447 intent: revoked, every row cancelled, five settled with holds.
+    const holds = [5, 18.760959, 5, 9.258497, 5];
+    const revoked = { status: "blocked", phase: "authority", blockers: ["scene_intake_authority_revoked"],
+      effective_execution_budget: { max_total_spend_usd: 70 },
+      attempts: [...holds.map(hold => ({ ...crashed, retained_spend_usd: hold, retained_spend_basis: "x" })),
+        ...Array.from({ length: 13 }, () => crashed)] };
+    const closed = { receipt: {}, state: "blocked", blocker: "terminal_closeout_poll_cap_exhausted" };
+    expect(await spend({ ...closed, pipeline_status: { ...revoked, attempts: revoked.attempts.map(() => crashed) } }))
+      .toBe(0);
+    expect(await spend({ ...closed, pipeline_status: revoked })).toBe(43_019_456);
+  });
+
   it("keeps the whole native allowance once a delivery may have reached the Pipeline, until the Pipeline confirms it ended", async () => {
     const intake = (value: Record<string, any>) => ({ request: { execution: { max_total_spend_usd: 20 } }, ...value });
     const spend = async (value: Record<string, any>) =>
@@ -162,6 +201,23 @@ describe("admission", () => {
       maximum_cost_usd: 40, source: "atlas_authorization", preparation_cost_usd: 30, native_construction_cost_usd: 5,
       screening_cost_usd: 4, reserved_or_settled_cost_usd: 39, remaining_cost_usd: 1 });
     await expect(assertWithinWebsiteJobCeiling({ ...input, additionalCostUsd: 1.000001 }))
+      .rejects.toThrow("website_scene_preparation_budget_exhausted");
+  });
+
+  it("leaves a job only what remains after the Pipeline's settled holds", async () => {
+    const crashed = { maximum_spend_usd: 31, status: "cancelled_before_execution" };
+    const intake = (settled: Record<string, any>) => ({ state: "completed", receipt: {},
+      request: { execution: { max_total_spend_usd: 20 } }, pipeline_status: { status: "completed",
+        attempts: [{ maximum_spend_usd: 18, status: "reserved" }, settled],
+        effective_execution_budget: { max_total_spend_usd: 90 } } });
+    const input = (settled: Record<string, any>) => ({ record: { website_preparation_reservations: { a: held(40) } },
+      captureId: "capture-a", atlas: { maximum_cost_usd: 130 }, reader: reader([intake(settled)]) });
+    // Without the figure the settled $21.630673 was free to spend again.
+    await expect(assertWithinWebsiteJobCeiling({ ...input(crashed), additionalCostUsd: 72 })).resolves.toBeDefined();
+    const reported = input({ ...crashed, retained_spend_usd: 21.630673,
+      retained_spend_basis: "artisan_proven_authoring_without_allocation" });
+    await expect(assertWithinWebsiteJobCeiling({ ...reported, additionalCostUsd: 50.369327 })).resolves.toBeDefined();
+    await expect(assertWithinWebsiteJobCeiling({ ...reported, additionalCostUsd: 50.369328 }))
       .rejects.toThrow("website_scene_preparation_budget_exhausted");
   });
 

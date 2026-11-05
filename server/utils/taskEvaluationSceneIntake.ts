@@ -185,8 +185,14 @@ const statusSchema = z
           provider: z.string(),
           maximum_spend_usd: z.number(),
           status: z.string(),
+          // A row the Pipeline settled after a terminal attempt reads
+          // `cancelled_before_execution` but keeps a hold: what its reservation
+          // still counts, and why. Optional so older Pipelines still parse.
+          retained_spend_usd: z.number().finite().nonnegative().optional(),
+          retained_spend_basis: z.string().regex(/^[a-z][a-z0-9_]{0,127}$/).optional(),
         })
-        .strict(),
+        .strict()
+        .refine((attempt) => (attempt.retained_spend_usd === undefined) === (attempt.retained_spend_basis === undefined)),
     ),
     result_reference: z.union([familyNativePreparationReference, z.object({
         uri: z.string(),
