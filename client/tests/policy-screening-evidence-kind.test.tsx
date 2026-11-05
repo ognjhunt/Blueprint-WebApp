@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, expect, it } from "vitest";
 import { PolicyScreeningCandidates } from "../src/components/shared/PolicyScreeningCandidates";
 import { screeningReasonLabel, screeningReasonLabels } from "../src/lib/screeningPlainLanguage";
@@ -63,6 +63,9 @@ it("shows the rule's choice as a simulation estimate with its recorded companies
   expect(screen.getByText("In Blueprint's robot team registry by name: Jacobi Robotics.")).toBeInTheDocument();
   expect(screen.getByText(/A simulation result is a bounded estimate; it does not certify physical performance or safety\./)).toBeInTheDocument();
   expect(document.body.textContent).not.toMatch(/development only/);
+  // The candidate that did not run is folded behind one toggle, still saying why.
+  expect(screen.getAllByRole("row").slice(1).map(value => value.lastElementChild?.textContent)).toEqual(["Chosen", "Ranked 2"]);
+  fireEvent.click(screen.getByRole("button", { name: "Show the 1 candidate that did not run, and why" }));
   expect(screen.getAllByRole("row").slice(1).map(value => value.lastElementChild?.textContent))
     .toEqual(["Chosen", "Ranked 2", "Not chosen: it did not run in this evaluation"]);
   expect(screen.getByText(/^Out of reach · 0\/3 scored/)).toBeInTheDocument();
@@ -152,4 +155,38 @@ it("says a run that gave no usable result ran in our simulator, is ours to fix a
   // A candidate that ran is never described as one that was not set up.
   expect(screeningReasonLabels(["beta_screening_native_result_missing_or_invalid", "beta_screening_native_result_missing"]))
     .toEqual([noUsableResult, "Ran in our simulator, but the run returned no usable result. This is ours to fix."]);
+});
+
+it("lists the candidates that took part and folds the ones that did not run behind one toggle", () => {
+  render(<PolicyScreeningCandidates screening={{ candidates: [row("a", "completed", 1), row("b", "pending"), row("c", "running"),
+    row("d", "deferred", 0, ["site_screening_budget_insufficient"]), row("e", "infeasible", 0, ["candidate_infeasible_measured_geometry"]),
+    row("f", "blocked", 0, ["task_kind_not_supported_by_candidate"]), row("g", "unavailable")] }} />);
+  const table = screen.getByRole("table", { name: "Candidates evaluated for your job" });
+  const names = () => within(table).getAllByRole("row").slice(1).map(value => value.firstElementChild?.textContent);
+  expect(names()).toEqual(["Candidate a", "Candidate b", "Candidate c"]);
+  const toggle = screen.getByRole("button", { name: "Show the 4 candidates that did not run, and why" });
+  expect(toggle).toHaveAttribute("aria-expanded", "false");
+  fireEvent.click(toggle);
+  expect(toggle).toHaveAttribute("aria-expanded", "true");
+  expect(toggle).toHaveTextContent("Hide the 4 candidates that did not run, and why");
+  expect(names()).toEqual(["Candidate a", "Candidate b", "Candidate c", "Candidate d", "Candidate e", "Candidate f", "Candidate g"]);
+  // Each folded row still says why, in plain words.
+  expect(within(table).getByText("Candidate e")).toBeVisible();
+  expect(within(table).getByText("Measured out of reach from the robot position planned in your scene.")).toBeInTheDocument();
+  fireEvent.click(toggle);
+  expect(names()).toHaveLength(3);
+});
+
+it("lists every candidate, with no toggle, when none took part: the reasons are the whole result", () => {
+  render(<PolicyScreeningCandidates screening={{ candidates: [row("a", "infeasible", 0, ["candidate_infeasible_measured_geometry"]),
+    row("b", "blocked", 0, ["task_kind_not_supported_by_candidate"])] }} />);
+  expect(screen.getAllByRole("row").slice(1).map(value => value.firstElementChild?.textContent)).toEqual(["Candidate a", "Candidate b"]);
+  expect(screen.queryByRole("button", { name: /did not run/ })).toBeNull();
+});
+
+it("keeps a candidate whose tries all ended unscorable among those that took part", () => {
+  render(<PolicyScreeningCandidates screening={{ candidates: [{ ...row("a", "completed"), scored: 0, failed: 0, void: 10 },
+    row("b", "deferred")] }} />);
+  expect(screen.getAllByRole("row").slice(1).map(value => value.firstElementChild?.textContent)).toEqual(["Candidate a"]);
+  expect(screen.getByText("0 succeeded · 0 failed · 10 unscorable")).toBeVisible();
 });
