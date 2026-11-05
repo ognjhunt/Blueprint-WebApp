@@ -13,7 +13,7 @@
  * lasts.
  */
 import { createHash, randomUUID } from "node:crypto";
-import { mkdir, open, readdir, rename, rm, stat, utimes, writeFile } from "node:fs/promises";
+import { mkdir, open, readdir, rename, rm, rmdir, stat, utimes, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { Readable } from "node:stream";
@@ -113,7 +113,10 @@ export async function forgetPracticeRunVideos(requestId: string) {
 
 /**
  * Drop copies unused for longer than a ticket lasts and, newest first, every copy
- * past the size cap; then partial fetches as old, and markers left without a copy.
+ * past the size cap; then partial fetches as old. A job's marker goes with the copy
+ * this sweep drops, or once it is itself unused that long with no fetch of its video
+ * under way: a marker written for a fetch in flight or queued is never dropped, so a
+ * purge of that job still finds the copy when it lands.
  */
 export async function sweepPracticeRunVideoCache(now = Date.now(), keep?: string) {
   const names = await readdir(CACHE_DIRECTORY).catch(() => [] as string[]);
@@ -122,9 +125,11 @@ export async function sweepPracticeRunVideoCache(now = Date.now(), keep?: string
     return info?.isFile() ? { name, file, size: info.size, used: info.mtimeMs } : null;
   }))).filter(entry => entry !== null);
   let total = 0;
+  const dropped = new Set<string>();
   for (const entry of entries.filter(entry => CACHED.test(entry.name)).sort((a, b) => b.used - a.used)) {
     if (entry.file !== keep && (now - entry.used > PRACTICE_RUN_VIDEO_IDLE_MS || total + entry.size > PRACTICE_RUN_VIDEO_CACHE_BYTES)) {
       await rm(entry.file, { force: true });
+      dropped.add(entry.name.slice(0, -".mp4".length));
       continue;
     }
     total += entry.size;
@@ -132,19 +137,27 @@ export async function sweepPracticeRunVideoCache(now = Date.now(), keep?: string
   await Promise.all(entries.filter(entry => entry.name.endsWith(".partial") && now - entry.used > PRACTICE_RUN_VIDEO_IDLE_MS)
     .map(entry => rm(entry.file, { force: true })));
   for (const job of await readdir(JOBS_DIRECTORY).catch(() => [] as string[])) {
-    const markers = path.join(JOBS_DIRECTORY, job), videoIds = await readdir(markers).catch(() => [] as string[]);
-    const kept = await Promise.all(videoIds.map(async videoId => {
-      if ((await stat(practiceRunVideoCachePath(videoId)).catch(() => null))?.isFile()) return true;
-      await rm(path.join(markers, videoId), { force: true });
-      return false;
-    }));
-    if (!kept.some(Boolean)) await rm(markers, { recursive: true, force: true });
+    const markers = path.join(JOBS_DIRECTORY, job);
+    for (const videoId of await readdir(markers).catch(() => [] as string[])) {
+      if (fetching.has(videoId)) continue;
+      const marker = path.join(markers, videoId);
+      if (!dropped.has(videoId)) {
+        if ((await stat(practiceRunVideoCachePath(videoId)).catch(() => null))?.isFile()) continue;
+        const written = await stat(marker).catch(() => null);
+        if (!written || now - written.mtimeMs <= PRACTICE_RUN_VIDEO_IDLE_MS) continue;
+      }
+      await rm(marker, { force: true });
+    }
+    // Only an empty directory goes: a marker written meanwhile keeps it.
+    await rmdir(markers).catch(() => undefined);
   }
 }
 
 let sweeping: ReturnType<typeof setInterval> | null = null;
-function keepSweeping() {
+/** Sweep now and every five minutes; from start-up, so copies left before a restart go without waiting for a view. */
+export function keepSweeping() {
   if (sweeping) return;
+  void sweepPracticeRunVideoCache().catch(() => undefined);
   sweeping = setInterval(() => void sweepPracticeRunVideoCache().catch(() => undefined), SWEEP_INTERVAL_MS);
   sweeping.unref?.();
 }
@@ -166,9 +179,20 @@ async function withFetchSlot<T>(task: () => Promise<T>): Promise<T> {
  * A local copy of the video, fetched once through the signed Pipeline read and
  * checked against the published digest and size before it is ever served. Each
  * view renews it; `screening_practice_run_video_not_kept` when the Pipeline no
- * longer keeps it (a retired or deleted capture).
+ * longer keeps it (a retired or deleted capture). A copy whose job was forgotten
+ * while it was fetched (consent or the owner lapsed) is deleted, never served:
+ * `screening_practice_run_video_forgotten`.
  */
 export async function practiceRunVideoFile(requestId: string, video: PublishedPracticeRunVideo) {
+  const file = await cachedPracticeRunVideo(requestId, video);
+  if (!(await stat(practiceRunVideoMarkerPath(requestId, path.basename(file, ".mp4"))).catch(() => null))) {
+    await rm(file, { force: true });
+    throw new Error("screening_practice_run_video_forgotten");
+  }
+  return file;
+}
+
+async function cachedPracticeRunVideo(requestId: string, video: PublishedPracticeRunVideo) {
   const digestHex = /^sha256:([a-f0-9]{64})$/.exec(video.digest)?.[1];
   if (!JOB_ID.test(requestId) || !digestHex || !(video.sizeBytes > 0 && video.sizeBytes <= SCREENING_REVIEW_VIDEO_MAX_BYTES))
     throw new Error("screening_practice_run_video_invalid");
