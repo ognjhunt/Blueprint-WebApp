@@ -1,7 +1,7 @@
 # Beta policy screening results
 
 Owner instruction, October 26, 2026: configure dozens of candidates, coordinate
-screening under one $15/site ceiling, and reuse RoboLab where possible. Pipeline
+screening under one $15/site ceiling (raised to $30 on November 5, 2026), and reuse RoboLab where possible. Pipeline
 owns planning, runtime dispatch, independent scoring, reservations and recovery.
 WebApp accepts diagnostic progress on the existing job and never promotes a
 screening run into a qualified pilot recommendation.
@@ -34,7 +34,7 @@ counts remain fixed. Monotonic revisions make retries idempotent and obsolete
 deliveries harmless. A terminal candidate's evidence cannot change. Later site
 activity may refresh a terminal campaign's shared budget snapshot without changing
 its scientific result. Amounts are decimal strings with at most six fractional
-digits; spent plus reserved must equal committed, with committed at most $15.
+digits; spent plus reserved must equal committed, with committed at most $30.
 Outcome counts are accepted only for completed, independently scored sessions.
 
 Accepted progress is stored atomically in the existing `taskEvaluationPolicyRuns`

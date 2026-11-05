@@ -37,7 +37,7 @@ step 4 with evidence.
 |---|---|---|
 | Privacy | The site confirms its authority when it starts a job. No upload-time people screen runs: `screenCaptureForPrivacy` returns `unscreened` for every capture (commit `87c17c21c`, 2026-09-24). Owner decision D-16 (2026-11-02): no blur or screen beyond the face blur on frames sent to World Labs. Blueprint relies on the site's consent. | `server/utils/capturePrivacyScreen.ts`; Pipeline `src/blueprint_pipeline/atlas_privacy_screen.py`; tracker G-03, G-04 |
 | Rights | Recording permission, withdrawal, and licenses. Withdrawal stops processing and use. It is not deletion. | `client/src/components/site/OwnerRecordingWithdrawal.tsx` |
-| Money | One ceiling for each website job, $40 by default, across Atlas, upstream, scene and screening spend. Screening: $15 for each site, $4 by default for each candidate. Open intake: 5 new jobs a day by default. A budget is never a step for the site. | `server/utils/websiteJobCeiling.ts`, `server/utils/betaAbuseCaps.ts`; the "Spend limits" table in the Pipeline `AGENTS.md` (Pipeline PR #3265) |
+| Money | One ceiling for each website job, $40 by default, across Atlas, upstream, scene and screening spend. Screening: $30 for each site, $4 by default for each candidate. Open intake: 5 new jobs a day by default. A budget is never a step for the site. | `server/utils/websiteJobCeiling.ts`, `server/utils/betaAbuseCaps.ts`; the "Spend limits" table in the Pipeline `AGENTS.md` (Pipeline PR #3265) |
 
 The published Terms and Privacy Policy still say that Blueprint removes people
 from the frames used for reconstruction. WebApp PR #1183 drafts the
