@@ -85,7 +85,10 @@ export interface JobManagedEvidenceSummary {
     successRange?: { lowerPercent: number; upperPercent: number; confidencePercent: number };
     executionEvidence?: { execution_evidence_kind: "learned_policy" | "scripted_simulator_state_baseline";
       action_source: "learned_policy" | "scripted_simulator_state"; scripted_rollout_count: number;
-      learned_policy_rollout_count: number; scripted_controller_invoked: boolean; candidate_policy_queried: boolean } }>;
+      learned_policy_rollout_count: number; scripted_controller_invoked: boolean; candidate_policy_queried: boolean };
+    /** Each practice run (episode) with the review videos kept of it; only on completed candidates with kept videos. */
+    practiceRuns?: Array<{ number: number; outcome: "success" | "failure" | "void";
+      videos: Array<{ videoId: string; camera: string; phase: "run" | "setup_check"; durationSeconds: number | null }> }> }>;
     selection?: JobCandidateSelection };
 }
 

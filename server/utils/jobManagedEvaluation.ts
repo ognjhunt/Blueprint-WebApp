@@ -15,7 +15,8 @@ import { parseVerifiedTaskEvaluationRunPublication } from "./taskEvaluationRunCo
 import { parsePipelinePolicyCanaryPublication } from "./policyCanaryWebappSyncContract";
 import { isScreeningHeldOutcome, parseBetaPolicyScreeningPublication, screeningCandidateState, screeningEstimateCountSentence,
   screeningEstimateRows, screeningExecutionEvidence, screeningJobCeilingRow, screeningOutcome, screeningOutcomeSentence, SCREENING_REPLANNED_BLOCKER,
-  type BetaPolicyScreeningPublication, type ScreeningExecutionEvidence, type ScreeningOutcome } from "./betaPolicyScreeningContract";
+  screeningReviewVideos, type BetaPolicyScreeningPublication, type ScreeningExecutionEvidence, type ScreeningOutcome,
+  type ScreeningReviewVideos } from "./betaPolicyScreeningContract";
 import { projectCandidateSelection } from "./betaCandidateSelection";
 import type { JobCandidateSelection } from "../../client/src/types/jobMarketplace";
 import { assertWebsiteCaptureBindingInTransaction, resolveWebsiteCaptureBinding } from "./websiteCaptureBinding";
@@ -257,8 +258,18 @@ export type ManagedJobEvidenceSummary = {
       | "publication_digest" | "catalog_digest" | "plan_digest">;
     candidates: Array<{ candidateId: string; name: string; state: string; planned: number;
     scored: number; succeeded: number; failed: number; void: number; blockers: string[]; configurationDigest?: string;
-    successRange?: ScreeningSuccessRange; executionEvidence?: ScreeningExecutionEvidence }>; selection?: JobCandidateSelection };
+    successRange?: ScreeningSuccessRange; executionEvidence?: ScreeningExecutionEvidence;
+    practiceRuns?: ScreeningPracticeRun[] }>; selection?: JobCandidateSelection };
 };
+
+/** One practice run (episode) of a candidate, with the videos kept of it; `videoId` is the video's sha256 hex. */
+export type ScreeningPracticeRun = { number: number; outcome: "success" | "failure" | "void";
+  videos: Array<{ videoId: string; camera: string; phase: "run" | "setup_check"; durationSeconds: number | null }> };
+function practiceRuns(entry: ScreeningReviewVideos | undefined): { practiceRuns?: ScreeningPracticeRun[] } {
+  return entry ? { practiceRuns: entry.practice_runs.map((run, index) => ({ number: index + 1, outcome: run.outcome,
+    videos: run.videos.map(video => ({ videoId: video.sha256.slice(7), camera: video.camera, phase: video.phase,
+      durationSeconds: video.duration_seconds })) })) } : {};
+}
 
 /**
  * Where a candidate's success rate likely lies, from its scored episodes: the
@@ -350,6 +361,7 @@ export function projectManagedJobEvidence(
       : outcome === "estimate" ? "completed" : outcome;
     // The Pipeline's rule-based choice, kept only while it restates this result.
     const selection = projectCandidateSelection(run.candidate_selection, value);
+    const kept = new Map(screeningReviewVideos(value).map(entry => [entry.candidate_id, entry]));
     return { ...base, state: status, outcome, resultDigest: outcome !== null && outcome !== "superseded" ? value.publication_digest : null,
       summary: outcome === "estimate" ? `${screeningOutcomeSentence(outcome)} ${screeningEstimateCountSentence(completed, total, scored)}`
         : outcome ? screeningOutcomeSentence(outcome)
@@ -377,7 +389,8 @@ export function projectManagedJobEvidence(
         ...(row.execution_evidence_kind ? { executionEvidence: screeningExecutionEvidence(row) } : {}),
         state: screeningCandidateState(row), planned: row.episodes_planned, scored: row.episodes_scored, succeeded: row.episodes_succeeded,
         failed: row.episodes_failed, void: row.episodes_void, blockers: row.blockers,
-        ...(row.episodes_scored > 0 ? { successRange: screeningSuccessRange(row.episodes_succeeded, row.episodes_scored) } : {}) })),
+        ...(row.episodes_scored > 0 ? { successRange: screeningSuccessRange(row.episodes_succeeded, row.episodes_scored) } : {}),
+        ...practiceRuns(kept.get(row.candidate_id)) })),
         ...(selection ? { selection } : {}) } };
   }
   if (publication.run_id !== runId) return base;

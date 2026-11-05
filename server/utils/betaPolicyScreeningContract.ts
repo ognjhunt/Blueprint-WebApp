@@ -76,6 +76,26 @@ const candidate = z.object({
   }
 });
 
+/**
+ * Each completed candidate's practice runs (its episodes, in plan order) with
+ * their outcome and the review videos the Pipeline kept of them, so the job's
+ * owner can watch them (`screeningPracticeRunVideos`). Kept media, never a
+ * score: absent when nothing was kept, and never a reason code, path or URL.
+ */
+export const SCREENING_REVIEW_VIDEO_MAX_BYTES = 64 * 1024 * 1024;
+export const SCREENING_REVIEW_VIDEOS_PER_CANDIDATE = 80;
+const reviewVideo = z.object({
+  sha256: digest, camera: z.string().regex(/^[a-z][a-z0-9_]{0,63}$/), phase: z.enum(["run", "setup_check"]),
+  size_bytes: z.number().int().min(1).max(SCREENING_REVIEW_VIDEO_MAX_BYTES),
+  duration_seconds: z.number().finite().min(0).max(86_400).nullable(),
+}).strict();
+const candidateReviewVideos = z.object({
+  candidate_id: identifier, manifest_digest: digest,
+  practice_runs: z.array(z.object({ cell_id: identifier, outcome: z.enum(["success", "failure", "void"]),
+    videos: z.array(reviewVideo).max(SCREENING_REVIEW_VIDEOS_PER_CANDIDATE) }).strict()).min(1).max(100),
+}).strict();
+export type ScreeningReviewVideos = z.infer<typeof candidateReviewVideos>;
+
 export const betaPolicyScreeningSourceSchema = z.object({
   scene_intent_id: identifier, scene_intent_digest: digest, capture_id: identifier,
   task_id: identifier, task_context_digest: digest, scene_revision_digest: digest,
@@ -93,7 +113,8 @@ const publicationFields = {
   generated_at: z.string().datetime({ offset: true }), publication_digest: digest,
 };
 const jobEvaluationPublication = z.object({ ...publicationFields, schema_version: z.literal("beta_policy_screening_publication.v2"),
-  purpose: z.literal("job_evaluation"), claim_ceiling: z.literal("simulation_estimate") }).strict();
+  purpose: z.literal("job_evaluation"), claim_ceiling: z.literal("simulation_estimate"),
+  review_videos: z.array(candidateReviewVideos).min(1).max(256).optional() }).strict();
 const retainedPublication = z.object({ ...publicationFields, schema_version: z.literal("beta_policy_screening_publication.v1"),
   purpose: z.literal("screening"), claim_ceiling: z.literal("diagnostic_policy_execution"), recommendation_eligible: z.literal(false) }).strict();
 export const betaPolicyScreeningPublicationSchema = z.discriminatedUnion("schema_version", [jobEvaluationPublication, retainedPublication])
@@ -116,7 +137,24 @@ export const betaPolicyScreeningPublicationSchema = z.discriminatedUnion("schema
       : [...screeningQueuedCandidateStates].some(state => states.has(state)) ? "queued" : states.has("completed") ? "completed" : "blocked";
   if (value.status !== expectedStatus)
     ctx.addIssue({ code: "custom", path: ["status"], message: "Campaign status must match candidate progress" });
+  // A completed candidate's practice runs restate its own counts: one per planned episode.
+  const rows = new Map(value.candidates.map(row => [row.candidate_id, row]));
+  const seen = new Set<string>();
+  for (const entry of screeningReviewVideos(value)) {
+    const row = rows.get(entry.candidate_id), runs = entry.practice_runs;
+    const count = (outcome: string) => runs.filter(run => run.outcome === outcome).length;
+    if (!row || row.status !== "completed" || seen.has(entry.candidate_id) || runs.length !== row.episodes_planned
+      || count("success") !== row.episodes_succeeded || count("failure") !== row.episodes_failed || count("void") !== row.episodes_void
+      || new Set(runs.map(run => run.cell_id)).size !== runs.length || runs.every(run => run.videos.length === 0)
+      || runs.reduce((sum, run) => sum + run.videos.length, 0) > SCREENING_REVIEW_VIDEOS_PER_CANDIDATE)
+      ctx.addIssue({ code: "custom", path: ["review_videos"], message: "Practice-run videos must restate a completed candidate's episodes" });
+    seen.add(entry.candidate_id);
+  }
 });
+/** The practice-run videos a publication carries; none for a retained v1 one. */
+export function screeningReviewVideos(value: { schema_version: string; review_videos?: ScreeningReviewVideos[] }) {
+  return value.schema_version === "beta_policy_screening_publication.v2" ? value.review_videos ?? [] : [];
+}
 export type BetaPolicyScreeningPublication = z.infer<typeof betaPolicyScreeningPublicationSchema>;
 export type ScreeningExecutionEvidence = Required<Pick<BetaPolicyScreeningPublication["candidates"][number],
   typeof screeningExecutionEvidenceFields[number]>>;
@@ -333,6 +371,10 @@ export function screeningPublicationTransition(previous: BetaPolicyScreeningPubl
   // after this campaign ends. Its scientific evidence must remain byte-identical.
   if (["completed", "blocked"].includes(previous.status) && (next.status !== previous.status
     || crossRuntimeDigest(previous.candidates) !== crossRuntimeDigest(next.candidates))) throw new Error("screening_revision_conflict");
+  // Kept videos are media, not evidence: a later revision may add a candidate's, never change or drop one.
+  const nextVideos = new Map(screeningReviewVideos(next).map(entry => [entry.candidate_id, crossRuntimeDigest(entry)]));
+  if (screeningReviewVideos(previous).some(entry => nextVideos.get(entry.candidate_id) !== crossRuntimeDigest(entry)))
+    throw new Error("screening_review_videos_conflict");
   if (Date.parse(next.generated_at) < Date.parse(previous.generated_at)
     || screeningMoneyMicros(next.budget.spent_upper_bound_usd) < screeningMoneyMicros(previous.budget.spent_upper_bound_usd))
     throw new Error("screening_progress_regression");

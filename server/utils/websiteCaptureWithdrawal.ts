@@ -5,6 +5,7 @@ import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { canonicalArtifactDigest } from "./taskCandidateContract";
 import { signedCaptureLifecycleRequest } from "./captureLifecycleForwarding";
 import { logger } from "../logger";
+import { forgetPracticeRunVideos } from "./screeningPracticeRunVideos";
 
 /** The explicit confirmation the signed owner link must send to withdraw. */
 export const OWNER_WITHDRAWAL_CONFIRMATION = "withdraw_recording_permission" as const;
@@ -83,7 +84,7 @@ export async function recordWebsiteCaptureWithdrawal(params: {
 }): Promise<{ withdrawal: Record<string, any>; created: boolean }> {
   if (!db) throw Object.assign(new Error("Withdrawal storage is unavailable."), { status: 503 });
   const ref = db.collection("inboundRequests").doc(params.requestId);
-  return db.runTransaction(async transaction => {
+  const recorded = await db.runTransaction(async transaction => {
     const record = (await transaction.get(ref)).data();
     const runs = await transaction.get(db!.collection("evaluationRuns").where("sceneId", "==", params.requestId));
     params.authorize(record);
@@ -105,6 +106,9 @@ export async function recordWebsiteCaptureWithdrawal(params: {
     }, { merge: true });
     return { withdrawal, created: true };
   });
+  // Cached practice-run videos of this job go at once on this instance; never a reason the withdrawal fails.
+  await forgetPracticeRunVideos(params.requestId).catch(() => undefined);
+  return recorded;
 }
 
 export function websiteWithdrawalCommand(requestId: string, receipt: Record<string, any>) {

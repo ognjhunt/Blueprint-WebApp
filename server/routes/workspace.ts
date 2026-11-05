@@ -82,6 +82,9 @@ import { resolveAccessContext } from "../utils/access-control";
 import { projectWebsiteCaptureWithdrawal, recordWebsiteCaptureWithdrawal } from "../utils/websiteCaptureWithdrawal";
 import { projectWebsiteAtlasPreview, selectWebsiteAtlasPreview, WEBSITE_ATLAS_CAPTURE_ID } from "../utils/websiteAtlasPreview";
 import { viewableWebsiteAtlasPreview, websiteAtlasPreviewViewerFiles, websiteAtlasPreviewViewerUrl } from "../utils/websiteAtlasPreviewView";
+import { SCREENING_REVIEW_VIDEOS_PER_CANDIDATE } from "../utils/betaPolicyScreeningContract";
+import { forgetPracticeRunVideos, practiceRunVideoOwner, practiceRunVideoUrl, publishedPracticeRunVideos,
+  SCREENING_IDENTIFIER, SCREENING_VIDEO_ID } from "../utils/screeningPracticeRunVideos";
 import { listCheckpoints } from "../utils/robotCheckpoints";
 import { offersTeamEvaluation, TEAM_POLICY_BLOCKER_MESSAGES, teamPolicyBlocker, robotSetupIntegrationBlocker, type TeamPolicyBlocker } from "../utils/policyIntegration";
 import { notCountedReason } from "../utils/pilotRecommendationEvidence";
@@ -1641,6 +1644,31 @@ router.post("/tasks/:taskId/atlas-preview/view-ticket", handle(async (req, res) 
       logger.warn({ error, requestId, captureId }, "3D preview preparation on view request failed"));
   }
   return res.status(201).json({ viewer_url: viewerUrl });
+}));
+/** The owner watches a practice run's kept videos on the job page. Each ticket lasts 15 minutes and is
+ * bound to the job's owner; the video route re-reads consent, owner and the published video on every
+ * request and serves it inline only. No download is offered. */
+router.post("/tasks/:taskId/practice-run-videos/view-ticket", handle(async (req, res) => {
+  const item = await ownedTask(req.params.taskId, res);
+  const input = z.object({ runId: z.string().regex(SCREENING_IDENTIFIER), candidateId: z.string().regex(SCREENING_IDENTIFIER),
+    videoIds: z.array(z.string().regex(SCREENING_VIDEO_ID)).min(1).max(SCREENING_REVIEW_VIDEOS_PER_CANDIDATE) })
+    .strict().parse(req.body ?? {});
+  res.set("Cache-Control", "private, no-store");
+  const owner = practiceRunVideoOwner(item.record);
+  const consented = projectWebsiteCaptureRights(item.record).derived_scene_generation_allowed;
+  // Lapsed consent or no account owner: every cached copy of this job's videos goes, whatever was asked for.
+  if (!consented || !owner) await forgetPracticeRunVideos(req.params.taskId).catch(() => undefined);
+  if (!consented)
+    refuse(403, "Recording permission was withdrawn, so practice-run videos can't be shown.", "capture_processing_not_authorized");
+  if (!owner) refuse(404, "Practice-run videos are shown once this job is linked to your account.", "screening_practice_run_video_owner_unlinked");
+  const published = await publishedPracticeRunVideos(req.params.taskId, input.runId, input.candidateId);
+  const videos = [...new Set(input.videoIds)].map(videoId => {
+    if (!published.has(videoId)) refuse(404, "This practice-run video is not available.", "screening_practice_run_video_unavailable");
+    const url = practiceRunVideoUrl(req.params.taskId, input.runId, input.candidateId, videoId, owner);
+    if (!url) refuse(503, "Practice-run video viewing is not configured.", "screening_practice_run_video_not_configured");
+    return { video_id: videoId, url };
+  });
+  return res.status(201).json({ videos });
 }));
 router.post(
   "/tasks/:taskId/pilot",

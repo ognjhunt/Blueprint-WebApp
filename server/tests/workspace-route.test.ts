@@ -1755,3 +1755,76 @@ describe("development-only Atlas 3D preview", () => {
     expect((await (await api("/tasks/task-1", "site-1")).json()).atlasPreview).toBeNull();
   });
 });
+
+describe("practice-run videos of a job's simulation evaluation", () => {
+  const consent = { granted: true, statement_version: "2026-09-18.v1", recorded_at_iso: "2026-09-18T00:00:00.000Z" };
+  /** The Pipeline's own publication, as this job's accepted screening run. */
+  async function screeningRun() {
+    const { crossRuntimeArtifactDigest } = await import("../utils/crossRuntimeCanonical");
+    const producer = structuredClone((await import("./fixtures/pipeline-beta-policy-screening-review-videos.v2.json")).default) as any;
+    const { publication_digest: _digest, ...value } = { ...producer, site_id: "site-task-1" };
+    const publication = { ...value, publication_digest: crossRuntimeArtifactDigest(value, "publication_digest") };
+    const job = task();
+    state.records.set("inboundRequests/task-1", { ...job, request: { ...job.request, consent_attestation: { ...consent } } });
+    state.records.set(`taskEvaluationPolicyRuns/${publication.campaign_id}`, { run_id: publication.campaign_id,
+      run_kind: "beta_policy_screening", result_record_id: "result-1", job_evidence_binding: { job_id: "task-1" },
+      publication_digest: publication.publication_digest });
+    state.records.set("captureTaskEvaluationRuns/result-1", { record_id: "result-1", publication });
+    return { runId: publication.campaign_id as string, candidateId: publication.candidates[0].candidate_id as string,
+      videoIds: publication.review_videos[0].practice_runs[0].videos.map((video: any) => video.sha256.slice(7)) as string[] };
+  }
+  afterEach(() => { delete process.env.TASK_EVALUATION_RESULT_DOWNLOAD_SIGNING_SECRET; });
+  const path = "/tasks/task-1/practice-run-videos/view-ticket";
+
+  it("issues the owner short-lived view tickets for the run's published videos only", async () => {
+    process.env.TASK_EVALUATION_RESULT_DOWNLOAD_SIGNING_SECRET = "fixture-ticket-secret";
+    const body = await screeningRun();
+    expect((await api(path, "site-2", body)).status).toBe(404);
+    expect((await api(path, "site-1", { ...body, extra: true })).status).toBe(400);
+    expect((await api(path, "site-1", { ...body, videoIds: ["c".repeat(64)] })).status).toBe(404);
+    expect((await api(path, "site-1", { ...body, runId: "other-run" })).status).toBe(404);
+    const ticket = await api(path, "site-1", body);
+    expect(ticket.status).toBe(201);
+    expect(ticket.headers.get("cache-control")).toBe("private, no-store");
+    const { videos } = await ticket.json();
+    expect(videos.map((video: any) => video.video_id)).toEqual(body.videoIds);
+    for (const video of videos) expect(video.url).toMatch(new RegExp(`^/api/screening-practice-run-videos/task-1/${body.runId}/${body.candidateId}/${video.video_id}\\.mp4\\?expires=\\d+&signature=[0-9a-f]{64}$`));
+    delete process.env.TASK_EVALUATION_RESULT_DOWNLOAD_SIGNING_SECRET;
+    expect((await api(path, "site-1", body)).status).toBe(503);
+  });
+
+  it("issues nothing once recording consent is withdrawn, and forgets the job's cached copies", async () => {
+    const { mkdir, stat, writeFile } = await import("node:fs/promises");
+    const { dirname } = await import("node:path");
+    const { practiceRunVideoCachePath, practiceRunVideoMarkerPath } = await import("../utils/screeningPracticeRunVideos");
+    process.env.TASK_EVALUATION_RESULT_DOWNLOAD_SIGNING_SECRET = "fixture-ticket-secret";
+    const body = await screeningRun();
+    for (const videoId of body.videoIds.slice(0, 2)) {
+      await mkdir(dirname(practiceRunVideoMarkerPath("task-1", videoId)), { recursive: true });
+      await writeFile(practiceRunVideoMarkerPath("task-1", videoId), "");
+      await mkdir(dirname(practiceRunVideoCachePath(videoId)), { recursive: true });
+      await writeFile(practiceRunVideoCachePath(videoId), "cached render");
+    }
+    state.records.get("inboundRequests/task-1").request.consent_attestation.withdrawn_at_iso = "2026-11-05T12:00:00Z";
+    const refused = await api(path, "site-1", { ...body, videoIds: body.videoIds.slice(2, 3) });
+    expect(refused.status).toBe(403);
+    expect(JSON.stringify(await refused.json())).not.toContain("practice-run-videos/");
+    // Every cached copy of the job goes, not only the one asked for.
+    for (const videoId of body.videoIds.slice(0, 2))
+      await expect(stat(practiceRunVideoCachePath(videoId))).rejects.toThrow();
+  });
+
+  it("forgets the job's cached copies when its recording permission is withdrawn", async () => {
+    const { mkdir, stat, writeFile } = await import("node:fs/promises");
+    const { dirname } = await import("node:path");
+    const { practiceRunVideoCachePath, practiceRunVideoMarkerPath } = await import("../utils/screeningPracticeRunVideos");
+    const body = await screeningRun();
+    const [videoId] = body.videoIds;
+    await mkdir(dirname(practiceRunVideoMarkerPath("task-1", videoId)), { recursive: true });
+    await writeFile(practiceRunVideoMarkerPath("task-1", videoId), "");
+    await mkdir(dirname(practiceRunVideoCachePath(videoId)), { recursive: true });
+    await writeFile(practiceRunVideoCachePath(videoId), "cached render");
+    expect((await api("/tasks/task-1/recording-consent/withdraw", "site-1", {})).status).toBe(202);
+    await expect(stat(practiceRunVideoCachePath(videoId))).rejects.toThrow();
+  });
+});
