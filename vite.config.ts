@@ -40,7 +40,7 @@ export default defineConfig({
           if (packageName === "@googlemaps/js-api-loader") {
             return "vendor-google-maps";
           }
-          if (["openai", "@anthropic-ai/sdk", "@google/generative-ai"].includes(packageName)) {
+          if (["openai", "@anthropic-ai/sdk"].includes(packageName)) {
             return "vendor-ai";
           }
           if (
