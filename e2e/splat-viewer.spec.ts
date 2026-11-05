@@ -76,9 +76,11 @@ test("renders a site's 3D preview under the production content security policy",
   expect(violations).toEqual([]);
 });
 
-test("says the preview is being prepared, and asks for it while the viewer's code still loads", async ({ page }) => {
+for (const first of ["viewer", "scene"] as const) test(`says the preview is being prepared until the viewer takes over (${first} first)`, async ({ page }) => {
   // On a first view the server prepares the scene before any of it arrives, and only the
-  // download has a progress bar: the page once stayed blank for that whole wait.
+  // download has a progress bar: the page once stayed blank for that whole wait. A prepared
+  // scene can instead answer before the viewer's code has arrived; the status stays until
+  // the viewer, with its own progress bar, is up.
   const violations = await underProductionPolicy(page);
   let releaseViewer!: () => void;
   const viewerHeld = new Promise<void>(resolve => { releaseViewer = resolve; });
@@ -100,8 +102,15 @@ test("says the preview is being prepared, and asks for it while the viewer's cod
   await expect(page.getByRole("status")).toHaveText("Getting your 3D preview ready…");
   // The scene is requested before the viewer's 3.4 MB of code has arrived.
   await sceneAsked;
+  if (first === "viewer") releaseViewer();
+  else {
+    const sceneAnswered = page.waitForResponse(response => response.url().includes("/scene.ply?"));
+    releaseScene();
+    await sceneAnswered;
+  }
+  await page.waitForTimeout(500);
+  await expect(page.getByRole("status")).toHaveText("Getting your 3D preview ready…");
   releaseViewer();
-  await expect(page.getByRole("status")).toBeVisible();
   releaseScene();
   await expect(page.getByRole("status")).toHaveCount(0);
   await expect(page.locator(".sse-loadingWrap")).toHaveClass(/sse-hidden/, { timeout: 30_000 });

@@ -44,18 +44,20 @@ if (!job) {
     response.body.pipeTo(writable).catch(() => showProblem(NOT_LOADED));
     return new Response(readable, { status: response.status, headers: response.headers });
   });
-  // Once the scene starts arriving, the viewer's own progress bar takes over.
-  contents.then(() => status?.remove(), () => showProblem(NOT_LOADED));
+  contents.catch(() => showProblem(NOT_LOADED));
   // The preview's own start view (where the recording starts), else the package defaults.
   const settings = fetch(contentUrl.replace("/scene.ply?", "/settings.json?"))
     .then((response) => (response.ok ? response.json() : Promise.reject(new Error("no start view"))))
     .catch(() => fetch("./settings.json").then((response) => response.json()));
-  import("./index.js").then(({ createViewer }) => createViewer({
+  const viewer = import("./index.js").then(({ createViewer }) => createViewer({
     container: document.body,
     settings,
     contentUrl,
     contents,
     renderer: params.has("webgl") ? "webgl" : "webgpu",
     ui: true,
-  }).catch(() => showProblem(NO_GRAPHICS)), () => showProblem(NOT_LOADED));
+  }).catch((error) => { showProblem(NO_GRAPHICS); throw error; }), (error) => { showProblem(NOT_LOADED); throw error; });
+  // The viewer's own progress bar takes over only once the scene is arriving and the viewer is
+  // up: a prepared scene can answer before the viewer's code has finished downloading.
+  Promise.all([contents, viewer]).then(() => status?.remove(), () => undefined);
 }
