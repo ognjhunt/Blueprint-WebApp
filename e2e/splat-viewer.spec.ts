@@ -70,6 +70,41 @@ test("renders a site's 3D preview under the production content security policy",
   await expect(page.locator(".sse-loadingWrap")).toHaveClass(/sse-hidden/, { timeout: 30_000 });
   expect(fetched.sort()).toEqual(["scene.ply", "settings.json"]);
   await expect(page.getByRole("alert")).toHaveCount(0);
+  await expect(page.getByRole("status")).toHaveCount(0);
+  // A way back to the job is always on screen; the browser's Back works too.
+  await expect(page.getByRole("link", { name: "Back to your job" })).toHaveAttribute("href", "/app/tasks/fixture-request");
+  expect(violations).toEqual([]);
+});
+
+test("says the preview is being prepared, and asks for it while the viewer's code still loads", async ({ page }) => {
+  // On a first view the server prepares the scene before any of it arrives, and only the
+  // download has a progress bar: the page once stayed blank for that whole wait.
+  const violations = await underProductionPolicy(page);
+  let releaseViewer!: () => void;
+  const viewerHeld = new Promise<void>(resolve => { releaseViewer = resolve; });
+  await page.route("**/splat-viewer/index.js", async route => {
+    await viewerHeld;
+    await route.continue();
+  });
+  let releaseScene!: () => void;
+  const sceneHeld = new Promise<void>(resolve => { releaseScene = resolve; });
+  const splat = ballSplat();
+  await page.route("**/api/website-atlas-preview-views/**", async route => {
+    await sceneHeld;
+    if (route.request().url().includes("/settings.json?")) return route.fulfill({ json: settings });
+    return route.fulfill({ body: splat, headers: { "content-type": "application/octet-stream",
+      "content-length": String(splat.length) } });
+  });
+  const sceneAsked = page.waitForRequest(request => request.url().includes("/scene.ply?"));
+  await page.goto(VIEWER, { waitUntil: "commit" });
+  await expect(page.getByRole("status")).toHaveText("Getting your 3D preview ready…");
+  // The scene is requested before the viewer's 3.4 MB of code has arrived.
+  await sceneAsked;
+  releaseViewer();
+  await expect(page.getByRole("status")).toBeVisible();
+  releaseScene();
+  await expect(page.getByRole("status")).toHaveCount(0);
+  await expect(page.locator(".sse-loadingWrap")).toHaveClass(/sse-hidden/, { timeout: 30_000 });
   expect(violations).toEqual([]);
 });
 
@@ -82,11 +117,14 @@ test("tells the site when its 3D preview cannot be loaded", async ({ page }) => 
   await page.goto(VIEWER);
   await expect(page.getByRole("alert")).toHaveText(
     "This 3D preview could not be loaded. Go back to your job page and open it again in a minute.");
+  await expect(page.getByRole("status")).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Back to your job" })).toHaveAttribute("href", "/app/tasks/fixture-request");
   expect(violations).toEqual([]);
 });
 
 test("refuses a viewer link that does not come from Blueprint's view route", async ({ page }) => {
   await page.goto(`/splat-viewer/index.html?${new URLSearchParams({ content: "https://example.com/scene.ply" })}`);
-  await expect(page.locator("body")).toHaveText(
+  await expect(page.getByRole("alert")).toHaveText(
     "This 3D preview link is not valid. Open the preview again from your job page.");
+  await expect(page.getByRole("link", { name: "Back to your jobs" })).toHaveAttribute("href", "/app/tasks");
 });

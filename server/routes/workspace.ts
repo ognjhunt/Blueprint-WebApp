@@ -81,7 +81,7 @@ import { accountHasAdmission } from "../utils/accountInvitations";
 import { resolveAccessContext } from "../utils/access-control";
 import { projectWebsiteCaptureWithdrawal, recordWebsiteCaptureWithdrawal } from "../utils/websiteCaptureWithdrawal";
 import { projectWebsiteAtlasPreview, selectWebsiteAtlasPreview, WEBSITE_ATLAS_CAPTURE_ID } from "../utils/websiteAtlasPreview";
-import { viewableWebsiteAtlasPreview, websiteAtlasPreviewViewerUrl } from "../utils/websiteAtlasPreviewView";
+import { viewableWebsiteAtlasPreview, websiteAtlasPreviewViewerFiles, websiteAtlasPreviewViewerUrl } from "../utils/websiteAtlasPreviewView";
 import { listCheckpoints } from "../utils/robotCheckpoints";
 import { offersTeamEvaluation, TEAM_POLICY_BLOCKER_MESSAGES, teamPolicyBlocker, robotSetupIntegrationBlocker, type TeamPolicyBlocker } from "../utils/policyIntegration";
 import { notCountedReason } from "../utils/pilotRecommendationEvidence";
@@ -1632,6 +1632,14 @@ router.post("/tasks/:taskId/atlas-preview/view-ticket", handle(async (req, res) 
   if (!preview) refuse(404, "This 3D preview is not available to view.", "website_atlas_preview_unavailable");
   const viewerUrl = websiteAtlasPreviewViewerUrl(req.params.taskId, preview.capture_id);
   if (!viewerUrl) refuse(503, "3D preview viewing is not configured.", "website_atlas_preview_view_not_configured");
+  // The owner just asked to view it: start preparing the scene now, while the browser opens
+  // the viewer, so the viewer's own request finds it ready or under way. Nothing is served
+  // here; the view route still re-checks the ticket, consent and readiness.
+  if (preview.bundle) {
+    const requestId = req.params.taskId, captureId = preview.capture_id;
+    void websiteAtlasPreviewViewerFiles(requestId, captureId, preview.bundle).catch((error) =>
+      logger.warn({ error, requestId, captureId }, "3D preview preparation on view request failed"));
+  }
   return res.status(201).json({ viewer_url: viewerUrl });
 }));
 router.post(
