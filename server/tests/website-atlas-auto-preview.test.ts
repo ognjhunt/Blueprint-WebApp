@@ -54,9 +54,13 @@ import { projectWebsiteCaptureRights, projectWebsiteTaskContext } from "../utils
 import { crossRuntimeDigest } from "../utils/crossRuntimeCanonical";
 import { verifyTaskEvaluationResultDownloadTicket } from "../utils/taskEvaluationResultDownloadTicket";
 import { projectWebsiteAtlasPreview, websiteAtlasPreviewDownloadUrl } from "../utils/websiteAtlasPreview";
-import { crc32, extractZipMember, orientPlyForViewer, viewerSettingsFromAtlasCamera, websiteAtlasPreviewViewerFiles,
-  websiteAtlasPreviewViewerUrl } from "../utils/websiteAtlasPreviewView";
-import { rm } from "node:fs/promises";
+import { crc32, orientPlyForViewer, plyViewerOrientationStream, viewerSettingsFromAtlasCamera,
+  websiteAtlasPreviewViewerFiles, websiteAtlasPreviewViewerUrl } from "../utils/websiteAtlasPreviewView";
+import { readdir, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { Readable, Writable } from "node:stream";
+import { pipeline } from "node:stream/promises";
 import { deflateRawSync } from "node:zlib";
 
 const sha = (char: string) => `sha256:${char.repeat(64)}`;
@@ -830,14 +834,108 @@ describe("owner Atlas preview view", () => {
     vi.stubEnv("CAPTURE_UPLOAD_INTAKE_FORWARD_TOKEN", "fixture-read-token");
   });
 
-  it("reads one zip member, stored or deflated, and refuses a corrupt one", () => {
+  const viewCache = path.join(tmpdir(), "blueprint-atlas-preview-views");
+  const hexOf = (zip: Buffer) => createHash("sha256").update(zip).digest("hex");
+  const cached = async (zip: Buffer) =>
+    (await readdir(viewCache).catch(() => [] as string[])).filter(entry => entry.startsWith(hexOf(zip))).sort();
+  const forget = async (zip: Buffer) => {
+    for (const entry of await cached(zip)) await rm(path.join(viewCache, entry), { force: true });
+  };
+  /** Prepares `zip` as a ready preview's bundle from an empty cache, as the first view does. */
+  async function prepared(zip: Buffer, response: () => Response = () => new Response(zip)) {
+    await forget(zip);
+    vi.stubGlobal("fetch", vi.fn(async () => response()));
+    const files = await websiteAtlasPreviewViewerFiles("req1", "walkthrough-req1",
+      { digest: `sha256:${hexOf(zip)}`, size_bytes: zip.length });
+    const result = { splat: await readFile(files.splat), settings: JSON.parse(await readFile(files.settings, "utf8")),
+      left: await cached(zip) };
+    await forget(zip);
+    return result;
+  }
+  const splatMember = "atlas-scene-fixture/splat/atlas_depth_splat.ply";
+  const cameraMember = "atlas-scene-fixture/views/000-camera.json";
+
+  it("prepares the splat and start view from a stored or deflated bundle, and refuses a corrupt one", async () => {
     expect(crc32(Buffer.from("123456789"))).toBe(0xcbf43926);
-    expect(extractZipMember(bundleBytes, name => name.endsWith("/splat/atlas_depth_splat.ply"))).toEqual(splatBytes);
-    expect(extractZipMember(bundleBytes, name => name.endsWith(".jpg"))).toEqual(Buffer.from("jpeg bytes"));
-    expect(extractZipMember(bundleBytes, name => name.endsWith(".glb"))).toBeNull();
+    expect(crc32(Buffer.from("56789"), crc32(Buffer.from("1234")))).toBe(0xcbf43926);
+    const turned = orientPlyForViewer(Buffer.from(splatBytes));
+    for (const deflate of [false, true]) {
+      const zip = zipFixture([{ name: cameraMember, data: Buffer.from(JSON.stringify(firstCamera)), deflate },
+        { name: splatMember, data: splatBytes, deflate }]);
+      const { splat, settings, left } = await prepared(zip);
+      expect(splat).toEqual(turned);
+      expect(settings.cameras).toEqual([{ initial: { position: [1, 2, 3], target: [1, 2, 1], fov: 53.1 } }]);
+      // Only the viewer's two files are kept; the downloaded bundle is gone.
+      expect(left).toEqual([`${hexOf(zip)}.viewer-v2.ply`, `${hexOf(zip)}.viewer-v2.settings.json`]);
+    }
+    const noStartView = zipFixture([{ name: splatMember, data: splatBytes, deflate: true }]);
+    expect((await prepared(noStartView)).settings.cameras).toEqual([{ initial: { position: [0, 2, 0], target: [2, 2, 0], fov: 85 } }]);
     const corrupt = Buffer.from(bundleBytes);
     corrupt[bundleBytes.indexOf(splatBytes)] ^= 0xff;
-    expect(() => extractZipMember(corrupt, name => name.endsWith(".ply"))).toThrow("zip_member_corrupt");
+    await expect(prepared(corrupt)).rejects.toThrow("zip_member_corrupt");
+    // Nothing half-written is cached or left behind.
+    expect(await cached(corrupt)).toEqual([]);
+    await expect(prepared(zipFixture([{ name: "atlas-scene-fixture/mesh/mesh.glb", data: Buffer.from("glb") }])))
+      .rejects.toThrow("website_atlas_preview_splat_missing");
+  });
+
+  it("refuses a bundle that is not the one the preview names", async () => {
+    const bundle = { digest: bundleDigest, size_bytes: bundleBytes.length };
+    const changed = Buffer.from(bundleBytes);
+    changed[0] ^= 0xff;
+    await forget(bundleBytes);
+    for (const body of [changed, Buffer.concat([bundleBytes, Buffer.from("more")]), bundleBytes.subarray(1)]) {
+      vi.stubGlobal("fetch", vi.fn(async () => new Response(body)));
+      await expect(websiteAtlasPreviewViewerFiles("req1", "walkthrough-req1", bundle)).rejects.toThrow("website_atlas_preview_bundle_mismatch");
+    }
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("missing", { status: 404 })));
+    await expect(websiteAtlasPreviewViewerFiles("req1", "walkthrough-req1", bundle)).rejects.toThrow("website_atlas_preview_bundle_unavailable");
+    expect(await cached(bundleBytes)).toEqual([]);
+  });
+
+  it("streams a large bundle through disk and never holds it in memory", async () => {
+    // 2026-11-05: read whole, a 232 MB bundle took ~700 MB, and the 512 MB web instance was
+    // killed on every first view; the site's viewer was left with nothing to show.
+    const count = 150_000;
+    const header = `ply\nformat binary_little_endian 1.0\nelement vertex ${count}\n`
+      + PLY_PROPERTIES.map(name => `property float ${name}\n`).join("") + "end_header\n";
+    const values = new Float32Array(count * PLY_PROPERTIES.length).map((_, index) => Math.sin(index) * 4);
+    const splat = Buffer.concat([Buffer.from(header, "latin1"), Buffer.from(values.buffer)]);
+    const zip = zipFixture([{ name: cameraMember, data: Buffer.from(JSON.stringify(firstCamera)), deflate: true },
+      { name: splatMember, data: splat, deflate: true }]);
+    const streamed = () => {
+      let offset = 0;
+      const response = new Response(new ReadableStream({ pull(controller) {
+        if (offset >= zip.length) return controller.close();
+        controller.enqueue(new Uint8Array(zip.subarray(offset, offset += 65_537)));
+      } }));
+      for (const method of ["arrayBuffer", "blob", "bytes", "formData", "json", "text"])
+        Object.defineProperty(response, method, { value: () => Promise.reject(new Error("bundle_buffered_in_memory")) });
+      return response;
+    };
+    const { splat: served } = await prepared(zip, streamed);
+    expect(served.equals(orientPlyForViewer(Buffer.from(splat)))).toBe(true);
+  });
+
+  it("turns a splat the same way however it arrives in pieces", async () => {
+    const splat = plyFixture([[1, 2, 3, 0.1, 0.2, 0.3, 2, -5, -5, -7, 0.9, 0.1, 0.2, 0.3],
+      [4, 5, 6, 0.4, 0.5, 0.6, 1, -4, -4, -4, 0.5, 0.5, 0.5, 0.5], [-7, 8, -9, 0, 0, 0, 0, -3, -3, -3, 1, 0, 0, 0]]);
+    const expected = orientPlyForViewer(Buffer.from(splat));
+    const discard = () => new Writable({ write(_chunk, _encoding, done) { done(); } });
+    const turned = async (piece: number) => {
+      const pieces: Buffer[] = [], out: Buffer[] = [];
+      for (let offset = 0; offset < splat.length; offset += piece) pieces.push(Buffer.from(splat.subarray(offset, offset + piece)));
+      await pipeline(Readable.from(pieces), plyViewerOrientationStream(),
+        new Writable({ write(chunk: Buffer, _encoding, done) { out.push(Buffer.from(chunk)); done(); } }));
+      return Buffer.concat(out);
+    };
+    for (const piece of [1, 3, 7, 56, 57, splat.length]) expect(await turned(piece)).toEqual(expected);
+    await expect(pipeline(Readable.from([Buffer.from(splat.subarray(0, splat.length - 4))]), plyViewerOrientationStream(), discard()))
+      .rejects.toThrow("ply_size_mismatch");
+    await expect(pipeline(Readable.from([Buffer.concat([splat, Buffer.alloc(56)])]), plyViewerOrientationStream(), discard()))
+      .rejects.toThrow("ply_size_mismatch");
+    await expect(pipeline(Readable.from([Buffer.from("ply\nformat binary_little_endian 1.0\n")]), plyViewerOrientationStream(), discard()))
+      .rejects.toThrow("ply_header_missing");
   });
 
   it("turns an Atlas splat so the viewer's 180-degree load rotation leaves it upright", () => {
@@ -890,6 +988,8 @@ describe("owner Atlas preview view", () => {
     expect((await settings.json()).cameras).toEqual([{ initial: { position: [1, 2, 3], target: [1, 2, 1], fov: 53.1 } }]);
     expect(viewed.headers.get("cache-control")).toBe("private, no-store");
     expect(viewed.headers.get("content-disposition")).toBe("inline");
+    // The viewer's progress bar reads the length.
+    expect(viewed.headers.get("content-length")).toBe(String(splatBytes.length));
     // Pasting the link into the address bar is not a way to save the file.
     const opened = await realFetch(`${base}${content}`, { headers: { "sec-fetch-dest": "document", "sec-fetch-mode": "navigate" } });
     expect(opened.status).toBe(403);
