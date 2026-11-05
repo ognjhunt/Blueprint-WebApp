@@ -27,6 +27,12 @@ const preparation = vi.hoisted(() => ({ read: vi.fn(async () => ({
   state: "failed_retryable", correlationId: "bp-prep-1234567890abcdef",
 })) }));
 vi.mock("../utils/websitePreparationStatus", () => ({ loadCurrentWebsitePreparationStatus: preparation.read }));
+/** The 3D preview's scene preparation (fetching and unpacking the bundle) as the view ticket starts it. */
+const viewerFiles = vi.hoisted(() => ({ prepare: vi.fn(async () => ({ splat: "/tmp/splat", settings: "/tmp/settings" })) }));
+vi.mock("../utils/websiteAtlasPreviewView", async (original) => ({
+  ...await original<typeof import("../utils/websiteAtlasPreviewView")>(),
+  websiteAtlasPreviewViewerFiles: viewerFiles.prepare,
+}));
 vi.mock("../utils/taskLifecycleNotifications", () => ({
   enqueueTaskLifecycleNotification: state.notices,
 }));
@@ -1713,10 +1719,13 @@ describe("development-only Atlas 3D preview", () => {
 
   it("issues a short-lived view ticket only for the owner's ready preview with a splat", async () => {
     process.env.TASK_EVALUATION_RESULT_DOWNLOAD_SIGNING_SECRET = "fixture-ticket-secret";
-    consentedTask({ "walkthrough-task-1": await preview({}) });
+    const ready = await preview({});
+    consentedTask({ "walkthrough-task-1": ready });
+    viewerFiles.prepare.mockClear();
     const path = "/tasks/task-1/atlas-preview/view-ticket";
     expect((await api(path, "site-2", {})).status).toBe(404);
     expect((await api(path, "site-1", { captureId: "walkthrough-task-1", extra: true })).status).toBe(400);
+    expect(viewerFiles.prepare).not.toHaveBeenCalled();
     const ticket = await api(path, "site-1", { captureId: "walkthrough-task-1" });
     expect(ticket.status).toBe(201);
     expect(ticket.headers.get("cache-control")).toBe("private, no-store");
@@ -1724,12 +1733,20 @@ describe("development-only Atlas 3D preview", () => {
     const content = new URL(url, "https://webapp.invalid").searchParams.get("content");
     expect(url.startsWith("/splat-viewer/index.html?content=")).toBe(true);
     expect(content).toMatch(/^\/api\/website-atlas-preview-views\/task-1\/walkthrough-task-1\/scene\.ply\?expires=\d+&signature=[0-9a-f]{64}$/);
+    // Preparing the scene starts with the owner's click, so the viewer does not wait for all of it.
+    expect(viewerFiles.prepare).toHaveBeenCalledTimes(1);
+    expect(viewerFiles.prepare).toHaveBeenCalledWith("task-1", "walkthrough-task-1", ready.bundle);
+    // A preparation that fails does not fail the ticket; the viewer's own request reports it.
+    viewerFiles.prepare.mockRejectedValueOnce(new Error("website_atlas_preview_bundle_unavailable"));
+    expect((await api(path, "site-1", {})).status).toBe(201);
+    viewerFiles.prepare.mockClear();
     consentedTask({ "walkthrough-task-1": await preview({ splat_available: false }) });
     expect((await (await api("/tasks/task-1", "site-1")).json()).atlasPreview).toMatchObject({ viewAvailable: false });
     expect((await api(path, "site-1", {})).status).toBe(404);
     consentedTask({ "walkthrough-task-1": await preview({}) });
     delete process.env.TASK_EVALUATION_RESULT_DOWNLOAD_SIGNING_SECRET;
     expect((await api(path, "site-1", {})).status).toBe(503);
+    expect(viewerFiles.prepare).not.toHaveBeenCalled();
   });
 
   it("disappears as soon as recording consent is withdrawn", async () => {
