@@ -24,7 +24,8 @@ const { ingestBetaPolicyScreening } = await import("../utils/betaPolicyScreening
 const { deliverOutbox } = await import("../utils/captureOutbox");
 const { reconcileScreeningOutcomeNotifications } = await import("../utils/screeningOutcomeNotifications");
 
-const RESULT_OUTCOMES = ["estimate", "reference_only", "held_capability", "held_unprepared", "infeasible", "no_match"] as const;
+const RESULT_OUTCOMES = ["estimate", "reference_only", "held_capability", "held_unprepared", "infeasible", "no_match",
+  "held_setup", "held_budget"] as const;
 const scene = createHash("sha256").update("scene-one").digest("hex").slice(0, 24);
 const key = (outcome: string) => `captureOutbox/job-one:evaluation_outcome:${outcome}-${scene}`;
 const notices = () => [...state.docs.entries()].filter(([path]) => path.startsWith("captureOutbox/job-one:evaluation_outcome:")
@@ -34,8 +35,9 @@ let base: ReturnType<typeof screeningFixture>["publication"];
 
 beforeEach(() => {
   state.docs.clear();
-  const { publication, job, brief, intake } = screeningFixture();
+  const { publication, job, brief, intake, launch } = screeningFixture();
   base = publication;
+  state.docs.set(launch.path, launch.record);
   state.docs.set("inboundRequests/job-one", { ...job, contact: { email: "encrypted:owner@example.com" } });
   state.docs.set("siteTaskBriefs/job-one", brief);
   state.docs.set("taskEvaluationSceneIntakes/intake-one", intake);
@@ -138,7 +140,8 @@ describe("one email per terminal outcome of the job's evaluation (F-01)", () => 
     expect(state.docs.get(key("no_match"))).toMatchObject({ status: "cancelled", attempts: 0 });
     // Withdrawn before anything was queued: nothing is queued, and the intent stays for the record.
     state.docs.clear();
-    const { publication, job: fresh, brief, intake } = screeningFixture();
+    const { publication, job: fresh, brief, intake, launch } = screeningFixture();
+    state.docs.set(launch.path, launch.record);
     state.docs.set("inboundRequests/job-one", { ...fresh, contact: { email: "encrypted:owner@example.com" } });
     state.docs.set("siteTaskBriefs/job-one", brief);
     state.docs.set("taskEvaluationSceneIntakes/intake-one", intake);

@@ -4,7 +4,7 @@ import { Timestamp } from "firebase-admin/firestore";
 import { crossRuntimeArtifactDigest, crossRuntimeDigest } from "../utils/crossRuntimeCanonical";
 import { ingestBetaPolicyScreening, observeBetaScreeningExecutionControl, parseBetaScreeningExecutionControlRequest,
   type BetaScreeningExecutionControlRequest } from "../utils/betaPolicyScreeningIngest";
-import { screeningFixture, screeningSha, sealScreening } from "./fixtures/beta-policy-screening";
+import { screeningFixture, screeningRevisionLaunch, screeningSha, sealScreening } from "./fixtures/beta-policy-screening";
 import { projectWebsiteCaptureRights, projectWebsiteTaskContext } from "../utils/websiteTaskContext";
 import { loadManagedJobEvidence, assertManagedJobEvidenceReference } from "../utils/jobManagedEvaluation";
 import { jobEvidenceTaskInventoryDigest, scientificBriefDigest } from "../utils/jobEvidenceContract";
@@ -82,6 +82,7 @@ async function seed(jobId = "job-one", campaignId = "campaign-one", publicationV
   store.state.docs.set(`inboundRequests/${jobId}`, fixture.job);
   store.state.docs.set(`siteTaskBriefs/${jobId}`, fixture.brief);
   store.state.docs.set(`taskEvaluationSceneIntakes/intake-${jobId}`, intake);
+  store.state.docs.set(fixture.launch.path, fixture.launch.record);
   await ingestBetaPolicyScreening(publication);
   const request: BetaScreeningExecutionControlRequest = {
     schema_version: "blueprint.beta_policy_screening_execution_control_request.v1",
@@ -216,7 +217,13 @@ describe("current source refusals stop only the existing owned attempt", () => {
     ["scene revoked", () => { fixture.intake.revocation_requested = true; }, "screening_scene_authority_revoked"],
     ["scene closeout", () => { fixture.intake.state = "closeout_pending"; }, "screening_scene_authority_revoked"],
     ["scene bytes changed", () => { fixture.intake.request.task.task_id = "changed"; }, "screening_scene_source_mismatch"],
-    ["scene revision changed", () => { fixture.intake.pipeline_status.result_reference.digest = screeningSha("9"); resealIntake(fixture.intake); }, "screening_scene_source_mismatch"],
+    // A revision file no stored offering binds, then one bound to another revision's self-digest.
+    ["scene revision changed", () => { fixture.intake.pipeline_status.result_reference.digest = screeningSha("9"); resealIntake(fixture.intake); }, "screening_scene_revision_unbound"],
+    ["scene revision rebound", () => {
+      fixture.intake.pipeline_status.result_reference.digest = screeningSha("9"); resealIntake(fixture.intake);
+      const other = screeningRevisionLaunch(fixture.intake.pipeline_status.result_reference, screeningSha("8"));
+      store.state.docs.set("taskEvaluationLaunches/launch-scene-two", other.record);
+    }, "screening_scene_source_mismatch"],
     ["run cancellation", () => { row("taskEvaluationPolicyRuns/campaign-one").cancellationRequested = true; }, "screening_run_cancelled"],
   ] as const)("%s becomes an absorbing historical-only stop", async (_name, mutate, reason) => {
     await observeBetaScreeningExecutionControl(fixture.request); mutate();
@@ -226,6 +233,27 @@ describe("current source refusals stop only the existing owned attempt", () => {
     row("inboundRequests/job-one").consent_revoked = false;
     fixture.intake.revocation_requested = false;
     expect(await observeBetaScreeningExecutionControl(fixture.request)).toEqual(stopped);
+  });
+  it("keeps authorizing a job its owner hid from partners: hiding is a visibility control, not a stop", async () => {
+    // capture-447 2026-11-04: "Hide from partners" stopped every screening launch as unauthorized processing.
+    row("inboundRequests/job-one").workspace_task = { archived: false, paused: true };
+    const control = await observeBetaScreeningExecutionControl(fixture.request);
+    expect(control).toMatchObject({ status: "current", applicability: "current", stop_reason: null });
+    // A withdrawal, which also hides the job, still stops it.
+    row("inboundRequests/job-one").capture_withdrawal = { state: "uploads_stopped_cleanup_pending" };
+    expect(await observeBetaScreeningExecutionControl(fixture.request)).toMatchObject({
+      status: "stopped", stop_reason: "job_capture_processing_not_authorized" });
+  });
+  it("admits the next campaign of a job that stays hidden from partners, and authorizes its first attempt", async () => {
+    // A stop cancels its whole campaign for good, so a hidden job recovers only through the
+    // Pipeline's next campaign: ingest must accept it and its attempts must run.
+    row("inboundRequests/job-one").workspace_task = { archived: false, paused: true };
+    const successor = sealScreening({ ...fixture.publication, campaign_id: "campaign-two" });
+    await expect(ingestBetaPolicyScreening(successor)).resolves.toMatchObject({ status: "created", run_id: "campaign-two" });
+    expect(row("taskEvaluationPolicyRuns/campaign-two").cancellationRequested).toBeUndefined();
+    expect(await observeBetaScreeningExecutionControl({ ...fixture.request, campaign_id: "campaign-two",
+      attempt_id: "attempt-campaign-two", invocation_id: crossRuntimeDigest({ invocation: "campaign-two" }),
+      resource_name: "blueprint-campaign-two" })).toMatchObject({ status: "current", stop_reason: null });
   });
   it("honors a durable signed owner closure without replacing consent or stored evidence", async () => {
     await observeBetaScreeningExecutionControl(fixture.request);

@@ -72,7 +72,8 @@ const review = { disposition: "options_identified" as const, summary: "A fixed a
 
 describe("job workflow authority and durable decisions", () => {
   it("shows diagnostic screening on a proposed task and drops it when the object is rejected", async () => {
-    const { publication, job, brief, intake } = screeningFixture(true);
+    const { publication, job, brief, intake, launch } = screeningFixture(true);
+    state.docs.set(launch.path, launch.record);
     state.docs.set("inboundRequests/job-one", job);
     state.docs.set("siteTaskBriefs/job-one", brief);
     state.docs.set("taskEvaluationSceneIntakes/intake-one", intake);
@@ -91,7 +92,8 @@ describe("job workflow authority and durable decisions", () => {
   });
 
   it("shows the rule's choice to the site and staff, with registry matches for staff only", async () => {
-    const { publication, job, brief, intake } = screeningFixture();
+    const { publication, job, brief, intake, launch } = screeningFixture();
+    state.docs.set(launch.path, launch.record);
     state.docs.set("inboundRequests/job-one", job);
     state.docs.set("siteTaskBriefs/job-one", brief);
     state.docs.set("taskEvaluationSceneIntakes/intake-one", intake);
@@ -109,19 +111,20 @@ describe("job workflow authority and durable decisions", () => {
   });
 
   it("gives the site its run's outcome without the operator's instruction or the shared budget (F-03)", async () => {
-    const { publication, job, brief, intake } = screeningFixture();
+    const { publication, job, brief, intake, launch } = screeningFixture();
+    state.docs.set(launch.path, launch.record);
     state.docs.set("inboundRequests/job-one", job);
     state.docs.set("siteTaskBriefs/job-one", brief);
     state.docs.set("taskEvaluationSceneIntakes/intake-one", intake);
     const { ingestBetaPolicyScreening } = await import("../utils/betaPolicyScreeningIngest");
-    await ingestBetaPolicyScreening(outcomePublication(publication, "awaiting_spend_approval"));
+    await ingestBetaPolicyScreening(outcomePublication(publication, "held_budget"));
     const site = (await api(`/owner/${token("job-one")}`)).body.managedEvidence![0];
-    expect(site).toMatchObject({ state: "awaiting_spend_approval", outcome: "awaiting_spend_approval", nextAction: "Nothing is needed from you." });
+    expect(site).toMatchObject({ state: "held", outcome: "held_budget", nextAction: "Nothing is needed from you. Each row lists why it stopped." });
     expect(site).not.toHaveProperty("opsNextAction");
     expect(site.screening).not.toHaveProperty("budget");
     expect(JSON.stringify(site)).not.toMatch(/Owner approval|rerun|limitUsd|UpperBoundUsd|reservedUsd|\$/);
     const staff = (await api("/admin/job-one", "GET", undefined, "ops-token")).body.managedEvidence![0];
-    expect(staff.opsNextAction).toMatch(/^Owner approval needed/);
+    expect(staff.opsNextAction).toMatch(/^Held: the site's simulation allowance is spent/);
     expect(staff.screening?.budget).toMatchObject({ limitUsd: "15.00", spentUpperBoundUsd: "4" });
   });
 

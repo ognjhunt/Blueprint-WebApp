@@ -3,17 +3,57 @@ import { describe, expect, it } from "vitest";
 import { noEstimateReason as screeningNoEstimateReason, parseBetaPolicyScreeningPublication, screeningOutcome, screeningOutcomeSentence,
   screeningPublicationTransition, SCREENING_OUTCOMES } from "../utils/betaPolicyScreeningContract";
 import { assertScreeningSceneSource } from "../utils/betaPolicyScreeningIngest";
-import { managedJobTask, projectManagedJobEvidence } from "../utils/jobManagedEvaluation";
+import { managedJobTask, preparedSceneRevisionDigest, projectManagedJobEvidence } from "../utils/jobManagedEvaluation";
+import { configuredSceneOfferingSchema } from "../utils/configuredSceneOfferingContract";
 import { scientificBriefDigest } from "../utils/jobEvidenceContract";
 import { crossRuntimeArtifactDigest, crossRuntimeDigest } from "../utils/crossRuntimeCanonical";
-import { allCandidateFamilyScreeningFixture, familyScreeningFixture, finishedScreening, outcomePublication, screeningFixture, screeningSha,
-  scriptedBaselineRow, sealScreening, sealSelection, selectionFixture } from "./fixtures/beta-policy-screening";
+import { allCandidateFamilyScreeningFixture, familyScreeningFixture, finishedScreening, outcomePublication, PUBLISHED_SCREENING_OUTCOMES, screeningFixture,
+  screeningRevisionLaunch, screeningSha, scriptedBaselineRow, sealScreening, sealSelection, selectionFixture } from "./fixtures/beta-policy-screening";
 import { parseBetaCandidateSelection, selectionMatchesPublication } from "../utils/betaCandidateSelection";
 import producerSelection from "./fixtures/pipeline-website-candidate-selection.v1.json";
 import producerPublication from "./fixtures/pipeline-beta-policy-screening-publication.v2.json";
 import retainedProducerPublication from "./fixtures/pipeline-beta-policy-screening-publication.v1.json";
 import producerFamilyStatus from "./fixtures/pipeline-family-prepared-status.v1.json";
 import allCandidatePublication from "./fixtures/pipeline-beta-policy-screening-all-candidates.v2.json";
+import jobCeilingPublication from "./fixtures/pipeline-beta-policy-screening-job-ceiling.v2.json";
+
+/** The stored offering that binds the fixture intake's revision file to its self-digest. */
+const revisionOfferings = [screeningFixture().launch.record.configured_scene_offering];
+describe("a configured scene's revision: the file the status names and the self-digest the source names", () => {
+  it("binds the source's revision digest through the stored offering, never to the revision file's digest", () => {
+    const { publication, intake, brief, job, launch } = screeningFixture();
+    const reference = intake.pipeline_status.result_reference;
+    const offering = launch.record.configured_scene_offering;
+    // The Pipeline's two kinds of digest (capture-447: bc92b811... and ae2703d0...) are never equal.
+    expect(reference.digest).not.toBe(publication.source.scene_revision_digest);
+    expect(configuredSceneOfferingSchema.safeParse(offering).success).toBe(true);
+    expect(offering.evaluation_preparation_binding).toMatchObject({ configured_scene_revision: reference,
+      configured_scene_revision_digest: publication.source.scene_revision_digest });
+    const scope = managedJobTask({ binding: { job_id: brief.requestId, brief_digest: scientificBriefDigest(brief) }, record: job, brief });
+    expect(preparedSceneRevisionDigest(intake.pipeline_status, [offering])).toBe(publication.source.scene_revision_digest);
+    expect(() => assertScreeningSceneSource(publication, intake, scope, [offering])).not.toThrow();
+    // No stored offering for this file: the publication sync has not reached the website.
+    expect(() => assertScreeningSceneSource(publication, intake, scope, [])).toThrow("screening_scene_revision_unbound");
+    // An offering for another file (uri, bytes or size) says nothing about this one.
+    for (const change of [{ uri: "gs://fixture/revision/other.json" }, { digest: screeningSha("9") }, { size_bytes: 301 }]) {
+      const other = screeningRevisionLaunch({ ...reference, ...change }).record.configured_scene_offering;
+      expect(() => assertScreeningSceneSource(publication, intake, scope, [other])).toThrow("screening_scene_revision_unbound");
+    }
+    // This file bound to another revision is a different scene; disagreeing offerings bind nothing.
+    const rebound = screeningRevisionLaunch(reference, screeningSha("8")).record.configured_scene_offering;
+    expect(() => assertScreeningSceneSource(publication, intake, scope, [rebound])).toThrow("screening_scene_source_mismatch");
+    expect(() => assertScreeningSceneSource(publication, intake, scope, [offering, rebound])).toThrow("screening_scene_revision_unbound");
+    expect(() => assertScreeningSceneSource(publication, intake, scope, [offering, offering])).not.toThrow();
+    expect(() => assertScreeningSceneSource(publication, intake, scope, [{ ...offering, evaluation_preparation_binding: {
+      ...offering.evaluation_preparation_binding, configured_scene_revision: { ...reference, extra: true } } }]))
+      .toThrow("screening_scene_revision_unbound");
+  });
+  it("reads a family preparation's own revision digest without any offering", () => {
+    const { publication, intake } = familyScreeningFixture();
+    expect(intake.pipeline_status.result_reference.digest).toBe(publication.source.scene_revision_digest);
+    expect(preparedSceneRevisionDigest(intake.pipeline_status, [])).toBe(publication.source.scene_revision_digest);
+  });
+});
 
 describe("automatic many-candidate job evaluation", () => {
   it("accepts a screening source emitted by the actual Python family handoff and canonical progression", () => {
@@ -25,7 +65,7 @@ describe("automatic many-candidate job evaluation", () => {
     const intake = { website_request_id: "req1", source_session_id: source.capture_id, state: "completed",
       request: producerFamilyStatus.request, request_digest: producerFamilyStatus.status.request_digest,
       receipt: producerFamilyStatus.receipt, pipeline_status: producerFamilyStatus.status };
-    expect(() => assertScreeningSceneSource({ ...publication, site_id: producerFamilyStatus.site_id, source }, intake, scope)).not.toThrow();
+    expect(() => assertScreeningSceneSource({ ...publication, site_id: producerFamilyStatus.site_id, source }, intake, scope, revisionOfferings)).not.toThrow();
   });
   it.each(["unchanged", "catalog", "configuration", "candidate", "extra"])("reuses a family compilation seed for an independently planned candidate set (%s)", change => {
     const fixture = familyScreeningFixture();
@@ -46,7 +86,7 @@ describe("automatic many-candidate job evaluation", () => {
     if (change === "extra") publication.candidates.push(fixture.publication.candidates[1]);
     const scope = managedJobTask({ binding: { job_id: fixture.brief.requestId, brief_digest: scientificBriefDigest(fixture.brief) },
       record: fixture.job, brief: fixture.brief });
-    expect(() => assertScreeningSceneSource(publication, intake, scope)).not.toThrow();
+    expect(() => assertScreeningSceneSource(publication, intake, scope, revisionOfferings)).not.toThrow();
   });
   it("accepts all 84 Python coordinator outcomes without changing their identities or reasons", () => {
     const parsed = parseBetaPolicyScreeningPublication(allCandidatePublication)!;
@@ -56,7 +96,7 @@ describe("automatic many-candidate job evaluation", () => {
     const { publication, intake, brief, job } = allCandidateFamilyScreeningFixture();
     const scope = managedJobTask({ binding: { job_id: brief.requestId, brief_digest: scientificBriefDigest(brief) }, record: job, brief });
     expect(publication.catalog_digest).not.toBe(intake.request.task.policy_selection.catalog_digest);
-    expect(() => assertScreeningSceneSource(publication, intake, scope)).not.toThrow();
+    expect(() => assertScreeningSceneSource(publication, intake, scope, revisionOfferings)).not.toThrow();
   });
 
   it.each(["scene_intent_id", "scene_intent_digest", "capture_id", "task_id", "task_context_digest", "scene_revision_digest"] as const)(
@@ -64,19 +104,19 @@ describe("automatic many-candidate job evaluation", () => {
       const { publication, intake, brief, job } = allCandidateFamilyScreeningFixture();
       publication.source[field] = field.endsWith("_digest") ? screeningSha("9") : "another-source";
       const scope = managedJobTask({ binding: { job_id: brief.requestId, brief_digest: scientificBriefDigest(brief) }, record: job, brief });
-      expect(() => assertScreeningSceneSource(publication, intake, scope)).toThrow("screening_scene_source_mismatch");
+      expect(() => assertScreeningSceneSource(publication, intake, scope, revisionOfferings)).toThrow("screening_scene_source_mismatch");
     });
 
   it("keeps the original compilation seed bound to its immutable request", () => {
     const { publication, intake, brief, job } = allCandidateFamilyScreeningFixture();
     intake.request.task.policy_selection.candidate_id = "rewritten-seed";
     const scope = managedJobTask({ binding: { job_id: brief.requestId, brief_digest: scientificBriefDigest(brief) }, record: job, brief });
-    expect(() => assertScreeningSceneSource(publication, intake, scope)).toThrow("screening_scene_source_mismatch");
+    expect(() => assertScreeningSceneSource(publication, intake, scope, revisionOfferings)).toThrow("screening_scene_source_mismatch");
   });
   it("accepts a source-bound CPU family preparation without claiming native application or policy execution", () => {
     const { publication, intake, brief, job } = familyScreeningFixture();
     const scope = managedJobTask({ binding: { job_id: brief.requestId, brief_digest: scientificBriefDigest(brief) }, record: job, brief });
-    expect(() => assertScreeningSceneSource(publication, intake, scope)).not.toThrow();
+    expect(() => assertScreeningSceneSource(publication, intake, scope, revisionOfferings)).not.toThrow();
     expect(intake.pipeline_status.result_reference.native_application_claimed).toBe(false);
     expect(intake.pipeline_status.result_reference.policy_episode_claimed).toBe(false);
   });
@@ -99,7 +139,7 @@ describe("automatic many-candidate job evaluation", () => {
     if (fault === "context") publication.source.task_context_digest = screeningSha("5");
     if (fault === "revoke") Object.assign(intake, { revocation_requested: true });
     intake.pipeline_status.status_digest = crossRuntimeArtifactDigest(intake.pipeline_status, "status_digest");
-    expect(() => assertScreeningSceneSource(publication, intake, scope)).toThrow("screening_scene_source_mismatch");
+    expect(() => assertScreeningSceneSource(publication, intake, scope, revisionOfferings)).toThrow("screening_scene_source_mismatch");
   });
 
   it("screens the retained proposed preparation task without weakening agreed-task evaluation", () => {
@@ -107,7 +147,7 @@ describe("automatic many-candidate job evaluation", () => {
     const binding = { job_id: brief.requestId, brief_digest: scientificBriefDigest(brief) };
     expect(() => managedJobTask({ binding, record: job, brief })).toThrow("job_brief_not_agreed");
     const scope = managedJobTask({ binding, record: job, brief, allowProposedScreening: true });
-    expect(() => assertScreeningSceneSource(publication, intake, scope)).not.toThrow();
+    expect(() => assertScreeningSceneSource(publication, intake, scope, revisionOfferings)).not.toThrow();
     expect(() => managedJobTask({ binding, record: { ...job, website_scene_sponsorship: { ...job.website_scene_sponsorship, purpose: undefined } },
       brief, allowProposedScreening: true })).toThrow("job_brief_not_agreed");
     expect(() => managedJobTask({ binding, record: job, brief: { ...brief, confirmedAtIso: "2026-10-26T13:00:00Z" },
@@ -155,16 +195,16 @@ describe("automatic many-candidate job evaluation", () => {
   it("binds immutable intake receipts, capture and current job scope without trusting supplied job IDs", () => {
     const { publication, intake, brief, job } = screeningFixture();
     const scope = managedJobTask({ binding: { job_id: brief.requestId, brief_digest: scientificBriefDigest(brief) }, record: job, brief });
-    expect(() => assertScreeningSceneSource(publication, intake, scope)).not.toThrow();
+    expect(() => assertScreeningSceneSource(publication, intake, scope, revisionOfferings)).not.toThrow();
     for (const source of [{ ...publication.source, capture_id: publication.site_id },
       { ...publication.source, scene_intent_digest: screeningSha("1") }, { ...publication.source, task_context_digest: screeningSha("2") }])
-      expect(() => assertScreeningSceneSource({ ...publication, source }, intake, scope)).toThrow("screening_scene_source_mismatch");
-    expect(() => assertScreeningSceneSource({ ...publication, site_id: "site-other" }, intake, scope)).toThrow();
-    expect(() => assertScreeningSceneSource(publication, { ...intake, revocation_requested: true }, scope)).toThrow();
-    expect(() => assertScreeningSceneSource(publication, { ...intake, state: "accepted" }, scope)).toThrow();
-    expect(() => assertScreeningSceneSource({ ...publication, source: { ...publication.source, scene_revision_digest: screeningSha("7") } }, intake, scope)).toThrow();
-    expect(() => assertScreeningSceneSource(publication, intake, { ...scope, sourceCaptureSessionId: "new-capture", taskIds: [] })).toThrow();
-    expect(() => assertScreeningSceneSource(publication, { ...intake, request: { ...intake.request, task: { task_id: "other" } } }, scope)).toThrow();
+      expect(() => assertScreeningSceneSource({ ...publication, source }, intake, scope, revisionOfferings)).toThrow("screening_scene_source_mismatch");
+    expect(() => assertScreeningSceneSource({ ...publication, site_id: "site-other" }, intake, scope, revisionOfferings)).toThrow();
+    expect(() => assertScreeningSceneSource(publication, { ...intake, revocation_requested: true }, scope, revisionOfferings)).toThrow();
+    expect(() => assertScreeningSceneSource(publication, { ...intake, state: "accepted" }, scope, revisionOfferings)).toThrow();
+    expect(() => assertScreeningSceneSource({ ...publication, source: { ...publication.source, scene_revision_digest: screeningSha("7") } }, intake, scope, revisionOfferings)).toThrow();
+    expect(() => assertScreeningSceneSource(publication, intake, { ...scope, sourceCaptureSessionId: "new-capture", taskIds: [] }, revisionOfferings)).toThrow();
+    expect(() => assertScreeningSceneSource(publication, { ...intake, request: { ...intake.request, task: { task_id: "other" } } }, scope, revisionOfferings)).toThrow();
   });
 
   it("allows recovery and idempotent delivery, refuses revised terminal evidence and campaign identity", () => {
@@ -251,6 +291,69 @@ describe("automatic many-candidate job evaluation", () => {
     expect(noEstimateReason([unprepared, row("infeasible", ["candidate_infeasible_measured_geometry"]),
       row("deferred", ["site_screening_budget_insufficient"])], unspent)).toBe("setup");
     expect(noEstimateReason([unprepared, row("deferred", ["beta_screening_site_budget_exhausted"])])).toBe("budget");
+    // The job's one dollar ceiling (all of its spending) left too little for any quote: the
+    // Pipeline defers every runnable candidate before any screening spend. Only the owner can
+    // raise it, so it waits on the owner's money decision, never on a setup repair.
+    const ceiling = row("deferred", ["website_job_ceiling_insufficient"]);
+    expect(noEstimateReason([ceiling, ceiling], unspent)).toBe("budget");
+    expect(noEstimateReason([ceiling, unprepared, row("infeasible", ["candidate_infeasible_measured_geometry"])], unspent)).toBe("budget");
+    expect(noEstimateReason([row("blocked", ["beta_screening_static_preflight_blocked"]), ceiling])).toBe("budget");
+    // A candidate that failed for a reason that is ours to fix, with nothing spent, stays ours.
+    expect(noEstimateReason([row("blocked", ["beta_screening_static_preflight_blocked"]), ceiling], unspent)).toBe("setup");
+    expect(noEstimateReason([row("completed", []), ceiling], unspent)).toBe("setup");
+  });
+
+  it("reads the Pipeline's real job-ceiling deferral as awaiting the owner's spend approval, never a repair", () => {
+    const parsed = parseBetaPolicyScreeningPublication(jobCeilingPublication)!;
+    expect(parsed).not.toBeNull();
+    expect(parsed.budget.spent_upper_bound_usd).toBe("0");
+    expect(parsed.candidates.every(row => row.status === "deferred" && row.blockers.join() === "website_job_ceiling_insufficient")).toBe(true);
+    expect(screeningOutcome(parsed)).toBe("awaiting_spend_approval");
+    const { publication, brief, job } = screeningFixture();
+    const binding = { job_id: brief.requestId, brief_digest: scientificBriefDigest(brief) };
+    const scope = managedJobTask({ binding, record: job, brief });
+    const value = sealScreening({ ...publication, revision: 2, status: parsed.status, budget: parsed.budget,
+      candidates: publication.candidates.map(row => ({ ...row, ...parsed.candidates[0], candidate_id: row.candidate_id })) });
+    const run = { run_id: value.campaign_id, run_kind: "beta_policy_screening", state: "blocked", result_record_id: "result-one",
+      job_evidence_binding: binding, job_task_context_digest: scope.taskContextDigest, job_source_fingerprint: scope.sourceFingerprint,
+      configuration_digest: value.plan_digest, source_scene_intent_id: value.source.scene_intent_id,
+      source_scene_revision_digest: value.source.scene_revision_digest, publication_digest: value.publication_digest, publication_revision: 2 };
+    const projected = projectManagedJobEvidence(value.campaign_id, run, { record_id: "result-one", publication: value },
+      brief.requestId, binding.brief_digest, scope.taskContextDigest, scope.sourceFingerprint)!;
+    expect(projected).toMatchObject({ state: "awaiting_spend_approval", outcome: "awaiting_spend_approval",
+      summary: "Your job's simulation is waiting on an approval inside Blueprint before it can continue.",
+      nextAction: "Nothing is needed from you." });
+    expect(projected.opsNextAction).toBe("Owner approval needed: this job's dollar ceiling, shared by all of its spending, has too little left "
+      + "to run its candidates. Raising it is the owner's money decision. Nothing is needed from the site.");
+    expect(projected.opsNextAction).not.toMatch(/setup blockers|rerun/);
+  });
+
+  it("shows each scored candidate's success estimate with its Wilson range", () => {
+    const { publication, brief, job } = screeningFixture();
+    const binding = { job_id: brief.requestId, brief_digest: scientificBriefDigest(brief) };
+    const scope = managedJobTask({ binding, record: job, brief });
+    const scored = (row: any, succeeded: number, scoredCount: number, voided = 0) => ({ ...row, status: "completed", episodes_planned: scoredCount + voided,
+      episodes_scored: scoredCount, episodes_succeeded: succeeded, episodes_failed: scoredCount - succeeded, episodes_void: voided,
+      success_rate: succeeded / scoredCount, session_result_digest: screeningSha("6") });
+    const value = sealScreening({ ...publication, revision: 2, status: "completed", candidates: publication.candidates.map((row, index) =>
+      index === 0 ? scored(row, 7, 10) : index === 1 ? scored(row, 0, 10, 2) : index === 2 ? scored(row, 10, 10)
+        : index === 3 ? { ...row, status: "completed", episodes_planned: 3, episodes_void: 3, session_result_digest: screeningSha("7") }
+          : { ...row, status: "deferred", blockers: ["site_screening_budget_insufficient"] }) });
+    const run = { run_id: value.campaign_id, run_kind: "beta_policy_screening", state: "completed", result_record_id: "result-one",
+      job_evidence_binding: binding, job_task_context_digest: scope.taskContextDigest, job_source_fingerprint: scope.sourceFingerprint,
+      configuration_digest: value.plan_digest, source_scene_intent_id: value.source.scene_intent_id,
+      source_scene_revision_digest: value.source.scene_revision_digest, publication_digest: value.publication_digest, publication_revision: 2 };
+    const projected = projectManagedJobEvidence(value.campaign_id, run, { record_id: "result-one", publication: value },
+      brief.requestId, binding.brief_digest, scope.taskContextDigest, scope.sourceFingerprint)!;
+    expect(projected.outcome).toBe("estimate");
+    const rows = projected.screening!.candidates;
+    // 7 of 10: "likely between 40% and 89%" (95% Wilson, successRateConfidence).
+    expect(rows[0].successRange).toEqual({ lowerPercent: 40, upperPercent: 89, confidencePercent: 95 });
+    expect(rows[1].successRange).toEqual({ lowerPercent: 0, upperPercent: 28, confidencePercent: 95 });
+    expect(rows[2].successRange).toEqual({ lowerPercent: 72, upperPercent: 100, confidencePercent: 95 });
+    // Nothing scored, nothing to bound.
+    expect(rows[3]).not.toHaveProperty("successRange");
+    expect(rows[4]).not.toHaveProperty("successRange");
   });
 
   it("shows held when no candidate Blueprint can run supports the job", () => {
@@ -323,12 +426,15 @@ describe("automatic many-candidate job evaluation", () => {
       source_scene_revision_digest: voided.source.scene_revision_digest, publication_digest: voided.publication_digest, publication_revision: 2 };
     const projected = projectManagedJobEvidence(voided.campaign_id, run, { record_id: "result-one", publication: voided },
       brief.requestId, binding.brief_digest, scope.taskContextDigest, scope.sourceFingerprint)!;
-    // The other candidates hit the site budget, so this waits on the owner, not on the site.
-    expect(projected.state).toBe("awaiting_spend_approval");
-    expect(projected.summary).toMatch(/^Simulation evaluation in progress/);
-    // The owner's approval is ours to seek: the site reads no instruction and no budget.
-    expect(projected.nextAction).toBe("Nothing is needed from you.");
-    expect(projected.opsNextAction).toMatch(/^Owner approval needed/);
+    // The other candidates hit the site's allowance after money was spent, and nothing reserves more:
+    // held by name, never "in progress" with no rerun coming.
+    expect([projected.state, projected.outcome]).toEqual(["held", "held_budget"]);
+    expect(projected.summary).toMatch(/^Held: your job reached the most the free beta can simulate for one job/);
+    expect(projected.summary).toMatch(/won't restart by itself\. Our team has been told/);
+    // Spending past it is the owner's to decide: the site reads no instruction and no budget.
+    expect(projected.nextAction).toBe("Nothing is needed from you. Each row lists why it stopped.");
+    expect(`${projected.summary} ${projected.nextAction}`).not.toMatch(/budget|owner approval|\$/i);
+    expect(projected.opsNextAction).toMatch(/^Held: the site's simulation allowance is spent/);
     expect(projected.limitations.join(" ")).not.toMatch(/estimate from 0 scored/);
     expect(projected.limitations.join(" ")).toMatch(/does not certify physical performance or safety/);
   });
@@ -347,9 +453,14 @@ describe("automatic many-candidate job evaluation", () => {
       source_scene_revision_digest: unspent.source.scene_revision_digest, publication_digest: unspent.publication_digest, publication_revision: 2 };
     const projected = projectManagedJobEvidence(unspent.campaign_id, run, { record_id: "result-one", publication: unspent },
       brief.requestId, binding.brief_digest, scope.taskContextDigest, scope.sourceFingerprint)!;
-    expect(projected.state).toBe("setup_repair");
+    // Nothing reruns a blocked campaign by itself: held on our side, by name.
+    expect([projected.state, projected.outcome]).toEqual(["held", "held_setup"]);
     expect(projected.nextAction).not.toMatch(/Owner approval|setup blockers|rerun/);
-    expect(projected.opsNextAction).toBe("Fix the setup blockers listed per candidate, then rerun. Nothing is needed from the site.");
+    expect(projected.opsNextAction).toMatch(/^Held on our side: fix the cause in each candidate's blockers, then rerun/);
+    // Only rows refused for code a deploy changed are planned again by the Pipeline: still in progress.
+    const commitChanged = sealScreening({ ...unspent, revision: 3, candidates: unspent.candidates.map((row, index) => index === 0
+      ? { ...row, blockers: ["beta_screening_implementation_commit_changed"] } : row) });
+    expect(screeningOutcome(commitChanged)).toBe("setup_repair");
     // With nothing funded at all, every row waits on what we build: held.
     const held = sealScreening({ ...unspent, revision: 3, candidates: unspent.candidates.map(row => ({ ...row, status: "unavailable",
       blockers: ["prepared_robot_policy_registration_missing", "runtime_candidate_binding_missing"] })) });
@@ -509,7 +620,7 @@ describe("one outcome per run, in one plain sentence (F-03)", () => {
   };
   const operatorWords = /rerun|setup blocker|owner approval|budget|\$|development only/i;
 
-  it.each(SCREENING_OUTCOMES)("names %s once and says its sentence first, with no operator instruction for the site", outcome => {
+  it.each(PUBLISHED_SCREENING_OUTCOMES)("names %s once and says its sentence first, with no operator instruction for the site", outcome => {
     const publication = outcomePublication(screeningFixture().publication, outcome);
     expect(parseBetaPolicyScreeningPublication(publication)).not.toBeNull();
     expect(screeningOutcome(publication)).toBe(outcome);
@@ -521,9 +632,15 @@ describe("one outcome per run, in one plain sentence (F-03)", () => {
 
   it("gives every outcome its own sentence, and only an estimate is called one", () => {
     const sentences = SCREENING_OUTCOMES.map(screeningOutcomeSentence);
-    // Waiting on the owner and waiting on us read the same to the site: both are in progress.
-    expect(new Set(sentences).size).toBe(SCREENING_OUTCOMES.length - 1);
-    expect(screeningOutcomeSentence("awaiting_spend_approval")).toBe(screeningOutcomeSentence("setup_repair"));
+    // A wait on Blueprint's money decision says so; a re-plan after a deploy is in progress.
+    expect(new Set(sentences).size).toBe(SCREENING_OUTCOMES.length);
+    expect(screeningOutcomeSentence("awaiting_spend_approval")).toMatch(/waiting on an approval inside Blueprint/);
+    // A failure on our side is rerun after its fix (the Pipeline replans a harness failure once the fix deploys),
+    // so the site is never told it won't restart; a spent allowance or a failed scene check does not restart.
+    expect(screeningOutcomeSentence("held_setup")).toMatch(/We'll run it again once the cause is fixed, and email you if a later run gives a result\.$/);
+    expect(screeningOutcomeSentence("held_setup")).not.toMatch(/won't restart/);
+    for (const outcome of ["held_budget", "held_scene_check"] as const)
+      expect(screeningOutcomeSentence(outcome)).toMatch(/It won't restart by itself\./);
     for (const outcome of SCREENING_OUTCOMES) {
       if (outcome !== "estimate") expect(screeningOutcomeSentence(outcome)).not.toMatch(/estimate is ready/);
       if (outcome !== "held_capability") expect(screeningOutcomeSentence(outcome)).not.toBe(screeningOutcomeSentence("held_capability"));

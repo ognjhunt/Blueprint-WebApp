@@ -7,6 +7,9 @@ import { PublicTaskListing } from "@/components/site/PublicTaskListing";
 import { JobWorkspace } from "@/components/site/JobWorkspace";
 import { TaskTargetChoice, type TaskTargetChoiceView } from "@/components/site/TaskTargetChoice";
 import { RobotFit, isRobotFit, type RobotFitView } from "@/components/site/RobotFit";
+import { RobotFitHold, isRobotFitHold, type RobotFitHoldView } from "@/components/site/RobotFitHold";
+import { SuccessThresholds, isSuccessThresholds, type SuccessThresholdsView } from "@/components/site/SuccessThresholds";
+import { RobotAccess, isRobotAccess, type RobotAccessView } from "@/components/site/RobotAccess";
 import { NextTaskUpdate } from "@/components/site/NextTaskUpdate";
 /**
  * The page an operator or filmer opens from a private job link.
@@ -62,6 +65,12 @@ type TaskStatus = {
   targetChoice?: TaskTargetChoiceView | null;
   /** Which robots fit the job by spec sheet, for the owner only: an estimate, never a physical test. */
   robotFit?: RobotFitView | null;
+  /** The robots checked before any spend and why none fits, for the owner only, while the job is held on it. */
+  robotFitHold?: RobotFitHoldView | null;
+  /** The job's proposed success thresholds, for the owner only: confirm, or say they are wrong. */
+  successThresholds?: SuccessThresholdsView | null;
+  /** Whether to move chairs or stools out of the robot's way in the simulation, for the owner only. */
+  robotAccess?: RobotAccessView | null;
 };
 
 function isTargetChoice(value: unknown): value is TaskTargetChoiceView {
@@ -558,6 +567,9 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
             footageReviewAutomated: data.footageReviewAutomated !== false,
             targetChoice: data.scope === "owner" && isTargetChoice(data.targetChoice) ? data.targetChoice : null,
             robotFit: data.scope === "owner" && isRobotFit(data.robotFit) ? data.robotFit : null,
+            robotFitHold: data.scope === "owner" && isRobotFitHold(data.robotFitHold) ? data.robotFitHold : null,
+            successThresholds: data.scope === "owner" && isSuccessThresholds(data.successThresholds) ? data.successThresholds : null,
+            robotAccess: data.scope === "owner" && isRobotAccess(data.robotAccess) ? data.robotAccess : null,
           });
         } else if (alive) {
           setCurrentStatusKnown(false);
@@ -676,7 +688,14 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
       {saved && scope === "owner" && currentStatusKnown && status?.targetChoice
         && <TaskTargetChoice key={status.targetChoice.questionDigest} token={token} question={status.targetChoice}
           onAnswered={() => setStatusRefresh(value => value + 1)} />}
+      {saved && scope === "owner" && currentStatusKnown && status?.robotFitHold && <RobotFitHold hold={status.robotFitHold} />}
       {saved && scope === "owner" && currentStatusKnown && status?.robotFit && <RobotFit fit={status.robotFit} />}
+      {saved && scope === "owner" && currentStatusKnown && status?.successThresholds
+        && <SuccessThresholds key={status.successThresholds.proposalDigest} token={token} view={status.successThresholds}
+          onDecided={() => setStatusRefresh(value => value + 1)} />}
+      {saved && scope === "owner" && currentStatusKnown && status?.robotAccess
+        && <RobotAccess key={status.robotAccess.proposalDigest} token={token} view={status.robotAccess}
+          onDecided={() => setStatusRefresh(value => value + 1)} />}
 
       {isVideoUpdate && !saved && <p className="ms-field-hint" role="status">Film or upload a complete updated walkthrough. This updates the same job and keeps your original video.</p>}
       {/* A filming link opens the recorder; a held link explains its hold. */}

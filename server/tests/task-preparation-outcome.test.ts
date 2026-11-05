@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
-import { projectAtlasPreparationOutcome, projectPreparationOutcome, preparationOutcomeSchema } from "../utils/taskPreparationOutcome";
+import { projectAtlasPreparationOutcome, projectPreparationOutcome, preparationOutcomeSchema,
+  preparationOutcomeV6Schema } from "../utils/taskPreparationOutcome";
 import { selectWebsiteAtlasPreview } from "../utils/websiteAtlasPreview";
 import { crossRuntimeArtifactDigest } from "../utils/crossRuntimeCanonical";
 import { projectTaskStatus } from "../utils/taskStatusProjection";
@@ -65,6 +66,34 @@ describe("source-bound preparation closeout", () => {
     expect(outcome.scope).toMatch(/Conservative rejection/);
     expect(outcome.scope).toMatch(/not proof.*impossible.*every robot.*physically/);
     expect(outcome.evidence[0].digest).toBe(sha);
+  });
+  it.each([
+    ["reach", /ruled out on reach.*farther than the arm can reach/],
+    ["task_kind", /none of the robot software we run handles this kind of task yet/],
+    ["gpu_memory", /needs more graphics-card \(GPU\) memory than any machine we can rent/],
+    ["no_candidate_available", /none of the robot setups we run is available for this job right now/],
+  ])("holds a job no robot we run fits, in plain words, for cause %s", (cause, sentence) => {
+    const receipt = preparationOutcomeV6Schema.parse({ category: "robot_incompatibility", reason: "robot_fit_none",
+      basis: "conservative_pre_spend_fit_check", robot_id: null, evidence_digest: sha });
+    const outcome = projectPreparationOutcome(receipt, { holdReason: `website_robot_fit_none:${cause}`, precheckDigest: sha,
+      counts: { fit: 0, noFit: 3, unknown: 0, unavailable: 2 } });
+    expect(outcome.title).toBe("Held: none of the robots we run fits this job yet");
+    expect(outcome.reason).toMatch(/^None of the 5 robot setups we checked fits this job\. The main reason: /);
+    expect(outcome.reason).toMatch(sentence);
+    expect(outcome.scope).toMatch(/before any paid work.*no robot was tried.*does not show that no robot could ever do it/);
+    const projected = projectTaskStatus({ ...base, preparationStatus: { state: "awaiting_inputs", correlationId: null, outcome } });
+    expect(projected).toMatchObject({ decision: "robot_incompatibility", headline: outcome.title, operatorAction: null });
+    // A precheck bound to other evidence lends the hold no cause.
+    expect(projectPreparationOutcome(receipt, { holdReason: `website_robot_fit_none:${cause}`,
+      precheckDigest: `sha256:${"b".repeat(64)}`, counts: { fit: 0, noFit: 3, unknown: 0, unavailable: 2 } }).reason)
+      .toBe("None of the robot setups we checked fits this job.");
+  });
+  it("keeps the robot fit hold out of the v3-v5 vocabulary", () => {
+    const value = { category: "robot_incompatibility", reason: "robot_fit_none", basis: "conservative_pre_spend_fit_check",
+      robot_id: null, evidence_digest: sha };
+    expect(preparationOutcomeSchema.safeParse(value).success).toBe(false);
+    expect(preparationOutcomeV6Schema.safeParse(value).success).toBe(true);
+    expect(preparationOutcomeV6Schema.safeParse({ ...value, robot_id: "franka_panda" }).success).toBe(false);
   });
   it.each(["atlas_preserved_completion_no_exportable_geometry", "atlas_generated_view_registration_unresolved",
     "atlas_source_visibility_uncertain"])("keeps unresolved geometry separate from robot incompatibility: %s", (reason) => {

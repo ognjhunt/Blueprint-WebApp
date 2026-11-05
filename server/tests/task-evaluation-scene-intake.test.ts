@@ -5,6 +5,7 @@ import { createHmac } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { loadWebsiteSceneSponsorship, websiteSceneSponsorship, reserveWebsitePreparationSpend, amendWebsitePreparationRequestLimit, amendWebsitePreparationSpendLimit, settleWebsitePreparationSpend, loadWebsiteAtlasConfiguration } from "../utils/websiteSceneSponsorship";
 import { projectWebsiteCaptureRights, projectWebsiteTaskContext } from "../utils/websiteTaskContext";
+import { WEBSITE_JOB_WINDOW_DEFAULT_SECONDS, WEBSITE_JOB_WINDOW_MAX_SECONDS } from "../utils/websiteJobWindow";
 import { familyScreeningFixture } from "./fixtures/beta-policy-screening";
 import producerFamilyStatus from "./fixtures/pipeline-family-prepared-status.v1.json";
 vi.mock("../utils/captureFootageReview", () => ({ buildCaptureFootageReviewer: vi.fn() }));
@@ -329,6 +330,103 @@ it("issues a seven-day execution window, the most the Pipeline accepts, and refu
   sponsoredCapture();
   process.env.BLUEPRINT_WEBSITE_SCENE_SPONSORSHIP_JSON = JSON.stringify({ ...policy, ttl_seconds: 7 * 86400 + 1 });
   await expect(loadWebsiteSceneSponsorship("req1", true)).rejects.toThrow("not_configured");
+});
+
+describe("the website job window is one policy value", () => {
+  const DAY = 86400;
+  const setPolicy = (changes: Record<string, unknown>, drop?: string) => {
+    const policy = { ...JSON.parse(process.env.BLUEPRINT_WEBSITE_SCENE_SPONSORSHIP_JSON!), ...changes };
+    if (drop) delete policy[drop];
+    process.env.BLUEPRINT_WEBSITE_SCENE_SPONSORSHIP_JSON = JSON.stringify(policy);
+  };
+
+  it("defaults to the owner-approved seven days, the bound the Pipeline mirrors", async () => {
+    // blueprint_pipeline/website_job_window.py WEBSITE_JOB_WINDOW_MAX_SECONDS must equal this.
+    expect(WEBSITE_JOB_WINDOW_MAX_SECONDS).toBe(7 * DAY);
+    expect(WEBSITE_JOB_WINDOW_DEFAULT_SECONDS).toBeLessThanOrEqual(WEBSITE_JOB_WINDOW_MAX_SECONDS);
+    sponsoredCapture();
+    setPolicy({}, "ttl_seconds");
+    const grant = await loadWebsiteSceneSponsorship("req1", true);
+    expect(grant.expires_at_epoch - grant.consent.accepted_at_epoch).toBe(WEBSITE_JOB_WINDOW_DEFAULT_SECONDS);
+    // Leaving the length out and naming the default are the same policy.
+    setPolicy({ ttl_seconds: WEBSITE_JOB_WINDOW_DEFAULT_SECONDS });
+    expect(await loadWebsiteSceneSponsorship("req1", false)).toEqual(grant);
+  });
+
+  it("keeps an issued grant on its own window when only the length changes, and refuses any other change", async () => {
+    sponsoredCapture();
+    setPolicy({ ttl_seconds: DAY });
+    const day = await loadWebsiteSceneSponsorship("req1", true);
+    expect(day.expires_at_epoch - day.consent.accepted_at_epoch).toBe(DAY);
+    // The owner moves the window to seven days: the one-day grant still reads, unchanged.
+    setPolicy({ ttl_seconds: 7 * DAY });
+    expect(await loadWebsiteSceneSponsorship("req1", false)).toEqual(day);
+    expect(await loadWebsiteSceneSponsorship("req1", true)).toEqual(day);
+    const input = { requestId: "req1", brief: store.rows.get("siteTaskBriefs/req1"),
+      record: store.rows.get("inboundRequests/req1") };
+    expect(websiteSceneSponsorship({ ...input, now: day.expires_at_epoch - 1 })).toEqual(day);
+    // It gains no time: it still ends at the expiry it was issued with.
+    expect(() => websiteSceneSponsorship({ ...input, now: day.expires_at_epoch })).toThrow("consent_expired");
+    expect(store.rows.get("inboundRequests/req1").website_scene_sponsorship).toEqual(day);
+    // Caps and attempts stay bound: any other policy change still refuses the grant.
+    setPolicy({ max_paid_attempts: 3 });
+    await expect(loadWebsiteSceneSponsorship("req1", false)).rejects.toThrow("website_scene_sponsorship_changed");
+    setPolicy({ max_paid_attempts: 2, native_max_spend_usd: 19 });
+    await expect(loadWebsiteSceneSponsorship("req1", false)).rejects.toThrow("website_scene_sponsorship_changed");
+    // A new upload gets the new length.
+    store.rows.delete("inboundRequests/req1");
+    sponsoredCapture();
+    setPolicy({ ttl_seconds: 7 * DAY });
+    const week = await loadWebsiteSceneSponsorship("req1", true);
+    expect(week.expires_at_epoch - week.consent.accepted_at_epoch).toBe(7 * DAY);
+  });
+
+  it("lets an owner extension add at most seven days past a seven-day grant's own expiry", async () => {
+    sponsoredCapture();
+    setPolicy({ ttl_seconds: 7 * DAY });
+    const grant = await loadWebsiteSceneSponsorship("req1", true);
+    const raw = grant.expires_at_epoch;
+    const input = { requestId: "req1", brief: store.rows.get("siteTaskBriefs/req1"),
+      record: store.rows.get("inboundRequests/req1"), now: raw + 6 * DAY };
+    expect(() => websiteSceneSponsorship(input)).toThrow("consent_expired");
+    expect(websiteSceneSponsorship({ ...input, executionWindowUntil: raw + 6 * DAY + 3600 })).toEqual(grant);
+    expect(() => websiteSceneSponsorship({ ...input, now: raw + 7 * DAY, executionWindowUntil: raw + 30 * DAY }))
+      .toThrow("consent_expired");
+    expect(store.rows.get("inboundRequests/req1").website_scene_sponsorship).toEqual(grant);
+  });
+
+  it("queues and forwards a scene prepared days after a seven-day grant was issued", async () => {
+    sponsoredCapture();
+    setPolicy({ ttl_seconds: 7 * DAY });
+    const record = store.rows.get("inboundRequests/req1");
+    // Issued three days ago: past the former one-day window, inside the new one.
+    record.website_scene_sponsorship = websiteSceneSponsorship({ requestId: "req1",
+      brief: store.rows.get("siteTaskBriefs/req1"), record, now: Date.now() / 1000 - 3 * DAY });
+    const base = (await app()).replace(/\/intakes$/, "/internal/creator-captures/walkthrough-req1");
+    const post = (operation: string, extra = {}) => realFetch(`${base}/${operation}`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ request_id: "req1", scene_id: "site-req1", ...extra }),
+    });
+    const grant = await (await post("scene-sponsorship")).json();
+    expect(grant).toEqual(record.website_scene_sponsorship);
+    expect(grant.expires_at_epoch - grant.consent.accepted_at_epoch).toBe(7 * DAY);
+    const request = {
+      schema_version: "task_evaluation_scene_intake_request.v1", submission_id: grant.capture_id,
+      owner: grant.owner, consent: grant.consent,
+      source: { kind: "gaussian_splat", binding_id: `website-splat-${"a".repeat(32)}`, content_digest: sha("a") },
+      task: { ...command().task, task_id: `website-${grant.task_context_digest.slice(7, 27)}`,
+        subject: { description: "box", geometry_origin: "removed_before_reconstruction" } },
+      execution: { ...command().execution, max_total_spend_usd: grant.max_total_spend_usd,
+        max_paid_attempts: grant.max_paid_attempts, expires_at_epoch: grant.expires_at_epoch,
+        allowed_providers: ["vast", "openai"] },
+    };
+    expect((await post("prepared-scene", { request })).status).toBe(202);
+    const fetcher = vi.fn(async (_url: any, init: any) => new Response(JSON.stringify(accepted(JSON.parse(init.body)))));
+    vi.stubGlobal("fetch", fetcher);
+    await processSceneIntakeQueue();
+    expect(stored()[1].state).toBe("accepted");
+    expect(JSON.parse(fetcher.mock.calls[0][1].body)).toEqual(request);
+  });
 });
 
 it("derives a supplementary preparation binding without renewing the original allowance or expiry", async () => {
@@ -1725,6 +1823,59 @@ it("requires source-bound Atlas consent and preserves separate budgets across re
     delete process.env.BLUEPRINT_WEBSITE_ATLAS_RUNTIME_POLICY_JSON; }
 });
 
+// Owner-approved 2026-11-03: a verified, time-only window of the native grant's bound
+// scene intent keeps native/Marble reservations open; Atlas grants keep their own clock.
+it("an intent window extends a native reservation but never an Atlas one or Atlas auxiliary work", async () => {
+  sponsoredCapture();
+  const grant = await loadWebsiteSceneSponsorship("req1", true);
+  process.env.TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON = JSON.stringify({
+    ...JSON.parse(process.env.TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON!),
+    world_labs_atlas: { digest: sha("b"), label: "Atlas beta terms", url: "https://atlas-beta.worldlabs.ai/docs" },
+  });
+  const atlasExpiry = Date.now() / 1000 + 3600;
+  process.env.BLUEPRINT_WEBSITE_ATLAS_AUTHORIZATIONS_JSON = JSON.stringify([{
+    schema_version: "website_atlas_authorization.v1", request_id: "req1", capture_id: "walkthrough-req1",
+    task_context_digest: grant.task_context_digest, source_video_digest: sha("a"), provider_terms_reference: sha("b"),
+    accepted_by: "blueprint-preparation", approval_reference: "owner test", private_processing_authorized: true,
+    provider_training_authorized: false, provider_retention: "project_library_retention_approved",
+    maximum_cost_usd: 5, maximum_requests: 2, expires_at_epoch: atlasExpiry, claim_scope: "development_only",
+  }]);
+  try {
+    // The native grant expired an hour ago; its bound intent holds a verified window for six more days.
+    const record = store.rows.get("inboundRequests/req1");
+    const { authority_digest: _digest, ...raw } = { ...record.website_scene_sponsorship,
+      expires_at_epoch: Date.now() / 1000 - 3600 };
+    const expired = { ...raw, authority_digest: sceneDigest(raw) };
+    record.website_scene_sponsorship = expired;
+    const until = expired.expires_at_epoch + 6 * 86400;
+    store.rows.set("taskEvaluationSceneIntakes/intake-one", { website_request_id: "req1", state: "completed",
+      root_sponsorship_digest: expired.authority_digest, sponsorship_digest: expired.authority_digest,
+      request: { execution: { expires_at_epoch: expired.expires_at_epoch } },
+      receipt: { intent_id: "scene-one", intent_digest: sha("8") },
+      execution_window_extensions: [{ schema_version: "task_evaluation_scene_execution_window_extension_notice.v1",
+        intent_id: "scene-one", intent_digest: sha("8"), extension_digest: sha("7"),
+        original_expires_at_epoch: expired.expires_at_epoch, expires_at_epoch: until,
+        issued_at_epoch: expired.expires_at_epoch + 60, authorization_reference: "owner approval (time only)",
+        authorized_via: "operator_door", received_at_iso: new Date().toISOString() }] });
+    record.website_scene_sponsorship_execution_window = { schema_version: "website_scene_sponsorship_execution_window.v1",
+      scope: "execution_time_only", authority_digest: expired.authority_digest, intent_id: "scene-one",
+      intake_id: "intake-one", extension_digest: sha("7"), original_expires_at_epoch: expired.expires_at_epoch,
+      expires_at_epoch: until };
+    const atlas = { task_context_digest: grant.task_context_digest, allocation_binding_digest: sha("1"),
+      resource_class: "provider_reconstruction_api" as const, provider: "world_labs_atlas" as const,
+      source_video_digest: sha("a"), maximum_cost_usd: 1, request_count: 1 };
+    expect(await reserveWebsitePreparationSpend("req1", atlas))
+      .toMatchObject({ status: "admitted", expires_at_epoch: atlasExpiry });
+    await expect(reserveWebsitePreparationSpend("req1", { ...atlas, allocation_binding_digest: sha("2"),
+      provider: "meta", resource_class: "evaluator_api", atlas_auxiliary: true })).rejects.toThrow("consent_expired");
+    expect(await reserveWebsitePreparationSpend("req1", { task_context_digest: grant.task_context_digest,
+      allocation_binding_digest: sha("3"), resource_class: "gpu_render", provider: "vast",
+      maximum_cost_usd: 1, request_count: 1 }))
+      .toMatchObject({ status: "admitted", sponsorship_digest: expired.authority_digest, expires_at_epoch: until });
+    expect(store.rows.get("inboundRequests/req1").website_scene_sponsorship).toEqual(expired);
+  } finally { delete process.env.BLUEPRINT_WEBSITE_ATLAS_AUTHORIZATIONS_JSON; }
+});
+
 it("reserves hosted SAM from the Blueprint cap once and rejects overspend, changed requests and revoked consent", async () => {
   sponsoredCapture();
   const grant = await loadWebsiteSceneSponsorship("req1", true);
@@ -2040,6 +2191,56 @@ it("releases only provider charged Vast capacity after a bound terminal rental",
     provider_charge_amount_usd: .011 })).rejects.toThrow("idempotency_conflict");
   await expect(settleWebsitePreparationSpend("req1", { ...settlement,
     provider_charge_amount_usd: .51 })).rejects.toThrow("settlement_invalid");
+});
+
+it("settles torn-down Vast probe holds at their labelled ledger estimates so the upstream cap counts what ran", async () => {
+  // capture-447ae4f4: four $1 probe holds and $0.32 already used left $4.32 held of $5,
+  // so the next $1 hold was refused while the four runs' ledgers estimated $0.62.
+  sponsoredCapture();
+  const policy = JSON.parse(process.env.BLUEPRINT_WEBSITE_SCENE_SPONSORSHIP_JSON!);
+  process.env.BLUEPRINT_WEBSITE_SCENE_SPONSORSHIP_JSON = JSON.stringify({ ...policy, max_paid_attempts: 16 });
+  const grant = await loadWebsiteSceneSponsorship("req1", true);
+  const probe = (key: string) => ({ task_context_digest: grant.task_context_digest, allocation_binding_digest: sha(key),
+    resource_class: "gpu_render" as const, provider: "vast" as const, maximum_cost_usd: 1, request_count: 1 });
+  await reserveWebsitePreparationSpend("req1", { task_context_digest: grant.task_context_digest,
+    allocation_binding_digest: sha("0"), resource_class: "evaluator_api", provider: "meta",
+    maximum_cost_usd: .32, request_count: 1 });
+  const estimates: Record<string, number> = { 1: .133313, 2: .16524, 3: .234989, 4: .087939 };
+  for (const key of Object.keys(estimates)) await reserveWebsitePreparationSpend("req1", probe(key));
+  await expect(reserveWebsitePreparationSpend("req1", probe("5"))).rejects.toThrow("budget_exhausted");
+  const settlement = (key: string) => ({ task_context_digest: grant.task_context_digest,
+    allocation_binding_digest: sha(key), provider: "vast" as const, instance_id: `5903504${key}`,
+    provider_charge_basis: "adapter_budget_ledger_estimate" as const, provider_charge_amount_usd: estimates[key],
+    budget_ledger_digest: sha("b"), execution_result_digest: sha("c"), teardown_receipt_digest: sha("d"),
+    provider_zero_digest: sha("f"), continuing_spend_from_this_run: false as const,
+    all_staged_objects_absent: true as const });
+  const original = structuredClone(store.rows.get("inboundRequests/req1").website_preparation_reservations);
+  // Never for a run that may still spend or left objects staged, never as a posted charge, never above the quote.
+  for (const changed of [{ continuing_spend_from_this_run: true }, { all_staged_objects_absent: false },
+    { provider_charge_basis: "provider_billed" }, { provider_charge_source: "instance-59035041" },
+    { provider_charge_amount_usd: 1.000001 }, { provider_charge_amount_usd: -0.01 }, { instance_id: "0" },
+    { budget_ledger_digest: "missing" }, { task_context_digest: sha("e") }, { allocation_binding_digest: sha("9") }]) {
+    await expect(settleWebsitePreparationSpend("req1", { ...settlement("1"), ...changed } as any)).rejects.toThrow();
+    expect(store.rows.get("inboundRequests/req1").website_preparation_reservations).toEqual(original);
+  }
+  const base = (await app()).replace(/\/intakes$/, "/internal/creator-captures/walkthrough-req1/preparation-settlement");
+  const response = await realFetch(base, { method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ request_id: "req1", scene_id: "site-req1", settlement: settlement("1") }) });
+  expect(response.status).toBe(200);
+  const first = await response.json();
+  expect(first).toEqual({ ...settlement("1"), actual_cost_usd: .133313, status: "settled" });
+  expect(await settleWebsitePreparationSpend("req1", settlement("1"))).toEqual(first);
+  await expect(settleWebsitePreparationSpend("req1", { ...settlement("1"), provider_charge_amount_usd: .2 }))
+    .rejects.toThrow("idempotency_conflict");
+  for (const key of ["2", "3", "4"]) await settleWebsitePreparationSpend("req1", settlement(key));
+  const retained = store.rows.get("inboundRequests/req1").website_preparation_reservations;
+  for (const key of Object.keys(original)) {
+    // Append-only: each admission (and its request count) is kept as reserved.
+    expect(retained[key].admission).toEqual(original[key].admission);
+    expect(retained[key].command_digest).toEqual(original[key].command_digest);
+  }
+  // $0.32 + $0.621481 settled, so the next $1 probe hold fits under the $5 upstream cap.
+  expect(await reserveWebsitePreparationSpend("req1", probe("5"))).toMatchObject({ status: "admitted" });
 });
 
 

@@ -72,13 +72,15 @@ import {
 import { loadCurrentWebsitePreparationStatus } from "../utils/websitePreparationStatus";
 import { answerTaskTargetChoice, currentTaskTargetChoiceAnswer, taskTargetSelection } from "../utils/websiteTaskTargetChoice";
 import { taskTargetChoiceRequestSchema } from "../utils/taskTargetChoiceContract";
+import { decideOwnerSuccessProposal, loadOwnerSuccessView, ownerSuccessDecisionRequestSchema } from "../utils/websiteOwnerSuccessConfirmation";
+import { decideRobotAccessProposal, loadRobotAccessView, robotAccessDecisionRequestSchema } from "../utils/websiteRobotAccessRemoval";
 import { websitePreparationOverdue } from "../utils/websitePreparationWatch";
 import { loadWebsiteSceneProgression } from "../utils/websiteSceneProgression";
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { deliverOutbox, enqueueOutbox } from "../utils/captureOutbox";
 import { decryptFieldValue } from "../utils/field-encryption";
 import { buildQualificationEmail, buildTaskNotYetSupportedEmail } from "../utils/qualificationEmails";
-import { taskScopeNotYet } from "../utils/siteTaskScope";
+import { multiStepTaskHold, taskScopeNotYet } from "../utils/siteTaskScope";
 import type { SiteTaskTriageSummary } from "../types/inbound-request";
 import { isSiteVideoEvidenceEnabled } from "../config/env";
 import { footageArrivedBeforeAccount, savedWalkthrough } from "../utils/siteWalkthrough";
@@ -206,6 +208,78 @@ router.post("/:token/task-target-choice", csrfProtection, async (req, res) => {
       return res.status(409).json({ code, error: "You already answered this question. Refresh your job to see where it stands." });
     logger.error({ error, requestId: verified.requestId }, "Could not record a task object choice");
     return res.status(503).json({ code: "task_target_choice_unavailable", error: "Your answer could not be saved. Try again shortly." });
+  }
+});
+
+/**
+ * The owner confirms the job's proposed success thresholds, or says they are
+ * wrong with a typed reason (which holds the job). Owner link only; no number
+ * is a field, so nothing here can change a threshold.
+ */
+router.post("/:token/success-thresholds", csrfProtection, async (req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+  const verified = verifyCaptureUploadToken(String(req.params.token || ""));
+  if (!verified) return res.status(404).json({ code: "capture_token_invalid", error: "That link is not valid any more." });
+  if (verified.scope !== "owner") return res.status(403).json({ code: "success_thresholds_owner_required",
+    error: "Open the owner's job link to confirm how success is judged." });
+  const parsed = ownerSuccessDecisionRequestSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ code: "success_thresholds_invalid",
+    error: "Confirm these goals, or say what is wrong with them." });
+  try {
+    const request = await readRequestForStatus(verified.requestId, verified.captureId, verified.sceneId);
+    if (!request || request.captureRights.consent_revoked)
+      return res.status(409).json({ code: "success_thresholds_unavailable", error: "This job can no longer be prepared from its recording." });
+    const captureId = request.active_capture_id ?? verified.captureId;
+    const decision = await decideOwnerSuccessProposal(verified.requestId, captureId, parsed.data);
+    if (decision.decision === "held")
+      logger.warn({ requestId: verified.requestId, reason: decision.reason }, "Site owner held the job's success thresholds");
+    return res.json({ ok: true, decision: decision.decision, reason: decision.reason, decidedAt: decision.decided_at });
+  } catch (error) {
+    const code = error instanceof Error ? error.message : "";
+    if (code === "website_owner_success_proposal_changed")
+      return res.status(409).json({ code, error: "These goals have changed. Refresh your job to see the current ones." });
+    if (code === "website_owner_success_already_confirmed")
+      return res.status(409).json({ code, error: "You already confirmed these goals. Refresh your job to see where it stands." });
+    if (code === "website_owner_success_capture_withdrawn" || code === "website_owner_success_consent_revoked")
+      return res.status(409).json({ code, error: "This job can no longer be prepared from its recording." });
+    logger.error({ error, requestId: verified.requestId }, "Could not record a success-threshold decision");
+    return res.status(503).json({ code: "success_thresholds_unavailable", error: "Your answer could not be saved. Try again shortly." });
+  }
+});
+
+/**
+ * The owner approves or declines moving named movable furniture (chairs,
+ * stools) out of the robot's way in the job's simulation. Owner link only; a
+ * decline holds the job, and no decision means no change.
+ */
+router.post("/:token/robot-access", csrfProtection, async (req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+  const verified = verifyCaptureUploadToken(String(req.params.token || ""));
+  if (!verified) return res.status(404).json({ code: "capture_token_invalid", error: "That link is not valid any more." });
+  if (verified.scope !== "owner") return res.status(403).json({ code: "robot_access_owner_required",
+    error: "Open the owner's job link to answer this." });
+  const parsed = robotAccessDecisionRequestSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ code: "robot_access_invalid",
+    error: "Approve moving it in the simulation, or keep it where it is." });
+  try {
+    const request = await readRequestForStatus(verified.requestId, verified.captureId, verified.sceneId);
+    if (!request || request.captureRights.consent_revoked)
+      return res.status(409).json({ code: "robot_access_unavailable", error: "This job can no longer be prepared from its recording." });
+    const captureId = request.active_capture_id ?? verified.captureId;
+    const decision = await decideRobotAccessProposal(verified.requestId, captureId, parsed.data);
+    if (decision.decision === "declined")
+      logger.warn({ requestId: verified.requestId }, "Site owner kept the furniture in place; the job is held");
+    return res.json({ ok: true, decision: decision.decision, decidedAt: decision.decided_at });
+  } catch (error) {
+    const code = error instanceof Error ? error.message : "";
+    if (code === "website_robot_access_proposal_changed")
+      return res.status(409).json({ code, error: "This question has changed. Refresh your job to see the current one." });
+    if (code === "website_robot_access_already_approved")
+      return res.status(409).json({ code, error: "You already approved this. Refresh your job to see where it stands." });
+    if (code === "website_robot_access_capture_withdrawn" || code === "website_robot_access_consent_revoked")
+      return res.status(409).json({ code, error: "This job can no longer be prepared from its recording." });
+    logger.error({ error, requestId: verified.requestId }, "Could not record a robot access decision");
+    return res.status(503).json({ code: "robot_access_unavailable", error: "Your answer could not be saved. Try again shortly." });
   }
 });
 
@@ -1122,6 +1196,17 @@ router.get("/:token/status", async (req: Request, res: Response) => {
       && websitePreparationOverdue(captureSession?.data()?.website_preparation_watch);
     const sceneProgression = preparationStatus?.state === "handed_off"
       ? await loadWebsiteSceneProgression(payload.requestId, payload.captureId) : null;
+    // The job's proposed success thresholds, for the owner to confirm: they exist only once the scene is handed off.
+    const successThresholds = payload.scope === "owner" && preparationStatus?.state === "handed_off"
+      ? await loadOwnerSuccessView(payload.requestId, payload.captureId) : null;
+    // Blueprint's proposal to move chairs or stools out of the robot's way in the simulation, for the owner only.
+    // Not gated on the live preparation read being handed_off: the proposal itself is past hand-off (the Pipeline
+    // sends one only from a screening request's completed scene, kept only on this job's verified scene intake),
+    // while that read is a bounded round trip to the Pipeline that says "unavailable" whenever it cannot be
+    // confirmed. The owner was emailed this question, so the page must show it while it waits. Rights still hide it.
+    const robotAccess = payload.scope === "owner" && !request?.captureRights.consent_revoked && !footageBeforeAccount
+      && preparationStatus?.state !== "authority_ended"
+      ? await loadRobotAccessView(payload.requestId, payload.captureId) : null;
     // The site's answer to the optional question about the guessed object to move, bound to this exact source.
     const targetChoiceAnswer = payload.scope === "owner" && preparationStatus
       ? currentTaskTargetChoiceAnswer(captureSession?.data(), preparationStatus) : null;
@@ -1145,6 +1230,8 @@ router.get("/:token/status", async (req: Request, res: Response) => {
         preparationOutcome: payload.scope === "owner" && request && !request.captureRights.consent_revoked
           ? request.preparationOutcome : null,
         preparationStatus,
+        // The current brief, not a stored screen: a held job moves as soon as the site splits its task.
+        multiStepHold: request?.captureRights.consent_revoked ? null : multiStepTaskHold(brief),
         targetChoiceAnswer,
         targetChoiceRestoringGuess: payload.scope === 'owner' && targetChoiceAnswer === 'confirm_guess'
           && preparationStatus?.state === 'awaiting_inputs'
@@ -1239,6 +1326,13 @@ router.get("/:token/status", async (req: Request, res: Response) => {
           referenceTimeMs: row.reference_time_ms })) } : null,
       // Which robots fit the job by spec sheet: an estimate for the owner, never a physical test.
       robotFit: payload.scope === "owner" ? preparationStatus?.robotFit ?? null : null,
+      // The robots checked before any spend and why none fits, for the owner only, while the job is held on it.
+      robotFitHold: payload.scope === "owner" && preparationStatus?.state === "awaiting_inputs"
+        && preparationStatus.robotFitPrecheck?.status === "no_fit" ? preparationStatus.robotFitPrecheck : null,
+      // How the robots are scored, for the owner only: confirm, or say it is wrong. Never a number to edit.
+      successThresholds: payload.scope === "owner" && !request?.captureRights.consent_revoked ? successThresholds : null,
+      // Whether to move named furniture out of the robot's way in the simulation, for the owner only.
+      robotAccess: payload.scope === "owner" && !request?.captureRights.consent_revoked ? robotAccess : null,
     });
   } catch (error) {
     logger.error({ error, requestId: payload.requestId }, "Could not load task status");

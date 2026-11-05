@@ -8,19 +8,21 @@ import { preparationGrantFollowsBrief } from "./preparationGrantTask";
 import type { SiteTaskBriefRecord } from "./siteTaskBrief";
 import type { TaskItemInventoryRecord } from "./taskItemInventory";
 import type { ConfiguredSceneOffering } from "./configuredSceneOfferingContract";
+import { evaluationPreparationBindingSchema, sameArtifactReference } from "./configuredSceneRevisionBinding";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { publicationFromResultRecord } from "./taskEvaluationRunPublicationStorage";
 import { parseVerifiedTaskEvaluationRunPublication } from "./taskEvaluationRunContract";
 import { parsePipelinePolicyCanaryPublication } from "./policyCanaryWebappSyncContract";
 import { isScreeningHeldOutcome, parseBetaPolicyScreeningPublication, screeningCandidateState, screeningEstimateCountSentence,
-  screeningEstimateRows, screeningExecutionEvidence, screeningOutcome, screeningOutcomeSentence, SCREENING_REPLANNED_BLOCKER,
+  screeningEstimateRows, screeningExecutionEvidence, screeningJobCeilingRow, screeningOutcome, screeningOutcomeSentence, SCREENING_REPLANNED_BLOCKER,
   type BetaPolicyScreeningPublication, type ScreeningExecutionEvidence, type ScreeningOutcome } from "./betaPolicyScreeningContract";
 import { projectCandidateSelection } from "./betaCandidateSelection";
 import type { JobCandidateSelection } from "../../client/src/types/jobMarketplace";
 import { assertWebsiteCaptureBindingInTransaction, resolveWebsiteCaptureBinding } from "./websiteCaptureBinding";
-import { preparationPhaseMatchesTask } from "./taskFamilySceneIntake";
+import { familyNativePreparationReference, preparationPhaseMatchesTask } from "./taskFamilySceneIntake";
 import { assertWebsiteRunOpen } from "./websiteRunClosure";
 import { taskTargetSelectionApplies } from "./websiteTaskTargetChoice";
+import { WILSON_CONFIDENCE_PERCENT, wilsonLowerBound, wilsonUpperBound } from "./successRateConfidence";
 
 export const jobManagedEvidenceBindingSchema = z.object({
   job_id: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$/),
@@ -130,12 +132,59 @@ export function managedJobTask(args: {
   };
 }
 
-/** The same retained source bytes govern ingestion and current evidence applicability. */
-export function assertScreeningSceneSource(publication: BetaPolicyScreeningPublication, intake: Record<string, any>,
-  scope: ReturnType<typeof managedJobTask>) {
+/** Where the Pipeline's launch receipt sync keeps each configured scene's offering. */
+const CONFIGURED_SCENE_LAUNCHES = "taskEvaluationLaunches";
+const OFFERED_REVISION_FILE_DIGEST = "configured_scene_offering.evaluation_preparation_binding.configured_scene_revision.digest";
+
+/**
+ * Stored configured scene offerings that name this intake's prepared revision
+ * file. Each was stored from a Pipeline-signed launch receipt the website
+ * verified. A family preparation names its revision digest itself and needs
+ * none. Read outside any transaction: a file's bytes fix its self-digest, so
+ * what an offering says about one exact revision file never changes.
+ */
+export async function readPreparedRevisionOfferings(intake: Record<string, any> | undefined): Promise<unknown[]> {
+  const reference = intake?.pipeline_status?.result_reference;
+  if (!db || familyNativePreparationReference.safeParse(reference).success || typeof reference?.digest !== "string") return [];
+  const rows = await db.collection(CONFIGURED_SCENE_LAUNCHES).where(OFFERED_REVISION_FILE_DIGEST, "==", reference.digest).limit(20).get();
+  return rows.docs.map(row => row.data()?.configured_scene_offering);
+}
+
+/**
+ * The prepared scene revision's own digest, which a screening source names as
+ * `scene_revision_digest`. A family preparation's reference states it. A
+ * configured scene's status names only the revision file (its uri, the sha256
+ * of its bytes and its size), never its self-digest; the stored offering's
+ * evaluation_preparation_binding binds that exact file to the self-digest.
+ * Null when no offering names the file, or offerings disagree.
+ */
+export function preparedSceneRevisionDigest(status: Record<string, any> | undefined, offerings: readonly unknown[]): string | null {
+  const reference = status?.result_reference;
+  const family = familyNativePreparationReference.safeParse(reference);
+  if (family.success) return family.data.digest;
+  const named = new Set<string>();
+  for (const offering of offerings) {
+    const binding = evaluationPreparationBindingSchema.safeParse((offering as Record<string, unknown> | null)?.evaluation_preparation_binding);
+    if (binding.success && sameArtifactReference(reference, binding.data.configured_scene_revision))
+      named.add(binding.data.configured_scene_revision_digest);
+  }
+  return named.size === 1 ? [...named][0] : null;
+}
+
+/**
+ * The same retained source bytes govern ingestion and current evidence
+ * applicability. `revisionOfferings` (`readPreparedRevisionOfferings`) relate
+ * a configured scene's revision file to the revision digest the source names.
+ */
+export function assertScreeningSceneSource(publication: Pick<BetaPolicyScreeningPublication, "source" | "site_id">, intake: Record<string, any>,
+  scope: ReturnType<typeof managedJobTask>, revisionOfferings: readonly unknown[]) {
   const source = publication.source;
   const status = intake.pipeline_status;
   const prepared = preparationPhaseMatchesTask(intake.request, status);
+  const revision = prepared ? preparedSceneRevisionDigest(status, revisionOfferings) : null;
+  // A prepared scene whose revision file no stored offering binds: the
+  // launch's publication sync has not reached the website yet.
+  if (prepared && revision === null) throw new Error("screening_scene_revision_unbound");
   // A family preparation's policy_selection records its compilation seed.
   // Pipeline evaluates every compatible configuration against these exact
   // prepared task/scene bytes; its signed campaign owns that candidate set.
@@ -149,7 +198,7 @@ export function assertScreeningSceneSource(publication: BetaPolicyScreeningPubli
     || crossRuntimeArtifactDigest(status, "status_digest") !== status.status_digest
     || status.intent_id !== source.scene_intent_id || status.intent_digest !== source.scene_intent_digest
     || status.request_digest !== intake.request_digest || crossRuntimeDigest(status.owner) !== crossRuntimeDigest(intake.request.owner)
-    || status.result_reference?.digest !== source.scene_revision_digest
+    || revision !== source.scene_revision_digest
     || websitePreparationCaptureId(intake.request) !== source.capture_id || intake.request.task?.task_id !== source.task_id
     || intake.source_session_id !== (scope.sourceCaptureSessionId ?? scope.sourceWebsiteCaptureId)
     || source.capture_id !== (scope.sourceCaptureSessionId ?? scope.sourceWebsiteCaptureId)
@@ -208,8 +257,20 @@ export type ManagedJobEvidenceSummary = {
       | "publication_digest" | "catalog_digest" | "plan_digest">;
     candidates: Array<{ candidateId: string; name: string; state: string; planned: number;
     scored: number; succeeded: number; failed: number; void: number; blockers: string[]; configurationDigest?: string;
-    executionEvidence?: ScreeningExecutionEvidence }>; selection?: JobCandidateSelection };
+    successRange?: ScreeningSuccessRange; executionEvidence?: ScreeningExecutionEvidence }>; selection?: JobCandidateSelection };
 };
+
+/**
+ * Where a candidate's success rate likely lies, from its scored episodes: the
+ * existing Wilson interval at its confidence level, in whole percents. Only a
+ * row with scored episodes has one.
+ */
+export type ScreeningSuccessRange = { lowerPercent: number; upperPercent: number; confidencePercent: number };
+export function screeningSuccessRange(succeeded: number, scored: number): ScreeningSuccessRange | undefined {
+  if (!Number.isInteger(scored) || !Number.isInteger(succeeded) || scored <= 0 || succeeded < 0 || succeeded > scored) return undefined;
+  return { lowerPercent: Math.round(wilsonLowerBound(succeeded, scored) * 100),
+    upperPercent: Math.round(wilsonUpperBound(succeeded, scored) * 100), confidencePercent: WILSON_CONFIDENCE_PERCENT };
+}
 
 /** What the site is told to expect next, per outcome: never an instruction for Blueprint or the owner (F-03). */
 const SITE_NEXT_ACTION: Readonly<Record<ScreeningOutcome, string>> = {
@@ -219,15 +280,28 @@ const SITE_NEXT_ACTION: Readonly<Record<ScreeningOutcome, string>> = {
   held_unprepared: "Nothing is needed from you. Each row lists why it could not run.",
   infeasible: "Nothing is needed from you. Each row lists the measured reason or why it could not run.",
   no_match: "Nothing is needed from you. Each row lists the measured reason or why it could not run.",
+  held_setup: "Nothing is needed from you. Each row lists why it stopped.",
+  held_budget: "Nothing is needed from you. Each row lists why it stopped.",
+  held_scene_check: "Nothing is needed from you.",
   awaiting_spend_approval: "Nothing is needed from you.",
   setup_repair: "Nothing is needed from you.",
   superseded: "Nothing is needed from you. The newer run shows this job's progress.",
 };
 /** Blueprint's own next step, shown in operations views only. */
 const OPS_NEXT_ACTION: Partial<Record<ScreeningOutcome, string>> = {
+  held_setup: "Held on our side: fix the cause in each candidate's blockers, then rerun. Once the fix deploys, the Pipeline plans a harness failure again by itself (a bounded number of times); rerun anything else by hand. Nothing is needed from the site.",
+  held_budget: "Held: the site's simulation allowance is spent and nothing reserves more. Spending past it is an owner decision. Nothing is needed from the site.",
+  held_scene_check: "Held: the scene failed its robot-free check, so no campaign started. Rebuild or re-probe the scene to continue. Nothing is needed from the site.",
   awaiting_spend_approval: "Owner approval needed: this job's candidates need more than the site's simulation budget. Nothing is needed from the site.",
-  setup_repair: "Fix the setup blockers listed per candidate, then rerun. Nothing is needed from the site.",
+  setup_repair: "Rows refused for code a deploy changed are planned again at the new release by the Pipeline itself. Nothing is needed from the site.",
 };
+/** When the job's dollar ceiling, not the screening budget, is what held the candidates back. */
+const OPS_JOB_CEILING_NEXT_ACTION = "Owner approval needed: this job's dollar ceiling, shared by all of its spending, has too little left "
+  + "to run its candidates. Raising it is the owner's money decision. Nothing is needed from the site.";
+const opsNextAction = (outcome: ScreeningOutcome, candidates: BetaPolicyScreeningPublication["candidates"]) =>
+  (outcome === "awaiting_spend_approval" || outcome === "held_budget")
+    && candidates.some(row => row.status !== "completed" && screeningJobCeilingRow(row))
+    ? OPS_JOB_CEILING_NEXT_ACTION : OPS_NEXT_ACTION[outcome];
 
 /** A projection of already accepted publications, never a second report store. */
 export function projectManagedJobEvidence(
@@ -284,7 +358,7 @@ export function projectManagedJobEvidence(
       nextAction: outcome ? SITE_NEXT_ACTION[outcome]
         : value.status === "reconciliation_required" ? "Blueprint is reviewing the recorded limitations before any further run."
           : "Candidate progress will update as each test finishes.",
-      ...(outcome && OPS_NEXT_ACTION[outcome] ? { opsNextAction: OPS_NEXT_ACTION[outcome] } : {}),
+      ...(outcome && opsNextAction(outcome, value.candidates) ? { opsNextAction: opsNextAction(outcome, value.candidates) } : {}),
       limitations: [
         ...(value.candidates.some(row => row.execution_evidence_kind === "scripted_simulator_state_baseline")
           ? ["Scripted baselines use simulator state. Their outcomes do not establish learned-policy or vendor-policy performance."] : []),
@@ -302,7 +376,9 @@ export function projectManagedJobEvidence(
         configurationDigest: row.configuration_digest,
         ...(row.execution_evidence_kind ? { executionEvidence: screeningExecutionEvidence(row) } : {}),
         state: screeningCandidateState(row), planned: row.episodes_planned, scored: row.episodes_scored, succeeded: row.episodes_succeeded,
-        failed: row.episodes_failed, void: row.episodes_void, blockers: row.blockers })), ...(selection ? { selection } : {}) } };
+        failed: row.episodes_failed, void: row.episodes_void, blockers: row.blockers,
+        ...(row.episodes_scored > 0 ? { successRange: screeningSuccessRange(row.episodes_succeeded, row.episodes_scored) } : {}) })),
+        ...(selection ? { selection } : {}) } };
   }
   if (publication.run_id !== runId) return base;
   if (publication.schema_version === "task_evaluation_run_publication.v4") {
@@ -349,8 +425,9 @@ async function currentManagedScreeningScope(args: {
       || publication.revision !== run.publication_revision || publication.plan_digest !== run.configuration_digest) return null;
     const intake = (await read(db!.collection("taskEvaluationSceneIntakes").doc(run.source_scene_intake_id))).data();
     if (!intake || typeof intake.source_session_id !== "string" || intake.website_request_id !== jobId || intake.receipt?.intent_id !== run.source_scene_intent_id
-      || intake.request?.owner?.user_id !== run.owner_user_id
-      || intake.pipeline_status?.result_reference?.digest !== run.source_scene_revision_digest) return null;
+      || intake.request?.owner?.user_id !== run.owner_user_id) return null;
+    const revisionOfferings = await readPreparedRevisionOfferings(intake);
+    if (preparedSceneRevisionDigest(intake.pipeline_status, revisionOfferings) !== run.source_scene_revision_digest) return null;
     const selectionSession = sourceSession ?? (await read(db!.collection('captureUploadSessions').doc(intake.source_session_id))).data();
     if (!taskTargetSelectionApplies(selectionSession, intake)) return null;
     assertWebsiteRunOpen(record, jobId, intake.source_session_id);
@@ -359,11 +436,12 @@ async function currentManagedScreeningScope(args: {
     await assertManagedScreeningCaptureCurrent(jobId, capture, read);
     const scope = managedJobTask({ binding: { job_id: jobId, brief_digest: currentBriefDigest }, record, brief,
       inventory, sourceSession, allowProposedScreening: true, screeningCapture: capture });
-    assertScreeningSceneSource(publication, intake, scope);
+    assertScreeningSceneSource(publication, intake, scope, revisionOfferings);
     return scope;
   } catch (error) {
     if (!(error instanceof Error) || !(/^job_[a-z_]+$/.test(error.message)
-      || ["screening_scene_source_mismatch", "website_run_closed_by_owner", "website_run_capture_superseded"].includes(error.message))) throw error;
+      || ["screening_scene_source_mismatch", "screening_scene_revision_unbound", "website_run_closed_by_owner",
+        "website_run_capture_superseded"].includes(error.message))) throw error;
     return null;
   }
 }

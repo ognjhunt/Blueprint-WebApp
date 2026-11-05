@@ -1,6 +1,6 @@
 import { websitePreparationCaptureId, websitePreparationRenewal, websitePreparationRevision } from "./websitePreparationRevision";
 import { websiteCaptureOwnerUid } from "./websiteCaptureOwner";
-import { taskScopeNotSupported } from "./siteTaskScope";
+import { MULTI_STEP_TASK_HOLD, multiStepTaskHold, taskScopeNotSupported } from "./siteTaskScope";
 import { websiteDevelopmentTestEnvironment } from "./websiteDevelopmentTest";
 /** Blueprint funds preparation; capture consent never authorizes a site-owner charge. */
 import { z } from "zod";
@@ -24,6 +24,8 @@ import { assertWithinWebsiteJobCeiling, transactionJobLedgerReader, websiteJobCe
   websiteJobSpend } from "./websiteJobCeiling";
 import { SCENE_EXECUTION_WINDOW_MAX_SECONDS, sponsorshipExecutionWindowUntil,
   sponsorshipWindowIntake } from "./sceneExecutionWindowExtension";
+import { WEBSITE_JOB_WINDOW_DEFAULT_SECONDS, WEBSITE_JOB_WINDOW_MAX_SECONDS, WEBSITE_JOB_WINDOW_MIN_SECONDS,
+  issuedWebsiteJobWindowSeconds } from "./websiteJobWindow";
 
 function continuationAuthority(authority: Record<string, any>, input: {
   brief: SiteTaskBriefRecord; record: Record<string, any>; inventory?: TaskItemInventoryRecord | null;
@@ -53,9 +55,10 @@ const policySchema = z.object({
   native_max_spend_usd: money,
   max_total_spend_usd: money,
   max_paid_attempts: z.number().int().min(1).max(32),
-  // Up to the Pipeline's own seven-day execution window (validate_execution),
-  // so a job is not stranded mid-run by a shorter Blueprint-issued window.
-  ttl_seconds: z.number().int().min(60).max(7 * 86400),
+  // The website job window (websiteJobWindow.ts): this grant and its scene intent
+  // share one expiry, at most the bound the Pipeline mirrors.
+  ttl_seconds: z.number().int().min(WEBSITE_JOB_WINDOW_MIN_SECONDS).max(WEBSITE_JOB_WINDOW_MAX_SECONDS)
+    .default(WEBSITE_JOB_WINDOW_DEFAULT_SECONDS),
   provider_terms_reference: z.string().regex(/^sha256:[0-9a-f]{64}$/),
 }).strict().refine(p => p.upstream_max_spend_usd + p.native_max_spend_usd <= p.max_total_spend_usd);
 
@@ -125,12 +128,38 @@ function developmentTestSiteAuthorized(record: Record<string, any>, contextDiges
     && developmentTestSiteEligible(record);
 }
 
+/** A job whose description names more than one step is held before any spend, by name: no grant,
+ * Atlas allowance, reservation or scene intake is admitted for it, so the Pipeline never narrows it to
+ * one move. The site splits the task, or the job stays held. Settling spend already admitted is
+ * unaffected. An owner-listed development test site keeps its own authorization. */
+export function assertNoMultiStepTaskHold(input: { brief: SiteTaskBriefRecord; record: Record<string, any>;
+  inventory?: TaskItemInventoryRecord | null; purpose?: "scene_preparation" }) {
+  if (!multiStepTaskHold(input.brief)) return;
+  const purpose = "purpose" in input ? input.purpose : retainedWebsiteScenePurpose(input.record) ?? "scene_preparation";
+  const context = projectWebsiteTaskContext(input.brief, projectWebsiteCaptureRights(input.record),
+    { inventory: input.inventory, purpose });
+  const retained = input.record.website_scene_sponsorship?.task_context_digest;
+  if (!developmentTestSiteAuthorized(input.record, context.context_digest)
+    && !(typeof retained === "string" && developmentTestSiteAuthorized(input.record, retained)))
+    throw new Error(MULTI_STEP_TASK_HOLD);
+}
+
+/** When a retained grant stops being valid: its own expiry, or the verified time-only
+ * window of its bound scene intent (sponsorshipExecutionWindowUntil), never past
+ * the grant's expiry + 7 days. The grant itself is unchanged. */
+export function sponsorshipValidUntil(grant: Record<string, any>, executionWindowUntil?: number): number {
+  return executionWindowUntil === undefined ? grant.expires_at_epoch
+    : Math.min(Math.max(grant.expires_at_epoch, executionWindowUntil),
+      grant.expires_at_epoch + SCENE_EXECUTION_WINDOW_MAX_SECONDS);
+}
+
 export function websiteSceneSponsorship(input: {
   requestId: string; brief: SiteTaskBriefRecord; record: Record<string, any>; now: number;
   inventory?: TaskItemInventoryRecord | null; captureId?: string; captureBinding?: Record<string, any>;
   purpose?: "scene_preparation"; expected_task_context_digest?: string;
   retainedPolicy?: z.infer<typeof policySchema>; renewal?: SponsorshipRenewal;
-  /** A verified time-only extension of the bound scene intent (non-creating reads only). */
+  /** A verified time-only extension of the bound scene intent: the non-creating read and
+   * native/Marble paid reservations only, never a new grant. */
   executionWindowUntil?: number;
 }) {
   const configured = input.retainedPolicy ?? policy();
@@ -169,8 +198,8 @@ export function websiteSceneSponsorship(input: {
     throw new Error("website_agents_api_task_not_authorized");
   const managedPolicy = managedAgents ? agentsApiPolicy() : null;
   const developmentSiteTest = developmentTestSiteAuthorized(input.record, grantContextDigest);
-  const policyDigest = developmentSiteTest
-    ? digest({ policy: configured, development_test_site_context_digest: grantContextDigest,
+  const policyDigestFor = (sponsorPolicy: z.infer<typeof policySchema>) => developmentSiteTest
+    ? digest({ policy: sponsorPolicy, development_test_site_context_digest: grantContextDigest,
       ...(managedPolicy ? { agents_api_policy: managedPolicy } : {}),
       development_test_site_gates: input.record.siteTaskGates,
       development_test_site_triage: {
@@ -178,19 +207,22 @@ export function websiteSceneSponsorship(input: {
         blocking_field_ids: input.record.site_task_triage.blocking_field_ids,
         unanswered_field_ids: input.record.site_task_triage.unanswered_field_ids,
       } })
-    : digest(managedPolicy ? { policy: configured, agents_api_policy: managedPolicy } : configured);
+    : digest(managedPolicy ? { policy: sponsorPolicy, agents_api_policy: managedPolicy } : sponsorPolicy);
+  const policyDigest = policyDigestFor(configured);
   if (previous) {
     const { authority_digest: retainedDigest, ...payload } = previous;
-    if (digest(payload) !== retainedDigest || previous.policy_digest !== policyDigest
+    // A change to the window length alone leaves an issued grant on the window it
+    // was issued with; any other policy change still refuses it.
+    const issuedWindow = issuedWebsiteJobWindowSeconds(previous);
+    const issuedUnderThisPolicy = previous.policy_digest === policyDigest || issuedWindow !== null
+      && previous.policy_digest === policyDigestFor({ ...configured, ttl_seconds: issuedWindow });
+    if (digest(payload) !== retainedDigest || !issuedUnderThisPolicy
       || previous.request_id !== input.requestId || previous.task_context_digest !== grantContextDigest
       || previous.purpose !== input.purpose)
       throw new Error("website_scene_sponsorship_changed");
     // Only "still valid now" moves with an owner-approved extension; the grant,
     // its caps and its issued window are returned exactly as retained.
-    const validUntil = input.executionWindowUntil === undefined ? previous.expires_at_epoch
-      : Math.min(Math.max(previous.expires_at_epoch, input.executionWindowUntil),
-        previous.expires_at_epoch + SCENE_EXECUTION_WINDOW_MAX_SECONDS);
-    if (validUntil <= input.now) throw new Error("consent_expired");
+    if (sponsorshipValidUntil(previous, input.executionWindowUntil) <= input.now) throw new Error("consent_expired");
     return continuationAuthority(previous, input);
   }
   // Scene preparation proceeds while site questions remain open. This does not
@@ -307,7 +339,8 @@ export function currentWebsitePreparationStatusContext(input: {
 
 /** One retained grant per upload. Replays never renew its clock or its budget.
  * `honour_execution_window` (the Pipeline's non-creating read only) lets a
- * verified time-only extension of the bound scene intent keep the grant readable. */
+ * verified time-only extension of the bound scene intent keep the grant readable;
+ * a native/Marble paid reservation follows the same window (reserveWebsitePreparationSpend). */
 export type WebsiteSceneSponsorshipRequest = { purpose?: "scene_preparation"; expected_task_context_digest?: string;
   honour_execution_window?: true };
 /** Trusted background reads reuse stored scope; explicit signed requests never infer new authority. */
@@ -349,6 +382,8 @@ export async function loadWebsiteSceneSponsorship(requestId: string, create = fa
     const authority = websiteSceneSponsorship({...input, ...(purpose === "scene_preparation" ? { captureId, captureBinding } : {}), now: Date.now() / 1000,
       ...(options?.expected_task_context_digest !== undefined ? {expected_task_context_digest: purpose === "scene_preparation" ? current.context_digest
         : projectWebsiteTaskContext(input.brief, projectWebsiteCaptureRights(record), {inventory: input.inventory, purpose}).context_digest} : {})});
+    // Before the grant is stored or returned: a job held for its several steps gets no spending authority.
+    if (create) assertNoMultiStepTaskHold(input);
     if (!record.website_scene_sponsorship) transaction.update(ref, { website_scene_sponsorship: authority,
       ...(authority.purpose === "scene_preparation" && isPlaceholderSummary(input.brief.summary)
         ? { [UNNAMED_TASK_GRANT_FIELD]: authority.authority_digest } : {}) });
@@ -497,6 +532,24 @@ const vastSettlementRequest = z.object({
   teardown_receipt_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
   provider_zero_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
 }).strict().refine(value => value.provider_charge_source === `instance-${value.instance_id}`);
+// Vast's instance API reports no charge for a short rental, so a terminal run
+// with no posted bill settles at its adapter's budget-ledger estimate (observed
+// all-in hourly rate over the observed live time, plus the priced transfer),
+// labelled as an estimate, never as a provider charge. It is accepted only for
+// one torn-down instance with no continuing spend and nothing left staged; like
+// every settlement it is written once and never above the reservation's quote.
+const vastEstimatedSettlementRequest = z.object({
+  task_context_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+  allocation_binding_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+  provider: z.literal("vast"), instance_id: z.string().regex(/^[1-9][0-9]{0,17}$/),
+  provider_charge_basis: z.literal("adapter_budget_ledger_estimate"),
+  provider_charge_amount_usd: z.number().finite().min(0).max(1000),
+  budget_ledger_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+  execution_result_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+  teardown_receipt_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+  provider_zero_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+  continuing_spend_from_this_run: z.literal(false), all_staged_objects_absent: z.literal(true),
+}).strict();
 // A signed allocator refusal can release a hold without inventing an instance
 // or billing receipt. The original admission and request count stay retained.
 const vastNoAllocationSettlementRequest = z.object({
@@ -537,8 +590,8 @@ const atlasSettlementRequest = z.object({
 }).strict().refine(value => (value.outcome === "refused") === (value.operation_id === null),
   "website_atlas_settlement_operation_invalid");
 export const preparationSettlementRequest = z.union([
-  completedPreparationSettlement, rejectedPreparationSettlement, vastSettlementRequest, vastNoAllocationSettlementRequest,
-  openaiImageSettlementRequest, atlasSettlementRequest,
+  completedPreparationSettlement, rejectedPreparationSettlement, vastSettlementRequest, vastEstimatedSettlementRequest,
+  vastNoAllocationSettlementRequest, openaiImageSettlementRequest, atlasSettlementRequest,
 ]);
 type PreparationSettlement = z.infer<typeof preparationSettlementRequest>;
 
@@ -910,12 +963,21 @@ export async function reserveWebsitePreparationSpend(requestId: string, input: z
       inventory: inventory.exists ? inventory.data() as TaskItemInventoryRecord : null,
       purpose: retainedWebsiteScenePurpose(record), captureId, captureBinding,
     }) : null;
+    // The native/Marble grant stays spendable inside an owner-approved, time-only
+    // window of its bound scene intent (operator door -> Pipeline -> signed notice,
+    // mirrored on this job), re-verified here against the intake in this transaction.
+    // Only the clock moves: caps, attempts, request limits, provider terms, rights and
+    // the run-open check below are unchanged. Atlas grants keep their own clock.
+    const executionWindowUntil = !atlas && record.website_scene_sponsorship_execution_window
+      ? sponsorshipExecutionWindowUntil(record.website_scene_sponsorship, record,
+        await sponsorshipWindowIntake(transaction, record)) : undefined;
     // This fresh Atlas-only grant does not renew the expired native/Marble
     // sponsorship or reopen any other preparation work.
     const authority = atlas ? { task_context_digest: atlasContext!.context_digest,
       authority_digest: atlas.authorization_digest, expires_at_epoch: atlas.expires_at_epoch } : websiteSceneSponsorship({ requestId, record, purpose: retainedWebsiteScenePurpose(record),
       brief: brief.data() as SiteTaskBriefRecord, inventory: inventory.exists ? inventory.data() as TaskItemInventoryRecord : null,
-      captureId, captureBinding, now: Date.now() / 1000 });
+      captureId, captureBinding, now: Date.now() / 1000,
+      ...(executionWindowUntil === undefined ? {} : { executionWindowUntil }) });
     if (command.task_context_digest !== authority.task_context_digest)
       throw new Error("website_scene_sponsorship_binding_invalid");
     if (!atlas && sceneProviderTerms()[command.provider]?.digest !== (authority as Record<string, any>).consent.provider_terms_reference)
@@ -955,6 +1017,8 @@ export async function reserveWebsitePreparationSpend(requestId: string, input: z
       // cannot spend again just because it lacks the first worker's files.
       return { ...reservations[key].admission, status: "already_reserved" };
     }
+    assertNoMultiStepTaskHold({ brief: brief.data() as SiteTaskBriefRecord, record,
+      inventory: inventory.exists ? inventory.data() as TaskItemInventoryRecord : null });
     // Atlas beta authorization is a separate explicit owner allowance. Its rows
     // never replenish the pre-existing preparation budget, or vice versa.
     const previous = Object.values(reservations).filter(row => !atlas && !row.admission.atlas_authorization_digest
@@ -983,7 +1047,10 @@ export async function reserveWebsitePreparationSpend(requestId: string, input: z
         provider_retention: auxiliaryTerms ? "accepted_auxiliary_provider_terms" : atlas.provider_retention,
         ...(auxiliaryConsentDigest ? { auxiliary_consent_digest: auxiliaryConsentDigest } : {}),
         provider_training_authorized: command.provider === "openai" || Boolean(auxiliaryTerms) ? false : atlas.provider_training_authorized } : {}),
-      expires_at_epoch: Math.min(authority.expires_at_epoch, atlas?.expires_at_epoch ?? authority.expires_at_epoch, auxiliaryExpiresAt) };
+      // The native grant's window (its own expiry unless a verified intent window
+      // extends it, never past expiry + 7 days), inside every other bound.
+      expires_at_epoch: Math.min(sponsorshipValidUntil(authority, executionWindowUntil),
+        atlas?.expires_at_epoch ?? Infinity, auxiliaryExpiresAt) };
     transaction.update(ref, { website_preparation_reservations: { ...reservations,
       [key]: { command_digest: digest(command), admission,
         observation_binding: preparationObservationBinding(requestId, captureId, command) } } });
@@ -1011,6 +1078,8 @@ export async function loadWebsiteAtlasConfiguration(requestId: string, captureId
       throw new Error("task_brief_missing");
     const rights = projectWebsiteCaptureRights(record);
     if (!rights.derived_scene_generation_allowed) throw new Error("source_revoked");
+    if (input.create !== false) assertNoMultiStepTaskHold({ brief: brief.data() as SiteTaskBriefRecord, record,
+      inventory: inventory.exists ? inventory.data() as TaskItemInventoryRecord : null });
     const context = projectWebsiteTaskContext(brief.data() as SiteTaskBriefRecord, rights, {
       inventory: inventory.exists ? inventory.data() as TaskItemInventoryRecord : null,
       purpose: retainedWebsiteScenePurpose(record), captureId, captureBinding: binding });

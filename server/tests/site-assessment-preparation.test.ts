@@ -22,7 +22,8 @@ vi.mock("../utils/taskLifecycleNotifications", () => ({enqueueTaskLifecycleNotif
 vi.mock("../utils/pipelineSyncSecurity", () => ({createPipelineSyncRateLimiter:()=> (_r:unknown,_s:unknown,next:()=>void)=>next(),
   verifyPipelineSyncRequest:()=>({ok:true})}));
 import { loadWebsiteSceneSponsorship, websiteSceneSponsorship, currentWebsitePreparationStatusContext, reserveWebsitePreparationSpend, amendWebsitePreparationRequestLimit,
-  amendWebsitePreparationSpendLimit } from "../utils/websiteSceneSponsorship";
+  amendWebsitePreparationSpendLimit, sponsorshipValidUntil } from "../utils/websiteSceneSponsorship";
+import { recordSceneExecutionWindowExtension } from "../utils/sceneExecutionWindowExtension";
 import { advisoryContextDigest, advisoryJobId } from "../utils/siteAssessmentContext";
 import { browserPendingDecisionKey } from "../utils/websiteBrowserPending";
 import { RECORDING_CONSENT_VERSION } from "../utils/recordingConsent";
@@ -125,6 +126,52 @@ it("actual signed-route handler grants preparation while the assessment is queue
     expect(invalid.status).toBe(409);expect(await invalid.json()).toEqual({code:"website_scene_preparation_settlement_invalid"});
     const revoked=await send("scene-sponsorship",{request_id:"one",scene_id:"site-one",...prepOptions()});
     expect(revoked.status).toBe(409);expect(await revoked.json()).toEqual({code:"source_revoked"});
+  } finally {await new Promise<void>((resolve,reject)=>server.close(error=>error?reject(error):resolve()));}
+});
+
+it("holds a job that names several steps before any spend: no grant, no reservation, a typed refusal",async()=>{
+  seed(packet(),false,false,{},{summary:"Take the plates to the kitchen then load the dishwasher"});
+  await expect(loadWebsiteSceneSponsorship("one",true,"walkthrough-one",prepOptions()))
+    .rejects.toThrow("website_multi_step_task_preparation_required");
+  expect(state.docs.get("inboundRequests/one")?.website_scene_sponsorship).toBeUndefined();
+  // The same job, split into one step by the site, is granted as any other.
+  (state.docs.get("siteTaskBriefs/one") as any).summary="Pick up the tray and put it on the counter";
+  const grant=await loadWebsiteSceneSponsorship("one",true,"walkthrough-one",prepOptions());
+  expect(grant).toMatchObject({purpose:"scene_preparation"});
+});
+it("admits no new spend once the site names several steps for a job prepared before it was named",async()=>{
+  // Preparation starts from the video before the site names the job; the grant then follows the brief.
+  seed(packet(),false,false,{},{summary:"Your site task"});
+  const grant=await loadWebsiteSceneSponsorship("one",true,"walkthrough-one",prepOptions());
+  vi.stubEnv("TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON",JSON.stringify({vast:{digest:grant.consent.provider_terms_reference,
+    label:"Synthetic",url:"https://example.com/terms"}}));
+  (state.docs.get("siteTaskBriefs/one") as any).summary="Open the fridge and take out the milk";
+  const named=prepOptions().expected_task_context_digest;
+  const spend=(digest:string)=>({task_context_digest:digest,
+    allocation_binding_digest:`sha256:${"d".repeat(64)}`,resource_class:"gpu_render",provider:"vast",maximum_cost_usd:1,request_count:1});
+  const before=structuredClone((state.docs.get("inboundRequests/one") as any).website_preparation_reservations ?? null);
+  expect(named).not.toBe(grant.task_context_digest);
+  await expect(reserveWebsitePreparationSpend("one",spend(named)))
+    .rejects.toThrow("website_multi_step_task_preparation_required");
+  expect((state.docs.get("inboundRequests/one") as any).website_preparation_reservations ?? null).toEqual(before);
+  await expect(loadWebsiteSceneSponsorship("one",true,"walkthrough-one",{purpose:"scene_preparation",
+    expected_task_context_digest:named})).rejects.toThrow("website_multi_step_task_preparation_required");
+  // Split into one step, the same grant admits spend again.
+  (state.docs.get("siteTaskBriefs/one") as any).summary="Take the milk out of the fridge";
+  expect(await reserveWebsitePreparationSpend("one",spend(prepOptions().expected_task_context_digest)))
+    .toMatchObject({status:"admitted"});
+});
+it("the signed route returns the multi-step hold by name, so the Pipeline holds the capture rather than fails it",async()=>{
+  // Screened as "other" for its wiping, and still several steps: held all the same.
+  seed(packet(),false,false,{},{summary:"Put the mug in the sink, then wipe the counter"});
+  const app=express();app.use(express.json());app.use((await import("../routes/internal-capture-worlds")).default);
+  const server=createServer(app);await new Promise<void>(resolve=>server.listen(0,"127.0.0.1",resolve));
+  const base=`http://127.0.0.1:${(server.address() as any).port}/creator-captures/walkthrough-one`;
+  try {
+    const refused=await fetch(`${base}/scene-sponsorship`,{method:"POST",headers:{"content-type":"application/json"},
+      body:JSON.stringify({request_id:"one",scene_id:"site-one",...prepOptions()})});
+    expect(refused.status).toBe(409);
+    expect(await refused.json()).toEqual({code:"website_multi_step_task_preparation_required"});
   } finally {await new Promise<void>((resolve,reject)=>server.close(error=>error?reject(error):resolve()));}
 });
 
@@ -778,11 +825,9 @@ it("the Pipeline's non-creating grant read follows a verified intent extension; 
     // The same retained grant: digest, caps, attempts and raw expiry unchanged.
     expect(await response.json()).toEqual(grant);
     expect(record.website_scene_sponsorship).toEqual(stored);
-    // Any other caller still sees the grant's own expiry, including every paid reservation.
+    // Any other read still sees the grant's own expiry. A native paid reservation
+    // follows the same window (tested below); its caps and terms are unchanged.
     await expect(loadWebsiteSceneSponsorship("one",false)).rejects.toThrow("consent_expired");
-    await expect(reserveWebsitePreparationSpend("one",{task_context_digest:grant.task_context_digest,
-      allocation_binding_digest:`sha256:${"d".repeat(64)}`,resource_class:"gpu_render",provider:"vast",
-      maximum_cost_usd:1,request_count:1})).rejects.toThrow("consent_expired");
     // A revoked intake, or an extension the intake does not hold, ends it again.
     intake.revocation_requested=true;
     expect((await read()).status).toBe(409);
@@ -797,4 +842,155 @@ it("the Pipeline's non-creating grant read follows a verified intent extension; 
     clock.mockImplementation(realNow);vi.restoreAllMocks();
     await new Promise<void>((resolve,reject)=>server.close(error=>error?reject(error):resolve()));
   }
+});
+
+// Owner-approved 2026-11-03: a native/Marble paid reservation (the rigid probe's
+// capped GPU run, for one) follows the same verified window. Only the clock moves.
+const EXTENSION=`sha256:${"7".repeat(64)}`,INTENT_DIGEST=`sha256:${"a".repeat(64)}`;
+function extensionRow(original:number,until:number,changes:Record<string,unknown>={}) {
+  return {schema_version:"task_evaluation_scene_execution_window_extension_notice.v1",intent_id:"scene-one",
+    intent_digest:INTENT_DIGEST,extension_digest:EXTENSION,original_expires_at_epoch:original,expires_at_epoch:until,
+    issued_at_epoch:original+60,authorization_reference:"founder approval (time only)",authorized_via:"operator_door",
+    ...changes};
+}
+/** The intake a verified extension is recorded on, and the job's mirror of it, as the signed notice writes them. */
+function sceneWindow(grant:any,until=grant.expires_at_epoch+86400) {
+  const intake={website_request_id:"one",source_session_id:"walkthrough-one",state:"completed",
+    root_sponsorship_digest:grant.authority_digest,sponsorship_digest:grant.authority_digest,
+    request:{execution:{expires_at_epoch:grant.expires_at_epoch,max_total_spend_usd:grant.max_total_spend_usd}},
+    receipt:{intent_id:"scene-one",intent_digest:INTENT_DIGEST},
+    execution_window_extensions:[{...extensionRow(grant.expires_at_epoch,until),received_at_iso:"2026-11-03T16:00:00Z"}]} as any;
+  intake.request_digest=crossRuntimeDigest(intake.request);
+  state.docs.set("taskEvaluationSceneIntakes/intake-one",intake);
+  (state.docs.get("inboundRequests/one") as any).website_scene_sponsorship_execution_window={
+    schema_version:"website_scene_sponsorship_execution_window.v1",scope:"execution_time_only",
+    authority_digest:grant.authority_digest,intent_id:"scene-one",intake_id:"intake-one",extension_digest:EXTENSION,
+    original_expires_at_epoch:grant.expires_at_epoch,expires_at_epoch:until};
+  return intake;
+}
+const vastTerms=(grant:any)=>vi.stubEnv("TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON",JSON.stringify({
+  vast:{digest:grant.consent.provider_terms_reference,label:"Synthetic",url:"https://example.com/terms"}}));
+const gpu=(grant:any,key:string,changes:Record<string,unknown>={})=>({task_context_digest:grant.task_context_digest,
+  allocation_binding_digest:`sha256:${key.repeat(64)}`,resource_class:"gpu_render" as const,provider:"vast" as const,
+  maximum_cost_usd:.5,request_count:1,...changes});
+const job=()=>state.docs.get("inboundRequests/one") as any;
+
+it("a native paid reservation follows a verified intent window, on a completed intake, with every cap unchanged",async()=>{
+  seed(packet(),false,false);
+  const grant=await loadWebsiteSceneSponsorship("one",true,"walkthrough-one",prepOptions());
+  vastTerms(grant);sceneWindow(grant);
+  const stored=structuredClone(job().website_scene_sponsorship);
+  const clock=vi.spyOn(Date,"now").mockReturnValue((grant.expires_at_epoch+3600)*1000);
+  try {
+    expect(await reserveWebsitePreparationSpend("one",gpu(grant,"d"))).toMatchObject({status:"admitted",
+      sponsorship_digest:grant.authority_digest,maximum_cost_usd:.5,expires_at_epoch:grant.expires_at_epoch+86400});
+    // The grant (digest, caps, attempts, raw expiry) is untouched, and its upstream cap ($1) and request limit (2) still bind.
+    expect(job().website_scene_sponsorship).toEqual(stored);
+    await expect(reserveWebsitePreparationSpend("one",gpu(grant,"e",{maximum_cost_usd:.6})))
+      .rejects.toThrow("website_scene_preparation_budget_exhausted");
+    expect(await reserveWebsitePreparationSpend("one",gpu(grant,"e"))).toMatchObject({status:"admitted"});
+    await expect(reserveWebsitePreparationSpend("one",gpu(grant,"f",{maximum_cost_usd:.001})))
+      .rejects.toThrow("website_scene_preparation_budget_exhausted");
+    // Provider terms and rights are still checked inside the window.
+    vi.stubEnv("TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON",JSON.stringify({vast:{digest:`sha256:${"6".repeat(64)}`,
+      label:"Changed",url:"https://example.com/terms"}}));
+    await expect(reserveWebsitePreparationSpend("one",gpu(grant,"f",{maximum_cost_usd:.001})))
+      .rejects.toThrow("provider_terms_not_configured_or_changed");
+    vastTerms(grant);
+    job().request.consent_attestation.revoked_at_iso="2026-11-03T17:00:00Z";
+    await expect(reserveWebsitePreparationSpend("one",gpu(grant,"f",{maximum_cost_usd:.001}))).rejects.toThrow("source_revoked");
+    delete job().request.consent_attestation.revoked_at_iso;
+    // At the end of the window it is expired like any other grant.
+    clock.mockReturnValue((grant.expires_at_epoch+86400)*1000);
+    await expect(reserveWebsitePreparationSpend("one",gpu(grant,"f",{maximum_cost_usd:.001}))).rejects.toThrow("consent_expired");
+    expect(Object.keys(job().website_preparation_reservations)).toHaveLength(2);
+  } finally {vi.restoreAllMocks();}
+});
+
+it.each([
+  ["a revoked intent",(intake:any)=>{intake.revocation_requested=true;}],
+  ["a revocation in progress",(intake:any)=>{intake.state="revocation_pending";}],
+  ["no stored extension",(intake:any)=>{intake.execution_window_extensions=[];}],
+  ["another intent's extension",(intake:any)=>{intake.receipt.intent_id="scene-two";}],
+  ["an intake bound to another grant",(intake:any)=>{intake.root_sponsorship_digest=`sha256:${"6".repeat(64)}`;}],
+  ["a mirror naming another intake",(_intake:any,record:any)=>{record.website_scene_sponsorship_execution_window.intake_id="intake-two";}],
+  ["a mirror for another grant",(_intake:any,record:any)=>{
+    record.website_scene_sponsorship_execution_window.authority_digest=`sha256:${"6".repeat(64)}`;}],
+  ["a mirrored expiry no extension holds",(_intake:any,record:any)=>{record.website_scene_sponsorship_execution_window.expires_at_epoch+=1;}],
+  ["another extension digest",(_intake:any,record:any)=>{
+    record.website_scene_sponsorship_execution_window.extension_digest=`sha256:${"8".repeat(64)}`;}],
+  ["an extension past the sealed expiry + 7 days",(intake:any,record:any,grant:any)=>{
+    const until=grant.expires_at_epoch+8*86400;
+    intake.execution_window_extensions=[{...extensionRow(grant.expires_at_epoch,until,{issued_at_epoch:grant.expires_at_epoch+2*86400}),
+      received_at_iso:"2026-11-03T16:00:00Z"}];
+    record.website_scene_sponsorship_execution_window.expires_at_epoch=until;}],
+])("a window with %s keeps the reservation at the grant's own expiry and reserves nothing",async(_name,mutate)=>{
+  seed(packet(),false,false);
+  const grant=await loadWebsiteSceneSponsorship("one",true,"walkthrough-one",prepOptions());
+  vastTerms(grant);mutate(sceneWindow(grant),job(),grant);
+  vi.spyOn(Date,"now").mockReturnValue((grant.expires_at_epoch+3600)*1000);
+  try {
+    await expect(reserveWebsitePreparationSpend("one",gpu(grant,"d"))).rejects.toThrow("consent_expired");
+    expect(job().website_preparation_reservations).toBeUndefined();
+  } finally {vi.restoreAllMocks();}
+});
+
+it("an admission's expiry is the grant's own, or its verified window, never past the grant's expiry + 7 days",async()=>{
+  seed(packet(),false,false);
+  const grant=await loadWebsiteSceneSponsorship("one",true,"walkthrough-one",prepOptions());
+  vastTerms(grant);
+  expect(await reserveWebsitePreparationSpend("one",gpu(grant,"d",{maximum_cost_usd:.1})))
+    .toMatchObject({status:"admitted",expires_at_epoch:grant.expires_at_epoch});
+  sceneWindow(grant,grant.expires_at_epoch+7*86400);
+  vi.spyOn(Date,"now").mockReturnValue((grant.expires_at_epoch+6.5*86400)*1000);
+  try {
+    expect(await reserveWebsitePreparationSpend("one",gpu(grant,"e",{maximum_cost_usd:.1})))
+      .toMatchObject({status:"admitted",expires_at_epoch:grant.expires_at_epoch+7*86400});
+  } finally {vi.restoreAllMocks();}
+  expect(sponsorshipValidUntil({expires_at_epoch:100})).toBe(100);
+  expect(sponsorshipValidUntil({expires_at_epoch:100},50)).toBe(100);
+  expect(sponsorshipValidUntil({expires_at_epoch:100},100+30*86400)).toBe(100+7*86400);
+});
+
+// capture-447ae4f4: the parent grant's intent was extended, the grant renewed, and the
+// renewal's re-issued intent extended in turn. The mirror binds the grant each intake records.
+it("a renewed grant's own intent window is mirrored and funds a reservation; the parent's window does not",async()=>{
+  seed(packet(),false,false);
+  const first=await loadWebsiteSceneSponsorship("one",true,"walkthrough-one",prepOptions());
+  vastTerms(first);
+  const intake=(id:string,intent:string,grant:any)=>{
+    const value={website_request_id:"one",source_session_id:"walkthrough-one",state:"completed",
+      root_sponsorship_digest:grant.authority_digest,sponsorship_digest:grant.authority_digest,
+      request:{execution:{expires_at_epoch:grant.expires_at_epoch,max_total_spend_usd:grant.max_total_spend_usd}},
+      receipt:{intent_id:intent,intent_digest:INTENT_DIGEST}} as any;
+    value.request_digest=crossRuntimeDigest(value.request);
+    state.docs.set(`taskEvaluationSceneIntakes/${id}`,value);
+  };
+  const extend=(intent:string,grant:any,digit:string)=>recordSceneExecutionWindowExtension(
+    {...extensionRow(grant.expires_at_epoch,grant.expires_at_epoch+6*86400),intent_id:intent,
+      extension_digest:`sha256:${digit.repeat(64)}`} as any);
+  intake("intake-parent","scene-parent",first);
+  expect(await extend("scene-parent",first,"7")).toMatchObject({status:"recorded",sponsorship_window_mirrored:true});
+  const clock=vi.spyOn(Date,"now").mockReturnValue((first.expires_at_epoch+10)*1000);
+  try {
+    await renewExpiredWebsiteSceneSponsorship("one",{approved_by:"blueprint",approval_reference:"owner chat approval",
+      ack:SPONSORSHIP_RENEWAL_ACK,apply:true});
+    const renewed=job().website_scene_sponsorship;
+    expect(renewed.renewal.parent_authority_digest).toBe(first.authority_digest);
+    clock.mockReturnValue((renewed.expires_at_epoch+3600)*1000);
+    // The parent's window binds the parent grant only.
+    await expect(reserveWebsitePreparationSpend("one",gpu(renewed,"d"))).rejects.toThrow("consent_expired");
+    // The renewal's re-issued intake records the renewed grant as its root (prepared-scene route).
+    intake("intake-renewal","scene-renewal",renewed);
+    expect(await extend("scene-renewal",renewed,"9")).toMatchObject({status:"recorded",
+      sponsorship_window_mirrored:true,spend_caps_changed:false});
+    expect(job().website_scene_sponsorship_execution_window).toMatchObject({authority_digest:renewed.authority_digest,
+      intake_id:"intake-renewal",expires_at_epoch:renewed.expires_at_epoch+6*86400});
+    expect(job().website_scene_sponsorship).toEqual(renewed);
+    expect(await reserveWebsitePreparationSpend("one",gpu(renewed,"d"))).toMatchObject({status:"admitted",
+      sponsorship_digest:renewed.authority_digest,expires_at_epoch:renewed.expires_at_epoch+6*86400});
+    // A later extension of the parent intent never re-points the mirror at the parent grant.
+    expect(await extend("scene-parent",first,"8")).toMatchObject({status:"recorded",sponsorship_window_mirrored:false});
+    expect(job().website_scene_sponsorship_execution_window.intake_id).toBe("intake-renewal");
+  } finally {vi.restoreAllMocks();}
 });

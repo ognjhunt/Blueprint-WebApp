@@ -1,4 +1,6 @@
 import { expect, test } from "@playwright/test";
+import { projectPreparationOutcome } from "../server/utils/taskPreparationOutcome";
+import { multiStepHoldMessage, multiStepTaskHold } from "../server/utils/siteTaskScope";
 
 const legacyJobWorkflow = () => ({
   schemaVersion: "job_marketplace.v1", revision: "fixture-revision", stage: "job_submitted",
@@ -136,6 +138,97 @@ test("returning owner keeps the received recording and gets same-job update guid
   expect(writes).toEqual([]);
 });
 
+test("the owner confirms how success is judged, in plain words, with no number to edit", async ({ page }, info) => {
+  const token = "success-thresholds-fixture";
+  const proposalDigest = `sha256:${"1".repeat(64)}`;
+  const decisions: unknown[] = [];
+  const thresholds = (decision: unknown) => ({ proposalDigest, decision,
+    rows: [{ label: "Goal area", value: "The green spot: a circle 30 cm across. The whole object has to end up inside it." },
+      { label: "Force", value: "The robot pushes on the object with no more than 100 N (about the weight of 10 kg)." },
+      { label: "Drops", value: "The object is never dropped." }],
+    otherValues: [{ label: "authority", value: "deterministic_simulator_state" }] });
+  await page.route("**/api/**", route => {
+    const request = route.request(), url = new URL(request.url());
+    if (url.pathname.startsWith("/api/job-workflow/owner/") && request.method() === "GET") return route.fulfill({ json: legacyJobWorkflow() });
+    if (url.pathname === "/api/csrf") return route.fulfill({ json: { csrfToken: "fixture" } });
+    if (url.pathname === `/api/self-capture/uploads/${token}/status`) return route.fulfill({ json: {
+      ok: true, state: "open", captureReceived: true, uploadState: "processing_ready", accepts: ["mov", "mp4"] } });
+    if (url.pathname === `/api/site-task-brief/${token}`) return route.fulfill({ json: {
+      ready: true, scope: "owner", brief: { summary: "Book onto the green spot", captureMode: "self_capture", proposed: [], unresolved: [], confirmedAtIso: "2026-11-01T00:00:00Z" } } });
+    if (url.pathname === `/api/site-task-brief/${token}/status`) return route.fulfill({ json: {
+      ok: true, scope: "owner", captureReceived: true,
+      status: { decision: "assessing", headline: "Blueprint is preparing your scene.", operatorAction: null, missingViews: [] },
+      successThresholds: thresholds(decisions.length ? { kind: "confirmed", reason: null, decidedAt: "2026-11-03T18:00:00.000Z" } : null) } });
+    if (url.pathname === `/api/site-task-brief/${token}/success-thresholds` && request.method() === "POST") {
+      decisions.push(request.postDataJSON());
+      return route.fulfill({ json: { ok: true, decision: "confirmed", reason: null, decidedAt: "2026-11-03T18:00:00.000Z" } });
+    }
+    if (url.pathname.endsWith("/items")) return route.fulfill({ json: { items: [], allItemsCovered: false, requestedShots: [] } });
+    if (url.pathname.endsWith("/follow-up")) return route.fulfill({ json: { questions: [] } });
+    return route.fulfill({ status: 503, json: { error: "Unstubbed local API" } });
+  });
+  await page.goto(`/capture-upload/${token}?video=existing`);
+  const section = page.getByRole("region", { name: "How success is judged" });
+  await expect(section.getByRole("heading", { name: "How success is judged" })).toBeVisible();
+  await expect(section.getByText("The green spot: a circle 30 cm across. The whole object has to end up inside it.")).toBeVisible();
+  await expect(section.getByText("Robot scoring waits until you confirm these goals.")).toBeVisible();
+  await expect(section.getByText("deterministic_simulator_state")).toBeHidden();
+  await expect(section.locator("input:not([type=radio])")).toHaveCount(0);
+  await section.getByRole("button", { name: "Something is wrong" }).click();
+  await expect(section.getByRole("button", { name: "Hold the job" })).toBeDisabled();
+  await expect(section.getByLabel("The goal area is in the wrong place")).toBeVisible();
+  await page.screenshot({ path: info.outputPath("success-thresholds-proposed.png"), fullPage: true });
+  await section.getByRole("button", { name: "Use these goals" }).click();
+  await expect(section.getByText("You confirmed these goals. Blueprint scores robot candidates against them.")).toBeVisible();
+  expect(decisions).toEqual([{ proposalDigest, decision: "confirm" }]);
+  await page.screenshot({ path: info.outputPath("success-thresholds-confirmed.png"), fullPage: true });
+});
+
+test("the owner is asked in plain words before a chair is moved out of the robot's way in the simulation", async ({ page }, info) => {
+  const token = "robot-access-fixture";
+  const proposalDigest = `sha256:${"2".repeat(64)}`;
+  const decisions: unknown[] = [];
+  const robotAccess = (decision: unknown) => ({ proposalDigest, decision, what: "1 chair",
+    why: "In the simulation of your site, the robot arm can't stand close enough to reach the job: 1 chair is in the way.",
+    question: "To give the robot room, Blueprint would move 1 chair away from the wooden dining table in the simulation. Approve?",
+    note: "Only the simulation changes; your site and your video stay as they are. The chair may still show in the simulation's pictures, but the robot is no longer blocked by it. Results stay estimates.",
+    items: ["dining chair by the window"], approve: "Move it in the simulation", decline: "Keep it where it is",
+    approved: "You approved this. Blueprint moves 1 chair in the simulation and checks again whether the robot can reach the job.",
+    declined: "You chose to keep 1 chair where it is. The robot can't stand within reach, so this job is on hold. You can still approve if you change your mind." });
+  await page.route("**/api/**", route => {
+    const request = route.request(), url = new URL(request.url());
+    if (url.pathname.startsWith("/api/job-workflow/owner/") && request.method() === "GET") return route.fulfill({ json: legacyJobWorkflow() });
+    if (url.pathname === "/api/csrf") return route.fulfill({ json: { csrfToken: "fixture" } });
+    if (url.pathname === `/api/self-capture/uploads/${token}/status`) return route.fulfill({ json: {
+      ok: true, state: "open", captureReceived: true, uploadState: "processing_ready", accepts: ["mov", "mp4"] } });
+    if (url.pathname === `/api/site-task-brief/${token}`) return route.fulfill({ json: {
+      ready: true, scope: "owner", brief: { summary: "Tray to the other end of the table", captureMode: "self_capture", proposed: [], unresolved: [], confirmedAtIso: "2026-11-01T00:00:00Z" } } });
+    if (url.pathname === `/api/site-task-brief/${token}/status`) return route.fulfill({ json: {
+      ok: true, scope: "owner", captureReceived: true,
+      status: { decision: "assessing", headline: "Blueprint is preparing your scene.", operatorAction: null, missingViews: [] },
+      robotAccess: robotAccess(decisions.length ? { kind: "approved", decidedAt: "2026-11-04T09:00:00.000Z" } : null) } });
+    if (url.pathname === `/api/site-task-brief/${token}/robot-access` && request.method() === "POST") {
+      decisions.push(request.postDataJSON());
+      return route.fulfill({ json: { ok: true, decision: "approved", decidedAt: "2026-11-04T09:00:00.000Z" } });
+    }
+    if (url.pathname.endsWith("/items")) return route.fulfill({ json: { items: [], allItemsCovered: false, requestedShots: [] } });
+    if (url.pathname.endsWith("/follow-up")) return route.fulfill({ json: { questions: [] } });
+    return route.fulfill({ status: 503, json: { error: "Unstubbed local API" } });
+  });
+  await page.goto(`/capture-upload/${token}?video=existing`);
+  const section = page.getByRole("region", { name: "Room for the robot" });
+  await expect(section.getByRole("heading", { name: "Room for the robot" })).toBeVisible();
+  await expect(section.getByText("To give the robot room, Blueprint would move 1 chair away from the wooden dining table in the simulation. Approve?")).toBeVisible();
+  await expect(section.getByText("dining chair by the window")).toBeVisible();
+  await expect(section.getByText("Nothing changes until you answer.")).toBeVisible();
+  await expect(section.locator("input")).toHaveCount(0);
+  await page.screenshot({ path: info.outputPath("robot-access-proposed.png"), fullPage: true });
+  await section.getByRole("button", { name: "Move it in the simulation" }).click();
+  await expect(section.getByText("You approved this. Blueprint moves 1 chair in the simulation and checks again whether the robot can reach the job.")).toBeVisible();
+  expect(decisions).toEqual([{ proposalDigest, decision: "approve" }]);
+  await page.screenshot({ path: info.outputPath("robot-access-approved.png"), fullPage: true });
+});
+
 test("the current simulation estimate is visible while technical references stay folded", async ({ page }, info) => {
   const token = "scored-result-fixture";
   const writes: string[] = [];
@@ -148,7 +241,8 @@ test("the current simulation estimate is visible while technical references stay
         nextAction: "Blueprint uses this estimate to recommend the next step.",
         limitations: ["Simulation does not certify physical performance or safety."], href: "#managed-evidence-accepted-evaluation",
         screening: { candidates: [{ candidateId: "candidate-1", name: "Current candidate", state: "completed",
-          planned: 3, scored: 3, succeeded: 2, failed: 1, void: 0, blockers: [] }] } }],
+          planned: 3, scored: 3, succeeded: 2, failed: 1, void: 0, blockers: [],
+          successRange: { lowerPercent: 21, upperPercent: 94, confidencePercent: 95 } }] } }],
     } });
     if (url.pathname === `/api/self-capture/uploads/${token}/status`) return route.fulfill({ json: {
       ok: true, state: "open", captureReceived: true, uploadState: "processing_ready", accepts: ["mov", "mp4"],
@@ -164,7 +258,8 @@ test("the current simulation estimate is visible while technical references stay
   await page.goto(`/capture-upload/${token}?video=existing`);
   await expect(page.getByRole("heading", { name: "Your simulation estimate" })).toBeVisible();
   await expect(page.getByRole("table", { name: "Candidates evaluated for your job" })).toBeVisible();
-  await expect(page.getByText("2 succeeded · 1 failed · 0 unscorable")).toBeVisible();
+  await expect(page.getByText("Succeeded in 2 of 3 scored tries; likely between 21% and 94%.")).toBeVisible();
+  await expect(page.getByText("1 failed · 0 unscorable")).toBeVisible();
   await expect(page.getByText("Simulation does not certify physical performance or safety.")).toBeVisible();
   await expect(page.getByText("Technical evidence and test details").locator("..")).not.toHaveAttribute("open");
   await expect(page.getByText(/Run: accepted-evaluation/)).not.toBeVisible();
@@ -229,6 +324,70 @@ test.beforeEach(async ({ context, baseURL }) => {
     if (url.pathname.startsWith("/api/")) return route.fulfill({ status: 503, json: { error: "Unstubbed local API" } });
     return route.continue();
   });
+});
+
+function heldJobRoutes(page: import("@playwright/test").Page, token: string, summary: string, status: Record<string, unknown>,
+  writes: string[]) {
+  return page.route("**/api/**", route => {
+    const request = route.request(), url = new URL(request.url());
+    if (request.method() !== "GET" && url.pathname !== "/api/analytics/ingest") writes.push(url.pathname);
+    if (url.pathname.startsWith("/api/job-workflow/owner/")) return route.fulfill({ json: legacyJobWorkflow() });
+    if (url.pathname === `/api/self-capture/uploads/${token}/status`) return route.fulfill({ json: {
+      ok: true, state: "open", captureReceived: true, uploadState: "processing_ready", accepts: ["mov", "mp4"] } });
+    if (url.pathname === `/api/site-task-brief/${token}`) return route.fulfill({ json: {
+      ready: true, scope: "owner", brief: { summary, captureMode: "self_capture", proposed: [], unresolved: [], confirmedAtIso: null } } });
+    if (url.pathname === `/api/site-task-brief/${token}/status`) return route.fulfill({ json: status });
+    if (url.pathname.endsWith("/items")) return route.fulfill({ json: { items: [], allItemsCovered: false, requestedShots: [] } });
+    if (url.pathname.endsWith("/follow-up")) return route.fulfill({ json: { questions: [] } });
+    return route.fulfill({ status: 503, json: { error: "Unstubbed local API" } });
+  });
+}
+
+test("a job no robot we run fits is held, naming the robots checked and why, from the precheck alone", async ({ page }, info) => {
+  const token = "robot-fit-hold-fixture";
+  const digest = `sha256:${"f".repeat(64)}`;
+  const counts = { fit: 0, noFit: 8, unknown: 0, unavailable: 128 };
+  // The server's own projection of a v6 hold (Pipeline #3336), as the status route sends it to the owner.
+  const outcome = projectPreparationOutcome({ category: "robot_incompatibility", reason: "robot_fit_none",
+    basis: "conservative_pre_spend_fit_check", robot_id: null, evidence_digest: digest },
+  { holdReason: "website_robot_fit_none:reach", precheckDigest: digest, counts });
+  const writes: string[] = [];
+  await heldJobRoutes(page, token, "Pick up the tray and put it on the counter", {
+    ok: true, scope: "owner", captureReceived: true,
+    status: { decision: outcome.category, headline: outcome.title, operatorAction: null, missingViews: [], outcome },
+    robotFitHold: { status: "no_fit", holdReason: "website_robot_fit_none:reach", taskKind: "rigid_pick_place", counts,
+      embodiments: [{ embodiment: "droid_franka_panda_robotiq_2f85_v1", verdict: "no_fit", reasons: ["reach"] }],
+      embodimentsTruncated: false, precheckDigest: digest },
+  }, writes);
+  await page.goto(`/capture-upload/${token}?video=existing`);
+  await expect(page.getByText("Held: none of the robots we run fits this job yet", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText(/None of the 136 robot setups we checked fits this job\. The main reason: the robot arms were ruled out on reach/).first()).toBeVisible();
+  const checked = page.getByRole("region", { name: "Robots checked before any spend" });
+  await expect(checked.getByRole("heading", { name: "Robots we checked" })).toBeVisible();
+  await expect(checked.getByText("136 robot setups (a robot and the software that drives it): 8 ruled out, 128 not available for this job.")).toBeVisible();
+  await expect(checked.getByText(/Franka Panda arm with a Robotiq 2F-85 gripper: Ruled out/)).toBeVisible();
+  await expect(checked.getByText(/no robot was tried on your job/)).toBeVisible();
+  const text = await checked.textContent();
+  expect(text).not.toMatch(/[a-z]_[a-z]|website_robot_fit|sha256|physical test passed|certif/i);
+  expect(writes).toEqual([]);
+  await page.screenshot({ path: info.outputPath("robot-fit-hold.png"), fullPage: true });
+});
+
+test("a job with several steps is held by name and asks the site to split it, never narrowed", async ({ page }, info) => {
+  const token = "multi-step-hold-fixture";
+  const summary = "Take the plates to the kitchen then load the dishwasher";
+  // The server's own copy for this brief (siteTaskScope.multiStepHoldMessage), as projectTaskStatus sends it.
+  const held = multiStepHoldMessage(multiStepTaskHold({ summary })!.steps);
+  const writes: string[] = [];
+  await heldJobRoutes(page, token, summary, { ok: true, scope: "owner", captureReceived: true,
+    status: { decision: "not_yet_supported", headline: held.headline, operatorAction: held.action, missingViews: [] } }, writes);
+  await page.goto(`/capture-upload/${token}?video=existing`);
+  await expect(page.getByText("Your job is on hold because it has more than one step.", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText(/We read these steps: “take the plates to the kitchen”, “load the dishwasher”\./).first()).toBeVisible();
+  await expect(page.getByText(/change your job description to that one step and confirm it/).first()).toBeVisible();
+  await expect(page.getByText(/robot fit|Robots we checked/)).toHaveCount(0);
+  expect(writes).toEqual([]);
+  await page.screenshot({ path: info.outputPath("multi-step-hold.png"), fullPage: true });
 });
 
 test("private claim navigation resets credentials and consent before the next summary arrives", async ({ page }, info) => {

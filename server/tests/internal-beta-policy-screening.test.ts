@@ -49,7 +49,8 @@ let server: Server | undefined;
 beforeEach(() => {
   store.rows.clear();
   store.teams = [];
-  const { job, brief, intake } = screeningFixture();
+  const { job, brief, intake, launch } = screeningFixture();
+  store.rows.set(launch.path, launch.record);
   store.rows.set("inboundRequests/job-one", job);
   store.rows.set("siteTaskBriefs/job-one", brief);
   store.rows.set("taskEvaluationSceneIntakes/intake-one", intake);
@@ -105,6 +106,26 @@ it("atomically stores diagnostic progress in existing managed evidence and accep
   status.result_reference.digest = screeningSha("9");
   status.status_digest = crossRuntimeArtifactDigest(status, "status_digest");
   expect((await loadManagedJobEvidence("job-one", briefDigest))[0].current).toBe(false);
+});
+
+it("acknowledges a configured scene's first publication, whose status names the revision file, as the Pipeline requires", async () => {
+  const url = await endpoint(), { publication, intake, launch } = screeningFixture();
+  // As on the host: status result_reference.digest is the file's sha256, the source names the self-digest.
+  expect(intake.pipeline_status.result_reference.digest).not.toBe(publication.source.scene_revision_digest);
+  store.rows.delete(launch.path);
+  const unbound = await send(url, signed(publication));
+  expect(unbound.status).toBe(409);
+  expect(await unbound.json()).toEqual({ code: "screening_scene_revision_unbound" });
+  expect(store.rows.has("taskEvaluationPolicyRuns/campaign-one")).toBe(false);
+  store.rows.set(launch.path, launch.record);
+  const created = await send(url, signed(publication));
+  expect(created.status).toBe(201);
+  // publish_screening (Pipeline) acknowledges only this exact receipt.
+  expect(await created.json()).toEqual({ status: "created", run_id: publication.campaign_id,
+    publication_digest: publication.publication_digest, revision: publication.revision });
+  expect(store.rows.get("taskEvaluationPolicyRuns/campaign-one").source_scene_revision_digest).toBe(publication.source.scene_revision_digest);
+  const briefDigest = scientificBriefDigest(store.rows.get("siteTaskBriefs/job-one"));
+  expect((await loadManagedJobEvidence("job-one", briefDigest))[0].current).toBe(true);
 });
 
 it("writes one pending result notice with the run's terminal outcome, kept through retries and budget refreshes (F-01)", async () => {
@@ -197,6 +218,8 @@ it("stores and projects all 84 family candidate outcomes while preserving exact 
     configurationDigest: row.configuration_digest,
     planned: row.episodes_planned, scored: row.episodes_scored, succeeded: row.episodes_succeeded,
     failed: row.episodes_failed, void: row.episodes_void, blockers: row.blockers,
+    // 2 of 3 scored: the 95% Wilson range, 21% to 94%.
+    ...(row.episodes_scored ? { successRange: { lowerPercent: 21, upperPercent: 94, confidencePercent: 95 } } : {}),
   })));
   // Separate policy routes for one body remain separate rows, including their reasons.
   expect(evidence.screening?.candidates.filter(row => row.candidateId.startsWith("universal_robots_ur5e__")).length).toBeGreaterThan(1);

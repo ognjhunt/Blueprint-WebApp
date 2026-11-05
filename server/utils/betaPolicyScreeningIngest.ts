@@ -3,7 +3,8 @@ import { z } from "zod";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { crossRuntimeArtifactDigest, crossRuntimeDigest } from "./crossRuntimeCanonical";
 import { scientificBriefDigest } from "./jobEvidenceContract";
-import { assertManagedScreeningCaptureCurrent, assertScreeningSceneSource, managedJobTask, readManagedJobSourceSession, readManagedScreeningCapture } from "./jobManagedEvaluation";
+import { assertManagedScreeningCaptureCurrent, assertScreeningSceneSource, managedJobTask, readManagedJobSourceSession, readManagedScreeningCapture,
+  readPreparedRevisionOfferings } from "./jobManagedEvaluation";
 import { SCENE_INTAKE_COLLECTION } from "./taskEvaluationSceneIntake";
 import { encodeTaskEvaluationRunPublication, publicationFromResultRecord } from "./taskEvaluationRunPublicationStorage";
 import { betaPolicyScreeningSourceSchema, parseBetaPolicyScreeningPublication, screeningPublicationTransition,
@@ -128,7 +129,10 @@ export async function observeBetaScreeningExecutionControl(request: BetaScreenin
     else if (deadline <= now) stopReason = "screening_authority_expired";
     else if (intake?.revocation_requested || ["revoked", "closeout_pending", "cancelled"].includes(intake?.state))
       stopReason = "screening_scene_authority_revoked";
-    else if (job?.capture_withdrawal || job?.workspace_task?.paused === true
+    // "Hide from partners" (`workspace_task.paused`) only takes the job's card off
+    // the partner library; it never stops Blueprint's own run of the job. A
+    // withdrawal sets it too, and stops here by `capture_withdrawal`.
+    else if (job?.capture_withdrawal
       || retainedCapture?.capture_access?.future_processing_allowed === false || retainedCapture?.completed_capture_lifecycle
       || ["revoked", "revocation_in_progress", "cancelled"].includes(retainedCapture?.status))
       stopReason = "job_capture_processing_not_authorized";
@@ -145,13 +149,14 @@ export async function observeBetaScreeningExecutionControl(request: BetaScreenin
         if (!intake || intake.website_request_id !== jobId || intake.request?.owner?.user_id !== run.owner_user_id
           || scope.teamNamespace !== run.team_namespace || scope.sourceFingerprint !== run.job_source_fingerprint)
           throw new Error("screening_scene_source_mismatch");
-        assertScreeningSceneSource(publication, intake, scope);
+        assertScreeningSceneSource(publication, intake, scope, await readPreparedRevisionOfferings(intake));
       } catch (error) {
         const code = error instanceof Error ? error.message : "";
         // Only known current-source refusals are durable stops. Unknown storage,
         // malformed closure and transient service errors stay unproven (503).
         if (/^job_(not_found|brief_not_agreed|brief_changed|capture_processing_not_authorized|scene_not_prepared|scene_task_changed|evaluation_source_(binding_invalid|unavailable|changed))$/.test(code)
-          || ["screening_scene_source_mismatch", "website_run_closed_by_owner", "website_run_capture_superseded"].includes(code)) stopReason = code;
+          || ["screening_scene_source_mismatch", "screening_scene_revision_unbound", "website_run_closed_by_owner",
+            "website_run_capture_superseded"].includes(code)) stopReason = code;
         else throw error;
       }
     }
@@ -188,6 +193,9 @@ export async function ingestBetaPolicyScreening(publication: BetaPolicyScreening
   const selectedJob = (await store.collection("inboundRequests").doc(selected.website_request_id).get()).data();
   const screeningCapture = selectedJob?.job_evidence_source ? { captureId: selected.source_session_id }
     : await readManagedScreeningCapture(selected.website_request_id, selected.source_session_id);
+  // The offerings that bind the selected intake's revision file; the intake
+  // read in the transaction must still name that same file.
+  const revisionOfferings = await readPreparedRevisionOfferings(selected);
   const runRef = store.collection("taskEvaluationPolicyRuns").doc(publication.campaign_id);
   const resultId = `screening-${createHash("sha256").update(publication.campaign_id).digest("hex").slice(0, 32)}`;
   const resultRef = store.collection("captureTaskEvaluationRuns").doc(resultId);
@@ -210,7 +218,7 @@ export async function ingestBetaPolicyScreening(publication: BetaPolicyScreening
     const scope = managedJobTask({ binding, record: job.data(), brief: brief.data(), allowProposedScreening: true, screeningCapture,
       inventory: inventory.exists ? inventory.data() as TaskItemInventoryRecord : null,
       sourceSession: await readManagedJobSourceSession(job.data(), ref => transaction.get(ref)) });
-    assertScreeningSceneSource(publication, intake, scope);
+    assertScreeningSceneSource(publication, intake, scope, revisionOfferings);
     const ownerClosed = Boolean(websiteRunClosure(job.data(), jobId, publication.source.capture_id));
     if (oldRun.exists || oldResult.exists) {
       const previous = oldResult.exists ? parseBetaPolicyScreeningPublication(publicationFromResultRecord(oldResult.data()!)) : null;

@@ -1,7 +1,8 @@
 import { websiteCaptureOwnerUid } from "./websiteCaptureOwner";
 /** Current-source preparation status; never a native assessment or preview verdict. */
 import { z } from "zod";
-import { preparationOutcomeSchema, projectPreparationOutcome } from "./taskPreparationOutcome";
+import { preparationOutcomeSchema, preparationOutcomeV6Schema, projectPreparationOutcome, ROBOT_FIT_HOLD_PREFIX }
+  from "./taskPreparationOutcome";
 import { taskTargetChoiceQuestionSchema, type TaskTargetChoiceQuestion } from "./taskTargetChoiceContract";
 import type { TaskOutcome } from "../../client/src/types/taskOutcome";
 import { signedWebsitePipelineRequest } from "./websitePipelineSignedRequest";
@@ -92,11 +93,39 @@ const receiptV5 = receiptV4.extend({
   schema_version: z.literal("website_preparation_status.v5"),
   robot_fit: robotFitSchema.nullable(),
 }).strict();
-/** Older Pipelines keep answering v1–v4; v3 adds a retained evidence finding. */
-export const websitePreparationReceiptSchema = z.union([receiptV1, receiptV2, receiptV3, receiptV4, receiptV5]);
+/** v6 adds the early robot fit precheck (Pipeline #3336, docs/schemas/website_robot_fit_precheck_projection.v1):
+ * whether a robot the screening catalog runs can do the task in this room, decided before any spend, and the
+ * hold it names when none can. A pre-spend estimate, never a physical test. */
+export const ROBOT_FIT_PRECHECK_STATUSES = ["fit", "no_fit", "unknown"] as const;
+export const ROBOT_FIT_PRECHECK_EMBODIMENTS = ["droid_franka_panda_robotiq_2f85_v1", "unitree_g1_dex3_sonic_v1",
+  "registered_team_embodiment"] as const;
+export const robotFitPrecheckSchema = z.object({
+  schema_version: z.literal("website_robot_fit_precheck_projection.v1"),
+  status: z.enum(ROBOT_FIT_PRECHECK_STATUSES),
+  hold_reason: z.string().regex(new RegExp(`^${ROBOT_FIT_HOLD_PREFIX}[a-z][a-z0-9_]{0,99}$`)).nullable(),
+  task_kind: z.enum(["rigid_pick_place", "articulated_open_close"]).nullable(),
+  counts: z.object({fit: fitCount, no_fit: fitCount, unknown: fitCount, unavailable: fitCount}).strict(),
+  embodiments: z.array(z.object({embodiment: z.enum(ROBOT_FIT_PRECHECK_EMBODIMENTS),
+    verdict: z.enum(ROBOT_FIT_PRECHECK_STATUSES), reasons: z.array(z.string().regex(/^[a-z][a-z0-9_]{0,79}$/)).max(4),
+    fit_candidates: fitCount}).strict()).max(50),
+  embodiments_truncated: z.boolean(),
+  evidence_label: z.literal("pre_spend_estimate"),
+  precheck_digest: digest,
+  // The Pipeline's own rule: fit when any candidate fits, else unknown when any is undecided, else no fit (a hold).
+}).strict().refine(fit => fit.status === (fit.counts.fit > 0 ? "fit" : fit.counts.unknown > 0 ? "unknown" : "no_fit")
+  && (fit.status === "no_fit") === (fit.hold_reason !== null), "robot fit precheck status mismatch");
+export type RobotFitPrecheckReceipt = z.infer<typeof robotFitPrecheckSchema>;
+const receiptV6 = receiptV5.extend({
+  schema_version: z.literal("website_preparation_status.v6"),
+  outcome: preparationOutcomeV6Schema.nullable(),
+  robot_fit_precheck: robotFitPrecheckSchema.nullable(),
+}).strict();
+/** Older Pipelines keep answering v1–v5; v3 adds a retained evidence finding. */
+export const websitePreparationReceiptSchema = z.union([receiptV1, receiptV2, receiptV3, receiptV4, receiptV5, receiptV6]);
 export type WebsitePreparationReceipt = z.infer<typeof websitePreparationReceiptSchema>;
 type PreparationState = typeof statesV2[number];
-/** Asks for v5; older Pipelines cap negotiation at their newest known version. */
+/** Asks for v6; older Pipelines cap negotiation at their newest known version (v5 and below stay accepted). */
+export const WEBSITE_PREPARATION_STATUS_VERSION = "6";
 export const WEBSITE_PREPARATION_STATUS_VERSION_HEADER = "x-blueprint-preparation-status-version";
 /** The site's view of the robot fit table; robots that fit come first. */
 export type PublicRobotFit = {
@@ -113,6 +142,21 @@ export function publicRobotFit(fit: RobotFitReceipt): PublicRobotFit {
       openChecks: row.open_checks})),
     modelsTruncated: fit.models_truncated};
 }
+/** The site's view of the early robot fit precheck: which robot bodies were measured and why none fits. */
+export type PublicRobotFitPrecheck = {
+  status: RobotFitPrecheckReceipt["status"]; holdReason: string | null; taskKind: RobotFitPrecheckReceipt["task_kind"];
+  counts: {fit: number; noFit: number; unknown: number; unavailable: number};
+  embodiments: {embodiment: typeof ROBOT_FIT_PRECHECK_EMBODIMENTS[number]; verdict: RobotFitPrecheckReceipt["status"];
+    reasons: string[]}[];
+  embodimentsTruncated: boolean; precheckDigest: string;
+};
+export function publicRobotFitPrecheck(precheck: RobotFitPrecheckReceipt): PublicRobotFitPrecheck {
+  return {status: precheck.status, holdReason: precheck.hold_reason, taskKind: precheck.task_kind,
+    counts: {fit: precheck.counts.fit, noFit: precheck.counts.no_fit, unknown: precheck.counts.unknown,
+      unavailable: precheck.counts.unavailable},
+    embodiments: precheck.embodiments.map(row => ({embodiment: row.embodiment, verdict: row.verdict, reasons: row.reasons})),
+    embodimentsTruncated: precheck.embodiments_truncated, precheckDigest: precheck.precheck_digest};
+}
 export type PublicWebsitePreparationStatus = {
   state: PreparationState | "unavailable"; correlationId: string | null;
   terminalReason?: WebsitePreparationTerminalReason | null;
@@ -121,6 +165,8 @@ export type PublicWebsitePreparationStatus = {
   question?: TaskTargetChoiceQuestion | null;
   /** Only from a v5 receipt: which robots fit the job by spec sheet. */
   robotFit?: PublicRobotFit | null;
+  /** Only from a v6 receipt: the robot fit precheck made before any spend, and its hold when none fits. */
+  robotFitPrecheck?: PublicRobotFitPrecheck | null;
 };
 export type WebsitePreparationNoticeMilestone = "preparation_needs_attention" | "preparation_ended";
 export type WebsitePreparationIntent = {requestId: string; captureId: string; eventId: string; correlationId: string;
@@ -171,6 +217,10 @@ function parseReceipt(raw: unknown, selector: WebsitePreparationSelector): Websi
       || "outcome" in receipt && receipt.outcome !== null
         && !["awaiting_inputs", "failed_retryable", "failed_terminal"].includes(receipt.state)
       || "question" in receipt && receipt.question !== null && receipt.state === "authority_ended"
+      // A robot fit hold and the precheck it names are one finding: never two that disagree.
+      || "robot_fit_precheck" in receipt && receipt.outcome?.reason === "robot_fit_none" && receipt.robot_fit_precheck !== null
+        && (receipt.robot_fit_precheck.status !== "no_fit"
+          || receipt.robot_fit_precheck.precheck_digest !== receipt.outcome.evidence_digest)
       || crossRuntimeArtifactDigest(receipt as unknown as Record<string, unknown>, "status_digest") !== receipt.status_digest)
     throw unavailable();
   return receipt;
@@ -215,7 +265,7 @@ async function readCanonicalLedger(selector: WebsitePreparationSelector, signal?
   const signed = signedWebsitePipelineRequest("/api/live-pipeline/website-preparation-status", body);
   if (!signed) throw unavailable();
   const response = await fetch(signed.url, {method: "POST", redirect: "error", signal: signal ?? AbortSignal.timeout(5_000),
-    body, headers: {"content-type": "application/json", ...signed.headers, [WEBSITE_PREPARATION_STATUS_VERSION_HEADER]: "5"}});
+    body, headers: {"content-type": "application/json", ...signed.headers, [WEBSITE_PREPARATION_STATUS_VERSION_HEADER]: WEBSITE_PREPARATION_STATUS_VERSION}});
   if (!response.ok || !response.body || Number(response.headers.get("content-length")) > 8192) throw unavailable();
   const reader = response.body.getReader(); let length = 0; const chunks: Buffer[] = [];
   try {
@@ -388,12 +438,16 @@ export async function loadCurrentWebsitePreparationStatus(requestId: string, cap
   try {
     id.parse(requestId); websitePreparationSelectorSchema.shape.capture_id.parse(captureId);
     const {status} = await fresh(captureId, requestId, deps);
+    const precheck = "robot_fit_precheck" in status && status.robot_fit_precheck
+      ? publicRobotFitPrecheck(status.robot_fit_precheck) : null;
     // Customer correlation is company-derived; never trust caller supplied correlation text.
     return {state: status.state, correlationId: `bp-prep-${status.status_digest.slice(7, 23)}`,
       terminalReason: terminalReasonOf(status),
-      ...("outcome" in status ? {outcome: status.outcome ? projectPreparationOutcome(status.outcome) : null} : {}),
+      ...("outcome" in status ? {outcome: status.outcome ? projectPreparationOutcome(status.outcome, precheck && {
+        holdReason: precheck.holdReason, precheckDigest: precheck.precheckDigest, counts: precheck.counts}) : null} : {}),
       ...("question" in status ? {question: status.question} : {}),
-      ...("robot_fit" in status ? {robotFit: status.robot_fit ? publicRobotFit(status.robot_fit) : null} : {})};
+      ...("robot_fit" in status ? {robotFit: status.robot_fit ? publicRobotFit(status.robot_fit) : null} : {}),
+      ...("robot_fit_precheck" in status ? {robotFitPrecheck: precheck} : {})};
   } catch { return {state: "unavailable", correlationId: null}; }
 }
 /** The current question with the exact selector it was read under, or null; re-verified with the Pipeline. */

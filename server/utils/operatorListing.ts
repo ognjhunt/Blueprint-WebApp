@@ -8,7 +8,8 @@ import type { InboundRequest } from "../types/inbound-request";
  * (`teamEvalCandidates.ts`) both honor it, and pilot projection already did.
  * It is a listing control, deliberately narrower than a takedown — consent
  * and rights stay authoritative through their own gates whether or not this
- * flag is set.
+ * flag is set. Blueprint's own preparation and screening of the job never
+ * read it: hiding the card from partners does not stop Blueprint's run.
  */
 export function operatorListingPaused(
   request: InboundRequest | Record<string, unknown> | null | undefined,

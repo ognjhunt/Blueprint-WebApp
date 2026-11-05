@@ -35,6 +35,7 @@ import type {
   TeamAccessReason,
   WithdrawalState,
 } from "../../client/src/types/jobConsole";
+import { isScreeningAttentionOutcome } from "./betaPolicyScreeningContract";
 
 export * from "../../client/src/types/jobConsole";
 
@@ -155,6 +156,13 @@ function blueprintSceneStep(scene: BlueprintScene, attention: string[]): Step {
       attention.push("Estimate published");
       return step("estimate", "Estimate published: introduce a deployment company if the site replies", "blueprint");
     case "held":
+      // A failure, a spent allowance or a failed scene check is ours to look at, not demand.
+      if (isScreeningAttentionOutcome(scene.heldReason)) {
+        // A failure on our side reruns after its fix (the Pipeline replans a harness failure once the fix deploys).
+        attention.push(`Evaluation held (${scene.heldReason}): ${scene.heldReason === "held_setup"
+          ? "it reruns only after its cause is fixed" : "it does not restart by itself"}`);
+        return step("held", `Held (${scene.heldReason}): check the run's blockers or the scene's hold reason`, "blueprint");
+      }
       return step("held", `Held${scene.heldReason ? ` (${scene.heldReason})` : ""}: counted as demand for what to build next`, "none");
     case "ended": return step("ended", `Preparation ended${scene.ending ? ` (${scene.ending})` : ""}`, "none");
   }

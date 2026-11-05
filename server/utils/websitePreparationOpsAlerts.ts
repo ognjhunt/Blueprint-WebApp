@@ -12,13 +12,27 @@ import { appBaseUrl, opsNoticeRecipient } from "./intakeOpsNotice";
 import { sendRateLimitedOpsAlert } from "./opsProcessAlerts";
 import { SCENE_INTAKE_COLLECTION } from "./taskEvaluationSceneIntake";
 import { projectWebsiteCaptureRights } from "./websiteTaskContext";
-import { projectWebsiteSceneProgression } from "./websiteSceneProgression";
+import { projectWebsiteSceneProgression, rederiveStoredWaits, sceneScreening } from "./websiteSceneProgression";
+import { currentOwnerSuccessHold, OWNER_SUCCESS_HOLD_FIELD, OWNER_SUCCESS_HOLD_REASON_TEXT } from "./websiteOwnerSuccessConfirmation";
 import { firstStatusAlertMs, isWebsitePreparationCapture, parseWebsitePreparationWatch, stuckAlertMs,
   websitePreparationAlertDeliverySchema, WEBSITE_PREPARATION_WATCH_DUE_FIELD, WEBSITE_PREPARATION_WATCH_FIELD,
   type WebsitePreparationAlertDelivery, type WebsitePreparationWatch } from "./websitePreparationWatch";
 
 const SESSIONS = "captureUploadSessions";
 const INTAKE_ALERT_COLLECTION = "opsWebsiteSceneIntakeAlerts";
+const OWNER_HOLD_ALERT_COLLECTION = "opsOwnerSuccessHoldAlerts";
+const EVALUATION_ALERT_COLLECTION = "opsWebsiteEvaluationHoldAlerts";
+const POLICY_RUNS = "taskEvaluationPolicyRuns";
+/**
+ * Finished evaluations that are ours to look at: held on our side, out of the
+ * site's allowance, a failed scene check, or waiting on the owner's raise of
+ * the job's dollar ceiling. `setup_repair` (a re-plan after a deploy) is still
+ * in progress and never reported.
+ */
+const ALERT_EVALUATION_OUTCOMES = new Set(["held_setup", "held_budget", "held_scene_check", "awaiting_spend_approval"]);
+/** Stored outcomes to look at: the reported ones, and older waits read again from their publications first. */
+const STORED_EVALUATION_OUTCOMES = ["held_setup", "held_budget", "held_scene_check", "awaiting_spend_approval", "setup_repair"];
+const TERMINAL_RUN = (data: any) => ["completed", "blocked"].includes(data?.state) && data?.cancellationRequested !== true;
 const LEASE_MS = 5 * 60 * 1000;
 const RETRY_MS = 15 * 60 * 1000;
 const MAX_RETRY_MS = 6 * 60 * 60 * 1000;
@@ -339,4 +353,157 @@ export async function scanEndedWebsiteSceneIntakes(deps: AlertDeps = {}): Promis
     }
   }
   return { ended: ended.length, alerted: await report(claims, deps, "website_scene_intake_ended", "Website scenes stopped after hand-off") };
+}
+
+/**
+ * A site owner said their job's success thresholds are wrong: the job holds,
+ * and Blueprint's team is told once per hold, with its reason, through the same
+ * recoverable delivery (Slack first, ops email as fallback). A hold the owner
+ * has since replaced with a confirmation, a new proposal, or withdrawn consent
+ * is never sent.
+ */
+export async function scanHeldOwnerSuccessThresholds(deps: AlertDeps = {}): Promise<{ held: number; alerted: number }> {
+  const store = deps.store === undefined ? (dbAdmin as unknown as Store | null) : deps.store;
+  if (!store) return { held: 0, alerted: 0 };
+  const now = deps.now || Date.now, limit = Math.max(1, Math.min(deps.limit ?? 50, 100));
+  const rows = await automationBatch(store as unknown as FirebaseFirestore.Firestore,
+    store.collection(SCENE_INTAKE_COLLECTION).where(OWNER_SUCCESS_HOLD_FIELD, "==", true) as unknown as FirebaseFirestore.Query,
+    "website_owner_success_holds", limit) as unknown as { docs: Doc[] };
+  const held = rows.docs.flatMap(row => {
+    const data = row.data(), hold = currentOwnerSuccessHold(data);
+    return hold && typeof data?.website_request_id === "string"
+      ? [{ id: row.id, requestId: data.website_request_id as string, hold }] : [];
+  });
+  const claims: ClaimedAlert[] = [];
+  for (const intake of held) {
+    const alertId = `${intake.id}-${intake.hold.decision_digest.slice(7, 23)}`;
+    const ref = store.collection(OWNER_HOLD_ALERT_COLLECTION).doc(alertId);
+    const sourceRef = store.collection(SCENE_INTAKE_COLLECTION).doc(intake.id), leaseId = randomUUID();
+    const stillHeld = (data: any) => data?.website_request_id === intake.requestId
+      && currentOwnerSuccessHold(data)?.decision_digest === intake.hold.decision_digest;
+    try {
+      const claimed = await store.runTransaction(async tx => {
+        const source = (await tx.get(sourceRef)).data(), marker = (await tx.get(ref)).data() ?? {};
+        const request = (await tx.get(store.collection("inboundRequests").doc(intake.requestId))).data(), nowMs = now();
+        if (!stillHeld(source) || projectWebsiteCaptureRights(request).consent_revoked
+          || (typeof marker.next_attempt_at_ms === "number" && marker.next_attempt_at_ms > nowMs)) return false;
+        const parsed = websitePreparationAlertDeliverySchema.safeParse(marker.delivery);
+        if (marker.delivery !== undefined && marker.delivery !== null && !parsed.success) return false;
+        const delivery = claimDelivery(parsed.success ? parsed.data : pendingDelivery(), nowMs, leaseId);
+        if (!delivery) return false;
+        tx.set(ref, { intake_id: intake.id, request_id: intake.requestId, decision_digest: intake.hold.decision_digest,
+          reason: intake.hold.reason, delivery, next_attempt_at_ms: delivery.lease_until_ms, alerted_at_iso: null }, { merge: true });
+        return true;
+      });
+      if (!claimed) continue;
+      const reason = intake.hold.reason ? OWNER_SUCCESS_HOLD_REASON_TEXT[intake.hold.reason] : "no reason given";
+      claims.push({ id: alertId, line: `- request ${intake.requestId} (scene intake ${intake.id}): the site owner says the job's `
+        + `success thresholds are wrong ("${reason}"). Robot scoring is held; review the thresholds and contact the site. `
+        + `${appBaseUrl()}/admin/leads/${encodeURIComponent(intake.requestId)}`,
+      update: action => store.runTransaction(async tx => {
+        const source = (await tx.get(sourceRef)).data(), marker = (await tx.get(ref)).data() ?? {};
+        const request = (await tx.get(store.collection("inboundRequests").doc(intake.requestId))).data(), nowMs = now();
+        const parsed = websitePreparationAlertDeliverySchema.safeParse(marker.delivery);
+        if (!parsed.success || parsed.data.lease_id !== leaseId || parsed.data.state !== "claimed"
+          || (parsed.data.lease_until_ms ?? 0) <= nowMs) return false;
+        if (!stillHeld(source) || projectWebsiteCaptureRights(request).consent_revoked) {
+          tx.set(ref, { delivery: { ...parsed.data, state: "cancelled", lease_id: null, lease_until_ms: null },
+            next_attempt_at_ms: null }, { merge: true });
+          return false;
+        }
+        const next = advanceDelivery(parsed.data, action, nowMs);
+        if (!next) return false;
+        tx.set(ref, { delivery: next.delivery, next_attempt_at_ms: next.due,
+          alerted_at_iso: next.delivery.acknowledged_at_iso }, { merge: true });
+        return true;
+      }) });
+    } catch (error) {
+      logger.warn({ err: error, intakeId: intake.id }, "Could not claim an owner success-threshold hold alert");
+    }
+  }
+  return { held: held.length, alerted: await report(claims, deps, "website_owner_success_held",
+    "Site owners held their job's success thresholds") };
+}
+
+/**
+ * The same recoverable delivery for a website job whose evaluation finished
+ * held on our side (C-04 for evaluations): every hold is reported once per
+ * outcome, until the run's outcome changes or the site's consent is withdrawn.
+ */
+export async function scanHeldWebsiteEvaluations(deps: AlertDeps = {}): Promise<{ held: number; alerted: number }> {
+  const store = deps.store === undefined ? (dbAdmin as unknown as Store | null) : deps.store;
+  if (!store) return { held: 0, alerted: 0 };
+  const now = deps.now || Date.now, limit = Math.max(1, Math.min(deps.limit ?? 50, 100));
+  const held: { id: string; key: string; requestId: string; outcome: string; reason: string | null }[] = [];
+  const scenes = new Set<string>();
+  for (const stored of STORED_EVALUATION_OUTCOMES) {
+    const rows = await automationBatch(store as unknown as FirebaseFirestore.Firestore,
+      store.collection(POLICY_RUNS).where("screening_outcome", "==", stored) as unknown as FirebaseFirestore.Query,
+      `website_evaluation_hold_alerts_${stored}`, limit) as unknown as { docs: Doc[] };
+    for (const row of rows.docs) {
+      const data = row.data();
+      const requestId = data?.website_request_id ?? data?.job_evidence_binding?.job_id;
+      const intent = data?.source_scene_intent_id, team = data?.team_namespace;
+      if (typeof requestId !== "string" || typeof intent !== "string" || typeof team !== "string" || !TERMINAL_RUN(data)
+        || scenes.has(`${intent}\u0000${team}`)) continue;
+      scenes.add(`${intent}\u0000${team}`);
+      // Only what the job page says now is reported: older waits are read again, and a newer
+      // estimate, an open run or a re-plan in progress speaks instead.
+      const runs = (await store.collection(POLICY_RUNS).where("source_scene_intent_id", "==", intent).limit(100).get())
+        .docs.map(doc => ({ id: doc.id, run: doc.data() }));
+      await rederiveStoredWaits(store as never, runs);
+      const scene = sceneScreening(runs, team);
+      if (scene.estimate || scene.running || !scene.outcome || !ALERT_EVALUATION_OUTCOMES.has(scene.outcome)) continue;
+      const speaking = runs.find(({ run }) => run?.screening_outcome === scene.outcome && run?.team_namespace === team);
+      if (!speaking) continue;
+      held.push({ id: speaking.id, key: `${intent}:${scene.outcome}`, requestId, outcome: scene.outcome,
+        reason: typeof speaking.run?.hold_reason_code === "string" ? speaking.run.hold_reason_code : null });
+    }
+  }
+  const claims: ClaimedAlert[] = [];
+  for (const run of held) {
+    const ref = store.collection(EVALUATION_ALERT_COLLECTION).doc(run.key);
+    const sourceRef = store.collection(POLICY_RUNS).doc(run.id), leaseId = randomUUID();
+    // The speaking run still ends the same way (an older wait still reads as one).
+    const stillHeld = (data: any) => TERMINAL_RUN(data)
+      && (data?.screening_outcome === run.outcome || ["awaiting_spend_approval", "setup_repair"].includes(data?.screening_outcome));
+    try {
+      const claimed = await store.runTransaction(async tx => {
+        const source = (await tx.get(sourceRef)).data(), marker = (await tx.get(ref)).data() ?? {};
+        const request = (await tx.get(store.collection("inboundRequests").doc(run.requestId))).data(), nowMs = now();
+        if (!stillHeld(source) || projectWebsiteCaptureRights(request).consent_revoked
+          || (typeof marker.next_attempt_at_ms === "number" && marker.next_attempt_at_ms > nowMs)) return false;
+        const parsed = websitePreparationAlertDeliverySchema.safeParse(marker.delivery);
+        if (marker.delivery !== undefined && marker.delivery !== null && !parsed.success) return false;
+        const delivery = claimDelivery(parsed.success ? parsed.data : pendingDelivery(), nowMs, leaseId);
+        if (!delivery) return false;
+        tx.set(ref, { run_id: run.id, request_id: run.requestId, outcome: run.outcome, delivery,
+          next_attempt_at_ms: delivery.lease_until_ms, alerted_at_iso: null }, { merge: true });
+        return true;
+      });
+      if (!claimed) continue;
+      claims.push({ id: run.id, line: `- evaluation ${run.id} (request ${run.requestId}) finished without an estimate: `
+        + `${run.outcome}${run.reason ? ` (${run.reason})` : ""}. ${appBaseUrl()}/admin/leads/${encodeURIComponent(run.requestId)}`,
+      update: action => store.runTransaction(async tx => {
+        const source = (await tx.get(sourceRef)).data(), marker = (await tx.get(ref)).data() ?? {};
+        const request = (await tx.get(store.collection("inboundRequests").doc(run.requestId))).data(), nowMs = now();
+        const parsed = websitePreparationAlertDeliverySchema.safeParse(marker.delivery);
+        if (!parsed.success || parsed.data.lease_id !== leaseId || parsed.data.state !== "claimed"
+          || (parsed.data.lease_until_ms ?? 0) <= nowMs) return false;
+        if (!stillHeld(source) || projectWebsiteCaptureRights(request).consent_revoked) {
+          tx.set(ref, { delivery: { ...parsed.data, state: "cancelled", lease_id: null, lease_until_ms: null },
+            next_attempt_at_ms: null }, { merge: true });
+          return false;
+        }
+        const next = advanceDelivery(parsed.data, action, nowMs);
+        if (!next) return false;
+        tx.set(ref, { delivery: next.delivery, next_attempt_at_ms: next.due,
+          alerted_at_iso: next.delivery.acknowledged_at_iso }, { merge: true });
+        return true;
+      }) });
+    } catch (error) {
+      logger.warn({ err: error, runId: run.id }, "Could not claim a held website evaluation alert");
+    }
+  }
+  return { held: held.length, alerted: await report(claims, deps, "website_evaluation_held", "Website job evaluations finished held") };
 }

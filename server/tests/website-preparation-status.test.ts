@@ -152,6 +152,75 @@ it.each([
   expect(websitePreparationReceiptSchema.safeParse(v5("handed_off", robotFit("full"))).success).toBe(true);
   expect(websitePreparationReceiptSchema.safeParse(v5("handed_off", fit)).success).toBe(false);
 });
+function precheck(change: Record<string, unknown> = {}) {
+  return {schema_version: "website_robot_fit_precheck_projection.v1", status: "no_fit",
+    hold_reason: "website_robot_fit_none:reach", task_kind: "rigid_pick_place",
+    counts: {fit: 0, no_fit: 8, unknown: 0, unavailable: 128},
+    embodiments: [{embodiment: "droid_franka_panda_robotiq_2f85_v1", verdict: "no_fit", reasons: ["reach"], fit_candidates: 0}],
+    embodiments_truncated: false, evidence_label: "pre_spend_estimate", precheck_digest: `sha256:${"f".repeat(64)}`, ...change};
+}
+const robotFitNone = {category: "robot_incompatibility", reason: "robot_fit_none", basis: "conservative_pre_spend_fit_check",
+  robot_id: null, evidence_digest: `sha256:${"f".repeat(64)}`};
+function v6(state: WebsitePreparationReceipt["state"], fitPrecheck: unknown, outcome: unknown = null) {
+  const value = {...receipt(state), schema_version: "website_preparation_status.v6", terminal_reason: null,
+    outcome, question: null, robot_fit: null, robot_fit_precheck: fitPrecheck};
+  return {...value, status_digest: crossRuntimeArtifactDigest(value, "status_digest")};
+}
+it("v6 shows the early robot fit hold: which robots were checked and why none fits, from the precheck", async () => {
+  const h = harness();
+  h.ledger(v6("awaiting_inputs", precheck(), robotFitNone));
+  await syncWebsitePreparationStatus(selector, h.deps);
+  const projected = await loadCurrentWebsitePreparationStatus("r1", "walkthrough-r1", h.deps);
+  expect(projected.state).toBe("awaiting_inputs");
+  expect(projected.robotFitPrecheck).toEqual({status: "no_fit", holdReason: "website_robot_fit_none:reach",
+    taskKind: "rigid_pick_place", counts: {fit: 0, noFit: 8, unknown: 0, unavailable: 128},
+    embodiments: [{embodiment: "droid_franka_panda_robotiq_2f85_v1", verdict: "no_fit", reasons: ["reach"]}],
+    embodimentsTruncated: false, precheckDigest: `sha256:${"f".repeat(64)}`});
+  expect(projected.outcome).toMatchObject({category: "robot_incompatibility", basis: "conservative_pre_spend_fit_check",
+    title: "Held: none of the robots we run fits this job yet", actionOwner: "blueprint",
+    evidence: [{label: "Robot fit check before any spend", digest: `sha256:${"f".repeat(64)}`}]});
+  expect(projected.outcome!.reason).toBe("None of the 136 robot setups we checked fits this job. The main reason: the robot "
+    + "arms were ruled out on reach. Measured from your scene, the spot where the object is picked up or put down is farther "
+    + "than the arm can reach from any place it could be mounted level with the lower work surface.");
+  expect(projected.outcome!.scope).toMatch(/before any paid work.*estimate.*no robot was tried/);
+});
+it("v6 says none fits, and no more, when the hold names a cause it does not know", async () => {
+  const h = harness();
+  h.ledger(v6("awaiting_inputs", precheck({hold_reason: "website_robot_fit_none:payload"}), robotFitNone));
+  await syncWebsitePreparationStatus(selector, h.deps);
+  const projected = await loadCurrentWebsitePreparationStatus("r1", "walkthrough-r1", h.deps);
+  expect(projected.outcome!.reason).toBe("None of the 136 robot setups we checked fits this job.");
+});
+it("v6 carries a precheck that fits or is undecided without any hold", async () => {
+  const h = harness();
+  h.ledger(v6("preparing", precheck({status: "unknown", hold_reason: null, counts: {fit: 0, no_fit: 2, unknown: 3, unavailable: 1}})));
+  await syncWebsitePreparationStatus(selector, h.deps);
+  const projected = await loadCurrentWebsitePreparationStatus("r1", "walkthrough-r1", h.deps);
+  expect(projected).toMatchObject({state: "preparing", outcome: null, robotFitPrecheck: {status: "unknown", holdReason: null}});
+});
+it.each([
+  ["a hold without its reason", v6("awaiting_inputs", precheck({hold_reason: null}))],
+  ["a reason on a check that fits", v6("preparing", precheck({status: "fit", counts: {fit: 1, no_fit: 0, unknown: 0, unavailable: 0}}))],
+  ["a hold while a candidate is undecided", v6("awaiting_inputs", precheck({counts: {fit: 0, no_fit: 1, unknown: 1, unavailable: 0}}))],
+  ["a physical verdict", v6("awaiting_inputs", precheck({evidence_label: "physical_test"}))],
+  ["an unknown robot body", v6("awaiting_inputs", precheck({embodiments: [{embodiment: "sketch_bot", verdict: "no_fit",
+    reasons: ["reach"], fit_candidates: 0}]}))],
+  ["a hold reason outside its prefix", v6("awaiting_inputs", precheck({hold_reason: "robot_fit_none:reach"}))],
+  ["a hold whose precheck fits", v6("awaiting_inputs", precheck({status: "fit", hold_reason: null,
+    counts: {fit: 1, no_fit: 0, unknown: 0, unavailable: 0}}), robotFitNone)],
+  ["a hold bound to another precheck", v6("awaiting_inputs", precheck(), {...robotFitNone, evidence_digest: `sha256:${"e".repeat(64)}`})],
+])("v6 with %s is refused, never shown", async (_name, value) => {
+  const h = harness();
+  h.ledger(value);
+  await expect(syncWebsitePreparationStatus(selector, h.deps)).rejects.toThrow();
+});
+it("keeps the robot fit hold out of v5's closed outcome vocabulary", () => {
+  const value = {...receipt("awaiting_inputs"), schema_version: "website_preparation_status.v5", terminal_reason: null,
+    outcome: robotFitNone, question: null, robot_fit: null};
+  expect(websitePreparationReceiptSchema.safeParse({...value, status_digest: crossRuntimeArtifactDigest(value, "status_digest")})
+    .success).toBe(false);
+  expect(websitePreparationReceiptSchema.safeParse(v5("awaiting_inputs", null)).success).toBe(true);
+});
 afterEach(async()=>{if(server){await new Promise<void>(resolve=>server!.close(()=>resolve()));server=null;}vi.unstubAllEnvs();vi.unstubAllGlobals();runtime.beforeTransaction=null;});
 beforeEach(()=>{vi.stubEnv("PIPELINE_SYNC_TOKEN","isolated-test-secret");vi.stubEnv("PIPELINE_SYNC_ALLOW_LEGACY_BEARER","true");});
 async function route(h:ReturnType<typeof harness>, body:string|Buffer=JSON.stringify(selector), headers:Record<string,string>={}, mount=true, capture="walkthrough-r1") {

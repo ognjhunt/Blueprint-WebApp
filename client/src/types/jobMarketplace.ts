@@ -61,7 +61,7 @@ export interface JobEvidenceSummary {
  * there is none, or that it is still in progress. One plain sentence each.
  */
 export type JobScreeningOutcome = "estimate" | "reference_only" | "held_capability" | "held_unprepared" | "infeasible" | "no_match"
-  | "awaiting_spend_approval" | "setup_repair" | "superseded";
+  | "held_setup" | "held_budget" | "held_scene_check" | "awaiting_spend_approval" | "setup_repair" | "superseded";
 
 export interface JobManagedEvidenceSummary {
   runId: string;
@@ -81,6 +81,8 @@ export interface JobManagedEvidenceSummary {
   screening?: { budget?: { limitUsd: string; committedUpperBoundUsd: string; spentUpperBoundUsd: string; reservedUsd: string };
     candidates: Array<{ candidateId: string; name: string; state: string; planned: number; configurationDigest?: string;
     scored: number; succeeded: number; failed: number; void: number; blockers: string[];
+    /** Where the success rate likely lies (a Wilson interval, whole percents); only on rows with scored episodes. */
+    successRange?: { lowerPercent: number; upperPercent: number; confidencePercent: number };
     executionEvidence?: { execution_evidence_kind: "learned_policy" | "scripted_simulator_state_baseline";
       action_source: "learned_policy" | "scripted_simulator_state"; scripted_rollout_count: number;
       learned_policy_rollout_count: number; scripted_controller_invoked: boolean; candidate_policy_queried: boolean } }>;
