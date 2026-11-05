@@ -10,6 +10,9 @@ PlayCanvas's open-source, view-only Gaussian splat viewer, used to show a site i
 - `settings.json`: the package's own `defaultSettings()`, checked with `validateSettings(…, { limits: true })`.
 - `index.html` and `boot.js` are Blueprint's: the page has no inline script (the site CSP
   allows none), and `boot.js` loads content only from `/api/website-atlas-preview-views/`.
+  The viewer itself never checks a response's status (a failed request reads as a bad PLY
+  header and leaves a black scene), so `boot.js` shows the site a plain message instead.
+- `e2e/splat-viewer.spec.ts` loads this page under the production CSP.
 
 To update, replace `index.js`/`index.css` from a release at least two weeks old and
 re-record the integrity and sha256 above.

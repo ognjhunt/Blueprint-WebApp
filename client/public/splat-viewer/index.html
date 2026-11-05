@@ -6,7 +6,10 @@
     <meta name="robots" content="noindex, nofollow" />
     <title>3D preview · Blueprint</title>
     <link rel="stylesheet" href="./index.css" />
-    <style>html, body { height: 100%; margin: 0; overflow: hidden; background: #000; color: #fff; font-family: sans-serif; }</style>
+    <style>html, body { height: 100%; margin: 0; overflow: hidden; background: #000; color: #fff; font-family: sans-serif; }
+      .bp-problem { position: fixed; z-index: 1000; top: 50%; left: 50%; transform: translate(-50%, -50%); box-sizing: border-box;
+        width: min(28rem, calc(100vw - 32px)); margin: 0; padding: 16px 20px; border-radius: 8px; background: rgba(20, 20, 20, 0.92);
+        font-size: 16px; line-height: 1.5; text-align: center; }</style>
     <script type="module" src="./boot.js"></script>
   </head>
   <body></body>

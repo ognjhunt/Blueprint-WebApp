@@ -1,4 +1,5 @@
 import { createReadStream } from "node:fs";
+import { stat } from "node:fs/promises";
 import { Router } from "express";
 
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
@@ -38,9 +39,12 @@ router.get("/:requestId/:captureId/:file(scene.ply|settings.json)", async (req, 
   if (!preview?.bundle) return res.status(404).json(unavailable);
   try {
     const files = await websiteAtlasPreviewViewerFiles(requestId, captureId, preview.bundle);
+    const file = name === "settings.json" ? files.settings : files.splat;
+    // The length drives the viewer's progress bar; without it a large splat shows 100% at once.
+    const { size } = await stat(file);
     res.set({ "Content-Type": name === "settings.json" ? "application/json" : "application/octet-stream",
-      "Content-Disposition": "inline", "X-Content-Type-Options": "nosniff" });
-    createReadStream(name === "settings.json" ? files.settings : files.splat).on("error", () => res.destroy()).pipe(res);
+      "Content-Length": String(size), "Content-Disposition": "inline", "X-Content-Type-Options": "nosniff" });
+    createReadStream(file).on("error", () => res.destroy()).pipe(res);
   } catch (error) {
     logger.warn({ error, requestId, captureId }, "3D preview view unavailable");
     if (!res.headersSent) return res.status(503).json(unavailable);
