@@ -101,23 +101,29 @@ describe("the practice-run video view route", () => {
   const videoId = sha(bytes), wrongId = sha(wrong), goneId = sha(gone), manyIds = many.map(sha);
   let server: Server, pipeline: Server, base = "";
   const asked: Array<{ path: string; search: string; signed: boolean }> = [];
-  let inFlight = 0, mostInFlight = 0;
+  let inFlight = 0, mostInFlight = 0, chunked = 0;
+  /** Runs while the Pipeline is answering a read, before it sends a byte. */
+  let duringRead: (() => Promise<void>) | null = null;
 
   beforeEach(async () => {
     store.rows.clear(); asked.length = 0;
-    inFlight = mostInFlight = 0;
+    inFlight = mostInFlight = chunked = 0;
+    duringRead = null;
     await Promise.all([videoId, wrongId, goneId, ...manyIds].map(id => rm(practiceRunVideoCachePath(id), { force: true })));
     await forgetPracticeRunVideos("job-1");
-    pipeline = createServer((req, res) => {
+    pipeline = createServer(async (req, res) => {
       const url = new URL(req.url!, "http://pipeline.invalid");
       asked.push({ path: url.pathname, search: url.search, signed: /^sha256=[a-f0-9]{64}$/.test(String(req.headers["x-blueprint-pipeline-signature"])) });
       // For the second video the Pipeline answers with other bytes than the published ones; the third it no longer keeps.
       const index = manyIds.findIndex(id => url.pathname.endsWith(id));
       const body = url.pathname.endsWith(videoId) ? bytes : url.pathname.endsWith(wrongId) ? bytes : index >= 0 ? many[index] : null;
       if (!body) { res.statusCode = 404; return res.end(); }
+      await duringRead?.();
       res.setHeader("content-type", "video/mp4");
       inFlight += 1; mostInFlight = Math.max(mostInFlight, inFlight);
-      setTimeout(() => { inFlight -= 1; res.end(body); }, index >= 0 ? 60 : 0);
+      // These are streamed in two writes, chunked and with no Content-Length, as a proxy may send them.
+      if (index >= 0) { res.write(body.subarray(0, 7)); chunked += 1; }
+      setTimeout(() => { inFlight -= 1; res.end(index >= 0 ? body.subarray(7) : body); }, index >= 0 ? 60 : 0);
     });
     await new Promise<void>(resolve => pipeline.listen(0, "127.0.0.1", resolve));
     vi.stubEnv("CAPTURE_LIFECYCLE_PIPELINE_BASE_URL", `http://127.0.0.1:${(pipeline.address() as any).port}`);
@@ -210,6 +216,26 @@ describe("the practice-run video view route", () => {
     expect(responses.map(response => response.status)).toEqual([200, 200, 200]);
     for (const [index, response] of responses.entries()) expect(Buffer.from(await response.arrayBuffer())).toEqual(many[index]);
     expect(mostInFlight).toBe(2);
+    expect(chunked).toBe(3);  // a response without Content-Length is still checked by its bytes and served
+    // Every one of them was marked for its job while it was fetched, so withdrawal finds all three.
+    await forgetPracticeRunVideos("job-1");
+    for (const id of manyIds.slice(0, 3)) await expect(stat(practiceRunVideoCachePath(id))).rejects.toThrow();
+  });
+
+  it("never serves or keeps a video whose job's consent lapsed while it was being fetched", async () => {
+    const lapse = async () => {
+      store.rows.get("inboundRequests/job-1").request.consent_attestation.withdrawn_at_iso = "2026-11-05T12:00:00Z";
+      await forgetPracticeRunVideos("job-1");  // as recording the withdrawal does
+    };
+    duringRead = lapse;
+    const responses = await Promise.all(manyIds.slice(0, 3).map(id => watch(urlFor(id))));
+    expect(responses.map(response => response.status)).toEqual([404, 404, 404]);
+    for (const id of manyIds.slice(0, 3)) await expect(stat(practiceRunVideoCachePath(id))).rejects.toThrow();
+    // Consent restored, then lapsing after the copy landed but before it is served: refused all the same.
+    delete store.rows.get("inboundRequests/job-1").request.consent_attestation.withdrawn_at_iso;
+    duringRead = async () => { store.rows.get("inboundRequests/job-1").request.consent_attestation.withdrawn_at_iso = "2026-11-05T12:00:00Z"; };
+    expect((await watch(urlFor(manyIds[3]))).status).toBe(404);
+    await expect(stat(practiceRunVideoCachePath(manyIds[3]))).rejects.toThrow();
   });
 
   it("never serves bytes that do not match the published digest", async () => {
@@ -230,6 +256,12 @@ describe("the practice-run video view route", () => {
       await utimes(file, used, used);
     };
     const [stale, oldest, newer, newest] = ["1", "2", "3", "4"].map(char => char.repeat(64));
+    // A marker whose copy is still being fetched stays; one left unused as long as a ticket lasts goes.
+    const [fetchingNow, abandoned] = ["5", "6"].map(char => char.repeat(64));
+    await mkdir(path.dirname(practiceRunVideoMarkerPath("job-1", fetchingNow)), { recursive: true });
+    for (const id of [fetchingNow, abandoned]) await writeFile(practiceRunVideoMarkerPath("job-1", id), "");
+    const idle = new Date(now - PRACTICE_RUN_VIDEO_IDLE_MS - 1000);
+    await utimes(practiceRunVideoMarkerPath("job-1", abandoned), idle, idle);
     await seed(stale, 10, PRACTICE_RUN_VIDEO_IDLE_MS + 1000);
     await seed(oldest, PRACTICE_RUN_VIDEO_CACHE_BYTES / 2, 3000);
     await seed(newer, PRACTICE_RUN_VIDEO_CACHE_BYTES / 2, 2000);
@@ -239,6 +271,8 @@ describe("the practice-run video view route", () => {
     expect(await Promise.all([stale, oldest, newer, newest].map(present))).toEqual([false, false, true, true]);
     expect(Boolean(await stat(practiceRunVideoMarkerPath("job-1", stale)).catch(() => null))).toBe(false);
     expect(Boolean(await stat(practiceRunVideoMarkerPath("job-1", newer)).catch(() => null))).toBe(true);
+    expect(Boolean(await stat(practiceRunVideoMarkerPath("job-1", fetchingNow)).catch(() => null))).toBe(true);
+    expect(Boolean(await stat(practiceRunVideoMarkerPath("job-1", abandoned)).catch(() => null))).toBe(false);
     await Promise.all([newer, newest].map(id => rm(practiceRunVideoCachePath(id), { force: true })));
     await forgetPracticeRunVideos("job-1");
   });

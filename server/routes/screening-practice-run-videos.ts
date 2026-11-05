@@ -7,6 +7,7 @@ import { WEBSITE_ATLAS_REQUEST_ID } from "../utils/websiteAtlasPreview";
 import { projectWebsiteCaptureRights } from "../utils/websiteTaskContext";
 import {
   forgetPracticeRunVideos,
+  keepSweeping,
   practiceRunVideoFile,
   practiceRunVideoOwner,
   publishedPracticeRunVideo,
@@ -17,6 +18,8 @@ import {
 } from "../utils/screeningPracticeRunVideos";
 
 const router = Router();
+// Copies an earlier process left behind expire without waiting for someone to watch a video.
+keepSweeping();
 const unavailable = { error: "This practice-run video is unavailable", code: "screening_practice_run_video_unavailable" };
 const notKept = { error: "This practice-run video is no longer kept.", code: "screening_practice_run_video_not_kept" };
 
@@ -58,6 +61,12 @@ router.get("/:requestId/:runId/:candidateId/:file", async (req, res) => {
     const video = await publishedPracticeRunVideo(requestId, runId, candidateId, videoId);
     if (!video) return res.status(404).json(unavailable);
     const path = await practiceRunVideoFile(requestId, video);
+    // Consent or the owner may have lapsed while the video was fetched: read them again before serving.
+    const current = (await db.collection("inboundRequests").doc(requestId).get()).data();
+    if (practiceRunVideoOwner(current) !== owner || !projectWebsiteCaptureRights(current).derived_scene_generation_allowed) {
+      await forgetPracticeRunVideos(requestId).catch(() => undefined);
+      return res.status(404).json(unavailable);
+    }
     const range = videoByteRange(req.get("range"), video.sizeBytes);
     res.set({ "Content-Type": "video/mp4", "Content-Disposition": "inline", "Accept-Ranges": "bytes",
       "X-Content-Type-Options": "nosniff" });
@@ -73,6 +82,8 @@ router.get("/:requestId/:runId/:candidateId/:file", async (req, res) => {
   } catch (error) {
     if (error instanceof Error && error.message === "screening_practice_run_video_not_kept" && !res.headersSent)
       return res.status(410).json(notKept);
+    if (error instanceof Error && error.message === "screening_practice_run_video_forgotten" && !res.headersSent)
+      return res.status(404).json(unavailable);
     logger.warn({ error, requestId, runId }, "practice-run video unavailable");
     if (!res.headersSent) return res.status(503).json(unavailable);
     res.destroy();
