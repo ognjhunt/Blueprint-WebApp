@@ -326,6 +326,22 @@ describe("plain words", () => {
       { label: "something new", value: "[1,2]" }, { label: "source", value: "(internal reference)" }]);
   });
 
+  it("says the goal area's rule the way the target seals it: the whole object (v1) or its centre (v2)", () => {
+    const v1 = describeOwnerSuccessThresholds({ surface_target: CRITERIA.surface_target });
+    expect(v1.rows).toContainEqual(
+      { label: "Goal area", value: "The green spot: a circle 30 cm across. The whole object has to end up inside it." });
+    // G3 (2026-11-06): a 5 cm centre tolerance, the rule sealed in the target and said, not echoed raw.
+    const v2 = describeOwnerSuccessThresholds({ surface_target: { ...CRITERIA.surface_target, radius_m: 0.05,
+      schema_version: "task_evaluation_surface_target.v2", success_rule: "subject_centre_within_radius" } });
+    expect(v2.rows).toContainEqual(
+      { label: "Goal area", value: "The green spot: a circle 10 cm across. The centre of the object has to end up inside it." });
+    expect(v2.otherValues.map(value => value.label)).not.toContain("surface target success rule");
+    expect(v2.otherValues.map(value => value.label)).toContain("surface target schema version");
+    // An unknown rule is never said as either: the v1 words stay, and the value is listed as sent.
+    const unknown = describeOwnerSuccessThresholds({ surface_target: { ...CRITERIA.surface_target, success_rule: "new_rule" } });
+    expect(unknown.otherValues).toContainEqual({ label: "surface target success rule", value: "new_rule" });
+  });
+
   it("says a contact class it does not know by its name, and an unexpected exclusion as sent", () => {
     const { rows } = describeOwnerSuccessThresholds({ forbidden_collision_allowed: false,
       forbidden_contact_classes: ["robot_object", "new_class"] },

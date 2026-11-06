@@ -4,8 +4,8 @@ const digest = z.string().regex(/^sha256:[0-9a-f]{64}$/);
 const nonEmpty = z.string().trim().min(1);
 const nonnegative = z.number().finite().nonnegative();
 
-const surfaceTargetSchema = z.object({
-  schema_version: z.literal("task_evaluation_surface_target.v1"),
+// v1: the whole object inside the disc; v2 (G3, 2026-11-06): its centre within the radius.
+const surfaceTargetFields = {
   shape: z.literal("flat_green_disc"),
   non_colliding: z.literal(true),
   visible_label: nonEmpty,
@@ -18,7 +18,12 @@ const surfaceTargetSchema = z.object({
   maximum_linear_speed_m_s: z.number().finite().positive(),
   maximum_angular_speed_rad_s: z.number().finite().positive(),
   target_digest: digest,
-}).strict();
+};
+const surfaceTargetSchema = z.discriminatedUnion("schema_version", [
+  z.object({ schema_version: z.literal("task_evaluation_surface_target.v1"), ...surfaceTargetFields }).strict(),
+  z.object({ schema_version: z.literal("task_evaluation_surface_target.v2"),
+    success_rule: z.literal("subject_centre_within_radius"), ...surfaceTargetFields }).strict(),
+]);
 
 export const rigidTaskSuccessContractSchema = z.object({
   schema_version: z.literal("rigid_task_success_contract.v1"),
