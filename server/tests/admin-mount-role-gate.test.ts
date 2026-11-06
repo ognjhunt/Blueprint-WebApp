@@ -92,7 +92,7 @@ afterAll(async () => {
 
 describe("admin mounts in server/routes.ts", () => {
   it("finds the admin mounts", () => {
-    expect(mounts.length).toBeGreaterThanOrEqual(17);
+    expect(mounts.length).toBeGreaterThanOrEqual(16);
     expect(mounts.map((mount) => mount.path)).toContain("/api/admin/sla");
   });
 
@@ -120,14 +120,6 @@ describe("routers that import a role gate", () => {
   it("gate every handler they declare", () => {
     expect(ungatedHandlersInGatedRouters()).toEqual([]);
   });
-
-  it.each([["/api/city-launch/sends?city=austin"], ["/api/city-launch/status?city=austin"]])(
-    "%s returns 403 to a signed-in account without an admin/ops role",
-    async (url) => {
-      const response = await fetch(`${baseUrl}${url}`, { headers: { Authorization: "Bearer ordinary-user-token" } });
-      expect(response.status).toBe(403);
-    },
-  );
 });
 
 describe("G1 development campaign spending authority", () => {

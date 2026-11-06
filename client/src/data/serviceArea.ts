@@ -20,14 +20,12 @@
  *
  * ## The capturer program is the same footprint
  *
- * `cityLaunchCoverageExpansion.ts` carries coverage policies for several
- * metros, and the capturer launch status is served from Firestore at runtime —
- * so the capturer surfaces could advertise a city the deployment program does
- * not serve. A reader does not distinguish Blueprint's two programs, so the
- * public surfaces are filtered through `isServedCitySlug` rather than trusting
- * whatever the backend happens to return. Those coverage policies stay in the
- * codebase as prepared work for expansion; they are not a claim that a city is
- * open.
+ * The capturer launch status is served from Firestore at runtime, and older
+ * records name several metros, so the capturer surfaces could advertise a city
+ * the deployment program does not serve. A reader does not distinguish
+ * Blueprint's two programs, so the public surfaces are filtered through
+ * `isServedCitySlug` rather than trusting whatever the backend happens to
+ * return.
  *
  * ## Changing this
  *

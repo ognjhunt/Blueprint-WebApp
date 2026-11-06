@@ -21,9 +21,6 @@ explicit approval for the exact notice and recipient list. See
 | `npm run qa:polish` | local browser automation + output artifacts | Starts the Playwright local dev server, checks public routes at desktop/mobile sizes, writes screenshots and reports under `output/qa/brand-polish/latest/`, and does not call live sends, providers, payments, deploys, or Notion writes. |
 | `npm run qa:operator` | local browser automation + mocked API fixtures | Starts the Playwright local dev server with local fake auth and the ops automation scheduler disabled, checks internal/private operator surfaces at desktop/mobile sizes, intercepts `/api/**`, writes screenshots and reports under `output/qa/operator-surfaces/latest/`, and does not call live Firebase, Stripe, Notion, Paperclip, Render, Redis, providers, Slack/email, payments, payouts, or sends. |
 | `npm run smoke:launch:local` | local server write-light | Starts/bundles local production server and runs launch smoke against `127.0.0.1`. It strips several live provider env vars and uses local smoke values, but it can still exercise local Firebase/admin code if env is present. |
-| `npm run gtm:hosted-review:audit` | local file-backed | Audits the canonical GTM ledger; does not send outreach. |
-| `npm run gtm:recipient-evidence:validate -- --human-recipient-evidence-path <path>` | local validation | Validates human-supplied recipient evidence without mutating the ledger. |
-| `npm run gtm:recipient-evidence:template` | local file write | Writes a template artifact. Safe if the output path is expected. |
 | `npm run autoagent:recursive-improve -- --dry-run` | local eval/report artifacts | Runs the recursive AutoResearch observer, fixture writer, offline eval, promotion gate, canary dry-run, and rollback monitor with live mutation off. Writes under `output/autoagent/recursive-improvement/latest/`; does not mutate live Paperclip/Hermes state, Notion, providers, sends, payments, rights/legal, city-live, or hosted-session fulfillment. |
 | `npm run autoagent:canary-rollback -- --canary-plan <path> --shadow-summary <path> --apply-rollback` | repo-local rollback artifact | Restores only the repo-local active AutoAgent canary config from the stored rollback snapshot when the monitor finds a rollback trigger. It does not mutate live Paperclip/Hermes state, Notion, providers, sends, payments, rights/legal, city-live, or hosted-session fulfillment. |
 | `npm run autonomy:budget:verify` | local read/check + output artifacts | Verifies the `$500/month` autonomous-org budget packet against `.paperclip.yaml`, the control-room map, budget plan doc, summary JSON, and completion audit. Writes `output/autonomous-org/budget/latest/verification.json` and `.md`; does not read live billing, mutate Paperclip, write Notion/Firebase/Stripe/Render, send outreach, call providers, or claim Operational Launch Ready. |
@@ -42,8 +39,6 @@ explicit approval for the exact notice and recipient list. See
 | `npm run autonomy:budget:status` | local status artifact | Writes `output/autonomous-org/budget/latest/control-status.json` and `.md` by reading the summary, audit, verifier, delegation packet, and live-action gate. It gives agents one pre-action answer for repo-local allocation, repo-local delegation, live spend mutation, live budget completion claims, and Operational Launch Ready claims. It does not call providers, spend money, send outreach, mutate live systems, or persist secrets. |
 | `npm run autonomy:budget:control-suite` | local suite artifact | Runs the safe local budget control suite: live-proof reconciliation, proof template, proof validation, next-goal queue generation, budget delegation packet generation, live-action gate generation, budget status generation, launch-now approval packet generation, dynamic budget verifier, focused proof-intake tests, focused dynamic allocator tests, focused next-goal queue tests, focused delegation tests, focused live-action gate tests, focused budget status tests, focused launch-now approval tests, and the budget packet verifier. Writes `output/autonomous-org/budget/control-suite/latest/summary.json` and `.md`; default mode requests no live provider calls and no live mutation. Optional `-- --include-check` and `-- --include-graphify` add heavier local checks. |
 | `npm run autonomy:kpi-source-status` | local fixture/snapshot artifact | Reads a repo-local KPI source snapshot and writes `output/autonomous-org/kpi-source-status-latest/`. It does not export live Firestore, write Notion, send outreach, touch Stripe, call providers, or mutate Paperclip. |
-| `npm run city-launch:preflight -- --city "<city>"` | local/reporting | Runs launch readiness checks and writes/reads report artifacts. Does not by itself send real outreach. |
-| `npm run city-launch:verify-closeout` | local/reporting | Verifies readiness closeout artifacts. |
 | `npm run alpha:env` | local env audit | Reads env or a supplied env file and reports missing launch config. Do not paste secrets into logs. |
 | `npm run pipeline:forwarding:preflight -- --require-forwarding` | local env audit + optional read-only Pipeline GET | Reads `ROBOT_EVAL_JOB_REQUEST_FORWARD_*` env vars, validates URL/token/timeout/capture-root override shape, and writes `output/pipeline/robot_eval_job_requests/forwarding_preflight.json` with secrets redacted. Default mode makes no network request. `-- --probe-intake-audit` performs only an authenticated read-only `GET /api/live-pipeline/intake-audit`; it must not POST a job request, allocate GPUs, start providers, prove simulator execution, or upgrade public claims. |
 | `scripts/paperclip/validate-agent-kits.sh` | local validation | Validates repo-side Paperclip agent employee kits without mutating live Paperclip or Notion state. |
@@ -72,15 +67,9 @@ Do not run these in an ordinary orientation or docs-only session unless the task
 |---|---:|---|
 | `npm run smoke:launch` | live write risk | Requires `ALPHA_BASE_URL` or `BASE_URL`. It runs health checks, creates an inbound smoke request, may run post-signup smoke if `ALPHA_BEARER_TOKEN` is set, and runs `smoke:agent`. Non-local targets require `ALPHA_SMOKE_ALLOW_LIVE_WRITE=1` plus explicit smoke identity values. |
 | `npm run pipeline:first-gpu:route-forwarding-proof -- --forward-url <url> ...` | Pipeline intake write risk | Starts a local WebApp route and POSTs a generated `robot_eval_job_request.v1` through `/api/robot-eval/job-requests` to the configured Pipeline intake URL. With a local/stub `--forward-url`, this is a local route proof; with a live/staging URL, it stages a real Pipeline intake request. It must not allocate GPUs, run simulators, prove production deployment, prove generated-world rank fidelity, or upgrade public claims. |
-| `npm run gtm:send` | outbound/send risk | Defaults to dry-run and does not write unless flags request it. `--write --dry-run 0` can mutate the GTM ledger after send execution; actual send behavior depends on configured transport and approvals. Treat as live-outreach capable. |
-| `npm run city-launch:send` | outbound/send risk | Defaults to dry-run. `--live --founder-approved` is required for live sends. Approval mode can mutate approval state. |
-| `npm run city-launch:run` | multi-system risk | Can run Deep Research planning, write artifacts, dispatch human blocker packets, dispatch/wake Paperclip issues, materialize prospects, and optionally run Meta read-only/paused-draft proof paths. Requires careful phase flags. |
-| `npm run city-launch:activate` | Paperclip/ops mutation risk | Without `--founder-approved`, writes a founder decision packet. With approval, can dispatch Paperclip issues and write launch artifacts. |
-| `npm run city-launch:coverage:run -- --apply` | artifact/ledger mutation risk | Without `--apply`, dry-run. With `--apply`, seeds/promotes/rejects city-launch candidates from coverage expansion. |
 | `npm run human-replies:poll` | inbox/read + state mutation risk | Polls Gmail via configured watcher and can write human reply events, update blocker threads, and trigger resume handoffs. |
 | `npm run human-replies:send-test-blocker` | email send risk | Dispatches a controlled test blocker email to `ohstnhunt@gmail.com`. Do not run without explicit approval. |
 | `npm run human-replies:prove-production` | production proof risk | Intended to prove production reply/resume behavior. Treat as live founder-inbox validation. |
-| `npm run notion:sync:growth-studio` | Notion mutation risk | Syncs Growth Studio surfaces to Notion when configured. |
 | Notion connector page create/update/move tools | Notion mutation risk | Allowed only when the task explicitly asks to update Notion. Fetch first, preserve child pages/databases, and keep repo/Paperclip as execution truth. |
 | `npm run render:import-env` | Render env mutation risk | With `--dry-run`, prints redacted changes only. Without `--dry-run`, updates Render service env vars via Render API. |
 | `npm run paperclip:sweep:run-failures` | read/report by default | Current sweep is inspection/reporting, but it reads Paperclip runtime state; verify flags before assuming write behavior. |
@@ -142,10 +131,6 @@ Live alpha smoke. Requires explicit target URL. It can create an inbound request
 
 Local production-like smoke. It selects a local port, builds server bundle if needed, starts `dist/index.js`, and runs `scripts/launch-smoke.mjs` against localhost with several provider env vars removed. Safer than `smoke:launch`, but still more invasive than `check`.
 
-### `npm run gtm:send`
-
-GTM send executor. Default is dry-run. `--write` writes reports, and `--write --dry-run 0` can write the updated ledger after execution. Treat configured email/outbound transport as live-send capable.
-
 ### Human-replies commands
 
 - `human-replies:audit-gmail`: audits Gmail OAuth readiness.
@@ -154,16 +139,10 @@ GTM send executor. Default is dry-run. `--write` writes reports, and `--write --
 - `human-replies:send-test-blocker`: sends a real test blocker email.
 - `human-replies:prove-production`: production proof path; treat as live.
 
-### City-launch commands
+### Retired growth commands
 
-- `city-launch:plan`: Deep Research planning path; may use provider APIs and write planning artifacts.
-- `city-launch:preflight`: local readiness/reporting gate.
-- `city-launch:activate`: writes founder packet without approval; with `--founder-approved`, dispatches launch execution through Paperclip/artifacts.
-- `city-launch:run`: broad orchestration command; read flags before use.
-- `city-launch:send`: dry-run by default; `--live --founder-approved` sends.
-- `city-launch:coverage:plan`: dry-run coverage plan.
-- `city-launch:coverage:run`: dry-run unless `--apply`.
-- `city-launch:creative-ads`: can interact with Meta read-only/paused-draft paths depending on env and flags.
+The `city-launch:*`, `gtm:*` and `notion:sync:growth-studio` commands were
+removed with the growth lanes on 2026-11-06.
 
 ### Render/deploy commands
 

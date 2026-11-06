@@ -2,8 +2,6 @@
 import { describe, expect, it } from "vitest";
 
 import { renderHumanBlockerPacketText } from "../utils/human-blocker-packet";
-import { buildCityLaunchFounderApprovalPacket } from "../utils/cityLaunchFounderApproval";
-import { buildCityLaunchBudgetPolicy } from "../utils/cityLaunchPolicy";
 
 describe("universal founder inbox packet", () => {
   it("renders decision, repo, and policy context when present", () => {
@@ -40,20 +38,5 @@ describe("universal founder inbox packet", () => {
     expect(rendered).toContain("Policy Context");
     expect(rendered).toContain("queued_action_approval");
     expect(rendered).toContain("Blueprint-WebApp");
-  });
-
-  it("marks city launch founder packets as universal founder inbox items", () => {
-    const packet = buildCityLaunchFounderApprovalPacket({
-      city: "Seattle, WA",
-      budgetPolicy: buildCityLaunchBudgetPolicy({
-        tier: "funded",
-        maxTotalApprovedUsd: 15000,
-        operatorAutoApproveUsd: 1500,
-      }),
-    });
-
-    expect(packet.decisionType).toBe("city_launch_activation");
-    expect(packet.policyContext?.gateMode).toBe("universal_founder_inbox");
-    expect(packet.repoContext?.repo).toBe("Blueprint-WebApp");
   });
 });

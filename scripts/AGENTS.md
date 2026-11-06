@@ -25,6 +25,4 @@ Safe defaults:
 ```bash
 npm run check
 npm run audit:assets
-npm run gtm:hosted-review:audit
-npm run city-launch:preflight -- --city "Durham, NC"
 ```

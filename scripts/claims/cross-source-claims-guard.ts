@@ -602,7 +602,6 @@ export function buildDefaultScanTargets(rootDir = process.cwd()): ScanTarget[] {
     ["server/agents", "agent_instructions"],
     ["server/utils/robot-agent-contract.ts", "public_api_contract"],
     ["../BlueprintCapture/docs/PUBLIC_COPY_TRUTH_INDEX_2026-05-24.md", "capture_public_copy_docs"],
-    ["scripts/gtm", "gtm_artifacts"],
     ["ops/paperclip/playbooks", "gtm_artifacts"],
     ["knowledge/reports", "notion_ready_markdown"],
     ["knowledge/compiled", "notion_ready_markdown"],

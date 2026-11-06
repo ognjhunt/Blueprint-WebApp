@@ -69,9 +69,6 @@ const TermsPrevious = lazyRoute(() => import("../pages/TermsPrevious"));
 const BetaBuyerGuide = lazyRoute(() => import("../pages/BetaBuyerGuide"));
 const Settings = lazyRoute(() => import("../pages/workspace/Settings"));
 const AdminLeads = lazyRoute(() => import("../pages/AdminLeads"));
-const AdminGrowthOpsScorecard = lazyRoute(() => import("../pages/AdminGrowthOpsScorecard"));
-const AdminAustinLaunchScorecard = lazyRoute(() => import("../pages/AdminAustinLaunchScorecard"));
-const AdminGrowthStudio = lazyRoute(() => import("../pages/AdminGrowthStudio"));
 const AdminCompanyMetrics = lazyRoute(() => import("../pages/AdminCompanyMetrics"));
 // The launch control room behind its access gate (admin/ops role or the
 // server-enforced launch-lab bearer link).
@@ -374,14 +371,10 @@ export const appRoutes: AppRoute[] = [
   { path: "/admin/leads/:requestId", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminLeads },
   { path: "/admin/submissions", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminLeads },
   { path: "/admin/submissions/:requestId", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminLeads },
-  { path: "/admin/growth-ops-scorecard", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminGrowthOpsScorecard },
   { path: "/admin/company-metrics", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminCompanyMetrics },
   { path: "/admin/capturers", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminCapturers },
   { path: "/admin/robot-team-access", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminRobotTeamAccess },
   { path: "/admin/jobs", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminJobConsole },
-  { path: "/admin/city-launch/austin", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminAustinLaunchScorecard },
-  { path: "/admin/city-launch/:citySlug", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminAustinLaunchScorecard },
-  { path: "/admin/growth-studio", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminGrowthStudio },
 
   // Legacy logged-in and signup aliases resolve to the maintained flows.
   { path: "/dashboard", layout: "protected", shell: "bare", component: BuyerAppRedirect },
@@ -480,7 +473,6 @@ export const appRoutes: AppRoute[] = [
   // Legacy ops aliases route to protected admin/operator truth surfaces.
   { path: "/ops", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminLeads },
   { path: "/ops/supply", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminLeads },
-  { path: "/ops/city-launch", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminAustinLaunchScorecard },
   { path: "/ops/evidence", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminLeads },
   { path: "/ops/handoff", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminLeads },
   { path: "/ops/spend", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminCompanyMetrics },

@@ -69,17 +69,6 @@ export const operatorQaSurfaces: OperatorQaSurface[] = [
     fixtureIds: ["company-metrics"],
   },
   {
-    label: "Growth Studio",
-    path: "/admin/growth-studio",
-    expectedTexts: [
-      "Growth Studio",
-      "Growth truth boundary",
-      "Ship-broadcast approval queue",
-      "Ad Studio",
-    ],
-    fixtureIds: ["growth-studio"],
-  },
-  {
     label: "Request Console Ready Overview",
     path: "/requests/op-qa-ready",
     expectedTexts: [
@@ -155,17 +144,6 @@ export const operatorQaApiFixtures: OperatorQaFixtureMetadata[] = [
     label: "Company metrics",
     endpoints: ["GET /api/admin/company-metrics"],
     proves: "The CEO operating screen renders from a local scoreboard fixture.",
-  },
-  {
-    id: "growth-studio",
-    label: "Growth Studio",
-    endpoints: [
-      "GET /api/admin/growth/campaigns",
-      "GET /api/admin/growth/creative-runs",
-      "GET /api/admin/growth/ad-studio/runs",
-      "GET /api/admin/growth/campaigns/ship-broadcast/pending-approval",
-    ],
-    proves: "Growth Studio read lanes render without Notion writes, provider calls, or sends.",
   },
   {
     id: "request-console-ready",
@@ -414,145 +392,6 @@ const companyMetricsFixture = {
         ],
       },
     },
-  },
-};
-
-const growthStudioFixture = {
-  campaigns: {
-    localCampaigns: [
-      {
-        id: "growth-campaign-op-qa",
-        name: "Exact-Site Hosted Review fixture campaign",
-        subject: "Fixture campaign for local operator QA",
-        channel: "resend",
-        send_status: "draft",
-        recipient_count: 0,
-        last_ledger_doc_id: "ledger-op-qa",
-        last_execution_error: null,
-        approval_reason: "Fixture only. No send is executed.",
-        rejected_reason: null,
-        response_tracking: {
-          last_event_type: "draft_created",
-          last_event_at: generatedAt,
-          last_recipient: null,
-        },
-        event_counts: {
-          created: 1,
-          queued: 0,
-          sent: 0,
-          opened: 0,
-        },
-      },
-    ],
-  },
-  creativeRuns: {
-    items: [
-      {
-        id: "creative-run-op-qa",
-        status: "draft_ready",
-        skuName: "Exact-Site Hosted Review",
-        researchTopic: "warehouse exact-site proof",
-        rolloutVariant: "operator-fixture",
-        createdAt: generatedAt,
-        generatedImages: 0,
-        executionHandoff: {
-          issueId: "BLU-OP-QA",
-          status: "draft_only",
-          assignee: "webapp-codex",
-          error: null,
-        },
-        buyerObjections: ["Need proof from the same site."],
-        remotionReel: {
-          status: "not_rendered",
-          outputPath: null,
-          storageUri: null,
-          signedUrl: null,
-          durationSeconds: null,
-          frames: null,
-          error: null,
-        },
-      },
-    ],
-  },
-  adStudioRuns: {
-    items: [
-      {
-        id: "ad-run-op-qa",
-        lane: "buyer",
-        status: "review_required",
-        audience: "robotics deployment leads",
-        cta: "Request exact-site proof",
-        city: "Austin",
-        aspectRatio: "9:16",
-        claimsLedger: {
-          allowedClaims: ["Fixture UI can show proof-led claims."],
-          blockedClaims: ["No fabricated customer traction.", "No live provider execution claimed."],
-          evidenceLinks: ["scripts/qa/operator-surfaces.ts"],
-          reviewDecision: "pending",
-          reviewNotes: ["Harness does not approve Meta drafts or launch ads."],
-        },
-        brief: {
-          visualDirection: "Show capture provenance and review-room boundaries.",
-          copyHooks: ["Exact-site proof before deployment claims."],
-        },
-        promptPack: {
-          imagePromptVariants: ["Fixture-only prompt for a warehouse review board."],
-          videoPrompt: "Fixture-only proof reel prompt. Do not execute provider calls.",
-          headlineOptions: ["Know the site before the robot arrives"],
-          primaryTextOptions: ["Blueprint turns real capture into buyer review rooms."],
-        },
-        assets: [],
-        imageExecutionHandoff: {
-          issueId: "BLU-OP-QA-IMAGE",
-          status: "queued_for_human_review",
-          assignee: "webapp-codex",
-          error: null,
-        },
-        videoTask: {
-          taskId: null,
-          status: "not_requested",
-          firstFrameUrl: null,
-          ratio: null,
-          promptText: null,
-        },
-        review: {
-          status: "pending",
-          reasons: ["Requires evidence inspection before publishing."],
-          headline: null,
-          primaryText: null,
-        },
-        metaDraft: {
-          campaignId: null,
-          adSetId: null,
-          creativeId: null,
-          adId: null,
-          status: "not_created",
-          provider: null,
-          provenanceIds: [],
-          ledgerLink: null,
-        },
-        createdAtIso: generatedAt,
-        updatedAtIso: generatedAt,
-      },
-    ],
-  },
-  shipBroadcastQueue: {
-    items: [
-      {
-        id: "ledger-op-qa",
-        name: "Ship Broadcast: local operator QA fixture",
-        subject: "Local fixture only - no send",
-        recipientCount: 0,
-        sendStatus: "pending_approval",
-        createdAt: generatedAt,
-        lastLedgerDocId: "ledger-op-qa",
-        approvalReason: null,
-        assetKey: "operator-qa:fixture:ship-broadcast",
-        assetType: "ship_broadcast",
-        sourceIssueIds: ["BLU-OP-QA"],
-        proofLinks: ["scripts/qa/operator-surfaces.ts"],
-      },
-    ],
   },
 };
 
@@ -958,41 +797,6 @@ export function getOperatorQaFixtureForRequest(
       fixtureId: "company-metrics",
       status: 200,
       body: companyMetricsFixture,
-    };
-  }
-
-  if (normalizedMethod === "GET" && pathname === "/api/admin/growth/campaigns") {
-    return {
-      fixtureId: "growth-studio",
-      status: 200,
-      body: growthStudioFixture.campaigns,
-    };
-  }
-
-  if (normalizedMethod === "GET" && pathname === "/api/admin/growth/creative-runs") {
-    return {
-      fixtureId: "growth-studio",
-      status: 200,
-      body: growthStudioFixture.creativeRuns,
-    };
-  }
-
-  if (normalizedMethod === "GET" && pathname === "/api/admin/growth/ad-studio/runs") {
-    return {
-      fixtureId: "growth-studio",
-      status: 200,
-      body: growthStudioFixture.adStudioRuns,
-    };
-  }
-
-  if (
-    normalizedMethod === "GET" &&
-    pathname === "/api/admin/growth/campaigns/ship-broadcast/pending-approval"
-  ) {
-    return {
-      fixtureId: "growth-studio",
-      status: 200,
-      body: growthStudioFixture.shipBroadcastQueue,
     };
   }
 

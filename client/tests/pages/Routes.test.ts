@@ -118,7 +118,6 @@ describe("Route registration", () => {
     for (const route of [
       "/ops",
       "/ops/supply",
-      "/ops/city-launch",
       "/ops/evidence",
       "/ops/handoff",
       "/ops/spend",

@@ -35,14 +35,6 @@ import {
   recordHumanReplyEvent,
   type HumanBlockerThreadRecord,
 } from "./human-reply-store";
-import { runCityLaunchExecutionHarness } from "./cityLaunchExecutionHarness";
-import { writeCityLaunchCreativeAdsEvidence } from "./cityLaunchCreativeAdsEvidence";
-import { runCityLaunchPlanningHarness } from "./cityLaunchPlanningHarness";
-import {
-  normalizeCityLaunchBudgetTier,
-  type CityLaunchBudgetTier,
-} from "./cityLaunchPolicy";
-import { resolveCityLaunchWindowHours } from "./cityLaunchRunControl";
 
 function truncate(value: string, max = 280) {
   const normalized = String(value || "").replace(/\s+/g, " ").trim();
@@ -61,22 +53,6 @@ function extractCorrelationId(message: {
     || extractHumanBlockerIdFromText(message.body)
     || null
   );
-}
-
-function asTrimmedString(value: unknown) {
-  return typeof value === "string" ? value.trim() : "";
-}
-
-function asOptionalNumber(value: unknown) {
-  return typeof value === "number" && Number.isFinite(value)
-    ? value
-    : typeof value === "string" && value.trim() && Number.isFinite(Number(value))
-      ? Number(value)
-      : undefined;
-}
-
-function asBudgetTier(value: unknown): CityLaunchBudgetTier | undefined {
-  return normalizeCityLaunchBudgetTier(value) || undefined;
 }
 
 function findMatchingThread(
@@ -239,72 +215,9 @@ async function ingestHumanReplyMessage(params: {
     try {
       const operatorEmail = params.thread.approved_identity!;
       const replySummary = bodyExcerpt || "(empty reply)";
+      // city_launch_plan / city_launch_activate never reach here: the guard
+      // above keeps their replies ambiguous, and the city-launch lane is retired.
       if (
-        decision.classification === "approval"
-        && params.thread.resume_action.kind === "city_launch_plan"
-      ) {
-        const planningMetadata = params.thread.resume_action.metadata || {};
-        const city = asTrimmedString(planningMetadata.city);
-        if (!city) {
-          throw new Error("City launch planning reply is missing a city in resume metadata.");
-        }
-        const budgetTier = asBudgetTier(planningMetadata.budgetTier);
-        const budgetMaxUsd = asOptionalNumber(planningMetadata.budgetMaxUsd);
-        const operatorAutoApproveUsd = asOptionalNumber(planningMetadata.operatorAutoApproveUsd);
-        const windowHours = resolveCityLaunchWindowHours(planningMetadata.windowHours);
-        if (!budgetTier || budgetMaxUsd === null) {
-          throw new Error("City launch planning reply is missing budget tier/max in resume metadata.");
-        }
-
-        await runCityLaunchPlanningHarness({
-          city,
-          budgetTier,
-          budgetMaxUsd,
-          operatorAutoApproveUsd,
-          windowHours,
-        });
-      } else if (
-        decision.classification === "approval"
-        && params.thread.resume_action.kind === "city_launch_activate"
-      ) {
-        const activationMetadata = params.thread.resume_action.metadata || {};
-        const city = asTrimmedString(activationMetadata.city);
-        if (!city) {
-          throw new Error("City launch activation reply is missing a city in resume metadata.");
-        }
-
-        const budgetTier = asBudgetTier(activationMetadata.budgetTier);
-        const budgetMaxUsd = asOptionalNumber(activationMetadata.budgetMaxUsd);
-        const operatorAutoApproveUsd = asOptionalNumber(activationMetadata.operatorAutoApproveUsd);
-        const windowHours = resolveCityLaunchWindowHours(activationMetadata.windowHours);
-        const activationResult = await runCityLaunchExecutionHarness({
-          city,
-          founderApproved: true,
-          budgetTier,
-          budgetMaxUsd,
-          operatorAutoApproveUsd,
-          windowHours,
-        });
-        const creativeAdsEvidence = await writeCityLaunchCreativeAdsEvidence({
-          city,
-          budgetTier,
-          budgetMaxUsd,
-          windowHours,
-          runMetaReadOnly: true,
-          founderApprovedPausedDraft: false,
-          launchId: activationResult.paperclip?.rootIssueId || undefined,
-        });
-        if (creativeAdsEvidence.status === "blocked") {
-          throw new Error(
-            [
-              "City launch creative/ad evidence blocked after founder approval resume.",
-              `JSON: ${creativeAdsEvidence.artifacts.jsonPath}`,
-              `Markdown: ${creativeAdsEvidence.artifacts.markdownPath}`,
-              `Blockers: ${creativeAdsEvidence.blockers.join("; ")}`,
-            ].join(" "),
-          );
-        }
-      } else if (
         decision.classification === "approval"
         && params.thread.record_of_truth.ops_work_item_id
       ) {

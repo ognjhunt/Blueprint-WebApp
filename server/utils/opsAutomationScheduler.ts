@@ -13,16 +13,11 @@ import {
   flagOverdueSiteAccessReviews,
   runCapturerReminderLoop,
 } from "./field-ops-automation";
-import { runBuyerLifecycleCheck } from "./growth-ops";
-import { runExperimentAutorollout } from "./experiment-ops";
-import { runAutonomousResearchOutboundLoop } from "./autonomous-growth";
-import { runCreativeAssetFactoryLoop } from "./creative-factory";
 import { maybeAlertOnWorkerStatusTransition } from "./ops-alerts";
 import { runSlaWatchdog } from "./sla-enforcement";
 import { runNotionBidirectionalSync } from "./notion-sync";
 import { runGraduationEvaluation } from "./agent-graduation";
 import { runOnboardingWorker } from "./buyer-onboarding";
-import { runLifecycleCadenceWorker } from "./lifecycle-cadence";
 import { runGapClosureLoop } from "./gap-closure";
 import { runHumanReplyEmailWatcher } from "./human-reply-worker";
 import { runOperatingGraphProjectionLoop } from "./operatingGraphEvidenceProjectors";
@@ -179,104 +174,9 @@ const workers: WorkerDefinition[] = [
     defaultStartupDelayMs: 40 * 1000,
     run: ({ limit }) => runCapturerReminderLoop({ limit }),
   },
-  {
-    key: "buyer_lifecycle",
-    enabledEnv: "BLUEPRINT_BUYER_LIFECYCLE_ENABLED",
-    intervalEnv: "BLUEPRINT_BUYER_LIFECYCLE_INTERVAL_MS",
-    batchEnv: "BLUEPRINT_BUYER_LIFECYCLE_BATCH_SIZE",
-    startupDelayEnv: "BLUEPRINT_BUYER_LIFECYCLE_STARTUP_DELAY_MS",
-    defaultIntervalMs: 24 * 60 * 60 * 1000,
-    defaultBatchSize: 25,
-    maxBatchSize: 100,
-    defaultStartupDelayMs: 55 * 1000,
-    run: ({ limit }) =>
-      runBuyerLifecycleCheck({
-        daysSinceGrant: Math.max(
-          7,
-          Number(process.env.BLUEPRINT_BUYER_LIFECYCLE_DAYS_SINCE_GRANT ?? 30),
-        ),
-        limit,
-      }).then((result) => ({
-        processedCount: result.count,
-        failedCount: 0,
-      })),
-  },
-  {
-    key: "lifecycle_cadence",
-    enabledEnv: "BLUEPRINT_LIFECYCLE_CADENCE_ENABLED",
-    intervalEnv: "BLUEPRINT_LIFECYCLE_CADENCE_INTERVAL_MS",
-    batchEnv: "BLUEPRINT_LIFECYCLE_CADENCE_BATCH_SIZE",
-    startupDelayEnv: "BLUEPRINT_LIFECYCLE_CADENCE_STARTUP_DELAY_MS",
-    defaultIntervalMs: 60 * 60 * 1000,
-    defaultBatchSize: 25,
-    maxBatchSize: 100,
-    defaultStartupDelayMs: 58 * 1000,
-    run: ({ limit }) => runLifecycleCadenceWorker({ limit }),
-  },
-  {
-    key: "experiment_rollout",
-    enabledEnv: "BLUEPRINT_EXPERIMENT_AUTOROLLOUT_ENABLED",
-    intervalEnv: "BLUEPRINT_EXPERIMENT_AUTOROLLOUT_INTERVAL_MS",
-    batchEnv: "BLUEPRINT_EXPERIMENT_AUTOROLLOUT_BATCH_SIZE",
-    startupDelayEnv: "BLUEPRINT_EXPERIMENT_AUTOROLLOUT_STARTUP_DELAY_MS",
-    defaultIntervalMs: 60 * 60 * 1000,
-    defaultBatchSize: 5000,
-    maxBatchSize: 10000,
-    defaultStartupDelayMs: 60 * 1000,
-    run: ({ limit }) =>
-      runExperimentAutorollout({
-        lookbackDays: Math.max(
-          7,
-          Number(process.env.BLUEPRINT_EXPERIMENT_AUTOROLLOUT_LOOKBACK_DAYS ?? 30),
-        ),
-        minExposuresPerVariant: Math.max(
-          10,
-          Number(process.env.BLUEPRINT_EXPERIMENT_AUTOROLLOUT_MIN_EXPOSURES ?? 50),
-        ),
-        minRelativeLift: Math.max(
-          0.01,
-          Number(process.env.BLUEPRINT_EXPERIMENT_AUTOROLLOUT_MIN_RELATIVE_LIFT ?? 0.1),
-        ),
-        limit,
-      }).then((result) => ({
-        processedCount: result.count,
-        failedCount: 0,
-      })),
-  },
-  {
-    key: "autonomous_research_outbound",
-    enabledEnv: "BLUEPRINT_AUTONOMOUS_RESEARCH_OUTBOUND_ENABLED",
-    intervalEnv: "BLUEPRINT_AUTONOMOUS_RESEARCH_OUTBOUND_INTERVAL_MS",
-    batchEnv: "BLUEPRINT_AUTONOMOUS_RESEARCH_OUTBOUND_BATCH_SIZE",
-    startupDelayEnv: "BLUEPRINT_AUTONOMOUS_RESEARCH_OUTBOUND_STARTUP_DELAY_MS",
-    defaultIntervalMs: 24 * 60 * 60 * 1000,
-    defaultBatchSize: 10,
-    defaultStartupDelayMs: 65 * 1000,
-    run: async () => {
-      const result = await runAutonomousResearchOutboundLoop();
-      return {
-        processedCount: result.count,
-        failedCount: 0,
-      };
-    },
-  },
-  {
-    key: "creative_asset_factory",
-    enabledEnv: "BLUEPRINT_CREATIVE_FACTORY_ENABLED",
-    intervalEnv: "BLUEPRINT_CREATIVE_FACTORY_INTERVAL_MS",
-    batchEnv: "BLUEPRINT_CREATIVE_FACTORY_BATCH_SIZE",
-    startupDelayEnv: "BLUEPRINT_CREATIVE_FACTORY_STARTUP_DELAY_MS",
-    defaultIntervalMs: 24 * 60 * 60 * 1000,
-    defaultBatchSize: 1,
-    defaultStartupDelayMs: 75 * 1000,
-    run: async () => {
-      const result = await runCreativeAssetFactoryLoop();
-      return {
-        processedCount: result.status === "skipped_existing" ? 0 : 1,
-        failedCount: 0,
-      };
-    },
-  },
+  // The growth lanes (buyer_lifecycle, lifecycle_cadence, experiment_rollout,
+  // autonomous_research_outbound, creative_asset_factory) were retired with the
+  // growth studio. Their BLUEPRINT_* flags no longer start anything.
   {
     key: "site_access_overdue_watchdog",
     enabledEnv: "BLUEPRINT_SITE_ACCESS_OVERDUE_WATCHDOG_ENABLED",

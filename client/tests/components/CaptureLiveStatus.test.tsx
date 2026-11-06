@@ -14,7 +14,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CaptureLiveStatus } from "@/components/site/CaptureLiveStatus";
 
 vi.mock("@/components/site/TaskClarification", () => ({TaskClarification: ({mode}: {mode?: string}) => <div>Inline {mode} questions</div>}));
-vi.mock("@/components/site/TaskFollowUp", () => ({TaskFollowUp: () => <div>Inline follow-up questions</div>}));
 
 const fetchMock = vi.fn();
 
