@@ -8,8 +8,9 @@ const finiteNonnegative = z.number().finite().nonnegative();
 
 // Pipeline validates the native target seal; the web contract digest below
 // binds every target field and must match the published setup unchanged.
-const surfaceTargetSchema = z.object({
-  schema_version: z.literal("task_evaluation_surface_target.v1"),
+// v1 scores the whole object inside the disc; v2 (the owner's G3 switch,
+// 2026-11-06) scores the object's centre within the radius and seals that rule.
+const surfaceTargetFields = {
   shape: z.literal("flat_green_disc"),
   non_colliding: z.literal(true),
   visible_label: nonEmpty,
@@ -22,7 +23,12 @@ const surfaceTargetSchema = z.object({
   maximum_linear_speed_m_s: z.number().finite().positive(),
   maximum_angular_speed_rad_s: z.number().finite().positive(),
   target_digest: digest,
-}).strict();
+};
+const surfaceTargetSchema = z.discriminatedUnion("schema_version", [
+  z.object({ schema_version: z.literal("task_evaluation_surface_target.v1"), ...surfaceTargetFields }).strict(),
+  z.object({ schema_version: z.literal("task_evaluation_surface_target.v2"),
+    success_rule: z.literal("subject_centre_within_radius"), ...surfaceTargetFields }).strict(),
+]);
 
 const destinationContainmentSchema = z.object({
   mode: z.enum(["required", "ignored"]),

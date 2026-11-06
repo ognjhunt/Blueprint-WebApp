@@ -81,14 +81,14 @@ describe("Task Evaluation launch preparation forwarding", () => {
   });
 });
 
-function surfaceTarget() {
-  const target = {
+function surfaceTarget(changes: Record<string, unknown> = {}) {
+  const target: Record<string, unknown> = {
     schema_version: "task_evaluation_surface_target.v1", shape: "flat_green_disc",
     non_colliding: true, visible_label: "clear support area", radius_m: 0.15,
     surface_position_world_m: [0.5, 0.5, 0.75], support_prim_path: "/Root/Table",
     support_source_instance_id: "/Table", maximum_tilt_rad: Math.PI / 12,
     stable_seconds: 1, maximum_linear_speed_m_s: 0.02, maximum_angular_speed_rad_s: 0.1,
-    target_digest: "",
+    target_digest: "", ...changes,
   };
   target.target_digest = canonicalArtifactDigest(target, "target_digest");
   return target;
@@ -233,6 +233,25 @@ describe("existing support pick-and-place preparation", () => {
     if (parsed.success) expect(parsed.data.task.surface_target).toEqual(fixture.task.surface_target);
   });
 
+  it("accepts a v2 target whose rule is sealed in it, and refuses a rule without its version", async () => {
+    // G3 (2026-11-06): the object's centre within a 5 cm region, not the whole object in a wider one.
+    const { taskEvaluationLaunchPreparationInputSchema } = await import("../utils/taskEvaluationLaunchPreparationContract");
+    const fixture = structuredClone((await import("./fixtures/astra-preparation-request.v1.json")).default) as any;
+    delete fixture.task.destination;
+    fixture.task.strategy = "pick_and_place";
+    fixture.task.surface_target = surfaceTarget({ schema_version: "task_evaluation_surface_target.v2",
+      success_rule: "subject_centre_within_radius", radius_m: 0.05 });
+    const parsed = taskEvaluationLaunchPreparationInputSchema.safeParse(fixture);
+    expect(parsed.success, JSON.stringify(parsed.success ? null : parsed.error.issues)).toBe(true);
+    if (parsed.success) expect(parsed.data.task.surface_target).toEqual(fixture.task.surface_target);
+    for (const changes of [{ schema_version: "task_evaluation_surface_target.v2" },
+      { success_rule: "subject_centre_within_radius" },
+      { schema_version: "task_evaluation_surface_target.v2", success_rule: "another_rule" }]) {
+      fixture.task.surface_target = surfaceTarget(changes);
+      expect(taskEvaluationLaunchPreparationInputSchema.safeParse(fixture).success, JSON.stringify(changes)).toBe(false);
+    }
+  });
+
   it("rejects changing the target after sealing or using it for another task strategy", async () => {
     const { taskEvaluationLaunchPreparationInputSchema } = await import("../utils/taskEvaluationLaunchPreparationContract");
     const fixture = structuredClone((await import("./fixtures/astra-preparation-request.v1.json")).default) as any;
@@ -242,7 +261,7 @@ describe("existing support pick-and-place preparation", () => {
     expect(taskEvaluationLaunchPreparationInputSchema.safeParse(fixture).success).toBe(false);
     fixture.task.strategy = "pick_and_place";
     delete fixture.task.destination;
-    fixture.task.surface_target.radius_m += 0.1;
+    (fixture.task.surface_target as any).radius_m += 0.1;
     expect(taskEvaluationLaunchPreparationInputSchema.safeParse(fixture).success).toBe(false);
   });
 });

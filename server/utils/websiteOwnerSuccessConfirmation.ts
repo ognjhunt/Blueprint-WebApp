@@ -267,7 +267,11 @@ export function describeOwnerSuccessThresholds(criteria: Record<string, unknown>
     used.add("surface_target");
     const shown = new Set(["radius_m", "visible_label"]);
     const label = typeof target.visible_label === "string" && target.visible_label.trim() ? `the ${target.visible_label.trim()}` : "the goal area";
-    rows.push({ label: "Goal area", value: `${label[0].toUpperCase()}${label.slice(1)}: a circle ${cm(2 * target.radius_m)} across. The whole object has to end up inside it.` });
+    // The rule is sealed in the target: v2 (G3, 2026-11-06) scores the object's centre, v1 the whole object.
+    const centreRule = target.success_rule === "subject_centre_within_radius";
+    if (centreRule) shown.add("success_rule");
+    const rule = centreRule ? "The centre of the object has to end up inside it." : "The whole object has to end up inside it.";
+    rows.push({ label: "Goal area", value: `${label[0].toUpperCase()}${label.slice(1)}: a circle ${cm(2 * target.radius_m)} across. ${rule}` });
     if (isNumber(target.maximum_tilt_rad)) {
       shown.add("maximum_tilt_rad");
       rows.push({ label: "Upright", value: `It ends tilted no more than ${round(target.maximum_tilt_rad * 180 / Math.PI, 0)}°.` });

@@ -35,6 +35,7 @@ Times are UTC. The owner reads them in CST (UTC−6).
     - §8 forbids data mining or extraction "for all unauthorised purposes, including without limitation for machine learning purposes".
   - CC0 legal code: https://creativecommons.org/publicdomain/zero/1.0/legalcode.en.
 - **Owner decision:** approved with that evidence ("yes i approve everything", before 14:44Z).
+- **Owner ruling, 16:05Z:** "yes standard - rights are okay". Clips under the standard Pexels License are cleared for this work. That covers capture-447's clip and clips #2 (Pexels 4294436, warehouse) and #3 (Pexels 3773483, kitchen).
 
 ## Money approved
 
@@ -49,6 +50,15 @@ The owner approved the following before 14:44Z. The hard ceiling is $115 and the
 | Preparation attempts | 16 → 32, one-shot | applied 14:53Z, amendment `sha256:99ab7973…` (`scripts/amend-website-preparation-limit.ts --apply`) |
 | Site screening | $30, the existing limit | `SITE_LIMIT` in the Pipeline coordinator |
 | Cloud Run | $0 | not enabled |
+
+## Owner decisions, 16:05Z (10:05 CST)
+
+| Decision | Words | Applied |
+|---|---|---|
+| Bandit triage | "Bandit OK as recommended" | Pipeline #3423 `6429be8`, applied on top of #3420's renewal: 18 entries expire 12-06, 77 expire 2027-02-04, every entry is owned by `@ognjhunt`. [51] is fixed in code (DeepInfra download: https to DeepInfra hosts only, 2 GiB cap) and has a fresh entry. The gate passes locally: high 0, medium 96 |
+| G3 success rule | "switch G3" | The arm rule changes from "the whole object inside the disc" to "the object's centre within a tolerance", so the disc can be small and clear of the start. In progress: a new target schema, so earlier results still score the old way |
+| Parked deliveries | "yes retire the 7" | No door operation could end a parked delivery, and host files are never edited by hand. A general owner-approved retirement operation is being built; it runs after its deploy and `upgrade-door` |
+| Rights | "yes standard - rights are okay" | Recorded above |
 
 ## 14-step evidence matrix
 
@@ -70,15 +80,15 @@ For each gap: the cause with its evidence, the general fix, and what proves it f
 |---|---|---|---|
 | G1 placement vs wrist view | The robot base sat at table height with the tray centre 0.92 m ahead; the wrist camera saw 0–94 tray pixels at 9 of 10 starts (tracker, 11-06 study). Cause in code: the website station (`team_scene_packet._carrying_station`) ranks stances by reach and the scripted carry only. The existing framing machinery (`native_task_camera_start_configuration.camera_framing_report`, `materialize_camera_start_from_plan`) is not applied on the beta team-packet path | Rank in-reach stances by every policy camera's framing report at the reset joints, requiring the wrist view to sit above the gripper's own pixels; then bind a camera start configuration. Proposed, not built: the grasp, not the view, is what failed on 447 | not started |
 | G2 garbled prompt | `concrete_droid_task_instruction` joined a location-laden subject label with the same surface as target | `task_spec_compiler.placement_instruction`: the subject without its location, plus the marked destination (Pipeline #3419) | a new arm job's `task_spec.prompt` |
-| G3 marker covers object | `task_evaluation_surface_target` sized the marker from the object's half-diagonal (0.39 m) | `task_spec_compiler`: markers sized to the goal tolerance, and a goal never covers its subject's start (Pipeline #3419) | a new plan's marker radius equals the tolerance |
-| G4 base above support | root at the registered support top, 0.8166 m; object on the collider top, 0.8039 m | not started | |
+| G3 marker covers object | `task_evaluation_surface_target` sized the marker from the object's half-diagonal (0.39 m) | `task_spec_compiler`: markers sized to the goal tolerance, and a goal never covers its subject's start (Pipeline #3419). The owner switched the website arm rule to "object centre within a tolerance" on 11-06, so the website target is sized the same way (in progress) | a new plan's marker radius equals the tolerance |
+| G4 base above support | root at the registered support top, 0.8166 m; object on the collider top, 0.8039 m | `team_scene_packet` seats the station on `support_alignment.start_support.collider_top_z_m` when it exists (Pipeline #3423) | a new arm plan's station height |
 | G5 misread score field | `gripper_closed` is evaluated only over the settle window | `behaviour` block on every rigid and predicate report: closes, width, closest approach, and for a mobile robot its path, goal approach and clearance (Pipeline #3419) | a new run's `score_receipt.behaviour` |
 | G6 flat-object grasp | The authored contact point was the object's centre with a top-down approach, whatever its size: the pads open 0.104 m and the tray's narrowest side is 0.313 m | Derive the affordance from geometry. When the narrowest horizontal extent exceeds the tool's opening, put the contact on the rim or edge facing the robot; otherwise keep the centre. Proposed | not started |
 | G7 money cutoff | Nothing re-read the job's money authority after planning. capture-447's last run launched at 10:23Z, 7 minutes after the owner's $130 row expired. The WebApp ceiling also ignored that row's `expires_at_epoch` | WebApp #1226 (merged): an expired owner row raises no ceiling. Pipeline #3423: `launch_candidate` re-reads the ceiling in force before spawn (`require_current_job_ceiling`). Widening the door's hold profile stays the owner's call | after deploy, a launch past an expired row refuses with `beta_screening_job_ceiling_exceeded` or `website_job_ceiling_unavailable` |
-| G8 ingestion fragility | one B2 failure sealed a paid run (molmoact2, 11-06) | Pipeline #3411, merged | waits on the Bandit sign-off and a deploy |
-| G9 cosmos3 `policy_load` | dependency precedence (`cosmos_droid_client_dependencies.py:57`) | Pipeline #3416, merged | waits on the Bandit sign-off and a deploy |
+| G8 ingestion fragility | one B2 failure sealed a paid run (molmoact2, 11-06) | Pipeline #3411, merged | waits on a deploy (Bandit signed off 11-06) |
+| G9 cosmos3 `policy_load` | dependency precedence (`cosmos_droid_client_dependencies.py:57`) | Pipeline #3416, merged | waits on a deploy (Bandit signed off 11-06) |
 | G10 metric scale | The clip has no known dimensions. The Atlas review took a scale prior from a cited 80 cm bookcase product page and recorded "a broad category prior; no product match is established… do not establish measured metric scale". The scene's `scale_authority` is `atlas_reference_estimate` | The compiled spec carries `metric_scale` as status plus evidence, and widens a locomotion goal's tolerance by 10% of its distance when scale is not validated, capped at 0.5 m and flagged (Pipeline #3419 and #3423) | the job's `compiled_task_spec.json` |
-| G11 host hygiene | `door status` 14:11Z: `/var/lib/blueprint` 86.7% used; 4 storage classes over budget; 7 parked deliveries (owner test jobs from 10-11 to 10-27, whose brief digest changed with WebApp #1113); Vast $7.07 | parked deliveries: retiring them is an owner call (retained data); Vast: the owner's top-up | |
+| G11 host hygiene | `door status` 14:11Z: `/var/lib/blueprint` 86.7% used; 4 storage classes over budget; 7 parked deliveries (owner test jobs from 10-11 to 10-27, whose brief digest changed with WebApp #1113); Vast $7.07 | parked deliveries: the owner approved retiring them (11-06). On the host they are 7 test captures parked since 10-28/29, and a general door operation is being built to retire them. Vast: the owner's top-up | `door status` `preparation_delivery.parked_count` 0 |
 
 ## Task-kind gate inventory
 

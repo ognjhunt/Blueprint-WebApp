@@ -225,8 +225,9 @@ export const rigidDestinationSchema = z.object({
   provider_disclosure_allowed: z.literal(true),
 }).strict();
 
-export const surfaceTargetSchema = z.object({
-  schema_version: z.literal("task_evaluation_surface_target.v1"),
+// v1 scores the whole object inside the disc; v2 (the owner's G3 switch, 2026-11-06)
+// scores the object's centre within the radius and seals that rule in the target.
+const surfaceTargetFields = {
   shape: z.literal("flat_green_disc"),
   visible_label: z.string().min(1).max(192),
   radius_m: z.number().finite().positive().max(0.5),
@@ -239,7 +240,12 @@ export const surfaceTargetSchema = z.object({
   maximum_angular_speed_rad_s: z.number().finite().positive(),
   maximum_tilt_rad: z.number().finite().positive().max(Math.PI),
   target_digest: digest,
-}).strict().superRefine((value, context) => {
+};
+export const surfaceTargetSchema = z.discriminatedUnion("schema_version", [
+  z.object({ schema_version: z.literal("task_evaluation_surface_target.v1"), ...surfaceTargetFields }).strict(),
+  z.object({ schema_version: z.literal("task_evaluation_surface_target.v2"),
+    success_rule: z.literal("subject_centre_within_radius"), ...surfaceTargetFields }).strict(),
+]).superRefine((value, context) => {
   if (canonicalArtifactDigest(value, "target_digest") !== value.target_digest) context.addIssue({
     code: z.ZodIssueCode.custom,
     message: "surface target digest does not match its placement and success criteria",
