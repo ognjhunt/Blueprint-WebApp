@@ -462,7 +462,6 @@ describe("projectJobFacts", () => {
         [r => { r.evidence_tier = "development_only"; }, "development_only"],
         [r => { r.evaluation_readiness.rights_review_status = "needs_review"; }, "rights_needs_review"],
         [r => { r.pipeline.rights_review_status = "blocked"; }, "rights_blocked"],
-        [r => { r.site_task_scope = { supported: false, reason: "deformable" }; }, "task_not_yet_supported"],
         [r => { r.request.pilotOpportunity = { requested: true, visibility: "private" }; }, "kept_private"],
         // The admin's decrypted view rebuilds `request` without the recording grant: why the stored record is read.
         [r => { delete r.request.consent_attestation; }, "recording_consent_missing"],

@@ -598,15 +598,18 @@ it("v2 status validates an actual loader-persisted expired base grant without an
   } finally {vi.restoreAllMocks();}
 });
 
-it("prepares an arbitrary accepted task without granting native scoring",async()=>{
+it("prepares an arbitrary accepted task and grants its execution like any other once the site is qualified",async()=>{
   const {record}=seed();record.site_task_scope={supported:false,kind:null,reason:"deformable",disposition:"accepted_for_analysis"};
   const brief=state.docs.get("siteTaskBriefs/one") as any;
   const expected=projectWebsiteTaskContext(brief,projectWebsiteCaptureRights(record),{purpose:"scene_preparation"}).context_digest;
   const authority=websiteSceneSponsorship({requestId:"one",record,brief,purpose:"scene_preparation",expected_task_context_digest:expected,now:Date.now()/1000});
   expect(authority).toMatchObject({purpose:"scene_preparation"});
-  record.site_task_triage.disposition="qualified";
+  // The site screen still decides; the task-kind reading never does.
   expect(()=>websiteSceneSponsorship({requestId:"one",record,brief,now:Date.now()/1000}))
     .toThrow("website_scene_site_not_qualified");
+  record.site_task_triage.disposition="qualified";
+  expect(()=>websiteSceneSponsorship({requestId:"one",record,brief,now:Date.now()/1000}))
+    .not.toThrow("website_scene_site_not_qualified");
 });
 
 function currentPreparationRequest() {
