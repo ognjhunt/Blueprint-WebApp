@@ -254,12 +254,13 @@ describe("a job we cannot score", () => {
       details: { title: "Folding towels", taskFamily: "Recurring work", siteType: "", region: "", objects: "", cycleTarget:"",pilotTiming:"",pilotBudget:"", opportunity: "open" } },
   };
 
-  it("keeps an approved job card visible while native execution remains held", () => {
-    expect(teamJobAccess({ ...listed, site_task_scope: { supported: false, reason: "deformable" } }))
-      .toMatchObject({ listed: true, evaluationAvailable: false, reason: "task_not_yet_supported" });
-    expect(teamJobAccess(listed).reason).not.toBe("task_not_yet_supported");
-    expect(teamJobAccess({ ...listed, site_task_scope: { supported: true, kind: "rigid_pick_and_place" } }).reason)
-      .not.toBe("task_not_yet_supported");
+  it("never holds an evaluation on the scope hint: the job's own scene decides", () => {
+    const unrecognised = teamJobAccess({ ...listed, site_task_scope: { supported: false, reason: "deformable" } });
+    expect(unrecognised).toMatchObject({ listed: true });
+    expect(unrecognised.reason).not.toBe("task_not_yet_supported");
+    expect(unrecognised).toEqual(teamJobAccess(listed));
+    expect(teamJobAccess({ ...listed, site_task_scope: { supported: true, kind: "rigid_pick_and_place" } }))
+      .toEqual(teamJobAccess(listed));
   });
 
   it("shows the scope hint while no preparation or evaluation has been observed", () => {

@@ -378,8 +378,9 @@ const rows: Row[] = [
     change: (id, team) => patch(id, r => { r.request.pilotOpportunity = { requested: true, visibility: "approved_robot_teams",
       approvedRobotTeamEmails: [`${team}@example.test`] }; }) },
   { label: "a robot team still awaiting approval", open: false, viewer: PENDING },
-  // A re-confirmed brief screened as a kind we cannot score (`siteTaskScope.ts`).
-  { label: "a job we cannot score yet", open: false, change: id => patch(id, r => {
+  // A re-confirmed brief the screen reads as a kind it does not recognise (`siteTaskScope.ts`): a hint,
+  // never a hold. Its own runnable scene decides, so it opens like any other.
+  { label: "a job the brief screen does not recognise", open: true, change: id => patch(id, r => {
     r.site_task_scope = { schemaVersion: "site_task_scope.v1", supported: false, kind: null, reason: "deformable" }; }) },
 ];
 
