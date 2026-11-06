@@ -40,6 +40,26 @@ it("states each scored candidate's bounded estimate in plain words, and the chos
   expect(document.body.textContent).not.toMatch(/ceiling|budget|\$|[a-z]_[a-z]/i);
 });
 
+it("shows a development-only row's result beside the others but never ranks or chooses it", () => {
+  const humanoid = { ...row("g1", "completed", 1), name: "HumanoidArena DP G1 / Dex3 / SONIC manipulation" };
+  const screening = { candidates: [row("a", "completed", 0), humanoid],
+    selection: { status: "no_successful_candidate" as const, selectionDigest: "sha256:selection", tiedWith: [], chosen: null,
+      candidates: [{ candidateId: "a", resultRank: 1, choiceBlocker: null },
+        { candidateId: "g1", resultRank: null, choiceBlocker: "development_only_reference" }] } };
+  const { rerender } = render(<PolicyScreeningCandidates screening={screening} />);
+  const g1 = screen.getByRole("row", { name: /HumanoidArena DP G1/ });
+  expect(within(g1).getByText(/^Development check: run for internal development only\./))
+    .toHaveTextContent("It is not ranked against the other candidates or chosen, and it does not qualify this robot or policy.");
+  expect(within(g1).getByText("1 succeeded · 2 failed · 0 unscorable")).toBeInTheDocument();
+  expect(g1.lastElementChild).toHaveTextContent("Not chosen: a development check, not ranked against the other candidates");
+  expect(screen.getByRole("row", { name: /Candidate a/ }).lastElementChild).toHaveTextContent("Ranked 1");
+  expect(screen.queryByText(/Chosen in simulation/)).toBeNull();
+  expect(document.body.textContent).not.toMatch(/[a-z]_[a-z]/);
+  rerender(<PolicyScreeningCandidates screening={screening} showCodes />);
+  expect(screen.getByRole("row", { name: /HumanoidArena DP G1/ }).lastElementChild)
+    .toHaveTextContent("Not chosen: development_only_reference");
+});
+
 it("states no range for a candidate with nothing scored", () => {
   render(<PolicyScreeningCandidates screening={{ candidates: [row("a", "deferred")] }} />);
   expect(screen.getByText("0 succeeded · 0 failed · 0 unscorable")).toBeInTheDocument();

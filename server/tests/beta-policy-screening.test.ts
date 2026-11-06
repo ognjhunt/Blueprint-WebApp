@@ -9,7 +9,7 @@ import { scientificBriefDigest } from "../utils/jobEvidenceContract";
 import { crossRuntimeArtifactDigest, crossRuntimeDigest } from "../utils/crossRuntimeCanonical";
 import { allCandidateFamilyScreeningFixture, familyScreeningFixture, finishedScreening, outcomePublication, PUBLISHED_SCREENING_OUTCOMES, screeningFixture,
   screeningRevisionLaunch, screeningSha, scriptedBaselineRow, sealScreening, sealSelection, selectionFixture } from "./fixtures/beta-policy-screening";
-import { parseBetaCandidateSelection, selectionMatchesPublication } from "../utils/betaCandidateSelection";
+import { parseBetaCandidateSelection, projectCandidateSelection, selectionMatchesPublication } from "../utils/betaCandidateSelection";
 import producerSelection from "./fixtures/pipeline-website-candidate-selection.v1.json";
 import producerPublication from "./fixtures/pipeline-beta-policy-screening-publication.v2.json";
 import retainedProducerPublication from "./fixtures/pipeline-beta-policy-screening-publication.v1.json";
@@ -603,6 +603,26 @@ describe("measured infeasible candidates and the rule's choice", () => {
     expect(parseBetaCandidateSelection(altered)).not.toBeNull();
     expect(selectionMatchesPublication(altered, finished)).toBe(false);
     expect(selectionMatchesPublication(selectionFixture(sealScreening({ ...finished, plan_digest: screeningSha("9") })), finished)).toBe(false);
+  });
+
+  it("keeps a scored development-only row out of the ranking and never lets it be the choice", () => {
+    const finished = finishedScreening(screeningFixture().publication);
+    const { selection_digest: _digest, ...body } = selectionFixture(finished);
+    // The first row scored 2 of 3; marked development-only, the second row (1 of 3) is the choice.
+    const candidates = body.candidates.map((row, index) => index === 0
+      ? (({ result_rank: _rank, ...rest }) => ({ ...rest, choice_blocker: "development_only_reference" }))(row)
+      : index === 1 ? { ...row, result_rank: 1 } : row);
+    const second = body.candidates[1];
+    const selection = sealSelection({ ...body, candidates, chosen: { ...body.chosen!, candidate_id: second.candidate_id,
+      display_name: second.display_name, success_rate: second.success_rate, episodes_scored: second.episodes_scored,
+      episodes_succeeded: second.episodes_succeeded, configuration_digest: finished.candidates[1].configuration_digest } });
+    expect(parseBetaCandidateSelection(selection)).not.toBeNull();
+    expect(selectionMatchesPublication(selection, finished)).toBe(true);
+    expect(projectCandidateSelection({ record: selection }, finished)?.candidates[0])
+      .toEqual({ candidateId: body.candidates[0].candidate_id, resultRank: null, choiceBlocker: "development_only_reference" });
+    // A development-only row is never the choice, nor ranked.
+    expect(parseBetaCandidateSelection(sealSelection({ ...body, candidates: body.candidates.map((row, index) => index === 0
+      ? { ...row, choice_blocker: "development_only_reference" } : row) }))).toBeNull();
   });
 
   it("projects the choice, its recorded companies and every candidate's outcome while it restates the result", () => {

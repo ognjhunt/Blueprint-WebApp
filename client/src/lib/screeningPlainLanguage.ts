@@ -91,6 +91,7 @@ const CHOICES: Record<string, string> = {
   not_evaluated: "it did not run in this evaluation",
   no_scored_episodes: "none of its episodes could be scored",
   scripted_baseline_reference_only: "a scripted reference baseline, not a learned policy",
+  development_only_reference: "a development check, not ranked against the other candidates",
 };
 export const screeningChoiceLabel = (code: string) => own(CHOICES, code) ? `Not chosen: ${CHOICES[code]}` : "Not chosen";
 
