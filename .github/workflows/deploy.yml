@@ -103,8 +103,8 @@ jobs:
               echo "::error::${deploy_ref} is not an ancestor of main (compare status: ${ancestry}). Refusing to deploy."
               exit 1
             fi
-            green_runs=$(gh api "repos/${REPO}/actions/workflows/ci.yml/runs?head_sha=${deploy_ref}&status=completed" \
-              --jq '[.workflow_runs[] | select(.conclusion=="success")] | length')
+            green_runs=$(gh api "repos/${REPO}/actions/workflows/ci.yml/runs?head_sha=${deploy_ref}" \
+              --jq '[.workflow_runs[] | select(.status=="completed" and .conclusion=="success")] | length')
             if [ "${green_runs}" -eq 0 ]; then
               echo "::error::No successful CI run exists for ${deploy_ref}. Refusing to deploy a commit CI has not proven green."
               exit 1
@@ -255,7 +255,10 @@ jobs:
             echo "::error::Healthy predecessor is not on main's history; refusing release."
             exit 1
           fi
-          green_runs=$(gh api "repos/${REPO}/actions/workflows/ci.yml/runs?head_sha=${previous_sha}&status=completed" --jq '[.workflow_runs[] | select(.conclusion=="success")] | length')
+          # Filter on the run's own status and conclusion: GitHub's server-side status=completed filter
+          # returned no runs for a commit whose CI run was completed and successful (8a4caa7, 2026-11-06),
+          # which refused every release while that commit was live.
+          green_runs=$(gh api "repos/${REPO}/actions/workflows/ci.yml/runs?head_sha=${previous_sha}" --jq '[.workflow_runs[] | select(.status=="completed" and .conclusion=="success")] | length')
           if [ "${green_runs}" -eq 0 ]; then
             echo "::error::Healthy predecessor lacks exact successful CI proof; refusing release."
             exit 1
