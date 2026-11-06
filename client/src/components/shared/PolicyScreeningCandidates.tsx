@@ -86,10 +86,13 @@ export function PolicyScreeningCandidates({ screening, showCodes = false, practi
   const row = (candidate: Candidate) => {
     const limits = showCodes ? candidate.blockers : screeningReasonLabels(candidate.blockers);
     const runs = practiceRuns && candidate.practiceRuns?.length ? practiceRuns(candidate) : null;
+    const developmentOnly = selection?.candidates.some(value => value.candidateId === candidate.candidateId
+      && value.choiceBlocker === "development_only_reference");
     return [<tr key={candidate.candidateId}>
       <th scope="row" className="py-2 pr-3 font-medium">{candidate.name}
         {candidate.executionEvidence?.execution_evidence_kind === "scripted_simulator_state_baseline"
-          && <p className="font-normal">Scripted baseline: a hand-coded reference run, not a learned or vendor policy. It does not show how those policies perform.</p>}</th>
+          && <p className="font-normal">Scripted baseline: a hand-coded reference run, not a learned or vendor policy. It does not show how those policies perform.</p>}
+        {developmentOnly && <p className="font-normal">Development check: run for internal development only. It is not ranked against the other candidates or chosen, and it does not qualify this robot or policy.</p>}</th>
       <td className="py-2 pr-3">{showCodes ? candidate.state : screeningCandidateStateLabel(candidate.state)} · {candidate.scored}/{candidate.planned} scored
         {limits.length > 0 && <details><summary>Recorded limitations</summary>
           <ul>{limits.map((limit, index) => <li key={index}>{showCodes ? <code>{limit}</code> : limit}</li>)}</ul></details>}</td>

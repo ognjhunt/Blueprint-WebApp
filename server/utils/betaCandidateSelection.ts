@@ -35,7 +35,9 @@ const row = z.object({
   blockers: z.array(z.string().min(1).max(300)).max(100),
   episodes_planned: count, episodes_scored: count, episodes_succeeded: count, episodes_failed: count, episodes_void: count,
   success_rate: rate.nullable(), session_result_digest: digest.nullable(),
-  choice_blocker: z.enum(["not_evaluated", "no_scored_episodes", "scripted_baseline_reference_only"]).nullable(),
+  // `development_only_reference`: a development-only row (the G1 humanoid today) is shown, never ranked or chosen.
+  choice_blocker: z.enum(["not_evaluated", "no_scored_episodes", "scripted_baseline_reference_only",
+    "development_only_reference"]).nullable(),
   result_rank: rank.optional(),
 }).strict();
 
