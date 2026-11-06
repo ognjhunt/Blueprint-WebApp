@@ -7,6 +7,8 @@ import type { SiteTaskBriefRecord } from "../../utils/siteTaskBrief";
 import { SCREENING_OUTCOMES, type BetaPolicyScreeningPublication } from "../../utils/betaPolicyScreeningContract";
 import type { BetaCandidateSelection } from "../../utils/betaCandidateSelection";
 import allCandidatePublication from "./pipeline-beta-policy-screening-all-candidates.v2.json";
+import websiteAllRowsPublication from "./pipeline-beta-policy-screening-website-all-rows.v2.json";
+import websiteRunnableRowsPublication from "./pipeline-beta-policy-screening-website-runnable-rows.v2.json";
 export const screeningSha = (character: string) => `sha256:${character.repeat(64)}`;
 /**
  * A configured scene's two digests, as the Pipeline publishes them. The
@@ -105,6 +107,20 @@ export function allCandidateFamilyScreeningFixture() {
     intake: { ...fixture.intake, request, request_digest: requestDigest,
       receipt: { ...receipt, receipt_digest: crossRuntimeArtifactDigest(receipt, "receipt_digest") },
       pipeline_status: { ...status, status_digest: crossRuntimeArtifactDigest(status, "status_digest") } } };
+}
+
+/**
+ * One website campaign as the Pipeline publishes it, planned from the 136-row catalog
+ * (a local, unpaid planner and coordinator run; one candidate scored 7 of 10, the rest closed).
+ * `all_rows` is how a campaign planned before 2026-11-05 (P-DT-12), or a re-plan of one, lists
+ * every catalog row; `runnable_rows` is a new campaign's plan, without the 24 scripted baselines
+ * and 58 robot × route templates no website job can run. Rebound to `screeningFixture`'s job.
+ */
+export function websiteCampaignFixture(shape: "all_rows" | "runnable_rows") {
+  const fixture = screeningFixture();
+  const published = shape === "all_rows" ? websiteAllRowsPublication : websiteRunnableRowsPublication;
+  return { ...fixture, publication: sealScreening({ ...published, campaign_id: fixture.publication.campaign_id,
+    site_id: fixture.publication.site_id, source: fixture.publication.source }) };
 }
 
 export function sealSelection(value: any): BetaCandidateSelection {

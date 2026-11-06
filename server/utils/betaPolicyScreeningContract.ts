@@ -107,6 +107,10 @@ const publicationFields = {
   source: betaPolicyScreeningSourceSchema,
   status: z.enum(["queued", "running", "completed", "blocked", "reconciliation_required"]),
   execution_operator: z.object({ kind: z.literal("blueprint") }).strict(),
+  // Every candidate the campaign's plan lists. A website campaign the Pipeline plans from
+  // 2026-11-05 (P-DT-12) lists only those that can run on a website job; one planned earlier,
+  // and its re-plans, list every catalog row. Both are accepted. A campaign's rows are part of
+  // its identity (`screeningCampaignIdentity`), so no revision adds or drops one.
   candidates: z.array(candidate).min(1).max(256),
   budget: z.object({ currency: z.literal("USD"), limit_usd: dollars, committed_upper_bound_usd: dollars,
     spent_upper_bound_usd: dollars, reserved_usd: dollars }).strict(),

@@ -7,7 +7,7 @@ import express from "express";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { buildPipelineSyncSignature } from "../utils/pipelineSyncSecurity";
 import { allCandidateFamilyScreeningFixture, familyScreeningFixture, finishedScreening, outcomePublication, screeningFixture, screeningSha,
-  sealScreening, sealSelection, selectionFixture } from "./fixtures/beta-policy-screening";
+  sealScreening, sealSelection, selectionFixture, websiteCampaignFixture } from "./fixtures/beta-policy-screening";
 import { crossRuntimeArtifactDigest } from "../utils/crossRuntimeCanonical";
 import { publicationFromResultRecord } from "../utils/taskEvaluationRunPublicationStorage";
 import { scientificBriefDigest } from "../utils/jobEvidenceContract";
@@ -186,6 +186,28 @@ it.each(["legacy", "scripted"])("stores signed single-candidate family results (
     expect((await loadManagedJobEvidence("job-one", briefDigest))[0].current).toBe(false);
   }
 });
+
+it.each([["all_rows", 136], ["runnable_rows", 54]] as const)(
+  "stores and shows a website campaign that lists %s (P-DT-12), before or after the Pipeline change", async (shape, rows) => {
+    const { publication } = websiteCampaignFixture(shape);
+    const url = await endpoint();
+    const created = await send(url, signed(publication));
+    expect(created.status).toBe(201);
+    expect(await created.json()).toEqual({ status: "created", run_id: publication.campaign_id,
+      publication_digest: publication.publication_digest, revision: publication.revision });
+    expect((await (await send(url, signed(publication))).json()).status).toBe("replayed");
+    // A later snapshot of the same campaign (the shared site budget) is still taken.
+    const later = sealScreening({ ...publication, revision: publication.revision + 1,
+      generated_at: new Date(Date.parse(publication.generated_at) + 60_000).toISOString() });
+    expect((await send(url, signed(later))).status).toBe(200);
+    const run = store.rows.get("taskEvaluationPolicyRuns/campaign-one");
+    expect(run).toMatchObject({ publication_revision: later.revision, screening_outcome: "estimate", episodes_scored: 10 });
+    expect(publicationFromResultRecord(store.rows.get(`captureTaskEvaluationRuns/${run.result_record_id}`))).toEqual(later);
+    const [evidence] = await loadManagedJobEvidence("job-one", scientificBriefDigest(store.rows.get("siteTaskBriefs/job-one")));
+    expect(evidence.current).toBe(true);
+    expect(evidence.screening?.candidates).toHaveLength(rows);
+    expect(evidence.summary).toContain(`In the simulation, 1 of ${rows} candidates ran`);
+  });
 
 it("stores and projects all 84 family candidate outcomes while preserving exact scene, task and capture authority", async () => {
   const { publication, intake } = allCandidateFamilyScreeningFixture();
