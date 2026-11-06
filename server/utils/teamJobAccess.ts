@@ -58,7 +58,6 @@ import { projectWebsiteCaptureRights } from "./websiteTaskContext";
 import { coverageEvidenceFrom } from "./captureCoverageEvidence";
 import { sceneRunnableReadiness } from "./sceneRunnableReadiness";
 import { gateAnswersOnFile } from "./gateAnswersOnFile";
-import { taskScopeNotSupported } from "./siteTaskScope";
 
 /** Why a job is closed to robot teams, in the order the checks run. */
 export type TeamJobClosedReason =
@@ -122,7 +121,7 @@ function hasBuiltScene(request: Record<string, any>): boolean {
  * cover", because that would silently drop supply.
  */
 export function isRunnableTask(request: InboundRequest): boolean {
-  if (taskScopeNotSupported(request as InboundRequest & { site_task_scope?: unknown }) || request.request?.buyerType === "robot_team" || operatorListingPaused(request)
+  if (request.request?.buyerType === "robot_team" || operatorListingPaused(request)
     || request.site_task_triage?.disposition !== "qualified") return false;
   const measured = coverageEvidenceFrom(request as never);
   const readiness = assessReadiness({
@@ -190,10 +189,9 @@ export function teamJobAccess(record: RecordLike): TeamJobAccess {
     return closed("development_only");
   const hold = rightsHold(raw);
   if (hold) return closed(hold);
-  // Task-family coverage cannot hide an admitted job card. It only holds
-  // execution: a generic task must never reuse another task's runtime proof.
-  if (taskScopeNotSupported(raw))
-    return { listed: true, evaluationAvailable: false, reason: "task_not_yet_supported", details };
+  // The brief screen's task-kind reading never holds an evaluation: whether this job's own
+  // scene is proven to load and step (`isRunnableTask`) decides, so a task kind no regex
+  // knows is not refused, and a task never reuses another task's runtime proof.
   // Listed. An evaluation also needs the recording grant free admission
   // requires, and a scene that is proven to run.
   if (!rights.derived_scene_generation_allowed)

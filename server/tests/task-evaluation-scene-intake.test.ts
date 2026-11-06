@@ -461,11 +461,12 @@ it.each(["needs_conversation", "not_now", undefined])("funds no scene for a site
   expect((await response.json()).code).toBe("website_scene_site_not_qualified");
 });
 
-it("funds no scene for a qualified job its brief screen says we cannot score", async () => {
+it("funds a qualified job's scene whatever kind its brief screen reads", async () => {
+  // The screen's task-kind reading is a hint; the Pipeline holds a job it cannot score with a typed code.
   sponsoredCapture();
-  store.rows.get("inboundRequests/req1").site_task_scope = { supported: false, kind: null, reason: "push" };
-  await expect(loadWebsiteSceneSponsorship("req1", true)).rejects.toThrow("website_scene_site_not_qualified");
-  expect(store.rows.get("inboundRequests/req1").website_scene_sponsorship).toBeUndefined();
+  store.rows.get("inboundRequests/req1").site_task_scope = { supported: false, kind: null, reason: "mobile" };
+  await expect(loadWebsiteSceneSponsorship("req1", true)).resolves.toMatchObject({ request_id: "req1" });
+  expect(store.rows.get("inboundRequests/req1").website_scene_sponsorship).toMatchObject({ request_id: "req1" });
 });
 
 it("funds only the exact owner-authorized exploratory development site without qualifying it for robot teams", async () => {

@@ -1,6 +1,6 @@
 import { websitePreparationCaptureId, websitePreparationRenewal, websitePreparationRevision } from "./websitePreparationRevision";
 import { websiteCaptureOwnerUid } from "./websiteCaptureOwner";
-import { MULTI_STEP_TASK_HOLD, multiStepTaskHold, taskScopeNotSupported } from "./siteTaskScope";
+import { MULTI_STEP_TASK_HOLD, multiStepTaskHold } from "./siteTaskScope";
 import { websiteDevelopmentTestEnvironment } from "./websiteDevelopmentTest";
 /** Blueprint funds preparation; capture consent never authorizes a site-owner charge. */
 import { z } from "zod";
@@ -237,7 +237,9 @@ export function websiteSceneSponsorship(input: {
     && !developmentSiteTest && !preparationOnly) {
     throw new Error("website_scene_site_not_qualified");
   }
-  if (taskScopeNotSupported(input.record) && !developmentSiteTest && !preparationOnly) throw new Error("website_scene_site_not_qualified");
+  // The brief screen's task-kind reading (`site_task_scope`) is a display and demand hint,
+  // never a spend gate: the Pipeline decides from the job's compiled task what it can
+  // simulate and score, and holds with a typed code naming the missing piece.
   // Source ownership and spending remain distinct from optional account setup.
   const sourceOwner = websiteCaptureOwnerUid(input.record);
   if (!preparationOnly && (typeof sourceOwner !== "string" || !sourceOwner)) {

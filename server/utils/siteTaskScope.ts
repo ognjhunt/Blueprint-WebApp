@@ -336,16 +336,6 @@ export function taskScopeRecord(verdict: SiteTaskScopeVerdict, screenedAtIso: st
     demandKind: held ? verdict.reason as Exclude<UnsupportedTaskReason, "unclear"> : null };
 }
 
-/**
- * Native execution coverage hint. It does not close intake, hide an approved
- * card or veto a source-bound scene-only proposal. A false hint keeps exact
- * task execution held until the compatible adapter/scorer is available.
- */
-export function taskScopeNotSupported(record: { site_task_scope?: unknown } | null | undefined): boolean {
-  const scope = record?.site_task_scope as { supported?: unknown } | null | undefined;
-  return scope?.supported === false;
-}
-
 /** True when the job is accepted and held while we prepare an evaluation for its kind. */
 export function taskScopeHeld(record: { site_task_scope?: unknown } | null | undefined): boolean {
   const scope = record?.site_task_scope as { supported?: unknown; reason?: unknown } | null | undefined;

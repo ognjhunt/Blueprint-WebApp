@@ -264,15 +264,6 @@ const closedJobs: Closed[] = [
   { label: "a development capture", change: id => patch(id, r => { r.evidence_tier = "development_only"; }), reason: "development_only",
     expected: { stage: "not_open", nextAction: "No action: a development capture is never opened to teams", actionOwner: "none" } },
   // The real brief screen, at confirmation (`siteTaskScope.ts`).
-  { label: "a job we cannot score yet", start: { task: "Fold towels into stacks", successDefinition: "Every towel folded and stacked" },
-    reason: "task_not_yet_supported",
-    expected: { stage: "not_open", nextAction: "Held while we prepare an evaluation for this kind of job; counted as demand for what to build next", actionOwner: "none" } },
-  // An unfamiliar but supplied brief stays accepted for analysis; keyword
-  // recognition cannot send the site back to describe an already recorded job.
-  { label: "an unfamiliar brief accepted for analysis", start: { task: "Cartons on the line", successDefinition: "Cartons stay intact" },
-    reason: "task_not_yet_supported",
-    expected: { stage: "not_open", nextAction: "Held while we prepare an evaluation for this kind of job; counted as demand for what to build next",
-      actionOwner: "none" } },
   { label: "brief not yet confirmed by the site", confirmed: false, reason: "scene_not_runnable",
     expected: { stage: "brief_review", nextAction: "Waiting on site to confirm the brief", actionOwner: "site" } },
   { label: "no current recording grant", change: id => patch(id, r => { r.request.consent_attestation = null; }),
@@ -294,6 +285,25 @@ const closedJobs: Closed[] = [
   }, expected: { stage: "withdrawn", nextAction: "Confirm the capture withdrawal reached the Pipeline", actionOwner: "blueprint" } },
 ];
 
+// The brief screen's task-kind reading is a hint, never a hold: a job no keyword list
+// recognises opens to teams as soon as its own scene is proven runnable, like any other.
+describe("a job the brief screen does not recognise opens like any other", () => {
+  it.each([
+    { label: "a job no adapter covered before", task: "Fold towels into stacks", successDefinition: "Every towel folded and stacked" },
+    { label: "an unfamiliar brief accepted for analysis", task: "Cartons on the line", successDefinition: "Cartons stay intact" },
+  ])("$label", async (job) => {
+    const jobId = await startJob({ task: job.task });
+    await completeBriefReview();
+    await confirm(jobId, { ...successCriteria, successDefinition: job.successDefinition });
+    await pipelineSync(jobId, {});
+    expect(doc(`inboundRequests/${jobId}`).site_task_scope).toMatchObject({ supported: false });
+    const row = await consoleRow(jobId);
+    expect(row).toMatchObject({ stage: "awaiting_teams", actionOwner: "blueprint",
+      nextAction: "Invite approved robot teams to evaluate this job" });
+    expect(await accessAgrees(jobId, row)).toMatchObject({ evaluationAvailable: true, reason: null });
+  });
+});
+
 describe("a job teams cannot evaluate names its real next step", () => {
   it.each(closedJobs)("$label", async (job) => {
     const jobId = await startJob({ keepPrivate: job.start?.keepPrivate, task: job.start?.task });
@@ -309,10 +319,6 @@ describe("a job teams cannot evaluate names its real next step", () => {
     const access = await accessAgrees(jobId, row);
     expect(access).toMatchObject({ evaluationAvailable: false, reason: job.reason });
     expect(row.teamAccess.reason).toBe(job.reason);
-    if (job.label === "an unfamiliar brief accepted for analysis") {
-      expect(doc(`inboundRequests/${jobId}`).site_task_scope)
-        .toMatchObject({ supported: false, disposition: "accepted_for_analysis", reason: "other" });
-    }
     expect((await listedRow(jobId))?.nextAction).toBe(job.expected.nextAction);
   });
 });
