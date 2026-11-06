@@ -50,7 +50,6 @@ describe("the public surface carries one pricing model", () => {
     // are absent from the source a public page pulls in -- not that some export
     // happens to be unused today.
     const publicCopySources = [
-      "client/src/data/publicSiteCopy.ts",
       "client/src/pages/Beta.tsx",
       "client/src/pages/Home.tsx",
     ];

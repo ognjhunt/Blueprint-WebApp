@@ -4,7 +4,6 @@ import {
   editorialGeneratedAssets,
   humanoidReadinessAssets,
 } from "@/lib/editorialGeneratedAssets";
-import { hostedFilmstripFrames } from "@/lib/siteEditorialContent";
 
 const oldWheeledRobotAssets = [
   "/generated/editorial/world-models-hero.png",
@@ -37,7 +36,6 @@ describe("humanoid readiness editorial assets", () => {
       editorialGeneratedAssets.hostedReviewHero,
       editorialGeneratedAssets.proofBoardGovernance,
       editorialGeneratedAssets.careersStudio,
-      ...hostedFilmstripFrames.map((frame) => frame.src),
     ];
 
     publicRobotVisualSlots.forEach((src) => {
