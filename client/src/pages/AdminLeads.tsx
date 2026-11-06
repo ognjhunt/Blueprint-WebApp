@@ -1744,13 +1744,6 @@ export default function AdminLeads() {
             >
               Job console
             </a>
-            <a
-              href="/admin/growth-ops-scorecard"
-              className="runway-cta-ghost min-h-0 px-4 py-2 text-sm"
-            >
-              <ClipboardList className="mr-2 h-4 w-4" />
-              Growth scorecard
-            </a>
             {activeView === "waitlist" ? (
               <button
                 type="button"

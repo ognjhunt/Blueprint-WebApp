@@ -161,7 +161,6 @@ describe("cross-source claims guard", () => {
     expect(targets).toContain("ops/paperclip/programs");
     expect(targets).toContain("knowledge/compiled/playbooks/platform-doctrine.md");
     expect(targets).toContain("../BlueprintCapture/docs/PUBLIC_COPY_TRUTH_INDEX_2026-05-24.md");
-    expect(targets).toContain("scripts/gtm");
     expect(targets).toContain("ops/paperclip/playbooks");
     expect(targets).toContain("knowledge/reports");
     expect(targets).toContain("output");

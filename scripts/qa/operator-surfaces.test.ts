@@ -19,7 +19,6 @@ describe("operator surfaces QA harness contract", () => {
     ]);
     expect(harness.operatorQaSurfaces.map((surface: { path: string }) => surface.path)).toEqual([
       "/admin/company-metrics",
-      "/admin/growth-studio",
       "/requests/op-qa-ready",
       "/requests/op-qa-ready/evidence",
       "/requests/op-qa-ready/qualification",
@@ -30,7 +29,6 @@ describe("operator surfaces QA harness contract", () => {
     expect(harness.operatorQaApiFixtures.map((fixture: { id: string }) => fixture.id)).toEqual(
       expect.arrayContaining([
         "company-metrics",
-        "growth-studio",
         "request-console-ready",
         "request-console-provider-blocked",
         "admin-leads",

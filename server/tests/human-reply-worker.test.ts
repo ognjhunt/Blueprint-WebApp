@@ -16,9 +16,6 @@ const updatePaperclipIssue = vi.hoisted(() => vi.fn());
 const createPaperclipIssueComment = vi.hoisted(() => vi.fn());
 const resetPaperclipAgentSession = vi.hoisted(() => vi.fn());
 const wakePaperclipAgent = vi.hoisted(() => vi.fn());
-const runCityLaunchExecutionHarness = vi.hoisted(() => vi.fn());
-const writeCityLaunchCreativeAdsEvidence = vi.hoisted(() => vi.fn());
-const runCityLaunchPlanningHarness = vi.hoisted(() => vi.fn());
 const getHumanReplyGmailDurabilityStatus = vi.hoisted(() => vi.fn());
 const listHumanReplyGmailMessages = vi.hoisted(() => vi.fn());
 
@@ -58,18 +55,6 @@ vi.mock("../utils/paperclip", () => ({
   wakePaperclipAgent,
 }));
 
-vi.mock("../utils/cityLaunchExecutionHarness", () => ({
-  runCityLaunchExecutionHarness,
-}));
-
-vi.mock("../utils/cityLaunchCreativeAdsEvidence", () => ({
-  writeCityLaunchCreativeAdsEvidence,
-}));
-
-vi.mock("../utils/cityLaunchPlanningHarness", () => ({
-  runCityLaunchPlanningHarness,
-}));
-
 vi.mock("../utils/human-reply-gmail", () => ({
   getHumanReplyGmailDurabilityStatus,
   listHumanReplyGmailMessages,
@@ -91,9 +76,6 @@ afterEach(() => {
   createPaperclipIssueComment.mockReset();
   resetPaperclipAgentSession.mockReset();
   wakePaperclipAgent.mockReset();
-  runCityLaunchExecutionHarness.mockReset();
-  writeCityLaunchCreativeAdsEvidence.mockReset();
-  runCityLaunchPlanningHarness.mockReset();
   getHumanReplyGmailDurabilityStatus.mockReset();
   listHumanReplyGmailMessages.mockReset();
   vi.resetModules();
@@ -386,21 +368,6 @@ describe("human reply worker", () => {
     recordExternalGapReport.mockResolvedValue({
       stable_id: "human_reply:city-launch-approval-chicago-il-123",
     });
-    runCityLaunchExecutionHarness.mockResolvedValue({
-      city: "Chicago, IL",
-      paperclip: {
-        rootIssueId: "root-1",
-        dispatched: [],
-      },
-    });
-    writeCityLaunchCreativeAdsEvidence.mockResolvedValue({
-      status: "ready",
-      blockers: [],
-      artifacts: {
-        jsonPath: "/tmp/chicago-creative-ads.json",
-        markdownPath: "/tmp/chicago-creative-ads.md",
-      },
-    });
 
     const { ingestHumanReplyPayload } = await import("../utils/human-reply-worker");
     const result = await ingestHumanReplyPayload({
@@ -414,8 +381,6 @@ describe("human reply worker", () => {
     });
 
     expect(approveAction).not.toHaveBeenCalled();
-    expect(runCityLaunchExecutionHarness).not.toHaveBeenCalled();
-    expect(runCityLaunchPlanningHarness).not.toHaveBeenCalled();
     expect(wakePaperclipAgent).not.toHaveBeenCalled();
     expect(resolveHumanBlockerAwaitingReply).not.toHaveBeenCalled();
     expect(result).toMatchObject({ processed: true, resolution: "ambiguous_input" });
@@ -466,21 +431,6 @@ describe("human reply worker", () => {
     recordExternalGapReport.mockResolvedValue({
       stable_id: "human_reply:city-launch-approval-durham-nc",
     });
-    runCityLaunchExecutionHarness.mockResolvedValue({
-      city: "Durham, NC",
-      paperclip: {
-        rootIssueId: "root-durham",
-        dispatched: [],
-      },
-    });
-    writeCityLaunchCreativeAdsEvidence.mockResolvedValue({
-      status: "blocked",
-      blockers: ["Meta Ads CLI env missing"],
-      artifacts: {
-        jsonPath: "/tmp/durham-creative-ads.json",
-        markdownPath: "/tmp/durham-creative-ads.md",
-      },
-    });
 
     const { ingestHumanReplyPayload } = await import("../utils/human-reply-worker");
     const result = await ingestHumanReplyPayload({
@@ -494,8 +444,6 @@ describe("human reply worker", () => {
     });
 
     expect(approveAction).not.toHaveBeenCalled();
-    expect(runCityLaunchExecutionHarness).not.toHaveBeenCalled();
-    expect(runCityLaunchPlanningHarness).not.toHaveBeenCalled();
     expect(wakePaperclipAgent).not.toHaveBeenCalled();
     expect(resolveHumanBlockerAwaitingReply).not.toHaveBeenCalled();
     expect(result).toMatchObject({ processed: true, resolution: "ambiguous_input" });
@@ -547,9 +495,6 @@ describe("human reply worker", () => {
     recordExternalGapReport.mockResolvedValue({
       stable_id: "human_reply:city-launch-deep-research-boise-id",
     });
-    runCityLaunchPlanningHarness.mockResolvedValue({
-      city: "Boise, ID",
-    });
 
     const { ingestHumanReplyPayload } = await import("../utils/human-reply-worker");
     const result = await ingestHumanReplyPayload({
@@ -563,8 +508,6 @@ describe("human reply worker", () => {
     });
 
     expect(approveAction).not.toHaveBeenCalled();
-    expect(runCityLaunchExecutionHarness).not.toHaveBeenCalled();
-    expect(runCityLaunchPlanningHarness).not.toHaveBeenCalled();
     expect(wakePaperclipAgent).not.toHaveBeenCalled();
     expect(resolveHumanBlockerAwaitingReply).not.toHaveBeenCalled();
     expect(result).toMatchObject({ processed: true, resolution: "ambiguous_input" });

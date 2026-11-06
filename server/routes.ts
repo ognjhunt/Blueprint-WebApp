@@ -49,10 +49,8 @@ import adminRobotTeamsRouter from "./routes/admin-robot-teams";
 import capturerApplicationsRouter from "./routes/capturer-applications";
 import adminFieldOpsRouter from "./routes/admin-field-ops";
 import adminAgentRouter from "./routes/admin-agent";
-import adminCreativeRouter from "./routes/admin-creative";
-import adminGrowthRouter, {
-  resendWebhookHandler,
-} from "./routes/admin-growth";
+import adminAgentSpendRouter from "./routes/admin-agent-spend";
+import { resendWebhookHandler } from "./routes/resend-webhook";
 import adminCompanyMetricsRouter from "./routes/admin-company-metrics";
 import adminSiteWorldsRouter from "./routes/admin-site-worlds";
 import adminSlaRouter from "./routes/admin-sla";
@@ -98,7 +96,6 @@ import { requireAdminRole, requireExecutionRole } from "./middleware/requireAdmi
 import { csrfCookieHandler, csrfProtection } from "./middleware/csrf";
 import { requireAppCheck } from "./middleware/appCheck";
 import marketplaceEntitlementsRouter from "./routes/marketplace-entitlements";
-import cityLaunchRouter from "./routes/city-launch";
 import publicLaunchRouter from "./routes/public-launch";
 import robotEvalJobRequestsRouter from "./routes/robot-eval-job-requests";
 import companyPolicyCandidatesRouter from "./routes/company-policy-candidates";
@@ -296,19 +293,14 @@ export function registerRoutes(app: Express) {
     requireAdminRole,
     adminAgentRouter,
   );
-  app.use(
-    "/api/admin/creative",
-    csrfProtection,
-    verifyFirebaseToken,
-    requireAdminRole,
-    adminCreativeRouter,
-  );
+  // Agent spend requests (request, list, reconcile) kept at their original
+  // URLs when the growth studio router was retired.
   app.use(
     "/api/admin/growth",
     csrfProtection,
     verifyFirebaseToken,
     requireAdminRole,
-    adminGrowthRouter,
+    adminAgentSpendRouter,
   );
   app.use(
     "/api/admin/company-metrics",
@@ -416,5 +408,4 @@ export function registerRoutes(app: Express) {
   app.use("/api/workspace/checkpoints", csrfProtection, verifyFirebaseToken, workspaceCheckpointsRouter);
   app.use("/api/workspace", csrfProtection, verifyFirebaseToken, workspaceRouter);
   app.use("/api/operator-status", csrfProtection, verifyFirebaseToken, operatorStatusRouter);
-  app.use("/api/city-launch", csrfProtection, verifyFirebaseToken, cityLaunchRouter);
 }

@@ -74,22 +74,13 @@ export default defineConfig({
           ) {
             return "vendor-react";
           }
-          if (
-            packageName === "recharts" ||
-            packageName === "react-smooth" ||
-            packageName === "lodash" ||
-            packageName === "victory-vendor" ||
-            packageName.startsWith("d3-")
-          ) {
-            return "vendor-recharts";
-          }
           if (packageName === "lucide-react") {
             return "vendor-icons";
           }
           // Tiny helpers the app shell uses on every page. Left unassigned,
           // Rollup folds each into a manual chunk that also imports it, and
-          // every marketing page then downloads that whole library: recharts
-          // to get `clsx`, or Firebase Auth to get `tslib`'s `__assign`.
+          // every marketing page then downloads that whole library, for
+          // example Firebase Auth to get `tslib`'s `__assign`.
           if (["clsx", "tailwind-merge", "class-variance-authority", "tslib"].includes(packageName)) {
             return "vendor-ui-utils";
           }

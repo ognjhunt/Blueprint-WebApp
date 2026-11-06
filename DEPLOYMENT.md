@@ -501,53 +501,9 @@ REDIS_URL=rediss://default:<token>@active-phoenix-39183.upstash.io:6379
 - Optional city-launch push notifications:
   `BLUEPRINT_CITY_LAUNCH_PUSH_NOTIFICATIONS_ENABLED=1`
   Requires Firebase Admin credentials above. When unset, city-launch target promotion writes in-app/ledger fallback records and does not attempt FCM delivery.
-- Optional governed external city-launch contact discovery:
-  `BLUEPRINT_CITY_LAUNCH_CONTACT_DISCOVERY_ENABLED=1`
-  `BLUEPRINT_CITY_LAUNCH_CONTACT_DISCOVERY_ALLOWED_HOSTS`
-  `BLUEPRINT_CITY_LAUNCH_CONTACT_DISCOVERY_SEARCH_ENABLED=1`
-  `BLUEPRINT_CITY_LAUNCH_CONTACT_DISCOVERY_SEARCH_URL`
-  `BLUEPRINT_CITY_LAUNCH_CONTACT_DISCOVERY_SEARCH_ALLOWED_HOSTS`
-- Optional city-launch coverage expansion:
-  `SEARCH_API_PROVIDER=parallel_mcp`
-  `PARALLEL_API_KEY` (optional; free Parallel MCP does not require it)
-  `PARALLEL_MCP_URL` (optional override)
-  `PARALLEL_SESSION_ID` (optional override)
-  `PARALLEL_MODEL_NAME` (optional override)
-  Coverage scripts:
-  `npm run city-launch:coverage:audit -- --city "Durham, NC"`
-  `npm run city-launch:coverage:plan -- --city "Durham, NC"`
-  `npm run city-launch:coverage:run -- --city "Durham, NC" --apply --max-candidates 40`
-- Optional Exact-Site Hosted Review GTM pilot audit:
-  `npm run gtm:hosted-review:audit`
-  The audit is local and file-backed. It validates `ops/paperclip/playbooks/exact-site-hosted-review-gtm-ledger.json` and does not send outreach or publish content.
-- Optional Exact-Site Hosted Review buyer-loop report:
-  `npm run gtm:hosted-review:buyer-loop -- --write --allow-blocked`
-  The report is local and file-backed. It turns the canonical GTM ledger plus reply durability state into the daily sales loop: targets, recipient-backed contacts, founder approvals, sends, replies, hosted-review starts, qualified calls, next actions, and the 100-touch decision gap.
-- Optional Exact-Site Hosted Review GTM recipient enrichment:
-  `npm run gtm:recipient-evidence:validate -- --human-recipient-evidence-path <path-to-recipient-evidence.json>`
-  `npm run gtm:enrichment:run -- --write`
-  `npm run gtm:enrichment:run -- --write --select-recipients`
-  Optional provider controls:
-  `BLUEPRINT_GTM_HISTORICAL_CAMPAIGN_ENRICHMENT=1`
-  `BLUEPRINT_GTM_INBOUND_DOSSIER_ENRICHMENT=1`
-  `BLUEPRINT_GTM_CONTACT_DISCOVERY_ALLOWED_HOSTS`
-  `BLUEPRINT_GTM_CONTACT_DISCOVERY_SEARCH_ENABLED=1`
-  `BLUEPRINT_GTM_CONTACT_DISCOVERY_SEARCH_URL`
-  `BLUEPRINT_GTM_CONTACT_DISCOVERY_SEARCH_ALLOWED_HOSTS`
-  `BLUEPRINT_GTM_HUMAN_RECIPIENT_EVIDENCE_PATH`
-  `BLUEPRINT_GTM_CLAY_EXPORT_PATH`
-  The enrichment waterfall is fail-closed. It can mirror existing human-supplied recipients, a human-supplied recipient evidence JSON file, repo artifact evidence, historical campaign evidence, inbound lead dossiers, allowlisted public contact pages, allowlisted search results that resolve back to allowed public contact pages, or a provider-normalized Clay export. It must not guess role aliases, infer email formats, or treat target research as send-ready recipient evidence.
-  Human evidence JSON accepts either an array or `{ "recipients": [...] }`. Each row must match by `targetId`/`targetIds` or exact `organizationName`/`company`, include a non-placeholder `email`, include an evidence source such as `evidenceSource` or `sourceUrl`, and explicitly set `selectedForFirstSend: true` before `--select-recipients` can move that row into first-send approval. Run `gtm:recipient-evidence:validate` before enrichment to prove target matching, selected-row count, and row blockers without mutating the ledger. Matching rows with missing evidence, placeholder emails, invalid emails, or reserved test-domain emails such as `.example`, `.invalid`, `.test`, and `.localhost` are reported as blockers or discarded before selection.
-- Optional Meta Ads CLI pilot for Ad Studio paused drafts and read-only insights:
-  `pip install meta-ads`
-  `META_ADS_CLI_ENABLED=1`
-  `META_ADS_ACCESS_TOKEN` or `META_MARKETING_API_ACCESS_TOKEN`
-  `META_ADS_AD_ACCOUNT_ID` or `META_AD_ACCOUNT_ID`
-  `META_ADS_BUSINESS_ID` for catalog and business-owned dataset reads
-  `META_ADS_CLI_BIN=meta` if the binary is not on the default `PATH`
-  `META_ADS_CLI_TIMEOUT_MS=120000`
-  `META_ADS_MAX_DAILY_BUDGET_USD=250`
-  Allowed server routes are read-only ad account/page/campaign/dataset/catalog/insights commands plus Ad Studio paused draft creation. No route or adapter command can create or update ACTIVE Meta objects; live activation still requires the city budget envelope, recorded spend request, and explicit policy approval.
+- The city-launch coverage, Exact-Site Hosted Review GTM pilot and Meta Ads CLI
+  tooling (`city-launch:*`, `gtm:*` npm scripts, Ad Studio) was retired with the
+  growth lanes on 2026-11-06.
 - Optional human-reply ingest and email watcher:
   `BLUEPRINT_HUMAN_REPLY_INGEST_TOKEN`
   `BLUEPRINT_HUMAN_REPLY_APPROVED_EMAIL`
@@ -581,13 +537,12 @@ REDIS_URL=rediss://default:<token>@active-phoenix-39183.upstash.io:6379
 
 Important:
 - For the Growth Studio mirror vars above, use the Notion data source UUIDs for each database, not the outer database page UUIDs.
-- The Growth Studio sync path can be run by scheduler, by `POST /api/admin/growth/notion/sync`, or from the shell with `npm run notion:sync:growth-studio`.
+- The Growth Studio mirror runs only inside the `notion_sync` scheduler lane; its admin route and `notion:sync:growth-studio` script were retired with the growth lanes.
 - The human-reply Gmail watcher is valid only when the authenticated mailbox is the approved org-facing identity `ohstnhunt@gmail.com`. If Gmail OAuth resolves to another mailbox, the watcher must fail closed.
 - Outbound/reply durability is production-ready only when `npm run human-replies:audit-durability` passes: sender transport is configured, the city-launch sender is marked verified, `BLUEPRINT_HUMAN_REPLY_INGEST_TOKEN` is set, `BLUEPRINT_HUMAN_REPLY_APPROVED_EMAIL=ohstnhunt@gmail.com`, Gmail OAuth is production-ready, and `BLUEPRINT_HUMAN_REPLY_GMAIL_WATCHER_ENABLED=1`.
 - Slack DM is the default fast founder-interrupt path when `SLACK_BOT_TOKEN` and `BLUEPRINT_HUMAN_BLOCKER_SLACK_USER_ID` point to Nijel Hunt. Slack replies are durable only when the Events API can see the DM or allowlisted thread and the reply correlates to a blocker id or Slack thread id.
 - City-launch direct outreach is outwardly launchable only when at least one direct-outreach action has a real recipient and the active sender address is truthful.
 - `BLUEPRINT_CITY_LAUNCH_SENDER_VERIFICATION` is a manual mirror of sender/domain verification state for outbound city-launch mail. Use `verified` only after confirming the configured sender/domain is actually verified in the live provider; leave it unset if verification is unknown, and treat `unverified` as fail-closed for real sends.
-- Governed external city-launch contact discovery is opt-in. It only fetches explicit public contact evidence from hosts listed in `BLUEPRINT_CITY_LAUNCH_CONTACT_DISCOVERY_ALLOWED_HOSTS`, and it only accepts email addresses that appear explicitly on those pages. It does not guess, derive, or synthesize emails.
 - Governed search discovery is also opt-in. When enabled, it may query only the search provider configured in `BLUEPRINT_CITY_LAUNCH_CONTACT_DISCOVERY_SEARCH_URL`, only if that provider host is allowlisted in `BLUEPRINT_CITY_LAUNCH_CONTACT_DISCOVERY_SEARCH_ALLOWED_HOSTS`, and it will only keep result URLs whose hosts are already allowed by `BLUEPRINT_CITY_LAUNCH_CONTACT_DISCOVERY_ALLOWED_HOSTS`. Search only discovers candidate public contact pages; the same explicit-email extraction rules still apply.
 - `BLUEPRINT_HUMAN_REPLY_INGEST_TOKEN` also authorizes the internal human-blocker dispatch route used by Blueprint automation tools to queue or send standard blocker packets from Paperclip agent lanes.
 - `BLUEPRINT_HUMAN_REPLY_GMAIL_OAUTH_PUBLISHING_STATUS` is a manual mirror of the Google OAuth consent-screen publishing state. If it is unset, treat Gmail OAuth durability as unknown rather than production-grade.
@@ -620,9 +575,7 @@ Important:
 
 Historical alpha controls below are reference names, not instructions to enable
 them for the free beta. Enable only the worker lanes required by the current
-beta journey and approved runtime configuration. The retired buyer lifecycle
-and lifecycle cadence must stay disabled: their historical commercial messages
-do not describe the free beta. Current job updates use
+beta journey and approved runtime configuration. Current job updates use
 `taskLifecycleNotifications.ts` and its durable outbox.
 
 - `BLUEPRINT_WAITLIST_AUTOMATION_ENABLED=1`
@@ -630,11 +583,12 @@ do not describe the free beta. Current job updates use
 - `BLUEPRINT_SUPPORT_TRIAGE_ENABLED=1`
 - `BLUEPRINT_PAYOUT_TRIAGE_ENABLED=1`
 - `BLUEPRINT_PREVIEW_DIAGNOSIS_ENABLED=1`
-- `BLUEPRINT_EXPERIMENT_AUTOROLLOUT_ENABLED=1`
-- `BLUEPRINT_AUTONOMOUS_RESEARCH_OUTBOUND_ENABLED=1`
-- `BLUEPRINT_CREATIVE_FACTORY_ENABLED=1`
-- `BLUEPRINT_BUYER_LIFECYCLE_ENABLED=0` (retired)
-- `BLUEPRINT_LIFECYCLE_CADENCE_ENABLED=0` (retired)
+
+The growth lanes were removed from the scheduler on 2026-11-06 and their flags
+no longer start anything: `BLUEPRINT_EXPERIMENT_AUTOROLLOUT_ENABLED`,
+`BLUEPRINT_AUTONOMOUS_RESEARCH_OUTBOUND_ENABLED`,
+`BLUEPRINT_CREATIVE_FACTORY_ENABLED`, `BLUEPRINT_BUYER_LIFECYCLE_ENABLED` and
+`BLUEPRINT_LIFECYCLE_CADENCE_ENABLED`.
 
 Beta cohort controls are enforced on capturer beta waitlist intake, native
 capture registration (and its preflight), robot-eval buyer intake, and live
@@ -673,34 +627,8 @@ Optional review-watchdog workers that only flag overdue human queues:
 These watchdogs do not send outreach, grant permissions, submit disputes, or move funds. They only mark overdue review state in Firestore so operators can work the queue.
 - Optional field-ops reminder worker:
   `BLUEPRINT_CAPTURER_REMINDER_ENABLED=1`
-- Optional buyer lifecycle cadence overrides:
-  `BLUEPRINT_BUYER_LIFECYCLE_INTERVAL_MS`,
-  `BLUEPRINT_BUYER_LIFECYCLE_BATCH_SIZE`,
-  `BLUEPRINT_BUYER_LIFECYCLE_STARTUP_DELAY_MS`,
-  `BLUEPRINT_BUYER_LIFECYCLE_DAYS_SINCE_GRANT`
-- Optional persona lifecycle cadence overrides:
-  `BLUEPRINT_LIFECYCLE_CADENCE_INTERVAL_MS`,
-  `BLUEPRINT_LIFECYCLE_CADENCE_BATCH_SIZE`,
-  `BLUEPRINT_LIFECYCLE_CADENCE_STARTUP_DELAY_MS`
-- Optional experiment autorollout cadence and thresholds:
-  `BLUEPRINT_EXPERIMENT_AUTOROLLOUT_INTERVAL_MS`,
-  `BLUEPRINT_EXPERIMENT_AUTOROLLOUT_LOOKBACK_DAYS`,
-  `BLUEPRINT_EXPERIMENT_AUTOROLLOUT_MIN_EXPOSURES`,
-  `BLUEPRINT_EXPERIMENT_AUTOROLLOUT_MIN_RELATIVE_LIFT`
-- Optional autonomous research-to-outbound configuration:
-  `BLUEPRINT_AUTONOMOUS_RESEARCH_OUTBOUND_INTERVAL_MS`,
-  `BLUEPRINT_AUTONOMOUS_RESEARCH_TOPICS`,
-  `BLUEPRINT_AUTONOMOUS_OUTBOUND_RECIPIENTS`,
-  `BLUEPRINT_AUTONOMOUS_OUTBOUND_CHANNEL`,
-  `FIREHOSE_API_TOKEN`,
-  `FIREHOSE_BASE_URL`
-- Optional creative factory configuration:
-  `BLUEPRINT_CREATIVE_FACTORY_INTERVAL_MS`,
-  `BLUEPRINT_CREATIVE_FACTORY_SKU`,
-  `BLUEPRINT_CREATIVE_FACTORY_AUDIENCE`,
-  `BLUEPRINT_CREATIVE_FACTORY_SITE_TYPE`,
-  `BLUEPRINT_CREATIVE_FACTORY_WORKFLOW`,
-  `BLUEPRINT_CREATIVE_FACTORY_CTA`
+- Optional market-signal provider status (reported by the growth integration
+  summary): `FIREHOSE_API_TOKEN`, `FIREHOSE_BASE_URL`
 
 Post-signup automation also requires:
 
@@ -729,9 +657,6 @@ replace that inbox or the approved Gmail human-reply watcher.
 - Marketplace checkout and artifact entitlement flows are only truthful when Firebase Admin, Stripe checkout, and Stripe webhooks are all configured together.
 - Marketplace search and checkout now fail toward live `marketplace_items` inventory in production instead of silently relying on static sample content.
 - Growth telemetry can now mirror experiment exposures, page views, and campaign events into Firestore when `BLUEPRINT_ANALYTICS_INGEST_ENABLED=1`, which gives Paperclip and the analytics agent a first-party event stream even before PostHog/GA4 are fully live.
-- Experiment winners can now roll themselves into production overrides through the first-party event stream when the autorollout worker is enabled.
-- Autonomous research can now turn configured Firehose demand topics into draft outbound campaigns and queue them for human send approval.
-- The creative pipeline now supports both the protected campaign-kit builder and a background creative factory that generates proof-led prompt packs and routes image-heavy execution to `webapp-codex` without paid image APIs. OpenRouter video remains an explicit provider path.
 - The voice concierge now supports both web voice and Twilio-compatible PSTN intake. Pricing, legal, privacy, rights, contract, and irreversible commitments remain human-gated, and phone handoff can forward to a live operator when configured.
 - Legacy manual deployment scripts were removed; deployment should always run through project scripts.
 - `client/public/robots.txt` must exist at build time and be served in production.

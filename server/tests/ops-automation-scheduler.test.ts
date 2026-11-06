@@ -9,11 +9,6 @@ const runPreviewDiagnosisLoop = vi.hoisted(() => vi.fn());
 const runCapturerReminderLoop = vi.hoisted(() => vi.fn());
 const flagOverdueSiteAccessReviews = vi.hoisted(() => vi.fn());
 const flagOverdueFinanceReviews = vi.hoisted(() => vi.fn());
-const runBuyerLifecycleCheck = vi.hoisted(() => vi.fn());
-const runLifecycleCadenceWorker = vi.hoisted(() => vi.fn());
-const runExperimentAutorollout = vi.hoisted(() => vi.fn());
-const runAutonomousResearchOutboundLoop = vi.hoisted(() => vi.fn());
-const runCreativeAssetFactoryLoop = vi.hoisted(() => vi.fn());
 const runGapClosureLoop = vi.hoisted(() => vi.fn());
 const runHumanReplyEmailWatcher = vi.hoisted(() => vi.fn());
 const runOperatingGraphProjectionLoop = vi.hoisted(() => vi.fn());
@@ -123,26 +118,6 @@ vi.mock("../utils/field-ops-automation", () => ({
   flagOverdueFinanceReviews,
 }));
 
-vi.mock("../utils/growth-ops", () => ({
-  runBuyerLifecycleCheck,
-}));
-
-vi.mock("../utils/lifecycle-cadence", () => ({
-  runLifecycleCadenceWorker,
-}));
-
-vi.mock("../utils/experiment-ops", () => ({
-  runExperimentAutorollout,
-}));
-
-vi.mock("../utils/autonomous-growth", () => ({
-  runAutonomousResearchOutboundLoop,
-}));
-
-vi.mock("../utils/creative-factory", () => ({
-  runCreativeAssetFactoryLoop,
-}));
-
 vi.mock("../utils/gap-closure", () => ({
   runGapClosureLoop,
 }));
@@ -173,11 +148,6 @@ beforeEach(() => {
   runCapturerReminderLoop.mockResolvedValue({ processedCount: 1, failedCount: 0 });
   flagOverdueSiteAccessReviews.mockResolvedValue({ processedCount: 1, failedCount: 0 });
   flagOverdueFinanceReviews.mockResolvedValue({ processedCount: 1, failedCount: 0 });
-  runBuyerLifecycleCheck.mockResolvedValue({ count: 2, results: [] });
-  runLifecycleCadenceWorker.mockResolvedValue({ processedCount: 2, failedCount: 0, skippedCount: 0, suppressedCount: 0 });
-  runExperimentAutorollout.mockResolvedValue({ count: 1, evaluations: [] });
-  runAutonomousResearchOutboundLoop.mockResolvedValue({ count: 1, results: [] });
-  runCreativeAssetFactoryLoop.mockResolvedValue({ status: "assets_generated" });
   runGapClosureLoop.mockResolvedValue({
     processedCount: 1,
     failedCount: 0,
@@ -207,16 +177,6 @@ describe("ops automation scheduler", () => {
     vi.stubEnv("BLUEPRINT_WAITLIST_AUTOMATION_ENABLED", "1");
     vi.stubEnv("BLUEPRINT_INBOUND_AUTOMATION_ENABLED", "1");
     vi.stubEnv("BLUEPRINT_SUPPORT_TRIAGE_ENABLED", "1");
-    vi.stubEnv("BLUEPRINT_EXPERIMENT_AUTOROLLOUT_ENABLED", "1");
-    vi.stubEnv("BLUEPRINT_EXPERIMENT_AUTOROLLOUT_STARTUP_DELAY_MS", "0");
-    vi.stubEnv("BLUEPRINT_AUTONOMOUS_RESEARCH_OUTBOUND_ENABLED", "1");
-    vi.stubEnv("BLUEPRINT_AUTONOMOUS_RESEARCH_OUTBOUND_STARTUP_DELAY_MS", "0");
-    vi.stubEnv("BLUEPRINT_CREATIVE_FACTORY_ENABLED", "1");
-    vi.stubEnv("BLUEPRINT_CREATIVE_FACTORY_STARTUP_DELAY_MS", "0");
-    vi.stubEnv("BLUEPRINT_BUYER_LIFECYCLE_ENABLED", "1");
-    vi.stubEnv("BLUEPRINT_BUYER_LIFECYCLE_STARTUP_DELAY_MS", "0");
-    vi.stubEnv("BLUEPRINT_LIFECYCLE_CADENCE_ENABLED", "1");
-    vi.stubEnv("BLUEPRINT_LIFECYCLE_CADENCE_STARTUP_DELAY_MS", "0");
     vi.stubEnv("BLUEPRINT_SITE_ACCESS_OVERDUE_WATCHDOG_ENABLED", "1");
     vi.stubEnv("BLUEPRINT_FINANCE_REVIEW_OVERDUE_WATCHDOG_ENABLED", "1");
     vi.stubEnv("BLUEPRINT_PAYOUT_TRIAGE_ENABLED", "0");
@@ -229,19 +189,6 @@ describe("ops automation scheduler", () => {
     expect(runWaitlistAutomationLoop).toHaveBeenCalled();
     expect(runInboundQualificationLoop).toHaveBeenCalled();
     expect(runSupportTriageLoop).toHaveBeenCalled();
-    expect(runExperimentAutorollout).toHaveBeenCalledWith({
-      limit: 5000,
-      lookbackDays: 30,
-      minExposuresPerVariant: 50,
-      minRelativeLift: 0.1,
-    });
-    expect(runAutonomousResearchOutboundLoop).toHaveBeenCalled();
-    expect(runCreativeAssetFactoryLoop).toHaveBeenCalled();
-    expect(runBuyerLifecycleCheck).toHaveBeenCalledWith({
-      daysSinceGrant: 30,
-      limit: 25,
-    });
-    expect(runLifecycleCadenceWorker).toHaveBeenCalledWith({ limit: 25 });
     expect(flagOverdueSiteAccessReviews).toHaveBeenCalledWith({ limit: 50 });
     expect(flagOverdueFinanceReviews).toHaveBeenCalledWith({ limit: 50 });
     expect(runPayoutExceptionTriageLoop).not.toHaveBeenCalled();
@@ -337,17 +284,17 @@ describe("ops automation scheduler", () => {
   });
 
   it("alerts when a worker fails and again when it recovers", async () => {
-    vi.stubEnv("BLUEPRINT_CREATIVE_FACTORY_ENABLED", "1");
-    vi.stubEnv("BLUEPRINT_CREATIVE_FACTORY_STARTUP_DELAY_MS", "0");
-    vi.stubEnv("BLUEPRINT_CREATIVE_FACTORY_INTERVAL_MS", "30000");
+    vi.stubEnv("BLUEPRINT_GAP_CLOSURE_ENABLED", "1");
+    vi.stubEnv("BLUEPRINT_GAP_CLOSURE_STARTUP_DELAY_MS", "0");
+    vi.stubEnv("BLUEPRINT_GAP_CLOSURE_INTERVAL_MS", "30000");
     // The capture-outbox lane is on by default and would add its own status
     // transitions to the alert count; this test is about the worker it drives
     // into failure, so the unrelated lane stays out of the assertion.
     vi.stubEnv("BLUEPRINT_CAPTURE_OUTBOX_ENABLED", "0");
 
-    runCreativeAssetFactoryLoop
-      .mockRejectedValueOnce(new Error("Runway unavailable"))
-      .mockResolvedValueOnce({ status: "assets_generated" });
+    runGapClosureLoop
+      .mockRejectedValueOnce(new Error("Gap registry unavailable"))
+      .mockResolvedValueOnce({ processedCount: 1, failedCount: 0, activeFindingCount: 0 });
 
     const { startOpsAutomationScheduler } = await import("../utils/opsAutomationScheduler");
     const stop = startOpsAutomationScheduler();
