@@ -22,7 +22,7 @@ The pipeline's `main` was inspected at `599264bda025ffb274996037d2ac997ec53f8a1b
 
 Read the nearest `AGENTS.md` and these focused sources first:
 
-- WebApp: `docs/design/job-first-automation-marketplace/IMPLEMENTATION.md`, the October 21 preambles in `AGENTS.md`, `PLATFORM_CONTEXT.md`, and `WORLD_MODEL_STRATEGY_CONTEXT.md`.
+- WebApp: `docs/archive/design/job-first-automation-marketplace/IMPLEMENTATION.md`, the October 21 preambles in `AGENTS.md`, `PLATFORM_CONTEXT.md`, and `WORLD_MODEL_STRATEGY_CONTEXT.md`.
 - WebApp: the existing `SiteCaptureStart` and owner capture pages, `server/routes/workspace.ts`, `inbound-request.ts`, `server/utils/siteVideoEvidence.ts`, `siteTaskBriefReading.ts`, the capture privacy/analysis receipt path, and `siteTaskBrief.ts`. Locate how actual uploaded footage drafts or updates the summary and brief today.
 - WebApp: `client/src/types/jobMarketplace.ts`, `server/routes/job-workflow.ts`, `server/utils/jobMarketplaceWorkflow.ts`, `client/src/components/admin/JobWorkflowPanel.tsx`, and the owner `JobWorkspace` component.
 - Pipeline: `AGENTS.md`, `docs/DOCTRINE_PRECEDENCE.md`, `doctrine/README.md`, the three canonical doctrine fragments, and the existing architecture/onboarding map.

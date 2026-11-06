@@ -9,7 +9,7 @@ This does not make the source scene a customer capture or physical proof.
 
 The ivory/green palette, typography, rules, spacing, paired panels, and compact
 condition controls follow `how-it-works-concept.png`. The concept was generated
-with the native Codex imagegen tool using `docs/design/site-led-concept.png` as a
+with the native Codex imagegen tool using `docs/archive/design/site-led-concept.png` as a
 style reference; `prompt.txt` retains the exact prompt. The tool returned no
 model identity, so the requested Sunburst backend is not independently confirmed.
 Episode pixels are original recordings, not image-generated replacements.

@@ -1,7 +1,7 @@
 # P0 onboarding loop: design (2026-09-19)
 
 Review status: the initial P0 implementation below was amended before merge. See
-[the P0 review and P1 integration record](../../design/onboarding-p0-review-2026-09-19.md) for the reviewed payment, evidence, concurrency and executor requirements.
+[the P0 review and P1 integration record](../../archive/design/onboarding-p0-review-2026-09-19.md) for the reviewed payment, evidence, concurrency and executor requirements.
 
 
 Bare-bones implementation of the three P0 findings in
