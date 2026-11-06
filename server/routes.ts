@@ -86,11 +86,6 @@ import siteWorldsRouter from "./routes/site-worlds";
 import siteWorldSessionsRouter, { publicSiteWorldSessionsRouter } from "./routes/site-world-sessions";
 import { paperclipOpsFirestoreRelayHandler } from "./routes/paperclip-relay";
 import slackEventsRouter from "./routes/slack-events";
-import voiceRouter, {
-  telephonyInboundHandler,
-  telephonyStatusHandler,
-  voiceWebhookHandler,
-} from "./routes/voice";
 import verifyFirebaseToken, { optionallyVerifyFirebaseToken } from "./middleware/verifyFirebaseToken";
 import { requireAdminRole, requireExecutionRole } from "./middleware/requireAdminRole";
 import { csrfCookieHandler, csrfProtection } from "./middleware/csrf";
@@ -243,12 +238,8 @@ export function registerRoutes(app: Express) {
   app.post("/api/contact", csrfProtection, contactTaskMediaHandler);
   app.post("/api/waitlist", csrfProtection, waitlistHandler);
   app.use("/api/help", csrfProtection, helpRouter);
-  app.post("/api/voice/webhook", voiceWebhookHandler);
-  app.post("/api/voice/telephony/inbound", telephonyInboundHandler);
-  app.post("/api/voice/telephony/status", telephonyStatusHandler);
   app.post("/api/growth/webhooks/resend", resendWebhookHandler);
   app.use("/api/growth/email", emailPreferencesRouter);
-  app.use("/api/voice", csrfProtection, voiceRouter);
   // Inbound request (lead pipeline) - public submission endpoint
   // App Check is staged by BLUEPRINT_APP_CHECK_MODE (off | monitor | enforce).
   app.use("/api/inbound-request", csrfProtection, requireAppCheck("inbound_intake"), inboundRequestRouter);

@@ -557,19 +557,15 @@ Important:
   `OPENROUTER_BASE_URL`
   `BLUEPRINT_OPENROUTER_VIDEO_MODEL`
 
-### Voice Concierge
-- `ELEVENLABS_API_KEY`
-- `ELEVENLABS_VOICE_ID`
-- Optional:
-  `ELEVENLABS_TTS_MODEL_ID`
-  `ELEVENLABS_AGENT_ID`
-  `ELEVENLABS_WEBHOOK_SECRET`
-  `BLUEPRINT_VOICE_BOOKING_URL`
-  `BLUEPRINT_SUPPORT_EMAIL`
-  `TWILIO_ACCOUNT_SID`
-  `TWILIO_AUTH_TOKEN`
-  `TWILIO_PHONE_NUMBER`
-  `BLUEPRINT_VOICE_FORWARD_NUMBER`
+### Voice Concierge (retired)
+The web voice concierge and PSTN intake (`/api/voice/*`) were retired on
+2026-11-06. `ELEVENLABS_*` keys are now only reported as present or absent by
+the integration status summary; `ELEVENLABS_WEBHOOK_SECRET` and
+`BLUEPRINT_VOICE_FORWARD_NUMBER` start nothing. `TWILIO_ACCOUNT_SID`,
+`TWILIO_AUTH_TOKEN` and `TWILIO_PHONE_NUMBER` are still read by
+`server/utils/sms.ts`; `BLUEPRINT_VOICE_BOOKING_URL` is still a fallback name
+for the booking link and `BLUEPRINT_SUPPORT_EMAIL` is still read elsewhere.
+Existing `voice_*` Firestore records were left in place.
 
 ### Autonomous Alpha Automation
 
@@ -657,7 +653,6 @@ replace that inbox or the approved Gmail human-reply watcher.
 - Marketplace checkout and artifact entitlement flows are only truthful when Firebase Admin, Stripe checkout, and Stripe webhooks are all configured together.
 - Marketplace search and checkout now fail toward live `marketplace_items` inventory in production instead of silently relying on static sample content.
 - Growth telemetry can now mirror experiment exposures, page views, and campaign events into Firestore when `BLUEPRINT_ANALYTICS_INGEST_ENABLED=1`, which gives Paperclip and the analytics agent a first-party event stream even before PostHog/GA4 are fully live.
-- The voice concierge now supports both web voice and Twilio-compatible PSTN intake. Pricing, legal, privacy, rights, contract, and irreversible commitments remain human-gated, and phone handoff can forward to a live operator when configured.
 - Legacy manual deployment scripts were removed; deployment should always run through project scripts.
 - `client/public/robots.txt` must exist at build time and be served in production.
 - `npm run alpha:preflight` is historical paid-alpha tooling, not the free-beta Render promotion gate. Use the exact-SHA CI/deploy workflow and its live version/readiness checks; preserve existing automation holds.

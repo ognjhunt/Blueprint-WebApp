@@ -401,17 +401,6 @@ export const analyticsEvents = {
       variant_id: variantId,
     }),
 
-  voiceConciergeStarted: (surface: string) =>
-    trackEvent("voice_concierge_started", {
-      surface,
-    }),
-
-  voiceConciergeCompleted: (surface: string, handoffRequired: boolean) =>
-    trackEvent("voice_concierge_completed", {
-      surface,
-      handoff_required: handoffRequired,
-    }),
-
   homeHeroView: (properties: {
     variantId: string;
     source: string;
