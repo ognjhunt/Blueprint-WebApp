@@ -111,6 +111,12 @@ export interface ReadinessInput {
   evidence: EvidenceOnFile;
   /** True once a scene exists. */
   reconstructed: boolean;
+  /**
+   * Gates the site left open when it confirmed its task at submission (owner
+   * decision 2026-11-07). They are disclosed unknowns carried with the job,
+   * never a stop, so they block neither a recording nor an evaluation.
+   */
+  disclosedUnknown?: readonly string[];
 }
 
 /**
@@ -191,8 +197,11 @@ export function assessReadiness(input: ReadinessInput): ReadinessVerdict {
     ? input.captureMode
     : defaultCaptureMode;
 
-  const blockingCapture = unanswered(captureBlockingGates(captureMode), input.answers);
-  const blockingEvaluation = unanswered(evaluationBlockingGates(captureMode), input.answers);
+  const disclosed = new Set(input.disclosedUnknown ?? []);
+  const blockingCapture = unanswered(captureBlockingGates(captureMode), input.answers)
+    .filter((fieldId) => !disclosed.has(fieldId));
+  const blockingEvaluation = unanswered(evaluationBlockingGates(captureMode), input.answers)
+    .filter((fieldId) => !disclosed.has(fieldId));
 
   // Supply is the strict conjunction, and it is the only thing a robot team
   // sees. Text intake can discover future supply; it must never inflate the

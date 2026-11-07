@@ -10,7 +10,7 @@ import { criteriaChangedSinceRequest, passMarkForJob, type PassMark } from "./pi
 import { iso, object, text } from "./workspace-projection";
 import { teamJobAccess } from "./teamJobAccess";
 import { sceneRunnableReadiness } from "./sceneRunnableReadiness";
-import { gateAnswersOnFile } from "./gateAnswersOnFile";
+import { disclosedUnknownGates, gateAnswersOnFile } from "./gateAnswersOnFile";
 import { assessReadiness } from "../../client/src/lib/siteTaskReadiness";
 import type { TaskSceneProgression } from "./taskStatusProjection";
 import type {
@@ -227,6 +227,7 @@ export function sceneHoldOf(record: Record<string, any>): SceneHold | null {
     briefConfirmed: true,
     evidence: { hasAny: true, hasVisual: true, explainsTask: true, coversScene: true },
     reconstructed: true,
+    disclosedUnknown: disclosedUnknownGates(record),
   });
   return blockingEvaluation.length ? "gates_open" : null;
 }

@@ -446,6 +446,16 @@ describe("a site that confirms its task when it submits it", () => {
     // Confirmed where the job is read, with no description reading queued to fold into it.
     expect(record(jobId).site_task_brief_confirmed_at).toBe(saved.confirmedAtIso);
     expect(record(jobId).briefReviewPending).toBeUndefined();
+    // The same projection a review click writes: the screen, the task scope and the success terms.
+    expect(record(jobId).site_task_triage).toMatchObject({ disposition: "qualified", evaluated_at: saved.confirmedAtIso });
+    expect(record(jobId).site_task_triage.disclosed_unknown_field_ids).toEqual(record(jobId).site_task_triage.unanswered_field_ids);
+    expect(record(jobId).site_task_scope).toMatchObject({ supported: true, kind: "rigid_pick_and_place", screenedAtIso: saved.confirmedAtIso });
+    expect(record(jobId).workspace_task).toEqual({ terms: { successDefinition: SUCCESS, successRate: null, cycleTimeSeconds: null } });
+    const { termsFor } = await import("../utils/workspace-projection");
+    expect(termsFor(record(jobId)).successDefinition).toBe(SUCCESS);
+    const { computeRobotFitJob, loadRobotFitInputs } = await import("../utils/siteRobotFit");
+    // Robot forms are rated from the scope screened at submission, not "not screened yet".
+    expect(computeRobotFitJob(await loadRobotFitInputs(jobId))).toMatchObject({ rated: true, notRatedReason: null });
     expect(projectWebsiteTaskContext(saved)).toMatchObject({ confirmed: true, confirmed_at: saved.confirmedAtIso,
       description: SITE_CAPTURE_START_FORM.task });
     expect(await ownerBrief(token)).toMatchObject({ confirmedAtIso: saved.confirmedAtIso, confirmedAtSubmission: true });
@@ -465,6 +475,9 @@ describe("a site that confirms its task when it submits it", () => {
     expect(response.status, await response.clone().text()).toBe(201);
     expect(record(requestId).account_owner_uid).toBe(uid);
     expect(brief(requestId)).toMatchObject({ confirmedBy: uid, successCriteria: { successDefinition: SUCCESS } });
+    // The confirmed terms join the workspace task the account's intake set, keeping its fields.
+    expect(record(requestId).workspace_task).toEqual({ archived: false, paused: false,
+      terms: { successDefinition: SUCCESS, successRate: null, cycleTimeSeconds: null } });
     expect(brief(requestId).confirmedAtIso).toBe(record(requestId).site_task_brief_confirmed_at);
   });
 

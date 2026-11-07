@@ -66,7 +66,7 @@ import { canonicalDeploymentSelections, deploymentCatalogWithDigest } from "../.
 import { robotEmbodimentSchema } from "../../client/src/types/robotEmbodiment";
 import { policyAdapterSchema, samePolicyAdapter } from "../../client/src/types/policyAdapter";
 import { wilsonLowerBound, wilsonUpperBound } from "../utils/successRateConfidence";
-import { gateAnswersOnFile } from "../utils/gateAnswersOnFile";
+import { disclosedUnknownGates, gateAnswersOnFile } from "../utils/gateAnswersOnFile";
 import { bookingUrl } from "../utils/bookingLink";
 import { bindTeamToAccount, teamsForAccount, teamAccountUid } from "../utils/robotTeamAccounts";
 import { captureUploadUrlFor } from "../utils/captureUploadToken";
@@ -673,6 +673,7 @@ async function hydrateTask(requestId: string, record: Record<string, any>) {
           missingCoverage: object(record.capture_coverage).missing_coverage ?? undefined,
         },
         reconstructed: false,
+        disclosedUnknown: disclosedUnknownGates(record),
       }).stage;
     }
     const captureSession = await db!.collection("captureUploadSessions").doc(currentCapture.captureId).get();

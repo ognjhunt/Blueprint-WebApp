@@ -57,7 +57,7 @@ import { operatorListingPaused } from "./operatorListing";
 import { projectWebsiteCaptureRights } from "./websiteTaskContext";
 import { coverageEvidenceFrom } from "./captureCoverageEvidence";
 import { sceneRunnableReadiness } from "./sceneRunnableReadiness";
-import { gateAnswersOnFile } from "./gateAnswersOnFile";
+import { disclosedUnknownGates, gateAnswersOnFile } from "./gateAnswersOnFile";
 
 /** Why a job is closed to robot teams, in the order the checks run. */
 export type TeamJobClosedReason =
@@ -137,6 +137,9 @@ export function isRunnableTask(request: InboundRequest): boolean {
       missingCoverage: measured?.missingCoverage,
     },
     reconstructed: hasBuiltScene(request as unknown as Record<string, any>),
+    // Gates a site left open when it confirmed its task at submission are
+    // disclosed unknowns, never a stop (owner decision 2026-11-07).
+    disclosedUnknown: disclosedUnknownGates(request),
   });
   if (!readiness.isSupply) return false;
   // Site-ready is not run-ready: see `sceneRunnableReadiness`.
