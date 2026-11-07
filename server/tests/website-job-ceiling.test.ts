@@ -109,6 +109,27 @@ describe("what counts against it", () => {
     expect(await spend({ state: "revoked" })).toBe(0);
   });
 
+  it("grants a navigation intake no construction allowance: it counts only holds the Pipeline reports", async () => {
+    // Owner, 2026-11-07: a scene kept as filmed reserves $0 and needs no construction allowance.
+    // The same execution block on a rigid intake is held in full, exactly as before.
+    const navigation = (value: Record<string, any>) => ({ request: { task: { strategy: "goal_region_navigation" },
+      execution: { max_total_spend_usd: 20 } }, ...value });
+    const rigid = (value: Record<string, any>) => ({ request: { task: { strategy: "pick_and_place" },
+      execution: { max_total_spend_usd: 20 } }, ...value });
+    const spend = async (row: Record<string, any>) =>
+      (await websiteJobSpend({ record: {}, reader: reader([row]) })).native_construction_micros;
+    for (const value of [{ state: "forward_pending" }, { state: "forward_pending", forwarding_started: true },
+      { state: "accepted", receipt: {}, pipeline_status: { attempts: [] } },
+      { state: "completed", receipt: {}, pipeline_status: { status: "completed", attempts: [] } }]) {
+      expect(await spend(navigation(value))).toBe(0);
+    }
+    expect(await spend(rigid({ state: "forward_pending" }))).toBe(20_000_000);
+    expect(await spend(rigid({ state: "accepted", receipt: {}, pipeline_status: { attempts: [] } }))).toBe(20_000_000);
+    // Whatever the Pipeline reports a navigation intent holding still counts.
+    expect(await spend(navigation({ state: "accepted", pipeline_status: { attempts: [{ maximum_spend_usd: 4 }] } })))
+      .toBe(4_000_000);
+  });
+
   it("never counts native construction above the budget the Pipeline enforces, and skips cancelled attempts", async () => {
     // The Pipeline refuses a reservation that would take its holds past the intent's
     // (extended) budget, so that budget bounds what native construction can spend.

@@ -12,6 +12,8 @@ import { assertWebsiteCaptureBindingInTransaction, resolveWebsiteCaptureBinding 
 import type { SiteTaskBriefRecord } from "./siteTaskBrief";
 import type { TaskItemInventoryRecord } from "./taskItemInventory";
 import { familyNativePreparationReference, familyPreparationMatchesTask, isTaskFamilyStrategy, taskFamilyIntakeTask } from "./taskFamilySceneIntake";
+import { isNavigationStrategy, navigationPreparationMatchesTask, navigationPreparationReference,
+  NAVIGATION_PREPARED_PHASE } from "./navigationSceneIntake";
 import { effectiveSceneExecutionExpiry } from "./sceneExecutionWindowExtension";
 import { sceneIntentOutcomeBinds, sceneIntentOutcomeSchema, sceneOutcomeNoticeIntent } from "./sceneIntentOutcome";
 
@@ -194,7 +196,7 @@ const statusSchema = z
         .strict()
         .refine((attempt) => (attempt.retained_spend_usd === undefined) === (attempt.retained_spend_basis === undefined)),
     ),
-    result_reference: z.union([familyNativePreparationReference, z.object({
+    result_reference: z.union([familyNativePreparationReference, navigationPreparationReference, z.object({
         uri: z.string(),
         digest,
         size_bytes: z.number().int().nonnegative(),
@@ -608,6 +610,14 @@ export async function scenePipelineRequest(
       || request.execution?.purpose !== "scene_preparation" || request.execution?.policy_candidates?.length !== 0
       || !familyPreparationMatchesTask(value.result_reference, request.task)))
     throw new Error("pipeline_family_preparation_binding_invalid");
+  // A navigation intent completes without paid configuration: only its own phase and the
+  // reference naming exactly this request's record digests (navigationSceneIntake).
+  if (intentId && (value.phase === NAVIGATION_PREPARED_PHASE || navigationPreparationReference.safeParse(value.result_reference).success
+      || isNavigationStrategy(request.task?.strategy) && value.status === "completed")
+    && (value.status !== "completed" || value.phase !== NAVIGATION_PREPARED_PHASE
+      || request.execution?.purpose !== "scene_preparation" || request.execution?.policy_candidates?.length !== 0
+      || !navigationPreparationMatchesTask(value.result_reference, request.task)))
+    throw new Error("pipeline_navigation_preparation_binding_invalid");
   if (
     !intentId &&
     (value.schema_version !== "task_evaluation_scene_intake_receipt.v1" ||

@@ -18,6 +18,7 @@ import { triageGateAnswers } from "../../client/src/lib/gateTriage";
 import type { TaskItemInventoryRecord } from "./taskItemInventory";
 import { assertWebsiteCaptureBindingInTransaction, resolveWebsiteCaptureBinding } from "./websiteCaptureBinding";
 import { isTaskFamilyStrategy, websiteFamilySourceBinding } from "./taskFamilySceneIntake";
+import { isNavigationStrategy, navigationIntakeTask } from "./navigationSceneIntake";
 import { websitePreparationAccounting } from "./websitePreparationAccounting";
 import { websiteCaptureInferenceAccounting } from "./websiteCaptureInferenceAccounting";
 import { assertWithinWebsiteJobCeiling, transactionJobLedgerReader, websiteJobCeiling, websiteJobCeilingSummary,
@@ -1141,6 +1142,18 @@ export function validateWebsiteSponsoredIntake(request: Record<string, any>, aut
     if (!preparationOnly || request.execution.policy_candidates?.length !== 0)
       throw new Error("website_scene_sponsorship_family_binding_invalid");
   }
+  // A navigation intake keeps its scene as filmed: preparation only, no policies, the
+  // same task, capture, owner, consent and rights binding as any other intake below,
+  // and only for a brief the site confirmed (the consent is the sponsorship's own, so
+  // its task_confirmed is the website's reading of the brief, never the caller's).
+  const navigation = isNavigationStrategy(request.task?.strategy);
+  if (navigation) {
+    if (!navigationIntakeTask.safeParse(request.task).success || !preparationOnly
+      || request.execution.policy_candidates?.length !== 0)
+      throw new Error("website_scene_sponsorship_navigation_binding_invalid");
+    if (request.consent?.task_confirmed !== true || authority.consent?.task_confirmed !== true)
+      throw new Error("website_task_context_not_confirmed");
+  }
   // An unconfirmed task binds only a Blueprint preparation grant's own scope.
   if (authority.purpose === "scene_preparation" && !preparationOnly
     || request.consent?.task_confirmed !== true && !(preparationOnly && authority.purpose === "scene_preparation"
@@ -1170,7 +1183,7 @@ export function validateWebsiteSponsoredIntake(request: Record<string, any>, aut
     || !/^sha256:[0-9a-f]{64}$/.test(request.source?.content_digest || "")
     || request.source.binding_id !== `${prefix}${request.source.content_digest.slice(7, 39)}`
     || request.task?.task_id !== `website-${authority.task_context_digest.slice(7, 27)}${development ? "-development" : ""}`
-    || !family && !WEBSITE_SUBJECT_ORIGINS.has(request.task?.subject?.geometry_origin)
+    || !family && !navigation && !WEBSITE_SUBJECT_ORIGINS.has(request.task?.subject?.geometry_origin)
     || request.execution?.max_total_spend_usd !== authority.max_total_spend_usd
     || request.execution?.max_paid_attempts !== authority.max_paid_attempts
     || request.execution?.expires_at_epoch !== authority.expires_at_epoch

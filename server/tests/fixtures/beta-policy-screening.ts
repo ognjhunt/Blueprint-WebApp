@@ -91,6 +91,28 @@ export function familyScreeningFixture() {
     pipeline_status: { ...status, status_digest: crossRuntimeArtifactDigest(status, "status_digest") } } };
 }
 
+/** A navigation job's completed website intake: a scene kept as filmed, named by its record's digests. */
+export function navigationScreeningFixture() {
+  const fixture = screeningFixture();
+  const task = { task_id: fixture.intake.request.task.task_id, strategy: "goal_region_navigation",
+    geometry_origin: "kept_as_filmed", navigation_task_spec_digest: screeningSha("1"),
+    compiled_task_spec_digest: screeningSha("2"), task_success_contract_digest: screeningSha("3"),
+    runtime_contract_digest: screeningSha("4"), scene_revision_digest: fixture.publication.source.scene_revision_digest };
+  const reference = { schema_version: "website_navigation_preparation_result.v1", digest: task.scene_revision_digest,
+    task_kind: task.strategy, navigation_task_spec_digest: task.navigation_task_spec_digest,
+    compiled_task_spec_digest: task.compiled_task_spec_digest, task_success_contract_digest: task.task_success_contract_digest,
+    runtime_contract_digest: task.runtime_contract_digest, native_application_claimed: false, policy_episode_claimed: false,
+    paid_construction_performed: false };
+  const request = { ...fixture.intake.request, task, execution: { purpose: "scene_preparation", policy_candidates: [] } };
+  const requestDigest = crossRuntimeDigest(request);
+  const receipt = { ...fixture.intake.receipt, request_digest: requestDigest };
+  const status = { ...fixture.intake.pipeline_status, phase: "navigation_scene_prepared", request_digest: requestDigest,
+    result_reference: reference };
+  return { ...fixture, intake: { ...fixture.intake, request, request_digest: requestDigest,
+    receipt: { ...receipt, receipt_digest: crossRuntimeArtifactDigest(receipt, "receipt_digest") },
+    pipeline_status: { ...status, status_digest: crossRuntimeArtifactDigest(status, "status_digest") } } };
+}
+
 /** Real Python coordinator rows, with development-only WebApp source lineage. */
 export function allCandidateFamilyScreeningFixture() {
   const fixture = familyScreeningFixture();
