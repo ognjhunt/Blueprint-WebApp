@@ -1151,8 +1151,10 @@ export function validateWebsiteSponsoredIntake(request: Record<string, any>, aut
     if (!navigationIntakeTask.safeParse(request.task).success || !preparationOnly
       || request.execution.policy_candidates?.length !== 0)
       throw new Error("website_scene_sponsorship_navigation_binding_invalid");
-    if (request.consent?.task_confirmed !== true || authority.consent?.task_confirmed !== true)
-      throw new Error("website_task_context_not_confirmed");
+    if (authority.consent?.task_confirmed !== true) throw new Error("website_task_context_not_confirmed");
+    // The site's brief is confirmed but the request still says otherwise: a stale request, not an
+    // unconfirmed brief.
+    if (request.consent?.task_confirmed !== true) throw new Error("website_scene_sponsorship_binding_invalid");
   }
   // An unconfirmed task binds only a Blueprint preparation grant's own scope.
   if (authority.purpose === "scene_preparation" && !preparationOnly

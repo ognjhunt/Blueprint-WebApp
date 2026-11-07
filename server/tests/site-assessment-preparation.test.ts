@@ -181,7 +181,7 @@ function prepOptions() {
   return {purpose:"scene_preparation" as const,expected_task_context_digest:projectWebsiteTaskContext(brief,
     projectWebsiteCaptureRights(record),{purpose:"scene_preparation",inventory:state.docs.get("siteTaskItemInventories/one") ?? undefined} as any).context_digest};
 }
-import { projectWebsiteTaskContext, projectWebsiteCaptureRights } from "../utils/websiteTaskContext";
+import { projectWebsiteTaskContext, projectWebsiteCaptureRights, confirmationParentContextDigests } from "../utils/websiteTaskContext";
 import { validateWebsiteSponsoredIntake, currentWebsitePreparationStatusContext, renewExpiredWebsiteSceneSponsorship,
   SPONSORSHIP_RENEWAL_ACK } from "../utils/websiteSceneSponsorship";
 import { crossRuntimeDigest } from "../utils/crossRuntimeCanonical";
@@ -455,6 +455,47 @@ function syntheticPreparedIntake(grant:any) {
     execution:{purpose:"scene_preparation",max_total_spend_usd:grant.max_total_spend_usd,max_paid_attempts:grant.max_paid_attempts,
       max_retries:0,expires_at_epoch:grant.expires_at_epoch,allowed_providers:["vast","openai"],policy_candidates:[],claim_scope:"development_only"},consent:grant.consent};
 }
+// Lead decision 2026-11-07: confirming a brief is consent state, not task content.
+it("a preparation grant follows the site's confirmation of the same brief, never an edit",async()=>{
+  seed(packet(),false,false,{},{taskFamily:"general_task"});
+  const grant=await loadWebsiteSceneSponsorship("one",true,"walkthrough-one",prepOptions());
+  expect(grant.consent.task_confirmed).toBe(false);
+  const parent=grant.task_context_digest;
+  const stored=structuredClone(state.docs.get("inboundRequests/one")?.website_scene_sponsorship);
+  const brief=state.docs.get("siteTaskBriefs/one") as any;
+  brief.confirmedAtIso="2026-11-07T14:30:45Z";
+  const record=state.docs.get("inboundRequests/one") as any;
+  // The unconfirmed projection with a null time (as this grant sealed it), or with none stored.
+  expect(confirmationParentContextDigests(brief,projectWebsiteCaptureRights(record),{purpose:"scene_preparation"}))
+    .toContain(parent);
+  const successor=prepOptions().expected_task_context_digest;
+  expect(successor).not.toBe(parent);
+  const current=await loadWebsiteSceneSponsorship("one",false,"walkthrough-one",prepOptions());
+  // The same allowance, clock and spend history, re-derived for the confirmed successor: the website's own reading.
+  expect(current).toMatchObject({task_context_digest:successor,consent:{task_confirmed:true},
+    max_total_spend_usd:grant.max_total_spend_usd,max_paid_attempts:grant.max_paid_attempts,
+    expires_at_epoch:grant.expires_at_epoch,owner:grant.owner});
+  expect(state.docs.get("inboundRequests/one")?.website_scene_sponsorship).toEqual(stored);
+  // A stale request still saying unconfirmed is a binding error, not an unconfirmed brief.
+  const content=`sha256:${"a".repeat(64)}`;
+  const navigation=(consent:any,taskContextDigest:string)=>({schema_version:"task_evaluation_scene_intake_request.v1",
+    submission_id:current.capture_id,owner:current.owner,consent,
+    source:{kind:"gaussian_splat",binding_id:`website-splat-${content.slice(7,39)}`,content_digest:content},
+    task:{task_id:`website-${taskContextDigest.slice(7,27)}`,strategy:"goal_region_navigation",geometry_origin:"kept_as_filmed",
+      navigation_task_spec_digest:`sha256:${"1".repeat(64)}`,compiled_task_spec_digest:`sha256:${"2".repeat(64)}`,
+      task_success_contract_digest:`sha256:${"3".repeat(64)}`,runtime_contract_digest:`sha256:${"4".repeat(64)}`,
+      scene_revision_digest:`sha256:${"5".repeat(64)}`},
+    execution:{purpose:"scene_preparation",max_total_spend_usd:current.max_total_spend_usd,max_paid_attempts:current.max_paid_attempts,
+      max_retries:0,expires_at_epoch:current.expires_at_epoch,allowed_providers:["vast","openai"],policy_candidates:[],claim_scope:"development_only"}});
+  expect(()=>validateWebsiteSponsoredIntake(navigation(grant.consent,parent),current)).toThrow("website_scene_sponsorship_binding_invalid");
+  expect(()=>validateWebsiteSponsoredIntake(navigation(current.consent,successor),current)).not.toThrow();
+  expect(()=>validateWebsiteSponsoredIntake(navigation(grant.consent,parent),grant)).toThrow("website_task_context_not_confirmed");
+  // An edit of the confirmed brief is another task: the grant stays bound to the one it was issued for.
+  brief.summary="Move every bin to the dock";
+  expect(confirmationParentContextDigests(brief,projectWebsiteCaptureRights(record),{purpose:"scene_preparation"})
+    .includes(parent)).toBe(false);
+  await expect(loadWebsiteSceneSponsorship("one",false,"walkthrough-one",prepOptions())).rejects.toThrow("website_scene_sponsorship_changed");
+});
 it("v2 false task consent stays rejected publicly and may only bind current signed preparation",async()=>{
   seed(packet(),false,false);const grant=await loadWebsiteSceneSponsorship("one",true,"walkthrough-one",prepOptions());
   const request=syntheticPreparedIntake(grant);
