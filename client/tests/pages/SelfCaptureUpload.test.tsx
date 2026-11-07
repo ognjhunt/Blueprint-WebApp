@@ -171,9 +171,20 @@ describe("video first owner return", () => {
     expect(await screen.findByRole("region", { name: "Preparation outcome" })).toHaveTextContent(outcome.scope);
     expect(screen.getByText(outcome.nextStep)).toBeVisible();
     expect(screen.getAllByText(outcome.nextStep)).toHaveLength(1);
-    expect(screen.getByText("Saved job brief")).toBeVisible();
+    // A confirmed brief is read-only while Blueprint's step is open; an
+    // unconfirmed one keeps its confirmation, since only the site can give it.
+    if (confirmedAtIso) {
+      expect(screen.getByText("Saved job brief")).toBeVisible();
+      expect(screen.queryByLabelText("Review your job brief")).not.toBeInTheDocument();
+    } else {
+      expect(screen.queryByText("Saved job brief")).not.toBeInTheDocument();
+      expect(screen.getByLabelText("Review your job brief")).toBeInTheDocument();
+      expect(screen.getByText("Review or correct job details (optional)")).toBeVisible();
+      expect(screen.getByRole("button", { name: "This is right — confirm it" })).toBeInTheDocument();
+    }
+    if (confirmedAtIso) expect(screen.queryByRole("button", { name: /confirm it/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "Confirm your job brief" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /confirm it|Retry processing/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Retry processing/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Edit your answers" })).not.toBeInTheDocument();
     expect(screen.queryByText("Review the saved brief.")).not.toBeInTheDocument();
     expect(screen.queryByText(/checking whether it covers|If another recording is needed/)).not.toBeInTheDocument();
