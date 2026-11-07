@@ -3,7 +3,7 @@ import { websitePreparationCaptureId } from "./websitePreparationRevision";
 import { z } from "zod";
 import { jobEvidenceSourceBindingSchema, jobEvidenceTaskInventoryDigest, scientificBriefDigest, scientificContext } from "./jobEvidenceContract";
 import { crossRuntimeArtifactDigest, crossRuntimeDigest } from "./crossRuntimeCanonical";
-import { projectWebsiteCaptureRights, projectWebsiteTaskContext } from "./websiteTaskContext";
+import { preparationGrantContextDigest, projectWebsiteCaptureRights, projectWebsiteTaskContext } from "./websiteTaskContext";
 import { preparationGrantFollowsBrief } from "./preparationGrantTask";
 import type { SiteTaskBriefRecord } from "./siteTaskBrief";
 import type { TaskItemInventoryRecord } from "./taskItemInventory";
@@ -69,6 +69,7 @@ export function managedJobTask(args: {
   const context = projectWebsiteTaskContext(brief as SiteTaskBriefRecord, rights, {
     inventory: args.inventory,
     ...(sponsorship.purpose ? { purpose: sponsorship.purpose } : {}),
+    preparationGrantContextDigest: preparationGrantContextDigest(record),
   });
   if (context.context_digest !== sponsorship.task_context_digest && !preparationGrantFollowsBrief(sponsorship,
     { brief: brief as SiteTaskBriefRecord, record, inventory: args.inventory })) throw new Error("job_scene_task_changed");
@@ -113,6 +114,7 @@ export function managedJobTask(args: {
         || captureBinding.original_capture_id !== `walkthrough-${binding.job_id}`) throw new Error("job_evaluation_source_changed");
       selectedContext = projectWebsiteTaskContext(brief as SiteTaskBriefRecord, rights, {
         inventory: args.inventory, captureId, captureBinding, ...(sponsorship.purpose ? { purpose: sponsorship.purpose } : {}),
+        preparationGrantContextDigest: preparationGrantContextDigest(record),
       });
       sourceFingerprint = crossRuntimeDigest({ schema_version: "job_managed_screening_continuation.v1", job_id: binding.job_id,
         parent_source_fingerprint: sourceFingerprint, capture_id: captureId, capture_binding_digest: crossRuntimeDigest(captureBinding),

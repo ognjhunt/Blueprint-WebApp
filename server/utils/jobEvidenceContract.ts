@@ -5,7 +5,7 @@ import { crossRuntimeArtifactDigest, crossRuntimeDigest } from "./crossRuntimeCa
 import { maintainedSiteTaskTestbedSchema, nativeDecisionEvidenceRequestSchema, parseVerifiedMaintainedSiteTaskTestbed } from "./siteTaskTestbedContract";
 import { nativeDecisionEnvelopeSchema, nativeEvidencePlanSchema, sensitivePaths } from "./taskEvaluationRunContract";
 import { verifyProducerArtifact } from "./producerCanonicalArtifact";
-import { projectWebsiteTaskContext, projectWebsiteCaptureRights } from "./websiteTaskContext";
+import { preparationGrantContextDigest, projectWebsiteTaskContext, projectWebsiteCaptureRights } from "./websiteTaskContext";
 import type { SiteTaskBriefRecord } from "./siteTaskBrief";
 import type { TaskItemInventoryRecord } from "./taskItemInventory";
 import type { JobEvidenceSummary } from "../../client/src/types/jobMarketplace";
@@ -93,7 +93,8 @@ export function scientificContext(session: Record<string, any> | null, binding?:
   let contextMatches = false;
   if (source.website_task_context_digest) {
     const context = projectWebsiteTaskContext(binding.brief as SiteTaskBriefRecord, projectWebsiteCaptureRights(binding.record), { inventory: binding.inventory,
-      ...(binding.record.website_scene_sponsorship?.purpose ? { purpose: binding.record.website_scene_sponsorship.purpose } : {}) });
+      ...(binding.record.website_scene_sponsorship?.purpose ? { purpose: binding.record.website_scene_sponsorship.purpose } : {}),
+      preparationGrantContextDigest: preparationGrantContextDigest(binding.record) });
     contextMatches = source.website_task_context_digest === context.context_digest;
   }
   if (!explicitBrief && !contextMatches) return null;

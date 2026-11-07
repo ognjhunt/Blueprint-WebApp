@@ -473,7 +473,9 @@ async function movesGrantedTask(transaction: FirebaseFirestore.Transaction, requ
   const inventory = inventorySnapshot.exists ? inventorySnapshot.data() as TaskItemInventoryRecord : null;
   const rights = projectWebsiteCaptureRights(record);
   const purpose = grant.purpose === "scene_preparation" ? "scene_preparation" as const : undefined;
-  const context = (value: SiteTaskBriefRecord) => projectWebsiteTaskContext(value, rights, { inventory, purpose }).context_digest;
+  const sealed = purpose ? grant.task_context_digest : undefined;
+  const context = (value: SiteTaskBriefRecord) => projectWebsiteTaskContext(value, rights, { inventory, purpose,
+    preparationGrantContextDigest: sealed }).context_digest;
   if (context(brief) === context(next)) return false;
   // preparationGrantTask imports this module; load it when it is needed.
   const { preparationGrantFollowsBrief } = await import("./preparationGrantTask");

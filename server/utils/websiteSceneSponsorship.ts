@@ -8,7 +8,7 @@ import { assertWebsiteRunOpen } from "./websiteRunClosure";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { TASK_BRIEFS_COLLECTION, isPlaceholderSummary, type SiteTaskBriefRecord } from "./siteTaskBrief";
 import { preparationGrantFollowsBrief, UNNAMED_TASK_GRANT_FIELD } from "./preparationGrantTask";
-import { projectWebsiteCaptureRights, projectWebsiteTaskContext, legacySuggestedTaskContextDigest, legacyRoutingTaskContextDigest } from "./websiteTaskContext";
+import { projectWebsiteCaptureRights, projectWebsiteTaskContext, legacySuggestedTaskContextDigest, legacyRoutingTaskContextDigest, preparationGrantContextDigest } from "./websiteTaskContext";
 import { crossRuntimeDigest as digest } from "./crossRuntimeCanonical";
 import { withTaskEvaluationLaunchStoreTimeout as storeTimeout } from "./taskEvaluationLaunchStore";
 import { sceneProviderTerms } from "./taskEvaluationSceneIntake";
@@ -33,7 +33,8 @@ function continuationAuthority(authority: Record<string, any>, input: {
   captureId?: string; captureBinding?: Record<string, any>;
 }) {
   const context = projectWebsiteTaskContext(input.brief, projectWebsiteCaptureRights(input.record), {
-    inventory: input.inventory, captureId: input.captureId, captureBinding: input.captureBinding, purpose: authority.purpose });
+    inventory: input.inventory, captureId: input.captureId, captureBinding: input.captureBinding, purpose: authority.purpose,
+    preparationGrantContextDigest: preparationGrantContextDigest(input.record) });
   if (authority.capture_id === context.capture_id && authority.task_context_digest === context.context_digest) return authority;
   const { authority_digest: parentDigest, assessment_preparation_proposal: _legacyProposal, ...retained } = authority;
   const value = { ...retained, capture_id: context.capture_id, task_context_digest: context.context_digest,
@@ -138,7 +139,7 @@ export function assertNoMultiStepTaskHold(input: { brief: SiteTaskBriefRecord; r
   if (!multiStepTaskHold(input.brief)) return;
   const purpose = "purpose" in input ? input.purpose : retainedWebsiteScenePurpose(input.record) ?? "scene_preparation";
   const context = projectWebsiteTaskContext(input.brief, projectWebsiteCaptureRights(input.record),
-    { inventory: input.inventory, purpose });
+    { inventory: input.inventory, purpose, preparationGrantContextDigest: preparationGrantContextDigest(input.record) });
   const retained = input.record.website_scene_sponsorship?.task_context_digest;
   if (!developmentTestSiteAuthorized(input.record, context.context_digest)
     && !(typeof retained === "string" && developmentTestSiteAuthorized(input.record, retained)))
@@ -168,9 +169,11 @@ export function websiteSceneSponsorship(input: {
   if (!rights.derived_scene_generation_allowed) throw new Error("source_revoked");
   if (input.purpose !== undefined && input.purpose !== "scene_preparation") throw new Error("website_scene_sponsorship_changed");
   const preparationOnly = input.purpose === "scene_preparation";
-  const context = projectWebsiteTaskContext(input.brief, rights, { inventory: input.inventory, purpose: input.purpose });
+  const sealed = preparationGrantContextDigest(input.record);
+  const context = projectWebsiteTaskContext(input.brief, rights, { inventory: input.inventory, purpose: input.purpose,
+    preparationGrantContextDigest: sealed });
   const current = projectWebsiteTaskContext(input.brief, rights, { inventory: input.inventory,
-    captureId: input.captureId, captureBinding: input.captureBinding, purpose: input.purpose });
+    captureId: input.captureId, captureBinding: input.captureBinding, purpose: input.purpose, preparationGrantContextDigest: sealed });
   if (input.expected_task_context_digest !== undefined && input.expected_task_context_digest !== current.context_digest
     || preparationOnly && !input.record.website_scene_sponsorship && input.expected_task_context_digest !== current.context_digest)
     throw new Error("website_task_context_changed");
@@ -296,7 +299,8 @@ export function currentWebsiteSceneContext(input: {
   assertWebsiteRunOpen(input.record, input.requestId, input.captureId);
   const purpose = retainedWebsiteScenePurpose(input.record);
   const context = projectWebsiteTaskContext(input.brief, projectWebsiteCaptureRights(input.record), {
-    inventory: input.inventory, captureId: input.captureId, captureBinding: input.captureBinding, purpose });
+    inventory: input.inventory, captureId: input.captureId, captureBinding: input.captureBinding, purpose,
+    preparationGrantContextDigest: preparationGrantContextDigest(input.record) });
   if (purpose === "scene_preparation") {
     const authority = websiteSceneSponsorship({ ...input, purpose, now: Date.now() / 1000 });
     if (authority.task_context_digest !== context.context_digest) throw new Error("website_task_context_changed");
@@ -311,13 +315,15 @@ export function currentWebsitePreparationStatusContext(input: {
 }) {
   const purpose = retainedWebsiteScenePurpose(input.record);
   const context = projectWebsiteTaskContext(input.brief, projectWebsiteCaptureRights(input.record), {
-    inventory: input.inventory, captureId: input.captureId, captureBinding: input.captureBinding, purpose });
+    inventory: input.inventory, captureId: input.captureId, captureBinding: input.captureBinding, purpose,
+    preparationGrantContextDigest: preparationGrantContextDigest(input.record) });
   if (purpose !== "scene_preparation") {
     if (!context.confirmed) throw new Error("website_task_context_not_confirmed");
     return context;
   }
   const retained = input.record.website_scene_sponsorship;
-  const baseContext = projectWebsiteTaskContext(input.brief, projectWebsiteCaptureRights(input.record), {inventory: input.inventory, purpose});
+  const baseContext = projectWebsiteTaskContext(input.brief, projectWebsiteCaptureRights(input.record), {inventory: input.inventory, purpose,
+    preparationGrantContextDigest: preparationGrantContextDigest(input.record)});
   const {authority_digest: retainedDigest, ...retainedPayload} = retained ?? {};
   if (retainedDigest !== digest(retainedPayload)) throw new Error("website_scene_sponsorship_binding_invalid");
   const sourceContinuation = input.captureBinding
@@ -376,7 +382,7 @@ export async function loadWebsiteSceneSponsorship(requestId: string, create = fa
       inventory: inventory.exists ? inventory.data() as TaskItemInventoryRecord : null,
       ...(executionWindowUntil === undefined ? {} : { executionWindowUntil }) };
     const current = projectWebsiteTaskContext(input.brief, projectWebsiteCaptureRights(record), {
-      inventory: input.inventory, captureId, captureBinding, purpose });
+      inventory: input.inventory, captureId, captureBinding, purpose, preparationGrantContextDigest: preparationGrantContextDigest(record) });
     if (options?.expected_task_context_digest !== undefined && options.expected_task_context_digest !== current.context_digest
       || purpose === "scene_preparation" && create && options?.expected_task_context_digest !== current.context_digest)
       throw new Error("website_task_context_changed");
@@ -384,7 +390,8 @@ export async function loadWebsiteSceneSponsorship(requestId: string, create = fa
     // original allowance. Only the returned continuation binds the child.
     const authority = websiteSceneSponsorship({...input, ...(purpose === "scene_preparation" ? { captureId, captureBinding } : {}), now: Date.now() / 1000,
       ...(options?.expected_task_context_digest !== undefined ? {expected_task_context_digest: purpose === "scene_preparation" ? current.context_digest
-        : projectWebsiteTaskContext(input.brief, projectWebsiteCaptureRights(record), {inventory: input.inventory, purpose}).context_digest} : {})});
+        : projectWebsiteTaskContext(input.brief, projectWebsiteCaptureRights(record), {inventory: input.inventory, purpose,
+          preparationGrantContextDigest: preparationGrantContextDigest(record)}).context_digest} : {})});
     // Before the grant is stored or returned: a job held for its several steps gets no spending authority.
     if (create) assertNoMultiStepTaskHold(input);
     if (!record.website_scene_sponsorship) transaction.update(ref, { website_scene_sponsorship: authority,
@@ -908,7 +915,8 @@ export async function observeWebsitePreparationSpend(requestId: string, input: z
         if (items && (items.requestId !== requestId || !Array.isArray(items.items)))
           throw new Error("website_task_item_inventory_invalid");
         const context = projectWebsiteTaskContext(brief.data() as SiteTaskBriefRecord, projectWebsiteCaptureRights(record), {
-          inventory: items, captureId, captureBinding, purpose: retainedWebsiteScenePurpose(record) });
+          inventory: items, captureId, captureBinding, purpose: retainedWebsiteScenePurpose(record),
+          preparationGrantContextDigest: preparationGrantContextDigest(record) });
         sourceKnown = context.context_digest === command.task_context_digest && (!command.source_video_digest || atlasMatches);
       }
     }
@@ -965,6 +973,7 @@ export async function reserveWebsitePreparationSpend(requestId: string, input: z
     const atlasContext = atlas ? projectWebsiteTaskContext(brief.data() as SiteTaskBriefRecord, rights, {
       inventory: inventory.exists ? inventory.data() as TaskItemInventoryRecord : null,
       purpose: retainedWebsiteScenePurpose(record), captureId, captureBinding,
+      preparationGrantContextDigest: preparationGrantContextDigest(record),
     }) : null;
     // The native/Marble grant stays spendable inside an owner-approved, time-only
     // window of its bound scene intent (operator door -> Pipeline -> signed notice,
@@ -1085,7 +1094,8 @@ export async function loadWebsiteAtlasConfiguration(requestId: string, captureId
       inventory: inventory.exists ? inventory.data() as TaskItemInventoryRecord : null });
     const context = projectWebsiteTaskContext(brief.data() as SiteTaskBriefRecord, rights, {
       inventory: inventory.exists ? inventory.data() as TaskItemInventoryRecord : null,
-      purpose: retainedWebsiteScenePurpose(record), captureId, captureBinding: binding });
+      purpose: retainedWebsiteScenePurpose(record), captureId, captureBinding: binding,
+      preparationGrantContextDigest: preparationGrantContextDigest(record) });
     if (context.context_digest !== input.task_context_digest) throw new Error("website_scene_sponsorship_binding_invalid");
     const { grant: authority, created } = await resolveWebsiteAtlasGrant({ requestId, captureId,
       taskContextDigest: context.context_digest, sourceVideoDigest: input.source_video_digest,

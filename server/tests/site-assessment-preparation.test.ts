@@ -496,6 +496,42 @@ it("a preparation grant follows the site's confirmation of the same brief, never
     .includes(parent)).toBe(false);
   await expect(loadWebsiteSceneSponsorship("one",false,"walkthrough-one",prepOptions())).rejects.toThrow("website_scene_sponsorship_changed");
 });
+// Lead decision 2026-11-07: a confirmation records consent and the site's answers to the screening gates.
+it("a brief confirmed by accepting our proposal names its sealed parent on the signed read, and its grant follows",async()=>{
+  seed(packet(),false,false,{},{taskFamily:"general_task",summary:"Walk down the aisle to its far end without touching the shelves.",
+    proposed:[{fieldId:"taskShape",value:"single",basis:"description",reading:"One walk, one goal."}],
+    unresolved:["sceneStability","objectVariety","deploymentTimeline","accessWindow"],
+    operatorAnswers:null,operatorUnknown:null,successCriteria:null});
+  const grant=await loadWebsiteSceneSponsorship("one",true,"walkthrough-one",prepOptions());
+  const sealed=grant.task_context_digest;
+  const app=express();app.use(express.json());app.use((await import("../routes/internal-capture-worlds")).default);
+  const server=createServer(app);await new Promise<void>(resolve=>server.listen(0,"127.0.0.1",resolve));
+  const read=async()=>(await fetch(`http://127.0.0.1:${(server.address() as any).port}/creator-captures/walkthrough-one/task-context`,
+    {method:"POST",headers:{"content-type":"application/json"},
+     body:JSON.stringify({request_id:"one",scene_id:"site-one",purpose:"scene_preparation"})})).json();
+  try {
+    expect((await read()).context_digest).toBe(sealed);
+    // The site's one click: our description-based proposal becomes its answer; it knows no success criteria.
+    const brief=state.docs.get("siteTaskBriefs/one") as any;
+    Object.assign(brief,{confirmedAtIso:"2026-11-07T14:30:45.016Z",confirmedBy:"owner",operatorAnswers:{taskShape:"single"},
+      operatorUnknown:[],successCriteria:{successDefinition:null,successRate:null,cycleTimeSeconds:null,unknown:true}});
+    const successor=await read();
+    expect(successor).toMatchObject({confirmed:true,operator_answers:{taskShape:"single"},unresolved:[],
+      success_criteria:{unknown:true},confirmation_parent_context_digest:sealed});
+    const current=await loadWebsiteSceneSponsorship("one",false,"walkthrough-one",
+      {purpose:"scene_preparation",expected_task_context_digest:successor.context_digest});
+    expect(current).toMatchObject({task_context_digest:successor.context_digest,consent:{task_confirmed:true},
+      max_total_spend_usd:grant.max_total_spend_usd,max_paid_attempts:grant.max_paid_attempts,expires_at_epoch:grant.expires_at_epoch});
+    expect(currentWebsitePreparationStatusContext({requestId:"one",captureId:"walkthrough-one",brief,
+      record:state.docs.get("inboundRequests/one") as any}).context_digest).toBe(successor.context_digest);
+    // A corrected answer is task content: the read names no parent and the grant stays with the task it was issued for.
+    brief.operatorAnswers={taskShape:"multiple"};
+    const corrected=await read();
+    expect(corrected).not.toHaveProperty("confirmation_parent_context_digest");
+    await expect(loadWebsiteSceneSponsorship("one",false,"walkthrough-one",
+      {purpose:"scene_preparation",expected_task_context_digest:corrected.context_digest})).rejects.toThrow("website_scene_sponsorship_changed");
+  } finally {await new Promise<void>(resolve=>server.close(()=>resolve()));}
+});
 it("v2 false task consent stays rejected publicly and may only bind current signed preparation",async()=>{
   seed(packet(),false,false);const grant=await loadWebsiteSceneSponsorship("one",true,"walkthrough-one",prepOptions());
   const request=syntheticPreparedIntake(grant);
