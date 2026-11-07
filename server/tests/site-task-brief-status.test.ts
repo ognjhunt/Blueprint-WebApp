@@ -779,6 +779,49 @@ describe("GET /api/site-task-brief/:token/status", () => {
     expect((await status()).body.claimUrl).toBeNull();
   });
 
+  it("links the owner, never a film link, to the Pipeline's scene preview in the vendored viewer", async () => {
+    vi.stubEnv("TASK_EVALUATION_RESULT_DOWNLOAD_SIGNING_SECRET", "fixture-ticket-secret");
+    const { crossRuntimeArtifactDigest } = await import("../utils/crossRuntimeCanonical");
+    const preview: Record<string, unknown> = { schema_version: "website_scene_preview.v1", capture_id: "cap-1",
+      scene_revision: `sha256:${"1".repeat(64)}`, state: "ready", source_kind: "atlas_base_scene", format: "ply_3dgs_sh0",
+      coordinate_frame: "right_up_back_y_up", digest: `sha256:${"2".repeat(64)}`, size_bytes: 1024, gaussian_count: 10,
+      source_gaussian_count: 2_000_000, start_view: null, claim_ceiling: "development_only", updated_at_epoch: 1_794_000_000 };
+    preview.preview_digest = crossRuntimeArtifactDigest(preview, "preview_digest");
+    const request = sharedFakeFirestoreState.docs.get("inboundRequests/req-1") as Record<string, unknown>;
+    sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { ...request, request: { ...(request.request as Record<string, unknown>),
+      consent_attestation: { granted: true, statement_version: RECORDING_CONSENT_VERSION, recorded_at_iso: "2026-09-18T00:00:00.000Z" } } });
+    const before = (await status()).body;
+    expect(before.sceneViewUrl).toBeNull();
+    sharedFakeFirestoreState.docs.set("captureUploadSessions/cap-1", { scene_preview: preview });
+
+    const { body } = await status();
+    const link = new URL(body.sceneViewUrl);
+    expect(`${link.origin}${link.pathname}`).toBe("https://tryblueprint.io/splat-viewer/index.html");
+    const content = link.searchParams.get("content")!;
+    expect(content).toMatch(/^\/api\/website-atlas-preview-views\/req-1\/cap-1\/scene\.ply\?source=scene&expires=\d+&signature=[a-f0-9]{64}$/);
+    // A way to look, not a status: the job reads exactly as it did without the preview.
+    expect(body.status).toEqual(before.status);
+
+    const filmToken = createCaptureUploadToken({ requestId: "req-1", captureId: "cap-1", sceneId: "scene-1", scope: "film" });
+    expect((await (await fetch(`${baseUrl}/api/site-task-brief/${filmToken}/status`)).json()).sceneViewUrl).toBeNull();
+
+    // Preferred over an older world link, which is still shown when no preview exists.
+    sharedFakeFirestoreState.docs.set("captureUploadSessions/cap-1", { scene_preview: preview,
+      world_reconstruction: { state: "ready", assets: { launchUrl: "https://viewer.example/world-1" } } });
+    expect((await status()).body.sceneViewUrl).toContain("/splat-viewer/index.html?content=");
+
+    // An entry that does not verify, an unsigned link, or rights that no longer stand show nothing.
+    sharedFakeFirestoreState.docs.set("captureUploadSessions/cap-1", { scene_preview: { ...preview, gaussian_count: 11 } });
+    expect((await status()).body.sceneViewUrl).toBeNull();
+    sharedFakeFirestoreState.docs.set("captureUploadSessions/cap-1", { scene_preview: preview });
+    vi.stubEnv("TASK_EVALUATION_RESULT_DOWNLOAD_SIGNING_SECRET", "");
+    expect((await status()).body.sceneViewUrl).toBeNull();
+    vi.stubEnv("TASK_EVALUATION_RESULT_DOWNLOAD_SIGNING_SECRET", "fixture-ticket-secret");
+    const granted = sharedFakeFirestoreState.docs.get("inboundRequests/req-1") as Record<string, unknown>;
+    sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { ...granted, consent_revoked: true });
+    expect((await status()).body.sceneViewUrl).toBeNull();
+  });
+
   it("does not advertise ongoing preparation after a persisted reconstruction failure", async () => {
     sharedFakeFirestoreState.docs.set("captureUploadSessions/cap-1", {
       world_reconstruction: { state: "failed", blocker: "provider_failed",

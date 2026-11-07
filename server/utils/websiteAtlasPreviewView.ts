@@ -258,7 +258,7 @@ export function plyViewerOrientationStream() {
 }
 
 /** The package's defaultSettings() (see client/public/splat-viewer/README.md). */
-const DEFAULT_VIEWER_SETTINGS = { version: 2, tonemapping: "linear", highPrecisionRendering: false, background: { color: [0, 0, 0] },
+export const DEFAULT_VIEWER_SETTINGS = { version: 2, tonemapping: "linear", highPrecisionRendering: false, background: { color: [0, 0, 0] },
   postEffectSettings: { sharpness: { enabled: false, amount: 0 }, bloom: { enabled: false, intensity: 0.1, blurLevel: 2 },
     grading: { enabled: false, brightness: 1, contrast: 1, saturation: 1, tint: [1, 1, 1] },
     vignette: { enabled: false, intensity: 0.5, inner: 0.3, outer: 0.75, curvature: 1 }, fringing: { enabled: false, intensity: 0.5 } },

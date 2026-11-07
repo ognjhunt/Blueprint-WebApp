@@ -6,6 +6,7 @@ import { canonicalArtifactDigest } from "./taskCandidateContract";
 import { signedCaptureLifecycleRequest } from "./captureLifecycleForwarding";
 import { logger } from "../logger";
 import { forgetPracticeRunVideos } from "./screeningPracticeRunVideos";
+import { forgetWebsiteScenePreviews } from "./websiteScenePreview";
 
 /** The explicit confirmation the signed owner link must send to withdraw. */
 export const OWNER_WITHDRAWAL_CONFIRMATION = "withdraw_recording_permission" as const;
@@ -106,8 +107,10 @@ export async function recordWebsiteCaptureWithdrawal(params: {
     }, { merge: true });
     return { withdrawal, created: true };
   });
-  // Cached practice-run videos of this job go at once on this instance; never a reason the withdrawal fails.
+  // Cached practice-run videos and scene previews of this job go at once on this instance; never a
+  // reason the withdrawal fails. The stored scene preview reference goes with the deletion worker's pass.
   await forgetPracticeRunVideos(params.requestId).catch(() => undefined);
+  await forgetWebsiteScenePreviews(params.requestId).catch(() => undefined);
   return recorded;
 }
 
