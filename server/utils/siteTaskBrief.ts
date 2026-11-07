@@ -56,6 +56,7 @@ import {
 } from "../../client/src/lib/siteTaskReadiness";
 import type { GateAnswerSources } from "../../client/src/lib/gateProvenance";
 import type { SitePilotIntent } from "../../client/src/data/sitePilotIntent";
+import { TASK_CONFIRMATION_VERSION } from "../../client/src/lib/taskConfirmationStatement";
 import { gateAnswersOnFile } from "./gateAnswersOnFile";
 import { screenTaskScope, taskScopeRecord, type SiteTaskScope } from "./siteTaskScope";
 import { projectWebsiteCaptureRights, projectWebsiteTaskContext } from "./websiteTaskContext";
@@ -98,6 +99,11 @@ export interface ProposedGateAnswer {
   sourceQuote?: string;
 }
 
+/** What the site says counts as a successful cycle. */
+export type SiteTaskSuccessCriteria = {
+  successDefinition: string | null; successRate: number | null; cycleTimeSeconds: number | null; unknown: boolean;
+};
+
 export interface SiteTaskBriefRecord {
   requestId: string;
   /** One line: what we think the job is. */
@@ -127,8 +133,17 @@ export interface SiteTaskBriefRecord {
   operatorUnknown: string[] | null;
   /** Optional item details the owner supplied after uploading. */
   operatorTaskDetails?: { item_weight?: string; item_make_model?: string } | null;
-  successCriteria?: { successDefinition: string | null; successRate: number | null; cycleTimeSeconds: number | null; unknown: boolean } | null;
+  successCriteria?: SiteTaskSuccessCriteria | null;
   pilotIntent?: SitePilotIntent | null;
+  /**
+   * The consent the site gave when it submitted this task: the statement it
+   * ticked and when (owner decision 2026-11-07, "Confirm at upload"). Present
+   * only on briefs confirmed at submission; it stays as the record of that act
+   * after a later edit or confirmation. Older briefs never carry it.
+   */
+  submissionConsent?: { statementVersion: string; recordedAtIso: string };
+  /** The last change to the task made without a confirmation in the same act. */
+  lastTaskEdit?: { atIso: string; by: string; clearedConfirmedAtIso: string | null };
 }
 
 function nowIso() {
@@ -199,6 +214,142 @@ export function draftBrief(params: {
     operatorUnknown: null,
     successCriteria: null,
   };
+}
+
+/**
+ * The brief a site confirms by submitting it (owner decision 2026-11-07,
+ * "Confirm at upload").
+ *
+ * Consent means the customer agreed to this exact task, and it is captured once:
+ * the description they typed, the success criteria they gave (if any) and the
+ * one box they ticked. Their words are the summary, the submission time is the
+ * confirmation time, and the submitter is the identity the intake route binds to
+ * the job. Nothing here is inferred, and nothing confirms without the box.
+ *
+ * Returns null when there is no consent to record: the box was not ticked (or
+ * not on the current statement), there is no description to consent to, or
+ * there is no submitter. That submission keeps the draft-then-confirm flow, so
+ * its brief still needs the site's own click.
+ */
+export function briefConfirmedAtSubmission(params: {
+  requestId: string;
+  /** The task in the site's own words. */
+  summary: string;
+  captureMode?: string | null;
+  /** The box, exactly as the client reported it. */
+  consent: unknown;
+  /** Gate answers the site stated on the form. */
+  statedAnswers: Record<string, string>;
+  successCriteria: SiteTaskSuccessCriteria | null;
+  /** The submitter, as the intake route identifies it. Never a made-up value. */
+  confirmedBy: string;
+  submittedAtIso: string;
+}): SiteTaskBriefRecord | null {
+  const consent = params.consent as { granted?: unknown; statementVersion?: unknown } | null | undefined;
+  if (!consent || typeof consent !== "object" || consent.granted !== true
+    || consent.statementVersion !== TASK_CONFIRMATION_VERSION) return null;
+  const summary = params.summary.trim();
+  if (isPlaceholderSummary(summary) || !params.confirmedBy.trim()
+    || !Number.isFinite(Date.parse(params.submittedAtIso))) return null;
+  const answers = Object.fromEntries(Object.entries(params.statedAnswers)
+    .filter(([fieldId, value]) => Boolean(value) && gateFields.some((field) => field.id === fieldId)));
+  const draft = draftBrief({
+    requestId: params.requestId,
+    summary,
+    captureMode: params.captureMode,
+    proposed: Object.entries(answers).map(([fieldId, value]) => ({
+      fieldId, value, basis: "description" as const, reading: "From what you told us at intake.",
+    })),
+  });
+  return {
+    ...draft,
+    taskFamily: screenTaskScope({ summary, successDefinition: params.successCriteria?.successDefinition }).kind ?? "general_task",
+    draftedAtIso: params.submittedAtIso,
+    confirmedAtIso: params.submittedAtIso,
+    confirmedBy: params.confirmedBy,
+    operatorAnswers: answers,
+    operatorUnknown: [],
+    successCriteria: params.successCriteria,
+    unresolved: draft.unresolved.filter((fieldId) => !answers[fieldId]),
+    submissionConsent: { statementVersion: TASK_CONFIRMATION_VERSION, recordedAtIso: params.submittedAtIso },
+  };
+}
+
+/**
+ * What a confirmed brief writes onto its job, from one place.
+ *
+ * Both confirmations call this: the site's click on the review (`confirmBrief`)
+ * and the site's submission itself (owner decision 2026-11-07, "Confirm at
+ * upload"), so the two cannot drift. It writes the gate answers as the site's
+ * own, screens them with the same deterministic scorer, records the task scope
+ * and mirrors the confirmation and any success terms onto the job.
+ *
+ * Under the 2026-11-07 rule (a brief that carries `submissionConsent`), a gate
+ * the site left unanswered or said it does not know is a disclosed unknown,
+ * recorded as `disclosed_unknown_field_ids` and carried with the job, never a
+ * stop: only privacy, rights and money stop a job. A stated answer that blocks
+ * (`not_now`) or needs settling (`needs_conversation`) still does. An older
+ * brief is screened exactly as before and records no disclosed unknowns.
+ */
+export function projectConfirmationOntoJob(params: {
+  /** The brief as confirmed. */
+  brief: Pick<SiteTaskBriefRecord, "summary" | "captureMode" | "successCriteria" | "submissionConsent">;
+  /** Every gate answer on file, now the site's own. */
+  answers: Record<string, string>;
+  /** The value stored as `site_task_brief_confirmed_at`. */
+  confirmedAt: unknown;
+  atIso: string;
+  /** Terms the site supplied in this act, mirrored where the workspace reads them. */
+  workspace?: { successCriteria?: SiteTaskSuccessCriteria | null; pilotIntent?: SitePilotIntent | null };
+}) {
+  const verdict = triageGateAnswers(params.answers, undefined, params.brief.captureMode);
+  const disclose = Boolean(params.brief.submissionConsent);
+  const disclosedUnknown = disclose ? [...verdict.unanswered] : [];
+  const disposition: "qualified" | "needs_conversation" | "not_now" = verdict.blockers.length ? "not_now"
+    : verdict.openQuestions.length || (verdict.incomplete && !disclose) ? "needs_conversation" : "qualified";
+  const sources: Record<string, "operator_stated"> = Object.fromEntries(
+    Object.keys(params.answers).map((fieldId) => [fieldId, "operator_stated" as const]));
+  // The kind of job, screened against what the simulation can score. A display
+  // and demand hint, separate from the gate verdict.
+  const scope = taskScopeRecord(screenTaskScope({
+    summary: params.brief.summary,
+    successDefinition: params.brief.successCriteria?.successDefinition ?? null,
+  }), params.atIso);
+  const success = params.workspace?.successCriteria ?? null;
+  const pilotIntent = params.workspace?.pilotIntent ?? null;
+  const jobFields: Record<string, unknown> = {
+    siteTaskGates: params.answers,
+    site_task_gate_sources: sources,
+    site_task_triage: {
+      disposition,
+      blocking_field_ids: verdict.blockers.map((blocker) => blocker.fieldId),
+      blockers: verdict.blockers.map((blocker) => `${blocker.answer} — ${blocker.detail}`),
+      open_questions: verdict.openQuestions.map((question) => `${question.answer} — ${question.detail}`),
+      open_question_field_ids: verdict.openQuestions.map((question) => question.fieldId),
+      unanswered_field_ids: verdict.unanswered,
+      incomplete: verdict.incomplete,
+      evaluated_at: params.atIso,
+      ...(disclose ? { disclosed_unknown_field_ids: disclosedUnknown } : {}),
+    },
+    site_task_brief_confirmed_at: params.confirmedAt,
+    site_task_scope: scope,
+    ...(success || pilotIntent ? {
+      workspace_task: {
+        ...(success ? { terms: {
+          successDefinition: success.successDefinition ?? "",
+          successRate: success.successRate,
+          cycleTimeSeconds: success.cycleTimeSeconds,
+        } } : {}),
+        ...(pilotIntent ? { pilotIntent } : {}),
+      },
+    } : {}),
+  };
+  return { disposition, verdict, disclosedUnknown, sources, scope, jobFields };
+}
+
+/** Whether the brief's current confirmation is the one the site gave on submitting it. */
+export function confirmedAtSubmission(brief: Pick<SiteTaskBriefRecord, "confirmedAtIso" | "submissionConsent">): boolean {
+  return Boolean(brief.confirmedAtIso && brief.submissionConsent?.recordedAtIso === brief.confirmedAtIso);
 }
 
 export async function saveBrief(brief: SiteTaskBriefRecord): Promise<void> {
@@ -407,6 +558,59 @@ export async function mergeBriefProposals(params: {
   return merged;
 }
 
+/**
+ * Change the task itself (its summary or success criteria) without a
+ * confirmation in the same act.
+ *
+ * Owner decision 2026-11-07: consent is to this exact task, so a change to it,
+ * by the site or by an operator, clears the confirmation until the site
+ * confirms again (`confirmBrief`, its one click). A change that leaves the task
+ * as it was keeps the confirmation. This never confirms anything. Inferences
+ * (gate readings, footage observations, task kind) do not come through here:
+ * they are disclosed proposals and never un-confirm a brief.
+ *
+ * Returns null when there is no brief.
+ */
+export async function reviseBriefTask(params: {
+  requestId: string;
+  summary?: string;
+  successCriteria?: SiteTaskSuccessCriteria;
+  /** Who made the change. Recorded, never treated as a confirmation. */
+  revisedBy: string;
+}): Promise<{ brief: SiteTaskBriefRecord; reconfirmationRequired: boolean } | null> {
+  if (!db) return null;
+  const store = db;
+  const briefRef = store.collection(TASK_BRIEFS_COLLECTION).doc(params.requestId);
+  const requestRef = store.collection("inboundRequests").doc(params.requestId);
+  return store.runTransaction(async (transaction) => {
+    const [snapshot, requestSnapshot] = await Promise.all([transaction.get(briefRef), transaction.get(requestRef)]);
+    if (!snapshot.exists) return null;
+    const brief = snapshot.data() as SiteTaskBriefRecord;
+    const summary = params.summary?.trim() ? params.summary.trim().slice(0, 2000) : brief.summary;
+    const successCriteria = params.successCriteria ?? brief.successCriteria ?? null;
+    const task = (value: { summary: string; successCriteria?: SiteTaskSuccessCriteria | null }) =>
+      humanDecisionDigest({ summary: value.summary, success: value.successCriteria ?? null });
+    if (task({ summary, successCriteria }) === task(brief)) return { brief, reconfirmationRequired: false };
+    const atIso = nowIso();
+    const next: SiteTaskBriefRecord = {
+      ...brief,
+      summary,
+      successCriteria,
+      taskFamily: screenTaskScope({ summary, successDefinition: successCriteria?.successDefinition }).kind ?? "general_task",
+      confirmedAtIso: null,
+      confirmedBy: null,
+      lastTaskEdit: { atIso, by: params.revisedBy, clearedConfirmedAtIso: brief.confirmedAtIso ?? null },
+    };
+    transaction.set(briefRef, next);
+    if (requestSnapshot.exists && requestSnapshot.data()?.site_task_brief_confirmed_at) {
+      transaction.set(requestRef, { site_task_brief_confirmed_at: admin.firestore.FieldValue.delete() }, { merge: true });
+    }
+    logger.info({ requestId: params.requestId, revisedBy: params.revisedBy, wasConfirmed: Boolean(brief.confirmedAtIso) },
+      "Site task changed; it needs the site's confirmation again");
+    return { brief: next, reconfirmationRequired: Boolean(brief.confirmedAtIso) };
+  });
+}
+
 export interface ConfirmationResult {
   brief: SiteTaskBriefRecord;
   /** No new attestation or work was created for this already-confirmed scope. */
@@ -494,15 +698,6 @@ export async function confirmBrief(params: {
     answers[fieldId] = value;
   }
 
-  // Everything on file is now something the operator stated, either by
-  // accepting our reading of their own evidence or by correcting it.
-  const sources: Record<string, "operator_stated"> = {};
-  for (const fieldId of Object.keys(answers)) {
-    sources[fieldId] = "operator_stated";
-  }
-
-  const verdict = triageGateAnswers(answers, undefined, brief.captureMode);
-
   const confirmed: SiteTaskBriefRecord = {
     ...brief,
     summary,
@@ -516,13 +711,17 @@ export async function confirmBrief(params: {
     unresolved: brief.unresolved.filter((fieldId) => !answers[fieldId]),
   };
 
-  // The kind of job, screened against what the simulation can score. Separate
-  // from the gate verdict: a qualified site can still have a job we cannot
-  // score, and that job is not opened to robot teams (`teamJobAccess`).
-  const scope = taskScopeRecord(screenTaskScope({
-    summary: confirmed.summary,
-    successDefinition: confirmed.successCriteria?.successDefinition ?? null,
-  }), nowIso());
+  // Everything on file is now something the operator stated, either by
+  // accepting our reading of their own evidence or by correcting it. The same
+  // projection records a confirmation given at submission (2026-11-07).
+  const projection = projectConfirmationOntoJob({
+    brief: confirmed,
+    answers,
+    confirmedAt: admin.firestore.FieldValue.serverTimestamp(),
+    atIso: nowIso(),
+    workspace: { successCriteria: params.successCriteria, pilotIntent: params.pilotIntent },
+  });
+  const { sources, scope } = projection;
 
   confirmed.taskFamily = scope.kind ?? "general_task";
 
@@ -584,40 +783,13 @@ export async function confirmBrief(params: {
       tx.set(requestRef,
         {
           ...(requestSnapshot.data()?.capture_coverage_request ? { capture_coverage_pending: true } : {}),
-          siteTaskGates: answers,
-          site_task_gate_sources: sources,
-          site_task_triage: {
-            disposition: verdict.disposition,
-            blocking_field_ids: verdict.blockers.map((blocker) => blocker.fieldId),
-            blockers: verdict.blockers.map(
-              (blocker) => `${blocker.answer} — ${blocker.detail}`,
-            ),
-            open_questions: verdict.openQuestions.map(
-              (question) => `${question.answer} — ${question.detail}`,
-            ),
-            open_question_field_ids: verdict.openQuestions.map((question) => question.fieldId),
-            unanswered_field_ids: verdict.unanswered,
-            incomplete: verdict.incomplete,
-            evaluated_at: nowIso(),
-          },
-          site_task_brief_confirmed_at: admin.firestore.FieldValue.serverTimestamp(),
-          site_task_scope: scope,
+          ...projection.jobFields,
           ...(materialChange && requestSnapshot.data()?.public_task_listing
             && ["cycleTarget", "pilotConditions", "targeting"].some(field => Boolean(requestSnapshot.data()!.public_task_listing.details?.[field])) ? {
             public_task_listing: { ...requestSnapshot.data()!.public_task_listing, enabled: false, reviewRequired: true },
           } : {}),
           ...(materialChange && requestSnapshot.data()?.pilot_recommendation ? {
             pilot_recommendation: { ...requestSnapshot.data()!.pilot_recommendation, reviewRequired: true },
-          } : {}),
-          ...(params.successCriteria || params.pilotIntent ? {
-            workspace_task: {
-              ...(params.successCriteria ? { terms: {
-                successDefinition: params.successCriteria.successDefinition ?? "",
-                successRate: params.successCriteria.successRate,
-                cycleTimeSeconds: params.successCriteria.cycleTimeSeconds,
-              } } : {}),
-              ...(params.pilotIntent ? { pilotIntent: params.pilotIntent } : {}),
-            },
           } : {}),
         },
         { merge: true },
@@ -633,12 +805,13 @@ export async function confirmBrief(params: {
     briefConfirmed: true,
     evidence,
     reconstructed: false,
+    disclosedUnknown: projection.disclosedUnknown,
   });
 
   logger.info(
     {
       requestId: params.requestId,
-      disposition: verdict.disposition,
+      disposition: projection.disposition,
       answered: Object.keys(answers).length,
       unknown: [...unknown],
       stage: readiness.stage,
@@ -652,7 +825,7 @@ export async function confirmBrief(params: {
     reusedConfirmation: reuseConfirmation,
     answers,
     sources,
-    disposition: verdict.disposition,
+    disposition: projection.disposition,
     readiness,
     scope,
   };
@@ -730,9 +903,11 @@ export async function recordSiteTaskCallOutcome(params: {
     );
   }
   const openQuestions = verdict.openQuestions.filter((question) => !cleared.has(question.fieldId));
+  // A job confirmed at submission (2026-11-07) carries its open gates as disclosed unknowns.
+  const disclose = Array.isArray(record.site_task_triage?.disclosed_unknown_field_ids);
   const disposition = verdict.blockers.length
     ? "not_now"
-    : openQuestions.length || verdict.unanswered.length
+    : openQuestions.length || (verdict.unanswered.length && !disclose)
       ? "needs_conversation"
       : "qualified";
 
@@ -766,6 +941,7 @@ export async function recordSiteTaskCallOutcome(params: {
         unanswered_field_ids: verdict.unanswered,
         incomplete: verdict.incomplete,
         evaluated_at: nowIso(),
+        ...(disclose ? { disclosed_unknown_field_ids: verdict.unanswered } : {}),
         call_resolution: {
           channel: params.clarificationId ? "written_clarification" : "call",
           clarification_id: params.clarificationId || null,
@@ -841,9 +1017,11 @@ export async function switchSiteToSelfCapture(requestId: string): Promise<SelfCa
     const priorCall = record.site_task_triage?.call_resolution;
     const cleared = new Set<string>(priorCall?.cleared_field_ids ?? []);
     const openQuestions = verdict.openQuestions.filter((question) => !cleared.has(question.fieldId));
+    // A job confirmed at submission (2026-11-07) carries its open gates as disclosed unknowns.
+    const disclose = Array.isArray(record.site_task_triage?.disclosed_unknown_field_ids);
     const disposition = verdict.blockers.length
       ? "not_now"
-      : openQuestions.length || verdict.unanswered.length
+      : openQuestions.length || (verdict.unanswered.length && !disclose)
         ? "needs_conversation"
         : "qualified";
     const at = nowIso();
@@ -862,6 +1040,7 @@ export async function switchSiteToSelfCapture(requestId: string): Promise<SelfCa
           unanswered_field_ids: verdict.unanswered,
           incomplete: verdict.incomplete,
           evaluated_at: at,
+          ...(disclose ? { disclosed_unknown_field_ids: verdict.unanswered } : {}),
           ...(priorCall ? { call_resolution: priorCall } : {}),
         },
       },

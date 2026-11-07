@@ -21,7 +21,8 @@ import {
   isCaptureRegion,
   type CaptureRegion,
 } from "../../client/src/data/captureResidency";
-import { PLACEHOLDER_TASK_SUMMARY, draftBrief, saveBrief } from "../utils/siteTaskBrief";
+import { PLACEHOLDER_TASK_SUMMARY, TASK_BRIEFS_COLLECTION, briefConfirmedAtSubmission, draftBrief,
+  projectConfirmationOntoJob, saveBrief, type SiteTaskSuccessCriteria } from "../utils/siteTaskBrief";
 import { deliverIntakeOpsNoticeAtIntake, initialIntakeOpsNotice } from "../utils/intakeOpsNotice";
 import { admitInboundQualificationRun } from "../utils/inboundQualificationGate";
 import { logger } from "../logger";
@@ -160,6 +161,30 @@ function normalizeGateAnswerSources(input: unknown): GateAnswerSources {
     out[key.slice(0, 60)] = "inferred";
   }
   return out;
+}
+
+/**
+ * The success criteria a site typed with its task, if any. Its own words only:
+ * a blank form is "not said", never "unknown", and nothing is filled in for it.
+ */
+function normalizeSuccessCriteria(input: unknown): SiteTaskSuccessCriteria | null {
+  if (!input || typeof input !== "object" || Array.isArray(input)) return null;
+  const value = input as Record<string, unknown>;
+  const successDefinition = typeof value.successDefinition === "string"
+    ? value.successDefinition.trim().slice(0, 1000) || null : null;
+  const number = (raw: unknown, valid: (n: number) => boolean) =>
+    typeof raw === "number" && Number.isFinite(raw) && valid(raw) ? raw : null;
+  const successRate = number(value.successRate, (n) => n >= 0 && n <= 100);
+  const cycleTimeSeconds = number(value.cycleTimeSeconds, (n) => n > 0 && n <= 86400);
+  if (!successDefinition && successRate === null && cycleTimeSeconds === null) return null;
+  return { successDefinition, successRate, cycleTimeSeconds, unknown: false };
+}
+
+/** Fold confirmed terms into the workspace task a create is writing, keeping its other fields, as a merge write would. */
+function mergeWorkspaceTask(existing: Record<string, unknown> | undefined, confirmed: Record<string, unknown>) {
+  const terms = (value: unknown) => (value && typeof value === "object" ? value as Record<string, unknown> : undefined);
+  const mergedTerms = terms(confirmed.terms) ? { ...terms(existing?.terms), ...terms(confirmed.terms) } : terms(existing?.terms);
+  return { ...existing, ...confirmed, ...(mergedTerms ? { terms: mergedTerms } : {}) };
 }
 
 function normalizeGateAnswers(input: unknown): Record<string, string> {
@@ -1712,6 +1737,9 @@ export async function submitInboundRequest(req: Request, res: Response) {
 
     // 7. Build the document
     const now = admin.firestore.FieldValue.serverTimestamp();
+    const submittedAtIso = new Date().toISOString();
+    const ownerBinding = buyerType === "site_operator"
+      ? newWebsiteCaptureOwnerBinding(payload.requestId, res.locals.workspaceIntake?.account_owner_uid, submittedAtIso) : null;
     const reviewToken = createRequestReviewToken(payload.requestId);
     const reviewUrl = buyerReviewUrl(payload.requestId, reviewToken);
     const inboundRequest: Omit<InboundRequest, "createdAt"> & {
@@ -1719,8 +1747,7 @@ export async function submitInboundRequest(req: Request, res: Response) {
     } = {
       requestId: payload.requestId,
       ...(res.locals.workspaceIntake || {}),
-      ...(buyerType === "site_operator" ? newWebsiteCaptureOwnerBinding(payload.requestId,
-        res.locals.workspaceIntake?.account_owner_uid, new Date().toISOString()) : {}),
+      ...(ownerBinding ?? {}),
       intake_retry_token_hash: intakeRetryTokenHash(payload.retryToken),
       site_submission_id: payload.requestId,
       queue_key: routing.queueKey,
@@ -1894,6 +1921,36 @@ export async function submitInboundRequest(req: Request, res: Response) {
       inboundRequest
     );
 
+    // Owner decision 2026-11-07 ("Confirm at upload"): a site that submits its
+    // task with the one box ticked has confirmed that exact task. The brief is
+    // created confirmed, in the site's own words, by the submitter this route
+    // binds to the job (the signed-in account, or the job's own owner subject
+    // for a guest). Without the box or a description it is drafted as before,
+    // and the site's own click confirms it later.
+    const successCriteria = buyerType === "site_operator" ? normalizeSuccessCriteria(payload.successCriteria) : null;
+    const confirmedBrief = ownerBinding ? briefConfirmedAtSubmission({
+      requestId: payload.requestId,
+      summary: taskStatement,
+      captureMode,
+      consent: payload.taskConfirmation,
+      statedAnswers: siteTaskGates,
+      successCriteria,
+      confirmedBy: ownerBinding.capture_owner_uid,
+      submittedAtIso,
+    }) : null;
+    // What that confirmation writes onto the job: the same projection the
+    // review click uses, so screening, scope, terms and the confirmation mirror
+    // are there from the first commit. Gates the form did not ask stay open as
+    // disclosed unknowns, never a stop.
+    const confirmationFields = confirmedBrief ? projectConfirmationOntoJob({
+      brief: confirmedBrief,
+      answers: confirmedBrief.operatorAnswers ?? {},
+      confirmedAt: confirmedBrief.confirmedAtIso,
+      atIso: submittedAtIso,
+      workspace: { successCriteria },
+    }).jobFields : null;
+    const existingWorkspaceTask = (encryptedInboundRequest as { workspace_task?: Record<string, unknown> }).workspace_task;
+
     // 8. Claim the request id atomically. A get followed by set lets two
     // owners both observe absence and lets the later writer replace the first
     // owner's record. Firestore create carries the absence precondition.
@@ -1927,9 +1984,15 @@ export async function submitInboundRequest(req: Request, res: Response) {
         ops_notice: initialIntakeOpsNotice(opsNoticeMeta),
         ...(messageSuppression ? { intake_message_suppression: messageSuppression } : {}),
         ...(initialPublicListing ? { public_task_listing: initialPublicListing, newJobAlertFanout: newJobFanoutIntent(String(initialPublicListing.approvedAtIso)) } : {}),
-        ...(buyerType === "site_operator" ? { briefReviewPending: true,
-          briefReviewWork: { state: "pending", attempts: 0, dueAtMs: 0 } } : {}),
-      }, firstReceipt);
+        // A confirmed brief takes no later reading of its description, so it
+        // queues none; its confirmation is projected onto the job instead,
+        // keeping any workspace fields the intake already set.
+        ...(buyerType === "site_operator" ? confirmationFields
+          ? { ...confirmationFields, ...(confirmationFields.workspace_task ? { workspace_task: mergeWorkspaceTask(
+            existingWorkspaceTask, confirmationFields.workspace_task as Record<string, unknown>) } : {}) }
+          : { briefReviewPending: true, briefReviewWork: { state: "pending", attempts: 0, dueAtMs: 0 } } : {}),
+      }, firstReceipt, confirmedBrief
+        ? { ref: db.collection(TASK_BRIEFS_COLLECTION).doc(payload.requestId), data: confirmedBrief } : null);
     } catch (error) {
       const code = (error as { code?: number | string }).code;
       if (code !== 6 && code !== "already-exists") throw error;
@@ -1966,7 +2029,7 @@ export async function submitInboundRequest(req: Request, res: Response) {
     // is the honest state -- a one-liner leaves every gate an open question the
     // operator answers when they confirm. Footage, when it arrives, sharpens
     // this later; it does not gate the brief existing now.
-    if (buyerType === "site_operator") {
+    if (buyerType === "site_operator" && !confirmedBrief) {
       try {
         const proposed = Object.entries(siteTaskGates || {})
           .filter(([, value]) => Boolean(value))
@@ -1976,14 +2039,16 @@ export async function submitInboundRequest(req: Request, res: Response) {
             basis: "description" as const,
             reading: "From what you told us at intake.",
           }));
-        await saveBrief(
-          draftBrief({
+        await saveBrief({
+          ...draftBrief({
             requestId: payload.requestId,
             summary: taskStatement || PLACEHOLDER_TASK_SUMMARY,
             captureMode,
             proposed,
           }),
-        );
+          // The site's own words, unconfirmed like the rest of this draft.
+          ...(successCriteria ? { successCriteria } : {}),
+        });
       } catch (error) {
         // A missing brief means the operator sees "we are still reading it"
         // rather than a confirmable draft -- degraded, not broken -- so this

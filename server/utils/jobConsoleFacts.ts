@@ -10,7 +10,7 @@ import { criteriaChangedSinceRequest, passMarkForJob, type PassMark } from "./pi
 import { iso, object, text } from "./workspace-projection";
 import { teamJobAccess } from "./teamJobAccess";
 import { sceneRunnableReadiness } from "./sceneRunnableReadiness";
-import { gateAnswersOnFile } from "./gateAnswersOnFile";
+import { disclosedUnknownGates, gateAnswersOnFile } from "./gateAnswersOnFile";
 import { assessReadiness } from "../../client/src/lib/siteTaskReadiness";
 import type { TaskSceneProgression } from "./taskStatusProjection";
 import type {
@@ -227,6 +227,7 @@ export function sceneHoldOf(record: Record<string, any>): SceneHold | null {
     briefConfirmed: true,
     evidence: { hasAny: true, hasVisual: true, explainsTask: true, coversScene: true },
     reconstructed: true,
+    disclosedUnknown: disclosedUnknownGates(record),
   });
   return blockingEvaluation.length ? "gates_open" : null;
 }
@@ -349,7 +350,9 @@ export function buildJobTimeline(inputs: RawJobInputs, facts: JobFacts): Timelin
   const firstReport = runs.map((run) => (run.outcome === "reported" ? run.reportedAtIso : null)).filter(Boolean).sort()[0] ?? null;
   const entries: TimelineEntry[] = [
     { key: "created", label: "Job received", atIso: facts.createdAtIso, done: true },
-    { key: "brief", label: "Brief confirmed", atIso: text(brief?.confirmedAtIso) || iso(record.site_task_brief_confirmed_at), done: facts.brief.state === "confirmed" },
+    // A site that ticked the task box when it submitted confirmed it then (2026-11-07).
+    { key: "brief", label: text(brief?.confirmedAtIso) && text(object(brief?.submissionConsent).recordedAtIso) === text(brief?.confirmedAtIso)
+      ? "Brief confirmed at upload" : "Brief confirmed", atIso: text(brief?.confirmedAtIso) || iso(record.site_task_brief_confirmed_at), done: facts.brief.state === "confirmed" },
     { key: "capture", label: "Capture received", atIso: null, done: facts.capture.state !== "none" },
     { key: "coverage", label: "Coverage confirmed", atIso: null, done: ["covered", "scene_ready"].includes(facts.capture.state) },
     { key: "listing", label: "Public card live", atIso: text(object(record.public_task_listing).wentLiveIso) || null, done: facts.listing.state === "live" },

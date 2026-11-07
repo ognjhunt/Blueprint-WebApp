@@ -922,6 +922,12 @@ export interface SiteTaskTriageSummary {
   incomplete: boolean;
   evaluated_at: string;
   /**
+   * Present only on a job whose site confirmed its task at submission (owner
+   * decision 2026-11-07): the unanswered gates carried as disclosed unknowns,
+   * which hold neither the screen nor an evaluation. Absent on every older job.
+   */
+  disclosed_unknown_field_ids?: string[];
+  /**
    * Present when a screening call re-scored the site (`recordSiteTaskCallOutcome`):
    * which marginal answers the call settled, which answers it added, who
    * recorded it and why. Absent means the verdict is the form's alone.
@@ -1284,6 +1290,10 @@ export interface InboundRequestPayload {
   /** Description-only admission preserves the recording hold until a separate grant. */
   descriptionOnly?: boolean;
   descriptionAuthority?: ConsentAttestationInput | null;
+  /** The one box on the site start form: "this is the task I want Blueprint to evaluate" (2026-11-07). */
+  taskConfirmation?: ConsentAttestationInput | null;
+  /** Optional success criteria the site typed with its task. */
+  successCriteria?: { successDefinition?: string | null; successRate?: number | null; cycleTimeSeconds?: number | null } | null;
   publicTaskListing?: { consent: boolean; statementVersion: string; details: import("../../client/src/types/taskBrowse").TaskListingDetails } | null;
   /** Only sent by the scoped Claude development-test website form. */
   claudeAuthoringConsent?: ConsentAttestationInput | null;

@@ -44,6 +44,8 @@ export interface DraftedBrief {
   successCriteria?: { successDefinition: string | null; successRate: number | null; cycleTimeSeconds: number | null; unknown: boolean } | null;
   pilotIntent?: SitePilotIntent | null;
   confirmedBy?: string | null;
+  /** The site confirmed this task when it submitted it; `confirmedBy` is then its job identity, not a name. */
+  confirmedAtSubmission?: boolean;
 }
 
 type Screening = { headline: string; detail: string; bookingUrl: string | null };
@@ -113,7 +115,7 @@ export function TaskBriefReview(props: {
   onConfirmed?: (brief: DraftedBrief) => void;
 }) {
   const [state, setState] = useState<State>({ status: "reviewing" });
-  const [name, setName] = useState(props.brief.confirmedBy ?? "");
+  const [name, setName] = useState(props.brief.confirmedAtSubmission ? "" : props.brief.confirmedBy ?? "");
   // The job is screened and prepared from this sentence (audit N3).
   const placeholderSummary = !props.brief.summary.trim() || props.brief.summary.trim() === PLACEHOLDER_SUMMARY;
   const [summary, setSummary] = useState(placeholderSummary ? "" : props.brief.summary);
@@ -270,6 +272,8 @@ export function TaskBriefReview(props: {
         unknown: successUnknown || (!successDefinition.trim() && !successRate && !cycleTimeSeconds),
       },
       pilotIntent: pilotConsideration && deploymentPath ? { pilotConsideration, deploymentPath } : props.brief.pilotIntent,
+      // This click is now the brief's confirmation (or keeps the original one when nothing changed).
+      confirmedAtSubmission: false,
     };
     let verdict: Verdict;
     try {
@@ -430,7 +434,9 @@ export function TaskBriefReview(props: {
         <span className="ms-field-hint">
           {placeholderSummary
             ? "Your footage shows the work area, not what the robot should do. For example: “Pick up each carton and place it at the end of the table.”"
-            : "We wrote this from what you sent. Correct it if we read the job wrong."}
+            : props.brief.confirmedAtSubmission
+              ? "Your words from when you submitted the job. If the task has changed, change it here and confirm it again."
+              : "We wrote this from what you sent. Correct it if we read the job wrong."}
         </span>
         <input id="brief-summary" type="text" value={summary} onChange={(event) => setSummary(event.target.value)}
           required maxLength={300} />

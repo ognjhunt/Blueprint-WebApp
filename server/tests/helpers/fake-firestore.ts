@@ -272,8 +272,10 @@ export function createFakeFirestore(state: FakeFirestoreState) {
     getAll: async (...refs: MockDocRef[]) => Promise.all(refs.map((ref) => ref.get())),
     batch: () => {
       const creates: Array<{ ref: MockDocRef; payload: StoredDoc }> = [];
+      const sets: Array<{ ref: MockDocRef; payload: StoredDoc }> = [];
       const batch = {
         create: (ref: MockDocRef, payload: StoredDoc) => { creates.push({ ref, payload: clone(payload) }); return batch; },
+        set: (ref: MockDocRef, payload: StoredDoc) => { sets.push({ ref, payload: clone(payload) }); return batch; },
         commit: async () => {
           // Validate all create preconditions before publishing any writes.
           // The real SDK commit shape is checked separately; this fake only
@@ -286,7 +288,7 @@ export function createFakeFirestore(state: FakeFirestoreState) {
             }
             keys.add(key);
           }
-          for (const { ref, payload } of creates) state.docs.set(docKey(ref.__collection, ref.id), clone(payload));
+          for (const { ref, payload } of [...creates, ...sets]) state.docs.set(docKey(ref.__collection, ref.id), clone(payload));
           return [];
         },
       };

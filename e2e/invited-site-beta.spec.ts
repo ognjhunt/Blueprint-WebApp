@@ -16,7 +16,9 @@ for (const width of [390, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     const unexpected: string[] = [];
     const posts: { path: string; body: Record<string, unknown> }[] = [];
-    let confirmed = false;
+    // The start form's task and box confirm the brief at submission (owner decision 2026-11-07).
+    let confirmed = true;
+    let confirmedAtSubmission = true;
     let received = false;
     let retried = false;
     let optionsAssessed = false;
@@ -49,7 +51,9 @@ for (const width of [390, 1440]) {
       if (path === "/api/analytics/ingest") return route.fulfill({ status: 204, body: "" });
       if (path === "/api/workspace/setup") return route.fulfill({ json: { workspaceType: "robot_team" } });
       if (path === "/api/inbound-request" && post) {
-        expect(body).toMatchObject({ descriptionOnly: true, consentAttestation: null, accountSignup: false, taskDescription: "", taskStatement: "" });
+        expect(body).toMatchObject({ descriptionOnly: true, consentAttestation: null, accountSignup: false,
+          taskDescription: "Cartons reach the pallet without damage", taskStatement: "Cartons reach the pallet without damage",
+          taskConfirmation: { granted: true, statementVersion: "2026-11-07.v1" } });
         return route.fulfill({ json: { ok: true, captureUrl: "/capture-upload/synthetic-owner" } });
       }
       // The owner page reads whether recording permission was withdrawn.
@@ -67,12 +71,14 @@ for (const width of [390, 1440]) {
       } });
       if (path === "/api/site-task-brief/synthetic-owner") return route.fulfill({ json: {
         ready: received, scope: "owner", account: null, brief: { summary: "Cartons reach the pallet without damage", captureMode: "self_capture",
-          proposed: [], unresolved: [], confirmedAtIso: confirmed ? "2026-10-06T00:00:00Z" : null,
+          proposed: [], unresolved: [], confirmedAtIso: confirmed ? "2026-10-06T00:00:00Z" : null, confirmedAtSubmission,
+          confirmedBy: confirmedAtSubmission ? "site-job-0123456789abcdef0123456789abcdef01234567" : "Synthetic site owner",
           successCriteria: { successDefinition: "No damaged carton", successRate: 99, cycleTimeSeconds: 30, unknown: false }, pilotIntent },
       } });
       if (path === "/api/site-task-brief/synthetic-owner/confirm" && post) {
         pilotIntent = body.pilotIntent;
         confirmed = true;
+        confirmedAtSubmission = false;
         return route.fulfill({ json: { disposition: "needs_conversation", stage: "description_received",
           nextAction: "Founder reviews the missing physical measurement with the site owner", stillNeeded: ["Physical cycle time"], beforeRecording: [] } });
       }
@@ -97,7 +103,8 @@ for (const width of [390, 1440]) {
     });
 
     await page.goto("/contact/site-operator");
-    await expect(page.locator("#start-task")).toBeHidden();
+    await page.locator("#start-task").fill("Cartons reach the pallet without damage");
+    await page.getByRole("checkbox", { name: "This is the task I want Blueprint to evaluate.", exact: true }).check();
     await page.locator("#start-location").fill("Austin, TX");
     await expect(page.locator("#start-region")).toHaveCount(0);
     await page.getByRole("button", { name: "Start free assessment", exact: true }).click();
@@ -106,17 +113,19 @@ for (const width of [390, 1440]) {
     await expect(page.getByRole("region", { name: "Confirm recording permission", exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "Confirm recording permission", exact: true })).toBeDisabled();
     await expect(page.getByRole("heading", { name: "Your job summary", exact: true })).toHaveCount(0);
-    await expect(page.getByText("Review or correct job details (optional)", { exact: true })).toHaveCount(0);
+    await expect(page.getByText("Confirm your task: the one step that lets Blueprint run it", { exact: true })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Add footage when you are ready (optional)", exact: true })).toHaveCount(0);
 
     // Simulate an actual retained receipt from this existing fixture job. The
     // analyzed brief is reviewed only after video; no real capture or execution occurs.
     received = true;
     await page.reload();
-    await expect(page.getByText("Review or correct job details (optional)", { exact: true })).toBeVisible();
-    await expect(page.getByRole("button", { name: "This is right — confirm it", exact: true })).toBeHidden();
-    await page.getByText("Review or correct job details (optional)", { exact: true }).click();
+    // Confirmed at submission: no second confirmation is asked for; a correction re-confirms in one click.
+    await expect(page.getByText("You confirmed this task when you submitted it.", { exact: false })).toBeVisible();
+    await expect(page.getByText("Confirm your task: the one step that lets Blueprint run it", { exact: true })).toHaveCount(0);
+    await page.getByRole("button", { name: "Edit your answers", exact: true }).click();
     await expect(page.getByRole("button", { name: "This is right — confirm it", exact: true })).toBeVisible();
+    await expect(page.locator("#confirm-name")).toHaveValue("");
     await page.getByText("Your recorded pilot preferences (optional corrections)", { exact: true }).click();
     await expect(page.getByRole("combobox", { name: /would you consider a physical pilot/ })).toHaveValue("subject_to_review");
     await page.locator("#confirm-name").fill("Synthetic site owner");

@@ -16,6 +16,8 @@ import { processingFailure } from "../../../server/utils/taskPreparationOutcome"
 const route = vi.hoisted(() => ({ token: "tok-e2e", navigate: vi.fn() }));
 vi.mock("wouter", () => ({ useRoute: () => [true, { token: route.token }], useLocation: () => ["/capture-upload/test", route.navigate] }));
 
+/** The existing job's one click (owner decision 2026-11-07): the step that lets Blueprint run it. */
+const CONFIRM_STEP = "Confirm your task: the one step that lets Blueprint run it";
 const TOKEN = "tok-e2e";
 const videoUpload = vi.hoisted(() => ({ send: vi.fn(), retry: vi.fn() }));
 vi.mock("@/lib/selfCaptureVideo", async (importOriginal) => ({
@@ -179,7 +181,7 @@ describe("video first owner return", () => {
     } else {
       expect(screen.queryByText("Saved job brief")).not.toBeInTheDocument();
       expect(screen.getByLabelText("Review your job brief")).toBeInTheDocument();
-      expect(screen.getByText("Review or correct job details (optional)")).toBeVisible();
+      expect(screen.getByText(CONFIRM_STEP)).toBeVisible();
       expect(screen.getByRole("button", { name: "This is right — confirm it" })).toBeInTheDocument();
     }
     if (confirmedAtIso) expect(screen.queryByRole("button", { name: /confirm it/ })).not.toBeInTheDocument();
@@ -202,7 +204,7 @@ describe("video first owner return", () => {
     render(<SelfCaptureUpload />);
     await screen.findByLabelText("Review your job brief");
     expect(screen.queryByLabelText("Choose a password")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByText("Review or correct job details (optional)"));
+    fireEvent.click(screen.getByText(CONFIRM_STEP));
     fireEvent.click(screen.getByLabelText("Also save this job to my account (optional)"));
     expect(screen.getByLabelText("Choose a password")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "This is right — confirm and save" })).toBeInTheDocument();
@@ -535,7 +537,7 @@ describe("explicit assessment retry", () => {
     expect(screen.getByText("Reference: bp-advisory-aaaaaaaaaaaaaaaa")).toBeVisible();
     expect(screen.getByText("Processing details").closest("details")).toHaveAttribute("open");
     // The draft remains available without interrupting the job after refusal.
-    expect(screen.getByText("Review or correct job details (optional)")).toBeVisible();
+    expect(screen.getByText(CONFIRM_STEP)).toBeVisible();
     expect(screen.getByLabelText("Review your job brief")).not.toHaveAttribute("open");
     expect(read.mock.calls.filter(call => call[1]?.method === "POST")).toHaveLength(1);
     expect(videoUpload.send).not.toHaveBeenCalled();
@@ -830,7 +832,7 @@ describe("SelfCaptureUpload for a site that asked for a visit", () => {
  * once footage is in, confirming the brief is a visible, required step on the
  * owner page, never a collapsed "optional" correction.
  */
-describe("SelfCaptureUpload keeps job corrections optional during automatic evaluation", () => {
+describe("SelfCaptureUpload keeps an existing job's confirmation one click away during automatic evaluation", () => {
   const DESKTOP_UA =
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/126.0 Safari/537.36";
 
@@ -868,14 +870,46 @@ describe("SelfCaptureUpload keeps job corrections optional during automatic eval
 
     const step = await screen.findByLabelText("Review your job brief");
     expect(step).not.toHaveAttribute("open");
-    expect(step).toHaveTextContent(/Blueprint prepares and evaluates your job from the recording/);
-    // The normal journey does not ask for another confirmation.
+    // Preparation continues from the recording; the existing job's one click is
+    // the step that lets Blueprint run it, never worded as optional (2026-11-07).
+    expect(step).toHaveTextContent(/Blueprint keeps preparing your job from the recording meanwhile, and runs it on the task you confirm/);
+    expect(step.querySelector("summary")).toHaveTextContent(CONFIRM_STEP);
+    expect(step.querySelector("summary")).not.toHaveTextContent(/optional/i);
     expect(screen.getByRole("button", { name: "This is right — confirm it" })).not.toBeVisible();
-    fireEvent.click(screen.getByText("Review or correct job details (optional)"));
+    fireEvent.click(screen.getByText(CONFIRM_STEP));
     expect(screen.getByRole("button", { name: "This is right — confirm it" })).toBeVisible();
     // The draft remains directly editable without claiming evaluation waits for it.
     expect(screen.queryByText("Correct job details (optional)")).not.toBeInTheDocument();
     expect(screen.queryByText(/no confirmation is required|without confirming/i)).not.toBeInTheDocument();
+  });
+
+  it("offers an existing job's one click before anything is filmed", async () => {
+    setUserAgent(DESKTOP_UA);
+    vi.stubGlobal("fetch", ownerFetch({ captureReceived: false, confirmedAtIso: null }));
+    render(<SelfCaptureUpload />);
+    await screen.findByRole("button", { name: "Upload a video file" });
+    const step = await screen.findByLabelText("Review your job brief");
+    expect(step.querySelector("summary")).toHaveTextContent(CONFIRM_STEP);
+    fireEvent.click(screen.getByText(CONFIRM_STEP));
+    expect(screen.getByRole("button", { name: "This is right — confirm it" })).toBeVisible();
+  });
+
+  it("says a brief confirmed at submission was confirmed then, and never shows the submitter's job identity as a name", async () => {
+    setUserAgent(DESKTOP_UA);
+    const base = ownerFetch({ captureReceived: true, confirmedAtIso: "2026-11-07T14:00:00.000Z" });
+    vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL) => String(input).endsWith(`/api/site-task-brief/${TOKEN}`)
+      ? Promise.resolve({ ok: true, json: async () => ({ ready: true, scope: "owner", brief: {
+        summary: "Cartons onto a pallet", captureMode: "self_capture", proposed: [], unresolved: [],
+        confirmedAtIso: "2026-11-07T14:00:00.000Z", confirmedBy: "site-job-0123456789abcdef0123456789abcdef01234567",
+        confirmedAtSubmission: true } }) })
+      : base(input)));
+    render(<SelfCaptureUpload />);
+    expect(await screen.findByText(/You confirmed this task when you submitted it\./)).toBeInTheDocument();
+    expect(screen.queryByText(CONFIRM_STEP)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Edit your answers" }));
+    expect(screen.getByText("Changing the task or what counts as success means confirming it again.")).toBeVisible();
+    expect(screen.getByLabelText(/Your name/)).toHaveValue("");
+    expect(screen.getByLabelText(/What is the job, in one sentence/)).toHaveValue("Cartons onto a pallet");
   });
 
   it("keeps a confirmed brief to one line with an edit link", async () => {

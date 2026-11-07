@@ -47,6 +47,19 @@ describe("atomic intake and private receipt commit", () => {
     expect(commit).toHaveBeenCalledTimes(1);
   });
 
+  it("writes a brief confirmed at submission in the same commit, after the request's create precondition", async () => {
+    const { store, commit } = sdk();
+    await createInboundRequestWithReceipt(store, store.doc("inboundRequests/atomic-fixture"),
+      { requestId: "atomic-fixture" }, receipt,
+      { ref: store.doc("siteTaskBriefs/atomic-fixture"), data: { requestId: "atomic-fixture", confirmedAtIso: "2026-11-07T14:00:00.000Z" } });
+    expect(commit).toHaveBeenCalledTimes(1);
+    const writes = (commit.mock.calls[0][1] as any).writes;
+    expect(writes.map((write: any) => write.update.name.split("/documents/")[1]))
+      .toEqual(["inboundRequests/atomic-fixture", "captureOutbox/atomic-fixture:task_received", "siteTaskBriefs/atomic-fixture"]);
+    expect(writes[0].currentDocument).toEqual({ exists: false });
+    expect(writes[2].update.fields.confirmedAtIso).toEqual({ stringValue: "2026-11-07T14:00:00.000Z" });
+  });
+
   it("does not create a receipt when the intake has no permitted return link", async () => {
     const { store, commit } = sdk();
     await createInboundRequestWithReceipt(store, store.doc("inboundRequests/atomic-fixture"), { requestId: "atomic-fixture" }, null);

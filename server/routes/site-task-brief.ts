@@ -39,9 +39,11 @@ import {
   BriefSummaryRequiredError,
   BriefPilotScopeLockedError,
   confirmBrief,
+  confirmedAtSubmission,
   getBrief,
   isPlaceholderSummary,
   nameUnnamedTask,
+  reviseBriefTask,
   type SiteTaskBriefRecord,
 } from "../utils/siteTaskBrief";
 import {
@@ -91,7 +93,7 @@ import { teamJobAccess } from "../utils/teamJobAccess";
 import { passMarkForJob } from "../utils/pilotRecommendationEvidence";
 import { FOLLOW_UP_IDS, FOLLOW_UP_QUESTIONS, selectFollowUps, type FollowUpId } from "../utils/siteTaskFollowUp";
 import { createSiteClaimToken } from "../utils/request-review-auth";
-import { gateAnswersOnFile } from "../utils/gateAnswersOnFile";
+import { disclosedUnknownGates, gateAnswersOnFile } from "../utils/gateAnswersOnFile";
 import { bookingUrl } from "../utils/bookingLink";
 import { notifySlackScreeningCallNeeded } from "../utils/slack";
 import { EMAIL_SIGN_OFF, emailGreeting } from "../utils/emailLayout";
@@ -447,12 +449,13 @@ const confirmSchema = z
     answers: z.record(z.string(), z.string().trim().max(200)).optional(),
     /** Gates they do not know. Recorded as outstanding, never looped on. */
     unknown: z.array(z.string().trim().min(1).max(100)).max(40).optional(),
+    /** Optional, as the review form says: an absent value keeps what is on file. */
     successCriteria: z.object({
       successDefinition: z.string().trim().max(1000).nullable(),
       successRate: z.number().finite().min(0).max(100).nullable(),
       cycleTimeSeconds: z.number().finite().positive().max(86400).nullable(),
       unknown: z.boolean(),
-    }).strict().refine((value) => value.unknown || Boolean(value.successDefinition)),
+    }).strict().refine((value) => value.unknown || Boolean(value.successDefinition)).optional(),
     pilotIntent: z.object({
       pilotConsideration: z.enum(["yes", "subject_to_review", "evaluation_only", "undecided"]),
       deploymentPath: z.enum(["this_site", "multiple_sites", "pilot_only", "undecided"]),
@@ -534,6 +537,9 @@ function presentBrief(brief: SiteTaskBriefRecord) {
     unresolved: brief.unresolved,
     draftedFrom: brief.draftedFrom,
     confirmedAtIso: brief.confirmedAtIso,
+    // The site confirmed this task when it submitted it; `confirmedBy` is then
+    // the submitter's identity on the job, not a name to show back to them.
+    confirmedAtSubmission: confirmedAtSubmission(brief),
     // What the operator stated last time, so editing starts from their own
     // answers rather than from our draft.
     operatorAnswers: brief.operatorAnswers ?? null,
@@ -693,14 +699,14 @@ router.post("/:token/follow-up", async (req: Request, res: Response) => {
     if (!defer && answer && questionId !== "item_photos") {
       const brief = await getBrief(payload.requestId);
       if (brief) {
-        if (questionId === "success_target" && !brief.confirmedAtIso) {
+        const successCriteria = { successDefinition: answer, successRate: null, cycleTimeSeconds: null, unknown: false };
+        if (questionId === "success_target" && brief.submissionConsent) {
+          // A brief confirmed at submission (owner decision 2026-11-07): a new
+          // success target changes the task, so it needs the site's click again.
+          await reviseBriefTask({ requestId: payload.requestId, successCriteria, revisedBy: "signed_owner_link" });
+        } else if (questionId === "success_target" && !brief.confirmedAtIso) {
           await db.collection("siteTaskBriefs").doc(payload.requestId).set({
-            successCriteria: {
-              successDefinition: answer,
-              successRate: null,
-              cycleTimeSeconds: null,
-              unknown: false,
-            },
+            successCriteria,
           }, { merge: true });
         } else if (questionId === "item_weight" || questionId === "item_make_model") {
           await db.collection("siteTaskBriefs").doc(payload.requestId).set({
@@ -1163,6 +1169,7 @@ router.get("/:token/status", async (req: Request, res: Response) => {
           missingCoverage: request?.capture_coverage?.missing_coverage ?? undefined,
         },
         reconstructed: false,
+        disclosedUnknown: disclosedUnknownGates(request),
       }).stage;
     }
 

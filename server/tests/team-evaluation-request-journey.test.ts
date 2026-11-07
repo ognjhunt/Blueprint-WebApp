@@ -191,13 +191,13 @@ async function pipelineSync(jobId: string, readiness: Record<string, unknown> = 
 }
 
 /** A site starts a job on the public form, exactly as the browser sends it. */
-async function startJob(options: { keepPrivate?: boolean } = {}) {
+async function startJob(options: { keepPrivate?: boolean; withoutTaskConfirmation?: boolean } = {}) {
   const requestId = next("site-job");
   const response = await fetch(`${base}/api/inbound-request`, { method: "POST",
     headers: { "content-type": "application/json", "x-forwarded-for": `203.0.113.${(sequence % 250) + 1}` },
     body: JSON.stringify(siteCaptureStartSubmission({ requestId, retryToken: `r${requestId}`.padEnd(64, "x"),
       sourcePageUrl: "https://tryblueprint.io/contact/site-operator", keepPrivate: options.keepPrivate,
-      email: `${requestId}@example.test` })) });
+      withoutTaskConfirmation: options.withoutTaskConfirmation, email: `${requestId}@example.test` })) });
   expect(response.status, await response.clone().text()).toBe(201);
   return requestId;
 }
@@ -394,7 +394,9 @@ describe("every surface gives the same answer", () => {
     await robotAccount(team, true);
     const viewer = row.viewer ?? team;
     const start = row.start ?? "public";
-    const jobId = await startJob({ keepPrivate: start === "kept_private" });
+    // The start form confirms the brief at submission (2026-11-07); only a body
+    // without its box leaves the brief unconfirmed.
+    const jobId = await startJob({ keepPrivate: start === "kept_private", withoutTaskConfirmation: start === "not_confirmed" });
     if (start !== "not_confirmed") await confirm(jobId);
     if (start !== "not_synced") await pipelineSync(jobId);
     // A change after a team asked: the request was accepted while the job was open.
