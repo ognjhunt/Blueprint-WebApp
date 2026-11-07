@@ -8,7 +8,7 @@ import { confirmedTaskSuccessContractSchema } from "./articulatedTaskSuccessCont
 import { policyCanaryNotificationRecipientAllowed } from "./internalPolicyCanaryContract";
 import type { PipelinePolicyCanaryPublication } from "./policyCanaryWebappSyncContract";
 import { TASK_EVALUATION_LAUNCH_RUNNER_CLIENT_ID } from "./taskEvaluationLaunchSubmissionAuth";
-import { projectWebsiteCaptureRights, projectWebsiteTaskContext } from "./websiteTaskContext";
+import { preparationGrantContextDigest, projectWebsiteCaptureRights, projectWebsiteTaskContext } from "./websiteTaskContext";
 import type { SiteTaskBriefRecord } from "./siteTaskBrief";
 import type { TaskItemInventoryRecord } from "./taskItemInventory";
 
@@ -94,8 +94,8 @@ export async function operatorPolicyCanaryCaptureSourceMatches(
   const items = inventory.exists ? inventory.data() as TaskItemInventoryRecord : null;
   if (task.requestId !== source.request_id
     || items && (items.requestId !== source.request_id || !Array.isArray(items.items))) return false;
-  return projectWebsiteTaskContext(task, rights, { purpose: "scene_preparation", inventory: items })
-    .context_digest === source.task_context_digest;
+  return projectWebsiteTaskContext(task, rights, { purpose: "scene_preparation", inventory: items,
+    preparationGrantContextDigest: preparationGrantContextDigest(request.data()) }).context_digest === source.task_context_digest;
 }
 
 export async function registerOperatorPolicyCanary(params: {
