@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { loadWebsiteSceneSponsorship, websiteSceneSponsorship, reserveWebsitePreparationSpend, amendWebsitePreparationRequestLimit, amendWebsitePreparationSpendLimit, settleWebsitePreparationSpend, loadWebsiteAtlasConfiguration } from "../utils/websiteSceneSponsorship";
 import { projectWebsiteCaptureRights, projectWebsiteTaskContext } from "../utils/websiteTaskContext";
 import { WEBSITE_JOB_WINDOW_DEFAULT_SECONDS, WEBSITE_JOB_WINDOW_MAX_SECONDS } from "../utils/websiteJobWindow";
-import { familyScreeningFixture } from "./fixtures/beta-policy-screening";
+import { familyScreeningFixture, navigationScreeningFixture } from "./fixtures/beta-policy-screening";
 import producerFamilyStatus from "./fixtures/pipeline-family-prepared-status.v1.json";
 vi.mock("../utils/captureFootageReview", () => ({ buildCaptureFootageReviewer: vi.fn() }));
 vi.mock("../utils/taskLifecycleNotifications", () => ({ enqueueTaskLifecycleNotification: vi.fn(), reconstructionIsViewable: vi.fn() }));
@@ -110,7 +110,7 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => {
 });
 import router from "../routes/task-evaluation-scene-intakes";
 import { dbAdmin } from "../../client/src/lib/firebaseAdmin";
-import { assertWithinWebsiteJobCeiling, transactionJobLedgerReader } from "../utils/websiteJobCeiling";
+import { assertWithinWebsiteJobCeiling, transactionJobLedgerReader, websiteJobSpend } from "../utils/websiteJobCeiling";
 import {
   buildSceneIntake,
   processSceneIntakeQueue,
@@ -630,6 +630,133 @@ it.each(["evaluation", "preparation", "family"])("queues the signed prepared web
   expect(fetcher).toHaveBeenCalledTimes(2);
 });
 
+// A navigation job's scene kept as filmed (navigationSceneIntake): the record's digests, no subject,
+// support or destination. Owner, 2026-11-07: it reserves $0 and grants no construction allowance.
+function navigationTask(taskContextDigest: string) {
+  return { task_id: `website-${taskContextDigest.slice(7, 27)}`, strategy: "goal_region_navigation",
+    geometry_origin: "kept_as_filmed", navigation_task_spec_digest: sha("1"), compiled_task_spec_digest: sha("2"),
+    task_success_contract_digest: sha("3"), runtime_contract_digest: sha("4"), scene_revision_digest: sha("5") };
+}
+function navigationReference(task: ReturnType<typeof navigationTask>) {
+  return { schema_version: "website_navigation_preparation_result.v1", digest: task.scene_revision_digest,
+    task_kind: task.strategy, navigation_task_spec_digest: task.navigation_task_spec_digest,
+    compiled_task_spec_digest: task.compiled_task_spec_digest, task_success_contract_digest: task.task_success_contract_digest,
+    runtime_contract_digest: task.runtime_contract_digest, native_application_claimed: false,
+    policy_episode_claimed: false, paid_construction_performed: false };
+}
+function sponsoredRoute() {
+  return app().then(url => {
+    const base = url.replace(/\/intakes$/, "/internal/creator-captures/walkthrough-req1");
+    return (operation: string, extra = {}) => realFetch(`${base}/${operation}`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ request_id: "req1", scene_id: "site-req1", ...extra }),
+    });
+  });
+}
+function navigationRequest(grant: Record<string, any>) {
+  return {
+    schema_version: "task_evaluation_scene_intake_request.v1", submission_id: grant.capture_id,
+    owner: grant.owner, consent: grant.consent,
+    source: { kind: "gaussian_splat", binding_id: `website-splat-${"a".repeat(32)}`, content_digest: sha("a") },
+    task: navigationTask(grant.task_context_digest),
+    execution: { ...command().execution, max_total_spend_usd: grant.max_total_spend_usd,
+      max_paid_attempts: grant.max_paid_attempts, expires_at_epoch: grant.expires_at_epoch,
+      allowed_providers: ["vast", "openai"], purpose: "scene_preparation", policy_candidates: [] },
+  };
+}
+const intakeRows = () => [...store.rows.keys()].filter(key => key.startsWith("taskEvaluationSceneIntakes/"));
+
+it("queues a navigation intake with the job's own consent and rights, reserving $0 and granting no construction allowance", async () => {
+  sponsoredCapture();
+  const post = await sponsoredRoute();
+  const grant = await (await post("scene-sponsorship")).json();
+  expect(grant.consent.task_confirmed).toBe(true);
+  const request = navigationRequest(grant);
+  // The job's ledgers already hold its whole $40 owner-default ceiling.
+  const record = store.rows.get("inboundRequests/req1");
+  record.website_preparation_reservations = { ["b".repeat(64)]: { admission: { provider: "world_labs_atlas",
+    resource_class: "provider_reconstruction_api", maximum_cost_usd: 40, request_count: 1 } } };
+  const ledger = () => websiteJobSpend({ record: store.rows.get("inboundRequests/req1"),
+    reader: transactionJobLedgerReader(dbAdmin as any, { get: (ref: any) => ref.get() }, "req1") });
+  // A rigid intake still reserves its whole native allowance, so it is refused exactly as before.
+  const rigid = { ...request, task: { ...command().task, task_id: request.task.task_id,
+    subject: { description: "box", geometry_origin: "removed_before_reconstruction" } } };
+  const refused = await post("prepared-scene", { request: rigid });
+  expect(refused.status).toBe(409);
+  expect(await refused.json()).toEqual({ code: "website_scene_preparation_budget_exhausted" });
+  expect(intakeRows()).toHaveLength(0);
+  // The navigation intake reserves $0, so a spent ceiling does not refuse it.
+  const admitted = await post("prepared-scene", { request });
+  expect(admitted.status).toBe(202);
+  expect((await post("prepared-scene", { request })).status).toBe(202);
+  expect(intakeRows()).toHaveLength(1);
+  const [, row] = stored();
+  expect(row.request).toEqual(request);
+  expect(row.request.consent).toEqual(grant.consent);
+  expect(row.command.consent).toEqual(Object.fromEntries(Object.entries(grant.consent)
+    .filter(([key]) => key !== "accepted_by" && key !== "accepted_at_epoch")));
+  // No construction allowance: the job's ledger counts nothing for it.
+  expect((await ledger()).native_construction_micros).toBe(0);
+  expect((await ledger()).total_micros).toBe(40_000_000);
+  expect(store.rows.get("inboundRequests/req1").website_scene_sponsorship).toEqual(grant);
+  // Forwarded, then completed by the Pipeline without paid configuration: still nothing counted.
+  const fetcher = vi.fn(async (_url: any, init: any) => new Response(JSON.stringify(init?.body
+    ? accepted(JSON.parse(init.body))
+    : pipelineStatus(request, { status: "completed", phase: "navigation_scene_prepared", blockers: [], attempts: [],
+      result_reference: navigationReference(request.task) }))));
+  vi.stubGlobal("fetch", fetcher);
+  await processSceneIntakeQueue();
+  expect(stored()[1].state).toBe("accepted");
+  expect(JSON.parse(fetcher.mock.calls[0][1].body)).toEqual(request);
+  expect((await ledger()).native_construction_micros).toBe(0);
+  stored()[1].next_forward_at_ms = 0;
+  await processSceneIntakeQueue();
+  expect(stored()[1].state).toBe("completed");
+  expect(stored()[1].pipeline_status.result_reference.digest).toBe(request.task.scene_revision_digest);
+  expect((await ledger()).native_construction_micros).toBe(0);
+});
+
+it("refuses an unconfirmed brief's navigation intake by name and stores nothing", async () => {
+  sponsoredCapture();
+  store.rows.get("siteTaskBriefs/req1").confirmedAtIso = null;
+  const brief = store.rows.get("siteTaskBriefs/req1"), record = store.rows.get("inboundRequests/req1");
+  const expected = projectWebsiteTaskContext(brief, projectWebsiteCaptureRights(record), { purpose: "scene_preparation" });
+  const post = await sponsoredRoute();
+  // Scene preparation goes on from the video; the grant's consent reads the brief as unconfirmed.
+  const grant = await (await post("scene-sponsorship", { purpose: "scene_preparation",
+    expected_task_context_digest: expected.context_digest })).json();
+  expect(grant.consent.task_confirmed).toBe(false);
+  const request = navigationRequest(grant);
+  const refused = await post("prepared-scene", { request });
+  expect(refused.status).toBe(409);
+  expect(await refused.json()).toEqual({ code: "website_task_context_not_confirmed" });
+  // A caller cannot confirm it: the consent is the grant's own, so a rewritten one is refused too.
+  const forged = await post("prepared-scene", { request: { ...request, consent: { ...request.consent, task_confirmed: true } } });
+  expect(forged.status).toBe(409);
+  expect(await forged.json()).toEqual({ code: "website_task_context_not_confirmed" });
+  expect(intakeRows()).toHaveLength(0);
+});
+
+it.each(["subject", "destination", "origin", "digest", "policies", "evaluation", "scope", "consent", "spend"])(
+  "refuses a navigation intake with a changed %s and stores nothing", async fault => {
+    sponsoredCapture();
+    const post = await sponsoredRoute();
+    const grant = await (await post("scene-sponsorship")).json();
+    const request: Record<string, any> = navigationRequest(grant);
+    if (fault === "subject") request.task.subject = { description: "box", geometry_origin: "removed_before_reconstruction" };
+    if (fault === "destination") request.task.destination = command().task.destination;
+    if (fault === "origin") request.task.geometry_origin = "removed_before_reconstruction";
+    if (fault === "digest") delete request.task.runtime_contract_digest;
+    if (fault === "policies") request.execution.policy_candidates = command().execution.policy_candidates;
+    if (fault === "evaluation") delete request.execution.purpose;
+    if (fault === "scope") request.task.task_id = "website-another-task-context";
+    if (fault === "consent") request.consent = { ...request.consent, rights_reference: sha("9") };
+    if (fault === "spend") request.execution.max_total_spend_usd = 0.5;
+    const response = await post("prepared-scene", { request });
+    expect([400, 409]).toContain(response.status);
+    expect(intakeRows()).toHaveLength(0);
+  });
+
 it("grants a new prepared scene its native allowance only while the job's one ceiling has room", async () => {
   sponsoredCapture();
   const base = (await app()).replace(/\/intakes$/, "/internal/creator-captures/walkthrough-req1");
@@ -767,6 +894,24 @@ describe("persistent authenticated scene intake", () => {
     if (fault === "valid") expect(await observed).toEqual(status);
     else await expect(observed).rejects.toThrow(/pipeline_(family_preparation_binding|status_receipt)_invalid/);
   });
+  it.each(["valid", "phase", "family_phase", "revision", "runtime", "claim", "task", "running"])(
+    "preserves a navigation intent's completion without paid configuration only for its own request (%s)", async fault => {
+      const { intake } = navigationScreeningFixture();
+      const request: Record<string, any> = structuredClone(intake.request);
+      const reference = structuredClone(intake.pipeline_status.result_reference);
+      if (fault === "revision") reference.digest = sha("f");
+      if (fault === "runtime") request.task.runtime_contract_digest = sha("f");
+      if (fault === "claim") reference.paid_construction_performed = true;
+      if (fault === "task") request.task = command().task;
+      const phase = fault === "phase" ? "scene_prepared" : fault === "family_phase" ? "family_native_prepared"
+        : "navigation_scene_prepared";
+      const status = pipelineStatus(request, { status: fault === "running" ? "running" : "completed", phase,
+        blockers: [], attempts: [], result_reference: reference });
+      vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(status))));
+      const observed = scenePipelineRequest(request, "scene-one");
+      if (fault === "valid") expect(await observed).toEqual(status);
+      else await expect(observed).rejects.toThrow(/pipeline_(navigation_preparation_binding|family_preparation_binding|status_receipt)_invalid/);
+    });
   it("matches the Python RFC 8785 fixture for numeric and Unicode packet fields", () => {
     expect(
       sceneDigest({

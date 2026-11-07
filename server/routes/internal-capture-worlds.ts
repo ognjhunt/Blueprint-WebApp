@@ -40,6 +40,7 @@ import { loadWebsiteSceneSponsorship, validateWebsiteSponsoredIntake,
   preparationSettlementRequest, settleWebsitePreparationSpend, retainedWebsiteScenePurpose, currentWebsiteSceneContext,
   loadWebsiteAtlasConfiguration, assertNoMultiStepTaskHold } from "../utils/websiteSceneSponsorship";
 import { SCENE_INTAKE_COLLECTION, sceneDigest, sceneIntakeCommand } from "../utils/taskEvaluationSceneIntake";
+import { isNavigationStrategy, navigationIntakeTask } from "../utils/navigationSceneIntake";
 import {
   enqueueTaskLifecycleNotification,
   reconstructionIsViewable,
@@ -232,11 +233,13 @@ router.post("/creator-captures/:captureId/visual-scene", createPipelineSyncRateL
     }
   });
 
+// The Pipeline's own intakes: the public command's tasks, or a navigation job's scene kept
+// as filmed (navigationSceneIntake), which only a sponsored website job sends.
 const sponsoredSceneRequest = z.object({
   schema_version: z.literal("task_evaluation_scene_intake_request.v1"),
   submission_id: z.string(), owner: z.object({ user_id: z.string(), organization_id: z.string() }).strict(),
   source: z.object({ kind: z.enum(["gaussian_splat", "mesh"]), binding_id: z.string(), content_digest: z.string() }).strict(),
-  task: sceneIntakeCommand.shape.task, execution: sceneIntakeCommand.shape.execution,
+  task: z.union([sceneIntakeCommand.shape.task, navigationIntakeTask]), execution: sceneIntakeCommand.shape.execution,
   consent: sceneIntakeCommand.shape.consent.extend({ task_confirmed: z.boolean(), rights_reference: z.string(),
     accepted_by: z.string(), accepted_at_epoch: z.number().finite().positive() }).strict(),
 }).strict();
@@ -343,9 +346,12 @@ for (const operation of ["scene-sponsorship", "prepared-scene", "preparation-spe
         }
         // One dollar ceiling per job (owner, 2026-10-30): a new intake grants native
         // construction its allowance only while every ledger the job spends from fits.
-        await assertWithinWebsiteJobCeiling({ record: current ?? {}, captureId: req.params.captureId, requestId,
-          reader: transactionJobLedgerReader(db!, transaction, requestId),
-          additionalCostUsd: request.execution.max_total_spend_usd });
+        // A navigation intake keeps its scene as filmed: it reserves $0 and grants no
+        // construction allowance (owner, 2026-11-07), so it adds nothing to check.
+        if (!isNavigationStrategy(request.task.strategy))
+          await assertWithinWebsiteJobCeiling({ record: current ?? {}, captureId: req.params.captureId, requestId,
+            reader: transactionJobLedgerReader(db!, transaction, requestId),
+            additionalCostUsd: request.execution.max_total_spend_usd });
         transaction.create(ref, {
           owner_user_id: request.owner.user_id, organization_id: request.owner.organization_id,
           source_session_id: websitePreparationCaptureId(request), website_request_id: requestId,

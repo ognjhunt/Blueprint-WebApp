@@ -7,7 +7,7 @@ import { managedJobTask, preparedSceneRevisionDigest, projectManagedJobEvidence 
 import { configuredSceneOfferingSchema } from "../utils/configuredSceneOfferingContract";
 import { scientificBriefDigest } from "../utils/jobEvidenceContract";
 import { crossRuntimeArtifactDigest, crossRuntimeDigest } from "../utils/crossRuntimeCanonical";
-import { allCandidateFamilyScreeningFixture, familyScreeningFixture, finishedScreening, outcomePublication, PUBLISHED_SCREENING_OUTCOMES, screeningFixture,
+import { allCandidateFamilyScreeningFixture, familyScreeningFixture, finishedScreening, navigationScreeningFixture, outcomePublication, PUBLISHED_SCREENING_OUTCOMES, screeningFixture,
   screeningRevisionLaunch, screeningSha, scriptedBaselineRow, sealScreening, sealSelection, selectionFixture } from "./fixtures/beta-policy-screening";
 import { parseBetaCandidateSelection, projectCandidateSelection, selectionMatchesPublication } from "../utils/betaCandidateSelection";
 import producerSelection from "./fixtures/pipeline-website-candidate-selection.v1.json";
@@ -53,6 +53,55 @@ describe("a configured scene's revision: the file the status names and the self-
     expect(intake.pipeline_status.result_reference.digest).toBe(publication.source.scene_revision_digest);
     expect(preparedSceneRevisionDigest(intake.pipeline_status, [])).toBe(publication.source.scene_revision_digest);
   });
+});
+
+describe("a navigation job's scene kept as filmed", () => {
+  const scopeOf = (fixture: ReturnType<typeof navigationScreeningFixture>) => managedJobTask({
+    binding: { job_id: fixture.brief.requestId, brief_digest: scientificBriefDigest(fixture.brief) },
+    record: fixture.job, brief: fixture.brief });
+  const resealed = (fixture: ReturnType<typeof navigationScreeningFixture>, request: Record<string, any>,
+    status: Record<string, any>) => {
+    const requestDigest = crossRuntimeDigest(request);
+    const receipt = { ...fixture.intake.receipt, request_digest: requestDigest };
+    const value = { ...status, request_digest: requestDigest };
+    return { ...fixture.intake, request, request_digest: requestDigest,
+      receipt: { ...receipt, receipt_digest: crossRuntimeArtifactDigest(receipt, "receipt_digest") },
+      pipeline_status: { ...value, status_digest: crossRuntimeArtifactDigest(value, "status_digest") } };
+  };
+  it("binds the screening source to the navigation record's own revision without any offering", () => {
+    const fixture = navigationScreeningFixture();
+    const { publication, intake } = fixture;
+    expect(intake.pipeline_status.result_reference.digest).toBe(publication.source.scene_revision_digest);
+    expect(preparedSceneRevisionDigest(intake.pipeline_status, [])).toBe(publication.source.scene_revision_digest);
+    expect(() => assertScreeningSceneSource(publication, intake, scopeOf(fixture), [])).not.toThrow();
+    expect(intake.pipeline_status.result_reference.paid_construction_performed).toBe(false);
+  });
+  it.each(["phase", "family_phase", "revision", "spec", "runtime", "claim", "policies", "evaluation", "task"])(
+    "refuses a navigation preparation whose %s does not match its request", fault => {
+      const fixture = navigationScreeningFixture();
+      const request: Record<string, any> = structuredClone(fixture.intake.request);
+      const status: Record<string, any> = structuredClone(fixture.intake.pipeline_status);
+      const reference = status.result_reference;
+      if (fault === "phase") status.phase = "scene_prepared";
+      if (fault === "family_phase") status.phase = "family_native_prepared";
+      if (fault === "revision") reference.digest = screeningSha("9");
+      if (fault === "spec") reference.compiled_task_spec_digest = screeningSha("9");
+      if (fault === "runtime") request.task.runtime_contract_digest = screeningSha("9");
+      if (fault === "claim") reference.paid_construction_performed = true;
+      if (fault === "policies") request.execution.policy_candidates = [{ id: "policy", artifact_digest: screeningSha("9") }];
+      if (fault === "evaluation") delete request.execution.purpose;
+      if (fault === "task") request.task.subject = { geometry_origin: "kept_as_filmed" };
+      const intake = resealed(fixture, request, status);
+      expect(() => assertScreeningSceneSource(fixture.publication, intake, scopeOf(fixture), []))
+        .toThrow(/screening_scene_(source_mismatch|revision_unbound)/);
+    });
+  it.each(["scene_intent_id", "scene_intent_digest", "capture_id", "task_id", "task_context_digest", "scene_revision_digest"] as const)(
+    "rejects a changed %s against a navigation intake", field => {
+      const fixture = navigationScreeningFixture();
+      fixture.publication.source[field] = field.endsWith("_digest") ? screeningSha("9") : "another-source";
+      expect(() => assertScreeningSceneSource(fixture.publication, fixture.intake, scopeOf(fixture), []))
+        .toThrow("screening_scene_source_mismatch");
+    });
 });
 
 describe("automatic many-candidate job evaluation", () => {
