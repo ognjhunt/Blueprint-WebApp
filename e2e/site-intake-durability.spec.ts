@@ -8,12 +8,10 @@ import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
+/** The task and its one box: submitting them confirms the brief (owner decision 2026-11-07). */
 async function fillJobDescription(page: import("@playwright/test").Page, value: string) {
-  const field = page.locator("#start-task");
-  if (!(await field.isVisible())) {
-    await page.getByText("Add job details and buying plans (optional)", { exact: true }).click();
-  }
-  await field.fill(value);
+  await page.locator("#start-task").fill(value);
+  await page.getByRole("checkbox", { name: "This is the task I want Blueprint to evaluate.", exact: true }).check();
 }
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const outputRoot = path.resolve(process.env.RELIABILITY_DURABILITY_OUTPUT || "output/reliability-program/intake-durability");
