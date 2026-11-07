@@ -139,12 +139,26 @@ async function readZipMember(handle: FileHandle, file: string, member: ZipMember
   return Buffer.concat(chunks);
 }
 
-type PlyLayout = { recordBytes: number; bodyBytes: number; x: number; y: number; nx: number; ny: number;
+/** One run of same-sized records in a PLY body, and how to turn a whole number of them in place. */
+type PlySection = { recordBytes: number; records: number; turn: (records: Buffer) => void };
+type PlyLayout = { bodyBytes: number; sections: PlySection[] };
+type FloatPlyLayout = { recordBytes: number; x: number; y: number; nx: number; ny: number;
   w: number; qx: number; qy: number; qz: number };
+
+/**
+ * PlayCanvas's compressed PLY as the vendored viewer reads it (isCompressedPly and
+ * readCompressedPly in client/public/splat-viewer/index.js), without spherical harmonics:
+ * 18 float bounds per chunk of 256 consecutive splats, then 4 packed uints per splat.
+ */
+const COMPRESSED_CHUNK_PROPERTIES = ["min_x", "min_y", "min_z", "max_x", "max_y", "max_z", "min_scale_x", "min_scale_y",
+  "min_scale_z", "max_scale_x", "max_scale_y", "max_scale_z", "min_r", "min_g", "min_b", "max_r", "max_g", "max_b"];
+const COMPRESSED_VERTEX_PROPERTIES = ["packed_position", "packed_rotation", "packed_scale", "packed_color"];
+const COMPRESSED_CHUNK_SPLATS = 256;
 
 function plyLayout(headerText: string): PlyLayout {
   const header = headerText.split("\n").map(line => line.trim());
   if (!header.includes("format binary_little_endian 1.0")) throw new Error("ply_format_unsupported");
+  if (header.some(line => /^element chunk( |$)/.test(line))) return compressedPlyLayout(header);
   const count = Number(/^element vertex (\d+)$/m.exec(header.join("\n"))?.[1]);
   const properties = header.filter(line => line.startsWith("property ")).map(line => line.split(" "));
   if (!Number.isInteger(count) || properties.some(([, type]) => type !== "float"))
@@ -152,21 +166,125 @@ function plyLayout(headerText: string): PlyLayout {
   const index = (name: string) => properties.findIndex(([, , property]) => property === name) * 4;
   const [x, y, nx, ny, w, qx, qy, qz] = ["x", "y", "nx", "ny", "rot_0", "rot_1", "rot_2", "rot_3"].map(index);
   if (x < 0 || y < 0 || [w, qx, qy, qz].some(position => position < 0)) throw new Error("ply_properties_unsupported");
-  return { recordBytes: properties.length * 4, bodyBytes: count * properties.length * 4, x, y, nx, ny, w, qx, qy, qz };
+  const layout: FloatPlyLayout = { recordBytes: properties.length * 4, x, y, nx, ny, w, qx, qy, qz };
+  return { bodyBytes: count * layout.recordBytes,
+    sections: [{ recordBytes: layout.recordBytes, records: count, turn: records => turnFloatRecords(records, layout) }] };
+}
+
+/** Exactly the chunk element, then the vertex element of four packed uints; anything else is refused. */
+function compressedPlyLayout(header: string[]): PlyLayout {
+  const elements: { name: string; count: number; properties: string[] }[] = [];
+  // The header text runs up to "end_header", so it ends with the newline before it.
+  const lines = header.slice(1, header.at(-1) === "" ? -1 : undefined);
+  for (const line of lines) {
+    const words = line.split(" ");
+    if (words[0] === "comment") continue;
+    if (line === "format binary_little_endian 1.0") continue;
+    if (words[0] === "element" && words.length === 3 && /^\d+$/.test(words[2]!))
+      elements.push({ name: words[1]!, count: Number(words[2]), properties: [] });
+    else if (words[0] === "property" && words.length === 3 && elements.length)
+      elements[elements.length - 1]!.properties.push(`${words[1]} ${words[2]}`);
+    else throw new Error("ply_properties_unsupported");
+  }
+  const [chunk, vertex] = elements;
+  const same = (properties: string[], type: string, names: string[]) =>
+    properties.length === names.length && names.every((name, position) => properties[position] === `${type} ${name}`);
+  if (elements.length !== 2 || chunk?.name !== "chunk" || vertex?.name !== "vertex"
+    || !same(chunk.properties, "float", COMPRESSED_CHUNK_PROPERTIES)
+    || !same(vertex.properties, "uint", COMPRESSED_VERTEX_PROPERTIES) || !Number.isSafeInteger(vertex.count)
+    // The viewer finds a splat's chunk as index / 256 within ceil(count / 256) chunks.
+    || chunk.count !== Math.ceil(vertex.count / COMPRESSED_CHUNK_SPLATS))
+    throw new Error("ply_properties_unsupported");
+  const sections = [
+    { recordBytes: COMPRESSED_CHUNK_PROPERTIES.length * 4, records: chunk.count, turn: turnCompressedChunks },
+    { recordBytes: COMPRESSED_VERTEX_PROPERTIES.length * 4, records: vertex.count, turn: turnCompressedVertices },
+  ];
+  return { bodyBytes: sections.reduce((total, section) => total + section.recordBytes * section.records, 0), sections };
+}
+
+function turnFloatRecords(records: Buffer, layout: FloatPlyLayout) {
+  const { recordBytes, x, y, nx, ny, w, qx, qy, qz } = layout;
+  // A DataView, because the header length leaves the records unaligned for a Float32Array.
+  const view = new DataView(records.buffer, records.byteOffset, records.length);
+  const negate = (offset: number) => view.setFloat32(offset, -view.getFloat32(offset, true), true);
+  for (let base = 0; base < records.length; base += recordBytes) {
+    negate(base + x); negate(base + y);
+    if (nx >= 0 && ny >= 0) { negate(base + nx); negate(base + ny); }
+    const qw = view.getFloat32(base + w, true), qi = view.getFloat32(base + qx, true);
+    const qj = view.getFloat32(base + qy, true), qk = view.getFloat32(base + qz, true);
+    view.setFloat32(base + w, -qk, true); view.setFloat32(base + qx, -qj, true);
+    view.setFloat32(base + qy, qi, true); view.setFloat32(base + qz, qw, true);
+  }
+}
+
+/** A chunk's x and y bounds negate, so each axis's min and max swap. Scale and colour bounds stay. */
+function turnCompressedChunks(records: Buffer) {
+  const view = new DataView(records.buffer, records.byteOffset, records.length);
+  for (let base = 0; base < records.length; base += COMPRESSED_CHUNK_PROPERTIES.length * 4) {
+    const minX = view.getFloat32(base, true), minY = view.getFloat32(base + 4, true);
+    const maxX = view.getFloat32(base + 12, true), maxY = view.getFloat32(base + 16, true);
+    view.setFloat32(base, -maxX, true); view.setFloat32(base + 12, -minX, true);
+    view.setFloat32(base + 4, -maxY, true); view.setFloat32(base + 16, -minY, true);
+  }
+}
+
+/** Rz(180°)·q for q = (w, x, y, z) = (rot_0..rot_3), as a signed permutation: component j is sign · q[from]. */
+const TURNED_QUATERNION = [[3, -1], [2, -1], [1, 1], [0, 1]] as const;
+/**
+ * The same turn on the viewer's smallest-three rotation, for each stored largest index: the
+ * turned largest index, and for each turned slot the stored slot it takes and whether it is
+ * negated (a stored 10-bit u decodes to (u / 1023 − 0.5)·√2, so 1023 − u is exactly its negative).
+ * The viewer rebuilds the largest as non-negative; when it turns negative, all three negate.
+ */
+const TURNED_ROTATION = [0, 1, 2, 3].map(largest => {
+  const turnedLargest = TURNED_QUATERNION.findIndex(([from]) => from === largest);
+  const flip = TURNED_QUATERNION[turnedLargest]![1];
+  const stored = [0, 1, 2, 3].filter(index => index !== largest);
+  return { largest: turnedLargest, slots: [0, 1, 2, 3].filter(index => index !== turnedLargest).map(index => {
+    const [from, sign] = TURNED_QUATERNION[index]!;
+    return { from: stored.indexOf(from), negate: sign * flip < 0 };
+  }) };
+});
+
+/**
+ * Each splat's packed fields, turned exactly: within the swapped chunk bounds an 11-bit x
+ * becomes 2047 − x and a 10-bit y 1023 − y, z stays, and the rotation is permuted as above.
+ * Scale and colour stay.
+ */
+function turnCompressedVertices(records: Buffer) {
+  const view = new DataView(records.buffer, records.byteOffset, records.length);
+  for (let base = 0; base < records.length; base += COMPRESSED_VERTEX_PROPERTIES.length * 4) {
+    const position = view.getUint32(base, true);
+    view.setUint32(base, (((2047 - (position >>> 21)) << 21) | ((1023 - ((position >>> 11) & 1023)) << 11)
+      | (position & 2047)) >>> 0, true);
+    const rotation = view.getUint32(base + 4, true);
+    const turn = TURNED_ROTATION[rotation >>> 30]!;
+    let turned = turn.largest << 30;
+    for (let slot = 0; slot < 3; slot += 1) {
+      const { from, negate } = turn.slots[slot]!;
+      const stored = (rotation >>> (20 - 10 * from)) & 1023;
+      turned |= (negate ? 1023 - stored : stored) << (20 - 10 * slot);
+    }
+    view.setUint32(base + 4, turned >>> 0, true);
+  }
 }
 
 /**
  * The viewer turns every .ply 180° about Z on load (the COLMAP y-down correction). Atlas
  * splats are already y-up, so turn them the opposite way first: positions and normals
  * negate x and y, and each (w, x, y, z) orientation becomes Rz(180°)·q = (−z, −y, x, w).
- * Only binary float32 splats are accepted; colours and scales are unchanged. Chunks are
- * turned in place as they pass, so a splat of any size is never held or copied whole.
+ * Binary float32 splats and PlayCanvas's compressed splats (no spherical harmonics) are
+ * accepted; colours and scales are unchanged. Chunks are turned in place as they pass, so
+ * a splat of any size is never held or copied whole.
  */
 class PlyViewerOrientation {
   private pendingHeader: Buffer | null = Buffer.alloc(0);
   private layout: PlyLayout | null = null;
   private carry = Buffer.alloc(0);
   private bodySeen = 0;
+  /** The section the next body byte belongs to, and how many of its records have passed. */
+  private section = 0;
+  private recordsDone = 0;
 
   /** The bytes to pass on for `chunk`, turned in place where whole records allow. */
   write(chunk: Buffer): Buffer[] {
@@ -180,6 +298,7 @@ class PlyViewerOrientation {
       }
       this.layout = plyLayout(combined.subarray(0, end).toString("latin1"));
       this.pendingHeader = null;
+      this.advance(0);
       const start = end + "end_header\n".length;
       return [combined.subarray(0, start), ...this.body(combined.subarray(start))];
     }
@@ -191,45 +310,49 @@ class PlyViewerOrientation {
     if (this.carry.length || this.bodySeen !== this.layout!.bodyBytes) throw new Error("ply_size_mismatch");
   }
 
+  /** Count `records` as passed, moving past every section they finish (and any empty one). */
+  private advance(records: number) {
+    const { sections } = this.layout!;
+    this.recordsDone += records;
+    while (this.section < sections.length && this.recordsDone === sections[this.section]!.records) {
+      this.section += 1;
+      this.recordsDone = 0;
+    }
+  }
+
   private body(chunk: Buffer): Buffer[] {
     const layout = this.layout!;
     this.bodySeen += chunk.length;
     if (this.bodySeen > layout.bodyBytes) throw new Error("ply_size_mismatch");
     const out: Buffer[] = [];
-    if (this.carry.length) {
-      const needed = layout.recordBytes - this.carry.length;
-      if (chunk.length < needed) {
-        this.carry = Buffer.concat([this.carry, chunk]);
+    while (chunk.length) {
+      const section = layout.sections[this.section]!;
+      if (this.carry.length) {
+        const needed = section.recordBytes - this.carry.length;
+        if (chunk.length < needed) {
+          this.carry = Buffer.concat([this.carry, chunk]);
+          return out;
+        }
+        const record = Buffer.concat([this.carry, chunk.subarray(0, needed)]);
+        section.turn(record);
+        out.push(record);
+        chunk = chunk.subarray(needed);
+        this.carry = Buffer.alloc(0);
+        this.advance(1);
+        continue;
+      }
+      const records = Math.min(section.records - this.recordsDone, Math.floor(chunk.length / section.recordBytes));
+      if (!records) {
+        this.carry = Buffer.from(chunk);
         return out;
       }
-      const record = Buffer.concat([this.carry, chunk.subarray(0, needed)]);
-      this.turn(record);
-      out.push(record);
-      chunk = chunk.subarray(needed);
-      this.carry = Buffer.alloc(0);
-    }
-    const whole = chunk.length - (chunk.length % layout.recordBytes);
-    if (whole) {
-      this.turn(chunk.subarray(0, whole));
+      const whole = records * section.recordBytes;
+      section.turn(chunk.subarray(0, whole));
       out.push(chunk.subarray(0, whole));
+      chunk = chunk.subarray(whole);
+      this.advance(records);
     }
-    if (whole < chunk.length) this.carry = Buffer.from(chunk.subarray(whole));
     return out;
-  }
-
-  private turn(records: Buffer) {
-    const { recordBytes, x, y, nx, ny, w, qx, qy, qz } = this.layout!;
-    // A DataView, because the header length leaves the records unaligned for a Float32Array.
-    const view = new DataView(records.buffer, records.byteOffset, records.length);
-    const negate = (offset: number) => view.setFloat32(offset, -view.getFloat32(offset, true), true);
-    for (let base = 0; base < records.length; base += recordBytes) {
-      negate(base + x); negate(base + y);
-      if (nx >= 0 && ny >= 0) { negate(base + nx); negate(base + ny); }
-      const qw = view.getFloat32(base + w, true), qi = view.getFloat32(base + qx, true);
-      const qj = view.getFloat32(base + qy, true), qk = view.getFloat32(base + qz, true);
-      view.setFloat32(base + w, -qk, true); view.setFloat32(base + qx, -qj, true);
-      view.setFloat32(base + qy, qi, true); view.setFloat32(base + qz, qw, true);
-    }
   }
 }
 
