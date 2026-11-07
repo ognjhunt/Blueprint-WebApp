@@ -230,6 +230,99 @@ door pull /var/lib/blueprint/pipeline-control-plane/task-evaluation-launch-runs/
 Anything the door refuses comes back with its rule (`secret_name_refused`,
 `path_outside_roots`, ...); archives list skipped files in their manifest.
 
+### 5a. Scene configuration: build step, launch and stuck launches
+
+- While the configured-controls timer is paused, run
+  `door unit start blueprint-task-evaluation-configured-controls-progression.service`
+  once the scene shows `awaiting_execution/scene_configuration`. That stages the
+  launch activation (the build step). It took 26–29 min on 2026-11-01 while the
+  toolchain archive was rebuilt on every release; since Pipeline #3238 a release
+  that changes no third-party toolchain tree reuses the cached archive. Run it
+  once more after the
+  activation leaves `task-evaluation-launch-activations/processing/` to submit the
+  launch. Pipeline #3196 moves both into scene progression.
+- `door deploy` waits while a scene-configuration activation is live
+  (`deploy_activation_hold` in `door status`). Pass
+  `--activation-hold-override <reason>` only for a fix to that activation.
+- A dispatcher refusal leaves the request in
+  `task-evaluation-launches/processing/` as
+  `unknown_requires_independent_reconciliation`. The launch reconciler timer
+  (always armed since Pipeline #3218) contains it after 15 min when no
+  dispatcher owns it and the launch never reached its allocator: either the run
+  directory was never created (#3207), or its one-use standing authorization was
+  never consumed (#3225). Otherwise it waits the profile's hard TTL. Scene
+  progression then settles that attempt's rows at $0 (#3223, #3225). Until
+  they settle, the scene shows `scene_intake_spend_cap_exhausted` or
+  `scene_progression_preparation_release_paid_reservation_exists`.
+- After a paid run tears down, the reconciler writes
+  `post_teardown_provider_zero_receipt.json`; scene completion waits for it.
+- Replay the dispatcher the way production starts it. The scene retirement
+  supervisor runs workers with `runpy.run_module(worker, run_name="__main__")`,
+  so a replay that imports the module can pass where the host fails (Pipeline
+  #3224). Mirror the request, profile, catalog and staged inputs at their host
+  paths, then run the module through `runpy` without `--execute`.
+
+### 5b. Watch the GPU run
+
+The provider log is
+`task-evaluation-launch-runs/<launch>/allocator/scene-configuration-job/vast_provider_run/vast_onstart_container.log`.
+`door cat` returns it while the run is live. In order, it shows:
+
+1. `BLUEPRINT_VAST_ISAAC_SMOKE_OK` and `BLUEPRINT_VAST_PROVIDER_BUNDLE_DOWNLOADED`
+   (about 9 min for a 6 GB bundle).
+2. The runner's early checks: `..._ASSET_ISOLATION_PREFLIGHT_PASSED`,
+   `..._SANDBOXED_INTERPRETER_PREFLIGHT_PASSED`,
+   `..._ARTISAN_BLENDER_STARTUP_PASSED` and
+   `..._ARTISAN_CONTROLLER_PREFLIGHT_PASSED`. A failure here costs minutes of
+   GPU and holds only the $5 compute allowance.
+3. `BLUEPRINT_SCENE_CONFIGURATION_STAGE_STARTED: index=N/6` and
+   `..._STAGE_COMPLETED`, with `..._PROGRESS: tick=N` while a stage runs.
+4. A failure, `BLUEPRINT_SCENE_CONFIGURATION_FAILURE:{...}`, then
+   `BLUEPRINT_VAST_PROVIDER_ENTRYPOINT_EXIT_CODE`.
+
+After teardown, the stage outputs are under
+`allocator/scene-configuration-job/immutable_execution/stages/` and are listed
+in `artifact_manifest.json`. For the ARTISAN stage (`stage-3/producer/artisan_runtime/`):
+
+- `last_failure.json` gives the exception type.
+- `controller-0.log` gives upstream progress and its last error.
+- `blueprint_usage.json` lists every model call with its cost and cached tokens.
+- `terminal.v1.json` gives the upstream phase and status.
+
+Blockers that are money, not code:
+
+- `artisan_shared_stage_authority_exhausted` in `controller-0.log`: the
+  object's ARTISAN authoring cap is spent. The cap is frozen into the scene
+  configuration, counts resumes, and comes from the host's
+  `BLUEPRINT_ARTISAN_AUTHORING_MAX_COST_USD` (default 15) when the
+  configuration is issued. capture-447ae4f4 spent $13.76 building one tray and
+  ran out during review (2026-11-02). Raising it is an owner decision that needs
+  the Mac and a new configuration revision.
+- `website_native_construction_budget_exceeds_authority`: the scene's budget
+  is fully committed. A settled attempt keeps its full hold unless its evidence
+  proves less. An early-check failure keeps only the $5 compute allowance, and
+  so does an ARTISAN stage 3 that stopped before its model cost gate. That
+  includes a sandbox preflight failure and a failed continuation restore
+  (#3244). Once authoring has started, the attempt keeps its whole hold. Only
+  an owner grant (`door extend-scene-execution-budget`) adds room. The settled
+  receipt shows the base hold; the smaller proven hold is applied when spend
+  is counted.
+
+Other stops seen on capture-447ae4f4 (2026-11-02), all fixed:
+
+- `scene_progression_unowned_preparation_already_exists` after a capacity
+  recovery: the successor rebuilt its predecessor's exact request under the
+  same release. Run IDs now carry the attempt (#3242).
+- `artisan_continuation_restored_inventory_mismatch` in stage 3's
+  `stage_producer.log`: the restored files were right but listed in the wrong
+  order (#3243). Activation now rehearses the restore on the host before a GPU
+  is rented (#3245). A source that cannot restore is rejected at $0 and the
+  attempt authors fresh.
+
+An ARTISAN continuation attempt still reserves the full authoring cap plus
+the $5 GPU allowance ($30 at a $25 cap), even though it can spend only the cap
+minus what its source already spent. Plan the scene budget for that.
+
 ### 6. A stage fails: replay, fix, deploy
 
 1. Replay the failed child in the session against your branch's code. Nothing
