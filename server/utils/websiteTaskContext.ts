@@ -90,6 +90,26 @@ export function projectWebsiteTaskContext(brief: SiteTaskBriefRecord, captureRig
   return { ...value, context_digest: canonicalArtifactDigest(value, "context_digest") };
 }
 
+/** The digests this brief's context had before the site confirmed it, while confirming changed nothing else.
+ * Confirming a brief is consent state, not task content: a context that differs from the earlier one only
+ * in `confirmed` and `confirmed_at` is that context's confirmed successor (the Pipeline's
+ * `website_task_context_lineage`). Empty for an unconfirmed brief, or when the confirmed projection differs
+ * in anything else (the task family it infers, for example). The confirmation itself is the brief's own. */
+export function confirmationParentContextDigests(brief: SiteTaskBriefRecord,
+  captureRights?: ReturnType<typeof projectWebsiteCaptureRights>,
+  evidence?: Parameters<typeof projectWebsiteTaskContext>[2]): string[] {
+  if (!brief.confirmedAtIso) return [];
+  const content = (context: ReturnType<typeof projectWebsiteTaskContext>) => {
+    const { context_digest: _digest, confirmed: _confirmed, confirmed_at: _at, ...rest } = context;
+    return canonicalArtifactDigest(rest, "context_digest");
+  };
+  const current = content(projectWebsiteTaskContext(brief, captureRights, evidence));
+  // An unconfirmed brief stored no time, or an explicit null: either projection may have sealed the grant.
+  return [...new Set([null, undefined].map(at => projectWebsiteTaskContext(
+    { ...brief, confirmedAtIso: at as unknown as SiteTaskBriefRecord["confirmedAtIso"] }, captureRights, evidence))
+    .filter(parent => content(parent) === current).map(parent => parent.context_digest))];
+}
+
 /** Reconstruct only the earlier v1 routing projection; no owner fact is removed.
  * Callers must independently admit the current assessment and retained grant.
  */

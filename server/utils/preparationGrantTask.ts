@@ -1,6 +1,6 @@
 import { PLACEHOLDER_TASK_SUMMARY, type SiteTaskBriefRecord } from "./siteTaskBrief";
 import type { TaskItemInventoryRecord } from "./taskItemInventory";
-import { projectWebsiteCaptureRights, projectWebsiteTaskContext } from "./websiteTaskContext";
+import { confirmationParentContextDigests, projectWebsiteCaptureRights, projectWebsiteTaskContext } from "./websiteTaskContext";
 
 /** Records which retained preparation grant was issued before the site named its job. */
 export const UNNAMED_TASK_GRANT_FIELD = "website_scene_sponsorship_unnamed_task";
@@ -18,6 +18,10 @@ export function preparationGrantFollowsBrief(grant: Record<string, any> | undefi
     || grant.development_test_site !== undefined) return false;
   const marker = input.record[UNNAMED_TASK_GRANT_FIELD];
   if (typeof marker === "string" && /^sha256:[a-f0-9]{64}$/.test(marker) && marker === grant.authority_digest) return true;
+  // The site confirmed the very brief the grant was issued for: consent state, not task content, so the
+  // grant follows its confirmed successor (same allowance, clock and spend history). An edit does not.
+  if (confirmationParentContextDigests(input.brief, projectWebsiteCaptureRights(input.record),
+    { inventory: input.inventory, purpose: "scene_preparation" }).includes(grant.task_context_digest)) return true;
   // Grants issued before the marker: only a provable first naming of the placeholder task.
   return grant.task_context_digest === projectWebsiteTaskContext(
     { ...input.brief, summary: PLACEHOLDER_TASK_SUMMARY, confirmedAtIso: null },
