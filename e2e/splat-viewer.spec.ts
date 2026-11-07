@@ -1,5 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
+import { createRequire } from "node:module";
 import { buildContentSecurityPolicy } from "../server/utils/contentSecurityPolicy";
+
+const { PNG } = createRequire(import.meta.url)("pngjs");
 
 // The self-hosted SuperSplat viewer a site opens from its job page (owner decision 2026-10-29).
 // The view route itself is covered in server/tests/website-atlas-auto-preview.test.ts; here the
@@ -32,6 +35,45 @@ function ballSplat(count = 4000) {
       index * properties.length);
   }
   return Buffer.concat([Buffer.from(header, "latin1"), Buffer.from(body.buffer)]);
+}
+
+/**
+ * The same ball as PlayCanvas's compressed PLY, the scene preview's format
+ * (website_scene_preview.build_preview): per 256 consecutive gaussians, 18 float bounds;
+ * per gaussian, 11-10-11 position and log scale, smallest-three rotation and 8-8-8-8 colour.
+ */
+function compressedBallSplat(count = 4000) {
+  const SH_C0 = 0.28209479177387814;
+  const rows = Array.from({ length: count }, (_, index) => {
+    const y = 1 - (2 * (index + 0.5)) / count, radius = Math.sqrt(1 - y * y), turn = index * 2.399963;
+    const direction = [Math.cos(turn) * radius, y, Math.sin(turn) * radius];
+    return { position: direction.map(value => value * 1.5), colour: direction.map(value => 0.5 + SH_C0 * value * 1.2) };
+  });
+  const chunks = Math.ceil(count / 256), chunk = new Float32Array(chunks * 18), vertex = new Uint32Array(count * 4);
+  const unorm = (value: number, low: number, high: number, bits: number) =>
+    Math.round((high > low ? (value - low) / (high - low) : 0) * ((1 << bits) - 1));
+  for (let index = 0; index < chunks; index += 1) {
+    const members = rows.slice(index * 256, (index + 1) * 256);
+    const low = (pick: (row: typeof rows[number]) => number[]) => [0, 1, 2].map(axis => Math.min(...members.map(row => pick(row)[axis]!)));
+    const high = (pick: (row: typeof rows[number]) => number[]) => [0, 1, 2].map(axis => Math.max(...members.map(row => pick(row)[axis]!)));
+    const bounds = [...low(row => row.position), ...high(row => row.position), -3, -3, -3, -3, -3, -3,
+      ...low(row => row.colour), ...high(row => row.colour)];
+    chunk.set(bounds, index * 18);
+    members.forEach((row, offset) => {
+      const [p, c] = [row.position.map((value, axis) => unorm(value, bounds[axis]!, bounds[axis + 3]!, axis === 1 ? 10 : 11)),
+        row.colour.map((value, axis) => unorm(value, bounds[axis + 12]!, bounds[axis + 15]!, 8))];
+      // The identity rotation: w (index 0) largest, x, y, z stored as 0·√2/2 + 0.5. Alpha is sigmoid(4).
+      const alpha = Math.round(255 / (1 + Math.exp(-4)));
+      vertex.set([((p[0]! << 21) | (p[1]! << 11) | p[2]!) >>> 0, ((0 << 30) | (512 << 20) | (512 << 10) | 512) >>> 0, 0,
+        ((c[0]! << 24) | (c[1]! << 16) | (c[2]! << 8) | alpha) >>> 0], (index * 256 + offset) * 4);
+    });
+  }
+  const header = `ply\nformat binary_little_endian 1.0\nelement chunk ${chunks}\n`
+    + ["min_x", "min_y", "min_z", "max_x", "max_y", "max_z", "min_scale_x", "min_scale_y", "min_scale_z", "max_scale_x",
+      "max_scale_y", "max_scale_z", "min_r", "min_g", "min_b", "max_r", "max_g", "max_b"].map(name => `property float ${name}\n`).join("")
+    + `element vertex ${count}\n` + ["packed_position", "packed_rotation", "packed_scale", "packed_color"]
+      .map(name => `property uint ${name}\n`).join("") + "end_header\n";
+  return Buffer.concat([Buffer.from(header, "latin1"), Buffer.from(chunk.buffer), Buffer.from(vertex.buffer)]);
 }
 
 const settings = { version: 2, tonemapping: "linear", highPrecisionRendering: false, background: { color: [0, 0, 0] },
@@ -95,6 +137,53 @@ test("renders the scene preview a job page links to, through the same host page"
   expect(fetched.sort()).toEqual(["scene.ply:scene", "settings.json:scene"]);
   await expect(page.getByRole("alert")).toHaveCount(0);
   expect(violations).toEqual([]);
+});
+
+test("renders a compressed scene preview the same as the float scene it packs", async ({ page }) => {
+  // The scene preview is PlayCanvas's compressed PLY, so every Gaussian of an Atlas splat fits
+  // its size cap. The vendored viewer reads it on its compressed path; it should draw the same
+  // ball as the float splat above, without an error or a policy violation.
+  const violations = await underProductionPolicy(page);
+  const errors: string[] = [];
+  page.on("pageerror", error => errors.push(error.message));
+  page.on("console", message => { if (message.type() === "error") errors.push(message.text()); });
+  let splat = ballSplat();
+  await page.route("**/api/website-atlas-preview-views/**", async route => {
+    if (route.request().url().includes("/settings.json?")) return route.fulfill({ json: settings });
+    return route.fulfill({ body: splat, headers: { "content-type": "application/octet-stream",
+      "content-length": String(splat.length), "cache-control": "private, no-store" } });
+  });
+  const scene = SCENE.replace("scene.ply?", "scene.ply?source=scene&");
+  const rendered = async () => {
+    await page.goto(`/splat-viewer/index.html?${new URLSearchParams({ content: scene })}`);
+    await expect(page.locator(".sse-loadingWrap")).toHaveClass(/sse-hidden/, { timeout: 30_000 });
+    await expect(page.getByRole("alert")).toHaveCount(0);
+    // The viewer flies its camera from the moment it opens; pressing the start of its timeline
+    // pauses it there, so both scenes are drawn from the same place.
+    const timeline = await page.locator(".sse-timelineContainer").boundingBox();
+    await page.mouse.click(timeline!.x + 1, timeline!.y + timeline!.height / 2);
+    await page.waitForTimeout(1_500);
+    return PNG.sync.read(await page.screenshot());
+  };
+  const float = await rendered();
+  splat = compressedBallSplat();
+  const compressed = await rendered();
+  expect(errors).toEqual([]);
+  expect(violations).toEqual([]);
+  // The ball is drawn (most of the frame is the black background, a good part is not) ...
+  const lit = (image: { data: Buffer }) => {
+    let count = 0;
+    for (let offset = 0; offset < image.data.length; offset += 4)
+      if (image.data[offset]! + image.data[offset + 1]! + image.data[offset + 2]! > 60) count += 1;
+    return count / (image.data.length / 4);
+  };
+  expect(lit(compressed)).toBeGreaterThan(0.02);
+  // ... and it is the float splat's ball, to within quantization.
+  let difference = 0;
+  for (let offset = 0; offset < float.data.length; offset += 4)
+    for (let channel = 0; channel < 3; channel += 1) difference += Math.abs(float.data[offset + channel]! - compressed.data[offset + channel]!);
+  expect(difference / (float.data.length / 4 * 3)).toBeLessThan(1);
+  expect(Math.abs(lit(compressed) - lit(float))).toBeLessThan(0.005);
 });
 
 for (const first of ["viewer", "scene"] as const) test(`says the preview is being prepared until the viewer takes over (${first} first)`, async ({ page }) => {

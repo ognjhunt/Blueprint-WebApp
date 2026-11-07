@@ -52,7 +52,11 @@ export const websiteScenePreviewSchema = z.object({
   state: z.literal("ready"),
   /** Which retained scene it came from; any source kind, never a path. */
   source_kind: z.string().regex(/^[a-z][a-z0-9_]{0,63}$/),
-  format: z.literal("ply_3dgs_sh0"),
+  /**
+   * A float 3DGS PLY (the Pipeline's first writer), or PlayCanvas's compressed PLY (every
+   * Gaussian of a 2 M Atlas splat under the cap). The viewer reads both; the turn takes both.
+   */
+  format: z.enum(["ply_3dgs_sh0", "ply_3dgs_compressed_sh0"]),
   coordinate_frame: z.literal("right_up_back_y_up"),
   digest: sha,
   size_bytes: z.number().int().positive().max(MAX_SCENE_PREVIEW_BYTES),
