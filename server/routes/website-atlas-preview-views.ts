@@ -10,6 +10,12 @@ import {
   viewableWebsiteAtlasPreview,
   websiteAtlasPreviewViewerFiles,
 } from "../utils/websiteAtlasPreviewView";
+import {
+  SCENE_PREVIEW_VIEW_SOURCE,
+  verifyWebsiteScenePreviewViewTicket,
+  viewableWebsiteScenePreview,
+  websiteScenePreviewViewerFiles,
+} from "../utils/websiteScenePreview";
 
 const router = Router();
 const unavailable = { error: "3D preview is unavailable", code: "website_atlas_preview_unavailable" };
@@ -18,27 +24,34 @@ const unavailable = { error: "3D preview is unavailable", code: "website_atlas_p
  * Owner decision 2026-10-29: the vendored viewer fetches the splat (and its start view)
  * from here to render it; the site is never offered the file. Opening a link directly
  * is refused, the ticket lasts 15 minutes, and consent and readiness are re-read on
- * every request.
+ * every request. `source=scene` selects the job page's scene preview (websiteScenePreview.ts)
+ * under its own ticket domain, so the viewer and its host page serve both unchanged.
  */
 router.get("/:requestId/:captureId/:file(scene.ply|settings.json)", async (req, res) => {
   res.set("Cache-Control", "private, no-store");
   const { requestId, captureId, file: name } = req.params as Record<string, string>;
+  const scene = req.query.source === SCENE_PREVIEW_VIEW_SOURCE;
   if (req.get("sec-fetch-dest") === "document" || req.get("sec-fetch-mode") === "navigate")
     return res.status(403).json({ error: "Open the 3D preview from your job page.", code: "website_atlas_preview_view_only" });
   if (!WEBSITE_ATLAS_REQUEST_ID.test(requestId) || !WEBSITE_ATLAS_CAPTURE_ID.test(captureId)
-    || !verifyWebsiteAtlasPreviewViewTicket(requestId, captureId, req.query.expires, req.query.signature))
+    || !(scene ? verifyWebsiteScenePreviewViewTicket : verifyWebsiteAtlasPreviewViewTicket)(
+      requestId, captureId, req.query.expires, req.query.signature))
     return res.status(404).json(unavailable);
   if (!db) return res.status(503).json({ error: "3D preview store is unavailable" });
   let record: Record<string, any> | undefined;
+  let session: Record<string, any> | undefined;
   try {
     record = (await db.collection("inboundRequests").doc(requestId).get()).data();
+    if (scene) session = (await db.collection("captureUploadSessions").doc(captureId).get()).data();
   } catch {
     return res.status(503).json({ error: "3D preview store is unavailable" });
   }
-  const preview = viewableWebsiteAtlasPreview(record, captureId);
-  if (!preview?.bundle) return res.status(404).json(unavailable);
+  const scenePreview = scene ? viewableWebsiteScenePreview(record, session, captureId) : null;
+  const preview = scene ? null : viewableWebsiteAtlasPreview(record, captureId);
+  if (scene ? !scenePreview : !preview?.bundle) return res.status(404).json(unavailable);
   try {
-    const files = await websiteAtlasPreviewViewerFiles(requestId, captureId, preview.bundle);
+    const files = scenePreview ? await websiteScenePreviewViewerFiles(requestId, captureId, scenePreview)
+      : await websiteAtlasPreviewViewerFiles(requestId, captureId, preview!.bundle!);
     const file = name === "settings.json" ? files.settings : files.splat;
     // The length drives the viewer's progress bar; without it a large splat shows 100% at once.
     const { size } = await stat(file);

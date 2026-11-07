@@ -52,6 +52,7 @@ import { isTeamEvaluationProfile, TEAM_EVALUATION_EPISODES, TEAM_EVALUATION_PROF
 import { observeWebsiteCaptureOwner } from "../utils/websiteCaptureOwnerObservation";
 import { withWebsiteOwnerDeps } from "../utils/websiteCaptureOwnerTransport";
 import { recordWebsiteAtlasPreview, websiteAtlasPreviewDigestValid, websiteAtlasPreviewSchema } from "../utils/websiteAtlasPreview";
+import { recordWebsiteScenePreview, websiteScenePreviewSchema } from "../utils/websiteScenePreview";
 import { loadOwnedCaptureAtlasConfiguration, ownedAtlasConfigurationRequest,
   reserveOwnedCaptureAtlasSpend, settleOwnedCaptureAtlasSpend } from "../utils/ownedCaptureAtlasPreparation";
 import { assertWithinWebsiteJobCeiling, transactionJobLedgerReader } from "../utils/websiteJobCeiling";
@@ -230,6 +231,28 @@ router.post("/creator-captures/:captureId/visual-scene", createPipelineSyncRateL
       if (error instanceof Error && /^(website_visual_scene_context_changed|website_scene_|website_task_context_|source_revoked|consent_expired|task_context_capture_mismatch|website_capture_binding_)/.test(error.message))
         return res.status(409).json({ code: error.message });
       return res.status(503).json({ code: "website_visual_scene_unavailable" });
+    }
+  });
+
+// The site's web-sized scene preview (owner ask 2026-11-07), on the same channel as the
+// visual scene above: the Pipeline names a private, digest-bound preview of the scene it
+// built; the capture session keeps that identity beside `world_reconstruction`, and the job
+// page's owner link opens it in the vendored viewer. Current rights are rechecked here.
+router.post("/creator-captures/:captureId/scene-preview", createPipelineSyncRateLimiter(), guard,
+  async (req: Request, res: Response) => {
+    const parsed = z.object({ request_id: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/),
+      scene_id: z.string().max(200), preview: websiteScenePreviewSchema }).strict().safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ code: "website_scene_preview_invalid" });
+    const { request_id: requestId, scene_id: sceneId, preview } = parsed.data;
+    try {
+      const accepted = await recordWebsiteScenePreview(requestId, sceneId, String(req.params.captureId), preview);
+      res.setHeader("Cache-Control", "no-store");
+      return res.json(accepted);
+    } catch (error) {
+      const code = error instanceof Error ? error.message : "";
+      if (/^(source_revoked|idempotency_conflict|task_context_capture_mismatch|website_scene_preview_(stale|digest_invalid|capture_missing|request_missing)|website_capture_binding_)/.test(code))
+        return res.status(409).json({ code });
+      return res.status(503).json({ code: "website_scene_preview_unavailable" });
     }
   });
 

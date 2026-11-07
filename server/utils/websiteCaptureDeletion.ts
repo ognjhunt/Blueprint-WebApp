@@ -10,6 +10,8 @@
  *   scenes/site-<id>/captures/walkthrough-<id>/upload/   app bundle plan and completion records
  *   scenes/site-<id>/captures/<supplement>/raw|upload/   supplements recorded for this request
  *   scenes/site-<id>/items/                              job item photos
+ *   captureUploadSessions/<capture>.scene_preview        the job page's published scene preview
+ *                                                        reference, and this instance's cached copy
  *
  * Every object generation is deleted, every listed name is re-checked against
  * its owned prefix, and the pass writes a durable receipt (objects listed,
@@ -36,6 +38,7 @@ import { logger } from "../logger";
 import { canonicalArtifactDigest } from "./taskCandidateContract";
 import { createAutomationLeaderLease, type AutomationLeaderLease } from "./automationLeaderLease";
 import { deriveWebsiteWithdrawalState, websiteWithdrawalCommand } from "./websiteCaptureWithdrawal";
+import { deleteWebsiteScenePreviews } from "./websiteScenePreview";
 
 export const DELETION_RECEIPTS_COLLECTION = "websiteCaptureDeletionReceipts";
 /** Mirrors SIGNED_URL_TTL_MS in siteCaptureBundleService.ts. */
@@ -226,7 +229,12 @@ async function runPass(work: Claim, deps: DeletionDeps) {
   let deletedCount = 0, failedCount = 0;
   try {
     if (!deps.bucket) throw Object.assign(new Error("storage_unavailable"), { code: "storage_unavailable" });
-    const prefixes = ownedPrefixes(work.requestId, await supplementCaptureIds(work.requestId));
+    const supplements = await supplementCaptureIds(work.requestId);
+    const prefixes = ownedPrefixes(work.requestId, supplements);
+    // The published scene preview the job page showed: its stored reference on every capture of
+    // this job. The Pipeline's own withdrawal deletion removes the archived bytes.
+    const scenePreviewsDeleted = await deleteWebsiteScenePreviews(work.requestId,
+      [`walkthrough-${work.requestId}`, ...supplements]);
     const listed = await listOwned(deps.bucket, prefixes, MAX_OBJECTS_PER_PASS);
     // Resumable sessions are minted only after an app bundle plan is stored.
     nativePlanSeen = nativePlanSeen || listed.objects.some(object => object.prefix.endsWith("/upload/"))
@@ -251,6 +259,7 @@ async function runPass(work: Claim, deps: DeletionDeps) {
       deleted_count: result.deleted,
       failures: result.failures,
       remaining_count_after_pass: remaining,
+      scene_preview_references_deleted: scenePreviewsDeleted,
       outcome,
       upload_targets: {
         minting_stopped_at_iso: work.withdrawal.requestedAtIso,

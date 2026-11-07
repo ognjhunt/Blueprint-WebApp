@@ -97,6 +97,7 @@ import { disclosedUnknownGates, gateAnswersOnFile } from "../utils/gateAnswersOn
 import { bookingUrl } from "../utils/bookingLink";
 import { notifySlackScreeningCallNeeded } from "../utils/slack";
 import { EMAIL_SIGN_OFF, emailGreeting } from "../utils/emailLayout";
+import { storedWebsiteScenePreview, websiteScenePreviewViewerUrl } from "../utils/websiteScenePreview";
 
 const router = Router();
 
@@ -289,6 +290,17 @@ function safeSceneViewUrl(value: unknown): string | null {
   try {
     const url = new URL(String(value || ""));
     return url.protocol === "https:" && !url.username && !url.password ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The job page's link to its scene preview in the vendored viewer, held to the same rule as a world link. */
+function scenePreviewViewUrl(requestId: string, captureId: string): string | null {
+  const viewer = websiteScenePreviewViewerUrl(requestId, captureId);
+  if (!viewer) return null;
+  try {
+    return safeSceneViewUrl(new URL(viewer, `${(process.env.APP_URL || "https://tryblueprint.io").replace(/\/+$/, "")}/`));
   } catch {
     return null;
   }
@@ -1192,6 +1204,12 @@ router.get("/:token/status", async (req: Request, res: Response) => {
     // the account exists; its status is never read as progress (2026-10-18).
     const footageBeforeAccount = Boolean(request) && !request?.captureRights.consent_revoked
       && await footageArrivedBeforeAccount(payload.requestId, request) === true;
+    // The site's own scene preview (owner ask 2026-11-07), in every state of its job: owner
+    // links only, only while its rights allow derived scenes, and only through a 15-minute
+    // view ticket this owner link mints. It changes no status; it is a way to look.
+    const scenePreviewUrl = payload.scope === "owner" && request?.captureRights.derived_scene_generation_allowed
+      && !footageBeforeAccount && storedWebsiteScenePreview(captureSession?.data(), payload.captureId)
+      ? scenePreviewViewUrl(payload.requestId, payload.captureId) : null;
     // Presence is only a readback hint. The stored failure itself is never
     // customer truth: verify current Pipeline/source/rights/context again.
     const preparationStatus = !footageBeforeAccount && payload.scope !== "film" && !request?.captureRights.consent_revoked
@@ -1324,7 +1342,7 @@ router.get("/:token/status", async (req: Request, res: Response) => {
       footageReviewAutomated: isSiteVideoEvidenceEnabled(),
       summary: request?.captureRights.consent_revoked ? null : brief?.summary ?? null,
       claimUrl,
-      sceneViewUrl: status.resultSuperseded ? null : sceneViewUrl,
+      sceneViewUrl: scenePreviewUrl ?? (status.resultSuperseded ? null : sceneViewUrl),
       // Opaque ids and position labels only; no frame or person pixels.
       targetChoice: question ? { questionDigest: question.question_digest, semanticLabel: question.semantic_label,
         ...(targetChoiceAnswer === 'none_of_these' ? {rejected: true} : {}),

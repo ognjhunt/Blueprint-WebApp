@@ -76,6 +76,27 @@ test("renders a site's 3D preview under the production content security policy",
   expect(violations).toEqual([]);
 });
 
+test("renders the scene preview a job page links to, through the same host page", async ({ page }) => {
+  // "View your scene" (owner ask 2026-11-07): the job page's link names the scene preview with
+  // source=scene, and the viewer asks for its splat and start view with that same selector.
+  const violations = await underProductionPolicy(page);
+  const splat = ballSplat();
+  const fetched: string[] = [];
+  await page.route("**/api/website-atlas-preview-views/**", async route => {
+    const url = new URL(route.request().url());
+    fetched.push(`${url.pathname.split("/").pop()}:${url.searchParams.get("source")}`);
+    if (url.pathname.endsWith("/settings.json")) return route.fulfill({ json: settings });
+    return route.fulfill({ body: splat, headers: { "content-type": "application/octet-stream",
+      "content-length": String(splat.length), "cache-control": "private, no-store" } });
+  });
+  const scene = SCENE.replace("scene.ply?", "scene.ply?source=scene&");
+  await page.goto(`/splat-viewer/index.html?${new URLSearchParams({ content: scene })}`);
+  await expect(page.locator(".sse-loadingWrap")).toHaveClass(/sse-hidden/, { timeout: 30_000 });
+  expect(fetched.sort()).toEqual(["scene.ply:scene", "settings.json:scene"]);
+  await expect(page.getByRole("alert")).toHaveCount(0);
+  expect(violations).toEqual([]);
+});
+
 for (const first of ["viewer", "scene"] as const) test(`says the preview is being prepared until the viewer takes over (${first} first)`, async ({ page }) => {
   // On a first view the server prepares the scene before any of it arrives, and only the
   // download has a progress bar: the page once stayed blank for that whole wait. A prepared
