@@ -15,6 +15,7 @@
 import { websiteAtlasAuthorizationCeiling, websiteAtlasGrantPolicy } from "./websiteAtlasAuthorization";
 import { parseBetaPolicyScreeningPublication, screeningMoneyMicros, SCREENING_SITE_LIMIT_USD } from "./betaPolicyScreeningContract";
 import { publicationFromResultRecord } from "./taskEvaluationRunPublicationStorage";
+import { isNavigationStrategy } from "./navigationSceneIntake";
 
 /** The owner's existing per-job ceiling for website jobs (2026-10-30). It
  * applies only when neither the job's Atlas authorization nor the configured
@@ -130,10 +131,15 @@ function attemptMicros(attempt: any) {
  * still spend on, so it stays held in full whatever its local state says.
  * A local `blocked` only ends the WebApp's own retries or polls: it releases
  * when nothing was ever sent, or when the Pipeline's status shows it ended.
+ *
+ * A navigation intake keeps its scene as filmed and grants no construction
+ * allowance (owner, 2026-11-07): it counts only what the Pipeline reports its
+ * attempts hold, which is nothing, since the Pipeline reserves none for it.
  */
 function nativeIntakeMicros(intake: Record<string, any>) {
   const status = intake.pipeline_status, attempts = Array.isArray(status?.attempts) ? status.attempts : [];
   const reserved = attempts.reduce((sum: number, attempt: any) => sum + attemptMicros(attempt), 0);
+  if (isNavigationStrategy(intake.request?.task?.strategy)) return reserved;
   const settledReported = attempts.some((attempt: any) => attempt?.retained_spend_usd !== undefined);
   const granted = intake.request?.execution?.max_total_spend_usd;
   const extended = status?.effective_execution_budget?.max_total_spend_usd;

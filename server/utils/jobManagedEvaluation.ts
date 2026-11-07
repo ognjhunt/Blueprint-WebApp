@@ -21,6 +21,7 @@ import { projectCandidateSelection } from "./betaCandidateSelection";
 import type { JobCandidateSelection } from "../../client/src/types/jobMarketplace";
 import { assertWebsiteCaptureBindingInTransaction, resolveWebsiteCaptureBinding } from "./websiteCaptureBinding";
 import { familyNativePreparationReference, preparationPhaseMatchesTask } from "./taskFamilySceneIntake";
+import { navigationPreparationReference } from "./navigationSceneIntake";
 import { assertWebsiteRunOpen } from "./websiteRunClosure";
 import { taskTargetSelectionApplies } from "./websiteTaskTargetChoice";
 import { WILSON_CONFIDENCE_PERCENT, wilsonLowerBound, wilsonUpperBound } from "./successRateConfidence";
@@ -140,20 +141,22 @@ const OFFERED_REVISION_FILE_DIGEST = "configured_scene_offering.evaluation_prepa
 /**
  * Stored configured scene offerings that name this intake's prepared revision
  * file. Each was stored from a Pipeline-signed launch receipt the website
- * verified. A family preparation names its revision digest itself and needs
- * none. Read outside any transaction: a file's bytes fix its self-digest, so
+ * verified. A family or navigation preparation names its revision digest itself
+ * and needs none. Read outside any transaction: a file's bytes fix its self-digest, so
  * what an offering says about one exact revision file never changes.
  */
 export async function readPreparedRevisionOfferings(intake: Record<string, any> | undefined): Promise<unknown[]> {
   const reference = intake?.pipeline_status?.result_reference;
-  if (!db || familyNativePreparationReference.safeParse(reference).success || typeof reference?.digest !== "string") return [];
+  if (!db || familyNativePreparationReference.safeParse(reference).success
+    || navigationPreparationReference.safeParse(reference).success || typeof reference?.digest !== "string") return [];
   const rows = await db.collection(CONFIGURED_SCENE_LAUNCHES).where(OFFERED_REVISION_FILE_DIGEST, "==", reference.digest).limit(20).get();
   return rows.docs.map(row => row.data()?.configured_scene_offering);
 }
 
 /**
  * The prepared scene revision's own digest, which a screening source names as
- * `scene_revision_digest`. A family preparation's reference states it. A
+ * `scene_revision_digest`. A family preparation's reference states it, and so
+ * does a navigation preparation's (the navigation record's scene revision). A
  * configured scene's status names only the revision file (its uri, the sha256
  * of its bytes and its size), never its self-digest; the stored offering's
  * evaluation_preparation_binding binds that exact file to the self-digest.
@@ -163,6 +166,8 @@ export function preparedSceneRevisionDigest(status: Record<string, any> | undefi
   const reference = status?.result_reference;
   const family = familyNativePreparationReference.safeParse(reference);
   if (family.success) return family.data.digest;
+  const navigation = navigationPreparationReference.safeParse(reference);
+  if (navigation.success) return navigation.data.digest;
   const named = new Set<string>();
   for (const offering of offerings) {
     const binding = evaluationPreparationBindingSchema.safeParse((offering as Record<string, unknown> | null)?.evaluation_preparation_binding);

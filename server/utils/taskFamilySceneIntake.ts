@@ -3,6 +3,7 @@
  * A family selection grants no runtime, provider or spending authority.
  */
 import { z } from "zod";
+import { isNavigationStrategy, navigationPreparationPhaseMatches } from "./navigationSceneIntake";
 
 const identifier = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/);
 const digest = z.string().regex(/^sha256:[0-9a-f]{64}$/);
@@ -46,11 +47,13 @@ export function isTaskFamilyStrategy(value: unknown): value is typeof taskFamily
 /** Shared by publication admission and later evidence applicability reads. */
 export function preparationPhaseMatchesTask(request: Record<string, any> | undefined,
   status: Record<string, any> | undefined): boolean {
+  if (isNavigationStrategy(request?.task?.strategy)) return navigationPreparationPhaseMatches(request, status);
   return isTaskFamilyStrategy(request?.task?.strategy)
     ? status?.phase === "family_native_prepared" && request?.execution?.purpose === "scene_preparation"
       && request.execution.policy_candidates?.length === 0
       && familyPreparationMatchesTask(status.result_reference, request.task)
-    : status?.phase === "scene_prepared" && status.result_reference?.schema_version !== "website_task_family_preparation_result.v1";
+    : status?.phase === "scene_prepared" && status.result_reference?.schema_version !== "website_task_family_preparation_result.v1"
+      && status.result_reference?.schema_version !== "website_navigation_preparation_result.v1";
 }
 
 /** Bind the prepared source to the existing capture/task sponsorship.
