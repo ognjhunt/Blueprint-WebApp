@@ -43,13 +43,20 @@ The owner approved the following before 14:44Z. The hard ceiling is $115 and the
 
 | Line | Approved | Applied on this job (artifact) |
 |---|---|---|
-| Vast top-up | $30, the owner's own action | pending. `door status` 14:11Z: credit $7.07 against the $11 page line |
+| Vast top-up | $30, the owner's own action | not a blocker (owner, 11-07: "these shouldnt be blockers at all"). The $7.07 credit covers one $4 G1 run and the $1 reserve |
 | Atlas allowance | $40 | automatic grant of $25 / 32 requests (`pipeline/atlas/configuration.json`) |
 | Upstream ledger | $5 | $5 (`pipeline/website_scene_sponsorship.json`) |
 | Scene budget | $40 | $20 at intake, with 16 paid attempts (`website_scene_sponsorship.json`) |
 | Preparation attempts | 16 → 32, one-shot | applied 14:53Z, amendment `sha256:99ab7973…` (`scripts/amend-website-preparation-limit.ts --apply`) |
 | Site screening | $30, the existing limit | `SITE_LIMIT` in the Pipeline coordinator |
 | Cloud Run | $0 | not enabled |
+
+**Spent at 06:10Z on 11-07,** from the door's status read:
+- Atlas: $7.38 of the $25 grant, including the $5 refined splat and the $0.50 mesh;
+- clean plate: $0.69 held;
+- intake capture inference: $1.06 known.
+
+That is about $9.13 against the $115 ceiling.
 
 ## Owner decisions, 16:05Z (10:05 CST)
 
@@ -60,6 +67,15 @@ The owner approved the following before 14:44Z. The hard ceiling is $115 and the
 | Parked deliveries | "yes retire the 7" | No door operation could end a parked delivery, and host files are never edited by hand. Pipeline #3425 added a general owner-approved door operation, `retire-parked-delivery`, and #3427 fixed its first plans. **Done 22:40–22:45Z** on the `8dc96be` door: each of the 7 was planned, then retired. 3 delivery records parked since 11-02 were retired, and 4 orphaned hints whose captures are absent were archived under `retired/`. Nothing was deleted |
 | Rights | "yes standard - rights are okay" | Recorded above |
 
+## Owner decisions, 11-07 (overnight)
+
+| Decision | Words | Applied |
+|---|---|---|
+| Appearance | "we need to remove 'depth-fused draft' from an option (maybe can be fallback) - atlas only here (as long as we have money/credits)" (about 00:55Z) | Pipeline #3435: a scene kept as filmed takes Atlas's refined splat as its appearance, mesh source and export. The draft is only a named fallback. This job bought the $5 refined splat |
+| Brief and Vast | "these shouldnt be blockers at all" | An unconfirmed brief is disclosed in the G1 navigation authority, never a stop there (#3439). The Vast top-up is not needed for the first $4 run |
+| Brief and consent | "yes a confirmed brief counts as consent" (to the G1 session, about 05:50Z) | Consent rechecks stay as they are. Nothing in the Pipeline sets or assumes the confirmation: the site confirms the brief on the website |
+| Overnight | "DONT STOP FOR ANYTHING - keep making progress. i pre-approve everything needed" (05:20Z) | Covers deploys and fixes, within the approved money. Privacy, rights and money stay hard stops |
+
 ## 14-step evidence matrix
 
 | # | Step | Status | Artifact | Cost | Time | Gap found |
@@ -69,8 +85,13 @@ The owner approved the following before 14:44Z. The hard ceiling is $115 and the
 | 3 | Video/privacy/task review | **done, then failed** | Atlas planner review 1, receipt `scene_planner/9ad5eb5e….json`: `no_manipulated_subject`, one `navigation` step, `covers_entire_job: false` (start pose, stop tolerance and robot footprint unspecified; "no registered navigation profile"). Reviews 2 and 3 followed. Clean plate: Gemini `removal_plan.json` found 4 targets (left, right and end shelves, and the floor), with 0 to remove and 0 people | $0.079, $0.141 and $0.120 (OpenAI, settled); SAM target 0 about $0.087 reserved | 14:45–15:50Z | (a) Review 3 cited a frame it had not selected, and the Atlas job failed with `atlas_automation_frames_not_selected` (fixed in Pipeline #3423). (b) The 4K source made the extended survey slow: 153 frames as about 11 MB PNGs, roughly 30 s each. (c) Clean plate stopped with `meta_sam_submission_requires_reconciliation`: a parser timeout at a fixed 300 s, then a 404 on a stale video upload (fixed in #3423) |
 | 4 | Task-relevant selection and reconstruction plan | **done on the second try** | First try: Atlas `preview_job.json` `failed`, `atlas_automation_frames_not_selected`, revision 2 (15:50Z). After the `a14db1c` deploy (#3423, about 17:18Z) the job was requeued at 17:27Z (revision 4). Two more planner reviews passed, and the World Labs source pose ran | $0.120 and $0.056 (OpenAI); $0.41 (World Labs pose); all settled | 17:27–18:29Z | — |
 | 5 | Preserved-scene gap review | **failed, fixed, requeued** | `preview_job.json` revision 4: `failed`, stage `source_pose`, `atlas_source_gap_capture_identity_invalid` (18:29Z). The pose had also been given the clean plate's 41 task-source frames (`object_geometry_only`), 6 of them in no Atlas survey, and `source_gallery` requires every conditioned frame to be surveyed. Pipeline #3428 adds the missing frames from the manifest the pose verified. Live with `8dc96be` (22:32Z); requeued at 22:34Z (revision 5). By 22:36Z the job had written `capture_source_survey_with_task_views.json` | $0 (it stopped before any gap purchase) | 18:29Z; 22:34Z | The task-source frames reached the pose but not the gap review's survey |
-| 6–12 | Gap fill, splat, registration, assets, integration, native qualification | waiting | | | | The scene is kept as filmed, so there are no masks or edits. The handoff then compiles the navigation spec (`navigation_task_spec.json`) and authors the scene's Isaac files (`navigation_scene_assets.json`), both from #3428 |
-| 13 | Robot team picks its saved setup; screening | waiting | | | | The job is expected to hold at the handoff with `website_task_runnable_policy_missing`, naming the navigation pieces not yet live: the arena runtime with no task object (Pipeline #3431, in review) and the G1 lane (part C, not started). Also needed: the site confirms the brief (`confirmed: false` today), and the owner's Vast top-up. Plan: Pipeline `docs/G1_NAVIGATION_FROM_COMPILED_SPEC.md` |
+| 6 | Gap fill | **done, nothing admitted** | The planner ($0.28), the generation ($0.42), the review and the joint registration (41 frames, 33 agree) passed. The recovered view's 4,510 gap pixels yielded 0 exportable samples, and the job ended `atlas_preserved_completion_no_exportable_geometry` (23:08Z). Pipeline #3435 flags an empty recovery and keeps the captured scene; live with `682d098` (02:01Z), requeued 02:02Z | $0.70 (Atlas grant) | 23:08Z; 02:02Z | An empty recovery stopped the job instead of being flagged |
+| 7 | Splat | **done** | Atlas refined splat (`posedImages2Splats`, minimal form): 41 captured frames, no generated view, 2 M Gaussians (02:08Z) | $5 (Atlas grant) | 02:08Z | — |
+| 8 | Mesh and registration | **failed, fixed, done** | `splats2Mesh` (02:29Z) gave 613,408 faces, and registration refused it, `atlas_mesh_not_registered_to_splat` (02:30Z): the limit was 3 draft voxels (0.0198) and this mesh is coarser than capture-447's 1.89 M faces. Pipeline #3437: the limit is max(3 voxels, 1.5 median mesh edges), and a refusal writes its numbers. Live with `69e48f8` (03:12:57Z); the job was `ready` at 03:18Z. It registered with residual 0.0310 against 0.0504, keeping 398,036 faces | $0.50 (Atlas grant) | 02:29Z; 03:18Z | The registration limit ignored the provider mesh's resolution |
+| 9 | Clean plate (native preparation) | **failed, fixed, done** | Resumed 03:19Z. At 03:26Z the kernel killed it out of memory (4.0 GB of 8.3 GB, no swap) while decoding SAM masks for the 4K, 437-frame video. Pipeline #3438 keeps SAM tracks compact, resends an unanswered SAM request once (the first is counted as spent) and recovers an attempt whose process died. Live with `01ca433` (05:42:50Z). A resume at 05:43Z was refused before any work because the Google Cloud budget report was older than 5 minutes (the month: $9.77 of $100). The 05:46Z resume finished the clean plate at 05:52Z, with at least 5.5 GB free throughout | $0.69 held (SAM $0.35, Gemini $0.34) | 03:19–05:52Z | (a) SAM decoding held whole-video masks in memory. (b) No operator path recovered a preparation whose process died |
+| 10 | Scene handoff (levelling) | **stopped, fix in review** | `website_scene_preparation/handoff.json`: `needs_input`, `website_atlas_scene_level_unobserved` (05:52:50Z). No single near-level plane held 4% of the supported mesh. An aisle's level surface is split across the floor strip and the shelf boards, and the source depth reaches about 11 m below the floor, so a reflective floor may have been trimmed. Pipeline #3441 levels on the parallel level surfaces together when no single plane passes, and records what the search found | $0 | 05:52Z | Levelling used one plane, though its own premise is that level surfaces are parallel |
+| 11–12 | Navigation spec, Isaac scene files, native qualification | waiting | | | | After levelling, the handoff compiles `navigation_task_spec.json` and authors `navigation_scene_assets.json` (Pipeline #3428). Part C (2/2) adds the navigation scene half and its withdrawal coverage |
+| 13 | Robot team picks its saved setup; screening | waiting | | | | Expected hold: `website_task_runnable_policy_missing`. Merged: the arena runtime with no task object (Pipeline #3431) and part C (1/2) (#3439, 06:10Z). Part C (2/2) is being built: the G1 lane, the handoff writer and withdrawal. Still needed: (a) the site confirms the brief on the website (`confirmed: false` today); (b) a WebApp intake kind for navigation, which reserves $0 and grants no construction allowance. That is a money change, so it is the owner's decision. Plan: Pipeline `docs/G1_NAVIGATION_FROM_COMPILED_SPEC.md` |
 | 14 | Results on the task page; provider-zero | waiting | | | | |
 
 ## Gaps from capture-447 (G1–G11)
