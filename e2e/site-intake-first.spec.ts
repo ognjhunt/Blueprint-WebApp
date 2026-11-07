@@ -30,6 +30,9 @@ for (const width of [1440, 390]) {
     await expect(page.locator("#start-location")).not.toHaveAttribute("required", "");
     await expect(page.locator("#start-location")).toHaveValue("");
     await page.locator("#start-email").fill("qa@example.invalid");
+    // The task and its one box confirm the brief at submission (owner decision 2026-11-07).
+    await page.locator("#start-task").fill("Pack cartons");
+    await page.getByRole("checkbox", { name: "This is the task I want Blueprint to evaluate.", exact: true }).check();
     await expect(page.locator("#start-company")).toHaveCount(0);
     await expect(page.locator("#start-password")).toHaveCount(0);
     await page.getByRole("button", { name: "Start free assessment", exact: true }).click();
@@ -38,7 +41,8 @@ for (const width of [1440, 390]) {
     await expect(optionalAccount).toBeVisible();
     await expect(signup).toBeHidden();
     expect(mutations).toEqual(["/api/inbound-request"]);
-    expect(intakeBodies).toEqual([expect.objectContaining({ siteName: "", siteLocation: "", captureRegion: "us", accountSignup: false })]);
+    expect(intakeBodies).toEqual([expect.objectContaining({ siteName: "", siteLocation: "", captureRegion: "us", accountSignup: false,
+      taskStatement: "Pack cartons", taskConfirmation: { granted: true, statementVersion: "2026-11-07.v1" } })]);
     await optionalAccount.click();
     await expect(signup).toBeVisible();
     await expect(page.getByRole("link", { name: "Sign in to save this job" })).toHaveAttribute("href", "/claim/fixture.claim?mode=signin");

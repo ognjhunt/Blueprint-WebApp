@@ -52,6 +52,8 @@ it('queued freeze checks mounted account inside the lock before dispatch', async
     const view = render(<SiteCaptureStart />);
     await ready();
     fireEvent.change(document.querySelector('#start-task')!, { target: { value: 'Owned original task' } });
+    // The one box the form requires to send the task (owner decision 2026-11-07).
+    fireEvent.click(document.querySelector('#start-task-confirmation')!);
     fireEvent.change(document.querySelector('#start-location')!, { target: { value: 'Austin TX' } });
     await act(async () => { });
     const key = siteCaptureDraftKey('old-owned-fixture', 'default');
@@ -70,6 +72,7 @@ it('queued freeze checks mounted account inside the lock before dispatch', async
 it('clear exposes pending state until commit then survives remount with fresh empty authority', async () => {
     const view = render(<SiteCaptureStart />); await ready();
     fireEvent.change(document.querySelector('#start-task')!, {target:{value:'Clear only after durable acknowledgement'}});
+    fireEvent.click(document.querySelector('#start-task-confirmation')!);
     await act(async()=>{});
     const key=siteCaptureDraftKey('old-owned-fixture','default'),before=localStorage.getItem(key);
     hold=true;fireEvent.click(screen.getByRole('button',{name:"Clear this browser's draft"}));
@@ -108,6 +111,7 @@ it('completed-job clear also exposes pending state until device recovery is comm
     fetchMock.mockImplementation(async (_url,init)=>({ok:true,status:200,json:async()=>init?.method==='POST'?{captureUrl:'/capture-upload/owned-clear-fixture'}:{workspaceType:'site_operator',features:[]}}));
     render(<SiteCaptureStart />);await ready();
     for(const [id,value] of [['start-task','A saved description'],['start-location','Austin, TX']])fireEvent.change(document.querySelector('#'+id)!,{target:{value}});
+    fireEvent.click(document.querySelector('#start-task-confirmation')!);
     fireEvent.submit(screen.getByRole('form'));await screen.findByRole('heading',{name:'Film the work area.'});
     hold=true;fireEvent.click(screen.getByRole('button',{name:"Clear this browser's draft"}));
     await screen.findByText(/Clearing this browser's draft/);expect(screen.getByRole('button',{name:'Clearing…',exact:true})).toBeDisabled();

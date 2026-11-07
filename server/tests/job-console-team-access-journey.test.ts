@@ -113,13 +113,13 @@ beforeEach(() => { state.docs.clear(); sendEmail.mockClear(); });
 afterEach(() => expect(sendEmail).not.toHaveBeenCalled());
 
 /** A site starts a job on the public form, exactly as the browser sends it. */
-async function startJob(options: { keepPrivate?: boolean; task?: string } = {}) {
+async function startJob(options: { keepPrivate?: boolean; task?: string; withoutTaskConfirmation?: boolean } = {}) {
   const requestId = next("site-job");
   const response = await fetch(`${base}/api/inbound-request`, { method: "POST",
     headers: { "content-type": "application/json", "x-forwarded-for": `203.0.113.${(sequence % 250) + 1}` },
     body: JSON.stringify(siteCaptureStartSubmission({ requestId, retryToken: `r${requestId}`.padEnd(64, "x"),
       sourcePageUrl: "https://tryblueprint.io/contact/site-operator", keepPrivate: options.keepPrivate, task: options.task,
-      email: `${requestId}@example.test` })) });
+      withoutTaskConfirmation: options.withoutTaskConfirmation, email: `${requestId}@example.test` })) });
   expect(response.status, await response.clone().text()).toBe(201);
   return requestId;
 }
@@ -188,8 +188,32 @@ async function accessAgrees(jobId: string, row: JobConsoleRow) {
 }
 
 describe("the job console invites robot teams only when they can evaluate the job", () => {
-  it("follows a job started from the public form until teamJobAccess opens it", async () => {
+  it("confirms the brief at upload: no brief review is queued and the site is never asked to confirm", async () => {
     const jobId = await startJob();
+    let row = await consoleRow(jobId);
+    // Submitting the task with its box ticked confirmed it (owner decision 2026-11-07).
+    expect(row).toMatchObject({ stage: "capture", nextAction: "Waiting on site to film the work area", actionOwner: "site",
+      brief: { state: "confirmed" } });
+    const detail = await (await fetch(`${base}/api/admin/jobs/${encodeURIComponent(jobId)}`)).json() as JobConsoleDetail;
+    const submittedBrief = doc(`siteTaskBriefs/${jobId}`);
+    expect(detail.timeline.find(entry => entry.key === "brief")).toEqual({ key: "brief", label: "Brief confirmed at upload",
+      atIso: submittedBrief.confirmedAtIso, done: true });
+    expect(row.nextAction).not.toMatch(/confirm the brief|brief review/i);
+    expect(row.teamAccess).toEqual({ listed: true, evaluationAvailable: false, reason: "scene_not_runnable", sceneHold: "unscreened" });
+    await accessAgrees(jobId, row);
+    // The site's own later review states its answers; the gates then screen it.
+    await confirm(jobId);
+    row = await consoleRow(jobId);
+    expect(row).toMatchObject({ stage: "capture", nextAction: "Waiting on site to film the work area", actionOwner: "site" });
+    expect(row.teamAccess).toMatchObject({ evaluationAvailable: false, reason: "scene_not_runnable", sceneHold: "unclaimed" });
+    await pipelineSync(jobId);
+    row = await consoleRow(jobId);
+    expect(row).toMatchObject({ stage: "awaiting_teams", nextAction: INVITE, actionOwner: "blueprint" });
+    expect((await accessAgrees(jobId, row)).evaluationAvailable).toBe(true);
+  });
+
+  it("follows a job started without the task box (an older client) until teamJobAccess opens it", async () => {
+    const jobId = await startJob({ withoutTaskConfirmation: true });
     // Blueprint's brief review of the submission is queued at intake.
     let row = await consoleRow(jobId);
     expect(row).toMatchObject({ stage: "intake", nextAction: "Brief review is queued; check it completes", actionOwner: "blueprint" });
@@ -232,7 +256,7 @@ describe("the job console invites robot teams only when they can evaluate the jo
 type Closed = {
   label: string;
   /** How the site starts the job; every job is then reviewed, confirmed and reported runnable unless noted. */
-  start?: { keepPrivate?: boolean; task?: string; successDefinition?: string };
+  start?: { keepPrivate?: boolean; task?: string; successDefinition?: string; withoutTaskConfirmation?: boolean };
   confirmed?: false;
   readiness?: Record<string, unknown>;
   /** A later change by the writer named. */
@@ -264,7 +288,8 @@ const closedJobs: Closed[] = [
   { label: "a development capture", change: id => patch(id, r => { r.evidence_tier = "development_only"; }), reason: "development_only",
     expected: { stage: "not_open", nextAction: "No action: a development capture is never opened to teams", actionOwner: "none" } },
   // The real brief screen, at confirmation (`siteTaskScope.ts`).
-  { label: "brief not yet confirmed by the site", confirmed: false, reason: "scene_not_runnable",
+  // Only a submission without the task box (2026-11-07) leaves the brief unconfirmed.
+  { label: "brief not yet confirmed by the site", start: { withoutTaskConfirmation: true }, confirmed: false, reason: "scene_not_runnable",
     expected: { stage: "brief_review", nextAction: "Waiting on site to confirm the brief", actionOwner: "site" } },
   { label: "no current recording grant", change: id => patch(id, r => { r.request.consent_attestation = null; }),
     reason: "recording_consent_missing",
@@ -306,7 +331,8 @@ describe("a job the brief screen does not recognise opens like any other", () =>
 
 describe("a job teams cannot evaluate names its real next step", () => {
   it.each(closedJobs)("$label", async (job) => {
-    const jobId = await startJob({ keepPrivate: job.start?.keepPrivate, task: job.start?.task });
+    const jobId = await startJob({ keepPrivate: job.start?.keepPrivate, task: job.start?.task,
+      withoutTaskConfirmation: job.start?.withoutTaskConfirmation });
     await completeBriefReview();
     if (job.confirmed !== false) {
       await confirm(jobId, job.start?.successDefinition ? { ...successCriteria, successDefinition: job.start.successDefinition } : successCriteria);
