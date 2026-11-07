@@ -21,8 +21,8 @@ import {
   isCaptureRegion,
   type CaptureRegion,
 } from "../../client/src/data/captureResidency";
-import { PLACEHOLDER_TASK_SUMMARY, TASK_BRIEFS_COLLECTION, briefConfirmedAtSubmission, draftBrief, saveBrief,
-  type SiteTaskSuccessCriteria } from "../utils/siteTaskBrief";
+import { PLACEHOLDER_TASK_SUMMARY, TASK_BRIEFS_COLLECTION, briefConfirmedAtSubmission, draftBrief,
+  projectConfirmationOntoJob, saveBrief, type SiteTaskSuccessCriteria } from "../utils/siteTaskBrief";
 import { deliverIntakeOpsNoticeAtIntake, initialIntakeOpsNotice } from "../utils/intakeOpsNotice";
 import { admitInboundQualificationRun } from "../utils/inboundQualificationGate";
 import { logger } from "../logger";
@@ -178,6 +178,13 @@ function normalizeSuccessCriteria(input: unknown): SiteTaskSuccessCriteria | nul
   const cycleTimeSeconds = number(value.cycleTimeSeconds, (n) => n > 0 && n <= 86400);
   if (!successDefinition && successRate === null && cycleTimeSeconds === null) return null;
   return { successDefinition, successRate, cycleTimeSeconds, unknown: false };
+}
+
+/** Fold confirmed terms into the workspace task a create is writing, keeping its other fields, as a merge write would. */
+function mergeWorkspaceTask(existing: Record<string, unknown> | undefined, confirmed: Record<string, unknown>) {
+  const terms = (value: unknown) => (value && typeof value === "object" ? value as Record<string, unknown> : undefined);
+  const mergedTerms = terms(confirmed.terms) ? { ...terms(existing?.terms), ...terms(confirmed.terms) } : terms(existing?.terms);
+  return { ...existing, ...confirmed, ...(mergedTerms ? { terms: mergedTerms } : {}) };
 }
 
 function normalizeGateAnswers(input: unknown): Record<string, string> {
@@ -1931,6 +1938,18 @@ export async function submitInboundRequest(req: Request, res: Response) {
       confirmedBy: ownerBinding.capture_owner_uid,
       submittedAtIso,
     }) : null;
+    // What that confirmation writes onto the job: the same projection the
+    // review click uses, so screening, scope, terms and the confirmation mirror
+    // are there from the first commit. Gates the form did not ask stay open as
+    // disclosed unknowns, never a stop.
+    const confirmationFields = confirmedBrief ? projectConfirmationOntoJob({
+      brief: confirmedBrief,
+      answers: confirmedBrief.operatorAnswers ?? {},
+      confirmedAt: confirmedBrief.confirmedAtIso,
+      atIso: submittedAtIso,
+      workspace: { successCriteria },
+    }).jobFields : null;
+    const existingWorkspaceTask = (encryptedInboundRequest as { workspace_task?: Record<string, unknown> }).workspace_task;
 
     // 8. Claim the request id atomically. A get followed by set lets two
     // owners both observe absence and lets the later writer replace the first
@@ -1966,9 +1985,11 @@ export async function submitInboundRequest(req: Request, res: Response) {
         ...(messageSuppression ? { intake_message_suppression: messageSuppression } : {}),
         ...(initialPublicListing ? { public_task_listing: initialPublicListing, newJobAlertFanout: newJobFanoutIntent(String(initialPublicListing.approvedAtIso)) } : {}),
         // A confirmed brief takes no later reading of its description, so it
-        // queues none; its confirmation is mirrored where the job is read.
-        ...(buyerType === "site_operator" ? confirmedBrief
-          ? { site_task_brief_confirmed_at: confirmedBrief.confirmedAtIso }
+        // queues none; its confirmation is projected onto the job instead,
+        // keeping any workspace fields the intake already set.
+        ...(buyerType === "site_operator" ? confirmationFields
+          ? { ...confirmationFields, ...(confirmationFields.workspace_task ? { workspace_task: mergeWorkspaceTask(
+            existingWorkspaceTask, confirmationFields.workspace_task as Record<string, unknown>) } : {}) }
           : { briefReviewPending: true, briefReviewWork: { state: "pending", attempts: 0, dueAtMs: 0 } } : {}),
       }, firstReceipt, confirmedBrief
         ? { ref: db.collection(TASK_BRIEFS_COLLECTION).doc(payload.requestId), data: confirmedBrief } : null);

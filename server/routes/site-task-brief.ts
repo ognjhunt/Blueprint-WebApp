@@ -93,7 +93,7 @@ import { teamJobAccess } from "../utils/teamJobAccess";
 import { passMarkForJob } from "../utils/pilotRecommendationEvidence";
 import { FOLLOW_UP_IDS, FOLLOW_UP_QUESTIONS, selectFollowUps, type FollowUpId } from "../utils/siteTaskFollowUp";
 import { createSiteClaimToken } from "../utils/request-review-auth";
-import { gateAnswersOnFile } from "../utils/gateAnswersOnFile";
+import { disclosedUnknownGates, gateAnswersOnFile } from "../utils/gateAnswersOnFile";
 import { bookingUrl } from "../utils/bookingLink";
 import { notifySlackScreeningCallNeeded } from "../utils/slack";
 import { EMAIL_SIGN_OFF, emailGreeting } from "../utils/emailLayout";
@@ -1169,6 +1169,7 @@ router.get("/:token/status", async (req: Request, res: Response) => {
           missingCoverage: request?.capture_coverage?.missing_coverage ?? undefined,
         },
         reconstructed: false,
+        disclosedUnknown: disclosedUnknownGates(request),
       }).stage;
     }
 

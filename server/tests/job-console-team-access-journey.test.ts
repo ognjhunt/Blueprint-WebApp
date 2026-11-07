@@ -188,7 +188,7 @@ async function accessAgrees(jobId: string, row: JobConsoleRow) {
 }
 
 describe("the job console invites robot teams only when they can evaluate the job", () => {
-  it("confirms the brief at upload: no brief review is queued and the site is never asked to confirm", async () => {
+  it("confirms the brief at upload and opens to teams on its own, with the unasked gates disclosed, never a second click", async () => {
     const jobId = await startJob();
     let row = await consoleRow(jobId);
     // Submitting the task with its box ticked confirmed it (owner decision 2026-11-07).
@@ -198,18 +198,21 @@ describe("the job console invites robot teams only when they can evaluate the jo
     const submittedBrief = doc(`siteTaskBriefs/${jobId}`);
     expect(detail.timeline.find(entry => entry.key === "brief")).toEqual({ key: "brief", label: "Brief confirmed at upload",
       atIso: submittedBrief.confirmedAtIso, done: true });
-    expect(row.nextAction).not.toMatch(/confirm the brief|brief review/i);
-    expect(row.teamAccess).toEqual({ listed: true, evaluationAvailable: false, reason: "scene_not_runnable", sceneHold: "unscreened" });
+    expect(row.nextAction).not.toMatch(/confirm the brief|brief review|screening call/i);
+    // The screen ran at submission. The gates the form never asked are disclosed unknowns, not a hold.
+    const triage = doc(`inboundRequests/${jobId}`).site_task_triage;
+    expect(triage).toMatchObject({ disposition: "qualified", incomplete: true });
+    expect(triage.disclosed_unknown_field_ids.length).toBeGreaterThan(0);
+    expect(triage.disclosed_unknown_field_ids).toEqual(triage.unanswered_field_ids);
+    expect(row.teamAccess).toEqual({ listed: true, evaluationAvailable: false, reason: "scene_not_runnable", sceneHold: "unclaimed" });
     await accessAgrees(jobId, row);
-    // The site's own later review states its answers; the gates then screen it.
-    await confirm(jobId);
-    row = await consoleRow(jobId);
-    expect(row).toMatchObject({ stage: "capture", nextAction: "Waiting on site to film the work area", actionOwner: "site" });
-    expect(row.teamAccess).toMatchObject({ evaluationAvailable: false, reason: "scene_not_runnable", sceneHold: "unclaimed" });
+    // No review click: the Pipeline's runnable scene is all that is left.
     await pipelineSync(jobId);
     row = await consoleRow(jobId);
     expect(row).toMatchObject({ stage: "awaiting_teams", nextAction: INVITE, actionOwner: "blueprint" });
+    expect(row.teamAccess).toEqual({ listed: true, evaluationAvailable: true, reason: null, sceneHold: null });
     expect((await accessAgrees(jobId, row)).evaluationAvailable).toBe(true);
+    expect(doc(`siteTaskBriefs/${jobId}`)).toEqual(submittedBrief);
   });
 
   it("follows a job started without the task box (an older client) until teamJobAccess opens it", async () => {

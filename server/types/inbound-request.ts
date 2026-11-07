@@ -922,6 +922,12 @@ export interface SiteTaskTriageSummary {
   incomplete: boolean;
   evaluated_at: string;
   /**
+   * Present only on a job whose site confirmed its task at submission (owner
+   * decision 2026-11-07): the unanswered gates carried as disclosed unknowns,
+   * which hold neither the screen nor an evaluation. Absent on every older job.
+   */
+  disclosed_unknown_field_ids?: string[];
+  /**
    * Present when a screening call re-scored the site (`recordSiteTaskCallOutcome`):
    * which marginal answers the call settled, which answers it added, who
    * recorded it and why. Absent means the verdict is the form's alone.

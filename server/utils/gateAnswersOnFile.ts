@@ -34,3 +34,15 @@ function answerMap(value: unknown): Record<string, string> | null {
   }
   return answers;
 }
+
+/**
+ * The binding gates a site left open when it confirmed its task at submission
+ * (owner decision 2026-11-07), as that confirmation recorded them on the job.
+ * They are disclosed unknowns: carried with the job and shown, never a stop.
+ * Only a confirmation under that rule records them, so an older job reads none.
+ */
+export function disclosedUnknownGates(record: unknown): string[] {
+  const triage = (record ?? {}) as { site_task_triage?: { disclosed_unknown_field_ids?: unknown } | null };
+  const ids = triage.site_task_triage?.disclosed_unknown_field_ids;
+  return Array.isArray(ids) ? ids.filter((id): id is string => typeof id === "string" && id.length > 0) : [];
+}
