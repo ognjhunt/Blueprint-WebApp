@@ -769,26 +769,6 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
 
       <p className="ms-field-hint">Describe the task and send a video of it. We build the site simulation from the video and compare robot options on the task you describe. The assessment starts once we receive the video.</p>
 
-      <label htmlFor="start-task">
-        <span>What is the task?</span>
-        <span className="ms-field-hint">One job, in your words: what is picked up or moved, and where it goes.</span>
-        <textarea id="start-task" name="startTask" defaultValue={recovery.current.draft.task} maxLength={2000} rows={3} required
-          placeholder="For example, pick up each packed carton and place it at the end of the table"
-          onChange={() => { if (taskProblem === "task") setTaskProblem(null); }} />
-      </label>
-      {taskProblem === "task" && <p className="ms-error" role="alert" style={{ margin: 0 }}>Describe the task Blueprint should evaluate.</p>}
-      <label htmlFor="start-success">
-        <span>What counts as success? (optional)</span>
-        <input id="start-success" name="startSuccess" type="text" maxLength={1000}
-          defaultValue={recovery.current.draft.successDefinition ?? ""}
-          placeholder="For example, the carton reaches the end of the table upright" />
-      </label>
-      <label htmlFor="start-task-confirmation" className="ms-check-row">
-        <input id="start-task-confirmation" name="startTaskConfirmation" type="checkbox" required
-          checked={taskConfirmed} onChange={(event) => { setTaskConfirmed(event.target.checked); setTaskProblem(null); }} />
-        <span>{TASK_CONFIRMATION_STATEMENT}</span>
-      </label>
-      {taskProblem === "confirmation" && <p className="ms-error" role="alert" style={{ margin: 0 }}>Tick the box to confirm this is the task you want evaluated.</p>}
       <fieldset className="ms-choice">
         <legend>How will we see the task?</legend>
         {([
@@ -852,6 +832,27 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
           </>
         )
       ) : null}
+
+      <label htmlFor="start-task">
+        <span>What is the task?</span>
+        <span className="ms-field-hint">One job, in your words: what is picked up or moved, and where it goes.</span>
+        <textarea id="start-task" name="startTask" defaultValue={recovery.current.draft.task} maxLength={2000} rows={3} required
+          placeholder="For example, pick up each packed carton and place it at the end of the table"
+          onChange={() => { if (taskProblem === "task") setTaskProblem(null); }} />
+      </label>
+      {taskProblem === "task" && <p className="ms-error" role="alert" style={{ margin: 0 }}>Describe the task Blueprint should evaluate.</p>}
+      <label htmlFor="start-success">
+        <span>What counts as success? (optional)</span>
+        <input id="start-success" name="startSuccess" type="text" maxLength={1000}
+          defaultValue={recovery.current.draft.successDefinition ?? ""}
+          placeholder="For example, the carton reaches the end of the table upright" />
+      </label>
+      <label htmlFor="start-task-confirmation" className="ms-check-row">
+        <input id="start-task-confirmation" name="startTaskConfirmation" type="checkbox" required
+          checked={taskConfirmed} onChange={(event) => { setTaskConfirmed(event.target.checked); setTaskProblem(null); }} />
+        <span>{TASK_CONFIRMATION_STATEMENT}</span>
+      </label>
+      {taskProblem === "confirmation" && <p className="ms-error" role="alert" style={{ margin: 0 }}>Tick the box to confirm this is the task you want evaluated.</p>}
 
       <div style={{ display: "flex", flexDirection: "column", gap: "9px" }}>
         {(selfRecording || hasFootage) && (!region || regionManuallySet) && (
