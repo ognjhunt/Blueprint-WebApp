@@ -26,6 +26,9 @@ vi.mock("../utils/slack", () => ({ notifySlackInboundRequest: vi.fn(async () => 
 vi.mock("../utils/growth-events", () => ({ logGrowthEvent: vi.fn(async () => ({ ok: true })) }));
 vi.mock("../utils/rate-limit-redis", () => ({ getRateLimitRedisClient: () => null }));
 vi.mock("../utils/siteTaskBrief", () => ({
+  TASK_BRIEFS_COLLECTION: "siteTaskBriefs",
+  // Confirm-at-upload has its own journey; these submissions keep the draft path.
+  briefConfirmedAtSubmission: vi.fn(() => null),
   draftBrief: vi.fn((value: unknown) => value),
   saveBrief: vi.fn(async () => undefined),
 }));

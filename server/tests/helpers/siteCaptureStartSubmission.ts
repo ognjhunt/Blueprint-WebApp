@@ -11,6 +11,7 @@
  * records by hand are what hid the request-step blocker (audit P0-5).
  */
 import { anonymizedOpportunityDraft } from "../../../client/src/types/taskBrowse";
+import { TASK_CONFIRMATION_VERSION } from "../../../client/src/lib/taskConfirmationStatement";
 
 /**
  * What the person types into the start form. The job is the one kind a robot
@@ -31,6 +32,13 @@ export function siteCaptureStartSubmission(params: {
   keepPrivate?: boolean;
   task?: string;
   email?: string;
+  /** The optional success field on the form. */
+  successDefinition?: string;
+  /**
+   * The one box the form requires (owner decision 2026-11-07). Only a body
+   * from before that decision, or a direct API caller, leaves it out.
+   */
+  withoutTaskConfirmation?: boolean;
 }) {
   const task = params.task ?? SITE_CAPTURE_START_FORM.task;
   return {
@@ -48,6 +56,10 @@ export function siteCaptureStartSubmission(params: {
     siteLocation: SITE_CAPTURE_START_FORM.location,
     taskStatement: task,
     taskDescription: task,
+    ...(params.withoutTaskConfirmation ? {} : {
+      taskConfirmation: { granted: true, statementVersion: TASK_CONFIRMATION_VERSION },
+    }),
+    ...(params.successDefinition ? { successCriteria: { successDefinition: params.successDefinition } } : {}),
     ...(params.keepPrivate ? {} : {
       publicTaskListing: {
         consent: true,

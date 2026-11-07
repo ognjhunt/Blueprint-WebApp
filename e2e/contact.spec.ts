@@ -2,6 +2,12 @@ import { test, expect } from "@playwright/test";
 import { seedCookieConsent } from "./helpers/cookie-consent";
 import { mockExternalFonts } from "./helpers/static-assets";
 
+/** The task and its one box: submitting them confirms the brief (owner decision 2026-11-07). */
+async function describeTask(page: import("@playwright/test").Page) {
+  await page.locator("#start-task").fill("Pick up each packed carton and place it at the end of the table");
+  await page.getByRole("checkbox", { name: "This is the task I want Blueprint to evaluate.", exact: true }).check();
+}
+
 test.beforeEach(async ({ page }) => {
   await seedCookieConsent({ page });
   await mockExternalFonts({ page });
@@ -52,6 +58,7 @@ test("capture accepts country permission without an address and keeps non-US fil
     return route.fulfill({ status: 202, json: { ok: true, requestId: "captured", captureUrl: null } });
   });
   await page.goto("/contact/site-operator", { waitUntil: "domcontentloaded" });
+  await describeTask(page);
   await page.locator("#start-location").fill("Berlin");
   await page.locator("#start-email").fill("owner@example.test");
   // An ambiguous optional city cannot supply permission. Native country
@@ -65,7 +72,8 @@ test("capture accepts country permission without an address and keeps non-US fil
   await page.locator("#start-region").selectOption("non_us");
   await page.getByRole("button", { name: "Start free assessment", exact: true }).click();
   await expect.poll(() => submissions.length).toBe(1);
-  expect(submissions[0]).toMatchObject({ buyerType: "site_operator", siteLocation: "", captureRegion: "non_us", siteTaskGates: {}, consentAttestation: null });
+  expect(submissions[0]).toMatchObject({ buyerType: "site_operator", siteLocation: "", captureRegion: "non_us", siteTaskGates: {}, consentAttestation: null,
+    taskConfirmation: { granted: true, statementVersion: "2026-11-07.v1" } });
   await expect(page.getByText(/We are not sending a camera link yet/)).toBeVisible();
   await expect(page.getByRole("link", { name: "Open the camera" })).toHaveCount(0);
 });
@@ -94,6 +102,7 @@ test("starting with footage quotes the recording-rights sentence next to the but
   await page.locator("#start-region").selectOption("us");
   await page.locator("#start-footage").setInputFiles({ name: "cycle.mov", mimeType: "video/quicktime", buffer: Buffer.from("frames") });
   await page.locator("#start-email").fill("owner@example.test");
+  await describeTask(page);
   await start.click();
   await expect.poll(() => submissions.length).toBe(1);
   expect(submissions[0]).toMatchObject({ captureRegion: "us", hasExistingFootage: true, descriptionOnly: false,

@@ -422,3 +422,82 @@ it("preserves an agreed pilot's brief and does not queue video work for a descri
   await expect(confirmBrief({ requestId: REQUEST, confirmedBy: "Dana", summary: "A different physical task" })).rejects.toThrow("A pilot agreement is recorded");
   expect(sharedFakeFirestoreState.docs.get(`siteTaskBriefs/${REQUEST}`)).toEqual(prior);
 });
+
+/** Owner decision 2026-11-07, "Confirm at upload": the data-layer rules behind the start form's one box. */
+describe("a brief confirmed at submission", () => {
+  const SUBMITTED = "2026-11-07T14:00:00.000Z";
+  const base = {
+    requestId: REQUEST,
+    summary: "  Pick up each packed carton and place it at the end of the table  ",
+    captureMode: "self_capture",
+    consent: { granted: true, statementVersion: "2026-11-07.v1" },
+    statedAnswers: {} as Record<string, string>,
+    successCriteria: null,
+    confirmedBy: "site-job-fixture",
+    submittedAtIso: SUBMITTED,
+  };
+
+  it("is confirmed by the submission, in the site's words, by the submitter, at the submission time", async () => {
+    const { briefConfirmedAtSubmission, confirmedAtSubmission } = await import("../utils/siteTaskBrief");
+    const brief = briefConfirmedAtSubmission({ ...base, statedAnswers: { sceneStability: "stable", notAGate: "x" } })!;
+    expect(brief).toMatchObject({
+      summary: "Pick up each packed carton and place it at the end of the table",
+      confirmedAtIso: SUBMITTED, draftedAtIso: SUBMITTED, confirmedBy: "site-job-fixture",
+      operatorAnswers: { sceneStability: "stable" }, operatorUnknown: [], successCriteria: null,
+      submissionConsent: { statementVersion: "2026-11-07.v1", recordedAtIso: SUBMITTED },
+      taskFamily: "rigid_pick_and_place",
+    });
+    expect(brief.unresolved).not.toContain("sceneStability");
+    expect(confirmedAtSubmission(brief)).toBe(true);
+    expect(confirmedAtSubmission({ ...brief, confirmedAtIso: "2026-11-08T00:00:00.000Z" })).toBe(false);
+    expect(confirmedAtSubmission({ ...brief, confirmedAtIso: null })).toBe(false);
+  });
+
+  it.each([
+    { label: "no box", change: { consent: undefined } },
+    { label: "an unticked box", change: { consent: { granted: false, statementVersion: "2026-11-07.v1" } } },
+    { label: "a statement the site was not shown", change: { consent: { granted: true, statementVersion: "2026-10-06.v1" } } },
+    { label: "a string instead of the box", change: { consent: "yes" } },
+    { label: "no description", change: { summary: "   " } },
+    { label: "the placeholder description", change: { summary: "Your site task" } },
+    { label: "no submitter", change: { confirmedBy: " " } },
+    { label: "no submission time", change: { submittedAtIso: "not a time" } },
+  ])("confirms nothing with $label", async ({ change }) => {
+    const { briefConfirmedAtSubmission } = await import("../utils/siteTaskBrief");
+    expect(briefConfirmedAtSubmission({ ...base, ...change } as typeof base)).toBeNull();
+  });
+
+  it("clears the confirmation when the task changes, keeps it when nothing changed, and never confirms", async () => {
+    const { briefConfirmedAtSubmission, reviseBriefTask, getBrief } = await import("../utils/siteTaskBrief");
+    const brief = briefConfirmedAtSubmission(base)!;
+    sharedFakeFirestoreState.docs.set(`siteTaskBriefs/${REQUEST}`, structuredClone(brief));
+    sharedFakeFirestoreState.docs.set(`inboundRequests/${REQUEST}`, { request: { buyerType: "site_operator" },
+      site_task_brief_confirmed_at: SUBMITTED });
+
+    const same = await reviseBriefTask({ requestId: REQUEST, summary: brief.summary, revisedBy: "ops-fixture" });
+    expect(same).toMatchObject({ reconfirmationRequired: false });
+    expect(await getBrief(REQUEST)).toEqual(brief);
+
+    const edited = await reviseBriefTask({ requestId: REQUEST, summary: "Open the cabinet door", revisedBy: "ops-fixture" });
+    expect(edited?.reconfirmationRequired).toBe(true);
+    expect(await getBrief(REQUEST)).toMatchObject({ summary: "Open the cabinet door", confirmedAtIso: null, confirmedBy: null,
+      submissionConsent: brief.submissionConsent, lastTaskEdit: { by: "ops-fixture", clearedConfirmedAtIso: SUBMITTED } });
+    expect(sharedFakeFirestoreState.docs.get(`inboundRequests/${REQUEST}`)!.site_task_brief_confirmed_at).toBeUndefined();
+    expect(await reviseBriefTask({ requestId: "req-nobody", summary: "x", revisedBy: "ops-fixture" })).toBeNull();
+  });
+
+  it("leaves a legacy brief's task context and evidence digests exactly as they were", async () => {
+    const { projectWebsiteTaskContext } = await import("../utils/websiteTaskContext");
+    const { scientificBriefDigest } = await import("../utils/jobEvidenceContract");
+    // A brief confirmed through the review before 2026-11-07, as stored then.
+    const legacy = {
+      requestId: "legacy-fixture", summary: "Move one sealed part into its tray", proposed: [], unresolved: ["taskShape"],
+      captureMode: "self_capture" as const, draftedAtIso: "2026-10-20T10:00:00.000Z", draftedFrom: [],
+      confirmedAtIso: "2026-10-21T10:00:00.000Z", confirmedBy: "Dana", operatorAnswers: { sceneStability: "stable" },
+      operatorUnknown: [], successCriteria: { successDefinition: "Part in tray", successRate: 90, cycleTimeSeconds: 20, unknown: false },
+    };
+    expect(projectWebsiteTaskContext(legacy).context_digest)
+      .toBe("sha256:93a13cf6fa7e2aa6af218dcc5cda3a4a04d9f01e23c18fd430c43985bad38fef");
+    expect(scientificBriefDigest(legacy)).toBe("sha256:9d16d978194085f73b9b0e89028fdbe9a46d7bcfcc01adb88ca5466426fdba6b");
+  });
+});

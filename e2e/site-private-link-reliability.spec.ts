@@ -57,7 +57,7 @@ test("owner can request an authorized assessment retry while keeping the saved r
   });
   await page.goto(`/capture-upload/${token}?video=existing`);
   await expect(page.getByText("Video received.", { exact: true })).toBeVisible();
-  await expect(page.getByText("Review or correct job details (optional)", { exact: true })).toBeVisible();
+  await expect(page.getByText("Confirm your task: the one step that lets Blueprint run it", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "This is right — confirm it", exact: true })).toBeHidden();
   await expect(page.getByRole("button", { name: "Try assessment again", exact: true })).toBeHidden();
   await page.getByText("Processing details", { exact: true }).click();
@@ -111,7 +111,7 @@ test("returning owner keeps the received recording and gets same-job update guid
   });
   await page.goto(`/capture-upload/${token}?video=existing`);
   await expect(page.getByText("Video received.", { exact: true })).toBeVisible();
-  await expect(page.getByText("Review or correct job details (optional)", { exact: true })).toBeVisible();
+  await expect(page.getByText("Confirm your task: the one step that lets Blueprint run it", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "This is right — confirm it", exact: true })).toBeHidden();
   await expect(page.getByText("Next action · You", { exact: true })).toHaveCount(0);
   await expect(page.getByText("Blueprint is preparing your reconstruction.", { exact: true })).toHaveCount(1);
@@ -457,6 +457,9 @@ test("desktop handoff recognizes retained footage without claiming processing co
   });
   await page.clock.install();
   await page.goto("/contact/site-operator");
+  // The task and its one box confirm the brief at submission (owner decision 2026-11-07).
+  await page.locator("#start-task").fill("Move sealed cartons onto a pallet");
+  await page.getByRole("checkbox", { name: "This is the task I want Blueprint to evaluate.", exact: true }).check();
   await page.locator("#start-location").fill("Austin, TX");
   await page.locator("#start-email").fill("operator@example.test");
   await page.getByRole("button", { name: "Start free assessment" }).click();

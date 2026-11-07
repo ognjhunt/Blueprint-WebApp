@@ -136,12 +136,13 @@ afterAll(async () => {
 beforeEach(() => { state.docs.clear(); sharedUploadBucket.clear(); });
 
 /** A site starts a job on the public form, exactly as the browser sends it, and keeps its link. */
-async function startJob() {
+async function startJob(options: { withoutTaskConfirmation?: boolean } = {}) {
   const jobId = `waiting-job-${++sequence}`;
   const response = await fetch(`${base}/api/inbound-request`, { method: "POST",
     headers: { "content-type": "application/json", "x-forwarded-for": `203.0.113.${(sequence % 250) + 1}` },
     body: JSON.stringify(siteCaptureStartSubmission({ requestId: jobId, retryToken: `r${jobId}`.padEnd(64, "x"),
-      sourcePageUrl: "https://tryblueprint.io/contact/site-operator", email: `${jobId}@example.test` })) });
+      sourcePageUrl: "https://tryblueprint.io/contact/site-operator", email: `${jobId}@example.test`,
+      withoutTaskConfirmation: options.withoutTaskConfirmation })) });
   expect(response.status, await response.clone().text()).toBe(201);
   const { captureUrl } = await response.json() as { captureUrl: string };
   return { jobId, token: captureUrl.split("/capture-upload/")[1] };
@@ -248,7 +249,10 @@ async function workspaceWait(jobId: string) {
 
 describe("the job page says how long each waiting stage usually takes", () => {
   it("adds no wait while the next step is the site's own", async () => {
-    const { token } = await startJob();
+    // The task box confirmed the brief at upload (2026-11-07): filming is next.
+    expect(await pageWait((await startJob()).token)).toEqual({ decision: "record", wait: null });
+    // A submission without the box still asks for the site's one click.
+    const { token } = await startJob({ withoutTaskConfirmation: true });
     expect(await pageWait(token)).toEqual({ decision: "confirm_brief", wait: null });
     await completeBriefReview();
     expect(await pageWait(token)).toEqual({ decision: "confirm_brief", wait: null });
