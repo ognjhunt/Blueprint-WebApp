@@ -1,4 +1,5 @@
-import OpenAI from "openai";
+import Anthropic from "@anthropic-ai/sdk";
+import { ANTHROPIC_BASE_URL, HAIKU_MODEL, isNativeAnthropicConfigured } from "./anthropicHaikuPricing";
 
 export const FOLLOW_UP_IDS = ["success_target", "item_photos", "item_weight", "item_make_model"] as const;
 export type FollowUpId = (typeof FOLLOW_UP_IDS)[number];
@@ -38,26 +39,29 @@ export async function selectFollowUps(input: {
   eligible: FollowUpId[];
 }): Promise<FollowUpId[]> {
   if (!input.eligible.length) return [];
-  const apiKey = process.env.OPENAI_API_KEY?.trim();
-  if (!apiKey) return input.eligible.slice(0, 3);
+  const apiKey = process.env.ANTHROPIC_API_KEY?.trim();
+  if (!apiKey || !isNativeAnthropicConfigured()) return input.eligible.slice(0, 3);
 
   try {
-    const client = new OpenAI({ apiKey, timeout: 12_000, maxRetries: 0 });
-    const response = await client.responses.create({
-      model: "gpt-6-luna",
-      reasoning: { effort: "low" },
-      max_output_tokens: 600,
-      input: [
-        { role: "developer", content: "Select at most 3 useful missing topics for a site operator after they submitted a robot task and video. Use only eligible IDs. Prefer questions that change how the task or its success is understood. Do not infer answers or invent objects. Return JSON only: {\"question_ids\":[\"id\"]}." },
+    const client = new Anthropic({ apiKey, baseURL: ANTHROPIC_BASE_URL, timeout: 12_000, maxRetries: 0,
+      fetch: (url, options) => fetch(url, { ...options, redirect: "error" }) });
+    const response = await client.messages.create({
+      model: HAIKU_MODEL,
+      max_tokens: 600,
+      thinking: { type: "disabled" },
+      ...{ output_config: { effort: "low" } },
+      system: "Select at most 3 useful missing topics for a site operator after they submitted a robot task and video. Use only eligible IDs. Prefer questions that change how the task or its success is understood. Do not infer answers or invent objects. Return JSON only: {\"question_ids\":[\"id\"]}.",
+      messages: [
         { role: "user", content: JSON.stringify({
           taskStatement: input.taskStatement.slice(0, 3000),
           briefSummary: input.briefSummary.slice(0, 300),
-          itemLabels: input.itemLabels.slice(0, 12),
+          itemLabels: input.itemLabels.slice(0, 12).map(label => label.slice(0, 300)),
           eligible: input.eligible,
         }) },
       ],
     });
-    const parsed = JSON.parse(response.output_text || "{}");
+    if (response.stop_reason !== "end_turn" || response.model !== HAIKU_MODEL) return input.eligible.slice(0, 3);
+    const parsed = JSON.parse(response.content.map(block => block.type === "text" ? block.text : "").join("\n") || "{}");
     const selected = allowedFollowUps(parsed.question_ids, input.eligible);
     const essentials = input.eligible.filter((id) => id === "success_target" || id === "item_photos");
     return [...new Set([...essentials, ...(selected.length ? selected : input.eligible)])].slice(0, 3);

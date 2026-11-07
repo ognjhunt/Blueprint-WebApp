@@ -584,6 +584,9 @@ function deepSeekPricingForModel(model: string): ModelPricing | null {
 }
 
 function pricingForModel(model: string): ModelPricing | null {
+  if (model === "claude-haiku-5-5") return { cacheHitInput: 0.01, cacheMissInput: 0.10,
+    cacheWriteInput: 0.125, output: 0.50, longContextThreshold: 100_000,
+    longContextInputMultiplier: 5, longContextOutputMultiplier: 5 };
   const deepSeek = deepSeekPricingForModel(model);
   if (deepSeek) return deepSeek;
   const openAI = pricingForOpenAIModel(model);
