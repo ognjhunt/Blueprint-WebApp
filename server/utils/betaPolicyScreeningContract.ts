@@ -377,6 +377,11 @@ export function screeningPublicationTransition(previous: BetaPolicyScreeningPubl
   if (previous.publication_digest === next.publication_digest) return "replayed" as const;
   if (next.revision < previous.revision) return "superseded" as const;
   if (next.revision === previous.revision) throw new Error("screening_revision_conflict");
+  // The site limit is the shared allowance, not part of a campaign: raising it
+  // (2026-11-05, $15 to $30 on the owner's approval) must not refuse every update
+  // to a campaign first published under the old limit. It may never be lowered.
+  if (screeningMoneyMicros(next.budget.limit_usd) < screeningMoneyMicros(previous.budget.limit_usd))
+    throw new Error("screening_budget_limit_lowered");
   // Later campaigns at the same site update the shared budget snapshot even
   // after this campaign ends. Its scientific evidence must remain byte-identical.
   if (["completed", "blocked"].includes(previous.status) && (next.status !== previous.status
