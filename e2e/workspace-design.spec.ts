@@ -65,7 +65,9 @@ for (const width of [1440, 390]) for (const outcome of outcomeCases) {
     await expect(page.getByText(outcome.nextStep)).toHaveCount(1);
     await expect(page.getByRole("region", {name: "Preparation outcome"}).getByText(outcome.nextStep)).toBeVisible();
     await expect(page.getByText("Video received.", {exact: true})).toBeVisible();
-    await expect(page.getByText("Saved job brief", {exact: true})).toBeVisible();
+    // The brief is unconfirmed, so its confirmation stays reachable during Blueprint's stop.
+    await expect(page.getByText("Saved job brief", {exact: true})).toHaveCount(0);
+    await expect(page.getByText("Review or correct job details (optional)", {exact: true})).toBeVisible();
     await expect(page.getByRole("region", {name: "Confirm your job brief"})).toHaveCount(0);
     await expect(page.getByRole("button", {name: /confirm it|Retry processing/})).toHaveCount(0);
     await expect(page.getByText(/Review the saved brief\.|checking whether it covers|If another recording is needed/)).toHaveCount(0);

@@ -898,7 +898,11 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
                   {taskStatementError && <p role="alert">{taskStatementError}</p>}
                 </form>
               )}
-              {scope === "owner" && brief && blueprintActionPending && !editingBrief && <details style={{margin: "16px 0"}}>
+              {/* A confirmed brief is read-only while Blueprint's own step is open. An
+                  unconfirmed one keeps its confirmation below: the site's consent is
+                  never the step Blueprint is waiting on, so hiding it leaves the job
+                  with no way forward. */}
+              {scope === "owner" && brief && briefConfirmed && blueprintActionPending && !editingBrief && <details style={{margin: "16px 0"}}>
                 <summary>Saved job brief</summary>
                 <p>{brief.summary}</p>
                 <p className="ms-field-hint">This brief is retained for a future authorized attempt. Blueprint's next step is shown above.</p>
@@ -913,7 +917,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
               )}
               {/* Blueprint continues from the recording. The owner may correct
                   the inferred brief without making review another required step. */}
-              {scope === "owner" && brief && !briefConfirmed && !editingBrief && !blueprintActionPending && (
+              {scope === "owner" && brief && !briefConfirmed && !editingBrief && (
                 <details aria-label="Review your job brief" style={{ margin: "16px 0" }}>
                   <summary>Review or correct job details (optional)</summary>
                   <p className="ms-field-hint">Blueprint prepares and evaluates your job from the recording. You can correct the summary and answers we drafted here.</p>
