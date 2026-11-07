@@ -1284,6 +1284,10 @@ export interface InboundRequestPayload {
   /** Description-only admission preserves the recording hold until a separate grant. */
   descriptionOnly?: boolean;
   descriptionAuthority?: ConsentAttestationInput | null;
+  /** The one box on the site start form: "this is the task I want Blueprint to evaluate" (2026-11-07). */
+  taskConfirmation?: ConsentAttestationInput | null;
+  /** Optional success criteria the site typed with its task. */
+  successCriteria?: { successDefinition?: string | null; successRate?: number | null; cycleTimeSeconds?: number | null } | null;
   publicTaskListing?: { consent: boolean; statementVersion: string; details: import("../../client/src/types/taskBrowse").TaskListingDetails } | null;
   /** Only sent by the scoped Claude development-test website form. */
   claudeAuthoringConsent?: ConsentAttestationInput | null;

@@ -130,12 +130,13 @@ beforeEach(() => {
 });
 
 /** A site starts a job on the public form, exactly as the browser sends it, and keeps its link. */
-async function startJob(options: { task?: string } = {}) {
+async function startJob(options: { task?: string; withoutTaskConfirmation?: boolean; successDefinition?: string } = {}) {
   const requestId = `site-footage-${++sequence}`;
   const response = await fetch(`${base}/api/inbound-request`, { method: "POST",
     headers: { "content-type": "application/json", "x-forwarded-for": `203.0.113.${(sequence % 250) + 1}` },
     body: JSON.stringify(siteCaptureStartSubmission({ requestId, retryToken: `r${requestId}`.padEnd(64, "x"),
-      sourcePageUrl: "https://tryblueprint.io/contact/site-operator", email: `${requestId}@example.test`, task: options.task })) });
+      sourcePageUrl: "https://tryblueprint.io/contact/site-operator", email: `${requestId}@example.test`, task: options.task,
+      withoutTaskConfirmation: options.withoutTaskConfirmation, successDefinition: options.successDefinition })) });
   expect(response.status, await response.clone().text()).toBe(201);
   const { captureUrl } = await response.json() as { captureUrl: string };
   const token = captureUrl.split("/capture-upload/")[1];
@@ -208,9 +209,16 @@ async function workspaceTask(jobId: string) {
   return (await response.json()) as { readiness: { decision: string; headline: string; operatorAction: string | null } | null };
 }
 
+/**
+ * A submission without the task box (an older client or a direct API call)
+ * keeps the draft-then-confirm flow these two suites cover. The start form
+ * itself confirms at upload (owner decision 2026-11-07); see the suite below.
+ */
+const UNCONFIRMED_AT_UPLOAD = { withoutTaskConfirmation: true } as const;
+
 describe("a site that sends its footage before confirming its brief", () => {
   it("continues on its job page without requiring brief confirmation", async () => {
-    const { jobId, token } = await startJob();
+    const { jobId, token } = await startJob(UNCONFIRMED_AT_UPLOAD);
     await claim(jobId);
     await sendFootage(token);
     const { teamJobAccess } = await import("../utils/teamJobAccess");
@@ -227,7 +235,7 @@ describe("a site that sends its footage before confirming its brief", () => {
   });
 
   it("gets one receipt email that leaves reconstruction and evaluation with Blueprint", async () => {
-    const { jobId, token } = await startJob();
+    const { jobId, token } = await startJob(UNCONFIRMED_AT_UPLOAD);
     await claim(jobId);
     await sendFootage(token);
     const notice = outbox(`${jobId}:video_received`);
@@ -257,7 +265,7 @@ describe("a site that sends its footage before confirming its brief", () => {
   });
 
   it("is never asked to film again once it confirms", async () => {
-    const { jobId, token } = await startJob();
+    const { jobId, token } = await startJob(UNCONFIRMED_AT_UPLOAD);
     await claim(jobId);
     await sendFootage(token);
     expect((await confirmBrief(token)).disposition).toBe("qualified");
@@ -270,7 +278,7 @@ describe("a site that sends its footage before confirming its brief", () => {
   });
 
   it("is never asked to film on its workspace job page once its footage is in", async () => {
-    const { jobId, token } = await startJob();
+    const { jobId, token } = await startJob(UNCONFIRMED_AT_UPLOAD);
     await claim(jobId);
     await sendFootage(token);
     await confirmBrief(token);
@@ -285,7 +293,7 @@ describe("a site that sends its footage before confirming its brief", () => {
 
 describe("a site that confirms before it films", () => {
   it("still hears the footage email it always did", async () => {
-    const { jobId, token } = await startJob();
+    const { jobId, token } = await startJob(UNCONFIRMED_AT_UPLOAD);
     expect((await confirmBrief(token)).disposition).toBe("qualified");
     // Nothing filmed yet: the confirmed email asks for the walkthrough.
     expect(outbox(`${jobId}:brief-screening:qualified`)?.body).toMatch(/film the work area/i);
@@ -392,5 +400,170 @@ describe("a site that sends footage with no description", () => {
     expect(notice?.subject).not.toMatch(/one sentence/i);
     expect(notice?.body).toMatch(/accepted your job/);
     expect((await jobStatus(token)).status.headline).toMatch(/preparing an evaluation/i);
+  });
+});
+
+/**
+ * Owner decision 2026-11-07, "Confirm at upload": consent means the site agreed
+ * to this exact task, and it is captured once. The start form requires the task
+ * in the site's words and one box; submitting it is the confirmation. Anything
+ * Blueprint infers later is a disclosed proposal that never un-confirms the
+ * brief or replaces the site's words. Only a change to the task itself needs
+ * the site's click again. A submission without the box keeps the old flow.
+ */
+describe("a site that confirms its task when it submits it", () => {
+  const SUCCESS = "Every carton reaches the end of the table upright";
+  const brief = (jobId: string) => doc(`siteTaskBriefs/${jobId}`);
+  const record = (jobId: string) => doc(`inboundRequests/${jobId}`);
+  async function ownerBrief(token: string) {
+    const response = await fetch(`${base}/api/site-task-brief/${token}`);
+    expect(response.status, await response.clone().text()).toBe(200);
+    return (await response.json()).brief as { summary: string; confirmedAtIso: string | null; confirmedAtSubmission: boolean };
+  }
+  async function postStart(body: Record<string, unknown>) {
+    const response = await fetch(`${base}/api/inbound-request`, { method: "POST",
+      headers: { "content-type": "application/json", "x-forwarded-for": `198.51.100.${(++sequence % 250) + 1}` },
+      body: JSON.stringify(body) });
+    expect(response.status, await response.clone().text()).toBe(201);
+  }
+
+  it("confirms the brief in the site's own words, at the submission time, by the submitter the route binds", async () => {
+    const { TASK_CONFIRMATION_VERSION } = await import("../../client/src/lib/taskConfirmationStatement");
+    const { SITE_CAPTURE_START_FORM } = await import("./helpers/siteCaptureStartSubmission");
+    const { projectWebsiteTaskContext } = await import("../utils/websiteTaskContext");
+    const before = new Date().toISOString();
+    const { jobId, token } = await startJob({ successDefinition: SUCCESS });
+    const after = new Date().toISOString();
+    const saved = brief(jobId);
+    expect(saved.summary).toBe(SITE_CAPTURE_START_FORM.task);
+    expect(saved.confirmedAtIso >= before && saved.confirmedAtIso <= after).toBe(true);
+    // A guest's identity on the job is the owner subject the route binds; never a typed or invented name.
+    expect(saved.confirmedBy).toBe(record(jobId).capture_owner_uid);
+    expect(saved.confirmedBy).toMatch(/^site-job-[a-f0-9]{40}$/);
+    expect(saved.submissionConsent).toEqual({ statementVersion: TASK_CONFIRMATION_VERSION, recordedAtIso: saved.confirmedAtIso });
+    expect(saved.successCriteria).toEqual({ successDefinition: SUCCESS, successRate: null, cycleTimeSeconds: null, unknown: false });
+    expect(saved.operatorAnswers).toEqual({});
+    // Confirmed where the job is read, with no description reading queued to fold into it.
+    expect(record(jobId).site_task_brief_confirmed_at).toBe(saved.confirmedAtIso);
+    expect(record(jobId).briefReviewPending).toBeUndefined();
+    expect(projectWebsiteTaskContext(saved)).toMatchObject({ confirmed: true, confirmed_at: saved.confirmedAtIso,
+      description: SITE_CAPTURE_START_FORM.task });
+    expect(await ownerBrief(token)).toMatchObject({ confirmedAtIso: saved.confirmedAtIso, confirmedAtSubmission: true });
+    // The page asks for the video, not for a confirmation; no extra email is sent for it.
+    expect((await jobStatus(token)).status.decision).toBe("record");
+    expect(queuedKinds(jobId)).toEqual(["task_received"]);
+  });
+
+  it("names the signed-in account that submitted it", async () => {
+    const uid = "site-account-upload";
+    state.docs.set(`users/${uid}`, { buyerType: "site_operator", email: "account-upload@example.test" });
+    const requestId = `site-footage-account-${++sequence}`;
+    const response = await fetch(`${base}/api/workspace/capture-start`, { method: "POST",
+      headers: { "content-type": "application/json", "x-fixture-user": uid, "x-fixture-email": "account-upload@example.test" },
+      body: JSON.stringify(siteCaptureStartSubmission({ requestId, retryToken: `r${requestId}`.padEnd(64, "x"),
+        sourcePageUrl: "https://tryblueprint.io/contact/site-operator", successDefinition: SUCCESS })) });
+    expect(response.status, await response.clone().text()).toBe(201);
+    expect(record(requestId).account_owner_uid).toBe(uid);
+    expect(brief(requestId)).toMatchObject({ confirmedBy: uid, successCriteria: { successDefinition: SUCCESS } });
+    expect(brief(requestId).confirmedAtIso).toBe(record(requestId).site_task_brief_confirmed_at);
+  });
+
+  // Chosen behaviour: a submission without the box is accepted and stays unconfirmed. The job keeps
+  // going (only privacy, rights and money stop a job), and its brief still needs the site's own click.
+  it.each([
+    { label: "no box", taskConfirmation: undefined },
+    { label: "box not ticked", taskConfirmation: { granted: false, statementVersion: "2026-11-07.v1" } },
+    { label: "a statement the site was not shown", taskConfirmation: { granted: true, statementVersion: "2026-01-01.v0" } },
+  ])("stays unconfirmed with $label", async ({ taskConfirmation }) => {
+    const requestId = `site-footage-unticked-${++sequence}`;
+    await postStart({ ...siteCaptureStartSubmission({ requestId, retryToken: `r${requestId}`.padEnd(64, "x"),
+      sourcePageUrl: "https://tryblueprint.io/contact/site-operator", email: `${requestId}@example.test`,
+      withoutTaskConfirmation: true }), ...(taskConfirmation ? { taskConfirmation } : {}) });
+    expect(brief(requestId)).toMatchObject({ confirmedAtIso: null, confirmedBy: null });
+    expect(brief(requestId)).not.toHaveProperty("submissionConsent");
+    expect(record(requestId).site_task_brief_confirmed_at).toBeUndefined();
+    expect(record(requestId).briefReviewPending).toBe(true);
+  });
+
+  it("is never un-confirmed, nor its words replaced, by anything Blueprint reads later", async () => {
+    const { mergeBriefProposals, nameUnnamedTask } = await import("../utils/siteTaskBrief");
+    const { humanDecisionDigest } = await import("../utils/human-reply-admission");
+    const { recoverCaptureReviews } = await import("../utils/captureReviewRecovery");
+    const { jobId, token } = await startJob();
+    const confirmed = structuredClone(brief(jobId));
+    // A reading of the description, a reading of the footage, and a drafted job name.
+    const reading = [{ fieldId: "sceneStability", value: "stable", basis: "description" as const, reading: "Model reading." }];
+    const footage = [{ fieldId: "objectVariety", value: "under_10", basis: "observation" as const, reading: "Seen in the clip." }];
+    expect(await mergeBriefProposals({ requestId: jobId, proposals: reading })).toBeNull();
+    const source = { capture_id: `walkthrough-${jobId}`, evidence_digest: "sha256:fixture", brief_digest: humanDecisionDigest(confirmed) };
+    expect(await mergeBriefProposals({ requestId: jobId, proposals: footage, observedSummary: "A person opens a cabinet door", source })).toBeNull();
+    expect(await nameUnnamedTask({ requestId: jobId, summary: "Open the cabinet door" })).toBeNull();
+    await recoverCaptureReviews();
+    await claim(jobId);
+    await sendFootage(token);
+    expect(brief(jobId)).toEqual(confirmed);
+    // The footage reading is kept, disclosed for the site's review, not folded in.
+    expect(doc(`siteTaskBriefs/${jobId}/footageProposals/${humanDecisionDigest(source)}`))
+      .toMatchObject({ state: "owner_review_required", proposals: footage, observedSummary: "A person opens a cabinet door" });
+  });
+
+  it("needs the site's click again only when the task changes", async () => {
+    const { jobId, token } = await startJob();
+    const uploaded = structuredClone(brief(jobId));
+    // An unchanged click is not new consent: the upload confirmation stands.
+    const unchanged = await fetch(`${base}/api/site-task-brief/${token}/confirm`, { method: "POST",
+      headers: { "content-type": "application/json" }, body: JSON.stringify({ confirmedBy: "Dana", answers: {}, unknown: [] }) });
+    expect(unchanged.status, await unchanged.clone().text()).toBe(200);
+    expect(brief(jobId)).toMatchObject({ confirmedAtIso: uploaded.confirmedAtIso, confirmedBy: uploaded.confirmedBy });
+
+    // A new success target from the site changes the task: the confirmation is cleared until it confirms again.
+    const followUp = await fetch(`${base}/api/site-task-brief/${token}/follow-up`, { method: "POST",
+      headers: { "content-type": "application/json" }, body: JSON.stringify({ questionId: "success_target", answer: SUCCESS }) });
+    expect(followUp.status, await followUp.clone().text()).toBe(200);
+    expect(brief(jobId)).toMatchObject({ summary: uploaded.summary, confirmedAtIso: null, confirmedBy: null,
+      successCriteria: { successDefinition: SUCCESS }, submissionConsent: uploaded.submissionConsent,
+      lastTaskEdit: { by: "signed_owner_link", clearedConfirmedAtIso: uploaded.confirmedAtIso } });
+    expect(record(jobId).site_task_brief_confirmed_at).toBeUndefined();
+    expect((await jobStatus(token)).status.decision).toBe("confirm_brief");
+    expect((await ownerBrief(token)).confirmedAtSubmission).toBe(false);
+
+    // The site's own click confirms the changed task.
+    expect((await confirmBrief(token)).disposition).toBe("qualified");
+    expect(brief(jobId)).toMatchObject({ confirmedBy: "Site owner", submissionConsent: uploaded.submissionConsent });
+    expect(brief(jobId).confirmedAtIso > uploaded.confirmedAtIso).toBe(true);
+    expect(record(jobId).site_task_brief_confirmed_at).toBeTruthy();
+  });
+
+  it("records an edited summary as a new confirmation by the person who made it", async () => {
+    const { jobId, token } = await startJob();
+    const uploaded = structuredClone(brief(jobId));
+    const summary = "Pick up each sealed carton and place it on the pallet";
+    expect((await confirmBrief(token, { summary, confirmedBy: "Dana" })).disposition).toBe("qualified");
+    expect(brief(jobId)).toMatchObject({ summary, confirmedBy: "Dana", submissionConsent: uploaded.submissionConsent });
+    expect(brief(jobId).confirmedAtIso).not.toBe(uploaded.confirmedAtIso);
+    expect(await ownerBrief(token)).toMatchObject({ summary, confirmedAtSubmission: false });
+  });
+});
+
+describe("a brief from before confirm-at-upload keeps its behaviour", () => {
+  it("is not confirmed retroactively, and a follow-up never edits it once the site has confirmed it", async () => {
+    const { jobId, token } = await startJob(UNCONFIRMED_AT_UPLOAD);
+    const draft = structuredClone(doc(`siteTaskBriefs/${jobId}`));
+    expect(draft).toMatchObject({ confirmedAtIso: null, confirmedBy: null });
+    expect(Object.keys(draft).sort()).toEqual(["captureMode", "confirmedAtIso", "confirmedBy", "draftedAtIso", "draftedFrom",
+      "operatorAnswers", "operatorUnknown", "proposed", "requestId", "successCriteria", "summary", "taskFamily", "unresolved"]);
+    // Unconfirmed, a follow-up answer fills its success target exactly as before, and confirms nothing.
+    const answer = (value: string) => fetch(`${base}/api/site-task-brief/${token}/follow-up`, { method: "POST",
+      headers: { "content-type": "application/json" }, body: JSON.stringify({ questionId: "success_target", answer: value }) });
+    expect((await answer("Cartons arrive upright")).status).toBe(200);
+    expect(doc(`siteTaskBriefs/${jobId}`)).toEqual({ ...draft,
+      successCriteria: { successDefinition: "Cartons arrive upright", successRate: null, cycleTimeSeconds: null, unknown: false } });
+    // Its one click confirms it; afterwards a follow-up leaves the confirmed brief alone.
+    await confirmBrief(token);
+    const confirmed = structuredClone(doc(`siteTaskBriefs/${jobId}`));
+    expect(confirmed.confirmedBy).toBe("Site owner");
+    expect(confirmed).not.toHaveProperty("submissionConsent");
+    expect((await answer("Something else")).status).toBe(200);
+    expect(doc(`siteTaskBriefs/${jobId}`)).toEqual(confirmed);
   });
 });

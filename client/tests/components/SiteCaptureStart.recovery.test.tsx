@@ -36,8 +36,14 @@ async function renderReady(ui: React.ReactElement) {
 }
 const fetchMock = vi.fn();
 const sent: {url: string; body: Record<string, any>}[] = [];
-function fill(task = "Move sealed cartons") {
+/** The task and the one box the form requires to send it (owner decision 2026-11-07). */
+function describeTask(task: string) {
   fireEvent.change(document.querySelector("#start-task")!, {target: {value: task}});
+  const box = document.querySelector<HTMLInputElement>("#start-task-confirmation")!;
+  if (!box.checked) fireEvent.click(box);
+}
+function fill(task = "Move sealed cartons") {
+  describeTask(task);
   fireEvent.change(document.querySelector("#start-location")!, {target: {value: "Austin, TX"}});
   fireEvent.change(document.querySelector("#start-email")!, {target: {value: "operator@example.test"}});
 }
@@ -55,7 +61,7 @@ async function renderAsSiteOwner() {
 }
 /** A site account is not asked for an email: the account has one. */
 function fillSigned(task = "Move sealed cartons") {
-  fireEvent.change(document.querySelector("#start-task")!, {target: {value: task}});
+  describeTask(task);
   fireEvent.change(document.querySelector("#start-location")!, {target: {value: "Austin, TX"}});
 }
 beforeEach(() => {

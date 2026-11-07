@@ -4,6 +4,8 @@ export const SITE_CAPTURE_DRAFT_VERSION = 1;
 export const SITE_CAPTURE_DRAFT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 export type SiteCaptureDraft = {
   task: string; location: string; email: string;
+  /** Optional success criteria typed with the task. */
+  successDefinition?: string;
   /** Retained from older browser drafts; new intake no longer asks for it. */
   company?: string;
   /** Optional buying context. Empty answers never block a first assessment. */
@@ -47,6 +49,7 @@ function validSiteCaptureRecovery(input: unknown): SiteCaptureRecovery | null {
       || (draft.privateHandling !== undefined && typeof draft.privateHandling !== "boolean")
       || (draft.company !== undefined && (typeof draft.company !== "string" || draft.company.length > 200))
       || (draft.jobFrequency !== undefined && (typeof draft.jobFrequency !== "string" || draft.jobFrequency.length > 120))
+      || (draft.successDefinition !== undefined && (typeof draft.successDefinition !== "string" || draft.successDefinition.length > 1000))
       || (draft.purchaseReadiness !== undefined && !["", "exploring", "planning", "ready_for_proposals", "unsure"].includes(draft.purchaseReadiness))
       || !draft || !["phone", "upload", "visit"].includes(draft.method)
       || !["", "us", "non_us"].includes(draft.region) || typeof draft.regionManuallySet !== "boolean"
@@ -89,11 +92,11 @@ export function writeSiteCaptureRecovery(key: string | null, value: SiteCaptureR
     }
     // Persist only the named recovery fields: no File objects or bearer URL
     // can ride along on a future caller's spread object.
-    const { task, location, email, company, method, region, regionManuallySet, privateHandling, jobFrequency, purchaseReadiness } = value.draft;
+    const { task, location, email, company, method, region, regionManuallySet, privateHandling, jobFrequency, purchaseReadiness, successDefinition } = value.draft;
     window.localStorage.setItem(key, JSON.stringify({
       version: value.version, savedAt: value.savedAt, requestId: value.requestId, retryToken: value.retryToken,
       draft: { task, location, email, ...(company !== undefined ? { company } : {}), method, region, regionManuallySet, ...(privateHandling === true ? { privateHandling } : {}),
-        ...(jobFrequency ? { jobFrequency } : {}), ...(purchaseReadiness ? { purchaseReadiness } : {}) },
+        ...(jobFrequency ? { jobFrequency } : {}), ...(purchaseReadiness ? { purchaseReadiness } : {}), ...(successDefinition ? { successDefinition } : {}) },
       pending: value.pending ? { body: value.pending.body, endpoint: value.pending.endpoint, acknowledged: value.pending.acknowledged } : null,
     }));
     return true;

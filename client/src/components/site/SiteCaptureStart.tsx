@@ -21,6 +21,7 @@ import { PRIVACY_URL, TERMS_URL } from "@/lib/legalAcceptance";
 import { FILMING_NOTICE, FOOTAGE_UPLOAD_NOTICE } from "@/lib/footageNotice";
 import { DESCRIPTION_AUTHORITY_STATEMENT, DESCRIPTION_AUTHORITY_VERSION } from "@/lib/siteSubmissionAuthority";
 import { RECORDING_RIGHTS_STATEMENT, RECORDING_RIGHTS_STATEMENT_VERSION } from "@/lib/recordingRightsStatement";
+import { TASK_CONFIRMATION_STATEMENT, TASK_CONFIRMATION_VERSION } from "@/lib/taskConfirmationStatement";
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
 import {
   CAPTURE_VIDEO_ACCEPT,
@@ -299,6 +300,10 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
   const footageWanted = hasFootage && region !== "non_us";
   const [claudeConsent, setClaudeConsent] = useState(false);
   const [solAgentsConsent, setSolAgentsConsent] = useState(false);
+  // The one box (owner decision 2026-11-07): submitting the task with it ticked
+  // confirms the brief. Never retained, so each submission ticks it afresh.
+  const [taskConfirmed, setTaskConfirmed] = useState(false);
+  const [taskProblem, setTaskProblem] = useState<"task" | "confirmation" | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
   function adoptRecovery(other: SiteCaptureRecovery, resetChanged = true) {
     const changed = recovery.current.requestId !== other.requestId
@@ -309,7 +314,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
     setRegionManuallySet(other.draft.regionManuallySet);
     setPending(other.pending);
     if (changed && resetChanged) {
-      setClaudeConsent(false); setSolAgentsConsent(false);
+      setClaudeConsent(false); setSolAgentsConsent(false); setTaskConfirmed(false); setTaskProblem(null);
       setFootage(null); setResetVersion(value => value + 1);
     }
   }
@@ -319,6 +324,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
     const field = (name: string) => String(data.get(name) ?? "");
     retain({ ...recovery.current, savedAt: Date.now(), draft: {
       task: field("startTask"), location: place ? place.label : field("startLocation"), email: field("startEmail"),
+      ...(field("startSuccess") ? { successDefinition: field("startSuccess") } : {}),
       ...(recovery.current.draft.company !== undefined ? { company: recovery.current.draft.company } : {}),
       ...(field("startFrequency") ? { jobFrequency: field("startFrequency") } : {}),
       ...(field("startReadiness") ? { purchaseReadiness: field("startReadiness") as SiteCaptureRecovery["draft"]["purchaseReadiness"] } : {}),
@@ -349,6 +355,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
       recovery.current = fresh;
       requestId.current = fresh.requestId; retryToken.current = fresh.retryToken;
       setRecoveryUnavailable(false); setPending(null); setState({ status: "idle" }); setClaudeConsent(false); setSolAgentsConsent(false);
+      setTaskConfirmed(false); setTaskProblem(null);
       setMethod("phone"); setRegion(""); setRegionManuallySet(false); setCountryMissing(false);
       setFootage(null); setFootageError(null); setCaptureReceived(false);
       setResetVersion(value => value + 1);
@@ -376,6 +383,16 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
       setCountryMissing(true);
       document.querySelector<HTMLElement>(method === "visit" ? "#start-location" : "#start-region")?.focus();
       return;
+    }
+    // The task in the site's words and its one box are the confirmation.
+    if (!retained) {
+      const typedTask = String(new FormData(formRef.current!).get("startTask") ?? "").trim();
+      const problem = !typedTask ? "task" : !taskConfirmed ? "confirmation" : null;
+      setTaskProblem(problem);
+      if (problem) {
+        document.querySelector<HTMLElement>(problem === "task" ? "#start-task" : "#start-task-confirmation")?.focus();
+        return;
+      }
     }
     if (!retained && footageWanted && !footage) return;
 
@@ -411,6 +428,10 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
           siteLocation: location,
           taskStatement: read("startTask"),
           taskDescription: read("startTask"),
+          // Owner decision 2026-11-07: this box, ticked with the task above, is
+          // the brief's confirmation. The server records it with its version.
+          taskConfirmation: { granted: true, statementVersion: TASK_CONFIRMATION_VERSION },
+          ...(read("startSuccess") ? { successCriteria: { successDefinition: read("startSuccess") } } : {}),
           // Every job is shown to approved robot teams as an anonymized card;
           // the site can hide it from its job page.
           publicTaskListing: { consent: true, statementVersion: "public-task-card-v1", details: anonymizedOpportunityDraft(read("startTask")) },
@@ -657,8 +678,8 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
               </a>
             </p>
             <p className="ms-field-hint" style={{ marginTop: "20px" }}>
-              Keep this private link; we also email it to {state.email}. It is where the job
-              brief we draft from your video will appear for you to correct.
+              Keep this private link; we also email it to {state.email}. It is where you see the
+              task you confirmed, and change it if the job changes.
               {!state.hasFootage && ` Film the work, not the worker: hands and objects are what we need to see to evaluate the job. ${FILMING_NOTICE}`}
             </p>
             {!onAPhone && state.hasFootage && <details>
@@ -746,7 +767,28 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
         </label>
       )}
 
-      <p className="ms-field-hint">Start with a video of the job. We use it to draft the description, build the site simulation and compare robot options. The assessment starts once we receive the video.</p>
+      <p className="ms-field-hint">Describe the task and send a video of it. We build the site simulation from the video and compare robot options on the task you describe. The assessment starts once we receive the video.</p>
+
+      <label htmlFor="start-task">
+        <span>What is the task?</span>
+        <span className="ms-field-hint">One job, in your words: what is picked up or moved, and where it goes.</span>
+        <textarea id="start-task" name="startTask" defaultValue={recovery.current.draft.task} maxLength={2000} rows={3} required
+          placeholder="For example, pick up each packed carton and place it at the end of the table"
+          onChange={() => { if (taskProblem === "task") setTaskProblem(null); }} />
+      </label>
+      {taskProblem === "task" && <p className="ms-error" role="alert" style={{ margin: 0 }}>Describe the task Blueprint should evaluate.</p>}
+      <label htmlFor="start-success">
+        <span>What counts as success? (optional)</span>
+        <input id="start-success" name="startSuccess" type="text" maxLength={1000}
+          defaultValue={recovery.current.draft.successDefinition ?? ""}
+          placeholder="For example, the carton reaches the end of the table upright" />
+      </label>
+      <label htmlFor="start-task-confirmation" className="ms-check-row">
+        <input id="start-task-confirmation" name="startTaskConfirmation" type="checkbox" required
+          checked={taskConfirmed} onChange={(event) => { setTaskConfirmed(event.target.checked); setTaskProblem(null); }} />
+        <span>{TASK_CONFIRMATION_STATEMENT}</span>
+      </label>
+      {taskProblem === "confirmation" && <p className="ms-error" role="alert" style={{ margin: 0 }}>Tick the box to confirm this is the task you want evaluated.</p>}
       <fieldset className="ms-choice">
         <legend>How will we see the task?</legend>
         {([
@@ -888,11 +930,6 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
 
       <details className="ms-task-interest ms-visitor-detail">
         <summary>Add job details and buying plans (optional)</summary>
-        <label htmlFor="start-task">
-          <span>Anything we should know?</span>
-          <span className="ms-field-hint">We draft the job description from your video. Add details here only if they help.</span>
-          <textarea id="start-task" name="startTask" defaultValue={recovery.current.draft.task} maxLength={2000} rows={3} />
-        </label>
         <label htmlFor="start-frequency">
           <span>How often does the job happen?</span>
           <input id="start-frequency" name="startFrequency" type="text" maxLength={120}
