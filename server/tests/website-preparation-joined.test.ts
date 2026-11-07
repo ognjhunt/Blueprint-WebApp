@@ -158,7 +158,9 @@ it.skipIf(!process.env.RELIABILITY_PREPARATION_EXPORTER && process.env.RELIABILI
   expect(producer.selectors.producer_delivery_key).toBe((source.value.owner_observation as any).producer_delivery.delivery_key);
   expect(producer.selectors.task_context_digest).toBe(source.value.task_context.context_digest);
   await record("actual-producer-failure-ready",{selectors_digest:crossRuntimeDigest(producer.selectors),base_url_mode:"ephemeral-loopback",provider_mode:"no-provider"});
-  const delivery=await producerCommand("deliver");
+  const earlyRetry=await producerCommand("deliver");
+  expect(earlyRetry.result).toMatchObject({delivered:false,remaining_pending:1,delivery_counts:{attempted:0,delivered:0}});
+  const delivery=await producerCommand("deliver_next_due");
   expect(delivery.result).toMatchObject({delivered:true,remaining_pending:0,delivery_counts:{attempted:1,delivered:1},
     acceptance:{accepted:true,...producer.selectors}});
   expect(delivery.result.acceptance.schema_version).toMatch(/^website_preparation_status_acceptance\.v[23]$/);
@@ -196,25 +198,26 @@ it.skipIf(!process.env.RELIABILITY_PREPARATION_EXPORTER && process.env.RELIABILI
   expect(receipts).toHaveLength(1);
   await reconcileWebsitePreparationNotifications();await deliverOutbox();expect(seams.send).toHaveBeenCalledTimes(1);
   await record("restart-recovery-local-notification",{database_mode:"JSON checkpoint of in-memory Firestore double",notice_count:noticeRows.length,local_deliveries:seams.send.mock.calls.length});
-  // Nothing claims the source for a full silence window: the Pipeline records the ending,
-  // the site is told preparation could not finish, and receives one email.
-  const ended=await producerCommand("exhaust");
-  expect(ended.result).toMatchObject({status:"failed_retryable",
-    website_preparation_terminal:{reason:"retry_exhausted",basis:"no_claim_within_silence_window"}});
-  const endedDelivery=await producerCommand("deliver");
-  expect(endedDelivery.result).toMatchObject({delivered:true,remaining_pending:0,
-    acceptance:{state:"failed_terminal",...producer.selectors}});
-  expect(endedDelivery.result.acceptance.schema_version).toMatch(/^website_preparation_status_acceptance\.v[23]$/);
-  const endedCustomer=await customer();expect(endedCustomer.code).toBe(200);
-  expect(endedCustomer.body.status.decision).toBe("processing_failure");
-  expect(endedCustomer.body.status.outcome.reason).toContain("Automatic preparation retries have stopped");
-  expect(endedCustomer.body.status.outcome.reason).toContain("tried several times");
-  await reconcileWebsitePreparationNotifications();await deliverOutbox();expect(seams.send).toHaveBeenCalledTimes(2);
+  // Silence proves an overdue observation, not exhausted broker/recovery authority.
+  // The existing retryable state reaches the customer without an ending notice.
+  const overdue=await producerCommand("overdue");
+  expect(overdue.result).toMatchObject({status:"failed_retryable",
+    website_preparation_overdue:{reason:"recovery_needed",retry_exhaustion_proven:false}});
+  expect(overdue.result.website_preparation_terminal).toBeUndefined();
+  const overdueDelivery=await producerCommand("deliver");
+  expect(overdueDelivery.result).toMatchObject({delivered:true,remaining_pending:0,
+    acceptance:{state:"failed_retryable",...producer.selectors}});
+  expect(overdueDelivery.result.acceptance.schema_version).toMatch(/^website_preparation_status_acceptance\.v[23]$/);
+  const overdueCustomer=await customer();expect(overdueCustomer.code).toBe(200);
+  expect(overdueCustomer.body.status.decision).toBe("processing_failure");
+  expect(overdueCustomer.body.status.outcome.reason).not.toContain("Automatic preparation retries have stopped");
+  expect(overdueCustomer.body.status.outcome.reason).not.toContain("tried several times");
+  await reconcileWebsitePreparationNotifications();await deliverOutbox();expect(seams.send).toHaveBeenCalledTimes(1);
   const endedRows=[...sharedFakeFirestoreState.docs].filter(([key])=>key.startsWith("captureOutbox/")&&key.split("/").length===2&&key.includes(":preparation_ended:"));
-  expect(endedRows).toHaveLength(1);expect(endedRows[0][1]).toMatchObject({status:"sent",attempts:1});
-  await reconcileWebsitePreparationNotifications();await deliverOutbox();expect(seams.send).toHaveBeenCalledTimes(2);
-  await record("terminal-ending-reaches-customer-and-one-email",{acceptance:endedDelivery.result.acceptance,
-    customer_status:endedCustomer.body.status,ending_notices:endedRows.length,local_deliveries:seams.send.mock.calls.length});
+  expect(endedRows).toHaveLength(0);
+  await reconcileWebsitePreparationNotifications();await deliverOutbox();expect(seams.send).toHaveBeenCalledTimes(1);
+  await record("overdue-remains-retryable-without-ending-email",{acceptance:overdueDelivery.result.acceptance,
+    customer_status:overdueCustomer.body.status,ending_notices:endedRows.length,local_deliveries:seams.send.mock.calls.length});
   // A new canonical video must invalidate the old source callback and customer error.
   const old=seams.objects.get(source.video.object_name)!.metadata.generation;
   seams.objects.get(source.video.object_name)!.metadata.generation="90071992547409999";
@@ -230,7 +233,7 @@ it.skipIf(!process.env.RELIABILITY_PREPARATION_EXPORTER && process.env.RELIABILI
   const withdrawn=await customer();await record("withdrawal-customer-response",withdrawn);expect(withdrawn.code).toBe(200);expect(withdrawn.body.status.headline).toContain("Recording consent was withdrawn.");
   expect(withdrawn.body.summary).toBeNull();expect(withdrawn.body.sceneViewUrl).toBeNull();
   expect(withdrawn.body.status.headline).not.toContain("Job preparation encountered a problem.");expect(withdrawn.body.status.headline).not.toContain("could not finish");
-  await reconcileOutboxDeliveries();await deliverOutbox();expect(seams.send).toHaveBeenCalledTimes(2);
+  await reconcileOutboxDeliveries();await deliverOutbox();expect(seams.send).toHaveBeenCalledTimes(1);
   await record("withdrawal-overrides-retained-status",{callback:503,customer_status:withdrawn.body.status,additional_deliveries:0});
   await writeFile(path.join(output,"webapp-final-documents.json"),JSON.stringify([...sharedFakeFirestoreState.docs]),{mode:0o600});
 });
