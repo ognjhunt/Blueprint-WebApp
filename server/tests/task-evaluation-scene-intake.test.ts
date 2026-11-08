@@ -8,6 +8,8 @@ import { projectWebsiteCaptureRights, projectWebsiteTaskContext } from "../utils
 import { WEBSITE_JOB_WINDOW_DEFAULT_SECONDS, WEBSITE_JOB_WINDOW_MAX_SECONDS } from "../utils/websiteJobWindow";
 import { familyScreeningFixture, navigationScreeningFixture } from "./fixtures/beta-policy-screening";
 import producerFamilyStatus from "./fixtures/pipeline-family-prepared-status.v1.json";
+import { crossRuntimeDigest } from "../utils/crossRuntimeCanonical";
+import { WEBSITE_NAVIGATION_REISSUE } from "../utils/websitePreparationRevision";
 vi.mock("../utils/captureFootageReview", () => ({ buildCaptureFootageReviewer: vi.fn() }));
 vi.mock("../utils/taskLifecycleNotifications", () => ({ enqueueTaskLifecycleNotification: vi.fn(), reconstructionIsViewable: vi.fn() }));
 vi.mock("../utils/worldReconstruction", () => ({ startWorldReconstruction: vi.fn(), advanceWorldReconstruction: vi.fn() }));
@@ -756,6 +758,76 @@ it.each(["subject", "destination", "origin", "digest", "policies", "evaluation",
     expect([400, 409]).toContain(response.status);
     expect(intakeRows()).toHaveLength(0);
   });
+
+// The job's Atlas result was published again and its scene half derived anew (the library-aisle splat
+// rebuild): the Pipeline re-issues the capture's navigation intake under its own submission.
+function reissuedNavigation(request: Record<string, any>, atlasResult: string, sceneRevision: string,
+  parent: string = request.submission_id) {
+  const { submission_id: _submission, ...body } = structuredClone(request);
+  body.source = { kind: "gaussian_splat", binding_id: `website-splat-${sceneRevision.slice(7, 39)}`, content_digest: sceneRevision };
+  body.task = { ...body.task, scene_revision_digest: sceneRevision, [WEBSITE_NAVIGATION_REISSUE]: {
+    capture_id: request.submission_id, parent_submission_id: parent, atlas_result_digest: atlasResult } };
+  return { ...body, submission_id: `website-reissue-${crossRuntimeDigest(body).slice(7)}` };
+}
+
+it("takes a re-issued navigation intake as a new intake of the same capture, reserving $0 like the first", async () => {
+  sponsoredCapture();
+  const post = await sponsoredRoute();
+  const grant = await (await post("scene-sponsorship")).json();
+  const request = navigationRequest(grant);
+  // Every ledger of the job is already spent: a navigation intake adds nothing to check.
+  store.rows.get("inboundRequests/req1").website_preparation_reservations = { ["b".repeat(64)]: { admission: {
+    provider: "world_labs_atlas", resource_class: "provider_reconstruction_api", maximum_cost_usd: 40, request_count: 1 } } };
+  expect((await post("prepared-scene", { request })).status).toBe(202);
+  // The re-derived scene half under the capture's own submission is a changed request, refused by name.
+  const changed = { ...request, task: { ...request.task, scene_revision_digest: sha("7") } };
+  const conflict = await post("prepared-scene", { request: changed });
+  expect(conflict.status).toBe(409);
+  expect(await conflict.json()).toEqual({ code: "idempotency_conflict" });
+  // Re-issued, it is a new intake of the same capture: its own id, the capture as its source session,
+  // the job's consent unchanged, and still nothing counted against the job's ledgers.
+  const reissue = reissuedNavigation(request, sha("a"), sha("7"));
+  const accepted = await post("prepared-scene", { request: reissue });
+  expect(accepted.status).toBe(202);
+  const receipt = await accepted.json();
+  expect(receipt.id).toBe(`scene-${sceneDigest({ owner: reissue.owner, submission_id: reissue.submission_id }).slice(7)}`);
+  expect((await post("prepared-scene", { request: reissue })).status).toBe(202);
+  expect(intakeRows()).toHaveLength(2);
+  const row = store.rows.get(`taskEvaluationSceneIntakes/${receipt.id}`);
+  expect(row.source_session_id).toBe(grant.capture_id);
+  expect(row.command.source_session_id).toBe(grant.capture_id);
+  expect(row.request).toEqual(reissue);
+  expect(row.request.consent).toEqual(grant.consent);
+  expect(row.state).toBe("forward_pending");
+  const ledger = await websiteJobSpend({ record: store.rows.get("inboundRequests/req1"),
+    reader: transactionJobLedgerReader(dbAdmin as any, { get: (ref: any) => ref.get() }, "req1") });
+  expect(ledger.native_construction_micros).toBe(0);
+  // A re-issue of the re-issue chains to it; a forged one is refused and stores nothing.
+  const again = reissuedNavigation(request, sha("b"), sha("8"), reissue.submission_id);
+  expect((await post("prepared-scene", { request: again })).status).toBe(202);
+  expect(intakeRows()).toHaveLength(3);
+  for (const forged of [
+    { ...reissue, task: { ...reissue.task, [WEBSITE_NAVIGATION_REISSUE]: {
+      ...reissue.task[WEBSITE_NAVIGATION_REISSUE], capture_id: "walkthrough-other" } } },
+    { ...reissue, submission_id: `website-reissue-${"0".repeat(64)}` },
+    reissuedNavigation({ ...request, submission_id: "walkthrough-other" }, sha("c"), sha("9")),
+  ]) expect((await post("prepared-scene", { request: forged })).status).toBe(409);
+  expect(intakeRows()).toHaveLength(3);
+});
+
+it("still refuses an unconfirmed brief's re-issued navigation intake by name", async () => {
+  sponsoredCapture();
+  store.rows.get("siteTaskBriefs/req1").confirmedAtIso = null;
+  const brief = store.rows.get("siteTaskBriefs/req1"), record = store.rows.get("inboundRequests/req1");
+  const expected = projectWebsiteTaskContext(brief, projectWebsiteCaptureRights(record), { purpose: "scene_preparation" });
+  const post = await sponsoredRoute();
+  const grant = await (await post("scene-sponsorship", { purpose: "scene_preparation",
+    expected_task_context_digest: expected.context_digest })).json();
+  const refused = await post("prepared-scene", { request: reissuedNavigation(navigationRequest(grant), sha("a"), sha("7")) });
+  expect(refused.status).toBe(409);
+  expect(await refused.json()).toEqual({ code: "website_task_context_not_confirmed" });
+  expect(intakeRows()).toHaveLength(0);
+});
 
 it("grants a new prepared scene its native allowance only while the job's one ceiling has room", async () => {
   sponsoredCapture();

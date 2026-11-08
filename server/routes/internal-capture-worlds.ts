@@ -348,6 +348,9 @@ for (const operation of ["scene-sponsorship", "prepared-scene", "preparation-spe
         task: request.task, execution: request.execution, consent };
       validateWebsiteSponsoredProviderTerms(command, authority);
       if (!db) throw new Error("website_capture_rights_store_unavailable");
+      // One intake per owner and submission. A correction, renewal or navigation re-issue has its own
+      // submission, so it is a new intake of the same capture (websitePreparationCaptureId names it as
+      // source_session_id); the same submission with a changed request stays idempotency_conflict.
       const id = `scene-${sceneDigest({ owner: request.owner, submission_id: request.submission_id }).slice(7)}`;
       const ref = db.collection(SCENE_INTAKE_COLLECTION).doc(id);
       const preparedBinding = await resolveWebsiteCaptureBinding(requestId, sceneId, req.params.captureId);
