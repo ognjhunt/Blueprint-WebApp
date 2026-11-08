@@ -109,6 +109,29 @@ keep working without stopping" (about 21:10Z).
 | The 21:24Z restart changed nothing | host `run_summary.json`, `handoff.json` | `capture_pipeline` took 0.08 s, and `handoff.json` and `provider_run_manifest.json` stayed at 14:04Z, so the intake was never sent. Cause: the qualification lane's resume marker keyed only on the delivered descriptor and raw manifest, which no replay changes. It had skipped the 20:04Z replay the same way. Pipeline #3460 adds the stage's rerun binding to that key, which also fixes target corrections and robot-fit rechecks |
 | View your scene | Pipeline #3459; WebApp #1238 (merged 21:36Z) | The job page opens a private, web-sized preview of the job's own scene (at most 32 MiB, a 15-minute view ticket; deleted on withdrawal). It is live once the Pipeline half deploys |
 
+## 11-07 evening to 11-08: handoff, G1 runs and the scene preview
+
+Owner words in this stretch, all 11-07 unless noted:
+
+- "lets do option 2" (about 23:05Z): add a door operation that restores and verifies π0.5's language files.
+- "Gemma terms OK" (about 23:10Z). The restore source is a verified copy already on the host only (B).
+- "yes" (about 23:55Z): the door-profile addition and an off-window door upgrade. "deploy now" was said to the G1 session.
+- "deploy 9089cf2" (11-08 about 02:00Z).
+- "keep working for the next few hrs … i pre-approve all deploys/approvals needed" (11-08 about 02:05Z).
+
+| What | Where | Result |
+|---|---|---|
+| Restart refused | door, 22:04Z, on `13dbd27` | `held_handoff_resume_not_eligible`: the 21:22Z run had retained the confirmed successor context, but the 14:04Z hold was still bound to its parent. Pipeline #3462 lets the replay and status readers accept the verified lineage parent (`008142c`, live 22:41Z) |
+| Restart completed | door, 22:41:27Z | Preparation really re-ran: the handoff was rewritten at 22:46Z, the navigation intake went `forward_pending`, and its receipt was bound at 22:47Z (reserved $0) |
+| **Step 13 cleared** | host `handoff.json`, 22:55Z | `intake_ready`, no blockers, `accepted`; lane `g1_navigation_screening`; both `_vision_navi` rows are candidates |
+| G1 plan | G1 session, 22:55:48Z | DP selected (4 episodes, $4 cap, flags `g1_scene_floor_estimated` and `g1_spawn_foot_unsupported`). π0.5 unavailable: `g1_beta_selected_pi_tokenizer_invalid` |
+| DP attempt 1 | Vast, 23:01–23:18Z | Crashed at import (`jsonschema` absent on the rented image), before any observation. About $0.40. Pipeline #3463 (deployed as `18bb85a` with the door upgrade, 00:31Z) |
+| π0.5 language files | door restore plan, 00:32Z | Refused, correctly: the files are intact under `pi-tokenizer-f1eaa13/assets/`, and the reader looked one folder up. Pipeline #3465 |
+| DP attempt 2 | Vast, 00:44–00:59Z | The same module, reached through a function-level import. About $0.52. Pipeline #3466 adds a reachability guard. The owner asked for lookahead: the G1 session audited all 75 functions and 107 modules on the runtime path, and `jsonschema` is the only missing third-party import |
+| Scene preview v1 | Pipeline #3459, WebApp #1238 (live 22:01Z) | Showed 599,168 of 2,000,000 Gaussians, the largest first, so it smeared. The owner flagged it |
+| Scene preview v2 | Pipeline #3464, WebApp #1240 | PlayCanvas compressed PLY with every Gaussian. Rebuilt 00:32:18Z: 2,000,000 of 2,000,000, 32.6 MB |
+| Remaining softness | Atlas inputs | 41 frames at Atlas's default 1280×720 from a forward-only 4K clip. Gap fill added no generated view. Under investigation as a general change (more frames, resolution) |
+
 ## 14-step evidence matrix
 
 | # | Step | Status | Artifact | Cost | Time | Gap found |
@@ -124,8 +147,8 @@ keep working without stopping" (about 21:10Z).
 | 9 | Clean plate (native preparation) | **failed, fixed, done** | Resumed 03:19Z. At 03:26Z the kernel killed it out of memory (4.0 GB of 8.3 GB, no swap) while decoding SAM masks for the 4K, 437-frame video. Pipeline #3438 keeps SAM tracks compact, resends an unanswered SAM request once (the first is counted as spent) and recovers an attempt whose process died. Live with `01ca433` (05:42:50Z). A resume at 05:43Z was refused before any work because the Google Cloud budget report was older than 5 minutes (the month: $9.77 of $100). The 05:46Z resume finished the clean plate at 05:52Z, with at least 5.5 GB free throughout | $0.69 held (SAM $0.35, Gemini $0.34) | 03:19–05:52Z | (a) SAM decoding held whole-video masks in memory. (b) No operator path recovered a preparation whose process died |
 | 10 | Scene handoff (levelling) | **done on the fallback floor** | Six refusals of `website_atlas_scene_level_unobserved` (05:52–09:56Z), each followed by a general fix and a recorded answer:<br>(1) no single plane held 4% (fix: parallel level surfaces, Pipeline #3441);<br>(2) that search missed the floor as the lowest layer and failed against dense bookshelves (#3442);<br>(3) its profile was taken along a sloped 44.5° plane (#3444 keeps one along +Y and each candidate);<br>(4) the floor sat a couple of degrees off the shelves, so the floor is now fitted as its own plane (#3445);<br>(5) that fit showed the floor is **uneven**: its best 2 cm plane holds 1.5%, while a 20 cm band holds about 6% (#3446 levels when two up estimates agree within 0.5°);<br>(6) they are **3.1° apart**. The up direction is known only to about 3°, and the reconstructed floor rises and falls about 10 cm.<br>**Then the flagged fallback floor** (owner, about 13:00Z; Pipeline #3448, live with `853f309` at 13:56Z). Resumed 13:57Z; at 14:04Z the base scene recorded `up_basis: fallback_fitted_floor`, tilt 0. 3,167 faces (0.83% of the area) were replaced by a 3.42 × 2.75 m flat floor, flagged `development_only_estimate` | $0 | 05:52–14:04Z | The reconstruction's floor is not flat enough to declare as observed. The flat stand-in is flagged, and every G1 result on it carries `g1_scene_floor_estimated` (Pipeline #3449) |
 | 11–12 | Navigation spec, Isaac scene files, native qualification | **done** | 14:04Z handoff: `navigation_task_spec.json` and `navigation_scene_assets.json` written; the navigation scene inputs record `status: written` with `robot_free_probe_status: passed`; the registry's derived row written | $0 | 14:04Z | — |
-| 13 | Robot team picks its saved setup; screening | **held, precisely** | 14:04Z handoff: `website_task_runnable_policy_missing` naming exactly `embodiment:reviewed_checkpoint_terms`, `embodiment:verified_site_episode` and `pipeline:navigation_source_identity`, with both `_vision_navi` rows listing the same three | $0 | 14:04Z | The owner decided all four items (see above). The two embodiment items clear with Pipeline #3449's development-run allowance. The source identity clears with the navigation intake (WebApp #1233 merged; the Pipeline half follows, reviewed by the G1 session). The brief is confirmed (14:30Z), and every afternoon resume refusal is fixed. The 21:24Z restart still left the 14:04Z handoff unchanged because the lane resume marker skipped it (Pipeline #3460). Next: deploy #3459 with #3460, one restart keyed by the release, the intake receipt, then the two funded G1 runs at $4 each |
-| 14 | Results on the task page; provider-zero | waiting | | | | |
+| 13 | Robot team picks its saved setup; screening | **done** | 22:55Z handoff `intake_ready`, `accepted`, lane `g1_navigation_screening`; the receipt was bound 22:47Z | $0 | 22:55Z | Held-job restarts were skipped by the lane resume marker (Pipeline #3460) and refused when the hold was parent-bound (#3462) |
+| 14 | Results on the task page; provider-zero | **in progress** | DP attempts 1 and 2 crashed at runtime import (`jsonschema`); fixed in #3463 and #3466. π0.5 waits on #3465. Each settled with no continuing spend | about $0.92 (Vast) | 23:01Z onward | The first beta G1 runs to reach a rented machine. Tests did not exercise the runtime import path on the remote image |
 
 ## Gaps from capture-447 (G1–G11)
 
