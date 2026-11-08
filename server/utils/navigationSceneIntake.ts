@@ -6,8 +6,13 @@
  * Owner, 2026-11-07: a navigation intake reserves $0 and grants no construction allowance, because a
  * scene kept as filmed needs neither. It binds the job's real consent and rights exactly as a rigid
  * intake does, and requires the site's confirmed brief.
+ *
+ * When the job's Atlas result is published again after its intake, its scene half is derived again and
+ * the Pipeline sends that intake re-issued for the same capture, under its own submission
+ * (websitePreparationRevision.websiteNavigationReissue): the same consent, rights, owner and $0.
  */
 import { z } from "zod";
+import { WEBSITE_NAVIGATION_REISSUE } from "./websitePreparationRevision";
 
 const identifier = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/);
 const digest = z.string().regex(/^sha256:[0-9a-f]{64}$/);
@@ -25,6 +30,13 @@ export const navigationIntakeTask = z.object({
   task_success_contract_digest: digest,
   runtime_contract_digest: digest,
   scene_revision_digest: digest,
+  // The intake re-issued for the same capture once its scene half was derived from a later Atlas
+  // result (websitePreparationRevision.websiteNavigationReissue binds it to the submission).
+  [WEBSITE_NAVIGATION_REISSUE]: z.object({
+    capture_id: identifier,
+    parent_submission_id: identifier,
+    atlas_result_digest: digest,
+  }).strict().optional(),
 }).strict();
 
 export type NavigationIntakeTask = z.infer<typeof navigationIntakeTask>;
