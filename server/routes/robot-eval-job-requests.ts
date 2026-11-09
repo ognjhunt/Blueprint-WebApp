@@ -31,7 +31,7 @@ import {
   projectDecisionEnvelope,
 } from "../utils/decisionEvidenceContract";
 import { agentExecutionAdmissionDigest } from "../utils/agentExecutionAdmission";
-import { inviteeDecision } from "../utils/inviteeAllowlist";
+import { inviteeDecisionForToken } from "../utils/inviteeAllowlist";
 
 const router = Router();
 const pipelineSyncRateLimiter = createPipelineSyncRateLimiter();
@@ -950,7 +950,7 @@ export async function submitTaskEvaluationRunRequest(params: {
 // callback keeps its HMAC guard instead of a Firebase token.)
 router.post("/", csrfProtection, verifyFirebaseToken, async (req, res) => {
   // Invited beta: refuse an uninvited account before anything is recorded or forwarded.
-  const invitee = inviteeDecision((res.locals.firebaseUser as { email?: string } | undefined)?.email);
+  const invitee = inviteeDecisionForToken(res.locals.firebaseUser);
   if (!invitee.allowed) {
     return res.status(invitee.status).json({ ok: false, code: invitee.code, error: invitee.message, message: invitee.message });
   }

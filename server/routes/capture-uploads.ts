@@ -60,6 +60,7 @@ import { requireOwnedCaptureAtlasSource } from "../utils/ownedCaptureAtlasContex
 import { loadOwnedCaptureAtlasConfiguration, ownedAtlasAuthorizationCommand } from "../utils/ownedCaptureAtlasPreparation";
 import { ownedCaptureAtlasExecutionRouter } from "./owned-capture-atlas";
 import type { OwnedAtlasExecution } from "../utils/ownedCaptureAtlasExecution";
+import { inviteeDecisionForToken } from "../utils/inviteeAllowlist";
 import {
   authorizeBackblazeCapturePart,
   cancelBackblazeResumableCapture,
@@ -1158,6 +1159,9 @@ async function currentJobSourceScope(params: {
 router.post("/", async (req, res) => {
   const user = authenticatedUser(res);
   if (!user.uid) return res.status(401).json({ error: "Missing authenticated user" });
+  // Invited beta: no upload session, storage path or Pipeline handoff for an uninvited account.
+  const invitee = inviteeDecisionForToken(res.locals.firebaseUser);
+  if (!invitee.allowed) return res.status(invitee.status).json({ error: invitee.message, code: invitee.code });
   if (!db) return res.status(503).json({ error: "Capture upload session store is unavailable" });
   const providerName = resolveStorageProviderName();
   if (providerName === "firebase" && !resolveFirebaseCaptureStorage()) {

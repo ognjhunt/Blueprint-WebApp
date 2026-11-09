@@ -48,7 +48,7 @@ vi.mock("../utils/filmLinkHandoff", async () => ({
 const { submitInboundRequest } = await import("../routes/inbound-request");
 const { sendEmail } = await import("../utils/email");
 const { logGrowthEvent } = await import("../utils/growth-events");
-const { inviteeDecision, parseInviteeAllowlist } = await import("../utils/inviteeAllowlist");
+const { inviteeDecision, inviteeDecisionForToken, parseInviteeAllowlist } = await import("../utils/inviteeAllowlist");
 
 const NOT_INVITED = "Blueprint's beta is invite-only for now, and this email is not on the list.";
 
@@ -63,11 +63,19 @@ function site(requestId: string, email: string) {
 }
 
 let ip = 0;
-async function start(): Promise<{ server: Server; post: (body: unknown) => Promise<Response> }> {
+async function start(): Promise<{ server: Server; post: (body: unknown, signedIn?: "verified" | "unverified") => Promise<Response> }> {
   const app = express();
   app.set("trust proxy", true);
   app.use(express.json());
-  app.post("/", (req, res, next) => { void submitInboundRequest(req, res).catch(next); });
+  app.post("/", (req, res, next) => {
+    const verified = req.header("x-test-signed-in");
+    if (verified) {
+      // What the workspace routes set before calling submitInboundRequest.
+      res.locals.workspaceIntake = { account_owner_uid: "owner-uid", workspace_task: { archived: false, paused: false } };
+      res.locals.workspaceIdentity = { uid: "owner-uid", email: req.body.email, verified: verified === "verified" };
+    }
+    void submitInboundRequest(req, res).catch(next);
+  });
   const server = createServer(app);
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   const address = server.address();
@@ -75,8 +83,9 @@ async function start(): Promise<{ server: Server; post: (body: unknown) => Promi
   const base = `http://127.0.0.1:${address.port}/`;
   return {
     server,
-    post: (body) => fetch(base, { method: "POST", headers: { "content-type": "application/json",
-      "x-forwarded-for": `198.51.100.${++ip}` }, body: JSON.stringify(body) }),
+    post: (body, signedIn) => fetch(base, { method: "POST", headers: { "content-type": "application/json",
+      "x-forwarded-for": `198.51.100.${++ip}`, ...(signedIn ? { "x-test-signed-in": signedIn } : {}) },
+    body: JSON.stringify(body) }),
   };
 }
 
@@ -92,35 +101,48 @@ describe("invitee allowlist helper", () => {
   it("does not enforce anything when the list is unset or empty", () => {
     expect(parseInviteeAllowlist(undefined).state).toBe("unset");
     expect(parseInviteeAllowlist("  ").state).toBe("unset");
-    expect(inviteeDecision("anyone@example.test", {})).toEqual({ allowed: true });
-    expect(inviteeDecision("anyone@example.test", { BLUEPRINT_INVITEE_ALLOWLIST: "" })).toEqual({ allowed: true });
+    expect(inviteeDecision("anyone@example.test", {}, {})).toEqual({ allowed: true });
+    expect(inviteeDecision("anyone@example.test", { emailVerified: false }, { BLUEPRINT_INVITEE_ALLOWLIST: "" })).toEqual({ allowed: true });
   });
 
   it("matches exact emails and @domain entries, ignoring case and whitespace", () => {
     const env = { BLUEPRINT_INVITEE_ALLOWLIST: " Owner@Site.test , @Invited.Example ,," };
-    expect(inviteeDecision("owner@site.test", env).allowed).toBe(true);
-    expect(inviteeDecision("  OWNER@site.TEST ", env).allowed).toBe(true);
-    expect(inviteeDecision("anyone@invited.example", env).allowed).toBe(true);
-    expect(inviteeDecision("other@site.test", env)).toMatchObject({ allowed: false, status: 403,
+    expect(inviteeDecision("owner@site.test", {}, env).allowed).toBe(true);
+    expect(inviteeDecision("  OWNER@site.TEST ", {}, env).allowed).toBe(true);
+    expect(inviteeDecision("anyone@invited.example", {}, env).allowed).toBe(true);
+    expect(inviteeDecision("other@site.test", {}, env)).toMatchObject({ allowed: false, status: 403,
       code: "invitee_not_on_allowlist", message: NOT_INVITED });
     // A domain entry is that exact domain, not its look-alikes or subdomains.
-    expect(inviteeDecision("a@sub.invited.example", env).allowed).toBe(false);
-    expect(inviteeDecision("a@notinvited.example", env).allowed).toBe(false);
-    expect(inviteeDecision("", env).allowed).toBe(false);
+    expect(inviteeDecision("a@sub.invited.example", {}, env).allowed).toBe(false);
+    expect(inviteeDecision("a@notinvited.example", {}, env).allowed).toBe(false);
+    expect(inviteeDecision("", {}, env).allowed).toBe(false);
   });
 
-  it("always lets admin and ops emails through", () => {
+  it("lets verified admin and ops sign-ins through, but not a typed or unverified admin email", () => {
     const env = { BLUEPRINT_INVITEE_ALLOWLIST: "owner@site.test",
       BLUEPRINT_ADMIN_EMAIL_ALLOWLIST: "boss@blueprint.test", BLUEPRINT_OPS_EMAIL_ALLOWLIST: "ops@blueprint.test" };
-    expect(inviteeDecision("Boss@Blueprint.test", env).allowed).toBe(true);
-    expect(inviteeDecision("ops@blueprint.test", env).allowed).toBe(true);
-    expect(inviteeDecision("ops@blueprint.test", { ...env, BLUEPRINT_INVITEE_ALLOWLIST: "not an email" }).allowed).toBe(true);
+    expect(inviteeDecision("Boss@Blueprint.test", { emailVerified: true }, env).allowed).toBe(true);
+    expect(inviteeDecisionForToken({ email: "ops@blueprint.test", email_verified: true }, env).allowed).toBe(true);
+    expect(inviteeDecisionForToken({ email: "ops@blueprint.test", email_verified: true },
+      { ...env, BLUEPRINT_INVITEE_ALLOWLIST: "not an email" }).allowed).toBe(true);
+    expect(inviteeDecision("boss@blueprint.test", {}, env)).toMatchObject({ code: "invitee_not_on_allowlist" });
+    expect(inviteeDecisionForToken({ email: "boss@blueprint.test", email_verified: false }, env))
+      .toMatchObject({ allowed: false, code: "invitee_email_unverified" });
+  });
+
+  it("never counts an unverified sign-in email, even at a listed domain", () => {
+    const env = { BLUEPRINT_INVITEE_ALLOWLIST: "@invited-co.example" };
+    expect(inviteeDecisionForToken({ email: "a@invited-co.example" }, env))
+      .toMatchObject({ allowed: false, status: 403, code: "invitee_email_unverified" });
+    expect(inviteeDecisionForToken({ email: "a@invited-co.example", email_verified: true }, env).allowed).toBe(true);
+    // With the list unset nothing changes, verified or not.
+    expect(inviteeDecisionForToken({ email: "a@anywhere.example" }, {}).allowed).toBe(true);
   });
 
   it("fails closed on a malformed list instead of opening intake", () => {
     for (const raw of ["owner@site.test, not-an-email", "@", ",,", "a b@site.test"]) {
       expect(parseInviteeAllowlist(raw).state).toBe("malformed");
-      expect(inviteeDecision("owner@site.test", { BLUEPRINT_INVITEE_ALLOWLIST: raw, NODE_ENV: "production" }))
+      expect(inviteeDecision("owner@site.test", {}, { BLUEPRINT_INVITEE_ALLOWLIST: raw, NODE_ENV: "production" }))
         .toMatchObject({ allowed: false, status: 503, code: "invitee_allowlist_unavailable" });
     }
   });
@@ -153,11 +175,22 @@ describe("invitee allowlist at intake", () => {
     expect(logGrowthEvent).not.toHaveBeenCalled();
   });
 
-  it("lets an admin email start a job that is not on the list", async () => {
+  it("lets a verified admin sign-in start a job that is not on the list, but not a typed admin email", async () => {
     vi.stubEnv("BLUEPRINT_INVITEE_ALLOWLIST", "owner@site.test");
     vi.stubEnv("BLUEPRINT_ADMIN_EMAIL_ALLOWLIST", "boss@blueprint.test");
     const started = await start(); server = started.server;
-    expect((await started.post(site("admin-a", "boss@blueprint.test"))).status).toBe(201);
+    expect((await started.post(site("admin-a", "boss@blueprint.test"), "verified")).status).toBe(201);
+    expect((await started.post(site("admin-b", "boss@blueprint.test"))).status).toBe(403);
+  });
+
+  it("refuses a workspace job from an unverified email at an invited domain", async () => {
+    vi.stubEnv("BLUEPRINT_INVITEE_ALLOWLIST", "@invited-co.example");
+    const started = await start(); server = started.server;
+    const refused = await started.post(site("unverified-a", "someone@invited-co.example"), "unverified");
+    expect(refused.status).toBe(403);
+    expect((await refused.json()).code).toBe("invitee_email_unverified");
+    expect([...sharedFakeFirestoreState.docs.keys()]).toEqual([]);
+    expect((await started.post(site("verified-a", "someone@invited-co.example"), "verified")).status).toBe(201);
   });
 
   it("refuses every non-admin job in production when the list is malformed", async () => {

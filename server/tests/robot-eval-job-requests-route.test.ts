@@ -79,7 +79,8 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => ({
   },
   // WEB-02: POST now requires an authenticated buyer (verifyFirebaseToken).
   authAdmin: {
-    verifyIdToken: async (token: string) => ({ uid: token, ...(token.includes("@") ? { email: token } : {}) }),
+    verifyIdToken: async (token: string) => ({ uid: token, ...(token.includes("@")
+      ? { email: token.replace(/^unverified:/, ""), email_verified: !token.startsWith("unverified:") } : {}) }),
   },
 }));
 
@@ -691,6 +692,19 @@ describe("robot-eval job request invitee allowlist", () => {
       expect(response.status).toBe(403);
       expect(await response.json()).toMatchObject({ ok: false, code: "invitee_not_on_allowlist",
         message: "Blueprint's beta is invite-only for now, and this email is not on the list." });
+      expect(firestoreState.collectionWrites).toEqual([]);
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  it("does not count an unverified email at an invited domain", async () => {
+    vi.stubEnv("BLUEPRINT_INVITEE_ALLOWLIST", "@robots.test");
+    const { baseUrl, server } = await startRobotEvalRoute();
+    try {
+      const response = await post(baseUrl, "unverified:lead@robots.test");
+      expect(response.status).toBe(403);
+      expect((await response.json()).code).toBe("invitee_email_unverified");
       expect(firestoreState.collectionWrites).toEqual([]);
     } finally {
       await stopServer(server);

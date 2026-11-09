@@ -1184,7 +1184,10 @@ export async function submitInboundRequest(req: Request, res: Response) {
     // emails start a job (public intake and every workspace route that calls
     // this). Refused before any record, counter, event or email; the address
     // is not logged or kept.
-    const invitee = inviteeDecision(emailLower);
+    // Workspace routes pass the sign-in token's email, which must be verified;
+    // the public form's typed email cannot be.
+    const invitee = inviteeDecision(emailLower, { emailVerified: res.locals.workspaceIntake
+      ? res.locals.workspaceIdentity?.verified === true : undefined });
     if (!invitee.allowed) {
       return res.status(invitee.status).json({
         ok: false,
