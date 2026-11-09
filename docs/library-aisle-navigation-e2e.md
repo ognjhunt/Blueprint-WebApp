@@ -150,6 +150,36 @@ Owner words, all 11-08: "deploy anything waiting" (15:59Z); "option 1" (17:52Z, 
 
 Spend: G1 $3.35 of the $30 site limit, before π0.5; Atlas $7.38 of $25; total about $12.48 of the $115 ceiling.
 
+## 11-08 22:00Z to 11-09 16:00Z: the walked floor, the splat's real cause, and π0.5 reaches its policy
+
+Owner words, all 11-09 (CST in brackets):
+- "yes" (04:32Z, 10:32 PM): re-admit a run refused only for a missing provider billing reading.
+- "yes, deploy" (12:15Z, 6:15 AM).
+- "yes, deploy latest main" (12:26Z and 14:12Z).
+- "you can deploy latest main when green - for next 48 hrs" (14:26Z, 8:26 AM; until 14:26Z on 11-11).
+- "yes" (15:01Z, 9:01 AM): one windowed splat retry, at most about $6.55 from the Atlas grant.
+- "remember we need general solutions for all types of scenes/inputs" (about 15:08Z).
+- "yes" (15:27Z, 9:27 AM): new jobs get the same windowed re-pose, which raises a new job's maximum Atlas cost by one pose.
+
+| What | Where | Result |
+|---|---|---|
+| Floor under the spawn | Pipeline #3484, #3485 | A camera never films the floor under its own feet, so there was no collider where the robot starts. A flat floor is now filled within 0.5 m of every camera footprint, at the levelled floor height, disclosed as `walked_floor` and flagged `g1_scene_floor_estimated`. After the re-derive the spawn check reads clear at the start and all four offsets |
+| Re-derive and re-issued intake | Pipeline #3481, #3486, #3487; WebApp #1243 | A changed Atlas result or levelling revision re-derives the levelled scene, colliders, navigation packet and registration. The navigation intake is re-issued under its own submission for the same capture. `intake_ready` 02:47Z, $0 |
+| First splat rebuild | Pipeline #3477, #3487, #3488 | The 105-view pose came back with `poseRefinementAccepted: false` (about $1.05). The rebuild stopped there (02:26Z), and the job kept its original splat. Draft fusion now holds one view at a time (peak 2.7 GB to 1.3 GB) |
+| Why the pose was refused | the 105-view pose, read 11-09 | 0–7.96 s: the camera stands still, turning under 1° a step. Between frames 199 and 202 the pose jumps 3.29 units in 0.12 s. 8.08–17.44 s: a steady dolly. The clip is most likely two shots joined. The rebuild had re-sent the whole clip |
+| Windowed retry, and new jobs | Pipeline #3502 (live 15:52Z), #3504 (merged, not yet deployed) | A rebuild whose pose wasn't refined retries once with only the moving footage its earlier pose found consistent. Required frames outside that footage are named and flagged; there's never a third pose. New jobs do the same once, before buying the splat, only when the remaining dollars and requests both cover the re-pose plus the splat and mesh. Clean shots are unchanged. There is no customer-facing Atlas quote in the WebApp, so no WebApp change |
+| DP runs 6 and the ffmpeg run | Pipeline #3489, #3490, #3494, #3495, #3497 | 02:51Z, about $0.49: no ffmpeg from the Ubuntu archive (retries and a mirror added). 05:51–06:24Z, about $0.64: silent after the entrypoint, ended at the 1,800 s no-progress window. The runtime now prints stage and growth lines. DP is at 6 of 7 harness failures, with 2 runs left |
+| π0.5 refusals and run 3 | Pipeline #3491, #3492, #3503 (open) | Two refusals before rental ($0): a stale lock, then a missing billing reading. Run 3, 14:36–15:20Z, about $0.89, **reached the policy for the first time**: the runtime built, SONIC and the checkpoint loaded, and episode 000 started. The first inference failed (HTTP 500) because torch.compile found no C compiler in the Isaac image. #3503 installs one and test-compiles before any episode. Harness failures: 2 |
+| Goal marker in view | Pipeline #3498 (live 15:52Z) | Both walking checkpoints were trained on "Avoid obstacles and move to the yellow marked area", and the episode sends exactly that with one yellow disc. A $0 planning-time projection through the head camera now flags `g1_goal_marker_not_in_initial_view`. Here the disc starts in view, 1.78 m ahead |
+| Deploys | the door | `d337b41` 02:10Z, `f1d69a9` 03:53Z, `b85ac9e` 05:25Z, `9b9bd6e` 12:43Z, `74d0af8` 14:26:57Z, `661c780` 15:52:14Z. Each on a quiet door, with the G1 session told |
+| Disk | the door, 14:28Z | Control-plane headroom is `low` (12.9 GB available against a 15.8 GB floor). New embodiment preparation and checkpoint downloads are refused; cached checkpoints are unaffected |
+
+Spend at 16:00Z:
+- G1: about $5.37 of the $30 site limit.
+- Atlas: about $8.43 of $25.
+- Clean plate $0.69 and intake inference $1.06, unchanged.
+- Total: about $15.55 of the $115 ceiling.
+
 ## 14-step evidence matrix
 
 | # | Step | Status | Artifact | Cost | Time | Gap found |
@@ -166,7 +196,7 @@ Spend: G1 $3.35 of the $30 site limit, before π0.5; Atlas $7.38 of $25; total a
 | 10 | Scene handoff (levelling) | **done on the fallback floor** | Six refusals of `website_atlas_scene_level_unobserved` (05:52–09:56Z), each followed by a general fix and a recorded answer:<br>(1) no single plane held 4% (fix: parallel level surfaces, Pipeline #3441);<br>(2) that search missed the floor as the lowest layer and failed against dense bookshelves (#3442);<br>(3) its profile was taken along a sloped 44.5° plane (#3444 keeps one along +Y and each candidate);<br>(4) the floor sat a couple of degrees off the shelves, so the floor is now fitted as its own plane (#3445);<br>(5) that fit showed the floor is **uneven**: its best 2 cm plane holds 1.5%, while a 20 cm band holds about 6% (#3446 levels when two up estimates agree within 0.5°);<br>(6) they are **3.1° apart**. The up direction is known only to about 3°, and the reconstructed floor rises and falls about 10 cm.<br>**Then the flagged fallback floor** (owner, about 13:00Z; Pipeline #3448, live with `853f309` at 13:56Z). Resumed 13:57Z; at 14:04Z the base scene recorded `up_basis: fallback_fitted_floor`, tilt 0. 3,167 faces (0.83% of the area) were replaced by a 3.42 × 2.75 m flat floor, flagged `development_only_estimate` | $0 | 05:52–14:04Z | The reconstruction's floor is not flat enough to declare as observed. The flat stand-in is flagged, and every G1 result on it carries `g1_scene_floor_estimated` (Pipeline #3449) |
 | 11–12 | Navigation spec, Isaac scene files, native qualification | **done** | 14:04Z handoff: `navigation_task_spec.json` and `navigation_scene_assets.json` written; the navigation scene inputs record `status: written` with `robot_free_probe_status: passed`; the registry's derived row written | $0 | 14:04Z | — |
 | 13 | Robot team picks its saved setup; screening | **done** | 22:55Z handoff `intake_ready`, `accepted`, lane `g1_navigation_screening`; the receipt was bound 22:47Z | $0 | 22:55Z | Held-job restarts were skipped by the lane resume marker (Pipeline #3460) and refused when the hold was parent-bound (#3462) |
-| 14 | Results on the task page; provider-zero | **in progress** | DP attempts 1–5 stopped before an episode, each on a fixed cause. DP attempt 6 scored the first episodes, but the robot fell through the scene, so they are void (Pipeline #3478). π0.5 running from 21:35Z. Each settled with no continuing spend | about $3.35 (Vast) | 11-07 23:01Z onward | Tests did not exercise the remote runtime path; the packet's collision under the spawn was not checked before spend (pre-spend refusal in progress) |
+| 14 | Results on the task page; provider-zero | **in progress** | DP attempts 1–5 stopped before an episode, each on a fixed cause. DP attempt 6 scored the first episodes, but the robot fell through the scene, so they are void (Pipeline #3478). On the walked floor (11-09), DP's next two runs stopped before an episode (ffmpeg fetch; a silent runtime). π0.5's third run reached its policy and failed its first inference on a missing C compiler (Pipeline #3503). DP's 7th run follows `661c780`. Each settled with no continuing spend | about $5.37 (Vast) | 11-07 23:01Z onward | Tests did not exercise the remote runtime path; the spawn's floor (now checked before spend) and the policy's compile toolchain (checked before the first episode once #3503 deploys) were found only on rented machines |
 
 ## Gaps from capture-447 (G1–G11)
 
