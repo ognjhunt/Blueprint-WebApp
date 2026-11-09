@@ -42,6 +42,8 @@ export type TaskDecision =
   | "robot_incompatibility"
   | "insufficient_evidence"
   | "processing_failure"
+  /** Held before any scene was built: Blueprint cannot simulate this kind of job yet. */
+  | "held"
   /** We have it and are reading it. Nothing asked of them. */
   | "received"
   /** We drafted a brief and need them to confirm or correct it. */

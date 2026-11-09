@@ -91,9 +91,51 @@ const TASK_REASONS = new Set(["atlas_scene_subject_origin_uncertain", "atlas_sce
 const GEOMETRY_REASONS = new Set(["atlas_preserved_completion_no_exportable_geometry",
   "atlas_generated_view_registration_unresolved", "atlas_source_visibility_uncertain"]);
 
+/**
+ * The Pipeline's early task hold (`website_early_task_hold.py`): right after its review of the job, before
+ * any scene is bought, it holds a job Blueprint cannot simulate yet. Each reason's one held sentence, said the
+ * same way on the job page and in the email. None is a question the site can answer: an operation-coverage
+ * question the site could answer is never held here (the Pipeline asks it instead), so this hold is a step
+ * no simulation covers yet. None is a finding that a robot could not do the job.
+ */
+export const EARLY_TASK_HOLD_SENTENCES = {
+  // No simulation of this kind of task exists (for example closing a door, pushing, pouring a liquid).
+  website_native_task_profile_preparation_required: "Held: we can't simulate this kind of job yet.",
+  // The kind of task is known, but the simulator it needs is not installed where we run jobs.
+  website_task_family_runtime_preparation_required:
+    "Held: we can't simulate this kind of job yet, because the simulator it needs isn't set up on our side.",
+  // Part of what the job asks for maps to no step we can simulate, even after any clarification.
+  website_task_operation_coverage_unresolved: "Held: we can't simulate every step this job asks for yet.",
+} as const satisfies Record<string, string>;
+export type EarlyTaskHoldReason = keyof typeof EARLY_TASK_HOLD_SENTENCES;
+export const isEarlyTaskHoldReason = (value: unknown): value is EarlyTaskHoldReason =>
+  typeof value === "string" && Object.prototype.hasOwnProperty.call(EARLY_TASK_HOLD_SENTENCES, value);
+/** The held sentence for an early-hold reason, or null for any other reason. */
+export const earlyTaskHoldSentence = (reason: unknown): string | null =>
+  isEarlyTaskHoldReason(reason) ? EARLY_TASK_HOLD_SENTENCES[reason] : null;
+/** What an early hold adds to its sentence; the job page and the email both read it. */
+export const EARLY_TASK_HOLD_DETAIL = "No robot was tested on your job, and this is not a finding that a robot could not do it.";
+
+export function earlyTaskHoldOutcome(reason: EarlyTaskHoldReason, evidenceDigest: string): TaskOutcome {
+  return { category: "held", basis: "simulation_not_available", title: EARLY_TASK_HOLD_SENTENCES[reason],
+    reason: EARLY_TASK_HOLD_DETAIL,
+    scope: "Decided from what your job asks for, before the simulation of your site was built.",
+    // The Pipeline keeps the job and its review; the WebApp keeps the recording. No rerun is scheduled.
+    nextStep: "Nothing is needed from you. Your recording is saved; you do not need to send it again.",
+    // No step is scheduled for Blueprint or the site, so the card names no owner of a next step.
+    actionOwner: "none", evidence: [{ label: "Task check", digest: evidenceDigest }] };
+}
+
+/** The early task hold a verified preview names, or null. */
+export function earlyTaskHoldOf(preview: WebsiteAtlasPreview | null): EarlyTaskHoldReason | null {
+  return preview?.state === "needs_input" && isEarlyTaskHoldReason(preview.reason) ? preview.reason : null;
+}
+
 /** Takes only an already verified, capture-specific receipt. A ready/newer state clears the stop. */
 export function projectAtlasPreparationOutcome(preview: WebsiteAtlasPreview | null): TaskOutcome | null {
   if (!preview || preview.state === "ready" || preview.state === "processing" || preview.state === "withdrawn") return null;
+  const held = earlyTaskHoldOf(preview);
+  if (held) return earlyTaskHoldOutcome(held, preview.preview_digest);
   if (preview.state === "needs_input" && COVERAGE_REASONS.has(preview.reason ?? ""))
     return evidenceNeeded("The available source views did not establish enough scene coverage for this task.",
       preview.preview_digest, "Scene coverage finding");

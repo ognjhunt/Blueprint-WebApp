@@ -191,6 +191,28 @@ it("v6 says none fits, and no more, when the hold names a cause it does not know
   const projected = await loadCurrentWebsitePreparationStatus("r1", "walkthrough-r1", h.deps);
   expect(projected.outcome!.reason).toBe("None of the 136 robot setups we checked fits this job.");
 });
+it("v6 still parses a task kind it does not know, and keeps it display-only", async () => {
+  const h = harness();
+  h.ledger(v6("awaiting_inputs", precheck({task_kind: "fold_cloth_into_bin"}), robotFitNone));
+  await syncWebsitePreparationStatus(selector, h.deps);
+  const projected = await loadCurrentWebsitePreparationStatus("r1", "walkthrough-r1", h.deps);
+  expect(projected.state).toBe("awaiting_inputs");
+  expect(projected.robotFitPrecheck).toMatchObject({status: "no_fit", taskKind: "fold_cloth_into_bin"});
+  expect(projected.outcome).toMatchObject({title: "Held: none of the robots we run fits this job yet"});
+});
+it.each([["upper case", "Fold_Cloth"], ["a hyphen", "fold-cloth"], ["digits", "pour2"], ["over 40 characters", "a".repeat(41)],
+  ["nothing in it", ""], ["201 characters", "a".repeat(201)], ["a number", 7], ["a boolean", true], ["an object", {kind: "pour"}],
+  ["an array", ["pour"]], ["no value at all", undefined]] as [string, unknown][])(
+  "v6 keeps the status when a task kind is %s, and shows no kind", async (_name, kind) => {
+    const h = harness();
+    const fit = precheck({task_kind: kind});
+    if (kind === undefined) delete (fit as Record<string, unknown>).task_kind;
+    h.ledger(v6("awaiting_inputs", fit, robotFitNone));
+    await syncWebsitePreparationStatus(selector, h.deps);
+    const projected = await loadCurrentWebsitePreparationStatus("r1", "walkthrough-r1", h.deps);
+    expect(projected.state).toBe("awaiting_inputs");
+    expect(projected.robotFitPrecheck).toMatchObject({status: "no_fit", taskKind: null});
+  });
 it("v6 carries a precheck that fits or is undecided without any hold", async () => {
   const h = harness();
   h.ledger(v6("preparing", precheck({status: "unknown", hold_reason: null, counts: {fit: 0, no_fit: 2, unknown: 3, unavailable: 1}})));

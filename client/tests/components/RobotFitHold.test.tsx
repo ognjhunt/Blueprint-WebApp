@@ -40,6 +40,16 @@ describe("RobotFitHold", () => {
     expect(screen.getByText("More robots were checked than are listed here.")).toBeTruthy();
   });
 
+  it("shows a task kind it does not know with a neutral label, never its code", () => {
+    const unknown = { ...hold, taskKind: "fold_cloth_into_bin" };
+    expect(isRobotFitHold(unknown)).toBe(true);
+    render(<RobotFitHold hold={unknown} />);
+    expect(screen.getByText("Task checked: the task described in your job.")).toBeTruthy();
+    expect(screen.queryByText(/fold_cloth|fold cloth/)).toBeNull();
+    expect(isRobotFitHold({ ...hold, taskKind: "Fold-Cloth" })).toBe(false);
+    expect(isRobotFitHold({ ...hold, taskKind: "a".repeat(41) })).toBe(false);
+  });
+
   it("accepts only a well-formed hold", () => {
     expect(isRobotFitHold(hold)).toBe(true);
     expect(isRobotFitHold(null)).toBe(false);

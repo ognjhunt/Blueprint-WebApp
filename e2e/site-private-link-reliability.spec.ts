@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { projectPreparationOutcome } from "../server/utils/taskPreparationOutcome";
+import { earlyTaskHoldOutcome, projectPreparationOutcome } from "../server/utils/taskPreparationOutcome";
 import { multiStepHoldMessage, multiStepTaskHold } from "../server/utils/siteTaskScope";
 
 const legacyJobWorkflow = () => ({
@@ -371,6 +371,22 @@ test("a job no robot we run fits is held, naming the robots checked and why, fro
   expect(text).not.toMatch(/[a-z]_[a-z]|website_robot_fit|sha256|physical test passed|certif/i);
   expect(writes).toEqual([]);
   await page.screenshot({ path: info.outputPath("robot-fit-hold.png"), fullPage: true });
+});
+
+test("a job we can't simulate yet is held in one plain sentence, never as a processing failure", async ({ page }, info) => {
+  const token = "early-task-hold-fixture";
+  // The server's own projection of the Pipeline's early hold, as the status route sends it to the owner.
+  const outcome = earlyTaskHoldOutcome("website_native_task_profile_preparation_required", `sha256:${"e".repeat(64)}`);
+  const writes: string[] = [];
+  await heldJobRoutes(page, token, "Close the fire door at the end of the hall", { ok: true, scope: "owner", captureReceived: true,
+    status: { decision: outcome.category, headline: outcome.title, operatorAction: null, missingViews: [], outcome } }, writes);
+  await page.goto(`/capture-upload/${token}?video=existing`);
+  await expect(page.getByText("Held: we can't simulate this kind of job yet.", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText(/No robot was tested on your job, and this is not a finding that a robot could not do it\./).first()).toBeVisible();
+  const body = await page.locator("body").textContent();
+  expect(body).not.toMatch(/could not finish processing|website_native|preparation_required|we'll run|email you when|Next step|next step is with Blueprint/i);
+  expect(writes).toEqual([]);
+  await page.screenshot({ path: info.outputPath("early-task-hold.png"), fullPage: true });
 });
 
 test("a job with several steps is held by name and asks the site to split it, never narrowed", async ({ page }, info) => {
