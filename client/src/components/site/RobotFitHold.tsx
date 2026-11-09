@@ -6,7 +6,8 @@ export type RobotFitHoldEmbodiment =
 export type RobotFitHoldView = {
   status: "no_fit";
   holdReason: string;
-  taskKind: "rigid_pick_place" | "articulated_open_close" | null;
+  /** Display only: an open lowercase code; one this page does not know is shown with a neutral label. */
+  taskKind: string | null;
   counts: { fit: number; noFit: number; unknown: number; unavailable: number };
   embodiments: Array<{ embodiment: RobotFitHoldEmbodiment; verdict: RobotFitHoldVerdict; reasons: string[] }>;
   embodimentsTruncated: boolean;
@@ -25,7 +26,7 @@ export function isRobotFitHold(value: unknown): value is RobotFitHoldView {
   const counts = hold?.counts;
   return Boolean(hold) && hold!.status === "no_fit" && typeof hold!.holdReason === "string"
     && /^website_robot_fit_none:[a-z][a-z0-9_]{0,99}$/.test(hold!.holdReason)
-    && (hold!.taskKind === null || hold!.taskKind === "rigid_pick_place" || hold!.taskKind === "articulated_open_close")
+    && (hold!.taskKind === null || typeof hold!.taskKind === "string" && /^[a-z_]{1,40}$/.test(hold!.taskKind))
     && Boolean(counts) && [counts!.fit, counts!.noFit, counts!.unknown, counts!.unavailable]
       .every(count => Number.isInteger(count) && count >= 0)
     && typeof hold!.embodimentsTruncated === "boolean" && typeof hold!.precheckDigest === "string"
@@ -57,10 +58,14 @@ const REASONS: Record<string, string> = {
   task_inputs_missing: "a task measurement this check needs is missing",
 };
 
-const TASK_KINDS: Record<NonNullable<RobotFitHoldView["taskKind"]>, string> = {
+const TASK_KINDS: Record<string, string> = {
   rigid_pick_place: "picking up one object and putting it down somewhere else",
   articulated_open_close: "opening one door, drawer or lid",
 };
+/** A kind this page has no words for gets a neutral label, never its code. */
+export function taskKindLabel(kind: string): string {
+  return Object.prototype.hasOwnProperty.call(TASK_KINDS, kind) ? TASK_KINDS[kind] : "the task described in your job";
+}
 
 function reasonText(codes: string[]): string {
   return codes.map(code => REASONS[code] ?? code.replace(/_/g, " ")).join("; ");
@@ -77,7 +82,7 @@ export function RobotFitHold({ hold }: { hold: RobotFitHoldView }) {
     <h2>Robots we checked</h2>
     <p className="ms-field-hint">Checked before any paid work, from your scene as rebuilt from your video. It is an
       estimate: no robot was tried on your job, and it does not show that no robot could ever do it.</p>
-    {hold.taskKind && <p>Task checked: {TASK_KINDS[hold.taskKind]}.</p>}
+    {hold.taskKind && <p>Task checked: {taskKindLabel(hold.taskKind)}.</p>}
     <p>{total} robot {total === 1 ? "setup" : "setups"} (a robot and the software that drives it): {parts.join(", ")}.</p>
     {hold.embodiments.length > 0 && <ul style={{ margin: "6px 0 12px", paddingLeft: "20px" }}>
       {hold.embodiments.map(row => <li key={row.embodiment}>

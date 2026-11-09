@@ -191,6 +191,21 @@ it("v6 says none fits, and no more, when the hold names a cause it does not know
   const projected = await loadCurrentWebsitePreparationStatus("r1", "walkthrough-r1", h.deps);
   expect(projected.outcome!.reason).toBe("None of the 136 robot setups we checked fits this job.");
 });
+it("v6 still parses a task kind it does not know, and keeps it display-only", async () => {
+  const h = harness();
+  h.ledger(v6("awaiting_inputs", precheck({task_kind: "fold_cloth_into_bin"}), robotFitNone));
+  await syncWebsitePreparationStatus(selector, h.deps);
+  const projected = await loadCurrentWebsitePreparationStatus("r1", "walkthrough-r1", h.deps);
+  expect(projected.state).toBe("awaiting_inputs");
+  expect(projected.robotFitPrecheck).toMatchObject({status: "no_fit", taskKind: "fold_cloth_into_bin"});
+  expect(projected.outcome).toMatchObject({title: "Held: none of the robots we run fits this job yet"});
+});
+it.each([["upper case", "Fold_Cloth"], ["digits", "pour2"], ["over 40 characters", "a".repeat(41)], ["empty", ""]])(
+  "v6 refuses a task kind with %s", async (_name, kind) => {
+    const h = harness();
+    h.ledger(v6("awaiting_inputs", precheck({task_kind: kind}), robotFitNone));
+    await expect(syncWebsitePreparationStatus(selector, h.deps)).rejects.toThrow();
+  });
 it("v6 carries a precheck that fits or is undecided without any hold", async () => {
   const h = harness();
   h.ledger(v6("preparing", precheck({status: "unknown", hold_reason: null, counts: {fit: 0, no_fit: 2, unknown: 3, unavailable: 1}})));

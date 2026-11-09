@@ -24,6 +24,9 @@ import { EMAIL_SIGN_OFF } from "./emailLayout";
 import { taskLifecycleNotificationIsCurrent } from "./taskLifecycleNotificationAuthority";
 import { drainPendingWebsitePreparationNotifications } from "./websitePreparationStatus";
 import { preparationEndedSentence } from "./taskStatusProjection";
+import { EARLY_TASK_HOLD_DETAIL, EARLY_TASK_HOLD_SENTENCES, earlyTaskHoldOf, isEarlyTaskHoldReason,
+  type EarlyTaskHoldReason } from "./taskPreparationOutcome";
+import { selectWebsiteAtlasPreview } from "./websiteAtlasPreview";
 import { isScreeningResultOutcome, screeningEstimateCountSentence, screeningOutcomeSentence,
   type ScreeningOutcome } from "./betaPolicyScreeningContract";
 import { isTerminalSceneOutcomeKind, sceneOutcomeMessage, sceneOutcomeSubject,
@@ -202,6 +205,8 @@ export async function enqueueTaskLifecycleNotification(params: {
   runProgress?: NoResultObservation;
   /** `preparation_ended` only: the Pipeline's typed reason; unknown values add nothing. */
   terminalReason?: string | null;
+  /** Preparation notices: the capture they are about, so an early task hold is told as held. */
+  captureId?: string;
   /** `evaluation_outcome` only: the run's result outcome, and an estimate's counts. */
   screeningOutcome?: ScreeningOutcome;
   screeningCounts?: { ran: number; total: number; scored: number };
@@ -230,7 +235,12 @@ export async function enqueueTaskLifecycleNotification(params: {
   // Run results open in the site's account; only a claimed site has one.
   const workspaceUrl = typeof snapshot.data()?.account_owner_uid === "string" && snapshot.data()?.account_owner_uid
     ? workspaceTaskUrl(requestId) : null;
-  return enqueueOutbox(buildTaskLifecycleNotification({ ...params, requestId, to, workspaceUrl }));
+  // The job page reads the same verified preview of the same capture for its held sentence.
+  const earlyTaskHold = params.milestone === "preparation_needs_attention" && params.captureId
+    ? earlyTaskHoldOf(selectWebsiteAtlasPreview(snapshot.data(), params.captureId)) : null;
+  const { captureId: _captureId, ...notice } = params;
+  return enqueueOutbox(buildTaskLifecycleNotification({ ...notice, requestId, to, workspaceUrl,
+    ...(earlyTaskHold ? { earlyTaskHold } : {}) }));
 }
 
 /** Build the existing notice without a database write or delivery. Atomic
@@ -257,6 +267,8 @@ export function buildTaskLifecycleNotification(params: {
   sceneOutcomeKind?: TerminalSceneOutcomeKind;
   /** `robot_access_question` only: how many chairs and stools the proposal moves; its event id is the proposal digest. */
   robotAccessCounts?: RobotAccessCounts;
+  /** `preparation_needs_attention` only: the early task hold the job page states; the notice is then the held one. */
+  earlyTaskHold?: EarlyTaskHoldReason;
 }): Parameters<typeof enqueueOutbox>[0] {
   const requestId = params.requestId.trim();
   if (isWebsitePreparationNotice(params.milestone) && !/^sha256:[a-f0-9]{64}$/.test(params.eventId || "")) {
@@ -265,7 +277,9 @@ export function buildTaskLifecycleNotification(params: {
   const outcomeDetail = params.milestone === "evaluation_outcome" ? evaluationOutcomeDetail(params)
     : params.milestone === "scene_outcome" ? sceneOutcomeDetail(params)
     : params.milestone === "robot_access_question" ? robotAccessQuestionDetail(params) : "";
-  const message = copy[params.milestone];
+  const held = params.milestone === "preparation_needs_attention" && isEarlyTaskHoldReason(params.earlyTaskHold)
+    ? params.earlyTaskHold : null;
+  const message = held ? earlyTaskHoldCopy(held) : copy[params.milestone];
   const url = params.captureUrl ?? captureUploadUrlFor(requestId, "owner");
   const eventId = params.eventId?.trim().replace(/[^A-Za-z0-9._-]/g, "_").slice(0, 120);
   // Preparation notices never carry caller text: only a validated reference and,
@@ -288,6 +302,14 @@ export function buildTaskLifecycleNotification(params: {
         || params.milestone === "robot_access_question" ? outcomeDetail
       : params.detail?.trim() ?? "", params.workspaceUrl ?? null)}\n\n${EMAIL_SIGN_OFF}`,
     replyTo: "hello@tryblueprint.io",
+  };
+}
+
+/** An early task hold's one email: the job page's held sentence, sent in place of the needs-attention notice. */
+function earlyTaskHoldCopy(reason: EarlyTaskHoldReason): (typeof copy)[TaskLifecycleMilestone] {
+  return {
+    subject: "Your Blueprint job is held",
+    body: (url, detail) => `${EARLY_TASK_HOLD_SENTENCES[reason]} ${EARLY_TASK_HOLD_DETAIL} Nothing is needed from you. Keep your original recording. Your job page shows the latest status.${detail ? ` ${detail}` : ""}\n\nOpen your job:\n${url}`,
   };
 }
 

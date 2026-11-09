@@ -103,7 +103,8 @@ export const robotFitPrecheckSchema = z.object({
   schema_version: z.literal("website_robot_fit_precheck_projection.v1"),
   status: z.enum(ROBOT_FIT_PRECHECK_STATUSES),
   hold_reason: z.string().regex(new RegExp(`^${ROBOT_FIT_HOLD_PREFIX}[a-z][a-z0-9_]{0,99}$`)).nullable(),
-  task_kind: z.enum(["rigid_pick_place", "articulated_open_close"]).nullable(),
+  // Display only and open: a kind the Pipeline adds later must not make the whole status unavailable.
+  task_kind: z.string().regex(/^[a-z_]{1,40}$/).nullable(),
   counts: z.object({fit: fitCount, no_fit: fitCount, unknown: fitCount, unavailable: fitCount}).strict(),
   embodiments: z.array(z.object({embodiment: z.enum(ROBOT_FIT_PRECHECK_EMBODIMENTS),
     verdict: z.enum(ROBOT_FIT_PRECHECK_STATUSES), reasons: z.array(z.string().regex(/^[a-z][a-z0-9_]{0,79}$/)).max(4),
