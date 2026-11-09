@@ -103,9 +103,9 @@ export const robotFitPrecheckSchema = z.object({
   schema_version: z.literal("website_robot_fit_precheck_projection.v1"),
   status: z.enum(ROBOT_FIT_PRECHECK_STATUSES),
   hold_reason: z.string().regex(new RegExp(`^${ROBOT_FIT_HOLD_PREFIX}[a-z][a-z0-9_]{0,99}$`)).nullable(),
-  // Display only and open: any kind the Pipeline adds later, in any spelling, never makes the status unavailable.
-  // The digest covers the value as sent; `publicRobotFitPrecheck` shows only a well-formed one.
-  task_kind: z.string().max(200).nullable(),
+  // Display only and open: any JSON value, or none, never makes the status unavailable. It is kept exactly as
+  // sent, so the status digest still covers it; `publicRobotFitPrecheck` shows only a well-formed kind, else null.
+  task_kind: z.unknown().optional(),
   counts: z.object({fit: fitCount, no_fit: fitCount, unknown: fitCount, unavailable: fitCount}).strict(),
   embodiments: z.array(z.object({embodiment: z.enum(ROBOT_FIT_PRECHECK_EMBODIMENTS),
     verdict: z.enum(ROBOT_FIT_PRECHECK_STATUSES), reasons: z.array(z.string().regex(/^[a-z][a-z0-9_]{0,79}$/)).max(4),
@@ -153,8 +153,8 @@ export type PublicRobotFitPrecheck = {
   embodimentsTruncated: boolean; precheckDigest: string;
 };
 /** The precheck's task kind for display: lowercase letters and underscores, at most 40 characters, else null. */
-export const displayTaskKind = (kind: string | null): string | null =>
-  kind !== null && /^[a-z_]{1,40}$/.test(kind) ? kind : null;
+export const displayTaskKind = (kind: unknown): string | null =>
+  typeof kind === "string" && /^[a-z_]{1,40}$/.test(kind) ? kind : null;
 export function publicRobotFitPrecheck(precheck: RobotFitPrecheckReceipt): PublicRobotFitPrecheck {
   return {status: precheck.status, holdReason: precheck.hold_reason, taskKind: displayTaskKind(precheck.task_kind),
     counts: {fit: precheck.counts.fit, noFit: precheck.counts.no_fit, unknown: precheck.counts.unknown,
@@ -181,17 +181,29 @@ export type WebsitePreparationIntent = {requestId: string; captureId: string; ev
   awaitEarlyHoldUntilMs?: number};
 /**
  * How long a needs-attention notice that may be an early task hold waits for the Atlas preview naming its reason.
- * The Pipeline retries a failed preview delivery with backoff capped at one hour (`website_atlas_preview._deliver`:
- * 30 s doubling, reaching the cap after about 63 minutes in all); this covers that plus one capped retry.
+ * The Pipeline retries a failed preview delivery after min(3600, 30 * 2^attempts) seconds
+ * (`website_atlas_preview._deliver`), so retries land about 1, 3, 7, 15, 31 and 63 minutes after the first
+ * failure, then about 123 minutes (the first capped, one-hour wait). This covers that retry with a 12-minute margin.
  */
-export const EARLY_HOLD_PREVIEW_WAIT_MS = 2 * 60 * 60 * 1000;
+export const EARLY_HOLD_PREVIEW_WAIT_MS = 135 * 60 * 1000;
+/** Beside `website_preparation`, never inside it, so a release whose strict parser predates it still reads the row. */
+export const WEBSITE_PREPARATION_NOTICE_OWED_FIELD = "website_preparation_notice_owed";
 /** A status that is an early task hold looks like this: waiting on inputs with no finding of its own. */
 const mayBeEarlyTaskHold = (status: WebsitePreparationReceipt) =>
   status.state === "awaiting_inputs" && (!("outcome" in status) || status.outcome === null);
 export interface StoredWebsitePreparation {
   selector: WebsitePreparationSelector; status: WebsitePreparationReceipt;
-  /** `pendingSinceMs`: when this event's notice was first owed; older rows lack it. */
-  notification: { eventId: string; state: "pending" | "enqueued"; pendingSinceMs?: number } | null;
+  notification: { eventId: string; state: "pending" | "enqueued" } | null;
+}
+/** A pending row, with when its notice was first owed when that was recorded (rows from older releases lack it). */
+export type PendingWebsitePreparation = StoredWebsitePreparation & { owedSinceMs?: number };
+const owedSchema = z.object({event_id: digest, since_ms: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER)}).strict();
+/** When the pending notice was first owed, kept across replays of the same event; null when nothing is pending. */
+function noticeOwed(preparation: StoredWebsitePreparation, prior: unknown, nowMs: number) {
+  const notice = preparation.notification;
+  if (notice?.state !== "pending") return null;
+  const kept = owedSchema.safeParse(prior);
+  return kept.success && kept.data.event_id === notice.eventId ? kept.data : {event_id: notice.eventId, since_ms: nowMs};
 }
 export interface PreparationAuthority { fingerprint: string; binding?: Record<string, any>; owner: string | null;
   sponsorshipDigest?: string }
@@ -200,7 +212,7 @@ export interface WebsitePreparationDeps {
   verifyCurrent(selector: WebsitePreparationSelector, transaction?: FirebaseFirestore.Transaction, signal?: AbortSignal): Promise<PreparationAuthority>;
   readStored(captureId: string): Promise<StoredWebsitePreparation | null>;
   commit(selector: WebsitePreparationSelector, status: WebsitePreparationReceipt, authority: PreparationAuthority): Promise<void>;
-  pending(limit: number): Promise<StoredWebsitePreparation[]>;
+  pending(limit: number): Promise<PendingWebsitePreparation[]>;
   acknowledge(captureId: string, eventId: string): Promise<void>;
   findEvent(requestId: string, eventId: string, transaction?: FirebaseFirestore.Transaction): Promise<StoredWebsitePreparation | null>;
 }
@@ -252,8 +264,7 @@ function receiptSelectors(value: WebsitePreparationReceipt): WebsitePreparationS
 function parseStored(value: unknown): StoredWebsitePreparation | null {
   if (value == null) return null;
   const parsed = z.object({ selector: websitePreparationSelectorSchema, status: websitePreparationReceiptSchema,
-    notification: z.object({eventId: digest, state: z.enum(["pending", "enqueued"]),
-      pendingSinceMs: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER).optional()}).strict().nullable(),
+    notification: z.object({eventId: digest, state: z.enum(["pending", "enqueued"])}).strict().nullable(),
   }).strict().parse(value);
   parseReceipt(parsed.status, parsed.selector);
   if (parsed.notification && parsed.notification.eventId !== websitePreparationEventId(parsed.selector)
@@ -263,7 +274,7 @@ function parseStored(value: unknown): StoredWebsitePreparation | null {
 /** An exact lower/reused revision cannot downgrade newer persisted authority. The same
  * revision read in the other receipt version is the same ledger state, not a replay. */
 export function mergeWebsitePreparationStatus(prior: StoredWebsitePreparation | null,
-  selector: WebsitePreparationSelector, status: WebsitePreparationReceipt, nowMs = Date.now()): StoredWebsitePreparation {
+  selector: WebsitePreparationSelector, status: WebsitePreparationReceipt): StoredWebsitePreparation {
   parseReceipt(status, selector);
   const same = prior && crossRuntimeDigest(prior.selector) === crossRuntimeDigest(selector);
   if (same && (status.attempt_count < prior.status.attempt_count || status.revision < prior.status.revision
@@ -274,8 +285,7 @@ export function mergeWebsitePreparationStatus(prior: StoredWebsitePreparation | 
   // One durable intent per event: a replay keeps it; a newer event replaces an
   // unsent one; a state that calls for no notice keeps only the attention intent.
   const notification = notice
-    ? same && prior.notification?.eventId === notice.eventId ? prior.notification
-      : {eventId: notice.eventId, state: "pending" as const, pendingSinceMs: nowMs}
+    ? same && prior.notification?.eventId === notice.eventId ? prior.notification : {eventId: notice.eventId, state: "pending" as const}
     : same && prior.notification?.eventId === attentionId ? prior.notification : null;
   return {selector, status, notification};
 }
@@ -382,8 +392,9 @@ const defaultDeps: WebsitePreparationDeps = {
       // a v2-only key such as terminal_reason under a later v1 receipt.
       tx.set(ref, {website_preparation: preparation,
         website_preparation_notification_pending: preparation.notification?.state === "pending",
+        [WEBSITE_PREPARATION_NOTICE_OWED_FIELD]: noticeOwed(preparation, session[WEBSITE_PREPARATION_NOTICE_OWED_FIELD], Date.now()),
         [WEBSITE_PREPARATION_WATCH_FIELD]: watch, [WEBSITE_PREPARATION_WATCH_DUE_FIELD]: watch?.due_at_ms ?? null},
-      {mergeFields: ["website_preparation", "website_preparation_notification_pending",
+      {mergeFields: ["website_preparation", "website_preparation_notification_pending", WEBSITE_PREPARATION_NOTICE_OWED_FIELD,
         WEBSITE_PREPARATION_WATCH_FIELD, WEBSITE_PREPARATION_WATCH_DUE_FIELD]});
     });
   },
@@ -391,7 +402,13 @@ const defaultDeps: WebsitePreparationDeps = {
     if (!db) throw unavailable();
     const rows = await automationBatch(db, db.collection("captureUploadSessions")
       .where("website_preparation_notification_pending", "==", true), "website_preparation_notifications", limit);
-    return rows.docs.map(row => parseStored(row.data().website_preparation)).filter((p): p is StoredWebsitePreparation => Boolean(p));
+    return rows.docs.flatMap(row => {
+      const stored = parseStored(row.data().website_preparation);
+      if (!stored) return [];
+      const owed = owedSchema.safeParse(row.data()[WEBSITE_PREPARATION_NOTICE_OWED_FIELD]);
+      return [owed.success && owed.data.event_id === stored.notification?.eventId
+        ? {...stored, owedSinceMs: owed.data.since_ms} : stored];
+    });
   },
   async findEvent(requestId, eventId, transaction) {
     if (!db) throw unavailable();
@@ -518,8 +535,7 @@ export async function drainPendingWebsitePreparationNotifications(
         eventId: row.notification.eventId, correlationId: `bp-prep-${current.status.status_digest.slice(7, 23)}`,
         milestone: notice.milestone, terminalReason: terminalReasonOf(current.status),
         ...(notice.milestone === "preparation_needs_attention" && mayBeEarlyTaskHold(current.status)
-          && row.notification.pendingSinceMs !== undefined
-          ? {awaitEarlyHoldUntilMs: row.notification.pendingSinceMs + EARLY_HOLD_PREVIEW_WAIT_MS} : {})});
+          && row.owedSinceMs !== undefined ? {awaitEarlyHoldUntilMs: row.owedSinceMs + EARLY_HOLD_PREVIEW_WAIT_MS} : {})});
       if (result === "unavailable") {pending++; continue;}
       await deps.acknowledge(row.selector.capture_id, row.notification.eventId); enqueued++;
     } catch { pending++; }

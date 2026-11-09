@@ -127,11 +127,11 @@ describe("one durable intent per notice", () => {
   it("TERM-010 an ending supersedes an unsent needs-attention intent and stays one notice on replay", async () => {
     const f = production(); f.ledger(receipt(f.selected, "failed_retryable", 4, 7));
     await status.syncWebsitePreparationStatus(f.selected);
-    expect(f.session().website_preparation.notification).toEqual({ eventId: status.websitePreparationEventId(f.selected), state: "pending" , pendingSinceMs: expect.any(Number) });
+    expect(f.session().website_preparation.notification).toEqual({ eventId: status.websitePreparationEventId(f.selected), state: "pending" });
     f.ledger(receipt(f.selected, "failed_terminal", 4, 8, "v2", "budget_exhausted"));
     await status.syncWebsitePreparationStatus(f.selected);
     const ended = status.websitePreparationEndedEventId(f.selected, 4);
-    expect(f.session().website_preparation.notification).toEqual({ eventId: ended, state: "pending" , pendingSinceMs: expect.any(Number) });
+    expect(f.session().website_preparation.notification).toEqual({ eventId: ended, state: "pending" });
     const intents: any[] = [];
     expect(await status.drainPendingWebsitePreparationNotifications(async intent => { intents.push(intent); return "enqueued"; }))
       .toEqual({ enqueued: 1, pending: 0 });
@@ -154,7 +154,35 @@ describe("one durable intent per notice", () => {
     f.ledger(receipt(f.selected, "failed_terminal", 6, 11));
     await status.syncWebsitePreparationStatus(f.selected);
     expect(f.session().website_preparation.notification)
-      .toEqual({ eventId: status.websitePreparationEndedEventId(f.selected, 6), state: "pending" , pendingSinceMs: expect.any(Number) });
+      .toEqual({ eventId: status.websitePreparationEndedEventId(f.selected, 6), state: "pending" });
+  });
+  it("TERM-013 keeps when a notice was first owed beside the row, readable by the strict parser on main", async () => {
+    const f = production(); f.ledger(receipt(f.selected, "awaiting_inputs", 2, 5));
+    const before = Date.now();
+    await status.syncWebsitePreparationStatus(f.selected);
+    const eventId = status.websitePreparationEventId(f.selected);
+    const owed = f.session()[status.WEBSITE_PREPARATION_NOTICE_OWED_FIELD];
+    expect(owed).toEqual({ event_id: eventId, since_ms: expect.any(Number) });
+    expect(owed.since_ms).toBeGreaterThanOrEqual(before);
+    // The parser of `website_preparation` as it is on main (strict, notification {eventId, state}).
+    const { z } = await import("zod");
+    const mainStored = z.object({ selector: status.websitePreparationSelectorSchema, status: status.websitePreparationReceiptSchema,
+      notification: z.object({ eventId: z.string().regex(/^sha256:[a-f0-9]{64}$/), state: z.enum(["pending", "enqueued"]) })
+        .strict().nullable() }).strict();
+    expect(mainStored.safeParse(f.session().website_preparation).success).toBe(true);
+    // A replay of the same event keeps the first owed time; the drain hands it to the needs-attention notice.
+    f.ledger(receipt(f.selected, "awaiting_inputs", 2, 6));
+    await status.syncWebsitePreparationStatus(f.selected);
+    expect(f.session()[status.WEBSITE_PREPARATION_NOTICE_OWED_FIELD]).toEqual(owed);
+    const intents: any[] = [];
+    await status.drainPendingWebsitePreparationNotifications(async intent => { intents.push(intent); return "unavailable"; });
+    expect(intents[0]).toMatchObject({ milestone: "preparation_needs_attention",
+      awaitEarlyHoldUntilMs: owed.since_ms + status.EARLY_HOLD_PREVIEW_WAIT_MS });
+    // A newer event is owed afresh, bound to its own event id.
+    f.ledger(receipt(f.selected, "failed_terminal", 2, 7, "v2", "budget_exhausted"));
+    await status.syncWebsitePreparationStatus(f.selected);
+    expect(f.session()[status.WEBSITE_PREPARATION_NOTICE_OWED_FIELD])
+      .toEqual({ event_id: status.websitePreparationEndedEventId(f.selected, 2), since_ms: expect.any(Number) });
   });
   it("TERM-012 waiting for capacity asks nothing of the site", async () => {
     const f = production(); f.ledger(receipt(f.selected, "capacity_delayed", 2, 4));

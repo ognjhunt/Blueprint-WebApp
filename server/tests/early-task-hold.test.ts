@@ -135,7 +135,8 @@ describe("an early hold whose preview arrives after its preparation status", () 
   const deps = {
     async readLedger() { return current; }, async verifyCurrent() { return { fingerprint: "f", owner: "o" }; },
     async readStored() { return stored; }, async commit() {},
-    async pending() { return stored?.notification?.state === "pending" ? [stored] : []; },
+    // The owed time the production store keeps beside the row (`website_preparation_notice_owed`).
+    async pending() { return stored?.notification?.state === "pending" ? [{ ...stored, owedSinceMs: T0 }] : []; },
     async acknowledge(_capture: string, eventId: string) {
       if (stored?.notification?.eventId === eventId) stored = { ...stored, notification: { ...stored.notification, state: "enqueued" } };
     },
@@ -157,8 +158,8 @@ describe("an early hold whose preview arrives after its preparation status", () 
   afterEach(() => { vi.useRealTimers(); });
   function owe(state: "awaiting_inputs" | "failed_retryable") {
     current = status(state);
-    stored = mergeWebsitePreparationStatus(null, selector, current, T0);
-    expect(stored.notification).toMatchObject({ state: "pending", pendingSinceMs: T0 });
+    stored = mergeWebsitePreparationStatus(null, selector, current);
+    expect(stored.notification).toEqual({ eventId: expect.any(String), state: "pending" });
   }
 
   it("status first, preview later: exactly one email, and it is the held one", async () => {

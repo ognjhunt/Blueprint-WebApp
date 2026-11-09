@@ -140,7 +140,7 @@ it("v5 keeps the needs-attention notice for a full-route job awaiting inputs", a
   const h = harness();
   h.ledger(v5("awaiting_inputs", robotFit("full")));
   await syncWebsitePreparationStatus(selector, h.deps);
-  expect(h.stored!.notification).toEqual({eventId: websitePreparationEventId(selector), state: "pending", pendingSinceMs: expect.any(Number)});
+  expect(h.stored!.notification).toEqual({eventId: websitePreparationEventId(selector), state: "pending"});
 });
 it.each([
   ["a completed table without its digest", robotFit("full", {table_digest: null})],
@@ -201,9 +201,13 @@ it("v6 still parses a task kind it does not know, and keeps it display-only", as
   expect(projected.outcome).toMatchObject({title: "Held: none of the robots we run fits this job yet"});
 });
 it.each([["upper case", "Fold_Cloth"], ["a hyphen", "fold-cloth"], ["digits", "pour2"], ["over 40 characters", "a".repeat(41)],
-  ["nothing in it", ""]])("v6 keeps the status when a task kind has %s, and shows no kind", async (_name, kind) => {
+  ["nothing in it", ""], ["201 characters", "a".repeat(201)], ["a number", 7], ["a boolean", true], ["an object", {kind: "pour"}],
+  ["an array", ["pour"]], ["no value at all", undefined]] as [string, unknown][])(
+  "v6 keeps the status when a task kind is %s, and shows no kind", async (_name, kind) => {
     const h = harness();
-    h.ledger(v6("awaiting_inputs", precheck({task_kind: kind}), robotFitNone));
+    const fit = precheck({task_kind: kind});
+    if (kind === undefined) delete (fit as Record<string, unknown>).task_kind;
+    h.ledger(v6("awaiting_inputs", fit, robotFitNone));
     await syncWebsitePreparationStatus(selector, h.deps);
     const projected = await loadCurrentWebsitePreparationStatus("r1", "walkthrough-r1", h.deps);
     expect(projected.state).toBe("awaiting_inputs");
