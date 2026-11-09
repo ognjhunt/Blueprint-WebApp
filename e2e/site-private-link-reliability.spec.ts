@@ -600,3 +600,55 @@ test("the robot readiness brief opens by its own read-only link and lays out the
   await expect(page.getByRole("button", { name: "Print or save as PDF" })).toBeHidden();
   await page.screenshot({ path: info.outputPath("readiness-brief-print-local-fixture.png"), fullPage: true });
 });
+
+// WP-11: the fourth outcome on the job page. Only scripted reference baselines
+// were scored, so the run is not called an estimate; the site reads the same
+// sentence in the headline and the results, and each baseline row says what it is.
+test("a run with only scripted reference baselines is not called an estimate on the job page", async ({ page }, info) => {
+  const { screeningOutcomeSentence } = await import("../server/utils/betaPolicyScreeningContract");
+  const token = "reference-only-result-fixture";
+  const sentence = "No estimate yet: only scripted reference baselines were scored, and no learned policy could be evaluated on your job yet.";
+  expect(screeningOutcomeSentence("reference_only")).toBe(sentence);
+  const writes: string[] = [];
+  await page.route("**/api/**", route => {
+    const request = route.request(), url = new URL(request.url());
+    if (request.method() !== "GET" && url.pathname !== "/api/analytics/ingest") writes.push(url.pathname);
+    // As server/utils/jobManagedEvaluation.ts sends a reference_only run to the site.
+    if (url.pathname.startsWith("/api/job-workflow/owner/")) return route.fulfill({ json: {
+      ...legacyJobWorkflow(), managedEvidence: [{ runId: "reference-evaluation", state: "reference_only", outcome: "reference_only", current: true,
+        resultDigest: "sha256:fixture-reference", summary: sentence,
+        nextAction: "Nothing is needed from you. Each row shows what ran, or why it could not run.",
+        limitations: ["Scripted baselines use simulator state. Their outcomes do not establish learned-policy or vendor-policy performance.",
+          "A simulation result is a bounded estimate. It does not certify physical performance or safety."],
+        href: "#managed-evidence-reference-evaluation", screening: { candidates: [
+          { candidateId: "candidate-1", name: "Scripted pick baseline", state: "completed", planned: 3, scored: 3, succeeded: 2, failed: 1, void: 0,
+            blockers: [], successRange: { lowerPercent: 21, upperPercent: 94, confidencePercent: 95 },
+            executionEvidence: { execution_evidence_kind: "scripted_simulator_state_baseline", action_source: "scripted_simulator_state",
+              scripted_rollout_count: 3, learned_policy_rollout_count: 0, scripted_controller_invoked: true, candidate_policy_queried: false } }] } }],
+    } });
+    if (url.pathname === `/api/self-capture/uploads/${token}/status`) return route.fulfill({ json: {
+      ok: true, state: "open", captureReceived: true, uploadState: "processing_ready", accepts: ["mov", "mp4"],
+    } });
+    if (url.pathname === `/api/site-task-brief/${token}`) return route.fulfill({ json: {
+      ready: true, scope: "owner", brief: { summary: "Cartons onto a pallet", captureMode: "self_capture", proposed: [], unresolved: [], confirmedAtIso: null },
+    } });
+    if (url.pathname === `/api/site-task-brief/${token}/status`) return route.fulfill({ json: {
+      scope: "owner", captureReceived: true, status: { decision: "assessing", headline: `${sentence} Nothing is needed from you.`,
+        operatorAction: null, missingViews: [] },
+    } });
+    return route.fulfill({ status: 503, json: { error: "Unstubbed local API" } });
+  });
+  await page.goto(`/capture-upload/${token}?video=existing`);
+  await expect(page.getByText(`${sentence} Nothing is needed from you.`, { exact: true })).toBeVisible();
+  const results = page.getByRole("region", { name: "Simulation results for your job" });
+  await expect(results.getByText(sentence, { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Simulation evaluation" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Your simulation estimate" })).toHaveCount(0);
+  await expect(results.getByText("Scripted baseline: a hand-coded reference run, not a learned or vendor policy. It does not show how those policies perform.")).toBeVisible();
+  await expect(results.getByText(/^Finished · 3\/3 scored/)).toBeVisible();
+  await expect(results.getByText("Scripted baselines use simulator state. Their outcomes do not establish learned-policy or vendor-policy performance.")).toBeVisible();
+  const text = await results.textContent();
+  expect(text).not.toMatch(/[a-z]_[a-z]|your simulation estimate is ready|rerun|setup blockers|development only|budget|\$/i);
+  expect(writes).toEqual([]);
+  await page.screenshot({ path: info.outputPath("reference-only-result.png"), fullPage: true });
+});

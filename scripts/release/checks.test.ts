@@ -1,6 +1,7 @@
 // @vitest-environment node
+import fs from 'node:fs';
 import { describe, it, expect } from 'vitest';
-import { publicSurfaceTouched, releaseScope } from './checks.mjs';
+import { publicSurfaceTouched, releaseScope, siteDecisionFiles } from './checks.mjs';
 describe('public-surface copy contracts', () => {
   it('run for any public copy source even when the release scope is narrower than full', () => {
     expect(releaseScope(['client/src/lib/evaluationPricing.ts'])).toBe('code');
@@ -26,5 +27,23 @@ describe('release scope fails closed', () => {
       ['.github/workflows/deploy.yml'], ['client/src/pages/Home.tsx']]) {
       expect(releaseScope(files)).toBe('full');
     }
+  });
+});
+describe('job-page and intake decision helpers get the full scope', () => {
+  it('runs every browser suite when one of them changes, alone or with other helpers', () => {
+    for (const file of ['server/utils/taskPreparationOutcome.ts', 'server/utils/taskStatusProjection.ts',
+      'server/utils/websitePreparationStatus.ts', 'server/utils/taskLifecycleNotifications.ts',
+      'server/utils/betaPolicyScreeningContract.ts', 'server/utils/betaAbuseCaps.ts', 'server/utils/inviteeAllowlist.ts',
+      'server/utils/websiteCaptureWithdrawal.ts', 'client/src/lib/siteCaptureDraft.ts', 'client/src/lib/selfCaptureVideo.ts']) {
+      expect(releaseScope([file]), file).toBe('full');
+      expect(releaseScope(['server/utils/agentCostTelemetry.ts', file]), file).toBe('full');
+    }
+  });
+  it('keeps other helpers at code scope', () => {
+    expect(releaseScope(['server/utils/emailLayout.ts'])).toBe('code');
+    expect(releaseScope(['client/src/lib/analytics.ts'])).toBe('code');
+  });
+  it('names only files that exist', () => {
+    for (const file of siteDecisionFiles) expect(fs.existsSync(file), file).toBe(true);
   });
 });

@@ -2,10 +2,27 @@ import { execFileSync } from 'node:child_process';
 import { appendFileSync, existsSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 
+// Helpers that decide what a site sees on its job page or intake form, or
+// whether a job starts (caps, invitee allowlist, screening, outcome, withdrawal).
+// Read from what client/src/pages/SelfCaptureUpload.tsx,
+// client/src/components/site/SiteCaptureStart.tsx and server/routes/
+// {inbound-request,self-capture-uploads,site-task-brief}.ts import. A change to
+// one of them gets the full browser suites, not only its related unit tests.
+export const siteDecisionFiles = new Set([
+  ...['betaAbuseCaps', 'betaPolicyScreeningContract', 'betaPolicyScreeningHold', 'captureUploadAuthorization',
+    'descriptionAuthority', 'inboundQualificationGate', 'inboundRequestCommit', 'inviteeAllowlist',
+    'recordingConsent', 'siteAssessmentPublic', 'siteTaskBrief', 'taskLifecycleNotifications',
+    'taskPreparationOutcome', 'taskStatusProjection', 'websiteBrowserUploadStatus', 'websiteCaptureWithdrawal',
+    'websitePreparationStatus', 'websiteRunClosure'].map(name => `server/utils/${name}.ts`),
+  ...['footageNotice', 'invitationPrivacy', 'recordingRightsStatement', 'screeningPlainLanguage',
+    'selfCaptureVideo', 'siteCaptureDraft', 'siteCaptureDurability', 'siteClaim', 'siteSubmissionAuthority',
+    'taskConfirmationStatement'].map(name => `client/src/lib/${name}.ts`),
+]);
 // Explicit content and backend/helper paths use related tests plus safety tests.
 // Unknown paths, route composition, UI, rules, dependencies and CI fail to full.
 export function releaseScope(files) {
   if (!files.length) return 'full';
+  if (files.some(file => siteDecisionFiles.has(file))) return 'full';
   const content = /^(client\/src\/data\/(deploymentMarket|qualifyingEnvironments)\.ts|client\/src\/lib\/captureGroundedLanguage\.ts)$/;
   if (files.every(file => content.test(file))) return 'content';
   // Backend/helper releases get their dependency-related tests plus the fixed
