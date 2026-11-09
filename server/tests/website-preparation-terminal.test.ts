@@ -127,11 +127,11 @@ describe("one durable intent per notice", () => {
   it("TERM-010 an ending supersedes an unsent needs-attention intent and stays one notice on replay", async () => {
     const f = production(); f.ledger(receipt(f.selected, "failed_retryable", 4, 7));
     await status.syncWebsitePreparationStatus(f.selected);
-    expect(f.session().website_preparation.notification).toEqual({ eventId: status.websitePreparationEventId(f.selected), state: "pending" });
+    expect(f.session().website_preparation.notification).toEqual({ eventId: status.websitePreparationEventId(f.selected), state: "pending" , pendingSinceMs: expect.any(Number) });
     f.ledger(receipt(f.selected, "failed_terminal", 4, 8, "v2", "budget_exhausted"));
     await status.syncWebsitePreparationStatus(f.selected);
     const ended = status.websitePreparationEndedEventId(f.selected, 4);
-    expect(f.session().website_preparation.notification).toEqual({ eventId: ended, state: "pending" });
+    expect(f.session().website_preparation.notification).toEqual({ eventId: ended, state: "pending" , pendingSinceMs: expect.any(Number) });
     const intents: any[] = [];
     expect(await status.drainPendingWebsitePreparationNotifications(async intent => { intents.push(intent); return "enqueued"; }))
       .toEqual({ enqueued: 1, pending: 0 });
@@ -154,7 +154,7 @@ describe("one durable intent per notice", () => {
     f.ledger(receipt(f.selected, "failed_terminal", 6, 11));
     await status.syncWebsitePreparationStatus(f.selected);
     expect(f.session().website_preparation.notification)
-      .toEqual({ eventId: status.websitePreparationEndedEventId(f.selected, 6), state: "pending" });
+      .toEqual({ eventId: status.websitePreparationEndedEventId(f.selected, 6), state: "pending" , pendingSinceMs: expect.any(Number) });
   });
   it("TERM-012 waiting for capacity asks nothing of the site", async () => {
     const f = production(); f.ledger(receipt(f.selected, "capacity_delayed", 2, 4));

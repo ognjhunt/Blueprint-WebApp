@@ -103,8 +103,9 @@ export const robotFitPrecheckSchema = z.object({
   schema_version: z.literal("website_robot_fit_precheck_projection.v1"),
   status: z.enum(ROBOT_FIT_PRECHECK_STATUSES),
   hold_reason: z.string().regex(new RegExp(`^${ROBOT_FIT_HOLD_PREFIX}[a-z][a-z0-9_]{0,99}$`)).nullable(),
-  // Display only and open: a kind the Pipeline adds later must not make the whole status unavailable.
-  task_kind: z.string().regex(/^[a-z_]{1,40}$/).nullable(),
+  // Display only and open: any kind the Pipeline adds later, in any spelling, never makes the status unavailable.
+  // The digest covers the value as sent; `publicRobotFitPrecheck` shows only a well-formed one.
+  task_kind: z.string().max(200).nullable(),
   counts: z.object({fit: fitCount, no_fit: fitCount, unknown: fitCount, unavailable: fitCount}).strict(),
   embodiments: z.array(z.object({embodiment: z.enum(ROBOT_FIT_PRECHECK_EMBODIMENTS),
     verdict: z.enum(ROBOT_FIT_PRECHECK_STATUSES), reasons: z.array(z.string().regex(/^[a-z][a-z0-9_]{0,79}$/)).max(4),
@@ -145,14 +146,17 @@ export function publicRobotFit(fit: RobotFitReceipt): PublicRobotFit {
 }
 /** The site's view of the early robot fit precheck: which robot bodies were measured and why none fits. */
 export type PublicRobotFitPrecheck = {
-  status: RobotFitPrecheckReceipt["status"]; holdReason: string | null; taskKind: RobotFitPrecheckReceipt["task_kind"];
+  status: RobotFitPrecheckReceipt["status"]; holdReason: string | null; taskKind: string | null;
   counts: {fit: number; noFit: number; unknown: number; unavailable: number};
   embodiments: {embodiment: typeof ROBOT_FIT_PRECHECK_EMBODIMENTS[number]; verdict: RobotFitPrecheckReceipt["status"];
     reasons: string[]}[];
   embodimentsTruncated: boolean; precheckDigest: string;
 };
+/** The precheck's task kind for display: lowercase letters and underscores, at most 40 characters, else null. */
+export const displayTaskKind = (kind: string | null): string | null =>
+  kind !== null && /^[a-z_]{1,40}$/.test(kind) ? kind : null;
 export function publicRobotFitPrecheck(precheck: RobotFitPrecheckReceipt): PublicRobotFitPrecheck {
-  return {status: precheck.status, holdReason: precheck.hold_reason, taskKind: precheck.task_kind,
+  return {status: precheck.status, holdReason: precheck.hold_reason, taskKind: displayTaskKind(precheck.task_kind),
     counts: {fit: precheck.counts.fit, noFit: precheck.counts.no_fit, unknown: precheck.counts.unknown,
       unavailable: precheck.counts.unavailable},
     embodiments: precheck.embodiments.map(row => ({embodiment: row.embodiment, verdict: row.verdict, reasons: row.reasons})),
@@ -171,10 +175,23 @@ export type PublicWebsitePreparationStatus = {
 };
 export type WebsitePreparationNoticeMilestone = "preparation_needs_attention" | "preparation_ended";
 export type WebsitePreparationIntent = {requestId: string; captureId: string; eventId: string; correlationId: string;
-  milestone: WebsitePreparationNoticeMilestone; terminalReason: WebsitePreparationTerminalReason | null};
+  milestone: WebsitePreparationNoticeMilestone; terminalReason: WebsitePreparationTerminalReason | null;
+  /** Set when this needs-attention notice may be the Pipeline's early task hold, whose reason only the separately
+   * delivered Atlas preview carries: the notice waits for that preview until this time, then goes out generic. */
+  awaitEarlyHoldUntilMs?: number};
+/**
+ * How long a needs-attention notice that may be an early task hold waits for the Atlas preview naming its reason.
+ * The Pipeline retries a failed preview delivery with backoff capped at one hour (`website_atlas_preview._deliver`:
+ * 30 s doubling, reaching the cap after about 63 minutes in all); this covers that plus one capped retry.
+ */
+export const EARLY_HOLD_PREVIEW_WAIT_MS = 2 * 60 * 60 * 1000;
+/** A status that is an early task hold looks like this: waiting on inputs with no finding of its own. */
+const mayBeEarlyTaskHold = (status: WebsitePreparationReceipt) =>
+  status.state === "awaiting_inputs" && (!("outcome" in status) || status.outcome === null);
 export interface StoredWebsitePreparation {
   selector: WebsitePreparationSelector; status: WebsitePreparationReceipt;
-  notification: { eventId: string; state: "pending" | "enqueued" } | null;
+  /** `pendingSinceMs`: when this event's notice was first owed; older rows lack it. */
+  notification: { eventId: string; state: "pending" | "enqueued"; pendingSinceMs?: number } | null;
 }
 export interface PreparationAuthority { fingerprint: string; binding?: Record<string, any>; owner: string | null;
   sponsorshipDigest?: string }
@@ -235,7 +252,8 @@ function receiptSelectors(value: WebsitePreparationReceipt): WebsitePreparationS
 function parseStored(value: unknown): StoredWebsitePreparation | null {
   if (value == null) return null;
   const parsed = z.object({ selector: websitePreparationSelectorSchema, status: websitePreparationReceiptSchema,
-    notification: z.object({eventId: digest, state: z.enum(["pending", "enqueued"])}).strict().nullable(),
+    notification: z.object({eventId: digest, state: z.enum(["pending", "enqueued"]),
+      pendingSinceMs: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER).optional()}).strict().nullable(),
   }).strict().parse(value);
   parseReceipt(parsed.status, parsed.selector);
   if (parsed.notification && parsed.notification.eventId !== websitePreparationEventId(parsed.selector)
@@ -245,7 +263,7 @@ function parseStored(value: unknown): StoredWebsitePreparation | null {
 /** An exact lower/reused revision cannot downgrade newer persisted authority. The same
  * revision read in the other receipt version is the same ledger state, not a replay. */
 export function mergeWebsitePreparationStatus(prior: StoredWebsitePreparation | null,
-  selector: WebsitePreparationSelector, status: WebsitePreparationReceipt): StoredWebsitePreparation {
+  selector: WebsitePreparationSelector, status: WebsitePreparationReceipt, nowMs = Date.now()): StoredWebsitePreparation {
   parseReceipt(status, selector);
   const same = prior && crossRuntimeDigest(prior.selector) === crossRuntimeDigest(selector);
   if (same && (status.attempt_count < prior.status.attempt_count || status.revision < prior.status.revision
@@ -256,7 +274,8 @@ export function mergeWebsitePreparationStatus(prior: StoredWebsitePreparation | 
   // One durable intent per event: a replay keeps it; a newer event replaces an
   // unsent one; a state that calls for no notice keeps only the attention intent.
   const notification = notice
-    ? same && prior.notification?.eventId === notice.eventId ? prior.notification : {eventId: notice.eventId, state: "pending" as const}
+    ? same && prior.notification?.eventId === notice.eventId ? prior.notification
+      : {eventId: notice.eventId, state: "pending" as const, pendingSinceMs: nowMs}
     : same && prior.notification?.eventId === attentionId ? prior.notification : null;
   return {selector, status, notification};
 }
@@ -497,7 +516,10 @@ export async function drainPendingWebsitePreparationNotifications(
       if (!notice || !row.notification || row.notification.eventId !== notice.eventId) { pending++; continue; }
       const result = await enqueue({requestId: row.selector.request_id, captureId: row.selector.capture_id,
         eventId: row.notification.eventId, correlationId: `bp-prep-${current.status.status_digest.slice(7, 23)}`,
-        milestone: notice.milestone, terminalReason: terminalReasonOf(current.status)});
+        milestone: notice.milestone, terminalReason: terminalReasonOf(current.status),
+        ...(notice.milestone === "preparation_needs_attention" && mayBeEarlyTaskHold(current.status)
+          && row.notification.pendingSinceMs !== undefined
+          ? {awaitEarlyHoldUntilMs: row.notification.pendingSinceMs + EARLY_HOLD_PREVIEW_WAIT_MS} : {})});
       if (result === "unavailable") {pending++; continue;}
       await deps.acknowledge(row.selector.capture_id, row.notification.eventId); enqueued++;
     } catch { pending++; }

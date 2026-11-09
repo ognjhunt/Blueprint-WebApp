@@ -207,12 +207,15 @@ export async function enqueueTaskLifecycleNotification(params: {
   terminalReason?: string | null;
   /** Preparation notices: the capture they are about, so an early task hold is told as held. */
   captureId?: string;
+  /** `preparation_needs_attention` only: wait until then for the Atlas preview that would name an early task hold. */
+  awaitEarlyHoldUntilMs?: number;
   /** `evaluation_outcome` only: the run's result outcome, and an estimate's counts. */
   screeningOutcome?: ScreeningOutcome;
   screeningCounts?: { ran: number; total: number; scored: number };
   /** `scene_outcome` only: the terminal outcome's kind; its event id must name it. */
   sceneOutcomeKind?: TerminalSceneOutcomeKind;
-}): Promise<{ enqueued: boolean; reason?: "store_unavailable" | "request_missing" | "contact_missing" | "consent_withdrawn" }> {
+}): Promise<{ enqueued: boolean; reason?: "store_unavailable" | "request_missing" | "contact_missing" | "consent_withdrawn"
+  | "awaiting_early_hold_preview" }> {
   if (!db) return { enqueued: false, reason: "store_unavailable" };
   const requestId = params.requestId.trim();
   const snapshot = await db.collection("inboundRequests").doc(requestId).get();
@@ -236,9 +239,14 @@ export async function enqueueTaskLifecycleNotification(params: {
   const workspaceUrl = typeof snapshot.data()?.account_owner_uid === "string" && snapshot.data()?.account_owner_uid
     ? workspaceTaskUrl(requestId) : null;
   // The job page reads the same verified preview of the same capture for its held sentence.
-  const earlyTaskHold = params.milestone === "preparation_needs_attention" && params.captureId
-    ? earlyTaskHoldOf(selectWebsiteAtlasPreview(snapshot.data(), params.captureId)) : null;
-  const { captureId: _captureId, ...notice } = params;
+  const preview = params.milestone === "preparation_needs_attention" && params.captureId
+    ? selectWebsiteAtlasPreview(snapshot.data(), params.captureId) : null;
+  const earlyTaskHold = earlyTaskHoldOf(preview);
+  // The Pipeline delivers the preview separately and can be late: until it says how this capture's Atlas lane
+  // ended, or the wait runs out, owe the notice rather than send a generic one the page would contradict.
+  if (!earlyTaskHold && params.awaitEarlyHoldUntilMs !== undefined && Date.now() < params.awaitEarlyHoldUntilMs
+    && (!preview || preview.state === "processing")) return { enqueued: false, reason: "awaiting_early_hold_preview" };
+  const { captureId: _captureId, awaitEarlyHoldUntilMs: _wait, ...notice } = params;
   return enqueueOutbox(buildTaskLifecycleNotification({ ...notice, requestId, to, workspaceUrl,
     ...(earlyTaskHold ? { earlyTaskHold } : {}) }));
 }

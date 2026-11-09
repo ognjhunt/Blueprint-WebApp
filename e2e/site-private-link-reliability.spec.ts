@@ -384,7 +384,7 @@ test("a job we can't simulate yet is held in one plain sentence, never as a proc
   await expect(page.getByText("Held: we can't simulate this kind of job yet.", { exact: true }).first()).toBeVisible();
   await expect(page.getByText(/No robot was tested on your job, and this is not a finding that a robot could not do it\./).first()).toBeVisible();
   const body = await page.locator("body").textContent();
-  expect(body).not.toMatch(/could not finish processing|website_native|preparation_required|we'll run|email you when/i);
+  expect(body).not.toMatch(/could not finish processing|website_native|preparation_required|we'll run|email you when|Next step|next step is with Blueprint/i);
   expect(writes).toEqual([]);
   await page.screenshot({ path: info.outputPath("early-task-hold.png"), fullPage: true });
 });

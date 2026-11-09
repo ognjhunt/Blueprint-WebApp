@@ -303,6 +303,8 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
   const [currentStatusKnown, setCurrentStatusKnown] = useState(false);
   // An unreadable poll must not turn a known Blueprint stop into a site action.
   const [blueprintActionPending, setBlueprintActionPending] = useState(false);
+  // A hold with no step scheduled: nothing is said to be with Blueprint or the site.
+  const [heldWithoutStep, setHeldWithoutStep] = useState(false);
   const currentStatus = useRef(status);
   currentStatus.current = status;
 
@@ -555,7 +557,8 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
         const data = await response.json();
         if (alive && response.ok && data?.status) {
           setCurrentStatusKnown(true);
-          setBlueprintActionPending(data.status.outcome?.actionOwner === "blueprint");
+          setBlueprintActionPending(data.status.outcome?.actionOwner === "blueprint" || data.status.outcome?.actionOwner === "none");
+          setHeldWithoutStep(data.status.outcome?.actionOwner === "none");
           setStatus({
             ...data.status,
             siteAdvisory: data.siteAdvisory ?? null,
@@ -675,7 +678,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
     <details style={{ margin: "16px 0" }}>
       <summary>Saved job brief</summary>
       <p>{brief.summary}</p>
-      <p className="ms-field-hint">This brief is retained for a future authorized attempt. Blueprint's next step is shown above.</p>
+      <p className="ms-field-hint">{heldWithoutStep ? "This brief is retained with your job." : "This brief is retained for a future authorized attempt. Blueprint's next step is shown above."}</p>
     </details>
   ) : briefConfirmed ? (
     <p className="ms-field-hint" style={{ marginBottom: "8px" }}>
@@ -876,7 +879,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
                 <strong>Video received.</strong>
                 {(!status || !currentStatusKnown || upload.status === "processing_pending" || upload.status === "held") && <p style={{ color: "var(--ms-muted)", marginTop: "8px", marginBottom: 0 }}>
                   {blueprintActionPending
-                    ? currentStatusKnown ? "Your recording is saved. The next step is with Blueprint."
+                    ? currentStatusKnown ? heldWithoutStep ? "Your recording is saved." : "Your recording is saved. The next step is with Blueprint."
                       : "Blueprint is checking the current status. Keep your original recording."
                     : upload.status === "processing_pending"
                     ? "Blueprint will continue from this saved recording and update this job. You can leave this page."

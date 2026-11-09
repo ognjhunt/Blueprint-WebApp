@@ -1,7 +1,7 @@
 // @vitest-environment node
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { sharedFakeFirestoreState } from "./helpers/fake-firestore";
-import { crossRuntimeArtifactDigest } from "../utils/crossRuntimeCanonical";
+import { crossRuntimeArtifactDigest, crossRuntimeDigest } from "../utils/crossRuntimeCanonical";
 
 vi.mock("../../client/src/lib/firebaseAdmin", async () => {
   const { sharedFakeFirestore, FAKE_FIELD_DELETE } = await import("./helpers/fake-firestore");
@@ -19,6 +19,10 @@ const { projectAtlasPreparationOutcome, EARLY_TASK_HOLD_SENTENCES } = await impo
 const { selectWebsiteAtlasPreview } = await import("../utils/websiteAtlasPreview");
 const { projectTaskStatus } = await import("../utils/taskStatusProjection");
 const { enqueueTaskLifecycleNotification } = await import("../utils/taskLifecycleNotifications");
+const { drainPendingWebsitePreparationNotifications, mergeWebsitePreparationStatus, EARLY_HOLD_PREVIEW_WAIT_MS } =
+  await import("../utils/websitePreparationStatus");
+type Stored = import("../utils/websitePreparationStatus").StoredWebsitePreparation;
+type Receipt = import("../utils/websitePreparationStatus").WebsitePreparationReceipt;
 
 const EVENT = `sha256:${"c".repeat(64)}`;
 function atlas(reason: string, state = "needs_input") {
@@ -53,7 +57,7 @@ describe("the Pipeline's early task hold", () => {
       const preview = atlas(reason);
       const outcome = projectAtlasPreparationOutcome(selectWebsiteAtlasPreview(
         { website_atlas_previews: { [preview.capture_id]: preview } }, preview.capture_id));
-      expect(outcome).toMatchObject({ category: "held", basis: "simulation_not_available", title: sentence, actionOwner: "blueprint",
+      expect(outcome).toMatchObject({ category: "held", basis: "simulation_not_available", title: sentence, actionOwner: "none",
         evidence: [{ digest: preview.preview_digest }] });
       const status = projectTaskStatus({ ...base, preparationOutcome: outcome });
       expect(status).toMatchObject({ decision: "held", headline: sentence, operatorAction: null });
@@ -111,5 +115,90 @@ describe("the Pipeline's early task hold", () => {
     expect(row.subject).toBe("An update on your Blueprint job preparation");
     expect(row.body).toMatch(/needs our team's review/);
     expect(send).not.toHaveBeenCalled();
+  });
+});
+
+/** The Pipeline delivers the Atlas preview apart from the preparation status, with backoff up to an hour. */
+describe("an early hold whose preview arrives after its preparation status", () => {
+  const selector = { request_id: "req-1", scene_id: "site-req-1", capture_id: "walkthrough-req-1",
+    completion_marker_generation: "1", producer_delivery_key: `sha256:${"a".repeat(64)}`,
+    source_payload_sha256: "b".repeat(64), task_context_digest: `sha256:${"d".repeat(64)}` };
+  function status(state: "awaiting_inputs" | "failed_retryable"): Receipt {
+    const value = { ...selector, schema_version: "website_preparation_status.v1" as const, state,
+      code: state === "awaiting_inputs" ? "preparation_inputs_pending" : "preparation_retryable_failure",
+      attempt_count: 1, revision: 2, correlation_id: crossRuntimeDigest({ selector, state }) };
+    return { ...value, status_digest: crossRuntimeArtifactDigest(value, "status_digest") } as Receipt;
+  }
+  const T0 = Date.parse("2026-11-09T12:00:00Z");
+  let stored: Stored | null = null;
+  let current: Receipt;
+  const deps = {
+    async readLedger() { return current; }, async verifyCurrent() { return { fingerprint: "f", owner: "o" }; },
+    async readStored() { return stored; }, async commit() {},
+    async pending() { return stored?.notification?.state === "pending" ? [stored] : []; },
+    async acknowledge(_capture: string, eventId: string) {
+      if (stored?.notification?.eventId === eventId) stored = { ...stored, notification: { ...stored.notification, state: "enqueued" } };
+    },
+    async findEvent() { return stored; },
+  };
+  // The outbox tick's own mapping (reconcileWebsitePreparationNotifications).
+  const tick = () => drainPendingWebsitePreparationNotifications(async intent => {
+    const result = await enqueueTaskLifecycleNotification({ ...intent, milestone: intent.milestone });
+    if (result.enqueued) return "enqueued";
+    const key = `captureOutbox/${intent.requestId}:${intent.milestone}:${intent.eventId.replace(/[^A-Za-z0-9._-]/g, "_")}`;
+    return sharedFakeFirestoreState.docs.has(key) ? "duplicate" : "unavailable";
+  }, deps);
+  const outbox = () => [...sharedFakeFirestoreState.docs.entries()].filter(([key]) => key.startsWith("captureOutbox/"))
+    .map(([, row]) => row as Record<string, string>);
+  const request = (previews: Record<string, unknown> = {}) => sharedFakeFirestoreState.docs.set("inboundRequests/req-1",
+    { contact: { email: "encrypted:owner@example.com" }, website_atlas_previews: previews });
+
+  beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(T0); });
+  afterEach(() => { vi.useRealTimers(); });
+  function owe(state: "awaiting_inputs" | "failed_retryable") {
+    current = status(state);
+    stored = mergeWebsitePreparationStatus(null, selector, current, T0);
+    expect(stored.notification).toMatchObject({ state: "pending", pendingSinceMs: T0 });
+  }
+
+  it("status first, preview later: exactly one email, and it is the held one", async () => {
+    owe("awaiting_inputs");
+    request();
+    vi.setSystemTime(T0 + 60_000);
+    expect(await tick()).toEqual({ enqueued: 0, pending: 1 });
+    // A preview still processing says nothing about the hold yet either.
+    request({ "walkthrough-req-1": atlas("website_task_family_runtime_preparation_required", "processing") });
+    vi.setSystemTime(T0 + 30 * 60_000);
+    expect(await tick()).toEqual({ enqueued: 0, pending: 1 });
+    expect(outbox()).toHaveLength(0);
+    request({ "walkthrough-req-1": atlas("website_task_family_runtime_preparation_required") });
+    vi.setSystemTime(T0 + 61 * 60_000);
+    expect(await tick()).toEqual({ enqueued: 1, pending: 0 });
+    expect(await tick()).toEqual({ enqueued: 0, pending: 0 });
+    expect(outbox()).toHaveLength(1);
+    expect(outbox()[0].subject).toBe("Your Blueprint job is held");
+    expect(outbox()[0].body.startsWith(EXPECTED.website_task_family_runtime_preparation_required)).toBe(true);
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it("sends the generic notice once the bounded wait passes with no preview", async () => {
+    owe("awaiting_inputs");
+    request();
+    vi.setSystemTime(T0 + EARLY_HOLD_PREVIEW_WAIT_MS - 1);
+    expect(await tick()).toEqual({ enqueued: 0, pending: 1 });
+    vi.setSystemTime(T0 + EARLY_HOLD_PREVIEW_WAIT_MS);
+    expect(await tick()).toEqual({ enqueued: 1, pending: 0 });
+    expect(outbox().map(row => row.subject)).toEqual(["An update on your Blueprint job preparation"]);
+  });
+
+  it("does not wait when the preview already settled otherwise, or the status cannot be an early hold", async () => {
+    owe("awaiting_inputs");
+    request({ "walkthrough-req-1": atlas("atlas_task_and_scene_coverage_gap") });
+    expect(await tick()).toEqual({ enqueued: 1, pending: 0 });
+    sharedFakeFirestoreState.docs.clear();
+    owe("failed_retryable");
+    request();
+    expect(await tick()).toEqual({ enqueued: 1, pending: 0 });
+    expect(outbox().map(row => row.subject)).toEqual(["An update on your Blueprint job preparation"]);
   });
 });

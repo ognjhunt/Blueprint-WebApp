@@ -122,7 +122,8 @@ export function earlyTaskHoldOutcome(reason: EarlyTaskHoldReason, evidenceDigest
     scope: "Decided from what your job asks for, before the simulation of your site was built.",
     // The Pipeline keeps the job and its review; the WebApp keeps the recording. No rerun is scheduled.
     nextStep: "Nothing is needed from you. Your recording is saved; you do not need to send it again.",
-    actionOwner: "blueprint", evidence: [{ label: "Task check", digest: evidenceDigest }] };
+    // No step is scheduled for Blueprint or the site, so the card names no owner of a next step.
+    actionOwner: "none", evidence: [{ label: "Task check", digest: evidenceDigest }] };
 }
 
 /** The early task hold a verified preview names, or null. */

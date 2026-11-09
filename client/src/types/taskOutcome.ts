@@ -8,7 +8,8 @@ export type TaskOutcome = {
   reason: string;
   scope: string;
   nextStep: string;
-  actionOwner: "blueprint" | "site";
+  /** `none`: a hold with no step scheduled for anyone. */
+  actionOwner: "blueprint" | "site" | "none";
   evidence: { label: string; digest: string }[];
   reference?: string;
 };

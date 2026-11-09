@@ -140,7 +140,7 @@ it("v5 keeps the needs-attention notice for a full-route job awaiting inputs", a
   const h = harness();
   h.ledger(v5("awaiting_inputs", robotFit("full")));
   await syncWebsitePreparationStatus(selector, h.deps);
-  expect(h.stored!.notification).toEqual({eventId: websitePreparationEventId(selector), state: "pending"});
+  expect(h.stored!.notification).toEqual({eventId: websitePreparationEventId(selector), state: "pending", pendingSinceMs: expect.any(Number)});
 });
 it.each([
   ["a completed table without its digest", robotFit("full", {table_digest: null})],
@@ -200,11 +200,14 @@ it("v6 still parses a task kind it does not know, and keeps it display-only", as
   expect(projected.robotFitPrecheck).toMatchObject({status: "no_fit", taskKind: "fold_cloth_into_bin"});
   expect(projected.outcome).toMatchObject({title: "Held: none of the robots we run fits this job yet"});
 });
-it.each([["upper case", "Fold_Cloth"], ["digits", "pour2"], ["over 40 characters", "a".repeat(41)], ["empty", ""]])(
-  "v6 refuses a task kind with %s", async (_name, kind) => {
+it.each([["upper case", "Fold_Cloth"], ["a hyphen", "fold-cloth"], ["digits", "pour2"], ["over 40 characters", "a".repeat(41)],
+  ["nothing in it", ""]])("v6 keeps the status when a task kind has %s, and shows no kind", async (_name, kind) => {
     const h = harness();
     h.ledger(v6("awaiting_inputs", precheck({task_kind: kind}), robotFitNone));
-    await expect(syncWebsitePreparationStatus(selector, h.deps)).rejects.toThrow();
+    await syncWebsitePreparationStatus(selector, h.deps);
+    const projected = await loadCurrentWebsitePreparationStatus("r1", "walkthrough-r1", h.deps);
+    expect(projected.state).toBe("awaiting_inputs");
+    expect(projected.robotFitPrecheck).toMatchObject({status: "no_fit", taskKind: null});
   });
 it("v6 carries a precheck that fits or is undecided without any hold", async () => {
   const h = harness();
