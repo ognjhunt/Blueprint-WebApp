@@ -14,6 +14,7 @@ import { startOutboxPump } from "./utils/captureOutbox";
 import { handleHostedSessionUiUpgrade } from "./routes/site-world-sessions";
 import { setupVite, serveStatic } from "./vite";
 import { attachRequestMeta, logger, generateTraceId, logSecurityEvent } from "./logger";
+import { describeInviteeAllowlist } from "./utils/inviteeAllowlist";
 import { incrementRequestCount, incrementErrorCount } from "./routes/health";
 import { validateEnv } from "./config/env";
 import { createRateLimitRedisStore } from "./utils/rate-limit-redis";
@@ -74,6 +75,17 @@ if (!siteVideoEvidenceConfig.ready) {
   logger.warn(
     { event: "site_video_evidence_unkeyed" },
     siteVideoEvidenceConfig.detail,
+  );
+}
+
+// Invited beta: an unset list means anyone can start a paid job; a broken one refuses every job.
+const inviteeAllowlistState = describeInviteeAllowlist();
+if (process.env.NODE_ENV === "production" && inviteeAllowlistState !== "set") {
+  logger.warn(
+    { event: `invitee_allowlist_${inviteeAllowlistState}` },
+    inviteeAllowlistState === "unset"
+      ? "BLUEPRINT_INVITEE_ALLOWLIST is not set: any email can start a job."
+      : "BLUEPRINT_INVITEE_ALLOWLIST is malformed: every new job is refused until it is fixed.",
   );
 }
 

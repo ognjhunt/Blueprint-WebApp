@@ -15,6 +15,7 @@ import {
 } from "../utils/taskEvaluationSceneIntake";
 import { resolvePublishedLaunchProfileCatalog } from "../utils/taskEvaluationLaunchContract";
 import { withTaskEvaluationLaunchStoreTimeout as storeTimeout } from "../utils/taskEvaluationLaunchStore";
+import { inviteeDecisionForToken } from "../utils/inviteeAllowlist";
 
 const router = Router();
 router.use((_req, res, next) => {
@@ -36,6 +37,9 @@ function projection(id: string, value: Record<string, any>) {
   };
 }
 router.post("/", async (req, res) => {
+  // Invited beta: a forward_pending record is handed to the Pipeline, so refuse uninvited accounts first.
+  const invitee = inviteeDecisionForToken(res.locals.firebaseUser);
+  if (!invitee.allowed) return res.status(invitee.status).json({ error: invitee.code, message: invitee.message });
   if (!db) return res.status(503).json({ error: "Intake store unavailable" });
   const parsed = sceneIntakeCommand.safeParse(req.body);
   if (!parsed.success) {

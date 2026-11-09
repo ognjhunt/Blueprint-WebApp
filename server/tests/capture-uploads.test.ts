@@ -921,6 +921,29 @@ afterEach(() => {
 });
 
 describe("resumable capture uploads", () => {
+  it("refuses an uninvited or unverified account before any upload session or storage path", async () => {
+    vi.stubEnv("BLUEPRINT_INVITEE_ALLOWLIST", "@invited-co.example");
+    try {
+      for (const [user, code] of [
+        [{ uid: "buyer-123", email: "stranger@elsewhere.example", email_verified: true }, "invitee_not_on_allowlist"],
+        [{ uid: "buyer-123", email: "someone@invited-co.example", email_verified: false }, "invitee_email_unverified"],
+      ] as const) {
+        const { server, socketPath } = await startServer(user);
+        try {
+          const response = await postJson(socketPath, "/capture-uploads", request());
+          expect(response.status).toBe(403);
+          expect(await response.json()).toMatchObject({ code });
+          expect(state.records.size).toBe(0);
+          expect(state.start).not.toHaveBeenCalled();
+        } finally {
+          await stopServer(server, socketPath);
+        }
+      }
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
   it.each([
     ["provided_scene_mesh", "scene.usda"],
     ["provided_scene_splat", "scene.ply"],

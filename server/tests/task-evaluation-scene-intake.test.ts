@@ -944,6 +944,21 @@ it.each(["scope", "success_digest", "native_digest", "runtime_digest", "context"
   expect(store.rows.get("inboundRequests/req1").website_scene_sponsorship).toEqual(grant);
 });
 describe("persistent authenticated scene intake", () => {
+  it("refuses a sign-in without a verified invited email before any record is queued for the Pipeline", async () => {
+    vi.stubEnv("BLUEPRINT_INVITEE_ALLOWLIST", "invited@site.example");
+    try {
+      const url = await app();
+      const before = store.rows.size;
+      const response = await realFetch(url, { method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify(command()) });
+      expect(response.status).toBe(403);
+      expect(await response.json()).toMatchObject({ error: "invitee_email_unverified" });
+      expect(store.rows.size).toBe(before);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
   it("retains the actual Python handoff-to-progression family's public status without changing numeric or source identities", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(producerFamilyStatus.status))));
     const value = await scenePipelineRequest(producerFamilyStatus.request, producerFamilyStatus.receipt.intent_id);

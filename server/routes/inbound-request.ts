@@ -44,6 +44,7 @@ import { runHighIntentLeadEnrichmentForRequest } from "../utils/highIntentLeadEn
 import { createLifecycleCadenceForInboundRequest } from "../utils/lifecycle-cadence";
 import { isLocalLaunchSmokeProfile } from "../utils/launch-readiness";
 import { admitIntake, admitIntakeMessage, intakeMessageSuppression, intakeRefusal } from "../utils/betaAbuseCaps";
+import { inviteeDecision } from "../utils/inviteeAllowlist";
 import {
   COMMERCIAL_REQUEST_PATH_LABELS,
   COMMERCIAL_REQUEST_PATHS,
@@ -1176,6 +1177,24 @@ export async function submitInboundRequest(req: Request, res: Response) {
         requestId: payload.requestId,
         status: "submitted",
         message: emailValidation.error,
+      } satisfies SubmitInboundRequestResponse);
+    }
+
+    // 3a. Invited beta: with BLUEPRINT_INVITEE_ALLOWLIST set, only listed
+    // emails start a job (public intake and every workspace route that calls
+    // this). Refused before any record, counter, event or email; the address
+    // is not logged or kept.
+    // Workspace routes pass the sign-in token's email, which must be verified;
+    // the public form's typed email cannot be.
+    const invitee = inviteeDecision(emailLower, { emailVerified: res.locals.workspaceIntake
+      ? res.locals.workspaceIdentity?.verified === true : undefined });
+    if (!invitee.allowed) {
+      return res.status(invitee.status).json({
+        ok: false,
+        requestId: payload.requestId,
+        status: "submitted",
+        code: invitee.code,
+        message: invitee.message,
       } satisfies SubmitInboundRequestResponse);
     }
 

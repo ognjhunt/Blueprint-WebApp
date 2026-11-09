@@ -115,7 +115,7 @@ async function loadUserDocRoles(uid: string | null): Promise<AccessRole[]> {
   }
 }
 
-function emailList(value: string | undefined): Set<string> {
+export function emailList(value: string | undefined): Set<string> {
   return new Set(
     String(value || "")
       .split(",")
