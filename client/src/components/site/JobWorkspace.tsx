@@ -158,8 +158,11 @@ function BuyingRequirements({ requirements, pending, onSave }: {
   const [draft, setDraft] = useState(requirements);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  // Resync the draft during render, and only when the saved requirements change. A passive
+  // effect here also ran once after mount and could land after the first keystroke, wiping it.
   const stored = JSON.stringify(requirements);
-  useEffect(() => { setDraft(JSON.parse(stored)); }, [stored]);
+  const [syncedStored, setSyncedStored] = useState(stored);
+  if (stored !== syncedStored) { setSyncedStored(stored); setDraft(requirements); }
   async function submit(event: FormEvent) {
     event.preventDefault(); setError(""); setMessage("");
     try { await onSave(draft); setMessage("Planning details saved. They are planning targets, not an approval to spend."); }
