@@ -41,6 +41,7 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => {
         store.writes.push(...Object.keys(value));
         store.rows.set(ref.key, { ...store.rows.get(ref.key), ...structuredClone(value) });
       },
+      set: (ref: any, value: Record<string, unknown>) => { store.rows.set(ref.key, structuredClone(value)); },
     }),
   } };
 });
@@ -311,6 +312,39 @@ describe("non-authorizing Atlas configuration read", () => {
         capture_id: "walkthrough-req1", source_video_digest: sha("5"), ledger_status: "missing",
         known_usage_cost_usd: 0, unbounded_unknown_call_count: 1 } });
     expect(store.writes).toEqual([]);
+  });
+
+  // Owner decision 2026-11-10: on a job whose scene grant names the automatic budget extension, the Atlas
+  // allowance is a warning figure for a reservation the Pipeline asks for, and only for that.
+  it.each([["flagged", true], ["unflagged", false]])("an Atlas reservation past its allowance on a %s job", async (_label, flagged) => {
+    vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_GRANT_POLICY_JSON", JSON.stringify(policy));
+    upload();
+    await configure();
+    const payload = { owner: { user_id: "blueprint-preparation" }, expires_at_epoch: Date.now() / 1000 + 3600,
+      ...(flagged ? { automatic_budget_extension: true } : {}) };
+    store.rows.get(REQUEST).website_scene_sponsorship = { ...payload, authority_digest: crossRuntimeDigest(payload) };
+    const base = await app();
+    const route = (spend: unknown) => post(base, "/internal/creator-captures/walkthrough-req1/preparation-spend",
+      { request_id: "req1", scene_id: "site-req1", spend });
+    expect((await route(atlasSpend())).status).toBe(200);
+    // Not requested by the host (a direct caller such as the operator Atlas script): refused either way.
+    await expect(reserveWebsitePreparationSpend("req1", atlasSpend({ allocation_binding_digest: sha("2") })))
+      .rejects.toThrow("website_scene_preparation_budget_exhausted");
+    const second = await route(atlasSpend({ allocation_binding_digest: sha("2") }));
+    const ledger = store.rows.get(REQUEST).website_preparation_reservations;
+    const alerts = [...store.rows.keys()].filter(key => key.startsWith("opsWebsiteJobOverBudgetAlerts/"));
+    if (!flagged) {
+      expect(second).toEqual({ status: 409, body: { code: "website_scene_preparation_budget_exhausted" } });
+      expect(ledger).not.toHaveProperty("2".repeat(64));
+      expect(alerts).toHaveLength(0);
+      return;
+    }
+    expect(second.status).toBe(200);
+    expect(second.body).toMatchObject({ status: "admitted", maximum_cost_usd: 1.5 });
+    expect(ledger["1".repeat(64)]).not.toHaveProperty("over_budget");
+    expect(ledger["2".repeat(64)].over_budget).toMatchObject({ basis: "automatic_budget_extension",
+      allowance: "atlas_allowance", allowance_usd: 2, allowance_exceeded: true, job_ceiling_exceeded: true });
+    expect(alerts).toHaveLength(1);
   });
 
   it("accounts each retained hold or settlement once without exposing raw record fields", async () => {

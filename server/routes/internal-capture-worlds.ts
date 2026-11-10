@@ -38,8 +38,9 @@ import { loadWebsiteSceneSponsorship, validateWebsiteSponsoredIntake,
   validateWebsiteSponsoredProviderTerms,
   preparationSpendRequest, reserveWebsitePreparationSpend, observeWebsitePreparationSpend,
   preparationSettlementRequest, settleWebsitePreparationSpend, retainedWebsiteScenePurpose, currentWebsiteSceneContext,
-  loadWebsiteAtlasConfiguration, assertNoMultiStepTaskHold } from "../utils/websiteSceneSponsorship";
-import { SCENE_INTAKE_COLLECTION, sceneDigest, sceneIntakeCommand } from "../utils/taskEvaluationSceneIntake";
+  loadWebsiteAtlasConfiguration, assertNoMultiStepTaskHold, automaticBudgetExtensionGrant,
+  websiteJobOverBudgetAlert } from "../utils/websiteSceneSponsorship";
+import { SCENE_INTAKE_COLLECTION, sceneDigest, sceneIntakeCommand, websiteSceneExecution } from "../utils/taskEvaluationSceneIntake";
 import { isNavigationStrategy, navigationIntakeTask } from "../utils/navigationSceneIntake";
 import {
   enqueueTaskLifecycleNotification,
@@ -55,7 +56,7 @@ import { recordWebsiteAtlasPreview, websiteAtlasPreviewDigestValid, websiteAtlas
 import { recordWebsiteScenePreview, websiteScenePreviewSchema } from "../utils/websiteScenePreview";
 import { loadOwnedCaptureAtlasConfiguration, ownedAtlasConfigurationRequest,
   reserveOwnedCaptureAtlasSpend, settleOwnedCaptureAtlasSpend } from "../utils/ownedCaptureAtlasPreparation";
-import { assertWithinWebsiteJobCeiling, transactionJobLedgerReader } from "../utils/websiteJobCeiling";
+import { checkWebsiteJobCeiling, transactionJobLedgerReader } from "../utils/websiteJobCeiling";
 
 const router = Router();
 
@@ -262,7 +263,7 @@ const sponsoredSceneRequest = z.object({
   schema_version: z.literal("task_evaluation_scene_intake_request.v1"),
   submission_id: z.string(), owner: z.object({ user_id: z.string(), organization_id: z.string() }).strict(),
   source: z.object({ kind: z.enum(["gaussian_splat", "mesh"]), binding_id: z.string(), content_digest: z.string() }).strict(),
-  task: z.union([sceneIntakeCommand.shape.task, navigationIntakeTask]), execution: sceneIntakeCommand.shape.execution,
+  task: z.union([sceneIntakeCommand.shape.task, navigationIntakeTask]), execution: websiteSceneExecution,
   consent: sceneIntakeCommand.shape.consent.extend({ task_confirmed: z.boolean(), rights_reference: z.string(),
     accepted_by: z.string(), accepted_at_epoch: z.number().finite().positive() }).strict(),
 }).strict();
@@ -334,7 +335,9 @@ for (const operation of ["scene-sponsorship", "prepared-scene", "preparation-spe
         const spend = preparationSpendRequest.parse(req.body.spend);
         return res.json(req.body.create === false
           ? await observeWebsitePreparationSpend(requestId, spend, req.params.captureId)
-          : await reserveWebsitePreparationSpend(requestId, spend, req.params.captureId));
+          // The Pipeline asks for this reservation after its own account-limit precheck
+          // (require_paid_resource_budget): the one path a flagged grant may pass its budget on.
+          : await reserveWebsitePreparationSpend(requestId, spend, req.params.captureId, { hostRequested: true }));
       }
       const authority = await loadWebsiteSceneSponsorship(requestId, operation === "scene-sponsorship" && req.body.create !== false, req.params.captureId,
         operation === "scene-sponsorship" ? { purpose: req.body.purpose, expected_task_context_digest: req.body.expected_task_context_digest,
@@ -374,11 +377,31 @@ for (const operation of ["scene-sponsorship", "prepared-scene", "preparation-spe
         // construction its allowance only while every ledger the job spends from fits.
         // A navigation intake keeps its scene as filmed: it reserves $0 and grants no
         // construction allowance (owner, 2026-11-07), so it adds nothing to check.
-        if (!isNavigationStrategy(request.task.strategy))
-          await assertWithinWebsiteJobCeiling({ record: current ?? {}, captureId: req.params.captureId, requestId,
+        // Owner decision 2026-11-10: this route records the intake and buys nothing; every paid
+        // launch under it is admitted on the host, which checks the account's monthly limit
+        // (require_paid_resource_admission). So on a grant naming the automatic budget
+        // extension the ceiling is a warning: the intake is admitted with a note, and the job's
+        // one over-budget alert for this grant is recorded if it has none yet.
+        const root = current?.website_scene_sponsorship;
+        const job = isNavigationStrategy(request.task.strategy) ? null
+          : await checkWebsiteJobCeiling({ record: current ?? {}, captureId: req.params.captureId, requestId,
             reader: transactionJobLedgerReader(db!, transaction, requestId),
             additionalCostUsd: request.execution.max_total_spend_usd });
+        const extended = automaticBudgetExtensionGrant(root, undefined, Date.now() / 1000);
+        if (job?.exceeded && !extended) throw new Error("website_scene_preparation_budget_exhausted");
+        const overBudget = job?.exceeded ? {
+          schema_version: "website_job_over_budget.v1", basis: "automatic_budget_extension",
+          sponsorship_digest: root.authority_digest as string, allowance: "native_construction_allowance",
+          allowance_usd: request.execution.max_total_spend_usd, allowance_exceeded: false,
+          job_ceiling_usd: job.ceiling.maximum_cost_usd, job_ceiling_source: job.ceiling.source, job_ceiling_exceeded: true,
+          // An unreadable earlier hold is unknown, never a figure.
+          job_reserved_or_settled_before_usd: Number.isFinite(job.spend.total_micros) ? job.spend.total_micros / 1_000_000 : null,
+          recorded_at_epoch: Date.now() / 1000 } : null;
+        const recordAlert = overBudget
+          ? await websiteJobOverBudgetAlert(db!, transaction, requestId, overBudget, { scene_intake_id: id }) : () => {};
+        recordAlert();
         transaction.create(ref, {
+          ...(overBudget ? { over_budget: overBudget } : {}),
           owner_user_id: request.owner.user_id, organization_id: request.owner.organization_id,
           source_session_id: websitePreparationCaptureId(request), website_request_id: requestId,
           sponsorship_digest: authority.authority_digest,
