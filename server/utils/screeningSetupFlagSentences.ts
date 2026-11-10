@@ -36,7 +36,25 @@ const SETUP_FLAG_SENTENCES: ReadonlyMap<string, string> = new Map(Object.entries
   g1_spawn_foot_unsupported: "At the start, the floor did not fully support one of the humanoid robot's feet.",
   g1_spawn_overlap: "One of the humanoid robot's starting positions overlapped the scene, so it was left out of the run.",
   g1_spawn_floor_absent: "One of the humanoid robot's starting positions had no floor under it, so it was left out of the run.",
+  // The known-good control: a scripted reference arm run before the robots (Pipeline `beta_policy_screening_known_good_control`).
+  // `:reused` (an earlier check of the same scene) reads as its outcome. Pending says nothing until it ends.
+  known_good_control_passed: "Before testing robots, a scripted reference arm that reads exact positions from the simulation completed the job, so the simulated scene can record a success.",
+  known_good_control_failed: "A scripted reference arm that reads exact positions from the simulation did not complete the job in the simulated scene, so a low result here may reflect our simulation rather than the robots.",
+  known_good_control_unavailable: "We have no scripted reference for this kind of job yet, so nothing confirmed beforehand that the simulated scene can record a success.",
+  "known_good_control_unavailable:embodiment": "We have no scripted reference for the robots tested on this job yet, so nothing confirmed beforehand that the simulated scene can record a success.",
+  "known_good_control_unavailable:budget": "We did not run our scripted reference check, so that this job's budget could go to testing robots; nothing confirmed beforehand that the simulated scene can record a success.",
+  known_good_control_interrupted: "Our scripted reference check did not finish, so it could not confirm that the simulated scene can record a success.",
+  // What the simulated scene was built on that was estimated, not observed (Pipeline `atlas_scene_estimates`,
+  // the campaign's `scene_feasibility` flags). Each is named; nothing measured is adjusted for it.
+  "scene_estimate:level": "We could not tell from your video which way is level, so the simulated scene uses our reconstruction's own estimate of level, which we could not check.",
+  "scene_estimate:splat_view_dependence_dropped": "The simulated scene shows each surface in one colour from every angle, so shine and reflections in your video are not reproduced.",
+  "scene_estimate:floor": "Part of the floor in the simulated scene is a flat stand-in, not the floor measured from your video.",
+  "scene_estimate:collider_registration": "The solid surfaces the robots touch in the simulated scene are an estimate: we could not fully line them up with what your video shows, so we kept only the parts that matched it.",
+  "scene_estimate:review_citations_dropped": "Our review of your video pointed to some frames we could not use, so they were left out when we built the scene.",
+  "scene_estimate:surrounding_views_dropped": "Some views of the area around the job were left out of the simulated scene to stay within the number of views we process, so those parts are missing from it.",
 }));
+/** The known-good control's code while it has not ended: no sentence yet. */
+const KNOWN_GOOD_CONTROL_PENDING = "known_good_control_pending";
 
 /** One plain sentence for a flag code; the generic sentence for one this release does not know. Never the code. */
 export function setupFlagSentence(code: string): string {
@@ -51,5 +69,5 @@ export function setupFlagSentence(code: string): string {
 export function screeningSetupNotes(publication: BetaPolicyScreeningPublication): string[] {
   const codes = [...(screeningSceneFeasibility(publication)?.flags ?? []),
     ...publication.candidates.flatMap(row => screeningRowFlagFields.flatMap(key => row[key] ?? []))];
-  return [...new Set(codes.map(setupFlagSentence))];
+  return [...new Set(codes.filter(code => code !== KNOWN_GOOD_CONTROL_PENDING).map(setupFlagSentence))];
 }

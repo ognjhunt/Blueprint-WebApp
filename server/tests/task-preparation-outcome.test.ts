@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
 import { projectAtlasPreparationOutcome, projectPreparationOutcome, preparationOutcomeSchema,
-  preparationOutcomeV6Schema } from "../utils/taskPreparationOutcome";
+  preparationOutcomeV6Schema, RECAPTURE_SENTENCES } from "../utils/taskPreparationOutcome";
 import { selectWebsiteAtlasPreview } from "../utils/websiteAtlasPreview";
 import { crossRuntimeArtifactDigest } from "../utils/crossRuntimeCanonical";
 import { projectTaskStatus } from "../utils/taskStatusProjection";
@@ -35,10 +35,19 @@ describe("source-bound preparation closeout", () => {
     expect(outcome!.nextStep).toMatch(/do not need to record or upload it again/);
     expect(JSON.stringify(projected)).not.toMatch(/requires_reconciliation|confirm.*brief|unsuitable for all/i);
   });
-  it("distinguishes a coverage gap from a processing refusal without demanding a new video", () => {
+  it.each(Object.keys(RECAPTURE_SENTENCES))("asks the site for a new video, saying what to film, for %s", reason => {
+    // The same video gives the same answer, so only a new one clears it; the old copy said none was needed.
+    const outcome = projectAtlasPreparationOutcome(current(atlas("needs_input", reason)));
+    const sentences = RECAPTURE_SENTENCES[reason as keyof typeof RECAPTURE_SENTENCES];
+    expect(outcome).toMatchObject({ category: "insufficient_evidence", basis: "missing_evidence", actionOwner: "site",
+      title: "We need a new video of your work area", reason: sentences.reason, nextStep: sentences.nextStep });
+    expect(outcome!.nextStep).toMatch(/^Please film again.*Then send us the new video\.$/);
+    expect(JSON.stringify(outcome)).not.toMatch(/no repeat upload|do not need to (record|send)|atlas_|robot (cannot|could not)/i);
+    expect(projectTaskStatus({ ...base, preparationOutcome: outcome }).decision).toBe("insufficient_evidence");
+  });
+  it("distinguishes a coverage gap from a processing refusal", () => {
     const missing = projectAtlasPreparationOutcome(current(atlas("needs_input", "atlas_task_and_scene_coverage_gap")));
     expect(missing).toMatchObject({category: "insufficient_evidence", basis: "missing_evidence"});
-    expect(missing!.nextStep).toMatch(/exact missing measurement, view or task fact/);
     const technical = projectAtlasPreparationOutcome(current(atlas("needs_input", "website_atlas_api_key_missing")));
     expect(technical!.category).toBe("processing_failure");
   });

@@ -7,7 +7,7 @@ import { assertManagedScreeningCaptureCurrent, assertScreeningSceneSource, manag
   readPreparedRevisionOfferings } from "./jobManagedEvaluation";
 import { SCENE_INTAKE_COLLECTION } from "./taskEvaluationSceneIntake";
 import { encodeTaskEvaluationRunPublication, publicationFromResultRecord } from "./taskEvaluationRunPublicationStorage";
-import { betaPolicyScreeningSourceSchema, parseBetaPolicyScreeningPublication, screeningPublicationTransition,
+import { betaPolicyScreeningSourceSchema, parseBetaPolicyScreeningPublication, screeningCandidateRows, screeningPublicationTransition,
   screeningTerminalCandidateStates, screeningOutcome, screeningOutcomeCaveat, storedScreeningOutcome,
   type BetaPolicyScreeningPublication } from "./betaPolicyScreeningContract";
 import { parseScreeningOutcomeNoticeIntent, screeningOutcomeNoticeIntent } from "./screeningOutcomeNotifications";
@@ -270,7 +270,8 @@ export async function ingestBetaPolicyScreening(publication: BetaPolicyScreening
       source_scene_revision_digest: publication.source.scene_revision_digest, configuration_digest: publication.plan_digest,
       job_evidence_binding: binding, job_task_context_digest: scope.taskContextDigest, job_source_fingerprint: scope.sourceFingerprint,
       publication_digest: publication.publication_digest, publication_revision: publication.revision, result_record_id: resultId,
-      episodes_scored: publication.candidates.reduce<number>((sum, row) => sum + row.episodes_scored, 0),
+      // The candidates' scored episodes; the known-good control is a check, not a candidate.
+      episodes_scored: screeningCandidateRows(publication.candidates).reduce<number>((sum, row) => sum + row.episodes_scored, 0),
       // The one outcome the job page, the run summary and any notice state (F-03).
       screening_outcome: screeningOutcome(publication),
       // What that outcome's sentence adds (a zero-success estimate in a scene our own checks flagged), or null.
