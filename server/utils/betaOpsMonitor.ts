@@ -34,6 +34,8 @@ import { websiteRunClosure } from "./websiteRunClosure";
  *     scene that stopped after hand-off (websitePreparationOpsAlerts);
  *  7. alerts once per website job whose site did its part while no grant was
  *     issued, well before the window sweep ends that job as held.
+ *  8. alerts once per website job and grant that passed its original budget
+ *     under the automatic budget extension (scanOverBudgetWebsiteJobs).
  */
 
 const CAPTURE_OUTBOX_COLLECTION = "captureOutbox";
@@ -413,7 +415,7 @@ async function checkLaunchReadiness() {
 
 async function scanWebsitePreparations() {
   const { backfillWebsitePreparationWatches, scanWebsitePreparationWatch, scanEndedWebsiteSceneIntakes,
-    scanHeldOwnerSuccessThresholds, scanHeldWebsiteEvaluations } = await import("./websitePreparationOpsAlerts");
+    scanHeldOwnerSuccessThresholds, scanHeldWebsiteEvaluations, scanOverBudgetWebsiteJobs } = await import("./websitePreparationOpsAlerts");
   // Uploads recorded before the watch existed get one first, so a capture
   // already stuck is reported by the same pass.
   const backfill = await backfillWebsitePreparationWatches();
@@ -421,7 +423,9 @@ async function scanWebsitePreparations() {
     // A site owner said the job's success thresholds are wrong: the team reviews them.
     ownerHolds: await scanHeldOwnerSuccessThresholds(),
     // A job evaluation that finished held on our side: it does not restart by itself.
-    evaluations: await scanHeldWebsiteEvaluations() };
+    evaluations: await scanHeldWebsiteEvaluations(),
+    // A job that passed its original budget under the automatic budget extension: told once.
+    overBudget: await scanOverBudgetWebsiteJobs() };
 }
 
 export async function runBetaOpsMonitorPass() {
