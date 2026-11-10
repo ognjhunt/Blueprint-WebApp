@@ -393,7 +393,7 @@ export function projectManagedJobEvidence(
         ...(estimated ? [`A bounded simulation estimate from ${estimated} scored episode${estimated === 1 ? "" : "s"} across ${candidates(estimateRows.length)}, for this job's recorded task and simulated conditions only.`] : []),
         "A simulation result is a bounded estimate. It does not certify physical performance or safety.",
         ...(notRun ? [`${candidates(notRun)} did not run; each row lists why.`] : []),
-        ...(replanned && outcome !== "superseded" ? ["Candidates that had not run yet continue in a newer run after a Blueprint update."] : []),
+        ...(replanned && outcome !== "superseded" ? ["Candidates that had not run yet continue in a newer run."] : []),
       ],
       screening: { provenance: { schema_version: value.schema_version, claim_ceiling: value.claim_ceiling,
         source: value.source, generated_at: value.generated_at, publication_digest: value.publication_digest,
