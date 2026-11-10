@@ -30,7 +30,8 @@ import { multiStepHoldMessage, taskScopeNotYet } from "./siteTaskScope";
 import type { TaskOutcome } from "../../client/src/types/taskOutcome";
 import { AUTHORITY_ENDED_SENTENCE, FOOTAGE_BEFORE_ACCOUNT_SENTENCE, JOB_WINDOW_ENDED_SENTENCE, JOB_WINDOW_ENDING_MESSAGE,
   PREPARATION_ENDED_NEXT, processingFailure } from "./taskPreparationOutcome";
-import { screeningOutcomeSentenceWithWindow, type ScreeningHeldOutcome, type ScreeningOutcome } from "./betaPolicyScreeningContract";
+import { screeningOutcomeSentenceWithWindow, type ScreeningHeldOutcome, type ScreeningOutcome,
+  type ScreeningOutcomeCaveat } from "./betaPolicyScreeningContract";
 import { isTerminalSceneOutcomeKind, sceneOutcomeMessage, sceneWaitMessage, type SceneOutcomeReading } from "./sceneIntentOutcome";
 
 /**
@@ -219,6 +220,8 @@ export interface TaskSceneProgression {
   state: "in_progress" | "waiting" | "ended" | "completed" | "testing" | "evaluated" | "held";
   heldReason?: ScreeningHeldOutcome;
   progressOutcome?: Extract<ScreeningOutcome, "awaiting_spend_approval" | "setup_repair" | "superseded">;
+  /** `evaluated` only: what the estimate's sentence adds (`screeningOutcomeCaveat`), as the run's summary and email say it. */
+  outcomeCaveat?: ScreeningOutcomeCaveat;
   sceneOutcome?: SceneOutcomeReading;
 }
 
@@ -690,7 +693,8 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
   const sceneTesting = sceneEvaluated || sceneHeld || input.sceneProgression?.state === "testing";
   // The run's own summary opens with this same sentence (F-03).
   const sceneOutcome = sceneProgressionOutcome(input.sceneProgression);
-  const resultHeadline = sceneOutcome ? screeningOutcomeSentenceWithWindow(sceneOutcome, input.jobWorkUntilEpoch) : null;
+  const resultHeadline = sceneOutcome ? screeningOutcomeSentenceWithWindow(sceneOutcome, input.jobWorkUntilEpoch,
+    input.sceneProgression?.outcomeCaveat) : null;
   // A wait the Pipeline named (C-04), in one plain sentence. Older Pipelines name none.
   const sceneWait = input.sceneProgression?.state === "waiting" && input.sceneProgression.sceneOutcome
     ? sceneWaitMessage(input.sceneProgression.sceneOutcome) : null;

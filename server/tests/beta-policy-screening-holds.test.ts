@@ -52,6 +52,21 @@ beforeEach(() => {
 });
 
 describe("a website evaluation held before any campaign started", () => {
+  it("reads the account's monthly spend limit as a wait on Blueprint, never a setup problem, and sends no email", async () => {
+    await ingestBetaPolicyScreeningHold(parseBetaPolicyScreeningHold(sealHold({ reason_code: "team_scene_packet_blocked",
+      detail_code: "account_monthly_spend_limit_reached" }))!);
+    expect(holdRun()).toMatchObject({ state: "blocked", screening_outcome: "awaiting_spend_approval" });
+    expect(holdRun().outcome_notification_pending).toBeUndefined();
+    expect(await progression()).toEqual({ state: "completed", progressOutcome: "awaiting_spend_approval" });
+    expect(screeningOutcomeSentence("awaiting_spend_approval")).toBe("Blueprint is deciding whether to continue simulating your job.");
+    await deliverOutbox();
+    expect(send).not.toHaveBeenCalled();
+    // Any other detail of the same reason is still the setup hold it was.
+    await ingestBetaPolicyScreeningHold(parseBetaPolicyScreeningHold(sealHold({ reason_code: "team_scene_packet_blocked",
+      detail_code: "team_scene_compile_failed", revision: 2 }))!);
+    expect(holdRun().screening_outcome).toBe("held_setup");
+    expect(await progression()).toEqual({ state: "held", heldReason: "held_setup" });
+  });
   it("accepts only a sealed hold named by its scene intent, with a reason exactly while held", () => {
     expect(parseBetaPolicyScreeningHold(sealHold())).not.toBeNull();
     expect(parseBetaPolicyScreeningHold({ ...sealHold(), detail_code: "changed" })).toBeNull();

@@ -68,6 +68,8 @@ export interface JobManagedEvidenceSummary {
   state: string;
   /** A job evaluation's outcome; null while it is still running. Absent on other run kinds. */
   outcome?: JobScreeningOutcome | null;
+  /** Present when the summary carries a caveat: our own checks flagged the scene a zero-success estimate ran in. */
+  outcomeCaveat?: "scene_setup";
   current: boolean;
   resultDigest: string | null;
   summary: string;
@@ -89,7 +91,9 @@ export interface JobManagedEvidenceSummary {
     /** Each practice run (episode) with the review videos kept of it; only on completed candidates with kept videos. */
     practiceRuns?: Array<{ number: number; outcome: "success" | "failure" | "void";
       videos: Array<{ videoId: string; camera: string; phase: "run" | "setup_check"; durationSeconds: number | null }> }> }>;
-    selection?: JobCandidateSelection };
+    selection?: JobCandidateSelection;
+    /** What Blueprint's own checks recorded about the scene the run used: plain sentences, never codes. */
+    setupNotes?: string[] };
 }
 
 /** The Pipeline's rule-based choice from a finished job evaluation: a simulation estimate, never a physical guarantee. */

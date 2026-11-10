@@ -84,6 +84,38 @@ newest finished campaign speaks for the job. A site sees plain reasons and
 labels, never raw codes, the shared budget or Blueprint's own next step
 (`opsNextAction`); operations views keep all three.
 
+Publication v3 (`beta_policy_screening_publication.v3`) is v2 plus the set-up
+flags the Pipeline's own checks recorded, as typed codes only: per candidate the
+run's `observation_quality_flags`, a humanoid row's `setup_quality_flags` and
+that row's `scene_check_flags`; per campaign `scene_feasibility` (`clear`,
+`flagged` or `unknown`, with its flags). v1 and v2 are accepted as before, and
+a flag field on either is refused. Flags are notes about the scene a row ran in,
+never part of its evidence: a later revision may state them for a result this
+site already holds, and the counts, status and result digest stay fixed. No
+outcome kind changes. An estimate in which no scored try succeeded, with a flag
+on a scored candidate, carries the caveat `scene_setup`
+(`screeningOutcomeCaveat`, stored as `screening_outcome_caveat`): the run's
+summary, the job page headline and the one result email add one sentence saying
+our scene check found a possible set-up cause, so the result may reflect how we
+set the scene up more than the robots. A result with no flag is said exactly as
+before. The site reads each flag as one plain sentence
+(`screeningSetupFlagSentences`, the only place a code becomes words); a code
+this release does not know reads as a point we could not classify. A caveat is
+not an outcome, so one that appears on a later revision sends no email.
+
+A signed payload on the runs or holds route whose own digest verifies but whose
+schema this release does not accept is never dropped: it is stored once per
+payload digest, bounded in size, with the parse error
+(`pipelinePayloadQuarantine`, server-only), reported once per payload digest
+through `recordBetaOpsFailureSignal` (`pipeline_payload_rejected`), and
+answered `422 {"code": "schema_not_accepted"}`. Nothing is ingested. The
+Pipeline then delivers the same result as v2 and records that it did, so the two
+repositories deploy in either order. A payload whose digest does not verify
+keeps the plain `400`; one that cannot be stored gets `503` and is retried.
+`server/tests/fixtures/pipeline-beta-policy-screening-flagged-publication.v3.json`
+is the Pipeline's `tests/fixtures/beta_policy_screening_flagged_publication.v3.json`
+byte for byte; each repository's test pins the same sha256.
+
 The producer fixture in
 `server/tests/fixtures/pipeline-beta-policy-screening-publication.v1.json` comes
 from Pipeline's actual coordinator and sealed native result path. Consumer tests
