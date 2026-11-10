@@ -4,10 +4,23 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({ dbAdmin: null, authAdmin: null, default: {} }));
 vi.mock("../utils/slack", () => ({ sendSlackMessage: vi.fn(async () => ({ sent: true })) }));
 vi.mock("../utils/email", () => ({ sendEmail: vi.fn(async () => ({ sent: true })) }));
+const deadlineSweep = vi.hoisted(() => vi.fn(async () => ({ examined: 0, ended: 0, noticesOwed: 0, failed: 0 })));
+vi.mock("../utils/websiteJobDeadlineSweep", () => ({ sweepWebsiteJobDeadlines: deadlineSweep }));
+const log = vi.hoisted(() => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() }));
+vi.mock("../logger", () => ({ logger: log }));
+// The pass's other steps, reduced to no-ops so the pass itself is what is under test.
+vi.mock("../utils/intakeOpsNotice", async importOriginal => ({
+  ...await importOriginal<typeof import("../utils/intakeOpsNotice")>(), sweepIntakeOpsNotices: vi.fn(async () => undefined) }));
+vi.mock("../utils/launch-readiness", () => ({ buildLaunchReadinessSnapshot: vi.fn(() => ({})) }));
+vi.mock("../utils/ops-alerts", () => ({ maybeAlertOnLaunchReadinessTransition: vi.fn(async () => undefined) }));
+vi.mock("../utils/websitePreparationOpsAlerts", () => ({ backfillWebsitePreparationWatches: vi.fn(async () => 0),
+  scanWebsitePreparationWatch: vi.fn(async () => 0), scanEndedWebsiteSceneIntakes: vi.fn(async () => 0),
+  scanHeldOwnerSuccessThresholds: vi.fn(async () => 0), scanHeldWebsiteEvaluations: vi.fn(async () => 0) }));
 
 import {
   __resetBetaOpsMonitorForTests,
   checkWorkerHeartbeat,
+  runBetaOpsMonitorPass,
   scanOutboxBacklog,
   scanTerminalOutboxFailures,
   startBetaOpsMonitor,
@@ -54,7 +67,7 @@ describe("terminal outbox failure scan", () => {
     const alert = vi.fn(async () => undefined);
     const email = vi.fn(async () => ({ sent: true }));
     const first = await scanTerminalOutboxFailures({ store: store as never, alert, email: email as never });
-    expect(first).toEqual({ failed: 1, newlyAlerted: 1 });
+    expect(first).toEqual({ failed: 1, unknown: 0, newlyAlerted: 1 });
     const text = String(alert.mock.calls[0][1]);
     expect(text).toContain("req-1");
     expect(text).toContain("/admin/leads/req-1");
@@ -75,7 +88,7 @@ describe("terminal outbox failure scan", () => {
   });
 
   it("is a no-op without Firestore", async () => {
-    await expect(scanTerminalOutboxFailures({ store: null })).resolves.toEqual({ failed: 0, newlyAlerted: 0 });
+    await expect(scanTerminalOutboxFailures({ store: null })).resolves.toEqual({ failed: 0, unknown: 0, newlyAlerted: 0 });
   });
 
   it("identifies the exact account-notice intent and receipts without a nonexistent lead link", async () => {
@@ -95,6 +108,38 @@ describe("terminal outbox failure scan", () => {
     expect(alert).toHaveBeenCalledOnce();
     expect(email).toHaveBeenCalledOnce();
     expect(store.markers.get(entry.idempotencyKey)).toMatchObject({ outbox_key: entry.idempotencyKey, request_id: entry.requestId });
+  });
+
+  it("alerts once per email whose send outcome is unknown, says it was not resent, and leaves the row as it is", async () => {
+    const nowMs = Date.parse("2026-11-10T12:00:00Z");
+    const settled = { status: "unknown", requestId: "req-3", kind: "scene_outcome", to: "site@example.com", body: "secret body",
+      lastError: "delivery_outcome_unknown", deliveryLeaseUntilMs: nowMs - 20 * 60_000 };
+    const entries = [
+      { id: "req-3:scene_outcome:x", data: settled },
+      // Its lease only just ran out: a late provider receipt may still land, so it waits for a later pass.
+      { id: "req-4:video_received", data: { ...settled, requestId: "req-4", deliveryLeaseUntilMs: nowMs - 60_000 } },
+    ];
+    const store = outboxStore(entries);
+    const alert = vi.fn(async () => undefined);
+    const email = vi.fn(async () => ({ sent: true }));
+    const first = await scanTerminalOutboxFailures({ store: store as never, alert, email: email as never, now: () => nowMs });
+    expect(first).toEqual({ failed: 0, unknown: 2, newlyAlerted: 1 });
+    const text = String(alert.mock.calls[0][1]);
+    expect(alert.mock.calls[0][0]).toBe("capture_outbox_unknown:req-3:scene_outcome:x");
+    expect(text).toMatch(/unknown send outcome and were not resent/);
+    expect(text).toContain("/admin/leads/req-3");
+    expect(text).not.toContain("req-4");
+    expect(`${text} ${JSON.stringify(email.mock.calls)}`).not.toMatch(/site@example\.com|secret body/);
+    expect(email.mock.calls[0][0].subject).toMatch(/unknown send outcome and were not resent/);
+    expect(store.markers.get("req-3:scene_outcome:x")).toMatchObject({ outbox_status: "unknown" });
+    expect(entries[0].data.status).toBe("unknown");
+
+    // Same marker collection as a failed row: a fresh process never alerts it again.
+    __resetBetaOpsMonitorForTests();
+    const later = await scanTerminalOutboxFailures({ store: store as never, alert, email: email as never, now: () => nowMs + 30 * 60_000 });
+    expect(later.newlyAlerted).toBe(1);
+    expect(String(alert.mock.calls[1][1])).toContain("req-4");
+    expect(alert).toHaveBeenCalledTimes(2);
   });
 });
 
@@ -172,5 +217,19 @@ describe("beta ops monitor loop", () => {
     startBetaOpsMonitor({ lease })();
     delete process.env.BLUEPRINT_BETA_OPS_MONITOR_ENABLED;
     expect(lease.start).not.toHaveBeenCalled();
+  });
+});
+
+describe("website job deadline sweep step", () => {
+  it("runs in every monitor pass, and a failure in it is logged without stopping the other steps", async () => {
+    deadlineSweep.mockRejectedValueOnce(new Error("sweep down"));
+    const results = await runBetaOpsMonitorPass();
+    expect(deadlineSweep).toHaveBeenCalledOnce();
+    expect(results).toHaveLength(7);
+    expect(results[6]).toMatchObject({ status: "rejected" });
+    // The outbox failure scan in the same pass still ran (no store here, so it settles with nothing to do).
+    expect(results[1]).toMatchObject({ status: "fulfilled" });
+    expect(log.warn).toHaveBeenCalledWith(expect.objectContaining({ step: "website_job_deadline_sweep" }),
+      "Beta ops monitor step failed");
   });
 });

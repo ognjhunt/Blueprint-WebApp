@@ -17,9 +17,13 @@ import { projectWebsiteRunClosure } from "../utils/websiteRunClosure";
 import { ownerClosure } from "./fixtures/website-run-closure";
 
 import {
+  JOB_WINDOW_ENDED_HEADLINE,
   projectTaskStatus,
+  TASK_SCENE_PROGRESSION_STATES,
   taskStatusInputFrom,
 } from "../utils/taskStatusProjection";
+import { JOB_TIME_ENDED_SENTENCE, PREPARATION_ENDED_NEXT } from "../utils/taskPreparationOutcome";
+import { WEBSITE_JOB_PROGRESS_AT_DEADLINE } from "../utils/websiteJobProgress";
 
 function base(overrides: Partial<Parameters<typeof projectTaskStatus>[0]> = {}) {
   return {
@@ -655,5 +659,63 @@ describe("WP-14: a waiting or ended job says what it waits on, and until when", 
       expect(text).not.toMatch(/on hold|checks its authorization|taking longer/i);
       expect(text).toContain("you can start a new job");
     }
+  });
+});
+
+describe("every job has a deadline", () => {
+  const handedOff = { state: "handed_off" as const, correlationId: null };
+  const pastDeadline = (overrides: Partial<Parameters<typeof taskStatusInputFrom>[0]> = {}) => projectTaskStatus(taskStatusInputFrom({
+    briefDrafted: true, site_task_brief_confirmed_at: "2026-11-01T00:00:00Z", hasStoredCapture: true, stage: null,
+    preparationStatus: handedOff, jobWorkWindow: { untilEpoch: null, ended: true, deadlinePassed: true }, ...overrides }));
+
+  it("registry: every site-facing progression value is settled or ends at the deadline, and only the pinned ones are settled", () => {
+    // A new value fails here until it is given an ending: settled values are pinned, every other one must end.
+    expect(Object.keys(WEBSITE_JOB_PROGRESS_AT_DEADLINE).sort()).toEqual([...TASK_SCENE_PROGRESSION_STATES].sort());
+    const settled = TASK_SCENE_PROGRESSION_STATES.filter(state => WEBSITE_JOB_PROGRESS_AT_DEADLINE[state] === "settled");
+    expect(settled.sort()).toEqual(["ended", "evaluated", "held"]);
+    for (const state of TASK_SCENE_PROGRESSION_STATES) {
+      const headline = pastDeadline({ sceneProgression: { state } }).headline;
+      if (settled.includes(state)) expect(headline, state).not.toBe(JOB_WINDOW_ENDED_HEADLINE);
+      else expect(headline, state).toBe(JOB_WINDOW_ENDED_HEADLINE);
+    }
+  });
+
+  it("shows an open job past its deadline as ended in the WP-14 words, without waiting for the sweep", () => {
+    const status = pastDeadline({ sceneProgression: { state: "testing" } });
+    expect(status).toMatchObject({ decision: "footage_received", headline: `${JOB_WINDOW_ENDED_SENTENCE} ${PREPARATION_ENDED_NEXT}`,
+      operatorAction: null });
+    expect(status.headline).not.toMatch(/[a-z]+_[a-z_]+/);
+    // A job the hand-off never reached reads the same once its deadline passes, and an unverifiable status too.
+    for (const preparationStatus of [null, { state: "preparing" as const, correlationId: null },
+      { state: "unavailable" as const, correlationId: null }])
+      expect(pastDeadline({ preparationStatus }).headline).toBe(JOB_WINDOW_ENDED_HEADLINE);
+    // A job that never had a grant was never given an authorization window, and is not told it had one.
+    const ungranted = pastDeadline({ sceneProgression: { state: "testing" },
+      jobWorkWindow: { untilEpoch: null, ended: false, deadlinePassed: true, deadlineBasis: "job_created" } });
+    expect(ungranted.headline).toBe(`${JOB_TIME_ENDED_SENTENCE} ${PREPARATION_ENDED_NEXT}`);
+    expect(ungranted.headline).not.toMatch(/authorized/);
+    for (const basis of ["grant", "grant_extended"] as const)
+      expect(pastDeadline({ sceneProgression: { state: "testing" }, jobWorkWindow: { untilEpoch: null, ended: true,
+        deadlinePassed: true, deadlineBasis: basis } }).headline).toBe(`${JOB_WINDOW_ENDED_SENTENCE} ${PREPARATION_ENDED_NEXT}`);
+    // Before the deadline nothing changes.
+    expect(pastDeadline({ sceneProgression: { state: "testing" }, jobWorkWindow: { untilEpoch: 2_000_000_000, ended: false,
+      deadlinePassed: false } }).headline).not.toBe(JOB_WINDOW_ENDED_HEADLINE);
+  });
+
+  it("keeps a result, a hold, an ending, a withdrawal or the site's own scope hold in its own sentence past the deadline", () => {
+    expect(pastDeadline({ sceneProgression: { state: "evaluated" } }).headline).toBe(`${screeningOutcomeSentence("estimate")} Nothing is needed from you.`);
+    expect(pastDeadline({ sceneProgression: { state: "held" } }).headline).toMatch(/^Held: we can't simulate this kind of job yet/);
+    const finding = { category: "insufficient_evidence" as const, basis: "missing_evidence" as const, title: "There is not enough evidence",
+      reason: "r", scope: "s", nextStep: "n", actionOwner: "blueprint" as const, evidence: [] };
+    expect(pastDeadline({ preparationStatus: { state: "awaiting_inputs", correlationId: null, outcome: finding } }).headline)
+      .toBe(finding.title);
+    expect(pastDeadline({ preparationStatus: { state: "failed_terminal", correlationId: null, terminalReason: "retry_exhausted" } })
+      .headline).toMatch(/^Blueprint could not finish processing/);
+    expect(pastDeadline({ consentRevoked: true }).headline).toMatch(/Recording consent was withdrawn/);
+    expect(pastDeadline({ screening: { teams: 1, queued: 0, running: 0, reported: 1, noResult: 0 } }).headline)
+      .toMatch(/^Results are in/);
+    expect(pastDeadline({ preparationStatus: null, site_task_scope: { supported: false, reason: "other" } }).decision)
+      .toBe("not_yet_supported");
+    expect(pastDeadline({ preparationStatus: null, hasStoredCapture: false }).headline).not.toBe(JOB_WINDOW_ENDED_HEADLINE);
   });
 });

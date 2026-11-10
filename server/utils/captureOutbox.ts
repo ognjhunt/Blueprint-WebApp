@@ -51,6 +51,8 @@ export type OutboxKind =
   | "evaluation_outcome"
   /** The job's scene intent reached a terminal outcome: once per outcome digest (C-04). */
   | "scene_outcome"
+  /** The job's deadline passed while it was still open on our side: once per deadline. */
+  | "job_window_ended"
   /** The owner's job page asks whether to move chairs out of the robot's way in the simulation: once per proposal digest. */
   | "robot_access_question"
   /** Robot teams can now request an evaluation, and none has yet. */
@@ -273,6 +275,10 @@ export async function deliverOutbox(params?: { limit?: number }): Promise<Outbox
     const { reconcileSceneOutcomeNotifications } = await import("./sceneOutcomeNotifications");
     await reconcileSceneOutcomeNotifications(limit);
   } catch (error) { logger.warn({ error }, "Could not reconcile scene-outcome notices"); }
+  try {
+    const { reconcileWebsiteJobEndingNotifications } = await import("./websiteJobDeadlineSweep");
+    await reconcileWebsiteJobEndingNotifications(limit);
+  } catch (error) { logger.warn({ error }, "Could not reconcile job-ending notices"); }
   try {
     const { reconcileTaskEvaluationNotificationRetries } = await import("./taskEvaluationNotificationRetry");
     await reconcileTaskEvaluationNotificationRetries(db, limit);

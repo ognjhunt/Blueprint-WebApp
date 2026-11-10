@@ -25,7 +25,7 @@ import { taskLifecycleNotificationIsCurrent } from "./taskLifecycleNotificationA
 import { drainPendingWebsitePreparationNotifications } from "./websitePreparationStatus";
 import { preparationEndedSentence } from "./taskStatusProjection";
 import { EARLY_TASK_HOLD_DETAIL, EARLY_TASK_HOLD_SENTENCES, earlyTaskHoldOf, isEarlyTaskHoldReason,
-  FOOTAGE_BEFORE_ACCOUNT_SENTENCE, type EarlyTaskHoldReason } from "./taskPreparationOutcome";
+  FOOTAGE_BEFORE_ACCOUNT_SENTENCE, jobDeadlineEndedHeadline, type EarlyTaskHoldReason } from "./taskPreparationOutcome";
 import { selectWebsiteAtlasPreview } from "./websiteAtlasPreview";
 import { isScreeningResultOutcome, screeningEstimateCountSentence, screeningOutcomeSentence,
   type ScreeningOutcome } from "./betaPolicyScreeningContract";
@@ -46,6 +46,7 @@ export type TaskLifecycleMilestone = Extract<
   | "run_no_result"
   | "evaluation_outcome"
   | "scene_outcome"
+  | "job_window_ended"
   | "robot_access_question"
   | "awaiting_evaluations"
   | "no_team_passed"
@@ -148,6 +149,12 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
     subject: "An update on your Blueprint job",
     body: (url, detail, workspaceUrl) => `${detail}\n\n${whereRunsAre(url, workspaceUrl, "Open your job")}`,
   },
+  // One per job deadline (websiteJobDeadlineSweep). The detail is only the job page's own ending
+  // sentence for the deadline's basis (`jobDeadlineEndedHeadline`), never caller text.
+  job_window_ended: {
+    subject: "Your Blueprint job has ended",
+    body: (url, detail, workspaceUrl) => `${detail}\n\n${whereRunsAre(url, workspaceUrl, "Open your job")}`,
+  },
   // One per robot access proposal the owner's job page asks about. The detail
   // is only the page's own words for it, built from typed counts, never caller text.
   robot_access_question: {
@@ -215,6 +222,8 @@ export async function enqueueTaskLifecycleNotification(params: {
   screeningCounts?: { ran: number; total: number; scored: number };
   /** `scene_outcome` only: the terminal outcome's kind; its event id must name it. */
   sceneOutcomeKind?: TerminalSceneOutcomeKind;
+  /** `job_window_ended` only: where the job's deadline came from, which picks its sentence. */
+  deadlineBasis?: JobDeadlineBasis;
 }): Promise<{ enqueued: boolean; reason?: "store_unavailable" | "request_missing" | "contact_missing" | "consent_withdrawn"
   | "awaiting_early_hold_preview" }> {
   if (!db) return { enqueued: false, reason: "store_unavailable" };
@@ -276,6 +285,8 @@ export function buildTaskLifecycleNotification(params: {
   sceneOutcomeKind?: TerminalSceneOutcomeKind;
   /** `robot_access_question` only: how many chairs and stools the proposal moves; its event id is the proposal digest. */
   robotAccessCounts?: RobotAccessCounts;
+  /** `job_window_ended` only: where the job's deadline came from, which picks its sentence. */
+  deadlineBasis?: JobDeadlineBasis;
   /** `preparation_needs_attention` only: the early task hold the job page states; the notice is then the held one. */
   earlyTaskHold?: EarlyTaskHoldReason;
 }): Parameters<typeof enqueueOutbox>[0] {
@@ -285,7 +296,8 @@ export function buildTaskLifecycleNotification(params: {
   }
   const outcomeDetail = params.milestone === "evaluation_outcome" ? evaluationOutcomeDetail(params)
     : params.milestone === "scene_outcome" ? sceneOutcomeDetail(params)
-    : params.milestone === "robot_access_question" ? robotAccessQuestionDetail(params) : "";
+    : params.milestone === "robot_access_question" ? robotAccessQuestionDetail(params)
+    : params.milestone === "job_window_ended" ? jobWindowEndedDetail(params.deadlineBasis) : "";
   const held = params.milestone === "preparation_needs_attention" && isEarlyTaskHoldReason(params.earlyTaskHold)
     ? params.earlyTaskHold : null;
   const message = held ? earlyTaskHoldCopy(held) : copy[params.milestone];
@@ -308,10 +320,17 @@ export function buildTaskLifecycleNotification(params: {
     body: `${message.body(url, params.milestone === "run_no_result" ? noResultObservationText(params.runProgress)
       : isWebsitePreparationNotice(params.milestone) ? preparationDetail
       : params.milestone === "evaluation_outcome" || params.milestone === "scene_outcome"
-        || params.milestone === "robot_access_question" ? outcomeDetail
+        || params.milestone === "robot_access_question" || params.milestone === "job_window_ended" ? outcomeDetail
       : params.detail?.trim() ?? "", params.workspaceUrl ?? null)}\n\n${EMAIL_SIGN_OFF}`,
     replyTo: "hello@tryblueprint.io",
   };
+}
+
+type JobDeadlineBasis = "grant" | "grant_extended" | "job_created";
+/** The page's ending sentence for the deadline's basis; no basis, no email, since either sentence could be untrue. */
+function jobWindowEndedDetail(basis: JobDeadlineBasis | undefined): string {
+  if (basis !== "grant" && basis !== "grant_extended" && basis !== "job_created") throw new Error("job_window_ended_notice_invalid");
+  return jobDeadlineEndedHeadline(basis);
 }
 
 /** An early task hold's one email: the job page's held sentence, sent in place of the needs-attention notice. */

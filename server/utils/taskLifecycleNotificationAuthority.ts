@@ -6,7 +6,7 @@ import {canNotifyCurrentWebsitePreparationIssue} from './websitePreparationStatu
 import {decryptFieldValue} from './field-encryption';
 const CAPTURE_DEPENDENT_NOTICES=new Set<OutboxKind>([
  'video_received','scene_ready','scene_tests_started','screening_cleared','screening_started','results_ready','run_no_result',
- 'evaluation_outcome','scene_outcome','robot_access_question',
+ 'evaluation_outcome','scene_outcome','job_window_ended','robot_access_question',
  'awaiting_evaluations','no_team_passed','no_qualified_evaluation','footage_before_account',
  'brief_confirmed','coverage_shortfall','assessment_ready','input_needed',
 ]);
@@ -69,6 +69,14 @@ export async function taskLifecycleNotificationIsCurrent(
   if(entry.idempotencyKey===undefined)return true;
   const notices=await import('./sceneOutcomeNotifications');
   return notices.sceneOutcomeShown(entry.requestId,entry.idempotencyKey);
+ }
+ // A job ended by its deadline names that deadline in its key, and is sent only while
+ // the job page still shows it ended by that window: a result, a hold, an ending or a
+ // later deadline that arrived since cancels it.
+ if(entry.kind==='job_window_ended'){
+  if(entry.idempotencyKey===undefined)return true;
+  const endings=await import('./websiteJobDeadlineSweep');
+  return endings.websiteJobEndingShown(entry.requestId,entry.idempotencyKey);
  }
  // The owner's question about moving chairs in the simulation names its
  // proposal digest in its key, and is sent only while the job page still asks

@@ -178,11 +178,48 @@ describe("effective expiry readers", () => {
     const job = row("inboundRequests/job-one"), before = RAW - 60;
     // The grant alone.
     expect(await websiteJobWorkWindow({ ...job, website_scene_sponsorship_execution_window: undefined }, before))
-      .toEqual({ untilEpoch: RAW, ended: false });
+      .toEqual({ untilEpoch: RAW, ended: false, deadlinePassed: false, deadlineBasis: "grant" });
     // The owner's one allowed extension, verified against its intake.
-    expect(await websiteJobWorkWindow(job, before)).toEqual({ untilEpoch: RAW + 6 * 86400, ended: false });
+    expect(await websiteJobWorkWindow(job, before)).toEqual({ untilEpoch: RAW + 6 * 86400, ended: false, deadlinePassed: false,
+      deadlineBasis: "grant_extended" });
     // No grant, or a window already past: no date, never a guess.
-    expect(await websiteJobWorkWindow({ ...job, website_scene_sponsorship: undefined }, before)).toEqual({ untilEpoch: null, ended: false });
+    expect(await websiteJobWorkWindow({ ...job, website_scene_sponsorship: undefined }, before))
+      .toEqual({ untilEpoch: null, ended: false, deadlinePassed: false, deadlineBasis: null });
     expect((await websiteJobWorkWindow(job, RAW + 7 * 86400)).untilEpoch).toBeNull();
+  });
+
+  it("gives every website job one deadline: exactly the work window with a grant, created + the default window without", async () => {
+    await send(notice());
+    const { websiteJobDeadline, websiteJobWorkWindow } = await import("../utils/websiteSceneSponsorship");
+    const { WEBSITE_JOB_WINDOW_DEFAULT_SECONDS } = await import("../utils/websiteJobWindow");
+    const job = row("inboundRequests/job-one"), alone = { ...job, website_scene_sponsorship_execution_window: undefined };
+    expect(await websiteJobDeadline(alone)).toEqual({ deadlineEpoch: RAW, basis: "grant" });
+    expect(await websiteJobDeadline(job)).toEqual({ deadlineEpoch: RAW + 6 * 86400, basis: "grant_extended" });
+    // The same instant the page's work window ends, with or without the extension.
+    for (const record of [alone, job]) {
+      const { deadlineEpoch } = await websiteJobDeadline(record);
+      expect((await websiteJobWorkWindow(record, deadlineEpoch! - 1)).untilEpoch).toBe(deadlineEpoch);
+      expect(await websiteJobWorkWindow(record, deadlineEpoch!)).toMatchObject({ untilEpoch: null, ended: true, deadlinePassed: true });
+    }
+    // An unreadable extension gives no deadline, as it gives the page no date.
+    const unreadable = { ...job, website_scene_sponsorship_execution_window: { intake_id: "intake-one" } };
+    expect(await websiteJobDeadline({ ...unreadable, website_scene_sponsorship: { expires_at_epoch: "soon" } }))
+      .toEqual({ deadlineEpoch: null, basis: "window_unreadable" });
+    // A website job the hand-off never reached: no grant, so its creation time plus the default window.
+    const created = Date.parse("2026-10-20T08:00:00Z") / 1000;
+    const ungranted = { ...job, website_scene_sponsorship: undefined, website_scene_sponsorship_execution_window: undefined,
+      request: { ...job.request, buyerType: "site_operator" }, createdAt: { _seconds: created, _nanoseconds: 0 } };
+    expect(await websiteJobDeadline(ungranted))
+      .toEqual({ deadlineEpoch: created + WEBSITE_JOB_WINDOW_DEFAULT_SECONDS, basis: "job_created" });
+    expect(await websiteJobDeadline({ ...ungranted, createdAt: new Date(created * 1000).toISOString() }))
+      .toEqual({ deadlineEpoch: created + WEBSITE_JOB_WINDOW_DEFAULT_SECONDS, basis: "job_created" });
+    // It names no date on the page, which only a grant gives, but its deadline still passes.
+    expect(await websiteJobWorkWindow(ungranted, created + WEBSITE_JOB_WINDOW_DEFAULT_SECONDS))
+      .toEqual({ untilEpoch: null, ended: false, deadlinePassed: true, deadlineBasis: "job_created" });
+    // An unreadable creation time has no deadline from this fallback; other kinds of request have none at all.
+    expect(await websiteJobDeadline({ request: { buyerType: "site_operator" }, createdAt: "not a date" }))
+      .toEqual({ deadlineEpoch: null, basis: "created_at_unreadable" });
+    expect(await websiteJobDeadline({ request: { buyerType: "robot_team" }, createdAt: { _seconds: created } }))
+      .toEqual({ deadlineEpoch: null, basis: "not_a_website_job" });
   });
 });

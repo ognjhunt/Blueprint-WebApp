@@ -29,9 +29,10 @@ import type { ReadinessStage } from "../../client/src/lib/siteTaskReadiness";
 import { multiStepHoldMessage, taskScopeNotYet } from "./siteTaskScope";
 import type { TaskOutcome } from "../../client/src/types/taskOutcome";
 import { AUTHORITY_ENDED_SENTENCE, FOOTAGE_BEFORE_ACCOUNT_SENTENCE, JOB_WINDOW_ENDED_SENTENCE, PREPARATION_ENDED_NEXT,
-  processingFailure } from "./taskPreparationOutcome";
+  jobDeadlineEndedHeadline, processingFailure } from "./taskPreparationOutcome";
 import { screeningOutcomeSentenceWithWindow, type ScreeningHeldOutcome, type ScreeningOutcome } from "./betaPolicyScreeningContract";
 import { isTerminalSceneOutcomeKind, sceneOutcomeMessage, sceneWaitMessage, type SceneOutcomeReading } from "./sceneIntentOutcome";
+import { websiteJobEndsAtDeadline, websiteJobProgress } from "./websiteJobProgress";
 
 /**
  * The decision, in the operator's terms.
@@ -209,8 +210,9 @@ export interface TaskPreparationStatus {
  * (C-04): an ending and its one email say the same sentence, and a wait says
  * what it waits on. It is read here only to pick that sentence.
  */
+export const TASK_SCENE_PROGRESSION_STATES = ["in_progress", "waiting", "ended", "completed", "testing", "evaluated", "held"] as const;
 export interface TaskSceneProgression {
-  state: "in_progress" | "waiting" | "ended" | "completed" | "testing" | "evaluated" | "held";
+  state: typeof TASK_SCENE_PROGRESSION_STATES[number];
   heldReason?: ScreeningHeldOutcome;
   progressOutcome?: Extract<ScreeningOutcome, "awaiting_spend_approval" | "setup_repair" | "superseded">;
   sceneOutcome?: SceneOutcomeReading;
@@ -260,6 +262,10 @@ interface TaskStatusInput {
   jobWorkUntilEpoch?: number | null;
   /** The job's work window has passed while its rights still allowed the work. */
   jobWindowEnded?: boolean;
+  /** The job's deadline (`websiteJobDeadline`, with or without a grant) has passed while its rights allow the work. */
+  jobDeadlinePassed?: boolean;
+  /** Where that deadline came from; a deadline with no grant behind it is never called an authorization window. */
+  jobDeadlineBasis?: "grant" | "grant_extended" | "job_created";
   /** False when no automated footage review runs, so a person reviews it. */
   footageReviewAutomated?: boolean;
   scenePreviewReady?: boolean;
@@ -326,6 +332,10 @@ function countLabel(count: number, noun: string): string {
  */
 const CONFIRM_BRIEF_ACTION = "Open your job brief, check the summary and answers, correct anything that is wrong, and confirm it.";
 
+/** What the page and the one email say when a granted job's deadline passed while it was still open on our side (WP-14
+ * wording). A job that never had a grant says `jobDeadlineEndedHeadline("job_created")` instead. */
+export const JOB_WINDOW_ENDED_HEADLINE = jobDeadlineEndedHeadline("grant");
+
 /**
  * Project the status. Pure, so the two surfaces cannot diverge.
  */
@@ -335,6 +345,11 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
   // Reviewing the inferred brief remains available in the job details.
   const confirmationAsk = input.briefDrafted && !input.briefConfirmed && !input.hasStoredCapture
     && !input.scenePreviewReady && !input.preparationStatus ? CONFIRM_BRIEF_ACTION : null;
+  // Every job has a deadline. Past it, a job still open on our side reads as ended by its window
+  // without waiting for the sweep that emails it. A result, a hold or an ending keeps its own
+  // sentence: the rung below sits after every one of them, and finished runs or a scope hold skip it.
+  const windowEnded = input.jobDeadlinePassed === true && websiteJobEndsAtDeadline(websiteJobProgress(input))
+    && !(input.screening && input.screening.reported + input.screening.noResult > 0);
   if (input.consentRevoked) {
     return {
       decision: input.hasStoredCapture ? "footage_received" : "received",
@@ -383,10 +398,11 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
         ? processingFailure() : null);
     if (correctionStopped) return {...base, decision: correctionStopped.category, stage: null, missingViews: [],
       headline: correctionStopped.title, operatorAction: null, outcome: correctionStopped, resultSuperseded: true};
+    if (windowEnded) return windowEndedStatus(base, input.jobDeadlineBasis);
     return {...base, decision: 'assessing', stage: null, missingViews: [], operatorAction: null,
       headline: 'Blueprint is updating this job for the corrected object using your saved video.', resultSuperseded: true};
   }
-  if (input.targetChoiceRestoringGuess) {
+  if (input.targetChoiceRestoringGuess && !windowEnded) {
     return {...base, decision: 'assessing', stage: null, missingViews: [], operatorAction: null,
       headline: 'Blueprint is resuming this job with the confirmed object using your saved video.', resultSuperseded: true};
   }
@@ -420,6 +436,8 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
       operatorAction: outcome.actionOwner === "site" ? outcome.nextStep : null,
       missingViews: [], nextUpdateIso: null, outcome };
   }
+
+  if (windowEnded && !(input.taskScope && !observedPreparation && !hasRuns)) return windowEndedStatus(base, input.jobDeadlineBasis);
 
   if (input.visualReconstructionReady && !nativeProgress && !hasRuns
     && (!input.preparationStatus || input.preparationStatus.state === "unavailable")) {
@@ -781,7 +799,8 @@ export function taskStatusInputFrom(record: {
   /** Recording withdrawal overrides retained derived evidence on every surface. */
   consentRevoked?: boolean;
   /** `websiteJobWorkWindow(record)`, when the caller read it. */
-  jobWorkWindow?: { untilEpoch: number | null; ended: boolean } | null;
+  jobWorkWindow?: { untilEpoch: number | null; ended: boolean; deadlinePassed?: boolean;
+    deadlineBasis?: "grant" | "grant_extended" | "job_created" | null } | null;
   footageReviewAutomated?: boolean;
   scenePreviewReady?: boolean;
   visualReconstructionReady?: boolean;
@@ -820,6 +839,8 @@ export function taskStatusInputFrom(record: {
     consentRevoked: record.consentRevoked === true,
     ...(record.jobWorkWindow?.untilEpoch ? { jobWorkUntilEpoch: record.jobWorkWindow.untilEpoch } : {}),
     ...(record.jobWorkWindow?.ended === true ? { jobWindowEnded: true } : {}),
+    ...(record.jobWorkWindow?.deadlinePassed === true ? { jobDeadlinePassed: true } : {}),
+    ...(record.jobWorkWindow?.deadlineBasis ? { jobDeadlineBasis: record.jobWorkWindow.deadlineBasis } : {}),
     ...(record.footageReviewAutomated === false ? { footageReviewAutomated: false } : {}),
     scenePreviewReady: Boolean(record.scenePreviewReady),
     visualReconstructionReady: record.visualReconstructionReady === true,
@@ -849,6 +870,12 @@ export function taskStatusInputFrom(record: {
       listed: record.jobAccess.reason !== "not_listed" } : {}),
     ...(typeof record.recommended === "boolean" ? { recommended: record.recommended } : {}),
   };
+}
+
+function windowEndedStatus(base: { stage: ReadinessStage | null; missingViews: string[]; nextUpdateIso: null },
+  basis: TaskStatusInput["jobDeadlineBasis"]): TaskStatus {
+  return { ...base, decision: "footage_received", stage: null, missingViews: [],
+    headline: jobDeadlineEndedHeadline(basis ?? "grant"), operatorAction: null };
 }
 
 function dispositionFrom(value: unknown): TaskStatusInput["disposition"] {
