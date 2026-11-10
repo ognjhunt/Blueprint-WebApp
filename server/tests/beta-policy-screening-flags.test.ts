@@ -210,6 +210,45 @@ describe("what the site reads", () => {
     expect(send).toHaveBeenCalledTimes(1);
   });
 
+  it("gives an email not queued yet the caveat a later revision adds, and never sends a delivered one again", async () => {
+    const counts = "In the simulation, 2 of 2 candidates ran, with 20 episodes scored against the job's success criteria.";
+    const key = `captureOutbox/job-one:evaluation_outcome:estimate-${scene}`;
+    // The result arrives as v2 (no flags); its v3 revision lands before the outbox pump queued the email.
+    await ingestBetaPolicyScreening(asV2(pipelineV3));
+    expect(run()).toMatchObject({ outcome_notification_pending: true, screening_outcome_caveat: null });
+    expect(run().outcome_notification_intent.caveat).toBeUndefined();
+    await ingestBetaPolicyScreening(rebound(pipelineV3, { revision: pipelineV3.revision + 1 }));
+    expect(run()).toMatchObject({ screening_outcome: "estimate", screening_outcome_caveat: "scene_setup", outcome_notification_pending: true,
+      outcome_notification_intent: { outcome: "estimate", event_id: `estimate-${scene}`, caveat: "scene_setup" } });
+    await deliverOutbox();
+    expect(send).toHaveBeenCalledTimes(1);
+    // The email says what the page says.
+    expect((state.docs.get(key) as Record<string, string>).body.startsWith(`${ESTIMATE} ${CAVEAT} ${counts}`)).toBe(true);
+    expect(siteView().summary).toBe(`${ESTIMATE} ${CAVEAT} ${counts}`);
+    // A still later revision that drops the flags (the Pipeline's v2 form) changes nothing already sent.
+    await ingestBetaPolicyScreening(asV2(pipelineV3, { revision: pipelineV3.revision + 2 }));
+    expect(run()).toMatchObject({ outcome_notification_pending: false, outcome_notification_intent: { caveat: "scene_setup" } });
+    await deliverOutbox();
+    expect(send).toHaveBeenCalledTimes(1);
+
+    // The other order: the uncaveated email was delivered before the v3 revision arrived. It is never sent again.
+    state.docs.delete(key); state.docs.delete("taskEvaluationPolicyRuns/campaign-one");
+    for (const path of [...state.docs.keys()]) if (path.startsWith("captureTaskEvaluationRuns/") || path.startsWith(key)) state.docs.delete(path);
+    send.mockClear();
+    await ingestBetaPolicyScreening(asV2(pipelineV3));
+    await deliverOutbox();
+    expect(send).toHaveBeenCalledTimes(1);
+    const delivered = (state.docs.get(key) as Record<string, string>).body;
+    expect(delivered.startsWith(`${ESTIMATE} ${counts}`)).toBe(true);
+    await ingestBetaPolicyScreening(rebound(pipelineV3, { revision: pipelineV3.revision + 1 }));
+    expect(run()).toMatchObject({ screening_outcome_caveat: "scene_setup", outcome_notification_pending: false });
+    expect(run().outcome_notification_intent.caveat).toBeUndefined();
+    await deliverOutbox();
+    expect(send).toHaveBeenCalledTimes(1);
+    expect((state.docs.get(key) as Record<string, string>).body).toBe(delivered);
+    expect(siteView().summary).toBe(`${ESTIMATE} ${CAVEAT} ${counts}`);
+  });
+
   it.each(["v3 with nothing flagged", "v2"])("says today's sentence, unchanged, for zero successes with no flag (%s)", async shape => {
     const plain = shape === "v2" ? asV2(pipelineV3) : withRows(pipelineV3,
       ({ observation_quality_flags: _o, setup_quality_flags: _s, scene_check_flags: _c, ...row }) => row,

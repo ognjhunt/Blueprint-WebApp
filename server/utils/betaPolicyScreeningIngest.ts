@@ -10,7 +10,7 @@ import { encodeTaskEvaluationRunPublication, publicationFromResultRecord } from 
 import { betaPolicyScreeningSourceSchema, parseBetaPolicyScreeningPublication, screeningPublicationTransition,
   screeningTerminalCandidateStates, screeningOutcome, screeningOutcomeCaveat, storedScreeningOutcome,
   type BetaPolicyScreeningPublication } from "./betaPolicyScreeningContract";
-import { screeningOutcomeNoticeIntent } from "./screeningOutcomeNotifications";
+import { parseScreeningOutcomeNoticeIntent, screeningOutcomeNoticeIntent } from "./screeningOutcomeNotifications";
 import type { TaskItemInventoryRecord } from "./taskItemInventory";
 import { assertWebsiteRunOpen, websiteRunClosure } from "./websiteRunClosure";
 import { parseBetaCandidateSelection, selectionMatchesPublication, type BetaCandidateSelection } from "./betaCandidateSelection";
@@ -245,6 +245,14 @@ export async function ingestBetaPolicyScreening(publication: BetaPolicyScreening
     // closed run, and one still in progress or superseded, owes no notice.
     const notice = closed || screeningOutcome(publication) === storedScreeningOutcome(previous?.screening_outcome) ? null
       : screeningOutcomeNoticeIntent(publication, jobId);
+    // An intent not queued yet says what the page says now: a later revision with the same outcome may add
+    // or drop its caveat (a v3 revision of a result first accepted as v2). The event id is the outcome and
+    // the scene, so it is still the one email. A queued or sent email is never rewritten or sent again.
+    const unsent = !notice && !closed && previous?.outcome_notification_pending === true
+      ? parseScreeningOutcomeNoticeIntent(previous.outcome_notification_intent) : null;
+    const restated = unsent ? screeningOutcomeNoticeIntent(publication, jobId) : null;
+    const refreshed = unsent && restated && restated.event_id === unsent.event_id && restated.request_id === unsent.request_id
+      ? restated : null;
     transaction.set(resultRef, { schema_version: "capture_task_evaluation_run_record.v2", record_id: resultId,
       run_id: publication.campaign_id, owner_user_id: intake.request.owner.user_id, organization_id: scope.teamNamespace,
       access_visibility: "private", created_at_iso: oldResult.data()?.created_at_iso ?? now, updated_at_iso: now,
@@ -268,6 +276,7 @@ export async function ingestBetaPolicyScreening(publication: BetaPolicyScreening
       // What that outcome's sentence adds (a zero-success estimate in a scene our own checks flagged), or null.
       screening_outcome_caveat: screeningOutcomeCaveat(publication),
       ...(notice ? { outcome_notification_pending: true, outcome_notification_intent: notice }
+        : refreshed ? { outcome_notification_pending: true, outcome_notification_intent: refreshed }
         : previous?.outcome_notification_intent !== undefined ? { outcome_notification_pending: previous.outcome_notification_pending === true,
           outcome_notification_intent: previous.outcome_notification_intent } : {}),
       screening_execution_observed: oldRun.data()?.screening_execution_observed === true
