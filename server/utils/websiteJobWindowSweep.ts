@@ -11,7 +11,9 @@
  *
  * - one transaction writes the stored ending (`websiteJobWindowEnding.ts`) that
  *   the job pages show, and creates the one outcome email in the existing
- *   outbox under a document id fixed by the job, so it can never be sent twice;
+ *   outbox under a document id fixed by the job, so it can never be sent twice.
+ *   If that email was cancelled unsent because an extension reopened the window,
+ *   the later ending queues one under the id naming its own window end;
  * - the email is cancelled at dispatch like every capture notice when recording
  *   permission is withdrawn, and when the ending no longer speaks for the job;
  * - no backfill: a window that ended before the cutover gets the stored ending
@@ -38,9 +40,9 @@ import { buildTaskLifecycleNotification, workspaceTaskUrl } from "./taskLifecycl
 import { earlyTaskHoldOf } from "./taskPreparationOutcome";
 import { resultOutranksWindowEnding } from "./taskStatusProjection";
 import { selectWebsiteAtlasPreview } from "./websiteAtlasPreview";
-import { recordedWebsiteJobWindowEnding, sealWebsiteJobWindowEnding, websiteJobWindowEndedNoticeKey,
-  WEBSITE_JOB_WINDOW_ENDED_EVENT_ID, WEBSITE_JOB_WINDOW_ENDING_FIELD, WEBSITE_JOB_WINDOW_ENDING_NOTICE_CUTOVER_EPOCH,
-  type WebsiteJobWindowEndingNotice } from "./websiteJobWindowEnding";
+import { isWebsiteJobWindowEndedNoticeKey, recordedWebsiteJobWindowEnding, sealWebsiteJobWindowEnding,
+  websiteJobWindowEndedEventId, websiteJobWindowEndedNoticeKey, WEBSITE_JOB_WINDOW_ENDING_FIELD,
+  WEBSITE_JOB_WINDOW_ENDING_NOTICE_CUTOVER_EPOCH, type WebsiteJobWindowEndingNotice } from "./websiteJobWindowEnding";
 import { websiteRunClosure } from "./websiteRunClosure";
 import { sponsorshipValidUntil } from "./websiteSceneSponsorship";
 import { projectWebsiteCaptureRights } from "./websiteTaskContext";
@@ -91,10 +93,29 @@ function recordSkip(record: Record<string, any> | undefined, requestId: string, 
   if (!grant || grant.request_id !== requestId || typeof grant.authority_digest !== "string"
     || typeof grant.expires_at_epoch !== "number" || !Number.isFinite(grant.expires_at_epoch)) return "no_window";
   if (grant.expires_at_epoch > nowEpoch) return "window_open";
-  if (recordedWebsiteJobWindowEnding(record)) return "ending_recorded";
   if (record!.capture_withdrawal || projectWebsiteCaptureRights(record).consent_revoked) return "withdrawn";
   if (websiteRunClosure(record, requestId, siteWalkthroughIdentity(requestId, record).captureId)) return "owner_closed";
   return null;
+}
+
+/**
+ * When the job's window ended: the grant's expiry, or the end of its verified extension. Throws
+ * when the extension's scene intake cannot be read.
+ */
+async function windowEnd(record: Record<string, any>, reader: { get: (ref: any) => Promise<any> }): Promise<number> {
+  const grant = record.website_scene_sponsorship;
+  return sponsorshipValidUntil(grant, record.website_scene_sponsorship_execution_window
+    ? sponsorshipExecutionWindowUntil(grant, record, await sponsorshipWindowIntake(reader, record)) : undefined);
+}
+const plainReader = { get: (ref: any) => ref.get() };
+
+/**
+ * An ending already recorded for this grant settles the job only while it is for the same window
+ * end. An extension that reopened the window and has since passed is a new ending: its email may
+ * have been cancelled unsent when the window reopened, so the sweep reconciles it below.
+ */
+function recordedForWindow(record: Record<string, any> | undefined, windowEndedAt: number): boolean {
+  return recordedWebsiteJobWindowEnding(record)?.window_ended_at_epoch === windowEndedAt;
 }
 
 /**
@@ -136,10 +157,15 @@ export async function sweepWebsiteJobWindow(requestId: string, nowMs = Date.now(
   observed ??= (await jobRef.get()).data();
   const early = recordSkip(observed, requestId, nowEpoch);
   if (early) return early;
+  if (recordedWebsiteJobWindowEnding(observed)) {
+    const observedEnd = await windowEnd(observed!, plainReader);
+    if (!(observedEnd <= nowEpoch)) return "window_open";
+    if (recordedForWindow(observed, observedEnd)) return "ending_recorded";
+  }
   const outcome = await storedOutcome(requestId, observed!);
   if (outcome) return outcome;
   const observedGrant = observed!.website_scene_sponsorship.authority_digest;
-  const outboxRef = store.collection(CAPTURE_OUTBOX_COLLECTION).doc(websiteJobWindowEndedNoticeKey(requestId));
+  const firstKey = websiteJobWindowEndedNoticeKey(requestId);
   return store.runTransaction<JobWindowSweepResult>(async transaction => {
     // Every read comes before the writes. The record is read again here, so a withdrawal, a
     // closure, a re-issued grant or an extension that landed since the first read still counts.
@@ -148,16 +174,25 @@ export async function sweepWebsiteJobWindow(requestId: string, nowMs = Date.now(
     if (skip) return skip;
     const grant = record!.website_scene_sponsorship;
     if (grant.authority_digest !== observedGrant) return "changed";
-    const extendedUntil = record!.website_scene_sponsorship_execution_window
-      ? sponsorshipExecutionWindowUntil(grant, record, await sponsorshipWindowIntake(transaction, record)) : undefined;
-    const windowEndedAt = sponsorshipValidUntil(grant, extendedUntil);
+    const windowEndedAt = await windowEnd(record!, transaction);
     if (!(windowEndedAt <= nowEpoch)) return "window_open";
+    if (recordedForWindow(record, windowEndedAt)) return "ending_recorded";
     // No backfill: only a window that ended at or after the cutover owes the site an email.
     const owed = windowEndedAt >= WEBSITE_JOB_WINDOW_ENDING_NOTICE_CUTOVER_EPOCH;
-    const alreadyQueued = owed && (await transaction.get(outboxRef)).exists;
+    // Every window-ended email this job ever had. One that went out, or still can, is the job's
+    // one email: never a second. Only when each was cancelled unsent is another queued, under
+    // the key that names this window end.
+    const earlier: Array<{ id: string; data: () => Record<string, any> | undefined }> = owed
+      ? (await transaction.get(store.collection(CAPTURE_OUTBOX_COLLECTION).where("requestId", "==", requestId))).docs
+        .filter((row: { id: string }) => isWebsiteJobWindowEndedNoticeKey(requestId, row.id)) : [];
+    const stillOwedByAnEarlierOne = earlier.some(row => row.data()?.status !== "cancelled");
+    const first = !earlier.some(row => row.id === firstKey);
+    const outboxRef = store.collection(CAPTURE_OUTBOX_COLLECTION)
+      .doc(first ? firstKey : websiteJobWindowEndedNoticeKey(requestId, windowEndedAt));
     let notice: WebsiteJobWindowEndingNotice = "none_window_ended_before_cutover";
     let entry: ReturnType<typeof buildOutboxEntry> | null = null;
-    if (alreadyQueued) notice = "queued";
+    if (stillOwedByAnEarlierOne) notice = "queued";
+    else if (owed && earlier.some(row => row.id === outboxRef.id)) notice = "none_cancelled_before_sending";
     else if (owed) {
       let to: string;
       try { to = String(await decryptFieldValue(record!.contact?.email ?? "")).trim(); }
@@ -167,7 +202,7 @@ export async function sweepWebsiteJobWindow(requestId: string, nowMs = Date.now(
       }
       if (EMAIL.test(to)) {
         const message = buildTaskLifecycleNotification({ requestId, milestone: "scene_outcome", to,
-          eventId: WEBSITE_JOB_WINDOW_ENDED_EVENT_ID, jobWindowEnded: true,
+          eventId: websiteJobWindowEndedEventId(first ? undefined : windowEndedAt), jobWindowEnded: true,
           workspaceUrl: typeof record!.account_owner_uid === "string" && record!.account_owner_uid
             ? workspaceTaskUrl(requestId) : null });
         if (message.idempotencyKey !== outboxRef.id) throw new Error("website_job_window_ended_notice_key_mismatch");
@@ -224,12 +259,7 @@ export async function sweepWebsiteJobWindows(options: { limit?: number; now?: ()
  * passing store failure never decides whether an email is sent.
  */
 async function endingStands(record: Record<string, any>, nowEpoch = Date.now() / 1000): Promise<boolean> {
-  if (!recordedWebsiteJobWindowEnding(record)) return false;
-  const grant = record.website_scene_sponsorship;
-  const extendedUntil = record.website_scene_sponsorship_execution_window
-    ? sponsorshipExecutionWindowUntil(grant, record, await sponsorshipWindowIntake({ get: (ref: any) => ref.get() }, record))
-    : undefined;
-  return sponsorshipValidUntil(grant, extendedUntil) <= nowEpoch;
+  return Boolean(recordedWebsiteJobWindowEnding(record)) && await windowEnd(record, plainReader) <= nowEpoch;
 }
 
 /** Whether the job's ending is on record for its current grant and still stands (its window is still past). */
@@ -239,18 +269,17 @@ export async function websiteJobWindowEndingRecorded(requestId: string): Promise
   return Boolean(record) && await endingStands(record!);
 }
 
-/** Whether an outbox key is a job's window-ended email. */
-export const isWebsiteJobWindowEndedNotice = (requestId: string, idempotencyKey: string) =>
-  idempotencyKey === websiteJobWindowEndedNoticeKey(requestId);
+/** Whether an outbox key is one of a job's window-ended emails. */
+export const isWebsiteJobWindowEndedNotice = isWebsiteJobWindowEndedNoticeKey;
 
 /**
  * Whether a queued window-ended email still says what the job page says, read again at
  * dispatch: the ending stands for the current grant, no withdrawal or closure came since, no
- * result outranks it, and no other outcome email has told the site where its job stands.
- * Throws when it cannot be read, which leaves the claim recoverable rather than cancelling
- * or sending it.
+ * result outranks it, and no other outcome email (an earlier window-ended one included) has
+ * told the site where its job stands. Throws when it cannot be read, which leaves the claim
+ * recoverable rather than cancelling or sending it.
  */
-export async function websiteJobWindowEndingShown(requestId: string): Promise<boolean> {
+export async function websiteJobWindowEndingShown(requestId: string, idempotencyKey: string): Promise<boolean> {
   if (!db) return false;
   const record = (await db.collection(JOBS).doc(requestId).get()).data();
   if (!record || record.capture_withdrawal || projectWebsiteCaptureRights(record).consent_revoked) return false;
@@ -262,7 +291,7 @@ export async function websiteJobWindowEndingShown(requestId: string): Promise<bo
   if (resultOutranksWindowEnding({ screening: await loadSceneScreening(requestId),
     sceneProgression: await readWebsiteSceneProgression(requestId, captureId) })) return false;
   const told = await db.collection(CAPTURE_OUTBOX_COLLECTION).where("requestId", "==", requestId).get();
-  return !told.docs.some(row => row.id !== websiteJobWindowEndedNoticeKey(requestId)
+  return !told.docs.some(row => row.id !== idempotencyKey
     && ["evaluation_outcome", "scene_outcome"].includes(String(row.data()?.kind ?? ""))
     && WENT_OUT.has(String(row.data()?.status ?? "")));
 }
