@@ -1,5 +1,6 @@
 import { dbAdmin } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
+import { automationBatch } from "./automationBatch";
 import { getOpsAutomationLeaderLease, type AutomationLeaderLease } from "./automationLeaderLease";
 import { readOutboxDeliveryHealth, type OutboxDeliveryHealth } from "./captureOutboxHealth";
 import { unknownRowState } from "./captureOutboxRetry";
@@ -250,16 +251,21 @@ async function alertOutboxRowsOnce(store: OutboxStore, docs: OutboxDoc[], kind: 
   return fresh.length;
 }
 
-async function readOutboxStatus(store: OutboxStore, status: string, requested: number | undefined) {
+/**
+ * Rows of one status for an alert scan. An alerted row keeps its status, so it
+ * stays in this query for good. Reads the first page; once that page is full,
+ * also reads the next page of a durable rotating scan (automationBatch, the
+ * same status filter ordered by document id, so no new index), so a full page
+ * of rows already reported can never hide a later row that is owed its alert.
+ */
+async function readOutboxStatus(store: OutboxStore, status: string, requested: number | undefined): Promise<OutboxDoc[]> {
   const limit = Math.max(1, Math.min(requested ?? 200, 500));
-  const snapshot = await store.collection(CAPTURE_OUTBOX_COLLECTION).where("status", "==", status).limit(limit).get();
-  if (snapshot.docs.length >= limit) {
-    logger.warn(
-      { event: `capture_outbox_${status}_scan_truncated`, limit },
-      `More ${status} outbox entries exist than one scan reads; clear or cancel handled entries`,
-    );
-  }
-  return snapshot.docs;
+  const query = store.collection(CAPTURE_OUTBOX_COLLECTION).where("status", "==", status);
+  const head = (await query.limit(limit).get()).docs;
+  if (head.length < limit) return head;
+  const seen = new Set(head.map((doc) => doc.id));
+  const rotated = await automationBatch(store as never, query as never, `capture_outbox_${status}_alert_scan`, limit);
+  return [...head, ...(rotated.docs as OutboxDoc[]).filter((doc) => !seen.has(doc.id))];
 }
 
 /** Alert once per terminally failed outbox entry. */

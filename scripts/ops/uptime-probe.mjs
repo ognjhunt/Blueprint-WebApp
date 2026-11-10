@@ -11,11 +11,12 @@
  *   /health         the web service answers ("healthy")
  *   /version.json   the deployed build is served ("git_sha")
  *   /health/worker  blueprint-webapp-worker wrote its heartbeat recently ("fresh")
- *   /health/outbox  the oldest undelivered customer email is not too old. Fails
- *                   on the endpoint's "stalled" or "unavailable" answer, or on
- *                   no answer. A build that does not serve the endpoint yet
- *                   answers with a page, which passes, so the probe and the web
- *                   service can deploy in either order.
+ *   /health/outbox  the oldest undelivered customer email is not too old
+ *                   ("moving"). Anything else fails: "stalled", "unavailable",
+ *                   a 5xx, or a 200 that is not the endpoint's answer. The one
+ *                   exception is a 404, which is a build that does not serve
+ *                   the endpoint yet (the endpoint itself never answers 404),
+ *                   so the probe and the web service can deploy in either order.
  *   control plane   when UPTIME_CONTROL_PLANE_HEALTH_URL is set: the Pipeline
  *                   control-plane host answers through its operator door
  *                   (`{"ok": true}`), so a down host, Caddy or door pages here
@@ -36,7 +37,7 @@ export const UPTIME_CHECKS = [
   { path: "/health", expect: '"healthy"' },
   { path: "/version.json", expect: "git_sha" },
   { path: "/health/worker", expect: '"fresh"', meaning: "worker heartbeat stale or missing" },
-  { path: "/health/outbox", failOn: /"status":\s*"(stalled|unavailable)"/, meaning: "customer email undelivered too long, or the outbox is unreadable" },
+  { path: "/health/outbox", expect: /"status":\s*"moving"/, absentStatus: 404, meaning: "customer email undelivered too long, or the outbox is unreadable" },
 ];
 
 /** The control-plane host's operator door; it needs no token to answer /healthz. */
@@ -52,8 +53,8 @@ async function probeOnce(baseUrl, check, fetchImpl, timeoutMs) {
       headers: { "user-agent": "blueprint-uptime-probe" },
     });
     const body = await response.text();
-    // A `failOn` check fails when the endpoint reports the fault, whatever else answers there.
-    if (check.failOn) return { ok: !check.failOn.test(body), status: String(response.status) };
+    // The status a build answers with when it does not serve this endpoint yet.
+    if (check.absentStatus === response.status) return { ok: true, absent: true, status: String(response.status) };
     const expected = check.expect instanceof RegExp ? check.expect.test(body) : body.includes(check.expect);
     return { ok: response.status === 200 && expected, status: String(response.status) };
   } catch {
@@ -78,7 +79,7 @@ export async function runUptimeProbe({
     for (let attempt = 1; attempt <= attempts; attempt += 1) {
       result = await probeOnce(baseUrl, check, fetchImpl, timeoutMs);
       if (result.ok) {
-        log(`OK ${check.path} (attempt ${attempt})`);
+        log(result.absent ? `SKIP ${check.path}: HTTP ${result.status}, not served by this build yet` : `OK ${check.path} (attempt ${attempt})`);
         break;
       }
       log(`Attempt ${attempt}/${attempts} for ${check.path}: HTTP ${result.status}`);

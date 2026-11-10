@@ -304,6 +304,36 @@ describe("outside the provider's window an unknown outcome is not sent again", (
   });
 });
 
+describe("the alert scan pages past rows it has already reported", () => {
+  const needsPerson = (id: string) => ({ idempotencyKey: id, requestId: id.split(":")[0], kind: "results_ready",
+    to: "old@site.example", subject: "s", body: "b", status: "unknown", attempts: 1,
+    createdAtIso: new Date(START - HOUR).toISOString(), sentAtIso: null, lastError: "delivery_outcome_unknown" });
+  const failed = (id: string) => ({ ...needsPerson(id), status: "failed", lastError: "Resend rejected email: Invalid `to` field" });
+
+  it.each([
+    ["unknown", needsPerson, (deps: object) => scanUnknownOutboxOutcomes(deps)],
+    ["failed", failed, (deps: object) => scanTerminalOutboxFailures(deps)],
+  ] as const)("a full first page of reported %s rows does not hide a later row from its alert", async (_status, seed, scan) => {
+    const alert = vi.fn(async (_key: string, _text: string) => undefined);
+    const deps = { store: db as never, alert, email: vi.fn(async () => ({ sent: true })) as never, now: () => Date.now(), limit: 3 };
+    // More retained rows than one page, all reported over a few passes.
+    for (let index = 1; index <= 7; index += 1) store.docs.set(`captureOutbox/a-${index}:results_ready`, seed(`a-${index}:results_ready`));
+    for (let pass = 0; pass < 6; pass += 1) await scan(deps);
+    expect([...store.docs.keys()].filter(path => path.startsWith("opsOutboxFailureAlerts/"))).toHaveLength(7);
+    alert.mockClear();
+    // A newer row that sorts after every retained one.
+    store.docs.set("captureOutbox/z-new:results_ready", seed("z-new:results_ready"));
+    let reported = 0;
+    for (let pass = 0; pass < 6; pass += 1) reported += (await scan(deps)).newlyAlerted;
+    expect(reported).toBe(1);
+    expect(alert).toHaveBeenCalledOnce();
+    expect(String(alert.mock.calls[0][1])).toContain("results_ready for z-new");
+    // And never twice.
+    for (let pass = 0; pass < 6; pass += 1) reported += (await scan(deps)).newlyAlerted;
+    expect(reported).toBe(1);
+  });
+});
+
 describe("rows that were unknown before provider keys existed", () => {
   const legacy = (overrides: Record<string, unknown> = {}) => ({
     idempotencyKey: key("a"), requestId: "req-a", kind: "results_ready", to: "a@site.example", subject: "Your result",
