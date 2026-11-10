@@ -865,7 +865,7 @@ it("grants a new prepared scene its native allowance only while the job's one ce
   expect([...store.rows.keys()].filter(key => key.startsWith("taskEvaluationSceneIntakes/"))).toHaveLength(1);
 });
 
-it("keeps a prepared scene's native allowance held when every delivery's response was lost and retries ran out", async () => {
+it("retries a lost delivery past 20 attempts with a growing gap until its expiry, and keeps the native allowance held", async () => {
   sponsoredCapture();
   const base = (await app()).replace(/\/intakes$/, "/internal/creator-captures/walkthrough-req1");
   const post = (operation: string, extra = {}) => realFetch(`${base}/${operation}`, {
@@ -890,15 +890,29 @@ it("keeps a prepared scene's native allowance held when every delivery's respons
   // The Pipeline receives (and may accept) every delivery, but its response never arrives.
   const fetcher = vi.fn(async () => { throw new TypeError("fetch failed"); });
   vi.stubGlobal("fetch", fetcher);
-  for (let tick = 0; tick < 25 && stored()[1].state !== "blocked"; tick++) {
+  const gaps: number[] = [];
+  for (let tick = 0; tick < 25; tick++) {
     stored()[1].next_forward_at_ms = 0;
+    const before = Date.now();
     await processSceneIntakeQueue();
+    gaps.push(Math.round((stored()[1].next_forward_at_ms - before) / 60_000));
   }
-  expect(stored()[1]).toMatchObject({ state: "blocked", blocker: "transport_retry_cap_exhausted",
-    forwarding_started: true, forward_attempt_count: 20 });
+  // A host outage alone never ends the job: attempt 21 and later still forward.
+  expect(stored()[1]).toMatchObject({ state: "forward_blocked", blocker: "pipeline_transport_failed",
+    forwarding_started: true, forward_attempt_count: 25, forward_retry_count: 25 });
+  expect(fetcher).toHaveBeenCalledTimes(25);
+  // One minute apart at first, then doubling to the 30-minute cap.
+  expect(gaps.slice(0, 10)).toEqual([1, 1, 1, 1, 1, 2, 4, 8, 16, 30]);
+  expect(gaps.slice(10).every(gap => gap === 30)).toBe(true);
+  // The intent's expiry still ends it, on the existing path, with no further delivery.
+  const expired = vi.spyOn(Date, "now").mockReturnValue(grant.expires_at_epoch * 1000 + 1000);
+  stored()[1].next_forward_at_ms = 0;
+  await processSceneIntakeQueue();
+  expired.mockRestore();
+  expect(stored()[1]).toMatchObject({ state: "blocked", blocker: "consent_expired", forward_attempt_count: 25 });
+  expect(fetcher).toHaveBeenCalledTimes(25);
   expect(stored()[1]).not.toHaveProperty("receipt");
   expect(stored()[1]).not.toHaveProperty("pipeline_status");
-  expect(fetcher).toHaveBeenCalledTimes(20);
   // A local "blocked" does not prove the Pipeline stopped: the whole $20 stays held
   // against the owner default $40 ceiling, so only $20 of new spend fits.
   expect((await ceiling(20)).spend.native_construction_micros).toBe(20_000_000);

@@ -292,6 +292,17 @@ export const SCENE_INTAKE_COLLECTION = "taskEvaluationSceneIntakes";
 // the normal one-minute worker cadence this is one hour; exhaustion is an
 // explicit terminal blocker rather than an unbounded retry loop.
 export const SCENE_TERMINAL_CLOSEOUT_POLL_LIMIT = 60;
+// A forward that fails for a reason that may pass (the Pipeline host down, a
+// transport error) is retried until the intent's own expiry, never given up on
+// by count: a host outage alone must not end a job. The first retries stay one
+// minute apart so a blip recovers fast, then the gap doubles up to 30 minutes.
+// At the expiry the `consent_expired` check ends the intake as before.
+export const SCENE_FORWARD_FAST_RETRIES = 5;
+export const SCENE_FORWARD_RETRY_MAX_MS = 30 * 60 * 1000;
+export function sceneForwardRetryDelayMs(failures: number): number {
+  if (failures <= SCENE_FORWARD_FAST_RETRIES) return 60_000;
+  return Math.min(SCENE_FORWARD_RETRY_MAX_MS, 60_000 * 2 ** Math.min(failures - SCENE_FORWARD_FAST_RETRIES, 16));
+}
 const SCENE_STATUS_POLL_STATES = ["accepted", "closeout_pending", "expired", "revoked"] as const;
 
 function isSceneStatusPollState(value: string): value is (typeof SCENE_STATUS_POLL_STATES)[number] {
@@ -795,8 +806,6 @@ export async function processSceneIntakeQueue(limit = 10) {
           // An owner-approved, time-only extension moves only this expiry (raw + 7 days at most).
           if (effectiveSceneExecutionExpiry(record) <= now / 1000)
             throw new Error("consent_expired");
-          if (record.forward_attempt_count >= 20)
-            throw new Error("transport_retry_cap_exhausted");
           const owner = record.request.owner;
           let sponsored = false;
           let sponsoredAuthority: Awaited<ReturnType<typeof loadWebsiteSceneSponsorship>> | null = null;
@@ -914,6 +923,7 @@ export async function processSceneIntakeQueue(limit = 10) {
             "evaluation_context_binding_invalid",
             "evaluation_context_unavailable",
             "consent_expired",
+            // No longer raised: kept so rows stored by older workers keep their code.
             "transport_retry_cap_exhausted",
             "stored_request_digest_invalid",
             "source_revoked",
@@ -959,11 +969,18 @@ export async function processSceneIntakeQueue(limit = 10) {
             : terminal
               ? "blocked"
               : "forward_blocked";
+        // A forward that may still succeed backs off, and is due again no later than its expiry.
+        const forwardRetries = (record.forward_retry_count || 0) + 1;
+        const expiryMs = Number(effectiveSceneExecutionExpiry(record)) * 1000;
+        const forwardRetryAt = Number.isFinite(expiryMs)
+          ? Math.min(now + sceneForwardRetryDelayMs(forwardRetries), Math.max(now + 60000, expiryMs))
+          : now + sceneForwardRetryDelayMs(forwardRetries);
         patch = {
           state: closeoutPollExhausted ? "blocked" : fallbackState,
           blocker: closeoutPollExhausted ? "terminal_closeout_poll_cap_exhausted" : code,
-          next_forward_at_ms: now + 60000,
+          next_forward_at_ms: fallbackState === "forward_blocked" ? forwardRetryAt : now + 60000,
           forward_attempt_count: (record.forward_attempt_count || 0) + Number(deliveryReserved),
+          ...(fallbackState === "forward_blocked" ? { forward_retry_count: forwardRetries } : {}),
           ...(closeoutPoll ? { closeout_poll_count: closeoutPollCount + 1 } : {}),
         };
       }
