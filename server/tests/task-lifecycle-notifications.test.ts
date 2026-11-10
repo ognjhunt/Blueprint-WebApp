@@ -347,6 +347,37 @@ it("sends a claimed site's evaluation outcome to its workspace, with the estimat
   expect(notice.body).not.toContain("private-owner-link");
 });
 
+describe("a job the window sweep ended is told under its own fixed key", () => {
+  it("builds the page's sentence and refuses every other shape", async () => {
+    const { buildTaskLifecycleNotification } = await import("../utils/taskLifecycleNotifications");
+    const { JOB_WINDOW_ENDING_MESSAGE } = await import("../utils/taskPreparationOutcome");
+    const notice = buildTaskLifecycleNotification({ requestId: "req-1", to: "owner@example.com", milestone: "scene_outcome",
+      eventId: "job_window_ended", jobWindowEnded: true, captureUrl: "https://example.invalid/private-owner-link" });
+    expect(notice).toMatchObject({ idempotencyKey: "req-1:scene_outcome:job_window_ended", kind: "scene_outcome",
+      subject: "Your Blueprint job has ended", replyTo: "hello@tryblueprint.io" });
+    expect(notice.body).toBe(`${JOB_WINDOW_ENDING_MESSAGE}\n\nOpen your job on your private job page:\n`
+      + "https://example.invalid/private-owner-link\n\n— The Blueprint team");
+    const claimed = buildTaskLifecycleNotification({ requestId: "req-1", to: "owner@example.com", milestone: "scene_outcome",
+      eventId: "job_window_ended", jobWindowEnded: true, captureUrl: "https://example.invalid/private-owner-link",
+      workspaceUrl: "https://example.invalid/app/tasks/req-1" });
+    expect(claimed.body).toContain("Open your job in your workspace:\nhttps://example.invalid/app/tasks/req-1");
+    // Only the fixed event id, and never together with a scene outcome kind.
+    for (const params of [{ eventId: `held-${"a".repeat(64)}` }, { eventId: undefined },
+      { eventId: "job_window_ended", sceneOutcomeKind: "held" as const }])
+      expect(() => buildTaskLifecycleNotification({ requestId: "req-1", to: "owner@example.com", milestone: "scene_outcome",
+        jobWindowEnded: true, ...params })).toThrow("job_window_ended_notice_invalid");
+    // Without the flag the fixed id is not a scene outcome, so no other caller can queue under it.
+    expect(() => buildTaskLifecycleNotification({ requestId: "req-1", to: "owner@example.com", milestone: "scene_outcome",
+      eventId: "job_window_ended" })).toThrow("scene_outcome_notice_invalid");
+  });
+
+  it("is not current at dispatch unless the job's ending is on record", async () => {
+    const { taskLifecycleNotificationIsCurrent } = await import("../utils/taskLifecycleNotificationAuthority");
+    const key = "req-1:scene_outcome:job_window_ended";
+    expect(await taskLifecycleNotificationIsCurrent({ kind: "scene_outcome", requestId: "req-1", idempotencyKey: key })).toBe(false);
+  });
+});
+
 describe("a website job's scene outcome is emailed once (C-04)", () => {
   const docs = sharedFakeFirestoreState.docs;
   const sha = (char: string) => `sha256:${char.repeat(64)}`;

@@ -28,8 +28,8 @@
 import type { ReadinessStage } from "../../client/src/lib/siteTaskReadiness";
 import { multiStepHoldMessage, taskScopeNotYet } from "./siteTaskScope";
 import type { TaskOutcome } from "../../client/src/types/taskOutcome";
-import { AUTHORITY_ENDED_SENTENCE, FOOTAGE_BEFORE_ACCOUNT_SENTENCE, JOB_WINDOW_ENDED_SENTENCE, PREPARATION_ENDED_NEXT,
-  processingFailure } from "./taskPreparationOutcome";
+import { AUTHORITY_ENDED_SENTENCE, FOOTAGE_BEFORE_ACCOUNT_SENTENCE, JOB_WINDOW_ENDED_SENTENCE, JOB_WINDOW_ENDING_MESSAGE,
+  PREPARATION_ENDED_NEXT, processingFailure } from "./taskPreparationOutcome";
 import { screeningOutcomeSentenceWithWindow, type ScreeningHeldOutcome, type ScreeningOutcome } from "./betaPolicyScreeningContract";
 import { isTerminalSceneOutcomeKind, sceneOutcomeMessage, sceneWaitMessage, type SceneOutcomeReading } from "./sceneIntentOutcome";
 
@@ -88,7 +88,13 @@ export type TaskDecision =
    * cannot be built from it yet and sending it again would not help (owner
    * decision 2026-10-18).
    */
-  | "footage_before_account";
+  | "footage_before_account"
+  /**
+   * The job is over: its work window ran out before Blueprint finished, and the
+   * WebApp's own window sweep recorded the ending (`websiteJobWindowSweep`).
+   * Final, so it carries no waiting line and no step for anyone.
+   */
+  | "ended";
 
 export interface TaskStatus {
   /** Earlier results belong to an object selection the owner has rejected. */
@@ -230,6 +236,20 @@ export function sceneProgressionOutcome(progression: TaskSceneProgression | null
   return progression?.progressOutcome ?? null;
 }
 
+/**
+ * Whether a result stands above a recorded window ending: an evaluation run of any kind, an
+ * estimate, or a hold an evaluation reached. A terminal outcome the Pipeline's own scene status
+ * carries (`sceneOutcome`, C-04) does not: the sweep leaves a job alone when one is already
+ * stored, and one that arrives after the ending is the same ending, whose email is not sent twice.
+ */
+export function resultOutranksWindowEnding(input: { screening?: SceneScreening | null;
+  sceneProgression?: TaskSceneProgression | null }): boolean {
+  const runs = input.screening;
+  if (runs && runs.queued + runs.running + runs.reported + runs.noResult > 0) return true;
+  const scene = input.sceneProgression;
+  return scene?.state === "evaluated" || scene?.state === "held" && !scene.sceneOutcome;
+}
+
 /** One sentence per reason the Pipeline can give; an unknown reason adds nothing. */
 const ENDED_REASON: Record<string, string> = {
   retry_exhausted: "We tried several times and could not get past a problem on our side.",
@@ -260,6 +280,12 @@ interface TaskStatusInput {
   jobWorkUntilEpoch?: number | null;
   /** The job's work window has passed while its rights still allowed the work. */
   jobWindowEnded?: boolean;
+  /**
+   * The WebApp's window sweep recorded this job's ending for its current grant, and the window is
+   * still past (`websiteJobWorkWindow.endingRecorded`). Stored, so it holds whatever the Pipeline
+   * last reported and whether or not it can be reached.
+   */
+  jobWindowEndingRecorded?: boolean;
   /** False when no automated footage review runs, so a person reviews it. */
   footageReviewAutomated?: boolean;
   scenePreviewReady?: boolean;
@@ -349,6 +375,13 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
   if (input.ownerClosureOutcome) return { ...base, stage: null, missingViews: [], nextUpdateIso: null,
     decision: input.ownerClosureOutcome.category, headline: input.ownerClosureOutcome.title,
     operatorAction: null, outcome: input.ownerClosureOutcome };
+
+  // The window sweep ended this job and, from the cutover on, told the site so once. A withdrawal
+  // and an owner closure above say so first. Every waiting, in-progress or needs-review state below
+  // would now be untrue, because nothing more runs for a job past its window. Only a result is
+  // truer, and each of those has its own email: an estimate or an evaluation's hold, or a run.
+  if (input.jobWindowEndingRecorded && !resultOutranksWindowEnding(input)) return { ...base, decision: "ended", stage: null,
+    missingViews: [], headline: JOB_WINDOW_ENDING_MESSAGE, operatorAction: null };
 
   // A preparation stop must not be hidden by an unconfirmed brief or a generic
   // intake gate. Actual evaluation activity/results outrank an older stop.
@@ -781,7 +814,7 @@ export function taskStatusInputFrom(record: {
   /** Recording withdrawal overrides retained derived evidence on every surface. */
   consentRevoked?: boolean;
   /** `websiteJobWorkWindow(record)`, when the caller read it. */
-  jobWorkWindow?: { untilEpoch: number | null; ended: boolean } | null;
+  jobWorkWindow?: { untilEpoch: number | null; ended: boolean; endingRecorded?: boolean } | null;
   footageReviewAutomated?: boolean;
   scenePreviewReady?: boolean;
   visualReconstructionReady?: boolean;
@@ -820,6 +853,7 @@ export function taskStatusInputFrom(record: {
     consentRevoked: record.consentRevoked === true,
     ...(record.jobWorkWindow?.untilEpoch ? { jobWorkUntilEpoch: record.jobWorkWindow.untilEpoch } : {}),
     ...(record.jobWorkWindow?.ended === true ? { jobWindowEnded: true } : {}),
+    ...(record.jobWorkWindow?.endingRecorded === true ? { jobWindowEndingRecorded: true } : {}),
     ...(record.footageReviewAutomated === false ? { footageReviewAutomated: false } : {}),
     scenePreviewReady: Boolean(record.scenePreviewReady),
     visualReconstructionReady: record.visualReconstructionReady === true,

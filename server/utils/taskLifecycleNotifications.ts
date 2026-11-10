@@ -25,7 +25,9 @@ import { taskLifecycleNotificationIsCurrent } from "./taskLifecycleNotificationA
 import { drainPendingWebsitePreparationNotifications } from "./websitePreparationStatus";
 import { preparationEndedSentence } from "./taskStatusProjection";
 import { EARLY_TASK_HOLD_DETAIL, EARLY_TASK_HOLD_SENTENCES, earlyTaskHoldOf, isEarlyTaskHoldReason,
-  FOOTAGE_BEFORE_ACCOUNT_SENTENCE, type EarlyTaskHoldReason } from "./taskPreparationOutcome";
+  FOOTAGE_BEFORE_ACCOUNT_SENTENCE, JOB_WINDOW_ENDING_MESSAGE, JOB_WINDOW_ENDING_SUBJECT,
+  type EarlyTaskHoldReason } from "./taskPreparationOutcome";
+import { WEBSITE_JOB_WINDOW_ENDED_EVENT_ID } from "./websiteJobWindowEnding";
 import { selectWebsiteAtlasPreview } from "./websiteAtlasPreview";
 import { isScreeningResultOutcome, screeningEstimateCountSentence, screeningOutcomeSentence,
   type ScreeningOutcome } from "./betaPolicyScreeningContract";
@@ -76,7 +78,7 @@ export function reconstructionIsViewable(record: {
 }
 
 /** The site's job in its workspace, where run results open once the site is claimed. */
-function workspaceTaskUrl(requestId: string): string {
+export function workspaceTaskUrl(requestId: string): string {
   const origin = (process.env.VITE_PUBLIC_APP_URL?.trim() || process.env.APP_URL?.trim() || "https://tryblueprint.io")
     .replace(/\/+$/, "");
   return `${origin}/app/tasks/${encodeURIComponent(requestId)}`;
@@ -278,13 +280,19 @@ export function buildTaskLifecycleNotification(params: {
   robotAccessCounts?: RobotAccessCounts;
   /** `preparation_needs_attention` only: the early task hold the job page states; the notice is then the held one. */
   earlyTaskHold?: EarlyTaskHoldReason;
+  /**
+   * `scene_outcome` only: the job's window ran out and the WebApp's sweep ended it
+   * (`websiteJobWindowSweep`). Its event id is the fixed one, so a job gets one such email ever.
+   */
+  jobWindowEnded?: true;
 }): Parameters<typeof enqueueOutbox>[0] {
   const requestId = params.requestId.trim();
   if (isWebsitePreparationNotice(params.milestone) && !/^sha256:[a-f0-9]{64}$/.test(params.eventId || "")) {
     throw new Error("website_preparation_event_invalid");
   }
   const outcomeDetail = params.milestone === "evaluation_outcome" ? evaluationOutcomeDetail(params)
-    : params.milestone === "scene_outcome" ? sceneOutcomeDetail(params)
+    : params.milestone === "scene_outcome"
+      ? params.jobWindowEnded ? jobWindowEndedDetail(params) : sceneOutcomeDetail(params)
     : params.milestone === "robot_access_question" ? robotAccessQuestionDetail(params) : "";
   const held = params.milestone === "preparation_needs_attention" && isEarlyTaskHoldReason(params.earlyTaskHold)
     ? params.earlyTaskHold : null;
@@ -304,6 +312,7 @@ export function buildTaskLifecycleNotification(params: {
     to: params.to,
     subject: params.milestone === "evaluation_outcome" && params.screeningOutcome === "estimate"
       ? "Your simulation estimate is ready"
+      : params.milestone === "scene_outcome" && params.jobWindowEnded ? JOB_WINDOW_ENDING_SUBJECT
       : params.milestone === "scene_outcome" && params.sceneOutcomeKind ? sceneOutcomeSubject(params.sceneOutcomeKind) : message.subject,
     body: `${message.body(url, params.milestone === "run_no_result" ? noResultObservationText(params.runProgress)
       : isWebsitePreparationNotice(params.milestone) ? preparationDetail
@@ -362,6 +371,17 @@ function sceneOutcomeDetail(params: { eventId?: string; sceneOutcomeKind?: Termi
     throw new Error("scene_outcome_notice_invalid");
   }
   return sceneOutcomeMessage(kind);
+}
+
+/**
+ * The job page's own sentence for a job the window sweep ended. Fixed text, and only under the
+ * fixed event id and with no scene outcome kind, so no other notice can carry it.
+ */
+function jobWindowEndedDetail(params: { eventId?: string; sceneOutcomeKind?: TerminalSceneOutcomeKind }): string {
+  if (params.eventId !== WEBSITE_JOB_WINDOW_ENDED_EVENT_ID || params.sceneOutcomeKind !== undefined) {
+    throw new Error("job_window_ended_notice_invalid");
+  }
+  return JOB_WINDOW_ENDING_MESSAGE;
 }
 
 /** How many of each kind of movable furniture a robot access proposal moves. */

@@ -128,6 +128,17 @@ export const JOB_WINDOW_ENDED_SENTENCE = "This job has ended because the time Bl
 export const AUTHORITY_ENDED_SENTENCE = "This job has ended because Blueprint is no longer authorized to work on it.";
 
 /**
+ * A job the WebApp's own window sweep ended (`websiteJobWindowSweep`): its work window ran out with no
+ * result, hold or withdrawal on record. It is true however the job got there (the Pipeline went quiet, a
+ * stage refused, a wait never cleared): Blueprint did not finish in the time it was authorized, the
+ * Pipeline starts nothing more for a job past its window, and a new job is how the site starts again. It
+ * promises no follow-up, because nothing schedules one. The job page and the one email both say exactly this.
+ */
+export const JOB_WINDOW_UNFINISHED_SENTENCE = "Blueprint did not finish it in that time, and no more work will run on this job.";
+export const JOB_WINDOW_ENDING_MESSAGE = `${JOB_WINDOW_ENDED_SENTENCE} ${JOB_WINDOW_UNFINISHED_SENTENCE} ${PREPARATION_ENDED_NEXT}`;
+export const JOB_WINDOW_ENDING_SUBJECT = "Your Blueprint job has ended";
+
+/**
  * A video that arrived before its job was saved to an account. Nothing sends a later email about it,
  * so none is promised. The job page, the upload refusal and the one email all read this sentence.
  */
