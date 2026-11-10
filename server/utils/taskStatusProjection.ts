@@ -28,8 +28,9 @@
 import type { ReadinessStage } from "../../client/src/lib/siteTaskReadiness";
 import { multiStepHoldMessage, taskScopeNotYet } from "./siteTaskScope";
 import type { TaskOutcome } from "../../client/src/types/taskOutcome";
-import { processingFailure } from "./taskPreparationOutcome";
-import { screeningOutcomeSentence, type ScreeningHeldOutcome, type ScreeningOutcome } from "./betaPolicyScreeningContract";
+import { AUTHORITY_ENDED_SENTENCE, FOOTAGE_BEFORE_ACCOUNT_SENTENCE, JOB_WINDOW_ENDED_SENTENCE, PREPARATION_ENDED_NEXT,
+  processingFailure } from "./taskPreparationOutcome";
+import { screeningOutcomeSentenceWithWindow, type ScreeningHeldOutcome, type ScreeningOutcome } from "./betaPolicyScreeningContract";
 import { isTerminalSceneOutcomeKind, sceneOutcomeMessage, sceneWaitMessage, type SceneOutcomeReading } from "./sceneIntentOutcome";
 
 /**
@@ -255,6 +256,10 @@ interface TaskStatusInput {
   footageBeforeAccount?: boolean;
   /** Recording withdrawal overrides retained derived evidence on every surface. */
   consentRevoked?: boolean;
+  /** Until when Blueprint can keep working on the job (`websiteJobWorkWindow`); absent when unknown. */
+  jobWorkUntilEpoch?: number | null;
+  /** The job's work window has passed while its rights still allowed the work. */
+  jobWindowEnded?: boolean;
   /** False when no automated footage review runs, so a person reviews it. */
   footageReviewAutomated?: boolean;
   scenePreviewReady?: boolean;
@@ -568,8 +573,7 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
     return {
       decision: "footage_before_account",
       stage: null,
-      headline: "Your video arrived before this job was saved to an account, so we can't use it to build your scene yet. "
-        + "Blueprint needs to review this older recording. You don't need to send it again; we email you when that changes.",
+      headline: FOOTAGE_BEFORE_ACCOUNT_SENTENCE,
       operatorAction: null,
       missingViews: [],
       nextUpdateIso: null,
@@ -586,6 +590,7 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
     const fitCheckEnd = preparation.state === "awaiting_inputs" && preparation.robotFit?.route === "geometry_only";
     // A terminal ending is final; "taking longer" is for a state that can still move.
     const overdue = input.preparationOverdue && preparation.state !== "failed_terminal" && preparation.state !== "unavailable"
+      && preparation.state !== "authority_ended"
       && !fitCheckEnd ? " This is taking longer than it should and needs review." : "";
     const ended = preparationEndedSentence(preparation.terminalReason);
     const headlines: Record<Exclude<TaskPreparationStatus["state"], "handed_off">, string> = {
@@ -598,7 +603,8 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
       capacity_delayed: "Your recording is saved and queued. It is waiting for processing capacity on our side; nothing is needed from you. Keep your original recording.",
       failed_retryable: "Job preparation encountered a problem. Keep your original recording; our team needs to review it.",
       failed_terminal: `Scene preview preparation could not finish, and we have stopped trying.${ended ? ` ${ended}` : ""} Nothing more is needed from you. This needs our team's review. Keep your original recording.`,
-      authority_ended: "Processing is on hold while our team checks its authorization. Keep your original recording.",
+      // Final, never a hold: the job's own window says whether its time ran out.
+      authority_ended: `${input.jobWindowEnded ? JOB_WINDOW_ENDED_SENTENCE : AUTHORITY_ENDED_SENTENCE} ${PREPARATION_ENDED_NEXT}`,
       unavailable: "Your recording is saved. We could not verify the latest preparation status. Keep your original recording and check again shortly.",
     };
     const inProgress = preparation.state === "preparing" || preparation.state === "capacity_delayed";
@@ -651,7 +657,7 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
   const sceneTesting = sceneEvaluated || sceneHeld || input.sceneProgression?.state === "testing";
   // The run's own summary opens with this same sentence (F-03).
   const sceneOutcome = sceneProgressionOutcome(input.sceneProgression);
-  const resultHeadline = sceneOutcome ? screeningOutcomeSentence(sceneOutcome) : null;
+  const resultHeadline = sceneOutcome ? screeningOutcomeSentenceWithWindow(sceneOutcome, input.jobWorkUntilEpoch) : null;
   // A wait the Pipeline named (C-04), in one plain sentence. Older Pipelines name none.
   const sceneWait = input.sceneProgression?.state === "waiting" && input.sceneProgression.sceneOutcome
     ? sceneWaitMessage(input.sceneProgression.sceneOutcome) : null;
@@ -774,6 +780,8 @@ export function taskStatusInputFrom(record: {
   footageBeforeAccount?: boolean;
   /** Recording withdrawal overrides retained derived evidence on every surface. */
   consentRevoked?: boolean;
+  /** `websiteJobWorkWindow(record)`, when the caller read it. */
+  jobWorkWindow?: { untilEpoch: number | null; ended: boolean } | null;
   footageReviewAutomated?: boolean;
   scenePreviewReady?: boolean;
   visualReconstructionReady?: boolean;
@@ -810,6 +818,8 @@ export function taskStatusInputFrom(record: {
     sourceOwned: typeof record.capture_owner_uid === "string" && Boolean(record.capture_owner_uid.trim()),
     ...(record.footageBeforeAccount === true ? { footageBeforeAccount: true } : {}),
     consentRevoked: record.consentRevoked === true,
+    ...(record.jobWorkWindow?.untilEpoch ? { jobWorkUntilEpoch: record.jobWorkWindow.untilEpoch } : {}),
+    ...(record.jobWorkWindow?.ended === true ? { jobWindowEnded: true } : {}),
     ...(record.footageReviewAutomated === false ? { footageReviewAutomated: false } : {}),
     scenePreviewReady: Boolean(record.scenePreviewReady),
     visualReconstructionReady: record.visualReconstructionReady === true,

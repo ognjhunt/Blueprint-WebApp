@@ -25,7 +25,7 @@ import { taskLifecycleNotificationIsCurrent } from "./taskLifecycleNotificationA
 import { drainPendingWebsitePreparationNotifications } from "./websitePreparationStatus";
 import { preparationEndedSentence } from "./taskStatusProjection";
 import { EARLY_TASK_HOLD_DETAIL, EARLY_TASK_HOLD_SENTENCES, earlyTaskHoldOf, isEarlyTaskHoldReason,
-  type EarlyTaskHoldReason } from "./taskPreparationOutcome";
+  FOOTAGE_BEFORE_ACCOUNT_SENTENCE, type EarlyTaskHoldReason } from "./taskPreparationOutcome";
 import { selectWebsiteAtlasPreview } from "./websiteAtlasPreview";
 import { isScreeningResultOutcome, screeningEstimateCountSentence, screeningOutcomeSentence,
   type ScreeningOutcome } from "./betaPolicyScreeningContract";
@@ -176,7 +176,8 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
     subject: "Your video arrived before your job was saved to an account",
     // Owner decision 2026-10-18: said once, plainly. A re-upload cannot help on
     // Pipeline main, so it is never asked for.
-    body: (url, _detail, workspaceUrl) => `Your video arrived before this job was saved to an account, so we can't use it to build your scene yet. Blueprint needs to review this older recording. You don't need to send it again. Follow the same job:\n${workspaceUrl || url}\n\nWe email you when that changes.`,
+    // No later email follows this one, so it promises none.
+    body: (url, _detail, workspaceUrl) => `${FOOTAGE_BEFORE_ACCOUNT_SENTENCE} Follow the same job:\n${workspaceUrl || url}`,
   },
   pilot_request: {
     subject: "A partner asked to have its system evaluated on your job",

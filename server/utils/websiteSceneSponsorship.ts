@@ -155,6 +155,30 @@ export function sponsorshipValidUntil(grant: Record<string, any>, executionWindo
       grant.expires_at_epoch + SCENE_EXECUTION_WINDOW_MAX_SECONDS);
 }
 
+/**
+ * What a job page may say about the time Blueprint is authorized to work on a job: the retained
+ * grant's "still valid until", with the owner's one allowed extension when it verifies. Never a
+ * guess: no grant, an unreadable extension or a date already past gives no date. `ended` is a
+ * passed window while the rights still allow the work, so the end was the window and not the rights.
+ * It is what holds today, not a promise that the job stops on that date.
+ */
+export async function websiteJobWorkWindow(record: Record<string, any> | undefined,
+  nowEpoch = Date.now() / 1000): Promise<{ untilEpoch: number | null; ended: boolean }> {
+  const none = { untilEpoch: null, ended: false };
+  const grant = record?.website_scene_sponsorship;
+  if (!grant || typeof grant.expires_at_epoch !== "number" || !Number.isFinite(grant.expires_at_epoch)) return none;
+  let executionWindowUntil: number | undefined;
+  if (record!.website_scene_sponsorship_execution_window) {
+    try {
+      executionWindowUntil = sponsorshipExecutionWindowUntil(grant, record,
+        await sponsorshipWindowIntake({ get: (ref: any) => ref.get() }, record));
+    } catch { return none; }
+  }
+  const until = sponsorshipValidUntil(grant, executionWindowUntil);
+  if (until > nowEpoch) return { untilEpoch: until, ended: false };
+  return { untilEpoch: null, ended: projectWebsiteCaptureRights(record).derived_scene_generation_allowed };
+}
+
 export function websiteSceneSponsorship(input: {
   requestId: string; brief: SiteTaskBriefRecord; record: Record<string, any>; now: number;
   inventory?: TaskItemInventoryRecord | null; captureId?: string; captureBinding?: Record<string, any>;

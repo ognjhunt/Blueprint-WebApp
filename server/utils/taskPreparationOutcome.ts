@@ -116,6 +116,24 @@ export const earlyTaskHoldSentence = (reason: unknown): string | null =>
 /** What an early hold adds to its sentence; the job page and the email both read it. */
 export const EARLY_TASK_HOLD_DETAIL = "No robot was tested on your job, and this is not a finding that a robot could not do it.";
 
+/**
+ * A job whose preparation authority ended (Pipeline `authority_ended`). It is final, never a hold or a
+ * check in progress. The Pipeline ends it for an expired job window (`consent_expired`) or for rights
+ * that no longer allow scene building (`source_revoked`); the WebApp reads which from the job's own
+ * window. A withdrawn recording says so first, on its own.
+ */
+export const PREPARATION_ENDED_NEXT = "Nothing more is needed from you. Keep your original recording; "
+  + "to have Blueprint work on this site again, you can start a new job.";
+export const JOB_WINDOW_ENDED_SENTENCE = "This job has ended because the time Blueprint was authorized to work on it ran out.";
+export const AUTHORITY_ENDED_SENTENCE = "This job has ended because Blueprint is no longer authorized to work on it.";
+
+/**
+ * A video that arrived before its job was saved to an account. Nothing sends a later email about it,
+ * so none is promised. The job page, the upload refusal and the one email all read this sentence.
+ */
+export const FOOTAGE_BEFORE_ACCOUNT_SENTENCE = "Your video arrived before this job was saved to an account, so we can't "
+  + "use it to build your scene yet. Blueprint needs to review this older recording. You don't need to send it again.";
+
 export function earlyTaskHoldOutcome(reason: EarlyTaskHoldReason, evidenceDigest: string): TaskOutcome {
   return { category: "held", basis: "simulation_not_available", title: EARLY_TASK_HOLD_SENTENCES[reason],
     reason: EARLY_TASK_HOLD_DETAIL,

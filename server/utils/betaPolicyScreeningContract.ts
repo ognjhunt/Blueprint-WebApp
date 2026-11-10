@@ -324,7 +324,9 @@ export function screeningOutcome(publication: Pick<BetaPolicyScreeningPublicatio
  * A hold that is ours to look at says what happened, that it does not restart
  * by itself, and what the site hears next.
  */
-const IN_PROGRESS_SENTENCE = "Simulation evaluation in progress. We'll run your job again and show the estimate here.";
+/** Rows a Blueprint update stopped are planned again only after a deploy, which nothing schedules: no rerun is promised. */
+const SETUP_REPAIR_SENTENCE = "Simulation evaluation of your job has not finished: a Blueprint update stopped it before it gave an estimate. "
+  + "If a later run gives an estimate, it will show here.";
 const ATTENTION_NEXT = "It won't restart by itself. Our team has been told, and we'll email you if a later run gives a result.";
 /** A failure on our side is rerun after its fix (the Pipeline replans harness failures once the fix deploys). */
 const SETUP_NEXT = "Our team has been told. We'll run it again once the cause is fixed, and email you if a later run gives a result.";
@@ -338,11 +340,29 @@ const SCREENING_OUTCOME_SENTENCE: Readonly<Record<ScreeningOutcome, string>> = {
   held_setup: `Held: a problem on our side stopped the simulation of your job before it gave an estimate. ${SETUP_NEXT}`,
   held_budget: `Held: your job reached the most the free beta can simulate for one job before it gave an estimate. ${ATTENTION_NEXT}`,
   held_scene_check: `Held: the simulation built from your video failed the check we run before testing robots, so no robot was tested on your job. ${ATTENTION_NEXT}`,
-  awaiting_spend_approval: "Your job's simulation is waiting on an approval inside Blueprint before it can continue.",
-  setup_repair: IN_PROGRESS_SENTENCE,
+  // An internal limit is Blueprint's own control, never a step for the site, and is never named.
+  awaiting_spend_approval: "Blueprint is deciding whether to continue simulating your job.",
+  setup_repair: SETUP_REPAIR_SENTENCE,
   superseded: "Continued in a newer run after a Blueprint update.",
 };
+/** Outcomes that still wait on Blueprint, so they say until when Blueprint can keep working on the job. */
+const WAITING_OUTCOMES: ReadonlySet<ScreeningOutcome> = new Set(["awaiting_spend_approval", "setup_repair"]);
+/**
+ * Until when Blueprint is authorized to keep working on the job (`websiteJobWorkWindow`), as a
+ * plain date. It says what holds today: it is not a date the job ends by. Empty without a date.
+ */
+export function jobWorkWindowSentence(untilEpoch?: number | null): string {
+  if (typeof untilEpoch !== "number" || !Number.isFinite(untilEpoch) || untilEpoch <= 0) return "";
+  const date = new Date(untilEpoch * 1000).toLocaleDateString("en-US",
+    { year: "numeric", month: "long", day: "numeric", timeZone: "UTC" });
+  return `We can keep working on this job until ${date}.`;
+}
 export const screeningOutcomeSentence = (outcome: ScreeningOutcome) => SCREENING_OUTCOME_SENTENCE[outcome];
+/** The same sentence, with the job's work window when the outcome still waits on Blueprint and a date is known. */
+export function screeningOutcomeSentenceWithWindow(outcome: ScreeningOutcome, workUntilEpoch: number | null | undefined): string {
+  const window = WAITING_OUTCOMES.has(outcome) ? jobWorkWindowSentence(workUntilEpoch) : "";
+  return window ? `${SCREENING_OUTCOME_SENTENCE[outcome]} ${window}` : SCREENING_OUTCOME_SENTENCE[outcome];
+}
 /** How much of the job an estimate covers, said the same way on the page and in the email. */
 export const screeningEstimateCountSentence = (ran: number, total: number, scored: number) =>
   `In the simulation, ${ran} of ${total} candidates ran, with ${scored} episodes scored against the job's success criteria.`;

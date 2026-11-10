@@ -715,6 +715,8 @@ async function hydrateTask(requestId: string, record: Record<string, any>) {
         hasStoredCapture: walkthrough?.received === true,
         footageBeforeAccount,
         consentRevoked,
+        jobWorkWindow: await import("../utils/websiteSceneSponsorship")
+          .then(({ websiteJobWorkWindow }) => websiteJobWorkWindow(record)).catch(() => null),
         footageReviewAutomated: isSiteVideoEvidenceEnabled(),
         scenePreviewReady,
         visualReconstructionReady,

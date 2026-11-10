@@ -328,6 +328,8 @@ async function readRequestForStatus(requestId: string, captureId = `walkthrough-
   site_task_scope?: { supported?: unknown; reason?: unknown } | null;
   siteName?: string | null;
   captureRights: ReturnType<typeof projectWebsiteCaptureRights>;
+  /** Until when Blueprint can keep working on the job; null when it cannot be read. */
+  jobWorkWindow: { untilEpoch: number | null; ended: boolean } | null;
   visualReconstructionReady: boolean;
   preparationOutcome: TaskOutcome | null;
   ownerClosureOutcome: TaskOutcome | null;
@@ -363,6 +365,9 @@ async function readRequestForStatus(requestId: string, captureId = `walkthrough-
   return {
     active_capture_id: selectedCaptureId,
     captureRights,
+    // No date is ever guessed: an unreadable window shows none.
+    jobWorkWindow: await import("../utils/websiteSceneSponsorship")
+      .then(({ websiteJobWorkWindow }) => websiteJobWorkWindow(data)).catch(() => null),
     visualReconstructionReady: preview?.state === "ready",
     ownerClosureOutcome: projectWebsiteRunClosure(data, requestId, selectedCaptureId),
     preparationOutcome: projectAtlasPreparationOutcome(preview),
@@ -1247,6 +1252,7 @@ router.get("/:token/status", async (req: Request, res: Response) => {
         hasStoredCapture,
         footageBeforeAccount,
         consentRevoked: request?.captureRights.consent_revoked,
+        jobWorkWindow: request?.jobWorkWindow ?? null,
         footageReviewAutomated: isSiteVideoEvidenceEnabled(),
         scenePreviewReady: Boolean(sceneViewUrl),
         visualReconstructionReady: payload.scope === "owner" && request?.visualReconstructionReady === true,
