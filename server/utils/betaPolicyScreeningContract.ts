@@ -328,8 +328,12 @@ export function screeningOutcome(publication: Pick<BetaPolicyScreeningPublicatio
 const SETUP_REPAIR_SENTENCE = "Simulation evaluation of your job has not finished: a Blueprint update stopped it before it gave an estimate. "
   + "If a later run gives an estimate, it will show here.";
 const ATTENTION_NEXT = "It won't restart by itself. Our team has been told, and we'll email you if a later run gives a result.";
-/** A failure on our side is rerun after its fix (the Pipeline replans harness failures once the fix deploys). */
-const SETUP_NEXT = "Our team has been told. We'll run it again once the cause is fixed, and email you if a later run gives a result.";
+/**
+ * A failure on our side may run again, but nothing guarantees it: the Pipeline plans a harness failure
+ * again only after a later deploy, which nothing schedules, while the candidate has a retry left
+ * (HARNESS_RETRY_LIMIT) inside the site's allowance. So no rerun is promised, and none is ruled out.
+ */
+const SETUP_NEXT = "Our team has been told, and we'll email you if a later run gives a result.";
 const SCREENING_OUTCOME_SENTENCE: Readonly<Record<ScreeningOutcome, string>> = {
   estimate: "Your simulation estimate is ready. It is an estimate from a simulation of your site, not a certified result.",
   reference_only: "No estimate yet: only scripted reference baselines were scored, and no learned policy could be evaluated on your job yet.",
