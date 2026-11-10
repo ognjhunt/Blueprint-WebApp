@@ -444,6 +444,38 @@ it("v2 no-create sponsor request cannot create a missing grant and reopens an ex
   } finally {await new Promise<void>(resolve=>server.close(()=>resolve()));}
 });
 
+// Owner ask 2026-11-10: a job that never received a grant and whose no-grant ending is recorded is
+// ended for the host too. Its non-creating read and its reservations name that ending; a job with no
+// ending keeps today's answer; and a grant issued later still reopens the job.
+it("a job whose no-grant ending is recorded answers the host that it ended, and a later grant still reopens it",async()=>{
+  const { sealWebsiteJobNoGrantEnding, WEBSITE_JOB_NO_GRANT_ENDING_FIELD } = await import("../utils/websiteJobWindowEnding");
+  const { WEBSITE_JOB_NO_GRANT_ENDED_CODE } = await import("../utils/websiteSceneSponsorship");
+  seed(packet(),false,false);const app=express();app.use(express.json());app.use((await import("../routes/internal-capture-worlds")).default);
+  const server=createServer(app);await new Promise<void>(resolve=>server.listen(0,"127.0.0.1",resolve));
+  const base=`http://127.0.0.1:${(server.address() as any).port}/creator-captures/walkthrough-one`;
+  const send=(operation:string,body:any)=>fetch(`${base}/${operation}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});
+  const body={request_id:"one",scene_id:"site-one",...prepOptions()};
+  const spend=(digest:string)=>({request_id:"one",scene_id:"site-one",spend:{task_context_digest:digest,
+    allocation_binding_digest:`sha256:${"e".repeat(64)}`,resource_class:"evaluator_api",provider:"google",maximum_cost_usd:0.1,request_count:1}});
+  try {
+    // No ending recorded: today's answer, exactly.
+    const before=await send("scene-sponsorship",{...body,create:false});
+    expect(before.status).toBe(409);expect(await before.json()).toEqual({code:"website_scene_sponsorship_missing"});
+    const record=state.docs.get("inboundRequests/one") as any;
+    record[WEBSITE_JOB_NO_GRANT_ENDING_FIELD]=sealWebsiteJobNoGrantEnding({request_id:"one",waiting_on:"blueprint",
+      waiting_since_epoch:1_800_000_000,ended_at_epoch:1_800_086_400,recorded_at_iso:"2027-01-16T08:00:00.000Z",notice:"queued"});
+    const ended=await send("scene-sponsorship",{...body,create:false});
+    expect(ended.status).toBe(409);expect(await ended.json()).toEqual({code:WEBSITE_JOB_NO_GRANT_ENDED_CODE});
+    const reserve=await send("preparation-spend",spend(body.expected_task_context_digest));
+    expect(reserve.status).toBe(409);expect(await reserve.json()).toEqual({code:WEBSITE_JOB_NO_GRANT_ENDED_CODE});
+    expect(record.website_scene_sponsorship).toBeUndefined();
+    // A grant issued later reopens the job: the ending no longer speaks for it, and its reads answer again.
+    const created=await send("scene-sponsorship",body);expect(created.status).toBe(200);const grant=await created.json();
+    const reopened=await send("scene-sponsorship",{...body,create:false});
+    expect(reopened.status).toBe(200);expect(await reopened.json()).toEqual(grant);
+  } finally {await new Promise<void>(resolve=>server.close(()=>resolve()));}
+});
+
 function syntheticPreparedIntake(grant:any) {
   const content=`sha256:${"a".repeat(64)}`;
   return {schema_version:"task_evaluation_scene_intake_request.v1",submission_id:grant.capture_id,owner:grant.owner,
