@@ -11,6 +11,8 @@ import { readWorkerHeartbeat, type WorkerHeartbeatReading } from "./workerHeartb
 import { recordedWebsiteJobNoGrantEnding, websiteJobNoGrantClock, WEBSITE_JOB_NO_GRANT_CLOCK_FIELD,
   WEBSITE_JOB_NO_GRANT_PAGE_DUE_FIELD } from "./websiteJobWindowEnding";
 import { projectWebsiteCaptureRights } from "./websiteTaskContext";
+import { siteWalkthroughIdentity } from "./siteWalkthrough";
+import { websiteRunClosure } from "./websiteRunClosure";
 
 /**
  * The beta's in-process safety net. It runs in the WEB process by default,
@@ -349,7 +351,7 @@ type NoGrantStore = {
  * clock and sets the page's due time): a grant not issued is our fault or a money wait, and the sweep
  * ends the job as held when the clock has run as long as a grant's window. Each due job is claimed in
  * a transaction that clears its due time and records when it was paged, so it is paged once and leaves
- * the query; a withdrawn job, or one that has a grant or an ending since, is cleared without a page.
+ * the query; a withdrawn job, one its owner closed, or one that has a grant or an ending since, is cleared without a page.
  * Like the outbox alerts, the claim comes before the send.
  */
 export async function scanWebsiteJobsWaitingOnGrant(options: ConditionAlertDeps & {
@@ -372,7 +374,9 @@ export async function scanWebsiteJobsWaitingOnGrant(options: ConditionAlertDeps 
         if (!record || typeof due !== "number" || due > now()) return null;
         const clock = websiteJobNoGrantClock(record, row.id);
         const owed = clock?.waiting_on === "blueprint" && !clock.paged_at_iso && !record.website_scene_sponsorship
-          && !record.capture_withdrawal && !projectWebsiteCaptureRights(record).consent_revoked && !recordedWebsiteJobNoGrantEnding(record, row.id);
+          && !record.capture_withdrawal && !projectWebsiteCaptureRights(record).consent_revoked && !recordedWebsiteJobNoGrantEnding(record, row.id)
+          // A run its owner closed is stopped on purpose: nothing is owed and nobody is asked to restart it.
+          && !websiteRunClosure(record, row.id, siteWalkthroughIdentity(row.id, record).captureId);
         tx.update(ref, { [WEBSITE_JOB_NO_GRANT_PAGE_DUE_FIELD]: null,
           ...(owed ? { [WEBSITE_JOB_NO_GRANT_CLOCK_FIELD]: { ...clock, paged_at_iso: new Date(now()).toISOString() } } : {}) });
         return owed ? clock : null;

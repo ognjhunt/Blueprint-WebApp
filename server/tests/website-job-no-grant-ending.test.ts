@@ -273,6 +273,21 @@ describe("the ops page for a job waiting on Blueprint", () => {
     expect(job().website_job_no_grant_page_due_at_ms).toBeNull();
   });
 
+  it("clears a job its owner closed after the clock started, without a page", async () => {
+    recording.received = true;
+    seedJob();
+    await sweepWebsiteJobNoGrant("job-one", at(0));
+    const value = { schema_version: "website_run_closure.v1", request_id: "job-one", capture_id: "walkthrough-job-one",
+      decision: "conservative_abstention", actor: "signed_owner_link", source_identity_digest: screeningSha("1"),
+      closed_at_iso: "2026-11-12T01:00:00.000Z", new_execution_authorized: false, explicit_resume_required: true, physical_validation: false };
+    Object.assign(job(), { website_run_closures: { "walkthrough-job-one": { ...value, closure_digest: crossRuntimeDigest(value) } } });
+    expect(await scanAt(DAY)).toEqual({ due: 1, newlyAlerted: 0 });
+    expect(alert).not.toHaveBeenCalled();
+    expect(opsEmail).not.toHaveBeenCalled();
+    expect(job().website_job_no_grant_page_due_at_ms).toBeNull();
+    expect(job().website_job_no_grant_clock.paged_at_iso).toBeUndefined();
+  });
+
   it("reports \"unknown\" when it read only a full first page, and pages the rest on the next pass", async () => {
     recording.received = true;
     for (const id of ["job-a", "job-b", "job-c"]) { seedJob({}, id); await sweepWebsiteJobNoGrant(id, at(0)); }
