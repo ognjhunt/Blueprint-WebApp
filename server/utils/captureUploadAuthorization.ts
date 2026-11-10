@@ -49,6 +49,7 @@ import type { InboundRequest } from "../types/inbound-request";
 import type { CaptureDispatchDecision } from "./captureDispatch";
 import { footageArrivedBeforeAccount } from "./siteWalkthrough";
 import { websiteCaptureOwnerUid } from "./websiteCaptureOwner";
+import { FOOTAGE_BEFORE_ACCOUNT_SENTENCE } from "./taskPreparationOutcome";
 
 export interface CaptureUploadAuthorization {
   /** Whether bytes may be written for this request right now. */
@@ -77,8 +78,7 @@ export const SITE_ACCOUNT_REQUIRED_DETAIL = "Save this job to your account befor
   + "We can evaluate a job only if its video is sent after the job is saved to an account.";
 /** The hold for a job whose video arrived before it was saved to an account. */
 export const FOOTAGE_BEFORE_ACCOUNT = "footage_before_account";
-export const FOOTAGE_BEFORE_ACCOUNT_DETAIL = "Your video arrived before this job was saved to an account, so we can't "
-  + "use it to build your scene yet. You don't need to send it again; we email you when that changes.";
+export const FOOTAGE_BEFORE_ACCOUNT_DETAIL = FOOTAGE_BEFORE_ACCOUNT_SENTENCE;
 
 function held(
   holdReason: string,

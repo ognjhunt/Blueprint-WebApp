@@ -389,7 +389,7 @@ describe("automatic many-candidate job evaluation", () => {
     const projected = projectManagedJobEvidence(value.campaign_id, run, { record_id: "result-one", publication: value },
       brief.requestId, binding.brief_digest, scope.taskContextDigest, scope.sourceFingerprint)!;
     expect(projected).toMatchObject({ state: "awaiting_spend_approval", outcome: "awaiting_spend_approval",
-      summary: "Your job's simulation is waiting on an approval inside Blueprint before it can continue.",
+      summary: "Blueprint is deciding whether to continue simulating your job.",
       nextAction: "Nothing is needed from you." });
     expect(projected.opsNextAction).toBe("Owner approval needed: this job's dollar ceiling, shared by all of its spending, has too little left "
       + "to run its candidates. Raising it is the owner's money decision. Nothing is needed from the site.");
@@ -722,10 +722,13 @@ describe("one outcome per run, in one plain sentence (F-03)", () => {
     const sentences = SCREENING_OUTCOMES.map(screeningOutcomeSentence);
     // A wait on Blueprint's money decision says so; a re-plan after a deploy is in progress.
     expect(new Set(sentences).size).toBe(SCREENING_OUTCOMES.length);
-    expect(screeningOutcomeSentence("awaiting_spend_approval")).toMatch(/waiting on an approval inside Blueprint/);
-    // A failure on our side is rerun after its fix (the Pipeline replans a harness failure once the fix deploys),
+    expect(screeningOutcomeSentence("awaiting_spend_approval")).toBe("Blueprint is deciding whether to continue simulating your job.");
+    // A failure on our side may run again after a later deploy (the Pipeline replans a harness failure then),
     // so the site is never told it won't restart; a spent allowance or a failed scene check does not restart.
-    expect(screeningOutcomeSentence("held_setup")).toMatch(/We'll run it again once the cause is fixed, and email you if a later run gives a result\.$/);
+    // WP-14: nothing schedules that rerun, so it is not promised; the page and the email read this one sentence.
+    expect(screeningOutcomeSentence("held_setup")).toBe("Held: a problem on our side stopped the simulation of your job before it gave an estimate. "
+      + "Our team has been told, and we'll email you if a later run gives a result.");
+    expect(screeningOutcomeSentence("held_setup")).not.toMatch(/run it again|once the cause is fixed/);
     expect(screeningOutcomeSentence("held_setup")).not.toMatch(/won't restart/);
     for (const outcome of ["held_budget", "held_scene_check"] as const)
       expect(screeningOutcomeSentence(outcome)).toMatch(/It won't restart by itself\./);

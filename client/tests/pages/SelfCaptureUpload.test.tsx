@@ -1042,7 +1042,7 @@ describe("SelfCaptureUpload before the job is saved to an account", () => {
  * so, and its link never invites a second video that could not be used.
  */
 describe("SelfCaptureUpload for a video that arrived before the job's account", () => {
-  const ARRIVED = "Your video arrived before this job was saved to an account, so we can't use it to build your scene yet. You don't need to send it again; we email you when that changes.";
+  const ARRIVED = "Your video arrived before this job was saved to an account, so we can't use it to build your scene yet. Blueprint needs to review this older recording. You don't need to send it again.";
   function heldForArrival(claimUrl: string | null) {
     vi.stubGlobal("fetch", vi.fn().mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);

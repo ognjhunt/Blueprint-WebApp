@@ -10,6 +10,8 @@
  * cannot stand behind.
  */
 import { describe, expect, it, vi } from "vitest";
+import { AUTHORITY_ENDED_SENTENCE, FOOTAGE_BEFORE_ACCOUNT_SENTENCE, JOB_WINDOW_ENDED_SENTENCE } from "../utils/taskPreparationOutcome";
+import { jobWorkWindowSentence, screeningOutcomeSentence } from "../utils/betaPolicyScreeningContract";
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({ dbAdmin: null }));
 import { projectWebsiteRunClosure } from "../utils/websiteRunClosure";
 import { ownerClosure } from "./fixtures/website-run-closure";
@@ -41,7 +43,7 @@ it("keeps a ready visual reconstruction current when native status and advisory 
   expect(status.headline).not.toMatch(/evaluation.*ready|simulation.*ready|record|upload/i);
   expect(status.missingViews).toEqual(["A closer walkthrough along the shelving units"]);
   expect(projectTaskStatus({ ...input, consentRevoked: true }).headline).toMatch(/withdrawn/i);
-  expect(projectTaskStatus({ ...input, preparationStatus: { state: "authority_ended", correlationId: null } }).headline).toMatch(/authorization/i);
+  expect(projectTaskStatus({ ...input, preparationStatus: { state: "authority_ended", correlationId: null } }).headline).toMatch(/^This job has ended because Blueprint is no longer authorized/);
   const ownerStep = { category: "insufficient_evidence", basis: "missing_evidence", title: "Owner decision needed",
     reason: "A current owner permission is required.", scope: "This recording", nextStep: "Review the recording permission.",
     actionOwner: "site", evidence: [] } as const;
@@ -546,7 +548,9 @@ describe("a video that arrived before the job's account", () => {
     expect(unsaved.headline).toMatch(/preparing your job/i);
     const saved = projectTaskStatus(base({ briefDrafted: true, briefConfirmed: true, hasStoredCapture: true, footageBeforeAccount: true }));
     expect(saved).toMatchObject({ decision: "footage_before_account", operatorAction: null });
-    expect(saved.headline).toMatch(/You don't need to send it again; we email you when that changes\.$/);
+    expect(saved.headline).toBe(FOOTAGE_BEFORE_ACCOUNT_SENTENCE);
+    // Nothing sends a later email about this video, so none is promised.
+    expect(saved.headline).not.toMatch(/email/i);
   });
 
   it("yields to a scene or an evaluation, which would prove otherwise", () => {
@@ -616,4 +620,40 @@ it("does not present historical coverage as an instruction for the selected reco
     expect(input.missingViews).toEqual([]);
     expect(projectTaskStatus(input).operatorAction).toBeNull();
   }
+});
+
+describe("WP-14: a waiting or ended job says what it waits on, and until when", () => {
+  const UNTIL = Date.UTC(2026, 10, 24, 18) / 1000; // 2026-11-24
+  const view = (extra: Record<string, unknown>) => projectTaskStatus(taskStatusInputFrom({
+    briefDrafted: true, site_task_brief_confirmed_at: "2026-11-01T00:00:00Z", hasStoredCapture: true, stage: null,
+    scenePreviewReady: true, ...extra } as never));
+  it("formats the work window plainly, and gives none without a date", () => {
+    expect(jobWorkWindowSentence(UNTIL)).toBe("We can keep working on this job until November 24, 2026.");
+    for (const none of [null, undefined, 0, Number.NaN]) expect(jobWorkWindowSentence(none as never)).toBe("");
+  });
+  it.each(["awaiting_spend_approval", "setup_repair"] as const)("%s names no rerun or budget and adds the date only when known", outcome => {
+    const progression = { sceneProgression: { state: "testing", progressOutcome: outcome } };
+    const dated = view({ ...progression, jobWorkWindow: { untilEpoch: UNTIL, ended: false } }).headline;
+    expect(dated.startsWith(`${screeningOutcomeSentence(outcome)} We can keep working on this job until November 24, 2026.`)).toBe(true);
+    const undated = view({ ...progression, jobWorkWindow: null }).headline;
+    expect(undated.startsWith(screeningOutcomeSentence(outcome))).toBe(true);
+    expect(undated).not.toMatch(/keep working on this job until/);
+    for (const text of [dated, undated]) {
+      expect(text).not.toMatch(/run your job again|approval|budget|ceiling|\$|in progress|ends by/i);
+    }
+  });
+  it("a finished result never carries the work window", () => {
+    const text = view({ sceneProgression: { state: "evaluated" }, jobWorkWindow: { untilEpoch: UNTIL, ended: false } }).headline;
+    expect(text).not.toMatch(/keep working on this job until/);
+  });
+  it("an ended authority is said as an end, never a hold or a check in progress", () => {
+    const ended = (jobWorkWindow: unknown) => view({ scenePreviewReady: false, preparationOverdue: true, jobWorkWindow,
+      preparationStatus: { state: "authority_ended", correlationId: null } }).headline;
+    expect(ended({ untilEpoch: null, ended: true }).startsWith(JOB_WINDOW_ENDED_SENTENCE)).toBe(true);
+    expect(ended(null).startsWith(AUTHORITY_ENDED_SENTENCE)).toBe(true);
+    for (const text of [ended({ untilEpoch: null, ended: true }), ended(null)]) {
+      expect(text).not.toMatch(/on hold|checks its authorization|taking longer/i);
+      expect(text).toContain("you can start a new job");
+    }
+  });
 });
