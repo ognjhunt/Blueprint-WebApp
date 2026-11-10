@@ -567,6 +567,10 @@ it("a new grant names one scene-configuration retry and the intake accepts 0 or 
   for(const accepted of [0,1]) expect(()=>validateWebsiteSponsoredIntake(retries(accepted),grant)).not.toThrow();
   for(const refused of [2,3,-1,true,"1",undefined])
     expect(()=>validateWebsiteSponsoredIntake(retries(refused),grant)).toThrow("website_scene_sponsorship_binding_invalid");
+  // A grant issued before the allowance names no retry: a request may not claim one against it.
+  const {scene_configuration_max_retries:_none,...earlier}=grant as any;
+  expect(()=>validateWebsiteSponsoredIntake(retries(0),earlier)).not.toThrow();
+  expect(()=>validateWebsiteSponsoredIntake(retries(1),earlier)).toThrow("website_scene_sponsorship_binding_invalid");
 });
 it("renewing a grant issued before the retry allowance restores it without one",async()=>{
   seed(packet(),false,false);const issued=await (loadWebsiteSceneSponsorship as any)("one",true,"walkthrough-one",prepOptions());

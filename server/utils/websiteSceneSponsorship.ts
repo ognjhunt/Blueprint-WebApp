@@ -1239,7 +1239,9 @@ export function validateWebsiteSponsoredIntake(request: Record<string, any>, aut
     || request.execution?.max_total_spend_usd !== authority.max_total_spend_usd
     || request.execution?.max_paid_attempts !== authority.max_paid_attempts
     || request.execution?.expires_at_epoch !== authority.expires_at_epoch
+    // At most what THIS grant allows: a grant issued before the allowance names none, so only 0 passes.
     || !WEBSITE_SCENE_MAX_RETRIES.includes(request.execution?.max_retries)
+    || request.execution.max_retries > (authority.scene_configuration_max_retries ?? 0)
     || request.execution?.claim_scope !== "development_only"
     || digest(request.execution?.allowed_providers) !== digest(authority.authoring_provider === "anthropic"
       ? ["vast", "openai", "anthropic"] : ["vast", "openai"]))
