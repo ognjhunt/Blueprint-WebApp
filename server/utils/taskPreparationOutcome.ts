@@ -139,6 +139,21 @@ export const JOB_WINDOW_ENDING_MESSAGE = `${JOB_WINDOW_ENDED_SENTENCE} ${JOB_WIN
 export const JOB_WINDOW_ENDING_SUBJECT = "Your Blueprint job has ended";
 
 /**
+ * A job that never received a grant, ended by the same sweep once it waited as long as a grant's
+ * window lasts (`websiteJobWindowSweep`). Each says only what is true of every job in that wait and
+ * promises no follow-up. The job page and the one email (subject `JOB_WINDOW_ENDING_SUBJECT`) both say it.
+ *
+ * - The site never sent what was needed (a finished recording, or the one step a held job asks of it).
+ * - The site did its part and Blueprint never started the simulation: held, with no estimate.
+ */
+export const JOB_NO_GRANT_SITE_ENDING_MESSAGE = "This job has ended because we did not receive what was needed to start it "
+  + "while it was open. To have Blueprint work on this site, you can start a new job.";
+export const JOB_NO_GRANT_BLUEPRINT_ENDING_MESSAGE = "This job is held because Blueprint did not start simulating it while it "
+  + `was open, so there is no estimate. ${PREPARATION_ENDED_NEXT}`;
+export const jobNoGrantEndingMessage = (waitingOn: "site" | "blueprint") =>
+  waitingOn === "site" ? JOB_NO_GRANT_SITE_ENDING_MESSAGE : JOB_NO_GRANT_BLUEPRINT_ENDING_MESSAGE;
+
+/**
  * A video that arrived before its job was saved to an account. Nothing sends a later email about it,
  * so none is promised. The job page, the upload refusal and the one email all read this sentence.
  */

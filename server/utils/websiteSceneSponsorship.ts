@@ -27,7 +27,7 @@ import { SCENE_EXECUTION_WINDOW_MAX_SECONDS, sponsorshipExecutionWindowUntil,
   sponsorshipWindowIntake } from "./sceneExecutionWindowExtension";
 import { WEBSITE_JOB_WINDOW_DEFAULT_SECONDS, WEBSITE_JOB_WINDOW_MAX_SECONDS, WEBSITE_JOB_WINDOW_MIN_SECONDS,
   issuedWebsiteJobWindowSeconds } from "./websiteJobWindow";
-import { recordedWebsiteJobWindowEnding } from "./websiteJobWindowEnding";
+import { recordedWebsiteJobNoGrantEnding, recordedWebsiteJobWindowEnding } from "./websiteJobWindowEnding";
 
 function continuationAuthority(authority: Record<string, any>, input: {
   brief: SiteTaskBriefRecord; record: Record<string, any>; inventory?: TaskItemInventoryRecord | null;
@@ -88,6 +88,15 @@ const agentsApiPolicySchema = z.object({
 function policy() {
   try { return policySchema.parse(JSON.parse(process.env.BLUEPRINT_WEBSITE_SCENE_SPONSORSHIP_JSON || "null")); }
   catch { throw new Error("website_scene_sponsorship_not_configured"); }
+}
+
+/**
+ * How long a grant issued now would stay valid: the policy's `ttl_seconds`, or the default window
+ * when the policy is not configured (an unconfigured policy is itself one reason no grant is issued).
+ * The clock of a job that never received a grant runs this long (`websiteJobWindowSweep`).
+ */
+export function websiteJobWindowSeconds(): number {
+  try { return policy().ttl_seconds; } catch { return WEBSITE_JOB_WINDOW_DEFAULT_SECONDS; }
 }
 
 function agentsApiPolicy() {
@@ -171,12 +180,17 @@ export function sponsorshipValidUntil(grant: Record<string, any>, executionWindo
  * passed window while the rights still allow the work, so the end was the window and not the rights.
  * It is what holds today, not a promise that the job stops on that date. `endingRecorded` is the
  * WebApp's own stored ending for this exact grant (`websiteJobWindowSweep`), read only while the
- * window is still past: an extension granted afterwards reopens the job and hides it.
+ * window is still past: an extension granted afterwards reopens the job and hides it. A job that never
+ * received a grant has no window; `endingRecorded` with `noGrantWaitingOn` is the same sweep's ending
+ * for it, read only while the job still has no grant.
  */
 export async function websiteJobWorkWindow(record: Record<string, any> | undefined,
-  nowEpoch = Date.now() / 1000): Promise<{ untilEpoch: number | null; ended: boolean; endingRecorded?: true }> {
+  nowEpoch = Date.now() / 1000): Promise<{ untilEpoch: number | null; ended: boolean; endingRecorded?: true;
+    noGrantWaitingOn?: "site" | "blueprint" }> {
   const none = { untilEpoch: null, ended: false };
   const grant = record?.website_scene_sponsorship;
+  const noGrantEnding = recordedWebsiteJobNoGrantEnding(record);
+  if (noGrantEnding) return { ...none, endingRecorded: true, noGrantWaitingOn: noGrantEnding.waiting_on };
   if (!grant || typeof grant.expires_at_epoch !== "number" || !Number.isFinite(grant.expires_at_epoch)) return none;
   let executionWindowUntil: number | undefined;
   if (record!.website_scene_sponsorship_execution_window) {

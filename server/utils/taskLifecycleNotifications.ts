@@ -25,9 +25,9 @@ import { taskLifecycleNotificationIsCurrent } from "./taskLifecycleNotificationA
 import { drainPendingWebsitePreparationNotifications } from "./websitePreparationStatus";
 import { preparationEndedSentence } from "./taskStatusProjection";
 import { EARLY_TASK_HOLD_DETAIL, EARLY_TASK_HOLD_SENTENCES, earlyTaskHoldOf, isEarlyTaskHoldReason,
-  FOOTAGE_BEFORE_ACCOUNT_SENTENCE, JOB_WINDOW_ENDING_MESSAGE, JOB_WINDOW_ENDING_SUBJECT,
+  FOOTAGE_BEFORE_ACCOUNT_SENTENCE, JOB_WINDOW_ENDING_MESSAGE, JOB_WINDOW_ENDING_SUBJECT, jobNoGrantEndingMessage,
   type EarlyTaskHoldReason } from "./taskPreparationOutcome";
-import { isWebsiteJobWindowEndedEventId } from "./websiteJobWindowEnding";
+import { isWebsiteJobNoGrantEndedEventId, isWebsiteJobWindowEndedEventId } from "./websiteJobWindowEnding";
 import { selectWebsiteAtlasPreview } from "./websiteAtlasPreview";
 import { isScreeningResultOutcome, screeningEstimateCountSentence, screeningOutcomeSentence, storedScreeningOutcomeCaveat,
   type ScreeningOutcome, type ScreeningOutcomeCaveat } from "./betaPolicyScreeningContract";
@@ -289,6 +289,11 @@ export function buildTaskLifecycleNotification(params: {
    * (`websiteJobWindowSweep`). Its event id is the job's fixed one, or the one naming a later window end.
    */
   jobWindowEnded?: true;
+  /**
+   * `scene_outcome` only: a job that never received a grant, ended by the same sweep, and whose wait
+   * it was. Its event id is the job's fixed no-grant one.
+   */
+  jobNoGrantEnded?: "site" | "blueprint";
 }): Parameters<typeof enqueueOutbox>[0] {
   const requestId = params.requestId.trim();
   if (isWebsitePreparationNotice(params.milestone) && !/^sha256:[a-f0-9]{64}$/.test(params.eventId || "")) {
@@ -296,7 +301,8 @@ export function buildTaskLifecycleNotification(params: {
   }
   const outcomeDetail = params.milestone === "evaluation_outcome" ? evaluationOutcomeDetail(params)
     : params.milestone === "scene_outcome"
-      ? params.jobWindowEnded ? jobWindowEndedDetail(params) : sceneOutcomeDetail(params)
+      ? params.jobNoGrantEnded ? jobNoGrantEndedDetail(params)
+        : params.jobWindowEnded ? jobWindowEndedDetail(params) : sceneOutcomeDetail(params)
     : params.milestone === "robot_access_question" ? robotAccessQuestionDetail(params) : "";
   const held = params.milestone === "preparation_needs_attention" && isEarlyTaskHoldReason(params.earlyTaskHold)
     ? params.earlyTaskHold : null;
@@ -316,7 +322,7 @@ export function buildTaskLifecycleNotification(params: {
     to: params.to,
     subject: params.milestone === "evaluation_outcome" && params.screeningOutcome === "estimate"
       ? "Your simulation estimate is ready"
-      : params.milestone === "scene_outcome" && params.jobWindowEnded ? JOB_WINDOW_ENDING_SUBJECT
+      : params.milestone === "scene_outcome" && (params.jobWindowEnded || params.jobNoGrantEnded) ? JOB_WINDOW_ENDING_SUBJECT
       : params.milestone === "scene_outcome" && params.sceneOutcomeKind ? sceneOutcomeSubject(params.sceneOutcomeKind) : message.subject,
     body: `${message.body(url, params.milestone === "run_no_result" ? noResultObservationText(params.runProgress)
       : isWebsitePreparationNotice(params.milestone) ? preparationDetail
@@ -387,6 +393,16 @@ function jobWindowEndedDetail(params: { eventId?: string; sceneOutcomeKind?: Ter
     throw new Error("job_window_ended_notice_invalid");
   }
   return JOB_WINDOW_ENDING_MESSAGE;
+}
+
+/** The job page's own sentence for a job that never received a grant, ended by the same sweep. Fixed text. */
+function jobNoGrantEndedDetail(params: { eventId?: string; sceneOutcomeKind?: TerminalSceneOutcomeKind;
+  jobWindowEnded?: true; jobNoGrantEnded?: "site" | "blueprint" }): string {
+  if (!isWebsiteJobNoGrantEndedEventId(params.eventId) || params.sceneOutcomeKind !== undefined || params.jobWindowEnded
+    || (params.jobNoGrantEnded !== "site" && params.jobNoGrantEnded !== "blueprint")) {
+    throw new Error("job_no_grant_ended_notice_invalid");
+  }
+  return jobNoGrantEndingMessage(params.jobNoGrantEnded);
 }
 
 /** How many of each kind of movable furniture a robot access proposal moves. */
