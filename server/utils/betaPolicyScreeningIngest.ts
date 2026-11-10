@@ -8,7 +8,8 @@ import { assertManagedScreeningCaptureCurrent, assertScreeningSceneSource, manag
 import { SCENE_INTAKE_COLLECTION } from "./taskEvaluationSceneIntake";
 import { encodeTaskEvaluationRunPublication, publicationFromResultRecord } from "./taskEvaluationRunPublicationStorage";
 import { betaPolicyScreeningSourceSchema, parseBetaPolicyScreeningPublication, screeningPublicationTransition,
-  screeningTerminalCandidateStates, screeningOutcome, storedScreeningOutcome, type BetaPolicyScreeningPublication } from "./betaPolicyScreeningContract";
+  screeningTerminalCandidateStates, screeningOutcome, screeningOutcomeCaveat, storedScreeningOutcome,
+  type BetaPolicyScreeningPublication } from "./betaPolicyScreeningContract";
 import { screeningOutcomeNoticeIntent } from "./screeningOutcomeNotifications";
 import type { TaskItemInventoryRecord } from "./taskItemInventory";
 import { assertWebsiteRunOpen, websiteRunClosure } from "./websiteRunClosure";
@@ -264,6 +265,8 @@ export async function ingestBetaPolicyScreening(publication: BetaPolicyScreening
       episodes_scored: publication.candidates.reduce<number>((sum, row) => sum + row.episodes_scored, 0),
       // The one outcome the job page, the run summary and any notice state (F-03).
       screening_outcome: screeningOutcome(publication),
+      // What that outcome's sentence adds (a zero-success estimate in a scene our own checks flagged), or null.
+      screening_outcome_caveat: screeningOutcomeCaveat(publication),
       ...(notice ? { outcome_notification_pending: true, outcome_notification_intent: notice }
         : previous?.outcome_notification_intent !== undefined ? { outcome_notification_pending: previous.outcome_notification_pending === true,
           outcome_notification_intent: previous.outcome_notification_intent } : {}),

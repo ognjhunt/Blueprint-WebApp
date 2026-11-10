@@ -45,7 +45,7 @@ const REASONS = Object.keys(SCREENING_HOLD_OUTCOMES) as [HoldReason, ...HoldReas
 
 const identifier = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$/);
 const code = z.string().regex(/^[a-z][a-z0-9_:.=-]{0,199}$/);
-const holdSchema = z.object({
+export const betaPolicyScreeningHoldSchema = z.object({
   schema_version: z.literal(SCREENING_HOLD_SCHEMA),
   hold_id: z.string().regex(/^hold-[a-f0-9]{32}$/),
   site_id: identifier,
@@ -63,10 +63,10 @@ const holdSchema = z.object({
     || (value.status === "released" && value.detail_code !== null))
     ctx.addIssue({ code: "custom", message: "Screening hold identity or reason mismatch" });
 });
-export type BetaPolicyScreeningHold = z.infer<typeof holdSchema>;
+export type BetaPolicyScreeningHold = z.infer<typeof betaPolicyScreeningHoldSchema>;
 
 export function parseBetaPolicyScreeningHold(value: unknown): BetaPolicyScreeningHold | null {
-  const parsed = holdSchema.safeParse(value);
+  const parsed = betaPolicyScreeningHoldSchema.safeParse(value);
   try {
     if (!parsed.success || crossRuntimeArtifactDigest(parsed.data, "hold_digest") !== parsed.data.hold_digest) return null;
   } catch {
@@ -75,9 +75,16 @@ export function parseBetaPolicyScreeningHold(value: unknown): BetaPolicyScreenin
   return parsed.data;
 }
 
+/**
+ * The Pipeline's detail code when the account's monthly spend limit stopped screening. That is Blueprint's
+ * own money control: a wait on Blueprint, never a setup problem, never the site's step and never emailed.
+ */
+export const SCREENING_HOLD_ACCOUNT_LIMIT_DETAIL = "account_monthly_spend_limit_reached";
 /** The outcome a hold tells the site, or null once released. */
-export const screeningHoldOutcome = (hold: Pick<BetaPolicyScreeningHold, "status" | "reason_code">): ScreeningHeldOutcome | null =>
-  hold.status === "held" && hold.reason_code ? SCREENING_HOLD_OUTCOMES[hold.reason_code] : null;
+export const screeningHoldOutcome = (hold: Pick<BetaPolicyScreeningHold, "status" | "reason_code"> & { detail_code?: string | null }):
+  ScreeningHeldOutcome | "awaiting_spend_approval" | null =>
+  hold.status !== "held" || !hold.reason_code ? null
+    : hold.detail_code === SCREENING_HOLD_ACCOUNT_LIMIT_DETAIL ? "awaiting_spend_approval" : SCREENING_HOLD_OUTCOMES[hold.reason_code];
 
 /**
  * Bind the hold to the scene intake and the job exactly as a campaign is bound

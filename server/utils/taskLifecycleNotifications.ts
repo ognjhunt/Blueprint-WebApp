@@ -27,8 +27,8 @@ import { preparationEndedSentence } from "./taskStatusProjection";
 import { EARLY_TASK_HOLD_DETAIL, EARLY_TASK_HOLD_SENTENCES, earlyTaskHoldOf, isEarlyTaskHoldReason,
   FOOTAGE_BEFORE_ACCOUNT_SENTENCE, type EarlyTaskHoldReason } from "./taskPreparationOutcome";
 import { selectWebsiteAtlasPreview } from "./websiteAtlasPreview";
-import { isScreeningResultOutcome, screeningEstimateCountSentence, screeningOutcomeSentence,
-  type ScreeningOutcome } from "./betaPolicyScreeningContract";
+import { isScreeningResultOutcome, screeningEstimateCountSentence, screeningOutcomeSentence, storedScreeningOutcomeCaveat,
+  type ScreeningOutcome, type ScreeningOutcomeCaveat } from "./betaPolicyScreeningContract";
 import { isTerminalSceneOutcomeKind, sceneOutcomeMessage, sceneOutcomeSubject,
   type TerminalSceneOutcomeKind } from "./sceneIntentOutcome";
 
@@ -213,6 +213,8 @@ export async function enqueueTaskLifecycleNotification(params: {
   /** `evaluation_outcome` only: the run's result outcome, and an estimate's counts. */
   screeningOutcome?: ScreeningOutcome;
   screeningCounts?: { ran: number; total: number; scored: number };
+  /** `evaluation_outcome` estimate only: what the page's sentence adds (`screeningOutcomeCaveat`). */
+  screeningCaveat?: ScreeningOutcomeCaveat;
   /** `scene_outcome` only: the terminal outcome's kind; its event id must name it. */
   sceneOutcomeKind?: TerminalSceneOutcomeKind;
 }): Promise<{ enqueued: boolean; reason?: "store_unavailable" | "request_missing" | "contact_missing" | "consent_withdrawn"
@@ -272,6 +274,8 @@ export function buildTaskLifecycleNotification(params: {
   screeningOutcome?: ScreeningOutcome;
   /** `evaluation_outcome` estimate only: candidates that ran, of all, and episodes scored. */
   screeningCounts?: { ran: number; total: number; scored: number };
+  /** `evaluation_outcome` estimate only: what the page's sentence adds (`screeningOutcomeCaveat`). */
+  screeningCaveat?: ScreeningOutcomeCaveat;
   /** `scene_outcome` only: the terminal outcome's kind; its event id must name it. */
   sceneOutcomeKind?: TerminalSceneOutcomeKind;
   /** `robot_access_question` only: how many chairs and stools the proposal moves; its event id is the proposal digest. */
@@ -336,7 +340,7 @@ export const ESTIMATE_INTRODUCTION_OFFER =
  * the body says (F-01).
  */
 function evaluationOutcomeDetail(params: { eventId?: string; screeningOutcome?: ScreeningOutcome;
-  screeningCounts?: { ran: number; total: number; scored: number } }): string {
+  screeningCounts?: { ran: number; total: number; scored: number }; screeningCaveat?: ScreeningOutcomeCaveat }): string {
   const outcome = params.screeningOutcome;
   const counts = params.screeningCounts;
   if (!isScreeningResultOutcome(outcome) || !new RegExp(`^${outcome}-[a-f0-9]{24}$`).test(params.eventId ?? "")
@@ -344,8 +348,9 @@ function evaluationOutcomeDetail(params: { eventId?: string; screeningOutcome?: 
     || (counts && ![counts.ran, counts.total, counts.scored].every(value => Number.isSafeInteger(value) && value >= 0))) {
     throw new Error("evaluation_outcome_notice_invalid");
   }
-  const result = counts ? `${screeningOutcomeSentence(outcome)} ${screeningEstimateCountSentence(counts.ran, counts.total, counts.scored)}`
-    : screeningOutcomeSentence(outcome);
+  // The page's sentence, caveat included: the one outcome sentence function says both.
+  const sentence = screeningOutcomeSentence(outcome, storedScreeningOutcomeCaveat(params.screeningCaveat));
+  const result = counts ? `${sentence} ${screeningEstimateCountSentence(counts.ran, counts.total, counts.scored)}` : sentence;
   return `${result} Nothing is needed from you.\n\n${outcome === "estimate"
     ? `This is a simulation estimate, not a physical test. It never certifies physical performance or safety.\n\n${ESTIMATE_INTRODUCTION_OFFER}`
     : "A simulation is not a physical test, and it never certifies physical performance or safety."}`;

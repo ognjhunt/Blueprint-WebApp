@@ -38,7 +38,9 @@ export type BetaOpsFailureKind =
   | "payout_exception"
   | "payment_dispute"
   | "payment_webhook_dead_letter"
-  | "spend_budget_failure";
+  | "spend_budget_failure"
+  // A signed Pipeline payload this release's strict schema refused; kept in quarantine (pipelinePayloadQuarantine).
+  | "pipeline_payload_rejected";
 
 type BetaOpsFailureSignal = {
   kind: BetaOpsFailureKind;
@@ -61,6 +63,7 @@ const DEFAULT_FAILURE_THRESHOLDS: Record<BetaOpsFailureKind, number> = {
   payment_dispute: 1,
   payment_webhook_dead_letter: 1,
   spend_budget_failure: 1,
+  pipeline_payload_rejected: 1,
 };
 
 function stableAlertSegment(value: string) {

@@ -9,6 +9,18 @@ export function currentScreenings(evidence: JobManagedEvidenceSummary[] | undefi
   return superseded ? [] : (evidence ?? []).filter(item => item.current && item.screening);
 }
 
+/**
+ * What Blueprint's own checks recorded about the scene a run used, one plain sentence each (the server
+ * turns each flag into its sentence; no code reaches the page). Shown only when something was recorded.
+ */
+function SceneSetupNotes({ notes }: { notes: string[] | undefined }) {
+  if (!notes?.length) return null;
+  return <div aria-label="What our checks recorded about the simulated scene">
+    <p className="ms-field-hint">What our own checks recorded about the scene this ran in:</p>
+    <ul>{notes.map(note => <li key={note}>{note}</li>)}</ul>
+  </div>;
+}
+
 /** An evaluation with something to look at: a scored try or a kept practice run. */
 const hasResults = (item: JobManagedEvidenceSummary) => item.screening!.candidates
   .some(candidate => candidate.scored > 0 || (candidate.practiceRuns?.length ?? 0) > 0);
@@ -40,6 +52,7 @@ export function ManagedScreeningResults({ evidence, superseded = false, classNam
     <h3>{item.outcome === "estimate" ? "Your simulation estimate" : "Simulation evaluation"}</h3>
     {index > 0 && <p className="ms-field-hint">From an earlier evaluation run of your job.</p>}
     <p>{item.summary}</p>
+    <SceneSetupNotes notes={item.screening!.setupNotes} />
     <PolicyScreeningCandidates screening={item.screening!} practiceRuns={practiceRunVideoUrls && (candidate => <ScreeningPracticeRuns
       candidate={candidate} loadUrls={(candidateId, videoIds) => practiceRunVideoUrls(item.runId, candidateId, videoIds)} />)} />
     {item.limitations.map((limit, index) => <p className="ms-field-hint" key={index}>{limit}</p>)}
@@ -49,6 +62,7 @@ export function ManagedScreeningResults({ evidence, superseded = false, classNam
     <p className="ms-field-hint">Runs that a Blueprint update replaced, or that stopped before they gave an estimate. None has a scored practice run.</p>
     {earlier.map(item => <article key={item.runId} className="mt-3" aria-label="Earlier evaluation run">
       <p>{item.summary}</p>
+      <SceneSetupNotes notes={item.screening!.setupNotes} />
       <PolicyScreeningCandidates screening={item.screening!} />
     </article>)}
   </details>}</>;
