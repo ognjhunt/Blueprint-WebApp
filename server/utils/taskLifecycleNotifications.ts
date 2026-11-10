@@ -26,7 +26,8 @@ import { drainPendingWebsitePreparationNotifications } from "./websitePreparatio
 import { preparationEndedSentence } from "./taskStatusProjection";
 import { EARLY_TASK_HOLD_DETAIL, EARLY_TASK_HOLD_SENTENCES, earlyTaskHoldOf, isEarlyTaskHoldReason,
   FOOTAGE_BEFORE_ACCOUNT_SENTENCE, JOB_WINDOW_ENDING_MESSAGE, JOB_WINDOW_ENDING_SUBJECT, jobNoGrantEndingMessage,
-  type EarlyTaskHoldReason } from "./taskPreparationOutcome";
+  isRecaptureReason, RECAPTURE_SENTENCES, RECAPTURE_TITLE, recaptureReasonOf,
+  type EarlyTaskHoldReason, type RecaptureReason } from "./taskPreparationOutcome";
 import { isWebsiteJobNoGrantEndedEventId, isWebsiteJobWindowEndedEventId } from "./websiteJobWindowEnding";
 import { selectWebsiteAtlasPreview } from "./websiteAtlasPreview";
 import { isScreeningResultOutcome, screeningEstimateCountSentence, screeningOutcomeSentence, storedScreeningOutcomeCaveat,
@@ -212,6 +213,8 @@ export async function enqueueTaskLifecycleNotification(params: {
   captureId?: string;
   /** `preparation_needs_attention` only: wait until then for the Atlas preview that would name an early task hold. */
   awaitEarlyHoldUntilMs?: number;
+  /** `preparation_needs_attention` only: the preparation stop only a new video clears, from the status's outcome. */
+  recaptureReason?: RecaptureReason;
   /** `evaluation_outcome` only: the run's result outcome, and an estimate's counts. */
   screeningOutcome?: ScreeningOutcome;
   screeningCounts?: { ran: number; total: number; scored: number };
@@ -251,9 +254,13 @@ export async function enqueueTaskLifecycleNotification(params: {
   // ended, or the wait runs out, owe the notice rather than send a generic one the page would contradict.
   if (!earlyTaskHold && params.awaitEarlyHoldUntilMs !== undefined && Date.now() < params.awaitEarlyHoldUntilMs
     && (!preview || preview.state === "processing")) return { enqueued: false, reason: "awaiting_early_hold_preview" };
-  const { captureId: _captureId, awaitEarlyHoldUntilMs: _wait, ...notice } = params;
+  // A stop only a new video clears (the preview's own, or the preparation status's): the page asks the site to
+  // film again, so the notice says the same, never that the job waits for our team.
+  const recaptureReason = earlyTaskHold ? null : recaptureReasonOf(preview)
+    ?? (isRecaptureReason(params.recaptureReason) ? params.recaptureReason : null);
+  const { captureId: _captureId, awaitEarlyHoldUntilMs: _wait, recaptureReason: _recapture, ...notice } = params;
   return enqueueOutbox(buildTaskLifecycleNotification({ ...notice, requestId, to, workspaceUrl,
-    ...(earlyTaskHold ? { earlyTaskHold } : {}) }));
+    ...(earlyTaskHold ? { earlyTaskHold } : {}), ...(recaptureReason ? { recaptureReason } : {}) }));
 }
 
 /** Build the existing notice without a database write or delivery. Atomic
@@ -284,6 +291,8 @@ export function buildTaskLifecycleNotification(params: {
   robotAccessCounts?: RobotAccessCounts;
   /** `preparation_needs_attention` only: the early task hold the job page states; the notice is then the held one. */
   earlyTaskHold?: EarlyTaskHoldReason;
+  /** `preparation_needs_attention` only: the new-video ask the job page states; the notice is then that ask. */
+  recaptureReason?: RecaptureReason;
   /**
    * `scene_outcome` only: the job's window ran out and the WebApp's sweep ended it
    * (`websiteJobWindowSweep`). Its event id is the job's fixed one, or the one naming a later window end.
@@ -306,7 +315,9 @@ export function buildTaskLifecycleNotification(params: {
     : params.milestone === "robot_access_question" ? robotAccessQuestionDetail(params) : "";
   const held = params.milestone === "preparation_needs_attention" && isEarlyTaskHoldReason(params.earlyTaskHold)
     ? params.earlyTaskHold : null;
-  const message = held ? earlyTaskHoldCopy(held) : copy[params.milestone];
+  const recapture = !held && params.milestone === "preparation_needs_attention" && isRecaptureReason(params.recaptureReason)
+    ? params.recaptureReason : null;
+  const message = held ? earlyTaskHoldCopy(held) : recapture ? recaptureCopy(recapture) : copy[params.milestone];
   const url = params.captureUrl ?? captureUploadUrlFor(requestId, "owner");
   const eventId = params.eventId?.trim().replace(/[^A-Za-z0-9._-]/g, "_").slice(0, 120);
   // Preparation notices never carry caller text: only a validated reference and,
@@ -330,6 +341,14 @@ export function buildTaskLifecycleNotification(params: {
         || params.milestone === "robot_access_question" ? outcomeDetail
       : params.detail?.trim() ?? "", params.workspaceUrl ?? null)}\n\n${EMAIL_SIGN_OFF}`,
     replyTo: "hello@tryblueprint.io",
+  };
+}
+
+/** A new-video ask's one email: the job page's title, reason and next step, in place of the needs-attention notice. */
+function recaptureCopy(reason: RecaptureReason): (typeof copy)[TaskLifecycleMilestone] {
+  return {
+    subject: RECAPTURE_TITLE,
+    body: (url, detail) => `${RECAPTURE_SENTENCES[reason].reason} ${RECAPTURE_SENTENCES[reason].nextStep}${detail ? ` ${detail}` : ""}\n\nOpen your job:\n${url}`,
   };
 }
 

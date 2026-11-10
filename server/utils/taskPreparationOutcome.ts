@@ -18,7 +18,16 @@ export const preparationOutcomeSchema = z.discriminatedUnion("reason", [carryPat
 export const preparationOutcomeV6Schema = z.discriminatedUnion("reason", [carryPathRejected, taskEvidenceIncomplete,
   z.object({ reason: z.literal("robot_fit_none"), category: z.literal("robot_incompatibility"),
     basis: z.literal("conservative_pre_spend_fit_check"), robot_id: z.null(), evidence_digest: digest }).strict()]);
-export type PreparationOutcomeReceipt = z.infer<typeof preparationOutcomeV6Schema>;
+/** The preparation stops only a new video can clear (Pipeline `website_recapture_required`): the reason is the
+ * stop's own code. Each has its sentences in `RECAPTURE_SENTENCES`. */
+export const PREPARATION_RECAPTURE_REASONS = ["website_front_normal_undetermined", "website_registration_ambiguous",
+  "website_registration_poor_fit", "website_registration_conflicts_provider_anchor",
+  "website_registration_anchor_deviation", "website_registration_ground_plane_inconsistent"] as const;
+/** v7 adds those stops: the preparation ended at once and the site is asked to film again. */
+export const preparationOutcomeV7Schema = z.union([preparationOutcomeV6Schema, z.object({
+  reason: z.enum(PREPARATION_RECAPTURE_REASONS), category: z.literal("insufficient_evidence"),
+  basis: z.literal("missing_evidence"), robot_id: z.null(), evidence_digest: digest }).strict()]);
+export type PreparationOutcomeReceipt = z.infer<typeof preparationOutcomeV7Schema>;
 
 /** What the v6 precheck says about a robot fit hold, when it binds to the same evidence as the outcome. */
 export type RobotFitHoldEvidence = { holdReason: string | null; precheckDigest: string;
@@ -57,6 +66,7 @@ function robotFitHold(receipt: Extract<PreparationOutcomeReceipt, { reason: "rob
 }
 
 export function projectPreparationOutcome(receipt: PreparationOutcomeReceipt, precheck?: RobotFitHoldEvidence | null): TaskOutcome {
+  if (isRecaptureReason(receipt.reason)) return recaptureNeeded(receipt.reason, receipt.evidence_digest);
   if (receipt.reason === "robot_fit_none") return robotFitHold(receipt, precheck);
   if (receipt.reason === "robot_carry_path_rejected") return {
     category: "robot_incompatibility", basis: receipt.basis, title: "The checked robot configuration was rejected",
@@ -91,6 +101,10 @@ const COVERAGE_REASONS = new Set(["atlas_scene_planner_abstained"]);
  * video gives the same answer, so the Pipeline ends the job at once instead of retrying it. Each says what
  * the video lacked and what to film; the site acts next. Never a finding about a robot or the site.
  */
+const OBJECT_PLACEMENT_SENTENCES = {
+  reason: "We could not place the object in our rebuild of your space: what your video shows of it did not line up with the room around it in one clear position.",
+  nextStep: "Please film again with the object clear of clutter, resting where the job starts, and move around it so it is seen from several sides. Then send us the new video.",
+} as const;
 export const RECAPTURE_SENTENCES = {
   atlas_task_and_scene_coverage_gap: {
     reason: "Your video does not connect the place where the job happens to the room around it: we could not find views that overlap between them.",
@@ -104,17 +118,36 @@ export const RECAPTURE_SENTENCES = {
     reason: "The part of your video that shows where the job happens is too blurred, or too bright or too dark, for us to rebuild it.",
     nextStep: "Please film again with slow, steady movement and even lighting, and hold on the place where the job happens for a few seconds. Then send us the new video.",
   },
+  // Preparation stops (preparation status v7). Which way the object faces is read only from a side of it.
+  website_front_normal_undetermined: {
+    reason: "We could not tell from your video which way the object faces: no view we could use shows a side of it facing outward.",
+    nextStep: "Please film again and hold the front of the object in view for a few seconds, from about the height of the object. Then send us the new video.",
+  },
+  // The object's shape, as filmed, fitted the rebuilt room in no single clear place: nowhere well
+  // (poor_fit), in several places (ambiguous), better away from where the reconstruction puts it
+  // (conflicts_provider_anchor, anchor_deviation) or off its floor (ground_plane_inconsistent).
+  website_registration_ambiguous: OBJECT_PLACEMENT_SENTENCES,
+  website_registration_poor_fit: OBJECT_PLACEMENT_SENTENCES,
+  website_registration_conflicts_provider_anchor: OBJECT_PLACEMENT_SENTENCES,
+  website_registration_anchor_deviation: OBJECT_PLACEMENT_SENTENCES,
+  website_registration_ground_plane_inconsistent: OBJECT_PLACEMENT_SENTENCES,
   atlas_scale_review_unresolved: {
     reason: "From your video we could not work out how large the space is: nothing in it gave us a size we could rely on.",
     nextStep: "Please film again with an object of standard size in view near where the job happens, such as a door or a tape measure laid open on the floor. Then send us the new video.",
   },
 } as const satisfies Record<string, { reason: string; nextStep: string }>;
 export type RecaptureReason = keyof typeof RECAPTURE_SENTENCES;
-const isRecaptureReason = (value: unknown): value is RecaptureReason =>
+export const isRecaptureReason = (value: unknown): value is RecaptureReason =>
   typeof value === "string" && Object.prototype.hasOwnProperty.call(RECAPTURE_SENTENCES, value);
 
+/** The title of every new-video ask; the needs-attention email for these stops uses it as its subject. */
+export const RECAPTURE_TITLE = "We need a new video of your work area";
+/** The new-video ask a verified Atlas preview names for its capture, or null. */
+export const recaptureReasonOf = (preview: WebsiteAtlasPreview | null): RecaptureReason | null =>
+  preview?.state === "needs_input" && isRecaptureReason(preview.reason) ? preview.reason : null;
+
 function recaptureNeeded(reason: RecaptureReason, evidenceDigest: string): TaskOutcome {
-  return { category: "insufficient_evidence", basis: "missing_evidence", title: "We need a new video of your work area",
+  return { category: "insufficient_evidence", basis: "missing_evidence", title: RECAPTURE_TITLE,
     reason: RECAPTURE_SENTENCES[reason].reason,
     scope: "This video only. It is not a finding about any robot or about your site.",
     nextStep: RECAPTURE_SENTENCES[reason].nextStep,

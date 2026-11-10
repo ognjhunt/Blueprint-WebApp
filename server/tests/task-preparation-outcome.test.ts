@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
 import { projectAtlasPreparationOutcome, projectPreparationOutcome, preparationOutcomeSchema,
-  preparationOutcomeV6Schema, RECAPTURE_SENTENCES } from "../utils/taskPreparationOutcome";
+  preparationOutcomeV6Schema, preparationOutcomeV7Schema, RECAPTURE_SENTENCES } from "../utils/taskPreparationOutcome";
 import { selectWebsiteAtlasPreview } from "../utils/websiteAtlasPreview";
 import { crossRuntimeArtifactDigest } from "../utils/crossRuntimeCanonical";
 import { projectTaskStatus } from "../utils/taskStatusProjection";
@@ -44,6 +44,22 @@ describe("source-bound preparation closeout", () => {
     expect(outcome!.nextStep).toMatch(/^Please film again.*Then send us the new video\.$/);
     expect(JSON.stringify(outcome)).not.toMatch(/no repeat upload|do not need to (record|send)|atlas_|robot (cannot|could not)/i);
     expect(projectTaskStatus({ ...base, preparationOutcome: outcome }).decision).toBe("insufficient_evidence");
+  });
+  it.each(["website_front_normal_undetermined", "website_registration_ambiguous", "website_registration_poor_fit",
+    "website_registration_conflicts_provider_anchor", "website_registration_anchor_deviation",
+    "website_registration_ground_plane_inconsistent"])("asks the site to film the object again for preparation stop %s", reason => {
+    const outcome = projectPreparationOutcome(preparationOutcomeV7Schema.parse({ category: "insufficient_evidence", reason,
+      basis: "missing_evidence", robot_id: null, evidence_digest: sha }));
+    const sentences = RECAPTURE_SENTENCES[reason as keyof typeof RECAPTURE_SENTENCES];
+    expect(outcome).toMatchObject({ actionOwner: "site", reason: sentences.reason, nextStep: sentences.nextStep,
+      title: "We need a new video of your work area", evidence: [{ digest: sha }] });
+    expect(outcome.nextStep).toMatch(reason === "website_front_normal_undetermined" ? /front of the object/
+      : /clear of clutter, resting where the job starts.*several sides/);
+    const projected = projectTaskStatus({ ...base, preparationStatus: { state: "awaiting_inputs", correlationId: null, outcome } });
+    expect(projected).toMatchObject({ decision: "insufficient_evidence", operatorAction: sentences.nextStep });
+    // A replacement video becomes the job's active capture: its own status replaces this ask.
+    expect(projectTaskStatus({ ...base, preparationStatus: { state: "preparing", correlationId: null, outcome: null } })
+      .operatorAction).not.toBe(sentences.nextStep);
   });
   it("distinguishes a coverage gap from a processing refusal", () => {
     const missing = projectAtlasPreparationOutcome(current(atlas("needs_input", "atlas_task_and_scene_coverage_gap")));
