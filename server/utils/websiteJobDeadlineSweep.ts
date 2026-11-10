@@ -31,7 +31,7 @@ import { selectWebsiteAtlasPreview } from "./websiteAtlasPreview";
 import { projectWebsiteRunClosure } from "./websiteRunClosure";
 import { multiStepTaskHold } from "./siteTaskScope";
 import { currentTaskTargetChoiceAnswer } from "./websiteTaskTargetChoice";
-import { footageArrivedBeforeAccount, siteWalkthroughIdentity } from "./siteWalkthrough";
+import { footageArrivedBeforeAccount, savedWalkthrough, siteWalkthroughIdentity } from "./siteWalkthrough";
 
 export const WEBSITE_JOB_ENDING_FIELD = "website_job_ending";
 export const WEBSITE_JOB_ENDING_PENDING_FIELD = "website_job_ending_notification_pending";
@@ -102,10 +102,12 @@ export async function websiteJobPageReading(requestId: string, record: Record<st
   const [{ getBrief }, { passMarkForJob }, { loadSceneScreening }, { teamJobAccess }, { readWebsiteSceneProgression },
     { reconstructionIsViewable }] = await Promise.all([import("./siteTaskBrief"), import("./pilotRecommendationEvidence"),
     import("./agentEvalRuns"), import("./teamJobAccess"), import("./websiteSceneProgression"), import("./taskLifecycleNotifications")]);
-  const captureId = siteWalkthroughIdentity(requestId, record).captureId;
-  const [brief, session, video] = await Promise.all([getBrief(requestId),
-    db.collection("captureUploadSessions").doc(captureId).get(),
-    db.collection("captureOutbox").doc(`${requestId}:video_received`).get()]);
+  const identity = siteWalkthroughIdentity(requestId, record);
+  const captureId = identity.captureId;
+  const [brief, session, walkthrough] = await Promise.all([getBrief(requestId),
+    db.collection("captureUploadSessions").doc(captureId).get(), savedWalkthrough(identity)]);
+  // The page answers 503 when it cannot tell whether the video is saved; so does this reading.
+  if (!walkthrough) throw new Error("website_job_walkthrough_unavailable");
   const rights = projectWebsiteCaptureRights(record);
   const consentRevoked = rights.consent_revoked;
   const footageBeforeAccount = !consentRevoked && await footageArrivedBeforeAccount(requestId, record) === true;
@@ -123,8 +125,8 @@ export async function websiteJobPageReading(requestId: string, record: Record<st
     site_task_brief_confirmed_at: record.site_task_brief_confirmed_at,
     capture_coverage: record.capture_coverage ?? null,
     briefDrafted: Boolean(brief),
-    // The `video_received` notice is the receipt, as the footage-before-account notice reads it.
-    hasStoredCapture: video.exists,
+    // The same saved-video read as the job page.
+    hasStoredCapture: walkthrough.received,
     footageBeforeAccount,
     consentRevoked,
     jobWorkWindow: await websiteJobWorkWindow(record, nowEpoch),
@@ -149,27 +151,37 @@ export async function websiteJobPageReading(requestId: string, record: Record<st
   return { progress: websiteJobProgress(input), status: projectTaskStatus(input), basis: input.jobDeadlineBasis };
 }
 
-/** Whether the page shows this job ended by its deadline now: open progression, and the ending sentence for its own basis. */
+/**
+ * Whether the page shows this job ended at its deadline now: open progression, the projection's own
+ * ending marker for the job's basis, and its sentence. The status route never replaces a marked
+ * headline, so this is what the owner's page shows.
+ */
 const endedByWindow = (reading: Awaited<ReturnType<typeof websiteJobPageReading>>) =>
   websiteJobEndsAtDeadline(reading.progress) && reading.basis !== undefined
+  && reading.status.endedAtDeadline === reading.basis
   && reading.status.headline === jobDeadlineEndedHeadline(reading.basis);
 
 export type WebsiteJobDeadlineSweepSummary = { examined: number; ended: number; noticesOwed: number; failed: number };
 
-/** A turning scan of one indexed field across [lower, upper]: each pass resumes after the last value it read. */
+/**
+ * A turning scan of one indexed field across [lower, upper], ordered by that field then document id
+ * (the automatic single-field index serves both). After a full page the next pass resumes exactly
+ * after the last (value, id) pair it read, so a document sharing a value across a page boundary is
+ * neither skipped nor read twice; a short page starts the window again.
+ */
 async function scanWindow(store: FirebaseFirestore.Firestore, field: string, cursorName: string,
-  lower: number, upper: number, toQueryValue: (epoch: number) => unknown, fromDoc: (doc: Record<string, any>) => number | null,
+  lower: number, upper: number, toQueryValue: (epoch: number) => unknown, epochOf: (value: unknown) => number | null,
   limit: number) {
+  const valueAt = (data: Record<string, any>) => field.split(".").reduce<any>((value, key) => value?.[key], data);
   const cursorRef = store.collection("automationCursors").doc(cursorName);
-  const cursor = (await cursorRef.get()).data()?.last_epoch;
-  const after = typeof cursor === "number" && cursor >= lower && cursor < upper ? cursor : null;
-  const rows = await store.collection(INBOUND)
-    .where(field, after === null ? ">=" : ">", toQueryValue(after ?? lower))
-    .where(field, "<=", toQueryValue(upper))
-    .orderBy(field).limit(limit).get();
-  const last = rows.docs.length ? fromDoc(rows.docs[rows.docs.length - 1].data()) : null;
-  // A full page resumes after its last value next pass; a short one starts the window again.
-  await cursorRef.set({ last_epoch: rows.docs.length >= limit && last !== null ? last : null });
+  const cursor = (await cursorRef.get()).data();
+  const cursorEpoch = cursor && typeof cursor.last_id === "string" ? epochOf(cursor.last_value) : null;
+  let query = store.collection(INBOUND).where(field, ">=", toQueryValue(lower)).where(field, "<=", toQueryValue(upper))
+    .orderBy(field).orderBy("__name__");
+  if (cursorEpoch !== null && cursorEpoch >= lower && cursorEpoch <= upper) query = query.startAfter(cursor!.last_value, cursor!.last_id);
+  const rows = await query.limit(limit).get();
+  const last = rows.docs.length >= limit ? rows.docs[rows.docs.length - 1] : null;
+  await cursorRef.set(last ? { last_value: valueAt(last.data()), last_id: last.id } : { last_value: null, last_id: null });
   return rows.docs;
 }
 
@@ -216,13 +228,13 @@ export async function sweepWebsiteJobDeadlines(options: { nowMs?: number; limit?
   const candidates = new Map<string, Record<string, any>>();
   // Jobs with a grant, by its own expiry (an extension can only move the deadline later, inside the lookback).
   for (const doc of await scanWindow(store, "website_scene_sponsorship.expires_at_epoch", "website_job_deadline_grants",
-    lower, nowEpoch, epoch => epoch, data => data.website_scene_sponsorship?.expires_at_epoch ?? null, limit))
+    lower, nowEpoch, epoch => epoch, value => typeof value === "number" && Number.isFinite(value) ? value : null, limit))
     candidates.set(doc.id, doc.data());
   // Website jobs that never received a grant, by creation time: their deadline is created + the default window.
   const toTimestamp = (epoch: number) => admin.firestore.Timestamp.fromMillis(Math.round(epoch * 1000));
   for (const doc of await scanWindow(store, "createdAt", "website_job_deadline_created",
     lower - WEBSITE_JOB_WINDOW_DEFAULT_SECONDS, nowEpoch - WEBSITE_JOB_WINDOW_DEFAULT_SECONDS, toTimestamp,
-    data => websiteJobCreatedEpoch(data.createdAt), limit)) {
+    websiteJobCreatedEpoch, limit)) {
     const data = doc.data();
     if (data.request?.buyerType === "site_operator" && !data.website_scene_sponsorship) candidates.set(doc.id, data);
   }

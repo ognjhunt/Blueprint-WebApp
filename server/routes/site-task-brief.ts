@@ -1286,8 +1286,9 @@ router.get("/:token/status", async (req: Request, res: Response) => {
     // desktop must show the same hold as the phone while preserving the saved
     // receipt (and must never ask for a replacement recording in that state).
     // A specific hold still wins; an overdue watch keeps its own, newer message.
+    // A job ended at its deadline keeps its ending: its one email says the same sentence.
     if (!request?.captureRights.consent_revoked && reconstruction?.state !== "failed" && !preparationStatus
-      && status.decision === "footage_received"
+      && status.decision === "footage_received" && !status.endedAtDeadline
       && (upload.processingHold || (uploadState !== "processing_ready" && !preparationOverdue))) {
       status.headline = upload.processingHold?.detail
         ?? "Your video is saved. Processing has not been confirmed. Keep your original video; you do not need to record or upload it again.";

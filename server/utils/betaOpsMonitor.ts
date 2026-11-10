@@ -1,6 +1,7 @@
 import { dbAdmin } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
 import { getOpsAutomationLeaderLease, type AutomationLeaderLease } from "./automationLeaderLease";
+import { automationBatch } from "./automationBatch";
 import { sendEmail } from "./email";
 import { appBaseUrl, opsNoticeRecipient, sweepIntakeOpsNotices } from "./intakeOpsNotice";
 import { sendRateLimitedOpsAlert } from "./opsProcessAlerts";
@@ -194,17 +195,16 @@ export async function scanTerminalOutboxFailures(options: {
   const store = options.store === undefined ? (dbAdmin as unknown as OutboxStore | null) : options.store;
   const summary: OutboxFailureScanSummary = { failed: 0, unknown: 0, newlyAlerted: 0 };
   if (!store) return summary;
-  const limit = Math.max(1, Math.min(options.limit ?? 200, 500));
+  const limit = Math.max(1, Math.min(options.limit ?? 100, 100));
   const nowMs = (options.now || Date.now)();
   for (const status of ["failed", "unknown"] as const) {
-    const snapshot = await store.collection(CAPTURE_OUTBOX_COLLECTION).where("status", "==", status).limit(limit).get();
+    // A rotating scan, one cursor per status: alerting does not change a row, so a plain first
+    // page would read the same rows every pass and never reach the rest.
+    const firestore = store as unknown as FirebaseFirestore.Firestore;
+    const query = firestore.collection(CAPTURE_OUTBOX_COLLECTION).where("status", "==", status);
+    let snapshot = await automationBatch(firestore, query, `capture_outbox_${status}_alerts`, limit);
+    if (!snapshot.docs.length) snapshot = await automationBatch(firestore, query, `capture_outbox_${status}_alerts`, limit);
     summary[status] = snapshot.docs.length;
-    if (snapshot.docs.length >= limit) {
-      logger.warn(
-        { event: `capture_outbox_${status}_scan_truncated`, limit },
-        `More ${status} outbox entries exist than one scan reads; clear or cancel handled entries`,
-      );
-    }
     const fresh: Array<{ key: string; requestId: string; kind: string; lastError: string }> = [];
     for (const doc of snapshot.docs) {
       if (alertedOutboxKeys.has(doc.id)) continue;

@@ -211,14 +211,19 @@ export function createFakeFirestore(state: FakeFirestoreState) {
     orders: QueryOrder[] = [],
     limitCount: number | null = null,
     afterId: string | null = null,
+    afterValues: unknown[] | null = null,
   ): any {
     return {
       where: (field: string, op: string, value: unknown) =>
-        makeQuery(collectionName, [...filters, { field, op, value }], orders, limitCount, afterId),
+        makeQuery(collectionName, [...filters, { field, op, value }], orders, limitCount, afterId, afterValues),
       orderBy: (field: string, direction: "asc" | "desc" = "asc") =>
-        makeQuery(collectionName, filters, [...orders, { field, direction }], limitCount, afterId),
-      limit: (count: number) => makeQuery(collectionName, filters, orders, count, afterId),
-      startAfter: (id: string) => makeQuery(collectionName, filters, orders, limitCount, id),
+        makeQuery(collectionName, filters, [...orders, { field, direction }], limitCount, afterId, afterValues),
+      limit: (count: number) => makeQuery(collectionName, filters, orders, count, afterId, afterValues),
+      // One argument keeps this fake's id cursor. Several are Firestore's cursor over the
+      // orderBy fields in order (`__name__` is the document id), resuming strictly after that tuple.
+      startAfter: (...values: unknown[]) => values.length > 1
+        ? makeQuery(collectionName, filters, orders, limitCount, null, values)
+        : makeQuery(collectionName, filters, orders, limitCount, values[0] as string, null),
       get: async () => {
         let entries = Array.from(state.docs.entries())
           .filter(([key, data]) => {
@@ -238,6 +243,13 @@ export function createFakeFirestore(state: FakeFirestoreState) {
           });
         }
         if (afterId) entries = entries.filter(entry => entry.id > afterId);
+        if (afterValues) entries = entries.filter(entry => {
+          for (const [index, order] of orders.slice(0, afterValues.length).entries()) {
+            const comparison = compareValues(order.field === "__name__" ? entry.id : fieldAt(entry.data, order.field), afterValues[index]);
+            if (comparison !== 0) return order.direction === "desc" ? comparison < 0 : comparison > 0;
+          }
+          return false;
+        });
         if (limitCount !== null) {
           entries = entries.slice(0, limitCount);
         }

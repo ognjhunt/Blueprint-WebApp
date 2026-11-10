@@ -29,12 +29,19 @@ vi.mock("../utils/websiteSceneProgression", async importOriginal => ({
   }),
 }));
 vi.mock("../utils/agentEvalRuns", () => ({ loadSceneScreening: vi.fn(async () => page.screening) }));
+// The job page's saved-video read (Storage): saved here when the fixture's video receipt is.
+vi.mock("../utils/siteWalkthrough", async importOriginal => {
+  const original = await importOriginal<typeof import("../utils/siteWalkthrough")>();
+  const { sharedFakeFirestoreState: state } = await import("./helpers/fake-firestore");
+  return { ...original, savedWalkthrough: vi.fn(async (identity: { requestId: string }) => ({ upload: {},
+    uploadState: "processing_ready", received: state.docs.has(`captureOutbox/${identity.requestId}:video_received`) })) };
+});
 
 const { sweepWebsiteJobDeadlines, reconcileWebsiteJobEndingNotifications, websiteJobEndingShown, websiteJobPageReading,
   websiteJobEndingEventId, WEBSITE_JOB_DEADLINE_LOOKBACK_SECONDS } = await import("../utils/websiteJobDeadlineSweep");
 const { deliverOutbox } = await import("../utils/captureOutbox");
 // Load the mocked modules once, so passes that race below all read the mocks.
-await Promise.all([import("../utils/websiteSceneProgression"), import("../utils/agentEvalRuns"), import("../utils/siteTaskBrief"),
+await Promise.all([import("../utils/websiteSceneProgression"), import("../utils/siteWalkthrough"), import("../utils/agentEvalRuns"), import("../utils/siteTaskBrief"),
   import("../utils/teamJobAccess"), import("../utils/pilotRecommendationEvidence"), import("../utils/taskLifecycleNotifications")]);
 const { JOB_WINDOW_ENDED_HEADLINE } = await import("../utils/taskStatusProjection");
 const { WEBSITE_JOB_WINDOW_DEFAULT_SECONDS } = await import("../utils/websiteJobWindow");
@@ -196,6 +203,18 @@ describe("website job deadline sweep", () => {
     expect((await sweepWebsiteJobDeadlines({ limit: 2 })).examined).toBe(2);
     expect((await sweepWebsiteJobDeadlines({ limit: 2 })).ended).toBe(1);
     for (const id of ["req-a", "req-b", "req-c"]) expect(job(id).website_job_ending).toBeDefined();
+  });
+
+  it("pages exactly past jobs that share one deadline at a page boundary: each read once per turn, none skipped", async () => {
+    const ids = ["req-a", "req-b", "req-c", "req-d", "req-e"];
+    for (const id of ids) seedJob(id, { ago: 3600 });
+    const passes = [];
+    for (let pass = 0; pass < 3; pass++) passes.push(await sweepWebsiteJobDeadlines({ limit: 2 }));
+    expect(passes.map(pass => pass.examined)).toEqual([2, 2, 1]);
+    expect(passes.map(pass => pass.ended)).toEqual([2, 2, 1]);
+    for (const id of ids) expect(job(id).website_job_ending).toMatchObject({ deadline_epoch: NOW - 3600 });
+    // The short page started the window again: the next turn reads the first page anew and changes nothing.
+    expect(await sweepWebsiteJobDeadlines({ limit: 2 })).toMatchObject({ examined: 2, ended: 0 });
   });
 
   it("ends a website job the hand-off never reached at its creation plus the default window, and no other kind of request", async () => {

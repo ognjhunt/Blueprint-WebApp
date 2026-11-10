@@ -28,21 +28,29 @@ import {
 
 function outboxStore(entries: Array<{ id: string; data: Record<string, unknown> }>) {
   const markers = new Map<string, Record<string, unknown>>();
+  const cursors = new Map<string, Record<string, unknown>>();
   const reads = { query: 0 };
+  // Equality on status, ordered by id, with a limit and an id cursor: what scanOutboxBacklog and automationBatch ask for.
+  const query = (value: unknown, limit = Infinity, after: string | null = null): any => ({
+    orderBy: () => query(value, limit, after),
+    limit: (n: number) => query(value, n, after),
+    startAfter: (id: string) => query(value, limit, id),
+    get: async () => {
+      reads.query += 1;
+      return { docs: entries.filter((entry) => entry.data.status === value && (after === null || entry.id > after))
+        .sort((a, b) => (a.id < b.id ? -1 : 1)).slice(0, limit).map((entry) => ({ id: entry.id, data: () => entry.data })) };
+    },
+  });
   return {
     markers,
     reads,
     collection: (name: string) => ({
-      where: (_field: string, _op: string, value: unknown) => ({
-        limit: (n: number) => ({
-          get: async () => {
-            reads.query += 1;
-            return { docs: entries.filter((entry) => entry.data.status === value).slice(0, n).map((entry) => ({ id: entry.id, data: () => entry.data })) };
-          },
-        }),
-      }),
+      where: (_field: string, _op: string, value: unknown) => query(value),
       doc: (id: string) => ({
-        get: async () => ({ exists: name === "opsOutboxFailureAlerts" && markers.has(id) }),
+        get: async () => name === "automationCursors"
+          ? { exists: cursors.has(id), data: () => cursors.get(id) }
+          : { exists: name === "opsOutboxFailureAlerts" && markers.has(id) },
+        set: async (data: Record<string, unknown>) => { cursors.set(id, data); },
         create: async (data: Record<string, unknown>) => {
           if (markers.has(id)) throw Object.assign(new Error("exists"), { code: 6 });
           markers.set(id, data);
@@ -108,6 +116,32 @@ describe("terminal outbox failure scan", () => {
     expect(alert).toHaveBeenCalledOnce();
     expect(email).toHaveBeenCalledOnce();
     expect(store.markers.get(entry.idempotencyKey)).toMatchObject({ outbox_key: entry.idempotencyKey, request_id: entry.requestId });
+  });
+
+  it("reaches every unknown and failed row over successive passes, alerting each exactly once", async () => {
+    const nowMs = Date.parse("2026-11-10T12:00:00Z");
+    const entries = Array.from({ length: 5 }, (_, index) => [
+      { id: `req-u${index}:scene_outcome`, data: { status: "unknown", requestId: `req-u${index}`, kind: "scene_outcome",
+        lastError: "delivery_outcome_unknown", deliveryLeaseUntilMs: nowMs - 60 * 60_000 } },
+      { id: `req-f${index}:video_received`, data: { status: "failed", requestId: `req-f${index}`, kind: "video_received",
+        lastError: "delivery_attempt_budget_exhausted" } },
+    ]).flat();
+    const store = outboxStore(entries);
+    const alert = vi.fn(async () => undefined);
+    const email = vi.fn(async () => ({ sent: true }));
+    let alerted = 0;
+    // Two rows per read: five of each need three passes; further passes find nothing new.
+    for (let pass = 0; pass < 6; pass++) {
+      __resetBetaOpsMonitorForTests();
+      alerted += (await scanTerminalOutboxFailures({ store: store as never, alert, email: email as never, limit: 2,
+        now: () => nowMs })).newlyAlerted;
+    }
+    expect(alerted).toBe(10);
+    expect([...store.markers.keys()].sort()).toEqual(entries.map((entry) => entry.id).sort());
+    const texts = alert.mock.calls.map((call) => String(call[1])).join("\n");
+    for (const entry of entries) expect(texts.split(`for ${String(entry.data.requestId)} (`).length - 1).toBe(1);
+    expect(alert.mock.calls.filter((call) => String(call[0]).startsWith("capture_outbox_failed:")).length).toBe(3);
+    expect(alert.mock.calls.filter((call) => String(call[0]).startsWith("capture_outbox_unknown:")).length).toBe(3);
   });
 
   it("alerts once per email whose send outcome is unknown, says it was not resent, and leaves the row as it is", async () => {

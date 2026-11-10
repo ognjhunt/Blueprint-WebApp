@@ -94,6 +94,12 @@ export type TaskDecision =
 export interface TaskStatus {
   /** Earlier results belong to an object selection the owner has rejected. */
   resultSuperseded?: boolean;
+  /**
+   * Set only when the job ended at its deadline while still open on our side, naming where that
+   * deadline came from. Its headline is final: no caller may replace it, so the page and the one
+   * email (`websiteJobDeadlineSweep`) say the same sentence.
+   */
+  endedAtDeadline?: "grant" | "grant_extended" | "job_created";
   outcome?: TaskOutcome | null;
   decision: TaskDecision;
   /** The readiness stage this came from, for anyone who wants the finer grain. */
@@ -874,8 +880,9 @@ export function taskStatusInputFrom(record: {
 
 function windowEndedStatus(base: { stage: ReadinessStage | null; missingViews: string[]; nextUpdateIso: null },
   basis: TaskStatusInput["jobDeadlineBasis"]): TaskStatus {
+  const endedAtDeadline = basis ?? "grant";
   return { ...base, decision: "footage_received", stage: null, missingViews: [],
-    headline: jobDeadlineEndedHeadline(basis ?? "grant"), operatorAction: null };
+    headline: jobDeadlineEndedHeadline(endedAtDeadline), operatorAction: null, endedAtDeadline };
 }
 
 function dispositionFrom(value: unknown): TaskStatusInput["disposition"] {
