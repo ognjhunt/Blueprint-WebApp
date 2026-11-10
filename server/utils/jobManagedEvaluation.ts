@@ -14,9 +14,11 @@ import { publicationFromResultRecord } from "./taskEvaluationRunPublicationStora
 import { parseVerifiedTaskEvaluationRunPublication } from "./taskEvaluationRunContract";
 import { parsePipelinePolicyCanaryPublication } from "./policyCanaryWebappSyncContract";
 import { isScreeningHeldOutcome, parseBetaPolicyScreeningPublication, screeningCandidateState, screeningEstimateCountSentence,
-  screeningEstimateRows, screeningExecutionEvidence, screeningJobCeilingRow, screeningOutcome, screeningOutcomeSentence, SCREENING_REPLANNED_BLOCKER,
+  screeningEstimateRows, screeningExecutionEvidence, screeningJobCeilingRow, screeningOutcome, screeningOutcomeCaveat, screeningOutcomeSentence,
+  SCREENING_PUBLICATION_V1, SCREENING_PUBLICATION_V2, SCREENING_PUBLICATION_V3, SCREENING_REPLANNED_BLOCKER,
   screeningReviewVideos, type BetaPolicyScreeningPublication, type ScreeningExecutionEvidence, type ScreeningOutcome,
-  type ScreeningReviewVideos } from "./betaPolicyScreeningContract";
+  type ScreeningOutcomeCaveat, type ScreeningReviewVideos } from "./betaPolicyScreeningContract";
+import { screeningSetupNotes } from "./screeningSetupFlagSentences";
 import { projectCandidateSelection } from "./betaCandidateSelection";
 import type { JobCandidateSelection } from "../../client/src/types/jobMarketplace";
 import { assertWebsiteCaptureBindingInTransaction, resolveWebsiteCaptureBinding } from "./websiteCaptureBinding";
@@ -258,6 +260,8 @@ export type ManagedJobEvidenceSummary = {
   runId: string; state: string; current: boolean; resultDigest: string | null;
   /** A job evaluation's outcome (`screeningOutcome`); null while it still runs. */
   outcome?: ScreeningOutcome | null;
+  /** What the outcome's sentence adds (`screeningOutcomeCaveat`); the summary already says it. */
+  outcomeCaveat?: ScreeningOutcomeCaveat;
   /** `nextAction` is what the site may read; `opsNextAction` is staff only. */
   summary: string; nextAction: string; opsNextAction?: string; limitations: string[]; href: string;
   screening?: { budget?: { limitUsd: string; committedUpperBoundUsd: string; spentUpperBoundUsd: string; reservedUsd: string };
@@ -266,7 +270,9 @@ export type ManagedJobEvidenceSummary = {
     candidates: Array<{ candidateId: string; name: string; state: string; planned: number;
     scored: number; succeeded: number; failed: number; void: number; blockers: string[]; configurationDigest?: string;
     successRange?: ScreeningSuccessRange; executionEvidence?: ScreeningExecutionEvidence;
-    practiceRuns?: ScreeningPracticeRun[] }>; selection?: JobCandidateSelection };
+    practiceRuns?: ScreeningPracticeRun[] }>; selection?: JobCandidateSelection;
+    /** What Blueprint's own checks recorded about the scene the run used, in plain sentences, never codes. */
+    setupNotes?: string[] };
 };
 
 /** One practice run (episode) of a candidate, with the videos kept of it; `videoId` is the video's sha256 hex. */
@@ -344,10 +350,9 @@ export function projectManagedJobEvidence(
   if (!result || result.record_id !== run.result_record_id) return base;
   const publication = publicationFromResultRecord(result);
   if (!publication) return base;
-  if (publication.schema_version === "beta_policy_screening_publication.v2"
-    || publication.schema_version === "beta_policy_screening_publication.v1") {
+  if ([SCREENING_PUBLICATION_V3, SCREENING_PUBLICATION_V2, SCREENING_PUBLICATION_V1].includes(String(publication.schema_version))) {
     // The automatic run under the site's allowance is the job's evaluation
-    // (owner decision 2026-10-28). Retained v1 rows read the same way.
+    // (owner decision 2026-10-28). Retained v1 rows read the same way; v3 adds set-up flags.
     const value = parseBetaPolicyScreeningPublication(publication);
     if (!value || value.campaign_id !== runId || run.run_kind !== "beta_policy_screening"
       || value.publication_digest !== run.publication_digest || value.revision !== run.publication_revision
@@ -361,6 +366,9 @@ export function projectManagedJobEvidence(
     const candidates = (count: number) => `${count} candidate${count === 1 ? "" : "s"}`;
     // The one outcome the job page headline and the result email also state (F-03).
     const outcome = screeningOutcome(value);
+    // A zero-success estimate in a scene our own checks flagged says so, in the same sentence everywhere.
+    const caveat = screeningOutcomeCaveat(value);
+    const setupNotes = screeningSetupNotes(value);
     const replanned = value.candidates.some(row => row.blockers.includes(SCREENING_REPLANNED_BLOCKER));
     const estimateRows = outcome === "estimate" ? screeningEstimateRows(value.candidates) : [];
     const estimated = estimateRows.reduce((sum, row) => sum + row.episodes_scored, 0);
@@ -369,8 +377,9 @@ export function projectManagedJobEvidence(
     // The Pipeline's rule-based choice, kept only while it restates this result.
     const selection = projectCandidateSelection(run.candidate_selection, value);
     const kept = new Map(screeningReviewVideos(value).map(entry => [entry.candidate_id, entry]));
-    return { ...base, state: status, outcome, resultDigest: outcome !== null && outcome !== "superseded" ? value.publication_digest : null,
-      summary: outcome === "estimate" ? `${screeningOutcomeSentence(outcome)} ${screeningEstimateCountSentence(completed, total, scored)}`
+    return { ...base, state: status, outcome, ...(caveat ? { outcomeCaveat: caveat } : {}),
+      resultDigest: outcome !== null && outcome !== "superseded" ? value.publication_digest : null,
+      summary: outcome === "estimate" ? `${screeningOutcomeSentence(outcome, caveat)} ${screeningEstimateCountSentence(completed, total, scored)}`
         : outcome ? screeningOutcomeSentence(outcome)
           : `Simulation evaluation of your job: ${completed} of ${total} candidates finished; ${scored} episodes scored so far.`,
       // The site reads what it needs to know; what Blueprint has to do is staff only.
@@ -384,7 +393,7 @@ export function projectManagedJobEvidence(
         ...(estimated ? [`A bounded simulation estimate from ${estimated} scored episode${estimated === 1 ? "" : "s"} across ${candidates(estimateRows.length)}, for this job's recorded task and simulated conditions only.`] : []),
         "A simulation result is a bounded estimate. It does not certify physical performance or safety.",
         ...(notRun ? [`${candidates(notRun)} did not run; each row lists why.`] : []),
-        ...(replanned && outcome !== "superseded" ? ["Candidates that had not run yet continue in a newer run."] : []),
+        ...(replanned && outcome !== "superseded" ? ["Candidates that had not run yet continue in a newer run after a Blueprint update."] : []),
       ],
       screening: { provenance: { schema_version: value.schema_version, claim_ceiling: value.claim_ceiling,
         source: value.source, generated_at: value.generated_at, publication_digest: value.publication_digest,
@@ -398,7 +407,7 @@ export function projectManagedJobEvidence(
         failed: row.episodes_failed, void: row.episodes_void, blockers: row.blockers,
         ...(row.episodes_scored > 0 ? { successRange: screeningSuccessRange(row.episodes_succeeded, row.episodes_scored) } : {}),
         ...practiceRuns(kept.get(row.candidate_id)) })),
-        ...(selection ? { selection } : {}) } };
+        ...(selection ? { selection } : {}), ...(setupNotes.length ? { setupNotes } : {}) } };
   }
   if (publication.run_id !== runId) return base;
   if (publication.schema_version === "task_evaluation_run_publication.v4") {

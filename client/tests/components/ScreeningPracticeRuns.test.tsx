@@ -113,7 +113,7 @@ it("shows the newest evaluation and every earlier one with results, and folds th
     current: true, resultDigest: null, summary, nextAction: "", limitations: [], href: `#${runId}`, screening: { candidates } });
   // Newest first, as the server sends them.
   const evidence = [run("newest", "Simulation evaluation of your job: 0 of 1 candidates finished.", [waiting]),
-    run("replaced-a", "Continued in a newer run.", [waiting], "superseded"),
+    run("replaced-a", "Continued in a newer run after a Blueprint update.", [waiting], "superseded"),
     run("with-results", "Your simulation estimate is ready.", [scored], "estimate"),
     run("replaced-b", "Held: a problem on our side stopped the simulation.", [{ ...waiting, state: "blocked" }], "held_setup"),
   ] as JobManagedEvidenceSummary[];
@@ -127,5 +127,5 @@ it("shows the newest evaluation and every earlier one with results, and folds th
   const earlier = screen.getByText("Earlier evaluation runs (2)").closest("details")!;
   expect(earlier).not.toHaveAttribute("open");
   expect(within(earlier).getAllByRole("article", { hidden: true }).map(article => article.querySelector("p")?.textContent)).toEqual([
-    "Continued in a newer run.", "Held: a problem on our side stopped the simulation."]);
+    "Continued in a newer run after a Blueprint update.", "Held: a problem on our side stopped the simulation."]);
 });

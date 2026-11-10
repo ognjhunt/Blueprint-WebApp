@@ -26,6 +26,7 @@ import { startCommunicationsWorker } from "./agents/communications-worker";
 import { startSavedRecoveryWorker } from "./agents/communications-saved-recovery-worker";
 import { startWebsiteCaptureWithdrawalWorker } from "./utils/websiteCaptureWithdrawal";
 import { startWebsiteCaptureDeletionWorker } from "./utils/websiteCaptureDeletion";
+import { startWebsiteJobWindowSweepWorker } from "./utils/websiteJobWindowSweep";
 import { installProcessErrorHandlers } from "./utils/opsProcessAlerts";
 import { startWorkerHeartbeat } from "./utils/workerHeartbeat";
 import { announceAutonomousLanesAtBoot } from "./utils/automationLaneSummary";
@@ -82,6 +83,9 @@ export function startWorker(): WorkerHandle {
   const stopWebsiteWithdrawals = startWebsiteCaptureWithdrawalWorker();
   // Runs in launch-forward-only mode too: deletion must not wait on the ops scheduler.
   const stopWebsiteDeletions = startWebsiteCaptureDeletionWorker();
+  // Runs in launch-forward-only mode too: a job whose window ran out is ended and its site told
+  // even when the Pipeline is unreachable and the ops scheduler is off.
+  const stopWebsiteJobWindowSweep = startWebsiteJobWindowSweepWorker();
   // The web process alerts when this goes stale (betaOpsMonitor, /health/worker).
   const stopHeartbeat = startWorkerHeartbeat();
 
@@ -96,6 +100,7 @@ export function startWorker(): WorkerHandle {
     stopCompanyPolicyCandidateOutbox();
     stopWebsiteWithdrawals();
     stopWebsiteDeletions();
+    stopWebsiteJobWindowSweep();
     const communicationsStopped = stopCommunicationsWorker();
     stopScheduler();
     await Promise.all([researchWorker.stop(), communicationsStopped, stopSavedRecoveryWorker()]);

@@ -25,10 +25,12 @@ import { taskLifecycleNotificationIsCurrent } from "./taskLifecycleNotificationA
 import { drainPendingWebsitePreparationNotifications } from "./websitePreparationStatus";
 import { preparationEndedSentence } from "./taskStatusProjection";
 import { EARLY_TASK_HOLD_DETAIL, EARLY_TASK_HOLD_SENTENCES, earlyTaskHoldOf, isEarlyTaskHoldReason,
-  FOOTAGE_BEFORE_ACCOUNT_SENTENCE, jobDeadlineEndedHeadline, type EarlyTaskHoldReason } from "./taskPreparationOutcome";
+  FOOTAGE_BEFORE_ACCOUNT_SENTENCE, JOB_WINDOW_ENDING_MESSAGE, JOB_WINDOW_ENDING_SUBJECT,
+  type EarlyTaskHoldReason } from "./taskPreparationOutcome";
+import { isWebsiteJobWindowEndedEventId } from "./websiteJobWindowEnding";
 import { selectWebsiteAtlasPreview } from "./websiteAtlasPreview";
-import { isScreeningResultOutcome, screeningEstimateCountSentence, screeningOutcomeSentence,
-  type ScreeningOutcome } from "./betaPolicyScreeningContract";
+import { isScreeningResultOutcome, screeningEstimateCountSentence, screeningOutcomeSentence, storedScreeningOutcomeCaveat,
+  type ScreeningOutcome, type ScreeningOutcomeCaveat } from "./betaPolicyScreeningContract";
 import { isTerminalSceneOutcomeKind, sceneOutcomeMessage, sceneOutcomeSubject,
   type TerminalSceneOutcomeKind } from "./sceneIntentOutcome";
 
@@ -46,7 +48,6 @@ export type TaskLifecycleMilestone = Extract<
   | "run_no_result"
   | "evaluation_outcome"
   | "scene_outcome"
-  | "job_window_ended"
   | "robot_access_question"
   | "awaiting_evaluations"
   | "no_team_passed"
@@ -77,7 +78,7 @@ export function reconstructionIsViewable(record: {
 }
 
 /** The site's job in its workspace, where run results open once the site is claimed. */
-function workspaceTaskUrl(requestId: string): string {
+export function workspaceTaskUrl(requestId: string): string {
   const origin = (process.env.VITE_PUBLIC_APP_URL?.trim() || process.env.APP_URL?.trim() || "https://tryblueprint.io")
     .replace(/\/+$/, "");
   return `${origin}/app/tasks/${encodeURIComponent(requestId)}`;
@@ -149,12 +150,6 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
     subject: "An update on your Blueprint job",
     body: (url, detail, workspaceUrl) => `${detail}\n\n${whereRunsAre(url, workspaceUrl, "Open your job")}`,
   },
-  // One per job deadline (websiteJobDeadlineSweep). The detail is only the job page's own ending
-  // sentence for the deadline's basis (`jobDeadlineEndedHeadline`), never caller text.
-  job_window_ended: {
-    subject: "Your Blueprint job has ended",
-    body: (url, detail, workspaceUrl) => `${detail}\n\n${whereRunsAre(url, workspaceUrl, "Open your job")}`,
-  },
   // One per robot access proposal the owner's job page asks about. The detail
   // is only the page's own words for it, built from typed counts, never caller text.
   robot_access_question: {
@@ -220,10 +215,10 @@ export async function enqueueTaskLifecycleNotification(params: {
   /** `evaluation_outcome` only: the run's result outcome, and an estimate's counts. */
   screeningOutcome?: ScreeningOutcome;
   screeningCounts?: { ran: number; total: number; scored: number };
+  /** `evaluation_outcome` estimate only: what the page's sentence adds (`screeningOutcomeCaveat`). */
+  screeningCaveat?: ScreeningOutcomeCaveat;
   /** `scene_outcome` only: the terminal outcome's kind; its event id must name it. */
   sceneOutcomeKind?: TerminalSceneOutcomeKind;
-  /** `job_window_ended` only: where the job's deadline came from, which picks its sentence. */
-  deadlineBasis?: JobDeadlineBasis;
 }): Promise<{ enqueued: boolean; reason?: "store_unavailable" | "request_missing" | "contact_missing" | "consent_withdrawn"
   | "awaiting_early_hold_preview" }> {
   if (!db) return { enqueued: false, reason: "store_unavailable" };
@@ -281,23 +276,28 @@ export function buildTaskLifecycleNotification(params: {
   screeningOutcome?: ScreeningOutcome;
   /** `evaluation_outcome` estimate only: candidates that ran, of all, and episodes scored. */
   screeningCounts?: { ran: number; total: number; scored: number };
+  /** `evaluation_outcome` estimate only: what the page's sentence adds (`screeningOutcomeCaveat`). */
+  screeningCaveat?: ScreeningOutcomeCaveat;
   /** `scene_outcome` only: the terminal outcome's kind; its event id must name it. */
   sceneOutcomeKind?: TerminalSceneOutcomeKind;
   /** `robot_access_question` only: how many chairs and stools the proposal moves; its event id is the proposal digest. */
   robotAccessCounts?: RobotAccessCounts;
-  /** `job_window_ended` only: where the job's deadline came from, which picks its sentence. */
-  deadlineBasis?: JobDeadlineBasis;
   /** `preparation_needs_attention` only: the early task hold the job page states; the notice is then the held one. */
   earlyTaskHold?: EarlyTaskHoldReason;
+  /**
+   * `scene_outcome` only: the job's window ran out and the WebApp's sweep ended it
+   * (`websiteJobWindowSweep`). Its event id is the job's fixed one, or the one naming a later window end.
+   */
+  jobWindowEnded?: true;
 }): Parameters<typeof enqueueOutbox>[0] {
   const requestId = params.requestId.trim();
   if (isWebsitePreparationNotice(params.milestone) && !/^sha256:[a-f0-9]{64}$/.test(params.eventId || "")) {
     throw new Error("website_preparation_event_invalid");
   }
   const outcomeDetail = params.milestone === "evaluation_outcome" ? evaluationOutcomeDetail(params)
-    : params.milestone === "scene_outcome" ? sceneOutcomeDetail(params)
-    : params.milestone === "robot_access_question" ? robotAccessQuestionDetail(params)
-    : params.milestone === "job_window_ended" ? jobWindowEndedDetail(params.deadlineBasis) : "";
+    : params.milestone === "scene_outcome"
+      ? params.jobWindowEnded ? jobWindowEndedDetail(params) : sceneOutcomeDetail(params)
+    : params.milestone === "robot_access_question" ? robotAccessQuestionDetail(params) : "";
   const held = params.milestone === "preparation_needs_attention" && isEarlyTaskHoldReason(params.earlyTaskHold)
     ? params.earlyTaskHold : null;
   const message = held ? earlyTaskHoldCopy(held) : copy[params.milestone];
@@ -316,21 +316,15 @@ export function buildTaskLifecycleNotification(params: {
     to: params.to,
     subject: params.milestone === "evaluation_outcome" && params.screeningOutcome === "estimate"
       ? "Your simulation estimate is ready"
+      : params.milestone === "scene_outcome" && params.jobWindowEnded ? JOB_WINDOW_ENDING_SUBJECT
       : params.milestone === "scene_outcome" && params.sceneOutcomeKind ? sceneOutcomeSubject(params.sceneOutcomeKind) : message.subject,
     body: `${message.body(url, params.milestone === "run_no_result" ? noResultObservationText(params.runProgress)
       : isWebsitePreparationNotice(params.milestone) ? preparationDetail
       : params.milestone === "evaluation_outcome" || params.milestone === "scene_outcome"
-        || params.milestone === "robot_access_question" || params.milestone === "job_window_ended" ? outcomeDetail
+        || params.milestone === "robot_access_question" ? outcomeDetail
       : params.detail?.trim() ?? "", params.workspaceUrl ?? null)}\n\n${EMAIL_SIGN_OFF}`,
     replyTo: "hello@tryblueprint.io",
   };
-}
-
-type JobDeadlineBasis = "grant" | "grant_extended" | "job_created";
-/** The page's ending sentence for the deadline's basis; no basis, no email, since either sentence could be untrue. */
-function jobWindowEndedDetail(basis: JobDeadlineBasis | undefined): string {
-  if (basis !== "grant" && basis !== "grant_extended" && basis !== "job_created") throw new Error("job_window_ended_notice_invalid");
-  return jobDeadlineEndedHeadline(basis);
 }
 
 /** An early task hold's one email: the job page's held sentence, sent in place of the needs-attention notice. */
@@ -355,7 +349,7 @@ export const ESTIMATE_INTRODUCTION_OFFER =
  * the body says (F-01).
  */
 function evaluationOutcomeDetail(params: { eventId?: string; screeningOutcome?: ScreeningOutcome;
-  screeningCounts?: { ran: number; total: number; scored: number } }): string {
+  screeningCounts?: { ran: number; total: number; scored: number }; screeningCaveat?: ScreeningOutcomeCaveat }): string {
   const outcome = params.screeningOutcome;
   const counts = params.screeningCounts;
   if (!isScreeningResultOutcome(outcome) || !new RegExp(`^${outcome}-[a-f0-9]{24}$`).test(params.eventId ?? "")
@@ -363,8 +357,9 @@ function evaluationOutcomeDetail(params: { eventId?: string; screeningOutcome?: 
     || (counts && ![counts.ran, counts.total, counts.scored].every(value => Number.isSafeInteger(value) && value >= 0))) {
     throw new Error("evaluation_outcome_notice_invalid");
   }
-  const result = counts ? `${screeningOutcomeSentence(outcome)} ${screeningEstimateCountSentence(counts.ran, counts.total, counts.scored)}`
-    : screeningOutcomeSentence(outcome);
+  // The page's sentence, caveat included: the one outcome sentence function says both.
+  const sentence = screeningOutcomeSentence(outcome, storedScreeningOutcomeCaveat(params.screeningCaveat));
+  const result = counts ? `${sentence} ${screeningEstimateCountSentence(counts.ran, counts.total, counts.scored)}` : sentence;
   return `${result} Nothing is needed from you.\n\n${outcome === "estimate"
     ? `This is a simulation estimate, not a physical test. It never certifies physical performance or safety.\n\n${ESTIMATE_INTRODUCTION_OFFER}`
     : "A simulation is not a physical test, and it never certifies physical performance or safety."}`;
@@ -381,6 +376,17 @@ function sceneOutcomeDetail(params: { eventId?: string; sceneOutcomeKind?: Termi
     throw new Error("scene_outcome_notice_invalid");
   }
   return sceneOutcomeMessage(kind);
+}
+
+/**
+ * The job page's own sentence for a job the window sweep ended. Fixed text, and only under a
+ * window-ended event id and with no scene outcome kind, so no other notice can carry it.
+ */
+function jobWindowEndedDetail(params: { eventId?: string; sceneOutcomeKind?: TerminalSceneOutcomeKind }): string {
+  if (!isWebsiteJobWindowEndedEventId(params.eventId) || params.sceneOutcomeKind !== undefined) {
+    throw new Error("job_window_ended_notice_invalid");
+  }
+  return JOB_WINDOW_ENDING_MESSAGE;
 }
 
 /** How many of each kind of movable furniture a robot access proposal moves. */

@@ -398,7 +398,7 @@ export async function scanHeldOwnerSuccessThresholds(deps: AlertDeps = {}): Prom
       if (!claimed) continue;
       const reason = intake.hold.reason ? OWNER_SUCCESS_HOLD_REASON_TEXT[intake.hold.reason] : "no reason given";
       claims.push({ id: alertId, line: `- request ${intake.requestId} (scene intake ${intake.id}): the site owner says the job's `
-        + `success thresholds are wrong ("${reason}"). Robot scoring is held; review the thresholds and contact the site. `
+        + `success thresholds are wrong ("${reason}"). Review the thresholds and contact the site. `
         + `${appBaseUrl()}/admin/leads/${encodeURIComponent(intake.requestId)}`,
       update: action => store.runTransaction(async tx => {
         const source = (await tx.get(sourceRef)).data(), marker = (await tx.get(ref)).data() ?? {};

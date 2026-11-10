@@ -18,7 +18,7 @@ import type { Server } from "node:http";
 
 import { sharedFakeFirestoreState } from "./helpers/fake-firestore";
 import { listedTaskCard } from "./helpers/listedTaskCard";
-import { processingFailure, JOB_TIME_ENDED_SENTENCE, JOB_WINDOW_ENDED_SENTENCE, PREPARATION_ENDED_NEXT } from '../utils/taskPreparationOutcome';
+import { processingFailure } from '../utils/taskPreparationOutcome';
 
 const preparation = vi.hoisted(() => ({ read: vi.fn(async (): Promise<Record<string, unknown>> => ({
   state: "failed_retryable", correlationId: "bp-prep-1234567890abcdef",
@@ -422,51 +422,6 @@ describe("GET /api/site-task-brief/:token/status", () => {
     expect(enqueueOutbox).not.toHaveBeenCalled();
     expect(deliverOutbox).not.toHaveBeenCalled();
     expect([...sharedFakeFirestoreState.docs]).toEqual(before);
-  });
-
-  describe("a job past its deadline", () => {
-    const DAY = 86400_000;
-    // Saved footage and no preparation status: the hand-off never reached the Pipeline.
-    function aged(kind: "stored" | "held", createdAgoMs: number, grantExpiredAgoMs?: number) {
-      const saved = savedRecording(kind);
-      Object.assign(sharedFakeFirestoreState.docs.get("inboundRequests/req-1")!, {
-        createdAt: new Date(Date.now() - createdAgoMs).toISOString(),
-        ...(grantExpiredAgoMs === undefined ? {} : { website_scene_sponsorship: {
-          expires_at_epoch: (Date.now() - grantExpiredAgoMs) / 1000 } }),
-      });
-      return saved;
-    }
-
-    it.each(["stored", "held"] as const)("says the ending for its basis over the %s upload message, as its one email does", async kind => {
-      const body = await (await fetch(`${baseUrl}/api/site-task-brief/${aged(kind, 8 * DAY).token}/status`)).json();
-      const ended = `${JOB_TIME_ENDED_SENTENCE} ${PREPARATION_ENDED_NEXT}`;
-      expect(body.status).toMatchObject({ headline: ended, endedAtDeadline: "job_created", operatorAction: null });
-      // The sweep reads the same page, and the email says the same sentence.
-      const { websiteJobPageReading } = await import("../utils/websiteJobDeadlineSweep");
-      const reading = await websiteJobPageReading("req-1", sharedFakeFirestoreState.docs.get("inboundRequests/req-1")!);
-      expect(reading.status).toMatchObject({ headline: body.status.headline, endedAtDeadline: "job_created" });
-      const { buildTaskLifecycleNotification } = await import("../utils/taskLifecycleNotifications");
-      const email = buildTaskLifecycleNotification({ requestId: "req-1", to: "ops@acme.example", milestone: "job_window_ended",
-        eventId: "deadline-1", deadlineBasis: body.status.endedAtDeadline });
-      expect(email.body.startsWith(`${body.status.headline}\n\n`)).toBe(true);
-    });
-
-    it("says the WP-14 window sentence when the deadline came from a grant", async () => {
-      const body = await (await fetch(`${baseUrl}/api/site-task-brief/${aged("held", 2 * DAY, DAY).token}/status`)).json();
-      expect(body.status).toMatchObject({ headline: `${JOB_WINDOW_ENDED_SENTENCE} ${PREPARATION_ENDED_NEXT}`,
-        endedAtDeadline: "grant" });
-    });
-
-    it.each(["stored", "held"] as const)("keeps the %s upload message unchanged before the deadline", async kind => {
-      const before = await (await fetch(`${baseUrl}/api/site-task-brief/${aged(kind, DAY).token}/status`)).json();
-      expect(before.status.headline).toContain("Your video is saved.");
-      expect(before.status.endedAtDeadline).toBeUndefined();
-      // The same message a job with no readable deadline gets.
-      delete sharedFakeFirestoreState.docs.get("inboundRequests/req-1")!.createdAt;
-      const undated = await (await fetch(`${baseUrl}/api/site-task-brief/${savedRecording(kind).token}/status`)).json();
-      expect(before.status.headline).toBe(undated.status.headline);
-      expect(before.processingHold).toEqual(undated.processingHold);
-    });
   });
 
   it.each(["owner", "film"] as const)("keeps %s receipt polling read-only after withdrawal", async (scope) => {

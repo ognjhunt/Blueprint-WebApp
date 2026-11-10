@@ -27,6 +27,7 @@ import { SCENE_EXECUTION_WINDOW_MAX_SECONDS, sponsorshipExecutionWindowUntil,
   sponsorshipWindowIntake } from "./sceneExecutionWindowExtension";
 import { WEBSITE_JOB_WINDOW_DEFAULT_SECONDS, WEBSITE_JOB_WINDOW_MAX_SECONDS, WEBSITE_JOB_WINDOW_MIN_SECONDS,
   issuedWebsiteJobWindowSeconds } from "./websiteJobWindow";
+import { recordedWebsiteJobWindowEnding } from "./websiteJobWindowEnding";
 
 function continuationAuthority(authority: Record<string, any>, input: {
   brief: SiteTaskBriefRecord; record: Record<string, any>; inventory?: TaskItemInventoryRecord | null;
@@ -155,68 +156,31 @@ export function sponsorshipValidUntil(grant: Record<string, any>, executionWindo
       grant.expires_at_epoch + SCENE_EXECUTION_WINDOW_MAX_SECONDS);
 }
 
-/** Where a website job's deadline comes from; a null deadline names why there is none. */
-export type WebsiteJobDeadline =
-  | { deadlineEpoch: number; basis: "grant" | "grant_extended" | "job_created" }
-  | { deadlineEpoch: null; basis: "not_a_website_job" | "window_unreadable" | "created_at_unreadable" };
-
-/** A stored creation time in epoch seconds: a Firestore Timestamp, its stored form, or an ISO string. */
-export function websiteJobCreatedEpoch(value: unknown): number | null {
-  const ms = typeof (value as { toMillis?: unknown })?.toMillis === "function" ? (value as { toMillis: () => number }).toMillis()
-    : typeof (value as { _seconds?: unknown })?._seconds === "number" ? (value as { _seconds: number })._seconds * 1000
-    : typeof (value as { seconds?: unknown })?.seconds === "number" ? (value as { seconds: number }).seconds * 1000
-    : typeof value === "string" ? Date.parse(value) : Number.NaN;
-  return Number.isFinite(ms) && ms > 0 ? ms / 1000 : null;
-}
-
-/**
- * When a website job ends: the one answer the job page, the deadline sweep and the tests read.
- * With a grant it is exactly the grant's "still valid until" (`sponsorshipValidUntil`, with the
- * owner's verified extension). A website job with no grant yet (the hand-off never reached the
- * Pipeline) ends WEBSITE_JOB_WINDOW_DEFAULT_SECONDS after it was created. Never a guess: an
- * unreadable grant, extension or creation time gives no deadline, and says which.
- */
-export async function websiteJobDeadline(record: Record<string, any> | undefined,
-  reader: { get: (ref: any) => Promise<any> } = { get: (ref: any) => ref.get() }): Promise<WebsiteJobDeadline> {
-  const grant = record?.website_scene_sponsorship;
-  if (grant) {
-    if (typeof grant.expires_at_epoch !== "number" || !Number.isFinite(grant.expires_at_epoch))
-      return { deadlineEpoch: null, basis: "window_unreadable" };
-    let executionWindowUntil: number | undefined;
-    if (record!.website_scene_sponsorship_execution_window) {
-      try { executionWindowUntil = sponsorshipExecutionWindowUntil(grant, record, await sponsorshipWindowIntake(reader, record)); }
-      catch { return { deadlineEpoch: null, basis: "window_unreadable" }; }
-    }
-    const until = sponsorshipValidUntil(grant, executionWindowUntil);
-    return { deadlineEpoch: until, basis: until > grant.expires_at_epoch ? "grant_extended" : "grant" };
-  }
-  // The job page serves a site's own job (`request.buyerType`, as the site job routes check it).
-  if (record?.request?.buyerType !== "site_operator") return { deadlineEpoch: null, basis: "not_a_website_job" };
-  const created = websiteJobCreatedEpoch(record.createdAt);
-  return created === null ? { deadlineEpoch: null, basis: "created_at_unreadable" }
-    : { deadlineEpoch: created + WEBSITE_JOB_WINDOW_DEFAULT_SECONDS, basis: "job_created" };
-}
-
 /**
  * What a job page may say about the time Blueprint is authorized to work on a job: the retained
  * grant's "still valid until", with the owner's one allowed extension when it verifies. Never a
  * guess: no grant, an unreadable extension or a date already past gives no date. `ended` is a
  * passed window while the rights still allow the work, so the end was the window and not the rights.
- * It is what holds today, not a promise that the job stops on that date. `deadlinePassed` is the
- * same for any website job (`websiteJobDeadline`), including one that never received a grant, and
- * `deadlineBasis` where that deadline came from, which picks the sentence the ending is said in.
+ * It is what holds today, not a promise that the job stops on that date. `endingRecorded` is the
+ * WebApp's own stored ending for this exact grant (`websiteJobWindowSweep`), read only while the
+ * window is still past: an extension granted afterwards reopens the job and hides it.
  */
 export async function websiteJobWorkWindow(record: Record<string, any> | undefined,
-  nowEpoch = Date.now() / 1000): Promise<{ untilEpoch: number | null; ended: boolean; deadlinePassed: boolean;
-    deadlineBasis: Extract<WebsiteJobDeadline, { deadlineEpoch: number }>["basis"] | null }> {
-  const deadline = await websiteJobDeadline(record);
-  if (deadline.deadlineEpoch === null) return { untilEpoch: null, ended: false, deadlinePassed: false, deadlineBasis: null };
-  const granted = deadline.basis !== "job_created";
-  const deadlineBasis = deadline.basis;
-  if (deadline.deadlineEpoch > nowEpoch)
-    return { untilEpoch: granted ? deadline.deadlineEpoch : null, ended: false, deadlinePassed: false, deadlineBasis };
-  const allowed = projectWebsiteCaptureRights(record).derived_scene_generation_allowed;
-  return { untilEpoch: null, ended: granted && allowed, deadlinePassed: allowed, deadlineBasis };
+  nowEpoch = Date.now() / 1000): Promise<{ untilEpoch: number | null; ended: boolean; endingRecorded?: true }> {
+  const none = { untilEpoch: null, ended: false };
+  const grant = record?.website_scene_sponsorship;
+  if (!grant || typeof grant.expires_at_epoch !== "number" || !Number.isFinite(grant.expires_at_epoch)) return none;
+  let executionWindowUntil: number | undefined;
+  if (record!.website_scene_sponsorship_execution_window) {
+    try {
+      executionWindowUntil = sponsorshipExecutionWindowUntil(grant, record,
+        await sponsorshipWindowIntake({ get: (ref: any) => ref.get() }, record));
+    } catch { return none; }
+  }
+  const until = sponsorshipValidUntil(grant, executionWindowUntil);
+  if (until > nowEpoch) return { untilEpoch: until, ended: false };
+  return { untilEpoch: null, ended: projectWebsiteCaptureRights(record).derived_scene_generation_allowed,
+    ...(recordedWebsiteJobWindowEnding(record) ? { endingRecorded: true as const } : {}) };
 }
 
 export function websiteSceneSponsorship(input: {

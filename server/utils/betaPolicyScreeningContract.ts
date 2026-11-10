@@ -4,7 +4,15 @@
  * One tier (owner decision 2026-10-28): the run under the site's allowance is
  * the job's evaluation, published as a bounded simulation estimate. v1 rows
  * were labelled diagnostic-only before that decision; they stay readable and
- * are shown the same way. Neither version is physical or ADP evidence.
+ * are shown the same way. No version is physical or ADP evidence.
+ *
+ * v3 is v2 plus the set-up flags the Pipeline's own checks recorded: per
+ * candidate the run's observation-quality flags, a humanoid row's spawn and
+ * floor flags and the free CPU scene check's flags for that row; per campaign
+ * the scene check's verdict. Typed codes only. They never change an outcome;
+ * a zero-success estimate they may explain carries a caveat instead
+ * (`screeningOutcomeCaveat`). The Pipeline still sends v2 to a release that
+ * does not accept v3, so v1 and v2 stay accepted as they were.
  */
 import { z } from "zod";
 import { crossRuntimeArtifactDigest, crossRuntimeDigest } from "./crossRuntimeCanonical";
@@ -38,6 +46,21 @@ export const screeningCandidateState = (row: { status: string; blockers: readonl
 export const screeningExecutionEvidenceFields = ["execution_evidence_kind", "action_source", "scripted_rollout_count",
   "learned_policy_rollout_count", "scripted_controller_invoked", "candidate_policy_queried"] as const;
 
+export const SCREENING_PUBLICATION_V1 = "beta_policy_screening_publication.v1";
+export const SCREENING_PUBLICATION_V2 = "beta_policy_screening_publication.v2";
+export const SCREENING_PUBLICATION_V3 = "beta_policy_screening_publication.v3";
+/** One typed flag: a lowercase code with at most three typed qualifiers (Pipeline `FLAG_CODE`). Never text. */
+const flagCode = z.string().regex(/^[a-z][a-z0-9_]{0,127}(?::[a-z0-9_]{1,96}){0,3}$/);
+const SCREENING_FLAGS_MAX = 64;
+const sortedUnique = (codes: readonly string[]) => codes.every((code, index) => index === 0 || codes[index - 1] < code);
+const flagList = z.array(flagCode).min(1).max(SCREENING_FLAGS_MAX).refine(sortedUnique, "Flags must be sorted and unique");
+/** A candidate row's set-up flags (v3 only). Notes about the scene the row ran in, never part of its evidence. */
+export const screeningRowFlagFields = ["observation_quality_flags", "setup_quality_flags", "scene_check_flags"] as const;
+const sceneFeasibility = z.object({ status: z.enum(["clear", "flagged", "unknown"]),
+  flags: z.array(flagCode).max(SCREENING_FLAGS_MAX).refine(sortedUnique, "Flags must be sorted and unique") }).strict()
+  .refine(value => (value.status === "flagged") === (value.flags.length > 0), "Only a flagged scene check names flags");
+export type ScreeningSceneFeasibility = z.infer<typeof sceneFeasibility>;
+
 const candidate = z.object({
   candidate_id: identifier, configuration_digest: digest, display_name: z.string().trim().min(1).max(200),
   status: z.enum(["pending", "waitlisted", "preparing", "launching", "running", "reconciliation_required", "completed", "blocked", "unavailable", "deferred", "infeasible"]),
@@ -48,6 +71,9 @@ const candidate = z.object({
   action_source: z.enum(["learned_policy", "scripted_simulator_state"]).optional(),
   scripted_rollout_count: count.optional(), learned_policy_rollout_count: count.optional(),
   scripted_controller_invoked: z.boolean().optional(), candidate_policy_queried: z.boolean().optional(),
+  // v3 only (refused on v1 and v2 below): what the run's camera gate, a humanoid row's spawn check and
+  // the free CPU scene check recorded for this row.
+  observation_quality_flags: flagList.optional(), setup_quality_flags: flagList.optional(), scene_check_flags: flagList.optional(),
 }).strict().superRefine((row, ctx) => {
   const expectedRate = row.episodes_scored ? row.episodes_succeeded / row.episodes_scored : null;
   if (row.episodes_succeeded + row.episodes_failed !== row.episodes_scored
@@ -116,16 +142,23 @@ const publicationFields = {
     spent_upper_bound_usd: dollars, reserved_usd: dollars }).strict(),
   generated_at: z.string().datetime({ offset: true }), publication_digest: digest,
 };
-const jobEvaluationPublication = z.object({ ...publicationFields, schema_version: z.literal("beta_policy_screening_publication.v2"),
-  purpose: z.literal("job_evaluation"), claim_ceiling: z.literal("simulation_estimate"),
-  review_videos: z.array(candidateReviewVideos).min(1).max(256).optional() }).strict();
-const retainedPublication = z.object({ ...publicationFields, schema_version: z.literal("beta_policy_screening_publication.v1"),
+const jobEvaluationFields = { ...publicationFields, purpose: z.literal("job_evaluation"), claim_ceiling: z.literal("simulation_estimate"),
+  review_videos: z.array(candidateReviewVideos).min(1).max(256).optional() };
+const flaggedJobEvaluationPublication = z.object({ ...jobEvaluationFields, schema_version: z.literal(SCREENING_PUBLICATION_V3),
+  scene_feasibility: sceneFeasibility }).strict();
+const jobEvaluationPublication = z.object({ ...jobEvaluationFields, schema_version: z.literal(SCREENING_PUBLICATION_V2) }).strict();
+const retainedPublication = z.object({ ...publicationFields, schema_version: z.literal(SCREENING_PUBLICATION_V1),
   purpose: z.literal("screening"), claim_ceiling: z.literal("diagnostic_policy_execution"), recommendation_eligible: z.literal(false) }).strict();
-export const betaPolicyScreeningPublicationSchema = z.discriminatedUnion("schema_version", [jobEvaluationPublication, retainedPublication])
+export const betaPolicyScreeningPublicationSchema = z.discriminatedUnion("schema_version",
+  [flaggedJobEvaluationPublication, jobEvaluationPublication, retainedPublication])
   .superRefine((value, ctx) => {
-  if (value.schema_version === "beta_policy_screening_publication.v1"
+  if (value.schema_version === SCREENING_PUBLICATION_V1
     && value.candidates.some(row => screeningExecutionEvidenceFields.some(key => row[key] !== undefined))) {
     ctx.addIssue({ code: "custom", path: ["candidates"], message: "Typed execution evidence requires publication v2" });
+  }
+  if (value.schema_version !== SCREENING_PUBLICATION_V3
+    && value.candidates.some(row => screeningRowFlagFields.some(key => row[key] !== undefined))) {
+    ctx.addIssue({ code: "custom", path: ["candidates"], message: "Set-up flags require publication v3" });
   }
   const budget = value.budget;
   if (![budget.limit_usd, budget.committed_upper_bound_usd, budget.spent_upper_bound_usd, budget.reserved_usd]
@@ -157,7 +190,11 @@ export const betaPolicyScreeningPublicationSchema = z.discriminatedUnion("schema
 });
 /** The practice-run videos a publication carries; none for a retained v1 one. */
 export function screeningReviewVideos(value: { schema_version: string; review_videos?: ScreeningReviewVideos[] }) {
-  return value.schema_version === "beta_policy_screening_publication.v2" ? value.review_videos ?? [] : [];
+  return value.schema_version === SCREENING_PUBLICATION_V2 || value.schema_version === SCREENING_PUBLICATION_V3 ? value.review_videos ?? [] : [];
+}
+/** The free CPU scene check's verdict for the campaign; null for a publication that carries none (v1, v2). */
+export function screeningSceneFeasibility(value: { schema_version: string; scene_feasibility?: ScreeningSceneFeasibility }) {
+  return value.schema_version === SCREENING_PUBLICATION_V3 ? value.scene_feasibility ?? null : null;
 }
 export type BetaPolicyScreeningPublication = z.infer<typeof betaPolicyScreeningPublicationSchema>;
 export type ScreeningExecutionEvidence = Required<Pick<BetaPolicyScreeningPublication["candidates"][number],
@@ -191,7 +228,7 @@ const HELD_BLOCKERS = new Set(["task_kind_not_supported_by_candidate", "candidat
  * later failed is never held: that is ours to fix and rerun.
  */
 const UNPREPARED_BLOCKERS = new Set(["prepared_robot_policy_registration_missing", "runtime_candidate_binding_missing"]);
-/** Rows the Pipeline closed when it planned them again in a newer run (after a deploy, or on its own retry timer). */
+/** Rows the Pipeline closed when it planned them again in a newer run after a deploy. */
 export const SCREENING_REPLANNED_BLOCKER = "beta_screening_replanned_for_new_implementation";
 /**
  * Rows preparation refused because a deploy changed the code they were planned
@@ -303,7 +340,7 @@ export function screeningOutcome(publication: Pick<BetaPolicyScreeningPublicatio
   // A run whose candidates finished with no scored episode has no estimate to show.
   const finished = publication.status === "completed" && scored === 0 ? "blocked" : publication.status;
   if (finished !== "completed" && finished !== "blocked") return null;
-  // Rows planned again in a newer run (after a deploy, or on a retry timer): with nothing scored here,
+  // Rows planned again in a newer run after a deploy: with nothing scored here,
   // the newer run is the one to read (owner decision 2026-10-31).
   if (scored === 0 && publication.candidates.some(row => row.blockers.includes(SCREENING_REPLANNED_BLOCKER))) return "superseded";
   if (finished === "completed") return screeningEstimateRows(publication.candidates).length ? "estimate" : "reference_only";
@@ -315,6 +352,30 @@ export function screeningOutcome(publication: Pick<BetaPolicyScreeningPublicatio
   return reason === "budget" ? screeningJobCeilingWait(publication.candidates) ? "awaiting_spend_approval" : "held_budget"
     : reason === "setup" ? screeningReplanPending(publication.candidates) ? "setup_repair" : "held_setup"
     : reason === "held" ? screeningHeldForPreparation(publication.candidates) ? "held_unprepared" : "held_capability" : reason;
+}
+
+/**
+ * What an outcome's sentence has to add, beside the outcome itself (the outcome kinds are a closed set
+ * both repositories share, and none changes here). `scene_setup`: the run is an estimate in which no
+ * scored try succeeded, and Blueprint's own checks flagged the scene a scored candidate ran in: the free
+ * CPU scene check for that candidate, its run's camera gate, or a humanoid row's spawn check. The count
+ * may then reflect how we set the scene up more than the robots, so the page and the email say so in one
+ * sentence. The flags do not prove the cause, and a result with no flag is said exactly as before. A
+ * publication that names a flagged scene without naming any candidate's scene flags speaks for every
+ * scored candidate.
+ */
+export const SCREENING_OUTCOME_CAVEATS = ["scene_setup"] as const;
+export type ScreeningOutcomeCaveat = typeof SCREENING_OUTCOME_CAVEATS[number];
+/** A stored caveat, or null for anything this version does not know. */
+export const storedScreeningOutcomeCaveat = (value: unknown): ScreeningOutcomeCaveat | null =>
+  (SCREENING_OUTCOME_CAVEATS as readonly unknown[]).includes(value) ? value as ScreeningOutcomeCaveat : null;
+export function screeningOutcomeCaveat(publication: BetaPolicyScreeningPublication): ScreeningOutcomeCaveat | null {
+  if (screeningOutcome(publication) !== "estimate") return null;
+  const scored = publication.candidates.filter(row => row.episodes_scored > 0);
+  if (scored.some(row => row.episodes_succeeded > 0)) return null;
+  if (scored.some(row => screeningRowFlagFields.some(key => (row[key]?.length ?? 0) > 0))) return "scene_setup";
+  return screeningSceneFeasibility(publication)?.status === "flagged"
+    && !publication.candidates.some(row => (row.scene_check_flags?.length ?? 0) > 0) ? "scene_setup" : null;
 }
 
 /**
@@ -334,6 +395,10 @@ const ATTENTION_NEXT = "It won't restart by itself. Our team has been told, and 
  * (HARNESS_RETRY_LIMIT) inside the site's allowance. So no rerun is promised, and none is ruled out.
  */
 const SETUP_NEXT = "Our team has been told, and we'll email you if a later run gives a result.";
+/** One plain sentence, no codes. It says "may": the flags are a possible cause, never a proven one. */
+const SCREENING_CAVEAT_SENTENCE: Readonly<Record<ScreeningOutcomeCaveat, string>> = {
+  scene_setup: "Our scene check found a possible set-up cause, so this result may reflect how we set the scene up more than the robots.",
+};
 const SCREENING_OUTCOME_SENTENCE: Readonly<Record<ScreeningOutcome, string>> = {
   estimate: "Your simulation estimate is ready. It is an estimate from a simulation of your site, not a certified result.",
   reference_only: "No estimate yet: only scripted reference baselines were scored, and no learned policy could be evaluated on your job yet.",
@@ -347,7 +412,7 @@ const SCREENING_OUTCOME_SENTENCE: Readonly<Record<ScreeningOutcome, string>> = {
   // An internal limit is Blueprint's own control, never a step for the site, and is never named.
   awaiting_spend_approval: "Blueprint is deciding whether to continue simulating your job.",
   setup_repair: SETUP_REPAIR_SENTENCE,
-  superseded: "Continued in a newer run.",
+  superseded: "Continued in a newer run after a Blueprint update.",
 };
 /** Outcomes that still wait on Blueprint, so they say until when Blueprint can keep working on the job. */
 const WAITING_OUTCOMES: ReadonlySet<ScreeningOutcome> = new Set(["awaiting_spend_approval", "setup_repair"]);
@@ -361,11 +426,19 @@ export function jobWorkWindowSentence(untilEpoch?: number | null): string {
     { year: "numeric", month: "long", day: "numeric", timeZone: "UTC" });
   return `We can keep working on this job until ${date}.`;
 }
-export const screeningOutcomeSentence = (outcome: ScreeningOutcome) => SCREENING_OUTCOME_SENTENCE[outcome];
+/**
+ * The outcome's sentence, followed by its caveat when it has one. Only an estimate takes a caveat, so a
+ * stale one never attaches to another outcome; without a caveat the sentence is the outcome's own.
+ */
+export const screeningOutcomeSentence = (outcome: ScreeningOutcome, caveat?: ScreeningOutcomeCaveat | null) =>
+  caveat && outcome === "estimate" ? `${SCREENING_OUTCOME_SENTENCE[outcome]} ${SCREENING_CAVEAT_SENTENCE[caveat]}`
+    : SCREENING_OUTCOME_SENTENCE[outcome];
 /** The same sentence, with the job's work window when the outcome still waits on Blueprint and a date is known. */
-export function screeningOutcomeSentenceWithWindow(outcome: ScreeningOutcome, workUntilEpoch: number | null | undefined): string {
+export function screeningOutcomeSentenceWithWindow(outcome: ScreeningOutcome, workUntilEpoch: number | null | undefined,
+  caveat?: ScreeningOutcomeCaveat | null): string {
   const window = WAITING_OUTCOMES.has(outcome) ? jobWorkWindowSentence(workUntilEpoch) : "";
-  return window ? `${SCREENING_OUTCOME_SENTENCE[outcome]} ${window}` : SCREENING_OUTCOME_SENTENCE[outcome];
+  const sentence = screeningOutcomeSentence(outcome, caveat);
+  return window ? `${sentence} ${window}` : sentence;
 }
 /** How much of the job an estimate covers, said the same way on the page and in the email. */
 export const screeningEstimateCountSentence = (ran: number, total: number, scored: number) =>
@@ -395,6 +468,16 @@ export function screeningCampaignIdentity(value: BetaPolicyScreeningPublication)
       ...(row.execution_evidence_kind ? { execution_evidence_kind: row.execution_evidence_kind, action_source: row.action_source } : {}) })) });
 }
 
+/**
+ * A candidate row's evidence: everything but its set-up flags. The flags are notes about the scene the
+ * row ran in, so a later revision may state them for a result this site already holds (a campaign first
+ * accepted as v2) and the Pipeline's v2 form of a revision, which cannot carry them, is still accepted
+ * after a v3 one. The counts, the status and the result digest never change.
+ */
+type ScreeningCandidateRow = BetaPolicyScreeningPublication["candidates"][number];
+const evidenceRow = ({ observation_quality_flags: _observation, setup_quality_flags: _setup, scene_check_flags: _scene,
+  ...evidence }: ScreeningCandidateRow) => evidence;
+
 /** Retried or delayed deliveries cannot rewrite a campaign or its completed candidate results. */
 export function screeningPublicationTransition(previous: BetaPolicyScreeningPublication, next: BetaPolicyScreeningPublication) {
   if (screeningCampaignIdentity(previous) !== screeningCampaignIdentity(next)) throw new Error("screening_campaign_identity_conflict");
@@ -404,7 +487,8 @@ export function screeningPublicationTransition(previous: BetaPolicyScreeningPubl
   // Later campaigns at the same site update the shared budget snapshot even
   // after this campaign ends. Its scientific evidence must remain byte-identical.
   if (["completed", "blocked"].includes(previous.status) && (next.status !== previous.status
-    || crossRuntimeDigest(previous.candidates) !== crossRuntimeDigest(next.candidates))) throw new Error("screening_revision_conflict");
+    || crossRuntimeDigest(previous.candidates.map(evidenceRow)) !== crossRuntimeDigest(next.candidates.map(evidenceRow))))
+    throw new Error("screening_revision_conflict");
   // Kept videos are media, not evidence: a later revision may add a candidate's, never change or drop one.
   const nextVideos = new Map(screeningReviewVideos(next).map(entry => [entry.candidate_id, crossRuntimeDigest(entry)]));
   if (screeningReviewVideos(previous).some(entry => nextVideos.get(entry.candidate_id) !== crossRuntimeDigest(entry)))
@@ -414,7 +498,7 @@ export function screeningPublicationTransition(previous: BetaPolicyScreeningPubl
     throw new Error("screening_progress_regression");
   previous.candidates.forEach((row, index) => {
     const updated = next.candidates[index];
-    if (screeningTerminalCandidateStates.has(row.status) && crossRuntimeDigest(row) !== crossRuntimeDigest(updated))
+    if (screeningTerminalCandidateStates.has(row.status) && crossRuntimeDigest(evidenceRow(row)) !== crossRuntimeDigest(evidenceRow(updated)))
       throw new Error("screening_terminal_candidate_conflict");
     const rank: Record<string, number> = { pending: 0, preparing: 1, launching: 2, running: 3 };
     // Pipeline retains a canonical no-allocation receipt before retrying a

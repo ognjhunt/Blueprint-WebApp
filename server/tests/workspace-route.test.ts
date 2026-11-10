@@ -1661,9 +1661,8 @@ describe("development-only Atlas 3D preview", () => {
   }
   function consentedTask(previews: Record<string, unknown>) {
     const value = task();
-    // Created now, so the job is inside its window: these cases are about the preview, not the job's deadline.
-    state.records.set("inboundRequests/task-1", { ...value, createdAt: new Date().toISOString(),
-      request: { ...value.request, consent_attestation: consent }, website_atlas_previews: previews });
+    state.records.set("inboundRequests/task-1", { ...value, request: { ...value.request, consent_attestation: consent },
+      website_atlas_previews: previews });
   }
   afterEach(() => { delete process.env.TASK_EVALUATION_RESULT_DOWNLOAD_SIGNING_SECRET; });
 

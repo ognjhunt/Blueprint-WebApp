@@ -4,23 +4,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({ dbAdmin: null, authAdmin: null, default: {} }));
 vi.mock("../utils/slack", () => ({ sendSlackMessage: vi.fn(async () => ({ sent: true })) }));
 vi.mock("../utils/email", () => ({ sendEmail: vi.fn(async () => ({ sent: true })) }));
-const deadlineSweep = vi.hoisted(() => vi.fn(async () => ({ examined: 0, ended: 0, noticesOwed: 0, failed: 0 })));
-vi.mock("../utils/websiteJobDeadlineSweep", () => ({ sweepWebsiteJobDeadlines: deadlineSweep }));
-const log = vi.hoisted(() => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() }));
-vi.mock("../logger", () => ({ logger: log }));
-// The pass's other steps, reduced to no-ops so the pass itself is what is under test.
-vi.mock("../utils/intakeOpsNotice", async importOriginal => ({
-  ...await importOriginal<typeof import("../utils/intakeOpsNotice")>(), sweepIntakeOpsNotices: vi.fn(async () => undefined) }));
-vi.mock("../utils/launch-readiness", () => ({ buildLaunchReadinessSnapshot: vi.fn(() => ({})) }));
-vi.mock("../utils/ops-alerts", () => ({ maybeAlertOnLaunchReadinessTransition: vi.fn(async () => undefined) }));
-vi.mock("../utils/websitePreparationOpsAlerts", () => ({ backfillWebsitePreparationWatches: vi.fn(async () => 0),
-  scanWebsitePreparationWatch: vi.fn(async () => 0), scanEndedWebsiteSceneIntakes: vi.fn(async () => 0),
-  scanHeldOwnerSuccessThresholds: vi.fn(async () => 0), scanHeldWebsiteEvaluations: vi.fn(async () => 0) }));
 
 import {
   __resetBetaOpsMonitorForTests,
   checkWorkerHeartbeat,
-  runBetaOpsMonitorPass,
   scanOutboxBacklog,
   scanTerminalOutboxFailures,
   scanUnknownOutboxOutcomes,
@@ -265,19 +252,5 @@ describe("beta ops monitor loop", () => {
     startBetaOpsMonitor({ lease })();
     delete process.env.BLUEPRINT_BETA_OPS_MONITOR_ENABLED;
     expect(lease.start).not.toHaveBeenCalled();
-  });
-});
-
-describe("website job deadline sweep step", () => {
-  it("runs in every monitor pass, and a failure in it is logged without stopping the other steps", async () => {
-    deadlineSweep.mockRejectedValueOnce(new Error("sweep down"));
-    const results = await runBetaOpsMonitorPass();
-    expect(deadlineSweep).toHaveBeenCalledOnce();
-    expect(results).toHaveLength(8);
-    expect(results[7]).toMatchObject({ status: "rejected" });
-    // The outbox failure scan in the same pass still ran (no store here, so it settles with nothing to do).
-    expect(results[1]).toMatchObject({ status: "fulfilled" });
-    expect(log.warn).toHaveBeenCalledWith(expect.objectContaining({ step: "website_job_deadline_sweep" }),
-      "Beta ops monitor step failed");
   });
 });

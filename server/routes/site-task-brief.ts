@@ -329,8 +329,7 @@ async function readRequestForStatus(requestId: string, captureId = `walkthrough-
   siteName?: string | null;
   captureRights: ReturnType<typeof projectWebsiteCaptureRights>;
   /** Until when Blueprint can keep working on the job; null when it cannot be read. */
-  jobWorkWindow: { untilEpoch: number | null; ended: boolean; deadlinePassed: boolean;
-    deadlineBasis: "grant" | "grant_extended" | "job_created" | null } | null;
+  jobWorkWindow: { untilEpoch: number | null; ended: boolean; endingRecorded?: boolean } | null;
   visualReconstructionReady: boolean;
   preparationOutcome: TaskOutcome | null;
   ownerClosureOutcome: TaskOutcome | null;
@@ -1286,9 +1285,8 @@ router.get("/:token/status", async (req: Request, res: Response) => {
     // desktop must show the same hold as the phone while preserving the saved
     // receipt (and must never ask for a replacement recording in that state).
     // A specific hold still wins; an overdue watch keeps its own, newer message.
-    // A job ended at its deadline keeps its ending: its one email says the same sentence.
     if (!request?.captureRights.consent_revoked && reconstruction?.state !== "failed" && !preparationStatus
-      && status.decision === "footage_received" && !status.endedAtDeadline
+      && status.decision === "footage_received"
       && (upload.processingHold || (uploadState !== "processing_ready" && !preparationOverdue))) {
       status.headline = upload.processingHold?.detail
         ?? "Your video is saved. Processing has not been confirmed. Keep your original video; you do not need to record or upload it again.";

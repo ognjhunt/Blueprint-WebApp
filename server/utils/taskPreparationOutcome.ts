@@ -126,12 +126,17 @@ export const PREPARATION_ENDED_NEXT = "Nothing more is needed from you. Keep you
   + "to have Blueprint work on this site again, you can start a new job.";
 export const JOB_WINDOW_ENDED_SENTENCE = "This job has ended because the time Blueprint was authorized to work on it ran out.";
 export const AUTHORITY_ENDED_SENTENCE = "This job has ended because Blueprint is no longer authorized to work on it.";
-/** A job that ended at its deadline without ever being issued an authorization window (no grant): only what is true. */
-export const JOB_TIME_ENDED_SENTENCE = "This job has ended because Blueprint did not finish it in the time a job is given.";
-/** How a job ended at its deadline is said, by where the deadline came from: a grant's window, or the job's own time. */
-export function jobDeadlineEndedHeadline(basis: "grant" | "grant_extended" | "job_created"): string {
-  return `${basis === "job_created" ? JOB_TIME_ENDED_SENTENCE : JOB_WINDOW_ENDED_SENTENCE} ${PREPARATION_ENDED_NEXT}`;
-}
+
+/**
+ * A job the WebApp's own window sweep ended (`websiteJobWindowSweep`): its work window ran out with no
+ * result, hold or withdrawal on record. It is true however the job got there (the Pipeline went quiet, a
+ * stage refused, a wait never cleared): Blueprint did not finish in the time it was authorized, the
+ * Pipeline starts nothing more for a job past its window, and a new job is how the site starts again. It
+ * promises no follow-up, because nothing schedules one. The job page and the one email both say exactly this.
+ */
+export const JOB_WINDOW_UNFINISHED_SENTENCE = "Blueprint did not finish it in that time, and no more work will run on this job.";
+export const JOB_WINDOW_ENDING_MESSAGE = `${JOB_WINDOW_ENDED_SENTENCE} ${JOB_WINDOW_UNFINISHED_SENTENCE} ${PREPARATION_ENDED_NEXT}`;
+export const JOB_WINDOW_ENDING_SUBJECT = "Your Blueprint job has ended";
 
 /**
  * A video that arrived before its job was saved to an account. Nothing sends a later email about it,

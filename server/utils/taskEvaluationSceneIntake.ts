@@ -16,6 +16,8 @@ import { isNavigationStrategy, navigationPreparationMatchesTask, navigationPrepa
   NAVIGATION_PREPARED_PHASE } from "./navigationSceneIntake";
 import { effectiveSceneExecutionExpiry } from "./sceneExecutionWindowExtension";
 import { sceneIntentOutcomeBinds, sceneIntentOutcomeSchema, sceneOutcomeNoticeIntent } from "./sceneIntentOutcome";
+import { sendRateLimitedOpsAlert } from "./opsProcessAlerts";
+import { loadWebsiteCaptureRights } from "./websiteTaskContext";
 
 export { sceneCanonicalJson, sceneDigest };
 
@@ -292,17 +294,6 @@ export const SCENE_INTAKE_COLLECTION = "taskEvaluationSceneIntakes";
 // the normal one-minute worker cadence this is one hour; exhaustion is an
 // explicit terminal blocker rather than an unbounded retry loop.
 export const SCENE_TERMINAL_CLOSEOUT_POLL_LIMIT = 60;
-// A forward that fails for a reason that may pass (the Pipeline host down, a
-// transport error) is retried until the intent's own expiry, never given up on
-// by count: a host outage alone must not end a job. The first retries stay one
-// minute apart so a blip recovers fast, then the gap doubles up to 30 minutes.
-// At the expiry the `consent_expired` check ends the intake as before.
-export const SCENE_FORWARD_FAST_RETRIES = 5;
-export const SCENE_FORWARD_RETRY_MAX_MS = 30 * 60 * 1000;
-export function sceneForwardRetryDelayMs(failures: number): number {
-  if (failures <= SCENE_FORWARD_FAST_RETRIES) return 60_000;
-  return Math.min(SCENE_FORWARD_RETRY_MAX_MS, 60_000 * 2 ** Math.min(failures - SCENE_FORWARD_FAST_RETRIES, 16));
-}
 const SCENE_STATUS_POLL_STATES = ["accepted", "closeout_pending", "expired", "revoked"] as const;
 
 function isSceneStatusPollState(value: string): value is (typeof SCENE_STATUS_POLL_STATES)[number] {
@@ -312,6 +303,109 @@ function isSceneStatusPollState(value: string): value is (typeof SCENE_STATUS_PO
 function storedCloseoutPollCount(record: Record<string, any>): number {
   const value = record.closeout_poll_count;
   return Number.isSafeInteger(value) && value >= 0 ? value : 0;
+}
+
+/** A Pipeline status that shows an attempt with money reserved for it. */
+function hasReservedSceneAttempt(status: Record<string, any> | undefined): boolean {
+  return Array.isArray(status?.attempts) && status!.attempts.some(
+    (attempt: Record<string, any>) =>
+      attempt && typeof attempt === "object"
+      && typeof attempt.maximum_spend_usd === "number"
+      && Number.isFinite(attempt.maximum_spend_usd)
+      && attempt.maximum_spend_usd > 0,
+  );
+}
+
+/**
+ * How long a forward that failed waits before its next try: one minute, doubling, at
+ * most fifteen, with jitter (half to all of the step) so intakes that failed together
+ * do not retry together. There is no retry count to run out: a Pipeline outage or
+ * deploy must not end a job, so the intake's own window is the only give-up timer.
+ */
+export const SCENE_FORWARD_RETRY_BASE_MS = 60_000;
+export const SCENE_FORWARD_RETRY_MAX_MS = 15 * 60_000;
+export function sceneForwardRetryDelayMs(consecutiveFailures: number, random: () => number = Math.random): number {
+  const doublings = Math.min(Math.max(Math.floor(consecutiveFailures) - 1, 0), 10);
+  const step = Math.min(SCENE_FORWARD_RETRY_MAX_MS, SCENE_FORWARD_RETRY_BASE_MS * 2 ** doublings);
+  const jitter = Math.min(Math.max(random(), 0), 1);
+  return Math.round(step / 2 + (step / 2) * jitter);
+}
+
+function storedForwardFailureCount(record: Record<string, any>): number {
+  const value = record.forward_failure_count;
+  return Number.isSafeInteger(value) && value >= 0 ? value : 0;
+}
+
+/**
+ * Why a website grant read fails, sorted by what the worker may do about it.
+ *
+ * These revoke the accepted Pipeline intent at once, as they always have, and a revoke
+ * cannot be undone: the site's rights or consent ended (`source_revoked`), or the job is
+ * no longer the one the grant covers (its brief is gone or not confirmed, or the capture
+ * is not the bound one; a `website_capture_binding_` failure is the same cause).
+ */
+const GRANT_REVOKING_CODES: ReadonlySet<string> = new Set(["source_revoked", "website_task_context_not_confirmed",
+  "task_brief_missing", "task_context_capture_mismatch", "supplement_not_requested"]);
+/**
+ * Blueprint's own configuration or record cannot be read: the grant policy
+ * (BLUEPRINT_WEBSITE_SCENE_SPONSORSHIP_JSON) is unset or does not parse in this process, or
+ * the job's stored grant is absent. Nothing about the site's rights changed, so nothing is
+ * revoked. The same failed read refuses every new grant, reservation and forward, so no new
+ * money is admitted while it lasts. Our team is alerted and the read is tried again next tick.
+ */
+const GRANT_UNREADABLE_CODES: ReadonlySet<string> = new Set(["website_scene_sponsorship_not_configured",
+  "website_scene_sponsorship_missing"]);
+/**
+ * `website_scene_sponsorship_changed` is raised when the stored grant does not hash to the
+ * policy this process holds, and also when the grant no longer covers the job's task. The
+ * first happens for a few minutes whenever the web and worker services hold different
+ * policy values (a deploy, or one Render variable edited before the other), so one read
+ * proves nothing. It ends the intent only after it was read on consecutive ticks, at least
+ * this many times and for at least this long.
+ */
+export const SPONSORSHIP_CHANGED_CONFIRM_MS = 15 * 60_000;
+export const SPONSORSHIP_CHANGED_CONFIRM_OBSERVATIONS = 3;
+const SPONSORSHIP_CHANGED = "website_scene_sponsorship_changed";
+const SPONSORSHIP_CHANGED_FIELD = "sponsorship_changed_observation";
+
+/** This tick's reading of a changed grant, counted with the consecutive ticks before it. */
+function observeSponsorshipChanged(record: Record<string, any>, nowMs: number) {
+  const prior = record[SPONSORSHIP_CHANGED_FIELD];
+  const kept = prior && Number.isSafeInteger(prior.count) && prior.count > 0
+    && Number.isFinite(prior.first_seen_at_ms) && prior.first_seen_at_ms <= nowMs;
+  const value = kept ? { first_seen_at_ms: prior.first_seen_at_ms as number, count: prior.count + 1 }
+    : { first_seen_at_ms: nowMs, count: 1 };
+  return { value, confirmed: value.count >= SPONSORSHIP_CHANGED_CONFIRM_OBSERVATIONS
+    && nowMs - value.first_seen_at_ms >= SPONSORSHIP_CHANGED_CONFIRM_MS };
+}
+
+type SceneIntakeQueueDeps = {
+  /** The ops alert path (Slack, rate-limited per key). */
+  alert?: (key: string, message: string) => Promise<unknown>;
+  /** Jitter source for the forward retry delay. */
+  random?: () => number;
+};
+
+/** One alert per tick for every grant read our own configuration broke; the alerter keeps it to one per window. */
+async function alertGrantReadIssues(issues: Map<string, Set<string>>, alert: NonNullable<SceneIntakeQueueDeps["alert"]>) {
+  if (issues.size === 0) return;
+  const count = (code: string) => issues.get(code)?.size ?? 0;
+  const jobs = (n: number) => `${n} website job${n === 1 ? "" : "s"}`;
+  const lines = [":warning: Blueprint worker: a website job's grant could not be read. Nothing was revoked."];
+  if (count("website_scene_sponsorship_not_configured")) lines.push(
+    `- ${jobs(count("website_scene_sponsorship_not_configured"))}: the grant policy (BLUEPRINT_WEBSITE_SCENE_SPONSORSHIP_JSON) `
+    + "is unset or does not parse in this process. Jobs in flight are kept as they are; no new grant, reservation or "
+    + "forward is admitted until it reads again. Fix the variable on the web and worker services.");
+  if (count("website_scene_sponsorship_missing")) lines.push(
+    `- ${jobs(count("website_scene_sponsorship_missing"))}: the job record has a scene intent but no stored grant. `
+    + "The intent is kept as it is; look at the job record.");
+  if (count(SPONSORSHIP_CHANGED)) lines.push(
+    `- ${jobs(count(SPONSORSHIP_CHANGED))}: the stored grant does not match the policy this process holds, or the job's task. `
+    + `If that is still read after ${SPONSORSHIP_CHANGED_CONFIRM_MS / 60_000} minutes the intent is ended for good. `
+    + "If the policy was edited, give the web and worker services the same value.");
+  lines.push("- The worker checks again every minute.");
+  try { await alert("website_scene_grant_read", lines.join("\n")); }
+  catch (error) { logger.error({ err: error }, "Could not raise the website grant read alert"); }
 }
 const sealedDigest = (value: Record<string, unknown>, field: string) =>
   sceneDigest(
@@ -567,22 +661,32 @@ export async function scenePipelineRequest(
   const signature = createHmac("sha256", token)
     .update(`${timestamp}.${client}.${nonce}.${body}`)
     .digest("hex");
-  const response = await fetch(url, {
-    method: intentId && !revokeDigest ? "GET" : "POST",
-    headers: {
-      "content-type": "application/json",
-      "x-blueprint-pipeline-timestamp": timestamp,
-      "x-blueprint-pipeline-client-id": client,
-      "x-blueprint-pipeline-nonce": nonce,
-      "x-blueprint-pipeline-signature": `sha256=${signature}`,
-    },
-    ...(body ? { body } : {}),
-    signal: AbortSignal.timeout(15000),
-  });
+  // A request that did not reach the Pipeline, timed out, or came back unreadable is a
+  // transport failure and is named here, where it happens. Every other error keeps its own code.
+  const transport = (error: unknown) => new Error("pipeline_transport_failed", { cause: error });
+  let response: Awaited<ReturnType<typeof fetch>>;
+  try {
+    response = await fetch(url, {
+      method: intentId && !revokeDigest ? "GET" : "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-blueprint-pipeline-timestamp": timestamp,
+        "x-blueprint-pipeline-client-id": client,
+        "x-blueprint-pipeline-nonce": nonce,
+        "x-blueprint-pipeline-signature": `sha256=${signature}`,
+      },
+      ...(body ? { body } : {}),
+      signal: AbortSignal.timeout(15000),
+    });
+  } catch (error) { throw transport(error); }
   if (!response.ok) throw new Error(`pipeline_intake_http_${response.status}`);
-  const raw = await response.json();
+  let raw: any;
+  try { raw = await response.json(); } catch (error) { throw transport(error); }
+  // A body that is not an object is a malformed receipt, never a local error.
+  const isObject = Boolean(raw) && typeof raw === "object";
   if (revokeDigest) {
     if (
+      !isObject ||
       raw.schema_version !== "task_evaluation_scene_intent_revocation.v1" ||
       raw.intent_id !== intentId ||
       raw.intent_digest !== revokeDigest ||
@@ -597,6 +701,7 @@ export async function scenePipelineRequest(
   }
   const status = intentId ? statusSchema.safeParse(raw) : null;
   if (status && !status.success) throw new Error("pipeline_status_receipt_invalid");
+  if (!isObject) throw new Error("pipeline_receipt_invalid");
   const value = status?.success ? status.data : raw;
   const field = intentId ? "status_digest" : "receipt_digest";
   if (
@@ -642,8 +747,13 @@ export async function scenePipelineRequest(
 }
 
 /** The existing Render launch worker delivers this durable, idempotent outbox. */
-export async function processSceneIntakeQueue(limit = 10) {
+export async function processSceneIntakeQueue(limit = 10, deps: SceneIntakeQueueDeps = {}) {
   if (!db) return;
+  // Grant reads our own configuration broke this tick, by code and job: one alert for all of them.
+  const grantReadIssues = new Map<string, Set<string>>();
+  const noteGrantReadIssue = (code: string, requestId: string) =>
+    grantReadIssues.set(code, (grantReadIssues.get(code) ?? new Set<string>()).add(requestId));
+  try {
   for (const state of [
     "revocation_pending",
     "forward_pending",
@@ -690,6 +800,15 @@ export async function processSceneIntakeQueue(limit = 10) {
       if (!record) continue;
       let patch: Record<string, any>;
       let deliveryReserved = false;
+      // The intake's own window (an owner-approved extension included) has passed. The Pipeline
+      // starts nothing more for it, so the forward stops and the status poll does too, apart from
+      // the bounded read-only closeout of an attempt that already had money reserved.
+      const expiry = effectiveSceneExecutionExpiry(record);
+      const windowEnded = typeof expiry === "number" && expiry <= now / 1000;
+      // This tick's consecutive reading of a changed grant: a value to store, null to clear
+      // what an earlier tick stored, undefined when nothing is stored and nothing was read.
+      let changedObservation: { first_seen_at_ms: number; count: number } | null | undefined =
+        record[SPONSORSHIP_CHANGED_FIELD] ? null : undefined;
       try {
         if (sceneDigest(record.request) !== record.request_digest)
           throw new Error("stored_request_digest_invalid");
@@ -701,11 +820,20 @@ export async function processSceneIntakeQueue(limit = 10) {
           try { await loadWebsiteSceneSponsorship(record.website_request_id, false, record.source_session_id); }
           catch (error) {
             const code = error instanceof Error ? error.message : "";
-            if (["source_revoked", "website_scene_sponsorship_changed", "website_scene_sponsorship_not_configured",
-              "website_scene_sponsorship_missing", "website_task_context_not_confirmed", "task_brief_missing",
-              "task_context_capture_mismatch", "supplement_not_requested"].includes(code)
-              || code.startsWith("website_capture_binding_")) sponsorshipRevoked = code;
-            else if (code !== "consent_expired") throw error;
+            if (GRANT_REVOKING_CODES.has(code) || code.startsWith("website_capture_binding_")) sponsorshipRevoked = code;
+            else if (GRANT_UNREADABLE_CODES.has(code) || code === SPONSORSHIP_CHANGED) {
+              const observed = code === SPONSORSHIP_CHANGED ? observeSponsorshipChanged(record, now) : null;
+              // These reads can fail before they reach the site's rights, so the rights are read on
+              // their own: a withdrawal still revokes at once, whatever our configuration says.
+              if (!(await loadWebsiteCaptureRights(record.website_request_id)).derived_scene_generation_allowed)
+                sponsorshipRevoked = "source_revoked";
+              else if (observed?.confirmed) sponsorshipRevoked = code;
+              else {
+                // Blueprint's own configuration, never the site's rights: the intent is kept and polled.
+                if (observed) changedObservation = observed.value;
+                noteGrantReadIssue(code, record.website_request_id);
+              }
+            } else if (code !== "consent_expired") throw error;
           }
         }
         if (state === "revocation_pending" || sponsorshipRevoked) {
@@ -745,20 +873,26 @@ export async function processSceneIntakeQueue(limit = 10) {
         } else if (isSceneStatusPollState(state)) {
           if (!record.receipt?.intent_id)
             throw new Error("pipeline_status_receipt_missing");
+          if (state === "accepted" && windowEnded && !hasReservedSceneAttempt(record.pipeline_status)) {
+            // The forward branch's expiry rule, for the poll: no further Pipeline request. The
+            // budget stays held in full (no `closeout_complete`): only the Pipeline's own word
+            // releases it. A later verified extension reopens an `expired` intake.
+            patch = {
+              state: "expired",
+              blocker: "consent_expired",
+              next_forward_at_ms: Number.MAX_SAFE_INTEGER,
+            };
+          } else {
           const status = await scenePipelineRequest(
             record.request,
             record.receipt.intent_id,
           );
           if (status.intent_digest !== record.receipt.intent_digest)
             throw new Error("pipeline_intent_digest_invalid");
-          const hasReservedAttempt = Array.isArray(status.attempts) && status.attempts.some(
-            (attempt: Record<string, any>) =>
-              attempt && typeof attempt === "object"
-              && typeof attempt.maximum_spend_usd === "number"
-              && Number.isFinite(attempt.maximum_spend_usd)
-              && attempt.maximum_spend_usd > 0,
-          );
-          const authorityEnded = ["expired", "revoked"].includes(status.status)
+          const hasReservedAttempt = hasReservedSceneAttempt(status);
+          // The local window counts as an ended authority even while the Pipeline has not
+          // said so yet: a reserved attempt gets the bounded closeout, anything else stops.
+          const authorityEnded = windowEnded || ["expired", "revoked"].includes(status.status)
             || status.blockers?.some((blocker: unknown) =>
               blocker === "scene_intake_authority_expired"
               || blocker === "scene_intake_authority_revoked");
@@ -784,11 +918,13 @@ export async function processSceneIntakeQueue(limit = 10) {
                     ? status.status
                     : terminalOutcome
                       ? "blocked"
-                      : "accepted";
+                      : windowEnded
+                        ? "expired"
+                        : "accepted";
           patch = {
             pipeline_status: status,
             state: nextState,
-            next_forward_at_ms: ["expired", "revoked"].includes(status.status)
+            next_forward_at_ms: (windowEnded || ["expired", "revoked"].includes(status.status))
               && !hasReservedAttempt
               || terminalOutcome && !closeoutRequired
               ? Number.MAX_SAFE_INTEGER
@@ -802,8 +938,11 @@ export async function processSceneIntakeQueue(limit = 10) {
               ? { blocker: "terminal_closeout_poll_cap_exhausted" }
               : {}),
           };
+          }
         } else {
           // An owner-approved, time-only extension moves only this expiry (raw + 7 days at most).
+          // It is also the only limit on retries: a forward that keeps failing is tried again,
+          // with backoff, until this window ends.
           if (effectiveSceneExecutionExpiry(record) <= now / 1000)
             throw new Error("consent_expired");
           const owner = record.request.owner;
@@ -908,6 +1047,7 @@ export async function processSceneIntakeQueue(limit = 10) {
               blocker: null,
               next_forward_at_ms: now + 60000,
               forward_attempt_count: record.forward_attempt_count + 1,
+              forward_failure_count: 0,
             };
           }
         }
@@ -923,8 +1063,6 @@ export async function processSceneIntakeQueue(limit = 10) {
             "evaluation_context_binding_invalid",
             "evaluation_context_unavailable",
             "consent_expired",
-            // No longer raised: kept so rows stored by older workers keep their code.
-            "transport_retry_cap_exhausted",
             "stored_request_digest_invalid",
             "source_revoked",
             "source_not_owned",
@@ -932,6 +1070,7 @@ export async function processSceneIntakeQueue(limit = 10) {
             "source_rights_binding_required",
             "provider_terms_not_configured_or_changed",
             "pipeline_forwarding_not_configured",
+            "pipeline_transport_failed",
             "pipeline_receipt_binding_invalid",
             "pipeline_status_owner_invalid",
             "pipeline_receipt_invalid",
@@ -943,10 +1082,16 @@ export async function processSceneIntakeQueue(limit = 10) {
             "revocation_requested_before_delivery",
           ].includes(rawCode) || /^pipeline_intake_http_[0-9]{3}$/.test(rawCode) || rawCode.startsWith("website_scene_sponsorship_")
             ? rawCode
-            : "pipeline_transport_failed";
-        const terminal = [
+            // Not a Pipeline answer and not a failed request: an error raised on this side that has
+            // no code of its own (a store read, a parse). The request itself names a transport failure.
+            : "scene_intake_local_error";
+        if (code === "scene_intake_local_error")
+          logger.warn({ err: error, intakeId: row.id, state }, "Scene intake tick failed on this side; it will be tried again");
+        const statusPollState = isSceneStatusPollState(state);
+        // The forward branch: nothing was accepted yet, so a failure is retried or ends the intake.
+        const forwardBranch = !statusPollState && state !== "revocation_pending";
+        let terminal = [
           "consent_expired",
-          "transport_retry_cap_exhausted",
           "stored_request_digest_invalid",
           "source_revoked",
           "source_not_owned",
@@ -955,8 +1100,19 @@ export async function processSceneIntakeQueue(limit = 10) {
           "website_scene_sponsorship_changed",
           "website_scene_sponsorship_binding_invalid",
         ].includes(code);
-        const statusPollState = isSceneStatusPollState(state);
-        const closeoutPoll = statusPollState && state !== "accepted";
+        if (forwardBranch && GRANT_UNREADABLE_CODES.has(code) && record.website_request_id)
+          noteGrantReadIssue(code, record.website_request_id);
+        if (forwardBranch && code === SPONSORSHIP_CHANGED) {
+          // A deploy can make this read for a few minutes: it ends the intake only once confirmed.
+          const observed = observeSponsorshipChanged(record, now);
+          if (!observed.confirmed) {
+            terminal = false;
+            changedObservation = observed.value;
+            if (record.website_request_id) noteGrantReadIssue(code, record.website_request_id);
+          }
+        }
+        // A poll past the intake's window is the read-only closeout, bounded like any other.
+        const closeoutPoll = statusPollState && (state !== "accepted" || windowEnded);
         const closeoutPollCount = storedCloseoutPollCount(record);
         const closeoutPollExhausted = closeoutPoll
           && closeoutPollCount >= SCENE_TERMINAL_CLOSEOUT_POLL_LIMIT - 1;
@@ -965,25 +1121,24 @@ export async function processSceneIntakeQueue(limit = 10) {
           : statusPollState
             ? state === "closeout_pending" || state === "expired" || state === "revoked"
               ? state
-              : "accepted"
+              : windowEnded
+                ? "closeout_pending"
+                : "accepted"
             : terminal
               ? "blocked"
               : "forward_blocked";
-        // A forward that may still succeed backs off, and is due again no later than its expiry.
-        const forwardRetries = (record.forward_retry_count || 0) + 1;
-        const expiryMs = Number(effectiveSceneExecutionExpiry(record)) * 1000;
-        const forwardRetryAt = Number.isFinite(expiryMs)
-          ? Math.min(now + sceneForwardRetryDelayMs(forwardRetries), Math.max(now + 60000, expiryMs))
-          : now + sceneForwardRetryDelayMs(forwardRetries);
+        // Consecutive failed forwards set the backoff; a poll or a revocation keeps its one-minute tick.
+        const forwardFailures = forwardBranch && !terminal ? storedForwardFailureCount(record) + 1 : null;
         patch = {
           state: closeoutPollExhausted ? "blocked" : fallbackState,
           blocker: closeoutPollExhausted ? "terminal_closeout_poll_cap_exhausted" : code,
-          next_forward_at_ms: fallbackState === "forward_blocked" ? forwardRetryAt : now + 60000,
+          next_forward_at_ms: now + (forwardFailures === null ? 60000 : sceneForwardRetryDelayMs(forwardFailures, deps.random)),
           forward_attempt_count: (record.forward_attempt_count || 0) + Number(deliveryReserved),
-          ...(fallbackState === "forward_blocked" ? { forward_retry_count: forwardRetries } : {}),
+          ...(forwardFailures === null ? {} : { forward_failure_count: forwardFailures }),
           ...(closeoutPoll ? { closeout_poll_count: closeoutPollCount + 1 } : {}),
         };
       }
+      if (changedObservation !== undefined) patch[SPONSORSHIP_CHANGED_FIELD] = changedObservation;
       // A terminal outcome owes the website job one email (C-04). The intent is
       // written with the status that carried it and queued by the outbox
       // reconciler; the same outcome read again writes nothing new.
@@ -1018,5 +1173,8 @@ export async function processSceneIntakeQueue(limit = 10) {
         }
       }
     }
+  }
+  } finally {
+    await alertGrantReadIssues(grantReadIssues, deps.alert ?? sendRateLimitedOpsAlert);
   }
 }

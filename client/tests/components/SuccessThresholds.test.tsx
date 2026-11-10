@@ -25,7 +25,7 @@ describe("SuccessThresholds", () => {
     expect(screen.getByRole("heading", { name: "How success is judged" })).toBeTruthy();
     expect(screen.getByText(/a circle 30 cm across/)).toBeTruthy();
     expect(screen.getByText(/Nothing was measured at your site/)).toBeTruthy();
-    expect(screen.getByText("Robot scoring waits until you confirm these goals.")).toBeTruthy();
+    expect(screen.getByText("You can confirm these goals, or tell us what is wrong.")).toBeTruthy();
     // Nothing to edit: no number inputs, and the technical values stay folded.
     expect(screen.queryByRole("spinbutton")).toBeNull();
     expect(screen.queryByRole("textbox")).toBeNull();
@@ -41,7 +41,7 @@ describe("SuccessThresholds", () => {
     vi.stubGlobal("fetch", fetchMock);
     render(<SuccessThresholds token="tok" view={view} onDecided={vi.fn()} />);
     fireEvent.click(screen.getByRole("button", { name: "Something is wrong" }));
-    const hold = screen.getByRole("button", { name: "Hold the job" }) as HTMLButtonElement;
+    const hold = screen.getByRole("button", { name: "Send this reason" }) as HTMLButtonElement;
     expect(hold.disabled).toBe(true);
     fireEvent.click(screen.getByLabelText("These limits are stricter than the job needs"));
     fireEvent.click(hold);
@@ -54,7 +54,7 @@ describe("SuccessThresholds", () => {
     vi.stubGlobal("fetch", fetchMock);
     const { rerender } = render(<SuccessThresholds token="tok"
       view={{ ...view, decision: { kind: "held", reason: "wrong_goal", decidedAt: "2026-11-03T18:00:00.000Z" } }} onDecided={vi.fn()} />);
-    expect(screen.getByRole("status").textContent).toMatch(/the goal area is in the wrong place\. Your job is on hold, and Blueprint’s\s+team is alerted with your reason\. Blueprint will review it and contact you\./);
+    expect(screen.getByRole("status").textContent).toMatch(/the goal area is in the wrong place\. Blueprint’s team is alerted with\s+your reason\. Blueprint will review it and contact you\./);
     fireEvent.click(screen.getByRole("button", { name: "Use these goals" }));
     expect((await screen.findByRole("alert")).textContent).toMatch(/goals have changed/);
     rerender(<SuccessThresholds token="tok"

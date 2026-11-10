@@ -26,11 +26,7 @@ import { readWorkerHeartbeat, type WorkerHeartbeatReading } from "./workerHeartb
  *  5. alerts when the background worker's heartbeat goes stale;
  *  6. alerts once per website capture whose preparation went quiet (no status
  *     since upload, or one state too long) or ended, and once per website
- *     scene that stopped after hand-off (websitePreparationOpsAlerts);
- *  7. ends each website job whose deadline passed while it was still open on
- *     our side, with its one email (websiteJobDeadlineSweep). It runs here, not
- *     in the outbox pump: it is a bounded scan like the steps above, and its own
- *     step, so a failure is logged and the other steps still run.
+ *     scene that stopped after hand-off (websitePreparationOpsAlerts).
  */
 
 const CAPTURE_OUTBOX_COLLECTION = "captureOutbox";
@@ -359,14 +355,12 @@ export async function runBetaOpsMonitorPass() {
     // 6. website captures whose preparation went quiet or ended (beta L3/L6).
     scanWebsitePreparations(),
     scanUnknownOutboxOutcomes(),
-    // 7. website jobs past their deadline end by themselves.
-    import("./websiteJobDeadlineSweep").then(module => module.sweepWebsiteJobDeadlines()),
   ]);
   for (const [index, result] of results.entries()) {
     if (result.status === "rejected") {
       logger.warn(
         { err: result.reason, step: ["intake_notice_sweep", "outbox_failure_scan", "readiness_check", "outbox_backlog_scan",
-          "worker_heartbeat_check", "website_preparation_scan", "outbox_unknown_scan", "website_job_deadline_sweep"][index] },
+          "worker_heartbeat_check", "website_preparation_scan", "outbox_unknown_scan"][index] },
         "Beta ops monitor step failed",
       );
     }

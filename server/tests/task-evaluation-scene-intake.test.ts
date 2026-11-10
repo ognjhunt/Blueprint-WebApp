@@ -116,12 +116,16 @@ import { assertWithinWebsiteJobCeiling, transactionJobLedgerReader, websiteJobSp
 import {
   buildSceneIntake,
   processSceneIntakeQueue,
+  SCENE_FORWARD_RETRY_MAX_MS,
   SCENE_TERMINAL_CLOSEOUT_POLL_LIMIT,
   sceneDigest,
+  sceneForwardRetryDelayMs,
   sceneIntakeCommand,
   sceneOwner,
   scenePipelineRequest,
+  SPONSORSHIP_CHANGED_CONFIRM_MS,
 } from "../utils/taskEvaluationSceneIntake";
+import { createRateLimitedAlerter } from "../utils/opsProcessAlerts";
 
 const sha = (char: string) => `sha256:${char.repeat(64)}`;
 const sourceId = "capture-upload-one";
@@ -865,7 +869,7 @@ it("grants a new prepared scene its native allowance only while the job's one ce
   expect([...store.rows.keys()].filter(key => key.startsWith("taskEvaluationSceneIntakes/"))).toHaveLength(1);
 });
 
-it("retries a lost delivery past 20 attempts with a growing gap until its expiry, and keeps the native allowance held", async () => {
+it("keeps a prepared scene's native allowance held while every delivery's response is lost, past twenty tries and after the window ends", async () => {
   sponsoredCapture();
   const base = (await app()).replace(/\/intakes$/, "/internal/creator-captures/walkthrough-req1");
   const post = (operation: string, extra = {}) => realFetch(`${base}/${operation}`, {
@@ -890,29 +894,24 @@ it("retries a lost delivery past 20 attempts with a growing gap until its expiry
   // The Pipeline receives (and may accept) every delivery, but its response never arrives.
   const fetcher = vi.fn(async () => { throw new TypeError("fetch failed"); });
   vi.stubGlobal("fetch", fetcher);
-  const gaps: number[] = [];
   for (let tick = 0; tick < 25; tick++) {
     stored()[1].next_forward_at_ms = 0;
-    const before = Date.now();
     await processSceneIntakeQueue();
-    gaps.push(Math.round((stored()[1].next_forward_at_ms - before) / 60_000));
   }
-  // A host outage alone never ends the job: attempt 21 and later still forward.
+  // No retry count runs out any more: a Pipeline outage does not end the job.
   expect(stored()[1]).toMatchObject({ state: "forward_blocked", blocker: "pipeline_transport_failed",
-    forwarding_started: true, forward_attempt_count: 25, forward_retry_count: 25 });
+    forwarding_started: true, forward_attempt_count: 25, forward_failure_count: 25 });
   expect(fetcher).toHaveBeenCalledTimes(25);
-  // One minute apart at first, then doubling to the 30-minute cap.
-  expect(gaps.slice(0, 10)).toEqual([1, 1, 1, 1, 1, 2, 4, 8, 16, 30]);
-  expect(gaps.slice(10).every(gap => gap === 30)).toBe(true);
-  // The intent's expiry still ends it, on the existing path, with no further delivery.
-  const expired = vi.spyOn(Date, "now").mockReturnValue(grant.expires_at_epoch * 1000 + 1000);
-  stored()[1].next_forward_at_ms = 0;
-  await processSceneIntakeQueue();
-  expired.mockRestore();
-  expect(stored()[1]).toMatchObject({ state: "blocked", blocker: "consent_expired", forward_attempt_count: 25 });
-  expect(fetcher).toHaveBeenCalledTimes(25);
+  // The window is the give-up timer: past it nothing more is sent and the intake is terminal.
+  const clock = vi.spyOn(Date, "now").mockReturnValue((grant.expires_at_epoch + 1) * 1000);
+  try {
+    stored()[1].next_forward_at_ms = 0;
+    await processSceneIntakeQueue();
+  } finally { clock.mockRestore(); }
+  expect(stored()[1]).toMatchObject({ state: "blocked", blocker: "consent_expired", forwarding_started: true });
   expect(stored()[1]).not.toHaveProperty("receipt");
   expect(stored()[1]).not.toHaveProperty("pipeline_status");
+  expect(fetcher).toHaveBeenCalledTimes(25);
   // A local "blocked" does not prove the Pipeline stopped: the whole $20 stays held
   // against the owner default $40 ceiling, so only $20 of new spend fits.
   expect((await ceiling(20)).spend.native_construction_micros).toBe(20_000_000);
@@ -2817,6 +2816,29 @@ function sceneOutcome(kind: string, terminal: unknown, reasonCode: string, overr
   return { ...value, outcome_digest: sceneDigest(value) };
 }
 
+/** A website job's prepared scene, admitted under its grant and waiting to be forwarded. */
+async function preparedWebsiteScene() {
+  sponsoredCapture();
+  const base = (await app()).replace(/\/intakes$/, "/internal/creator-captures/walkthrough-req1");
+  const post = (operation: string, extra = {}) => realFetch(`${base}/${operation}`, {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ request_id: "req1", scene_id: "site-req1", ...extra }),
+  });
+  const grant = await (await post("scene-sponsorship")).json();
+  const sceneRequest = {
+    schema_version: "task_evaluation_scene_intake_request.v1", submission_id: grant.capture_id,
+    owner: grant.owner, consent: grant.consent,
+    source: { kind: "gaussian_splat", binding_id: `website-splat-${"a".repeat(32)}`, content_digest: sha("a") },
+    task: { ...command().task, task_id: `website-${grant.task_context_digest.slice(7, 27)}`,
+      subject: { description: "box", geometry_origin: "removed_before_reconstruction" } },
+    execution: { ...command().execution, max_total_spend_usd: grant.max_total_spend_usd,
+      max_paid_attempts: grant.max_paid_attempts, expires_at_epoch: grant.expires_at_epoch,
+      allowed_providers: ["vast", "openai"], purpose: "scene_preparation", policy_candidates: [] },
+  };
+  expect((await post("prepared-scene", { request: sceneRequest })).status).toBe(202);
+  return sceneRequest;
+}
+
 describe("the intent's outcome (C-04)", () => {
   const request = { owner: { user_id: "owner", organization_id: "user:owner" } };
   const respond = (fetcher: ReturnType<typeof vi.fn>, value: unknown) =>
@@ -2904,28 +2926,6 @@ describe("the intent's outcome (C-04)", () => {
     expect(fetcher.mock.calls.map((call: any[]) => call[1]?.method)).toEqual(["POST", "GET", "GET"]);
   });
 
-  async function preparedWebsiteScene() {
-    sponsoredCapture();
-    const base = (await app()).replace(/\/intakes$/, "/internal/creator-captures/walkthrough-req1");
-    const post = (operation: string, extra = {}) => realFetch(`${base}/${operation}`, {
-      method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ request_id: "req1", scene_id: "site-req1", ...extra }),
-    });
-    const grant = await (await post("scene-sponsorship")).json();
-    const sceneRequest = {
-      schema_version: "task_evaluation_scene_intake_request.v1", submission_id: grant.capture_id,
-      owner: grant.owner, consent: grant.consent,
-      source: { kind: "gaussian_splat", binding_id: `website-splat-${"a".repeat(32)}`, content_digest: sha("a") },
-      task: { ...command().task, task_id: `website-${grant.task_context_digest.slice(7, 27)}`,
-        subject: { description: "box", geometry_origin: "removed_before_reconstruction" } },
-      execution: { ...command().execution, max_total_spend_usd: grant.max_total_spend_usd,
-        max_paid_attempts: grant.max_paid_attempts, expires_at_epoch: grant.expires_at_epoch,
-        allowed_providers: ["vast", "openai"], purpose: "scene_preparation", policy_candidates: [] },
-    };
-    expect((await post("prepared-scene", { request: sceneRequest })).status).toBe(202);
-    return sceneRequest;
-  }
-
   it("owes a website job one email for a terminal outcome and none for a wait", async () => {
     const sceneRequest = await preparedWebsiteScene();
     let outcome = sceneOutcome("awaiting_site", false, "site_consent_required", { reason_category: "site_action" });
@@ -3002,4 +3002,320 @@ it("reads one retained request for its exact owner only",async()=>{
   expect(read.status).toBe(200);
   expect(await read.json()).toMatchObject({id:receipt.id,request_digest:receipt.request_digest});
   expect((await realFetch(`${url}/${receipt.id}`,{headers:{"x-user":"other"}})).status).toBe(404);
+});
+
+
+// Beta endings: a Pipeline outage, a configuration slip or a quiet Pipeline must not end a job
+// or leave it waiting for ever. Only the job's own window, or the site's rights, ends it.
+describe("a Pipeline outage, an unreadable grant and the end of the window", () => {
+  const MINUTE = 60_000;
+  /** The Pipeline as it answers a healthy website intent: accept, report it running, confirm a revoke. */
+  function healthyPipeline(sceneRequest: any, status: Record<string, any> = {}) {
+    return vi.fn(async (url: any, init: any) => {
+      if (init.method === "GET") return new Response(JSON.stringify(pipelineStatus(stored()[1].request, {
+        status: "running", phase: "configuration", blockers: [], attempts: [], ...status })));
+      const payload = JSON.parse(init.body);
+      return new Response(JSON.stringify(String(url).endsWith("/revoke") ? revocationReceipt(sceneRequest) : accepted(payload)));
+    });
+  }
+  const revokes = (fetcher: ReturnType<typeof vi.fn>) =>
+    fetcher.mock.calls.filter((call: any[]) => String(call[0]).endsWith("/revoke")).length;
+  const tick = async (deps: Parameters<typeof processSceneIntakeQueue>[1] = {}) => {
+    stored()[1].next_forward_at_ms = 0;
+    await processSceneIntakeQueue(10, { alert: async () => ({}), ...deps });
+  };
+  const otherPolicy = () => { process.env.BLUEPRINT_WEBSITE_SCENE_SPONSORSHIP_JSON = JSON.stringify({
+    ...JSON.parse(process.env.BLUEPRINT_WEBSITE_SCENE_SPONSORSHIP_JSON!), max_paid_attempts: 3 }); };
+
+  it("backs a failed forward off from one minute to fifteen, with jitter, and is still retrying after twenty failures", async () => {
+    expect([1, 2, 3, 4, 5, 6, 40].map(failures => sceneForwardRetryDelayMs(failures, () => 1)))
+      .toEqual([1, 2, 4, 8, 15, 15, 15].map(minutes => minutes * MINUTE));
+    expect(sceneForwardRetryDelayMs(1, () => 0)).toBe(MINUTE / 2);
+    expect(sceneForwardRetryDelayMs(9, () => 0)).toBe(SCENE_FORWARD_RETRY_MAX_MS / 2);
+    for (const failures of [1, 3, 7, 30]) {
+      const wait = sceneForwardRetryDelayMs(failures);
+      expect(wait).toBeGreaterThanOrEqual(MINUTE / 2);
+      expect(wait).toBeLessThanOrEqual(SCENE_FORWARD_RETRY_MAX_MS);
+    }
+
+    const sceneRequest = await preparedWebsiteScene();
+    const down = vi.fn(async () => { throw new TypeError("fetch failed"); });
+    vi.stubGlobal("fetch", down);
+    const start = Date.now();
+    const clock = vi.spyOn(Date, "now").mockReturnValue(start);
+    try {
+      const waits: number[] = [];
+      for (let failure = 1; failure <= 25; failure++) {
+        await tick({ random: () => 1 });
+        waits.push(stored()[1].next_forward_at_ms - start);
+      }
+      expect(waits.slice(0, 6)).toEqual([1, 2, 4, 8, 15, 15].map(minutes => minutes * MINUTE));
+      expect(new Set(waits.slice(5))).toEqual(new Set([SCENE_FORWARD_RETRY_MAX_MS]));
+      expect(stored()[1]).toMatchObject({ state: "forward_blocked", blocker: "pipeline_transport_failed",
+        forward_attempt_count: 25, forward_failure_count: 25 });
+      expect(down).toHaveBeenCalledTimes(25);
+      // Nothing is sent before the backoff has run.
+      await processSceneIntakeQueue(10);
+      expect(down).toHaveBeenCalledTimes(25);
+      // The Pipeline is back: the same intake is delivered and the backoff starts over.
+      const up = healthyPipeline(sceneRequest);
+      vi.stubGlobal("fetch", up);
+      await tick();
+      expect(stored()[1]).toMatchObject({ state: "accepted", blocker: null, forward_failure_count: 0 });
+      expect(JSON.parse(up.mock.calls[0][1].body)).toEqual(sceneRequest);
+    } finally { clock.mockRestore(); }
+  });
+
+  it("stops retrying a forward when the window ends, and at once for a code that is terminal", async () => {
+    const sceneRequest = await preparedWebsiteScene();
+    const down = vi.fn(async () => new Response("{}", { status: 503 }));
+    vi.stubGlobal("fetch", down);
+    await tick();
+    expect(stored()[1]).toMatchObject({ state: "forward_blocked", blocker: "pipeline_intake_http_503" });
+    const clock = vi.spyOn(Date, "now").mockReturnValue((sceneRequest.execution.expires_at_epoch + 1) * 1000);
+    try { await tick(); } finally { clock.mockRestore(); }
+    expect(stored()[1]).toMatchObject({ state: "blocked", blocker: "consent_expired" });
+    expect(down).toHaveBeenCalledTimes(1);
+
+    // The site's withdrawal, a broken binding and changed stored bytes each end the intake on the first read.
+    for (const [code, damage] of [
+      ["source_revoked", () => { store.rows.get("inboundRequests/req1").consent_revoked = true; }],
+      ["website_scene_sponsorship_binding_invalid", () => { stored()[1].root_sponsorship_digest = sha("0"); }],
+      ["stored_request_digest_invalid", () => { stored()[1].request.submission_id = "another"; }],
+    ] as const) {
+      store.rows.clear();
+      await new Promise<void>(resolve => server!.close(() => resolve()));
+      await preparedWebsiteScene();
+      damage();
+      await tick();
+      expect(stored()[1]).toMatchObject({ state: "blocked", blocker: code, forward_attempt_count: 0 });
+    }
+    expect(down).toHaveBeenCalledTimes(1);
+  });
+
+  it("names a failed request, a refused one and an error on this side differently", async () => {
+    const url = await app();
+    const submit = async () => {
+      store.rows.delete(stored()?.[0] ?? "");
+      await realFetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(command()) });
+    };
+    await realFetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(command()) });
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new TypeError("fetch failed"); }));
+    await tick();
+    expect(stored()[1]).toMatchObject({ state: "forward_blocked", blocker: "pipeline_transport_failed", forward_attempt_count: 1 });
+    await submit();
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("<html>bad gateway</html>")));
+    await tick();
+    expect(stored()[1].blocker).toBe("pipeline_transport_failed");
+    await submit();
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("{}", { status: 502 })));
+    await tick();
+    expect(stored()[1].blocker).toBe("pipeline_intake_http_502");
+    await submit();
+    // The stored command no longer parses: nothing was sent, so this is not a transport failure.
+    const never = vi.fn();
+    vi.stubGlobal("fetch", never);
+    stored()[1].command.submission_id = "";
+    await tick();
+    expect(stored()[1]).toMatchObject({ state: "forward_blocked", blocker: "scene_intake_local_error", forward_attempt_count: 0 });
+    expect(never).not.toHaveBeenCalled();
+  });
+
+  it.each([["does not parse", "{not json"], ["is unset", undefined], ["fails its schema", JSON.stringify({ owner: "nobody" })]])(
+    "never revokes when the grant policy %s, and raises one alert", async (_case, value) => {
+      const sceneRequest = await preparedWebsiteScene();
+      const fetcher = healthyPipeline(sceneRequest);
+      vi.stubGlobal("fetch", fetcher);
+      await tick();
+      expect(stored()[1].state).toBe("accepted");
+      if (value === undefined) delete process.env.BLUEPRINT_WEBSITE_SCENE_SPONSORSHIP_JSON;
+      else process.env.BLUEPRINT_WEBSITE_SCENE_SPONSORSHIP_JSON = value;
+      // The existing ops alert path keeps a repeated alert to one per window.
+      const sent = vi.fn(async (_message: string) => ({ sent: true }));
+      const alert = createRateLimitedAlerter({ send: sent });
+      for (let pass = 0; pass < 3; pass++) await tick({ alert });
+      expect(stored()[1]).toMatchObject({ state: "accepted", blocker: null });
+      expect(stored()[1]).not.toHaveProperty("revocation_receipt");
+      expect(stored()[1]).not.toHaveProperty("revocation_cause");
+      expect(revokes(fetcher)).toBe(0);
+      // The read-only status poll went on: the job is kept as it is, not frozen.
+      expect(fetcher.mock.calls.filter((call: any[]) => call[1]?.method === "GET")).toHaveLength(3);
+      expect(sent).toHaveBeenCalledTimes(1);
+      expect(sent.mock.calls[0][0]).toMatch(/Nothing was revoked/);
+      expect(sent.mock.calls[0][0]).toMatch(/BLUEPRINT_WEBSITE_SCENE_SPONSORSHIP_JSON/);
+      // Money fails closed meanwhile: no new grant and no new reservation.
+      await expect(loadWebsiteSceneSponsorship("req1", true)).rejects.toThrow("website_scene_sponsorship_not_configured");
+      await expect(reserveWebsitePreparationSpend("req1", { task_context_digest: sha("a"), allocation_binding_digest: sha("b"),
+        resource_class: "gpu_render", provider: "vast", maximum_cost_usd: 1, request_count: 1 }))
+        .rejects.toThrow("website_scene_sponsorship_not_configured");
+    });
+
+  it("forwards nothing while the grant policy cannot be read, and forwards once it reads again", async () => {
+    const sceneRequest = await preparedWebsiteScene();
+    const policy = process.env.BLUEPRINT_WEBSITE_SCENE_SPONSORSHIP_JSON!;
+    process.env.BLUEPRINT_WEBSITE_SCENE_SPONSORSHIP_JSON = "{not json";
+    const fetcher = healthyPipeline(sceneRequest);
+    vi.stubGlobal("fetch", fetcher);
+    const alert = vi.fn(async () => ({}));
+    await tick({ alert });
+    expect(stored()[1]).toMatchObject({ state: "forward_blocked", blocker: "website_scene_sponsorship_not_configured",
+      forward_attempt_count: 0 });
+    expect(fetcher).not.toHaveBeenCalled();
+    expect(alert).toHaveBeenCalledTimes(1);
+    process.env.BLUEPRINT_WEBSITE_SCENE_SPONSORSHIP_JSON = policy;
+    await tick({ alert });
+    expect(stored()[1].state).toBe("accepted");
+    expect(alert).toHaveBeenCalledTimes(1);
+  });
+
+  it("never revokes for a job record with no stored grant, and raises the alert", async () => {
+    const sceneRequest = await preparedWebsiteScene();
+    const fetcher = healthyPipeline(sceneRequest);
+    vi.stubGlobal("fetch", fetcher);
+    await tick();
+    delete store.rows.get("inboundRequests/req1").website_scene_sponsorship;
+    const alert = vi.fn(async (_key: string, _message: string) => ({}));
+    await tick({ alert });
+    expect(stored()[1].state).toBe("accepted");
+    expect(revokes(fetcher)).toBe(0);
+    expect(alert).toHaveBeenCalledTimes(1);
+    expect(alert.mock.calls[0]).toEqual(["website_scene_grant_read", expect.stringMatching(/no stored grant/)]);
+  });
+
+  it("still revokes at once when the site withdraws, even while the grant policy cannot be read", async () => {
+    const sceneRequest = await preparedWebsiteScene();
+    const fetcher = healthyPipeline(sceneRequest);
+    vi.stubGlobal("fetch", fetcher);
+    await tick();
+    process.env.BLUEPRINT_WEBSITE_SCENE_SPONSORSHIP_JSON = "{not json";
+    store.rows.get("inboundRequests/req1").consent_revoked = true;
+    const alert = vi.fn(async () => ({}));
+    await tick({ alert });
+    expect(stored()[1]).toMatchObject({ state: "closeout_pending", revocation_cause: "source_revoked",
+      revocation_receipt: { scope: "future_execution" } });
+    expect(revokes(fetcher)).toBe(1);
+    expect(alert).not.toHaveBeenCalled();
+  });
+
+  it("revokes for a changed grant only after consecutive reads over the confirmation period", async () => {
+    const sceneRequest = await preparedWebsiteScene();
+    const policy = process.env.BLUEPRINT_WEBSITE_SCENE_SPONSORSHIP_JSON!;
+    const fetcher = healthyPipeline(sceneRequest);
+    vi.stubGlobal("fetch", fetcher);
+    await tick();
+    const start = Date.now();
+    const clock = vi.spyOn(Date, "now").mockReturnValue(start);
+    const alert = vi.fn(async (_key: string, _message: string) => ({}));
+    try {
+      // The worker holds another policy value than the one the grant was issued under (a deploy).
+      otherPolicy();
+      await expect(loadWebsiteSceneSponsorship("req1", false)).rejects.toThrow("website_scene_sponsorship_changed");
+      for (const minute of [0, 1, 2]) {
+        clock.mockReturnValue(start + minute * MINUTE);
+        await tick({ alert });
+        expect(stored()[1]).toMatchObject({ state: "accepted", sponsorship_changed_observation: { first_seen_at_ms: start, count: minute + 1 } });
+      }
+      expect(alert).toHaveBeenCalledTimes(3);
+      expect(alert.mock.calls[0][1]).toMatch(/does not match the policy this process holds/);
+      // The deploy finished: both services hold the same value again, and the count starts over.
+      process.env.BLUEPRINT_WEBSITE_SCENE_SPONSORSHIP_JSON = policy;
+      clock.mockReturnValue(start + 3 * MINUTE);
+      await tick({ alert });
+      expect(stored()[1]).toMatchObject({ state: "accepted", sponsorship_changed_observation: null });
+      expect(revokes(fetcher)).toBe(0);
+      // A change that stays: the third consecutive read after the period revokes, as it always did.
+      otherPolicy();
+      const again = start + 4 * MINUTE;
+      for (const elapsed of [0, 7 * MINUTE, SPONSORSHIP_CHANGED_CONFIRM_MS - 1]) {
+        clock.mockReturnValue(again + elapsed);
+        await tick({ alert });
+        expect(stored()[1].state).toBe("accepted");
+      }
+      expect(revokes(fetcher)).toBe(0);
+      clock.mockReturnValue(again + SPONSORSHIP_CHANGED_CONFIRM_MS);
+      await tick({ alert });
+      expect(stored()[1]).toMatchObject({ state: "closeout_pending", revocation_cause: "website_scene_sponsorship_changed" });
+      expect(revokes(fetcher)).toBe(1);
+    } finally { clock.mockRestore(); }
+  });
+
+  it("keeps an unforwarded intake retrying through a changed grant read until it is confirmed", async () => {
+    const sceneRequest = await preparedWebsiteScene();
+    const fetcher = healthyPipeline(sceneRequest);
+    vi.stubGlobal("fetch", fetcher);
+    const start = Date.now();
+    const clock = vi.spyOn(Date, "now").mockReturnValue(start);
+    try {
+      otherPolicy();
+      for (const elapsed of [0, MINUTE, 3 * MINUTE]) {
+        clock.mockReturnValue(start + elapsed);
+        await tick();
+        expect(stored()[1]).toMatchObject({ state: "forward_blocked", blocker: "website_scene_sponsorship_changed" });
+      }
+      clock.mockReturnValue(start + SPONSORSHIP_CHANGED_CONFIRM_MS);
+      await tick();
+      expect(stored()[1]).toMatchObject({ state: "blocked", blocker: "website_scene_sponsorship_changed" });
+      expect(fetcher).not.toHaveBeenCalled();
+    } finally { clock.mockRestore(); }
+  });
+
+  it("stops polling an accepted intake when its window has ended, without releasing its budget", async () => {
+    const url = await app();
+    await realFetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(command()) });
+    const fetcher = healthyPipeline(null);
+    vi.stubGlobal("fetch", fetcher);
+    await tick();
+    await tick();
+    expect(stored()[1]).toMatchObject({ state: "accepted", pipeline_status: { status: "running" } });
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    const expiry = stored()[1].request.execution.expires_at_epoch;
+    const clock = vi.spyOn(Date, "now").mockReturnValue(expiry * 1000);
+    try {
+      await tick();
+      expect(stored()[1]).toMatchObject({ state: "expired", blocker: "consent_expired",
+        next_forward_at_ms: Number.MAX_SAFE_INTEGER, pipeline_status: { status: "running" } });
+      // Only the Pipeline's own word releases the hold on the intent's budget.
+      expect(stored()[1]).not.toHaveProperty("closeout_complete");
+      await processSceneIntakeQueue(10);
+      expect(fetcher).toHaveBeenCalledTimes(2);
+    } finally { clock.mockRestore(); }
+  });
+
+  it("gives an attempt with money reserved the bounded read-only closeout at the window's end, whatever the Pipeline answers", async () => {
+    const url = await app();
+    await realFetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(command()) });
+    const reserved = pipelineStatus({ owner: { user_id: "owner", organization_id: "user:owner" } }).attempts;
+    // The Pipeline still says "running" after the window: it has not looked at the intent again.
+    const fetcher = healthyPipeline(null, { attempts: reserved });
+    vi.stubGlobal("fetch", fetcher);
+    await tick();
+    await tick();
+    expect(stored()[1]).toMatchObject({ state: "accepted", pipeline_status: { attempts: [{ maximum_spend_usd: 2 }] } });
+    const expiry = stored()[1].request.execution.expires_at_epoch;
+    const clock = vi.spyOn(Date, "now").mockReturnValue((expiry + 1) * 1000);
+    try {
+      await tick();
+      expect(stored()[1]).toMatchObject({ state: "closeout_pending", closeout_poll_count: 1 });
+      // An unreachable Pipeline counts against the same bound.
+      vi.stubGlobal("fetch", vi.fn(async () => { throw new TypeError("fetch failed"); }));
+      await tick();
+      expect(stored()[1]).toMatchObject({ state: "closeout_pending", closeout_poll_count: 2, blocker: "pipeline_transport_failed" });
+      stored()[1].closeout_poll_count = SCENE_TERMINAL_CLOSEOUT_POLL_LIMIT - 1;
+      await tick();
+      expect(stored()[1]).toMatchObject({ state: "blocked", blocker: "terminal_closeout_poll_cap_exhausted" });
+    } finally { clock.mockRestore(); }
+
+    // The same from an accepted intake whose every poll fails after the window.
+    store.rows.delete(stored()[0]);
+    await realFetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(command()) });
+    vi.stubGlobal("fetch", fetcher);
+    await tick();
+    await tick();
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new TypeError("fetch failed"); }));
+    const late = vi.spyOn(Date, "now").mockReturnValue((stored()[1].request.execution.expires_at_epoch + 1) * 1000);
+    try {
+      await tick();
+      expect(stored()[1]).toMatchObject({ state: "closeout_pending", closeout_poll_count: 1 });
+    } finally { late.mockRestore(); }
+  });
 });

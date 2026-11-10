@@ -25,7 +25,7 @@ import { SCENE_INTAKE_COLLECTION } from "./taskEvaluationSceneIntake";
 import type { TaskSceneProgression } from "./taskStatusProjection";
 import { taskTargetSelection, taskTargetSelectionApplies } from "./websiteTaskTargetChoice";
 import { isScreeningHeldOutcome, parseBetaPolicyScreeningPublication, screeningOutcome, storedScreeningOutcome,
-  type ScreeningOutcome } from "./betaPolicyScreeningContract";
+  storedScreeningOutcomeCaveat, type ScreeningOutcome, type ScreeningOutcomeCaveat } from "./betaPolicyScreeningContract";
 import { SCREENING_HOLD_RUN_KIND } from "./betaPolicyScreeningHold";
 import { publicationFromResultRecord } from "./taskEvaluationRunPublicationStorage";
 import { adoptedSceneOutcome, sceneOutcomeReading } from "./sceneIntentOutcome";
@@ -63,8 +63,8 @@ export function policyTestAccepted(run: Record<string, any> | null | undefined):
   return TEST_ACCEPTED_STATES.has(state) || run?.launch_forward?.status === "forwarded";
 }
 
-/** A finished job evaluation's outcome for the scene, and whether any test on it executed. */
-export type SceneScreeningResult = { outcome: ScreeningOutcome; observed: boolean };
+/** A finished job evaluation's outcome for the scene, whether any test on it executed, and what an estimate's sentence adds. */
+export type SceneScreeningResult = { outcome: ScreeningOutcome; observed: boolean; caveat?: ScreeningOutcomeCaveat };
 
 export function projectWebsiteSceneProgression(record: Record<string, any> | null | undefined,
   testAccepted: boolean | SceneScreeningResult = false): TaskSceneProgression | null {
@@ -77,8 +77,8 @@ export function projectWebsiteSceneProgression(record: Record<string, any> | nul
   const state = record?.state;
   const phase = record?.pipeline_status?.phase;
   if (state === "completed" && typeof testAccepted === "object") {
-    const { outcome, observed } = testAccepted;
-    if (outcome === "estimate") return { state: "evaluated" };
+    const { outcome, observed, caveat } = testAccepted;
+    if (outcome === "estimate") return { state: "evaluated", ...(caveat ? { outcomeCaveat: caveat } : {}) };
     if (isScreeningHeldOutcome(outcome)) return { state: "held", heldReason: outcome };
     // Waiting on us or the owner, or planned again: the scene is tested only once a test executed.
     return { state: observed ? "testing" : "completed", progressOutcome: outcome };
@@ -134,7 +134,9 @@ export async function readWebsiteTargetScope(requestId: string, captureId: strin
 }
 
 /** What a scene's job evaluations say, read in any order. */
-export type SceneScreening = { estimate: boolean; running: boolean; observed: boolean; outcome: ScreeningOutcome | null };
+export type SceneScreening = { estimate: boolean; running: boolean; observed: boolean; outcome: ScreeningOutcome | null;
+  /** Every campaign that gave the scene an estimate carries this caveat; one without it speaks for the job plainly. */
+  estimateCaveat?: ScreeningOutcomeCaveat };
 
 /**
  * The scene's job evaluations in this team (F-03). Any campaign's estimate is
@@ -150,10 +152,12 @@ export function sceneScreening(runs: Iterable<{ id: string; run: Record<string, 
   let estimate = false, running = false, observed = false, superseded = false, campaigns = false;
   let newest: { key: string; outcome: ScreeningOutcome } | null = null;
   let hold: ScreeningOutcome | null = null;
+  const estimateCaveats: Array<ScreeningOutcomeCaveat | null> = [];
   for (const { id, run } of runs) {
     if (run?.run_kind === SCREENING_HOLD_RUN_KIND && run.team_namespace === team) {
       const held = storedScreeningOutcome(run.screening_outcome);
-      if (run.state === "blocked" && isScreeningHeldOutcome(held)) hold = held;
+      // A hold speaks as held, or as the one wait a hold can name: Blueprint's own monthly spend limit.
+      if (run.state === "blocked" && (isScreeningHeldOutcome(held) || held === "awaiting_spend_approval")) hold = held;
       continue;
     }
     if (run?.run_kind !== "beta_policy_screening" || run.team_namespace !== team) continue;
@@ -162,20 +166,23 @@ export function sceneScreening(runs: Iterable<{ id: string; run: Record<string, 
     const executed = run.screening_execution_observed === true;
     observed ||= executed;
     if (!["completed", "blocked"].includes(run.state) || !outcome) { running ||= executed; continue; }
-    if (outcome === "estimate") estimate = true;
+    if (outcome === "estimate") { estimate = true; estimateCaveats.push(storedScreeningOutcomeCaveat(run.screening_outcome_caveat)); }
     else if (outcome === "superseded") superseded = true;
     else {
       const key = `${String(run.created_at_iso ?? "")}\u0000${id}`;
       if (!newest || key > newest.key) newest = { key, outcome };
     }
   }
+  const estimateCaveat = estimateCaveats.length > 0 && estimateCaveats.every(caveat => caveat !== null
+    && caveat === estimateCaveats[0]) ? estimateCaveats[0] : null;
   return { estimate, running, observed,
-    outcome: newest?.outcome ?? (superseded ? "superseded" : campaigns ? null : hold) };
+    outcome: newest?.outcome ?? (superseded ? "superseded" : campaigns ? null : hold),
+    ...(estimateCaveat ? { estimateCaveat } : {}) };
 }
 
 /** How the scene reads from its job evaluations alone: an outcome, an open test (true), or nothing yet (false). */
 export function sceneScreeningResult(scene: SceneScreening): boolean | SceneScreeningResult {
-  if (scene.estimate) return { outcome: "estimate", observed: true };
+  if (scene.estimate) return { outcome: "estimate", observed: true, ...(scene.estimateCaveat ? { caveat: scene.estimateCaveat } : {}) };
   if (scene.running) return true;
   return scene.outcome ? { outcome: scene.outcome, observed: scene.observed } : false;
 }
