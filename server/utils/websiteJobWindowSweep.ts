@@ -25,8 +25,17 @@
  * future. It reads and writes no money record: grants, reservations, ledgers
  * and scene intakes are untouched.
  *
- * A job that never received a grant has no window, so this sweep does not end
- * it: there is no stored limit to read for it.
+ * A job that never received a grant has no window, so the same pass keeps a clock for it on its own
+ * record (`websiteJobWindowEnding.ts`), started the first time the pass sees it waiting. No
+ * backfill: a job that had already waited a whole window since its latest site activity when the pass
+ * first sees it (or whose stored times cannot be read) is ended then, with no email and no page. Only
+ * website jobs count (`isWebsiteJobRecord` and a task brief); nothing is written for any other request. The clock
+ * runs as long as a grant's window would (`websiteJobWindowSeconds`). A job waiting on the site
+ * (no finished recording, or a held job's one step) then ends with the truth: we did not receive
+ * what was needed. A job waiting on Blueprint (the site did its part, no grant came) ends held, and
+ * the ops monitor pages before that (`scanWebsiteJobsWaitingOnGrant`). Each ending has one email
+ * under a key fixed by the job, through the same outbox and the same dispatch checks. A job whose
+ * grant arrives later is the window sweep's again.
  */
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
@@ -44,12 +53,23 @@ import { isWebsiteJobWindowEndedNoticeKey, recordedWebsiteJobWindowEnding, sealW
   websiteJobWindowEndedEventId, websiteJobWindowEndedNoticeKey, WEBSITE_JOB_WINDOW_ENDING_FIELD,
   WEBSITE_JOB_WINDOW_ENDING_NOTICE_CUTOVER_EPOCH, type WebsiteJobWindowEndingNotice } from "./websiteJobWindowEnding";
 import { websiteRunClosure } from "./websiteRunClosure";
-import { sponsorshipValidUntil } from "./websiteSceneSponsorship";
+import { sponsorshipValidUntil, websiteJobWindowSeconds } from "./websiteSceneSponsorship";
+import { TASK_BRIEFS_COLLECTION } from "./siteTaskBrief";
+import { multiStepTaskHold } from "./siteTaskScope";
+import { savedWalkthrough } from "./siteWalkthrough";
+import { stuckAlertMs } from "./websitePreparationWatch";
+import { isApprovedCaptureRegion } from "../../client/src/data/captureResidency";
+import { hasCurrentDescriptionAuthority } from "./descriptionAuthority";
+import { isWebsiteJobNoGrantEndedNoticeKey, newWebsiteJobNoGrantClock, recordedWebsiteJobNoGrantEnding,
+  sealWebsiteJobNoGrantEnding, websiteJobNoGrantClock, websiteJobNoGrantEndedNoticeKey, WEBSITE_JOB_NO_GRANT_CLOCK_FIELD,
+  WEBSITE_JOB_NO_GRANT_ENDED_EVENT_ID, WEBSITE_JOB_NO_GRANT_ENDING_FIELD, WEBSITE_JOB_NO_GRANT_PAGE_DUE_FIELD,
+  type WebsiteJobNoGrantClock, type WebsiteJobNoGrantEndingNotice, type WebsiteJobNoGrantWait } from "./websiteJobWindowEnding";
 import { projectWebsiteCaptureRights } from "./websiteTaskContext";
 
 const JOBS = "inboundRequests";
 const SESSIONS = "captureUploadSessions";
 const CURSOR = "website_job_window_sweep";
+const NO_GRANT_CURSOR = "website_job_no_grant_sweep";
 const GRANT_SCHEMA = "website_scene_sponsorship.v1";
 const DEFAULT_BATCH = 25;
 /**
@@ -221,10 +241,187 @@ export async function sweepWebsiteJobWindow(requestId: string, nowMs = Date.now(
   });
 }
 
+/** Why the sweep leaves a job with no grant as it is, or what it did. */
+export type JobNoGrantSweepResult =
+  /** The job has a grant (the window sweep's), or is not there. */
+  | "has_grant"
+  /** Not a website job (`isWebsiteJobRecord`): nothing is ever written for it. */
+  | "not_a_job"
+  /** The no-grant ending is already recorded. */
+  | "ending_recorded"
+  | "withdrawn"
+  | "owner_closed"
+  | "result_recorded"
+  | "outcome_told"
+  /** The site was told its job stays on file until Blueprint can evaluate its kind (`taskScopeNotYet`). */
+  | "kept_on_file"
+  /** The pass saw this wait for the first time (or the wait moved from the site to Blueprint): its clock starts now. */
+  | "clock_started"
+  /** The clock has not run as long as a grant's window would. */
+  | "waiting"
+  | "contact_unreadable"
+  | "changed"
+  | "ended_notice_queued"
+  | "ended_no_notice";
+
+/** Task-scope reasons whose next step is the site's own (`taskScopeNotYet`); any other kind is kept on file. */
+const SITE_STEP_SCOPE_REASONS = new Set(["multi_step", "unclear"]);
+
+/**
+ * What makes a request a website job for this sweep, from the record: a site operator's request
+ * (`request.buyerType`) that was given a capture link, by the same rule the intake uses to issue one
+ * (`siteCaptureUrl`: an approved capture region, or the site's current description authority). The
+ * other half is its task brief (`siteTaskBriefs/{requestId}`), read by `noGrantJobBrief`.
+ */
+function isWebsiteJobRecord(record: Record<string, any>): boolean {
+  return record.request?.buyerType === "site_operator" && (isApprovedCaptureRegion(record.request?.capture_region)
+    || hasCurrentDescriptionAuthority(record.request?.description_authority));
+}
+
+/** The job's task brief, or null when it has none: a request with no brief is not a website job. */
+async function noGrantJobBrief(requestId: string): Promise<Record<string, any> | null> {
+  const brief = await db!.collection(TASK_BRIEFS_COLLECTION).doc(requestId).get();
+  return brief.exists ? brief.data() ?? {} : null;
+}
+
+/** An ISO string, a number of milliseconds, or a Firestore timestamp, as epoch seconds; null when unreadable. */
+function storedEpoch(value: unknown): number | null {
+  const ms = typeof value === "string" ? Date.parse(value) : typeof value === "number" ? value
+    : typeof (value as { toMillis?: unknown })?.toMillis === "function" ? (value as { toMillis: () => number }).toMillis()
+    : typeof (value as { seconds?: unknown })?.seconds === "number" ? (value as { seconds: number }).seconds * 1000
+    : typeof (value as { _seconds?: unknown })?._seconds === "number" ? (value as { _seconds: number })._seconds * 1000 : NaN;
+  return Number.isFinite(ms) && ms > 0 ? Math.floor(ms / 1000) : null;
+}
+
+/**
+ * When the site last did something on the job, from the job's own stored times: its creation, then
+ * any later brief confirmation, save to an account, or recording received (the durable
+ * `video_received` notice). Null when the creation time cannot be read: the job is then taken as old.
+ */
+async function latestSiteActivityEpoch(requestId: string, record: Record<string, any>): Promise<number | null> {
+  const created = storedEpoch(record.createdAt);
+  if (created === null) return null;
+  const received = (await db!.collection(CAPTURE_OUTBOX_COLLECTION).doc(`${requestId}:video_received`).get()).data()?.createdAtIso;
+  return Math.max(created, ...[record.site_task_brief_confirmed_at, record.claimed_at_iso, received]
+    .map(storedEpoch).filter((epoch): epoch is number => epoch !== null));
+}
+
+/** What the job record alone settles for a job with no grant, cheapest first. */
+function noGrantSkip(record: Record<string, any> | undefined, requestId: string): JobNoGrantSweepResult | null {
+  if (!record || record.website_scene_sponsorship) return "has_grant";
+  if (!isWebsiteJobRecord(record)) return "not_a_job";
+  if (recordedWebsiteJobNoGrantEnding(record, requestId)) return "ending_recorded";
+  if (record.capture_withdrawal || projectWebsiteCaptureRights(record).consent_revoked) return "withdrawn";
+  if (websiteRunClosure(record, requestId, siteWalkthroughIdentity(requestId, record).captureId)) return "owner_closed";
+  const scope = record.site_task_scope;
+  if (scope?.supported === false && !SITE_STEP_SCOPE_REASONS.has(String(scope.reason ?? ""))) return "kept_on_file";
+  return null;
+}
+
+/**
+ * Whose step the job waits on, read as the job pages read it: the site's until a finished recording
+ * is saved, or while the job is held for a step only the site can take; Blueprint's after that.
+ * Throws when the recording's status cannot be read, so no job is ended on a guess.
+ */
+async function noGrantWaitingOn(requestId: string, record: Record<string, any>,
+  brief: Record<string, any>): Promise<WebsiteJobNoGrantWait> {
+  if (record.site_task_scope?.supported === false) return "site";
+  if (multiStepTaskHold(brief as never)) return "site";
+  const walkthrough = await savedWalkthrough(siteWalkthroughIdentity(requestId, record));
+  if (!walkthrough) throw new Error("website_job_no_grant_recording_status_unavailable");
+  return walkthrough.received ? "blueprint" : "site";
+}
+
+const sameClock = (a: WebsiteJobNoGrantClock | null, b: WebsiteJobNoGrantClock | null) => JSON.stringify(a) === JSON.stringify(b);
+/** When the ops monitor pages a wait on Blueprint: the existing stuck bound, and never later than half the window. */
+const noGrantPageDueMs = (clock: WebsiteJobNoGrantClock) =>
+  clock.since_epoch * 1000 + Math.min(stuckAlertMs(), clock.window_seconds * 500);
+
+/**
+ * Keeps the clock of one job that never received a grant, and ends the job once the clock has run as
+ * long as a grant's window would. `observed` is the job record when the caller has just read it.
+ */
+export async function sweepWebsiteJobNoGrant(requestId: string, nowMs = Date.now(),
+  observed?: Record<string, any>): Promise<JobNoGrantSweepResult> {
+  if (!db) throw new Error("website_job_window_sweep_store_unavailable");
+  const store = db;
+  const nowEpoch = Math.floor(nowMs / 1000);
+  const jobRef = store.collection(JOBS).doc(requestId);
+  observed ??= (await jobRef.get()).data();
+  const early = noGrantSkip(observed, requestId);
+  if (early) return early;
+  const brief = await noGrantJobBrief(requestId);
+  if (!brief) return "not_a_job";
+  const outcome = await storedOutcome(requestId, observed!);
+  if (outcome) return outcome as JobNoGrantSweepResult;
+  const waitingOn = await noGrantWaitingOn(requestId, observed!, brief);
+  const observedClock = websiteJobNoGrantClock(observed, requestId);
+  const restart = !observedClock || observedClock.waiting_on !== waitingOn;
+  if (!restart && observedClock!.since_epoch + observedClock!.window_seconds > nowEpoch) return "waiting";
+  // No backfill. The first time the sweep sees a job, a job that had already waited a whole window
+  // since its latest site activity would have ended before this change: it is ended now, with no
+  // email and no page. A job whose stored times cannot be read is taken as old, never as new.
+  const windowSeconds = websiteJobWindowSeconds();
+  const latestActivity = observedClock ? undefined : await latestSiteActivityEpoch(requestId, observed!);
+  const backfill: WebsiteJobNoGrantEndingNotice | null = latestActivity === undefined ? null
+    : latestActivity === null ? "none_age_unknown"
+    : nowEpoch - latestActivity >= windowSeconds ? "none_waited_before_this_change" : null;
+  const noticeRef = store.collection(CAPTURE_OUTBOX_COLLECTION).doc(websiteJobNoGrantEndedNoticeKey(requestId));
+  return store.runTransaction<JobNoGrantSweepResult>(async transaction => {
+    // Every read comes before the writes; a grant, withdrawal or closure that landed since still counts.
+    const record = (await transaction.get(jobRef)).data();
+    const skip = noGrantSkip(record, requestId);
+    if (skip) return skip;
+    if (!sameClock(websiteJobNoGrantClock(record, requestId), observedClock)) return "changed";
+    if (backfill) {
+      transaction.update(jobRef, { [WEBSITE_JOB_NO_GRANT_ENDING_FIELD]: sealWebsiteJobNoGrantEnding({ request_id: requestId,
+        waiting_on: waitingOn, waiting_since_epoch: latestActivity ?? nowEpoch, ended_at_epoch: nowEpoch,
+        recorded_at_iso: new Date(nowMs).toISOString(), notice: backfill }), [WEBSITE_JOB_NO_GRANT_PAGE_DUE_FIELD]: null });
+      return "ended_no_notice";
+    }
+    if (restart) {
+      const clock = newWebsiteJobNoGrantClock({ request_id: requestId, waiting_on: waitingOn, since_epoch: nowEpoch,
+        window_seconds: windowSeconds });
+      transaction.update(jobRef, { [WEBSITE_JOB_NO_GRANT_CLOCK_FIELD]: clock,
+        [WEBSITE_JOB_NO_GRANT_PAGE_DUE_FIELD]: waitingOn === "blueprint" ? noGrantPageDueMs(clock) : null });
+      return "clock_started";
+    }
+    const clock = observedClock!;
+    // The key is fixed by the job: an email already in the outbox, in any state, is never queued again.
+    const already = (await transaction.get(noticeRef)).exists;
+    let entry: ReturnType<typeof buildOutboxEntry> | null = null;
+    let notice: WebsiteJobNoGrantEndingNotice = "queued";
+    if (!already) {
+      let to: string;
+      try { to = String(await decryptFieldValue(record!.contact?.email ?? "")).trim(); }
+      catch {
+        if (nowEpoch - (clock.since_epoch + clock.window_seconds) < CONTACT_READ_GRACE_SECONDS) return "contact_unreadable";
+        to = "";
+      }
+      if (EMAIL.test(to)) {
+        const message = buildTaskLifecycleNotification({ requestId, milestone: "scene_outcome", to,
+          eventId: WEBSITE_JOB_NO_GRANT_ENDED_EVENT_ID, jobNoGrantEnded: clock.waiting_on,
+          workspaceUrl: typeof record!.account_owner_uid === "string" && record!.account_owner_uid
+            ? workspaceTaskUrl(requestId) : null });
+        if (message.idempotencyKey !== noticeRef.id) throw new Error("website_job_no_grant_ended_notice_key_mismatch");
+        entry = buildOutboxEntry(message);
+      } else {
+        notice = "none_no_contact_on_file";
+        logger.warn({ requestId }, "A job with no grant ended with no usable contact address; the job page still says so");
+      }
+    }
+    transaction.update(jobRef, { [WEBSITE_JOB_NO_GRANT_ENDING_FIELD]: sealWebsiteJobNoGrantEnding({ request_id: requestId,
+      waiting_on: clock.waiting_on, waiting_since_epoch: clock.since_epoch, ended_at_epoch: nowEpoch,
+      recorded_at_iso: new Date(nowMs).toISOString(), notice }), [WEBSITE_JOB_NO_GRANT_PAGE_DUE_FIELD]: null });
+    if (entry) transaction.create(noticeRef, entry);
+    return entry ? "ended_notice_queued" : "ended_no_notice";
+  });
+}
+
 export type JobWindowSweepSummary = { examined: number; ended: number; noticesQueued: number; failed: number };
 
 /**
- * One pass: a few granted jobs, in turn. The durable rotating cursor (`automationBatch`) is the
+ * One pass: a few granted jobs, in turn, then a few site jobs with no grant. The durable rotating cursor (`automationBatch`) is the
  * same one the other reconcilers use, so a job that cannot be read never starves the rest, and
  * every granted job is looked at again each rotation. One equality filter ordered by document
  * id, which the automatic single-field index serves: no composite index.
@@ -248,6 +445,26 @@ export async function sweepWebsiteJobWindows(options: { limit?: number; now?: ()
     } catch (error) {
       summary.failed += 1;
       logger.warn({ err: error, requestId: row.id }, "A job's window could not be checked; the next rotation reads it again");
+    }
+  }
+  // The same pass, over the site jobs that have no grant: its own rotating cursor over one plaintext
+  // equality filter (automatic index). A job with a grant is the turn above's and is not counted here.
+  const sites = db.collection(JOBS).where("request.buyerType", "==", "site_operator");
+  let waiting = await automationBatch(db, sites, NO_GRANT_CURSOR, limit);
+  if (!waiting.docs.length) waiting = await automationBatch(db, sites, NO_GRANT_CURSOR, limit);
+  for (const row of waiting.docs) {
+    if (row.data()?.website_scene_sponsorship) continue;
+    summary.examined += 1;
+    try {
+      const result = await sweepWebsiteJobNoGrant(row.id, (options.now ?? Date.now)(), row.data());
+      if (result === "ended_notice_queued" || result === "ended_no_notice") {
+        summary.ended += 1;
+        if (result === "ended_notice_queued") summary.noticesQueued += 1;
+        logger.info({ requestId: row.id, result }, "A job that never received a grant waited as long as a window lasts; the job was ended");
+      }
+    } catch (error) {
+      summary.failed += 1;
+      logger.warn({ err: error, requestId: row.id }, "A job with no grant could not be checked; the next rotation reads it again");
     }
   }
   return summary;
@@ -284,6 +501,32 @@ export async function websiteJobWindowEndingShown(requestId: string, idempotency
   const record = (await db.collection(JOBS).doc(requestId).get()).data();
   if (!record || record.capture_withdrawal || projectWebsiteCaptureRights(record).consent_revoked) return false;
   if (!(await endingStands(record))) return false;
+  const captureId = siteWalkthroughIdentity(requestId, record).captureId;
+  if (websiteRunClosure(record, requestId, captureId)) return false;
+  const [{ readWebsiteSceneProgression }, { loadSceneScreening }] = await Promise.all([
+    import("./websiteSceneProgression"), import("./agentEvalRuns")]);
+  if (resultOutranksWindowEnding({ screening: await loadSceneScreening(requestId),
+    sceneProgression: await readWebsiteSceneProgression(requestId, captureId) })) return false;
+  const told = await db.collection(CAPTURE_OUTBOX_COLLECTION).where("requestId", "==", requestId).get();
+  return !told.docs.some(row => row.id !== idempotencyKey
+    && ["evaluation_outcome", "scene_outcome"].includes(String(row.data()?.kind ?? ""))
+    && WENT_OUT.has(String(row.data()?.status ?? "")));
+}
+
+/** Whether an outbox key is a job's no-grant ending email. */
+export const isWebsiteJobNoGrantEndedNotice = isWebsiteJobNoGrantEndedNoticeKey;
+
+/**
+ * Whether a queued no-grant ending email still says what the job page says, read again at dispatch:
+ * the job still has no grant and its no-grant ending stands, no withdrawal or closure came since, no
+ * result outranks it, and no other outcome email has told the site where its job stands. Throws when
+ * it cannot be read, which leaves the claim recoverable rather than cancelling or sending it.
+ */
+export async function websiteJobNoGrantEndingShown(requestId: string, idempotencyKey: string): Promise<boolean> {
+  if (!db) return false;
+  const record = (await db.collection(JOBS).doc(requestId).get()).data();
+  if (!record || record.capture_withdrawal || projectWebsiteCaptureRights(record).consent_revoked) return false;
+  if (!recordedWebsiteJobNoGrantEnding(record, requestId)) return false;
   const captureId = siteWalkthroughIdentity(requestId, record).captureId;
   if (websiteRunClosure(record, requestId, captureId)) return false;
   const [{ readWebsiteSceneProgression }, { loadSceneScreening }] = await Promise.all([

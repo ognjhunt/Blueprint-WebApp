@@ -93,3 +93,94 @@ export function isWebsiteJobWindowEndedNoticeKey(requestId: string, idempotencyK
   const prefix = `${requestId.trim()}:scene_outcome:`;
   return idempotencyKey.startsWith(prefix) && WINDOW_ENDED_EVENT.test(idempotencyKey.slice(prefix.length));
 }
+
+/**
+ * A job that never received a grant has no window of its own. The same sweep keeps a clock for it
+ * on the job's record, started the first time the sweep sees the job waiting with no grant (so a job
+ * already waiting when this shipped starts its clock then, never at its creation), and restarted when
+ * the wait passes from the site to Blueprint. It runs for the length a grant's window would have
+ * (`websiteJobWindowSeconds`), fixed when the clock starts.
+ *
+ * - `site`: we never received a finished recording, or the job is held for a step only the site can
+ *   take (splitting a several-step task, or describing it in one sentence).
+ * - `blueprint`: the site has done its part and Blueprint has not issued the grant: our fault or a
+ *   money wait. The ops monitor pages before the job ends.
+ */
+export const WEBSITE_JOB_NO_GRANT_CLOCK_FIELD = "website_job_no_grant_clock";
+export const WEBSITE_JOB_NO_GRANT_ENDING_FIELD = "website_job_no_grant_ending";
+/** Top-level number so a single-field range query (automatic index) finds a wait due its page; null once paged. */
+export const WEBSITE_JOB_NO_GRANT_PAGE_DUE_FIELD = "website_job_no_grant_page_due_at_ms";
+export const WEBSITE_JOB_NO_GRANT_WAITS = ["site", "blueprint"] as const;
+export type WebsiteJobNoGrantWait = typeof WEBSITE_JOB_NO_GRANT_WAITS[number];
+
+const clockSchema = z.object({
+  schema_version: z.literal("website_job_no_grant_clock.v1"),
+  request_id: id,
+  waiting_on: z.enum(WEBSITE_JOB_NO_GRANT_WAITS),
+  since_epoch: z.number().int().positive(),
+  window_seconds: z.number().int().positive(),
+  /** When the ops monitor paged this wait; absent until it has. */
+  paged_at_iso: z.string().datetime().optional(),
+}).strict();
+export type WebsiteJobNoGrantClock = z.infer<typeof clockSchema>;
+
+/** The job's no-grant clock, or null: none started, it does not read, or it names another job. */
+export function websiteJobNoGrantClock(record: Record<string, any> | undefined, requestId: string): WebsiteJobNoGrantClock | null {
+  const parsed = clockSchema.safeParse(record?.[WEBSITE_JOB_NO_GRANT_CLOCK_FIELD]);
+  return parsed.success && parsed.data.request_id === requestId ? parsed.data : null;
+}
+export const newWebsiteJobNoGrantClock = (value: Omit<WebsiteJobNoGrantClock, "schema_version">): WebsiteJobNoGrantClock =>
+  clockSchema.parse({ schema_version: "website_job_no_grant_clock.v1", ...value });
+
+/** What became of a no-grant ending's one email when the ending was recorded. */
+export const WEBSITE_JOB_NO_GRANT_ENDING_NOTICES = [
+  "queued",
+  "none_no_contact_on_file",
+  /**
+   * No backfill: when the sweep first saw the job, it had already waited at least one window since
+   * its latest site activity, so it would have ended before this change. Recorded, never emailed or paged.
+   */
+  "none_waited_before_this_change",
+  /** No backfill: the job's own stored times could not be read when the sweep first saw it, so it is taken as old. */
+  "none_age_unknown",
+] as const;
+export type WebsiteJobNoGrantEndingNotice = typeof WEBSITE_JOB_NO_GRANT_ENDING_NOTICES[number];
+
+const noGrantEndingSchema = z.object({
+  schema_version: z.literal("website_job_no_grant_ending.v1"),
+  request_id: id,
+  waiting_on: z.enum(WEBSITE_JOB_NO_GRANT_WAITS),
+  waiting_since_epoch: z.number().int().positive(),
+  ended_at_epoch: z.number().finite().positive(),
+  recorded_at_iso: z.string().datetime(),
+  notice: z.enum(WEBSITE_JOB_NO_GRANT_ENDING_NOTICES),
+  ending_digest: sha,
+}).strict();
+export type WebsiteJobNoGrantEnding = z.infer<typeof noGrantEndingSchema>;
+
+export function sealWebsiteJobNoGrantEnding(value: Omit<WebsiteJobNoGrantEnding, "schema_version" | "ending_digest">): WebsiteJobNoGrantEnding {
+  const payload = { schema_version: "website_job_no_grant_ending.v1", ...value } as const;
+  return noGrantEndingSchema.parse({ ...payload, ending_digest: crossRuntimeArtifactDigest(payload, "ending_digest") });
+}
+
+/**
+ * The no-grant ending recorded for this job, or null: none was recorded, it does not read, or the
+ * job has a grant now. The job is named by `requestId`, or by the record's own `requestId` when it
+ * carries one. A grant issued later (the owner's fix of the wait) is the job's own window,
+ * which the window sweep ends; the no-grant ending then stops speaking for the job.
+ */
+export function recordedWebsiteJobNoGrantEnding(record: Record<string, any> | undefined,
+  requestId: string | undefined = typeof record?.requestId === "string" ? record.requestId : undefined): WebsiteJobNoGrantEnding | null {
+  if (!record || record.website_scene_sponsorship) return null;
+  const parsed = noGrantEndingSchema.safeParse(record[WEBSITE_JOB_NO_GRANT_ENDING_FIELD]);
+  return parsed.success && (requestId === undefined || parsed.data.request_id === requestId)
+    && matchesCrossRuntimeArtifactDigest(parsed.data, "ending_digest") ? parsed.data : null;
+}
+
+/** The no-grant ending's one email: a job outcome notice under a key fixed by the job alone. */
+export const WEBSITE_JOB_NO_GRANT_ENDED_EVENT_ID = "job_no_grant_ended";
+export const isWebsiteJobNoGrantEndedEventId = (eventId: unknown): eventId is string => eventId === WEBSITE_JOB_NO_GRANT_ENDED_EVENT_ID;
+export const websiteJobNoGrantEndedNoticeKey = (requestId: string) =>
+  `${requestId.trim()}:scene_outcome:${WEBSITE_JOB_NO_GRANT_ENDED_EVENT_ID}`;
+export const isWebsiteJobNoGrantEndedNoticeKey = (requestId: string, idempotencyKey: string) =>
+  idempotencyKey === websiteJobNoGrantEndedNoticeKey(requestId);

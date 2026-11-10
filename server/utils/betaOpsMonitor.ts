@@ -8,6 +8,11 @@ import { sendEmail } from "./email";
 import { appBaseUrl, opsNoticeRecipient, sweepIntakeOpsNotices } from "./intakeOpsNotice";
 import { sendRateLimitedOpsAlert } from "./opsProcessAlerts";
 import { readWorkerHeartbeat, type WorkerHeartbeatReading } from "./workerHeartbeat";
+import { recordedWebsiteJobNoGrantEnding, websiteJobNoGrantClock, WEBSITE_JOB_NO_GRANT_CLOCK_FIELD,
+  WEBSITE_JOB_NO_GRANT_PAGE_DUE_FIELD } from "./websiteJobWindowEnding";
+import { projectWebsiteCaptureRights } from "./websiteTaskContext";
+import { siteWalkthroughIdentity } from "./siteWalkthrough";
+import { websiteRunClosure } from "./websiteRunClosure";
 
 /**
  * The beta's in-process safety net. It runs in the WEB process by default,
@@ -26,7 +31,9 @@ import { readWorkerHeartbeat, type WorkerHeartbeatReading } from "./workerHeartb
  *  5. alerts when the background worker's heartbeat goes stale;
  *  6. alerts once per website capture whose preparation went quiet (no status
  *     since upload, or one state too long) or ended, and once per website
- *     scene that stopped after hand-off (websitePreparationOpsAlerts).
+ *     scene that stopped after hand-off (websitePreparationOpsAlerts);
+ *  7. alerts once per website job whose site did its part while no grant was
+ *     issued, well before the window sweep ends that job as held.
  */
 
 const CAPTURE_OUTBOX_COLLECTION = "captureOutbox";
@@ -324,6 +331,78 @@ export async function scanUnknownOutboxOutcomes(options: {
   return summary;
 }
 
+export type NoGrantWaitScanSummary = {
+  /** Waits due their page. "unknown" when the scan read a full page, so more may be due than it read. */
+  due: number | "unknown";
+  newlyAlerted: number;
+};
+type NoGrantStore = {
+  collection: (name: string) => {
+    where: (field: string, op: FirebaseFirestore.WhereFilterOp, value: unknown) => {
+      limit: (n: number) => { get: () => Promise<{ docs: Array<{ id: string }> }> };
+    };
+    doc: (id: string) => unknown;
+  };
+  runTransaction: <T>(action: (tx: any) => Promise<T>) => Promise<T>;
+};
+
+/**
+ * Page once per website job that waits on Blueprint with no grant (`websiteJobWindowSweep` starts the
+ * clock and sets the page's due time): a grant not issued is our fault or a money wait, and the sweep
+ * ends the job as held when the clock has run as long as a grant's window. Each due job is claimed in
+ * a transaction that clears its due time and records when it was paged, so it is paged once and leaves
+ * the query; a withdrawn job, one its owner closed, or one that has a grant or an ending since, is cleared without a page.
+ * Like the outbox alerts, the claim comes before the send.
+ */
+export async function scanWebsiteJobsWaitingOnGrant(options: ConditionAlertDeps & {
+  store?: NoGrantStore | null;
+  limit?: number;
+} = {}): Promise<NoGrantWaitScanSummary> {
+  const store = options.store === undefined ? (dbAdmin as unknown as NoGrantStore | null) : options.store;
+  if (!store) return { due: 0, newlyAlerted: 0 };
+  const now = options.now || Date.now;
+  const limit = Math.max(1, Math.min(options.limit ?? 50, 200));
+  const rows = (await store.collection("inboundRequests").where(WEBSITE_JOB_NO_GRANT_PAGE_DUE_FIELD, "<=", now())
+    .limit(limit).get()).docs;
+  const paged: Array<{ requestId: string; sinceIso: string; endsIso: string }> = [];
+  for (const row of rows) {
+    const ref = store.collection("inboundRequests").doc(row.id);
+    try {
+      const claimed = await store.runTransaction(async tx => {
+        const record = (await tx.get(ref)).data() as Record<string, any> | undefined;
+        const due = record?.[WEBSITE_JOB_NO_GRANT_PAGE_DUE_FIELD];
+        if (!record || typeof due !== "number" || due > now()) return null;
+        const clock = websiteJobNoGrantClock(record, row.id);
+        const owed = clock?.waiting_on === "blueprint" && !clock.paged_at_iso && !record.website_scene_sponsorship
+          && !record.capture_withdrawal && !projectWebsiteCaptureRights(record).consent_revoked && !recordedWebsiteJobNoGrantEnding(record, row.id)
+          // A run its owner closed is stopped on purpose: nothing is owed and nobody is asked to restart it.
+          && !websiteRunClosure(record, row.id, siteWalkthroughIdentity(row.id, record).captureId);
+        tx.update(ref, { [WEBSITE_JOB_NO_GRANT_PAGE_DUE_FIELD]: null,
+          ...(owed ? { [WEBSITE_JOB_NO_GRANT_CLOCK_FIELD]: { ...clock, paged_at_iso: new Date(now()).toISOString() } } : {}) });
+        return owed ? clock : null;
+      });
+      if (claimed) paged.push({ requestId: row.id, sinceIso: new Date(claimed.since_epoch * 1000).toISOString(),
+        endsIso: new Date((claimed.since_epoch + claimed.window_seconds) * 1000).toISOString() });
+    } catch (error) {
+      logger.warn({ err: error, requestId: row.id }, "Could not claim a no-grant wait page; the next pass reads it again");
+    }
+  }
+  const due = rows.length >= limit ? "unknown" as const : rows.length;
+  if (!paged.length) return { due, newlyAlerted: 0 };
+  const title = `${paged.length} website job(s) are waiting on a grant Blueprint has not issued`;
+  const lines = paged.slice(0, 10).map(item => `- ${item.requestId}: the site did its part by ${item.sinceIso}; `
+    + `with no grant the job ends as held at ${item.endsIso}. ${appBaseUrl()}/admin/leads/${encodeURIComponent(item.requestId)}`);
+  const more = paged.length > 10 ? [`- …and ${paged.length - 10} more`] : [];
+  const text = [`:rotating_light: Blueprint: ${title}`, ...lines, ...more,
+    "A grant that is not issued is ours to fix (the sponsorship policy, a money wait, or the Pipeline's request)."].join("\n");
+  logger.error({ event: "website_job_no_grant_wait", count: paged.length, requestIds: paged.map(item => item.requestId) }, title);
+  await Promise.resolve((options.alert || sendRateLimitedOpsAlert)(`website_job_no_grant_wait:${paged[0].requestId}`, text))
+    .catch(() => undefined);
+  await (options.email || sendEmail)({ to: opsNoticeRecipient(), subject: `[ALERT] ${title}`,
+    text: text.replace(/^:rotating_light: /, "") }).catch(() => undefined);
+  return { due, newlyAlerted: paged.length };
+}
+
 async function checkLaunchReadiness() {
   const [{ buildLaunchReadinessSnapshot }, { maybeAlertOnLaunchReadinessTransition }] = await Promise.all([
     import("./launch-readiness"),
@@ -355,12 +434,14 @@ export async function runBetaOpsMonitorPass() {
     // 6. website captures whose preparation went quiet or ended (beta L3/L6).
     scanWebsitePreparations(),
     scanUnknownOutboxOutcomes(),
+    // 7. website jobs whose site did its part while no grant was issued.
+    scanWebsiteJobsWaitingOnGrant(),
   ]);
   for (const [index, result] of results.entries()) {
     if (result.status === "rejected") {
       logger.warn(
         { err: result.reason, step: ["intake_notice_sweep", "outbox_failure_scan", "readiness_check", "outbox_backlog_scan",
-          "worker_heartbeat_check", "website_preparation_scan", "outbox_unknown_scan"][index] },
+          "worker_heartbeat_check", "website_preparation_scan", "outbox_unknown_scan", "website_job_no_grant_scan"][index] },
         "Beta ops monitor step failed",
       );
     }

@@ -72,6 +72,9 @@ export async function taskLifecycleNotificationIsCurrent(
   const ending=await import('./websiteJobWindowSweep');
   if(ending.isWebsiteJobWindowEndedNotice(entry.requestId,entry.idempotencyKey))
    return ending.websiteJobWindowEndingShown(entry.requestId,entry.idempotencyKey);
+  // A job that never received a grant ends the same way, under its own fixed key.
+  if(ending.isWebsiteJobNoGrantEndedNotice(entry.requestId,entry.idempotencyKey))
+   return ending.websiteJobNoGrantEndingShown(entry.requestId,entry.idempotencyKey);
   const notices=await import('./sceneOutcomeNotifications');
   return notices.sceneOutcomeShown(entry.requestId,entry.idempotencyKey);
  }
