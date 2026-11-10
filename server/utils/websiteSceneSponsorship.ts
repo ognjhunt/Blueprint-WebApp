@@ -240,6 +240,19 @@ export async function websiteJobWorkWindow(record: Record<string, any> | undefin
     ...(recordedWebsiteJobWindowEnding(record) ? { endingRecorded: true as const } : {}) };
 }
 
+/**
+ * The host asked to read a job's grant, or to reserve spend under it, and the job has none. When the
+ * job's no-grant ending is recorded (`websiteJobWindowSweep`), the answer says the job has ended, by
+ * that ending: the Pipeline then ends its own preparation as it does for `consent_expired`. Otherwise
+ * it is today's `website_scene_sponsorship_missing`. Only answers that never create a grant use it, so a
+ * grant issued later (which the ending stops speaking for) still reopens the job.
+ */
+export const WEBSITE_JOB_NO_GRANT_ENDED_CODE = "website_scene_job_no_grant_ended";
+function noGrantRefusal(record: Record<string, any>, requestId: string): Error {
+  return new Error(recordedWebsiteJobNoGrantEnding(record, requestId) ? WEBSITE_JOB_NO_GRANT_ENDED_CODE
+    : "website_scene_sponsorship_missing");
+}
+
 export function websiteSceneSponsorship(input: {
   requestId: string; brief: SiteTaskBriefRecord; record: Record<string, any>; now: number;
   inventory?: TaskItemInventoryRecord | null; captureId?: string; captureBinding?: Record<string, any>;
@@ -459,7 +472,7 @@ export async function loadWebsiteSceneSponsorship(requestId: string, create = fa
     if (!request.exists || !brief.exists) throw new Error("task_brief_missing");
     await assertWebsiteCaptureBindingInTransaction(transaction, requestId, captureBinding);
     const record = request.data()!;
-    if (!create && !record.website_scene_sponsorship) throw new Error("website_scene_sponsorship_missing");
+    if (!create && !record.website_scene_sponsorship) throw noGrantRefusal(record, requestId);
     const purpose = options ? options.purpose : !create ? retainedWebsiteScenePurpose(record) : undefined;
     const executionWindowUntil = !create && options?.honour_execution_window === true
       && record.website_scene_sponsorship_execution_window
@@ -1054,7 +1067,7 @@ export async function reserveWebsitePreparationSpend(requestId: string, input: z
     await assertWebsiteCaptureBindingInTransaction(transaction, requestId, captureBinding);
     const record = request.data()!;
     assertWebsiteRunOpen(record, requestId, captureId);
-    if (!record.website_scene_sponsorship && !automaticAtlas) throw new Error("website_scene_sponsorship_missing");
+    if (!record.website_scene_sponsorship && !automaticAtlas) throw noGrantRefusal(record, requestId);
     // Reservations never create a grant; only atlas-configuration does.
     const atlas = atlasRequested ? (await resolveWebsiteAtlasGrant({
       requestId, captureId, taskContextDigest: command.task_context_digest,
@@ -1107,7 +1120,7 @@ export async function reserveWebsitePreparationSpend(requestId: string, input: z
         throw new Error("provider_terms_not_configured_or_changed");
       auxiliaryConsentDigest = atlas!.authorization_digest;
     } else if (atlas && ["meta", "google"].includes(command.provider)) {
-      if (!record.website_scene_sponsorship) throw new Error("website_scene_sponsorship_missing");
+      if (!record.website_scene_sponsorship) throw noGrantRefusal(record, requestId);
       const auxiliary = websiteSceneSponsorship({ requestId, record, purpose: retainedWebsiteScenePurpose(record),
         brief: brief.data() as SiteTaskBriefRecord, inventory: inventory.exists ? inventory.data() as TaskItemInventoryRecord : null,
         captureId, captureBinding, now: Date.now() / 1000 });
