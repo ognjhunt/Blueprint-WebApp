@@ -6,8 +6,9 @@
  * audit named is live: the state write lands, the send is lost, and there is
  * nothing to retry from. The outbox writes the intent durably and delivers
  * separately. These tests pin the two properties that make it worth having:
- * enqueuing twice is one message, and a failed send retries until it is spent
- * rather than forever or never.
+ * enqueuing twice is one message, and a failed send retries after a backoff
+ * rather than forever or never. capture-outbox-retry.test.ts drives the retry
+ * schedule, the provider idempotency window and the alerts over hours.
  */
 import { AsyncLocalStorage } from "node:async_hooks";
 import { createHash } from "node:crypto";
@@ -42,6 +43,7 @@ vi.mock("../utils/email", () => ({ sendEmail: sendEmailMock }));
 
 const { deliverOutbox, enqueueOutbox, reconcileOutboxDeliveries, startOutboxPump } = await import("../utils/captureOutbox");
 const { enqueueAccountNotice, assessAccountNoticeRecipient, renderAccountNotice } = await import("../utils/accountNotice");
+const { providerIdempotencyKey } = await import("../utils/captureOutboxRetry");
 
 function entry(overrides: Record<string, unknown> = {}) {
   return {
@@ -66,10 +68,12 @@ describe("account notices use authoritative account eligibility", () => {
   it("delivers the reviewed account address once with the same hello identity and branding", async () => {
     const preview = renderAccountNotice(notice, recipient());
     sendEmailMock.mockResolvedValue({ sent: true, provider: "resend", messageId: "accepted-notice" });
-    expect(await enqueueAccountNotice(notice, recipient())).toMatchObject({ enqueued: true, status: "pending" });
+    const queued = await enqueueAccountNotice(notice, recipient());
+    expect(queued).toMatchObject({ enqueued: true, status: "pending" });
     expect(await enqueueAccountNotice(notice, recipient())).toMatchObject({ enqueued: false, status: "pending" });
     await deliverOutbox(); await deliverOutbox();
-    expect(sendEmailMock).toHaveBeenCalledExactlyOnceWith(preview);
+    // The reviewed preview, plus the provider idempotency key of this row.
+    expect(sendEmailMock).toHaveBeenCalledExactlyOnceWith({ ...preview, idempotencyKey: providerIdempotencyKey(queued.idempotencyKey) });
     expect(preview).toMatchObject({ fromEmail: "hello@tryblueprint.io", fromName: "Blueprint", replyTo: "hello@tryblueprint.io" });
     expect(preview.html).toContain('src="https://tryblueprint.io/brand/email-mark.png"');
   });
@@ -114,7 +118,13 @@ describe("account notices use authoritative account eligibility", () => {
   });
 });
 
-afterEach(() => { vi.restoreAllMocks(); vi.unstubAllEnvs(); });
+afterEach(() => { vi.restoreAllMocks(); vi.unstubAllEnvs(); vi.useRealTimers(); });
+
+/** Move the clock without touching timers: the next try of a row is due by wall time. */
+function later(ms: number) {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(Date.now() + ms);
+}
 
 beforeEach(() => {
   vi.stubEnv("IS_PULL_REQUEST", "false");
@@ -257,7 +267,7 @@ describe("the claim digest of existing notices", () => {
 });
 
 describe("a failed send retries, then gives up", () => {
-  it("stays pending and counts the attempt when a send fails", async () => {
+  it("stays pending, counts the attempt and waits out a backoff when a send fails", async () => {
     sendEmailMock.mockResolvedValue({ sent: false, provider: null, messageId: null, error: new Error("smtp down") });
     await enqueueOutbox(entry());
 
@@ -268,24 +278,26 @@ describe("a failed send retries, then gives up", () => {
     expect(doc.status).toBe("pending");
     expect(doc.attempts).toBe(1);
     expect(doc.lastError).toMatch(/smtp down/);
+    expect(doc.nextAttemptAtMs).toBeGreaterThan(Date.now());
+    // The next pass is too soon: the row is not examined again yet.
+    expect((await deliverOutbox()).examined).toBe(0);
+    expect(sendEmailMock).toHaveBeenCalledOnce();
   });
 
-  it("marks the message failed once its retries are spent, and stops", async () => {
-    sendEmailMock.mockResolvedValue({ sent: false, provider: null, messageId: null, error: new Error("bad address") });
+  it("marks the message failed at once when the provider refuses it for good, and stops", async () => {
+    sendEmailMock.mockResolvedValue({ sent: false, provider: "resend", messageId: null, outcome: "not_sent",
+      failure: "permanent", error: new Error("bad address") });
     await enqueueOutbox(entry());
 
-    // Six attempts is the cap. Deliver until it is exhausted.
-    let exhausted = false;
-    for (let i = 0; i < 8 && !exhausted; i += 1) {
-      const summary = await deliverOutbox();
-      exhausted = summary.exhausted > 0;
-    }
+    expect(await deliverOutbox()).toMatchObject({ exhausted: 1 });
 
     const doc = sharedFakeFirestoreState.docs.get("captureOutbox/req-1:brief_confirmed") as Record<string, unknown>;
-    expect(doc.status).toBe("failed");
+    expect(doc).toMatchObject({ status: "failed", attempts: 1, lastError: "bad address" });
     // And a further pass does not keep trying a failed message.
+    later(2 * 60 * 60 * 1000);
     const after = await deliverOutbox();
     expect(after.examined).toBe(0);
+    expect(sendEmailMock).toHaveBeenCalledOnce();
   });
 
   it("recovers a message that fails once and then succeeds", async () => {
@@ -295,6 +307,7 @@ describe("a failed send retries, then gives up", () => {
     await enqueueOutbox(entry());
 
     await deliverOutbox();
+    later(61_000);
     const second = await deliverOutbox();
 
     expect(second.sent).toBe(1);
@@ -306,8 +319,10 @@ describe("a failed send retries, then gives up", () => {
 const row = () => sharedFakeFirestoreState.docs.get("captureOutbox/req-1:brief_confirmed") as any;
 const microtasks = async (count: number) => { for (let i = 0; i < count; i++) await Promise.resolve(); };
 
-describe("delivery recovery never replays an ambiguous effect", () => {
-  it.each(["unknown", "throw"])("quarantines %s without another send", async mode => {
+describe("delivery recovery replays an ambiguous effect only with the same provider key", () => {
+  const sentKeys = () => sendEmailMock.mock.calls.map(([options]) => options.idempotencyKey);
+
+  it.each(["unknown", "throw"])("keeps %s unknown, and sends it again only after its backoff and with the same key", async mode => {
     await enqueueOutbox(entry());
     sendEmailMock.mockImplementation(async () => {
       if (mode === "throw") throw new Error("connection lost");
@@ -316,9 +331,13 @@ describe("delivery recovery never replays an ambiguous effect", () => {
     await deliverOutbox(); await deliverOutbox();
     expect(row()).toMatchObject({ status: "unknown", attempts: 1 });
     expect(sendEmailMock).toHaveBeenCalledTimes(1);
+    later(61_000);
+    await deliverOutbox();
+    expect(row()).toMatchObject({ status: "unknown", attempts: 2 });
+    expect(sentKeys()).toEqual(Array(2).fill(providerIdempotencyKey("req-1:brief_confirmed")));
   });
 
-  it("preserves dispatch uncertainty when the acceptance write fails", async () => {
+  it("preserves dispatch uncertainty when the acceptance write fails, and re-sends only with the same key", async () => {
     await enqueueOutbox(entry());
     const original = db.runTransaction.bind(db);
     const spy = vi.spyOn(db, "runTransaction").mockImplementation(async (callback: any) => original(async (tx: any) => callback({
@@ -328,25 +347,52 @@ describe("delivery recovery never replays an ambiguous effect", () => {
       },
     })));
     sendEmailMock.mockResolvedValue({ sent: true, provider: "resend", messageId: "accepted" });
-    await expect(deliverOutbox()).rejects.toThrow("acknowledgement write unavailable");
+    // The row's own failure is contained: the pass itself completes.
+    await expect(deliverOutbox()).resolves.toMatchObject({ examined: 1, sent: 0 });
     spy.mockRestore();
     expect(row()).toMatchObject({ status: "dispatching", attempts: 1 });
     row().deliveryLeaseUntilMs = Date.now() - 1;
     await deliverOutbox(); await deliverOutbox();
     expect(row().status).toBe("unknown");
     expect(sendEmailMock).toHaveBeenCalledTimes(1);
+    // The provider answers the repeat of an accepted key with its first answer.
+    later(61_000);
+    await deliverOutbox();
+    expect(row()).toMatchObject({ status: "sent", attempts: 2, deliveryMessageId: "accepted" });
+    expect(sentKeys()).toEqual(Array(2).fill(providerIdempotencyKey("req-1:brief_confirmed")));
+  });
+
+  it("defers a row whose dispatch marker cannot be written, without spending an attempt", async () => {
+    await enqueueOutbox(entry());
+    const original = db.runTransaction.bind(db);
+    const spy = vi.spyOn(db, "runTransaction").mockImplementation(async (callback: any) => original(async (tx: any) => callback({
+      ...tx, set: (ref: any, data: any, options: any) => {
+        if (data.status === "dispatching") throw new Error("dispatch marker unavailable");
+        return tx.set(ref, data, options);
+      },
+    })));
+    await expect(deliverOutbox()).resolves.toMatchObject({ examined: 1, failed: 1 });
+    spy.mockRestore();
+    expect(row()).toMatchObject({ status: "pending", attempts: 0, deliveryDeferrals: 1, lastError: "delivery_check_unavailable" });
+    expect(sendEmailMock).not.toHaveBeenCalled();
+    sendEmailMock.mockResolvedValue({ sent: true, provider: "resend", messageId: "accepted" });
+    later(61_000);
+    await deliverOutbox();
+    expect(row()).toMatchObject({ status: "sent", attempts: 1 });
+    expect(sendEmailMock).toHaveBeenCalledTimes(1);
   });
 
   it("recovers a crash before dispatch without spending an attempt", async () => {
     await enqueueOutbox(entry());
     const original = db.runTransaction.bind(db);
+    // The process stops after its claim: neither the marker nor the deferral is written.
     const spy = vi.spyOn(db, "runTransaction").mockImplementation(async (callback: any) => original(async (tx: any) => callback({
       ...tx, set: (ref: any, data: any, options: any) => {
-        if (data.status === "dispatching") throw new Error("crash before dispatch");
+        if (data.status !== "claimed") throw new Error("crash before dispatch");
         return tx.set(ref, data, options);
       },
     })));
-    await expect(deliverOutbox()).rejects.toThrow("crash before dispatch");
+    await deliverOutbox();
     spy.mockRestore();
     expect(row()).toMatchObject({ status: "claimed", attempts: 0 });
     expect(sendEmailMock).not.toHaveBeenCalled();
@@ -473,12 +519,13 @@ describe("seeded concurrent delivery schedules", () => {
           await microtasks(next() % 19);
           await deliverOutbox();
         })));
-        expect(calls, `seed ${seed}`).toBeGreaterThan(0);
-        expect(calls, `seed ${seed}`).toBeLessThanOrEqual(mode === 3 ? 2 : 1);
+        // Sixteen overlapping passes make one provider call: a refused or
+        // unknown try waits out its backoff before any pass may try again.
+        expect(calls, `seed ${seed}`).toBe(1);
         expect(row().attempts, `seed ${seed}`).toBe(initialAttempts + calls);
-        expect(row().attempts, `seed ${seed}`).toBeLessThanOrEqual(6);
         expect(row().status, `seed ${seed}`).toBe(mode === 1 || mode === 2 ? "unknown"
-          : mode === 3 && initialAttempts === 5 ? "failed" : "sent");
+          : mode === 3 ? "pending" : "sent");
+        if (mode !== 0 && mode !== 4) expect(row().nextAttemptAtMs, `seed ${seed}`).toBeGreaterThan(Date.now());
         traces.add(createHash("sha256").update(trace.join(",")).digest("hex"));
       } finally { spy.mockRestore(); }
     }

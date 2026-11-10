@@ -8,6 +8,7 @@ import { maybeAlertOnLaunchReadinessTransition } from "../utils/ops-alerts";
 import { probeTaskEvaluationLaunchStore } from "../utils/taskEvaluationLaunchStore";
 import { adminRoleDocFallbackStatus } from "../utils/access-control";
 import { readWorkerHeartbeat, type WorkerHeartbeatReading } from "../utils/workerHeartbeat";
+import { readOutboxStall, type OutboxStallReading } from "../utils/captureOutboxHealth";
 
 const router = Router();
 
@@ -82,6 +83,33 @@ router.get("/health/worker", async (_req: Request, res: Response) => {
     status: reading.status,
     age_seconds: reading.ageMs === null ? null : Math.round(reading.ageMs / 1000),
     stale_after_seconds: Math.round(reading.staleAfterMs / 1000),
+    timestamp: new Date(nowMs).toISOString(),
+  });
+});
+
+/**
+ * Whether customer email is moving, from the outbox itself rather than from
+ * this process's own alerting. 200 while the oldest undelivered email is
+ * younger than the stall threshold; 503 when it is older, or when the outbox
+ * cannot be read. The payload is one age and one threshold: no recipient,
+ * request or count leaves the outbox. The external uptime probe
+ * (scripts/ops/uptime-probe.mjs) fails on a 503 body from here. One read is
+ * shared for a minute, so probing costs a few small Firestore queries a minute
+ * at most.
+ */
+let outboxStallCache: { atMs: number; reading: Promise<OutboxStallReading> } | null = null;
+const OUTBOX_STALL_CACHE_MS = 60_000;
+
+router.get("/health/outbox", async (_req: Request, res: Response) => {
+  const nowMs = Date.now();
+  if (!outboxStallCache || nowMs - outboxStallCache.atMs > OUTBOX_STALL_CACHE_MS) {
+    outboxStallCache = { atMs: nowMs, reading: readOutboxStall() };
+  }
+  const reading = await outboxStallCache.reading;
+  res.status(reading.status === "moving" ? 200 : 503).json({
+    status: reading.status,
+    oldest_undelivered_age_seconds: reading.oldestUndeliveredAgeMs === null ? null : Math.round(reading.oldestUndeliveredAgeMs / 1000),
+    stalled_after_seconds: Math.round(reading.stalledAfterMs / 1000),
     timestamp: new Date(nowMs).toISOString(),
   });
 });

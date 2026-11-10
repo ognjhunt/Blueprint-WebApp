@@ -69,15 +69,22 @@ describe("source/context preparation notice uses existing durable outbox", () =>
     expect(seam.authority.mock.calls.at(-1)?.[2]).toBeDefined();
     expect(seam.send).not.toHaveBeenCalled();
   });
-  it("PREP-NOTICE-005 unknown read keeps pre-dispatch claim recoverable", async () => {
+  it("PREP-NOTICE-005 unknown read defers the row with a backoff, spends no attempt, and delivers once readable", async () => {
+    const row = () => sharedFakeFirestoreState.docs.get(`captureOutbox/${key}`) as any;
     await enqueueTaskLifecycleNotification(params); seam.unavailable = true;
-    await expect(deliverOutbox()).rejects.toThrow("website_preparation_unavailable");
-    const row = sharedFakeFirestoreState.docs.get(`captureOutbox/${key}`) as any;
-    expect(row).toMatchObject({status: "claimed", attempts: 0});
+    // The pass completes: the Pipeline being unreachable for this row stops no other row.
+    await expect(deliverOutbox()).resolves.toMatchObject({examined: 1, sent: 0, failed: 1});
+    expect(row()).toMatchObject({status: "pending", attempts: 0, deliveryDeferrals: 1, lastError: "delivery_check_unavailable"});
+    expect(row().nextAttemptAtMs).toBeGreaterThan(Date.now());
     expect(seam.send).not.toHaveBeenCalled();
-    row.deliveryLeaseUntilMs = 0; seam.unavailable = false;
+    seam.unavailable = false;
+    // Not before its backoff.
     await reconcileOutboxDeliveries(); await deliverOutbox();
+    expect(seam.send).not.toHaveBeenCalled();
+    row().nextAttemptAtMs = Date.now() - 1;
+    await deliverOutbox();
     expect(seam.send).toHaveBeenCalledTimes(1);
+    expect(row()).toMatchObject({status: "sent", attempts: 1});
   });
   it("PREP-NOTICE-006 binds new event identity while retaining historical message digests", async () => {
     await enqueueTaskLifecycleNotification(params); await deliverOutbox();
@@ -109,9 +116,9 @@ describe("source/context preparation notice uses existing durable outbox", () =>
   });
   it("PREP-NOTICE-009 recipient read/decrypt uncertainty stays recoverable without send", async () => {
     await enqueueTaskLifecycleNotification(params); seam.decryptUnavailable = true;
-    await expect(deliverOutbox()).rejects.toThrow();
+    await deliverOutbox();
     expect(seam.send).not.toHaveBeenCalled();
-    expect(sharedFakeFirestoreState.docs.get(`captureOutbox/${key}`)).toMatchObject({status: "claimed", attempts: 0});
+    expect(sharedFakeFirestoreState.docs.get(`captureOutbox/${key}`)).toMatchObject({status: "pending", attempts: 0, deliveryDeferrals: 1});
   });
 });
 

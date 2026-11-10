@@ -72,6 +72,49 @@ describe("health routes", () => {
     }
   });
 
+  it("answers 503 for the outbox when it cannot be read", async () => {
+    const { server, baseUrl } = await startServer();
+    try {
+      const response = await fetch(`${baseUrl}/health/outbox`);
+      expect(response.status).toBe(503);
+      expect(await response.json()).toMatchObject({ status: "unavailable", oldest_undelivered_age_seconds: null, stalled_after_seconds: 7200 });
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  it("answers for the outbox with one age and one threshold, 200 while moving and 503 once stalled, from one shared read", async () => {
+    const reading = { status: "moving", oldestUndeliveredAgeMs: 61_400 as number | null, stalledAfterMs: 7_200_000 };
+    const readOutboxStall = vi.fn(async () => ({ ...reading }));
+    vi.doMock("../utils/captureOutboxHealth", () => ({ readOutboxStall }));
+    const { server, baseUrl } = await startServer();
+    try {
+      const [first, second] = await Promise.all([fetch(`${baseUrl}/health/outbox`), fetch(`${baseUrl}/health/outbox`)]);
+      expect(first.status).toBe(200);
+      const payload = await first.json();
+      // Nothing of a site, a request or a message: one status, one age, one threshold.
+      expect(Object.keys(payload).sort()).toEqual(["oldest_undelivered_age_seconds", "stalled_after_seconds", "status", "timestamp"]);
+      expect(payload).toMatchObject({ status: "moving", oldest_undelivered_age_seconds: 61, stalled_after_seconds: 7200 });
+      expect(second.status).toBe(200);
+      expect(readOutboxStall).toHaveBeenCalledTimes(1);
+    } finally {
+      await stopServer(server);
+      vi.doUnmock("../utils/captureOutboxHealth");
+    }
+    vi.resetModules();
+    reading.status = "stalled"; reading.oldestUndeliveredAgeMs = 9_000_000;
+    vi.doMock("../utils/captureOutboxHealth", () => ({ readOutboxStall }));
+    const stalled = await startServer();
+    try {
+      const response = await fetch(`${stalled.baseUrl}/health/outbox`);
+      expect(response.status).toBe(503);
+      expect(await response.json()).toMatchObject({ status: "stalled", oldest_undelivered_age_seconds: 9000 });
+    } finally {
+      await stopServer(stalled.server);
+      vi.doUnmock("../utils/captureOutboxHealth");
+    }
+  });
+
   it("reports the hosted session live-store backend in health status", async () => {
     const { server, baseUrl } = await startServer();
     try {

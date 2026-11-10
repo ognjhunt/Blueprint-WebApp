@@ -15,16 +15,70 @@ interface SendEmailOptions {
   sendGridCategories?: string[];
   sendGridCustomArgs?: Record<string, string>;
   attachments?: Attachment[];
+  /**
+   * Sent to Resend as the `Idempotency-Key` header (1 to 256 characters).
+   * Resend keeps a key for 24 hours and answers a repeat of the same request
+   * with its first answer instead of sending again; the same key with a
+   * different body is refused (409 invalid_idempotent_request).
+   * Source: https://resend.com/docs/dashboard/emails/idempotency-keys, read
+   * 2026-11-10; the installed SDK (resend 6.28.1) sets the header from
+   * `emails.send(payload, { idempotencyKey })`.
+   */
+  idempotencyKey?: string;
 }
+
+/**
+ * How a failed send may be followed up.
+ * - transient: refused, nothing was sent; the same request can succeed later.
+ * - permanent: refused, nothing was sent; the same request would be refused again.
+ * - unknown: the email may have been sent. Only a repeat that carries the same
+ *   idempotency key, inside the provider's window, cannot send it twice.
+ */
+export type EmailFailureClass = "transient" | "permanent" | "unknown";
 
 export type SendEmailResult = {
   sent: boolean;
   provider: "resend" | null;
   messageId: string | null;
   error?: unknown;
-  /** Absent on legacy callers; unknown never authorizes an automatic retry. */
+  /** Absent on legacy callers; unknown never authorizes a retry without the same idempotency key. */
   outcome?: "not_sent" | "unknown";
+  /** Set on every failed Resend send, from RESEND_FAILURE_TABLE. */
+  failure?: EmailFailureClass;
 };
+
+/**
+ * The one table of how a failed Resend send is classified. The first matching
+ * row wins. `status` and `name` are the `statusCode` and `name` of Resend's
+ * error body (https://resend.com/docs/api-reference/errors); the SDK reports a
+ * network failure or an unreadable answer with no status.
+ */
+export const RESEND_FAILURE_TABLE: ReadonlyArray<{
+  answer: string;
+  failure: EmailFailureClass;
+  matches: (status: number | null, name: string, message: string) => boolean;
+}> = [
+  { answer: "409 concurrent_idempotent_requests: the first request with this key is still running",
+    failure: "unknown", matches: (_status, name) => name === "concurrent_idempotent_requests" },
+  { answer: "429 rate limit, daily or monthly quota; 409 resource_locked",
+    failure: "transient", matches: (status, name) => status === 429 || name === "resource_locked" },
+  { answer: "401, 403, or an invalid API key: the account, key or sending domain is at fault, not this message",
+    failure: "transient", matches: (status, _name, message) => status === 401 || status === 403
+      || (status === 400 && /api key/i.test(message)) },
+  { answer: "408, 5xx, no status (network error, timeout), or anything that is not a 4xx refusal",
+    failure: "unknown", matches: status => status === null || status === 408 || status < 400 || status >= 500 },
+  { answer: "any other 4xx: invalid recipient, rejected payload, or a key already used with a different message",
+    failure: "permanent", matches: () => true },
+];
+
+export function classifyResendFailure(
+  error: { statusCode?: unknown; name?: unknown; message?: unknown } | null | undefined,
+): EmailFailureClass {
+  const status = typeof error?.statusCode === "number" && Number.isFinite(error.statusCode) ? error.statusCode : null;
+  const name = String(error?.name || "");
+  const message = String(error?.message || "");
+  return RESEND_FAILURE_TABLE.find(row => row.matches(status, name, message))!.failure;
+}
 
 const EMAIL_PATTERN = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
 
@@ -270,6 +324,7 @@ async function sendViaResend({
   sendGridCategories,
   sendGridCustomArgs,
   attachments,
+  idempotencyKey,
 }: SendEmailOptions): Promise<SendEmailResult> {
   const config = getResendConfig();
   if (!config.configured) {
@@ -287,14 +342,14 @@ async function sendViaResend({
       html,
       attachments,
       tags: resendTags(sendGridCategories, sendGridCustomArgs),
-    });
+    }, idempotencyKey ? { idempotencyKey } : undefined);
     if (error || !data?.id) {
       // The SDK converts transport exceptions to error objects with a null
       // statusCode. Only an explicit 4xx rejection proves non-acceptance;
       // 5xx, an unreadable response, and missing receipts remain ambiguous.
       const status = error?.statusCode;
-      const rejected = typeof status === "number" && status >= 400 && status < 500
-        && status !== 408;
+      const failure = classifyResendFailure(error);
+      const rejected = failure !== "unknown";
       const quota = isResendQuotaError(error);
       if (quota) reportResendQuotaExhausted(String(error?.name || "quota_exceeded"));
       logger.error({
@@ -307,10 +362,11 @@ async function sendViaResend({
             : rejected ? "provider_rejected" : "provider_acknowledgement_unavailable",
         providerStatus: typeof status === "number" ? status : null,
         outcome: rejected ? "not_sent" : "unknown",
+        failure,
       }, "Failed to send email via Resend");
       return { sent: false, provider: "resend", messageId: null,
         error: new Error(`Resend rejected email: ${error?.message || "missing email ID"}`),
-        outcome: rejected ? "not_sent" : "unknown" };
+        outcome: rejected ? "not_sent" : "unknown", failure };
     }
 
     logger.info(
@@ -352,7 +408,7 @@ async function sendViaResend({
       },
       "Failed to send email via Resend",
     );
-    return { sent: false, provider: "resend", messageId: null, error, outcome: "unknown" };
+    return { sent: false, provider: "resend", messageId: null, error, outcome: "unknown", failure: "unknown" };
   }
 }
 
@@ -478,6 +534,7 @@ export async function sendEmail(options: SendEmailOptions): Promise<SendEmailRes
     sendGridCategories,
     sendGridCustomArgs,
     attachments,
+    idempotencyKey,
   } = redirect.redirectedFrom
     ? {
         ...options,
@@ -520,5 +577,6 @@ export async function sendEmail(options: SendEmailOptions): Promise<SendEmailRes
     sendGridCategories,
     sendGridCustomArgs,
     attachments,
+    idempotencyKey,
   });
 }

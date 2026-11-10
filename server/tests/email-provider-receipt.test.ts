@@ -56,6 +56,57 @@ describe("email provider receipts", () => {
     expect(await sendEmail({ to: "team@example.com", subject: "s", text: "b" }))
       .toMatchObject({ sent: false, provider: "resend", messageId: null, outcome });
   });
+  it.each([
+    // The rows of RESEND_FAILURE_TABLE, by Resend's documented error bodies.
+    [429, "rate_limit_exceeded", "Too many requests.", "transient", "not_sent"],
+    [429, "daily_quota_exceeded", "You have exceeded your daily email sending quota.", "transient", "not_sent"],
+    [401, "validation_error", "API key is invalid", "transient", "not_sent"],
+    [400, "validation_error", "API key is invalid", "transient", "not_sent"],
+    [403, "validation_error", "The example.com domain is not verified.", "transient", "not_sent"],
+    [409, "resource_locked", "Another request is already updating this resource.", "transient", "not_sent"],
+    [422, "validation_error", "Invalid `to` field.", "permanent", "not_sent"],
+    [400, "validation_error", "An error was found with one or more fields in the request.", "permanent", "not_sent"],
+    [404, "not_found", "The requested endpoint does not exist.", "permanent", "not_sent"],
+    [409, "invalid_idempotent_request", "the request body was modified and doesn't match the original request.", "permanent", "not_sent"],
+    [409, "concurrent_idempotent_requests", "There is another request in progress with the same idempotency key.", "unknown", "unknown"],
+    [408, "application_error", "timeout", "unknown", "unknown"],
+    [500, "application_error", "An unexpected error occurred.", "unknown", "unknown"],
+    [503, "service_unavailable", "API is temporarily unavailable", "unknown", "unknown"],
+  ])("classifies Resend %i %s (%s) as %s", async (statusCode, name, message, failure, outcome) => {
+    process.env.RESEND_API_KEY = "re_test_key";
+    process.env.RESEND_FROM_EMAIL = "noreply@tryblueprint.io";
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ statusCode, name, message }), { status: statusCode })));
+    const { sendEmail, classifyResendFailure } = await import("../utils/email");
+    expect(classifyResendFailure({ statusCode, name, message })).toBe(failure);
+    expect(await sendEmail({ to: "team@example.com", subject: "s", text: "b" }))
+      .toMatchObject({ sent: false, provider: "resend", messageId: null, failure, outcome });
+  });
+  it("classifies an answer with no status, and a thrown transport error, as unknown", async () => {
+    process.env.RESEND_API_KEY = "re_test_key";
+    process.env.RESEND_FROM_EMAIL = "noreply@tryblueprint.io";
+    const { sendEmail, classifyResendFailure } = await import("../utils/email");
+    expect(classifyResendFailure(null)).toBe("unknown");
+    expect(classifyResendFailure({ message: "rejected" })).toBe("unknown");
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("connection reset"); }));
+    expect(await sendEmail({ to: "team@example.com", subject: "s", text: "b" })).toMatchObject({ sent: false, failure: "unknown", outcome: "unknown" });
+  });
+  it("sends an idempotency key as Resend's Idempotency-Key header, outside the message body, and none unless asked", async () => {
+    process.env.RESEND_API_KEY = "re_test_key";
+    process.env.RESEND_FROM_EMAIL = "noreply@tryblueprint.io";
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ id: "email-123" }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const { sendEmail } = await import("../utils/email");
+    const message = { to: "team@example.com", subject: "Result ready", text: "Open your result." };
+    await sendEmail({ ...message, idempotencyKey: "capture-outbox/abc123" });
+    await sendEmail({ ...message, idempotencyKey: "capture-outbox/abc123" });
+    await sendEmail(message);
+    const requests = fetchMock.mock.calls.map(call => (call as unknown as [string, RequestInit])[1]);
+    expect(requests.map(request => new Headers(request.headers).get("Idempotency-Key")))
+      .toEqual(["capture-outbox/abc123", "capture-outbox/abc123", null]);
+    // Resend refuses a repeated key whose body differs, so the key must never change the body.
+    expect(requests[0].body).toBe(requests[2].body);
+    expect(String(requests[0].body)).not.toContain("abc123");
+  });
   it("returns a Resend acceptance ID and passes sender, reply-to, and correlation tags", async () => {
     process.env.RESEND_API_KEY = "re_test_key";
     process.env.RESEND_FROM_EMAIL = "noreply@tryblueprint.io";
