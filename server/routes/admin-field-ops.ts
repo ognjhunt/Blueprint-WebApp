@@ -9,7 +9,6 @@ import {
   listFieldOpsCaptureJobs,
   listFinanceQueue,
   listRescheduleQueue,
-  processSimpleReschedule,
   runCapturerReminderLoop,
   runManualReviewWatchdogLoop,
   saveSiteAccessContact,
@@ -313,44 +312,6 @@ router.post(
       return res.status(500).json({
         error:
           error instanceof Error ? error.message : "Failed to send capturer communication",
-      });
-    }
-  },
-);
-
-router.post(
-  "/bookings/:bookingId/reschedule",
-  requireOps,
-  async (req: Request, res: Response) => {
-    try {
-      const bookingId = req.params.bookingId?.trim();
-      const requestedDate =
-        typeof req.body?.requested_date === "string" ? req.body.requested_date.trim() : "";
-      const requestedTime =
-        typeof req.body?.requested_time === "string" ? req.body.requested_time.trim() : "";
-
-      if (!bookingId || !requestedDate || !requestedTime) {
-        return res.status(400).json({ error: "Missing booking id, requested_date, or requested_time" });
-      }
-
-      const result = await processSimpleReschedule({
-        bookingId,
-        requestedDate,
-        requestedTime,
-        requestedBy:
-          req.body?.requested_by === "capturer"
-            ? "capturer"
-            : req.body?.requested_by === "operator"
-              ? "operator"
-              : "buyer",
-        reason: typeof req.body?.reason === "string" ? req.body.reason : null,
-        triggeredBy: await operatorEmail(res),
-      });
-
-      return res.json(result);
-    } catch (error) {
-      return res.status(500).json({
-        error: error instanceof Error ? error.message : "Failed to process reschedule",
       });
     }
   },
