@@ -55,6 +55,12 @@ npm start
 
 The repo now includes [render.yaml](/Users/nijelhunt_1/workspace/Blueprint-WebApp/render.yaml) for the primary alpha deployment path.
 
+- Node: 22.x. `.nvmrc` is the one pin. Both workflows read it
+  (`node-version-file: .nvmrc`), `package.json` repeats it as `engines.node`,
+  and Render's native Node runtime reads either file unless a `NODE_VERSION`
+  environment variable is set on the service (the dashboard value is not
+  visible from this repo). `functions/` declares Node 22 on its own
+  (`functions/package.json`, `firebase.json`).
 - Build command: `npm ci && npm run build`
 - Web start command: `npm start`
 - Independent production worker start command: `NODE_ENV=production node dist/worker.js`.
@@ -198,9 +204,8 @@ Launch-critical note:
 
 ### Storage Provider
 - `BLUEPRINT_STORAGE_PROVIDER=firebase` keeps client uploads on Firebase Storage.
-- `VITE_BLUEPRINT_STORAGE_PROVIDER=firebase` should match the public client build when Firebase Storage is active.
-- `BLUEPRINT_STORAGE_PROVIDER=backblaze` switches protected browser uploads through `/api/storage/uploads` and stores objects in Backblaze B2.
-- `VITE_BLUEPRINT_STORAGE_PROVIDER=backblaze` switches the client upload helper from direct Firebase Storage SDK writes to the protected server route.
+- `BLUEPRINT_STORAGE_PROVIDER=backblaze` makes the server route `/api/storage/uploads` store objects in Backblaze B2 (`server/utils/storage-provider.ts`).
+- `VITE_BLUEPRINT_STORAGE_PROVIDER` is listed in `render.required.env.example`, but no file under `client/src` or `server` reads it. The client has no switch that sends uploads to `/api/storage/uploads`; setting the variable changes nothing.
 
 Backblaze B2 server env, required only when the provider is `backblaze`:
 - `BACKBLAZE_B2_KEY_ID`

@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "type": "module",
   "license": "MIT",
+  "engines": {
+    "node": "22.x"
+  },
   "scripts": {
     "email:account-notice": "tsx scripts/email/account-notice.ts",
     "dev": "tsx watch --clear-screen=false --exclude vite.config.ts.* server/index.ts",
