@@ -47,8 +47,10 @@ export async function reconcileSceneOutcomeNotifications(limit = 20): Promise<vo
       continue;
     }
     try {
-      // The site already heard its job's evaluation outcome: no second email.
-      const superseded = await screeningOutcomeNoticeSent(intent.request_id);
+      // The site already heard its job's evaluation outcome, or the job's window ending is on
+      // record (told once from the cutover on, never for an earlier one): no second email.
+      const superseded = await screeningOutcomeNoticeSent(intent.request_id)
+        || await (await import("./websiteJobWindowSweep")).websiteJobWindowEndingRecorded(intent.request_id);
       // Refused while recording permission is withdrawn or no contact is on file: the intent stays pending.
       if (!superseded) await enqueueTaskLifecycleNotification({ requestId: intent.request_id, milestone: "scene_outcome",
         eventId: intent.event_id, sceneOutcomeKind: intent.kind });
@@ -92,5 +94,7 @@ export async function sceneOutcomeShown(requestId: string, idempotencyKey: strin
     import("./websiteSceneProgression"), import("./siteWalkthrough")]);
   const shown = (await readWebsiteSceneProgression(requestId, siteWalkthroughIdentity(requestId, record).captureId))?.sceneOutcome;
   if (!shown?.terminal || shown.kind !== named.kind || shown.digest !== named.digest) return false;
+  // A window ending on record is the job's one ending: the job page states it, not this outcome.
+  if (await (await import("./websiteJobWindowSweep")).websiteJobWindowEndingRecorded(requestId)) return false;
   return !(await screeningOutcomeNoticeSent(requestId));
 }

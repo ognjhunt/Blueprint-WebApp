@@ -26,6 +26,9 @@ const validateEnv = vi.hoisted(() => vi.fn(() => ({})));
 const stopWebsiteDeletions = vi.hoisted(() => vi.fn());
 const startWebsiteCaptureDeletionWorker = vi.hoisted(() => vi.fn(() => stopWebsiteDeletions));
 vi.mock("../utils/websiteCaptureDeletion", () => ({ startWebsiteCaptureDeletionWorker }));
+const stopWebsiteJobWindowSweep = vi.hoisted(() => vi.fn());
+const startWebsiteJobWindowSweepWorker = vi.hoisted(() => vi.fn(() => stopWebsiteJobWindowSweep));
+vi.mock("../utils/websiteJobWindowSweep", () => ({ startWebsiteJobWindowSweepWorker }));
 
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({ dbAdmin: null, default: {} }));
 vi.mock("../utils/opsAutomationScheduler", () => ({ startOpsAutomationScheduler }));
@@ -137,10 +140,13 @@ describe("worker entrypoint", () => {
     expect(startStripeWebhookQueueProcessor).not.toHaveBeenCalled();
     // Withdrawal storage deletion runs in the deployed launch-forward mode.
     expect(startWebsiteCaptureDeletionWorker).toHaveBeenCalledTimes(1);
+    // So does the window sweep that ends a job the Pipeline went quiet on.
+    expect(startWebsiteJobWindowSweepWorker).toHaveBeenCalledTimes(1);
 
     await handle.stop();
     expect(stopLaunchForwarder).toHaveBeenCalledTimes(1);
     expect(stopWebsiteDeletions).toHaveBeenCalledTimes(1);
+    expect(stopWebsiteJobWindowSweep).toHaveBeenCalledTimes(1);
     expect(stopCompanyPolicyOutbox).toHaveBeenCalledTimes(1);
   });
 });
