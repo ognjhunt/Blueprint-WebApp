@@ -36,7 +36,7 @@ const REASONS: Record<string, string> = {
   beta_screening_waiting_for_control: "Waiting to confirm this job can still run.",
   beta_screening_transport_retry_cap_exhausted: "Not run: we could not confirm this job can still run. This is ours to fix.",
   beta_screening_static_preflight_blocked: "Could not start in our simulator. This is ours to fix.",
-  beta_screening_replanned_for_new_implementation: "Continued in a newer run after a Blueprint update.",
+  beta_screening_replanned_for_new_implementation: "Continued in a newer run.",
   beta_screening_native_result_missing_or_invalid: NO_USABLE_RESULT,
   beta_screening_native_result_missing: NO_RESULT_UNTYPED,
   beta_screening_native_result_invalid: NO_USABLE_RESULT,

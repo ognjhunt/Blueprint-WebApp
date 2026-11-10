@@ -228,7 +228,7 @@ const HELD_BLOCKERS = new Set(["task_kind_not_supported_by_candidate", "candidat
  * later failed is never held: that is ours to fix and rerun.
  */
 const UNPREPARED_BLOCKERS = new Set(["prepared_robot_policy_registration_missing", "runtime_candidate_binding_missing"]);
-/** Rows the Pipeline closed when it planned them again in a newer run after a deploy. */
+/** Rows the Pipeline closed when it planned them again in a newer run (after a deploy, or on its own retry timer). */
 export const SCREENING_REPLANNED_BLOCKER = "beta_screening_replanned_for_new_implementation";
 /**
  * Rows preparation refused because a deploy changed the code they were planned
@@ -340,7 +340,7 @@ export function screeningOutcome(publication: Pick<BetaPolicyScreeningPublicatio
   // A run whose candidates finished with no scored episode has no estimate to show.
   const finished = publication.status === "completed" && scored === 0 ? "blocked" : publication.status;
   if (finished !== "completed" && finished !== "blocked") return null;
-  // Rows planned again in a newer run after a deploy: with nothing scored here,
+  // Rows planned again in a newer run (after a deploy, or on a retry timer): with nothing scored here,
   // the newer run is the one to read (owner decision 2026-10-31).
   if (scored === 0 && publication.candidates.some(row => row.blockers.includes(SCREENING_REPLANNED_BLOCKER))) return "superseded";
   if (finished === "completed") return screeningEstimateRows(publication.candidates).length ? "estimate" : "reference_only";
@@ -412,7 +412,7 @@ const SCREENING_OUTCOME_SENTENCE: Readonly<Record<ScreeningOutcome, string>> = {
   // An internal limit is Blueprint's own control, never a step for the site, and is never named.
   awaiting_spend_approval: "Blueprint is deciding whether to continue simulating your job.",
   setup_repair: SETUP_REPAIR_SENTENCE,
-  superseded: "Continued in a newer run after a Blueprint update.",
+  superseded: "Continued in a newer run.",
 };
 /** Outcomes that still wait on Blueprint, so they say until when Blueprint can keep working on the job. */
 const WAITING_OUTCOMES: ReadonlySet<ScreeningOutcome> = new Set(["awaiting_spend_approval", "setup_repair"]);
