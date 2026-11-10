@@ -23,7 +23,7 @@ describe("current source-bound preparation projection", () => {
   });
   it.each([
     ["awaiting_inputs", "needs more information"],
-    ["authority_ended", "on hold"],
+    ["authority_ended", "This job has ended"],
     ["unavailable", "could not verify"],
   ])("%s remains visible without brief confirmation and does not claim success", (state, phrase) => {
     const status = projectTaskStatus({ ...base, briefConfirmed: false,

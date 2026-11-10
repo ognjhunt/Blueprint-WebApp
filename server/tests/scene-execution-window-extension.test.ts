@@ -171,4 +171,18 @@ describe("effective expiry readers", () => {
     expect(sponsorshipExecutionWindowUntil(grant, { ...job, website_scene_sponsorship_execution_window: {
       ...job.website_scene_sponsorship_execution_window, expires_at_epoch: RAW + 30 * 86400 } }, current)).toBeUndefined();
   });
+
+  it("WP-14 says until when Blueprint can keep working on the job: its grant, its one extension, or no date", async () => {
+    await send(notice());
+    const { websiteJobWorkWindow } = await import("../utils/websiteSceneSponsorship");
+    const job = row("inboundRequests/job-one"), before = RAW - 60;
+    // The grant alone.
+    expect(await websiteJobWorkWindow({ ...job, website_scene_sponsorship_execution_window: undefined }, before))
+      .toEqual({ untilEpoch: RAW, ended: false });
+    // The owner's one allowed extension, verified against its intake.
+    expect(await websiteJobWorkWindow(job, before)).toEqual({ untilEpoch: RAW + 6 * 86400, ended: false });
+    // No grant, or a window already past: no date, never a guess.
+    expect(await websiteJobWorkWindow({ ...job, website_scene_sponsorship: undefined }, before)).toEqual({ untilEpoch: null, ended: false });
+    expect((await websiteJobWorkWindow(job, RAW + 7 * 86400)).untilEpoch).toBeNull();
+  });
 });

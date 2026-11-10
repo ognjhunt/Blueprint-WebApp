@@ -1694,7 +1694,7 @@ describe("development-only Atlas 3D preview", () => {
     const viewed = await (await api("/tasks/task-1", "site-1")).json();
     expect(viewed.atlasPreview).toMatchObject({ state: "ready", downloadAvailable: false });
     expect(viewed.readiness.decision).not.toBe("preview_ready");
-    expect(viewed.readiness.headline).toMatch(nativeState === "authority_ended" ? /authorization/i : /could not finish processing/i);
+    expect(viewed.readiness.headline).toMatch(nativeState === "authority_ended" ? /no longer authorized/i : /could not finish processing/i);
     expect(viewed.readiness.operatorAction).toBeNull();
     expect(viewed.results).toEqual([]);
   });

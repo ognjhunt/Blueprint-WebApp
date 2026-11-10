@@ -22,6 +22,7 @@
  * persistence, Cloud Storage and ID-token verification, outbound email
  * delivery, Slack, analytics, model calls and the privacy screen's model step.
  */
+import { FOOTAGE_BEFORE_ACCOUNT_SENTENCE } from "../utils/taskPreparationOutcome";
 import express from "express";
 import { createServer, type Server } from "node:http";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -300,6 +301,9 @@ describe("a job whose video arrived before its account", () => {
     expect(notices(jobId, "footage_before_account")).toHaveLength(1);
     expect(notices(jobId, "footage_before_account")[0].body).not.toMatch(/\bsave\b.*account|verify.*email|confirm.*brief/i);
     expect(notices(jobId, "footage_before_account")[0].body).toContain("Follow the same job:");
+    // WP-14: the email and the job page read one sentence, and nothing sends a later email, so none is promised.
+    expect(notices(jobId, "footage_before_account")[0].body.startsWith(FOOTAGE_BEFORE_ACCOUNT_SENTENCE)).toBe(true);
+    expect(notices(jobId, "footage_before_account")[0].body).not.toMatch(/we email you|when that changes/i);
     const { taskLifecycleNotificationIsCurrent } = await import("../utils/taskLifecycleNotificationAuthority");
     const currentNotice = { requestId: jobId, kind: "footage_before_account" as const,
       body: notices(jobId, "footage_before_account")[0].body };

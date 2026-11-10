@@ -139,7 +139,7 @@ it("does not claim cancellation when Pipeline has not acknowledged it", async ()
 
 it("keeps the operator's instruction, raw codes and the shared budget in the operations view only", async () => {
   await open({ managedEvidence: [{ runId: "setup-repair", state: "setup_repair", outcome: "setup_repair", current: true,
-    resultDigest: "sha256:setup", summary: "Simulation evaluation in progress. We'll run your job again and show the estimate here.",
+    resultDigest: "sha256:setup", summary: "Simulation evaluation of your job has not finished: a Blueprint update stopped it before it gave an estimate. If a later run gives an estimate, it will show here.",
     nextAction: "Nothing is needed from you.",
     opsNextAction: "Fix the setup blockers listed per candidate, then rerun. Nothing is needed from the site.",
     limitations: [], href: "#managed-evidence-setup-repair", screening: {

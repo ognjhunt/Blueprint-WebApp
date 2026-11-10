@@ -229,7 +229,7 @@ it("never shows a site raw codes, budget figures, operator instructions or a ref
     planned: 3, scored, succeeded: scored ? 2 : 0, failed: scored ? 1 : 0, void: 0, blockers });
   const budget = { limitUsd: "15.00", committedUpperBoundUsd: "4.25", spentUpperBoundUsd: "4.25", reservedUsd: "0" };
   const repair = { runId: "setup-repair", state: "setup_repair", outcome: "setup_repair" as const, current: true, resultDigest: "sha256:setup",
-    summary: "Simulation evaluation in progress. We'll run your job again and show the estimate here.",
+    summary: "Simulation evaluation of your job has not finished: a Blueprint update stopped it before it gave an estimate. If a later run gives an estimate, it will show here.",
     nextAction: "Nothing is needed from you.",
     // An older or misconfigured server could still send these; the site page never shows them.
     opsNextAction: "Fix the setup blockers listed per candidate, then rerun. Nothing is needed from the site.",
