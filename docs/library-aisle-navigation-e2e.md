@@ -180,6 +180,32 @@ Spend at 16:00Z:
 - Clean plate $0.69 and intake inference $1.06, unchanged.
 - Total: about $15.55 of the $115 ceiling.
 
+## 11-09 16:00Z to 11-10 04:00Z: the second splat, a flat corridor floor, and two stops
+
+Owner words (CST in brackets):
+- "allow" (11-09 16:15Z, 10:15 AM): the windowed splat retry may cost up to $10.88 (expected $6.56).
+- "flatten the corridor floor, go ahead - shouldnt we make this a rule in our harness?" (20:01Z, 2:01 PM).
+- "go with option A for the disk cleanup" (20:50Z, 2:50 PM).
+
+| What | Where | Result |
+|---|---|---|
+| π0.5 runs 4 and 5 | Pipeline #3503, #3506 | Run 4 (16:09Z, about $0.92): no C compiler on the machine, so the policy was never queried. The compiler fix was merged but not yet deployed; that ordering was the library session's mistake. Run 5 (17:23Z, about $0.74): a 9.35 GB model download stalled once with no resume. Downloads now resume. No episode from either |
+| Second splat | Pipeline #3502 | World Labs accepted the pose from the moving footage only (85 views, 8.08–17.44 s). Splat and mesh published 19:14:51Z as `797ab5aa…`, about $6.35. The owner saw it: "a lot better - still quite blurry" |
+| New jobs get the re-pose | Pipeline #3504 (live 17:10Z) | A new job whose first pose isn't refined re-poses once on the consistent window; its maximum Atlas cost includes that pose |
+| Corridor floor | Pipeline #3508, #3511, #3514, #3521 | The new start stood on scanned floor 6.5–9.4 cm above the levelled plane. Four levelling revisions (v9–v12) made the walked corridor's floor flat, cell by cell, and removed low steep pieces. Spawn check `clear` at the start and all four offsets after v12 (23:25Z) |
+| Disk | Pipeline #3510 | Option A: bundles of settled spent attempts sealed over two days ago are pruned. Available went from 5.16 GB to 11.03 GB |
+| Job cap (held, owner's decision) | campaign `screening-ac715863…` | Both policies deferred with `website_job_ceiling_insufficient`: the job's cap is $25, $23.37 is used, and a run reserves $4. Asked the owner about raising this job's cap; not answered, nothing widened |
+| Task shrank, then fixed | Pipeline #3524 (live 11-10 03:31Z) | After v12 the start moved to 0.51 m from the goal. An anchor now moves at most a quarter of the filmed path to clear obstacles; beyond that it is flagged and the spawn check decides. Start (2.890, 0.201), goal (0.115, 0.183), 2.77 m apart. `route_clearance.json` shows the "obstacles" along the route are walked floor 3–8 cm above the single floor height, an open $0 item |
+| Deploys | the door | `08371e4` 17:10:28Z, `8f32a2a` 20:37:02Z, `7723c8d` 21:31:04Z, `f05431e` 22:13:31Z, `53c97c1` 23:13:39Z, `19e409c` 11-10 03:31:17Z. Each on a quiet door under the 48-hour permission, with the G1 session told |
+
+Spend at 11-10 04:00Z:
+- G1: about $7.89 of the $30 site limit.
+- Atlas: about $14.78 of $25.
+- Clean plate $0.69 and intake inference $1.06, unchanged.
+- Total: about $24.40 of the $115 ceiling.
+
+Not yet shown: any walking episode on the flat floor. It waits on the owner's answer about the job cap and on the G1 session's re-check of the new packet.
+
 ## 14-step evidence matrix
 
 | # | Step | Status | Artifact | Cost | Time | Gap found |
