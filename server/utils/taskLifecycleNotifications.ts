@@ -27,7 +27,7 @@ import { preparationEndedSentence } from "./taskStatusProjection";
 import { EARLY_TASK_HOLD_DETAIL, EARLY_TASK_HOLD_SENTENCES, earlyTaskHoldOf, isEarlyTaskHoldReason,
   FOOTAGE_BEFORE_ACCOUNT_SENTENCE, JOB_WINDOW_ENDING_MESSAGE, JOB_WINDOW_ENDING_SUBJECT,
   type EarlyTaskHoldReason } from "./taskPreparationOutcome";
-import { WEBSITE_JOB_WINDOW_ENDED_EVENT_ID } from "./websiteJobWindowEnding";
+import { isWebsiteJobWindowEndedEventId } from "./websiteJobWindowEnding";
 import { selectWebsiteAtlasPreview } from "./websiteAtlasPreview";
 import { isScreeningResultOutcome, screeningEstimateCountSentence, screeningOutcomeSentence, storedScreeningOutcomeCaveat,
   type ScreeningOutcome, type ScreeningOutcomeCaveat } from "./betaPolicyScreeningContract";
@@ -286,7 +286,7 @@ export function buildTaskLifecycleNotification(params: {
   earlyTaskHold?: EarlyTaskHoldReason;
   /**
    * `scene_outcome` only: the job's window ran out and the WebApp's sweep ended it
-   * (`websiteJobWindowSweep`). Its event id is the fixed one, so a job gets one such email ever.
+   * (`websiteJobWindowSweep`). Its event id is the job's fixed one, or the one naming a later window end.
    */
   jobWindowEnded?: true;
 }): Parameters<typeof enqueueOutbox>[0] {
@@ -379,11 +379,11 @@ function sceneOutcomeDetail(params: { eventId?: string; sceneOutcomeKind?: Termi
 }
 
 /**
- * The job page's own sentence for a job the window sweep ended. Fixed text, and only under the
- * fixed event id and with no scene outcome kind, so no other notice can carry it.
+ * The job page's own sentence for a job the window sweep ended. Fixed text, and only under a
+ * window-ended event id and with no scene outcome kind, so no other notice can carry it.
  */
 function jobWindowEndedDetail(params: { eventId?: string; sceneOutcomeKind?: TerminalSceneOutcomeKind }): string {
-  if (params.eventId !== WEBSITE_JOB_WINDOW_ENDED_EVENT_ID || params.sceneOutcomeKind !== undefined) {
+  if (!isWebsiteJobWindowEndedEventId(params.eventId) || params.sceneOutcomeKind !== undefined) {
     throw new Error("job_window_ended_notice_invalid");
   }
   return JOB_WINDOW_ENDING_MESSAGE;

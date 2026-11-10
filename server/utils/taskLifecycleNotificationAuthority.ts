@@ -71,7 +71,7 @@ export async function taskLifecycleNotificationIsCurrent(
   // while the job page still states that ending and no other outcome email has gone out.
   const ending=await import('./websiteJobWindowSweep');
   if(ending.isWebsiteJobWindowEndedNotice(entry.requestId,entry.idempotencyKey))
-   return ending.websiteJobWindowEndingShown(entry.requestId);
+   return ending.websiteJobWindowEndingShown(entry.requestId,entry.idempotencyKey);
   const notices=await import('./sceneOutcomeNotifications');
   return notices.sceneOutcomeShown(entry.requestId,entry.idempotencyKey);
  }

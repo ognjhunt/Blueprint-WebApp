@@ -33,6 +33,8 @@ export const WEBSITE_JOB_WINDOW_ENDING_NOTICES = [
   "none_window_ended_before_cutover",
   /** No usable contact address is on file, so there is nobody to email. */
   "none_no_contact_on_file",
+  /** The email for this exact window end was cancelled before it was sent; nothing more can be queued for it. */
+  "none_cancelled_before_sending",
 ] as const;
 export type WebsiteJobWindowEndingNotice = typeof WEBSITE_JOB_WINDOW_ENDING_NOTICES[number];
 
@@ -71,9 +73,23 @@ export function recordedWebsiteJobWindowEnding(record: Record<string, any> | und
 
 /**
  * The ending's one email is a job outcome notice (`scene_outcome`, C-04: every job
- * ends in one terminal state and is told once), keyed by the job alone. The key is
- * the outbox document id, so a job can never be sent a second one.
+ * ends in one terminal state and is told once). The key is the outbox document id.
+ * A job's first ending uses the key fixed by the job alone. A later key exists only
+ * for an ending whose every earlier email was cancelled before it was sent (the
+ * window was reopened first): it names the window end it is for, so it is as
+ * deterministic as the first, and the sweep queues it only while no earlier one
+ * went out or still can.
  */
 export const WEBSITE_JOB_WINDOW_ENDED_EVENT_ID = "job_window_ended";
-export const websiteJobWindowEndedNoticeKey = (requestId: string) =>
-  `${requestId.trim()}:scene_outcome:${WEBSITE_JOB_WINDOW_ENDED_EVENT_ID}`;
+const WINDOW_ENDED_EVENT = /^job_window_ended(?:-[0-9]{1,12})?$/;
+export const isWebsiteJobWindowEndedEventId = (eventId: unknown): eventId is string =>
+  typeof eventId === "string" && WINDOW_ENDED_EVENT.test(eventId);
+export const websiteJobWindowEndedEventId = (windowEndedAtEpoch?: number) => windowEndedAtEpoch === undefined
+  ? WEBSITE_JOB_WINDOW_ENDED_EVENT_ID : `${WEBSITE_JOB_WINDOW_ENDED_EVENT_ID}-${Math.round(windowEndedAtEpoch)}`;
+export const websiteJobWindowEndedNoticeKey = (requestId: string, windowEndedAtEpoch?: number) =>
+  `${requestId.trim()}:scene_outcome:${websiteJobWindowEndedEventId(windowEndedAtEpoch)}`;
+/** Whether an outbox key is one of this job's window-ended emails. */
+export function isWebsiteJobWindowEndedNoticeKey(requestId: string, idempotencyKey: string): boolean {
+  const prefix = `${requestId.trim()}:scene_outcome:`;
+  return idempotencyKey.startsWith(prefix) && WINDOW_ENDED_EVENT.test(idempotencyKey.slice(prefix.length));
+}
