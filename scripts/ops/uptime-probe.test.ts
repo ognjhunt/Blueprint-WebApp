@@ -9,7 +9,7 @@ function site(responses: Record<string, Array<[number, string]>>) {
     calls.push(url);
     if (url.startsWith("https://hooks.example")) return { ok: true, status: 200, text: async () => "ok", body: init?.body };
     const path = new URL(url).pathname;
-    const queue = responses[path] || [[200, ""]];
+    const queue = responses[path] || [[200, path === "/health/outbox" ? '{"status":"moving"}' : ""]];
     const [status, body] = queue.length > 1 ? queue.shift()! : queue[0];
     return { ok: status === 200, status, text: async () => body };
   });
@@ -39,6 +39,41 @@ describe("uptime probe", () => {
     const up = site({ "/health": [[200, '"healthy"']], "/version.json": [[200, "git_sha"]], "/health/worker": [[200, '"fresh"']] });
     expect(await main(env, up.fetchImpl)).toBe(0);
     expect(up.calls.some((url) => url.startsWith("https://hooks.example"))).toBe(false);
+  });
+
+  describe("customer email outbox", () => {
+    const website = { "/health": [[200, '"healthy"']], "/version.json": [[200, "git_sha"]], "/health/worker": [[200, '"fresh"']] } as Record<string, Array<[number, string]>>;
+    const env = { UPTIME_BASE_URL: "https://site.example", UPTIME_ATTEMPTS: "1", UPTIME_RETRY_DELAY_MS: "0", SLACK_WEBHOOK_URL: "https://hooks.example/x" };
+
+    it.each([
+      [503, '{"status":"stalled","oldest_undelivered_age_seconds":9000,"stalled_after_seconds":7200}'],
+      [503, '{"status": "unavailable", "oldest_undelivered_age_seconds": null}'],
+      // An error that is not the endpoint's own answer is still not a healthy outbox.
+      [500, "Internal Server Error"],
+      [502, "<html><body>Bad Gateway</body></html>"],
+      [200, "<!doctype html><html><body><div id=\"root\"></div></body></html>"],
+      [200, '{"status":"stalled"}'],
+    ])("pages by name when the outbox answers %i %s", async (status, body) => {
+      vi.spyOn(console, "error").mockImplementation(() => undefined);
+      vi.spyOn(console, "log").mockImplementation(() => undefined);
+      const down = site({ ...website, "/health/outbox": [[status, body]] });
+      expect(await main(env, down.fetchImpl)).toBe(1);
+      const slack = down.fetchImpl.mock.calls.find(([url]) => String(url).startsWith("https://hooks.example"))!;
+      expect(JSON.parse(String(slack[1]?.body)).text).toBe(
+        `:rotating_light: Blueprint uptime probe failed for https://site.example: /health/outbox=HTTP_${status} (customer email undelivered too long, or the outbox is unreadable)`);
+    });
+
+    it.each([
+      ["a moving outbox", 200, '{"status":"moving","oldest_undelivered_age_seconds":61,"stalled_after_seconds":7200}', "OK /health/outbox (attempt 1)"],
+      // The web service before this endpoint is deployed answers 404 with its page shell.
+      ["a build without the endpoint", 404, "<!doctype html><html><body><div id=\"root\"></div></body></html>", "SKIP /health/outbox: HTTP 404, not served by this build yet"],
+    ])("passes for %s", async (_name, status, body, line) => {
+      const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
+      const up = site({ ...website, "/health/outbox": [[status, body]] });
+      expect(await main(env, up.fetchImpl)).toBe(0);
+      expect(up.calls).toContain("https://site.example/health/outbox");
+      expect(log.mock.calls.map(([text]) => text)).toContain(line);
+    });
   });
 
   describe("control-plane host", () => {

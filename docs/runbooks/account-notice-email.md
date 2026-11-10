@@ -108,9 +108,12 @@ when retrying; an existing matching intent is returned with its current status.
 Changed copy under an existing key is rejected, and no replacement is written.
 Do not invent a new ID to work around a sent or unknown result. The existing
 outbox owns concurrency, dispatch receipts, bounded retries, and ambiguous
-provider outcomes. Inspect `captureOutbox/<idempotencyKey>` and its
+provider outcomes (an unknown outcome is sent again only with the same provider
+idempotency key, inside the provider's 24-hour window). Inspect
+`captureOutbox/<idempotencyKey>` and its
 `deliveryReceipts` using the established authorized Firestore read/export path.
-If retries exhaust, the existing beta monitor's alert includes this exact
+If a notice fails, or its outcome stays unknown and it is no longer sent
+automatically, the existing beta monitor's alert includes this exact
 Firestore document path and directs inspection of `deliveryReceipts`. Account
 notices have no inbound lead; the alert does not link to `/admin/leads/`.
 An enqueued record or provider acceptance is not evidence of inbox delivery.

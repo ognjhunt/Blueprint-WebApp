@@ -1,5 +1,6 @@
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { buildOutboxEntry, CAPTURE_OUTBOX_COLLECTION, type OutboxStatus } from "./captureOutbox";
+import { rowAwaitsDelivery } from "./captureOutboxRetry";
 import { EMAIL_SIGN_OFF, emailGreeting } from "./emailLayout";
 import { robotTeamAccountInvitation } from "./accountInvitations";
 import type { RobotTeamAccessRecord } from "./robotTeamEarlyAccess";
@@ -160,8 +161,10 @@ export async function prepareAccessEmail(transaction: FirebaseFirestore.Transact
     const outboxStatus = ["pending", "claimed", "dispatching", "unknown", "sent", "failed", "cancelled", "review_required"]
       .includes(row.status) ? row.status as OutboxStatus : null;
     return {
+      // Queued is every state the pump still delivers by itself, including an
+      // unknown outcome that is being sent again with its provider key.
       notification: { status: legacyUnverified ? "needs_attention" : outboxStatus === "sent" ? "sent"
-        : outboxStatus && ["pending", "claimed", "dispatching"].includes(outboxStatus) ? "queued" : "needs_attention",
+        : outboxStatus && rowAwaitsDelivery(row, Date.now()) ? "queued" : "needs_attention",
       outboxStatus, outboxId: existingOutboxId },
       write: () => undefined,
     };

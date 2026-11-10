@@ -81,11 +81,12 @@ async function tracked(c: QueueCase, run: () => Promise<void>) {
     traceResults.push({ caseId: c.id, semanticHash: c.hash, status, error, elapsedMs: performance.now() - begin,
       layer: c.layer, codeSha: baseSha, promptVersion: null, providerCalls: mocks.send.mock.calls.length,
       descriptionCalls: mocks.description.mock.calls.length,
-      providerFaultReached: c.family === "provider_failures" ? mocks.send.mock.calls.length === 1 : null, documents,
+      providerFaultReached: c.family === "provider_failures" ? mocks.send.mock.calls.length >= 1 : null, documents,
       traceDigest: createHash("sha256").update(JSON.stringify(documents)).digest("hex") });
   }
 }
 const cases = (family: string) => queueCases.filter(c => c.family === family);
+const sentKeys = () => mocks.send.mock.calls.map(([options]) => options.idempotencyKey);
 
 describe("frozen queue cases: successor ordering", () => {
   it.each(cases("ordering"))("$id", c => tracked(c, async () => {
@@ -105,6 +106,16 @@ describe("frozen queue cases: successor ordering", () => {
     await deliverOutbox(); await deliverOutbox();
     expect(row().status).toBe(terminal ? c.parameters.mutation : "unknown");
     expect(mocks.send).toHaveBeenCalledTimes(1);
+    // Once its backoff has passed, the uncertain effect is replayed only under
+    // the provider key of the first dispatch. A terminal row is never replayed.
+    row().nextAttemptAtMs = Date.now() - 1;
+    await deliverOutbox();
+    // A successor that names another request has no current consent on record:
+    // the check at dispatch ends its re-sending and the row stays unknown.
+    const unauthorised = c.parameters.mutation === "requestId";
+    expect(mocks.send).toHaveBeenCalledTimes(terminal || unauthorised ? 1 : 2);
+    if (unauthorised) expect(row()).toMatchObject({ status: "unknown", deliveryRetryEnded: "notice_not_current" });
+    expect(new Set(sentKeys()).size).toBe(1);
   }));
 });
 
@@ -165,16 +176,29 @@ describe("frozen queue cases: storage boundaries", () => {
       })));
       restoreFault = () => fault.mockRestore();
     }
-    await expect(deliverOutbox()).rejects.toThrow(/fixture/);
+    // A dependency that fails before any row is read fails the pass. A failure
+    // inside one row is contained to that row, and the pass completes.
+    if (["cursor_read", "cursor_write", "pending_query"].includes(boundary)) await expect(deliverOutbox()).rejects.toThrow(/fixture/);
+    else await expect(deliverOutbox()).resolves.toMatchObject({ sent: 0 });
     const dispatched = ["receipt_write", "ack_write"].includes(boundary);
     expect(mocks.send).toHaveBeenCalledTimes(dispatched ? 1 : 0);
-    expect(row().status).toBe(dispatched ? "dispatching" : ["authority_read", "dispatch_write"].includes(boundary) ? "claimed" : "pending");
+    expect(row().status).toBe(dispatched ? "dispatching" : "pending");
     expect(row().attempts).toBe(attempts + (dispatched ? 1 : 0));
+    // A check or dispatch marker that could not be evaluated defers the row
+    // with a backoff; it is not held under its claim until the lease expires.
+    const deferred = ["authority_read", "dispatch_write"].includes(boundary);
+    expect(row().deliveryDeferrals).toBe(deferred ? 1 : undefined);
+    if (deferred) expect(row().nextAttemptAtMs).toBeGreaterThan(Date.now());
     restoreFault?.(); mocks.authority.mockResolvedValue("current");
     if (dispatched) {
       row().deliveryLeaseUntilMs = Date.now() - 1;
       await deliverOutbox(); await deliverOutbox();
       expect(row().status).toBe("unknown"); expect(mocks.send).toHaveBeenCalledTimes(1);
+      // The possibly accepted effect is replayed only with the same provider key, after its backoff.
+      row().nextAttemptAtMs = Date.now() - 1;
+      await deliverOutbox();
+      expect(row()).toMatchObject({ status: "sent", attempts: attempts + 2 });
+      expect(sentKeys()).toEqual([sentKeys()[0], sentKeys()[0]]);
     }
   }));
 });
@@ -195,10 +219,21 @@ describe("frozen queue cases: provider evidence", () => {
     // Missing/withdrawn authority would cancel before this boundary. Do not
     // credit a provider fault unless the actual dispatch reached its adapter.
     expect(mocks.send).toHaveBeenCalledTimes(1);
+    const firstKey = sentKeys()[0];
+    expect(firstKey).toMatch(/^capture-outbox\/[a-f0-9]{64}$/);
     const retriable = ["not_sent", "unconfigured"].includes(outcome);
-    expect(row().status).toBe(outcome === "accepted" ? "sent" : retriable ? attempts === 5 ? "failed" : "pending" : "unknown");
+    expect(row().status).toBe(outcome === "accepted" ? "sent" : retriable ? "pending" : "unknown");
     expect(row().attempts).toBe(attempts + 1);
-    if (!retriable) { await deliverOutbox(); expect(mocks.send).toHaveBeenCalledTimes(1); }
+    // Nothing is tried again before its backoff, whatever the attempt count.
+    await deliverOutbox(); expect(mocks.send).toHaveBeenCalledTimes(1);
+    if (outcome === "accepted") return;
+    expect(row().nextAttemptAtMs).toBeGreaterThan(Date.now());
+    // When it is due, the row is sent again under the same provider key, so an
+    // uncertain first effect cannot become a second email.
+    row().nextAttemptAtMs = Date.now() - 1; mocks.send.mockReset().mockResolvedValue(accepted);
+    await deliverOutbox();
+    expect(row()).toMatchObject({ status: "sent", attempts: attempts + 2 });
+    expect(sentKeys()).toEqual([firstKey]);
   }));
 });
 
