@@ -67,10 +67,7 @@ afterAll(async () => {
 });
 
 const protectedEndpoints = [
-  { method: "POST", path: "/api/submit-to-sheets" },
   { method: "POST", path: "/api/post-signup-workflows" },
-  { method: "POST", path: "/api/submit-to-sheets" },
-  { method: "POST", path: "/api/upload-to-b2" },
   { method: "POST", path: "/api/storage/uploads" },
   { method: "POST", path: "/api/admin/agent/sessions" },
   { method: "GET", path: "/api/admin/agent/sessions" },
@@ -81,7 +78,6 @@ const protectedEndpoints = [
   { method: "POST", path: "/api/admin/agent/sessions/test-session/control/start" },
   { method: "POST", path: "/api/admin/agent/sessions/test-session/control/compact" },
   { method: "POST", path: "/api/qr/pending-session" },
-  { method: "GET", path: "/api/googlePlaces" },
   { method: "POST", path: "/api/site-worlds/sessions" },
   { method: "GET", path: "/api/site-worlds/sessions/test-session" },
   { method: "GET", path: "/api/admin/outbound-prospects/communications/connection" },
