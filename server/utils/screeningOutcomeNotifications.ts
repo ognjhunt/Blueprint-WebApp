@@ -24,7 +24,7 @@ import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
 import { automationBatch } from "./automationBatch";
 import { crossRuntimeDigest } from "./crossRuntimeCanonical";
-import { isScreeningResultOutcome, screeningOutcome, screeningOutcomeCaveat, SCREENING_OUTCOME_CAVEATS,
+import { isScreeningResultOutcome, screeningCandidateRows, screeningOutcome, screeningOutcomeCaveat, SCREENING_OUTCOME_CAVEATS,
   type BetaPolicyScreeningPublication, type ScreeningOutcome } from "./betaPolicyScreeningContract";
 
 export const SCREENING_OUTCOME_NOTICE_SCHEMA = "screening_outcome_notification.v1";
@@ -51,10 +51,12 @@ export function screeningOutcomeNoticeIntent(publication: BetaPolicyScreeningPub
   const outcome = screeningOutcome(publication);
   if (!isScreeningResultOutcome(outcome)) return null;
   const caveat = screeningOutcomeCaveat(publication);
+  // Counts of candidates: the known-good control is a check, not one of them.
+  const rows = screeningCandidateRows(publication.candidates);
   return { schema_version: SCREENING_OUTCOME_NOTICE_SCHEMA, request_id: requestId, run_id: publication.campaign_id, outcome,
     event_id: screeningOutcomeNoticeEventId(outcome, publication.source.scene_intent_id),
-    ...(outcome === "estimate" ? { counts: { ran: publication.candidates.filter(row => row.status === "completed").length,
-      total: publication.candidates.length, scored: publication.candidates.reduce((sum, row) => sum + row.episodes_scored, 0) } } : {}),
+    ...(outcome === "estimate" ? { counts: { ran: rows.filter(row => row.status === "completed").length,
+      total: rows.length, scored: rows.reduce((sum, row) => sum + row.episodes_scored, 0) } } : {}),
     ...(caveat ? { caveat } : {}) };
 }
 

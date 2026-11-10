@@ -13,7 +13,8 @@ import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { publicationFromResultRecord } from "./taskEvaluationRunPublicationStorage";
 import { parseVerifiedTaskEvaluationRunPublication } from "./taskEvaluationRunContract";
 import { parsePipelinePolicyCanaryPublication } from "./policyCanaryWebappSyncContract";
-import { isScreeningHeldOutcome, parseBetaPolicyScreeningPublication, screeningCandidateState, screeningEstimateCountSentence,
+import { isScreeningHeldOutcome, parseBetaPolicyScreeningPublication, screeningCandidateRows, screeningCandidateState,
+  screeningEstimateCountSentence,
   screeningEstimateRows, screeningExecutionEvidence, screeningJobCeilingRow, screeningOutcome, screeningOutcomeCaveat, screeningOutcomeSentence,
   SCREENING_PUBLICATION_V1, SCREENING_PUBLICATION_V2, SCREENING_PUBLICATION_V3, SCREENING_REPLANNED_BLOCKER,
   screeningReviewVideos, type BetaPolicyScreeningPublication, type ScreeningExecutionEvidence, type ScreeningOutcome,
@@ -359,18 +360,20 @@ export function projectManagedJobEvidence(
       || value.plan_digest !== run.configuration_digest || value.source.scene_intent_id !== run.source_scene_intent_id
       || value.source.scene_revision_digest !== run.source_scene_revision_digest
       || value.source.task_context_digest !== run.job_task_context_digest || value.site_id !== `site-${jobId}`) return base;
-    const completed = value.candidates.filter(row => row.status === "completed").length;
-    const total = value.candidates.length;
-    const scored = value.candidates.reduce((sum, row) => sum + row.episodes_scored, 0);
-    const notRun = value.candidates.filter(row => ["blocked", "unavailable", "deferred", "infeasible"].includes(row.status)).length;
+    // The known-good control is a check, said in one sentence among the set-up notes; every list and count here is of candidates.
+    const rows = screeningCandidateRows(value.candidates);
+    const completed = rows.filter(row => row.status === "completed").length;
+    const total = rows.length;
+    const scored = rows.reduce((sum, row) => sum + row.episodes_scored, 0);
+    const notRun = rows.filter(row => ["blocked", "unavailable", "deferred", "infeasible"].includes(row.status)).length;
     const candidates = (count: number) => `${count} candidate${count === 1 ? "" : "s"}`;
     // The one outcome the job page headline and the result email also state (F-03).
     const outcome = screeningOutcome(value);
     // A zero-success estimate in a scene our own checks flagged says so, in the same sentence everywhere.
     const caveat = screeningOutcomeCaveat(value);
     const setupNotes = screeningSetupNotes(value);
-    const replanned = value.candidates.some(row => row.blockers.includes(SCREENING_REPLANNED_BLOCKER));
-    const estimateRows = outcome === "estimate" ? screeningEstimateRows(value.candidates) : [];
+    const replanned = rows.some(row => row.blockers.includes(SCREENING_REPLANNED_BLOCKER));
+    const estimateRows = outcome === "estimate" ? screeningEstimateRows(rows) : [];
     const estimated = estimateRows.reduce((sum, row) => sum + row.episodes_scored, 0);
     const status = outcome === null ? value.status : isScreeningHeldOutcome(outcome) && outcome !== "reference_only" ? "held"
       : outcome === "estimate" ? "completed" : outcome;
@@ -386,9 +389,9 @@ export function projectManagedJobEvidence(
       nextAction: outcome ? SITE_NEXT_ACTION[outcome]
         : value.status === "reconciliation_required" ? "Blueprint is reviewing the recorded limitations before any further run."
           : "Candidate progress will update as each test finishes.",
-      ...(outcome && opsNextAction(outcome, value.candidates) ? { opsNextAction: opsNextAction(outcome, value.candidates) } : {}),
+      ...(outcome && opsNextAction(outcome, rows) ? { opsNextAction: opsNextAction(outcome, rows) } : {}),
       limitations: [
-        ...(value.candidates.some(row => row.execution_evidence_kind === "scripted_simulator_state_baseline")
+        ...(rows.some(row => row.execution_evidence_kind === "scripted_simulator_state_baseline")
           ? ["Scripted baselines use simulator state. Their outcomes do not establish learned-policy or vendor-policy performance."] : []),
         ...(estimated ? [`A bounded simulation estimate from ${estimated} scored episode${estimated === 1 ? "" : "s"} across ${candidates(estimateRows.length)}, for this job's recorded task and simulated conditions only.`] : []),
         "A simulation result is a bounded estimate. It does not certify physical performance or safety.",
@@ -400,7 +403,7 @@ export function projectManagedJobEvidence(
         catalog_digest: value.catalog_digest, plan_digest: value.plan_digest },
         budget: { limitUsd: value.budget.limit_usd, committedUpperBoundUsd: value.budget.committed_upper_bound_usd,
         spentUpperBoundUsd: value.budget.spent_upper_bound_usd, reservedUsd: value.budget.reserved_usd },
-        candidates: value.candidates.map(row => ({ candidateId: row.candidate_id, name: row.display_name,
+        candidates: rows.map(row => ({ candidateId: row.candidate_id, name: row.display_name,
         configurationDigest: row.configuration_digest,
         ...(row.execution_evidence_kind ? { executionEvidence: screeningExecutionEvidence(row) } : {}),
         state: screeningCandidateState(row), planned: row.episodes_planned, scored: row.episodes_scored, succeeded: row.episodes_succeeded,

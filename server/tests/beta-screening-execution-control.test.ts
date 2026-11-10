@@ -43,7 +43,8 @@ function resealIntake(intake: any) {
   intake.pipeline_status.request_digest = intake.request_digest;
   intake.pipeline_status.status_digest = crossRuntimeArtifactDigest(intake.pipeline_status, "status_digest");
 }
-async function seed(jobId = "job-one", campaignId = "campaign-one", publicationVersion: "v1" | "v2" = "v2", nativeGuest = false) {
+async function seed(jobId = "job-one", campaignId = "campaign-one", publicationVersion: "v1" | "v2" = "v2", nativeGuest = false,
+  extend: (value: any) => any = value => value) {
   const fixture = screeningFixture();
   fixture.brief.requestId = jobId;
   const context = projectWebsiteTaskContext(fixture.brief, projectWebsiteCaptureRights(fixture.job));
@@ -73,12 +74,12 @@ async function seed(jobId = "job-one", campaignId = "campaign-one", publicationV
   intake.receipt.intent_id = `scene-${jobId}`;
   intake.pipeline_status.intent_id = intake.receipt.intent_id;
   resealIntake(intake);
-  const publication = sealScreening({ ...fixture.publication,
+  const publication = sealScreening(extend({ ...fixture.publication,
     ...(publicationVersion === "v1" ? { schema_version: "beta_policy_screening_publication.v1" as const,
       purpose: "screening" as const, claim_ceiling: "diagnostic_policy_execution" as const, recommendation_eligible: false as const } : {}),
     campaign_id: campaignId, site_id: context.scene_id,
     source: { ...fixture.publication.source, scene_intent_id: intake.receipt.intent_id, capture_id: captureId,
-      task_id: intake.request.task.task_id, task_context_digest: context.context_digest } });
+      task_id: intake.request.task.task_id, task_context_digest: context.context_digest } }));
   store.state.docs.set(`inboundRequests/${jobId}`, fixture.job);
   store.state.docs.set(`siteTaskBriefs/${jobId}`, fixture.brief);
   store.state.docs.set(`taskEvaluationSceneIntakes/intake-${jobId}`, intake);
@@ -118,6 +119,25 @@ it.each([() => ({}), () => Object.create(null)])("accepts an empty plain/native 
   row("taskEvaluationPolicyRuns/campaign-one").screening_execution_controls = makeValue();
   expect((await observeBetaScreeningExecutionControl(fixture.request)).status).toBe("current");
   expect(store.writes).toEqual(["taskEvaluationPolicyRuns/campaign-one"]);
+});
+
+it("accepts an invocation of a new campaign's known-good control row, published as one more scripted row", async () => {
+  store.state.docs.clear();
+  const control = { candidate_id: "blueprint_scripted_ur5e", display_name: "Blueprint scripted reference check",
+    configuration_digest: screeningSha("9"), status: "pending", blockers: [], episodes_planned: 3, episodes_scored: 0,
+    episodes_succeeded: 0, episodes_failed: 0, episodes_void: 0, success_rate: null, session_result_digest: null,
+    execution_evidence_kind: "scripted_simulator_state_baseline", action_source: "scripted_simulator_state",
+    scripted_rollout_count: 0, learned_policy_rollout_count: 0, scripted_controller_invoked: false, candidate_policy_queried: false,
+    setup_quality_flags: ["known_good_control_pending"] };
+  const seeded = await seed("job-one", "campaign-one", "v2", false, value => ({ ...value,
+    schema_version: "beta_policy_screening_publication.v3", scene_feasibility: { status: "unknown", flags: [] },
+    candidates: [...value.candidates, control] }));
+  expect(seeded.publication.candidates.at(-1)).toMatchObject({ candidate_id: control.candidate_id });
+  expect(row("taskEvaluationPolicyRuns/campaign-one").publication_digest).toBe(seeded.publication.publication_digest);
+  const observed = await observeBetaScreeningExecutionControl({ ...seeded.request, candidate_id: control.candidate_id,
+    configuration_digest: control.configuration_digest });
+  expect(observed).toMatchObject({ status: "current", new_execution_authorized: false,
+    binding: { candidate_id: control.candidate_id, configuration_digest: control.configuration_digest } });
 });
 
 it.each(["v1", "v2"] as const)("joins execution control to the same exact source for publication %s", async version => {

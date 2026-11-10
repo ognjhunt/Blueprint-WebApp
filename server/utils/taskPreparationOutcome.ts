@@ -84,8 +84,42 @@ function evidenceNeeded(reason: string, evidenceDigest: string, label: string): 
     actionOwner: "blueprint", evidence: [{ label, digest: evidenceDigest }] };
 }
 
-const COVERAGE_REASONS = new Set(["atlas_scene_planner_abstained", "atlas_task_and_scene_coverage_gap",
-  "atlas_insufficient_overlapping_distinct_views", "atlas_coverage_anchor_quality_insufficient"]);
+const COVERAGE_REASONS = new Set(["atlas_scene_planner_abstained"]);
+
+/**
+ * Stops that only a new video can clear (Pipeline `atlas_video_inputs`, `website_atlas_pipeline`): the same
+ * video gives the same answer, so the Pipeline ends the job at once instead of retrying it. Each says what
+ * the video lacked and what to film; the site acts next. Never a finding about a robot or the site.
+ */
+export const RECAPTURE_SENTENCES = {
+  atlas_task_and_scene_coverage_gap: {
+    reason: "Your video does not connect the place where the job happens to the room around it: we could not find views that overlap between them.",
+    nextStep: "Please film again in one slow, continuous pass that starts on the room around the job, moves to where the job happens and keeps both in view on the way. Then send us the new video.",
+  },
+  atlas_insufficient_overlapping_distinct_views: {
+    reason: "Your video does not show the work area from enough different angles, with each view overlapping the next, for us to rebuild it.",
+    nextStep: "Please film again, moving slowly around the work area so it is seen from several angles, with each view overlapping the one before. Then send us the new video.",
+  },
+  atlas_coverage_anchor_quality_insufficient: {
+    reason: "The part of your video that shows where the job happens is too blurred, or too bright or too dark, for us to rebuild it.",
+    nextStep: "Please film again with slow, steady movement and even lighting, and hold on the place where the job happens for a few seconds. Then send us the new video.",
+  },
+  atlas_scale_review_unresolved: {
+    reason: "From your video we could not work out how large the space is: nothing in it gave us a size we could rely on.",
+    nextStep: "Please film again with an object of standard size in view near where the job happens, such as a door or a tape measure laid open on the floor. Then send us the new video.",
+  },
+} as const satisfies Record<string, { reason: string; nextStep: string }>;
+export type RecaptureReason = keyof typeof RECAPTURE_SENTENCES;
+const isRecaptureReason = (value: unknown): value is RecaptureReason =>
+  typeof value === "string" && Object.prototype.hasOwnProperty.call(RECAPTURE_SENTENCES, value);
+
+function recaptureNeeded(reason: RecaptureReason, evidenceDigest: string): TaskOutcome {
+  return { category: "insufficient_evidence", basis: "missing_evidence", title: "We need a new video of your work area",
+    reason: RECAPTURE_SENTENCES[reason].reason,
+    scope: "This video only. It is not a finding about any robot or about your site.",
+    nextStep: RECAPTURE_SENTENCES[reason].nextStep,
+    actionOwner: "site", evidence: [{ label: "Video coverage finding", digest: evidenceDigest }] };
+}
 const TASK_REASONS = new Set(["atlas_scene_subject_origin_uncertain", "atlas_scene_subject_origin_changed",
   "atlas_synthetic_subject_requires_preserved_capture"]);
 const GEOMETRY_REASONS = new Set(["atlas_preserved_completion_no_exportable_geometry",
@@ -180,6 +214,8 @@ export function projectAtlasPreparationOutcome(preview: WebsiteAtlasPreview | nu
   if (!preview || preview.state === "ready" || preview.state === "processing" || preview.state === "withdrawn") return null;
   const held = earlyTaskHoldOf(preview);
   if (held) return earlyTaskHoldOutcome(held, preview.preview_digest);
+  if (preview.state === "needs_input" && isRecaptureReason(preview.reason))
+    return recaptureNeeded(preview.reason, preview.preview_digest);
   if (preview.state === "needs_input" && COVERAGE_REASONS.has(preview.reason ?? ""))
     return evidenceNeeded("The available source views did not establish enough scene coverage for this task.",
       preview.preview_digest, "Scene coverage finding");
