@@ -52,6 +52,14 @@ function routingProjectionMatches(context: ReturnType<typeof projectWebsiteTaskC
 }
 
 const money = z.number().finite().positive().max(1000);
+/** The `execution.max_retries` a Website scene intent may carry. 0 is every intent
+ * issued before 2026-11-10 (still accepted); 1 lets the Pipeline give a scene whose
+ * rented machine was lost mid-run one more attempt, inside the same dollar cap and
+ * `max_paid_attempts`. A new grant names 1 (`scene_configuration_max_retries`); the
+ * Pipeline builds the intent's request from the grant it signs against, so a grant
+ * issued before this names nothing and its request stays 0. */
+export const WEBSITE_SCENE_MAX_RETRIES: readonly number[] = [0, 1];
+export const WEBSITE_SCENE_CONFIGURATION_MAX_RETRIES = 1;
 const policySchema = z.object({
   owner: z.object({ user_id: z.string().trim().min(1), organization_id: z.string().trim().min(1) }).strict(),
   upstream_max_spend_usd: money,
@@ -307,6 +315,7 @@ export function websiteSceneSponsorship(input: {
     upstream_max_spend_usd: configured.upstream_max_spend_usd,
     max_total_spend_usd: configured.native_max_spend_usd,
     max_paid_attempts: configured.max_paid_attempts,
+    scene_configuration_max_retries: WEBSITE_SCENE_CONFIGURATION_MAX_RETRIES,
     ...(input.renewal ? { renewal: input.renewal } : {}),
     expires_at_epoch: input.now + configured.ttl_seconds,
     consent: {
@@ -494,7 +503,10 @@ export async function renewExpiredWebsiteSceneSponsorship(requestId: string, inp
         approval_reference: input.approval_reference.trim() } });
     // A grant issued while preparation still waited on an assessment keeps its
     // recorded proposal as advisory context. The renewal never reads or needs one.
-    const { authority_digest: _issuedDigest, ...issuedPayload } = issued;
+    // The retry allowance is restored as the expired grant named it (none before 2026-11-10).
+    const { authority_digest: _issuedDigest, scene_configuration_max_retries: _retries, ...issuedRest } = issued;
+    const issuedPayload = previous.scene_configuration_max_retries === undefined ? issuedRest
+      : { ...issuedRest, scene_configuration_max_retries: previous.scene_configuration_max_retries };
     const renewedPayload = previous.assessment_preparation_proposal
       ? { ...issuedPayload, assessment_preparation_proposal: previous.assessment_preparation_proposal } : issuedPayload;
     const renewed = { ...renewedPayload, authority_digest: digest(renewedPayload) };
@@ -1227,7 +1239,7 @@ export function validateWebsiteSponsoredIntake(request: Record<string, any>, aut
     || request.execution?.max_total_spend_usd !== authority.max_total_spend_usd
     || request.execution?.max_paid_attempts !== authority.max_paid_attempts
     || request.execution?.expires_at_epoch !== authority.expires_at_epoch
-    || request.execution?.max_retries !== 0
+    || !WEBSITE_SCENE_MAX_RETRIES.includes(request.execution?.max_retries)
     || request.execution?.claim_scope !== "development_only"
     || digest(request.execution?.allowed_providers) !== digest(authority.authoring_provider === "anthropic"
       ? ["vast", "openai", "anthropic"] : ["vast", "openai"]))

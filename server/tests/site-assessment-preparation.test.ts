@@ -557,6 +557,31 @@ it("a designed subject the task adds binds like a removed one, and any other ori
   for(const invalid of ["captured_in_scene",undefined])
     expect(()=>validateWebsiteSponsoredIntake(origin(invalid),grant)).toThrow("website_scene_sponsorship_binding_invalid");
 });
+// 2026-11-10: a scene whose rented machine is lost mid-run gets one more attempt, through the signed contract.
+it("a new grant names one scene-configuration retry and the intake accepts 0 or 1, never more",async()=>{
+  seed(packet(),false,false);const grant=await loadWebsiteSceneSponsorship("one",true,"walkthrough-one",prepOptions());
+  expect(grant.scene_configuration_max_retries).toBe(1);
+  const request=syntheticPreparedIntake(grant);
+  const retries=(max_retries:unknown)=>({...request,execution:{...request.execution,max_retries}});
+  // 0 is every intent issued before the allowance existed; it must keep validating.
+  for(const accepted of [0,1]) expect(()=>validateWebsiteSponsoredIntake(retries(accepted),grant)).not.toThrow();
+  for(const refused of [2,3,-1,true,"1",undefined])
+    expect(()=>validateWebsiteSponsoredIntake(retries(refused),grant)).toThrow("website_scene_sponsorship_binding_invalid");
+});
+it("renewing a grant issued before the retry allowance restores it without one",async()=>{
+  seed(packet(),false,false);const issued=await (loadWebsiteSceneSponsorship as any)("one",true,"walkthrough-one",prepOptions());
+  const {authority_digest:_digest,scene_configuration_max_retries:_retries,...payload}=issued;
+  const legacy={...payload,authority_digest:crossRuntimeDigest(payload)};
+  (state.docs.get("inboundRequests/one") as any).website_scene_sponsorship=legacy;
+  vi.stubEnv("TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON",JSON.stringify({vast:{digest:legacy.consent.provider_terms_reference,label:"Synthetic",url:"https://example.com/terms"}}));
+  vi.spyOn(Date,"now").mockReturnValue((legacy.expires_at_epoch+10)*1000);
+  try {
+    const renewed=await renewExpiredWebsiteSceneSponsorship("one",{approved_by:"blueprint",
+      approval_reference:"owner chat approval",ack:SPONSORSHIP_RENEWAL_ACK,apply:true});
+    expect(renewed).not.toHaveProperty("scene_configuration_max_retries");
+    expect(renewed.renewal).toMatchObject({parent_authority_digest:legacy.authority_digest});
+  } finally {vi.restoreAllMocks();}
+});
 it("v2 actual signed item/visual/intake handlers retain purpose through transactions and outbox replay",async()=>{
   seed(packet(),false,false);state.docs.set("siteTaskItemInventories/one",{requestId:"one",items:[]});
   const grant=await loadWebsiteSceneSponsorship("one",true,"walkthrough-one",prepOptions());
