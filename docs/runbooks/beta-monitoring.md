@@ -20,6 +20,8 @@ tracker is installed.
 | 5xx spikes | `createServerErrorRateMonitor` in `server/index.ts` | Slack when ≥10 5xx responses in 5 min and ≥5 % of responses (`BLUEPRINT_5XX_ALERT_THRESHOLD`, `_WINDOW_MS`, `_MIN_RATIO`). Health probes excluded. Rate-limited. |
 | Resend quota | `server/utils/email.ts` | A quota rejection logs `email_quota_exhausted` at `error` and posts one Slack alert per 15 min. |
 | ADP worker lanes | `server/agents/adp-managed-runs.ts` | Tick failures log at `error` and alert (rate-limited per lane). |
+| Website grant read | `server/utils/taskEvaluationSceneIntake.ts` (the worker's scene-intake lane) | When a website job's grant cannot be read because of our own configuration (the grant policy `BLUEPRINT_WEBSITE_SCENE_SPONSORSHIP_JSON` is unset or does not parse in the worker, a job record has no stored grant, or the stored grant does not match the policy the worker holds), nothing is revoked and one Slack alert goes out (`website_scene_grant_read`, one per 15 min). A grant that still does not match after 15 minutes of consecutive reads ends the intent, as it always did. A site's withdrawal still revokes at once. |
+| Job window sweep | `server/utils/websiteJobWindowSweep.ts`, **worker** (every mode), every minute, under its own leader lease (`website-job-window-sweep-leader`) | Ends a website job whose work window has passed with no result, hold, withdrawal or ending on record: writes `website_job_window_ending` on the job and queues the one `scene_outcome` email (`<request id>:scene_outcome:job_window_ended`) in the same transaction. A window that ended before 2026-11-11T00:00:00Z is recorded with no email. No alert: ended jobs are logged at `info`. |
 | Autonomous lanes | `server/utils/automationLaneSummary.ts` | Each process logs, and posts one Slack summary at boot, of the lanes active in it. `BLUEPRINT_ALL_AUTOMATION_ENABLED` logs a loud warning listing what it switched on. |
 | External uptime | `blueprint-uptime-probe` Render cron job (`render.yaml`), every 10 min; `.github/workflows/uptime.yml` as the backstop | Both run `scripts/ops/uptime-probe.mjs`: `GET /health`, `/version.json` and `/health/worker`, plus the Pipeline control-plane host's operator door `/healthz` (`UPTIME_CONTROL_PLANE_HEALTH_URL`; no token needed), 3 attempts each. A failure posts to the ops Slack webhook and fails the run. GitHub throttles its schedule (it ran every 2-5 hours, not every 10 minutes), so the Render cron is the 10-minute probe and the workflow is the check that still runs when Render itself is down. |
 
@@ -313,6 +315,12 @@ restore steps.
   `captureOutbox/<key>` Firestore path and `deliveryReceipts` recovery reference.
   Inspect those with existing authorized Firestore access; see
   [account-notice delivery](account-notice-email.md#approved-delivery).
+- **Website grant read** (`website_scene_grant_read`): compare
+  `BLUEPRINT_WEBSITE_SCENE_SPONSORSHIP_JSON` on the web and worker services. It
+  must be valid JSON and the same on both. Nothing was revoked; jobs in flight
+  continue as soon as the worker reads it again (it checks every minute). If the
+  policy was changed on purpose, jobs issued under the old value are revoked
+  after 15 minutes.
 - **5xx / crash**: Render logs, filter `level>=50` and the trace id.
 - **Readiness not ready**: `curl -H "x-health-status-token: $HEALTH_STATUS_TOKEN"
   https://tryblueprint.io/health/ready` lists the blockers (the token is

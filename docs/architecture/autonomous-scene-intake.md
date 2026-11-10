@@ -99,8 +99,14 @@ Transactions claim a two-minute lease. Due-time ordering prevents a not-yet-due
 record from permanently starving newer work. Store operations and signed HTTP
 calls have bounded timeouts. A transport attempt is recorded before POST, and
 the worker rechecks retained bytes, original expiry, current account authority,
-source revocation, and configured provider terms. Its 20 delivery attempts are
-idempotent intake transport, not paid execution retries.
+source revocation, and configured provider terms. Delivery attempts are
+idempotent intake transport, not paid execution retries. A delivery that fails
+is tried again with backoff (one minute, doubling to fifteen, with jitter) for
+as long as the intent's window is open: there is no attempt cap, so a Pipeline
+outage or deploy does not end a job. The window is the only give-up timer, for
+the forward and for the status poll alike. A failed request is recorded as
+`pipeline_transport_failed`; an error raised on the WebApp's side with no code
+of its own is `scene_intake_local_error`.
 
 Signed POST uses the existing launch URL origin, canonical forward token, and
 fixed `blueprint-webapp` issuer. New scene packets use RFC 8785 across Node and

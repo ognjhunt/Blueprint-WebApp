@@ -27,6 +27,7 @@ import { SCENE_EXECUTION_WINDOW_MAX_SECONDS, sponsorshipExecutionWindowUntil,
   sponsorshipWindowIntake } from "./sceneExecutionWindowExtension";
 import { WEBSITE_JOB_WINDOW_DEFAULT_SECONDS, WEBSITE_JOB_WINDOW_MAX_SECONDS, WEBSITE_JOB_WINDOW_MIN_SECONDS,
   issuedWebsiteJobWindowSeconds } from "./websiteJobWindow";
+import { recordedWebsiteJobWindowEnding } from "./websiteJobWindowEnding";
 
 function continuationAuthority(authority: Record<string, any>, input: {
   brief: SiteTaskBriefRecord; record: Record<string, any>; inventory?: TaskItemInventoryRecord | null;
@@ -160,10 +161,12 @@ export function sponsorshipValidUntil(grant: Record<string, any>, executionWindo
  * grant's "still valid until", with the owner's one allowed extension when it verifies. Never a
  * guess: no grant, an unreadable extension or a date already past gives no date. `ended` is a
  * passed window while the rights still allow the work, so the end was the window and not the rights.
- * It is what holds today, not a promise that the job stops on that date.
+ * It is what holds today, not a promise that the job stops on that date. `endingRecorded` is the
+ * WebApp's own stored ending for this exact grant (`websiteJobWindowSweep`), read only while the
+ * window is still past: an extension granted afterwards reopens the job and hides it.
  */
 export async function websiteJobWorkWindow(record: Record<string, any> | undefined,
-  nowEpoch = Date.now() / 1000): Promise<{ untilEpoch: number | null; ended: boolean }> {
+  nowEpoch = Date.now() / 1000): Promise<{ untilEpoch: number | null; ended: boolean; endingRecorded?: true }> {
   const none = { untilEpoch: null, ended: false };
   const grant = record?.website_scene_sponsorship;
   if (!grant || typeof grant.expires_at_epoch !== "number" || !Number.isFinite(grant.expires_at_epoch)) return none;
@@ -176,7 +179,8 @@ export async function websiteJobWorkWindow(record: Record<string, any> | undefin
   }
   const until = sponsorshipValidUntil(grant, executionWindowUntil);
   if (until > nowEpoch) return { untilEpoch: until, ended: false };
-  return { untilEpoch: null, ended: projectWebsiteCaptureRights(record).derived_scene_generation_allowed };
+  return { untilEpoch: null, ended: projectWebsiteCaptureRights(record).derived_scene_generation_allowed,
+    ...(recordedWebsiteJobWindowEnding(record) ? { endingRecorded: true as const } : {}) };
 }
 
 export function websiteSceneSponsorship(input: {

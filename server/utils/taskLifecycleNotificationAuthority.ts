@@ -67,6 +67,11 @@ export async function taskLifecycleNotificationIsCurrent(
  // evaluation outcome email (F-01) has told the site where its job stands.
  if(entry.kind==='scene_outcome'){
   if(entry.idempotencyKey===undefined)return true;
+  // The WebApp's own window ending is a job outcome too, under its own fixed key: sent only
+  // while the job page still states that ending and no other outcome email has gone out.
+  const ending=await import('./websiteJobWindowSweep');
+  if(ending.isWebsiteJobWindowEndedNotice(entry.requestId,entry.idempotencyKey))
+   return ending.websiteJobWindowEndingShown(entry.requestId);
   const notices=await import('./sceneOutcomeNotifications');
   return notices.sceneOutcomeShown(entry.requestId,entry.idempotencyKey);
  }

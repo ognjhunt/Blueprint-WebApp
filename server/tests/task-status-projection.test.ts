@@ -10,7 +10,9 @@
  * cannot stand behind.
  */
 import { describe, expect, it, vi } from "vitest";
-import { AUTHORITY_ENDED_SENTENCE, FOOTAGE_BEFORE_ACCOUNT_SENTENCE, JOB_WINDOW_ENDED_SENTENCE } from "../utils/taskPreparationOutcome";
+import { AUTHORITY_ENDED_SENTENCE, FOOTAGE_BEFORE_ACCOUNT_SENTENCE, JOB_WINDOW_ENDED_SENTENCE, JOB_WINDOW_ENDING_MESSAGE,
+  PREPARATION_ENDED_NEXT } from "../utils/taskPreparationOutcome";
+import { waitingTimeline } from "../../client/src/data/betaTimelines";
 import { jobWorkWindowSentence, screeningOutcomeSentence } from "../utils/betaPolicyScreeningContract";
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({ dbAdmin: null }));
 import { projectWebsiteRunClosure } from "../utils/websiteRunClosure";
@@ -655,5 +657,61 @@ describe("WP-14: a waiting or ended job says what it waits on, and until when", 
       expect(text).not.toMatch(/on hold|checks its authorization|taking longer/i);
       expect(text).toContain("you can start a new job");
     }
+  });
+});
+
+describe("a job the window sweep ended says so, whatever the Pipeline last said", () => {
+  const recorded = { untilEpoch: null, ended: true, endingRecorded: true };
+  const view = (extra: Record<string, unknown>) => projectTaskStatus(taskStatusInputFrom({
+    briefDrafted: true, site_task_brief_confirmed_at: "2026-11-01T00:00:00Z", hasStoredCapture: true, stage: null,
+    jobWorkWindow: recorded, ...extra } as never));
+  const terminalScene = { kind: "setup_repair", terminal: true, reasonCode: "authority_expired", digest: `sha256:${"a".repeat(64)}` };
+
+  it("builds on the WP-14 sentences and promises nothing", () => {
+    expect(JOB_WINDOW_ENDING_MESSAGE.startsWith(JOB_WINDOW_ENDED_SENTENCE)).toBe(true);
+    expect(JOB_WINDOW_ENDING_MESSAGE.endsWith(PREPARATION_ENDED_NEXT)).toBe(true);
+    expect(JOB_WINDOW_ENDING_MESSAGE).toMatch(/did not finish it in that time, and no more work will run on this job/);
+    expect(JOB_WINDOW_ENDING_MESSAGE).toContain("you can start a new job");
+    expect(JOB_WINDOW_ENDING_MESSAGE).not.toMatch(/we will|we'll|our team|review|follow up|email you|on hold|taking longer/i);
+  });
+
+  it.each([
+    ["the Pipeline cannot be reached", { preparationStatus: { state: "unavailable", correlationId: null } }],
+    ["preparation still says preparing", { preparationStatus: { state: "preparing", correlationId: null }, preparationOverdue: true }],
+    ["preparation needs our review", { preparationStatus: { state: "failed_retryable", correlationId: null } }],
+    ["no preparation status ever arrived", { preparationOverdue: true }],
+    ["the scene waits on our team", { preparationStatus: { state: "handed_off", correlationId: null }, sceneProgression: { state: "waiting" } }],
+    ["the scene waits on an internal approval", { sceneProgression: { state: "testing", progressOutcome: "awaiting_spend_approval" } }],
+    ["the scene intake ended on our side", { sceneProgression: { state: "ended" } }],
+    ["the Pipeline's own ending arrived afterwards", { sceneProgression: { state: "ended", sceneOutcome: terminalScene } }],
+    ["the scene was built and never tested", { scenePreviewReady: true, sceneProgression: { state: "completed" } }],
+    ["the job is open and waiting for evaluations", { jobAccess: { evaluationAvailable: true, reason: null },
+      screening: { teams: 0, queued: 0, running: 0, reported: 0, noResult: 0 } }],
+    ["the preview failed", { scenePreparationFailed: true }],
+  ])("is final when %s", (_name, extra) => {
+    const status = view(extra);
+    expect(status).toMatchObject({ decision: "ended", headline: JOB_WINDOW_ENDING_MESSAGE, operatorAction: null, stage: null,
+      missingViews: [], nextUpdateIso: null });
+    expect(status.outcome).toBeUndefined();
+    // No waiting line follows an ending on the workspace page.
+    expect(waitingTimeline(status.decision)).toBeNull();
+  });
+
+  it("gives way only to a withdrawal, an owner closure and a result", () => {
+    expect(view({ consentRevoked: true }).headline).toMatch(/consent was withdrawn/);
+    expect(view({ ownerClosureOutcome: projectWebsiteRunClosure({ website_run_closures: { "walkthrough-req1": ownerClosure() } },
+      "req1", "walkthrough-req1") }).headline).toBe("Run closed with a conservative abstention");
+    expect(view({ sceneProgression: { state: "evaluated" } }).headline).toMatch(/^Your simulation estimate is ready/);
+    expect(view({ sceneProgression: { state: "held", heldReason: "held_capability" } }).headline)
+      .toMatch(new RegExp(`^${screeningOutcomeSentence("held_capability").slice(0, 20)}`));
+    expect(view({ screening: { teams: 1, queued: 0, running: 0, reported: 1, noResult: 0 } }).decision).toBe("results");
+    for (const result of [{ consentRevoked: true }, { sceneProgression: { state: "evaluated" } },
+      { screening: { teams: 1, queued: 1, running: 0, reported: 0, noResult: 0 } }])
+      expect(view(result).decision).not.toBe("ended");
+  });
+
+  it("is not shown without a recorded ending, or once the window is open again", () => {
+    for (const jobWorkWindow of [null, { untilEpoch: null, ended: true }, { untilEpoch: 1_800_000_000, ended: false }])
+      expect(view({ jobWorkWindow }).decision).not.toBe("ended");
   });
 });
