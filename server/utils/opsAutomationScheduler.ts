@@ -373,7 +373,7 @@ const workers: WorkerDefinition[] = [
         processedCount: summary.sent,
         failedCount: summary.failed + summary.exhausted,
         reason: summary.exhausted
-          ? `${summary.exhausted} message(s) exhausted their retry budget`
+          ? `${summary.exhausted} message(s) will not be retried automatically`
           : null,
       };
     },

@@ -12,16 +12,17 @@ tracker is installed.
 | --- | --- | --- |
 | Intake ops notice | `server/utils/intakeOpsNotice.ts`, called from `POST /api/inbound-request` | Writes `ops_notice` on the `inboundRequests` doc in the same commit as the request, sends a **link-only** Slack + ops email (request id, type, priority, queue, `/admin/leads/<id>`; no name, email, company, site or task text), and records the per-channel outcome. Undelivered notices log at `warn`. |
 | Intake notice sweep | `server/utils/betaOpsMonitor.ts`, **web process**, every 5 min, leader-leased (shared ops automation lease) | Retries pending notices after 10 min, escalates after 30 min or when the retry budget (5) is spent: `opsAlerts` record + Slack (`intake_forwarding_failure`) + email to `CONTACT_TO` (default `ops@tryblueprint.io`) + `error` log. Each notice escalates once. |
-| Terminal outbox failures | same monitor | Read-only scan of `captureOutbox` for `status == "failed"`; alerts once per entry (create-only marker in `opsOutboxFailureAlerts`) by Slack and ops email, link-only. |
+| Terminal outbox failures | same monitor (`scanTerminalOutboxFailures`) | Read-only scan of `captureOutbox` for `status == "failed"`; alerts once per entry (create-only marker in `opsOutboxFailureAlerts`) by Slack and ops email, link-only. A permanent refusal (invalid recipient, rejected payload) fails at once; a transient one (429, quota, key or domain at fault) fails once the entry is 36 hours old. |
+| Unknown outbox outcomes | same monitor (`scanUnknownOutboxOutcomes`) | Read-only scan of `captureOutbox` for `status == "unknown"`. An entry whose last dispatch carried its provider idempotency key is sent again with that key for 23 hours after the first keyed dispatch and is only counted. An entry that is not sent again (window closed, the provider refused the repeat, the notice stopped being current, or it was dispatched without a key, which is every entry that was already `unknown` when sends began to carry one) alerts once, the same way as a failure. |
 | Readiness | same monitor + `/health/ready` | Re-evaluates launch readiness each pass. Alerts when readiness regresses, recovers, **or is not ready right after boot**. |
-| Outbox backlog | same monitor (`scanOutboxBacklog`) | Reads `captureOutbox` entries with `status == "pending"`. Alerts when `BLUEPRINT_OUTBOX_BACKLOG_ALERT_COUNT` (50) or more are waiting, or one has waited `BLUEPRINT_OUTBOX_BACKLOG_ALERT_AGE_MS` (30 min). The pump sends every minute and gives up after 6 attempts, so either means delivery stalled. |
+| Outbox backlog | same monitor (`scanOutboxBacklog`) | Reads the `captureOutbox` entries still owed a delivery: `pending` (including entries backing off after a refusal), `claimed`, `dispatching`, and `unknown` entries being sent again with their key. Alerts when `BLUEPRINT_OUTBOX_BACKLOG_ALERT_COUNT` (50) or more are undelivered, or the oldest has been undelivered for `BLUEPRINT_OUTBOX_BACKLOG_ALERT_AGE_MS` (30 min). The pump tries every minute and a refused or unknown entry backs off 1, 2, 4 ... 60 minutes, so either threshold means the pump or the provider has stalled. `GET /health/outbox` answers 200 `moving`, or 503 `stalled` once the oldest undelivered entry is older than `BLUEPRINT_OUTBOX_HEALTH_STALLED_AGE_MS` (2 hours) or `unavailable`, for the external probe. Its body is one age and one threshold. |
 | Worker heartbeat | `server/utils/workerHeartbeat.ts`: the worker writes `opsHeartbeats/blueprint-webapp-worker` every minute (production, never previews); the monitor reads it | Alerts when the heartbeat is older than `BLUEPRINT_WORKER_HEARTBEAT_STALE_AFTER_MS` (5 min) or missing. `GET /health/worker` answers 200 `fresh` or 503 `stale`/`missing`/`unavailable` for the external probe. |
 | Crashes | `installProcessErrorHandlers` in `server/index.ts` and `server/worker.ts` | `unhandledRejection` → fatal log + Slack (process keeps serving). `uncaughtException` → fatal log + Slack, then exit(1) so Render restarts it. Rate-limited per kind (15 min). |
 | 5xx spikes | `createServerErrorRateMonitor` in `server/index.ts` | Slack when ≥10 5xx responses in 5 min and ≥5 % of responses (`BLUEPRINT_5XX_ALERT_THRESHOLD`, `_WINDOW_MS`, `_MIN_RATIO`). Health probes excluded. Rate-limited. |
 | Resend quota | `server/utils/email.ts` | A quota rejection logs `email_quota_exhausted` at `error` and posts one Slack alert per 15 min. |
 | ADP worker lanes | `server/agents/adp-managed-runs.ts` | Tick failures log at `error` and alert (rate-limited per lane). |
 | Autonomous lanes | `server/utils/automationLaneSummary.ts` | Each process logs, and posts one Slack summary at boot, of the lanes active in it. `BLUEPRINT_ALL_AUTOMATION_ENABLED` logs a loud warning listing what it switched on. |
-| External uptime | `blueprint-uptime-probe` Render cron job (`render.yaml`), every 10 min; `.github/workflows/uptime.yml` as the backstop | Both run `scripts/ops/uptime-probe.mjs`: `GET /health`, `/version.json` and `/health/worker`, plus the Pipeline control-plane host's operator door `/healthz` (`UPTIME_CONTROL_PLANE_HEALTH_URL`; no token needed), 3 attempts each. A failure posts to the ops Slack webhook and fails the run. GitHub throttles its schedule (it ran every 2-5 hours, not every 10 minutes), so the Render cron is the 10-minute probe and the workflow is the check that still runs when Render itself is down. |
+| External uptime | `blueprint-uptime-probe` Render cron job (`render.yaml`), every 10 min; `.github/workflows/uptime.yml` as the backstop | Both run `scripts/ops/uptime-probe.mjs`: `GET /health`, `/version.json`, `/health/worker` and `/health/outbox` (fails on its `stalled` or `unavailable` answer; a build that does not serve it yet passes), plus the Pipeline control-plane host's operator door `/healthz` (`UPTIME_CONTROL_PLANE_HEALTH_URL`; no token needed), 3 attempts each. A failure posts to the ops Slack webhook and fails the run. GitHub throttles its schedule (it ran every 2-5 hours, not every 10 minutes), so the Render cron is the 10-minute probe and the workflow is the check that still runs when Render itself is down. |
 
 The monitor's backlog and heartbeat alerts are per incident: one Slack message
 and one ops email when the condition starts, a Slack reminder each hour while
@@ -160,9 +161,10 @@ recipient, so the form cannot be used to flood a third party's inbox.
 
 When `email_quota_exhausted` alerts (or monthly usage passes ~70 %), upgrade:
 Resend → Billing → *Pro*; no code or env change is needed (the same
-`RESEND_API_KEY` keeps working). Until then, failed customer emails exhaust the
-outbox retry budget and are reported by the outbox failure alert, and intake
-notices keep retrying via Slack.
+`RESEND_API_KEY` keeps working). Until then, refused customer emails stay in
+the outbox and back off for up to 36 hours (the backlog alert reports them
+after 30 minutes); one still refused then fails and is reported by the outbox
+failure alert. Intake notices keep retrying via Slack.
 
 ## Durable spend and abuse caps
 
@@ -309,6 +311,12 @@ restore steps.
   check why both channels failed (`ops_notice.last_error` on the request doc).
 - **Outbox failures**: open the request; the message body and recipient are in
   `captureOutbox/<key>`. Resend quota and bounces are the usual causes.
+- **Outbox unknown outcomes** ("may or may not have been sent"): the provider
+  never confirmed the send and the entry is no longer sent automatically,
+  because Resend forgets an idempotency key after 24 hours and a later repeat
+  could be a second email. Look the recipient up in Resend (the entry's
+  `deliveryIdempotencyKey` and its `deliveryReceipts` say what was tried and
+  when) before sending anything by hand. `lastError` says why sending ended.
   Account notices have no lead record: their alert gives the exact
   `captureOutbox/<key>` Firestore path and `deliveryReceipts` recovery reference.
   Inspect those with existing authorized Firestore access; see

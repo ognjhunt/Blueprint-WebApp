@@ -624,6 +624,17 @@ describe("access decisions and their durable email intent", () => {
     expect(state.docs.get(key)).toMatchObject({ status, attempts: 2 });
   });
 
+  it("reports an unknown notice as queued while it is re-sent with its provider key, and as needing attention once it is not", async () => {
+    await invite();
+    const [key, original] = notices()[0];
+    state.docs.set(key, { ...original, status: "unknown", attempts: 2, deliveryKeyAttempt: 2, deliveryKeyFirstUsedAtMs: Date.now() - 60_000 });
+    expect(await (await invite()).json()).toMatchObject({ emailed: false, notificationStatus: "queued", notification: { outboxStatus: "unknown" } });
+    // Past the provider's idempotency window the pump does not send it again.
+    state.docs.set(key, { ...state.docs.get(key)!, deliveryKeyFirstUsedAtMs: Date.now() - 24 * 60 * 60 * 1000 });
+    expect(await (await invite()).json()).toMatchObject({ notificationStatus: "needs_attention", notification: { outboxStatus: "unknown" } });
+    expect(notices()).toHaveLength(1);
+  });
+
   it("preserves approval on resend queue failure and deduplicates concurrent explicit resends", async () => {
     approve(email);
     const originalApproval = structuredClone(state.docs.get(recordKey()));

@@ -1,7 +1,10 @@
 import { createHash } from "node:crypto";
 import { RECORDING_CONSENT_VERSION } from "../../utils/recordingConsent";
 
-export const QUEUE_CASE_VERSION = "blueprint-reliability-queue.v2";
+// v3: outbox sends carry a provider idempotency key, so an uncertain effect is
+// replayed with that key instead of being left unknown for good, a refusal
+// backs off instead of spending six attempts, and a row's failure is contained.
+export const QUEUE_CASE_VERSION = "blueprint-reliability-queue.v3";
 export type QueueCase = {
   id: string;
   family: string;
@@ -21,17 +24,17 @@ function add(family: string, parameters: QueueCase["parameters"], expected: stri
 
 for (const mutation of ["to", "body", "subject", "replyTo", "requestId", "kind", "idempotencyKey", "deliveryToken", "cancelled", "sent"]) {
   for (const provider of ["accepted", "rejected", "unknown"]) add("ordering", { mutation, provider },
-    "Preserve successor message or terminal state; retain original-effect receipt; never attach stale acceptance or redispatch uncertainty");
+    "Preserve successor message or terminal state; retain original-effect receipt; never attach stale acceptance; redispatch uncertainty only with the row's provider idempotency key");
 }
 for (const storageError of ["unavailable", "permission_denied", "duplicate"]) add("storage_dependencies", { boundary: "enqueue", storageError },
   "Unacknowledged unavailable/forbidden storage creates no intent; duplicate preserves original durable intent without another effect");
 for (const boundary of ["cursor_read", "cursor_write", "pending_query", "claim_read", "claim_write", "authority_read", "dispatch_write", "receipt_write", "ack_write"]) {
   for (const attempts of [0, 4, 5]) add("storage_dependencies", { boundary, attempts },
-    "Storage failure cannot publish sent or replay a potentially accepted effect; pre-dispatch recovery is allowed only after lease expiry");
+    "Storage failure cannot publish sent; a potentially accepted effect is replayed only with the row's provider idempotency key; a failure inside one row is contained to it, and a failed pre-dispatch check defers the row without an attempt");
 }
 for (const outcome of ["accepted", "not_sent", "unknown", "throw", "legacy_provider_failure", "unconfigured", "accepted_missing_id", "accepted_empty_id", "accepted_numeric_id", "malformed_null"]) {
   for (const attempts of [0, 4, 5]) add("provider_failures", { outcome, attempts },
-    "Only a typed acceptance with provider message identity completes; uncertainty stops replay; known nonacceptance consumes bounded attempts");
+    "Only a typed acceptance with provider message identity completes; uncertainty is replayed only with the row's provider idempotency key; known nonacceptance backs off before another attempt");
 }
 for (const boundary of ["pending", "lease_active", "lease_expired", "unavailable", "throw", "stale_token", "cached_brief", "late_brief", "starvation", "claim_write_failure"]) {
   const faultMustRun = ["unavailable", "throw", "stale_token", "cached_brief", "late_brief", "claim_write_failure"].includes(boundary);

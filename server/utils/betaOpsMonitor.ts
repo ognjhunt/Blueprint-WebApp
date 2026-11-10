@@ -1,6 +1,8 @@
 import { dbAdmin } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
 import { getOpsAutomationLeaderLease, type AutomationLeaderLease } from "./automationLeaderLease";
+import { readOutboxDeliveryHealth, type OutboxDeliveryHealth } from "./captureOutboxHealth";
+import { unknownRowState } from "./captureOutboxRetry";
 import { sendEmail } from "./email";
 import { appBaseUrl, opsNoticeRecipient, sweepIntakeOpsNotices } from "./intakeOpsNotice";
 import { sendRateLimitedOpsAlert } from "./opsProcessAlerts";
@@ -13,12 +15,13 @@ import { readWorkerHeartbeat, type WorkerHeartbeatReading } from "./workerHeartb
  *
  * Each pass (leader-leased, so one instance at a time):
  *  1. retries/escalates intake ops notices that have not reached a person;
- *  2. alerts on customer outbox messages that exhausted their retries
+ *  2. alerts once per customer outbox message that failed, and once per
+ *     message whose outcome is unknown and that is not sent again automatically
  *     (read-only on the outbox; the alert record lives in its own collection);
  *  3. re-evaluates launch readiness so a not-ready service alerts even when
  *     nothing polls /health/ready;
- *  4. alerts when customer email backs up in the outbox (too many waiting, or
- *     one waiting too long), which a stalled pump or provider causes;
+ *  4. alerts when customer email backs up in the outbox (too many undelivered,
+ *     or one undelivered too long), which a stalled pump or provider causes;
  *  5. alerts when the background worker's heartbeat goes stale;
  *  6. alerts once per website capture whose preparation went quiet (no status
  *     since upload, or one state too long) or ended, and once per website
@@ -100,15 +103,18 @@ function positiveEnv(name: string, fallback: number) {
   return Number.isFinite(value) && value > 0 ? Math.floor(value) : fallback;
 }
 
-export type OutboxBacklogSummary = { pending: number; oldestPendingAgeMs: number | null; alerting: boolean };
+export type OutboxBacklogSummary = OutboxDeliveryHealth & { alerting: boolean };
 
 /**
- * Alert when customer email waits in the outbox: BLUEPRINT_OUTBOX_BACKLOG_ALERT_COUNT
- * (default 50) or more pending, or one pending longer than
- * BLUEPRINT_OUTBOX_BACKLOG_ALERT_AGE_MS (default 30 min). The pump sends every
- * minute and gives up after six attempts, so either means delivery has
- * stalled. Reads at most the count threshold of pending entries; below it,
- * that is all of them, so the oldest age is exact.
+ * Alert when customer email is undelivered in the outbox:
+ * BLUEPRINT_OUTBOX_BACKLOG_ALERT_COUNT (default 50) or more undelivered, or one
+ * undelivered longer than BLUEPRINT_OUTBOX_BACKLOG_ALERT_AGE_MS (default 30 min).
+ * Undelivered is every row the pump still owes a delivery: pending (including
+ * rows backing off after a refusal), claimed, dispatching, and rows with an
+ * unknown outcome that are being re-sent with their provider key. The pump
+ * tries every minute, so either threshold means the pump or the provider has
+ * stalled. Reads at most the count threshold of each status; below it, that is
+ * all of them, so the oldest age is exact.
  */
 export async function scanOutboxBacklog(options: ConditionAlertDeps & {
   store?: OutboxStore | null;
@@ -116,27 +122,23 @@ export async function scanOutboxBacklog(options: ConditionAlertDeps & {
   maxAgeMs?: number;
 } = {}): Promise<OutboxBacklogSummary> {
   const store = options.store === undefined ? (dbAdmin as unknown as OutboxStore | null) : options.store;
-  if (!store) return { pending: 0, oldestPendingAgeMs: null, alerting: false };
+  if (!store) return { pending: 0, undelivered: 0, oldestUndeliveredAgeMs: null, unknownRetrying: 0, unknownNeedsPerson: 0, alerting: false };
   const maxPending = options.maxPending ?? positiveEnv("BLUEPRINT_OUTBOX_BACKLOG_ALERT_COUNT", 50);
   const maxAgeMs = options.maxAgeMs ?? positiveEnv("BLUEPRINT_OUTBOX_BACKLOG_ALERT_AGE_MS", 30 * 60 * 1000);
-  const snapshot = await store.collection(CAPTURE_OUTBOX_COLLECTION).where("status", "==", "pending").limit(maxPending).get();
-  const nowMs = (options.now || Date.now)();
-  const created = snapshot.docs
-    .map((doc) => Date.parse(String(doc.data()?.createdAtIso || "")))
-    .filter((value) => Number.isFinite(value));
-  const oldestPendingAgeMs = created.length ? Math.max(0, nowMs - Math.min(...created)) : null;
-  const pending = snapshot.docs.length;
-  const alerting = pending >= maxPending || (oldestPendingAgeMs !== null && oldestPendingAgeMs >= maxAgeMs);
-  const waiting = pending >= maxPending ? `${maxPending} or more` : String(pending);
-  const oldest = oldestPendingAgeMs === null ? "unknown" : `${Math.round(oldestPendingAgeMs / 60_000)} min`;
+  const health = await readOutboxDeliveryHealth(store, (options.now || Date.now)(), maxPending);
+  const { undelivered, oldestUndeliveredAgeMs, unknownRetrying } = health;
+  const alerting = undelivered >= maxPending || (oldestUndeliveredAgeMs !== null && oldestUndeliveredAgeMs >= maxAgeMs);
+  const waiting = undelivered >= maxPending ? `${maxPending} or more` : String(undelivered);
+  const oldest = oldestUndeliveredAgeMs === null ? "unknown" : `${Math.round(oldestUndeliveredAgeMs / 60_000)} min`;
+  const resending = unknownRetrying ? ` (${unknownRetrying} after an unknown outcome, sent again with the same provider key)` : "";
   await reportCondition("capture_outbox_backlog", {
     active: alerting,
     subject: "Customer email is backing up in the outbox",
-    message: `Blueprint: customer email is backing up in the outbox: ${waiting} waiting, the oldest for ${oldest} `
+    message: `Blueprint: customer email is backing up in the outbox: ${waiting} waiting${resending}, the oldest for ${oldest} `
       + `(alerts at ${maxPending} waiting or ${Math.round(maxAgeMs / 60_000)} min). Check the web service logs for the outbox pump, and Resend.`,
     recovered: "Blueprint: the customer email outbox is moving again.",
   }, options);
-  return { pending, oldestPendingAgeMs, alerting };
+  return { ...health, alerting };
 }
 
 /** Production only: elsewhere no deployed worker writes a heartbeat to read. */
@@ -169,31 +171,27 @@ export async function checkWorkerHeartbeat(options: ConditionAlertDeps & {
   return reading;
 }
 
+type OutboxRowAlert = {
+  /** Slack headline and ops email subject, for `count` newly reported rows. */
+  title: (count: number) => string;
+  /** What to do, said once under the list. */
+  advice?: string;
+  event: string;
+  logMessage: string;
+  alertKey: string;
+};
+
 /**
- * Alert once per terminally failed outbox entry. Read-only on the outbox:
+ * Report each of `docs` once, by Slack and ops email. Read-only on the outbox:
  * the "already alerted" marker is a create-only doc in a separate collection,
  * so concurrent passes cannot double-alert and the outbox contract is untouched.
  */
-export async function scanTerminalOutboxFailures(options: {
-  store?: OutboxStore | null;
-  limit?: number;
+async function alertOutboxRowsOnce(store: OutboxStore, docs: OutboxDoc[], kind: OutboxRowAlert, options: {
   alert?: (key: string, message: string) => Promise<unknown>;
   email?: typeof sendEmail;
-} = {}): Promise<OutboxFailureScanSummary> {
-  const store = options.store === undefined ? (dbAdmin as unknown as OutboxStore | null) : options.store;
-  const summary: OutboxFailureScanSummary = { failed: 0, newlyAlerted: 0 };
-  if (!store) return summary;
-  const limit = Math.max(1, Math.min(options.limit ?? 200, 500));
-  const snapshot = await store.collection(CAPTURE_OUTBOX_COLLECTION).where("status", "==", "failed").limit(limit).get();
-  summary.failed = snapshot.docs.length;
-  if (snapshot.docs.length >= limit) {
-    logger.warn(
-      { event: "capture_outbox_failed_scan_truncated", limit },
-      "More terminally failed outbox entries exist than one scan reads; clear or cancel handled entries",
-    );
-  }
+}): Promise<number> {
   const fresh: Array<{ key: string; requestId: string; kind: string; lastError: string }> = [];
-  for (const doc of snapshot.docs) {
+  for (const doc of docs) {
     if (alertedOutboxKeys.has(doc.id)) continue;
     const data = doc.data() || {};
     const marker = store.collection(OUTBOX_ALERT_COLLECTION).doc(doc.id);
@@ -206,6 +204,7 @@ export async function scanTerminalOutboxFailures(options: {
         outbox_key: doc.id,
         request_id: String(data.requestId || ""),
         kind: String(data.kind || ""),
+        status: String(data.status || ""),
         alerted_at_iso: new Date().toISOString(),
       });
       alertedOutboxKeys.add(doc.id);
@@ -225,12 +224,8 @@ export async function scanTerminalOutboxFailures(options: {
       lastError: String(data.lastError || "unknown").slice(0, 120),
     });
   }
-  if (!fresh.length) return summary;
-  summary.newlyAlerted = fresh.length;
-  logger.error(
-    { event: "capture_outbox_terminal_failures", count: fresh.length, keys: fresh.map((item) => item.key) },
-    "Customer outbox messages exhausted their retries",
-  );
+  if (!fresh.length) return 0;
+  logger.error({ event: kind.event, count: fresh.length, keys: fresh.map((item) => item.key) }, kind.logMessage);
   // Recovery references only: recipient and message body stay in Firestore.
   const lines = fresh.slice(0, 10).map((item) => {
     // Account notices have no inbound lead. Identify the exact recipient's
@@ -241,20 +236,85 @@ export async function scanTerminalOutboxFailures(options: {
     return `- ${item.kind} for ${item.requestId || "unknown request"} (${item.lastError}) ${recovery}`.trim();
   });
   const more = fresh.length > 10 ? [`- …and ${fresh.length - 10} more`] : [];
-  const text = [
-    `:rotating_light: Blueprint: ${fresh.length} customer email(s) failed permanently`,
-    ...lines,
-    ...more,
-  ].join("\n");
+  const title = kind.title(fresh.length);
+  const text = [`:rotating_light: Blueprint: ${title}`, ...lines, ...more, ...(kind.advice ? [kind.advice] : [])].join("\n");
   const alert = options.alert || sendRateLimitedOpsAlert;
-  // A distinct key per batch: each newly failed set is news, and the marker
+  // A distinct key per batch: each newly reported set is news, and the marker
   // collection already guarantees an entry is only ever reported once.
-  await Promise.resolve(alert(`capture_outbox_failed:${fresh[0].key}`, text)).catch(() => undefined);
+  await Promise.resolve(alert(`${kind.alertKey}:${fresh[0].key}`, text)).catch(() => undefined);
   await (options.email || sendEmail)({
     to: opsNoticeRecipient(),
-    subject: `[ALERT] ${fresh.length} customer email(s) failed permanently`,
+    subject: `[ALERT] ${title}`,
     text: text.replace(/^:rotating_light: /, ""),
   }).catch(() => undefined);
+  return fresh.length;
+}
+
+async function readOutboxStatus(store: OutboxStore, status: string, requested: number | undefined) {
+  const limit = Math.max(1, Math.min(requested ?? 200, 500));
+  const snapshot = await store.collection(CAPTURE_OUTBOX_COLLECTION).where("status", "==", status).limit(limit).get();
+  if (snapshot.docs.length >= limit) {
+    logger.warn(
+      { event: `capture_outbox_${status}_scan_truncated`, limit },
+      `More ${status} outbox entries exist than one scan reads; clear or cancel handled entries`,
+    );
+  }
+  return snapshot.docs;
+}
+
+/** Alert once per terminally failed outbox entry. */
+export async function scanTerminalOutboxFailures(options: {
+  store?: OutboxStore | null;
+  limit?: number;
+  alert?: (key: string, message: string) => Promise<unknown>;
+  email?: typeof sendEmail;
+} = {}): Promise<OutboxFailureScanSummary> {
+  const store = options.store === undefined ? (dbAdmin as unknown as OutboxStore | null) : options.store;
+  const summary: OutboxFailureScanSummary = { failed: 0, newlyAlerted: 0 };
+  if (!store) return summary;
+  const docs = await readOutboxStatus(store, "failed", options.limit);
+  summary.failed = docs.length;
+  summary.newlyAlerted = await alertOutboxRowsOnce(store, docs, {
+    title: (count) => `${count} customer email(s) failed permanently`,
+    event: "capture_outbox_terminal_failures",
+    logMessage: "Customer outbox messages failed and will not be retried",
+    alertKey: "capture_outbox_failed",
+  }, options);
+  return summary;
+}
+
+export type OutboxUnknownScanSummary = { unknown: number; needsPerson: number; newlyAlerted: number };
+
+/**
+ * Alert once per outbox entry whose outcome is unknown and that is not sent
+ * again automatically: its provider idempotency window closed, the provider
+ * refused the repeat, the notice stopped being current, or it was dispatched
+ * without a provider key (every entry that was `unknown` before keys existed).
+ * Entries still being re-sent with their key are counted, not alerted here;
+ * the backlog alert covers them.
+ */
+export async function scanUnknownOutboxOutcomes(options: {
+  store?: OutboxStore | null;
+  limit?: number;
+  now?: () => number;
+  alert?: (key: string, message: string) => Promise<unknown>;
+  email?: typeof sendEmail;
+} = {}): Promise<OutboxUnknownScanSummary> {
+  const store = options.store === undefined ? (dbAdmin as unknown as OutboxStore | null) : options.store;
+  const summary: OutboxUnknownScanSummary = { unknown: 0, needsPerson: 0, newlyAlerted: 0 };
+  if (!store) return summary;
+  const docs = await readOutboxStatus(store, "unknown", options.limit);
+  const nowMs = (options.now || Date.now)();
+  const needsPerson = docs.filter((doc) => unknownRowState(doc.data(), nowMs) !== "retrying");
+  summary.unknown = docs.length;
+  summary.needsPerson = needsPerson.length;
+  summary.newlyAlerted = await alertOutboxRowsOnce(store, needsPerson, {
+    title: (count) => `${count} customer email(s) may or may not have been sent, and will not be sent again automatically`,
+    advice: "Look each one up in Resend before sending it again by hand: the site may already have it.",
+    event: "capture_outbox_unknown_outcomes",
+    logMessage: "Customer outbox messages have an unknown outcome and are not sent again automatically",
+    alertKey: "capture_outbox_unknown",
+  }, options);
   return summary;
 }
 
@@ -288,12 +348,13 @@ export async function runBetaOpsMonitorPass() {
     workerHeartbeatCheckEnabled() ? checkWorkerHeartbeat() : Promise.resolve(null),
     // 6. website captures whose preparation went quiet or ended (beta L3/L6).
     scanWebsitePreparations(),
+    scanUnknownOutboxOutcomes(),
   ]);
   for (const [index, result] of results.entries()) {
     if (result.status === "rejected") {
       logger.warn(
         { err: result.reason, step: ["intake_notice_sweep", "outbox_failure_scan", "readiness_check", "outbox_backlog_scan",
-          "worker_heartbeat_check", "website_preparation_scan"][index] },
+          "worker_heartbeat_check", "website_preparation_scan", "outbox_unknown_scan"][index] },
         "Beta ops monitor step failed",
       );
     }

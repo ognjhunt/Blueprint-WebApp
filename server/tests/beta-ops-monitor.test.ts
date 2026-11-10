@@ -10,8 +10,10 @@ import {
   checkWorkerHeartbeat,
   scanOutboxBacklog,
   scanTerminalOutboxFailures,
+  scanUnknownOutboxOutcomes,
   startBetaOpsMonitor,
 } from "../utils/betaOpsMonitor";
+import { readOutboxStall } from "../utils/captureOutboxHealth";
 
 function outboxStore(entries: Array<{ id: string; data: Record<string, unknown> }>) {
   const markers = new Map<string, Record<string, unknown>>();
@@ -95,6 +97,84 @@ describe("terminal outbox failure scan", () => {
     expect(alert).toHaveBeenCalledOnce();
     expect(email).toHaveBeenCalledOnce();
     expect(store.markers.get(entry.idempotencyKey)).toMatchObject({ outbox_key: entry.idempotencyKey, request_id: entry.requestId });
+  });
+});
+
+describe("outbox delivery visibility", () => {
+  const minutes = (n: number) => n * 60_000;
+  const hours = (n: number) => n * 60 * 60_000;
+  const now = Date.parse("2026-11-10T12:00:00Z");
+  const ago = (ms: number) => new Date(now - ms).toISOString();
+  const entries = () => [
+    { id: "req-1:task_received", data: { status: "pending", createdAtIso: ago(minutes(5)), to: "one@site.example" } },
+    // Refused by the provider and waiting out its backoff: still owed a delivery.
+    { id: "req-2:results_ready", data: { status: "pending", attempts: 5, nextAttemptAtMs: now + minutes(20), createdAtIso: ago(minutes(50)) } },
+    // Unknown outcome, being sent again with its provider key inside the window.
+    { id: "req-3:results_ready", data: { status: "unknown", attempts: 2, deliveryKeyAttempt: 2, deliveryKeyFirstUsedAtMs: now - hours(2),
+      nextAttemptAtMs: now + minutes(1), createdAtIso: ago(hours(2)), requestId: "req-3", kind: "results_ready", to: "three@site.example", lastError: "delivery_outcome_unknown" } },
+    // Unknown since before provider keys existed: never sent again.
+    { id: "req-4:results_ready", data: { status: "unknown", attempts: 1, createdAtIso: ago(hours(120)), requestId: "req-4", kind: "results_ready",
+      to: "four@site.example", body: "private body", lastError: "delivery_outcome_unknown" } },
+    // Unknown, and its idempotency window has closed.
+    { id: "req-5:scene_outcome", data: { status: "unknown", attempts: 9, deliveryKeyAttempt: 9, deliveryKeyFirstUsedAtMs: now - hours(40),
+      deliveryRetryEnded: "window_closed", createdAtIso: ago(hours(40)), requestId: "req-5", kind: "scene_outcome", lastError: "delivery_outcome_unknown_window_closed" } },
+    { id: "req-6:task_received", data: { status: "failed", createdAtIso: ago(hours(60)), requestId: "req-6", kind: "task_received", lastError: "Resend rejected email: Invalid `to` field" } },
+    { id: "req-7:task_received", data: { status: "sent", createdAtIso: ago(hours(90)) } },
+  ];
+
+  it("reports unknown and failed counts and the oldest undelivered age, and alerts past the threshold", async () => {
+    const store = outboxStore(entries());
+    const alert = vi.fn(async (_key: string, _text: string) => undefined);
+    const email = vi.fn(async () => ({ sent: true }));
+    const deps = { store: store as never, alert, email: email as never, now: () => now };
+
+    const backlog = await scanOutboxBacklog({ ...deps, maxPending: 50, maxAgeMs: minutes(30) });
+    expect(backlog).toEqual({ pending: 2, undelivered: 3, oldestUndeliveredAgeMs: hours(2), unknownRetrying: 1, unknownNeedsPerson: 2, alerting: true });
+    expect(String(alert.mock.calls[0][1])).toMatch(/3 waiting \(1 after an unknown outcome, sent again with the same provider key\), the oldest for 120 min/);
+
+    const unknown = await scanUnknownOutboxOutcomes(deps);
+    expect(unknown).toEqual({ unknown: 3, needsPerson: 2, newlyAlerted: 2 });
+    const text = String(alert.mock.calls[1][1]);
+    expect(text).toMatch(/2 customer email\(s\) may or may not have been sent, and will not be sent again automatically/);
+    expect(text).toContain("results_ready for req-4 (delivery_outcome_unknown)");
+    expect(text).toContain("scene_outcome for req-5 (delivery_outcome_unknown_window_closed)");
+    expect(text).toContain("Look each one up in Resend before sending it again by hand");
+    // The row still being re-sent is not reported as needing a person, and no recipient or body is.
+    expect(text).not.toContain("req-3");
+    expect(text).not.toMatch(/site\.example|private body/);
+
+    expect(await scanTerminalOutboxFailures(deps)).toEqual({ failed: 1, newlyAlerted: 1 });
+    // Each row is reported once, across passes and across the two scans.
+    expect(await scanUnknownOutboxOutcomes(deps)).toEqual({ unknown: 3, needsPerson: 2, newlyAlerted: 0 });
+    expect(await scanTerminalOutboxFailures(deps)).toEqual({ failed: 1, newlyAlerted: 0 });
+    expect(alert).toHaveBeenCalledTimes(3);
+  });
+
+  it("reports a re-sent row as needing a person once its idempotency window has closed", async () => {
+    const store = outboxStore(entries().filter((entry) => entry.id === "req-3:results_ready"));
+    const alert = vi.fn(async () => undefined);
+    const email = vi.fn(async () => ({ sent: true }));
+    const scan = (at: number) => scanUnknownOutboxOutcomes({ store: store as never, alert, email: email as never, now: () => at });
+    expect(await scan(now)).toEqual({ unknown: 1, needsPerson: 0, newlyAlerted: 0 });
+    expect(await scan(now + hours(22))).toEqual({ unknown: 1, needsPerson: 1, newlyAlerted: 1 });
+  });
+
+  it("does not count rows that only a person can settle as a backlog", async () => {
+    const settled = entries().filter((entry) => ["req-4:results_ready", "req-5:scene_outcome", "req-6:task_received", "req-7:task_received"].includes(entry.id));
+    const alert = vi.fn(async () => undefined);
+    const backlog = await scanOutboxBacklog({ store: outboxStore(settled) as never, alert, email: vi.fn() as never, now: () => now, maxPending: 50, maxAgeMs: minutes(30) });
+    expect(backlog).toEqual({ pending: 0, undelivered: 0, oldestUndeliveredAgeMs: null, unknownRetrying: 0, unknownNeedsPerson: 2, alerting: false });
+    expect(alert).not.toHaveBeenCalled();
+  });
+
+  it("answers the health endpoint from the oldest undelivered age alone", async () => {
+    const store = outboxStore(entries());
+    expect(await readOutboxStall({ store: store as never, now: () => now })).toEqual({ status: "stalled", oldestUndeliveredAgeMs: hours(2), stalledAfterMs: hours(2) });
+    expect(await readOutboxStall({ store: store as never, now: () => now - minutes(1) })).toMatchObject({ status: "moving" });
+    expect(await readOutboxStall({ store: outboxStore([]) as never, now: () => now })).toEqual({ status: "moving", oldestUndeliveredAgeMs: null, stalledAfterMs: hours(2) });
+    expect(await readOutboxStall({ store: null })).toMatchObject({ status: "unavailable" });
+    const broken = { collection: () => { throw new Error("firestore unavailable"); } };
+    expect(await readOutboxStall({ store: broken as never })).toMatchObject({ status: "unavailable", oldestUndeliveredAgeMs: null });
   });
 });
 

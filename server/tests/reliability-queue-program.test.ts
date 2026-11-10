@@ -21,7 +21,7 @@ function define(family:string, name:string, parameters:Record<string,any>, expec
  const canonicalFamily=family === "provider-failures" ? "provider" : family === "worker-lifecycle" ? "worker" : family;
  const semanticHash=createHash("sha256").update(JSON.stringify(canonical({kind:"infrastructure",family:canonicalFamily,parameters,expectedTransitions,sourceId:null,split:null}))).digest("hex");
  const caseId=`B-${family}-${name}`;
- cases.push({caseId,family:canonicalFamily,parameters,expectedTransitions,assertions:["durable fake state matches transition", "provider effects bounded by persisted attempts", "no uncertain automatic replay"],layer:"fake-provider-integration/fake-firestore",providerMode:"mocked Resend SDK transport; actual sendEmail wrapper",semanticHash,replayCommand:`npx vitest run server/tests/reliability-queue-program.test.ts -t '${caseId}'`});
+ cases.push({caseId,family:canonicalFamily,parameters,expectedTransitions,assertions:["durable fake state matches transition", "provider effects bounded by persisted attempts", "uncertain effects replayed only with the row's provider idempotency key"],layer:"fake-provider-integration/fake-firestore",providerMode:"mocked Resend SDK transport; actual sendEmail wrapper",semanticHash,replayCommand:`npx vitest run server/tests/reliability-queue-program.test.ts -t '${caseId}'`});
  it(caseId, async()=>{const start=performance.now();try{await run();results.push({caseId,status:"passed",attempted:true,repeat:1,latencyMs:performance.now()-start,providerCalls:sdk.mock.calls.length});}catch(error){results.push({caseId,status:"failed",attempted:true,repeat:1,latencyMs:performance.now()-start,providerCalls:sdk.mock.calls.length,error:error instanceof Error?error.message:"failed"});throw error;}});
 }
 beforeEach(()=>{store.docs.clear();store.docs.set("inboundRequests/reliability",{request:{consent_attestation:{granted:true,statement_version:"2026-09-18.v1",recorded_at_iso:"2026-01-01T00:00:00Z"}}});sdk.mockReset().mockResolvedValue({data:{id:"synthetic-accepted"},error:null});authority.mockReset().mockResolvedValue("current");vi.stubEnv("RESEND_API_KEY","synthetic-sink-only");vi.stubEnv("RESEND_FROM_EMAIL","sink@example.invalid");vi.stubEnv("NODE_ENV","test");});
@@ -36,11 +36,19 @@ describe("provider failure semantics",()=>{
   {name:"missing-receipt",status:null,unknown:true},
   {name:"transport-exception",status:null,unknown:true},
  ];
- for(const outcome of outcomes)for(const attempts of [0,4,5])define("provider-failures",`${outcome.name}-attempts${attempts}`,{providerHttpStatus:outcome.status,boundary:outcome.name,persistedAttempts:attempts},["pending","dispatching",outcome.unknown?"unknown":attempts===5?"failed":"pending"],async()=>{
+ // 400, 404, 409 and 422 refuse this message for good. 401, 403 and 429 are the account, key or rate: the same message can succeed later.
+ const afterFirst=(outcome:{status:number|null;unknown:boolean})=>outcome.unknown?"unknown":[400,404,409,422].includes(outcome.status!)?"failed":"pending";
+ for(const outcome of outcomes)for(const attempts of [0,4,5])define("provider-failures",`${outcome.name}-attempts${attempts}`,{providerHttpStatus:outcome.status,boundary:outcome.name,persistedAttempts:attempts},["pending","dispatching",afterFirst(outcome)],async()=>{
   await enqueueOutbox(input());row().attempts=attempts;
   sdk.mockImplementation(async()=>{if(outcome.name==="transport-exception")throw new Error("synthetic connection closed after possible acceptance");return {data:null,error:outcome.status===null?null:{statusCode:outcome.status,message:`synthetic ${outcome.status}`}};});
-  await deliverOutbox();expect(row()).toMatchObject({status:outcome.unknown?"unknown":attempts===5?"failed":"pending",attempts:attempts+1});expect(sdk).toHaveBeenCalledTimes(1);
-  if(outcome.unknown || attempts===5){await deliverOutbox();expect(sdk).toHaveBeenCalledTimes(1);}else{sdk.mockResolvedValue({data:{id:"recovered"},error:null});await deliverOutbox();expect(row()).toMatchObject({status:"sent",attempts:attempts+2});expect(sdk).toHaveBeenCalledTimes(2);}
+  await deliverOutbox();expect(row()).toMatchObject({status:afterFirst(outcome),attempts:attempts+1});expect(sdk).toHaveBeenCalledTimes(1);
+  // No outcome is tried again before its backoff, whatever the attempt count; a permanent refusal never is.
+  await deliverOutbox();expect(sdk).toHaveBeenCalledTimes(1);
+  row().nextAttemptAtMs=0;sdk.mockResolvedValue({data:{id:"recovered"},error:null});await deliverOutbox();
+  if(afterFirst(outcome)==="failed"){expect(row().status).toBe("failed");expect(sdk).toHaveBeenCalledTimes(1);return;}
+  expect(row()).toMatchObject({status:"sent",attempts:attempts+2});expect(sdk).toHaveBeenCalledTimes(2);
+  // Every send of the row carries the same provider idempotency key.
+  expect(sdk.mock.calls[0][1].idempotencyKey).toMatch(/^capture-outbox\/[a-f0-9]{64}$/);expect(sdk.mock.calls[1][1]).toEqual(sdk.mock.calls[0][1]);
  });
 });
 
@@ -75,10 +83,15 @@ describe("worker durable boundary replay",()=>{
   const failingStatus=boundary==="claim-write-failure"?"claimed":boundary==="dispatch-write-failure"?"dispatching":"sent";
   const spy=boundary==="authority-read-failure"?null:failWrite(failingStatus);
   if(boundary==="authority-read-failure")authority.mockRejectedValueOnce(new Error("synthetic authority unavailable"));
-  await expect(deliverOutbox()).rejects.toThrow(/synthetic/);spy?.mockRestore();
+  // The row's failure is contained: the pass completes and later rows would still be delivered.
+  await expect(deliverOutbox()).resolves.toMatchObject({sent:0});spy?.mockRestore();
   const accepted=boundary==="accepted-ack-write-failure";
   expect(row().attempts).toBe(attempts+(accepted?1:0));expect(sdk).toHaveBeenCalledTimes(accepted?1:0);
   row().deliveryLeaseUntilMs=0;await deliverOutbox();await deliverOutbox();
-  expect(row().status).toBe(accepted?"unknown":"sent");expect(sdk).toHaveBeenCalledTimes(1);expect(row().attempts).toBe(attempts+1);
+  if(accepted){expect(row().status).toBe("unknown");expect(sdk).toHaveBeenCalledTimes(1);expect(row().attempts).toBe(attempts+1);}
+  // A deferred check and an uncertain effect both wait out a backoff. The uncertain one is then replayed under the same provider key.
+  row().nextAttemptAtMs=0;await deliverOutbox();
+  expect(row().status).toBe("sent");expect(sdk).toHaveBeenCalledTimes(accepted?2:1);expect(row().attempts).toBe(attempts+(accepted?2:1));
+  if(accepted)expect(sdk.mock.calls[1][1]).toEqual(sdk.mock.calls[0][1]);
  });
 });

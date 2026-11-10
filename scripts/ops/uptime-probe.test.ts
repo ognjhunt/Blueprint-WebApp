@@ -41,6 +41,36 @@ describe("uptime probe", () => {
     expect(up.calls.some((url) => url.startsWith("https://hooks.example"))).toBe(false);
   });
 
+  describe("customer email outbox", () => {
+    const website = { "/health": [[200, '"healthy"']], "/version.json": [[200, "git_sha"]], "/health/worker": [[200, '"fresh"']] } as Record<string, Array<[number, string]>>;
+    const env = { UPTIME_BASE_URL: "https://site.example", UPTIME_ATTEMPTS: "1", UPTIME_RETRY_DELAY_MS: "0", SLACK_WEBHOOK_URL: "https://hooks.example/x" };
+
+    it.each([
+      [503, '{"status":"stalled","oldest_undelivered_age_seconds":9000,"stalled_after_seconds":7200}'],
+      [503, '{"status": "unavailable", "oldest_undelivered_age_seconds": null}'],
+    ])("pages by name when the outbox answers %i %s", async (status, body) => {
+      vi.spyOn(console, "error").mockImplementation(() => undefined);
+      vi.spyOn(console, "log").mockImplementation(() => undefined);
+      const down = site({ ...website, "/health/outbox": [[status, body]] });
+      expect(await main(env, down.fetchImpl)).toBe(1);
+      const slack = down.fetchImpl.mock.calls.find(([url]) => String(url).startsWith("https://hooks.example"))!;
+      expect(JSON.parse(String(slack[1]?.body)).text).toBe(
+        ":rotating_light: Blueprint uptime probe failed for https://site.example: /health/outbox=HTTP_503 (customer email undelivered too long, or the outbox is unreadable)");
+    });
+
+    it.each([
+      ["a moving outbox", 200, '{"status":"moving","oldest_undelivered_age_seconds":61,"stalled_after_seconds":7200}'],
+      // The web service before this endpoint is deployed serves its page shell for the path.
+      ["a build without the endpoint", 200, "<!doctype html><html><body><div id=\"root\"></div></body></html>"],
+      ["a build that answers 404 for the path", 404, "Not Found"],
+    ])("passes for %s", async (_name, status, body) => {
+      vi.spyOn(console, "log").mockImplementation(() => undefined);
+      const up = site({ ...website, "/health/outbox": [[status, body]] });
+      expect(await main(env, up.fetchImpl)).toBe(0);
+      expect(up.calls).toContain("https://site.example/health/outbox");
+    });
+  });
+
   describe("control-plane host", () => {
     const door = "https://door.example/api/live-pipeline/operator/v1/healthz";
     const website = { "/health": [[200, '"healthy"']], "/version.json": [[200, "git_sha"]], "/health/worker": [[200, '"fresh"']] } as Record<string, Array<[number, string]>>;
