@@ -171,11 +171,11 @@ test("the owner confirms how success is judged, in plain words, with no number t
   const section = page.getByRole("region", { name: "How success is judged" });
   await expect(section.getByRole("heading", { name: "How success is judged" })).toBeVisible();
   await expect(section.getByText("The green spot: a circle 30 cm across. The whole object has to end up inside it.")).toBeVisible();
-  await expect(section.getByText("Robot scoring waits until you confirm these goals.")).toBeVisible();
+  await expect(section.getByText("You can confirm these goals, or tell us what is wrong.")).toBeVisible();
   await expect(section.getByText("deterministic_simulator_state")).toBeHidden();
   await expect(section.locator("input:not([type=radio])")).toHaveCount(0);
   await section.getByRole("button", { name: "Something is wrong" }).click();
-  await expect(section.getByRole("button", { name: "Hold the job" })).toBeDisabled();
+  await expect(section.getByRole("button", { name: "Send this reason" })).toBeDisabled();
   await expect(section.getByLabel("The goal area is in the wrong place")).toBeVisible();
   await page.screenshot({ path: info.outputPath("success-thresholds-proposed.png"), fullPage: true });
   await section.getByRole("button", { name: "Use these goals" }).click();
