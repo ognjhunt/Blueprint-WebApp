@@ -184,6 +184,44 @@ it("v6 shows the early robot fit hold: which robots were checked and why none fi
     + "than the arm can reach from any place it could be mounted level with the lower work surface.");
   expect(projected.outcome!.scope).toMatch(/before any paid work.*estimate.*no robot was tried/);
 });
+function v7(state: WebsitePreparationReceipt["state"], outcome: unknown = null) {
+  const value = {...receipt(state), schema_version: "website_preparation_status.v7", terminal_reason: null,
+    outcome, question: null, robot_fit: null, robot_fit_precheck: null};
+  return {...value, status_digest: crossRuntimeArtifactDigest(value, "status_digest")};
+}
+it.each(["website_front_normal_undetermined", "website_registration_ambiguous", "website_registration_poor_fit",
+  "website_registration_conflicts_provider_anchor", "website_registration_anchor_deviation",
+  "website_registration_ground_plane_inconsistent"])(
+  "v7 shows a preparation stop only a new video can clear as an ask to the site to film again (%s)", async reason => {
+  const h = harness();
+  h.ledger(v7("awaiting_inputs", {category: "insufficient_evidence", reason, basis: "missing_evidence", robot_id: null,
+    evidence_digest: `sha256:${"e".repeat(64)}`}));
+  await syncWebsitePreparationStatus(selector, h.deps);
+  const projected = await loadCurrentWebsitePreparationStatus("r1", "walkthrough-r1", h.deps);
+  expect(projected.state).toBe("awaiting_inputs");
+  expect(projected.outcome).toMatchObject({category: "insufficient_evidence", basis: "missing_evidence",
+    title: "We need a new video of your work area", actionOwner: "site"});
+  expect(projected.outcome!.nextStep).toMatch(/^Please film again.*Then send us the new video\.$/);
+  expect(JSON.stringify(projected)).not.toMatch(/website_|no repeat upload|do not need to (record|send)/);
+});
+it("the needs-attention notice for a v7 new-video stop carries its reason, so the email says what the page says", async () => {
+  const h = harness();
+  h.ledger(v7("awaiting_inputs", {category: "insufficient_evidence", reason: "website_front_normal_undetermined",
+    basis: "missing_evidence", robot_id: null, evidence_digest: `sha256:${"e".repeat(64)}`}));
+  await syncWebsitePreparationStatus(selector, h.deps);
+  expect(await drainPendingWebsitePreparationNotifications(h.enqueue, h.deps)).toEqual({enqueued: 1, pending: 0});
+  expect(h.enqueue).toHaveBeenCalledWith(expect.objectContaining({milestone: "preparation_needs_attention",
+    recaptureReason: "website_front_normal_undetermined", eventId: websitePreparationEventId(selector)}));
+  expect(h.enqueue.mock.calls[0][0]).not.toHaveProperty("awaitEarlyHoldUntilMs");
+});
+it("v6 does not accept a v7 stop, and v7 accepts no other new reason", () => {
+  const stop = {category: "insufficient_evidence", reason: "website_registration_poor_fit", basis: "missing_evidence",
+    robot_id: null, evidence_digest: `sha256:${"e".repeat(64)}`};
+  expect(websitePreparationReceiptSchema.safeParse(v6("awaiting_inputs", null, stop)).success).toBe(false);
+  expect(websitePreparationReceiptSchema.safeParse(v7("awaiting_inputs", stop)).success).toBe(true);
+  expect(websitePreparationReceiptSchema.safeParse(v7("awaiting_inputs",
+    {...stop, reason: "website_registration_anchor_frame_invalid"})).success).toBe(false);
+});
 it("v6 says none fits, and no more, when the hold names a cause it does not know", async () => {
   const h = harness();
   h.ledger(v6("awaiting_inputs", precheck({hold_reason: "website_robot_fit_none:payload"}), robotFitNone));
