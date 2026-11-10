@@ -344,15 +344,11 @@ app.use("/api/site-worlds/sessions", hostedSessionLimiter);
 
 // Stricter limiters for sensitive routes
 app.use("/api/marketplace", aiLimiter);
-app.use("/api/process-waitlist", aiLimiter);
 app.use("/api/post-signup-workflows", aiLimiter);
-app.use("/api/generate-image", aiLimiter);
 
 app.use("/api/auth", authLimiter);
 app.use("/api/create-checkout-session", authLimiter);
-app.use("/api/submit-to-sheets", authLimiter);
 
-app.use("/api/upload-to-b2", uploadLimiter);
 app.use("/api/storage/uploads", uploadLimiter);
 
 // Sliding-window 5xx rate alert (Slack, rate-limited). Health probes are

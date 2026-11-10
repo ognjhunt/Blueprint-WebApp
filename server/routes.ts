@@ -6,11 +6,6 @@ import passwordResetRouter from "./routes/password-reset";
 import adminRobotTeamAccessRouter from "./routes/admin-robot-team-access";
 import type { Express } from "express";
 import createCheckoutSessionHandler from "./routes/api/create-checkout-session";
-import googlePlacesHandler from "./routes/api/google-places";
-import generateImageHandler from "./routes/api/generate-image";
-import submitToSheetsHandler from "./routes/api/submit-to-sheets";
-import processWaitlistHandler from "./routes/process-waitlist";
-import uploadToB2Handler from "./routes/api/upload-to-b2";
 import storageUploadsRouter from "./routes/storage-uploads";
 import captureUploadsRouter from "./routes/capture-uploads";
 import taskEvaluationSceneIntakesRouter from "./routes/task-evaluation-scene-intakes";
@@ -22,7 +17,6 @@ import screeningPracticeRunVideosRouter from "./routes/screening-practice-run-vi
 import nativeG1PrivateReviewsRouter, { nativeG1PrivateReviewDownloadsRouter, nativeG1PrivateReviewIngestRouter } from "./routes/native-g1-private-reviews";
 import nativeG1TeamCampaignsRouter from "./routes/native-g1-team-campaigns";
 import postSignupWorkflowsHandler from "./routes/post-signup-workflows";
-import helpRouter from "./routes/help";
 import qrLinkRouter from "./routes/qr-link";
 import appleAssociationRouter from "./routes/apple-app-site-association";
 import stripeAccountRouter from "./routes/stripe";
@@ -220,24 +214,9 @@ export function registerRoutes(app: Express) {
     verifyFirebaseToken,
     createCheckoutSessionHandler,
   );
-  app.get("/api/googlePlaces", verifyFirebaseToken, googlePlacesHandler);
-  app.all(
-    "/api/generate-image",
-    csrfProtection,
-    verifyFirebaseToken,
-    generateImageHandler,
-  );
-  app.post(
-    "/api/submit-to-sheets",
-    csrfProtection,
-    verifyFirebaseToken,
-    submitToSheetsHandler,
-  );
-  app.post("/api/process-waitlist", csrfProtection, processWaitlistHandler);
   // Public endpoints (no Firebase auth required).
   app.post("/api/contact", csrfProtection, contactTaskMediaHandler);
   app.post("/api/waitlist", csrfProtection, waitlistHandler);
-  app.use("/api/help", csrfProtection, helpRouter);
   app.post("/api/growth/webhooks/resend", resendWebhookHandler);
   app.use("/api/growth/email", emailPreferencesRouter);
   // Inbound request (lead pipeline) - public submission endpoint
@@ -345,12 +324,6 @@ export function registerRoutes(app: Express) {
     adminSlaRouter,
   );
   app.use("/api/site-worlds/sessions", csrfProtection, verifyFirebaseToken, siteWorldSessionsRouter);
-  app.post(
-    "/api/upload-to-b2",
-    csrfProtection,
-    verifyFirebaseToken,
-    uploadToB2Handler,
-  );
   app.use(
     "/api/storage/uploads",
     csrfProtection,
