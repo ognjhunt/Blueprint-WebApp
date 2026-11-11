@@ -112,8 +112,9 @@ export const ANSWER_CONFIDENCE_LABELS: Readonly<Record<AnswerConfidenceLevel, st
   low: "Low",
 };
 
+/** The standing note under every answer: what the check covers, and what it is not. */
 export const SITE_ANSWER_NOTE =
-  "This is a fit check against published robot specifications and a cited track record. It is not a test of a robot at your site and does not certify performance or safety.";
+  "This checks whether a robot can pick your object up and put it down, against published robot specifications and a cited track record. It is not a test of a robot at your site and does not certify performance or safety.";
 
 export interface SiteAnswer {
   schemaVersion: typeof SITE_ANSWER_SCHEMA;

@@ -119,6 +119,20 @@ describe("GET /api/site-worlds/tasks/:taskId", () => {
     expect(summary.simulation).toBeNull();
   });
 
+  it("tells a company what was checked: the standing note always, and that only a carry was checked when the reader gave no kind", async () => {
+    const record = job();
+    delete (record.walkthrough_job_estimates.job_estimates as Record<string, unknown>).job_kind;
+    put(record);
+    const { body } = await get(`/tasks/${ID}`);
+    const summary = body.item.answerSummary;
+    expect(summary.note).toBe("This checks whether a robot can pick the object up and put it down, against published robot specifications and a cited track record. It is not a test of a robot at the site and does not certify performance or safety.");
+    expect(summary.unknowns[0]).toBe("We could not tell from the site's video what is done to the object; this checks only whether a robot can pick it up and put it down.");
+    expect(JSON.stringify(summary)).not.toMatch(/\byour\b/i);
+    // With the reader's kind of job, the card says nothing of the kind.
+    put(job());
+    expect((await get(`/tasks/${ID}`)).body.item.answerSummary.unknowns.some((line: string) => line.startsWith("We could not tell"))).toBe(false);
+  });
+
   it("adds one plain simulation line when the site's evaluation has one", async () => {
     put(job());
     seams.managed.mockImplementation(async () => ({ managedEvidence: [{ current: true, state: "completed", outcome: "held_scene_check" }] }));

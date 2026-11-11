@@ -65,12 +65,13 @@ describe("one email per terminal outcome of the job's evaluation (F-01)", () => 
     const words = notice.body.slice(0, notice.body.indexOf("on your private job page"));
     expect(words).not.toMatch(/rerun|setup blocker|owner approval|budget|\$|development only|[a-z]_[a-z]/i);
     if (outcome === "estimate") {
-      // The fixture's two policies completed the job 2 and 1 times in 3: about 0.76 under the probability rule,
-      // so no clear difference yet (rewritten from "the result separates them").
-      expect(notice.subject).toBe("Your simulation result is ready");
-      expect(notice.body).toMatch(/^No clear difference between the policies yet\. Tries that completed the job in a simulation of your site: .+, 2 of 3; .+, 1 of 3\.\n\n/);
+      // The fixture's two policies (2 and 1 of 3) are not in our list, so their robot is not confirmed:
+      // their counts are listed, never ranked, and the email announces no result and no trust line
+      // (rewritten from "the result separates them", then from "no clear difference").
+      expect(notice.subject).toBe("The simulation of your job has finished");
+      expect(notice.body).toMatch(/^We could not confirm that these policies ran on the same robot in the simulation of your site, so they are not compared\. Tries that completed the job: an AI control policy not in our list yet \(A\), 2 of 3; an AI control policy not in our list yet \(B\), 1 of 3\. Nothing is needed from you\.\n\n/);
       expect(notice.body).not.toMatch(/did best|was ahead|proof/i);
-      expect(notice.body).toContain(SIMULATION_TRUST_LINE);
+      expect(notice.body).not.toContain(SIMULATION_TRUST_LINE);
     } else {
       expect(notice.subject).toBe("An update on the simulation of your job");
       expect(notice.body).not.toMatch(/estimate|proof|result is ready/);
@@ -136,7 +137,7 @@ describe("one email per terminal outcome of the job's evaluation (F-01)", () => 
     expect(state.docs.get(key("held_capability"))).toMatchObject({ status: "cancelled", attempts: 0 });
     expect(state.docs.get(key("estimate"))).toMatchObject({ status: "sent" });
     expect(send).toHaveBeenCalledTimes(1);
-    expect(send.mock.calls[0][0].subject).toBe("Your simulation result is ready");
+    expect(send.mock.calls[0][0].subject).toBe("The simulation of your job has finished");
     expect([run().outcome_notification_pending, run("campaign-two").outcome_notification_pending]).toEqual([false, false]);
   });
 

@@ -3,8 +3,8 @@ import type { SimulationProof as SimulationProofView } from "@/lib/simulationPro
 
 type Row = NonNullable<SimulationProofView["policyComparison"]>["rows"][number];
 
-/** At the start of a row, the plain phrase for a policy we cannot name starts with a capital. */
-const rowName = (name: string) => (name === UNNAMED_POLICY ? "An AI control policy" : name);
+/** At the start of a row, the plain phrase for a policy not in our list starts with a capital. */
+const rowName = (name: string) => (name.startsWith(UNNAMED_POLICY) ? `A${name.slice(1)}` : name);
 
 /** The leader's mark says as much as the comparison does: "Did best" only when the gap is unlikely to be chance. */
 function PolicyRow({ row, separated }: { row: Row; separated: boolean }) {

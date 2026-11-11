@@ -4,7 +4,7 @@ import { readyAnswer } from "../fixtures/siteAnswer";
 import { SIMULATION_ACCURACY } from "@/data/simulationAccuracy";
 import { SIMULATION_POLICIES } from "@/data/simulationPolicies";
 import type { AnswerRobot } from "@/lib/siteAnswer";
-import { AHEAD, CLEAR, GAP_COULD_BE_CHANCE, GAP_UNLIKELY_CHANCE, NO_POLICY_COMPLETED, NO_POLICY_SCORED, SCALE_ESTIMATED,
+import { AHEAD, CLEAR, ROBOT_NOT_CONFIRMED, GAP_COULD_BE_CHANCE, GAP_UNLIKELY_CHANCE, NO_POLICY_COMPLETED, NO_POLICY_SCORED, SCALE_ESTIMATED,
   probabilityAhead, projectSimulationProof } from "@/lib/simulationProof";
 import type { JobManagedEvidenceSummary } from "@/types/jobMarketplace";
 
@@ -145,14 +145,39 @@ describe("projectSimulationProof", () => {
     expect(same.forThisJob).toEqual([]);
   });
 
-  it("falls back to the evaluation's own name for an unknown id, with no maker", () => {
+  // Rewritten from "falls back to the evaluation's own name for an unknown id": a stored name never
+  // reaches the page now; an unmapped policy is a neutral phrase, lettered when there are several.
+  it("never shows a stored name for an unknown id: a neutral phrase, lettered in a stable order", () => {
     const proof = projectSimulationProof({ evaluation: evaluation({}, [candidate("pi05_droid", "π0.5 DROID", 10, 6),
-      candidate("new_policy_2027", "Acme Grasp 1", 10, 2), candidate("other_new_policy", "acme_grasp_v2_ckpt", 10, 1)]), pick: ur10e });
-    const rows = proof.policyComparison!.rows;
-    expect(rows.find(row => row.policy === "Acme Grasp 1")).toMatchObject({ maker: null });
-    expect(rows.map(row => row.policy)).toContain("an AI control policy");
-    expect(rows.find(row => row.policy === "an AI control policy")).toMatchObject({ maker: null });
-    expectPlainPolicies(rows);
+      candidate("zz_new_policy", "Guaranteed safe production-ready policy", 10, 2), candidate("aa_new_policy", "Acme Grasp 1", 10, 1)]), pick: ur10e });
+    const comparison = proof.policyComparison!;
+    expect(comparison.rows.map(row => [row.policy, row.maker, row.compared])).toEqual([
+      ["π0.5", "Physical Intelligence", true],
+      ["an AI control policy not in our list yet (B)", null, false],
+      ["an AI control policy not in our list yet (A)", null, false]]);
+    expect(JSON.stringify(proof)).not.toMatch(/Guaranteed|Acme|production-ready/);
+    expect(comparison.line).toContain("2 more policies ran on a robot we could not confirm is the same, and are not compared with these.");
+    expectPlainPolicies(comparison.rows);
+  });
+
+  it("names no winner among policies whose robot is unknown: their counts, no ranking, and why", () => {
+    const proof = projectSimulationProof({ evaluation: evaluation({}, [candidate("new_a", "Acme Grasp", 10, 10),
+      candidate("new_b", "Northwind", 10, 0)]), pick: ur10e });
+    const comparison = proof.policyComparison!;
+    expect(comparison).toMatchObject({ winner: null, separated: false });
+    expect(comparison.rows.every(row => !row.chosen && !row.compared)).toBe(true);
+    expect(comparison.line).toBe(`${ROBOT_NOT_CONFIRMED} Tries that completed the job: an AI control policy not in our list yet (A), 10 of 10; `
+      + "an AI control policy not in our list yet (B), 0 of 10.");
+    expect(proof.headline).toBe(ROBOT_NOT_CONFIRMED);
+    // No "we ran the public policies on …" when no robot is known.
+    expect(proof.forThisJob).toEqual([SCALE_ESTIMATED]);
+  });
+
+  it("in a mixed-robot run, says the compared policies are the ones that run on the main arm", () => {
+    const proof = projectSimulationProof({ evaluation: evaluation({}, [candidate("humanoidarena_pi05_g1_dex3_sonic", "HumanoidArena", 10, 9),
+      candidate("pi05_droid", "π0.5 DROID", 10, 1), candidate("groot_n17_droid", "GR00T N1.7 DROID", 10, 1)]), pick: ur10e });
+    expect(proof.forThisJob).toEqual([SCALE_ESTIMATED, "We have no public AI policy to run on the Universal Robots UR10e. "
+      + "The policies compared here are the ones that run on a Franka research arm, in a simulation of your site."]);
   });
 
   it("counts as not run only policies planned for this run: deferred for budget or failed to load, never the catalog rows that were never available", () => {
@@ -176,12 +201,12 @@ describe("projectSimulationProof", () => {
     expect(one.policyComparison!.didNotRunLine).toBe("1 more policy was planned and did not run. “Simulation details” further down says why.");
   });
 
-  it("falls back to a plain phrase for a working label or a code, never the label itself", () => {
+  it("shows a neutral phrase for a working label or a code, never the label itself", () => {
     for (const name of ["Current candidate", "Candidate 3", "Baseline policy", "acme_grasp_v2_ckpt", "gs://bucket/model", "Policy v2.1", "sha256:abcdef"]) {
       const proof = projectSimulationProof({ evaluation: evaluation({}, [candidate("pi05_droid", "π0.5 DROID", 10, 6),
         candidate("unknown_id", name, 10, 2)]), pick: ur10e });
       // An unknown id has no known robot, so it is shown but not compared with the Franka policies.
-      expect(proof.policyComparison!.rows[1]).toMatchObject({ policy: "an AI control policy", maker: null, compared: false, robot: null, chosen: false });
+      expect(proof.policyComparison!.rows[1]).toMatchObject({ policy: "an AI control policy not in our list yet", maker: null, compared: false, robot: null, chosen: false });
       expect(proof.policyComparison!.line).toBe("The simulation scored one policy on a Franka research arm: π0.5 completed the job in 6 of 10 tries. "
         + "With nothing to compare it to on that robot, it could not rank policies. "
         + "1 more policy ran on a robot we could not confirm is the same, and is not compared with these.");

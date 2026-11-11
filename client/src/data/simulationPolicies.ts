@@ -74,22 +74,18 @@ export const SIMULATION_POLICIES: Readonly<Record<string, SimulationPolicy>> = {
   humanoidarena_pi05_g1_dex3_sonic_vision_navi: { policy: "HumanoidArena π0.5 (walking to a goal)", maker: null, robot: UNITREE_G1 },
 };
 
-/** A name that reads like a code (underscores, paths, links, markup, version or digest strings) is never shown. */
-const looksLikeCode = (value: string) => /[_/\\:@#<>{}]|\.v\d|\bv\d+(\.\d+)*\b|sha256|[0-9a-f]{12,}|\d{3,}/i.test(value);
-/** Our own working words ("Current candidate", "Baseline 2") are never a policy's name either. */
-const looksLikeWorkingLabel = (value: string) =>
-  /\b(candidates?|screening|episodes?|embodiments?|checkpoints?|baselines?|placeholders?|templates?|unnamed|unknown|untitled|current|default|test|tbd|todo)\b/i.test(value);
-/** Said of a policy whose name we do not know, in a sentence: "In a simulation of your site, an AI control policy did best". */
-export const UNNAMED_POLICY = "an AI control policy";
+/**
+ * Said of a policy that is not in the mapping above. A name we did not write (an evaluation's stored
+ * display name, a model's words) never reaches the page: an unmapped policy is only ever this phrase,
+ * told apart from others by a letter where several appear ("… (A)", "… (B)").
+ */
+export const UNNAMED_POLICY = "an AI control policy not in our list yet";
 
 /**
- * A candidate's plain name. An id this file does not know falls back to the
- * evaluation's display name with no maker and no robot, unless that name reads
- * like a code or a working label, which falls back to "an AI control policy".
+ * A candidate's plain name, through a closed mapping: a known id gives its policy, maker and robot; any
+ * other id gives `UNNAMED_POLICY`, no maker and no robot. The display name is deliberately not read.
  */
-export function simulationPolicyFor(candidateId: string, displayName: string): { policy: string; maker: string | null; robot: SimulatedRobot | null } {
+export function simulationPolicyFor(candidateId: string, _displayName?: string): { policy: string; maker: string | null; robot: SimulatedRobot | null } {
   const known = Object.prototype.hasOwnProperty.call(SIMULATION_POLICIES, candidateId) ? SIMULATION_POLICIES[candidateId] : null;
-  if (known) return known;
-  const name = displayName.trim();
-  return { policy: name && !looksLikeCode(name) && !looksLikeWorkingLabel(name) ? name : UNNAMED_POLICY, maker: null, robot: null };
+  return known ?? { policy: UNNAMED_POLICY, maker: null, robot: null };
 }

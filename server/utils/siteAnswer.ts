@@ -194,17 +194,30 @@ function readingObject(request: Record<string, any>): string | null {
  * the job and read the site's description, says what kind it is (`job_kind`):
  * "other" means robots cannot be checked against it; a carrying kind means they
  * can, and it gives the job family. When the reader does not say (an older
- * reading, or footage that did not show the job), the check runs on the numbers
- * and the standing note says what it covers. What else the job involves comes
- * only from the reader's `other_actions`, a closed list.
+ * reading, or footage that did not show the job), the check runs on the numbers,
+ * the first unknown says only a carry was checked, and the standing note says
+ * what every answer covers. What else the job involves comes only from the
+ * reader's `other_actions`, a closed list.
  */
 
-const REASON_OTHER_KIND = "This check covers jobs where a robot picks one solid object up and puts it down. Your job looks like another kind, which we can't check robots against yet.";
 const UNKNOWN_MULTI_STEP = "Your job has more than one step; this checks one carry.";
+/** The reader did not say what is done to the object: said first, so the answer never passes for more than a carry. */
+export const UNKNOWN_JOB_KIND = "We could not tell from your video what is done to the object; this checks only whether a robot can pick it up and put it down.";
+
+const listInWords = (items: string[]) =>
+  items.length > 1 ? `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}` : items[0];
 
 function alsoInvolves(actions: string[]): string {
-  const list = actions.length > 1 ? `${actions.slice(0, -1).join(", ")} and ${actions[actions.length - 1]}` : actions[0];
-  return `Your job also involves ${list}; this checks only the picking up and putting down.`;
+  return `Your job also involves ${listInWords(actions)}; this checks only the picking up and putting down.`;
+}
+
+/**
+ * Why a job the reader says is another kind cannot be checked, with what the reader saw, and the one thing the
+ * site can do: a summary edit causes a new reading.
+ */
+function reasonOtherKind(actions: string[]): string {
+  const seen = actions.length ? ` (${listInWords(actions)})` : "";
+  return `From your video, the job looks like more than picking an object up and putting it down${seen}, which we can't check robots against yet. If the job is only moving the object from one place to another, say so in the job description and we will check again.`;
 }
 
 const READER_FAMILY: Record<"pick_and_place" | "palletizing" | "machine_tending", JobFamily> = {
@@ -218,6 +231,8 @@ interface Scope {
   family: JobFamily;
   /** What else is done to the object besides carrying it, from the reader's closed list. */
   otherActions: string[];
+  /** The reader gave no kind of job: only a carry was checked, and the answer says so. */
+  kindUnknown: boolean;
   multiStep: boolean;
 }
 
@@ -229,7 +244,8 @@ function scopeOf(inputs: RobotFitInputs, jobSentences: string[]): Scope {
   return {
     otherKind,
     family: kind && kind !== "other" ? READER_FAMILY[kind] : "pick_place",
-    otherActions: otherKind ? [] : estimates?.otherActions ?? [],
+    otherActions: estimates?.otherActions ?? [],
+    kindUnknown: kind === null,
     multiStep: jobSentences.some((sentence) => Boolean(multiStepEvidence(sentence))),
   };
 }
@@ -265,6 +281,13 @@ interface Rated {
 }
 
 type Checked = { check: AnswerCheck; headroom: number | null };
+
+/** Why a check with figures is unknown: its need spans the robot's limit. Said after the figures. */
+const SPANS_VIDEO = "The estimate from your video spans this robot's limit, so we can't say yet.";
+const SPANS_SITE = "Your numbers span this robot's limit, so we can't say yet.";
+const SPANS_VIDEO_PAYLOAD = "The estimate from your video, with the gripper's weight, spans this robot's rating, so we can't say yet.";
+const SPANS_SITE_PAYLOAD = "With the gripper's weight, your numbers span this robot's rating, so we can't say yet.";
+const SPANS_CYCLE = "On paper a cycle may or may not fit in your target, so we can't say yet.";
 const unknownCheck = (key: AnswerCheck["key"], text: string): AnswerCheck => ({ key, outcome: "unknown", estimated: false, basis: null, text });
 
 /** Where the span between the two spots came from. */
@@ -296,10 +319,9 @@ function reachCheck(model: SpecModel, job: Job, toolLength: number | null): Chec
   }
   const need = { lo: job.span.lo / 2 + toolLength + REACH_MARGIN_M, hi: job.span.hi / 2 + toolLength + REACH_MARGIN_M };
   const outcome = within(need, reach);
-  // A need that straddles the limit is said as too close to call: its rounded ends could read as a pass or a tie.
-  const text = outcome === "unknown"
-    ? `Reach: your two spots are ${job.spanText}. This arm reaches ${specLength(reach)}, which is too close to call on these figures for an arm standing between them.`
-    : `Reach: your two spots are ${job.spanText}, so an arm standing between them needs ${lengthRange(need)}. This arm reaches ${specLength(reach)}.`;
+  // An unknown says why it is unknown, so its figures never read as a pass or a fail.
+  const text = `Reach: your two spots are ${job.spanText}, so an arm standing between them needs ${lengthRange(need)}. This arm reaches ${specLength(reach)}.`
+    + (outcome === "unknown" ? ` ${estimated ? SPANS_VIDEO : SPANS_SITE}` : "");
   return { check: { key: "reach", outcome, estimated, basis, text }, headroom: (reach - need.hi) / reach };
 }
 
@@ -319,10 +341,10 @@ function payloadCheck(model: SpecModel, job: Job, toolMass: number | null): Chec
   // The total is said in the rating's own precision, so the sentence never reads against its outcome.
   const carry = Number.isFinite(need.hi) ? `, so it must carry ${kgRange(need)}` : "";
   const outcome = within(need, payload);
-  // A need that straddles the rating is said as too close to call: its rounded ends could read as a pass or a tie.
-  const text = outcome === "unknown"
-    ? `Payload: your object weighs ${cite(mass)}${gripper}. ${noun} is rated for ${kgText(payload)}, which is too close to call on these figures.`
-    : `Payload: your object weighs ${cite(mass)}${gripper}${carry}. ${noun} is rated for ${kgText(payload)}.`;
+  // An unknown says why it is unknown, so its figures never read as a pass or a fail. The gripper's weight is
+  // added at the heavy end only, so a single weight the site gave can straddle the rating too.
+  const text = `Payload: your object weighs ${cite(mass)}${gripper}${carry}. ${noun} is rated for ${kgText(payload)}.`
+    + (outcome === "unknown" ? ` ${job.massEstimated ? SPANS_VIDEO_PAYLOAD : SPANS_SITE_PAYLOAD}` : "");
   return {
     check: { key: "payload", outcome, estimated: job.massEstimated, basis: mass.source as AnswerBasis, text },
     headroom: Number.isFinite(need.hi) ? (payload - need.hi) / payload : -1,
@@ -341,9 +363,8 @@ function cycleCheck(model: SpecModel, job: Job): AnswerCheck | null {
   };
   const outcome = within(need, job.cycleTarget);
   return { key: "cycle_time", outcome, estimated: job.spanEstimated, basis: spanBasis(job),
-    text: outcome === "unknown"
-      ? `${target} With a published top speed of ${figure(speed)} m/s and your spots ${job.spanText}, whether one cycle fits in that time is too close to call on these figures.`
-      : `${target} With a published top speed of ${figure(speed)} m/s and your spots ${job.spanText}, a cycle takes between about ${secondsText(need.lo)} and ${secondsText(need.hi)} on paper.` };
+    text: `${target} With a published top speed of ${figure(speed)} m/s and your spots ${job.spanText}, a cycle takes between about ${secondsText(need.lo)} and ${secondsText(need.hi)} on paper.`
+      + (outcome === "unknown" ? ` ${SPANS_CYCLE}` : "") };
 }
 
 type SceneRow = PublicRobotFit["models"][number];
@@ -470,7 +491,7 @@ const displayName = (model: { manufacturer: string; name: string }) => `${model.
 
 /* ------------------------------------------------------------- confidence */
 
-function confidenceOf(pick: Rated | null, job: Job, familyLabel: string): SiteAnswer["confidence"] {
+function confidenceOf(pick: Rated | null, job: Job, familyLabel: string, kindUnknown: boolean): SiteAnswer["confidence"] {
   const raiseIt: string[] = [];
   if (!job.facts.mass || job.massEstimated) raiseIt.push("Tell us the object's weight.");
   if (!job.facts.distance || job.spanEstimated) raiseIt.push("Tell us how far apart the two spots are.");
@@ -497,7 +518,8 @@ function confidenceOf(pick: Rated | null, job: Job, familyLabel: string): SiteAn
   const fits = pick.verdict === "fits" || pick.verdict === "fits_on_paper";
   // "Good" rests on no estimate and no unknown: every check passed on the site's or the scene's numbers.
   const settled = pick.checks.every((entry) => entry.outcome === "pass" && !entry.estimated);
-  const level = fits && settled && top?.level === "production" ? "good"
+  // Nor on an unknown kind of job: then only a carry was checked.
+  const level = fits && settled && !kindUnknown && top?.level === "production" ? "good"
     : fits && ((top && EVIDENCE_RANK[top.level] >= EVIDENCE_RANK.pilot) || pick.sceneChecked) ? "fair" : "low";
   return { level, reasons, raiseIt };
 }
@@ -600,7 +622,7 @@ export function composeSiteAnswer(inputs: SiteAnswerInputs): SiteAnswer | null {
   const finish = (answer: Omit<SiteAnswer, "basisDigest">, extra: Record<string, unknown> = {}): SiteAnswer =>
     ({ ...answer, basisDigest: digestOf({ ...basis, state: answer.state, ...extra }) });
 
-  if (scope.otherKind) return finish({ ...base, state: "cannot_assess", headline: HEADLINE_CANNOT, reason: REASON_OTHER_KIND });
+  if (scope.otherKind) return finish({ ...base, state: "cannot_assess", headline: HEADLINE_CANNOT, reason: reasonOtherKind(scope.otherActions) });
   if (!coverageDone(request, fitInputs) && !siteNumbers) return finish({ ...base, state: "reading", headline: HEADLINE_READING });
   if (!facts.distance && !facts.mass && !facts.size) {
     if (!coverageDone(request, fitInputs)) return finish({ ...base, state: "reading", headline: HEADLINE_READING });
@@ -643,9 +665,10 @@ export function composeSiteAnswer(inputs: SiteAnswerInputs): SiteAnswer | null {
     ruledOutMore: Math.max(0, ruled.length - ruledOut.length),
     formNote,
     approach: approachOf(fitInputs, request, pick),
-    unknowns: [...unknownsOf(fitInputs, job), ...(scope.otherActions.length ? [alsoInvolves(scope.otherActions)] : []),
+    unknowns: [...(scope.kindUnknown ? [UNKNOWN_JOB_KIND] : []), ...unknownsOf(fitInputs, job),
+      ...(scope.otherActions.length ? [alsoInvolves(scope.otherActions)] : []),
       ...(scope.multiStep ? [UNKNOWN_MULTI_STEP] : [])],
-    confidence: confidenceOf(pick, job, familyLabel),
+    confidence: confidenceOf(pick, job, familyLabel, scope.kindUnknown),
     nextStep: pick ? { kind: "introduction", text: NEXT_STEP_INTRODUCTION } : { kind: "none", text: "" },
   }, {
     verdicts: rated.map((entry) => [entry.model.model_id, entry.verdict, entry.sceneChecked,

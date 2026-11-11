@@ -6,6 +6,7 @@
 import { describe, expect, it } from "vitest";
 
 import { readyAnswer } from "../fixtures/siteAnswer";
+import { SIMULATION_POLICIES, UNNAMED_POLICY } from "@/data/simulationPolicies";
 import type { AnswerRobot } from "@/lib/siteAnswer";
 import { AHEAD, CLEAR, probabilityAhead, projectSimulationProof, type SimulationProof } from "@/lib/simulationProof";
 import type { JobManagedEvidenceSummary, JobScreeningOutcome } from "@/types/jobMarketplace";
@@ -30,7 +31,7 @@ function prng(seed: number) {
 const KNOWN_IDS = ["pi05_droid", "pi0_droid_jointpos_polaris", "pi0_fast_droid_jointpos_polaris", "groot_n17_droid",
   "cosmos3_nano_policy_droid", "molmoact2_droid", "cosmos3_edge_policy_droid", "humanoidarena_pi05_g1_dex3_sonic"];
 /** Names an unknown id may carry: plain ones, and codes, markup and working labels that must never be shown. */
-const UNKNOWN_NAMES = ["Acme Grasp", "Northwind Picker", "acme_grasp_v2_ckpt", "gs://bucket/model", "<b>Grip</b>", "<i>Grip",
+const UNKNOWN_NAMES = ["Acme Grasp", "Northwind Picker", "Guaranteed safe production-ready policy", "acme_grasp_v2_ckpt", "gs://bucket/model", "<b>Grip</b>", "<i>Grip",
   "sha256:abcdef0123456789", "Current candidate", "Policy v2.1", "hf://org/model", "pi05_droid_checkpoint_9000", "{policy}", ""];
 const REFERENCE_NAME = "Reference Grasp";
 const SCRIPTED_NAME = "Scripted Mover";
@@ -105,6 +106,9 @@ function sentencesOf(proof: SimulationProof): string[] {
 const SAYS_POLICIES_RAN = /\bran\b|\btried\b|\btries\b|\btry\b|completed the job in|did best|was ahead|\bahead\b|compared|no clear difference/i;
 /** A raw checkpoint string, a snake_case code, a link or digest, or markup. */
 const RAW = /_|[<>{}]|gs:\/\/|hf:\/\/|sha256|checkpoint|DROID|jointpos|polaris|ckpt/i;
+const MAPPED_NAMES = new Set(Object.values(SIMULATION_POLICIES).map(entry => entry.policy));
+/** Stored display names the generator writes; none may appear in any sentence. */
+const STORED_NAMES = [...UNKNOWN_NAMES.filter(name => name.length >= 4 && !/^an AI control policy/.test(name)), REFERENCE_NAME, SCRIPTED_NAME];
 const mean = (row: { succeeded: number; scored: number }) => (row.succeeded + 1) / (row.scored + 2);
 
 describe("every sentence of the simulation result has a precondition in the data (seeded generated input)", () => {
@@ -114,6 +118,7 @@ describe("every sentence of the simulation result has a precondition in the data
     let winners = 0;
     let separated = 0;
     let mixedRobots = 0;
+    let unknownOnly = 0;
     for (let index = 0; index < 2500; index += 1) {
       const { input, ranked } = generate(random, index);
       const proof = projectSimulationProof(input);
@@ -128,6 +133,19 @@ describe("every sentence of the simulation result has a precondition in the data
       if (!comparison) continue;
       compared += 1;
 
+      // A name we did not write never reaches the page: every row is a mapped policy or the neutral phrase.
+      for (const row of comparison.rows) {
+        expect(MAPPED_NAMES.has(row.policy) || row.policy.replace(/ \([A-Z]+\)$/, "") === UNNAMED_POLICY, context).toBe(true);
+      }
+      for (const sentence of sentences) for (const stored of STORED_NAMES) expect(sentence, context).not.toContain(stored);
+      // No winner is ever named among rows whose robot is unknown.
+      if (comparison.rows.length && comparison.rows.every(row => row.robot === null)) {
+        unknownOnly += 1;
+        expect(comparison.winner, context).toBeNull();
+        expect(comparison.separated, context).toBe(false);
+        expect(comparison.rows.some(row => row.chosen || row.compared), context).toBe(false);
+        expect(comparison.line, context).not.toMatch(/did best|was ahead|No clear difference/);
+      }
       // No reference or scripted row is ever ranked, and the rows are exactly the scored policies.
       expect(comparison.rows.some(row => row.policy.startsWith(REFERENCE_NAME) || row.policy.startsWith(SCRIPTED_NAME)), context).toBe(false);
       expect(comparison.rows.map(row => [row.succeeded, row.scored]).sort(), context).toEqual(ranked.map(row => [row.succeeded, row.scored]).sort());
@@ -199,5 +217,6 @@ describe("every sentence of the simulation result has a precondition in the data
     expect(winners).toBeGreaterThan(20);
     expect(separated).toBeGreaterThan(5);
     expect(mixedRobots).toBeGreaterThan(20);
+    expect(unknownOnly).toBeGreaterThan(20);
   }, 60_000);
 });

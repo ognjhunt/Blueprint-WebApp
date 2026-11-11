@@ -48,6 +48,7 @@ export function jobCardAnswerShared(record: unknown): boolean {
 const SITE_WORDS: Array<[RegExp, string]> = [
   [/\bjobs like yours\b/g, "jobs like this one"],
   [/\byour two spots\b/g, "the two spots"],
+  [/\byour object\b/g, "the object"],
   [/\bat your site\b/g, "at the site"],
   [/\bof your site\b/g, "of the site"],
   [/\byour site\b/g, "the site"],

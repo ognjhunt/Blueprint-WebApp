@@ -405,9 +405,13 @@ function finishedComparison(proof: SimulationProof | null | undefined) {
   return proof?.state === "done" ? proof.policyComparison : null;
 }
 
-/** True when some policy completed the job in a scored try: there is a comparison to state. */
+/**
+ * True when a policy the page compares completed the job: the same rows the comparison sentence rests
+ * on. A success on a row that is not compared (another robot, or one we could not confirm) does not
+ * make a result to announce.
+ */
 const hasSuccess = (proof: SimulationProof | null | undefined) =>
-  Boolean(finishedComparison(proof)?.rows.some(row => row.succeeded > 0));
+  Boolean(finishedComparison(proof)?.rows.some(row => row.compared && row.succeeded > 0));
 
 /** "A result" when some policy completed the job; otherwise the simulation has simply finished. */
 function estimateSubject(proof: SimulationProof | null | undefined): string {

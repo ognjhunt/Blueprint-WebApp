@@ -108,7 +108,8 @@ describe("tested in simulation", () => {
     const evaluation = { ...winnerEvaluation, screening: { candidates: [winnerEvaluation.screening!.candidates[0],
       { ...winnerEvaluation.screening!.candidates[1], candidateId: "unknown-id", name: "Current candidate" }] } };
     const { container } = renderProof({ evaluation: [evaluation], pick });
-    expect(screen.getByText("An AI control policy")).toBeVisible();
+    expect(screen.getByText("An AI control policy not in our list yet")).toBeVisible();
+    expect(screen.getByText(/on a robot we could not confirm, not compared/)).toBeVisible();
     expect(container.textContent).not.toMatch(/Current candidate|could not name/);
     expect(container.textContent).not.toMatch(BANNED);
   });

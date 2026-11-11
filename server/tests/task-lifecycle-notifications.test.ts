@@ -610,7 +610,7 @@ describe("the site's answer is emailed once, when it first settles", () => {
     formNote: null, approach: null, unknowns: [],
     confidence: { level: "fair", reasons: ["The weight and distances are estimated from your video.", "Second reason."], raiseIt: [] },
     nextStep: { kind: "introduction", text: "" }, reason: null,
-    note: "This is a fit check against published robot specifications and a cited track record. It is not a test of a robot at your site and does not certify performance or safety.",
+    note: "This checks whether a robot can pick your object up and put it down, against published robot specifications and a cited track record. It is not a test of a robot at your site and does not certify performance or safety.",
     checked: { models: 22, makers: 13, specsRetrievedOn: "2026-11-11" }, introductionRequestedAtIso: null, jobCardListed: false, basisDigest: "sha256:x",
     ...changes,
   });

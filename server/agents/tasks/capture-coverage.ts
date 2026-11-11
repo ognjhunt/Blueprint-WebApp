@@ -200,7 +200,7 @@ ${input.supplementaryViewsOnly ? "job_estimates: null. A supplementary recording
 
 Hard limits:
 - Never describe a person. Not their appearance, their role, their clothing, or their number. If people are in the footage, that is a separate review's question and not yours.
-- Do not infer what is in the room from the job description. You are reading the footage.
+- Do not infer what is in the room, or any number, from the job description. You are reading the footage. (job_kind in job_estimates reads the description too, for what is to be done.)
 - Do not report a view as seen because it probably happened off camera.`,
       returnShape: {
         covers_scene: true,

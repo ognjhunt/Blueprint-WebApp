@@ -75,14 +75,18 @@ describe("the reader's job estimates", () => {
     expect(odd.job_estimates).toMatchObject({ job_kind: null, other_actions: [] });
     // A closed list, item by item: a junk item never discards the valid ones, and at most three are kept.
     const many = siteVideoEvidenceOutputSchema.parse(output({ job_estimates: { ...ESTIMATES, job_kind: "other",
-      other_actions: ["folding", "nothing", "picking up", 7, "wiping", "packaging", "peeling", "pouring"] } }));
+      other_actions: ["folding", "nothing", "inserting", "picking up", 7, "filling", "wiping", "packaging", "peeling", "pouring"] } }));
     expect(many.job_estimates).toMatchObject({ job_kind: "other", other_actions: ["folding", "wiping", "peeling"] });
     expect(siteVideoEvidenceOutputSchema.parse(output({ job_estimates: { ...ESTIMATES, other_actions: [" Folding ", "string"] } })).job_estimates)
       .toMatchObject({ other_actions: ["folding"] });
     const prompt = JSON.stringify(siteVideoEvidenceTask.build_prompt({ requestId: "job-1", taskVideoUrl: "https://example.test/v.mp4",
       operatorAnswers: {} }));
     expect(prompt).toContain("job_kind: what is done to the object, judged from the footage and the job's description together.");
-    expect(prompt).toContain("other: the job mainly does something else to the object than carrying it: it is changed, joined, cleaned, opened or filled.");
+    expect(prompt).toContain("other: the job mainly changes the object itself (it is folded, cut, joined, fastened, cleaned or coated) rather than moving it. Putting objects into a container, into a machine or onto a stack is carrying.");
+    expect(prompt).toContain("Use the job's description to know which object, which two spots and what is to be done to it; never take a number from it.");
+    // Putting a part into a machine, or parts into a tote, is the carry being checked: never "another action".
+    expect(OTHER_ACTIONS).not.toContain("inserting");
+    expect(OTHER_ACTIONS).not.toContain("filling");
     expect(prompt).toContain("null: the footage does not show the job.");
     expect(prompt).toContain(`using only these words: ${OTHER_ACTIONS.join(", ")}.`);
   });

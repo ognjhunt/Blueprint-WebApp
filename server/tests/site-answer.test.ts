@@ -22,7 +22,7 @@ vi.mock("../logger", () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }));
 
-const { composeSiteAnswer, loadSiteAnswer } = await import("../utils/siteAnswer");
+const { composeSiteAnswer, loadSiteAnswer, UNKNOWN_JOB_KIND } = await import("../utils/siteAnswer");
 const { robotSpecCatalog } = await import("../utils/robotSpecCatalog");
 const { evidenceLookup, parseDeploymentEvidence } = await import("../utils/deploymentEvidence");
 const { sharedFakeFirestoreState } = await import("./helpers/fake-firestore");
@@ -193,17 +193,22 @@ describe("composeSiteAnswer", () => {
     expect(seen.fail).toBeGreaterThan(10);
   });
 
-  it("says a check whose need straddles the limit is too close to call, never with figures that read as a pass or a tie", () => {
+  it("keeps the figures of an unknown check and says why it is unknown, so it never reads as a pass or a fail", () => {
     const only = (id: string) => ({ ...robotSpecCatalog(), models: robotSpecCatalog().models.filter((model) => model.model_id === id) });
-    // 29.1–30 kg plus the gripper against the UR30's 30 kg: the need straddles the rating.
-    const payload = composeSiteAnswer({ ...inputs({ estimates: estimates({ object_mass_kg_low: 29.1, object_mass_kg_high: 30 }) }),
-      catalog: only("universal_robots_ur30") })!.pick!.checks.find((check) => check.key === "payload")!;
-    expect(payload.outcome).toBe("unknown");
-    expect(payload.text).toBe("Payload: your object weighs about 29–30 kg (estimated from your video), plus about 0.9 kg for a standard gripper. This arm is rated for 30 kg, which is too close to call on these figures.");
-    const reach = composeSiteAnswer({ ...inputs({ estimates: estimates({ pick_to_place_m: 2.0 }) }), catalog: only("universal_robots_ur10e") })!
-      .pick!.checks.find((check) => check.key === "reach")!;
-    expect(reach.outcome).toBe("unknown");
-    expect(reach.text).toBe("Reach: your two spots are about 2 m apart (estimated from your video). This arm reaches 1.3 m, which is too close to call on these figures for an arm standing between them.");
+    const checkFor = (overrides: Parameters<typeof inputs>[0], id: string, key: string) =>
+      composeSiteAnswer({ ...inputs(overrides), catalog: only(id) })!.pick!.checks.find((check) => check.key === key)!;
+    // A video estimate of 29.1–30 kg plus the gripper against the UR30's 30 kg.
+    const payload = checkFor({ estimates: estimates({ object_mass_kg_low: 29.1, object_mass_kg_high: 30 }) }, "universal_robots_ur30", "payload");
+    expect(payload).toMatchObject({ outcome: "unknown", text: "Payload: your object weighs about 29–30 kg (estimated from your video), plus about 0.9 kg for a standard gripper, so it must carry about 29.1–30.9 kg. This arm is rated for 30 kg. The estimate from your video, with the gripper's weight, spans this robot's rating, so we can't say yet." });
+    // A wide estimate is not close at all: its figures are shown, with why it is unknown.
+    const reach = checkFor({ estimates: estimates({ pick_to_place_m: 2.0 }) }, "universal_robots_ur10e", "reach");
+    expect(reach).toMatchObject({ outcome: "unknown", text: "Reach: your two spots are about 2 m apart (estimated from your video), so an arm standing between them needs about 1.01–1.59 m. This arm reaches 1.3 m. The estimate from your video spans this robot's limit, so we can't say yet." });
+    // A single weight the site gave can straddle too, through the gripper's weight; it is never called an estimate.
+    const stated = checkFor({ brief: { requestId: "job-1", summary: "Move cartons", operatorTaskDetails: { item_weight: "29.5 kg" } } },
+      "universal_robots_ur30", "payload");
+    expect(stated.outcome).toBe("unknown");
+    expect(stated.text).toMatch(/With the gripper's weight, your numbers span this robot's rating, so we can't say yet\.$/);
+    expect(stated.text).not.toMatch(/estimate from your video/);
   });
 
   it("names a robot family in the source's own words, adding \"family\" only when they do not already say it", () => {
@@ -329,9 +334,17 @@ describe("composeSiteAnswer", () => {
   });
 
   it("says how sure, in words", () => {
-    const good = compose({ estimates: null, measurements: measurements({ pick_to_place_distance: reading(1, "m", 1) }),
-      brief: { requestId: "job-1", summary: "Move cartons to the shelf", operatorTaskDetails: { item_weight: "4 kg" } } });
+    // The site's own numbers, and the reader saw a carry.
+    const sited = { estimates: estimates({ job_kind: "pick_and_place" }), measurements: measurements({ pick_to_place_distance: reading(1, "m", 1) }),
+      brief: { requestId: "job-1", summary: "Move cartons to the shelf", operatorTaskDetails: { item_weight: "4 kg" } } };
+    const good = compose(sited);
     expect(good.confidence.level).toBe("good");
+    expect(good.unknowns).not.toContain(UNKNOWN_JOB_KIND);
+    // The same numbers with no kind of job from the reader: only a carry was checked, so never "good".
+    const unknownKind = compose({ ...sited, estimates: estimates() });
+    expect(unknownKind.unknowns[0]).toBe(UNKNOWN_JOB_KIND);
+    expect(unknownKind.confidence.level).not.toBe("good");
+    expect(compose({ ...sited, estimates: null }).confidence.level).not.toBe("good");
     expect(good.confidence.reasons).toContain("We found documented production use of this robot for pick and place.");
     const fair = compose();
     expect(fair.confidence.level).toBe("fair");
@@ -347,6 +360,8 @@ describe("composeSiteAnswer", () => {
     const answer = compose({ estimates: estimates({ object_surface: "shiny", other_items_likely: ["plastic totes", "bags"],
       object_mass_kg_low: null, object_mass_kg_high: null }) });
     expect(answer.unknowns).toEqual([
+      // The reading gave no kind of job, so this comes first.
+      "We could not tell from your video what is done to the object; this checks only whether a robot can pick it up and put it down.",
       "Whether there is floor space for the robot between the two spots.",
       "Which gripper or tool the object needs: it looks shiny in your video, which affects that choice.",
       "How many different objects the job handles: your video suggests it may also handle plastic totes, bags.",
@@ -401,7 +416,7 @@ describe("composeSiteAnswer", () => {
   });
 });
 
-const OTHER_KIND = "This check covers jobs where a robot picks one solid object up and puts it down. Your job looks like another kind, which we can't check robots against yet.";
+const OTHER_KIND = "From your video, the job looks like more than picking an object up and putting it down, which we can't check robots against yet. If the job is only moving the object from one place to another, say so in the job description and we will check again.";
 type SceneRow = NonNullable<NonNullable<Inputs["robotFit"]>["models"]>[number];
 const scene = (...rows: Array<Partial<SceneRow> & { name: string; manufacturer: string }>) =>
   ({ models: rows.map((row) => ({ verdict: "fits", openChecks: [], ...row })) as SceneRow[] });
@@ -535,6 +550,19 @@ describe("the reader decides the kind of job; no word list does", () => {
     }
     // The simulation's own reason sentences never reach the answer.
     expect(typed("Fold the towels", { estimates: estimates({ job_kind: "other" }) }).reason).not.toMatch(/evaluation preparation|simulation|hold your job/i);
+    // The reason names what the reader saw, and the one thing the site can do when it disagrees.
+    expect(typed("Move cartons to the shelf.", { estimates: estimates({ job_kind: "other", other_actions: ["folding", "wrapping"] }) }).reason)
+      .toBe("From your video, the job looks like more than picking an object up and putting it down (folding and wrapping), which we can't check robots against yet. If the job is only moving the object from one place to another, say so in the job description and we will check again.");
+  });
+
+  it("says first that only a carry was checked when the reader gives no kind, and nothing of the kind when it does", () => {
+    const fold = typed("Fold the towels.");
+    expect(fold.state).toBe("ready");
+    expect(fold.unknowns[0]).toBe(UNKNOWN_JOB_KIND);
+    expect(fold.note).toBe("This checks whether a robot can pick your object up and put it down, against published robot specifications and a cited track record. It is not a test of a robot at your site and does not certify performance or safety.");
+    for (const kind of ["pick_and_place", "palletizing", "machine_tending"]) {
+      expect(typed("Move cartons", { estimates: estimates({ job_kind: kind }) }).unknowns, kind).not.toContain(UNKNOWN_JOB_KIND);
+    }
   });
 
   it("says what else the job involves only from the reader's closed list", () => {
@@ -542,7 +570,7 @@ describe("the reader decides the kind of job; no word list does", () => {
     expect(folding.state).toBe("ready");
     expect(alsoLines(folding)).toEqual([ALSO("folding")]);
     const mixed = typed("Move towels to the shelf", { estimates: estimates({ job_kind: "pick_and_place",
-      other_actions: ["nothing", "picking up", "packaging", "string", "folding"] }) });
+      other_actions: ["nothing", "picking up", "packaging", "string", "inserting", "filling", "folding"] }) });
     expect(alsoLines(mixed)).toEqual([ALSO("folding")]);
     expect(alsoLines(typed("Move towels", { estimates: estimates({ other_actions: ["opening", "pressing"] }) })))
       .toEqual([ALSO("opening and pressing")]);
@@ -603,7 +631,7 @@ describe("every sentence has a precondition in the data (generated inputs)", () 
       pick_to_place_m: maybe(() => between(0.05, 5), 0.8), pick_height_m: maybe(() => between(0, 2)), place_height_m: maybe(() => between(0, 2)),
       front_clearance_m: maybe(() => between(0, 3)), other_items_likely: random() < 0.3 ? ["plastic totes"] : [],
       cycle_seconds: null, basis: pick(BASES),
-      ...(random() < 0.6 ? { job_kind: pick(["pick_and_place", "palletizing", "machine_tending", "other", null, "junk_kind"]),
+      ...(random() < 0.8 ? { job_kind: pick(["pick_and_place", "palletizing", "machine_tending", "other", null, "junk_kind"]),
         other_actions: random() < 0.4 ? [pick(["peeling", "stacking", "screwing_on", "<i>x</i>", "opening"])] : [] } : {}),
     }), 0.9);
     const readings: Record<string, ReturnType<typeof reading>> = {};
@@ -679,6 +707,8 @@ describe("every sentence has a precondition in the data (generated inputs)", () 
           const figures = shown(check.text);
           if (figures && check.outcome === "pass") { expect(figures.hi, check.text).toBeLessThanOrEqual(figures.limit); counts.passShown++; }
           if (check.outcome !== "unknown") expect(check.basis, check.text).not.toBeNull();
+          // An unknown with figures says why it is unknown, so it never reads as a pass or a fail.
+          if (figures && check.outcome === "unknown") expect(check.text, check.text).toMatch(/so we can't say yet\.( This is a tight fit\.)?$/);
         }
       }
       // A ruled-out robot's reason is a failed check's sentence, and a fail never shows a need below the limit.
@@ -692,6 +722,7 @@ describe("every sentence has a precondition in the data (generated inputs)", () 
       if (answer.confidence.level === "good") {
         counts.good++;
         expect(answer.pick!.checks.every((check) => check.outcome === "pass" && !check.estimated), label).toBe(true);
+        expect(answer.unknowns, label).not.toContain(UNKNOWN_JOB_KIND);
       }
       if (answer.state === "cannot_assess") {
         counts.cannot++;

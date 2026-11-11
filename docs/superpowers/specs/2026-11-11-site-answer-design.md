@@ -70,7 +70,7 @@ returns `answer: null` and carries on.
   check. The note that the job needs a robot that moves between the spots
   appears only while no arm that stays in one place passed its reach check.
 - **Evidence** comes from `server/data/deploymentEvidence.v2.json`
-  (`deployment_evidence.v2`): 30 rows, each a verbatim quote with its URL,
+  (`deployment_evidence.v2`): 30 rows, each quoted word for word (any omission marked by "…") with its URL,
   title and publisher. A row applies only to the catalog models it lists
   (`applies_to`, never empty, every id in the catalog and made by the row's
   maker) and says whether its source names that exact model or the robot
@@ -95,16 +95,18 @@ returns `answer: null` and carries on.
 
 **The kind of job.** No word list decides anything about the job: the video
 reader, which watched the job and read the site's description, says its kind
-(`job_kind`), and "other" means the answer says it can't check robots against
-the job, while a carrying kind is checked and gives the job family (pick and
-place when the reader says none). When the reader does not say (an older
-reading, or footage that did not show the job), the check runs on the numbers
-and its standing note says what it covers; a job sentence with more than one
-step adds that the check covers one carry. What else the job involves comes
-only from the reader's `other_actions`, a closed list of words declared once in
-`server/agents/tasks/site-video-evidence.ts` (`OTHER_ACTIONS`), so no free text
-from a model reaches the page, and whether the simulation can score a job
-never decides whether the fit check runs.
+(`job_kind`), a carrying kind is checked and gives the job family (pick and
+place otherwise), and "other" is not checked, with a reason that names what the
+reader saw and asks the site to say so in its job description if the job is
+only moving the object (an edit of the description already causes a new
+reading). When the reader does not say, the check runs on the numbers and the
+first unknown says only a carry was checked, which also keeps confidence below
+"good"; every answer's standing note, on the page, in the email and on the job
+card, says the check covers whether a robot can pick the object up and put it
+down. What else the job involves comes only from the reader's `other_actions`,
+a closed list declared once in `server/agents/tasks/site-video-evidence.ts`
+(`OTHER_ACTIONS`), and whether the simulation can score a job never decides
+whether the fit check runs.
 
 ## How the simulation result is made
 
@@ -118,15 +120,24 @@ simulation"; the simulation email repeats its sentences word for word.
   `client/src/lib/robotNameMatch.ts`). "Fits" says the arm reaches the pick-up
   and put-down points with a clear arm path; "fits on its figures" says its
   path there is not confirmed.
-- **Policies are named in plain words** (`client/src/data/simulationPolicies.ts`):
-  the policy's common name and its maker, never a checkpoint string, code or
-  markup. Scripted rows and rows the selection marks as references are never
-  ranked.
+- **Policies are named in plain words, through a closed list**
+  (`client/src/data/simulationPolicies.ts`): the policy's common name and its
+  maker, never a checkpoint string, code or markup. A policy not in that list
+  is never shown by a name stored with the evaluation; it reads "an AI control
+  policy not in our list yet", with a letter ("(A)", "(B)") in a fixed order
+  when there are several. Scripted rows and rows the selection marks as
+  references are never ranked.
 - **A comparison from a few tries is a probability, said by one rule.** Each
   policy's success rate, from s successes in n scored tries, is uncertain:
-  Beta(s + 1, n − s + 1). The policy with the highest expected rate leads, and
-  is compared with the next best only, by the chance that its true rate is
-  higher (`probabilityAhead`, integrated numerically). At 97.5% or more
+  Beta(s + 1, n − s + 1). Only policies that ran on the same robot are
+  compared: the robot most scored policies ran on. Policies on another robot
+  are listed with that robot, counted in one sentence and never compared. When
+  no scored policy's robot is known, nothing is ranked: the page lists the
+  counts and says it could not confirm they ran on the same robot. The policy
+  with the highest expected rate leads, and is weighed against every other
+  compared policy by the chance that its true rate is higher
+  (`probabilityAhead`, integrated numerically); the smallest of those chances
+  decides the wording, and the sentence cites the next best. At 97.5% or more
   (`CLEAR`) the page says it "did best" and that a gap this size is unlikely to
   be chance. From 85% (`AHEAD`) it says it "was ahead" and that with this few
   tries the gap could still be chance. Below 85% it says there is no clear
@@ -192,7 +203,7 @@ suppressed; Blueprint runs evaluations itself.
 When the simulation finishes with a result, its email
 (`server/utils/taskLifecycleNotifications.ts`) states the job page's own
 comparison sentence and scene notes, from the same projection. Its subject is
-"Your simulation result is ready" when some policy completed the job, with how
+"Your simulation result is ready" when a compared policy completed the job, with how
 far a published comparison can be trusted; otherwise "The simulation of your
 job has finished", with what the simulation found and no offer of a pilot.
 

@@ -399,7 +399,7 @@ describe("a site's answer, from an email and a video to a deployment company", (
     expect(await brief.json()).toMatchObject({ ready: true, taskStatementNeeded: true });
   }, 30_000);
 
-  const OTHER_KIND = "This check covers jobs where a robot picks one solid object up and puts it down. Your job looks like another kind, which we can't check robots against yet.";
+  const OTHER_KIND = "From your video, the job looks like more than picking an object up and putting it down (folding), which we can't check robots against yet. If the job is only moving the object from one place to another, say so in the job description and we will check again.";
   async function expectOtherKind(jobId: string, token: string) {
     const { answer } = await status(token);
     expect(answer).toMatchObject({ state: "cannot_assess", headline: "We can't check robots against this job yet.",
