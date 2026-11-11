@@ -52,6 +52,11 @@ export default async function waitlistHandler(req: Request, res: Response) {
   const normalizedDevice = deviceValue.toLowerCase();
   const normalizedMarket = marketValue.toLowerCase();
   const roleIncludesCapturer = normalizedRole.includes("capturer");
+  // Capturer applications are closed (owner, 2026-11-11): no outside
+  // capturers. Answer before any validation, store read, write or email.
+  if (roleIncludesCapturer) {
+    return res.status(410).json({ error: "capturer_applications_closed" });
+  }
   const filterTags = [
     normalizedRole ? `role:${toFilterToken(normalizedRole)}` : null,
     normalizedDevice ? `device:${toFilterToken(normalizedDevice)}` : null,

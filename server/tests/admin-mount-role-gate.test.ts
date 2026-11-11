@@ -111,7 +111,11 @@ describe("admin mounts in server/routes.ts", () => {
       const response = await fetch(`${baseUrl}${mountPath}/role-gate-probe`, {
         headers: { Authorization: "Bearer ordinary-user-token" },
       });
-      expect(response.status).toBe(403);
+      // The capturer and field-ops mounts are switched off (2026-11-11) and
+      // answer 410 to everyone, before any role check.
+      expect(response.status).toBe(
+        ["/api/admin/capturer-applications", "/api/admin/field-ops"].includes(mountPath) ? 410 : 403,
+      );
     },
   );
 });

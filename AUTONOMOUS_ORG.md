@@ -1,5 +1,12 @@
 # Blueprint Autonomous Organization Guide
 
+> **Capture, 2026-11-11.** No capture app is in use, and nobody else films for a
+> site: no outside capturers, Blueprint filming visits, capturer marketplace or
+> capturer payouts. A person who works at the site films the job on their own
+> phone and uploads it in the browser. Where this document describes the
+> `BlueprintCapture` app, capturers, visits or payouts, that is history. See
+> "How Capture Works" in `PLATFORM_CONTEXT.md`.
+
 > **Retired as an approval authority (founder decision, 2026-09-28).** Blueprint no longer runs the Paperclip
 > agent org as described below. Its roles, including `blueprint-cto`, no longer approve anything: the founder
 > approves primary-service, stack and architecture changes directly. The rest of this file is kept as a historical

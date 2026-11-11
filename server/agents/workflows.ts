@@ -40,7 +40,6 @@ import {
 import { captureUploadUrlFor } from "../utils/captureUploadToken";
 import {
   bindingGateFieldIds,
-  defaultCaptureMode,
   isCaptureMode,
 } from "../../client/src/data/siteTaskQualification";
 import { runSiteMatch, summariseForStorage } from "../utils/siteMatchRun";
@@ -787,7 +786,9 @@ export function decideDispatchForRequest(
     // operator-stated -- correct, because the site answered these itself. The
     // binding list still matters: it is what stops an outbound-converted
     // request dispatching on gates nobody confirmed.
-    bindingFieldIds: bindingGateFieldIds(captureMode ?? defaultCaptureMode),
+    // Every job is self-filmed since 2026-11-11 (visits retired), so the
+    // gates that bind are the self-capture ones whatever was stored.
+    bindingFieldIds: bindingGateFieldIds("self_capture"),
     gateAnswerSources: request.site_task_gate_sources ?? null,
     captureRegion: request.request.capture_region ?? null,
   });
@@ -807,11 +808,6 @@ export function nextStepForDispatch(
 ): QualifiedNextStep {
   if (!decision.dispatch) {
     return { kind: "held" };
-  }
-
-  if (decision.channel === "capturer_visit") {
-    // The same link, held for a visit, offers the switch to filming it.
-    return { kind: "capturer_visit", taskUrl: captureUploadUrlFor(request.requestId) };
   }
 
   return {

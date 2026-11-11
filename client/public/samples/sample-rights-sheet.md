@@ -38,6 +38,6 @@ Example sample only. This is not a customer contract, permission certificate, de
 ## Redaction Notes
 
 - Faces, children, customer screens, receipts, loyalty cards, and payment screens should be removed or blurred before buyer-facing use.
-- If a capturer records restricted material, the packet should be marked for review instead of buyer-ready publication.
+- If the person filming records restricted material, the packet should be marked for review instead of buyer-ready publication.
 
 This is an example rights sheet for public review.

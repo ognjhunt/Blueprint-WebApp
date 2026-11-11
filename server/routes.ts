@@ -19,6 +19,7 @@ import nativeG1TeamCampaignsRouter from "./routes/native-g1-team-campaigns";
 import postSignupWorkflowsHandler from "./routes/post-signup-workflows";
 import qrLinkRouter from "./routes/qr-link";
 import appleAssociationRouter from "./routes/apple-app-site-association";
+import { registerRetiredCapturerRoutes } from "./utils/retiredCapturerRoutes";
 import stripeAccountRouter from "./routes/stripe";
 import operatorStatusRouter from "./routes/operator-status";
 import workspaceRouter from "./routes/workspace";
@@ -106,6 +107,8 @@ export function registerRoutes(app: Express) {
   registerBlueprintWorkRoutes(app);
   registerFounderGmailOAuthRoutes(app);
   app.use(appleAssociationRouter);
+  // Capturer money and account routes are switched off (owner, 2026-11-11).
+  registerRetiredCapturerRoutes(app);
 
   // Health check routes (no /api prefix for standard probe paths)
   app.use(healthRouter);

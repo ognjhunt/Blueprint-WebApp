@@ -7,9 +7,8 @@ import { LegalUpdateBanner } from "./LegalVersionNotes";
 
 type WorkspaceUser = { role?: string; roles?: string[]; finishedOnboarding?: boolean };
 
-/** Same destinations as the app header: capturers, unfinished onboarding, everyone else. */
+/** Same destinations as the app header: unfinished onboarding, everyone else (the capturer role is retired). */
 function workspaceFor(user: WorkspaceUser | null | undefined) {
-  if (user?.role === "capturer" || user?.roles?.includes("capturer")) return { href: "/capture-app/account", label: "Your workspace" };
   if (user && !user.finishedOnboarding) return { href: "/onboarding", label: "Finish onboarding" };
   return { href: "/app", label: "Your workspace" };
 }

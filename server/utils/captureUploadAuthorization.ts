@@ -66,7 +66,7 @@ export interface CaptureUploadAuthorization {
   blockers: string[];
   /** Marginal answers a form could not settle — the agenda for a call. */
   openQuestions: string[];
-  /** What the site chose at intake, when known; a visit can be switched to self-capture. */
+  /** What the site chose at intake, when known (a stored `site_visit` stays readable). */
   captureMode?: string | null;
   /** Only an owner of a new prose-only job may make its first recording grant. */
   recordingConsentAvailable?: boolean;
@@ -149,16 +149,8 @@ export async function authorizeCaptureUpload(
     return held(decision.holdReason, decision.detail, request);
   }
 
-  // A site that was told to expect a capturer must not be able to upload its
-  // own footage through the same link: the two produce different manifests and
-  // different costs, and the channel was decided once already.
-  if (decision.channel !== "self_capture_upload") {
-    return held(
-      "capturer_visit_scheduled",
-      "This site is set up for a capturer visit rather than a self-recorded walkthrough.",
-      request,
-    );
-  }
+  // Blueprint filming visits are retired (2026-11-11), so a job that once
+  // asked for a visit is uploaded to through this same link like any other.
 
   const sourceOwner = websiteCaptureOwnerUid(request);
   if (typeof sourceOwner !== "string" || !sourceOwner) {

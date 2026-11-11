@@ -24,7 +24,7 @@ export const betaSupportEmail = "support@tryblueprint.io";
 
 /**
  * The one beta guide. The capturer guide was retired with the capturer
- * network (sites film their own job, or Blueprint staff film it); its URL
+ * network (sites film their own job; filming visits are retired too); its URL
  * redirects to the site start page.
  */
 export const buyerBetaGuide: BetaCohortGuide = {

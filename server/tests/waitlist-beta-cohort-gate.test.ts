@@ -104,36 +104,24 @@ afterEach(() => {
   state.sendEmail.mockClear();
 });
 
-describe("waitlist beta cohort gate", () => {
-  it("blocks capturer beta requests before email side effects when kill switch is active", async () => {
-    process.env.BLUEPRINT_BETA_KILL_SWITCH = "1";
-    const { server, baseUrl } = await startWaitlistServer();
-    try {
-      const response = await fetch(`${baseUrl}/api/waitlist`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email: "capturer@example.com",
-          locationType: "warehouse",
-          role: "capturer",
-          market: "Austin",
-        }),
-      });
-
-      expect(response.status).toBe(503);
-      await expect(response.json()).resolves.toMatchObject({
-        success: false,
-        beta_cohort_policy: {
-          allowed: false,
-          reason: "beta_kill_switch_active",
-        },
-      });
-      expect(state.sendEmail).not.toHaveBeenCalled();
-      expect(Array.from(state.docs.keys())).toEqual([]);
-    } finally {
-      await stopServer(server);
+describe("waitlist capturer applications", () => {
+  it("answers 410 for a capturer request and stores and sends nothing, whatever the beta flags say", async () => {
+    for (const killSwitch of [undefined, "1"]) {
+      if (killSwitch) process.env.BLUEPRINT_BETA_KILL_SWITCH = killSwitch;
+      const { server, baseUrl } = await startWaitlistServer();
+      try {
+        const response = await fetch(`${baseUrl}/api/waitlist`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: "capturer@example.com", locationType: "warehouse", role: "Capturer", market: "Austin" }),
+        });
+        expect(response.status).toBe(410);
+        await expect(response.json()).resolves.toEqual({ error: "capturer_applications_closed" });
+        expect(state.sendEmail).not.toHaveBeenCalled();
+        expect(Array.from(state.docs.keys())).toEqual([]);
+      } finally {
+        await stopServer(server);
+      }
     }
   });
 });

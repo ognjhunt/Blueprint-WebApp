@@ -10,7 +10,10 @@ video, builds a simulation of the site, runs the candidate robot policies and
 embodiments in it itself, and shows the site a bounded estimate of what works,
 or "held — we can't simulate this kind of job yet". Blueprint then works
 alongside a deployment company on the real site. This repo is the customer
-side: start a job, send video, see the brief, see the result.
+side: start a job, send video, see the brief, see the result. A person who
+works at the site films the job on their own phone through this repo; no
+capture app, outside capturers or Blueprint filming visits ("How Capture
+Works" in `PLATFORM_CONTEXT.md`).
 
 The beta is free: no fees, checkout or announced pricing. Starting a job takes
 an email and a video.

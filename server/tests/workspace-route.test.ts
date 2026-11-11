@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { anonymizedOpportunityDraft } from "../../client/src/types/taskBrowse";
 import { createSiteClaimToken } from "../utils/request-review-auth";
 import { PREVIOUS_PRIVACY_VERSION, PREVIOUS_TERMS_VERSION, PRIVACY_VERSION, TERMS_VERSION } from "../../client/src/lib/legalAcceptance";
-import { buildLegalAcceptanceRecord } from "../../client/src/lib/legalAcceptance";
+import { buildLegalAcceptanceRecord, legalEffectiveAtMs } from "../../client/src/lib/legalAcceptance";
 import { syntheticQualifiedRun } from "./helpers/recommendation-evidence";
 import { deploymentCatalogWithDigest } from "../../client/src/lib/deploymentEmbodimentSupport";
 import { ownerClosure } from "./fixtures/website-run-closure";
@@ -349,7 +349,7 @@ describe("workspace access and projections", () => {
       expect(recorded).toMatchObject({ acceptedTerms: true, termsVersion: acceptance.terms_version,
         privacyVersion: acceptance.privacy_version, termsAcceptance: acceptance });
       expect((await (await api("/setup", "site-1")).json()).termsRequired).toBe(false);
-      clock.mockReturnValue(Date.parse("2026-11-02T08:00:00.000Z"));
+      clock.mockReturnValue(legalEffectiveAtMs(TERMS_VERSION));
       expect((await (await api("/setup", "site-1")).json()).termsRequired).toBe(true);
       expect(state.records.get("users/site-1")).toEqual(recorded);
     } finally { clock.mockRestore(); }
@@ -362,7 +362,7 @@ describe("workspace access and projections", () => {
       termsVersion: TERMS_VERSION, privacyVersion: PRIVACY_VERSION, termsAcceptance: acceptance };
     state.records.set("users/site-1", recorded);
     const retained = structuredClone(recorded);
-    const effective = Date.parse("2026-11-02T08:00:00.000Z");
+    const effective = legalEffectiveAtMs(TERMS_VERSION);
     const clock = vi.spyOn(Date, "now").mockReturnValue(effective - 1);
     try {
       expect((await (await api("/setup", "site-1")).json()).termsRequired).toBe(!accepted);
@@ -382,7 +382,7 @@ describe("workspace access and projections", () => {
       : { acceptedTerms: true, termsVersion: acceptance.terms_version, privacyVersion: acceptance.privacy_version }) };
     state.records.set("users/site-1", record);
     const retained = structuredClone(record);
-    const effective = Date.parse("2026-11-02T08:00:00.000Z");
+    const effective = legalEffectiveAtMs(TERMS_VERSION);
     const clock = vi.spyOn(Date, "now");
     try {
       for (const [now, termsRequired] of [[effective - 1, false], [effective, true], [effective + 1, true]] as const) {
@@ -990,50 +990,22 @@ describe("workspace requests and lifecycle", () => {
     expect(state.notices).not.toHaveBeenCalled();
     expect(state.intakes).toHaveLength(1);
   });
-  it("records cancellation as pending without falsifying the actual schedule", async () => {
+  it("answers 410 for every visit action and changes or sends nothing (visits retired 2026-11-11)", async () => {
     state.records.set("inboundRequests/task-1", task());
     state.records.set("capture_jobs/capture-1", {
       buyer_request_id: "task-1",
       status: "scheduled",
-      availabilityStartsAt: "2026-09-16T15:00:00Z",
+      field_ops: { capturer_assignment: { creator_id: "capturer-1", name: "Jordan" } },
     });
-    const response = await (
-      await api("/tasks/task-1/capture", "site-1", {
-        action: "cancel",
-        message: "Site closed",
-      })
-    ).json();
-    expect(response.status).toBe("pending_review");
-    expect(state.records.get("capture_jobs/capture-1").status).toBe(
-      "scheduled",
-    );
-    expect(state.records.get("inboundRequests/task-1").ops.next_step).toContain(
-      "cancel",
-    );
-  });
-  it("routes a capturer message through the existing communication boundary", async () => {
-    state.records.set("inboundRequests/task-1", task());
-    state.records.set("capture_jobs/capture-1", {
-      buyer_request_id: "task-1",
-      status: "scheduled",
-      field_ops: {
-        capturer_assignment: { creator_id: "capturer-1", name: "Jordan" },
-      },
-    });
-    const response = await (
-      await api("/tasks/task-1/capture", "site-1", {
-        action: "message",
-        message: "Use the east entrance",
-      })
-    ).json();
-    expect(state.messages).toHaveBeenCalledWith(
-      expect.objectContaining({
-        captureJobId: "capture-1",
-        communicationType: "custom",
-        body: "Use the east entrance",
-      }),
-    );
-    expect(response.message).toContain("queued");
+    const before = JSON.stringify([...state.records.entries()]);
+    for (const body of [{ action: "cancel", message: "Site closed" }, { action: "message", message: "Use the east entrance" },
+      { action: "request", message: "Please come" }]) {
+      const response = await api("/tasks/task-1/capture", "site-1", body);
+      expect(response.status).toBe(410);
+      expect(await response.json()).toEqual({ error: "filming_visits_retired" });
+    }
+    expect(state.messages).not.toHaveBeenCalled();
+    expect(JSON.stringify([...state.records.entries()])).toBe(before);
   });
   it("no longer lets a site select a team for a pilot, and requires a pilot before deployment", async () => {
     state.records.set("inboundRequests/task-1", task());

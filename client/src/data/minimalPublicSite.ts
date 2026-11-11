@@ -11,7 +11,7 @@ export const minimalMarketingRedirects: Record<string, string> = {
   "/capture-visit": "/contact/site-operator",
   "/site-task": "/contact/site-operator",
   "/robot-intake": "/contact/robot-team",
-  // The capturer network is retired: sites film their own job or Blueprint films it.
+  // The capturer network and Blueprint filming visits are retired: sites film their own job.
   "/beta/capturer-guide": "/contact/site-operator",
 };
 

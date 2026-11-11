@@ -230,7 +230,7 @@ describe("the confirmation says what our screen decided", () => {
     expect(sent.body).toMatch(/We ask before sharing details with any partner/);
   });
 
-  it("answers a visit request without assuming where the site is", async () => {
+  it("sends a job stored as a visit request the ordinary film-it-yourself line (visits retired 2026-11-11)", async () => {
     await saveBrief(draftBrief({
       requestId: "req-1", summary: "Cartons from a conveyor onto a pallet", captureMode: "site_visit", proposed: [],
     }));
@@ -238,9 +238,8 @@ describe("the confirmation says what our screen decided", () => {
     expect((await response.json()).disposition).toBe("qualified");
     const sent = vi.mocked(enqueueOutbox).mock.calls[0][0] as { subject: string; body: string };
     expect(sent.subject).toBe("Your job brief is confirmed");
-    expect(sent.body).toMatch(/whether a visit is possible for your location/);
-    expect(sent.body).toMatch(/I'll film it myself instead/);
-    expect(`${sent.subject}\n${sent.body}`).not.toMatch(/Austin|visit date/i);
+    expect(sent.body).toMatch(/Next, film the work area on a phone and upload it here:/);
+    expect(`${sent.subject}\n${sent.body}`).not.toMatch(/Austin|visit|I'll film it myself instead/i);
   });
 
   it("stores site-stated pilot and deployment intent without treating it as an access grant", async () => {
