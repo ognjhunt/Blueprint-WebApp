@@ -123,12 +123,15 @@ const CARTON = reading({ ...NOTHING, object: "carton", object_largest_side_m: 0.
 "Pick up the carton from the left of the table and place it at the end of the table");
 /** SYNTHETIC: the clip never shows the work. */
 const NO_JOB = reading({ ...NOTHING, basis: "SYNTHETIC reading: the job was not in view." }, null);
-/** SYNTHETIC: a person folds towels at a table; nothing is carried from one spot to another. */
-const TOWELS = reading({ ...NOTHING, object_surface: "matte",
-  basis: "SYNTHETIC reading: a person folds towels on a table and stacks them." }, null);
+/**
+ * SYNTHETIC: a person folds towels at a table; nothing is carried from one spot to another. The reader says
+ * so in its own field (`job_kind: "other"`, folding) as well as in its words.
+ */
+const TOWELS = reading({ ...NOTHING, object_surface: "matte", job_kind: "other", other_actions: ["folding"],
+  basis: "SYNTHETIC reading: a person folds towels on a table." }, null);
 /** SYNTHETIC: the same towel job, with the object named and a height the reader gave. The numbers must not make it a pick. */
-const TOWELS_WITH_HEIGHT = reading({ ...NOTHING, object: "towel", object_surface: "matte", pick_height_m: 0.9,
-  basis: "SYNTHETIC reading: a person folds towels on a table and stacks them." }, null);
+const TOWELS_WITH_HEIGHT = reading({ ...NOTHING, object: "towel", object_surface: "matte", pick_height_m: 0.9, job_kind: "other",
+  other_actions: ["folding"], basis: "SYNTHETIC reading: a person folds towels on a table." }, null);
 // The bases say "reading", not "fixture": the task screen reads "fixture" as an assembly job.
 
 /* ------------------------------------------------------------ the site's steps, as the page sends them */
@@ -411,7 +414,7 @@ describe("a site's answer, from an email and a video to a deployment company", (
 
   it("says a job of another kind cannot be checked, in the fit check's own words, with one update email", async () => {
     // The towel job is named in the form's optional task line.
-    const { jobId, token } = await startJob("Fold each towel and stack it on the shelf");
+    const { jobId, token } = await startJob("Fold the towels");
     expect(doc(`inboundRequests/${jobId}`).site_task_scope).toMatchObject({ supported: false, reason: "deformable" });
     await sendVideo(token);
     await readVideo(jobId, TOWELS);
@@ -419,7 +422,7 @@ describe("a site's answer, from an email and a video to a deployment company", (
   }, 30_000);
 
   it("gives no robot pick to a typed towel job even when the reading names the object and a height", async () => {
-    const { jobId, token } = await startJob("Fold each towel and stack it on the shelf");
+    const { jobId, token } = await startJob("Fold the towels");
     await sendVideo(token);
     await readVideo(jobId, TOWELS_WITH_HEIGHT);
     await expectOtherKind(jobId, token);

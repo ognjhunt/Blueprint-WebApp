@@ -43,7 +43,7 @@ export const pilotReplacementPolicy =
 export const siteAssessment = {
   amount: betaFeeUsd,
   unit: "during the beta",
-  summary: "One answer for one recurring job at one site: the robot that most likely fits, and its proof in simulation.",
+  summary: "One answer for one recurring job at one site: the robot that most likely fits, and what a simulation of its site found.",
   covers: [
     "A job brief drafted from your video and reviewed with you: objects, cycle, exceptions, timing and required outcomes.",
     "A site simulation reconstructed from your video, with compatible robots and policies evaluated against the job criteria.",

@@ -74,8 +74,8 @@ export const SIMULATION_POLICIES: Readonly<Record<string, SimulationPolicy>> = {
   humanoidarena_pi05_g1_dex3_sonic_vision_navi: { policy: "HumanoidArena π0.5 (walking to a goal)", maker: null, robot: UNITREE_G1 },
 };
 
-/** A name that reads like a code (underscores, paths, links, version or digest strings) is never shown. */
-const looksLikeCode = (value: string) => /[_/\\:@#]|\.v\d|\bv\d+(\.\d+)*\b|sha256|[0-9a-f]{12,}|\d{3,}/i.test(value);
+/** A name that reads like a code (underscores, paths, links, markup, version or digest strings) is never shown. */
+const looksLikeCode = (value: string) => /[_/\\:@#<>{}]|\.v\d|\bv\d+(\.\d+)*\b|sha256|[0-9a-f]{12,}|\d{3,}/i.test(value);
 /** Our own working words ("Current candidate", "Baseline 2") are never a policy's name either. */
 const looksLikeWorkingLabel = (value: string) =>
   /\b(candidates?|screening|episodes?|embodiments?|checkpoints?|baselines?|placeholders?|templates?|unnamed|unknown|untitled|current|default|test|tbd|todo)\b/i.test(value);

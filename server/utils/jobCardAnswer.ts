@@ -76,8 +76,8 @@ function robotOf(robot: AnswerRobot | null): JobCardAnswerRobot | null {
     specs: robot.specs.filter(spec => httpsUrl(spec.sourceUrl)).slice(0, 2)
       .map(({ label, display, sourceUrl }) => ({ label, display, sourceUrl })),
     evidence: robot.evidence.filter(row => httpsUrl(row.sourceUrl)).slice(0, 2)
-      .map(({ level, scope, summary, quote, sourceUrl, sourceTitle, publisher, publishedOn }) =>
-        ({ level, scope, summary, quote, sourceUrl, sourceTitle, publisher, publishedOn })),
+      .map(({ level, scope, family, summary, quote, sourceUrl, sourceTitle, publisher, publishedOn }) =>
+        ({ level, scope, family: scope === "family" ? family ?? null : null, summary, quote, sourceUrl, sourceTitle, publisher, publishedOn })),
   };
 }
 

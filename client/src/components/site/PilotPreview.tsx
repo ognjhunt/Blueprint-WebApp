@@ -3,7 +3,7 @@ import { Pause, Play } from "lucide-react";
 
 /**
  * What a site receives: one answer for its job (the robot that most likely
- * fits, a runner-up, what was ruled out, proof in simulation, how sure, the
+ * fits, a runner-up, what was ruled out, what was tested in simulation, how sure, the
  * next step), or "held", shown for a few kinds of site. The packaging example
  * comes first because it is the kind of job the answer covers best. Examples, not
  * bookings or results. Four original illustrative scenes are restored verbatim;
@@ -429,7 +429,7 @@ function Palletizing({ t }: { t: number }) {
 // must span the two spots; jobs that are not one solid object picked up and put
 // down are held), but no row is a result for any site.
 const WHO_USES_IT = "Published uses of these robots on work like this, each with its source, or a plain note that we found none";
-const POLICY_PROOF = "Which control policy did best on the job in a simulation of your site, and how much that result can be trusted";
+const POLICY_PROOF = "A simulation of your site checks the robot’s reach and arm path on the job, compares public control policies on it on a research arm, and says how much that result can be trusted";
 const NEXT_STEP = "If you choose, share an anonymised job card with deployment companies Blueprint has approved";
 const HELD_NEXT = "We keep the job and count it as demand for this kind of work. Your job page shows its current stage";
 const held = (kind: string) => `Held. Our robot check covers jobs where a robot picks one solid object up and puts it down. ${kind} is another kind of job, which we can’t check robots against yet`;
@@ -444,7 +444,7 @@ const examples: Example[] = [
     ["Runner-up", "Yaskawa HC20DTP, a fixed robot arm. Published reach 1.9 m, payload 20 kg"],
     ["Ruled out", "Universal Robots UR5e. Its published payload is 5 kg, less than a 12 kg carton and its gripper"],
     ["Who uses it", "Makers and integrators have published palletizing cells built on both arms in production use, each with its source"],
-    ["Proof in simulation", "A simulation of your site checks the arm’s reach, path and cycle time on the stack, and says how much that result can be trusted"],
+    ["Tested in simulation", "A simulation of your site checks the arm’s reach and path on the stack, and says how much that result can be trusted"],
     ["How sure", "Fair. Both arms have documented production use for palletizing; the carton weight is estimated from the video, and telling us the weight would raise it"],
     ["Next step", NEXT_STEP],
   ], Art: Palletizing },
@@ -453,7 +453,7 @@ const examples: Example[] = [
     ["Runner-up", "Hello Robot Stretch 3, an arm on a wheeled base. Published payload: 2 kg, including its gripper"],
     ["Ruled out", "Universal Robots UR5e. It stays in one place, and its 0.85 m reach can’t span a shelf and a cart a few steps apart"],
     ["Who uses it", WHO_USES_IT],
-    ["Proof in simulation", POLICY_PROOF],
+    ["Tested in simulation", POLICY_PROOF],
     ["How sure", "Low. The tote weight is estimated from the video and is close to both robots’ payload"],
     ["Next step", NEXT_STEP],
   ], Art: Warehouse },
@@ -462,7 +462,7 @@ const examples: Example[] = [
     ["Runner-up", "Universal Robots UR10e, a fixed robot arm. Published reach 1.3 m, payload 12.5 kg"],
     ["Ruled out", "AgileX PiPER. An arm standing between the rack and the counter needs about 0.7–1.1 m of reach; this arm reaches 0.626 m"],
     ["Who uses it", WHO_USES_IT],
-    ["Proof in simulation", "A simulation of your site checks the arm’s reach and path on the job, and says how much that result can be trusted"],
+    ["Tested in simulation", "A simulation of your site checks the arm’s reach and path on the job, and says how much that result can be trusted"],
     ["How sure", "Low for now. The distances are estimated from the video; a measured scene of your work area would raise it"],
     ["Next step", NEXT_STEP],
   ], Art: Cafe },
@@ -475,7 +475,7 @@ const examples: Example[] = [
     ["Runner-up", "Unitree G1, a walking humanoid robot. Published payload: about 2 kg per arm"],
     ["Ruled out", "FANUC M-710iC/45M. It stays in one place, and even its 2.606 m reach can’t span 6 m"],
     ["Who uses it", WHO_USES_IT],
-    ["Proof in simulation", POLICY_PROOF],
+    ["Tested in simulation", POLICY_PROOF],
     ["How sure", "Low. Both pass on weight, but whether they can reach into the machine is still open"],
     ["Next step", NEXT_STEP],
   ], Art: Factory },
@@ -556,8 +556,8 @@ export function PilotPreview() {
     <section className="ms-pilot-preview" aria-labelledby="pilot-preview-title">
       <div className="ms-pilot-preview-intro">
         <p className="ms-eyebrow">What you get</p>
-        <h2 id="pilot-preview-title">One job. One answer, with its proof.</h2>
-        <p>The robot that most likely fits, a runner-up, what was ruled out and why, proof in a simulation of your site and how sure we are. You choose whether to share it.</p>
+        <h2 id="pilot-preview-title">One job. One answer, tested in simulation.</h2>
+        <p>The robot that most likely fits, a runner-up, what was ruled out and why, what a simulation of your site found and how sure we are. You choose whether to share it.</p>
         <svg ref={artRef} className="ms-pilot-art" viewBox="0 0 320 196" role="img" aria-label={`Illustration of the ${example.site.toLowerCase()} example: ${example.embodiment.toLowerCase()}`}>
           <g key={example.site} className="ms-pilot-art-scene">
             <path d="M8 180 H312" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" />

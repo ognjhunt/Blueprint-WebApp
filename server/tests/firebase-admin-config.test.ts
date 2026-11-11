@@ -66,6 +66,7 @@ beforeEach(() => {
   delete process.env.BLUEPRINT_E2E;
   delete process.env.BLUEPRINT_E2E_ALLOW_LIVE_FIREBASE;
   delete process.env.FIRESTORE_EMULATOR_HOST;
+  delete process.env.FIREBASE_STORAGE_EMULATOR_HOST;
 });
 
 afterEach(() => {
@@ -76,6 +77,7 @@ afterEach(() => {
   delete process.env.BLUEPRINT_E2E;
   delete process.env.BLUEPRINT_E2E_ALLOW_LIVE_FIREBASE;
   delete process.env.FIRESTORE_EMULATOR_HOST;
+  delete process.env.FIREBASE_STORAGE_EMULATOR_HOST;
 });
 
 describe("firebaseAdmin config", () => {
@@ -138,14 +140,56 @@ describe("a browser-test server never uses a live credential", () => {
     expect(state.apps).toHaveLength(0);
   });
 
-  it("still initialises against the local emulator", async () => {
+  it("does not initialise on application-default credentials alone", async () => {
+    process.env.BLUEPRINT_E2E = "1";
+    process.env.GOOGLE_CLOUD_PROJECT = "blueprint-prod";
+    process.env.K_SERVICE = "blueprint-web";
+
+    const module = await import("../../client/src/lib/firebaseAdmin");
+
+    expect(module.dbAdmin).toBeNull();
+    expect(state.apps).toHaveLength(0);
+    expect(state.applicationDefaultCalls).toBe(0);
+  });
+
+  it("does not initialise when only one of the two emulators is set", async () => {
     process.env.BLUEPRINT_E2E = "1";
     process.env.FIRESTORE_EMULATOR_HOST = "127.0.0.1:8080";
     process.env.FIREBASE_SERVICE_ACCOUNT_JSON = liveKey;
 
+    let module = await import("../../client/src/lib/firebaseAdmin");
+    expect(module.dbAdmin).toBeNull();
+
+    vi.resetModules();
+    delete process.env.FIRESTORE_EMULATOR_HOST;
+    process.env.FIREBASE_STORAGE_EMULATOR_HOST = "127.0.0.1:9199";
+    module = await import("../../client/src/lib/firebaseAdmin");
+    expect(module.dbAdmin).toBeNull();
+    expect(state.apps).toHaveLength(0);
+  });
+
+  it("still initialises against both local emulators", async () => {
+    process.env.BLUEPRINT_E2E = "1";
+    process.env.FIRESTORE_EMULATOR_HOST = "127.0.0.1:8080";
+    process.env.FIREBASE_STORAGE_EMULATOR_HOST = "127.0.0.1:9199";
+    process.env.GOOGLE_CLOUD_PROJECT = "demo-blueprint-reliability";
+
     const module = await import("../../client/src/lib/firebaseAdmin");
 
     expect(module.dbAdmin).toBeTruthy();
+    expect(module.browserTestServerMustNotUseLiveFirebase()).toBe(false);
+  });
+
+  it("leaves the emulator harnesses, which do not set BLUEPRINT_E2E, initialising as before", async () => {
+    // The environment scripts/qa/reliability-local-app.mjs gives its server.
+    process.env.FIRESTORE_EMULATOR_HOST = "127.0.0.1:8080";
+    process.env.FIREBASE_STORAGE_EMULATOR_HOST = "127.0.0.1:9199";
+    process.env.GOOGLE_CLOUD_PROJECT = "demo-blueprint-reliability";
+
+    const module = await import("../../client/src/lib/firebaseAdmin");
+
+    expect(module.dbAdmin).toBeTruthy();
+    expect(state.applicationDefaultCalls).toBe(1);
   });
 
   it("initialises when a live project is allowed on purpose", async () => {

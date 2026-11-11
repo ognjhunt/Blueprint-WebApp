@@ -259,6 +259,10 @@ export interface VideoEstimates {
   largestSideM: number | null;
   massKg: { low: number; high: number } | null;
   surface: "matte" | "shiny" | "transparent" | "mixed" | null;
+  /** What the reader saw done to the object; null when it did not say (and on older readings). */
+  jobKind: "pick_and_place" | "palletizing" | "machine_tending" | "other" | null;
+  /** Anything done to the object besides carrying it, as plain -ing words; [] on older readings. */
+  otherActions: string[];
   pickToPlaceM: number | null;
   pickHeightM: number | null;
   placeHeightM: number | null;
@@ -273,6 +277,17 @@ function bounded(value: unknown, min: number, max: number, exclusiveMin = false)
 }
 
 const SURFACE_VALUES = new Set(["matte", "shiny", "transparent", "mixed"]);
+const JOB_KIND_VALUES = new Set(["pick_and_place", "palletizing", "machine_tending", "other"]);
+
+/**
+ * An action the reader named, as a plain lower-case -ing word or two ("folding", "screwing on"), or
+ * nothing: it reaches a sentence on the site's page, so anything else is dropped.
+ */
+function actionWord(item: unknown): string | null {
+  if (typeof item !== "string") return null;
+  const word = item.replace(/\s+/g, " ").trim().toLowerCase();
+  return /^[a-z]{2,}ing(?: [a-z]{2,20})?$/.test(word) && word.length <= 40 ? word : null;
+}
 
 /**
  * An unseen item as a plain noun phrase, or nothing: the name reaches the site's
@@ -296,6 +311,10 @@ function estimatesOf(raw: unknown): VideoEstimates | null {
     massKg: ends[0] !== null && ends[1] !== null ? { low: Math.min(ends[0], ends[1]), high: Math.max(ends[0], ends[1]) } : null,
     surface: typeof value.object_surface === "string" && SURFACE_VALUES.has(value.object_surface)
       ? value.object_surface as VideoEstimates["surface"] : null,
+    jobKind: typeof value.job_kind === "string" && JOB_KIND_VALUES.has(value.job_kind)
+      ? value.job_kind as VideoEstimates["jobKind"] : null,
+    otherActions: [...new Set((Array.isArray(value.other_actions) ? value.other_actions : [])
+      .map(actionWord).filter((item): item is string => Boolean(item)))].slice(0, 3),
     pickToPlaceM: bounded(value.pick_to_place_m, 0, 50, true),
     pickHeightM: bounded(value.pick_height_m, 0, 4),
     placeHeightM: bounded(value.place_height_m, 0, 4),
@@ -320,6 +339,8 @@ function mergeEstimates(first: VideoEstimates | null, second: VideoEstimates | n
     largestSideM: first.largestSideM ?? second.largestSideM,
     massKg: first.massKg ?? second.massKg,
     surface: first.surface ?? second.surface,
+    jobKind: first.jobKind ?? second.jobKind,
+    otherActions: first.otherActions.length ? first.otherActions : second.otherActions,
     pickToPlaceM: first.pickToPlaceM ?? second.pickToPlaceM,
     pickHeightM: first.pickHeightM ?? second.pickHeightM,
     placeHeightM: first.placeHeightM ?? second.placeHeightM,

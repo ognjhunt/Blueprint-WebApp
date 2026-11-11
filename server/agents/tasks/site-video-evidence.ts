@@ -169,6 +169,10 @@ export const jobEstimatesSchema = z.object({
   object_mass_kg_low: estimate(0.001, 2000),
   object_mass_kg_high: estimate(0.001, 2000),
   object_surface: z.enum(["matte", "shiny", "transparent", "mixed"]).nullable().catch(null),
+  /** What is done to the object: whether a reach-and-payload check means anything for this job. */
+  job_kind: z.enum(["pick_and_place", "palletizing", "machine_tending", "other"]).nullable().catch(null),
+  /** Anything done to the object besides carrying it, as -ing words ("folding"). */
+  other_actions: z.array(z.string().trim().min(1).max(40)).max(3).catch([]),
   /** From where the object is picked up to where it is put down. */
   pick_to_place_m: estimate(0, 50),
   pick_height_m: estimate(0, 4),
@@ -203,6 +207,8 @@ Blueprint never asks the site to measure anything, so estimate what a robot woul
 - object: the main item the job handles, in a few words. object_largest_side_m: its largest side, in metres.
 - object_mass_kg_low and object_mass_kg_high: a plausible weight range from its size, its material, how full it looks and how it is lifted (one hand or two, the effort it takes).
 - object_surface: matte, shiny, transparent or mixed, from how it looks.
+- job_kind: what is done to the object. pick_and_place: one solid object is picked up and put down somewhere else. palletizing: boxes or bags are stacked into a shipping load, or taken off one. machine_tending: parts are loaded into or unloaded from a machine. other: the job mainly does something else to the object (folding, pouring, wiping, fastening, assembling, cutting, opening). null if the video does not show the job.
+- other_actions: up to three words ending in -ing for anything done to the object besides carrying it, or an empty list.
 - pick_to_place_m: how far the object travels from where it is picked up to where it is put down. pick_height_m and place_height_m: the height above the floor of the surface it is picked from and of the one it is put on.
 - front_clearance_m: the open floor in front of the surface the object is picked from, where a robot could stand. 0 when there is none.
 - other_items_likely: up to five other kinds of item this station probably handles that the clip does not show, such as other sizes or variants of the same product, as plain nouns. Never a brand, company or robot. Empty when nothing suggests any.
@@ -217,6 +223,8 @@ export const JOB_ESTIMATES_RETURN_SHAPE = {
   object_mass_kg_low: null,
   object_mass_kg_high: null,
   object_surface: "matte | shiny | transparent | mixed | null",
+  job_kind: "pick_and_place | palletizing | machine_tending | other | null",
+  other_actions: [],
   pick_to_place_m: null,
   pick_height_m: null,
   place_height_m: null,

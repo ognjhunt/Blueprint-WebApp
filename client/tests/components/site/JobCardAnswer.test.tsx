@@ -16,9 +16,11 @@ const ANSWER: JobCardAnswerSummary = {
   facts: [{ label: "How far the object moves", display: "about 1.6 m", basis: "video_estimate" }],
   pick: { manufacturer: "Universal Robots", name: "UR20", verdictLabel: "Fits on paper",
     specs: [{ label: "Reach", display: "1.75 m", sourceUrl: "https://example.com/ur20" }],
-    evidence: [{ level: "production", scope: "model", summary: "A named mill palletizes with it.", quote: "The UR20 palletizes here.",
+    evidence: [{ level: "production", scope: "model", family: null, summary: "A named mill palletizes with it.", quote: "The UR20 palletizes here.",
       sourceUrl: "https://example.com/case", sourceTitle: "Case", publisher: "Universal Robots", publishedOn: null }] },
-  runnerUp: { manufacturer: "Yaskawa", name: "HC20DTP", verdictLabel: "Fits on paper", specs: [], evidence: [] },
+  runnerUp: { manufacturer: "Yaskawa", name: "HC20DTP", verdictLabel: "Fits on paper", specs: [],
+    evidence: [{ level: "offered", scope: "family", family: "Motoman HC", summary: "The maker offers the family for palletizing.",
+      quote: "Motoman HC arms palletize.", sourceUrl: "https://example.com/hc", sourceTitle: "HC", publisher: "Yaskawa", publishedOn: null }] },
   confidence: { level: "fair", reason: "The weight and distances are estimated from the site's video." },
   unknowns: ["Which gripper or tool the object needs."],
   simulation: null,
@@ -44,6 +46,9 @@ describe("Blueprint's answer on a job card", () => {
     expect(within(block).getByText(/How sure: Fair/)).toBeInTheDocument();
     expect(within(block).getByText(/estimated from the site's video\)/)).toBeInTheDocument();
     expect(within(block).getByText(ANSWER.note)).toBeInTheDocument();
+    // Each source says what it names: the model itself, or the robot family it belongs to.
+    expect(within(block).getByText("In production use · The source names this model")).toBeInTheDocument();
+    expect(within(block).getByText("Offered for this kind of job · The source names this robot family (Motoman HC)")).toBeInTheDocument();
   });
 
   it("shows one line in the browse list only on a card that carries a headline, and the answer when opened", async () => {

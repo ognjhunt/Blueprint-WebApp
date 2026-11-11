@@ -79,9 +79,9 @@ export function WarehousePilotSequence() {
         <section className="ms-pilot-step" id="robot-comparison" aria-labelledby="robot-comparison-title">
           <p className="ms-eyebrow">05 · Evaluation</p>
           <h3 id="robot-comparison-title">Compare suitable robots and policies in simulation.</h3>
-          <p>Blueprint tests control policies (the software that drives a robot) on the job in the reconstructed work area, using APIs or other supported access. If a system needs access or an integration, its technology provider supplies it; you do not need to find or invite anyone. Every policy is scored against the same placement criteria. For arms that are programmed rather than driven by a policy, the simulation checks reach and path.</p>
+          <p>Blueprint tests control policies (the software that drives a robot) on the job in the reconstructed work area. If a system needs access or an integration, its technology provider supplies it; you do not need to find or invite anyone. Every policy is scored against the same placement criteria. For arms that are programmed rather than driven by a policy, the simulation checks reach and path.</p>
           <p>For each option, you see what was tested, which placements succeeded and where it failed, and how much that result can be trusted, so the result reflects your actual job.</p>
-          <p className="ms-pilot-disclosure">The three evaluations below use illustrative policy labels and outcomes. A simulated pass is an estimate, not proof of real performance or safety.</p>
+          <p className="ms-pilot-disclosure">The three evaluations below use illustrative policy labels and outcomes. A simulated pass is an estimate; it never certifies real performance or safety.</p>
           <div className="ms-pilot-comparison">
             <h4>A · Fixed arm</h4>
             <PilotImage src="/illustrations/warehouse-pilot/04-fixed-arm.webp" alt="Illustrative fixed-arm setup A, labeled Policy A-01 with a cross; one blue case remains on the bench outside the empty tray pocket." caption="Example A: the case remains outside the pocket, so the placement criterion is not met." />
@@ -99,7 +99,7 @@ export function WarehousePilotSequence() {
         <section className="ms-pilot-step" id="recommendation" aria-labelledby="recommendation-title">
           <p className="ms-eyebrow">06 · Result</p>
           <h3 id="recommendation-title">See what works on your job.</h3>
-          <p>You see which did best in a simulation of your site (in this example, setup B) and how much that result can be trusted, or &ldquo;held&rdquo; if we can&apos;t simulate that kind of job yet. Then, if you choose, you share an anonymised job card, with the answer and the proof, with deployment companies Blueprint has approved. You agree any pilot&apos;s price and terms directly with one of them.</p>
+          <p>You see which did best in a simulation of your site (in this example, setup B) and how much that result can be trusted, or &ldquo;held&rdquo; if we can&apos;t simulate that kind of job yet. Then, if you choose, you share an anonymised job card, with the answer and the simulation result, with deployment companies Blueprint has approved. You agree any pilot&apos;s price and terms directly with one of them.</p>
           <p>No approved budget is needed to start. Blueprint&apos;s simulation and results are free during the beta, and Blueprint takes no cut of the pilot.</p>
         </section>
 
@@ -112,7 +112,7 @@ export function WarehousePilotSequence() {
 
         <section className="ms-pilot-step" id="pilot-decision" aria-labelledby="pilot-decision-title">
           <h3 id="pilot-decision-title">Decide what comes next.</h3>
-          <p>Record the physical trial results and decide whether to expand, change the setup or pause. Simulation helps choose what to test; the on-site trial measures how it works in your warehouse. A simulated pass doesn&apos;t prove physical performance or safety.</p>
+          <p>Record the physical trial results and decide whether to expand, change the setup or pause. Simulation helps choose what to test; the on-site trial measures how it works in your warehouse. A simulated pass never certifies physical performance or safety.</p>
         </section>
       </div>
     </div>

@@ -137,12 +137,17 @@ describe("estimates from the video", () => {
     const estimates = videoEvidence(withVideo({ estimates: { object_largest_side_m: 9, object_mass_kg_low: 6, object_mass_kg_high: 2,
       pick_to_place_m: 0, front_clearance_m: -1, cycle_seconds: Number.NaN, object_surface: "glittery",
       other_items_likely: ["  trays ", "", 4 as never, "Lids", "bags", "boxes", "bins", "extra"] } }))?.estimates;
-    expect(estimates).toEqual({ largestSideM: null, massKg: { low: 2, high: 6 }, surface: null, pickToPlaceM: null, pickHeightM: null,
+    expect(estimates).toEqual({ largestSideM: null, massKg: { low: 2, high: 6 }, surface: null, jobKind: null, otherActions: [],
+      pickToPlaceM: null, pickHeightM: null,
       placeHeightM: null, frontClearanceM: null, otherItemsLikely: ["trays", "lids", "bags", "boxes", "bins"], cycleSeconds: null });
     // The names reach the site's report, so only plain nouns survive.
     expect(videoEvidence(withVideo({ estimates: { other_items_likely: ["https://example.test/sku", "robot spare parts", "C-12 cartons",
       "Smaller cartons"] } }))?.estimates?.otherItemsLikely).toEqual(["c-12 cartons", "smaller cartons"]);
     expect(videoEvidence(withVideo({ estimates: { front_clearance_m: 0 } }))?.estimates?.frontClearanceM).toBe(0);
+    // What is done to the object: a known kind only, and plain -ing words only, since they reach a sentence on the page.
+    expect(videoEvidence(withVideo({ estimates: { job_kind: "machine_tending", other_actions: ["Folding", "<b>x</b>", "screw_ing",
+      "wiping", "folding"] } }))?.estimates).toMatchObject({ jobKind: "machine_tending", otherActions: ["folding", "wiping"] });
+    expect(videoEvidence(withVideo({ estimates: { job_kind: "juggling" } }))?.estimates?.jobKind).toBeNull();
     expect(videoEvidence(withVideo({ estimates: { object_mass_kg_high: 0.4 } }))?.estimates?.massKg).toEqual({ low: 0.4, high: 0.4 });
   });
 

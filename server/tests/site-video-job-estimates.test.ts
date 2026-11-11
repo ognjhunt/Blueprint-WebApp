@@ -36,6 +36,7 @@ const { createRequestReviewToken, verifyRequestReviewToken } = await import("../
 
 const ESTIMATES = {
   object: "sealed carton", object_largest_side_m: 0.45, object_mass_kg_low: 3, object_mass_kg_high: 5, object_surface: "matte",
+  job_kind: "palletizing", other_actions: [] as string[],
   pick_to_place_m: 0.9, pick_height_m: 0.8, place_height_m: 0.15, front_clearance_m: 1.3,
   other_items_likely: ["smaller cartons"], cycle_seconds: 40, basis: "Sized against a standard pallet.",
 };
@@ -64,6 +65,23 @@ describe("the reader's job estimates", () => {
       expect(siteVideoEvidenceOutputSchema.parse(output({ job_estimates: broken })).job_estimates).toBeNull();
     }
     expect(siteVideoEvidenceOutputSchema.parse(output()).job_estimates).toBeUndefined();
+  });
+
+  it("reads what is done to the object, and a reading made before it was asked as null and an empty list", () => {
+    const { job_kind: _kind, other_actions: _actions, ...older } = ESTIMATES;
+    expect(siteVideoEvidenceOutputSchema.parse(output({ job_estimates: older })).job_estimates)
+      .toEqual({ ...older, job_kind: null, other_actions: [] });
+    const odd = siteVideoEvidenceOutputSchema.parse(output({ job_estimates: { ...ESTIMATES, job_kind: "dancing", other_actions: "folding" } }));
+    expect(odd.job_estimates).toMatchObject({ job_kind: null, other_actions: [] });
+    const many = siteVideoEvidenceOutputSchema.parse(output({ job_estimates: { ...ESTIMATES, job_kind: "other",
+      other_actions: ["folding", "wiping", "peeling", "pouring"] } }));
+    expect(many.job_estimates).toMatchObject({ job_kind: "other", other_actions: [] });
+    expect(siteVideoEvidenceOutputSchema.parse(output({ job_estimates: { ...ESTIMATES, other_actions: [" folding "] } })).job_estimates)
+      .toMatchObject({ other_actions: ["folding"] });
+    const prompt = JSON.stringify(siteVideoEvidenceTask.build_prompt({ requestId: "job-1", taskVideoUrl: "https://example.test/v.mp4",
+      operatorAnswers: {} }));
+    expect(prompt).toContain("job_kind: what is done to the object.");
+    expect(prompt).toContain("other_actions: up to three words ending in -ing");
   });
 
   it("still refuses a reading with keys outside its contract", () => {

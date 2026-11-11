@@ -4,7 +4,8 @@ import { readyAnswer } from "../fixtures/siteAnswer";
 import { SIMULATION_ACCURACY } from "@/data/simulationAccuracy";
 import { SIMULATION_POLICIES } from "@/data/simulationPolicies";
 import type { AnswerRobot } from "@/lib/siteAnswer";
-import { NO_POLICY_COMPLETED, SCALE_ESTIMATED, projectSimulationProof } from "@/lib/simulationProof";
+import { AHEAD, CLEAR, GAP_COULD_BE_CHANCE, GAP_UNLIKELY_CHANCE, NO_CLEAR_DIFFERENCE, NO_POLICY_COMPLETED, NO_POLICY_SCORED, SCALE_ESTIMATED,
+  probabilityAhead, projectSimulationProof } from "@/lib/simulationProof";
 import type { JobManagedEvidenceSummary } from "@/types/jobMarketplace";
 
 type Candidate = NonNullable<JobManagedEvidenceSummary["screening"]>["candidates"][number];
@@ -95,8 +96,9 @@ describe("projectSimulationProof", () => {
     expect(comparison.separated).toBe(false);
     expect(comparison.winner).toBeNull();
     expect(comparison.line).toBe(NO_POLICY_COMPLETED);
+    // Ordered by the mean of each rate's Beta(s + 1, n − s + 1): 0 of 9 sits above 0 of 10.
     expect(comparison.rows.map(row => [row.policy, row.succeeded, row.scored])).toEqual([
-      ["π0", 0, 10], ["π0-FAST", 0, 10], ["GR00T N1.7", 0, 10], ["π0.5", 0, 9]]);
+      ["π0.5", 0, 9], ["π0", 0, 10], ["π0-FAST", 0, 10], ["GR00T N1.7", 0, 10]]);
     expect(comparison.rows.every(row => row.rangeText === null && !row.chosen)).toBe(true);
     expect(comparison.didNotRun).toBe(3);
     expect(comparison.didNotRunLine).toBe("3 more policies were planned and did not run. “Simulation details” further down says why.");
@@ -106,13 +108,16 @@ describe("projectSimulationProof", () => {
     expectPlainPolicies(comparison.rows);
   });
 
-  it("names a winner when one policy did clearly better: 7 of 10 against 3 of 10", () => {
+  // Rewritten from "names a winner when one policy did clearly better": under the probability rule 7 of 10
+  // against 3 of 10 is about 0.96, so the leader is named as ahead, not as having done best.
+  it("names the leader as ahead, not best, at 7 of 10 against 3 of 10", () => {
     const proof = projectSimulationProof({ evaluation: WINNER, pick: ur10e });
     const comparison = proof.policyComparison!;
-    expect(comparison.separated).toBe(true);
+    expect(comparison.separated).toBe(false);
     expect(comparison.winner).toEqual({ policy: "π0.5", maker: "Physical Intelligence" });
-    expect(comparison.line).toBe("In a simulation of your site, π0.5, an AI control policy from Physical Intelligence, did best: it completed the job in 7 of 10 tries. The others: GR00T N1.7, 3 of 10.");
-    expect(proof.headline).toBe("In a simulation of your site, π0.5, an AI control policy from Physical Intelligence, did best: it completed the job in 7 of 10 tries.");
+    expect(comparison.line).toBe("In a simulation of your site, π0.5, an AI control policy from Physical Intelligence, was ahead: it completed the job in 7 of 10 tries, "
+      + `against 3 of 10 for GR00T N1.7. ${GAP_COULD_BE_CHANCE}`);
+    expect(proof.headline).toBe("In a simulation of your site, π0.5, an AI control policy from Physical Intelligence, was ahead: it completed the job in 7 of 10 tries, against 3 of 10 for GR00T N1.7.");
     expect(comparison.rows[0]).toMatchObject({ policy: "π0.5", chosen: true, rangeText: expect.stringMatching(/^likely between \d+% and \d+%$/) });
     expect(comparison.rows[1].chosen).toBe(false);
     expectPlainPolicies(comparison.rows);
@@ -122,7 +127,7 @@ describe("projectSimulationProof", () => {
     const tie = projectSimulationProof({ evaluation: evaluation({}, [candidate("pi05_droid", "π0.5 DROID", 10, 4),
       candidate("molmoact2_droid", "MolmoAct 2 DROID", 10, 4)]), pick: ur10e }).policyComparison!;
     expect(tie).toMatchObject({ separated: false, winner: null });
-    expect(tie.line).toBe("The simulation ran, but the policies completed the job equally often, so it could not rank them: π0.5, 4 of 10; MolmoAct 2, 4 of 10.");
+    expect(tie.line).toBe(`${NO_CLEAR_DIFFERENCE} Tries that completed the job in a simulation of your site: π0.5, 4 of 10; MolmoAct 2, 4 of 10.`);
     const one = projectSimulationProof({ evaluation: evaluation({}, [candidate("pi05_droid", "π0.5 DROID", 10, 4)]), pick: ur10e }).policyComparison!;
     expect(one).toMatchObject({ separated: false, winner: null });
   });
@@ -173,7 +178,8 @@ describe("projectSimulationProof", () => {
       const proof = projectSimulationProof({ evaluation: evaluation({}, [candidate("pi05_droid", "π0.5 DROID", 10, 6),
         candidate("unknown_id", name, 10, 2)]), pick: ur10e });
       expect(proof.policyComparison!.rows[1]).toMatchObject({ policy: "an AI control policy", maker: null });
-      expect(proof.policyComparison!.line).toBe("In a simulation of your site, π0.5, an AI control policy from Physical Intelligence, did best: it completed the job in 6 of 10 tries. The others: an AI control policy, 2 of 10.");
+      expect(proof.policyComparison!.line).toBe("In a simulation of your site, π0.5, an AI control policy from Physical Intelligence, was ahead: it completed the job in 6 of 10 tries, "
+        + `against 2 of 10 for an AI control policy. ${GAP_COULD_BE_CHANCE}`);
     }
   });
 
@@ -220,6 +226,145 @@ describe("projectSimulationProof", () => {
   it("never throws on junk", () => {
     for (const value of [null, undefined, {}, { evaluation: "x", pick: 3 }, { evaluation: [{ screening: { candidates: [null, { scored: "a" }] } }], pick: null }]) {
       expect(() => projectSimulationProof(value as never)).not.toThrow();
+    }
+  });
+
+  it("matches the pick against the scene table by maker and model, ignoring case and punctuation", () => {
+    const line = projectSimulationProof({ evaluation: null, pick: ur10e,
+      robotFit: { models: [{ name: "ur10E", manufacturer: "universal-Robots", verdict: "fits", openChecks: [] }] } }).robotCheck!;
+    expect(line.pickChecked).toBe(true);
+    const other = projectSimulationProof({ evaluation: null, pick: ur10e,
+      robotFit: { models: [{ name: "UR10e", manufacturer: "Another Maker", verdict: "fits", openChecks: [] }] } }).robotCheck!;
+    expect(other).toEqual({ pickChecked: false, line: "The scene rebuilt from your video has not been checked against the Universal Robots UR10e yet." });
+  });
+});
+
+const tries = (succeeded: number, scored: number) => ({ succeeded, scored });
+
+describe("probabilityAhead", () => {
+  it("1 of 1 against 0 of 1 is 5/6", () => {
+    expect(Math.abs(probabilityAhead(tries(1, 1), tries(0, 1)) - 5 / 6)).toBeLessThan(1e-6);
+  });
+
+  it("equal counts are 0.5", () => {
+    for (const [s, n] of [[0, 1], [4, 10], [10, 10], [37, 50]]) expect(probabilityAhead(tries(s, n), tries(s, n))).toBeCloseTo(0.5, 6);
+  });
+
+  it("7 of 10 against 3 of 10 is about 0.96: ahead, not clear", () => {
+    const p = probabilityAhead(tries(7, 10), tries(3, 10));
+    expect(p).toBeCloseTo(0.957, 3);
+    expect(p).toBeGreaterThanOrEqual(AHEAD);
+    expect(p).toBeLessThan(CLEAR);
+  });
+
+  it("9 of 10 against 3 of 10 is above 0.99", () => {
+    expect(probabilityAhead(tries(9, 10), tries(3, 10))).toBeGreaterThan(0.99);
+  });
+
+  it("is symmetric: P(A > B) + P(B > A) = 1", () => {
+    for (const [a, b] of [[tries(1, 1), tries(0, 1)], [tries(7, 10), tries(3, 10)], [tries(0, 3), tries(5, 20)], [tries(150, 200), tries(140, 200)]]) {
+      expect(probabilityAhead(a, b) + probabilityAhead(b, a)).toBeCloseTo(1, 6);
+    }
+  });
+
+  it("grows with the leader's successes and falls with the other's", () => {
+    for (let s = 0; s < 10; s += 1) {
+      expect(probabilityAhead(tries(s + 1, 10), tries(3, 10))).toBeGreaterThan(probabilityAhead(tries(s, 10), tries(3, 10)));
+      expect(probabilityAhead(tries(5, 10), tries(s + 1, 10))).toBeLessThan(probabilityAhead(tries(5, 10), tries(s, 10)));
+    }
+  });
+
+  it("reads junk counts as zero, and never more successes than tries", () => {
+    expect(probabilityAhead({ succeeded: Number.NaN, scored: -1 }, tries(0, 0))).toBeCloseTo(0.5, 6);
+    expect(probabilityAhead(tries(12, 10), tries(10, 10))).toBeCloseTo(0.5, 6);
+  });
+});
+
+describe("the comparison sentence: leader against the next best, by one rule", () => {
+  const run = (...rows: Candidate[]) => projectSimulationProof({ evaluation: evaluation({}, rows), pick: ur10e });
+
+  it("did best at P ≥ CLEAR: 9 of 10 against 3 of 10", () => {
+    const proof = run(candidate("pi05_droid", "π0.5 DROID", 10, 9), candidate("groot_n17_droid", "GR00T N1.7 DROID", 10, 3));
+    const comparison = proof.policyComparison!;
+    expect(comparison).toMatchObject({ separated: true, winner: { policy: "π0.5", maker: "Physical Intelligence" } });
+    expect(comparison.line).toBe("In a simulation of your site, π0.5, an AI control policy from Physical Intelligence, did best: it completed the job in 9 of 10 tries, "
+      + `against 3 of 10 for GR00T N1.7. ${GAP_UNLIKELY_CHANCE}`);
+    expect(comparison.rows.map(row => row.chosen)).toEqual([true, false]);
+    expect(proof.headline).toBe(comparison.line.split(/(?<=\.)\s/)[0]);
+  });
+
+  it("no clear difference below AHEAD: 1 of 1 against 0 of 1 is 5/6", () => {
+    const comparison = run(candidate("pi05_droid", "π0.5 DROID", 1, 1), candidate("groot_n17_droid", "GR00T N1.7 DROID", 1, 0)).policyComparison!;
+    expect(comparison).toMatchObject({ separated: false, winner: null });
+    expect(comparison.line).toBe(`${NO_CLEAR_DIFFERENCE} Tries that completed the job in a simulation of your site: π0.5, 1 of 1; GR00T N1.7, 0 of 1.`);
+    expect(comparison.rows.some(row => row.chosen)).toBe(false);
+  });
+
+  it("with three or more policies, compares the leader with the next best only and lists the rest", () => {
+    const comparison = run(candidate("molmoact2_droid", "MolmoAct 2 DROID", 10, 1), candidate("pi05_droid", "π0.5 DROID", 10, 10),
+      candidate("groot_n17_droid", "GR00T N1.7 DROID", 10, 2), candidate("pi0_fast_droid_jointpos_polaris", "π0-FAST", 10, 0)).policyComparison!;
+    expect(comparison.separated).toBe(true);
+    expect(comparison.line).toBe("In a simulation of your site, π0.5, an AI control policy from Physical Intelligence, did best: it completed the job in 10 of 10 tries, "
+      + `against 2 of 10 for the next best, GR00T N1.7. ${GAP_UNLIKELY_CHANCE} The others: MolmoAct 2, 1 of 10; π0-FAST, 0 of 10.`);
+    expect(comparison.rows.map(row => [row.policy, row.succeeded, row.chosen])).toEqual([
+      ["π0.5", 10, true], ["GR00T N1.7", 2, false], ["MolmoAct 2", 1, false], ["π0-FAST", 0, false]]);
+    // The next best being close decides, even when the third is far behind.
+    const close = run(candidate("pi05_droid", "π0.5 DROID", 10, 9), candidate("groot_n17_droid", "GR00T N1.7 DROID", 10, 8),
+      candidate("molmoact2_droid", "MolmoAct 2 DROID", 10, 0)).policyComparison!;
+    expect(close).toMatchObject({ separated: false, winner: null });
+    expect(close.line.startsWith(NO_CLEAR_DIFFERENCE)).toBe(true);
+  });
+
+  it("a tie at the top is no clear difference, however far behind the rest are", () => {
+    const comparison = run(candidate("pi05_droid", "π0.5 DROID", 10, 8), candidate("groot_n17_droid", "GR00T N1.7 DROID", 10, 8),
+      candidate("molmoact2_droid", "MolmoAct 2 DROID", 10, 0)).policyComparison!;
+    expect(comparison).toMatchObject({ separated: false, winner: null });
+    expect(comparison.line).toBe(`${NO_CLEAR_DIFFERENCE} Tries that completed the job in a simulation of your site: π0.5, 8 of 10; GR00T N1.7, 8 of 10; MolmoAct 2, 0 of 10.`);
+  });
+
+  it("the counts decide the sentence when the Pipeline's chosen policy disagrees with them", () => {
+    const evaluated = evaluation({}, [candidate("pi05_droid", "π0.5 DROID", 10, 2), candidate("groot_n17_droid", "GR00T N1.7 DROID", 10, 9)]);
+    evaluated.screening!.selection = { status: "chosen", selectionDigest: `sha256:${"e".repeat(64)}`, chosen: { candidateId: "pi05_droid" } as never,
+      tiedWith: [], candidates: [{ candidateId: "pi05_droid", resultRank: 1, choiceBlocker: null }, { candidateId: "groot_n17_droid", resultRank: 2, choiceBlocker: null }] };
+    const comparison = projectSimulationProof({ evaluation: evaluated, pick: ur10e }).policyComparison!;
+    expect(comparison.winner).toEqual({ policy: "GR00T N1.7", maker: "NVIDIA" });
+    expect(comparison.line).toMatch(/^In a simulation of your site, GR00T N1\.7, an AI control policy from NVIDIA, did best: it completed the job in 9 of 10 tries, against 2 of 10 for π0\.5\./);
+    expect(comparison.rows.find(row => row.policy === "π0.5")!.chosen).toBe(false);
+    expect(comparison.rows.filter(row => row.chosen).map(row => row.policy)).toEqual(["GR00T N1.7"]);
+  });
+
+  it("one scored policy: its count, no comparison", () => {
+    const comparison = run(candidate("pi05_droid", "π0.5 DROID", 10, 4)).policyComparison!;
+    expect(comparison).toMatchObject({ separated: false, winner: null });
+    expect(comparison.line).toBe("The simulation scored one policy: π0.5 completed the job in 4 of 10 tries. With nothing to compare it to, it could not rank policies.");
+  });
+
+  it("a policy that never completed the job is never ahead, even against a weaker count", () => {
+    const comparison = run(candidate("pi05_droid", "π0.5 DROID", 1, 0), candidate("groot_n17_droid", "GR00T N1.7 DROID", 100, 1)).policyComparison!;
+    expect(comparison).toMatchObject({ separated: false, winner: null });
+    expect(comparison.line.startsWith(NO_CLEAR_DIFFERENCE)).toBe(true);
+  });
+
+  it("says nothing ran when no policy has a scored try", () => {
+    const proof = projectSimulationProof({ evaluation: evaluation({}, [
+      candidate("pi05_droid", "π0.5 DROID", 0, 0, { blockers: ["site_screening_budget_insufficient"] })]), pick: ur10e });
+    expect(proof.headline).toBe(NO_POLICY_SCORED);
+    expect(proof.policyComparison).toMatchObject({ line: NO_POLICY_SCORED, rows: [],
+      didNotRunLine: "1 policy was planned and did not run. “Simulation details” further down says why." });
+    // No "we ran the public policies" before anything ran.
+    expect(proof.forThisJob).toEqual([SCALE_ESTIMATED]);
+    const onlyScripted = projectSimulationProof({ evaluation: evaluation({}, [candidate("scripted_pick_place", "Scripted", 10, 10, { executionEvidence: scripted })]), pick: ur10e });
+    expect(onlyScripted.headline).toBe(NO_POLICY_SCORED);
+    expect(onlyScripted.forThisJob).toEqual([SCALE_ESTIMATED]);
+  });
+
+  it("held for budget, or could not run, says what happened and never that policies ran", () => {
+    for (const outcome of ["held_budget", "held_setup", "held_scene_check", "reference_only"] as const) {
+      const proof = projectSimulationProof({ evaluation: evaluation({ outcome }, [candidate("pi05_droid", "π0.5 DROID", 0, 0, { state: "deferred" })]), pick: ur10e });
+      expect(proof.state).toBe("could_not_run");
+      for (const sentence of [proof.headline, proof.policyComparison!.line, ...proof.forThisJob]) {
+        expect(sentence).not.toMatch(/we ran|did best|was ahead|completed the job|tries/i);
+      }
     }
   });
 });

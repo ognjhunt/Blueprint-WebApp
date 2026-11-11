@@ -86,7 +86,7 @@ async function expectAnswer(page: Page) {
   await expect(pick.locator(".site-answer-specs a[href^='https://']").first()).toBeVisible();
   await expect(section.getByRole("article", { name: "Runner-up" })).toBeVisible();
   await expect(section.getByRole("heading", { name: /^How sure we are: / })).toBeVisible();
-  const proof = section.getByRole("region", { name: "Proof in simulation" });
+  const proof = section.getByRole("region", { name: "Tested in simulation" });
   await expect(proof).toBeVisible();
   await expect(proof).toContainText("The simulation of your site has not started yet.");
   return (await headline.textContent())!.trim();

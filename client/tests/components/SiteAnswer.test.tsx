@@ -28,11 +28,12 @@ describe("the site's answer", () => {
     for (const check of readyAnswer.pick!.checks) expect(within(pick).getByText(check.text)).toBeVisible();
     const sources = within(pick).getAllByRole("link", { name: "source" });
     expect(sources.map(link => link.getAttribute("href"))).toEqual(readyAnswer.pick!.specs.map(spec => spec.sourceUrl));
-    expect(within(pick).getByText("In production use")).toBeVisible();
+    expect(within(pick).getByText("In production use · The source names this model")).toBeVisible();
     expect(within(pick).getByText(`“${readyAnswer.pick!.evidence[0].quote}”`)).toBeVisible();
     expect(within(pick).getByRole("link", { name: /TEST case study: carton palletizing with the UR10e, Example Test News, March 1, 2025/ }))
       .toHaveAttribute("href", readyAnswer.pick!.evidence[0].sourceUrl);
-    expect(within(pick).getByText(/for this maker, not this model by name/)).toBeVisible();
+    // A source that names only the robot family says so, with the family's name.
+    expect(within(pick).getByText("Offered for this kind of job · The source names this robot family (e-Series)")).toBeVisible();
     expect(screen.getByText(`How it would be controlled: ${readyAnswer.approach!.text}`)).toBeVisible();
 
     const runnerUp = screen.getByRole("article", { name: "Runner-up" });
@@ -57,12 +58,12 @@ describe("the site's answer", () => {
     expect(screen.getByRole("button", { name: FIND })).toBeVisible();
     expect(screen.getByText(CONSENT)).toBeVisible();
     // No proof handed in yet: no section, not an empty one.
-    expect(screen.queryByRole("region", { name: "Proof in simulation" })).toBeNull();
+    expect(screen.queryByRole("region", { name: "Tested in simulation" })).toBeNull();
   });
 
   it("puts the proof in simulation after the pick, runner-up and also-fit, before what was ruled out, open", () => {
     render(<SiteAnswer token="owner-token" answer={readyAnswer} proof={winnerProof} />);
-    const proof = screen.getByRole("region", { name: "Proof in simulation" });
+    const proof = screen.getByRole("region", { name: "Tested in simulation" });
     expect(proof).toBeVisible();
     expect(proof.closest("details")).toBeNull();
     expect(within(proof).getByText(winnerProof.headline)).toBeVisible();
@@ -77,7 +78,7 @@ describe("the site's answer", () => {
   it("carries the proof on an answer with no pick too", () => {
     const proof = projectSimulationProof({ evaluation: [allZeroEvaluation], pick: null });
     render(<SiteAnswer token="owner-token" answer={cannotAssessAnswer} proof={proof} />);
-    expect(screen.getByRole("region", { name: "Proof in simulation" })).toBeVisible();
+    expect(screen.getByRole("region", { name: "Tested in simulation" })).toBeVisible();
     expect(screen.getByText(proof.headline)).toBeVisible();
   });
 

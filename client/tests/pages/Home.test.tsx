@@ -22,13 +22,15 @@ describe("Site-led homepage", () => {
     fireEvent.click(screen.getByRole("tab", { name: "Packaging" }));
     const panel = screen.getByRole("tabpanel");
     // The example is an answer: the job, the pick, a runner-up, one ruled out with its
-    // reason, the proof in simulation, how sure and the next step (owner, 2026-11-11).
+    // reason, what is tested in simulation, how sure and the next step (owner, 2026-11-11). No cycle time:
+    // the simulation checks reach and path, nothing else (MF7).
     // The default example is a job the answer covers well, with every robot figure published:
     // UR20 1.75 m and 20 kg, HC20DTP 1.9 m and 20 kg, the UR5e ruled out on its 5 kg payload.
-    expect(panel).toHaveTextContent(/Job.*cartons.*about 12 kg.*pallet.*Most likely fits.*Universal Robots UR20.*reach 1\.75 m, payload 20 kg.*Runner-up.*Yaskawa HC20DTP.*reach 1\.9 m, payload 20 kg.*Ruled out.*Universal Robots UR5e.*payload is 5 kg.*Who uses it.*palletizing cells built on both arms.*each with its source.*Proof in simulation.*reach, path and cycle time.*how much that result can be trusted.*How sure.*Fair.*Next step.*anonymised job card.*approved/);
+    expect(panel).toHaveTextContent(/Job.*cartons.*about 12 kg.*pallet.*Most likely fits.*Universal Robots UR20.*reach 1\.75 m, payload 20 kg.*Runner-up.*Yaskawa HC20DTP.*reach 1\.9 m, payload 20 kg.*Ruled out.*Universal Robots UR5e.*payload is 5 kg.*Who uses it.*palletizing cells built on both arms.*each with its source.*Tested in simulation.*reach and path on the stack.*how much that result can be trusted.*How sure.*Fair.*Next step.*anonymised job card.*approved/);
     // No customer is named on the home page.
     expect(panel).not.toHaveTextContent(/Ornua|Bob.s Red Mill|Verla|Georgia Nut|Danish Crown|Napco/);
-    expect(screen.getByRole("heading", { name: "One job. One answer, with its proof." })).toBeInTheDocument();
+    expect(panel).not.toHaveTextContent(/cycle time/i);
+    expect(screen.getByRole("heading", { name: "One job. One answer, tested in simulation." })).toBeInTheDocument();
     expect(screen.getByText("Illustrative answer")).toBeInTheDocument();
     expect(screen.getByText(/not available offers or measured results/)).toBeInTheDocument();
     expect(screen.getByText(/the jobs, distances, weights and answers are made up for illustration/)).toBeInTheDocument();
@@ -144,14 +146,16 @@ describe("Site-led homepage", () => {
     }
   });
 
-  // Owner direction, 2026-11-11: video, then the answer, then proof in simulation, then a deployment company.
+  // Owner direction, 2026-11-11: video, then the answer, then what is tested in simulation, then a deployment company.
+  // The simulation step says what the code does (MF7): the pick's reach and arm path, and public policies on a research arm.
   it("shows four customer steps from video through the answer and simulation to a deployment company", () => {
     render(<Home />);
     const steps = within(screen.getByRole("list")).getAllByRole("listitem");
     expect(steps).toHaveLength(4);
     expect(steps[0]).toHaveTextContent(/Send a video of the job.*email and a video.*draft the job description from the video/);
     expect(steps[1]).toHaveTextContent(/See which robot fits.*published specifications.*most likely fits.*runner-up.*ruled out and why.*with sources.*how sure we are/i);
-    expect(steps[2]).toHaveTextContent(/Proof in simulation.*simulation of your site.*control policies.*which did best.*how much that result can be trusted.*“held”/i);
+    expect(steps[2]).toHaveTextContent(/Tested in simulation.*simulation of your site.*picked robot’s reach and arm path.*public control policies.*on a research arm.*how much that result can be trusted.*“held”/i);
+    expect(steps[2]).not.toHaveTextContent(/proof|prove|did best/i);
     expect(steps[3]).toHaveTextContent(/Find a deployment company.*anonymised job card.*approved.*agree any pilot directly/);
     const method = screen.getByRole("region", { name: "From one video to a robot that fits." });
     expect(method).not.toHaveTextContent(/screening|scored in full|comparable proposals|recommend the approach|candidates?|episodes?|embodiment/i);

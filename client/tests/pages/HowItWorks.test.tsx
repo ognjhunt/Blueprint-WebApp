@@ -16,13 +16,15 @@ describe("How it works", () => {
     expect(answer).toHaveTextContent(/real robot models against the job by their published specifications.*most likely fits.*runner-up.*ruled out and why.*with sources.*how sure we are/);
     expect(answer).toHaveTextContent(/not a test of a robot at your site/);
     const evaluation = screen.getByRole("region", { name: "Compare suitable robots and policies in simulation." });
-    expect(evaluation).toHaveTextContent(/using APIs or other supported access/);
+    // No unsourced claim about policies served through APIs (rewritten from asserting that sentence).
+    expect(evaluation).toHaveTextContent(/on the job in the reconstructed work area\. If a system/);
     expect(evaluation).toHaveTextContent(/its technology provider supplies it; you do not need to find or invite anyone/);
     expect(evaluation).toHaveTextContent(/control policies \(the software that drives a robot\)/);
     expect(evaluation).toHaveTextContent(/Every policy is scored against the same placement criteria/);
     expect(evaluation).not.toHaveTextContent(/candidates?|episodes?/i);
     expect(evaluation).not.toHaveTextContent(/screening runs|finalists|scored in full/i);
-    expect(evaluation).toHaveTextContent(/estimate, not proof of real performance or safety/);
+    expect(evaluation).toHaveTextContent(/estimate; it never certifies real performance or safety/);
+    expect(evaluation).not.toHaveTextContent(/using APIs/);
     const result = screen.getByRole("region", { name: "See what works on your job." });
     expect(result).toHaveTextContent(/No approved budget is needed to start/);
     expect(result).toHaveTextContent(/which did best in a simulation of your site.*how much that result can be trusted.*“held”/);

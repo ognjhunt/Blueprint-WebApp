@@ -8,19 +8,22 @@ describe("the beta page", () => {
     render(<Beta />);
     const timing = screen.getByRole("heading", { name: "How long does it take?" }).closest("section")!;
     expect(timing).toHaveTextContent(REPLY_TIMELINE);
-    expect(timing).toHaveTextContent(/does not reserve equipment or guarantee a pilot date/);
+    expect(timing).toHaveTextContent(/does not reserve equipment or fix a pilot date/);
     expect(screen.queryByText(/Evaluations start once an invited robot team/)).not.toBeInTheDocument();
   });
 
   // Owner direction, 2026-10-28: Blueprint runs the simulation itself and shows a bounded estimate or "held".
-  // Owner direction, 2026-11-11: the answer (spec check, sources, how sure) comes first, then proof in simulation.
-  it("says Blueprint answers from published specs, proves it in simulation and holds jobs it cannot simulate yet", () => {
+  // Owner direction, 2026-11-11: the answer (spec check, sources, how sure) comes first, then what is tested in simulation.
+  it("says Blueprint answers from published specs, tests it in simulation and holds jobs it cannot simulate yet", () => {
     render(<Beta />);
     const receive = screen.getByRole("heading", { name: "What do I receive?" }).closest("section")!;
-    expect(receive).toHaveTextContent(/run the policies ourselves in simulation, including policies served through APIs and different robot configurations/);
+    expect(receive).toHaveTextContent(/run the policies ourselves in simulation\./);
+    // No unsourced claim about policies served through APIs or other robot configurations.
+    expect(receive).not.toHaveTextContent(/served through APIs|different robot configurations/);
     expect(receive).toHaveTextContent(/its technology provider supplies it/);
     expect(receive).toHaveTextContent(/An answer: the robot that most likely fits your job, a runner-up, what was ruled out and why, who already uses those robots for work like this \(with sources\) and how sure we are/);
-    expect(receive).toHaveTextContent(/proof in simulation: which control policy did best on your job.*how much that result can be trusted/);
+    expect(receive).toHaveTextContent(/tested in a simulation of your site: the picked robot's reach and arm path, how public control policies compared on your job on a research arm, and how much that result can be trusted/);
+    expect(receive).not.toHaveTextContent(/proof|did best/i);
     expect(receive).toHaveTextContent(/We do not turn a job away because of its type.*“held”/);
     expect(receive).not.toHaveTextContent(/screening runs|full scoring|delivery proposals|technology teams where their involvement is needed/i);
     expect(screen.getByRole("article")).not.toHaveTextContent(/full evaluation|comparable proposals|join by invitation|book the pilot/i);

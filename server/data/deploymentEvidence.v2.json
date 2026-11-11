@@ -1,0 +1,581 @@
+{
+  "schema_version": "deployment_evidence.v2",
+  "retrieved_on": "2026-11-11",
+  "rows": [
+    {
+      "id": "abb-gofa-crb15000-12-127-machine-tending-omnivance-cell",
+      "manufacturer": "ABB",
+      "applies_to": [
+        "abb_gofa_crb15000_12_127"
+      ],
+      "names": "model",
+      "family": null,
+      "customer": null,
+      "job_family": "machine_tending",
+      "level": "offered",
+      "summary": "ABB markets its OmniVance Collaborative Machine Tending Cell built on the GoFa 12 cobot.",
+      "quote": "Built using ABB’s versatile GoFa 12 collaborative robot, the OmniVance Collaborative Machine Tending Cell is the perfect fit for high-mix, low volume tasks.",
+      "source_url": "https://www.abb.com/global/en/areas/robotics/solutions/application-cells/omnivance-collaborative-machine-tending-cell",
+      "source_title": "OmniVance™ Collaborative Machine Tending Cell | ABB",
+      "publisher": "ABB",
+      "published_on": null,
+      "retrieved_on": "2026-11-11"
+    },
+    {
+      "id": "abb-gofa-crb15000-5-95-machine-tending-launch-release",
+      "manufacturer": "ABB",
+      "applies_to": [
+        "abb_gofa_crb15000_5_95"
+      ],
+      "names": "family",
+      "family": "GoFa",
+      "customer": null,
+      "job_family": "machine_tending",
+      "level": "offered",
+      "summary": "ABB's launch release for the 5 kg, 950 mm GoFa CRB 15000 lists machine tending and material handling among its applications.",
+      "quote": "Another key feature is GoFa’s reach which, at 950mm, outperforms other 5kg cobots by around 12 per cent. With a 70 per cent longer reach than ABB’s YuMi single arm robot, GoFa enables loads to be picked up and moved over greater distances, making it an effective solution for a variety of applications, from machine tending and material handling through to packing and packaging.",
+      "source_url": "https://www.abb.com/global/en/news/74323/prsrl-abb-launches-gofa-higher-payload-cobot-for-collaborative-tasks-up-to-5kg",
+      "source_title": "ABB launches GoFa™ higher payload cobot for collaborative tasks up to 5kg",
+      "publisher": "ABB",
+      "published_on": null,
+      "retrieved_on": "2026-11-11"
+    },
+    {
+      "id": "abb-gofa-family-machine-tending-metec-cnc",
+      "manufacturer": "ABB",
+      "applies_to": [
+        "abb_gofa_crb15000_12_127",
+        "abb_gofa_crb15000_5_95"
+      ],
+      "names": "family",
+      "family": "GoFa",
+      "customer": "METEC CNC Präzisionsteile GmbH",
+      "job_family": "machine_tending",
+      "level": "production",
+      "summary": "German CNC parts maker METEC uses a GoFa cobot (size not stated) to load and unload CNC machine tools.",
+      "quote": "Equipped with two three-point grippers, ABB’s GoFa™ collaborative robot is used to load and unload CNC machine tools with raw and finished components. The application A machine tending cobot picks up raw turned components. It then removes the finished product and blows away residual metal chips before loading the next component into the machine. An ABB GoFa™ cobot is helping German engineering company METEC CNC Präzisionsteile GmbH to keep pace with customer orders by doubling its production capacity and enabling improved utilization of its workforce.",
+      "source_url": "https://www.abb.com/global/en/news/112633/cstmr-cobot-colleague-tirelessly-lends-a-hand",
+      "source_title": "Cobot colleague tirelessly lends a hand",
+      "publisher": "ABB",
+      "published_on": null,
+      "retrieved_on": "2026-11-11"
+    },
+    {
+      "id": "abb-gofa-family-palletizing-solema-omega-693",
+      "manufacturer": "ABB",
+      "applies_to": [
+        "abb_gofa_crb15000_12_127",
+        "abb_gofa_crb15000_5_95"
+      ],
+      "names": "family",
+      "family": "GoFa",
+      "customer": null,
+      "job_family": "palletizing",
+      "level": "offered",
+      "summary": "Paper and packaging automation supplier Solema has built a GoFa cobot (size not stated) into its Omega 693 palletizing system; no end customer is named.",
+      "quote": "Solema has integrated ABB’s GoFa™ collaborative robot into its Omega 693 palletizing system.",
+      "source_url": "https://www.abb.com/global/en/news/129519/cstmr-from-heavy-lifting-to-high-productivity-how-solema-uses-abb-gofa-to-automate-palletizing-in-the-paper-industry",
+      "source_title": "From Heavy Lifting to High Productivity: How Solema Uses ABB’s GoFa™ to Automate Palletizing in the Paper Industry",
+      "publisher": "ABB",
+      "published_on": null,
+      "retrieved_on": "2026-11-11"
+    },
+    {
+      "id": "abb-gofa-family-pick-place-dan-d-pak-cartoning",
+      "manufacturer": "ABB",
+      "applies_to": [
+        "abb_gofa_crb15000_5_95"
+      ],
+      "names": "family",
+      "family": "GoFa",
+      "customer": "Dan D Pak",
+      "job_family": "pick_place",
+      "level": "production",
+      "summary": "Vietnamese nut packer Dan D Pak uses a GoFa cobot to place bagged nuts into cartons around the clock.",
+      "quote": "At the Dan D Pak plant in Binh Duong Province, ABB GoFa cobot places bagged nuts in cartons, working around the clock to meet increasing demand for its products from international customers.",
+      "source_url": "https://www.abb.com/global/en/news/89351/prsrl-fine-foods-packing-plant-uses-abb-cobots-to-keep-ahead-of-competition",
+      "source_title": "Fine foods packing plant uses ABB cobots to keep ahead of competition",
+      "publisher": "ABB",
+      "published_on": null,
+      "retrieved_on": "2026-11-11"
+    },
+    {
+      "id": "abb-gofa-family-pick-place-sunrise-robotics-cells",
+      "manufacturer": "ABB",
+      "applies_to": [
+        "abb_gofa_crb15000_12_127",
+        "abb_gofa_crb15000_5_95"
+      ],
+      "names": "family",
+      "family": "GoFa",
+      "customer": null,
+      "job_family": "pick_place",
+      "level": "offered",
+      "summary": "Integrator Sunrise Robotics builds AI-driven cells on GoFa arms (size not stated) that pick, place and manipulate components; no end customer is named.",
+      "quote": "ABB Robotics’ GoFa serves as the precision-driven physical layer where Sunrise’s AI intelligence is expressed: picking, placing, and manipulating components at exceptional speeds with high positional accuracy.",
+      "source_url": "https://www.abb.com/global/en/news/137152/cstmr-sunrise-robotics-accelerates-automation-with-ai-powered-gofa-cobot-cells",
+      "source_title": "Sunrise Robotics Accelerates Automation with AI-powered GoFa™ cobot cells",
+      "publisher": "ABB",
+      "published_on": null,
+      "retrieved_on": "2026-11-11"
+    },
+    {
+      "id": "crx10ia-pick-place-pack-expo-kitting",
+      "manufacturer": "FANUC",
+      "applies_to": [
+        "fanuc_crx_10ia"
+      ],
+      "names": "model",
+      "family": null,
+      "customer": null,
+      "job_family": "pick_place",
+      "level": "offered",
+      "summary": "FANUC America announced a food-grade CRX-10iA trade-show demonstration packing meat and cheese gift boxes (kitting); no customer is named.",
+      "quote": "Kitting - A new CRX-10iA Food-Grade option cobot will demonstrate packing meat and cheese gift boxes.",
+      "source_url": "https://www.fanucamerica.com/press-releases/fanuc-america-showcases-robot-and-cobot-solutions-at-pack-expo-las-vegas",
+      "source_title": "FANUC Showcases Food-Safe Robotics at Pack Expo 2023 | FANUC America",
+      "publisher": "FANUC America",
+      "published_on": "2023-09-08",
+      "retrieved_on": "2026-11-11"
+    },
+    {
+      "id": "crx10ial-machine-tending-emerson-wick",
+      "manufacturer": "FANUC",
+      "applies_to": [
+        "fanuc_crx_10ia_l"
+      ],
+      "names": "model",
+      "family": null,
+      "customer": "Emerson Professional Tools AG",
+      "job_family": "machine_tending",
+      "level": "production",
+      "summary": "Emerson Professional Tools has used a FANUC CRX-10iA/L in a Wick AG cell on a CNC lathe since 2021, unloading finished parts and bar-feeder remnants.",
+      "quote": "For this reason - and due to the limited space available - the Cobot CRX-10𝑖A/L from FANUC has been used on a lathe since 2021. It has a compact design and increases machine availability to up to 96 percent. In search of a suitable supplier, Stefan Rüdisühli, who is responsible for the management and further development of the site and therefore also for production, turned to the Swiss FANUC subsidiary. The reasons for this were, on the one hand, decades of good experience with FANUC controllers and, on the other hand, two FANUC robots that were already reliably in use. As a collaborative robot, the FANUC CRX-10𝑖A/L does not require any elaborate safety devices, which ultimately has a positive effect on its footprint. Fully complying with the safety standards according to ISO 10218-1 its sensitive sensors trigger an immediate safety stop if it touches an obstacle. The anti-trap protection and the soft rubber skin that partially covers the cobot also ensure that the machine operators feel safe and can work in close contact with their robot colleague without fear. The FANUC cobot unloads finished parts from the Nakamura WTS-150 and removes remnants from the bar feeder.",
+      "source_url": "https://www.fanuc.eu/at-en/node/245",
+      "source_title": "FANUC Case Study | Mensch und Roboter in sicherer Zusammenarbeit",
+      "publisher": "FANUC Europe",
+      "published_on": null,
+      "retrieved_on": "2026-11-11"
+    },
+    {
+      "id": "fanuc-crx-series-palletizing-fanuc-america",
+      "manufacturer": "FANUC",
+      "applies_to": [
+        "fanuc_crx_10ia",
+        "fanuc_crx_10ia_l"
+      ],
+      "names": "family",
+      "family": "CRX series",
+      "customer": null,
+      "job_family": "palletizing",
+      "level": "offered",
+      "summary": "FANUC America markets its CRX cobot series as a choice for palletizing.",
+      "quote": "The CRX series offers an all-new FANUC programming interface with simple drag-and-drop technology on a touchscreen teach pendant, making it a great choice for applications like palletizing, welding and assembly.",
+      "source_url": "https://crx.fanucamerica.com/applications/palletizing",
+      "source_title": "Collaborative Robot Palletizer Systems |… | CRX Collaborative Robot",
+      "publisher": "FANUC America",
+      "published_on": null,
+      "retrieved_on": "2026-11-11"
+    },
+    {
+      "id": "m710ic45m-palletizing-jacobi-delta-tech",
+      "manufacturer": "FANUC",
+      "applies_to": [
+        "fanuc_m710ic_45m"
+      ],
+      "names": "model",
+      "family": null,
+      "customer": "unnamed",
+      "job_family": "palletizing",
+      "level": "production",
+      "summary": "Delta Technology deployed a FANUC M-710iC/45M running Jacobi's OmniPalletizer for mixed-case palletizing at an unnamed defense manufacturer, described as live production handling thousands of cases per day.",
+      "quote": "Workflow: fully random, real-time mixed-case palletizing (no sequencing, no pre-planning) that builds in real time Deployed by: Delta Technology Powered by: Jacobi Robotics' OmniPalletizer Robot: FANUC M-710iC/45M Status: live production operation, commissioned Q4 2025",
+      "source_url": "https://jacobirobotics.com/case-study/deployment-with-delta-tech",
+      "source_title": "Mixed Case Deployment with Delta Tech | Jacobi Robotics",
+      "publisher": "Jacobi Robotics",
+      "published_on": "2026-01-13",
+      "retrieved_on": "2026-11-11"
+    },
+    {
+      "id": "kuka-lbr-iiwa-family-machine-tending-perschmann-cmm",
+      "manufacturer": "KUKA",
+      "applies_to": [
+        "kuka_lbr_iiwa_14"
+      ],
+      "names": "family",
+      "family": "LBR iiwa",
+      "customer": "Perschmann Calibration GmbH",
+      "job_family": "machine_tending",
+      "level": "production",
+      "summary": "Perschmann Calibration uses a KUKA LBR iiwa (variant not stated) to load a coordinate measuring machine.",
+      "quote": "At measuring technology specialist Perschmann Calibration GmbH, the sensitive KUKA LBR iiwa robot performs the loading of a coordinate measuring machine and thus automates the calibration process.",
+      "source_url": "https://ifr.org/news/automated-calibration-process-at-perschmann-calibration-gmbh-with-the-sensi/1st-quarterly-newsletter-2016",
+      "source_title": "Automated calibration process at Perschmann Calibration GmbH with the sensitive KUKA robot",
+      "publisher": "International Federation of Robotics",
+      "published_on": null,
+      "retrieved_on": "2026-11-11"
+    },
+    {
+      "id": "standardbots-ro1-machine-tending-offered",
+      "manufacturer": "Standard Bots",
+      "applies_to": [
+        "standard_bots_ro1"
+      ],
+      "names": "model",
+      "family": null,
+      "customer": null,
+      "job_family": "machine_tending",
+      "level": "offered",
+      "summary": "Standard Bots markets its robots for machine tending and names Core (18 kg, 1.3 m) as the fit for most machining cells.",
+      "quote": "Standard Bots robots tend mills, lathes, press brakes, plastic injection molding machines and much more, loading raw stock and unloading finished parts. Which Standard Bots robot is right for machine tending? Core fits most machining cells, with an 18 kg payload and 1.3 m reach.",
+      "source_url": "https://standardbots.com/applications/machining",
+      "source_title": "Machining Robots | Standard Bots",
+      "publisher": "Standard Bots",
+      "published_on": null,
+      "retrieved_on": "2026-11-11"
+    },
+    {
+      "id": "standardbots-ro1-palletizing-offered",
+      "manufacturer": "Standard Bots",
+      "applies_to": [
+        "standard_bots_ro1"
+      ],
+      "names": "model",
+      "family": null,
+      "customer": null,
+      "job_family": "palletizing",
+      "level": "offered",
+      "summary": "Standard Bots markets Core (18 kg, 1.3 m) for palletizing lighter cases and shorter stacks; Thor, which is not in the catalog, for full pallets.",
+      "quote": "Thor is the usual choice for full pallets. Its 30 kg payload and 2 m reach cover a standard pallet footprint and full truck height stacks. Core (18 kg, 1.3 m) suits lighter cases, shorter stacks, and case packing - or you can extend its reach with lifts and rails.",
+      "source_url": "https://standardbots.com/applications/palletizing",
+      "source_title": "Palletizing | Standard Bots",
+      "publisher": "Standard Bots",
+      "published_on": null,
+      "retrieved_on": "2026-11-11"
+    },
+    {
+      "id": "ur10e-machine-tending-rcm-industries",
+      "manufacturer": "Universal Robots",
+      "applies_to": [
+        "universal_robots_ur10e"
+      ],
+      "names": "model",
+      "family": null,
+      "customer": "RCM Industries",
+      "job_family": "machine_tending",
+      "level": "production",
+      "summary": "Chicago die caster RCM Industries runs two UR10e cells, each tending two dual-spindle CNC lathes.",
+      "quote": "RCM has now deployed UR10e cobots in two identical cells where they each tend two dual-spindle CNC lathes in the same cycle, manufacturing a consumer plumbing product.",
+      "source_url": "https://www.universal-robots.com/case-stories/rcm-industries/",
+      "source_title": "Dual-spindle CNC tending | UR10e at RCM | Cobot Case Stories",
+      "publisher": "Universal Robots",
+      "published_on": null,
+      "retrieved_on": "2026-11-11"
+    },
+    {
+      "id": "ur10e-palletizing-danish-crown",
+      "manufacturer": "Universal Robots",
+      "applies_to": [
+        "universal_robots_ur10e"
+      ],
+      "names": "model",
+      "family": null,
+      "customer": "Danish Crown",
+      "job_family": "palletizing",
+      "level": "production",
+      "summary": "Danish Crown uses UR10e cobots at the end of flow-packer lines to place packed sausage boxes on pallets.",
+      "quote": "However, instead of the employee having to move to the other end of the line and lift the boxes the final distance, the UR10e robot at the other end now handles the task of placing them on pallets.",
+      "source_url": "https://www.universal-robots.com/case-stories/danish-crown/",
+      "source_title": "Cobots reduce employee lifting by 50%",
+      "publisher": "Universal Robots",
+      "published_on": null,
+      "retrieved_on": "2026-11-11"
+    },
+    {
+      "id": "ur10e-palletizing-napco-brands",
+      "manufacturer": "Universal Robots",
+      "applies_to": [
+        "universal_robots_ur10e"
+      ],
+      "names": "model",
+      "family": null,
+      "customer": "Napco Brands",
+      "job_family": "palletizing",
+      "level": "production",
+      "summary": "Napco Brands, a Chicago coffee packer, runs two Robotiq AX10 palletizing cells built on UR10e cobots at the end of its packaging line.",
+      "quote": "To address labor shortages and employee safety, and to boost productivity, the company installed two AX10 automated palletizing solutions from Robotiq featuring the UR10e collaborative robots (cobots) from Universal Robots (UR). Latsch had looked at many different types of packaging equipment to improve production but found the costs to be prohibitive. “There’s a large barrier to entry when you’re talking millions of dollars in a single packaging line that may or may not help you,” he says. Collaborative robots were a much easier and more cost-effective option. In fact, the Robotiq Palletizing Solution paid for itself in less than a year, freeing up eight valued workers per day.",
+      "source_url": "https://www.universal-robots.com/case-stories/napco-brands/",
+      "source_title": "Easy-to-Use Cobot Palletizers keeps the Coffee Flowing",
+      "publisher": "Universal Robots",
+      "published_on": null,
+      "retrieved_on": "2026-11-11"
+    },
+    {
+      "id": "ur10e-pick-place-dcl-logistics",
+      "manufacturer": "Universal Robots",
+      "applies_to": [
+        "universal_robots_ur10e"
+      ],
+      "names": "model",
+      "family": null,
+      "customer": "DCL Logistics",
+      "job_family": "pick_place",
+      "level": "production",
+      "summary": "DCL Logistics uses a UR10e in its fulfillment center to pick items and pack them into boxes.",
+      "quote": "DCL Logistics needed a flexible automation system that would integrate with existing work cell setup and accurately handle the picking and packing of items into boxes in the company’s fulfillment center. The company deployed Universal Robots’ UR10e cobot and realized a 500 percent efficiency increase, 50 percent labor savings, a three months ROI, and 100 percent order accuracy.",
+      "source_url": "https://www.universal-robots.com/case-stories/dcl-logistics/",
+      "source_title": "DCL Logistics uses UR robot to increase productivity",
+      "publisher": "Universal Robots",
+      "published_on": null,
+      "retrieved_on": "2026-11-11"
+    },
+    {
+      "id": "ur20-machine-tending-junior-kuehlkoerper",
+      "manufacturer": "Universal Robots",
+      "applies_to": [
+        "universal_robots_ur20"
+      ],
+      "names": "model",
+      "family": null,
+      "customer": "Junior Kühlkörper GmbH",
+      "job_family": "machine_tending",
+      "level": "production",
+      "summary": "At contract manufacturer Junior Kühlkörper a UR20 unloads a saw and stacks the cut components.",
+      "quote": "With its 1,750 mm reach, the UR20 unloads a saw and stacks components.",
+      "source_url": "https://www.universal-robots.com/case-stories/junior-kuehlkoerper/",
+      "source_title": "From the first test to 40 cobots: How Junior Kühlkörper automated its machinery fleet",
+      "publisher": "Universal Robots",
+      "published_on": null,
+      "retrieved_on": "2026-11-11"
+    },
+    {
+      "id": "ur20-palletizing-bobs-red-mill",
+      "manufacturer": "Universal Robots",
+      "applies_to": [
+        "universal_robots_ur20"
+      ],
+      "names": "model",
+      "family": null,
+      "customer": "Bob's Red Mill",
+      "job_family": "palletizing",
+      "level": "production",
+      "summary": "Bob's Red Mill deployed Columbia/Okura's miniPAL+ case palletizer, which is built around a UR20 arm.",
+      "quote": "Bob’s Red Mill has deployed Columbia/Okura’s new miniPAL+®, a turnkey palletizing system that includes the UR20 cobot arm from Universal Robots, safety area scanners, radar, guarding, built in pallet jack pockets, the CPT vacuum gripper from PIAB, and PALLY; palletizing software from Rocketfarm. The UR20 cobot’s 1750mm (68.9in) reach allows Bob’s Red Mill to palletize without the need of a vertical 7th axis lift column, used by many cobot palletizers in order to reach the full height and width of pallets.",
+      "source_url": "https://www.universal-robots.com/case-stories/bobs-red-mill/",
+      "source_title": "UR20 Cobot Enables New Palletizing Opportunity",
+      "publisher": "Universal Robots",
+      "published_on": null,
+      "retrieved_on": "2026-11-11"
+    },
+    {
+      "id": "ur20-palletizing-ornua",
+      "manufacturer": "Universal Robots",
+      "applies_to": [
+        "universal_robots_ur20"
+      ],
+      "names": "model",
+      "family": null,
+      "customer": "Ornua",
+      "job_family": "palletizing",
+      "level": "production",
+      "summary": "Irish dairy cooperative Ornua palletizes dairy products with a UR20-based Robotiq PE20 palletizing cell.",
+      "quote": "Irish dairy cooperative Ornua has deployed the UR20 cobot in palletizing applications, handling a variety of products weighing up to 12 kg (26.5 lbs). The increased payload and extended reach of the new, larger UR20 cobot has enabled the company to automate a task that posed a real risk of repetitive strain injuries to employees. Ornua chose a UR20-powered palletizing solution from Robotiq, the PE20, due to its ease of use and ability to operate seamlessly alongside workers while handling diverse dairy products.",
+      "source_url": "https://www.universal-robots.com/case-stories/ornua/",
+      "source_title": "UR20 Frees Up Employees from Ergonomic Palletizing Tasks",
+      "publisher": "Universal Robots",
+      "published_on": null,
+      "retrieved_on": "2026-11-11"
+    },
+    {
+      "id": "ur30-machine-tending-ur-product-page",
+      "manufacturer": "Universal Robots",
+      "applies_to": [
+        "universal_robots_ur30"
+      ],
+      "names": "model",
+      "family": null,
+      "customer": null,
+      "job_family": "machine_tending",
+      "level": "offered",
+      "summary": "Universal Robots markets the UR30-1300 for machine tending with multiple grippers.",
+      "quote": "The UR30-1300 delivers heavy-duty performance in a compact footprint, purpose-built for torque-intensive screw driving, machine tending with multiple grippers, and other high-force applications that push past standard cobot limits.",
+      "source_url": "https://www.universal-robots.com/products/ur30-1300/",
+      "source_title": "UR30-1300",
+      "publisher": "Universal Robots",
+      "published_on": null,
+      "retrieved_on": "2026-11-11"
+    },
+    {
+      "id": "ur30-palletizing-onexia-offered",
+      "manufacturer": "Universal Robots",
+      "applies_to": [
+        "universal_robots_ur30"
+      ],
+      "names": "model",
+      "family": null,
+      "customer": null,
+      "job_family": "palletizing",
+      "level": "offered",
+      "summary": "Integrator ONExia presented the UR30 cobot arm for palletizing cases, totes, buckets and bags at Pack Expo East 2024; no customer is named.",
+      "quote": "The UR30 collaborative robot arm assists in automating the palletizing of cases, totes, buckets and bags.",
+      "source_url": "https://www.foodengineeringmag.com/articles/102012-onexia-introduces-collaborative-robot-arm-for-palletizing",
+      "source_title": "ONExia Introduces Collaborative Robot Arm for Palletizing",
+      "publisher": "Food Engineering",
+      "published_on": "2024-04-01",
+      "retrieved_on": "2026-11-11"
+    },
+    {
+      "id": "ur5e-machine-tending-aim-processing",
+      "manufacturer": "Universal Robots",
+      "applies_to": [
+        "universal_robots_ur5e"
+      ],
+      "names": "model",
+      "family": null,
+      "customer": "AIM Processing",
+      "job_family": "machine_tending",
+      "level": "production",
+      "summary": "Colorado injection molder AIM Processing moves a UR5e between jobs, including tending injection molding machines.",
+      "quote": "Since the company’s first cobot deployment, AIM Processing has launched more than a dozen specific applications, having the UR5e tend injection molding machines, stack trays, and pick parts off conveyors.",
+      "source_url": "https://www.universal-robots.com/case-stories/aim-processing/",
+      "source_title": "400% productivity increase | UR5 at AIM Processing | Cobot Case Stories",
+      "publisher": "Universal Robots",
+      "published_on": null,
+      "retrieved_on": "2026-11-11"
+    },
+    {
+      "id": "ur5e-machine-tending-toolcraft",
+      "manufacturer": "Universal Robots",
+      "applies_to": [
+        "universal_robots_ur5e"
+      ],
+      "names": "model",
+      "family": null,
+      "customer": "Toolcraft",
+      "job_family": "machine_tending",
+      "level": "production",
+      "summary": "Toolcraft, a Seattle-area machine shop, uses a UR5e to tend a three-operation CNC machining job.",
+      "quote": "The company needed to automate a challenging, three-operation machine tending task inside its CNC machine and has now saved 23 percent on production costs and increased throughput 43 percent by using the UR5e cobot.",
+      "source_url": "https://www.universal-robots.com/case-stories/toolcraft-inc/",
+      "source_title": "New e-Series Cobot Handles Multi-Operation Task",
+      "publisher": "Universal Robots",
+      "published_on": null,
+      "retrieved_on": "2026-11-11"
+    },
+    {
+      "id": "ur5e-pick-place-aim-processing",
+      "manufacturer": "Universal Robots",
+      "applies_to": [
+        "universal_robots_ur5e"
+      ],
+      "names": "model",
+      "family": null,
+      "customer": "AIM Processing",
+      "job_family": "pick_place",
+      "level": "production",
+      "summary": "At AIM Processing a UR5e picks and places trays for a cartesian robot that loads molded parts into them.",
+      "quote": "One of the applications, for example, has the UR5e picking and placing trays in front of a cartesian robot that palletizes small parts into compartments on the tray.",
+      "source_url": "https://www.universal-robots.com/case-stories/aim-processing/",
+      "source_title": "400% productivity increase | UR5 at AIM Processing | Cobot Case Stories",
+      "publisher": "Universal Robots",
+      "published_on": null,
+      "retrieved_on": "2026-11-11"
+    },
+    {
+      "id": "gp12-gp20-palletizing-unchained-malocherbot",
+      "manufacturer": "Yaskawa",
+      "applies_to": [
+        "yaskawa_gp12",
+        "yaskawa_gp20"
+      ],
+      "names": "model",
+      "family": null,
+      "customer": null,
+      "job_family": "palletizing",
+      "level": "offered",
+      "summary": "Integrator Unchained Robotics markets its MalocherBot Palletizing turnkey cell with a Yaskawa GP12 or GP20 robot (other brands available).",
+      "quote": "Palletizing specifications Robot Brand YASKAWA (others available) Robot Model GP12, GP20",
+      "source_url": "https://unchainedrobotics.de/en/products/turnkey-solutions/unchained-robotics-malocherbot-palettieren",
+      "source_title": "Unchained Robotics MalocherBot palletizing - Unchained Robotics",
+      "publisher": "Unchained Robotics",
+      "published_on": null,
+      "retrieved_on": "2026-11-11"
+    },
+    {
+      "id": "gp12-machine-tending-yaskawa-product",
+      "manufacturer": "Yaskawa",
+      "applies_to": [
+        "yaskawa_gp12"
+      ],
+      "names": "model",
+      "family": null,
+      "customer": null,
+      "job_family": "machine_tending",
+      "level": "offered",
+      "summary": "Yaskawa markets the GP12 for applications including machine tending and material handling.",
+      "quote": "The GP12 is perfect for a wide range of applications, including machine tending, material handling, assembly, additive manufacturing, dispensing, grinding/polishing and quality inspection.",
+      "source_url": "https://www.yaskawa.eu.com/products/robots/handling-mounting/productdetail/product/gp12_693",
+      "source_title": "Yaskawa GP12 Robot | Versatile 6-Axis Industrial Automation",
+      "publisher": "Yaskawa Europe",
+      "published_on": null,
+      "retrieved_on": "2026-11-11"
+    },
+    {
+      "id": "gp20-machine-tending-yaskawa-launch",
+      "manufacturer": "Yaskawa",
+      "applies_to": [
+        "yaskawa_gp20"
+      ],
+      "names": "model",
+      "family": null,
+      "customer": null,
+      "job_family": "machine_tending",
+      "level": "offered",
+      "summary": "Yaskawa's launch announcement positions the GP20 for loading and unloading tool and injection moulding machines.",
+      "quote": "On account of its slim wrist, the 6-axis Motoman GP20 is predestined for a wide range of handling and assembly tasks within a confined space – such as loading/unloading of tool or injection moulding machines, assembly or handling of workpieces.",
+      "source_url": "https://www.yaskawa.eu.com/header-meta/news-events/article/new-motoman-gp20-robot-with-slim-wrist-design_n17380",
+      "source_title": "New Motoman GP20 robot with slim wrist design",
+      "publisher": "Yaskawa Europe",
+      "published_on": "2022-02-17",
+      "retrieved_on": "2026-11-11"
+    },
+    {
+      "id": "hc20-machine-tending-somic-coboload",
+      "manufacturer": "Yaskawa",
+      "applies_to": [
+        "yaskawa_hc20"
+      ],
+      "names": "model",
+      "family": null,
+      "customer": null,
+      "job_family": "machine_tending",
+      "level": "offered",
+      "summary": "Packaging-machine builder SOMIC offers CoboLoad, which uses a Yaskawa HC20DTP cobot to load the carton magazine of its packaging machines; client projects were described as in preparation.",
+      "quote": "The Bavarian specialist now offers the possibility of automatic loading of the carton magazine. The heart of the solution is a Cobot HC20DTP from Yaskawa.",
+      "source_url": "https://www.yaskawa.si/use-cases/case/somic-automates-magazine-loading-for-carton-packaging-machines-with-somic-coboload-and-yaskawa_u23807",
+      "source_title": "SOMIC automates magazine loading for carton packaging machines with SOMIC CoboLoad and Yaskawa",
+      "publisher": "Yaskawa Europe (Yaskawa Slovenia site)",
+      "published_on": null,
+      "retrieved_on": "2026-11-11"
+    },
+    {
+      "id": "hc20-palletizing-verla-pharm-ahm",
+      "manufacturer": "Yaskawa",
+      "applies_to": [
+        "yaskawa_hc20"
+      ],
+      "names": "family",
+      "family": "Motoman HC20",
+      "customer": "Verla-Pharm Arzneimittel GmbH & Co. KG",
+      "job_family": "palletizing",
+      "level": "production",
+      "summary": "Verla-Pharm uses a Motoman HC20 cobot (variant not stated in the text) in a cell built by AHM to palletize cartons.",
+      "quote": "In view of this, the tradition-steeped company based in Bavaria is now using a Motoman HC20 palletizing cobot by Yaskawa for the first time.",
+      "source_url": "https://www.yaskawa.si/use-cases/case/hrc-palettizing-cell-by-ahm-with-motoman-hc20-cobot-at-verla-pharm_u20384",
+      "source_title": "HRC-Palettizing cell by AHM with MOTOMAN HC20 Cobot at Verla-Pharm",
+      "publisher": "Yaskawa Europe (Yaskawa Slovenia site)",
+      "published_on": null,
+      "retrieved_on": "2026-11-11"
+    }
+  ]
+}

@@ -65,13 +65,15 @@ describe("one email per terminal outcome of the job's evaluation (F-01)", () => 
     const words = notice.body.slice(0, notice.body.indexOf("on your private job page"));
     expect(words).not.toMatch(/rerun|setup blocker|owner approval|budget|\$|development only|[a-z]_[a-z]/i);
     if (outcome === "estimate") {
-      // The fixture's two policies completed the job 2 and 1 times in 3: the result separates them.
-      expect(notice.subject).toBe("Your simulation proof is ready");
-      expect(notice.body).toMatch(/^In a simulation of your site, .+ did best: it completed the job in 2 of 3 tries\.\n\n/);
+      // The fixture's two policies completed the job 2 and 1 times in 3: about 0.76 under the probability rule,
+      // so no clear difference yet (rewritten from "the result separates them").
+      expect(notice.subject).toBe("Your simulation result is ready");
+      expect(notice.body).toMatch(/^No clear difference between the policies yet\. Tries that completed the job in a simulation of your site: .+, 2 of 3; .+, 1 of 3\.\n\n/);
+      expect(notice.body).not.toMatch(/did best|was ahead|proof/i);
       expect(notice.body).toContain(SIMULATION_TRUST_LINE);
     } else {
       expect(notice.subject).toBe("An update on the simulation of your job");
-      expect(notice.body).not.toMatch(/estimate|proof is ready/);
+      expect(notice.body).not.toMatch(/estimate|proof|result is ready/);
     }
     expect(run().outcome_notification_pending).toBe(false);
     // A replayed delivery, a later pass or a budget-only revision is not another email.
@@ -94,7 +96,7 @@ describe("one email per terminal outcome of the job's evaluation (F-01)", () => 
     const notice = state.docs.get(key("estimate")) as Record<string, string>;
     expect(notice.subject).toBe("The simulation of your job has finished");
     expect(notice.body.startsWith("The simulation ran, but no policy completed the job in it, so it could not rank them. Nothing is needed from you.")).toBe(true);
-    expect(notice.body).not.toMatch(/estimate|proof is ready|did best|pilot|introduc|deployment company|episodes|candidates|screening/i);
+    expect(notice.body).not.toMatch(/estimate|proof|result is ready|did best|was ahead|pilot|introduc|deployment company|episodes|candidates|screening/i);
     expect(notice.body).toMatch(/never certifies physical performance or safety/);
   });
 
@@ -134,7 +136,7 @@ describe("one email per terminal outcome of the job's evaluation (F-01)", () => 
     expect(state.docs.get(key("held_capability"))).toMatchObject({ status: "cancelled", attempts: 0 });
     expect(state.docs.get(key("estimate"))).toMatchObject({ status: "sent" });
     expect(send).toHaveBeenCalledTimes(1);
-    expect(send.mock.calls[0][0].subject).toBe("Your simulation proof is ready");
+    expect(send.mock.calls[0][0].subject).toBe("Your simulation result is ready");
     expect([run().outcome_notification_pending, run("campaign-two").outcome_notification_pending]).toEqual([false, false]);
   });
 

@@ -12,8 +12,10 @@ const webServerEnvPrefix = [
     : '',
   operatorQaFakeAuthEnabled ? 'VITE_BLUEPRINT_OPERATOR_QA_FAKE_AUTH=1' : '',
   // The test server never runs background delivery or monitoring, and never
-  // uses a live Firebase credential that the shell happens to hold (the server
-  // also refuses one when BLUEPRINT_E2E=1; see client/src/lib/firebaseAdmin.ts).
+  // uses a live Firebase credential that the shell happens to hold. With
+  // BLUEPRINT_E2E=1 the server also initialises Firebase only when both the
+  // Firestore and the Storage emulator hosts are set, whatever credentials the
+  // machine holds (client/src/lib/firebaseAdmin.ts).
   'BLUEPRINT_DISABLE_OPS_AUTOMATION_SCHEDULER=1',
   process.env.BLUEPRINT_E2E_ALLOW_LIVE_FIREBASE === '1'
     ? 'BLUEPRINT_E2E_ALLOW_LIVE_FIREBASE=1'

@@ -124,14 +124,59 @@ describe("POST /:token/introduction-request", () => {
     expect(row("inboundRequests/req-1").public_task_listing.approvedAtIso).toBe(stored.public_task_listing.approvedAtIso);
   });
 
-  it("leaves a card that is already on as it is", async () => {
+  it("moves a card already on under the older box to the statement the site just agreed to, and changes nothing else", async () => {
+    const { loadJobCardAnswer } = await import("../utils/jobCardAnswer");
+    // A video reading, so the job has an answer to carry.
+    row("inboundRequests/req-1").capture_coverage = { covers_scene: true };
+    row("inboundRequests/req-1").walkthrough_job_estimates = { capture_id: "walkthrough-req-1", job_estimates: { object: "carton",
+      object_largest_side_m: 0.4, object_mass_kg_low: 3, object_mass_kg_high: 4, object_surface: "matte", pick_to_place_m: 1,
+      pick_height_m: null, place_height_m: null, front_clearance_m: 1.5, other_items_likely: [], cycle_seconds: null,
+      basis: "A person moves cartons from a conveyor to a pallet." } };
     const listing = { enabled: true, details: { title: "The owner's own reviewed card" }, consentVersion: listingConsentVersion,
+      approvedAtIso: "2026-11-01T00:00:00.000Z", wentLiveIso: "2026-11-01T00:00:00.000Z", briefRevision: "rev-1",
+      thumbnailDigest: "thumb-1", reviewRequired: false, approvedBy: "signed_owner_link" };
+    row("inboundRequests/req-1").public_task_listing = structuredClone(listing);
+    // Under the older box alone the card carries no answer.
+    expect(await loadJobCardAnswer("req-1", row("inboundRequests/req-1"))).toBeNull();
+
+    expect((await ask()).body).toMatchObject({ ok: true, listed: true });
+    const after = row("inboundRequests/req-1");
+    // Only the consent and its time change: the owner's reviewed card is byte for byte as it was.
+    expect(after.public_task_listing.consentVersion).toBe(JOB_CARD_ANSWER_STATEMENT_VERSION);
+    expect(after.public_task_listing.approvedAtIso).not.toBe(listing.approvedAtIso);
+    const { consentVersion: _c, approvedAtIso: _a, ...rest } = after.public_task_listing;
+    const { consentVersion: _c0, approvedAtIso: _a0, ...before } = listing;
+    expect(JSON.stringify(rest)).toBe(JSON.stringify(before));
+    expect(after.introduction_request.statement_version).toBe(JOB_CARD_ANSWER_STATEMENT_VERSION);
+    // The card is not going live: no team alert intent, no team email, no go-live notice.
+    expect(after).not.toHaveProperty("newJobAlertFanout");
+    const kinds = enqueueOutbox.mock.calls.map(call => (call as unknown as [{ kind: string }])[0].kind);
+    expect(kinds).not.toContain("robot_team_new_task");
+    expect(kinds).not.toContain("listing_live");
+    // The card now carries the answer.
+    const carried = await loadJobCardAnswer("req-1", after);
+    expect(carried?.headline).toMatch(/^Most likely to fit: /);
+
+    // A second press changes nothing.
+    const snapshot = JSON.stringify(row("inboundRequests/req-1"));
+    expect((await ask()).body).toMatchObject({ ok: true, listed: true });
+    expect(JSON.stringify(row("inboundRequests/req-1"))).toBe(snapshot);
+    expect(sendSlackMessage).toHaveBeenCalledTimes(1);
+
+    // The site later re-saves its card under the older box: the answer comes off the card again.
+    const { applyOwnerTaskListing } = await import("../routes/task-listings");
+    const { anonymizedOpportunityDraft } = await import("../../client/src/types/taskBrowse");
+    await applyOwnerTaskListing("req-1", { enabled: true, consent: true, details: anonymizedOpportunityDraft("Move cartons to the pallet") });
+    expect(row("inboundRequests/req-1").public_task_listing.consentVersion).toBe(listingConsentVersion);
+    expect(await loadJobCardAnswer("req-1", row("inboundRequests/req-1"))).toBeNull();
+  });
+
+  it("leaves a card that is already on under the statement as it is", async () => {
+    const listing = { enabled: true, details: { title: "The owner's own reviewed card" }, consentVersion: JOB_CARD_ANSWER_STATEMENT_VERSION,
       approvedAtIso: "2026-11-01T00:00:00.000Z" };
-    row("inboundRequests/req-1").public_task_listing = listing;
+    row("inboundRequests/req-1").public_task_listing = structuredClone(listing);
     expect((await ask()).body).toMatchObject({ ok: true, listed: true });
     expect(row("inboundRequests/req-1").public_task_listing).toEqual(listing);
-    // The card stays under the older box's version, but the site's choice to share its answer is recorded.
-    expect(row("inboundRequests/req-1").introduction_request.statement_version).toBe(JOB_CARD_ANSWER_STATEMENT_VERSION);
   });
 
   it("keeps an older request recorded without the statement as it is", async () => {

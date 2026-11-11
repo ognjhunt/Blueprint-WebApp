@@ -325,12 +325,24 @@ router.post("/:token/introduction-request", csrfProtection, async (req, res) => 
         statement_version: JOB_CARD_ANSWER_STATEMENT_VERSION, statement_text: JOB_CARD_ANSWER_STATEMENT } }, { merge: true });
       return now;
     });
-    // The card goes on under the statement the site just agreed to, or stays as it is when already on.
+    // The card goes on under the statement the site just agreed to. A card already on keeps everything the
+    // owner reviewed; only its consent moves to this statement, since the latest consent the site gave governs.
     let listed = false;
     try {
       const current = (await ref.get()).data()?.public_task_listing;
-      if (current?.enabled === true) listed = true;
-      else {
+      if (current?.enabled === true) {
+        listed = true;
+        if (current.consentVersion !== JOB_CARD_ANSWER_STATEMENT_VERSION) {
+          await store.runTransaction(async tx => {
+            const listing = (await tx.get(ref)).data()?.public_task_listing;
+            if (listing?.enabled !== true || listing.consentVersion === JOB_CARD_ANSWER_STATEMENT_VERSION) return;
+            // A merge touches these two fields only: the details, revision, thumbnail and go-live time stay as
+            // they are, and no team alert is written (the card is not going live, and this button emails no one).
+            tx.set(ref, { public_task_listing: { consentVersion: JOB_CARD_ANSWER_STATEMENT_VERSION,
+              approvedAtIso: new Date().toISOString() } }, { merge: true });
+          });
+        }
+      } else {
         const [{ applyOwnerTaskListing }, { anonymizedOpportunityDraft }] = await Promise.all([
           import("./task-listings"), import("../../client/src/types/taskBrowse")]);
         const brief = await getBrief(verified.requestId).catch(() => null);
