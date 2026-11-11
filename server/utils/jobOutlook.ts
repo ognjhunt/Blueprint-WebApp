@@ -21,6 +21,8 @@
 import { RUN_ENDED_WITHOUT_RESULT, testNotRunLine, type SimulationProof } from "../../client/src/lib/simulationProof";
 import { REASON_UNSIZED, type SiteAnswer } from "../../client/src/lib/siteAnswer";
 import { sceneScreenGateEnded } from "./sceneScreenGate";
+// Static, as every other store reader: a dynamic import of this module can bind its admin handle before it is set.
+import { dbAdmin } from "../../client/src/lib/firebaseAdmin";
 
 export { OUTLOOK_SENTENCES, type JobOutlook, type JobOutlookReason, type JobPhase } from "../../client/src/lib/jobOutlook";
 import { OUTLOOK_SENTENCES, type JobOutlook, type JobOutlookReason, type JobPhase } from "../../client/src/lib/jobOutlook";
@@ -93,9 +95,9 @@ export const outlookAnswerOf = (answer: SiteAnswer | null | undefined): JobOutlo
  * what it has already read.
  */
 export async function loadJobOutlook(requestId: string): Promise<JobOutlook> {
-  const [{ dbAdmin }, { siteWalkthroughIdentity }, { projectWebsiteCaptureRights }, { websiteRunClosure },
+  const [{ siteWalkthroughIdentity }, { projectWebsiteCaptureRights }, { websiteRunClosure },
     { recordedWebsiteJobWindowEnding, recordedWebsiteJobNoGrantEnding }, { loadSiteAnswer }] = await Promise.all([
-    import("../../client/src/lib/firebaseAdmin"), import("./siteWalkthrough"), import("./websiteTaskContext"),
+    import("./siteWalkthrough"), import("./websiteTaskContext"),
     import("./websiteRunClosure"), import("./websiteJobWindowEnding"), import("./siteAnswer")]);
   if (!dbAdmin) throw new Error("job_outlook_unavailable");
   const record = (await dbAdmin.collection("inboundRequests").doc(requestId).get()).data();
@@ -106,9 +108,11 @@ export async function loadJobOutlook(requestId: string): Promise<JobOutlook> {
   let scene: JobOutlookInput["scene"] = null;
   if (session?.website_preparation) {
     const { loadCurrentWebsitePreparationStatus } = await import("./websitePreparationStatus");
-    const status = await loadCurrentWebsitePreparationStatus(requestId, captureId);
-    preparation = { state: status.state, geometryOnlyEnd: status.state === "awaiting_inputs" && status.robotFit?.route === "geometry_only" };
-    if (status.state === "handed_off") {
+    // The status route reads no preparation status for a video sent before the job had an account, and a read that
+    // cannot be verified is no status at all: either way the job is read as before its first status.
+    const status = await loadCurrentWebsitePreparationStatus(requestId, captureId).catch(() => null);
+    preparation = status ? { state: status.state, geometryOnlyEnd: status.state === "awaiting_inputs" && status.robotFit?.route === "geometry_only" } : null;
+    if (status?.state === "handed_off") {
       const { loadWebsiteSceneProgression } = await import("./websiteSceneProgression");
       const progression = await loadWebsiteSceneProgression(requestId, captureId).catch(() => null);
       scene = progression ? { state: progression.state } : null;

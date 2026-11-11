@@ -154,7 +154,10 @@ test("desktop: email and video in, the answer on the job page, a deployment comp
   const find = answer(page).getByRole("button", { name: "Find a company to set it up", exact: true });
   await expect(find).toBeVisible();
   await expect(answer(page)).toContainText("Your video, address and contacts stay private.");
+  const posted = page.waitForResponse(response => response.url().endsWith("/introduction-request") && response.request().method() === "POST");
   await find.click();
+  const reply = await posted;
+  expect(reply.status(), await reply.text()).toBe(200);
   const confirmation = answer(page).getByRole("status");
   await expect(confirmation).toHaveText("✓ Shared. We'll email you when a company replies.");
   await page.screenshot({ path: path.join(SHOTS, "journey-4-requested-desktop.png"), fullPage: true });
