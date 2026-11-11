@@ -82,7 +82,7 @@ describe("POST /:token/introduction-request", () => {
     expect(sendSlackMessage).not.toHaveBeenCalled();
   });
 
-  it("refuses a request without the CSRF token, and any body but an empty one", async () => {
+  it("refuses a request without the CSRF token, and any body field but the statement version", async () => {
     expect((await ask(owner(), false)).status).toBe(403);
     expect((await ask(owner(), true, { company: "Acme" })).status).toBe(400);
     expect(row("inboundRequests/req-1").introduction_request).toBeUndefined();
@@ -136,6 +136,30 @@ describe("POST /:token/introduction-request", () => {
     expect((await ask()).body).toMatchObject({ ok: true, requestedAtIso: "2026-11-10T00:00:00.000Z" });
     expect(row("inboundRequests/req-1").introduction_request).toEqual({ requested_at_iso: "2026-11-10T00:00:00.000Z",
       requested_by: "signed_owner_link" });
+  });
+
+  it("records the statement the page showed: today's version is accepted, as is no version from an older page", async () => {
+    const current = await ask(owner(), true, { statementVersion: JOB_CARD_ANSWER_STATEMENT_VERSION });
+    expect(current).toMatchObject({ status: 200, body: { ok: true, listed: true } });
+    expect(row("inboundRequests/req-1").introduction_request).toMatchObject({ statement_version: JOB_CARD_ANSWER_STATEMENT_VERSION,
+      statement_text: FIND_COMPANY_CONSENT });
+    // An older page sends {}: it is recorded under today's statement, as before.
+    delete row("inboundRequests/req-1").introduction_request;
+    const older = await ask(owner(), true, {});
+    expect(older).toMatchObject({ status: 200, body: { ok: true } });
+    expect(row("inboundRequests/req-1").introduction_request.statement_version).toBe(JOB_CARD_ANSWER_STATEMENT_VERSION);
+  });
+
+  it("refuses a page that showed another statement, recording and listing nothing, and asks it to reload", async () => {
+    const stale = await ask(owner(), true, { statementVersion: "public-task-card-with-answer-v0" });
+    expect(stale).toEqual({ status: 409, body: { code: "introduction_request_statement_changed",
+      error: "The wording on this page has changed. Reload the page to read it, then press the button again." } });
+    expect(row("inboundRequests/req-1").introduction_request).toBeUndefined();
+    expect(row("inboundRequests/req-1").public_task_listing).toBeUndefined();
+    expect(sendSlackMessage).not.toHaveBeenCalled();
+    expect(enqueueOutbox).not.toHaveBeenCalled();
+    // Any other field is still refused.
+    expect((await ask(owner(), true, { statementVersion: JOB_CARD_ANSWER_STATEMENT_VERSION, company: "Acme" })).status).toBe(400);
   });
 
   it("still records the request when the card cannot be turned on", async () => {

@@ -22,6 +22,7 @@ vi.mock("../logger", () => ({
 }));
 
 const { composeSiteAnswer, loadSiteAnswer } = await import("../utils/siteAnswer");
+const { robotSpecCatalog } = await import("../utils/robotSpecCatalog");
 const { evidenceLookup, parseDeploymentEvidence } = await import("../utils/deploymentEvidence");
 const { sharedFakeFirestoreState } = await import("./helpers/fake-firestore");
 const { SITE_ANSWER_NOTE, isSiteAnswer } = await import("../../client/src/lib/siteAnswer");
@@ -105,7 +106,7 @@ describe("composeSiteAnswer", () => {
     expect(reach).toMatchObject({ outcome: "pass", estimated: true });
     expect(reach.text).toBe("Reach: your two spots are about 1 m apart (estimated from your video), so an arm standing between them needs about 64–93 cm. This arm reaches 1.3 m.");
     expect(answer.pick!.checks.find((check) => check.key === "payload")!.text)
-      .toBe("Payload: your object weighs about 3–4 kg (estimated from your video), plus about 0.9 kg for a standard gripper. This arm is rated for 12.5 kg.");
+      .toBe("Payload: your object weighs about 3–4 kg (estimated from your video), plus about 0.9 kg for a standard gripper, so it must carry about 3–4.9 kg. This arm is rated for 12.5 kg.");
     for (const sentence of [answer.headline, ...answer.unknowns, ...answer.confidence.reasons, ...answer.ruledOut.map((row) => row.reason)]) {
       expect(sentence).not.toMatch(/safe to|guarantee|tested at your site|will work|certif|episode|candidate|screening|embodiment/i);
     }
@@ -114,7 +115,7 @@ describe("composeSiteAnswer", () => {
   it("rules a model out on payload from a stated weight, and from a video estimate, saying which", () => {
     const stated = compose({ brief: { requestId: "job-1", summary: "Move cartons to the shelf", operatorTaskDetails: { item_weight: "8 kg" } } });
     expect(stated.ruledOut).toContainEqual({ name: "UR5e", manufacturer: "Universal Robots", estimated: false,
-      reason: "Payload: your object weighs 8 kg (you told us), plus about 0.9 kg for a standard gripper. This arm is rated for 5 kg." });
+      reason: "Payload: your object weighs 8 kg (you told us), plus about 0.9 kg for a standard gripper, so it must carry about 8–8.9 kg. This arm is rated for 5 kg." });
     const estimated = compose({ estimates: estimates({ object_mass_kg_low: 8, object_mass_kg_high: 9 }) });
     expect(estimated.ruledOut.find((row) => row.name === "UR5e")).toMatchObject({ estimated: true,
       reason: expect.stringContaining("about 8–9 kg (estimated from your video)") });
@@ -131,9 +132,59 @@ describe("composeSiteAnswer", () => {
       const all = [answer.pick, answer.runnerUp].filter(Boolean);
       return all.find((robot) => robot!.modelId === "universal_robots_ur10e") ?? ur10e;
     };
-    expect(rateUr10e(measured)!.checks.find((check) => check.key === "reach")!.outcome).toBe("pass");
+    // 1.26 m of 1.3 m leaves 3%: a tight fit, so roomier arms rank ahead of it. Checked alone, it passes and says so.
+    const alone = composeSiteAnswer({ ...inputs({ measurements: measurements({ pick_to_place_distance: reading(2, "m", 2) }) }),
+      catalog: { ...robotSpecCatalog(), models: robotSpecCatalog().models.filter((model) => model.model_id === "universal_robots_ur10e") } })!;
+    expect(alone.pick!.checks.find((check) => check.key === "reach")).toMatchObject({ outcome: "pass",
+      text: "Reach: your two spots are 2 m apart (you measured this), so an arm standing between them needs about 1.26 m. This arm reaches 1.3 m. This is a tight fit." });
+    expect(rateUr10e(measured)?.checks.find((check) => check.key === "reach")?.outcome ?? "pass").toBe("pass");
     expect(rateUr10e(fromVideo)?.checks.find((check) => check.key === "reach")?.outcome ?? "unknown").toBe("unknown");
     expect(measured.pick!.verdict).toBe("fits_on_paper");
+  });
+
+  it("never shows a need that reads against its own check: within the limit on a pass, beyond it on a fail", () => {
+    const only = (id: string) => ({ ...robotSpecCatalog(), models: robotSpecCatalog().models.filter((model) => model.model_id === id) });
+    const toNumber = (value: string, unit: string) => Number(value) / (unit === "cm" ? 100 : 1);
+    /** The displayed need's two ends and the displayed limit, in one unit. */
+    const shown = (sentence: string, need: RegExp, limit: RegExp) => {
+      const range = sentence.match(need)![1].split("–").map((part) => part.trim().split(" "));
+      const lastUnit = range[range.length - 1][1];
+      const ends = range.map(([value, unit]) => toNumber(value, unit ?? lastUnit));
+      const [, value, unit] = sentence.match(limit)!;
+      return { lo: ends[0], hi: ends[ends.length - 1], limit: toNumber(value, unit) };
+    };
+    const outcomeOf = (answer: ReturnType<typeof compose>, key: string) => {
+      const check = answer.pick?.checks.find((entry) => entry.key === key);
+      if (check) return { outcome: check.outcome, text: check.text };
+      const ruled = answer.ruledOut[0];
+      return ruled ? { outcome: "fail", text: ruled.reason } : null;
+    };
+    let seen = { pass: 0, fail: 0 };
+    // Reach near the GoFa 12's 1.38 m (a figure a tenth-of-a-metre display rounds across): the spots
+    // measured to the centimetre either side of the limit.
+    for (let cm = 210; cm <= 240; cm += 1) {
+      const answer = composeSiteAnswer({ ...inputs({ measurements: measurements({ pick_to_place_distance: reading(cm / 100, "m", cm / 100) }) }),
+        catalog: only("abb_gofa_crb15000_12_127") })!;
+      const reach = outcomeOf(answer, "reach");
+      if (!reach || !reach.text.includes("needs about") || reach.outcome === "unknown") continue;
+      const { lo, hi, limit } = shown(reach.text, /needs (?:about )?(.+?)\. This arm/, /reaches ([\d.]+) (cm|m)\./);
+      if (reach.outcome === "pass") expect(hi, reach.text).toBeLessThanOrEqual(limit);
+      else expect(lo, reach.text).toBeGreaterThanOrEqual(limit);
+      seen = { ...seen, [reach.outcome]: seen[reach.outcome as "pass" | "fail"] + 1 };
+    }
+    // Payload near its 12 kg: the object's weight in 50 g steps either side of it.
+    for (let grams = 10_000; grams <= 12_500; grams += 50) {
+      const answer = composeSiteAnswer({ ...inputs({ estimates: estimates({ object_mass_kg_low: grams / 1000, object_mass_kg_high: grams / 1000 }) }),
+        catalog: only("abb_gofa_crb15000_12_127") })!;
+      const payload = outcomeOf(answer, "payload");
+      if (!payload || payload.outcome === "unknown" || !payload.text.startsWith("Payload")) continue;
+      const { lo, hi, limit } = shown(payload.text, /must carry (?:about )?(.+?)\. This arm/, /rated for ([\d.]+) (kg)\./);
+      if (payload.outcome === "pass") expect(hi, payload.text).toBeLessThanOrEqual(limit);
+      else expect(lo, payload.text).toBeGreaterThanOrEqual(limit);
+      seen = { ...seen, [payload.outcome]: seen[payload.outcome as "pass" | "fail"] + 1 };
+    }
+    expect(seen.pass).toBeGreaterThan(10);
+    expect(seen.fail).toBeGreaterThan(10);
   });
 
   it("rules out arms that stay in one place when the spots are too far apart, and says the job needs a robot that moves", () => {
@@ -276,13 +327,25 @@ describe("composeSiteAnswer", () => {
     expect(answer.confidence.level).toBe("fair");
   });
 
-  it("ranks by evidence before headroom, and a model-named source before a maker-level one", () => {
+  it("ranks a comfortable fit before a tight one, then by evidence, and a model-named source before a maker-level one", () => {
     const base = inputs();
     const pilotOnSmall = composeSiteAnswer({ ...base, evidenceFor: lookupOf([
       evidenceRow({ id: "small", manufacturer: "ABB", model_ids: ["abb_gofa_crb15000_5_95"], level: "pilot" }),
     ]) })!;
-    // The GoFa 5 kg has almost no payload headroom over 4 kg plus the gripper; its pilot still puts it first.
-    expect(pilotOnSmall.pick!.modelId).toBe("abb_gofa_crb15000_5_95");
+    // The GoFa 5 kg has 2% payload headroom over 4 kg plus the gripper: a tight fit. Its pilot no longer
+    // puts it ahead of arms with ample margin and no evidence at all.
+    expect(pilotOnSmall.pick!.modelId).not.toBe("abb_gofa_crb15000_5_95");
+    expect(pilotOnSmall.pick!.evidence).toEqual([]);
+    expect(pilotOnSmall.runnerUp!.modelId).not.toBe("abb_gofa_crb15000_5_95");
+    // When nothing fits comfortably, the tight fit is the pick, and its tight check says so.
+    const onlyTight = composeSiteAnswer({ ...base, catalog: { ...robotSpecCatalog(),
+      models: robotSpecCatalog().models.filter((model) => model.model_id === "abb_gofa_crb15000_5_95") } })!;
+    const payload = onlyTight.pick!.checks.find((check) => check.key === "payload")!;
+    expect(payload).toMatchObject({ outcome: "pass" });
+    expect(payload.text.endsWith("This arm is rated for 5 kg. This is a tight fit.")).toBe(true);
+    expect(onlyTight.pick!.checks.find((check) => check.key === "reach")!.text).not.toMatch(/tight fit/);
+    // A comfortable pick says nothing of the kind.
+    expect(compose().pick!.checks.some((check) => check.text.includes("tight fit"))).toBe(false);
     const scope = composeSiteAnswer({ ...base, evidenceFor: lookupOf([
       evidenceRow({ id: "maker", manufacturer: "Yaskawa", model_ids: [] }),
       evidenceRow({ id: "model", manufacturer: "KUKA", model_ids: ["yaskawa_gp20"] }),

@@ -380,7 +380,7 @@ function recaptureCopy(reason: RecaptureReason): (typeof copy)[TaskLifecycleMile
 /** An early task hold's one email: the job page's held sentence, sent in place of the needs-attention notice. */
 function earlyTaskHoldCopy(reason: EarlyTaskHoldReason): (typeof copy)[TaskLifecycleMilestone] {
   return {
-    subject: "Your Blueprint job is held",
+    subject: "The simulation of your job is on hold",
     body: (url, detail) => `${EARLY_TASK_HOLD_SENTENCES[reason]} ${EARLY_TASK_HOLD_DETAIL} Nothing is needed from you. Keep your original recording. Your job page shows the latest status.${detail ? ` ${detail}` : ""}\n\nOpen your job:\n${url}`,
   };
 }

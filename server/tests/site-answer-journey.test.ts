@@ -351,6 +351,36 @@ describe("a site's answer, from an email and a video to a deployment company", (
     expect(answerNotices(jobId)).toHaveLength(1);
   }, 60_000);
 
+  it("reads a video-only job's video once, even though the reading drafts the job's name; a site's own edit reads it again", async () => {
+    const coverageCalls = () => seams.agentCalls.filter(call => call.kind === "capture_coverage").length;
+    const { reconcileCoverageReviews } = await import("../utils/captureCoverageQueue");
+    const { jobId, token } = await startJob();
+    await sendVideo(token);
+    await readVideo(jobId, CARTON);
+    // The reading drafted the job's name, which changed the brief its claim was bound to.
+    expect(doc(`siteTaskBriefs/${jobId}`).summary).toBe("Pick up the carton from the left of the table and place it at the end of the table");
+    // The scheduler keeps ticking: the review that drafted the name stays the current one.
+    for (let pass = 0; pass < 4; pass += 1) await reconcileCoverageReviews();
+    expect(coverageCalls(), "one paid video read per job").toBe(1);
+    expect(doc(`inboundRequests/${jobId}`)).toMatchObject({ capture_coverage_pending: false,
+      capture_coverage_review: { state: "completed" } });
+    expect(doc(`inboundRequests/${jobId}`).walkthrough_job_estimates.job_estimates.object).toBe("carton");
+    expect(answerNotices(jobId)).toHaveLength(1);
+
+    // The site corrects the sentence on its page: as before this change, its own words are a new brief,
+    // and the queue reads the video once more against them. Still one answer email.
+    const confirmed = await post(`/api/site-task-brief/${token}/confirm`, { confirmedBy: "Site manager",
+      summary: "Pick up each carton from the conveyor and place it on the shelf" });
+    expect(confirmed.status, await confirmed.clone().text()).toBe(200);
+    expect(doc(`inboundRequests/${jobId}`).capture_coverage_pending).toBe(true);
+    for (let pass = 0; pass < 4; pass += 1) await reconcileCoverageReviews();
+    expect(coverageCalls()).toBe(2);
+    expect(doc(`inboundRequests/${jobId}`).capture_coverage_pending).toBe(false);
+    for (let pass = 0; pass < 3; pass += 1) await reconcileCoverageReviews();
+    expect(coverageCalls()).toBe(2);
+    expect(answerNotices(jobId)).toHaveLength(1);
+  }, 60_000);
+
   it("sends no answer email when the video did not show the job, and the page asks for one line", async () => {
     const { jobId, token } = await startJob();
     await sendVideo(token);

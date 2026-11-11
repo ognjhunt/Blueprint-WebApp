@@ -98,7 +98,7 @@ describe("the Pipeline's early task hold", () => {
       expect(rows).toHaveLength(1);
       const row = rows[0][1] as Record<string, string>;
       expect(rows[0][0]).toBe(`captureOutbox/req-1:preparation_needs_attention:${EVENT.replace(":", "_")}`);
-      expect(row.subject).toBe("Your Blueprint job is held");
+      expect(row.subject).toBe("The simulation of your job is on hold");
       expect(row.body.startsWith(`${sentence} No robot was tested on your job, and this is not a finding that a robot could not do it.`)).toBe(true);
       expect(row.body).toMatch(/Reference: bp-prep-0123456789abcdef\./);
       expect(row.body).not.toMatch(/needs our team's review|could not finish|website_|we'll|email you|rerun/i);
@@ -196,7 +196,7 @@ describe("an early hold whose preview arrives after its preparation status", () 
     expect(await tick()).toEqual({ enqueued: 1, pending: 0 });
     expect(await tick()).toEqual({ enqueued: 0, pending: 0 });
     expect(outbox()).toHaveLength(1);
-    expect(outbox()[0].subject).toBe("Your Blueprint job is held");
+    expect(outbox()[0].subject).toBe("The simulation of your job is on hold");
     expect(outbox()[0].body.startsWith(EXPECTED.website_task_family_runtime_preparation_required)).toBe(true);
     expect(send).not.toHaveBeenCalled();
   });

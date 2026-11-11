@@ -69,3 +69,19 @@ export function introductionRequestAlertText(params: { requestId: string; headli
 export async function alertOpsIntroductionRequested(params: { requestId: string; headline: string | null; pick: string | null }) {
   return ringOnce(`introduction_request:${params.requestId}`, introductionRequestAlertText(params));
 }
+
+export function companyResponseAlertText(params: { requestId: string; company: string | null; state: string; headline: string | null }): string {
+  const said = params.state === "declined" ? "declined" : "is interested";
+  return `:incoming_envelope: *An approved company responded about a job its site asked us to find a deployment company for* — `
+    + `job \`${safeId(params.requestId)}\`.\nCompany: ${answerLine(params.company)} (${said})\nAnswer: ${answerLine(params.headline)}\n`
+    + "A person at Blueprint makes the introduction; nothing was sent to the site or the company.";
+}
+
+/**
+ * An approved company first responded on the card of a job whose site asked to find a deployment
+ * company. Rings once per company and job; it emails neither the site nor the company.
+ */
+export async function alertOpsCompanyResponded(params: { requestId: string; companyKey: string; company: string | null;
+  state: string; headline: string | null }) {
+  return ringOnce(`company_response:${params.requestId}:${params.companyKey}`, companyResponseAlertText(params));
+}

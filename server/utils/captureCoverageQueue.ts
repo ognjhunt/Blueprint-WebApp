@@ -12,6 +12,20 @@ import { authorizeCaptureUpload } from "./captureUploadAuthorization";
 import { modelReviewHeadroom } from "./betaAbuseCaps";
 import { GEMINI_VIDEO_CALL_RESERVATION_USD } from "../agents/adapters/site-assessment-budget";
 
+/**
+ * Whether the brief now on file is the one a review read: the brief it was bound to, or the one
+ * that review's own draft of the job's name made from it (`capture_task_statement_draft`). Naming
+ * the job from the video is the review's own output, never a reason to read the same video again;
+ * any other change to the brief, such as the site's own sentence, still needs a fresh review.
+ */
+function briefStillReviewed(request: Record<string, any> | undefined, currentBriefDigest: string, boundDigest: string,
+  captureId: string): boolean {
+  if (currentBriefDigest === boundDigest) return true;
+  const draft = request?.capture_task_statement_draft;
+  return draft?.state === "drafted" && draft.capture_id === captureId && draft.from_brief_digest === boundDigest
+    && draft.drafted_brief_digest === currentBriefDigest;
+}
+
 let activePass: Promise<void> | null = null;
 /** Admission defers another same-capture traversal while this worker is busy. */
 export function isCoverageReviewActive() { return activePass !== null; }
@@ -136,7 +150,7 @@ export async function reconcileCoverageReviews(limit = 10, options: { notifyOwne
         if (!hasCurrentRecordingConsent(data?.request?.consent_attestation) || source?.proceeded !== true
           || source.capture_id !== params.captureId
           || humanDecisionDigest(source?.producer_source || null) !== humanDecisionDigest(binding.source)
-          || humanDecisionDigest(currentBrief.data()) !== binding.brief_digest) return;
+          || !briefStillReviewed(data, humanDecisionDigest(currentBrief.data()), binding.brief_digest, params.captureId)) return;
         tx.set(request.ref, { capture_coverage_pending: false,
           capture_coverage_review: { review_id: id, state: claim === "exhausted" ? "review_required" : "completed",
             reason: claim === "exhausted" ? "automatic_review_attempts_exhausted" : null } }, { merge: true });

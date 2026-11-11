@@ -102,14 +102,8 @@ test("desktop: email and video in, the answer on the job page, a deployment comp
 
   const ticked = await tick(request, requestId);
   expect(ticked.finished).toBe(true);
-  // KNOWN (2026-11-11): with no typed job the review drafts the job from the video, which
-  // changes the brief its claim was bound to, so the queue reads the same video a second
-  // time before the review leaves the queue: two model calls per job instead of one.
-  // Kept visible here rather than asserted away; tighten to 1 once the queue keeps the
-  // first review's result across its own draft.
   test.info().annotations.push({ type: "video-model-calls", description: String(ticked.videoModelCalls) });
-  expect(ticked.videoModelCalls).toBeGreaterThanOrEqual(1);
-  expect(ticked.videoModelCalls).toBeLessThanOrEqual(2);
+  expect(ticked.videoModelCalls).toBe(1);
   const headline = await expectAnswer(page);
   await answer(page).screenshot({ path: path.join(SHOTS, "journey-3-answer-desktop.png") });
 

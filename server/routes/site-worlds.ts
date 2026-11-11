@@ -17,7 +17,14 @@ import verifyFirebaseToken from "../middleware/verifyFirebaseToken";
 import { csrfProtection } from "../middleware/csrf";
 import { accessRecordId, getAccessRecordForEmail } from "../utils/robotTeamEarlyAccess";
 import { humanDecisionDigest } from "../utils/human-reply-admission";
+import { logger } from "../logger";
 const router = Router();
+const isRecord = (value: unknown): value is Record<string, unknown> => Boolean(value) && typeof value === "object" && !Array.isArray(value);
+/** One bell per company and job: the company's stored name, else its admitted account. */
+function companyKey(company: unknown, email: string): string {
+  const name = typeof company === "string" ? company.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") : "";
+  return name ? `company-${name}` : `account-${accessRecordId(email)}`;
+}
 const interestSchema = z.object({ state: z.enum(["interested", "declined"]),
   inputs: z.string().trim().min(4).max(2000) }).strict();
 router.post("/tasks/:taskId/interest", csrfProtection, verifyFirebaseToken, async (req, res) => {
@@ -42,6 +49,20 @@ router.post("/tasks/:taskId/interest", csrfProtection, verifyFirebaseToken, asyn
       if (prior && humanDecisionDigest({ ...prior, updatedAtIso: null }) === humanDecisionDigest({ ...row, updatedAtIso: null })) return;
       tx.set(interestRef, row);
     });
+    // A site that asked Blueprint to find a deployment company: a person here makes the introduction,
+    // so the first response from each company rings once. Neither the site nor the company is contacted.
+    if (isRecord(source?.introduction_request)) {
+      try {
+        const [{ loadSiteAnswer }, { alertOpsCompanyResponded }] = await Promise.all([
+          import("../utils/siteAnswer"), import("../utils/pilotOpsAlerts")]);
+        const answer = await loadSiteAnswer(taskId).catch(() => null);
+        await alertOpsCompanyResponded({ requestId: taskId, companyKey: companyKey(access.company, user.email),
+          company: typeof access.company === "string" ? access.company : null, state: input.data.state,
+          headline: answer?.headline ?? null });
+      } catch (error) {
+        logger.warn({ error, requestId: taskId }, "Could not ring Blueprint about a company's response");
+      }
+    }
     return res.json({ ok: true, state: input.data.state, nextAction: "Blueprint will review your inputs. Interest reserves no capacity and creates no physical commitment." });
   } catch { return res.status(409).json({ error: "The job changed or your decision could not be saved. Reopen the job before trying again." }); }
 });

@@ -42,7 +42,7 @@ const router = (await import("../routes/site-worlds")).default;
 let server: Server;
 let baseUrl: string;
 const ID = "req-card";
-const PRIVATE = ["owner@example.com", "Dana Whitfield", "12 Elm Street", "Acme Fasteners", "gs://", "walkthrough.mp4",
+const PRIVATE = ["owner@example.com", "Dana Whitfield", "12 Elm Street", "Acme Supply Co", "gs://", "walkthrough.mp4",
   "https://storage.example.com", "+1 555", "conveyor by the loading dock", "Acme invoices", "A person in a red jacket"];
 
 function job(extra: Record<string, unknown> = {}) {
@@ -50,7 +50,7 @@ function job(extra: Record<string, unknown> = {}) {
     requestId: ID,
     contact: { email: "owner@example.com", firstName: "Dana", lastName: "Whitfield", phone: "+1 555 0100" },
     contactEmail: "owner@example.com", contactFirstName: "Dana Whitfield",
-    request: { buyerType: "site_operator", siteName: "Acme Fasteners", siteLocation: "12 Elm Street, Springfield", capture_mode: "self_capture" },
+    request: { buyerType: "site_operator", siteName: "Acme Supply Co", siteLocation: "12 Elm Street, Springfield", capture_mode: "self_capture" },
     site_address: "12 Elm Street, Springfield",
     walkthrough_video_uri: "gs://bucket/walkthrough.mp4", video_url: "https://storage.example.com/walkthrough.mp4",
     capture_coverage: { covers_scene: true },
@@ -77,7 +77,7 @@ beforeEach(async () => {
   seams.managed.mockReset(); seams.managed.mockImplementation(async () => ({ managedEvidence: [] }));
   sharedFakeFirestoreState.docs.clear();
   sharedFakeFirestoreState.docs.set(`siteTaskBriefs/${ID}`, { requestId: ID,
-    summary: "Dana at Acme Fasteners stacks cartons from the conveyor by the loading dock onto the pallet", confirmedAtIso: null });
+    summary: "Dana at Acme Supply Co stacks cartons from the conveyor by the loading dock onto the pallet", confirmedAtIso: null });
   const app = express();
   app.use("/api/site-worlds", router);
   server = createServer(app);

@@ -67,6 +67,9 @@ const CYCLE_ALLOWANCE_S = 4;
 // work; it adds size, cost and guarding. So headroom counts up to 0.2, and past that
 // the smaller robot comes first.
 const HEADROOM_CAP = 0.2;
+// Under a tenth of the rating to spare, an estimate's error or a heavier gripper can use it all up.
+const COMFORTABLE_HEADROOM = 0.1;
+const TIGHT_FIT = " This is a tight fit.";
 
 const BODY_FORM: Record<BodyType, keyof typeof ROBOT_FORM_COPY> = {
   fixed_arm: "fixed_base_arm",
@@ -88,12 +91,18 @@ const kgText = (value: number) => `${figure(value)} kg`;
 const secondsText = (value: number) => `${value < 10 ? Number(value.toFixed(1)) : Math.round(value)} s`;
 const sourceLabel = (source: RequirementSource) => REQUIREMENT_SOURCE_LABELS[source];
 
-/** A robot's published length, kept to the centimetre so a figure near a limit is never rounded across it. */
-const specLength = (metres: number) => (metres < 1 ? `${Math.round(metres * 100)} cm` : `${Number(metres.toFixed(2))} m`);
+/**
+ * A length in a check sentence, the robot's and the job's alike, to the centimetre: one rounding for
+ * both sides, so a need within the limit never reads as more than it, nor a need beyond it as less.
+ */
+const specLength = (metres: number) => {
+  const centimetres = Math.round(metres * 100);
+  return centimetres < 100 ? `${centimetres} cm` : `${Number((centimetres / 100).toFixed(2))} m`;
+};
 
-/** A length range in the site's words: "about 86 cm–1.3 m", or one figure when both ends read the same. */
+/** A length range in the site's words: "about 86 cm–1.36 m", or one figure when both ends read the same. */
 function lengthRange(band: Band) {
-  const [lo, hi] = [lengthText(band.lo), lengthText(band.hi)];
+  const [lo, hi] = [specLength(band.lo), specLength(band.hi)];
   if (lo === hi) return `about ${lo}`;
   const unit = (value: string) => value.split(" ")[1];
   return unit(lo) === unit(hi) ? `about ${lo.split(" ")[0]}–${hi}` : `about ${lo}–${hi}`;
@@ -102,6 +111,12 @@ function lengthRange(band: Band) {
 /** Pass when even the pessimistic need is within the limit; a fail when even the optimistic need exceeds it. */
 export function within(need: Band, limit: number): Outcome {
   return need.hi <= limit ? "pass" : need.lo > limit ? "fail" : "unknown";
+}
+
+/** A weight range at the same precision as a rated payload (`kgText`), for the same reason. */
+function kgRange(band: Band) {
+  const [lo, hi] = [figure(band.lo), figure(band.hi)];
+  return lo === hi ? `about ${lo} kg` : `about ${lo}–${hi} kg`;
 }
 
 /** A video estimate given as one figure is checked across a band; anything the site gave keeps its own ends. */
@@ -271,6 +286,10 @@ interface Rated {
   reason: { text: string; estimated: boolean } | null;
   evidence: AnswerEvidence[];
   headroom: number;
+  /** At least `COMFORTABLE_HEADROOM` to spare on every check that has a headroom figure. */
+  comfortable: boolean;
+  /** Passed checks with less than that to spare. */
+  tight: Set<AnswerCheck["key"]>;
 }
 
 function reachCheck(model: SpecModel, job: Job, toolLength: number | null): { check: AnswerCheck; headroom: number | null } {
@@ -322,9 +341,11 @@ function payloadCheck(model: SpecModel, job: Job, toolMass: number | null): { ch
   // A lighter gripper may be fitted, so only the object's own weight can rule a model out.
   const need = { lo: job.mass.lo, hi: job.mass.hi + tool };
   const gripper = fixed && tool > 0 ? `, plus about ${kgText(tool)} for a standard gripper` : "";
+  // The total is said in the rating's own precision, so the sentence never reads against its outcome.
+  const carry = Number.isFinite(need.hi) ? `, so it must carry ${kgRange(need)}` : "";
   return {
     check: { key: "payload", outcome: within(need, payload), estimated: job.massEstimated,
-      text: `Payload: your object weighs ${cite(mass)}${gripper}. ${noun} is rated for ${kgText(payload)}.` },
+      text: `Payload: your object weighs ${cite(mass)}${gripper}${carry}. ${noun} is rated for ${kgText(payload)}.` },
     headroom: Number.isFinite(need.hi) ? (payload - need.hi) / payload : -1,
   };
 }
@@ -373,7 +394,11 @@ function rateModel(model: SpecModel, job: Job, catalog: RobotSpecCatalog, robotF
     reason = verdict === "ruled_out" ? { text: SCENE_RULED_OUT, estimated: false } : null;
   }
   const headroom = Math.max(-1, Math.min(HEADROOM_CAP, reach.headroom ?? 0, payload.headroom ?? 0));
-  return { model, verdict, sceneChecked: Boolean(scene), checks, reason, evidence, headroom };
+  const margins = [[reach.check, reach.headroom], [payload.check, payload.headroom]] as const;
+  const comfortable = margins.every(([, room]) => room === null || room >= COMFORTABLE_HEADROOM);
+  const tight = new Set(margins.filter(([check, room]) => check.outcome === "pass" && room !== null && room < COMFORTABLE_HEADROOM)
+    .map(([check]) => check.key));
+  return { model, verdict, sceneChecked: Boolean(scene), checks, reason, evidence, headroom, comfortable, tight };
 }
 
 /* ------------------------------------------------------------- ranking */
@@ -391,6 +416,8 @@ function formRank(body: BodyType, job: Job): number {
 
 function compareRated(job: Job) {
   return (a: Rated, b: Rated) => VERDICT_RANK[b.verdict] - VERDICT_RANK[a.verdict]
+    // Physical margin predicts a working job better than a document does: a comfortable fit first.
+    || Number(b.comfortable) - Number(a.comfortable)
     || evidenceRank(b) - evidenceRank(a)
     || scopeRank(a) - scopeRank(b)
     || formRank(a.model.body_type, job) - formRank(b.model.body_type, job)
@@ -411,7 +438,9 @@ function robotOf(rated: Rated): AnswerRobot {
   return {
     modelId: model.model_id, name: model.name, manufacturer: model.manufacturer,
     formLabel: ROBOT_FORM_COPY[BODY_FORM[model.body_type]].label,
-    verdict: rated.verdict, sceneChecked: rated.sceneChecked, checks: rated.checks, specs, evidence: rated.evidence.slice(0, 2),
+    verdict: rated.verdict, sceneChecked: rated.sceneChecked, specs, evidence: rated.evidence.slice(0, 2),
+    // The pick and the runner-up say when a check passed with little to spare.
+    checks: rated.checks.map((check) => (rated.tight.has(check.key) ? { ...check, text: `${check.text}${TIGHT_FIT}` } : check)),
   };
 }
 
