@@ -511,11 +511,29 @@ async function readRequestForStatus(requestId: string, captureId = `walkthrough-
  * confirmation response and the task page all say the same thing about the
  * other two verdicts. Null for `qualified`, which proceeds as before.
  */
-function screeningOutcome(disposition: string): {
+function screeningOutcome(disposition: string, screenGateEnded = false): {
   headline: string;
   detail: string;
   bookingUrl: string | null;
 } | null {
+  // A job uploaded after the owner's decision of 2026-11-11: the screen's
+  // reading is a note, and the scene is built whatever it says.
+  if (screenGateEnded && disposition === "not_now") {
+    return {
+      headline: "Noted: one of your answers may make a robot test less reliable at this site.",
+      detail: "This does not hold up your job: we still build its scene and test robots on it. Your job page shows the "
+        + "answer we noted; if it changes, update the brief.",
+      bookingUrl: null,
+    };
+  }
+  if (screenGateEnded && disposition === "needs_conversation") {
+    return {
+      headline: "A few questions about the site are still open.",
+      detail: "They do not hold up your job: we still build its scene and test robots on it. Answering them in "
+        + "writing below helps the test fit your site; you can leave anything you don't know.",
+      bookingUrl: null,
+    };
+  }
   if (disposition === "not_now") {
     return {
       headline: "Not yet: we are not building a scene for this site today.",
@@ -1137,9 +1155,11 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
     // "not filmed": the job page says which, and the reply does not guess.
     const walkthrough = await savedWalkthrough(payload).catch(() => null);
     let coverageMeasured = false;
+    let screenGateEnded = false;
     try {
       const request = await readRequestForStatus(payload.requestId);
       coverageMeasured = typeof request?.capture_coverage?.covers_scene === "boolean";
+      screenGateEnded = request?.screenGateEnded === true;
       // The brief can be a no-op while its notification intent is missing.
       // Reuse the durable outbox key to recover failed enqueues without
       // creating another message or changing the confirmed work.
@@ -1184,7 +1204,7 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
 
     return res.status(200).json({
       ok: true,
-      screening: scoreable ? screeningOutcome(result.disposition) : taskScopeOutcome(result.scope.reason),
+      screening: scoreable ? screeningOutcome(result.disposition, screenGateEnded) : taskScopeOutcome(result.scope.reason),
       // The verdict, and what it means for them next. Both, because a
       // disposition on its own tells an operator nothing they can act on.
       disposition: result.disposition,

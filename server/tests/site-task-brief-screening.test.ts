@@ -69,6 +69,7 @@ const { gateFields } = await import("../../client/src/data/siteTaskQualification
 const { createCaptureUploadToken } = await import("../utils/captureUploadToken");
 const { draftBrief, saveBrief, confirmBrief } = await import("../utils/siteTaskBrief");
 const { enqueueOutbox } = await import("../utils/captureOutbox");
+const { sceneScreenGateEndedMarker } = await import("../utils/sceneScreenGate");
 
 let server: Server;
 let baseUrl: string;
@@ -255,6 +256,25 @@ describe("the confirmation says what our screen decided", () => {
     expect(body.screening.headline).toMatch(/not building a scene/);
     expect(body.screening.bookingUrl).toBeNull();
     expect(enqueueOutbox).not.toHaveBeenCalled();
+  });
+});
+
+// Owner decision 2026-11-11: for a job uploaded after the cutover the screen's
+// reading is a note; nothing says the scene is not being built, or waits on a call.
+describe("the confirmation for a job past the screen's cutover", () => {
+  it.each([
+    ["not_now", { sceneStability: "reconfigured" }],
+    ["needs_conversation", {}],
+  ] as const)("notes a %s reading without saying the scene is not being built", async (disposition, extra) => {
+    (sharedFakeFirestoreState.docs.get("inboundRequests/req-1") as Record<string, unknown>).scene_screen_gate_ended =
+      sceneScreenGateEndedMarker("req-1", "2026-11-12T00:00:00Z");
+    const response = await confirm(disposition === "not_now" ? { ...clearAnswers(), ...extra } : {});
+    const body = (await response.json()) as { disposition: string; screening: any };
+    expect(body.disposition).toBe(disposition);
+    const said = `${body.screening.headline} ${body.screening.detail}`;
+    expect(said).not.toMatch(/not building|before we build|before clearing the scene|no scene|aren't building/i);
+    expect(said).toMatch(/still build/i);
+    expect(body.screening.bookingUrl).toBeNull();
   });
 });
 

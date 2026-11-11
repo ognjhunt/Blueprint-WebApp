@@ -1293,6 +1293,7 @@ export default function AdminLeads() {
                     triage={selectedLead.site_task_triage}
                     gatesOnFile={selectedLead.site_task_gates_on_file ?? {}}
                     briefConfirmed={Boolean(selectedLead.site_task_brief_confirmed)}
+                    screenGateEnded={selectedLead.site_task_screen_gate_ended === true}
                   />
                 ) : null}
 

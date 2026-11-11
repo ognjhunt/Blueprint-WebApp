@@ -1,4 +1,5 @@
 import { Request, Response, Router } from "express";
+import { sceneScreenGateEnded } from "../utils/sceneScreenGate";
 import admin, { dbAdmin as db, storageAdmin } from "../../client/src/lib/firebaseAdmin";
 import { HTTP_STATUS } from "../constants/http-status";
 import { logger } from "../logger";
@@ -1194,6 +1195,7 @@ router.get("/:requestId", requireAdmin, async (req: Request, res: Response) => {
       site_task_triage: decrypted.site_task_triage ?? null,
       site_task_gates_on_file: gateAnswersOnFile(decrypted),
       site_task_brief_confirmed: Boolean(decrypted.site_task_brief_confirmed_at),
+      site_task_screen_gate_ended: sceneScreenGateEnded(data as unknown as Record<string, any>, decrypted.requestId),
       events: {
         confirmationEmailSentAt:
           decrypted.events.confirmationEmailSentAt?.toDate?.()?.toISOString() ||
