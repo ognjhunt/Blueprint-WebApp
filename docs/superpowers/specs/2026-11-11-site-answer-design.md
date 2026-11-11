@@ -22,9 +22,8 @@ Pipeline repo: `docs/audits/2026-11-11-first-principles-audit.md`.
    video could not tell.
 3. **Tested in simulation**, when the simulation of its site has run: the
    picked robot's reach and arm path checked in the scene rebuilt from the
-   video, and public control policies compared on its job on a research arm
-   (today the Franka research arm, the only robot with several public
-   policies), with a cited statement of how far such a comparison can be
+   video, and public control policies compared on its job on a research robot
+   (today the Franka research arm or the Unitree G1 humanoid), with a cited statement of how far such a comparison can be
    trusted. The simulation checks no cycle time.
 4. **A deployment company**: one button shares an anonymised job card, with the
    answer and the simulation result, with deployment companies Blueprint has

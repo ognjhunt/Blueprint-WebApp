@@ -35,7 +35,7 @@ export default function About() {
           Blueprint helps businesses find the right way to automate recurring work. You start with the job.
           We analyze your video, check real robot models against the job by their published specifications, check the
           picked robot&apos;s reach and arm path in a simulation of your site, and compare public control policies (the
-          software that drives a robot) on the job on a research arm. You see which robot most likely fits, how sure we
+          software that drives a robot) on the job on a research robot. You see which robot most likely fits, how sure we
           are and what the simulation found. Then you can share the job with deployment
           companies we&apos;ve approved. The beta is free for sites and partners.
         </p>
@@ -45,7 +45,7 @@ export default function About() {
           <ol>
             <li>A site sends an email and a video of recurring work. We draft the job description from the video for the site to review.</li>
             <li>We check real robot models against the job by their published specifications and show which most likely fits, a runner-up, what was ruled out and why, who already uses those robots for work like this (with sources) and how sure we are.</li>
-            <li>We reconstruct the site in simulation, check the picked robot&apos;s reach and arm path there and compare public control policies on the job on a research arm. The site sees what the simulation found and how much that result can be trusted, or &ldquo;held&rdquo; if we can&apos;t simulate that kind of job yet.</li>
+            <li>We reconstruct the site in simulation, check the picked robot&apos;s reach and arm path there and compare public control policies on the job on a research robot. The site sees what the simulation found and how much that result can be trusted, or &ldquo;held&rdquo; if we can&apos;t simulate that kind of job yet.</li>
             <li>The site can share an anonymised job card with deployment companies Blueprint has approved, and agrees any pilot directly with one of them.</li>
             <li>We record the outcome so the next decision can build on what was learned.</li>
           </ol>

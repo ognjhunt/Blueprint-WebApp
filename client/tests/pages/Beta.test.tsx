@@ -22,7 +22,7 @@ describe("the beta page", () => {
     expect(receive).not.toHaveTextContent(/served through APIs|different robot configurations/);
     expect(receive).toHaveTextContent(/its technology provider supplies it/);
     expect(receive).toHaveTextContent(/An answer: the robot that most likely fits your job, a runner-up, what was ruled out and why, who already uses those robots for work like this \(with sources\) and how sure we are/);
-    expect(receive).toHaveTextContent(/tested in a simulation of your site: the picked robot's reach and arm path, how public control policies compared on your job on a research arm, and how much that result can be trusted/);
+    expect(receive).toHaveTextContent(/tested in a simulation of your site: the picked robot's reach and arm path, how public control policies compared on your job on a research robot, and how much that result can be trusted/);
     expect(receive).not.toHaveTextContent(/proof|did best/i);
     expect(receive).toHaveTextContent(/We do not turn a job away because of its type.*“held”/);
     expect(receive).not.toHaveTextContent(/screening runs|full scoring|delivery proposals|technology teams where their involvement is needed/i);

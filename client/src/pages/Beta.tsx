@@ -15,7 +15,7 @@ export default function Beta() {
       <article className="ms-legal ms-container">
         <p className="ms-eyebrow">Beta program</p>
         <h1>Start with one real job.</h1>
-        <p>Send an email and a video of a recurring job at your site. We draft the job description from the video and check real robot models against the job by their published specifications. Then we build a simulation of your site, check the picked robot&apos;s reach and arm path in it, and compare public control policies (the software that drives a robot) on the job on a research arm. You see which robot most likely fits, how sure we are and what the simulation found, or &ldquo;held&rdquo; if we can&apos;t check or simulate that kind of job yet. If you choose, you can then share the job with deployment companies Blueprint has approved.</p>
+        <p>Send an email and a video of a recurring job at your site. We draft the job description from the video and check real robot models against the job by their published specifications. Then we build a simulation of your site, check the picked robot&apos;s reach and arm path in it, and compare public control policies (the software that drives a robot) on the job on a research robot. You see which robot most likely fits, how sure we are and what the simulation found, or &ldquo;held&rdquo; if we can&apos;t check or simulate that kind of job yet. If you choose, you can then share the job with deployment companies Blueprint has approved.</p>
         <section>
           <h2>What do I provide?</h2>
           <p>An email address and a video of one complete task cycle and the surrounding work area. Upload existing footage or record it with our guidance. We analyze the video and draft the job description for you to correct. We only ask for measurements or other details when they affect the answer or the simulation.</p>
@@ -23,7 +23,7 @@ export default function Beta() {
         </section>
         <section>
           <h2>What do I receive?</h2>
-          <p>An answer: the robot that most likely fits your job, a runner-up, what was ruled out and why, who already uses those robots for work like this (with sources) and how sure we are. Then what was tested in a simulation of your site: the picked robot&apos;s reach and arm path, how public control policies compared on your job on a research arm, and how much that result can be trusted. Any open questions are listed with it.</p>
+          <p>An answer: the robot that most likely fits your job, a runner-up, what was ruled out and why, who already uses those robots for work like this (with sources) and how sure we are. Then what was tested in a simulation of your site: the picked robot&apos;s reach and arm path, how public control policies compared on your job on a research robot, and how much that result can be trusted. Any open questions are listed with it.</p>
           <p style={{ marginTop: "1em" }}>We reconstruct your site from the video and run the policies ourselves in simulation. If a system needs access or an integration, its technology provider supplies it.</p>
           <p style={{ marginTop: "1em" }}>We do not turn a job away because of its type. If we can&apos;t simulate yours yet, we mark it &ldquo;held&rdquo; and count it as demand for that kind of job. If no robot or policy works, we explain the gap. Your job page shows the current stage and the next action.</p>
         </section>

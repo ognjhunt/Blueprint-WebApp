@@ -44,7 +44,7 @@ describe("public managed-pilot copy", () => {
     // The journey (owner, 2026-11-11): a spec check, a test in simulation, then approved deployment companies.
     expect(container).toHaveTextContent(/We check real robots against it, show you which one most likely fits and how sure we are, and check its reach and arm path in a simulation of your site/i);
     expect(container).toHaveTextContent(/check real robot models against your job by their published specifications/i);
-    expect(container).toHaveTextContent(/build a simulation of your site from the video and check the picked robot’s reach and arm path in it\. We also compare public control policies, the software that drives a robot, on your job on a research arm/i);
+    expect(container).toHaveTextContent(/build a simulation of your site from the video and check the picked robot’s reach and arm path in it\. We also compare public control policies, the software that drives a robot, on your job on a research robot/i);
     expect(container).toHaveTextContent(/share the job with deployment companies we’ve approved/i);
     expect(container).not.toHaveTextContent(/A clear pilot plan|estimate of what’s likely to work/i);
     expect(container).not.toHaveTextContent(/full evaluation|comparable proposals|delivery proposals|join by invitation/i);

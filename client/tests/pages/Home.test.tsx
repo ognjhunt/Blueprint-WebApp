@@ -147,14 +147,14 @@ describe("Site-led homepage", () => {
   });
 
   // Owner direction, 2026-11-11: video, then the answer, then what is tested in simulation, then a deployment company.
-  // The simulation step says what the code does (MF7): the pick's reach and arm path, and public policies on a research arm.
+  // The simulation step says what the code does (MF7): the pick's reach and arm path, and public policies on a research robot.
   it("shows four customer steps from video through the answer and simulation to a deployment company", () => {
     render(<Home />);
     const steps = within(screen.getByRole("list")).getAllByRole("listitem");
     expect(steps).toHaveLength(4);
     expect(steps[0]).toHaveTextContent(/Send a video of the job.*email and a video.*draft the job description from the video/);
     expect(steps[1]).toHaveTextContent(/See which robot fits.*published specifications.*most likely fits.*runner-up.*ruled out and why.*with sources.*how sure we are/i);
-    expect(steps[2]).toHaveTextContent(/Tested in simulation.*simulation of your site.*picked robot’s reach and arm path.*public control policies.*on a research arm.*how much that result can be trusted.*“held”/i);
+    expect(steps[2]).toHaveTextContent(/Tested in simulation.*simulation of your site.*picked robot’s reach and arm path.*public control policies.*on a research robot.*how much that result can be trusted.*“held”/i);
     expect(steps[2]).not.toHaveTextContent(/proof|prove|did best/i);
     expect(steps[3]).toHaveTextContent(/Find a deployment company.*anonymised job card.*approved.*agree any pilot directly/);
     const method = screen.getByRole("region", { name: "From one video to a robot that fits." });

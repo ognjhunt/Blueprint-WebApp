@@ -92,7 +92,7 @@ export default function Contact() {
             {savedJob ? <p className="ms-field-hint">Your private job link shows the brief, progress, follow-up questions and the next decision. Keep it to return.</p> : <><p className="ms-field-hint">
               We analyze your video and draft a brief for you to correct.
               We check real robot models against the job by their published specifications and show which most likely fits and how sure we are.
-              We then reconstruct your work area in simulation, check the picked robot&apos;s reach and arm path there and compare public control policies (the software that drives a robot) on the job on a research arm,
+              We then reconstruct your work area in simulation, check the picked robot&apos;s reach and arm path there and compare public control policies (the software that drives a robot) on the job on a research robot,
               or mark it &ldquo;held&rdquo; if we can&apos;t simulate that kind of job yet.
               If you choose, you share an anonymised job card with deployment companies Blueprint has approved; you agree any pilot contract directly with one of them.
               A simulation result is an estimate; it never certifies physical performance or safety.

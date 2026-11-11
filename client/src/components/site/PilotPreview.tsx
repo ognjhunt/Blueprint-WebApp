@@ -429,7 +429,7 @@ function Palletizing({ t }: { t: number }) {
 // must span the two spots; jobs that are not one solid object picked up and put
 // down are held), but no row is a result for any site.
 const WHO_USES_IT = "Published uses of these robots on work like this, each with its source, or a plain note that we found none";
-const POLICY_PROOF = "A simulation of your site checks the robot’s reach and arm path on the job, compares public control policies on it on a research arm, and says how much that result can be trusted";
+const POLICY_PROOF = "A simulation of your site checks the robot’s reach and arm path on the job, compares public control policies on it on a research robot, and says how much that result can be trusted";
 const NEXT_STEP = "If you choose, share an anonymised job card with deployment companies Blueprint has approved";
 const HELD_NEXT = "We keep the job and count it as demand for this kind of work. Your job page shows its current stage";
 const held = (kind: string) => `Held. Our robot check covers jobs where a robot picks one solid object up and puts it down. ${kind} is another kind of job, which we can’t check robots against yet`;

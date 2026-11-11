@@ -63,7 +63,7 @@ describe("site-content route", () => {
       // Blueprint runs the evaluations itself; the site's answer comes first, then what is tested in simulation or "held" (owner, 2026-11-11).
       expect(JSON.stringify(payload)).toContain("Blueprint runs the candidate evaluations itself");
       expect(payload.summary).toContain("shows the site one answer: the robot that most likely fits");
-      expect(payload.summary).toContain("checks the picked robot's reach and arm path in a simulation of the site and compares public control policies on the job on a research arm");
+      expect(payload.summary).toContain("checks the picked robot's reach and arm path in a simulation of the site and compares public control policies on the job on a research robot");
       expect(payload.summary).not.toMatch(/proves it/);
       expect(payload.summary).toContain("works alongside a deployment company on the real site");
       expect(JSON.stringify(payload)).not.toMatch(/compare delivery proposals|full evaluation|join by invitation|evaluated free when invited/);
