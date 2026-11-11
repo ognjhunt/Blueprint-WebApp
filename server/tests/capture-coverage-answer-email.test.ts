@@ -90,11 +90,15 @@ describe("the answer email after the coverage review", () => {
     expect(send).not.toHaveBeenCalled();
   });
 
-  it("queues none when the video did not show the job clearly enough to size it", async () => {
+  // Rewritten (review, 2026-11-11): an unsized video is an ending with no test, so the review that records it queues
+  // the one answer email saying why; before, it queued none.
+  it("queues the one answer email when the video did not show the job clearly enough to size it", async () => {
     source.agent.mockResolvedValue({ status: "completed", output: output(UNSIZED) });
     await reviewCaptureCoverage(params());
     expect(sharedFakeFirestoreState.docs.get("inboundRequests/r1")?.capture_coverage).toBeDefined();
-    expect(outboxRows()).toHaveLength(0);
+    expect(outboxRows()).toHaveLength(1);
+    expect(outboxRows()[0][1]).toMatchObject({ kind: "answer_ready" });
+    expect(String((outboxRows()[0][1] as { body?: unknown }).body)).toContain("The video did not show the job clearly enough for us to size it.");
   });
 
   it("never fails the review when the answer cannot be composed", async () => {
