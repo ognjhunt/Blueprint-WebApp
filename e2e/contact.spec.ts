@@ -85,9 +85,9 @@ test("capture accepts country permission without an address and keeps non-US fil
   await expect(page.getByRole("link", { name: "Open the camera" })).toHaveCount(0);
 });
 
-// The one-line consent ships switched off (START_FORM_SHORT_CONSENT) until the Pipeline accepts its recording version:
-// the recorded statements are quoted word for word under the button and today's versions are recorded.
-test("sending a video quotes the recorded statements under the button and records today's versions", async ({ page }) => {
+// The one-line consent is on (START_FORM_SHORT_CONSENT, since the Pipeline accepted recording-rights 2026-11-11.v3
+// on 2026-11-11): one plain line under the button, the full statements one tap away, and the 2026-11-11 versions.
+test("sending a video shows the one consent line, the full statements one tap away, and records the one-line versions", async ({ page }) => {
   const rights = "I am authorized to record this site and to let Blueprint use the recording to draft the job brief, "
     + "build a simulation of the work area and run candidate robot policies in it.";
   const submissions: any[] = [];
@@ -96,16 +96,18 @@ test("sending a video quotes the recorded statements under the button and record
     return route.fulfill({ status: 202, json: { ok: true, requestId: "captured", captureUrl: null } });
   });
   await page.goto("/contact/site-operator", { waitUntil: "domcontentloaded" });
-  const statements = page.locator("[data-consent-statements]");
-  await expect(statements).toContainText("By pressing Next: film the job, you agree to our Terms and Privacy Policy and confirm:");
-  // Filming later grants no recording on this form, so the recording sentence is not quoted.
-  await expect(statements).not.toContainText(rights);
+  await expect(page.getByText("By continuing, you agree to our Terms and Privacy Policy and confirm you're allowed to share this job for the site.")).toBeVisible();
   await page.getByRole("button", { name: "I have a video ›", exact: true }).click();
   const start = page.getByRole("button", { name: "Send video", exact: true });
-  await expect(statements).toContainText("By pressing Send video, you agree to our Terms and Privacy Policy and confirm:");
-  await expect(statements).toContainText(`“${rights}”`);
-  await expect(page.getByRole("button", { name: "What you're agreeing to ›" })).toHaveCount(0);
+  await expect(page.getByText("By sending, you agree to our Terms and Privacy Policy and confirm you're allowed to film and share this site.")).toBeVisible();
   await expect(page.locator("#start-rights")).toHaveCount(0);
+  // The full statements, word for word, one tap away; back returns to the form.
+  await page.getByRole("button", { name: "What you're agreeing to ›" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "What you're agreeing to" })).toBeVisible();
+  await expect(page).toHaveURL(/#agreeing$/);
+  await expect(page.getByText(rights, { exact: false })).toBeVisible();
+  await page.goBack();
+  await expect(start).toBeVisible();
   await page.locator("#start-location").fill("Austin, TX"); await page.locator("#start-region").selectOption("us");
   await page.locator("#start-footage").setInputFiles({ name: "cycle.mov", mimeType: "video/quicktime", buffer: Buffer.from("frames") });
   await page.locator("#start-email").fill("owner@example.test");
@@ -113,9 +115,8 @@ test("sending a video quotes the recorded statements under the button and record
   await start.click();
   await expect.poll(() => submissions.length).toBe(1);
   expect(submissions[0]).toMatchObject({ captureRegion: "us", hasExistingFootage: true, descriptionOnly: false,
-    descriptionAuthority: { granted: true, statementVersion: "2026-10-06.v1" },
-    consentAttestation: { granted: true, statementVersion: "2026-11-02.v2" } });
-  expect(JSON.stringify(submissions[0])).not.toContain("2026-11-11");
+    descriptionAuthority: { granted: true, statementVersion: "2026-11-11.v2" },
+    consentAttestation: { granted: true, statementVersion: "2026-11-11.v3" } });
 });
 
 test("robot teams can apply before approval without seeing private jobs", async ({ page }) => {

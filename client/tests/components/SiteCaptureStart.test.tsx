@@ -163,6 +163,16 @@ it.each(["gpt-6.1-sol-agents-api", "gpt-6-sol-agents-api"])(
   },
 );
 
+it("opens the full statements at #agreeing with the one-line consent on (the default)", async () => {
+  const previousUrl = window.location.href;
+  consentSwitch.short = true;
+  window.history.replaceState(null, "", "/contact/site-operator#agreeing");
+  try {
+    await renderReady(<SiteCaptureStart />);
+    expect(screen.getByRole("heading", { level: 1, name: "What you're agreeing to" })).toBeVisible();
+  } finally { window.history.replaceState(null, "", previousUrl); }
+});
+
 it("falls back to the form for #agreeing while the one-line consent is off, never a blank screen", async () => {
   const previousUrl = window.location.href;
   consentSwitch.short = false;
@@ -1337,15 +1347,14 @@ it("keeps the form to the fields it needs, and the reply time off it", async () 
   expect(start.nextElementSibling).toHaveTextContent(SITE_START_CONSENT_NO_VIDEO);
 });
 
-// The default that ships (owner, 2026-11-11): the switch stays off until the Pipeline accepts recording-rights
-// 2026-11-11.v3. The recorded statements are quoted word for word under the button, and no request carries a
-// 2026-11-11 version.
-describe("with the one-line consent switched off (the default)", () => {
+// The off position (set START_FORM_SHORT_CONSENT to false to return to the long form): the recorded statements are
+// quoted word for word under the button, and no request carries a 2026-11-11 version.
+describe("with the one-line consent switched off", () => {
   beforeEach(() => { consentSwitch.short = false; });
 
-  it("is off by default in the shipped module", async () => {
+  it("is on in the shipped module, since the Pipeline accepts recording-rights 2026-11-11.v3 (deployed 2026-11-11)", async () => {
     const actual = await vi.importActual<typeof import("@/lib/siteStartConsent")>("@/lib/siteStartConsent");
-    expect(actual.START_FORM_SHORT_CONSENT).toBe(false);
+    expect(actual.START_FORM_SHORT_CONSENT).toBe(true);
   });
 
   it.each([["film it next", false], ["send a video now", true]])("quotes the recorded statements under the button and records today's versions (%s)", async (_label, withVideo) => {

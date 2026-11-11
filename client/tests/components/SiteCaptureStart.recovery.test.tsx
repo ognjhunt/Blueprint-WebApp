@@ -108,9 +108,9 @@ it("RETURN-002b: a saved submission recorded under other statements is not resen
   const view = await renderReady(<SiteCaptureStart />); fill(); submit();
   await screen.findByRole("alert"); expect(sent).toHaveLength(1);
   view.unmount();
-  // The saved submission was made while the one-line consent showed (2026-11-11.v3); the form now shows the full
-  // statements (the switch is off), so that body is not what the person would agree to now.
-  const swap = (body: string) => body.replace('"2026-10-06.v1"', '"2026-11-11.v3"');
+  // The saved submission was made under the long form (2026-10-06.v1); the form now shows the one-line consent (the
+  // shipped default since 2026-11-11), so that body is not what the person would agree to now.
+  const swap = (body: string) => body.replace('"2026-11-11.v3"', '"2026-10-06.v1"');
   for (const [key, row] of durability.rows) if (row.value?.pending) durability.rows.set(key, { ...row, value: { ...row.value,
     pending: { ...row.value.pending, body: swap(row.value.pending.body) } } });
   for (const key of Object.keys(localStorage)) {
@@ -166,8 +166,8 @@ it("RETURN-004b: an acknowledged job saved under statements the form no longer s
   const view = await renderAsSiteOwner(); fillSigned(); submit();
   await screen.findByRole("heading", { name: "Now film the job." });
   view.unmount();
-  // Accepted while another statement version was shown: the server already has this job.
-  const swap = (body: string) => body.replace('"2026-10-06.v1"', '"2026-11-11.v3"');
+  // Accepted while the long form was shown (2026-10-06.v1): the server already has this job.
+  const swap = (body: string) => body.replace('"2026-11-11.v3"', '"2026-10-06.v1"');
   let swapped = 0;
   for (const [key, row] of durability.rows) if (row.value?.pending?.acknowledged) { swapped++; durability.rows.set(key, { ...row, value: { ...row.value,
     pending: { ...row.value.pending, body: swap(row.value.pending.body) } } }); }
@@ -182,7 +182,7 @@ it("RETURN-004b: an acknowledged job saved under statements the form no longer s
   expect(screen.queryByText(STATEMENTS_CHANGED)).toBeNull();
   // The same accepted job, exactly as before: the stored body under its own statements, never a new one.
   expect(sent).toHaveLength(2);
-  expect(sent[1].body.descriptionAuthority.statementVersion).toBe("2026-11-11.v3");
+  expect(sent[1].body.descriptionAuthority.statementVersion).toBe("2026-10-06.v1");
   expect(sent[1].body.requestId).toBe(sent[0].body.requestId);
 });
 it("ACCESS-004: late intake acceptance after account switch cannot start original video upload", async () => {
