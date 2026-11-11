@@ -278,9 +278,10 @@ describe("what the site reads", () => {
     await deliverOutbox();
     expect(send).toHaveBeenCalledTimes(1);
     const notice = state.docs.get(`captureOutbox/job-one:evaluation_outcome:estimate-${scene}`) as Record<string, string>;
-    expect(notice).toMatchObject({ status: "sent", subject: "The simulation of your job has finished" });
-    // The email repeats the page's sentence, word for word, right after the no-completion sentence.
-    expect(notice.body.startsWith(`${NO_POLICY} ${HOW_FAR} `)).toBe(true);
+    expect(notice).toMatchObject({ status: "sent", subject: "The simulation test of your job has finished" });
+    // The email says what the job page's answer screen says: none finished, and the closest by how far it got
+    // (rewritten in round 4 from the same-robot comparison sentence the email used to repeat).
+    expect(notice.body.startsWith("Tested on your job: none finished yet. Closest: Franka arm + π0.5 lifted and carried the object. This result may come from how we set up the simulation of your site, not from the robots. Nothing is needed from you.")).toBe(true);
     expect(notice.body).not.toMatch(/did best|was ahead|\bahead\b|estimate|episodes|candidates|pilot/i);
     expect(notice.body.slice(0, notice.body.indexOf("on your private job page"))).not.toMatch(/[a-z]_[a-z]|sha256/i);
   });
@@ -295,7 +296,8 @@ describe("what the site reads", () => {
     expect(line).toBe(`${NO_POLICY} ${said}`);
     await deliverOutbox();
     const notice = state.docs.get(`captureOutbox/job-one:evaluation_outcome:estimate-${scene}`) as Record<string, string>;
-    expect(notice.body.startsWith(`${NO_POLICY} ${said} `)).toBe(true);
+    // The closest is the one that got furthest: GR00T N1.7 moved the object; π0.5 reached no stage.
+    expect(notice.body.startsWith("Tested on your job: none finished yet. Closest: Franka arm + GR00T N1.7 moved the object. This result may come from how we set up the simulation of your site, not from the robots. Nothing is needed from you.")).toBe(true);
   });
 
   it("says today's words, unchanged, for the same result without progress", async () => {
@@ -306,7 +308,8 @@ describe("what the site reads", () => {
     expect(proof.policyComparison!.line).toBe(NO_POLICY);
     await deliverOutbox();
     const notice = state.docs.get(`captureOutbox/job-one:evaluation_outcome:estimate-${scene}`) as Record<string, string>;
-    expect(notice.body.startsWith(`${NO_POLICY} `)).toBe(true);
-    expect(notice.body).not.toContain("How far each got");
+    // Without progress nothing is called closest. The fixture's scene is flagged, so the set-up notice follows, as on the page.
+    expect(notice.body.startsWith("Tested on your job: none finished yet. 2 AI robots tried; none finished your job. This result may come from how we set up the simulation of your site, not from the robots. Nothing is needed from you.")).toBe(true);
+    expect(notice.body).not.toMatch(/How far each got|Closest/);
   });
 });

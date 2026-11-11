@@ -87,9 +87,10 @@ describe("the answer email after the coverage review", () => {
     const rows = outboxRows();
     expect(rows.map(([key]) => key)).toEqual(["captureOutbox/r1:answer_ready"]);
     const row = rows[0][1] as Record<string, string>;
-    expect(row).toMatchObject({ kind: "answer_ready", to: "site@synthetic.invalid", subject: "Your Blueprint answer is ready" });
-    expect(row.body).toMatch(/^(Most likely to fit: |No robot clearly fits yet\. |None of the )/);
-    expect(row.body).toMatch(/How sure we are: (Sure|Fairly sure|Not sure yet)\./);
+    // The paper check, said as the paper check (round 4): never the answer before a test.
+    expect(row).toMatchObject({ kind: "answer_ready", to: "site@synthetic.invalid", subject: "Your job's paper check is ready" });
+    expect(row.body).toMatch(/^We've checked your job on paper\. (Most likely to fit: |No robot clearly fits yet\. |None of the )/);
+    expect(row.body).toMatch(/How sure we are, on paper: (Sure|Fairly sure|Not sure yet)\./);
     expect(row.body).toMatch(/\/capture-upload\//);
     expect(send).not.toHaveBeenCalled();
   });

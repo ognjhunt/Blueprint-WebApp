@@ -701,6 +701,22 @@ export function testResultOf(proof: SimulationProof | null | undefined): TestRes
 }
 
 /**
+ * The line under the big words when there is no option to name in large type: the top option's count when some
+ * finished, how far the closest got when none did. The job page and the result email both say it.
+ */
+export function testSubLine(result: TestResult): string | null {
+  if (!result) return null;
+  if (result.kind === "no_clear_winner") {
+    return `Top: ${result.top.label}, did your job in ${result.top.succeeded} of ${result.top.scored} ${result.top.scored === 1 ? "try" : "tries"}.`;
+  }
+  if (result.kind === "none_finished") {
+    return result.top.furthestText ? `Closest: ${result.top.label} ${result.top.furthestText}.`
+      : `${result.count} AI ${result.count === 1 ? "robot" : "robots"} tried; none finished your job.`;
+  }
+  return null;
+}
+
+/**
  * The test result as one headline, for the job card a company reads and the library's line: the same result the
  * site's screen leads with, numbers and closed-map names only. Said about "your job"; the card re-voices it.
  */

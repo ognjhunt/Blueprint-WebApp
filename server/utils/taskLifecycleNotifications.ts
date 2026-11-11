@@ -32,7 +32,7 @@ import { isWebsiteJobNoGrantEndedEventId, isWebsiteJobWindowEndedEventId } from 
 import { selectWebsiteAtlasPreview } from "./websiteAtlasPreview";
 import { isScreeningResultOutcome, simulationOutcomeEmailSentence, storedScreeningOutcomeCaveat,
   type ScreeningOutcome, type ScreeningOutcomeCaveat } from "./betaPolicyScreeningContract";
-import { PLAIN_SETUP_CAVEAT, projectSimulationProof, testHeadline, testNotRunLine, testResultOf,
+import { PLAIN_SETUP_CAVEAT, projectSimulationProof, testHeadline, testNotRunLine, testResultOf, testSubLine,
   type SimulationProof } from "../../client/src/lib/simulationProof";
 import { isTerminalSceneOutcomeKind, sceneOutcomeMessage, sceneOutcomeSubject,
   type TerminalSceneOutcomeKind } from "./sceneIntentOutcome";
@@ -417,14 +417,15 @@ function estimateSubject(proof: SimulationProof | null | undefined): string {
 
 /**
  * A finished simulation, in the job page's own words (`projectSimulationProof`, `testResultOf`, `testHeadline`):
- * the headline the page leads with, and the set-up notice when a flag says our simulation may have shaped it. One
+ * the headline the page leads with, its line under it, and the set-up notice when a flag says our simulation may have shaped it. One
  * idea; the ranked list and how far to trust it are on the page.
  */
 function estimateDetail(proof: SimulationProof | null | undefined, caveat: ScreeningOutcomeCaveat | null): string {
   const result = finishedResult(proof);
-  const said = result ? [testHeadline(result), result.setupFlag ? PLAIN_SETUP_CAVEAT : null]
+  const said = result ? [testHeadline(result), testSubLine(result), result.setupFlag ? PLAIN_SETUP_CAVEAT : null]
     // No option to name: the page's own line for why, or, unread, what a stored caveat still shows.
-    : proof?.state === "done" && testNotRunLine(proof) ? [testNotRunLine(proof)]
+    : proof?.state === "done" && testNotRunLine(proof)
+      ? [testNotRunLine(proof), proof.options.setupFlag || caveat ? PLAIN_SETUP_CAVEAT : null]
     : caveat ? [NONE_FINISHED_HEADLINE, PLAIN_SETUP_CAVEAT] : [SIMULATION_FINISHED];
   return `${said.filter(Boolean).join(" ")} Nothing is needed from you.`;
 }

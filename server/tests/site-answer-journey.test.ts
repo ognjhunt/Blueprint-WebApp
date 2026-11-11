@@ -300,7 +300,7 @@ describe("a site's answer, from an email and a video to a deployment company", (
     // 4. Exactly one answer email, with the headline and the private link; a second review adds none.
     const [email] = answerNotices(jobId);
     expect(answerNotices(jobId)).toHaveLength(1);
-    expect(email).toMatchObject({ key: `captureOutbox/${jobId}:answer_ready`, subject: "Your Blueprint answer is ready" });
+    expect(email).toMatchObject({ key: `captureOutbox/${jobId}:answer_ready`, subject: "Your job's paper check is ready" });
     expect(email.body).toContain(ready.headline);
     const link = email.body.match(/https?:\/\/\S+\/capture-upload\/(\S+)/);
     expect(link, "the email carries the private job link").not.toBeNull();
@@ -446,7 +446,7 @@ describe("a site's answer, from an email and a video to a deployment company", (
     const { answer } = await status(token);
     expect(answer.state).toBe("ready");
     expect(answer.headline).toMatch(/^Most likely to fit: /);
-    expect(answerNotices(jobId).map(row => row.subject)).toEqual(["Your Blueprint answer is ready"]);
+    expect(answerNotices(jobId).map(row => row.subject)).toEqual(["Your job's paper check is ready"]);
   }, 30_000);
 
 });

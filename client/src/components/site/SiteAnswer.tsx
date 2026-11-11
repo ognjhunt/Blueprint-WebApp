@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { withCsrfHeader } from "@/lib/csrf";
 import { JOB_CARD_ANSWER_STATEMENT, JOB_CARD_ANSWER_STATEMENT_VERSION } from "@/lib/jobCardAnswerConsent";
-import { GAP_COULD_BE_CHANCE, GAP_UNLIKELY_CHANCE, type SimulationOption, type SimulationProof as SimulationProofView } from "@/lib/simulationProof";
+import { GAP_COULD_BE_CHANCE, GAP_UNLIKELY_CHANCE, testSubLine, type SimulationOption, type SimulationProof as SimulationProofView } from "@/lib/simulationProof";
 import { PLAIN_SETUP_CAVEAT, SimulationTestRows, TrustRows, setupCaveatShown, testNotRunLine, testResultOf, type TestResult } from "./SimulationProof";
 import {
   BareBack, BareBig, BareButton, BareDone, BareFine, BareGroup, BareLabel, BareLead, BareLinks, BareMenu, BareNotice, BareRows, BareSureness, BareTicks,
@@ -196,13 +196,12 @@ function TestHead({ result }: { result: Exclude<TestResult, null> }) {
   const sub = top.maker ? `AI software by ${top.maker}` : undefined;
   if (result.kind === "no_clear_winner") return <BareGroup>
     <h2 className="bare-label" id="site-answer-title">Tested on your job</h2>
-    <BareBig sub={`Top: ${top.label}, ${didJob(top).charAt(0).toLowerCase()}${didJob(top).slice(1)}.`}>No clear winner yet</BareBig>
+    <BareBig sub={testSubLine(result) ?? undefined}>No clear winner yet</BareBig>
   </BareGroup>;
   if (result.kind === "none_finished") return <BareGroup>
     <h2 className="bare-label" id="site-answer-title">Tested on your job</h2>
     {/* "Closest" only when the run graded how far the top option got. */}
-    <BareBig sub={top.furthestText ? `Closest: ${top.label} ${top.furthestText}.`
-      : `${result.count} AI ${result.count === 1 ? "robot" : "robots"} tried; none finished your job.`}>None finished yet</BareBig>
+    <BareBig sub={testSubLine(result) ?? undefined}>None finished yet</BareBig>
     {result.setupFlag && <BareNotice>{PLAIN_SETUP_CAVEAT}</BareNotice>}
   </BareGroup>;
   // A winner, or the only option tested, which did the job at least once.
