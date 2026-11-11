@@ -2,8 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import type { User } from "firebase/auth";
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
 import { EVIDENCE_LEVEL_LABELS, JOB_CARD_LIMITS, JOB_CARD_LIMITS_TESTED, JOB_CARD_LIMITS_TESTING, SURENESS_STEPS, evidenceScopeLabel, type AnswerBasis, type AnswerEvidence } from "@/lib/siteAnswer";
-import { BareBack, BareBig, BareFine, BareGroup, BareLead, BareLinks, BareRows, BareSureness, BareTicks } from "@/components/bare/Bare";
+import { BareBack, BareBig, BareFine, BareParts, BareGroup, BareLead, BareLinks, BareRows, BareSureness, BareTicks } from "@/components/bare/Bare";
 import { liftUpTo, ticksOf } from "./SiteAnswer";
+import { optionParts } from "@/lib/simulationProof";
 import type { JobCardAnswerRobot, JobCardAnswerSummary, TaskCardDetail } from "@/types/taskBrowse";
 
 export const JOB_CARD_ANSWER_TITLE = "Blueprint's answer for this job";
@@ -47,7 +48,7 @@ function CardTestHead({ test }: { test: NonNullable<JobCardAnswerSummary["test"]
   return <>
     <BareGroup>
       <p className="bare-label">{test.kind === "one_option" ? "Tested on the job" : test.wording === "did_best" ? "Did best on the job" : "Was ahead on the job"}</p>
-      <BareBig as="p" sub={top.maker ? `AI software by ${top.maker}` : undefined}>{top.label}</BareBig>
+      <BareBig as="p" sub={top.maker ? `AI software by ${top.maker}` : undefined}><BareParts parts={optionParts(top.label)} /></BareBig>
     </BareGroup>
     <BareGroup>
       <BareTicks label="Why" items={[{ key: "did", state: "yes", text: `Did the job in ${did}` },

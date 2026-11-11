@@ -700,6 +700,12 @@ export function testResultOf(proof: SimulationProof | null | undefined): TestRes
   return { kind: "no_clear_winner", top, setupFlag };
 }
 
+/** An option's name in its two parts, the robot and "+ its AI software", for a large answer that breaks between them. */
+export function optionParts(label: string): string[] {
+  const at = label.indexOf(" + ");
+  return at < 0 ? [label] : [label.slice(0, at), `+ ${label.slice(at + 3)}`];
+}
+
 /**
  * The line under the big words when there is no option to name in large type: the top option's count when some
  * finished, how far the closest got when none did. The job page and the result email both say it.

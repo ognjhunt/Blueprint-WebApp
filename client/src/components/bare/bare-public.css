@@ -1,6 +1,7 @@
 /*
- * Bare bones, public parts (BareForm.tsx and the public site chrome). Same tokens and 4 / 8 / 16 / 32 / 48 scale as
- * bare.css; nothing here changes a bare.css rule.
+ * Bare bones, public parts (BareForm.tsx and the public site chrome). Same tokens and the same rhythm as bare.css
+ * (written at its top): label → control 8, control → hint 8, button → its consent line 12, notice 16 around,
+ * fields and groups 32 apart, fine print 48. Nothing here changes a bare.css rule.
  */
 .bare-page { padding: 0 20px 48px; }
 .bare-page .bare-screen h1:focus { outline: none; }
@@ -29,7 +30,8 @@ ol.bare-steps { list-style: none; margin: 0; padding: 0; counter-reset: bare-ste
 /* BareField and its controls. */
 .bare-field { display: block; margin: var(--bare-s4, 32px) 0 0; padding: 0; border: 0; min-width: 0; }
 .bare-field > .bare-label { display: block; margin-bottom: var(--bare-s2, 8px); padding: 0; }
-.bare-field > .bare-helper, .bare-field > .bare-field-error { margin-top: var(--bare-s2, 8px); }
+.bare-field > .bare-helper, .bare-field > .bare-field-error, .bare-field > .bare-file + *, .bare-field > .bare-input + *,
+.bare-field > .bare-select + *, .bare-field > .bare-textarea + * { margin-top: var(--bare-s2, 8px); }
 .bare-field-error { font-size: 15px; color: #9c352d; }
 .bare-input, .bare-select, .bare-textarea, .bare-field input[role="combobox"] { display: block; width: 100%; min-height: 52px; padding: 12px 14px; border: 1px solid #9fa197;
   border-radius: 4px; background: #fffffb; font: inherit; font-size: 17px; line-height: 1.4; color: var(--bare-ink, #22251e); box-sizing: border-box; }
@@ -64,7 +66,8 @@ ol.bare-steps { list-style: none; margin: 0; padding: 0; counter-reset: bare-ste
 
 /* A quiet link that sits alone under a field. */
 .bare-inline-link { display: inline-flex; align-items: center; min-height: 44px; padding: 0; border: 0; border-bottom: 1px solid var(--bare-ink, #22251e);
-  background: none; font: inherit; font-size: 17px; color: var(--bare-ink, #22251e); text-decoration: none; cursor: pointer; }
+  background: none; font: inherit; font-size: 17px; color: var(--bare-ink, #22251e); text-decoration: none; cursor: pointer; text-align: left; justify-content: flex-start; }
+.bare-site-foot button { text-align: left; }
 
 /* Home: the text column, and the moving example beside it on a desktop, below the button on a phone. */
 .bare-home { display: grid; grid-template-columns: minmax(0, 560px); justify-content: center; gap: 48px; width: min(100% - 40px, 1120px); margin: 0 auto; }
@@ -87,20 +90,20 @@ ol.bare-steps { list-style: none; margin: 0; padding: 0; counter-reset: bare-ste
   border-radius: 50%; background: #fffffb; color: var(--ms-ink, #22251e); cursor: pointer; flex: none; }
 .bare-example-panel { margin-top: 8px; }
 .bare-example-panel .bare-label { display: block; }
-.bare-example-panel .bare-example-name { margin: 4px 0 0; font-size: 28px; line-height: 1.05; font-weight: 600; letter-spacing: -1px; }
-.bare-example-panel .bare-example-by { margin: 4px 0 0; font-size: 15px; color: var(--ms-muted, #5d5f58); }
+.bare-example-panel .bare-example-name { margin: 8px 0 0; font-size: 28px; line-height: 1.05; font-weight: 600; letter-spacing: -1px; }
+.bare-example-panel .bare-example-by { margin: 8px 0 0; font-size: 16px; color: var(--ms-muted, #5d5f58); }
 .bare-example-panel .bare-example-job { margin: 0 0 12px; font-size: 15px; color: var(--ms-muted, #5d5f58); }
-.bare-example-panel .bare-ticks { margin-top: 12px; }
+.bare-example-panel .bare-ticks { margin-top: 16px; }
 .bare-example-panel .bare-tick { font-size: 16px; }
-.bare-example-panel .bare-sure { margin-top: 12px; }
+.bare-example-panel .bare-sure { margin-top: 16px; }
 .bare-example-panel .bare-sure-line { font-size: 16px; }
 .bare-example-tag { font-size: 12px; font-weight: 650; letter-spacing: .7px; text-transform: uppercase; color: var(--bare-amber, #8a6d1f); }
-.bare-example-foot { margin: 12px 0 0; font-size: 13px; line-height: 1.45; color: var(--ms-muted, #5d5f58); }
+.bare-example-foot { margin: 16px 0 0; font-size: 13px; line-height: 1.45; color: var(--ms-muted, #5d5f58); }
 .bare-example .ms-pilot-art-scene { transition: opacity 300ms ease; }
 
 /* Auth screens: the bare form beside the kept illustration; on a phone the illustration is a short band. */
 .auth-shell.auth-bare h1 { font-size: 30px; font-weight: 500; letter-spacing: -.7px; line-height: 1.15; }
-.auth-shell.auth-bare .auth-description { font-size: 17px; margin-top: 8px; }
+.auth-shell.auth-bare .auth-description { font-size: 17px; margin-top: var(--bare-s2, 8px); }
 @media (max-width: 760px) {
   .auth-shell.auth-bare .auth-art { display: flex; position: relative; top: 0; height: 140px; overflow: hidden; order: -1; margin: 0 -20px; }
   .auth-shell.auth-bare .auth-art .robot-scene { max-width: 260px; }
@@ -126,7 +129,7 @@ ol.bare-steps { list-style: none; margin: 0; padding: 0; counter-reset: bare-ste
 .bare-forms .ms-form details > summary::-webkit-details-marker { display: none; }
 .bare-forms .ms-form .ms-check-row { display: grid; grid-template-columns: 24px 1fr; gap: 12px; margin-top: var(--bare-s4, 32px); font-size: 16px; }
 .bare-forms .ms-form .ms-check-row input { width: 22px; height: 22px; accent-color: var(--bare-green, #203d2e); }
-.bare-forms .ms-form .ms-form-note { margin-top: var(--bare-s2, 8px); font-size: 14px; color: var(--bare-muted, #5d5f58); }
+.bare-forms .ms-form .ms-form-note { margin-top: var(--bare-s12, 12px); font-size: 14px; color: var(--bare-muted, #5d5f58); }
 .bare-forms .ms-form .ms-button, .bare-forms .ms-form button[type="submit"] { display: flex; width: 100%; min-height: 52px; margin-top: var(--bare-s4, 32px);
   align-items: center; justify-content: center; gap: 8px; padding: 12px 16px; border: 0; border-radius: 4px; background: var(--bare-green, #203d2e);
   color: var(--bare-paper, #f6f5ef); font: inherit; font-size: 17px; font-weight: 500; cursor: pointer; }
@@ -134,7 +137,7 @@ ol.bare-steps { list-style: none; margin: 0; padding: 0; counter-reset: bare-ste
 .bare-forms .ms-partner-receipt h2 { font-size: 22px; font-weight: 600; margin: 0 0 8px; }
 
 /* The shared tokens where a bare part sits outside a .bare-screen (the home example). */
-.bare-example { --bare-s1: 4px; --bare-s2: 8px; --bare-s3: 16px; --bare-s4: 32px; --bare-s5: 48px;
+.bare-example { --bare-s1: 4px; --bare-s2: 8px; --bare-s12: 12px; --bare-s3: 16px; --bare-s4: 32px; --bare-s5: 48px;
   --bare-ink: var(--ms-ink, #22251e); --bare-muted: var(--ms-muted, #5d5f58); --bare-green: var(--ms-green, #203d2e);
   --bare-paper: var(--ms-paper, #f6f5ef); --bare-rule: #cfd1c8; --bare-tint: #f3eedf; --bare-amber: #8a6d1f; }
 /* The site's link colour must not override the filled button's text. */

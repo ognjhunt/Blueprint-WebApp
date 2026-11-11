@@ -30,6 +30,14 @@ export function BareBig({ children, sub, as: Tag = "p" }: { children: ReactNode;
   </>;
 }
 
+/**
+ * A large answer in parts that break on purpose, each on its own line ("Franka arm", "+ π0.5"), so a wrapped
+ * answer never leaves a "+" hanging. The parts are joined by a space, so the text reads as one name.
+ */
+export function BareParts({ parts }: { parts: string[] }) {
+  return <>{parts.map((part, index) => <span key={index} className="bare-part">{index ? ` ${part}` : part}</span>)}</>;
+}
+
 /** A plain sentence at body size, for a headline that is a sentence rather than a name. */
 export function BareLead({ children, as: Tag = "p" }: { children: ReactNode; as?: "p" | "h1" | "h2" }) {
   return <Tag className="bare-lead">{children}</Tag>;

@@ -106,13 +106,15 @@ describe("the site's answer, bare bones", () => {
     render(<SiteAnswer token="owner-token" answer={readyAnswer} proof={winnerProof} onShowPaper={onShowPaper} />);
     const answer = screen.getByRole("region", { name: "Your answer" });
     expect(within(answer).getByRole("heading", { level: 2, name: "Was ahead on your job" })).toBeVisible();
-    expect(within(answer).getByText("Franka arm + π0.5")).toHaveClass("bare-big");
+    expect(answer.querySelector(".bare-big")).toHaveTextContent(/^Franka arm \+ π0\.5$/);
+    // The option breaks on purpose: the robot, then "+ its AI software", each its own part.
+    expect([...answer.querySelectorAll(".bare-big .bare-part")].map(part => part.textContent?.trim())).toEqual(["Franka arm", "+ π0.5"]);
     expect(within(answer).getByText("AI software by Physical Intelligence")).toBeVisible();
     expect(within(screen.getByRole("list", { name: "Why" })).getAllByRole("listitem").map(item => item.textContent))
       .toEqual(["✓Did your job in 7 of 10 tries", "✓Ahead of the 2 other AI robots we tested"]);
     expect(answer).toHaveTextContent("How sure are we? Fairly sure");
     expect(within(answer).getByText("With this few tries the gap could still be chance.")).toBeVisible();
-    fireEvent.click(within(answer).getByRole("button", { name: "On paper, most likely to fit: Universal Robots UR10e ›" }));
+    fireEvent.click(within(answer).getByRole("button", { name: "On paper: UR10e ›" }));
     expect(onShowPaper).toHaveBeenCalledTimes(1);
     // The paper ticks are not on this screen; the one button and its line are.
     expect(within(answer).queryByText("Reaches far enough")).toBeNull();

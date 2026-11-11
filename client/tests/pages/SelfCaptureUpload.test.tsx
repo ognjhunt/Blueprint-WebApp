@@ -1332,7 +1332,7 @@ describe("the site's answer leads its job page", () => {
     const answer = await screen.findByRole("region", { name: "Your answer" });
     // The test leads: the fixture's 7 of 10 against 3 of 10 is "ahead" under the probability rule, not "did best".
     expect(await within(answer).findByRole("heading", { level: 2, name: "Was ahead on your job" })).toBeVisible();
-    expect(within(answer).getByText("Franka arm + π0.5")).toBeVisible();
+    expect(answer.querySelector(".bare-big")).toHaveTextContent(/^Franka arm \+ π0\.5$/);
     expect(screen.queryByRole("region", { name: "Tested in simulation" })).toBeNull();
     // The ranked list is the first details screen; the scene's line about the paper pick is on the paper screen.
     fireEvent.click(screen.getByRole("button", { name: "See details ›" }));

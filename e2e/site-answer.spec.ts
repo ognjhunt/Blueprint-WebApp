@@ -1,5 +1,5 @@
 import { devices, expect, test, type Page } from "@playwright/test";
-import { SCENE_NOTE_BEYOND_REACH, allZeroEvaluation, readyAnswer, winnerEvaluation } from "../client/tests/fixtures/siteAnswer";
+import { SCENE_NOTE_BEYOND_REACH, allZeroEvaluation, preparingEvaluation, readyAnswer, winnerEvaluation } from "../client/tests/fixtures/siteAnswer";
 
 /**
  * The site's job page leads with its answer. Every API the page reads is
@@ -41,7 +41,7 @@ async function mockJob(page: Page, { evaluation = simulationRun as unknown, list
     const path = url.pathname, method = route.request().method();
     if (path === "/api/csrf") return route.fulfill({ json: { csrfToken: "fixture" } });
     if (path === "/api/analytics/ingest") return route.fulfill({ status: 204, body: "" });
-    if (path === `/api/job-workflow/owner/${token}` && method === "GET") return route.fulfill({ json: { ...workflow, managedEvidence: [evaluation] } });
+    if (path === `/api/job-workflow/owner/${token}` && method === "GET") return route.fulfill({ json: { ...workflow, managedEvidence: evaluation ? [evaluation] : [] } });
     if (path === `/api/self-capture/uploads/${token}/status`) return route.fulfill({ json: {
       ok: true, state: "open", captureReceived: true, uploadState: "processing_ready", accepts: ["mov", "mp4"] } });
     if (path === `/api/self-capture/uploads/${token}/withdrawal`) return route.fulfill({ json: { ok: true, withdrawn: false } });
@@ -75,7 +75,7 @@ test("the simulation test leads the job page, bare bones: the option, plain tick
   const answer = page.getByRole("region", { name: "Your answer" });
   // 7 of 10 against 3 of 10 is about 0.96 under the probability rule: ahead, not "did best".
   await expect(answer.getByRole("heading", { level: 2, name: "Was ahead on your job" })).toBeVisible();
-  await expect(answer.getByText("Franka arm + π0.5", { exact: true })).toBeVisible();
+  await expect(answer.locator(".bare-big", { hasText: /^Franka arm \+ π0\.5$/ })).toBeVisible();
   await expect(answer.getByText("AI software by Physical Intelligence", { exact: true })).toBeVisible();
   const titleBox = await page.getByRole("heading", { level: 1, name: "Your job" }).boundingBox();
   expect(titleBox!.y).toBeLessThan((await answer.boundingBox())!.y);
@@ -93,11 +93,11 @@ test("the simulation test leads the job page, bare bones: the option, plain tick
   expect(answerText).not.toMatch(/episode|candidate|screening|DROID|jointpos|[a-z]_[a-z]|sha256|payload|anonymi[sz]ed/i);
 
   // The paper check is one tap away, on its own screen, with a way back.
-  await answer.getByRole("button", { name: "On paper, most likely to fit: Universal Robots UR10e ›" }).click();
+  await answer.getByRole("button", { name: "On paper: UR10e ›" }).click();
   await expect(page).toHaveURL(/#details\/why$/);
   await expect(page.getByRole("heading", { level: 1, name: "On paper: why this robot" })).toBeFocused();
   await page.getByRole("button", { name: "‹ Back" }).click();
-  await expect(answer.getByRole("button", { name: /^On paper, most likely to fit/ })).toBeFocused();
+  await expect(answer.getByRole("button", { name: /^On paper: / })).toBeFocused();
 
   // Every detail is on its own screen, with a way back; the browser's back button returns too.
   await answer.getByRole("button", { name: "See details ›" }).click();
@@ -119,7 +119,7 @@ test("the simulation test leads the job page, bare bones: the option, plain tick
   await page.goBack();
   await page.goBack();
   await expect(answer.getByRole("button", { name: "See details ›" })).toBeFocused();
-  await expect(answer.getByText("Franka arm + π0.5", { exact: true })).toBeVisible();
+  await expect(answer.locator(".bare-big", { hasText: /^Franka arm \+ π0\.5$/ })).toBeVisible();
   // Every policy's set-up detail stays one screen away, folded, on Job settings.
   await answer.getByRole("button", { name: "Job settings ›" }).click();
   const details = page.locator("summary", { hasText: "Simulation details" });
@@ -133,7 +133,7 @@ test("the simulation test leads the job page, bare bones: the option, plain tick
   expect(await chosen.evaluate(cell => { const range = document.createRange(); range.selectNodeContents(cell);
     return new Set([...range.getClientRects()].map(rect => Math.round(rect.top))).size; })).toBe(1);
   await page.getByRole("button", { name: "‹ Back" }).click();
-  await expect(answer.getByText("Franka arm + π0.5", { exact: true })).toBeVisible();
+  await expect(answer.locator(".bare-big", { hasText: /^Franka arm \+ π0\.5$/ })).toBeVisible();
   expect(unexpected).toEqual([]);
 });
 
@@ -146,7 +146,7 @@ test("when no AI robot finished the job, the answer says so with the set-up noti
   await expect(answer.getByText("None finished yet", { exact: true })).toBeVisible();
   await expect(answer.getByText("This result may come from how we set up the simulation of your site, not from the robots.", { exact: true })).toBeVisible();
   await expect(answer.getByText(/Did best|Was ahead/)).toHaveCount(0);
-  await expect(answer.getByRole("button", { name: /^On paper, / })).toBeVisible();
+  await expect(answer.getByRole("button", { name: /^On paper/ })).toBeVisible();
   await page.getByRole("button", { name: "See details ›" }).click();
   await page.getByRole("button", { name: "The simulation test" }).click();
   const ranked = page.getByRole("region", { name: "Ranked", exact: true });
@@ -194,7 +194,7 @@ test("the answer, its details and the job settings read at phone width without s
   const page = await context.newPage();
   await mockJob(page);
   await page.goto(`/capture-upload/${token}?video=existing`);
-  await expect(page.getByText("Franka arm + π0.5", { exact: true })).toBeVisible();
+  await expect(page.locator(".bare-big", { hasText: /^Franka arm \+ π0\.5$/ })).toBeVisible();
   const button = await page.getByRole("button", { name: FIND }).boundingBox();
   expect(button!.y + button!.height).toBeLessThanOrEqual(page.viewportSize()!.height);
   for (const screen of ["See details ›", "‹ Back", "Job settings ›"]) {
@@ -204,3 +204,60 @@ test("the answer, its details and the job settings read at phone width without s
   }
   await context.close();
 });
+
+/** The fixture's leader with other counts, for the states the rhythm check walks through. */
+const withCounts = (pairs: Array<[number, number]>) => ({ ...simulationRun, screening: { ...simulationRun.screening, candidates: simulationRun.screening.candidates
+  .map((row, index) => pairs[index] ? { ...row, scored: pairs[index][1], succeeded: pairs[index][0], failed: pairs[index][1] - pairs[index][0] } : row) } });
+
+/**
+ * The bare-bones rhythm (bare.css, at its top), checked on a phone for every answer state rather than by eye: no
+ * two different kinds of block closer than 8 px, and no text centred except the filled button's own label.
+ */
+const RHYTHM_STATES: Array<{ name: string; evaluation: unknown; hash?: string }> = [
+  { name: "paper check", evaluation: null },
+  { name: "was ahead", evaluation: simulationRun },
+  { name: "did best", evaluation: withCounts([[10, 10]]) },
+  { name: "one option", evaluation: { ...simulationRun, screening: { ...simulationRun.screening, candidates: [simulationRun.screening.candidates[0]] } } },
+  { name: "no clear winner", evaluation: withCounts([[1, 1], [0, 1], [0, 1]]) },
+  { name: "none finished, with the set-up notice", evaluation: allZeroEvaluation },
+  { name: "none finished", evaluation: { ...allZeroEvaluation, outcomeCaveat: undefined, screening: { ...allZeroEvaluation.screening!, setupNotes: [] } } },
+  { name: "testing now", evaluation: preparingEvaluation },
+  { name: "the ranked test screen", evaluation: simulationRun, hash: "#details/test" },
+  { name: "the details menu", evaluation: simulationRun, hash: "#details" },
+];
+for (const state of RHYTHM_STATES) {
+  test(`keeps the bare-bones rhythm on a phone: ${state.name}`, async ({ browser }) => {
+    const context = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: "block" });
+    const page = await context.newPage();
+    await mockJob(page, { evaluation: state.evaluation });
+    await page.goto(`/capture-upload/${token}?video=existing${state.hash ?? ""}`);
+    await page.locator(state.hash ? ".site-answer-details h1, .bare-screen h1" : ".site-answer-bare .bare-big, .site-answer-bare .bare-lead").first().waitFor();
+    if (!state.hash && state.evaluation) await page.locator(".site-answer-bare h2.bare-label", { hasText: /tested|did best|was ahead|testing now/i }).waitFor();
+    if (state.hash === "#details/test") await page.getByRole("region", { name: "Ranked", exact: true }).waitFor();
+    const found = await page.evaluate(() => {
+      const KINDS = [".bare-label", ".bare-big", ".bare-sub", ".bare-lead", ".bare-job", ".bare-tick", ".bare-sure-line", ".bare-helper", ".bare-notice",
+        ".bare-done", ".bare-button", ".bare-quiet-button", ".bare-links", ".bare-fine", ".bare-back", ".bare-rows-title", ".bare-row", ".bare-menu", "h1"];
+      const root = [...document.querySelectorAll<HTMLElement>(".bare-screen")].find(node => node.getBoundingClientRect().height > 0)!;
+      const blocks = [...root.querySelectorAll<HTMLElement>(KINDS.join(","))]
+        .filter(node => node.getBoundingClientRect().height > 0 && getComputedStyle(node).visibility !== "hidden")
+        .filter((node, _, all) => !all.some(other => other !== node && other.contains(node)))
+        .map(node => ({ kind: KINDS.find(kind => node.matches(kind))!, text: (node.textContent ?? "").trim().slice(0, 40), box: node.getBoundingClientRect() }));
+      const tight: string[] = [];
+      for (let i = 1; i < blocks.length; i++) {
+        const [before, after] = [blocks[i - 1], blocks[i]];
+        if (before.kind === after.kind || after.box.top < before.box.bottom - 1) continue;
+        const gap = after.box.top - before.box.bottom;
+        if (gap < 7.5) tight.push(`${before.kind} "${before.text}" → ${after.kind} "${after.text}": ${gap.toFixed(1)} px`);
+      }
+      const centred = [...root.querySelectorAll<HTMLElement>("*")].filter(node => node.getBoundingClientRect().height > 0
+        && [...node.childNodes].some(child => child.nodeType === Node.TEXT_NODE && child.textContent!.trim())
+        && getComputedStyle(node).textAlign === "center" && !node.closest(".bare-button"))
+        .map(node => `${node.tagName.toLowerCase()}.${node.className} "${(node.textContent ?? "").trim().slice(0, 40)}"`);
+      return { tight, centred, blocks: blocks.length };
+    });
+    expect(found.blocks).toBeGreaterThanOrEqual(3);
+    expect(found.tight, "blocks of different kinds closer than 8 px").toEqual([]);
+    expect(found.centred, "centred text other than the filled button's label").toEqual([]);
+    await context.close();
+  });
+}

@@ -77,7 +77,7 @@ describe("Blueprint's answer on a job card", () => {
     const { unmount } = render(<JobCardAnswer answer={{ ...ANSWER, headline: "Was ahead on the job: Franka arm + π0.5, doing the job in 7 of 10 tries.", test }} />);
     const block = screen.getByRole("region", { name: JOB_CARD_ANSWER_TITLE });
     expect(within(block).getByText("Was ahead on the job")).toBeVisible();
-    expect(within(block).getByText("Franka arm + π0.5")).toHaveClass("bare-big");
+    expect(block.querySelector(".bare-big")).toHaveTextContent(/^Franka arm \+ π0\.5$/);
     expect(within(block).getByText("AI software by Physical Intelligence")).toBeVisible();
     expect(within(within(block).getByRole("list", { name: "Why" })).getAllByRole("listitem").map(item => item.textContent))
       .toEqual(["✓Did the job in 7 of 10 tries", "✓Ahead of the other AI robot tested"]);

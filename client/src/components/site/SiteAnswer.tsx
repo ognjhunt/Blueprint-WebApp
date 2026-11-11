@@ -1,10 +1,10 @@
 import { useState, type ReactNode } from "react";
 import { withCsrfHeader } from "@/lib/csrf";
 import { JOB_CARD_ANSWER_STATEMENT, JOB_CARD_ANSWER_STATEMENT_VERSION } from "@/lib/jobCardAnswerConsent";
-import { GAP_COULD_BE_CHANCE, GAP_UNLIKELY_CHANCE, testSubLine, type SimulationOption, type SimulationProof as SimulationProofView } from "@/lib/simulationProof";
+import { GAP_COULD_BE_CHANCE, GAP_UNLIKELY_CHANCE, optionParts, testSubLine, type SimulationOption, type SimulationProof as SimulationProofView } from "@/lib/simulationProof";
 import { PLAIN_SETUP_CAVEAT, SimulationTestRows, TrustRows, setupCaveatShown, testNotRunLine, testResultOf, type TestResult } from "./SimulationProof";
 import {
-  BareBack, BareBig, BareButton, BareDone, BareFine, BareGroup, BareLabel, BareLead, BareLinks, BareMenu, BareNotice, BareRows, BareSureness, BareTicks,
+  BareBack, BareBig, BareButton, BareParts, BareDone, BareFine, BareGroup, BareLabel, BareLead, BareLinks, BareMenu, BareNotice, BareRows, BareSureness, BareTicks,
   type BareTickState,
 } from "@/components/bare/Bare";
 import {
@@ -213,7 +213,7 @@ function TestHead({ result }: { result: Exclude<TestResult, null> }) {
     <BareGroup>
       <h2 className="bare-label" id="site-answer-title">{result.kind === "one_option" ? "Tested on your job"
         : result.wording === "did_best" ? "Did best on your job" : "Was ahead on your job"}</h2>
-      <BareBig sub={sub}>{top.label}</BareBig>
+      <BareBig sub={sub}><BareParts parts={optionParts(top.label)} /></BareBig>
     </BareGroup>
     <BareGroup>
       <BareTicks label="Why" items={[{ key: "did", state: "yes", text: didJob(top) },
@@ -275,13 +275,12 @@ export function SiteAnswer({ token, answer, proof, onIntroductionRequested, onEd
   if (test) return <section className="site-answer-bare" aria-label="Your answer">
     <TestHead result={test} />
     {notices.length > 0 && <BareGroup label="Before you rely on this">{notices.map(line => <BareNotice key={line}>{line}</BareNotice>)}</BareGroup>}
-    {/* The paper check, one tap away: what it found, as a quiet line. */}
+    {/* The paper check, one tap away, in its own group: the model only; the maker is on the screen it opens. */}
     <BareGroup>
-      {pick ? <button type="button" className="bare-quiet-button" data-opens="why" onClick={onShowPaper}>
-        {fits ? "On paper, most likely to fit" : "On paper, the closest robot"}: {pick.manufacturer} {pick.name} ›</button>
-        : <button type="button" className="bare-quiet-button" data-opens="why" onClick={onShowPaper}>On paper: {answer.headline} ›</button>}
-      {sceneNotice}
+      <button type="button" className="bare-quiet-button" data-opens="why" onClick={onShowPaper}>
+        {pick ? `On paper${fits ? "" : ", closest"}: ${pick.name} ›` : `On paper: ${answer.headline} ›`}</button>
     </BareGroup>
+    {sceneNotice && <BareGroup>{sceneNotice}</BareGroup>}
     {action}
     <BareLinks links={links} />
     <BareFine>{test.kind === "testing" ? LIMITS_TESTING : LIMITS_TESTED}</BareFine>

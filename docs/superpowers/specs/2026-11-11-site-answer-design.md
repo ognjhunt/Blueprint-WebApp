@@ -181,9 +181,19 @@ before-the-video screens are unchanged by round 3.
   approved. Your video, address and contacts stay private." "This answer" is
   the screen's answer, which the card carries (below). The route records only
   v2; a choice recorded under v1 still carries the answer on the card.
-- **Limits line**: "Checks picking up and putting down only. Not a test at
-  your site; it does not certify performance or safety." The email and the job
-  card keep the full note (`SITE_ANSWER_NOTE`).
+- **Limits line**, by what the headline is (`client/src/lib/siteAnswer.ts`): a
+  test result, "Tested in a simulation, not at your site. Pick-up-and-put-down
+  jobs only. It does not certify performance or safety."; while testing, "Being
+  tested in a simulation, …"; the paper check, "A paper check, not a test at
+  your site. …". The job card says "the site"; the emails use the same lines.
+- **Sureness words** come from one map, `SURENESS_WORDS`, read by the page, the
+  card and the emails.
+- **On-paper line**: "On paper: {model} ›" ("On paper, closest: {model} ›" when
+  it only may fit), its own group, left-aligned.
+- **Spacing**: one rhythm, written at the top of `bare.css` and checked on a
+  phone for every answer state by `e2e/site-answer.spec.ts` ("keeps the
+  bare-bones rhythm"). An option's name breaks on purpose: the robot, then "+ its
+  AI software", each on its own line.
 - **Details** (`#details`, a menu; each item its own screen with "‹ Back"; the
   browser's back button returns to the screen it came from), in this order:
   1. **The simulation test** (`#details/test`), a ranked list: "We ran N AI
@@ -381,18 +391,22 @@ then carries the answer until the site re-saves it under the older box. At intak
 
 ## Emails
 
-One new email, `answer_ready`, is sent once when the answer first settles. It
-says: "If Blueprint runs a simulation of your site, its result appears on the
-same page." The notices that belonged to robot-team-run evaluations are
-suppressed; Blueprint runs evaluations itself.
+`answer_ready` is sent once when the answer first settles. Subject "Your job's
+paper check is ready"; it opens "We've checked your job on paper. {headline}",
+says how sure on paper, then what happens next, in one line true for the job's
+simulation test as the page reads it: "Next, we're testing N AI robots on your
+job, in a simulation of your site. We'll email you the result.", the page's own
+line for why no test runs (then "So this paper check is your answer for now."),
+or, with nothing known yet, "If we test AI robots on your job in a simulation of
+your site, we'll email you the result." One button, the paper limits line as
+fine print.
 
-Neither email has moved to the test-led answer yet (the email files belong
-to another worker in round 3). When the simulation finishes with a result, its email
-(`server/utils/taskLifecycleNotifications.ts`) states the job page's own
-comparison sentence and scene notes, from the same projection. Its subject is
-"Your simulation result is ready" when a compared policy completed the job,
-with how far a published comparison can be trusted; otherwise "The simulation of your
-job has finished", with what the simulation found and no offer of a pilot.
+When the simulation finishes with a result, its email
+(`server/utils/taskLifecycleNotifications.ts`) says the headline the page leads
+with (`testHeadline`), the line under it (`testSubLine`) and the set-up notice
+when flagged. Subject "Your simulation test has a result" when an AI robot
+finished the job, otherwise "The simulation test of your job has finished". One
+button, the tested limits line as fine print.
 
 ## How to check it
 
