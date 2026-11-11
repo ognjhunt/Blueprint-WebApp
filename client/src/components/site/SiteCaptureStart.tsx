@@ -959,10 +959,10 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
 
           {/* Bot bait, honoured by the server. Rendered, so a script that fills every rendered input still fills it, but
               off-screen and clipped, out of the accessibility tree, off the Tab order, and with no text a person could
-              copy (no label). Its name and id mean nothing to browser autofill, and password managers are told to skip it. */}
+              copy (its name is an attribute, never a text node). Its name, id and label mean nothing to browser autofill, and password managers are told to skip it. */}
           <div data-bot-trap aria-hidden="true" style={{ position: "absolute", left: "-9999px", top: "auto", width: 1, height: 1,
             overflow: "hidden", clipPath: "inset(50%)", whiteSpace: "nowrap" }}>
-            <input id="start-hp" name="honeypot" type="text" tabIndex={-1} autoComplete="off" defaultValue=""
+            <input id="start-hp" name="honeypot" type="text" tabIndex={-1} autoComplete="off" defaultValue="" aria-label="Leave empty"
               data-1p-ignore="" data-lpignore="true" data-bwignore="" data-form-type="other" />
           </div>
 

@@ -338,8 +338,9 @@ describe("a site's answer, from an email and a video to a deployment company", (
     expect((await status(token)).outlook).toEqual({ phase: "no_test", reason: "no_grant", sentence: "We have not built a simulation for this job." });
     const paperEmails = () => notices(jobId).filter(row => row.kind !== "task_received" && row.kind !== "video_received");
     expect(paperEmails().map(row => row.idempotencyKey)).toEqual([`${jobId}:scene_outcome:job_no_grant_ended`]);
-    expect(paperEmails()[0].body).toContain("So for now the paper check is your answer. Most likely to fit: ");
-    expect(paperEmails()[0].body).toContain("If a test result comes later, we'll email it.");
+    // A final ending: the paper check is the answer, with no promise of a later result.
+    expect(paperEmails()[0].body).toContain("So the paper check is your answer. Most likely to fit: ");
+    expect(paperEmails()[0].body).not.toContain("If a test result comes later");
     // Reading the page again queues no second answer email.
     await status(token);
     expect(paperEmails()).toHaveLength(1);
@@ -419,7 +420,8 @@ describe("a site's answer, from an email and a video to a deployment company", (
     await vi.waitFor(() => expect(answerNotices(jobId)).toHaveLength(1));
     expect(answerNotices(jobId)[0].body).toContain(answer.reason);
     expect(answerNotices(jobId)[0].body).not.toMatch(/Most likely to fit/);
-    expect(answerNotices(jobId)[0].body).toContain("If a test result comes later, we'll email it.");
+    // The reader's "cannot size" is final: no promise of a later result.
+    expect(answerNotices(jobId)[0].body).not.toContain("If a test result comes later");
     await status(token);
     expect(answerNotices(jobId)).toHaveLength(1);
     // The page's one-line question is driven by the brief read, not the answer.
@@ -429,32 +431,55 @@ describe("a site's answer, from an email and a video to a deployment company", (
   }, 30_000);
 
   const OTHER_KIND = "From your video, the job looks like more than picking an object up and putting it down (folding), which we can't check robots against yet. If that is not right, edit the job description to say what the robot should do, and we will read the video again.";
-  async function expectOtherKind(jobId: string, token: string) {
+  async function expectOtherKind(jobId: string, token: string, typed = false) {
     const { answer } = await status(token);
     expect(answer).toMatchObject({ state: "cannot_assess", headline: "We can't check robots against this job yet.",
       reason: OTHER_KIND, pick: null, runnerUp: null });
     expect(answer.reason).not.toMatch(/evaluation preparation|simulation/i);
-    const rows = answerNotices(jobId);
-    expect(rows).toHaveLength(1);
-    expect(rows[0].subject).toBe("An update on your Blueprint job");
-    expect(rows[0].body).toContain(answer.reason);
-    expect(rows[0].body).not.toMatch(/Most likely to fit|closest is/);
+    // Rewritten (review, 2026-11-11): another kind of job is not an ending while a simulation may still be built, so
+    // the reading queues no email, and the page shows the working screen.
+    // A typed job of a kind we can't simulate yet is already kept on file, so its one email goes once the video is read.
+    expect(answerNotices(jobId)).toHaveLength(typed ? 1 : 0);
+    if (!typed) expect((await status(token)).outlook.phase).toMatch(/^(building|testing)$/);
+    // Its ending is the no-grant wait's: that one email gives the reader's reason, and says there is no paper check.
+    const { sweepWebsiteJobNoGrant } = await import("../utils/websiteJobWindowSweep");
+    const results = [await sweepWebsiteJobNoGrant(jobId, NOW.getTime()), await sweepWebsiteJobNoGrant(jobId, NOW.getTime() + 60 * 86_400_000)];
+    if (typed) {
+      // A job whose typed task is a kind we can't simulate yet is kept on file: a recorded ending (review, 2026-11-11),
+      // so the page gives that answer; the sweep adds no ending email of its own.
+      expect(results).toEqual(["kept_on_file", "kept_on_file"]);
+      expect(notices(jobId).filter(row => row.kind === "scene_outcome")).toHaveLength(0);
+      // The sweep that marks it queues its one paper-slot email, once, with the reader's reason.
+      const kept = answerNotices(jobId);
+      expect(kept).toHaveLength(1);
+      expect(kept[0].body).toContain(`We can't test this kind of job yet. We've kept your job on file. There is no paper check for this job. ${answer.reason}`);
+      expect(kept[0].body).not.toMatch(/test result comes later/);
+      expect((await status(token)).outlook).toEqual({ phase: "cannot_match", reason: "kept_on_file",
+        sentence: "We can't test this kind of job yet. We've kept your job on file." });
+      return;
+    }
+    expect(results).toEqual(["clock_started", "ended_notice_queued"]);
+    const endings = notices(jobId).filter(row => row.kind === "scene_outcome");
+    expect(endings).toHaveLength(1);
+    expect(endings[0].body).toContain(`There is no paper check for this job. ${answer.reason}`);
+    expect(endings[0].body).not.toMatch(/Most likely to fit|closest is|test result comes later/);
+    expect((await status(token)).outlook).toEqual({ phase: "cannot_match", reason: "other_kind", sentence: answer.reason });
   }
 
-  it("says a job of another kind cannot be checked, in the fit check's own words, with one update email", async () => {
+  it("says a job of another kind cannot be checked, in the fit check's own words, and keeps it on file with one email", async () => {
     // The towel job is named in the form's optional task line.
     const { jobId, token } = await startJob("Fold the towels");
     expect(doc(`inboundRequests/${jobId}`).site_task_scope).toMatchObject({ supported: false, reason: "deformable" });
     await sendVideo(token);
     await readVideo(jobId, TOWELS);
-    await expectOtherKind(jobId, token);
+    await expectOtherKind(jobId, token, true);
   }, 30_000);
 
   it("gives no robot pick to a typed towel job even when the reading names the object and a height", async () => {
     const { jobId, token } = await startJob("Fold the towels");
     await sendVideo(token);
     await readVideo(jobId, TOWELS_WITH_HEIGHT);
-    await expectOtherKind(jobId, token);
+    await expectOtherKind(jobId, token, true);
   }, 30_000);
 
   it("reads a towel job from the video alone as another kind, with or without numbers", async () => {
@@ -474,8 +499,13 @@ describe("a site's answer, from an email and a video to a deployment company", (
     const { answer } = await status(token);
     expect(answer.state).toBe("ready");
     expect(answer.headline).toMatch(/^Most likely to fit: /);
-    // A ready paper check is not emailed on its own: the answer comes with the test.
-    expect(answerNotices(jobId)).toEqual([]);
+    // Its scope is a kind we can't simulate yet, so the job is kept on file, a recorded ending (review, 2026-11-11):
+    // the paper check is its answer, emailed once with that reason, never with a later result promised.
+    expect((await status(token)).outlook).toMatchObject({ phase: "cannot_match", reason: "kept_on_file" });
+    const kept = answerNotices(jobId);
+    expect(kept).toHaveLength(1);
+    expect(kept[0].body).toContain(`We can't test this kind of job yet. We've kept your job on file. So the paper check is your answer. ${answer.headline}`);
+    expect(kept[0].body).not.toMatch(/test result comes later/);
   }, 30_000);
 
 });

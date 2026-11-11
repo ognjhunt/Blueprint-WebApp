@@ -125,6 +125,26 @@ async function status(credential = token()) {
 }
 
 describe("GET /api/site-task-brief/:token/status", () => {
+  // Rule 2 (review, 2026-11-11): emails come from recorded events, never from a page read. A job whose ending is
+  // recorded, read again and again, queues nothing.
+  it("queues and sends nothing however often the page reads a job whose ending is recorded", async () => {
+    const answers = await import("../utils/siteAnswer");
+    const spy = vi.spyOn(answers, "loadSiteAnswer").mockResolvedValue({ schemaVersion: "site_answer.v1", state: "ready", reason: null,
+      headline: "Most likely to fit: Universal Robots UR10e.", pick: { name: "UR10e", manufacturer: "Universal Robots" } } as never);
+    try {
+      const { sealWebsiteJobNoGrantEnding, WEBSITE_JOB_NO_GRANT_ENDING_FIELD } = await import("../utils/websiteJobWindowEnding");
+      const record = sharedFakeFirestoreState.docs.get("inboundRequests/req-1")!;
+      sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { ...record, request: { ...(record.request as object), buyerType: "site_operator" },
+        [WEBSITE_JOB_NO_GRANT_ENDING_FIELD]: sealWebsiteJobNoGrantEnding({ request_id: "req-1", waiting_on: "blueprint",
+          waiting_since_epoch: 1_700_000_000, ended_at_epoch: 1_700_100_000, recorded_at_iso: "2026-11-11T00:00:00.000Z", notice: "queued" }) });
+      const before = structuredClone([...sharedFakeFirestoreState.docs]);
+      for (let read = 0; read < 3; read += 1) expect((await status()).body.outlook).toMatchObject({ phase: "no_test", reason: "no_grant" });
+      await new Promise(resolve => setTimeout(resolve, 20));
+      expect(enqueueOutbox).not.toHaveBeenCalled();
+      expect([...sharedFakeFirestoreState.docs]).toEqual(before);
+    } finally { spy.mockRestore(); }
+  });
+
   // The four-conditions screen gates nothing for a job filmed after 2026-11-11 (owner decision): its status follows the
   // outlook like any other job's. An older job, without the marker, keeps the screen's own text.
   it.each(["not_now", "needs_conversation"])("follows the outlook, not the screen's %s, for a job carrying the 2026-11-11 marker", async disposition => {

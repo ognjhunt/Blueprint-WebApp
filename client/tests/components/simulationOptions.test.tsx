@@ -8,7 +8,7 @@ import { SiteAnswer, SiteAnswerDetail } from "@/components/site/SiteAnswer";
 import { AHEAD, CLEAR, probabilityAhead, projectSimulationProof, testResultOf } from "@/lib/simulationProof";
 import { SIMULATION_POLICIES } from "@/data/simulationPolicies";
 import type { JobManagedEvidenceSummary } from "@/types/jobMarketplace";
-import { readyAnswer } from "../fixtures/siteAnswer";
+import { readyAnswer, serverOutlookFor } from "../fixtures/siteAnswer";
 
 vi.mock("@/lib/csrf", () => ({ withCsrfHeader: async (headers: Record<string, string>) => headers }));
 
@@ -106,7 +106,7 @@ describe("the simulation test's options", () => {
       if (winner) expect(top.succeeded, label).toBeGreaterThan(0);
       // The answer screen names row 1, with its own counts; a zero-success option is never called best or ahead.
       const result = testResultOf(proof);
-      const { container, unmount } = render(<SiteAnswer token="t" answer={readyAnswer} proof={proof} />);
+      const { container, unmount } = render(<SiteAnswer token="t" answer={readyAnswer} proof={proof} outlook={serverOutlookFor(readyAnswer, proof)} />);
       const text = container.textContent!;
       if (!options.length) { expect(result, label).toBeNull(); seen.empty++; }
       else {

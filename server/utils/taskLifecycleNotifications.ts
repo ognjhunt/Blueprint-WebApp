@@ -13,7 +13,7 @@ import { noResultObservationText, type NoResultObservation } from "./runNoResult
  * Per-run and per-request events carry an `eventId`, so each one is its own
  * email and a retry of the same event is not.
  */
-import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
+import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { createHash } from "node:crypto";
 import { OUTLOOK_SENTENCES, proofScoredAnyRobot } from "./jobOutlook";
 import { captureUploadUrlFor } from "./captureUploadToken";
@@ -341,8 +341,11 @@ function waitingSinceIso(record: Record<string, any> | undefined, params: Waitin
 export function waitingAnswerNoticeFields(params: WaitingNoticeParams, nowIso: string, record?: Record<string, any>): Record<string, unknown> {
   const { siteAnswer: _answer, simulationProof: _proof, outlook: _outlook, ...plain } = params;
   const slot = noticeSlotId(noticeKeyOf(params));
-  return { [`${ANSWER_NOTICES_WAITING_FIELD}.${slot}`]: { params: JSON.parse(JSON.stringify(plain)),
-    since_iso: waitingSinceIso(record, params) ?? nowIso }, [ANSWER_NOTICES_WAITING_PENDING_FIELD]: true };
+  // The whole map, so an update that replaces the field keeps every other waiting email.
+  const existing = record?.[ANSWER_NOTICES_WAITING_FIELD] && typeof record[ANSWER_NOTICES_WAITING_FIELD] === "object"
+    ? record[ANSWER_NOTICES_WAITING_FIELD] : {};
+  return { [ANSWER_NOTICES_WAITING_FIELD]: { ...existing, [slot]: { params: JSON.parse(JSON.stringify(plain)),
+    since_iso: waitingSinceIso(record, params) ?? nowIso } }, [ANSWER_NOTICES_WAITING_PENDING_FIELD]: true };
 }
 
 /**
@@ -380,9 +383,11 @@ export async function releaseWaitingAnswerNotices(requestId: string): Promise<vo
     } catch (error) { logger.warn({ error, requestId }, "An ending's email that waited stays waiting for the next pass"); }
   }
   if (!done.length) return;
-  const left = Object.keys(waiting).filter(slot => !done.includes(slot)).length;
-  await ref.update({ ...Object.fromEntries(done.map(slot => [`${ANSWER_NOTICES_WAITING_FIELD}.${slot}`, admin.firestore.FieldValue.delete()])),
-    [ANSWER_NOTICES_WAITING_PENDING_FIELD]: left > 0 });
+  await db.runTransaction(async transaction => {
+    const current = (await transaction.get(ref)).data()?.[ANSWER_NOTICES_WAITING_FIELD] ?? {};
+    const left = Object.fromEntries(Object.entries(current).filter(([slot]) => !done.includes(slot)));
+    transaction.update(ref, { [ANSWER_NOTICES_WAITING_FIELD]: left, [ANSWER_NOTICES_WAITING_PENDING_FIELD]: Object.keys(left).length > 0 });
+  });
 }
 
 /** The outbox pump's pass over endings' emails still waiting: each is queued once its reading is done or ran out. */
@@ -670,7 +675,7 @@ function jobNoGrantEndedDetail(params: { eventId?: string; sceneOutcomeKind?: Te
 }
 
 /** The endings whose only email is `answer_ready`: each recorded by the code that calls `notifyIfAnswerSettled`. */
-const ANSWER_READY_ENDINGS: ReadonlySet<string> = new Set(["unsized", "robot_fit_only", "run_ended"]);
+const ANSWER_READY_ENDINGS: ReadonlySet<string> = new Set(["unsized", "robot_fit_only", "run_ended", "authority_ended", "kept_on_file"]);
 
 /**
  * The paper-check answer for an ending that has no email of its own: the video reader's final "cannot size this
@@ -679,6 +684,8 @@ const ANSWER_READY_ENDINGS: ReadonlySet<string> = new Set(["unsized", "robot_fit
  */
 function answerReadyDetail(answer: SiteAnswer | undefined, outlook: JobOutlookView | null | undefined): string {
   if (!answerEmailDue(answer, outlook)) throw new Error("answer_ready_notice_invalid");
+  // Kept on file: its own sentence, then plainly whether there is a paper check, with the reader's reason.
+  if (outlook!.reason === "kept_on_file") return `${outlook!.sentence} ${paperLine(answer, { hold: false })}`;
   if (answer.state === "cannot_assess") return `${answer.headline}\n\n${answer.reason}`;
   return `${outlook!.sentence ?? "A simulation test has not run on your job."} ${paperLine(answer, { hold: false })}\n\n${finePrint(LIMITS_PAPER)}`;
 }
@@ -687,7 +694,8 @@ type JobOutlookView = { phase: string; reason?: string | null; sentence: string 
 /** The answer email is due: the outlook is one of its recorded endings, and the answer is read. */
 export function answerEmailDue(answer: SiteAnswer | null | undefined, outlook: JobOutlookView | null | undefined): answer is SiteAnswer {
   if (!answer || !outlook || answer.state === "reading") return false;
-  if (outlook.phase !== "no_test" || !ANSWER_READY_ENDINGS.has(String(outlook.reason))) return false;
+  if (!(outlook.phase === "no_test" || (outlook.phase === "cannot_match" && outlook.reason === "kept_on_file"))
+    || !ANSWER_READY_ENDINGS.has(String(outlook.reason))) return false;
   return answer.state === "cannot_assess" ? Boolean(answer.reason) : Boolean(answer.pick) || answer.state === "ready";
 }
 

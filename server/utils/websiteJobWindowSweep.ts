@@ -328,9 +328,18 @@ function noGrantSkip(record: Record<string, any> | undefined, requestId: string)
   if (recordedWebsiteJobNoGrantEnding(record, requestId)) return "ending_recorded";
   if (record.capture_withdrawal || projectWebsiteCaptureRights(record).consent_revoked) return "withdrawn";
   if (websiteRunClosure(record, requestId, siteWalkthroughIdentity(requestId, record).captureId)) return "owner_closed";
-  const scope = record.site_task_scope;
-  if (scope?.supported === false && !SITE_STEP_SCOPE_REASONS.has(String(scope.reason ?? ""))) return "kept_on_file";
+  if (websiteJobKeptOnFile(record)) return "kept_on_file";
   return null;
+}
+
+/**
+ * A job of a kind we can't simulate yet, with no grant: kept on file, a recorded ending (review, 2026-11-11). Its one
+ * email is the "can't simulate this kind of job yet" one, queued where the job's scope is recorded.
+ */
+export function websiteJobKeptOnFile(record: Record<string, any> | undefined): boolean {
+  const scope = record?.site_task_scope;
+  return Boolean(record && !record.website_scene_sponsorship && scope?.supported === false
+    && !SITE_STEP_SCOPE_REASONS.has(String(scope.reason ?? "")));
 }
 
 /**
@@ -371,6 +380,12 @@ export async function sweepWebsiteJobNoGrant(requestId: string, nowMs = Date.now
   const jobRef = store.collection(JOBS).doc(requestId);
   observed ??= (await jobRef.get()).data();
   const early = noGrantSkip(observed, requestId);
+  // Kept on file is a recorded ending (review, 2026-11-11): the pass that marks it queues its one paper-slot email,
+  // idempotently, with the reader's reason. A "can't simulate this kind of job yet" email already sent fills the slot.
+  if (early === "kept_on_file") {
+    const { notifyIfAnswerSettled } = await import("./taskLifecycleNotifications");
+    await notifyIfAnswerSettled(requestId).catch(error => logger.warn({ error, requestId }, "Could not queue the kept-on-file email"));
+  }
   if (early) return early;
   const brief = await noGrantJobBrief(requestId);
   if (!brief) return "not_a_job";

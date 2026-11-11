@@ -163,3 +163,25 @@ describe("the screen holds nothing for a job past its cutover", () => {
     expect(clampRecommendationToGates(triage, result).requiresHumanReview).toBe(true);
   });
 });
+
+// Restored (review, 2026-11-11): the link-token checks that went with the ended qualification email, now on the one
+// function that issues every job link (`captureUploadUrlFor`).
+describe("the job link is a real, verifiable credential", () => {
+  it("opens exactly the job's own walkthrough prefix, the same one every time, and nothing once altered", async () => {
+    const { captureUploadUrlFor, verifyCaptureUploadToken } = await import("../utils/captureUploadToken");
+    const tokenOf = (url: string) => url.split("/capture-upload/")[1];
+    const first = captureUploadUrlFor("req-1");
+    expect(first).toContain("/capture-upload/");
+    expect(verifyCaptureUploadToken(tokenOf(first))).toMatchObject({ kind: "capture_upload", requestId: "req-1",
+      sceneId: "site-req-1", captureId: "walkthrough-req-1", scope: "owner" });
+    // A second link for the same job points at the same prefix, never a new empty capture.
+    const second = verifyCaptureUploadToken(tokenOf(captureUploadUrlFor("req-1")));
+    expect({ sceneId: second?.sceneId, captureId: second?.captureId }).toEqual({ sceneId: "site-req-1", captureId: "walkthrough-req-1" });
+    // A film link carries only the film scope.
+    expect(verifyCaptureUploadToken(tokenOf(captureUploadUrlFor("req-1", "film")))).toMatchObject({ scope: "film", captureId: "walkthrough-req-1" });
+    // Altered by one character, it opens nothing.
+    const token = tokenOf(first);
+    const tampered = `${token.slice(0, -1)}${token.endsWith("A") ? "B" : "A"}`;
+    expect(verifyCaptureUploadToken(tampered)).toBeNull();
+  });
+});

@@ -582,3 +582,22 @@ it("v2 status transaction refuses concurrent authority/account changes",async()=
     await expect(syncWebsitePreparationStatus(f.selected)).rejects.toThrow();expect(runtime.txWrites).toBe(0);
   }
 });
+
+// Review, 2026-11-11: an ended authority is a recorded ending, and the sync that records it queues its paper-check
+// email in the same step, as the geometry-only end does. Other states queue nothing here.
+it("asks for the answer email where an ended authority, or the geometry-only end, is recorded, and nowhere else", async () => {
+  const notices = await import("../utils/taskLifecycleNotifications");
+  const asked = vi.spyOn(notices, "notifyIfAnswerSettled").mockResolvedValue({ enqueued: true });
+  try {
+    for (const [label, status, expected] of [["authority ended", receipt("authority_ended"), true],
+      ["geometry-only end", v5("awaiting_inputs", robotFit("geometry_only")), true],
+      ["preparing", receipt("preparing"), false]] as const) {
+      asked.mockClear();
+      const h = harness();
+      h.ledger(status);
+      await syncWebsitePreparationStatus(selector, h.deps);
+      await new Promise(resolve => setTimeout(resolve, 10));
+      expect(asked.mock.calls.map(([id]) => id), label).toEqual(expected ? ["r1"] : []);
+    }
+  } finally { asked.mockRestore(); }
+});

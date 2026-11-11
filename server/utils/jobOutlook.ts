@@ -35,6 +35,8 @@ export interface JobOutlookInput {
   windowEnded: boolean;
   /** The no-grant sweep recorded the end of the job's wait for a grant. */
   noGrantEnded: boolean;
+  /** A job of a kind we can't simulate yet, with no grant: the no-grant sweep keeps it on file (`websiteJobKeptOnFile`). */
+  keptOnFile?: boolean;
   /** The Pipeline's preparation status, as verified. */
   preparation: { state: string; geometryOnlyEnd: boolean } | null;
   /** The scene's progression after hand-off. */
@@ -62,7 +64,8 @@ export const proofScoredAnyRobot = (proof: SimulationProof | null | undefined) =
  * - a finished evaluation: a result when it scored an AI robot, else "no AI robot could be scored";
  * - an evaluation record in a terminal state, or held (`could_not_run`);
  * - a scene outcome recorded as final (`held`, `ended`);
- * - preparation `failed_terminal`;
+ * - preparation `failed_terminal`, and the Pipeline's `authority_ended`;
+ * - a job of a kind we can't simulate yet kept on file by the no-grant sweep (`cannot_match`);
  * - the job window's ending, and the no-grant wait's ending, each written by its sweep (another kind of job, with
  *   no grant at the end of that wait, is `cannot_match`);
  * - a robot-fit-only end recorded by the Pipeline;
@@ -98,7 +101,9 @@ function recordedEnding(input: JobOutlookInput,
   if (input.scene?.state === "held") return outlook("no_test", "scene_held");
   if (input.scene?.state === "ended") return outlook("no_test", "scene_stopped");
   if (input.preparation?.state === "failed_terminal") return outlook("no_test", "preparation_failed");
+  if (input.preparation?.state === "authority_ended") return outlook("no_test", "authority_ended");
   if (input.windowEnded === true) return outlook("no_test", "window_expired");
+  if (input.keptOnFile === true) return outlook("cannot_match", "kept_on_file");
   if (input.noGrantEnded === true) return answer?.state === "cannot_assess" && !answer.unsized && answer.reason
     ? outlook("cannot_match", "other_kind", answer.reason) : outlook("no_test", "no_grant");
   if (input.preparation?.geometryOnlyEnd === true) return outlook("no_test", "robot_fit_only");
@@ -157,7 +162,8 @@ export async function loadJobOutlookDecision(requestId: string): Promise<{ outlo
   try {
     const [{ readSiteManagedEvidence }, { projectSimulationProof }] = await Promise.all([
       import("./siteManagedEvidence"), import("../../client/src/lib/simulationProof")]);
-    const { managedEvidence } = await readSiteManagedEvidence(requestId);
+    const { managedEvidence, managedEvidenceUnavailable } = await readSiteManagedEvidence(requestId);
+    if (managedEvidenceUnavailable) uncertain = true;
     proof = managedEvidence.length ? projectSimulationProof({ evaluation: managedEvidence as never, pick: null }) : null;
   } catch { uncertain = true; }
   const answer = await loadSiteAnswer(requestId).catch(() => null);
@@ -170,7 +176,9 @@ export async function loadJobOutlookDecision(requestId: string): Promise<{ outlo
     answer: outlookAnswerOf(answer),
     windowEnded: Boolean(recordedWebsiteJobWindowEnding(record)),
     noGrantEnded: Boolean(recordedWebsiteJobNoGrantEnding(record, requestId)),
+    keptOnFile: (await import("./websiteJobWindowSweep")).websiteJobKeptOnFile(record),
     preparation, scene, proof, uncertain,
   });
-  return { outlook, certain: !uncertain };
+  // The site's own ending is a recorded fact whatever else could not be read.
+  return { outlook, certain: !uncertain || outlook.phase === "ended_by_site" };
 }

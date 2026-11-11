@@ -1,9 +1,19 @@
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { SHARED_WITHOUT_ANSWER, SiteAnswer, SiteAnswerDetail, SiteAnswerDetails, detailScreens, evidenceTick, sureReason, ticksOf, type DetailScreen } from "@/components/site/SiteAnswer";
+import { SHARED_WITHOUT_ANSWER, SiteAnswer as SiteAnswerScreen, SiteAnswerDetail, SiteAnswerDetails, detailScreens, evidenceTick, sureReason, ticksOf, type DetailScreen } from "@/components/site/SiteAnswer";
 import { projectSimulationProof } from "@/lib/simulationProof";
 import { REASON_UNSIZED, UNKNOWN_JOB_KIND, UNKNOWN_MULTI_STEP, type AnswerRobot } from "@/lib/siteAnswer";
-import { allZeroEvaluation, cannotAssessAnswer, noPickAnswer, preparingEvaluation, readingAnswer, readyAnswer, winnerEvaluation } from "../fixtures/siteAnswer";
+import { allZeroEvaluation, cannotAssessAnswer, noPickAnswer, preparingEvaluation, readingAnswer, readyAnswer, serverOutlookFor, winnerEvaluation } from "../fixtures/siteAnswer";
+import type { ComponentProps } from "react";
+
+/**
+ * The answer screen as the job page renders it: with the outlook the server sends for that answer and proof. The
+ * screen itself shows the working screen when no outlook came (review, 2026-11-11); a test about the phase passes its
+ * own outlook, or null, and that is used as given.
+ */
+function SiteAnswer(props: ComponentProps<typeof SiteAnswerScreen>) {
+  return <SiteAnswerScreen {...props} outlook={"outlook" in props ? props.outlook : serverOutlookFor(props.answer, props.proof ?? null)} />;
+}
 
 vi.mock("@/lib/csrf", () => ({ withCsrfHeader: async (headers: Record<string, string>) => ({ ...headers, "X-CSRF-Token": "local-test" }) }));
 const fetchMock = vi.fn();
@@ -217,6 +227,43 @@ describe("the site's answer, bare bones", () => {
       proof={projectSimulationProof({ evaluation: [{ ...winnerEvaluation, outcome: "held_capability" as const }], pick: readyAnswer.pick })} />);
     expect(screen.getByRole("heading", { level: 2, name: "On paper, the robot most likely to fit" })).toBeVisible();
     expect(screen.getByRole("button", { name: FIND })).toBeVisible();
+  });
+
+  // Rule 1 (review, 2026-11-11): when unsure, the job is still being worked on.
+  it("shows the working screen, never the paper check or the button, when no outlook came", () => {
+    const { unmount } = render(<SiteAnswerScreen token="owner-token" answer={readyAnswer} proof={null} outlook={null} />);
+    expect(screen.getByRole("heading", { level: 2, name: "Getting ready" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: FIND })).toBeNull();
+    expect(screen.queryByText(/On paper|UR10e/)).toBeNull();
+    unmount();
+    // A run under way with no outlook: testing, still nothing to share.
+    render(<SiteAnswerScreen token="owner-token" answer={readyAnswer} outlook={null}
+      proof={projectSimulationProof({ evaluation: [{ ...preparingEvaluation, state: "running" }], pick: readyAnswer.pick })} />);
+    expect(screen.getByRole("heading", { level: 2, name: "Testing now" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: FIND })).toBeNull();
+  });
+
+  it("shows testing, never the paper check, when the result has not loaded yet, and never says 0 AI robots", () => {
+    render(<SiteAnswerScreen token="owner-token" answer={readyAnswer} proof={null} outlook={{ phase: "result", reason: null, sentence: null }} />);
+    expect(screen.getByRole("heading", { level: 2, name: "Testing now" })).toBeVisible();
+    expect(screen.getByText("AI robots", { exact: true })).toBeVisible();
+    expect(screen.queryByText(/0 AI robots/)).toBeNull();
+    expect(screen.queryByRole("button", { name: FIND })).toBeNull();
+    expect(screen.queryByText(/On paper/)).toBeNull();
+  });
+
+  it("says a shared job is shared on the other-kind and no-pick screens, and that it asked, while building", () => {
+    const shared = { introductionRequestedAtIso: "2026-11-10T09:00:00.000Z", jobCardListed: true };
+    const { unmount } = render(<SiteAnswer token="owner-token" answer={{ ...cannotAssessAnswer, ...shared }} />);
+    expect(screen.getByText("✓ Shared. We'll email you when a company replies.")).toBeVisible();
+    unmount();
+    const { unmount: second } = render(<SiteAnswer token="owner-token" answer={{ ...noPickAnswer, ...shared }}
+      outlook={{ phase: "no_test", reason: "no_grant", sentence: "We have not built a simulation for this job." }} />);
+    expect(screen.getByText("✓ Shared. We'll email you when a company replies.")).toBeVisible();
+    second();
+    render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, introductionRequestedAtIso: "2026-11-10T09:00:00.000Z", jobCardListed: false }}
+      outlook={{ phase: "building", reason: null, sentence: null }} />);
+    expect(screen.getByText("You asked on November 10, 2026. Blueprint will set up your job card and email you.")).toBeVisible();
   });
 
   it("keeps the Shared line, and offers no button, while the job is building or testing", () => {

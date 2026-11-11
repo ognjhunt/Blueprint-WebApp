@@ -165,13 +165,14 @@ test("desktop: email and video in, the answer on the job page, a deployment comp
   await expect(answer(page).getByRole("status")).toHaveText("✓ Shared. We'll email you when a company replies.", { timeout: 45_000 });
   await expect(answer(page).getByRole("button", { name: "Find a company to set it up" })).toHaveCount(0);
 
-  // (c) One paper-check email, from the ending (review, 2026-11-11): why no test ran, the paper check as the answer
-  // for now, and that a later result would be emailed. Never delivered here.
+  // (c) One paper-check email, queued by the sweep that recorded the ending (review, 2026-11-11): why no test ran, and
+  // the paper check as the answer. Never delivered here.
   const answers = async () => (await outbox(request, requestId)).filter(row => ["answer_ready", "scene_outcome", "evaluation_outcome", "preparation_ended"].includes(row.kind));
   const paper = await answers();
   expect(paper.map(row => row.idempotencyKey)).toEqual([`${requestId}:scene_outcome:job_no_grant_ended`]);
-  expect(paper[0].body).toContain("So for now the paper check is your answer.");
-  expect(paper[0].body).toContain("If a test result comes later, we'll email it.");
+  // A final ending: the paper check is the answer, with no promise of a later result (review, 2026-11-11).
+  expect(paper[0].body).toContain("So the paper check is your answer.");
+  expect(paper[0].body).not.toContain("If a test result comes later");
   expect(headline).toBeTruthy();
   // A second pass of the review settles nothing new and queues no email.
   expect((await tick(request, requestId)).videoModelCalls).toBe(0);

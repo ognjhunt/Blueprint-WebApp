@@ -463,8 +463,10 @@ export async function syncWebsitePreparationStatus(raw: unknown, deps = defaultD
   const selector = websitePreparationSelectorSchema.parse(raw);
   const {latest, authority} = await boundedRead(signal => latestVerified(selector, deps, signal));
   await deps.commit(selector, latest, authority);
-  // A geometry-only job ends at its robot fit check: that ending gives the site its paper-check answer now.
-  if (latest.state === "awaiting_inputs" && "robot_fit" in latest && latest.robot_fit?.route === "geometry_only") {
+  // A geometry-only job ends at its robot fit check, and an ended authority ends the job before a test ran: either
+  // ending gives the site its paper-check answer now, queued here where it is recorded.
+  if ((latest.state === "awaiting_inputs" && "robot_fit" in latest && latest.robot_fit?.route === "geometry_only")
+    || latest.state === "authority_ended") {
     void import("./taskLifecycleNotifications").then(({ notifyIfAnswerSettled }) => notifyIfAnswerSettled(selector.request_id))
       .catch(() => undefined);
   }

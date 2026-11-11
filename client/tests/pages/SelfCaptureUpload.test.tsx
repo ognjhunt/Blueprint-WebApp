@@ -12,7 +12,8 @@ import { act, fireEvent, render, screen, waitFor, within } from "@testing-librar
 import SelfCaptureUpload from "@/pages/SelfCaptureUpload";
 import { RECORDING_RIGHTS_STATEMENT } from "@/lib/recordingRightsStatement";
 import { processingFailure } from "../../../server/utils/taskPreparationOutcome";
-import { allZeroEvaluation, cannotAssessAnswer, readingAnswer, readyAnswer, winnerEvaluation } from "../fixtures/siteAnswer";
+import { allZeroEvaluation, cannotAssessAnswer, readingAnswer, readyAnswer, serverOutlookFor, winnerEvaluation } from "../fixtures/siteAnswer";
+import { projectSimulationProof } from "@/lib/simulationProof";
 
 const route = vi.hoisted(() => ({ token: "tok-e2e", navigate: vi.fn() }));
 vi.mock("wouter", () => ({ useRoute: () => [true, { token: route.token }], useLocation: () => ["/capture-upload/test", route.navigate] }));
@@ -1118,7 +1119,7 @@ describe("the site's answer leads its job page", () => {
     briefAgreed: true, optionsAssessed: false, reviewRequired: false, nextAction: "Blueprint is preparing your job.", actionOwner: "blueprint",
     review: null, managedEvidence });
   function answerFetch({ answer, scope = "owner", decision = "footage_received", confirmedAtIso = null, workflow = null,
-    headline = "We have your recording.", operatorAction = null, outcome = null, outlook = null }: {
+    headline = "We have your recording.", operatorAction = null, outcome = null, outlook = undefined }: {
     answer: unknown; scope?: "owner" | "film"; decision?: string; confirmedAtIso?: string | null; workflow?: unknown;
     headline?: string; operatorAction?: string | null; outcome?: unknown; outlook?: unknown;
   }) {
@@ -1127,7 +1128,10 @@ describe("the site's answer leads its job page", () => {
       if (url.endsWith(`/api/self-capture/uploads/${TOKEN}/status`)) return Promise.resolve({ ok: true, json: async () => ({
         ok: true, state: "open", accepts: ["mov", "mp4"], captureReceived: true, uploadState: "processing_ready" }) });
       if (url === `/api/site-task-brief/${TOKEN}/status`) return Promise.resolve({ ok: true, json: async () => ({
-        scope, captureReceived: true, answer, robotFit, outlook,
+        // The outlook the server sends for this answer and its results, unless the test sets one.
+        scope, captureReceived: true, answer, robotFit, outlook: outlook !== undefined ? outlook : answer && scope === "owner"
+          ? serverOutlookFor(answer as never, projectSimulationProof({ evaluation: ((workflow as { managedEvidence?: unknown[] } | null)?.managedEvidence ?? []) as never, pick: null }))
+          : null,
         status: { decision, headline, operatorAction, outcome, missingViews: [], nextUpdateIso: null } }) });
       if (url === `/api/site-task-brief/${TOKEN}`) return Promise.resolve({ ok: true, json: async () => ({ ready: true, scope, brief: {
         summary: "Move cartons from the end of the conveyor onto the pallet.", captureMode: "self_capture", proposed: [], unresolved: [], confirmedAtIso } }) });

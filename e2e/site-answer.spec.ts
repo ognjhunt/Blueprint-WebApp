@@ -1,6 +1,7 @@
 import { devices, expect, test, type Page } from "@playwright/test";
 import { bareRhythmFindings } from "./helpers/bare-rhythm";
-import { SCENE_NOTE_BEYOND_REACH, allZeroEvaluation, preparingEvaluation, readyAnswer, winnerEvaluation } from "../client/tests/fixtures/siteAnswer";
+import { SCENE_NOTE_BEYOND_REACH, allZeroEvaluation, preparingEvaluation, readyAnswer, serverOutlookFor, winnerEvaluation } from "../client/tests/fixtures/siteAnswer";
+import { projectSimulationProof } from "../client/src/lib/simulationProof";
 
 /**
  * The site's job page leads with its answer. Every API the page reads is
@@ -50,6 +51,8 @@ async function mockJob(page: Page, { evaluation = simulationRun as unknown, list
       summary: readyAnswer.job.sentence, captureMode: "self_capture", proposed: [], unresolved: [], confirmedAtIso: null } } });
     if (path === `/api/site-task-brief/${token}/status`) return route.fulfill({ json: {
       scope: "owner", captureReceived: true, answer: { ...readyAnswer, introductionRequestedAtIso: requestedAtIso, jobCardListed: requestedAtIso !== null && listed },
+      // The job's outlook as the server decides it for this answer and evaluation (the page renders by it).
+      outlook: serverOutlookFor(readyAnswer, projectSimulationProof({ evaluation: (evaluation ? [evaluation] : []) as never, pick: null })),
       status: { decision: "footage_received", headline: "We have your recording.", operatorAction: null, missingViews: [], nextUpdateIso: null } } });
     if (path === `/api/site-task-brief/${token}/introduction-request` && method === "POST") {
       introductions.push({ csrf: route.request().headers()["x-csrf-token"] });

@@ -3,6 +3,8 @@
  * link points at `example.test`, and no quote or figure here is a real claim.
  */
 import { SITE_ANSWER_NOTE, SITE_ANSWER_SCHEMA, type SiteAnswer } from "../../src/lib/siteAnswer";
+import { testNotRunLine, testResultOf } from "../../src/lib/simulationProof";
+import type { JobOutlook } from "../../src/lib/jobOutlook";
 import type { JobManagedEvidenceSummary as Evaluation } from "../../src/types/jobMarketplace";
 
 const DIGEST = `sha256:${"c".repeat(64)}`;
@@ -213,3 +215,20 @@ export const preparingEvaluation: Evaluation = evaluationOf("fixture-preparing",
   evaluationCandidate("pi05_droid", "π0.5 DROID", 0, 0, { state: "pending" }),
   evaluationCandidate("groot_n17_droid", "GR00T N1.7 DROID", 0, 0, { state: "pending" }),
 ]);
+
+/**
+ * The outlook the server would send with an answer and its proof, for tests about the screens themselves: the answer
+ * screen renders by the server's phase and, with none, shows the working screen (review, 2026-11-11). A test about the
+ * phase rule passes its own outlook, or null.
+ */
+export function serverOutlookFor(answer: { state: string; reason?: string | null }, proof: unknown): JobOutlook {
+  const view = proof as Parameters<typeof testResultOf>[0];
+  if (answer.state === "reading") return { phase: "reading", reason: null, sentence: null };
+  if (answer.state === "cannot_assess") return { phase: "cannot_match", reason: "other_kind", sentence: answer.reason ?? null };
+  const test = testResultOf(view);
+  const state = (view as { state?: string } | null)?.state;
+  if (test?.kind === "testing" || state === "running") return { phase: "testing", reason: null, sentence: null };
+  if (test) return { phase: "result", reason: null, sentence: null };
+  if (state === "preparing") return { phase: "building", reason: null, sentence: null };
+  return { phase: "no_test", reason: null, sentence: testNotRunLine(view) };
+}

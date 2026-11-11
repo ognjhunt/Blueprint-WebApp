@@ -30,6 +30,8 @@ const ENDINGS: Array<[string, Partial<JobOutlookInput>, string, string]> = [
   ["job window ended", { windowEnded: true }, "no_test", "window_expired"],
   ["no grant by the end of the wait", { noGrantEnded: true }, "no_test", "no_grant"],
   ["preparation failed_terminal", { preparation: { state: "failed_terminal", geometryOnlyEnd: false } }, "no_test", "preparation_failed"],
+  ["preparation authority_ended", { preparation: { state: "authority_ended", geometryOnlyEnd: false } }, "no_test", "authority_ended"],
+  ["kept on file by the no-grant sweep", { answer: OTHER, keptOnFile: true }, "cannot_match", "kept_on_file"],
   ["scene outcome final: held", { preparation: { state: "handed_off", geometryOnlyEnd: false }, scene: { state: "held" } }, "no_test", "scene_held"],
   ["scene outcome final: ended", { preparation: { state: "handed_off", geometryOnlyEnd: false }, scene: { state: "ended" } }, "no_test", "scene_stopped"],
   ...["failed", "blocked", "cancelled", "closed", "forward_terminal_blocked", "control_plane_terminal_blocked"].map(state =>
@@ -45,7 +47,7 @@ const ENDINGS: Array<[string, Partial<JobOutlookInput>, string, string]> = [
 /** A deterministic spread of states that are not recorded endings: real ones, made-up names, and nulls everywhere. */
 function* notEndings(): Generator<[string, JobOutlookInput]> {
   const preparations = [null, ...["preparing", "capacity_delayed", "awaiting_inputs", "failed_retryable", "unavailable", "handed_off",
-    "authority_ended", "never_seen_state", "", "FAILED_TERMINAL"].map(state => ({ state, geometryOnlyEnd: false }))];
+    "never_seen_state", "", "FAILED_TERMINAL"].map(state => ({ state, geometryOnlyEnd: false }))];
   const scenes = [null, ...["waiting", "in_progress", "testing", "evaluated", "completed", "made_up_scene", ""].map(state => ({ state }))];
   const proofs: Array<SimulationProof | null> = [null,
     proofOf({ state: "queued", outcome: null, screening: { candidates: [] } }),
@@ -74,6 +76,12 @@ describe("the job's outlook, from the rule", () => {
     expect(jobOutlook(base({ noGrantEnded: true })).sentence).toBe("We have not built a simulation for this job.");
     expect(jobOutlook(base({ scene: { state: "held" } })).sentence).toBe("The simulation test of your job is on hold.");
     expect(jobOutlook(base({ answer: OTHER, noGrantEnded: true })).sentence).toBe(OTHER.reason);
+    expect(jobOutlook(base({ preparation: { state: "authority_ended", geometryOnlyEnd: false } })).sentence)
+      .toBe(jobOutlook(base({ windowEnded: true })).sentence);
+    expect(jobOutlook(base({ answer: OTHER, keptOnFile: true })).sentence).toBe("We can't test this kind of job yet. We've kept your job on file.");
+    // A published result outranks both.
+    expect(jobOutlook(base({ keptOnFile: true, proof: proofOf({}) })).phase).toBe("result");
+    expect(jobOutlook(base({ preparation: { state: "authority_ended", geometryOnlyEnd: false }, proof: proofOf({}) })).phase).toBe("result");
   });
 
   it("is a result only for a finished test that scored an AI robot", () => {

@@ -331,7 +331,7 @@ export function SiteAnswer({ token, answer, proof, onIntroductionRequested, onEd
   </section>;
 
   // The paper check leads: the server's reason sentence for the ending, else the proof's own line.
-  const notRun = (phase === "no_test" || phase === "ended_by_site" ? outlook?.sentence : null) ?? testNotRunLine(proof);
+  const notRun = (phase === "no_test" || phase === "ended_by_site" || phase === "cannot_match" ? outlook?.sentence : null) ?? testNotRunLine(proof);
   if (!pick) return <section className="site-answer-bare" aria-label="Your answer">
     <BareGroup>
       <h2 className="bare-label" id="site-answer-title">On paper</h2>

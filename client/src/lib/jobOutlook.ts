@@ -7,7 +7,7 @@ export type JobOutlookReason =
   | "permission_withdrawn" | "closed_by_owner"
   | "window_expired" | "no_grant" | "preparation_failed" | "scene_held" | "scene_stopped"
   | "run_held" | "run_ended" | "no_ai_robot_scored" | "robot_fit_only" | "unsized"
-  | "step_failed" | "other_kind";
+  | "step_failed" | "other_kind" | "authority_ended" | "kept_on_file";
 export interface JobOutlook {
   phase: JobPhase;
   reason: JobOutlookReason | null;
@@ -20,6 +20,10 @@ export const OUTLOOK_SENTENCES: Readonly<Record<Exclude<JobOutlookReason, "run_h
   permission_withdrawn: "Permission to use your video was withdrawn, so this job has stopped.",
   closed_by_owner: "You closed this job's simulation run.",
   window_expired: "The time for this job ran out before a simulation test could run.",
+  // The Pipeline's own record that the job's authority ended before a test ran: said as the window ending is.
+  authority_ended: "The time for this job ran out before a simulation test could run.",
+  // A job of a kind we can't simulate yet, kept on file by the no-grant sweep: no simulation is coming for now.
+  kept_on_file: "We can't test this kind of job yet. We've kept your job on file.",
   no_grant: "We have not built a simulation for this job.",
   preparation_failed: "We could not build a simulation of your site.",
   // True for every hold it covers: a scene outcome held, and an evaluation held for capability, set-up, budget or a

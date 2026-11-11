@@ -1646,6 +1646,9 @@ describe("the bot trap", () => {
     expect(trap()).toHaveAttribute("tabindex", "-1");
     expect(trap()).toHaveAttribute("autocomplete", "off");
     expect(trap().id).not.toMatch(/web|url|site|name|mail|phone|address|company/i);
+    // Named for checkers only through an attribute, never a text node, with no word autofill reads as a field it knows.
+    expect(trap()).toHaveAttribute("aria-label", "Leave empty");
+    expect(trap().getAttribute("aria-label")).not.toMatch(/web|url|site|name|mail|phone|address|company/i);
   });
 
   it("still sends a filled trap to the server, which answers a script with a fake success", async () => {

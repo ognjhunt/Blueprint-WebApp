@@ -5,6 +5,8 @@ const { PNG } = createRequire(import.meta.url)("pngjs");
 const taskPhoto = PNG.sync.write({ width: 480, height: 300, data: Buffer.alloc(480 * 300 * 4, 180) });
 const out = "output/qa/onboarding-p1";
 const card = { id: "task-1", title: "Move sealed cartons from conveyor to pallet", taskFamily: "Palletizing", siteType: "Warehouse", region: "US Midwest", objects: "Sealed cartons", cycleTarget: "12 seconds", pilotTiming: "October", pilotBudget: "$20,000", pilotPriceStatus: "site_offer", pilotConditions: "Four weeks including setup and provider support", ongoingTarget: "$5,000 per month", opportunity: "open", stage: "ready", evaluationAvailable: true, costUsd: 25, thumbnailUrl: null, publishedAtIso: "2026-09-19T00:00:00Z" };
+/** The job's outlook the status route sends; the card-approval test gives the job its answer part way. */
+let statusOutlook: unknown = null;
 async function fixtures(page: Page, items: unknown[] | { gated: true } = [card, { ...card, id: "task-2", title: "Sort small rigid parts into bins", taskFamily: "Pick and place", objects: "Small rigid parts", cycleTarget: "15 seconds", siteType: "Assembly area", pilotTiming: "Past opportunity", opportunity: "past" }, { ...card, id: "task-3", title: "Transfer trays between two stations", taskFamily: "Transport", objects: "Loaded trays", siteType: "Manufacturing", cycleTarget: "20 seconds", pilotTiming: "November", stage: "capture", evaluationAvailable: false, costUsd: null }]) {
   const mutations: { path: string; body: any }[] = [];
   await page.addLocatorHandler(page.getByRole("button", { name: "Reject all", exact: true }), async button => { await button.click(); });
@@ -23,7 +25,7 @@ async function fixtures(page: Page, items: unknown[] | { gated: true } = [card, 
     else if (path === "/api/inbound-request") data = { ok: true, requestId: "task-1", captureUrl: "http://127.0.0.1:42931/capture-upload/owner-fixture" };
     else if (path.startsWith("/api/self-capture/uploads/") && path.endsWith("/status")) data = { ok: true, state: "ready", uploadState: "not_received", captureReceived: false, accepts: ["mov", "mp4"], expiresAt: "2099-01-01T00:00:00Z" };
     else if (/^\/api\/self-capture\/uploads\/[^/]+$/.test(path) && req.method() === "GET") throw new Error("Receipt checks must use the pure upload status endpoint.");
-    else if (path.startsWith("/api/site-task-brief/") && path.endsWith("/status")) data = { ok: true, status: { decision: "received", headline: "We have your task and are checking your footage.", operatorAction: null, missingViews: [], nextUpdateIso: "2099-09-21T12:00:00Z" } };
+    else if (path.startsWith("/api/site-task-brief/") && path.endsWith("/status")) data = { ok: true, outlook: statusOutlook, status: { decision: "received", headline: "We have your task and are checking your footage.", operatorAction: null, missingViews: [], nextUpdateIso: "2099-09-21T12:00:00Z" } };
     else if (path.endsWith("/items")) data = { items: [] };
     else if (path.startsWith("/api/site-task-brief/")) data = { ready: false, scope: "owner" };
     return route.fulfill({ json: data });
@@ -173,6 +175,7 @@ test("a robot team outside early access applies instead of browsing", async ({ p
 });
 
 test("desktop owner opens video capture with one status and explicit public card approval", async ({ page }) => {
+  statusOutlook = null;
   await page.setViewportSize({ width: 1440, height: 900 }); const mutations = await fixtures(page);
   await page.goto("/capture-upload/owner-fixture");
   await expect(page.getByRole("heading", { name: "Your job summary", exact: true })).toHaveCount(0);
@@ -190,7 +193,15 @@ test("desktop owner opens video capture with one status and explicit public card
   expect(upload!.y - instruction!.y).toBeLessThan(140);
   expect(upload!.y).toBeGreaterThan(instruction!.y + instruction!.height + 15);
   await screenshot(page, "desktop-capture");
-  // Sharing is a job setting: one quiet link from the capture page, then its row.
+  // Sharing is a job setting: one quiet link from the capture page, then its row. With no answer yet (review,
+  // 2026-11-11) it says sharing waits for one, and offers no publish controls.
+  await page.getByRole("button", { name: "Job settings ›" }).click();
+  await page.getByText("Share settings", { exact: true }).click();
+  await expect(page.getByText("You can share this job once it has an answer. We'll email you when it does.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Publish reviewed card" })).toHaveCount(0);
+  // Once the job has its answer (here a recorded ending, the paper check), the card can be reviewed and published.
+  statusOutlook = { phase: "no_test", reason: "no_grant", sentence: "We have not built a simulation for this job." };
+  await page.goto("/capture-upload/owner-fixture");
   await page.getByRole("button", { name: "Job settings ›" }).click();
   await page.getByText("Share settings", { exact: true }).click();
   const form = page.getByRole("form", { name: "Public job card" });

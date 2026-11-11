@@ -114,6 +114,21 @@ describe("one email per terminal outcome of the job's evaluation (F-01)", () => 
     expect(notice.body).toMatch(/never certifies physical performance or safety/);
   });
 
+  // Rule 2 (review, 2026-11-11): a run recorded as ended with no result outcome is an ending, and the ingest that
+  // records it asks for its paper-check email in the same step. A run still going, or with a result outcome, does not.
+  it.each(["failed", "cancelled"])("asks for the paper-check email where a run that %s with no result is recorded", async runState => {
+    const notices = await import("../utils/taskLifecycleNotifications");
+    const asked = vi.spyOn(notices, "notifyIfAnswerSettled").mockResolvedValue({ enqueued: true });
+    try {
+      await ingestBetaPolicyScreening(sealScreening({ ...base, status: runState as never }));
+      expect(run().state).toBe(runState);
+      expect(asked).toHaveBeenCalledWith("job-one");
+      asked.mockClear();
+      await ingestBetaPolicyScreening(sealScreening({ ...base, campaign_id: "campaign-two" }));
+      expect(asked).not.toHaveBeenCalled();
+    } finally { asked.mockRestore(); }
+  });
+
   it.each(["awaiting_spend_approval", "setup_repair", "superseded"])("sends nothing for %s", async outcome => {
     await ingestBetaPolicyScreening(outcomePublication(base, outcome));
     expect(run()).toMatchObject({ screening_outcome: outcome });

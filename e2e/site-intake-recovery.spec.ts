@@ -224,11 +224,11 @@ test.describe("the start form on a phone", () => {
     const posts: string[] = [];
     await open(page, posts);
     const text = await page.locator("body").innerText();
-    expect(text).not.toMatch(/Leave this field/i);
+    expect(text).not.toMatch(/Leave this field|Leave empty/i);
     // Select everything and copy, as a person would.
     await page.keyboard.press("ControlOrMeta+A");
     const copied = await page.evaluate(() => String(window.getSelection()));
-    expect(copied).not.toMatch(/Leave this field/i);
+    expect(copied).not.toMatch(/Leave this field|Leave empty|honeypot/i);
     // An autofill-like fill: every input a person can see gets a value; the trap is not among them.
     const inputs = page.locator('form input:not([type="file"]):not([type="checkbox"]):not([type="hidden"])');
     // "Visible" as a person sees it: on the page, not merely rendered (the trap is rendered, off-screen, 1 px).
@@ -247,7 +247,7 @@ test.describe("the start form on a phone", () => {
     expect(box!.x + box!.width).toBeLessThanOrEqual(0);
     expect(await page.locator("[data-bot-trap]").innerText()).toBe("");
     // Not in what a screen reader is given, and never reached with the Tab key.
-    expect(JSON.stringify(await page.locator("form").ariaSnapshot())).not.toMatch(/honeypot|Leave this field/i);
+    expect(JSON.stringify(await page.locator("form").ariaSnapshot())).not.toMatch(/honeypot|Leave this field|Leave empty/i);
     await page.locator("#start-location").focus();
     for (let step = 0; step < 25; step++) {
       await page.keyboard.press("Tab");

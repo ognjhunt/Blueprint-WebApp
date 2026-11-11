@@ -31,7 +31,7 @@ const { enqueueTaskLifecycleNotification, reconstructionIsViewable, reconcileSce
 beforeEach(() => {
   sharedFakeFirestoreState.docs.clear();
   sharedFakeFirestoreState.docs.set("inboundRequests/req-1", {
-    contact: { email: "encrypted:owner@example.com" },
+    contact: { email: "encrypted:owner@example.com" }, request: { buyerType: "site_operator" },
   });
   send.mockReset().mockResolvedValue({ sent: true, provider: "resend", messageId: "accepted" });
 });
@@ -636,8 +636,8 @@ describe("the site's answer is emailed once, when it first settles", () => {
   const unsized = () => answer({ state: "cannot_assess", headline: "We can't check robots against this job yet.", pick: null, runnerUp: null,
     reason: "The video did not show the job clearly enough for us to size it." });
   // The answer email is built from the job's outlook (review, 2026-11-11): another kind of job, or an ending with no test.
-  const OTHER = { phase: "cannot_match", sentence: null };
-  const UNSIZED = { phase: "no_test", sentence: "Your video didn't show the job clearly enough for us to measure it." };
+  const OTHER = { phase: "cannot_match", reason: "other_kind", sentence: null };
+  const UNSIZED = { phase: "no_test", reason: "unsized", sentence: "Your video didn't show the job clearly enough for us to measure it." };
   const build = async (siteAnswer: unknown, outlook: unknown = OTHER) => (await import("../utils/taskLifecycleNotifications")).buildTaskLifecycleNotification({
     requestId: "req-1", milestone: "answer_ready", to: "owner@example.com", siteAnswer: siteAnswer as never, outlook: outlook as never,
     captureUrl: "https://tryblueprint.io/capture-upload/owner-token" });
@@ -651,11 +651,19 @@ describe("the site's answer is emailed once, when it first settles", () => {
     await expect(build(answer())).rejects.toThrow("answer_ready_notice_invalid");
   });
 
-  it("gives the paper check after an ending with no email of its own: why no test ran, the paper check, and a later result", async () => {
-    const notice = await build(answer(), { phase: "no_test", sentence: "We have not built a simulation for this job." });
+  // Rewritten (review, 2026-11-11): `answer_ready` carries only the endings with no email of their own, each final, so
+  // it never says a test result may follow.
+  it("gives the paper check after an ending with no email of its own: why no test ran, then the paper check", async () => {
+    const notice = await build(answer(), { phase: "no_test", reason: "run_ended", sentence: "The simulation test stopped before it gave a result." });
     expect(notice.subject).toBe("Your job's paper check is ready");
-    expect(notice.body.startsWith("We have not built a simulation for this job. So for now the paper check is your answer. "
-      + "Most likely to fit: Universal Robots UR10e. If a test result comes later, we'll email it.\n\n")).toBe(true);
+    expect(notice.body.startsWith("The simulation test stopped before it gave a result. So the paper check is your answer. "
+      + "Most likely to fit: Universal Robots UR10e.\n\n")).toBe(true);
+    expect(notice.body).not.toContain("If a test result comes later");
+    // An ended authority has no email of its own either: the window's sentence, then the paper check.
+    const ended = await build(answer(), { phase: "no_test", reason: "authority_ended", sentence: "The time for this job ran out before a simulation test could run." });
+    expect(ended.body.startsWith("The time for this job ran out before a simulation test could run. So the paper check is your answer.")).toBe(true);
+    for (const reason of ["window_expired", "no_grant", "scene_held", "kept_on_file", null])
+      await expect(build(answer(), { phase: "no_test", reason, sentence: "x" }), String(reason)).rejects.toThrow("answer_ready_notice_invalid");
   });
 
   it("gives the paper check as the one answer when the test cannot run, with the page's reason and the scene note", async () => {
@@ -675,39 +683,49 @@ describe("the site's answer is emailed once, when it first settles", () => {
     expect(notice.body.match(/:\nhttps?:\/\//g)).toHaveLength(1);
   });
 
-  // Rewritten (review, 2026-11-11): an unsized video is an ending with no test, so it now gets the answer email, with
-  // its reason and the line that a later result would follow; before, it got none.
-  it("tells a job of another kind why, under its own subject, and an unsized video's ending why too", async () => {
-    const notice = await build(otherKind());
-    expect(notice.subject).toBe("An update on your Blueprint job");
-    expect(notice.body.startsWith(`We can't check robots against this job yet.\n\n${otherKind().reason}\n\nOpen your job:\nhttps://tryblueprint.io/capture-upload/owner-token`)).toBe(true);
-    expect(notice.body).not.toMatch(/How sure|Runner-up/);
+  // Rewritten (review, 2026-11-11): the reader's final "cannot size this job" is a recorded ending, so the unsized video
+  // gets this email, final (no later result promised). Another kind of job is told by its no-grant ending's own email.
+  it("tells an unsized video's ending why, under its own subject, and leaves another kind of job to its ending's email", async () => {
     const sized = await build(unsized(), UNSIZED);
-    expect(sized.body.startsWith(`We can't check robots against this job yet.\n\n${unsized().reason} If a test result comes later, we'll email it.\n\n`)).toBe(true);
+    expect(sized.subject).toBe("An update on your Blueprint job");
+    expect(sized.body.startsWith(`We can't check robots against this job yet.\n\n${unsized().reason}\n\nOpen your job:\nhttps://tryblueprint.io/capture-upload/owner-token`)).toBe(true);
+    expect(sized.body).not.toMatch(/How sure|Runner-up|test result comes later/);
+    await expect(build(otherKind())).rejects.toThrow("answer_ready_notice_invalid");
     await expect(build(unsized(), { phase: "building", sentence: null })).rejects.toThrow("answer_ready_notice_invalid");
     await expect(build(answer({ state: "reading" }))).rejects.toThrow("answer_ready_notice_invalid");
     await expect(build(undefined)).rejects.toThrow("answer_ready_notice_invalid");
   });
 
-  it("is queued once per job, only for a job of another kind, and a ready answer's older queued email is cancelled", async () => {
+  it("is queued once per job, only for a recorded ending, and cancelled at dispatch only by a recorded fact", async () => {
     const { notifyIfAnswerSettled } = await import("../utils/taskLifecycleNotifications");
     const { taskLifecycleNotificationIsCurrent } = await import("../utils/taskLifecycleNotificationAuthority");
+    const outbox = () => [...sharedFakeFirestoreState.docs.keys()].filter(key => key.startsWith("captureOutbox/"));
+    // No answer read yet: nothing queued (it waits for the reading).
     expect((await notifyIfAnswerSettled("req-1")).enqueued).toBe(false);
-    // A ready paper check on a job still being built: the receipt went at upload; the answer comes with the test.
-    composedAnswer.current = answer();
-    expect((await notifyIfAnswerSettled("req-1")).enqueued).toBe(false);
-    composedAnswer.current = otherKind();
+    // A ready paper check, or another kind of job, while the job is still being worked on: no recorded ending, no email.
+    for (const current of [answer(), otherKind()]) {
+      composedAnswer.current = current;
+      expect((await notifyIfAnswerSettled("req-1")).enqueued).toBe(false);
+    }
+    expect(outbox()).toEqual([]);
+    composedAnswer.current = unsized();
     expect((await notifyIfAnswerSettled("req-1")).enqueued).toBe(true);
     expect((await notifyIfAnswerSettled("req-1")).enqueued).toBe(false);
-    expect([...sharedFakeFirestoreState.docs.keys()].filter(key => key.startsWith("captureOutbox/"))).toEqual(["captureOutbox/req-1:answer_ready"]);
-    // Dispatch reads the answer again: an email queued for a ready answer before this change is cancelled.
+    expect(outbox()).toEqual(["captureOutbox/req-1:answer_ready"]);
     const notice = { kind: "answer_ready" as const, requestId: "req-1", idempotencyKey: "req-1:answer_ready" };
     expect(await taskLifecycleNotificationIsCurrent(notice)).toBe(true);
+    // A transient failure at dispatch is unknown: the check throws (the row stays queued), it never cancels.
+    const evidence = await import("../utils/siteManagedEvidence");
+    const failing = vi.spyOn(evidence, "readSiteManagedEvidence").mockRejectedValueOnce(new Error("unavailable"));
+    await expect(taskLifecycleNotificationIsCurrent(notice)).rejects.toThrow();
+    failing.mockRestore();
+    expect(await taskLifecycleNotificationIsCurrent(notice)).toBe(true);
+    // A recorded fact cancels it: the site described the job and the video now reads as a job to test.
     composedAnswer.current = answer();
     expect(await taskLifecycleNotificationIsCurrent(notice)).toBe(false);
   });
 
-  it("queues the unsized video's answer once, when its ending is the outlook", async () => {
+  it("queues the unsized video's answer once, when the reader records it", async () => {
     const { notifyIfAnswerSettled } = await import("../utils/taskLifecycleNotifications");
     composedAnswer.current = unsized();
     expect((await notifyIfAnswerSettled("req-1")).enqueued).toBe(true);
@@ -718,15 +736,16 @@ describe("the site's answer is emailed once, when it first settles", () => {
   it("is never queued or sent once recording consent is withdrawn", async () => {
     const { notifyIfAnswerSettled } = await import("../utils/taskLifecycleNotifications");
     const { deliverOutbox } = await import("../utils/captureOutbox");
-    composedAnswer.current = otherKind();
-    sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { contact: { email: "encrypted:owner@example.com" }, consent_revoked: true });
+    composedAnswer.current = unsized();
+    const job = { contact: { email: "encrypted:owner@example.com" }, request: { buyerType: "site_operator" } };
+    sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { ...job, consent_revoked: true });
     // The outlook is the site's own ending, so no answer email is due (rewritten from the queue's own refusal reason,
     // which the outlook check now comes before).
     expect(await notifyIfAnswerSettled("req-1")).toEqual({ enqueued: false });
     // A queued one is cancelled at dispatch.
-    sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { contact: { email: "encrypted:owner@example.com" } });
+    sharedFakeFirestoreState.docs.set("inboundRequests/req-1", job);
     expect((await notifyIfAnswerSettled("req-1")).enqueued).toBe(true);
-    sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { contact: { email: "encrypted:owner@example.com" }, consent_revoked: true });
+    sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { ...job, consent_revoked: true });
     await deliverOutbox();
     expect(send).not.toHaveBeenCalled();
     expect(sharedFakeFirestoreState.docs.get("captureOutbox/req-1:answer_ready")).toMatchObject({ status: "cancelled" });
@@ -785,8 +804,10 @@ describe("the site's answer is emailed once, when it first settles", () => {
 describe("one answer email for every way a job ends", () => {
   const paperAnswer = { schemaVersion: "site_answer.v1", state: "ready", headline: "Most likely to fit: Universal Robots UR10e.",
     pick: { modelId: "ur10e", name: "UR10e", manufacturer: "Universal Robots" }, sceneNote: null } as never;
-  // The paper check is the answer for now, and a later result would be emailed (review, 2026-11-11).
-  const PAPER = "So for now the paper check is your answer. Most likely to fit: Universal Robots UR10e. If a test result comes later, we'll email it.";
+  // After a hold the paper check is the answer for now and a later result would be emailed; after a final ending it is
+  // the answer, with no such promise (review, 2026-11-11).
+  const HOLD_PAPER = "So for now the paper check is your answer. Most likely to fit: Universal Robots UR10e. If a test result comes later, we'll email it.";
+  const PAPER = "So the paper check is your answer. Most likely to fit: Universal Robots UR10e.";
   const build = async (params: Record<string, unknown>) => (await import("../utils/taskLifecycleNotifications")).buildTaskLifecycleNotification({
     requestId: "req-1", to: "owner@example.com", captureUrl: "https://tryblueprint.io/capture-upload/owner-token", ...params } as never);
   const digest = `sha256:${"d".repeat(64)}`;
@@ -802,8 +823,12 @@ describe("one answer email for every way a job ends", () => {
       const without = await build(params);
       const notice = await build({ ...params, siteAnswer: paperAnswer });
       // The reason is said first, unchanged; the paper check follows it as the answer, in the no-test email's words.
-      const reason = without.body.split("\n\n")[0];
-      expect(notice.body.startsWith(`${reason} ${PAPER}`), label).toBe(true);
+      // Without one, the email says plainly that there is none.
+      const reason = without.body.split("\n\n")[0].replace(" There is no paper check for this job.", "");
+      expect(without.body.split("\n\n")[0].endsWith(" There is no paper check for this job."), label).toBe(true);
+      const paper = label === "scene held" ? HOLD_PAPER : PAPER;
+      expect(notice.body.startsWith(`${reason} ${paper}`), label).toBe(true);
+      expect(label === "scene held" || !notice.body.includes("If a test result comes later"), label).toBe(true);
       expect(without.body, label).not.toContain("paper check is your answer");
       expect(notice.body.match(/:\nhttps?:\/\//g), label).toHaveLength(1);
     }
@@ -870,14 +895,20 @@ describe("one answer email for every way a job ends", () => {
   it("lets a result follow a paper email, counts only rows actually sent, and sends no answer after the owner closed the run", async () => {
     const { taskLifecycleNotificationIsCurrent, answerSlotTaken } = await import("../utils/taskLifecycleNotificationAuthority");
     const { crossRuntimeDigest } = await import("../utils/crossRuntimeCanonical");
-    // Another kind of job: its answer email is due, so only the slot rules can stop it.
+    // An unsized video (a recorded ending): its answer email is due, so only the slot rules can stop it.
     composedAnswer.current = { schemaVersion: "site_answer.v1", state: "cannot_assess", headline: "We can't check robots against this job yet.",
-      pick: null, reason: "Your job looks like another kind, which we can't check robots against yet." } as never;
+      pick: null, reason: "The video did not show the job clearly enough for us to size it." } as never;
     const paper = { kind: "answer_ready" as const, requestId: "req-1", idempotencyKey: "req-1:answer_ready" };
     const result = { kind: "evaluation_outcome" as const, requestId: "req-1", idempotencyKey: "req-1:evaluation_outcome:estimate-a" };
-    sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { contact: { email: "encrypted:owner@example.com" } });
+    sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { contact: { email: "encrypted:owner@example.com" }, request: { buyerType: "site_operator" } });
     expect(await taskLifecycleNotificationIsCurrent(paper)).toBe(true);
-    // An earlier paper email that failed, was cancelled or is still pending fills no slot.
+    // An earlier paper email that failed, was cancelled or is still pending fills no slot; one being dispatched, or
+    // whose send outcome is unknown, may have gone out, so it does.
+    for (const status of ["dispatching", "unknown"]) {
+      sharedFakeFirestoreState.docs.set("captureOutbox/req-1:scene_outcome:job_window_ended", { requestId: "req-1", kind: "scene_outcome",
+        idempotencyKey: "req-1:scene_outcome:job_window_ended", status });
+      expect(await taskLifecycleNotificationIsCurrent(paper), status).toBe(false);
+    }
     for (const status of ["failed", "cancelled", "pending"]) {
       sharedFakeFirestoreState.docs.set("captureOutbox/req-1:scene_outcome:job_window_ended", { requestId: "req-1", kind: "scene_outcome",
         idempotencyKey: "req-1:scene_outcome:job_window_ended", status });
@@ -899,10 +930,70 @@ describe("one answer email for every way a job ends", () => {
     const value = { schema_version: "website_run_closure.v1", request_id: "req-1", capture_id: "walkthrough-req-1",
       decision: "conservative_abstention", actor: "signed_owner_link", source_identity_digest: `sha256:${"a".repeat(64)}`,
       closed_at_iso: "2026-11-11T00:00:00.000Z", new_execution_authorized: false, explicit_resume_required: true, physical_validation: false };
-    sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { contact: { email: "encrypted:owner@example.com" },
+    sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { contact: { email: "encrypted:owner@example.com" }, request: { buyerType: "site_operator" },
       website_run_closures: { "walkthrough-req-1": { ...value, closure_digest: crossRuntimeDigest(value) } } });
     expect(await taskLifecycleNotificationIsCurrent(paper)).toBe(false);
     expect(await taskLifecycleNotificationIsCurrent(result)).toBe(false);
+    // A closure record that does not read is unknown: the check throws, so the row stays queued and is not cancelled.
+    sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { contact: { email: "encrypted:owner@example.com" }, request: { buyerType: "site_operator" },
+      website_run_closures: { "walkthrough-req-1": { broken: true } } });
+    await expect(taskLifecycleNotificationIsCurrent(result)).rejects.toThrow();
+  });
+
+  it("holds an ending's email while the video is read, queues it with the paper check once read, and says plainly when the reading never came", async () => {
+    const { releaseWaitingAnswerNotices, ANSWER_NOTICES_WAITING_FIELD, READING_WAIT_LIMIT_MS } = await import("../utils/taskLifecycleNotifications");
+    const outbox = () => [...sharedFakeFirestoreState.docs.entries()].filter(([key]) => key.startsWith("captureOutbox/")) as Array<[string, any]>;
+    const ending = { requestId: "req-1", milestone: "scene_outcome" as const, eventId: "job_window_ended", jobWindowEnded: true as const };
+    composedAnswer.current = { state: "reading" };
+    expect(await enqueueTaskLifecycleNotification(ending)).toEqual({ enqueued: false, reason: "awaiting_reading" });
+    expect(outbox()).toEqual([]);
+    const job = () => sharedFakeFirestoreState.docs.get("inboundRequests/req-1") as Record<string, any>;
+    expect(Object.keys(job()[ANSWER_NOTICES_WAITING_FIELD])).toHaveLength(1);
+    // Still reading: releasing leaves it waiting.
+    await releaseWaitingAnswerNotices("req-1");
+    expect(outbox()).toEqual([]);
+    // Read: it is queued once, with the paper check, and the wait is cleared.
+    composedAnswer.current = paperAnswer;
+    await releaseWaitingAnswerNotices("req-1");
+    expect(outbox().map(([key]) => key)).toEqual(["captureOutbox/req-1:scene_outcome:job_window_ended"]);
+    expect(outbox()[0][1].body).toContain(PAPER);
+    expect(job().answer_notices_waiting_pending).toBe(false);
+    // A reading that never finished: past its limit the email goes, saying plainly there is no paper check.
+    sharedFakeFirestoreState.docs.delete("captureOutbox/req-1:scene_outcome:job_window_ended");
+    composedAnswer.current = { state: "reading" };
+    await enqueueTaskLifecycleNotification(ending);
+    const [slot] = Object.keys(job()[ANSWER_NOTICES_WAITING_FIELD]);
+    job()[ANSWER_NOTICES_WAITING_FIELD][slot].since_iso = new Date(Date.now() - READING_WAIT_LIMIT_MS - 1000).toISOString();
+    await releaseWaitingAnswerNotices("req-1");
+    expect(outbox()[0][1].body).toContain("We could not finish reading your video, so there is no paper check for this job.");
+  });
+
+  it("lets only one of two paper emails out when two dispatchers run at once", async () => {
+    const { deliverOutbox, enqueueOutbox } = await import("../utils/captureOutbox");
+    composedAnswer.current = { schemaVersion: "site_answer.v1", state: "cannot_assess", headline: "We can't check robots against this job yet.",
+      pick: null, reason: "The video did not show the job clearly enough for us to size it." } as never;
+    await enqueueOutbox({ idempotencyKey: "req-1:answer_ready", requestId: "req-1", to: "owner@example.com", kind: "answer_ready",
+      subject: "Paper one", body: "One" });
+    await enqueueOutbox({ idempotencyKey: "req-1:brief-screening:task-not-yet-supported", requestId: "req-1", to: "owner@example.com",
+      kind: "screening_not_now", subject: "Paper two", body: "Two" });
+    // Two passes interleaved, as two instances of the pump would run them; a send takes a while, so one row is still
+    // `dispatching` when the other pass checks its own.
+    send.mockImplementation(async () => { await new Promise(resolve => setTimeout(resolve, 30));
+      return { sent: true, provider: "resend", messageId: "accepted" }; });
+    await Promise.all([deliverOutbox({ limit: 5 }), deliverOutbox({ limit: 5 })]);
+    expect(send).toHaveBeenCalledTimes(1);
+    const statuses = ["req-1:answer_ready", "req-1:brief-screening:task-not-yet-supported"]
+      .map(key => (sharedFakeFirestoreState.docs.get(`captureOutbox/${key}`) as { status: string }).status).sort();
+    expect(statuses).toEqual(["cancelled", "sent"]);
+  });
+
+  it("cancels the kept can't-simulate-yet email at dispatch after the site withdrew or closed its run", async () => {
+    const { taskLifecycleNotificationIsCurrent } = await import("../utils/taskLifecycleNotificationAuthority");
+    const kept = { kind: "screening_not_now" as const, requestId: "req-1", idempotencyKey: "req-1:brief-screening:task-not-yet-supported" };
+    expect(await taskLifecycleNotificationIsCurrent(kept)).toBe(true);
+    sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { contact: { email: "encrypted:owner@example.com" },
+      request: { buyerType: "site_operator" }, consent_revoked: true });
+    expect(await taskLifecycleNotificationIsCurrent(kept)).toBe(false);
   });
 
   it("cancels a second answer email at dispatch once one has gone out", async () => {
