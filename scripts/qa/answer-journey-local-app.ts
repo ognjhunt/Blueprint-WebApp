@@ -177,6 +177,15 @@ function loopbackOnly(req: Request, res: Response, next: NextFunction) {
     }
     res.json({ finished: !queue.isCoverageReviewActive() && !pending, passes, videoModelCalls: harness.videoModel.generateCalls - before });
   });
+  // Runs the no-grant sweep's production entry point for one job at a given time, as the scheduler would: the first
+  // pass starts the job's wait, a pass a window later records its ending and queues its one email.
+  app.post('/api/reliability/no-grant-sweep', loopbackOnly, async (req, res) => {
+    const requestId = String(req.query.requestId || '');
+    const atMs = Number(req.query.atMs);
+    if (!/^[A-Za-z0-9_-]{1,200}$/.test(requestId) || !Number.isFinite(atMs)) return res.status(400).json({ error: 'requestId and atMs required' });
+    const { sweepWebsiteJobNoGrant } = await import('../../server/utils/websiteJobWindowSweep');
+    res.json({ result: await sweepWebsiteJobNoGrant(requestId, atMs) });
+  });
   // The outbox rows for one job: what would be sent. Nothing here delivers mail.
   app.get('/api/reliability/outbox', loopbackOnly, async (req, res) => {
     const requestId = String(req.query.requestId || '');
