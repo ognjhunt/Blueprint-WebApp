@@ -8,7 +8,7 @@ import {
   type BareTickState,
 } from "@/components/bare/Bare";
 import {
-  ALSO_INVOLVES_PREFIX, REASON_UNSIZED, SITE_ANSWER_LIMITS, TIGHT_FIT_SENTENCE, UNKNOWN_JOB_KIND, UNKNOWN_MULTI_STEP, isScopeNote,
+  ALSO_INVOLVES_PREFIX, REASON_UNSIZED, LIMITS_PAPER, LIMITS_TESTED, LIMITS_TESTING, SURENESS_STEPS, TIGHT_FIT_SENTENCE, UNKNOWN_JOB_KIND, UNKNOWN_MULTI_STEP, isScopeNote,
   type AnswerBasis, type AnswerCheck, type AnswerConfidenceLevel, type AnswerEvidence, type AnswerRobot, type SiteAnswer as SiteAnswerView,
 } from "@/lib/siteAnswer";
 
@@ -19,8 +19,6 @@ import {
 export const FIND_COMPANY_LABEL = "Find a company to set it up";
 /** Rendered from the statement the introduction route records, so the two never drift. */
 export const FIND_COMPANY_CONSENT = JOB_CARD_ANSWER_STATEMENT;
-/** The limits of the check, on the page. The email and the job card carry the full note (`SITE_ANSWER_NOTE`). */
-export const LIMITS_LINE = SITE_ANSWER_LIMITS;
 const INTRODUCTION_FAILED = "We could not send your request just now. Try again shortly.";
 /** Said only when the response or the stored card says the card is listed. */
 export const SHARED_LISTED = "✓ Shared. We'll email you when a company replies.";
@@ -49,7 +47,7 @@ function dateInWords(value: string): string {
 }
 
 const SURE: Readonly<Record<AnswerConfidenceLevel, { filled: 1 | 2 | 3; word: string }>> = {
-  low: { filled: 1, word: "Not sure yet" }, fair: { filled: 2, word: "Fairly sure" }, good: { filled: 3, word: "Sure" },
+  low: SURENESS_STEPS[0], fair: SURENESS_STEPS[1], good: SURENESS_STEPS[2],
 };
 
 /** A check that holds, said plainly; a check not settled is a question, never a tick. A failed check never reaches the pick. */
@@ -174,8 +172,7 @@ export interface SiteAnswerProps {
   onShowPaper?: () => void;
 }
 
-const SURE_STEPS: ReadonlyArray<{ filled: 1 | 2 | 3; word: string }> = [
-  { filled: 1, word: "Not sure yet" }, { filled: 2, word: "Fairly sure" }, { filled: 3, word: "Sure" }];
+const SURE_STEPS = SURENESS_STEPS;
 /** Said under the dots when a set-up flag lowers how sure the test result is. */
 export const SETUP_LOWERS = "Our simulation set-up may have affected this result.";
 export const TESTING_LINE = "on your job, in a simulation of your site. We'll email you.";
@@ -288,7 +285,7 @@ export function SiteAnswer({ token, answer, proof, onIntroductionRequested, onEd
     </BareGroup>
     {action}
     <BareLinks links={links} />
-    <BareFine>{LIMITS_LINE}</BareFine>
+    <BareFine>{test.kind === "testing" ? LIMITS_TESTING : LIMITS_TESTED}</BareFine>
   </section>;
 
   const notRun = testNotRunLine(proof);
@@ -301,7 +298,7 @@ export function SiteAnswer({ token, answer, proof, onIntroductionRequested, onEd
     </BareGroup>
     {notices.length > 0 && <BareGroup label="Before you rely on this">{notices.map(line => <BareNotice key={line}>{line}</BareNotice>)}</BareGroup>}
     <BareLinks links={links} />
-    <BareFine>{LIMITS_LINE}</BareFine>
+    <BareFine>{LIMITS_PAPER}</BareFine>
   </section>;
 
   const sure = SURE[answer.confidence.level];
@@ -323,7 +320,7 @@ export function SiteAnswer({ token, answer, proof, onIntroductionRequested, onEd
     </BareGroup>
     {action}
     <BareLinks links={links} />
-    <BareFine>{LIMITS_LINE}</BareFine>
+    <BareFine>{LIMITS_PAPER}</BareFine>
   </section>;
 }
 

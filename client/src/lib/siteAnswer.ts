@@ -133,10 +133,24 @@ export const ANSWER_CONFIDENCE_LABELS: Readonly<Record<AnswerConfidenceLevel, st
 /** The standing note under every answer: what the check covers, and what it is not. The email and the job card say it in full. */
 export const SITE_ANSWER_NOTE =
   "This checks whether a robot can pick your object up and put it down, against published robot specifications and a cited track record. It is not a test of a robot at your site and does not certify performance or safety.";
-/** The limits of the check in one line, at the foot of the job page; the email and the job card keep the full note. */
-export const SITE_ANSWER_LIMITS = "Checks picking up and putting down only. Not a test at your site; it does not certify performance or safety.";
-/** The same line as an approved deployment company reads it on the card, with the full note in the card's details. */
-export const JOB_CARD_LIMITS = "Checks picking up and putting down only. Not a test at the site; it does not certify performance or safety.";
+/**
+ * The limits in one line, at the foot of the job page and the emails, chosen by what the headline is: a test
+ * result, a test still running, or the paper check. Each is true for every state that shows it.
+ */
+export const LIMITS_TESTED = "Tested in a simulation, not at your site. Pick-up-and-put-down jobs only. It does not certify performance or safety.";
+/** While the test runs nothing has been tested yet, so the line says it is being tested. */
+export const LIMITS_TESTING = "Being tested in a simulation, not at your site. Pick-up-and-put-down jobs only. It does not certify performance or safety.";
+export const LIMITS_PAPER = "A paper check, not a test at your site. Pick-up-and-put-down jobs only. It does not certify performance or safety.";
+/** The same lines as an approved deployment company reads them on the card, with the full note in the card's details. */
+export const JOB_CARD_LIMITS_TESTED = "Tested in a simulation, not at the site. Pick-up-and-put-down jobs only. It does not certify performance or safety.";
+export const JOB_CARD_LIMITS_TESTING = "Being tested in a simulation, not at the site. Pick-up-and-put-down jobs only. It does not certify performance or safety.";
+export const JOB_CARD_LIMITS = "A paper check, not a test at the site. Pick-up-and-put-down jobs only. It does not certify performance or safety.";
+
+/** How sure, in words: the one map the job page, the job card and the emails all read. */
+export const SURENESS_WORDS: Readonly<Record<AnswerConfidenceLevel, string>> = { low: "Not sure yet", fair: "Fairly sure", good: "Sure" };
+/** The same words by number of dots, low to high, for a sureness that comes in steps. */
+export const SURENESS_STEPS: ReadonlyArray<{ filled: 1 | 2 | 3; word: string }> = [
+  { filled: 1, word: SURENESS_WORDS.low }, { filled: 2, word: SURENESS_WORDS.fair }, { filled: 3, word: SURENESS_WORDS.good }];
 
 /*
  * Sentences the server composes and the page treats specially, kept here so both read the same words.

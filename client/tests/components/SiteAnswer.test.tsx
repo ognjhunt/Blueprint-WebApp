@@ -14,7 +14,10 @@ const response = (value: unknown, status = 200) => ({ ok: status >= 200 && statu
 const BANNED = /episode|candidate|screening|embodiment|checkpoint|payload|anonymi[sz]ed|deployment compan|[a-z]_[a-z]|sha256/i;
 const FIND = "Find a company to set it up";
 const CONSENT = "Shares a summary of your job and this answer, without saying who you are, with companies we've approved. Your video, address and contacts stay private.";
-const LIMITS = "Checks picking up and putting down only. Not a test at your site; it does not certify performance or safety.";
+/** The limits line, by what the headline is: the paper check, a test result, or a test still running. */
+const LIMITS = "A paper check, not a test at your site. Pick-up-and-put-down jobs only. It does not certify performance or safety.";
+const LIMITS_TESTED = "Tested in a simulation, not at your site. Pick-up-and-put-down jobs only. It does not certify performance or safety.";
+const LIMITS_TESTING = "Being tested in a simulation, not at your site. Pick-up-and-put-down jobs only. It does not certify performance or safety.";
 const winnerProof = projectSimulationProof({ evaluation: [winnerEvaluation], pick: readyAnswer.pick });
 const words = (text: string | null) => (text?.match(/[^\s]+/g) ?? []).filter(word => /[\p{L}\p{N}]/u.test(word)).length;
 
@@ -115,6 +118,9 @@ describe("the site's answer, bare bones", () => {
     expect(within(answer).queryByText("Reaches far enough")).toBeNull();
     expect(within(answer).getByRole("button", { name: FIND })).toBeVisible();
     expect(within(answer).getByText(CONSENT)).toBeVisible();
+    // The limits line says it was tested in a simulation, never that it is only a paper check.
+    expect(within(answer).getByText(LIMITS_TESTED)).toBeVisible();
+    expect(within(answer).queryByText(LIMITS)).toBeNull();
   });
 
   it("says did best only by the probability rule, and lowers how sure by one step when a set-up flag is raised", () => {
@@ -139,6 +145,7 @@ describe("the site's answer, bare bones", () => {
     expect(screen.getByText("4 AI robots tried; none finished your job.")).toBeVisible();
     expect(screen.getByText("This result may come from how we set up the simulation of your site, not from the robots.")).toBeVisible();
     expect(screen.queryByText(/Did best|Was ahead/)).toBeNull();
+    expect(screen.getByText(LIMITS_TESTED)).toBeVisible();
   });
 
   it("says no clear winner yet with the top option's count, and testing now while it runs", () => {
@@ -153,12 +160,16 @@ describe("the site's answer, bare bones", () => {
     expect(screen.getByRole("heading", { level: 2, name: "Testing now" })).toBeVisible();
     expect(screen.getByText("2 AI robots")).toHaveClass("bare-big");
     expect(screen.getByText("on your job, in a simulation of your site. We'll email you.")).toBeVisible();
+    // Nothing is tested yet while it runs.
+    expect(screen.getByText(LIMITS_TESTING)).toBeVisible();
+    expect(screen.queryByText(LIMITS_TESTED)).toBeNull();
   });
 
   it("falls back to the paper check with why the test did not run, when that is known", () => {
     render(<SiteAnswer token="owner-token" answer={readyAnswer} proof={projectSimulationProof({ evaluation: [{ ...winnerEvaluation, outcome: "held_budget" as const }], pick: readyAnswer.pick })} />);
     expect(screen.getByRole("heading", { level: 2, name: "On paper, the robot most likely to fit" })).toBeVisible();
     expect(screen.getByText("The simulation test did not finish. It reached the most the free beta can run for one job.")).toBeVisible();
+    expect(screen.getByText(LIMITS)).toBeVisible();
   });
 
   it("says nothing about the simulation test before it starts", () => {

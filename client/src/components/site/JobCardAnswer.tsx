@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { User } from "firebase/auth";
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
-import { EVIDENCE_LEVEL_LABELS, JOB_CARD_LIMITS, evidenceScopeLabel, type AnswerBasis, type AnswerEvidence } from "@/lib/siteAnswer";
+import { EVIDENCE_LEVEL_LABELS, JOB_CARD_LIMITS, JOB_CARD_LIMITS_TESTED, JOB_CARD_LIMITS_TESTING, SURENESS_STEPS, evidenceScopeLabel, type AnswerBasis, type AnswerEvidence } from "@/lib/siteAnswer";
 import { BareBack, BareBig, BareFine, BareGroup, BareLead, BareLinks, BareRows, BareSureness, BareTicks } from "@/components/bare/Bare";
 import { liftUpTo, ticksOf } from "./SiteAnswer";
 import type { JobCardAnswerRobot, JobCardAnswerSummary, TaskCardDetail } from "@/types/taskBrowse";
@@ -43,7 +43,7 @@ function CardTestHead({ test }: { test: NonNullable<JobCardAnswerSummary["test"]
     <BareBig as="p" sub={top.furthestText ? `Closest: ${top.label} ${top.furthestText}.` : `${test.options.length} AI ${test.options.length === 1 ? "robot" : "robots"} tried; none finished the job.`}>None finished yet</BareBig></BareGroup>;
   const others = test.options.length - 1;
   const step = test.kind === "winner" ? (test.wording === "did_best" ? 2 : 1) : 0;
-  const sure = [{ filled: 1 as const, word: "Not sure yet" }, { filled: 2 as const, word: "Fairly sure" }, { filled: 3 as const, word: "Sure" }][Math.max(0, step - (test.setupFlag ? 1 : 0))];
+  const sure = SURENESS_STEPS[Math.max(0, step - (test.setupFlag ? 1 : 0))];
   return <>
     <BareGroup>
       <p className="bare-label">{test.kind === "one_option" ? "Tested on the job" : test.wording === "did_best" ? "Did best on the job" : "Was ahead on the job"}</p>
@@ -60,7 +60,7 @@ function CardTestHead({ test }: { test: NonNullable<JobCardAnswerSummary["test"]
 }
 
 const SURE: Readonly<Record<JobCardAnswerSummary["confidence"]["level"], { filled: 1 | 2 | 3; word: string }>> = {
-  low: { filled: 1, word: "Not sure yet" }, fair: { filled: 2, word: "Fairly sure" }, good: { filled: 3, word: "Sure" },
+  low: SURENESS_STEPS[0], fair: SURENESS_STEPS[1], good: SURENESS_STEPS[2],
 };
 
 /** Each check as a row: the job's figure and the robot's, the very strings of the site's check sentence. */
@@ -127,7 +127,7 @@ export function JobCardAnswer({ answer, titled = true }: { answer: JobCardAnswer
     <CardTestHead test={test} />
     {pick && <BareGroup><p>{fits ? "On paper, most likely to fit" : "On paper, the closest robot"}: {pick.manufacturer} {pick.name}</p></BareGroup>}
     <BareLinks links={[{ key: "details", label: "See details", onClick: () => show(true) }]} />
-    <BareFine>{JOB_CARD_LIMITS}</BareFine>
+    <BareFine>{test.kind === "testing" || !test.options.length ? JOB_CARD_LIMITS_TESTING : JOB_CARD_LIMITS_TESTED}</BareFine>
   </section>;
   return <section className="bare-screen site-card-answer" aria-label={JOB_CARD_ANSWER_TITLE} ref={root} tabIndex={-1}>
     {titled && <h3 className="bare-label">{JOB_CARD_ANSWER_TITLE}</h3>}

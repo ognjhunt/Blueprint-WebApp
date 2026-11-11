@@ -30,16 +30,13 @@ import { EARLY_TASK_HOLD_DETAIL, EARLY_TASK_HOLD_SENTENCES, earlyTaskHoldOf, isE
   type EarlyTaskHoldReason, type RecaptureReason } from "./taskPreparationOutcome";
 import { isWebsiteJobNoGrantEndedEventId, isWebsiteJobWindowEndedEventId } from "./websiteJobWindowEnding";
 import { selectWebsiteAtlasPreview } from "./websiteAtlasPreview";
-import { isScreeningResultOutcome, screeningCaveatSentence, simulationOutcomeEmailSentence, storedScreeningOutcomeCaveat,
+import { isScreeningResultOutcome, simulationOutcomeEmailSentence, storedScreeningOutcomeCaveat,
   type ScreeningOutcome, type ScreeningOutcomeCaveat } from "./betaPolicyScreeningContract";
-import { NO_POLICY_COMPLETED, projectSimulationProof, type SimulationProof } from "../../client/src/lib/simulationProof";
-import { SIMULATION_ACCURACY } from "../../client/src/data/simulationAccuracy";
+import { PLAIN_SETUP_CAVEAT, projectSimulationProof, testHeadline, testNotRunLine, testResultOf,
+  type SimulationProof } from "../../client/src/lib/simulationProof";
 import { isTerminalSceneOutcomeKind, sceneOutcomeMessage, sceneOutcomeSubject,
   type TerminalSceneOutcomeKind } from "./sceneIntentOutcome";
-import { SITE_ANSWER_NOTE, type SiteAnswer } from "../../client/src/lib/siteAnswer";
-
-/** How sure, in the job page's own words (`SiteAnswer.tsx`'s sureness map). Keep the two in step. */
-const ANSWER_SURENESS_WORDS: Readonly<Record<string, string>> = { low: "Not sure yet", fair: "Fairly sure", good: "Sure" };
+import { LIMITS_PAPER, LIMITS_TESTED, SURENESS_WORDS, type SiteAnswer } from "../../client/src/lib/siteAnswer";
 import { REASON_UNSIZED as ANSWER_UNSIZED_REASON } from "./siteAnswer";
 
 export type TaskLifecycleMilestone = Extract<
@@ -202,8 +199,8 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
   // Once per job, when the site's answer first settles. The detail is only the
   // answer's own sentences (`answerReadyDetail`), built from the composed answer.
   answer_ready: {
-    subject: "Your Blueprint answer is ready",
-    body: (url, detail) => `${detail}\n\nSee your answer:\n${url}`,
+    subject: "Your job's paper check is ready",
+    body: (url, detail) => `${detail}\n\nOpen your job:\n${url}`,
   },
   pilot_request: {
     subject: "A partner asked to have its system evaluated on your job",
@@ -247,7 +244,7 @@ export async function enqueueTaskLifecycleNotification(params: {
   sceneOutcomeKind?: TerminalSceneOutcomeKind;
   /** `answer_ready` only: the settled answer the email states. */
   siteAnswer?: SiteAnswer;
-  /** `evaluation_outcome` estimate only: the job page's simulation proof; read from the job's results when not given. */
+  /** `evaluation_outcome` estimate and `answer_ready`: the job page's simulation proof; read from the job's results when not given. */
   simulationProof?: SimulationProof | null;
 }): Promise<{ enqueued: boolean; reason?: "store_unavailable" | "request_missing" | "contact_missing" | "consent_withdrawn"
   | "awaiting_early_hold_preview" }> {
@@ -286,8 +283,9 @@ export async function enqueueTaskLifecycleNotification(params: {
   const recaptureReason = earlyTaskHold ? null : recaptureReasonOf(preview)
     ?? (isRecaptureReason(params.recaptureReason) ? params.recaptureReason : null);
   const { captureId: _captureId, awaitEarlyHoldUntilMs: _wait, recaptureReason: _recapture, ...notice } = params;
-  const simulationProof = params.milestone === "evaluation_outcome" && params.screeningOutcome === "estimate"
-    && params.simulationProof === undefined ? await loadEstimateProof(requestId) : params.simulationProof;
+  const simulationProof = ((params.milestone === "evaluation_outcome" && params.screeningOutcome === "estimate")
+    || (params.milestone === "answer_ready" && params.siteAnswer?.state === "ready"))
+    && params.simulationProof === undefined ? await loadSimulationProof(requestId) : params.simulationProof;
   return enqueueOutbox(buildTaskLifecycleNotification({ ...notice, simulationProof, requestId, to, workspaceUrl,
     ...(earlyTaskHold ? { earlyTaskHold } : {}), ...(recaptureReason ? { recaptureReason } : {}) }));
 }
@@ -334,7 +332,7 @@ export function buildTaskLifecycleNotification(params: {
   jobNoGrantEnded?: "site" | "blueprint";
   /** `answer_ready` only: the settled answer the email states. */
   siteAnswer?: SiteAnswer;
-  /** `evaluation_outcome` estimate only: the job page's simulation proof, or null when it could not be read. */
+  /** `evaluation_outcome` estimate and `answer_ready`: the job page's simulation proof, or null when it could not be read. */
   simulationProof?: SimulationProof | null;
   /** With `jobNoGrantEnded`: why the sweep ended it early, said in the ending's own sentence. */
   jobNoGrantReason?: "video_over_ingest_limit";
@@ -348,7 +346,7 @@ export function buildTaskLifecycleNotification(params: {
       ? params.jobNoGrantEnded ? jobNoGrantEndedDetail(params)
         : params.jobWindowEnded ? jobWindowEndedDetail(params) : sceneOutcomeDetail(params)
     : params.milestone === "robot_access_question" ? robotAccessQuestionDetail(params)
-    : params.milestone === "answer_ready" ? answerReadyDetail(params.siteAnswer) : "";
+    : params.milestone === "answer_ready" ? answerReadyDetail(params.siteAnswer, params.simulationProof) : "";
   const held = params.milestone === "preparation_needs_attention" && isEarlyTaskHoldReason(params.earlyTaskHold)
     ? params.earlyTaskHold : null;
   const recapture = !held && params.milestone === "preparation_needs_attention" && isRecaptureReason(params.recaptureReason)
@@ -400,51 +398,45 @@ function earlyTaskHoldCopy(reason: EarlyTaskHoldReason): (typeof copy)[TaskLifec
 }
 
 const SIMULATION_DISCLAIMER = "A simulation is not a physical test, and it never certifies physical performance or safety.";
-/** How far to trust a ranking, in one line: the published statement's first sentence, with where its conditions are. */
-export const SIMULATION_TRUST_LINE = `${SIMULATION_ACCURACY.statement.split(/(?<=\.)\s/)[0]} The conditions and sources are on your job page.`;
 /** An estimate's email when the job's results could not be read: true whatever they show. */
-const SIMULATION_FINISHED = "The simulation of your site has finished. Your job page shows how each policy did.";
+const SIMULATION_FINISHED = "The simulation test of your job has finished. Your job page shows how each AI robot did.";
+/** The page's own headline when a stored caveat is all that can be read: it is only ever set when none finished. */
+const NONE_FINISHED_HEADLINE = "Tested on your job: none finished yet.";
 
-/** The comparison the email may state: a finished simulation's, from the proof the job page shows. */
-function finishedComparison(proof: SimulationProof | null | undefined) {
-  return proof?.state === "done" ? proof.policyComparison : null;
-}
+/** The test result the job page leads with, once the simulation has finished. */
+const finishedResult = (proof: SimulationProof | null | undefined) => {
+  const result = proof?.state === "done" ? testResultOf(proof) : null;
+  return result && result.kind !== "testing" ? result : null;
+};
 
-/**
- * True when a policy the page compares completed the job: the same rows the comparison sentence rests
- * on. A success on a row that is not compared (another robot, or one we could not confirm) does not
- * make a result to announce.
- */
-const hasSuccess = (proof: SimulationProof | null | undefined) =>
-  Boolean(finishedComparison(proof)?.rows.some(row => row.compared && row.succeeded > 0));
-
-/** "A result" when some policy completed the job; otherwise the simulation has simply finished. */
+/** "A result" when some AI robot finished the job, as on the page; otherwise the test has simply finished. */
 function estimateSubject(proof: SimulationProof | null | undefined): string {
-  return hasSuccess(proof) ? "Your simulation result is ready" : "The simulation of your job has finished";
+  const result = finishedResult(proof);
+  return result && result.kind !== "none_finished" ? "Your simulation test has a result" : "The simulation test of your job has finished";
 }
 
 /**
- * A finished simulation, from the same projection the job page uses (`projectSimulationProof`): the
- * page's own comparison sentence, word for word, and its scene notes; with how far to trust a ranking
- * when some policy completed the job. When none did, what it found, never called an estimate and with
- * no offer of a pilot.
+ * A finished simulation, in the job page's own words (`projectSimulationProof`, `testResultOf`, `testHeadline`):
+ * the headline the page leads with, and the set-up notice when a flag says our simulation may have shaped it. One
+ * idea; the ranked list and how far to trust it are on the page.
  */
 function estimateDetail(proof: SimulationProof | null | undefined, caveat: ScreeningOutcomeCaveat | null): string {
-  const comparison = finishedComparison(proof);
-  // Without the result, a stored caveat still says what happened: it is only ever set when no policy succeeded.
-  const said = [...new Set(comparison ? [comparison.line, ...comparison.sceneNotes]
-    : caveat ? [NO_POLICY_COMPLETED, screeningCaveatSentence(caveat)] : [SIMULATION_FINISHED])].join(" ");
-  return hasSuccess(proof) ? `${said}\n\n${SIMULATION_TRUST_LINE} Nothing is needed from you.` : `${said} Nothing is needed from you.`;
+  const result = finishedResult(proof);
+  const said = result ? [testHeadline(result), result.setupFlag ? PLAIN_SETUP_CAVEAT : null]
+    // No option to name: the page's own line for why, or, unread, what a stored caveat still shows.
+    : proof?.state === "done" && testNotRunLine(proof) ? [testNotRunLine(proof)]
+    : caveat ? [NONE_FINISHED_HEADLINE, PLAIN_SETUP_CAVEAT] : [SIMULATION_FINISHED];
+  return `${said.filter(Boolean).join(" ")} Nothing is needed from you.`;
 }
 
 /** The job's simulation proof as its page shows it, or null when the results cannot be read. Never fails the notice. */
-async function loadEstimateProof(requestId: string): Promise<SimulationProof | null> {
+async function loadSimulationProof(requestId: string): Promise<SimulationProof | null> {
   try {
     const { readSiteManagedEvidence } = await import("./siteManagedEvidence");
     const { managedEvidence } = await readSiteManagedEvidence(requestId);
     return projectSimulationProof({ evaluation: managedEvidence as never, pick: null });
   } catch (error) {
-    logger.warn({ error, requestId }, "Could not read the simulation result for the result email; it says the simulation finished");
+    logger.warn({ error, requestId }, "Could not read the simulation result for an email; it says only what holds without it");
     return null;
   }
 }
@@ -464,10 +456,11 @@ function evaluationOutcomeDetail(params: { eventId?: string; screeningOutcome?: 
     || (counts && ![counts.ran, counts.total, counts.scored].every(value => Number.isSafeInteger(value) && value >= 0))) {
     throw new Error("evaluation_outcome_notice_invalid");
   }
-  const result = outcome === "estimate"
-    ? estimateDetail(params.simulationProof, storedScreeningOutcomeCaveat(params.screeningCaveat))
-    : `${simulationOutcomeEmailSentence(outcome)} Nothing is needed from you.`;
-  return `${result}\n\n${finePrint(SIMULATION_DISCLAIMER)}`;
+  // An estimate is the page's test result, under the page's tested limits line; the other outcomes keep theirs.
+  if (outcome === "estimate") {
+    return `${estimateDetail(params.simulationProof, storedScreeningOutcomeCaveat(params.screeningCaveat))}\n\n${finePrint(LIMITS_TESTED)}`;
+  }
+  return `${simulationOutcomeEmailSentence(outcome)} Nothing is needed from you.\n\n${finePrint(SIMULATION_DISCLAIMER)}`;
 }
 
 /**
@@ -520,21 +513,39 @@ export function answerIsSettled(answer: SiteAnswer | null | undefined): answer i
 }
 
 /**
- * The answer email's body, in the job page's own words: the headline, the
- * runner-up, how sure, where the simulation result appears, the standing note.
- * Built from the composed answer only, never caller text.
+ * What happens after the paper check, in one line true for the job's simulation test as the page reads it: being
+ * tested (we email the result), finished, not run and why (the page's own reason), or, with nothing known yet, what
+ * we do if a test runs.
  */
-function answerReadyDetail(answer: SiteAnswer | undefined): string {
+function afterPaperCheck(proof: SimulationProof | null | undefined): string {
+  const result = proof ? testResultOf(proof) : null;
+  if (result?.kind === "testing") {
+    return `Next, we're testing ${result.entered} AI ${result.entered === 1 ? "robot" : "robots"} on your job, in a simulation of your site. We'll email you the result.`;
+  }
+  if (result) return "The simulation test of your job has finished too. Your job page shows its result.";
+  if (proof && (proof.state === "preparing" || proof.state === "running") && !testNotRunLine(proof)) {
+    return "Next, we're getting a simulation test of your job ready. We'll email you the result.";
+  }
+  const notRun = testNotRunLine(proof);
+  if (notRun && proof?.state === "could_not_run") return `${notRun} So this paper check is your answer for now.`;
+  if (notRun) return notRun;
+  return "If we test AI robots on your job in a simulation of your site, we'll email you the result.";
+}
+
+/**
+ * The answer email's body, in the job page's own words: the paper check said as the paper check, how sure, what
+ * happens next with the simulation test, and the paper limits line as fine print. Built from the composed answer
+ * and the job's simulation proof only, never caller text.
+ */
+function answerReadyDetail(answer: SiteAnswer | undefined, proof: SimulationProof | null | undefined): string {
   if (!answerIsSettled(answer)) throw new Error("answer_ready_notice_invalid");
   if (answer.state === "cannot_assess") return `${answer.headline}\n\n${answer.reason}`;
-  // Bare bones: the headline, how sure (the job page's words), where the simulation appears, then the full
-  // standing note as fine print. The runner-up is one tap away on the page.
   const reason = answer.confidence.reasons[0];
   return [
-    answer.headline,
-    `How sure we are: ${ANSWER_SURENESS_WORDS[answer.confidence.level] ?? "Not sure yet"}.${reason ? ` ${reason}` : ""}`,
-    "If Blueprint runs a simulation of your site, its result appears on the same page.",
-    finePrint(SITE_ANSWER_NOTE),
+    `We've checked your job on paper. ${answer.headline}`,
+    `How sure we are, on paper: ${SURENESS_WORDS[answer.confidence.level] ?? SURENESS_WORDS.low}.${reason ? ` ${reason}` : ""}`,
+    afterPaperCheck(proof),
+    finePrint(LIMITS_PAPER),
   ].join("\n\n");
 }
 

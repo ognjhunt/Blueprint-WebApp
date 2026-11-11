@@ -48,6 +48,7 @@ describe("Blueprint's answer on a job card", () => {
     expect(block).toHaveTextContent("How sure are we? Fairly sure");
     expect(within(block).getByText(ANSWER.confidence.reason!)).toBeVisible();
     expect(within(block).getByText(JOB_CARD_LIMITS)).toBeVisible();
+    expect(JOB_CARD_LIMITS).toBe("A paper check, not a test at the site. Pick-up-and-put-down jobs only. It does not certify performance or safety.");
     expect(container.textContent).not.toMatch(/Yaskawa|1\.75 m|source|The UR20 palletizes here/);
   });
 
@@ -83,6 +84,7 @@ describe("Blueprint's answer on a job card", () => {
     expect(block).toHaveTextContent("How sure are we? Fairly sure");
     expect(within(block).getByText("On paper, most likely to fit: Universal Robots UR20")).toBeVisible();
     expect(block.textContent).not.toMatch(/your job|Did best/);
+    expect(within(block).getByText("Tested in a simulation, not at the site. Pick-up-and-put-down jobs only. It does not certify performance or safety.")).toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: "See details ›" }));
     expect(screen.getByRole("region", { name: "Simulation test" })).toHaveTextContent(
       "1. Franka arm + π0.5 · Physical IntelligenceFinished 7 of 10 tries2. Franka arm + GR00T N1.7 · NVIDIAFinished 0 of 10 tries · touched the object");
@@ -97,6 +99,7 @@ describe("Blueprint's answer on a job card", () => {
     render(<JobCardAnswer answer={{ ...ANSWER, test: { ...test, kind: "testing", wording: null, entered: 3, options: [] } }} />);
     expect(screen.getByText("Testing now")).toBeVisible();
     expect(screen.getByText("3 AI robots")).toBeVisible();
+    expect(screen.getByText("Being tested in a simulation, not at the site. Pick-up-and-put-down jobs only. It does not certify performance or safety.")).toBeVisible();
   });
 
   it("says a pass with little to spare, and a strength it can't tell yet with its whole range, never as a fail", () => {
