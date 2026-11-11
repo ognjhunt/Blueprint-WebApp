@@ -18,10 +18,10 @@ import { withAppCheckHeader } from "@/lib/appCheck";
 import { inferLocationCountryCode } from "@/lib/deploymentCoverage";
 import { PRIVACY_URL, TERMS_URL } from "@/lib/legalAcceptance";
 import { FILMING_NOTICE, FOOTAGE_UPLOAD_NOTICE } from "@/lib/footageNotice";
-import { DESCRIPTION_AUTHORITY_NO_VIDEO_VERSION, DESCRIPTION_AUTHORITY_STATEMENT, DESCRIPTION_AUTHORITY_WITH_VIDEO_VERSION } from "@/lib/siteSubmissionAuthority";
-import { RECORDING_RIGHTS_STATEMENT, RECORDING_RIGHTS_STATEMENT_SHORT_VERSION } from "@/lib/recordingRightsStatement";
+import { DESCRIPTION_AUTHORITY_NO_VIDEO_VERSION, DESCRIPTION_AUTHORITY_STATEMENT, DESCRIPTION_AUTHORITY_VERSION, DESCRIPTION_AUTHORITY_WITH_VIDEO_VERSION } from "@/lib/siteSubmissionAuthority";
+import { RECORDING_RIGHTS_STATEMENT, RECORDING_RIGHTS_STATEMENT_SHORT_VERSION, RECORDING_RIGHTS_STATEMENT_VERSION } from "@/lib/recordingRightsStatement";
 import { TASK_CONFIRMATION_STATEMENT, TASK_CONFIRMATION_VERSION } from "@/lib/taskConfirmationStatement";
-import { SITE_START_CONSENT_NO_VIDEO, SITE_START_CONSENT_WITH_VIDEO } from "@/lib/siteStartConsent";
+import { SITE_START_CONSENT_NO_VIDEO, SITE_START_CONSENT_WITH_VIDEO, START_FORM_SHORT_CONSENT } from "@/lib/siteStartConsent";
 import { BareBack, BareButton, BareGroup, BareLabel, BareLinks, BareNotice, BareScreen, BareTicks } from "@/components/bare/Bare";
 import { BareCheck, BareField, BareFile, BareInput, BareProgress, BareSelect, BareSubmit, BareTextarea, describedBy,
   useFocusHeading, useHashScreen } from "@/components/bare/BareForm";
@@ -459,11 +459,12 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
           // (SITE_START_CONSENT_*); the full statements are one tap away, word for word.
           descriptionAuthority: {
             granted: true,
-            statementVersion: footageWanted ? DESCRIPTION_AUTHORITY_WITH_VIDEO_VERSION : DESCRIPTION_AUTHORITY_NO_VIDEO_VERSION,
+            statementVersion: !START_FORM_SHORT_CONSENT ? DESCRIPTION_AUTHORITY_VERSION
+              : footageWanted ? DESCRIPTION_AUTHORITY_WITH_VIDEO_VERSION : DESCRIPTION_AUTHORITY_NO_VIDEO_VERSION,
           },
           consentAttestation: footageWanted ? {
             granted: true,
-            statementVersion: RECORDING_RIGHTS_STATEMENT_SHORT_VERSION,
+            statementVersion: START_FORM_SHORT_CONSENT ? RECORDING_RIGHTS_STATEMENT_SHORT_VERSION : RECORDING_RIGHTS_STATEMENT_VERSION,
           } : null,
           ...(claudeAuthoringRequested ? { claudeAuthoringConsent: {
             granted: claudeConsent,
@@ -883,10 +884,19 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
           <div className="bare-group">
             <BareSubmit busy={state.status === "working"} busyLabel={busyLabel}
               disabled={!interactive || clearStatus === "working" || loading}
-              helper={<>
+              helper={START_FORM_SHORT_CONSENT ? <>
                 <p data-consent-line>{consentWithLinks(consentLine)}</p>
                 <button type="button" className="bare-inline-link" style={{ fontSize: 15 }} onClick={() => openScreen("agreeing")}>What you're agreeing to ›</button>
-              </>}>{submitLabel}</BareSubmit>
+              </> : <div data-consent-statements>
+                {/* The recorded statements, word for word, set compactly under the button (the versions recorded today). */}
+                <p>By pressing {submitLabel}, you agree to our <a href={TERMS_URL} target="_blank" rel="noreferrer">Terms</a> and{" "}
+                  <a href={PRIVACY_URL} target="_blank" rel="noreferrer">Privacy Policy</a> and confirm:</p>
+                <ul className="bare-quote-list">
+                  <li>“{DESCRIPTION_AUTHORITY_STATEMENT}”</li>
+                  {sendsVideo && <li>“{RECORDING_RIGHTS_STATEMENT}”</li>}
+                </ul>
+                {sendsVideo && <p>{FOOTAGE_UPLOAD_NOTICE}</p>}
+              </div>}>{submitLabel}</BareSubmit>
           </div>
 
           {uploadPercent !== null && <div className="bare-group">
@@ -939,7 +949,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
         </BareScreen>
       </div>
 
-      <div hidden={screen !== "agreeing"}>
+      {START_FORM_SHORT_CONSENT && <div hidden={screen !== "agreeing"}>
         <BareScreen>
           <BareBack onClick={closeScreen} />
           {screen === "agreeing" && <h1 ref={headingRef} tabIndex={-1}>What you're agreeing to</h1>}
@@ -966,7 +976,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
           </BareGroup>
           <BareLinks links={[{ key: "back", label: "Back to the form", onClick: closeScreen }]} />
         </BareScreen>
-      </div>
+      </div>}
     </form>
   );
 }

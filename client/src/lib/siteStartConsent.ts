@@ -6,6 +6,18 @@
  *
  * Changing a word means a new version in both files.
  */
+/**
+ * The switch for the one-line consent. Turn on only after the Pipeline release that accepts recording-rights
+ * 2026-11-11.v3 is deployed (`capture_original_owner_observer.py`, `RECORDING_RIGHTS_STATEMENT_VERSIONS`): the Pipeline
+ * refuses any capture recorded under a version it does not list.
+ *
+ * Off: under the button the start form quotes the recorded statements word for word and records the versions
+ * production records today (description authority 2026-10-06.v1, recording rights 2026-11-02.v2). No 2026-11-11
+ * version is sent. On: the one line below, the "What you're agreeing to" screen, and the 2026-11-11 versions.
+ * The server accepts both either way.
+ */
+export const START_FORM_SHORT_CONSENT = false;
+
 export const SITE_START_CONSENT_WITH_VIDEO =
   "By sending, you agree to our Terms and Privacy Policy and confirm you're allowed to film and share this site.";
 /** The same line where no video is sent with the form (film it next, or a site outside the region we take video from). */

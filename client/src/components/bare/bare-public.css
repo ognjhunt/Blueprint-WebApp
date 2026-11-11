@@ -144,3 +144,8 @@ ol.bare-steps { list-style: none; margin: 0; padding: 0; counter-reset: bare-ste
 .bare-field input[role="combobox"] + div, .bare-field div:has(> input[role="combobox"]) > div:last-child { font-size: 14px !important; color: var(--bare-muted, #5d5f58); }
 .bare-field div:has(> input[role="combobox"]) .ms-text-link { min-height: 44px; font-size: 15px; text-decoration: underline; text-underline-offset: 3px; }
 @media (max-width: 760px) { .auth-shell.auth-bare .auth-art > span { display: none; } }
+
+/* The recorded statements under a button, word for word, set compactly. */
+.bare-consent ul.bare-quote-list { margin: 4px 0; padding: 0; list-style: none; }
+.bare-consent ul.bare-quote-list li { margin-top: 4px; padding-left: 12px; border-left: 2px solid var(--bare-rule, #cfd1c8); }
+.bare-consent [data-consent-statements] > * + * { margin-top: 4px; }
