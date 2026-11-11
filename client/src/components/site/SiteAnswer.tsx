@@ -189,8 +189,6 @@ export const TESTING_LINE = "on your job, in a simulation of your site. We'll em
 /** "Did your job in 7 of 10 tries". */
 const didJob = (option: SimulationOption) => `Did your job in ${option.succeeded} of ${option.scored} ${option.scored === 1 ? "try" : "tries"}`;
 
-/** The scene's negative line about the pick, in plain words: it changes what the answer means, so it is never details-only. */
-export const sceneSaysNoFit = (name: string) => `In a simulation of your site, the ${name} does not fit.`;
 
 /**
  * The head of the answer screen when the simulation test leads: what the test found, by `testResultOf`. The option
@@ -273,14 +271,13 @@ export function SiteAnswer({ token, answer, proof, onIntroductionRequested, onEd
     </section>;
   }
 
-  // The scene's own "does not fit" (on reach or where it stands) wins over a fit on published figures: the paper
-  // check then calls it the closest robot, and says why, so the screens never disagree.
-  const sceneNo = Boolean(pick) && proof?.robotCheck?.doesNotFit === true;
-  const fits = Boolean(pick) && (pick!.verdict === "fits" || pick!.verdict === "fits_on_paper") && !sceneNo;
+  // The verdict and the scene's contrary finding are the server's, decided once (`server/utils/siteAnswer.ts`), so
+  // the page, the job card and the emails say the same. The page never overrides them.
+  const fits = Boolean(pick) && (pick!.verdict === "fits" || pick!.verdict === "fits_on_paper");
   const test = testResultOf(proof);
   const action = answer.nextStep.kind === "introduction"
     ? <Introduction token={token} answer={answer} onRequested={onIntroductionRequested} quiet={quietAction} card={card} testResult={Boolean(test)} /> : null;
-  const sceneNotice = sceneNo && pick ? <BareNotice>{sceneSaysNoFit(pick.name)}</BareNotice> : null;
+  const sceneNotice = answer.sceneNote && pick ? <BareNotice>{answer.sceneNote}</BareNotice> : null;
 
   if (test) return <section className="site-answer-bare" aria-label="Your answer">
     <TestHead result={test} />

@@ -121,6 +121,7 @@ export function projectJobCardAnswer(answer: SiteAnswer | null, simulation: stri
   return {
     headline: aboutTheSite(headline ?? answer.headline),
     test,
+    sceneNote: answer.state === "ready" && answer.sceneNote ? aboutTheSite(answer.sceneNote).replace(/\byour own measurement\b/g, "the site's own measurement") : null,
     familyLabel: answer.job.familyLabel,
     // Sizes, weights and distances only: a figure with its unit, never words about the site.
     facts: answer.facts.filter(fact => /\d/.test(fact.display) && fact.display.length <= 60)

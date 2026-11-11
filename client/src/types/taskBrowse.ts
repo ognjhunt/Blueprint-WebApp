@@ -68,6 +68,8 @@ export interface JobCardAnswerSummary {
    * The simulation test's result, the same one the site's screen leads with (`testResultOf`): its kind, row 1 of
    * the ranked options and every option's count. Option names come from the closed map only. Null without a result.
    */
+  /** The site's scene finding beside a verdict resting on the site's own measurement, said about the site. */
+  sceneNote?: string | null;
   test?: {
     kind: "winner" | "one_option" | "no_clear_winner" | "none_finished" | "testing";
     wording: "did_best" | "was_ahead" | null;

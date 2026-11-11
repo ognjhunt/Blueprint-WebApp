@@ -99,7 +99,9 @@ describe("GET /api/site-worlds/tasks/:taskId", () => {
     const summary = body.item.answerSummary;
     expect(summary).toBeTruthy();
     expect(Object.keys(summary).sort()).toEqual(["confidence", "facts", "familyLabel", "headline", "note", "pick", "runnerUp",
-      "simulation", "test", "unknowns"]);
+      "sceneNote", "simulation", "test", "unknowns"]);
+    // No scene says otherwise here: no scene note.
+    expect(summary.sceneNote).toBeNull();
     // No simulation has run: the card's headline is the paper check's, as on the site's screen.
     expect(summary.test).toBeNull();
     expect(summary.headline).toMatch(/^Most likely to fit: /);

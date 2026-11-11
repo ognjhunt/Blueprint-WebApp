@@ -669,6 +669,13 @@ describe("the site's answer is emailed once, when it first settles", () => {
     }
   });
 
+  it("says the scene's contrary finding beside a verdict resting on the site's own measurement, as the page and the card do", async () => {
+    const note = "The simulation of your site found that the UR10e does not fit. This check uses your own measurement instead, which we trust more.";
+    const notice = await build(answer({ sceneNote: note }));
+    expect(notice.body.startsWith(`We've checked your job on paper. Most likely to fit: Universal Robots UR10e.\n\n${note}\n\n`)).toBe(true);
+    expect((await build(answer())).body).not.toContain("does not fit");
+  });
+
   it("tells a job of another kind why, under its own subject, and never builds the unsized case", async () => {
     const notice = await build(otherKind());
     expect(notice.subject).toBe("An update on your Blueprint job");

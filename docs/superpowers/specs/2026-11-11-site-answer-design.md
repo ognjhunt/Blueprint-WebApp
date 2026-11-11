@@ -79,6 +79,15 @@ returns `answer: null` and carries on.
   payload check passes (and, when the row lists what failed, a reach, stance or
   access check is among them); "unknown" with reach still open leaves reach
   unknown; anything else leaves the video's reach check standing.
+- **When the site's own figure and the scene disagree**, the site's figure wins
+  (the reconstruction's scale is estimated): the verdict stands, and the answer
+  carries `sceneNote`, "The simulation of your site found that the {model} does
+  not fit. This check uses your own measurement instead, which we trust more."
+  With no figure of the site's own, a scene "doesn't fit" on reach, where it can
+  stand or access rules the robot out, so no surface says it fits. This is
+  decided once in the composer; the page, the job card and the emails render it
+  and never override it, and every caller composes with the same scene table
+  (`loadSiteAnswer` reads it when the caller has none).
 - **Verdicts** come only from the checks: any failed check rules a robot out,
   with that check's sentence as the reason; all passed is "fits" when the scene
   passed reach with a clear arm path, else "fits on paper"; otherwise "may

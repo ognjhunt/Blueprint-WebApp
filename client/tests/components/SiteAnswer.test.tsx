@@ -346,42 +346,39 @@ describe("the answer and the simulation of the site never disagree", () => {
   const robotFit = (verdict: "fits" | "fits_spec" | "doesnt_fit" | "unknown", openChecks: string[]) =>
     ({ models: [{ name: "UR10e", manufacturer: "Universal Robots", verdict, openChecks }] });
 
-  it("says the robot does not fit only on a check the scene decides, and then says so on the answer screen", () => {
-    // The scene's "doesn't fit" rests only on weight, which the answer checks from published figures: the scene line
-    // says what the scene did check, and the answer stands.
-    const weightOnly = projectSimulationProof({ evaluation: [], robotFit: robotFit("doesnt_fit", ["payload"]), pick: readyAnswer.pick });
-    expect(weightOnly.robotCheck).toMatchObject({ line: "In the scene rebuilt from your video, the Universal Robots UR10e was not ruled out on reach or where it can stand.", doesNotFit: false });
-    const { unmount } = render(<SiteAnswer token="owner-token" answer={readyAnswer} proof={weightOnly} />);
-    expect(screen.getByRole("heading", { level: 2, name: "On paper, the robot most likely to fit" })).toBeVisible();
-    unmount();
-    // On reach: the answer calls it the closest robot and says why, in view.
+  // Since round 6 the server decides the verdict and the scene's contrary finding once (`sceneNote`), so the page, the
+  // job card and the emails cannot disagree; the page renders them and never overrides the label (rewritten from the
+  // page-side override).
+  it("renders the server's verdict and its scene note, and never overrides the label from the scene table", () => {
     const reach = projectSimulationProof({ evaluation: [], robotFit: robotFit("doesnt_fit", ["reach"]), pick: readyAnswer.pick });
-    expect(reach.robotCheck).toMatchObject({ doesNotFit: true });
-    render(<SiteAnswer token="owner-token" answer={readyAnswer} proof={reach} />);
+    const note = "The simulation of your site found that the UR10e does not fit. This check uses your own measurement instead, which we trust more.";
+    const { unmount } = render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, sceneNote: note }} proof={reach} />);
+    expect(screen.getByRole("heading", { level: 2, name: "On paper, the robot most likely to fit" })).toBeVisible();
+    expect(screen.getByText(note)).toBeVisible();
+    unmount();
+    render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, pick: { ...readyAnswer.pick!, verdict: "possible" } }} proof={reach} />);
     expect(screen.getByRole("heading", { level: 2, name: "On paper, the closest robot" })).toBeVisible();
-    expect(screen.getByText("In a simulation of your site, the UR10e does not fit.")).toBeVisible();
+    expect(screen.queryByText(/does not fit/)).toBeNull();
   });
 
-  it("holds over many generated answers and scene rows", () => {
+  it("holds over many generated answers and scene rows: the label is the server's verdict, the notice the server's note", () => {
     let seed = 20261111;
     const random = () => ((seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648);
     const pickOf = <T,>(values: readonly T[]) => values[Math.floor(random() * values.length)];
     const CHECKS = ["reach", "payload", "stance", "access", "cycle_time"];
-    let negatives = 0;
     for (let index = 0; index < 300; index++) {
       const verdict = pickOf(["fits", "fits_on_paper", "possible"] as const);
-      const answer = { ...readyAnswer, pick: { ...readyAnswer.pick!, verdict } };
+      const sceneNote = random() < 0.3 ? "The simulation of your site found that the UR10e does not fit. This check uses your own measurement instead, which we trust more." : null;
+      const answer = { ...readyAnswer, sceneNote, pick: { ...readyAnswer.pick!, verdict } };
       const open = CHECKS.filter(() => random() < 0.3);
       const proof = projectSimulationProof({ evaluation: [], robotFit: robotFit(pickOf(["fits", "fits_spec", "doesnt_fit", "unknown"] as const), open), pick: answer.pick });
       const { container, unmount } = render(<SiteAnswer token="owner-token" answer={answer} proof={proof} />);
-      const saysFits = container.textContent!.includes("The robot most likely to fit");
-      const sceneSaysNo = /does not fit\./.test(proof.robotCheck!.line);
-      if (sceneSaysNo) negatives++;
-      expect(saysFits && sceneSaysNo, `${verdict} / ${proof.robotCheck!.line}`).toBe(false);
-      if (sceneSaysNo) expect(container.textContent).toContain("In a simulation of your site, the UR10e does not fit.");
+      const text = container.textContent!;
+      // The page never says fits while the server says otherwise, and never the reverse.
+      expect(text.includes("On paper, the robot most likely to fit"), `${verdict}`).toBe(verdict !== "possible");
+      expect(text.includes("does not fit"), `${verdict} / ${sceneNote}`).toBe(Boolean(sceneNote));
       unmount();
     }
-    expect(negatives).toBeGreaterThan(20);
   });
 });
 

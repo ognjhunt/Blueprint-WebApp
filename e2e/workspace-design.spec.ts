@@ -492,7 +492,7 @@ for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 1024 });
     await page.goto("/app/tasks/task-1");
     await expect(page.getByText("6801 Burnet Road, Austin, TX", { exact: true })).toHaveCount(1);
-    await expect(page.getByRole("button", { name: "Open my job page ›", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Open your job page", exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "No evaluation results yet" })).toHaveCount(1);
     await expect(page.getByRole("heading", { name: "Evaluation results", exact: true })).toHaveCount(0);
     await expect(page.getByText("fixture-support-reference", { exact: true })).not.toBeVisible();

@@ -530,7 +530,7 @@ describe("each check takes its outcome from the best source for its own quantity
     expect(checkOf(other, "reach")).toMatchObject({ outcome: "pass", basis: "video_estimate" });
   });
 
-  it("keeps the site's measured distance over the scene", () => {
+  it("keeps the site's measured distance over the scene", async () => {
     // Measured 3 m apart: no arm that stays in one place serves it, whatever the scene's row says.
     const far = composeSiteAnswer({ ...inputs({ measurements: measurements({ pick_to_place_distance: reading(3, "m", 3) }),
       robotFit: scene({ ...UR10E, verdict: "fits" }) }), catalog: only("universal_robots_ur10e") })!;
@@ -541,6 +541,31 @@ describe("each check takes its outcome from the best source for its own quantity
       robotFit: scene({ ...UR10E, verdict: "doesnt_fit", openChecks: ["reach"] }) }), catalog: only("universal_robots_ur10e") })!;
     expect(near.pick).toMatchObject({ verdict: "fits_on_paper", sceneChecked: false });
     expect(checkOf(near, "reach")).toMatchObject({ outcome: "pass", basis: "site_measured", estimated: false });
+    // The verdict stands and the answer says both, decided here once for the page, the card and the emails.
+    expect(near.headline).toBe("Most likely to fit: Universal Robots UR10e.");
+    expect(near.sceneNote).toBe("The simulation of your site found that the UR10e does not fit. This check uses your own measurement instead, which we trust more.");
+    expect(far.sceneNote).toBeNull();
+    // The shared job card says the same verdict and the same finding, about the site.
+    const { projectJobCardAnswer } = await import("../utils/jobCardAnswer");
+    const card = projectJobCardAnswer(near)!;
+    expect(card.headline).toBe("Most likely to fit: Universal Robots UR10e.");
+    expect(card.pick).toMatchObject({ verdictLabel: "Fits on paper" });
+    expect(card.sceneNote).toBe("The simulation of the site found that the UR10e does not fit. This check uses the site's own measurement instead, which we trust more.");
+  });
+
+  it("never says a robot fits when the scene rules it out on where it can stand or reach it, with no figure of the site's own", () => {
+    for (const open of [["stance"], ["access"], ["reach"], []]) {
+      const answer = composeSiteAnswer({ ...inputs({ robotFit: scene({ ...UR10E, verdict: "doesnt_fit", openChecks: open }) }),
+        catalog: only("universal_robots_ur10e") })!;
+      expect(answer.pick, open.join()).toBeNull();
+      expect(answer.headline, open.join()).not.toMatch(/Most likely to fit/);
+      expect(answer.sceneNote, open.join()).toBeNull();
+    }
+    // A scene "doesn't fit" that rests only on weight changes nothing and is never said as "does not fit".
+    const weightOnly = composeSiteAnswer({ ...inputs({ robotFit: scene({ ...UR10E, verdict: "doesnt_fit", openChecks: ["payload"] }) }),
+      catalog: only("universal_robots_ur10e") })!;
+    expect(weightOnly.pick).toMatchObject({ verdict: "fits_on_paper" });
+    expect(weightOnly.sceneNote).toBeNull();
   });
 
   it("matches the scene's row by maker and name, ignoring case and punctuation", () => {

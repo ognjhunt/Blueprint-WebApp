@@ -544,6 +544,8 @@ function answerReadyDetail(answer: SiteAnswer | undefined, proof: SimulationProo
   const reason = answer.confidence.reasons[0];
   return [
     `We've checked your job on paper. ${answer.headline}`,
+    // The scene's contrary finding, decided by the composer, said as the page and the job card say it.
+    ...(answer.sceneNote ? [answer.sceneNote] : []),
     `How sure we are, on paper: ${SURENESS_WORDS[answer.confidence.level] ?? SURENESS_WORDS.low}.${reason ? ` ${reason}` : ""}`,
     afterPaperCheck(proof),
     finePrint(LIMITS_PAPER),

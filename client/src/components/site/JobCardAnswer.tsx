@@ -131,6 +131,7 @@ export function JobCardAnswer({ answer, titled = true }: { answer: JobCardAnswer
   if (test) return <section className="bare-screen site-card-answer" aria-label={JOB_CARD_ANSWER_TITLE} ref={root} tabIndex={-1}>
     {titled && <h3 className="bare-label">{JOB_CARD_ANSWER_TITLE}</h3>}
     <CardTestHead test={test} />
+    {answer.sceneNote && <BareGroup><BareNotice>{answer.sceneNote}</BareNotice></BareGroup>}
     {pick && <BareGroup><p>{fits ? "On paper, most likely to fit" : "On paper, the closest robot"}: {pick.manufacturer} {pick.name}</p></BareGroup>}
     <BareLinks links={[{ key: "details", label: "See details", onClick: () => show(true) }]} />
     <BareFine>{test.kind === "testing" || !test.options.length ? JOB_CARD_LIMITS_TESTING : JOB_CARD_LIMITS_TESTED}</BareFine>
@@ -142,6 +143,7 @@ export function JobCardAnswer({ answer, titled = true }: { answer: JobCardAnswer
       <BareBig as="p" sub={`by ${pick.manufacturer}${fits ? "" : ". No robot clearly fits yet."}${answer.familyLabel ? ` · Kind of job: ${answer.familyLabel}` : ""}`}>{pick.name}</BareBig>
     </BareGroup> : <BareGroup><BareLead>{answer.headline}</BareLead></BareGroup>}
     {pick && <BareGroup><BareTicks label="Why" items={ticksOf(pick.checks ?? [], pick.evidence[0])} /></BareGroup>}
+    {answer.sceneNote && <BareGroup><BareNotice>{answer.sceneNote}</BareNotice></BareGroup>}
     <BareGroup>
       <BareSureness filled={sure.filled} word={sure.word} reason={answer.confidence.reason} />
       {answer.simulation && <p>Simulation test: {answer.simulation}</p>}
