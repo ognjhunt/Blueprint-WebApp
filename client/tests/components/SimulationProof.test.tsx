@@ -97,9 +97,9 @@ describe("tested in simulation", () => {
     const { proof, container } = renderProof({ evaluation: [graded], pick });
     expect(proof.headline).toBe(NO_POLICY_COMPLETED);
     expect(screen.getByText(NO_POLICY_COMPLETED)).toBeVisible();
-    expect(screen.getByText("How far each got: π0.5 carried the object toward where it goes in 2 of 9 tries; "
-      + "π0 did not get within reach of the object in any of its 10 tries, typically coming within about 7 cm of it; "
-      + "GR00T N1.7 got within reach of the object in 3 of 10 tries.")).toBeVisible();
+    expect(screen.getByText("How far each got: π0.5 lifted and carried the object in 2 of 9 tries; "
+      + "π0 did not get its gripper within 2 cm of the object in any of its 10 tries, typically coming within about 7 cm of it; "
+      + "GR00T N1.7 got its gripper within 2 cm of the object in 3 of 10 tries.")).toBeVisible();
     // Said once, in the sentence, not again on the rows; and nothing is marked on it.
     expect(policyRows()).not.toMatch(/object|typically/);
     expect(screen.queryByText("Did best")).toBeNull();
@@ -127,7 +127,7 @@ describe("tested in simulation", () => {
     const items = within(screen.getByRole("list", { name: "Control policies tried" })).getAllByRole("listitem");
     const groot = items.find(item => item.textContent!.startsWith("GR00T N1.7"))!;
     expect(groot.textContent).toMatch(
-      /0 of 10 tries · did not get within reach of the object in any of its 10 tries, typically coming within about 8 cm of it$/);
+      /0 of 10 tries · did not get its gripper within 2 cm of the object in any of its 10 tries, typically coming within about 8 cm of it$/);
     expect(groot.textContent).not.toMatch(/did not .* in 10 of 10/);
   });
 

@@ -45,14 +45,14 @@ const NONE_COMPLETED = [
   candidate("groot_n17_droid", 10, 0, { progress: progress(10, [0, 0, 0, 0, 0, 0, 0], 0.0829) }),
   candidate("molmoact2_droid", 10, 0),
 ];
-const GROOT_NOT_REACHED = "did not get within reach of the object; it typically came within about 8 cm of it";
+const GROOT_NOT_REACHED = "did not get its gripper within 2 cm of the object; it typically came within about 8 cm of it";
 
 describe("how far each policy got", () => {
   it("adds one sentence after the no-completion sentence, for the compared rows that have progress", () => {
     const { proof, comparison } = comparisonOf(NONE_COMPLETED);
-    expect(comparison.line).toBe(`${NO_POLICY_COMPLETED} How far each got: π0.5 carried the object toward where it goes in 2 of 9 tries; `
-      + "π0 got within reach of the object in 3 of 10 tries; "
-      + "GR00T N1.7 did not get within reach of the object in any of its 10 tries, typically coming within about 8 cm of it.");
+    expect(comparison.line).toBe(`${NO_POLICY_COMPLETED} How far each got: π0.5 lifted and carried the object in 2 of 9 tries; `
+      + "π0 got its gripper within 2 cm of the object in 3 of 10 tries; "
+      + "GR00T N1.7 did not get its gripper within 2 cm of the object in any of its 10 tries, typically coming within about 8 cm of it.");
     // The headline, the job card's one line, stays the first sentence.
     expect(proof.headline).toBe(NO_POLICY_COMPLETED);
     // A row without progress is left out of the sentence and carries no stage.
@@ -88,8 +88,8 @@ describe("how far each policy got", () => {
 
   it("says each stage by its closed phrase, and the no-stage phrase by the ladder's first stage", () => {
     const expected: Record<ProgressStage, string> = {
-      approached: "got within reach of the object", contact: "touched the object", moved: "moved the object",
-      lifted: "lifted the object", translated: "carried the object toward where it goes", placed: "put the object in place",
+      approached: "got its gripper within 2 cm of the object", contact: "touched the object", moved: "moved the object",
+      lifted: "lifted the object", translated: "lifted and carried the object", placed: "put the object in place",
       released_and_settled: "put the object in place and let go",
     };
     expect(PROGRESS_PHRASES).toEqual(expected);
@@ -101,14 +101,14 @@ describe("how far each policy got", () => {
       expect(comparison.line).toBe(`${NO_POLICY_COMPLETED} How far each got: π0.5 ${expected[stage]} in 4 of 10 tries.`);
     });
     const none = (counts: number[]) => comparisonOf([candidate("pi05_droid", 10, 0, { progress: progress(10, counts) })]).comparison;
-    expect(none([0, 0, 0, 0, 0, 0, 0]).rows[0].furthestText).toBe("did not get within reach of the object; it typically came within about 4 cm of it");
+    expect(none([0, 0, 0, 0, 0, 0, 0]).rows[0].furthestText).toBe("did not get its gripper within 2 cm of the object; it typically came within about 4 cm of it");
     expect(none([0, 0, 0, 0, 0, 0]).rows[0].furthestText).toBe("did not touch the object");
     expect(PROGRESS_NOT_TOUCHED).toBe("did not touch the object");
-    expect(PROGRESS_NOT_APPROACHED).toBe("did not get within reach of the object");
+    expect(PROGRESS_NOT_APPROACHED).toBe("did not get its gripper within 2 cm of the object");
   });
 
   it("says how close a policy that reached no stage came: whole centimetres, at least 1, metres with one decimal from 100 cm", () => {
-    const said = (median: number) => closestApproachText(median).replace("did not get within reach of the object; it typically came within about ", "");
+    const said = (median: number) => closestApproachText(median).replace("did not get its gripper within 2 cm of the object; it typically came within about ", "");
     expect([0, 0.0001, 0.0049, 0.005, 0.0149, 0.015, 0.0429, 0.065, 0.0829, 0.2, 0.9949, 0.995, 1.0, 1.04, 1.05, 2.3456].map(said)).toEqual([
       "1 cm of it", "1 cm of it", "1 cm of it", "1 cm of it", "1 cm of it", "2 cm of it", "4 cm of it", "7 cm of it", "8 cm of it",
       "20 cm of it", "99 cm of it", "1.0 m of it", "1.0 m of it", "1.0 m of it", "1.1 m of it", "2.3 m of it"]);
@@ -125,9 +125,9 @@ describe("how far each policy got", () => {
       candidate("molmoact2_droid", 10, 0, { progress: progress(10, [0, 0, 0, 0, 0, 0, 0], 1.37) }),
     ]).comparison.line;
     expect(line).toBe(`${NO_POLICY_COMPLETED} How far each got: `
-      + "π0.5 did not get within reach of the object in its one try, typically coming within about 20 cm of it; "
+      + "π0.5 did not get its gripper within 2 cm of the object in its one try, typically coming within about 20 cm of it; "
       + "GR00T N1.7 did not touch the object in its one try; "
-      + "MolmoAct 2 did not get within reach of the object in any of its 10 tries, typically coming within about 1.4 m of it.");
+      + "MolmoAct 2 did not get its gripper within 2 cm of the object in any of its 10 tries, typically coming within about 1.4 m of it.");
     // On a row, beside a policy that completed the job: the same words, never "in 10 of 10 tries".
     const { comparison } = comparisonOf([
       candidate("pi05_droid", 10, 6),
@@ -135,9 +135,32 @@ describe("how far each policy got", () => {
       candidate("molmoact2_droid", 10, 0, { progress: progress(10, [0, 0, 0, 0, 0, 0]) }),
     ]);
     expect(comparison.rows.slice(1).map(row => [row.furthestShown, row.furthestText, row.furthestDetail])).toEqual([
-      [true, "did not get within reach of the object; it typically came within about 8 cm of it",
-        "did not get within reach of the object in any of its 10 tries, typically coming within about 8 cm of it"],
+      [true, "did not get its gripper within 2 cm of the object; it typically came within about 8 cm of it",
+        "did not get its gripper within 2 cm of the object in any of its 10 tries, typically coming within about 8 cm of it"],
       [true, "did not touch the object", "did not touch the object in any of its 10 tries"]]);
+  });
+
+  it("never words the graded tries as the policy's total when fewer were graded than scored", () => {
+    const line = comparisonOf([
+      candidate("pi05_droid", 10, 0, { progress: progress(9, [6, 4, 0, 0, 0, 0, 0]) }),
+      candidate("groot_n17_droid", 10, 0, { progress: progress(9, [0, 0, 0, 0, 0, 0, 0], 0.0829) }),
+      candidate("molmoact2_droid", 10, 0, { progress: progress(1, [0, 0, 0, 0, 0, 0]) }),
+      candidate("pi0_droid_jointpos_polaris", 10, 0, { progress: progress(1, [1, 1, 0, 0, 0, 0]) }),
+    ]).comparison.line;
+    expect(line).toBe(`${NO_POLICY_COMPLETED} How far each got: `
+      + "π0.5 touched the object in 4 of the 9 tries we could grade; "
+      + "GR00T N1.7 did not get its gripper within 2 cm of the object in any of the 9 tries we could grade, typically coming within about 8 cm of it; "
+      + "MolmoAct 2 did not touch the object in the one try we could grade; "
+      + "π0 moved the object in the one try we could grade.");
+    // The same on a row beside a policy that completed the job.
+    const { comparison } = comparisonOf([
+      candidate("pi05_droid", 10, 6),
+      candidate("groot_n17_droid", 10, 0, { progress: progress(9, [0, 0, 0, 0, 0, 0]) }),
+      candidate("molmoact2_droid", 10, 0, { progress: progress(7, [5, 2, 2, 1, 0, 0]) }),
+    ]);
+    expect(comparison.rows.slice(1).map(row => [row.scored, row.furthestDetail])).toEqual([
+      [10, "did not touch the object in any of the 9 tries we could grade"],
+      [10, "lifted and carried the object in 1 of the 7 tries we could grade"]]);
   });
 
   it("reads a ladder without `approached`: it starts at contact", () => {
@@ -175,7 +198,7 @@ describe("how far each policy got", () => {
       candidate("humanoidarena_pi05_g1_dex3_sonic", 10, 0, { progress: progress(10, [9, 9, 9, 9, 9, 0, 0]) }),
     ]);
     expect(comparison.line).toBe(`${NO_POLICY_COMPLETED} How far each got: π0.5 touched the object in 4 of 10 tries; `
-      + "GR00T N1.7 got within reach of the object in 2 of 10 tries. "
+      + "GR00T N1.7 got its gripper within 2 cm of the object in 2 of 10 tries. "
       + "1 more policy ran on a Unitree G1 humanoid, a different robot, and is not compared with these.");
     expect(comparison.line).not.toContain("HumanoidArena");
     expect(comparison.rows[2]).toMatchObject({ compared: false, furthestText: PROGRESS_PHRASES.translated, furthestShown: false });

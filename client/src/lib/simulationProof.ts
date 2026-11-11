@@ -19,6 +19,7 @@
  */
 import type { RobotFitView } from "../components/site/RobotFit";
 import { SIMULATION_ACCURACY } from "../data/simulationAccuracy";
+import { APPROACHED_WITHIN_CM } from "../data/screeningProgressGrader";
 import { SIMULATION_POLICIES, UNNAMED_POLICY, simulationPolicyFor, type SimulatedRobot } from "../data/simulationPolicies";
 import { sameRobot } from "./robotNameMatch";
 import type { AnswerRobot } from "./siteAnswer";
@@ -31,16 +32,18 @@ export type ProgressStage = JobScreeningProgressStage;
 export const PROGRESS_LADDER: readonly ProgressStage[] = ["approached", "contact", "moved", "lifted", "translated", "placed", "released_and_settled"];
 /** What each stage says, past tense: the only words a site reads about how far a policy got. */
 export const PROGRESS_PHRASES: Readonly<Record<ProgressStage, string>> = {
-  approached: "got within reach of the object",
+  // The grader version's own threshold (`screeningProgressGrader.ts`), said as a distance.
+  approached: `got its gripper within ${APPROACHED_WITHIN_CM} cm of the object`,
   contact: "touched the object",
   moved: "moved the object",
   lifted: "lifted the object",
-  translated: "carried the object toward where it goes",
+  // Moved, once lifted, at least the grader's distance in any direction: no direction is claimed.
+  translated: "lifted and carried the object",
   placed: "put the object in place",
   released_and_settled: "put the object in place and let go",
 };
 /** No stage reached, on a ladder that measured the approach. */
-export const PROGRESS_NOT_APPROACHED = "did not get within reach of the object";
+export const PROGRESS_NOT_APPROACHED = `did not get its gripper within ${APPROACHED_WITHIN_CM} cm of the object`;
 /** No stage reached, on a ladder that starts at contact. */
 export const PROGRESS_NOT_TOUCHED = "did not touch the object";
 /**
@@ -57,8 +60,20 @@ function distanceText(medianM: number): string {
 export function closestApproachText(medianM: number): string {
   return `${PROGRESS_NOT_APPROACHED}; it typically came within about ${distanceText(medianM)} of it`;
 }
-/** "in its one try", "in any of its 10 tries": said of a policy that reached no stage. */
-const anyOfTries = (graded: number) => (graded === 1 ? "in its one try" : `in any of its ${graded} tries`);
+/**
+ * The tries a progress phrase is said of. When every scored try was graded they are the policy's tries:
+ * "in 4 of 10 tries", "in any of its 10 tries", "in its one try". When fewer were graded (a missing trace
+ * or a grading error) the figure is never worded as the policy's total: "in 4 of the 9 tries we could
+ * grade", "in any of the 9 tries we could grade", "in the one try we could grade".
+ */
+function someOfTries(n: number, graded: number, scored: number): string {
+  if (graded === scored) return `in ${triesText(n, graded)}`;
+  return graded === 1 ? "in the one try we could grade" : `in ${n} of the ${graded} tries we could grade`;
+}
+function anyOfTries(graded: number, scored: number): string {
+  if (graded === scored) return graded === 1 ? "in its one try" : `in any of its ${graded} tries`;
+  return graded === 1 ? "in the one try we could grade" : `in any of the ${graded} tries we could grade`;
+}
 /** The start of the sentence that says how far each compared policy got when none completed the job. */
 export const HOW_FAR_EACH_GOT = "How far each got:";
 
@@ -290,13 +305,13 @@ function furthestOf(progress: unknown, scored: number): { furthest: { stage: Pro
   }
   if (furthest) {
     const text = PROGRESS_PHRASES[furthest.stage];
-    return { furthest, text, detail: `${text} in ${triesText(furthest.episodes, graded)}` };
+    return { furthest, text, detail: `${text} ${someOfTries(furthest.episodes, graded, scored)}` };
   }
   // A row that reached no stage says so of all its tries, and how close it typically came when that was measured.
   if (isRecord(approach)) return { furthest: null, text: closestApproachText(approach.median as number),
-    detail: `${PROGRESS_NOT_APPROACHED} ${anyOfTries(graded)}, typically coming within about ${distanceText(approach.median as number)} of it` };
+    detail: `${PROGRESS_NOT_APPROACHED} ${anyOfTries(graded, scored)}, typically coming within about ${distanceText(approach.median as number)} of it` };
   const text = ladder[0] === "approached" ? PROGRESS_NOT_APPROACHED : PROGRESS_NOT_TOUCHED;
-  return { furthest: null, text, detail: `${text} ${anyOfTries(graded)}` };
+  return { furthest: null, text, detail: `${text} ${anyOfTries(graded, scored)}` };
 }
 
 /** The current job evaluation: the newest current one with an outcome or results, else the newest current one. */

@@ -51,7 +51,7 @@ const router: any = (await import("../routes/internal-beta-policy-screening")).d
  */
 const PIPELINE_V4_FIXTURE_SHA256 = "5ad8e51f64357ff520ad2b961c0db169e21ec9f5d82b17583cc04cdd33c75da6";
 const NO_POLICY = "The simulation ran, but no policy completed the job in it, so it could not rank them.";
-const HOW_FAR = "How far each got: π0.5 carried the object toward where it goes in 2 of 10 tries; GR00T N1.7 moved the object in 1 of 10 tries.";
+const HOW_FAR = "How far each got: π0.5 lifted and carried the object in 2 of 10 tries; GR00T N1.7 moved the object in 1 of 10 tries.";
 const SECRET = "test-only-screening-progress-signature";
 const scene = createHash("sha256").update("scene-one").digest("hex").slice(0, 24);
 const run = (campaign = "campaign-one") => state.docs.get(`taskEvaluationPolicyRuns/${campaign}`) as Record<string, any>;
@@ -141,8 +141,8 @@ describe("the v4 wire contract", () => {
     // Policy C reached no stage: it says how close it typically came. A completion elsewhere leaves the line alone.
     const proof = projectSimulationProof({ evaluation: [siteView()], pick: null });
     expect(proof.policyComparison!.rows.map(row => [row.succeeded, row.furthestText])).toEqual([
-      [2, "put the object in place and let go"], [0, "carried the object toward where it goes"],
-      [0, "did not get within reach of the object; it typically came within about 12 cm of it"], [0, "lifted the object"]]);
+      [2, "put the object in place and let go"], [0, "lifted and carried the object"],
+      [0, "did not get its gripper within 2 cm of the object; it typically came within about 12 cm of it"], [0, "lifted the object"]]);
     expect(proof.policyComparison!.line).not.toContain("How far each got");
   });
 
@@ -159,6 +159,7 @@ describe("the v4 wire contract", () => {
       closest_approach_m: { median: 0.0829, min: 0.0429 } };
     expect(accepted(v4([all, none]))).toBe(true);
     expect(accepted(v4([{ ...WITH_APPROACH, closest_approach_m: { median: 0.05, min: 0.05 } }, FROM_CONTACT]))).toBe(true);
+    expect(accepted(v4([{ ...WITH_APPROACH, closest_approach_m: { median: 100, min: 0.0001 } }, FROM_CONTACT]))).toBe(true);
     // The closed list is the contract's, in its order.
     expect(SCREENING_PROGRESS_STAGES).toEqual(["approached", "contact", "moved", "lifted", "translated", "placed", "released_and_settled"]);
     expect(SCREENING_PROGRESS_GRADER_VERSION).toBe("policy_episode_progress.v1");
@@ -210,6 +211,11 @@ describe("the v4 wire contract", () => {
       ["a closest approach without its minimum", with_({ closest_approach_m: { median: 0.01 } })],
       ["a closest approach with a field it does not know", with_({ closest_approach_m: { median: 0.01, min: 0, unit: "m" } })],
       ["a closest approach as text", with_({ closest_approach_m: "1.3 cm" })],
+      // Both sides keep the Pipeline's 4-decimal figures and a closest approach of at most 100 m.
+      ["a mean with five decimals", with_({ mean_score: 0.37143 })],
+      ["a closest approach with five decimals", with_({ closest_approach_m: { median: 0.01291, min: 0 } })],
+      ["a closest approach minimum with five decimals", with_({ closest_approach_m: { median: 0.0129, min: 0.00001 } })],
+      ["a closest approach beyond 100 m", with_({ closest_approach_m: { median: 100.5, min: 0 } })],
     ];
     for (const [name, value] of malformed) {
       expect(accepted(v4([value, FROM_CONTACT])), name).toBe(false);
@@ -284,7 +290,7 @@ describe("what the site reads", () => {
       closest_approach_m: { median: 0.0829, min: 0.0429 } };
     await ingestBetaPolicyScreening(v4([none, FROM_CONTACT]));
     const line = projectSimulationProof({ evaluation: [siteView()], pick: null }).policyComparison!.line;
-    const said = "How far each got: π0.5 did not get within reach of the object in any of its 10 tries, typically coming within about 8 cm of it; "
+    const said = "How far each got: π0.5 did not get its gripper within 2 cm of the object in any of its 10 tries, typically coming within about 8 cm of it; "
       + "GR00T N1.7 moved the object in 1 of 10 tries.";
     expect(line).toBe(`${NO_POLICY} ${said}`);
     await deliverOutbox();

@@ -160,7 +160,7 @@ describe("GET /api/site-worlds/tasks/:taskId", () => {
       screening: { candidates: [row("pi05_droid", [9, 6, 5, 4, 2, 0, 0]), row("groot_n17_droid", [0, 0, 0, 0, 0, 0, 0])] } }] }));
     const { body } = await get(`/tasks/${ID}`);
     expect(body.item.answerSummary.simulation).toBe("The simulation ran, but no policy completed the job in it, so it could not rank them.");
-    expect(JSON.stringify(body)).not.toMatch(/How far each got|within reach|carried the object|typically came/);
+    expect(JSON.stringify(body)).not.toMatch(/How far each got|within 2 cm|carried the object|typically came/);
   });
 
   it("keeps the answer when the simulation line cannot be read", async () => {

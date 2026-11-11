@@ -22,6 +22,7 @@
 import { z } from "zod";
 import { crossRuntimeArtifactDigest, crossRuntimeDigest } from "./crossRuntimeCanonical";
 import type { JobScreeningOutcome, JobScreeningProgress, JobScreeningProgressStage } from "../../client/src/types/jobMarketplace";
+import { SCREENING_PROGRESS_GRADER_VERSION } from "../../client/src/data/screeningProgressGrader";
 
 const identifier = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$/);
 const digest = z.string().regex(/^sha256:[a-f0-9]{64}$/);
@@ -83,18 +84,25 @@ export type ScreeningSceneFeasibility = z.infer<typeof sceneFeasibility>;
  * `approached`, the stage that measures it. Facts about the run, never a ranking: nothing chooses,
  * holds or orders a candidate on it.
  */
-export const SCREENING_PROGRESS_GRADER_VERSION = "policy_episode_progress.v1";
+/** The grader version, kept beside the threshold it fixes (`client/src/data/screeningProgressGrader.ts`). */
+export { SCREENING_PROGRESS_GRADER_VERSION } from "../../client/src/data/screeningProgressGrader";
 export const SCREENING_PROGRESS_STAGES = ["approached", "contact", "moved", "lifted", "translated", "placed",
   "released_and_settled"] as const satisfies readonly JobScreeningProgressStage[];
 export type ScreeningProgressStage = typeof SCREENING_PROGRESS_STAGES[number];
+/**
+ * A non-negative figure the Pipeline writes with at most 4 decimals (`mean_score`, the closest approach in
+ * metres): its value times 10 000 is a whole number, up to float error in the decimal it was read from.
+ */
+const fourDecimals = (max: number) => z.number().finite().min(0).max(max)
+  .refine(value => Math.abs(value * 10_000 - Math.round(value * 10_000)) < 1e-6, "At most 4 decimals");
 /** `mean_score` is rounded to 4 decimals by the Pipeline: half a unit of the last place, plus float slack. */
 const PROGRESS_MEAN_TOLERANCE = 0.00005 + 1e-9;
 const progress = z.object({
   grader_version: z.literal(SCREENING_PROGRESS_GRADER_VERSION),
   episodes_graded: count.min(1),
   stages: z.array(z.object({ stage: z.enum(SCREENING_PROGRESS_STAGES), episodes: count }).strict()).min(6).max(7),
-  mean_score: z.number().finite().min(0).max(1),
-  closest_approach_m: z.object({ median: z.number().finite().min(0), min: z.number().finite().min(0) }).strict()
+  mean_score: fourDecimals(1),
+  closest_approach_m: z.object({ median: fourDecimals(100), min: fourDecimals(100) }).strict()
     .refine(value => value.min <= value.median, "The closest approach's minimum cannot exceed its median").optional(),
 }).strict().superRefine((value, ctx) => {
   const ids = value.stages.map(entry => entry.stage);
