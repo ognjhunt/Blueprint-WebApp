@@ -229,7 +229,7 @@ test("the owner is asked in plain words before a chair is moved out of the robot
   await page.screenshot({ path: info.outputPath("robot-access-approved.png"), fullPage: true });
 });
 
-test("the current simulation estimate is visible while technical references stay folded", async ({ page }, info) => {
+test("the current simulation result leads as proof, open, while every detail and technical reference stays folded", async ({ page }, info) => {
   const token = "scored-result-fixture";
   const writes: string[] = [];
   await page.route("**/api/**", route => {
@@ -240,7 +240,7 @@ test("the current simulation estimate is visible while technical references stay
         resultDigest: "sha256:fixture-result", summary: "Your job's simulation estimate: 1 candidate ran, with 3 episodes scored.",
         nextAction: "Blueprint uses this estimate to recommend the next step.",
         limitations: ["Simulation does not certify physical performance or safety."], href: "#managed-evidence-accepted-evaluation",
-        screening: { candidates: [{ candidateId: "candidate-1", name: "Current candidate", state: "completed",
+        screening: { candidates: [{ candidateId: "candidate-1", name: "Arm with suction gripper", state: "completed",
           planned: 3, scored: 3, succeeded: 2, failed: 1, void: 0, blockers: [],
           successRange: { lowerPercent: 21, upperPercent: 94, confidencePercent: 95 } }] } }],
     } });
@@ -256,6 +256,16 @@ test("the current simulation estimate is visible while technical references stay
     return route.fulfill({ status: 503, json: { error: "Unstubbed local API" } });
   });
   await page.goto(`/capture-upload/${token}?video=existing`);
+  // An older job with a result and no answer: the proof stands on its own, visible without opening anything.
+  const proof = page.getByRole("region", { name: "Proof in simulation" });
+  await expect(proof.getByText("The simulation scored one policy: Arm with suction gripper completed the job in 2 of 3 tries.", { exact: true })).toBeVisible();
+  await expect(proof.getByRole("listitem").filter({ hasText: "2 of 3 tries" })).toBeVisible();
+  await expect(proof.getByRole("heading", { name: "How far to trust this" })).toBeVisible();
+  // The full result is one click away, in the folded details.
+  const details = page.locator("summary", { hasText: "Simulation details" });
+  await expect(details.locator("xpath=..")).not.toHaveAttribute("open", "");
+  await expect(page.getByRole("heading", { name: "Your simulation estimate" })).toBeHidden();
+  await details.click();
   await expect(page.getByRole("heading", { name: "Your simulation estimate" })).toBeVisible();
   await expect(page.getByRole("table", { name: "Candidates evaluated for your job" })).toBeVisible();
   await expect(page.getByText("Succeeded in 2 of 3 scored tries; likely between 21% and 94%.")).toBeVisible();
@@ -300,6 +310,11 @@ test("a held result says the same plain sentence as the headline, with plain rea
   });
   await page.goto(`/capture-upload/${token}?video=existing`);
   await expect(page.getByText(`${sentence} Nothing is needed from you.`, { exact: true })).toBeVisible();
+  // The proof says, open and in one sentence about the simulation, why it could not run.
+  const proof = page.getByRole("region", { name: "Proof in simulation" });
+  await expect(proof.getByText("None of the robots the simulation can run matched this task; at least one was measured out of reach from the robot position planned in the scene built from your video.", { exact: true })).toBeVisible();
+  expect(await proof.textContent()).not.toMatch(/[a-z]_[a-z]|your job is held|estimate|budget|\$/i);
+  await page.locator("summary", { hasText: "Simulation details" }).click();
   const results = page.getByRole("region", { name: "Simulation results for your job" });
   await expect(results.getByText(sentence, { exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Simulation evaluation" })).toBeVisible();
@@ -655,6 +670,11 @@ test("a run with only scripted reference baselines is not called an estimate on 
   });
   await page.goto(`/capture-upload/${token}?video=existing`);
   await expect(page.getByText(`${sentence} Nothing is needed from you.`, { exact: true })).toBeVisible();
+  // The proof never calls a reference-only run an estimate, and names no policy.
+  const proof = page.getByRole("region", { name: "Proof in simulation" });
+  await expect(proof.getByText("The simulation scored only scripted reference checks; no AI policy could be tested in it yet.", { exact: true })).toBeVisible();
+  expect(await proof.textContent()).not.toMatch(/estimate|did best|tries/i);
+  await page.locator("summary", { hasText: "Simulation details" }).click();
   const results = page.getByRole("region", { name: "Simulation results for your job" });
   await expect(results.getByText(sentence, { exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Simulation evaluation" })).toBeVisible();

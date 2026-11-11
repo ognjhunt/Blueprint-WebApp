@@ -637,7 +637,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
   // simulation are the proof section's to say, so the card does not repeat them as if the job were waiting.
   const siteStillHasSomething = !answerSettled || link.status !== "valid" || upload.status === "held" || Boolean(status && (
     (status.operatorAction && !optionalCorrectionHint) || status.outcome?.actionOwner === "site"
-    || SITE_DECISIONS.has(status.decision) || RIGHTS_NOTICE.test(`${status.headline} ${status.outcome?.reason ?? ""}`)));
+    || (SITE_DECISIONS.has(status.decision) && !optionalCorrectionHint) || RIGHTS_NOTICE.test(`${status.headline} ${status.outcome?.reason ?? ""}`)));
   const quietCard = !siteStillHasSomething;
 
   // One current update. Saved jobs show it before results; a fresh capture

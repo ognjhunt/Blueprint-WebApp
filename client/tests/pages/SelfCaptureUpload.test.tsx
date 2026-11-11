@@ -12,7 +12,7 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import SelfCaptureUpload from "@/pages/SelfCaptureUpload";
 import { RECORDING_RIGHTS_STATEMENT } from "@/lib/recordingRightsStatement";
 import { processingFailure } from "../../../server/utils/taskPreparationOutcome";
-import { cannotAssessAnswer, readingAnswer, readyAnswer } from "../fixtures/siteAnswer";
+import { allZeroEvaluation, cannotAssessAnswer, readingAnswer, readyAnswer, winnerEvaluation } from "../fixtures/siteAnswer";
 
 const route = vi.hoisted(() => ({ token: "tok-e2e", navigate: vi.fn() }));
 vi.mock("wouter", () => ({ useRoute: () => [true, { token: route.token }], useLocation: () => ["/capture-upload/test", route.navigate] }));
@@ -1133,8 +1133,15 @@ describe("the site's answer leads its job page", () => {
   const DESKTOP_UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/126.0 Safari/537.36";
   const robotFit = { route: "full", status: "completed", reason: null, counts: { fits: 1, fitsSpec: 0, doesntFit: 0, unknown: 0 },
     models: [{ name: "UR10e", manufacturer: "Universal Robots", verdict: "fits", openChecks: [] }], modelsTruncated: false };
-  function answerFetch({ answer, scope = "owner", decision = "footage_received", confirmedAtIso = null }: {
-    answer: unknown; scope?: "owner" | "film"; decision?: string; confirmedAtIso?: string | null;
+  const jobWorkflow = (managedEvidence: unknown[]) => ({ schemaVersion: "job_marketplace.v1", revision: "workflow-1", stage: "brief_agreed",
+    requirements: { purchaseReadiness: "unsure", jobFrequency: null, requiredOutput: null, installationBudget: null, ongoingBudget: null,
+      currentProcessCost: null, targetStartDate: null },
+    briefAgreed: true, optionsAssessed: false, reviewRequired: false, nextAction: "Blueprint is preparing your job.", actionOwner: "blueprint",
+    review: null, managedEvidence });
+  function answerFetch({ answer, scope = "owner", decision = "footage_received", confirmedAtIso = null, workflow = null,
+    headline = "We have your recording.", operatorAction = null, outcome = null }: {
+    answer: unknown; scope?: "owner" | "film"; decision?: string; confirmedAtIso?: string | null; workflow?: unknown;
+    headline?: string; operatorAction?: string | null; outcome?: unknown;
   }) {
     return vi.fn().mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
@@ -1142,23 +1149,24 @@ describe("the site's answer leads its job page", () => {
         ok: true, state: "open", accepts: ["mov", "mp4"], captureReceived: true, uploadState: "processing_ready" }) });
       if (url === `/api/site-task-brief/${TOKEN}/status`) return Promise.resolve({ ok: true, json: async () => ({
         scope, captureReceived: true, answer, robotFit,
-        status: { decision, headline: "We have your recording.", operatorAction: null, missingViews: [], nextUpdateIso: null } }) });
+        status: { decision, headline, operatorAction, outcome, missingViews: [], nextUpdateIso: null } }) });
       if (url === `/api/site-task-brief/${TOKEN}`) return Promise.resolve({ ok: true, json: async () => ({ ready: true, scope, brief: {
         summary: "Move cartons from the end of the conveyor onto the pallet.", captureMode: "self_capture", proposed: [], unresolved: [], confirmedAtIso } }) });
-      if (url.startsWith("/api/job-workflow/owner/")) return Promise.resolve({ ok: false, json: async () => ({}) });
+      if (url.startsWith("/api/job-workflow/owner/")) return Promise.resolve(workflow
+        ? { ok: true, json: async () => workflow } : { ok: false, json: async () => ({}) });
       return Promise.resolve({ ok: true, json: async () => ({ ok: true, ready: false }) });
     });
   }
 
-  it("shows the answer between the title and the status card, instead of the separate robot fit", async () => {
+  it("shows the answer under the title instead of the separate robot fit, with no status card repeating a wait", async () => {
     setUserAgent(DESKTOP_UA);
     vi.stubGlobal("fetch", answerFetch({ answer: readyAnswer }));
     render(<SelfCaptureUpload />);
     const answer = await screen.findByRole("region", { name: "Your answer" });
     const title = screen.getByRole("heading", { level: 1, name: "Your job" });
-    const card = screen.getByText("We have your recording.", { selector: "strong" });
     expect(title.compareDocumentPosition(answer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(answer.compareDocumentPosition(card) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // Nothing is asked of the site, so the card does not speak as if the job were waiting.
+    expect(screen.queryByText("We have your recording.")).toBeNull();
     expect(screen.getByText(readyAnswer.headline)).toBeVisible();
     expect(screen.queryByRole("region", { name: "Robot fit" })).toBeNull();
     // A settled answer is the update; no "will update" line under it.
@@ -1179,6 +1187,53 @@ describe("the site's answer leads its job page", () => {
     render(<SelfCaptureUpload />);
     expect(await screen.findByText(cannotAssessAnswer.reason!)).toBeVisible();
     expect(screen.queryByText("Blueprint will update this job as the work progresses.")).toBeNull();
+  });
+
+  it.each([
+    ["a new video is needed", { decision: "insufficient_evidence", headline: "We need a new video of the job.",
+      outcome: { category: "insufficient_evidence", basis: "missing_evidence", title: "We need a new video of the job.",
+        reason: "The video ends before the carton is put down.", scope: "The saved video.", nextStep: "Film the whole carry once more.",
+        actionOwner: "site", evidence: [] } }],
+    ["the site has a step of its own", { decision: "save_account", headline: "Save this job to an account to continue." }],
+    ["Blueprint names a step for the site", { decision: "processing_failure", headline: "Upload a longer video.", operatorAction: "Upload a longer video of the pallet." }],
+    ["recording permission was withdrawn", { headline: "Your video is saved. Recording consent was withdrawn, so we can no longer review the video or show the scene preview." }],
+    ["the job has ended", { decision: "ended", headline: "This job's work window has ended." }],
+  ] as const)("keeps the status card under a settled answer when %s", async (_, card) => {
+    setUserAgent(DESKTOP_UA);
+    vi.stubGlobal("fetch", answerFetch({ answer: readyAnswer, ...card }));
+    render(<SelfCaptureUpload />);
+    await screen.findByRole("region", { name: "Your answer" });
+    expect(await screen.findByText(card.headline, { selector: "strong" })).toBeVisible();
+  });
+
+  it("puts the proof in simulation inside the answer from the workspace's one workflow read", async () => {
+    setUserAgent(DESKTOP_UA);
+    const fetchMock = answerFetch({ answer: readyAnswer, workflow: jobWorkflow([winnerEvaluation]) });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<SelfCaptureUpload />);
+    const answer = await screen.findByRole("region", { name: "Your answer" });
+    const proof = await screen.findByRole("region", { name: "Proof in simulation" });
+    expect(answer.contains(proof)).toBe(true);
+    expect(proof.closest("details")).toBeNull();
+    expect(proof.textContent).toMatch(/π0\.5, an AI control policy from Physical Intelligence, did best/);
+    // The status read's measured scene reaches the proof too.
+    expect(proof.textContent).toMatch(/In the scene measured from your video, the Universal Robots UR10e reaches/);
+    expect(screen.getByText("Simulation details").closest("details")).not.toHaveAttribute("open");
+    expect(screen.getAllByRole("region", { name: "Proof in simulation" })).toHaveLength(1);
+    const reads = fetchMock.mock.calls.filter(([input]) => String(input).startsWith("/api/job-workflow/owner/"));
+    expect(reads).toHaveLength(1);
+  });
+
+  it("shows the proof on its own, where the folded block was, for an older job with evaluations and no answer", async () => {
+    setUserAgent(DESKTOP_UA);
+    vi.stubGlobal("fetch", answerFetch({ answer: null, workflow: jobWorkflow([allZeroEvaluation]) }));
+    render(<SelfCaptureUpload />);
+    const proof = await screen.findByRole("region", { name: "Proof in simulation" });
+    expect(screen.queryByRole("region", { name: "Your answer" })).toBeNull();
+    expect(proof.closest("details")).toBeNull();
+    expect(proof.textContent).toMatch(/could not rank them/);
+    // With no answer, the status card stays as it was.
+    expect(screen.getByText("We have your recording.", { selector: "strong" })).toBeVisible();
   });
 
   it("says nothing more will update on an ended job", async () => {
