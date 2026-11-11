@@ -34,6 +34,9 @@ describe("the computer test in one line", () => {
     expect(line([{ ...preparingEvaluation, state: "running", screening: { candidates: [{ ...preparingEvaluation.screening!.candidates[0], state: "running" }] } }]))
       .toBe("Computer test: Running now.");
     expect(line([])).toBeNull();
+    // One scored program on a robot we cannot name: nothing to compare it with.
+    const lone = { ...winnerEvaluation, screening: { candidates: [{ ...winnerEvaluation.screening!.candidates[0], candidateId: "unknown-id", name: "Arm" }] } };
+    expect(line([lone])).toBe("Computer test: Only one robot program could be scored, so there is nothing to compare it with.");
   });
 });
 

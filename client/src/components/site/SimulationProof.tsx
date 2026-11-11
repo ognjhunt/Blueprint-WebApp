@@ -58,7 +58,9 @@ export function computerTestLine(proof: SimulationProofView | null | undefined, 
   const comparison = proof.policyComparison;
   const compared = comparison?.rows.filter(row => row.compared) ?? [];
   if (!comparison || !comparison.rows.length) return "Computer test: It finished, but no robot program could be scored.";
-  if (!compared.length) return "Computer test: We couldn't confirm the robot programs ran on the same robot, so they aren't compared.";
+  if (!compared.length) return comparison.rows.length === 1
+    ? "Computer test: Only one robot program could be scored, so there is nothing to compare it with."
+    : "Computer test: We couldn't confirm the robot programs ran on the same robot, so they aren't compared.";
   const on = `on ${comparison.robotName}${!comparison.sameRobotAsPick && pickName ? `, not the ${pickName}` : ""}`;
   const leader = compared.find(row => row.chosen);
   if (leader) {
