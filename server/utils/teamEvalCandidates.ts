@@ -103,9 +103,12 @@ export async function loadRunnableSites(limit: number): Promise<InboundRequest[]
     db.collection("inboundRequests").where("site_task_triage.disposition", "==", "qualified").limit(capped).get(),
     db.collection("inboundRequests").where(`${SCENE_SCREEN_GATE_ENDED_FIELD}.schema_version`, "==", SCENE_SCREEN_GATE_ENDED_SCHEMA).limit(capped).get(),
   ]);
+  // Each query returns its first rows in document-id order (no explicit order,
+  // as before); the union keeps that order, so the cap takes the first rows of
+  // both sets together and neither set can crowd the other out.
   const unique = new Map([...qualified.docs, ...ungated.docs].map((doc) => [doc.id, doc]));
 
-  return [...unique.values()].slice(0, capped)
+  return [...unique.values()].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)).slice(0, capped)
     .map((doc) => doc.data() as InboundRequest)
     // The same answer the job library, the opening page and the evaluation
     // request give: a site job the site listed and has not paused or

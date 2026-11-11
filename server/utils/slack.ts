@@ -84,14 +84,16 @@ export async function notifySlackCapturePrivacyEscalation(options: {
 /**
  * Tell ops a confirmed site's screen left questions open.
  *
- * A note for staff, not a gate: since the owner's decision of 2026-11-11 a job
- * whose video arrives after the change gets its scene whatever the screen says.
- * The request's `ops.next_step` is the record; this is the bell, on the channel
- * ops already reads.
+ * For a job whose video arrived after the owner's decision of 2026-11-11
+ * (`screenGateEnded`) this is a note: its scene is built whatever the screen
+ * says. A job uploaded before it still waits on this call for its scene, so
+ * its alert says so. The request's `ops.next_step` is the record; this is the
+ * bell, on the channel ops already reads.
  */
 export async function notifySlackScreeningCallNeeded(options: {
   requestId: string;
   openQuestions: readonly string[];
+  screenGateEnded?: boolean;
 }): Promise<{ sent: boolean; error?: unknown }> {
   const webhookUrl =
     process.env.SLACK_INBOUND_WEBHOOK_URL || process.env.SLACK_WEBHOOK_URL;
@@ -104,7 +106,9 @@ export async function notifySlackScreeningCallNeeded(options: {
     ? options.openQuestions.map((question) => `• ${question}`).join("\n")
     : "• Unanswered gates on the brief";
   const text =
-    `:telephone_receiver: *Site screen left questions open (a note; it does not hold the scene)* — request \`${options.requestId}\`\n`
+    (options.screenGateEnded
+      ? `:telephone_receiver: *Site screen left questions open (a note; it does not hold the scene)* — request \`${options.requestId}\`\n`
+      : `:telephone_receiver: *Site needs a screening call before its scene is built* — request \`${options.requestId}\`\n`)
     + `${agenda}\nRecord the outcome: ${adminUrl}`;
   return sendSlackMessage(text, webhookUrl);
 }

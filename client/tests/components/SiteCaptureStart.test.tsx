@@ -1631,11 +1631,18 @@ describe("the bot trap", () => {
     const form = screen.getByRole("form");
     expect(form.textContent).not.toMatch(/Leave this field|honeypot/i);
     expect(document.querySelector('label[for="' + trap().id + '"]')).toBeNull();
-    // Out of the layout altogether, so it is never copied, never autofilled and never shown; and named for nothing a
-    // browser would autofill.
+    // Rendered (a script that fills every rendered input still finds it) but off-screen and clipped, out of the
+    // accessibility tree, and named for nothing a browser or password manager would autofill.
     const box = trap().closest("[data-bot-trap]") as HTMLElement;
     expect(box).toHaveAttribute("aria-hidden", "true");
-    expect(box.style.display).toBe("none");
+    expect(box.style.display).not.toBe("none");
+    expect(box.style.visibility).not.toBe("hidden");
+    expect(box).not.toHaveAttribute("hidden");
+    expect(box.style.position).toBe("absolute");
+    expect(box.style.left).toBe("-9999px");
+    expect(box.textContent).toBe("");
+    expect(trap()).toHaveAttribute("data-lpignore", "true");
+    expect(trap()).toHaveAttribute("data-1p-ignore");
     expect(trap()).toHaveAttribute("tabindex", "-1");
     expect(trap()).toHaveAttribute("autocomplete", "off");
     expect(trap().id).not.toMatch(/web|url|site|name|mail|phone|address|company/i);

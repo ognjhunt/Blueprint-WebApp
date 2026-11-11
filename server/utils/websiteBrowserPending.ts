@@ -348,6 +348,30 @@ export async function loadBrowserPending(captureId: string): Promise<BrowserPend
   return value;
 }
 
+/** Stamp the screen-gate cutover marker (owner decision 2026-11-11) before the
+ * completion marker reaches storage, which is what the Pipeline acts on, so a
+ * grant request can never arrive first. Only for the original walkthrough the
+ * same publication would accept: rights stand, it is not yet published, and no
+ * newer capture of the job is active. A fresh re-upload of an old job's original
+ * video gets it too, which is meant: the site sent a new video after the change.
+ * Idempotent, and kept if publication later fails: that video is still new. */
+export async function stampSceneScreenGateBeforeDelivery(selected: BrowserPending): Promise<boolean> {
+  if (!db) throw new Error("browser_pending_unavailable");
+  if (selected.capture_id !== `walkthrough-${selected.request_id}`) return false;
+  const ref = db.collection(SITE_CAPTURE_SESSIONS_COLLECTION).doc(selected.capture_id);
+  return db.runTransaction(async (transaction) => {
+    const value = (await transaction.get(ref)).data()?.browser_pending_delivery;
+    if (!validPending(value) || !sameDelivery(value, selected) || value.state === "published") return false;
+    const requestRef = db!.collection("inboundRequests").doc(value.request_id);
+    const request = (await transaction.get(requestRef)).data();
+    if (!request || request[SCENE_SCREEN_GATE_ENDED_FIELD] || !projectWebsiteCaptureRights(request).derived_scene_generation_allowed
+      || request.active_capture_id && request.active_capture_id !== value.capture_id) return false;
+    transaction.set(requestRef, { [SCENE_SCREEN_GATE_ENDED_FIELD]: sceneScreenGateEndedMarker(value.request_id, new Date().toISOString()) },
+      { merge: true });
+    return true;
+  });
+}
+
 export async function publishBrowserPending(selected: BrowserPending): Promise<void> {
   if (!db) throw new Error("browser_pending_unavailable");
   const ref = db.collection(SITE_CAPTURE_SESSIONS_COLLECTION).doc(selected.capture_id);

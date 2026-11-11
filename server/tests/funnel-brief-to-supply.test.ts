@@ -306,6 +306,18 @@ describe("a shared job's access does not depend on the screen after the cutover"
     expect(await loadRunnableSites(50)).toEqual([]);
   });
 
+  it("keeps marked jobs in supply when qualified rows fill the cap, in document-id order", async () => {
+    const { loadRunnableSites } = await import("../utils/teamEvalCandidates");
+    const qualified = await sharedJob(allClear());
+    const blocked = await sharedJob({ ...allClear(), sceneStability: "reconfigured" });
+    sharedFakeFirestoreState.docs.delete(`inboundRequests/${REQUEST}`);
+    for (const id of ["job-a", "job-c", "job-d"]) sharedFakeFirestoreState.docs.set(`inboundRequests/${id}`, { ...qualified, requestId: id });
+    sharedFakeFirestoreState.docs.set("inboundRequests/job-b", { ...blocked, requestId: "job-b",
+      scene_screen_gate_ended: sceneScreenGateEndedMarker("job-b", "2026-11-12T00:00:00Z") });
+    expect((await loadRunnableSites(2)).map(site => site.requestId)).toEqual(["job-a", "job-b"]);
+    expect((await loadRunnableSites(10)).map(site => site.requestId)).toEqual(["job-a", "job-b", "job-c", "job-d"]);
+  });
+
   it("matches robot teams to a not_now job only once the marker is on it", async () => {
     const blocked = await sharedJob({ ...allClear(), sceneStability: "reconfigured" });
     const { runSiteMatch } = await import("../utils/siteMatchRun");

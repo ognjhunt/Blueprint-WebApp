@@ -1399,3 +1399,20 @@ describe("an email it cannot send to", () => {
       } finally { await stopServer(server); }
     });
 });
+
+describe("the bot trap", () => {
+  it("answers a filled trap with a fake success and saves nothing", async () => {
+    process.env.NODE_ENV = "development";
+    vi.resetModules();
+    const { server, baseUrl } = await startRouterServer();
+    try {
+      const requestId = `bot-trap-${crypto.randomUUID()}`;
+      const response = await fetch(`${baseUrl}/`, { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...buildPayload(requestId, "owner@example.com"), honeypot: "https://spam.example" }) });
+      expect(response.status).toBe(202);
+      expect(await response.json()).toMatchObject({ ok: true });
+      expect(fs.existsSync(devLogPath) && fs.readFileSync(devLogPath, "utf8").includes(requestId)).toBeFalsy();
+      expect(sendEmail).not.toHaveBeenCalled();
+    } finally { await stopServer(server); }
+  });
+});

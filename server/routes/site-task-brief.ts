@@ -310,18 +310,23 @@ router.post("/:token/introduction-request", csrfProtection, async (req, res) => 
   if (body.data.statementVersion !== JOB_CARD_ANSWER_STATEMENT_VERSION)
     return res.status(409).json({ code: "introduction_request_statement_changed",
       error: "The wording on this page has changed. Reload the page to read it, then press the button again." });
+  // Sharing follows the job's outlook: only once the job has an answer (a test result, or the paper check after a
+  // recorded ending). When the outlook cannot be read for certain it is "not yet", never a server error.
+  const waits = (phase: string) => res.status(409).json({ code: "introduction_waits_for_answer", phase,
+    error: "You can share this job once it has an answer. We'll email you when it does." });
+  const decision = await import("../utils/jobOutlook").then(({ loadJobOutlookDecision }) => loadJobOutlookDecision(verified.requestId))
+    .catch(() => null);
+  const alreadyAsked = await (db?.collection("inboundRequests").doc(verified.requestId).get()
+    .then(snapshot => Boolean(snapshot.data()?.introduction_request)).catch(() => false) ?? false);
+  if (!alreadyAsked) {
+    if (!decision || !decision.certain) return waits(decision?.outlook.phase ?? "building");
+    const { outlookHasAnswer } = await import("../utils/jobOutlook");
+    if (!outlookHasAnswer(decision.outlook)) return waits(decision.outlook.phase);
+  }
   try {
     const request = await readRequestForStatus(verified.requestId, verified.captureId, verified.sceneId);
     if (!db || !request || request.captureRights.consent_revoked)
       return res.status(409).json({ code: "introduction_request_unavailable", error: "This job can no longer be shared from its recording." });
-    // Sharing follows the job's outlook: offered only once the job has an answer (a test result, or the paper check
-    // after an ending). A job already shared keeps its record: pressing again records the current sentence.
-    if (!(typeof request.answerSource?.introduction_request === "object" && request.answerSource.introduction_request)) {
-      const { loadJobOutlook, outlookHasAnswer } = await import("../utils/jobOutlook");
-      const outlook = await loadJobOutlook(verified.requestId);
-      if (!outlookHasAnswer(outlook)) return res.status(409).json({ code: "introduction_waits_for_answer", phase: outlook.phase,
-        error: "You can share this job once it has an answer. We'll email you when it does." });
-    }
     const store = db;
     const ref = store.collection("inboundRequests").doc(verified.requestId);
     const requestedAtIso = await store.runTransaction(async tx => {
@@ -477,7 +482,8 @@ async function readRequestForStatus(requestId: string, captureId = `walkthrough-
     jobWorkWindow: await import("../utils/websiteSceneSponsorship")
       .then(({ websiteJobWorkWindow }) => websiteJobWorkWindow(data)).catch(() => null),
     visualReconstructionReady: preview?.state === "ready",
-    ownerClosureOutcome: projectWebsiteRunClosure(data, requestId, selectedCaptureId),
+    // A closure record that does not read is unknown: the status shows no closure rather than failing the read.
+    ownerClosureOutcome: (() => { try { return projectWebsiteRunClosure(data, requestId, selectedCaptureId); } catch { return null; } })(),
     preparationOutcome: largeVideoAskOutcome(data, requestId, selectedCaptureId) ?? projectAtlasPreparationOutcome(preview),
     siteTaskGates: gateAnswersOnFile(data),
     site_task_brief_confirmed_at: data.site_task_brief_confirmed_at,
@@ -1198,7 +1204,7 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
       void db.collection("inboundRequests").doc(payload.requestId)
         .set({ ops: { next_step: "Review the owner’s written clarification or book a screening call, then record the outcome under Screening." } }, { merge: true })
         .catch((error) => logger.warn({ error, requestId: payload.requestId }, "Could not set screening call next step"));
-      void notifySlackScreeningCallNeeded({ requestId: payload.requestId, openQuestions: agenda })
+      void notifySlackScreeningCallNeeded({ requestId: payload.requestId, openQuestions: agenda, screenGateEnded })
         .catch(() => undefined);
     }
 
@@ -1426,17 +1432,10 @@ router.get("/:token/status", async (req: Request, res: Response) => {
     const ownerAnswer = await siteAnswerForStatus(payload.scope === "owner" && request && !request.captureRights.consent_revoked
       ? { requestId: payload.requestId, request: request.answerSource, brief, videoReceived: hasStoredCapture,
         robotFit: preparationStatus?.robotFit ?? null } : null);
-    const outlook = payload.scope === "owner" && request ? await statusOutlook({ requestId: payload.requestId, captureId: payload.captureId,
-      record: request.answerSource, consentRevoked: request.captureRights.consent_revoked, answer: ownerAnswer,
-      preparation: preparationStatus, scene: sceneProgression }) : null;
-    // An ending the WebApp records nowhere (a run that ended with no publication, a simulation built but never tested)
-    // gives the site its paper-check answer when it is first seen. Every other ending queues it where it is recorded
-    // (the coverage review, the preparation status, the window and no-grant sweeps, the outcome notices), so a page read
-    // stays read-only for them. Idempotent by key; never fails the read.
-    if (outlook && outlook.phase === "no_test" && (outlook.reason === "run_ended" || outlook.reason === "built_not_tested")) {
-      void import("../utils/taskLifecycleNotifications").then(({ notifyIfAnswerSettled }) => notifyIfAnswerSettled(payload.requestId))
-        .catch(() => undefined);
-    }
+    // The job's outlook, from the one shared loader every caller uses (review, 2026-11-11). A read that fails gives
+    // no outlook, and the page then shows the working screen. Reading it never queues or sends anything.
+    const outlook = payload.scope === "owner" && request
+      ? await import("../utils/jobOutlook").then(({ loadJobOutlook }) => loadJobOutlook(payload.requestId)).catch(() => null) : null;
     return res.status(200).json({
       ok: true,
       scope: payload.scope,
@@ -1481,37 +1480,6 @@ router.get("/:token/status", async (req: Request, res: Response) => {
   }
 });
 
-/**
- * The job's outlook from what the status read already holds (its record, the verified preparation status and scene
- * progression, the composed answer) plus the job's simulation proof. Never fails the status read: null on error.
- */
-async function statusOutlook(params: { requestId: string; captureId: string; record: Record<string, unknown>; consentRevoked: boolean;
-  answer: unknown; preparation: { state: string; robotFit?: { route?: string } | null } | null; scene: { state: string } | null }) {
-  try {
-    const [{ jobOutlook, outlookAnswerOf }, { websiteRunClosure }, { recordedWebsiteJobWindowEnding, recordedWebsiteJobNoGrantEnding },
-      { readSiteManagedEvidence }, { projectSimulationProof }] = await Promise.all([
-      import("../utils/jobOutlook"), import("../utils/websiteRunClosure"), import("../utils/websiteJobWindowEnding"),
-      import("../utils/siteManagedEvidence"), import("../../client/src/lib/simulationProof")]);
-    const { managedEvidence } = await readSiteManagedEvidence(params.requestId).catch(() => ({ managedEvidence: [] as unknown[] }));
-    const record = params.record as Record<string, any>;
-    return jobOutlook({
-      consentRevoked: params.consentRevoked,
-      closedByOwner: Boolean(websiteRunClosure(record, params.requestId, params.captureId)),
-      answer: outlookAnswerOf(params.answer as never),
-      windowEnded: Boolean(recordedWebsiteJobWindowEnding(record)),
-      noGrantEnded: Boolean(recordedWebsiteJobNoGrantEnding(record, params.requestId)),
-      grantRefused: !record.website_scene_sponsorship && !params.preparation && record.site_task_triage?.disposition === "not_now"
-        && !sceneScreenGateEnded(record, params.requestId),
-      preparation: params.preparation ? { state: params.preparation.state,
-        geometryOnlyEnd: params.preparation.state === "awaiting_inputs" && params.preparation.robotFit?.route === "geometry_only" } : null,
-      scene: params.scene ? { state: params.scene.state } : null,
-      proof: managedEvidence.length ? projectSimulationProof({ evaluation: managedEvidence as never, pick: null }) : null,
-    });
-  } catch (error) {
-    logger.warn({ error, requestId: params.requestId }, "Could not read the job's outlook");
-    return null;
-  }
-}
 
 /* ------------------------------------------------------- task item inventory */
 

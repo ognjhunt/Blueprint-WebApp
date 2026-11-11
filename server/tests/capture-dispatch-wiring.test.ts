@@ -151,3 +151,15 @@ describe("a person is kept where something is actually being committed", () => {
     });
   });
 });
+
+// Owner decision 2026-11-11: for a job whose video arrived after the change the
+// screen holds nothing, so its disposition sends it to no review and no hold.
+describe("the screen holds nothing for a job past its cutover", () => {
+  it.each(["not_now", "needs_conversation"] as const)("leaves a %s job's recommendation and review as the model gave them", async disposition => {
+    const { clampRecommendationToGates } = await import("../agents/workflows");
+    const triage = { ...QUALIFIED, disposition } as never;
+    const result = { qualification_state_recommendation: "qualified_ready", requires_human_review: false } as never;
+    expect(clampRecommendationToGates(triage, result, undefined, true)).toEqual({ qualificationState: "qualified_ready", requiresHumanReview: false });
+    expect(clampRecommendationToGates(triage, result).requiresHumanReview).toBe(true);
+  });
+});

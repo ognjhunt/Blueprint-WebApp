@@ -201,7 +201,8 @@ const didJob = (option: SimulationOption) => `Did your job in ${option.succeeded
 function TestHead({ result }: { result: Exclude<TestResult, null> }) {
   if (result.kind === "testing") return <BareGroup>
     <h2 className="bare-label" id="site-answer-title">Testing now</h2>
-    <BareBig sub={TESTING_LINE}>{`${result.entered} AI ${result.entered === 1 ? "robot" : "robots"}`}</BareBig>
+    {/* An unknown count is never "0 AI robots". */}
+    <BareBig sub={TESTING_LINE}>{result.entered >= 1 ? `${result.entered} AI ${result.entered === 1 ? "robot" : "robots"}` : "AI robots"}</BareBig>
   </BareGroup>;
   const top = result.top;
   const sub = top.maker ? `AI software by ${top.maker}` : undefined;
@@ -246,13 +247,15 @@ function TestHead({ result }: { result: Exclude<TestResult, null> }) {
 export function SiteAnswer({ token, answer, proof, onIntroductionRequested, onEditJob, onUpdateVideo, quietAction = false,
   onShowDetails, onShowSettings, card = null, outlook = null }: SiteAnswerProps) {
   const pick = answer.state === "ready" ? answer.pick : null;
-  // The phase is the server's (one decision for the page, sharing and emails). Without one (an older server) the page
-  // reads what it has: the answer's state and the simulation proof.
+  // The phase is the server's (one decision for the page, sharing and emails). When unsure, the job is still being
+  // worked on (review, 2026-11-11): with no outlook the page shows the working screen, never the paper check or the
+  // button; a result whose test has not loaded yet shows "testing".
   const test = testResultOf(proof);
-  const phase: JobPhase = outlook?.phase ?? (answer.state === "reading" ? "reading" : answer.state === "cannot_assess" ? "cannot_match"
-    : test?.kind === "testing" ? "testing" : test ? "result"
-    : proof?.state !== "could_not_run" && !testNotRunLine(proof) && (proof?.state === "preparing" || proof?.state === "running") ? "building"
-    : "no_test");
+  const working: JobPhase = test?.kind === "testing" || proof?.state === "running" ? "testing" : "building";
+  const phase: JobPhase = answer.state === "reading" || outlook?.phase === "reading" ? "reading"
+    : !outlook ? working
+    : outlook.phase === "result" && (!test || test.kind === "testing") ? "testing"
+    : outlook.phase;
   const links = [onShowDetails && answer.state !== "reading" ? { key: "details", label: "See details", onClick: onShowDetails } : null,
     onShowSettings ? { key: "settings", label: "Job settings", onClick: onShowSettings } : null].filter(Boolean) as Array<{ key: string; label: string; onClick: () => void }>;
   const notices = scopeLines(answer);
@@ -267,6 +270,11 @@ export function SiteAnswer({ token, answer, proof, onIntroductionRequested, onEd
     <BareLinks links={links} />
   </section>;
 
+  // A job already shared says so on every screen: "Shared" when its card is on, "asked on …" when it was never listed.
+  const listedCard = card === "with_answer" || card === "with_paper_answer" || card === "without_answer" || (card === null && answer.jobCardListed);
+  const shared = answer.introductionRequestedAtIso
+    ? <BareGroup><BareDone>{listedCard ? SHARED_LISTED : askedUnlisted(dateInWords(answer.introductionRequestedAtIso))}</BareDone></BareGroup> : null;
+
   if (answer.state === "cannot_assess" && phase !== "building" && phase !== "testing" && phase !== "result") {
     const fix = answer.reason === REASON_UNSIZED ? onUpdateVideo && { label: NEW_VIDEO_LABEL, run: onUpdateVideo } : onEditJob && { label: EDIT_JOB_LABEL, run: onEditJob };
     const reason = cannotLine(answer.reason);
@@ -278,6 +286,7 @@ export function SiteAnswer({ token, answer, proof, onIntroductionRequested, onEd
       </BareGroup>
       {notices.length > 0 && <BareGroup label="Before you rely on this">{notices.map(line => <BareNotice key={line}>{line}</BareNotice>)}</BareGroup>}
       {fix && <BareGroup><BareButton onClick={fix.run} quiet={quietAction}>{fix.label}</BareButton></BareGroup>}
+      {shared}
       <BareLinks links={links} />
     </section>;
   }
@@ -289,9 +298,6 @@ export function SiteAnswer({ token, answer, proof, onIntroductionRequested, onEd
   // A run the site closed itself is not an answer: it shows the paper check and the Shared line, never the button.
   const action = answer.nextStep.kind === "introduction" && (!outlook || outlookHasAnswer(outlook))
     ? <Introduction token={token} answer={answer} onRequested={onIntroductionRequested} quiet={quietAction} card={card} testResult={phase === "result"} /> : null;
-  // A job already shared stays shared, and says so, in every phase.
-  const shared = answer.introductionRequestedAtIso && (card === "with_answer" || card === "with_paper_answer" || (card === null && answer.jobCardListed))
-    ? <BareGroup><BareDone>{SHARED_LISTED}</BareDone></BareGroup> : null;
   const sceneNotice = answer.sceneNote && pick ? <BareNotice>{answer.sceneNote}</BareNotice> : null;
 
   // The simulation of the site is being built: the test result will be the answer, so nothing new is offered.
@@ -308,7 +314,7 @@ export function SiteAnswer({ token, answer, proof, onIntroductionRequested, onEd
 
   // While testing there is no answer yet, so nothing new is offered.
   if (phase === "testing") return <section className="site-answer-bare" aria-label="Your answer">
-    <TestHead result={test?.kind === "testing" ? test : { kind: "testing", entered: proof?.options.entered ?? 0 }} />
+    <TestHead result={test?.kind === "testing" ? test : { kind: "testing", entered: proof?.options?.entered ?? 0 }} />
     {notices.length > 0 && <BareGroup label="Before you rely on this">{notices.map(line => <BareNotice key={line}>{line}</BareNotice>)}</BareGroup>}
     {shared}
     <BareLinks links={links} />
@@ -334,6 +340,7 @@ export function SiteAnswer({ token, answer, proof, onIntroductionRequested, onEd
       {notRun && <p className="bare-helper">{notRun}</p>}
     </BareGroup>
     {notices.length > 0 && <BareGroup label="Before you rely on this">{notices.map(line => <BareNotice key={line}>{line}</BareNotice>)}</BareGroup>}
+    {shared}
     <BareLinks links={links} />
     <BareFine>{LIMITS_PAPER}</BareFine>
   </section>;

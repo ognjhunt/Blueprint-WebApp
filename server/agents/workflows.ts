@@ -28,6 +28,7 @@ import type {
 } from "./types";
 import { isPhase2LaneEnabled, isSiteVideoEvidenceApplied } from "../config/env";
 import { screeningEmailWouldHaveBeenSent } from "../utils/qualificationEmails";
+import { sceneScreenGateEnded } from "../utils/sceneScreenGate";
 import {
   decideCaptureDispatch,
   describeCaptureDispatch,
@@ -624,16 +625,18 @@ export function clampRecommendationToGates(
    * ever moves it downward.
    */
   videoEvidence?: InboundRequest["site_video_evidence"],
+  /** The job's video arrived after the owner's decision of 2026-11-11: its screen holds nothing. */
+  screenGateEnded = false,
 ): { qualificationState: QualificationState; requiresHumanReview: boolean } {
   let qualificationState = result.qualification_state_recommendation;
   let requiresHumanReview = result.requires_human_review;
 
-  if (triage?.disposition === "not_now" && FORWARD_QUALIFICATION_STATES.has(qualificationState)) {
+  if (!screenGateEnded && triage?.disposition === "not_now" && FORWARD_QUALIFICATION_STATES.has(qualificationState)) {
     qualificationState = "not_ready_yet";
     requiresHumanReview = true;
   }
 
-  if (triage?.disposition === "needs_conversation" && FORWARD_QUALIFICATION_STATES.has(qualificationState)) {
+  if (!screenGateEnded && triage?.disposition === "needs_conversation" && FORWARD_QUALIFICATION_STATES.has(qualificationState)) {
     // Marginal answers are exactly the ones a form could not settle, so a model
     // reading the same form cannot settle them either.
     qualificationState = "in_review";
@@ -731,6 +734,7 @@ function buildInboundActionSpecs(
     request.site_task_triage,
     result,
     request.site_video_evidence,
+    sceneScreenGateEnded(request as unknown as Record<string, any>, request.requestId),
   );
 
   const routingStatus =
