@@ -116,13 +116,13 @@ describe("a job past its window with no outcome", () => {
     expect({ ...job(), website_job_window_ending: undefined }).toEqual({ ...before, website_job_window_ending: undefined });
     expect(outbox().map(([key]) => key)).toEqual([NOTICE]);
     expect(outbox()[0][1]).toMatchObject({ kind: "scene_outcome", requestId: "job-one", status: "pending", to: "owner@example.com",
-      subject: "Your Blueprint job has ended", idempotencyKey: "job-one:scene_outcome:job_window_ended" });
+      subject: "The simulation of your site has stopped", idempotencyKey: "job-one:scene_outcome:job_window_ended" });
 
     // The page and the email say the same, exact sentence.
-    expect(JOB_WINDOW_ENDING_MESSAGE).toBe("This job has ended because the time Blueprint was authorized to work on it ran out. "
-      + "Blueprint did not finish it in that time, and no more work will run on this job. "
+    expect(JOB_WINDOW_ENDING_MESSAGE).toBe("The simulation of your site has stopped because the time Blueprint was authorized to work on this job ran out. "
+      + "Blueprint did not finish the simulation in that time, and no more simulation work will run on this job. Your answer stays on your job page. "
       + "Nothing more is needed from you. Keep your original recording; to have Blueprint work on this site again, you can start a new job.");
-    expect(JOB_WINDOW_ENDING_SUBJECT).toBe("Your Blueprint job has ended");
+    expect(JOB_WINDOW_ENDING_SUBJECT).toBe("The simulation of your site has stopped");
     expect(await page()).toMatchObject({ decision: "ended", headline: JOB_WINDOW_ENDING_MESSAGE, operatorAction: null, stage: null });
     const body: string = outbox()[0][1].body;
     expect(body.startsWith(`${JOB_WINDOW_ENDING_MESSAGE}\n\nOpen your job on your private job page:\nhttps://`)).toBe(true);
@@ -137,7 +137,7 @@ describe("a job past its window with no outcome", () => {
 
     await deliverOutbox();
     expect(send).toHaveBeenCalledTimes(1);
-    expect(send.mock.calls[0][0]).toMatchObject({ to: "owner@example.com", subject: "Your Blueprint job has ended" });
+    expect(send.mock.calls[0][0]).toMatchObject({ to: "owner@example.com", subject: "The simulation of your site has stopped" });
     expect(outbox()[0][1].status).toBe("sent");
     await sweep();
     await deliverOutbox();
@@ -275,7 +275,7 @@ describe("the ending and what comes after it", () => {
     Object.assign(docs.get(INTAKE)!, { scene_outcome_notification_pending: true, scene_outcome_notification_intent: intent });
     await deliverOutbox();
     expect(send).toHaveBeenCalledTimes(1);
-    expect(send.mock.calls[0][0].subject).toBe("Your Blueprint job has ended");
+    expect(send.mock.calls[0][0].subject).toBe("The simulation of your site has stopped");
     expect(outbox().map(([key]) => key)).toEqual([NOTICE]);
     expect((docs.get(INTAKE) as any).scene_outcome_notification_pending).toBe(false);
     expect((await page({ sceneProgression: { state: "ended", sceneOutcome: { kind: "setup_repair", terminal: true,
@@ -320,7 +320,7 @@ describe("the ending and what comes after it", () => {
     const second = `captureOutbox/job-one:scene_outcome:job_window_ended-${Math.round(extendedEnd)}`;
     expect(websiteJobWindowEndedNoticeKey("job-one", extendedEnd)).toBe(second.slice("captureOutbox/".length));
     expect(outbox().map(([key]) => key).sort()).toEqual([NOTICE, second].sort());
-    expect(docs.get(second)).toMatchObject({ kind: "scene_outcome", status: "pending", subject: "Your Blueprint job has ended" });
+    expect(docs.get(second)).toMatchObject({ kind: "scene_outcome", status: "pending", subject: "The simulation of your site has stopped" });
     for (let pass = 0; pass < 2; pass++) {
       expect(await sweepWebsiteJobWindows()).toMatchObject({ ended: 0, noticesQueued: 0 });
       await deliverOutbox();

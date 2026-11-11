@@ -63,6 +63,9 @@ beforeEach(() => {
   delete process.env.GOOGLE_APPLICATION_CREDENTIALS;
   delete process.env.GOOGLE_CLOUD_PROJECT;
   delete process.env.K_SERVICE;
+  delete process.env.BLUEPRINT_E2E;
+  delete process.env.BLUEPRINT_E2E_ALLOW_LIVE_FIREBASE;
+  delete process.env.FIRESTORE_EMULATOR_HOST;
 });
 
 afterEach(() => {
@@ -70,6 +73,9 @@ afterEach(() => {
   delete process.env.GOOGLE_APPLICATION_CREDENTIALS;
   delete process.env.GOOGLE_CLOUD_PROJECT;
   delete process.env.K_SERVICE;
+  delete process.env.BLUEPRINT_E2E;
+  delete process.env.BLUEPRINT_E2E_ALLOW_LIVE_FIREBASE;
+  delete process.env.FIRESTORE_EMULATOR_HOST;
 });
 
 describe("firebaseAdmin config", () => {
@@ -102,5 +108,63 @@ describe("firebaseAdmin config", () => {
     expect(module.authAdmin).toBeTruthy();
     expect(state.certCalls).toHaveLength(0);
     expect(state.applicationDefaultCalls).toBe(1);
+  });
+});
+
+const liveKey = JSON.stringify({ project_id: "blueprint-test", client_email: "svc@example.com", private_key: "private-key" });
+
+describe("a browser-test server never uses a live credential", () => {
+  it("does not initialise when BLUEPRINT_E2E=1 and a service account is in the environment", async () => {
+    process.env.BLUEPRINT_E2E = "1";
+    process.env.FIREBASE_SERVICE_ACCOUNT_JSON = liveKey;
+
+    const module = await import("../../client/src/lib/firebaseAdmin");
+
+    expect(module.dbAdmin).toBeNull();
+    expect(module.storageAdmin).toBeNull();
+    expect(module.authAdmin).toBeNull();
+    expect(state.apps).toHaveLength(0);
+    expect(state.certCalls).toHaveLength(0);
+  });
+
+  it("does not initialise when BLUEPRINT_E2E=1 and a key file is named", async () => {
+    process.env.BLUEPRINT_E2E = "1";
+    process.env.GOOGLE_APPLICATION_CREDENTIALS = "/tmp/firebase-admin.json";
+    state.fileContents.set("/tmp/firebase-admin.json", liveKey);
+
+    const module = await import("../../client/src/lib/firebaseAdmin");
+
+    expect(module.dbAdmin).toBeNull();
+    expect(state.apps).toHaveLength(0);
+  });
+
+  it("still initialises against the local emulator", async () => {
+    process.env.BLUEPRINT_E2E = "1";
+    process.env.FIRESTORE_EMULATOR_HOST = "127.0.0.1:8080";
+    process.env.FIREBASE_SERVICE_ACCOUNT_JSON = liveKey;
+
+    const module = await import("../../client/src/lib/firebaseAdmin");
+
+    expect(module.dbAdmin).toBeTruthy();
+  });
+
+  it("initialises when a live project is allowed on purpose", async () => {
+    process.env.BLUEPRINT_E2E = "1";
+    process.env.BLUEPRINT_E2E_ALLOW_LIVE_FIREBASE = "1";
+    process.env.FIREBASE_SERVICE_ACCOUNT_JSON = liveKey;
+
+    const module = await import("../../client/src/lib/firebaseAdmin");
+
+    expect(module.dbAdmin).toBeTruthy();
+    expect(state.certCalls).toHaveLength(1);
+  });
+
+  it("leaves an ordinary server untouched", async () => {
+    process.env.FIREBASE_SERVICE_ACCOUNT_JSON = liveKey;
+
+    const module = await import("../../client/src/lib/firebaseAdmin");
+
+    expect(module.dbAdmin).toBeTruthy();
+    expect(module.browserTestServerMustNotUseLiveFirebase()).toBe(false);
   });
 });

@@ -21,7 +21,7 @@ import { PRIVACY_URL, TERMS_URL } from "@/lib/legalAcceptance";
 import { FILMING_NOTICE, FOOTAGE_UPLOAD_NOTICE } from "@/lib/footageNotice";
 import { DESCRIPTION_AUTHORITY_STATEMENT, DESCRIPTION_AUTHORITY_VERSION } from "@/lib/siteSubmissionAuthority";
 import { RECORDING_RIGHTS_STATEMENT, RECORDING_RIGHTS_STATEMENT_VERSION } from "@/lib/recordingRightsStatement";
-import { TASK_CONFIRMATION_STATEMENT, TASK_CONFIRMATION_VERSION } from "@/lib/taskConfirmationStatement";
+import { TASK_CONFIRMATION_VERSION } from "@/lib/taskConfirmationStatement";
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
 import {
   CAPTURE_VIDEO_ACCEPT,
@@ -301,10 +301,10 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
   const footageWanted = hasFootage && region !== "non_us";
   const [claudeConsent, setClaudeConsent] = useState(false);
   const [solAgentsConsent, setSolAgentsConsent] = useState(false);
-  // The one box (owner decision 2026-11-07): submitting the task with it ticked
-  // confirms the brief. Never retained, so each submission ticks it afresh.
-  const [taskConfirmed, setTaskConfirmed] = useState(false);
-  const [taskProblem, setTaskProblem] = useState<"task" | "confirmation" | null>(null);
+  // Owner direction 2026-11-11: an email and a video start a job; the sentence
+  // is optional and typing it is the confirmation. Sharing an anonymised card
+  // is the site's explicit choice. Never retained: each submission chooses afresh.
+  const [shareListing, setShareListing] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
   function adoptRecovery(other: SiteCaptureRecovery, resetChanged = true) {
     const changed = recovery.current.requestId !== other.requestId
@@ -315,7 +315,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
     setRegionManuallySet(other.draft.regionManuallySet);
     setPending(other.pending);
     if (changed && resetChanged) {
-      setClaudeConsent(false); setSolAgentsConsent(false); setTaskConfirmed(false); setTaskProblem(null);
+      setClaudeConsent(false); setSolAgentsConsent(false); setShareListing(false);
       setFootage(null); setResetVersion(value => value + 1);
     }
   }
@@ -356,7 +356,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
       recovery.current = fresh;
       requestId.current = fresh.requestId; retryToken.current = fresh.retryToken;
       setRecoveryUnavailable(false); setPending(null); setState({ status: "idle" }); setClaudeConsent(false); setSolAgentsConsent(false);
-      setTaskConfirmed(false); setTaskProblem(null);
+      setShareListing(false);
       setMethod("phone"); setRegion(""); setRegionManuallySet(false); setCountryMissing(false);
       setFootage(null); setFootageError(null); setCaptureReceived(false);
       setResetVersion(value => value + 1);
@@ -385,16 +385,9 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
       document.querySelector<HTMLElement>("#start-region")?.focus();
       return;
     }
-    // The task in the site's words and its one box are the confirmation.
-    if (!retained) {
-      const typedTask = String(new FormData(formRef.current!).get("startTask") ?? "").trim();
-      const problem = !typedTask ? "task" : !taskConfirmed ? "confirmation" : null;
-      setTaskProblem(problem);
-      if (problem) {
-        document.querySelector<HTMLElement>(problem === "task" ? "#start-task" : "#start-task-confirmation")?.focus();
-        return;
-      }
-    }
+    // No typed task is required on any path: the server accepts a job with no
+    // description under the description authority (film later) or
+    // the recording grant (a video attached now), and drafts it from the video.
     if (!retained && footageWanted && !footage) return;
 
     const data = new FormData(formRef.current!);
@@ -429,13 +422,14 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
           siteLocation: location,
           taskStatement: read("startTask"),
           taskDescription: read("startTask"),
-          // Owner decision 2026-11-07: this box, ticked with the task above, is
-          // the brief's confirmation. The server records it with its version.
-          taskConfirmation: { granted: true, statementVersion: TASK_CONFIRMATION_VERSION },
+          // Typing the task in the site's own words is the brief's confirmation
+          // (what the removed box sent). No sentence, no confirmation: the
+          // brief is drafted from the video and the site confirms it later.
+          ...(read("startTask") ? { taskConfirmation: { granted: true, statementVersion: TASK_CONFIRMATION_VERSION } } : {}),
           ...(read("startSuccess") ? { successCriteria: { successDefinition: read("startSuccess") } } : {}),
-          // Every job is shown to approved robot teams as an anonymized card;
-          // the site can hide it from its job page.
-          publicTaskListing: { consent: true, statementVersion: "public-task-card-v1", details: anonymizedOpportunityDraft(read("startTask")) },
+          // Shared with approved robot teams only when the site ticks the box;
+          // it can share or hide the card later from its job page.
+          ...(shareListing ? { publicTaskListing: { consent: true, statementVersion: "public-task-card-v1", details: anonymizedOpportunityDraft(read("startTask")) } } : {}),
           // Screening happens after the first submission. Buying context is
           // optional and cannot turn into a gate or a spending authorization.
           siteTaskGates: {},
@@ -765,7 +759,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
         </label>
       )}
 
-      <p className="ms-field-hint">Describe the task and send a video of it. We build the site simulation from the video and compare robot options on the task you describe. The assessment starts once we receive the video.</p>
+      <p className="ms-field-hint">Send a video of one job. We draft the job description from it, check real robots against the job and build a simulation of your site from the same video. The assessment starts once we receive the video.</p>
 
       <fieldset className="ms-choice">
         <legend>How will we see the task?</legend>
@@ -828,27 +822,6 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
           </>
         )
       ) : null}
-
-      <label htmlFor="start-task">
-        <span>What is the task?</span>
-        <span className="ms-field-hint">One job, in your words: what is picked up or moved, and where it goes.</span>
-        <textarea id="start-task" name="startTask" defaultValue={recovery.current.draft.task} maxLength={2000} rows={3} required
-          placeholder="For example, pick up each packed carton and place it at the end of the table"
-          onChange={() => { if (taskProblem === "task") setTaskProblem(null); }} />
-      </label>
-      {taskProblem === "task" && <p className="ms-error" role="alert" style={{ margin: 0 }}>Describe the task Blueprint should evaluate.</p>}
-      <label htmlFor="start-success">
-        <span>What counts as success? (optional)</span>
-        <input id="start-success" name="startSuccess" type="text" maxLength={1000}
-          defaultValue={recovery.current.draft.successDefinition ?? ""}
-          placeholder="For example, the carton reaches the end of the table upright" />
-      </label>
-      <label htmlFor="start-task-confirmation" className="ms-check-row">
-        <input id="start-task-confirmation" name="startTaskConfirmation" type="checkbox" required
-          checked={taskConfirmed} onChange={(event) => { setTaskConfirmed(event.target.checked); setTaskProblem(null); }} />
-        <span>{TASK_CONFIRMATION_STATEMENT}</span>
-      </label>
-      {taskProblem === "confirmation" && <p className="ms-error" role="alert" style={{ margin: 0 }}>Tick the box to confirm this is the task you want evaluated.</p>}
 
       <div style={{ display: "flex", flexDirection: "column", gap: "9px" }}>
         {(selfRecording || hasFootage) && (!region || regionManuallySet) && (
@@ -919,6 +892,21 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
         ? <p className="ms-field-hint">Saving to your workspace as {currentUser.email}.</p>
         : <p className="ms-field-hint">Signed in as {currentUser.email}, which is not a site workspace. Use the private job link we email you; saving it to a site account is optional.</p>)}
 
+      {/* Optional: Blueprint drafts the job description from the video. A
+          sentence typed here is the site's own words and confirms the brief. */}
+      <label htmlFor="start-success">
+        <span>What counts as success? (optional)</span>
+        <input id="start-success" name="startSuccess" type="text" maxLength={1000}
+          defaultValue={recovery.current.draft.successDefinition ?? ""}
+          placeholder="For example, the carton reaches the end of the table upright" />
+      </label>
+      <label htmlFor="start-task">
+        <span>Anything we should know about the job? (optional)</span>
+        <span className="ms-field-hint">We draft the job description from your video. Add a sentence if you want to.</span>
+        <textarea id="start-task" name="startTask" defaultValue={recovery.current.draft.task} maxLength={2000} rows={2}
+          placeholder="For example, pick up each packed carton and place it at the end of the table" />
+      </label>
+
       <details className="ms-task-interest ms-visitor-detail">
         <summary>Add job details and buying plans (optional)</summary>
         <label htmlFor="start-frequency">
@@ -957,12 +945,20 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
         <p className="ms-field-hint">Job reference: {requestId.current}</p>
       </>}
 
-      {/* The irreducible minimum: what robot teams see (the listing grant sent
-          above) and the statements the server records as accepted here. The
-          recording-rights sentence is quoted only when starting grants it: a
-          video is attached now, from a site we can receive it from. */}
+      {/* Sharing is an explicit, unticked choice; the job page can change it later. */}
+      <label htmlFor="start-share-listing" className="ms-check-row">
+        <input id="start-share-listing" name="startShareListing" type="checkbox"
+          checked={shareListing} onChange={(event) => setShareListing(event.target.checked)} />
+        <span>Also share an anonymised summary of this job with robot companies Blueprint has approved (optional)</span>
+      </label>
+
+      {/* The irreducible minimum: what robot teams see (only the listing grant
+          the box above sends) and the statements the server records as
+          accepted here. The recording-rights sentence is quoted only when
+          starting grants it: a video is attached now, from a site we can
+          receive it from. */}
       <p className="ms-form-note">
-        Approved robot teams see an anonymized summary of the job; your video, address and contacts stay private.
+        Your video, address and contacts stay private. Approved robot companies see an anonymised summary of the job only if you choose to share it.
         By selecting Start free assessment, you agree to our <a href={TERMS_URL} target="_blank" rel="noreferrer">Terms</a> and{" "}
         <a href={PRIVACY_URL} target="_blank" rel="noreferrer">Privacy Policy</a> and confirm: “{DESCRIPTION_AUTHORITY_STATEMENT}”
         {footageWanted && <> and “<span>{RECORDING_RIGHTS_STATEMENT}</span>”</>}

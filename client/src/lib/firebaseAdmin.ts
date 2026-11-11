@@ -53,9 +53,32 @@ export function initializedFirebaseServiceAccountForRead(): ServiceAccount | nul
 // can consume it without evaluating this module's admin initialization.
 export { ADC_CONTEXT_ENV_KEYS } from "./adcContextEnvKeys";
 
+/**
+ * A browser-test server must never reach a live project. Playwright sets
+ * BLUEPRINT_E2E=1 for the server it starts. A cloud session or a developer
+ * shell can hold a live service account, and without this refusal that test
+ * server would read and write production data (found on 2026-11-11). Servers
+ * pointed at the local emulators are unaffected, and
+ * BLUEPRINT_E2E_ALLOW_LIVE_FIREBASE=1 allows a live project on purpose.
+ */
+export function browserTestServerMustNotUseLiveFirebase(env: NodeJS.ProcessEnv = process.env): boolean {
+  if (env.BLUEPRINT_E2E !== "1") return false;
+  if (env.BLUEPRINT_E2E_ALLOW_LIVE_FIREBASE === "1") return false;
+  if (env.FIRESTORE_EMULATOR_HOST?.trim()) return false;
+  return Boolean(env.FIREBASE_SERVICE_ACCOUNT_JSON?.trim() || env.GOOGLE_APPLICATION_CREDENTIALS?.trim());
+}
+
 function initializeFirebaseAdmin() {
   if (!admin) {
     console.error("Firebase Admin SDK could not be imported");
+    return null;
+  }
+
+  if (browserTestServerMustNotUseLiveFirebase()) {
+    console.warn(
+      "Firebase Admin SDK: not initialised. This is a browser-test server (BLUEPRINT_E2E=1) and a live "
+      + "credential is present. Set BLUEPRINT_E2E_ALLOW_LIVE_FIREBASE=1 only to use a live project on purpose.",
+    );
     return null;
   }
 

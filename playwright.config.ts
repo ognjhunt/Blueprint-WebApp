@@ -11,9 +11,13 @@ const webServerEnvPrefix = [
     ? `BLUEPRINT_E2E_STATIC_DIR=${process.env.BLUEPRINT_E2E_STATIC_DIR}`
     : '',
   operatorQaFakeAuthEnabled ? 'VITE_BLUEPRINT_OPERATOR_QA_FAKE_AUTH=1' : '',
-  process.env.BLUEPRINT_DISABLE_OPS_AUTOMATION_SCHEDULER === '1'
-    ? 'BLUEPRINT_DISABLE_OPS_AUTOMATION_SCHEDULER=1'
-    : '',
+  // The test server never runs background delivery or monitoring, and never
+  // uses a live Firebase credential that the shell happens to hold (the server
+  // also refuses one when BLUEPRINT_E2E=1; see client/src/lib/firebaseAdmin.ts).
+  'BLUEPRINT_DISABLE_OPS_AUTOMATION_SCHEDULER=1',
+  process.env.BLUEPRINT_E2E_ALLOW_LIVE_FIREBASE === '1'
+    ? 'BLUEPRINT_E2E_ALLOW_LIVE_FIREBASE=1'
+    : 'FIREBASE_SERVICE_ACCOUNT_JSON= GOOGLE_APPLICATION_CREDENTIALS=',
 ]
   .filter(Boolean)
   .join(' ');
@@ -27,7 +31,7 @@ export default defineConfig({
   // (scripts/qa/run-operator-surfaces.ts), which targets this file directly.
   // Exclude it from the default sweep so a plain `playwright test` run
   // doesn't try to load it without that bypass and fail on missing auth.
-  testIgnore: ['**/site-intake-first.spec.ts', '**/site-intake-durability.spec.ts', '**/reliability-program-intake.spec.ts', '**/site-intake-backend-reliability.spec.ts', '**/site-intake-recovery.spec.ts', '**/site-private-link-reliability.spec.ts', '**/invited-site-beta.spec.ts', ...(operatorQaFakeAuthEnabled
+  testIgnore: ['**/site-intake-first.spec.ts', '**/site-intake-durability.spec.ts', '**/reliability-program-intake.spec.ts', '**/site-intake-backend-reliability.spec.ts', '**/site-intake-recovery.spec.ts', '**/site-private-link-reliability.spec.ts', '**/site-answer-journey.spec.ts', '**/invited-site-beta.spec.ts', ...(operatorQaFakeAuthEnabled
     ? taskEvaluationRunE2eEnabled
       ? ['**/operator-surfaces.spec.ts', '**/workspace-design.spec.ts', '**/workspace-account-setup.spec.ts']
       : ['**/task-evaluation-run.spec.ts', '**/workspace-design.spec.ts', '**/workspace-account-setup.spec.ts']

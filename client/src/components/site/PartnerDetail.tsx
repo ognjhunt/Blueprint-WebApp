@@ -15,7 +15,7 @@ export function PartnerDetail({ role }: { role: PartnerRole }) {
       <p className="ms-eyebrow">{deployment ? "Deployment partners" : "Robot technology providers"}</p>
       <h1 id="partner-title">{title}</h1>
       <p className="ms-partner-lead">{deployment
-        ? "Bring your integration and service expertise. Blueprint scopes the job and tests robots and policies on it in simulation. When an approach you support wins for a site, we may invite you to propose what your team can deliver."
+        ? "Bring your integration and service expertise. Blueprint checks real robots against each job by their published specifications and tests control policies on it in a simulation of the site. When a site chooses to share its job, approved deployment companies see an anonymised job card with that answer and its proof, and the site agrees any pilot directly with one of them."
         : "Bring hardware, a policy or a model API. Blueprint runs the assessment itself; you supply access or the integration needed to run your system. We agree which jobs and robot configurations it can be assessed on before arranging access."}</p>
       <a className="ms-button" href="#partner-application">{deployment ? "Apply as a deployment partner" : "Make your system available"}<ArrowRight size={18} aria-hidden="true" /></a>
       <p className="ms-field-hint">Free during the beta. Applications are reviewed; access and job invitations are confirmed separately.</p>
@@ -28,7 +28,7 @@ export function PartnerDetail({ role }: { role: PartnerRole }) {
           : "We review supported hardware, observations, actions and access arrangements. Existing deployment evidence, simulation and physical trials answer different questions; the evaluation scope states what each result supports."}</p>
         <h3>{deployment ? "Who does what" : "What we need to understand"}</h3>
         <ul>{(deployment ? [
-          "Blueprint: the job brief, the simulation, the candidate evaluations and their results (estimates, not guarantees), and working alongside you on site.",
+          "Blueprint: the job description, the robot answer, the simulation and its results (estimates, not guarantees), and the anonymised job card.",
           "Your team: the equipment and implementation you quote, commissioning and agreed support.",
           "The customer: site access, the contract decision and acceptance against agreed criteria.",
         ] : [
@@ -37,7 +37,7 @@ export function PartnerDetail({ role }: { role: PartnerRole }) {
           "Evidence, commercial terms and data-use conditions for the proposed assessment.",
         ]).map(item => <li key={item}>{item}</li>)}</ul>
         <p className="ms-partner-note">{deployment
-          ? "Being first to respond does not award a contract. We consider task fit, evidence, total cost, availability and support. A pilot's scope and price are agreed before it starts."
+          ? "Being first to respond does not award a contract; the site chooses who to work with. A pilot's scope and price are agreed before it starts."
           : "Any robot form can be considered. Admission depends on the exact setup and job; a submitted reference is not a completed evaluation or proof of physical performance."}</p>
         {!deployment && <details className="ms-partner-technical"><summary>Current policy evaluation interface</summary><p>Invited policy evaluations use an HTTPS endpoint with a bearer token. Observation and action interfaces, robot and gripper, and any adapter work are agreed before a run. Applying does not start an evaluation or admit uploaded weights or containers.</p><a href="/agent-access.openapi.json">Technical API reference</a></details>}
         <p className="ms-partner-note">{deployment ? "Also building hardware or policies?" : "Also install or operate systems?"} <a href={deployment ? "/partners/technology" : "/partners/deployment"}>{deployment ? "Technology provider path" : "Deployment partner path"}</a>. Tell us about both roles in your application.</p>

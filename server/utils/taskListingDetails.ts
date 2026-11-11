@@ -1,9 +1,16 @@
 import { listingTargetingSchema } from "../../client/src/types/updatePreferences";
 import { z } from "zod";
+import { JOB_CARD_ANSWER_STATEMENT_VERSION } from "../../client/src/lib/jobCardAnswerConsent";
 import type { TaskListingDetails } from "../../client/src/types/taskBrowse";
 import type { SiteTaskBriefRecord } from "./siteTaskBrief";
 
 export const listingConsentVersion = "public-task-card-v1";
+/**
+ * Every statement a card grant may be recorded under. "Find a deployment
+ * company" records the card under its own statement, which covers the card
+ * and the answer (`client/src/lib/jobCardAnswerConsent.ts`).
+ */
+export const LISTING_CONSENT_VERSIONS: readonly string[] = [listingConsentVersion, JOB_CARD_ANSWER_STATEMENT_VERSION];
 /** Private suggestions only. Publication still needs the owner's exact review. */
 export function taskListingDraft(brief: SiteTaskBriefRecord | null) {
   const details: TaskListingDetails = {
@@ -34,7 +41,7 @@ export const taskListingSchema = z.object({
 
 export function approvedTaskDetails(record: unknown): TaskListingDetails | null {
   const grant = (record as { public_task_listing?: Record<string, unknown> })?.public_task_listing;
-  if (!grant || grant.enabled !== true || grant.consentVersion !== listingConsentVersion
+  if (!grant || grant.enabled !== true || !LISTING_CONSENT_VERSIONS.includes(String(grant.consentVersion))
       || typeof grant.approvedAtIso !== "string" || !Number.isFinite(Date.parse(grant.approvedAtIso))) return null;
   const parsed = taskListingSchema.safeParse(grant.details);
   return parsed.success ? parsed.data : null;

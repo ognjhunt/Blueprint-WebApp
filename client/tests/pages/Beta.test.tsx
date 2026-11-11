@@ -12,13 +12,15 @@ describe("the beta page", () => {
     expect(screen.queryByText(/Evaluations start once an invited robot team/)).not.toBeInTheDocument();
   });
 
-  // Owner direction, 2026-10-28: Blueprint runs the candidates itself and shows a bounded estimate or "held".
-  it("says Blueprint runs the candidates, shows an estimate and holds jobs it cannot simulate yet", () => {
+  // Owner direction, 2026-10-28: Blueprint runs the simulation itself and shows a bounded estimate or "held".
+  // Owner direction, 2026-11-11: the answer (spec check, sources, how sure) comes first, then proof in simulation.
+  it("says Blueprint answers from published specs, proves it in simulation and holds jobs it cannot simulate yet", () => {
     render(<Beta />);
     const receive = screen.getByRole("heading", { name: "What do I receive?" }).closest("section")!;
-    expect(receive).toHaveTextContent(/run every candidate ourselves in simulation, including policies served through APIs and different robot configurations/);
+    expect(receive).toHaveTextContent(/run the policies ourselves in simulation, including policies served through APIs and different robot configurations/);
     expect(receive).toHaveTextContent(/its technology provider supplies it/);
-    expect(receive).toHaveTextContent(/simulation estimate of which robots and policies are likely to work on your job/);
+    expect(receive).toHaveTextContent(/An answer: the robot that most likely fits your job, a runner-up, what was ruled out and why, who already uses those robots for work like this \(with sources\) and how sure we are/);
+    expect(receive).toHaveTextContent(/proof in simulation: which control policy did best on your job.*how much that result can be trusted/);
     expect(receive).toHaveTextContent(/We do not turn a job away because of its type.*“held”/);
     expect(receive).not.toHaveTextContent(/screening runs|full scoring|delivery proposals|technology teams where their involvement is needed/i);
     expect(screen.getByRole("article")).not.toHaveTextContent(/full evaluation|comparable proposals|join by invitation|book the pilot/i);

@@ -203,9 +203,9 @@ describe("the confirmation says what our screen decided", () => {
     expect(sent.body).toMatch(/^Hi Dana,/);
     expect(sent.body).toMatch(/upload it here: http\S+\/capture-upload\//);
     expect(sent.body).toMatch(/test robots and policies on your job ourselves/);
-    expect(sent.body).toMatch(/an estimate of what's likely to work, or “held” if we can't simulate that kind of job yet/);
-    expect(sent.body).toMatch(/work alongside a deployment company on your site\. You agree the physical pilot's scope, price, timing and acceptance criteria directly with that company/);
-    expect(sent.body).toMatch(/If no candidate is suitable, we explain what is missing/);
+    expect(sent.body).toMatch(/which robot most likely fits and which control policy did best in the simulation, or “held” if we can't simulate that kind of job yet/);
+    expect(sent.body).toMatch(/share the job with deployment companies we have approved\. You agree any physical pilot's scope, price, timing and acceptance criteria directly with that company/);
+    expect(sent.body).toMatch(/If nothing fits, we explain what is missing/);
     expect(sent.body).toMatch(/free during the beta/);
     expect(sent.body).not.toMatch(/\bmatch|\bteams? on our list|budget|Austin/i);
     expect(sharedFakeFirestoreState.docs.get("inboundRequests/req-1")).toMatchObject({

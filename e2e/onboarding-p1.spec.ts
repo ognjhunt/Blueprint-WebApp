@@ -221,9 +221,9 @@ test("phone owner opens the recorder and keeps progress visible", async ({ brows
   await screenshot(page, "phone-capture"); await context.close();
 });
 
-// Owner decision 2026-11-07 ("Confirm at upload"): the task in the site's words and one
-// box are required, and submitting them confirms the brief before the video is recorded.
-for (const mobile of [false, true]) test(`${mobile ? "phone" : "desktop"}: video intake takes the task and its box, then continues to recording`, async ({ browser }) => {
+// Owner direction 2026-11-11: the sentence is optional; a typed one confirms the brief
+// when submitted, before the video is recorded.
+for (const mobile of [false, true]) test(`${mobile ? "phone" : "desktop"}: video intake takes an optional typed task, then continues to recording`, async ({ browser }) => {
   const context = await browser.newContext({ viewport: mobile ? { width: 390, height: 844 } : { width: 1440, height: 900 }, ...(mobile ? { userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148", isMobile: true, hasTouch: true } : {}) });
   const page = await context.newPage(); const mutations = await fixtures(page);
   await page.goto("/contact/site-operator");
@@ -232,7 +232,6 @@ for (const mobile of [false, true]) test(`${mobile ? "phone" : "desktop"}: video
   await expect(form.locator("#start-task")).toHaveValue("");
   await expect(form.locator("#start-task")).toBeVisible();
   await form.locator("#start-task").fill("Pick up each packed carton and place it at the end of the table");
-  await form.getByRole("checkbox", { name: "This is the task I want Blueprint to evaluate.", exact: true }).check();
   await form.locator("#start-location").fill("Chicago, Illinois");
   await form.locator("#start-email").fill("owner@example.test");
   await expect(form.locator("#start-rights")).toHaveCount(0);

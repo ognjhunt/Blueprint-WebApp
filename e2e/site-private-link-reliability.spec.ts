@@ -229,7 +229,7 @@ test("the owner is asked in plain words before a chair is moved out of the robot
   await page.screenshot({ path: info.outputPath("robot-access-approved.png"), fullPage: true });
 });
 
-test("the current simulation estimate is visible while technical references stay folded", async ({ page }, info) => {
+test("the current simulation result leads as proof, open, while every detail and technical reference stays folded", async ({ page }, info) => {
   const token = "scored-result-fixture";
   const writes: string[] = [];
   await page.route("**/api/**", route => {
@@ -240,7 +240,7 @@ test("the current simulation estimate is visible while technical references stay
         resultDigest: "sha256:fixture-result", summary: "Your job's simulation estimate: 1 candidate ran, with 3 episodes scored.",
         nextAction: "Blueprint uses this estimate to recommend the next step.",
         limitations: ["Simulation does not certify physical performance or safety."], href: "#managed-evidence-accepted-evaluation",
-        screening: { candidates: [{ candidateId: "candidate-1", name: "Current candidate", state: "completed",
+        screening: { candidates: [{ candidateId: "candidate-1", name: "Arm with suction gripper", state: "completed",
           planned: 3, scored: 3, succeeded: 2, failed: 1, void: 0, blockers: [],
           successRange: { lowerPercent: 21, upperPercent: 94, confidencePercent: 95 } }] } }],
     } });
@@ -256,6 +256,16 @@ test("the current simulation estimate is visible while technical references stay
     return route.fulfill({ status: 503, json: { error: "Unstubbed local API" } });
   });
   await page.goto(`/capture-upload/${token}?video=existing`);
+  // An older job with a result and no answer: the proof stands on its own, visible without opening anything.
+  const proof = page.getByRole("region", { name: "Proof in simulation" });
+  await expect(proof.getByText("The simulation scored one policy: Arm with suction gripper completed the job in 2 of 3 tries.", { exact: true })).toBeVisible();
+  await expect(proof.getByRole("listitem").filter({ hasText: "2 of 3 tries" })).toBeVisible();
+  await expect(proof.getByRole("heading", { name: "How far to trust this" })).toBeVisible();
+  // The full result is one click away, in the folded details.
+  const details = page.locator("summary", { hasText: "Simulation details" });
+  await expect(details.locator("xpath=..")).not.toHaveAttribute("open", "");
+  await expect(page.getByRole("heading", { name: "Your simulation estimate" })).toBeHidden();
+  await details.click();
   await expect(page.getByRole("heading", { name: "Your simulation estimate" })).toBeVisible();
   await expect(page.getByRole("table", { name: "Candidates evaluated for your job" })).toBeVisible();
   await expect(page.getByText("Succeeded in 2 of 3 scored tries; likely between 21% and 94%.")).toBeVisible();
@@ -300,6 +310,11 @@ test("a held result says the same plain sentence as the headline, with plain rea
   });
   await page.goto(`/capture-upload/${token}?video=existing`);
   await expect(page.getByText(`${sentence} Nothing is needed from you.`, { exact: true })).toBeVisible();
+  // The proof says, open and in one sentence about the simulation, why it could not run.
+  const proof = page.getByRole("region", { name: "Proof in simulation" });
+  await expect(proof.getByText("None of the robots the simulation can run matched this task; at least one was measured out of reach from the robot position planned in the scene built from your video.", { exact: true })).toBeVisible();
+  expect(await proof.textContent()).not.toMatch(/[a-z]_[a-z]|your job is held|estimate|budget|\$/i);
+  await page.locator("summary", { hasText: "Simulation details" }).click();
   const results = page.getByRole("region", { name: "Simulation results for your job" });
   await expect(results.getByText(sentence, { exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Simulation evaluation" })).toBeVisible();
@@ -360,8 +375,8 @@ test("a job no robot we run fits is held, naming the robots checked and why, fro
       embodimentsTruncated: false, precheckDigest: digest },
   }, writes);
   await page.goto(`/capture-upload/${token}?video=existing`);
-  await expect(page.getByText("Held: none of the robots we run fits this job yet", { exact: true }).first()).toBeVisible();
-  await expect(page.getByText(/None of the 136 robot setups we checked fits this job\. The main reason: the robot arms were ruled out on reach/).first()).toBeVisible();
+  await expect(page.getByText("The simulation is held: none of the robots we can simulate fits this job yet", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText(/None of the 136 robot setups we can simulate fits this job\. The main reason: the robot arms were ruled out on reach/).first()).toBeVisible();
   const checked = page.getByRole("region", { name: "Robots checked before any spend" });
   await expect(checked.getByRole("heading", { name: "Robots we checked" })).toBeVisible();
   await expect(checked.getByText("136 robot setups (a robot and the software that drives it): 8 ruled out, 128 not available for this job.")).toBeVisible();
@@ -381,8 +396,8 @@ test("a job we can't simulate yet is held in one plain sentence, never as a proc
   await heldJobRoutes(page, token, "Close the fire door at the end of the hall", { ok: true, scope: "owner", captureReceived: true,
     status: { decision: outcome.category, headline: outcome.title, operatorAction: null, missingViews: [], outcome } }, writes);
   await page.goto(`/capture-upload/${token}?video=existing`);
-  await expect(page.getByText("Held: we can't simulate this kind of job yet.", { exact: true }).first()).toBeVisible();
-  await expect(page.getByText(/No robot was tested on your job, and this is not a finding that a robot could not do it\./).first()).toBeVisible();
+  await expect(page.getByText("The simulation is held: we can't simulate this kind of job yet.", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText(/No robot was tested in a simulation of your job, and this is not a finding that a robot could not do it\. Your answer stays on your job page\./).first()).toBeVisible();
   const body = await page.locator("body").textContent();
   expect(body).not.toMatch(/could not finish processing|website_native|preparation_required|we'll run|email you when|Next step|next step is with Blueprint/i);
   expect(writes).toEqual([]);
@@ -473,9 +488,8 @@ test("desktop handoff recognizes retained footage without claiming processing co
   });
   await page.clock.install();
   await page.goto("/contact/site-operator");
-  // The task and its one box confirm the brief at submission (owner decision 2026-11-07).
+  // The optional sentence confirms the brief at submission (owner direction 2026-11-11).
   await page.locator("#start-task").fill("Move sealed cartons onto a pallet");
-  await page.getByRole("checkbox", { name: "This is the task I want Blueprint to evaluate.", exact: true }).check();
   await page.locator("#start-location").fill("Austin, TX");
   await page.locator("#start-email").fill("operator@example.test");
   await page.getByRole("button", { name: "Start free assessment" }).click();
@@ -656,6 +670,11 @@ test("a run with only scripted reference baselines is not called an estimate on 
   });
   await page.goto(`/capture-upload/${token}?video=existing`);
   await expect(page.getByText(`${sentence} Nothing is needed from you.`, { exact: true })).toBeVisible();
+  // The proof never calls a reference-only run an estimate, and names no policy.
+  const proof = page.getByRole("region", { name: "Proof in simulation" });
+  await expect(proof.getByText("The simulation scored only scripted reference checks; no AI policy could be tested in it yet.", { exact: true })).toBeVisible();
+  expect(await proof.textContent()).not.toMatch(/estimate|did best|tries/i);
+  await page.locator("summary", { hasText: "Simulation details" }).click();
   const results = page.getByRole("region", { name: "Simulation results for your job" });
   await expect(results.getByText(sentence, { exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Simulation evaluation" })).toBeVisible();

@@ -36,11 +36,9 @@ async function renderReady(ui: React.ReactElement) {
 }
 const fetchMock = vi.fn();
 const sent: {url: string; body: Record<string, any>}[] = [];
-/** The task and the one box the form requires to send it (owner decision 2026-11-07). */
+/** The optional sentence; typing it is the confirmation (owner direction 2026-11-11). */
 function describeTask(task: string) {
   fireEvent.change(document.querySelector("#start-task")!, {target: {value: task}});
-  const box = document.querySelector<HTMLInputElement>("#start-task-confirmation")!;
-  if (!box.checked) fireEvent.click(box);
 }
 function fill(task = "Move sealed cartons") {
   describeTask(task);

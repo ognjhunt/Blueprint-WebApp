@@ -54,3 +54,39 @@ export function evaluationAdmissionAlertText(params: { workspaceRequestId: strin
 export async function alertOpsEvaluationNeedsAdmission(params: { workspaceRequestId: string; jobId: string; teamIds: readonly string[] }) {
   return ringOnce(`evaluation_admission:${params.workspaceRequestId}`, evaluationAdmissionAlertText(params));
 }
+
+/** One line of Blueprint's own answer text for the bell: no newlines, no code marks, bounded. */
+function answerLine(value: string | null | undefined): string {
+  return String(value ?? "").replace(/[\r\n`*_~<>]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 200) || "none";
+}
+
+export type IntroductionRequestAlert = { requestId: string; headline: string | null; pick: string | null;
+  familyLabel?: string | null; runnerUp?: string | null };
+
+export function introductionRequestAlertText(params: IntroductionRequestAlert): string {
+  return `:handshake: *A site asked Blueprint to find a deployment company* — job \`${safeId(params.requestId)}\`.\n`
+    + `Job: ${answerLine(params.familyLabel)}\nAnswer: ${answerLine(params.headline)}\nPick: ${answerLine(params.pick)}\n`
+    + `Runner-up: ${answerLine(params.runnerUp)}\n`
+    + "Its card is in the job library. No deployment company has been emailed; whether to alert them is your decision.";
+}
+
+/** A site pressed "Find a deployment company for this job". Rings once per job; it contacts no outside company. */
+export async function alertOpsIntroductionRequested(params: IntroductionRequestAlert) {
+  return ringOnce(`introduction_request:${params.requestId}`, introductionRequestAlertText(params));
+}
+
+export function companyResponseAlertText(params: { requestId: string; company: string | null; state: string; headline: string | null }): string {
+  const said = params.state === "declined" ? "declined" : "is interested";
+  return `:incoming_envelope: *An approved company responded about a job its site asked us to find a deployment company for* — `
+    + `job \`${safeId(params.requestId)}\`.\nCompany: ${answerLine(params.company)} (${said})\nAnswer: ${answerLine(params.headline)}\n`
+    + "A person at Blueprint makes the introduction; nothing was sent to the site or the company.";
+}
+
+/**
+ * An approved company first responded on the card of a job whose site asked to find a deployment
+ * company. Rings once per company and job; it emails neither the site nor the company.
+ */
+export async function alertOpsCompanyResponded(params: { requestId: string; companyKey: string; company: string | null;
+  state: string; headline: string | null }) {
+  return ringOnce(`company_response:${params.requestId}:${params.companyKey}`, companyResponseAlertText(params));
+}

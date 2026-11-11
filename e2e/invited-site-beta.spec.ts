@@ -104,7 +104,6 @@ for (const width of [390, 1440]) {
 
     await page.goto("/contact/site-operator");
     await page.locator("#start-task").fill("Cartons reach the pallet without damage");
-    await page.getByRole("checkbox", { name: "This is the task I want Blueprint to evaluate.", exact: true }).check();
     await page.locator("#start-location").fill("Austin, TX");
     await expect(page.locator("#start-region")).toHaveCount(0);
     await page.getByRole("button", { name: "Start free assessment", exact: true }).click();

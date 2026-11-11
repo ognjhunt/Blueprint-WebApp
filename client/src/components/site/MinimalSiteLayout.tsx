@@ -52,7 +52,7 @@ export function MinimalSiteLayout({ children }: PropsWithChildren) {
       <footer className="ms-footer ms-container">
         <div className="ms-footer-brand">
           <a className="ms-brand" href="/" aria-label="Return to homepage"><span className="ms-brand-mark" aria-hidden="true" />Blueprint</a>
-          <p className="ms-footer-description">From recurring work to a measured automation pilot.</p>
+          <p className="ms-footer-description">From one video to the robot that fits, its proof in simulation, and a deployment company.</p>
           <p>© {new Date().getFullYear()} {COMPANY.legalName}</p>
         </div>
         <nav aria-label="Footer navigation">

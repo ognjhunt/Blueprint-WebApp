@@ -404,6 +404,37 @@ describe("a site that sends footage with no description", () => {
 });
 
 /**
+ * Owner direction 2026-11-11: a site starts with an email and a video. One that
+ * will film on its phone types nothing and shares nothing: the form sends the
+ * film-later body (description authority, no recording grant) with no task, no
+ * task box and no card grant. Recording permission stays the job page's step.
+ */
+describe("a site that will film on its phone and types no task", () => {
+  it("is saved with a private, unconfirmed placeholder brief and no recording or listing grant", async () => {
+    const { teamJobAccess } = await import("../utils/teamJobAccess");
+    const { isPlaceholderSummary } = await import("../utils/siteTaskBrief");
+    const requestId = `site-footage-phone-${++sequence}`;
+    const { taskConfirmation: _box, publicTaskListing: _card, ...form } = siteCaptureStartSubmission({ requestId,
+      retryToken: `r${requestId}`.padEnd(64, "x"), sourcePageUrl: "https://tryblueprint.io/contact/site-operator",
+      email: `${requestId}@example.test`, task: "" });
+    const response = await fetch(`${base}/api/inbound-request`, { method: "POST",
+      headers: { "content-type": "application/json", "x-forwarded-for": `198.51.100.${(++sequence % 250) + 1}` },
+      body: JSON.stringify({ ...form, siteName: "", siteLocation: "", hasExistingFootage: false, descriptionOnly: true,
+        consentAttestation: null }) });
+    expect(response.status, await response.clone().text()).toBe(201);
+    const token = ((await response.json()) as { captureUrl: string }).captureUrl.split("/capture-upload/")[1];
+    expect(token).toBeTruthy();
+    const record = doc(`inboundRequests/${requestId}`);
+    expect(record.public_task_listing).toBeUndefined();
+    expect(teamJobAccess(record)).toMatchObject({ listed: false, reason: "not_listed" });
+    const brief = doc(`siteTaskBriefs/${requestId}`);
+    expect(isPlaceholderSummary(brief.summary)).toBe(true);
+    expect(brief).toMatchObject({ confirmedAtIso: null, confirmedBy: null });
+    expect((await jobStatus(token)).captureReceived).toBe(false);
+  });
+});
+
+/**
  * Owner decision 2026-11-07, "Confirm at upload": consent means the site agreed
  * to this exact task, and it is captured once. The start form requires the task
  * in the site's words and one box; submitting it is the confirmation. Anything

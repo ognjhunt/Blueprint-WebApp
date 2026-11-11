@@ -8,10 +8,9 @@ import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
-/** The task and its one box: submitting them confirms the brief (owner decision 2026-11-07). */
+/** The optional sentence: typing it confirms the brief (owner direction 2026-11-11). */
 async function fillJobDescription(page: import("@playwright/test").Page, value: string) {
   await page.locator("#start-task").fill(value);
-  await page.getByRole("checkbox", { name: "This is the task I want Blueprint to evaluate.", exact: true }).check();
 }
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const outputRoot = path.resolve(process.env.RELIABILITY_DURABILITY_OUTPUT || "output/reliability-program/intake-durability");
@@ -154,7 +153,9 @@ for (const [index, boundary] of ["acknowledged-upload", "browser-kill-after-stor
             const { readFile: readFixture } = await import("node:fs/promises");
             expect(await rawVideo.body()).toEqual(await readFixture(fixture));
             await page.getByRole("link", { name: "Open your job and assessment", exact: true }).click();
-            await expect(page.getByRole("heading", { name: "A few details about the job", exact: true })).toBeVisible();
+            // The job page no longer asks for details after a video (the job is drafted
+            // from the video); a received video lands on the private job page itself.
+            await expect(page.getByRole("heading", { level: 1, name: "Your job", exact: true })).toBeVisible();
             await expect(page.getByText("Video received.", { exact: true })).toBeVisible();
             await writeFile(path.join(output, `${caseId}.json`), JSON.stringify({ caseId, parameters: { boundary, source: "owned-synthetic-pattern" },
                 layer: "real-backend/firebase-emulators/no-provider", captureReceivedVerified: true, persistedOriginalAndManifestVerified: true,

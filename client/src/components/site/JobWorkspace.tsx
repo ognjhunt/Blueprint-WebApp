@@ -2,6 +2,8 @@ import { CandidatePreparation } from "../shared/CandidatePreparation";
 import { PolicyScreeningCandidates } from "@/components/shared/PolicyScreeningCandidates";
 import { ManagedScreeningResults } from "@/components/shared/ManagedScreeningResults";
 import { managedRunLabel } from "@/lib/screeningPlainLanguage";
+import type { SimulationProof as SimulationProofView } from "@/lib/simulationProof";
+import { SimulationProof } from "./SimulationProof";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { withCsrfHeader } from "@/lib/csrf";
 import type { TaskOutcome } from "@/types/taskOutcome";
@@ -27,12 +29,17 @@ function isWorkflow(value: unknown): value is JobMarketplaceWorkflow {
 /** The signed owner link is the credential; remounting keeps every record scoped to that link. */
 type JobWorkspaceProps = { token: string; preparationOutcome?: TaskOutcome | null; currentStatusKnown?: boolean; resultSuperseded?: boolean;
   currentNextAction?: { text: string; owner: "site" | "blueprint" };
+  /** Hands each loaded workflow to the page, so the page's proof reads this one fetch and makes none of its own. */
+  onWorkflow?: (workflow: JobMarketplaceWorkflow) => void;
+  /** The proof in simulation, shown here on its own only when the page has no answer to carry it (older jobs). */
+  proof?: SimulationProofView | null;
 };
 export function JobWorkspace(props: JobWorkspaceProps) {
   return <JobWorkspaceForToken key={props.token} {...props} />;
 }
 
-function JobWorkspaceForToken({ token, preparationOutcome, currentStatusKnown = true, currentNextAction, resultSuperseded = false }: JobWorkspaceProps) {
+function JobWorkspaceForToken({ token, preparationOutcome, currentStatusKnown = true, currentNextAction, resultSuperseded = false,
+  onWorkflow, proof }: JobWorkspaceProps) {
   const [workflow, setWorkflow] = useState<JobMarketplaceWorkflow | null>(null);
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
@@ -72,6 +79,8 @@ function JobWorkspaceForToken({ token, preparationOutcome, currentStatusKnown = 
     return () => { active.current = false; controller.abort(); clearTimeout(timer); };
   }, [endpoint, refresh]);
 
+  useEffect(() => { if (workflow) onWorkflow?.(workflow); }, [workflow, onWorkflow]);
+
   async function save(path: string, method: "PATCH" | "POST", body: unknown) {
     if (inFlight.current) throw new Error("Another change is being saved. Please wait a moment.");
     inFlight.current = true;
@@ -101,8 +110,17 @@ function JobWorkspaceForToken({ token, preparationOutcome, currentStatusKnown = 
 
   // The job page's status card already gives the current update; say it once.
   const currentAction = currentStatusKnown && !resultSuperseded ? currentNextAction : undefined;
-  return <section className="job-workspace" aria-labelledby="job-progress-title">
-    <h2 id="job-progress-title">Results</h2>
+  const review = !resultSuperseded ? workflow.review : null;
+  const preparation = workflow.candidateReadiness;
+  const technical = (workflow.evidence ?? []).length > 0 || (workflow.managedEvidence ?? []).length > 0;
+  // Every policy and every test detail, folded into one block, shown only when there is something in it.
+  // The proof in simulation itself is never folded: it leads the answer, or stands on its own here.
+  const simulation = technical || Boolean(workflow.managedEvidenceUnavailable)
+    || Boolean(preparation && !(preparation.state === "available" && preparation.candidates.length === 0));
+  // The folded details block carries its own title, so "Results" heads only a written review.
+  const results = Boolean(review);
+  return <section className="job-workspace" {...results ? { "aria-labelledby": "job-progress-title" } : { "aria-label": "Job progress" }}>
+    {results && <h2 id="job-progress-title">Results</h2>}
     {!currentAction && <div className="job-next-action">
       <p className="job-eyebrow">Next action · {currentStatusKnown
         ? resultSuperseded ? owners.blueprint : preparationOutcome ? owners[preparationOutcome.actionOwner] : owners[workflow.actionOwner]
@@ -113,15 +131,18 @@ function JobWorkspaceForToken({ token, preparationOutcome, currentStatusKnown = 
     </div>}
     {resultSuperseded && <p role="status" className="ms-field-hint">Earlier results belong to the previous object selection. They remain in the job history.</p>}
     {error && <p role="status" className="ms-field-hint">Updates could not be refreshed. Last loaded details are shown. <button type="button" className="ms-text-link" onClick={() => setRefresh(value => value + 1)}>Try again</button></p>}
-    {!resultSuperseded && workflow.review && <div className="job-review">
-      <h3>{workflow.review.disposition === "no_suitable_option" ? "No suitable option yet" : workflow.review.disposition === "more_information" ? "A little more information is needed" : "What we know so far"}</h3>
-      <p>{workflow.review.summary}</p>
-      {currentStatusKnown && !preparationOutcome && !currentAction && workflow.review.nextAction !== workflow.nextAction && <p className="ms-field-hint">{workflow.review.nextAction}</p>}
+    {review && <div className="job-review">
+      <h3>{review.disposition === "no_suitable_option" ? "No suitable option yet" : review.disposition === "more_information" ? "A little more information is needed" : "What we know so far"}</h3>
+      <p>{review.summary}</p>
+      {currentStatusKnown && !preparationOutcome && !currentAction && review.nextAction !== workflow.nextAction && <p className="ms-field-hint">{review.nextAction}</p>}
     </div>}
-    <CandidatePreparation preview={workflow.candidateReadiness} />
+    {proof && <div className="site-answer site-answer-standalone"><SimulationProof proof={proof} /></div>}
+    {simulation && <details className="job-planning-details job-simulation">
+    <summary>Simulation details <span className="ms-field-hint">Every policy we set up, and why any did not run.</span></summary>
+    <CandidatePreparation preview={preparation} />
     {workflow.managedEvidenceUnavailable && <p role="status" className="ms-field-hint">Policy results are temporarily unavailable. Reload this page to retry.</p>}
     <ManagedScreeningResults evidence={workflow.managedEvidence} superseded={resultSuperseded} className="job-review" />
-    {((workflow.evidence ?? []).length > 0 || (workflow.managedEvidence ?? []).length > 0) && <details className="job-planning-details">
+    {technical && <details className="job-planning-details">
       <summary>Technical evidence and test details</summary>
     {(workflow.evidence ?? []).length > 0 && <section className="job-review" aria-label="Evidence for your job">
       <h3>Evidence for your job</h3>
@@ -147,6 +168,7 @@ function JobWorkspaceForToken({ token, preparationOutcome, currentStatusKnown = 
       </article>)}
     </section>}
     {workflow.jobId && (workflow.evidence ?? []).some(item => item.current && ["information_required", "blocked", "unavailable"].includes(item.state)) ? <p className="ms-field-hint"><a className="ms-text-link" href={`/app/captures?jobId=${encodeURIComponent(workflow.jobId!)}`}>Add more video of the task</a> if Blueprint asks for it. Use the account that owns this job; your existing recording permissions still apply.</p> : null}
+    </details>}
     </details>}
     <BuyingRequirements key="requirements" requirements={workflow.requirements} pending={pending} onSave={value => save("requirements", "PATCH", value)} />
   </section>;

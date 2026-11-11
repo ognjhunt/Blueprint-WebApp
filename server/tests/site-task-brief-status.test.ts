@@ -857,6 +857,40 @@ describe("GET /api/site-task-brief/:token/status", () => {
     expect(storage.write).not.toHaveBeenCalled();
     expect(deliverOutbox).not.toHaveBeenCalled();
   });
+
+  it("gives the owner the site's answer from the video's estimates, and a film link none", async () => {
+    const owner = savedRecording("published").token;
+    const record = sharedFakeFirestoreState.docs.get("inboundRequests/req-1")!;
+    record.walkthrough_job_estimates = { capture_id: "walkthrough-req-1", job_estimates: { object: "carton",
+      object_largest_side_m: 0.4, object_mass_kg_low: 3, object_mass_kg_high: 4, object_surface: "matte", pick_to_place_m: 1,
+      pick_height_m: null, place_height_m: null, front_clearance_m: null, other_items_likely: [], cycle_seconds: null, basis: null } };
+    record.introduction_request = { requested_at_iso: "2026-11-11T00:00:00.000Z", requested_by: "signed_owner_link" };
+    const before = structuredClone([...sharedFakeFirestoreState.docs]);
+    const { body } = await status(owner);
+    expect(body.answer).toMatchObject({ schemaVersion: "site_answer.v1", state: "ready",
+      introductionRequestedAtIso: "2026-11-11T00:00:00.000Z" });
+    expect(body.answer.pick.verdict).toBe("fits_on_paper");
+    expect([...sharedFakeFirestoreState.docs]).toEqual(before);
+    expect((await status(savedRecording("published", "film").token)).body.answer).toBeNull();
+    const current = sharedFakeFirestoreState.docs.get("inboundRequests/req-1")!;
+    current.request = { ...(current.request as Record<string, unknown>), consent_attestation: { revoked_at_iso: "2026-11-11T00:00:00.000Z" } };
+    expect((await status(owner)).body.answer).toBeNull();
+  });
+
+  it("answers null rather than failing the status read when the answer cannot be composed", async () => {
+    const owner = savedRecording("published").token;
+    const record = sharedFakeFirestoreState.docs.get("inboundRequests/req-1")!;
+    record.walkthrough_job_estimates = { job_estimates: { pick_to_place_m: 1, object_mass_kg_low: 3 } };
+    const answers = await import("../utils/siteAnswer");
+    const spy = vi.spyOn(answers, "loadSiteAnswer").mockRejectedValueOnce(new Error("boom"));
+    const { code, body } = await status(owner);
+    expect(code).toBe(200);
+    expect(body.answer).toBeNull();
+    expect(body.status).toBeTruthy();
+    expect(spy).toHaveBeenCalledTimes(1);
+    spy.mockRestore();
+    expect((await status(owner)).body.answer).toMatchObject({ schemaVersion: "site_answer.v1" });
+  });
 });
 
 describe("task follow-up on the owner link", () => {

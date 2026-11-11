@@ -107,8 +107,8 @@
   .ms-beta-copy > p.ms-beta-free { font-size: 12px; }
 }
 .ms-method { border-top: 1px solid var(--ms-rule); border-bottom: 1px solid var(--ms-rule); padding-block: 30px; scroll-margin-top: 24px; }
-.ms-steps { list-style: none; display: grid; grid-template-columns: repeat(3, 1fr); padding: 0; margin: 0; align-items: start; }
-.ms-steps li { padding: 0 42px; border-left: 1px solid var(--ms-rule); }
+.ms-steps { list-style: none; display: grid; grid-template-columns: repeat(4, 1fr); padding: 0; margin: 0; align-items: start; }
+.ms-steps li { padding: 0 32px; border-left: 1px solid var(--ms-rule); }
 .ms-steps li:first-child { padding-left: 0; border: 0; }
 .ms-steps li:last-child { padding-right: 0; }
 .ms-steps .ms-step-head { display: flex; align-items: center; gap: 30px; min-height: 46px; font-size: 18px; letter-spacing: -.035em; margin: 0; max-width: none; color: var(--ms-ink); }
@@ -117,6 +117,9 @@
 .ms-steps summary:hover { color: var(--ms-green); }
 .ms-step-number { font-size: 28px; line-height: 1.25; letter-spacing: -.06em; }
 .ms-step-rule { flex-shrink: 0; display: block; width: 31px; height: 1px; background: currentColor; }
+/* The step title sits on its own line under its number, so the four titles line up however each wraps. */
+.ms-steps .ms-step-head { flex-wrap: wrap; row-gap: 8px; }
+.ms-steps .ms-step-head > span:last-child { flex-basis: 100%; }
 .ms-steps p { font-size: 14px; line-height: 1.65; color: var(--ms-muted); margin-top: 12px; max-width: 39ch; }
 .ms-team { padding-block: 27px 34px; display: flex; justify-content: space-between; gap: 35px; align-items: center; }
 .ms-team h2 { font-size: 18px; letter-spacing: -.03em; }

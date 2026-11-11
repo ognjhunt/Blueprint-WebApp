@@ -84,6 +84,8 @@ export type OutboxKind =
   | "no_qualified_evaluation"
   /** The job's video arrived before it was saved to an account (owner decision 2026-10-18). */
   | "footage_before_account"
+  /** The site's answer first settled after the video was read: once per job. */
+  | "answer_ready"
   /** The job's video was too large to process: the new-video ask, once per capture and blocked video. */
   | "video_too_large"
   | "pilot_request"

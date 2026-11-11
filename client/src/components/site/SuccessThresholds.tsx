@@ -67,7 +67,7 @@ export function SuccessThresholds({ token, view, onDecided }: {
   }
   return <section aria-label="How success is judged" style={{ marginBottom: "24px" }}>
     <h2>How success is judged</h2>
-    <p className="ms-field-hint">Blueprint scores each robot candidate in the simulation of your site against these goals.
+    <p className="ms-field-hint">Blueprint scores each robot it tests in the simulation of your site against these goals.
       Blueprint set them from its standard settings for this kind of task and the scene it built from your video.
       Nothing was measured at your site.</p>
     {list(view.rows)}

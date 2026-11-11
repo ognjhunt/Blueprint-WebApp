@@ -238,13 +238,13 @@ describe("the claim digest of existing notices", () => {
   it("binds every existing kind to the same seven fields it always has, so retained claims still match", async () => {
     sendEmailMock.mockResolvedValue({ sent: true, provider: "resend", messageId: "accepted" });
     await enqueueOutbox(entry({ replyTo: "hello@tryblueprint.io" }));
-    await enqueueOutbox(entry({ idempotencyKey: "req-1:results_ready:run_a", kind: "results_ready", body: "result" }));
+    await enqueueOutbox(entry({ idempotencyKey: "req-1:scene_ready:run_a", kind: "scene_ready", body: "result" }));
     await deliverOutbox();
     const digest = (fields: unknown[]) => createHash("sha256").update(JSON.stringify(fields)).digest("hex");
     expect(sharedFakeFirestoreState.docs.get("captureOutbox/req-1:brief_confirmed")).toMatchObject({ status: "sent",
       deliveryDigest: digest(["req-1:brief_confirmed", "req-1", "brief_confirmed", "ops@acme.example", "s", "b", "hello@tryblueprint.io"]) });
-    expect(sharedFakeFirestoreState.docs.get("captureOutbox/req-1:results_ready:run_a")).toMatchObject({ status: "sent",
-      deliveryDigest: digest(["req-1:results_ready:run_a", "req-1", "results_ready", "ops@acme.example", "s", "result", null]) });
+    expect(sharedFakeFirestoreState.docs.get("captureOutbox/req-1:scene_ready:run_a")).toMatchObject({ status: "sent",
+      deliveryDigest: digest(["req-1:scene_ready:run_a", "req-1", "scene_ready", "ops@acme.example", "s", "result", null]) });
   });
 
   it("binds a scene outcome notice to the same seven fields, so adding the kind changes no claim (C-04)", async () => {

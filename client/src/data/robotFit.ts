@@ -194,8 +194,8 @@ export interface SiteRobotFit {
 }
 
 export const SITE_ROBOT_FIT_NOTE =
-  "Blueprint runs candidate robots and policies that look right for this job in a simulation of your site and shows you a "
-  + "bounded estimate of what works. This is a first read from your video, not a promise that any robot can do the job.";
+  "These are the kinds of robot that look right for this job from what your video shows; Blueprint then tests them in a "
+  + "simulation of your site. This is a first read from your video, not a promise that any robot can do the job.";
 
 export interface AdminRobotFitResponse {
   job: RobotFitJob;

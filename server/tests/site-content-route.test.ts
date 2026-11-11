@@ -60,9 +60,10 @@ describe("site-content route", () => {
       expect(JSON.stringify(payload)).toContain("no private paid evaluations");
       // The free beta: no site fee, Blueprint's own evaluation, open site sign-up.
       expect(JSON.stringify(payload)).toContain("Free for sites and partners");
-      // Blueprint runs the candidates itself and shows a bounded estimate or "held" (owner, 2026-10-28).
+      // Blueprint runs the evaluations itself; the site's answer comes first, then its proof in simulation or "held" (owner, 2026-11-11).
       expect(JSON.stringify(payload)).toContain("Blueprint runs the candidate evaluations itself");
-      expect(payload.summary).toContain("The site sees a bounded estimate of what works");
+      expect(payload.summary).toContain("shows the site one answer: the robot that most likely fits");
+      expect(payload.summary).toContain("proves it in a simulation of the site");
       expect(payload.summary).toContain("works alongside a deployment company on the real site");
       expect(JSON.stringify(payload)).not.toMatch(/compare delivery proposals|full evaluation|join by invitation|evaluated free when invited/);
       expect(JSON.stringify(payload)).not.toContain("books it in one step");

@@ -1,6 +1,7 @@
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import type { InboundRequest } from "../types/inbound-request";
-import type { TaskBrowseCard } from "../../client/src/types/taskBrowse";
+import type { TaskBrowseCard, TaskCardDetail } from "../../client/src/types/taskBrowse";
+import { loadJobCardAnswer, loadJobCardAnswerHeadline } from "./jobCardAnswer";
 import { taskThumbnailUrl, teamJobAccess } from "./teamJobAccess";
 
 /**
@@ -23,11 +24,27 @@ export function projectTaskBrowseCard(id: string, record: InboundRequest): TaskB
     thumbnailUrl: taskThumbnailUrl(id, record) };
 }
 
-export async function listTaskBrowseCards(): Promise<TaskBrowseCard[]> {
+/** `withAnswerHeadlines` adds the answer's headline to a card whose site chose to share its answer (`jobCardAnswer.ts`). */
+export async function listTaskBrowseCards(options: { withAnswerHeadlines?: boolean } = {}): Promise<TaskBrowseCard[]> {
   if (!db) throw new Error("Task library unavailable");
   const snapshot = await db.collection("inboundRequests")
     .where("public_task_listing.enabled", "==", true).limit(200).get();
-  return snapshot.docs.map(doc => projectTaskBrowseCard(doc.id, doc.data() as InboundRequest))
-    .filter((card): card is TaskBrowseCard => card !== null)
+  const cards = await Promise.all(snapshot.docs.map(async doc => {
+    const card = projectTaskBrowseCard(doc.id, doc.data() as InboundRequest);
+    if (!card || !options.withAnswerHeadlines) return card;
+    const headline = await loadJobCardAnswerHeadline(doc.id, doc.data());
+    return headline ? { ...card, answerHeadline: headline } : card;
+  }));
+  return cards.filter((card): card is TaskBrowseCard => card !== null)
     .sort((a, b) => b.publishedAtIso.localeCompare(a.publishedAtIso));
+}
+
+/** One listed card as an approved company opens it, with the answer when the site shared it. Null when not listed. */
+export async function readTaskCardDetail(id: string): Promise<TaskCardDetail | null> {
+  if (!db) throw new Error("Task library unavailable");
+  const record = (await db.collection("inboundRequests").doc(id).get()).data();
+  const card = record ? projectTaskBrowseCard(id, record as InboundRequest) : null;
+  if (!card) return null;
+  const answerSummary = await loadJobCardAnswer(id, record);
+  return answerSummary ? { ...card, answerHeadline: answerSummary.headline, answerSummary } : card;
 }

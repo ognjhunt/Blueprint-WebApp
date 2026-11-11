@@ -11,7 +11,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { sharedFakeFirestoreState as state } from "./helpers/fake-firestore";
 import { outcomePublication, screeningFixture, sealScreening } from "./fixtures/beta-policy-screening";
 import { crossRuntimeArtifactDigest } from "../utils/crossRuntimeCanonical";
-import { screeningOutcomeSentence } from "../utils/betaPolicyScreeningContract";
+import { screeningOutcomeSentence, simulationOutcomeEmailSentence } from "../utils/betaPolicyScreeningContract";
 
 const send = vi.hoisted(() => vi.fn());
 vi.mock("../../client/src/lib/firebaseAdmin", async () => {
@@ -92,7 +92,7 @@ describe("a website evaluation held before any campaign started", () => {
     await expect(progression()).resolves.toMatchObject({ state: "held", heldReason: outcome });
     await deliverOutbox();
     expect(send).toHaveBeenCalledTimes(1);
-    expect(send.mock.calls[0][0].text.startsWith(screeningOutcomeSentence(outcome as never))).toBe(true);
+    expect(send.mock.calls[0][0].text.startsWith(simulationOutcomeEmailSentence(outcome as never))).toBe(true);
     // The same hold again, or a replay, is not another email.
     await expect(ingestBetaPolicyScreeningHold(hold)).resolves.toMatchObject({ status: "replayed" });
     await deliverOutbox();

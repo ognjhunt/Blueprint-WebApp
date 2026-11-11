@@ -2,9 +2,10 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Pause, Play } from "lucide-react";
 
 /**
- * What a site receives: one recommended pilot, for the approach that won
- * Blueprint's own evaluation of the job's candidates, delivered by a deployment
- * company that supports it, shown for a few kinds of site. Examples, not
+ * What a site receives: one answer for its job (the robot that most likely
+ * fits, a runner-up, what was ruled out, proof in simulation, how sure, the
+ * next step), or "held", shown for a few kinds of site. The packaging example
+ * comes first because it is the kind of job the answer covers best. Examples, not
  * bookings or results. Four original illustrative scenes are restored verbatim;
  * simulation scope is assessed per task rather than implied by the artwork.
  * Warehouse, Laundromat, Factory and Hotel source: 288822160^.
@@ -14,7 +15,9 @@ import { Pause, Play } from "lucide-react";
 
 type P = [number, number];
 type Scene = (props: { t: number }) => JSX.Element;
-type Example = { site: string; embodiment: string; tests: string; provide: string; teamProvides: string; when: string; uncertain: string; Art: Scene };
+/** One row of an illustrative answer: a label and its text. */
+type Row = [string, string];
+type Example = { site: string; embodiment: string; job: string; answer: Row[]; Art: Scene };
 
 const LOOP = 10; // seconds per task loop; one rotation shows one full loop
 const STILL = 4.5; // the frame shown before motion starts, when paused, and under reduced motion
@@ -373,14 +376,126 @@ function Lab({ t }: { t: number }) {
   );
 }
 
+function Carton({ c, opacity = 1 }: { c: P; opacity?: number }) {
+  return <g {...ink} opacity={opacity}>
+    <rect x={c[0] - 13} y={c[1] - 9} width={26} height={18} fill={tint} />
+    <path d={`M${c[0]} ${c[1] - 9} V${c[1] - 3}`} strokeWidth={1.5} />
+  </g>;
+}
+
+/** Fixed arm on a pedestal takes cartons off the end of a conveyor and stacks them on a pallet. */
+function Palletizing({ t }: { t: number }) {
+  const shoulder: P = [170, 118];
+  const pickAt: P = [236, 99];
+  const slots: P[] = [[132, 147], [104, 147], [76, 147]];
+  const start = (i: number) => 0.3 + i * 3;
+  let hand: P = [236, 92];
+  let open = true;
+  for (let i = 0; i < slots.length; i++) {
+    const u = t - start(i);
+    if (u < 0 || u > 3) continue;
+    const drop = slots[i];
+    hand = trackP(u, [[0, [236, 92]], [0.4, pickAt], [0.8, [236, 86]], [1.8, [drop[0], 86]], [2.3, drop], [2.6, [drop[0], 100]], [3, [236, 92]]]);
+    open = u < 0.4 || u > 2.3;
+  }
+  const reset = fade(t, 9.6, 10);
+  const next = slots.findIndex((_, i) => t < start(i) + 0.4);
+  return (
+    <g>
+      <g {...ink}>
+        <rect x={58} y={168} width={92} height={6} fill={tint} />
+        <path d="M58 174 H150 M62 174 V180 M104 174 V180 M146 174 V180" />
+        <rect x={160} y={118} width={20} height={62} fill={paper} />
+        <rect x={206} y={120} width={104} height={10} />
+        <path d="M214 130 V180 M302 130 V180" />
+      </g>
+      {[220, 244, 268, 292].map(rx => <Wheel key={rx} c={[rx, 125]} r={4} turn={-t * 3} />)}
+      {slots.map((slot, i) => {
+        const u = t - start(i);
+        if (u >= 0.4 && u < 2.3) return <Carton key={i} c={[hand[0], hand[1] + 12]} />;
+        if (u >= 2.3) return <Carton key={i} c={[slot[0], 159]} opacity={1 - reset} />;
+        return null;
+      })}
+      {next >= 0 && <Carton c={[track(t, [[start(next) - 2.6, 300], [start(next), 236]]), 111]} />}
+      {t >= 9.6 && <Carton c={[300, 111]} opacity={reset} />}
+      <RobotArm shoulder={shoulder} hand={hand} l1={56} l2={56} open={open} />
+    </g>
+  );
+}
+
+// Robot names, reach and payload come from the robot spec catalog
+// (contracts/pipeline/robot-spec-catalog.v1.json). The jobs, distances, weights
+// and answers are made up; they follow the answer's rules (a fixed arm's reach
+// must span the two spots; jobs that are not one solid object picked up and put
+// down are held), but no row is a result for any site.
+const WHO_USES_IT = "Published uses of these robots on work like this, each with its source, or a plain note that we found none";
+const POLICY_PROOF = "Which control policy did best on the job in a simulation of your site, and how much that result can be trusted";
+const NEXT_STEP = "If you choose, share an anonymised job card with deployment companies Blueprint has approved";
+const HELD_NEXT = "We keep the job and count it as demand for this kind of work. Your job page shows its current stage";
+const held = (kind: string) => `Held. Our robot check covers jobs where a robot picks one solid object up and puts it down. ${kind} is another kind of job, which we can’t check robots against yet`;
+
+// The packaging example's robots, figures and ruled-out reason are all published:
+// UR20 reach 1.75 m and payload 20 kg, HC20DTP reach 1.9 m and payload 20 kg,
+// UR5e payload 5 kg (catalog above). Both arms have production palletizing rows
+// in server/data/deploymentEvidence.v1.json; no customer is named here.
 const examples: Example[] = [
-  { site: "Warehouse", embodiment: "Humanoid robot", tests: "Moving full totes from the packing line to outbound carts", provide: "A two-hour window, one escort, floor space by line 3", teamProvides: "Humanoid robot, setup and operation", when: "Two weeks, on dates you approve", uncertain: "Shrink-wrapped totes may need a different gripper", Art: Warehouse },
-  { site: "Café", embodiment: "Fixed robot arm", tests: "Moving clean cups from the dish rack to the counter", provide: "An after-close window and bench space by the dish station", teamProvides: "Fixed robot arm, setup and operation", when: "One week of evenings", uncertain: "Cups of very different sizes may need a second grip", Art: Cafe },
-  { site: "Laundromat", embodiment: "Wheeled humanoid", tests: "Folding towels for wash-and-fold orders", provide: "One folding table for a morning shift", teamProvides: "Wheeled humanoid, setup and operation", when: "One week, mornings only", uncertain: "Thin or tangled items may need a person", Art: Laundromat },
-  { site: "Factory", embodiment: "Mobile manipulator", tests: "Loading blanks into one CNC machine and unloading finished parts", provide: "One machine and a setup day with your maintenance lead", teamProvides: "Mobile manipulator, fixtures, setup and operation", when: "Two weeks, on one shift", uncertain: "Parts that arrive in mixed orientations", Art: Factory },
-  { site: "Hotel", embodiment: "Mobile robot", tests: "Moving linen carts from the laundry room to each floor", provide: "Service elevator access during quiet hours", teamProvides: "Mobile robot, setup and operation", when: "Two weeks, overnight", uncertain: "Busy elevators at checkout time", Art: Hotel },
-  { site: "Lab", embodiment: "Fixed robot arm", tests: "Opening the sample drawer before each batch", provide: "One bench and a quiet hour before the first batch", teamProvides: "Fixed robot arm, setup and operation", when: "One week, mornings only", uncertain: "A sticking drawer may need a firmer pull", Art: Lab },
+  { site: "Packaging", embodiment: "Fixed robot arm", job: "Stacking sealed cartons, about 12 kg each, from the end of a packing conveyor onto a pallet", answer: [
+    ["Most likely fits", "Universal Robots UR20, a fixed robot arm. Published reach 1.75 m, payload 20 kg"],
+    ["Runner-up", "Yaskawa HC20DTP, a fixed robot arm. Published reach 1.9 m, payload 20 kg"],
+    ["Ruled out", "Universal Robots UR5e. Its published payload is 5 kg, less than a 12 kg carton and its gripper"],
+    ["Who uses it", "Makers and integrators have published palletizing cells built on both arms in production use, each with its source"],
+    ["Proof in simulation", "A simulation of your site checks the arm’s reach, path and cycle time on the stack, and says how much that result can be trusted"],
+    ["How sure", "Fair. Both arms have documented production use for palletizing; the carton weight is estimated from the video, and telling us the weight would raise it"],
+    ["Next step", NEXT_STEP],
+  ], Art: Palletizing },
+  { site: "Warehouse", embodiment: "Humanoid robot", job: "Moving light totes, about 1.5 kg each, from a shelf to an outbound cart a few steps away", answer: [
+    ["Most likely fits", "Unitree G1, a walking humanoid robot. Published payload: about 2 kg per arm"],
+    ["Runner-up", "Hello Robot Stretch 3, an arm on a wheeled base. Published payload: 2 kg, including its gripper"],
+    ["Ruled out", "Universal Robots UR5e. It stays in one place, and its 0.85 m reach can’t span a shelf and a cart a few steps apart"],
+    ["Who uses it", WHO_USES_IT],
+    ["Proof in simulation", POLICY_PROOF],
+    ["How sure", "Low. The tote weight is estimated from the video and is close to both robots’ payload"],
+    ["Next step", NEXT_STEP],
+  ], Art: Warehouse },
+  { site: "Café", embodiment: "Fixed robot arm", job: "Moving clean cups from the dish rack to the counter, about 1.2 m away", answer: [
+    ["Most likely fits", "FANUC CRX-10iA, a fixed robot arm. Published reach 1.249 m, payload 10 kg"],
+    ["Runner-up", "Universal Robots UR10e, a fixed robot arm. Published reach 1.3 m, payload 12.5 kg"],
+    ["Ruled out", "AgileX PiPER. An arm standing between the rack and the counter needs about 0.7–1.1 m of reach; this arm reaches 0.626 m"],
+    ["Who uses it", WHO_USES_IT],
+    ["Proof in simulation", "A simulation of your site checks the arm’s reach and path on the job, and says how much that result can be trusted"],
+    ["How sure", "Low for now. The distances are estimated from the video; a measured scene of your work area would raise it"],
+    ["Next step", NEXT_STEP],
+  ], Art: Cafe },
+  { site: "Laundromat", embodiment: "Wheeled humanoid", job: "Folding towels for wash-and-fold orders", answer: [
+    ["Answer", held("Folding cloth")],
+    ["Next step", HELD_NEXT],
+  ], Art: Laundromat },
+  { site: "Factory", embodiment: "Mobile manipulator", job: "Loading small blanks, about 1 kg each, from a conveyor into a CNC machine about 6 m away, and unloading finished parts", answer: [
+    ["Most likely fits", "Hello Robot Stretch 3, a mobile manipulator: an arm on a wheeled base. Published payload: 2 kg, including its gripper"],
+    ["Runner-up", "Unitree G1, a walking humanoid robot. Published payload: about 2 kg per arm"],
+    ["Ruled out", "FANUC M-710iC/45M. It stays in one place, and even its 2.606 m reach can’t span 6 m"],
+    ["Who uses it", WHO_USES_IT],
+    ["Proof in simulation", POLICY_PROOF],
+    ["How sure", "Low. Both pass on weight, but whether they can reach into the machine is still open"],
+    ["Next step", NEXT_STEP],
+  ], Art: Factory },
+  { site: "Hotel", embodiment: "Mobile robot", job: "Moving linen carts from the laundry room to each floor", answer: [
+    ["Answer", held("Towing a cart")],
+    ["Next step", HELD_NEXT],
+  ], Art: Hotel },
+  { site: "Lab", embodiment: "Fixed robot arm", job: "Opening the sample drawer before each batch", answer: [
+    ["Answer", held("Opening a drawer")],
+    ["Next step", HELD_NEXT],
+  ], Art: Lab },
 ];
+
+/**
+ * The examples offered as tabs. At most two of them are held, so the card mostly shows answers;
+ * the hotel scene stays in the robot animation (`RobotScene`) but is not offered as a tab.
+ */
+const tabs: Example[] = examples.filter(example => example.site !== "Hotel");
+/** The scenes the robot animation beside forms plays, unchanged by the packaging example. */
+const scenes: Example[] = examples.filter(example => example.site !== "Packaging");
 
 /** Seconds into the current loop. Starts at the still frame; restarts at 0 when the scene changes. */
 function useSceneClock(running: boolean, scene: string) {
@@ -430,19 +545,19 @@ export function PilotPreview() {
   }, []);
   useEffect(() => {
     if (paused || pinned || held || !inView) return;
-    const id = window.setTimeout(() => setActive(i => (i + 1) % examples.length), LOOP * 1000);
+    const id = window.setTimeout(() => setActive(i => (i + 1) % tabs.length), LOOP * 1000);
     return () => window.clearTimeout(id);
   }, [active, paused, pinned, held, inView]);
 
-  const example = examples[active];
+  const example = tabs[active];
   const t = useSceneClock(!paused && inView, example.site);
   const { Art } = example;
   return (
     <section className="ms-pilot-preview" aria-labelledby="pilot-preview-title">
       <div className="ms-pilot-preview-intro">
         <p className="ms-eyebrow">What you get</p>
-        <h2 id="pilot-preview-title">One job. A clear pilot plan.</h2>
-        <p>The job, a robot that could fit, the open questions and what the deployment company would provide. You choose whether to proceed.</p>
+        <h2 id="pilot-preview-title">One job. One answer, with its proof.</h2>
+        <p>The robot that most likely fits, a runner-up, what was ruled out and why, proof in a simulation of your site and how sure we are. You choose whether to share it.</p>
         <svg ref={artRef} className="ms-pilot-art" viewBox="0 0 320 196" role="img" aria-label={`Illustration of the ${example.site.toLowerCase()} example: ${example.embodiment.toLowerCase()}`}>
           <g key={example.site} className="ms-pilot-art-scene">
             <path d="M8 180 H312" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" />
@@ -457,14 +572,14 @@ export function PilotPreview() {
             onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setHeld(false); }}
             onKeyDown={event => {
             const direction = event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
-            const next = event.key === "Home" ? 0 : event.key === "End" ? examples.length - 1 : direction ? (active + direction + examples.length) % examples.length : null;
+            const next = event.key === "Home" ? 0 : event.key === "End" ? tabs.length - 1 : direction ? (active + direction + tabs.length) % tabs.length : null;
             if (next === null) return;
             event.preventDefault();
             setActive(next);
             setPinned(true);
             event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]')[next]?.focus();
           }}>
-            {examples.map((item, i) => (
+            {tabs.map((item, i) => (
               <button key={item.site} type="button" role="tab" id={`pilot-tab-${i}`} aria-selected={i === active} aria-controls="pilot-example" tabIndex={i === active ? 0 : -1}
                 onClick={() => { setActive(i); setPinned(true); }}>{item.site}</button>
             ))}
@@ -475,23 +590,16 @@ export function PilotPreview() {
         </div>
         <div id="pilot-example" role="tabpanel" aria-labelledby={`pilot-tab-${active}`} key={example.site} className="ms-pilot-panel">
           <div className="ms-pilot-card-head">
-            <span>Illustrative job plan</span>
+            <span>Illustrative answer</span>
             <span className="ms-pilot-card-tag">Example</span>
           </div>
           <dl>
-            <div><dt>Job</dt><dd>{example.tests}</dd></div>
-            <div><dt>Possible approach</dt><dd>{example.embodiment}</dd></div>
-            <div><dt>Evidence needed</dt><dd>Site video, simulation results and a measured pilot at your site</dd></div>
-            <div><dt>What you provide</dt><dd>{example.provide}</dd></div>
-            <div><dt>Delivery scope</dt><dd>{example.teamProvides}</dd></div>
-            <div><dt>Budget</dt><dd>Agreed with you before any pilot</dd></div>
-            <div><dt>Pilot price</dt><dd>Quoted by the deployment company and agreed before the pilot</dd></div>
-            <div><dt>Support</dt><dd>Agreed with the deployment company</dd></div>
-            <div><dt>Still uncertain</dt><dd>{example.uncertain}</dd></div>
+            <div><dt>Job</dt><dd>{example.job}</dd></div>
+            {example.answer.map(([label, text]) => <div key={label}><dt>{label}</dt><dd>{text}</dd></div>)}
           </dl>
         </div>
         <div className="ms-pilot-card-foot">
-          <span>These examples show possible jobs and robots, not available offers or measured results. Physical performance and safety must be validated on site.</span>
+          <span>Robot names, reach and payload are from each maker’s published specifications; the jobs, distances, weights and answers are made up for illustration. These examples show possible jobs and robots, not available offers or measured results. Physical performance and safety must be validated on site.</span>
         </div>
       </div>
     </section>
@@ -521,7 +629,7 @@ export function RobotScene() {
   }, []);
 
   const running = !reducedMotion && !paused && inView;
-  const example = examples[active];
+  const example = scenes[active];
   const t = useSceneClock(running, example.site);
 
   useEffect(() => {
@@ -531,7 +639,7 @@ export function RobotScene() {
     const id = window.setTimeout(() => {
       finished = true;
       remaining.current = LOOP;
-      setActive(i => (i + 1) % examples.length);
+      setActive(i => (i + 1) % scenes.length);
     }, remaining.current * 1000);
     return () => {
       window.clearTimeout(id);

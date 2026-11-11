@@ -432,6 +432,28 @@ const SCREENING_OUTCOME_SENTENCE: Readonly<Record<ScreeningOutcome, string>> = {
   setup_repair: SETUP_REPAIR_SENTENCE,
   superseded: "Continued in a newer run.",
 };
+/**
+ * The same result outcomes, as the site's email says them: about the simulation, never "your job is held".
+ * The site already has its answer from the fit check; only the simulation waits or stopped.
+ * The job page keeps `SCREENING_OUTCOME_SENTENCE`; an estimate's email is built from the simulation proof.
+ */
+const SIMULATION_OUTCOME_EMAIL_SENTENCE: Readonly<Record<Exclude<ScreeningOutcome, "estimate" | "awaiting_spend_approval"
+  | "setup_repair" | "superseded">, string>> = {
+  reference_only: "The simulation scored only scripted reference checks, so no AI policy could be tested in it yet.",
+  held_capability: "The simulation can't model this kind of task yet. It counts as demand for what we build next.",
+  held_unprepared: "The robots that could do this task aren't set up in the simulation yet. It counts as demand for what we build next.",
+  infeasible: "From the robot position planned in the scene built from your video, none of the robots the simulation can run could reach the task.",
+  no_match: "None of the robots the simulation can run matched this task. At least one was measured out of reach from the robot position planned in the scene built from your video.",
+  held_setup: `A problem on our side stopped the simulation before it finished. ${SETUP_NEXT}`,
+  held_budget: `The simulation reached the most the free beta can run for one job before it finished. ${ATTENTION_NEXT}`,
+  held_scene_check: `The simulated scene failed the check we run before testing robots, so no robot was tested in it. ${ATTENTION_NEXT}`,
+};
+/** A held or reference-only outcome's email sentence, said about the simulation. */
+export function simulationOutcomeEmailSentence(outcome: ScreeningOutcome): string {
+  return (SIMULATION_OUTCOME_EMAIL_SENTENCE as Partial<Record<ScreeningOutcome, string>>)[outcome] ?? SCREENING_OUTCOME_SENTENCE[outcome];
+}
+/** The zero-success caveat's sentence, for an email that has no projected proof to take it from. */
+export const screeningCaveatSentence = (caveat: ScreeningOutcomeCaveat) => SCREENING_CAVEAT_SENTENCE[caveat];
 /** Outcomes that still wait on Blueprint, so they say until when Blueprint can keep working on the job. */
 const WAITING_OUTCOMES: ReadonlySet<ScreeningOutcome> = new Set(["awaiting_spend_approval", "setup_repair"]);
 /**

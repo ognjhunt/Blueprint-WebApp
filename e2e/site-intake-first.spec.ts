@@ -30,9 +30,8 @@ for (const width of [1440, 390]) {
     await expect(page.locator("#start-location")).not.toHaveAttribute("required", "");
     await expect(page.locator("#start-location")).toHaveValue("");
     await page.locator("#start-email").fill("qa@example.invalid");
-    // The task and its one box confirm the brief at submission (owner decision 2026-11-07).
+    // The optional sentence confirms the brief at submission (owner direction 2026-11-11).
     await page.locator("#start-task").fill("Pack cartons");
-    await page.getByRole("checkbox", { name: "This is the task I want Blueprint to evaluate.", exact: true }).check();
     await expect(page.locator("#start-company")).toHaveCount(0);
     await expect(page.locator("#start-password")).toHaveCount(0);
     await page.getByRole("button", { name: "Start free assessment", exact: true }).click();

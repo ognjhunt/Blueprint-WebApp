@@ -36,14 +36,17 @@ describe("public managed-pilot copy", () => {
     ).toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: /Submit a job/i }).length).toBeGreaterThan(0);
 
-    expect(container).toHaveTextContent(/Show us the work/i);
-    expect(container).toHaveTextContent(/Compare robots in simulation/i);
+    expect(container).toHaveTextContent(/Send a video of the job/i);
+    expect(container).toHaveTextContent(/See which robot fits/i);
+    expect(container).toHaveTextContent(/Proof in simulation/i);
     expect(container).toHaveTextContent(/Free during the beta/i);
-    expect(container).toHaveTextContent(/Pilot it on your site/i);
-    // The journey is Blueprint's: it runs the candidates and works alongside a deployment company.
-    expect(container).toHaveTextContent(/test different robots and the AI policies that run them on the job/i);
-    expect(container).toHaveTextContent(/estimate of what’s likely to work/i);
-    expect(container).toHaveTextContent(/work alongside a deployment company/i);
+    expect(container).toHaveTextContent(/Find a deployment company/i);
+    // The journey (owner, 2026-11-11): a spec check, proof in simulation, then approved deployment companies.
+    expect(container).toHaveTextContent(/We check real robots against it, show you which one most likely fits and how sure we are, and prove it in a simulation of your site/i);
+    expect(container).toHaveTextContent(/check real robot models against your job by their published specifications/i);
+    expect(container).toHaveTextContent(/build a simulation of your site from the video and test control policies, the software that drives a robot, on the job/i);
+    expect(container).toHaveTextContent(/share the job with deployment companies we’ve approved/i);
+    expect(container).not.toHaveTextContent(/A clear pilot plan|estimate of what’s likely to work/i);
     expect(container).not.toHaveTextContent(/full evaluation|comparable proposals|delivery proposals|join by invitation/i);
     expect(container).not.toHaveTextContent(/choose a team to deliver|delivery team|invited robot teams/i);
     expect(container).toHaveTextContent(/You choose whether to proceed/i);

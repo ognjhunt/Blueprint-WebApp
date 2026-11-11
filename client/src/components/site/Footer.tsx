@@ -35,7 +35,7 @@ export function Footer() {
               Blueprint
             </a>
             <p className="mt-7 text-sm leading-7 text-runway-mute">
-              Blueprint tests robots and policies on a business's real job in a simulation of its site and shows an estimate of what's likely to work.
+              Blueprint shows a business which robot most likely fits one of its recurring jobs and how sure it is, proves it in a simulation of its site, and helps it find a deployment company.
             </p>
             <a
               href="mailto:hello@tryblueprint.io"

@@ -23,7 +23,7 @@ describe("the site's stopped attempt", () => {
   });
   it("shows an early hold with no next-step owner, since no step is scheduled", () => {
     render(<TaskOutcomeNotice outcome={earlyTaskHoldOutcome("website_native_task_profile_preparation_required", `sha256:${"c".repeat(64)}`)} />);
-    expect(screen.getByRole("heading", {name: "Held: we can't simulate this kind of job yet."})).toBeInTheDocument();
+    expect(screen.getByRole("heading", {name: "The simulation is held: we can't simulate this kind of job yet."})).toBeInTheDocument();
     expect(screen.queryByText(/Next step/)).not.toBeInTheDocument();
     expect(screen.getByText("Nothing is needed from you. Your recording is saved; you do not need to send it again.")).toBeInTheDocument();
   });

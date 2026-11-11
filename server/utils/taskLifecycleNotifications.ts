@@ -25,15 +25,19 @@ import { taskLifecycleNotificationIsCurrent } from "./taskLifecycleNotificationA
 import { drainPendingWebsitePreparationNotifications } from "./websitePreparationStatus";
 import { preparationEndedSentence } from "./taskStatusProjection";
 import { EARLY_TASK_HOLD_DETAIL, EARLY_TASK_HOLD_SENTENCES, earlyTaskHoldOf, isEarlyTaskHoldReason,
-  FOOTAGE_BEFORE_ACCOUNT_SENTENCE, JOB_WINDOW_ENDING_MESSAGE, JOB_WINDOW_ENDING_SUBJECT, jobNoGrantEndingMessage,
+  FOOTAGE_BEFORE_ACCOUNT_SENTENCE, JOB_NO_GRANT_SITE_ENDING_SUBJECT, JOB_WINDOW_ENDING_MESSAGE, JOB_WINDOW_ENDING_SUBJECT, jobNoGrantEndingMessage,
   isRecaptureReason, LARGE_VIDEO_RECAPTURE_SENTENCES, RECAPTURE_SENTENCES, RECAPTURE_TITLE, recaptureReasonOf,
   type EarlyTaskHoldReason, type RecaptureReason } from "./taskPreparationOutcome";
 import { isWebsiteJobNoGrantEndedEventId, isWebsiteJobWindowEndedEventId } from "./websiteJobWindowEnding";
 import { selectWebsiteAtlasPreview } from "./websiteAtlasPreview";
-import { isScreeningResultOutcome, screeningEstimateCountSentence, screeningOutcomeSentence, storedScreeningOutcomeCaveat,
+import { isScreeningResultOutcome, screeningCaveatSentence, simulationOutcomeEmailSentence, storedScreeningOutcomeCaveat,
   type ScreeningOutcome, type ScreeningOutcomeCaveat } from "./betaPolicyScreeningContract";
+import { NO_POLICY_COMPLETED, projectSimulationProof, type SimulationProof } from "../../client/src/lib/simulationProof";
+import { SIMULATION_ACCURACY } from "../../client/src/data/simulationAccuracy";
 import { isTerminalSceneOutcomeKind, sceneOutcomeMessage, sceneOutcomeSubject,
   type TerminalSceneOutcomeKind } from "./sceneIntentOutcome";
+import { ANSWER_CONFIDENCE_LABELS, SITE_ANSWER_NOTE, type SiteAnswer } from "../../client/src/lib/siteAnswer";
+import { REASON_UNSIZED as ANSWER_UNSIZED_REASON } from "./siteAnswer";
 
 export type TaskLifecycleMilestone = Extract<
   OutboxKind,
@@ -56,6 +60,7 @@ export type TaskLifecycleMilestone = Extract<
   | "footage_before_account"
   | "video_too_large"
   | "pilot_request"
+  | "answer_ready"
 >;
 
 /** A ready label without viewable assets is not a scene-ready milestone. */
@@ -140,10 +145,11 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
     body: (url, detail, workspaceUrl) => `An evaluation run of one candidate in the simulation of your site has finished${detail ? `: ${detail}` : ""}. This is a simulation estimate for that one candidate, not a physical test. It never certifies physical performance or safety.\n\n${whereRunsAre(url, workspaceUrl, "See the run")}`,
   },
   // One per result outcome of the job's evaluation and scene (F-01). The detail
-  // is only the page's own sentence for that outcome, the estimate's episode
-  // count and the results disclaimer, built from typed values, never caller text.
+  // is only the outcome's sentence about the simulation, or for an estimate the
+  // job page's own simulation proof, and the results disclaimer, built from typed
+  // values, never caller text. An estimate's subject is its own (`estimateSubject`).
   evaluation_outcome: {
-    subject: "Your job's simulation evaluation has finished",
+    subject: "An update on the simulation of your job",
     body: (url, detail, workspaceUrl) => `${detail}\n\n${whereRunsAre(url, workspaceUrl, "See the result")}`,
   },
   // One per terminal outcome of the job's scene intent (C-04). The subject is the
@@ -188,6 +194,12 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
     // No later email follows this one, so it promises none.
     body: (url, _detail, workspaceUrl) => `${FOOTAGE_BEFORE_ACCOUNT_SENTENCE} Follow the same job:\n${workspaceUrl || url}`,
   },
+  // Once per job, when the site's answer first settles. The detail is only the
+  // answer's own sentences (`answerReadyDetail`), built from the composed answer.
+  answer_ready: {
+    subject: "Your Blueprint answer is ready",
+    body: (url, detail) => `${detail}\n\nOpen your answer:\n${url}`,
+  },
   pilot_request: {
     subject: "A partner asked to have its system evaluated on your job",
     body: (url) => `An approved partner asked to have its system evaluated on your job for a possible pilot. Your details stay private, and there is nothing for you to do for this request. We review the partner's fit, evidence and delivery capabilities before including its system in your job's evaluation. Blueprint works with a deployment company on the result, and you and that company agree any physical pilot directly.\n\nOpen your job:\n${url}`,
@@ -228,6 +240,10 @@ export async function enqueueTaskLifecycleNotification(params: {
   screeningCaveat?: ScreeningOutcomeCaveat;
   /** `scene_outcome` only: the terminal outcome's kind; its event id must name it. */
   sceneOutcomeKind?: TerminalSceneOutcomeKind;
+  /** `answer_ready` only: the settled answer the email states. */
+  siteAnswer?: SiteAnswer;
+  /** `evaluation_outcome` estimate only: the job page's simulation proof; read from the job's results when not given. */
+  simulationProof?: SimulationProof | null;
 }): Promise<{ enqueued: boolean; reason?: "store_unavailable" | "request_missing" | "contact_missing" | "consent_withdrawn"
   | "awaiting_early_hold_preview" }> {
   if (!db) return { enqueued: false, reason: "store_unavailable" };
@@ -265,7 +281,9 @@ export async function enqueueTaskLifecycleNotification(params: {
   const recaptureReason = earlyTaskHold ? null : recaptureReasonOf(preview)
     ?? (isRecaptureReason(params.recaptureReason) ? params.recaptureReason : null);
   const { captureId: _captureId, awaitEarlyHoldUntilMs: _wait, recaptureReason: _recapture, ...notice } = params;
-  return enqueueOutbox(buildTaskLifecycleNotification({ ...notice, requestId, to, workspaceUrl,
+  const simulationProof = params.milestone === "evaluation_outcome" && params.screeningOutcome === "estimate"
+    && params.simulationProof === undefined ? await loadEstimateProof(requestId) : params.simulationProof;
+  return enqueueOutbox(buildTaskLifecycleNotification({ ...notice, simulationProof, requestId, to, workspaceUrl,
     ...(earlyTaskHold ? { earlyTaskHold } : {}), ...(recaptureReason ? { recaptureReason } : {}) }));
 }
 
@@ -309,6 +327,10 @@ export function buildTaskLifecycleNotification(params: {
    * it was. Its event id is the job's fixed no-grant one.
    */
   jobNoGrantEnded?: "site" | "blueprint";
+  /** `answer_ready` only: the settled answer the email states. */
+  siteAnswer?: SiteAnswer;
+  /** `evaluation_outcome` estimate only: the job page's simulation proof, or null when it could not be read. */
+  simulationProof?: SimulationProof | null;
   /** With `jobNoGrantEnded`: why the sweep ended it early, said in the ending's own sentence. */
   jobNoGrantReason?: "video_over_ingest_limit";
 }): Parameters<typeof enqueueOutbox>[0] {
@@ -320,7 +342,8 @@ export function buildTaskLifecycleNotification(params: {
     : params.milestone === "scene_outcome"
       ? params.jobNoGrantEnded ? jobNoGrantEndedDetail(params)
         : params.jobWindowEnded ? jobWindowEndedDetail(params) : sceneOutcomeDetail(params)
-    : params.milestone === "robot_access_question" ? robotAccessQuestionDetail(params) : "";
+    : params.milestone === "robot_access_question" ? robotAccessQuestionDetail(params)
+    : params.milestone === "answer_ready" ? answerReadyDetail(params.siteAnswer) : "";
   const held = params.milestone === "preparation_needs_attention" && isEarlyTaskHoldReason(params.earlyTaskHold)
     ? params.earlyTaskHold : null;
   const recapture = !held && params.milestone === "preparation_needs_attention" && isRecaptureReason(params.recaptureReason)
@@ -340,13 +363,16 @@ export function buildTaskLifecycleNotification(params: {
     ...(isWebsitePreparationNotice(params.milestone) ? {preparationEventId: params.eventId} : {}),
     to: params.to,
     subject: params.milestone === "evaluation_outcome" && params.screeningOutcome === "estimate"
-      ? "Your simulation estimate is ready"
+      ? estimateSubject(params.simulationProof)
+      : params.milestone === "scene_outcome" && params.jobNoGrantEnded === "site" ? JOB_NO_GRANT_SITE_ENDING_SUBJECT
       : params.milestone === "scene_outcome" && (params.jobWindowEnded || params.jobNoGrantEnded) ? JOB_WINDOW_ENDING_SUBJECT
-      : params.milestone === "scene_outcome" && params.sceneOutcomeKind ? sceneOutcomeSubject(params.sceneOutcomeKind) : message.subject,
+      : params.milestone === "scene_outcome" && params.sceneOutcomeKind ? sceneOutcomeSubject(params.sceneOutcomeKind)
+      : params.milestone === "answer_ready" && params.siteAnswer?.state === "cannot_assess" ? "An update on your Blueprint job"
+      : message.subject,
     body: `${message.body(url, params.milestone === "run_no_result" ? noResultObservationText(params.runProgress)
       : isWebsitePreparationNotice(params.milestone) ? preparationDetail
       : params.milestone === "evaluation_outcome" || params.milestone === "scene_outcome"
-        || params.milestone === "robot_access_question" ? outcomeDetail
+        || params.milestone === "robot_access_question" || params.milestone === "answer_ready" ? outcomeDetail
       : params.detail?.trim() ?? "", params.workspaceUrl ?? null)}\n\n${EMAIL_SIGN_OFF}`,
     replyTo: "hello@tryblueprint.io",
   };
@@ -363,26 +389,61 @@ function recaptureCopy(reason: RecaptureReason): (typeof copy)[TaskLifecycleMile
 /** An early task hold's one email: the job page's held sentence, sent in place of the needs-attention notice. */
 function earlyTaskHoldCopy(reason: EarlyTaskHoldReason): (typeof copy)[TaskLifecycleMilestone] {
   return {
-    subject: "Your Blueprint job is held",
+    subject: "The simulation of your job is on hold",
     body: (url, detail) => `${EARLY_TASK_HOLD_SENTENCES[reason]} ${EARLY_TASK_HOLD_DETAIL} Nothing is needed from you. Keep your original recording. Your job page shows the latest status.${detail ? ` ${detail}` : ""}\n\nOpen your job:\n${url}`,
   };
 }
 
-/**
- * An estimate's one next step (owner decision 2026-11-02): a reply reaches the
- * job identity's reply-to inbox, and a person makes any introduction.
- */
-export const ESTIMATE_INTRODUCTION_OFFER =
-  "If you'd like an introduction to a deployment company that could run a pilot of this, reply to this email.";
+const SIMULATION_DISCLAIMER = "A simulation is not a physical test, and it never certifies physical performance or safety.";
+/** How far to trust a ranking, in one line: the published statement's first sentence, with where its conditions are. */
+export const SIMULATION_TRUST_LINE = `${SIMULATION_ACCURACY.statement.split(/(?<=\.)\s/)[0]} The conditions and sources are on your job page.`;
+/** An estimate's email when the job's results could not be read: true whatever they show. */
+const SIMULATION_FINISHED = "The simulation of your site has finished. Your job page shows how each policy did.";
+
+/** The comparison the email may state: a finished simulation's, from the proof the job page shows. */
+function finishedComparison(proof: SimulationProof | null | undefined) {
+  return proof?.state === "done" ? proof.policyComparison : null;
+}
+
+/** "Proof" only when the result separates the policies; otherwise the simulation has simply finished. */
+function estimateSubject(proof: SimulationProof | null | undefined): string {
+  return finishedComparison(proof)?.separated ? "Your simulation proof is ready" : "The simulation of your job has finished";
+}
 
 /**
- * The page's own sentence for a result outcome, the estimate's episode count,
- * the results disclaimer and, for an estimate, the introduction offer. The event
- * id must name the same outcome, so the dispatch check reads back exactly what
- * the body says (F-01).
+ * A finished simulation, from the same projection the job page uses (`projectSimulationProof`): the
+ * proof's headline and how far to trust it when the policies were separated; otherwise what it found
+ * and its scene notes, never called an estimate and with no offer of a pilot.
+ */
+function estimateDetail(proof: SimulationProof | null | undefined, caveat: ScreeningOutcomeCaveat | null): string {
+  const comparison = finishedComparison(proof);
+  if (comparison?.separated) return `${proof!.headline}\n\n${SIMULATION_TRUST_LINE} Nothing is needed from you.`;
+  // Without the proof, a stored caveat still says what happened: it is only ever set when no policy succeeded.
+  const said = comparison ? [comparison.line, ...comparison.sceneNotes]
+    : caveat ? [NO_POLICY_COMPLETED, screeningCaveatSentence(caveat)] : [SIMULATION_FINISHED];
+  return `${[...new Set(said)].join(" ")} Nothing is needed from you.`;
+}
+
+/** The job's simulation proof as its page shows it, or null when the results cannot be read. Never fails the notice. */
+async function loadEstimateProof(requestId: string): Promise<SimulationProof | null> {
+  try {
+    const { readSiteManagedEvidence } = await import("./siteManagedEvidence");
+    const { managedEvidence } = await readSiteManagedEvidence(requestId);
+    return projectSimulationProof({ evaluation: managedEvidence as never, pick: null });
+  } catch (error) {
+    logger.warn({ error, requestId }, "Could not read the simulation proof for the result email; it says the simulation finished");
+    return null;
+  }
+}
+
+/**
+ * The outcome's sentence about the simulation, or for an estimate the job page's simulation proof,
+ * and the results disclaimer. The event id must name the same outcome, so the dispatch check reads
+ * back exactly what the body says (F-01).
  */
 function evaluationOutcomeDetail(params: { eventId?: string; screeningOutcome?: ScreeningOutcome;
-  screeningCounts?: { ran: number; total: number; scored: number }; screeningCaveat?: ScreeningOutcomeCaveat }): string {
+  screeningCounts?: { ran: number; total: number; scored: number }; screeningCaveat?: ScreeningOutcomeCaveat;
+  simulationProof?: SimulationProof | null }): string {
   const outcome = params.screeningOutcome;
   const counts = params.screeningCounts;
   if (!isScreeningResultOutcome(outcome) || !new RegExp(`^${outcome}-[a-f0-9]{24}$`).test(params.eventId ?? "")
@@ -390,12 +451,10 @@ function evaluationOutcomeDetail(params: { eventId?: string; screeningOutcome?: 
     || (counts && ![counts.ran, counts.total, counts.scored].every(value => Number.isSafeInteger(value) && value >= 0))) {
     throw new Error("evaluation_outcome_notice_invalid");
   }
-  // The page's sentence, caveat included: the one outcome sentence function says both.
-  const sentence = screeningOutcomeSentence(outcome, storedScreeningOutcomeCaveat(params.screeningCaveat));
-  const result = counts ? `${sentence} ${screeningEstimateCountSentence(counts.ran, counts.total, counts.scored)}` : sentence;
-  return `${result} Nothing is needed from you.\n\n${outcome === "estimate"
-    ? `This is a simulation estimate, not a physical test. It never certifies physical performance or safety.\n\n${ESTIMATE_INTRODUCTION_OFFER}`
-    : "A simulation is not a physical test, and it never certifies physical performance or safety."}`;
+  const result = outcome === "estimate"
+    ? estimateDetail(params.simulationProof, storedScreeningOutcomeCaveat(params.screeningCaveat))
+    : `${simulationOutcomeEmailSentence(outcome)} Nothing is needed from you.`;
+  return `${result}\n\n${SIMULATION_DISCLAIMER}`;
 }
 
 /**
@@ -433,6 +492,53 @@ function jobNoGrantEndedDetail(params: { eventId?: string; sceneOutcomeKind?: Te
     throw new Error("job_no_grant_ended_notice_invalid");
   }
   return jobNoGrantEndingMessage(params.jobNoGrantEnded, params.jobNoGrantReason);
+}
+
+/**
+ * Whether an answer is one the site is emailed about: a ready answer, or one
+ * that cannot be given because the job is another kind. A video that simply did
+ * not show the job clearly is not: the job page already asks the site, in one
+ * line, what the robot should do, and no second email is added on top of that.
+ */
+export function answerIsSettled(answer: SiteAnswer | null | undefined): answer is SiteAnswer {
+  if (!answer) return false;
+  if (answer.state === "ready") return true;
+  return answer.state === "cannot_assess" && Boolean(answer.reason) && answer.reason !== ANSWER_UNSIZED_REASON;
+}
+
+/**
+ * The answer email's body, in the job page's own words: the headline, the
+ * runner-up, how sure, where the simulation proof appears, the standing note.
+ * Built from the composed answer only, never caller text.
+ */
+function answerReadyDetail(answer: SiteAnswer | undefined): string {
+  if (!answerIsSettled(answer)) throw new Error("answer_ready_notice_invalid");
+  if (answer.state === "cannot_assess") return `${answer.headline} ${answer.reason}`;
+  const lines = [answer.headline];
+  if (answer.runnerUp) lines.push(`Runner-up: ${answer.runnerUp.manufacturer} ${answer.runnerUp.name}.`);
+  const reason = answer.confidence.reasons[0];
+  lines.push(`How sure we are: ${ANSWER_CONFIDENCE_LABELS[answer.confidence.level] ?? "Low"}.${reason ? ` ${reason}` : ""}`);
+  lines.push("When Blueprint runs your job in a simulation of your site, the proof appears on the same page.");
+  lines.push(SITE_ANSWER_NOTE);
+  return lines.join("\n\n");
+}
+
+/**
+ * Tell the site, once, that its answer has settled. Called right after the
+ * coverage review stores the video's estimates; the outbox key keeps it to one
+ * email per job, and dispatch reads the answer again.
+ */
+export async function notifyIfAnswerSettled(requestId: string): Promise<{ enqueued: boolean }> {
+  const { loadSiteAnswer } = await import("./siteAnswer");
+  const answer = await loadSiteAnswer(requestId);
+  if (!answerIsSettled(answer)) return { enqueued: false };
+  return enqueueTaskLifecycleNotification({ requestId, milestone: "answer_ready", siteAnswer: answer });
+}
+
+/** True while the job's answer is still a settled one. Read again at dispatch. */
+export async function answerReadyShown(requestId: string): Promise<boolean> {
+  const { loadSiteAnswer } = await import("./siteAnswer");
+  return answerIsSettled(await loadSiteAnswer(requestId));
 }
 
 /** How many of each kind of movable furniture a robot access proposal moves. */

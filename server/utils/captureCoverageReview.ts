@@ -226,11 +226,32 @@ export async function reviewCaptureCoverage(params: {
     try {
       const statement = draftedTaskStatement(output);
       const named = statement ? await nameUnnamedTask({ requestId: params.requestId, summary: statement }) : null;
-      await db.collection("inboundRequests").doc(params.requestId).set({ capture_task_statement_draft: {
-        capture_id: params.captureId, state: named ? "drafted" : "none_seen", reviewed_at_iso: new Date().toISOString(),
-      } }, { merge: true });
+      // Naming the job changes the brief this review was bound to. Record which brief the review's own
+      // draft produced, from which, so the queue keeps this review as current for it rather than paying
+      // to read the same video again. A later change by the site makes another brief and a fresh review.
+      const store = db;
+      await store.runTransaction(async tx => {
+        const drafted = named && params.binding
+          ? humanDecisionDigest((await tx.get(store.collection("siteTaskBriefs").doc(params.requestId))).data()) : null;
+        tx.set(store.collection("inboundRequests").doc(params.requestId), { capture_task_statement_draft: {
+          capture_id: params.captureId, state: named ? "drafted" : "none_seen", reviewed_at_iso: new Date().toISOString(),
+          ...(drafted ? { from_brief_digest: params.binding!.brief_digest, drafted_brief_digest: drafted } : {}),
+        } }, { merge: true });
+      });
     } catch (error) {
       logger.warn({ error, ...params }, "Could not draft the job from the coverage review");
+    }
+  }
+
+  // The site's answer is composed from what was just stored: tell the site once it
+  // has settled. Only the site's own walkthrough settles it, and a failed notice
+  // never fails the review.
+  if (params.captureId === `walkthrough-${params.requestId}` && !additive) {
+    try {
+      const { notifyIfAnswerSettled } = await import("./taskLifecycleNotifications");
+      await notifyIfAnswerSettled(params.requestId);
+    } catch (error) {
+      logger.warn({ error, requestId: params.requestId }, "Could not queue the answer email after the coverage review");
     }
   }
 

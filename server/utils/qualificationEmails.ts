@@ -343,8 +343,8 @@ export function buildQualifiedEmail(params: {
     ] : [
       "We review the job brief, required output and site constraints with you.",
       "We need your video for the site assessment. We analyze it, draft the brief, build a simulation of your work area and test robots and policies on your job ourselves.",
-      "You see an estimate of what's likely to work, or “held” if we can't simulate that kind of job yet. If no candidate is suitable, we explain what is missing.",
-      "We then work alongside a deployment company on your site. You agree the physical pilot's scope, price, timing and acceptance criteria directly with that company.",
+      "You see which robot most likely fits and which control policy did best in the simulation, or “held” if we can't simulate that kind of job yet. If nothing fits, we explain what is missing.",
+      "You can then share the job with deployment companies we have approved. You agree any physical pilot's scope, price, timing and acceptance criteria directly with that company.",
     ]),
     "",
     "Blueprint's assessment and coordination are free during the beta, and Blueprint takes no cut of a physical pilot. You agree any physical work and its cost directly with the deployment company. A simulation result is an estimate, not proof of how a robot will perform at your site or that it will be safe there.",

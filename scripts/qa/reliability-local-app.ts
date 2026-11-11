@@ -37,6 +37,10 @@ app.use(express.json({ limit: '8mb' }));
 app.get('/api/csrf', csrfCookieHandler); app.get('/api/csrf-token', csrfCookieHandler);
 app.use('/api/inbound-request', csrfProtection, intake);
 app.use('/api/self-capture/uploads', uploads); app.use('/api/site-task-brief', brief);
+// A variant harness (scripts/qa/answer-journey-local-app.ts) sets this before importing
+// this file to mount more real routers and its own health; the plain harness has none.
+const extend = (globalThis as { __reliabilityHarnessExtension?: (app: import('express').Express) => Promise<void> }).__reliabilityHarnessExtension;
+if (extend) await extend(app);
 app.get('/api/reliability/health', (_req, res) => res.json({ layer: 'real-handlers/firebase-emulators/no-provider', project, code: 'local working tree', providerDispatchEnabled: false, schedulersEnabled: false, notificationDeliveryEnabled: false }));
 app.use('/api', (_req, res) => res.status(404).json({ error: 'Route outside scoped reliability harness' }));
 const output = path.resolve('/workspace/reliability-program/emulator-ui'); await mkdir(path.join(output, 'no-env'), { recursive: true });

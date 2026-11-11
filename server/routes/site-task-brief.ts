@@ -1,3 +1,4 @@
+import { JOB_CARD_ANSWER_STATEMENT, JOB_CARD_ANSWER_STATEMENT_VERSION } from "../../client/src/lib/jobCardAnswerConsent";
 import { siteWalkthroughIdentity } from "../utils/siteWalkthrough";
 import { isWebsiteCaptureId } from "../utils/websiteCaptureIdentity";
 import { loadCurrentSiteAdvisory } from "../utils/siteAssessmentPublic";
@@ -286,6 +287,78 @@ router.post("/:token/robot-access", csrfProtection, async (req, res) => {
   }
 });
 
+/**
+ * "Find a deployment company for this job": the owner's one explicit choice to
+ * share the job's anonymised card with approved deployment companies. Records
+ * the request once (a repeat returns the stored time), turns the job card on
+ * through the same grant "Manage opportunity sharing" records, and rings
+ * Blueprint once. It contacts no outside company itself. Owner link only.
+ */
+router.post("/:token/introduction-request", csrfProtection, async (req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+  const verified = verifyCaptureUploadToken(String(req.params.token || ""));
+  if (!verified) return res.status(404).json({ code: "capture_token_invalid", error: "That link is not valid any more." });
+  if (verified.scope !== "owner") return res.status(403).json({ code: "introduction_request_owner_required",
+    error: "Open the owner's job link to ask for this." });
+  const body = z.object({ statementVersion: z.string().trim().min(1).max(100).optional() }).strict().safeParse(req.body ?? {});
+  if (!body.success)
+    return res.status(400).json({ code: "introduction_request_invalid", error: "Press the button on your job page to ask for this." });
+  // The consent recorded is the sentence the page showed. A page showing an older one is refused before
+  // anything is recorded or listed; a page that sends no version (older pages) gets today's sentence.
+  if (body.data.statementVersion !== undefined && body.data.statementVersion !== JOB_CARD_ANSWER_STATEMENT_VERSION)
+    return res.status(409).json({ code: "introduction_request_statement_changed",
+      error: "The wording on this page has changed. Reload the page to read it, then press the button again." });
+  try {
+    const request = await readRequestForStatus(verified.requestId, verified.captureId, verified.sceneId);
+    if (!db || !request || request.captureRights.consent_revoked)
+      return res.status(409).json({ code: "introduction_request_unavailable", error: "This job can no longer be shared from its recording." });
+    const store = db;
+    const ref = store.collection("inboundRequests").doc(verified.requestId);
+    const requestedAtIso = await store.runTransaction(async tx => {
+      const stored = (await tx.get(ref)).data()?.introduction_request?.requested_at_iso;
+      if (typeof stored === "string" && stored) return stored;
+      const now = new Date().toISOString();
+      // The choice is recorded with the exact sentence the page showed under the button.
+      tx.set(ref, { introduction_request: { requested_at_iso: now, requested_by: "signed_owner_link",
+        statement_version: JOB_CARD_ANSWER_STATEMENT_VERSION, statement_text: JOB_CARD_ANSWER_STATEMENT } }, { merge: true });
+      return now;
+    });
+    // The card goes on under the statement the site just agreed to, or stays as it is when already on.
+    let listed = false;
+    try {
+      const current = (await ref.get()).data()?.public_task_listing;
+      if (current?.enabled === true) listed = true;
+      else {
+        const [{ applyOwnerTaskListing }, { anonymizedOpportunityDraft }] = await Promise.all([
+          import("./task-listings"), import("../../client/src/types/taskBrowse")]);
+        const brief = await getBrief(verified.requestId).catch(() => null);
+        const summary = brief && !isPlaceholderSummary(brief.summary) ? brief.summary : "";
+        await applyOwnerTaskListing(verified.requestId, { enabled: true, consent: true, details: anonymizedOpportunityDraft(summary) },
+          { consentVersion: JOB_CARD_ANSWER_STATEMENT_VERSION, alertTeams: false });
+        listed = true;
+      }
+    } catch (error) {
+      logger.warn({ error, requestId: verified.requestId }, "The introduction request was recorded, but the job card could not be turned on");
+    }
+    // The bell rings once per job; its own marker keeps a repeat silent.
+    try {
+      const [{ loadSiteAnswer }, { alertOpsIntroductionRequested }] = await Promise.all([
+        import("../utils/siteAnswer"), import("../utils/pilotOpsAlerts")]);
+      const answer = await loadSiteAnswer(verified.requestId).catch(() => null);
+      await alertOpsIntroductionRequested({ requestId: verified.requestId, headline: answer?.headline ?? null,
+        pick: answer?.pick ? `${answer.pick.manufacturer} ${answer.pick.name}` : null,
+        familyLabel: answer?.job.familyLabel ?? null,
+        runnerUp: answer?.runnerUp ? `${answer.runnerUp.manufacturer} ${answer.runnerUp.name}` : null });
+    } catch (error) {
+      logger.warn({ error, requestId: verified.requestId }, "Could not ring Blueprint about an introduction request");
+    }
+    return res.json({ ok: true, requestedAtIso, listed });
+  } catch (error) {
+    logger.error({ error, requestId: verified.requestId }, "Could not record an introduction request");
+    return res.status(503).json({ code: "introduction_request_unavailable", error: "Your request could not be saved. Try again shortly." });
+  }
+});
+
 function safeSceneViewUrl(value: unknown): string | null {
   try {
     const url = new URL(String(value || ""));
@@ -339,6 +412,8 @@ async function readRequestForStatus(requestId: string, captureId = `walkthrough-
   recommended: boolean;
   /** The job's own targets, which set the pass mark. */
   workspace_task: { terms?: unknown } | null;
+  /** The stored record, server side only, for the site's answer; never sent to the page. */
+  answerSource: Record<string, unknown>;
 } | null> {
   if (!db) return null;
   const snap = await db.collection("inboundRequests").doc(requestId).get();
@@ -391,6 +466,7 @@ async function readRequestForStatus(requestId: string, captureId = `walkthrough-
     recommended: Boolean(data.pilot_recommendation),
     workspace_task: (data.workspace_task as { terms?: unknown } | undefined) ?? null,
     site_task_scope: (data.site_task_scope as { supported?: unknown; reason?: unknown } | undefined) ?? null,
+    answerSource: data,
   };
 }
 
@@ -1145,6 +1221,24 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
  * so the two surfaces cannot tell one operator "we can assess this" while
  * telling another "in review" about the same task.
  */
+/**
+ * The site's answer on the status read. Reuses the request and brief the read
+ * already holds; its one extra read is the site's own readings. Never fails the
+ * status read: any error is logged and the answer is null.
+ */
+async function siteAnswerForStatus(params: { requestId: string; request: Record<string, unknown>; brief: unknown;
+  videoReceived: boolean; robotFit: unknown } | null) {
+  if (!params) return null;
+  try {
+    const { loadSiteAnswer } = await import("../utils/siteAnswer");
+    return await loadSiteAnswer(params.requestId, { request: params.request, brief: (params.brief ?? null) as never,
+      videoReceived: params.videoReceived, robotFit: (params.robotFit ?? null) as never });
+  } catch (error) {
+    logger.warn({ error, requestId: params.requestId }, "Could not compose the site's answer");
+    return null;
+  }
+}
+
 router.get("/:token/status", async (req: Request, res: Response) => {
   res.setHeader("Cache-Control", "no-store");
   const verifiedPayload = verifyCaptureUploadToken(String(req.params.token || ""));
@@ -1363,6 +1457,10 @@ router.get("/:token/status", async (req: Request, res: Response) => {
       successThresholds: payload.scope === "owner" && !request?.captureRights.consent_revoked ? successThresholds : null,
       // Whether to move named furniture out of the robot's way in the simulation, for the owner only.
       robotAccess: payload.scope === "owner" && !request?.captureRights.consent_revoked ? robotAccess : null,
+      // Which robot most likely fits the job, for the owner only: a fit check against published specifications.
+      answer: await siteAnswerForStatus(payload.scope === "owner" && request && !request.captureRights.consent_revoked
+        ? { requestId: payload.requestId, request: request.answerSource, brief, videoReceived: hasStoredCapture,
+          robotFit: preparationStatus?.robotFit ?? null } : null),
     });
   } catch (error) {
     logger.error({ error, requestId: payload.requestId }, "Could not load task status");

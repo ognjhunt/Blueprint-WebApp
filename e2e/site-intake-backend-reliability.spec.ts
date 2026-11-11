@@ -43,10 +43,8 @@ for (const [index, parameters] of cases.entries()) test(`A-J-${String(index + 1)
   record();
   try {
     await page.goto("http://127.0.0.1:4181/contact/site-operator");
-    // The task and its one box confirm the brief at submission (owner decision 2026-11-07).
-    const taskBox = page.getByRole("checkbox", { name: "This is the task I want Blueprint to evaluate.", exact: true });
+    // The optional sentence confirms the brief at submission (owner direction 2026-11-11).
     await page.locator("#start-task").fill("Move sealed cartons from the conveyor onto a pallet.");
-    await taskBox.check();
     await page.locator("#start-location").fill(parameters.location);
     await page.locator("#start-email").fill(`reliability-${index + 1}@example.invalid`);
     await page.locator(`#start-method-${parameters.method}`).check();
@@ -54,9 +52,6 @@ for (const [index, parameters] of cases.entries()) test(`A-J-${String(index + 1)
       await page.reload();
       await expect(page.locator("#start-task")).toHaveValue("Move sealed cartons from the conveyor onto a pallet.");
       await expect(page.locator(`#start-method-${parameters.method}`)).toBeChecked();
-      // Consent is never retained across a reload: the box is ticked again.
-      await expect(taskBox).not.toBeChecked();
-      await taskBox.check();
     }
     if (parameters.boundary === "lost-response") {
       let lost = false;
@@ -79,12 +74,21 @@ for (const [index, parameters] of cases.entries()) test(`A-J-${String(index + 1)
     if (parameters.boundary === "lost-response") {
       await expect(page.getByRole("alert")).toContainText("could not reach Blueprint");
       await page.reload();
-      await page.getByRole("button", { name: "Start free assessment", exact: true }).click();
+      // The unacknowledged submission is retained; the form offers to recover
+      // that same job (same body, same request id) instead of a fresh start.
+      await page.getByRole("button", { name: "Recover saved job", exact: true }).click();
     }
     const canRecord = parameters.location.startsWith("Austin") && parameters.method === "phone";
     const expectSaved = async () => {
-      await expect(page.getByRole("heading", { name: !parameters.location.startsWith("Austin") ? "We have your site."
-        : "Film the work area.", exact: true })).toBeVisible();
+      // Browser storage never keeps the private (bearer) job link, so a fresh
+      // page shows the saved job behind "Return to saved job", which replays the
+      // same idempotent submission to fetch the link again.
+      const returnButton = page.getByRole("button", { name: "Return to saved job", exact: true });
+      const saved = page.getByRole("heading", { name: !parameters.location.startsWith("Austin") ? "We have your site."
+        : "Film the work area.", exact: true });
+      await expect(returnButton.or(saved)).toBeVisible();
+      if (await returnButton.isVisible()) await returnButton.click();
+      await expect(saved).toBeVisible();
       await expect(page.getByRole("link", { name: "Open your job and assessment", exact: true })).toHaveCount(0);
     };
     await expectSaved();
@@ -108,7 +112,14 @@ for (const [index, parameters] of cases.entries()) test(`A-J-${String(index + 1)
     }
     await expectSaved();
     if (canRecord) {
-      await expect(page.getByRole("link", { name: "Open your job page", exact: true })).toHaveAttribute("href", target!);
+      // Returning re-issues the private link (a fresh expiry, so a new signature)
+      // for the SAME job: compare what the link names, not its bytes.
+      const linkSubject = (href: string) => {
+        const { exp: _exp, ...subject } = JSON.parse(Buffer.from(new URL(href, "http://127.0.0.1:4181").pathname.split("/").pop()!.split(".")[0], "base64url").toString("utf8"));
+        return subject;
+      };
+      const returned = await page.getByRole("link", { name: "Open your job page", exact: true }).getAttribute("href");
+      expect(linkSubject(returned!)).toEqual(linkSubject(target!));
       await page.getByRole("link", { name: "Open your job page", exact: true }).click();
       await expect(page.getByText("Upload or record the job to continue.", { exact: false })).toBeVisible();
       await expect(page.getByRole("heading", { name: "Your job summary", exact: true })).toHaveCount(0);

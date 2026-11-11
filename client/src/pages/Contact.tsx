@@ -71,7 +71,7 @@ export default function Contact() {
     <>
       <SEO
         title="Submit a job | Blueprint"
-          description="Send a video of one recurring job at your site. Blueprint drafts the job brief, builds a simulation of your site, tests robots and policies on the job and shows you an estimate of what's likely to work. No budget is required to start."
+          description="Send a video of one recurring job. Blueprint drafts the job description, checks real robots against it by their published specifications and tests control policies on it in a simulation of your site. No budget is required to start."
           canonical="/contact/site-operator"
       />
       <section className={`ms-inquiry ms-container${savedJob ? " ms-intake-saved" : ""}`}>
@@ -82,7 +82,7 @@ export default function Contact() {
           {!savedJob && <p className="ms-eyebrow">For site owners</p>}
           <h1>{savedJob ? "Your saved job" : "What work would you like automated?"}</h1>
           {!savedJob && <p className="ms-inquiry-description">
-            Send a video of one recurring job. We draft the job brief from it, build a simulation of your site and test robots and policies on the job. You see an estimate of what&apos;s likely to work, and we work alongside a deployment company on your site. Free during the beta; no budget is required to start.
+            Send a video of one recurring job. We draft the job description from it, check real robot models against the job by their published specifications and test control policies on it in a simulation of your site. You see which robot most likely fits and how sure we are, and you can share the job with deployment companies we&apos;ve approved. Free during the beta; no budget is required to start.
           </p>}
         </div>
         <div className="ms-inquiry-forms">
@@ -91,9 +91,10 @@ export default function Contact() {
             <summary>How this works</summary>
             {savedJob ? <p className="ms-field-hint">Your private job link shows the brief, progress, follow-up questions and the next decision. Keep it to return.</p> : <><p className="ms-field-hint">
               We analyze your video and draft a brief for you to correct.
-              We then reconstruct your work area in simulation and test robots and policies on the job ourselves.
-              You see an estimate of what&apos;s likely to work, or &ldquo;held&rdquo; if we can&apos;t simulate that kind of job yet.
-              We then work alongside a deployment company on your site; you agree the pilot contract directly with that company.
+              We check real robot models against the job by their published specifications and show which most likely fits and how sure we are.
+              We then reconstruct your work area in simulation and test control policies (the software that drives a robot) on the job ourselves,
+              or mark it &ldquo;held&rdquo; if we can&apos;t simulate that kind of job yet.
+              If you choose, you share an anonymised job card with deployment companies Blueprint has approved; you agree any pilot contract directly with one of them.
               Simulation is an estimate, not proof of physical performance or safety.
             </p>
             <p className="ms-field-hint">

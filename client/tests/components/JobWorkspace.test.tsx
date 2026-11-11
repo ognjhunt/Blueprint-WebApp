@@ -3,6 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { JobWorkspace } from "@/components/site/JobWorkspace";
 import type { JobMarketplaceWorkflow } from "@/types/jobMarketplace";
 import { processingFailure } from "../../../server/utils/taskPreparationOutcome";
+import { projectSimulationProof } from "@/lib/simulationProof";
+import { winnerEvaluation } from "../fixtures/siteAnswer";
 
 vi.mock("@/lib/csrf", () => ({ withCsrfHeader: async (headers: Record<string, string>) => ({ ...headers, "X-CSRF-Token": "local-test" }) }));
 const fetchMock = vi.fn();
@@ -16,6 +18,14 @@ function workflow(overrides: Partial<JobMarketplaceWorkflow> = {}): JobMarketpla
   };
 }
 const response = (value: unknown, status = 200) => ({ ok: status >= 200 && status < 300, status, json: async () => value });
+/** Every policy and test detail is folded into one block, collapsed until the site opens it. */
+async function openSimulation() {
+  const summary = await screen.findByText("Simulation details");
+  expect(summary.closest("details")).not.toHaveAttribute("open");
+  expect(screen.getByText("Every policy we set up, and why any did not run.")).toBeVisible();
+  expect(screen.queryByText(/checked against real trials/)).toBeNull();
+  fireEvent.click(summary);
+}
 
 describe("the site's job workspace", () => {
   it('keeps an earlier object selection review out of view while Blueprint reviews again', async () => {
@@ -60,7 +70,11 @@ describe("the site's job workspace", () => {
   it("shows the current update without a customer checklist or any proposal, booking or outcome action", async () => {
     fetchMock.mockResolvedValue(response(workflow()));
     render(<JobWorkspace token="owner-token" />);
-    expect(await screen.findByRole("heading", { name: "Results" })).toBeVisible();
+    expect(await screen.findByRole("region", { name: "Job progress" })).toBeVisible();
+    // Nothing to show yet: no empty "Results" heading and no simulation block.
+    expect(screen.queryByRole("heading", { name: "Results" })).toBeNull();
+    expect(screen.queryByText("Simulation details")).toBeNull();
+    expect(screen.queryByRole("region", { name: "Proof in simulation" })).toBeNull();
     expect(screen.queryByRole("list", { name: "Job milestones" })).not.toBeInTheDocument();
     expect(screen.queryByText("Brief agreed")).not.toBeInTheDocument();
     expect(screen.queryByText("Options assessed")).not.toBeInTheDocument();
@@ -74,8 +88,9 @@ describe("the site's job workspace", () => {
   it("keeps saved job planning visible when policy results need a retry", async () => {
     fetchMock.mockResolvedValue(response(workflow({ managedEvidenceUnavailable: true })));
     render(<JobWorkspace token="owner-token" />);
+    await openSimulation();
     expect(await screen.findByText("Policy results are temporarily unavailable. Reload this page to retry.")).toBeVisible();
-    expect(screen.getByRole("heading", { name: "Results" })).toBeVisible();
+    expect(screen.getByRole("region", { name: "Job progress" })).toBeVisible();
     expect(screen.queryByRole("region", { name: "Managed policy evidence for your job" })).toBeNull();
   });
 
@@ -108,7 +123,7 @@ describe("the site's job workspace", () => {
     rerender(<JobWorkspace token="second" />);
     expect(screen.queryByText("Private review of the first job.")).toBeNull();
     resolveSecond(response(workflow()));
-    await screen.findByRole("heading", { name: "Results" });
+    await screen.findByRole("region", { name: "Job progress" });
     expect(screen.queryByText("Private review of the first job.")).toBeNull();
   });
 
@@ -117,7 +132,7 @@ describe("the site's job workspace", () => {
     render(<JobWorkspace token="owner-token" />);
     expect(await screen.findByRole("status")).toHaveTextContent(/Job planning could not be loaded/);
     fireEvent.click(screen.getByRole("button", { name: "Try loading job planning again" }));
-    await waitFor(() => expect(screen.getByRole("heading", { name: "Results" })).toBeVisible());
+    await waitFor(() => expect(screen.getByRole("region", { name: "Job progress" })).toBeVisible());
   });
 });
 
@@ -130,6 +145,7 @@ it("shows exact abstention limits without advancing a job or selecting a proposa
     claims: [{ claimId: "reach", verdict: "abstention", rationale: "Missing metric observation." }],
   }] })));
   render(<JobWorkspace token="owner-token" />);
+  await openSimulation();
   const details = await screen.findByText("Technical evidence and test details");
   expect(details.closest("details")).not.toHaveAttribute("open");
   expect(screen.getByText(/available geometry cannot answer clearance/)).not.toBeVisible();
@@ -169,6 +185,7 @@ it("shows every screened candidate without creating a pilot recommendation", asy
       candidates: Array.from({ length: 36 }, (_, index) => ({ candidateId: `candidate-${index}`, name: `Candidate ${index}`,
         state: index ? "pending" : "running", planned: 3, scored: 0, succeeded: 0, failed: 0, void: 0, blockers: [] })) } }] })));
   render(<JobWorkspace token="owner-token" />);
+  await openSimulation();
   fireEvent.click(await screen.findByText("Technical evidence and test details"));
   const table = await screen.findByRole("table", { name: "Candidates evaluated for your job" });
   expect(within(table).getAllByRole("row")).toHaveLength(37);
@@ -191,7 +208,9 @@ it("shows the current simulation result before opening technical history", async
     runId: "previous-evaluation", current: false, summary: "An estimate for the previous recording.", screening: undefined,
   }] })));
   render(<JobWorkspace token="owner-token" />);
-  expect(await screen.findByText(result.summary)).toBeVisible();
+  expect(await screen.findByText(result.summary)).not.toBeVisible();
+  await openSimulation();
+  expect(screen.getByText(result.summary)).toBeVisible();
   expect(screen.getByRole("heading", { name: "Your simulation estimate" })).toBeVisible();
   expect(screen.getByRole("table", { name: "Candidates evaluated for your job" })).toBeVisible();
   // The bounded estimate in plain words, with what the range means.
@@ -215,6 +234,7 @@ it("shows a job whose every candidate was measured out of reach as held, with th
       scored: 0, succeeded: 0, failed: 0, void: 0, blockers: ["candidate_infeasible_measured_geometry", "team_embodiment_station_out_of_reach"] })) } };
   fetchMock.mockResolvedValue(response(workflow({ briefAgreed: true, managedEvidence: [held] })));
   render(<JobWorkspace token="owner-token" />);
+  await openSimulation();
   const region = await screen.findByRole("region", { name: "Simulation results for your job" });
   expect(within(region).getByText(held.summary)).toBeVisible();
   expect(within(region).getAllByText(/^Out of reach · 0\/3 scored/)).toHaveLength(2);
@@ -246,6 +266,7 @@ it("never shows a site raw codes, budget figures, operator instructions or a ref
         scripted_rollout_count: 3, learned_policy_rollout_count: 0, scripted_controller_invoked: true, candidate_policy_queried: false } }] } };
   fetchMock.mockResolvedValue(response(workflow({ briefAgreed: true, managedEvidence: [repair, reference] })));
   render(<JobWorkspace token="owner-token" />);
+  await openSimulation();
   expect(await screen.findByText(reference.summary)).toBeVisible();
   expect(screen.queryByRole("heading", { name: "Your simulation estimate" })).toBeNull();
   expect(screen.getAllByRole("heading", { name: "Simulation evaluation" })).toHaveLength(2);
@@ -267,8 +288,24 @@ it("leaves the parent's current update in one place without repeating a stale wo
   fetchMock.mockResolvedValue(response(workflow({actionOwner:"site",nextAction:"Confirm the old brief."})));
   const current = "Blueprint is preparing the recording; nothing is needed from you.";
   render(<><p>{current}</p><JobWorkspace token="owner-token" currentNextAction={{text:current,owner:"blueprint"}} /></>);
-  await screen.findByRole("heading", {name:"Results"});
+  await screen.findByRole("region", {name:"Job progress"});
   expect(screen.getAllByText(current)).toHaveLength(1);
   expect(screen.queryByText("Confirm the old brief.")).not.toBeInTheDocument();
   expect(screen.queryByText("Next action · You")).not.toBeInTheDocument();
+});
+
+it("shares its one workflow read with the page and shows a proof handed back, open, above the folded details", async () => {
+  const loaded = workflow({ briefAgreed: true, managedEvidence: [winnerEvaluation] });
+  fetchMock.mockResolvedValue(response(loaded));
+  const onWorkflow = vi.fn();
+  const proof = projectSimulationProof({ evaluation: [winnerEvaluation], pick: null });
+  render(<JobWorkspace token="owner-token" onWorkflow={onWorkflow} proof={proof} />);
+  const section = await screen.findByRole("region", { name: "Proof in simulation" });
+  expect(section.closest("details")).toBeNull();
+  expect(within(section).getByText(proof.headline)).toBeVisible();
+  await waitFor(() => expect(onWorkflow).toHaveBeenCalledWith(loaded));
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+  const details = screen.getByText("Simulation details").closest("details")!;
+  expect(details).not.toHaveAttribute("open");
+  expect(section.compareDocumentPosition(details) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 });

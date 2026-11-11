@@ -48,6 +48,8 @@ const router: any = (await import("../routes/internal-beta-policy-screening")).d
 
 /** The fixture's bytes. The Pipeline's `test_beta_policy_screening_publication_flags.py` pins the same value for its copy. */
 const PIPELINE_V3_FIXTURE_SHA256 = "1b95db35f7b61b89be966d2512707b3c11e7fa3c6f9f74b0cd5b34604957c8f2";
+/** What the site's email says for a finished simulation in which no policy completed the job (`projectSimulationProof`). */
+const NO_POLICY = "The simulation ran, but no policy completed the job in it, so it could not rank them.";
 const ESTIMATE = "Your simulation estimate is ready. It is an estimate from a simulation of your site, not a certified result.";
 const CAVEAT = "Our scene check found a possible set-up cause, so this result may reflect how we set the scene up more than the robots.";
 const SECRET = "test-only-screening-flags-signature";
@@ -190,8 +192,12 @@ describe("what the site reads", () => {
     await deliverOutbox();
     expect(send).toHaveBeenCalledTimes(1);
     const notice = state.docs.get(`captureOutbox/job-one:evaluation_outcome:estimate-${scene}`) as Record<string, string>;
-    expect(notice).toMatchObject({ status: "sent", subject: "Your simulation estimate is ready", to: "owner@example.com" });
-    expect(notice.body.startsWith(`${ESTIMATE} ${CAVEAT} ${counts} Nothing is needed from you.`)).toBe(true);
+    // No policy completed the job: the email says what the job page's simulation proof says, never an estimate.
+    expect(notice).toMatchObject({ status: "sent", subject: "The simulation of your job has finished", to: "owner@example.com" });
+    expect(notice.body.startsWith("The simulation ran, but no policy completed the job in it, so it could not rank them. ")).toBe(true);
+    expect(notice.body.slice(0, notice.body.indexOf("Nothing is needed from you."))).toContain(CAVEAT);
+    for (const note of page.screening!.setupNotes!) expect(notice.body).toContain(note);
+    expect(notice.body).not.toMatch(/estimate|episodes|candidates|introduc|pilot/i);
     expect(notice.body).toMatch(/never certifies physical performance or safety/);
     expect(notice.body.slice(0, notice.body.indexOf("on your private job page"))).not.toMatch(/[a-z]_[a-z]|sha256|\bflag/i);
 
@@ -222,8 +228,9 @@ describe("what the site reads", () => {
       outcome_notification_intent: { outcome: "estimate", event_id: `estimate-${scene}`, caveat: "scene_setup" } });
     await deliverOutbox();
     expect(send).toHaveBeenCalledTimes(1);
-    // The email says what the page says.
-    expect((state.docs.get(key) as Record<string, string>).body.startsWith(`${ESTIMATE} ${CAVEAT} ${counts}`)).toBe(true);
+    // The email says what the page's simulation proof says, caveat included.
+    expect((state.docs.get(key) as Record<string, string>).body.startsWith(NO_POLICY)).toBe(true);
+    expect((state.docs.get(key) as Record<string, string>).body).toContain(CAVEAT);
     expect(siteView().summary).toBe(`${ESTIMATE} ${CAVEAT} ${counts}`);
     // A still later revision that drops the flags (the Pipeline's v2 form) changes nothing already sent.
     await ingestBetaPolicyScreening(asV2(pipelineV3, { revision: pipelineV3.revision + 2 }));
@@ -239,7 +246,7 @@ describe("what the site reads", () => {
     await deliverOutbox();
     expect(send).toHaveBeenCalledTimes(1);
     const delivered = (state.docs.get(key) as Record<string, string>).body;
-    expect(delivered.startsWith(`${ESTIMATE} ${counts}`)).toBe(true);
+    expect(delivered.startsWith(`${NO_POLICY} Nothing is needed from you.`)).toBe(true);
     await ingestBetaPolicyScreening(rebound(pipelineV3, { revision: pipelineV3.revision + 1 }));
     expect(run()).toMatchObject({ screening_outcome_caveat: "scene_setup", outcome_notification_pending: false });
     expect(run().outcome_notification_intent.caveat).toBeUndefined();
@@ -265,7 +272,7 @@ describe("what the site reads", () => {
     expect(page.screening!.setupNotes).toBeUndefined();
     await deliverOutbox();
     const notice = state.docs.get(`captureOutbox/job-one:evaluation_outcome:estimate-${scene}`) as Record<string, string>;
-    expect(notice.body.startsWith(`${ESTIMATE} ${counts} Nothing is needed from you.`)).toBe(true);
+    expect(notice.body.startsWith(`${NO_POLICY} Nothing is needed from you.`)).toBe(true);
     expect(notice.body).not.toMatch(/scene check|set-up/i);
     const progression = projectWebsiteSceneProgression({ state: "completed" },
       sceneScreeningResult(sceneScreening([{ id: "campaign-one", run: run() }], run().team_namespace)));
