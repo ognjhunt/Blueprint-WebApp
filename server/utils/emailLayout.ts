@@ -12,7 +12,10 @@
  * - a paragraph that is only an https URL becomes a button. When the
  *   paragraph before it is a short label ending in ":" ("Open your task:"),
  *   that label becomes the button text instead of a separate line;
- * - any other URL is linked in place.
+ * - any other URL is linked in place;
+ * - a paragraph that starts with FINE_PRINT_MARK is fine print: smaller, muted, and moved after the button
+ *   (bare bones, 2026-11-11: the standing note a site must read stays, set as fine print). The text part
+ *   drops the mark.
  * Everything else is escaped, so template text can never inject markup.
  */
 import { COMPANY, COMPANY_POSTAL_LINE } from "../../client/src/data/company";
@@ -25,6 +28,27 @@ export const CUSTOMER_JOB_EMAIL_IDENTITY = Object.freeze({
 });
 
 export const EMAIL_SIGN_OFF = "— The Blueprint team";
+
+/** Marks a paragraph as fine print (see the module comment). Never shown to the reader. */
+export const FINE_PRINT_MARK = "[fine] ";
+
+/** A paragraph set as fine print. */
+export function finePrint(text: string): string {
+  return `${FINE_PRINT_MARK}${text}`;
+}
+
+/** Fine-print paragraphs after every other paragraph, in their order: an email reads idea, button, fine print. */
+export function finePrintLast(text: string): string {
+  const paragraphs = text.split(/\n{2,}/);
+  const fine = paragraphs.filter((paragraph) => paragraph.startsWith(FINE_PRINT_MARK));
+  if (!fine.length) return text;
+  return [...paragraphs.filter((paragraph) => !paragraph.startsWith(FINE_PRINT_MARK)), ...fine].join("\n\n");
+}
+
+/** The text part: fine-print marks removed. */
+export function withoutFinePrintMarks(text: string): string {
+  return text.split(FINE_PRINT_MARK).join("");
+}
 
 /**
  * "Hi Dana," or plain "Hi,". Site records store "there" as a placeholder
@@ -81,6 +105,10 @@ function buttonHtml(label: string, url: string): string {
 }
 
 function paragraphHtml(paragraph: string): string {
+  if (paragraph.startsWith(FINE_PRINT_MARK)) {
+    const fine = paragraph.slice(FINE_PRINT_MARK.length).split("\n").map((line) => linkify(escapeHtml(line))).join("<br />");
+    return `<p class="email-muted email-fine" style="margin:0 0 16px;font-family:${FONT};font-size:13px;line-height:1.55;color:${MUTED};overflow-wrap:anywhere;word-break:break-word;">${fine}</p>`;
+  }
   const lines = paragraph.split("\n");
   if (lines.every((line) => /^\s*- /.test(line))) {
     const items = lines
@@ -94,7 +122,7 @@ function paragraphHtml(paragraph: string): string {
 
 /** The body as HTML blocks, following the rules in the module comment. */
 export function textToEmailHtml(text: string): string {
-  const paragraphs = text.replace(/\r\n/g, "\n").split(/\n{2,}/).map((p) => p.trim()).filter(Boolean);
+  const paragraphs = finePrintLast(text.replace(/\r\n/g, "\n")).replace(/\r\n/g, "\n").split(/\n{2,}/).map((p) => p.trim()).filter(Boolean);
   const blocks: string[] = [];
   for (let index = 0; index < paragraphs.length; index += 1) {
     const paragraph = paragraphs[index];
@@ -121,6 +149,7 @@ export function textToEmailHtml(text: string): string {
 
 /** The same identity footer the HTML part carries, for the text part. */
 export function withTextFooter(text: string): string {
+  text = withoutFinePrintMarks(finePrintLast(text));
   if (text.includes(TEXT_FOOTER_MARKER)) return text;
   return `${text.trimEnd()}${TEXT_FOOTER_MARKER}${COMPANY_POSTAL_LINE}\n${COMPANY.website}`;
 }

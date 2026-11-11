@@ -1,7 +1,13 @@
 // @vitest-environment jsdom
 import { act, fireEvent, render as renderView, screen, cleanup } from "@testing-library/react";
 import { beforeEach, afterEach, expect, it, vi } from "vitest";
-import { SiteCaptureStart } from "@/components/site/SiteCaptureStart";
+import { STATEMENTS_CHANGED, SiteCaptureStart, pendingStatementsCurrent } from "@/components/site/SiteCaptureStart";
+
+/** The country, chosen in its select: typed text is never read for a country (the privacy gate). */
+function chooseCountry(value: "us" | "non_us") {
+  fireEvent.change(document.querySelector("#start-region")!, { target: { value } });
+}
+
 const identity = vi.hoisted(() => ({ user: null as any }));
 vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ currentUser: identity.user, loading: false }) }));
 vi.mock("@/lib/analytics", () => ({ analyticsEvents: { contactFormSubmit: vi.fn(), contactFormError: vi.fn() } }));
@@ -43,6 +49,7 @@ function describeTask(task: string) {
 function fill(task = "Move sealed cartons") {
   describeTask(task);
   fireEvent.change(document.querySelector("#start-location")!, {target: {value: "Austin, TX"}});
+  chooseCountry("us");
   fireEvent.change(document.querySelector("#start-email")!, {target: {value: "operator@example.test"}});
 }
 function submit() { fireEvent.submit(screen.getByRole("form")); }
@@ -61,6 +68,7 @@ async function renderAsSiteOwner() {
 function fillSigned(task = "Move sealed cartons") {
   describeTask(task);
   fireEvent.change(document.querySelector("#start-location")!, {target: {value: "Austin, TX"}});
+  chooseCountry("us");
 }
 beforeEach(() => {
   durability.rows.clear();
@@ -75,7 +83,7 @@ beforeEach(() => {
 });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 it("RETURN-001: restores the draft after remount", async () => {
-  const view = await renderReady(<SiteCaptureStart />); fill(); fireEvent.click(document.querySelector("#start-method-upload")!);
+  const view = await renderReady(<SiteCaptureStart />); fill(); { const toUpload = document.querySelector("#start-method-upload"); if (toUpload) fireEvent.click(toUpload); };
   view.unmount(); await renderReady(<SiteCaptureStart />);
   expect(document.querySelector("#start-task")).toHaveValue("Move sealed cartons");
   expect(document.querySelector("#start-location")).toHaveValue("Austin, TX");
@@ -96,8 +104,39 @@ it("RETURN-002: recovers a lost intake response across remount without another i
   await screen.findByRole("alert"); expect(sent).toHaveLength(2);
   expect(sent[1].body).toEqual(original);
 });
+it("RETURN-002b: a saved submission recorded under other statements is not resent; the form asks for a fresh press", async () => {
+  const view = await renderReady(<SiteCaptureStart />); fill(); submit();
+  await screen.findByRole("alert"); expect(sent).toHaveLength(1);
+  view.unmount();
+  // The saved submission was made under the long form (2026-10-06.v1); the form now shows the one-line consent (the
+  // shipped default since 2026-11-11), so that body is not what the person would agree to now.
+  const swap = (body: string) => body.replace('"2026-11-11.v3"', '"2026-10-06.v1"');
+  for (const [key, row] of durability.rows) if (row.value?.pending) durability.rows.set(key, { ...row, value: { ...row.value,
+    pending: { ...row.value.pending, body: swap(row.value.pending.body) } } });
+  for (const key of Object.keys(localStorage)) {
+    const stored = JSON.parse(localStorage.getItem(key) ?? "null");
+    if (stored?.pending) localStorage.setItem(key, JSON.stringify({ ...stored, pending: { ...stored.pending, body: swap(stored.pending.body) } }));
+  }
+  await renderReady(<SiteCaptureStart />);
+  fireEvent.click(await screen.findByRole("button", {name: /Recover saved job/}));
+  expect(await screen.findByText(STATEMENTS_CHANGED)).toBeInTheDocument();
+  expect(sent).toHaveLength(1);
+});
+it("RETURN-002c: knows which statements a saved submission must carry, in both switch positions", () => {
+  const body = (description: string, recording: string | null) => JSON.stringify({ descriptionOnly: recording === null,
+    descriptionAuthority: { granted: true, statementVersion: description }, consentAttestation: recording ? { granted: true, statementVersion: recording } : null });
+  // Switch off: the full statements.
+  expect(pendingStatementsCurrent(body("2026-10-06.v1", null), false)).toBe(true);
+  expect(pendingStatementsCurrent(body("2026-11-11.v3", null), false)).toBe(false);
+  expect(pendingStatementsCurrent(body("2026-10-06.v1", "2026-11-02.v2"), false)).toBe(true);
+  // Switch on: the one-line consent's versions, by whether a video is sent.
+  expect(pendingStatementsCurrent(body("2026-11-11.v3", null), true)).toBe(true);
+  expect(pendingStatementsCurrent(body("2026-10-06.v1", null), true)).toBe(false);
+  expect(pendingStatementsCurrent(body("2026-11-11.v2", "2026-11-02.v2"), true)).toBe(false);
+  expect(pendingStatementsCurrent("not json", true)).toBe(false);
+});
 it("RETURN-003: account changes discard mounted anonymous fields and retry authority", async () => {
-  const view = await renderReady(<SiteCaptureStart />); fill(); fireEvent.click(document.querySelector("#start-method-upload")!);
+  const view = await renderReady(<SiteCaptureStart />); fill(); { const toUpload = document.querySelector("#start-method-upload"); if (toUpload) fireEvent.click(toUpload); };
   identity.user = {uid: "other-account", email: "other@example.test", getIdToken: async () => "fixture"};
   await act(async () => { view.rerender(<SiteCaptureStart />); });
   expect(document.querySelector("#start-task")).toHaveValue("");
@@ -109,7 +148,7 @@ it("RETURN-004: an acknowledged upload recovers without requiring lost File byte
     if (init?.method === "POST") {sent.push({url,body:JSON.parse(init.body)}); return {ok:true,status:200,json:async()=>({captureUrl:"/capture-upload/fixture"})};}
     return {ok:true,status:200,json:async()=>({state:"pending",captureReceived:false,features:[],workspaceType:"site_operator"})};
   });
-  const view=await renderAsSiteOwner();fillSigned();fireEvent.click(document.querySelector("#start-method-upload")!);
+  const view=await renderAsSiteOwner();fillSigned();{ const toUpload = document.querySelector("#start-method-upload"); if (toUpload) fireEvent.click(toUpload); };
   fireEvent.change(document.querySelector("#start-footage")!,{target:{files:[new File(["fixture"],"video.mp4",{type:"video/mp4"})]}});
   submit();
   await screen.findByRole("heading",{name:"Your job is saved. Check your video upload."});
@@ -119,6 +158,33 @@ it("RETURN-004: an acknowledged upload recovers without requiring lost File byte
   expect(sent).toHaveLength(2);expect(sent[1].body).toEqual(sent[0].body);expect(sender).toHaveBeenCalledTimes(1);
   sender.mockRestore();
 });
+it("RETURN-004b: an acknowledged job saved under statements the form no longer shows still opens its saved job, never cleared", async () => {
+  fetchMock.mockImplementation(async (url: string, init?: any) => {
+    if (init?.method === "POST") {sent.push({url,body:JSON.parse(init.body)}); return {ok:true,status:200,json:async()=>({captureUrl:"/capture-upload/fixture"})};}
+    return {ok:true,status:200,json:async()=>({state:"pending",captureReceived:false,features:[],workspaceType:"site_operator"})};
+  });
+  const view = await renderAsSiteOwner(); fillSigned(); submit();
+  await screen.findByRole("heading", { name: "Now film the job." });
+  view.unmount();
+  // Accepted while the long form was shown (2026-10-06.v1): the server already has this job.
+  const swap = (body: string) => body.replace('"2026-11-11.v3"', '"2026-10-06.v1"');
+  let swapped = 0;
+  for (const [key, row] of durability.rows) if (row.value?.pending?.acknowledged) { swapped++; durability.rows.set(key, { ...row, value: { ...row.value,
+    pending: { ...row.value.pending, body: swap(row.value.pending.body) } } }); }
+  for (const key of Object.keys(localStorage)) {
+    const stored = JSON.parse(localStorage.getItem(key) ?? "null");
+    if (stored?.pending?.acknowledged) localStorage.setItem(key, JSON.stringify({ ...stored, pending: { ...stored.pending, body: swap(stored.pending.body) } }));
+  }
+  expect(swapped).toBeGreaterThan(0);
+  await renderAsSiteOwner();
+  fireEvent.click(await screen.findByRole("button", { name: "Return to saved job" }));
+  await screen.findByRole("heading", { name: "Now film the job." });
+  expect(screen.queryByText(STATEMENTS_CHANGED)).toBeNull();
+  // The same accepted job, exactly as before: the stored body under its own statements, never a new one.
+  expect(sent).toHaveLength(2);
+  expect(sent[1].body.descriptionAuthority.statementVersion).toBe("2026-10-06.v1");
+  expect(sent[1].body.requestId).toBe(sent[0].body.requestId);
+});
 it("ACCESS-004: late intake acceptance after account switch cannot start original video upload", async () => {
   const upload=await import("@/lib/selfCaptureVideo"); const sender=vi.spyOn(upload,"uploadSelfCaptureVideo");
   let accept!: (value:any)=>void;
@@ -126,7 +192,7 @@ it("ACCESS-004: late intake acceptance after account switch cannot start origina
     if(init?.method==="POST") {sent.push({url,body:JSON.parse(init.body)});return new Promise(resolve=>{accept=resolve;});}
     return {ok:true,status:200,json:async()=>({features:[],workspaceType:"site_operator"})};
   });
-  const view=await renderAsSiteOwner();fillSigned();fireEvent.click(document.querySelector("#start-method-upload")!);
+  const view=await renderAsSiteOwner();fillSigned();{ const toUpload = document.querySelector("#start-method-upload"); if (toUpload) fireEvent.click(toUpload); };
   fireEvent.change(document.querySelector("#start-footage")!,{target:{files:[new File(["fixture"],"video.mp4",{type:"video/mp4"})]}});
   submit();
   await vi.waitFor(()=>expect(sent).toHaveLength(1));
@@ -160,7 +226,7 @@ it("CROSS-TAB-012 adopting another tab's freeze does not upload this tab's selec
     if(init?.method==="POST"){sent.push({url,body:JSON.parse(init.body)});return {ok:true,status:200,json:async()=>({captureUrl:"/capture-upload/fixture"})};}
     return {ok:true,status:200,json:async()=>({features:[],workspaceType:"site_operator"})};
   });
-  await renderAsSiteOwner();fillSigned();fireEvent.click(document.querySelector("#start-method-upload")!);
+  await renderAsSiteOwner();fillSigned();{ const toUpload = document.querySelector("#start-method-upload"); if (toUpload) fireEvent.click(toUpload); };
   fireEvent.change(document.querySelector("#start-footage")!,{target:{files:[new File(["fixture"],"video.mp4",{type:"video/mp4"})]}});
   // A competing tab shares the hydrated identity and freezes through the real helper.
   await act(async () => {});
@@ -169,7 +235,7 @@ it("CROSS-TAB-012 adopting another tab's freeze does not upload this tab's selec
   winner.pending={endpoint:"/api/workspace/capture-start",acknowledged:false,body:JSON.stringify({requestId:winner.requestId,retryToken:winner.retryToken,buyerType:"site_operator",taskStatement:winner.draft.task,siteLocation:winner.draft.location,captureRegion:"us",descriptionOnly:true})};
   await helper.freezeSiteCaptureRecovery(key,winner);
   submit();
-  await screen.findByRole("heading",{name:"Film the work area."});
+  await screen.findByRole("heading",{name:"Now film the job."});
   expect(sent).toHaveLength(1);expect(sent[0].body).toEqual(JSON.parse(winner.pending.body));expect(sender).not.toHaveBeenCalled();sender.mockRestore();
 });
 it("CROSS-TAB-013 unsupported coordination blocks dispatch with a recovery next step",async()=>{

@@ -80,7 +80,8 @@ export const HOW_FAR_EACH_GOT = "How far each got:";
 export interface SimulationProof {
   state: SimulationProofState;
   headline: string;
-  robotCheck: { line: string; pickChecked: boolean | null } | null;
+  /** `doesNotFit`: the scene says the pick does not fit on a check it decides (reach, where it stands, access). */
+  robotCheck: { line: string; pickChecked: boolean | null; doesNotFit: boolean } | null;
   policyComparison: {
     /** In a sentence: "a Franka research arm". */
     robotName: string;
@@ -123,6 +124,58 @@ export interface SimulationProof {
   accuracy: { statement: string; conditions: string; sources: Array<{ title: string; url: string }> };
   /** Which of the studies' conditions hold for this job, one sentence each. */
   forThisJob: string[];
+  /** The AI options the test compared, in one display order, and which (if any) did best: see `optionsOf`. */
+  options: SimulationOptions;
+}
+
+/**
+ * An option is a robot together with the AI software that controls it ("Franka arm + π0.5"), named only through
+ * the closed map in `simulationPolicies.ts`. Only a scored learned-policy row whose robot that map confirms is an
+ * option: scripted and reference rows are checks on our own simulation, and a row whose robot is not confirmed
+ * (any unmapped policy) is listed apart and never ranked.
+ */
+export interface SimulationOption {
+  id: string;
+  /** "Franka arm + π0.5". */
+  label: string;
+  /** The AI software's own name, "π0.5", or null for a policy not in our closed list (named "AI robot A"). */
+  software: string | null;
+  /** Who makes the software, or null when the catalog does not say. */
+  maker: string | null;
+  /** The robot it ran on, from the closed list, or null when the list does not name the policy. */
+  robot: SimulatedRobot | null;
+  succeeded: number;
+  scored: number;
+  rangeText: string | null;
+  furthest: { stage: ProgressStage; episodes: number; graded: number } | null;
+  /** How far it got, in the closed phrases (`PROGRESS_PHRASES`), when the run graded it. */
+  furthestText: string | null;
+  furthestDetail: string | null;
+  /** The median closest approach, in metres, when measured. */
+  closestM: number | null;
+}
+
+export interface SimulationOptions {
+  /** In the display order (`optionsOf`). Row 1 is the one the answer leads with. */
+  options: SimulationOption[];
+  /** Scored runs that could not be identified as an AI policy (not in our list, no learned-policy evidence): not counted. */
+  unidentified: number;
+  /** "did_best" or "was_ahead" from the probability rule only; null when there is no winner. */
+  winner: "did_best" | "was_ahead" | null;
+  /**
+   * How many AI options are in this test: learned rows that were scored, are running, or are still going to run.
+   * Rows that will never run (unavailable, infeasible, blocked, deferred) are not counted. The page, the card and the
+   * email all say this one number.
+   */
+  entered: number;
+  /** About how many tries each scored option had (the median), or null before any. */
+  triesEach: number | null;
+  /** Options planned for this run that produced no score (budget, failure to start). */
+  didNotRun: number;
+  /** A set-up flag says our simulation may have shaped the result (`outcomeCaveat` or the scene-setup note). */
+  setupFlag: boolean;
+  /** The set-up notes as the run sent them. */
+  setupNotes: string[];
 }
 
 export interface SimulationProofInput {
@@ -221,23 +274,23 @@ export function probabilityAhead(a: { succeeded: number; scored: number }, b: { 
 }
 export const SCALE_ESTIMATED = "The scale of your scene was estimated from your video, not measured.";
 /** Said by the server beside a zero-success result whose scene our checks flagged (`screeningOutcomeCaveat`). */
-const SCENE_SETUP_CAVEAT = "Our scene check found a possible set-up cause, so this result may reflect how we set the scene up more than the robots.";
+export const SCENE_SETUP_CAVEAT = "Our scene check found a possible set-up cause, so this result may reflect how we set the scene up more than the robots.";
 
-const HEADLINES = {
+export const HEADLINES = {
   not_started: "The simulation of your site has not started yet.",
   preparing: "We are preparing the simulation of your site.",
   running: "The simulation of your site is running.",
 } as const;
 
 /** Waiting or still in progress: said about the simulation. */
-const WAITING: Partial<Record<JobScreeningOutcome, string>> = {
+export const WAITING: Partial<Record<JobScreeningOutcome, string>> = {
   awaiting_spend_approval: "Blueprint is deciding whether to continue the simulation.",
   setup_repair: "A Blueprint update stopped the simulation before it finished. If a later run finishes, it will show here.",
   superseded: "The simulation continues in a newer run.",
 };
 
 /** One plain sentence about why the simulation could not run, from the outcome sentences, never about "your job". */
-const COULD_NOT_RUN: Partial<Record<JobScreeningOutcome, string>> = {
+export const COULD_NOT_RUN: Partial<Record<JobScreeningOutcome, string>> = {
   reference_only: "The simulation scored only scripted reference checks; no AI policy could be tested in it yet.",
   held_capability: "The simulation can't model this kind of task yet.",
   held_unprepared: "The robots that could do this task aren't set up in the simulation yet.",
@@ -266,6 +319,10 @@ function plannedButNotRun(row: Candidate): boolean {
 
 const PREPARING_STATES = new Set(["queued", "pending", "waitlisted", "preparing", "launching", "unavailable"]);
 const RUNNING_CANDIDATE_STATES = new Set(["launching", "running", "reconciliation_required"]);
+/** A row that is running or still going to run; unavailable, infeasible, blocked and deferred rows will not. */
+const STILL_TO_RUN = new Set(["pending", "waitlisted", "preparing", "launching", "running", "reconciliation_required"]);
+/** The name of an option whose policy our closed list does not name, with a letter: "AI robot A". */
+export const UNLISTED_OPTION = "AI robot";
 
 const isRecord = (value: unknown): value is Record<string, any> => Boolean(value) && typeof value === "object" && !Array.isArray(value);
 const count = (value: unknown) => (typeof value === "number" && Number.isInteger(value) && value >= 0 ? value : 0);
@@ -323,6 +380,14 @@ export function currentEvaluation(evaluation: SimulationProofInput["evaluation"]
 
 type Candidate = NonNullable<JobManagedEvidenceSummary["screening"]>["candidates"][number];
 const scripted = (row: Candidate) => row.executionEvidence?.execution_evidence_kind === "scripted_simulator_state_baseline";
+/** A candidate id that names a scripted baseline, whatever its evidence says. */
+const SCRIPTED_ID = /^scripted[_-]/i;
+/**
+ * A row we positively know is a learned AI policy: our closed list names it, or its execution evidence says a learned
+ * policy ran. A scripted motion is never a contender (owner, 2026-11-11), so absence of evidence is never enough.
+ */
+const knownLearned = (row: Candidate) => !SCRIPTED_ID.test(String(row.candidateId ?? ""))
+  && (isListed(row) || row.executionEvidence?.execution_evidence_kind === "learned_policy");
 
 function stateOf(evaluation: JobManagedEvidenceSummary | null): SimulationProofState {
   if (!evaluation) return "not_started";
@@ -335,19 +400,30 @@ function stateOf(evaluation: JobManagedEvidenceSummary | null): SimulationProofS
   return PREPARING_STATES.has(evaluation.state) ? "preparing" : evaluation.state === "running" ? "running" : "preparing";
 }
 
+/** The checks the measured scene decides: where the arm can stand and what it can reach (as `server/utils/siteAnswer.ts` reads them). */
+export const SCENE_GEOMETRY_CHECKS: ReadonlySet<string> = new Set(["reach", "stance", "access"]);
+
 function robotCheckOf(robotFit: SimulationProofInput["robotFit"], pick: AnswerRobot | null): SimulationProof["robotCheck"] {
   const models = Array.isArray(robotFit?.models) ? robotFit!.models.filter(isRecord) : [];
   if (!models.length) return null;
-  if (!pick) return { line: `The scene rebuilt from your video was checked against ${models.length} robot${models.length === 1 ? "" : "s"}.`, pickChecked: null };
+  if (!pick) return { line: `The scene rebuilt from your video was checked against ${models.length} robot${models.length === 1 ? "" : "s"}.`, pickChecked: null, doesNotFit: false };
   const name = pickName(pick);
   const row = models.find(entry => typeof entry.name === "string" && typeof entry.manufacturer === "string"
     && typeof pick.name === "string" && typeof pick.manufacturer === "string" && sameRobot(entry, pick));
-  if (!row) return { line: `The scene rebuilt from your video has not been checked against the ${name} yet.`, pickChecked: false };
+  if (!row) return { line: `The scene rebuilt from your video has not been checked against the ${name} yet.`, pickChecked: false, doesNotFit: false };
   switch (row.verdict) {
-    case "fits": return { line: `In the scene rebuilt from your video, the ${name} reaches the pick-up and put-down points with a clear arm path.`, pickChecked: true };
-    case "fits_spec": return { line: `In the scene rebuilt from your video, the ${name} fits on its published figures; its arm path there has not been confirmed.`, pickChecked: true };
-    case "doesnt_fit": return { line: `In the scene rebuilt from your video, the ${name} does not fit.`, pickChecked: true };
-    default: return { line: `In the scene rebuilt from your video, whether the ${name} fits is not settled yet.`, pickChecked: false };
+    case "fits": return { line: `In the scene rebuilt from your video, the ${name} reaches the pick-up and put-down points with a clear arm path.`, pickChecked: true, doesNotFit: false };
+    case "fits_spec": return { line: `In the scene rebuilt from your video, the ${name} fits on its published figures; its arm path there has not been confirmed.`, pickChecked: true, doesNotFit: false };
+    case "doesnt_fit": {
+      // The scene decides only where the arm can stand and what it can reach (`SCENE_GEOMETRY_CHECKS`, as the answer's
+      // composer reads it). A "doesn't fit" that rests only on other checks (weight, cycle time) is the composer's to
+      // decide from published figures, so the scene line says what the scene did check, never "does not fit".
+      const open = Array.isArray(row.openChecks) ? row.openChecks.filter(check => typeof check === "string") : [];
+      if (open.length > 0 && !open.some(check => SCENE_GEOMETRY_CHECKS.has(check)))
+        return { line: `In the scene rebuilt from your video, the ${name} was not ruled out on reach or where it can stand.`, pickChecked: true, doesNotFit: false };
+      return { line: `In the scene rebuilt from your video, the ${name} does not fit.`, pickChecked: true, doesNotFit: true };
+    }
+    default: return { line: `In the scene rebuilt from your video, whether the ${name} fits is not settled yet.`, pickChecked: false, doesNotFit: false };
   }
 }
 
@@ -524,6 +600,66 @@ function forThisJobOf(state: SimulationProofState, pick: AnswerRobot | null, sca
   return lines;
 }
 
+const STAGE_DEPTH = new Map(PROGRESS_LADDER.map((stage, index) => [stage, index + 1]));
+
+/**
+ * The AI options and the one display order every screen uses:
+ * options that completed the job at least once come first, by the mean of each success rate's
+ * Beta(s + 1, n − s + 1) (more scored tries first on a tie); then the options that completed nothing, by how far
+ * they got (the deepest stage reached, then how many tries reached it, then the closer median approach), then by
+ * scored tries. This is an order for display only: "did best" and "was ahead" come only from the probability rule
+ * (`probabilityAhead` of row 1 against every other option, CLEAR or AHEAD, with at least one success), so a row
+ * that never completed the job is never called best or ahead. Options on different robots are compared.
+ */
+export function optionsOf(evaluation: JobManagedEvidenceSummary | null): SimulationOptions {
+  const screening = evaluation?.screening;
+  const all = (Array.isArray(screening?.candidates) ? screening!.candidates : []).filter(isRecord) as Candidate[];
+  const references = referenceIds(screening);
+  const learned = all.filter(row => !scripted(row) && !references.has(String(row.candidateId ?? "")) && knownLearned(row));
+  const scored = learned.filter(row => count(row.scored) > 0);
+  // Scored rows that are not marked scripted or reference but cannot be identified as an AI policy: never options,
+  // never counted, said only as one line on the test screen.
+  const unidentified = all.filter(row => count(row.scored) > 0 && !scripted(row) && !SCRIPTED_ID.test(String(row.candidateId ?? ""))
+    && !references.has(String(row.candidateId ?? "")) && !knownLearned(row)).length;
+  const options: SimulationOption[] = [];
+  // Every scored learned row is an option: options are compared across robots, so the robot is needed only for the
+  // name. A policy our closed list does not name is "AI robot A", "AI robot B" (never a stored name), in id order.
+  const unlistedIds = [...new Set(scored.filter(row => !isListed(row)).map(row => String(row.candidateId ?? "")))].sort();
+  for (const row of scored) {
+    const id = String(row.candidateId ?? "");
+    const known = simulationPolicyFor(id);
+    const succeeded = Math.min(count(row.succeeded), count(row.scored));
+    const reached = furthestOf(row.progress, count(row.scored));
+    const progress: unknown = row.progress;
+    const approach = isRecord(progress) && isRecord(progress.closestApproachM) ? Number(progress.closestApproachM.median) : NaN;
+    options.push({ id, label: known.robot ? `${known.robot.short} + ${known.policy}` : `${UNLISTED_OPTION} ${letterOf(unlistedIds.indexOf(id))}`,
+      software: known.robot ? known.policy : null, maker: known.robot ? known.maker : null, robot: known.robot,
+      succeeded, scored: count(row.scored), rangeText: succeeded > 0 ? rangeTextOf(row.successRange) : null,
+      furthest: reached?.furthest ?? null, furthestText: reached?.text ?? null, furthestDetail: reached?.detail ?? null,
+      closestM: Number.isFinite(approach) ? approach : null });
+  }
+  const mean = (entry: { succeeded: number; scored: number }) => (entry.succeeded + 1) / (entry.scored + 2);
+  const depth = (entry: SimulationOption) => (entry.furthest ? STAGE_DEPTH.get(entry.furthest.stage) ?? 0 : 0);
+  options.sort((a, b) => Number(b.succeeded > 0) - Number(a.succeeded > 0)
+    || (a.succeeded > 0 ? mean(b) - mean(a) : 0)
+    || (a.succeeded === 0 ? depth(b) - depth(a) || (b.furthest?.episodes ?? 0) - (a.furthest?.episodes ?? 0)
+      || (a.closestM ?? Number.POSITIVE_INFINITY) - (b.closestM ?? Number.POSITIVE_INFINITY) : 0)
+    || b.scored - a.scored || a.id.localeCompare(b.id));
+  const leader = options[0];
+  const ahead = leader && options.length > 1 && leader.succeeded > 0
+    ? Math.min(...options.slice(1).map(entry => probabilityAhead(leader, entry))) : 0;
+  const winner = ahead >= CLEAR - THRESHOLD_TOLERANCE ? "did_best" : ahead >= AHEAD - THRESHOLD_TOLERANCE ? "was_ahead" : null;
+  const tries = options.map(entry => entry.scored).sort((a, b) => a - b);
+  const notes = [...new Set((Array.isArray(screening?.setupNotes) ? screening!.setupNotes : []).filter((note): note is string => typeof note === "string" && Boolean(note.trim())))];
+  return {
+    options, unidentified, winner, entered: learned.filter(row => count(row.scored) > 0 || STILL_TO_RUN.has(String(row.state ?? ""))).length,
+    triesEach: tries.length ? tries[Math.floor((tries.length - 1) / 2)] : null,
+    didNotRun: learned.filter(plannedButNotRun).length,
+    setupFlag: evaluation?.outcomeCaveat === "scene_setup" || notes.includes(SCENE_SETUP_CAVEAT),
+    setupNotes: notes,
+  };
+}
+
 /** The simulation proof for a job page. Pure: the same inputs always give the same proof, and junk gives a smaller one. */
 export function projectSimulationProof(input: SimulationProofInput): SimulationProof {
   const evaluation = currentEvaluation(input?.evaluation);
@@ -551,5 +687,116 @@ export function projectSimulationProof(input: SimulationProofInput): SimulationP
     accuracy: { statement: SIMULATION_ACCURACY.statement, conditions: SIMULATION_ACCURACY.conditions,
       sources: SIMULATION_ACCURACY.sources.map(source => ({ ...source })) },
     forThisJob: forThisJobOf(state, pick, input?.scaleMeasured === true, robot, mixed),
+    options: optionsOf(evaluation),
   };
+}
+
+/** What the answer screen says about the test, chosen by the data (`SimulationOptions`). */
+export type TestResult =
+  | { kind: "winner"; wording: "did_best" | "was_ahead"; top: SimulationOption; others: number; setupFlag: boolean }
+  | { kind: "one_option"; top: SimulationOption; setupFlag: boolean }
+  | { kind: "no_clear_winner"; top: SimulationOption; setupFlag: boolean }
+  | { kind: "none_finished"; top: SimulationOption; count: number; setupFlag: boolean }
+  | { kind: "testing"; entered: number }
+  | null;
+
+/**
+ * The test result the answer leads with, or null when there is none to lead with (not started, held, could not run,
+ * or a finished run with no option: nothing scored, or no robot confirmed). Row 1 of the display order is the one
+ * named; the winner's wording comes only from `SimulationOptions.winner`.
+ */
+export function testResultOf(proof: SimulationProof | null | undefined): TestResult {
+  if (!proof) return null;
+  const { options, winner, entered, setupFlag } = proof.options;
+  if ((proof.state === "preparing" || proof.state === "running") && entered > 0
+    && !Object.values(WAITING).includes(proof.headline)) return { kind: "testing", entered };
+  if (proof.state !== "done" || !options.length) return null;
+  const top = options[0];
+  if (winner) return { kind: "winner", wording: winner, top, others: options.length - 1, setupFlag };
+  if (top.succeeded === 0) return { kind: "none_finished", top, count: options.length, setupFlag };
+  if (options.length === 1) return { kind: "one_option", top, setupFlag };
+  return { kind: "no_clear_winner", top, setupFlag };
+}
+
+/** An option's name in its two parts, the robot and "+ its AI software", for a large answer that breaks between them. */
+export function optionParts(label: string): string[] {
+  const at = label.indexOf(" + ");
+  return at < 0 ? [label] : [label.slice(0, at), `+ ${label.slice(at + 3)}`];
+}
+
+/**
+ * The line under the big words when there is no option to name in large type: the top option's count when some
+ * finished, how far the closest got when none did. The job page and the result email both say it.
+ */
+export function testSubLine(result: TestResult): string | null {
+  if (!result) return null;
+  if (result.kind === "no_clear_winner") {
+    return `Top: ${result.top.label}, did your job in ${result.top.succeeded} of ${result.top.scored} ${result.top.scored === 1 ? "try" : "tries"}.`;
+  }
+  if (result.kind === "none_finished") {
+    return result.top.furthestText ? `Closest: ${result.top.label} ${result.top.furthestText}.`
+      : `${result.count} AI ${result.count === 1 ? "robot" : "robots"} tried; none finished your job.`;
+  }
+  return null;
+}
+
+/**
+ * The test result as one headline, for the job card a company reads and the library's line: the same result the
+ * site's screen leads with, numbers and closed-map names only. Said about "your job"; the card re-voices it.
+ */
+export function testHeadline(result: TestResult): string | null {
+  if (!result) return null;
+  const tries = (option: SimulationOption) => `${option.succeeded} of ${option.scored} ${option.scored === 1 ? "try" : "tries"}`;
+  switch (result.kind) {
+    case "testing": return `Testing now: ${result.entered} AI ${result.entered === 1 ? "robot" : "robots"} on your job.`;
+    case "winner": return `${result.wording === "did_best" ? "Did best" : "Was ahead"} on your job: ${result.top.label}, doing your job in ${tries(result.top)}.`;
+    case "one_option": return `Tested on your job: ${result.top.label} did your job in ${tries(result.top)}, the only AI robot tested.`;
+    case "no_clear_winner": return "Tested on your job: no clear winner yet.";
+    case "none_finished": return "Tested on your job: none finished yet.";
+  }
+}
+
+/**
+ * The simulation test said in words a child can read: each the plain form of the projection's own sentence for the
+ * same case (`simulationProof.ts`), so it is true whenever that one is. The projection's sentences stay in the
+ * details, word for word, and in the email.
+ */
+const PLAIN_COULD_NOT_RUN: Readonly<Partial<Record<JobScreeningOutcome, string>>> = {
+  reference_only: "Only our own test moves ran. No robot program could be tried yet.",
+  held_capability: "Our simulation test can't do this kind of job yet.",
+  held_unprepared: "The robots that could do this job aren't set up in our simulation test yet.",
+  infeasible: "In the simulation of your site, none of the robots we can test could reach the job.",
+  no_match: "None of the robots we can test matched this job. At least one couldn't reach it in the simulation of your site.",
+  held_setup: "A problem on our side stopped it.",
+  held_budget: "It reached the most the free beta can run for one job.",
+  held_scene_check: "The simulation of your site failed our check, so no robot was tested in it.",
+};
+const PLAIN_WAITING: Readonly<Partial<Record<JobScreeningOutcome, string>>> = {
+  awaiting_spend_approval: "We're deciding whether to keep testing.",
+  setup_repair: "An update on our side stopped the test before it finished. If a later test finishes, it shows here.",
+  superseded: "The test goes on in a newer run.",
+};
+/** The set-up caveat in plain words: it changes what a result means, so it is said beside the line. */
+export const PLAIN_SETUP_CAVEAT = "This result may come from how we set up the simulation of your site, not from the robots.";
+
+const outcomeOf = (table: Partial<Record<JobScreeningOutcome, string>>, sentence: string) =>
+  (Object.keys(table) as JobScreeningOutcome[]).find(key => table[key] === sentence) ?? null;
+
+/** The paper screen's one line on why the simulation test is not the answer, or null when nothing is known. */
+export function testNotRunLine(proof: SimulationProof | null | undefined): string | null {
+  if (!proof || proof.state === "not_started") return null;
+  if (proof.state === "could_not_run") {
+    const outcome = outcomeOf(COULD_NOT_RUN, proof.headline);
+    // A test stopped part way (a problem on our side, or the free beta's limit) did not finish; the others did not run.
+    const stopped = outcome === "held_setup" || outcome === "held_budget";
+    return `The simulation test did not ${stopped ? "finish" : "run"}. ${(outcome && PLAIN_COULD_NOT_RUN[outcome]) ?? ""}`.trim();
+  }
+  if (proof.state !== "done") {
+    const waiting = outcomeOf(WAITING, proof.headline);
+    return waiting && PLAIN_WAITING[waiting] ? `Simulation test: ${PLAIN_WAITING[waiting]}` : null;
+  }
+  if (proof.options.options.length) return null;
+  return proof.options.unidentified
+    ? "The simulation test finished, but none of its runs could be identified as an AI robot, so none is counted."
+    : "The simulation test finished, but no AI robot could be scored in it.";
 }

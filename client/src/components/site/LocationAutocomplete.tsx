@@ -558,7 +558,7 @@ export function LocationAutocomplete(props: {
             locationStatus === "loading" || locationStatus === "resolving" ? "You can keep typing while we look it up." :
             locationStatus === "denied" ? "Location permission is off. You can still type any address." :
             locationStatus === "unavailable" ? "Couldn’t find your location. You can still type any address." :
-            "Optional · Fill your current address"}
+            ""}
         </span>
         {addressSource === "google" && <img src="https://maps.gstatic.com/mapfiles/api-3/images/powered-by-google-on-white3.png" alt="Powered by Google" width={120} height={14} />}
         {addressSource === "photon" && <a href="https://www.openstreetmap.org/copyright" style={{ color: "var(--ms-muted, #667085)", fontSize: "0.85em" }}>© OpenStreetMap</a>}

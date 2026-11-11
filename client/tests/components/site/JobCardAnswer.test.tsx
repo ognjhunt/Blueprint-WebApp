@@ -8,7 +8,7 @@ vi.mock("@/lib/firebaseAuthHeaders", () => ({ withFirebaseAuthHeaders: async () 
 
 const { TaskBrowse } = await import("@/components/site/TaskBrowse");
 const { JobCardAnswer, JOB_CARD_ANSWER_TITLE } = await import("@/components/site/JobCardAnswer");
-const { SITE_ANSWER_NOTE } = await import("@/lib/siteAnswer");
+const { JOB_CARD_LIMITS, SITE_ANSWER_NOTE } = await import("@/lib/siteAnswer");
 
 const ANSWER: JobCardAnswerSummary = {
   headline: "Most likely to fit: Universal Robots UR20.",
@@ -16,6 +16,7 @@ const ANSWER: JobCardAnswerSummary = {
   facts: [{ label: "How far the object moves", display: "about 1.6 m", basis: "video_estimate" }],
   pick: { manufacturer: "Universal Robots", name: "UR20", verdictLabel: "Fits on paper",
     specs: [{ label: "Reach", display: "1.75 m", sourceUrl: "https://example.com/ur20" }],
+    checks: [{ key: "reach", outcome: "pass", need: "about 1–1.3 m", has: "1.75 m" }, { key: "payload", outcome: "pass", need: "about 9–12 kg", has: "20 kg" }],
     evidence: [{ level: "production", scope: "model", family: null, summary: "A named mill palletizes with it.", quote: "The UR20 palletizes here.",
       sourceUrl: "https://example.com/case", sourceTitle: "Case", publisher: "Universal Robots", publishedOn: null }] },
   runnerUp: { manufacturer: "Yaskawa", name: "HC20DTP", verdictLabel: "Fits on paper", specs: [],
@@ -36,24 +37,106 @@ const fetchMock = vi.fn();
 beforeEach(() => { fetchMock.mockReset(); vi.stubGlobal("fetch", fetchMock); });
 
 describe("Blueprint's answer on a job card", () => {
-  it("renders the pick, the runner-up, how sure, the numbers, the unknowns and the standing note", () => {
-    render(<JobCardAnswer answer={ANSWER} />);
+  it("says the answer bare bones, the way the site sees it: the robot, plain ticks, how sure, one link and the note", () => {
+    const { container } = render(<JobCardAnswer answer={ANSWER} />);
     const block = screen.getByRole("region", { name: JOB_CARD_ANSWER_TITLE });
-    expect(within(block).getByText(ANSWER.headline)).toBeInTheDocument();
-    expect(within(block).getByRole("heading", { name: "Universal Robots UR20" })).toBeInTheDocument();
-    expect(within(block).getByRole("heading", { name: "Yaskawa HC20DTP" })).toBeInTheDocument();
-    expect(within(block).getByRole("link", { name: "source" })).toHaveAttribute("href", "https://example.com/ur20");
-    expect(within(block).getByText(/How sure: Fair/)).toBeInTheDocument();
-    expect(within(block).getByText(/estimated from the site's video\)/)).toBeInTheDocument();
-    expect(within(block).getByText(ANSWER.note)).toBeInTheDocument();
+    expect(within(block).getByText("The robot most likely to fit")).toBeVisible();
+    expect(within(block).getByText("UR20")).toHaveClass("bare-big");
+    expect(within(block).getByText("by Universal Robots · Kind of job: palletizing")).toBeVisible();
+    expect(within(within(block).getByRole("list", { name: "Why" })).getAllByRole("listitem").map(item => item.textContent))
+      .toEqual(["✓Reaches far enough", "✓Strong enough", "✓Already used for jobs like this"]);
+    expect(block).toHaveTextContent("How sure are we? Fairly sure");
+    expect(within(block).getByText(ANSWER.confidence.reason!)).toBeVisible();
+    expect(within(block).getByText(JOB_CARD_LIMITS)).toBeVisible();
+    expect(JOB_CARD_LIMITS).toBe("A paper check, not a test at the site. Pick-up-and-put-down jobs only. It does not certify performance or safety.");
+    expect(container.textContent).not.toMatch(/Yaskawa|1\.75 m|source|The UR20 palletizes here/);
+  });
+
+  it("has every figure, source and unknown on its details view, with a way back", () => {
+    render(<JobCardAnswer answer={ANSWER} />);
+    fireEvent.click(screen.getByRole("button", { name: "See details ›" }));
+    const block = screen.getByRole("region", { name: JOB_CARD_ANSWER_TITLE });
+    const pick = within(block).getByRole("region", { name: "Pick: Universal Robots UR20" });
+    expect(within(pick).getByText("needs about 1–1.3 m · reaches 1.75 m")).toBeVisible();
+    expect(within(pick).getByRole("link", { name: "source" })).toHaveAttribute("href", "https://example.com/ur20");
     // Each source says what it names: the model itself, or the robot family it belongs to.
-    expect(within(block).getByText("In production use · The source names this model")).toBeInTheDocument();
-    expect(within(block).getByText("Offered for this kind of job · The source names this robot family (Motoman HC)")).toBeInTheDocument();
+    expect(within(pick).getByText(/In production use · The source names this model/)).toBeVisible();
+    expect(within(block).getByRole("region", { name: "Runner-up: Yaskawa HC20DTP" })).toHaveTextContent(
+      "Offered for this kind of job · The source names this robot family (Motoman HC)");
+    expect(within(block).getByRole("region", { name: "Estimated from the site's video" })).toHaveTextContent("How far the object movesabout 1.6 m");
+    expect(within(block).getByRole("region", { name: "What the video couldn't show" })).toHaveTextContent(ANSWER.unknowns[0]);
+    expect(within(block).getByText(ANSWER.note)).toBeVisible();
+    fireEvent.click(within(block).getByRole("button", { name: "‹ Back" }));
+    expect(screen.getByText("UR20")).toBeVisible();
+  });
+
+  it("leads with the simulation test result the site sees, said about the job, with the paper pick one line below", () => {
+    const options = [{ label: "Franka arm + π0.5", maker: "Physical Intelligence", succeeded: 7, scored: 10, furthestText: null },
+      { label: "Franka arm + GR00T N1.7", maker: "NVIDIA", succeeded: 0, scored: 10, furthestText: "touched the object" }];
+    const test = { kind: "winner" as const, wording: "was_ahead" as const, entered: 2, setupFlag: false, options };
+    const { unmount } = render(<JobCardAnswer answer={{ ...ANSWER, headline: "Was ahead on the job: Franka arm + π0.5, doing the job in 7 of 10 tries.", test }} />);
+    const block = screen.getByRole("region", { name: JOB_CARD_ANSWER_TITLE });
+    expect(within(block).getByText("Was ahead on the job")).toBeVisible();
+    expect(block.querySelector(".bare-big")).toHaveTextContent(/^Franka arm \+ π0\.5$/);
+    expect(within(block).getByText("AI software by Physical Intelligence")).toBeVisible();
+    expect(within(within(block).getByRole("list", { name: "Why" })).getAllByRole("listitem").map(item => item.textContent))
+      .toEqual(["✓Did the job in 7 of 10 tries", "✓Ahead of the other AI robot tested"]);
+    expect(block).toHaveTextContent("How sure are we? Fairly sure");
+    expect(within(block).getByText("On paper, most likely to fit: Universal Robots UR20")).toBeVisible();
+    expect(block.textContent).not.toMatch(/your job|Did best/);
+    expect(within(block).getByText("Tested in a simulation, not at the site. Pick-up-and-put-down jobs only. It does not certify performance or safety.")).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "See details ›" }));
+    expect(screen.getByRole("region", { name: "Simulation test" })).toHaveTextContent(
+      "1. Franka arm + π0.5 · Physical IntelligenceFinished 7 of 10 tries2. Franka arm + GR00T N1.7 · NVIDIAFinished 0 of 10 tries · touched the object");
+    unmount();
+    // None finished, and testing now: never a winner's label.
+    const { unmount: second } = render(<JobCardAnswer answer={{ ...ANSWER, test: { ...test, kind: "none_finished", wording: null,
+      options: [{ ...options[1] }] } }} />);
+    expect(screen.getByText("None finished yet")).toBeVisible();
+    expect(screen.getByText("Closest: Franka arm + GR00T N1.7 touched the object.")).toBeVisible();
+    // No set-up flag here: no notice. With one, the card says it in the site's place, as the page and email do.
+    expect(screen.queryByText(/how we set up the simulation/)).toBeNull();
+    expect(screen.queryByText(/Was ahead|Did best/)).toBeNull();
+    second();
+    const { unmount: third } = render(<JobCardAnswer answer={{ ...ANSWER, test: { ...test, kind: "no_clear_winner", wording: null, setupFlag: true } }} />);
+    expect(screen.getByText("No clear winner yet")).toBeVisible();
+    expect(screen.getByText("This result may come from how we set up the simulation of the site, not from the robots.")).toBeVisible();
+    third();
+    render(<JobCardAnswer answer={{ ...ANSWER, test: { ...test, kind: "testing", wording: null, entered: 3, options: [] } }} />);
+    expect(screen.getByText("Testing now")).toBeVisible();
+    expect(screen.getByText("3 AI robots")).toBeVisible();
+    expect(screen.getByText("Being tested in a simulation, not at the site. Pick-up-and-put-down jobs only. It does not certify performance or safety.")).toBeVisible();
+  });
+
+  it("says a pass with little to spare, and a strength it can't tell yet with its whole range, never as a fail", () => {
+    const answer = { ...ANSWER, pick: { ...ANSWER.pick!, checks: [{ key: "reach" as const, outcome: "pass" as const, need: "about 1–1.3 m", has: "1.75 m", tight: true },
+      { key: "payload" as const, outcome: "unknown" as const, need: "about 3–4.9 kg", has: "4 kg" }] } };
+    render(<JobCardAnswer answer={answer} />);
+    expect(within(screen.getByRole("list", { name: "Why" })).getAllByRole("listitem").map(item => item.textContent))
+      .toEqual(["✓Reaches far enough, only just", "?Can't tell yet if it is strong enough", "✓Already used for jobs like this"]);
+    fireEvent.click(screen.getByRole("button", { name: "See details ›" }));
+    expect(screen.getByText("needs about 1–1.3 m · reaches 1.75 m · only just enough")).toBeVisible();
+    expect(screen.getByText("Can't tell yet. needs to lift about 3–4.9 kg · lifts up to 4 kg")).toBeVisible();
+  });
+
+  it("moves focus into the details and back to the link that opened them", () => {
+    render(<JobCardAnswer answer={ANSWER} />);
+    fireEvent.click(screen.getByRole("button", { name: "See details ›" }));
+    expect(document.activeElement).toBe(screen.getByRole("region", { name: JOB_CARD_ANSWER_TITLE }));
+    fireEvent.click(screen.getByRole("button", { name: "‹ Back" }));
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "See details ›" }));
+  });
+
+  it("says where each number came from when they do not all come from the video's estimate", () => {
+    render(<JobCardAnswer answer={{ ...ANSWER, facts: [...ANSWER.facts, { label: "Weight of each carton", display: "8 kg", basis: "site_stated" }] }} />);
+    fireEvent.click(screen.getByRole("button", { name: "See details ›" }));
+    expect(screen.getByRole("region", { name: "The numbers" })).toHaveTextContent("about 1.6 m (estimated from the site's video)");
+    expect(screen.getByRole("region", { name: "The numbers" })).toHaveTextContent("8 kg (stated by the site)");
   });
 
   it("states the kind of job only when the answer carries one", () => {
     const { unmount } = render(<JobCardAnswer answer={ANSWER} />);
-    expect(screen.getByText("Kind of job: palletizing")).toBeInTheDocument();
+    expect(screen.getByText(/Kind of job: palletizing/)).toBeInTheDocument();
     unmount();
     render(<JobCardAnswer answer={{ ...ANSWER, familyLabel: null }} />);
     expect(screen.queryByText(/Kind of job/)).toBeNull();
@@ -67,6 +150,9 @@ describe("Blueprint's answer on a job card", () => {
     const shared = items.find(item => within(item).queryByText("Carton palletizing opportunity"))!;
     const plain = items.find(item => within(item).queryByText("Packing opportunity"))!;
     expect(within(plain).queryByText(new RegExp(JOB_CARD_ANSWER_TITLE))).toBeNull();
+    // No evaluation is ready on either card: their meta lines say so, and neither offers its link.
+    expect(within(plain).getByText("Evaluation not ready yet")).toBeVisible();
+    expect(within(shared).queryByRole("link", { name: "Offer your system for this job" })).toBeNull();
     const summary = within(shared).getByText(`${JOB_CARD_ANSWER_TITLE}: ${ANSWER.headline}`);
     expect(within(shared).queryByRole("region", { name: JOB_CARD_ANSWER_TITLE })).toBeNull();
 

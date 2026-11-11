@@ -44,14 +44,15 @@ for (const [index, parameters] of cases.entries()) test(`A-J-${String(index + 1)
   try {
     await page.goto("http://127.0.0.1:4181/contact/site-operator");
     // The optional sentence confirms the brief at submission (owner direction 2026-11-11).
-    await page.locator("#start-task").fill("Move sealed cartons from the conveyor onto a pallet.");
+    await page.getByRole("button", { name: "Add details (optional) ›" }).click(); await page.locator("#start-task").fill("Move sealed cartons from the conveyor onto a pallet."); await page.getByRole("button", { name: "Done", exact: true }).click();
     await page.locator("#start-location").fill(parameters.location);
     await page.locator("#start-email").fill(`reliability-${index + 1}@example.invalid`);
-    await page.locator(`#start-method-${parameters.method}`).check();
+    // The video choice is one quiet link (bare bones, 2026-11-11): "I have a video ›" switches to the upload.
+    if (parameters.method === "upload") await page.locator("#start-method-upload").click();
     if (parameters.boundary === "draft-reload") {
       await page.reload();
       await expect(page.locator("#start-task")).toHaveValue("Move sealed cartons from the conveyor onto a pallet.");
-      await expect(page.locator(`#start-method-${parameters.method}`)).toBeChecked();
+      await expect(page.locator(parameters.method === "upload" ? "#start-method-phone" : "#start-method-upload")).toBeVisible();
     }
     if (parameters.boundary === "lost-response") {
       let lost = false;
@@ -68,9 +69,10 @@ for (const [index, parameters] of cases.entries()) test(`A-J-${String(index + 1)
     }
     await expect(page.locator("#start-email")).toHaveValue(`reliability-${index + 1}@example.invalid`);
     await expect(page.locator("#start-location")).toHaveValue(parameters.location);
-    if (parameters.location.startsWith("Austin")) await expect(page.locator("#start-region")).toHaveCount(0);
-    else await expect(page.getByText(/During the beta we can only take walkthroughs/)).toBeVisible();
-    await page.getByRole("button", { name: "Start free assessment", exact: true }).click();
+    // Typed text is never read for a country (the privacy gate): the site chooses it.
+    await page.locator("#start-region").selectOption(parameters.location.startsWith("Austin") ? "us" : "non_us");
+    if (!parameters.location.startsWith("Austin")) await expect(page.getByText(/During the beta we can only take walkthroughs/)).toBeVisible();
+    await page.getByRole("button", { name: /^(Send video|Next: film the job|Save my job)$/ }).click();
     if (parameters.boundary === "lost-response") {
       await expect(page.getByRole("alert")).toContainText("could not reach Blueprint");
       await page.reload();
@@ -85,14 +87,14 @@ for (const [index, parameters] of cases.entries()) test(`A-J-${String(index + 1)
       // same idempotent submission to fetch the link again.
       const returnButton = page.getByRole("button", { name: "Return to saved job", exact: true });
       const saved = page.getByRole("heading", { name: !parameters.location.startsWith("Austin") ? "We have your site."
-        : "Film the work area.", exact: true });
+        : "Now film the job.", exact: true });
       await expect(returnButton.or(saved)).toBeVisible();
       if (await returnButton.isVisible()) await returnButton.click();
       await expect(saved).toBeVisible();
-      await expect(page.getByRole("link", { name: "Open your job and assessment", exact: true })).toHaveCount(0);
+      await expect(page.getByRole("link", { name: "Open my job", exact: true })).toHaveCount(0);
     };
     await expectSaved();
-    const privateLink = page.getByRole("link", { name: "Open your job page", exact: true });
+    const privateLink = page.getByRole("link", { name: "Open my job page ›", exact: true });
     const target = canRecord ? await privateLink.getAttribute("href") : null;
     if (canRecord) expect(target).toMatch(/\/capture-upload\//);
     if (parameters.boundary === "lost-response") {
@@ -118,10 +120,13 @@ for (const [index, parameters] of cases.entries()) test(`A-J-${String(index + 1)
         const { exp: _exp, ...subject } = JSON.parse(Buffer.from(new URL(href, "http://127.0.0.1:4181").pathname.split("/").pop()!.split(".")[0], "base64url").toString("utf8"));
         return subject;
       };
-      const returned = await page.getByRole("link", { name: "Open your job page", exact: true }).getAttribute("href");
+      const returned = await page.getByRole("link", { name: "Open my job page ›", exact: true }).getAttribute("href");
       expect(linkSubject(returned!)).toEqual(linkSubject(target!));
-      await page.getByRole("link", { name: "Open your job page", exact: true }).click();
-      await expect(page.getByText("Upload or record the job to continue.", { exact: false })).toBeVisible();
+      await page.getByRole("link", { name: "Open my job page ›", exact: true }).click();
+      // Every case that reaches the job page here is a phone job in Austin, which waits on the owner's recording
+      // permission before any video: that step, and no upload control yet.
+      await expect(page.getByRole("button", { name: "Confirm recording permission", exact: true })).toBeVisible();
+      await expect(page.getByRole("button", { name: /^(Upload a video file|Choose or record a video)$/ })).toHaveCount(0);
       await expect(page.getByRole("heading", { name: "Your job summary", exact: true })).toHaveCount(0);
       // The retained owner link authorizes the capture route; a draft is not an assessment before video arrives.
       const token = new URL(page.url()).pathname.split("/").pop()!;
@@ -130,7 +135,7 @@ for (const [index, parameters] of cases.entries()) test(`A-J-${String(index + 1)
       expect(await response.json()).toMatchObject({ scope: "owner" });
     } else {
       // Visit requests and regions awaiting transfer terms must not expose an active recording path.
-      await expect(page.getByRole("link", { name: "Open your job page", exact: true })).toHaveCount(0);
+      await expect(page.getByRole("link", { name: "Open my job page ›", exact: true })).toHaveCount(0);
     }
     await writeFile(path.join(output, `A-J-${String(index + 1).padStart(3, "0")}.json`), JSON.stringify({
       caseId: `A-J-${String(index + 1).padStart(3, "0")}`, parameters, layer: "real-backend/firebase-emulators/no-provider",

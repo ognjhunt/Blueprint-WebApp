@@ -317,8 +317,16 @@ router.post("/:token/introduction-request", csrfProtection, async (req, res) => 
     const store = db;
     const ref = store.collection("inboundRequests").doc(verified.requestId);
     const requestedAtIso = await store.runTransaction(async tx => {
-      const stored = (await tx.get(ref)).data()?.introduction_request?.requested_at_iso;
-      if (typeof stored === "string" && stored) return stored;
+      const intro = (await tx.get(ref)).data()?.introduction_request;
+      const stored = intro?.requested_at_iso;
+      if (typeof stored === "string" && stored) {
+        // A site that chose under an older sentence and presses again under this one records the new sentence and
+        // when it was shown; the time of its first choice stays.
+        if (intro.statement_version !== JOB_CARD_ANSWER_STATEMENT_VERSION) tx.set(ref, { introduction_request: {
+          statement_version: JOB_CARD_ANSWER_STATEMENT_VERSION, statement_text: JOB_CARD_ANSWER_STATEMENT,
+          statement_recorded_at_iso: new Date().toISOString() } }, { merge: true });
+        return stored;
+      }
       const now = new Date().toISOString();
       // The choice is recorded with the exact sentence the page showed under the button.
       tx.set(ref, { introduction_request: { requested_at_iso: now, requested_by: "signed_owner_link",
@@ -1003,7 +1011,6 @@ router.post("/:token/fresh-link", async (req: Request, res: Response) => {
         emailGreeting(request.contactFirstName),
         "Here is a fresh private link to your job. It opens your job without a password, so please don't forward it.",
         `Open your job:\n${captureUploadUrlFor(requestId, "owner")}`,
-        EMAIL_SIGN_OFF,
       ].join("\n\n"),
       replyTo: "ops@tryblueprint.io",
     });

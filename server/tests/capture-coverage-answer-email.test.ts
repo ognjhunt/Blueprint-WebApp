@@ -87,9 +87,10 @@ describe("the answer email after the coverage review", () => {
     const rows = outboxRows();
     expect(rows.map(([key]) => key)).toEqual(["captureOutbox/r1:answer_ready"]);
     const row = rows[0][1] as Record<string, string>;
-    expect(row).toMatchObject({ kind: "answer_ready", to: "site@synthetic.invalid", subject: "Your Blueprint answer is ready" });
-    expect(row.body).toMatch(/^(Most likely to fit: |No robot clearly fits yet\. |None of the )/);
-    expect(row.body).toMatch(/How sure we are: (Good|Fair|Low)\./);
+    // The paper check, said as the paper check (round 4): never the answer before a test.
+    expect(row).toMatchObject({ kind: "answer_ready", to: "site@synthetic.invalid", subject: "Your job's paper check is ready" });
+    expect(row.body).toMatch(/^We've checked your job on paper\. (Most likely to fit: |No robot clearly fits yet\. |None of the )/);
+    expect(row.body).toMatch(/How sure we are, on paper: (Sure|Fairly sure|Not sure yet)\./);
     expect(row.body).toMatch(/\/capture-upload\//);
     expect(send).not.toHaveBeenCalled();
   });
@@ -108,5 +109,24 @@ describe("the answer email after the coverage review", () => {
     expect((sharedFakeFirestoreState.docs.get("inboundRequests/r1") as Record<string, any>).walkthrough_job_estimates)
       .toMatchObject({ job_estimates: ESTIMATES });
     expect(outboxRows()).toHaveLength(0);
+  });
+});
+
+// Reference job, 2026-11-11: a read refused because another call for the same capture holds the one-at-a-time budget
+// is a wait, not a failed read; the queue is told so it does not spend an attempt on it.
+describe("a read that meets another call in flight for the same capture", () => {
+  it("tells the queue it waited, and stores nothing", async () => {
+    source.agent.mockRejectedValue(new Error("gemini_video_failed: coverage_budget_call_in_flight"));
+    const onWaiting = vi.fn();
+    await expect(reviewCaptureCoverage({ ...params(), onWaiting })).resolves.toBeNull();
+    expect(onWaiting).toHaveBeenCalledWith("coverage_budget_call_in_flight");
+    expect(sharedFakeFirestoreState.docs.get("inboundRequests/r1")).not.toHaveProperty("capture_coverage");
+  });
+
+  it("does not call a real model failure a wait", async () => {
+    source.agent.mockRejectedValue(new Error("gemini_video_failed: provider_timeout"));
+    const onWaiting = vi.fn();
+    await expect(reviewCaptureCoverage({ ...params(), onWaiting })).resolves.toBeNull();
+    expect(onWaiting).not.toHaveBeenCalled();
   });
 });

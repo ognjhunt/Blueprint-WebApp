@@ -1,129 +1,48 @@
 /**
- * Two public entry points. Sites start a job openly (the form comes before the
- * supporting details); technology providers apply to give Blueprint access to
- * a policy or an integration. Blueprint runs the candidate evaluations itself
- * (owner direction 2026-10-28). Everything in the beta is free, and the
- * physical pilot is agreed between the site and the deployment company.
+ * Two public entry points, bare bones (2026-11-11). Sites start a job (the start form owns its screens); companies
+ * apply to see the jobs sites share, and approved, signed-in companies see the job library here. Blueprint runs the
+ * evaluations itself; everything in the beta is free.
  */
 import { useLocation } from "wouter";
-import { useState } from "react";
-import { ArrowLeft, ArrowRight, ArrowUpRight } from "lucide-react";
 
+import { BareBack, BareGroup, BareLabel, BareScreen } from "@/components/bare/Bare";
 import { SEO } from "@/components/SEO";
-import { JobFitQuestions } from "@/components/site/JobFitQuestions";
-import { RobotScene } from "@/components/site/PilotPreview";
 import { SiteCaptureStart } from "@/components/site/SiteCaptureStart";
 import { TaskBrowse } from "@/components/site/TaskBrowse";
-
-const CONTACT_EMAIL = "hello@tryblueprint.io";
+import { ROBOT_TEAM_SEO_DESCRIPTION, START_SEO_DESCRIPTION } from "@/lib/publicCopy";
 
 export default function Contact() {
   const [location] = useLocation();
   const isSite = location !== "/contact/robot-team";
-  const [savedJob, setSavedJob] = useState(false);
 
   if (!isSite) {
     return (
       <>
-        <SEO
-          title="Early access for robot teams | Blueprint"
-          description="Make your robot technology available for real customer jobs, or apply to deliver and support deployments. Partner access follows review."
-          canonical="/contact/robot-team"
-        />
-        <section className="ms-beta-hero ms-container" aria-labelledby="robot-team-title">
-          <div className="ms-beta-copy">
-            <p className="ms-eyebrow">Robot-team beta</p>
-            <h1 id="robot-team-title">Bring your capabilities to real jobs.</h1>
-            <p>Make your robot or policy available for evaluation, or help sites install and support a suitable solution.</p>
-            <a className="ms-button" href="#robot-team-access">Register interest <ArrowRight size={20} aria-hidden="true" /></a>
-            <p className="ms-beta-free">Partner applications and evaluations are free during the beta.</p>
-            <p><a className="ms-text-link" href="/partners">Explore deployment and technology partner roles <ArrowRight size={16} aria-hidden="true" /></a></p>
-          </div>
-          <div className="ms-beta-example">
-            <figure>
-              <RobotScene />
-              <figcaption className="ms-imagery-caption">Illustrative scene · Robot configuration shown as an example.</figcaption>
-            </figure>
-            <p className="ms-beta-embodiments">Fixed arms, humanoids, wheeled humanoids and mobile manipulators are welcome. We confirm task fit and simulation compatibility for each job.</p>
-          </div>
-        </section>
-        <section className="ms-container ms-task-page ms-beta-access" id="robot-team-access" aria-label="Robot-team access">
-          <TaskBrowse />
-          <details className="ms-task-interest ms-visitor-detail">
-            <summary>What happens after applying?</summary>
-            <p>We review your robot's capabilities against a real site task, then email the next step. Your application remains pending until manual approval. Applying or creating an account does not grant access. Approved teams see anonymized cards authorized when sites start a job; sites can edit or hide them afterward.</p>
-            <p>Blueprint runs each evaluation itself, comparing candidate robots and policies in a site simulation reconstructed from the site's video. You supply access to your policy or robot, or the integration needed to run it. Each evaluation is a bounded estimate for the site. Teams do not run their own evaluations of a site's job.</p>
-            <p>Before an evaluation, confirm the task, robot and gripper, observation and action interfaces, and any adapter work. You serve your policy at one HTTPS URL that accepts a bearer token, and register it as a policy endpoint with that token; containers and private checkpoints are not admitted. Blueprint first screens every candidate with up to 10 episodes; a full evaluation is 200 hidden episodes and runs only with Blueprint&rsquo;s approval.</p>
-            <p>Access is free during the beta. Any physical pilot's scope, price, dates and terms are agreed between the site and the deployment company directly; Blueprint takes no cut. Approval does not promise a run or a deployment.</p>
-            <p><a href="/agent-access.openapi.json">Technical API reference</a> · <a href="mailto:hello@tryblueprint.io">Ask about job fit or integration</a></p>
-          </details>
-          <p className="ms-field-hint" style={{ marginTop: "24px" }}>
-            <a className="ms-text-link" href="/contact/site-operator">
-              Operate a site? Start here <ArrowUpRight size={16} aria-hidden="true" />
-            </a>
-          </p>
-        </section>
+        <SEO title="Apply to see jobs | Blueprint" description={ROBOT_TEAM_SEO_DESCRIPTION} canonical="/contact/robot-team" />
+        <div className="bare-page bare-forms">
+          <BareScreen>
+            <BareBack href="/partners" />
+            <BareGroup>
+              <BareLabel>For robot companies</BareLabel>
+              <h1 id="robot-team-title">Apply to see jobs</h1>
+              <p>We approve each company by hand and email you. Approved companies see the jobs sites choose to share.</p>
+            </BareGroup>
+            <section className="bare-group ms-beta-access" id="robot-team-access" aria-label="Robot-team access">
+              <TaskBrowse />
+            </section>
+            <p className="bare-fine">Free during the beta. Operate a site? <a href="/contact/site-operator">Start a job</a>.</p>
+          </BareScreen>
+        </div>
       </>
     );
   }
 
   return (
     <>
-      <SEO
-        title="Submit a job | Blueprint"
-          description="Send a video of one recurring job. Blueprint drafts the job description, checks real robots against it by their published specifications and tests control policies on it in a simulation of your site. No budget is required to start."
-          canonical="/contact/site-operator"
-      />
-      <section className={`ms-inquiry ms-container${savedJob ? " ms-intake-saved" : ""}`}>
-        <div className="ms-inquiry-intro">
-          <a className="ms-back" href="/">
-            <ArrowLeft size={16} aria-hidden="true" /> Back to Blueprint
-          </a>
-          {!savedJob && <p className="ms-eyebrow">For site owners</p>}
-          <h1>{savedJob ? "Your saved job" : "What work would you like automated?"}</h1>
-          {!savedJob && <p className="ms-inquiry-description">
-            Send a video of one recurring job. We draft the job description from it, check real robot models against the job by their published specifications and test control policies on it in a simulation of your site. You see which robot most likely fits and how sure we are, and you can share the job with deployment companies we&apos;ve approved. Free during the beta; no budget is required to start.
-          </p>}
-        </div>
-        <div className="ms-inquiry-forms">
-          <SiteCaptureStart onSavedChange={setSavedJob} />
-          <details className="ms-task-interest ms-visitor-detail">
-            <summary>How this works</summary>
-            {savedJob ? <p className="ms-field-hint">Your private job link shows the brief, progress, follow-up questions and the next decision. Keep it to return.</p> : <><p className="ms-field-hint">
-              We analyze your video and draft a brief for you to correct.
-              We check real robot models against the job by their published specifications and show which most likely fits and how sure we are.
-              We then reconstruct your work area in simulation, check the picked robot&apos;s reach and arm path there and compare public control policies (the software that drives a robot) on the job on a research robot,
-              or mark it &ldquo;held&rdquo; if we can&apos;t simulate that kind of job yet.
-              If you choose, you share an anonymised job card with deployment companies Blueprint has approved; you agree any pilot contract directly with one of them.
-              A simulation result is an estimate; it never certifies physical performance or safety.
-            </p>
-            <p className="ms-field-hint">
-              Where we work: in the US, you record the walkthrough yourself. Outside the US, we set
-              up data transfer terms before anything is recorded.
-            </p></>}
-          </details>
-          {!savedJob && <details className="ms-task-interest ms-visitor-detail">
-            <summary>What should I record?</summary>
-            <p className="ms-field-hint">Show one complete task cycle, the objects and where they start and finish, then the surrounding work area. Existing footage is welcome. Avoid screens, paperwork and restricted areas, and get permission to record.</p>
-            <p className="ms-field-hint">If filming needs approval, arrange permission first or contact us for help. We need video before the site assessment can continue. Have someone who knows the job review the brief we draft from it. <a href="/privacy">How footage is used</a>.</p>
-          </details>}
-          <p className="ms-field-hint" style={{ marginTop: "20px" }}>
-            {!savedJob && <><a className="ms-text-link" href="/partners">
-              Deliver or build robot systems? Become a partner <ArrowUpRight size={16} aria-hidden="true" />
-            </a>
-            {" · "}</>}
-            <a className="ms-text-link" href={`mailto:${CONTACT_EMAIL}`}>
-              Talk to a person
-            </a>
-          </p>
-        </div>
-        {!savedJob && <section className="ms-inquiry-fit" aria-labelledby="inquiry-fit-title">
-          <h2 id="inquiry-fit-title">Is your job a fit?</h2>
-          <p>We start with bounded jobs: known objects in a stable work area. Not sure if yours fits? Show us the work on video and we&apos;ll assess it. We do not turn a job away because of its type; if we can&apos;t simulate yours yet, we hold it while we prepare its evaluation.</p>
-          <JobFitQuestions />
-          <a className="ms-text-link" href="/how-it-works#job-fit">Why each one matters <ArrowRight size={16} aria-hidden="true" /></a>
-        </section>}
-      </section>
+      <SEO title="Start a job | Blueprint" description={START_SEO_DESCRIPTION} canonical="/contact/site-operator" />
+      <div className="bare-page">
+        <SiteCaptureStart />
+      </div>
     </>
   );
 }

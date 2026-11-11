@@ -4,6 +4,12 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { SiteCaptureStart } from '@/components/site/SiteCaptureStart';
 import { siteCaptureDraftKey } from '@/lib/siteCaptureDraft';
+
+/** The country, chosen in its select: typed text is never read for a country (the privacy gate). */
+function chooseCountry(value: "us" | "non_us") {
+  fireEvent.change(document.querySelector("#start-region")!, { target: { value } });
+}
+
 const state = vi.hoisted(() => ({ user: null as any, rows: new Map<string, any>(), writes: vi.fn(), retireFailure: false }));
 vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => ({ currentUser: state.user, loading: false }) }));
 vi.mock('@/lib/analytics', () => ({ analyticsEvents: { contactFormSubmit: vi.fn(), contactFormError: vi.fn() } }));
@@ -53,6 +59,7 @@ it('queued freeze checks mounted account inside the lock before dispatch', async
     await ready();
     fireEvent.change(document.querySelector('#start-task')!, { target: { value: 'Owned original task' } });
     fireEvent.change(document.querySelector('#start-location')!, { target: { value: 'Austin TX' } });
+    chooseCountry("us");
     await act(async () => { });
     const key = siteCaptureDraftKey('old-owned-fixture', 'default');
     const before = localStorage.getItem(key);
@@ -108,7 +115,8 @@ it('completed-job clear also exposes pending state until device recovery is comm
     fetchMock.mockImplementation(async (_url,init)=>({ok:true,status:200,json:async()=>init?.method==='POST'?{captureUrl:'/capture-upload/owned-clear-fixture'}:{workspaceType:'site_operator',features:[]}}));
     render(<SiteCaptureStart />);await ready();
     for(const [id,value] of [['start-task','A saved description'],['start-location','Austin, TX']])fireEvent.change(document.querySelector('#'+id)!,{target:{value}});
-    fireEvent.submit(screen.getByRole('form'));await screen.findByRole('heading',{name:'Film the work area.'});
+    chooseCountry('us');
+    fireEvent.submit(screen.getByRole('form'));await screen.findByRole('heading',{name:'Now film the job.'});
     hold=true;fireEvent.click(screen.getByRole('button',{name:"Clear this browser's draft"}));
     await screen.findByText(/Clearing this browser's draft/);expect(screen.getByRole('button',{name:'Clearing…',exact:true})).toBeDisabled();
     await act(async()=>{await release!();});await screen.findByText(/This browser's draft has been cleared/);

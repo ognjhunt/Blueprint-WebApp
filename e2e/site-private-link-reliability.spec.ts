@@ -258,9 +258,13 @@ test("the current simulation result leads as proof, open, while every detail and
   await page.goto(`/capture-upload/${token}?video=existing`);
   // An older job with a result and no answer: the proof stands on its own, visible without opening anything.
   const proof = page.getByRole("region", { name: "Tested in simulation" });
-  await expect(proof.getByText("The simulation scored one policy: an unnamed AI control policy completed the job in 2 of 3 tries.", { exact: true })).toBeVisible();
-  await expect(proof.getByRole("listitem").filter({ hasText: "2 of 3 tries" })).toBeVisible();
-  await expect(proof.getByRole("heading", { name: "How far to trust this" })).toBeVisible();
+  // Its one scored row is not in the closed map and carries no learned-policy evidence: it cannot be identified as an
+  // AI robot (a scripted motion is never a contender), so it is never an option and is said in one plain line.
+  await expect(proof.getByText("The simulation test finished, but none of its runs could be identified as an AI robot, so none is counted.", { exact: true })).toBeVisible();
+  const result = proof.getByRole("region", { name: "Ranked", exact: true });
+  await expect(result).toContainText("1 other run could not be identified as an AI robot, so it is not counted.");
+  await expect(result).not.toContainText(/AI robot A|Arm with suction gripper|Finished 2 of 3/);
+  await expect(proof.getByRole("region", { name: "Published tests", exact: true })).toBeVisible();
   // The full result is one click away, in the folded details.
   const details = page.locator("summary", { hasText: "Simulation details" });
   await expect(details.locator("xpath=..")).not.toHaveAttribute("open", "");
@@ -310,9 +314,9 @@ test("a held result says the same plain sentence as the headline, with plain rea
   });
   await page.goto(`/capture-upload/${token}?video=existing`);
   await expect(page.getByText(`${sentence} Nothing is needed from you.`, { exact: true })).toBeVisible();
-  // The proof says, open and in one sentence about the simulation, why it could not run.
+  // The proof says, open and in one plain line, that the simulation test did not run and why.
   const proof = page.getByRole("region", { name: "Tested in simulation" });
-  await expect(proof.getByText("None of the robots the simulation can run matched this task; at least one was measured out of reach from the robot position planned in the scene built from your video.", { exact: true })).toBeVisible();
+  await expect(proof.getByText("The simulation test did not run. None of the robots we can test matched this job. At least one couldn't reach it in the simulation of your site.", { exact: true })).toBeVisible();
   expect(await proof.textContent()).not.toMatch(/[a-z]_[a-z]|your job is held|estimate|budget|\$/i);
   await page.locator("summary", { hasText: "Simulation details" }).click();
   const results = page.getByRole("region", { name: "Simulation results for your job" });
@@ -489,17 +493,17 @@ test("desktop handoff recognizes retained footage without claiming processing co
   await page.clock.install();
   await page.goto("/contact/site-operator");
   // The optional sentence confirms the brief at submission (owner direction 2026-11-11).
-  await page.locator("#start-task").fill("Move sealed cartons onto a pallet");
-  await page.locator("#start-location").fill("Austin, TX");
+  await page.getByRole("button", { name: "Add details (optional) ›" }).click(); await page.locator("#start-task").fill("Move sealed cartons onto a pallet"); await page.getByRole("button", { name: "Done", exact: true }).click();
+  await page.locator("#start-location").fill("Austin, TX"); await page.locator("#start-region").selectOption("us");
   await page.locator("#start-email").fill("operator@example.test");
-  await page.getByRole("button", { name: "Start free assessment" }).click();
-  await expect(page.getByRole("heading", { name: "Film the work area." })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Open your job page", exact: true })).toHaveAttribute("href", "/capture-upload/held-fixture");
+  await page.getByRole("button", { name: /^(Send video|Next: film the job|Save my job)$/ }).click();
+  await expect(page.getByRole("heading", { name: "Now film the job." })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Open my job page ›", exact: true })).toHaveAttribute("href", "/capture-upload/held-fixture");
   received = true;
   await page.clock.fastForward(6000);
-  await expect(page.getByRole("heading", { name: "Your recording is in." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "We have your video." })).toBeVisible();
   await expect(page.getByText("Your video is retained. Recording permission needs review.")).toBeVisible();
-  await expect(page.getByRole("link", { name: "Open your job and assessment" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Open my job" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Open the camera" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Retry processing" })).toHaveCount(0);
   await page.screenshot({ path: info.outputPath("desktop-held-footage.png"), fullPage: true });
@@ -672,7 +676,7 @@ test("a run with only scripted reference baselines is not called an estimate on 
   await expect(page.getByText(`${sentence} Nothing is needed from you.`, { exact: true })).toBeVisible();
   // The proof never calls a reference-only run an estimate, and names no policy.
   const proof = page.getByRole("region", { name: "Tested in simulation" });
-  await expect(proof.getByText("The simulation scored only scripted reference checks; no AI policy could be tested in it yet.", { exact: true })).toBeVisible();
+  await expect(proof.getByText("The simulation test did not run. Only our own test moves ran. No robot program could be tried yet.", { exact: true })).toBeVisible();
   expect(await proof.textContent()).not.toMatch(/estimate|did best|tries/i);
   await page.locator("summary", { hasText: "Simulation details" }).click();
   const results = page.getByRole("region", { name: "Simulation results for your job" });

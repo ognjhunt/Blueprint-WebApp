@@ -41,13 +41,11 @@ function lazyRoute<P = any>(
 }
 
 const HowItWorks = lazyRoute(() => import("../pages/HowItWorks"));
-const JobsWeSupport = lazyRoute(() => import("../pages/JobsWeSupport"));
 const Partners = lazyRoute(() => import("../pages/Partners"));
 const DeploymentPartners = lazyRoute(() => import("../pages/DeploymentPartners"));
 const TechnologyProviders = lazyRoute(() => import("../pages/TechnologyProviders"));
 // Keep the historical Pricing component for a later commercial release.
 const Beta = lazyRoute(() => import("../pages/Beta"));
-const About = lazyRoute(() => import("../pages/About"));
 const Home = lazyRoute(() => import("../pages/Home"));
 const SelfCaptureUpload = lazyRoute(() => import("../pages/SelfCaptureUpload"));
 const RobotReadinessBrief = lazyRoute(() => import("../pages/RobotReadinessBrief"));
@@ -246,12 +244,10 @@ export const appRoutes: AppRoute[] = [
   })),
   { path: "/", layout: "public", component: Home },
   { path: "/how-it-works", layout: "public", component: HowItWorks },
-  { path: "/jobs-we-support", layout: "public", component: JobsWeSupport },
   { path: "/partners", layout: "public", component: Partners },
   { path: "/partners/deployment", layout: "public", component: DeploymentPartners },
   { path: "/partners/technology", layout: "public", component: TechnologyProviders },
   { path: "/beta", layout: "public", component: Beta },
-  { path: "/about", layout: "public", component: About },
   // The capturer network, its app and Blueprint filming visits are retired
   // (2026-11-11): sites film their own tasks. Old entry points go to the site
   // start page.

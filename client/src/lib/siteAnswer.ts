@@ -41,6 +41,24 @@ export interface AnswerCheck {
    * Null when the check could not be made for lack of that quantity or of the robot's figure.
    */
   basis: AnswerBasis | null;
+  /**
+   * What the job asks of the robot, as the check's own sentence says it ("about 64–93 cm",
+   * "about 3–4.9 kg", "30 s"). Absent on older answers; null when the check has no such figure
+   * (a reach decided in the scene, or a quantity the job does not give).
+   */
+  need?: string | null;
+  /**
+   * The robot's side, as the sentence says it: its published reach or rated payload ("1.3 m",
+   * "12.5 kg"), or how long a cycle takes on paper ("1.2–31 s"). Absent on older answers; null
+   * when the maker publishes no figure.
+   */
+  has?: string | null;
+  /**
+   * What a `reach` check measured: the distance between the spots (an arm that stays in one place) or how
+   * high and how low the hand goes (a robot that moves between the spots). Absent on older answers and on
+   * other checks.
+   */
+  measure?: "distance" | "height";
 }
 
 export const EVIDENCE_LEVELS = ["production", "pilot", "offered"] as const;
@@ -112,9 +130,56 @@ export const ANSWER_CONFIDENCE_LABELS: Readonly<Record<AnswerConfidenceLevel, st
   low: "Low",
 };
 
-/** The standing note under every answer: what the check covers, and what it is not. */
+/** The scene's contrary finding beside a verdict that rests on the site's own measurement (`SiteAnswer.sceneNote`). */
+export const sceneOutrankedNote = (name: string) =>
+  `The simulation of your site found that the ${name} does not fit. This check uses your own measurement instead, which we trust more.`;
+
+/** The standing note under every answer: what the check covers, and what it is not. The email and the job card say it in full. */
 export const SITE_ANSWER_NOTE =
   "This checks whether a robot can pick your object up and put it down, against published robot specifications and a cited track record. It is not a test of a robot at your site and does not certify performance or safety.";
+/**
+ * The limits in one line, at the foot of the job page and the emails, chosen by what the headline is: a test
+ * result, a test still running, or the paper check. Each is true for every state that shows it.
+ */
+export const LIMITS_TESTED = "Tested in a simulation, not at your site. Pick-up-and-put-down jobs only. It does not certify performance or safety.";
+/** While the test runs nothing has been tested yet, so the line says it is being tested. */
+export const LIMITS_TESTING = "Being tested in a simulation, not at your site. Pick-up-and-put-down jobs only. It does not certify performance or safety.";
+export const LIMITS_PAPER = "A paper check, not a test at your site. Pick-up-and-put-down jobs only. It does not certify performance or safety.";
+/** The same lines as an approved deployment company reads them on the card, with the full note in the card's details. */
+export const JOB_CARD_LIMITS_TESTED = "Tested in a simulation, not at the site. Pick-up-and-put-down jobs only. It does not certify performance or safety.";
+export const JOB_CARD_LIMITS_TESTING = "Being tested in a simulation, not at the site. Pick-up-and-put-down jobs only. It does not certify performance or safety.";
+export const JOB_CARD_LIMITS = "A paper check, not a test at the site. Pick-up-and-put-down jobs only. It does not certify performance or safety.";
+
+/** How sure, in words: the one map the job page, the job card and the emails all read. */
+export const SURENESS_WORDS: Readonly<Record<AnswerConfidenceLevel, string>> = { low: "Not sure yet", fair: "Fairly sure", good: "Sure" };
+/** The same words by number of dots, low to high, for a sureness that comes in steps. */
+export const SURENESS_STEPS: ReadonlyArray<{ filled: 1 | 2 | 3; word: string }> = [
+  { filled: 1, word: SURENESS_WORDS.low }, { filled: 2, word: SURENESS_WORDS.fair }, { filled: 3, word: SURENESS_WORDS.good }];
+
+/*
+ * Sentences the server composes and the page treats specially, kept here so both read the same words.
+ * The scope lines change what the answer covers, so the page never folds them away.
+ */
+/** The reader did not say what is done to the object: said first, so the answer never passes for more than a carry. */
+export const UNKNOWN_JOB_KIND = "We could not tell from your video what is done to the object; this checks only whether a robot can pick it up and put it down.";
+/** The job's own sentence names more than one step. */
+export const UNKNOWN_MULTI_STEP = "Your job has more than one step; this checks one carry.";
+/** The start of the line naming what else the reader saw done to the object (from its closed list). */
+export const ALSO_INVOLVES_PREFIX = "Your job also involves ";
+/** The end of that line. */
+export const ALSO_INVOLVES_SUFFIX = "; this checks only the picking up and putting down.";
+/** The end of a passed check's sentence when it has little to spare (server/utils/siteAnswer.ts `TIGHT_FIT` says " " + this). */
+export const TIGHT_FIT_SENTENCE = "This is a tight fit.";
+/** The stored coverage review says the video does not cover the scene. */
+export const UNKNOWN_SCENE_NOT_COVERED = "Your video does not show the whole work area.";
+/** Why a finished reading gave nothing to size; the answer email keys on it, and the page offers a new video. */
+export const REASON_UNSIZED = "The video did not show the job clearly enough for us to size it.";
+
+/** A line of `unknowns` that changes what the answer covers: shown with the answer, never folded away. */
+export function isScopeNote(line: string): boolean {
+  return line === UNKNOWN_JOB_KIND || line === UNKNOWN_MULTI_STEP
+    || (line.startsWith(ALSO_INVOLVES_PREFIX) && line.endsWith(ALSO_INVOLVES_SUFFIX));
+}
 
 export interface SiteAnswer {
   schemaVersion: typeof SITE_ANSWER_SCHEMA;
@@ -140,6 +205,12 @@ export interface SiteAnswer {
   ruledOutMore: number;
   /** A note about the kind of robot the job needs, such as one that moves between the spots. */
   formNote: string | null;
+  /**
+   * The simulation of the site found the pick does not fit on a check the scene decides, but the site gave its own
+   * measurement, which outranks the reconstruction (its scale is estimated): the verdict stands and this says both.
+   * Absent on answers stored before it existed.
+   */
+  sceneNote?: string | null;
   /**
    * How the pick would be controlled on this job, reasoned from what the video
    * shows: a programmed application taught once, or camera-guided picking when

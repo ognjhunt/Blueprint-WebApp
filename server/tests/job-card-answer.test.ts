@@ -12,7 +12,8 @@ import express from "express";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { sharedFakeFirestoreState } from "./helpers/fake-firestore";
 import { anonymizedOpportunityDraft } from "../../client/src/types/taskBrowse";
-import { JOB_CARD_ANSWER_STATEMENT, JOB_CARD_ANSWER_STATEMENT_VERSION } from "../../client/src/lib/jobCardAnswerConsent";
+import { JOB_CARD_ANSWER_STATEMENT, JOB_CARD_ANSWER_STATEMENT_V1, JOB_CARD_ANSWER_STATEMENT_V1_VERSION, JOB_CARD_ANSWER_STATEMENT_V2,
+  JOB_CARD_ANSWER_STATEMENT_V2_VERSION, JOB_CARD_ANSWER_STATEMENT_VERSION } from "../../client/src/lib/jobCardAnswerConsent";
 
 vi.mock("../../client/src/lib/firebaseAdmin", async () => {
   const { sharedFakeFirestore, FAKE_FIELD_DELETE } = await import("./helpers/fake-firestore");
@@ -98,11 +99,20 @@ describe("GET /api/site-worlds/tasks/:taskId", () => {
     const summary = body.item.answerSummary;
     expect(summary).toBeTruthy();
     expect(Object.keys(summary).sort()).toEqual(["confidence", "facts", "familyLabel", "headline", "note", "pick", "runnerUp",
-      "simulation", "unknowns"]);
+      "sceneNote", "simulation", "test", "unknowns"]);
+    // No scene says otherwise here: no scene note.
+    expect(summary.sceneNote).toBeNull();
+    // No simulation has run: the card's headline is the paper check's, as on the site's screen.
+    expect(summary.test).toBeNull();
     expect(summary.headline).toMatch(/^Most likely to fit: /);
     expect(summary.familyLabel).toBe("palletizing");
     expect(summary.pick).toMatchObject({ manufacturer: expect.any(String), name: expect.any(String), verdictLabel: expect.any(String) });
-    expect(Object.keys(summary.pick).sort()).toEqual(["evidence", "manufacturer", "name", "specs", "verdictLabel"]);
+    expect(Object.keys(summary.pick).sort()).toEqual(["checks", "evidence", "manufacturer", "name", "specs", "verdictLabel"]);
+    // Each check's outcome and its figures, numbers with units only, never the site's sentence.
+    expect(summary.pick.checks.map((check: Record<string, unknown>) => Object.keys(check).sort()))
+      .toEqual(summary.pick.checks.map(() => ["has", "key", "need", "outcome", "tight"]));
+    expect(summary.pick.checks.find((check: { key: string }) => check.key === "payload")).toMatchObject({ outcome: "pass",
+      need: expect.stringMatching(/kg$/), has: expect.stringMatching(/kg$/) });
     for (const spec of summary.pick.specs) expect(spec.sourceUrl).toMatch(/^https:\/\//);
     for (const row of summary.pick.evidence) expect(row.sourceUrl).toMatch(/^https:\/\//);
     expect(summary.facts.length).toBeGreaterThan(0);
@@ -143,6 +153,20 @@ describe("GET /api/site-worlds/tasks/:taskId", () => {
     expect(judged.familyLabel).toBe("palletizing");
   });
 
+  it("says the site's video does not show the whole work area about the site, never in the review's own words", async () => {
+    put(job({ capture_coverage: { covers_scene: false, missing_coverage: ["The far side of the loading dock"] } }));
+    const summary = (await get(`/tasks/${ID}`)).body.item.answerSummary;
+    expect(summary.unknowns).toContain("The site's video does not show the whole work area.");
+    expect(JSON.stringify(summary)).not.toMatch(/\byour\b|far side/i);
+  });
+
+  it("still carries the answer for a choice recorded under the first wording of the statement", async () => {
+    put(job({ public_task_listing: { ...job().public_task_listing, consentVersion: JOB_CARD_ANSWER_STATEMENT_V1_VERSION },
+      introduction_request: { ...job().introduction_request, statement_version: JOB_CARD_ANSWER_STATEMENT_V1_VERSION,
+        statement_text: JOB_CARD_ANSWER_STATEMENT_V1 } }));
+    expect((await get(`/tasks/${ID}`)).body.item.answerSummary).toBeTruthy();
+  });
+
   it("adds one plain simulation line when the site's evaluation has one", async () => {
     put(job());
     seams.managed.mockImplementation(async () => ({ managedEvidence: [{ current: true, state: "completed", outcome: "held_scene_check" }] }));
@@ -150,18 +174,62 @@ describe("GET /api/site-worlds/tasks/:taskId", () => {
     expect(body.item.answerSummary.simulation).toBe("The simulated scene failed the check we run before testing robots, so no robot was tested in it.");
   });
 
-  it("keeps the simulation line to the page's first sentence when the page also says how far each policy got", async () => {
+  it("carries the simulation test's result as its headline, the same one the site sees, in numbers and closed-map names", async () => {
     put(job());
     const progress = (counts: number[]) => ({ graded: 10, meanScore: 0, stages: ["approached", "contact", "moved", "lifted", "translated",
       "placed", "released_and_settled"].map((stage, index) => ({ stage, episodes: counts[index] })), closestApproachM: { median: 0.2, min: 0.05 } });
-    const row = (candidateId: string, counts: number[]) => ({ candidateId, name: candidateId, state: "completed", planned: 10, scored: 10,
-      succeeded: 0, failed: 10, void: 0, blockers: [], progress: progress(counts) });
+    const row = (candidateId: string, counts: number[], succeeded = 0) => ({ candidateId, name: `stored ${candidateId}`, state: "completed", planned: 10, scored: 10,
+      succeeded, failed: 10 - succeeded, void: 0, blockers: [], progress: progress(counts) });
     seams.managed.mockImplementation(async () => ({ managedEvidence: [{ current: true, state: "completed", outcome: "estimate",
       screening: { candidates: [row("pi05_droid", [9, 6, 5, 4, 2, 0, 0]), row("groot_n17_droid", [0, 0, 0, 0, 0, 0, 0])] } }] }));
-    const { body } = await get(`/tasks/${ID}`);
-    expect(body.item.answerSummary.simulation).toBe("The simulation ran, but no policy completed the job in it, so it could not rank them.");
-    expect(JSON.stringify(body)).not.toMatch(/How far each got|within 2 cm|carried the object|typically came/);
+    const none = (await get(`/tasks/${ID}`)).body.item;
+    expect(none.answerSummary.headline).toBe("Tested on the job: none finished yet.");
+    expect(none.answerHeadline).toBe(none.answerSummary.headline);
+    expect(none.answerSummary.test).toMatchObject({ kind: "none_finished", wording: null,
+      options: [{ label: "Franka arm + π0.5", maker: "Physical Intelligence", succeeded: 0, scored: 10, furthestText: "lifted and carried the object" },
+        { label: "Franka arm + GR00T N1.7", maker: "NVIDIA", succeeded: 0, scored: 10 }] });
+    expect(none.answerSummary.simulation).toBeNull();
+    // A winner by the probability rule: the card says it as the site's screen does.
+    seams.managed.mockImplementation(async () => ({ managedEvidence: [{ current: true, state: "completed", outcome: "estimate",
+      screening: { candidates: [row("pi05_droid", [10, 10, 10, 10, 10, 10, 10], 10), row("groot_n17_droid", [0, 0, 0, 0, 0, 0, 0])] } }] }));
+    const won = (await get(`/tasks/${ID}`)).body.item.answerSummary;
+    expect(won.headline).toBe("Did best on the job: Franka arm + π0.5, doing the job in 10 of 10 tries.");
+    expect(won.test).toMatchObject({ kind: "winner", wording: "did_best" });
+    expect(JSON.stringify(won)).not.toMatch(/stored |\byour\b/i);
   });
+
+  // Round 5 (rights): what a card carries follows what the site agreed to. v1 and v2 named "this answer" when the
+  // answer was the paper check, so a choice under them puts the paper check on the card, never a test result, even
+  // one that arrives after the choice; only v3 ("including later test results") carries the test result.
+  it.each([
+    ["v1", JOB_CARD_ANSWER_STATEMENT_V1_VERSION, JOB_CARD_ANSWER_STATEMENT_V1, false],
+    ["v2", JOB_CARD_ANSWER_STATEMENT_V2_VERSION, JOB_CARD_ANSWER_STATEMENT_V2, false],
+    ["v3", JOB_CARD_ANSWER_STATEMENT_VERSION, JOB_CARD_ANSWER_STATEMENT, true],
+  ] as const)("under %s, carries the test result only if the statement names later test results, before and after it arrives",
+    async (_name, version, text, carriesTest) => {
+      put(job({ public_task_listing: { ...job().public_task_listing, consentVersion: version },
+        introduction_request: { ...job().introduction_request, statement_version: version, statement_text: text } }));
+      // Before a result: the paper check, whatever the version.
+      const before = (await get(`/tasks/${ID}`)).body.item.answerSummary;
+      expect(before.headline).toMatch(/^Most likely to fit: |^No robot clearly fits yet\.|^None of the /);
+      expect(before.test).toBeNull();
+      // A result arrives after the choice.
+      seams.managed.mockImplementation(async () => ({ managedEvidence: [{ current: true, state: "completed", outcome: "estimate",
+        screening: { candidates: [{ candidateId: "pi05_droid", name: "stored", state: "completed", planned: 10, scored: 10, succeeded: 10, failed: 0,
+          void: 0, blockers: [] }, { candidateId: "groot_n17_droid", name: "stored", state: "completed", planned: 10, scored: 10, succeeded: 0,
+          failed: 10, void: 0, blockers: [] }] } }] }));
+      const after = (await get(`/tasks/${ID}`)).body.item;
+      if (carriesTest) {
+        expect(after.answerSummary.headline).toBe("Did best on the job: Franka arm + π0.5, doing the job in 10 of 10 tries.");
+        expect(after.answerSummary.test).toMatchObject({ kind: "winner" });
+      } else {
+        expect(after.answerSummary.headline).toBe(before.headline);
+        expect(after.answerSummary.test).toBeNull();
+        expect(after.answerSummary.simulation).toBeNull();
+        expect(JSON.stringify(after)).not.toMatch(/π0\.5|Did best|Tested on the job/);
+      }
+      expect(after.answerHeadline).toBe(after.answerSummary.headline);
+    });
 
   it("keeps the answer when the simulation line cannot be read", async () => {
     put(job());
@@ -237,7 +305,8 @@ describe("GET /api/site-worlds/tasks", () => {
     expect(shared.answerSummary).toBeUndefined();
     expect(plain).toBeTruthy();
     expect(plain.answerHeadline).toBeUndefined();
-    expect(seams.managed).not.toHaveBeenCalled();
+    // The line's headline is the card's own, so the test is read for the consenting card only.
+    expect(seams.managed).toHaveBeenCalledTimes(1);
     // The answer is composed for the consenting card only.
     expect(vi.mocked(loadSiteAnswer).mock.calls.map(call => call[0])).toEqual([ID]);
   });

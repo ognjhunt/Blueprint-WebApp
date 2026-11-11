@@ -104,7 +104,7 @@ describe("composeSiteAnswer", () => {
     expect(answer.nextStep).toEqual({ kind: "introduction",
       text: "Share this job with deployment companies Blueprint has approved, and one of them can pilot it at your site." });
     expect(answer.note).toBe(SITE_ANSWER_NOTE);
-    expect(answer.checked).toEqual({ models: 22, makers: 13, specsRetrievedOn: "2026-11-02" });
+    expect(answer.checked).toEqual({ models: 33, makers: 21, specsRetrievedOn: "2026-11-02" });
     expect(answer.reason).toBeNull();
     // Each check names the site's number with its basis and the robot's figure.
     const reach = answer.pick!.checks.find((check) => check.key === "reach")!;
@@ -113,6 +113,9 @@ describe("composeSiteAnswer", () => {
     expect(answer.pick!.checks.find((check) => check.key === "payload")!.basis).toBe("video_estimate");
     expect(answer.pick!.checks.find((check) => check.key === "payload")!.text)
       .toBe("Payload: your object weighs about 3–4 kg (estimated from your video), plus about 0.9 kg for a standard gripper, so it must carry about 3–4.9 kg. This arm is rated for 12.5 kg.");
+    // The short figures the page shows are the sentence's own.
+    expect(reach).toMatchObject({ need: "about 64–93 cm", has: "1.3 m" });
+    expect(answer.pick!.checks.find((check) => check.key === "payload")).toMatchObject({ need: "about 3–4.9 kg", has: "12.5 kg" });
     for (const sentence of [answer.headline, ...answer.unknowns, ...answer.confidence.reasons, ...answer.ruledOut.map((row) => row.reason)]) {
       expect(sentence).not.toMatch(/safe to|guarantee|tested at your site|will work|certif|episode|candidate|screening|embodiment/i);
     }
@@ -225,11 +228,14 @@ describe("composeSiteAnswer", () => {
       brief: { requestId: "job-1", summary: "Carry parts across the cell", operatorTaskDetails: { item_weight: "1 kg" } } });
     expect(answer.state).toBe("ready");
     expect(answer.formNote).toBe("Your two spots are 3 m apart (you measured this), so the job needs a robot that moves between them, such as an arm on a wheeled base.");
-    expect(answer.ruledOut.length + answer.ruledOutMore).toBe(20);
+    // Every arm that stays in one place (22 in the catalog).
+    expect(answer.ruledOut.length + answer.ruledOutMore).toBe(22);
     expect(answer.ruledOut[0].reason).toContain("more than the 2.4 m an arm that stays in one place can serve");
     expect(answer.ruledOut[0].estimated).toBe(false);
-    expect(answer.pick!.formLabel).toBe("Arm on a wheeled base");
-    expect(answer.runnerUp!.formLabel).toBe("Walking humanoid");
+    expect(answer.pick!.formLabel).toBe("Arm on a base that moves");
+    // The job gives no heights, so a robot that moves is not settled on how high and low its hand goes.
+    expect(answer.runnerUp!.formLabel).toBe("Arm on a base that moves");
+    expect(answer.pick!.checks.find((check) => check.key === "reach")).toMatchObject({ measure: "height", outcome: "unknown" });
     expect(answer.headline).toBe("No robot clearly fits yet. The closest is Hello Robot Stretch 3.");
   });
 
@@ -372,6 +378,21 @@ describe("composeSiteAnswer", () => {
     expect(clear.unknowns.some((line) => line.startsWith("Safety around people"))).toBe(false);
   });
 
+  it("says the video does not show the whole work area only when the stored coverage review says so, never in its words", () => {
+    const short = compose({ request: { capture_coverage: { covers_scene: false, missing_coverage: ["The far side of the dining table"] } } });
+    expect(short.unknowns).toContain("Your video does not show the whole work area.");
+    expect(short.unknowns.join(" ")).not.toContain("far side");
+    // After the scope line that leads, before the other unknowns.
+    expect(short.unknowns.indexOf("Your video does not show the whole work area.")).toBe(short.unknowns[0] === UNKNOWN_JOB_KIND ? 1 : 0);
+    expect(compose().unknowns).not.toContain("Your video does not show the whole work area.");
+    expect(compose({ request: { capture_coverage: { covers_scene: true } } }).unknowns).not.toContain("Your video does not show the whole work area.");
+    // A stored review with no yes or no says nothing; a missing review says nothing.
+    const absent = composeSiteAnswer({ ...inputs(), request: { requestId: "job-1", request: {},
+      walkthrough_job_estimates: { capture_id: "walkthrough-job-1", job_estimates: estimates() } } })!;
+    expect(absent.unknowns).not.toContain("Your video does not show the whole work area.");
+    expect(compose({ request: { capture_coverage: { views: [] } } }).unknowns).not.toContain("Your video does not show the whole work area.");
+  });
+
   it("copies the introduction request time", () => {
     expect(compose().introductionRequestedAtIso).toBeNull();
     expect(compose({ request: { introduction_request: { requested_at_iso: NOW, requested_by: "signed_owner_link" } } })
@@ -444,8 +465,10 @@ describe("each check takes its outcome from the best source for its own quantity
   it("takes reach from a scene 'fits' as a pass checked in the scene, and the verdict 'fits' only when every check passes", () => {
     const answer = composeSiteAnswer({ ...inputs({ robotFit: scene({ ...UR10E, verdict: "fits" }) }), catalog: only("universal_robots_ur10e") })!;
     expect(answer.pick).toMatchObject({ name: "UR10e", verdict: "fits", sceneChecked: true });
-    expect(checkOf(answer, "reach")).toEqual({ key: "reach", outcome: "pass", estimated: false, basis: "scene_measured",
-      text: "Reach: checked in the scene rebuilt from your video: this robot reaches both spots with a clear arm path. It reaches 1.3 m." });
+    expect(checkOf(answer, "reach")).toEqual({ key: "reach", measure: "distance", outcome: "pass", estimated: false, basis: "scene_measured",
+      text: "Reach: checked in the scene rebuilt from your video: this robot reaches both spots with a clear arm path. It reaches 1.3 m.",
+      // The scene decides reach by where the arm stands: no figure for the job's side, the robot's own reach for its side.
+      need: null, has: "1.3 m" });
     // The payload is still this check's own, on the video's weight.
     expect(checkOf(answer, "payload")).toMatchObject({ outcome: "pass", basis: "video_estimate", estimated: true });
     expect(answer.confidence.reasons).toContain("Its reach was checked in the scene rebuilt from your video.");
@@ -461,6 +484,21 @@ describe("each check takes its outcome from the best source for its own quantity
     expect(answer.pick).toMatchObject({ verdict: "fits_on_paper", sceneChecked: true });
     expect(checkOf(answer, "reach")).toMatchObject({ outcome: "pass", basis: "scene_measured", estimated: false,
       text: "Reach: sized in the scene rebuilt from your video: both spots are within this robot's published reach. Its arm path was not checked. It reaches 1.3 m." });
+  });
+
+  // A reach the scene measured as a pass has no headroom figure; it counts as a comfortable margin, as it did before the
+  // height check existed (bdd5bdc66), so it is not ranked below an arm that is only comfortable on paper.
+  it("ranks a fixed arm whose reach passed in the scene as it did before, against an arm comfortable on paper", () => {
+    const sheet = (value: number, unit = "m") => ({ value, unit, source_url: "https://example.com/sheet.pdf", quote: `Figure ${value} ${unit}`, conversion: null });
+    const roomy = { model_id: "roomy_paper_arm", recipe_id: null, manufacturer: "Maker Roomy", name: "ROOMY", body_type: "fixed_arm", mounting: [],
+      figures: { max_reach_m: sheet(3), rated_payload_kg: sheet(50, "kg"), max_hand_height_m: null, min_hand_height_m: null },
+      unknown_figures: {} } as unknown as ReturnType<typeof robotSpecCatalog>["models"][number];
+    const ur10e = robotSpecCatalog().models.find((model) => model.model_id === "universal_robots_ur10e")!;
+    const answer = composeSiteAnswer({ ...inputs({ estimates: estimates({ pick_to_place_m: 2.0 }), robotFit: scene({ ...UR10E, verdict: "fits_spec" }) }),
+      catalog: { ...robotSpecCatalog(), models: [roomy, ur10e] } })!;
+    expect(answer.pick!.modelId).toBe("universal_robots_ur10e");
+    expect(answer.runnerUp!.modelId).toBe("roomy_paper_arm");
+    expect(answer.pick!.checks.find((check) => check.key === "reach")).toMatchObject({ basis: "scene_measured", outcome: "pass" });
   });
 
   it("takes reach from a scene 'doesnt_fit' as a fail only when the payload passes", () => {
@@ -492,7 +530,7 @@ describe("each check takes its outcome from the best source for its own quantity
     expect(checkOf(other, "reach")).toMatchObject({ outcome: "pass", basis: "video_estimate" });
   });
 
-  it("keeps the site's measured distance over the scene", () => {
+  it("keeps the site's measured distance over the scene", async () => {
     // Measured 3 m apart: no arm that stays in one place serves it, whatever the scene's row says.
     const far = composeSiteAnswer({ ...inputs({ measurements: measurements({ pick_to_place_distance: reading(3, "m", 3) }),
       robotFit: scene({ ...UR10E, verdict: "fits" }) }), catalog: only("universal_robots_ur10e") })!;
@@ -503,6 +541,31 @@ describe("each check takes its outcome from the best source for its own quantity
       robotFit: scene({ ...UR10E, verdict: "doesnt_fit", openChecks: ["reach"] }) }), catalog: only("universal_robots_ur10e") })!;
     expect(near.pick).toMatchObject({ verdict: "fits_on_paper", sceneChecked: false });
     expect(checkOf(near, "reach")).toMatchObject({ outcome: "pass", basis: "site_measured", estimated: false });
+    // The verdict stands and the answer says both, decided here once for the page, the card and the emails.
+    expect(near.headline).toBe("Most likely to fit: Universal Robots UR10e.");
+    expect(near.sceneNote).toBe("The simulation of your site found that the UR10e does not fit. This check uses your own measurement instead, which we trust more.");
+    expect(far.sceneNote).toBeNull();
+    // The shared job card says the same verdict and the same finding, about the site.
+    const { projectJobCardAnswer } = await import("../utils/jobCardAnswer");
+    const card = projectJobCardAnswer(near)!;
+    expect(card.headline).toBe("Most likely to fit: Universal Robots UR10e.");
+    expect(card.pick).toMatchObject({ verdictLabel: "Fits on paper" });
+    expect(card.sceneNote).toBe("The simulation of the site found that the UR10e does not fit. This check uses the site's own measurement instead, which we trust more.");
+  });
+
+  it("never says a robot fits when the scene rules it out on where it can stand or reach it, with no figure of the site's own", () => {
+    for (const open of [["stance"], ["access"], ["reach"], []]) {
+      const answer = composeSiteAnswer({ ...inputs({ robotFit: scene({ ...UR10E, verdict: "doesnt_fit", openChecks: open }) }),
+        catalog: only("universal_robots_ur10e") })!;
+      expect(answer.pick, open.join()).toBeNull();
+      expect(answer.headline, open.join()).not.toMatch(/Most likely to fit/);
+      expect(answer.sceneNote, open.join()).toBeNull();
+    }
+    // A scene "doesn't fit" that rests only on weight changes nothing and is never said as "does not fit".
+    const weightOnly = composeSiteAnswer({ ...inputs({ robotFit: scene({ ...UR10E, verdict: "doesnt_fit", openChecks: ["payload"] }) }),
+      catalog: only("universal_robots_ur10e") })!;
+    expect(weightOnly.pick).toMatchObject({ verdict: "fits_on_paper" });
+    expect(weightOnly.sceneNote).toBeNull();
   });
 
   it("matches the scene's row by maker and name, ignoring case and punctuation", () => {
@@ -519,6 +582,152 @@ describe("each check takes its outcome from the best source for its own quantity
       catalog: only("universal_robots_ur10e", "hello_robot_stretch_3") })!;
     expect(seen.formNote).toBeNull();
     expect(seen.pick).toMatchObject({ name: "UR10e", verdict: "fits" });
+  });
+});
+
+describe("a robot that moves is checked on how high and how low its hand goes", () => {
+  const sheet = (value: number, unit = "m") => ({ value, unit, source_url: "https://example.com/sheet.pdf", quote: `Figure ${value} ${unit}`, conversion: null });
+  /** A catalog robot with only the figures given; the rest unknown. */
+  const robot = (id: string, body: string, figures: { top?: number; bottom?: number; payload?: number; reach?: number }) => ({
+    model_id: id, recipe_id: null, manufacturer: `Maker ${id.replace(/_/g, " ")}`, name: id.replace(/_/g, " ").toUpperCase(), body_type: body, mounting: [],
+    figures: { max_reach_m: figures.reach === undefined ? null : sheet(figures.reach), rated_payload_kg: sheet(figures.payload ?? 5, "kg"),
+      max_hand_height_m: figures.top === undefined ? null : sheet(figures.top), min_hand_height_m: figures.bottom === undefined ? null : sheet(figures.bottom) },
+    unknown_figures: {},
+  }) as unknown as ReturnType<typeof robotSpecCatalog>["models"][number];
+  const withModels = (...models: Array<ReturnType<typeof robot>>) => ({ ...robotSpecCatalog(), models });
+  /** The site measured both heights (exact ends) and a 3 m span; the object weighs 2 kg. */
+  const measuredJob = (pickM: number | null, placeM: number | null, spanM = 3) => inputs({
+    measurements: measurements({ pick_to_place_distance: reading(spanM, "m", spanM),
+      ...(pickM === null ? {} : { pick_surface_height: reading(pickM, "m", pickM) }),
+      ...(placeM === null ? {} : { place_surface_height: reading(placeM, "m", placeM) }) }),
+    brief: { requestId: "job-1", summary: "Carry parts across the cell", operatorTaskDetails: { item_weight: "2 kg" } } });
+  const heightOf = (job: Inputs, model: ReturnType<typeof robot>) => {
+    const answer = composeSiteAnswer({ ...job, catalog: withModels(model) })!;
+    const robots = [answer.pick, answer.runnerUp].filter((entry) => entry !== null);
+    return robots.length ? robots[0]!.checks.find((check) => check.key === "reach")!
+      : { outcome: "fail", text: answer.ruledOut[0].reason, measure: "height" };
+  };
+
+  it("passes when both heights are inside the published range, and says so with both sides' figures", () => {
+    const check = heightOf(measuredJob(0.8, 1.2), robot("rover", "wheeled_humanoid", { top: 2.2, bottom: 0 }));
+    expect(check).toMatchObject({ outcome: "pass", measure: "height", basis: "site_measured", estimated: false, has: "0–2.2 m" });
+    expect(check.text).toMatch(/^Height: it is picked up at .+ and put down at .+, so the hand must work at about 80 cm–1\.2 m above the floor\. The maker lists its working height as 0 to 2\.2 m\.$/);
+  });
+
+  it("fails a height wholly above the highest or wholly below the lowest, naming the spot", () => {
+    const high = heightOf(measuredJob(0.8, 2.0), robot("tall", "mobile_manipulator", { top: 1.8, bottom: 0.3 }));
+    expect(high.outcome).toBe("fail");
+    expect(high.text).toContain("The spot where it is put down is about 2 m. That is above the highest working height the maker lists.");
+    const low = heightOf(measuredJob(0.1, 1.0), robot("short", "humanoid", { top: 1.8, bottom: 0.3 }));
+    expect(low.outcome).toBe("fail");
+    expect(low.text).toContain("The spot where it is picked up is about 10 cm. That is below the lowest working height the maker lists.");
+  });
+
+  it("gives each unknown case its own sentence", () => {
+    const both = robot("both", "wheeled_humanoid", { top: 1.9, bottom: 0 });
+    // A video estimate of one figure is checked across a band; one that spans the limit is unknown.
+    const spans = composeSiteAnswer({ ...inputs({ estimates: estimates({ pick_to_place_m: 3, pick_height_m: 1.7, place_height_m: 0.8 }) }),
+      catalog: withModels(both) })!.pick!.checks.find((check) => check.key === "reach")!;
+    expect(spans).toMatchObject({ outcome: "unknown", measure: "height", estimated: true, basis: "video_estimate" });
+    expect(spans.text).toMatch(/The height estimated from your video spans this robot's limit, so we can't say yet\.$/);
+    expect(heightOf(measuredJob(null, null), both).text)
+      .toBe("Height: we don't know yet how high your two spots are. The maker lists its working height as 0 to 1.9 m.");
+    expect(heightOf(measuredJob(null, 1.0), both).text).toMatch(/^Height: we don't know yet how high the spot where it is picked up is\./);
+    expect(heightOf(measuredJob(1.0, null), both).text).toMatch(/^Height: we don't know yet how high the spot where it is put down is\./);
+    const topOnly = heightOf(measuredJob(0.8, 1.2), robot("top_only", "mobile_manipulator", { top: 1.8 }));
+    expect(topOnly).toMatchObject({ outcome: "unknown", has: "up to 1.8 m" });
+    expect(topOnly.text).toMatch(/The maker lists its working height only as up to 1\.8 m\. It lists how high this robot works but not how low, so we can't say yet\.$/);
+    const bottomOnly = heightOf(measuredJob(0.8, 1.2), robot("bottom_only", "mobile_manipulator", { bottom: 0 }));
+    expect(bottomOnly).toMatchObject({ outcome: "unknown", has: "starting at 0" });
+    expect(bottomOnly.text).toMatch(/The maker lists its working height only as starting at 0\. It lists how low this robot works but not how high, so we can't say yet\.$/);
+    // A one-end robot whose known end already rules a spot out fails on it.
+    expect(heightOf(measuredJob(0.8, 2.0), robot("top_only", "mobile_manipulator", { top: 1.8 })).outcome).toBe("fail");
+    expect(heightOf(measuredJob(0.8, 1.2), robot("neither", "humanoid", { reach: 0.9 }))).toMatchObject({ outcome: "unknown", has: null,
+      text: "Height: this robot moves between the spots, so what limits it is how high and how low its hand goes, and the maker lists no working height." });
+  });
+
+  it("keeps the distance check, and its measure, for an arm that stays in one place", () => {
+    const answer = compose();
+    expect(answer.pick!.checks.find((check) => check.key === "reach")).toMatchObject({ measure: "distance", outcome: "pass" });
+  });
+
+  it("adds no gripper weight for a robot that lifts with its own hand", () => {
+    const answer = composeSiteAnswer({ ...measuredJob(0.8, 1.2), catalog: withModels(robot("rover", "wheeled_humanoid", { top: 2.2, bottom: 0, payload: 3 })) })!;
+    const payload = answer.pick!.checks.find((check) => check.key === "payload")!;
+    expect(payload.text).toBe("Payload: your object weighs 2 kg (you told us), so it must carry about 2 kg. This robot is rated for 3 kg.");
+    expect(payload.outcome).toBe("pass");
+  });
+
+  it("still names a fixed arm when the spots are within its reach, and a settled moving robot ahead of an unsettled one when they are not", () => {
+    const ur10e = robotSpecCatalog().models.find((model) => model.model_id === "universal_robots_ur10e")!;
+    const settled = robot("settled_rover", "wheeled_humanoid", { top: 2.2, bottom: 0, payload: 5 });
+    const unsettled = robot("unsettled_base", "mobile_manipulator", { reach: 1.0, payload: 5 });
+    const near = composeSiteAnswer({ ...measuredJob(0.8, 1.0, 1.0), catalog: withModels(settled, unsettled, ur10e) })!;
+    expect(near.pick!.modelId).toBe("universal_robots_ur10e");
+    expect(near.formNote).toBeNull();
+    const far = composeSiteAnswer({ ...measuredJob(0.8, 1.0, 3.0), catalog: withModels(unsettled, settled, ur10e) })!;
+    expect(far.pick!.modelId).toBe("settled_rover");
+    expect(far.pick!.verdict).toBe("fits_on_paper");
+    expect(far.runnerUp!.modelId).toBe("unsettled_base");
+    expect(far.runnerUp!.verdict).toBe("possible");
+    expect(far.ruledOut.map((row) => row.name)).toEqual(["UR10e"]);
+  });
+
+  // An unknown margin is not a comfortable margin (review, 2026-11-11): a moving robot's height check has no headroom
+  // figure, so it never counts as comfortable, and on a carry a fixed arm can serve the fixed arm comes first.
+  it("names a fixed arm that passes, tight or comfortable, ahead of any moving robot on a short carry", () => {
+    const arm = (id: string, payload: number) => robot(id, "fixed_arm", { reach: 1.3, payload });
+    const settled = robot("settled_rover", "wheeled_humanoid", { top: 2.2, bottom: 0, payload: 30 });
+    const job = measuredJob(0.8, 1.0, 0.5);
+    // How much the arm must carry: the object and a standard gripper.
+    const probe = composeSiteAnswer({ ...job, catalog: withModels(arm("probe_arm", 100)) })!;
+    const need = Math.max(...(probe.pick!.checks.find((check) => check.key === "payload")!.need!.match(/[\d.]+/g) ?? []).map(Number));
+    const tight = arm("tight_arm", Math.round(need * 1.03 * 100) / 100);
+    const tightAnswer = composeSiteAnswer({ ...job, catalog: withModels(settled, tight) })!;
+    expect(tightAnswer.pick!.modelId).toBe("tight_arm");
+    expect(tightAnswer.pick!.checks.find((check) => check.key === "payload")!.text).toMatch(/This is a tight fit\.$/);
+    expect(tightAnswer.runnerUp!.modelId).toBe("settled_rover");
+    const roomy = composeSiteAnswer({ ...job, catalog: withModels(settled, arm("roomy_arm", 30)) })!;
+    expect(roomy.pick!.modelId).toBe("roomy_arm");
+  });
+
+  it("keeps a moving robot that passes ahead of one with unknown heights when the spots are beyond a fixed arm", () => {
+    const settled = robot("settled_rover", "wheeled_humanoid", { top: 2.2, bottom: 0, payload: 30 });
+    const unknownHeights = robot("unknown_heights", "humanoid", { reach: 0.9, payload: 30 });
+    const answer = composeSiteAnswer({ ...measuredJob(0.8, 1.0, 3.0), catalog: withModels(unknownHeights, settled) })!;
+    expect(answer.pick!.modelId).toBe("settled_rover");
+    expect(answer.runnerUp!.modelId).toBe("unknown_heights");
+  });
+
+  it("labels a wheeled humanoid as one and links its listed working heights", () => {
+    const answer = composeSiteAnswer({ ...measuredJob(0.8, 1.2), catalog: withModels(robot("rover", "wheeled_humanoid", { top: 2.2, bottom: 0 })) })!;
+    expect(answer.pick!.formLabel).toBe("Wheeled humanoid");
+    expect(answer.pick!.specs).toContainEqual({ label: "Working height", display: "0–2.2 m", sourceUrl: "https://example.com/sheet.pdf" });
+  });
+});
+
+describe("sureness and a video that misses part of the work area", () => {
+  // The site's own numbers, a carry the reader saw, and production evidence: the top level when coverage allows.
+  const sited = (coverage: Record<string, unknown> | undefined) => {
+    const built = inputs({ estimates: estimates({ job_kind: "pick_and_place" }), measurements: measurements({ pick_to_place_distance: reading(1, "m", 1) }),
+      brief: { requestId: "job-1", summary: "Move cartons to the shelf", operatorTaskDetails: { item_weight: "4 kg" } } });
+    const { capture_coverage: _ignored, ...request } = built.request!;
+    return composeSiteAnswer({ ...built, request: coverage === undefined ? request : { ...request, capture_coverage: coverage } })!;
+  };
+
+  it("is never the top level when the stored review says the video does not show the whole work area, and says why", () => {
+    const short = sited({ covers_scene: false });
+    expect(short.confidence.level).toBe("fair");
+    expect(short.confidence.reasons).toContain("Your video does not show the whole work area.");
+    expect(short.unknowns).toContain("Your video does not show the whole work area.");
+  });
+
+  it("changes nothing when coverage is true or absent", () => {
+    for (const coverage of [{ covers_scene: true }, undefined]) {
+      const answer = sited(coverage);
+      expect(answer.confidence.level).toBe("good");
+      expect(answer.confidence.reasons).not.toContain("Your video does not show the whole work area.");
+    }
   });
 });
 
@@ -615,6 +824,8 @@ function mulberry32(seed: number) {
 
 describe("every sentence has a precondition in the data (generated inputs)", () => {
   const random = mulberry32(20261111);
+  // A second stream for the inputs added later (spot heights, coverage), so the first stream's jobs stay the same.
+  const added = mulberry32(20261112);
   const pick = <T,>(values: readonly T[]): T => values[Math.floor(random() * values.length)];
   const maybe = <T,>(value: () => T, chance = 0.5): T | null => (random() < chance ? value() : null);
   const between = (lo: number, hi: number) => Number((lo + random() * (hi - lo)).toFixed(3));
@@ -641,6 +852,8 @@ describe("every sentence has a precondition in the data (generated inputs)", () 
     }), 0.9);
     const readings: Record<string, ReturnType<typeof reading>> = {};
     if (random() < 0.3) { const metres = between(0.1, 4); readings.pick_to_place_distance = reading(metres, "m", metres); }
+    if (added() < 0.25) { const metres = Number((added() * 2.5).toFixed(3)); readings.pick_surface_height = reading(metres, "m", metres); }
+    if (added() < 0.25) { const metres = Number((added() * 2.5).toFixed(3)); readings.place_surface_height = reading(metres, "m", metres); }
     const summary = pick(SENTENCES);
     const rows = catalog.models.filter(() => random() < 0.3).map((model) => ({ name: model.name, manufacturer: model.manufacturer,
       verdict: pick(["fits", "fits_spec", "doesnt_fit", "unknown"] as const),
@@ -692,9 +905,49 @@ describe("every sentence has a precondition in the data (generated inputs)", () 
   });
 
   it("holds over a few thousand random jobs", () => {
-    const counts = { answers: 0, ready: 0, cannot: 0, passShown: 0, failShown: 0, good: 0, scene: 0 };
+    const counts = { answers: 0, ready: 0, cannot: 0, passShown: 0, failShown: 0, good: 0, scene: 0, figures: 0,
+      heightPass: 0, heightFail: 0, heightUnknown: 0, notCovered: 0 };
+    // The same job checked against the robots that move only, so their height checks reach the pick and the runner-up.
+    const moving = { ...catalog, models: catalog.models.filter((model) => model.body_type !== "fixed_arm") };
     for (let index = 0; index < 3000; index++) {
-      const answer = composeSiteAnswer(generated());
+      const job = generated();
+      // The same job when the stored review says the video misses part of the work area: never the top level, and it says why.
+      if (index % 3 === 0 && job.request) {
+        const short = composeSiteAnswer({ ...job, request: { ...job.request, capture_coverage: { covers_scene: false } } });
+        if (short?.pick) {
+          counts.notCovered++;
+          expect(short.confidence.level, `case ${index}`).not.toBe("good");
+          expect(short.confidence.reasons, `case ${index}`).toContain("Your video does not show the whole work area.");
+        }
+      }
+      const movers = composeSiteAnswer({ ...job, catalog: moving });
+      for (const robot of [movers?.pick, movers?.runnerUp]) {
+        const check = robot?.checks.find((entry) => entry.key === "reach");
+        if (!robot || !check || check.basis === "scene_measured") continue;
+        expect(check.measure, check.text).toBe("height");
+        expect(check.text, check.text).toMatch(/^Height: /);
+        expect(check.outcome, check.text).not.toBe("fail");
+        if (check.outcome === "pass") {
+          counts.heightPass++;
+          // Only both published ends and both heights settle it.
+          const model = moving.models.find((entry) => entry.model_id === robot.modelId)!;
+          expect(Boolean(model.figures.max_hand_height_m && model.figures.min_hand_height_m), check.text).toBe(true);
+          expect(movers!.facts.map((fact) => fact.label), check.text).toEqual(expect.arrayContaining(["Height where it is picked up", "Height where it is put down"]));
+        } else {
+          counts.heightUnknown++;
+          expect(check.text, check.text).toMatch(/(so we can't say yet|lists no working height|we don't know yet how high .+)\./);
+        }
+        for (const value of [check.need, check.has]) {
+          if (value === null || value === undefined) continue;
+          for (const part of value.replace(/^about /, "").split("–").map((entry) => entry.trim())) expect(check.text, value).toContain(part);
+        }
+      }
+      for (const row of movers?.ruledOut ?? []) {
+        if (!row.reason.startsWith("Height: ")) continue;
+        counts.heightFail++;
+        expect(row.reason).toMatch(/That is (above the highest|below the lowest) working height the maker lists\./);
+      }
+      const answer = composeSiteAnswer(job);
       if (!answer) continue;
       counts.answers++;
       const label = `case ${index}: ${answer.headline}`;
@@ -710,15 +963,32 @@ describe("every sentence has a precondition in the data (generated inputs)", () 
         if (robot.sceneChecked) counts.scene++;
         for (const check of robot.checks) {
           const figures = shown(check.text);
+          // A reach check says what it measured: heights for a robot that moves, the distance for an arm that stays put.
+          if (check.key === "reach") {
+            const model = catalog.models.find((entry) => entry.model_id === robot.modelId)!;
+            if (check.basis !== "scene_measured") expect(check.measure, check.text).toBe(model.body_type === "fixed_arm" ? "distance" : "height");
+            if (check.measure === "height") expect(check.text, label).toMatch(/^Height: /);
+          }
           if (figures && check.outcome === "pass") { expect(figures.hi, check.text).toBeLessThanOrEqual(figures.limit); counts.passShown++; }
           if (check.outcome !== "unknown") expect(check.basis, check.text).not.toBeNull();
           // An unknown with figures says why it is unknown, so it never reads as a pass or a fail.
           if (figures && check.outcome === "unknown") expect(check.text, check.text).toMatch(/so we can't say yet\.( This is a tight fit\.)?$/);
+          // The short figures are the sentence's own words: each one the page shows appears in the sentence as it stands.
+          for (const value of [check.need, check.has]) {
+            if (value === null || value === undefined) continue;
+            const said = value.replace(/^about /, "").split("–").map((part) => part.trim());
+            for (const part of said) expect(check.text, `${label}: ${value}`).toContain(part);
+            counts.figures++;
+          }
+          // A check decided in the scene has no figure for the job's side; one made from a distance or weight has both.
+          if (check.basis === "scene_measured") expect(check.need, check.text).toBeNull();
+          if (figures) { expect(check.need, check.text).toBeTruthy(); expect(check.has, check.text).toBeTruthy(); }
         }
       }
       // A ruled-out robot's reason is a failed check's sentence, and a fail never shows a need below the limit.
       for (const row of answer.ruledOut) {
-        expect(row.reason, label).toMatch(/^(Reach|Payload|Cycle time): /);
+        expect(row.reason, label).toMatch(/^(Reach|Height|Payload|Cycle time): /);
+        if (row.reason.startsWith("Height: ")) expect(row.reason, label).toMatch(/That is (above the highest|below the lowest) working height the maker lists\./);
         expect(row.reason, label).not.toMatch(NOT_A_FAIL);
         const figures = shown(row.reason);
         if (figures) { expect(figures.lo, row.reason).toBeGreaterThanOrEqual(figures.limit); counts.failShown++; }

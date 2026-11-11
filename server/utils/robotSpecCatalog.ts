@@ -23,12 +23,22 @@ export type SpecFigure = z.infer<typeof figureSchema>;
 
 const figures = z.record(z.string(), figureSchema.nullable());
 
+/** Every body type the catalog files a model under (the Pipeline's `BODY_TYPES`). */
+export const BODY_TYPES = ["fixed_arm", "mobile_manipulator", "humanoid", "wheeled_humanoid"] as const;
+
+/**
+ * Highest and lowest height above the floor the maker states the hand reaches, in metres. A robot that
+ * moves is checked on these, not on the distance between the spots. The lowest may be 0 (the floor);
+ * a fixed arm leaves both out.
+ */
+export const HAND_HEIGHT_FIGURES = { max: "max_hand_height_m", min: "min_hand_height_m" } as const;
+
 const modelSchema = z.object({
   model_id: z.string().regex(/^[a-z0-9_]{1,80}$/),
   recipe_id: z.string().nullable().optional(),
   manufacturer: z.string().min(1),
   name: z.string().min(1),
-  body_type: z.enum(["fixed_arm", "mobile_manipulator", "humanoid"]),
+  body_type: z.enum(BODY_TYPES),
   mounting: z.array(z.string()).optional(),
   figures,
   unknown_figures: z.record(z.string(), z.string()).optional(),

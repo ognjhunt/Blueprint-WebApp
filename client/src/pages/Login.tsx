@@ -160,7 +160,6 @@ export default function Login() {
     <AuthLayout>
       <SEO title="Sign in | Blueprint" description="Sign in to your Blueprint account to follow your site jobs and their results." canonical="/sign-in" noIndex />
       <h1>Sign in</h1>
-      <p className="auth-description">Welcome back to Blueprint.</p>
       <button type="button" className="auth-google" onClick={handleGoogleSignIn} disabled={isLoading || !googleReady}><GoogleMark />Continue with Google</button>
       <div className="auth-divider"><span>or</span></div>
       <form method="post" onSubmit={handleSubmit} className="auth-form" noValidate aria-label="Sign in" aria-busy={isLoading}>
@@ -177,7 +176,7 @@ export default function Login() {
         <a className="auth-forgot" href="/forgot-password">Forgot password?</a>
         <button type="submit" className="auth-primary" disabled={isLoading}>{isLoading ? <><Loader2 size={18} className="animate-spin" aria-hidden="true" />Signing in…</> : <>Sign in<ArrowRight size={18} aria-hidden="true" /></>}</button>
       </form>
-      <p className="auth-account-link">New to Blueprint? <a href="/contact/site-operator?source=sign-in">Show us a task</a></p>
+      <p className="auth-account-link">New to Blueprint? <a href="/contact/site-operator?source=sign-in">Start a job</a></p>
     </AuthLayout>
   );
 }

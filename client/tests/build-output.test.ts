@@ -49,12 +49,10 @@ describe("build output", () => {
       "index.html",
       "how-it-works/index.html",
       "beta/index.html",
-      "jobs-we-support/index.html",
       "partners/index.html",
       "partners/deployment/index.html",
       "partners/technology/index.html",
       "sites/index.html",
-      "about/index.html",
       "contact/robot-team/index.html",
       "contact/site-operator/index.html",
       "sign-in/index.html",
@@ -82,23 +80,14 @@ describe("build output", () => {
     expect(home).not.toMatch(/og:image" content="[^"]+\.webp"/);
   });
 
-  it("prerenders the visual warehouse walkthrough with its original assets and updated process", () => {
+  // Bare bones (2026-11-11): How it works is three steps; "Jobs we support" and "About" are not pages any more.
+  it("prerenders How it works as three steps, and no page for the folded addresses", () => {
     const html = fs.readFileSync(distPath("how-it-works/index.html"), "utf8");
-    const manifest = JSON.parse(fs.readFileSync("docs/design/warehouse-pilot-sequence-2026-10-06.json", "utf8"));
-    expect(html).toContain("Choose the approach that fits the job.");
-    expect(html).toContain("Fixed arms, humanoids, wheeled humanoids and mobile manipulators can all be considered if the specific setup is compatible.");
-    expect(html).toContain("Warehouse walkthrough contents");
-    expect(html).toContain("The video is required to reconstruct your site and run the evaluation.");
-    expect(html).toContain("Check the robots and compare policies in simulation.");
-    expect(html).toContain("See what works on your job.");
-    expect(html).not.toContain("Compare delivery proposals");
-    expect(html).not.toContain('id="evaluation-example"');
-    expect(html).not.toContain('id="match-package"');
-    for (const image of manifest.images) {
-      const assetPath = image.asset.replace(/^client\/public\//, "");
-      expect(fs.existsSync(distPath(assetPath))).toBe(true);
-      expect(html).toContain(`src="/${assetPath}"`);
-    }
+    expect(html).toContain("We test the top AI robots on your job");
+    expect(html).toContain("Find a company to set it up");
+    expect(html).not.toContain("Warehouse walkthrough contents");
+    expect(fs.existsSync(distPath("jobs-we-support/index.html"))).toBe(false);
+    expect(fs.existsSync(distPath("about/index.html"))).toBe(false);
   });
 
   it("prerenders the real auth forms in the shared minimal shell", () => {
@@ -190,10 +179,12 @@ describe("build output", () => {
   it("includes core public routes without fixture site detail pages in the sitemap", () => {
     const sitemap = fs.readFileSync(distPath("sitemap.xml"), "utf8");
 
-    ["/", "/how-it-works", "/beta", "/jobs-we-support", "/partners", "/partners/deployment", "/partners/technology", "/contact/site-operator", "/contact/robot-team", "/sites", "/about", "/privacy", "/terms", "/refunds"].forEach((route) => {
+    ["/", "/how-it-works", "/beta", "/partners", "/partners/deployment", "/partners/technology", "/contact/site-operator", "/contact/robot-team", "/sites", "/privacy", "/terms", "/refunds"].forEach((route) => {
       expect(sitemap).toContain(`<loc>https://tryblueprint.io${route}</loc>`);
     });
-    expect((sitemap.match(/<loc>/g) || []).length).toBe(14);
+    expect((sitemap.match(/<loc>/g) || []).length).toBe(12);
+    expect(sitemap).not.toContain("<loc>https://tryblueprint.io/jobs-we-support</loc>");
+    expect(sitemap).not.toContain("<loc>https://tryblueprint.io/about</loc>");
 
     [
       "https://tryblueprint.io/product",
@@ -251,21 +242,17 @@ describe("build output", () => {
     const homeHtml = fs.readFileSync(distPath("index.html"), "utf8");
     const siteHtml = fs.readFileSync(distPath("contact/site-operator/index.html"), "utf8");
     const robotHtml = fs.readFileSync(distPath("contact/robot-team/index.html"), "utf8");
-    expect(homeHtml).toContain("Find the right way to automate your work.");
-    expect(homeHtml).toContain("Start with a video; we draft the job description from it.");
-    expect(homeHtml).toContain("One job. One answer, tested in simulation.");
-    expect(homeHtml).toContain("Illustrative answer");
-    expect(homeHtml).not.toContain("One job. A clear pilot plan.");
-    expect(homeHtml).not.toContain("Quoted by the deployment company and agreed before the pilot");
-    expect(homeHtml).not.toContain("The same task, in simulation.");
-    expect(homeHtml).toContain("deployment companies Blueprint has approved");
-    expect(homeHtml).not.toContain("Review comparable proposals");
+    expect(homeHtml).toContain("Which robot could do your job?");
+    expect(homeHtml).toContain("We test the top AI robots on your job");
+    expect(homeHtml).toContain("Find a company to set it up");
     expect(homeHtml).toContain("Free during the beta");
-    // The default example is the packaging job; its simulation row is about the arm in a simulation of the site,
-    // and promises no cycle-time check the simulation does not make.
-    expect(homeHtml).toContain("A simulation of your site checks the arm’s reach and path on the stack");
-    expect(homeHtml).not.toContain("path and cycle time on the stack");
-    expect(homeHtml).not.toContain('aria-hidden="true">Book this pilot</span>');
+    expect(homeHtml).toContain("We check pick-up-and-put-down jobs. Not a test at your site, or a safety check.");
+    // The moving example is a small answer screen, marked as an example; it promises no cycle-time check.
+    expect(homeHtml).toContain("Did best on your job");
+    expect(homeHtml).toContain("The names, jobs and results are made up.");
+    expect(homeHtml).not.toContain("cycle time");
+    expect(homeHtml).not.toContain("One job. A clear pilot plan.");
+    expect(homeHtml).not.toContain("Review comparable proposals");
     // Organization and WebSite structured data ride on the homepage.
     expect(homeHtml).toContain('"@type":"Organization"');
     expect(homeHtml).toContain('"@type":"WebSite"');
@@ -278,26 +265,22 @@ describe("build output", () => {
     for (const file of ["index.html", "how-it-works/index.html", "contact/robot-team/index.html", "contact/site-operator/index.html"]) {
       expect(fs.readFileSync(distPath(file), "utf8")).not.toMatch(/two (?:compatible|frozen|candidates|policies)/i);
     }
-    expect(siteHtml).toContain("What work would you like automated?");
     // Device recovery must hydrate before an editable site form exists. The
     // dedicated browser intake lane checks its task/consent/required fields.
     // Static HTML must expose loading and cannot submit a fresh identity.
+    expect(siteHtml).toContain("Start a job");
     expect(siteHtml).toContain("Loading your account and saved draft");
     expect(siteHtml).not.toContain('aria-label="Start a site capture"');
     expect(siteHtml).not.toContain('id="start-task"');
-    expect(siteHtml).toContain("Send a video of one recurring job. We draft the job description from it, check real robot models against the job by their published specifications and test control policies on it in a simulation of your site.");
-    expect(siteHtml).toContain("Free during the beta; no budget is required to start.");
-    expect(siteHtml).toContain("How this works");
+    expect(siteHtml).not.toContain("How this works");
     // The country comes from the address; its select opens only to correct it.
     expect(siteHtml).not.toContain('id="start-region"');
     expect(siteHtml).not.toContain('id="start-name"');
     expect(siteHtml).not.toContain('id="start-description-authority"');
     expect(siteHtml).not.toContain('id="gate-sceneStability"');
     expect(siteHtml).not.toContain('id="gate-serviceArea"');
-    expect(robotHtml).toContain("Bring your capabilities to real jobs.");
-    expect(robotHtml).toContain("Your application remains pending until manual approval.");
-    expect(robotHtml).toContain("Illustrative scene · Robot configuration shown as an example.");
-    expect(robotHtml).toContain('class="robot-scene"');
+    expect(robotHtml).toContain("Apply to see jobs");
+    expect(robotHtml).toContain("We approve each company by hand and email you.");
     // The application is public; tasks and executable plans still wait for
     // server access approval.
     expect(robotHtml).not.toContain("Already have a robot policy to evaluate?");
@@ -308,7 +291,7 @@ describe("build output", () => {
     for (const route of ["index.html", "contact/site-operator/index.html", "contact/robot-team/index.html", "privacy/index.html", "terms/index.html"]) {
       const html = fs.readFileSync(distPath(route), "utf8");
       expect(html).toContain('class="minimal-site"');
-      expect(html).toContain('class="ms-footer ms-container"');
+      expect(html).toContain('class="bare-site-foot"');
     }
   });
 
@@ -337,12 +320,12 @@ describe("build output", () => {
     // above is reading the real public bundle, so removing one because the copy
     // moved would quietly make the whole check vacuous. "Site-funded Task
     // Evaluation Run" left the site page when it stopped leading with a screen.
-    expect(browserJavaScript).toContain("Find the right way to automate your work.");
-    expect(browserJavaScript).toContain("We analyze your video and draft a brief for you to correct.");
+    expect(browserJavaScript).toContain("Which robot could do your job?");
+    expect(browserJavaScript).toContain("We write this from your video if you leave it empty.");
   });
 
   it("keeps charting, Firebase and Sentry out of what a marketing page preloads", () => {
-    for (const page of ["index.html", "beta/index.html", "how-it-works/index.html", "about/index.html"]) {
+    for (const page of ["index.html", "beta/index.html", "how-it-works/index.html", "partners/index.html"]) {
       const html = fs.readFileSync(distPath(page), "utf8");
       const preloaded = [...html.matchAll(/(?:src|href)="\/assets\/([^"]+\.js)"/g)].map((match) => match[1]);
       expect(preloaded.length, page).toBeGreaterThan(0);
@@ -355,7 +338,7 @@ describe("build output", () => {
   it("writes the client route patterns outside the served directory for real 404s", () => {
     const file = path.resolve(process.cwd(), "dist", "app-route-patterns.json");
     const { patterns } = JSON.parse(fs.readFileSync(file, "utf8")) as { patterns: string[] };
-    expect(patterns).toEqual(expect.arrayContaining(["/", "/beta", "/about", "/sites", "/capture-upload/:token"]));
+    expect(patterns).toEqual(expect.arrayContaining(["/", "/beta", "/sites", "/capture-upload/:token"]));
     expect(fs.existsSync(distPath("app-route-patterns.json"))).toBe(false);
   });
 });

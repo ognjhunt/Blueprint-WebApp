@@ -3,7 +3,7 @@ import { RobotScene } from "@/components/site/PilotPreview";
 
 export function AuthLayout({ children, wide = false }: PropsWithChildren<{ wide?: boolean }>) {
   return (
-    <div className={`minimal-site auth-shell ${wide ? "auth-shell-wide" : ""}`}>
+    <div className={`minimal-site auth-shell auth-bare ${wide ? "auth-shell-wide" : ""}`}>
       <a className="ms-skip" href="#main-content">Skip to content</a>
       <header className="auth-header">
         <a className="ms-brand" href="/" aria-label="Blueprint home"><span className="ms-brand-mark" aria-hidden="true" />Blueprint</a>
@@ -11,6 +11,7 @@ export function AuthLayout({ children, wide = false }: PropsWithChildren<{ wide?
       <div className="auth-body">
         <main id="main-content" className="auth-content">{children}</main>
         <aside className="auth-art" aria-label="Illustrative robotics scene">
+          {/* Bare bones keeps the moving illustration: beside the form on a desktop, a short band above it on a phone. */}
           <RobotScene />
           <span>Illustrative scene</span>
         </aside>

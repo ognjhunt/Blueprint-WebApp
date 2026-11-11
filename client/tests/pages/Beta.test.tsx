@@ -2,39 +2,39 @@ import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
 import Beta from "@/pages/Beta";
 import { REPLY_TIMELINE } from "@/data/betaTimelines";
+import { COMPANY } from "@/data/company";
 
-describe("the beta page", () => {
-  it("gives a reply expectation without inventing evaluation or pilot dates", () => {
+// The Questions page (bare bones, 2026-11-11): the one details screen for the public pages, in short rows. It holds
+// what /beta, "Jobs we support" and "About" said.
+describe("the questions page", () => {
+  it("answers cost, reply time and who sets the robot up without inventing dates", () => {
     render(<Beta />);
-    const timing = screen.getByRole("heading", { name: "How long does it take?" }).closest("section")!;
-    expect(timing).toHaveTextContent(REPLY_TIMELINE);
-    expect(timing).toHaveTextContent(/does not reserve equipment or fix a pilot date/);
-    expect(screen.queryByText(/Evaluations start once an invited robot team/)).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Questions");
+    const beta = screen.getByRole("region", { name: "The beta" });
+    expect(beta).toHaveTextContent(REPLY_TIMELINE);
+    expect(beta).toHaveAttribute("id", "scope");
+    expect(beta).toHaveTextContent(/The beta is free for sites and partners\. Blueprint takes no cut of any work you agree\./);
+    expect(beta).toHaveTextContent(/You agree the price and terms with them\./);
+    expect(screen.getByRole("link", { name: "Refunds and cancellations" })).toHaveAttribute("href", "/refunds");
   });
 
-  // Owner direction, 2026-10-28: Blueprint runs the simulation itself and shows a bounded estimate or "held".
-  // Owner direction, 2026-11-11: the answer (spec check, sources, how sure) comes first, then what is tested in simulation.
-  it("says Blueprint answers from published specs, tests it in simulation and holds jobs it cannot simulate yet", () => {
+  it("says what is tested, that it is a simulation, and what it is not", () => {
     render(<Beta />);
-    const receive = screen.getByRole("heading", { name: "What do I receive?" }).closest("section")!;
-    expect(receive).toHaveTextContent(/run the policies ourselves in simulation\./);
-    // No unsourced claim about policies served through APIs or other robot configurations.
-    expect(receive).not.toHaveTextContent(/served through APIs|different robot configurations/);
-    expect(receive).toHaveTextContent(/its technology provider supplies it/);
-    expect(receive).toHaveTextContent(/An answer: the robot that most likely fits your job, a runner-up, what was ruled out and why, who already uses those robots for work like this \(with sources\) and how sure we are/);
-    expect(receive).toHaveTextContent(/tested in a simulation of your site: the picked robot's reach and arm path, how public control policies compared on your job on a research robot, and how much that result can be trusted/);
-    expect(receive).not.toHaveTextContent(/proof|did best/i);
-    expect(receive).toHaveTextContent(/We do not turn a job away because of its type.*“held”/);
-    expect(receive).not.toHaveTextContent(/screening runs|full scoring|delivery proposals|technology teams where their involvement is needed/i);
-    expect(screen.getByRole("article")).not.toHaveTextContent(/full evaluation|comparable proposals|join by invitation|book the pilot/i);
+    const answer = screen.getByRole("region", { name: "Your answer" });
+    expect(answer).toHaveTextContent(/What do you test\?\s*Robots driven by AI software that sees through cameras\. Not pre-programmed motion\./);
+    expect(answer).toHaveTextContent(/about ten tries/);
+    expect(answer).toHaveTextContent(/It does not certify performance or safety\./);
+    expect(answer).toHaveTextContent(/other jobs we keep and hold/);
+    expect(answer).not.toHaveTextContent(/proof|guarantee/i);
   });
 
-  it("keeps the free beta distinct from customer-approved physical delivery costs", () => {
+  it("keeps the video private, says how to stop, and says who we are", () => {
     render(<Beta />);
-    const costs = screen.getByRole("heading", { name: "What does it cost?" }).closest("section")!;
-    expect(costs).toHaveTextContent(/free for sites and partners/);
-    expect(costs).toHaveTextContent(/takes no cut of the pilot/);
-    expect(costs).toHaveTextContent(/you approve those costs and agree the contract directly/);
-    expect(screen.getByRole("link", { name: "Explore partner roles" })).toHaveAttribute("href", "/partners");
+    expect(screen.getByRole("region", { name: "Your video" })).toHaveTextContent(/Your video, address and contacts stay private\..*stop us using your video at any time/);
+    const who = screen.getByRole("region", { name: "Who we are" });
+    expect(who).toHaveAttribute("id", "who-we-are");
+    expect(who).toHaveTextContent(COMPANY.legalName);
+    expect(who).toHaveTextContent(COMPANY.mailingAddress);
+    expect(screen.getAllByRole("link", { name: "Start a job" })).toHaveLength(1);
   });
 });

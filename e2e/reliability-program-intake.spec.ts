@@ -4,7 +4,7 @@ import path from "node:path";
 
 /** The optional sentence: typing it confirms the brief (owner direction 2026-11-11). */
 async function fillJobDescription(page: import("@playwright/test").Page, value: string) {
-  await page.locator("#start-task").fill(value);
+  await page.getByRole("button", { name: "Add details (optional) ›" }).click(); await page.locator("#start-task").fill(value); await page.getByRole("button", { name: "Done", exact: true }).click();
 }
 const origin = "http://127.0.0.1:42879";
 const create = "/api/inbound-request";
@@ -16,11 +16,11 @@ const siteCreate = "/api/workspace/capture-start";
 /** A signed-in site account is not asked for an email. */
 async function fillSite(page: Page) {
   await fillJobDescription(page, "Move sealed cartons to the pallet");
-  await page.locator("#start-location").fill("Austin, TX");
+  await page.locator("#start-location").fill("Austin, TX"); await page.locator("#start-region").selectOption("us");
 }
 async function fill(page: Page) {
   await fillJobDescription(page, "Move sealed cartons to the pallet");
-  await page.locator("#start-location").fill("Austin, TX");
+  await page.locator("#start-location").fill("Austin, TX"); await page.locator("#start-region").selectOption("us");
   await page.locator("#start-email").fill("operator@example.test");
 }
 test.beforeEach(async ({ context }) => {
@@ -40,12 +40,12 @@ test("UI-RETURN-001 lost create response, reload, recover original identity", as
     return bodies.length === 1 ? route.abort() : route.fulfill({json: {captureUrl: fixtureLink}});
   });
   await page.goto("/contact/site-operator"); await fill(page);
-  await page.getByRole("button", {name: "Start free assessment"}).click();
+  await page.getByRole("button", { name: /^(Send video|Next: film the job|Save my job)$/ }).click();
   await expect(page.getByRole("alert")).toContainText("could not reach");
   await page.reload();
   await expect(page.locator("#start-task")).toHaveValue("Move sealed cartons to the pallet");
   await page.getByRole("button", {name: "Recover saved job"}).click();
-  await expect(page.getByRole("link", {name: "Open your job page"})).toHaveAttribute("href", fixtureLink);
+  await expect(page.getByRole("link", {name: "Open my job page ›"})).toHaveAttribute("href", fixtureLink);
   expect(bodies).toHaveLength(2); expect(bodies[1]).toBe(bodies[0]);
 });
 test("UI-RETURN-002 close tab and return preserves draft, without renewing consent", async ({ page, context }) => {
@@ -61,8 +61,8 @@ test("UI-RETURN-003 browser storage restore returns acknowledged same job and re
   const bodies: string[] = [];
   await page.route(`**${create}`, route => {bodies.push(route.request().postData()!); return route.fulfill({json: {captureUrl: fixtureLink}});});
   await page.goto("/contact/site-operator"); await fill(page);
-  await page.getByRole("button", {name: "Start free assessment"}).click();
-  await expect(page.getByRole("link", {name: "Open your job page"})).toBeVisible();
+  await page.getByRole("button", { name: /^(Send video|Next: film the job|Save my job)$/ }).click();
+  await expect(page.getByRole("link", {name: "Open my job page ›"})).toBeVisible();
   const saved = await page.context().storageState();
   // New context models browser shutdown with persisted origin localStorage.
   const restored = await browser.newContext({storageState: saved});
@@ -76,7 +76,7 @@ test("UI-RETURN-003 browser storage restore returns acknowledged same job and re
   });
   const returning = await restored.newPage(); await returning.goto(`${origin}/contact/site-operator`);
   await returning.getByRole("button", {name: "Return to saved job"}).click();
-  await expect(returning.getByRole("link", {name: "Open your job page"})).toHaveAttribute("href", "/capture-upload/renewed-fixture");
+  await expect(returning.getByRole("link", {name: "Open my job page ›"})).toHaveAttribute("href", "/capture-upload/renewed-fixture");
   expect(bodies[1]).toBe(bodies[0]); await restored.close();
 });
 test("UI-RETURN-004 authoring routes cannot inherit a different provider's draft or consent", async ({ page }) => {
@@ -89,7 +89,7 @@ test("UI-RETURN-004 authoring routes cannot inherit a different provider's draft
 test("UI-INTAKE-001 validation failure body stays visible and fields remain repairable", async ({ page }) => {
   await page.route(`**${create}`, route => route.fulfill({status: 400, json: {message: "Describe one recurring job before saving."}}));
   await page.goto("/contact/site-operator"); await fill(page);
-  await page.getByRole("button", {name: "Start free assessment"}).click();
+  await page.getByRole("button", { name: /^(Send video|Next: film the job|Save my job)$/ }).click();
   await expect(page.getByRole("alert")).toHaveText("Describe one recurring job before saving.");
   await expect(page.locator("#start-task")).toBeEnabled();
   await fillJobDescription(page, "Corrected task");
@@ -98,18 +98,18 @@ test("UI-INTAKE-002 double click slow create dispatches one logical submission",
   let count = 0; let finish!: () => void; const wait = new Promise<void>(resolve => {finish = resolve;});
   await page.route(`**${create}`, async route => { count++; await wait; return route.fulfill({json: {captureUrl: fixtureLink}}); });
   await page.goto("/contact/site-operator"); await fill(page);
-  await page.getByRole("button", {name: "Start free assessment"}).dblclick();
+  await page.getByRole("button", { name: /^(Send video|Next: film the job|Save my job)$/ }).dblclick();
   await expect(page.getByRole("button", {name: "Working…"})).toBeDisabled();
-  finish(); await expect(page.getByRole("link", {name: "Open your job page"})).toBeVisible(); expect(count).toBe(1);
+  finish(); await expect(page.getByRole("link", {name: "Open my job page ›"})).toBeVisible(); expect(count).toBe(1);
 });
 test("UI-ACCESS-001 denied status cannot masquerade as upload receipt", async ({ page }) => {
   await page.route(`**${create}`, route => route.fulfill({json: {captureUrl: fixtureLink}}));
   await page.route("**/api/site-task-brief/reliability-fixture/status", route => route.fulfill({json: {captureReceived: true, status: {stage: "footage_received", headline: "Footage hint"}}}));
   await page.route("**/api/self-capture/uploads/reliability-fixture/status", route => route.fulfill({status: 403, json: {state: "ready", captureReceived: true, uploadState: "processing_ready"}}));
   await page.goto("/contact/site-operator"); await fill(page);
-  await page.getByRole("button", {name: "Start free assessment"}).click();
-  await expect(page.getByRole("heading", {name: "Film the work area."})).toBeVisible();
-  await expect(page.getByRole("heading", {name: "Your recording is in."})).toHaveCount(0);
+  await page.getByRole("button", { name: /^(Send video|Next: film the job|Save my job)$/ }).click();
+  await expect(page.getByRole("heading", {name: "Now film the job."})).toBeVisible();
+  await expect(page.getByRole("heading", {name: "We have your video."})).toHaveCount(0);
 });
 
 for (const width of [1440, 390]) {
@@ -143,20 +143,20 @@ for (const width of [1440, 390]) {
     await page.setViewportSize({width, height: 1000});
     await page.goto(`${siteOrigin}/contact/site-operator`);
     await page.getByRole("button", {name: "Reject all", exact: true}).click();
-    await expect(page.getByRole("heading", {name: "What work would you like automated?", exact: true})).toBeVisible();
+    await expect(page.getByRole("heading", {name: "Start a job", exact: true})).toBeVisible();
     await page.screenshot({path: info.outputPath(`intake-before-upload-${width}.png`), fullPage: true});
     await fillSite(page);
 
-    await page.locator("#start-method-upload").check();
+    await page.locator("#start-method-upload").click();
     await page.locator("#start-footage").setInputFiles(path.resolve("e2e/fixtures/synthetic-transport.mp4"));
-    await page.getByRole("button", {name: "Start free assessment", exact: true}).click();
+    await page.getByRole("button", { name: /^(Send video|Next: film the job|Save my job)$/ }).click();
     await expect.poll(() => uploads).toBe(1);
-    await expect(page.getByRole("heading", {name: "Your saved job", exact: true})).toBeVisible();
+    await expect(page.getByRole("button", {name: /^Uploading video/})).toBeVisible();
     await page.screenshot({path: info.outputPath(`intake-uploading-${width}.png`), fullPage: true});
     releaseUpload();
-    await expect(page.getByRole("heading", {name: "Your recording is in.", exact: true})).toBeVisible();
-    await expect(page.getByRole("link", {name: "Open your job and assessment", exact: true})).toHaveAttribute("href", fixtureLink);
-    await expect(page.getByRole("link",{name:"Open your job and assessment",exact:true})).toBeVisible();
+    await expect(page.getByRole("heading", {name: "We have your video.", exact: true})).toBeVisible();
+    await expect(page.getByRole("link", {name: "Open my job", exact: true})).toHaveAttribute("href", fixtureLink);
+    await expect(page.getByRole("link",{name:"Open my job",exact:true})).toBeVisible();
     // The site sends its video and nothing else (founder direction, 2026-10-20): after upload it is asked nothing,
     // and the assessment's caveats and proposed steps stay with Blueprint.
     await expect(page.getByText("Generic assessment caveat")).toHaveCount(0);
@@ -173,17 +173,17 @@ for (const width of [1440, 390]) {
     await expect(page.getByRole("heading", {name: "What would a good result look like?", exact: true})).toHaveCount(0);
     await expect(page.getByRole("link", {name: "Contact Blueprint about this job"})).toHaveCount(0);
     // With nothing to answer, opening the job is the page's one action, so it keeps the filled button.
-    await expect(page.getByRole("link", {name: "Open your job and assessment", exact: true})).toHaveCSS("background-color", "rgb(32, 61, 46)");
+    await expect(page.getByRole("link", {name: "Open my job", exact: true})).toHaveCSS("background-color", "rgb(32, 61, 46)");
     await page.screenshot({path: info.outputPath(`intake-video-only-${width}-local-fixture.png`), fullPage: true});
     await page.reload();
-    await expect(page.getByRole("heading", {name: "Your saved job", exact: true})).toBeVisible();
+    await expect(page.getByText("Your job is saved. Return to the same job to check its current status.", {exact: true})).toBeVisible();
     await page.getByRole("button", {name: "Return to saved job", exact: true}).click();
-    await expect(page.getByRole("heading", {name: "Your recording is in.", exact: true})).toBeVisible();
+    await expect(page.getByRole("heading", {name: "We have your video.", exact: true})).toBeVisible();
     expect(uploads).toBe(1);
     await expect(page.getByRole("textbox", {name: "Your answers", exact: true})).toHaveCount(0);
     expect(clarificationRequests).toBe(0);
     expect(followUpRequests).toBe(0);
-    await expect(page.getByRole("link", {name: "Open your job and assessment", exact: true})).toHaveCSS("background-color", "rgb(32, 61, 46)");
+    await expect(page.getByRole("link", {name: "Open my job", exact: true})).toHaveCSS("background-color", "rgb(32, 61, 46)");
     await page.screenshot({path: info.outputPath(`intake-video-only-returned-${width}-local-fixture.png`), fullPage: true});
   });
 }
@@ -202,11 +202,11 @@ test("UI-CROSS-TAB-001 concurrent Start with delayed storage events shares exact
   await fill(first);await fill(second);await fillJobDescription(second, "A different stale-tab task");
   // Hold create replies until both normal UI submissions are in flight. This
   // avoids cached CSRF tokens and racing two physical page clicks.
-  await first.getByRole("button",{name:"Start free assessment"}).click();
+  await first.getByRole("button",{ name: /^(Send video|Next: film the job|Save my job)$/ }).click();
   await expect(first.getByRole("button",{name:"Working…"})).toBeVisible();
-  await second.getByRole("button",{name:"Start free assessment"}).click();
-  await expect(first.getByRole("link",{name:"Open your job page"})).toBeVisible();
-  await expect(second.getByRole("link",{name:"Open your job page"})).toBeVisible();
+  await second.getByRole("button",{ name: /^(Send video|Next: film the job|Save my job)$/ }).click();
+  await expect(first.getByRole("link",{name:"Open my job page ›"})).toBeVisible();
+  await expect(second.getByRole("link",{name:"Open my job page ›"})).toBeVisible();
   expect(bodies).toHaveLength(2);expect(bodies[1]).toBe(bodies[0]);
   expect(await first.evaluate(()=>Object.entries(localStorage).find(([key])=>key.startsWith("bp-site-capture:"))?.[1]))
     .toBe(await second.evaluate(()=>Object.entries(localStorage).find(([key])=>key.startsWith("bp-site-capture:"))?.[1]));
@@ -219,12 +219,12 @@ test("UI-CROSS-TAB-002 stale edits after lost response preserve winner across re
   await context.route(`**${create}`,route=>{bodies.push(route.request().postData()!);return bodies.length===1?route.abort():route.fulfill({json:{captureUrl:fixtureLink}});});
   await Promise.all([first.goto(`${origin}/contact/site-operator`),second.goto(`${origin}/contact/site-operator`)]);
   await fill(first);await fill(second);
-  await first.getByRole("button",{name:"Start free assessment"}).click();await expect(first.getByRole("alert")).toBeVisible();
+  await first.getByRole("button",{ name: /^(Send video|Next: film the job|Save my job)$/ }).click();await expect(first.getByRole("alert")).toBeVisible();
   // Only the text: the stale tab adopts the frozen submission as soon as it saves, and its box is then locked.
-  await second.locator("#start-task").fill("Stale edits must not replace frozen task");
+  await second.getByRole("button", { name: "Add details (optional) ›" }).click(); await second.locator("#start-task").fill("Stale edits must not replace frozen task"); await second.getByRole("button", { name: "Done", exact: true }).click();
   await second.reload();await expect(second.locator("#start-task")).toHaveValue("Move sealed cartons to the pallet");
   await second.getByRole("button",{name:"Recover saved job"}).click();
-  await expect(second.getByRole("link",{name:"Open your job page"})).toBeVisible();
+  await expect(second.getByRole("link",{name:"Open my job page ›"})).toBeVisible();
   expect(bodies).toHaveLength(2);expect(bodies[1]).toBe(bodies[0]);
 });
 
@@ -236,7 +236,7 @@ test("UI-CROSS-TAB-003 clear in another tab survives an old acknowledgement befo
     return route.fulfill({json:{captureUrl:fixtureLink}});
   });
   await Promise.all([first.goto(`${origin}/contact/site-operator`),second.goto(`${origin}/contact/site-operator`)]);
-  await fill(first);await first.getByRole("button",{name:"Start free assessment"}).click();
+  await fill(first);await first.getByRole("button",{ name: /^(Send video|Next: film the job|Save my job)$/ }).click();
   await expect(first.getByRole("button",{name:"Working…"})).toBeVisible();
   await expect(second.getByRole("button",{name:"Recover saved job"})).toBeVisible();
   await second.getByRole("button",{name:"Clear this browser's draft"}).click();
@@ -258,7 +258,7 @@ test("UI-CROSS-TAB-003 clear in another tab survives an old acknowledgement befo
   const fresh=await snapshot();finish();
   // A retired generation cannot retain an acknowledgement or present success.
   await expect(first.getByRole("alert")).toContainText("could not retain its confirmation");
-  await expect(first.getByRole("link",{name:"Open your job page"})).toHaveCount(0);
+  await expect(first.getByRole("link",{name:"Open my job page ›"})).toHaveCount(0);
   expect((await snapshot()).requestId).toBe(fresh.requestId);expect((await snapshot()).pending).toBeNull();
   expect(await snapshot()).toEqual(fresh);expect(await durableSnapshot()).toEqual(fresh);
   await second.reload();await expect(second.locator("#start-task")).toHaveValue("An explicitly new job after clearing");
@@ -267,8 +267,8 @@ test("UI-CROSS-TAB-003 clear in another tab survives an old acknowledgement befo
   await expect.poll(async()=>await durableSnapshot()).toEqual(await snapshot());
   // A phone capture has no recording grant to restore, so none appears here.
   await expect(second.locator("#start-rights")).toHaveCount(0);
-  await second.getByRole("button",{name:"Start free assessment"}).click();
-  await expect(second.getByRole("link",{name:"Open your job page"})).toBeVisible();
+  await second.getByRole("button",{ name: /^(Send video|Next: film the job|Save my job)$/ }).click();
+  await expect(second.getByRole("link",{name:"Open my job page ›"})).toBeVisible();
   expect(bodies).toHaveLength(2);expect(JSON.parse(bodies[1]).requestId).toBe(fresh.requestId);
   expect(JSON.parse(bodies[1]).requestId).not.toBe(JSON.parse(bodies[0]).requestId);
   expect(JSON.parse(bodies[1]).taskStatement).toBe("An explicitly new job after clearing");
@@ -281,8 +281,8 @@ test("UI-CROSS-TAB-004 missing browser coordination has a fresh-customer next st
   await page.goto("/contact/site-operator");
   await expect(page.getByRole("status").filter({hasText:"could not safely check"})).toContainText("supported browser with local storage enabled");
   await expect(page.locator("#start-task")).toHaveCount(0);
-  await expect(page.getByRole("button",{name:"Start free assessment"})).toHaveCount(0);
-  await expect(page.getByRole("link",{name:"Talk to a person"})).toHaveAttribute("href","mailto:hello@tryblueprint.io");
+  await expect(page.getByRole("button",{ name: /^(Send video|Next: film the job|Save my job)$/ })).toHaveCount(0);
+  await expect(page.getByRole("link",{name:"Talk to a person ›"})).toHaveAttribute("href","mailto:hello@tryblueprint.io");
   expect(posts).toBe(0);
 });
 
@@ -311,8 +311,8 @@ test("UI-RETURN-005 real browser termination during video transport returns to t
   try {
     const page=await first.newPage();await page.goto(`${siteOrigin}/contact/site-operator`);await fillSite(page);
 
-    await page.locator("#start-method-upload").check();await page.locator("#start-footage").setInputFiles(video);
-    await page.getByRole("button",{name:"Start free assessment",exact:true}).click();
+    await page.locator("#start-method-upload").click();await page.locator("#start-footage").setInputFiles(video);
+    await page.getByRole("button",{ name: /^(Send video|Next: film the job|Save my job)$/ }).click();
     await uploading; const saved=await first.storageState();
     await firstBrowser.close();
     const resumedBrowser=await chromium.launch(launch);const resumed=await resumedBrowser.newContext({storageState:saved});
@@ -332,7 +332,7 @@ test("UI-RETURN-005 real browser termination during video transport returns to t
       await returning.getByRole("button",{name:"Return to saved job"}).click();
       await expect(returning.getByRole("link",{name:"Open the uploader"})).toHaveAttribute("href",`${fixtureLink}?video=existing`);
       expect(bodies).toHaveLength(2);expect(bodies[1]).toBe(bodies[0]);expect(repeatedUploads).toBe(0);
-      await expect(returning.getByRole("heading",{name:"Your recording is in."})).toHaveCount(0);
+      await expect(returning.getByRole("heading",{name:"We have your video."})).toHaveCount(0);
     } finally {await resumedBrowser.close();}
   } finally {await firstBrowser.close();}
 });
@@ -373,7 +373,7 @@ test("UI-CLEAR-001 acknowledged clear commits both stores before reload",async({
   await expect(page.getByRole("status").filter({hasText:"Clearing this browser's draft"})).toBeVisible();
   await expect(page.getByRole("button",{name:"Clearing…",exact:true})).toBeDisabled();
   await expect(page.locator("#start-task")).toBeDisabled();
-  await expect(page.getByRole("button",{name:"Start free assessment"})).toBeDisabled();
+  await expect(page.getByRole("button",{ name: /^(Send video|Next: film the job|Save my job)$/ })).toBeDisabled();
   await expect(page.getByRole("status").filter({hasText:"has been cleared"})).toHaveCount(0);
   expect(await recoveryMirrors(page)).toEqual(original);
   await lock.release();await expect(page.getByRole("status").filter({hasText:"has been cleared"})).toBeVisible();

@@ -185,9 +185,14 @@ test("desktop owner opens video capture with one status and explicit public card
   await expect(page.getByRole("button", { name: "Open the camera" })).toHaveCount(0);
   const upload = await page.getByRole("button", { name: "Upload a video file" }).boundingBox();
   const instruction = await page.getByText("Already have the recording on this computer? Upload a .mov or .mp4 file.").boundingBox();
-  expect(upload!.y - instruction!.y).toBeLessThan(110);
+  // The upload is its own group (round 5 rhythm): its line, the footage notice and the button, 16 px apart. The button
+  // stays right under its two lines, never pushed down the page (rewritten from < 110 px, which predates the rhythm).
+  expect(upload!.y - instruction!.y).toBeLessThan(140);
+  expect(upload!.y).toBeGreaterThan(instruction!.y + instruction!.height + 15);
   await screenshot(page, "desktop-capture");
-  await page.getByText("Manage opportunity sharing (optional)", { exact: true }).click();
+  // Sharing is a job setting: one quiet link from the capture page, then its row.
+  await page.getByRole("button", { name: "Job settings ›" }).click();
+  await page.getByText("Share settings", { exact: true }).click();
   const form = page.getByRole("form", { name: "Public job card" });
   await form.getByLabel("Describe the job without naming your site").fill(card.title);
   await form.getByLabel("Job type", { exact: true }).fill("Palletizing");
@@ -228,19 +233,20 @@ for (const mobile of [false, true]) test(`${mobile ? "phone" : "desktop"}: video
   const page = await context.newPage(); const mutations = await fixtures(page);
   await page.goto("/contact/site-operator");
   const form = page.getByRole("form", { name: "Start a site capture" });
-  await expect(form.getByRole("group", { name: "How will we see the task?" })).toBeVisible();
+  await expect(form.getByRole("heading", { level: 1, name: "Start a job" })).toBeVisible();
   await expect(form.locator("#start-task")).toHaveValue("");
-  await expect(form.locator("#start-task")).toBeVisible();
-  await form.locator("#start-task").fill("Pick up each packed carton and place it at the end of the table");
+  await expect(form.locator("#start-task")).toBeAttached();
+  await form.getByRole("button", { name: "Add details (optional) ›" }).click(); await form.locator("#start-task").fill("Pick up each packed carton and place it at the end of the table"); await form.getByRole("button", { name: "Done", exact: true }).click();
   await form.locator("#start-location").fill("Chicago, Illinois");
   await form.locator("#start-email").fill("owner@example.test");
   await expect(form.locator("#start-rights")).toHaveCount(0);
-  await expect(form.locator("#start-region")).toHaveCount(0);
-  await form.getByRole("button", { name: "Start free assessment", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Film the work area.", exact: true })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Open your job and assessment", exact: true })).toHaveCount(0);
-  await expect(page.getByRole("link", { name: mobile ? "Open the camera" : "Open your job page", exact: true })).toBeVisible();
-  await expect(page.getByRole("img", { name: "Point your phone at this to film" })).toHaveCount(mobile ? 0 : 1);
+  // Typed text is never read for a country (the privacy gate): the site chooses it.
+  await form.locator("#start-region").selectOption("us");
+  await form.getByRole("button", { name: /^(Send video|Next: film the job|Save my job)$/ }).click();
+  await expect(page.getByRole("heading", { name: "Now film the job.", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Open my job", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: mobile ? "Open the camera" : "Open my job page ›", exact: true })).toBeVisible();
+  await expect(page.getByRole("img", { name: "Point your phone's camera at this code to film" })).toHaveCount(mobile ? 0 : 1);
   expect(mutations.find(mutation => mutation.path === "/api/inbound-request")?.body).toMatchObject({
     taskStatement: "Pick up each packed carton and place it at the end of the table",
     taskDescription: "Pick up each packed carton and place it at the end of the table",

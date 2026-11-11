@@ -11,7 +11,8 @@
  * older card checkbox does not mention the answer, so a card listed or re-saved
  * under it never carries one, and an `introduction_request` stored before the
  * statement was recorded never does either. Who may see the card at all is still `teamJobAccess`; this never
- * widens it.
+ * widens it. A test result (or any simulation line) goes on the card only under v3, the statement that names later
+ * test results (`jobCardTestResultShared`); under v1 or v2 the card carries the paper check.
  *
  * ## What it carries
  *
@@ -27,7 +28,9 @@
  */
 import type { AnswerRobot, SiteAnswer } from "../../client/src/lib/siteAnswer";
 import type { JobCardAnswerRobot, JobCardAnswerSummary } from "../../client/src/types/taskBrowse";
-import { isJobCardAnswerStatementVersion } from "../../client/src/lib/jobCardAnswerConsent";
+import { isJobCardAnswerStatementVersion, jobCardStatementSharesTestResults } from "../../client/src/lib/jobCardAnswerConsent";
+import { testHeadline, testResultOf, type SimulationProof } from "../../client/src/lib/simulationProof";
+import { TIGHT_FIT_SENTENCE } from "../../client/src/lib/siteAnswer";
 import { logger } from "../logger";
 
 /**
@@ -45,6 +48,16 @@ export function jobCardAnswerShared(record: unknown): boolean {
     && Boolean(listing) && isJobCardAnswerStatementVersion(listing!.consentVersion);
 }
 
+/**
+ * The site agreed to share later test results: its recorded choice and the card's current consent are both v3.
+ * Under v1 or v2 the card carries the paper check only, never a test result, even one that arrives later.
+ */
+export function jobCardTestResultShared(record: unknown): boolean {
+  const stored = record as { introduction_request?: Record<string, unknown>; public_task_listing?: Record<string, unknown> } | null | undefined;
+  return jobCardAnswerShared(record) && jobCardStatementSharesTestResults(stored?.introduction_request?.statement_version)
+    && jobCardStatementSharesTestResults(stored?.public_task_listing?.consentVersion);
+}
+
 const SITE_WORDS: Array<[RegExp, string]> = [
   [/\bjobs like yours\b/g, "jobs like this one"],
   [/\byour two spots\b/g, "the two spots"],
@@ -55,6 +68,7 @@ const SITE_WORDS: Array<[RegExp, string]> = [
   [/\bYour job\b/g, "The job"],
   [/\byour job\b/g, "the job"],
   [/\byour (video|work area|scene)\b/g, "the site's $1"],
+  [/\bYour (video|work area|scene)\b/g, "The site's $1"],
 ];
 /** The answer's sentence said about the site, for a company reading the card. */
 export function aboutTheSite(sentence: string): string {
@@ -74,6 +88,13 @@ function robotOf(robot: AnswerRobot | null): JobCardAnswerRobot | null {
   if (!robot) return null;
   return {
     manufacturer: robot.manufacturer, name: robot.name, verdictLabel: VERDICT_LABELS[robot.verdict] ?? "May fit",
+    // Outcomes and figures only (a number and its unit, each at most a few words): the sentences say the site's
+    // words ("your two spots") and stay on the site's page.
+    checks: robot.checks.map(({ key, outcome, need, has, text }) => ({ key, outcome,
+      // A passed check with little to spare: its sentence ends so (the composer's "tight fit").
+      tight: outcome === "pass" && typeof text === "string" && text.endsWith(` ${TIGHT_FIT_SENTENCE}`),
+      need: typeof need === "string" && /^[^a-z]*\d[\d\s.,–-]*(cm|m|kg|s)$/i.test(need.replace(/^about /, "")) ? need : null,
+      has: typeof has === "string" && /^[^a-z]*\d[\d\s.,–-]*(cm|m|kg|s)$/i.test(has.replace(/^about /, "")) ? has : null })),
     specs: robot.specs.filter(spec => httpsUrl(spec.sourceUrl)).slice(0, 2)
       .map(({ label, display, sourceUrl }) => ({ label, display, sourceUrl })),
     evidence: robot.evidence.filter(row => httpsUrl(row.sourceUrl)).slice(0, 2)
@@ -83,11 +104,24 @@ function robotOf(robot: AnswerRobot | null): JobCardAnswerRobot | null {
 }
 
 /** The card's answer from the site's answer. Pure. Null while the answer is not settled. */
-export function projectJobCardAnswer(answer: SiteAnswer | null, simulation: string | null = null): JobCardAnswerSummary | null {
+export function projectJobCardAnswer(answer: SiteAnswer | null, simulation: string | null = null,
+  proof: SimulationProof | null = null): JobCardAnswerSummary | null {
   if (!answer || (answer.state !== "ready" && answer.state !== "cannot_assess")) return null;
   const firstReason = answer.confidence.reasons[0];
+  // The card carries the headline the site sees: the simulation test's result when there is one, else the paper check.
+  const result = answer.state === "ready" ? testResultOf(proof) : null;
+  const test: JobCardAnswerSummary["test"] = result ? {
+    kind: result.kind, wording: result.kind === "winner" ? result.wording : null,
+    entered: result.kind === "testing" ? result.entered : proof!.options.entered,
+    setupFlag: result.kind === "testing" ? false : result.setupFlag,
+    options: proof!.options.options.map(option => ({ label: option.label, maker: option.maker, succeeded: option.succeeded,
+      scored: option.scored, furthestText: option.furthestText })),
+  } : null;
+  const headline = testHeadline(result);
   return {
-    headline: aboutTheSite(answer.headline),
+    headline: aboutTheSite(headline ?? answer.headline),
+    test,
+    sceneNote: answer.state === "ready" && answer.sceneNote ? aboutTheSite(answer.sceneNote).replace(/\byour own measurement\b/g, "the site's own measurement") : null,
     familyLabel: answer.job.familyLabel,
     // Sizes, weights and distances only: a figure with its unit, never words about the site.
     facts: answer.facts.filter(fact => /\d/.test(fact.display) && fact.display.length <= 60)
@@ -97,21 +131,15 @@ export function projectJobCardAnswer(answer: SiteAnswer | null, simulation: stri
     confidence: { level: answer.confidence.level, reason: firstReason ? aboutTheSite(firstReason) : null },
     unknowns: answer.unknowns.map(line => line.startsWith(OTHER_OBJECTS) ? "How many different objects the job handles." : line)
       .map(aboutTheSite),
-    simulation: simulation ? aboutTheSite(simulation) : null,
+    simulation: simulation && !result ? aboutTheSite(simulation) : null,
     note: aboutTheSite(answer.note),
   };
 }
 
 /** The headline alone, for the browse list. */
 export async function loadJobCardAnswerHeadline(id: string, record: unknown): Promise<string | null> {
-  if (!jobCardAnswerShared(record)) return null;
-  try {
-    const { loadSiteAnswer } = await import("./siteAnswer");
-    return projectJobCardAnswer(await loadSiteAnswer(id))?.headline ?? null;
-  } catch (error) {
-    logger.warn({ error, requestId: id }, "Could not compose the answer headline for a job card");
-    return null;
-  }
+  // The library's line is the card's own headline, the test result when there is one.
+  return (await loadJobCardAnswer(id, record))?.headline ?? null;
 }
 
 /**
@@ -125,16 +153,19 @@ export async function loadJobCardAnswer(id: string, record: unknown): Promise<Jo
     const answer = await loadSiteAnswer(id);
     if (!answer) return null;
     let simulation: string | null = null;
+    let proof: SimulationProof | null = null;
+    // Under v1 or v2 the card is the paper check: no test result and no simulation line.
+    if (!jobCardTestResultShared(record)) return projectJobCardAnswer(answer, null, null);
     try {
       const [{ readSiteManagedEvidence }, { projectSimulationProof }] = await Promise.all([
         import("./siteManagedEvidence"), import("../../client/src/lib/simulationProof")]);
       const { managedEvidence } = await readSiteManagedEvidence(id);
-      const proof = projectSimulationProof({ evaluation: managedEvidence as never, pick: answer.pick });
+      proof = projectSimulationProof({ evaluation: managedEvidence as never, pick: answer.pick });
       simulation = proof.state === "not_started" ? null : proof.headline;
     } catch (error) {
       logger.warn({ error, requestId: id }, "Could not read the simulation line for a job card");
     }
-    return projectJobCardAnswer(answer, simulation);
+    return projectJobCardAnswer(answer, simulation, proof);
   } catch (error) {
     logger.warn({ error, requestId: id }, "Could not compose the answer for a job card");
     return null;

@@ -21,13 +21,13 @@
 .job-simulation > summary .ms-field-hint { margin-top: 4px; }
 /* The site's answer, at the top of its job page. */
 .site-answer { margin: 0 0 28px; padding-bottom: 8px; color: var(--ms-ink, #19241e); overflow-wrap: break-word; }
-.site-answer h2 { margin: 0 0 6px; font-size: 15px; font-weight: 650; letter-spacing: 0; color: var(--ms-muted, #62645d); }
+.site-answer h2 { margin: 0 0 2px; font-size: 12px; font-weight: 650; letter-spacing: .6px; text-transform: uppercase; color: var(--ms-muted, #62645d); }
 .site-answer h3 { margin: 0 0 8px; font-size: 19px; letter-spacing: -.25px; }
 .site-answer h4 { margin: 16px 0 6px; font-size: 15px; font-weight: 600; }
 .site-answer p, .site-answer li { line-height: 1.6; }
 .site-answer ul { margin: 6px 0 0; padding-left: 20px; list-style: disc; }
 .site-answer li + li { margin-top: 4px; }
-.site-answer .site-answer-headline { margin: 0 0 12px; font-size: 24px; line-height: 1.3; font-weight: 600; letter-spacing: -.4px; }
+.site-answer .site-answer-headline { margin: 0 0 10px; font-size: 22px; line-height: 1.25; font-weight: 600; letter-spacing: -.3px; }
 .site-answer-robot { border: 1px solid var(--ms-rule, #babdb3); background: var(--ms-paper, #f6f5ef); padding: 18px; margin: 16px 0; }
 .site-answer-robot .ms-field-hint, .site-answer-runner-up .ms-field-hint { margin: 0 0 8px; }
 .site-answer .job-eyebrow { margin: 0 0 4px; font-size: 12px; font-weight: 650; text-transform: uppercase; letter-spacing: .6px; color: var(--ms-muted, #62645d); }
@@ -58,3 +58,65 @@
 .site-answer-proof .site-proof-for-job { margin: 12px 0 0; font-weight: 600; }
 .site-answer-standalone { margin: 0 0 20px; padding: 0; }
 .site-answer-next .site-answer-consent { margin: 10px 0 0; }
+
+/* The answer said once and short (2026-11-11): chips, reasons, notices, one action, then closed folds. */
+.site-answer .site-answer-job { margin: -4px 0 14px; font-size: 15px; line-height: 1.45; color: var(--ms-muted, #62645d); }
+.site-answer-inline { display: inline; min-height: 0; padding: 0; border: 0; background: none; font: inherit; color: var(--ms-ink, #19241e); text-decoration: underline; cursor: pointer; }
+.site-answer-pick { margin: 0; }
+.site-answer ul.site-answer-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 10px; padding: 0; list-style: none; }
+.site-answer-chips li { margin: 0; padding: 2px 10px; border: 1px solid var(--ms-rule, #babdb3); border-radius: 999px; font-size: 13px; font-weight: 500; line-height: 1.6; }
+.site-answer li.site-answer-chips + li { margin-top: 0; }
+.site-answer ul.site-answer-reasons { margin: 0 0 4px; padding: 0; list-style: none; }
+.site-answer-reason { display: flex; gap: 8px; padding: 2px 0; font-size: 15px; line-height: 1.5; }
+.site-answer li.site-answer-reason + li { margin-top: 0; }
+.site-answer-mark { flex: 0 0 16px; font-weight: 700; color: var(--ms-green, #203d2e); }
+.site-answer-reason-open .site-answer-mark, .site-answer-reason-none .site-answer-mark, .site-answer-reason-info .site-answer-mark { color: var(--ms-muted, #62645d); }
+.site-answer .site-answer-basis { margin: 0 0 10px; font-size: 13px; }
+/* Lines that change what the answer means: a rule and a tint, and the words themselves say it. */
+.site-answer ul.site-answer-notices { margin: 8px 0 12px; padding: 0; list-style: none; }
+.site-answer-notices li, .site-answer .site-answer-notice { margin: 0 0 6px; padding: 8px 10px; border-left: 3px solid #8a6d1f; background: #f3eedf; font-size: 15px; line-height: 1.5; }
+.site-answer .site-answer-next { margin: 14px 0 0; }
+.site-answer .site-answer-primary { width: 100%; min-height: 48px; font-size: 15px; }
+.site-answer-quiet-button { display: inline-flex; align-items: center; min-height: 44px; padding: 0; border: 0; background: none; font: inherit; font-size: 15px; color: var(--ms-ink, #19241e); text-decoration: underline; cursor: pointer; }
+.site-answer-quiet-button:focus-visible, .site-answer-inline:focus-visible { outline: 2px solid var(--ms-green, #31583f); outline-offset: 3px; }
+.site-answer .site-answer-consent { margin: 6px 0 0; font-size: 13px; line-height: 1.45; }
+.site-answer .site-answer-limits { margin: 10px 0 14px; font-size: 13px; line-height: 1.45; }
+.site-answer .site-answer-next p[role="status"] { margin: 0 0 4px; }
+.site-fold { border-top: 1px solid var(--ms-rule, #babdb3); }
+/* A run of folds closes with a rule under its last one. */
+.site-answer > .site-fold:last-of-type, .site-answer-proof > .site-fold:last-of-type, .site-answer-pick > .site-fold { border-bottom: 1px solid var(--ms-rule, #babdb3); }
+.site-fold > summary { display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 8px 0; cursor: pointer; list-style: none; font-size: 15px; font-weight: 600; line-height: 1.35; }
+.site-fold > summary::-webkit-details-marker { display: none; }
+.site-fold > summary::after { content: "+"; flex: 0 0 auto; margin-left: 4px; font-size: 20px; font-weight: 400; line-height: 1; color: var(--ms-muted, #62645d); }
+.site-fold[open] > summary::after { content: "−"; }
+.site-fold > summary:focus-visible { outline: 2px solid var(--ms-green, #31583f); outline-offset: 2px; }
+.site-fold-title { flex: 1 1 auto; }
+.site-fold-count { flex: 0 1 auto; font-size: 13px; font-weight: 400; color: var(--ms-muted, #62645d); text-align: right; }
+.site-fold-body { padding: 0 0 14px; font-size: 15px; }
+.site-fold-body > h3 { margin: 4px 0 6px; font-size: 17px; }
+.site-fold-body > h4 { margin: 12px 0 6px; font-size: 15px; font-weight: 600; }
+.site-answer dl.site-answer-facts { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 4px 12px; margin: 0 0 10px; }
+.site-answer-facts div { display: contents; }
+.site-answer-facts dt { color: var(--ms-muted, #62645d); }
+.site-answer-facts dd { margin: 0; }
+/* The simulation block, inside the answer: a heading, its sentences, then folds. */
+.site-answer .site-answer-proof { border: 0; background: none; padding: 0; margin: 22px 0 0; }
+.site-answer .site-answer-proof > h3 { margin: 0 0 4px; font-size: 17px; font-weight: 600; }
+.site-answer .site-answer-proof .site-proof-headline { font-size: 15px; font-weight: 500; }
+.site-answer-standalone .site-answer-proof { border: 1px solid var(--ms-rule, #babdb3); background: var(--ms-paper, #f6f5ef); padding: 18px; }
+/* Every optional control, together, in one quiet list under the answer. */
+.job-more { margin: 28px 0 0; }
+/* Saved, with no answer yet: the same controls in their older places, without the list's rules. */
+.job-more.job-more-plain details, .job-more.job-more-plain .job-more-row { border-bottom: 0; }
+.job-more > h2 { margin: 0 0 2px; font-size: 12px; font-weight: 650; letter-spacing: .6px; text-transform: uppercase; color: var(--ms-muted, #62645d); }
+.job-more details, .job-more .job-more-row { margin: 0 !important; padding: 0; border: 0; border-bottom: 1px solid #dcdcd4; }
+.job-more summary { display: block; min-height: 44px; padding: 11px 0; cursor: pointer; line-height: 1.4; font-weight: 400; }
+.job-more summary .ms-field-hint { display: inline; padding-left: 8px; font-size: 13px; font-weight: 400; }
+.job-more > p, .job-more > form { margin: 0; padding: 11px 0; border-bottom: 1px solid #dcdcd4; }
+.job-more .job-more-row { display: flex; align-items: center; min-height: 44px; }
+.job-more .job-workspace { margin: 0; padding: 0; border: 0; }
+.job-more .job-workspace .job-planning-details { margin: 0; padding: 0; border-block: 0; border-bottom: 1px solid #dcdcd4; }
+.job-more section[aria-label="Recording permission"] { margin-top: 0 !important; }
+/* "How to film ›": a quiet link that opens the how-to in place. */
+.bare-how-to > summary { display: inline-flex; align-items: center; min-height: 44px; cursor: pointer; list-style: none; text-decoration: underline; text-underline-offset: 4px; }
+.bare-how-to > summary::-webkit-details-marker { display: none; }

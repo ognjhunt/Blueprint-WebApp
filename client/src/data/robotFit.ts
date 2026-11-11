@@ -37,7 +37,8 @@ export const ROBOT_FORM_COPY: Record<RatedForm, RobotFormCopy> = {
     arms: 1, moves: "no" },
   bimanual_arm: { label: "Two arms on a fixed stand", description: "Two robot arms working together from one fixed spot.",
     arms: 2, moves: "no" },
-  mobile_manipulator: { label: "Arm on a wheeled base", description: "A robot arm on a base that drives between spots.",
+  // The catalog files any arm on a base that moves here, on wheels or on legs (Spot), so the words say "moves".
+  mobile_manipulator: { label: "Arm on a base that moves", description: "A robot arm on a base that moves between spots.",
     arms: 1, moves: "wheels" },
   wheeled_humanoid: { label: "Wheeled humanoid", description: "A human-like upper body with two arms, on a wheeled base.",
     arms: 2, moves: "wheels" },

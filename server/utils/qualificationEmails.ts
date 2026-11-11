@@ -81,28 +81,26 @@ export function buildNotYetEmail(params: {
 }): QualificationEmail {
   const { firstName, siteName, triage } = params;
   const blockers = triage.blockers.filter(Boolean);
+  // Screening says "not now" only when a gate blocks (`triageGateAnswers`), so a reply always has a condition to
+  // name; one without would end on an empty list, and is never built.
+  if (!blockers.length) throw new Error("not_yet_email_without_blockers");
   const site = siteName?.trim();
+  const counted = blockers.length === 1 ? "One of our screening conditions does not hold"
+    : `${blockers.length === 2 ? "Two" : blockers.length === 3 ? "Three" : blockers.length} of our screening conditions do not hold`;
 
   const subject = "Your job, and what would have to change";
 
+  // Bare bones (2026-11-11): one idea, the list, and the one thing the site can do.
   const body = [
     emailGreeting(firstNameOf(firstName)),
     "",
     site
-      ? `Thanks for describing the job at ${site}. We screen every site against four conditions before anyone commits engineering time, and this one does not clear all four today.`
-      : "Thanks for describing the job. We screen every site against four conditions before anyone commits engineering time, and this one does not clear all four today.",
+      ? `Thanks for describing the job at ${site}. ${counted} there today:`
+      : `Thanks for describing the job. ${counted} at the site today:`,
     "",
-    blockers.length
-      ? "Specifically:"
-      : "One of the screening conditions does not hold at the site today.",
-    blockers.length ? "" : "",
-    blockers.length ? bulletList(blockers) : "",
+    bulletList(blockers),
     "",
-    "That is a not-yet rather than a no, and the distinction is real. Each of those is a condition that can be engineered into place — it is work someone can decide to fund, and sites do. If any of it changes, reply to this email and we will pick the job back up from where it is now rather than starting over.",
-    "",
-    "We are keeping the job on file either way. No call needed for this answer — there is nothing a conversation would settle that the list above has not.",
-    "",
-    "Thanks for the detail you sent. It was more than most.",
+    "That is a not-yet rather than a no. We keep your job on file; if any of this changes, reply to this email and we pick it back up. No call needed.",
     "",
     EMAIL_SIGN_OFF,
   ]
@@ -133,21 +131,18 @@ export function buildTaskNotYetSupportedEmail(params: {
   const body = [
     emailGreeting(firstNameOf(params.firstName)),
     "",
-    site ? `Thanks for confirming the job brief for ${site}.` : "Thanks for confirming your job brief.",
     taskScopeReasonSentence(params.reason),
     "",
     "Today our simulation can score these kinds of job:",
     bulletList(SUPPORTED_TASK_LINES),
     "",
     unclear
-      ? "We need to clarify the job before admitting it to this simulation route. Your job stays on file; we are not promising an evaluation yet."
-      : "We have accepted your job and are holding it while we prepare an evaluation for its kind. Jobs like yours "
-        + "decide what we build next, and we will email you when we can evaluate it. This does not "
-        + "establish whether a robot could do the work.",
+      ? "We need to clarify the job before we can test it. Your job stays on file."
+      : "We have accepted your job and are holding it while we prepare an evaluation for its kind. We email you when we can evaluate it.",
     "",
     unclear
       ? `${notYet.nextStep}${params.jobUrl ? ` Your job page: ${params.jobUrl}` : ""}`
-      : `${params.reason === "multi_step" ? `${notYet.nextStep} ` : ""}If we read your job wrong, reply to this email.${params.jobUrl ? ` Your job page shows the same: ${params.jobUrl}` : ""}`,
+      : `${params.reason === "multi_step" ? `${notYet.nextStep} ` : ""}If we read your job wrong, reply to this email.${params.jobUrl ? ` Your job page: ${params.jobUrl}` : ""}`,
     "",
     EMAIL_SIGN_OFF,
   ].join("\n");
@@ -201,33 +196,20 @@ export function buildLetsTalkEmail(params: {
   const body = [
     emailGreeting(firstNameOf(firstName)),
     "",
-    site
-      ? `Thanks for describing the job at ${site}. It clears the conditions that can end a submission outright, and there ${openQuestions.length === 1 ? "is one thing" : `are ${openQuestions.length || "a few"} things`} a form genuinely cannot settle.`
-      : `Thanks for describing the job. It clears the conditions that can end a submission outright, and there ${openQuestions.length === 1 ? "is one thing" : `are ${openQuestions.length || "a few"} things`} a form genuinely cannot settle.`,
-    "",
     openQuestions.length
-      ? footageAnswers
-        ? "Here is what we could not tell from the form:"
-        : "Here is the agenda, so the call is short:"
-      : "",
-    openQuestions.length ? "" : "",
+      ? footageAnswers ? "Here is what we could not tell from the form:" : "Here is the agenda, so the call is short:"
+      : "There are a few things a form cannot settle.",
+    "",
     openQuestions.length ? bulletList(openQuestions) : "",
     "",
-    triage.incomplete
-      ? "A couple of the screening questions were left blank, so we will confirm those too rather than assuming."
-      : "",
+    triage.incomplete ? "Some screening questions were left blank, so we will confirm those too." : "",
     "",
     footageAnswers
-      ? "You do not need to book anything to settle this. Film that one work area on a phone for about 45 seconds and send it back — every question above is about the room itself, and the video shows it better than either of us could describe it."
-      : `Thirty minutes, and you can book whenever suits: ${calendly}`,
-    "",
-    footageAnswers
-      ? "If you would rather talk it through first, reply and we will find a time."
-      : "If reading that list makes the answer obvious on your side, tell us and we will save us both the call.",
+      ? "Film that one work area on a phone for about 45 seconds and send it back. Or reply, and we will find a time to talk."
+      : `Book thirty minutes whenever suits: ${calendly} If the list makes the answer obvious on your side, tell us and we will save us both the call.`,
     "",
     EMAIL_SIGN_OFF,
   ]
-    .filter(Boolean)
     .filter((line, index, all) => !(line === "" && all[index - 1] === ""))
     .join("\n");
 
@@ -330,24 +312,18 @@ export function buildQualifiedEmail(params: {
     qualifiedNextStepLine(params.nextStep, calendly),
     "",
     params.accountNeeded
-      ? "Before sending footage or preparing a site-specific evaluation, create and verify your site account from your job page."
+      ? "Before sending footage, create and verify your site account from your job page."
       : "",
     "",
-    "How we help you make the decision:",
+    params.nextStep?.kind === "self_capture" ? "We need your video before the site assessment can start." : "",
     "",
-    bulletList(params.jobCardPublished === false ? [
-      "We review the job brief, required output and site constraints with you. We need your video before the site assessment. We analyze it, draft the brief, build a simulation of your work area and test robots and policies on your job ourselves.",
-      "Your job card is not published, so partners cannot discover it through the shared library. We ask before sharing details with any partner.",
-      "You can publish its card from your job page when you want approved partners to see it. The card shows only the anonymized text you approve.",
-      "Any physical pilot is agreed with the deployment company: its scope, price, timing and acceptance criteria.",
-    ] : [
-      "We review the job brief, required output and site constraints with you.",
-      "We need your video for the site assessment. We analyze it, draft the brief, build a simulation of your work area and test robots and policies on your job ourselves.",
-      "You see which robot most likely fits and how control policies compared on your job in the simulation, including whether one was clearly ahead, or “held” if we can't simulate that kind of job yet. If nothing fits, we explain what is missing.",
-      "You can then share the job with deployment companies we have approved. You agree any physical pilot's scope, price, timing and acceptance criteria directly with that company.",
-    ]),
+    params.jobCardPublished === false
+      ? "Your job card is not published, so partners cannot discover it through the shared library. We ask before sharing details with any partner. You can publish its card from your job page when you want approved partners to see it."
+      : "",
     "",
-    "Blueprint's assessment and coordination are free during the beta, and Blueprint takes no cut of a physical pilot. You agree any physical work and its cost directly with the deployment company. A simulation result is an estimate; it never certifies how a robot will perform at your site or that it will be safe there.",
+    "You then see which robot most likely fits and which did best in the simulation, or “held” if we can't simulate that kind of job yet. You can then share the job with deployment companies we have approved. You agree any physical pilot's scope, price, timing and acceptance criteria directly with that company.",
+    "",
+    "Free during the beta. A simulation result is an estimate; it never certifies how a robot will perform at your site or that it will be safe there.",
     "",
     EMAIL_SIGN_OFF,
   ]
@@ -385,6 +361,8 @@ export function buildQualificationEmail(params: {
   if (!triage) return null;
 
   if (triage.disposition === "not_now") {
+    // A record without a stored blocker (from before blockers were kept) has nothing to name: send nothing.
+    if (!triage.blockers.some(Boolean)) return null;
     return buildNotYetEmail({
       firstName: params.firstName,
       siteName: params.siteName,

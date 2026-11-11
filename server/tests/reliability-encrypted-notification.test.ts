@@ -116,7 +116,7 @@ describe("scene-ready recipient encryption boundary", () => {
     if (["encrypted", "legacy_plaintext"].includes(mode)) {
       expect(outbox).toHaveLength(1);
       expect(outbox[0][1]).toMatchObject({ to: EMAIL, kind: "scene_ready", status: "sent", attempts: 1 });
-      expect(outbox[0][1].body).toMatch(/your scene is ready/i);
+      expect(outbox[0][1].body).toMatch(/look around the work area you filmed/i);
       expect(mocks.send).toHaveBeenCalledTimes(1);
     } else {
       expect(outbox).toHaveLength(0); expect(mocks.send).not.toHaveBeenCalled();

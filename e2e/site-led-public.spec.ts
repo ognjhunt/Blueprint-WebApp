@@ -19,11 +19,11 @@ for (const viewport of [{ width: 1536, height: 1024 }, { width: 390, height: 844
       errors.push(error.message);
     });
     for (const [name, path, heading] of [
-      ["home", "/", "Find the right way to automate your work."],
-      ["how", "/how-it-works", "Start with your task."],
-      ["beta", "/beta", "Start with one real job."],
-      ["site", "/contact/site-operator", "What work would you like automated?"],
-      ["robot", "/contact/robot-team", "Bring your capabilities to real jobs."],
+      ["home", "/", "Which robot could do your job?"],
+      ["how", "/how-it-works", "How it works"],
+      ["beta", "/beta", "Questions"],
+      ["site", "/contact/site-operator", "Start a job"],
+      ["robot", "/contact/robot-team", "Apply to see jobs"],
       ["privacy", "/privacy", "Privacy Policy"],
       ["terms", "/terms", "Terms of Service"],
       ["not-found", "/this-page-does-not-exist", "That page isn’t here."],
@@ -32,7 +32,7 @@ for (const viewport of [{ width: 1536, height: 1024 }, { width: 390, height: 844
       await expect(page.locator("h1")).toContainText(heading);
       await expect(page.locator(".minimal-site")).toHaveCSS("background-color", "rgb(246, 245, 239)");
       await expect(page.getByRole("link", { name: "Blueprint home" })).toHaveCSS("color", "rgb(34, 37, 30)");
-      await expect(page.locator(".ms-footer")).toBeVisible();
+      await expect(page.locator(".bare-site-foot")).toBeVisible();
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       for (const image of await page.locator('img[loading="lazy"]').all()) {
         await image.scrollIntoViewIfNeeded();
@@ -57,23 +57,16 @@ test("the Terms and Privacy Policy link to the previous versions, which stay pub
   }
 });
 
-test("mobile navigation works and the method steps are visible without a click", async ({ page }) => {
+// Bare bones (2026-11-11): no menu; the page's own quiet links lead on, and the steps are visible without a click.
+test("on a phone the steps are visible without a click and How it works is one quiet link away", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
-  await page.getByRole("button", { name: "Open menu" }).click();
-  const nav = page.getByRole("navigation", { name: "Mobile navigation" });
-  await expect(nav).toBeVisible();
-  await expect(nav.getByRole("link", { name: "For partners" })).toHaveAttribute("href", "/partners");
-  await nav.getByRole("link", { name: "How it works" }).focus();
-  await page.keyboard.press("Escape");
-  await expect(nav).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Open menu" })).toBeFocused();
-  await page.getByRole("button", { name: "Open menu" }).click();
-  await page.getByRole("navigation", { name: "Mobile navigation" }).getByRole("link", { name: "How it works" }).click();
+  await expect(page.getByRole("button", { name: "Open menu" })).toHaveCount(0);
+  await expect(page.getByRole("list", { name: "How it works" })).toBeVisible();
+  await page.getByRole("link", { name: "How it works ›" }).click();
   await expect(page).toHaveURL(/\/how-it-works$/);
-  await expect(page.locator("h1")).toContainText("Start with your task.");
-  await page.goto("/");
-  await expect(page.getByText("Share an anonymised job card, with the answer and the simulation result, with deployment companies Blueprint has approved. You agree any pilot directly with one of them.")).toBeVisible();
+  await expect(page.locator("h1")).toHaveText("How it works");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
 test("old marketing links resolve to the minimal website without losing source context", async ({ page }) => {
@@ -86,24 +79,12 @@ test("old marketing links resolve to the minimal website without losing source c
   await expect(page).toHaveURL(/\/contact\/site-operator/);
 });
 
-test("the site page puts the capture form before the explanation, on a phone too", async ({ page }) => {
+test("the site page is the start form alone, on a phone too", async ({ page }) => {
   for (const viewport of [{ width: 1536, height: 1024 }, { width: 390, height: 844 }]) {
     await page.setViewportSize(viewport);
     await page.goto("/contact/site-operator");
-    const form = page.getByRole("form", { name: "Start a site capture" });
-    await expect(form).toBeVisible();
-    const how = page.getByText("How this works", { exact: true });
-    await expect(how).toBeVisible();
-    // Form above the disclosure, and the disclosure closed.
-    // Prerendered markup is replaced during hydration; wait for both boxes
-    // in the same poll instead of reading across that replacement.
-    await expect.poll(async () => {
-      const formBox = await form.boundingBox();
-      const howBox = await how.boundingBox();
-      return formBox !== null && howBox !== null && formBox.y < howBox.y;
-    }).toBe(true);
-    expect(await how.evaluate((node) => (node.closest("details") as HTMLDetailsElement).open)).toBe(false);
-    // Nothing from the old screen.
+    await expect(page.getByRole("form", { name: "Start a site capture" })).toBeVisible();
+    await expect(page.getByText("How this works", { exact: true })).toHaveCount(0);
     await expect(page.locator("#gate-sceneStability")).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Send inquiry" })).toHaveCount(0);
   }
@@ -112,11 +93,11 @@ test("the site page puts the capture form before the explanation, on a phone too
 test("old pricing reaches the free beta page with one CTA", async ({ page }) => {
   await page.goto("/pricing?source=legacy-review#scope");
   await expect(page).toHaveURL(/\/beta\?source=legacy-review#scope$/);
-  await expect(page.locator("h1")).toHaveText("Start with one real job.");
-  await expect(page.getByText(/The beta is free for sites and partners/)).toBeVisible();
-  await expect(page.getByText(/you approve those costs and agree the contract directly/)).toBeVisible();
-  await expect(page.locator("article .ms-button")).toHaveCount(1);
-  await expect(page.locator("article").getByRole("link", { name: "Submit a job" })).toHaveAttribute("href", "/contact/site-operator?source=beta");
-  await expect(page.locator("article")).not.toContainText("$2,500");
+  await expect(page.locator("h1")).toHaveText("Questions");
+  await expect(page.getByText(/The beta is free for sites and partners\./)).toBeVisible();
+  await expect(page.getByText(/You agree the price and terms with them\./)).toBeVisible();
+  await expect(page.locator("main .bare-button")).toHaveCount(1);
+  await expect(page.locator("main").getByRole("link", { name: "Start a job" })).toHaveAttribute("href", "/contact/site-operator?source=beta");
+  await expect(page.locator("main")).not.toContainText("$2,500");
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", "https://tryblueprint.io/beta");
 });

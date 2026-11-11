@@ -48,3 +48,15 @@ export const SIMULATION_ACCURACY: SimulationAccuracy = {
   ],
   retrievedOn: "2026-11-11",
 };
+
+/**
+ * The same published figures and conditions as `SIMULATION_ACCURACY`, in short labelled rows for the job page's
+ * "How far to trust it" screen. Each row restates one clause of `statement` or `conditions`; nothing is added.
+ */
+export const SIMULATION_ACCURACY_ROWS: ReadonlyArray<{ label: string; value: string }> = [
+  { label: "Picked the better", value: "In published tests on research robots, a simulation built from a scan of the scene picked the better of two policies in 8 of 9 comparisons." },
+  { label: "Scores", value: "Simulated scores tracked real ones closely: a correlation of about 0.9 on average." },
+  { label: "Poor scan", value: "With a damaged or thinned-out scan, it fell to 7 or 6 of 9." },
+  { label: "Those tests used", value: "Research robots and AI policies, carefully scanned scenes, most with printed markers for the true size; one tuned the simulated robot's motion to the real one." },
+  { label: "Otherwise", value: "Where those conditions do not hold, agreement can be lower." },
+];

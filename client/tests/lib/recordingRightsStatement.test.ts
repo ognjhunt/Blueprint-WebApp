@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   RECORDING_RIGHTS_STATEMENT,
+  RECORDING_RIGHTS_STATEMENT_SHORT,
+  RECORDING_RIGHTS_STATEMENT_SHORT_VERSION,
   RECORDING_RIGHTS_STATEMENT_VERSION,
   RECORDING_RIGHTS_STATEMENT_VERSIONS,
   isRecordingRightsStatementVersion,
@@ -21,10 +23,19 @@ describe("recording-rights statement", () => {
     );
   });
 
-  it("accepts exactly v1 and v2, so v1 records and older pages stay valid", () => {
-    expect(RECORDING_RIGHTS_STATEMENT_VERSIONS).toEqual(["2026-09-18.v1", "2026-11-02.v2"]);
+  // The start form's one line under "Send video" (owner, 2026-11-11) is what the site sees where it presses, so it is
+  // its own version; the full v2 sentence is one tap away, word for word.
+  it("pins the start form's one line to its own version", () => {
+    expect(RECORDING_RIGHTS_STATEMENT_SHORT_VERSION).toBe("2026-11-11.v3");
+    expect(RECORDING_RIGHTS_STATEMENT_SHORT).toBe(
+      "By sending, you agree to our Terms and Privacy Policy and confirm you're allowed to film and share this site.",
+    );
+  });
+
+  it("accepts exactly v1, v2 and the start form's v3, so older records and pages stay valid", () => {
+    expect(RECORDING_RIGHTS_STATEMENT_VERSIONS).toEqual(["2026-09-18.v1", "2026-11-02.v2", "2026-11-11.v3"]);
     for (const version of RECORDING_RIGHTS_STATEMENT_VERSIONS) expect(isRecordingRightsStatementVersion(version)).toBe(true);
-    for (const other of ["2026-11-02.v3", "2026-09-18.v2", "2026-11-02.V2", " 2026-11-02.v2", "2026-11-02.v2 ", "",
+    for (const other of ["2026-11-02.v3", "2026-11-11.v2", "2026-09-18.v2", "2026-11-02.V2", " 2026-11-02.v2", "2026-11-02.v2 ", "",
       "2026-10-06.v1", "2026-09-24.v1", null, undefined, 2, ["2026-11-02.v2"], { version: "2026-11-02.v2" }]) {
       expect(isRecordingRightsStatementVersion(other)).toBe(false);
     }

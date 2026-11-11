@@ -109,6 +109,9 @@ export function draftedTaskStatement(output: { proposed_task_statement?: string 
   return screenTaskScope({ summary: statement }).supported ? statement : null;
 }
 
+/** Why a read waited rather than failed: another call for the same capture holds its one-at-a-time budget. */
+export type CoverageWaitReason = "coverage_budget_call_in_flight" | "coverage_call_running";
+
 export async function reviewCaptureCoverage(params: {
   /** Compatibility input; coverage findings no longer request customer action. */
   notifyOwner?: boolean;
@@ -118,6 +121,12 @@ export async function reviewCaptureCoverage(params: {
   requestId: string;
   sceneId: string;
   captureId: string;
+  /**
+   * Told when the read did not happen because another model call for the same capture is in flight (its budget
+   * record allows one at a time) or a retained read is still running. That is a wait, not a failed attempt: the
+   * queue does not count it against the retry limit.
+   */
+  onWaiting?: (reason: CoverageWaitReason) => void;
 }): Promise<CoverageFinding | null> {
   if (!isSiteVideoEvidenceEnabled()) return null;
 
@@ -165,7 +174,10 @@ export async function reviewCaptureCoverage(params: {
           if (parsed.success) { output = parsed.data; break; }
         }
       }
-      if (!output && retained.docs.some(row => row.data().task_kind === "capture_coverage" && row.data().status === "running")) return null;
+      if (!output && retained.docs.some(row => row.data().task_kind === "capture_coverage" && row.data().status === "running")) {
+        params.onWaiting?.("coverage_call_running");
+        return null;
+      }
     }
     if (!output) {
     const result = await runAgentTask<CaptureCoverageInput, CaptureCoverageOutput>({
@@ -183,6 +195,11 @@ export async function reviewCaptureCoverage(params: {
     output = (result?.output as CaptureCoverageOutput) ?? null;
     }
   } catch (error) {
+    if (/coverage_budget_call_in_flight/.test(String((error as Error)?.message ?? error))) {
+      logger.info({ ...params }, "Coverage review waits: another model call for this capture is in flight");
+      params.onWaiting?.("coverage_budget_call_in_flight");
+      return null;
+    }
     logger.warn({ error, ...params }, "Coverage review failed");
     return null;
   }

@@ -1,8 +1,14 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { User } from "firebase/auth";
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
-import { ANSWER_CONFIDENCE_LABELS, EVIDENCE_LEVEL_LABELS, evidenceScopeLabel, type AnswerBasis, type AnswerEvidence } from "@/lib/siteAnswer";
+import { EVIDENCE_LEVEL_LABELS, JOB_CARD_LIMITS, JOB_CARD_LIMITS_TESTED, JOB_CARD_LIMITS_TESTING, SURENESS_STEPS, evidenceScopeLabel, type AnswerBasis, type AnswerEvidence } from "@/lib/siteAnswer";
+import { BareBack, BareBig, BareFine, BareNotice, BareParts, BareGroup, BareLead, BareLinks, BareRows, BareSureness, BareTicks } from "@/components/bare/Bare";
+import { liftUpTo, ticksOf } from "./SiteAnswer";
+import { optionParts } from "@/lib/simulationProof";
 import type { JobCardAnswerRobot, JobCardAnswerSummary, TaskCardDetail } from "@/types/taskBrowse";
+
+/** The site's set-up notice, said about the site for a company reading the card. */
+const CARD_SETUP_CAVEAT = "This result may come from how we set up the simulation of the site, not from the robots.";
 
 export const JOB_CARD_ANSWER_TITLE = "Blueprint's answer for this job";
 
@@ -27,51 +33,123 @@ function SourceLink({ evidence }: { evidence: AnswerEvidence }) {
   </a>;
 }
 
-function Robot({ robot, role }: { robot: JobCardAnswerRobot; role: "Pick" | "Runner-up" }) {
-  return <article className={role === "Pick" ? "site-answer-robot" : "site-answer-runner-up"} aria-label={role}>
-    <p className="job-eyebrow">{role}</p>
-    <h4>{robot.manufacturer} {robot.name}</h4>
-    <p className="site-answer-verdict">{robot.verdictLabel}</p>
-    {robot.specs.length > 0 && <p className="site-answer-specs">Published figures:{" "}
-      {robot.specs.map((spec, index) => <span key={spec.label}>{index > 0 && " · "}{spec.label} {spec.display}{" "}
-        (<a className="ms-text-link" href={spec.sourceUrl} target="_blank" rel="noreferrer">source</a>)</span>)}
-    </p>}
-    {robot.evidence.length
-      ? robot.evidence.map(item => <div key={item.sourceUrl} className="site-answer-evidence">
-        <p className="job-eyebrow">{EVIDENCE_LEVEL_LABELS[item.level]} · {evidenceScopeLabel(item)}</p>
-        <p>{item.summary}</p>
-        <blockquote>“{item.quote}”</blockquote>
-        <p className="ms-field-hint">Source: <SourceLink evidence={item} /></p>
-      </div>)
-      : <p className="ms-field-hint">We found no documented use of this robot on this kind of job.</p>}
-  </article>;
+/** The card's head when the simulation test leads: the same result the site's screen shows, said about "the job". */
+function CardTestHead({ test }: { test: NonNullable<JobCardAnswerSummary["test"]> }) {
+  const top = test.options[0];
+  if (test.kind === "testing" || !top) return <BareGroup>
+    <p className="bare-label">Testing now</p>
+    <BareBig as="p" sub="on the job, in a simulation of the site.">{`${test.entered} AI ${test.entered === 1 ? "robot" : "robots"}`}</BareBig>
+  </BareGroup>;
+  const did = `${top.succeeded} of ${top.scored} ${top.scored === 1 ? "try" : "tries"}`;
+  // A set-up flag is said beside every test result, as on the site's own screen.
+  const setup = test.setupFlag ? <BareNotice>{CARD_SETUP_CAVEAT}</BareNotice> : null;
+  if (test.kind === "no_clear_winner") return <BareGroup><p className="bare-label">Tested on the job</p>
+    <BareBig as="p" sub={`Top: ${top.label}, did the job in ${did}.`}>No clear winner yet</BareBig>{setup}</BareGroup>;
+  if (test.kind === "none_finished") return <BareGroup><p className="bare-label">Tested on the job</p>
+    <BareBig as="p" sub={top.furthestText ? `Closest: ${top.label} ${top.furthestText}.` : `${test.options.length} AI ${test.options.length === 1 ? "robot" : "robots"} tried; none finished the job.`}>None finished yet</BareBig>{setup}</BareGroup>;
+  const others = test.options.length - 1;
+  const step = test.kind === "winner" ? (test.wording === "did_best" ? 2 : 1) : 0;
+  const sure = SURENESS_STEPS[Math.max(0, step - (test.setupFlag ? 1 : 0))];
+  return <>
+    <BareGroup>
+      <p className="bare-label">{test.kind === "one_option" ? "Tested on the job" : test.wording === "did_best" ? "Did best on the job" : "Was ahead on the job"}</p>
+      <BareBig as="p" sub={top.maker ? `AI software by ${top.maker}` : undefined}><BareParts parts={optionParts(top.label)} /></BareBig>
+    </BareGroup>
+    <BareGroup>
+      <BareTicks label="Why" items={[{ key: "did", state: "yes", text: `Did the job in ${did}` },
+        test.kind === "winner"
+          ? { key: "ahead", state: "yes", text: others === 1 ? "Ahead of the other AI robot tested" : `Ahead of the ${others} other AI robots tested` }
+          : { key: "only", state: "yes", text: "The only AI robot tested on the job" }]} />
+    </BareGroup>
+    <BareGroup><BareSureness filled={sure.filled} word={sure.word} /></BareGroup>
+  </>;
+}
+
+const SURE: Readonly<Record<JobCardAnswerSummary["confidence"]["level"], { filled: 1 | 2 | 3; word: string }>> = {
+  low: SURENESS_STEPS[0], fair: SURENESS_STEPS[1], good: SURENESS_STEPS[2],
+};
+
+/** Each check as a row: the job's figure and the robot's, the very strings of the site's check sentence. */
+function checkValue(check: NonNullable<JobCardAnswerRobot["checks"]>[number]): string {
+  const open = check.outcome === "unknown" ? "Can't tell yet. " : check.outcome === "fail" ? "Not enough. " : "";
+  if (check.key === "reach") return open + [check.need && `needs ${check.need}`, check.has && `reaches ${check.has}`].filter(Boolean).join(" · ")
+    + (check.outcome === "pass" && check.tight ? " · only just enough" : "");
+  // A pass needs at most the top of the range; a check not settled says the whole range that straddles the rating.
+  if (check.key === "payload") return open + [check.need && `needs to lift ${check.outcome === "pass" ? liftUpTo(check.need) : check.need}`,
+    check.has && `lifts up to ${check.has}`].filter(Boolean).join(" · ") + (check.outcome === "pass" && check.tight ? " · only just enough" : "");
+  return open + [check.need && `the site's target ${check.need}`, check.has && `takes ${check.has} on paper`].filter(Boolean).join(" · ");
+}
+const CHECK_NAMES = { reach: "Reach", payload: "Strength", cycle_time: "Speed" } as const;
+
+/** One robot's details: its checks' figures, its published figures with their sources, and its track record. */
+function RobotRows({ robot, role }: { robot: JobCardAnswerRobot; role: string }) {
+  return <BareRows title={`${role}: ${robot.manufacturer} ${robot.name}`} rows={[
+    { key: "verdict", label: "Fit", value: robot.verdictLabel },
+    ...(robot.checks ?? []).filter(check => check.need || check.has).map(check => ({ key: check.key, label: CHECK_NAMES[check.key], value: checkValue(check) })),
+    ...robot.specs.map(spec => ({ key: spec.label, label: spec.label, value: <>{spec.display} (<a href={spec.sourceUrl} target="_blank" rel="noreferrer">source</a>)</> })),
+    ...robot.evidence.map((item, index) => ({ key: `evidence-${index}`, label: index === 0 ? "Used for jobs like this" : "Also",
+      value: <>{item.summary} <span className="bare-helper">{EVIDENCE_LEVEL_LABELS[item.level]} · {evidenceScopeLabel(item)}. <SourceLink evidence={item} /></span></> })),
+    ...(robot.evidence.length ? [] : [{ key: "none", label: "Used for jobs like this", value: "We found no documented use of this robot on this kind of job." }]),
+  ]} />;
 }
 
 /**
- * The answer a site shared with its card, under the card's own content. Inside the browse list's
- * line (`JobCardAnswerLine`), whose summary already says the title and the headline, neither is said again.
+ * The answer a site shared with its card, bare bones, the same way the site sees it: the robot most likely to fit
+ * (or the closest), why in plain ticks, how sure, the simulation's line, and "See details" for every figure and source.
+ * Inside the browse list's line (`JobCardAnswerLine`), whose summary already says the title and the headline, the
+ * title is not said again.
  */
 export function JobCardAnswer({ answer, titled = true }: { answer: JobCardAnswerSummary; titled?: boolean }) {
-  return <section className="site-answer" aria-label={JOB_CARD_ANSWER_TITLE}>
-    {titled && <h3>{JOB_CARD_ANSWER_TITLE}</h3>}
-    {titled && <p className="site-answer-headline">{answer.headline}</p>}
-    {answer.familyLabel && <p className="ms-field-hint">Kind of job: {answer.familyLabel}</p>}
-    {answer.pick && <Robot robot={answer.pick} role="Pick" />}
-    {answer.runnerUp && <Robot robot={answer.runnerUp} role="Runner-up" />}
-    {answer.simulation && <p>Simulation: {answer.simulation}</p>}
-    <div className="job-review">
-      <h4>How sure: {ANSWER_CONFIDENCE_LABELS[answer.confidence.level]}</h4>
-      {answer.confidence.reason && <p>{answer.confidence.reason}</p>}
-    </div>
-    {answer.facts.length > 0 && <div className="job-review">
-      <h4>The numbers this rests on</h4>
-      <ul>{answer.facts.map(fact => <li key={fact.label}>{fact.label}: {fact.display} <span className="ms-field-hint">({BASIS_LABELS[fact.basis]})</span></li>)}</ul>
-    </div>}
-    {answer.unknowns.length > 0 && <div className="job-review">
-      <h4>What the video could not tell</h4>
-      <ul>{answer.unknowns.map(item => <li key={item}>{item}</li>)}</ul>
-    </div>}
-    <p className="ms-field-hint">{answer.note}</p>
+  const [details, setDetails] = useState(false);
+  // Focus follows the view: into the details on the way in, back to "See details" on the way out.
+  const root = useRef<HTMLElement>(null);
+  const opened = useRef(false);
+  useEffect(() => {
+    if (!opened.current) return;
+    if (details) root.current?.focus();
+    else root.current?.querySelector<HTMLElement>('[data-opens="details"]')?.focus();
+  }, [details]);
+  const show = (next: boolean) => { opened.current = true; setDetails(next); };
+  const pick = answer.pick;
+  const fits = pick ? /^Fits/.test(pick.verdictLabel) : false;
+  const sure = SURE[answer.confidence.level];
+  const allEstimated = answer.facts.length > 0 && answer.facts.every(fact => fact.basis === "video_estimate");
+  if (details) return <section className="bare-screen site-card-answer" aria-label={JOB_CARD_ANSWER_TITLE} ref={root} tabIndex={-1}>
+    <BareBack onClick={() => show(false)} />
+    {answer.pick && <RobotRows robot={answer.pick} role={fits ? "Pick" : "Closest"} />}
+    {answer.runnerUp && <RobotRows robot={answer.runnerUp} role="Runner-up" />}
+    {answer.facts.length > 0 && <BareRows title={allEstimated ? "Estimated from the site's video" : "The numbers"} rows={answer.facts.map(fact => ({
+      key: fact.label, label: fact.label, value: <>{fact.display}{!allEstimated && <span className="bare-helper"> ({BASIS_LABELS[fact.basis]})</span>}</> }))} />}
+    {answer.unknowns.length > 0 && <BareRows title="What the video couldn't show" rows={answer.unknowns.map(line => ({ key: line, value: line }))} />}
+    {answer.test && answer.test.options.length > 0 && <BareRows title="Simulation test" rows={answer.test.options.map((option, index) => ({
+      key: `${index}-${option.label}`, label: <>{index + 1}. {option.label}{option.maker && <span className="bare-helper"> · {option.maker}</span>}</>,
+      value: `Finished ${option.succeeded} of ${option.scored} ${option.scored === 1 ? "try" : "tries"}${option.succeeded === 0 && option.furthestText ? ` · ${option.furthestText}` : ""}` }))} />}
+    {answer.simulation && <BareRows title="Simulation test" rows={[{ key: "simulation", value: answer.simulation }]} />}
+    <BareFine>{answer.note}</BareFine>
+  </section>;
+  const test = answer.test ?? null;
+  if (test) return <section className="bare-screen site-card-answer" aria-label={JOB_CARD_ANSWER_TITLE} ref={root} tabIndex={-1}>
+    {titled && <h3 className="bare-label">{JOB_CARD_ANSWER_TITLE}</h3>}
+    <CardTestHead test={test} />
+    {answer.sceneNote && <BareGroup><BareNotice>{answer.sceneNote}</BareNotice></BareGroup>}
+    {pick && <BareGroup><p>{fits ? "On paper, most likely to fit" : "On paper, the closest robot"}: {pick.manufacturer} {pick.name}</p></BareGroup>}
+    <BareLinks links={[{ key: "details", label: "See details", onClick: () => show(true) }]} />
+    <BareFine>{test.kind === "testing" || !test.options.length ? JOB_CARD_LIMITS_TESTING : JOB_CARD_LIMITS_TESTED}</BareFine>
+  </section>;
+  return <section className="bare-screen site-card-answer" aria-label={JOB_CARD_ANSWER_TITLE} ref={root} tabIndex={-1}>
+    {titled && <h3 className="bare-label">{JOB_CARD_ANSWER_TITLE}</h3>}
+    {pick ? <BareGroup>
+      <p className="bare-label">{fits ? "The robot most likely to fit" : "The closest robot"}</p>
+      <BareBig as="p" sub={`by ${pick.manufacturer}${fits ? "" : ". No robot clearly fits yet."}${answer.familyLabel ? ` · Kind of job: ${answer.familyLabel}` : ""}`}>{pick.name}</BareBig>
+    </BareGroup> : <BareGroup><BareLead>{answer.headline}</BareLead></BareGroup>}
+    {pick && <BareGroup><BareTicks label="Why" items={ticksOf(pick.checks ?? [], pick.evidence[0])} /></BareGroup>}
+    {answer.sceneNote && <BareGroup><BareNotice>{answer.sceneNote}</BareNotice></BareGroup>}
+    <BareGroup>
+      <BareSureness filled={sure.filled} word={sure.word} reason={answer.confidence.reason} />
+      {answer.simulation && <p>Simulation test: {answer.simulation}</p>}
+    </BareGroup>
+    <BareLinks links={[{ key: "details", label: "See details", onClick: () => show(true) }]} />
+    <BareFine>{JOB_CARD_LIMITS}</BareFine>
   </section>;
 }
 

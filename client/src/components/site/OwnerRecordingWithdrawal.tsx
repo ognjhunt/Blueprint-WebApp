@@ -60,19 +60,26 @@ export function WithdrawalStatusMessage({ status }: { status: OwnerWithdrawalSta
   );
 }
 
-export function OwnerRecordingWithdrawal({ token, onWithdrawn }: { token: string; onWithdrawn?: () => void }) {
+export function OwnerRecordingWithdrawal({ token, onWithdrawn, onStatus, summaryLabel = "Withdraw recording permission" }: { token: string; onWithdrawn?: () => void;
+  /** The row's words where it sits in a settings list ("Stop using my video"). */
+  summaryLabel?: string;
+  /** Told when a recorded withdrawal is read back, so the page stops offering footage, edits and sharing. */
+  onStatus?: () => void }) {
   const [status, setStatus] = useState<OwnerWithdrawalStatus | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const confirmButton = useRef<HTMLButtonElement>(null);
+  // Held in a ref so a new callback each render never re-reads the status.
+  const statusSeen = useRef(onStatus);
+  statusSeen.current = onStatus;
   const endpoint = `/api/self-capture/uploads/${encodeURIComponent(token)}/withdrawal`;
 
   const refresh = useCallback(async () => {
     try {
       const response = await fetch(endpoint, { cache: "no-store" });
       const data = await response.json().catch(() => null);
-      if (response.ok && data?.withdrawn === true && data.withdrawal) setStatus(data.withdrawal as OwnerWithdrawalStatus);
+      if (response.ok && data?.withdrawn === true && data.withdrawal) { setStatus(data.withdrawal as OwnerWithdrawalStatus); statusSeen.current?.(); }
     } catch {
       // Status stays as last known; nothing is claimed from a failed read.
     }
@@ -109,10 +116,10 @@ export function OwnerRecordingWithdrawal({ token, onWithdrawn }: { token: string
   }
 
   return (
-    <section aria-label="Recording permission" style={{ marginTop: "28px" }}>
+    <section aria-label="Recording permission" className="owner-withdrawal">
       {status ? <WithdrawalStatusMessage status={status} /> : (
         <details className="ms-task-interest">
-          <summary>Withdraw recording permission</summary>
+          <summary>{summaryLabel}</summary>
           <p>
             Withdrawing stops Blueprint's further processing and use of this recording: new uploads are refused, this job
             is paused, queued evaluations are asked to cancel and approved partners can no longer see the job. {RETAINED}

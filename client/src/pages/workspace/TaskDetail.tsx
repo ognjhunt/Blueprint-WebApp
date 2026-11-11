@@ -150,7 +150,6 @@ export default function TaskDetail() {
                   <ul>{task.readiness.missingViews.map((note, index) => <li key={index}>{note}</li>)}</ul>
                 </details>}
                 {waitingTimeline(task.readiness.decision) && <p>{waitingTimeline(task.readiness.decision)}</p>}
-                <p className="ws-note">Check this page for updates.</p>
               </div>
             )}
             {!task.archived && (

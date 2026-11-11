@@ -13,9 +13,12 @@ export const minimalMarketingRedirects: Record<string, string> = {
   "/robot-intake": "/contact/robot-team",
   // The capturer network and Blueprint filming visits are retired: sites film their own job.
   "/beta/capturer-guide": "/contact/site-operator",
+  // Bare bones (2026-11-11): "Jobs we support" folded into How it works, "About" into the Questions page.
+  "/jobs-we-support": "/how-it-works",
+  "/about": "/beta#who-we-are",
 };
 
-export const minimalPublicPaths = ["/", "/sites", "/how-it-works", "/jobs-we-support", "/partners", "/partners/deployment", "/partners/technology", "/beta", "/contact/site-operator", "/contact/robot-team", "/about", "/privacy", "/terms", "/refunds", "/privacy/previous", "/terms/previous"] as const;
+export const minimalPublicPaths = ["/", "/sites", "/how-it-works", "/partners", "/partners/deployment", "/partners/technology", "/beta", "/contact/site-operator", "/contact/robot-team", "/privacy", "/terms", "/refunds", "/privacy/previous", "/terms/previous"] as const;
 
 /** Public pages with a dynamic segment that also render on the minimal shell. */
 const minimalPublicPathPatterns = [/^\/sites\/[^/]+$/] as const;

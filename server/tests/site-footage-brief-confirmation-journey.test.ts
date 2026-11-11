@@ -240,8 +240,8 @@ describe("a site that sends its footage before confirming its brief", () => {
     await sendFootage(token);
     const notice = outbox(`${jobId}:video_received`);
     expect(notice?.kind).toBe("video_received");
-    expect(notice?.subject).toBe("We received your Blueprint walkthrough");
-    expect(notice?.body).toMatch(/Blueprint handles reconstruction and evaluation/i);
+    expect(notice?.subject).toBe("We have your video");
+    expect(notice?.body).toMatch(/^Your video arrived safely\./);
     expect(notice?.body).not.toMatch(/confirm your job brief|needs your confirmed brief/i);
     expect(notice?.body).toContain(`/capture-upload/`);
     // One email for the event: the intake receipt, then the footage notice.
@@ -300,7 +300,7 @@ describe("a site that confirms before it films", () => {
     await claim(jobId);
     await sendFootage(token);
     const notice = outbox(`${jobId}:video_received`);
-    expect(notice?.subject).toBe("We received your Blueprint walkthrough");
+    expect(notice?.subject).toBe("We have your video");
     expect(notice?.body).not.toMatch(/confirm your job brief/i);
   });
 });

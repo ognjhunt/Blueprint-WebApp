@@ -1,5 +1,4 @@
-import { useRef, useState, type PropsWithChildren } from "react";
-import { ArrowUpRight, Menu, X } from "lucide-react";
+import type { PropsWithChildren } from "react";
 import { COMPANY } from "@/data/company";
 import { openCookieSettings } from "@/components/CookieConsent";
 import { useOptionalAuth } from "@/contexts/AuthContext";
@@ -14,52 +13,32 @@ function workspaceFor(user: WorkspaceUser | null | undefined) {
 }
 
 export function MinimalSiteLayout({ children }: PropsWithChildren) {
-  const [menuOpen, setMenuOpen] = useState(false);
-  const menuButton = useRef<HTMLButtonElement>(null);
-  // The header stays quiet: the page owns its one call to action. A signed-in
+  // Bare bones (2026-11-11): the header is the brand and one quiet link; the page owns its one button. A signed-in
   // visitor sees their account, routed the way the app header routes each persona.
   const auth = useOptionalAuth();
   const signedIn = Boolean(auth?.currentUser);
   const account = workspaceFor(auth?.userData as WorkspaceUser | null | undefined);
-  const primary = signedIn
-    ? <a href={account.href}>{account.label}</a>
-    : <a href="/sign-in">Sign in</a>;
   return (
     <div className="minimal-site">
       <a className="ms-skip" href="#main-content">Skip to content</a>
       <LegalUpdateBanner />
-      <header className="ms-header ms-container">
+      <header className="bare-site-head">
         <a className="ms-brand" href="/" aria-label="Blueprint home"><span className="ms-brand-mark" aria-hidden="true" />Blueprint</a>
-        <nav className="ms-desktop-nav" aria-label="Main navigation">
-          <a href="/how-it-works">How it works</a>
-          <a href="/partners">For partners</a>
-          {primary}
-          <a className="ms-button" href="/contact/site-operator">Submit a job</a>
+        <nav aria-label="Account">
+          {signedIn ? <a className="bare-site-head-link" href={account.href}>{account.label}</a>
+            : <a className="bare-site-head-link" href="/sign-in">Sign in</a>}
         </nav>
-        <button ref={menuButton} className="ms-menu-toggle" type="button" aria-label={menuOpen ? "Close menu" : "Open menu"} aria-expanded={menuOpen} aria-controls="ms-mobile-nav" onClick={() => setMenuOpen(!menuOpen)}>
-          {menuOpen ? <X aria-hidden="true" /> : <Menu aria-hidden="true" />}
-        </button>
-        {menuOpen && (
-          <nav id="ms-mobile-nav" className="ms-mobile-nav" aria-label="Mobile navigation" onClick={() => setMenuOpen(false)} onKeyDown={(event) => { if (event.key === "Escape") { setMenuOpen(false); menuButton.current?.focus(); } }}>
-            <a href="/how-it-works">How it works</a>
-              <a href="/partners">For partners</a>
-            {primary}
-            <a className="ms-button" href="/contact/site-operator">Submit a job</a>
-          </nav>
-        )}
       </header>
       <main id="main-content">{children}</main>
-      <footer className="ms-footer ms-container">
-        <div className="ms-footer-brand">
-          <a className="ms-brand" href="/" aria-label="Return to homepage"><span className="ms-brand-mark" aria-hidden="true" />Blueprint</a>
-          <p className="ms-footer-description">From one video to the robot that fits, tested in simulation, and a deployment company.</p>
-          <p>© {new Date().getFullYear()} {COMPANY.legalName}</p>
-        </div>
-        <nav aria-label="Footer navigation">
-          <a href={`mailto:${COMPANY.emails.hello}`}>Get in touch <ArrowUpRight size={14} aria-hidden="true" /></a>
-          <a href="/partners">For partners</a><a href="/beta">Beta & pricing</a><a href="/about">About</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="/refunds">Refunds</a>
-          <button type="button" className="ms-footer-link" onClick={openCookieSettings}>Cookie settings</button>
+      <footer className="bare-site-foot">
+        <nav aria-label="Footer navigation" style={{ display: "contents" }}>
+          <a href="/beta#who-we-are">About</a>
+          <a href="/privacy">Privacy</a>
+          <a href="/terms">Terms</a>
+          <a href="/refunds">Refunds</a>
+          <button type="button" onClick={openCookieSettings}>Cookie settings</button>
         </nav>
+        <span className="bare-site-copy">© {new Date().getFullYear()} {COMPANY.legalName}</span>
       </footer>
     </div>
   );

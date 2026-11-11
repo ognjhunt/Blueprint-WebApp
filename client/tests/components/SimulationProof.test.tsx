@@ -1,161 +1,152 @@
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { SimulationProof } from "@/components/site/SimulationProof";
-import { GAP_COULD_BE_CHANCE, GAP_UNLIKELY_CHANCE, NO_POLICY_COMPLETED, projectSimulationProof } from "@/lib/simulationProof";
+import { SimulationProof, SimulationTestRows, TrustRows, computerTestLine, testNotRunLine, testResultOf } from "@/components/site/SimulationProof";
+import { projectSimulationProof, testHeadline } from "@/lib/simulationProof";
 import { SIMULATION_ACCURACY } from "@/data/simulationAccuracy";
 import { SCENE_NOTE_BEYOND_REACH, allZeroEvaluation, preparingEvaluation, readyAnswer, winnerEvaluation } from "../fixtures/siteAnswer";
 
 const pick = readyAnswer.pick!;
-const robotFit = { models: [{ name: "UR10e", manufacturer: "Universal Robots", verdict: "fits" as const, openChecks: [] }] };
-/** Words a site manager should never meet in the proof, and anything that looks like a raw code. */
+/** Words a site manager should never meet, and anything that looks like a raw code. */
 const BANNED = /episode|candidate|screening|embodiment|checkpoint|DROID|jointpos|[a-z]_[a-z]|sha256/i;
-/** A paper may be called PolaRiS in its title; a policy's name never says so. */
-const policyRows = () => screen.queryByRole("list", { name: "Control policies tried" })?.textContent ?? "";
+const proofOf = (evaluation: Parameters<typeof projectSimulationProof>[0]["evaluation"]) => projectSimulationProof({ evaluation, pick });
+const withCounts = (counts: Array<[number, number]>) => ({ ...winnerEvaluation, screening: { candidates: winnerEvaluation.screening!.candidates.map((row, index) =>
+  counts[index] ? { ...row, scored: counts[index][1], succeeded: counts[index][0], failed: counts[index][1] - counts[index][0] } : row) } });
+const words = (text: string | null) => (text?.match(/[^\s]+/g) ?? []).filter(word => /[\p{L}\p{N}]/u.test(word)).length;
 
-const renderProof = (input: Parameters<typeof projectSimulationProof>[0]) => {
-  const proof = projectSimulationProof(input);
-  return { proof, ...render(<SimulationProof proof={proof} />) };
-};
+describe("what the simulation test found", () => {
+  it("names row 1 and says did best or was ahead only by the probability rule", () => {
+    // 7 of 10 against 3 of 10 and 2 of 10 is about 0.96 against the next: was ahead.
+    expect(testResultOf(proofOf([winnerEvaluation]))).toMatchObject({ kind: "winner", wording: "was_ahead", others: 2, top: { label: "Franka arm + π0.5" } });
+    // 10 of 10 is beyond 0.975 against every other: did best.
+    expect(testResultOf(proofOf([withCounts([[10, 10]])]))).toMatchObject({ kind: "winner", wording: "did_best" });
+    // 1 of 1 against 0 of 1: no clear winner, though one finished.
+    expect(testResultOf(proofOf([withCounts([[1, 1], [0, 1], [0, 1]])]))).toMatchObject({ kind: "no_clear_winner", top: { succeeded: 1 } });
+    expect(testResultOf(proofOf([allZeroEvaluation]))).toMatchObject({ kind: "none_finished", count: 4, setupFlag: true });
+    expect(testResultOf(proofOf([preparingEvaluation]))).toEqual({ kind: "testing", entered: 2 });
+    expect(testResultOf(proofOf([]))).toBeNull();
+    // One option, which did the job: the only one tested, never "best".
+    const lone = { ...winnerEvaluation, screening: { candidates: [winnerEvaluation.screening!.candidates[0]] } };
+    expect(testResultOf(proofOf([lone]))).toMatchObject({ kind: "one_option" });
+    expect(proofOf([lone]).options.winner).toBeNull();
+  });
 
-describe("tested in simulation", () => {
-  // Rewritten from "names the policy that did best": the fixture's 7 of 10 against 3 of 10 is about 0.96 under
-  // the probability rule, so the leader is ahead, marked "Ahead", and the page says the gap could still be chance.
-  it("names the policy that was ahead, with every row, the robot check and how far to trust it", () => {
-    const { proof, container } = renderProof({ evaluation: [winnerEvaluation], robotFit, pick });
-    const section = screen.getByRole("region", { name: "Tested in simulation" });
-    expect(within(section).getByText(proof.headline)).toBeVisible();
-    expect(proof.headline).toBe("In a simulation of your site, on a Franka research arm, π0.5, an AI control policy from Physical Intelligence, was ahead: it completed the job in 7 of 10 tries, against 3 of 10 for the next best, GR00T N1.7.");
-    expect(within(section).getByText(`${GAP_COULD_BE_CHANCE} The others: MolmoAct 2, 2 of 10.`)).toBeVisible();
-    expect(screen.getByRole("heading", { name: "Your robot in your scene" })).toBeVisible();
-    expect(screen.getByText(/the Universal Robots UR10e reaches the pick-up and put-down points with a clear arm path/)).toBeVisible();
-    expect(screen.getByRole("heading", { name: "Control policies on your job" })).toBeVisible();
-    const rows = within(screen.getByRole("list", { name: "Control policies tried" })).getAllByRole("listitem");
-    expect(rows.map(row => row.textContent)).toEqual([
-      expect.stringMatching(/^π0\.5 from Physical Intelligence7 of 10 tries · likely between \d+% and \d+%Ahead$/),
-      expect.stringMatching(/^GR00T N1\.7 from NVIDIA3 of 10 tries/),
-      expect.stringMatching(/^MolmoAct 2 from Ai22 of 10 tries/),
-    ]);
-    expect(within(rows[0]).getByText("Ahead")).toBeVisible();
-    expect(within(rows[1]).queryByText("Ahead")).toBeNull();
-    expect(screen.queryByText("Did best")).toBeNull();
-    expect(screen.getByText("1 more policy was planned and did not run. “Simulation details” further down says why.")).toBeVisible();
-    expect(screen.queryByText(/we set up did not run/)).toBeNull();
+  it("never makes an option of a scripted row; a learned policy our list does not name is an option with a neutral name", () => {
+    const rows = [...winnerEvaluation.screening!.candidates,
+      { ...winnerEvaluation.screening!.candidates[0], candidateId: "unmapped-policy", name: "Current candidate", succeeded: 10, scored: 10, failed: 0,
+        executionEvidence: { execution_evidence_kind: "learned_policy" as const, action_source: "learned_policy", scripted_rollout_count: 0,
+          learned_policy_rollout_count: 10, scripted_controller_invoked: false, candidate_policy_queried: true } },
+      { ...winnerEvaluation.screening!.candidates[0], candidateId: "scripted-arm", name: "Scripted arm", succeeded: 10, scored: 10, failed: 0,
+        executionEvidence: { execution_evidence_kind: "scripted_simulator_state_baseline" as const, action_source: "scripted_simulator_state",
+          scripted_rollout_count: 10, learned_policy_rollout_count: 0, scripted_controller_invoked: true, candidate_policy_queried: false } }];
+    const proof = proofOf([{ ...winnerEvaluation, screening: { candidates: rows } }]);
+    // The unnamed policy did best (10 of 10): it leads, ranks and counts like any other, under a neutral name.
+    expect(proof.options.options.map(option => option.label)).toEqual(["AI robot A", "Franka arm + π0.5", "Franka arm + GR00T N1.7", "Franka arm + MolmoAct 2"]);
+    expect(testResultOf(proof)).toMatchObject({ top: { label: "AI robot A", maker: null, software: null } });
+    const { container } = render(<SimulationTestRows proof={proof} />);
+    expect(container).toHaveTextContent("1. AI robot AFinished 10 of 10 tries");
+    expect(container.textContent).not.toMatch(/Scripted|Current candidate|not compared|could not confirm/);
+  });
+
+  it("never makes an option of a row it cannot identify as an AI policy, even one that did the job every time", () => {
+    const base = winnerEvaluation.screening!.candidates[0];
+    const rows = [{ ...base, candidateId: "pi05_droid", succeeded: 3, scored: 10, failed: 7 },
+      // An older publication's scripted baseline: no execution kind, no reference mark, not in our list.
+      { ...base, candidateId: "pick_baseline_v1", name: "Scripted pick", succeeded: 10, scored: 10, failed: 0 },
+      // A scripted-baseline id, even with learned-policy evidence.
+      { ...base, candidateId: "scripted_pick", name: "Scripted", succeeded: 10, scored: 10, failed: 0,
+        executionEvidence: { execution_evidence_kind: "learned_policy" as const, action_source: "learned_policy", scripted_rollout_count: 0,
+          learned_policy_rollout_count: 10, scripted_controller_invoked: false, candidate_policy_queried: true } }];
+    const proof = proofOf([{ ...winnerEvaluation, screening: { candidates: rows } }]);
+    expect(proof.options.options.map(option => option.label)).toEqual(["Franka arm + π0.5"]);
+    expect(proof.options.unidentified).toBe(1);
+    expect(testResultOf(proof)).toMatchObject({ kind: "one_option", top: { label: "Franka arm + π0.5" } });
+    const { container } = render(<SimulationTestRows proof={proof} />);
+    expect(container).toHaveTextContent("1 other run could not be identified as an AI robot, so it is not counted.");
+    expect(container.textContent).not.toMatch(/AI robot A|Scripted|Did best/);
+  });
+
+  it("counts as testing only the AI robots that were scored, are running or are still going to run", () => {
+    const rows = [
+      { ...preparingEvaluation.screening!.candidates[0], candidateId: "pi05_droid", state: "running" },
+      { ...preparingEvaluation.screening!.candidates[0], candidateId: "groot_n17_droid", state: "pending" },
+      { ...preparingEvaluation.screening!.candidates[0], candidateId: "molmoact2_droid", state: "unavailable" },
+      { ...preparingEvaluation.screening!.candidates[0], candidateId: "cosmos3_edge_policy_droid", state: "infeasible" },
+      { ...preparingEvaluation.screening!.candidates[0], candidateId: "pi0_droid_jointpos_polaris", state: "blocked" },
+    ];
+    const proof = proofOf([{ ...preparingEvaluation, state: "running", screening: { candidates: rows } }]);
+    expect(proof.options.entered).toBe(2);
+    expect(testResultOf(proof)).toEqual({ kind: "testing", entered: 2 });
+    expect(testHeadline(testResultOf(proof))).toBe("Testing now: 2 AI robots on your job.");
+  });
+
+  it("says the headline a company reads, the same result, in a sentence", () => {
+    expect(testHeadline(testResultOf(proofOf([winnerEvaluation])))).toBe("Was ahead on your job: Franka arm + π0.5, doing your job in 7 of 10 tries.");
+    expect(testHeadline(testResultOf(proofOf([allZeroEvaluation])))).toBe("Tested on your job: none finished yet.");
+    expect(testHeadline(null)).toBeNull();
+  });
+
+  it("says why the test is not the answer, in plain words, when that is known", () => {
+    expect(testNotRunLine(proofOf([{ ...winnerEvaluation, outcome: "held_capability" as const }])))
+      .toBe("The simulation test did not run. Our simulation test can't do this kind of job yet.");
+    expect(testNotRunLine(proofOf([]))).toBeNull();
+    expect(testNotRunLine(proofOf([{ ...winnerEvaluation, screening: { candidates: [] } }]))).toBe("The simulation test finished, but no AI robot could be scored in it.");
+  });
+
+  it("says the same in one line for an older job's own view", () => {
+    expect(computerTestLine(proofOf([winnerEvaluation]))).toBe("Simulation test: Franka arm + π0.5 was ahead, doing your job in 7 of 10 tries.");
+    expect(computerTestLine(proofOf([allZeroEvaluation]))).toBe("Simulation test: None of the AI robots finished your job yet.");
+    expect(computerTestLine(proofOf([]))).toBeNull();
+  });
+});
+
+describe("the ranked list", () => {
+  it("lists every option in the display order, with its maker and count, the winner's mark and the gap", () => {
+    const { container } = render(<SimulationTestRows proof={proofOf([winnerEvaluation])} />);
+    expect(screen.getByText("We ran 3 AI robots on your job, about 10 tries each, in a simulation of your site.")).toBeVisible();
+    expect([...container.querySelectorAll("dt")].map(node => node.textContent)).toEqual([
+      "1. Franka arm + π0.5 · Physical Intelligence", "2. Franka arm + GR00T N1.7 · NVIDIA", "3. Franka arm + MolmoAct 2 · Ai2"]);
+    expect(container).toHaveTextContent(/Finished 7 of 10 tries · likely between \d+% and \d+% · Ahead/);
+    expect(screen.getByText("With this few tries the gap could still be chance.")).toBeVisible();
+    expect(screen.getByText("1 more AI robot was planned but did not run. Job settings › Simulation details says why.")).toBeVisible();
     expect(container.textContent).not.toMatch(BANNED);
-    expect(policyRows()).not.toMatch(/PolaRiS/i);
   });
 
-  it("marks the leader \"Did best\" only when the gap is unlikely to be chance", () => {
-    const clear = { ...winnerEvaluation, screening: { candidates: [{ ...winnerEvaluation.screening!.candidates[0], succeeded: 10, failed: 0 },
-      ...winnerEvaluation.screening!.candidates.slice(1)] } };
-    renderProof({ evaluation: [clear], pick });
-    const rows = within(screen.getByRole("list", { name: "Control policies tried" })).getAllByRole("listitem");
-    expect(within(rows[0]).getByText("Did best")).toBeVisible();
-    expect(screen.getByText(new RegExp(`^${GAP_UNLIKELY_CHANCE}`))).toBeVisible();
-    expect(screen.queryByText("Ahead")).toBeNull();
-  });
-
-  it("renders the published accuracy, its conditions, its sources as links and what holds for this job", () => {
-    renderProof({ evaluation: [winnerEvaluation], pick });
-    expect(screen.getByRole("heading", { name: "How far to trust this" })).toBeVisible();
-    expect(screen.getByText(SIMULATION_ACCURACY.statement)).toBeVisible();
-    expect(screen.getByText(SIMULATION_ACCURACY.conditions)).toBeVisible();
-    for (const source of SIMULATION_ACCURACY.sources) {
-      const link = screen.getByRole("link", { name: source.title });
-      expect(link).toHaveAttribute("href", source.url);
-      expect(link).toHaveAttribute("target", "_blank");
-      expect(link).toHaveAttribute("rel", "noreferrer");
-    }
-    expect(screen.getByText("For your job:")).toBeVisible();
-    expect(screen.getByText("The scale of your scene was estimated from your video, not measured.")).toBeVisible();
-    expect(screen.getByText(/^We have no public AI policy to run on the Universal Robots UR10e, so we ran the public policies/)).toBeVisible();
-  });
-
-  it("all at zero: says it could not rank them, with the scene notes right under it and no winner", () => {
-    const { container } = renderProof({ evaluation: [allZeroEvaluation], pick });
-    expect(screen.getByText(NO_POLICY_COMPLETED)).toBeVisible();
-    expect(screen.queryByText("Did best")).toBeNull();
-    const note = screen.getByText(SCENE_NOTE_BEYOND_REACH);
-    const list = screen.getByRole("list", { name: "Control policies tried" });
-    expect(note.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(within(list).getAllByRole("listitem")).toHaveLength(4);
-    expect(screen.getByText("1 more policy was planned and did not run. “Simulation details” further down says why.")).toBeVisible();
-    // Zero successes is never an estimate and never offers a pilot.
-    expect(container.textContent).not.toMatch(/likely between|pilot/i);
-    for (const text of [screen.getByText(NO_POLICY_COMPLETED).textContent, policyRows(), note.textContent]) expect(text).not.toMatch(/estimate/i);
-    expect(container.textContent).not.toMatch(BANNED);
-    expect(policyRows()).not.toMatch(/PolaRiS/i);
-  });
-
-  it("all at zero with progress: says how far each got, in plain words, under the could-not-rank headline", () => {
+  it("orders options that finished nothing by how far they got, and says it on each row", () => {
     const ladder = ["approached", "contact", "moved", "lifted", "translated", "placed", "released_and_settled"] as const;
-    const progress = (graded: number, counts: number[]) => ({ graded, meanScore: 0,
-      stages: ladder.map((stage, index) => ({ stage, episodes: counts[index] })), closestApproachM: { median: 0.065, min: 0.01 } });
-    const counts: Record<string, number[]> = { pi05_droid: [9, 6, 5, 4, 2, 0, 0], groot_n17_droid: [3, 0, 0, 0, 0, 0, 0],
-      pi0_droid_jointpos_polaris: [0, 0, 0, 0, 0, 0, 0] };
+    const progress = (graded: number, counts: number[], median: number) => ({ graded, meanScore: 0, closestApproachM: { median, min: 0 },
+      stages: ladder.map((stage, index) => ({ stage, episodes: counts[index] ?? 0 })) });
+    const counts: Record<string, [number[], number]> = { pi05_droid: [[9, 6, 5, 4, 2], 0.01], groot_n17_droid: [[3], 0.02], pi0_droid_jointpos_polaris: [[], 0.065] };
     const graded = { ...allZeroEvaluation, screening: { ...allZeroEvaluation.screening!, candidates: allZeroEvaluation.screening!.candidates.map(row =>
-      counts[row.candidateId] ? { ...row, progress: progress(row.scored, counts[row.candidateId]) } : row) } };
-    const { proof, container } = renderProof({ evaluation: [graded], pick });
-    expect(proof.headline).toBe(NO_POLICY_COMPLETED);
-    expect(screen.getByText(NO_POLICY_COMPLETED)).toBeVisible();
-    expect(screen.getByText("How far each got: π0.5 lifted and carried the object in 2 of 9 tries; "
-      + "π0 did not get its gripper within 2 cm of the object in any of its 10 tries, typically coming within about 7 cm of it; "
-      + "GR00T N1.7 got its gripper within 2 cm of the object in 3 of 10 tries.")).toBeVisible();
-    // Said once, in the sentence, not again on the rows; and nothing is marked on it.
-    expect(policyRows()).not.toMatch(/object|typically/);
-    expect(screen.queryByText("Did best")).toBeNull();
-    expect(screen.queryByText("Ahead")).toBeNull();
-    expect(container.textContent).not.toMatch(BANNED);
+      counts[row.candidateId] ? { ...row, progress: progress(row.scored, ...counts[row.candidateId]) } : row) } };
+    const proof = proofOf([graded]);
+    expect(proof.options.options.map(option => option.label)).toEqual(["Franka arm + π0.5", "Franka arm + GR00T N1.7", "Franka arm + π0", "Franka arm + π0-FAST"]);
+    expect(testResultOf(proof)).toMatchObject({ kind: "none_finished", top: { furthestText: "lifted and carried the object" } });
+    const { container } = render(<SimulationTestRows proof={proof} />);
+    expect(container).toHaveTextContent("1. Franka arm + π0.5 · Physical IntelligenceFinished 0 of 9 tries · lifted and carried the object in 2 of 9 tries");
+    // The set-up flag, said as a notice in plain words; the run's own notes as they were sent.
+    expect(screen.getByText("This result may come from how we set up the simulation of your site, not from the robots.")).toBeVisible();
+    expect(screen.getByText(SCENE_NOTE_BEYOND_REACH)).toBeVisible();
+    expect(container.textContent).not.toMatch(/Did best|Ahead/);
   });
+});
 
-  it("with a policy that completed the job: the row of one that completed nothing says how far it got", () => {
-    const rows = winnerEvaluation.screening!.candidates.map(row => row.candidateId === "groot_n17_droid"
-      ? { ...row, succeeded: 0, failed: 10, progress: { graded: 10, meanScore: 0, stages: ["contact", "moved", "lifted", "translated", "placed",
-        "released_and_settled"].map((stage, index) => ({ stage: stage as "contact", episodes: [6, 4, 0, 0, 0, 0][index] })) } } : row);
-    renderProof({ evaluation: [{ ...winnerEvaluation, screening: { ...winnerEvaluation.screening!, candidates: rows } }], pick });
-    const items = within(screen.getByRole("list", { name: "Control policies tried" })).getAllByRole("listitem");
-    const groot = items.find(item => item.textContent!.startsWith("GR00T N1.7"))!;
-    expect(groot.textContent).toMatch(/0 of 10 tries · moved the object in 4 of 10 tries$/);
-    expect(screen.queryByText(/How far each got/)).toBeNull();
+describe("how far to trust it", () => {
+  it("says every published figure and condition in short rows, with every source", () => {
+    const { container } = render(<TrustRows proof={proofOf([winnerEvaluation])} />);
+    expect(screen.getByText(/picked the better of two policies in 8 of 9 comparisons/)).toBeVisible();
+    expect(screen.getByText(/a correlation of about 0\.9 on average/)).toBeVisible();
+    expect(screen.getByText(/fell to 7 or 6 of 9/)).toBeVisible();
+    for (const source of SIMULATION_ACCURACY.sources) expect(screen.getByRole("link", { name: source.title })).toHaveAttribute("href", source.url);
+    expect(words(container.textContent)).toBeLessThanOrEqual(190);
   });
+});
 
-  it("with a policy that completed the job: a row that reached no stage says so of all its tries, with how close it came", () => {
-    const ladder = ["approached", "contact", "moved", "lifted", "translated", "placed", "released_and_settled"] as const;
-    const rows = winnerEvaluation.screening!.candidates.map(row => row.candidateId === "groot_n17_droid"
-      ? { ...row, succeeded: 0, failed: 10, progress: { graded: 10, meanScore: 0, closestApproachM: { median: 0.0829, min: 0.04 },
-        stages: ladder.map(stage => ({ stage, episodes: 0 })) } } : row);
-    renderProof({ evaluation: [{ ...winnerEvaluation, screening: { ...winnerEvaluation.screening!, candidates: rows } }], pick });
-    const items = within(screen.getByRole("list", { name: "Control policies tried" })).getAllByRole("listitem");
-    const groot = items.find(item => item.textContent!.startsWith("GR00T N1.7"))!;
-    expect(groot.textContent).toMatch(
-      /0 of 10 tries · did not get its gripper within 2 cm of the object in any of its 10 tries, typically coming within about 8 cm of it$/);
-    expect(groot.textContent).not.toMatch(/did not .* in 10 of 10/);
-  });
-
-  it.each([
-    ["not_started", null, "The simulation of your site has not started yet."],
-    ["preparing", [preparingEvaluation], "We are preparing the simulation of your site."],
-    ["running", [{ ...preparingEvaluation, state: "running", screening: { candidates: [{ ...preparingEvaluation.screening!.candidates[0], state: "running" }] } }],
-      "The simulation of your site is running."],
-    ["could_not_run", [{ ...winnerEvaluation, outcome: "held_capability" as const }], "The simulation can't model this kind of task yet."],
-  ] as const)("says %s in one short line, with no results or study figures", (state, evaluation, line) => {
-    const { proof, container } = renderProof({ evaluation, pick });
-    expect(proof.state).toBe(state);
-    expect(screen.getByRole("heading", { name: "Tested in simulation" })).toBeVisible();
-    expect(screen.getByText(line)).toBeVisible();
-    expect(screen.queryByRole("heading", { name: "Control policies on your job" })).toBeNull();
-    expect(screen.queryByRole("heading", { name: "How far to trust this" })).toBeNull();
-    expect(screen.queryByRole("link")).toBeNull();
-    expect(container.textContent).not.toMatch(/your job is held|^Held/i);
-    expect(container.textContent).not.toMatch(BANNED);
-  });
-
-  it("never shows a working name as a policy's name", () => {
-    const evaluation = { ...winnerEvaluation, screening: { candidates: [winnerEvaluation.screening!.candidates[0],
-      { ...winnerEvaluation.screening!.candidates[1], candidateId: "unknown-id", name: "Current candidate" }] } };
-    const { container } = renderProof({ evaluation: [evaluation], pick });
-    expect(screen.getByText("An unnamed AI control policy")).toBeVisible();
-    expect(screen.getByText(/on a robot we could not confirm, not compared/)).toBeVisible();
-    expect(container.textContent).not.toMatch(/Current candidate|could not name/);
-    expect(container.textContent).not.toMatch(BANNED);
+describe("tested in simulation, for an older job with no answer", () => {
+  it("says the one line and everything behind it", () => {
+    render(<SimulationProof proof={projectSimulationProof({ evaluation: [allZeroEvaluation], pick: null })} />);
+    const section = screen.getByRole("region", { name: "Tested in simulation" });
+    expect(within(section).getByText("Simulation test: None of the AI robots finished your job yet.")).toBeVisible();
+    expect(within(section).getAllByText("This result may come from how we set up the simulation of your site, not from the robots.").length).toBeGreaterThan(0);
+    expect(within(section).getByRole("region", { name: "Ranked" })).toBeVisible();
   });
 });

@@ -1,0 +1,118 @@
+/*
+ * Bare bones (owner direction, 2026-11-11). Body 17–18 px, the answer 32–44 px by the column, sub-lines 16 px,
+ * fine print 14 px. A centred column at most 560 px wide. Every tap target at least 44 px tall. Colours from the
+ * minimal site's tokens. Text is left-aligned everywhere; only the filled button centres its own label.
+ *
+ * THE RHYTHM (phone and desktop; tokens: s1 4, s2 8, s12 12, s3 16, s4 32, s5 48 px). No element sits closer than
+ * 8 px to a different kind of element; a check in e2e/site-answer.spec.ts ("keeps the bare-bones rhythm") measures it.
+ *   label → big answer ............................ 8  (s2)
+ *   big answer → its sub-line ..................... 8  (s2)
+ *   lines inside one group ........................ 8  (s2)
+ *   a notice or done box, above and below ......... 16 (s3), wherever it appears
+ *   a tick list after a headline in its group ..... 16 (s3); tick rows keep their own 4 px padding
+ *   the sureness line → its reason ................ 8  (s2)
+ *   a button → its helper or consent line ......... 12 (s12)
+ *   field label → control, control → hint ......... 8  (s2)
+ *   between groups, fields, sections .............. 32 (s4)
+ *   before the fine print ......................... 48 (s5)
+ */
+.bare-screen {
+  --bare-s1: 4px; --bare-s2: 8px; --bare-s12: 12px; --bare-s3: 16px; --bare-s4: 32px; --bare-s5: 48px;
+  --bare-ink: var(--ms-ink, #22251e); --bare-muted: var(--ms-muted, #5d5f58); --bare-green: var(--ms-green, #203d2e);
+  --bare-paper: var(--ms-paper, #f6f5ef); --bare-rule: #cfd1c8; --bare-tint: #f3eedf; --bare-amber: #8a6d1f;
+  width: 100%; max-width: 560px; margin: 0 auto; color: var(--bare-ink); font-size: 17px; line-height: 1.45; overflow-wrap: break-word;
+}
+.bare-screen h1 { margin: var(--bare-s3) 0 var(--bare-s2); font-size: 26px; font-weight: 500; letter-spacing: -.6px; line-height: 1.2; }
+.bare-screen p { margin: 0; }
+/* Prefixed with .bare-screen so the rhythm wins over the plain `.bare-screen p { margin: 0 }` reset. */
+.bare-screen .bare-group, .bare-group { margin-top: var(--bare-s4); }
+.bare-screen .bare-group > * + *, .bare-group > * + * { margin-top: var(--bare-s2); }
+.bare-label, .bare-screen .bare-label { margin: 0; font-size: 12px; font-weight: 650; letter-spacing: .7px; text-transform: uppercase; color: var(--bare-muted); }
+.bare-screen .bare-big { margin: var(--bare-s2) 0 0; font-size: clamp(32px, 9.5vw, 44px); line-height: 1.08; font-weight: 600; letter-spacing: -1px; }
+/* An answer in two parts (a robot, then "+ its AI software") breaks on purpose: each part on its own line. */
+.bare-screen .bare-big .bare-part { display: block; }
+.bare-screen .bare-sub { margin-top: var(--bare-s2); font-size: 16px; color: var(--bare-muted); }
+/* A notice or done box keeps 16 px above and below it, wherever it sits. */
+.bare-screen .bare-notice, .bare-screen .bare-done { margin-top: var(--bare-s3); }
+.bare-screen .bare-group > .bare-notice + *, .bare-screen .bare-group > .bare-done + *, .bare-screen .bare-action > .bare-done + *,
+.bare-screen .bare-rows > .bare-notice + * { margin-top: var(--bare-s3); }
+/* A tick list after a headline in the same group. */
+.bare-screen .bare-group > * + ul.bare-ticks { margin-top: var(--bare-s3); }
+.bare-screen .bare-sure > * + * { margin-top: var(--bare-s2); }
+.bare-screen .bare-lead { font-size: 22px; line-height: 1.3; font-weight: 600; letter-spacing: -.3px; }
+.bare-screen .bare-job { font-size: 15px; color: var(--bare-muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+ul.bare-ticks { list-style: none; margin: 0; padding: 0; }
+.bare-tick { display: flex; gap: 12px; align-items: baseline; padding: var(--bare-s1) 0; font-size: 18px; }
+.bare-mark { flex: 0 0 18px; font-weight: 700; color: var(--bare-green); }
+.bare-tick-unsure .bare-mark { color: var(--bare-muted); }
+.bare-sure-line { font-size: 18px; }
+.bare-sure-line strong { font-weight: 500; }
+.bare-dots { display: inline-flex; gap: 6px; vertical-align: middle; margin: 0 4px; }
+.bare-dot { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--bare-green); box-sizing: border-box; }
+.bare-dot-on { background: var(--bare-green); }
+.bare-screen .bare-action > * + *, .bare-action > * + * { margin-top: var(--bare-s12); }
+.bare-button { display: flex; width: 100%; min-height: 52px; align-items: center; justify-content: center; padding: 12px 16px;
+  border: 0; border-radius: 4px; background: var(--bare-green); color: var(--bare-paper); font: inherit; font-size: 17px; font-weight: 500;
+  line-height: 1.3; text-align: center; text-decoration: none; cursor: pointer; }
+.bare-button:disabled { opacity: .65; cursor: wait; }
+.bare-quiet-button, .bare-link, .bare-back { display: inline-flex; align-items: center; min-height: 44px; padding: 0; border: 0; background: none;
+  font: inherit; font-size: 17px; color: var(--bare-ink); text-decoration: underline; text-underline-offset: 4px; cursor: pointer; }
+.bare-back { text-decoration: none; color: var(--bare-muted); font-size: 16px; }
+/* A quiet control that wraps stays left-aligned with the text around it (a button centres by default). */
+.bare-quiet-button, .bare-link, .bare-back { text-align: left; justify-content: flex-start; }
+.bare-screen button:not(.bare-button):not(.ms-button), .bare-screen .ms-text-link, .bare-screen .site-answer-quiet-button { text-align: left; }
+.bare-helper { font-size: 14px; line-height: 1.45; color: var(--bare-muted); }
+.bare-links { display: flex; flex-wrap: wrap; gap: var(--bare-s2) var(--bare-s4); margin-top: var(--bare-s4); }
+.bare-link { text-decoration: none; border-bottom: 1px solid var(--bare-ink); }
+.bare-notice { padding: 10px 12px; border-left: 3px solid var(--bare-amber); background: var(--bare-tint); font-size: 16px; }
+.bare-done { padding: 14px 16px; border-left: 3px solid var(--bare-green); background: #e9efe6; font-size: 17px; }
+.bare-screen .bare-fine { margin-top: var(--bare-s5); font-size: 14px; color: var(--bare-muted); }
+.bare-rows { margin-top: var(--bare-s4); }
+.bare-rows-title, .bare-screen .bare-rows-title { margin: 0 0 var(--bare-s2); font-size: 15px; font-weight: 650; letter-spacing: 0; }
+.bare-rows dl { margin: 0; }
+.bare-row { display: grid; grid-template-columns: minmax(84px, 30%) 1fr; gap: var(--bare-s3); padding: var(--bare-s1) 0; }
+.bare-row-plain { display: block; }
+.bare-row dt { color: var(--bare-muted); }
+.bare-row dd { margin: 0; }
+ul.bare-menu { list-style: none; margin: var(--bare-s4) 0 0; padding: 0; border-top: 1px solid var(--bare-rule); }
+.bare-menu > li { border-bottom: 1px solid var(--bare-rule); }
+.bare-menu-item, .bare-menu li details > summary { display: flex; width: 100%; align-items: center; justify-content: space-between; min-height: 56px;
+  padding: var(--bare-s2) 0; border: 0; background: none; font: inherit; font-size: 18px; color: var(--bare-ink); text-align: left; text-decoration: none;
+  cursor: pointer; list-style: none; }
+.bare-menu-item::after, .bare-menu li details > summary::after { content: "›"; font-size: 24px; color: var(--bare-muted); }
+.bare-menu li details > summary::-webkit-details-marker { display: none; }
+.bare-menu li details[open] > summary::after { content: "⌄"; }
+.bare-menu li details { margin: 0; padding: 0; border: 0; }
+.bare-menu li details > :not(summary) { padding-bottom: var(--bare-s3); }
+.bare-screen :focus-visible { outline: 2px solid var(--bare-green); outline-offset: 3px; }
+.bare-spinner { width: 36px; height: 36px; border: 4px solid var(--bare-rule); border-top-color: var(--bare-green); border-radius: 50%; animation: bare-spin 1s linear infinite; }
+@media (prefers-reduced-motion: reduce) { .bare-spinner { animation: none; } }
+@keyframes bare-spin { to { transform: rotate(360deg); } }
+.owner-withdrawal { margin-top: 28px; }
+.bare-menu .owner-withdrawal { margin-top: 0; }
+.bare-screen .job-settings-workspace { margin-top: var(--bare-s4); }
+.bare-screen .job-settings-workspace .job-workspace { margin: 0; padding: 0; border: 0; }
+/* On a phone a row reads label above value, so neither is squeezed into a narrow column. */
+@media (max-width: 480px) {
+  .bare-row { grid-template-columns: 1fr; gap: 0; padding: var(--bare-s2) 0 0; }
+  .bare-row dt { font-size: 14px; }
+}
+/* Controls that bring their own disclosure sit in a settings row the same way as the others. */
+.bare-menu .ms-task-interest { margin: 0; padding: 0; border: 0; background: none; }
+.bare-screen .job-settings-workspace { margin-top: 0; }
+.bare-screen .job-settings-workspace .job-planning-details { margin: 0; padding: 0; border-block: 0; border-bottom: 1px solid var(--bare-rule); }
+.bare-screen .job-settings-workspace .job-planning-details > summary { display: flex; align-items: center; justify-content: space-between; min-height: 56px;
+  padding: var(--bare-s2) 0; font-size: 18px; font-weight: 400; list-style: none; cursor: pointer; }
+.bare-screen .job-settings-workspace .job-planning-details > summary::-webkit-details-marker { display: none; }
+.bare-screen .job-settings-workspace .job-planning-details > summary::after { content: "›"; font-size: 24px; color: var(--bare-muted); }
+.bare-screen .job-settings-workspace .job-planning-details > summary .ms-field-hint { display: none; }
+
+/* Before the video: the camera 16 px under the title, its notice 12 px under the button; the upload alternative is
+   its own group, its lines 16 px apart. */
+.bare-screen .bare-film { margin-top: var(--bare-s3); }
+.bare-screen .bare-film > * + * { margin-top: var(--bare-s12); }
+.bare-screen .bare-upload-alt > * + * { margin-top: var(--bare-s3); }
+/* Withdrawn: the withdrawal's own words, in small type, under its one bold line. */
+.bare-screen .bare-withdrawn .owner-withdrawal { margin-top: 0; }
+.bare-screen .bare-withdrawn [role="status"] > * + * { margin-top: var(--bare-s2); }
+.bare-screen .bare-withdrawn .ms-field-hint { font-size: 14px; line-height: 1.45; color: var(--bare-muted); }

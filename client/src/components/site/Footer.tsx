@@ -35,7 +35,7 @@ export function Footer() {
               Blueprint
             </a>
             <p className="mt-7 text-sm leading-7 text-runway-mute">
-              Blueprint shows a business which robot most likely fits one of its recurring jobs and how sure it is, checks its reach and arm path in a simulation of its site, and helps it find a deployment company.
+              Send a video of one job that repeats. We test the top AI robots on your job in a simulation of your site, and help you find a company to set it up.
             </p>
             <a
               href="mailto:hello@tryblueprint.io"
@@ -70,9 +70,7 @@ export function Footer() {
         <div className="grid gap-3 py-7 font-mono text-[10px] leading-5 text-runway-faint sm:grid-cols-[auto_1fr] sm:items-start">
           <p>&copy; {new Date().getFullYear()} Blueprint Robotics, Inc.</p>
           <p className="sm:text-right">
-            Blueprint helps scope, coordinate, and measure an agreed physical pilot, then review
-            what follows. The provider or integrator handles installation and robot operation;
-            the site approves scope, costs, and safety responsibilities.
+            We check pick-up-and-put-down jobs. Not a test at your site, or a safety check.
           </p>
         </div>
       </div>

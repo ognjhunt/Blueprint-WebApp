@@ -12,7 +12,7 @@ for (const width of [1440, 390]) {
     await expect(page.getByLabel('Work email', { exact: true })).toHaveCount(0);
     await expect(page.getByLabel('Password', { exact: true })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Continue with Google' })).toHaveCount(0);
-    await expect(page.getByRole('link', { name: 'Show us a site task' })).toHaveAttribute('href', '/contact/site-operator');
+    await expect(page.getByRole('link', { name: 'Start a job' })).toHaveAttribute('href', '/contact/site-operator');
     await expect(page.getByRole('link', { name: /Register robot-team interest/ })).toHaveAttribute('href', '/contact/robot-team');
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   });
@@ -22,9 +22,9 @@ for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 1000 });
     await page.goto('/signup/business?buyerType=site_operator');
     await expect(page).toHaveURL(/\/contact\/site-operator$/);
-    await expect(page.getByRole('group', { name: 'How will we see the task?', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Start a job' })).toBeVisible();
     await expect(page.getByLabel('Password', { exact: true })).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Start free assessment', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^(Send video|Next: film the job|Save my job)$/ })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   });
 }

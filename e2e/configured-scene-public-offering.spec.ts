@@ -81,7 +81,9 @@ test("shows an authorized controls-pending configuration and keeps evaluation lo
 
   await expect(page.getByRole("heading", { name: "Scene 839873 simple relocation" })).toBeVisible();
   await expect(page.getByText("Scene in preparation", { exact: true })).toBeVisible();
-  await expect(page.getByText(/An evaluation is not ready yet/)).toBeVisible();
+  // Locked: the row's meta line says so, and the row offers no "Offer your system" link.
+  await expect(page.getByText("Evaluation not ready yet", { exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Offer your system for this job" })).toHaveCount(0);
   await expect(page.getByAltText("Owner-approved job view: Scene 839873 simple relocation")).toBeVisible();
 });
 

@@ -4,7 +4,7 @@ import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { humanDecisionDigest } from "./human-reply-admission";
 import { getBrief } from "./siteTaskBrief";
 import { isSiteVideoEvidenceEnabled } from "../config/env";
-import { reviewCaptureCoverage } from "./captureCoverageReview";
+import { reviewCaptureCoverage, type CoverageWaitReason } from "./captureCoverageReview";
 import { logger } from "../logger";
 import { findPriorFootageReview } from "./captureFootageReview";
 import { mergeFootageIntoBrief } from "./siteTaskBriefReading";
@@ -25,6 +25,16 @@ function briefStillReviewed(request: Record<string, any> | undefined, currentBri
   return draft?.state === "drafted" && draft.capture_id === captureId && draft.from_brief_digest === boundDigest
     && draft.drafted_brief_digest === currentBriefDigest;
 }
+
+/** Real failed reads before the review is handed to a person. Waiting for another call never counts toward it. */
+export const COVERAGE_REVIEW_MAX_ATTEMPTS = 3;
+/**
+ * How long a read may keep waiting for another call on the same capture (the site assessment, today) before the wait
+ * itself counts as a failed attempt with its typed reason: the same 30 minutes a running claim is trusted for.
+ */
+export const COVERAGE_REVIEW_WAIT_LIMIT_MS = 30 * 60_000;
+/** The short delay before a read that waited is tried again. */
+export const COVERAGE_REVIEW_WAIT_RETRY_MS = 60_000;
 
 let activePass: Promise<void> | null = null;
 /** Admission defers another same-capture traversal while this worker is busy. */
@@ -126,8 +136,11 @@ export async function reconcileCoverageReviews(limit = 10, options: { notifyOwne
       const attempts = job?.attempts ?? inherited?.attempts ?? 0;
       if (job?.state === "completed") return "completed";
       if (job?.state === "running" && Date.now() - job.started_at < 30 * 60_000) return null;
-      if (attempts >= 3) return "exhausted";
-      tx.set(jobRef, { ...params, binding, state: "running", claim_token: claimToken, started_at: Date.now(), attempts: attempts + 1 }, { merge: true });
+      if (attempts >= COVERAGE_REVIEW_MAX_ATTEMPTS) return "exhausted";
+      // A read that waited for another call on this capture tries again after a short delay, not at once.
+      if (job?.state === "waiting_prerequisite" && typeof job.retry_after_ms === "number" && job.retry_after_ms > Date.now()) return null;
+      tx.set(jobRef, { ...params, binding, state: "running", claim_token: claimToken, started_at: Date.now(), attempts: attempts + 1,
+        first_claimed_at_ms: typeof job?.first_claimed_at_ms === "number" ? job.first_claimed_at_ms : Date.now() }, { merge: true });
       return "claimed";
     });
     if (!claim) continue;
@@ -139,8 +152,13 @@ export async function reconcileCoverageReviews(limit = 10, options: { notifyOwne
     });
     try {
       if (claim !== "completed" && claim !== "exhausted") {
-        const finding = await reviewCaptureCoverage({ ...params, binding, reviewId: id, claimToken, notifyOwner: options.notifyOwner });
-        if (!finding) { await finish({ state: "waiting_prerequisite" }); continue; }
+        let waited = null as CoverageWaitReason | null;
+        const finding = await reviewCaptureCoverage({ ...params, binding, reviewId: id, claimToken, notifyOwner: options.notifyOwner,
+          onWaiting: reason => { waited = reason; } });
+        if (!finding) {
+          await finish(waited ? await waitPatch(jobRef, waited) : { state: "waiting_prerequisite" });
+          continue;
+        }
         if (!(await finish({ state: "completed", finding }))) continue;
       }
       await db.runTransaction(async tx => {
@@ -160,4 +178,19 @@ export async function reconcileCoverageReviews(limit = 10, options: { notifyOwne
       logger.warn({ error, requestId: request.id }, "Coverage review remains pending");
     }
   }
+}
+
+/**
+ * A read that ended because another call for the same capture was in flight is not an attempt: its attempt is
+ * given back and it is tried again after a short delay. Only once the wait has lasted longer than
+ * COVERAGE_REVIEW_WAIT_LIMIT_MS from the first claim does it count, as a failed attempt with its typed reason.
+ */
+async function waitPatch(jobRef: FirebaseFirestore.DocumentReference, reason: CoverageWaitReason): Promise<Record<string, unknown>> {
+  const job = (await jobRef.get()).data();
+  const firstClaimed = typeof job?.first_claimed_at_ms === "number" ? job.first_claimed_at_ms : Date.now();
+  if (Date.now() - firstClaimed >= COVERAGE_REVIEW_WAIT_LIMIT_MS) {
+    return { state: "waiting_prerequisite", wait_reason: reason, wait_counted: true };
+  }
+  const attempts = typeof job?.attempts === "number" && job.attempts > 0 ? job.attempts - 1 : 0;
+  return { state: "waiting_prerequisite", attempts, wait_reason: reason, retry_after_ms: Date.now() + COVERAGE_REVIEW_WAIT_RETRY_MS };
 }
