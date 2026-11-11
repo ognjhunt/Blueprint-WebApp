@@ -130,6 +130,10 @@ export const ANSWER_CONFIDENCE_LABELS: Readonly<Record<AnswerConfidenceLevel, st
   low: "Low",
 };
 
+/** The scene's contrary finding beside a verdict that rests on the site's own measurement (`SiteAnswer.sceneNote`). */
+export const sceneOutrankedNote = (name: string) =>
+  `The simulation of your site found that the ${name} does not fit. This check uses your own measurement instead, which we trust more.`;
+
 /** The standing note under every answer: what the check covers, and what it is not. The email and the job card say it in full. */
 export const SITE_ANSWER_NOTE =
   "This checks whether a robot can pick your object up and put it down, against published robot specifications and a cited track record. It is not a test of a robot at your site and does not certify performance or safety.";
@@ -201,6 +205,12 @@ export interface SiteAnswer {
   ruledOutMore: number;
   /** A note about the kind of robot the job needs, such as one that moves between the spots. */
   formNote: string | null;
+  /**
+   * The simulation of the site found the pick does not fit on a check the scene decides, but the site gave its own
+   * measurement, which outranks the reconstruction (its scale is estimated): the verdict stands and this says both.
+   * Absent on answers stored before it existed.
+   */
+  sceneNote?: string | null;
   /**
    * How the pick would be controlled on this job, reasoned from what the video
    * shows: a programmed application taught once, or camera-guided picking when

@@ -16,7 +16,7 @@
  * confirmed or for staff to share it.
  */
 import {
-  ALSO_INVOLVES_PREFIX, ALSO_INVOLVES_SUFFIX, JOB_FAMILY_LABELS, REASON_UNSIZED, SITE_ANSWER_NOTE, SITE_ANSWER_SCHEMA,
+  ALSO_INVOLVES_PREFIX, ALSO_INVOLVES_SUFFIX, JOB_FAMILY_LABELS, REASON_UNSIZED, SITE_ANSWER_NOTE, SITE_ANSWER_SCHEMA, sceneOutrankedNote,
   UNKNOWN_JOB_KIND, UNKNOWN_MULTI_STEP, UNKNOWN_SCENE_NOT_COVERED,
   type AnswerBasis, type AnswerCheck, type AnswerEvidence, type AnswerRobot, type AnswerVerdict, type JobFamily,
   type SiteAnswer,
@@ -338,6 +338,11 @@ interface Rated {
   comfortable: boolean;
   /** Passed checks with less than that to spare. */
   tight: Set<AnswerCheck["key"]>;
+  /**
+   * The scene says this robot does not fit on a check the scene decides (reach, where it can stand, access), but the
+   * site gave its own distance, which outranks the reconstruction: the verdict stands and the answer says both.
+   */
+  sceneOverruled: boolean;
 }
 
 type Checked = { check: AnswerCheck; headroom: number | null };
@@ -535,7 +540,8 @@ function rateModel(model: SpecModel, job: Job, catalog: RobotSpecCatalog, robotF
   const own = reachCheck(model, job, toolLength);
   const siteSpan = Boolean(job.span && job.facts.distance && !job.spanEstimated
     && (job.facts.distance.source === "site_measured" || job.facts.distance.source === "site_stated"));
-  const fromScene = siteSpan ? null : sceneReach(sceneRowOf(robotFit, model), model, payload.check);
+  const sceneSays = sceneReach(sceneRowOf(robotFit, model), model, payload.check);
+  const fromScene = siteSpan ? null : sceneSays;
   const reach: Checked = fromScene ? { check: fromScene, headroom: null } : own;
   const cycle = cycleCheck(model, job);
   const checks = [reach.check, payload.check, ...(cycle ? [cycle] : [])];
@@ -553,6 +559,7 @@ function rateModel(model: SpecModel, job: Job, catalog: RobotSpecCatalog, robotF
   return {
     model, verdict, checks, evidence, headroom, comfortable, tight,
     sceneChecked: fromScene !== null && fromScene.outcome !== "unknown",
+    sceneOverruled: siteSpan && sceneSays?.outcome === "fail",
     reason: failed ? { text: failed.text, estimated: failed.estimated } : null,
   };
 }
@@ -744,7 +751,7 @@ export function composeSiteAnswer(inputs: SiteAnswerInputs): SiteAnswer | null {
     // evidence is still looked up for pick and place, since picking up and putting down is what is checked.
     job: { sentence: summary, drafted, family: scope.readerJudged ? family : null, familyLabel: scope.readerJudged ? familyLabel : null },
     facts: answerFacts,
-    pick: null, runnerUp: null, alsoFit: [], ruledOut: [], ruledOutMore: 0, formNote: null, approach: null,
+    pick: null, runnerUp: null, alsoFit: [], ruledOut: [], ruledOutMore: 0, formNote: null, sceneNote: null as string | null, approach: null,
     unknowns: [] as string[],
     confidence: { level: "low" as const, reasons: [] as string[], raiseIt: [] as string[] },
     nextStep: { kind: "none" as const, text: "" },
@@ -807,6 +814,8 @@ export function composeSiteAnswer(inputs: SiteAnswerInputs): SiteAnswer | null {
     ruledOut,
     ruledOutMore: Math.max(0, ruled.length - ruledOut.length),
     formNote,
+    // Decided here once, so the page, the card and the emails say the same.
+    sceneNote: pick && pick.sceneOverruled && pick.verdict !== "ruled_out" ? sceneOutrankedNote(pick.model.name) : null,
     approach: approachOf(fitInputs, request, pick),
     unknowns: [...(scope.kindUnknown ? [UNKNOWN_JOB_KIND] : []), ...unknownsOf(fitInputs, job),
       ...(scope.otherActions.length ? [alsoInvolves(scope.otherActions)] : []),
@@ -837,13 +846,34 @@ function requestShowsVideo(request: Record<string, any> | null): boolean {
     || request.walkthrough_job_estimates || request.site_video_evidence));
 }
 
+/**
+ * The scene's robot table the job page's status read uses, for a caller that has none (the job card, the emails),
+ * so every surface composes from the same inputs and says the same. Null when the job has no scene preparation or
+ * it cannot be read; never fails the answer.
+ */
+async function sceneRobotFitFor(requestId: string, request: Record<string, any> | null): Promise<SceneRobotFit> {
+  try {
+    const [{ siteWalkthroughIdentity }, { dbAdmin }] = await Promise.all([import("./siteWalkthrough"), import("../../client/src/lib/firebaseAdmin")]);
+    const { captureId } = siteWalkthroughIdentity(requestId, request ?? undefined);
+    if (!dbAdmin || request?.captureRights?.consent_revoked) return null;
+    const session = await dbAdmin.collection("captureUploadSessions").doc(captureId).get();
+    if (!session.data()?.website_preparation) return null;
+    const { loadCurrentWebsitePreparationStatus } = await import("./websitePreparationStatus");
+    const status = await loadCurrentWebsitePreparationStatus(requestId, captureId);
+    return status.robotFit ?? null;
+  } catch {
+    return null;
+  }
+}
+
 /** Read the job's documents (only those the caller has not passed) and compose its answer. */
 export async function loadSiteAnswer(requestId: string, options: LoadSiteAnswerOptions = {}): Promise<SiteAnswer | null> {
-  const robotFit = options.robotFit ?? null;
   if (options.request === undefined || options.brief === undefined) {
     const loaded = await loadRobotFitInputs(requestId);
+    const robotFit = options.robotFit !== undefined ? options.robotFit ?? null : await sceneRobotFitFor(requestId, loaded.request);
     return composeSiteAnswer({ ...loaded, robotFit, videoReceived: options.videoReceived ?? requestShowsVideo(loaded.request) });
   }
+  const robotFit = options.robotFit !== undefined ? options.robotFit ?? null : await sceneRobotFitFor(requestId, options.request ?? null);
   const request = options.request ?? null;
   // The one read a caller holding the request and the brief still needs: the site's own readings.
   const measurements = await getMeasurements(requestId);
