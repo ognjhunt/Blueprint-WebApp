@@ -7,7 +7,7 @@ test("historical pricing leads to the free beta page with one action", async ({ 
   await page.goto("/pricing");
   await expect(page).toHaveURL(/\/beta$/);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Questions");
-  await expect(page.getByText(/Free\. Blueprint takes no cut of any work you agree\./)).toBeVisible();
+  await expect(page.getByText(/The beta is free for sites and partners\./)).toBeVisible();
   await expect(page.getByText(/You agree the price and terms with them\./)).toBeVisible();
   await expect(page.locator("main .bare-button")).toHaveCount(1);
   await expect(page.locator("main")).not.toContainText("$2,500");

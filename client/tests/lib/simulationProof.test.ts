@@ -241,8 +241,10 @@ describe("projectSimulationProof", () => {
   it("reads the pick's verdict from the measured scene", () => {
     const fit = (verdict: "fits" | "fits_spec" | "doesnt_fit" | "unknown") => projectSimulationProof({ evaluation: null, pick: ur10e,
       robotFit: { models: [{ name: "UR10e", manufacturer: "Universal Robots", verdict, openChecks: [] }] } }).robotCheck;
-    expect(fit("fits")).toEqual({ pickChecked: true,
+    expect(fit("fits")).toEqual({ pickChecked: true, doesNotFit: false,
       line: "In the scene rebuilt from your video, the Universal Robots UR10e reaches the pick-up and put-down points with a clear arm path." });
+    // With no open check listed, "doesn't fit" rests on the scene's own geometry: said as does not fit.
+    expect(fit("doesnt_fit")).toMatchObject({ doesNotFit: true, line: "In the scene rebuilt from your video, the Universal Robots UR10e does not fit." });
     expect(fit("doesnt_fit")!.pickChecked).toBe(true);
     expect(fit("unknown")!.pickChecked).toBe(false);
     expect(projectSimulationProof({ evaluation: null, pick: null, robotFit: { models: [] } }).robotCheck).toBeNull();
@@ -265,7 +267,7 @@ describe("projectSimulationProof", () => {
     expect(line.pickChecked).toBe(true);
     const other = projectSimulationProof({ evaluation: null, pick: ur10e,
       robotFit: { models: [{ name: "UR10e", manufacturer: "Another Maker", verdict: "fits", openChecks: [] }] } }).robotCheck!;
-    expect(other).toEqual({ pickChecked: false, line: "The scene rebuilt from your video has not been checked against the Universal Robots UR10e yet." });
+    expect(other).toEqual({ pickChecked: false, doesNotFit: false, line: "The scene rebuilt from your video has not been checked against the Universal Robots UR10e yet." });
   });
 });
 

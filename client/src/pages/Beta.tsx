@@ -20,8 +20,8 @@ export default function Beta() {
         <BareScreen>
           <BareBack href="/how-it-works" />
           <h1>Questions</h1>
-          <BareRows title="The beta" rows={[
-            { key: "cost", label: "Cost", value: <>Free. Blueprint takes no cut of any work you agree. <a href="/refunds">Paid before the beta?</a></> },
+          <BareRows id="scope" title="The beta" rows={[
+            { key: "cost", label: "Cost", value: <>The beta is free for sites and partners. Blueprint takes no cut of any work you agree. <a href="/refunds">Refunds and cancellations</a></> },
             { key: "reply", label: "Reply", value: REPLY_TIMELINE },
             { key: "company", label: "Setting it up", value: "A company we've approved quotes it. You agree the price and terms with them." },
           ]} />

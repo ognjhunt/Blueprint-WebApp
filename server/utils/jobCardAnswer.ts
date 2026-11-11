@@ -28,6 +28,7 @@
 import type { AnswerRobot, SiteAnswer } from "../../client/src/lib/siteAnswer";
 import type { JobCardAnswerRobot, JobCardAnswerSummary } from "../../client/src/types/taskBrowse";
 import { isJobCardAnswerStatementVersion } from "../../client/src/lib/jobCardAnswerConsent";
+import { testHeadline, testResultOf, type SimulationProof } from "../../client/src/lib/simulationProof";
 import { TIGHT_FIT_SENTENCE } from "../../client/src/lib/siteAnswer";
 import { logger } from "../logger";
 
@@ -92,11 +93,23 @@ function robotOf(robot: AnswerRobot | null): JobCardAnswerRobot | null {
 }
 
 /** The card's answer from the site's answer. Pure. Null while the answer is not settled. */
-export function projectJobCardAnswer(answer: SiteAnswer | null, simulation: string | null = null): JobCardAnswerSummary | null {
+export function projectJobCardAnswer(answer: SiteAnswer | null, simulation: string | null = null,
+  proof: SimulationProof | null = null): JobCardAnswerSummary | null {
   if (!answer || (answer.state !== "ready" && answer.state !== "cannot_assess")) return null;
   const firstReason = answer.confidence.reasons[0];
+  // The card carries the headline the site sees: the simulation test's result when there is one, else the paper check.
+  const result = answer.state === "ready" ? testResultOf(proof) : null;
+  const test: JobCardAnswerSummary["test"] = result ? {
+    kind: result.kind, wording: result.kind === "winner" ? result.wording : null,
+    entered: result.kind === "testing" ? result.entered : proof!.options.entered,
+    setupFlag: result.kind === "testing" ? false : result.setupFlag,
+    options: proof!.options.options.map(option => ({ label: option.label, maker: option.maker, succeeded: option.succeeded,
+      scored: option.scored, furthestText: option.furthestText })),
+  } : null;
+  const headline = testHeadline(result);
   return {
-    headline: aboutTheSite(answer.headline),
+    headline: aboutTheSite(headline ?? answer.headline),
+    test,
     familyLabel: answer.job.familyLabel,
     // Sizes, weights and distances only: a figure with its unit, never words about the site.
     facts: answer.facts.filter(fact => /\d/.test(fact.display) && fact.display.length <= 60)
@@ -106,21 +119,15 @@ export function projectJobCardAnswer(answer: SiteAnswer | null, simulation: stri
     confidence: { level: answer.confidence.level, reason: firstReason ? aboutTheSite(firstReason) : null },
     unknowns: answer.unknowns.map(line => line.startsWith(OTHER_OBJECTS) ? "How many different objects the job handles." : line)
       .map(aboutTheSite),
-    simulation: simulation ? aboutTheSite(simulation) : null,
+    simulation: simulation && !result ? aboutTheSite(simulation) : null,
     note: aboutTheSite(answer.note),
   };
 }
 
 /** The headline alone, for the browse list. */
 export async function loadJobCardAnswerHeadline(id: string, record: unknown): Promise<string | null> {
-  if (!jobCardAnswerShared(record)) return null;
-  try {
-    const { loadSiteAnswer } = await import("./siteAnswer");
-    return projectJobCardAnswer(await loadSiteAnswer(id))?.headline ?? null;
-  } catch (error) {
-    logger.warn({ error, requestId: id }, "Could not compose the answer headline for a job card");
-    return null;
-  }
+  // The library's line is the card's own headline, the test result when there is one.
+  return (await loadJobCardAnswer(id, record))?.headline ?? null;
 }
 
 /**
@@ -134,16 +141,17 @@ export async function loadJobCardAnswer(id: string, record: unknown): Promise<Jo
     const answer = await loadSiteAnswer(id);
     if (!answer) return null;
     let simulation: string | null = null;
+    let proof: SimulationProof | null = null;
     try {
       const [{ readSiteManagedEvidence }, { projectSimulationProof }] = await Promise.all([
         import("./siteManagedEvidence"), import("../../client/src/lib/simulationProof")]);
       const { managedEvidence } = await readSiteManagedEvidence(id);
-      const proof = projectSimulationProof({ evaluation: managedEvidence as never, pick: answer.pick });
+      proof = projectSimulationProof({ evaluation: managedEvidence as never, pick: answer.pick });
       simulation = proof.state === "not_started" ? null : proof.headline;
     } catch (error) {
       logger.warn({ error, requestId: id }, "Could not read the simulation line for a job card");
     }
-    return projectJobCardAnswer(answer, simulation);
+    return projectJobCardAnswer(answer, simulation, proof);
   } catch (error) {
     logger.warn({ error, requestId: id }, "Could not compose the answer for a job card");
     return null;

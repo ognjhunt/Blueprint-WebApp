@@ -124,6 +124,53 @@ export interface SimulationProof {
   accuracy: { statement: string; conditions: string; sources: Array<{ title: string; url: string }> };
   /** Which of the studies' conditions hold for this job, one sentence each. */
   forThisJob: string[];
+  /** The AI options the test compared, in one display order, and which (if any) did best: see `optionsOf`. */
+  options: SimulationOptions;
+}
+
+/**
+ * An option is a robot together with the AI software that controls it ("Franka arm + π0.5"), named only through
+ * the closed map in `simulationPolicies.ts`. Only a scored learned-policy row whose robot that map confirms is an
+ * option: scripted and reference rows are checks on our own simulation, and a row whose robot is not confirmed
+ * (any unmapped policy) is listed apart and never ranked.
+ */
+export interface SimulationOption {
+  id: string;
+  /** "Franka arm + π0.5". */
+  label: string;
+  /** The AI software's own name, "π0.5". */
+  software: string;
+  /** Who makes the software, or null when the catalog does not say. */
+  maker: string | null;
+  robot: SimulatedRobot;
+  succeeded: number;
+  scored: number;
+  rangeText: string | null;
+  furthest: { stage: ProgressStage; episodes: number; graded: number } | null;
+  /** How far it got, in the closed phrases (`PROGRESS_PHRASES`), when the run graded it. */
+  furthestText: string | null;
+  furthestDetail: string | null;
+  /** The median closest approach, in metres, when measured. */
+  closestM: number | null;
+}
+
+export interface SimulationOptions {
+  /** In the display order (`optionsOf`). Row 1 is the one the answer leads with. */
+  options: SimulationOption[];
+  /** Scored learned rows whose robot is not confirmed: never ranked, said apart, with their counts. */
+  unconfirmed: Array<{ policy: string; maker: string | null; succeeded: number; scored: number }>;
+  /** "did_best" or "was_ahead" from the probability rule only; null when there is no winner. */
+  winner: "did_best" | "was_ahead" | null;
+  /** How many AI options were entered for this run (learned rows, scored or not; never scripted or reference rows). */
+  entered: number;
+  /** About how many tries each scored option had (the median), or null before any. */
+  triesEach: number | null;
+  /** Options planned for this run that produced no score (budget, failure to start). */
+  didNotRun: number;
+  /** A set-up flag says our simulation may have shaped the result (`outcomeCaveat` or the scene-setup note). */
+  setupFlag: boolean;
+  /** The set-up notes as the run sent them. */
+  setupNotes: string[];
 }
 
 export interface SimulationProofInput {
@@ -536,6 +583,65 @@ function forThisJobOf(state: SimulationProofState, pick: AnswerRobot | null, sca
   return lines;
 }
 
+const STAGE_DEPTH = new Map(PROGRESS_LADDER.map((stage, index) => [stage, index + 1]));
+
+/**
+ * The AI options and the one display order every screen uses:
+ * options that completed the job at least once come first, by the mean of each success rate's
+ * Beta(s + 1, n − s + 1) (more scored tries first on a tie); then the options that completed nothing, by how far
+ * they got (the deepest stage reached, then how many tries reached it, then the closer median approach), then by
+ * scored tries. This is an order for display only: "did best" and "was ahead" come only from the probability rule
+ * (`probabilityAhead` of row 1 against every other option, CLEAR or AHEAD, with at least one success), so a row
+ * that never completed the job is never called best or ahead. Options on different robots are compared.
+ */
+export function optionsOf(evaluation: JobManagedEvidenceSummary | null): SimulationOptions {
+  const screening = evaluation?.screening;
+  const all = (Array.isArray(screening?.candidates) ? screening!.candidates : []).filter(isRecord) as Candidate[];
+  const references = referenceIds(screening);
+  const learned = all.filter(row => !scripted(row) && !references.has(String(row.candidateId ?? "")));
+  const scored = learned.filter(row => count(row.scored) > 0);
+  const options: SimulationOption[] = [];
+  const unlistedIds = [...new Set(scored.filter(row => !isListed(row)).map(row => String(row.candidateId ?? "")))].sort();
+  const unconfirmed: SimulationOptions["unconfirmed"] = [];
+  for (const row of scored) {
+    const id = String(row.candidateId ?? "");
+    const known = simulationPolicyFor(id);
+    const succeeded = Math.min(count(row.succeeded), count(row.scored));
+    if (!known.robot) {
+      unconfirmed.push({ policy: unlistedIds.length > 1 ? `${UNNAMED_POLICY} (${letterOf(unlistedIds.indexOf(id))})` : known.policy,
+        maker: known.maker, succeeded, scored: count(row.scored) });
+      continue;
+    }
+    const reached = furthestOf(row.progress, count(row.scored));
+    const progress: unknown = row.progress;
+    const approach = isRecord(progress) && isRecord(progress.closestApproachM) ? Number(progress.closestApproachM.median) : NaN;
+    options.push({ id, label: `${known.robot.short} + ${known.policy}`, software: known.policy, maker: known.maker, robot: known.robot,
+      succeeded, scored: count(row.scored), rangeText: succeeded > 0 ? rangeTextOf(row.successRange) : null,
+      furthest: reached?.furthest ?? null, furthestText: reached?.text ?? null, furthestDetail: reached?.detail ?? null,
+      closestM: Number.isFinite(approach) ? approach : null });
+  }
+  const mean = (entry: { succeeded: number; scored: number }) => (entry.succeeded + 1) / (entry.scored + 2);
+  const depth = (entry: SimulationOption) => (entry.furthest ? STAGE_DEPTH.get(entry.furthest.stage) ?? 0 : 0);
+  options.sort((a, b) => Number(b.succeeded > 0) - Number(a.succeeded > 0)
+    || (a.succeeded > 0 ? mean(b) - mean(a) : 0)
+    || (a.succeeded === 0 ? depth(b) - depth(a) || (b.furthest?.episodes ?? 0) - (a.furthest?.episodes ?? 0)
+      || (a.closestM ?? Number.POSITIVE_INFINITY) - (b.closestM ?? Number.POSITIVE_INFINITY) : 0)
+    || b.scored - a.scored || a.id.localeCompare(b.id));
+  const leader = options[0];
+  const ahead = leader && options.length > 1 && leader.succeeded > 0
+    ? Math.min(...options.slice(1).map(entry => probabilityAhead(leader, entry))) : 0;
+  const winner = ahead >= CLEAR - THRESHOLD_TOLERANCE ? "did_best" : ahead >= AHEAD - THRESHOLD_TOLERANCE ? "was_ahead" : null;
+  const tries = options.map(entry => entry.scored).concat(unconfirmed.map(entry => entry.scored)).sort((a, b) => a - b);
+  const notes = [...new Set((Array.isArray(screening?.setupNotes) ? screening!.setupNotes : []).filter((note): note is string => typeof note === "string" && Boolean(note.trim())))];
+  return {
+    options, unconfirmed, winner, entered: learned.length,
+    triesEach: tries.length ? tries[Math.floor((tries.length - 1) / 2)] : null,
+    didNotRun: learned.filter(plannedButNotRun).length,
+    setupFlag: evaluation?.outcomeCaveat === "scene_setup" || notes.includes(SCENE_SETUP_CAVEAT),
+    setupNotes: notes,
+  };
+}
+
 /** The simulation proof for a job page. Pure: the same inputs always give the same proof, and junk gives a smaller one. */
 export function projectSimulationProof(input: SimulationProofInput): SimulationProof {
   const evaluation = currentEvaluation(input?.evaluation);
@@ -563,5 +669,49 @@ export function projectSimulationProof(input: SimulationProofInput): SimulationP
     accuracy: { statement: SIMULATION_ACCURACY.statement, conditions: SIMULATION_ACCURACY.conditions,
       sources: SIMULATION_ACCURACY.sources.map(source => ({ ...source })) },
     forThisJob: forThisJobOf(state, pick, input?.scaleMeasured === true, robot, mixed),
+    options: optionsOf(evaluation),
   };
+}
+
+/** What the answer screen says about the test, chosen by the data (`SimulationOptions`). */
+export type TestResult =
+  | { kind: "winner"; wording: "did_best" | "was_ahead"; top: SimulationOption; others: number; setupFlag: boolean }
+  | { kind: "one_option"; top: SimulationOption; setupFlag: boolean }
+  | { kind: "no_clear_winner"; top: SimulationOption; setupFlag: boolean }
+  | { kind: "none_finished"; top: SimulationOption; count: number; setupFlag: boolean }
+  | { kind: "testing"; entered: number }
+  | null;
+
+/**
+ * The test result the answer leads with, or null when there is none to lead with (not started, held, could not run,
+ * or a finished run with no option: nothing scored, or no robot confirmed). Row 1 of the display order is the one
+ * named; the winner's wording comes only from `SimulationOptions.winner`.
+ */
+export function testResultOf(proof: SimulationProof | null | undefined): TestResult {
+  if (!proof) return null;
+  const { options, winner, entered, setupFlag } = proof.options;
+  if ((proof.state === "preparing" || proof.state === "running") && entered > 0
+    && !Object.values(WAITING).includes(proof.headline)) return { kind: "testing", entered };
+  if (proof.state !== "done" || !options.length) return null;
+  const top = options[0];
+  if (winner) return { kind: "winner", wording: winner, top, others: options.length - 1, setupFlag };
+  if (top.succeeded === 0) return { kind: "none_finished", top, count: options.length, setupFlag };
+  if (options.length === 1) return { kind: "one_option", top, setupFlag };
+  return { kind: "no_clear_winner", top, setupFlag };
+}
+
+/**
+ * The test result as one headline, for the job card a company reads and the library's line: the same result the
+ * site's screen leads with, numbers and closed-map names only. Said about "your job"; the card re-voices it.
+ */
+export function testHeadline(result: TestResult): string | null {
+  if (!result) return null;
+  const tries = (option: SimulationOption) => `${option.succeeded} of ${option.scored} ${option.scored === 1 ? "try" : "tries"}`;
+  switch (result.kind) {
+    case "testing": return `Testing now: ${result.entered} AI ${result.entered === 1 ? "robot" : "robots"} on your job.`;
+    case "winner": return `${result.wording === "did_best" ? "Did best" : "Was ahead"} on your job: ${result.top.label}, doing your job in ${tries(result.top)}.`;
+    case "one_option": return `Tested on your job: ${result.top.label} did your job in ${tries(result.top)}, the only AI robot tested.`;
+    case "no_clear_winner": return "Tested on your job: no clear winner yet.";
+    case "none_finished": return "Tested on your job: none finished yet.";
+  }
 }

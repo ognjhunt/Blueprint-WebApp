@@ -108,7 +108,7 @@ for (const width of [390, 1440]) {
     await expect(page.locator("#start-region")).toHaveCount(0);
     await page.getByRole("button", { name: /^(Send video|Next: film the job|Save my job)$/ }).click();
     await expect(page.getByRole("heading", { name: "Now film the job.", exact: true })).toBeVisible();
-    await page.getByRole("link", { name: "Open your job page", exact: true }).click();
+    await page.getByRole("link", { name: "Open my job page ›", exact: true }).click();
     await expect(page.getByRole("region", { name: "Confirm recording permission", exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "Confirm recording permission", exact: true })).toBeDisabled();
     await expect(page.getByRole("heading", { name: "Your job summary", exact: true })).toHaveCount(0);

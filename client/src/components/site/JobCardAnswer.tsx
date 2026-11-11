@@ -29,6 +29,36 @@ function SourceLink({ evidence }: { evidence: AnswerEvidence }) {
   </a>;
 }
 
+/** The card's head when the simulation test leads: the same result the site's screen shows, said about "the job". */
+function CardTestHead({ test }: { test: NonNullable<JobCardAnswerSummary["test"]> }) {
+  const top = test.options[0];
+  if (test.kind === "testing" || !top) return <BareGroup>
+    <p className="bare-label">Testing now</p>
+    <BareBig as="p" sub="on the job, in a simulation of the site.">{`${test.entered} AI ${test.entered === 1 ? "robot" : "robots"}`}</BareBig>
+  </BareGroup>;
+  const did = `${top.succeeded} of ${top.scored} ${top.scored === 1 ? "try" : "tries"}`;
+  if (test.kind === "no_clear_winner") return <BareGroup><p className="bare-label">Tested on the job</p>
+    <BareBig as="p" sub={`Top: ${top.label}, did the job in ${did}.`}>No clear winner yet</BareBig></BareGroup>;
+  if (test.kind === "none_finished") return <BareGroup><p className="bare-label">Tested on the job</p>
+    <BareBig as="p" sub={top.furthestText ? `Closest: ${top.label} ${top.furthestText}.` : `${test.options.length} AI ${test.options.length === 1 ? "robot" : "robots"} tried; none finished the job.`}>None finished yet</BareBig></BareGroup>;
+  const others = test.options.length - 1;
+  const step = test.kind === "winner" ? (test.wording === "did_best" ? 2 : 1) : 0;
+  const sure = [{ filled: 1 as const, word: "Not sure yet" }, { filled: 2 as const, word: "Fairly sure" }, { filled: 3 as const, word: "Sure" }][Math.max(0, step - (test.setupFlag ? 1 : 0))];
+  return <>
+    <BareGroup>
+      <p className="bare-label">{test.kind === "one_option" ? "Tested on the job" : test.wording === "did_best" ? "Did best on the job" : "Was ahead on the job"}</p>
+      <BareBig as="p" sub={top.maker ? `AI software by ${top.maker}` : undefined}>{top.label}</BareBig>
+    </BareGroup>
+    <BareGroup>
+      <BareTicks label="Why" items={[{ key: "did", state: "yes", text: `Did the job in ${did}` },
+        test.kind === "winner"
+          ? { key: "ahead", state: "yes", text: others === 1 ? "Ahead of the other AI robot tested" : `Ahead of the ${others} other AI robots tested` }
+          : { key: "only", state: "yes", text: "The only AI robot tested on the job" }]} />
+    </BareGroup>
+    <BareGroup><BareSureness filled={sure.filled} word={sure.word} /></BareGroup>
+  </>;
+}
+
 const SURE: Readonly<Record<JobCardAnswerSummary["confidence"]["level"], { filled: 1 | 2 | 3; word: string }>> = {
   low: { filled: 1, word: "Not sure yet" }, fair: { filled: 2, word: "Fairly sure" }, good: { filled: 3, word: "Sure" },
 };
@@ -85,8 +115,19 @@ export function JobCardAnswer({ answer, titled = true }: { answer: JobCardAnswer
     {answer.facts.length > 0 && <BareRows title={allEstimated ? "Estimated from the site's video" : "The numbers"} rows={answer.facts.map(fact => ({
       key: fact.label, label: fact.label, value: <>{fact.display}{!allEstimated && <span className="bare-helper"> ({BASIS_LABELS[fact.basis]})</span>}</> }))} />}
     {answer.unknowns.length > 0 && <BareRows title="What the video couldn't show" rows={answer.unknowns.map(line => ({ key: line, value: line }))} />}
-    {answer.simulation && <BareRows title="Computer test" rows={[{ key: "simulation", value: answer.simulation }]} />}
+    {answer.test && answer.test.options.length > 0 && <BareRows title="Simulation test" rows={answer.test.options.map((option, index) => ({
+      key: `${index}-${option.label}`, label: <>{index + 1}. {option.label}{option.maker && <span className="bare-helper"> · {option.maker}</span>}</>,
+      value: `Finished ${option.succeeded} of ${option.scored} ${option.scored === 1 ? "try" : "tries"}${option.succeeded === 0 && option.furthestText ? ` · ${option.furthestText}` : ""}` }))} />}
+    {answer.simulation && <BareRows title="Simulation test" rows={[{ key: "simulation", value: answer.simulation }]} />}
     <BareFine>{answer.note}</BareFine>
+  </section>;
+  const test = answer.test ?? null;
+  if (test) return <section className="bare-screen site-card-answer" aria-label={JOB_CARD_ANSWER_TITLE} ref={root} tabIndex={-1}>
+    {titled && <h3 className="bare-label">{JOB_CARD_ANSWER_TITLE}</h3>}
+    <CardTestHead test={test} />
+    {pick && <BareGroup><p>{fits ? "On paper, most likely to fit" : "On paper, the closest robot"}: {pick.manufacturer} {pick.name}</p></BareGroup>}
+    <BareLinks links={[{ key: "details", label: "See details", onClick: () => show(true) }]} />
+    <BareFine>{JOB_CARD_LIMITS}</BareFine>
   </section>;
   return <section className="bare-screen site-card-answer" aria-label={JOB_CARD_ANSWER_TITLE} ref={root} tabIndex={-1}>
     {titled && <h3 className="bare-label">{JOB_CARD_ANSWER_TITLE}</h3>}
@@ -97,7 +138,7 @@ export function JobCardAnswer({ answer, titled = true }: { answer: JobCardAnswer
     {pick && <BareGroup><BareTicks label="Why" items={ticksOf(pick.checks ?? [], pick.evidence[0])} /></BareGroup>}
     <BareGroup>
       <BareSureness filled={sure.filled} word={sure.word} reason={answer.confidence.reason} />
-      {answer.simulation && <p>Computer test: {answer.simulation}</p>}
+      {answer.simulation && <p>Simulation test: {answer.simulation}</p>}
     </BareGroup>
     <BareLinks links={[{ key: "details", label: "See details", onClick: () => show(true) }]} />
     <BareFine>{JOB_CARD_LIMITS}</BareFine>

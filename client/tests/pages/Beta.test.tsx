@@ -12,9 +12,10 @@ describe("the questions page", () => {
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Questions");
     const beta = screen.getByRole("region", { name: "The beta" });
     expect(beta).toHaveTextContent(REPLY_TIMELINE);
-    expect(beta).toHaveTextContent(/Free\. Blueprint takes no cut of any work you agree\./);
+    expect(beta).toHaveAttribute("id", "scope");
+    expect(beta).toHaveTextContent(/The beta is free for sites and partners\. Blueprint takes no cut of any work you agree\./);
     expect(beta).toHaveTextContent(/You agree the price and terms with them\./);
-    expect(screen.getByRole("link", { name: "Paid before the beta?" })).toHaveAttribute("href", "/refunds");
+    expect(screen.getByRole("link", { name: "Refunds and cancellations" })).toHaveAttribute("href", "/refunds");
   });
 
   it("says what is tested, that it is a simulation, and what it is not", () => {

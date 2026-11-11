@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { SHARED_WITHOUT_ANSWER, SiteAnswer, SiteAnswerDetail, SiteAnswerDetails, detailScreens, evidenceTick, sureReason, ticksOf, type DetailScreen } from "@/components/site/SiteAnswer";
 import { projectSimulationProof } from "@/lib/simulationProof";
 import { REASON_UNSIZED, UNKNOWN_JOB_KIND, UNKNOWN_MULTI_STEP, type AnswerRobot } from "@/lib/siteAnswer";
-import { allZeroEvaluation, cannotAssessAnswer, noPickAnswer, readingAnswer, readyAnswer, winnerEvaluation } from "../fixtures/siteAnswer";
+import { allZeroEvaluation, cannotAssessAnswer, noPickAnswer, preparingEvaluation, readingAnswer, readyAnswer, winnerEvaluation } from "../fixtures/siteAnswer";
 
 vi.mock("@/lib/csrf", () => ({ withCsrfHeader: async (headers: Record<string, string>) => ({ ...headers, "X-CSRF-Token": "local-test" }) }));
 const fetchMock = vi.fn();
@@ -22,7 +22,8 @@ describe("the site's answer, bare bones", () => {
   it("says the robot in large type with its maker, why in plain ticks, how sure, one button with its line, two links and the limits", () => {
     const { container } = render(<SiteAnswer token="owner-token" answer={readyAnswer} onShowDetails={vi.fn()} onShowSettings={vi.fn()} />);
     const answer = screen.getByRole("region", { name: "Your answer" });
-    expect(within(answer).getByRole("heading", { level: 2, name: "The robot most likely to fit" })).toBeVisible();
+    // No simulation test result: the paper check leads, and says it is the paper check.
+    expect(within(answer).getByRole("heading", { level: 2, name: "On paper, the robot most likely to fit" })).toBeVisible();
     expect(within(answer).getByText("UR10e")).toHaveClass("bare-big");
     expect(within(answer).getByText("by Universal Robots")).toBeVisible();
     expect(within(screen.getByRole("list", { name: "Why" })).getAllByRole("listitem").map(item => item.textContent))
@@ -46,7 +47,7 @@ describe("the site's answer, bare bones", () => {
     const possible = { ...readyAnswer, headline: "No robot clearly fits yet. The closest is Universal Robots UR10e.",
       pick: { ...readyAnswer.pick!, verdict: "possible" as const, checks: [{ ...readyAnswer.pick!.checks[0], outcome: "unknown" as const }, readyAnswer.pick!.checks[1]] } };
     render(<SiteAnswer token="owner-token" answer={possible} />);
-    expect(screen.getByRole("heading", { level: 2, name: "The closest robot" })).toBeVisible();
+    expect(screen.getByRole("heading", { level: 2, name: "On paper, the closest robot" })).toBeVisible();
     expect(screen.getByText("by Universal Robots. No robot clearly fits yet.")).toBeVisible();
     // A check that is not settled is a question, never a tick.
     const items = within(screen.getByRole("list", { name: "Why" })).getAllByRole("listitem");
@@ -96,17 +97,74 @@ describe("the site's answer, bare bones", () => {
     expect(screen.queryByText("Your video does not show the whole work area.")).toBeNull();
   });
 
-  it("says the simulation test in one line, naming the robot it ran on and that it is not the pick", () => {
-    render(<SiteAnswer token="owner-token" answer={readyAnswer} proof={winnerProof} />);
-    expect(screen.getByText("Simulation test: π0.5 was ahead, finishing the job in 7 of 10 tries, on a Franka research arm, not the UR10e. It could still be chance."))
-      .toBeVisible();
-    expect(screen.queryByRole("list", { name: "Control policies tried" })).toBeNull();
+  it("leads with the simulation test's result when there is one: the option, its count, how sure, and the paper check one tap away", () => {
+    const onShowPaper = vi.fn();
+    // 7 of 10 against 3 of 10 and 2 of 10 is about 0.96 against the next: ahead, fairly sure, and it could still be chance.
+    render(<SiteAnswer token="owner-token" answer={readyAnswer} proof={winnerProof} onShowPaper={onShowPaper} />);
+    const answer = screen.getByRole("region", { name: "Your answer" });
+    expect(within(answer).getByRole("heading", { level: 2, name: "Was ahead on your job" })).toBeVisible();
+    expect(within(answer).getByText("Franka arm + π0.5")).toHaveClass("bare-big");
+    expect(within(answer).getByText("AI software by Physical Intelligence")).toBeVisible();
+    expect(within(screen.getByRole("list", { name: "Why" })).getAllByRole("listitem").map(item => item.textContent))
+      .toEqual(["✓Did your job in 7 of 10 tries", "✓Ahead of the 2 other AI robots we tested"]);
+    expect(answer).toHaveTextContent("How sure are we? Fairly sure");
+    expect(within(answer).getByText("With this few tries the gap could still be chance.")).toBeVisible();
+    fireEvent.click(within(answer).getByRole("button", { name: "On paper, most likely to fit: Universal Robots UR10e ›" }));
+    expect(onShowPaper).toHaveBeenCalledTimes(1);
+    // The paper ticks are not on this screen; the one button and its line are.
+    expect(within(answer).queryByText("Reaches far enough")).toBeNull();
+    expect(within(answer).getByRole("button", { name: FIND })).toBeVisible();
+    expect(within(answer).getByText(CONSENT)).toBeVisible();
+  });
+
+  it("says did best only by the probability rule, and lowers how sure by one step when a set-up flag is raised", () => {
+    const clear = projectSimulationProof({ evaluation: [{ ...winnerEvaluation, screening: { candidates: winnerEvaluation.screening!.candidates.map((row, index) =>
+      index === 0 ? { ...row, succeeded: 10, failed: 0 } : row) } }], pick: readyAnswer.pick });
+    const { unmount } = render(<SiteAnswer token="owner-token" answer={readyAnswer} proof={clear} />);
+    expect(screen.getByRole("heading", { level: 2, name: "Did best on your job" })).toBeVisible();
+    expect(screen.getByRole("region", { name: "Your answer" })).toHaveTextContent("How sure are we? Sure");
+    unmount();
+    const flagged = projectSimulationProof({ evaluation: [{ ...winnerEvaluation, outcomeCaveat: "scene_setup" as const, screening: { candidates: winnerEvaluation.screening!.candidates.map((row, index) =>
+      index === 0 ? { ...row, succeeded: 10, failed: 0 } : row) } }], pick: readyAnswer.pick });
+    render(<SiteAnswer token="owner-token" answer={readyAnswer} proof={flagged} />);
+    expect(screen.getByRole("region", { name: "Your answer" })).toHaveTextContent("How sure are we? Fairly sure");
+    expect(screen.getByText("Our simulation set-up may have affected this result.")).toBeVisible();
+  });
+
+  it("says none finished, with the closest by how far it got, and the set-up notice", () => {
+    render(<SiteAnswer token="owner-token" answer={readyAnswer} proof={projectSimulationProof({ evaluation: [allZeroEvaluation], pick: readyAnswer.pick })} />);
+    expect(screen.getByRole("heading", { level: 2, name: "Tested on your job" })).toBeVisible();
+    expect(screen.getByText("None finished yet")).toHaveClass("bare-big");
+    // The fixture carries no progress, so nothing is called closest.
+    expect(screen.getByText("4 AI robots tried; none finished your job.")).toBeVisible();
+    expect(screen.getByText("This result may come from how we set up the simulation of your site, not from the robots.")).toBeVisible();
+    expect(screen.queryByText(/Did best|Was ahead/)).toBeNull();
+  });
+
+  it("says no clear winner yet with the top option's count, and testing now while it runs", () => {
+    const tie = projectSimulationProof({ evaluation: [{ ...winnerEvaluation, screening: { candidates: winnerEvaluation.screening!.candidates.map((row, index) =>
+      index < 2 ? { ...row, scored: 2, succeeded: 1, failed: 1 } : row) } }], pick: readyAnswer.pick });
+    const { unmount } = render(<SiteAnswer token="owner-token" answer={readyAnswer} proof={tie} />);
+    expect(screen.getByText("No clear winner yet")).toHaveClass("bare-big");
+    expect(screen.getByText(/^Top: Franka arm \+ /)).toBeVisible();
+    unmount();
+    const running = projectSimulationProof({ evaluation: [{ ...preparingEvaluation, state: "running", screening: { candidates: preparingEvaluation.screening!.candidates.map(row => ({ ...row, state: "running" })) } }], pick: readyAnswer.pick });
+    render(<SiteAnswer token="owner-token" answer={readyAnswer} proof={running} />);
+    expect(screen.getByRole("heading", { level: 2, name: "Testing now" })).toBeVisible();
+    expect(screen.getByText("2 AI robots")).toHaveClass("bare-big");
+    expect(screen.getByText("on your job, in a simulation of your site. We'll email you.")).toBeVisible();
+  });
+
+  it("falls back to the paper check with why the test did not run, when that is known", () => {
+    render(<SiteAnswer token="owner-token" answer={readyAnswer} proof={projectSimulationProof({ evaluation: [{ ...winnerEvaluation, outcome: "held_budget" as const }], pick: readyAnswer.pick })} />);
+    expect(screen.getByRole("heading", { level: 2, name: "On paper, the robot most likely to fit" })).toBeVisible();
+    expect(screen.getByText("The simulation test did not run. The test reached the most the free beta can run for one job, before it finished.")).toBeVisible();
   });
 
   it("says nothing about the simulation test before it starts", () => {
     const notStarted = projectSimulationProof({ evaluation: [], pick: readyAnswer.pick });
     const { container } = render(<SiteAnswer token="owner-token" answer={readyAnswer} proof={notStarted} />);
-    expect(container.textContent).not.toMatch(/computer test|simulation/i);
+    expect(container.textContent).not.toMatch(/simulation test|testing now|tested on your job/i);
   });
 
   it("while reading, says only that it is watching the video and will email", () => {
@@ -173,7 +231,7 @@ describe("the details screens", () => {
     render(<SiteAnswerDetails answer={withFigures} proof={winnerProof} onBack={onBack} onOpen={onOpen} />);
     expect(screen.getByRole("heading", { level: 1, name: "Details" })).toHaveAttribute("tabindex", "-1");
     expect(within(screen.getByRole("list", { name: "Details" })).getAllByRole("button").map(button => button.textContent)).toEqual([
-      "Why this robot", "Other robots", "Robots that don't fit", "What we estimated", "What we couldn't see", "The simulation test", "How far to trust it"]);
+      "The simulation test", "How far to trust it", "On paper: why this robot", "Other robots", "Robots that don't fit", "What we estimated", "What we couldn't see"]);
     fireEvent.click(screen.getByRole("button", { name: "What we estimated" }));
     expect(onOpen).toHaveBeenCalledWith("estimated");
     fireEvent.click(screen.getByRole("button", { name: "‹ Back" }));
@@ -184,13 +242,13 @@ describe("the details screens", () => {
 
   it("says why this robot in short rows: the figures, the sources, the record, how it is run, and that it is about the robot", () => {
     detail("why");
-    expect(screen.getByRole("heading", { level: 1, name: "Why this robot" })).toBeVisible();
+    expect(screen.getByRole("heading", { level: 1, name: "On paper: why this robot" })).toBeVisible();
     expect(screen.getByText(/^needs about 0\.9–1\.2 m · reaches 1\.3 m · only just enough/)).toBeVisible();
     expect(screen.getByText(/^needs to lift up to 12 kg · lifts up to 12\.5 kg/)).toBeVisible();
     expect(screen.getAllByRole("link", { name: "source" }).map(link => link.getAttribute("href"))).toEqual(readyAnswer.pick!.specs.map(spec => spec.sourceUrl));
     expect(screen.getByRole("link", { name: "Example Test News" })).toHaveAttribute("href", readyAnswer.pick!.evidence[0].sourceUrl);
     expect(screen.getByText("The objects vary, so it needs a camera to pick each one. Ask the company that sets it up how it handles each item.")).toBeVisible();
-    expect(screen.getByText("This answer is about the robot itself, not the software that runs it. The software is set up when the robot is installed.")).toBeVisible();
+    expect(screen.getByText("This is the paper check: it looks at the robot's reach, strength and track record, not its AI software.")).toBeVisible();
   });
 
   it("says a strength it can't tell yet with the whole range that makes it unknown, never as a fail", () => {
@@ -222,7 +280,15 @@ describe("the details screens", () => {
     for (const line of [...readyAnswer.unknowns, ...readyAnswer.confidence.raiseIt]) expect(screen.getByText(line)).toBeVisible();
     unseen.unmount();
     const test = detail("test");
-    expect(screen.getByRole("region", { name: "Simulation test" })).toHaveTextContent(winnerProof.policyComparison!.line);
+    // A ranked list: the lead line, then each option in order with its count, and the winner's mark on row 1.
+    const ranked = screen.getByRole("region", { name: "Ranked" });
+    expect(ranked).toHaveTextContent("We ran 3 AI robots on your job, about 10 tries each, in a simulation of your site.");
+    expect([...ranked.querySelectorAll("dt")].map(node => node.textContent)).toEqual([
+      "1. Franka arm + π0.5 · Physical Intelligence", "2. Franka arm + GR00T N1.7 · NVIDIA", "3. Franka arm + MolmoAct 2 · Ai2"]);
+    expect(ranked).toHaveTextContent("Finished 7 of 10 tries");
+    expect(ranked).toHaveTextContent("· Ahead");
+    expect(ranked).toHaveTextContent("With this few tries the gap could still be chance.");
+    expect(ranked).toHaveTextContent("1 more AI robot was planned but did not run.");
     test.unmount();
     detail("trust");
     expect(screen.getByRole("heading", { level: 1, name: "How far to trust it" })).toBeVisible();
@@ -252,13 +318,13 @@ describe("the answer and the simulation of the site never disagree", () => {
     const weightOnly = projectSimulationProof({ evaluation: [], robotFit: robotFit("doesnt_fit", ["payload"]), pick: readyAnswer.pick });
     expect(weightOnly.robotCheck).toMatchObject({ line: "In the scene rebuilt from your video, the Universal Robots UR10e was not ruled out on reach or where it can stand.", doesNotFit: false });
     const { unmount } = render(<SiteAnswer token="owner-token" answer={readyAnswer} proof={weightOnly} />);
-    expect(screen.getByRole("heading", { level: 2, name: "The robot most likely to fit" })).toBeVisible();
+    expect(screen.getByRole("heading", { level: 2, name: "On paper, the robot most likely to fit" })).toBeVisible();
     unmount();
     // On reach: the answer calls it the closest robot and says why, in view.
     const reach = projectSimulationProof({ evaluation: [], robotFit: robotFit("doesnt_fit", ["reach"]), pick: readyAnswer.pick });
     expect(reach.robotCheck).toMatchObject({ doesNotFit: true });
     render(<SiteAnswer token="owner-token" answer={readyAnswer} proof={reach} />);
-    expect(screen.getByRole("heading", { level: 2, name: "The closest robot" })).toBeVisible();
+    expect(screen.getByRole("heading", { level: 2, name: "On paper, the closest robot" })).toBeVisible();
     expect(screen.getByText("In a simulation of your site, the UR10e does not fit.")).toBeVisible();
   });
 
@@ -360,9 +426,10 @@ describe("finding a company", () => {
     expect(screen.getByText(CONSENT)).toBeVisible();
   });
 
-  it("carries the simulation test on an answer with no pick too", () => {
+  it("keeps an answer that cannot be checked as it is, whatever the simulation test found", () => {
     const proof = projectSimulationProof({ evaluation: [allZeroEvaluation], pick: null });
     render(<SiteAnswer token="owner-token" answer={cannotAssessAnswer} proof={proof} />);
-    expect(screen.getByText(/^Simulation test: None of the robot programs finished the job, on /)).toBeVisible();
+    expect(screen.getByText(cannotAssessAnswer.headline)).toBeVisible();
+    expect(screen.queryByText(/None finished yet|Tested on your job/)).toBeNull();
   });
 });

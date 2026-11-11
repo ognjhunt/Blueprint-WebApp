@@ -622,7 +622,7 @@ it("moves the laptop from the QR code to the brief once the phone's recording la
   expect(fetchMock).not.toHaveBeenCalledWith("/api/self-capture/uploads/tok.signed");
   expect(screen.getByRole("link", { name: "Open my job" })).toHaveAttribute("href", captureUrl);
   expect(screen.queryByRole("link", { name: "Open my job page ›" })).toBeNull();
-  expect(screen.queryByRole("img", { name: "Point your phone at this to film" })).toBeNull();
+  expect(screen.queryByRole("img", { name: "Point your phone's camera at this code to film" })).toBeNull();
 }, 15_000);
 
 /**

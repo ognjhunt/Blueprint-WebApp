@@ -1,8 +1,10 @@
 import { UNNAMED_POLICY } from "@/data/simulationPolicies";
 import { BareRows } from "@/components/bare/Bare";
 import {
-  COULD_NOT_RUN, HEADLINES, SCENE_SETUP_CAVEAT, WAITING, type SimulationProof as SimulationProofView,
+  COULD_NOT_RUN, GAP_COULD_BE_CHANCE, GAP_UNLIKELY_CHANCE, SCENE_SETUP_CAVEAT, WAITING,
+  testResultOf, type SimulationProof as SimulationProofView,
 } from "@/lib/simulationProof";
+import { SIMULATION_ACCURACY_ROWS } from "@/data/simulationAccuracy";
 import type { JobScreeningOutcome } from "@/types/jobMarketplace";
 
 type Row = NonNullable<SimulationProofView["policyComparison"]>["rows"][number];
@@ -38,72 +40,72 @@ export const PLAIN_SETUP_CAVEAT = "This result may come from how we set up the s
 const outcomeOf = (table: Partial<Record<JobScreeningOutcome, string>>, sentence: string) =>
   (Object.keys(table) as JobScreeningOutcome[]).find(key => table[key] === sentence) ?? null;
 
-/**
- * The one simulation-test line under the answer, or null when there is nothing to report (not started). The leader,
- * "did best" or "was ahead" or no clear winner, is the projection's own rule; the robot the programs ran on is
- * always named, and said not to be the pick when it is not.
- */
-export function computerTestLine(proof: SimulationProofView | null | undefined, pickName: string | null): string | null {
-  if (!proof) return null;
-  if (proof.state === "not_started") return null;
+export { testResultOf, type TestResult } from "@/lib/simulationProof";
+/** The paper screen's one line on why the simulation test is not the answer, or null when nothing is known. */
+export function testNotRunLine(proof: SimulationProofView | null | undefined): string | null {
+  if (!proof || proof.state === "not_started") return null;
   if (proof.state === "could_not_run") {
     const outcome = outcomeOf(COULD_NOT_RUN, proof.headline);
-    return `Simulation test: ${(outcome && PLAIN_COULD_NOT_RUN[outcome]) ?? "It could not run."}`;
+    return `The simulation test did not run. ${(outcome && PLAIN_COULD_NOT_RUN[outcome]) ?? ""}`.trim();
   }
   if (proof.state !== "done") {
     const waiting = outcomeOf(WAITING, proof.headline);
-    if (waiting && PLAIN_WAITING[waiting]) return `Simulation test: ${PLAIN_WAITING[waiting]}`;
-    return proof.headline === HEADLINES[proof.state] ? `Simulation test: ${PLAIN_STATE[proof.state]}` : null;
+    return waiting && PLAIN_WAITING[waiting] ? `Simulation test: ${PLAIN_WAITING[waiting]}` : null;
   }
-  const comparison = proof.policyComparison;
-  const compared = comparison?.rows.filter(row => row.compared) ?? [];
-  if (!comparison || !comparison.rows.length) return "Simulation test: It finished, but no robot program could be scored.";
-  if (!compared.length) return comparison.rows.length === 1
-    ? "Simulation test: Only one robot program could be scored, so there is nothing to compare it with."
-    : "Simulation test: We couldn't confirm the robot programs ran on the same robot, so they aren't compared.";
-  const on = `on ${comparison.robotName}${!comparison.sameRobotAsPick && pickName ? `, not the ${pickName}` : ""}`;
-  const leader = compared.find(row => row.chosen);
-  if (leader) {
-    return `Simulation test: ${rowName(leader.policy)} ${comparison.separated ? "did best" : "was ahead"}, finishing the job in ${tries(leader.succeeded, leader.scored)}, ${on}.`
-      + (comparison.separated ? "" : " It could still be chance.");
-  }
-  if (compared.length === 1) return `Simulation test: Only one robot program could be compared, ${on}.`;
-  if (!compared.some(row => row.succeeded > 0)) return `Simulation test: None of the robot programs finished the job, ${on}.`;
-  return `Simulation test: No clear winner yet, ${on}.`;
+  if (proof.options.options.length) return null;
+  return proof.options.unconfirmed.length
+    ? "The simulation test ran, but we couldn't confirm which robot each AI program ran on, so none is compared."
+    : "The simulation test finished, but no AI robot could be scored in it.";
 }
 
-/** Whether the line carries the set-up caveat beside it. */
-export const setupCaveatShown = (proof: SimulationProofView | null | undefined) =>
-  Boolean(proof?.state === "done" && proof.policyComparison?.sceneNotes.includes(SCENE_SETUP_CAVEAT));
+/** The one line for an older job's standalone view and its email-shaped places, by the same rules. */
+export function computerTestLine(proof: SimulationProofView | null | undefined, _pickName?: string | null): string | null {
+  const result = testResultOf(proof);
+  if (!result) {
+    const line = testNotRunLine(proof);
+    if (line) return line;
+    if (proof && (proof.state === "preparing" || proof.state === "running")) return `Simulation test: ${PLAIN_STATE[proof.state]}`;
+    return null;
+  }
+  if (result.kind === "testing") return `Simulation test: ${result.entered} AI ${result.entered === 1 ? "robot" : "robots"} on your job, now.`;
+  if (result.kind === "winner") return `Simulation test: ${result.top.label} ${result.wording === "did_best" ? "did best" : "was ahead"}, doing your job in ${tries(result.top.succeeded, result.top.scored)}.`;
+  if (result.kind === "none_finished") return "Simulation test: None of the AI robots finished your job yet.";
+  if (result.kind === "one_option") return `Simulation test: ${result.top.label} did your job in ${tries(result.top.succeeded, result.top.scored)}, the only AI robot tested.`;
+  return "Simulation test: No clear winner yet.";
+}
+
+/** Whether a set-up flag says our simulation may have shaped the result. */
+export const setupCaveatShown = (proof: SimulationProofView | null | undefined) => Boolean(proof?.state === "done" && proof.options.setupFlag);
 
 /**
- * What the simulation test found, on its own details screen, in short rows: the projection's own sentences word for
- * word, each program's count, what the scene showed about the pick and the scene notes. Adds no claim of its own.
+ * The simulation test as a ranked list, on its own details screen: one lead line, then one row per option in the
+ * display order (its maker, its count, and how far it got when it finished none), the rows we could not compare,
+ * the set-up notes, and what was planned but did not run. Every fact of the projection's comparison is here as rows.
  */
 export function SimulationTestRows({ proof }: { proof: SimulationProofView }) {
-  const comparison = proof.policyComparison;
-  const rows: Row[] = comparison?.rows ?? [];
-  return <BareRows title="Simulation test" rows={[
-    { key: "result", value: comparison?.line ?? proof.headline },
-    ...(proof.robotCheck ? [{ key: "scene", value: proof.robotCheck.line }] : []),
-    ...rows.map((row, index) => ({ key: `row-${index}`, label: <>{rowName(row.policy)}{row.maker && <span className="bare-helper"> {row.maker}</span>}</>,
-      value: <>Finished {tries(row.succeeded, row.scored)}{row.rangeText && <span className="bare-helper"> · {row.rangeText}</span>}
-        {!row.compared && <span className="bare-helper"> · on {row.robot ?? "a robot we could not confirm"}, not compared</span>}
-        {/* How far a row got, where the result sentence does not already say it (the projection's rule). */}
-        {row.furthestShown && row.furthestDetail && <span className="bare-helper"> · {row.furthestDetail}</span>}
-        {row.chosen && <strong> · {comparison!.separated ? "Did best" : "Ahead"}</strong>}</> })),
-    ...(comparison?.sceneNotes ?? []).map((note, index) => ({ key: `note-${index}`, value: note })),
-    ...(comparison && comparison.didNotRun > 0
-      ? [{ key: "did-not-run", value: `${comparison.didNotRun} more robot ${comparison.didNotRun === 1 ? "program was" : "programs were"} planned but did not run. Job settings › Simulation details says why.` }] : []),
-  ]} />;
+  const { options, unconfirmed, winner, triesEach, didNotRun, setupNotes } = proof.options;
+  const ran = options.length + unconfirmed.length;
+  return <BareRows title="Ranked" rows={[
+    ...(ran ? [{ key: "lead", value: `We ran ${ran} AI ${ran === 1 ? "robot" : "robots"} on your job, about ${triesEach} ${triesEach === 1 ? "try" : "tries"} each, in a simulation of your site.` }] : []),
+    ...options.map((option, index) => ({ key: option.id, label: <>{index + 1}. {option.label}{option.maker && <span className="bare-helper"> · {option.maker}</span>}</>,
+      value: <>Finished {tries(option.succeeded, option.scored)}{option.rangeText && <span className="bare-helper"> · {option.rangeText}</span>}
+        {option.succeeded === 0 && option.furthestDetail && <span className="bare-helper"> · {option.furthestDetail}</span>}
+        {index === 0 && winner && <strong> · {winner === "did_best" ? "Did best" : "Ahead"}</strong>}</> })),
+    ...(winner ? [{ key: "gap", value: winner === "did_best" ? GAP_UNLIKELY_CHANCE : GAP_COULD_BE_CHANCE }] : []),
+    ...unconfirmed.map((row, index) => ({ key: `unconfirmed-${index}`, label: rowName(row.policy),
+      value: `Finished ${tries(row.succeeded, row.scored)} · on a robot we could not confirm, not compared` })),
+    ...(didNotRun > 0 ? [{ key: "did-not-run", value: `${didNotRun} more AI ${didNotRun === 1 ? "robot was" : "robots were"} planned but did not run. Job settings › Simulation details says why.` }] : []),
+  ]}>
+    {setupNotes.map(note => <p key={note} className="bare-notice">{note === SCENE_SETUP_CAVEAT ? PLAIN_SETUP_CAVEAT : note}</p>)}
+    {proof.options.setupFlag && !setupNotes.includes(SCENE_SETUP_CAVEAT) && <p className="bare-notice">{PLAIN_SETUP_CAVEAT}</p>}
+  </BareRows>;
 }
 
-/** How far a simulation test can be trusted, as published, with its sources and what holds for this job: its own screen. */
+/** How far a simulation test can be trusted, as published, in short rows with every source, and what holds for this job. */
 export function TrustRows({ proof }: { proof: SimulationProofView }) {
-  return <BareRows title="How far to trust it" rows={[
-    { key: "statement", value: proof.accuracy.statement },
-    { key: "conditions", value: proof.accuracy.conditions },
-    ...proof.forThisJob.map((item, index) => ({ key: `job-${index}`, value: item })),
+  return <BareRows title="Published tests" rows={[
+    ...SIMULATION_ACCURACY_ROWS.map(row => ({ key: row.label, label: row.label, value: row.value })),
+    ...proof.forThisJob.map((item, index) => ({ key: `job-${index}`, label: index === 0 ? "Your job" : "", value: item })),
     ...proof.accuracy.sources.map(source => ({ key: source.url, label: "Source",
       value: <a href={source.url} target="_blank" rel="noreferrer">{source.title}</a> })),
   ]} />;

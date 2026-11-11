@@ -69,6 +69,36 @@ describe("Blueprint's answer on a job card", () => {
     expect(screen.getByText("UR20")).toBeVisible();
   });
 
+  it("leads with the simulation test result the site sees, said about the job, with the paper pick one line below", () => {
+    const options = [{ label: "Franka arm + π0.5", maker: "Physical Intelligence", succeeded: 7, scored: 10, furthestText: null },
+      { label: "Franka arm + GR00T N1.7", maker: "NVIDIA", succeeded: 0, scored: 10, furthestText: "touched the object" }];
+    const test = { kind: "winner" as const, wording: "was_ahead" as const, entered: 2, setupFlag: false, options };
+    const { unmount } = render(<JobCardAnswer answer={{ ...ANSWER, headline: "Was ahead on the job: Franka arm + π0.5, doing the job in 7 of 10 tries.", test }} />);
+    const block = screen.getByRole("region", { name: JOB_CARD_ANSWER_TITLE });
+    expect(within(block).getByText("Was ahead on the job")).toBeVisible();
+    expect(within(block).getByText("Franka arm + π0.5")).toHaveClass("bare-big");
+    expect(within(block).getByText("AI software by Physical Intelligence")).toBeVisible();
+    expect(within(within(block).getByRole("list", { name: "Why" })).getAllByRole("listitem").map(item => item.textContent))
+      .toEqual(["✓Did the job in 7 of 10 tries", "✓Ahead of the other AI robot tested"]);
+    expect(block).toHaveTextContent("How sure are we? Fairly sure");
+    expect(within(block).getByText("On paper, most likely to fit: Universal Robots UR20")).toBeVisible();
+    expect(block.textContent).not.toMatch(/your job|Did best/);
+    fireEvent.click(screen.getByRole("button", { name: "See details ›" }));
+    expect(screen.getByRole("region", { name: "Simulation test" })).toHaveTextContent(
+      "1. Franka arm + π0.5 · Physical IntelligenceFinished 7 of 10 tries2. Franka arm + GR00T N1.7 · NVIDIAFinished 0 of 10 tries · touched the object");
+    unmount();
+    // None finished, and testing now: never a winner's label.
+    const { unmount: second } = render(<JobCardAnswer answer={{ ...ANSWER, test: { ...test, kind: "none_finished", wording: null,
+      options: [{ ...options[1] }] } }} />);
+    expect(screen.getByText("None finished yet")).toBeVisible();
+    expect(screen.getByText("Closest: Franka arm + GR00T N1.7 touched the object.")).toBeVisible();
+    expect(screen.queryByText(/Was ahead|Did best/)).toBeNull();
+    second();
+    render(<JobCardAnswer answer={{ ...ANSWER, test: { ...test, kind: "testing", wording: null, entered: 3, options: [] } }} />);
+    expect(screen.getByText("Testing now")).toBeVisible();
+    expect(screen.getByText("3 AI robots")).toBeVisible();
+  });
+
   it("says a pass with little to spare, and a strength it can't tell yet with its whole range, never as a fail", () => {
     const answer = { ...ANSWER, pick: { ...ANSWER.pick!, checks: [{ key: "reach" as const, outcome: "pass" as const, need: "about 1–1.3 m", has: "1.75 m", tight: true },
       { key: "payload" as const, outcome: "unknown" as const, need: "about 3–4.9 kg", has: "4 kg" }] } };

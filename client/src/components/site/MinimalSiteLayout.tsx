@@ -35,6 +35,7 @@ export function MinimalSiteLayout({ children }: PropsWithChildren) {
           <a href="/beta#who-we-are">About</a>
           <a href="/privacy">Privacy</a>
           <a href="/terms">Terms</a>
+          <a href="/refunds">Refunds</a>
           <button type="button" onClick={openCookieSettings}>Cookie settings</button>
         </nav>
         <span className="bare-site-copy">© {new Date().getFullYear()} {COMPANY.legalName}</span>

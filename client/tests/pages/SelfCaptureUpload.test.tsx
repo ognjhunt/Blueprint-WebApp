@@ -1243,12 +1243,12 @@ describe("the site's answer leads its job page", () => {
     fireEvent.click(seeDetails);
     const menuTitle = await screen.findByRole("heading", { level: 1, name: "Details" });
     await waitFor(() => expect(document.activeElement).toBe(menuTitle));
-    fireEvent.click(screen.getByRole("button", { name: "Why this robot" }));
+    fireEvent.click(screen.getByRole("button", { name: "On paper: why this robot" }));
     expect(window.location.hash).toBe("#details/why");
-    const whyTitle = await screen.findByRole("heading", { level: 1, name: "Why this robot" });
+    const whyTitle = await screen.findByRole("heading", { level: 1, name: "On paper: why this robot" });
     await waitFor(() => expect(document.activeElement).toBe(whyTitle));
     fireEvent.click(screen.getByRole("button", { name: "‹ Back" }));
-    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole("button", { name: "Why this robot" })));
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole("button", { name: "On paper: why this robot" })));
     fireEvent.click(screen.getByRole("button", { name: "‹ Back" }));
     expect(await screen.findByRole("region", { name: "Your answer" })).toBeVisible();
     await waitFor(() => expect(document.activeElement).toBe(screen.getByRole("button", { name: "See details ›" })));
@@ -1330,14 +1330,17 @@ describe("the site's answer leads its job page", () => {
     vi.stubGlobal("fetch", fetchMock);
     render(<SelfCaptureUpload />);
     const answer = await screen.findByRole("region", { name: "Your answer" });
-    // The fixture's 7 of 10 against 3 of 10 is "ahead" under the probability rule, not "did best": one line, in the answer.
-    expect(await within(answer).findByText(/^Simulation test: π0\.5 was ahead, finishing the job in 7 of 10 tries, on a Franka research arm, not the UR10e\./)).toBeVisible();
+    // The test leads: the fixture's 7 of 10 against 3 of 10 is "ahead" under the probability rule, not "did best".
+    expect(await within(answer).findByRole("heading", { level: 2, name: "Was ahead on your job" })).toBeVisible();
+    expect(within(answer).getByText("Franka arm + π0.5")).toBeVisible();
     expect(screen.queryByRole("region", { name: "Tested in simulation" })).toBeNull();
-    // Everything behind it is on the details screen, the status read's measured scene included.
+    // The ranked list is the first details screen; the scene's line about the paper pick is on the paper screen.
     fireEvent.click(screen.getByRole("button", { name: "See details ›" }));
     fireEvent.click(await screen.findByRole("button", { name: "The simulation test" }));
-    const test = await screen.findByRole("region", { name: "Simulation test" });
-    expect(test.textContent).toMatch(/In the scene rebuilt from your video, the Universal Robots UR10e reaches/);
+    expect(await screen.findByRole("region", { name: "Ranked" })).toHaveTextContent("1. Franka arm + π0.5");
+    fireEvent.click(screen.getByRole("button", { name: "‹ Back" }));
+    fireEvent.click(await screen.findByRole("button", { name: "On paper: why this robot" }));
+    expect(await screen.findByText(/In the scene rebuilt from your video, the Universal Robots UR10e reaches/)).toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: "‹ Back" }));
     fireEvent.click(await screen.findByRole("button", { name: "‹ Back" }));
     window.history.replaceState(null, "", "/capture-upload/test");
@@ -1352,7 +1355,8 @@ describe("the site's answer leads its job page", () => {
     const proof = await screen.findByRole("region", { name: "Tested in simulation" });
     expect(screen.queryByRole("region", { name: "Your answer" })).toBeNull();
     expect(proof.closest("details")).toBeNull();
-    expect(proof.textContent).toMatch(/could not rank them/);
+    // None of the AI robots finished: said in one line, with the ranked list behind it.
+    expect(proof.textContent).toMatch(/None of the AI robots finished your job yet\./);
     // With no answer, the status card stays as it was.
     expect(screen.getByText("We have your recording.", { selector: "strong" })).toBeVisible();
   });

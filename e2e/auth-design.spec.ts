@@ -51,7 +51,7 @@ test("sign-in validates and links to account creation and recovery", async ({ pa
   await page.getByRole("link", { name: "Forgot password?" }).click();
   await expect(page).toHaveURL(/\/forgot-password$/);
   await page.getByRole("link", { name: "Back to sign in" }).click();
-  await page.getByRole("link", { name: "Show us a task" }).click();
+  await page.getByRole("link", { name: "Start a job" }).click();
   await expect(page).toHaveURL(/\/contact\/site-operator/);
   await expect(page.getByRole("heading", { level: 1, name: "Start a job" })).toBeVisible();
 });

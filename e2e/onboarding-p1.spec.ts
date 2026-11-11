@@ -241,8 +241,8 @@ for (const mobile of [false, true]) test(`${mobile ? "phone" : "desktop"}: video
   await form.getByRole("button", { name: /^(Send video|Next: film the job|Save my job)$/ }).click();
   await expect(page.getByRole("heading", { name: "Now film the job.", exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "Open my job", exact: true })).toHaveCount(0);
-  await expect(page.getByRole("link", { name: mobile ? "Open the camera" : "Open your job page", exact: true })).toBeVisible();
-  await expect(page.getByRole("img", { name: "Point your phone at this to film" })).toHaveCount(mobile ? 0 : 1);
+  await expect(page.getByRole("link", { name: mobile ? "Open the camera" : "Open my job page ›", exact: true })).toBeVisible();
+  await expect(page.getByRole("img", { name: "Point your phone's camera at this code to film" })).toHaveCount(mobile ? 0 : 1);
   expect(mutations.find(mutation => mutation.path === "/api/inbound-request")?.body).toMatchObject({
     taskStatement: "Pick up each packed carton and place it at the end of the table",
     taskDescription: "Pick up each packed carton and place it at the end of the table",

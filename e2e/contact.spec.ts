@@ -97,10 +97,10 @@ test("sending a video agrees in one line under the button, records its own versi
   await page.goto("/contact/site-operator", { waitUntil: "domcontentloaded" });
   // Filming later grants no recording on this form: its line says so.
   await expect(page.getByRole("button", { name: "Next: film the job", exact: true })).toBeEnabled();
-  await expect(page.getByText("By continuing, you agree to our Terms and Privacy Policy and confirm you're allowed to share this job for the site.", { exact: true })).toBeVisible();
+  await expect(page.locator("[data-consent-line]")).toHaveText("By continuing, you agree to our Terms and Privacy Policy and confirm you're allowed to share this job for the site.");
   await page.getByRole("button", { name: "I have a video ›", exact: true }).click();
   const start = page.getByRole("button", { name: "Send video", exact: true });
-  await expect(page.getByText(line, { exact: true })).toBeVisible();
+  await expect(page.locator("[data-consent-line]")).toHaveText(line);
   await expect(page.locator("#start-rights")).toHaveCount(0);
   await page.getByRole("button", { name: "What you're agreeing to ›" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "What you're agreeing to" })).toBeVisible();

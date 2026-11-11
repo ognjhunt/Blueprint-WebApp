@@ -66,12 +66,12 @@ for (const device of ["desktop", "mobile"] as const) {
       await expect(page.locator("#start-rights")).toHaveCount(0);
       await expect(page.locator("#start-region")).toHaveCount(0);
       await page.getByRole("button", { name: /^(Send video|Next: film the job|Save my job)$/ }).click();
-      const captureLink = page.getByRole("link", { name: device === "mobile" ? "Open the camera" : "Open your job page", exact: true });
+      const captureLink = page.getByRole("link", { name: device === "mobile" ? "Open the camera" : "Open my job page ›", exact: true });
       await expect(captureLink).toBeVisible();
       await expect(page.getByRole("link", { name: "Open my job", exact: true })).toHaveCount(0);
       expect(mutations).toHaveLength(1);
       expect(mutations[0].body).toMatchObject({ taskStatement: "Move sealed cartons from a conveyor onto a pallet.",
-        taskConfirmation: { granted: true, statementVersion: "2026-11-07.v1" }, descriptionOnly: true, descriptionAuthority: { granted: true, statementVersion: "2026-10-06.v1" }, consentAttestation: null, hasExistingFootage: false });
+        taskConfirmation: { granted: true, statementVersion: "2026-11-07.v1" }, descriptionOnly: true, descriptionAuthority: { granted: true, statementVersion: "2026-11-11.v3" }, consentAttestation: null, hasExistingFootage: false });
       expect(mutations[0].body.matchFee).toBeUndefined();
       await shot("saved");
       await captureLink.click();

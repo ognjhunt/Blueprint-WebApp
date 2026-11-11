@@ -28,6 +28,8 @@
 export interface SimulatedRobot {
   /** In a sentence: "a Franka research arm". */
   name: string;
+  /** As the robot half of an option's name: "Franka arm" in "Franka arm + π0.5". */
+  short: string;
   /** The robot spec catalog's id for it. */
   modelId: string;
   /** Whether it is an arm (said "arm") or another kind of robot (said "robot"). */
@@ -42,8 +44,8 @@ export interface SimulationPolicy {
   robot: SimulatedRobot;
 }
 
-export const FRANKA_RESEARCH_ARM: SimulatedRobot = { name: "a Franka research arm", modelId: "franka_emika_panda", kind: "arm" };
-export const UNITREE_G1: SimulatedRobot = { name: "a Unitree G1 humanoid", modelId: "unitree_g1", kind: "humanoid" };
+export const FRANKA_RESEARCH_ARM: SimulatedRobot = { name: "a Franka research arm", short: "Franka arm", modelId: "franka_emika_panda", kind: "arm" };
+export const UNITREE_G1: SimulatedRobot = { name: "a Unitree G1 humanoid", short: "Unitree G1 humanoid", modelId: "unitree_g1", kind: "humanoid" };
 
 const PI = "Physical Intelligence";
 

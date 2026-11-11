@@ -93,7 +93,7 @@ for (const [index, parameters] of cases.entries()) test(`A-J-${String(index + 1)
       await expect(page.getByRole("link", { name: "Open my job", exact: true })).toHaveCount(0);
     };
     await expectSaved();
-    const privateLink = page.getByRole("link", { name: "Open your job page", exact: true });
+    const privateLink = page.getByRole("link", { name: "Open my job page ›", exact: true });
     const target = canRecord ? await privateLink.getAttribute("href") : null;
     if (canRecord) expect(target).toMatch(/\/capture-upload\//);
     if (parameters.boundary === "lost-response") {
@@ -119,9 +119,9 @@ for (const [index, parameters] of cases.entries()) test(`A-J-${String(index + 1)
         const { exp: _exp, ...subject } = JSON.parse(Buffer.from(new URL(href, "http://127.0.0.1:4181").pathname.split("/").pop()!.split(".")[0], "base64url").toString("utf8"));
         return subject;
       };
-      const returned = await page.getByRole("link", { name: "Open your job page", exact: true }).getAttribute("href");
+      const returned = await page.getByRole("link", { name: "Open my job page ›", exact: true }).getAttribute("href");
       expect(linkSubject(returned!)).toEqual(linkSubject(target!));
-      await page.getByRole("link", { name: "Open your job page", exact: true }).click();
+      await page.getByRole("link", { name: "Open my job page ›", exact: true }).click();
       // Every case that reaches the job page here is a phone job in Austin, which waits on the owner's recording
       // permission before any video: that step, and no upload control yet.
       await expect(page.getByRole("button", { name: "Confirm recording permission", exact: true })).toBeVisible();
@@ -134,7 +134,7 @@ for (const [index, parameters] of cases.entries()) test(`A-J-${String(index + 1)
       expect(await response.json()).toMatchObject({ scope: "owner" });
     } else {
       // Visit requests and regions awaiting transfer terms must not expose an active recording path.
-      await expect(page.getByRole("link", { name: "Open your job page", exact: true })).toHaveCount(0);
+      await expect(page.getByRole("link", { name: "Open my job page ›", exact: true })).toHaveCount(0);
     }
     await writeFile(path.join(output, `A-J-${String(index + 1).padStart(3, "0")}.json`), JSON.stringify({
       caseId: `A-J-${String(index + 1).padStart(3, "0")}`, parameters, layer: "real-backend/firebase-emulators/no-provider",

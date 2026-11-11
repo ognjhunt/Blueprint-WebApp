@@ -193,24 +193,32 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
   const [view, setView] = useState<View>(viewOf);
   const viewRef = useRef(view);
   viewRef.current = view;
-  const pushedViews = useRef(0);
+  // The screens this page opened, in order, so "‹ Back" returns to the one it came from (the job page or the menu).
+  const viewStack = useRef<View[]>([]);
   useEffect(() => {
-    const onChange = () => setView(viewOf());
+    const onChange = () => {
+      const next = viewOf();
+      // The browser's back button: forget the screen it left.
+      if (viewStack.current.length && viewStack.current[viewStack.current.length - 1] === next) viewStack.current.pop();
+      setView(next);
+    };
     window.addEventListener("hashchange", onChange);
     window.addEventListener("popstate", onChange);
     return () => { window.removeEventListener("hashchange", onChange); window.removeEventListener("popstate", onChange); };
   }, []);
   const openView = useCallback((next: Exclude<View, "main">) => {
-    pushedViews.current += 1;
+    viewStack.current.push(viewRef.current);
     window.location.hash = next;
     setView(next);
     window.scrollTo?.(0, 0);
   }, []);
   /** One screen back: a detail returns to the details menu, everything else to the job page. */
   const closeView = useCallback(() => {
+    const opened = viewStack.current.pop();
+    if (opened !== undefined) { window.history.back(); setView(opened); return; }
+    // Reached directly (a reload or a shared link): one level up, without leaving the page.
     const parent: View = viewRef.current.startsWith("details/") ? "details" : "main";
-    if (pushedViews.current > 0) { pushedViews.current -= 1; window.history.back(); }
-    else window.history.replaceState(window.history.state, "", `${window.location.pathname}${window.location.search}${parent === "main" ? "" : `#${parent}`}`);
+    window.history.replaceState(window.history.state, "", `${window.location.pathname}${window.location.search}${parent === "main" ? "" : `#${parent}`}`);
     setView(parent);
   }, []);
   // Focus follows the screen: a deeper screen's heading on the way in; the link that opened it on the way back
@@ -927,7 +935,8 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
       {answer && <SiteAnswer token={token} answer={answer} proof={proof} onIntroductionRequested={() => setStatusRefresh(value => value + 1)}
         onEditJob={brief && scope === "owner" && !withdrawn ? openBriefEditor : undefined}
         onUpdateVideo={scope === "owner" && link.status === "valid" && !withdrawn ? () => void updateVideo() : undefined}
-        quietAction={!quietCard} onShowDetails={() => openView("details")} onShowSettings={settingsOpen ? () => openView("settings") : undefined} card={card} />}
+        quietAction={!quietCard} onShowDetails={() => openView("details")} onShowSettings={settingsOpen ? () => openView("settings") : undefined} card={card}
+        onShowPaper={() => openView("details/why")} />}
       {answer && videoUpdateError && <BareNotice role="alert">{videoUpdateError}</BareNotice>}
       {!answer && (saved || link.status !== "valid") && statusCard}
       {!answer && workspace}

@@ -303,9 +303,9 @@ it("shares its one workflow read with the page and shows a proof handed back, op
   render(<JobWorkspace token="owner-token" onWorkflow={onWorkflow} proof={proof} />);
   const section = await screen.findByRole("region", { name: "Tested in simulation" });
   expect(section.closest("details")).toBeNull();
-  // The one line, in plain words; the projection's sentence is behind it.
+  // The one line, in plain words, and the ranked list behind it.
   expect(within(section).getByText(computerTestLine(proof, null)!)).toBeVisible();
-  expect(within(section).getByText(proof.policyComparison!.line)).toBeInTheDocument();
+  expect(within(section).getByRole("region", { name: "Ranked" })).toHaveTextContent("1. Franka arm + π0.5");
   await waitFor(() => expect(onWorkflow).toHaveBeenCalledWith(loaded));
   expect(fetchMock).toHaveBeenCalledTimes(1);
   const details = screen.getByText("Simulation details").closest("details")!;

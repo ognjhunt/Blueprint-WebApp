@@ -29,12 +29,12 @@ test("lost create response survives reload with the same private retry identity"
   await page.reload();
   await expect(page.locator("#start-task")).toHaveValue("Move sealed cartons onto a pallet");
   await page.getByRole("button", { name: "Recover saved job", exact: true }).click();
-  await expect(page.getByRole("link", { name: "Open your job page", exact: true })).toHaveAttribute("href", "/capture-upload/synthetic-recovery");
+  await expect(page.getByRole("link", { name: "Open my job page ›", exact: true })).toHaveAttribute("href", "/capture-upload/synthetic-recovery");
   expect(posts).toHaveLength(2);
   expect(posts[1]).toBe(posts[0]);
   await page.reload();
   await page.getByRole("button", { name: "Return to saved job", exact: true }).click();
-  await expect(page.getByRole("link", { name: "Open your job page", exact: true })).toHaveAttribute("href", "/capture-upload/synthetic-recovery");
+  await expect(page.getByRole("link", { name: "Open my job page ›", exact: true })).toHaveAttribute("href", "/capture-upload/synthetic-recovery");
   expect(posts).toHaveLength(3);
   expect(posts[2]).toBe(posts[0]);
   await context.tracing.stop({ path: testInfo.outputPath("recovery-trace.zip") });

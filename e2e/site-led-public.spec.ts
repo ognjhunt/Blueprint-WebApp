@@ -94,7 +94,7 @@ test("old pricing reaches the free beta page with one CTA", async ({ page }) => 
   await page.goto("/pricing?source=legacy-review#scope");
   await expect(page).toHaveURL(/\/beta\?source=legacy-review#scope$/);
   await expect(page.locator("h1")).toHaveText("Questions");
-  await expect(page.getByText(/Free\. Blueprint takes no cut of any work you agree\./)).toBeVisible();
+  await expect(page.getByText(/The beta is free for sites and partners\./)).toBeVisible();
   await expect(page.getByText(/You agree the price and terms with them\./)).toBeVisible();
   await expect(page.locator("main .bare-button")).toHaveCount(1);
   await expect(page.locator("main").getByRole("link", { name: "Start a job" })).toHaveAttribute("href", "/contact/site-operator?source=beta");

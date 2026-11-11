@@ -127,6 +127,7 @@ export function SiteCaptureStart({ onSavedChange }: { onSavedChange?: (saved: bo
       finally { if (clearingScope.current === intent) clearingScope.current = null; }
     }} />
     <p className="bare-helper">Clearing removes only this device's recovery. It does not cancel or delete a saved job.</p>
+    <BareLinks links={[{ key: "person", label: "Talk to a person", href: "mailto:hello@tryblueprint.io" }]} />
   </div></BareScreen>;
   // Identity changes discard later UI updates and prevent starting another upload.
   return <SiteCaptureStartForm key={storageKey} storageKey={storageKey} cleared={clearStatus === "done"} onSavedChange={onSavedChange} />;
@@ -752,7 +753,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
       <div hidden={screen !== "main"}>
         <BareScreen>
           <BareBack href="/" />
-          <h1 ref={screen === "main" ? headingRef : undefined} tabIndex={-1}>Start a job</h1>
+          {screen === "main" && <h1 ref={headingRef} tabIndex={-1}>Start a job</h1>}
           {pending && state.status !== "working" && <div className="bare-group" aria-live="polite">
             <BareNotice>{pending.acknowledged ? "Your job is saved. Return to the same job to check its current status." : "This submission may already be saved. Recover the same job before starting another."}</BareNotice>
             <BareButton onClick={() => void submit()} disabled={!interactive || loading}>
@@ -902,7 +903,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
       <div hidden={screen !== "details"}>
         <BareScreen>
           <BareBack onClick={closeScreen} />
-          <h1 ref={screen === "details" ? headingRef : undefined} tabIndex={-1}>Details (optional)</h1>
+          {screen === "details" && <h1 ref={headingRef} tabIndex={-1}>Details (optional)</h1>}
           <fieldset disabled={!interactive || clearStatus === "working" || recoveryUnavailable || Boolean(pending)} style={{ margin: 0, padding: 0, border: 0, minWidth: 0 }}>
             <BareField label="The job in one sentence" htmlFor="start-task"
               helper={<>We write this from your video if you leave it empty. Typing here confirms: “{TASK_CONFIRMATION_STATEMENT}”</>}>
@@ -941,7 +942,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
       <div hidden={screen !== "agreeing"}>
         <BareScreen>
           <BareBack onClick={closeScreen} />
-          <h1 ref={screen === "agreeing" ? headingRef : undefined} tabIndex={-1}>What you're agreeing to</h1>
+          {screen === "agreeing" && <h1 ref={headingRef} tabIndex={-1}>What you're agreeing to</h1>}
           <BareGroup>
             <p>{consentLine}</p>
             <p className="bare-helper">That line stands for these, word for word:</p>

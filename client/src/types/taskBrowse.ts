@@ -62,8 +62,19 @@ export interface JobCardAnswerSummary {
   runnerUp: JobCardAnswerRobot | null;
   confidence: { level: AnswerConfidenceLevel; reason: string | null };
   unknowns: string[];
-  /** One line from the simulation of the site, when one has run. */
+  /** One line from the simulation of the site, when it ran without a result to lead with (held, could not run). */
   simulation: string | null;
+  /**
+   * The simulation test's result, the same one the site's screen leads with (`testResultOf`): its kind, row 1 of
+   * the ranked options and every option's count. Option names come from the closed map only. Null without a result.
+   */
+  test?: {
+    kind: "winner" | "one_option" | "no_clear_winner" | "none_finished" | "testing";
+    wording: "did_best" | "was_ahead" | null;
+    entered: number;
+    setupFlag: boolean;
+    options: Array<{ label: string; maker: string | null; succeeded: number; scored: number; furthestText: string | null }>;
+  } | null;
   note: string;
 }
 /**

@@ -497,7 +497,7 @@ test("desktop handoff recognizes retained footage without claiming processing co
   await page.locator("#start-email").fill("operator@example.test");
   await page.getByRole("button", { name: /^(Send video|Next: film the job|Save my job)$/ }).click();
   await expect(page.getByRole("heading", { name: "Now film the job." })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Open your job page", exact: true })).toHaveAttribute("href", "/capture-upload/held-fixture");
+  await expect(page.getByRole("link", { name: "Open my job page ›", exact: true })).toHaveAttribute("href", "/capture-upload/held-fixture");
   received = true;
   await page.clock.fastForward(6000);
   await expect(page.getByRole("heading", { name: "We have your video." })).toBeVisible();
