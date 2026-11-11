@@ -8,7 +8,7 @@ const CAPTURE_DEPENDENT_NOTICES=new Set<OutboxKind>([
  'video_received','scene_ready','scene_tests_started','screening_cleared','screening_started','results_ready','run_no_result',
  'evaluation_outcome','scene_outcome','robot_access_question',
  'awaiting_evaluations','no_team_passed','no_qualified_evaluation','footage_before_account',
- 'brief_confirmed','coverage_shortfall','assessment_ready','input_needed',
+ 'brief_confirmed','coverage_shortfall','assessment_ready','input_needed','video_too_large',
 ]);
 /** Call inside the dispatch transaction before recording an external side effect.
  * Intake receipts, fresh-link renewal and separate business notices keep their
@@ -48,6 +48,13 @@ export async function taskLifecycleNotificationIsCurrent(
  if(entry.kind==='footage_before_account'){
   const notices=await import('./taskLifecycleNotifications');
   return notices.footageBeforeAccountShown(entry.requestId);
+ }
+ // The new-video ask for a video too large to process names its capture and video in its key,
+ // and is sent only while the job page still asks exactly that.
+ if(entry.kind==='video_too_large'){
+  if(entry.idempotencyKey===undefined)return false;
+  const sweep=await import('./websiteJobWindowSweep');
+  return sweep.largeVideoAskShown(entry.requestId,entry.idempotencyKey,snapshot.data());
  }
  if(entry.kind==='scene_tests_started'){
   const notices=await import('./taskLifecycleNotifications');

@@ -1,5 +1,5 @@
 import { buildPolicyRunLicense } from "../utils/policyRunLicense";
-import { projectAtlasPreparationOutcome } from "../utils/taskPreparationOutcome";
+import { largeVideoAskOutcome, projectAtlasPreparationOutcome } from "../utils/taskPreparationOutcome";
 import { projectWebsiteRunClosure } from "../utils/websiteRunClosure";
 import { taskListingSchema, listingConsentVersion } from "../utils/taskListingDetails";
 import { updatePreferencesInputSchema } from "../../client/src/types/updatePreferences";
@@ -724,7 +724,8 @@ async function hydrateTask(requestId: string, record: Record<string, any>) {
         ownerClosureOutcome: !consentRevoked
           ? projectWebsiteRunClosure(record, requestId, currentCapture.captureId) : null,
         preparationOutcome: !consentRevoked
-          ? projectAtlasPreparationOutcome(selectWebsiteAtlasPreview(record, currentCapture.captureId)) : null,
+          ? largeVideoAskOutcome(record, requestId, currentCapture.captureId)
+            ?? projectAtlasPreparationOutcome(selectWebsiteAtlasPreview(record, currentCapture.captureId)) : null,
         preparationStatus,
         multiStepHold: consentRevoked ? null : multiStepTaskHold(brief as never),
         preparationOverdue,

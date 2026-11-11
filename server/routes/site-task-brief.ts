@@ -1,7 +1,7 @@
 import { siteWalkthroughIdentity } from "../utils/siteWalkthrough";
 import { isWebsiteCaptureId } from "../utils/websiteCaptureIdentity";
 import { loadCurrentSiteAdvisory } from "../utils/siteAssessmentPublic";
-import { projectAtlasPreparationOutcome } from "../utils/taskPreparationOutcome";
+import { largeVideoAskOutcome, projectAtlasPreparationOutcome } from "../utils/taskPreparationOutcome";
 import { closeWebsiteRun, projectWebsiteRunClosure } from "../utils/websiteRunClosure";
 import { selectWebsiteAtlasPreview } from "../utils/websiteAtlasPreview";
 import type { TaskOutcome } from "../../client/src/types/taskOutcome";
@@ -371,7 +371,7 @@ async function readRequestForStatus(requestId: string, captureId = `walkthrough-
       .then(({ websiteJobWorkWindow }) => websiteJobWorkWindow(data)).catch(() => null),
     visualReconstructionReady: preview?.state === "ready",
     ownerClosureOutcome: projectWebsiteRunClosure(data, requestId, selectedCaptureId),
-    preparationOutcome: projectAtlasPreparationOutcome(preview),
+    preparationOutcome: largeVideoAskOutcome(data, requestId, selectedCaptureId) ?? projectAtlasPreparationOutcome(preview),
     siteTaskGates: gateAnswersOnFile(data),
     site_task_brief_confirmed_at: data.site_task_brief_confirmed_at,
     capture_coverage: (data.capture_coverage as never) ?? null,

@@ -66,6 +66,8 @@ import { isWebsiteJobNoGrantEndedNoticeKey, newWebsiteJobNoGrantClock, recordedW
   type WebsiteJobNoGrantClock, type WebsiteJobNoGrantEndingNotice, type WebsiteJobNoGrantWait } from "./websiteJobWindowEnding";
 import { projectWebsiteCaptureRights } from "./websiteTaskContext";
 import { largeVideoIngestBlock } from "./websiteLargeVideoBlock";
+import { newWebsiteLargeVideoAsk, websiteLargeVideoAsk, websiteLargeVideoAskEventId, websiteLargeVideoAskNoticeKey,
+  WEBSITE_LARGE_VIDEO_ASK_FIELD, type WebsiteLargeVideoAsk } from "./websiteJobWindowEnding";
 
 const JOBS = "inboundRequests";
 const SESSIONS = "captureUploadSessions";
@@ -260,6 +262,8 @@ export type JobNoGrantSweepResult =
   | "clock_started"
   /** The clock has not run as long as a grant's window would. */
   | "waiting"
+  /** The new-video ask for a video too large to process was recorded, emailed or cleared; the job waits on. */
+  | "video_ask_updated"
   | "contact_unreadable"
   | "changed"
   | "ended_notice_queued"
@@ -341,6 +345,13 @@ const noGrantPageDueMs = (clock: WebsiteJobNoGrantClock) =>
 /**
  * Keeps the clock of one job that never received a grant, and ends the job once the clock has run as
  * long as a grant's window would. `observed` is the job record when the caller has just read it.
+ *
+ * A job whose active capture's video was too large for frame extraction (`websiteLargeVideoBlock.ts`)
+ * gets no hand-off, so no grant will come for that video. The pass records the new-video ask for it
+ * (`WEBSITE_LARGE_VIDEO_ASK_FIELD`), which the job page shows, queues its one email, and counts the
+ * wait as the site's: the site's own clock bounds it, with no page. A replacement recording that
+ * becomes active is another capture, so the ask stops speaking for the job and the wait is Blueprint's
+ * again, from the replacement.
  */
 export async function sweepWebsiteJobNoGrant(requestId: string, nowMs = Date.now(),
   observed?: Record<string, any>): Promise<JobNoGrantSweepResult> {
@@ -355,15 +366,24 @@ export async function sweepWebsiteJobNoGrant(requestId: string, nowMs = Date.now
   if (!brief) return "not_a_job";
   const outcome = await storedOutcome(requestId, observed!);
   if (outcome) return outcome as JobNoGrantSweepResult;
-  const waitingOn = await noGrantWaitingOn(requestId, observed!, brief);
-  // A video too large for frame extraction gets no hand-off at all, so no grant will ever be asked
-  // for: the job ends on the first pass that sees the marker, before any clock or page, with the
-  // site's one useful step (`websiteLargeVideoBlock.ts`). Only a saved recording can be one.
-  const largeVideo = waitingOn === "blueprint"
-    && await largeVideoIngestBlock(siteWalkthroughIdentity(requestId, observed!)) !== null;
+  const identity = siteWalkthroughIdentity(requestId, observed!);
+  const recordingWait = await noGrantWaitingOn(requestId, observed!, brief);
+  // Only a saved recording can be too large; an unreadable marker leaves the ordinary path.
+  const block = recordingWait === "blueprint" ? await largeVideoIngestBlock(identity) : null;
+  const ask = block ? newWebsiteLargeVideoAsk({ request_id: requestId, capture_id: identity.captureId,
+    raw_video_object: block.raw_video_object, raw_video_size_bytes: block.raw_video_size_bytes,
+    recorded_at_iso: new Date(nowMs).toISOString() }) : null;
+  const waitingOn: WebsiteJobNoGrantWait = ask ? "site" : recordingWait;
+  const recordedAsk = websiteLargeVideoAsk(observed, requestId, identity.captureId);
+  const staleAsk = Boolean(observed![WEBSITE_LARGE_VIDEO_ASK_FIELD]) && (!ask || recordedAsk?.ask_digest !== ask.ask_digest);
+  const askRef = ask ? store.collection(CAPTURE_OUTBOX_COLLECTION).doc(websiteLargeVideoAskNoticeKey(requestId, ask)) : null;
+  const askEmailOwed = Boolean(askRef) && !(await askRef!.get()).exists;
   const observedClock = websiteJobNoGrantClock(observed, requestId);
-  const restart = !observedClock || observedClock.waiting_on !== waitingOn;
-  if (!largeVideo && !restart && observedClock!.since_epoch + observedClock!.window_seconds > nowEpoch) return "waiting";
+  // A replacement recording is new site activity: the wait restarts from it, like a change of whose step it is.
+  const restart = !observedClock || observedClock.waiting_on !== waitingOn
+    || (observedClock.capture_id !== undefined && observedClock.capture_id !== identity.captureId);
+  const askWrite = Boolean(ask && recordedAsk?.ask_digest !== ask.ask_digest) || staleAsk || askEmailOwed;
+  if (!askWrite && !restart && observedClock!.since_epoch + observedClock!.window_seconds > nowEpoch) return "waiting";
   // No backfill. The first time the sweep sees a job, a job that had already waited a whole window
   // since its latest site activity would have ended before this change: it is ended now, with no
   // email and no page. A job whose stored times cannot be read is taken as old, never as new.
@@ -372,31 +392,57 @@ export async function sweepWebsiteJobNoGrant(requestId: string, nowMs = Date.now
   const backfill: WebsiteJobNoGrantEndingNotice | null = latestActivity === undefined ? null
     : latestActivity === null ? "none_age_unknown"
     : nowEpoch - latestActivity >= windowSeconds ? "none_waited_before_this_change" : null;
+  const reason = ask ? { reason: "video_over_ingest_limit" as const } : {};
   const noticeRef = store.collection(CAPTURE_OUTBOX_COLLECTION).doc(websiteJobNoGrantEndedNoticeKey(requestId));
   return store.runTransaction<JobNoGrantSweepResult>(async transaction => {
     // Every read comes before the writes; a grant, withdrawal or closure that landed since still counts.
     const record = (await transaction.get(jobRef)).data();
     const skip = noGrantSkip(record, requestId);
     if (skip) return skip;
+    // The marker was read for one capture: a replacement that became active since is another video.
+    if (siteWalkthroughIdentity(requestId, record!).captureId !== identity.captureId) return "changed";
     if (!sameClock(websiteJobNoGrantClock(record, requestId), observedClock)) return "changed";
-    const largeVideoEnding = largeVideo ? { waiting_on: "site" as const, reason: "video_over_ingest_limit" as const } : null;
+    if (JSON.stringify(record![WEBSITE_LARGE_VIDEO_ASK_FIELD] ?? null) !== JSON.stringify(observed![WEBSITE_LARGE_VIDEO_ASK_FIELD] ?? null))
+      return "changed";
     if (backfill) {
       transaction.update(jobRef, { [WEBSITE_JOB_NO_GRANT_ENDING_FIELD]: sealWebsiteJobNoGrantEnding({ request_id: requestId,
-        waiting_on: waitingOn, ...largeVideoEnding, waiting_since_epoch: latestActivity ?? nowEpoch, ended_at_epoch: nowEpoch,
+        waiting_on: waitingOn, ...reason, waiting_since_epoch: latestActivity ?? nowEpoch, ended_at_epoch: nowEpoch,
         recorded_at_iso: new Date(nowMs).toISOString(), notice: backfill }), [WEBSITE_JOB_NO_GRANT_PAGE_DUE_FIELD]: null });
       return "ended_no_notice";
     }
-    if (restart && !largeVideoEnding) {
+    // The ask, its one email and its clearing. The email is keyed by the capture and blocked video, so a
+    // later pass, a retry or a second sweep queues nothing more; an unreadable address is tried next pass.
+    const updates: Record<string, any> = {};
+    let askEntry: ReturnType<typeof buildOutboxEntry> | null = null;
+    if (ask) {
+      const kept: WebsiteLargeVideoAsk = recordedAsk?.ask_digest === ask.ask_digest ? recordedAsk : ask;
+      if (kept !== recordedAsk) updates[WEBSITE_LARGE_VIDEO_ASK_FIELD] = kept;
+      if (!(await transaction.get(askRef!)).exists) {
+        let to = "";
+        try { to = String(await decryptFieldValue(record!.contact?.email ?? "")).trim(); }
+        catch { logger.warn({ requestId }, "Could not read the contact address for a new-video ask; the next pass tries again"); }
+        if (EMAIL.test(to)) {
+          const message = buildTaskLifecycleNotification({ requestId, milestone: "video_too_large", to,
+            eventId: websiteLargeVideoAskEventId(kept) });
+          if (message.idempotencyKey !== askRef!.id) throw new Error("website_large_video_ask_notice_key_mismatch");
+          askEntry = buildOutboxEntry(message);
+        }
+      }
+    } else if (staleAsk) updates[WEBSITE_LARGE_VIDEO_ASK_FIELD] = null;
+    const commit = (result: JobNoGrantSweepResult) => {
+      if (Object.keys(updates).length) transaction.update(jobRef, updates);
+      if (askEntry) transaction.create(askRef!, askEntry);
+      return result;
+    };
+    if (restart) {
       const clock = newWebsiteJobNoGrantClock({ request_id: requestId, waiting_on: waitingOn, since_epoch: nowEpoch,
-        window_seconds: windowSeconds });
-      transaction.update(jobRef, { [WEBSITE_JOB_NO_GRANT_CLOCK_FIELD]: clock,
-        [WEBSITE_JOB_NO_GRANT_PAGE_DUE_FIELD]: waitingOn === "blueprint" ? noGrantPageDueMs(clock) : null });
-      return "clock_started";
+        window_seconds: windowSeconds, capture_id: identity.captureId });
+      updates[WEBSITE_JOB_NO_GRANT_CLOCK_FIELD] = clock;
+      updates[WEBSITE_JOB_NO_GRANT_PAGE_DUE_FIELD] = waitingOn === "blueprint" ? noGrantPageDueMs(clock) : null;
+      return commit("clock_started");
     }
-    // An early ending's contact-read grace runs from the job's clock; with none yet, it starts now.
-    const clock = observedClock ?? newWebsiteJobNoGrantClock({ request_id: requestId, waiting_on: waitingOn,
-      since_epoch: nowEpoch, window_seconds: windowSeconds });
-    const graceFrom = largeVideoEnding ? clock.since_epoch : clock.since_epoch + clock.window_seconds;
+    const clock = observedClock!;
+    if (clock.since_epoch + clock.window_seconds > nowEpoch) return commit("video_ask_updated");
     // The key is fixed by the job: an email already in the outbox, in any state, is never queued again.
     const already = (await transaction.get(noticeRef)).exists;
     let entry: ReturnType<typeof buildOutboxEntry> | null = null;
@@ -405,18 +451,13 @@ export async function sweepWebsiteJobNoGrant(requestId: string, nowMs = Date.now
       let to: string;
       try { to = String(await decryptFieldValue(record!.contact?.email ?? "")).trim(); }
       catch {
-        if (nowEpoch - graceFrom < CONTACT_READ_GRACE_SECONDS) {
-          // An early ending waits for the address too; the clock it waits by is kept on the job.
-          if (largeVideoEnding && !observedClock) transaction.update(jobRef, { [WEBSITE_JOB_NO_GRANT_CLOCK_FIELD]: clock,
-            [WEBSITE_JOB_NO_GRANT_PAGE_DUE_FIELD]: null });
-          return "contact_unreadable";
-        }
+        if (nowEpoch - (clock.since_epoch + clock.window_seconds) < CONTACT_READ_GRACE_SECONDS) return "contact_unreadable";
         to = "";
       }
       if (EMAIL.test(to)) {
         const message = buildTaskLifecycleNotification({ requestId, milestone: "scene_outcome", to,
-          eventId: WEBSITE_JOB_NO_GRANT_ENDED_EVENT_ID, jobNoGrantEnded: largeVideoEnding?.waiting_on ?? clock.waiting_on,
-          ...(largeVideoEnding ? { jobNoGrantReason: largeVideoEnding.reason } : {}),
+          eventId: WEBSITE_JOB_NO_GRANT_ENDED_EVENT_ID, jobNoGrantEnded: clock.waiting_on,
+          ...(ask ? { jobNoGrantReason: "video_over_ingest_limit" as const } : {}),
           workspaceUrl: typeof record!.account_owner_uid === "string" && record!.account_owner_uid
             ? workspaceTaskUrl(requestId) : null });
         if (message.idempotencyKey !== noticeRef.id) throw new Error("website_job_no_grant_ended_notice_key_mismatch");
@@ -426,12 +467,28 @@ export async function sweepWebsiteJobNoGrant(requestId: string, nowMs = Date.now
         logger.warn({ requestId }, "A job with no grant ended with no usable contact address; the job page still says so");
       }
     }
-    transaction.update(jobRef, { [WEBSITE_JOB_NO_GRANT_ENDING_FIELD]: sealWebsiteJobNoGrantEnding({ request_id: requestId,
-      waiting_on: clock.waiting_on, ...largeVideoEnding, waiting_since_epoch: clock.since_epoch, ended_at_epoch: nowEpoch,
+    // The ending supersedes an unsent ask email: its own email says where the job stands.
+    askEntry = null;
+    transaction.update(jobRef, { ...updates, [WEBSITE_JOB_NO_GRANT_ENDING_FIELD]: sealWebsiteJobNoGrantEnding({ request_id: requestId,
+      waiting_on: clock.waiting_on, ...reason, waiting_since_epoch: clock.since_epoch, ended_at_epoch: nowEpoch,
       recorded_at_iso: new Date(nowMs).toISOString(), notice }), [WEBSITE_JOB_NO_GRANT_PAGE_DUE_FIELD]: null });
     if (entry) transaction.create(noticeRef, entry);
     return entry ? "ended_notice_queued" : "ended_no_notice";
   });
+}
+
+/**
+ * Whether a queued new-video ask email still says what the job page says, read again at dispatch: the
+ * job has no grant and no ending, and its recorded ask names the active capture and this exact email.
+ */
+export async function largeVideoAskShown(requestId: string, idempotencyKey: string,
+  record: Record<string, any> | undefined): Promise<boolean> {
+  if (!record || record.website_scene_sponsorship || record.capture_withdrawal
+    || recordedWebsiteJobNoGrantEnding(record, requestId)) return false;
+  const captureId = siteWalkthroughIdentity(requestId, record).captureId;
+  if (websiteRunClosure(record, requestId, captureId)) return false;
+  const ask = websiteLargeVideoAsk(record, requestId, captureId);
+  return Boolean(ask) && websiteLargeVideoAskNoticeKey(requestId, ask!) === idempotencyKey;
 }
 
 export type JobWindowSweepSummary = { examined: number; ended: number; noticesQueued: number; failed: number };

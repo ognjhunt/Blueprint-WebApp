@@ -1,13 +1,14 @@
 // @vitest-environment node
 /**
- * A website job whose video was too large for frame extraction (`websiteLargeVideoBlock.ts`): the
- * Pipeline never hears of it, so no grant comes. The no-grant sweep reads the marker extractFrames
- * left and ends the job on the first pass that sees it, before any clock runs out and before the ops
- * page, with one email that says what the job page says.
+ * A website job whose active capture's video was too large for frame extraction
+ * (`websiteLargeVideoBlock.ts`): the Pipeline never hears of it, so no grant comes. The no-grant sweep
+ * reads the marker extractFrames left and turns the job into the new-video ask: the job page asks for
+ * a smaller video, one email says the same, no ops page, and the job stays open on the site's clock.
+ * A replacement that becomes active clears the ask and the wait is Blueprint's again.
  *
  * The sweep half runs against the fake Firestore with the real outbox, notice builder, dispatch check,
- * job-page reader, projection and ops scan; only the marker reader, email provider, field decryption
- * and saved-recording read are stubbed. The reader half runs against a fake bucket.
+ * job-page projection and ops scan; only the marker reader, email provider, field decryption and
+ * saved-recording read are stubbed. The reader half runs against a fake bucket.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { sharedFakeFirestoreState as state } from "./helpers/fake-firestore";
@@ -19,36 +20,46 @@ vi.mock("../../client/src/lib/firebaseAdmin", async () => {
     dbAdmin: sharedFakeFirestore, storageAdmin: null };
 });
 vi.mock("../logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() } }));
-const decrypt = vi.hoisted(() => vi.fn(async (value: string) => String(value).replace(/^encrypted:/, "")));
-vi.mock("../utils/field-encryption", () => ({ decryptFieldValue: decrypt }));
+vi.mock("../utils/field-encryption", () => ({
+  decryptFieldValue: vi.fn(async (value: string) => String(value).replace(/^encrypted:/, "")),
+}));
 const send = vi.hoisted(() => vi.fn());
 vi.mock("../utils/email", () => ({ sendEmail: send }));
 vi.mock("../utils/siteWalkthrough", async (original) => ({
   ...(await original<typeof import("../utils/siteWalkthrough")>()),
   savedWalkthrough: vi.fn(async () => ({ upload: { captureReceived: true }, received: true, uploadState: "retained" })),
 }));
-const blocked = vi.hoisted(() => ({ value: false, seen: [] as unknown[] }));
+/** Which capture's video the marker blocks; `onRead` runs while the marker is read. */
+const marker = vi.hoisted(() => ({ blockedCapture: null as string | null, onRead: null as null | (() => void),
+  seen: [] as Array<{ captureId: string }> }));
 vi.mock("../utils/websiteLargeVideoBlock", async (original) => ({
   ...(await original<typeof import("../utils/websiteLargeVideoBlock")>()),
-  largeVideoIngestBlock: vi.fn(async (identity: unknown) => {
-    blocked.seen.push(identity);
-    return blocked.value ? { raw_video_object: "x", raw_video_size_bytes: 2 } : null;
+  largeVideoIngestBlock: vi.fn(async (identity: { captureId: string; sceneId: string }) => {
+    marker.seen.push(identity);
+    marker.onRead?.();
+    return marker.blockedCapture === identity.captureId
+      ? { raw_video_object: `scenes/${identity.sceneId}/captures/${identity.captureId}/raw/walkthrough.mp4`, raw_video_size_bytes: 1_500_000_000 }
+      : null;
   }),
 }));
 
 import { scanWebsiteJobsWaitingOnGrant } from "../utils/betaOpsMonitor";
 import { deliverOutbox } from "../utils/captureOutbox";
-import { JOB_NO_GRANT_LARGE_VIDEO_ENDING_MESSAGE } from "../utils/taskPreparationOutcome";
+import { JOB_NO_GRANT_LARGE_VIDEO_ENDING_MESSAGE, LARGE_VIDEO_RECAPTURE_SENTENCES, largeVideoAskOutcome,
+  RECAPTURE_TITLE } from "../utils/taskPreparationOutcome";
 import { projectTaskStatus, taskStatusInputFrom } from "../utils/taskStatusProjection";
 import { WEBSITE_JOB_WINDOW_DEFAULT_SECONDS } from "../utils/websiteJobWindow";
 import { websiteJobNoGrantEndedNoticeKey } from "../utils/websiteJobWindowEnding";
 import { sweepWebsiteJobNoGrant, sweepWebsiteJobWindows } from "../utils/websiteJobWindowSweep";
 import { websiteJobWorkWindow } from "../utils/websiteSceneSponsorship";
+import { siteWalkthroughIdentity } from "../utils/siteWalkthrough";
 
 const HOUR = 3600, DAY = 86400;
+const WINDOW = WEBSITE_JOB_WINDOW_DEFAULT_SECONDS;
 const NOW = Date.UTC(2026, 10, 12);
 const JOB = "inboundRequests/job-one";
-const NOTICE = `captureOutbox/${websiteJobNoGrantEndedNoticeKey("job-one")}`;
+const FIRST = "walkthrough-job-one";
+const REPLACEMENT = `supplement-${"a".repeat(40)}`;
 const docs = state.docs;
 const job = () => docs.get(JOB) as Record<string, any>;
 const outbox = () => [...docs.entries()].filter(([key]) => key.startsWith("captureOutbox/") && !key.includes("/deliveryReceipts/")) as
@@ -56,6 +67,7 @@ const outbox = () => [...docs.entries()].filter(([key]) => key.startsWith("captu
 const at = (seconds: number) => NOW + seconds * 1000;
 const alert = vi.fn(async () => ({ sent: true }));
 const opsEmail = vi.fn(async () => ({ sent: true }));
+const scanAt = (seconds: number) => scanWebsiteJobsWaitingOnGrant({ now: () => at(seconds), alert, email: opsEmail as never });
 
 function seedJob(changes: Record<string, unknown> = {}) {
   const { job: record } = screeningFixture();
@@ -65,94 +77,119 @@ function seedJob(changes: Record<string, unknown> = {}) {
     contact: { email: "encrypted:owner@example.com" }, ...changes });
   docs.set("siteTaskBriefs/job-one", { requestId: "job-one", summary: "Move the rigid part to its tray" });
 }
-const page = async () => projectTaskStatus(taskStatusInputFrom({ briefDrafted: true, stage: null,
-  hasStoredCapture: true, jobWorkWindow: await websiteJobWorkWindow(job()) } as never));
+/** What the job page shows: the same outcome the two job routes read, through the real projection. */
+const page = async () => {
+  const record = job();
+  const captureId = siteWalkthroughIdentity("job-one", record).captureId;
+  return projectTaskStatus(taskStatusInputFrom({ briefDrafted: true, stage: null, hasStoredCapture: true,
+    jobWorkWindow: await websiteJobWorkWindow(record),
+    preparationOutcome: largeVideoAskOutcome(record, "job-one", captureId) } as never));
+};
+const activate = (captureId: string) => docs.set(JOB, { ...job(), active_capture_id: captureId });
 
 beforeEach(() => {
   docs.clear();
-  blocked.value = false;
-  blocked.seen.length = 0;
+  marker.blockedCapture = null;
+  marker.onRead = null;
+  marker.seen.length = 0;
   alert.mockClear();
   opsEmail.mockClear();
-  decrypt.mockClear();
   vi.useFakeTimers({ toFake: ["Date"], now: NOW });
   send.mockReset().mockResolvedValue({ sent: true, provider: "resend", messageId: "accepted" });
 });
 afterEach(() => { vi.useRealTimers(); });
 
 describe("a job whose video was too large to process", () => {
-  it("ends on the first pass that sees the marker, long before its clock, with one email the page matches", async () => {
+  it("asks for a new video on the page and in one email, with no ops page, and keeps the job open", async () => {
     seedJob();
     expect(await sweepWebsiteJobNoGrant("job-one", at(0))).toBe("clock_started");
-    expect(job().website_job_no_grant_page_due_at_ms).toBe(at(24 * HOUR));
-    expect(await sweepWebsiteJobNoGrant("job-one", at(HOUR))).toBe("waiting");
-
-    // extractFrames blocks the video and leaves its marker: the next pass ends the job.
-    blocked.value = true;
-    expect(await sweepWebsiteJobNoGrant("job-one", at(HOUR + 60))).toBe("ended_notice_queued");
-    expect(blocked.seen.at(-1)).toEqual({ requestId: "job-one", sceneId: "site-job-one", captureId: "walkthrough-job-one" });
-    expect(job().website_job_no_grant_ending).toMatchObject({ waiting_on: "site", reason: "video_over_ingest_limit",
-      waiting_since_epoch: NOW / 1000, ended_at_epoch: NOW / 1000 + HOUR + 60, notice: "queued" });
+    expect(job().website_job_no_grant_clock.waiting_on).toBe("blueprint");
+    marker.blockedCapture = FIRST;
+    // The wait becomes the site's: the clock restarts on the site, with no page due.
+    expect(await sweepWebsiteJobNoGrant("job-one", at(HOUR))).toBe("clock_started");
+    expect(job().website_job_no_grant_clock).toMatchObject({ waiting_on: "site", since_epoch: NOW / 1000 + HOUR, capture_id: FIRST });
     expect(job().website_job_no_grant_page_due_at_ms).toBeNull();
-    expect(outbox().map(([key]) => key)).toEqual([NOTICE]);
-    const body: string = outbox()[0][1].body;
-    expect(outbox()[0][1].subject).toBe("Your Blueprint job has ended");
-    expect(body.startsWith(`${JOB_NO_GRANT_LARGE_VIDEO_ENDING_MESSAGE}\n\n`)).toBe(true);
-    expect(await page()).toMatchObject({ decision: "ended", headline: JOB_NO_GRANT_LARGE_VIDEO_ENDING_MESSAGE });
+    expect(job().website_large_video_ask).toMatchObject({ capture_id: FIRST, raw_video_size_bytes: 1_500_000_000 });
+    expect(job()).not.toHaveProperty("website_job_no_grant_ending");
 
-    // No ops page for it, and nothing more on later passes.
-    expect(await scanWebsiteJobsWaitingOnGrant({ now: () => at(DAY), alert, email: opsEmail as never }))
-      .toEqual({ due: 0, newlyAlerted: 0 });
+    expect(await page()).toMatchObject({ outcome: { title: RECAPTURE_TITLE, reason: "Your video is too large for us to process.",
+      nextStep: "Please film a shorter clip, or record at 1080p. Then send us the new video.", actionOwner: "site" } });
+    expect(outbox()).toHaveLength(1);
+    const [key, entry] = outbox()[0];
+    expect(key).toMatch(new RegExp(`^captureOutbox/job-one:video_too_large:${FIRST}\\.[a-f0-9]{16}$`));
+    expect(entry).toMatchObject({ kind: "video_too_large", subject: RECAPTURE_TITLE, to: "owner@example.com", status: "pending" });
+    expect(entry.body.startsWith(`${LARGE_VIDEO_RECAPTURE_SENTENCES.reason} ${LARGE_VIDEO_RECAPTURE_SENTENCES.nextStep}\n\nOpen your job:\n`)).toBe(true);
+
+    // A second pass, a sweep of all jobs and the ops scan add nothing.
+    expect(await sweepWebsiteJobNoGrant("job-one", at(2 * HOUR))).toBe("waiting");
+    await sweepWebsiteJobWindows({ now: () => at(3 * HOUR) });
+    expect(await scanAt(2 * DAY)).toEqual({ due: 0, newlyAlerted: 0 });
     expect(alert).not.toHaveBeenCalled();
-    await sweepWebsiteJobWindows({ now: () => at(2 * DAY) });
     await deliverOutbox();
-    await sweepWebsiteJobWindows({ now: () => at(3 * DAY) });
     await deliverOutbox();
     expect(send).toHaveBeenCalledTimes(1);
     expect(outbox()).toHaveLength(1);
   });
 
-  it("ends a job the sweep sees for the first time, without starting a clock first", async () => {
+  it("clears the ask once a replacement is active, and the wait is Blueprint's again from the replacement", async () => {
     seedJob();
-    blocked.value = true;
-    expect(await sweepWebsiteJobNoGrant("job-one", at(0))).toBe("ended_notice_queued");
-    expect(job().website_job_no_grant_ending).toMatchObject({ waiting_on: "site", reason: "video_over_ingest_limit",
-      waiting_since_epoch: NOW / 1000, notice: "queued" });
-  });
-
-  it("waits for an unreadable contact address within the grace period, then ends with nobody to email", async () => {
-    seedJob();
-    blocked.value = true;
-    decrypt.mockRejectedValue(new Error("kms unavailable"));
-    expect(await sweepWebsiteJobNoGrant("job-one", at(0))).toBe("contact_unreadable");
-    expect(job().website_job_no_grant_clock).toMatchObject({ since_epoch: NOW / 1000 });
-    expect(await sweepWebsiteJobNoGrant("job-one", at(HOUR))).toBe("contact_unreadable");
-    expect(await sweepWebsiteJobNoGrant("job-one", at(DAY))).toBe("ended_no_notice");
-    expect(job().website_job_no_grant_ending).toMatchObject({ reason: "video_over_ingest_limit", notice: "none_no_contact_on_file" });
-    expect(outbox()).toHaveLength(0);
-    decrypt.mockReset().mockImplementation(async (value: string) => String(value).replace(/^encrypted:/, ""));
-  });
-
-  it("never reads a marker for a job still waiting on the site's recording, or for a withdrawn job", async () => {
-    const walkthrough = await import("../utils/siteWalkthrough");
-    vi.mocked(walkthrough.savedWalkthrough).mockResolvedValueOnce(
-      { upload: { captureReceived: false }, received: false, uploadState: "not_received" } as never);
-    seedJob();
-    blocked.value = true;
+    marker.blockedCapture = FIRST;
     expect(await sweepWebsiteJobNoGrant("job-one", at(0))).toBe("clock_started");
-    expect(blocked.seen).toEqual([]);
-    seedJob({ capture_withdrawal: { state: "requested" } });
-    expect(await sweepWebsiteJobNoGrant("job-one", at(HOUR))).toBe("withdrawn");
-    expect(blocked.seen).toEqual([]);
-    expect(outbox()).toHaveLength(0);
+    activate(REPLACEMENT);
+    // The page stops asking at once: the ask names the earlier capture.
+    expect((await page()).outcome?.title).not.toBe(RECAPTURE_TITLE);
+    expect(await sweepWebsiteJobNoGrant("job-one", at(5 * DAY))).toBe("clock_started");
+    expect(job().website_large_video_ask).toBeNull();
+    expect(job().website_job_no_grant_clock).toMatchObject({ waiting_on: "blueprint", since_epoch: NOW / 1000 + 5 * DAY,
+      capture_id: REPLACEMENT });
+    expect(job().website_job_no_grant_page_due_at_ms).toBe(at(5 * DAY + 24 * HOUR));
+    // The ask's email, if still unsent, no longer speaks for the job.
+    await deliverOutbox();
+    expect(send).not.toHaveBeenCalled();
+    expect(outbox()[0][1].status).toBe("cancelled");
   });
 
-  it("an ending recorded without a reason still reads as before", async () => {
+  it("restarts the Blueprint wait from a replacement that arrives late in an ordinary wait", async () => {
     seedJob();
     expect(await sweepWebsiteJobNoGrant("job-one", at(0))).toBe("clock_started");
-    expect(await sweepWebsiteJobNoGrant("job-one", at(WEBSITE_JOB_WINDOW_DEFAULT_SECONDS))).toBe("ended_notice_queued");
+    activate(REPLACEMENT);
+    expect(await sweepWebsiteJobNoGrant("job-one", at(WINDOW - HOUR))).toBe("clock_started");
+    expect(job().website_job_no_grant_clock).toMatchObject({ waiting_on: "blueprint", since_epoch: NOW / 1000 + WINDOW - HOUR });
+    expect(await sweepWebsiteJobNoGrant("job-one", at(WINDOW))).toBe("waiting");
+  });
+
+  it("writes nothing when a replacement becomes active while the marker is read", async () => {
+    seedJob();
+    expect(await sweepWebsiteJobNoGrant("job-one", at(0))).toBe("clock_started");
+    marker.blockedCapture = FIRST;
+    marker.onRead = () => { activate(REPLACEMENT); marker.onRead = null; };
+    const before = structuredClone(job());
+    expect(await sweepWebsiteJobNoGrant("job-one", at(HOUR))).toBe("changed");
+    expect(job()).toEqual({ ...before, active_capture_id: REPLACEMENT });
+    expect(outbox()).toHaveLength(0);
+  });
+
+  it("ends with the existing site ending, naming the size, when no new video arrives in time", async () => {
+    seedJob();
+    marker.blockedCapture = FIRST;
+    expect(await sweepWebsiteJobNoGrant("job-one", at(0))).toBe("clock_started");
+    expect(await sweepWebsiteJobNoGrant("job-one", at(WINDOW - 1))).toBe("waiting");
+    expect(await sweepWebsiteJobNoGrant("job-one", at(WINDOW))).toBe("ended_notice_queued");
+    expect(job().website_job_no_grant_ending).toMatchObject({ waiting_on: "site", reason: "video_over_ingest_limit", notice: "queued" });
+    expect(await page()).toMatchObject({ decision: "ended", headline: JOB_NO_GRANT_LARGE_VIDEO_ENDING_MESSAGE });
+    const ending = outbox().find(([key]) => key === `captureOutbox/${websiteJobNoGrantEndedNoticeKey("job-one")}`)!;
+    expect(ending[1].body.startsWith(`${JOB_NO_GRANT_LARGE_VIDEO_ENDING_MESSAGE}\n\n`)).toBe(true);
+  });
+
+  it("keeps the ordinary path when the marker is absent or does not read", async () => {
+    seedJob();
+    expect(await sweepWebsiteJobNoGrant("job-one", at(0))).toBe("clock_started");
+    expect(marker.seen).toEqual([{ requestId: "job-one", sceneId: "site-job-one", captureId: FIRST }]);
+    expect(job().website_job_no_grant_clock.waiting_on).toBe("blueprint");
+    expect(job()).not.toHaveProperty("website_large_video_ask");
+    expect(await sweepWebsiteJobNoGrant("job-one", at(WINDOW))).toBe("ended_notice_queued");
     expect(job().website_job_no_grant_ending).not.toHaveProperty("reason");
-    expect((await page()).headline).not.toBe(JOB_NO_GRANT_LARGE_VIDEO_ENDING_MESSAGE);
+    expect(outbox().map(([, entry]) => entry.kind)).toEqual(["scene_outcome"]);
   });
 });
 
