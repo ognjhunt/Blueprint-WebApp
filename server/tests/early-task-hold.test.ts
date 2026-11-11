@@ -36,10 +36,10 @@ const base = { briefDrafted: true, briefConfirmed: true, hasStoredCapture: true,
 
 /** The exact sentence for each Pipeline early-hold reason (website_early_task_hold.EARLY_CODES). */
 const EXPECTED: Record<string, string> = {
-  website_native_task_profile_preparation_required: "Held: we can't simulate this kind of job yet.",
+  website_native_task_profile_preparation_required: "The simulation is held: we can't simulate this kind of job yet.",
   website_task_family_runtime_preparation_required:
-    "Held: we can't simulate this kind of job yet, because the simulator it needs isn't set up on our side.",
-  website_task_operation_coverage_unresolved: "Held: we can't simulate every step this job asks for yet.",
+    "The simulation is held: we can't simulate this kind of job yet, because the simulator it needs isn't set up on our side.",
+  website_task_operation_coverage_unresolved: "The simulation is held: we can't simulate every step this job asks for yet.",
 };
 
 beforeEach(() => {
@@ -99,7 +99,7 @@ describe("the Pipeline's early task hold", () => {
       const row = rows[0][1] as Record<string, string>;
       expect(rows[0][0]).toBe(`captureOutbox/req-1:preparation_needs_attention:${EVENT.replace(":", "_")}`);
       expect(row.subject).toBe("The simulation of your job is on hold");
-      expect(row.body.startsWith(`${sentence} No robot was tested on your job, and this is not a finding that a robot could not do it.`)).toBe(true);
+      expect(row.body.startsWith(`${sentence} No robot was tested in a simulation of your job, and this is not a finding that a robot could not do it. Your answer stays on your job page.`)).toBe(true);
       expect(row.body).toMatch(/Reference: bp-prep-0123456789abcdef\./);
       expect(row.body).not.toMatch(/needs our team's review|could not finish|website_|we'll|email you|rerun/i);
       expect(send).not.toHaveBeenCalled();
@@ -130,7 +130,7 @@ describe("the Pipeline's early task hold", () => {
     const rows = [...sharedFakeFirestoreState.docs.entries()].filter(([key]) => key.startsWith("captureOutbox/"));
     expect(rows).toHaveLength(1); // the same outbox key: a job already told is not told again
     const row = rows[0][1] as Record<string, string>;
-    expect(row.subject).toBe("We need a new video of your work area");
+    expect(row.subject).toBe("We need a new video to build the simulation of your site");
     expect(row.body.startsWith(`${sentences.reason} ${sentences.nextStep}`)).toBe(true);
     expect(row.body).not.toMatch(/needs our team's review|Nothing more is needed from you|website_|atlas_/);
     expect(send).not.toHaveBeenCalled();

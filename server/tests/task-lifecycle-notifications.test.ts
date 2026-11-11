@@ -403,7 +403,7 @@ describe("a job the window sweep ended is told under its own fixed key", () => {
     const notice = buildTaskLifecycleNotification({ requestId: "req-1", to: "owner@example.com", milestone: "scene_outcome",
       eventId: "job_window_ended", jobWindowEnded: true, captureUrl: "https://example.invalid/private-owner-link" });
     expect(notice).toMatchObject({ idempotencyKey: "req-1:scene_outcome:job_window_ended", kind: "scene_outcome",
-      subject: "Your Blueprint job has ended", replyTo: "hello@tryblueprint.io" });
+      subject: "The simulation of your site has stopped", replyTo: "hello@tryblueprint.io" });
     expect(notice.body).toBe(`${JOB_WINDOW_ENDING_MESSAGE}\n\nOpen your job on your private job page:\n`
       + "https://example.invalid/private-owner-link\n\n— The Blueprint team");
     const claimed = buildTaskLifecycleNotification({ requestId: "req-1", to: "owner@example.com", milestone: "scene_outcome",
@@ -452,9 +452,9 @@ describe("a website job's scene outcome is emailed once (C-04)", () => {
   const pending = (id = "scene-1") => (docs.get(`taskEvaluationSceneIntakes/${id}`) as Record<string, any>).scene_outcome_notification_pending;
 
   it.each([
-    ["held", "task_family_unsupported", "Your Blueprint job is held for now", "Nothing is needed from you."],
+    ["held", "task_family_unsupported", "The simulation of your job is held for now", "Your answer stays on your job page. Nothing is needed from you."],
     ["withdrawn", "consent_expired", "Your Blueprint job has stopped", "You don't need to do anything; this job has stopped."],
-    ["setup_repair", "retry_cap_exhausted", "We stopped preparing your Blueprint job", "Nothing is needed from you."],
+    ["setup_repair", "retry_cap_exhausted", "We stopped building the simulation of your site", "Your answer stays on your job page. Nothing is needed from you."],
   ] as const)("sends %s once, in the page's own sentence, with the job link", async (kind, reasonCode, subject, closing) => {
     const { deliverOutbox } = await import("../utils/captureOutbox");
     const { sceneOutcomeMessage } = await import("../utils/sceneIntentOutcome");
@@ -566,7 +566,7 @@ describe("a website job's scene outcome is emailed once (C-04)", () => {
     await intake(await sealed("held", true, "task_family_unsupported"));
     await deliverOutbox();
     expect(send).toHaveBeenCalledTimes(1);
-    expect(send.mock.calls[0][0].subject).toBe("Your Blueprint job is held for now");
+    expect(send.mock.calls[0][0].subject).toBe("The simulation of your job is held for now");
     expect(docs.get(`captureOutbox/req-1:evaluation_outcome:held_capability-${"b".repeat(24)}`)).toMatchObject({ status: "cancelled" });
   });
 

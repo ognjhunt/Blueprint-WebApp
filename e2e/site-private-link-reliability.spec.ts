@@ -375,7 +375,7 @@ test("a job no robot we run fits is held, naming the robots checked and why, fro
       embodimentsTruncated: false, precheckDigest: digest },
   }, writes);
   await page.goto(`/capture-upload/${token}?video=existing`);
-  await expect(page.getByText("Held: none of the robots we run fits this job yet", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("The simulation is held: none of the robots we can simulate fits this job yet", { exact: true }).first()).toBeVisible();
   await expect(page.getByText(/None of the 136 robot setups we checked fits this job\. The main reason: the robot arms were ruled out on reach/).first()).toBeVisible();
   const checked = page.getByRole("region", { name: "Robots checked before any spend" });
   await expect(checked.getByRole("heading", { name: "Robots we checked" })).toBeVisible();
@@ -396,8 +396,8 @@ test("a job we can't simulate yet is held in one plain sentence, never as a proc
   await heldJobRoutes(page, token, "Close the fire door at the end of the hall", { ok: true, scope: "owner", captureReceived: true,
     status: { decision: outcome.category, headline: outcome.title, operatorAction: null, missingViews: [], outcome } }, writes);
   await page.goto(`/capture-upload/${token}?video=existing`);
-  await expect(page.getByText("Held: we can't simulate this kind of job yet.", { exact: true }).first()).toBeVisible();
-  await expect(page.getByText(/No robot was tested on your job, and this is not a finding that a robot could not do it\./).first()).toBeVisible();
+  await expect(page.getByText("The simulation is held: we can't simulate this kind of job yet.", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText(/No robot was tested in a simulation of your job, and this is not a finding that a robot could not do it\. Your answer stays on your job page\./).first()).toBeVisible();
   const body = await page.locator("body").textContent();
   expect(body).not.toMatch(/could not finish processing|website_native|preparation_required|we'll run|email you when|Next step|next step is with Blueprint/i);
   expect(writes).toEqual([]);

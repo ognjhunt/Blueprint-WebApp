@@ -106,6 +106,32 @@ One new email, `answer_ready`, is sent once when the answer first settles. The
 notices that belonged to robot-team-run evaluations are suppressed; Blueprint
 runs evaluations itself.
 
+## How to check it
+
+Run these from the repository root. None of them sends email or touches
+production; the first two use fakes or local emulators only.
+
+```bash
+# 1. The whole journey in one process, with in-memory fakes.
+npx vitest run server/tests/site-answer-journey.test.ts
+
+# 2. The same journey in a real browser, against local emulators.
+npx -y firebase-tools@13.35.1 emulators:start --only firestore,storage \
+  --project demo-blueprint-reliability --config firebase.json   # in another shell
+npm run test:answer-journey:browser -- --trace off
+
+# 3. The robot spec catalog copy matches the Pipeline's file. Read-only.
+npm run pipeline:robot-spec-catalog:verify
+```
+
+1. Proves that an email and a video with no typed task give the site its
+   answer, one answer email, a deployment-company request recorded once, and
+   that withdrawing permission takes the answer away, using the real server code.
+2. Proves the same steps work on the real job page in a browser, with the data
+   kept in local Firestore and Storage emulators.
+3. Proves every robot figure the answer shows comes from the same catalog the
+   Pipeline keeps, byte for byte, so no figure has drifted from its source.
+
 ## What it is not
 
 A fit check against published specifications, a cited track record and a

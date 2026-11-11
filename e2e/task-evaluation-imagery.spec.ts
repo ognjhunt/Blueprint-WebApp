@@ -31,16 +31,18 @@ test("the example recommended pilot sits below the headline without overflowing"
     const card = page.locator(".ms-pilot-card");
     await expect(card.getByRole("tabpanel")).toContainText("Example");
     await expect(card.getByText("Book this pilot", { exact: true })).toHaveCount(0);
-    await expect(card).toContainText("Quoted by the deployment company and agreed before the pilot");
+    // The example is marked illustrative, with its disclaimer, and opens on the packaging job.
+    await expect(card).toContainText("not available offers or measured results");
+    await expect(card.getByRole("tab", { name: "Packaging", exact: true })).toHaveAttribute("aria-selected", "true");
     const examples = [
-      ["Warehouse", "Humanoid robot"], ["Café", "Fixed robot arm"],
-      ["Laundromat", "Wheeled humanoid"], ["Factory", "Mobile manipulator"],
-      ["Hotel", "Mobile robot"], ["Lab", "Fixed robot arm"],
+      ["Packaging", "Fixed robot arm"], ["Warehouse", "Humanoid robot"], ["Café", "Fixed robot arm"],
+      ["Laundromat", "Wheeled humanoid"], ["Factory", "Mobile manipulator"], ["Lab", "Fixed robot arm"],
     ];
     await expect(card.getByRole("tab")).toHaveText(examples.map(([site]) => site));
     for (const [site, embodiment] of examples) {
       await card.getByRole("tab", { name: site, exact: true }).click();
-      await expect(card.getByRole("tabpanel", { name: site, exact: true })).toContainText(embodiment);
+      // The embodiment is named by the illustration; a held example's panel does not repeat it.
+      await expect(card.getByRole("tabpanel", { name: site, exact: true })).toBeVisible();
       await expect(page.getByRole("img", { name: `Illustration of the ${site.toLowerCase()} example: ${embodiment.toLowerCase()}`, exact: true })).toBeVisible();
     }
     await expect(page.locator(".ms-task-pair")).toHaveCount(0);

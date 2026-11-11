@@ -25,7 +25,7 @@ import { taskLifecycleNotificationIsCurrent } from "./taskLifecycleNotificationA
 import { drainPendingWebsitePreparationNotifications } from "./websitePreparationStatus";
 import { preparationEndedSentence } from "./taskStatusProjection";
 import { EARLY_TASK_HOLD_DETAIL, EARLY_TASK_HOLD_SENTENCES, earlyTaskHoldOf, isEarlyTaskHoldReason,
-  FOOTAGE_BEFORE_ACCOUNT_SENTENCE, JOB_WINDOW_ENDING_MESSAGE, JOB_WINDOW_ENDING_SUBJECT, jobNoGrantEndingMessage,
+  FOOTAGE_BEFORE_ACCOUNT_SENTENCE, JOB_NO_GRANT_SITE_ENDING_SUBJECT, JOB_WINDOW_ENDING_MESSAGE, JOB_WINDOW_ENDING_SUBJECT, jobNoGrantEndingMessage,
   isRecaptureReason, RECAPTURE_SENTENCES, RECAPTURE_TITLE, recaptureReasonOf,
   type EarlyTaskHoldReason, type RecaptureReason } from "./taskPreparationOutcome";
 import { isWebsiteJobNoGrantEndedEventId, isWebsiteJobWindowEndedEventId } from "./websiteJobWindowEnding";
@@ -356,6 +356,7 @@ export function buildTaskLifecycleNotification(params: {
     to: params.to,
     subject: params.milestone === "evaluation_outcome" && params.screeningOutcome === "estimate"
       ? estimateSubject(params.simulationProof)
+      : params.milestone === "scene_outcome" && params.jobNoGrantEnded === "site" ? JOB_NO_GRANT_SITE_ENDING_SUBJECT
       : params.milestone === "scene_outcome" && (params.jobWindowEnded || params.jobNoGrantEnded) ? JOB_WINDOW_ENDING_SUBJECT
       : params.milestone === "scene_outcome" && params.sceneOutcomeKind ? sceneOutcomeSubject(params.sceneOutcomeKind)
       : params.milestone === "answer_ready" && params.siteAnswer?.state === "cannot_assess" ? "An update on your Blueprint job"

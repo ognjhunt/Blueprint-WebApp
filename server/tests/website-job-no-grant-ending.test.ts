@@ -117,7 +117,8 @@ describe.each([
     expect(job().website_job_no_grant_page_due_at_ms).toBeNull();
     expect(outbox().map(([key]) => key)).toEqual([NOTICE]);
     expect(outbox()[0][1]).toMatchObject({ kind: "scene_outcome", requestId: "job-one", status: "pending", to: "owner@example.com",
-      subject: "Your Blueprint job has ended", idempotencyKey: "job-one:scene_outcome:job_no_grant_ended" });
+      subject: waitingOn === "site" ? "Your Blueprint job has ended" : "The simulation of your site has stopped",
+      idempotencyKey: "job-one:scene_outcome:job_no_grant_ended" });
     const body: string = outbox()[0][1].body;
     expect(body.startsWith(`${message}\n\nOpen your job on your private job page:\nhttps://`)).toBe(true);
     expect(body).not.toMatch(/we will|we'll|our team|review|follow up|email you/i);
@@ -134,7 +135,8 @@ describe.each([
     await sweepAt(WINDOW + 31 * DAY);
     await deliverOutbox();
     expect(send).toHaveBeenCalledTimes(1);
-    expect(send.mock.calls[0][0]).toMatchObject({ to: "owner@example.com", subject: "Your Blueprint job has ended" });
+    expect(send.mock.calls[0][0]).toMatchObject({ to: "owner@example.com",
+      subject: waitingOn === "site" ? "Your Blueprint job has ended" : "The simulation of your site has stopped" });
     expect(outbox()).toHaveLength(1);
     expect(outbox()[0][1].status).toBe("sent");
   });

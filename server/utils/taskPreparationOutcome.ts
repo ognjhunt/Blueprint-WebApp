@@ -57,10 +57,10 @@ function robotFitHold(receipt: Extract<PreparationOutcomeReceipt, { reason: "rob
   const checked = total > 0 ? `None of the ${total} robot setups we checked fits this job` : "None of the robot setups we checked fits this job";
   return {
     category: "robot_incompatibility", basis: receipt.basis,
-    title: "Held: none of the robots we run fits this job yet",
+    title: "The simulation is held: none of the robots we can simulate fits this job yet",
     reason: cause ? `${checked}. The main reason: ${cause}` : `${checked}.`,
     scope: "A check made before any paid work, from your scene as rebuilt from your video. It is an estimate: no robot was tried on your job, and it does not show that no robot could ever do it.",
-    nextStep: "Nothing is needed from you. Blueprint checks this job again when the robots we run change. Your recording is saved; you do not need to send it again.",
+    nextStep: "Nothing is needed from you. Blueprint checks this job again when the robots we run change. Your answer stays on your job page, and your recording is saved; you do not need to send it again.",
     actionOwner: "blueprint", evidence: [{ label: "Robot fit check before any spend", digest: receipt.evidence_digest }],
   };
 }
@@ -141,7 +141,7 @@ export const isRecaptureReason = (value: unknown): value is RecaptureReason =>
   typeof value === "string" && Object.prototype.hasOwnProperty.call(RECAPTURE_SENTENCES, value);
 
 /** The title of every new-video ask; the needs-attention email for these stops uses it as its subject. */
-export const RECAPTURE_TITLE = "We need a new video of your work area";
+export const RECAPTURE_TITLE = "We need a new video to build the simulation of your site";
 /** The new-video ask a verified Atlas preview names for its capture, or null. */
 export const recaptureReasonOf = (preview: WebsiteAtlasPreview | null): RecaptureReason | null =>
   preview?.state === "needs_input" && isRecaptureReason(preview.reason) ? preview.reason : null;
@@ -149,7 +149,7 @@ export const recaptureReasonOf = (preview: WebsiteAtlasPreview | null): Recaptur
 function recaptureNeeded(reason: RecaptureReason, evidenceDigest: string): TaskOutcome {
   return { category: "insufficient_evidence", basis: "missing_evidence", title: RECAPTURE_TITLE,
     reason: RECAPTURE_SENTENCES[reason].reason,
-    scope: "This video only. It is not a finding about any robot or about your site.",
+    scope: "This is for the simulation of your site only. It is not a finding about any robot or about your site, and your answer stays on your job page.",
     nextStep: RECAPTURE_SENTENCES[reason].nextStep,
     actionOwner: "site", evidence: [{ label: "Video coverage finding", digest: evidenceDigest }] };
 }
@@ -167,12 +167,12 @@ const GEOMETRY_REASONS = new Set(["atlas_preserved_completion_no_exportable_geom
  */
 export const EARLY_TASK_HOLD_SENTENCES = {
   // No simulation of this kind of task exists (for example closing a door, pushing, pouring a liquid).
-  website_native_task_profile_preparation_required: "Held: we can't simulate this kind of job yet.",
+  website_native_task_profile_preparation_required: "The simulation is held: we can't simulate this kind of job yet.",
   // The kind of task is known, but the simulator it needs is not installed where we run jobs.
   website_task_family_runtime_preparation_required:
-    "Held: we can't simulate this kind of job yet, because the simulator it needs isn't set up on our side.",
+    "The simulation is held: we can't simulate this kind of job yet, because the simulator it needs isn't set up on our side.",
   // Part of what the job asks for maps to no step we can simulate, even after any clarification.
-  website_task_operation_coverage_unresolved: "Held: we can't simulate every step this job asks for yet.",
+  website_task_operation_coverage_unresolved: "The simulation is held: we can't simulate every step this job asks for yet.",
 } as const satisfies Record<string, string>;
 export type EarlyTaskHoldReason = keyof typeof EARLY_TASK_HOLD_SENTENCES;
 export const isEarlyTaskHoldReason = (value: unknown): value is EarlyTaskHoldReason =>
@@ -181,7 +181,8 @@ export const isEarlyTaskHoldReason = (value: unknown): value is EarlyTaskHoldRea
 export const earlyTaskHoldSentence = (reason: unknown): string | null =>
   isEarlyTaskHoldReason(reason) ? EARLY_TASK_HOLD_SENTENCES[reason] : null;
 /** What an early hold adds to its sentence; the job page and the email both read it. */
-export const EARLY_TASK_HOLD_DETAIL = "No robot was tested on your job, and this is not a finding that a robot could not do it.";
+export const EARLY_TASK_HOLD_DETAIL = "No robot was tested in a simulation of your job, and this is not a finding that a robot could not do it. "
+  + "Your answer stays on your job page.";
 
 /**
  * A job whose preparation authority ended (Pipeline `authority_ended`). It is final, never a hold or a
@@ -191,7 +192,10 @@ export const EARLY_TASK_HOLD_DETAIL = "No robot was tested on your job, and this
  */
 export const PREPARATION_ENDED_NEXT = "Nothing more is needed from you. Keep your original recording; "
   + "to have Blueprint work on this site again, you can start a new job.";
-export const JOB_WINDOW_ENDED_SENTENCE = "This job has ended because the time Blueprint was authorized to work on it ran out.";
+/** The site has its answer whatever happens to the simulation; a stop of the simulation says so. */
+export const ANSWER_STAYS_ON_JOB_PAGE = "Your answer stays on your job page.";
+/** Said about the simulation: the time Blueprint was authorized to work ran out, and the answer stays. */
+export const JOB_WINDOW_ENDED_SENTENCE = "The simulation of your site has stopped because the time Blueprint was authorized to work on this job ran out.";
 export const AUTHORITY_ENDED_SENTENCE = "This job has ended because Blueprint is no longer authorized to work on it.";
 
 /**
@@ -201,9 +205,12 @@ export const AUTHORITY_ENDED_SENTENCE = "This job has ended because Blueprint is
  * Pipeline starts nothing more for a job past its window, and a new job is how the site starts again. It
  * promises no follow-up, because nothing schedules one. The job page and the one email both say exactly this.
  */
-export const JOB_WINDOW_UNFINISHED_SENTENCE = "Blueprint did not finish it in that time, and no more work will run on this job.";
-export const JOB_WINDOW_ENDING_MESSAGE = `${JOB_WINDOW_ENDED_SENTENCE} ${JOB_WINDOW_UNFINISHED_SENTENCE} ${PREPARATION_ENDED_NEXT}`;
-export const JOB_WINDOW_ENDING_SUBJECT = "Your Blueprint job has ended";
+export const JOB_WINDOW_UNFINISHED_SENTENCE = "Blueprint did not finish the simulation in that time, and no more simulation work will run on this job.";
+export const JOB_WINDOW_ENDING_MESSAGE = `${JOB_WINDOW_ENDED_SENTENCE} ${JOB_WINDOW_UNFINISHED_SENTENCE} ${ANSWER_STAYS_ON_JOB_PAGE} ${PREPARATION_ENDED_NEXT}`;
+/** The subject when the simulation stopped (the window ran out, or Blueprint never started it). */
+export const JOB_WINDOW_ENDING_SUBJECT = "The simulation of your site has stopped";
+/** The subject when the site never sent what was needed to start: the job itself ended, as before. */
+export const JOB_NO_GRANT_SITE_ENDING_SUBJECT = "Your Blueprint job has ended";
 
 /**
  * A job that never received a grant, ended by the same sweep once it waited as long as a grant's
@@ -215,8 +222,8 @@ export const JOB_WINDOW_ENDING_SUBJECT = "Your Blueprint job has ended";
  */
 export const JOB_NO_GRANT_SITE_ENDING_MESSAGE = "This job has ended because we did not receive what was needed to start it "
   + "while it was open. To have Blueprint work on this site, you can start a new job.";
-export const JOB_NO_GRANT_BLUEPRINT_ENDING_MESSAGE = "This job is held because Blueprint did not start simulating it while it "
-  + `was open, so there is no estimate. ${PREPARATION_ENDED_NEXT}`;
+export const JOB_NO_GRANT_BLUEPRINT_ENDING_MESSAGE = "The simulation of your site is held because Blueprint did not start it while "
+  + `your job was open, so there is no simulation result. ${ANSWER_STAYS_ON_JOB_PAGE} ${PREPARATION_ENDED_NEXT}`;
 export const jobNoGrantEndingMessage = (waitingOn: "site" | "blueprint") =>
   waitingOn === "site" ? JOB_NO_GRANT_SITE_ENDING_MESSAGE : JOB_NO_GRANT_BLUEPRINT_ENDING_MESSAGE;
 

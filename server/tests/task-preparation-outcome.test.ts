@@ -40,7 +40,7 @@ describe("source-bound preparation closeout", () => {
     const outcome = projectAtlasPreparationOutcome(current(atlas("needs_input", reason)));
     const sentences = RECAPTURE_SENTENCES[reason as keyof typeof RECAPTURE_SENTENCES];
     expect(outcome).toMatchObject({ category: "insufficient_evidence", basis: "missing_evidence", actionOwner: "site",
-      title: "We need a new video of your work area", reason: sentences.reason, nextStep: sentences.nextStep });
+      title: "We need a new video to build the simulation of your site", reason: sentences.reason, nextStep: sentences.nextStep });
     expect(outcome!.nextStep).toMatch(/^Please film again.*Then send us the new video\.$/);
     expect(JSON.stringify(outcome)).not.toMatch(/no repeat upload|do not need to (record|send)|atlas_|robot (cannot|could not)/i);
     expect(projectTaskStatus({ ...base, preparationOutcome: outcome }).decision).toBe("insufficient_evidence");
@@ -52,7 +52,7 @@ describe("source-bound preparation closeout", () => {
       basis: "missing_evidence", robot_id: null, evidence_digest: sha }));
     const sentences = RECAPTURE_SENTENCES[reason as keyof typeof RECAPTURE_SENTENCES];
     expect(outcome).toMatchObject({ actionOwner: "site", reason: sentences.reason, nextStep: sentences.nextStep,
-      title: "We need a new video of your work area", evidence: [{ digest: sha }] });
+      title: "We need a new video to build the simulation of your site", evidence: [{ digest: sha }] });
     expect(outcome.nextStep).toMatch(reason === "website_front_normal_undetermined" ? /front of the object/
       : /clear of clutter, resting where the job starts.*several sides/);
     const projected = projectTaskStatus({ ...base, preparationStatus: { state: "awaiting_inputs", correlationId: null, outcome } });
@@ -102,7 +102,7 @@ describe("source-bound preparation closeout", () => {
       basis: "conservative_pre_spend_fit_check", robot_id: null, evidence_digest: sha });
     const outcome = projectPreparationOutcome(receipt, { holdReason: `website_robot_fit_none:${cause}`, precheckDigest: sha,
       counts: { fit: 0, noFit: 3, unknown: 0, unavailable: 2 } });
-    expect(outcome.title).toBe("Held: none of the robots we run fits this job yet");
+    expect(outcome.title).toBe("The simulation is held: none of the robots we can simulate fits this job yet");
     expect(outcome.reason).toMatch(/^None of the 5 robot setups we checked fits this job\. The main reason: /);
     expect(outcome.reason).toMatch(sentence);
     expect(outcome.scope).toMatch(/before any paid work.*no robot was tried.*does not show that no robot could ever do it/);

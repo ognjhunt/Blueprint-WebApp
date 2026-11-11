@@ -28,9 +28,9 @@
 import type { ReadinessStage } from "../../client/src/lib/siteTaskReadiness";
 import { multiStepHoldMessage, taskScopeNotYet } from "./siteTaskScope";
 import type { TaskOutcome } from "../../client/src/types/taskOutcome";
-import { AUTHORITY_ENDED_SENTENCE, FOOTAGE_BEFORE_ACCOUNT_SENTENCE, JOB_WINDOW_ENDED_SENTENCE, JOB_WINDOW_ENDING_MESSAGE,
+import { ANSWER_STAYS_ON_JOB_PAGE, AUTHORITY_ENDED_SENTENCE, FOOTAGE_BEFORE_ACCOUNT_SENTENCE, JOB_WINDOW_ENDED_SENTENCE, JOB_WINDOW_ENDING_MESSAGE,
   jobNoGrantEndingMessage, PREPARATION_ENDED_NEXT, processingFailure } from "./taskPreparationOutcome";
-import { screeningOutcomeSentenceWithWindow, type ScreeningHeldOutcome, type ScreeningOutcome,
+import { isScreeningHeldOutcome, screeningOutcomeSentenceWithWindow, simulationOutcomeEmailSentence, type ScreeningHeldOutcome, type ScreeningOutcome,
   type ScreeningOutcomeCaveat } from "./betaPolicyScreeningContract";
 import { isTerminalSceneOutcomeKind, sceneOutcomeMessage, sceneWaitMessage, type SceneOutcomeReading } from "./sceneIntentOutcome";
 
@@ -647,7 +647,7 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
       failed_retryable: "Job preparation encountered a problem. Keep your original recording; our team needs to review it.",
       failed_terminal: `Scene preview preparation could not finish, and we have stopped trying.${ended ? ` ${ended}` : ""} Nothing more is needed from you. This needs our team's review. Keep your original recording.`,
       // Final, never a hold: the job's own window says whether its time ran out.
-      authority_ended: `${input.jobWindowEnded ? JOB_WINDOW_ENDED_SENTENCE : AUTHORITY_ENDED_SENTENCE} ${PREPARATION_ENDED_NEXT}`,
+      authority_ended: `${input.jobWindowEnded ? `${JOB_WINDOW_ENDED_SENTENCE} ${ANSWER_STAYS_ON_JOB_PAGE}` : AUTHORITY_ENDED_SENTENCE} ${PREPARATION_ENDED_NEXT}`,
       unavailable: "Your recording is saved. We could not verify the latest preparation status. Keep your original recording and check again shortly.",
     };
     const inProgress = preparation.state === "preparing" || preparation.state === "capacity_delayed";
@@ -698,10 +698,12 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
   const sceneHeld = input.sceneProgression?.state === "held";
   const sceneEvaluated = input.sceneProgression?.state === "evaluated";
   const sceneTesting = sceneEvaluated || sceneHeld || input.sceneProgression?.state === "testing";
-  // The run's own summary opens with this same sentence (F-03).
+  // The run's own summary opens with this same sentence (F-03). A hold is said to the site about the
+  // simulation, as its email says it, never "held" about the job: the site has its answer whatever happens here.
   const sceneOutcome = sceneProgressionOutcome(input.sceneProgression);
-  const resultHeadline = sceneOutcome ? screeningOutcomeSentenceWithWindow(sceneOutcome, input.jobWorkUntilEpoch,
-    input.sceneProgression?.outcomeCaveat) : null;
+  const resultHeadline = sceneOutcome ? isScreeningHeldOutcome(sceneOutcome)
+    ? `${simulationOutcomeEmailSentence(sceneOutcome)} ${ANSWER_STAYS_ON_JOB_PAGE}`
+    : screeningOutcomeSentenceWithWindow(sceneOutcome, input.jobWorkUntilEpoch, input.sceneProgression?.outcomeCaveat) : null;
   // A wait the Pipeline named (C-04), in one plain sentence. Older Pipelines name none.
   const sceneWait = input.sceneProgression?.state === "waiting" && input.sceneProgression.sceneOutcome
     ? sceneWaitMessage(input.sceneProgression.sceneOutcome) : null;

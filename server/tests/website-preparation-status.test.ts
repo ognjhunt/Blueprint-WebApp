@@ -177,7 +177,7 @@ it("v6 shows the early robot fit hold: which robots were checked and why none fi
     embodiments: [{embodiment: "droid_franka_panda_robotiq_2f85_v1", verdict: "no_fit", reasons: ["reach"]}],
     embodimentsTruncated: false, precheckDigest: `sha256:${"f".repeat(64)}`});
   expect(projected.outcome).toMatchObject({category: "robot_incompatibility", basis: "conservative_pre_spend_fit_check",
-    title: "Held: none of the robots we run fits this job yet", actionOwner: "blueprint",
+    title: "The simulation is held: none of the robots we can simulate fits this job yet", actionOwner: "blueprint",
     evidence: [{label: "Robot fit check before any spend", digest: `sha256:${"f".repeat(64)}`}]});
   expect(projected.outcome!.reason).toBe("None of the 136 robot setups we checked fits this job. The main reason: the robot "
     + "arms were ruled out on reach. Measured from your scene, the spot where the object is picked up or put down is farther "
@@ -200,7 +200,7 @@ it.each(["website_front_normal_undetermined", "website_registration_ambiguous", 
   const projected = await loadCurrentWebsitePreparationStatus("r1", "walkthrough-r1", h.deps);
   expect(projected.state).toBe("awaiting_inputs");
   expect(projected.outcome).toMatchObject({category: "insufficient_evidence", basis: "missing_evidence",
-    title: "We need a new video of your work area", actionOwner: "site"});
+    title: "We need a new video to build the simulation of your site", actionOwner: "site"});
   expect(projected.outcome!.nextStep).toMatch(/^Please film again.*Then send us the new video\.$/);
   expect(JSON.stringify(projected)).not.toMatch(/website_|no repeat upload|do not need to (record|send)/);
 });
@@ -236,7 +236,7 @@ it("v6 still parses a task kind it does not know, and keeps it display-only", as
   const projected = await loadCurrentWebsitePreparationStatus("r1", "walkthrough-r1", h.deps);
   expect(projected.state).toBe("awaiting_inputs");
   expect(projected.robotFitPrecheck).toMatchObject({status: "no_fit", taskKind: "fold_cloth_into_bin"});
-  expect(projected.outcome).toMatchObject({title: "Held: none of the robots we run fits this job yet"});
+  expect(projected.outcome).toMatchObject({title: "The simulation is held: none of the robots we can simulate fits this job yet"});
 });
 it.each([["upper case", "Fold_Cloth"], ["a hyphen", "fold-cloth"], ["digits", "pour2"], ["over 40 characters", "a".repeat(41)],
   ["nothing in it", ""], ["201 characters", "a".repeat(201)], ["a number", 7], ["a boolean", true], ["an object", {kind: "pour"}],

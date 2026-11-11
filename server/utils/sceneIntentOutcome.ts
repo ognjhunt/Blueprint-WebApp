@@ -23,8 +23,8 @@
  * `awaiting_site` are waits.
  */
 import { z } from "zod";
+import { simulationOutcomeEmailSentence } from "./betaPolicyScreeningContract";
 import { crossRuntimeArtifactDigest } from "./crossRuntimeCanonical";
-import { screeningOutcomeSentence } from "./betaPolicyScreeningContract";
 
 export const SCENE_INTENT_OUTCOME_SCHEMA = "task_evaluation_scene_intent_outcome.v1";
 export const SCENE_INTENT_OUTCOME_KINDS = ["setup_repair", "awaiting_spend_approval", "awaiting_site", "withdrawn", "held"] as const;
@@ -93,17 +93,20 @@ export const sceneOutcomeReading = (outcome: SceneIntentOutcome): SceneOutcomeRe
   ({ kind: outcome.kind, terminal: outcome.terminal, reasonCode: outcome.reason_code, digest: outcome.outcome_digest });
 
 const NOTHING_NEEDED = "Nothing is needed from you.";
+/** The site has its answer whatever happens to the simulation; an ending of the simulation says so. */
+export const ANSWER_STAYS = "Your answer stays on your job page.";
 /**
  * One sentence and its closing per ending, said the same on the job page and
- * in the email. A hold says the evaluation hold's own sentence (F-03).
+ * in the email. A hold or a stop is said about the simulation, never about the
+ * job: the site's answer does not depend on it. Withdrawal is untouched.
  */
 const ENDINGS: Readonly<Record<TerminalSceneOutcomeKind, { sentence: string; closing: string; subject: string }>> = {
-  held: { sentence: screeningOutcomeSentence("held_capability"), closing: NOTHING_NEEDED,
-    subject: "Your Blueprint job is held for now" },
+  held: { sentence: simulationOutcomeEmailSentence("held_capability"),
+    closing: `${ANSWER_STAYS} ${NOTHING_NEEDED}`, subject: "The simulation of your job is held for now" },
   withdrawn: { sentence: "Permission to use this video for your job was withdrawn or has expired.",
     closing: "You don't need to do anything; this job has stopped.", subject: "Your Blueprint job has stopped" },
-  setup_repair: { sentence: "We could not finish preparing your job for robot evaluations, and we have stopped trying.",
-    closing: NOTHING_NEEDED, subject: "We stopped preparing your Blueprint job" },
+  setup_repair: { sentence: "We could not finish building the simulation of your site, and we have stopped trying.",
+    closing: `${ANSWER_STAYS} ${NOTHING_NEEDED}`, subject: "We stopped building the simulation of your site" },
 };
 export const isTerminalSceneOutcomeKind = isTerminalKind;
 /** The job page's headline for an ending, and the first paragraph of its one email. */

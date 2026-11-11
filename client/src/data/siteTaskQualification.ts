@@ -425,7 +425,7 @@ export const specFields: readonly SpecField[] = [
   {
     id: "payloadWeight",
     question: "What is the heaviest thing this job handles?",
-    whyAsked: "Payload eliminates more candidate robots than any other single answer.",
+    whyAsked: "Payload rules out more robots than any other single answer.",
     options: [
       { value: "under_2kg", label: "Under 2 kg" },
       { value: "two_to_ten", label: "2–10 kg" },

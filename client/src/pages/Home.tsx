@@ -14,7 +14,7 @@ export default function Home() {
         <div className="ms-task-hero-intro">
           <h1 id="hero-title">Find the right way to automate your work.</h1>
           <div className="ms-task-hero-actions">
-            <p>Send us a video of one recurring job. We check real robot models against it by their published specifications and show you which one most likely fits and how sure we are. Then we test control policies, the software that drives a robot, on the job in a simulation of your site. When you’re ready, you can share the job with deployment companies we’ve approved.</p>
+            <p>Send us a video of one recurring job. We check real robots against it, show you which one most likely fits and how sure we are, and prove it in a simulation of your site. Then you can share the job with deployment companies we’ve approved.</p>
             <div className="ms-task-hero-links">
               <a className="ms-button" href="/contact/site-operator">Submit a job <ArrowRight size={21} strokeWidth={1.5} aria-hidden="true" /></a>
               <a className="ms-text-link" href="/how-it-works">See how it works</a>
@@ -30,7 +30,7 @@ export default function Home() {
         <ol className="ms-steps">
           <li><p className="ms-step-head"><span className="ms-step-number">01</span><span className="ms-step-rule" aria-hidden="true" /><span>Send a video of the job</span></p><p>An email and a video of one recurring job, filmed in its work area. We draft the job description from the video for you to correct.</p></li>
           <li><p className="ms-step-head"><span className="ms-step-number">02</span><span className="ms-step-rule" aria-hidden="true" /><span>See which robot fits</span></p><p>We check real robot models against your job by their published specifications. You see the robot that most likely fits, a runner-up, what was ruled out and why, who already uses those robots for work like this, with sources, and how sure we are.</p></li>
-          <li><p className="ms-step-head"><span className="ms-step-number">03</span><span className="ms-step-rule" aria-hidden="true" /><span>Proof in simulation</span></p><p>We build a simulation of your site from the video and test control policies on the job. You see which did best and how much that result can be trusted, or “held” if we can’t simulate that kind of job yet.</p></li>
+          <li><p className="ms-step-head"><span className="ms-step-number">03</span><span className="ms-step-rule" aria-hidden="true" /><span>Proof in simulation</span></p><p>We build a simulation of your site from the video and test control policies, the software that drives a robot, on the job. You see which did best and how much that result can be trusted, or “held” if we can’t simulate that kind of job yet.</p></li>
           <li><p className="ms-step-head"><span className="ms-step-number">04</span><span className="ms-step-rule" aria-hidden="true" /><span>Find a deployment company</span></p><p>Share an anonymised job card, with the answer and the proof, with deployment companies Blueprint has approved. You agree any pilot directly with one of them.</p></li>
         </ol>
         <p className="mp-support-note">A simulation result is an estimate. The physical pilot measures performance at your site.</p>
