@@ -177,13 +177,6 @@ function WorkspaceSettings() {
                 </Link>
               )}
             </div>
-            {userData?.role === "capturer" && (
-              <p className="ws-note">
-                <Link className="ws-link" href="/capture-app/account">
-                  Open capture account →
-                </Link>
-              </p>
-            )}
           </section>
         </>
       )}

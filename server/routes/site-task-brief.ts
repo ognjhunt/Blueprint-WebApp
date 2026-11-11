@@ -2,7 +2,7 @@ import { JOB_CARD_ANSWER_STATEMENT, JOB_CARD_ANSWER_STATEMENT_VERSION } from "..
 import { siteWalkthroughIdentity } from "../utils/siteWalkthrough";
 import { isWebsiteCaptureId } from "../utils/websiteCaptureIdentity";
 import { loadCurrentSiteAdvisory } from "../utils/siteAssessmentPublic";
-import { projectAtlasPreparationOutcome } from "../utils/taskPreparationOutcome";
+import { largeVideoAskOutcome, projectAtlasPreparationOutcome } from "../utils/taskPreparationOutcome";
 import { closeWebsiteRun, projectWebsiteRunClosure } from "../utils/websiteRunClosure";
 import { selectWebsiteAtlasPreview } from "../utils/websiteAtlasPreview";
 import type { TaskOutcome } from "../../client/src/types/taskOutcome";
@@ -401,7 +401,7 @@ async function readRequestForStatus(requestId: string, captureId = `walkthrough-
   captureRights: ReturnType<typeof projectWebsiteCaptureRights>;
   /** Until when Blueprint can keep working on the job; null when it cannot be read. */
   jobWorkWindow: { untilEpoch: number | null; ended: boolean; endingRecorded?: boolean;
-    noGrantWaitingOn?: "site" | "blueprint" } | null;
+    noGrantWaitingOn?: "site" | "blueprint"; noGrantReason?: "video_over_ingest_limit" } | null;
   visualReconstructionReady: boolean;
   preparationOutcome: TaskOutcome | null;
   ownerClosureOutcome: TaskOutcome | null;
@@ -444,7 +444,7 @@ async function readRequestForStatus(requestId: string, captureId = `walkthrough-
       .then(({ websiteJobWorkWindow }) => websiteJobWorkWindow(data)).catch(() => null),
     visualReconstructionReady: preview?.state === "ready",
     ownerClosureOutcome: projectWebsiteRunClosure(data, requestId, selectedCaptureId),
-    preparationOutcome: projectAtlasPreparationOutcome(preview),
+    preparationOutcome: largeVideoAskOutcome(data, requestId, selectedCaptureId) ?? projectAtlasPreparationOutcome(preview),
     siteTaskGates: gateAnswersOnFile(data),
     site_task_brief_confirmed_at: data.site_task_brief_confirmed_at,
     capture_coverage: (data.capture_coverage as never) ?? null,
@@ -1147,9 +1147,7 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
           stage: "brief_confirmed",
           nextStep: walkthrough?.received ? { kind: "footage_received", taskUrl: jobUrl }
             : !walkthrough ? { kind: "job_page", taskUrl: jobUrl }
-            : result.brief.captureMode === "site_visit"
-              ? { kind: "capturer_visit", taskUrl: jobUrl }
-              : { kind: "self_capture", uploadUrl: jobUrl },
+            : { kind: "self_capture", uploadUrl: jobUrl },
           accountNeeded: !request.account_owner_uid,
           ...(request.jobAccess ? { jobCardPublished: request.jobAccess.reason !== "not_listed" } : {}),
         });

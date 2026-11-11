@@ -9,12 +9,14 @@ A site sends a video of one recurring job. Blueprint drafts the brief from the
 video and shows the site one answer: the robot that most likely fits, a
 runner-up, what was ruled out, and how sure Blueprint is. The answer is a fit
 check against published robot specifications and a cited track record. Blueprint
-then proves it in a simulation of the site, running the candidate robot policies
-and embodiments itself, and shows which did best and how far that can be
-trusted, or "held — we can't simulate this kind of job yet". The site can then
-share its job card with deployment companies Blueprint has approved. This repo
-is the customer side: start a job, send video, see the answer and its proof,
-find a deployment company.
+then tests the candidate robot policies and embodiments in a simulation of the
+site itself, and shows which did best and how far that can be trusted, or
+"held — we can't simulate this kind of job yet". The site can then share its
+job card with deployment companies Blueprint has approved. This repo is the
+customer side: start a job, send video, see the answer and its proof, find a
+deployment company. A person who works at the site films the job on their own
+phone through this repo; no capture app, outside capturers or Blueprint filming
+visits ("How Capture Works" in `PLATFORM_CONTEXT.md`).
 
 Owner direction, 2026-11-11. Design:
 `docs/superpowers/specs/2026-11-11-site-answer-design.md`.

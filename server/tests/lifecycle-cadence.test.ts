@@ -162,7 +162,7 @@ describe("lifecycle cadence contract", () => {
   it("rejects reserved or placeholder recipient emails at enrollment", async () => {
     const { createLifecycleCadenceEnrollment } = await import("../utils/lifecycle-cadence");
     const result = await createLifecycleCadenceEnrollment({
-      persona: "capturer",
+      persona: "robot_team",
       email: "person@example.com",
       sourceCollection: "waitlistSubmissions",
       sourceDocId: "waitlist-1",
@@ -212,16 +212,16 @@ describe("lifecycle cadence contract", () => {
     const { buildLifecycleCadenceSteps, runLifecycleCadenceWorker } = await import("../utils/lifecycle-cadence");
     dbState.set("lifecycle_email_cadences", "cadence-1", {
       cadence_id: "cadence-1",
-      persona: "capturer",
-      email: "capturer@supply.co",
+      persona: "robot_team",
+      email: "team@robotics.co",
       display_name: "Cam",
       source_collection: "waitlistSubmissions",
       source_doc_id: "waitlist-1",
       status: "active",
       completed_event_keys: [],
       steps: buildLifecycleCadenceSteps({
-        persona: "capturer",
-        email: "capturer@supply.co",
+        persona: "robot_team",
+        email: "team@robotics.co",
         displayName: "Cam",
         nowIso: "2026-05-01T12:00:00.000Z",
       }),
@@ -239,14 +239,14 @@ describe("lifecycle cadence contract", () => {
         sourceDocId: "cadence-1",
         safetyPolicy: expect.objectContaining({ lane: "lifecycle_cadence" }),
         actionPayload: expect.objectContaining({
-          to: "capturer@supply.co",
+          to: "team@robotics.co",
           commercialEmail: true,
-          unsubscribeUrl: expect.stringContaining("capturer%40supply.co"),
-          lifecyclePersona: "capturer",
+          unsubscribeUrl: expect.stringContaining("team%40robotics.co"),
+          lifecyclePersona: "robot_team",
         }),
         draftOutput: expect.objectContaining({
           requires_human_review: true,
-          agent_owner: "capturer-success-agent",
+          agent_owner: "robot-team-growth-agent",
           policy_owner: "growth-lead",
         }),
       }),
@@ -261,15 +261,15 @@ describe("lifecycle cadence contract", () => {
     const { buildLifecycleCadenceSteps, runLifecycleCadenceWorker } = await import("../utils/lifecycle-cadence");
     dbState.set("lifecycle_email_cadences", "cadence-skip", {
       cadence_id: "cadence-skip",
-      persona: "capturer",
-      email: "capturer@supply.co",
+      persona: "robot_team",
+      email: "team@robotics.co",
       source_collection: "waitlistSubmissions",
       source_doc_id: "waitlist-1",
       status: "active",
-      completed_event_keys: ["first_capture_uploaded"],
+      completed_event_keys: ["hosted_review_started"],
       steps: buildLifecycleCadenceSteps({
-        persona: "capturer",
-        email: "capturer@supply.co",
+        persona: "robot_team",
+        email: "team@robotics.co",
         nowIso: "2026-05-01T12:00:00.000Z",
       }),
     });
@@ -283,14 +283,14 @@ describe("lifecycle cadence contract", () => {
     expect(dbState.get("lifecycle_email_cadences", "cadence-skip")).toMatchObject({
       steps: expect.arrayContaining([
         expect.objectContaining({
-          key: "capturer_welcome_day0",
+          key: "robot_team_welcome_day0",
           status: "skipped",
-          skipReason: "event_completed:first_capture_uploaded",
+          skipReason: "event_completed:hosted_review_started",
         }),
         expect.objectContaining({
-          key: "capturer_first_capture_plan_day2",
+          key: "robot_team_proof_path_day2",
           status: "skipped",
-          skipReason: "event_completed:first_capture_uploaded",
+          skipReason: "event_completed:hosted_review_started",
         }),
       ]),
     });
@@ -298,22 +298,22 @@ describe("lifecycle cadence contract", () => {
 
   it("suppresses lifecycle drafts for unsubscribed recipients", async () => {
     const { buildLifecycleCadenceSteps, runLifecycleCadenceWorker } = await import("../utils/lifecycle-cadence");
-    dbState.set("email_suppressions", "capturer@supply.co", {
-      email: "capturer@supply.co",
+    dbState.set("email_suppressions", "team@robotics.co", {
+      email: "team@robotics.co",
       suppressed_scopes: ["lifecycle"],
       reason: "unsubscribe",
     });
     dbState.set("lifecycle_email_cadences", "cadence-suppressed", {
       cadence_id: "cadence-suppressed",
-      persona: "capturer",
-      email: "capturer@supply.co",
+      persona: "robot_team",
+      email: "team@robotics.co",
       source_collection: "waitlistSubmissions",
       source_doc_id: "waitlist-1",
       status: "active",
       completed_event_keys: [],
       steps: buildLifecycleCadenceSteps({
-        persona: "capturer",
-        email: "capturer@supply.co",
+        persona: "robot_team",
+        email: "team@robotics.co",
         nowIso: "2026-05-01T12:00:00.000Z",
       }),
     });
@@ -331,6 +331,28 @@ describe("lifecycle cadence contract", () => {
         expect.objectContaining({ status: "suppressed", skipReason: "email_suppressed" }),
       ]),
     });
+  });
+
+  it("leaves a stored capturer cadence alone and drafts nothing (capturers retired 2026-11-11)", async () => {
+    const { runLifecycleCadenceWorker } = await import("../utils/lifecycle-cadence");
+    const stored = {
+      cadence_id: "cadence-capturer",
+      persona: "capturer",
+      email: "capturer@supply.co",
+      source_collection: "waitlistSubmissions",
+      source_doc_id: "waitlist-1",
+      status: "active",
+      completed_event_keys: [],
+      steps: [{ key: "capturer_welcome_day0", dayOffset: 0, status: "pending",
+        scheduledAtIso: "2026-05-01T12:00:00.000Z", skipIfEventKeys: [] }],
+    };
+    dbState.set("lifecycle_email_cadences", "cadence-capturer", stored);
+
+    const result = await runLifecycleCadenceWorker({ limit: 10, now: new Date("2026-05-07T12:00:00.000Z") });
+
+    expect(result.processedCount).toBe(0);
+    expect(executeAction).not.toHaveBeenCalled();
+    expect(dbState.get("lifecycle_email_cadences", "cadence-capturer")).toMatchObject(stored);
   });
 });
 

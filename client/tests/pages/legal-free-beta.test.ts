@@ -9,7 +9,6 @@ import {
   betaRetentionSchedule,
   capturePrivacyAnnex,
   californiaPrivacyRows,
-  inPersonVisitPrivacy,
   jobClosedDefinition,
   privacyPolicySections,
   privacySubprocessorCategories,
@@ -21,12 +20,13 @@ import {
   PRIVACY_VERSION,
   TERMS_VERSION,
   acceptedVersionsAreCurrent,
+  legalEffectiveAtMs,
   legalEffectiveDate,
   legalUpdatePending,
 } from "@/lib/legalAcceptance";
 
 const terms = JSON.stringify(termsSections);
-const privacy = JSON.stringify({ privacyPolicySections, californiaPrivacyRows, inPersonVisitPrivacy, jobClosedDefinition, privacySubprocessorCategories });
+const privacy = JSON.stringify({ privacyPolicySections, californiaPrivacyRows, jobClosedDefinition, privacySubprocessorCategories });
 
 describe("terms for the free beta", () => {
   it("describes footage processing as it happens: no person removal, faces blurred only for World Labs, Meta listed", () => {
@@ -39,24 +39,28 @@ describe("terms for the free beta", () => {
     expect(privacy).not.toMatch(/to flag privacy issues/);
   });
 
-  it("counts the corrected text under either date, never the text that said people were removed", () => {
-    const now = Date.parse("2026-11-02T20:00:00Z");
-    expect(acceptedVersionsAreCurrent(TERMS_VERSION, PRIVACY_VERSION, now)).toBe(true);
-    expect(acceptedVersionsAreCurrent("2026-11-15.4", "2026-11-15.5", now)).toBe(true);
-    for (const [termsVersion, privacyVersion] of [["2026-11-15.3", "2026-11-15.4"], ["2026-11-15.2", "2026-11-15.4"],
-      [PREVIOUS_TERMS_VERSION, PREVIOUS_PRIVACY_VERSION]]) {
-      expect(acceptedVersionsAreCurrent(termsVersion, privacyVersion, now)).toBe(false);
+  it("counts the corrected 2026-11-02 text under either date until the revision takes effect, never the text that said people were removed", () => {
+    const pending = Date.parse("2026-11-12T20:00:00Z");
+    const after = legalEffectiveAtMs(TERMS_VERSION);
+    expect(acceptedVersionsAreCurrent(TERMS_VERSION, PRIVACY_VERSION, pending)).toBe(true);
+    expect(acceptedVersionsAreCurrent(TERMS_VERSION, PRIVACY_VERSION, after)).toBe(true);
+    for (const [termsVersion, privacyVersion] of [["2026-11-15.4", "2026-11-15.5"], [PREVIOUS_TERMS_VERSION, PREVIOUS_PRIVACY_VERSION]]) {
+      expect(acceptedVersionsAreCurrent(termsVersion, privacyVersion, pending)).toBe(true);
+      expect(acceptedVersionsAreCurrent(termsVersion, privacyVersion, after)).toBe(false);
+    }
+    for (const [termsVersion, privacyVersion] of [["2026-11-15.3", "2026-11-15.4"], ["2026-11-15.2", "2026-11-15.4"]]) {
+      expect(acceptedVersionsAreCurrent(termsVersion, privacyVersion, pending)).toBe(false);
     }
   });
 
-  it("puts the corrected documents in force on 2026-11-02 and keeps the previous version frozen", () => {
-    // Owner, 2026-11-02: the D-16 correction takes effect at once, not on November 15.
-    expect(TERMS_VERSION).toBe("2026-11-02.1");
-    expect(PRIVACY_VERSION).toBe("2026-11-02.1");
-    expect([PREVIOUS_TERMS_VERSION, PREVIOUS_PRIVACY_VERSION]).toEqual(["2026-10-14.1", "2026-10-13.1"]);
-    expect(legalEffectiveDate(TERMS_VERSION)).toBe("November 2, 2026");
-    expect(legalUpdatePending(Date.parse("2026-11-02T07:59:59Z"))).toBe(true);
-    expect(legalUpdatePending(Date.parse("2026-11-02T08:00:00Z"))).toBe(false);
+  it("publishes the 2026-11-11 revision ahead and keeps the 2026-11-02 text frozen as the previous version", () => {
+    // Owner, 2026-11-11: filming visits retired. The effective date is a placeholder for the owner.
+    expect(TERMS_VERSION).toBe("2026-11-25.1");
+    expect(PRIVACY_VERSION).toBe("2026-11-25.1");
+    expect([PREVIOUS_TERMS_VERSION, PREVIOUS_PRIVACY_VERSION]).toEqual(["2026-11-02.1", "2026-11-02.1"]);
+    expect(legalEffectiveDate(TERMS_VERSION)).toBe("November 25, 2026");
+    expect(legalUpdatePending(Date.parse("2026-11-25T07:59:59Z"))).toBe(true);
+    expect(legalUpdatePending(Date.parse("2026-11-25T08:00:00Z"))).toBe(false);
   });
 
   it("charges nothing and invoices nothing", () => {
@@ -75,10 +79,12 @@ describe("terms for the free beta", () => {
     expect(terms).not.toMatch(/\bmatch(?:ed|es|ing)?\b/i);
   });
 
-  it("covers in-person filming visits and Delaware governing law", () => {
-    const visit = termsSections.find((section) => /In-person filming visits/.test(section.title));
-    expect(visit?.items?.join(" ")).toMatch(/follow the site's safety rules/);
-    expect(visit?.items?.join(" ")).toMatch(/limited as described in section 9/);
+  it("no longer offers filming visits, and keeps Delaware governing law", () => {
+    // Owner, 2026-11-11: Blueprint filming visits are retired.
+    const visit = termsSections.find((section) => /filming visits/i.test(section.title));
+    expect(visit?.title).toBe("4. Earlier filming visits");
+    expect(JSON.stringify(visit)).toMatch(/Blueprint no longer films jobs in person/);
+    expect(terms).not.toMatch(/has Blueprint film it|ask Blueprint staff to film|Austin metro/);
     const law = termsSections.find((section) => /Governing law/.test(section.title));
     expect(law?.paragraphs?.[0]).toMatch(/laws of the State of Delaware/);
   });
@@ -129,8 +135,8 @@ describe("privacy for the free beta", () => {
     expect(footage.notes).toMatch(/does not currently delete originals automatically/);
   });
 
-  it("treats footage filmed by Blueprint staff like self-filmed footage", () => {
-    expect(inPersonVisitPrivacy.map(([, detail]) => detail).join(" ")).toMatch(/handled exactly like footage a site films itself/);
+  it("no longer describes visits as a way video is collected", () => {
+    expect(privacy).not.toMatch(/Blueprint staff film it|ask Blueprint staff to film|In-person filming visits/);
   });
 });
 
@@ -176,7 +182,7 @@ describe("recording notice, sound and the listing choice", () => {
 describe("acceptance while a reissue is announced", () => {
   it("keeps the versions in force usable only before the announced versions take effect", async () => {
     const legal = await import("@/lib/legalAcceptance");
-    const effective = Date.parse("2026-11-02T08:00:00.000Z");
+    const effective = legal.legalEffectiveAtMs(legal.TERMS_VERSION);
     expect(legal.acceptedVersionsAreCurrent(legal.PREVIOUS_TERMS_VERSION, legal.PREVIOUS_PRIVACY_VERSION, effective - 1)).toBe(true);
     for (const now of [effective, effective + 1, effective + 86400000]) {
       expect(legal.acceptedVersionsAreCurrent(legal.PREVIOUS_TERMS_VERSION, legal.PREVIOUS_PRIVACY_VERSION, now)).toBe(false);

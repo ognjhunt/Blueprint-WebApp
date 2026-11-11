@@ -511,17 +511,13 @@ for (const width of [1440, 390]) {
     await expect(page.getByRole("dialog")).toBeVisible();
   });
 }
-test("site can coordinate a visit without a false completion", async ({
+test("a job that once had a visit shows no visit to manage (visits retired 2026-11-11)", async ({
   page,
 }) => {
   await seed(page, "site_operator");
   await page.goto("/app/tasks/task-1?tab=capture");
-  await page.getByRole("button", { name: "Cancel visit", exact: true }).click();
-  await page.getByRole("textbox", { name: "Reason" }).fill("Site closed");
-  await page.getByRole("button", { name: "Submit request" }).click();
-  await expect(page.getByRole("status")).toContainText(
-    "remains scheduled until confirmed",
-  );
+  await expect(page.getByRole("button", { name: "Cancel visit", exact: true })).toHaveCount(0);
+  await expect(page.getByText(/Capture visit|Message your capturer/)).toHaveCount(0);
 });
 test("site reviews results and continues to the pilot on the job page", async ({
   page,

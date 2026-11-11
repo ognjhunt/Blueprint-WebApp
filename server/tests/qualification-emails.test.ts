@@ -267,16 +267,6 @@ describe("the qualified reply", () => {
     }
   });
 
-  it("answers a visit request with a reply about the site's location, not a city", () => {
-    const email = buildQualifiedEmail({
-      firstName: "Dana",
-      nextStep: { kind: "capturer_visit", taskUrl: "https://example.test/capture-upload/abc" },
-    });
-    expect(email.body).toMatch(/whether a visit is possible for your location/);
-    expect(email.body).toContain("https://example.test/capture-upload/abc");
-    expect(email.body).not.toMatch(/visit date/i);
-  });
-
   it("asks for the account step only when the site has none", () => {
     const step = { kind: "self_capture", uploadUrl: "https://example.test/capture-upload/abc" } as const;
     expect(buildQualifiedEmail({ firstName: "Dana", nextStep: step, accountNeeded: true }).body)

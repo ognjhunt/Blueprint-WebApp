@@ -10,15 +10,10 @@
   "capture_date": "2026-04-18",
   "proof_depth": "public_capture_example_plus_sample_files",
   "freshness_state": "current_sample",
-  "capture_app_cue": {
-    "estimated_payout": "$40 review cue",
-    "estimated_walkthrough_minutes": 25,
-    "capture_prompt": "Capture public-facing aisles, endcaps, and circulation paths. Avoid checkout, pharmacy, screens, receipts, employee-only areas, and identifiable shoppers."
-  },
   "buyer_question": "Can a shelf-scanning AMR navigate produce, endcaps, and refrigeration lanes without treating this as a generic warehouse aisle?",
   "capture_provenance": {
-    "source_app": "Blueprint Capture",
-    "device_class": "phone_or_360_camera_capture",
+    "capture_source": "browser_self_capture",
+    "device_model": "browser_self_capture",
     "raw_bundle_shape": [
       "walkthrough_video",
       "timestamps",

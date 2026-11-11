@@ -100,6 +100,7 @@ vi.mock("../utils/siteTaskBrief", async (importOriginal) => ({
 }));
 
 const uploadsRouter = (await import("../routes/self-capture-uploads")).default;
+const { retiredAppBundleRoutesForTests } = await import("./helpers/retiredAppBundle");
 const { createCaptureUploadToken } = await import("../utils/captureUploadToken");
 const { bundleDigest } = await import("../utils/siteCaptureBundle");
 
@@ -128,6 +129,9 @@ beforeAll(async () => {
     apiRequests += 1;
     next();
   });
+  // The app bundle routes answer 410 in production (2026-11-11); these tests
+  // build stored bundles through the retired handlers (a test fixture), mounted first.
+  app.use("/api/self-capture/uploads", retiredAppBundleRoutesForTests());
   app.use("/api/self-capture/uploads", uploadsRouter);
   server = createServer(app);
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));

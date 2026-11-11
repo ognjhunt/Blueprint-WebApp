@@ -81,9 +81,8 @@ describe("unconfigured account settings", () => {
     expect(screen.getByRole("link", { name: /Show us a task/ })).toHaveAttribute("href", "/contact/site-operator");
     expect(screen.queryByLabelText("Organization")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Choose another workspace" }));
-    expect(
-      screen.getByRole("link", { name: /Open capture account/ }),
-    ).toHaveAttribute("href", "/capture-app/account");
+    // The capture account is retired (2026-11-11), so nothing links to it.
+    expect(screen.queryByRole("link", { name: /Open capture account/ })).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Try again" }),
     ).not.toBeInTheDocument();

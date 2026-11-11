@@ -282,7 +282,7 @@ Decision steps before setting it to 0:
    client-written role fields:
 
    ```bash
-   npm run rules:parity                               # WebApp vs BlueprintCapture checkout
+   npm run rules:parity                               # WebApp vs BlueprintCapture checkout (its extractFrames hand-off; the app is not in use)
    bash scripts/ops/verify-firebase-rules-parity.sh --project blueprint-8c1ca   # deployed vs repo, read-only
    ```
 

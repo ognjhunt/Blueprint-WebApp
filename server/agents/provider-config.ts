@@ -32,7 +32,6 @@ const TASK_MODEL_SUFFIXES: Partial<Record<AgentTaskKind, string>> = {
   inbound_qualification: "INBOUND_QUALIFICATION_MODEL",
   post_signup_scheduling: "POST_SIGNUP_MODEL",
   support_triage: "SUPPORT_TRIAGE_MODEL",
-  payout_exception_triage: "PAYOUT_EXCEPTION_MODEL",
   preview_diagnosis: "PREVIEW_DIAGNOSIS_MODEL",
   operator_thread: "OPERATOR_THREAD_MODEL",
   external_harness_thread: "EXTERNAL_HARNESS_MODEL",

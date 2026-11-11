@@ -42,11 +42,6 @@ const sampleInputs: Record<AgentTaskKind, unknown> = {
     email: "buyer@example.com",
     message: "I need help with hosted review access.",
   },
-  payout_exception_triage: {
-    id: "payout-1",
-    status: "failed",
-    failure_reason: "stripe_error",
-  },
   preview_diagnosis: {
     requestId: "preview-1",
     failure_reason: "provider_timeout",

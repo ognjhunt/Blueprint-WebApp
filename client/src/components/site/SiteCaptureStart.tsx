@@ -255,9 +255,10 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
       } : current);
     } catch { /* A status hint cannot substitute for verified receipt. */ }
   }
-  // One question decides how we will see the task: an upload now, the site's
-  // own phone right after the form, or a Blueprint visit.
-  const [method, setMethod] = useState<"upload" | "phone" | "visit">(initial.draft.method);
+  // One question decides how the site sends its own video: an upload now, or
+  // its own phone right after the form. Blueprint filming visits are retired
+  // (owner, 2026-11-11), so a draft saved with "visit" reopens as "phone".
+  const [method, setMethod] = useState<"upload" | "phone">(initial.draft.method === "visit" ? "phone" : initial.draft.method);
   const selfRecording = method === "phone";
   const [region, setRegion] = useState<CaptureRegion | "">(initial.draft.region);
   const [regionManuallySet, setRegionManuallySet] = useState(initial.draft.regionManuallySet);
@@ -310,7 +311,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
       || recovery.current.pending?.body !== other.pending?.body;
     recovery.current = other;
     requestId.current = other.requestId; retryToken.current = other.retryToken;
-    setMethod(other.draft.method); setRegion(other.draft.region);
+    setMethod(other.draft.method === "visit" ? "phone" : other.draft.method); setRegion(other.draft.region);
     setRegionManuallySet(other.draft.regionManuallySet);
     setPending(other.pending);
     if (changed && resetChanged) {
@@ -381,11 +382,11 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
     // from someone who is supplying their own recording. Never guess a country.
     if (!retained && !region) {
       setCountryMissing(true);
-      document.querySelector<HTMLElement>(method === "visit" ? "#start-location" : "#start-region")?.focus();
+      document.querySelector<HTMLElement>("#start-region")?.focus();
       return;
     }
     // No typed task is required on any path: the server accepts a job with no
-    // description under the description authority (film later, or a visit) or
+    // description under the description authority (film later) or
     // the recording grant (a video attached now), and drafts it from the video.
     if (!retained && footageWanted && !footage) return;
 
@@ -436,8 +437,8 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
             ...(String(data.get("startFrequency") ?? "").trim() ? { jobFrequency: String(data.get("startFrequency")).trim() } : {}),
             ...(String(data.get("startReadiness") ?? "").trim() ? { purchaseReadiness: String(data.get("startReadiness")).trim() } : {}),
           },
-          // Someone who already has the video is not asking for a visit.
-          captureMode: hasFootage || selfRecording ? "self_capture" : "site_visit",
+          // The site films its own job: the only capture path (owner, 2026-11-11).
+          captureMode: "self_capture",
           captureRegion: region,
           hasExistingFootage: footageWanted,
           // This flag records that filming permission has not been granted
@@ -582,7 +583,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
           : null,
         captureUrl,
         claimUrl: typeof result.claimUrl === "string" && /^\/claim\/[A-Za-z0-9_.-]+$/.test(result.claimUrl) ? result.claimUrl : null,
-        selfRecording: frozen.value.draft.method !== "visit",
+        selfRecording: true,
         email,
         regionApproved,
         hasFootage: submissionFootageWanted,
@@ -657,8 +658,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
                   + "whether it covers the work area well enough to build the scene. If more coverage is needed, "
                   + "you can update the walkthrough on this same job. Your original video stays saved."
                 : "One video of one work area, on any phone. Thirty seconds of the actual cycle is "
-                  + "enough. On an iPhone the link opens a small Blueprint camera when that is "
-                  + "available; everywhere else the recorder opens in the browser. Assessment starts once we receive the video."}
+                  + "enough. The recorder opens in the browser. Assessment starts once we receive the video."}
             </p>
             {!onAPhone && !state.hasFootage && <CaptureHandoffQr url={state.captureUrl} label="Point your phone at this to film" />}
             {state.uploaded === "failed" && footage && <p>
@@ -688,11 +688,9 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
           </>
         ) : (
           <>
-            <h2 style={{ marginTop: 0 }}>We have it.</h2>
+            <h2 style={{ marginTop: 0 }}>We have your site.</h2>
             <p className="ms-field-hint">
-              You asked us to record it, so someone will be in touch at {state.email} to arrange a
-              time. A visit needs a date and a named person to meet, confirmed in writing before
-              anyone travels.
+              We will reply to {state.email} with the link to film or upload the video.
             </p>
           </>
         )}
@@ -768,7 +766,6 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
         {([
           ["upload", "Upload a video now"],
           ["phone", "Film it on a phone"],
-          ["visit", "Have Blueprint film it"],
         ] as const).map(([value, label]) => (
           <label key={value} htmlFor={`start-method-${value}`} className="ms-check-row">
             <input id={`start-method-${value}`} type="radio" name="startMethod" value={value}
@@ -782,7 +779,6 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
               {/* The filming screen follows the form directly (a QR code on a
                   laptop, the camera on a phone), so this is not a later errand. */}
               {value === "phone" && <span className="ms-field-hint"> · Right after this form</span>}
-              {value === "visit" && <span className="ms-field-hint"> · Austin metro only</span>}
             </span>
           </label>
         ))}
@@ -845,18 +841,14 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
           </label>
         )}
         <label htmlFor="start-location">
-          <span>{selfRecording || hasFootage ? "City or address (optional)" : "Where does the work happen?"}</span>
-          {!(selfRecording || hasFootage) && (
-            <span className="ms-field-hint">We are sending someone to film it, so we need the street address.</span>
-          )}
+          <span>City or address (optional)</span>
         </label>
         <LocationAutocomplete
           id="start-location"
           name="startLocation"
           defaultValue={recovery.current.draft.location}
-          required={method === "visit"}
           maxLength={300}
-          placeholder={selfRecording || hasFootage ? "City or address" : "Street address"}
+          placeholder="City or address"
           onSelectionChange={(place) => {
             setCountryMissing(false);
             setRegionManuallySet(false);
@@ -875,9 +867,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
 
         {countryMissing && !region && (
           <p className="ms-error" role="alert" style={{ margin: 0 }}>
-            {method === "visit"
-              ? "Add the country to the address, for example Sacramento, California, United States."
-              : "Choose the site country so we can check recording permission."}
+            Choose the site country so we can check recording permission.
           </p>
         )}
 
@@ -912,9 +902,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
       </label>
       <label htmlFor="start-task">
         <span>Anything we should know about the job? (optional)</span>
-        <span className="ms-field-hint">{method === "visit"
-          ? "We draft the job description from the video we take on the visit. Add a sentence if you want to."
-          : "We draft the job description from your video. Add a sentence if you want to."}</span>
+        <span className="ms-field-hint">We draft the job description from your video. Add a sentence if you want to.</span>
         <textarea id="start-task" name="startTask" defaultValue={recovery.current.draft.task} maxLength={2000} rows={2}
           placeholder="For example, pick up each packed carton and place it at the end of the table" />
       </label>

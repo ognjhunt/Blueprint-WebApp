@@ -43,7 +43,8 @@ const runId = `journeys-${new Date().toISOString().replace(/[^0-9TZ]/g, "")}`;
 const retained = path.join(output, "runs", runId);
 const fixture = path.resolve("output/reliability-program/journeys-fixture.mp4");
 const cases = [
-  ["UI-001", "phone_desktop"], ["UI-002", "phone_mobile"], ["UI-003", "visit_us"], ["UI-004", "visit_non_us"],
+  ["UI-001", "phone_desktop"], ["UI-002", "phone_mobile"],
+  // UI-003 and UI-004 were the Blueprint filming-visit journeys, retired 2026-11-11.
   ["UI-005", "phone_non_us"], ["UI-006", "upload_clear_desktop"], ["UI-007", "upload_clear_mobile"],
   ["UI-008", "upload_privacy_held"], ["UI-009", "upload_privacy_unknown"], ["UI-010", "upload_manifest_retry"],
   ["UI-011", "upload_storage_unavailable"], ["UI-012", "missing_email"], ["UI-013", "unknown_country"],
@@ -111,7 +112,6 @@ async function fill(kind: string) {
   if (kind !== "unknown_country" && await page.locator("#start-region").count()) {
     await page.locator("#start-region").selectOption(kind.includes("non_us") ? "non_us" : "us");
   }
-  if (kind.startsWith("visit")) await page.locator("#start-method-visit").check();
   if (kind.startsWith("upload") || (kind === "browser_termination_upload_return" || kind === "forced_termination_email_return_worker_restart") || kind === "invalid_video_extension") {
     await page.locator("#start-method-upload").check();
     if (kind === "invalid_video_extension") await page.locator("#start-footage").setInputFiles({ name: "bad.txt", mimeType: "text/plain", buffer: Buffer.from("invalid") });
@@ -226,7 +226,7 @@ describe("normal customer UI joined to real handlers and disposable durable stor
       } else {
         await vi.waitFor(async () => { await refreshDocumentView(); expect(requestRows()).toHaveLength(1); });
         const requestId = requestRows()[0][1].requestId as string;
-        expect((requestRows()[0][1].request as Record<string, unknown>).capture_mode).toBe(kind.startsWith("visit") ? "site_visit" : "self_capture");
+        expect((requestRows()[0][1].request as Record<string, unknown>).capture_mode).toBe("self_capture");
         expect((requestRows()[0][1].request as Record<string, unknown>).capture_region).toBe(kind.includes("non_us") ? "non_us" : "us");
         if (kind === "lost_response_reload") {
           await page.reload();

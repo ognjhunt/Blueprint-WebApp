@@ -2,8 +2,8 @@
 // Exported names are preserved so Header/Footer imports stay stable; targets are repointed.
 //
 // Streamlined to one product with a robot-team-first wedge. Site operators are
-// a second persona using the same Task Evaluation Run contract and intake;
-// capturers remain the paid-supply path.
+// a second persona using the same Task Evaluation Run contract and intake.
+// There is no capturer supply path: the site films its own job (2026-11-11).
 
 export const primaryNavLinks = [
   { href: "/how-it-works", label: "How it works" },

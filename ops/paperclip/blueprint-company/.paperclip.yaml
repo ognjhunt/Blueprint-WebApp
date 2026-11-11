@@ -2009,6 +2009,9 @@ routines:
         timezone: America/New_York
   field-ops-daily:
     agent: field-ops-agent
+    # Paused (owner, 2026-11-11): capturer assignment and visit scheduling only;
+    # outside capturers and Blueprint filming visits are retired.
+    status: paused
     priority: medium
     concurrencyPolicy: coalesce_if_active
     catchUpPolicy: skip_missed

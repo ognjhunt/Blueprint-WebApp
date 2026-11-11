@@ -8,8 +8,9 @@ import { fireEvent, render, screen } from "@testing-library/react";
 
 import { CurrentLegalVersionNote, LegalUpdateBanner, PreviousLegalVersionNote } from "@/components/site/LegalVersionNotes";
 
-const BEFORE = new Date("2026-10-20T12:00:00Z");
-const AFTER = new Date("2026-11-16T12:00:00Z");
+// The 2026-11-11 revision (filming visits retired) follows the same convention.
+const BEFORE = new Date("2026-11-12T12:00:00Z");
+const AFTER = new Date("2026-11-26T12:00:00Z");
 
 function at(date: Date) {
   vi.useFakeTimers({ toFake: ["Date"] });
@@ -26,7 +27,7 @@ describe("legal update notice", () => {
     at(BEFORE);
     const { unmount } = render(<LegalUpdateBanner />);
     const banner = screen.getByRole("region", { name: "Terms and Privacy Policy update" });
-    expect(banner).toHaveTextContent("take effect on November 2, 2026. Until then, the previous versions apply.");
+    expect(banner).toHaveTextContent("take effect on November 25, 2026. Until then, the previous versions apply.");
     expect(screen.getByRole("link", { name: "Terms of Service" })).toHaveAttribute("href", "/terms");
     fireEvent.click(screen.getByRole("button", { name: /Dismiss/ }));
     expect(screen.queryByRole("region", { name: "Terms and Privacy Policy update" })).toBeNull();
@@ -44,9 +45,9 @@ describe("legal update notice", () => {
   it("links each version to the other and says which one applies", () => {
     at(BEFORE);
     render(<><CurrentLegalVersionNote document="terms" /><PreviousLegalVersionNote document="privacy" /></>);
-    expect(screen.getByText(/This version takes effect on November 2, 2026/)).toHaveTextContent("(effective October 14, 2026) applies.");
+    expect(screen.getByText(/This version takes effect on November 25, 2026/)).toHaveTextContent("(effective November 2, 2026) applies.");
     expect(screen.getByRole("link", { name: "previous version" })).toHaveAttribute("href", "/terms/previous");
-    expect(screen.getByText(/This version applies until November 2, 2026/)).toHaveTextContent("updated Privacy Policy takes effect.");
+    expect(screen.getByText(/This version applies until November 25, 2026/)).toHaveTextContent("updated Privacy Policy takes effect.");
     expect(screen.getByRole("link", { name: "updated Privacy Policy" })).toHaveAttribute("href", "/privacy");
   });
 });

@@ -280,10 +280,14 @@ autocomplete usable. `Permissions-Policy` permits
 same-origin geolocation only on `/contact/site-operator`, matching the site's
 full-page intake links; camera policy stays scoped to capture upload.
 
-### iOS App + App Clip (server)
-The capture link (`/capture-upload/:token`) opens the Blueprint App Clip on an
-iPhone once it is published; everywhere else, and until then, it opens the
-browser recorder. The server side of that is two things:
+### iOS App + App Clip (server): not in use
+
+Retired 2026-11-11: no capture app is in use, so the capture link always opens
+the browser recorder. The association file answers 404 and no App Clip banner
+is served, whatever `APPLE_TEAM_ID`, `IOS_APP_BUNDLE_ID`,
+`IOS_APP_CLIP_BUNDLE_ID` and `IOS_APP_STORE_ID` say; those variables (and
+`APP_CLIP_ADDITIONAL_PATHS`) are not in use and can be unset in Render. The
+text below is how it worked before:
 
 - `/.well-known/apple-app-site-association` (and `/apple-app-site-association`)
   needs `APPLE_TEAM_ID`, `IOS_APP_BUNDLE_ID` (`Public.BlueprintCapture`) and
@@ -591,11 +595,11 @@ no longer start anything: `BLUEPRINT_EXPERIMENT_AUTOROLLOUT_ENABLED`,
 `BLUEPRINT_CREATIVE_FACTORY_ENABLED`, `BLUEPRINT_BUYER_LIFECYCLE_ENABLED` and
 `BLUEPRINT_LIFECYCLE_CADENCE_ENABLED`.
 
-Beta cohort controls are enforced on capturer beta waitlist intake, native
-capture registration (and its preflight), robot-eval buyer intake, and live
+Beta cohort controls are enforced on robot-eval buyer intake, and live
 agent checkout. The capacity limits are fail-closed configuration: a missing or
 invalid value blocks gated intake with `beta_limits_not_configured`, and `0`
-means "deliberately closed", never "unlimited".
+means "deliberately closed", never "unlimited". Capturer waitlist intake and
+native capture registration are switched off (410) since 2026-11-11.
 
 - `BLUEPRINT_BETA_ENABLED=true`
 - `BLUEPRINT_BETA_KILL_SWITCH=0` (`1` pauses controlled beta access and capture intake)

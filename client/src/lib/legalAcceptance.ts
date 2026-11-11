@@ -21,12 +21,20 @@
  * effect at once instead of on November 15. Every job with footage was the
  * owner's own, and the corrected text is the accurate one.
  */
-export const TERMS_VERSION = "2026-11-02.1";
-export const PRIVACY_VERSION = "2026-11-02.1";
+export const TERMS_VERSION = "2026-11-25.1";
+export const PRIVACY_VERSION = "2026-11-25.1";
 
-/** The versions in force until TERMS_VERSION / PRIVACY_VERSION take effect. */
-export const PREVIOUS_TERMS_VERSION = "2026-10-14.1";
-export const PREVIOUS_PRIVACY_VERSION = "2026-10-13.1";
+/**
+ * The versions in force until TERMS_VERSION / PRIVACY_VERSION take effect.
+ *
+ * 2026-11-11 revision (owner: Blueprint filming visits retired): the visit
+ * offer leaves the Terms and the Privacy Policy. Following the 2026-10-15
+ * convention it is published ahead with a future effective date, so the
+ * notice Terms section 12 promises can be given before it takes effect. The
+ * date is a placeholder for the owner to confirm; no notice is sent by code.
+ */
+export const PREVIOUS_TERMS_VERSION = "2026-11-02.1";
+export const PREVIOUS_PRIVACY_VERSION = "2026-11-02.1";
 
 /**
  * The date printed from a version. The pages print their effective date
@@ -79,8 +87,10 @@ export function acceptedVersionsAreCurrent(terms: unknown, privacy: unknown, now
   // The same corrected text, published earlier on 2026-11-02 under the announced
   // November 15 date. The earlier November 15 pairs said people were removed
   // from footage, so they no longer count.
+  // They counted as 2026-11-02.1, which is now the previous version.
+  if (!legalUpdatePending(nowMs)) return false;
   if (terms === "2026-11-15.4" && privacy === "2026-11-15.5") return true;
-  return legalUpdatePending(nowMs) && terms === PREVIOUS_TERMS_VERSION && privacy === PREVIOUS_PRIVACY_VERSION;
+  return terms === PREVIOUS_TERMS_VERSION && privacy === PREVIOUS_PRIVACY_VERSION;
 }
 
 /** Recognize a prior server-recorded acceptance of the current documents. */

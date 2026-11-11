@@ -1,6 +1,5 @@
 import { ArrowUpRight } from "lucide-react";
 
-import { serviceArea } from "@/data/serviceArea";
 
 import {
   footerCompanyLinks,
@@ -37,14 +36,6 @@ export function Footer() {
             </a>
             <p className="mt-7 text-sm leading-7 text-runway-mute">
               Blueprint shows a business which robot most likely fits one of its recurring jobs and how sure it is, proves it in a simulation of its site, and helps it find a deployment company.
-            </p>
-            {/*
-              Service area sits in the footer so it is on every page rather than
-              only on the one page that describes the visit. We capture in one
-              metro; implying more is fabricated readiness.
-            */}
-            <p className="mt-6 font-mono text-[10px] uppercase leading-5 tracking-[0.18em] text-runway-faint">
-              Capture visits: {serviceArea.city} metro
             </p>
             <a
               href="mailto:hello@tryblueprint.io"

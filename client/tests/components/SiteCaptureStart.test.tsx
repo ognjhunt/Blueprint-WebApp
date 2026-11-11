@@ -491,10 +491,13 @@ it("asks one question about the video and quotes the rights sentence where start
   });
 });
 
-it.each([["phone", "self_capture"], ["visit", "site_visit"]])("sends the capture mode for the chosen way (%s)", async (method, captureMode) => {
+it("offers no Blueprint filming visit and sends self-capture (visits retired 2026-11-11)", async () => {
+  const [method, captureMode] = ["phone", "self_capture"];
   signedIn({ workspaceType: "site_operator" }, [{ ok: true, body: { captureUrl: null } }]);
   await renderReady(<SiteCaptureStart />);
   await screen.findByText(/Saving to your workspace as owner@example.com/);
+  expect(document.querySelector("#start-method-visit")).toBeNull();
+  expect(screen.queryByText(/Have Blueprint film it|Austin metro only|sending someone to film/i)).toBeNull();
   fireEvent.click(document.querySelector(`#start-method-${method}`)!);
   describeTask("Pack cartons");
   fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Austin, TX" } });
@@ -876,7 +879,8 @@ it("recovers the same intake identity and draft after a lost response and reload
 });
 
 
-const intakeCases = ["phone", "upload", "visit"].flatMap(method => ["Austin, TX", "London UK", "Berlin, Germany", "Toronto, Canada", "Austin TX 78701"]
+// Visits are retired (2026-11-11), so their ten cases are gone with the option.
+const intakeCases = ["phone", "upload"].flatMap(method => ["Austin, TX", "London UK", "Berlin, Germany", "Toronto, Canada", "Austin TX 78701"]
   .flatMap(location => ["rejected", "saved"].map(outcome => ({ method, location, outcome }))))
   .map((parameters, index) => ({ caseId: `A-I-${String(index + 1).padStart(3, "0")}`, ...parameters }));
 it.each(intakeCases)("$caseId $method intake $location $outcome", async ({ method, location, outcome }) => {
@@ -894,7 +898,7 @@ it.each(intakeCases)("$caseId $method intake $location $outcome", async ({ metho
   if (outcome === "rejected") await screen.findByText("Correct the task description");
   else await screen.findByRole("link", { name: "Saved in your workspace" });
   const post = JSON.parse(postsTo("/api/workspace/capture-start")[0][1].body);
-  expect(post.captureMode).toBe(method === "visit" ? "site_visit" : "self_capture");
+  expect(post.captureMode).toBe("self_capture");
   expect(post.captureRegion).toBe(location.startsWith("Austin") ? "us" : "non_us");
   if (!location.startsWith("Austin")) expect(upload.send).not.toHaveBeenCalled();
 });

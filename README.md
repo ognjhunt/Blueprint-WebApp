@@ -2,13 +2,13 @@
 
 A site sends an email and a video of one recurring job. Blueprint drafts the job brief from the video, and the site corrects it if needed. The site gets one answer: the robot that most likely fits, a runner-up, what was ruled out, and how sure Blueprint is, from published specifications and a cited track record. Blueprint then proves it: it builds a simulation of the site and runs the candidate robot policies in it itself, and shows which did best and how far that can be trusted, or "held — we can't simulate this kind of job yet". The site can then share its job card with deployment companies Blueprint has approved. This is the owner's model of 2026-10-28 as changed on 2026-11-11 ([design](./docs/superpowers/specs/2026-11-11-site-answer-design.md)); see [`PLATFORM_CONTEXT.md`](./PLATFORM_CONTEXT.md) and the [beta docs](./docs/beta/README.md).
 
-`Blueprint-WebApp` is the customer side: a site starts a job, sends its video, sees the brief and sees the result. It also holds ops dashboards, Paperclip control-plane flows and runbooks. It is not the capture client, and it is not the Pipeline, which builds the simulation and runs the candidates.
+`Blueprint-WebApp` is the customer side: a site starts a job, sends its video, sees the brief and sees the result. It also holds ops dashboards, Paperclip control-plane flows and runbooks. It is also where a person who works at the site films the job on their own phone and uploads it in the browser. It is not the Pipeline, which builds the simulation and runs the candidates.
 
 ## System Position
 
 Blueprint is a three-repo product system:
 
-1. `BlueprintCapture` collects real-site capture evidence and upload bundles.
+1. `BlueprintCapture` is kept only for its `extractFrames` cloud function, which receives every website upload and writes the delivery records the Pipeline starts from. Its phone apps are not in use (see "How Capture Works" in [`PLATFORM_CONTEXT.md`](./PLATFORM_CONTEXT.md)).
 2. `BlueprintCapturePipeline` turns the video into a simulation of the site, runs the candidate robot policies and embodiments in it, and returns a bounded estimate or "held".
 3. `Blueprint-WebApp` is the customer side: job start, video upload, brief, result and status emails. It also holds ops dashboards, Paperclip control-plane flows and runbooks.
 

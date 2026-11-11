@@ -8,7 +8,6 @@ const __dirname = dirname(__filename);
 import { type Server } from "http";
 import viteConfig from "../vite.config";
 import { stampCanvasSurface } from "../client/src/app/canvasSurface";
-import { stampAppClipBanner } from "./utils/appClipBanner";
 import { ROUTE_PATTERNS_FILE, routePatternMatches } from "../client/src/app/routeMatch";
 import { logger } from "./logger";
 
@@ -48,7 +47,7 @@ export async function setupVite(app: Express, server: Server) {
       res
         .status(200)
         .set({ "Content-Type": "text/html" })
-        .end(stampAppClipBanner(stampCanvasSurface(page, url), url));
+        .end(stampCanvasSurface(page, url));
     } catch (e) {
       vite.ssrFixStacktrace(e as Error);
       next(e);
@@ -164,6 +163,6 @@ export function serveStatic(
     res
       .status(known ? 200 : 404)
       .type("html")
-      .send(stampAppClipBanner(stampCanvasSurface(shellHtml, req.path), req.path));
+      .send(stampCanvasSurface(shellHtml, req.path));
   });
 }

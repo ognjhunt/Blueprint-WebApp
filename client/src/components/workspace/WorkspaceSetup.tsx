@@ -231,16 +231,6 @@ function SetupForm({
           )}
         </div>
       </form>
-      {account.access.capture && (
-        <div className="ws-setup-existing">
-          <p className="ws-note">Your existing account access is kept.</p>
-          {account.access.capture && (
-            <Link className="ws-link" href="/capture-app/account">
-              Open capture account →
-            </Link>
-          )}
-        </div>
-      )}
     </section>
   );
 }

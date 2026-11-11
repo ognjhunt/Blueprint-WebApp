@@ -40,9 +40,6 @@ export default function TaskDetail() {
   const [tab, setTab] = useState(
       new URLSearchParams(window.location.search).get("tab") || "results",
     ),
-    [captureAction, setCaptureAction] = useState<
-      "request" | "reschedule" | "cancel" | null
-    >(null),
     [pilotAction, setPilotAction] = useState<string | null>(null),
     [details, setDetails] = useState<WorkspaceResult | null>(null),
     [editing, setEditing] = useState(false),
@@ -461,7 +458,9 @@ export default function TaskDetail() {
               )}
             </>
           )}
-          {tab === "capture" && task.captureMode === "self_capture" && (
+          {/* Blueprint filming visits are retired (2026-11-11): every job,
+              including one that once asked for a visit, films its own video. */}
+          {tab === "capture" && (
             <section className="ws-section" aria-label="Your recording">
               <h2>Your recording</h2>
               <p>
@@ -490,178 +489,6 @@ export default function TaskDetail() {
                   onClick={() => void action.perform(`${endpoint}/recording-consent/withdraw`, {})}>Withdraw permission</button>
               </details>}
             </section>
-          )}
-          {tab === "capture" && task.captureMode !== "self_capture" && (
-            <>
-              <div className="ws-section-title">
-                <h2>Capture visit</h2>
-                {task.capture && <Tag>{statusLabel(task.capture.status)}</Tag>}
-              </div>
-              {task.capture ? (
-                <>
-                  <Facts
-                    rows={[
-                      ["When", dateLabel(task.capture.startsAt, true)],
-                      ["Where", `${task.siteName} · ${task.location}`],
-                      [
-                        "Capturer",
-                        task.capture.capturerName || "Assignment pending",
-                      ],
-                    ]}
-                  />
-                  {task.capture.changeStatus && (
-                    <p className="ws-note">
-                      {statusLabel(task.capture.changeStatus)}. Existing visit
-                      details remain in effect until confirmed.
-                    </p>
-                  )}
-                  {!task.archived && (
-                    <div className="ws-form-actions">
-                      <button
-                        className="ws-link"
-                        onClick={() => setCaptureAction("reschedule")}
-                      >
-                        Request a change
-                      </button>
-                      <button
-                        className="ws-link"
-                        onClick={() => setCaptureAction("cancel")}
-                      >
-                        Cancel visit
-                      </button>
-                    </div>
-                  )}
-                </>
-              ) : (
-                <Empty title="Plan your capture">
-                  Capture coordination will confirm the date, time, and capturer
-                  for this job.
-                </Empty>
-              )}
-              {!task.capture && !task.archived && (
-                <button
-                  className="ws-primary"
-                  onClick={() => setCaptureAction("request")}
-                >
-                  Request capture
-                </button>
-              )}
-              {task.capture?.canMessage && !task.archived && (
-                <form
-                  method="post"
-                  className="ws-section"
-                  onSubmit={(event) => {
-                    event.preventDefault();
-                    const form = event.currentTarget;
-                    const message = String(
-                      new FormData(form).get("message") || "",
-                    );
-                    void action.perform(
-                      `${endpoint}/capture`,
-                      { action: "message", message },
-                      () => form.reset(),
-                    );
-                  }}
-                >
-                  <h2>Message your capturer</h2>
-                  <div className="ws-section">
-                    <Field label="Message">
-                      <textarea
-                        name="message"
-                        required
-                        maxLength={2000}
-                        placeholder="Share access instructions or ask a question"
-                      />
-                    </Field>
-                  </div>
-                  <div className="ws-form-actions">
-                    <button className="ws-primary" disabled={action.pending}>
-                      Send message
-                    </button>
-                  </div>
-                </form>
-              )}
-              <details className="ws-section">
-                <summary>Prepare for your capture</summary>
-                <p>
-                  Have the work area, task objects, and site access ready. Share
-                  entry instructions with your capturer and confirm the agreed
-                  capture window.
-                </p>
-              </details>
-              <p className="ws-note">
-                Changes are confirmed by capture coordination. Already have
-                capture files?{" "}
-                <Link className="ws-link" href="/app/captures">
-                  Upload or review a capture
-                </Link>
-              </p>
-            </>
-          )}
-          {captureAction && (
-            <Modal
-              title={
-                captureAction === "cancel"
-                  ? "Request cancellation"
-                  : captureAction === "reschedule"
-                    ? "Request a change"
-                    : "Request capture"
-              }
-              onClose={() => setCaptureAction(null)}
-            >
-              <p>
-                {captureAction === "cancel"
-                  ? "Your visit remains scheduled until capture coordination confirms the cancellation."
-                  : "Share a preferred time and any access requirements. We will confirm the visit details."}
-              </p>
-              <Feedback error={action.error} />
-              <form
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  const values = new FormData(event.currentTarget),
-                    date = String(values.get("startsAt") || "");
-                  void action.perform(
-                    `${endpoint}/capture`,
-                    {
-                      action: captureAction,
-                      message: String(values.get("message") || ""),
-                      ...(date
-                        ? { startsAt: new Date(date).toISOString() }
-                        : {}),
-                    },
-                    () => setCaptureAction(null),
-                  );
-                }}
-              >
-                {captureAction !== "cancel" && (
-                  <Field
-                    label="Preferred date and time"
-                    hint={`Shown in ${Intl.DateTimeFormat().resolvedOptions().timeZone}`}
-                  >
-                    <input
-                      type="datetime-local"
-                      name="startsAt"
-                      required={captureAction === "reschedule"}
-                    />
-                  </Field>
-                )}
-                <Field label={captureAction === "cancel" ? "Reason" : "Notes"}>
-                  <textarea name="message" required maxLength={2000} />
-                </Field>
-                <div className="ws-form-actions">
-                  <button className="ws-primary" disabled={action.pending}>
-                    Submit request
-                  </button>
-                  <button
-                    type="button"
-                    className="ws-link"
-                    onClick={() => setCaptureAction(null)}
-                  >
-                    Keep current visit
-                  </button>
-                </div>
-              </form>
-            </Modal>
           )}
           {pilotAction && (
             <Modal

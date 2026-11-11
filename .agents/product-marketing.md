@@ -1,5 +1,12 @@
 # Product Marketing Context
 
+> **Capture, 2026-11-11.** No capture app is in use, and nobody else films for a
+> site: no outside capturers, Blueprint filming visits, capturer marketplace or
+> capturer payouts. A person who works at the site films the job on their own
+> phone and uploads it in the browser. Where this document describes the
+> `BlueprintCapture` app, capturers, visits or payouts, that is history. See
+> "How Capture Works" in `PLATFORM_CONTEXT.md`.
+
 *Last updated: 2026-05-15*
 
 ## Product Overview

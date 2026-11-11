@@ -10,7 +10,7 @@ export const termsSections: readonly Section[] = [
   {
     title: "1. The Service",
     paragraphs: [
-      "Blueprint helps a site find out whether a robot can do one of its recurring jobs. A site gives an email and a video of the job, or has Blueprint film it, and can correct the short job brief we draft from the video. We rebuild the work area as a simulated scene, run candidate robot policies in that simulation ourselves, and show the site the result: a bounded estimate of what works, or a note that we cannot simulate that kind of job yet. Blueprint can then work with a deployment company that can deliver the approach on site. Starting a job authorizes an anonymized job card for partners approved for the beta.",
+      "Blueprint helps a site find out whether a robot can do one of its recurring jobs. A site gives an email and a video of the job, and can correct the short job brief we draft from the video. We rebuild the work area as a simulated scene, run candidate robot policies in that simulation ourselves, and show the site the result: a bounded estimate of what works, or a note that we cannot simulate that kind of job yet. Blueprint can then work with a deployment company that can deliver the approach on site. Starting a job authorizes an anonymized job card for partners approved for the beta.",
       "The Service is in beta and is free during the beta. Features may change, be limited, or be withdrawn, and we may pause or stop an evaluation, for example to protect a site's privacy or the integrity of a result.",
       "An evaluation result is a bounded estimate from a simulated scene. It is not a physical test, a safety assessment, or a guarantee of how a robot will perform at a real site, and it does not certify physical performance or safety. Any physical pilot is agreed directly between the site and the deployment company. The deployment company or its integrator remains responsible for installation and operation; the site and responsible delivery parties approve the safety plan. Blueprint may record agreed pilot outcomes under the parties' permissions.",
       "Other providers help us run the Service; our Privacy Policy lists them. Their own terms apply to the services they provide.",
@@ -40,12 +40,9 @@ export const termsSections: readonly Section[] = [
     ],
   },
   {
-    title: "4. In-person filming visits",
-    items: [
-      `Where we offer it (currently the ${COMPANY.visitServiceArea}), a site can ask Blueprint staff to film the job in person instead of filming it themselves. The site arranges access to the areas to be filmed and tells us before the visit about restricted areas, safety rules and required protective equipment.`,
-      "Our staff follow the site's safety rules and instructions while on site, may decline or stop filming if conditions are unsafe, and film only the work area and job the site has agreed. The site remains responsible for the safety of its premises and for giving people at the site any notice or obtaining any permission the law or its own policies require before filming.",
-      "Footage from a visit is handled exactly like footage the site films itself: the same license, sharing limits, privacy commitments and rights apply.",
-      "Blueprint's liability for a visit is limited as described in section 9, except where the law does not allow it to be limited, such as for injury caused by our negligence.",
+    title: "4. Earlier filming visits",
+    paragraphs: [
+      "Blueprint no longer films jobs in person. Video from an earlier Blueprint filming visit is handled exactly like video a site uploads itself: the same license, sharing limits, privacy commitments and rights apply.",
     ],
   },
   {

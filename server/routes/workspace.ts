@@ -1,5 +1,5 @@
 import { buildPolicyRunLicense } from "../utils/policyRunLicense";
-import { projectAtlasPreparationOutcome } from "../utils/taskPreparationOutcome";
+import { largeVideoAskOutcome, projectAtlasPreparationOutcome } from "../utils/taskPreparationOutcome";
 import { projectWebsiteRunClosure } from "../utils/websiteRunClosure";
 import { taskListingSchema, listingConsentVersion } from "../utils/taskListingDetails";
 import { updatePreferencesInputSchema } from "../../client/src/types/updatePreferences";
@@ -34,7 +34,6 @@ import { submitInboundRequest } from "./inbound-request";
 import { verifySiteClaimToken } from "../utils/request-review-auth";
 import { projectTeamJobOpening, teamJobAccess } from "../utils/teamJobAccess";
 import { passMarkForJob } from "../utils/pilotRecommendationEvidence";
-import { sendCapturerCommunication } from "../utils/field-ops-automation";
 import {
   object,
   text,
@@ -259,7 +258,6 @@ function accountProjection(
         user.ops === true ||
         ["admin", "ops"].includes(user.role) ||
         roles.some((role) => ["admin", "ops"].includes(role)),
-      capture: user.role === "capturer" || roles.includes("capturer"),
     },
   };
 }
@@ -601,36 +599,7 @@ async function hydrateTask(requestId: string, record: Record<string, any>) {
   const task = projectWorkspaceTask(requestId, record);
   const consentRevoked = projectWebsiteCaptureRights(record).consent_revoked;
   task.recordingPermissionWithdrawn = consentRevoked;
-  const jobs = await db!
-    .collection("capture_jobs")
-    .where("buyer_request_id", "==", requestId)
-    .limit(20)
-    .get();
-  const job = jobs.docs.sort((a, b) =>
-    (iso(b.data().updatedAt) || "").localeCompare(
-      iso(a.data().updatedAt) || "",
-    ),
-  )[0];
-  if (job) {
-    const data = object(job.data()),
-      assignment = object(object(data.field_ops).capturer_assignment),
-      window = object(data.availability_window);
-    task.capture = {
-      id: job.id,
-      status:
-        object(object(data.field_ops).dispatch_review)
-          .manual_confirmation_required === true && data.status !== "confirmed"
-          ? "awaiting_confirmation"
-          : text(data.status) || "requested",
-      startsAt: iso(data.availabilityStartsAt || window.starts_at),
-      endsAt: iso(window.ends_at),
-      capturerName: text(assignment.name) || null,
-      changeStatus:
-        text(object(object(record.workspace_task).captureChange).status) ||
-        null,
-      canMessage: Boolean(assignment.creator_id),
-    };
-  }
+  // The filming-visit panel (capture_jobs) is retired with Blueprint visits (2026-11-11).
   // Read the runs once so application de-duplication uses the exact rows
   // this response will show, including when the optional run read fails.
   let runs: Awaited<ReturnType<typeof listRunsForScene>> = [];
@@ -724,7 +693,8 @@ async function hydrateTask(requestId: string, record: Record<string, any>) {
         ownerClosureOutcome: !consentRevoked
           ? projectWebsiteRunClosure(record, requestId, currentCapture.captureId) : null,
         preparationOutcome: !consentRevoked
-          ? projectAtlasPreparationOutcome(selectWebsiteAtlasPreview(record, currentCapture.captureId)) : null,
+          ? largeVideoAskOutcome(record, requestId, currentCapture.captureId)
+            ?? projectAtlasPreparationOutcome(selectWebsiteAtlasPreview(record, currentCapture.captureId)) : null,
         preparationStatus,
         multiStepHold: consentRevoked ? null : multiStepTaskHold(brief as never),
         preparationOverdue,
@@ -1535,83 +1505,6 @@ router.patch(
       .doc(identity(res).uid)
       .update({ name: input.name, company: input.organization });
     return res.json({ ok: true });
-  }),
-);
-router.post(
-  "/tasks/:taskId/capture",
-  handle(async (req, res) => {
-    const item = await ownedTask(req.params.taskId, res);
-    const input = z
-      .object({
-        action: z.enum(["request", "reschedule", "cancel", "message"]),
-        startsAt: z.string().datetime().optional(),
-        message: z.string().trim().min(1).max(2000),
-      })
-      .strict()
-      .parse(req.body);
-    if (
-      input.action === "reschedule" &&
-      (!input.startsAt || Date.parse(input.startsAt) <= Date.now())
-    )
-      refuse(400, "Choose a future date and time.");
-    const task = await hydrateTask(req.params.taskId, item.record);
-    if (task.archived) refuse(409, "This job is closed.");
-    if (input.action === "message") {
-      if (!task.capture?.canMessage)
-        refuse(409, "A capturer has not been assigned yet.");
-      const receipt = await sendCapturerCommunication({
-        captureJobId: task.capture.id,
-        communicationType: "custom",
-        subject: `Site message: ${task.siteName}`,
-        body: input.message,
-        triggeredBy: identity(res).uid,
-      });
-      return res.json({
-        ok: true,
-        status: receipt.state,
-        message:
-          receipt.state === "sent"
-            ? "Message sent."
-            : "Message queued for capture coordination.",
-      });
-    }
-    if (
-      ["cancel", "reschedule"].includes(input.action) &&
-      task.capture &&
-      ["completed", "approved", "paid", "cancelled", "rejected"].includes(
-        task.capture.status,
-      )
-    )
-      refuse(409, "This visit has ended. Request another capture instead.");
-    if (input.action !== "request" && !task.capture)
-      refuse(409, "No capture visit is linked to this job.");
-    await item.ref.update({
-      "workspace_task.captureChange": {
-        action: input.action,
-        startsAt: input.startsAt || null,
-        status: "pending_review",
-        requestedBy: identity(res).uid,
-        requestedAt: new Date().toISOString(),
-      },
-      "ops.next_step": `Site requested capture ${input.action}. Review the request notes.`,
-    });
-    await item.ref.collection("notes").add({
-      content: await encryptFieldValue(
-        `Capture ${input.action}: ${input.startsAt || ""}\n${input.message}`,
-      ),
-      authorUid: identity(res).uid,
-      authorEmail: identity(res).email,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      workspace_note: true,
-    });
-    return res.json({
-      ok: true,
-      status: "pending_review",
-      message:
-        input.action === "cancel"
-          ? "Cancellation requested. Your visit remains scheduled until confirmed."
-          : "Request saved. Capture coordination will confirm the visit details.",
-    });
   }),
 );
 /** Owner-only withdrawal. The same effect backs the signed owner link; deletion

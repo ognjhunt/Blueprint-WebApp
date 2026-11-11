@@ -98,9 +98,8 @@ export default function Contact() {
               Simulation is an estimate, not proof of physical performance or safety.
             </p>
             <p className="ms-field-hint">
-              Where we work: we can send someone to film in the Austin metro. Anywhere else in the
-              US, you record the walkthrough yourself. Outside the US, we set up data transfer terms
-              before anything is recorded.
+              Where we work: in the US, you record the walkthrough yourself. Outside the US, we set
+              up data transfer terms before anything is recorded.
             </p></>}
           </details>
           {!savedJob && <details className="ms-task-interest ms-visitor-detail">

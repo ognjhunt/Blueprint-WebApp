@@ -52,7 +52,6 @@ const Home = lazyRoute(() => import("../pages/Home"));
 const SelfCaptureUpload = lazyRoute(() => import("../pages/SelfCaptureUpload"));
 const RobotReadinessBrief = lazyRoute(() => import("../pages/RobotReadinessBrief"));
 const ClaimSite = lazyRoute(() => import("../pages/ClaimSite"));
-const CapturerAccount = lazyRoute(() => import("../pages/CapturerAccount"));
 const BusinessSignUpFlow = lazyRoute(() => import("../pages/BusinessSignUpFlow"));
 const OnboardingChecklist = lazyRoute(() => import("../pages/OnboardingChecklist"));
 // /robot-team/eval merged into /for-robot-teams (#intake); keep the URL as a redirect.
@@ -75,7 +74,6 @@ const AdminCompanyMetrics = lazyRoute(() => import("../pages/AdminCompanyMetrics
 const TaskEvaluationLaunchesGate = lazyRoute(
   () => import("../pages/TaskEvaluationLaunchesGate"),
 );
-const AdminCapturers = lazyRoute(() => import("../pages/AdminCapturers"));
 const AdminRobotTeamAccess = lazyRoute(() => import("../pages/AdminRobotTeamAccess"));
 const AdminJobConsole = lazyRoute(() => import("../pages/AdminJobConsole"));
 const RequestConsole = lazyRoute(() => import("../pages/RequestConsole"));
@@ -254,8 +252,9 @@ export const appRoutes: AppRoute[] = [
   { path: "/partners/technology", layout: "public", component: TechnologyProviders },
   { path: "/beta", layout: "public", component: Beta },
   { path: "/about", layout: "public", component: About },
-  // The capturer network and its app are retired for now: sites film their own
-  // tasks. Old entry points go to the site start page.
+  // The capturer network, its app and Blueprint filming visits are retired
+  // (2026-11-11): sites film their own tasks. Old entry points go to the site
+  // start page.
   { path: "/launch-map", layout: "public", component: SiteOperatorCaptureRedirect },
 
   // The site's own capture link and claim.
@@ -264,12 +263,12 @@ export const appRoutes: AppRoute[] = [
   // sent here to do one thing, and has no account to navigate with.
   { path: "/capture-upload/:token", layout: "public", shell: "bare", component: SelfCaptureUpload },
   // The printable robot readiness brief, by its own read-only link: the owner's
-  // job link never goes on paper. Outside /capture-upload/*, which the capture
-  // app claims as its universal link.
+  // job link never goes on paper. Kept outside /capture-upload/*, which the
+  // retired capture app once claimed as its universal link.
   { path: "/readiness-brief/:briefToken", layout: "public", shell: "bare", component: RobotReadinessBrief },
   { path: "/claim/:token", layout: "public", shell: "bare", component: ClaimSite },
   { path: "/capture-app", layout: "public", shell: "bare", component: SiteOperatorCaptureRedirect },
-  { path: "/capture-app/account", layout: "protected", shell: "bare", component: CapturerAccount },
+  { path: "/capture-app/account", layout: "public", component: SiteOperatorCaptureRedirect },
   { path: "/capture-app/launch-access", layout: "public", component: SiteOperatorCaptureRedirect },
   { path: "/capture-jobs", layout: "public", component: SiteOperatorCaptureRedirect },
   { path: "/capture-network", layout: "public", component: SiteOperatorCaptureRedirect },
@@ -372,7 +371,6 @@ export const appRoutes: AppRoute[] = [
   { path: "/admin/submissions", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminLeads },
   { path: "/admin/submissions/:requestId", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminLeads },
   { path: "/admin/company-metrics", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminCompanyMetrics },
-  { path: "/admin/capturers", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminCapturers },
   { path: "/admin/robot-team-access", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminRobotTeamAccess },
   { path: "/admin/jobs", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminJobConsole },
 

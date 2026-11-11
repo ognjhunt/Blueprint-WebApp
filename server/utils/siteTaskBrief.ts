@@ -1003,7 +1003,12 @@ export type SelfCaptureSwitchResult =
  * The gates are re-scored by the same deterministic scorer under the new mode,
  * and whatever a screening call already settled stays settled.
  */
-export async function switchSiteToSelfCapture(requestId: string): Promise<SelfCaptureSwitchResult> {
+export async function switchSiteToSelfCapture(
+  requestId: string,
+  // Who made the switch: the site through its own link, or the retirement of filming visits
+  // (owner, 2026-11-11), which converts a stored visit job the first time its link is checked.
+  by: "site_owner_link" | "filming_visits_retired" = "site_owner_link",
+): Promise<SelfCaptureSwitchResult> {
   if (!db) throw new Error("Database not available");
   const store = db;
   const requestRef = store.collection("inboundRequests").doc(requestId);
@@ -1032,7 +1037,9 @@ export async function switchSiteToSelfCapture(requestId: string): Promise<SelfCa
       requestRef,
       {
         request: { capture_mode: "self_capture" },
-        capture_mode_switch: { from: "site_visit", to: "self_capture", by: "site_owner_link", at },
+        // `from` is what was stored: a visit, or nothing for a job from before the question.
+        capture_mode_switch: { from: typeof record.request?.capture_mode === "string" ? record.request.capture_mode : null,
+          to: "self_capture", by, at },
         site_task_triage: {
           disposition,
           blocking_field_ids: verdict.blockers.map((blocker) => blocker.fieldId),

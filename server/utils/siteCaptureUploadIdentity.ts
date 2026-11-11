@@ -1,7 +1,7 @@
 /**
  * The immutable upload identity of a capture-link bundle.
  *
- * Same shape and same validator as `POST /v1/creator/captures`
+ * Same shape and same validator as the retired `POST /v1/creator/captures`
  * (`captureUploadIdentity`): `sha256:`-prefixed bundle and marker digests, the
  * `gs://` manifest URI, and `verification_status:
  * pending_pipeline_storage_readback` until Pipeline reads the bytes back.

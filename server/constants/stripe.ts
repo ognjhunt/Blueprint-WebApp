@@ -2,7 +2,6 @@ import Stripe from "stripe";
 import { logger } from "../logger";
 
 const PLACEHOLDER_VALUES = new Set(["PLACEHOLDER", "DUMMY"]);
-const TRUE_VALUES = new Set(["1", "true", "yes", "y", "on"]);
 
 declare global {
   // Used for runtime diagnostics when critical third-party services are unavailable.
@@ -42,56 +41,5 @@ export const stripeClient =
 export const STRIPE_CURRENT_PROVIDER = "stripe" as const;
 export const STRIPE_API_VERSION = "2024-12-18.acacia" as const;
 
-export function isStripeLivePayoutExecutionEnabled() {
-  return TRUE_VALUES.has(
-    (process.env.BLUEPRINT_LIVE_PAYOUT_EXECUTION_ENABLED || "").trim().toLowerCase(),
-  );
-}
-
-export const STRIPE_LIVE_PAYOUT_EXECUTION_ENABLED = isStripeLivePayoutExecutionEnabled();
-
-export const STRIPE_CONNECT_ACCOUNT_ID = process.env.STRIPE_CONNECT_ACCOUNT_ID?.trim();
-export const stripeConnectAccountConfigured =
-  Boolean(STRIPE_CONNECT_ACCOUNT_ID) && !isPlaceholderValue(STRIPE_CONNECT_ACCOUNT_ID);
-
-export function getStripeConnectAccountId() {
-  return stripeConnectAccountConfigured && STRIPE_CONNECT_ACCOUNT_ID
-    ? STRIPE_CONNECT_ACCOUNT_ID
-    : null;
-}
-
-if (!stripeConnectAccountConfigured) {
-  const message =
-    "STRIPE_CONNECT_ACCOUNT_ID is not set or is a placeholder. Stripe Connect features will be unavailable.";
-  logger.warn(message);
-}
-
-const DEFAULT_BASE_URL =
-  process.env.STRIPE_PUBLIC_BASE_URL?.trim() ||
-  process.env.NEXT_PUBLIC_BASE_URL?.trim() ||
-  process.env.VITE_PUBLIC_APP_URL?.trim() ||
-  process.env.VITE_PUBLIC_URL?.trim() ||
-  process.env.BASE_URL?.trim() ||
-  "https://www.tryblueprint.io";
-
-function resolveOnboardingUrl(envValue: string | undefined, defaultPath: string) {
-  if (envValue?.trim()) {
-    return envValue.trim();
-  }
-
-  try {
-    return new URL(defaultPath, DEFAULT_BASE_URL).toString();
-  } catch {
-    return `https://www.tryblueprint.io${defaultPath}`;
-  }
-}
-
-export const STRIPE_ONBOARDING_REFRESH_URL = resolveOnboardingUrl(
-  process.env.STRIPE_ONBOARDING_REFRESH_URL,
-  "/stripe/onboarding/refresh",
-);
-
-export const STRIPE_ONBOARDING_RETURN_URL = resolveOnboardingUrl(
-  process.env.STRIPE_ONBOARDING_RETURN_URL,
-  "/stripe/onboarding/return",
-);
+// Capturer payout, Stripe Connect and Connect onboarding settings were retired
+// with capturer payouts (owner, 2026-11-11).

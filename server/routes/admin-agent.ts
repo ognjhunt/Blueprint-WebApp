@@ -1410,8 +1410,6 @@ router.get("/graduation", requireAdminRole, async (_req: Request, res: Response)
       evaluateGraduationStatus("waitlist"),
       evaluateGraduationStatus("inbound_qualification"),
       evaluateGraduationStatus("support_triage"),
-      evaluateGraduationStatus("payout_exception"),
-      evaluateGraduationStatus("capturer_reminders"),
       evaluateGraduationStatus("buyer_lifecycle"),
       evaluateGraduationStatus("growth_campaign"),
     ]);

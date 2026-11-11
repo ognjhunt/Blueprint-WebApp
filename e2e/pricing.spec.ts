@@ -22,7 +22,8 @@ test("terms make the beta free, with Blueprint running the evaluation and no Blu
   await expect(page.getByText(/There is no Blueprint fee, invoice or payment step/)).toBeVisible();
   await expect(page.getByText(/Blueprint charges no fee for and takes no percentage of any pilot or deployment/)).toBeVisible();
   await expect(page.getByText(/The beta has no paid private evaluations, balances, top-ups or checkout/)).toBeVisible();
-  await expect(page.getByRole("heading", { name: "4. In-person filming visits" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "4. Earlier filming visits" })).toBeVisible();
+  await expect(page.getByText(/ask Blueprint staff to film/)).toHaveCount(0);
   await expect(page.locator("article")).not.toContainText("$2,500");
   await expect(page.getByText(/invoices the site/)).toHaveCount(0);
   await expect(page.getByText(/authorized buyer for the site must separately agree in writing/)).toHaveCount(0);

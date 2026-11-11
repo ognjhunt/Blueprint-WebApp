@@ -92,8 +92,6 @@ export function getOpenClawConnectionMetadata() {
       post_signup_scheduling: process.env.OPENCLAW_POST_SIGNUP_MODEL?.trim() || null,
       operator_thread: process.env.OPENCLAW_OPERATOR_THREAD_MODEL?.trim() || null,
       support_triage: process.env.OPENCLAW_SUPPORT_TRIAGE_MODEL?.trim() || null,
-      payout_exception_triage:
-        process.env.OPENCLAW_PAYOUT_EXCEPTION_MODEL?.trim() || null,
       preview_diagnosis: process.env.OPENCLAW_PREVIEW_DIAGNOSIS_MODEL?.trim() || null,
       external_harness_thread:
         process.env.OPENCLAW_EXTERNAL_HARNESS_MODEL?.trim() || null,

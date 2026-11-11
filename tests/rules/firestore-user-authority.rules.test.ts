@@ -23,16 +23,27 @@ afterAll(async () => {
   await environment.cleanup();
 });
 describe("owner profile writes cannot grant paid execution authority", () => {
-  it("preserves capturer onboarding and ordinary profile edits", async () => {
+  it("preserves onboarding and ordinary profile edits", async () => {
     const ref = doc(
       environment.authenticatedContext("owner").firestore(),
       "users/owner",
     );
     await assertSucceeds(
-      setDoc(ref, { role: "capturer", roles: ["capturer"], name: "Name" }),
+      setDoc(ref, { role: "site_operator", roles: ["site_operator"], name: "Name" }),
     );
     await assertSucceeds(updateDoc(ref, { name: "Updated" }));
     await assertSucceeds(setDoc(ref, { role: "guest", roles: ["guest"] }));
+  });
+  it("refuses the retired capturer role but keeps a stored capturer profile editable", async () => {
+    const ref = doc(
+      environment.authenticatedContext("owner").firestore(),
+      "users/owner",
+    );
+    await assertFails(setDoc(ref, { role: "capturer", roles: ["capturer"], name: "Name" }));
+    await environment.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), "users/owner"), { role: "capturer", roles: ["capturer"], name: "Name" });
+    });
+    await assertSucceeds(updateDoc(ref, { name: "Updated" }));
   });
   it("denies privileged authority on create including normalization variants", async () => {
     const db = environment.authenticatedContext("owner").firestore();

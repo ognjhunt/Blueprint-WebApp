@@ -3,16 +3,9 @@ import { attachRequestMeta, logger } from "../logger";
 import { isAutomationLaneEnabled, isTruthyEnvValue } from "../config/env";
 import {
   runInboundQualificationLoop,
-  runPayoutExceptionTriageLoop,
   runPreviewDiagnosisLoop,
   runSupportTriageLoop,
-  runWaitlistAutomationLoop,
 } from "../agents";
-import {
-  flagOverdueFinanceReviews,
-  flagOverdueSiteAccessReviews,
-  runCapturerReminderLoop,
-} from "./field-ops-automation";
 import { maybeAlertOnWorkerStatusTransition } from "./ops-alerts";
 import { runSlaWatchdog } from "./sla-enforcement";
 import { runNotionBidirectionalSync } from "./notion-sync";
@@ -116,21 +109,6 @@ const workers: WorkerDefinition[] = [
     run: () => runOpsIncidentReconciliation(),
   },
   {
-    key: "waitlist",
-    enabledEnv: "BLUEPRINT_WAITLIST_AUTOMATION_ENABLED",
-    intervalEnv: "BLUEPRINT_WAITLIST_AUTOMATION_INTERVAL_MS",
-    batchEnv: "BLUEPRINT_WAITLIST_AUTOMATION_BATCH_SIZE",
-    startupDelayEnv: "BLUEPRINT_WAITLIST_AUTOMATION_STARTUP_DELAY_MS",
-    defaultIntervalMs: 5 * 60 * 1000,
-    defaultBatchSize: 10,
-    defaultStartupDelayMs: 15 * 1000,
-    run: ({ limit }) =>
-      runWaitlistAutomationLoop({
-        queue: "capturer_beta_review",
-        limit,
-      }),
-  },
-  {
     key: "inbound_qualification",
     enabledEnv: "BLUEPRINT_INBOUND_AUTOMATION_ENABLED",
     intervalEnv: "BLUEPRINT_INBOUND_AUTOMATION_INTERVAL_MS",
@@ -152,55 +130,18 @@ const workers: WorkerDefinition[] = [
     defaultStartupDelayMs: 25 * 1000,
     run: ({ limit }) => runSupportTriageLoop({ limit }),
   },
-  {
-    key: "payout_exception",
-    enabledEnv: "BLUEPRINT_PAYOUT_TRIAGE_ENABLED",
-    intervalEnv: "BLUEPRINT_PAYOUT_TRIAGE_INTERVAL_MS",
-    batchEnv: "BLUEPRINT_PAYOUT_TRIAGE_BATCH_SIZE",
-    startupDelayEnv: "BLUEPRINT_PAYOUT_TRIAGE_STARTUP_DELAY_MS",
-    defaultIntervalMs: 10 * 60 * 1000,
-    defaultBatchSize: 10,
-    defaultStartupDelayMs: 30 * 1000,
-    run: ({ limit }) => runPayoutExceptionTriageLoop({ limit }),
-  },
-  {
-    key: "capturer_reminders",
-    enabledEnv: "BLUEPRINT_CAPTURER_REMINDER_ENABLED",
-    intervalEnv: "BLUEPRINT_CAPTURER_REMINDER_INTERVAL_MS",
-    batchEnv: "BLUEPRINT_CAPTURER_REMINDER_BATCH_SIZE",
-    startupDelayEnv: "BLUEPRINT_CAPTURER_REMINDER_STARTUP_DELAY_MS",
-    defaultIntervalMs: 10 * 60 * 1000,
-    defaultBatchSize: 10,
-    defaultStartupDelayMs: 40 * 1000,
-    run: ({ limit }) => runCapturerReminderLoop({ limit }),
-  },
+  // The capturer lanes (waitlist triage of the `capturer_beta_review` queue and
+  // capturer_reminders) and the capturer payout_exception triage lane were
+  // retired with the capturer network (owner,
+  // 2026-11-11). BLUEPRINT_WAITLIST_AUTOMATION_* and
+  // BLUEPRINT_CAPTURER_REMINDER_* no longer start anything.
   // The growth lanes (buyer_lifecycle, lifecycle_cadence, experiment_rollout,
   // autonomous_research_outbound, creative_asset_factory) were retired with the
   // growth studio. Their BLUEPRINT_* flags no longer start anything.
-  {
-    key: "site_access_overdue_watchdog",
-    enabledEnv: "BLUEPRINT_SITE_ACCESS_OVERDUE_WATCHDOG_ENABLED",
-    intervalEnv: "BLUEPRINT_SITE_ACCESS_OVERDUE_WATCHDOG_INTERVAL_MS",
-    batchEnv: "BLUEPRINT_SITE_ACCESS_OVERDUE_WATCHDOG_BATCH_SIZE",
-    startupDelayEnv: "BLUEPRINT_SITE_ACCESS_OVERDUE_WATCHDOG_STARTUP_DELAY_MS",
-    defaultIntervalMs: 15 * 60 * 1000,
-    defaultBatchSize: 50,
-    maxBatchSize: 100,
-    defaultStartupDelayMs: 45 * 1000,
-    run: ({ limit }) => flagOverdueSiteAccessReviews({ limit }),
-  },
-  {
-    key: "finance_review_overdue_watchdog",
-    enabledEnv: "BLUEPRINT_FINANCE_REVIEW_OVERDUE_WATCHDOG_ENABLED",
-    intervalEnv: "BLUEPRINT_FINANCE_REVIEW_OVERDUE_WATCHDOG_INTERVAL_MS",
-    batchEnv: "BLUEPRINT_FINANCE_REVIEW_OVERDUE_WATCHDOG_BATCH_SIZE",
-    startupDelayEnv: "BLUEPRINT_FINANCE_REVIEW_OVERDUE_WATCHDOG_STARTUP_DELAY_MS",
-    defaultIntervalMs: 15 * 60 * 1000,
-    defaultBatchSize: 50,
-    maxBatchSize: 100,
-    defaultStartupDelayMs: 50 * 1000,
-    run: ({ limit }) => flagOverdueFinanceReviews({ limit }),
-  },
+  // The field-ops lanes (site_access_overdue_watchdog and
+  // finance_review_overdue_watchdog over capture visit jobs) were retired with
+  // Blueprint filming visits (owner, 2026-11-11). Their BLUEPRINT_* flags no
+  // longer start anything.
   {
     key: "preview_diagnosis",
     enabledEnv: "BLUEPRINT_PREVIEW_DIAGNOSIS_ENABLED",

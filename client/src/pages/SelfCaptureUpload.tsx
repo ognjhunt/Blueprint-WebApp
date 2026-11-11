@@ -230,40 +230,6 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
       setFreshLink("failed");
     }
   }
-  // A site set up for a visit can film it itself instead. Visits are booked by
-  // hand, so this is the path that does not wait on anyone.
-  const [switching, setSwitching] = useState<"idle" | "sending" | "failed">("idle");
-  async function filmItMyself() {
-    setSwitching("sending");
-    try {
-      // The link is the credential here, exactly as for the upload itself.
-      const response = await fetch(`/api/self-capture/uploads/${encodeURIComponent(token ?? "")}/self-capture`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: "{}",
-      });
-      const data = await response.json().catch(() => null);
-      if (!response.ok || !data?.ok) throw new Error("switch_failed");
-      setSwitching("idle");
-      setLink(data.state === "held"
-        ? {
-            status: "held",
-            detail: String(data.detail || "This capture cannot start yet."),
-            blockers: Array.isArray(data.blockers) ? data.blockers.map(String) : [],
-            openQuestions: Array.isArray(data.openQuestions) ? data.openQuestions.map(String) : [],
-            holdReason: typeof data.holdReason === "string" ? data.holdReason : null,
-            selfCaptureSwitch: data.selfCaptureSwitchAvailable === true,
-            recordingConsentAvailable: data.recordingConsentAvailable === true,
-          }
-        : {
-            status: "valid",
-            accepts: Array.isArray(data.accepts) ? data.accepts : ["mov", "mp4"],
-            expiresAt: String(data.expiresAt || ""),
-          });
-    } catch {
-      setSwitching("failed");
-    }
-  }
   // A confirmed brief can be reopened: emails tell a site that was not cleared
   // to update its answers when something changes, so the answers stay editable.
   const [editingBrief, setEditingBrief] = useState(false);
@@ -798,25 +764,6 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
               {consentError && <p role="alert">{consentError}</p>}
             </section>
           )}
-          {link.selfCaptureSwitch && (
-            <section aria-label="Film it yourself" style={{ marginBottom: "24px" }}>
-              <p style={{ marginBottom: "12px" }}>
-                You asked for someone to come and record the work area. Visits are booked by hand,
-                so they take longer. The quickest way to start is to film it yourself: about a
-                minute on any phone, with no account or booking.
-              </p>
-              <button type="button" className="ms-button" disabled={switching === "sending"} onClick={filmItMyself}>
-                {switching === "sending" ? "Switching…" : "I'll film it myself instead"}
-              </button>
-              {switching === "failed" && (
-                <p role="alert" style={{ marginTop: "8px" }}>That did not go through. Try again in a moment.</p>
-              )}
-              <p style={{ color: "var(--ms-muted)", marginTop: "12px" }}>
-                Would rather someone came? Visits cover the Austin metro for now and are booked by
-                email. Keep this link either way.
-              </p>
-            </section>
-          )}
           {link.holdReason === "site_account_required" && scope !== "owner" ? (
             <p style={{ color: "var(--ms-muted)", marginBottom: "24px" }}>
               The job's owner needs to save it to their Blueprint account before the video can be sent.
@@ -833,7 +780,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
                 <a className="ms-text-link" href={`${status.claimUrl}?mode=signin`}>Sign in to save this job</a>
               </section>}
             </div>
-          ) : link.holdReason !== "capturer_visit_scheduled" && (
+          ) : (
             <p style={{ color: "var(--ms-muted)", marginBottom: "24px" }}>{link.detail}</p>
           )}
 

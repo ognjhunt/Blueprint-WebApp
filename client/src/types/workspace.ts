@@ -63,15 +63,6 @@ export type AtlasPreviewView = {
   /** View-only, in the vendored SuperSplat viewer: a ready preview with a splat. */
   viewAvailable: boolean;
 };
-export type CaptureVisit = {
-  id: string;
-  status: string;
-  startsAt: string | null;
-  endsAt: string | null;
-  capturerName: string | null;
-  changeStatus: string | null;
-  canMessage: boolean;
-};
 export type WorkspaceTask = {
   siteAdvisory?: SiteAdvisory | null;
   recordingPermissionWithdrawn?: boolean;
@@ -101,7 +92,6 @@ export type WorkspaceTask = {
   /** The owner's development-only 3D preview of the recording, when one exists. */
   atlasPreview?: AtlasPreviewView | null;
   potentialMatches: number | null;
-  capture: CaptureVisit | null;
   results: WorkspaceResult[];
   pilot: {
     state: string;
@@ -167,5 +157,5 @@ export type WorkspaceAccountSetup = {
   siteIntakeRequired?: boolean;
   profile: { name: string; organization: string; email: string; updatePreferences?: UpdatePreferences | null };
   termsRequired: boolean;
-  access: { operations: boolean; capture: boolean };
+  access: { operations: boolean };
 };

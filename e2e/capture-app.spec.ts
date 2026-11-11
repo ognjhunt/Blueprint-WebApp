@@ -7,6 +7,7 @@ const retired = [
   "/capture",
   "/capture-app",
   "/capture-app/launch-access",
+  "/capture-app/account",
   "/launch-map",
   "/signup/capturer",
   "/earn",

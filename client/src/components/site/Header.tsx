@@ -73,26 +73,11 @@ export function Header() {
   }, [userData?.name, userData?.displayName]);
 
   const userPersona = useMemo(() => {
-    const roleData = userData as
-      | (NonNullable<typeof userData> & { role?: string; roles?: string[] })
-      | null;
-    const isCapturer =
-      roleData?.role === "capturer" || roleData?.roles?.includes("capturer") === true;
+    // The capturer network is retired (owner, 2026-11-11): an account that
+    // still carries the old capturer role is routed like everyone else.
     const requestHref = userData?.structuredIntakeRequestId
       ? `/requests/${encodeURIComponent(userData.structuredIntakeRequestId)}`
       : null;
-
-    if (isCapturer) {
-      return {
-        label: "Capture operator",
-        badge: "Capture",
-        workspaceHref: "/capture-app/account",
-        workspaceLabel: "Open capture account",
-        secondaryHref: "/capture",
-        secondaryLabel: "Get paid to capture",
-        requestHref,
-      };
-    }
 
     if (userData?.buyerType === "site_operator") {
       return {
@@ -118,17 +103,6 @@ export function Header() {
   }, [userData]);
 
   const headerCta = useMemo(() => {
-    if (
-      location === "/capture"
-      || location.startsWith("/capture-app")
-      || location.startsWith("/signup/capturer")
-    ) {
-      return {
-        href: "/capture-app/launch-access?role=capturer&source=header",
-        label: "Check capture access",
-      };
-    }
-
     if (location === "/contact/site-operator" || location === "/governance") {
       return {
         href: "/contact/site-operator",

@@ -5,6 +5,7 @@
 import { z } from "zod";
 import type { TaskOutcome } from "../../client/src/types/taskOutcome";
 import type { WebsiteAtlasPreview } from "./websiteAtlasPreview";
+import { websiteLargeVideoAsk } from "./websiteJobWindowEnding";
 
 const digest = z.string().regex(/^sha256:[a-f0-9]{64}$/);
 const carryPathRejected = z.object({ reason: z.literal("robot_carry_path_rejected"), category: z.literal("robot_incompatibility"),
@@ -146,12 +147,33 @@ export const RECAPTURE_TITLE = "We need a new video to build the simulation of y
 export const recaptureReasonOf = (preview: WebsiteAtlasPreview | null): RecaptureReason | null =>
   preview?.state === "needs_input" && isRecaptureReason(preview.reason) ? preview.reason : null;
 
-function recaptureNeeded(reason: RecaptureReason, evidenceDigest: string): TaskOutcome {
+function recaptureOutcome(sentences: { reason: string; nextStep: string }, evidenceDigest: string, label: string): TaskOutcome {
   return { category: "insufficient_evidence", basis: "missing_evidence", title: RECAPTURE_TITLE,
-    reason: RECAPTURE_SENTENCES[reason].reason,
+    reason: sentences.reason,
     scope: "This is for the simulation of your site only. It is not a finding about any robot or about your site, and your answer stays on your job page.",
-    nextStep: RECAPTURE_SENTENCES[reason].nextStep,
-    actionOwner: "site", evidence: [{ label: "Video coverage finding", digest: evidenceDigest }] };
+    nextStep: sentences.nextStep,
+    actionOwner: "site", evidence: [{ label, digest: evidenceDigest }] };
+}
+function recaptureNeeded(reason: RecaptureReason, evidenceDigest: string): TaskOutcome {
+  return recaptureOutcome(RECAPTURE_SENTENCES[reason], evidenceDigest, "Video coverage finding");
+}
+
+/**
+ * The new-video ask for a video too large to process (`websiteLargeVideoBlock.ts`): frame extraction
+ * refused it before reading it, so nothing in Blueprint started. Same title and card as every new-video
+ * ask; the site sends the new video into the same job. The limit is not named: it is set where the
+ * video is processed and is not known here.
+ */
+export const LARGE_VIDEO_RECAPTURE_SENTENCES = {
+  reason: "Your video is too large for us to process.",
+  nextStep: "Please film a shorter clip, or record at 1080p. Then send us the new video.",
+} as const;
+export const largeVideoRecaptureOutcome = (askDigest: string): TaskOutcome =>
+  recaptureOutcome(LARGE_VIDEO_RECAPTURE_SENTENCES, askDigest, "Video size check");
+/** The job page's new-video ask for its active capture's too-large video, or null when none is recorded for it. */
+export function largeVideoAskOutcome(record: Record<string, any> | undefined, requestId: string, captureId: string): TaskOutcome | null {
+  const ask = websiteLargeVideoAsk(record, requestId, captureId);
+  return ask ? largeVideoRecaptureOutcome(ask.ask_digest) : null;
 }
 const TASK_REASONS = new Set(["atlas_scene_subject_origin_uncertain", "atlas_scene_subject_origin_changed",
   "atlas_synthetic_subject_requires_preserved_capture"]);
@@ -224,8 +246,15 @@ export const JOB_NO_GRANT_SITE_ENDING_MESSAGE = "This job has ended because we d
   + "while it was open. To have Blueprint work on this site, you can start a new job.";
 export const JOB_NO_GRANT_BLUEPRINT_ENDING_MESSAGE = "The simulation of your site is held because Blueprint did not start it while "
   + `your job was open, so there is no simulation result. ${ANSWER_STAYS_ON_JOB_PAGE} ${PREPARATION_ENDED_NEXT}`;
-export const jobNoGrantEndingMessage = (waitingOn: "site" | "blueprint") =>
-  waitingOn === "site" ? JOB_NO_GRANT_SITE_ENDING_MESSAGE : JOB_NO_GRANT_BLUEPRINT_ENDING_MESSAGE;
+/**
+ * A no-grant job that was asked for a smaller video (`websiteLargeVideoBlock.ts`) and received none
+ * while it was open: the ending for a wait on the site, naming why.
+ */
+export const JOB_NO_GRANT_LARGE_VIDEO_ENDING_MESSAGE = "This job has ended because the video we received was too large "
+  + "for us to process, and no new video arrived while the job was open. To have Blueprint work on this site, you can start a new job.";
+export const jobNoGrantEndingMessage = (waitingOn: "site" | "blueprint", reason?: "video_over_ingest_limit") =>
+  reason === "video_over_ingest_limit" ? JOB_NO_GRANT_LARGE_VIDEO_ENDING_MESSAGE
+    : waitingOn === "site" ? JOB_NO_GRANT_SITE_ENDING_MESSAGE : JOB_NO_GRANT_BLUEPRINT_ENDING_MESSAGE;
 
 /**
  * A video that arrived before its job was saved to an account. Nothing sends a later email about it,

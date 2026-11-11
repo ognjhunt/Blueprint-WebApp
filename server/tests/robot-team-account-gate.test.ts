@@ -44,7 +44,6 @@ vi.mock("express-rate-limit", () => ({
 }));
 vi.mock("../constants/stripe", () => ({ stripeClient: null, stripeAvailable: false }));
 vi.mock("../routes/inbound-request", () => ({ submitInboundRequest: vi.fn() }));
-vi.mock("../utils/field-ops-automation", () => ({ sendCapturerCommunication: vi.fn() }));
 vi.mock("../logger", () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }));

@@ -4,7 +4,8 @@ import os from "node:os";
 import path from "node:path";
 
 /** Real application handlers and Firestore/Storage emulators. No providers or mail. */
-const cases = ["phone", "visit"].flatMap(method => ["Austin, TX", "Toronto, Canada"].flatMap(location =>
+// Blueprint filming visits are retired (2026-11-11), so only the phone path remains.
+const cases = ["phone"].flatMap(method => ["Austin, TX", "Toronto, Canada"].flatMap(location =>
   ["draft-reload", "lost-response", "saved-reload", "second-tab", "browser-restart"].map(boundary => ({ method, location, boundary }))));
 for (const [index, parameters] of cases.entries()) test(`A-J-${String(index + 1).padStart(3, "0")} ${JSON.stringify(parameters)}`, async ({}, testInfo) => {
   const profile = await mkdtemp(path.join(os.tmpdir(), "blueprint-reliability-browser-"));
@@ -84,7 +85,7 @@ for (const [index, parameters] of cases.entries()) test(`A-J-${String(index + 1)
       // same idempotent submission to fetch the link again.
       const returnButton = page.getByRole("button", { name: "Return to saved job", exact: true });
       const saved = page.getByRole("heading", { name: !parameters.location.startsWith("Austin") ? "We have your site."
-        : parameters.method === "visit" ? "We have it." : "Film the work area.", exact: true });
+        : "Film the work area.", exact: true });
       await expect(returnButton.or(saved)).toBeVisible();
       if (await returnButton.isVisible()) await returnButton.click();
       await expect(saved).toBeVisible();

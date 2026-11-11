@@ -12,12 +12,6 @@ import { listCityLaunchActivations, upsertCityLaunchProspect } from "../utils/ci
 import { slugifyCityName } from "../utils/cityLaunchProfiles";
 import { runWaitlistLeadSignalRouting } from "../utils/highIntentLeadEnrichment";
 import { createLifecycleCadenceForWaitlistSubmission } from "../utils/lifecycle-cadence";
-import {
-  betaDecisionForResponse,
-  evaluateBetaCohortGate,
-  recordBetaCohortAdmission,
-  type BetaCohortDecision,
-} from "../utils/beta-cohort-policy";
 
 function toFilterToken(value: string) {
   return value
@@ -51,7 +45,11 @@ export default async function waitlistHandler(req: Request, res: Response) {
   const normalizedRole = roleValue.toLowerCase();
   const normalizedDevice = deviceValue.toLowerCase();
   const normalizedMarket = marketValue.toLowerCase();
-  const roleIncludesCapturer = normalizedRole.includes("capturer");
+  // Capturer applications are closed (owner, 2026-11-11): no outside
+  // capturers. Answer before any validation, store read, write or email.
+  if (normalizedRole.includes("capturer")) {
+    return res.status(410).json({ error: "capturer_applications_closed" });
+  }
   const filterTags = [
     normalizedRole ? `role:${toFilterToken(normalizedRole)}` : null,
     normalizedDevice ? `device:${toFilterToken(normalizedDevice)}` : null,
@@ -92,29 +90,8 @@ export default async function waitlistHandler(req: Request, res: Response) {
     return res.status(cachedResponse.status).json(cachedResponse.body);
   }
 
-  let betaCohortDecision: BetaCohortDecision | null = null;
-  if (roleIncludesCapturer) {
-    betaCohortDecision = await evaluateBetaCohortGate({
-      gate: "waitlist",
-      email: emailValue,
-      market: marketValue || null,
-      siteType: locationTypeValue,
-      source: sourceValue || "capture_app_private_beta",
-    });
-    if (!betaCohortDecision.allowed) {
-      return res.status(betaCohortDecision.statusCode).json({
-        success: false,
-        error: betaCohortDecision.message,
-        beta_cohort_policy: betaDecisionForResponse(betaCohortDecision),
-      });
-    }
-  }
-
   const to = process.env.WAITLIST_TO ?? "ops@tryblueprint.io";
-  const subject =
-    roleIncludesCapturer
-      ? "New Blueprint Capture private beta request"
-      : "New on-site capture waitlist submission";
+  const subject = "New on-site capture waitlist submission";
   const text = [
     `Email: ${emailValue}`,
     `Location type: ${locationTypeValue}`,
@@ -149,31 +126,21 @@ export default async function waitlistHandler(req: Request, res: Response) {
       device: deviceValue || null,
       device_normalized: deviceValue ? normalizedDevice : null,
       phone: phoneValue || null,
-      source:
-        sourceValue
-        || (roleIncludesCapturer ? "capture_app_private_beta" : "website_waitlist"),
+      source: sourceValue || "website_waitlist",
       status: "new",
-      queue:
-        roleIncludesCapturer ? "capturer_beta_review" : "website_waitlist_review",
-      intent:
-        roleIncludesCapturer ? "capturer_beta_access" : "website_waitlist_access",
+      queue: "website_waitlist_review",
+      intent: "website_waitlist_access",
       filter_tags: filterTags,
       ops_automation: {
         status: "pending",
         version: "waitlist_v1",
-        next_action:
-          roleIncludesCapturer
-            ? "route_by_market_device_and_role"
-            : "manual_waitlist_review",
-        recommended_path:
-          roleIncludesCapturer ? "capturer_beta_workflow" : "website_waitlist_workflow",
-        eligible_for_ai_triage: roleIncludesCapturer,
+        next_action: "manual_waitlist_review",
+        recommended_path: "website_waitlist_workflow",
+        eligible_for_ai_triage: false,
         last_error: null,
         last_attempt_at: null,
       },
-      beta_cohort_policy: betaCohortDecision
-        ? betaDecisionForResponse(betaCohortDecision)
-        : null,
+      beta_cohort_policy: null,
       human_review_required: null,
       automation_confidence: null,
       idempotency_key: idempotencyKey,
@@ -182,25 +149,13 @@ export default async function waitlistHandler(req: Request, res: Response) {
     });
     persisted = true;
 
-    if (roleIncludesCapturer && betaCohortDecision) {
-      await recordBetaCohortAdmission({
-        gate: "waitlist",
-        admissionId: submissionId,
-        decision: betaCohortDecision,
-        email: emailValue,
-        market: marketValue || null,
-        siteType: locationTypeValue,
-        source: sourceValue || "capture_app_private_beta",
-      });
-    }
-
     createLifecycleCadenceForWaitlistSubmission({
       submissionId,
       email: emailValue,
       role: roleValue,
       company: companyValue,
       market: marketValue,
-      source: sourceValue || (roleIncludesCapturer ? "capture_app_private_beta" : "website_waitlist"),
+      source: sourceValue || "website_waitlist",
     }).catch(() => undefined);
   }
 
@@ -223,7 +178,7 @@ export default async function waitlistHandler(req: Request, res: Response) {
           city: matchedActivation.city,
           launchId: matchedActivation.rootIssueId,
           sourceBucket: "waitlist_intake",
-          channel: roleIncludesCapturer ? "capture_app_beta" : "website_waitlist",
+          channel: "website_waitlist",
           name: companyValue || emailValue.split("@")[0] || "Waitlist Applicant",
           email: emailValue,
           status: "identified",
@@ -236,7 +191,7 @@ export default async function waitlistHandler(req: Request, res: Response) {
           lat: null,
           lng: null,
           siteCategory: locationTypeValue || null,
-          workflowFit: roleIncludesCapturer ? "capturer_supply" : "unknown",
+          workflowFit: "unknown",
           priorityNote: null,
           researchProvenance: null,
         });
@@ -256,7 +211,7 @@ export default async function waitlistHandler(req: Request, res: Response) {
       device: deviceValue,
       company: companyValue,
       notes: notesValue,
-      source: sourceValue || (roleIncludesCapturer ? "capture_app_private_beta" : "website_waitlist"),
+      source: sourceValue || "website_waitlist",
     }).catch(() => undefined);
   }
 
@@ -267,9 +222,7 @@ export default async function waitlistHandler(req: Request, res: Response) {
     sent,
     persisted,
     submissionId,
-    beta_cohort_policy: betaCohortDecision
-      ? betaDecisionForResponse(betaCohortDecision)
-      : null,
+    beta_cohort_policy: null,
   };
 
   await storeIdempotencyResponse({

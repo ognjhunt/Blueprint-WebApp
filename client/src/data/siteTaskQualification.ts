@@ -133,29 +133,11 @@ export interface QualifyingField {
   blocks?: "capture" | "evaluation";
 }
 
-/**
- * The capture-mode question. Deliberately not in `gateFields`: it can never
- * block a submission, it selects which gates apply.
+/*
+ * The capture-mode question ("Who records the walkthrough?") is retired with
+ * Blueprint filming visits (owner, 2026-11-11): the site films its own job, so
+ * there is nothing to ask. `site_visit` stays a readable stored value below.
  */
-export const captureModeField = {
-  id: "captureMode",
-  question: "Who records the walkthrough?",
-  hint: "A phone video of the one work area is all the reconstruction needs.",
-  options: [
-    {
-      value: "self_capture" as const,
-      label: "We'll record it ourselves",
-      detail:
-        "You film the work area on any phone and upload it from a link. No account, no scheduling, and no restriction on where the site is.",
-    },
-    {
-      value: "site_visit" as const,
-      label: "Send someone to record it",
-      detail:
-        "Available in the Austin metro, because a person has to be there. Visits are booked by hand, so they take longer than filming it yourself.",
-    },
-  ],
-} as const;
 
 /**
  * The mode assumed when scoring a submission that carries no answer.
@@ -176,9 +158,8 @@ export const defaultCaptureMode: CaptureMode = "site_visit";
  * The opposite of the scoring fallback, and for the opposite reason. Recording
  * their own workcell is the path that needs no scheduling, no account and no
  * service area, so it is the one that should be in front of somebody by
- * default. Asking for a visit stays available and is one click away; it is just
- * no longer the front door, because making it the front door is what limited
- * the product to one metro.
+ * default. Since 2026-11-11 it is the only capture mode offered: Blueprint
+ * filming visits are retired.
  */
 export const preferredCaptureMode: CaptureMode = "self_capture";
 

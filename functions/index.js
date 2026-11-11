@@ -2,10 +2,10 @@
  * Blueprint Cloud Functions
  *
  * Forwards Firestore lifecycle events to the Paperclip ops webhook so the
- * autonomous org can react to waitlist signups, inbound requests, completed
- * captures, mobile capture state, field ops, and payout exceptions in real time.
+ * autonomous org can react to waitlist signups, inbound requests and completed
+ * captures in real time.
  */
-import { onDocumentCreated, onDocumentWritten } from "firebase-functions/v2/firestore";
+import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import { defineString, defineSecret } from "firebase-functions/params";
 
 const paperclipWebhookUrl = defineString("PAPERCLIP_OPS_FIRESTORE_WEBHOOK_URL", {
@@ -73,32 +73,9 @@ export const onCaptureCompleted = onDocumentCreated(
   (event) => forwardToPaperclip(event, "scenes", "capture.completed"),
 );
 
-export const onCaptureSubmissionWritten = onDocumentWritten(
-  { document: "capture_submissions/{docId}", region: "us-central1", secrets: [paperclipRelaySecret] },
-  (event) => forwardToPaperclip(event, "capture_submissions", "mobile.capture_submission_written"),
-);
-
-export const onSessionEventWritten = onDocumentWritten(
-  { document: "sessionEvents/{docId}", region: "us-central1", secrets: [paperclipRelaySecret] },
-  (event) => forwardToPaperclip(event, "sessionEvents", "mobile.session_event_written"),
-);
-
-export const onCreatorProfileWritten = onDocumentWritten(
-  { document: "creatorProfiles/{docId}", region: "us-central1", secrets: [paperclipRelaySecret] },
-  (event) => forwardToPaperclip(event, "creatorProfiles", "mobile.creator_profile_written"),
-);
-
-export const onCaptureJobWritten = onDocumentWritten(
-  { document: "capture_jobs/{docId}", region: "us-central1", secrets: [paperclipRelaySecret] },
-  (event) => forwardToPaperclip(event, "capture_jobs", "mobile.capture_job_written"),
-);
-
-export const onCreatorPayoutWritten = onDocumentWritten(
-  { document: "creatorPayouts/{docId}", region: "us-central1", secrets: [paperclipRelaySecret] },
-  (event) => forwardToPaperclip(event, "creatorPayouts", "mobile.creator_payout_written"),
-);
-
-export const onCreatorCaptureWritten = onDocumentWritten(
-  { document: "creatorCaptures/{docId}", region: "us-central1", secrets: [paperclipRelaySecret] },
-  (event) => forwardToPaperclip(event, "creatorCaptures", "mobile.creator_capture_written"),
-);
+// The six capture-app ("mobile.*") forwards, for capture_submissions,
+// sessionEvents, creatorProfiles, capture_jobs, creatorPayouts and
+// creatorCaptures, were retired with the capture app, outside capturers,
+// capturer payouts and filming visits (owner, 2026-11-11). Deployed copies keep
+// running until they are deleted with the Firebase CLI; deploying this file
+// asks to delete them.

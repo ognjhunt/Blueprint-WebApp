@@ -66,7 +66,7 @@ export interface CaptureUploadAuthorization {
   blockers: string[];
   /** Marginal answers a form could not settle — the agenda for a call. */
   openQuestions: string[];
-  /** What the site chose at intake, when known; a visit can be switched to self-capture. */
+  /** What the site chose at intake, when known (a stored `site_visit` stays readable). */
   captureMode?: string | null;
   /** Only an owner of a new prose-only job may make its first recording grant. */
   recordingConsentAvailable?: boolean;
@@ -127,6 +127,25 @@ export async function authorizeCaptureUpload(
     return held("request_missing", "This link does not point at a submission we hold.");
   }
 
+  // Filming visits are retired (owner, 2026-11-11). A stored site job that asked for one, or that
+  // predates the question, is converted the way the site's own "I'll film it myself" switch always
+  // did: the request and brief become self-capture and the gates are re-scored under that mode.
+  // Offering the upload link alone is not enough: a recording under a stored visit is refused later
+  // (`observeWebsiteCaptureOwner` requires self-capture), and visit-only blockers would stay in its triage.
+  if (request.request?.buyerType === "site_operator" && request.request?.capture_mode !== "self_capture") {
+    try {
+      const { switchSiteToSelfCapture } = await import("./siteTaskBrief");
+      await switchSiteToSelfCapture(requestId, "filming_visits_retired");
+      const converted = await db.collection("inboundRequests").doc(requestId).get();
+      request = converted.exists ? (converted.data() as InboundRequest) : request;
+    } catch {
+      return held(
+        "store_unavailable",
+        "We cannot check this link right now. Keep your original video and try again shortly.",
+      );
+    }
+  }
+
   if (!hasCurrentRecordingConsent(request.request?.consent_attestation)) {
     return { ...held("recording_consent_required", "The site owner must confirm the current recording permission before uploading.", request),
       recordingConsentAvailable: canGrantInitialRecordingConsent(request) };
@@ -149,16 +168,8 @@ export async function authorizeCaptureUpload(
     return held(decision.holdReason, decision.detail, request);
   }
 
-  // A site that was told to expect a capturer must not be able to upload its
-  // own footage through the same link: the two produce different manifests and
-  // different costs, and the channel was decided once already.
-  if (decision.channel !== "self_capture_upload") {
-    return held(
-      "capturer_visit_scheduled",
-      "This site is set up for a capturer visit rather than a self-recorded walkthrough.",
-      request,
-    );
-  }
+  // Blueprint filming visits are retired (2026-11-11), so a job that once
+  // asked for a visit is uploaded to through this same link like any other.
 
   const sourceOwner = websiteCaptureOwnerUid(request);
   if (typeof sourceOwner !== "string" || !sourceOwner) {
