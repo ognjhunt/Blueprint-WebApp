@@ -219,6 +219,8 @@ export interface TaskPreparationStatus {
  */
 export interface TaskSceneProgression {
   state: "in_progress" | "waiting" | "ended" | "completed" | "testing" | "evaluated" | "held";
+  /** One build attempt failed and the Pipeline keeps trying: a wait, never an ending (review, 2026-11-11). */
+  attemptFailed?: true;
   heldReason?: ScreeningHeldOutcome;
   progressOutcome?: Extract<ScreeningOutcome, "awaiting_spend_approval" | "setup_repair" | "superseded">;
   /** `evaluated` only: what the estimate's sentence adds (`screeningOutcomeCaveat`), as the run's summary and email say it. */
@@ -253,7 +255,8 @@ export function resultOutranksWindowEnding(input: { screening?: SceneScreening |
   const scene = input.sceneProgression;
   // A test under way outranks the window's end too (review, 2026-11-11): the window's end stops the run through its
   // authority, and the run's own terminal record then tells the site.
-  return scene?.state === "evaluated" || scene?.state === "testing" || scene?.state === "held" && !scene.sceneOutcome;
+  return scene?.state === "evaluated" || scene?.state === "testing" && !scene.progressOutcome
+    || scene?.state === "held" && !scene.sceneOutcome;
 }
 
 /** One sentence per reason the Pipeline can give; an unknown reason adds nothing. */

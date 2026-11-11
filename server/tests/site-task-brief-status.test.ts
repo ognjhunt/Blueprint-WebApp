@@ -265,12 +265,17 @@ describe("GET /api/site-task-brief/:token/status", () => {
     sharedFakeFirestoreState.docs.set("captureUploadSessions/cap-1", { website_preparation: { selector: {} } });
     sharedFakeFirestoreState.docs.set("taskEvaluationSceneIntakes/scene-1", { website_request_id: "req-1",
       source_session_id: "cap-1", state: "accepted", created_at_iso: "2026-10-10T00:00:00.000Z",
-      pipeline_status: { status: "blocked", phase: "scene_configuration_failed", blockers: ["PRIVATE_detail"] } });
+      pipeline_status: { status: "blocked", phase: "policy_canary_blocked", blockers: ["PRIVATE_detail"] } });
     preparation.read.mockResolvedValueOnce({ state: "handed_off", correlationId: "bp-prep-1234567890abcdef" } as never);
     const { body } = await status();
     expect(body.status.decision).toBe("processing_failure");
     expect(body.status.outcome.actionOwner).toBe("blueprint");
     expect(JSON.stringify(body)).not.toContain("PRIVATE_detail");
+    // Rewritten (review, 2026-11-11): a failed scene configuration is one attempt the Pipeline retries, not a stop.
+    sharedFakeFirestoreState.docs.set("taskEvaluationSceneIntakes/scene-1", { ...sharedFakeFirestoreState.docs.get("taskEvaluationSceneIntakes/scene-1"),
+      pipeline_status: { status: "blocked", phase: "scene_configuration_failed", blockers: ["PRIVATE_detail"] } });
+    preparation.read.mockResolvedValueOnce({ state: "handed_off", correlationId: "bp-prep-1234567890abcdef" } as never);
+    expect((await status()).body.status.decision).not.toBe("processing_failure");
   });
   it.each(['other_candidate', 'confirm_guess'] as const)("PREP-UI-007 retires the rejected guess and permits same-job %s without requiring recording", async recoveryKind => {
     const selector = { request_id: "req-1", scene_id: "site-req-1", capture_id: "cap-1", completion_marker_generation: "17",

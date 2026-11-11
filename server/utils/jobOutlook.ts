@@ -39,8 +39,9 @@ export interface JobOutlookInput {
   keptOnFile?: boolean;
   /** The Pipeline's preparation status, as verified. */
   preparation: { state: string; geometryOnlyEnd: boolean } | null;
-  /** The scene's progression after hand-off. */
-  scene: { state: string } | null;
+  /** The scene's progression after hand-off; `waiting` when its test waits on an outcome (approval, a re-plan);
+   * `attemptFailed` when a build attempt failed and another is coming. */
+  scene: { state: string; waiting?: boolean; attemptFailed?: boolean } | null;
   /** The job's simulation proof (`projectSimulationProof`), or null when there is no evaluation to read. */
   proof: SimulationProof | null;
   /** Something the decision needs could not be read. An unknown is never an ending, and never hides a recorded one. */
@@ -85,7 +86,7 @@ export function jobOutlook(input: JobOutlookInput): JobOutlook {
     const testing = proof?.state === "running" || (proof?.state === "preparing" && proof.options.entered > 0)
       || input.scene?.state === "testing" || input.scene?.state === "evaluated" || proof?.state === "done";
     return testing ? outlook("testing")
-      : outlook("building", input.preparation?.state === "failed_retryable" ? "step_failed" : null);
+      : outlook("building", input.preparation?.state === "failed_retryable" || input.scene?.attemptFailed ? "step_failed" : null);
   };
   // Ordered by where each fact lives (review, 2026-11-11): the facts recorded on the website's side first (above, the
   // site's own endings; then a published scored result; then every recorded ending). A read that failed elsewhere
@@ -100,7 +101,7 @@ export function jobOutlook(input: JobOutlookInput): JobOutlook {
 
 /** A run queued with its plan or running, or a scene that reports a test under way. */
 const liveRun = (input: JobOutlookInput) => input.proof?.state === "running"
-  || (input.proof?.state === "preparing" && input.proof.options.entered > 0) || input.scene?.state === "testing";
+  || (input.proof?.state === "preparing" && input.proof.options.entered > 0) || (input.scene?.state === "testing" && !input.scene.waiting);
 
 /**
  * The job's recorded ending, or null, whatever the answer's state: each test is a positive record, and nothing
@@ -185,7 +186,8 @@ export async function loadJobOutlookDecision(requestId: string):
       const { loadWebsiteSceneProgression } = await import("./websiteSceneProgression");
       const progression = await loadWebsiteSceneProgression(requestId, captureId).then(value => ({ value }))
         .catch(() => { uncertain = true; return { value: null }; });
-      scene = progression.value ? { state: progression.value.state } : null;
+      scene = progression.value ? { state: progression.value.state, waiting: Boolean(progression.value.progressOutcome),
+        attemptFailed: progression.value.attemptFailed === true } : null;
     }
   }
   let proof: SimulationProof | null = null;

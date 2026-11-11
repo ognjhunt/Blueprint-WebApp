@@ -714,11 +714,17 @@ describe("the site's answer is emailed once, when it first settles", () => {
     expect(outbox()).toEqual(["captureOutbox/req-1:answer_ready"]);
     const notice = { kind: "answer_ready" as const, requestId: "req-1", idempotencyKey: "req-1:answer_ready" };
     expect(await taskLifecycleNotificationIsCurrent(notice)).toBe(true);
-    // A transient failure at dispatch is unknown: the check throws (the row stays queued), it never cancels.
+    // A failed read elsewhere never hides the recorded ending (review, 2026-11-11): still current.
     const evidence = await import("../utils/siteManagedEvidence");
     const failing = vi.spyOn(evidence, "readSiteManagedEvidence").mockRejectedValueOnce(new Error("unavailable"));
-    await expect(taskLifecycleNotificationIsCurrent(notice)).rejects.toThrow();
+    expect(await taskLifecycleNotificationIsCurrent(notice)).toBe(true);
     failing.mockRestore();
+    // A transient failure of the job's own read is unknown: the check throws (the row stays queued), it never cancels,
+    // and the next pass sends it.
+    const outlookModule = await import("../utils/jobOutlook");
+    const down = vi.spyOn(outlookModule, "loadJobOutlookDecision").mockRejectedValueOnce(new Error("unavailable"));
+    await expect(taskLifecycleNotificationIsCurrent(notice)).rejects.toThrow();
+    down.mockRestore();
     expect(await taskLifecycleNotificationIsCurrent(notice)).toBe(true);
     // A recorded fact cancels it: the site described the job and the video now reads as a job to test.
     composedAnswer.current = answer();
@@ -968,23 +974,102 @@ describe("one answer email for every way a job ends", () => {
     expect(outbox()[0][1].body).toContain("We could not finish reading your video, so there is no paper check for this job.");
   });
 
-  it("lets only one of two paper emails out when two dispatchers run at once", async () => {
-    const { deliverOutbox, enqueueOutbox } = await import("../utils/captureOutbox");
-    composedAnswer.current = { schemaVersion: "site_answer.v1", state: "cannot_assess", headline: "We can't check robots against this job yet.",
-      pick: null, reason: "The video did not show the job clearly enough for us to size it." } as never;
-    await enqueueOutbox({ idempotencyKey: "req-1:answer_ready", requestId: "req-1", to: "owner@example.com", kind: "answer_ready",
-      subject: "Paper one", body: "One" });
-    await enqueueOutbox({ idempotencyKey: "req-1:brief-screening:task-not-yet-supported", requestId: "req-1", to: "owner@example.com",
-      kind: "screening_not_now", subject: "Paper two", body: "Two" });
-    // Two passes interleaved, as two instances of the pump would run them; a send takes a while, so one row is still
-    // `dispatching` when the other pass checks its own.
+  // Rewritten (review, 2026-11-11) with two real paper answers: the no-grant ending's email and a held evaluation's.
+  // The fake serializes transactions, so it cannot interleave two of them; the test therefore also asserts on the
+  // dispatch transaction's own reads: the one that decides the second row read the first row's state itself.
+  it("lets only one of two paper answers out when two dispatchers run at once, deciding inside the dispatch transaction", async () => {
+    const { deliverOutbox } = await import("../utils/captureOutbox");
+    const { sharedFakeFirestore } = await import("./helpers/fake-firestore");
+    const { sealWebsiteJobNoGrantEnding, WEBSITE_JOB_NO_GRANT_ENDING_FIELD } = await import("../utils/websiteJobWindowEnding");
+    const outcomes = await import("../utils/screeningOutcomeNotifications");
+    const shown = vi.spyOn(outcomes, "evaluationOutcomeShown").mockResolvedValue(true);
+    const noGrant = "req-1:scene_outcome:job_no_grant_ended";
+    const held = `req-1:evaluation_outcome:held_capability-${"a".repeat(24)}`;
+    sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { ...sharedFakeFirestoreState.docs.get("inboundRequests/req-1"),
+      [WEBSITE_JOB_NO_GRANT_ENDING_FIELD]: sealWebsiteJobNoGrantEnding({ request_id: "req-1", waiting_on: "blueprint",
+        waiting_since_epoch: 1_700_000_000, ended_at_epoch: 1_700_100_000, recorded_at_iso: "2026-11-11T00:00:00.000Z", notice: "queued" }) });
+    const row = (key: string, kind: string) => ({ idempotencyKey: key, requestId: "req-1", kind, to: "owner@example.com", subject: kind,
+      body: kind, replyTo: null, status: "pending", attempts: 0, createdAtIso: "2026-11-11T00:00:00.000Z", sentAtIso: null, lastError: null });
+    sharedFakeFirestoreState.docs.set(`captureOutbox/${noGrant}`, row(noGrant, "scene_outcome"));
+    sharedFakeFirestoreState.docs.set(`captureOutbox/${held}`, row(held, "evaluation_outcome"));
+    // Every transaction's reads (documents, and the ids a query returned) and the statuses it wrote.
+    const log: Array<{ reads: string[]; writes: string[] }> = [];
+    const original = sharedFakeFirestore.runTransaction;
+    (sharedFakeFirestore as any).runTransaction = (fn: (tx: any) => Promise<unknown>) => original(async (tx: any) => {
+      const entry = { reads: [] as string[], writes: [] as string[] };
+      log.push(entry);
+      return fn({ ...tx,
+        get: async (ref: any) => { const value = await tx.get(ref);
+          if (ref.__collection) entry.reads.push(`${ref.__collection}/${ref.id}`);
+          else for (const doc of value.docs ?? []) entry.reads.push(`query:${doc.id}:${doc.data()?.status}`);
+          return value; },
+        set: (ref: any, payload: any, options: any) => { if (payload?.status) entry.writes.push(`${ref.id}:${payload.status}`); return tx.set(ref, payload, options); } });
+    });
     send.mockImplementation(async () => { await new Promise(resolve => setTimeout(resolve, 30));
       return { sent: true, provider: "resend", messageId: "accepted" }; });
-    await Promise.all([deliverOutbox({ limit: 5 }), deliverOutbox({ limit: 5 })]);
+    try {
+      await Promise.all([deliverOutbox({ limit: 5 }), deliverOutbox({ limit: 5 })]);
+    } finally { (sharedFakeFirestore as any).runTransaction = original; shown.mockRestore(); }
     expect(send).toHaveBeenCalledTimes(1);
-    const statuses = ["req-1:answer_ready", "req-1:brief-screening:task-not-yet-supported"]
-      .map(key => (sharedFakeFirestoreState.docs.get(`captureOutbox/${key}`) as { status: string }).status).sort();
-    expect(statuses).toEqual(["cancelled", "sent"]);
+    const status = (key: string) => (sharedFakeFirestoreState.docs.get(`captureOutbox/${key}`) as { status: string }).status;
+    expect([status(noGrant), status(held)]).toEqual(["sent", "cancelled"]);
+    // The transaction that cancelled the second row is the one that read the first as dispatching.
+    const decided = log.find(entry => entry.writes.includes(`${held}:cancelled`))!;
+    expect(decided.reads).toContain(`query:${noGrant}:dispatching`);
+  });
+
+  // Review, 2026-11-11: the start form's "can't simulate this kind of job yet" email is a notice, not an answer.
+  it("never lets the start form's notice fill an answer slot; it only stops a kept-on-file answer repeating it", async () => {
+    const { answerSlotTaken, keptOnFileAlreadyTold } = await import("../utils/taskLifecycleNotificationAuthority");
+    const notice = [{ kind: "screening_not_now" as const, idempotencyKey: "req-1:brief-screening:task-not-yet-supported", status: "sent" }];
+    for (const [kind, key] of [["scene_outcome", "req-1:scene_outcome:job_window_ended"], ["preparation_ended", "req-1:preparation_ended:sha256:x"],
+      ["evaluation_outcome", "req-1:evaluation_outcome:held_setup-abc"], ["answer_ready", "req-1:answer_ready"],
+      ["evaluation_outcome", "req-1:evaluation_outcome:estimate-abc"]] as const)
+      expect(answerSlotTaken(notice, kind, key), key).toBe(false);
+    expect(await keptOnFileAlreadyTold("req-1")).toBe(false);
+    sharedFakeFirestoreState.docs.set("captureOutbox/req-1:brief-screening:task-not-yet-supported", { ...notice[0], requestId: "req-1" });
+    expect(await keptOnFileAlreadyTold("req-1")).toBe(true);
+  });
+
+  it("queues every owed answer email from the pump, oldest first, by the recorder's key, and keeps one written meanwhile", async () => {
+    const { reconcileWaitingAnswerNotices, waitingAnswerNoticeFields, READING_WAIT_LIMIT_MS } = await import("../utils/taskLifecycleNotifications");
+    const outbox = () => [...sharedFakeFirestoreState.docs.keys()].filter(key => key.startsWith("captureOutbox/"));
+    // A recorder wrote the owed entry beside its ending, then crashed before queueing: the pump queues it.
+    composedAnswer.current = { schemaVersion: "site_answer.v1", state: "cannot_assess", headline: "We can't check robots against this job yet.",
+      pick: null, reason: "The video did not show the job clearly enough for us to size it." };
+    const job = () => sharedFakeFirestoreState.docs.get("inboundRequests/req-1") as Record<string, any>;
+    sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { ...job(),
+      ...waitingAnswerNoticeFields({ requestId: "req-1", milestone: "answer_ready" }, new Date().toISOString(), job()) });
+    await reconcileWaitingAnswerNotices();
+    expect(outbox()).toEqual(["captureOutbox/req-1:answer_ready"]);
+    expect(job().answer_notices_waiting_since_ms).toBe(0);
+    // While the video is being read it stays owed; past the reading's limit it goes, saying there is no paper check.
+    sharedFakeFirestoreState.docs.delete("captureOutbox/req-1:answer_ready");
+    composedAnswer.current = { state: "reading" };
+    const outlookModule = await import("../utils/jobOutlook");
+    const ending = { phase: "no_test", reason: "run_ended", sentence: "The simulation test stopped before it gave a result." } as const;
+    const decided = vi.spyOn(outlookModule, "loadJobOutlookDecision").mockResolvedValue({
+      outlook: { phase: "reading", reason: null, sentence: null }, certain: true, ending });
+    try {
+      const old = new Date(Date.now() - READING_WAIT_LIMIT_MS - 1000).toISOString();
+      sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { ...job(),
+        ...waitingAnswerNoticeFields({ requestId: "req-1", milestone: "answer_ready" }, new Date().toISOString(), job()) });
+      await reconcileWaitingAnswerNotices();
+      expect(outbox()).toEqual([]);
+      const [slot] = Object.keys(job().answer_notices_waiting);
+      job().answer_notices_waiting[slot].since_iso = old;
+      await reconcileWaitingAnswerNotices();
+      expect(outbox()).toEqual(["captureOutbox/req-1:answer_ready"]);
+      expect((sharedFakeFirestoreState.docs.get("captureOutbox/req-1:answer_ready") as any).body)
+        .toContain("The simulation test stopped before it gave a result. We could not finish reading your video, so there is no paper check for this job.");
+    } finally { decided.mockRestore(); }
+    // Oldest first: the pump reads jobs in the order their oldest owed email started.
+    for (const [id, ago] of [["req-new", 1_000], ["req-old", 5_000_000]] as const)
+      sharedFakeFirestoreState.docs.set(`inboundRequests/${id}`, { answer_notices_waiting_since_ms: Date.now() - ago, answer_notices_waiting: {} });
+    const { dbAdmin } = await import("../../client/src/lib/firebaseAdmin");
+    const order = (await dbAdmin!.collection("inboundRequests").where("answer_notices_waiting_since_ms", ">", 0)
+      .orderBy("answer_notices_waiting_since_ms").get()).docs.map(doc => doc.id);
+    expect(order).toEqual(["req-old", "req-new"]);
   });
 
   it("cancels the kept can't-simulate-yet email at dispatch after the site withdrew or closed its run", async () => {

@@ -1,3 +1,4 @@
+import { waitingAnswerNoticeFields } from "./answerNoticeOwed";
 import { TERMINAL_RUN_STATES } from "../../client/src/lib/simulationProof";
 import { logger } from "../logger";
 import { createHash } from "node:crypto";
@@ -257,7 +258,6 @@ export async function ingestBetaPolicyScreening(publication: BetaPolicyScreening
       ? restated : null;
     // A run recorded as ended with no result outcome is an ending: its answer email is owed from this same write.
     if (TERMINAL_RUN_STATES.has(String(publication.status)) && !screeningOutcome(publication) && !closed) {
-      const { waitingAnswerNoticeFields } = await import("./taskLifecycleNotifications");
       transaction.set(store.collection("inboundRequests").doc(jobId),
         waitingAnswerNoticeFields({ requestId: jobId, milestone: "answer_ready" }, now, job.data()) as never, { merge: true });
     }

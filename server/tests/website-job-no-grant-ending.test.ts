@@ -172,7 +172,6 @@ describe("a job the no-grant clock must leave alone", () => {
     ["closed by its owner", "owner_closed", () => seedJob({ website_run_closures: closure() })],
     ["told its preparation ended for good", "outcome_told", () => { recording.received = true; seedJob();
       docs.set("captureUploadSessions/walkthrough-job-one", { website_preparation: { status: { state: "failed_terminal", terminal_reason: "retry_exhausted" } } }); }],
-    ["kept on file until Blueprint can evaluate its kind", "kept_on_file", () => seedJob({ site_task_scope: { supported: false, reason: "door_opening" } })],
     ["with a grant (the window sweep's)", "has_grant", () => { const { job: granted } = screeningFixture();
       docs.set(JOB, { ...granted, requestId: "job-one", contact: { email: "encrypted:owner@example.com" } }); }],
     ["that is not a website job: no task brief", "not_a_job", () => seedJob({}, "job-one", false)],
@@ -187,6 +186,18 @@ describe("a job the no-grant clock must leave alone", () => {
     const after = new Map([...docs.entries()].filter(([key]) => !key.startsWith("automationCursors/")));
     expect(after).toEqual(before);
     expect(outbox()).toHaveLength(0);
+  });
+
+  // Review, 2026-11-11: kept on file is a recorded ending. The sweep starts no clock and records no no-grant ending for
+  // it, but it owes the job its answer email, durably on the job, queued once the answer can be read.
+  it("starts no clock for a job kept on file, and owes it its answer email", async () => {
+    seedJob({ site_task_scope: { supported: false, reason: "door_opening" } });
+    expect(await sweepWebsiteJobNoGrant("job-one", at(0))).toBe("kept_on_file");
+    await sweepAt(WINDOW * 3);
+    expect(job()).not.toHaveProperty("website_job_no_grant_clock");
+    expect(job()).not.toHaveProperty("website_job_no_grant_ending");
+    expect(Object.values(job().answer_notices_waiting).map((entry: any) => entry.params)).toEqual([{ requestId: "job-one", milestone: "answer_ready" }]);
+    expect(job().answer_notices_waiting_since_ms).toBeGreaterThan(0);
   });
 
   it("leaves an already-ended job untouched", async () => {

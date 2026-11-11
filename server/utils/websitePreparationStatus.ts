@@ -1,3 +1,4 @@
+import { waitingAnswerNoticeFields } from "./answerNoticeOwed";
 import { websiteCaptureOwnerUid } from "./websiteCaptureOwner";
 /** Current-source preparation status; never a native assessment or preview verdict. */
 import { z } from "zod";
@@ -403,7 +404,6 @@ const defaultDeps: WebsitePreparationDeps = {
       // this same write, so nothing after the commit can lose it.
       if (status.state === "authority_ended" || (status.state === "awaiting_inputs" && "robot_fit" in status
         && status.robot_fit?.route === "geometry_only")) {
-        const { waitingAnswerNoticeFields } = await import("./taskLifecycleNotifications");
         tx.set(store.collection("inboundRequests").doc(selector.request_id),
           waitingAnswerNoticeFields({ requestId: selector.request_id, milestone: "answer_ready" }, new Date().toISOString(), request) as never,
           {merge: true});

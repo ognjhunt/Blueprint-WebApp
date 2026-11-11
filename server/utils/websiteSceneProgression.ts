@@ -37,7 +37,11 @@ import { adoptedSceneOutcome, sceneOutcomeReading } from "./sceneIntentOutcome";
 // raised it (`scene_progression_`, `scene_intake_`); older records carry the
 // bare code. A spent attempt or spend cap waits on the owner's money approval
 // and is never an ending.
-const ENDED_PHASES = new Set(["scene_configuration_failed", "policy_canary_blocked", "policy_canary_preprovider_blocked", "authority"]);
+// A failed scene configuration is one paid build attempt, which the Pipeline retries and can still succeed after
+// (review, 2026-11-11: on one job 17 of 19 attempts failed before one succeeded). It is never an ending here; the
+// scene has ended only when the Pipeline's own record says the build is final (the intent outcome, above).
+const ENDED_PHASES = new Set(["policy_canary_blocked", "policy_canary_preprovider_blocked", "authority"]);
+const RETRIED_PHASES = new Set(["scene_configuration_failed"]);
 const EXHAUSTED_ALLOWANCES = ["retry_cap_exhausted", "submission_retry_cap_exhausted",
   "preallocation_capacity_recovery_cap_exhausted", "market_miss_recovery_cap_exhausted"];
 const ENDED_BLOCKERS = new Set([
@@ -90,8 +94,9 @@ export function projectWebsiteSceneProgression(record: Record<string, any> | nul
   const status = record?.pipeline_status;
   if (status?.status === "blocked") {
     const blockers: unknown[] = Array.isArray(status.blockers) ? status.blockers : [];
-    return ENDED_PHASES.has(status.phase) || (blockers.length > 0 && blockers.every(code =>
-      typeof code === "string" && ENDED_BLOCKERS.has(code))) ? { state: "ended" } : { state: "waiting" };
+    if (ENDED_PHASES.has(status.phase) || (blockers.length > 0 && blockers.every(code =>
+      typeof code === "string" && ENDED_BLOCKERS.has(code)))) return { state: "ended" };
+    return RETRIED_PHASES.has(status.phase) ? { state: "waiting", attemptFailed: true } : { state: "waiting" };
   }
   if (status?.status === "needs_input" || state === "forward_blocked") return { state: "waiting" };
   return { state: TESTED_PHASES.has(phase) ? "testing" : "in_progress" };

@@ -569,7 +569,8 @@ it("v2 status preserves source proof and null owner on an expired prep-only gran
 });
 it("v2 status requires a real current prep grant rather than purpose alone, never a finished assessment",async()=>{
   // The fixture's assessment is still queued and its grant carries no proposal.
-  await syncWebsitePreparationStatus(purposeStatusFixture().selected);expect(runtime.txWrites).toBe(1);
+  // Two writes: the status, and the answer email the ended authority owes the job, in the same transaction (review, 2026-11-11).
+  await syncWebsitePreparationStatus(purposeStatusFixture().selected);expect(runtime.txWrites).toBe(2);
   for(const mutate of [()=>{runtime.records.get("inboundRequests/r1").website_scene_sponsorship.authority_digest=`sha256:${"0".repeat(64)}`;},
     ()=>{runtime.records.get("inboundRequests/r1").request.consent_attestation.revoked_at_iso="2026-10-28T00:00:00Z";}]) {
     const f=purposeStatusFixture();mutate();await expect(syncWebsitePreparationStatus(f.selected)).rejects.toThrow();expect(runtime.txWrites).toBe(0);

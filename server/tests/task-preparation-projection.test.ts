@@ -275,6 +275,28 @@ describe("the Pipeline's one outcome for the job's scene (C-04)", () => {
   const project = (sceneProgression: unknown, extra: Record<string, unknown> = {}) =>
     projectTaskStatus({ ...handedOff, ...extra, sceneProgression } as never);
 
+  // Review, 2026-11-11 (a real job: 17 of 19 build attempts failed before one succeeded): a failed scene configuration
+  // is one attempt the Pipeline retries, never an ending; only the intent's own final outcome ends the scene.
+  it("reads a failed build attempt as a wait the Pipeline retries, and only the final intent outcome as the ending", async () => {
+    const { jobOutlook } = await import("../utils/jobOutlook");
+    const READY = { state: "ready" as const, unsized: false, reason: null };
+    const outlookOf = (scene: Record<string, any> | null) => jobOutlook({ consentRevoked: false, closedByOwner: false, answer: READY,
+      windowEnded: false, noGrantEnded: false, preparation: { state: "handed_off", geometryOnlyEnd: false },
+      scene: scene ? { state: scene.state, attemptFailed: scene.attemptFailed === true, waiting: Boolean(scene.progressOutcome) } : null, proof: null });
+    const failed = projectWebsiteSceneProgression({ state: "accepted",
+      pipeline_status: { status: "blocked", phase: "scene_configuration_failed", blockers: ["scene_configuration_failed"] } });
+    expect(failed).toEqual({ state: "waiting", attemptFailed: true });
+    expect(outlookOf(failed)).toEqual({ phase: "building", reason: "step_failed", sentence: "A step failed and we're working on it. We'll email you the result." });
+    // The next attempt succeeds: still never an ending.
+    const built = projectWebsiteSceneProgression({ state: "accepted", pipeline_status: { status: "running", phase: "configuration" } });
+    expect(outlookOf(built).phase).toBe("building");
+    // The Pipeline's own final outcome after failed attempts: the ending, with its one email (the C-04 scene outcome).
+    const final = projectWebsiteSceneProgression({ state: "blocked", pipeline_status: { status: "blocked", phase: "scene_configuration_failed",
+      blockers: ["scene_configuration_failed"], outcome: sealed("setup_repair", true, "retry_cap_exhausted") } });
+    expect(final?.state).toBe("ended");
+    expect(outlookOf(final)).toMatchObject({ phase: "no_test", reason: "scene_stopped" });
+  });
+
   it.each([
     ["held", "task_family_unsupported", "The simulation can't model this kind of task yet. It counts as demand for what we build next. Your answer stays on your job page. Nothing is needed from you."],
     ["withdrawn", "consent_expired", "Permission to use this video for your job was withdrawn or has expired. You don't need to do anything; this job has stopped."],

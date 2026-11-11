@@ -366,7 +366,7 @@ export async function releaseWaitingAnswerNotices(requestId: string): Promise<vo
     if (!entry?.params || entry.params.requestId !== requestId) { done.set(slot, String(entry?.since_iso)); continue; }
     try {
       const result = entry.params.milestone === "answer_ready" ? await notifyIfAnswerSettled(requestId, entry.since_iso)
-        : await enqueueTaskLifecycleNotification(entry.params);
+        : await enqueueTaskLifecycleNotification(entry.params as never);
       if (result.reason !== "awaiting_reading") done.set(slot, entry.since_iso);
     } catch (error) { logger.warn({ error, requestId }, "An owed answer email stays owed for the next pass"); }
   }
