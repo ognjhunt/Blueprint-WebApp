@@ -24,7 +24,7 @@ const { createCaptureUploadToken } = await import("../utils/captureUploadToken")
 // so the outlook is a test result unless a test sets another phase.
 const outlookPhase = vi.hoisted(() => ({ value: "result" as string }));
 vi.mock("../utils/jobOutlook", async importOriginal => ({ ...await importOriginal<typeof import("../utils/jobOutlook")>(),
-  loadJobOutlook: vi.fn(async () => ({ phase: outlookPhase.value, reason: null, sentence: null })) }));
+  loadJobOutlookDecision: vi.fn(async () => ({ outlook: { phase: outlookPhase.value, reason: null, sentence: null }, certain: true })) }));
 const router = (await import("../routes/task-listings")).default;
 const publicRouter = (await import("../routes/site-worlds")).default;
 const thumbnail = () => PNG.sync.write({ width: 24, height: 15, data: Buffer.alloc(24 * 15 * 4, 160) }).toString("base64");

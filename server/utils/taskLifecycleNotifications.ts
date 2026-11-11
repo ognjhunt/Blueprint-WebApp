@@ -297,7 +297,7 @@ export async function enqueueTaskLifecycleNotification(params: {
     && params.simulationProof === undefined ? await loadSimulationProof(requestId) : params.simulationProof;
   // An estimate whose results cannot be read yet: whether it scored an AI robot (a result) or none (an ending) is
   // unknown, so nothing is queued; its producer keeps the intent and asks again.
-  if (params.milestone === "evaluation_outcome" && params.screeningOutcome === "estimate" && !simulationProof)
+  if (params.milestone === "evaluation_outcome" && params.screeningOutcome === "estimate" && simulationProof?.state !== "done")
     return { enqueued: false, reason: "awaiting_reading" };
   const scoredNone = params.milestone === "evaluation_outcome" && params.screeningOutcome === "estimate" && !proofScoredAnyRobot(simulationProof);
   // With no test result to come, the paper check is the answer: read it for the email that says so. While the video
@@ -594,7 +594,10 @@ function evaluationOutcomeDetail(params: { eventId?: string; screeningOutcome?: 
   }
   // No test result (a hold, another stop, or a finished test that scored no AI robot): why, then the paper check as
   // the answer. Only a hold can still be followed by a test result, so only its email says one would be emailed.
-  const why = outcome === "estimate" ? OUTLOOK_SENTENCES.no_ai_robot_scored
+  const why = outcome === "estimate"
+    ? [testNotRunLine(params.simulationProof) ?? OUTLOOK_SENTENCES.no_ai_robot_scored,
+      params.simulationProof?.options.setupFlag || storedScreeningOutcomeCaveat(params.screeningCaveat) ? PLAIN_SETUP_CAVEAT : null]
+      .filter(Boolean).join(" ")
     : testNotRunLine(params.simulationProof) ?? simulationOutcomeEmailSentence(outcome);
   const paper = paperLine(params.siteAnswer, { hold: isScreeningHeldOutcome(outcome), unread: params.paperUnread });
   return paperAnswerLine(params.siteAnswer) ? `${why} ${paper}\n\n${finePrint(LIMITS_PAPER)}`

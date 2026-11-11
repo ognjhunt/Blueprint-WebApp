@@ -253,7 +253,8 @@ describe("a waiting job hears what it is waiting on", () => {
       eventId: event, screeningOutcome: "no_match", captureUrl: "https://example.invalid/capture-upload/private-owner-link" });
     expect(notice.idempotencyKey).toBe(`req-1:evaluation_outcome:${event}`);
     expect(notice.subject).toBe("An update on the simulation of your job");
-    expect(notice.body.startsWith(`${simulationOutcomeEmailSentence("no_match")} Nothing is needed from you.`)).toBe(true);
+    // With no paper check given, it says plainly that there is none (review, 2026-11-11).
+    expect(notice.body.startsWith(`${simulationOutcomeEmailSentence("no_match")} There is no paper check for this job. Nothing is needed from you.`)).toBe(true);
     expect(notice.body.startsWith("None of the robots the simulation can run matched this task.")).toBe(true);
     // No email offers an introduction: a person at Blueprint makes it, from the job page's own request.
     expect(notice.body).not.toMatch(/introduction|\bheld\b/i);
@@ -401,17 +402,22 @@ describe("a finished simulation's email says what the job page's simulation resu
     expect(notice.body).not.toMatch(/did best|was ahead|has a result|proof|deployment company/i);
   });
 
-  it("says only that the simulation finished when the job's results could not be read, and what a stored caveat shows", async () => {
-    const unread = await build(null);
-    expect(unread.subject).toBe("The simulation test of your job has finished");
-    expect(unread.body.startsWith("The simulation test of your job has finished. Your job page shows how each AI robot did. Nothing is needed from you.")).toBe(true);
+  // Rewritten (review, 2026-11-11): whether an estimate scored an AI robot decides its slot, so an estimate whose
+  // results cannot be read is never queued (it waits); built directly with none, it is an ending with no paper check.
+  it("never queues an estimate whose results cannot be read, and builds one with none as an ending", async () => {
+    sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { contact: { email: "encrypted:owner@example.com" } });
+    expect(await enqueueTaskLifecycleNotification({ requestId: "req-1", milestone: "evaluation_outcome",
+      eventId: `estimate-${"a".repeat(24)}`, screeningOutcome: "estimate", screeningCounts: { ran: 2, total: 36, scored: 6 },
+      simulationProof: null })).toEqual({ enqueued: false, reason: "awaiting_reading" });
+    expect([...sharedFakeFirestoreState.docs.keys()].filter(key => key.startsWith("captureOutbox/"))).toEqual([]);
     const { buildTaskLifecycleNotification } = await import("../utils/taskLifecycleNotifications");
     const flagged = buildTaskLifecycleNotification({ requestId: "req-1", to: "owner@example.com", milestone: "evaluation_outcome",
       eventId: `estimate-${"a".repeat(24)}`, screeningOutcome: "estimate", screeningCounts: { ran: 2, total: 36, scored: 6 },
       screeningCaveat: "scene_setup", simulationProof: null, captureUrl: "https://example.invalid/capture-upload/x" });
-    expect(flagged.body.startsWith("No AI robot finished your job. "
-      + "This result may come from how we set up the simulation of your site, not from the robots. Nothing is needed from you.")).toBe(true);
-    for (const notice of [unread, flagged]) expect(notice.body).not.toMatch(banned);
+    expect(flagged).toMatchObject({ answerSlot: "paper" });
+    expect(flagged.body.startsWith("The simulation test finished, but no AI robot could be scored in it. "
+      + "This result may come from how we set up the simulation of your site, not from the robots. There is no paper check for this job.")).toBe(true);
+    expect(flagged.body).not.toMatch(banned);
   });
 });
 
@@ -423,7 +429,8 @@ describe("a job the window sweep ended is told under its own fixed key", () => {
       eventId: "job_window_ended", jobWindowEnded: true, captureUrl: "https://example.invalid/private-owner-link" });
     expect(notice).toMatchObject({ idempotencyKey: "req-1:scene_outcome:job_window_ended", kind: "scene_outcome",
       subject: "The simulation of your site has stopped", replyTo: "hello@tryblueprint.io" });
-    expect(notice.body).toBe(`${JOB_WINDOW_ENDING_MESSAGE}\n\nOpen your job on your private job page:\n`
+    // With no paper check given, it says so plainly; a final ending never says a test result may follow.
+    expect(notice.body).toBe(`${JOB_WINDOW_ENDING_MESSAGE} There is no paper check for this job.\n\nOpen your job on your private job page:\n`
       + "https://example.invalid/private-owner-link");
     const claimed = buildTaskLifecycleNotification({ requestId: "req-1", to: "owner@example.com", milestone: "scene_outcome",
       eventId: "job_window_ended", jobWindowEnded: true, captureUrl: "https://example.invalid/private-owner-link",
@@ -485,7 +492,8 @@ describe("a website job's scene outcome is emailed once (C-04)", () => {
     expect(rows().map(([path]) => path)).toEqual([`captureOutbox/req-1:scene_outcome:${kind}-${outcome.outcome_digest.slice(7)}`]);
     const row = rows()[0][1];
     expect(row).toMatchObject({ status: "sent", kind: "scene_outcome", to: "owner@example.com", subject });
-    expect(row.body.startsWith(`${sceneOutcomeMessage(kind)}\n\nOpen your job on your private job page:\n`)).toBe(true);
+    // An ending with no paper check says so plainly; the site's own withdrawal says nothing about an answer.
+    expect(row.body.startsWith(`${sceneOutcomeMessage(kind)}${kind === "withdrawn" ? "" : " There is no paper check for this job."}\n\nOpen your job on your private job page:\n`)).toBe(true);
     expect(sceneOutcomeMessage(kind).endsWith(closing)).toBe(true);
     expect(row.body).toMatch(/\/capture-upload\//);
     // Before the link: no code, no money and nothing Blueprint does next.

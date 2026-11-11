@@ -131,18 +131,21 @@ describe("GET /api/site-task-brief/:token/status", () => {
     const { sceneScreenGateEndedMarker } = await import("../utils/sceneScreenGate");
     const answers = await import("../utils/siteAnswer");
     const spy = vi.spyOn(answers, "loadSiteAnswer").mockResolvedValue({ schemaVersion: "site_answer.v1", state: "ready", reason: null } as never);
-    const record = sharedFakeFirestoreState.docs.get("inboundRequests/req-1")!;
-    sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { ...record, site_task_triage: { disposition } });
-    const older = (await status()).body;
-    expect(older.status.decision).toBe(disposition === "not_now" ? "not_now" : "call_needed");
-    if (disposition === "not_now") expect(older.outlook).toMatchObject({ phase: "no_test", reason: "no_grant" });
-    sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { ...record, site_task_triage: { disposition },
-      scene_screen_gate_ended: sceneScreenGateEndedMarker("req-1", "2026-11-11T12:00:00.000Z") });
-    const marked = (await status()).body;
-    expect(marked.status.decision).not.toMatch(/^(not_now|call_needed)$/);
-    expect(marked.status.headline).not.toMatch(/aren't building|operating details/i);
-    expect(marked.outlook).toEqual({ phase: "building", reason: null, sentence: null });
-    spy.mockRestore();
+    try {
+      const record = sharedFakeFirestoreState.docs.get("inboundRequests/req-1")!;
+      sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { ...record, site_task_triage: { disposition } });
+      const older = (await status()).body;
+      expect(older.status.decision).toBe(disposition === "not_now" ? "not_now" : "call_needed");
+      // Rewritten (review, 2026-11-11): the screen's refusal is not a recorded ending, so even an older job is still
+      // being worked on until its no-grant wait ends.
+      expect(older.outlook).toEqual({ phase: "building", reason: null, sentence: null });
+      sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { ...record, site_task_triage: { disposition },
+        scene_screen_gate_ended: sceneScreenGateEndedMarker("req-1", "2026-11-11T12:00:00.000Z") });
+      const marked = (await status()).body;
+      expect(marked.status.decision).not.toMatch(/^(not_now|call_needed)$/);
+      expect(marked.status.headline).not.toMatch(/aren't building|operating details/i);
+      expect(marked.outlook).toEqual({ phase: "building", reason: null, sentence: null });
+    } finally { spy.mockRestore(); }
   });
 
   it("closes an owner's run idempotently without confirming the brief or withdrawing the video", async () => {
@@ -186,6 +189,8 @@ describe("GET /api/site-task-brief/:token/status", () => {
   it("PREP-UI-001 shows verified preparation failure through the customer handler", async () => {
     const answer = await withReadAnswer();
     sharedFakeFirestoreState.docs.set("captureUploadSessions/cap-1", { website_preparation: { selector: {} } });
+    // The shared outlook loader reads the job's own walkthrough capture.
+    sharedFakeFirestoreState.docs.set("captureUploadSessions/walkthrough-req-1", { website_preparation: { selector: {} } });
     const before = structuredClone([...sharedFakeFirestoreState.docs]);
     const { code, body } = await status();
     expect(code).toBe(200);
@@ -923,12 +928,14 @@ describe("GET /api/site-task-brief/:token/status", () => {
     const record = sharedFakeFirestoreState.docs.get("inboundRequests/req-1")!;
     record.walkthrough_job_estimates = { job_estimates: { pick_to_place_m: 1, object_mass_kg_low: 3 } };
     const answers = await import("../utils/siteAnswer");
-    const spy = vi.spyOn(answers, "loadSiteAnswer").mockRejectedValueOnce(new Error("boom"));
+    const spy = vi.spyOn(answers, "loadSiteAnswer").mockRejectedValue(new Error("boom"));
     const { code, body } = await status(owner);
     expect(code).toBe(200);
     expect(body.answer).toBeNull();
     expect(body.status).toBeTruthy();
-    expect(spy).toHaveBeenCalledTimes(1);
+    // The page's answer and the shared outlook loader each read it (rewritten from one read: the status route now uses
+    // the same loader as every other caller).
+    expect(spy).toHaveBeenCalled();
     spy.mockRestore();
     expect((await status(owner)).body.answer).toMatchObject({ schemaVersion: "site_answer.v1" });
   });

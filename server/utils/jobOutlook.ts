@@ -93,7 +93,7 @@ export function jobOutlook(input: JobOutlookInput): JobOutlook {
 function recordedEnding(input: JobOutlookInput,
   outlook: (phase: JobPhase, reason?: JobOutlookReason | null, sentence?: string | null) => JobOutlook): JobOutlook | null {
   const { proof, answer } = input;
-  if (proof?.state === "done") return outlook("no_test", "no_ai_robot_scored");
+  if (proof?.state === "done") return outlook("no_test", "no_ai_robot_scored", testNotRunLine(proof) ?? undefined);
   if (proof?.state === "could_not_run") return outlook("no_test", proof.headline === RUN_ENDED_WITHOUT_RESULT ? "run_ended" : "run_held", testNotRunLine(proof));
   if (input.scene?.state === "held") return outlook("no_test", "scene_held");
   if (input.scene?.state === "ended") return outlook("no_test", "scene_stopped");

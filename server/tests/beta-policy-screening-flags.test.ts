@@ -199,10 +199,12 @@ describe("what the site reads", () => {
     // No policy completed the job: the email says what the job page's answer screen says, never an estimate, with
     // the set-up notice in the page's plain words; the scene notes themselves are on the page's ranked list
     // (rewritten in round 4 from the same-robot comparison sentence and its notes).
-    expect(notice).toMatchObject({ status: "sent", subject: "The simulation test of your job has finished", to: "owner@example.com" });
-    expect(notice.body.startsWith(`${NOT_COMPARED} ${PLAIN_SETUP} Nothing is needed from you.`)).toBe(true);
+    // Rewritten (review, 2026-11-11): a finished test that scored no AI robot is an ending, so its email is a paper
+    // answer: why, the set-up notice, and, with no paper check for this job, a plain line saying so.
+    expect(notice).toMatchObject({ status: "sent", subject: "An update on the simulation of your job", to: "owner@example.com", answerSlot: "paper" });
+    expect(notice.body.startsWith(`${NOT_COMPARED} ${PLAIN_SETUP} There is no paper check for this job. Nothing is needed from you.`)).toBe(true);
     expect(notice.body).not.toMatch(/estimate|episodes|candidates|introduc|pilot/i);
-    expect(notice.body).toMatch(/Tested in a simulation, not at your site\. .+ It does not certify performance or safety\./);
+    expect(notice.body).toMatch(/never certifies physical performance or safety/);
     expect(notice.body.slice(0, notice.body.indexOf("on your private job page"))).not.toMatch(/[a-z]_[a-z]|sha256|\bflag/i);
 
     // The job page's headline says the same sentence.
@@ -249,7 +251,7 @@ describe("what the site reads", () => {
     await deliverOutbox();
     expect(send).toHaveBeenCalledTimes(1);
     const delivered = (state.docs.get(key) as Record<string, string>).body;
-    expect(delivered.startsWith(`${NOT_COMPARED} Nothing is needed from you.`)).toBe(true);
+    expect(delivered.startsWith(`${NOT_COMPARED} There is no paper check for this job. Nothing is needed from you.`)).toBe(true);
     await ingestBetaPolicyScreening(rebound(pipelineV3, { revision: pipelineV3.revision + 1 }));
     expect(run()).toMatchObject({ screening_outcome_caveat: "scene_setup", outcome_notification_pending: false });
     expect(run().outcome_notification_intent.caveat).toBeUndefined();
@@ -275,7 +277,7 @@ describe("what the site reads", () => {
     expect(page.screening!.setupNotes).toBeUndefined();
     await deliverOutbox();
     const notice = state.docs.get(`captureOutbox/job-one:evaluation_outcome:estimate-${scene}`) as Record<string, string>;
-    expect(notice.body.startsWith(`${NOT_COMPARED} Nothing is needed from you.`)).toBe(true);
+    expect(notice.body.startsWith(`${NOT_COMPARED} There is no paper check for this job. Nothing is needed from you.`)).toBe(true);
     expect(notice.body).not.toMatch(/scene check|set-up|set up/i);
     const progression = projectWebsiteSceneProgression({ state: "completed" },
       sceneScreeningResult(sceneScreening([{ id: "campaign-one", run: run() }], run().team_namespace)));

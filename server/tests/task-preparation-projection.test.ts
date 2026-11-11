@@ -289,7 +289,9 @@ describe("the Pipeline's one outcome for the job's scene (C-04)", () => {
     for (const scenePreviewReady of [false, true]) {
       const status = project(progression(kind, true, reasonCode), { scenePreviewReady });
       expect(status.headline).toBe(sentence);
-      expect(notice.body.startsWith(`${status.headline}\n\n`)).toBe(true);
+      // The email adds one line the page does not: with no paper check read for it, it says so plainly (review, 2026-11-11).
+      // A withdrawal is the site's own ending and says nothing about an answer.
+      expect(notice.body.startsWith(kind === "withdrawn" ? `${status.headline}\n\n` : `${status.headline} There is no paper check for this job.\n\n`)).toBe(true);
       expect(status.decision).toBe(kind === "held" ? "assessing" : "footage_received");
       expect(status.operatorAction).toBeNull();
       // No processing-failure card under a withdrawal or a stop it does not describe.

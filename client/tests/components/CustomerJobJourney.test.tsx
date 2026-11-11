@@ -37,8 +37,9 @@ vi.mock("../../../server/utils/siteAssessmentPublic", async original => {
 const outlookOverride = vi.hoisted(() => ({ phase: null as null | string }));
 vi.mock("../../../server/utils/jobOutlook", async original => {
   const module = await original<typeof import("../../../server/utils/jobOutlook")>();
-  return { ...module, loadJobOutlook: vi.fn(async (requestId: string) => outlookOverride.phase
-    ? { phase: outlookOverride.phase, reason: "no_grant", sentence: "We have not built a simulation for this job." } : module.loadJobOutlook(requestId)) };
+  return { ...module, loadJobOutlookDecision: vi.fn(async (requestId: string) => outlookOverride.phase
+    ? { outlook: { phase: outlookOverride.phase, reason: "no_grant", sentence: "We have not built a simulation for this job." }, certain: true }
+    : module.loadJobOutlookDecision(requestId)) };
 });
 const briefRouter = (await import("../../../server/routes/site-task-brief")).default;
 const listingRouter = (await import("../../../server/routes/task-listings")).default;

@@ -120,7 +120,8 @@ describe.each([
       subject: waitingOn === "site" ? "Your Blueprint job has ended" : "The simulation of your site has stopped",
       idempotencyKey: "job-one:scene_outcome:job_no_grant_ended" });
     const body: string = outbox()[0][1].body;
-    expect(body.startsWith(`${message}\n\nOpen your job on your private job page:\nhttps://`)).toBe(true);
+    // With no paper check for the job, the email says so plainly after the ending (review, 2026-11-11).
+    expect(body.startsWith(`${message} There is no paper check for this job.\n\nOpen your job on your private job page:\nhttps://`)).toBe(true);
     expect(body).not.toMatch(/we will|we'll|our team|review|follow up|email you/i);
 
     // The job page says the same sentence, the way a window ending shows.

@@ -178,7 +178,8 @@ describe("a job whose video was too large to process", () => {
     expect(job().website_job_no_grant_ending).toMatchObject({ waiting_on: "site", reason: "video_over_ingest_limit", notice: "queued" });
     expect(await page()).toMatchObject({ decision: "ended", headline: JOB_NO_GRANT_LARGE_VIDEO_ENDING_MESSAGE });
     const ending = outbox().find(([key]) => key === `captureOutbox/${websiteJobNoGrantEndedNoticeKey("job-one")}`)!;
-    expect(ending[1].body.startsWith(`${JOB_NO_GRANT_LARGE_VIDEO_ENDING_MESSAGE}\n\n`)).toBe(true);
+    // With no paper check for the job, the email says so plainly after the ending (review, 2026-11-11).
+    expect(ending[1].body.startsWith(`${JOB_NO_GRANT_LARGE_VIDEO_ENDING_MESSAGE} There is no paper check for this job.\n\n`)).toBe(true);
   });
 
   it("keeps the ordinary path when the marker is absent or does not read", async () => {
