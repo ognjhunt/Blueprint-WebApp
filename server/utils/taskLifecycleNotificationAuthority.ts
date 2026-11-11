@@ -36,8 +36,9 @@ export function answerSlotOf(kind: OutboxKind, idempotencyKey: string | undefine
  }
  if(kind==='answer_ready'||kind==='preparation_ended')return 'paper';
  if(kind==='scene_outcome')return /:withdrawn-/.test(key)?null:'paper';
- // The "we can't simulate this kind of job yet" email and the other-kind answer share the paper slot.
- if(kind==='screening_not_now'&&key.endsWith(':brief-screening:task-not-yet-supported'))return 'paper';
+ // The start form's "we can't simulate this kind of job yet" email is a notice, not an answer: it sits outside both
+ // slots and blocks nothing (review, 2026-11-11). Its one effect is that a kept-on-file answer for the same reason is
+ // not sent again (`keptOnFileAlreadyTold`).
  return null;
 }
 type SlotRow={kind: OutboxKind; idempotencyKey: string; status: string; answerSlot?: unknown};
@@ -73,6 +74,16 @@ async function endedBySite(requestId:string,transaction?:FirebaseFirestore.Trans
  const [{websiteRunClosure},{siteWalkthroughIdentity}]=await Promise.all([import('./websiteRunClosure'),import('./siteWalkthrough')]);
  return Boolean(websiteRunClosure(record,requestId,siteWalkthroughIdentity(requestId,record).captureId));
 }
+/**
+ * The start form's "we can't simulate this kind of job yet" notice went out (or may have): a kept-on-file answer for
+ * the same job, given for the same reason, would repeat it, so it is skipped. Never any other answer.
+ */
+export async function keptOnFileAlreadyTold(requestId:string,transaction?:FirebaseFirestore.Transaction):Promise<boolean>{
+ if(!db)throw new Error('capture_notification_authority_unavailable');
+ const ref=db.collection('captureOutbox').doc(`${requestId}:brief-screening:task-not-yet-supported`);
+ const row=(transaction?await transaction.get(ref):await ref.get()).data();
+ return Boolean(row&&OUTBOX_WENT_OUT.has(String(row.status)));
+}
 /** Call inside the dispatch transaction before recording an external side effect.
  * Intake receipts, fresh-link renewal and separate business notices keep their
  * existing authority checks; this grants no deletion/cancellation claim.
@@ -92,6 +103,8 @@ export async function taskLifecycleNotificationIsCurrent(
  if(entry.kind==='pilot_request'||entry.kind==='brief_confirmed'||entry.kind==='input_needed')return false;
  if(entry.kind==='screening_not_now'
   &&entry.idempotencyKey!==`${entry.requestId}:brief-screening:task-not-yet-supported`)return false;
+ // That kept notice is still the site's to hear only while the job is the site's: not after it withdrew or closed it.
+ if(entry.kind==='screening_not_now'&&entry.idempotencyKey!==undefined&&await endedBySite(entry.requestId,transaction))return false;
  // The answer slots: at most one paper-check answer and one test result per job, never a paper check after a result,
  // and none once the site closed its own run.
  // Checked once the row exists (its key names the email); queueing without a key is decided at dispatch.

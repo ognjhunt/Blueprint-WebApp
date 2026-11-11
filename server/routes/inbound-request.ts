@@ -1,4 +1,5 @@
 import { newWebsiteCaptureOwnerBinding } from "../utils/websiteCaptureOwner";
+import { SCENE_SCREEN_GATE_ENDED_FIELD, sceneScreenGateEndedMarker } from "../utils/sceneScreenGate";
 import { anonymizedOpportunityDraft } from "../../client/src/types/taskBrowse";
 import { taskListingSchema, listingConsentVersion } from "../utils/taskListingDetails";
 import { newJobFanoutIntent } from "../utils/newJobAlerts";
@@ -1756,6 +1757,11 @@ export async function submitInboundRequest(req: Request, res: Response) {
       requestId: payload.requestId,
       ...(res.locals.workspaceIntake || {}),
       ...(ownerBinding ?? {}),
+      // The four-conditions screen gates nothing for a job created after the
+      // owner's decision of 2026-11-11: marked in the job's first write, by the
+      // server only, before qualification runs. Never part of a digest.
+      ...(buyerType === "site_operator" ? { [SCENE_SCREEN_GATE_ENDED_FIELD]:
+        sceneScreenGateEndedMarker(payload.requestId, submittedAtIso, "job_created") } : {}),
       intake_retry_token_hash: intakeRetryTokenHash(payload.retryToken),
       site_submission_id: payload.requestId,
       queue_key: routing.queueKey,
@@ -1884,10 +1890,11 @@ export async function submitInboundRequest(req: Request, res: Response) {
       site_task_gate_sources: Object.keys(gateAnswerSources).length ? gateAnswerSources : null,
       // A blocked or ambiguous gate verdict is a human-review trigger in its own
       // right, independent of whatever the structured-intake decision concluded.
+      // Not for a site job: its screen is a note (owner decision 2026-11-11).
       human_review_required:
         structuredIntakeDecision.requiresHumanReview ||
-        siteTaskTriage?.disposition === "not_now" ||
-        siteTaskTriage?.disposition === "needs_conversation",
+        buyerType !== "site_operator" && (siteTaskTriage?.disposition === "not_now" ||
+        siteTaskTriage?.disposition === "needs_conversation"),
       automation_confidence: null,
       terms_acceptance: buildTermsAcceptance(now),
       buyer_review_access: {

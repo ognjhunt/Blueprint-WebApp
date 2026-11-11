@@ -251,7 +251,9 @@ export function resultOutranksWindowEnding(input: { screening?: SceneScreening |
   const runs = input.screening;
   if (runs && runs.queued + runs.running + runs.reported + runs.noResult > 0) return true;
   const scene = input.sceneProgression;
-  return scene?.state === "evaluated" || scene?.state === "held" && !scene.sceneOutcome;
+  // A test under way outranks the window's end too (review, 2026-11-11): the window's end stops the run through its
+  // authority, and the run's own terminal record then tells the site.
+  return scene?.state === "evaluated" || scene?.state === "testing" || scene?.state === "held" && !scene.sceneOutcome;
 }
 
 /** One sentence per reason the Pipeline can give; an unknown reason adds nothing. */

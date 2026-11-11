@@ -205,7 +205,7 @@ test.describe("the start form on a phone", () => {
     await expect(page.getByText(/Job reference/)).toHaveCount(0);
     await expect(page.locator("#start-region")).toHaveCount(0);
     expect(posts).toHaveLength(0);
-    if (shots) await page.screenshot({ path: `${shots}/${shot}.png`, fullPage: true });
+    if (shots && shot) await page.screenshot({ path: `${shots}/${shot}.png`, fullPage: true });
   });
 
   test("catches a script that fills every rendered input", async ({ page }) => {

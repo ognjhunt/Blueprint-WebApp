@@ -1194,15 +1194,19 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
       logger.error({ error, requestId: payload.requestId }, "Could not queue brief screening email");
     }
 
-    // A site that needs a call gets no scene until ops records the call, so
-    // ops has to hear about it: the request carries the next step and Slack
-    // rings. Best-effort; neither may fail the operator's confirmation.
+    // A job from before the owner's decision of 2026-11-11 that needs a call
+    // gets no scene until ops records the call, so ops has to hear about it:
+    // the request carries the next step and Slack rings. For a marked job both
+    // are a note: its scene is built whatever the screen says. Best-effort;
+    // neither may fail the operator's confirmation.
     if (!result.reusedConfirmation && scoreable && result.disposition === "needs_conversation" && db) {
       const agenda = await db.collection("inboundRequests").doc(payload.requestId).get()
         .then((snap) => (snap.data()?.site_task_triage?.open_questions as string[] | undefined) ?? [])
         .catch(() => []);
       void db.collection("inboundRequests").doc(payload.requestId)
-        .set({ ops: { next_step: "Review the owner’s written clarification or book a screening call, then record the outcome under Screening." } }, { merge: true })
+        .set({ ops: { next_step: screenGateEnded
+          ? "Note only: the screen left questions open. The scene is built whatever it says; answers or a call can still sharpen the test."
+          : "Review the owner’s written clarification or book a screening call, then record the outcome under Screening." } }, { merge: true })
         .catch((error) => logger.warn({ error, requestId: payload.requestId }, "Could not set screening call next step"));
       void notifySlackScreeningCallNeeded({ requestId: payload.requestId, openQuestions: agenda, screenGateEnded })
         .catch(() => undefined);
