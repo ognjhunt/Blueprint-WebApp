@@ -9,30 +9,29 @@ test.beforeEach(async ({ page }) => {
   } }));
 });
 
-test("How it works opens its own page from desktop and mobile navigation", async ({ page }) => {
+// Bare bones (owner, 2026-11-11): How it works is three steps, one quiet link from home.
+test("How it works opens its own page from the home page's quiet link", async ({ page }) => {
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 });
     await page.goto("/");
-    if (width === 390) await page.getByRole("button", { name: "Open menu" }).click();
-    await page.getByRole("navigation", { name: width === 390 ? "Mobile navigation" : "Main navigation", exact: true }).getByRole("link", { name: "How it works" }).click();
+    await page.getByRole("link", { name: "How it works ›" }).click();
     await expect(page).toHaveURL(/\/how-it-works$/);
-    await expect(page.locator("h1")).toContainText("Start with your task.");
-    await expect(page.getByRole("heading", { name: "One task, from phone video to a pilot.", exact: true })).toBeVisible();
-    await expect(page.getByRole("navigation", { name: "Warehouse walkthrough contents" })).toBeVisible();
+    await expect(page.locator("h1")).toHaveText("How it works");
+    await expect(page.getByRole("list", { name: "Steps" }).getByRole("listitem")).toHaveCount(3);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   }
 });
 
-test("the example recommended pilot sits below the headline without overflowing", async ({ page }) => {
+// The moving example stays (owner, 2026-11-11), drawn as a small answer screen and marked as an example: beside the
+// text on a desktop, below the button on a phone.
+test("the example answer sits beside the text on a desktop and below the button on a phone, without overflowing", async ({ page }) => {
   for (const width of [320, 390, 768, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     await page.goto("/");
     await page.evaluate(() => document.fonts.ready);
-    const card = page.locator(".ms-pilot-card");
+    const card = page.locator(".bare-example");
     await expect(card.getByRole("tabpanel")).toContainText("Example");
-    await expect(card.getByText("Book this pilot", { exact: true })).toHaveCount(0);
-    // The example is marked illustrative, with its disclaimer, and opens on the packaging job.
-    await expect(card).toContainText("not available offers or measured results");
+    await expect(card).toContainText("Robot names are real; the jobs and answers are made up.");
     await expect(card.getByRole("tab", { name: "Packaging", exact: true })).toHaveAttribute("aria-selected", "true");
     const examples = [
       ["Packaging", "Fixed robot arm"], ["Warehouse", "Humanoid robot"], ["Café", "Fixed robot arm"],
@@ -41,34 +40,30 @@ test("the example recommended pilot sits below the headline without overflowing"
     await expect(card.getByRole("tab")).toHaveText(examples.map(([site]) => site));
     for (const [site, embodiment] of examples) {
       await card.getByRole("tab", { name: site, exact: true }).click();
-      // The embodiment is named by the illustration; a held example's panel does not repeat it.
       await expect(card.getByRole("tabpanel", { name: site, exact: true })).toBeVisible();
       await expect(page.getByRole("img", { name: `Illustration of the ${site.toLowerCase()} example: ${embodiment.toLowerCase()}`, exact: true })).toBeVisible();
     }
-    await expect(page.locator(".ms-task-pair")).toHaveCount(0);
     const layout = await page.evaluate(() => ({
-      headlineBottom: document.querySelector("h1")!.getBoundingClientRect().bottom,
-      cardTop: document.querySelector(".ms-pilot-card")!.getBoundingClientRect().top,
+      button: document.querySelector(".bare-home .bare-button")!.getBoundingClientRect(),
+      card: document.querySelector(".bare-example")!.getBoundingClientRect(),
       overflow: document.documentElement.scrollWidth > innerWidth,
     }));
     expect(layout.overflow).toBe(false);
-    expect(layout.headlineBottom).toBeLessThan(layout.cardTop);
+    if (width >= 960) expect(layout.card.left).toBeGreaterThan(layout.button.right);
+    else expect(layout.card.top).toBeGreaterThan(layout.button.bottom);
   }
 });
 
-test("both audience actions lead to their working intake and the beta action reaches the application", async ({ page }) => {
+test("both audience actions lead to their working intake and the company landing reaches the application", async ({ page }) => {
   await page.goto("/");
-  const hero = page.locator(".ms-task-hero");
-  await hero.getByRole("link", { name: "Submit a job" }).click();
+  await page.locator("main").getByRole("link", { name: "Start a job" }).click();
   await expect(page.getByRole("form", { name: "Start a site capture" })).toBeVisible();
   await page.goto("/");
-  await page.getByRole("navigation", { name: "Main navigation" }).getByRole("link", { name: "For partners" }).click();
-  await expect(page.locator("h1")).toHaveText("Help deliver real work.");
-  await page.goto("/contact/robot-team");
-  await expect(page.locator("h1")).toHaveText("Bring your capabilities to real jobs.");
-  await expect(page.getByRole("img", { name: /Illustration of the warehouse example/ })).toBeVisible();
-  await page.getByRole("link", { name: "Register interest", exact: true }).click();
-  await expect(page).toHaveURL(/#robot-team-access$/);
+  await page.getByRole("link", { name: "For robot companies ›" }).click();
+  await expect(page.locator("h1")).toHaveText("See jobs that sites choose to share.");
+  await page.getByRole("link", { name: "Apply to see jobs" }).click();
+  await expect(page).toHaveURL(/\/contact\/robot-team$/);
+  await expect(page.locator("h1")).toHaveText("Apply to see jobs");
   await expect(page.getByLabel("Your name", { exact: true })).toBeVisible();
   await page.getByLabel("Your name", { exact: true }).fill("Ada");
   await expect(page.getByLabel("Your name", { exact: true })).toHaveValue("Ada");

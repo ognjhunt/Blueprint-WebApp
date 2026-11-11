@@ -31,22 +31,19 @@ for (const width of [1440, 390]) {
     await expect(page.locator("#start-location")).toHaveValue("");
     await page.locator("#start-email").fill("qa@example.invalid");
     // The optional sentence confirms the brief at submission (owner direction 2026-11-11).
-    await page.locator("#start-task").fill("Pack cartons");
+    await page.getByRole("button", { name: "Add details (optional) ›" }).click(); await page.locator("#start-task").fill("Pack cartons"); await page.getByRole("button", { name: "Done", exact: true }).click();
     await expect(page.locator("#start-company")).toHaveCount(0);
     await expect(page.locator("#start-password")).toHaveCount(0);
-    await page.getByRole("button", { name: "Start free assessment", exact: true }).click();
-    const signup = page.getByRole("link", { name: "Create an account for this job", exact: true });
-    const optionalAccount = page.getByText("Save this job to your account (optional)", { exact: true });
+    await page.getByRole("button", { name: /^(Send video|Next: film the job|Save my job)$/ }).click();
+    // An account stays optional: one quiet link after the job is saved (bare bones, 2026-11-11).
+    const optionalAccount = page.getByRole("link", { name: "Save to an account ›", exact: true });
     await expect(optionalAccount).toBeVisible();
-    await expect(signup).toBeHidden();
     expect(mutations).toEqual(["/api/inbound-request"]);
     expect(intakeBodies).toEqual([expect.objectContaining({ siteName: "", siteLocation: "", captureRegion: "us", accountSignup: false,
       taskStatement: "Pack cartons", taskConfirmation: { granted: true, statementVersion: "2026-11-07.v1" } })]);
-    await optionalAccount.click();
-    await expect(signup).toBeVisible();
-    await expect(page.getByRole("link", { name: "Sign in to save this job" })).toHaveAttribute("href", "/claim/fixture.claim?mode=signin");
+    await expect(optionalAccount).toHaveAttribute("href", "/claim/fixture.claim");
     expect(mutations).toEqual(["/api/inbound-request"]);
-    await signup.click();
+    await optionalAccount.click();
     await expect(page.getByRole("heading", { name: "Keep track of Synthetic QA site.", exact: true })).toBeVisible();
     await expect(page.getByLabel("Work email")).toHaveValue("qa@example.invalid");
     await expect(page.getByLabel("Work email")).toHaveAttribute("readonly", "");

@@ -821,7 +821,6 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
               name="startLocation"
               defaultValue={recovery.current.draft.location}
               maxLength={300}
-              placeholder="Street address or city"
               onSelectionChange={(place) => {
                 setCountryMissing(false);
                 setRegionManuallySet(false);

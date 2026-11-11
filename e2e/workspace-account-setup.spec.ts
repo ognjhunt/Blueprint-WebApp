@@ -120,14 +120,14 @@ for (const type of ["site_operator", "robot_team"] as const) {
     );
     await expect(
       page.getByRole("heading", {
-        name: type === "site_operator" ? "What work would you like automated?" : "Bring your capabilities to real jobs.",
+        name: type === "site_operator" ? "Start a job" : "Apply to see jobs",
         exact: true,
       }),
     ).toBeVisible();
     await page.reload();
     await expect(
       page.getByRole("heading", {
-        name: type === "site_operator" ? "What work would you like automated?" : "Bring your capabilities to real jobs.",
+        name: type === "site_operator" ? "Start a job" : "Apply to see jobs",
         exact: true,
       }),
     ).toBeVisible();

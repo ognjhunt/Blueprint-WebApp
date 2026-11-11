@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 
 /** The optional sentence: typing it confirms the brief (owner direction 2026-11-11). */
 async function fillJobDescription(page: import("@playwright/test").Page, value: string) {
-  await page.locator("#start-task").fill(value);
+  await page.getByRole("button", { name: "Add details (optional) ›" }).click(); await page.locator("#start-task").fill(value); await page.getByRole("button", { name: "Done", exact: true }).click();
 }
 
 /** Real browser UI, intercepted API. Never counted as isolated-backend proof. */
@@ -24,7 +24,7 @@ test("lost create response survives reload with the same private retry identity"
   await fillJobDescription(page, "Move sealed cartons onto a pallet");
   await page.locator("#start-location").fill("Austin, TX");
   await page.locator("#start-email").fill("qa@example.invalid");
-  await page.getByRole("button", { name: "Start free assessment", exact: true }).click();
+  await page.getByRole("button", { name: /^(Send video|Next: film the job|Save my job)$/ }).click();
   await expect(page.getByRole("alert")).toContainText("could not reach Blueprint");
   await page.reload();
   await expect(page.locator("#start-task")).toHaveValue("Move sealed cartons onto a pallet");
@@ -89,10 +89,10 @@ for (const receipt of ["not-received", "received-pending"] as const) test(`brows
     await page.locator("#start-location").fill("Austin TX");
     await page.locator("#start-email").fill("qa@example.invalid");
 
-    await page.locator("#start-method-upload").check();
+    await page.locator("#start-method-upload").click();
     await expect(page.locator("#start-password")).toHaveCount(0);
     await page.locator("#start-footage").setInputFiles(fixture);
-    await page.getByRole("button", { name: "Start free assessment", exact: true }).click();
+    await page.getByRole("button", { name: /^(Send video|Next: film the job|Save my job)$/ }).click();
     await expect.poll(() => interrupted).toBe(true);
     await context.tracing.stop({ path: testInfo.outputPath("before-browser-close.zip") });
     await context.close();
@@ -104,9 +104,9 @@ for (const receipt of ["not-received", "received-pending"] as const) test(`brows
     if (receipt === "received-pending") {
       // A received recording whose processing is unconfirmed reads as received,
       // with the processing state behind its optional details.
-      await expect(page.getByRole("heading", { name: "Your recording is in.", exact: true })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "We have your video.", exact: true })).toBeVisible();
       await expect(page.getByText("Blueprint will continue from this saved recording", { exact: false })).toBeVisible();
-      await expect(page.getByRole("link", { name: "Open your job and assessment", exact: true })).toHaveAttribute("href", "/capture-upload/synthetic-upload-restart");
+      await expect(page.getByRole("link", { name: "Open my job", exact: true })).toHaveAttribute("href", "/capture-upload/synthetic-upload-restart");
     } else {
       await expect(page.getByRole("heading", { name: "Your job is saved. Check your video upload." })).toBeVisible();
       await expect(page.getByRole("link", { name: "Open the uploader", exact: true })).toHaveAttribute("href", "/capture-upload/synthetic-upload-restart?video=existing");

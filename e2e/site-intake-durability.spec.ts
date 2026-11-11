@@ -10,7 +10,7 @@ import { fileURLToPath } from "node:url";
 
 /** The optional sentence: typing it confirms the brief (owner direction 2026-11-11). */
 async function fillJobDescription(page: import("@playwright/test").Page, value: string) {
-  await page.locator("#start-task").fill(value);
+  await page.getByRole("button", { name: "Add details (optional) ›" }).click(); await page.locator("#start-task").fill(value); await page.getByRole("button", { name: "Done", exact: true }).click();
 }
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const outputRoot = path.resolve(process.env.RELIABILITY_DURABILITY_OUTPUT || "output/reliability-program/intake-durability");
@@ -92,10 +92,10 @@ for (const [index, boundary] of ["acknowledged-upload", "browser-kill-after-stor
             await page.locator("#start-location").fill("Austin TX");
             await page.locator("#start-email").fill(`owned-upload-${index + 1}-${Date.now()}@example.invalid`);
 
-            await page.locator("#start-method-upload").check();
+            await page.locator("#start-method-upload").click();
             await expect(page.locator("#start-password")).toHaveCount(0);
             await page.locator("#start-footage").setInputFiles(fixture);
-            await page.getByRole("button", { name: "Start free assessment", exact: true }).click();
+            await page.getByRole("button", { name: /^(Send video|Next: film the job|Save my job)$/ }).click();
             if (boundary === "browser-kill-after-stored-upload") {
                 await expect.poll(() => durableUploadResponse?.captureReceived).toBe(true);
                 await writeFile(path.join(output, `${caseId}-before-kill-storage-private.json`), JSON.stringify({ profile, storage: await context!.storageState(), initialDiskValues: await page.evaluate(() => (window as any).__blueprintInitialStorage), source }, null, 2));
@@ -114,16 +114,16 @@ for (const [index, boundary] of ["acknowledged-upload", "browser-kill-after-stor
             const returnButton = page.getByRole("button", { name: /^(Return to saved job|Recover saved job)$/ });
             if (await returnButton.isVisible())
                 await returnButton.click();
-            await expect(page.getByRole("link", { name: "Open your job and assessment", exact: true })).toBeVisible();
-            const target = await page.getByRole("link", { name: "Open your job and assessment", exact: true }).getAttribute("href");
+            await expect(page.getByRole("link", { name: "Open my job", exact: true })).toBeVisible();
+            const target = await page.getByRole("link", { name: "Open my job", exact: true }).getAttribute("href");
             expect(savedUrl).toBe(target);
             // Exercise a normal navigation away and return after verified acknowledgement.
             await page.goto("http://127.0.0.1:4181/");
             await page.goto("http://127.0.0.1:4181/contact/site-operator", { waitUntil: "networkidle" });
             if (await returnButton.isVisible())
                 await returnButton.click();
-            await expect(page.getByRole("link", { name: "Open your job and assessment", exact: true })).toBeVisible();
-            const renewedTarget = await page.getByRole("link", { name: "Open your job and assessment", exact: true }).getAttribute("href");
+            await expect(page.getByRole("link", { name: "Open my job", exact: true })).toBeVisible();
+            const renewedTarget = await page.getByRole("link", { name: "Open my job", exact: true }).getAttribute("href");
             expect(new URL(renewedTarget!, "http://127.0.0.1:4181").pathname.split("/").pop()).toBeTruthy();
             expect(intakeBodies.every(body => body === intakeBodies[0])).toBe(true);
             expect(new Set(intakeBodies.map(body => JSON.parse(body).requestId)).size).toBe(1);
@@ -152,7 +152,7 @@ for (const [index, boundary] of ["acknowledged-upload", "browser-kill-after-stor
             expect(rawVideo.ok()).toBe(true);
             const { readFile: readFixture } = await import("node:fs/promises");
             expect(await rawVideo.body()).toEqual(await readFixture(fixture));
-            await page.getByRole("link", { name: "Open your job and assessment", exact: true }).click();
+            await page.getByRole("link", { name: "Open my job", exact: true }).click();
             // The job page no longer asks for details after a video (the job is drafted
             // from the video); a received video lands on the private job page itself.
             await expect(page.getByRole("heading", { level: 1, name: "Your job", exact: true })).toBeVisible();
@@ -186,7 +186,7 @@ test.describe("native strict recovery controls", () => {
         await context.route(/^https?:\/\/(?!127\.0\.0\.1(?::|\/)|localhost(?::|\/))/, r => r.abort("blockedbyclient"));
         await context.tracing.start({screenshots:true,snapshots:true});
         await page.goto("/contact/site-operator", { waitUntil: "networkidle" });
-        await expect(page.getByRole("group", { name: "How will we see the task?" })).toBeVisible();
+        await expect(page.getByRole("heading", { level: 1, name: "Start a job" })).toBeVisible();
     });
     test.afterEach(async ({context}, info) => {
         const out = path.join(outputRoot, "native-controls");
@@ -207,7 +207,7 @@ test.describe("native strict recovery controls", () => {
     } const noLocal = keys.every(k => localStorage.getItem(k) === null); await h.hydrateSiteCaptureRecovery(keys[0]); const fresh = h.readSiteCaptureRecovery(keys[0]); const oldWrite = await h.withSiteCaptureRecoveryLock(keys[0], () => h.writeSiteCaptureRecoveryDurably(keys[0], before[0])); return { cleared, retired: retired.every(r => r.retired && r.value === null), stale: stale.every(Boolean), noLocal, freshIdentity: fresh.requestId !== before[0].requestId, oldWrite, otherPreserved: !!h.readSiteCaptureRecovery(other) }; }); expect(result).toEqual({ cleared: true, retired: true, stale: true, noLocal: true, freshIdentity: true, oldWrite: false, otherPreserved: true }); });
     test('A-IDB-03 strictcommitfailure preventsactualPOST', async ({ page }) => { let posts = 0; page.on('request', r => { if (r.method() === 'POST' && new URL(r.url()).pathname === '/api/inbound-request')
         posts++; }); await fillJobDescription(page, 'Owned failed strict commit'); await page.locator('#start-location').fill('Austin TX'); await page.locator('#start-email').fill('durability-failure@example.invalid'); await page.evaluate(() => { const original = IDBDatabase.prototype.transaction; IDBDatabase.prototype.transaction = function (store, mode, ...options) { if (mode === 'readwrite')
-        throw new Error('Owned isolated strictcommit failure'); return original.call(this, store, mode, ...options); }; }); await page.getByRole('button', { name: 'Start free assessment', exact: true }).click(); await expect(page.getByRole('alert')).toBeVisible(); expect(posts).toBe(0); });
+        throw new Error('Owned isolated strictcommit failure'); return original.call(this, store, mode, ...options); }; }); await page.getByRole('button', { name: /^(Send video|Next: film the job|Save my job)$/ }).click(); await expect(page.getByRole('alert')).toBeVisible(); expect(posts).toBe(0); });
     test('A-IDB-04 conflictingmirrors failclosed', async ({ page }) => { const result = await page.evaluate(async () => { const h = await import('/src/lib/siteCaptureDraft.ts'), m = await import('/src/lib/siteCaptureDurability.ts'); const key = h.siteCaptureDraftKey(null, 'owned-conflict'); await h.hydrateSiteCaptureRecovery(key); const original = h.readSiteCaptureRecovery(key); const changed = { ...original, requestId: 'capture-' + crypto.randomUUID() }; localStorage.setItem(key, JSON.stringify(changed)); let refused = false; try {
         await h.hydrateSiteCaptureRecovery(key);
     }
@@ -227,7 +227,7 @@ test.describe("native strict recovery controls", () => {
         injected = true;
         await page.evaluate(() => { (window as any).__originalIDBTransaction = IDBDatabase.prototype.transaction; IDBDatabase.prototype.transaction = function (store, mode, ...options) { if (mode === 'readwrite')
             throw new Error('Owned acceptance-commit failure'); return (window as any).__originalIDBTransaction.call(this, store, mode, ...options); }; });
-    } await cdp.send('Fetch.continueResponse', { requestId: e.requestId }); }); await fillJobDescription(page, 'Owned accepted description'); await page.locator('#start-location').fill('Austin TX'); await page.locator('#start-email').fill(`owned-accepted-${Date.now()}@example.invalid`); await page.getByRole('button', { name: 'Start free assessment', exact: true }).click(); await expect(page.getByRole('alert')).toContainText('Your job may already be saved'); expect(uploads).toBe(0); expect(bodies).toHaveLength(1); await page.evaluate(() => { IDBDatabase.prototype.transaction = (window as any).__originalIDBTransaction; }); await page.getByRole('button', { name: 'Recover saved job', exact: true }).click(); await expect(page.getByRole('link', { name: 'Open your job page', exact: true })).toBeVisible(); expect(bodies).toHaveLength(2); expect(bodies[1]).toBe(bodies[0]); expect(uploads).toBe(0); await cdp.detach(); });
+    } await cdp.send('Fetch.continueResponse', { requestId: e.requestId }); }); await fillJobDescription(page, 'Owned accepted description'); await page.locator('#start-location').fill('Austin TX'); await page.locator('#start-email').fill(`owned-accepted-${Date.now()}@example.invalid`); await page.getByRole('button', { name: /^(Send video|Next: film the job|Save my job)$/ }).click(); await expect(page.getByRole('alert')).toContainText('Your job may already be saved'); expect(uploads).toBe(0); expect(bodies).toHaveLength(1); await page.evaluate(() => { IDBDatabase.prototype.transaction = (window as any).__originalIDBTransaction; }); await page.getByRole('button', { name: 'Recover saved job', exact: true }).click(); await expect(page.getByRole('link', { name: 'Open your job page', exact: true })).toBeVisible(); expect(bodies).toHaveLength(2); expect(bodies[1]).toBe(bodies[0]); expect(uploads).toBe(0); await cdp.detach(); });
     for (const cancel of [true, false])
         test(`A-IDB-${cancel ? '08' : '09'} unknownscope hydration ${cancel ? 'cancelled' : 'activecontrol'}`, async ({ page }) => { const result = await page.evaluate(async (cancel) => { const h = await import('/src/lib/siteCaptureDraft.ts'), m = await import('/src/lib/siteCaptureDurability.ts'); const uid = 'owned-late-scope', key = h.siteCaptureDraftKey(uid, 'new-authoring'); const descriptor = Object.getOwnPropertyDescriptor(IDBTransaction.prototype, 'oncomplete'); let hold = true, release, readyResolve; const ready = new Promise(r => readyResolve = r); Object.defineProperty(IDBTransaction.prototype, 'oncomplete', { configurable: true, enumerable: descriptor.enumerable, get: descriptor.get, set(fn) { descriptor.set.call(this, function (event) { if (hold && this.mode === 'readonly') {
                 hold = false;

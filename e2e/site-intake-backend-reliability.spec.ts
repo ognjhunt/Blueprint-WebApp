@@ -44,14 +44,15 @@ for (const [index, parameters] of cases.entries()) test(`A-J-${String(index + 1)
   try {
     await page.goto("http://127.0.0.1:4181/contact/site-operator");
     // The optional sentence confirms the brief at submission (owner direction 2026-11-11).
-    await page.locator("#start-task").fill("Move sealed cartons from the conveyor onto a pallet.");
+    await page.getByRole("button", { name: "Add details (optional) ›" }).click(); await page.locator("#start-task").fill("Move sealed cartons from the conveyor onto a pallet."); await page.getByRole("button", { name: "Done", exact: true }).click();
     await page.locator("#start-location").fill(parameters.location);
     await page.locator("#start-email").fill(`reliability-${index + 1}@example.invalid`);
-    await page.locator(`#start-method-${parameters.method}`).check();
+    // The video choice is one quiet link (bare bones, 2026-11-11): "I have a video ›" switches to the upload.
+    if (parameters.method === "upload") await page.locator("#start-method-upload").click();
     if (parameters.boundary === "draft-reload") {
       await page.reload();
       await expect(page.locator("#start-task")).toHaveValue("Move sealed cartons from the conveyor onto a pallet.");
-      await expect(page.locator(`#start-method-${parameters.method}`)).toBeChecked();
+      await expect(page.locator(parameters.method === "upload" ? "#start-method-phone" : "#start-method-upload")).toBeVisible();
     }
     if (parameters.boundary === "lost-response") {
       let lost = false;
@@ -70,7 +71,7 @@ for (const [index, parameters] of cases.entries()) test(`A-J-${String(index + 1)
     await expect(page.locator("#start-location")).toHaveValue(parameters.location);
     if (parameters.location.startsWith("Austin")) await expect(page.locator("#start-region")).toHaveCount(0);
     else await expect(page.getByText(/During the beta we can only take walkthroughs/)).toBeVisible();
-    await page.getByRole("button", { name: "Start free assessment", exact: true }).click();
+    await page.getByRole("button", { name: /^(Send video|Next: film the job|Save my job)$/ }).click();
     if (parameters.boundary === "lost-response") {
       await expect(page.getByRole("alert")).toContainText("could not reach Blueprint");
       await page.reload();
@@ -85,11 +86,11 @@ for (const [index, parameters] of cases.entries()) test(`A-J-${String(index + 1)
       // same idempotent submission to fetch the link again.
       const returnButton = page.getByRole("button", { name: "Return to saved job", exact: true });
       const saved = page.getByRole("heading", { name: !parameters.location.startsWith("Austin") ? "We have your site."
-        : "Film the work area.", exact: true });
+        : "Now film the job.", exact: true });
       await expect(returnButton.or(saved)).toBeVisible();
       if (await returnButton.isVisible()) await returnButton.click();
       await expect(saved).toBeVisible();
-      await expect(page.getByRole("link", { name: "Open your job and assessment", exact: true })).toHaveCount(0);
+      await expect(page.getByRole("link", { name: "Open my job", exact: true })).toHaveCount(0);
     };
     await expectSaved();
     const privateLink = page.getByRole("link", { name: "Open your job page", exact: true });

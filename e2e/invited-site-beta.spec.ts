@@ -103,11 +103,11 @@ for (const width of [390, 1440]) {
     });
 
     await page.goto("/contact/site-operator");
-    await page.locator("#start-task").fill("Cartons reach the pallet without damage");
+    await page.getByRole("button", { name: "Add details (optional) ›" }).click(); await page.locator("#start-task").fill("Cartons reach the pallet without damage"); await page.getByRole("button", { name: "Done", exact: true }).click();
     await page.locator("#start-location").fill("Austin, TX");
     await expect(page.locator("#start-region")).toHaveCount(0);
-    await page.getByRole("button", { name: "Start free assessment", exact: true }).click();
-    await expect(page.getByRole("heading", { name: "Film the work area.", exact: true })).toBeVisible();
+    await page.getByRole("button", { name: /^(Send video|Next: film the job|Save my job)$/ }).click();
+    await expect(page.getByRole("heading", { name: "Now film the job.", exact: true })).toBeVisible();
     await page.getByRole("link", { name: "Open your job page", exact: true }).click();
     await expect(page.getByRole("region", { name: "Confirm recording permission", exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "Confirm recording permission", exact: true })).toBeDisabled();

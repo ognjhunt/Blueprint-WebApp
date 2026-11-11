@@ -198,15 +198,14 @@ export function collectBannedCopyHits(text: string): string[] {
 // content — the route stays in this sweep to keep verifying the redirect
 // itself (HTTP status, console health, no broken links) still works.
 const canonicalPublicQaRoutes: PublicQaRoute[] = [
-  { label: "How it works", path: "/how-it-works", canonicalPath: "/how-it-works", expectedHeading: "Start with your task.", requiredCtas: [{ label: "Submit a job", hrefStartsWith: "/contact/site-operator" }, { label: "Become a partner", hrefStartsWith: "/partners" }] },
-  { label: "Beta program", path: "/beta", canonicalPath: "/beta", expectedHeading: "Start with one real job.", requiredCtas: [{ label: "Submit a job", hrefStartsWith: "/contact/site-operator" }, { label: "For partners", hrefStartsWith: "/partners" }] },
-  { label: "Home", path: "/", canonicalPath: "/", minVisibleTextLength: 300, expectedHeading: "Find the right way to automate your work.", requiredCtas: [{ label: "Submit a job", hrefStartsWith: "/contact/site-operator" }, { label: "For partners", hrefStartsWith: "/partners" }] },
-  { label: "Site inquiry", path: "/contact/site-operator", canonicalPath: "/contact/site-operator", expectedHeading: "What work would you like automated?", requiredCtas: [{ label: "Deliver or build robot systems? Become a partner", hrefStartsWith: "/partners" }] },
-  { label: "Robot team job library", path: "/contact/robot-team", canonicalPath: "/contact/robot-team", expectedHeading: "Bring your capabilities to real jobs.", requiredCtas: [{ label: "Operate a site? Start here", hrefStartsWith: "/contact/site-operator" }] },
+  { label: "How it works", path: "/how-it-works", canonicalPath: "/how-it-works", expectedHeading: "How it works", requiredCtas: [{ label: "Start a job", hrefStartsWith: "/contact/site-operator" }, { label: "Questions ›", hrefStartsWith: "/beta" }] },
+  { label: "Questions", path: "/beta", canonicalPath: "/beta", expectedHeading: "Questions", requiredCtas: [{ label: "Start a job", hrefStartsWith: "/contact/site-operator" }] },
+  { label: "Home", path: "/", canonicalPath: "/", minVisibleTextLength: 300, expectedHeading: "Which robot could do your job?", requiredCtas: [{ label: "Start a job", hrefStartsWith: "/contact/site-operator" }, { label: "For robot companies ›", hrefStartsWith: "/partners" }] },
+  { label: "Site inquiry", path: "/contact/site-operator", canonicalPath: "/contact/site-operator", expectedHeading: "Start a job", requiredCtas: [] },
+  { label: "Robot team job library", path: "/contact/robot-team", canonicalPath: "/contact/robot-team", expectedHeading: "Apply to see jobs", requiredCtas: [{ label: "Start a job", hrefStartsWith: "/contact/site-operator" }] },
   { label: "Privacy", path: "/privacy", canonicalPath: "/privacy", expectedHeading: "Privacy Policy", requiredCtas: [] },
   { label: "Terms", path: "/terms", canonicalPath: "/terms", expectedHeading: "Terms of Service", requiredCtas: [] },
-  { label: "About", path: "/about", canonicalPath: "/about", expectedHeading: "We start with one real job.", requiredCtas: [{ label: "How it works", hrefStartsWith: "/how-it-works" }] },
-  { label: "Job library", path: "/sites", canonicalPath: "/sites", expectedHeading: "Job library", minVisibleTextLength: 200, requiredCtas: [{ label: "For partners", hrefStartsWith: "/partners" }] },
+  { label: "Job library", path: "/sites", canonicalPath: "/sites", expectedHeading: "Job library", minVisibleTextLength: 200, requiredCtas: [] },
   // A fixture record served by the spec's route mock; detail pages are dynamic.
   { label: "Job record", path: `/sites/${brandPolishSiteFixtureSlug}`, canonicalPath: `/sites/${brandPolishSiteFixtureSlug}`, expectedHeading: "Brand polish sample warehouse", minVisibleTextLength: 300, requiredCtas: [{ label: "Offer your system for this job", hrefStartsWith: "/contact/robot-team" }] },
   { label: "Robot team beta guide", path: "/beta/buyer-guide", canonicalPath: "/beta/buyer-guide", expectedHeading: "Robot team beta guide", requiredCtas: [{ label: "Apply for access", hrefStartsWith: "/contact/robot-team" }] },

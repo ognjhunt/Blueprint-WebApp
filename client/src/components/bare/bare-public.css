@@ -31,7 +31,7 @@ ol.bare-steps { list-style: none; margin: 0; padding: 0; counter-reset: bare-ste
 .bare-field > .bare-label { display: block; margin-bottom: var(--bare-s2, 8px); padding: 0; }
 .bare-field > .bare-helper, .bare-field > .bare-field-error { margin-top: var(--bare-s2, 8px); }
 .bare-field-error { font-size: 15px; color: #9c352d; }
-.bare-input, .bare-select, .bare-textarea, .bare-field .location-autocomplete input { display: block; width: 100%; min-height: 52px; padding: 12px 14px; border: 1px solid #9fa197;
+.bare-input, .bare-select, .bare-textarea, .bare-field input[role="combobox"] { display: block; width: 100%; min-height: 52px; padding: 12px 14px; border: 1px solid #9fa197;
   border-radius: 4px; background: #fffffb; font: inherit; font-size: 17px; line-height: 1.4; color: var(--bare-ink, #22251e); box-sizing: border-box; }
 .bare-select { appearance: none; padding-right: 40px;
   background-image: linear-gradient(45deg, transparent 50%, var(--bare-muted, #5d5f58) 50%), linear-gradient(135deg, var(--bare-muted, #5d5f58) 50%, transparent 50%);
@@ -132,3 +132,15 @@ ol.bare-steps { list-style: none; margin: 0; padding: 0; counter-reset: bare-ste
   color: var(--bare-paper, #f6f5ef); font: inherit; font-size: 17px; font-weight: 500; cursor: pointer; }
 .bare-forms .ms-form .ms-button svg { display: none; }
 .bare-forms .ms-partner-receipt h2 { font-size: 22px; font-weight: 600; margin: 0 0 8px; }
+
+/* The shared tokens where a bare part sits outside a .bare-screen (the home example). */
+.bare-example { --bare-s1: 4px; --bare-s2: 8px; --bare-s3: 16px; --bare-s4: 32px; --bare-s5: 48px;
+  --bare-ink: var(--ms-ink, #22251e); --bare-muted: var(--ms-muted, #5d5f58); --bare-green: var(--ms-green, #203d2e);
+  --bare-paper: var(--ms-paper, #f6f5ef); --bare-rule: #cfd1c8; --bare-tint: #f3eedf; --bare-amber: #8a6d1f; }
+/* The site's link colour must not override the filled button's text. */
+.minimal-site a.bare-button, .bare-page a.bare-button, .bare-page a.bare-button:visited { color: var(--bare-paper, #f6f5ef); }
+
+/* The address field's own "Use my location" row, kept small under the field. */
+.bare-field input[role="combobox"] + div, .bare-field div:has(> input[role="combobox"]) > div:last-child { font-size: 14px !important; color: var(--bare-muted, #5d5f58); }
+.bare-field div:has(> input[role="combobox"]) .ms-text-link { min-height: 44px; font-size: 15px; text-decoration: underline; text-underline-offset: 3px; }
+@media (max-width: 760px) { .auth-shell.auth-bare .auth-art > span { display: none; } }

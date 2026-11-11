@@ -41,15 +41,15 @@ async function localOnly(page: Page, missing: string[]) {
 /** The start form: upload a video, the country, an email. No typed job. */
 async function startWithVideo(page: Page, email: string, shot?: string) {
   await page.goto("/contact/site-operator", { waitUntil: "networkidle" });
-  await page.locator("#start-method-upload").check();
+  await page.locator("#start-method-upload").click();
   await page.locator("#start-footage").setInputFiles(VIDEO);
   await page.locator("#start-region").selectOption("us");
   await page.locator("#start-email").fill(email);
   await expect(page.locator("#start-task")).toHaveValue("");
   if (shot) await page.screenshot({ path: path.join(SHOTS, shot), fullPage: true });
-  await page.getByRole("button", { name: "Start free assessment", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Your recording is in.", exact: true })).toBeVisible({ timeout: 60_000 });
-  const link = page.getByRole("link", { name: "Open your job and assessment", exact: true });
+  await page.getByRole("button", { name: /^(Send video|Next: film the job|Save my job)$/ }).click();
+  await expect(page.getByRole("heading", { name: "We have your video.", exact: true })).toBeVisible({ timeout: 60_000 });
+  const link = page.getByRole("link", { name: "Open my job", exact: true });
   const job = jobOf((await link.getAttribute("href"))!);
   return { link, ...job };
 }

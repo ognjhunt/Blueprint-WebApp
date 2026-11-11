@@ -4,7 +4,7 @@ import { mockExternalFonts } from "./helpers/static-assets";
 
 /** The optional sentence: typing it confirms the brief (owner direction 2026-11-11). */
 async function describeTask(page: import("@playwright/test").Page) {
-  await page.locator("#start-task").fill("Pick up each packed carton and place it at the end of the table");
+  await page.getByRole("button", { name: "Add details (optional) ›" }).click(); await page.locator("#start-task").fill("Pick up each packed carton and place it at the end of the table"); await page.getByRole("button", { name: "Done", exact: true }).click();
 }
 
 test.beforeEach(async ({ page }) => {
@@ -28,26 +28,34 @@ test("prerendered intake stays inactive while its scripts are unavailable", asyn
   await expect(page.getByRole("status")).toHaveText(/Loading your account and saved draft/);
   await expect(page.getByRole("form", { name: "Start a site capture" })).toHaveCount(0);
   await expect(page.locator("#start-email")).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Start free assessment", exact: true })).toHaveCount(0);
-  await expect(page.getByRole("link", {name: /talk to a person/i})).toHaveAttribute("href", /^mailto:/);
+  await expect(page.getByRole("button", { name: /^(Send video|Next: film the job|Save my job)$/ })).toHaveCount(0);
   expect(intakeRequests).toEqual([]);
   await expect(page).toHaveURL(/\/contact\/site-operator$/);
 });
 
-test("phone: video capture choices are on the first screen and optional details stay closed", async ({ page }) => {
+// Bare bones (owner, 2026-11-11): the first screen is the video, where the job is and an email; everything optional is
+// one quiet link away, on its own screen.
+test("phone: the first screen holds the video, where the job is and the email, and the button", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/contact/site-operator", { waitUntil: "domcontentloaded" });
-  const field = page.getByRole("radio", { name: "Upload a video now", exact: true });
-  await expect(field).toBeVisible();
-  await expect(field).toBeEnabled();
+  await expect(page.getByRole("heading", { level: 1, name: "Start a job" })).toBeVisible();
+  const video = page.getByRole("button", { name: "I have a video ›", exact: true });
+  await expect(video).toBeVisible();
   await expect.poll(async () => {
-    const box = await field.boundingBox();
+    const box = await video.boundingBox();
     return box ? box.y + box.height : Infinity;
   }).toBeLessThan(844);
-  await expect(page.locator("details").filter({ hasText: "How this works" })).not.toHaveAttribute("open");
-  await expect(page.locator("details").filter({ hasText: "Add job details and buying plans (optional)" })).not.toHaveAttribute("open");
+  await expect(page.getByRole("combobox", { name: "Where is the job?" })).toBeVisible();
+  await expect(page.locator("#start-email")).toBeVisible();
+  await expect(page.locator("#start-task")).toBeHidden();
+  await page.getByRole("button", { name: "Add details (optional) ›" }).click();
+  await expect(page).toHaveURL(/#details$/);
+  await expect(page.getByRole("heading", { level: 1, name: "Details (optional)" })).toBeVisible();
+  await expect(page.locator("#start-task")).toBeVisible();
+  await page.goBack();
+  await expect(page.getByRole("heading", { level: 1, name: "Start a job" })).toBeVisible();
   await expect(page.locator("#gate-sceneStability")).toHaveCount(0);
-  await page.screenshot({ path: "/tmp/onboarding-p2-site-phone.png", fullPage: true });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
 test("capture accepts country permission without an address and keeps non-US filming held", async ({ page }) => {
@@ -62,14 +70,14 @@ test("capture accepts country permission without an address and keeps non-US fil
   await page.locator("#start-email").fill("owner@example.test");
   // An ambiguous optional city cannot supply permission. Native country
   // validation stops the request without requiring a fuller address.
-  await page.getByRole("button", { name: "Start free assessment", exact: true }).click();
+  await page.getByRole("button", { name: /^(Send video|Next: film the job|Save my job)$/ }).click();
   await expect(page.locator("#start-region")).toBeFocused();
   await expect(page.locator("#start-region")).toHaveValue("");
   await expect(page.locator("#start-location")).not.toHaveAttribute("required", "");
   expect(submissions).toHaveLength(0);
   await page.locator("#start-location").fill("");
   await page.locator("#start-region").selectOption("non_us");
-  await page.getByRole("button", { name: "Start free assessment", exact: true }).click();
+  await page.getByRole("button", { name: /^(Send video|Next: film the job|Save my job)$/ }).click();
   await expect.poll(() => submissions.length).toBe(1);
   expect(submissions[0]).toMatchObject({ buyerType: "site_operator", siteLocation: "", captureRegion: "non_us", siteTaskGates: {}, consentAttestation: null,
     taskConfirmation: { granted: true, statementVersion: "2026-11-07.v1" } });
@@ -77,35 +85,36 @@ test("capture accepts country permission without an address and keeps non-US fil
   await expect(page.getByRole("link", { name: "Open the camera" })).toHaveCount(0);
 });
 
-test("starting with footage quotes the recording-rights sentence next to the button and records v2", async ({ page }) => {
+test("sending a video agrees in one line under the button, records its own version, and the full statements are one tap away", async ({ page }) => {
   const rights = "I am authorized to record this site and to let Blueprint use the recording to draft the job brief, "
     + "build a simulation of the work area and run candidate robot policies in it.";
+  const line = "By sending, you agree to our Terms and Privacy Policy and confirm you're allowed to film and share this site.";
   const submissions: any[] = [];
   await page.route("**/api/inbound-request", route => {
     submissions.push(route.request().postDataJSON());
     return route.fulfill({ status: 202, json: { ok: true, requestId: "captured", captureUrl: null } });
   });
   await page.goto("/contact/site-operator", { waitUntil: "domcontentloaded" });
-  const start = page.getByRole("button", { name: "Start free assessment", exact: true });
-  await expect(start).toBeEnabled();
-  // Filming later grants nothing on this form, so nothing is quoted.
-  await expect(page.getByRole("radio", { name: "Film it on a phone · Right after this form", exact: true })).toBeChecked();
-  await expect(page.getByText(rights, { exact: true })).toHaveCount(0);
-  await page.getByRole("radio", { name: "Upload a video now", exact: true }).check();
-  // Starting with footage is the grant: no separate box, the sentence itself
-  // is quoted in the note right above the Start button.
-  const statement = page.getByText(rights, { exact: true });
-  await expect(statement).toBeVisible();
+  // Filming later grants no recording on this form: its line says so.
+  await expect(page.getByRole("button", { name: "Next: film the job", exact: true })).toBeEnabled();
+  await expect(page.getByText("By continuing, you agree to our Terms and Privacy Policy and confirm you're allowed to share this job for the site.", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "I have a video ›", exact: true }).click();
+  const start = page.getByRole("button", { name: "Send video", exact: true });
+  await expect(page.getByText(line, { exact: true })).toBeVisible();
   await expect(page.locator("#start-rights")).toHaveCount(0);
-  await expect(page.locator("p", { has: statement })).toContainText("By selecting Start free assessment, you agree to our Terms and Privacy Policy and confirm:");
-  await page.locator("#start-region").selectOption("us");
+  await page.getByRole("button", { name: "What you're agreeing to ›" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "What you're agreeing to" })).toBeVisible();
+  await expect(page.getByText(`“${rights}”`, { exact: true })).toBeVisible();
+  await page.goBack();
+  await page.locator("#start-location").fill("Austin, TX");
   await page.locator("#start-footage").setInputFiles({ name: "cycle.mov", mimeType: "video/quicktime", buffer: Buffer.from("frames") });
   await page.locator("#start-email").fill("owner@example.test");
   await describeTask(page);
   await start.click();
   await expect.poll(() => submissions.length).toBe(1);
   expect(submissions[0]).toMatchObject({ captureRegion: "us", hasExistingFootage: true, descriptionOnly: false,
-    consentAttestation: { granted: true, statementVersion: "2026-11-02.v2" } });
+    descriptionAuthority: { granted: true, statementVersion: "2026-11-11.v2" },
+    consentAttestation: { granted: true, statementVersion: "2026-11-11.v3" } });
 });
 
 test("robot teams can apply before approval without seeing private jobs", async ({ page }) => {
@@ -113,11 +122,11 @@ test("robot teams can apply before approval without seeing private jobs", async 
   await expect(page.getByRole("form", { name: "Early access application" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Register interest", exact: true })).toBeVisible();
   await expect(page.getByRole("region", { name: "Job library" })).toHaveCount(0);
-  await expect(page.getByRole("link", { name: /Operate a site/ })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Start a job", exact: true })).toBeVisible();
 });
 
 test("the retired duplicate intake joins the capture flow and preserves context", async ({ page }) => {
   await page.goto("/app/tasks/new?source=workspace");
   await expect(page).toHaveURL(/\/contact\/site-operator\?source=workspace/);
-  await expect(page.getByRole("group", { name: "How will we see the task?", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Start a job" })).toBeVisible();
 });

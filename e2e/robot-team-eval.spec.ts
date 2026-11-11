@@ -16,7 +16,7 @@ test.beforeEach(async ({ page }) => {
 test("legacy robot-team evaluation URL reaches the job library for an approved team", async ({ page }) => {
   await page.goto("/robot-team/eval");
   await expect(page).toHaveURL(/\/contact\/robot-team/);
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Bring your capabilities to real jobs.");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Apply to see jobs");
   await expect(page.getByRole("region", { name: "Job library" })).toBeVisible();
   await expect(page.getByText("The first site jobs are being prepared.")).toBeVisible();
   await expect(page.getByRole("button", { name: "See what we would run" })).toHaveCount(0);
@@ -58,6 +58,6 @@ test("both persona destinations are usable on mobile", async ({ page }) => {
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 
   await page.goto("/contact/site-operator");
-  await expect(page.getByRole("button", { name: "Start free assessment", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: /^(Send video|Next: film the job|Save my job)$/ })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });

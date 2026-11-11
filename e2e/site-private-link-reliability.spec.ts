@@ -492,17 +492,17 @@ test("desktop handoff recognizes retained footage without claiming processing co
   await page.clock.install();
   await page.goto("/contact/site-operator");
   // The optional sentence confirms the brief at submission (owner direction 2026-11-11).
-  await page.locator("#start-task").fill("Move sealed cartons onto a pallet");
+  await page.getByRole("button", { name: "Add details (optional) ›" }).click(); await page.locator("#start-task").fill("Move sealed cartons onto a pallet"); await page.getByRole("button", { name: "Done", exact: true }).click();
   await page.locator("#start-location").fill("Austin, TX");
   await page.locator("#start-email").fill("operator@example.test");
-  await page.getByRole("button", { name: "Start free assessment" }).click();
-  await expect(page.getByRole("heading", { name: "Film the work area." })).toBeVisible();
+  await page.getByRole("button", { name: /^(Send video|Next: film the job|Save my job)$/ }).click();
+  await expect(page.getByRole("heading", { name: "Now film the job." })).toBeVisible();
   await expect(page.getByRole("link", { name: "Open your job page", exact: true })).toHaveAttribute("href", "/capture-upload/held-fixture");
   received = true;
   await page.clock.fastForward(6000);
-  await expect(page.getByRole("heading", { name: "Your recording is in." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "We have your video." })).toBeVisible();
   await expect(page.getByText("Your video is retained. Recording permission needs review.")).toBeVisible();
-  await expect(page.getByRole("link", { name: "Open your job and assessment" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Open my job" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Open the camera" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Retry processing" })).toHaveCount(0);
   await page.screenshot({ path: info.outputPath("desktop-held-footage.png"), fullPage: true });

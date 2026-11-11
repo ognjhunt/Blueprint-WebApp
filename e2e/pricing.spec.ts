@@ -6,12 +6,12 @@ test.beforeEach(mockExternalFonts);
 test("historical pricing leads to the free beta page with one action", async ({ page }) => {
   await page.goto("/pricing");
   await expect(page).toHaveURL(/\/beta$/);
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Start with one real job.");
-  await expect(page.getByText(/The beta is free for sites and partners/)).toBeVisible();
-  await expect(page.getByText(/You choose whether to proceed and approve the spending/i)).toBeVisible();
-  await expect(page.locator("article .ms-button")).toHaveCount(1);
-  await expect(page.locator("article")).not.toContainText("$2,500");
-  await expect(page.locator("article")).not.toContainText("$99");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Questions");
+  await expect(page.getByText(/Free\. Blueprint takes no cut of any work you agree\./)).toBeVisible();
+  await expect(page.getByText(/You agree the price and terms with them\./)).toBeVisible();
+  await expect(page.locator("main .bare-button")).toHaveCount(1);
+  await expect(page.locator("main")).not.toContainText("$2,500");
+  await expect(page.locator("main")).not.toContainText("$99");
 });
 
 test("terms make the beta free, with Blueprint running the evaluation and no Blueprint fee", async ({ page }) => {
@@ -33,9 +33,8 @@ test("the beta page reaches the header on mobile without a horizontal scrollbar"
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
   await page.getByRole("button", { name: "Reject all", exact: true }).click();
-  await page.getByRole("button", { name: "Open menu" }).click();
-  await page.getByRole("navigation", { name: "Mobile navigation" }).getByRole("link", { name: "How it works" }).click();
-  await page.getByRole("navigation", { name: "Footer navigation" }).getByRole("link", { name: "Beta & pricing" }).click();
+  await page.getByRole("link", { name: "How it works ›" }).click();
+  await page.getByRole("link", { name: "Questions ›" }).click();
 
   await expect(page).toHaveURL(/\/beta$/);
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
@@ -49,5 +48,5 @@ test("legacy offer URLs land on the beta page in one hop", async ({ page, reques
 
   await page.goto("/data-packages");
   await expect(page).toHaveURL(/\/beta/);
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Start with one real job.");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Questions");
 });

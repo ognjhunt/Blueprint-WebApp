@@ -21,7 +21,7 @@ test("legacy environments route redirects to proof instead of the removed catalo
 
   await expect(page).toHaveURL(/\/#how-it-works$/);
   await expect(
-    page.getByRole("heading", { name: /Find the right way to automate your work/i }),
+    page.getByRole("heading", { name: /Which robot could do your job\?/i }),
   ).toBeVisible();
 });
 
@@ -66,6 +66,9 @@ test("legacy proof, docs and help URLs reach their destination in one hop", asyn
     ["/environments", "/#how-it-works"],
     ["/help", "/contact/site-operator"],
     ["/beta/capturer-guide", "/contact/site-operator"],
+    // Bare bones (2026-11-11): "Jobs we support" folded into How it works, "About" into the Questions page.
+    ["/jobs-we-support", "/how-it-works"],
+    ["/about", "/beta#who-we-are"],
   ]) {
     const response = await request.get(path, { maxRedirects: 0 });
     expect(response.status(), path).toBe(301);
@@ -90,7 +93,7 @@ test("public routes work with trailing slashes", async ({ page }) => {
   await expect(page).toHaveURL(/\/#how-it-works$/);
   await expect(
     page.getByRole("heading", {
-      name: /Find the right way to automate your work/i,
+      name: /Which robot could do your job\?/i,
     }),
   ).toBeVisible();
 });
@@ -101,7 +104,7 @@ test("FAQ redirects to the compact method section", async ({ page }) => {
   await expect(page).toHaveURL(/\/#how-it-works$/);
   await expect(
     page.getByRole("heading", {
-      name: /Find the right way to automate your work/i,
+      name: /Which robot could do your job\?/i,
     }),
   ).toBeVisible();
 });

@@ -53,22 +53,22 @@ for (const device of ["desktop", "mobile"] as const) {
         await testInfo.attach(`${device}-${name}`, { path, contentType: "image/png" });
       };
       await page.goto("/contact/site-operator");
-      await expect(page.getByRole("group", { name: "How will we see the task?" })).toBeVisible();
-      await expect(page.locator("#start-task")).toBeVisible();
+      await expect(page.getByRole("heading", { level: 1, name: "Start a job" })).toBeVisible();
+      await expect(page.locator("#start-task")).toBeAttached();
       await shot("intake");
       // Nothing is sent without the country and the email.
-      await page.getByRole("button", { name: "Start free assessment", exact: true }).click();
+      await page.getByRole("button", { name: /^(Send video|Next: film the job|Save my job)$/ }).click();
       expect(mutations).toHaveLength(0);
-      await page.locator("#start-task").fill("Move sealed cartons from a conveyor onto a pallet.");
+      await page.getByRole("button", { name: "Add details (optional) ›" }).click(); await page.locator("#start-task").fill("Move sealed cartons from a conveyor onto a pallet."); await page.getByRole("button", { name: "Done", exact: true }).click();
       await expect(page.getByRole("checkbox", { name: "This is the task I want Blueprint to evaluate.", exact: true })).toHaveCount(0);
       await page.locator("#start-location").fill("Austin, TX");
       await page.locator("#start-email").fill("qa@example.invalid");
       await expect(page.locator("#start-rights")).toHaveCount(0);
       await expect(page.locator("#start-region")).toHaveCount(0);
-      await page.getByRole("button", { name: "Start free assessment", exact: true }).click();
+      await page.getByRole("button", { name: /^(Send video|Next: film the job|Save my job)$/ }).click();
       const captureLink = page.getByRole("link", { name: device === "mobile" ? "Open the camera" : "Open your job page", exact: true });
       await expect(captureLink).toBeVisible();
-      await expect(page.getByRole("link", { name: "Open your job and assessment", exact: true })).toHaveCount(0);
+      await expect(page.getByRole("link", { name: "Open my job", exact: true })).toHaveCount(0);
       expect(mutations).toHaveLength(1);
       expect(mutations[0].body).toMatchObject({ taskStatement: "Move sealed cartons from a conveyor onto a pallet.",
         taskConfirmation: { granted: true, statementVersion: "2026-11-07.v1" }, descriptionOnly: true, descriptionAuthority: { granted: true, statementVersion: "2026-10-06.v1" }, consentAttestation: null, hasExistingFootage: false });

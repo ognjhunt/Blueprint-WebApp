@@ -230,17 +230,17 @@ for (const mobile of [false, true]) test(`${mobile ? "phone" : "desktop"}: video
   const page = await context.newPage(); const mutations = await fixtures(page);
   await page.goto("/contact/site-operator");
   const form = page.getByRole("form", { name: "Start a site capture" });
-  await expect(form.getByRole("group", { name: "How will we see the task?" })).toBeVisible();
+  await expect(form.getByRole("heading", { level: 1, name: "Start a job" })).toBeVisible();
   await expect(form.locator("#start-task")).toHaveValue("");
-  await expect(form.locator("#start-task")).toBeVisible();
-  await form.locator("#start-task").fill("Pick up each packed carton and place it at the end of the table");
+  await expect(form.locator("#start-task")).toBeAttached();
+  await form.getByRole("button", { name: "Add details (optional) ›" }).click(); await form.locator("#start-task").fill("Pick up each packed carton and place it at the end of the table"); await form.getByRole("button", { name: "Done", exact: true }).click();
   await form.locator("#start-location").fill("Chicago, Illinois");
   await form.locator("#start-email").fill("owner@example.test");
   await expect(form.locator("#start-rights")).toHaveCount(0);
   await expect(form.locator("#start-region")).toHaveCount(0);
-  await form.getByRole("button", { name: "Start free assessment", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Film the work area.", exact: true })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Open your job and assessment", exact: true })).toHaveCount(0);
+  await form.getByRole("button", { name: /^(Send video|Next: film the job|Save my job)$/ }).click();
+  await expect(page.getByRole("heading", { name: "Now film the job.", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Open my job", exact: true })).toHaveCount(0);
   await expect(page.getByRole("link", { name: mobile ? "Open the camera" : "Open your job page", exact: true })).toBeVisible();
   await expect(page.getByRole("img", { name: "Point your phone at this to film" })).toHaveCount(mobile ? 0 : 1);
   expect(mutations.find(mutation => mutation.path === "/api/inbound-request")?.body).toMatchObject({
