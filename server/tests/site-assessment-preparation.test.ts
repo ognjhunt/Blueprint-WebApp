@@ -175,6 +175,39 @@ it("the signed route returns the multi-step hold by name, so the Pipeline holds 
   } finally {await new Promise<void>((resolve,reject)=>server.close(error=>error?reject(error):resolve()));}
 });
 
+it("refuses the first grant with the expired-window answer once a job with no grant was ended; a grant issued first owns the job",async()=>{
+  const {sweepWebsiteJobWithoutGrant}=await import("../utils/websiteJobWindowSweep");
+  // The video arrived eight days ago and no grant was ever issued: past the job window counted from it.
+  const arrived=()=>state.docs.set("captureOutbox/one:video_received",{kind:"video_received",requestId:"one",status:"sent",
+    createdAtIso:new Date(Date.now()-8*86400_000).toISOString()});
+  // The sweep commits first: the ending is recorded, and the Pipeline's first grant request is refused as an expired grant is.
+  seed(packet(),false,false);arrived();
+  expect(await sweepWebsiteJobWithoutGrant("one")).toBe("ended_no_notice");
+  const ended=structuredClone(state.docs.get("inboundRequests/one") as any);
+  expect(ended.website_job_window_ending).toMatchObject({schema_version:"website_job_window_ending.v2",basis:"video_received_no_grant",request_id:"one"});
+  await expect(loadWebsiteSceneSponsorship("one",true,"walkthrough-one",prepOptions())).rejects.toThrow("consent_expired");
+  // A non-creating read is unchanged: there is still no grant to read.
+  await expect(loadWebsiteSceneSponsorship("one",false,"walkthrough-one",prepOptions())).rejects.toThrow("website_scene_sponsorship_missing");
+  const app=express();app.use(express.json());app.use((await import("../routes/internal-capture-worlds")).default);
+  const server=createServer(app);await new Promise<void>(resolve=>server.listen(0,"127.0.0.1",resolve));
+  try {
+    const refused=await fetch(`http://127.0.0.1:${(server.address() as any).port}/creator-captures/walkthrough-one/scene-sponsorship`,
+      {method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({request_id:"one",scene_id:"site-one",...prepOptions()})});
+    expect(refused.status).toBe(409);expect(await refused.json()).toEqual({code:"consent_expired"});
+  } finally {await new Promise<void>((resolve,reject)=>server.close(error=>error?reject(error):resolve()));}
+  // No grant was written, and nothing else on the job changed.
+  expect(state.docs.get("inboundRequests/one")).toEqual(ended);
+  expect(ended).not.toHaveProperty("website_scene_sponsorship");
+
+  // The grant commits first: the sweep, reading again in its own transaction, leaves the job to the granted path.
+  state.docs.clear();seed(packet(),false,false);arrived();
+  const observed=structuredClone(state.docs.get("inboundRequests/one") as any);
+  const grant=await loadWebsiteSceneSponsorship("one",true,"walkthrough-one",prepOptions());
+  expect(await sweepWebsiteJobWithoutGrant("one",Date.now(),observed)).toBe("granted");
+  expect(state.docs.get("inboundRequests/one")).not.toHaveProperty("website_job_window_ending");
+  expect(state.docs.get("inboundRequests/one")?.website_scene_sponsorship).toEqual(grant);
+});
+
 // SYNTHETIC offline preparation contract v2. Actual existing handlers, no production operations.
 function prepOptions() {
   const brief=state.docs.get("siteTaskBriefs/one") as any,record=state.docs.get("inboundRequests/one") as any;

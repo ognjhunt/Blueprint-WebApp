@@ -57,7 +57,10 @@ owner (`user_id`, `organization_id`), `max_total_spend_usd`, disjoint
 `max_paid_attempts`, `ttl_seconds` (the website job window, set in
 `server/utils/websiteJobWindow.ts`: at most seven days, 604800 when left out), and
 `provider_terms_reference`. The two allowances cannot exceed the total.
-The grant and its scene intent share that one expiry. The Pipeline accepts a
+The grant and its scene intent share that one expiry. A job whose video arrived
+but which never received a grant ends after the same length of time, counted
+while the site was waiting on Blueprint (`server/utils/websiteJobWindowSweep.ts`);
+its first grant is refused after that ending. The Pipeline accepts a
 grant whose window is at most its mirrored bound
 (`blueprint_pipeline/website_job_window.py`), so a longer window ships to the
 Pipeline first, then here.

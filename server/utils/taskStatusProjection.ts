@@ -29,7 +29,7 @@ import type { ReadinessStage } from "../../client/src/lib/siteTaskReadiness";
 import { multiStepHoldMessage, taskScopeNotYet } from "./siteTaskScope";
 import type { TaskOutcome } from "../../client/src/types/taskOutcome";
 import { AUTHORITY_ENDED_SENTENCE, FOOTAGE_BEFORE_ACCOUNT_SENTENCE, JOB_WINDOW_ENDED_SENTENCE, JOB_WINDOW_ENDING_MESSAGE,
-  PREPARATION_ENDED_NEXT, processingFailure } from "./taskPreparationOutcome";
+  JOB_WINDOW_ENDING_WITHOUT_GRANT_MESSAGE, PREPARATION_ENDED_NEXT, processingFailure } from "./taskPreparationOutcome";
 import { screeningOutcomeSentenceWithWindow, type ScreeningHeldOutcome, type ScreeningOutcome,
   type ScreeningOutcomeCaveat } from "./betaPolicyScreeningContract";
 import { isTerminalSceneOutcomeKind, sceneOutcomeMessage, sceneWaitMessage, type SceneOutcomeReading } from "./sceneIntentOutcome";
@@ -289,6 +289,8 @@ interface TaskStatusInput {
    * last reported and whether or not it can be reached.
    */
   jobWindowEndingRecorded?: boolean;
+  /** That ending is for a job whose video arrived but which never received a grant (`websiteJobWorkWindow.endingWithoutGrant`). */
+  jobWindowEndingWithoutGrant?: boolean;
   /** False when no automated footage review runs, so a person reviews it. */
   footageReviewAutomated?: boolean;
   scenePreviewReady?: boolean;
@@ -384,7 +386,8 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
   // would now be untrue, because nothing more runs for a job past its window. Only a result is
   // truer, and each of those has its own email: an estimate or an evaluation's hold, or a run.
   if (input.jobWindowEndingRecorded && !resultOutranksWindowEnding(input)) return { ...base, decision: "ended", stage: null,
-    missingViews: [], headline: JOB_WINDOW_ENDING_MESSAGE, operatorAction: null };
+    missingViews: [], headline: input.jobWindowEndingWithoutGrant ? JOB_WINDOW_ENDING_WITHOUT_GRANT_MESSAGE : JOB_WINDOW_ENDING_MESSAGE,
+    operatorAction: null };
 
   // A preparation stop must not be hidden by an unconfirmed brief or a generic
   // intake gate. Actual evaluation activity/results outrank an older stop.
@@ -818,7 +821,7 @@ export function taskStatusInputFrom(record: {
   /** Recording withdrawal overrides retained derived evidence on every surface. */
   consentRevoked?: boolean;
   /** `websiteJobWorkWindow(record)`, when the caller read it. */
-  jobWorkWindow?: { untilEpoch: number | null; ended: boolean; endingRecorded?: boolean } | null;
+  jobWorkWindow?: { untilEpoch: number | null; ended: boolean; endingRecorded?: boolean; endingWithoutGrant?: boolean } | null;
   footageReviewAutomated?: boolean;
   scenePreviewReady?: boolean;
   visualReconstructionReady?: boolean;
@@ -857,7 +860,8 @@ export function taskStatusInputFrom(record: {
     consentRevoked: record.consentRevoked === true,
     ...(record.jobWorkWindow?.untilEpoch ? { jobWorkUntilEpoch: record.jobWorkWindow.untilEpoch } : {}),
     ...(record.jobWorkWindow?.ended === true ? { jobWindowEnded: true } : {}),
-    ...(record.jobWorkWindow?.endingRecorded === true ? { jobWindowEndingRecorded: true } : {}),
+    ...(record.jobWorkWindow?.endingRecorded === true ? { jobWindowEndingRecorded: true,
+      ...(record.jobWorkWindow.endingWithoutGrant === true ? { jobWindowEndingWithoutGrant: true } : {}) } : {}),
     ...(record.footageReviewAutomated === false ? { footageReviewAutomated: false } : {}),
     scenePreviewReady: Boolean(record.scenePreviewReady),
     visualReconstructionReady: record.visualReconstructionReady === true,

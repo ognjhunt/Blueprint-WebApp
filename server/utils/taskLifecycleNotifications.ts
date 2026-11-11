@@ -26,7 +26,7 @@ import { drainPendingWebsitePreparationNotifications } from "./websitePreparatio
 import { preparationEndedSentence } from "./taskStatusProjection";
 import { EARLY_TASK_HOLD_DETAIL, EARLY_TASK_HOLD_SENTENCES, earlyTaskHoldOf, isEarlyTaskHoldReason,
   FOOTAGE_BEFORE_ACCOUNT_SENTENCE, JOB_WINDOW_ENDING_MESSAGE, JOB_WINDOW_ENDING_SUBJECT,
-  type EarlyTaskHoldReason } from "./taskPreparationOutcome";
+  JOB_WINDOW_ENDING_WITHOUT_GRANT_MESSAGE, type EarlyTaskHoldReason } from "./taskPreparationOutcome";
 import { isWebsiteJobWindowEndedEventId } from "./websiteJobWindowEnding";
 import { selectWebsiteAtlasPreview } from "./websiteAtlasPreview";
 import { isScreeningResultOutcome, screeningEstimateCountSentence, screeningOutcomeSentence, storedScreeningOutcomeCaveat,
@@ -289,6 +289,8 @@ export function buildTaskLifecycleNotification(params: {
    * (`websiteJobWindowSweep`). Its event id is the job's fixed one, or the one naming a later window end.
    */
   jobWindowEnded?: true;
+  /** With `jobWindowEnded`: the job never received a grant, so its ending says the sentence for that basis. */
+  jobWindowEndedWithoutGrant?: true;
 }): Parameters<typeof enqueueOutbox>[0] {
   const requestId = params.requestId.trim();
   if (isWebsitePreparationNotice(params.milestone) && !/^sha256:[a-f0-9]{64}$/.test(params.eventId || "")) {
@@ -382,11 +384,12 @@ function sceneOutcomeDetail(params: { eventId?: string; sceneOutcomeKind?: Termi
  * The job page's own sentence for a job the window sweep ended. Fixed text, and only under a
  * window-ended event id and with no scene outcome kind, so no other notice can carry it.
  */
-function jobWindowEndedDetail(params: { eventId?: string; sceneOutcomeKind?: TerminalSceneOutcomeKind }): string {
+function jobWindowEndedDetail(params: { eventId?: string; sceneOutcomeKind?: TerminalSceneOutcomeKind;
+  jobWindowEndedWithoutGrant?: true }): string {
   if (!isWebsiteJobWindowEndedEventId(params.eventId) || params.sceneOutcomeKind !== undefined) {
     throw new Error("job_window_ended_notice_invalid");
   }
-  return JOB_WINDOW_ENDING_MESSAGE;
+  return params.jobWindowEndedWithoutGrant ? JOB_WINDOW_ENDING_WITHOUT_GRANT_MESSAGE : JOB_WINDOW_ENDING_MESSAGE;
 }
 
 /** How many of each kind of movable furniture a robot access proposal moves. */

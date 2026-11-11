@@ -139,6 +139,16 @@ export const JOB_WINDOW_ENDING_MESSAGE = `${JOB_WINDOW_ENDED_SENTENCE} ${JOB_WIN
 export const JOB_WINDOW_ENDING_SUBJECT = "Your Blueprint job has ended";
 
 /**
+ * A job the window sweep ended whose video arrived but which never received a grant: there was never
+ * an authorized window to run out, so the granted sentence would be untrue. This one is true in every
+ * such case: it names no number of days (the length is configurable) and does not say whether any
+ * work started (a preview may have been built). The job page and the one email both say exactly this.
+ */
+export const JOB_WINDOW_UNFINISHED_WITHOUT_GRANT_SENTENCE = "This job has ended because Blueprint did not finish it "
+  + "in the time it sets for a job, and no more work will run on this job.";
+export const JOB_WINDOW_ENDING_WITHOUT_GRANT_MESSAGE = `${JOB_WINDOW_UNFINISHED_WITHOUT_GRANT_SENTENCE} ${PREPARATION_ENDED_NEXT}`;
+
+/**
  * A video that arrived before its job was saved to an account. Nothing sends a later email about it,
  * so none is promised. The job page, the upload refusal and the one email all read this sentence.
  */

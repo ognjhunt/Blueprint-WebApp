@@ -27,7 +27,8 @@ import { SCENE_EXECUTION_WINDOW_MAX_SECONDS, sponsorshipExecutionWindowUntil,
   sponsorshipWindowIntake } from "./sceneExecutionWindowExtension";
 import { WEBSITE_JOB_WINDOW_DEFAULT_SECONDS, WEBSITE_JOB_WINDOW_MAX_SECONDS, WEBSITE_JOB_WINDOW_MIN_SECONDS,
   issuedWebsiteJobWindowSeconds } from "./websiteJobWindow";
-import { recordedWebsiteJobWindowEnding } from "./websiteJobWindowEnding";
+import { isWebsiteJobWindowEndingWithoutGrant, recordedWebsiteJobWindowEnding,
+  recordedWebsiteJobWindowEndingWithoutGrant } from "./websiteJobWindowEnding";
 
 function continuationAuthority(authority: Record<string, any>, input: {
   brief: SiteTaskBriefRecord; record: Record<string, any>; inventory?: TaskItemInventoryRecord | null;
@@ -80,6 +81,15 @@ const agentsApiPolicySchema = z.object({
 function policy() {
   try { return policySchema.parse(JSON.parse(process.env.BLUEPRINT_WEBSITE_SCENE_SPONSORSHIP_JSON || "null")); }
   catch { throw new Error("website_scene_sponsorship_not_configured"); }
+}
+
+/**
+ * The length of the website job window in force: the configured policy's `ttl_seconds`, or the
+ * default when the policy is not configured or does not read. A job with no grant is given this
+ * length from when its video arrived (`websiteJobDeadlineWithoutGrant`).
+ */
+export function websiteJobWindowSeconds(): number {
+  try { return policy().ttl_seconds; } catch { return WEBSITE_JOB_WINDOW_DEFAULT_SECONDS; }
 }
 
 function agentsApiPolicy() {
@@ -164,12 +174,19 @@ export function sponsorshipValidUntil(grant: Record<string, any>, executionWindo
  * It is what holds today, not a promise that the job stops on that date. `endingRecorded` is the
  * WebApp's own stored ending for this exact grant (`websiteJobWindowSweep`), read only while the
  * window is still past: an extension granted afterwards reopens the job and hides it.
+ *
+ * A job whose video arrived but which never received a grant has no authorized window to show, so
+ * no date and never `ended`; its stored ending (`endingWithoutGrant`) is read while it still has no
+ * grant, and the page says that ending's own sentence.
  */
 export async function websiteJobWorkWindow(record: Record<string, any> | undefined,
-  nowEpoch = Date.now() / 1000): Promise<{ untilEpoch: number | null; ended: boolean; endingRecorded?: true }> {
+  nowEpoch = Date.now() / 1000): Promise<{ untilEpoch: number | null; ended: boolean; endingRecorded?: true;
+    endingWithoutGrant?: true }> {
   const none = { untilEpoch: null, ended: false };
   const grant = record?.website_scene_sponsorship;
-  if (!grant || typeof grant.expires_at_epoch !== "number" || !Number.isFinite(grant.expires_at_epoch)) return none;
+  if (!grant) return recordedWebsiteJobWindowEndingWithoutGrant(record)
+    ? { ...none, endingRecorded: true, endingWithoutGrant: true } : none;
+  if (typeof grant.expires_at_epoch !== "number" || !Number.isFinite(grant.expires_at_epoch)) return none;
   let executionWindowUntil: number | undefined;
   if (record!.website_scene_sponsorship_execution_window) {
     try {
@@ -179,8 +196,9 @@ export async function websiteJobWorkWindow(record: Record<string, any> | undefin
   }
   const until = sponsorshipValidUntil(grant, executionWindowUntil);
   if (until > nowEpoch) return { untilEpoch: until, ended: false };
+  const ending = recordedWebsiteJobWindowEnding(record);
   return { untilEpoch: null, ended: projectWebsiteCaptureRights(record).derived_scene_generation_allowed,
-    ...(recordedWebsiteJobWindowEnding(record) ? { endingRecorded: true as const } : {}) };
+    ...(ending && !isWebsiteJobWindowEndingWithoutGrant(ending) ? { endingRecorded: true as const } : {}) };
 }
 
 export function websiteSceneSponsorship(input: {
@@ -401,6 +419,12 @@ export async function loadWebsiteSceneSponsorship(requestId: string, create = fa
     await assertWebsiteCaptureBindingInTransaction(transaction, requestId, captureBinding);
     const record = request.data()!;
     if (!create && !record.website_scene_sponsorship) throw new Error("website_scene_sponsorship_missing");
+    // A job the window sweep ended with no grant was told no more work will run on it. Its first
+    // grant is refused with the answer an expired grant gets, which the Pipeline takes as the job's
+    // ending and does not retry. The sweep's write and this one are both transactions on this
+    // document, so whichever commits first decides: a grant issued first owns the job's window.
+    if (create && !record.website_scene_sponsorship && recordedWebsiteJobWindowEndingWithoutGrant(record, requestId))
+      throw new Error("consent_expired");
     const purpose = options ? options.purpose : !create ? retainedWebsiteScenePurpose(record) : undefined;
     const executionWindowUntil = !create && options?.honour_execution_window === true
       && record.website_scene_sponsorship_execution_window

@@ -361,6 +361,13 @@ describe("a job the window sweep ended is told under its own fixed key", () => {
       eventId: "job_window_ended", jobWindowEnded: true, captureUrl: "https://example.invalid/private-owner-link",
       workspaceUrl: "https://example.invalid/app/tasks/req-1" });
     expect(claimed.body).toContain("Open your job in your workspace:\nhttps://example.invalid/app/tasks/req-1");
+    // A job ended with no grant says its own first sentence, under the same key and subject.
+    const { JOB_WINDOW_ENDING_WITHOUT_GRANT_MESSAGE } = await import("../utils/taskPreparationOutcome");
+    const withoutGrant = buildTaskLifecycleNotification({ requestId: "req-1", to: "owner@example.com", milestone: "scene_outcome",
+      eventId: "job_window_ended", jobWindowEnded: true, jobWindowEndedWithoutGrant: true, captureUrl: "https://example.invalid/private-owner-link" });
+    expect(withoutGrant).toMatchObject({ idempotencyKey: "req-1:scene_outcome:job_window_ended", subject: "Your Blueprint job has ended" });
+    expect(withoutGrant.body).toBe(`${JOB_WINDOW_ENDING_WITHOUT_GRANT_MESSAGE}\n\nOpen your job on your private job page:\n`
+      + "https://example.invalid/private-owner-link\n\n— The Blueprint team");
     // Only the fixed event id, and never together with a scene outcome kind.
     for (const params of [{ eventId: `held-${"a".repeat(64)}` }, { eventId: undefined },
       { eventId: "job_window_ended", sceneOutcomeKind: "held" as const }])
