@@ -66,3 +66,17 @@ ul.bare-menu { list-style: none; margin: var(--bare-s4) 0 0; padding: 0; border-
 .bare-menu .owner-withdrawal { margin-top: 0; }
 .bare-screen .job-settings-workspace { margin-top: var(--bare-s4); }
 .bare-screen .job-settings-workspace .job-workspace { margin: 0; padding: 0; border: 0; }
+/* On a phone a row reads label above value, so neither is squeezed into a narrow column. */
+@media (max-width: 480px) {
+  .bare-row { grid-template-columns: 1fr; gap: 0; padding: var(--bare-s2) 0 0; }
+  .bare-row dt { font-size: 14px; }
+}
+/* Controls that bring their own disclosure sit in a settings row the same way as the others. */
+.bare-menu .ms-task-interest { margin: 0; padding: 0; border: 0; background: none; }
+.bare-screen .job-settings-workspace { margin-top: 0; }
+.bare-screen .job-settings-workspace .job-planning-details { margin: 0; padding: 0; border-block: 0; border-bottom: 1px solid var(--bare-rule); }
+.bare-screen .job-settings-workspace .job-planning-details > summary { display: flex; align-items: center; justify-content: space-between; min-height: 56px;
+  padding: var(--bare-s2) 0; font-size: 18px; font-weight: 400; list-style: none; cursor: pointer; }
+.bare-screen .job-settings-workspace .job-planning-details > summary::-webkit-details-marker { display: none; }
+.bare-screen .job-settings-workspace .job-planning-details > summary::after { content: "›"; font-size: 24px; color: var(--bare-muted); }
+.bare-screen .job-settings-workspace .job-planning-details > summary .ms-field-hint { display: none; }
