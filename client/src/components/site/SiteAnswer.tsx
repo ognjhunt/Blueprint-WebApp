@@ -8,7 +8,7 @@ import {
   type BareTickState,
 } from "@/components/bare/Bare";
 import {
-  ALSO_INVOLVES_PREFIX, REASON_UNSIZED, LIMITS_PAPER, LIMITS_TESTED, LIMITS_TESTING, SURENESS_STEPS, TIGHT_FIT_SENTENCE, UNKNOWN_JOB_KIND, UNKNOWN_MULTI_STEP, isScopeNote,
+  ALSO_INVOLVES_PREFIX, REASON_UNSIZED, LIMITS_GETTING_READY, LIMITS_PAPER, LIMITS_TESTED, LIMITS_TESTING, SURENESS_STEPS, TIGHT_FIT_SENTENCE, UNKNOWN_JOB_KIND, UNKNOWN_MULTI_STEP, isScopeNote,
   type AnswerBasis, type AnswerCheck, type AnswerConfidenceLevel, type AnswerEvidence, type AnswerRobot, type SiteAnswer as SiteAnswerView,
 } from "@/lib/siteAnswer";
 
@@ -177,14 +177,16 @@ export interface SiteAnswerProps {
   onShowSettings?: () => void;
   /** Where the job card stands, from the owner's listing; null until read. */
   card?: CardState;
-  /** Opens the paper check's own screen ("On paper: why this robot"). */
-  onShowPaper?: () => void;
+  /** The simulation of the site is being built (the page's preparation status): "Getting ready". */
+  gettingReady?: boolean;
 }
 
 const SURE_STEPS = SURENESS_STEPS;
 /** Said under the dots when a set-up flag lowers how sure the test result is. */
 export const SETUP_LOWERS = "Our simulation set-up may have affected this result.";
 export const TESTING_LINE = "on your job, in a simulation of your site. We'll email you.";
+/** While the simulation of the site is being built, before any AI robot is tested in it. */
+export const GETTING_READY_LINE = "Then we test AI robots on your job in it. We'll email you the result.";
 
 /** "Did your job in 7 of 10 tries". */
 const didJob = (option: SimulationOption) => `Did your job in ${option.succeeded} of ${option.scored} ${option.scored === 1 ? "try" : "tries"}`;
@@ -209,7 +211,7 @@ function TestHead({ result }: { result: Exclude<TestResult, null> }) {
   if (result.kind === "none_finished") return <BareGroup>
     <h2 className="bare-label" id="site-answer-title">Tested on your job</h2>
     {/* "Closest" only when the run graded how far the top option got. */}
-    <BareBig sub={testSubLine(result) ?? undefined}>None finished yet</BareBig>
+    <BareBig sub={testSubLine(result) ?? undefined}>No AI robot finished your job</BareBig>
     {result.setupFlag && <BareNotice>{PLAIN_SETUP_CAVEAT}</BareNotice>}
   </BareGroup>;
   // A winner, or the only option tested, which did the job at least once.
@@ -240,7 +242,7 @@ function TestHead({ result }: { result: Exclude<TestResult, null> }) {
  * keep one button with its line, two quiet links and the limits line.
  */
 export function SiteAnswer({ token, answer, proof, onIntroductionRequested, onEditJob, onUpdateVideo, quietAction = false,
-  onShowDetails, onShowSettings, card = null, onShowPaper }: SiteAnswerProps) {
+  onShowDetails, onShowSettings, card = null, gettingReady = false }: SiteAnswerProps) {
   const pick = answer.state === "ready" ? answer.pick : null;
   const links = [onShowDetails && answer.state !== "reading" ? { key: "details", label: "See details", onClick: onShowDetails } : null,
     onShowSettings ? { key: "settings", label: "Job settings", onClick: onShowSettings } : null].filter(Boolean) as Array<{ key: string; label: string; onClick: () => void }>;
@@ -279,16 +281,26 @@ export function SiteAnswer({ token, answer, proof, onIntroductionRequested, onEd
     ? <Introduction token={token} answer={answer} onRequested={onIntroductionRequested} quiet={quietAction} card={card} testResult={Boolean(test)} /> : null;
   const sceneNotice = answer.sceneNote && pick ? <BareNotice>{answer.sceneNote}</BareNotice> : null;
 
+  // The simulation of the site is being built (the page's preparation status, or a run not yet testing anything):
+  // the test result will be the answer, so nothing is offered or shared yet.
+  const building = !test && proof?.state !== "could_not_run" && !testNotRunLine(proof)
+    && (gettingReady || proof?.state === "preparing" || proof?.state === "running");
+  if (building) return <section className="site-answer-bare" aria-label="Your answer">
+    <BareGroup>
+      <h2 className="bare-label" id="site-answer-title">Getting ready</h2>
+      <BareBig sub={GETTING_READY_LINE}>Building your simulation</BareBig>
+    </BareGroup>
+    {notices.length > 0 && <BareGroup label="Before you rely on this">{notices.map(line => <BareNotice key={line}>{line}</BareNotice>)}</BareGroup>}
+    <BareLinks links={links} />
+    <BareFine>{LIMITS_GETTING_READY}</BareFine>
+  </section>;
+
+  // A test result is the answer; the paper check lives under Details. While testing there is no answer yet, so
+  // nothing is offered or shared.
   if (test) return <section className="site-answer-bare" aria-label="Your answer">
     <TestHead result={test} />
     {notices.length > 0 && <BareGroup label="Before you rely on this">{notices.map(line => <BareNotice key={line}>{line}</BareNotice>)}</BareGroup>}
-    {/* The paper check, one tap away, in its own group: the model only; the maker is on the screen it opens. */}
-    <BareGroup>
-      <button type="button" className="bare-quiet-button" data-opens="why" onClick={onShowPaper}>
-        {pick ? `On paper${fits ? "" : ", closest"}: ${pick.name} ›` : `On paper: ${answer.headline} ›`}</button>
-    </BareGroup>
-    {sceneNotice && <BareGroup>{sceneNotice}</BareGroup>}
-    {action}
+    {test.kind !== "testing" && action}
     <BareLinks links={links} />
     <BareFine>{test.kind === "testing" ? LIMITS_TESTING : LIMITS_TESTED}</BareFine>
   </section>;
@@ -426,6 +438,8 @@ export function SiteAnswerDetail({ answer, proof, screen, onBack }: {
     ...(answer.approach ? [{ key: "approach", label: "How it would be run", value: APPROACH_WORDS[answer.approach.kind] }] : []),
     // What the scene rebuilt from the video showed about this robot.
     ...(proof?.robotCheck ? [{ key: "scene", label: "In the simulation", value: proof.robotCheck.line }] : []),
+    // The server's note when the site's own measurement outranks the scene: on this screen whatever leads.
+    ...(answer.sceneNote ? [{ key: "scene-note", value: answer.sceneNote }] : []),
     { key: "robot-not-software", value: ROBOT_NOT_SOFTWARE },
   ]} /> : <BareRows title="Why we can't check it yet" rows={[{ key: "reason", value: answer.reason }]} />;
   if (screen === "others") body = <BareRows title="Robots" rows={[

@@ -81,7 +81,7 @@ describe("what the simulation test found", () => {
 
   it("says the headline a company reads, the same result, in a sentence", () => {
     expect(testHeadline(testResultOf(proofOf([winnerEvaluation])))).toBe("Was ahead on your job: Franka arm + π0.5, doing your job in 7 of 10 tries.");
-    expect(testHeadline(testResultOf(proofOf([allZeroEvaluation])))).toBe("Tested on your job: none finished yet.");
+    expect(testHeadline(testResultOf(proofOf([allZeroEvaluation])))).toBe("No AI robot finished your job.");
     expect(testHeadline(null)).toBeNull();
   });
 

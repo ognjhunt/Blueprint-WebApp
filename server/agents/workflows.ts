@@ -3,7 +3,7 @@ import { logger } from "../logger";
 import type { InboundRequest, QualificationState } from "../types/inbound-request";
 import { decryptInboundRequestForAdmin } from "../utils/field-encryption";
 import { runAgentTask } from "./runtime";
-import { type LaneSafetyPolicy, INBOUND_POLICY, SUPPORT_POLICY } from "./action-policies";
+import { type LaneSafetyPolicy, SUPPORT_POLICY } from "./action-policies";
 import {
   createPhase2RoutingPolicy,
   executePhase2WorkflowActions,
@@ -27,16 +27,12 @@ import type {
   AgentTaskKind,
 } from "./types";
 import { isPhase2LaneEnabled, isSiteVideoEvidenceApplied } from "../config/env";
-import {
-  buildQualificationEmail,
-  type QualifiedNextStep,
-} from "../utils/qualificationEmails";
+import { screeningEmailWouldHaveBeenSent } from "../utils/qualificationEmails";
 import {
   decideCaptureDispatch,
   describeCaptureDispatch,
   type CaptureDispatchDecision,
 } from "../utils/captureDispatch";
-import { captureUploadUrlFor } from "../utils/captureUploadToken";
 import {
   bindingGateFieldIds,
   isCaptureMode,
@@ -512,68 +508,6 @@ function createWaitlistEmailPolicy(): LaneSafetyPolicy {
   };
 }
 
-/**
- * Whether a person has to read this particular inbound email before it goes.
- *
- * `INBOUND_POLICY` queues every `qualified_ready` / `qualified_risky` email for
- * approval, and the qualification prompt separately tells the model to flag
- * those states. Both were written when qualifying a site meant committing to
- * send somebody to it — the prompt says so in as many words, "those
- * recommendations can change buyer-facing commitments".
- *
- * Self-capture changed what qualifying commits us to. A qualified site that
- * films its own workcell gets a signed upload link: it costs nothing, it
- * expires, and either side can ignore it. Holding that behind a person is the
- * same category error the service-area gate made — treating a fact about our
- * old cost structure as a fact about the submission.
- *
- * So the gate narrows to what is actually being committed, and the
- * conservative default stays everywhere else:
- *
- * - **A capturer visit** still needs a person, at the booking. Somebody drives
- *   to a real address, and that is a real commitment. The email that answers a
- *   visit request commits to nothing: it says a person will reply about whether
- *   a visit is possible for the site's location, and offers the site's own link
- *   to film it itself meanwhile. So that fixed email sends on its own, and the
- *   person stays where the commitment is.
- * - **A model-written follow-up** still needs a person. The deterministic
- *   variants are fixed copy selected by the site's own answers, which is what
- *   `qualificationEmails` means by reviewing the copy once instead of
- *   spot-checking every send. `buyer_follow_up` is model prose and gets no
- *   such guarantee.
- * - **Anything upstream asked a person for** still gets one: `blocked`, and
- *   the rights, privacy, payout and commercial concerns that set
- *   `requires_human_review`, are untouched here.
- *
- * What is left auto-sending is a pre-reviewed, deterministic email carrying a
- * free link to a site that asked for one.
- */
-export function createInboundEmailPolicy(params: {
-  /** True when the body is the deterministic gate-built copy, not model prose. */
-  deterministic: boolean;
-  dispatch: CaptureDispatchDecision;
-}): LaneSafetyPolicy {
-  if (!params.deterministic) {
-    return INBOUND_POLICY;
-  }
-
-  return {
-    ...INBOUND_POLICY,
-    autoApproveCriteria: (draft) =>
-      (draft.confidence ?? 0) >= 0.8 &&
-      !draft.requires_human_review &&
-      draft.automation_status !== "blocked",
-    alwaysHumanReview: (draft) =>
-      draft.requires_human_review === true ||
-      draft.automation_status === "blocked" ||
-      // Escalations are about the request itself, not about what capture mode
-      // costs us, so they keep their person.
-      ["escalated_to_geometry", "escalated_to_validation"].includes(
-        draft.recommendation ?? "",
-      ),
-  };
-}
-
 function createSupportEmailPolicy(): LaneSafetyPolicy {
   return SUPPORT_POLICY;
 }
@@ -789,28 +723,6 @@ export function decideDispatchForRequest(
   });
 }
 
-/**
- * Turn a dispatch decision into the one sentence the site reads.
- *
- * Issuing the token here is what makes the link real. The ids are derived from
- * the request rather than generated, so a re-run of this workflow points at the
- * same storage prefix instead of scattering a second empty capture beside the
- * first.
- */
-export function nextStepForDispatch(
-  request: InboundRequest,
-  decision: CaptureDispatchDecision,
-): QualifiedNextStep {
-  if (!decision.dispatch) {
-    return { kind: "held" };
-  }
-
-  return {
-    kind: "self_capture",
-    uploadUrl: captureUploadUrlFor(request.requestId),
-  };
-}
-
 function buildInboundActionSpecs(
   request: InboundRequest,
   result: InboundQualificationOutput,
@@ -829,7 +741,6 @@ function buildInboundActionSpecs(
   // The step that used to be a person noticing a queue. Everything it reads was
   // already decided above, so this adds latency of zero and judgement of zero.
   const dispatch = decideDispatchForRequest(request, requiresHumanReview);
-  const nextStep = nextStepForDispatch(request, dispatch);
 
   const specs: Phase2WorkflowActionSpec[] = [
     {
@@ -861,36 +772,12 @@ function buildInboundActionSpecs(
     },
   ];
 
-  // Screened notices describe deterministic gate/dispatch facts. Legacy
-  // follow-up correspondence is drafted by the customer communications agent
-  // below, never sent directly from the qualification model's wording.
-  const screenedEmail = buildQualificationEmail({
-    firstName: request.contact.firstName,
-    siteName: request.request.siteName,
-    triage: request.site_task_triage,
-    stage: "screened",
-    // So the email names the step the system actually took. Before this it
-    // asked every qualified site to book a call while dispatch was separately
-    // issuing an upload link or holding -- two different next steps in flight
-    // for one submission.
-    nextStep,
-  });
+  // The four-conditions screen sends no email (owner decision 2026-11-11). A
+  // model-written follow-up draft still starts only where no screening email
+  // would have gone, so ending the email starts no draft in its place.
+  const screeningEmailEnded = screeningEmailWouldHaveBeenSent(request.site_task_triage);
 
-  if (request.contact.email && screenedEmail) {
-    specs.push({
-      actionKey: `inbound_${screenedEmail.variant}_email`,
-      actionType: "send_email" as const,
-      actionPayload: {
-        type: "send_email" as const,
-        to: request.contact.email,
-        subject: screenedEmail.subject,
-        body: screenedEmail.body,
-      },
-      policy: createInboundEmailPolicy({ deterministic: Boolean(screenedEmail), dispatch }),
-    });
-  }
-
-  return { routingStatus, specs, dispatch, needsCommunicationsDraft: Boolean(request.contact.email && !screenedEmail && result.buyer_follow_up) };
+  return { routingStatus, specs, dispatch, needsCommunicationsDraft: Boolean(request.contact.email && !screeningEmailEnded && result.buyer_follow_up) };
 }
 
 function buildSupportActionSpecs(supportInput: SupportTriageInput, result: any) {

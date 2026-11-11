@@ -163,7 +163,7 @@ before-the-video screens are unchanged by round 3.
 | Winner | "DID BEST ON YOUR JOB" or "WAS AHEAD ON YOUR JOB" | the option, "Franka arm + π0.5" | "AI software by {maker}"; ticks "Did your job in N of M tries", "Ahead of the K other AI robots we tested"; sureness |
 | One option, which did the job | "TESTED ON YOUR JOB" | the option | ticks "Did your job in N of M tries", "The only AI robot we could test on your job"; one dot |
 | Some finished, no winner | "TESTED ON YOUR JOB" | "No clear winner yet" | "Top: {option}, did your job in N of M tries." |
-| None finished | "TESTED ON YOUR JOB" | "None finished yet" | "Closest: {option} {furthest phrase}." (or "N AI robots tried; none finished your job."); the set-up notice when flagged |
+| None finished | "TESTED ON YOUR JOB" | "No AI robot finished your job" | "Closest: {option} {furthest phrase}." (or "N AI robots tried; none finished your job."); the set-up notice when flagged |
 | Preparing or running | "TESTING NOW" | "{N} AI robots" | "on your job, in a simulation of your site. We'll email you." |
 | No test (held, closed, could not run, not started) | "ON PAPER, THE ROBOT MOST LIKELY TO FIT" ("ON PAPER, THE CLOSEST ROBOT") | the model | "by {maker}"; when known, "The simulation test did not run. {why}" ("did not finish" when stopped part way); the paper ticks and sureness |
 

@@ -1,22 +1,18 @@
 /**
- * The two replies, and the storage boundary that makes them possible.
+ * The four-conditions screen, after its emails ended (owner decision 2026-11-11),
+ * and the storage boundary that keeps its answers.
  *
- * The email tests pin that the copy is built from the site's own answers rather
- * than generated, and that a site clearing the screen hears its next step and
- * what follows, never a count of teams. The round-trip test pins the bug that
- * made all of this dead: gate answers were set in memory and dropped on write,
- * so a retried lead lost them.
+ * The screen still decides what it gates; it no longer writes to the site. The
+ * predicate the inbound workflow keeps stops a model-written draft from
+ * starting where the ended email used to go. The round-trip test pins the bug
+ * where gate answers were set in memory and dropped on write.
  */
 import crypto from "node:crypto";
 
 import { beforeAll, describe, expect, it } from "vitest";
 
-import {
-  buildLetsTalkEmail,
-  buildNotYetEmail,
-  buildQualificationEmail,
-  CALENDLY_URL,
-} from "../utils/qualificationEmails";
+import * as qualificationEmails from "../utils/qualificationEmails";
+import { screeningEmailWouldHaveBeenSent } from "../utils/qualificationEmails";
 import {
   decryptInboundRequestForAdmin,
   encryptInboundRequestForStorage,
@@ -40,48 +36,7 @@ function triage(overrides: Partial<SiteTaskTriageSummary> = {}): SiteTaskTriageS
   };
 }
 
-describe("the not-yet reply", () => {
-  it("names what would flip the answer, using the site's own blocker string", () => {
-    const email = buildNotYetEmail({
-      firstName: "Dana Whitfield",
-      siteName: "Riverside DC",
-      triage: triage(),
-    });
-
-    expect(email.variant).toBe("not_yet");
-    expect(email.body).toContain("Hi Dana,");
-    expect(email.body).toContain("Riverside DC");
-    expect(email.body).toContain("Expansion beyond Texas");
-    expect(email.body).toContain("not-yet rather than a no");
-  });
-
-  it("does not ask a blocked site for a call", () => {
-    const email = buildNotYetEmail({ firstName: "Dana", triage: triage() });
-    expect(email.body).not.toContain(CALENDLY_URL);
-    expect(email.body).toMatch(/No call needed/i);
-  });
-
-  // Review, 2026-11-11: the opening counts the conditions it is about to list, and never ends on an empty list.
-  it("counts the conditions it lists: one, or how many", () => {
-    const one = buildNotYetEmail({ firstName: "", triage: triage() });
-    expect(one.body).toContain("One of our screening conditions does not hold at the site today:");
-    expect(one.body.startsWith("Hi,\n")).toBe(true);
-    expect(one.body).not.toContain("Hi there");
-    const two = buildNotYetEmail({ firstName: "Dana", siteName: "Riverside DC", triage: triage({
-      blockers: ["Outside Texas — Expansion beyond Texas.", "People in the space all day — No clear window."] }) });
-    expect(two.body).toContain("Two of our screening conditions do not hold there today:");
-    expect(two.body).toContain("- Outside Texas — Expansion beyond Texas.\n- People in the space all day — No clear window.");
-    const five = buildNotYetEmail({ firstName: "Dana", triage: triage({ blockers: ["a", "b", "c", "d", "e"].map(letter => `Gate ${letter} — detail`) }) });
-    expect(five.body).toContain("5 of our screening conditions do not hold at the site today:");
-  });
-
-  it("is never built without a condition to name, so no empty list is ever sent", () => {
-    expect(() => buildNotYetEmail({ firstName: "Dana", triage: triage({ blockers: [] }) })).toThrow("not_yet_email_without_blockers");
-    expect(() => buildNotYetEmail({ firstName: "Dana", triage: triage({ blockers: ["", ""] }) })).toThrow("not_yet_email_without_blockers");
-    // The reply picker sends nothing for a "not now" with no stored blocker (a record from before blockers were kept).
-    expect(buildQualificationEmail({ firstName: "Dana", triage: triage({ blockers: [] }) })).toBeNull();
-  });
-
+describe("the screen", () => {
   it("is only reached with a blocker: screening says not now only when a gate blocks", () => {
     // Every gate answered with each of its options in turn, under both capture modes: not_now always carries a blocker.
     for (const captureMode of ["site_visit", "self_capture"] as const) {
@@ -101,75 +56,20 @@ describe("the not-yet reply", () => {
   });
 });
 
-describe("the let's-talk reply", () => {
-  const marginal = triage({
-    disposition: "needs_conversation",
-    blockers: [],
-    blocking_field_ids: [],
-    open_questions: [
-      "How stable is the layout? Small things move, but the layout holds — whether that counts depends on how much moves and how often.",
-    ],
+
+describe("the ended screening emails", () => {
+  it("are gone: only the can't-simulate-yet email is still built", () => {
+    expect(Object.keys(qualificationEmails).sort()).toEqual(["buildTaskNotYetSupportedEmail", "screeningEmailWouldHaveBeenSent"]);
   });
 
-  it("carries the agenda and the booking link", () => {
-    const email = buildLetsTalkEmail({
-      firstName: "Sam",
-      siteName: "Line 4",
-      triage: marginal,
-    });
-
-    expect(email.variant).toBe("lets_talk");
-    expect(email.subject).toContain("Line 4");
-    expect(email.body).toContain("Small things move");
-    expect(email.body).toContain(CALENDLY_URL);
-    expect(email.body).toContain("agenda");
-  });
-
-  it("mentions blanks when the submission was incomplete", () => {
-    const email = buildLetsTalkEmail({
-      firstName: "Sam",
-      triage: { ...marginal, incomplete: true },
-    });
-    expect(email.body).toMatch(/left blank/i);
-  });
-
-  it("offers the site a way out rather than only a booking link", () => {
-    const email = buildLetsTalkEmail({ firstName: "Sam", triage: marginal });
-    expect(email.body).toMatch(/save us both the call/i);
-  });
-});
-
-describe("choosing a reply", () => {
-  it("tells a site that clears the screen its next step, not who might evaluate it", () => {
-    const email = buildQualificationEmail({
-      firstName: "Sam",
-      triage: triage({ disposition: "qualified", blockers: [], blocking_field_ids: [] }),
-    });
-    expect(email?.variant).toBe("qualified");
-    expect(email?.body).toMatch(/share the job with deployment companies we have approved/);
-    expect(email?.body).not.toMatch(/\bmatch|\bteams? on our list|budget/i);
-  });
-
-  it("sends nothing when there was no screen at all", () => {
-    expect(buildQualificationEmail({ firstName: "Sam", triage: null })).toBeNull();
-  });
-
-  it("routes each disposition to its own variant", () => {
-    expect(buildQualificationEmail({ firstName: "S", triage: triage() })?.variant).toBe(
-      "not_yet",
-    );
-    expect(
-      buildQualificationEmail({
-        firstName: "S",
-        triage: triage({ disposition: "needs_conversation", blockers: [] }),
-      })?.variant,
-    ).toBe("lets_talk");
-    expect(
-      buildQualificationEmail({
-        firstName: "S",
-        triage: triage({ disposition: "qualified", blockers: [], blocking_field_ids: [] }),
-      })?.variant,
-    ).toBe("qualified");
+  it("still say where one would have gone, so no model draft starts in its place", () => {
+    expect(screeningEmailWouldHaveBeenSent(triage())).toBe(true);
+    expect(screeningEmailWouldHaveBeenSent(triage({ blockers: [] }))).toBe(false);
+    expect(screeningEmailWouldHaveBeenSent(triage({ blockers: ["", ""] }))).toBe(false);
+    expect(screeningEmailWouldHaveBeenSent(triage({ disposition: "needs_conversation", blockers: [] }))).toBe(true);
+    expect(screeningEmailWouldHaveBeenSent(triage({ disposition: "qualified", blockers: [], blocking_field_ids: [] }))).toBe(true);
+    expect(screeningEmailWouldHaveBeenSent(null)).toBe(false);
+    expect(screeningEmailWouldHaveBeenSent(undefined)).toBe(false);
   });
 });
 
@@ -243,86 +143,5 @@ describe("storage round trip", () => {
 
     expect(restored.request.siteTaskGates).toBeNull();
     expect(restored.request.taskVideoUrl).toBeNull();
-  });
-});
-
-/* --------------------------------------------- the qualified branch */
-
-import { buildQualifiedEmail } from "../utils/qualificationEmails";
-
-describe("the qualified reply", () => {
-  it("names the upload link, the evaluated recommendation and the free beta", () => {
-    const email = buildQualifiedEmail({
-      firstName: "Dana Whitfield",
-      siteName: "Riverside DC",
-      stage: "brief_confirmed",
-      nextStep: { kind: "self_capture", uploadUrl: "https://example.test/capture-upload/abc" },
-    });
-
-    expect(email.variant).toBe("qualified");
-    expect(email.subject).toBe("Riverside DC: your job brief is confirmed");
-    expect(email.body.startsWith("Hi Dana,\n")).toBe(true);
-    expect(email.body).toContain("Thanks for confirming the job brief for Riverside DC");
-    expect(email.body).toContain("upload it here: https://example.test/capture-upload/abc");
-    // Blueprint runs the candidates itself and shows a bounded estimate or "held" (owner, 2026-10-28).
-    // Bare bones (2026-11-11): the next step, what the site then sees, and the free-beta boundary.
-    expect(email.body).toMatch(/You then see which robot most likely fits and which did best in the simulation, or “held” if we can't simulate that kind of job yet/);
-    expect(email.body).toMatch(/You can then share the job with deployment companies we have approved/);
-    expect(email.body).not.toMatch(/Screening runs are diagnostic|full scoring|review their proposals/);
-    expect(email.body).not.toMatch(/robot teams?/i);
-    expect(email.body).toMatch(/Free during the beta/);
-    expect(email.body).toMatch(/it never certifies how a robot will perform/);
-    expect(email.body).not.toContain(CALENDLY_URL);
-  });
-
-  it("never counts teams, names a budget, or uses match wording", () => {
-    for (const stage of ["brief_confirmed", "screened"] as const) {
-      for (const nextStep of [
-        { kind: "self_capture", uploadUrl: "https://example.test/capture-upload/abc" },
-        { kind: "capturer_visit", taskUrl: "https://example.test/capture-upload/abc" },
-        { kind: "capturer_visit" },
-        { kind: "held" },
-        undefined,
-      ] as const) {
-        const email = buildQualifiedEmail({ firstName: "Dana", siteName: "Riverside DC", stage, nextStep });
-        const text = `${email.subject}\n${email.body}`;
-        expect(text).not.toMatch(/\bmatch(?:es|ed|ing)?\b/i);
-        // "That one team" is the recommendation; a count of registry teams is not.
-        expect(text).not.toMatch(/\b(?:\d+|two|three|four|five|several|further) (?:further )?(?:robot )?teams\b/i);
-        expect(text).not.toMatch(/\bteams? on our list\b/i);
-        expect(text).not.toMatch(/budget/i);
-        expect(text).not.toMatch(/Austin/);
-      }
-    }
-  });
-
-  it("asks for the account step only when the site has none", () => {
-    const step = { kind: "self_capture", uploadUrl: "https://example.test/capture-upload/abc" } as const;
-    expect(buildQualifiedEmail({ firstName: "Dana", nextStep: step, accountNeeded: true }).body)
-      .toMatch(/create and verify your site account/);
-    expect(buildQualifiedEmail({ firstName: "Dana", nextStep: step }).body)
-      .not.toMatch(/site account/);
-  });
-
-  it("keeps private assessment separate from permission to share a job with providers", () => {
-    const step = { kind: "self_capture", uploadUrl: "https://example.test/capture-upload/abc" } as const;
-    const body = buildQualificationEmail({ firstName: "Dana", stage: "brief_confirmed", nextStep: step, jobCardPublished: false,
-      triage: triage({ disposition: "qualified", blockers: [], blocking_field_ids: [] }) })!.body;
-    expect(body).toMatch(/We need your video before the site assessment/);
-    expect(body).toMatch(/partners cannot discover it through the shared library/);
-    expect(body).toMatch(/We ask before sharing details with any partner/);
-    expect(body).toMatch(/publish its card from your job page/);
-    expect(body).not.toMatch(/We prepare a simplified simulation|book the pilot in one step/);
-  });
-
-  it("speaks for an intake-time screen as well as a confirmed brief", () => {
-    const email = buildQualificationEmail({
-      firstName: "Dana",
-      siteName: "Riverside DC",
-      stage: "screened",
-      triage: triage({ disposition: "qualified", blockers: [], blocking_field_ids: [] }),
-    });
-    expect(email?.subject).toBe("Riverside DC: your job cleared our screen");
-    expect(email?.body).toContain("Thanks for describing the job at Riverside DC");
   });
 });

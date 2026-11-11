@@ -75,7 +75,6 @@ import { getTeamBalance } from "../utils/robotTeamBalance";
 import { listRunsForTeam } from "../utils/agentRunResults";
 import { issueAgentKey, listAgentKeys, resolveAgentKey, revokeAgentKey } from "../utils/robotTeamAgentKeys";
 import { registerSelfServeTeam } from "../utils/robotTeamRegistry";
-import { enqueueTaskLifecycleNotification } from "../utils/taskLifecycleNotifications";
 import { alertOpsEvaluationNeedsAdmission } from "../utils/pilotOpsAlerts";
 import { accessRecordId, ensureApprovedTeamForAccount, resolveViewerAccess } from "../utils/robotTeamEarlyAccess";
 import { accountHasAdmission } from "../utils/accountInvitations";
@@ -1465,13 +1464,8 @@ router.post(
       details: `Evaluation request for job ${input.opportunityId}. ${input.notes}`,
     };
     await submitInboundRequest(req, res);
-    // The site hears that a team asked about its task, once per request.
+    // A team's request sends the site no email (owner decision 2026-11-11).
     if (res.statusCode < 300) {
-      await enqueueTaskLifecycleNotification({
-        requestId: input.opportunityId,
-        milestone: "pilot_request",
-        eventId: input.id,
-      }).catch((error) => logger.warn({ error, requestId: input.opportunityId }, "Could not queue the pilot-request email"));
       // The free evaluation waits on a founder's admission; ring ops once,
       // with ids only. Never blocks or fails the team's request.
       void teamsForAccount(caller.uid)

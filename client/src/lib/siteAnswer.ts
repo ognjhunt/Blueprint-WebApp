@@ -144,6 +144,8 @@ export const SITE_ANSWER_NOTE =
 export const LIMITS_TESTED = "Tested in a simulation, not at your site. Pick-up-and-put-down jobs only. It does not certify performance or safety.";
 /** While the test runs nothing has been tested yet, so the line says it is being tested. */
 export const LIMITS_TESTING = "Being tested in a simulation, not at your site. Pick-up-and-put-down jobs only. It does not certify performance or safety.";
+/** While the simulation of the site is being built: nothing has been tested yet. */
+export const LIMITS_GETTING_READY = "To be tested in a simulation, not at your site. Pick-up-and-put-down jobs only. It does not certify performance or safety.";
 export const LIMITS_PAPER = "A paper check, not a test at your site. Pick-up-and-put-down jobs only. It does not certify performance or safety.";
 /** The same lines as an approved deployment company reads them on the card, with the full note in the card's details. */
 export const JOB_CARD_LIMITS_TESTED = "Tested in a simulation, not at the site. Pick-up-and-put-down jobs only. It does not certify performance or safety.";

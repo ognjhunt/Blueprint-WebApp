@@ -30,6 +30,13 @@ export async function taskLifecycleNotificationIsCurrent(
  // queued notices without deleting findings or changing execution authority.
  if(entry.kind==='coverage_shortfall'||entry.kind==='screening_started'
   ||entry.kind==='screening_cleared'||entry.kind==='assessment_ready')return false;
+ // Ended by the owner 2026-11-11: the team-request email and the four-conditions
+ // screen's emails. Rows already queued are cancelled here, not sent. The
+ // "can't simulate this kind of job yet" email shares the `screening_not_now`
+ // kind and is kept, by its own fixed key.
+ if(entry.kind==='pilot_request'||entry.kind==='brief_confirmed'||entry.kind==='input_needed')return false;
+ if(entry.kind==='screening_not_now'
+  &&entry.idempotencyKey!==`${entry.requestId}:brief-screening:task-not-yet-supported`)return false;
  // The dispatch transaction is the send: a team-run evaluation notice stops there.
  if(transaction&&TEAM_RUN_EVALUATION_NOTICES.has(entry.kind))return false;
  // Older queued ownership notices asked for an account that cannot repair

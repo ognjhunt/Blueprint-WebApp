@@ -752,7 +752,7 @@ export function testHeadline(result: TestResult): string | null {
     case "winner": return `${result.wording === "did_best" ? "Did best" : "Was ahead"} on your job: ${result.top.label}, doing your job in ${tries(result.top)}.`;
     case "one_option": return `Tested on your job: ${result.top.label} did your job in ${tries(result.top)}, the only AI robot tested.`;
     case "no_clear_winner": return "Tested on your job: no clear winner yet.";
-    case "none_finished": return "Tested on your job: none finished yet.";
+    case "none_finished": return "No AI robot finished your job.";
   }
 }
 

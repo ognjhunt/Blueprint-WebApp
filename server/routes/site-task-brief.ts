@@ -82,7 +82,7 @@ import { loadWebsiteSceneProgression } from "../utils/websiteSceneProgression";
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { deliverOutbox, enqueueOutbox } from "../utils/captureOutbox";
 import { decryptFieldValue } from "../utils/field-encryption";
-import { buildQualificationEmail, buildTaskNotYetSupportedEmail } from "../utils/qualificationEmails";
+import { buildTaskNotYetSupportedEmail } from "../utils/qualificationEmails";
 import { multiStepTaskHold, taskScopeNotYet } from "../utils/siteTaskScope";
 import type { SiteTaskTriageSummary } from "../types/inbound-request";
 import { isSiteVideoEvidenceEnabled } from "../config/env";
@@ -97,7 +97,7 @@ import { createSiteClaimToken } from "../utils/request-review-auth";
 import { disclosedUnknownGates, gateAnswersOnFile } from "../utils/gateAnswersOnFile";
 import { bookingUrl } from "../utils/bookingLink";
 import { notifySlackScreeningCallNeeded } from "../utils/slack";
-import { EMAIL_SIGN_OFF, emailGreeting } from "../utils/emailLayout";
+import { emailGreeting } from "../utils/emailLayout";
 import { storedWebsiteScenePreview, websiteScenePreviewViewerUrl } from "../utils/websiteScenePreview";
 
 const router = Router();
@@ -1116,15 +1116,14 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
       });
     }
 
-    // Screening occurs here for public-form sites. Queue the actual verdict
-    // before returning; the outbox can retry delivery without a timed check-in.
-    // A job we cannot score hears that instead, whatever its gate verdict: it
-    // is not opened to robot teams, so no other next step is true for it.
+    // Screening occurs here for public-form sites. Only a job we cannot score
+    // hears about it by email, whatever its gate verdict: it is not opened to
+    // robot teams, so no other next step is true for it. The outbox can retry
+    // delivery without a timed check-in.
     const scoreable = result.scope.supported;
     // A site that filmed first is never asked to film again. Unknown is not
     // "not filmed": the job page says which, and the reply does not guess.
     const walkthrough = await savedWalkthrough(payload).catch(() => null);
-    const jobUrl = captureUploadUrlFor(payload.requestId);
     let coverageMeasured = false;
     try {
       const request = await readRequestForStatus(payload.requestId);
@@ -1149,42 +1148,10 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
         });
         void deliverOutbox({ limit: 5 }).catch((error) =>
           logger.warn({ error, requestId: payload.requestId }, "Task scope email delivery deferred to outbox"));
-      } else if (request?.contactEmail) {
-        // The verdict `confirmBrief` just wrote. Its own disposition stands in
-        // for a record that has not caught up, so a qualified site always hears
-        // its next step.
-        const recorded = request.site_task_triage as SiteTaskTriageSummary | null | undefined;
-        const triage = recorded?.disposition
-          ? recorded
-          : result.disposition === "qualified"
-            ? { disposition: "qualified" } as SiteTaskTriageSummary
-            : null;
-        const firstName = request.contactFirstName || "there";
-        // No registry run here. Its only consumer was this email, and the email
-        // no longer counts teams: the reply names the next step and what
-        // follows, never who might be on the other side.
-        const email = buildQualificationEmail({
-          firstName,
-          siteName: request.siteName,
-          triage,
-          stage: "brief_confirmed",
-          nextStep: walkthrough?.received ? { kind: "footage_received", taskUrl: jobUrl }
-            : !walkthrough ? { kind: "job_page", taskUrl: jobUrl }
-            : { kind: "self_capture", uploadUrl: jobUrl },
-          accountNeeded: !request.account_owner_uid,
-          ...(request.jobAccess ? { jobCardPublished: request.jobAccess.reason !== "not_listed" } : {}),
-        });
-        await enqueueOutbox({
-          idempotencyKey: `${payload.requestId}:brief-screening:${result.disposition}`,
-          requestId: payload.requestId,
-          to: request.contactEmail,
-          kind: result.disposition === "qualified" ? "brief_confirmed" : "input_needed",
-          subject: email?.subject ?? "Your job brief is confirmed",
-          body: email?.body ?? `${emailGreeting(firstName)}\n\nYour job brief is confirmed. ${result.readiness.nextAction}\n\n${EMAIL_SIGN_OFF}`,
-        });
-        void deliverOutbox({ limit: 5 }).catch((error) =>
-          logger.warn({ error, requestId: payload.requestId }, "Screening email delivery deferred to outbox"));
       }
+      // The four-conditions screen sends no email of its own, and no fallback
+      // "brief confirmed" one (owner decision 2026-11-11). Its verdict still
+      // gates the work, and a call it needs still reaches ops below.
     } catch (error) {
       logger.error({ error, requestId: payload.requestId }, "Could not queue brief screening email");
     }

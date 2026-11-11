@@ -117,9 +117,11 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
     subject: "Your Blueprint job link",
     body: (url) => `We have your job.\n\nIf you haven't sent the video yet, send it from your job page. This link opens your job without a password, so please don't forward it.\n\nOpen your job:\n${url}`,
   },
+  // The first email after upload is a receipt (owner, 2026-11-11): what happens next, true whichever way the job goes.
+  // It never gives an answer; the one answer email is the test result, or, when no test can run, the paper check.
   video_received: {
     subject: "We have your video",
-    body: (url) => `Your video arrived safely.\n\nNext, we watch it and email you.\n\nOpen your job:\n${url}`,
+    body: (url) => `Your video arrived safely. Next, we build a simulation of your site and test AI robots on your job in it. We'll email you the result, or, if a test can't run, why not and what we found on paper.\n\nOpen your job:\n${url}`,
   },
   scene_ready: {
     subject: "Your 3D view of the work area is ready",
@@ -283,10 +285,12 @@ export async function enqueueTaskLifecycleNotification(params: {
   const recaptureReason = earlyTaskHold ? null : recaptureReasonOf(preview)
     ?? (isRecaptureReason(params.recaptureReason) ? params.recaptureReason : null);
   const { captureId: _captureId, awaitEarlyHoldUntilMs: _wait, recaptureReason: _recapture, ...notice } = params;
-  const simulationProof = ((params.milestone === "evaluation_outcome" && params.screeningOutcome === "estimate")
-    || (params.milestone === "answer_ready" && params.siteAnswer?.state === "ready"))
+  const simulationProof = (params.milestone === "evaluation_outcome" || params.milestone === "answer_ready")
     && params.simulationProof === undefined ? await loadSimulationProof(requestId) : params.simulationProof;
-  return enqueueOutbox(buildTaskLifecycleNotification({ ...notice, simulationProof, requestId, to, workspaceUrl,
+  // With no test result to come, the paper check is the answer: read it for the email that says so.
+  const siteAnswer = params.siteAnswer ?? ((params.milestone === "evaluation_outcome" && params.screeningOutcome !== "estimate")
+    || params.milestone === "preparation_ended" ? await loadPaperAnswer(requestId) : undefined);
+  return enqueueOutbox(buildTaskLifecycleNotification({ ...notice, simulationProof, ...(siteAnswer ? { siteAnswer } : {}), requestId, to, workspaceUrl,
     ...(earlyTaskHold ? { earlyTaskHold } : {}), ...(recaptureReason ? { recaptureReason } : {}) }));
 }
 
@@ -346,7 +350,7 @@ export function buildTaskLifecycleNotification(params: {
       ? params.jobNoGrantEnded ? jobNoGrantEndedDetail(params)
         : params.jobWindowEnded ? jobWindowEndedDetail(params) : sceneOutcomeDetail(params)
     : params.milestone === "robot_access_question" ? robotAccessQuestionDetail(params)
-    : params.milestone === "answer_ready" ? answerReadyDetail(params.siteAnswer, params.simulationProof) : "";
+    : params.milestone === "answer_ready" ? answerReadyDetail(params.siteAnswer) : "";
   const held = params.milestone === "preparation_needs_attention" && isEarlyTaskHoldReason(params.earlyTaskHold)
     ? params.earlyTaskHold : null;
   const recapture = !held && params.milestone === "preparation_needs_attention" && isRecaptureReason(params.recaptureReason)
@@ -357,8 +361,9 @@ export function buildTaskLifecycleNotification(params: {
   // Preparation notices never carry caller text: only a validated reference and,
   // for an ending, the fixed sentence for its reason.
   const reference = /^bp-prep-[a-f0-9]{16}$/.test(params.correlationId || "") ? `Reference: ${params.correlationId}.` : "";
+  // A stopped simulation means no test result will come: the paper check, when there is one, is the answer.
   const preparationDetail = params.milestone === "preparation_ended"
-    ? [preparationEndedSentence(params.terminalReason), reference].filter(Boolean).join(" ") : reference;
+    ? [preparationEndedSentence(params.terminalReason), paperAnswerLine(params.siteAnswer), reference].filter(Boolean).join(" ") : reference;
   return {
     idempotencyKey: `${requestId}:${params.milestone}${eventId ? `:${eventId}` : ""}`,
     requestId,
@@ -367,6 +372,7 @@ export function buildTaskLifecycleNotification(params: {
     to: params.to,
     subject: params.milestone === "evaluation_outcome" && params.screeningOutcome === "estimate"
       ? estimateSubject(params.simulationProof)
+      : params.milestone === "evaluation_outcome" && paperAnswerLine(params.siteAnswer) ? PAPER_ANSWER_SUBJECT
       : params.milestone === "scene_outcome" && params.jobNoGrantEnded === "site" ? JOB_NO_GRANT_SITE_ENDING_SUBJECT
       : params.milestone === "scene_outcome" && (params.jobWindowEnded || params.jobNoGrantEnded) ? JOB_WINDOW_ENDING_SUBJECT
       : params.milestone === "scene_outcome" && params.sceneOutcomeKind ? sceneOutcomeSubject(params.sceneOutcomeKind)
@@ -397,11 +403,13 @@ function earlyTaskHoldCopy(reason: EarlyTaskHoldReason): (typeof copy)[TaskLifec
   };
 }
 
+/** The subject of the one answer email when no test result will come: the paper check is the answer. */
+const PAPER_ANSWER_SUBJECT = "Your job's paper check is ready";
 const SIMULATION_DISCLAIMER = "A simulation is not a physical test, and it never certifies physical performance or safety.";
 /** An estimate's email when the job's results could not be read: true whatever they show. */
 const SIMULATION_FINISHED = "The simulation test of your job has finished. Your job page shows how each AI robot did.";
 /** The page's own headline when a stored caveat is all that can be read: it is only ever set when none finished. */
-const NONE_FINISHED_HEADLINE = "Tested on your job: none finished yet.";
+const NONE_FINISHED_HEADLINE = "No AI robot finished your job.";
 
 /** The test result the job page leads with, once the simulation has finished. */
 const finishedResult = (proof: SimulationProof | null | undefined) => {
@@ -430,6 +438,17 @@ function estimateDetail(proof: SimulationProof | null | undefined, caveat: Scree
   return `${said.filter(Boolean).join(" ")} Nothing is needed from you.`;
 }
 
+/** The job's composed answer, for an email that gives the paper check as the answer; undefined when it cannot be read. */
+async function loadPaperAnswer(requestId: string): Promise<SiteAnswer | undefined> {
+  try {
+    const { loadSiteAnswer } = await import("./siteAnswer");
+    return (await loadSiteAnswer(requestId)) ?? undefined;
+  } catch (error) {
+    logger.warn({ error, requestId }, "Could not read the answer for an email; it says only what holds without it");
+    return undefined;
+  }
+}
+
 /** The job's simulation proof as its page shows it, or null when the results cannot be read. Never fails the notice. */
 async function loadSimulationProof(requestId: string): Promise<SimulationProof | null> {
   try {
@@ -449,7 +468,7 @@ async function loadSimulationProof(requestId: string): Promise<SimulationProof |
  */
 function evaluationOutcomeDetail(params: { eventId?: string; screeningOutcome?: ScreeningOutcome;
   screeningCounts?: { ran: number; total: number; scored: number }; screeningCaveat?: ScreeningOutcomeCaveat;
-  simulationProof?: SimulationProof | null }): string {
+  simulationProof?: SimulationProof | null; siteAnswer?: SiteAnswer }): string {
   const outcome = params.screeningOutcome;
   const counts = params.screeningCounts;
   if (!isScreeningResultOutcome(outcome) || !new RegExp(`^${outcome}-[a-f0-9]{24}$`).test(params.eventId ?? "")
@@ -461,7 +480,16 @@ function evaluationOutcomeDetail(params: { eventId?: string; screeningOutcome?: 
   if (outcome === "estimate") {
     return `${estimateDetail(params.simulationProof, storedScreeningOutcomeCaveat(params.screeningCaveat))}\n\n${finePrint(LIMITS_TESTED)}`;
   }
-  return `${simulationOutcomeEmailSentence(outcome)} Nothing is needed from you.\n\n${finePrint(SIMULATION_DISCLAIMER)}`;
+  // No test result: the page's own line for why, then the paper check as the answer (the one answer email).
+  const why = testNotRunLine(params.simulationProof) ?? simulationOutcomeEmailSentence(outcome);
+  const paper = paperAnswerLine(params.siteAnswer);
+  return paper ? `${why} ${paper}\n\n${finePrint(LIMITS_PAPER)}`
+    : `${why} Nothing is needed from you.\n\n${finePrint(SIMULATION_DISCLAIMER)}`;
+}
+
+/** The paper check said as the answer, when no test result will come: the composer's own headline. */
+function paperAnswerLine(answer: SiteAnswer | null | undefined): string | null {
+  return answer?.state === "ready" && answer.pick ? `So the paper check is your answer. ${answer.headline}` : null;
 }
 
 /**
@@ -514,42 +542,19 @@ export function answerIsSettled(answer: SiteAnswer | null | undefined): answer i
 }
 
 /**
- * What happens after the paper check, in one line true for the job's simulation test as the page reads it: being
- * tested (we email the result), finished, not run and why (the page's own reason), or, with nothing known yet, what
- * we do if a test runs.
+ * The answer email for a job of another kind: the composer's headline and its reason. That is the job's one answer,
+ * since no test can run on it. A ready answer is never emailed here (owner, 2026-11-11): the site has its receipt
+ * (`video_received`), and its one answer email is the test result, or the paper check when no test can run
+ * (`evaluation_outcome`, `preparation_ended`).
  */
-function afterPaperCheck(proof: SimulationProof | null | undefined): string {
-  const result = proof ? testResultOf(proof) : null;
-  if (result?.kind === "testing") {
-    return `Next, we're testing ${result.entered} AI ${result.entered === 1 ? "robot" : "robots"} on your job, in a simulation of your site. We'll email you the result.`;
-  }
-  if (result) return "The simulation test of your job has finished too. Your job page shows its result.";
-  if (proof && (proof.state === "preparing" || proof.state === "running") && !testNotRunLine(proof)) {
-    return "Next, we're getting a simulation test of your job ready. We'll email you the result.";
-  }
-  const notRun = testNotRunLine(proof);
-  if (notRun && proof?.state === "could_not_run") return `${notRun} So this paper check is your answer for now.`;
-  if (notRun) return notRun;
-  return "If we test AI robots on your job in a simulation of your site, we'll email you the result.";
+function answerReadyDetail(answer: SiteAnswer | undefined): string {
+  if (!answerEmailDue(answer)) throw new Error("answer_ready_notice_invalid");
+  return `${answer.headline}\n\n${answer.reason}`;
 }
 
-/**
- * The answer email's body, in the job page's own words: the paper check said as the paper check, how sure, what
- * happens next with the simulation test, and the paper limits line as fine print. Built from the composed answer
- * and the job's simulation proof only, never caller text.
- */
-function answerReadyDetail(answer: SiteAnswer | undefined, proof: SimulationProof | null | undefined): string {
-  if (!answerIsSettled(answer)) throw new Error("answer_ready_notice_invalid");
-  if (answer.state === "cannot_assess") return `${answer.headline}\n\n${answer.reason}`;
-  const reason = answer.confidence.reasons[0];
-  return [
-    `We've checked your job on paper. ${answer.headline}`,
-    // The scene's contrary finding, decided by the composer, said as the page and the job card say it.
-    ...(answer.sceneNote ? [answer.sceneNote] : []),
-    `How sure we are, on paper: ${SURENESS_WORDS[answer.confidence.level] ?? SURENESS_WORDS.low}.${reason ? ` ${reason}` : ""}`,
-    afterPaperCheck(proof),
-    finePrint(LIMITS_PAPER),
-  ].join("\n\n");
+/** The answer is one this email gives: a job of another kind, which no test can run on. */
+export function answerEmailDue(answer: SiteAnswer | null | undefined): answer is SiteAnswer {
+  return answerIsSettled(answer) && answer.state === "cannot_assess";
 }
 
 /**
@@ -560,14 +565,15 @@ function answerReadyDetail(answer: SiteAnswer | undefined, proof: SimulationProo
 export async function notifyIfAnswerSettled(requestId: string): Promise<{ enqueued: boolean }> {
   const { loadSiteAnswer } = await import("./siteAnswer");
   const answer = await loadSiteAnswer(requestId);
-  if (!answerIsSettled(answer)) return { enqueued: false };
+  if (!answerEmailDue(answer)) return { enqueued: false };
   return enqueueTaskLifecycleNotification({ requestId, milestone: "answer_ready", siteAnswer: answer });
 }
 
-/** True while the job's answer is still a settled one. Read again at dispatch. */
+/** True while the job's answer is still one this email gives. Read again at dispatch, so an older queued email for a
+ * ready answer is cancelled rather than sent. */
 export async function answerReadyShown(requestId: string): Promise<boolean> {
   const { loadSiteAnswer } = await import("./siteAnswer");
-  return answerIsSettled(await loadSiteAnswer(requestId));
+  return answerEmailDue(await loadSiteAnswer(requestId));
 }
 
 /** How many of each kind of movable furniture a robot access proposal moves. */

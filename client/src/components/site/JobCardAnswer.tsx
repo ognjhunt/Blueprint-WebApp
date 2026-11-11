@@ -46,7 +46,7 @@ function CardTestHead({ test }: { test: NonNullable<JobCardAnswerSummary["test"]
   if (test.kind === "no_clear_winner") return <BareGroup><p className="bare-label">Tested on the job</p>
     <BareBig as="p" sub={`Top: ${top.label}, did the job in ${did}.`}>No clear winner yet</BareBig>{setup}</BareGroup>;
   if (test.kind === "none_finished") return <BareGroup><p className="bare-label">Tested on the job</p>
-    <BareBig as="p" sub={top.furthestText ? `Closest: ${top.label} ${top.furthestText}.` : `${test.options.length} AI ${test.options.length === 1 ? "robot" : "robots"} tried; none finished the job.`}>None finished yet</BareBig>{setup}</BareGroup>;
+    <BareBig as="p" sub={top.furthestText ? `Closest: ${top.label} ${top.furthestText}.` : `${test.options.length} AI ${test.options.length === 1 ? "robot" : "robots"} tried; none finished the job.`}>No AI robot finished the job</BareBig>{setup}</BareGroup>;
   const others = test.options.length - 1;
   const step = test.kind === "winner" ? (test.wording === "did_best" ? 2 : 1) : 0;
   const sure = SURENESS_STEPS[Math.max(0, step - (test.setupFlag ? 1 : 0))];

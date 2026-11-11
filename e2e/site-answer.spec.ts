@@ -144,7 +144,7 @@ test("when no AI robot finished the job, the answer says so with the set-up noti
   await page.goto(`/capture-upload/${token}?video=existing`);
   const answer = page.getByRole("region", { name: "Your answer" });
   await expect(answer.getByRole("heading", { level: 2, name: "Tested on your job" })).toBeVisible();
-  await expect(answer.getByText("None finished yet", { exact: true })).toBeVisible();
+  await expect(answer.getByText("No AI robot finished your job", { exact: true })).toBeVisible();
   await expect(answer.getByText("This result may come from how we set up the simulation of your site, not from the robots.", { exact: true })).toBeVisible();
   await expect(answer.getByText(/Did best|Was ahead/)).toHaveCount(0);
   await expect(answer.getByRole("button", { name: /^On paper/ })).toBeVisible();

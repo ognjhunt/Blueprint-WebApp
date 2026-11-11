@@ -964,16 +964,8 @@ export async function recordSiteTaskCallOutcome(params: {
     "Site screening call outcome recorded",
   );
 
-  // Share an actual held outcome. Clearing an internal screen continues
-  // Blueprint's work without another account invitation or progress email.
-  if (disposition === "not_now") {
-    const { enqueueTaskLifecycleNotification } = await import("./taskLifecycleNotifications");
-    await enqueueTaskLifecycleNotification({
-      requestId: params.requestId,
-      milestone: "screening_not_now",
-      eventId: String(Date.now()),
-    }).catch((error) => logger.warn({ error, requestId: params.requestId }, "Could not queue the call-outcome email"));
-  }
+  // The outcome is recorded above; no email follows it, held or cleared
+  // (the "not now" email ended by owner decision 2026-11-11).
 
   return {
     disposition,

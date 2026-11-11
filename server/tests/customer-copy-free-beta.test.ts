@@ -51,14 +51,7 @@ vi.mock("../utils/robotTeamAccounts", async (importOriginal) => ({
 }));
 
 const { publicBannedCopyPatterns } = await import("../../scripts/qa/brand-polish");
-const { gateFields } = await import("../../client/src/data/siteTaskQualification");
-const { triageGateAnswers } = await import("../../client/src/lib/gateTriage");
-const {
-  buildLetsTalkEmail,
-  buildNotYetEmail,
-  buildQualificationEmail,
-  buildQualifiedEmail,
-} = await import("../utils/qualificationEmails");
+const { buildTaskNotYetSupportedEmail } = await import("../utils/qualificationEmails");
 const { notifyTeamOfRunOutcome } = await import("../utils/robotTeamNotifications");
 const { buildTaskLifecycleNotification } = await import("../utils/taskLifecycleNotifications");
 const { answerAgentQuestion, listAgentKnowledgeEntries } = await import("../retrieval/agentAsk");
@@ -103,92 +96,16 @@ function expectClean(label: string, text: string, banned: readonly Banned[]) {
 
 /* ------------------------------------------------------------ site emails */
 
-/** The stored triage shape, built exactly as intake builds it. */
-function summary(answers: Record<string, string>, captureMode: "self_capture" | "site_visit") {
-  const verdict = triageGateAnswers(answers, gateFields, captureMode);
-  return {
-    disposition: verdict.disposition,
-    blocking_field_ids: verdict.blockers.map((blocker) => blocker.fieldId),
-    blockers: verdict.blockers.map((blocker) => `${blocker.answer} — ${blocker.detail}`),
-    open_questions: verdict.openQuestions.map((q) => `${q.question} ${q.answer} — ${q.detail}`),
-    open_question_field_ids: verdict.openQuestions.map((q) => q.fieldId),
-    unanswered_field_ids: [...verdict.unanswered],
-    incomplete: verdict.incomplete,
-    evaluated_at: "2026-10-14T00:00:00.000Z",
-  };
-}
-
-const clearAnswers = Object.fromEntries(
-  gateFields.map((field) => [field.id, field.options.find((option) => option.verdict === "clear")!.value]),
-);
-
-/** One submission per non-clear option, so every blocker and open-question string is rendered. */
-function everyScreenedSubmission() {
-  const out: Array<{ label: string; triage: ReturnType<typeof summary> }> = [];
-  for (const mode of ["self_capture", "site_visit"] as const) {
-    out.push({ label: `${mode} clear`, triage: summary(clearAnswers, mode) });
-    for (const field of gateFields) {
-      for (const option of field.options.filter((item) => item.verdict !== "clear")) {
-        out.push({
-          label: `${mode} ${field.id}=${option.value}`,
-          triage: summary({ ...clearAnswers, [field.id]: option.value }, mode),
-        });
-      }
-    }
-    out.push({ label: `${mode} blank`, triage: summary({}, mode) });
-  }
-  return out;
-}
-
-const NEXT_STEPS = [
-  { kind: "self_capture", uploadUrl: "https://tryblueprint.io/capture-upload/tok" },
-  { kind: "capturer_visit", taskUrl: "https://tryblueprint.io/capture-upload/tok" },
-  { kind: "capturer_visit" },
-  { kind: "held" },
-  undefined,
-] as const;
-
+// The four-conditions screening emails ended (owner decision 2026-11-11). The
+// one screening-time email left is "we can't simulate this kind of job yet".
 describe("site screening emails", () => {
-  it("covers every disposition from the real gate strings", () => {
-    const dispositions = new Set(everyScreenedSubmission().map(({ triage }) => triage.disposition));
-    expect([...dispositions].sort()).toEqual(["needs_conversation", "not_now", "qualified"]);
-  });
-
-  it("never introduces platform charges or assumes a city, in any variant", () => {
-    for (const { label, triage } of everyScreenedSubmission()) {
-      for (const stage of ["brief_confirmed", "screened"] as const) {
-        for (const nextStep of NEXT_STEPS) {
-          for (const accountNeeded of [true, false]) {
-            const email = buildQualificationEmail({
-              firstName: "Dana", siteName: "Riverside DC", triage, stage, nextStep, accountNeeded,
-            });
-            expect(email, label).not.toBeNull();
-            expectClean(`${label} ${stage} ${nextStep?.kind ?? "none"}`, `${email!.subject}\n${email!.body}`, SITE_EMAIL);
-          }
-        }
+  it("never introduces platform charges or assumes a city in the can't-simulate-yet email, for any reason", () => {
+    for (const reason of ["deformable", "liquid", "assembly", "mobile", "closing", "push", "container",
+      "articulated", "other", "multi_step", "unclear"] as const) {
+      for (const jobUrl of ["https://tryblueprint.io/capture-upload/tok", null]) {
+        const email = buildTaskNotYetSupportedEmail({ firstName: "Dana", siteName: "Riverside DC", reason, jobUrl });
+        expectClean(`${reason} ${jobUrl ?? "no link"}`, `${email.subject}\n${email.body}`, SITE_EMAIL);
       }
-      // The direct builders, as the brief-confirm route used to call them.
-      if (triage.disposition === "not_now") {
-        const email = buildNotYetEmail({ firstName: "Dana", triage });
-        expectClean(label, `${email.subject}\n${email.body}`, SITE_EMAIL);
-      }
-      if (triage.disposition === "needs_conversation") {
-        const email = buildLetsTalkEmail({ firstName: "Dana", triage });
-        expectClean(label, `${email.subject}\n${email.body}`, SITE_EMAIL);
-      }
-    }
-  });
-
-  it("states the video-backed simulation, Blueprint's own candidate runs, the bounded result and the free-beta boundary", () => {
-    for (const nextStep of NEXT_STEPS) {
-      const { body } = buildQualifiedEmail({ firstName: "Dana", nextStep });
-      // Bare bones (2026-11-11): the next step, what the site then sees, and the free-beta boundary.
-      expect(body).toMatch(/You then see which robot most likely fits and which did best in the simulation/);
-      expect(body).toMatch(/share the job with deployment companies we have approved/);
-      expect(body).not.toMatch(/finalists' full scoring|review their proposals/);
-      expect(body).not.toMatch(/book the pilot in one step|We prepare a simplified simulation/);
-      expect(body).toMatch(/Free during the beta/);
-      expect(body).toMatch(/it never certifies how a robot will perform/);
     }
   });
 });

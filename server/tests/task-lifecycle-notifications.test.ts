@@ -393,7 +393,7 @@ describe("a finished simulation's email says what the job page's simulation resu
     const note = "The place point was beyond the simulated arm's reach.";
     const notice = await build(await proofOf(evaluation([["pi05_droid", 0, 5], ["groot_n17_droid", 0, 5]], { setupNotes: [note], outcomeCaveat: "scene_setup" })));
     expect(notice.subject).toBe("The simulation test of your job has finished");
-    expect(notice.body.startsWith("Tested on your job: none finished yet. 2 AI robots tried; none finished your job. "
+    expect(notice.body.startsWith("No AI robot finished your job. 2 AI robots tried; none finished your job. "
       + "This result may come from how we set up the simulation of your site, not from the robots. Nothing is needed from you.\n\n")).toBe(true);
     expect(notice.body.endsWith("[fine] Tested in a simulation, not at your site. Pick-up-and-put-down jobs only. It does not certify performance or safety.")).toBe(true);
     expect(notice.body).not.toMatch(banned);
@@ -408,7 +408,7 @@ describe("a finished simulation's email says what the job page's simulation resu
     const flagged = buildTaskLifecycleNotification({ requestId: "req-1", to: "owner@example.com", milestone: "evaluation_outcome",
       eventId: `estimate-${"a".repeat(24)}`, screeningOutcome: "estimate", screeningCounts: { ran: 2, total: 36, scored: 6 },
       screeningCaveat: "scene_setup", simulationProof: null, captureUrl: "https://example.invalid/capture-upload/x" });
-    expect(flagged.body.startsWith("Tested on your job: none finished yet. "
+    expect(flagged.body.startsWith("No AI robot finished your job. "
       + "This result may come from how we set up the simulation of your site, not from the robots. Nothing is needed from you.")).toBe(true);
     for (const notice of [unread, flagged]) expect(notice.body).not.toMatch(banned);
   });
@@ -731,7 +731,6 @@ describe("the site's answer is emailed once, when it first settles", () => {
         expect(await taskLifecycleNotificationIsCurrent({ requestId: "req-1", kind }, transaction)).toBe(false);
       expect(await taskLifecycleNotificationIsCurrent({ requestId: "req-1", kind: "scene_ready" }, transaction)).toBe(true);
       expect(await taskLifecycleNotificationIsCurrent({ requestId: "req-1", kind: "listing_live" }, transaction)).toBe(true);
-      expect(await taskLifecycleNotificationIsCurrent({ requestId: "req-1", kind: "pilot_request" }, transaction)).toBe(true);
     });
     await enqueueTaskLifecycleNotification({ requestId: "req-1", milestone: "scene_ready" });
     await deliverOutbox();
@@ -739,5 +738,31 @@ describe("the site's answer is emailed once, when it first settles", () => {
     expect(send.mock.calls[0][0].subject).toBe("Your 3D view of the work area is ready");
     expect(sharedFakeFirestoreState.docs.get("captureOutbox/req-1:results_ready:run_a")).toMatchObject({ status: "cancelled" });
     expect(sharedFakeFirestoreState.docs.get("captureOutbox/req-1:run_no_result:run_b")).toMatchObject({ status: "cancelled" });
+  });
+  it("cancels the ended screening and team-request emails already queued, and still sends the can't-simulate-yet one (owner decision 2026-11-11)", async () => {
+    const { taskLifecycleNotificationIsCurrent } = await import("../utils/taskLifecycleNotificationAuthority");
+    const { deliverOutbox, enqueueOutbox } = await import("../utils/captureOutbox");
+    const ended = [
+      { kind: "pilot_request", key: "req-1:pilot_request:application-1" },
+      { kind: "brief_confirmed", key: "req-1:brief-screening:qualified" },
+      { kind: "input_needed", key: "req-1:brief-screening:needs_conversation" },
+      { kind: "input_needed", key: "req-1:brief-screening:not_now" },
+      { kind: "screening_not_now", key: "req-1:screening_not_now:1700000000000" },
+    ] as const;
+    for (const row of ended) {
+      expect(await taskLifecycleNotificationIsCurrent({ requestId: "req-1", kind: row.kind, idempotencyKey: row.key })).toBe(false);
+      await enqueueOutbox({ idempotencyKey: row.key, requestId: "req-1", to: "owner@example.com", kind: row.kind, subject: "Old", body: "Old body" });
+    }
+    // Asked to queue one now, nothing is queued.
+    expect(await enqueueTaskLifecycleNotification({ requestId: "req-1", milestone: "screening_not_now", eventId: "1700000000001" }))
+      .toMatchObject({ enqueued: false });
+    expect(await enqueueTaskLifecycleNotification({ requestId: "req-1", milestone: "pilot_request", eventId: "application-2" }))
+      .toMatchObject({ enqueued: false });
+    await enqueueOutbox({ idempotencyKey: "req-1:brief-screening:task-not-yet-supported", requestId: "req-1", to: "owner@example.com",
+      kind: "screening_not_now", subject: "Your job: we are preparing its evaluation", body: "Kept" });
+    await deliverOutbox({ limit: 20 });
+    for (const row of ended) expect(sharedFakeFirestoreState.docs.get(`captureOutbox/${row.key}`)).toMatchObject({ status: "cancelled" });
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(send.mock.calls[0][0].subject).toBe("Your job: we are preparing its evaluation");
   });
 });

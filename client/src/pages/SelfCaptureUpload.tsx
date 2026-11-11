@@ -49,9 +49,6 @@ import { receivedVideoResult, retrySelfCaptureProcessing, uploadSelfCaptureVideo
 /** Mirrors the server's `projectTaskStatus`; the shared truth about where a task stands. */
 type TaskStatus = {
   siteAdvisory?: SiteAdvisory | null;
-  assessment_retry_available?: boolean;
-  assessment_job_id?: string | null;
-  assessment_run_id?: string | null;
   decision: string;
   headline: string;
   operatorAction: string | null;
@@ -95,20 +92,6 @@ function isTargetChoice(value: unknown): value is TaskTargetChoiceView {
       && (row.referenceTimeMs === null || Number.isInteger(row.referenceTimeMs)));
 }
 
-const retryUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-function retainedAssessmentRetryIdentity(jobId: string, runId: string): string {
-  // Only opaque server IDs and a bounded UUID; never store the private link.
-  const key = `blueprint.site-assessment.retry.v1:${jobId}:${runId}`;
-  try {
-    const raw = sessionStorage.getItem(key);
-    const value = raw && raw.length < 256 ? JSON.parse(raw) : null;
-    if (retryUuid.test(value?.identity ?? "") && typeof value?.created === "number"
-      && value.created <= Date.now() && value.created > Date.now() - 7 * 24 * 60 * 60 * 1000) return value.identity;
-  } catch { /* The current page keeps its intent if browser storage is denied. */ }
-  const identity = crypto.randomUUID();
-  try { sessionStorage.setItem(key, JSON.stringify({ identity, created: Date.now() })); } catch { /* Memory fallback below. */ }
-  return identity;
-}
 import { useRoute, useLocation } from "wouter";
 
 import { Helmet } from "@/lib/helmet";
@@ -244,9 +227,6 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
   const selectedFile = useRef<File | null>(null);
   const operationInFlight = useRef(false);
   const [retryingProcessing, setRetryingProcessing] = useState(false);
-  const [retryingAssessment, setRetryingAssessment] = useState(false);
-  const [assessmentRetryMessage, setAssessmentRetryMessage] = useState<string | null>(null);
-  const assessmentRetryIntent = useRef<{ key: string; identity: string } | null>(null);
   const [statusRefresh, setStatusRefresh] = useState(0);
   // The job workspace's own workflow read, shared with the page: the proof in simulation makes no request of its own.
   const [evaluations, setEvaluations] = useState<JobManagedEvidenceSummary[] | null>(null);
@@ -379,9 +359,6 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
     selectedFile.current = null;
     operationInFlight.current = false;
     setRetryingProcessing(false);
-    setRetryingAssessment(false);
-    setAssessmentRetryMessage(null);
-    assessmentRetryIntent.current = null;
     setRecordingConsent(false);
     setSavingConsent(false);
     setConsentError(null);
@@ -536,60 +513,6 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
     }
   }
 
-  async function retryAssessment() {
-    const selected = currentStatus.current;
-    const jobId = selected?.assessment_job_id, runId = selected?.assessment_run_id;
-    if (operationInFlight.current || scope !== "owner" || link.status !== "valid"
-      || selected?.siteAdvisory?.state !== "needs_review" || selected.assessment_retry_available !== true
-      || !jobId || !runId || jobId.length > 160 || runId.length > 160) return;
-    operationInFlight.current = true;
-    const generation = linkGeneration.current;
-    const stillCurrent = () => linkGeneration.current === generation
-      && currentStatus.current?.assessment_job_id === jobId
-      && currentStatus.current?.assessment_run_id === runId
-      && currentStatus.current.assessment_retry_available === true
-      && currentStatus.current.siteAdvisory?.state === "needs_review";
-    setRetryingAssessment(true);
-    setAssessmentRetryMessage(null);
-    try {
-      const key = `${jobId}:${runId}`;
-      if (assessmentRetryIntent.current?.key !== key) assessmentRetryIntent.current = {
-        key, identity: retainedAssessmentRetryIdentity(jobId, runId),
-      };
-      const headers = await withCsrfHeader({ "Content-Type": "application/json" });
-      if (!stillCurrent()) return;
-      const response = await fetch(`/api/self-capture/uploads/${encodeURIComponent(token)}/advisory-retry`, {
-        method: "POST", headers,
-        body: JSON.stringify({ expected_job_id: jobId, expected_run_id: runId, retry_identity: assessmentRetryIntent.current.identity }),
-      });
-      const result = await response.json().catch(() => null);
-      if (!stillCurrent()) return;
-      if (!response.ok || result?.ok !== true || result.job_id !== jobId || typeof result.run_id !== "string" || result.run_id.length > 160
-        || !["queued", "running", "completed", "needs_review"].includes(result.state)) {
-        setAssessmentRetryMessage(response.status === 409 || response.status === 403 || response.status === 404
-          ? "The current assessment could not be retried. Your recording is saved. Check this page for the next step."
-          : "We could not confirm the retry. Your recording is saved. Check this page or try again.");
-        return;
-      }
-      const state = result.state === "completed" ? "needs_review" : result.state;
-      setStatus(previous => previous?.siteAdvisory ? { ...previous,
-        assessment_retry_available: false, assessment_run_id: result.run_id,
-        siteAdvisory: { ...previous.siteAdvisory, state },
-      } : previous);
-      setAssessmentRetryMessage(result.state === "queued" || result.state === "running"
-        ? "Your assessment retry is recorded. Your recording is saved; keep this page to follow progress."
-        : "Your assessment retry is recorded. Check the current assessment below; your recording is saved.");
-    } catch {
-      if (stillCurrent()) setAssessmentRetryMessage("We could not confirm the retry. Your recording is saved. Check this page or try again.");
-    } finally {
-      if (linkGeneration.current === generation) {
-        operationInFlight.current = false;
-        setRetryingAssessment(false);
-        setStatusRefresh(current => current + 1);
-      }
-    }
-  }
-
   useEffect(() => {
     let alive = true;
     let timer: ReturnType<typeof setTimeout>;
@@ -604,9 +527,6 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
           setStatus({
             ...data.status,
             siteAdvisory: data.siteAdvisory ?? null,
-            assessment_retry_available: data.scope === "owner" && data.assessment_retry_available === true,
-            assessment_job_id: typeof data.assessment_job_id === "string" ? data.assessment_job_id : null,
-            assessment_run_id: typeof data.assessment_run_id === "string" ? data.assessment_run_id : null,
             claimUrl: data.claimUrl ?? null,
             sceneViewUrl: data.sceneViewUrl ?? null,
             captureReceived: data.captureReceived === true,
@@ -693,26 +613,12 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
   // One current update. Saved jobs show it before results; a fresh capture
   // keeps the recorder first. Optional corrections do not become next steps.
   // Processing details, the scene link and the optional account: in the card before an answer, in "More for this job" under one.
-  // Processing details, with the owner's "Try assessment again" when Blueprint is reviewing a processing issue.
-  const advisory = status && currentStatusKnown && status.siteAdvisory && status.siteAdvisory.state !== "authority_ended" ? <SiteAdvisoryReport advisory={status.siteAdvisory}>
-      {scope === "owner" && link.status === "valid" && status.siteAdvisory?.state === "needs_review"
-        && status.assessment_retry_available === true && status.assessment_job_id && status.assessment_run_id && (
-        <p><button type="button" className="ms-text-link" disabled={retryingAssessment || operationInFlight.current} onClick={() => void retryAssessment()}>
-          {retryingAssessment ? "Requesting assessment retry…" : "Try assessment again"}
-        </button></p>
-      )}
-      {assessmentRetryMessage && <p role="status">{assessmentRetryMessage}</p>}
-      </SiteAdvisoryReport> : null;
-  const cardExtras = status && currentStatusKnown && (status.siteAdvisory || status.sceneViewUrl || (status.claimUrl && !accountHold)) ? <>
-      <SiteAdvisoryReport advisory={status.siteAdvisory}>
-      {scope === "owner" && link.status === "valid" && status.siteAdvisory?.state === "needs_review"
-        && status.assessment_retry_available === true && status.assessment_job_id && status.assessment_run_id && (
-        <p><button type="button" className="ms-text-link" disabled={retryingAssessment || operationInFlight.current} onClick={() => void retryAssessment()}>
-          {retryingAssessment ? "Requesting assessment retry…" : "Try assessment again"}
-        </button></p>
-      )}
-      {assessmentRetryMessage && <p role="status">{assessmentRetryMessage}</p>}
-      </SiteAdvisoryReport>
+  // Processing details: the per-job site assessment has ended (2026-11-11), so it is shown only for an older job that
+  // already has a finished assessment result; there is no retry.
+  const finishedAdvisory = status?.siteAdvisory?.state === "ready" ? status.siteAdvisory : null;
+  const advisory = status && currentStatusKnown && finishedAdvisory ? <SiteAdvisoryReport advisory={finishedAdvisory} /> : null;
+  const cardExtras = status && currentStatusKnown && (finishedAdvisory || status.sceneViewUrl || (status.claimUrl && !accountHold)) ? <>
+      {finishedAdvisory && <SiteAdvisoryReport advisory={finishedAdvisory} />}
       {status.sceneViewUrl && (
         <p className={answer ? "job-more-row" : undefined} style={answer ? undefined : { margin: "10px 0 0" }}>
           <a className="ms-text-link" href={status.sceneViewUrl} target="_blank" rel="noreferrer">
@@ -947,7 +853,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
         onEditJob={brief && scope === "owner" && !withdrawn ? openBriefEditor : undefined}
         onUpdateVideo={scope === "owner" && link.status === "valid" && !withdrawn ? () => void updateVideo() : undefined}
         quietAction={!quietCard} onShowDetails={() => openView("details")} onShowSettings={settingsOpen ? () => openView("settings") : undefined} card={card}
-        onShowPaper={() => openView("details/why")} />}
+        gettingReady={status?.decision === "assessing"} />}
       {answer && videoUpdateError && <BareNotice role="alert">{videoUpdateError}</BareNotice>}
       {!answer && (saved || link.status !== "valid") && statusCard}
       {!answer && workspace}

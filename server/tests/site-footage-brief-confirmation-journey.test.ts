@@ -269,10 +269,8 @@ describe("a site that sends its footage before confirming its brief", () => {
     await claim(jobId);
     await sendFootage(token);
     expect((await confirmBrief(token)).disposition).toBe("qualified");
-    const confirmed = outbox(`${jobId}:brief-screening:qualified`);
-    expect(confirmed?.kind).toBe("brief_confirmed");
-    expect(confirmed?.body).not.toMatch(/film the work area|upload it here|Once we have footage/i);
-    expect(confirmed?.body).toMatch(/already have your footage/i);
+    // Confirming sends no email at all (owner decision 2026-11-11).
+    expect(outbox(`${jobId}:brief-screening:qualified`)).toBeUndefined();
     // The page moves past the confirmation step.
     expect((await jobStatus(token)).status.decision).not.toBe("confirm_brief");
   });
@@ -295,8 +293,8 @@ describe("a site that confirms before it films", () => {
   it("still hears the footage email it always did", async () => {
     const { jobId, token } = await startJob(UNCONFIRMED_AT_UPLOAD);
     expect((await confirmBrief(token)).disposition).toBe("qualified");
-    // Nothing filmed yet: the confirmed email asks for the walkthrough.
-    expect(outbox(`${jobId}:brief-screening:qualified`)?.body).toMatch(/film the work area/i);
+    // Confirming sends no email (owner decision 2026-11-11); the footage email still comes.
+    expect(outbox(`${jobId}:brief-screening:qualified`)).toBeUndefined();
     await claim(jobId);
     await sendFootage(token);
     const notice = outbox(`${jobId}:video_received`);

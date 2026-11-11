@@ -315,6 +315,20 @@ describe("a screening call settles a needs_conversation site", () => {
     expect(stored().site_task_gate_sources.taskShape).toBe("operator_stated");
   });
 
+  it("records a not-now call outcome and sends no not-now email (owner decision 2026-11-11)", async () => {
+    const confirmed = await confirmWith({ sceneStability: "minor_drift" });
+    expect(confirmed!.disposition).toBe("needs_conversation");
+    const result = await recordSiteTaskCallOutcome({
+      requestId: REQUEST,
+      answers: { sceneStability: "reconfigured" },
+      note: "The cell is re-laid every shift.",
+      resolvedBy: "ops@tryblueprint.io",
+    });
+    expect(result.disposition).toBe("not_now");
+    expect(stored().site_task_triage.disposition).toBe("not_now");
+    expect([...sharedFakeFirestoreState.docs.keys()].filter(key => key.startsWith("captureOutbox/"))).toEqual([]);
+  });
+
   it("never waves a blocker through, and never invents a disposition", async () => {
     await confirmWith({ sceneStability: "reconfigured" });
     await expect(
