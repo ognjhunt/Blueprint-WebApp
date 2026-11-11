@@ -99,6 +99,7 @@ describe("projectSimulationProof", () => {
       ["π0", 0, 10], ["π0-FAST", 0, 10], ["GR00T N1.7", 0, 10], ["π0.5", 0, 9]]);
     expect(comparison.rows.every(row => row.rangeText === null && !row.chosen)).toBe(true);
     expect(comparison.didNotRun).toBe(3);
+    expect(comparison.didNotRunLine).toBe("3 more policies were planned and did not run. “Simulation details” further down says why.");
     expect(comparison.sceneNotes).toEqual([BEYOND_REACH, CAVEAT]);
     expect(comparison.robotName).toBe("a Franka research arm");
     for (const sentence of [proof.headline, comparison.line]) expect(sentence).not.toMatch(/estimate|pilot/i);
@@ -141,8 +142,39 @@ describe("projectSimulationProof", () => {
       candidate("new_policy_2027", "Acme Grasp 1", 10, 2), candidate("other_new_policy", "acme_grasp_v2_ckpt", 10, 1)]), pick: ur10e });
     const rows = proof.policyComparison!.rows;
     expect(rows.find(row => row.policy === "Acme Grasp 1")).toMatchObject({ maker: null });
-    expect(rows.map(row => row.policy)).toContain("A policy we could not name");
+    expect(rows.map(row => row.policy)).toContain("an AI control policy");
+    expect(rows.find(row => row.policy === "an AI control policy")).toMatchObject({ maker: null });
     expectPlainPolicies(rows);
+  });
+
+  it("counts as not run only policies planned for this run: deferred for budget or failed to load, never the catalog rows that were never available", () => {
+    const never: Candidate[] = Array.from({ length: 100 }, (_, index) => index % 2
+      ? candidate(`template_${index}`, `Template ${index}`, 0, 0, { state: "blocked", planned: 0, blockers: ["prepared_robot_policy_registration_missing"] })
+      : candidate(`other_robot_${index}`, `Other robot ${index}`, 0, 0, { state: index % 4 ? "unavailable" : "infeasible", planned: 0,
+        blockers: ["task_kind_not_supported_by_candidate"] }));
+    const proof = projectSimulationProof({ evaluation: evaluation({}, [
+      candidate("pi05_droid", "π0.5 DROID", 10, 0),
+      candidate("groot_n17_droid", "GR00T N1.7 DROID", 10, 0),
+      candidate("cosmos3_nano_policy_droid", "Cosmos 3 Nano Policy DROID", 0, 0, { state: "deferred", planned: 0, blockers: ["site_screening_budget_insufficient"] }),
+      candidate("molmoact2_droid", "MolmoAct 2 DROID", 0, 0, { state: "blocked", planned: 10, blockers: ["policy_canary_session_setup_failed:policy_load"] }),
+      candidate("pi0_droid_jointpos_polaris", "π0 DROID", 0, 0, { state: "blocked", planned: 10, blockers: ["beta_screening_replanned_for_new_implementation"] }),
+      ...never,
+    ]), pick: ur10e });
+    expect(proof.policyComparison!.rows).toHaveLength(2);
+    expect(proof.policyComparison!.didNotRun).toBe(2);
+    expect(proof.policyComparison!.didNotRunLine).toBe("2 more policies were planned and did not run. “Simulation details” further down says why.");
+    const one = projectSimulationProof({ evaluation: evaluation({}, [candidate("pi05_droid", "π0.5 DROID", 10, 2),
+      candidate("molmoact2_droid", "MolmoAct 2 DROID", 0, 0, { state: "completed", planned: 10 })]), pick: ur10e });
+    expect(one.policyComparison!.didNotRunLine).toBe("1 more policy was planned and did not run. “Simulation details” further down says why.");
+  });
+
+  it("falls back to a plain phrase for a working label or a code, never the label itself", () => {
+    for (const name of ["Current candidate", "Candidate 3", "Baseline policy", "acme_grasp_v2_ckpt", "gs://bucket/model", "Policy v2.1", "sha256:abcdef"]) {
+      const proof = projectSimulationProof({ evaluation: evaluation({}, [candidate("pi05_droid", "π0.5 DROID", 10, 6),
+        candidate("unknown_id", name, 10, 2)]), pick: ur10e });
+      expect(proof.policyComparison!.rows[1]).toMatchObject({ policy: "an AI control policy", maker: null });
+      expect(proof.policyComparison!.line).toBe("In a simulation of your site, π0.5, an AI control policy from Physical Intelligence, did best: it completed the job in 6 of 10 tries. The others: an AI control policy, 2 of 10.");
+    }
   });
 
   it("leaves scripted reference rows out of the policies", () => {
@@ -150,6 +182,7 @@ describe("projectSimulationProof", () => {
       candidate("scripted_pick_place", "Scripted pick and place", 10, 10, { executionEvidence: scripted })]), pick: ur10e });
     expect(proof.policyComparison!.rows.map(row => row.policy)).toEqual(["π0.5"]);
     expect(proof.policyComparison!.didNotRun).toBe(0);
+    expect(proof.policyComparison!.didNotRunLine).toBeNull();
   });
 
   it("reads the pick's verdict from the measured scene", () => {

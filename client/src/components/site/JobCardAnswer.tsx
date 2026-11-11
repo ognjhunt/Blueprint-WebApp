@@ -47,11 +47,14 @@ function Robot({ robot, role }: { robot: JobCardAnswerRobot; role: "Pick" | "Run
   </article>;
 }
 
-/** The answer a site shared with its card, under the card's own content. */
-export function JobCardAnswer({ answer }: { answer: JobCardAnswerSummary }) {
+/**
+ * The answer a site shared with its card, under the card's own content. Inside the browse list's
+ * line (`JobCardAnswerLine`), whose summary already says the title and the headline, neither is said again.
+ */
+export function JobCardAnswer({ answer, titled = true }: { answer: JobCardAnswerSummary; titled?: boolean }) {
   return <section className="site-answer" aria-label={JOB_CARD_ANSWER_TITLE}>
-    <h3>{JOB_CARD_ANSWER_TITLE}</h3>
-    <p className="site-answer-headline">{answer.headline}</p>
+    {titled && <h3>{JOB_CARD_ANSWER_TITLE}</h3>}
+    {titled && <p className="site-answer-headline">{answer.headline}</p>}
     {answer.familyLabel && <p className="ms-field-hint">Kind of job: {answer.familyLabel}</p>}
     {answer.pick && <Robot robot={answer.pick} role="Pick" />}
     {answer.runnerUp && <Robot robot={answer.runnerUp} role="Runner-up" />}
@@ -92,6 +95,6 @@ export function JobCardAnswerLine({ jobId, headline, user }: { jobId: string; he
     <summary>{JOB_CARD_ANSWER_TITLE}: {headline}</summary>
     {state === "loading" && <p role="status">Loading…</p>}
     {state === "error" && <p role="alert">The answer could not be loaded. Try again shortly.</p>}
-    {state === "ready" && (answer ? <JobCardAnswer answer={answer} /> : <p className="ms-field-hint">This answer is no longer shared.</p>)}
+    {state === "ready" && (answer ? <JobCardAnswer answer={answer} titled={false} /> : <p className="ms-field-hint">This answer is no longer shared.</p>)}
   </details>;
 }

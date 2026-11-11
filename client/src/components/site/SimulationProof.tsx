@@ -1,13 +1,14 @@
+import { UNNAMED_POLICY } from "@/data/simulationPolicies";
 import type { SimulationProof as SimulationProofView } from "@/lib/simulationProof";
 
 type Row = NonNullable<SimulationProofView["policyComparison"]>["rows"][number];
 
-/** A name that would read to a site as our own working words is never shown as a policy's name. */
-const plainPolicy = (name: string) => (/candidate|screening|episode|embodiment|checkpoint/i.test(name) ? "A policy we could not name" : name);
+/** At the start of a row, the plain phrase for a policy we cannot name starts with a capital. */
+const rowName = (name: string) => (name === UNNAMED_POLICY ? "An AI control policy" : name);
 
 function PolicyRow({ row }: { row: Row }) {
   return <li className={row.chosen ? "site-proof-row site-proof-best" : "site-proof-row"}>
-    <span className="site-proof-name"><strong>{plainPolicy(row.policy)}</strong>{row.maker && <span className="ms-field-hint"> from {row.maker}</span>}</span>
+    <span className="site-proof-name"><strong>{rowName(row.policy)}</strong>{row.maker && <span className="ms-field-hint"> from {row.maker}</span>}</span>
     <span>{row.succeeded} of {row.scored} {row.scored === 1 ? "try" : "tries"}{row.rangeText && <span className="ms-field-hint"> · {row.rangeText}</span>}</span>
     {row.chosen && <span className="site-proof-mark">Did best</span>}
   </li>;
@@ -45,14 +46,12 @@ export function SimulationProof({ proof }: { proof: SimulationProofView }) {
         {comparison.sceneNotes.map(note => <li key={note}>{note}</li>)}
       </ul>}
       {comparison.rows.length > 0 && <ul className="site-proof-rows" aria-label="Control policies tried">
-        {comparison.rows.map(row => <PolicyRow key={row.policy} row={row} />)}
+        {comparison.rows.map((row, index) => <PolicyRow key={`${index}:${row.policy}`} row={row} />)}
       </ul>}
       {comparison.separated && comparison.sceneNotes.length > 0 && <ul className="site-proof-notes">
         {comparison.sceneNotes.map(note => <li key={note}>{note}</li>)}
       </ul>}
-      {comparison.didNotRun > 0 && <p className="ms-field-hint">
-        {comparison.didNotRun} other {comparison.didNotRun === 1 ? "policy" : "policies"} we set up did not run. “Simulation details” further down says why.
-      </p>}
+      {comparison.didNotRunLine && <p className="ms-field-hint">{comparison.didNotRunLine}</p>}
     </>}
     {done && <>
       <h4>How far to trust this</h4>

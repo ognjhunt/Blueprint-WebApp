@@ -34,7 +34,8 @@ describe("proof in simulation", () => {
     ]);
     expect(within(rows[0]).getByText("Did best")).toBeVisible();
     expect(within(rows[1]).queryByText("Did best")).toBeNull();
-    expect(screen.getByText(/^1 other policy we set up did not run/)).toBeVisible();
+    expect(screen.getByText("1 more policy was planned and did not run. “Simulation details” further down says why.")).toBeVisible();
+    expect(screen.queryByText(/we set up did not run/)).toBeNull();
     expect(container.textContent).not.toMatch(BANNED);
     expect(policyRows()).not.toMatch(/PolaRiS/i);
   });
@@ -63,6 +64,7 @@ describe("proof in simulation", () => {
     const list = screen.getByRole("list", { name: "Control policies tried" });
     expect(note.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(within(list).getAllByRole("listitem")).toHaveLength(4);
+    expect(screen.getByText("1 more policy was planned and did not run. “Simulation details” further down says why.")).toBeVisible();
     // Zero successes is never an estimate and never offers a pilot.
     expect(container.textContent).not.toMatch(/likely between|pilot/i);
     for (const text of [screen.getByText(NO_POLICY_COMPLETED).textContent, policyRows(), note.textContent]) expect(text).not.toMatch(/estimate/i);
@@ -92,7 +94,8 @@ describe("proof in simulation", () => {
     const evaluation = { ...winnerEvaluation, screening: { candidates: [winnerEvaluation.screening!.candidates[0],
       { ...winnerEvaluation.screening!.candidates[1], candidateId: "unknown-id", name: "Current candidate" }] } };
     const { container } = renderProof({ evaluation: [evaluation], pick });
-    expect(screen.getByText("A policy we could not name")).toBeVisible();
+    expect(screen.getByText("An AI control policy")).toBeVisible();
+    expect(container.textContent).not.toMatch(/Current candidate|could not name/);
     expect(container.textContent).not.toMatch(BANNED);
   });
 });

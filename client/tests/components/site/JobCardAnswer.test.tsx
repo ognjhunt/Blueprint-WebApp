@@ -62,6 +62,10 @@ describe("Blueprint's answer on a job card", () => {
     details.open = true;
     fireEvent(details, new Event("toggle"));
     expect(await within(shared).findByRole("region", { name: JOB_CARD_ANSWER_TITLE })).toBeInTheDocument();
+    // The title and the headline are said once, in the summary line, not again under it.
+    expect(within(shared).getAllByText(new RegExp(JOB_CARD_ANSWER_TITLE.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")))).toHaveLength(1);
+    expect(within(shared).queryByRole("heading", { name: JOB_CARD_ANSWER_TITLE })).toBeNull();
+    expect(within(shared).getAllByText(new RegExp(ANSWER.headline.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")))).toHaveLength(1);
     expect(fetchMock).toHaveBeenLastCalledWith("/api/site-worlds/tasks/job-1", expect.anything());
   });
 });

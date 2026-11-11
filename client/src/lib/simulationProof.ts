@@ -34,8 +34,14 @@ export interface SimulationProof {
     separated: boolean;
     line: string;
     sceneNotes: string[];
-    /** Policies that were planned but never scored. */
+    /**
+     * Policies planned or attempted for this run that produced no score: deferred for budget,
+     * or started and failed to launch or load. Catalog rows never available for the job
+     * (unavailable, measured out of reach, refused, never registered) are not counted.
+     */
     didNotRun: number;
+    /** The sentence about `didNotRun`, or null when it is 0. */
+    didNotRunLine: string | null;
   } | null;
   accuracy: { statement: string; conditions: string; sources: Array<{ title: string; url: string }> };
   /** Which of the studies' conditions hold for this job, one sentence each. */
@@ -82,6 +88,22 @@ const COULD_NOT_RUN: Partial<Record<JobScreeningOutcome, string>> = {
   held_budget: "The simulation reached the most the free beta can run for one job before it finished.",
   held_scene_check: "The simulated scene failed the check we run before testing robots, so no robot was tested in it.",
 };
+
+/** Blockers that close a row in favour of a newer run of the same job: it runs there, not "did not run". */
+const REPLANNED_BLOCKERS = new Set(["beta_screening_replanned_for_new_implementation", "beta_screening_implementation_commit_changed"]);
+/**
+ * Planned or attempted for this run, and no score. `deferred` rows passed every availability check and
+ * were held back for money (the site allowance, the job's ceiling or a cost quote). `blocked` and
+ * `completed` rows count only when episodes were planned for them, so they were selected and then failed
+ * to start, launch or load. `unavailable` and `infeasible` rows were never runnable for the job.
+ */
+function plannedButNotRun(row: Candidate): boolean {
+  if (count(row.scored) > 0) return false;
+  const blockers = Array.isArray(row.blockers) ? row.blockers : [];
+  if (blockers.some(code => REPLANNED_BLOCKERS.has(code))) return false;
+  if (row.state === "deferred") return true;
+  return (row.state === "blocked" || row.state === "completed") && count(row.planned) > 0;
+}
 
 const PREPARING_STATES = new Set(["queued", "pending", "waitlisted", "preparing", "launching", "unavailable"]);
 const RUNNING_CANDIDATE_STATES = new Set(["launching", "running", "reconciliation_required"]);
@@ -178,6 +200,7 @@ function comparisonOf(evaluation: JobManagedEvidenceSummary, state: SimulationPr
     line = `The simulation scored one policy: ${best!.policy} completed the job in ${triesText(best!.succeeded, best!.scored)}. With nothing to compare it to, it could not rank policies.`;
   }
 
+  const didNotRun = policies.filter(plannedButNotRun).length;
   const robot = simulatedRobot(scored.length ? scored : policies.map(row => simulationPolicyFor(String(row.candidateId ?? ""), String(row.name ?? ""))));
   return {
     robotName: robot?.name ?? "the simulated robot",
@@ -191,7 +214,10 @@ function comparisonOf(evaluation: JobManagedEvidenceSummary, state: SimulationPr
     separated,
     line,
     sceneNotes: notes,
-    didNotRun: policies.length - scored.length,
+    didNotRun,
+    didNotRunLine: didNotRun > 0
+      ? `${didNotRun} more ${didNotRun === 1 ? "policy was" : "policies were"} planned and did not run. “Simulation details” further down says why.`
+      : null,
   };
 }
 
