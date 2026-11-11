@@ -23,7 +23,8 @@ const send = vi.hoisted(() => vi.fn());
 vi.mock("../utils/email", () => ({ sendEmail: send }));
 // The site's answer, as the composer would give it; null until a test sets one.
 const composedAnswer = vi.hoisted(() => ({ current: null as unknown }));
-vi.mock("../utils/siteAnswer", () => ({ loadSiteAnswer: vi.fn(async () => composedAnswer.current) }));
+vi.mock("../utils/siteAnswer", async importOriginal => ({ ...await importOriginal<typeof import("../utils/siteAnswer")>(),
+  loadSiteAnswer: vi.fn(async () => composedAnswer.current) }));
 
 const { enqueueTaskLifecycleNotification, reconstructionIsViewable, reconcileSceneReadyNotifications } = await import("../utils/taskLifecycleNotifications");
 
@@ -235,7 +236,7 @@ describe("a waiting job hears what it is waiting on", () => {
   it("tells the site its evaluation's outcome in the page's sentence, only while the page states it (F-01)", async () => {
     const { buildTaskLifecycleNotification } = await import("../utils/taskLifecycleNotifications");
     const { taskLifecycleNotificationIsCurrent } = await import("../utils/taskLifecycleNotificationAuthority");
-    const { screeningOutcomeSentence } = await import("../utils/betaPolicyScreeningContract");
+    const { simulationOutcomeEmailSentence } = await import("../utils/betaPolicyScreeningContract");
     sharedFakeFirestoreState.docs.set("taskEvaluationSceneIntakes/scene-1", { website_request_id: "req-1",
       source_session_id: "walkthrough-req-1", created_at_iso: "2026-10-22T00:00:00Z", state: "completed",
       receipt: { intent_id: "intent-1" }, pipeline_status: { status: "completed", phase: "scene_prepared" },
@@ -247,10 +248,11 @@ describe("a waiting job hears what it is waiting on", () => {
     const notice = buildTaskLifecycleNotification({ requestId: "req-1", to: "owner@example.com", milestone: "evaluation_outcome",
       eventId: event, screeningOutcome: "no_match", captureUrl: "https://example.invalid/capture-upload/private-owner-link" });
     expect(notice.idempotencyKey).toBe(`req-1:evaluation_outcome:${event}`);
-    expect(notice.subject).toBe("Your job's simulation evaluation has finished");
-    expect(notice.body.startsWith(`${screeningOutcomeSentence("no_match")} Nothing is needed from you.`)).toBe(true);
-    // Only an estimate offers an introduction.
-    expect(notice.body).not.toMatch(/introduction/i);
+    expect(notice.subject).toBe("An update on the simulation of your job");
+    expect(notice.body.startsWith(`${simulationOutcomeEmailSentence("no_match")} Nothing is needed from you.`)).toBe(true);
+    expect(notice.body.startsWith("None of the robots the simulation can run matched this task.")).toBe(true);
+    // No email offers an introduction: a person at Blueprint makes it, from the job page's own request.
+    expect(notice.body).not.toMatch(/introduction|\bheld\b/i);
     // Enqueue checks consent; dispatch also reads what the job page states now.
     expect(await taskLifecycleNotificationIsCurrent({ kind: "evaluation_outcome", requestId: "req-1" })).toBe(true);
     expect(await taskLifecycleNotificationIsCurrent(notice)).toBe(false);
@@ -337,17 +339,61 @@ it.each(["results_ready", "run_no_result", "no_team_passed", "no_qualified_evalu
   expect(notice.body).not.toMatch(/create.*account|save.*account|results open in.*account|confirm.*brief/i);
 });
 
-it("sends a claimed site's evaluation outcome to its workspace, with the estimate's episode count (F-01)", async () => {
-  const { buildTaskLifecycleNotification } = await import("../utils/taskLifecycleNotifications");
-  const notice = buildTaskLifecycleNotification({ requestId: "req-1", to: "owner@example.com", milestone: "evaluation_outcome",
-    eventId: `estimate-${"a".repeat(24)}`, screeningOutcome: "estimate", screeningCounts: { ran: 2, total: 36, scored: 6 },
-    captureUrl: "https://example.invalid/capture-upload/private-owner-link", workspaceUrl: "https://example.invalid/app/tasks/req-1" });
-  expect(notice.subject).toBe("Your simulation estimate is ready");
-  expect(notice.body).toMatch(/^Your simulation estimate is ready\. It is an estimate from a simulation of your site, not a certified result\. In the simulation, 2 of 36 candidates ran, with 6 episodes scored against the job's success criteria\. Nothing is needed from you\./);
-  expect(notice.body).toContain("This is a simulation estimate, not a physical test. It never certifies physical performance or safety.\n\n"
-    + "If you'd like an introduction to a deployment company that could run a pilot of this, reply to this email.");
-  expect(notice.body).toContain("See the result in your workspace:\nhttps://example.invalid/app/tasks/req-1");
-  expect(notice.body).not.toContain("private-owner-link");
+describe("a finished simulation's email says what the job page's simulation proof says", () => {
+  const evaluation = (rows: Array<[string, number, number]>, extra: Record<string, unknown> = {}) => ({
+    runId: "run-1", state: "completed", current: true, resultDigest: null, outcome: "estimate", summary: "", nextAction: "",
+    limitations: [], href: "#", ...extra,
+    screening: { candidates: rows.map(([candidateId, succeeded, scored]) => ({ candidateId, name: candidateId, state: "completed",
+      planned: scored, scored, succeeded, failed: scored - succeeded, void: 0, blockers: [] })),
+      ...(extra.setupNotes ? { setupNotes: extra.setupNotes } : {}) } });
+  const build = async (proof: unknown, workspaceUrl: string | null = null) => {
+    const { buildTaskLifecycleNotification } = await import("../utils/taskLifecycleNotifications");
+    return buildTaskLifecycleNotification({ requestId: "req-1", to: "owner@example.com", milestone: "evaluation_outcome",
+      eventId: `estimate-${"a".repeat(24)}`, screeningOutcome: "estimate", screeningCounts: { ran: 2, total: 36, scored: 6 },
+      simulationProof: proof as never, captureUrl: "https://example.invalid/capture-upload/private-owner-link", workspaceUrl });
+  };
+  const proofOf = async (summary: unknown) => {
+    const { projectSimulationProof } = await import("../../client/src/lib/simulationProof");
+    return projectSimulationProof({ evaluation: summary as never, pick: null });
+  };
+  const banned = /episodes|candidates|screening|pi05_droid|groot_n17|estimate|reply to this email|introduc|pilot/i;
+
+  it("names the winning policy in plain words, with its count and how far to trust it, when the result separates them", async () => {
+    const { EMAIL_SIGN_OFF } = await import("../utils/emailLayout");
+    const notice = await build(await proofOf(evaluation([["pi05_droid", 4, 5], ["groot_n17_droid", 1, 5]])),
+      "https://example.invalid/app/tasks/req-1");
+    expect(notice.subject).toBe("Your simulation proof is ready");
+    expect(notice.body).toBe("In a simulation of your site, π0.5, an AI control policy from Physical Intelligence, did best: it completed the job in 4 of 5 tries.\n\n"
+      + "In one published head-to-head study, a simulation built from a scan of each scene picked the same better policy as tests on the real robot in 8 of 9 scene and task comparisons. "
+      + "The conditions and sources are on your job page. Nothing is needed from you.\n\n"
+      + "A simulation is not a physical test, and it never certifies physical performance or safety.\n\n"
+      + "See the result in your workspace:\nhttps://example.invalid/app/tasks/req-1\n\n" + EMAIL_SIGN_OFF);
+    expect(notice.body).not.toMatch(banned);
+    expect(notice.body).not.toContain("private-owner-link");
+  });
+
+  it("says it could not rank them, with its scene notes and no pilot offer, when no policy completed the job", async () => {
+    const note = "The place point was beyond the simulated arm's reach.";
+    const notice = await build(await proofOf(evaluation([["pi05_droid", 0, 5], ["groot_n17_droid", 0, 5]], { setupNotes: [note] })));
+    expect(notice.subject).toBe("The simulation of your job has finished");
+    expect(notice.body.startsWith(`The simulation ran, but no policy completed the job in it, so it could not rank them. ${note} Nothing is needed from you.\n\n`
+      + "A simulation is not a physical test, and it never certifies physical performance or safety.")).toBe(true);
+    expect(notice.body).not.toMatch(banned);
+    expect(notice.body).not.toMatch(/did best|proof is ready|deployment company/i);
+  });
+
+  it("says only that the simulation finished when the job's results could not be read, and what a stored caveat shows", async () => {
+    const unread = await build(null);
+    expect(unread.subject).toBe("The simulation of your job has finished");
+    expect(unread.body.startsWith("The simulation of your site has finished. Your job page shows how each policy did. Nothing is needed from you.")).toBe(true);
+    const { buildTaskLifecycleNotification } = await import("../utils/taskLifecycleNotifications");
+    const flagged = buildTaskLifecycleNotification({ requestId: "req-1", to: "owner@example.com", milestone: "evaluation_outcome",
+      eventId: `estimate-${"a".repeat(24)}`, screeningOutcome: "estimate", screeningCounts: { ran: 2, total: 36, scored: 6 },
+      screeningCaveat: "scene_setup", simulationProof: null, captureUrl: "https://example.invalid/capture-upload/x" });
+    expect(flagged.body.startsWith("The simulation ran, but no policy completed the job in it, so it could not rank them. "
+      + "Our scene check found a possible set-up cause")).toBe(true);
+    for (const notice of [unread, flagged]) expect(notice.body).not.toMatch(banned);
+  });
 });
 
 describe("a job the window sweep ended is told under its own fixed key", () => {

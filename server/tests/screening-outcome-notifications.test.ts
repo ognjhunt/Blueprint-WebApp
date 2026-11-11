@@ -8,7 +8,8 @@ import { createHash } from "node:crypto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { sharedFakeFirestoreState as state } from "./helpers/fake-firestore";
 import { outcomePublication, screeningFixture, sealScreening } from "./fixtures/beta-policy-screening";
-import { screeningOutcomeSentence, type ScreeningOutcome } from "../utils/betaPolicyScreeningContract";
+import { simulationOutcomeEmailSentence, type ScreeningOutcome } from "../utils/betaPolicyScreeningContract";
+import { SIMULATION_TRUST_LINE } from "../utils/taskLifecycleNotifications";
 
 const send = vi.hoisted(() => vi.fn());
 vi.mock("../../client/src/lib/firebaseAdmin", async () => {
@@ -45,7 +46,7 @@ beforeEach(() => {
 });
 
 describe("one email per terminal outcome of the job's evaluation (F-01)", () => {
-  it.each(RESULT_OUTCOMES)("sends %s once, with the page's sentence, the private link and the disclaimer", async outcome => {
+  it.each(RESULT_OUTCOMES)("sends %s once, said about the simulation, with the private link and the disclaimer", async outcome => {
     const publication = outcomePublication(base, outcome);
     await ingestBetaPolicyScreening(publication);
     expect(run()).toMatchObject({ screening_outcome: outcome, outcome_notification_pending: true,
@@ -54,18 +55,23 @@ describe("one email per terminal outcome of the job's evaluation (F-01)", () => 
     expect(send).toHaveBeenCalledTimes(1);
     const notice = state.docs.get(key(outcome)) as Record<string, string>;
     expect(notice).toMatchObject({ status: "sent", kind: "evaluation_outcome", to: "owner@example.com" });
-    expect(notice.body.startsWith(screeningOutcomeSentence(outcome as ScreeningOutcome))).toBe(true);
+    if (outcome !== "estimate") expect(notice.body.startsWith(simulationOutcomeEmailSentence(outcome as ScreeningOutcome))).toBe(true);
+    // The site already has its answer: the email never says the job is held, and never names internal terms.
+    expect(notice.body).not.toMatch(/\bheld\b|your job is|episodes|candidates|screening/i);
+    expect(notice.body).not.toMatch(/introduction|reply to this email/i);
     expect(notice.body).toMatch(/never certifies physical performance or safety/);
     expect(notice.body).toMatch(/on your private job page:\nhttps?:\/\/\S+\/capture-upload\//);
     // Everything before the link: no code, operator instruction or budget, which are Blueprint's own.
     const words = notice.body.slice(0, notice.body.indexOf("on your private job page"));
     expect(words).not.toMatch(/rerun|setup blocker|owner approval|budget|\$|development only|[a-z]_[a-z]/i);
     if (outcome === "estimate") {
-      expect(notice.subject).toBe("Your simulation estimate is ready");
-      expect(notice.body).toContain("In the simulation, 2 of 36 candidates ran, with 6 episodes scored against the job's success criteria.");
+      // The fixture's two policies completed the job 2 and 1 times in 3: the result separates them.
+      expect(notice.subject).toBe("Your simulation proof is ready");
+      expect(notice.body).toMatch(/^In a simulation of your site, .+ did best: it completed the job in 2 of 3 tries\.\n\n/);
+      expect(notice.body).toContain(SIMULATION_TRUST_LINE);
     } else {
-      expect(notice.subject).toBe("Your job's simulation evaluation has finished");
-      expect(notice.body).not.toMatch(/estimate is ready|episodes scored/);
+      expect(notice.subject).toBe("An update on the simulation of your job");
+      expect(notice.body).not.toMatch(/estimate|proof is ready/);
     }
     expect(run().outcome_notification_pending).toBe(false);
     // A replayed delivery, a later pass or a budget-only revision is not another email.
@@ -76,6 +82,20 @@ describe("one email per terminal outcome of the job's evaluation (F-01)", () => 
     await deliverOutbox();
     expect(send).toHaveBeenCalledTimes(1);
     expect(notices()).toHaveLength(1);
+  });
+
+  it("says a finished simulation in which no policy completed the job could not rank them, with no estimate and no pilot offer", async () => {
+    const finished = outcomePublication(base, "estimate");
+    await ingestBetaPolicyScreening(sealScreening({ ...finished, candidates: finished.candidates.map(row => row.episodes_scored > 0
+      ? { ...row, episodes_succeeded: 0, episodes_failed: row.episodes_scored, success_rate: 0 } : row) }));
+    expect(run()).toMatchObject({ screening_outcome: "estimate", outcome_notification_pending: true });
+    await deliverOutbox();
+    expect(send).toHaveBeenCalledTimes(1);
+    const notice = state.docs.get(key("estimate")) as Record<string, string>;
+    expect(notice.subject).toBe("The simulation of your job has finished");
+    expect(notice.body.startsWith("The simulation ran, but no policy completed the job in it, so it could not rank them. Nothing is needed from you.")).toBe(true);
+    expect(notice.body).not.toMatch(/estimate|proof is ready|did best|pilot|introduc|deployment company|episodes|candidates|screening/i);
+    expect(notice.body).toMatch(/never certifies physical performance or safety/);
   });
 
   it.each(["awaiting_spend_approval", "setup_repair", "superseded"])("sends nothing for %s", async outcome => {
@@ -114,7 +134,7 @@ describe("one email per terminal outcome of the job's evaluation (F-01)", () => 
     expect(state.docs.get(key("held_capability"))).toMatchObject({ status: "cancelled", attempts: 0 });
     expect(state.docs.get(key("estimate"))).toMatchObject({ status: "sent" });
     expect(send).toHaveBeenCalledTimes(1);
-    expect(send.mock.calls[0][0].subject).toBe("Your simulation estimate is ready");
+    expect(send.mock.calls[0][0].subject).toBe("Your simulation proof is ready");
     expect([run().outcome_notification_pending, run("campaign-two").outcome_notification_pending]).toEqual([false, false]);
   });
 

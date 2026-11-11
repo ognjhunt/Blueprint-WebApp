@@ -166,12 +166,54 @@ describe("composeSiteAnswer", () => {
     for (const answer of [opening, screened]) expect(answer.reason).not.toMatch(/evaluation preparation|simulation|hold your job/i);
   });
 
-  it("assesses from the reading and the site's numbers even when the task screen says the simulation cannot score it", () => {
-    for (const reason of ["deformable", "container", "mobile", "other", "multi_step"]) {
+  it("assesses from the reading and the site's numbers when the task screen says only that the simulation cannot score it", () => {
+    for (const reason of ["container", "mobile", "other", "multi_step", "unclear"]) {
       const answer = compose({ request: { site_task_scope: { supported: false, kind: null, reason } } });
       expect(answer.state).toBe("ready");
       expect(answer.reason).toBeNull();
     }
+  });
+
+  it("never gives a robot pick to a job that is plainly another kind, whatever numbers the reading gave", () => {
+    const OTHER_KIND = "This check covers jobs where a robot picks one solid object up and puts it down. Your job looks like another kind, which we can't check robots against yet.";
+    const towel = estimates({ object: "towel", pick_height_m: 0.9, basis: "A person stands at a table." });
+    // The stored scope says so.
+    for (const reason of ["deformable", "liquid", "assembly", "closing", "push", "articulated"]) {
+      const answer = compose({ estimates: towel, request: { site_task_scope: { supported: false, kind: null, reason } } });
+      expect(answer).toMatchObject({ state: "cannot_assess", reason: OTHER_KIND, pick: null, runnerUp: null });
+    }
+    expect(compose({ estimates: towel, request: { site_task_scope: { supported: true, kind: "articulated_open_close", reason: null } } }))
+      .toMatchObject({ state: "cannot_assess", reason: OTHER_KIND, pick: null });
+    // The typed brief says so, with no stored scope.
+    expect(compose({ estimates: towel, brief: { requestId: "job-1", summary: "Fold each towel and stack it on the shelf" } }))
+      .toMatchObject({ state: "cannot_assess", reason: OTHER_KIND, pick: null });
+    // The reading's own words say so, with no brief at all.
+    const video = estimates({ object: "towel", pick_height_m: 0.9, basis: "A person folds towels on a table and stacks them." });
+    expect(compose({ estimates: video, brief: { requestId: "job-1", summary: "Your site task" } }))
+      .toMatchObject({ state: "cannot_assess", reason: OTHER_KIND, pick: null });
+    expect(compose({ estimates: video, brief: null })).toMatchObject({ state: "cannot_assess", reason: OTHER_KIND });
+    // And with no numbers at all, it is another kind, not "not shown clearly".
+    const bare = estimates({ object: "towel", object_largest_side_m: null, object_mass_kg_low: null, object_mass_kg_high: null,
+      pick_to_place_m: null, basis: "A person folds towels on a table and stacks them." });
+    expect(compose({ estimates: bare, brief: null })).toMatchObject({ state: "cannot_assess", reason: OTHER_KIND });
+    // A linked video's summary counts as the reading's words too.
+    expect(compose({ estimates: towel, brief: null, request: { site_video_evidence: { summary: "Staff fold laundry at a counter." } } }))
+      .toMatchObject({ state: "cannot_assess", reason: OTHER_KIND });
+  });
+
+  it("screens the reading's sentences, never the object's bare name", () => {
+    // "Water bottle" alone would screen as a liquid job; the reading's sentence says it is carried.
+    const answer = compose({ brief: null, estimates: estimates({ object: "water bottle",
+      basis: "A person moves each bottle from a conveyor to a shelf." }) });
+    expect(answer.state).toBe("ready");
+    expect(answer.pick).not.toBeNull();
+  });
+
+  it("still picks a robot for a carton job whose stored scope says it goes into a container", () => {
+    const answer = compose({ request: { site_task_scope: { supported: false, kind: null, reason: "container" } },
+      brief: { requestId: "job-1", summary: "Put each carton into the tote" } });
+    expect(answer.state).toBe("ready");
+    expect(answer.headline).toMatch(/^Most likely to fit: /);
   });
 
   it("treats container, far-apart and multi-step jobs as a pick and a place, and says a multi-step job is checked one carry at a time", () => {

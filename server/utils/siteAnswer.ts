@@ -195,29 +195,55 @@ const OTHER_KIND_REASONS = new Set(["deformable", "liquid", "assembly", "closing
 const REASON_OTHER_KIND = "This check covers jobs where a robot picks one solid object up and puts it down. Your job looks like another kind, which we can't check robots against yet.";
 const UNKNOWN_MULTI_STEP = "Your job has more than one step; this checks one carry.";
 
-/** The stored task screen's reason or kind, else the brief screened now. */
-function screenOf(request: Record<string, any>, brief: SiteTaskBriefRecord | null): { kind: string | null; reason: string | null } {
+type Screen = { kind: string | null; reason: string | null };
+
+function isOtherKind(screen: Screen): boolean {
+  return (screen.kind !== null && screen.kind !== "rigid_pick_and_place")
+    || (screen.reason !== null && OTHER_KIND_REASONS.has(screen.reason));
+}
+
+/** The stored task screen, when the job has one. */
+function storedScreen(request: Record<string, any>): Screen | null {
   const scope = isRecord(request.site_task_scope) ? request.site_task_scope : null;
-  if (scope && (scope.supported === true || scope.supported === false)) {
-    return { kind: typeof scope.kind === "string" ? scope.kind : null, reason: typeof scope.reason === "string" ? scope.reason : null };
-  }
-  const summary = typeof brief?.summary === "string" ? brief.summary : null;
+  if (!scope || (scope.supported !== true && scope.supported !== false)) return null;
+  return { kind: typeof scope.kind === "string" ? scope.kind : null, reason: typeof scope.reason === "string" ? scope.reason : null };
+}
+
+/** The brief's own words: the typed or drafted summary and its success line. Placeholders say nothing. */
+function briefTexts(brief: SiteTaskBriefRecord | null): string[] {
+  const summary = typeof brief?.summary === "string" && !isPlaceholderSummary(brief.summary) ? brief.summary : null;
   const success = isRecord(brief?.successCriteria) ? text(brief!.successCriteria.successDefinition) : null;
-  const screened = screenTaskScope({ summary, successDefinition: success });
-  return { kind: screened.kind, reason: screened.reason };
+  return [summary, success].filter((entry): entry is string => Boolean(entry && entry.trim()));
 }
 
 /**
- * Whether robots can be checked against the job. The reading and the site's own
- * numbers decide first: an object and a distance or a height is a pick and a
- * place. Only a job that is plainly another kind cannot be assessed.
+ * The video reading's own sentences: the coverage review's basis, and a linked
+ * video's summary and basis. The object's bare name is not screened on its own:
+ * the task screen's word lists are written for sentences, and a bare noun reads
+ * wrongly ("water bottle" as a liquid, "bolt" as assembly).
  */
-function scopeOf(request: Record<string, any>, brief: SiteTaskBriefRecord | null, facts: Facts): { otherKind: boolean; multiStep: boolean } {
-  const screen = screenOf(request, brief);
-  const multiStep = screen.reason === "multi_step";
-  if (readingObject(request) && (facts.distance || facts.pick || facts.place)) return { otherKind: false, multiStep };
-  const otherKind = (screen.kind !== null && screen.kind !== "rigid_pick_and_place")
-    || (screen.reason !== null && OTHER_KIND_REASONS.has(screen.reason));
+function readingTexts(request: Record<string, any>): string[] {
+  const walkthrough = isRecord(request.walkthrough_job_estimates) ? request.walkthrough_job_estimates.job_estimates : null;
+  const link = isRecord(request.site_video_evidence) ? request.site_video_evidence : null;
+  return [text(isRecord(walkthrough) ? walkthrough.basis : null), text(link?.summary),
+    text(isRecord(link?.job_estimates) ? link!.job_estimates.basis : null)].filter((entry): entry is string => Boolean(entry));
+}
+
+/**
+ * Whether robots can be checked against the job, in this order: when the stored
+ * scope or a screen of any text describing the job (the brief, the reading's own
+ * words) says the job is plainly another kind, it cannot be assessed, whatever
+ * numbers the reading gave. Otherwise an object and a distance or a height is a
+ * pick and a place (the caller runs the fit check, or says the job could not be
+ * sized when there is no number).
+ */
+function scopeOf(request: Record<string, any>, brief: SiteTaskBriefRecord | null): { otherKind: boolean; multiStep: boolean } {
+  const stored = storedScreen(request);
+  const briefScreens = briefTexts(brief).map((summary) => screenTaskScope({ summary }));
+  const readingScreens = readingTexts(request).map((summary) => screenTaskScope({ summary }));
+  const otherKind = [stored, ...briefScreens, ...readingScreens].some((screen) => screen !== null && isOtherKind(screen));
+  // More than one step is the site's description of its job: the stored scope, else its brief.
+  const multiStep = stored ? stored.reason === "multi_step" : briefScreens.some((screen) => screen.reason === "multi_step");
   return { otherKind, multiStep };
 }
 
@@ -508,7 +534,7 @@ export function composeSiteAnswer(inputs: SiteAnswerInputs): SiteAnswer | null {
   const finish = (answer: Omit<SiteAnswer, "basisDigest">, extra: Record<string, unknown> = {}): SiteAnswer =>
     ({ ...answer, basisDigest: digestOf({ ...basis, state: answer.state, ...extra }) });
 
-  const scope = scopeOf(request, brief, facts);
+  const scope = scopeOf(request, brief);
   if (scope.otherKind) return finish({ ...base, state: "cannot_assess", headline: HEADLINE_CANNOT, reason: REASON_OTHER_KIND });
   if (!coverageDone(request, fitInputs) && !siteNumbers) return finish({ ...base, state: "reading", headline: HEADLINE_READING });
   if (!facts.distance && !facts.mass && !facts.size) {

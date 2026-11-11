@@ -118,13 +118,17 @@ const NOTHING = { object: null, object_largest_side_m: null, object_mass_kg_low:
 /** SYNTHETIC: a carton picked from a table and set down at its far end. Not a real site's numbers. */
 const CARTON = reading({ ...NOTHING, object: "carton", object_largest_side_m: 0.4, object_mass_kg_low: 2,
   object_mass_kg_high: 6, object_surface: "matte", pick_to_place_m: 0.8, pick_height_m: 0.9, place_height_m: 0.75,
-  front_clearance_m: 1.2, cycle_seconds: 20, basis: "SYNTHETIC fixture: sized against the table edge." },
+  front_clearance_m: 1.2, cycle_seconds: 20, basis: "SYNTHETIC reading: sized against the table edge." },
 "Pick up the carton from the left of the table and place it at the end of the table");
 /** SYNTHETIC: the clip never shows the work. */
-const NO_JOB = reading({ ...NOTHING, basis: "SYNTHETIC fixture: the job was not in view." }, null);
+const NO_JOB = reading({ ...NOTHING, basis: "SYNTHETIC reading: the job was not in view." }, null);
 /** SYNTHETIC: a person folds towels at a table; nothing is carried from one spot to another. */
 const TOWELS = reading({ ...NOTHING, object_surface: "matte",
-  basis: "SYNTHETIC fixture: a person folds towels on a table and stacks them." }, null);
+  basis: "SYNTHETIC reading: a person folds towels on a table and stacks them." }, null);
+/** SYNTHETIC: the same towel job, with the object named and a height the reader gave. The numbers must not make it a pick. */
+const TOWELS_WITH_HEIGHT = reading({ ...NOTHING, object: "towel", object_surface: "matte", pick_height_m: 0.9,
+  basis: "SYNTHETIC reading: a person folds towels on a table and stacks them." }, null);
+// The bases say "reading", not "fixture": the task screen reads "fixture" as an assembly job.
 
 /* ------------------------------------------------------------ the site's steps, as the page sends them */
 
@@ -322,10 +326,12 @@ describe("a site's answer, from an email and a video to a deployment company", (
     const first = await asked.json();
     expect(first).toEqual({ ok: true, requestedAtIso: NOW.toISOString(), listed: true });
     const { listingConsentVersion } = await import("../utils/taskListingDetails");
-    expect(doc(`inboundRequests/${jobId}`).introduction_request).toEqual({ requested_at_iso: NOW.toISOString(),
-      requested_by: "signed_owner_link" });
+    const recorded = doc(`inboundRequests/${jobId}`).introduction_request;
+    expect(recorded).toMatchObject({ requested_at_iso: NOW.toISOString(), requested_by: "signed_owner_link" });
+    // The card is granted under the statement version the route records with the request (the card's own when none).
     expect(doc(`inboundRequests/${jobId}`).public_task_listing).toMatchObject({ enabled: true,
-      consentVersion: listingConsentVersion, approvedBy: "signed_owner_link" });
+      consentVersion: recorded.statement_version ?? listingConsentVersion, approvedBy: "signed_owner_link",
+      approvedAtIso: NOW.toISOString() });
     expect((await listTaskBrowseCards()).map(card => card.id)).toEqual([jobId]);
     expect(introductionAlerts()).toHaveLength(1);
     expect((await status(token)).answer.introductionRequestedAtIso).toBe(NOW.toISOString());
@@ -359,21 +365,53 @@ describe("a site's answer, from an email and a video to a deployment company", (
     expect(await brief.json()).toMatchObject({ ready: true, taskStatementNeeded: true });
   }, 30_000);
 
-  it("says a job of another kind cannot be checked, in the fit check's own words, with one update email", async () => {
-    // The towel job is named in the form's optional task line: from the video alone it reads as "not shown clearly".
-    const { jobId, token } = await startJob("Fold each towel and stack it on the shelf");
-    expect(doc(`inboundRequests/${jobId}`).site_task_scope).toMatchObject({ supported: false, reason: "deformable" });
-    await sendVideo(token);
-    await readVideo(jobId, TOWELS);
+  const OTHER_KIND = "This check covers jobs where a robot picks one solid object up and puts it down. Your job looks like another kind, which we can't check robots against yet.";
+  async function expectOtherKind(jobId: string, token: string) {
     const { answer } = await status(token);
     expect(answer).toMatchObject({ state: "cannot_assess", headline: "We can't check robots against this job yet.",
-      reason: "This check covers jobs where a robot picks one solid object up and puts it down. Your job looks like another kind, which we can't check robots against yet.",
-      pick: null });
+      reason: OTHER_KIND, pick: null, runnerUp: null });
     expect(answer.reason).not.toMatch(/evaluation preparation|simulation/i);
     const rows = answerNotices(jobId);
     expect(rows).toHaveLength(1);
     expect(rows[0].subject).toBe("An update on your Blueprint job");
     expect(rows[0].body).toContain(answer.reason);
+    expect(rows[0].body).not.toMatch(/Most likely to fit|closest is/);
+  }
+
+  it("says a job of another kind cannot be checked, in the fit check's own words, with one update email", async () => {
+    // The towel job is named in the form's optional task line.
+    const { jobId, token } = await startJob("Fold each towel and stack it on the shelf");
+    expect(doc(`inboundRequests/${jobId}`).site_task_scope).toMatchObject({ supported: false, reason: "deformable" });
+    await sendVideo(token);
+    await readVideo(jobId, TOWELS);
+    await expectOtherKind(jobId, token);
+  }, 30_000);
+
+  it("gives no robot pick to a typed towel job even when the reading names the object and a height", async () => {
+    const { jobId, token } = await startJob("Fold each towel and stack it on the shelf");
+    await sendVideo(token);
+    await readVideo(jobId, TOWELS_WITH_HEIGHT);
+    await expectOtherKind(jobId, token);
+  }, 30_000);
+
+  it("reads a towel job from the video alone as another kind, with or without numbers", async () => {
+    for (const towels of [TOWELS, TOWELS_WITH_HEIGHT]) {
+      const { jobId, token } = await startJob();
+      await sendVideo(token);
+      await readVideo(jobId, towels);
+      await expectOtherKind(jobId, token);
+    }
+  }, 60_000);
+
+  it("still picks a robot for a carton job whose scope says it goes into a container", async () => {
+    const { jobId, token } = await startJob("Put each carton into the tote at the end of the table");
+    expect(doc(`inboundRequests/${jobId}`).site_task_scope).toMatchObject({ supported: false, reason: "container" });
+    await sendVideo(token);
+    await readVideo(jobId, CARTON);
+    const { answer } = await status(token);
+    expect(answer.state).toBe("ready");
+    expect(answer.headline).toMatch(/^Most likely to fit: /);
+    expect(answerNotices(jobId).map(row => row.subject)).toEqual(["Your Blueprint answer is ready"]);
   }, 30_000);
 
 });
