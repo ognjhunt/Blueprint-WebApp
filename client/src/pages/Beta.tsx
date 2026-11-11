@@ -27,8 +27,9 @@ export default function Beta() {
           ]} />
           <BareRows title="Your answer" rows={[
             { key: "jobs", label: "Jobs", value: "One job that repeats, with known objects. We check jobs where something is picked up and put down; other jobs we keep and hold." },
-            { key: "see", label: "You see", value: "The robot most likely to fit · which did best in the simulation · what was ruled out · who already uses it · how sure we are" },
-            { key: "simulation", label: "Simulation", value: "We test the top options on your job in a simulation of your site: each robot's reach, and public control software on a research robot." },
+            { key: "test", label: "What do you test?", value: "Robots driven by AI software that sees through cameras. Not pre-programmed motion." },
+            { key: "simulation", label: "Simulation", value: "A simulation of your site, built from your video. Each option gets about ten tries, with things moved between tries." },
+            { key: "see", label: "You see", value: "Which did best · how sure we are · what was ruled out · who already uses it" },
             { key: "isnt", label: "It isn't", value: "A test at your site. It does not certify performance or safety." },
           ]} />
           <BareRows title="Your video" rows={[

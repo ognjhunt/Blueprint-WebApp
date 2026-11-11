@@ -117,3 +117,6 @@
 .job-more .job-workspace { margin: 0; padding: 0; border: 0; }
 .job-more .job-workspace .job-planning-details { margin: 0; padding: 0; border-block: 0; border-bottom: 1px solid #dcdcd4; }
 .job-more section[aria-label="Recording permission"] { margin-top: 0 !important; }
+/* "How to film ›": a quiet link that opens the how-to in place. */
+.bare-how-to > summary { display: inline-flex; align-items: center; min-height: 44px; cursor: pointer; list-style: none; text-decoration: underline; text-underline-offset: 4px; }
+.bare-how-to > summary::-webkit-details-marker { display: none; }

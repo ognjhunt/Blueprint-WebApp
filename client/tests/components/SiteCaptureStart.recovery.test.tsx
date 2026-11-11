@@ -75,7 +75,7 @@ beforeEach(() => {
 });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 it("RETURN-001: restores the draft after remount", async () => {
-  const view = await renderReady(<SiteCaptureStart />); fill(); fireEvent.click(document.querySelector("#start-method-upload")!);
+  const view = await renderReady(<SiteCaptureStart />); fill(); { const toUpload = document.querySelector("#start-method-upload"); if (toUpload) fireEvent.click(toUpload); };
   view.unmount(); await renderReady(<SiteCaptureStart />);
   expect(document.querySelector("#start-task")).toHaveValue("Move sealed cartons");
   expect(document.querySelector("#start-location")).toHaveValue("Austin, TX");
@@ -97,7 +97,7 @@ it("RETURN-002: recovers a lost intake response across remount without another i
   expect(sent[1].body).toEqual(original);
 });
 it("RETURN-003: account changes discard mounted anonymous fields and retry authority", async () => {
-  const view = await renderReady(<SiteCaptureStart />); fill(); fireEvent.click(document.querySelector("#start-method-upload")!);
+  const view = await renderReady(<SiteCaptureStart />); fill(); { const toUpload = document.querySelector("#start-method-upload"); if (toUpload) fireEvent.click(toUpload); };
   identity.user = {uid: "other-account", email: "other@example.test", getIdToken: async () => "fixture"};
   await act(async () => { view.rerender(<SiteCaptureStart />); });
   expect(document.querySelector("#start-task")).toHaveValue("");
@@ -109,7 +109,7 @@ it("RETURN-004: an acknowledged upload recovers without requiring lost File byte
     if (init?.method === "POST") {sent.push({url,body:JSON.parse(init.body)}); return {ok:true,status:200,json:async()=>({captureUrl:"/capture-upload/fixture"})};}
     return {ok:true,status:200,json:async()=>({state:"pending",captureReceived:false,features:[],workspaceType:"site_operator"})};
   });
-  const view=await renderAsSiteOwner();fillSigned();fireEvent.click(document.querySelector("#start-method-upload")!);
+  const view=await renderAsSiteOwner();fillSigned();{ const toUpload = document.querySelector("#start-method-upload"); if (toUpload) fireEvent.click(toUpload); };
   fireEvent.change(document.querySelector("#start-footage")!,{target:{files:[new File(["fixture"],"video.mp4",{type:"video/mp4"})]}});
   submit();
   await screen.findByRole("heading",{name:"Your job is saved. Check your video upload."});
@@ -126,7 +126,7 @@ it("ACCESS-004: late intake acceptance after account switch cannot start origina
     if(init?.method==="POST") {sent.push({url,body:JSON.parse(init.body)});return new Promise(resolve=>{accept=resolve;});}
     return {ok:true,status:200,json:async()=>({features:[],workspaceType:"site_operator"})};
   });
-  const view=await renderAsSiteOwner();fillSigned();fireEvent.click(document.querySelector("#start-method-upload")!);
+  const view=await renderAsSiteOwner();fillSigned();{ const toUpload = document.querySelector("#start-method-upload"); if (toUpload) fireEvent.click(toUpload); };
   fireEvent.change(document.querySelector("#start-footage")!,{target:{files:[new File(["fixture"],"video.mp4",{type:"video/mp4"})]}});
   submit();
   await vi.waitFor(()=>expect(sent).toHaveLength(1));
@@ -160,7 +160,7 @@ it("CROSS-TAB-012 adopting another tab's freeze does not upload this tab's selec
     if(init?.method==="POST"){sent.push({url,body:JSON.parse(init.body)});return {ok:true,status:200,json:async()=>({captureUrl:"/capture-upload/fixture"})};}
     return {ok:true,status:200,json:async()=>({features:[],workspaceType:"site_operator"})};
   });
-  await renderAsSiteOwner();fillSigned();fireEvent.click(document.querySelector("#start-method-upload")!);
+  await renderAsSiteOwner();fillSigned();{ const toUpload = document.querySelector("#start-method-upload"); if (toUpload) fireEvent.click(toUpload); };
   fireEvent.change(document.querySelector("#start-footage")!,{target:{files:[new File(["fixture"],"video.mp4",{type:"video/mp4"})]}});
   // A competing tab shares the hydrated identity and freezes through the real helper.
   await act(async () => {});
@@ -169,7 +169,7 @@ it("CROSS-TAB-012 adopting another tab's freeze does not upload this tab's selec
   winner.pending={endpoint:"/api/workspace/capture-start",acknowledged:false,body:JSON.stringify({requestId:winner.requestId,retryToken:winner.retryToken,buyerType:"site_operator",taskStatement:winner.draft.task,siteLocation:winner.draft.location,captureRegion:"us",descriptionOnly:true})};
   await helper.freezeSiteCaptureRecovery(key,winner);
   submit();
-  await screen.findByRole("heading",{name:"Film the work area."});
+  await screen.findByRole("heading",{name:"Now film the job."});
   expect(sent).toHaveLength(1);expect(sent[0].body).toEqual(JSON.parse(winner.pending.body));expect(sender).not.toHaveBeenCalled();sender.mockRestore();
 });
 it("CROSS-TAB-013 unsupported coordination blocks dispatch with a recovery next step",async()=>{

@@ -35,7 +35,7 @@ export function Footer() {
               Blueprint
             </a>
             <p className="mt-7 text-sm leading-7 text-runway-mute">
-              Send a video of one job that repeats. We test the top robots on your job in a simulation of your site, and help you find a company to set it up.
+              Send a video of one job that repeats. We test the top AI robots on your job in a simulation of your site, and help you find a company to set it up.
             </p>
             <a
               href="mailto:hello@tryblueprint.io"

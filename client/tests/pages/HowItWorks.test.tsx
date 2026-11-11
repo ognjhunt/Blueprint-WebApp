@@ -2,55 +2,22 @@ import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import HowItWorks from "@/pages/HowItWorks";
 
+// Bare bones (owner, 2026-11-11): three steps, one line each, leading with the test in simulation; which jobs fit
+// (the old "Jobs we support" page) in one line; one button; the limits of the check in one line.
 describe("How it works", () => {
-  it("retains the visual warehouse walkthrough with video, simulation, buyer choice and delivery responsibility", () => {
+  it("shows three steps, leading with the test in simulation, and one button", () => {
     render(<HowItWorks />);
-    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Start with your task.");
-    const contents = screen.getByRole("navigation", { name: "Warehouse walkthrough contents" });
-    expect(within(contents).getAllByRole("listitem")).toHaveLength(9);
-    expect(screen.getAllByRole("img")).toHaveLength(7);
-    const capture = screen.getByRole("region", { name: "Show us the task as it happens." });
-    expect(capture).toHaveTextContent(/analyzes the video and drafts the job description/);
-    expect(capture).toHaveTextContent(/video is required/);
-    const answer = screen.getByRole("region", { name: "See which robot fits." });
-    expect(answer).toHaveTextContent(/real robot models against the job by their published specifications.*most likely fits.*runner-up.*ruled out and why.*with sources.*how sure we are/);
-    expect(answer).toHaveTextContent(/not a test of a robot at your site/);
-    const evaluation = screen.getByRole("region", { name: "Check the robots and compare policies in simulation." });
-    // No unsourced claim about policies served through APIs (rewritten from asserting that sentence).
-    expect(evaluation).toHaveTextContent(/checks each suitable robot's reach and arm path, and compares public control policies \(the software that drives a robot\) on the job on a research robot/);
-    expect(evaluation).toHaveTextContent(/illustration only.*Today the policies Blueprint compares run on a research robot, never on the robots in these pictures/);
-    expect(evaluation).toHaveTextContent(/its technology provider supplies it; you do not need to find or invite anyone/);
-    expect(evaluation).toHaveTextContent(/control policies \(the software that drives a robot\)/);
-    expect(evaluation).toHaveTextContent(/Every policy is scored against the same placement criteria/);
-    expect(evaluation).not.toHaveTextContent(/candidates?|episodes?/i);
-    expect(evaluation).not.toHaveTextContent(/screening runs|finalists|scored in full/i);
-    expect(evaluation).toHaveTextContent(/estimate; it never certifies real performance or safety/);
-    expect(evaluation).not.toHaveTextContent(/using APIs/);
-    const result = screen.getByRole("region", { name: "See what works on your job." });
-    expect(result).toHaveTextContent(/No approved budget is needed to start/);
-    // The comparison may find no clear difference, so the page promises how they compared, not a winner.
-    expect(result).toHaveTextContent(/how the setups compared in a simulation of your site and whether one was clearly ahead.*how much that result can be trusted.*“held”/);
-    expect(result).not.toHaveTextContent(/which did best/);
-    expect(result).toHaveTextContent(/anonymised job card.*deployment companies Blueprint has approved/);
-    expect(result).toHaveTextContent(/agree any pilot's price and terms directly with one of them/);
-    expect(result).not.toHaveTextContent(/delivery proposals|comparable|invite those companies|recommends the approach/i);
-    expect(screen.getByRole("region", { name: "Test the approach at the real bench." })).toHaveTextContent(/deployment company supplies and integrates the system/);
-    expect(screen.getByRole("link", { name: "Submit a job" })).toHaveAttribute("href", "/contact/site-operator");
-    expect(screen.getByRole("link", { name: "Become a partner" })).toHaveAttribute("href", "/partners");
-  });
-
-  it("retains the four job-fit questions and broad robot eligibility", () => {
-    render(<HowItWorks />);
-    const jobFit = screen.getByRole("region", { name: "Jobs we can assess first." });
-    expect(jobFit).toHaveAttribute("id", "job-fit");
-    // No job is turned away for its type; one we cannot score yet is held (owner, 2026-10-26).
-    expect(jobFit).toHaveTextContent(/do not turn a job away because of its type.*hold it while we prepare its evaluation/);
-    const questions = within(jobFit).getAllByRole("listitem");
-    expect(questions.map(question => question.querySelector(".ms-fit-name")?.textContent)).toEqual(["Fixed scene", "Bounded job", "Known objects", "Clear window"]);
-    questions.forEach(question => expect(question).toHaveTextContent(/If not:/));
-    const robotFit = screen.getByRole("heading", { name: "Choose the approach that fits the job." }).closest("aside")!;
-    expect(robotFit).toHaveTextContent(/Fixed arms, humanoids, wheeled humanoids and mobile manipulators/);
-    expect(robotFit).toHaveTextContent(/specific setup is compatible/);
-    expect(screen.getByRole("region", { name: "One task, from phone video to a pilot." })).toHaveTextContent(/examples, not measured customer results/);
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("How it works");
+    const steps = within(screen.getByRole("list", { name: "Steps" })).getAllByRole("listitem");
+    expect(steps).toHaveLength(3);
+    expect(steps[0]).toHaveTextContent(/Send a video\s*One job that repeats, filmed on any phone\./);
+    expect(steps[1]).toHaveTextContent(/We test the top AI robots on your job\s*In a simulation of your site, built from your video\. Each gets about ten tries, with things moved between tries\. You see which did best and how sure we are\./);
+    expect(steps[1]).not.toHaveTextContent(/published specifications|when we can/i);
+    expect(steps[2]).toHaveTextContent(/Find a company to set it up\s*Shared with companies we've approved, without your name, only if you press the button\./);
+    expect(screen.getAllByRole("link", { name: "Start a job" })).toHaveLength(1);
+    expect(screen.getByRole("link", { name: "Questions ›" })).toHaveAttribute("href", "/beta");
+    expect(screen.getByText(/Best for one job that repeats, with known objects, where something is picked up and put down/)).toBeInTheDocument();
+    expect(screen.getByText("We check pick-up-and-put-down jobs. Not a test at your site, or a safety check.")).toBeInTheDocument();
+    expect(screen.queryByRole("img")).toBeNull();
   });
 });

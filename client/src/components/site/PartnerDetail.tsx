@@ -18,7 +18,7 @@ export function PartnerDetail({ role }: { role: PartnerRole }) {
           <h1 id="partner-title">{deployment ? "Set robots up for sites." : "Tell us about your robot or software."}</h1>
           <p>{deployment
             ? "When a site shares its job, approved companies see a summary of it, without the site's name. The site agrees any work with you directly."
-            : "We test the top options on each job in a simulation of the site. You give us access; we run it."}</p>
+            : "We test the top AI robots on each job in a simulation of the site. You give us access; we run it."}</p>
         </BareGroup>
         <div id="partner-application" className="bare-group">
           <PartnerApplication role={role} />

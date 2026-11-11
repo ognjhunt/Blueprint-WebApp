@@ -17,26 +17,26 @@ const withCounts = (counts: Array<[number, number]>) => ({ ...winnerEvaluation, 
 describe("the computer test in one line", () => {
   it("says the leader by the projection's own rule, the robot it ran on, and that it is not the pick", () => {
     // 7 of 10 against 3 of 10 is about 0.96: ahead, and it could still be chance.
-    expect(line([winnerEvaluation])).toBe("Computer test: π0.5 was ahead, finishing the job in 7 of 10 tries, on a Franka research arm, not the UR10e. It could still be chance.");
+    expect(line([winnerEvaluation])).toBe("Simulation test: π0.5 was ahead, finishing the job in 7 of 10 tries, on a Franka research arm, not the UR10e. It could still be chance.");
     // 10 of 10 against 3 of 10 is beyond 0.975: did best.
-    expect(line([withCounts([[10, 10]])])).toBe("Computer test: π0.5 did best, finishing the job in 10 of 10 tries, on a Franka research arm, not the UR10e.");
+    expect(line([withCounts([[10, 10]])])).toBe("Simulation test: π0.5 did best, finishing the job in 10 of 10 tries, on a Franka research arm, not the UR10e.");
     // 1 of 1 against 0 of 1 is 5/6: no clear winner.
-    expect(line([withCounts([[1, 1], [0, 1], [0, 1]])])).toBe("Computer test: No clear winner yet, on a Franka research arm, not the UR10e.");
+    expect(line([withCounts([[1, 1], [0, 1], [0, 1]])])).toBe("Simulation test: No clear winner yet, on a Franka research arm, not the UR10e.");
     // Without a pick there is nothing to set it against.
-    expect(line([winnerEvaluation], null as unknown as typeof pick)).toBe("Computer test: π0.5 was ahead, finishing the job in 7 of 10 tries, on a Franka research arm. It could still be chance.");
+    expect(line([winnerEvaluation], null as unknown as typeof pick)).toBe("Simulation test: π0.5 was ahead, finishing the job in 7 of 10 tries, on a Franka research arm. It could still be chance.");
   });
 
   it("says none finished, held states and waiting in plain words, and nothing before it starts", () => {
-    expect(line([allZeroEvaluation])).toBe("Computer test: None of the robot programs finished the job, on a Franka research arm, not the UR10e.");
-    expect(line([{ ...winnerEvaluation, outcome: "held_budget" as const }])).toBe("Computer test: The test reached the most the free trial can run for one job, before it finished.");
-    expect(line([{ ...winnerEvaluation, outcome: "held_capability" as const }])).toBe("Computer test: Our computer test can't do this kind of job yet.");
-    expect(line([preparingEvaluation])).toBe("Computer test: Getting ready.");
+    expect(line([allZeroEvaluation])).toBe("Simulation test: None of the robot programs finished the job, on a Franka research arm, not the UR10e.");
+    expect(line([{ ...winnerEvaluation, outcome: "held_budget" as const }])).toBe("Simulation test: The test reached the most the free beta can run for one job, before it finished.");
+    expect(line([{ ...winnerEvaluation, outcome: "held_capability" as const }])).toBe("Simulation test: Our simulation test can't do this kind of job yet.");
+    expect(line([preparingEvaluation])).toBe("Simulation test: Getting ready.");
     expect(line([{ ...preparingEvaluation, state: "running", screening: { candidates: [{ ...preparingEvaluation.screening!.candidates[0], state: "running" }] } }]))
-      .toBe("Computer test: Running now.");
+      .toBe("Simulation test: Running now.");
     expect(line([])).toBeNull();
     // One scored program on a robot we cannot name: nothing to compare it with.
     const lone = { ...winnerEvaluation, screening: { candidates: [{ ...winnerEvaluation.screening!.candidates[0], candidateId: "unknown-id", name: "Arm" }] } };
-    expect(line([lone])).toBe("Computer test: Only one robot program could be scored, so there is nothing to compare it with.");
+    expect(line([lone])).toBe("Simulation test: Only one robot program could be scored, so there is nothing to compare it with.");
   });
 });
 
@@ -44,12 +44,12 @@ describe("the computer test on the details screen", () => {
   it("says the projection's sentences word for word, every program's count, the scene's line and how far to trust it, with sources", () => {
     const proof = projectSimulationProof({ evaluation: [winnerEvaluation], robotFit, pick });
     const { container } = render(<ComputerTestDetails proof={proof} />);
-    const test = screen.getByRole("region", { name: "Computer test" });
+    const test = screen.getByRole("region", { name: "Simulation test" });
     expect(within(test).getByText(proof.policyComparison!.line)).toBeVisible();
     expect(within(test).getByText(/the Universal Robots UR10e reaches the pick-up and put-down points with a clear arm path/)).toBeVisible();
     expect(test).toHaveTextContent(/π0\.5 Physical IntelligenceFinished 7 of 10 tries · likely between \d+% and \d+% · Ahead/);
     expect(test).toHaveTextContent("1 more robot program was planned but did not run.");
-    const trust = screen.getByRole("region", { name: "How far to trust a computer test" });
+    const trust = screen.getByRole("region", { name: "How far to trust it" });
     expect(within(trust).getByText(SIMULATION_ACCURACY.statement)).toBeVisible();
     for (const source of SIMULATION_ACCURACY.sources) {
       expect(within(trust).getByRole("link", { name: source.title })).toHaveAttribute("href", source.url);
@@ -71,7 +71,7 @@ describe("the computer test on the details screen", () => {
       ? { ...row, succeeded: 0, failed: 10, progress: { graded: 10, meanScore: 0, stages: ["contact", "moved", "lifted", "translated", "placed",
         "released_and_settled"].map((stage, index) => ({ stage: stage as "contact", episodes: [6, 4, 0, 0, 0, 0][index] })) } } : row);
     render(<ComputerTestDetails proof={projectSimulationProof({ evaluation: [{ ...winnerEvaluation, screening: { ...winnerEvaluation.screening!, candidates: rows } }], pick })} />);
-    expect(screen.getByRole("region", { name: "Computer test" })).toHaveTextContent(/GR00T N1\.7 NVIDIAFinished 0 of 10 tries · moved the object in 4 of 10 tries/);
+    expect(screen.getByRole("region", { name: "Simulation test" })).toHaveTextContent(/GR00T N1\.7 NVIDIAFinished 0 of 10 tries · moved the object in 4 of 10 tries/);
   });
 
   it("never shows a working name as a policy's name", () => {
@@ -87,8 +87,8 @@ describe("tested in simulation, for an older job with no answer", () => {
   it("says the one line and everything behind it", () => {
     render(<SimulationProof proof={projectSimulationProof({ evaluation: [allZeroEvaluation], pick: null })} />);
     const section = screen.getByRole("region", { name: "Tested in simulation" });
-    expect(within(section).getByText(/^Computer test: None of the robot programs finished the job/)).toBeVisible();
-    expect(within(section).getByText("This result may come from how we set up the computer copy of your site, not from the robots.")).toBeVisible();
-    expect(within(section).getByRole("region", { name: "Computer test" })).toBeVisible();
+    expect(within(section).getByText(/^Simulation test: None of the robot programs finished the job/)).toBeVisible();
+    expect(within(section).getByText("This result may come from how we set up the simulation of your site, not from the robots.")).toBeVisible();
+    expect(within(section).getByRole("region", { name: "Simulation test" })).toBeVisible();
   });
 });

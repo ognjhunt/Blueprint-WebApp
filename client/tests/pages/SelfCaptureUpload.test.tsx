@@ -304,6 +304,9 @@ describe("video first owner return", () => {
     expect(button).toBeDisabled();
     expect(fetcher.mock.calls.filter(call => call[1]?.method === "POST")).toHaveLength(0);
     // The box is labelled with exactly the sentence its version records.
+    // Nothing to withdraw yet: no recording permission given and no video, so "Stop using my video" is not offered.
+    expect(screen.queryByText("Stop using my video")).toBeNull();
+    expect(screen.queryByText("Withdraw recording permission")).toBeNull();
     const box = screen.getByRole("checkbox", { name: RECORDING_RIGHTS_STATEMENT });
     expect(permission).toContainElement(box);
     expect(permission).not.toHaveTextContent(/robot teams/i);
@@ -357,6 +360,15 @@ describe("video first owner return", () => {
     const call = fetcher.mock.calls.find(([input]) => String(input).endsWith("/supplement"))!;
     expect(JSON.parse(String(call[1]?.body))).toMatchObject({ mode: "replacement", requestId: expect.any(String) });
     expect(videoUpload.send).not.toHaveBeenCalled();
+  });
+  it("keeps what to tell people in view and puts how to film one tap away", async () => {
+    setUserAgent("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148 Safari/604.1");
+    vi.stubGlobal("fetch", ownerFetch(false));
+    render(<SelfCaptureUpload />);
+    expect(await screen.findByText(/^Tell people in the work area that you are filming for Blueprint/)).toBeVisible();
+    const howTo = screen.getByText("How to film ›").closest("details")!;
+    expect(howTo).not.toHaveAttribute("open");
+    expect(screen.getByText(/^Move slowly and overlap your passes/)).not.toBeVisible();
   });
   it("lets the owner link withdraw recording permission after an explicit confirmation", async () => {
     const fetcher = ownerFetch(false);
@@ -1226,11 +1238,53 @@ describe("the site's answer leads its job page", () => {
     expect(screen.queryByRole("region", { name: "Your answer" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "‹ Back" }));
     await screen.findByRole("region", { name: "Your answer" });
-    fireEvent.click(screen.getByRole("button", { name: "See details ›" }));
-    expect(await screen.findByRole("heading", { level: 1, name: "Details" })).toBeVisible();
-    expect(screen.getByRole("region", { name: "Why this robot" })).toBeVisible();
+    // Details is a short menu; each row opens its own screen, and focus follows the screens both ways.
+    const seeDetails = screen.getByRole("button", { name: "See details ›" });
+    fireEvent.click(seeDetails);
+    const menuTitle = await screen.findByRole("heading", { level: 1, name: "Details" });
+    await waitFor(() => expect(document.activeElement).toBe(menuTitle));
+    fireEvent.click(screen.getByRole("button", { name: "Why this robot" }));
+    expect(window.location.hash).toBe("#details/why");
+    const whyTitle = await screen.findByRole("heading", { level: 1, name: "Why this robot" });
+    await waitFor(() => expect(document.activeElement).toBe(whyTitle));
+    fireEvent.click(screen.getByRole("button", { name: "‹ Back" }));
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole("button", { name: "Why this robot" })));
     fireEvent.click(screen.getByRole("button", { name: "‹ Back" }));
     expect(await screen.findByRole("region", { name: "Your answer" })).toBeVisible();
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole("button", { name: "See details ›" })));
+    window.history.replaceState(null, "", "/capture-upload/test");
+  });
+
+  it("says the job is shared without this answer when Share settings re-saved the card under the older box, and offers the button again", async () => {
+    setUserAgent(DESKTOP_UA);
+    window.history.replaceState(null, "", "/capture-upload/test");
+    const base = answerFetch({ answer: { ...readyAnswer, introductionRequestedAtIso: "2026-11-10T09:00:00.000Z", jobCardListed: true } });
+    vi.stubGlobal("fetch", vi.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => String(input) === `/api/task-listings/owner/${TOKEN}`
+      ? Promise.resolve({ ok: true, json: async () => ({ listing: { enabled: true, consentVersion: "public-task-card-v1" }, thumbnailPng: null }) })
+      : base(input, init)));
+    render(<SelfCaptureUpload />);
+    expect(await screen.findByText("Your job is shared without this answer. Press the button to share the answer too.")).toBeVisible();
+    expect(screen.queryByText(/✓ Shared/)).toBeNull();
+    expect(screen.getByRole("button", { name: "Find a company to set it up" })).toBeVisible();
+  });
+
+  it("offers the owner's processing details, with its retry, from Job settings under an answer", async () => {
+    setUserAgent(DESKTOP_UA);
+    window.history.replaceState(null, "", "/capture-upload/test");
+    const base = answerFetch({ answer: readyAnswer });
+    vi.stubGlobal("fetch", vi.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input) === `/api/site-task-brief/${TOKEN}/status`) return Promise.resolve({ ok: true, json: async () => ({
+        scope: "owner", captureReceived: true, answer: readyAnswer, siteAdvisory: { schemaVersion: "site_customer_advisory.v1", state: "needs_review",
+          correlationId: "ref-1", sections: [], unknowns: [], nextAction: "" },
+        assessment_retry_available: true, assessment_job_id: "job-1", assessment_run_id: "run-1",
+        status: { decision: "footage_received", headline: "We have your recording.", operatorAction: null, outcome: null, missingViews: [], nextUpdateIso: null } }) });
+      return base(input, init);
+    }));
+    render(<SelfCaptureUpload />);
+    fireEvent.click(await screen.findByRole("button", { name: "Job settings ›" }));
+    fireEvent.click(await screen.findByText("Processing details"));
+    expect(await screen.findByRole("button", { name: "Try assessment again" })).toBeVisible();
+    window.history.replaceState(null, "", "/capture-upload/test");
   });
 
   it("offers the one thing a site can do about an answer that cannot be checked, next to the reason", async () => {
@@ -1277,13 +1331,16 @@ describe("the site's answer leads its job page", () => {
     render(<SelfCaptureUpload />);
     const answer = await screen.findByRole("region", { name: "Your answer" });
     // The fixture's 7 of 10 against 3 of 10 is "ahead" under the probability rule, not "did best": one line, in the answer.
-    expect(await within(answer).findByText(/^Computer test: π0\.5 was ahead, finishing the job in 7 of 10 tries, on a Franka research arm, not the UR10e\./)).toBeVisible();
+    expect(await within(answer).findByText(/^Simulation test: π0\.5 was ahead, finishing the job in 7 of 10 tries, on a Franka research arm, not the UR10e\./)).toBeVisible();
     expect(screen.queryByRole("region", { name: "Tested in simulation" })).toBeNull();
     // Everything behind it is on the details screen, the status read's measured scene included.
     fireEvent.click(screen.getByRole("button", { name: "See details ›" }));
-    const test = await screen.findByRole("region", { name: "Computer test" });
+    fireEvent.click(await screen.findByRole("button", { name: "The simulation test" }));
+    const test = await screen.findByRole("region", { name: "Simulation test" });
     expect(test.textContent).toMatch(/In the scene rebuilt from your video, the Universal Robots UR10e reaches/);
     fireEvent.click(screen.getByRole("button", { name: "‹ Back" }));
+    fireEvent.click(await screen.findByRole("button", { name: "‹ Back" }));
+    window.history.replaceState(null, "", "/capture-upload/test");
     const reads = fetchMock.mock.calls.filter(([input]) => String(input).startsWith("/api/job-workflow/owner/"));
     expect(reads).toHaveLength(1);
   });

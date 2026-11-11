@@ -91,7 +91,7 @@ export function sureReason(robot: AnswerRobot): string | null {
   if (sizes && weight) return "We estimated the sizes and weight from your video.";
   if (sizes) return "We estimated the sizes from your video.";
   if (weight) return "We estimated the weight from your video.";
-  if (robot.sceneChecked) return "We checked its reach in a computer copy of your site.";
+  if (robot.sceneChecked) return "We checked its reach in a simulation of your site.";
   return null;
 }
 
@@ -269,7 +269,7 @@ export const APPROACH_WORDS: Readonly<Record<NonNullable<SiteAnswerView["approac
 };
 
 const LEVEL_WORDS: Readonly<Record<AnswerEvidence["level"], string>> = {
-  production: "In real use at a customer", pilot: "Tried at a named customer", offered: "Sold for this kind of job, no customer named",
+  production: "In real use", pilot: "Tried at a named customer", offered: "Sold for it, no customer named",
 };
 
 export type DetailScreen = "why" | "others" | "ruled-out" | "estimated" | "unseen" | "test" | "trust";
@@ -321,7 +321,8 @@ export function SiteAnswerDetail({ answer, proof, screen, onBack }: {
     { key: "form", label: "Kind", value: pick.formLabel },
     ...pick.checks.map(check => checkRow(check, pick)),
     ...pick.evidence.map((item, index) => ({ key: `evidence-${index}`, label: index === 0 ? "Used for jobs like this" : "Also",
-      value: <>{item.summary} <span className="bare-helper">{LEVEL_WORDS[item.level]}; the source names {item.scope === "family" ? `robots like it${item.family ? ` (${item.family})` : ""}` : "this model"}. <SourceLink href={item.sourceUrl}>{item.sourceTitle}, {item.publisher}</SourceLink></span></> })),
+      // The paraphrase, then its level and what the source names, then the source itself (its words are there).
+      value: <>{item.summary} <span className="bare-helper">{LEVEL_WORDS[item.level]} · names {item.scope === "family" ? `robots like it${item.family ? ` (${item.family})` : ""}` : "this model"} · <SourceLink href={item.sourceUrl}>{item.publisher}</SourceLink></span></> })),
     ...(pick.evidence.length ? [] : [{ key: "no-evidence", label: "Used for jobs like this", value: "We found no documented use of this robot on this kind of job." }]),
     ...(answer.approach ? [{ key: "approach", label: "How it would be run", value: APPROACH_WORDS[answer.approach.kind] }] : []),
     { key: "robot-not-software", value: ROBOT_NOT_SOFTWARE },

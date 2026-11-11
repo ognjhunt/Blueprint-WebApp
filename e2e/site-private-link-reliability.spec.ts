@@ -258,12 +258,12 @@ test("the current simulation result leads as proof, open, while every detail and
   await page.goto(`/capture-upload/${token}?video=existing`);
   // An older job with a result and no answer: the proof stands on its own, visible without opening anything.
   const proof = page.getByRole("region", { name: "Tested in simulation" });
-  await expect(proof.getByText("Computer test: Only one robot program could be scored, so there is nothing to compare it with.", { exact: true })).toBeVisible();
+  await expect(proof.getByText("Simulation test: Only one robot program could be scored, so there is nothing to compare it with.", { exact: true })).toBeVisible();
   // The projection's own sentence, word for word, and the program's count, in short rows under it.
-  const result = proof.getByRole("region", { name: "Computer test", exact: true });
+  const result = proof.getByRole("region", { name: "Simulation test", exact: true });
   await expect(result.getByText("The simulation scored one policy: an unnamed AI control policy completed the job in 2 of 3 tries. With nothing to compare it to, it could not rank policies.", { exact: true })).toBeVisible();
   await expect(result.getByText(/^Finished 2 of 3 tries/)).toBeVisible();
-  await expect(proof.getByRole("heading", { name: "How far to trust a computer test" })).toBeVisible();
+  await expect(proof.getByRole("heading", { name: "How far to trust it" })).toBeVisible();
   // The full result is one click away, in the folded details.
   const details = page.locator("summary", { hasText: "Simulation details" });
   await expect(details.locator("xpath=..")).not.toHaveAttribute("open", "");

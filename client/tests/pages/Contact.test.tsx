@@ -40,12 +40,13 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("the site page", () => {
-  it("leads with the capture form and keeps the explanation behind a closed disclosure", async () => {
+  it("is the start form alone, with no explanations around it", async () => {
     render(<Contact />);
     const form = await screen.findByRole("form", { name: "Start a site capture" });
-    const how = screen.getByText("How this works");
-    expect(form.compareDocumentPosition(how) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect((how.closest("details") as HTMLDetailsElement).open).toBe(false);
+    expect(form).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Start a job" })).toBeInTheDocument();
+    expect(screen.queryByText("How this works")).toBeNull();
+    expect(screen.queryByText(/Is your job a fit\?/)).toBeNull();
   });
 
   it("no longer carries the six-question screen", () => {
@@ -55,16 +56,10 @@ describe("the site page", () => {
     expect(document.querySelector("#gate-sceneStability")).toBeNull();
   });
 
-  it("points at the other persona and at a person", () => {
+  it("leads nowhere but the job: no partner or contact links beside the form", async () => {
     render(<Contact />);
-    expect(screen.getByRole("link", { name: /deliver or build robot systems\? become a partner/i })).toHaveAttribute(
-      "href",
-      "/partners",
-    );
-    expect(screen.getByRole("link", { name: /talk to a person/i })).toHaveAttribute(
-      "href",
-      expect.stringMatching(/^mailto:/),
-    );
+    expect(await screen.findByRole("link", { name: "‹ Back" })).toHaveAttribute("href", "/");
+    expect(screen.queryByRole("link", { name: /become a partner/i })).toBeNull();
   });
 });
 
@@ -101,9 +96,9 @@ describe("the robot page", () => {
     }));
     render(<Contact />);
     expect(await screen.findByRole("form", { name: "Early access application" })).toBeInTheDocument();
-    expect(screen.getByText(/Fixed arms, humanoids, wheeled humanoids and mobile manipulators are welcome/)).toHaveTextContent(/task fit and simulation compatibility for each job/);
+    expect(screen.getByRole("heading", { level: 1, name: "Apply to see jobs" })).toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "Job library" })).toBeNull();
-    expect(screen.getByRole("link", { name: /operate a site\? start here/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Start a job" })).toHaveAttribute(
       "href",
       "/contact/site-operator",
     );

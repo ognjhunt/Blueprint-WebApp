@@ -28,8 +28,8 @@ describe("Header", () => {
   it("keeps the buyer-facing nav focused", () => {
     render(<Header />);
 
-    expect(screen.getByRole("link", { name: /^Jobs we support$/i })).toHaveAttribute("href", "/jobs-we-support");
-    expect(screen.getByRole("link", { name: /^For partners$/i })).toHaveAttribute("href", "/partners");
+    expect(screen.queryByRole("link", { name: /^Jobs we support$/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /^For robot companies$/i })).toHaveAttribute("href", "/partners");
     expect(screen.getByRole("link", { name: /^How it works$/i })).toHaveAttribute(
       "href",
       "/how-it-works",
@@ -51,7 +51,7 @@ describe("Header", () => {
   it("uses a single site-first action in the header", () => {
     render(<Header />);
 
-    const requestLink = screen.getAllByRole("link", { name: /^Submit a job$/i })[0];
+    const requestLink = screen.getAllByRole("link", { name: /^Start a job$/i })[0];
     expect(requestLink).toHaveAttribute("href", "/contact/site-operator");
     expect(screen.queryByRole("link", { name: /Capture network/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /See policy evaluation/i })).not.toBeInTheDocument();

@@ -1133,10 +1133,15 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
                 onSaved={() => setUpload({ status: "done" })}
               />
 
-              <p className="ms-field-hint" style={{ marginTop: "12px" }}>
-                Move slowly and overlap your passes. Cover every surface near where the work
-                happens, from a few heights. Ideally the scene is still, with nobody in frame; if work is going on, film anyway. {FILMING_NOTICE}
-              </p>
+              {/* What to tell people stays in view (privacy); how to film is one tap away. */}
+              <p className="ms-field-hint" style={{ marginTop: "12px" }}>{FILMING_NOTICE}</p>
+              <details className="bare-how-to">
+                <summary>How to film ›</summary>
+                <p className="ms-field-hint">
+                  Move slowly and overlap your passes. Cover every surface near where the work
+                  happens, from a few heights. Ideally the scene is still, with nobody in frame; if work is going on, film anyway.
+                </p>
+              </details>
             </>
           )}
 

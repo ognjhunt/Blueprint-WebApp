@@ -69,6 +69,25 @@ describe("Blueprint's answer on a job card", () => {
     expect(screen.getByText("UR20")).toBeVisible();
   });
 
+  it("says a pass with little to spare, and a strength it can't tell yet with its whole range, never as a fail", () => {
+    const answer = { ...ANSWER, pick: { ...ANSWER.pick!, checks: [{ key: "reach" as const, outcome: "pass" as const, need: "about 1–1.3 m", has: "1.75 m", tight: true },
+      { key: "payload" as const, outcome: "unknown" as const, need: "about 3–4.9 kg", has: "4 kg" }] } };
+    render(<JobCardAnswer answer={answer} />);
+    expect(within(screen.getByRole("list", { name: "Why" })).getAllByRole("listitem").map(item => item.textContent))
+      .toEqual(["✓Reaches far enough, only just", "?Can't tell yet if it is strong enough", "✓Already used for jobs like this"]);
+    fireEvent.click(screen.getByRole("button", { name: "See details ›" }));
+    expect(screen.getByText("needs about 1–1.3 m · reaches 1.75 m · only just enough")).toBeVisible();
+    expect(screen.getByText("Can't tell yet. needs to lift about 3–4.9 kg · lifts up to 4 kg")).toBeVisible();
+  });
+
+  it("moves focus into the details and back to the link that opened them", () => {
+    render(<JobCardAnswer answer={ANSWER} />);
+    fireEvent.click(screen.getByRole("button", { name: "See details ›" }));
+    expect(document.activeElement).toBe(screen.getByRole("region", { name: JOB_CARD_ANSWER_TITLE }));
+    fireEvent.click(screen.getByRole("button", { name: "‹ Back" }));
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "See details ›" }));
+  });
+
   it("says where each number came from when they do not all come from the video's estimate", () => {
     render(<JobCardAnswer answer={{ ...ANSWER, facts: [...ANSWER.facts, { label: "Weight of each carton", display: "8 kg", basis: "site_stated" }] }} />);
     fireEvent.click(screen.getByRole("button", { name: "See details ›" }));

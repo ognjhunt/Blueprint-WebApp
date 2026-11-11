@@ -53,6 +53,12 @@ export interface AnswerCheck {
    * when the maker publishes no figure.
    */
   has?: string | null;
+  /**
+   * What a `reach` check measured: the distance between the spots (an arm that stays in one place) or how
+   * high and how low the hand goes (a robot that moves between the spots). Absent on older answers and on
+   * other checks.
+   */
+  measure?: "distance" | "height";
 }
 
 export const EVIDENCE_LEVELS = ["production", "pilot", "offered"] as const;

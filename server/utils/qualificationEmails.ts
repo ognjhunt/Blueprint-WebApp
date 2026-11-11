@@ -28,7 +28,7 @@
 import type { SiteTaskTriageSummary } from "../types/inbound-request";
 import { footageSettlesAll } from "../../client/src/data/siteTaskQualification";
 import { bookingUrl } from "./bookingLink";
-import { EMAIL_SIGN_OFF, emailGreeting } from "./emailLayout";
+import { EMAIL_SIGN_OFF } from "./emailLayout";
 import { SUPPORTED_TASK_LINES, taskScopeNotYet, taskScopeReasonSentence } from "./siteTaskScope";
 
 /**
@@ -57,12 +57,6 @@ export type QualificationEmail = {
   variant: "not_yet" | "lets_talk" | "qualified";
 };
 
-function firstNameOf(fullOrFirst: string): string {
-  const trimmed = fullOrFirst.trim();
-  if (!trimmed) return "there";
-  return trimmed.split(/\s+/)[0];
-}
-
 function bulletList(items: readonly string[]): string {
   return items.map((item) => `- ${item}`).join("\n");
 }
@@ -79,7 +73,7 @@ export function buildNotYetEmail(params: {
   siteName?: string | null;
   triage: Pick<SiteTaskTriageSummary, "blockers">;
 }): QualificationEmail {
-  const { firstName, siteName, triage } = params;
+  const { siteName, triage } = params;
   const blockers = triage.blockers.filter(Boolean);
   const site = siteName?.trim();
 
@@ -157,7 +151,7 @@ export function buildLetsTalkEmail(params: {
   /** The site's footage is already saved, so filming is not the way to settle it. */
   footageReceived?: boolean;
 }): QualificationEmail {
-  const { firstName, siteName, triage } = params;
+  const { siteName, triage } = params;
   const calendly = params.calendlyUrl || bookingUrl();
   const openQuestions = triage.open_questions.filter(Boolean);
   const site = siteName?.trim();
@@ -277,7 +271,7 @@ export function buildQualifiedEmail(params: {
   jobCardPublished?: boolean;
   calendlyUrl?: string;
 }): QualificationEmail {
-  const { firstName, siteName } = params;
+  const { siteName } = params;
   const calendly = params.calendlyUrl || bookingUrl();
   const site = siteName?.trim();
   const confirmed = params.stage === "brief_confirmed";

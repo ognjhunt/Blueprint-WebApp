@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { SiteAnswer, SiteAnswerDetails, evidenceTick, sureReason, ticksOf } from "@/components/site/SiteAnswer";
+import { SHARED_WITHOUT_ANSWER, SiteAnswer, SiteAnswerDetail, SiteAnswerDetails, detailScreens, evidenceTick, sureReason, ticksOf, type DetailScreen } from "@/components/site/SiteAnswer";
 import { projectSimulationProof } from "@/lib/simulationProof";
 import { REASON_UNSIZED, UNKNOWN_JOB_KIND, UNKNOWN_MULTI_STEP, type AnswerRobot } from "@/lib/siteAnswer";
 import { allZeroEvaluation, cannotAssessAnswer, noPickAnswer, readingAnswer, readyAnswer, winnerEvaluation } from "../fixtures/siteAnswer";
@@ -28,7 +28,8 @@ describe("the site's answer, bare bones", () => {
     expect(within(screen.getByRole("list", { name: "Why" })).getAllByRole("listitem").map(item => item.textContent))
       .toEqual(["✓Reaches far enough", "✓Strong enough", "✓Already used for jobs like this"]);
     expect(answer).toHaveTextContent("How sure are we? Fairly sure");
-    expect(within(answer).getByText("We estimated the sizes and weight from your video.")).toBeVisible();
+    // The reason line is the server's own first reason for its sureness, whatever it is.
+    expect(within(answer).getByText(readyAnswer.confidence.reasons[0])).toBeVisible();
     const button = within(answer).getByRole("button", { name: FIND });
     expect(button).toHaveClass("bare-button");
     // The line a site agrees to sits directly under the button and describes it.
@@ -69,13 +70,17 @@ describe("the site's answer, bare bones", () => {
     expect(evidenceTick({ level: "offered", scope: "model" })).toBe("Sold for jobs like this");
     expect(evidenceTick({ level: "offered", scope: "family" })).toBe("Robots like this are sold for jobs like this");
     expect(evidenceTick(undefined)).toBeNull();
-    // The reason under "How sure" names only what the estimated checks rest on.
+    // A pass with little to spare says so; the server ends its sentence with "This is a tight fit."
+    expect(ticksOf([{ key: "reach", outcome: "pass", text: "Reach: … This arm reaches 1.3 m. This is a tight fit." }], undefined).map(item => item.text))
+      .toEqual(["Reaches far enough, only just"]);
+    expect(ticksOf([{ key: "payload", outcome: "pass", tight: true }], undefined).map(item => item.text)).toEqual(["Strong enough, only just"]);
+    // The fallback reason under "How sure", when the server sends none, names only what the estimated checks rest on.
     const robot = (keys: string[], sceneChecked = false) => ({ ...readyAnswer.pick!, sceneChecked,
       checks: readyAnswer.pick!.checks.map(entry => ({ ...entry, estimated: keys.includes(entry.key) })) }) as AnswerRobot;
     expect(sureReason(robot(["reach", "payload"]))).toBe("We estimated the sizes and weight from your video.");
     expect(sureReason(robot(["reach"]))).toBe("We estimated the sizes from your video.");
     expect(sureReason(robot(["payload"]))).toBe("We estimated the weight from your video.");
-    expect(sureReason(robot([], true))).toBe("We checked its reach in a computer copy of your site.");
+    expect(sureReason(robot([], true))).toBe("We checked its reach in a simulation of your site.");
     expect(sureReason(robot([]))).toBeNull();
   });
 
@@ -91,14 +96,14 @@ describe("the site's answer, bare bones", () => {
     expect(screen.queryByText("Your video does not show the whole work area.")).toBeNull();
   });
 
-  it("says the computer test in one line, naming the robot it ran on and that it is not the pick", () => {
+  it("says the simulation test in one line, naming the robot it ran on and that it is not the pick", () => {
     render(<SiteAnswer token="owner-token" answer={readyAnswer} proof={winnerProof} />);
-    expect(screen.getByText("Computer test: π0.5 was ahead, finishing the job in 7 of 10 tries, on a Franka research arm, not the UR10e. It could still be chance."))
+    expect(screen.getByText("Simulation test: π0.5 was ahead, finishing the job in 7 of 10 tries, on a Franka research arm, not the UR10e. It could still be chance."))
       .toBeVisible();
     expect(screen.queryByRole("list", { name: "Control policies tried" })).toBeNull();
   });
 
-  it("says nothing about the computer test before it starts", () => {
+  it("says nothing about the simulation test before it starts", () => {
     const notStarted = projectSimulationProof({ evaluation: [], pick: readyAnswer.pick });
     const { container } = render(<SiteAnswer token="owner-token" answer={readyAnswer} proof={notStarted} />);
     expect(container.textContent).not.toMatch(/computer test|simulation/i);
@@ -155,45 +160,128 @@ describe("the site's answer, bare bones", () => {
   });
 });
 
-describe("the details screen", () => {
-  it("has every true and sourced thing the answer rests on, in short labelled rows, and a way back", () => {
-    const onBack = vi.fn();
-    const withFigures = { ...readyAnswer, pick: { ...readyAnswer.pick!, checks: [
-      { ...readyAnswer.pick!.checks[0], need: "about 0.9–1.2 m", has: "1.3 m" }, { ...readyAnswer.pick!.checks[1], need: "about 9–12 kg", has: "12.5 kg" }] } };
-    render(<SiteAnswerDetails answer={withFigures} proof={winnerProof} onBack={onBack} />);
+describe("the details screens", () => {
+  const withFigures = { ...readyAnswer, pick: { ...readyAnswer.pick!, checks: [
+    { ...readyAnswer.pick!.checks[0], need: "about 0.9–1.2 m", has: "1.3 m", text: `${readyAnswer.pick!.checks[0].text} This is a tight fit.` },
+    { ...readyAnswer.pick!.checks[1], need: "about 9–12 kg", has: "12.5 kg" }] } };
+  const words = (text: string | null) => (text?.match(/[^\s]+/g) ?? []).filter(word => /[\p{L}\p{N}]/u.test(word)).length;
+  const detail = (screen: DetailScreen, answer = withFigures, proof: Parameters<typeof SiteAnswerDetail>[0]["proof"] = winnerProof) =>
+    render(<SiteAnswerDetail answer={answer} proof={proof} screen={screen} onBack={vi.fn()} />);
+
+  it("is a short menu of small screens, each only when it has something to say", () => {
+    const onOpen = vi.fn(), onBack = vi.fn();
+    render(<SiteAnswerDetails answer={withFigures} proof={winnerProof} onBack={onBack} onOpen={onOpen} />);
+    expect(screen.getByRole("heading", { level: 1, name: "Details" })).toHaveAttribute("tabindex", "-1");
+    expect(within(screen.getByRole("list", { name: "Details" })).getAllByRole("button").map(button => button.textContent)).toEqual([
+      "Why this robot", "Other robots", "Robots that don't fit", "What we estimated", "What we couldn't see", "The simulation test", "How far to trust it"]);
+    fireEvent.click(screen.getByRole("button", { name: "What we estimated" }));
+    expect(onOpen).toHaveBeenCalledWith("estimated");
     fireEvent.click(screen.getByRole("button", { name: "‹ Back" }));
     expect(onBack).toHaveBeenCalledTimes(1);
-    expect(screen.getByRole("heading", { level: 1, name: "Details" })).toBeVisible();
-    const why = screen.getByRole("region", { name: "Why this robot" });
-    expect(within(why).getByText(/^needs about 0\.9–1\.2 m · reaches 1\.3 m/)).toBeVisible();
-    expect(within(why).getByText(/^needs to lift up to 12 kg · lifts up to 12\.5 kg/)).toBeVisible();
-    expect(within(why).getAllByRole("link", { name: "source" }).map(link => link.getAttribute("href")))
-      .toEqual(readyAnswer.pick!.specs.map(spec => spec.sourceUrl));
-    expect(within(why).getByRole("link", { name: /TEST case study: carton palletizing with the UR10e/ }))
-      .toHaveAttribute("href", readyAnswer.pick!.evidence[0].sourceUrl);
-    // How it would be run, by the server's kind, in plain words.
-    expect(within(why).getByText("The objects vary, so it needs a camera to pick each one. Ask the company that sets it up how it handles each item.")).toBeVisible();
-    expect(within(why).getByText("This answer is about the robot itself, not the software that runs it. The software is set up when the robot is installed.")).toBeVisible();
-    // The catalog's own names, never invented short ones.
-    expect(within(screen.getByRole("region", { name: "Other robots that fit" })).getAllByRole("definition").map(row => row.textContent))
-      .toEqual(["Yaskawa HC20DTP", "Universal Robots UR20", "Universal Robots UR30", "ABB GoFa CRB 15000-12/1.27"]);
-    expect(screen.getByRole("region", { name: "Robots that don't fit (11)" })).toHaveTextContent("And 9 more.");
-    // The fixture's numbers mix estimates and the site's own: each says where it came from.
-    const numbers = screen.getByRole("region", { name: "The numbers we used" });
-    expect(numbers).toHaveTextContent("Height of the pallet stackup to 1.2 m (you told us)");
-    for (const line of readyAnswer.unknowns) expect(within(screen.getByRole("region", { name: "What we couldn't see" })).getByText(line)).toBeVisible();
-    for (const line of readyAnswer.confidence.raiseIt) expect(within(screen.getByRole("region", { name: "To be surer" })).getByText(line)).toBeVisible();
-    expect(screen.getByRole("region", { name: "Computer test" })).toHaveTextContent(winnerProof.policyComparison!.line);
-    expect(screen.getByRole("region", { name: "How far to trust a computer test" })).toBeVisible();
-    expect(screen.getByText("We checked 22 robots from 13 makers, using their published figures from November 11, 2026.")).toBeVisible();
+    // No simulation yet: neither of its screens.
+    expect(detailScreens(withFigures, projectSimulationProof({ evaluation: [], pick: withFigures.pick }))).not.toContain("test");
+  });
+
+  it("says why this robot in short rows: the figures, the sources, the record, how it is run, and that it is about the robot", () => {
+    detail("why");
+    expect(screen.getByRole("heading", { level: 1, name: "Why this robot" })).toBeVisible();
+    expect(screen.getByText(/^needs about 0\.9–1\.2 m · reaches 1\.3 m · only just enough/)).toBeVisible();
+    expect(screen.getByText(/^needs to lift up to 12 kg · lifts up to 12\.5 kg/)).toBeVisible();
+    expect(screen.getAllByRole("link", { name: "source" }).map(link => link.getAttribute("href"))).toEqual(readyAnswer.pick!.specs.map(spec => spec.sourceUrl));
+    expect(screen.getByRole("link", { name: "Example Test News" })).toHaveAttribute("href", readyAnswer.pick!.evidence[0].sourceUrl);
+    expect(screen.getByText("The objects vary, so it needs a camera to pick each one. Ask the company that sets it up how it handles each item.")).toBeVisible();
+    expect(screen.getByText("This answer is about the robot itself, not the software that runs it. The software is set up when the robot is installed.")).toBeVisible();
+  });
+
+  it("says a strength it can't tell yet with the whole range that makes it unknown, never as a fail", () => {
+    const unsettled = { ...readyAnswer, pick: { ...readyAnswer.pick!, verdict: "possible" as const, checks: [readyAnswer.pick!.checks[0],
+      { ...readyAnswer.pick!.checks[1], outcome: "unknown" as const, need: "about 3–4.9 kg", has: "4 kg" }] } };
+    detail("why", unsettled);
+    expect(screen.getByText(/^Can't tell yet\. needs to lift about 3–4\.9 kg · lifts up to 4 kg/)).toBeVisible();
+    expect(screen.queryByText(/needs to lift up to 4\.9 kg/)).toBeNull();
+  });
+
+  it("keeps each screen short, the sourced words word for word", () => {
+    for (const name of ["why", "others", "ruled-out", "estimated", "unseen", "test"] as const) {
+      const { container, unmount } = detail(name);
+      expect(words(container.textContent), name).toBeLessThanOrEqual(130);
+      unmount();
+    }
+    const { unmount } = detail("others");
+    expect(screen.getAllByRole("definition").map(row => row.textContent)).toEqual(["Yaskawa HC20DTP", "Universal Robots UR20", "Universal Robots UR30",
+      "ABB GoFa CRB 15000-12/1.27", "We checked 22 robots from 13 makers, using their published figures from November 11, 2026."]);
+    unmount();
+    const ruled = detail("ruled-out");
+    expect(ruled.container).toHaveTextContent("And 9 more.");
+    ruled.unmount();
+    const numbers = detail("estimated");
+    expect(screen.getByRole("heading", { level: 1, name: "The numbers we used" })).toBeVisible();
+    expect(numbers.container).toHaveTextContent("Height of the pallet stackup to 1.2 m (you told us)");
+    numbers.unmount();
+    const unseen = detail("unseen");
+    for (const line of [...readyAnswer.unknowns, ...readyAnswer.confidence.raiseIt]) expect(screen.getByText(line)).toBeVisible();
+    unseen.unmount();
+    const test = detail("test");
+    expect(screen.getByRole("region", { name: "Simulation test" })).toHaveTextContent(winnerProof.policyComparison!.line);
+    test.unmount();
+    detail("trust");
+    expect(screen.getByRole("heading", { level: 1, name: "How far to trust it" })).toBeVisible();
+    expect(screen.getAllByRole("link").length).toBe(3);
   });
 
   it("calls the numbers estimates only when every one of them is, and the others robots that fit only when they all do", () => {
     const estimated = { ...readyAnswer, facts: readyAnswer.facts.filter(fact => fact.basis === "video_estimate"),
       runnerUp: { ...readyAnswer.runnerUp!, verdict: "possible" as const } };
-    render(<SiteAnswerDetails answer={estimated} onBack={vi.fn()} />);
-    expect(screen.getByRole("region", { name: "What we estimated from your video" })).not.toHaveTextContent("(");
-    expect(screen.getByRole("region", { name: "Other robots" })).toHaveTextContent("Yaskawa HC20DTP · may fit");
+    const { unmount } = detail("estimated", estimated);
+    expect(screen.getByRole("heading", { level: 1, name: "What we estimated" })).toBeVisible();
+    expect(screen.getByRole("region", { name: "From your video" })).not.toHaveTextContent("(");
+    unmount();
+    detail("others", estimated);
+    expect(screen.getByRole("heading", { level: 1, name: "Other robots" })).toBeVisible();
+    expect(screen.getByText("· may fit")).toBeVisible();
+  });
+});
+
+describe("the answer and the simulation of the site never disagree", () => {
+  const robotFit = (verdict: "fits" | "fits_spec" | "doesnt_fit" | "unknown", openChecks: string[]) =>
+    ({ models: [{ name: "UR10e", manufacturer: "Universal Robots", verdict, openChecks }] });
+
+  it("says the robot does not fit only on a check the scene decides, and then says so on the answer screen", () => {
+    // The scene's "doesn't fit" rests only on weight, which the answer checks from published figures: the scene line
+    // says what the scene did check, and the answer stands.
+    const weightOnly = projectSimulationProof({ evaluation: [], robotFit: robotFit("doesnt_fit", ["payload"]), pick: readyAnswer.pick });
+    expect(weightOnly.robotCheck).toMatchObject({ line: "In the scene rebuilt from your video, the Universal Robots UR10e was not ruled out on reach or where it can stand.", doesNotFit: false });
+    const { unmount } = render(<SiteAnswer token="owner-token" answer={readyAnswer} proof={weightOnly} />);
+    expect(screen.getByRole("heading", { level: 2, name: "The robot most likely to fit" })).toBeVisible();
+    unmount();
+    // On reach: the answer calls it the closest robot and says why, in view.
+    const reach = projectSimulationProof({ evaluation: [], robotFit: robotFit("doesnt_fit", ["reach"]), pick: readyAnswer.pick });
+    expect(reach.robotCheck).toMatchObject({ doesNotFit: true });
+    render(<SiteAnswer token="owner-token" answer={readyAnswer} proof={reach} />);
+    expect(screen.getByRole("heading", { level: 2, name: "The closest robot" })).toBeVisible();
+    expect(screen.getByText("In a simulation of your site, the UR10e does not fit.")).toBeVisible();
+  });
+
+  it("holds over many generated answers and scene rows", () => {
+    let seed = 20261111;
+    const random = () => ((seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648);
+    const pickOf = <T,>(values: readonly T[]) => values[Math.floor(random() * values.length)];
+    const CHECKS = ["reach", "payload", "stance", "access", "cycle_time"];
+    let negatives = 0;
+    for (let index = 0; index < 300; index++) {
+      const verdict = pickOf(["fits", "fits_on_paper", "possible"] as const);
+      const answer = { ...readyAnswer, pick: { ...readyAnswer.pick!, verdict } };
+      const open = CHECKS.filter(() => random() < 0.3);
+      const proof = projectSimulationProof({ evaluation: [], robotFit: robotFit(pickOf(["fits", "fits_spec", "doesnt_fit", "unknown"] as const), open), pick: answer.pick });
+      const { container, unmount } = render(<SiteAnswer token="owner-token" answer={answer} proof={proof} />);
+      const saysFits = container.textContent!.includes("The robot most likely to fit");
+      const sceneSaysNo = /does not fit\./.test(proof.robotCheck!.line);
+      if (sceneSaysNo) negatives++;
+      expect(saysFits && sceneSaysNo, `${verdict} / ${proof.robotCheck!.line}`).toBe(false);
+      if (sceneSaysNo) expect(container.textContent).toContain("In a simulation of your site, the UR10e does not fit.");
+      unmount();
+    }
+    expect(negatives).toBeGreaterThan(20);
   });
 });
 
@@ -251,15 +339,30 @@ describe("finding a company", () => {
     expect(screen.getByRole("status")).toHaveTextContent("You asked on November 10, 2026. Blueprint will set up your job card and email you.");
   });
 
+  it("says the job is shared without this answer when the card is on under the older box, and offers the button again", () => {
+    const asked = { ...readyAnswer, introductionRequestedAtIso: "2026-11-10T09:00:00.000Z", jobCardListed: true };
+    const { unmount } = render(<SiteAnswer token="owner-token" answer={asked} card="without_answer" />);
+    expect(screen.getByRole("status")).toHaveTextContent(SHARED_WITHOUT_ANSWER);
+    expect(screen.queryByText(/✓ Shared/)).toBeNull();
+    expect(screen.getByRole("button", { name: FIND })).toBeVisible();
+    expect(screen.getByText(CONSENT)).toBeVisible();
+    unmount();
+    const shared = render(<SiteAnswer token="owner-token" answer={asked} card="with_answer" />);
+    expect(screen.getByRole("status")).toHaveTextContent("✓ Shared. We'll email you when a company replies.");
+    shared.unmount();
+    render(<SiteAnswer token="owner-token" answer={asked} card="off" />);
+    expect(screen.getByRole("status")).toHaveTextContent("You asked on November 10, 2026. Blueprint will set up your job card and email you.");
+  });
+
   it("keeps the button, quiet, with its line, when the site has a step to take first", () => {
     render(<SiteAnswer token="owner-token" answer={readyAnswer} quietAction />);
     expect(screen.getByRole("button", { name: FIND })).toHaveClass("bare-quiet-button");
     expect(screen.getByText(CONSENT)).toBeVisible();
   });
 
-  it("carries the computer test on an answer with no pick too", () => {
+  it("carries the simulation test on an answer with no pick too", () => {
     const proof = projectSimulationProof({ evaluation: [allZeroEvaluation], pick: null });
     render(<SiteAnswer token="owner-token" answer={cannotAssessAnswer} proof={proof} />);
-    expect(screen.getByText(/^Computer test: None of the robot programs finished the job, on /)).toBeVisible();
+    expect(screen.getByText(/^Simulation test: None of the robot programs finished the job, on /)).toBeVisible();
   });
 });

@@ -268,9 +268,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
   // Recording permission needs a country, not a street address. An explicit
   // country can stand alone; changing the address rechecks that declaration.
   const [countryMissing, setCountryMissing] = useState(false);
-  // The form asks where the job is and takes the country from it (owner, 2026-11-11). The country select shows only
-  // when what was typed gave no country, or the site chose one itself.
-  const [locationTyped, setLocationTyped] = useState(Boolean(initial.draft.location?.trim()));
+  // The form asks where the job is and takes the country from it (owner, 2026-11-11).
   // The optional details and the full statements are their own screens, in the URL's hash (the job page's pattern).
   const subScreens = useRef(["details", "agreeing"] as const).current;
   const { screen, open: openScreen, close: closeScreen } = useHashScreen(subScreens);
@@ -686,9 +684,9 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
                   ? <BareButton onClick={() => void retrySelectedVideo()} disabled={retryingVideo} helper={keepLink(done.email)}>
                     {retryingVideo ? uploadPercent === null ? "Checking selected video…" : `Uploading video… ${uploadPercent}%` : "Try the selected video again"}
                   </BareButton>
-                  : <BareButton href={done.captureUrl} helper={keepLink(done.email)}>Open my job</BareButton>}
+                  : <BareButton href={uploaderUrl} helper={keepLink(done.email)}>Open the uploader</BareButton>}
               </BareGroup>
-              {footage && <BareLinks links={[{ key: "job", label: "Open my job", href: done.captureUrl }]} />}
+              {footage && <BareLinks links={[{ key: "uploader", label: "Open the uploader", href: uploaderUrl }]} />}
             </> : done.hasFootage ? <>
               <BareGroup><BareLabel>Saved</BareLabel><h1>Send us what you have.</h1></BareGroup>
               <BareGroup>
@@ -740,7 +738,8 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
   const sendsVideo = method === "upload" && region !== "non_us";
   const consentLine = sendsVideo ? SITE_START_CONSENT_WITH_VIDEO : SITE_START_CONSENT_NO_VIDEO;
   const submitLabel = region === "non_us" ? "Save my job" : sendsVideo ? "Send video" : "Next: film the job";
-  const showCountry = regionManuallySet || (!region && (locationTyped || countryMissing));
+  // The existing rule (owner, 2026-11-11): the country select shows while the address has given no country.
+  const showCountry = !region || regionManuallySet;
   const busyLabel = uploadPercent !== null ? `Uploading video… ${uploadPercent}%` : "Working…";
   const consentWithLinks = (line: string) => {
     const [before, afterTerms] = line.split("Terms");
@@ -806,13 +805,13 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
                 <p className="bare-helper" id="start-footage-help">One full round of the job.</p>
                 {footageError && <p role="alert" className="bare-field-error" id="start-footage-error">{footageError}</p>}
               </>}
-              <button type="button" className="bare-inline-link" onClick={() => { setMethod("phone"); setFootage(null); setFootageError(null); }}>No video yet? Film it next ›</button>
+              <button type="button" id="start-method-phone" className="bare-inline-link" onClick={() => { setMethod("phone"); setFootage(null); setFootageError(null); }}>No video yet? Film it next ›</button>
             </div>
           ) : (
             <div className="bare-field">
               <span className="bare-label">Video of the job</span>
               <p>You film it on your phone, right after this.</p>
-              <button type="button" className="bare-inline-link" onClick={() => setMethod("upload")}>I have a video ›</button>
+              <button type="button" id="start-method-upload" className="bare-inline-link" onClick={() => setMethod("upload")}>I have a video ›</button>
             </div>
           )}
 
@@ -827,12 +826,11 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
                 setCountryMissing(false);
                 setRegionManuallySet(false);
                 setRegion(place?.countryCode ? (place.countryCode === "US" ? "us" : "non_us") : "");
-                if (place) { setLocationTyped(true); retainDraft(place); }
+                if (place) retainDraft(place);
               }}
               onInputChange={(text) => {
                 setCountryMissing(false);
                 setRegionManuallySet(false);
-                setLocationTyped(Boolean(text.trim()));
                 const country = inferLocationCountryCode(text);
                 setRegion(country ? (country === "US" ? "us" : "non_us") : "");
               }}
@@ -840,7 +838,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
           </BareField>
 
           {showCountry && (
-            <BareField label="Country of the site" htmlFor="start-region" helper="We couldn't tell the country from that. No address is needed."
+            <BareField label="Country of the site" htmlFor="start-region" helper="Only if the address doesn't say. No address is needed."
               error={countryMissing && !region ? "Choose the site country so we can check recording permission." : null}>
               <BareSelect id="start-region" name="startRegion" required value={region}
                 aria-describedby={describedBy("start-region", { helper: true, error: countryMissing && !region })}

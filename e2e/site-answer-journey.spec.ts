@@ -74,22 +74,27 @@ async function expectAnswer(page: Page) {
   const section = answer(page);
   const big = section.locator(".bare-big");
   await expect(big).toBeVisible({ timeout: 45_000 });
-  await expect(section.getByRole("heading", { level: 2 })).toHaveText(/^(The robot most likely to fit|The closest robot)$/);
+  // The scripted reading (one carton, 1.6 m, a stated weight) gives a pick that fits on its published figures.
+  await expect(section.getByRole("heading", { level: 2 })).toHaveText("The robot most likely to fit");
   await expect(section.locator(".bare-sub")).toHaveText(/^by .+/);
   await expect(section).toContainText(/How sure are we\?/);
   // Every figure and source is on the details screen: a published figure always has its source; the track
   // record carries one, or says plainly that none was found for this kind of job (a carton moved to a cart is
   // pick and place; the pick may have documented use only for palletizing). Never an invented one.
   await section.getByRole("button", { name: "See details ›" }).click();
-  const why = page.getByRole("region", { name: "Why this robot" });
+  await page.getByRole("button", { name: "Why this robot" }).click();
+  const why = page.locator(".site-answer-details");
   await expect(why.getByRole("link", { name: "source" }).first()).toHaveAttribute("target", "_blank");
   if (!(await why.getByText("We found no documented use of this robot on this kind of job.").count())) {
     await expect(why.locator("a[href^='https://']").nth(1)).toHaveAttribute("target", "_blank");
   }
-  await expect(page.getByRole("region", { name: /^Other robots/ })).toBeVisible();
+  await page.getByRole("button", { name: "‹ Back" }).click();
+  await page.getByRole("button", { name: "Other robots" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: /^Other robots/ })).toBeVisible();
+  await page.getByRole("button", { name: "‹ Back" }).click();
   await page.getByRole("button", { name: "‹ Back" }).click();
   // Before the computer test starts, the answer says nothing about it.
-  await expect(section).not.toContainText("Computer test");
+  await expect(section).not.toContainText("Simulation test");
   return (await big.textContent())!.trim();
 }
 

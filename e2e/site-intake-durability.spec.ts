@@ -156,8 +156,10 @@ for (const [index, boundary] of ["acknowledged-upload", "browser-kill-after-stor
             // The job page no longer asks for details after a video (the job is drafted
             // from the video); a received video lands on the private job page itself.
             await expect(page.getByRole("heading", { level: 1, name: "Your job", exact: true })).toBeVisible();
-            // Received: said as "Video received." until the answer exists, then by the answer itself ("We're watching your video.").
-            await expect(page.getByText(/^(Video received\.|We're watching your video\.)$/).first()).toBeVisible();
+            // Received and not yet read (the harness runs no coverage review): once the status read lands, the answer
+            // says it is watching the video, and "Video received." is not said beside it.
+            await expect(page.getByText("We're watching your video.", { exact: true })).toBeVisible({ timeout: 30_000 });
+            await expect(page.getByText("Video received.", { exact: true })).toHaveCount(0);
             await writeFile(path.join(output, `${caseId}.json`), JSON.stringify({ caseId, parameters: { boundary, source: "owned-synthetic-pattern" },
                 layer: "real-backend/firebase-emulators/no-provider", captureReceivedVerified: true, persistedOriginalAndManifestVerified: true,
                 completionMarkerVerified: true, actualBrowserRestart: boundary === "browser-kill-after-stored-upload", browserTermination: boundary === "browser-kill-after-stored-upload" ? "SIGKILL" : null, source, intakePostCount: intakeBodies.length, originalBytesEqual: true, navigationAwayAndReturnVerified: true, repeat: testInfo.repeatEachIndex, providerDispatch: false,

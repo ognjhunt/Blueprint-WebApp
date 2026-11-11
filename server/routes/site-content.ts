@@ -23,7 +23,7 @@ const definitions = [
   {
     term: "Exact-site world model",
     definition:
-      "A derived evidence method tied to one real site-task. It may support a claim only within its qualified validation envelope; it is not the product, ground truth, or a physical guarantee.",
+      "A derived evidence method tied to one real site-task. It may support a claim only within its qualified validation envelope; it is not the product, ground truth, or a physical promise.",
   },
   {
     term: "Site-Task Testbed",
@@ -53,12 +53,12 @@ const definitions = [
   {
     term: "Permitted evidence use",
     definition:
-      "An explicit result-artifact permission such as evaluation or post-training eligibility. Eligibility does not prove that training happened or that a policy improved.",
+      "An explicit result-artifact permission such as evaluation or post-training eligibility. Eligibility does not show that training happened or that a policy improved.",
   },
   {
     term: "Evidence artifact",
     definition:
-      "A fixture, simulation, provider, real-observation, or physical record with an exact reference, contract version, digest, evidence class, and permitted uses. An export does not by itself prove a scientific or physical claim.",
+      "A fixture, simulation, provider, real-observation, or physical record with an exact reference, contract version, digest, evidence class, and permitted uses. An export does not by itself establish a scientific or physical claim.",
   },
   {
     term: "Physical Outcome Join",
@@ -73,7 +73,7 @@ const definitions = [
   {
     term: "Claim ceiling",
     definition:
-      "The strongest conclusion supported by the current evidence. It keeps estimates, simulation, provider output, real observations, and physical proof from being presented as interchangeable.",
+      "The strongest conclusion supported by the current evidence. It keeps estimates, simulation, provider output, real observations, and physical results from being presented as interchangeable.",
   },
   {
     term: "Category validation",
