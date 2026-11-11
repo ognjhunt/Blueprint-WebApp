@@ -120,7 +120,7 @@ const pages = [
     path: "/beta",
     title: "Questions",
     description:
-      `${QUESTIONS_SEO_DESCRIPTION} ${pilotReplacementPolicy}`,
+      `${QUESTIONS_SEO_DESCRIPTION} Free for sites and partners. ${pilotReplacementPolicy} Blueprint runs the candidate evaluations itself; a technology provider can give Blueprint free access to its policy or an integration. The beta has no private paid evaluations, balances or top-ups.`,
   },
   { path: "/contact/site-operator", title: "Start a job", description: START_SEO_DESCRIPTION },
   { path: "/contact/robot-team", title: "Apply to see jobs", description: ROBOT_TEAM_SEO_DESCRIPTION },

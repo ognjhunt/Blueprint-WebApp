@@ -20,7 +20,7 @@ import { automationBatch } from "./automationBatch";
 import { logger } from "../logger";
 import { footageArrivedBeforeAccount } from "./siteWalkthrough";
 import { decryptFieldValue } from "./field-encryption";
-import { finePrint } from "./emailLayout";
+import { finePrint, finePrintLast } from "./emailLayout";
 import { taskLifecycleNotificationIsCurrent } from "./taskLifecycleNotificationAuthority";
 import { drainPendingWebsitePreparationNotifications } from "./websitePreparationStatus";
 import { preparationEndedSentence } from "./taskStatusProjection";
@@ -99,15 +99,17 @@ export function workspaceTaskUrl(requestId: string): string {
  * same job results without adding an account step.
  */
 function whereRunsAre(url: string, workspaceUrl: string | null, action: string): string {
-  return `${action}:\n${workspaceUrl || url}`;
+  return workspaceUrl
+    ? `${action} in your workspace:\n${workspaceUrl}`
+    : `${action} on your private job page:\n${url}`;
 }
 
 // Bare bones (2026-11-11): each notice says one thing in at most three short lines, then one button
 // ("Label:\nURL"); a line the site must read but that is not the news is fine print (`finePrint`).
 const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string, detail: string, workspaceUrl: string | null) => string }> = {
   preparation_needs_attention: {
-    subject: "An update on your Blueprint job",
-    body: (url, detail) => `Building the simulation of your site needs a look from our team. Keep your original video; nothing else is needed from you.${detail ? `\n\n${finePrint(detail)}` : ""}\n\nOpen your job:\n${url}`,
+    subject: "An update on your Blueprint job preparation",
+    body: (url, detail) => `Building the simulation of your site needs our team's review. Keep your original video; nothing else is needed from you.${detail ? `\n\n${finePrint(detail)}` : ""}\n\nOpen your job:\n${url}`,
   },
   // One per terminal transition. The detail is only a fixed reason sentence and a reference.
   preparation_ended: {
@@ -183,12 +185,12 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
   no_qualified_evaluation: {
     subject: "Your job's evaluations finished, with no result that counts yet",
     // Never a failure: diagnostic, unqualified or unscored runs count neither way.
-    body: (url, _detail, workspaceUrl) => `The evaluations of your job so far have finished, but none can support a recommendation yet, so none counts as a pass or a fail. Nothing is needed from you.\n\n${whereRunsAre(url, workspaceUrl, "See each run")}`,
+    body: (url, _detail, workspaceUrl) => `The evaluations of your job so far have finished, but none can support a recommendation yet, so none counts as a pass or a fail. Nothing is needed from you. We email you when a scored evaluation finishes.\n\n${whereRunsAre(url, workspaceUrl, "See each run")}`,
   },
   video_too_large: {
     // The job page's new-video ask, said the same way (`LARGE_VIDEO_RECAPTURE_SENTENCES`).
     subject: RECAPTURE_TITLE,
-    body: (url) => `${LARGE_VIDEO_RECAPTURE_SENTENCES.reason}\n\n${LARGE_VIDEO_RECAPTURE_SENTENCES.nextStep}\n\nSend a new video:\n${url}`,
+    body: (url) => `${LARGE_VIDEO_RECAPTURE_SENTENCES.reason} ${LARGE_VIDEO_RECAPTURE_SENTENCES.nextStep}\n\nSend a new video:\n${url}`,
   },
   footage_before_account: {
     subject: "About your video",
@@ -372,11 +374,11 @@ export function buildTaskLifecycleNotification(params: {
       : params.milestone === "scene_outcome" && params.sceneOutcomeKind ? sceneOutcomeSubject(params.sceneOutcomeKind)
       : params.milestone === "answer_ready" && params.siteAnswer?.state === "cannot_assess" ? "An update on your Blueprint job"
       : message.subject,
-    body: `${message.body(url, params.milestone === "run_no_result" ? noResultObservationText(params.runProgress)
+    body: finePrintLast(`${message.body(url, params.milestone === "run_no_result" ? noResultObservationText(params.runProgress)
       : isWebsitePreparationNotice(params.milestone) ? preparationDetail
       : params.milestone === "evaluation_outcome" || params.milestone === "scene_outcome"
         || params.milestone === "robot_access_question" || params.milestone === "answer_ready" ? outcomeDetail
-      : params.detail?.trim() ?? "", params.workspaceUrl ?? null)}`,
+      : params.detail?.trim() ?? "", params.workspaceUrl ?? null)}`),
     replyTo: "hello@tryblueprint.io",
   };
 }
@@ -385,7 +387,7 @@ export function buildTaskLifecycleNotification(params: {
 function recaptureCopy(reason: RecaptureReason): (typeof copy)[TaskLifecycleMilestone] {
   return {
     subject: RECAPTURE_TITLE,
-    body: (url, detail) => `${RECAPTURE_SENTENCES[reason].reason}\n\n${RECAPTURE_SENTENCES[reason].nextStep}${detail ? `\n\n${finePrint(detail)}` : ""}\n\nSend a new video:\n${url}`,
+    body: (url, detail) => `${RECAPTURE_SENTENCES[reason].reason} ${RECAPTURE_SENTENCES[reason].nextStep}${detail ? `\n\n${finePrint(detail)}` : ""}\n\nSend a new video:\n${url}`,
   };
 }
 
@@ -576,7 +578,7 @@ function robotAccessQuestionDetail(params: { eventId?: string; robotAccessCounts
   const what = rows.filter(([, count]) => count > 0).map(([kind, count]) => `${count} ${kind}${count === 1 ? "" : "s"}`)
     .join(" and ");
   const one = total === 1;
-  return `In the simulation, ${what} ${one ? "is" : "are"} in the robot arm's way, so it can't stand close enough to reach the job.\n\n`
+  return `In the simulation, the robot arm can't stand close enough to reach the job because ${what} ${one ? "is" : "are"} in the way.\n\n`
     + `We can move ${one ? "it" : "them"}, in the simulation only. Your site and your video stay as they are.\n\n`
     + `On your job page, choose "${one ? "Move it in the simulation" : "Move them in the simulation"}" or `
     + `"${one ? "Keep it where it is" : "Keep them where they are"}". Nothing changes until you answer.\n\n`

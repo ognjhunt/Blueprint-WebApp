@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from "vitest";
 
-import { brandedEmail, emailGreeting, textToEmailHtml, withTextFooter } from "../utils/emailLayout";
+import { brandedEmail, emailGreeting, finePrint, textToEmailHtml, withTextFooter } from "../utils/emailLayout";
 
 describe("the branded email layout", () => {
   it("turns a labelled link into a button and escapes template text", () => {
@@ -81,5 +81,17 @@ describe("the request confirmation", () => {
       expect(text).toContain("https://tryblueprint.io/how-it-works");
       expect(text).not.toMatch(/\/product|\/proof|provider execution|rights clearance|boundar|there,/i);
     }
+  });
+
+  // Bare bones (2026-11-11): a line the site must read but that is not the news is fine print, after the button.
+  it("sets fine print small and muted after the button, and drops its mark from the text part", () => {
+    const text = [finePrint("It does not certify performance or safety."), "Your answer is ready.", "See your answer:\nhttps://tryblueprint.io/capture-upload/abc"].join("\n\n");
+    const html = textToEmailHtml(text);
+    expect(html.indexOf("email-button")).toBeLessThan(html.indexOf("email-fine"));
+    expect(html).toMatch(/class="email-muted email-fine" style="[^"]*font-size:13px[^"]*">It does not certify performance or safety\.<\/p>/);
+    expect(html).not.toContain("[fine]");
+    const message = brandedEmail({ subject: "Your answer", text });
+    expect(message.text).not.toContain("[fine]");
+    expect(message.text.startsWith("Your answer is ready.\n\nSee your answer:\nhttps://tryblueprint.io/capture-upload/abc\n\nIt does not certify performance or safety.")).toBe(true);
   });
 });

@@ -235,13 +235,12 @@ describe("the qualified reply", () => {
     expect(email.body).toContain("Thanks for confirming the job brief for Riverside DC");
     expect(email.body).toContain("upload it here: https://example.test/capture-upload/abc");
     // Blueprint runs the candidates itself and shows a bounded estimate or "held" (owner, 2026-10-28).
-    expect(email.body).toMatch(/build a simulation of your work area and test robots and policies on your job ourselves/);
-    expect(email.body).toMatch(/You see which robot most likely fits and how control policies compared on your job in the simulation, including whether one was clearly ahead, or “held” if we can't simulate that kind of job yet/);
+    // Bare bones (2026-11-11): the next step, what the site then sees, and the free-beta boundary.
+    expect(email.body).toMatch(/You then see which robot most likely fits and which did best in the simulation, or “held” if we can't simulate that kind of job yet/);
     expect(email.body).toMatch(/You can then share the job with deployment companies we have approved/);
     expect(email.body).not.toMatch(/Screening runs are diagnostic|full scoring|review their proposals/);
-    expect(email.body).toMatch(/If nothing fits, we explain what is missing/);
     expect(email.body).not.toMatch(/robot teams?/i);
-    expect(email.body).toMatch(/free during the beta/);
+    expect(email.body).toMatch(/Free during the beta/);
     expect(email.body).toMatch(/it never certifies how a robot will perform/);
     expect(email.body).not.toContain(CALENDLY_URL);
   });

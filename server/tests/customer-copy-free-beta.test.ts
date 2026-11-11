@@ -182,14 +182,12 @@ describe("site screening emails", () => {
   it("states the video-backed simulation, Blueprint's own candidate runs, the bounded result and the free-beta boundary", () => {
     for (const nextStep of NEXT_STEPS) {
       const { body } = buildQualifiedEmail({ firstName: "Dana", nextStep });
-      expect(body).toMatch(/review the job brief, required output and site constraints/);
-      expect(body).toMatch(/build a simulation of your work area and test robots and policies on your job ourselves/);
-      expect(body).toMatch(/You see which robot most likely fits and how control policies compared on your job in the simulation, including whether one was clearly ahead/);
+      // Bare bones (2026-11-11): the next step, what the site then sees, and the free-beta boundary.
+      expect(body).toMatch(/You then see which robot most likely fits and which did best in the simulation/);
       expect(body).toMatch(/share the job with deployment companies we have approved/);
       expect(body).not.toMatch(/finalists' full scoring|review their proposals/);
-      expect(body).toMatch(/If nothing fits, we explain what is missing/);
       expect(body).not.toMatch(/book the pilot in one step|We prepare a simplified simulation/);
-      expect(body).toMatch(/free during the beta/);
+      expect(body).toMatch(/Free during the beta/);
       expect(body).toMatch(/it never certifies how a robot will perform/);
     }
   });

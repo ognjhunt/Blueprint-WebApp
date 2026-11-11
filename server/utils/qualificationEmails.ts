@@ -28,7 +28,7 @@
 import type { SiteTaskTriageSummary } from "../types/inbound-request";
 import { footageSettlesAll } from "../../client/src/data/siteTaskQualification";
 import { bookingUrl } from "./bookingLink";
-import { EMAIL_SIGN_OFF } from "./emailLayout";
+import { EMAIL_SIGN_OFF, emailGreeting } from "./emailLayout";
 import { SUPPORTED_TASK_LINES, taskScopeNotYet, taskScopeReasonSentence } from "./siteTaskScope";
 
 /**
@@ -57,6 +57,12 @@ export type QualificationEmail = {
   variant: "not_yet" | "lets_talk" | "qualified";
 };
 
+function firstNameOf(fullOrFirst: string): string {
+  const trimmed = fullOrFirst.trim();
+  if (!trimmed) return "there";
+  return trimmed.split(/\s+/)[0];
+}
+
 function bulletList(items: readonly string[]): string {
   return items.map((item) => `- ${item}`).join("\n");
 }
@@ -73,7 +79,7 @@ export function buildNotYetEmail(params: {
   siteName?: string | null;
   triage: Pick<SiteTaskTriageSummary, "blockers">;
 }): QualificationEmail {
-  const { siteName, triage } = params;
+  const { firstName, siteName, triage } = params;
   const blockers = triage.blockers.filter(Boolean);
   const site = siteName?.trim();
 
@@ -81,13 +87,15 @@ export function buildNotYetEmail(params: {
 
   // Bare bones (2026-11-11): one idea, the list, and the one thing the site can do.
   const body = [
+    emailGreeting(firstNameOf(firstName)),
+    "",
     site
       ? `Thanks for describing the job at ${site}. One of our screening conditions does not hold there today:`
       : "Thanks for describing the job. One of our screening conditions does not hold at the site today:",
     "",
     blockers.length ? bulletList(blockers) : "",
     "",
-    "That is a not-yet, not a no. We keep your job on file. If any of this changes, reply to this email and we pick it back up.",
+    "That is a not-yet rather than a no. We keep your job on file; if any of this changes, reply to this email and we pick it back up. No call needed.",
     "",
     EMAIL_SIGN_OFF,
   ]
@@ -116,11 +124,16 @@ export function buildTaskNotYetSupportedEmail(params: {
   const notYet = taskScopeNotYet(params.reason);
   const unclear = params.reason === "unclear";
   const body = [
+    emailGreeting(firstNameOf(params.firstName)),
+    "",
     taskScopeReasonSentence(params.reason),
+    "",
+    "Today our simulation can score these kinds of job:",
+    bulletList(SUPPORTED_TASK_LINES),
     "",
     unclear
       ? "We need to clarify the job before we can test it. Your job stays on file."
-      : "We have your job and hold it until we can test this kind of job. We email you when we can.",
+      : "We have accepted your job and are holding it while we prepare an evaluation for its kind. We email you when we can evaluate it.",
     "",
     unclear
       ? `${notYet.nextStep}${params.jobUrl ? ` Your job page: ${params.jobUrl}` : ""}`
@@ -151,7 +164,7 @@ export function buildLetsTalkEmail(params: {
   /** The site's footage is already saved, so filming is not the way to settle it. */
   footageReceived?: boolean;
 }): QualificationEmail {
-  const { siteName, triage } = params;
+  const { firstName, siteName, triage } = params;
   const calendly = params.calendlyUrl || bookingUrl();
   const openQuestions = triage.open_questions.filter(Boolean);
   const site = siteName?.trim();
@@ -176,8 +189,10 @@ export function buildLetsTalkEmail(params: {
       : "A short call should settle this";
 
   const body = [
+    emailGreeting(firstNameOf(firstName)),
+    "",
     openQuestions.length
-      ? footageAnswers ? "Here is what we could not tell from the form:" : "Here is what we would settle on a short call:"
+      ? footageAnswers ? "Here is what we could not tell from the form:" : "Here is the agenda, so the call is short:"
       : "There are a few things a form cannot settle.",
     "",
     openQuestions.length ? bulletList(openQuestions) : "",
@@ -186,7 +201,7 @@ export function buildLetsTalkEmail(params: {
     "",
     footageAnswers
       ? "Film that one work area on a phone for about 45 seconds and send it back. Or reply, and we will find a time to talk."
-      : `Book thirty minutes whenever suits: ${calendly}`,
+      : `Book thirty minutes whenever suits: ${calendly} If the list makes the answer obvious on your side, tell us and we will save us both the call.`,
     "",
     EMAIL_SIGN_OFF,
   ]
@@ -271,7 +286,7 @@ export function buildQualifiedEmail(params: {
   jobCardPublished?: boolean;
   calendlyUrl?: string;
 }): QualificationEmail {
-  const { siteName } = params;
+  const { firstName, siteName } = params;
   const calendly = params.calendlyUrl || bookingUrl();
   const site = siteName?.trim();
   const confirmed = params.stage === "brief_confirmed";
@@ -285,6 +300,8 @@ export function buildQualifiedEmail(params: {
       : "Thanks for describing the job. It clears our screening conditions.";
 
   const body = [
+    emailGreeting(firstNameOf(firstName)),
+    "",
     opening,
     "",
     qualifiedNextStepLine(params.nextStep, calendly),
@@ -293,9 +310,13 @@ export function buildQualifiedEmail(params: {
       ? "Before sending footage, create and verify your site account from your job page."
       : "",
     "",
+    params.nextStep?.kind === "self_capture" ? "We need your video before the site assessment can start." : "",
+    "",
     params.jobCardPublished === false
-      ? "Your job card is not shared. You can share it from your job page when you want approved companies to see it."
+      ? "Your job card is not published, so partners cannot discover it through the shared library. We ask before sharing details with any partner. You can publish its card from your job page when you want approved partners to see it."
       : "",
+    "",
+    "You then see which robot most likely fits and which did best in the simulation, or “held” if we can't simulate that kind of job yet. You can then share the job with deployment companies we have approved. You agree any physical pilot's scope, price, timing and acceptance criteria directly with that company.",
     "",
     "Free during the beta. A simulation result is an estimate; it never certifies how a robot will perform at your site or that it will be safe there.",
     "",

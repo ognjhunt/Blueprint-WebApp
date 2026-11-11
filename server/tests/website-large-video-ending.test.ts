@@ -118,7 +118,7 @@ describe("a job whose video was too large to process", () => {
     const [key, entry] = outbox()[0];
     expect(key).toMatch(new RegExp(`^captureOutbox/job-one:video_too_large:${FIRST}\\.[a-f0-9]{16}$`));
     expect(entry).toMatchObject({ kind: "video_too_large", subject: RECAPTURE_TITLE, to: "owner@example.com", status: "pending" });
-    expect(entry.body.startsWith(`${LARGE_VIDEO_RECAPTURE_SENTENCES.reason} ${LARGE_VIDEO_RECAPTURE_SENTENCES.nextStep}\n\nOpen your job:\n`)).toBe(true);
+    expect(entry.body.startsWith(`${LARGE_VIDEO_RECAPTURE_SENTENCES.reason} ${LARGE_VIDEO_RECAPTURE_SENTENCES.nextStep}\n\nSend a new video:\n`)).toBe(true);
 
     // A second pass, a sweep of all jobs and the ops scan add nothing.
     expect(await sweepWebsiteJobNoGrant("job-one", at(2 * HOUR))).toBe("waiting");

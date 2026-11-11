@@ -55,7 +55,9 @@ describe("task lifecycle notifications", () => {
     const row = sharedFakeFirestoreState.docs.get("captureOutbox/req-1:video_received") as Record<string, unknown>;
     expect(row.to).toBe("owner@example.com");
     expect(row.kind).toBe("video_received");
-    expect(row.body).toMatch(/Blueprint handles reconstruction and evaluation/i);
+    // Bare bones (2026-11-11): one idea, one button, no sign-off.
+    expect(row.subject).toBe("We have your video");
+    expect(row.body).toBe(`Your video arrived safely.\n\nNext, we watch it and email you.\n\nOpen your job:\n${row.body.split("Open your job:\n")[1]}`);
     expect(`${row.subject} ${row.body}`).not.toMatch(/confirm|create an account|save this site to your account|proposal/i);
     expect(row.body).toMatch(/\/capture-upload\//);
     expect([...sharedFakeFirestoreState.docs.keys()].filter(key => key.startsWith("captureOutbox/"))).toHaveLength(1);
@@ -65,9 +67,10 @@ describe("task lifecycle notifications", () => {
     await enqueueTaskLifecycleNotification({ requestId: "req-1", milestone: "scene_ready" });
 
     const scene = sharedFakeFirestoreState.docs.get("captureOutbox/req-1:scene_ready") as Record<string, unknown>;
-    expect(scene.body).toMatch(/your scene is ready/i);
+    expect(scene.subject).toBe("Your 3D view of the work area is ready");
+    expect(scene.body).toMatch(/^You can look around the work area you filmed on your job page\./);
     expect(scene.body).not.toMatch(/has started an evaluation run|succeeded|result:/i);
-    expect(scene.body).toMatch(/— The Blueprint team$/);
+    expect(scene.body).toMatch(/Open your job:\nhttps:\/\/\S+\/capture-upload\/\S+$/);
     expect(sharedFakeFirestoreState.docs.has("captureOutbox/req-1:screening_started")).toBe(false);
   });
 
@@ -89,7 +92,8 @@ describe("task lifecycle notifications", () => {
     await enqueueTaskLifecycleNotification({ requestId: "req-1", milestone: "task_received" });
     const row = sharedFakeFirestoreState.docs.get("captureOutbox/req-1:task_received") as Record<string, string>;
     expect(row.body).toMatch(/\/capture-upload\//);
-    expect(row.body).toMatch(/Blueprint handles reconstruction and evaluation/i);
+    expect(row.subject).toBe("Your Blueprint job link");
+    expect(row.body).toMatch(/^We have your job\.\n\nIf you haven't sent the video yet, send it from your job page\. This link opens your job without a password, so please don't forward it\./);
     expect(row.body).not.toMatch(/questions that need your input|confirm.*brief|proposal/i);
   });
 
@@ -163,7 +167,7 @@ describe("listing notices describe the free beta", () => {
     const { buildTaskLifecycleNotification } = await import("../utils/taskLifecycleNotifications");
     const notice = buildTaskLifecycleNotification({ requestId: "req-1", milestone: "pilot_request", to: "owner@example.com",
       captureUrl: "https://tryblueprint.io/capture-upload/owner-token" });
-    expect(notice.body).toContain("Blueprint works with a deployment company on the result, and you and that company agree any physical pilot directly.");
+    expect(notice.body).toContain("You and a deployment company agree any physical pilot directly.");
     expect(notice.body).not.toMatch(/you choose|option|proposal|\bbook/i);
   });
 });
@@ -189,8 +193,7 @@ describe("a waiting job hears what it is waiting on", () => {
     const row = sharedFakeFirestoreState.docs.get("captureOutbox/req-1:awaiting_evaluations") as Record<string, string>;
     expect(row.subject).toBe("Your job is ready for evaluation");
     // Blueprint runs the candidates; partners can ask to be evaluated too (owner, 2026-10-26).
-    expect(row.body).toMatch(/Next, Blueprint tests robots and policies on it\./);
-    expect(row.body).toMatch(/Your job page shows where the evaluations stand\. Nothing is needed from you\./);
+    expect(row.body).toMatch(/^Your job is ready for evaluation in a simplified simulation of your task, informed by your footage\. Nothing is needed from you\./);
     expect(row.body).not.toMatch(/robot teams?/i);
     sharedFakeFirestoreState.docs.delete("captureOutbox/req-1:awaiting_evaluations");
     run("run_q", "requested", null);
@@ -219,8 +222,8 @@ describe("a waiting job hears what it is waiting on", () => {
     expect(await taskLifecycleNotificationIsCurrent(ready)).toBe(true);
     await notifySceneTestsStartedForLaunch("launch-a");
     const row = sharedFakeFirestoreState.docs.get("captureOutbox/req-1:scene_tests_started") as Record<string, string>;
-    expect(row.subject).toBe("Your Blueprint scene is ready");
-    expect(row.body).toMatch(/with your task's objects in place\. We are running our first tests on it now\. Nothing is needed from you for these tests/);
+    expect(row.subject).toBe("The simulation of your site is ready");
+    expect(row.body).toMatch(/^Your work area and its objects are in place\. We are running our first tests on it now\.\n\nNothing is needed from you\./);
     expect(row.body).not.toMatch(/pass|recommend|robot team/i);
     expect((await notifyIfSceneTestsStarted("req-1")).enqueued).toBe(false);
     // The reconciler repairs a lost enqueue, once.
@@ -361,7 +364,7 @@ describe("a finished simulation's email says what the job page's simulation resu
   // Rewritten from "names the winning policy ... when the result separates them": 4 of 5 against 1 of 5 is about
   // 0.96 under the probability rule, so the email says the leader was ahead, in the page's own sentence.
   it("states the page's comparison sentence word for word, with how far to trust it, when some policy completed the job", async () => {
-    const { EMAIL_SIGN_OFF } = await import("../utils/emailLayout");
+    const { finePrint } = await import("../utils/emailLayout");
     const proof = await proofOf(evaluation([["pi05_droid", 4, 5], ["groot_n17_droid", 1, 5]]));
     const notice = await build(proof, "https://example.invalid/app/tasks/req-1");
     expect(notice.subject).toBe("Your simulation result is ready");
@@ -370,8 +373,8 @@ describe("a finished simulation's email says what the job page's simulation resu
       + "against 1 of 5 for GR00T N1.7. With this few tries the gap could still be chance.\n\n"
       + "In published tests on research robots, a simulation built from a scan of the scene picked the better of two policies in 8 of 9 comparisons, and simulated scores tracked real ones closely (a correlation of about 0.9 on average). "
       + "The conditions and sources are on your job page. Nothing is needed from you.\n\n"
-      + "A simulation is not a physical test, and it never certifies physical performance or safety.\n\n"
-      + "See the result in your workspace:\nhttps://example.invalid/app/tasks/req-1\n\n" + EMAIL_SIGN_OFF);
+      + "See the result in your workspace:\nhttps://example.invalid/app/tasks/req-1\n\n"
+      + finePrint("A simulation is not a physical test, and it never certifies physical performance or safety."));
     expect(notice.body).not.toMatch(banned);
     expect(notice.body).not.toContain("private-owner-link");
     // "Did best" only when the gap is unlikely to be chance, and never a "proof".
@@ -387,8 +390,8 @@ describe("a finished simulation's email says what the job page's simulation resu
     const note = "The place point was beyond the simulated arm's reach.";
     const notice = await build(await proofOf(evaluation([["pi05_droid", 0, 5], ["groot_n17_droid", 0, 5]], { setupNotes: [note] })));
     expect(notice.subject).toBe("The simulation of your job has finished");
-    expect(notice.body.startsWith(`The simulation ran, but no policy completed the job in it, so it could not rank them. ${note} Nothing is needed from you.\n\n`
-      + "A simulation is not a physical test, and it never certifies physical performance or safety.")).toBe(true);
+    expect(notice.body.startsWith(`The simulation ran, but no policy completed the job in it, so it could not rank them. ${note} Nothing is needed from you.\n\n`)).toBe(true);
+    expect(notice.body.endsWith("[fine] A simulation is not a physical test, and it never certifies physical performance or safety.")).toBe(true);
     expect(notice.body).not.toMatch(banned);
     expect(notice.body).not.toMatch(/did best|was ahead|result is ready|proof|deployment company/i);
   });
@@ -416,7 +419,7 @@ describe("a job the window sweep ended is told under its own fixed key", () => {
     expect(notice).toMatchObject({ idempotencyKey: "req-1:scene_outcome:job_window_ended", kind: "scene_outcome",
       subject: "The simulation of your site has stopped", replyTo: "hello@tryblueprint.io" });
     expect(notice.body).toBe(`${JOB_WINDOW_ENDING_MESSAGE}\n\nOpen your job on your private job page:\n`
-      + "https://example.invalid/private-owner-link\n\n— The Blueprint team");
+      + "https://example.invalid/private-owner-link");
     const claimed = buildTaskLifecycleNotification({ requestId: "req-1", to: "owner@example.com", milestone: "scene_outcome",
       eventId: "job_window_ended", jobWindowEnded: true, captureUrl: "https://example.invalid/private-owner-link",
       workspaceUrl: "https://example.invalid/app/tasks/req-1" });
@@ -627,14 +630,14 @@ describe("the site's answer is emailed once, when it first settles", () => {
     const notice = await build(answer());
     expect(notice.idempotencyKey).toBe("req-1:answer_ready");
     expect(notice.subject).toBe("Your Blueprint answer is ready");
+    // Bare bones (2026-11-11): the headline, how sure in the job page's words, where the simulation appears, one
+    // button, and the full standing note as fine print. The runner-up is one tap away on the page.
     expect(notice.body).toBe([
       "Most likely to fit: Universal Robots UR10e.",
-      "Runner-up: FANUC CRX-10iA.",
-      "How sure we are: Fair. The weight and distances are estimated from your video.",
+      "How sure we are: Fairly sure. The weight and distances are estimated from your video.",
       "If Blueprint runs a simulation of your site, its result appears on the same page.",
-      answer().note,
-      "Open your answer:\nhttps://tryblueprint.io/capture-upload/owner-token",
-      "— The Blueprint team",
+      "See your answer:\nhttps://tryblueprint.io/capture-upload/owner-token",
+      `[fine] ${answer().note}`,
     ].join("\n\n"));
     expect(notice.body).not.toMatch(/episode|candidate|screening|checkpoint|embodiment/i);
     expect((await build(answer({ runnerUp: null }))).body).not.toMatch(/Runner-up/);
@@ -643,7 +646,7 @@ describe("the site's answer is emailed once, when it first settles", () => {
   it("tells a job of another kind why, under its own subject, and never builds the unsized case", async () => {
     const notice = await build(otherKind());
     expect(notice.subject).toBe("An update on your Blueprint job");
-    expect(notice.body.startsWith(`We can't check robots against this job yet. ${otherKind().reason}\n\nOpen your answer:\nhttps://tryblueprint.io/capture-upload/owner-token`)).toBe(true);
+    expect(notice.body.startsWith(`We can't check robots against this job yet.\n\n${otherKind().reason}\n\nSee your answer:\nhttps://tryblueprint.io/capture-upload/owner-token`)).toBe(true);
     expect(notice.body).not.toMatch(/How sure|Runner-up/);
     await expect(build(unsized())).rejects.toThrow("answer_ready_notice_invalid");
     await expect(build(answer({ state: "reading" }))).rejects.toThrow("answer_ready_notice_invalid");
@@ -700,7 +703,7 @@ describe("the site's answer is emailed once, when it first settles", () => {
     await enqueueTaskLifecycleNotification({ requestId: "req-1", milestone: "scene_ready" });
     await deliverOutbox();
     expect(send).toHaveBeenCalledTimes(1);
-    expect(send.mock.calls[0][0].subject).toBe("Your Blueprint scene is ready to view");
+    expect(send.mock.calls[0][0].subject).toBe("Your 3D view of the work area is ready");
     expect(sharedFakeFirestoreState.docs.get("captureOutbox/req-1:results_ready:run_a")).toMatchObject({ status: "cancelled" });
     expect(sharedFakeFirestoreState.docs.get("captureOutbox/req-1:run_no_result:run_b")).toMatchObject({ status: "cancelled" });
   });

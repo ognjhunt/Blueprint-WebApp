@@ -130,11 +130,11 @@ describe("preparation ended for good: one email per terminal transition (beta L3
   it("PREP-NOTICE-010 states the ending, its fixed reason and reference, and nothing a caller supplied", () => {
     const row = buildTaskLifecycleNotification({...ended, to: "owner@example.test", detail: "PRIVATE provider /path"});
     expect(row).toMatchObject({idempotencyKey: endedKey, kind: "preparation_ended", preparationEventId: endedId,
-      subject: "We stopped preparing your Blueprint scene"});
-    expect(row.body).toContain("could not finish building the scene preview for your job, and we have stopped trying");
+      subject: "We stopped building the simulation of your site"});
+    expect(row.body).toContain("We could not finish building the simulation of your site, and we have stopped trying");
     expect(row.body).toContain("more processing than the free beta provides for one job");
     expect(row.body).toContain("Reference: bp-prep-1234567890abcdef.");
-    expect(row.body).toContain("Keep your original recording");
+    expect(row.body).toContain("Keep your original video");
     expect(row.body).not.toMatch(/budget|completed|automatically retry|robot can|PRIVATE|\/path/i);
     const unknown = buildTaskLifecycleNotification({...ended, terminalReason: "provider said no", to: "owner@example.test"});
     expect(unknown.body).not.toContain("provider said no");
@@ -146,7 +146,7 @@ describe("preparation ended for good: one email per terminal transition (beta L3
     expect(seam.authority.mock.calls[0]?.slice(0, 2)).toEqual(["r1", endedId]);
     const queued = sharedFakeFirestoreState.docs.get(`captureOutbox/${endedKey}`) as Record<string, unknown>;
     expect(queued.status).toBe("pending");
-    expect(queued.body).toContain("This needs our team's review");
+    expect(queued.body).toContain("Nothing is needed from you.");
     expect(queued.body).not.toMatch(/our team has been told|team has been notified/i);
     expect(seam.send).not.toHaveBeenCalled();
     await deliverOutbox();

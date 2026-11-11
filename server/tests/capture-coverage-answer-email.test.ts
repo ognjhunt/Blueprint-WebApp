@@ -89,7 +89,7 @@ describe("the answer email after the coverage review", () => {
     const row = rows[0][1] as Record<string, string>;
     expect(row).toMatchObject({ kind: "answer_ready", to: "site@synthetic.invalid", subject: "Your Blueprint answer is ready" });
     expect(row.body).toMatch(/^(Most likely to fit: |No robot clearly fits yet\. |None of the )/);
-    expect(row.body).toMatch(/How sure we are: (Good|Fair|Low)\./);
+    expect(row.body).toMatch(/How sure we are: (Sure|Fairly sure|Not sure yet)\./);
     expect(row.body).toMatch(/\/capture-upload\//);
     expect(send).not.toHaveBeenCalled();
   });

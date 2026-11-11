@@ -128,11 +128,11 @@ describe("the owner's email about the question", () => {
     const queued = row(questionKey(current.proposal_digest));
     expect(queued).toMatchObject({ kind: "robot_access_question", requestId: "req-1", to: "owner@example.com",
       status: "pending", subject: "The simulation of your site needs one decision", replyTo: "hello@tryblueprint.io" });
-    expect(queued.body).toContain("The simulation of your site needs one decision from you.");
-    expect(queued.body).toContain("the robot arm can't stand close enough to reach the job because 1 chair is in the way.");
+    // Bare bones (2026-11-11): the subject is the question; the body is the page's sentence and the two choices.
+    expect(queued.body.startsWith("In the simulation, the robot arm can't stand close enough to reach the job because 1 chair is in the way.")).toBe(true);
     expect(queued.body).toContain('choose "Move it in the simulation" or "Keep it where it is"');
     // The link is the owner's private job page, from the same helper every owner email uses.
-    expect(queued.body).toMatch(/\n\nOpen your job:\nhttps:\/\/tryblueprint\.io\/capture-upload\/[^\s]+\n\n— The Blueprint team$/);
+    expect(queued.body).toMatch(/\n\nChoose on your job page:\nhttps:\/\/tryblueprint\.io\/capture-upload\/[^\s]+\n\n\[fine\] Results stay estimates, not a physical test\.$/);
     // No figure, cost or internal budget step reaches the site; nor the scene analysis's own labels.
     expect(`${queued.subject} ${queued.body}`).not.toMatch(/\$|\bUSD\b|cost|budget|spend|price|fee|reserv|measur/i);
     expect(queued.body).not.toContain("dining chair by the window");

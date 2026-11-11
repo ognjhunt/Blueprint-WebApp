@@ -126,7 +126,7 @@ describe("a job past its window with no outcome", () => {
     expect(await page()).toMatchObject({ decision: "ended", headline: JOB_WINDOW_ENDING_MESSAGE, operatorAction: null, stage: null });
     const body: string = outbox()[0][1].body;
     expect(body.startsWith(`${JOB_WINDOW_ENDING_MESSAGE}\n\nOpen your job on your private job page:\nhttps://`)).toBe(true);
-    expect(body.endsWith("\n\n— The Blueprint team")).toBe(true);
+    expect(body).toMatch(/\/capture-upload\/\S+$/);
     // It promises nothing a person or a timer would have to do.
     expect(body).not.toMatch(/we will|we'll|our team|review|follow up|email you/i);
 
