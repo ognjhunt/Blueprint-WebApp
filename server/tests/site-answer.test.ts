@@ -323,7 +323,7 @@ describe("composeSiteAnswer", () => {
     ] } });
     expect(answer.pick).toMatchObject({ name: "UR5e", verdict: "fits", sceneChecked: true });
     expect(answer.ruledOut).toContainEqual({ name: "UR10e", manufacturer: "Universal Robots", estimated: false,
-      reason: "Ruled out in the scene measured from your video." });
+      reason: "Ruled out in the scene rebuilt from your video." });
     expect(answer.confidence.level).toBe("fair");
   });
 

@@ -13,7 +13,7 @@ const BASIS_LABELS: Readonly<Record<AnswerBasis, string>> = {
   site_stated: "you told us",
   video_observed: "seen in your video",
   video_estimate: "estimated from your video",
-  scene_measured: "measured in the scene built from your video",
+  scene_measured: "sized in the scene rebuilt from your video",
 };
 
 const INTRODUCTION_FAILED = "We could not send your request just now. Try again shortly.";

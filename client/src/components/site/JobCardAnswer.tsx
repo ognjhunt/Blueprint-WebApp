@@ -12,7 +12,7 @@ const BASIS_LABELS: Readonly<Record<AnswerBasis, string>> = {
   site_stated: "stated by the site",
   video_observed: "seen in the site's video",
   video_estimate: "estimated from the site's video",
-  scene_measured: "measured in the scene built from the site's video",
+  scene_measured: "sized in the scene rebuilt from the site's video",
 };
 
 function dateInWords(value: string): string {

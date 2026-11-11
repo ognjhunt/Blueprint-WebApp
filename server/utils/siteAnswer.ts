@@ -5,7 +5,7 @@
  * Composed on every read from documents that already exist: the job request
  * (the video reader's estimates, the task screen), the brief, the site's own
  * readings, the mirrored robot spec catalog and the cited deployment evidence.
- * When the scene measured from the video has been checked, its verdict for a
+ * When the scene rebuilt from the video has been checked, its verdict for a
  * model replaces the one read from the video.
  *
  * Every rule here is fixed: no person and no model picks the robot. Every
@@ -54,7 +54,7 @@ const HEADLINE_CANNOT = "We can't check robots against this job yet.";
 /** The reason for a video that did not show the job clearly enough to size it; the answer email keys on it. */
 export const REASON_UNSIZED = "The video did not show the job clearly enough for us to size it.";
 const NEXT_STEP_INTRODUCTION = "Share this job with deployment companies Blueprint has approved, and one of them can pilot it at your site.";
-const SCENE_RULED_OUT = "Ruled out in the scene measured from your video.";
+const SCENE_RULED_OUT = "Ruled out in the scene rebuilt from your video.";
 /** Wrist and mounting margin an arm standing between the spots needs beyond half the span. */
 const REACH_MARGIN_M = 0.10;
 /** A length the video reader estimated as one figure is checked across this band. */
@@ -462,7 +462,7 @@ function confidenceOf(pick: Rated | null, job: Job, familyLabel: string): SiteAn
     .filter(Boolean);
   if (parts.length) reasons.push(`The ${parts.join(" and ")} ${parts.length > 1 || parts[0] === "distances" ? "are" : "is"} estimated from your video.`);
   if (pick.verdict === "possible") reasons.push("Some of its checks could not be settled on the numbers we have.");
-  if (pick.sceneChecked) reasons.push("It was checked against the scene measured from your video.");
+  if (pick.sceneChecked) reasons.push("It was checked against the scene rebuilt from your video.");
   const top = pick.evidence[0];
   const subject = top?.scope === "maker" ? `${pick.model.manufacturer} robots` : "this robot";
   if (!top) reasons.push("We found no documented use of this robot on this kind of job.");

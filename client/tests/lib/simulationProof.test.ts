@@ -189,7 +189,7 @@ describe("projectSimulationProof", () => {
     const fit = (verdict: "fits" | "fits_spec" | "doesnt_fit" | "unknown") => projectSimulationProof({ evaluation: null, pick: ur10e,
       robotFit: { models: [{ name: "UR10e", manufacturer: "Universal Robots", verdict, openChecks: [] }] } }).robotCheck;
     expect(fit("fits")).toEqual({ pickChecked: true,
-      line: "In the scene measured from your video, the Universal Robots UR10e reaches the pick-up and put-down points with a clear arm path." });
+      line: "In the scene rebuilt from your video, the Universal Robots UR10e reaches the pick-up and put-down points with a clear arm path." });
     expect(fit("doesnt_fit")!.pickChecked).toBe(true);
     expect(fit("unknown")!.pickChecked).toBe(false);
     expect(projectSimulationProof({ evaluation: null, pick: null, robotFit: { models: [] } }).robotCheck).toBeNull();

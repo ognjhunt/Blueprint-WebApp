@@ -1199,7 +1199,7 @@ describe("the site's answer leads its job page", () => {
     expect(proof.closest("details")).toBeNull();
     expect(proof.textContent).toMatch(/π0\.5, an AI control policy from Physical Intelligence, did best/);
     // The status read's measured scene reaches the proof too.
-    expect(proof.textContent).toMatch(/In the scene measured from your video, the Universal Robots UR10e reaches/);
+    expect(proof.textContent).toMatch(/In the scene rebuilt from your video, the Universal Robots UR10e reaches/);
     expect(screen.getByText("Simulation details").closest("details")).not.toHaveAttribute("open");
     expect(screen.getAllByRole("region", { name: "Proof in simulation" })).toHaveLength(1);
     const reads = fetchMock.mock.calls.filter(([input]) => String(input).startsWith("/api/job-workflow/owner/"));

@@ -63,7 +63,7 @@ export interface AnswerEvidence {
 export type AnswerVerdict = "fits" | "fits_on_paper" | "possible" | "ruled_out";
 
 export const ANSWER_VERDICT_LABELS: Readonly<Record<AnswerVerdict, string>> = {
-  fits: "Fits, checked in the scene measured from your video",
+  fits: "Fits, checked in the scene rebuilt from your video",
   fits_on_paper: "Fits on paper",
   possible: "May fit",
   ruled_out: "Ruled out",
@@ -76,7 +76,7 @@ export interface AnswerRobot {
   /** The robot's build in plain words, such as "One arm that stays in one place". */
   formLabel: string;
   verdict: AnswerVerdict;
-  /** The verdict came from the scene measured from the site's video. */
+  /** The verdict came from the scene rebuilt from the site's video. */
   sceneChecked: boolean;
   checks: AnswerCheck[];
   /** Published figures shown beside the pick, each with its source. */

@@ -21,7 +21,7 @@ Pipeline repo: `docs/audits/2026-11-11-first-principles-audit.md`.
    uses those robots for work like this, how sure Blueprint is, and what the
    video could not tell.
 3. **Proof in simulation**, when the simulation of its site has run: its pick
-   checked in the scene measured from the video, and the public control policies
+   checked in the scene rebuilt from the video, and the public control policies
    ranked on its job, with a cited statement of how far that ranking can be
    trusted.
 4. **A deployment company**: one button shares an anonymised job card, with the

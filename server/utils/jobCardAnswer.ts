@@ -52,7 +52,7 @@ export function aboutTheSite(sentence: string): string {
 }
 
 const VERDICT_LABELS: Record<AnswerRobot["verdict"], string> = {
-  fits: "Fits, checked in the scene measured from the site's video",
+  fits: "Fits, checked in the scene rebuilt from the site's video",
   fits_on_paper: "Fits on paper",
   possible: "May fit",
   ruled_out: "Ruled out",

@@ -140,16 +140,16 @@ function stateOf(evaluation: JobManagedEvidenceSummary | null): SimulationProofS
 function robotCheckOf(robotFit: SimulationProofInput["robotFit"], pick: AnswerRobot | null): SimulationProof["robotCheck"] {
   const models = Array.isArray(robotFit?.models) ? robotFit!.models.filter(isRecord) : [];
   if (!models.length) return null;
-  if (!pick) return { line: `The scene measured from your video was checked against ${models.length} robot${models.length === 1 ? "" : "s"}.`, pickChecked: null };
+  if (!pick) return { line: `The scene rebuilt from your video was checked against ${models.length} robot${models.length === 1 ? "" : "s"}.`, pickChecked: null };
   const name = pickName(pick);
   const row = models.find(entry => typeof entry.name === "string" && typeof entry.manufacturer === "string"
     && norm(entry.manufacturer) === norm(pick.manufacturer) && norm(entry.name) === norm(pick.name));
-  if (!row) return { line: `The scene measured from your video has not been checked against the ${name} yet.`, pickChecked: false };
+  if (!row) return { line: `The scene rebuilt from your video has not been checked against the ${name} yet.`, pickChecked: false };
   switch (row.verdict) {
-    case "fits": return { line: `In the scene measured from your video, the ${name} reaches the pick-up and put-down points with a clear arm path.`, pickChecked: true };
-    case "fits_spec": return { line: `In the scene measured from your video, the ${name} fits on its published figures; its arm path there has not been confirmed.`, pickChecked: true };
-    case "doesnt_fit": return { line: `In the scene measured from your video, the ${name} does not fit.`, pickChecked: true };
-    default: return { line: `In the scene measured from your video, whether the ${name} fits is not settled yet.`, pickChecked: false };
+    case "fits": return { line: `In the scene rebuilt from your video, the ${name} reaches the pick-up and put-down points with a clear arm path.`, pickChecked: true };
+    case "fits_spec": return { line: `In the scene rebuilt from your video, the ${name} fits on its published figures; its arm path there has not been confirmed.`, pickChecked: true };
+    case "doesnt_fit": return { line: `In the scene rebuilt from your video, the ${name} does not fit.`, pickChecked: true };
+    default: return { line: `In the scene rebuilt from your video, whether the ${name} fits is not settled yet.`, pickChecked: false };
   }
 }
 
