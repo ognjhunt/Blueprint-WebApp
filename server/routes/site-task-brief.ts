@@ -1409,9 +1409,11 @@ router.get("/:token/status", async (req: Request, res: Response) => {
     const outlook = payload.scope === "owner" && request ? await statusOutlook({ requestId: payload.requestId, captureId: payload.captureId,
       record: request.answerSource, consentRevoked: request.captureRights.consent_revoked, answer: ownerAnswer,
       preparation: preparationStatus, scene: sceneProgression }) : null;
-    // An ending with no email of its own (a run that ended with no publication, a simulation built but never tested,
-    // no grant) gives the site its paper-check answer when it is first seen. Idempotent by key; never fails the read.
-    if (outlook && (outlook.phase === "no_test" || outlook.phase === "cannot_match")) {
+    // An ending the WebApp records nowhere (a run that ended with no publication, a simulation built but never tested)
+    // gives the site its paper-check answer when it is first seen. Every other ending queues it where it is recorded
+    // (the coverage review, the preparation status, the window and no-grant sweeps, the outcome notices), so a page read
+    // stays read-only for them. Idempotent by key; never fails the read.
+    if (outlook && outlook.phase === "no_test" && (outlook.reason === "run_ended" || outlook.reason === "built_not_tested")) {
       void import("../utils/taskLifecycleNotifications").then(({ notifyIfAnswerSettled }) => notifyIfAnswerSettled(payload.requestId))
         .catch(() => undefined);
     }

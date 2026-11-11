@@ -568,16 +568,19 @@ export function answerIsSettled(answer: SiteAnswer | null | undefined): answer i
  */
 function answerReadyDetail(answer: SiteAnswer | undefined, outlook: JobOutlookView | null | undefined): string {
   if (!answerEmailDue(answer, outlook)) throw new Error("answer_ready_notice_invalid");
-  if (answer.state === "cannot_assess") return `${answer.headline}\n\n${answer.reason}`;
+  // No paper check exists for a job the reader could not match or size: the reader's reason is the answer. An unsized
+  // video can still be tested once the site describes the job, so that email says a later result would follow.
+  if (answer.state === "cannot_assess") return `${answer.headline}\n\n${answer.reason}${outlook!.phase === "no_test" ? ` ${PAPER_LATER}` : ""}`;
   return `${outlook!.sentence ?? "A simulation test has not run on your job."} ${paperAnswerLine(answer)}\n\n${finePrint(LIMITS_PAPER)}`;
 }
 type JobOutlookView = { phase: string; sentence: string | null };
 
 /** The answer is one this email gives: an ending with no test result (the paper check), or another kind of job. */
 export function answerEmailDue(answer: SiteAnswer | null | undefined, outlook: JobOutlookView | null | undefined): answer is SiteAnswer {
-  if (!answerIsSettled(answer) || !outlook) return false;
-  return outlook.phase === "cannot_match" ? answer.state === "cannot_assess"
-    : outlook.phase === "no_test" && (answer.state === "cannot_assess" || Boolean(answer.pick));
+  if (!answer || !outlook) return false;
+  if (outlook.phase === "cannot_match") return answerIsSettled(answer) && answer.state === "cannot_assess";
+  // Every ending with no test result gets this email, the unsized video among them (review, 2026-11-11).
+  return outlook.phase === "no_test" && (answer.state === "cannot_assess" ? Boolean(answer.reason) : answer.state === "ready" && Boolean(answer.pick));
 }
 
 /**

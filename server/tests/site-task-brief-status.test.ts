@@ -125,6 +125,26 @@ async function status(credential = token()) {
 }
 
 describe("GET /api/site-task-brief/:token/status", () => {
+  // The four-conditions screen gates nothing for a job filmed after 2026-11-11 (owner decision): its status follows the
+  // outlook like any other job's. An older job, without the marker, keeps the screen's own text.
+  it.each(["not_now", "needs_conversation"])("follows the outlook, not the screen's %s, for a job carrying the 2026-11-11 marker", async disposition => {
+    const { sceneScreenGateEndedMarker } = await import("../utils/sceneScreenGate");
+    const answers = await import("../utils/siteAnswer");
+    const spy = vi.spyOn(answers, "loadSiteAnswer").mockResolvedValue({ schemaVersion: "site_answer.v1", state: "ready", reason: null } as never);
+    const record = sharedFakeFirestoreState.docs.get("inboundRequests/req-1")!;
+    sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { ...record, site_task_triage: { disposition } });
+    const older = (await status()).body;
+    expect(older.status.decision).toBe(disposition === "not_now" ? "not_now" : "call_needed");
+    if (disposition === "not_now") expect(older.outlook).toMatchObject({ phase: "no_test", reason: "no_grant" });
+    sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { ...record, site_task_triage: { disposition },
+      scene_screen_gate_ended: sceneScreenGateEndedMarker("req-1", "2026-11-11T12:00:00.000Z") });
+    const marked = (await status()).body;
+    expect(marked.status.decision).not.toMatch(/^(not_now|call_needed)$/);
+    expect(marked.status.headline).not.toMatch(/aren't building|operating details/i);
+    expect(marked.outlook).toEqual({ phase: "building", reason: null, sentence: null });
+    spy.mockRestore();
+  });
+
   it("closes an owner's run idempotently without confirming the brief or withdrawing the video", async () => {
     const owner = savedRecording("published").token;
     const before = structuredClone(sharedFakeFirestoreState.docs.get("inboundRequests/req-1")!);

@@ -155,8 +155,56 @@ company to set it up", with the consent line under it; "See details ›" and
 "Job settings ›"; the limits line. Reading, can't match, withdrawn and
 before-the-video screens are unchanged by round 3.
 
+**The job's outlook** (`server/utils/jobOutlook.ts`, review 2026-11-11). One
+server decision over everything that can end a job; the status route returns it
+as `outlook` (`{phase, reason, sentence}`), and the page, the sharing routes and
+every answer email read it, so none of them works out "is a test still coming?"
+on its own. The page renders by phase and no longer derives it.
+
+| Phase | When | What the site sees |
+|---|---|---|
+| `reading` | the video is being read | "We are reading your video." |
+| `building` | on its way to a simulation and nothing has ended it: before the Pipeline's first status, preparing, waiting on capacity, `awaiting_inputs` (waits on Blueprint's team, not the site), `failed_retryable`, handed off and not yet testing | "Building your simulation"; for `failed_retryable`, "A step failed and we're working on it. We'll email you the result." |
+| `testing` | a run is queued with its plan, or running | "Testing now" |
+| `result` | a published result names at least one AI robot | the test result |
+| `no_test` | an ending is recorded and no result exists | the paper check, after the ending's reason (below) |
+| `cannot_match` | another kind of job, and no simulation on the way | the reader's own reason |
+| `ended_by_site` | the site withdrew permission or closed its run | never building, never an answer email, no button |
+
+The reason sentences for `no_test` and `ended_by_site`, one per ending
+(`client/src/lib/jobOutlook.ts`): window expired, "The time for this job ran out
+before a simulation test could run."; no grant, or the grant refused, "We have
+not built a simulation for this job."; preparation `failed_terminal` or ended,
+"We could not build a simulation of your site."; a scene held, "Our simulation
+test can't do this kind of job yet."; a scene stopped, "We could not finish
+building the simulation of your site."; the geometry-only robot-fit end, "For
+this job we check robot fit only; no AI robot is tested on it in a
+simulation."; an unsized video, "Your video didn't show the job clearly enough
+for us to measure it."; `handed_off` with the scene `completed` and no run, "We
+built the simulation of your site, but no AI robot was tested in it."; a run
+that ended in a terminal state with no publication, "The simulation test stopped
+before it gave a result."; a held run, the proof's own line; withdrawn,
+"Permission to use your video was withdrawn, so this job has stopped."; closed,
+"You closed this job's simulation run." A result outranks every ending but the
+site's own. The job window bounds `building` and `testing`: once it ends the job
+is `no_test`.
+
+Holds that retry by themselves are not endings: the screening outcome
+`setup_repair` (rows are re-planned after a deploy), a scene outcome that is a
+wait, and `awaiting_spend_approval`. `held_setup`, `held_budget`,
+`held_scene_check`, the other held outcomes and a terminal scene `setup_repair`
+do not restart by themselves, so they are endings. A run in a terminal state
+(`failed`, `blocked`, `cancelled`, `closed`, the terminal-blocked states) reads
+as could not run, never as preparing.
+
+A job filmed after the four-conditions screen stopped gating (owner,
+2026-11-11; the `scene_screen_gate_ended` marker) is built whatever the screen
+says: its status shows no screen sentence, and a `not_now` screen is never a
+refused grant for it. An older job without the marker keeps its text.
+
 **The answer screen, by state** (`client/src/components/site/SiteAnswer.tsx`,
-`TestHead`; the state is `testResultOf` in `client/src/lib/simulationProof.ts`):
+`TestHead`; the screen follows the outlook's phase, and the test state within it
+is `testResultOf` in `client/src/lib/simulationProof.ts`):
 
 | State | Label | Large | Under it |
 |---|---|---|---|
@@ -164,7 +212,7 @@ before-the-video screens are unchanged by round 3.
 | One option, which did the job | "TESTED ON YOUR JOB" | the option | ticks "Did your job in N of M tries", "The only AI robot we could test on your job"; one dot |
 | Some finished, no winner | "TESTED ON YOUR JOB" | "No clear winner yet" | "Top: {option}, did your job in N of M tries." |
 | None finished | "TESTED ON YOUR JOB" | "No AI robot finished your job" | "Closest: {option} {furthest phrase}." (or "N AI robots tried; none finished your job."); the set-up notice when flagged |
-| Simulation being built (preparation under way, or a run with nothing entered yet) | "GETTING READY" | "Building your simulation" | "Then we test AI robots on your job in it. We'll email you the result." |
+| Phase `building` | "GETTING READY" | "Building your simulation" | "Then we test AI robots on your job in it. We'll email you the result." |
 | Preparing or running | "TESTING NOW" | "{N} AI robots" | "on your job, in a simulation of your site. We'll email you." |
 | No test (held, closed, could not run, not started) | "ON PAPER, THE ROBOT MOST LIKELY TO FIT" ("ON PAPER, THE CLOSEST ROBOT") | the model | "by {maker}"; when known, "The simulation test did not run. {why}" ("did not finish" when stopped part way); the paper ticks and sureness |
 
@@ -177,8 +225,17 @@ before-the-video screens are unchanged by round 3.
   run. A zero is a valid result: "No AI robot finished your job".
 - The Pipeline currently reports its normal reconstruction wait as
   `failed_retryable`, which the page cannot tell apart from a real failure in the
-  data it receives, so that state still shows the processing-failure message
-  until the Pipeline's next release labels the wait correctly.
+  data it receives. The outlook keeps it `building`, with the line "A step failed
+  and we're working on it. We'll email you the result.", until the Pipeline's
+  next release labels the wait correctly.
+- **Sharing follows the outlook.** The button, its consent line and publishing
+  in Job settings appear only in `result`, `no_test`, or `cannot_match`; before
+  that, Job settings says "You can share this job once it has an answer. We'll
+  email you when it does." The introduction route refuses with
+  `introduction_waits_for_answer` and the card route with
+  `share_waits_for_answer` (409, with the phase) while reading, building or
+  testing, and after the site ended the job. A job already shared keeps its
+  "Shared" line in every phase, and its card stays editable.
 - "Processing details" (the per-job site assessment, now ended) appears only for
   an older job that already has a finished assessment, with no retry.
 - **Test sureness** comes from the same rule as the label: did best is "Sure"
@@ -396,10 +453,13 @@ introduce is the owner's decision.
 What the card carries is the screen's answer
 (`server/utils/jobCardAnswer.ts`): when the simulation test has a result or
 is running, its headline is the test's ("Did best on the job: Franka arm +
-π0.5, doing the job in 10 of 10 tries.", "Tested on the job: none finished
-yet.", "Testing now: N AI robots on the job.") and it carries the ranked
+π0.5, doing the job in 10 of 10 tries.", "No AI robot finished the job.",
+"Testing now: N AI robots on the job.") and it carries the ranked
 options as closed-map names and counts only (`test`), with the paper pick
-below; otherwise the paper headline and details as before. No consent
+below; otherwise the paper headline and details as before. A card can only be
+switched on once the job's outlook has an answer (above), so a newly shared
+card never carries a job still being read or built; one shared earlier keeps
+carrying whatever the screen says, a test in progress included. No consent
 statement changed: the existing statements share "this answer", and this is
 the answer the site's screen shows.
 
@@ -416,7 +476,13 @@ then carries the answer until the site re-saves it under the older box. At intak
 
 ## Emails
 
-A job gets one receipt and exactly one answer email, whichever way it ends.
+A job gets one receipt, at most one paper-check email and at most one result
+email (review, 2026-11-11). A result may follow a paper email; a paper email
+never follows a result. Only rows actually sent fill a slot
+(`answerSlotOf`/`answerSlotTaken` in
+`server/utils/taskLifecycleNotificationAuthority.ts`, checked at dispatch). The
+"can't simulate this kind of job yet" email and the `cannot_match` answer share
+the paper slot. A run the site closed, or a withdrawal, gives no answer email.
 
 - **Receipt** (`video_received`, at upload): "Your video arrived safely. Next, we
   build a simulation of your site and test AI robots on your job in it. We'll
@@ -428,14 +494,20 @@ A job gets one receipt and exactly one answer email, whichever way it ends.
   the job, otherwise "The simulation test of your job has finished"; the tested
   limits line as fine print.
 - **No test** (`evaluation_outcome` for a held, infeasible, no-match or
-  reference-only run): the page's line for why, then "So the paper check is your
-  answer. {headline}" (with the scene note when there is one). Subject "Your
-  job's paper check is ready"; the paper limits line as fine print.
-  `preparation_ended` carries the same paper line when the simulation could not
-  be built.
-- **A job of another kind** (`answer_ready`, `cannot_assess` only): why it cannot
-  be checked. A ready paper check is never emailed on its own; an older queued
-  one is cancelled at dispatch.
+  reference-only run; `scene_outcome` for a held or stopped scene, the window and
+  the no-grant endings; `preparation_ended`; `answer_ready` for every other
+  `no_test` ending): why no test ran, then "So for now the paper check is your
+  answer. {headline}" (with the scene note when there is one), ending "If a test
+  result comes later, we'll email it." Subject "Your job's paper check is
+  ready"; the paper limits line as fine print. Each is queued where its ending is
+  recorded; a run that ended with no publication and a simulation built but
+  never tested are recorded nowhere in the WebApp, so their email is queued when
+  the job page first reads that outlook (or at the window's end).
+- **A job of another kind** (`answer_ready`, outlook `cannot_match`): why it
+  cannot be checked. An unsized video is a `no_test` ending: the same email with
+  its reason, ending "If a test result comes later, we'll email it." A ready
+  paper check on a job still on its way to a test is never emailed; an older
+  queued one is cancelled at dispatch.
 
 ## How to check it
 

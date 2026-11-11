@@ -627,15 +627,27 @@ describe("the site's answer is emailed once, when it first settles", () => {
     reason: "This check covers jobs where a robot picks one solid object up and puts it down. Your job looks like another kind, which we can't check robots against yet." });
   const unsized = () => answer({ state: "cannot_assess", headline: "We can't check robots against this job yet.", pick: null, runnerUp: null,
     reason: "The video did not show the job clearly enough for us to size it." });
-  const build = async (siteAnswer: unknown) => (await import("../utils/taskLifecycleNotifications")).buildTaskLifecycleNotification({
-    requestId: "req-1", milestone: "answer_ready", to: "owner@example.com", siteAnswer: siteAnswer as never,
+  // The answer email is built from the job's outlook (review, 2026-11-11): another kind of job, or an ending with no test.
+  const OTHER = { phase: "cannot_match", sentence: null };
+  const UNSIZED = { phase: "no_test", sentence: "Your video didn't show the job clearly enough for us to measure it." };
+  const build = async (siteAnswer: unknown, outlook: unknown = OTHER) => (await import("../utils/taskLifecycleNotifications")).buildTaskLifecycleNotification({
+    requestId: "req-1", milestone: "answer_ready", to: "owner@example.com", siteAnswer: siteAnswer as never, outlook: outlook as never,
     captureUrl: "https://tryblueprint.io/capture-upload/owner-token" });
   beforeEach(() => { composedAnswer.current = null; });
 
   // Rewritten in round 7 (owner, 2026-11-11): the first message is the upload receipt; a ready paper check is never
   // emailed on its own. The one answer email is the test result, or the paper check when no test can run.
-  it("never builds an answer email for a ready paper check", async () => {
+  it("never builds an answer email for a ready paper check while the job is still on its way to a test", async () => {
+    for (const phase of ["reading", "building", "testing", "result", "ended_by_site"])
+      await expect(build(answer(), { phase, sentence: null }), phase).rejects.toThrow("answer_ready_notice_invalid");
     await expect(build(answer())).rejects.toThrow("answer_ready_notice_invalid");
+  });
+
+  it("gives the paper check after an ending with no email of its own: why no test ran, the paper check, and a later result", async () => {
+    const notice = await build(answer(), { phase: "no_test", sentence: "We have not built a simulation for this job." });
+    expect(notice.subject).toBe("Your job's paper check is ready");
+    expect(notice.body.startsWith("We have not built a simulation for this job. So for now the paper check is your answer. "
+      + "Most likely to fit: Universal Robots UR10e. If a test result comes later, we'll email it.\n\n")).toBe(true);
   });
 
   it("gives the paper check as the one answer when the test cannot run, with the page's reason and the scene note", async () => {
@@ -648,18 +660,23 @@ describe("the site's answer is emailed once, when it first settles", () => {
       simulationProof: projectSimulationProof({ evaluation: [{ ...winnerEvaluation, outcome: "held_capability" }] as never, pick: null }),
       captureUrl: "https://tryblueprint.io/capture-upload/owner-token" });
     expect(notice.subject).toBe("Your job's paper check is ready");
+    // Rewritten (review, 2026-11-11): the paper check is the answer "for now", and the email says a later result would come.
     expect(notice.body.startsWith("The simulation test did not run. Our simulation test can't do this kind of job yet. "
-      + `So the paper check is your answer. Most likely to fit: Universal Robots UR10e. ${note}\n\n`)).toBe(true);
+      + `So for now the paper check is your answer. Most likely to fit: Universal Robots UR10e. ${note} If a test result comes later, we'll email it.\n\n`)).toBe(true);
     expect(notice.body.endsWith("[fine] A paper check, not a test at your site. Pick-up-and-put-down jobs only. It does not certify performance or safety.")).toBe(true);
     expect(notice.body.match(/:\nhttps?:\/\//g)).toHaveLength(1);
   });
 
-  it("tells a job of another kind why, under its own subject, and never builds the unsized case", async () => {
+  // Rewritten (review, 2026-11-11): an unsized video is an ending with no test, so it now gets the answer email, with
+  // its reason and the line that a later result would follow; before, it got none.
+  it("tells a job of another kind why, under its own subject, and an unsized video's ending why too", async () => {
     const notice = await build(otherKind());
     expect(notice.subject).toBe("An update on your Blueprint job");
     expect(notice.body.startsWith(`We can't check robots against this job yet.\n\n${otherKind().reason}\n\nOpen your job:\nhttps://tryblueprint.io/capture-upload/owner-token`)).toBe(true);
     expect(notice.body).not.toMatch(/How sure|Runner-up/);
-    await expect(build(unsized())).rejects.toThrow("answer_ready_notice_invalid");
+    const sized = await build(unsized(), UNSIZED);
+    expect(sized.body.startsWith(`We can't check robots against this job yet.\n\n${unsized().reason} If a test result comes later, we'll email it.\n\n`)).toBe(true);
+    await expect(build(unsized(), { phase: "building", sentence: null })).rejects.toThrow("answer_ready_notice_invalid");
     await expect(build(answer({ state: "reading" }))).rejects.toThrow("answer_ready_notice_invalid");
     await expect(build(undefined)).rejects.toThrow("answer_ready_notice_invalid");
   });
@@ -668,9 +685,7 @@ describe("the site's answer is emailed once, when it first settles", () => {
     const { notifyIfAnswerSettled } = await import("../utils/taskLifecycleNotifications");
     const { taskLifecycleNotificationIsCurrent } = await import("../utils/taskLifecycleNotificationAuthority");
     expect((await notifyIfAnswerSettled("req-1")).enqueued).toBe(false);
-    composedAnswer.current = unsized();
-    expect((await notifyIfAnswerSettled("req-1")).enqueued).toBe(false);
-    // A ready paper check: the receipt went at upload; the answer comes with the test.
+    // A ready paper check on a job still being built: the receipt went at upload; the answer comes with the test.
     composedAnswer.current = answer();
     expect((await notifyIfAnswerSettled("req-1")).enqueued).toBe(false);
     composedAnswer.current = otherKind();
@@ -684,12 +699,22 @@ describe("the site's answer is emailed once, when it first settles", () => {
     expect(await taskLifecycleNotificationIsCurrent(notice)).toBe(false);
   });
 
+  it("queues the unsized video's answer once, when its ending is the outlook", async () => {
+    const { notifyIfAnswerSettled } = await import("../utils/taskLifecycleNotifications");
+    composedAnswer.current = unsized();
+    expect((await notifyIfAnswerSettled("req-1")).enqueued).toBe(true);
+    expect((await notifyIfAnswerSettled("req-1")).enqueued).toBe(false);
+    expect([...sharedFakeFirestoreState.docs.keys()].filter(key => key.startsWith("captureOutbox/"))).toEqual(["captureOutbox/req-1:answer_ready"]);
+  });
+
   it("is never queued or sent once recording consent is withdrawn", async () => {
     const { notifyIfAnswerSettled } = await import("../utils/taskLifecycleNotifications");
     const { deliverOutbox } = await import("../utils/captureOutbox");
     composedAnswer.current = otherKind();
     sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { contact: { email: "encrypted:owner@example.com" }, consent_revoked: true });
-    expect(await notifyIfAnswerSettled("req-1")).toEqual({ enqueued: false, reason: "consent_withdrawn" });
+    // The outlook is the site's own ending, so no answer email is due (rewritten from the queue's own refusal reason,
+    // which the outlook check now comes before).
+    expect(await notifyIfAnswerSettled("req-1")).toEqual({ enqueued: false });
     // A queued one is cancelled at dispatch.
     sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { contact: { email: "encrypted:owner@example.com" } });
     expect((await notifyIfAnswerSettled("req-1")).enqueued).toBe(true);
@@ -752,7 +777,8 @@ describe("the site's answer is emailed once, when it first settles", () => {
 describe("one answer email for every way a job ends", () => {
   const paperAnswer = { schemaVersion: "site_answer.v1", state: "ready", headline: "Most likely to fit: Universal Robots UR10e.",
     pick: { modelId: "ur10e", name: "UR10e", manufacturer: "Universal Robots" }, sceneNote: null } as never;
-  const PAPER = "So the paper check is your answer. Most likely to fit: Universal Robots UR10e.";
+  // The paper check is the answer for now, and a later result would be emailed (review, 2026-11-11).
+  const PAPER = "So for now the paper check is your answer. Most likely to fit: Universal Robots UR10e. If a test result comes later, we'll email it.";
   const build = async (params: Record<string, unknown>) => (await import("../utils/taskLifecycleNotifications")).buildTaskLifecycleNotification({
     requestId: "req-1", to: "owner@example.com", captureUrl: "https://tryblueprint.io/capture-upload/owner-token", ...params } as never);
   const digest = `sha256:${"d".repeat(64)}`;
@@ -782,39 +808,93 @@ describe("one answer email for every way a job ends", () => {
     expect(withdrawn.body).not.toContain("paper check is your answer");
   });
 
-  it("walks every terminal path and sends exactly one answer email, or none when the site ended the job itself", async () => {
-    const { answerEmailAlreadyOut, isAnswerEmail } = await import("../utils/taskLifecycleNotificationAuthority");
+  // Rewritten (review, 2026-11-11) from "the first answer email wins": a job gets at most one paper-check email and one
+  // result email; a result may follow a paper email, never the other way round; only rows actually sent count; a run
+  // the owner closed and a withdrawal give none.
+  it("walks every terminal path: at most one paper email and one result email, none when the site ended the job itself", async () => {
+    const { answerSlotOf, answerSlotTaken } = await import("../utils/taskLifecycleNotificationAuthority");
     const key = (kind: string, event: string) => `req-1:${kind}:${event}`;
+    type Candidate = { kind: any; idempotencyKey: string; fails?: true };
     // Every email each ending can queue, in the order they can arrive (from the code: the evaluation outcome at run
-    // end, a stopped preparation, the scene intent's ending, the window sweep's endings, the other-kind answer).
-    const PATHS: Record<string, Array<{ kind: any; idempotencyKey: string }>> = {
-      "test result": [{ kind: "evaluation_outcome", idempotencyKey: key("evaluation_outcome", "estimate-a") },
-        { kind: "scene_outcome", idempotencyKey: key("scene_outcome", "job_window_ended") }],
-      "test held, closed or could not run": [{ kind: "evaluation_outcome", idempotencyKey: key("evaluation_outcome", "held_capability-a") },
-        { kind: "scene_outcome", idempotencyKey: key("scene_outcome", "held-b") }],
-      "simulation build failed": [{ kind: "preparation_ended", idempotencyKey: key("preparation_ended", "sha256:x") },
+    // end, a stopped preparation, the scene intent's ending, the window sweep's endings, the answer email).
+    const PATHS: Record<string, { closed?: true; rows: Candidate[]; paper: number; result: number }> = {
+      "test result": { paper: 0, result: 1, rows: [{ kind: "evaluation_outcome", idempotencyKey: key("evaluation_outcome", "estimate-a") },
+        { kind: "scene_outcome", idempotencyKey: key("scene_outcome", "job_window_ended") },
+        { kind: "answer_ready", idempotencyKey: "req-1:answer_ready" }] },
+      "test held, closed or could not run": { paper: 1, result: 0, rows: [{ kind: "evaluation_outcome", idempotencyKey: key("evaluation_outcome", "held_capability-a") },
+        { kind: "scene_outcome", idempotencyKey: key("scene_outcome", "held-b") }] },
+      "simulation build failed": { paper: 1, result: 0, rows: [{ kind: "preparation_ended", idempotencyKey: key("preparation_ended", "sha256:x") },
         { kind: "scene_outcome", idempotencyKey: key("scene_outcome", "setup_repair-c") },
-        { kind: "scene_outcome", idempotencyKey: key("scene_outcome", "job_window_ended") }],
-      "simulation never built": [{ kind: "scene_outcome", idempotencyKey: key("scene_outcome", "job_no_grant_ended") }],
-      "scene outcome held": [{ kind: "scene_outcome", idempotencyKey: key("scene_outcome", "held-d") },
-        { kind: "evaluation_outcome", idempotencyKey: key("evaluation_outcome", "estimate-e") }],
-      "job window expired": [{ kind: "scene_outcome", idempotencyKey: key("scene_outcome", "job_window_ended") }],
-      "job of another kind": [{ kind: "answer_ready", idempotencyKey: key("answer_ready", "") },
-        { kind: "scene_outcome", idempotencyKey: key("scene_outcome", "job_window_ended") }],
-      // The site's own endings: its run closed (no outcome email; the sweep skips it), or permission withdrawn.
-      "run closed by the owner": [],
-      "recording permission withdrawn": [{ kind: "scene_outcome", idempotencyKey: key("scene_outcome", "withdrawn-f") }],
+        { kind: "scene_outcome", idempotencyKey: key("scene_outcome", "job_window_ended") }] },
+      "simulation never built": { paper: 1, result: 0, rows: [{ kind: "scene_outcome", idempotencyKey: key("scene_outcome", "job_no_grant_ended") }] },
+      "built, never tested, then the window ran out": { paper: 1, result: 0, rows: [{ kind: "answer_ready", idempotencyKey: "req-1:answer_ready" },
+        { kind: "scene_outcome", idempotencyKey: key("scene_outcome", "job_window_ended") }] },
+      "scene outcome held, then a result": { paper: 1, result: 1, rows: [{ kind: "scene_outcome", idempotencyKey: key("scene_outcome", "held-d") },
+        { kind: "evaluation_outcome", idempotencyKey: key("evaluation_outcome", "estimate-e") }] },
+      "two results": { paper: 0, result: 1, rows: [{ kind: "evaluation_outcome", idempotencyKey: key("evaluation_outcome", "estimate-f") },
+        { kind: "evaluation_outcome", idempotencyKey: key("evaluation_outcome", "estimate-g") }] },
+      "job window expired": { paper: 1, result: 0, rows: [{ kind: "scene_outcome", idempotencyKey: key("scene_outcome", "job_window_ended") }] },
+      "job of another kind": { paper: 1, result: 0, rows: [{ kind: "answer_ready", idempotencyKey: "req-1:answer_ready" },
+        { kind: "scene_outcome", idempotencyKey: key("scene_outcome", "job_window_ended") }] },
+      "can't simulate this kind of job yet, then another kind": { paper: 1, result: 0, rows: [
+        { kind: "screening_not_now", idempotencyKey: "req-1:brief-screening:task-not-yet-supported" },
+        { kind: "answer_ready", idempotencyKey: "req-1:answer_ready" }] },
+      "a paper email that failed to send, then the window": { paper: 1, result: 0, rows: [
+        { kind: "answer_ready", idempotencyKey: "req-1:answer_ready", fails: true },
+        { kind: "scene_outcome", idempotencyKey: key("scene_outcome", "job_window_ended") }] },
+      // The site's own endings: its run closed, or permission withdrawn.
+      "run closed by the owner": { closed: true, paper: 0, result: 0, rows: [{ kind: "scene_outcome", idempotencyKey: key("scene_outcome", "job_window_ended") },
+        { kind: "answer_ready", idempotencyKey: "req-1:answer_ready" }] },
+      "recording permission withdrawn": { paper: 0, result: 0, rows: [{ kind: "scene_outcome", idempotencyKey: key("scene_outcome", "withdrawn-f") }] },
     };
-    const EXPECTED: Record<string, number> = { "run closed by the owner": 0, "recording permission withdrawn": 0 };
-    for (const [path, candidates] of Object.entries(PATHS)) {
+    for (const [path, { closed, rows: candidates, paper, result }] of Object.entries(PATHS)) {
       const rows: Array<{ kind: any; idempotencyKey: string; status: string }> = [];
       for (const candidate of candidates) {
-        const sends = !isAnswerEmail(candidate.kind, candidate.idempotencyKey) || !answerEmailAlreadyOut(rows, candidate.idempotencyKey);
-        rows.push({ ...candidate, status: sends ? "sent" : "cancelled" });
+        const slot = answerSlotOf(candidate.kind, candidate.idempotencyKey);
+        const sends = !slot || !(closed || answerSlotTaken(rows, candidate.kind, candidate.idempotencyKey));
+        rows.push({ kind: candidate.kind, idempotencyKey: candidate.idempotencyKey, status: !sends ? "cancelled" : candidate.fails ? "failed" : "sent" });
       }
-      const answers = rows.filter(row => row.status === "sent" && isAnswerEmail(row.kind, row.idempotencyKey));
-      expect(answers.length, path).toBe(EXPECTED[path] ?? 1);
+      const sent = (slot: string) => rows.filter(row => row.status === "sent" && answerSlotOf(row.kind, row.idempotencyKey) === slot).length;
+      expect({ paper: sent("paper"), result: sent("result") }, path).toEqual({ paper, result });
     }
+  });
+
+  it("lets a result follow a paper email, counts only rows actually sent, and sends no answer after the owner closed the run", async () => {
+    const { taskLifecycleNotificationIsCurrent, answerSlotTaken } = await import("../utils/taskLifecycleNotificationAuthority");
+    const { crossRuntimeDigest } = await import("../utils/crossRuntimeCanonical");
+    // Another kind of job: its answer email is due, so only the slot rules can stop it.
+    composedAnswer.current = { schemaVersion: "site_answer.v1", state: "cannot_assess", headline: "We can't check robots against this job yet.",
+      pick: null, reason: "Your job looks like another kind, which we can't check robots against yet." } as never;
+    const paper = { kind: "answer_ready" as const, requestId: "req-1", idempotencyKey: "req-1:answer_ready" };
+    const result = { kind: "evaluation_outcome" as const, requestId: "req-1", idempotencyKey: "req-1:evaluation_outcome:estimate-a" };
+    sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { contact: { email: "encrypted:owner@example.com" } });
+    expect(await taskLifecycleNotificationIsCurrent(paper)).toBe(true);
+    // An earlier paper email that failed, was cancelled or is still pending fills no slot.
+    for (const status of ["failed", "cancelled", "pending"]) {
+      sharedFakeFirestoreState.docs.set("captureOutbox/req-1:scene_outcome:job_window_ended", { requestId: "req-1", kind: "scene_outcome",
+        idempotencyKey: "req-1:scene_outcome:job_window_ended", status });
+      expect(await taskLifecycleNotificationIsCurrent(paper), status).toBe(true);
+    }
+    // One that went out fills the paper slot; a result may still follow it.
+    sharedFakeFirestoreState.docs.set("captureOutbox/req-1:scene_outcome:job_window_ended", { requestId: "req-1", kind: "scene_outcome",
+      idempotencyKey: "req-1:scene_outcome:job_window_ended", status: "sent" });
+    expect(await taskLifecycleNotificationIsCurrent(paper)).toBe(false);
+    const sentPaper = [{ kind: "scene_outcome" as const, idempotencyKey: "req-1:scene_outcome:job_window_ended", status: "sent" }];
+    expect(answerSlotTaken(sentPaper, result.kind, result.idempotencyKey)).toBe(false);
+    // A result that went out: no paper email after it, and no second result.
+    sharedFakeFirestoreState.docs.delete("captureOutbox/req-1:scene_outcome:job_window_ended");
+    sharedFakeFirestoreState.docs.set("captureOutbox/req-1:evaluation_outcome:estimate-a", { ...result, status: "sent" });
+    expect(await taskLifecycleNotificationIsCurrent(paper)).toBe(false);
+    expect(await taskLifecycleNotificationIsCurrent({ ...result, idempotencyKey: "req-1:evaluation_outcome:estimate-b" })).toBe(false);
+    // The owner closed the run: no answer email at all.
+    sharedFakeFirestoreState.docs.delete("captureOutbox/req-1:evaluation_outcome:estimate-a");
+    const value = { schema_version: "website_run_closure.v1", request_id: "req-1", capture_id: "walkthrough-req-1",
+      decision: "conservative_abstention", actor: "signed_owner_link", source_identity_digest: `sha256:${"a".repeat(64)}`,
+      closed_at_iso: "2026-11-11T00:00:00.000Z", new_execution_authorized: false, explicit_resume_required: true, physical_validation: false };
+    sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { contact: { email: "encrypted:owner@example.com" },
+      website_run_closures: { "walkthrough-req-1": { ...value, closure_digest: crossRuntimeDigest(value) } } });
+    expect(await taskLifecycleNotificationIsCurrent(paper)).toBe(false);
+    expect(await taskLifecycleNotificationIsCurrent(result)).toBe(false);
   });
 
   it("cancels a second answer email at dispatch once one has gone out", async () => {

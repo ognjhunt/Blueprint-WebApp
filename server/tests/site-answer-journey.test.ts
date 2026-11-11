@@ -329,20 +329,20 @@ describe("a site's answer, from an email and a video to a deployment company", (
     expect(doc(`inboundRequests/${jobId}`).introduction_request).toBeUndefined();
     expect(await listTaskBrowseCards()).toEqual([]);
     expect(introductionAlerts()).toHaveLength(0);
-    // The job's no-grant wait ends, as the sweep records it: no test will run, so the paper check is the answer, and
-    // the site gets that one email, saying why no test ran and that a later result would be emailed too.
-    const { sealWebsiteJobNoGrantEnding, WEBSITE_JOB_NO_GRANT_ENDING_FIELD } = await import("../utils/websiteJobWindowEnding");
-    state.docs.set(`inboundRequests/${jobId}`, { ...doc(`inboundRequests/${jobId}`), [WEBSITE_JOB_NO_GRANT_ENDING_FIELD]:
-      sealWebsiteJobNoGrantEnding({ request_id: jobId, waiting_on: "blueprint", waiting_since_epoch: Math.floor(NOW.getTime() / 1000) - 86_400,
-        ended_at_epoch: Math.floor(NOW.getTime() / 1000), recorded_at_iso: NOW.toISOString(), notice: "none_age_unknown" }) });
+    // The job's no-grant wait ends: the sweep sees the wait, and a window later records the ending and queues its one
+    // email, which says why no test ran and gives the paper check as the answer for now.
+    const { sweepWebsiteJobNoGrant } = await import("../utils/websiteJobWindowSweep");
+    const seen = await sweepWebsiteJobNoGrant(jobId, NOW.getTime());
+    const later = await sweepWebsiteJobNoGrant(jobId, NOW.getTime() + 60 * 86_400_000);
+    expect([seen, later]).toEqual(["clock_started", "ended_notice_queued"]);
     expect((await status(token)).outlook).toEqual({ phase: "no_test", reason: "no_grant", sentence: "We have not built a simulation for this job." });
-    await vi.waitFor(() => expect(answerNotices(jobId)).toHaveLength(1));
-    expect(answerNotices(jobId)[0].body).toContain("We have not built a simulation for this job.");
-    expect(answerNotices(jobId)[0].body).toContain("If a test result comes later, we'll email it.");
+    const paperEmails = () => notices(jobId).filter(row => row.kind !== "task_received" && row.kind !== "video_received");
+    expect(paperEmails().map(row => row.idempotencyKey)).toEqual([`${jobId}:scene_outcome:job_no_grant_ended`]);
+    expect(paperEmails()[0].body).toContain("So for now the paper check is your answer. Most likely to fit: ");
+    expect(paperEmails()[0].body).toContain("If a test result comes later, we'll email it.");
+    // Reading the page again queues no second answer email.
     await status(token);
-    expect(answerNotices(jobId)).toHaveLength(1);
-    vi.setSystemTime(NOW);
-
+    expect(paperEmails()).toHaveLength(1);
     // "Find a deployment company for this job": recorded once, card listed under its consent version, one alert.
     const asked = await post(`/api/site-task-brief/${token}/introduction-request`, { statementVersion: JOB_CARD_ANSWER_STATEMENT_VERSION });
     expect(asked.status, await asked.clone().text()).toBe(200);
@@ -372,7 +372,8 @@ describe("a site's answer, from an email and a video to a deployment company", (
     // The withdrawal hides the card through the job's own state; the stored grant itself is left as it was.
     expect(doc(`inboundRequests/${jobId}`).public_task_listing.enabled).toBe(true);
     // Only the one paper-check email from the ending; the withdrawal adds no answer email.
-    expect(answerNotices(jobId)).toHaveLength(1);
+    expect(answerNotices(jobId)).toHaveLength(0);
+    expect(notices(jobId).filter(row => !["task_received", "video_received"].includes(row.kind)).map(row => row.kind)).toEqual(["scene_outcome", "listing_live"]);
   }, 60_000);
 
   it("reads a video-only job's video once, even though the reading drafts the job's name; a site's own edit reads it again", async () => {
@@ -418,6 +419,7 @@ describe("a site's answer, from an email and a video to a deployment company", (
     await vi.waitFor(() => expect(answerNotices(jobId)).toHaveLength(1));
     expect(answerNotices(jobId)[0].body).toContain(answer.reason);
     expect(answerNotices(jobId)[0].body).not.toMatch(/Most likely to fit/);
+    expect(answerNotices(jobId)[0].body).toContain("If a test result comes later, we'll email it.");
     await status(token);
     expect(answerNotices(jobId)).toHaveLength(1);
     // The page's one-line question is driven by the brief read, not the answer.

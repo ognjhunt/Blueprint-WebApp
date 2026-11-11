@@ -219,6 +219,36 @@ describe("the site's answer, bare bones", () => {
     expect(screen.getByRole("button", { name: FIND })).toBeVisible();
   });
 
+  it("keeps the Shared line, and offers no button, while the job is building or testing", () => {
+    const shared = { ...readyAnswer, introductionRequestedAtIso: "2026-11-10T09:00:00.000Z", jobCardListed: true };
+    for (const phase of ["building", "testing"] as const) {
+      const { unmount } = render(<SiteAnswer token="owner-token" answer={shared} proof={projectSimulationProof({ evaluation: [], pick: readyAnswer.pick })}
+        outlook={{ phase, reason: null, sentence: null }} />);
+      expect(screen.getByText("✓ Shared. We'll email you when a company replies."), phase).toBeVisible();
+      expect(screen.queryByRole("button", { name: FIND }), phase).toBeNull();
+      unmount();
+    }
+  });
+
+  it("says a failed step while building, and the ending's reason with the paper check after an ending", () => {
+    const { unmount } = render(<SiteAnswer token="owner-token" answer={readyAnswer} proof={null}
+      outlook={{ phase: "building", reason: "step_failed", sentence: "A step failed and we're working on it. We'll email you the result." }} />);
+    expect(screen.getByText("A step failed and we're working on it. We'll email you the result.")).toBeVisible();
+    expect(screen.queryByRole("button", { name: FIND })).toBeNull();
+    unmount();
+    const { unmount: second } = render(<SiteAnswer token="owner-token" answer={readyAnswer} proof={null}
+      outlook={{ phase: "no_test", reason: "no_grant", sentence: "We have not built a simulation for this job." }} />);
+    expect(screen.getByRole("heading", { level: 2, name: "On paper, the robot most likely to fit" })).toBeVisible();
+    expect(screen.getByText("We have not built a simulation for this job.")).toBeVisible();
+    expect(screen.getByRole("button", { name: FIND })).toBeVisible();
+    second();
+    // A run the site closed itself: the paper check with the reason, and no button.
+    render(<SiteAnswer token="owner-token" answer={readyAnswer} proof={null}
+      outlook={{ phase: "ended_by_site", reason: "closed_by_owner", sentence: "You closed this job's simulation run." }} />);
+    expect(screen.getByText("You closed this job's simulation run.")).toBeVisible();
+    expect(screen.queryByRole("button", { name: FIND })).toBeNull();
+  });
+
   it("falls back to the paper check with why the test did not run, when that is known", () => {
     render(<SiteAnswer token="owner-token" answer={readyAnswer} proof={projectSimulationProof({ evaluation: [{ ...winnerEvaluation, outcome: "held_budget" as const }], pick: readyAnswer.pick })} />);
     expect(screen.getByRole("heading", { level: 2, name: "On paper, the robot most likely to fit" })).toBeVisible();

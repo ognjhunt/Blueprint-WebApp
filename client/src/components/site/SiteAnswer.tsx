@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { withCsrfHeader } from "@/lib/csrf";
 import { JOB_CARD_ANSWER_STATEMENT, JOB_CARD_ANSWER_STATEMENT_VERSION } from "@/lib/jobCardAnswerConsent";
-import type { JobOutlook, JobPhase } from "@/lib/jobOutlook";
+import { outlookHasAnswer, type JobOutlook, type JobPhase } from "@/lib/jobOutlook";
 import { GAP_COULD_BE_CHANCE, GAP_UNLIKELY_CHANCE, optionParts, testSubLine, type SimulationOption, type SimulationProof as SimulationProofView } from "@/lib/simulationProof";
 import { PLAIN_SETUP_CAVEAT, SimulationTestRows, TrustRows, setupCaveatShown, testNotRunLine, testResultOf, type TestResult } from "./SimulationProof";
 import {
@@ -286,7 +286,8 @@ export function SiteAnswer({ token, answer, proof, onIntroductionRequested, onEd
   // the page, the job card and the emails say the same. The page never overrides them.
   const fits = Boolean(pick) && (pick!.verdict === "fits" || pick!.verdict === "fits_on_paper");
   // Sharing follows the outlook: offered only once there is an answer (a result, or the paper check after an ending).
-  const action = answer.nextStep.kind === "introduction"
+  // A run the site closed itself is not an answer: it shows the paper check and the Shared line, never the button.
+  const action = answer.nextStep.kind === "introduction" && (!outlook || outlookHasAnswer(outlook))
     ? <Introduction token={token} answer={answer} onRequested={onIntroductionRequested} quiet={quietAction} card={card} testResult={phase === "result"} /> : null;
   // A job already shared stays shared, and says so, in every phase.
   const shared = answer.introductionRequestedAtIso && (card === "with_answer" || card === "with_paper_answer" || (card === null && answer.jobCardListed))
@@ -324,7 +325,7 @@ export function SiteAnswer({ token, answer, proof, onIntroductionRequested, onEd
   </section>;
 
   // The paper check leads: the server's reason sentence for the ending, else the proof's own line.
-  const notRun = (phase === "no_test" ? outlook?.sentence : null) ?? testNotRunLine(proof);
+  const notRun = (phase === "no_test" || phase === "ended_by_site" ? outlook?.sentence : null) ?? testNotRunLine(proof);
   if (!pick) return <section className="site-answer-bare" aria-label="Your answer">
     <BareGroup>
       <h2 className="bare-label" id="site-answer-title">On paper</h2>
@@ -354,7 +355,7 @@ export function SiteAnswer({ token, answer, proof, onIntroductionRequested, onEd
       <BareSureness filled={sure.filled} word={sure.word} reason={answer.confidence.reasons[0] ?? sureReason(pick)} />
       {setupCaveatShown(proof) && <BareNotice>{PLAIN_SETUP_CAVEAT}</BareNotice>}
     </BareGroup>
-    {action}
+    {action ?? shared}
     <BareLinks links={links} />
     <BareFine>{LIMITS_PAPER}</BareFine>
   </section>;
