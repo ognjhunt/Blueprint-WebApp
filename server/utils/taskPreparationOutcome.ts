@@ -217,8 +217,16 @@ export const JOB_NO_GRANT_SITE_ENDING_MESSAGE = "This job has ended because we d
   + "while it was open. To have Blueprint work on this site, you can start a new job.";
 export const JOB_NO_GRANT_BLUEPRINT_ENDING_MESSAGE = "This job is held because Blueprint did not start simulating it while it "
   + `was open, so there is no estimate. ${PREPARATION_ENDED_NEXT}`;
-export const jobNoGrantEndingMessage = (waitingOn: "site" | "blueprint") =>
-  waitingOn === "site" ? JOB_NO_GRANT_SITE_ENDING_MESSAGE : JOB_NO_GRANT_BLUEPRINT_ENDING_MESSAGE;
+/**
+ * A no-grant job whose video was too large to process (`websiteLargeVideoBlock.ts`): ended at once,
+ * with the one step that helps. The size limit is not named, because it is set where the video is
+ * processed and not known here.
+ */
+export const JOB_NO_GRANT_LARGE_VIDEO_ENDING_MESSAGE = "This job has ended because your video is too large for us "
+  + "to process. To have Blueprint work on this site, start a new job and film a shorter clip, or record at 1080p.";
+export const jobNoGrantEndingMessage = (waitingOn: "site" | "blueprint", reason?: "video_over_ingest_limit") =>
+  reason === "video_over_ingest_limit" ? JOB_NO_GRANT_LARGE_VIDEO_ENDING_MESSAGE
+    : waitingOn === "site" ? JOB_NO_GRANT_SITE_ENDING_MESSAGE : JOB_NO_GRANT_BLUEPRINT_ENDING_MESSAGE;
 
 /**
  * A video that arrived before its job was saved to an account. Nothing sends a later email about it,

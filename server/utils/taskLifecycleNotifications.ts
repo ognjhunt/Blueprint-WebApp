@@ -303,6 +303,8 @@ export function buildTaskLifecycleNotification(params: {
    * it was. Its event id is the job's fixed no-grant one.
    */
   jobNoGrantEnded?: "site" | "blueprint";
+  /** With `jobNoGrantEnded`: why the sweep ended it early, said in the ending's own sentence. */
+  jobNoGrantReason?: "video_over_ingest_limit";
 }): Parameters<typeof enqueueOutbox>[0] {
   const requestId = params.requestId.trim();
   if (isWebsitePreparationNotice(params.milestone) && !/^sha256:[a-f0-9]{64}$/.test(params.eventId || "")) {
@@ -416,12 +418,15 @@ function jobWindowEndedDetail(params: { eventId?: string; sceneOutcomeKind?: Ter
 
 /** The job page's own sentence for a job that never received a grant, ended by the same sweep. Fixed text. */
 function jobNoGrantEndedDetail(params: { eventId?: string; sceneOutcomeKind?: TerminalSceneOutcomeKind;
-  jobWindowEnded?: true; jobNoGrantEnded?: "site" | "blueprint" }): string {
+  jobWindowEnded?: true; jobNoGrantEnded?: "site" | "blueprint"; jobNoGrantReason?: "video_over_ingest_limit" }): string {
   if (!isWebsiteJobNoGrantEndedEventId(params.eventId) || params.sceneOutcomeKind !== undefined || params.jobWindowEnded
     || (params.jobNoGrantEnded !== "site" && params.jobNoGrantEnded !== "blueprint")) {
     throw new Error("job_no_grant_ended_notice_invalid");
   }
-  return jobNoGrantEndingMessage(params.jobNoGrantEnded);
+  if (params.jobNoGrantReason !== undefined && params.jobNoGrantReason !== "video_over_ingest_limit") {
+    throw new Error("job_no_grant_ended_notice_invalid");
+  }
+  return jobNoGrantEndingMessage(params.jobNoGrantEnded, params.jobNoGrantReason);
 }
 
 /** How many of each kind of movable furniture a robot access proposal moves. */

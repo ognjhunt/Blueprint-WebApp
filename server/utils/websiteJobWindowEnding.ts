@@ -146,10 +146,20 @@ export const WEBSITE_JOB_NO_GRANT_ENDING_NOTICES = [
 ] as const;
 export type WebsiteJobNoGrantEndingNotice = typeof WEBSITE_JOB_NO_GRANT_ENDING_NOTICES[number];
 
+/**
+ * Why a no-grant job ended before its clock ran out. Absent on every ending recorded by the clock.
+ * - `video_over_ingest_limit`: the job's video was too large for frame extraction
+ *   (`websiteLargeVideoBlock.ts`), so nothing could start; the site's step is a smaller video.
+ */
+export const WEBSITE_JOB_NO_GRANT_ENDING_REASONS = ["video_over_ingest_limit"] as const;
+export type WebsiteJobNoGrantEndingReason = typeof WEBSITE_JOB_NO_GRANT_ENDING_REASONS[number];
+
 const noGrantEndingSchema = z.object({
   schema_version: z.literal("website_job_no_grant_ending.v1"),
   request_id: id,
   waiting_on: z.enum(WEBSITE_JOB_NO_GRANT_WAITS),
+  /** Optional and additive: an ending without it reads as before. */
+  reason: z.enum(WEBSITE_JOB_NO_GRANT_ENDING_REASONS).optional(),
   waiting_since_epoch: z.number().int().positive(),
   ended_at_epoch: z.number().finite().positive(),
   recorded_at_iso: z.string().datetime(),

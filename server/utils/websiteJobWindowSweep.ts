@@ -65,6 +65,7 @@ import { isWebsiteJobNoGrantEndedNoticeKey, newWebsiteJobNoGrantClock, recordedW
   WEBSITE_JOB_NO_GRANT_ENDED_EVENT_ID, WEBSITE_JOB_NO_GRANT_ENDING_FIELD, WEBSITE_JOB_NO_GRANT_PAGE_DUE_FIELD,
   type WebsiteJobNoGrantClock, type WebsiteJobNoGrantEndingNotice, type WebsiteJobNoGrantWait } from "./websiteJobWindowEnding";
 import { projectWebsiteCaptureRights } from "./websiteTaskContext";
+import { largeVideoIngestBlock } from "./websiteLargeVideoBlock";
 
 const JOBS = "inboundRequests";
 const SESSIONS = "captureUploadSessions";
@@ -355,9 +356,14 @@ export async function sweepWebsiteJobNoGrant(requestId: string, nowMs = Date.now
   const outcome = await storedOutcome(requestId, observed!);
   if (outcome) return outcome as JobNoGrantSweepResult;
   const waitingOn = await noGrantWaitingOn(requestId, observed!, brief);
+  // A video too large for frame extraction gets no hand-off at all, so no grant will ever be asked
+  // for: the job ends on the first pass that sees the marker, before any clock or page, with the
+  // site's one useful step (`websiteLargeVideoBlock.ts`). Only a saved recording can be one.
+  const largeVideo = waitingOn === "blueprint"
+    && await largeVideoIngestBlock(siteWalkthroughIdentity(requestId, observed!)) !== null;
   const observedClock = websiteJobNoGrantClock(observed, requestId);
   const restart = !observedClock || observedClock.waiting_on !== waitingOn;
-  if (!restart && observedClock!.since_epoch + observedClock!.window_seconds > nowEpoch) return "waiting";
+  if (!largeVideo && !restart && observedClock!.since_epoch + observedClock!.window_seconds > nowEpoch) return "waiting";
   // No backfill. The first time the sweep sees a job, a job that had already waited a whole window
   // since its latest site activity would have ended before this change: it is ended now, with no
   // email and no page. A job whose stored times cannot be read is taken as old, never as new.
@@ -373,20 +379,24 @@ export async function sweepWebsiteJobNoGrant(requestId: string, nowMs = Date.now
     const skip = noGrantSkip(record, requestId);
     if (skip) return skip;
     if (!sameClock(websiteJobNoGrantClock(record, requestId), observedClock)) return "changed";
+    const largeVideoEnding = largeVideo ? { waiting_on: "site" as const, reason: "video_over_ingest_limit" as const } : null;
     if (backfill) {
       transaction.update(jobRef, { [WEBSITE_JOB_NO_GRANT_ENDING_FIELD]: sealWebsiteJobNoGrantEnding({ request_id: requestId,
-        waiting_on: waitingOn, waiting_since_epoch: latestActivity ?? nowEpoch, ended_at_epoch: nowEpoch,
+        waiting_on: waitingOn, ...largeVideoEnding, waiting_since_epoch: latestActivity ?? nowEpoch, ended_at_epoch: nowEpoch,
         recorded_at_iso: new Date(nowMs).toISOString(), notice: backfill }), [WEBSITE_JOB_NO_GRANT_PAGE_DUE_FIELD]: null });
       return "ended_no_notice";
     }
-    if (restart) {
+    if (restart && !largeVideoEnding) {
       const clock = newWebsiteJobNoGrantClock({ request_id: requestId, waiting_on: waitingOn, since_epoch: nowEpoch,
         window_seconds: windowSeconds });
       transaction.update(jobRef, { [WEBSITE_JOB_NO_GRANT_CLOCK_FIELD]: clock,
         [WEBSITE_JOB_NO_GRANT_PAGE_DUE_FIELD]: waitingOn === "blueprint" ? noGrantPageDueMs(clock) : null });
       return "clock_started";
     }
-    const clock = observedClock!;
+    // An early ending's contact-read grace runs from the job's clock; with none yet, it starts now.
+    const clock = observedClock ?? newWebsiteJobNoGrantClock({ request_id: requestId, waiting_on: waitingOn,
+      since_epoch: nowEpoch, window_seconds: windowSeconds });
+    const graceFrom = largeVideoEnding ? clock.since_epoch : clock.since_epoch + clock.window_seconds;
     // The key is fixed by the job: an email already in the outbox, in any state, is never queued again.
     const already = (await transaction.get(noticeRef)).exists;
     let entry: ReturnType<typeof buildOutboxEntry> | null = null;
@@ -395,12 +405,18 @@ export async function sweepWebsiteJobNoGrant(requestId: string, nowMs = Date.now
       let to: string;
       try { to = String(await decryptFieldValue(record!.contact?.email ?? "")).trim(); }
       catch {
-        if (nowEpoch - (clock.since_epoch + clock.window_seconds) < CONTACT_READ_GRACE_SECONDS) return "contact_unreadable";
+        if (nowEpoch - graceFrom < CONTACT_READ_GRACE_SECONDS) {
+          // An early ending waits for the address too; the clock it waits by is kept on the job.
+          if (largeVideoEnding && !observedClock) transaction.update(jobRef, { [WEBSITE_JOB_NO_GRANT_CLOCK_FIELD]: clock,
+            [WEBSITE_JOB_NO_GRANT_PAGE_DUE_FIELD]: null });
+          return "contact_unreadable";
+        }
         to = "";
       }
       if (EMAIL.test(to)) {
         const message = buildTaskLifecycleNotification({ requestId, milestone: "scene_outcome", to,
-          eventId: WEBSITE_JOB_NO_GRANT_ENDED_EVENT_ID, jobNoGrantEnded: clock.waiting_on,
+          eventId: WEBSITE_JOB_NO_GRANT_ENDED_EVENT_ID, jobNoGrantEnded: largeVideoEnding?.waiting_on ?? clock.waiting_on,
+          ...(largeVideoEnding ? { jobNoGrantReason: largeVideoEnding.reason } : {}),
           workspaceUrl: typeof record!.account_owner_uid === "string" && record!.account_owner_uid
             ? workspaceTaskUrl(requestId) : null });
         if (message.idempotencyKey !== noticeRef.id) throw new Error("website_job_no_grant_ended_notice_key_mismatch");
@@ -411,7 +427,7 @@ export async function sweepWebsiteJobNoGrant(requestId: string, nowMs = Date.now
       }
     }
     transaction.update(jobRef, { [WEBSITE_JOB_NO_GRANT_ENDING_FIELD]: sealWebsiteJobNoGrantEnding({ request_id: requestId,
-      waiting_on: clock.waiting_on, waiting_since_epoch: clock.since_epoch, ended_at_epoch: nowEpoch,
+      waiting_on: clock.waiting_on, ...largeVideoEnding, waiting_since_epoch: clock.since_epoch, ended_at_epoch: nowEpoch,
       recorded_at_iso: new Date(nowMs).toISOString(), notice }), [WEBSITE_JOB_NO_GRANT_PAGE_DUE_FIELD]: null });
     if (entry) transaction.create(noticeRef, entry);
     return entry ? "ended_notice_queued" : "ended_no_notice";

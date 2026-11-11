@@ -221,11 +221,12 @@ export function sponsorshipValidUntil(grant: Record<string, any>, executionWindo
  */
 export async function websiteJobWorkWindow(record: Record<string, any> | undefined,
   nowEpoch = Date.now() / 1000): Promise<{ untilEpoch: number | null; ended: boolean; endingRecorded?: true;
-    noGrantWaitingOn?: "site" | "blueprint" }> {
+    noGrantWaitingOn?: "site" | "blueprint"; noGrantReason?: "video_over_ingest_limit" }> {
   const none = { untilEpoch: null, ended: false };
   const grant = record?.website_scene_sponsorship;
   const noGrantEnding = recordedWebsiteJobNoGrantEnding(record);
-  if (noGrantEnding) return { ...none, endingRecorded: true, noGrantWaitingOn: noGrantEnding.waiting_on };
+  if (noGrantEnding) return { ...none, endingRecorded: true, noGrantWaitingOn: noGrantEnding.waiting_on,
+    ...(noGrantEnding.reason ? { noGrantReason: noGrantEnding.reason } : {}) };
   if (!grant || typeof grant.expires_at_epoch !== "number" || !Number.isFinite(grant.expires_at_epoch)) return none;
   let executionWindowUntil: number | undefined;
   if (record!.website_scene_sponsorship_execution_window) {
