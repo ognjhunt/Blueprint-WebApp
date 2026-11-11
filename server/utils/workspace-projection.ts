@@ -174,7 +174,6 @@ export function projectWorkspaceTask(
     // `matchedCount` counts researched prospects and is never a site's number;
     // an older record without the supply count reads as unknown.
     potentialMatches: number(match.supplyMatchedCount),
-    capture: null,
     results: [],
     pilot: {
       state: text(pilot.state) || "not_selected",

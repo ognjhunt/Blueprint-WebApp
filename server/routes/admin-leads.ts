@@ -11,10 +11,6 @@ import {
   incrementInboundRequestStats,
   readInboundRequestStats,
 } from "../utils/inboundRequestStats";
-import {
-  createCaptureHandoffToken,
-  verifyCaptureHandoffToken,
-} from "../utils/capture-handoff-token";
 import { createRequestReviewToken } from "../utils/request-review-auth";
 import {
   OPPORTUNITY_STATES,
@@ -77,9 +73,6 @@ import {
 const router = Router();
 
 const CSV_FORMULA_PREFIX = /^[=+\-@]/;
-const CAPTURE_HANDOFF_TRUTH_BOUNDARY =
-  "Display HUD and scan coaching are advisory UX telemetry, not raw geometry, pose, depth, coverage, rights, payout, provider readiness, or qualification proof.";
-
 function normalizeTimestamp(value: unknown) {
   const timestamp = value as { toDate?: () => Date } | string | null | undefined;
   if (!timestamp) {
@@ -280,15 +273,6 @@ function buildBuyerReviewUrl(requestId: string) {
   return `${baseUrl}/requests/${encodeURIComponent(requestId)}?access=${encodeURIComponent(token)}`;
 }
 
-function buildCaptureHandoffUrls(handoffToken: string) {
-  const baseUrl = (process.env.APP_URL || "https://tryblueprint.io").replace(/\/+$/, "");
-  const encoded = encodeURIComponent(handoffToken);
-  return {
-    universal_link_url: `${baseUrl}/capture/open?handoff=${encoded}`,
-    custom_scheme_url: `blueprintcapture://capture?handoff=${encoded}`,
-  };
-}
-
 function sanitizeCsvCell(value: unknown): string {
   const normalized = String(value ?? "").replace(/\r?\n|\r/g, " ");
   const formulaSafe = CSV_FORMULA_PREFIX.test(normalized)
@@ -308,21 +292,6 @@ const VALID_PILOT_OPPORTUNITY_OUTCOMES: PilotOpportunityOutcome[] = [
   "economics_insufficient",
   "missing_evidence",
 ];
-const CAPTURE_JOB_MARKETPLACE_STATES = [
-  "draft",
-  "approved_for_marketplace",
-  "claimable",
-  "reserved",
-  "in_progress",
-  "uploaded",
-  "under_review",
-  "approved",
-  "paid",
-  "needs_recapture",
-  "cancelled",
-] as const;
-type CaptureJobMarketplaceState = (typeof CAPTURE_JOB_MARKETPLACE_STATES)[number];
-
 const ACTION_LEDGER_QUERY_STATUSES = [
   "pending_approval",
   "failed",
@@ -619,40 +588,6 @@ function normalizeDecryptedRequest(decrypted: InboundRequest) {
   };
 }
 
-function resolveCaptureHandoffCaptureJobId(
-  decrypted: ReturnType<typeof normalizeDecryptedRequest>,
-) {
-  return (
-    decrypted.pipeline?.capture_job_id?.trim() ||
-    decrypted.request.displayCaptureMetadata?.captureJobId?.trim() ||
-    `job_${decrypted.requestId}`
-  );
-}
-
-function buildCaptureHandoffMetadata(
-  decrypted: ReturnType<typeof normalizeDecryptedRequest>,
-  captureJobId: string,
-) {
-  const displayMetadata = decrypted.request.displayCaptureMetadata || {};
-  const allowedAdvisoryHints = Array.isArray(displayMetadata.allowedAdvisoryHints)
-    ? Array.from(new Set(displayMetadata.allowedAdvisoryHints))
-    : [];
-
-  return {
-    request_id: decrypted.requestId,
-    capture_job_id: captureJobId,
-    target_name: displayMetadata.targetName || decrypted.request.siteName,
-    address_label: displayMetadata.addressLabel || decrypted.request.siteLocation,
-    capture_brief: displayMetadata.captureBrief || decrypted.request.taskStatement,
-    privacy_reminder:
-      displayMetadata.privacyReminder ||
-      "Capture only approved areas. Avoid private, restricted, or sensitive content.",
-    allowed_advisory_hints: allowedAdvisoryHints,
-    truth_boundary: CAPTURE_HANDOFF_TRUTH_BOUNDARY,
-    source: "server_verified",
-  };
-}
-
 function normalizePipelineAttachment(raw: unknown): PipelineAttachment | undefined {
   if (!raw || typeof raw !== "object") {
     return undefined;
@@ -688,148 +623,6 @@ function normalizeEvaluationReadiness(raw: unknown): EvaluationReadinessSummary 
     return undefined;
   }
   return { ...(raw as EvaluationReadinessSummary) };
-}
-
-function parseCoordinate(value: unknown): number | null {
-  if (typeof value === "number" && Number.isFinite(value)) {
-    return value;
-  }
-  if (typeof value === "string" && value.trim()) {
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : null;
-  }
-  return null;
-}
-
-function parseGeoPoint(raw: unknown): { lat: number; lng: number } | null {
-  if (typeof raw === "string" && raw.trim()) {
-    try {
-      const parsed = JSON.parse(raw) as Record<string, unknown>;
-      const lat = parseCoordinate(parsed.lat ?? parsed.latitude);
-      const lng = parseCoordinate(parsed.lng ?? parsed.longitude);
-      if (lat !== null && lng !== null) {
-        return { lat, lng };
-      }
-    } catch {
-      const [latValue, lngValue] = raw.split(",").map((value) => parseCoordinate(value));
-      if (latValue !== null && lngValue !== null) {
-        return { lat: latValue, lng: lngValue };
-      }
-    }
-  }
-
-  if (raw && typeof raw === "object") {
-    const value = raw as Record<string, unknown>;
-    const lat = parseCoordinate(value.lat ?? value.latitude);
-    const lng = parseCoordinate(value.lng ?? value.longitude);
-    if (lat !== null && lng !== null) {
-      return { lat, lng };
-    }
-  }
-
-  return null;
-}
-
-function isValidMarketplaceCoordinate(lat: number, lng: number) {
-  if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-    return false;
-  }
-  if (Math.abs(lat) > 90 || Math.abs(lng) > 180) {
-    return false;
-  }
-  return !(lat === 0 && lng === 0);
-}
-
-function resolveCaptureJobCoordinates(
-  decrypted: ReturnType<typeof normalizeDecryptedRequest>,
-  body: Record<string, unknown>,
-): { lat: number; lng: number } | null {
-  const lat = parseCoordinate(body.lat ?? body.latitude);
-  const lng = parseCoordinate(body.lng ?? body.longitude);
-  if (lat !== null && lng !== null) {
-    return isValidMarketplaceCoordinate(lat, lng) ? { lat, lng } : null;
-  }
-
-  const requestGeo = parseGeoPoint((decrypted as Record<string, unknown>).geo);
-  if (requestGeo && isValidMarketplaceCoordinate(requestGeo.lat, requestGeo.lng)) {
-    return requestGeo;
-  }
-
-  const enrichmentGeo = parseGeoPoint((decrypted.enrichment as Record<string, unknown> | undefined)?.geo);
-  if (enrichmentGeo && isValidMarketplaceCoordinate(enrichmentGeo.lat, enrichmentGeo.lng)) {
-    return enrichmentGeo;
-  }
-
-  return null;
-}
-
-function buildCaptureJobPayload(
-  decrypted: ReturnType<typeof normalizeDecryptedRequest>,
-  params: {
-    coordinates: { lat: number; lng: number };
-    marketplaceState?: CaptureJobMarketplaceState;
-    availabilityStartsAt?: string | null;
-    availabilityEndsAt?: string | null;
-  },
-) {
-  const priorityWeight =
-    decrypted.priority === "high" ? 1.5 : decrypted.priority === "normal" ? 1.0 : 0.75;
-  const specialTaskType =
-    decrypted.request.requestedLanes.includes("preview_simulation")
-      ? "buyer_requested_preview"
-      : decrypted.request.requestedLanes.includes("deeper_evaluation")
-      ? "buyer_requested_evaluation"
-      : "managed_capture";
-  const quotedPayoutCents = decrypted.priority === "high" ? 6500 : 4500;
-  const marketplaceState = params.marketplaceState || "claimable";
-
-  return {
-    title: decrypted.request.siteName,
-    address: decrypted.request.siteLocation,
-    lat: params.coordinates.lat,
-    lng: params.coordinates.lng,
-    payout_cents: quotedPayoutCents,
-    quoted_payout_cents: quotedPayoutCents,
-    est_minutes: 25,
-    active: true,
-    updated_at: admin.firestore.FieldValue.serverTimestamp(),
-    published_at: admin.firestore.FieldValue.serverTimestamp(),
-    workflow_name: decrypted.request.taskStatement,
-    workflow_steps: decrypted.request.workflowContext
-      ? [decrypted.request.workflowContext]
-      : [decrypted.request.taskStatement],
-    target_kpi: decrypted.request.details || "",
-    known_blockers: decrypted.request.knownBlockers ? [decrypted.request.knownBlockers] : [],
-    privacy_restrictions: decrypted.request.privacySecurityConstraints
-      ? [decrypted.request.privacySecurityConstraints]
-      : [],
-    region_id: "managed-alpha",
-    task_type: "buyer_requested_special_task",
-    special_task_type: specialTaskType,
-    buyer_request_id: decrypted.requestId,
-    site_submission_id: decrypted.site_submission_id,
-    priority_weight: priorityWeight,
-    marketplace_state: marketplaceState,
-    approval_requirements: ["ops_review", "rights_review"],
-    rights_checklist: [
-      "permission doc present or policy recorded",
-      "consent scope documented",
-      "restricted zones listed",
-    ],
-    rights_status: decrypted.ops?.rights_status || "unknown",
-    capture_policy_tier: decrypted.ops?.capture_policy_tier || "review_required",
-    requested_outputs: decrypted.request.requestedLanes,
-    due_window: "managed",
-    recapture_reason: "",
-    capture_job_state: marketplaceState,
-    availability_window:
-      params.availabilityStartsAt || params.availabilityEndsAt
-        ? {
-            starts_at: params.availabilityStartsAt || null,
-            ends_at: params.availabilityEndsAt || null,
-          }
-        : null,
-  };
 }
 
 /**
@@ -1476,121 +1269,6 @@ router.get("/:requestId/pipeline/dashboard", requireAdmin, async (req: Request, 
       "Error fetching scene dashboard"
     );
     return res.status(500).json({ error: "Failed to fetch scene dashboard" });
-  }
-});
-
-router.post("/:requestId/capture-job", requireAdmin, async (req: Request, res: Response) => {
-  try {
-    if (!db) {
-      return res.status(500).json({ error: "Database not available" });
-    }
-
-    const { requestId } = req.params;
-    const requestDoc = await db.collection("inboundRequests").doc(requestId).get();
-    if (!requestDoc.exists) {
-      return res.status(404).json({ error: "Request not found" });
-    }
-
-    const decrypted = normalizeDecryptedRequest(
-      (await decryptInboundRequestForAdmin(requestDoc.data() as any)) as InboundRequest
-    );
-    const coordinates = resolveCaptureJobCoordinates(
-      decrypted,
-      (req.body || {}) as Record<string, unknown>,
-    );
-    if (!coordinates) {
-      return res.status(409).json({
-        error:
-          "Capture job cannot be published without valid site coordinates. Provide lat/lng or backfill request geo data first.",
-      });
-    }
-
-    if (decrypted.ops?.rights_status === "blocked" || decrypted.ops?.capture_policy_tier === "not_allowed") {
-      return res.status(409).json({
-        error:
-          "Capture job cannot be published while rights status or capture policy blocks commercialization.",
-      });
-    }
-
-    const captureJobId = `job_${requestId}`;
-    const requestedMarketplaceState = String(req.body?.marketplace_state || "").trim() as CaptureJobMarketplaceState;
-    const payload = buildCaptureJobPayload(decrypted, {
-      coordinates,
-      marketplaceState: CAPTURE_JOB_MARKETPLACE_STATES.includes(requestedMarketplaceState)
-        ? requestedMarketplaceState
-        : "claimable",
-      availabilityStartsAt:
-        typeof req.body?.availability_starts_at === "string"
-          ? req.body.availability_starts_at
-          : null,
-      availabilityEndsAt:
-        typeof req.body?.availability_ends_at === "string"
-          ? req.body.availability_ends_at
-          : null,
-    });
-
-    await db.collection("capture_jobs").doc(captureJobId).set(payload, { merge: true });
-    await requestDoc.ref.update({
-      qualification_state: "capture_requested",
-      status: "capture_requested",
-      ops: {
-        ...(decrypted.ops || {}),
-        assigned_region_id: decrypted.ops?.assigned_region_id || payload.region_id || "managed-alpha",
-        capture_status: "capture_requested",
-        next_step: "Contributor capture requested. Wait for upload or assign a closer space.",
-      },
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
-
-    return res.json({
-      ok: true,
-      capture_job_id: captureJobId,
-      site_submission_id: decrypted.site_submission_id,
-      buyer_request_id: decrypted.requestId,
-      payload,
-    });
-  } catch (error) {
-    logger.error({ error, requestId: req.params.requestId }, "Error creating capture job");
-    return res.status(500).json({ error: "Failed to create capture job" });
-  }
-});
-
-router.post("/:requestId/capture-handoff", requireAdmin, async (req: Request, res: Response) => {
-  try {
-    if (!db) {
-      return res.status(500).json({ error: "Database not available" });
-    }
-
-    const { requestId } = req.params;
-    const requestDoc = await db.collection("inboundRequests").doc(requestId).get();
-    if (!requestDoc.exists) {
-      return res.status(404).json({ error: "Request not found" });
-    }
-
-    const decrypted = normalizeDecryptedRequest(
-      (await decryptInboundRequestForAdmin(requestDoc.data() as any)) as InboundRequest
-    );
-    const captureJobId = resolveCaptureHandoffCaptureJobId(decrypted);
-    const handoffToken = createCaptureHandoffToken({ requestId, captureJobId });
-    const tokenPayload = verifyCaptureHandoffToken(handoffToken);
-    const handoffUrls = buildCaptureHandoffUrls(handoffToken);
-
-    return res.json({
-      ok: true,
-      request_id: requestId,
-      capture_job_id: captureJobId,
-      handoff_token: handoffToken,
-      expires_at: tokenPayload ? new Date(tokenPayload.exp * 1000).toISOString() : null,
-      ...handoffUrls,
-      display_metadata: buildCaptureHandoffMetadata(decrypted, captureJobId),
-      truth_boundary: CAPTURE_HANDOFF_TRUTH_BOUNDARY,
-    });
-  } catch (error) {
-    logger.error(
-      { error, requestId: req.params.requestId },
-      "Failed to create BlueprintCapture handoff"
-    );
-    return res.status(500).json({ error: "Failed to create capture handoff" });
   }
 });
 

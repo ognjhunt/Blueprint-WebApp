@@ -92,7 +92,8 @@ afterAll(async () => {
 
 describe("admin mounts in server/routes.ts", () => {
   it("finds the admin mounts", () => {
-    expect(mounts.length).toBeGreaterThanOrEqual(16);
+    // 14 since the capturer-application and field-ops mounts were deleted (2026-11-11).
+    expect(mounts.length).toBeGreaterThanOrEqual(14);
     expect(mounts.map((mount) => mount.path)).toContain("/api/admin/sla");
   });
 
@@ -111,11 +112,7 @@ describe("admin mounts in server/routes.ts", () => {
       const response = await fetch(`${baseUrl}${mountPath}/role-gate-probe`, {
         headers: { Authorization: "Bearer ordinary-user-token" },
       });
-      // The capturer and field-ops mounts are switched off (2026-11-11) and
-      // answer 410 to everyone, before any role check.
-      expect(response.status).toBe(
-        ["/api/admin/capturer-applications", "/api/admin/field-ops"].includes(mountPath) ? 410 : 403,
-      );
+      expect(response.status).toBe(403);
     },
   );
 });

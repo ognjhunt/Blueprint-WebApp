@@ -58,7 +58,6 @@ const authSensitivePathPatterns = [
   /^\/portal(?:\/|$)/,
   /^\/settings(?:\/|$)/,
   /^\/requests\/[^/]+(?:\/|$)/,
-  /^\/capture-app(?:\/|$)/,
 ];
 
 const authRequiredPathPatterns = [
@@ -281,6 +280,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.error("Unable to read redirectAfterAuth from sessionStorage:", storageError);
       }
 
+      // The capture app is retired (2026-11-11): an account that still
+      // carries the capturer role lands on the start page.
       if (isCapturer) {
         if (storedRedirect) {
           try {
@@ -292,7 +293,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             );
           }
         }
-        return "/capture-app/account";
+        return "/contact/site-operator";
       }
 
       if (storedRedirect) {

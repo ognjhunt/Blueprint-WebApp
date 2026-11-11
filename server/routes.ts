@@ -20,10 +20,8 @@ import postSignupWorkflowsHandler from "./routes/post-signup-workflows";
 import qrLinkRouter from "./routes/qr-link";
 import appleAssociationRouter from "./routes/apple-app-site-association";
 import { registerRetiredCapturerRoutes } from "./utils/retiredCapturerRoutes";
-import stripeAccountRouter from "./routes/stripe";
 import operatorStatusRouter from "./routes/operator-status";
 import workspaceRouter from "./routes/workspace";
-import creatorRouter from "./routes/creator";
 import contactTaskMediaHandler from "./routes/contact-task-media";
 import waitlistHandler from "./routes/waitlist";
 import healthRouter from "./routes/health";
@@ -41,8 +39,6 @@ import emailPreferencesRouter from "./routes/email-preferences";
 import inboundRequestRouter from "./routes/inbound-request";
 import adminLeadsRouter from "./routes/admin-leads";
 import adminRobotTeamsRouter from "./routes/admin-robot-teams";
-import capturerApplicationsRouter from "./routes/capturer-applications";
-import adminFieldOpsRouter from "./routes/admin-field-ops";
 import adminAgentRouter from "./routes/admin-agent";
 import adminAgentSpendRouter from "./routes/admin-agent-spend";
 import { resendWebhookHandler } from "./routes/resend-webhook";
@@ -86,7 +82,6 @@ import { requireAdminRole, requireExecutionRole } from "./middleware/requireAdmi
 import { csrfCookieHandler, csrfProtection } from "./middleware/csrf";
 import { requireAppCheck } from "./middleware/appCheck";
 import marketplaceEntitlementsRouter from "./routes/marketplace-entitlements";
-import publicLaunchRouter from "./routes/public-launch";
 import robotEvalJobRequestsRouter from "./routes/robot-eval-job-requests";
 import companyPolicyCandidatesRouter from "./routes/company-policy-candidates";
 import internalCompanyPolicyRegistryCredentialsRouter from "./routes/internal-company-policy-registry-credentials";
@@ -139,7 +134,6 @@ export function registerRoutes(app: Express) {
   app.use("/api/internal", internalJobEvidenceRouter);
   app.use("/api/account-deletion", csrfProtection, verifyFirebaseToken, accountDeletionRouter);
   app.use("/api/experiments", experimentsRouter);
-  app.use("/api/public/launch", publicLaunchRouter);
   app.use("/api/internal/pipeline", internalPipelineRouter);
   app.use("/api/internal/pipeline", internalCaptureTaskControlPlaneRouter);
   app.use("/api/internal/pipeline", internalCaptureTestbedsRouter);
@@ -243,21 +237,6 @@ export function registerRoutes(app: Express) {
     verifyFirebaseToken,
     requireAdminRole,
     adminLeadsRouter,
-  );
-  // Capturer application review (approve/reject) - admin/ops only.
-  app.use(
-    "/api/admin/capturer-applications",
-    csrfProtection,
-    verifyFirebaseToken,
-    requireAdminRole,
-    capturerApplicationsRouter,
-  );
-  app.use(
-    "/api/admin/field-ops",
-    csrfProtection,
-    verifyFirebaseToken,
-    requireAdminRole,
-    adminFieldOpsRouter,
   );
   app.use(
     "/api/admin/agent",
@@ -368,8 +347,6 @@ export function registerRoutes(app: Express) {
     postSignupWorkflowsHandler,
   );
   app.use("/api/qr", csrfProtection, verifyFirebaseToken, qrLinkRouter);
-  app.use("/v1/creator", verifyFirebaseToken, creatorRouter);
-  app.use("/v1/stripe", csrfProtection, verifyFirebaseToken, stripeAccountRouter);
   // Session-authenticated checkpoint registration for approved robot teams.
   // Mounted ahead of the workspace router so its prefix is never shadowed.
   app.use("/api/workspace/checkpoints", csrfProtection, verifyFirebaseToken, workspaceCheckpointsRouter);

@@ -16,7 +16,6 @@ import type {
   PostSignupSchedulingTaskInput,
   PostSignupSchedulingOutput,
 } from "./tasks/post-signup-scheduling";
-import type { PayoutExceptionInput } from "./tasks/payout-exception-triage";
 import type { SupportTriageInput } from "./tasks/support-triage";
 import type { WaitlistTriageOutput,
   WaitlistTriageTaskInput,
@@ -579,10 +578,6 @@ function createSupportEmailPolicy(): LaneSafetyPolicy {
   return SUPPORT_POLICY;
 }
 
-function createPayoutRoutingPolicy(): LaneSafetyPolicy {
-  return createPhase2RoutingPolicy("payout");
-}
-
 function getWaitlistNextStatus(
   recommendation: WaitlistTriageOutput["recommendation"],
   automationStatus: "completed" | "blocked",
@@ -933,29 +928,6 @@ function buildSupportActionSpecs(supportInput: SupportTriageInput, result: any) 
   }
 
   return { specs };
-}
-
-function buildPayoutActionSpecs(payoutInput: PayoutExceptionInput, result: any) {
-  return {
-    specs: [
-      {
-        actionKey: "payout_status_update",
-        actionType: "update_firestore_status" as const,
-        actionPayload: {
-          type: "update_firestore_status" as const,
-          collection: "creatorPayouts",
-          docId: payoutInput.id,
-          updates: {
-            status: "review_required",
-            queue: result.queue || "payout_exception_queue",
-            human_review_required: result.requires_human_review,
-            automation_confidence: result.confidence,
-          },
-        },
-        policy: createPayoutRoutingPolicy(),
-      },
-    ],
-  };
 }
 
 function normalizeWaitlistSubmission(
@@ -1816,196 +1788,6 @@ export async function runSupportTriageLoop(params?: { limit?: number }) {
         { merge: true },
       );
       logger.error({ err: error, contactRequestId: doc.id }, "Support triage loop item failed");
-    }
-  }
-
-  return { ok: true, processedCount, failedCount };
-}
-
-export async function runPayoutExceptionTriageLoop(params?: { limit?: number }) {
-  if (!db) {
-    throw new Error("Database not available");
-  }
-
-  const snapshot = await db
-    .collection("creatorPayouts")
-    .where("status", "in", ["review_required", "disbursement_failed"])
-    .limit(Math.max(1, Math.min(params?.limit ?? 10, 25)))
-    .get();
-
-  let processedCount = 0;
-  let failedCount = 0;
-
-  for (const doc of snapshot.docs) {
-    const data = doc.data() as Record<string, unknown>;
-    const input: PayoutExceptionInput = {
-      id: doc.id,
-      creator_id: typeof data.creator_id === "string" ? data.creator_id : "",
-      capture_id: typeof data.capture_id === "string" ? data.capture_id : "",
-      status: typeof data.status === "string" ? data.status : "",
-      stripe_payout_id:
-        typeof data.stripe_payout_id === "string" ? data.stripe_payout_id : null,
-      failure_reason:
-        typeof data.failure_reason === "string" ? data.failure_reason : null,
-      qualification_state:
-        typeof data.qualification_state === "string" ? data.qualification_state : null,
-      opportunity_state:
-        typeof data.opportunity_state === "string" ? data.opportunity_state : null,
-      recommendation:
-        data.recommendation && typeof data.recommendation === "object"
-          ? (data.recommendation as Record<string, unknown>)
-          : null,
-    };
-
-    try {
-      const result = await runAgentTask<PayoutExceptionInput, any>({
-        kind: "payout_exception_triage",
-        input,
-        session_key: `payout:${doc.id}`,
-        metadata: {
-          payout_id: doc.id,
-        },
-      });
-
-      if (result.status !== "completed" || !result.output) {
-        throw new Error(result.error || "Payout exception triage failed");
-      }
-
-      const { specs } = buildPayoutActionSpecs(input, result.output);
-      const phase2DraftPatch = makeWorkflowDraftStatePatch({
-        existingOpsAutomation:
-          data.ops_automation && typeof data.ops_automation === "object"
-            ? (data.ops_automation as Record<string, unknown>)
-            : {},
-        lane: "payout",
-        queue: result.output.queue || "payout_exception_queue",
-        nextAction: result.output.next_action,
-        recommendation: result.output.disposition,
-        confidence: result.output.confidence,
-        requiresHumanReview: result.output.requires_human_review,
-        retryable: result.output.retryable,
-        blockReasonCode: result.output.block_reason_code,
-      });
-
-      await doc.ref.set(
-        {
-          human_review_required: result.output.requires_human_review,
-          automation_confidence: result.output.confidence,
-          queue: result.output.queue || "payout_exception_queue",
-          ops_automation: {
-            ...(data.ops_automation && typeof data.ops_automation === "object"
-              ? (data.ops_automation as Record<string, unknown>)
-              : {}),
-            status: normalizeAutomationStatus(result.output.automation_status),
-            intent: "payout_exception_triage",
-            recommended_path: result.output.disposition,
-            provider: result.provider,
-            runtime: result.runtime,
-            model: result.model,
-            tool_mode: result.tool_mode,
-            execution_id: `${doc.id}:${Date.now()}`,
-            session_key: `payout:${doc.id}`,
-            rationale: result.output.rationale,
-            internal_summary: result.output.internal_summary,
-            approval_reason: null,
-            last_error: result.error || null,
-            last_attempt_at: admin.firestore.FieldValue.serverTimestamp(),
-            processed_at: admin.firestore.FieldValue.serverTimestamp(),
-            ...phase2DraftPatch,
-          },
-        },
-        { merge: true },
-      );
-
-      if (isPhase2LaneEnabled("payout")) {
-        await executePhase2WorkflowActions({
-          docRef: doc.ref,
-          sourceCollection: "creatorPayouts",
-          sourceDocId: doc.id,
-          lane: "payout",
-          draftOutput: result.output,
-          existingOpsAutomation: {
-            ...(data.ops_automation && typeof data.ops_automation === "object"
-              ? (data.ops_automation as Record<string, unknown>)
-              : {}),
-            ...phase2DraftPatch,
-            status: normalizeAutomationStatus(result.output.automation_status),
-            intent: "payout_exception_triage",
-            recommended_path: result.output.disposition,
-            provider: result.provider,
-            runtime: result.runtime,
-            model: result.model,
-            tool_mode: result.tool_mode,
-            execution_id: `${doc.id}:${Date.now()}`,
-            session_key: `payout:${doc.id}`,
-            rationale: result.output.rationale,
-            internal_summary: result.output.internal_summary,
-            approval_reason: null,
-            last_error: result.error || null,
-            last_attempt_at: admin.firestore.FieldValue.serverTimestamp(),
-            processed_at: admin.firestore.FieldValue.serverTimestamp(),
-          },
-          actions: specs,
-        });
-      } else if (result.output.requires_human_review) {
-        await safelyDispatchHumanBlocker("workflow.payout.requires_human_review", () =>
-          dispatchWorkflowHumanReviewBlocker({
-            lane: "payout",
-            sourceCollection: "creatorPayouts",
-            sourceDocId: doc.id,
-            recommendedPath: result.output.disposition,
-            nextAction: result.output.next_action,
-            confidence: result.output.confidence,
-            blockReasonCode: result.output.block_reason_code,
-            rationale: result.output.rationale,
-            summary: result.output.internal_summary,
-          }),
-        );
-      }
-
-      await recordBetaOpsFailureSignal({
-        kind: "payout_exception",
-        scopeId: doc.id,
-        severity: "critical",
-        summary: `Payout exception ${doc.id} requires ${result.output.queue || "finance review"}.`,
-        details: {
-          payout_id: doc.id,
-          status: input.status,
-          creator_id: input.creator_id || null,
-          capture_id: input.capture_id || null,
-          stripe_payout_id: input.stripe_payout_id,
-          queue: result.output.queue || "payout_exception_queue",
-          disposition: result.output.disposition,
-          next_action: result.output.next_action,
-          requires_human_review: result.output.requires_human_review,
-          block_reason_code: result.output.block_reason_code,
-        },
-      });
-      processedCount += 1;
-    } catch (error) {
-      failedCount += 1;
-      await doc.ref.set(
-        {
-          ops_automation: {
-            status: "failed",
-            intent: "payout_exception_triage",
-            last_error: error instanceof Error ? error.message : "Payout triage failed",
-            last_attempt_at: admin.firestore.FieldValue.serverTimestamp(),
-          },
-        },
-        { merge: true },
-      );
-      await recordBetaOpsFailureSignal({
-        kind: "payout_exception",
-        scopeId: doc.id,
-        severity: "critical",
-        summary: `Payout exception triage failed for ${doc.id}.`,
-        details: {
-          payout_id: doc.id,
-          error: error instanceof Error ? error.message : String(error),
-        },
-      });
-      logger.error({ err: error, payoutId: doc.id }, "Payout exception loop item failed");
     }
   }
 

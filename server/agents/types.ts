@@ -24,7 +24,6 @@ export type AgentTaskKind =
   | "inbound_qualification"
   | "post_signup_scheduling"
   | "support_triage"
-  | "payout_exception_triage"
   | "preview_diagnosis"
   | "operator_thread"
   | "adp_run_operator"

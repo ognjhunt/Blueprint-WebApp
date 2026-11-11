@@ -9,10 +9,7 @@ export type TransactionalNotificationEventType =
   | "delivery_ready"
   | "payout_sent"
   | "payout_failed"
-  | "capture_accepted"
   | "capture_rejected"
-  | "capturer_application_approved"
-  | "capturer_application_rejected"
   | "evaluation_results_ready"
   | "consent_revocation";
 
@@ -146,7 +143,7 @@ function defaultPreferenceKey(eventType: TransactionalNotificationEventType) {
   if (eventType === "payout_sent" || eventType === "payout_failed") {
     return "payouts";
   }
-  if (eventType === "capture_accepted" || eventType === "capture_rejected") {
+  if (eventType === "capture_rejected") {
     return "capture_status";
   }
   return "account";
@@ -201,13 +198,6 @@ function notificationCopy(input: TransactionalNotificationInput) {
         emailSubject: "Your Blueprint payout needs review",
         emailText:
           "A Blueprint payout failed or was canceled. The payout remains visible for review.",
-      };
-    case "capture_accepted":
-      return {
-        title: "Capture accepted",
-        body: "Your capture passed review and is moving through payout handling.",
-        emailSubject: "Your Blueprint capture was accepted",
-        emailText: "Your capture passed review and is moving through payout handling.",
       };
     case "capture_rejected":
       return {

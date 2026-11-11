@@ -90,7 +90,6 @@ describe("per-lane provider override", () => {
       });
     }
     expect(getStructuredAutomationProvider("operator_thread")).toBe("deepseek_chat");
-    expect(getStructuredAutomationProvider("payout_exception_triage")).toBe("deepseek_chat");
   });
 
   it("keeps an email lane running on the global provider when OpenAI has no key", async () => {
@@ -257,7 +256,6 @@ describe("documented env keys", () => {
       "inbound_qualification",
       "post_signup_scheduling",
       "support_triage",
-      "payout_exception_triage",
       "preview_diagnosis",
       "operator_thread",
       "robot_capability_extraction",

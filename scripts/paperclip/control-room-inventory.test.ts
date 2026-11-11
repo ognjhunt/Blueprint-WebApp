@@ -215,7 +215,8 @@ describe("Paperclip control-room inventory", () => {
       ),
     ).toEqual([]);
     expect(inventory.routineCount).toBe(62);
-    expect(inventory.routineStatusCounts).toEqual({ active: 26, paused: 36 });
+    // field-ops-daily paused with filming visits (2026-11-11).
+    expect(inventory.routineStatusCounts).toEqual({ active: 25, paused: 37 });
     const ciOptionalHostResolvedAliases = new Set(["browse", "vercel-react-best-practices"]);
     expect(
       inventory.desiredSkillAliasMappings.filter(

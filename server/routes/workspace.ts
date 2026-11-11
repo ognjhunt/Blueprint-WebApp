@@ -258,7 +258,6 @@ function accountProjection(
         user.ops === true ||
         ["admin", "ops"].includes(user.role) ||
         roles.some((role) => ["admin", "ops"].includes(role)),
-      capture: user.role === "capturer" || roles.includes("capturer"),
     },
   };
 }
@@ -600,36 +599,7 @@ async function hydrateTask(requestId: string, record: Record<string, any>) {
   const task = projectWorkspaceTask(requestId, record);
   const consentRevoked = projectWebsiteCaptureRights(record).consent_revoked;
   task.recordingPermissionWithdrawn = consentRevoked;
-  const jobs = await db!
-    .collection("capture_jobs")
-    .where("buyer_request_id", "==", requestId)
-    .limit(20)
-    .get();
-  const job = jobs.docs.sort((a, b) =>
-    (iso(b.data().updatedAt) || "").localeCompare(
-      iso(a.data().updatedAt) || "",
-    ),
-  )[0];
-  if (job) {
-    const data = object(job.data()),
-      assignment = object(object(data.field_ops).capturer_assignment),
-      window = object(data.availability_window);
-    task.capture = {
-      id: job.id,
-      status:
-        object(object(data.field_ops).dispatch_review)
-          .manual_confirmation_required === true && data.status !== "confirmed"
-          ? "awaiting_confirmation"
-          : text(data.status) || "requested",
-      startsAt: iso(data.availabilityStartsAt || window.starts_at),
-      endsAt: iso(window.ends_at),
-      capturerName: text(assignment.name) || null,
-      changeStatus:
-        text(object(object(record.workspace_task).captureChange).status) ||
-        null,
-      canMessage: Boolean(assignment.creator_id),
-    };
-  }
+  // The filming-visit panel (capture_jobs) is retired with Blueprint visits (2026-11-11).
   // Read the runs once so application de-duplication uses the exact rows
   // this response will show, including when the optional run read fails.
   let runs: Awaited<ReturnType<typeof listRunsForScene>> = [];
@@ -1537,12 +1507,6 @@ router.patch(
     return res.json({ ok: true });
   }),
 );
-// Blueprint filming visits are retired (owner, 2026-11-11): there is no visit
-// to request, reschedule or cancel and no capturer to message. Answer before
-// any read, write or message, so nothing is stored and nobody is contacted.
-router.post("/tasks/:taskId/capture", (_req, res) => {
-  res.status(410).json({ error: "filming_visits_retired" });
-});
 /** Owner-only withdrawal. The same effect backs the signed owner link; deletion
  * is reported only once the deletion worker's receipt confirms it. */
 router.post("/tasks/:taskId/recording-consent/withdraw", handle(async (req, res) => {

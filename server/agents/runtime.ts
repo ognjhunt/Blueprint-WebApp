@@ -754,7 +754,6 @@ function isAutonomousAutomationTask(kind: AgentTaskKind) {
     "inbound_qualification",
     "post_signup_scheduling",
     "support_triage",
-    "payout_exception_triage",
     "preview_diagnosis",
   ].includes(kind);
 }

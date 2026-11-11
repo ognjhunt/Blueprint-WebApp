@@ -3,7 +3,6 @@ import { attachRequestMeta, logger } from "../logger";
 import { isAutomationLaneEnabled, isTruthyEnvValue } from "../config/env";
 import {
   runInboundQualificationLoop,
-  runPayoutExceptionTriageLoop,
   runPreviewDiagnosisLoop,
   runSupportTriageLoop,
 } from "../agents";
@@ -131,19 +130,9 @@ const workers: WorkerDefinition[] = [
     defaultStartupDelayMs: 25 * 1000,
     run: ({ limit }) => runSupportTriageLoop({ limit }),
   },
-  {
-    key: "payout_exception",
-    enabledEnv: "BLUEPRINT_PAYOUT_TRIAGE_ENABLED",
-    intervalEnv: "BLUEPRINT_PAYOUT_TRIAGE_INTERVAL_MS",
-    batchEnv: "BLUEPRINT_PAYOUT_TRIAGE_BATCH_SIZE",
-    startupDelayEnv: "BLUEPRINT_PAYOUT_TRIAGE_STARTUP_DELAY_MS",
-    defaultIntervalMs: 10 * 60 * 1000,
-    defaultBatchSize: 10,
-    defaultStartupDelayMs: 30 * 1000,
-    run: ({ limit }) => runPayoutExceptionTriageLoop({ limit }),
-  },
   // The capturer lanes (waitlist triage of the `capturer_beta_review` queue and
-  // capturer_reminders) were retired with the capturer network (owner,
+  // capturer_reminders) and the capturer payout_exception triage lane were
+  // retired with the capturer network (owner,
   // 2026-11-11). BLUEPRINT_WAITLIST_AUTOMATION_* and
   // BLUEPRINT_CAPTURER_REMINDER_* no longer start anything.
   // The growth lanes (buyer_lifecycle, lifecycle_cadence, experiment_rollout,

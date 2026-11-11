@@ -499,9 +499,7 @@ describe("accounting ledgers", () => {
   it("marks disputed buyer orders and holds linked creator payouts from Stripe disputes", async () => {
     const {
       attachStripeCheckoutSessionToBuyerOrder,
-      beginCreatorPayoutDisbursement,
       createBuyerOrderDraft,
-      upsertCreatorPayoutFromPipeline,
     } = await import("../utils/accounting");
 
     state.docs.set(docKey("marketplace_items", "inv-warehouse-1"), {
@@ -542,27 +540,13 @@ describe("accounting ledgers", () => {
       checkoutSessionUrl: "https://checkout.stripe.test/session",
       livemode: false,
     });
-    await upsertCreatorPayoutFromPipeline({
-      captureId: "cap-1",
-      sceneId: "scene-1",
-      captureJobId: "job-1",
-      buyerRequestId: "req-1",
-      siteSubmissionId: "site-1",
-      qualificationState: "qualified_ready",
-      opportunityState: "handoff_ready",
-      recommendation: {
-        status: "baseline",
-        base_payout_cents: 4500,
-        recommended_payout_cents: 4500,
-        payout_funding_policy: {
-          mode: "buyer_revenue_linked",
-          buyer_order_id: order!.id,
-          realized_buyer_revenue_cents: 125000,
-        },
-        reasons: [],
-      },
-      recommendationUri: "gs://bucket/payout.json",
-      stripeConnectAccountId: "acct_creator_123",
+    // A capturer payout stored before payouts were retired (2026-11-11).
+    state.docs.set(docKey("creatorPayouts", "cap-1"), {
+      id: "cap-1",
+      capture_id: "cap-1",
+      creator_id: "creator-123",
+      status: "approved",
+      approved_amount_cents: 4500,
     });
 
     state.constructEvent.mockImplementation((body: Buffer) =>
@@ -661,12 +645,6 @@ describe("accounting ledgers", () => {
         capture_id: "cap-1",
       },
     });
-    await expect(
-      beginCreatorPayoutDisbursement({
-        creatorId: "creator-123",
-        stripeConnectAccountId: "acct_creator_123",
-      }),
-    ).resolves.toBeNull();
     expect(readDoc("stripeWebhookEvents", "evt_dispute_created_1")).toMatchObject({
       status: "processed",
       order_id: order!.id,
@@ -674,139 +652,34 @@ describe("accounting ledgers", () => {
     expect(sendSlackMessage).toHaveBeenCalledWith(expect.stringContaining("pi_test_dispute"));
   });
 
-  it("keeps qualified capturer payouts under review without verified funding", async () => {
-    const {
-      beginCreatorPayoutDisbursement,
-      upsertCreatorPayoutFromPipeline,
-    } = await import("../utils/accounting");
-
-    state.docs.set(docKey("capture_submissions", "cap-unfunded"), {
-      creator_id: "creator-123",
-      status: "submitted",
-      payout_cents: 0,
-    });
-
-    const payout = await upsertCreatorPayoutFromPipeline({
-      captureId: "cap-unfunded",
-      sceneId: "scene-1",
-      captureJobId: "job-1",
-      buyerRequestId: "req-1",
-      siteSubmissionId: "site-1",
-      qualificationState: "qualified_ready",
-      opportunityState: "handoff_ready",
-      recommendation: {
-        status: "baseline",
-        base_payout_cents: 4500,
-        recommended_payout_cents: 4500,
-        reasons: [],
-      },
-      recommendationUri: "gs://bucket/payout.json",
-      stripeConnectAccountId: "acct_creator_123",
-    });
-
-    expect(payout).toMatchObject({
-      id: "cap-unfunded",
-      creator_id: "creator-123",
-      status: "review_required",
-      approved_amount_cents: 4500,
-      funding_status: "missing_verified_payout_funding_policy",
-      payout_funding_policy: null,
-      payout_funding_reconciliation: null,
-    });
-    expect(payout?.funding_blockers).toContain(
-      "Qualified creator payouts require a buyer_revenue_linked or preapproved_bounty_budget funding policy before approval.",
-    );
-    expect(readDoc("capture_submissions", "cap-unfunded")).toMatchObject({
-      status: "under_review",
-      payout_cents: 4500,
-    });
-
-    await expect(
-      beginCreatorPayoutDisbursement({
-        creatorId: "creator-123",
-        stripeConnectAccountId: "acct_creator_123",
-      }),
-    ).resolves.toBeNull();
-  });
-
-  it("advances a capturer payout from pipeline approval through Stripe payout settlement", async () => {
-    const {
-      applyCreatorPayoutWebhook,
-      beginCreatorPayoutDisbursement,
-      finalizeCreatorPayoutDisbursement,
-      resolveCreatorIdForCapture,
-      upsertCreatorPayoutFromPipeline,
-    } = await import("../utils/accounting");
-
+  it("settles a capturer payout already in transit when Stripe reports it paid", async () => {
+    // Capturer payouts are off (2026-11-11); a payout sent earlier can still
+    // settle through the webhook, and the ledger records it.
+    const { applyCreatorPayoutWebhook } = await import("../utils/accounting");
     state.docs.set(docKey("capture_submissions", "cap-1"), {
       creator_id: "creator-123",
-      status: "submitted",
-      payout_cents: 0,
-    });
-
-    expect(await resolveCreatorIdForCapture("cap-1")).toBe("creator-123");
-
-    const payout = await upsertCreatorPayoutFromPipeline({
-      captureId: "cap-1",
-      sceneId: "scene-1",
-      captureJobId: "job-1",
-      buyerRequestId: "req-1",
-      siteSubmissionId: "site-1",
-      qualificationState: "qualified_ready",
-      opportunityState: "handoff_ready",
-      recommendation: {
-        status: "baseline",
-        base_payout_cents: 4500,
-        recommended_payout_cents: 4500,
-        payout_funding_policy: {
-          mode: "buyer_revenue_linked",
-          buyer_order_id: "order-paid-1",
-          realized_buyer_revenue_cents: 10000,
-        },
-        reasons: [],
-      },
-      recommendationUri: "gs://bucket/payout.json",
-      stripeConnectAccountId: "acct_creator_123",
-    });
-
-    expect(payout).toMatchObject({
-      id: "cap-1",
-      creator_id: "creator-123",
-      status: "approved",
-      approved_amount_cents: 4500,
-      funding_status: "verified",
-      payout_funding_reconciliation: {
-        mode: "buyer_revenue_linked",
-        buyer_order_id: "order-paid-1",
-        realized_buyer_revenue_cents: 10000,
-        buyer_revenue_margin_cents: 5500,
-      },
-    });
-    expect(readDoc("capture_submissions", "cap-1")).toMatchObject({
       status: "approved",
       payout_cents: 4500,
     });
-
-    const disbursement = await beginCreatorPayoutDisbursement({
-      creatorId: "creator-123",
-      stripeConnectAccountId: "acct_creator_123",
-    });
-    expect(disbursement?.disbursement).toMatchObject({
+    state.docs.set(docKey("creatorPayouts", "cap-1"), {
+      id: "cap-1",
+      capture_id: "cap-1",
       creator_id: "creator-123",
+      status: "in_transit",
+      approved_amount_cents: 4500,
+      disbursement_id: "disb-1",
+    });
+    state.docs.set(docKey("creatorPayoutDisbursements", "disb-1"), {
+      id: "disb-1",
+      creator_id: "creator-123",
+      stripe_connect_account_id: "acct_creator_123",
+      payout_entry_ids: ["cap-1"],
+      requested_amount_cents: 4500,
       disbursed_amount_cents: 4500,
-      status: "initiated",
-      funding_reconciliation_report: {
-        disbursed_amount_cents: 4500,
-        realized_buyer_revenue_cents: 10000,
-        buyer_revenue_margin_cents: 5500,
-        payout_entry_ids: ["cap-1"],
-      },
+      status: "in_transit",
+      stripe_payout_id: "po_test_123",
     });
-
-    await finalizeCreatorPayoutDisbursement({
-      disbursementId: disbursement!.disbursement.id,
-      stripePayoutId: "po_test_123",
-    });
+    state.docs.set(docKey("stripePayouts", "po_test_123"), { disbursement_id: "disb-1" });
 
     await applyCreatorPayoutWebhook({
       stripePayoutId: "po_test_123",
@@ -819,9 +692,7 @@ describe("accounting ledgers", () => {
       status: "paid",
       stripe_payout_id: "po_test_123",
     });
-    expect(
-      readDoc("creatorPayoutDisbursements", disbursement!.disbursement.id),
-    ).toMatchObject({
+    expect(readDoc("creatorPayoutDisbursements", "disb-1")).toMatchObject({
       status: "paid",
       stripe_payout_id: "po_test_123",
     });
@@ -832,18 +703,11 @@ describe("accounting ledgers", () => {
     expect(readCollectionDocs("transactionalNotifications")).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          event_type: "capture_accepted",
-          channel: "in_app",
-          status: "queued",
-          recipient_user_id: "creator-123",
-          subject_id: "cap-1",
-        }),
-        expect.objectContaining({
           event_type: "payout_sent",
           channel: "in_app",
           status: "queued",
           recipient_user_id: "creator-123",
-          subject_id: disbursement!.disbursement.id,
+          subject_id: "disb-1",
         }),
       ]),
     );

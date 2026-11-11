@@ -26,7 +26,7 @@ afterEach(async () => {
   server = null;
 });
 
-describe("capturer money and account routes (switched off 2026-11-11)", () => {
+describe("retired capture app, capturer, payout, field-ops and visit routes (2026-11-11)", () => {
   it.each([
     ["POST", "/v1/stripe/account/instant_payout", "capturer_payouts_off"],
     ["POST", "/v1/stripe/account/onboarding_link", "capturer_payouts_off"],
@@ -38,6 +38,21 @@ describe("capturer money and account routes (switched off 2026-11-11)", () => {
     ["POST", "/api/admin/capturer-applications/u1/decision", "capturer_applications_closed"],
     ["POST", "/api/admin/field-ops/capture-jobs/j1/assign-capturer", "field_ops_retired"],
     ["POST", "/api/admin/field-ops/automation/capturer-reminders/run", "field_ops_retired"],
+    ["GET", "/v1/stripe/account", "capturer_payouts_off"],
+    ["GET", "/v1/stripe/accounts/current", "capturer_payouts_off"],
+    ["PUT", "/v1/stripe/account/payout_schedule", "capturer_payouts_off"],
+    ["DELETE", "/v1/stripe/accounts/acct_1", "capturer_payouts_off"],
+    ["GET", "/api/public/launch/status", "capturer_program_closed"],
+    ["POST", "/api/workspace/tasks/task-1/capture", "filming_visits_retired"],
+    ["POST", "/api/self-capture/uploads/any-token/bundle", "capture_app_not_in_use"],
+    ["POST", "/api/self-capture/uploads/any-token/bundle/targets", "capture_app_not_in_use"],
+    ["POST", "/api/self-capture/uploads/any-token/bundle/complete", "capture_app_not_in_use"],
+    ["POST", "/api/internal/pipeline/creator-captures/cap-1/world/reconstruct", "capture_app_not_in_use"],
+    ["POST", "/api/internal/pipeline/creator-captures/walkthrough-req1/world/reconstruct", "capture_app_not_in_use"],
+    ["POST", "/api/internal/pipeline/creator-captures/cap-1/world/advance", "capture_app_not_in_use"],
+    ["POST", "/api/admin/leads/req-1/capture-job", "capturer_program_closed"],
+    ["POST", "/api/admin/leads/req-1/capture-handoff", "capture_app_not_in_use"],
+    ["GET", "/api/requests/capture-handoff/some-token", "capture_app_not_in_use"],
   ])("%s %s answers 410 %s and reaches nothing behind it", async (method, path, code) => {
     const base = await serve();
     const response = await fetch(`${base}${path}`, { method });
@@ -46,10 +61,19 @@ describe("capturer money and account routes (switched off 2026-11-11)", () => {
     expect(reached).not.toHaveBeenCalled();
   });
 
-  it("leaves the Stripe webhook and the other Stripe account reads alone", async () => {
+  it("leaves the Stripe webhook, the browser upload and the live Pipeline callbacks alone", async () => {
     const base = await serve();
-    expect((await fetch(`${base}/api/stripe/webhooks`, { method: "POST" })).status).toBe(200);
-    expect((await fetch(`${base}/v1/stripe/account`)).status).toBe(200);
-    expect(reached).toHaveBeenCalledTimes(2);
+    const live: Array<[string, string]> = [
+      ["POST", "/api/stripe/webhooks"],
+      ["GET", "/api/self-capture/uploads/any-token/status"],
+      ["POST", "/api/self-capture/uploads/any-token/complete"],
+      ["POST", "/api/workspace/tasks/task-1/recording-consent/withdraw"],
+      ["POST", "/api/internal/pipeline/creator-captures/walkthrough-req1/task-context"],
+      ["POST", "/api/internal/pipeline/creator-captures/walkthrough-req1/visual-scene"],
+      ["POST", "/api/admin/leads/req-1/trigger-preview"],
+      ["GET", "/api/requests/req-1"],
+    ];
+    for (const [method, path] of live) expect((await fetch(`${base}${path}`, { method })).status).toBe(200);
+    expect(reached).toHaveBeenCalledTimes(live.length);
   });
 });

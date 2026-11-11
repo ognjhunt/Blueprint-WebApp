@@ -60,12 +60,9 @@ import { OWNER_WITHDRAWAL_CONFIRMATION, projectWebsiteCaptureWithdrawal,
 import { dbAdmin } from "../../client/src/lib/firebaseAdmin";
 import { bundleLimitsFromEnv } from "../utils/siteCaptureBundle";
 import {
-  acceptBundlePlan,
   appBundlePrivacySource,
-  completeBundle,
   describeBundleLink,
   finishClearedBundle,
-  mintMoreTargets,
   type BundleServiceDeps,
 } from "../utils/siteCaptureBundleService";
 import { resolveBundleStorage, type BundleStorage } from "../utils/siteCaptureBundleStorage";
@@ -1241,10 +1238,10 @@ router.post("/:token/parts/complete", requireAppCheck("upload_parts_complete"), 
   }
 });
 
-/* ------------------------------------------------------------ app bundle routes */
+/* ------------------------------------------------------------ link gate (supplements; stored app bundles) */
 
 /** Token → 404, live permission → 409, storage → 503, as every upload route. */
-async function bundleGate(req: Request, res: Response) {
+export async function bundleGate(req: Request, res: Response) {
   const payload = verifyCaptureUploadToken(String(req.params.token || ""));
   if (!payload) {
     res.status(404).json({ error: "This upload link is not valid or has expired." });
@@ -1286,65 +1283,10 @@ router.post("/:token/supplement", async (req, res) => {
     return res.status(409).json({ code, error: "Your original video is saved. We could not start this update. Refresh the job and try again." });
   }
 });
-// The app bundle routes served only the BlueprintCapture phone app, which is
-// not in use (owner, 2026-11-11); browser uploads never call them. They answer
-// 410 before the token is read, so nothing is stored or signed. The bundle
-// logic (siteCaptureBundle.ts) stays for the later deletion.
-for (const path of ["/:token/bundle", "/:token/bundle/targets", "/:token/bundle/complete"]) {
-  router.post(path, (_req: Request, res: Response) => {
-    res.status(410).json({ error: "capture_app_not_in_use" });
-  });
-}
-
-/**
- * The retired app bundle handlers, mounted only by tests. Bundles the app
- * stored before 2026-11-11 can still be finished by the status recovery above,
- * and these tests create such bundles through the original handlers. Production
- * never mounts this router.
- */
-export function retiredAppBundleRoutesForTests() {
-  const retired = Router();
-  retired.post("/:token/bundle", async (req: Request, res: Response) => {
-    const gate = await bundleGate(req, res);
-    if (!gate) return;
-    try {
-      const outcome = await acceptBundlePlan(gate.payload, req.body, gate.deps);
-      res.setHeader("Cache-Control", "no-store");
-      if (outcome.retryAfterSeconds) res.setHeader("Retry-After", String(outcome.retryAfterSeconds));
-      return res.status(outcome.status).json(outcome.body);
-    } catch (error) {
-      logger.error({ error, captureId: gate.payload.captureId }, "Could not accept an app bundle plan");
-      return res.status(503).json({ error: "We could not start your upload. It will be retried." });
-    }
-  });
-  retired.post("/:token/bundle/targets", async (req: Request, res: Response) => {
-    const gate = await bundleGate(req, res);
-    if (!gate) return;
-    try {
-      const outcome = await mintMoreTargets(gate.payload, req.body, gate.deps);
-      res.setHeader("Cache-Control", "no-store");
-      if (outcome.retryAfterSeconds) res.setHeader("Retry-After", String(outcome.retryAfterSeconds));
-      return res.status(outcome.status).json(outcome.body);
-    } catch (error) {
-      logger.error({ error, captureId: gate.payload.captureId }, "Could not mint app bundle upload targets");
-      return res.status(503).json({ error: "We could not continue your upload. It will be retried." });
-    }
-  });
-  retired.post("/:token/bundle/complete", async (req: Request, res: Response) => {
-    const gate = await bundleGate(req, res);
-    if (!gate) return;
-    try {
-      const outcome = await completeBundle(gate.payload, req.body, gate.deps);
-      if (outcome.status === 201) await activateCaptureSupplement(gate.payload);
-      res.setHeader("Cache-Control", "no-store");
-      return res.status(outcome.status).json(outcome.body);
-    } catch (error) {
-      logger.error({ error, captureId: gate.payload.captureId }, "Could not complete an app bundle upload");
-      return res.status(503).json({ error: "We could not finish your upload. It will be retried." });
-    }
-  });
-  return retired;
-}
+// The app bundle routes (`/:token/bundle`, `/bundle/targets`, `/bundle/complete`)
+// served only the BlueprintCapture phone app, retired 2026-11-11. They answer
+// 410 capture_app_not_in_use from `retiredCapturerRoutes`. A bundle the app
+// stored before then is still read and finished by the status recovery above.
 
 /** Phone-camera image formats a site will actually send. */
 const ALLOWED_IMAGE_EXTENSIONS = new Set(["jpg", "jpeg", "png", "heic", "heif", "webp"]);

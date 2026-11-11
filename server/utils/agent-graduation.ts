@@ -8,8 +8,6 @@ const LANE_DEFINITIONS = [
   { workerKey: "waitlist", actionLane: "waitlist" },
   { workerKey: "inbound_qualification", actionLane: "inbound" },
   { workerKey: "support_triage", actionLane: "support" },
-  { workerKey: "payout_exception", actionLane: "payout" },
-  { workerKey: "capturer_reminders", actionLane: "capturer_comms" },
   { workerKey: "buyer_lifecycle", actionLane: "buyer_lifecycle" },
   { workerKey: "growth_campaign", actionLane: "growth_campaign" },
 ] as const;

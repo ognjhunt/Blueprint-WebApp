@@ -14,8 +14,8 @@ export default function ProtectedRoute({ children, requireRoles }: ProtectedRout
   const { currentUser, userData, tokenClaims, loading } = useAuth();
   const [location, setLocation] = useLocation();
   const search = useSearch();
-  // Account privacy belongs to every authenticated account, including capture
-  // accounts and accounts whose workspace profile is missing. This exception
+  // Account privacy belongs to every authenticated account, including
+  // accounts whose workspace profile is missing. This exception
   // must track query changes and must never waive an explicit role requirement.
   const isAccountPrivacy = location === "/settings"
     && new URLSearchParams(search).get("privacy") === "1"
@@ -23,9 +23,10 @@ export default function ProtectedRoute({ children, requireRoles }: ProtectedRout
   // Derive visibility from this render's authority. A sticky ready flag can
   // keep private children mounted after sign-out or role revocation while
   // the navigation effect runs.
-  const isCapturer = userData?.role === "capturer" || userData?.roles?.includes("capturer") === true;
+  // An account that still carries the retired capturer role (2026-11-11) is
+  // treated like any other account.
   const isReady = !loading && Boolean(currentUser) && (isAccountPrivacy || (
-    Boolean(userData) && !isCapturer
+    Boolean(userData)
     && (!requireRoles?.length || hasAnyRole(requireRoles, userData, tokenClaims))));
 
   useEffect(() => {
@@ -44,12 +45,6 @@ export default function ProtectedRoute({ children, requireRoles }: ProtectedRout
       } else if (!userData) {
         // Wait for user data to be loaded
         return;
-      } else if (
-        userData.role === "capturer" ||
-        userData.roles?.includes("capturer") === true
-      ) {
-        sessionStorage.removeItem("redirectAfterAuth");
-        setLocation("/capture-app");
       } else if (
         requireRoles &&
         requireRoles.length > 0 &&

@@ -24,7 +24,6 @@ const CONNECTIVITY_TASK_KINDS = [
   "post_signup_scheduling",
   "operator_thread",
   "support_triage",
-  "payout_exception_triage",
   "preview_diagnosis",
   "outbound_outreach",
 ] as const satisfies readonly AgentTaskKind[];

@@ -120,27 +120,6 @@ describe("Austin Proof-Motion Analytics Events", () => {
     });
   });
 
-  it("calls cityLaunchCapturerApproved with correct parameters", async () => {
-    analyticsEvents.cityLaunchCapturerApproved({
-      city: "Austin",
-      citySlug: "austin",
-      capturerType: "professional_surveyor",
-      launchId: "launch-123",
-    });
-
-    await flushAnalytics();
-
-    expect(latestAnalyticsPayload()).toMatchObject({
-      event: "city_launch_capturer_approved",
-      properties: {
-        city: "Austin",
-        city_slug: "austin",
-        capturer_type: "professional_surveyor",
-        launch_id: "launch-123",
-      },
-    });
-  });
-
   it("calls cityLaunchCaptureCompleted with correct parameters", async () => {
     analyticsEvents.cityLaunchCaptureCompleted({
       city: "Austin",
