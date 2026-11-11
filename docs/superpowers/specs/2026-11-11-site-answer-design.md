@@ -23,8 +23,9 @@ Pipeline repo: `docs/audits/2026-11-11-first-principles-audit.md`.
 3. **Tested in simulation**, when the simulation of its site has run: the
    picked robot's reach and arm path checked in the scene rebuilt from the
    video, and public control policies compared on its job on a research robot
-   (today the Franka research arm or the Unitree G1 humanoid), with a cited statement of how far such a comparison can be
-   trusted. The simulation checks no cycle time.
+   (today the Franka research arm or the Unitree G1 humanoid), with a cited
+   statement of how far such a comparison can be trusted. The simulation
+   checks no cycle time.
 4. **A deployment company**: one button shares an anonymised job card, with the
    answer and the simulation result, with deployment companies Blueprint has
    approved.
@@ -69,8 +70,8 @@ returns `answer: null` and carries on.
   check. The note that the job needs a robot that moves between the spots
   appears only while no arm that stays in one place passed its reach check.
 - **Evidence** comes from `server/data/deploymentEvidence.v2.json`
-  (`deployment_evidence.v2`): 30 rows, each quoted word for word (any omission marked by "…") with its URL,
-  title and publisher. A row applies only to the catalog models it lists
+  (`deployment_evidence.v2`): 30 rows, each quoted word for word (any omission
+  marked by "…") with its URL, title and publisher. A row applies only to the catalog models it lists
   (`applies_to`, never empty, every id in the catalog and made by the row's
   maker) and says whether its source names that exact model or the robot
   family it belongs to (`names`, `family`); there are no maker-wide rows.
@@ -92,21 +93,25 @@ returns `answer: null` and carries on.
   needs every check of the pick passed, none on a video estimate, and
   documented production use.
 
-**The kind of job.** No word list decides anything about the job: the video
-reader, which watched the job and read the site's description, says its kind
-(`job_kind`), a carrying kind is checked and gives the job family, which is
-stated only then (otherwise no kind of job is shown, and the pick-and-place
-track record is looked up because a carry is what is checked), and "other" is
-not checked, with a reason that names what the reader saw and asks the site, if
-that is not right, to edit the job description to say what the robot should do
-(an edit of the description already causes a new reading). When the reader does not say, the check runs on the numbers and the
-first unknown says only a carry was checked, which also keeps confidence below
-"good"; every answer's standing note, on the page, in the email and on the job
-card, says the check covers whether a robot can pick the object up and put it
-down. What else the job involves comes only from the reader's `other_actions`,
-a closed list declared once in `server/agents/tasks/site-video-evidence.ts`
-(`OTHER_ACTIONS`), and whether the simulation can score a job never decides
-whether the fit check runs.
+**The kind of job.** No word list decides anything about the job.
+
+- The video reader, which watched the job and read the site's description,
+  says its kind (`job_kind`). A carrying kind is checked and gives the job
+  family. The kind of job is shown only then.
+- "Other" is not checked. The reason names what the reader saw and tells the
+  site what it can do: edit the job description to say what the robot should
+  do. An edit of the description already causes a new reading.
+- When the reader does not say, the check runs on the numbers. The first
+  unknown says the kind of job could not be told and only a carry was checked,
+  which keeps confidence below "good". No kind of job is shown, and the
+  pick-and-place track record is used because a carry is what was checked.
+- Every answer's standing note, on the page, in the email and on the job card,
+  says the check covers whether a robot can pick the object up and put it down.
+- What else the job involves comes only from the reader's `other_actions`, a
+  closed list declared once in `server/agents/tasks/site-video-evidence.ts`
+  (`OTHER_ACTIONS`).
+- Whether the simulation can score a job never decides whether the fit check
+  runs.
 
 ## How the simulation result is made
 
@@ -160,11 +165,13 @@ simulation"; the simulation email repeats its sentences word for word.
   scores correlate with real ones at about 0.9. Those results needed a clean
   scan with true scale, a calibrated controller and research policies. The page
   says which of those hold for the job in front of the reader.
-- **Only one robot has several public policies today**, the Franka research
-  arm. For other robots the page says Blueprint has no public policy to run on
-  them, and the simulation checks their reach and arm path.
+- **Public policies exist for two research robots today**: the Franka research
+  arm and the Unitree G1 humanoid, whose rows the Pipeline marks as development
+  references that are shown and never ranked. For any other robot the page
+  says Blueprint has no public policy to run on it, and the simulation checks
+  its reach and arm path.
 
-The Pipeline plan for making this proof fast and validated is
+The Pipeline plan for making this test fast and validated is
 `docs/launch-readiness/2026-11-11-simulation-proof-fast-lane-plan.md` in the
 Pipeline repo.
 
@@ -177,8 +184,8 @@ without it is refused with "Press the button on your job page to ask for this."
 and one naming another version is asked to reload. It records the request once
 under that sentence, turns the job card on through the existing listing
 function under the same statement (a card that is already on keeps its
-content; see below), and rings Blueprint's owner once with the job family, the pick and the
-runner-up. It contacts no outside company and queues no alert email to them;
+content; see below), and rings Blueprint's owner once with the job family, the
+pick and the runner-up. It contacts no outside company and queues no alert email to them;
 approved companies see the card when they browse the job library, and whom to
 introduce is the owner's decision.
 
@@ -189,9 +196,9 @@ re-saved, under the older card box carries no answer, and no answer is composed
 for it. The latest consent the site gave governs: when the card is already on
 under the older box and the site presses the button, only the listing's consent
 version moves to the with-answer statement (the owner's reviewed card, its
-published date, revision, thumbnail and go-live time are untouched, the choice's
-time is the request's own, and no company is alerted), so the card then carries the answer until the site re-saves it under
-the older box. At intake, sharing is an unticked box.
+published date, revision, thumbnail and go-live time are untouched, the
+choice's time is the request's own, and no company is alerted), so the card
+then carries the answer until the site re-saves it under the older box. At intake, sharing is an unticked box.
 
 ## Emails
 
@@ -203,8 +210,8 @@ suppressed; Blueprint runs evaluations itself.
 When the simulation finishes with a result, its email
 (`server/utils/taskLifecycleNotifications.ts`) states the job page's own
 comparison sentence and scene notes, from the same projection. Its subject is
-"Your simulation result is ready" when a compared policy completed the job, with how
-far a published comparison can be trusted; otherwise "The simulation of your
+"Your simulation result is ready" when a compared policy completed the job,
+with how far a published comparison can be trusted; otherwise "The simulation of your
 job has finished", with what the simulation found and no offer of a pilot.
 
 ## How to check it
