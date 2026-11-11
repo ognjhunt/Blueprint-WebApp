@@ -473,9 +473,8 @@ test("desktop handoff recognizes retained footage without claiming processing co
   });
   await page.clock.install();
   await page.goto("/contact/site-operator");
-  // The task and its one box confirm the brief at submission (owner decision 2026-11-07).
+  // The optional sentence confirms the brief at submission (owner direction 2026-11-11).
   await page.locator("#start-task").fill("Move sealed cartons onto a pallet");
-  await page.getByRole("checkbox", { name: "This is the task I want Blueprint to evaluate.", exact: true }).check();
   await page.locator("#start-location").fill("Austin, TX");
   await page.locator("#start-email").fill("operator@example.test");
   await page.getByRole("button", { name: "Start free assessment" }).click();

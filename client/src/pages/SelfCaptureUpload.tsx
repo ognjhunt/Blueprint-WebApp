@@ -11,6 +11,8 @@ import { RobotFitHold, isRobotFitHold, type RobotFitHoldView } from "@/component
 import { SuccessThresholds, isSuccessThresholds, type SuccessThresholdsView } from "@/components/site/SuccessThresholds";
 import { RobotAccess, isRobotAccess, type RobotAccessView } from "@/components/site/RobotAccess";
 import { NextTaskUpdate } from "@/components/site/NextTaskUpdate";
+import { SiteAnswer } from "@/components/site/SiteAnswer";
+import { isSiteAnswer, type SiteAnswer as SiteAnswerView } from "@/lib/siteAnswer";
 /**
  * The page an operator or filmer opens from a private job link.
  *
@@ -71,6 +73,8 @@ type TaskStatus = {
   successThresholds?: SuccessThresholdsView | null;
   /** Whether to move chairs or stools out of the robot's way in the simulation, for the owner only. */
   robotAccess?: RobotAccessView | null;
+  /** The site's answer: which robot most likely fits, for the owner only. A fit check, never a physical test. */
+  answer?: SiteAnswerView | null;
 };
 
 function isTargetChoice(value: unknown): value is TaskTargetChoiceView {
@@ -574,6 +578,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
             robotFitHold: data.scope === "owner" && isRobotFitHold(data.robotFitHold) ? data.robotFitHold : null,
             successThresholds: data.scope === "owner" && isSuccessThresholds(data.successThresholds) ? data.successThresholds : null,
             robotAccess: data.scope === "owner" && isRobotAccess(data.robotAccess) ? data.robotAccess : null,
+            answer: data.scope === "owner" && isSiteAnswer(data.answer) ? data.answer : null,
           });
         } else if (alive) {
           setCurrentStatusKnown(false);
@@ -608,6 +613,10 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
   const optionalCorrectionHint = saved && link.status === "valid" && !status?.outcome
     && (status?.decision === "confirm_brief" || status?.decision === "add_views");
   const preparationUpdate = "Blueprint is preparing your reconstruction.";
+  // The answer leads the page once there is one. It never waits on the brief, so the brief's
+  // forms below become an optional correction of the job we read from the video.
+  const answer = saved && scope === "owner" && currentStatusKnown ? status?.answer ?? null : null;
+  const answerSettled = answer?.state === "ready" || answer?.state === "cannot_assess";
 
   // One current update. Saved jobs show it before results; a fresh capture
   // keeps the recorder first. Optional corrections do not become next steps.
@@ -632,7 +641,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
         </p>
       )}
       <TaskOutcomeNotice showTitle={false} outcome={status.outcome} />
-      <NextTaskUpdate nextUpdateIso={status.nextUpdateIso} />
+      {status.decision !== "ended" && !answerSettled && <NextTaskUpdate nextUpdateIso={status.nextUpdateIso} />}
       <SiteAdvisoryReport advisory={status.siteAdvisory}>
       {scope === "owner" && link.status === "valid" && status.siteAdvisory?.state === "needs_review"
         && status.assessment_retry_available === true && status.assessment_job_id && status.assessment_run_id && (
@@ -687,6 +696,12 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
         Edit your answers
       </button>
     </p>
+  ) : answer ? (
+    <details aria-label="Review your job brief" style={{ margin: "16px 0" }}>
+      <summary>Correct the job we read from your video (optional)</summary>
+      <p className="ms-field-hint">Your answer above does not wait on this. If we read the job wrong, correct the task and answers here and confirm them; Blueprint uses your correction from then on.</p>
+      <TaskBriefReview key={token} token={token} brief={brief} account={siteAccount} optionalAccount onConfirmed={onBriefConfirmed} />
+    </details>
   ) : (
     <details aria-label="Review your job brief" style={{ margin: "16px 0" }}>
       <summary>Confirm your task: the one step that lets Blueprint run it</summary>
@@ -718,6 +733,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
         {link.status === "held" || saved ? "Your job" : existingVideoOnly ? "Upload your existing video" : onAPhone ? "Film the work area" : "Upload or record your job"}
       </h1>
 
+      {answer && <SiteAnswer token={token} answer={answer} onIntroductionRequested={() => setStatusRefresh(value => value + 1)} />}
       {(saved || link.status !== "valid") && statusCard}
       {saved && (link.status === "valid" || link.status === "held") && scope === "owner"
         && <JobWorkspace token={token} preparationOutcome={status?.outcome} resultSuperseded={status?.resultSuperseded} currentStatusKnown={currentStatusKnown} currentNextAction={currentStatusKnown && status ? optionalCorrectionHint
@@ -727,7 +743,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
         && <TaskTargetChoice key={status.targetChoice.questionDigest} token={token} question={status.targetChoice}
           onAnswered={() => setStatusRefresh(value => value + 1)} />}
       {saved && scope === "owner" && currentStatusKnown && status?.robotFitHold && <RobotFitHold hold={status.robotFitHold} />}
-      {saved && scope === "owner" && currentStatusKnown && status?.robotFit && <RobotFit fit={status.robotFit} />}
+      {saved && scope === "owner" && currentStatusKnown && status?.robotFit && !answer && <RobotFit fit={status.robotFit} />}
       {saved && scope === "owner" && currentStatusKnown && status?.successThresholds
         && <SuccessThresholds key={status.successThresholds.proposalDigest} token={token} view={status.successThresholds}
           onDecided={() => setStatusRefresh(value => value + 1)} />}
@@ -927,7 +943,9 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
                     }
                   })();
                 }}>
-                  <label htmlFor="task-statement">We could not tell the job from your video. In one line, what should the robot do?</label>
+                  <label htmlFor="task-statement">{answer
+                    ? "Optional: if we read the job wrong, say in one line what the robot should do."
+                    : "We could not tell the job from your video. In one line, what should the robot do?"}</label>
                   <input id="task-statement" value={taskStatement} maxLength={300} required
                     placeholder="Pick up the … and place it on the …" onChange={(event) => setTaskStatement(event.target.value)} />
                   <button type="submit" disabled={savingTaskStatement || !taskStatement.trim()}>

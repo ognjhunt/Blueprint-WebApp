@@ -2,14 +2,9 @@ import { expect, test, chromium, type Page } from "@playwright/test";
 import { copyFileSync, mkdirSync } from "node:fs";
 import path from "node:path";
 
-/** The task and its one box: submitting them confirms the brief (owner decision 2026-11-07). */
+/** The optional sentence: typing it confirms the brief (owner direction 2026-11-11). */
 async function fillJobDescription(page: import("@playwright/test").Page, value: string) {
   await page.locator("#start-task").fill(value);
-  await confirmTask(page);
-}
-/** The box is never retained across a reload, so a restored draft ticks it again. */
-async function confirmTask(page: import("@playwright/test").Page) {
-  await page.getByRole("checkbox", { name: "This is the task I want Blueprint to evaluate.", exact: true }).check();
 }
 const origin = "http://127.0.0.1:42879";
 const create = "/api/inbound-request";
@@ -272,7 +267,6 @@ test("UI-CROSS-TAB-003 clear in another tab survives an old acknowledgement befo
   await expect.poll(async()=>await durableSnapshot()).toEqual(await snapshot());
   // A phone capture has no recording grant to restore, so none appears here.
   await expect(second.locator("#start-rights")).toHaveCount(0);
-  await confirmTask(second);
   await second.getByRole("button",{name:"Start free assessment"}).click();
   await expect(second.getByRole("link",{name:"Open your job page"})).toBeVisible();
   expect(bodies).toHaveLength(2);expect(JSON.parse(bodies[1]).requestId).toBe(fresh.requestId);

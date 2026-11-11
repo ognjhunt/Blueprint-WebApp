@@ -12,6 +12,7 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import SelfCaptureUpload from "@/pages/SelfCaptureUpload";
 import { RECORDING_RIGHTS_STATEMENT } from "@/lib/recordingRightsStatement";
 import { processingFailure } from "../../../server/utils/taskPreparationOutcome";
+import { cannotAssessAnswer, readingAnswer, readyAnswer } from "../fixtures/siteAnswer";
 
 const route = vi.hoisted(() => ({ token: "tok-e2e", navigate: vi.fn() }));
 vi.mock("wouter", () => ({ useRoute: () => [true, { token: route.token }], useLocation: () => ["/capture-upload/test", route.navigate] }));
@@ -1125,5 +1126,84 @@ describe("the robot readiness report on the owner's page", () => {
     expect((await screen.findAllByText("Your video arrived.")).length).toBeGreaterThan(0);
     expect(fetchMock.mock.calls.some(([input]) => String(input).endsWith("/readiness"))).toBe(false);
     expect(screen.queryByText(/Your robot readiness report/)).not.toBeInTheDocument();
+  });
+});
+
+describe("the site's answer leads its job page", () => {
+  const DESKTOP_UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/126.0 Safari/537.36";
+  const robotFit = { route: "full", status: "completed", reason: null, counts: { fits: 1, fitsSpec: 0, doesntFit: 0, unknown: 0 },
+    models: [{ name: "UR10e", manufacturer: "Universal Robots", verdict: "fits", openChecks: [] }], modelsTruncated: false };
+  function answerFetch({ answer, scope = "owner", decision = "footage_received", confirmedAtIso = null }: {
+    answer: unknown; scope?: "owner" | "film"; decision?: string; confirmedAtIso?: string | null;
+  }) {
+    return vi.fn().mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith(`/api/self-capture/uploads/${TOKEN}/status`)) return Promise.resolve({ ok: true, json: async () => ({
+        ok: true, state: "open", accepts: ["mov", "mp4"], captureReceived: true, uploadState: "processing_ready" }) });
+      if (url === `/api/site-task-brief/${TOKEN}/status`) return Promise.resolve({ ok: true, json: async () => ({
+        scope, captureReceived: true, answer, robotFit,
+        status: { decision, headline: "We have your recording.", operatorAction: null, missingViews: [], nextUpdateIso: null } }) });
+      if (url === `/api/site-task-brief/${TOKEN}`) return Promise.resolve({ ok: true, json: async () => ({ ready: true, scope, brief: {
+        summary: "Move cartons from the end of the conveyor onto the pallet.", captureMode: "self_capture", proposed: [], unresolved: [], confirmedAtIso } }) });
+      if (url.startsWith("/api/job-workflow/owner/")) return Promise.resolve({ ok: false, json: async () => ({}) });
+      return Promise.resolve({ ok: true, json: async () => ({ ok: true, ready: false }) });
+    });
+  }
+
+  it("shows the answer between the title and the status card, instead of the separate robot fit", async () => {
+    setUserAgent(DESKTOP_UA);
+    vi.stubGlobal("fetch", answerFetch({ answer: readyAnswer }));
+    render(<SelfCaptureUpload />);
+    const answer = await screen.findByRole("region", { name: "Your answer" });
+    const title = screen.getByRole("heading", { level: 1, name: "Your job" });
+    const card = screen.getByText("We have your recording.", { selector: "strong" });
+    expect(title.compareDocumentPosition(answer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(answer.compareDocumentPosition(card) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByText(readyAnswer.headline)).toBeVisible();
+    expect(screen.queryByRole("region", { name: "Robot fit" })).toBeNull();
+    // A settled answer is the update; no "will update" line under it.
+    expect(screen.queryByText("Blueprint will update this job as the work progresses.")).toBeNull();
+    // The brief no longer gates the answer: it reads as an optional correction.
+    expect(screen.getByText("Correct the job we read from your video (optional)")).toBeInTheDocument();
+    expect(screen.queryByText(CONFIRM_STEP)).toBeNull();
+  });
+
+  it("keeps the update line while the video is still being read, and drops it once the answer is settled", async () => {
+    setUserAgent(DESKTOP_UA);
+    vi.stubGlobal("fetch", answerFetch({ answer: readingAnswer }));
+    const { unmount } = render(<SelfCaptureUpload />);
+    expect(await screen.findByText(readingAnswer.headline)).toBeVisible();
+    expect(screen.getByText("Blueprint will update this job as the work progresses.")).toBeVisible();
+    unmount();
+    vi.stubGlobal("fetch", answerFetch({ answer: cannotAssessAnswer }));
+    render(<SelfCaptureUpload />);
+    expect(await screen.findByText(cannotAssessAnswer.reason!)).toBeVisible();
+    expect(screen.queryByText("Blueprint will update this job as the work progresses.")).toBeNull();
+  });
+
+  it("says nothing more will update on an ended job", async () => {
+    setUserAgent(DESKTOP_UA);
+    vi.stubGlobal("fetch", answerFetch({ answer: null, decision: "ended" }));
+    render(<SelfCaptureUpload />);
+    expect(await screen.findByText("We have your recording.", { selector: "strong" })).toBeVisible();
+    expect(screen.queryByText("Blueprint will update this job as the work progresses.")).toBeNull();
+  });
+
+  it("keeps the separate robot fit and the confirmation step when there is no answer, and never shows a malformed one", async () => {
+    setUserAgent(DESKTOP_UA);
+    vi.stubGlobal("fetch", answerFetch({ answer: { ...readyAnswer, schemaVersion: "site_answer.v0" } }));
+    render(<SelfCaptureUpload />);
+    expect(await screen.findByRole("region", { name: "Robot fit" })).toBeVisible();
+    expect(screen.queryByRole("region", { name: "Your answer" })).toBeNull();
+    expect(screen.getByText(CONFIRM_STEP)).toBeInTheDocument();
+    expect(screen.getByText("Blueprint will update this job as the work progresses.")).toBeVisible();
+  });
+
+  it("never shows the answer on a film-only link", async () => {
+    setUserAgent(DESKTOP_UA);
+    vi.stubGlobal("fetch", answerFetch({ answer: readyAnswer, scope: "film" }));
+    render(<SelfCaptureUpload />);
+    expect(await screen.findByText("We have your recording.", { selector: "strong" })).toBeVisible();
+    expect(screen.queryByText(readyAnswer.headline)).toBeNull();
   });
 });

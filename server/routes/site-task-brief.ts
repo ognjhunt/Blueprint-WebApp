@@ -339,6 +339,8 @@ async function readRequestForStatus(requestId: string, captureId = `walkthrough-
   recommended: boolean;
   /** The job's own targets, which set the pass mark. */
   workspace_task: { terms?: unknown } | null;
+  /** The stored record, server side only, for the site's answer; never sent to the page. */
+  answerSource: Record<string, unknown>;
 } | null> {
   if (!db) return null;
   const snap = await db.collection("inboundRequests").doc(requestId).get();
@@ -391,6 +393,7 @@ async function readRequestForStatus(requestId: string, captureId = `walkthrough-
     recommended: Boolean(data.pilot_recommendation),
     workspace_task: (data.workspace_task as { terms?: unknown } | undefined) ?? null,
     site_task_scope: (data.site_task_scope as { supported?: unknown; reason?: unknown } | undefined) ?? null,
+    answerSource: data,
   };
 }
 
@@ -1147,6 +1150,24 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
  * so the two surfaces cannot tell one operator "we can assess this" while
  * telling another "in review" about the same task.
  */
+/**
+ * The site's answer on the status read. Reuses the request and brief the read
+ * already holds; its one extra read is the site's own readings. Never fails the
+ * status read: any error is logged and the answer is null.
+ */
+async function siteAnswerForStatus(params: { requestId: string; request: Record<string, unknown>; brief: unknown;
+  videoReceived: boolean; robotFit: unknown } | null) {
+  if (!params) return null;
+  try {
+    const { loadSiteAnswer } = await import("../utils/siteAnswer");
+    return await loadSiteAnswer(params.requestId, { request: params.request, brief: (params.brief ?? null) as never,
+      videoReceived: params.videoReceived, robotFit: (params.robotFit ?? null) as never });
+  } catch (error) {
+    logger.warn({ error, requestId: params.requestId }, "Could not compose the site's answer");
+    return null;
+  }
+}
+
 router.get("/:token/status", async (req: Request, res: Response) => {
   res.setHeader("Cache-Control", "no-store");
   const verifiedPayload = verifyCaptureUploadToken(String(req.params.token || ""));
@@ -1365,6 +1386,10 @@ router.get("/:token/status", async (req: Request, res: Response) => {
       successThresholds: payload.scope === "owner" && !request?.captureRights.consent_revoked ? successThresholds : null,
       // Whether to move named furniture out of the robot's way in the simulation, for the owner only.
       robotAccess: payload.scope === "owner" && !request?.captureRights.consent_revoked ? robotAccess : null,
+      // Which robot most likely fits the job, for the owner only: a fit check against published specifications.
+      answer: await siteAnswerForStatus(payload.scope === "owner" && request && !request.captureRights.consent_revoked
+        ? { requestId: payload.requestId, request: request.answerSource, brief, videoReceived: hasStoredCapture,
+          robotFit: preparationStatus?.robotFit ?? null } : null),
     });
   } catch (error) {
     logger.error({ error, requestId: payload.requestId }, "Could not load task status");

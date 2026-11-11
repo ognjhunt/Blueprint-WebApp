@@ -8,9 +8,9 @@ for (const device of ["desktop", "mobile"] as const) {
       test.use(mobile);
     } else test.use({ viewport: { width: 1440, height: 1000 } });
 
-    // Owner decision 2026-11-07 ("Confirm at upload"): the task in the site's words
-    // and one box are required, and submitting them confirms the brief.
-    test("capture setup takes the task and its one box, then continues to required video", async ({ page, context, baseURL }, testInfo) => {
+    // Owner direction 2026-11-11: the sentence is optional; a typed one, in the
+    // site's words, confirms the brief when it is submitted.
+    test("capture setup takes an optional typed task, then continues to required video", async ({ page, context, baseURL }, testInfo) => {
       const token = "synthetic-description-owner";
       const mutations: Array<{ path: string; body: any }> = [];
       const errors: string[] = [];
@@ -56,16 +56,13 @@ for (const device of ["desktop", "mobile"] as const) {
       await expect(page.getByRole("group", { name: "How will we see the task?" })).toBeVisible();
       await expect(page.locator("#start-task")).toBeVisible();
       await shot("intake");
-      // Nothing is sent without the task and the box.
+      // Nothing is sent without the country and the email.
       await page.getByRole("button", { name: "Start free assessment", exact: true }).click();
       expect(mutations).toHaveLength(0);
       await page.locator("#start-task").fill("Move sealed cartons from a conveyor onto a pallet.");
-      const taskBox = page.getByRole("checkbox", { name: "This is the task I want Blueprint to evaluate.", exact: true });
-      await taskBox.check();
+      await expect(page.getByRole("checkbox", { name: "This is the task I want Blueprint to evaluate.", exact: true })).toHaveCount(0);
       await page.locator("#start-location").fill("Austin, TX");
-      await expect(taskBox).toBeChecked();
       await page.locator("#start-email").fill("qa@example.invalid");
-      await expect(taskBox).toBeChecked();
       await expect(page.locator("#start-rights")).toHaveCount(0);
       await expect(page.locator("#start-region")).toHaveCount(0);
       await page.getByRole("button", { name: "Start free assessment", exact: true }).click();

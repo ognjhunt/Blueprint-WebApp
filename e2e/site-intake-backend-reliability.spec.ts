@@ -42,10 +42,8 @@ for (const [index, parameters] of cases.entries()) test(`A-J-${String(index + 1)
   record();
   try {
     await page.goto("http://127.0.0.1:4181/contact/site-operator");
-    // The task and its one box confirm the brief at submission (owner decision 2026-11-07).
-    const taskBox = page.getByRole("checkbox", { name: "This is the task I want Blueprint to evaluate.", exact: true });
+    // The optional sentence confirms the brief at submission (owner direction 2026-11-11).
     await page.locator("#start-task").fill("Move sealed cartons from the conveyor onto a pallet.");
-    await taskBox.check();
     await page.locator("#start-location").fill(parameters.location);
     await page.locator("#start-email").fill(`reliability-${index + 1}@example.invalid`);
     await page.locator(`#start-method-${parameters.method}`).check();
@@ -53,9 +51,6 @@ for (const [index, parameters] of cases.entries()) test(`A-J-${String(index + 1)
       await page.reload();
       await expect(page.locator("#start-task")).toHaveValue("Move sealed cartons from the conveyor onto a pallet.");
       await expect(page.locator(`#start-method-${parameters.method}`)).toBeChecked();
-      // Consent is never retained across a reload: the box is ticked again.
-      await expect(taskBox).not.toBeChecked();
-      await taskBox.check();
     }
     if (parameters.boundary === "lost-response") {
       let lost = false;

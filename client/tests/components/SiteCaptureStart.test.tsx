@@ -13,6 +13,7 @@ import { SiteCaptureStart } from "@/components/site/SiteCaptureStart";
 import { siteCaptureDraftKey } from "@/lib/siteCaptureDraft";
 import { RECORDING_RIGHTS_STATEMENT } from "@/lib/recordingRightsStatement";
 import { TASK_CONFIRMATION_STATEMENT, TASK_CONFIRMATION_VERSION } from "@/lib/taskConfirmationStatement";
+const SHARE_LABEL = "Also share an anonymised summary of this job with robot companies Blueprint has approved (optional)";
 import { anonymizedOpportunityDraft } from "@/types/taskBrowse";
 import { renderToString } from "react-dom/server";
 import { SITE_CAPTURE_START_FORM, siteCaptureStartSubmission } from "../../../server/tests/helpers/siteCaptureStartSubmission";
@@ -89,11 +90,9 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-/** The task in the site's words and the one box the form requires (owner decision 2026-11-07). */
+/** The optional sentence in the site's words; typing it is the confirmation (owner direction 2026-11-11). */
 function describeTask(task: string, root: ParentNode = document) {
   fireEvent.change(root.querySelector("#start-task")!, { target: { value: task } });
-  const box = root.querySelector<HTMLInputElement>("#start-task-confirmation")!;
-  if (!box.checked) fireEvent.click(box);
 }
 
 function region() {
@@ -387,42 +386,67 @@ it("prepares the phone capture with explicit description authority and no record
   expect(screen.queryByRole("link", { name: "Open your job and assessment" })).not.toBeInTheDocument();
 });
 
-// Owner decision 2026-11-07 ("Confirm at upload"): the task in the site's words and
-// one box are the brief's confirmation, so neither can be skipped and nothing is sent without them.
-it("requires the task and its one box, and sends them as the confirmation", async () => {
+// Owner direction 2026-11-11: a site sends an email and a video; Blueprint drafts the job
+// description from the video. The sentence is optional; typing one is the confirmation.
+it("leaves the task optional, has no task box, and sends a typed sentence as the confirmation", async () => {
   signedIn({ workspaceType: "site_operator" }, [{ ok: true, body: { captureUrl: "/capture-upload/tok.signed" } }]);
   await renderReady(<SiteCaptureStart />);
   await screen.findByText(/Saving to your workspace/);
   const task = document.querySelector<HTMLTextAreaElement>("#start-task")!;
-  const box = screen.getByRole("checkbox", { name: TASK_CONFIRMATION_STATEMENT });
-  expect(task).toBeRequired();
+  expect(task).not.toBeRequired();
   expect(task.closest("details")).toBeNull();
-  expect(box).toBeRequired();
-  expect(box).not.toBeChecked();
+  expect(screen.getByLabelText(/Anything we should know about the job\? \(optional\)/)).toBe(task);
+  expect(screen.getByText("We draft the job description from your video. Add a sentence if you want to.")).toBeInTheDocument();
+  expect(document.querySelector("#start-task-confirmation")).toBeNull();
+  expect(screen.queryByText(TASK_CONFIRMATION_STATEMENT)).toBeNull();
   expect(document.querySelector("#start-success")).not.toBeRequired();
   fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Austin, TX" } });
-
-  fireEvent.submit(screen.getByRole("form"));
-  expect(await screen.findByRole("alert")).toHaveTextContent("Describe the task Blueprint should evaluate.");
-  expect(document.activeElement).toBe(task);
   fireEvent.change(task, { target: { value: "Pack cartons into the shipping box" } });
-  fireEvent.submit(screen.getByRole("form"));
-  expect(await screen.findByRole("alert")).toHaveTextContent("Tick the box to confirm this is the task you want evaluated.");
-  expect(document.activeElement).toBe(box);
-  expect(postsTo("/api/workspace/capture-start")).toHaveLength(0);
-
-  fireEvent.click(box);
   fireEvent.change(document.querySelector("#start-success")!, { target: { value: "Every carton is sealed and upright" } });
   fireEvent.submit(screen.getByRole("form"));
   await screen.findByRole("heading", { name: "Film the work area." });
-  expect(JSON.parse(postsTo("/api/workspace/capture-start")[0][1].body)).toMatchObject({
+  const sent = JSON.parse(postsTo("/api/workspace/capture-start")[0][1].body);
+  expect(sent).toMatchObject({
     taskStatement: "Pack cartons into the shipping box", taskDescription: "Pack cartons into the shipping box",
     taskConfirmation: { granted: true, statementVersion: TASK_CONFIRMATION_VERSION },
     successCriteria: { successDefinition: "Every carton is sealed and upright" },
     captureMode: "self_capture", hasExistingFootage: false, descriptionOnly: true, consentAttestation: null,
   });
+  expect(sent).not.toHaveProperty("publicTaskListing");
   expect(screen.getByText(/Assessment starts once we receive the video/)).toBeInTheDocument();
   expect(upload.send).not.toHaveBeenCalled();
+});
+
+it("starts the film-on-a-phone path with only a country and an email", async () => {
+  fetchMock.mockImplementation(async (_url: string, init?: { method?: string }) => ({ ok: true, status: 201,
+    json: async () => init?.method === "POST" ? { captureUrl: "/capture-upload/phone.signed" } : { features: [] } }));
+  await renderReady(<SiteCaptureStart />);
+  fireEvent.change(region()!, { target: { value: "us" } });
+  fireEvent.change(document.querySelector("#start-email")!, { target: { value: "owner@example.test" } });
+  fireEvent.submit(screen.getByRole("form"));
+  await screen.findByRole("heading", { name: "Film the work area." });
+  const sent = JSON.parse(postsTo("/api/inbound-request")[0][1].body);
+  expect(sent).toMatchObject({ taskStatement: "", captureMode: "self_capture", captureRegion: "us", descriptionOnly: true,
+    descriptionAuthority: { granted: true, statementVersion: "2026-10-06.v1" }, consentAttestation: null, acceptedTerms: true });
+  expect(sent).not.toHaveProperty("taskConfirmation");
+  expect(sent).not.toHaveProperty("publicTaskListing");
+});
+
+it("asks a visit for its street address and email, not a typed task", async () => {
+  fetchMock.mockImplementation(async (_url: string, init?: { method?: string }) => ({ ok: true, status: 201,
+    json: async () => init?.method === "POST" ? { captureUrl: null } : { features: [] } }));
+  await renderReady(<SiteCaptureStart />);
+  fireEvent.click(document.querySelector("#start-method-visit")!);
+  expect(document.querySelector("#start-task")).not.toBeRequired();
+  expect(screen.getByText("We draft the job description from the video we take on the visit. Add a sentence if you want to.")).toBeInTheDocument();
+  fireEvent.change(document.querySelector("#start-location")!, { target: { value: "100 Congress Ave, Austin, TX" } });
+  fireEvent.change(document.querySelector("#start-email")!, { target: { value: "owner@example.test" } });
+  fireEvent.submit(screen.getByRole("form"));
+  await screen.findByRole("heading", { name: "We have it." });
+  const sent = JSON.parse(postsTo("/api/inbound-request")[0][1].body);
+  expect(sent).toMatchObject({ taskStatement: "", captureMode: "site_visit", descriptionOnly: true, consentAttestation: null,
+    siteLocation: "100 Congress Ave, Austin, TX" });
+  expect(sent).not.toHaveProperty("taskConfirmation");
 });
 
 it("asks one question about the video and quotes the rights sentence where starting attests it", async () => {
@@ -430,7 +454,7 @@ it("asks one question about the video and quotes the rights sentence where start
   const videoChoices = screen.getByRole("group", { name: "How will we see the task?" });
   expect(videoChoices.closest("details")).toBeNull();
   expect(document.querySelector("#start-task")!.closest("details")).toBeNull();
-  expect(screen.getByText(/Describe the task and send a video of it/)).toBeInTheDocument();
+  expect(screen.getByText(/Send a video of one job\. We draft the job description from it/)).toBeInTheDocument();
   expect(screen.getByRole("radio", { name: "Film it on a phone · Right after this form" })).toBeChecked();
   expect(document.querySelector("#start-filmer")).toBeNull();
   expect(document.querySelector("#start-name")).toBeNull();
@@ -442,8 +466,9 @@ it("asks one question about the video and quotes the rights sentence where start
   // Starting with footage is the grant, so no separate box; the sentence it
   // grants is quoted verbatim in the note right above the Start button.
   expect(document.querySelector("#start-rights")).toBeNull();
-  // The one box on the form is the task confirmation.
-  expect(screen.getAllByRole("checkbox").map(box => box.id)).toEqual(["start-task-confirmation"]);
+  // The one box on the form is the optional, unticked sharing choice.
+  expect(screen.getAllByRole("checkbox").map(box => box.id)).toEqual(["start-share-listing"]);
+  expect(screen.getByRole("checkbox", { name: SHARE_LABEL })).not.toBeChecked();
   const statement = screen.getByText(RECORDING_RIGHTS_STATEMENT);
   const note = statement.closest("p")!;
   expect(note).toHaveTextContent(/By selecting Start free assessment, you agree to our Terms and Privacy Policy and confirm: “I am authorized to share this job description with Blueprint on behalf of the site\.” and “I am authorized to record this site/);
@@ -677,9 +702,9 @@ describe("SiteCaptureStart and a video that already exists", () => {
     expect(screen.getByRole("link", { name: "Open your job and assessment" })).toHaveAttribute("href", captureUrl);
   });
 
-  // Owner decision 2026-11-07 replaced the footage-only start (2026-10-29): the video
-  // does not stand in for the task, so a video with no description sends nothing.
-  it("does not start from footage alone: the task and its box come first, and nothing is inferred", async () => {
+  // Owner direction 2026-11-11: a video, the country and the account are enough. Nothing is
+  // typed, so nothing is confirmed or shared; Blueprint drafts the description from the video.
+  it("starts from the video alone: no sentence, no confirmation and no listing are sent", async () => {
     answerPosts({ captureUrl });
     upload.send.mockResolvedValue({ status: "done" });
     const file = video();
@@ -688,16 +713,12 @@ describe("SiteCaptureStart and a video that already exists", () => {
     fireEvent.change(document.querySelector("#start-footage")!, { target: { files: [file] } });
     fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Austin, TX" } });
     fireEvent.submit(screen.getByRole("form"));
-    expect(await screen.findByRole("alert")).toHaveTextContent("Describe the task Blueprint should evaluate.");
-    expect(postsTo("/api/workspace/capture-start")).toHaveLength(0);
-    expect(upload.send).not.toHaveBeenCalled();
-    describeTask("Pick up each packed carton and place it at the end of the table");
-    fireEvent.submit(screen.getByRole("form"));
     await screen.findByText("Your recording is in.", { selector: "h2" });
     const submitted = JSON.parse(postsTo("/api/workspace/capture-start")[0][1].body);
-    expect(submitted).toMatchObject({ taskStatement: "Pick up each packed carton and place it at the end of the table",
-      descriptionOnly: false, hasExistingFootage: true, siteTaskGates: {}, siteTaskSpec: {},
-      taskConfirmation: { granted: true, statementVersion: TASK_CONFIRMATION_VERSION } });
+    expect(submitted).toMatchObject({ taskStatement: "", descriptionOnly: false, hasExistingFootage: true,
+      siteTaskGates: {}, siteTaskSpec: {}, consentAttestation: { granted: true, statementVersion: "2026-11-02.v2" } });
+    expect(submitted).not.toHaveProperty("taskConfirmation");
+    expect(submitted).not.toHaveProperty("publicTaskListing");
     expect(submitted).not.toHaveProperty("successCriteria");
     expect(upload.send).toHaveBeenCalledWith("tok.signed", file, expect.any(Function));
   });
@@ -715,6 +736,8 @@ describe("SiteCaptureStart and a video that already exists", () => {
     fireEvent.change(document.querySelector("#start-footage")!, { target: { files: [video()] } });
     fireEvent.change(document.querySelector("#start-location")!, { target: { value: SITE_CAPTURE_START_FORM.location } });
     fireEvent.change(document.querySelector("#start-email")!, { target: { value: SITE_CAPTURE_START_FORM.email } });
+    // The journey is a shared job, so this site chose to share its card.
+    fireEvent.click(screen.getByRole("checkbox", { name: SHARE_LABEL }));
     fireEvent.submit(screen.getByRole("form"));
     await screen.findByRole("heading", { name: "Your recording is in." });
     const sent = JSON.parse(postsTo("/api/inbound-request")[0][1].body);
@@ -983,9 +1006,6 @@ it("preserves optional job frequency and buying stage across reload and submits 
   expect(document.querySelector("#start-frequency")).toHaveValue("200 cartons each weekday");
   expect(document.querySelector("#start-readiness")).toHaveValue("ready_for_proposals");
   expect(document.querySelector('[name*="Budget"]')).toBeNull();
-  // The box is never retained across a reload: each submission ticks it afresh.
-  expect(screen.getByRole("checkbox", { name: TASK_CONFIRMATION_STATEMENT })).not.toBeChecked();
-  fireEvent.click(screen.getByRole("checkbox", { name: TASK_CONFIRMATION_STATEMENT }));
   fireEvent.submit(screen.getByRole("form"));
   await screen.findByRole("heading", { name: "Film the work area." });
   expect(JSON.parse(postsTo("/api/inbound-request")[0][1].body)).toMatchObject({
@@ -1006,13 +1026,11 @@ it("A-R-033 v2 a pre-mounted tab replays the same uncertain request despite edit
   for (const [id, value] of [["start-task", "Original task"], ["start-location", "Austin TX"], ["start-email", "qa@example.invalid"]]) {
     fireEvent.change(first.container.querySelector(`#${id}`)!, { target: { value } });
   }
-  fireEvent.click(first.container.querySelector("#start-task-confirmation")!);
   const second = await renderReady(<SiteCaptureStart />);
   fireEvent.change(second.container.querySelector("#start-task")!, { target: { value: "Other task in stale tab" } });
   fireEvent.submit(first.container.querySelector("form")!);
   await screen.findByText("Uncertain save");
   fireEvent.change(second.container.querySelector("#start-email")!, { target: { value: "another-edit@example.invalid" } });
-  fireEvent.click(second.container.querySelector("#start-task-confirmation")!);
   fireEvent.submit(second.container.querySelector("form")!);
   await screen.findByRole("heading", { name: "Film the work area." });
   const posts = postsTo("/api/inbound-request");
@@ -1036,7 +1054,6 @@ it("RETURN-PERSISTED-RELOAD-001 keeps restored fields in both stores before subm
   const restored = JSON.parse(localStorage.getItem(key)!);
   expect(restored.draft).toEqual(previous.draft);
   expect(durability.rows.get(key)?.value?.draft).toEqual(previous.draft);
-  fireEvent.click(screen.getByRole("checkbox", { name: TASK_CONFIRMATION_STATEMENT }));
   fireEvent.submit(screen.getByRole("form"));
   await screen.findByRole("heading", {name: "Film the work area."});
   expect(postsTo("/api/inbound-request")).toHaveLength(1);
@@ -1044,22 +1061,35 @@ it("RETURN-PERSISTED-RELOAD-001 keeps restored fields in both stores before subm
     retryToken: previous.retryToken, taskStatement: "Restored task"});
 });
 
-// Every job is shown to approved robot teams as an anonymized card, generated by
-// the same function the server checks the grant against. There is no private
-// option at start (owner direction 2026-10-22); the site hides it from its job page.
-it("lists every job as an anonymized card and offers no private option", async () => {
+// Sharing is the site's explicit choice (owner direction 2026-11-11): one unticked box. The card is
+// generated by the same function the server checks the grant against; the job page can change it later.
+it("shares an anonymised card only when the site ticks the box, and the note is true either way", async () => {
   fetchMock.mockImplementation(async () => ({ ok: true, json: async () => ({ captureUrl: "https://tryblueprint.io/capture-upload/fixture", captureRegion: "us" }) }));
-  await renderReady(<SiteCaptureStart />);
+  const first = await renderReady(<SiteCaptureStart />);
   const task = "Acme at 123 High Street slides dishwasher racks";
   describeTask(task);
   fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Austin, TX" } });
   fireEvent.change(document.querySelector("#start-email")!, { target: { value: "owner@example.test" } });
-  expect(screen.queryByRole("checkbox", { name: /private/i })).not.toBeInTheDocument();
-  expect(screen.queryByText("Sharing your job")).not.toBeInTheDocument();
-  expect(screen.getByText(/Approved robot teams see an anonymized summary of the job; your video, address and contacts stay private\./)).toBeInTheDocument();
+  const share = screen.getByRole("checkbox", { name: SHARE_LABEL });
+  expect(share).not.toBeChecked();
+  expect(share).not.toBeRequired();
+  const note = screen.getByText(/Your video, address and contacts stay private\./);
+  expect(note).toHaveTextContent("Your video, address and contacts stay private. Approved robot companies see an anonymised summary of the job only if you choose to share it.");
+  expect(note).not.toHaveTextContent(/Approved robot teams see an anonymized summary/);
   fireEvent.submit(screen.getByRole("form"));
   await screen.findByRole("heading", { name: "Film the work area." });
-  const body = JSON.parse(postsTo("/api/inbound-request")[0][1].body);
+  expect(JSON.parse(postsTo("/api/inbound-request")[0][1].body)).not.toHaveProperty("publicTaskListing");
+  first.unmount();
+  localStorage.clear(); durability.rows.clear();
+
+  await renderReady(<SiteCaptureStart />);
+  describeTask(task);
+  fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Austin, TX" } });
+  fireEvent.change(document.querySelector("#start-email")!, { target: { value: "owner@example.test" } });
+  fireEvent.click(screen.getByRole("checkbox", { name: SHARE_LABEL }));
+  fireEvent.submit(screen.getByRole("form"));
+  await screen.findByRole("heading", { name: "Film the work area." });
+  const body = JSON.parse(postsTo("/api/inbound-request")[1][1].body);
   expect(body.publicTaskListing).toEqual({ consent: true, statementVersion: "public-task-card-v1", details: anonymizedOpportunityDraft(task) });
 });
 

@@ -117,7 +117,7 @@ export async function loadRobotFitInputs(requestId: string): Promise<RobotFitInp
 
 /* ----------------------------------------------------------- requirements */
 
-type Quantity = { key: RequirementKey; label: string; display: string; source: RequirementSource;
+export type Quantity = { key: RequirementKey; label: string; display: string; source: RequirementSource;
   /** SI value, or a range when the site answered a band. */
   min: number; max: number };
 
@@ -575,7 +575,7 @@ function stable(value: unknown): unknown {
     .map(([key, entry]) => [key, stable(entry)]));
 }
 
-const digestOf = (value: unknown) => `sha256:${sha256(JSON.stringify(stable(value)))}`;
+export const digestOf = (value: unknown) => `sha256:${sha256(JSON.stringify(stable(value)))}`;
 
 const NOTE_LIMIT = 4000;
 const EVIDENCE_LIMIT = 1000;

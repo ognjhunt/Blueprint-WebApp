@@ -2,10 +2,9 @@ import { test, expect } from "@playwright/test";
 import { seedCookieConsent } from "./helpers/cookie-consent";
 import { mockExternalFonts } from "./helpers/static-assets";
 
-/** The task and its one box: submitting them confirms the brief (owner decision 2026-11-07). */
+/** The optional sentence: typing it confirms the brief (owner direction 2026-11-11). */
 async function describeTask(page: import("@playwright/test").Page) {
   await page.locator("#start-task").fill("Pick up each packed carton and place it at the end of the table");
-  await page.getByRole("checkbox", { name: "This is the task I want Blueprint to evaluate.", exact: true }).check();
 }
 
 test.beforeEach(async ({ page }) => {
