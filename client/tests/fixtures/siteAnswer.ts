@@ -114,7 +114,7 @@ export const readyAnswer: SiteAnswer = {
     ],
     raiseIt: ["Tell us the cartons' weight.", "A measured scene of your work area.", "A pilot at your site."],
   },
-  nextStep: { kind: "introduction", text: "Ask Blueprint to introduce you to a company that can pilot this at your site." },
+  nextStep: { kind: "introduction", text: "Share this job with deployment companies Blueprint has approved, and one of them can pilot it at your site." },
   reason: null,
 };
 

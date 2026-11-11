@@ -153,7 +153,9 @@ for (const [index, boundary] of ["acknowledged-upload", "browser-kill-after-stor
             const { readFile: readFixture } = await import("node:fs/promises");
             expect(await rawVideo.body()).toEqual(await readFixture(fixture));
             await page.getByRole("link", { name: "Open your job and assessment", exact: true }).click();
-            await expect(page.getByRole("heading", { name: "A few details about the job", exact: true })).toBeVisible();
+            // The job page no longer asks for details after a video (the job is drafted
+            // from the video); a received video lands on the private job page itself.
+            await expect(page.getByRole("heading", { level: 1, name: "Your job", exact: true })).toBeVisible();
             await expect(page.getByText("Video received.", { exact: true })).toBeVisible();
             await writeFile(path.join(output, `${caseId}.json`), JSON.stringify({ caseId, parameters: { boundary, source: "owned-synthetic-pattern" },
                 layer: "real-backend/firebase-emulators/no-provider", captureReceivedVerified: true, persistedOriginalAndManifestVerified: true,

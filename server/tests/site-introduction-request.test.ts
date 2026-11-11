@@ -36,6 +36,8 @@ vi.mock("../utils/email", () => ({ sendEmail: vi.fn(async () => { throw new Erro
 const briefRouter = (await import("../routes/site-task-brief")).default;
 const { createCaptureUploadToken } = await import("../utils/captureUploadToken");
 const { listingConsentVersion } = await import("../utils/taskListingDetails");
+const { JOB_CARD_ANSWER_STATEMENT_VERSION } = await import("../../client/src/lib/jobCardAnswerConsent");
+const { FIND_COMPANY_CONSENT } = await import("../../client/src/components/site/SiteAnswer");
 
 let server: Server;
 let baseUrl: string;
@@ -97,9 +99,13 @@ describe("POST /:token/introduction-request", () => {
     expect(first.status).toBe(200);
     expect(first.body).toEqual({ ok: true, requestedAtIso: expect.any(String), listed: true });
     const stored = row("inboundRequests/req-1");
-    expect(stored.introduction_request).toEqual({ requested_at_iso: first.body.requestedAtIso, requested_by: "signed_owner_link" });
-    // The same grant "Manage opportunity sharing" records, with the anonymised card text.
-    expect(stored.public_task_listing).toMatchObject({ enabled: true, consentVersion: listingConsentVersion,
+    // The choice is recorded with the exact sentence shown under the button, and its version.
+    expect(stored.introduction_request).toEqual({ requested_at_iso: first.body.requestedAtIso, requested_by: "signed_owner_link",
+      statement_version: JOB_CARD_ANSWER_STATEMENT_VERSION, statement_text: FIND_COMPANY_CONSENT });
+    expect(JOB_CARD_ANSWER_STATEMENT_VERSION).toBe("public-task-card-with-answer-v1");
+    // The same grant "Manage opportunity sharing" records, with the anonymised card text, under the statement
+    // that also names the answer: the older box's version does not cover it.
+    expect(stored.public_task_listing).toMatchObject({ enabled: true, consentVersion: JOB_CARD_ANSWER_STATEMENT_VERSION,
       approvedBy: "signed_owner_link", details: { title: "Carton palletizing opportunity", opportunity: "open" } });
     expect(JSON.stringify(stored.public_task_listing)).not.toMatch(/conveyor/);
     expect(sendSlackMessage).toHaveBeenCalledTimes(1);
@@ -121,6 +127,15 @@ describe("POST /:token/introduction-request", () => {
     row("inboundRequests/req-1").public_task_listing = listing;
     expect((await ask()).body).toMatchObject({ ok: true, listed: true });
     expect(row("inboundRequests/req-1").public_task_listing).toEqual(listing);
+    // The card stays under the older box's version, but the site's choice to share its answer is recorded.
+    expect(row("inboundRequests/req-1").introduction_request.statement_version).toBe(JOB_CARD_ANSWER_STATEMENT_VERSION);
+  });
+
+  it("keeps an older request recorded without the statement as it is", async () => {
+    row("inboundRequests/req-1").introduction_request = { requested_at_iso: "2026-11-10T00:00:00.000Z", requested_by: "signed_owner_link" };
+    expect((await ask()).body).toMatchObject({ ok: true, requestedAtIso: "2026-11-10T00:00:00.000Z" });
+    expect(row("inboundRequests/req-1").introduction_request).toEqual({ requested_at_iso: "2026-11-10T00:00:00.000Z",
+      requested_by: "signed_owner_link" });
   });
 
   it("still records the request when the card cannot be turned on", async () => {

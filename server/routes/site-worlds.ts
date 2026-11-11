@@ -1,7 +1,7 @@
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import type { InboundRequest } from "../types/inbound-request";
 import { createHash } from "node:crypto";
-import { listTaskBrowseCards, projectTaskBrowseCard } from "../utils/taskBrowse";
+import { listTaskBrowseCards, projectTaskBrowseCard, readTaskCardDetail } from "../utils/taskBrowse";
 import { Request, Response, Router } from "express";
 import { searchPublicSiteWorlds } from "../retrieval/siteWorldSearch";
 import { getPublicSiteWorldById, listPublicSiteWorlds } from "../utils/site-worlds";
@@ -90,8 +90,22 @@ router.get("/tasks", async (req, res) => {
   try {
     const access = await libraryAccessForRequest(req);
     if (!access.allowed) return res.json({ items: [], access });
-    return res.json({ items: await listTaskBrowseCards(), access });
+    return res.json({ items: await listTaskBrowseCards({ withAnswerHeadlines: true }), access });
   } catch { return res.status(503).json({ error: "The job library could not be loaded." }); }
+});
+
+// One card, for the same viewers as the library. A job that does not exist and
+// one that is not listed are refused alike.
+router.get("/tasks/:taskId", async (req, res) => {
+  res.set("Cache-Control", "no-store");
+  res.set("Vary", "Authorization");
+  try {
+    const access = await libraryAccessForRequest(req);
+    if (!access.allowed) return res.status(404).json({ error: "This job is not in the job library." });
+    const item = await readTaskCardDetail(String(req.params.taskId));
+    if (!item) return res.status(404).json({ error: "This job is not in the job library." });
+    return res.json({ item });
+  } catch { return res.status(503).json({ error: "This job could not be loaded." }); }
 });
 
 /**

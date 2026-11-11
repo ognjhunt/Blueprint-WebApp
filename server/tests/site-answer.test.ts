@@ -95,7 +95,8 @@ describe("composeSiteAnswer", () => {
     expect(answer.job).toEqual({ sentence: "Move cartons from the conveyor to the shelf", drafted: true, family: "pick_place",
       familyLabel: "pick and place" });
     expect(answer.facts).toContainEqual({ label: "How far the object moves", display: "about 1 m", basis: "video_estimate" });
-    expect(answer.nextStep.kind).toBe("introduction");
+    expect(answer.nextStep).toEqual({ kind: "introduction",
+      text: "Share this job with deployment companies Blueprint has approved, and one of them can pilot it at your site." });
     expect(answer.note).toBe(SITE_ANSWER_NOTE);
     expect(answer.checked).toEqual({ models: 22, makers: 13, specsRetrievedOn: "2026-11-02" });
     expect(answer.reason).toBeNull();

@@ -1,4 +1,5 @@
 import type { ListingTargeting } from "./updatePreferences";
+import type { AnswerBasis, AnswerConfidenceLevel, AnswerEvidence } from "../lib/siteAnswer";
 /** Public fields approved by the site owner, never copied from private intake. */
 export interface TaskListingDetails {
   targeting?: ListingTargeting;
@@ -23,6 +24,41 @@ export interface TaskBrowseCard extends TaskListingDetails {
   costUsd: number | null;
   publishedAtIso: string;
   thumbnailUrl: string | null;
+  /** The answer's headline, only when the site chose to share its answer with the card. */
+  answerHeadline?: string;
+}
+/** The card as an approved company opens it: the browse card, and the answer when the site shared it. */
+export interface TaskCardDetail extends TaskBrowseCard {
+  answerSummary?: JobCardAnswerSummary;
+}
+/** One robot in the shared answer: names, verdict, its published figures and its cited track record. */
+export interface JobCardAnswerRobot {
+  manufacturer: string;
+  name: string;
+  verdictLabel: string;
+  /** The two published figures (reach, payload), each with its source. */
+  specs: Array<{ label: string; display: string; sourceUrl: string }>;
+  evidence: AnswerEvidence[];
+}
+/**
+ * Blueprint's answer for a job, as an approved deployment company sees it on
+ * the card. Present only when the site pressed "Find a deployment company for
+ * this job" under the statement that names the answer
+ * (`client/src/lib/jobCardAnswerConsent.ts`). Sizes, weights and distances,
+ * robot names and cited sources: never the site's name, address, contacts,
+ * video or own words.
+ */
+export interface JobCardAnswerSummary {
+  headline: string;
+  familyLabel: string | null;
+  facts: Array<{ label: string; display: string; basis: AnswerBasis }>;
+  pick: JobCardAnswerRobot | null;
+  runnerUp: JobCardAnswerRobot | null;
+  confidence: { level: AnswerConfidenceLevel; reason: string | null };
+  unknowns: string[];
+  /** One line from the simulation of the site, when one has run. */
+  simulation: string | null;
+  note: string;
 }
 /**
  * One job as an approved robot team opens it to request an evaluation: the

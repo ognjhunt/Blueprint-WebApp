@@ -51,8 +51,9 @@ export interface SiteAnswerInputs {
 
 const HEADLINE_READING = "We are reading your video. Your answer will appear here.";
 const HEADLINE_CANNOT = "We can't check robots against this job yet.";
-const REASON_UNSIZED = "The video did not show the job clearly enough for us to size it.";
-const NEXT_STEP_INTRODUCTION = "Ask Blueprint to introduce you to a company that can pilot this at your site.";
+/** The reason for a video that did not show the job clearly enough to size it; the answer email keys on it. */
+export const REASON_UNSIZED = "The video did not show the job clearly enough for us to size it.";
+const NEXT_STEP_INTRODUCTION = "Share this job with deployment companies Blueprint has approved, and one of them can pilot it at your site.";
 const SCENE_RULED_OUT = "Ruled out in the scene measured from your video.";
 /** Wrist and mounting margin an arm standing between the spots needs beyond half the span. */
 const REACH_MARGIN_M = 0.10;

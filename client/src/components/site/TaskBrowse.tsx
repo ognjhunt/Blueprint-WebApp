@@ -3,6 +3,7 @@ import type { User } from "firebase/auth";
 import { TaskThumbnail } from "./TaskThumbnail";
 import { isLikelyPhone } from "@/lib/device";
 import { TaskFacts } from "./TaskFacts";
+import { JobCardAnswerLine } from "./JobCardAnswer";
 import { useEffect, useState } from "react";
 import { useOptionalAuth } from "@/contexts/AuthContext";
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
@@ -100,6 +101,7 @@ export function TaskBrowse({ inWorkspace = false }: { inWorkspace?: boolean } = 
       <ul className="ms-task-list">{filtered.map(item => <li key={item.id}>
         <div className="ms-task-heading"><div><div className="ms-task-meta"><span>{taskStageLabels[item.stage]}</span><span>{opportunityLabels[item.opportunity]}</span></div>
         <h2>{item.title}</h2></div><TaskThumbnail src={item.thumbnailUrl} title={item.title} taskFamily={item.taskFamily} /></div><TaskFacts details={item} />
+        {item.answerHeadline && <JobCardAnswerLine jobId={item.id} headline={item.answerHeadline} user={currentUser} />}
         {item.evaluationAvailable ? <a className="ms-text-link" href={inWorkspace ? `/app/opportunities/${encodeURIComponent(item.id)}` : "/app"}>Offer your system for this job</a> : <p className="ms-field-hint">An evaluation is not ready yet. You can still review the shared job.</p>}
         {item.opportunity === "open" && currentUser && !access?.staff && <TeamJobResponse jobId={item.id} user={currentUser} />}
       </li>)}</ul>

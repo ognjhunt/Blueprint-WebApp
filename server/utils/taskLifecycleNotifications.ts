@@ -35,6 +35,7 @@ import { isScreeningResultOutcome, screeningEstimateCountSentence, screeningOutc
 import { isTerminalSceneOutcomeKind, sceneOutcomeMessage, sceneOutcomeSubject,
   type TerminalSceneOutcomeKind } from "./sceneIntentOutcome";
 import { ANSWER_CONFIDENCE_LABELS, SITE_ANSWER_NOTE, type SiteAnswer } from "../../client/src/lib/siteAnswer";
+import { REASON_UNSIZED as ANSWER_UNSIZED_REASON } from "./siteAnswer";
 
 export type TaskLifecycleMilestone = Extract<
   OutboxKind,
@@ -438,9 +439,6 @@ function jobNoGrantEndedDetail(params: { eventId?: string; sceneOutcomeKind?: Te
   }
   return jobNoGrantEndingMessage(params.jobNoGrantEnded);
 }
-
-/** The composer's sentence for a video that did not show the job clearly enough to size it (`siteAnswer.ts`). */
-const ANSWER_UNSIZED_REASON = "The video did not show the job clearly enough for us to size it.";
 
 /**
  * Whether an answer is one the site is emailed about: a ready answer, or one
