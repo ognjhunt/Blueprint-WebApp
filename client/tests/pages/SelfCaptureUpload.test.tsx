@@ -8,7 +8,7 @@
  * the phone" are the two ways it silently breaks.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import SelfCaptureUpload from "@/pages/SelfCaptureUpload";
 import { RECORDING_RIGHTS_STATEMENT } from "@/lib/recordingRightsStatement";
 import { processingFailure } from "../../../server/utils/taskPreparationOutcome";
@@ -368,13 +368,19 @@ describe("video first owner return", () => {
       return fetcher(input, init);
     });
     vi.stubGlobal("fetch", fetchMock);
+    window.history.replaceState(null, "", "/capture-upload/test");
     render(<SelfCaptureUpload />);
-    fireEvent.click(await screen.findByText("Withdraw recording permission"));
+    // The way to stop is on the Job settings screen, one tap from the page.
+    fireEvent.click(await screen.findByRole("button", { name: "Job settings ›" }));
+    fireEvent.click(await screen.findByText("Stop using my video"));
     fireEvent.click(screen.getByRole("button", { name: "Withdraw permission…" }));
     expect(fetchMock.mock.calls.some(call => String(call[0]).endsWith("/withdrawal") && call[1]?.method === "POST")).toBe(false);
     fireEvent.click(screen.getByRole("button", { name: "Yes, withdraw permission" }));
     expect(await screen.findByText("Recording permission withdrawn.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "‹ Back" }));
     expect(await screen.findByText("Recording permission was withdrawn. This link no longer accepts footage.")).toBeInTheDocument();
+    // A withdrawn recording takes no footage on this link again, so "keep this link to upload" is not said.
+    expect(screen.queryByText(/Keep this link/)).toBeNull();
     expect(videoUpload.send).not.toHaveBeenCalled();
   });
 });
@@ -1142,12 +1148,14 @@ describe("the site's answer leads its job page", () => {
     expect(title.compareDocumentPosition(answer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     // Nothing is asked of the site, so the card does not speak as if the job were waiting.
     expect(screen.queryByText("We have your recording.")).toBeNull();
-    expect(screen.getByText(readyAnswer.headline)).toBeVisible();
+    expect(screen.getByText("UR10e")).toBeVisible();
+    expect(screen.getByText("by Universal Robots")).toBeVisible();
+    // The drafted job, in grey under the title, said as what we read.
+    expect(screen.getByText("We read your job as: “Move cartons from the end of the conveyor onto the pallet.”")).toBeVisible();
     expect(screen.queryByRole("region", { name: "Robot fit" })).toBeNull();
     // A settled answer is the update; no "will update" line under it.
     expect(screen.queryByText("Blueprint will update this job as the work progresses.")).toBeNull();
-    // The brief no longer gates the answer: it reads as an optional correction.
-    expect(screen.getByText("Correct the job we read from your video (optional)")).toBeInTheDocument();
+    // The brief no longer gates the answer: correcting it is a job setting.
     expect(screen.queryByText(CONFIRM_STEP)).toBeNull();
   });
 
@@ -1155,15 +1163,16 @@ describe("the site's answer leads its job page", () => {
     setUserAgent(DESKTOP_UA);
     vi.stubGlobal("fetch", answerFetch({ answer: readingAnswer }));
     const { unmount } = render(<SelfCaptureUpload />);
-    expect(await screen.findByText(readingAnswer.headline)).toBeVisible();
-    // "We are reading your video. Your answer will appear here." is the update: no status card or update line repeats it.
+    expect(await screen.findByText("We're watching your video.")).toBeVisible();
+    // "We're watching your video." is the update: no status card or update line repeats it.
     expect(screen.queryByText("Blueprint will update this job as the work progresses.")).toBeNull();
     expect(screen.queryByText("We have your recording.")).toBeNull();
     expect(screen.queryByText("Video received.")).toBeNull();
     unmount();
     vi.stubGlobal("fetch", answerFetch({ answer: cannotAssessAnswer }));
     render(<SelfCaptureUpload />);
-    expect(await screen.findByText(cannotAssessAnswer.reason!)).toBeVisible();
+    // The server's reason, in plain words: the video did not show the job clearly enough to size it.
+    expect(await screen.findByText("Your video didn't show the job clearly enough for us to measure it.")).toBeVisible();
     expect(screen.queryByText("Blueprint will update this job as the work progresses.")).toBeNull();
   });
 
@@ -1192,47 +1201,57 @@ describe("the site's answer leads its job page", () => {
     expect(headline).toBeVisible();
     // The site's own step comes first, and the answer's button stays, quiet, with its sentence: one filled button at most.
     expect(headline.compareDocumentPosition(answer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    const find = screen.getByRole("button", { name: "Find a deployment company for this job" });
-    expect(find).not.toHaveClass("ms-button");
-    expect(screen.getByText(/^This shares an anonymised summary of your job and this answer/)).toBeVisible();
+    const find = screen.getByRole("button", { name: "Find a company to set it up" });
+    expect(find).toHaveClass("bare-quiet-button");
+    expect(screen.getByText(/^Shares a summary of your job and this answer, without saying who you are/)).toBeVisible();
   });
 
-  it("puts every optional control in one quiet list under the answer, with one filled button and the way to withdraw", async () => {
+  it("puts every optional control on its own Job settings screen, and every detail on its own details screen, each with a way back", async () => {
     setUserAgent(DESKTOP_UA);
+    window.history.replaceState(null, "", "/capture-upload/test");
     vi.stubGlobal("fetch", answerFetch({ answer: readyAnswer }));
     const { container } = render(<SelfCaptureUpload />);
     await screen.findByRole("region", { name: "Your answer" });
-    const more = await screen.findByRole("region", { name: "More for this job" });
-    expect(screen.getByRole("heading", { level: 2, name: "More for this job" })).toBeVisible();
-    for (const summary of ["Correct the job we read from your video (optional)", "Update walkthrough (optional)", "Withdraw recording permission"]) {
-      expect(more.contains(await screen.findByText(summary)), summary).toBe(true);
-      expect(screen.getByText(summary).closest("details")).not.toHaveAttribute("open");
-    }
-    // "Video received." is implied by the answer and not said under it.
-    expect(screen.queryByText("Video received.")).toBeNull();
-    const filled = [...container.querySelectorAll("button.ms-button")].filter(button => !button.closest("details"));
-    expect(filled.map(button => button.textContent)).toEqual(["Find a deployment company for this job"]);
+    // The answer screen: one filled button, two quiet links, one h1.
+    expect([...container.querySelectorAll(".bare-button, .ms-button")].map(button => button.textContent)).toEqual(["Find a company to set it up"]);
     expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
+    expect(screen.queryByText("Video received.")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Job settings ›" }));
+    expect(window.location.hash).toBe("#settings");
+    expect(await screen.findByRole("heading", { level: 1, name: "Job settings" })).toBeVisible();
+    const settings = screen.getByRole("list", { name: "Job settings" });
+    expect(within(settings).getAllByRole("listitem").map(item => item.querySelector("summary, a, button")?.textContent)).toEqual([
+      "Send a new video", "Change my job description", "Share settings", "Contact Blueprint about this job", "Stop using my video"]);
+    expect(within(settings).getByText("Stop using my video").closest("details")).not.toHaveAttribute("open");
+    expect(screen.queryByRole("region", { name: "Your answer" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "‹ Back" }));
+    await screen.findByRole("region", { name: "Your answer" });
+    fireEvent.click(screen.getByRole("button", { name: "See details ›" }));
+    expect(await screen.findByRole("heading", { level: 1, name: "Details" })).toBeVisible();
+    expect(screen.getByRole("region", { name: "Why this robot" })).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "‹ Back" }));
+    expect(await screen.findByRole("region", { name: "Your answer" })).toBeVisible();
   });
 
   it("offers the one thing a site can do about an answer that cannot be checked, next to the reason", async () => {
     setUserAgent(DESKTOP_UA);
-    // The video could not be sized: a new walkthrough, through the page's own update.
+    window.history.replaceState(null, "", "/capture-upload/test");
+    // The video could not be sized: a new video, through the page's own update.
     const unsized = answerFetch({ answer: cannotAssessAnswer });
     vi.stubGlobal("fetch", unsized);
     const { unmount } = render(<SelfCaptureUpload />);
-    expect(await screen.findByText(cannotAssessAnswer.reason!)).toBeVisible();
-    fireEvent.click(screen.getByRole("button", { name: "Update walkthrough" }));
+    expect(await screen.findByText("Your video didn't show the job clearly enough for us to measure it.")).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Send a new video" }));
     await waitFor(() => expect(unsized.mock.calls.some(([input]) => String(input).endsWith(`/api/self-capture/uploads/${TOKEN}/supplement`))).toBe(true));
     unmount();
-    // Another kind of job: the job description, in the page's own editor, opened.
+    // Another kind of job: the job description, on the Job settings screen, opened.
     const other = { ...cannotAssessAnswer, reason: "From your video, the job looks like more than picking an object up and putting it down (folding), which we can't check robots against yet. If that is not right, edit the job description to say what the robot should do, and we will read the video again." };
     vi.stubGlobal("fetch", answerFetch({ answer: other }));
     render(<SelfCaptureUpload />);
-    expect(await screen.findByText(other.reason)).toBeVisible();
-    fireEvent.click(await screen.findByRole("button", { name: "Edit the job description" }));
-    expect(await screen.findByText("Edit your job brief")).toBeVisible();
-    expect(screen.getByText("Edit your job brief").closest("details")).toHaveAttribute("open");
+    fireEvent.click(await screen.findByRole("button", { name: "Change my job description" }));
+    expect(await screen.findByRole("heading", { level: 1, name: "Job settings" })).toBeVisible();
+    expect(document.getElementById("job-brief-editor")).toHaveAttribute("open");
+    window.history.replaceState(null, "", "/capture-upload/test");
   });
 
   it("stops offering footage, edits and sharing once a withdrawal is read back, and keeps saying what withdrawal does", async () => {
@@ -1257,15 +1276,14 @@ describe("the site's answer leads its job page", () => {
     vi.stubGlobal("fetch", fetchMock);
     render(<SelfCaptureUpload />);
     const answer = await screen.findByRole("region", { name: "Your answer" });
-    const proof = await screen.findByRole("region", { name: "Tested in simulation" });
-    expect(answer.contains(proof)).toBe(true);
-    expect(proof.closest("details")).toBeNull();
-    // The fixture's 7 of 10 against 3 of 10 is "ahead" under the probability rule, not "did best".
-    expect(proof.textContent).toMatch(/π0\.5, an AI control policy from Physical Intelligence, was ahead/);
-    // The status read's measured scene reaches the proof too.
-    expect(proof.textContent).toMatch(/In the scene rebuilt from your video, the Universal Robots UR10e reaches/);
-    expect(screen.getByText("Simulation details").closest("details")).not.toHaveAttribute("open");
-    expect(screen.getAllByRole("region", { name: "Tested in simulation" })).toHaveLength(1);
+    // The fixture's 7 of 10 against 3 of 10 is "ahead" under the probability rule, not "did best": one line, in the answer.
+    expect(await within(answer).findByText(/^Computer test: π0\.5 was ahead, finishing the job in 7 of 10 tries, on a Franka research arm, not the UR10e\./)).toBeVisible();
+    expect(screen.queryByRole("region", { name: "Tested in simulation" })).toBeNull();
+    // Everything behind it is on the details screen, the status read's measured scene included.
+    fireEvent.click(screen.getByRole("button", { name: "See details ›" }));
+    const test = await screen.findByRole("region", { name: "Computer test" });
+    expect(test.textContent).toMatch(/In the scene rebuilt from your video, the Universal Robots UR10e reaches/);
+    fireEvent.click(screen.getByRole("button", { name: "‹ Back" }));
     const reads = fetchMock.mock.calls.filter(([input]) => String(input).startsWith("/api/job-workflow/owner/"));
     expect(reads).toHaveLength(1);
   });

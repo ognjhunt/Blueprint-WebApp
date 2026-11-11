@@ -16,6 +16,7 @@ const ANSWER: JobCardAnswerSummary = {
   facts: [{ label: "How far the object moves", display: "about 1.6 m", basis: "video_estimate" }],
   pick: { manufacturer: "Universal Robots", name: "UR20", verdictLabel: "Fits on paper",
     specs: [{ label: "Reach", display: "1.75 m", sourceUrl: "https://example.com/ur20" }],
+    checks: [{ key: "reach", outcome: "pass", need: "about 1–1.3 m", has: "1.75 m" }, { key: "payload", outcome: "pass", need: "about 9–12 kg", has: "20 kg" }],
     evidence: [{ level: "production", scope: "model", family: null, summary: "A named mill palletizes with it.", quote: "The UR20 palletizes here.",
       sourceUrl: "https://example.com/case", sourceTitle: "Case", publisher: "Universal Robots", publishedOn: null }] },
   runnerUp: { manufacturer: "Yaskawa", name: "HC20DTP", verdictLabel: "Fits on paper", specs: [],
@@ -36,50 +37,48 @@ const fetchMock = vi.fn();
 beforeEach(() => { fetchMock.mockReset(); vi.stubGlobal("fetch", fetchMock); });
 
 describe("Blueprint's answer on a job card", () => {
-  it("says the answer once and short: how sure, the pick and runner-up in a line each, the numbers and one short note", () => {
-    render(<JobCardAnswer answer={ANSWER} />);
+  it("says the answer bare bones, the way the site sees it: the robot, plain ticks, how sure, one link and the note", () => {
+    const { container } = render(<JobCardAnswer answer={ANSWER} />);
     const block = screen.getByRole("region", { name: JOB_CARD_ANSWER_TITLE });
-    expect(within(block).getByText(ANSWER.headline)).toBeVisible();
-    expect(within(within(block).getByRole("list", { name: "Summary" })).getAllByRole("listitem").map(item => item.textContent))
-      .toEqual(["Kind of job: palletizing", "How sure: Fair"]);
+    expect(within(block).getByText("The robot most likely to fit")).toBeVisible();
+    expect(within(block).getByText("UR20")).toHaveClass("bare-big");
+    expect(within(block).getByText("by Universal Robots · Kind of job: palletizing")).toBeVisible();
+    expect(within(within(block).getByRole("list", { name: "Why" })).getAllByRole("listitem").map(item => item.textContent))
+      .toEqual(["✓Reaches far enough", "✓Strong enough", "✓Already used for jobs like this"]);
+    expect(block).toHaveTextContent("How sure are we? Fairly sure");
     expect(within(block).getByText(ANSWER.confidence.reason!)).toBeVisible();
-    const pick = within(block).getByRole("article", { name: "Pick" });
-    expect(within(pick).getByRole("heading", { name: "Universal Robots UR20" })).toBeVisible();
-    expect(within(pick).getByText("Fits on paper · Reach 1.75 m · In production use")).toBeVisible();
-    const runnerUp = within(block).getByRole("article", { name: "Runner-up" });
-    expect(within(runnerUp).getByRole("heading", { name: "Yaskawa HC20DTP" })).toBeVisible();
-    expect(within(runnerUp).getByText("Fits on paper · Offered for this kind of job")).toBeVisible();
-    // Every number is the video's estimate here, so that is said once.
-    expect(within(within(block).getByRole("definition")).getByText("about 1.6 m")).toBeVisible();
-    expect(within(block).getByText("Estimated from the site's video.")).toBeVisible();
     expect(within(block).getByText(JOB_CARD_NOTE_SHORT)).toBeVisible();
-    // The cited track record, the figures' sources, the full note and the unknowns: one tap away, said exactly.
-    expect(within(block).getByText(ANSWER.note)).not.toBeVisible();
-    const sources = within(block).getByText("Track record and sources").closest("details")!;
-    expect(sources).not.toHaveAttribute("open");
-    expect(within(sources.querySelector("summary")!).getByText("2 sources")).toBeVisible();
-    fireEvent.click(within(sources).getByText("Track record and sources"));
-    expect(within(sources).getByRole("link", { name: "source" })).toHaveAttribute("href", "https://example.com/ur20");
-    expect(within(sources).getByText(ANSWER.note)).toBeVisible();
+    expect(container.textContent).not.toMatch(/Yaskawa|1\.75 m|source|The UR20 palletizes here/);
+  });
+
+  it("has every figure, source and unknown on its details view, with a way back", () => {
+    render(<JobCardAnswer answer={ANSWER} />);
+    fireEvent.click(screen.getByRole("button", { name: "See details ›" }));
+    const block = screen.getByRole("region", { name: JOB_CARD_ANSWER_TITLE });
+    const pick = within(block).getByRole("region", { name: "Pick: Universal Robots UR20" });
+    expect(within(pick).getByText("needs about 1–1.3 m · reaches 1.75 m")).toBeVisible();
+    expect(within(pick).getByRole("link", { name: "source" })).toHaveAttribute("href", "https://example.com/ur20");
     // Each source says what it names: the model itself, or the robot family it belongs to.
-    expect(within(sources).getByText("In production use · The source names this model")).toBeVisible();
-    expect(within(sources).getByText("Offered for this kind of job · The source names this robot family (Motoman HC)")).toBeVisible();
-    expect(within(sources).getByText("“The UR20 palletizes here.”")).toBeVisible();
-    const unknowns = within(block).getByText("What the video could not tell").closest("details")!;
-    expect(unknowns).not.toHaveAttribute("open");
-    expect(within(unknowns).getByText(ANSWER.unknowns[0])).not.toBeVisible();
+    expect(within(pick).getByText(/In production use · The source names this model/)).toBeVisible();
+    expect(within(block).getByRole("region", { name: "Runner-up: Yaskawa HC20DTP" })).toHaveTextContent(
+      "Offered for this kind of job · The source names this robot family (Motoman HC)");
+    expect(within(block).getByRole("region", { name: "Estimated from the site's video" })).toHaveTextContent("How far the object movesabout 1.6 m");
+    expect(within(block).getByRole("region", { name: "What the video couldn't show" })).toHaveTextContent(ANSWER.unknowns[0]);
+    expect(within(block).getByText(ANSWER.note)).toBeVisible();
+    fireEvent.click(within(block).getByRole("button", { name: "‹ Back" }));
+    expect(screen.getByText("UR20")).toBeVisible();
   });
 
   it("says where each number came from when they do not all come from the video's estimate", () => {
     render(<JobCardAnswer answer={{ ...ANSWER, facts: [...ANSWER.facts, { label: "Weight of each carton", display: "8 kg", basis: "site_stated" }] }} />);
-    expect(screen.getByText(/estimated from the site's video\)/)).toBeVisible();
-    expect(screen.getByText(/stated by the site\)/)).toBeVisible();
-    expect(screen.queryByText("Estimated from the site's video.")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "See details ›" }));
+    expect(screen.getByRole("region", { name: "The numbers" })).toHaveTextContent("about 1.6 m (estimated from the site's video)");
+    expect(screen.getByRole("region", { name: "The numbers" })).toHaveTextContent("8 kg (stated by the site)");
   });
 
   it("states the kind of job only when the answer carries one", () => {
     const { unmount } = render(<JobCardAnswer answer={ANSWER} />);
-    expect(screen.getByText("Kind of job: palletizing")).toBeInTheDocument();
+    expect(screen.getByText(/Kind of job: palletizing/)).toBeInTheDocument();
     unmount();
     render(<JobCardAnswer answer={{ ...ANSWER, familyLabel: null }} />);
     expect(screen.queryByText(/Kind of job/)).toBeNull();

@@ -260,6 +260,6 @@ describe("finding a company", () => {
   it("carries the computer test on an answer with no pick too", () => {
     const proof = projectSimulationProof({ evaluation: [allZeroEvaluation], pick: null });
     render(<SiteAnswer token="owner-token" answer={cannotAssessAnswer} proof={proof} />);
-    expect(screen.getByText(/^Computer test: none of the robot programs finished the job, on /)).toBeVisible();
+    expect(screen.getByText(/^Computer test: None of the robot programs finished the job, on /)).toBeVisible();
   });
 });

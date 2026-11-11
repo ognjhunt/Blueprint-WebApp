@@ -57,17 +57,17 @@ export function computerTestLine(proof: SimulationProofView | null | undefined, 
   }
   const comparison = proof.policyComparison;
   const compared = comparison?.rows.filter(row => row.compared) ?? [];
-  if (!comparison || !comparison.rows.length) return "Computer test: it finished, but no robot program could be scored.";
-  if (!compared.length) return "Computer test: we couldn't confirm the robot programs ran on the same robot, so they aren't compared.";
+  if (!comparison || !comparison.rows.length) return "Computer test: It finished, but no robot program could be scored.";
+  if (!compared.length) return "Computer test: We couldn't confirm the robot programs ran on the same robot, so they aren't compared.";
   const on = `on ${comparison.robotName}${!comparison.sameRobotAsPick && pickName ? `, not the ${pickName}` : ""}`;
   const leader = compared.find(row => row.chosen);
   if (leader) {
     return `Computer test: ${rowName(leader.policy)} ${comparison.separated ? "did best" : "was ahead"}, finishing the job in ${tries(leader.succeeded, leader.scored)}, ${on}.`
       + (comparison.separated ? "" : " It could still be chance.");
   }
-  if (compared.length === 1) return `Computer test: only one robot program could be compared, ${on}.`;
-  if (!compared.some(row => row.succeeded > 0)) return `Computer test: none of the robot programs finished the job, ${on}.`;
-  return `Computer test: no clear winner yet, ${on}.`;
+  if (compared.length === 1) return `Computer test: Only one robot program could be compared, ${on}.`;
+  if (!compared.some(row => row.succeeded > 0)) return `Computer test: None of the robot programs finished the job, ${on}.`;
+  return `Computer test: No clear winner yet, ${on}.`;
 }
 
 /** Whether the line carries the set-up caveat beside it. */

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { JobWorkspace } from "@/components/site/JobWorkspace";
 import type { JobMarketplaceWorkflow } from "@/types/jobMarketplace";
 import { processingFailure } from "../../../server/utils/taskPreparationOutcome";
+import { computerTestLine } from "@/components/site/SimulationProof";
 import { projectSimulationProof } from "@/lib/simulationProof";
 import { winnerEvaluation } from "../fixtures/siteAnswer";
 
@@ -302,7 +303,9 @@ it("shares its one workflow read with the page and shows a proof handed back, op
   render(<JobWorkspace token="owner-token" onWorkflow={onWorkflow} proof={proof} />);
   const section = await screen.findByRole("region", { name: "Tested in simulation" });
   expect(section.closest("details")).toBeNull();
-  expect(within(section).getByText(proof.headline)).toBeVisible();
+  // The one line, in plain words; the projection's sentence is behind it.
+  expect(within(section).getByText(computerTestLine(proof, null)!)).toBeVisible();
+  expect(within(section).getByText(proof.policyComparison!.line)).toBeInTheDocument();
   await waitFor(() => expect(onWorkflow).toHaveBeenCalledWith(loaded));
   expect(fetchMock).toHaveBeenCalledTimes(1);
   const details = screen.getByText("Simulation details").closest("details")!;
