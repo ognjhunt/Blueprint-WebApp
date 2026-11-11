@@ -83,7 +83,7 @@ export default function RobotTeamSignUpFlow() {
         <p className="auth-description">{checking ? "We’re checking the approval for this email address." : "Register your robot team. We’ll invite you after the required review and approval."}</p>
         {!checking && <div className="auth-form">
           <a className="auth-primary" href="/contact/robot-team">Register robot-team interest <ArrowRight size={18} aria-hidden="true" /></a>
-          <a className="auth-google" href="/contact/site-operator">Show us a site task</a>
+          <a className="auth-google" href="/contact/site-operator">Start a job</a>
         </div>}
         {!checking && <p className="auth-description">Already approved? Open the invitation link we emailed you, or <a href="/contact/robot-team#approved-team">get a new invitation link</a>.</p>}
       </> : <>

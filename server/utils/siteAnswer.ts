@@ -545,7 +545,9 @@ function rateModel(model: SpecModel, job: Job, catalog: RobotSpecCatalog, robotF
     : checks.every((entry) => entry.outcome === "pass") ? (sceneFits ? "fits" : "fits_on_paper") : "possible";
   const headroom = Math.max(-1, Math.min(HEADROOM_CAP, reach.headroom ?? 0, payload.headroom ?? 0));
   const margins = [[reach.check, reach.headroom], [payload.check, payload.headroom]] as const;
-  const comfortable = margins.every(([, room]) => room === null || room >= COMFORTABLE_HEADROOM);
+  // An unknown margin is not a comfortable margin: a check with no headroom figure (a moving robot's height, a reach
+  // decided in the scene, an unknown) never counts as comfortable.
+  const comfortable = margins.every(([, room]) => room !== null && room >= COMFORTABLE_HEADROOM);
   const tight = new Set(margins.filter(([check, room]) => check.outcome === "pass" && room !== null && room < COMFORTABLE_HEADROOM)
     .map(([check]) => check.key));
   return {

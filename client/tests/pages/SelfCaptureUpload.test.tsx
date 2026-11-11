@@ -372,11 +372,18 @@ describe("video first owner return", () => {
   });
   it("lets the owner link withdraw recording permission after an explicit confirmation", async () => {
     const fetcher = ownerFetch(false);
+    // Once withdrawn, a read of the withdrawal returns it, as the server does.
+    const recorded = { state: "uploads_stopped_cleanup_pending", deletionConfirmed: false,
+      pipelineAcknowledged: false, legalHold: false, requestedAtIso: "2026-10-13T00:00:00.000Z",
+      storageDeletion: { state: "pending", deletedObjectCount: 0, lateUploadCheckAtIso: null, completedAtIso: null } };
+    let posted = false;
     const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
-      if (String(input) === `/api/self-capture/uploads/${TOKEN}/withdrawal` && init?.method === "POST") return Promise.resolve({ ok: true,
-        json: async () => ({ ok: true, created: true, withdrawal: { state: "uploads_stopped_cleanup_pending", deletionConfirmed: false,
-          pipelineAcknowledged: false, legalHold: false, requestedAtIso: "2026-10-13T00:00:00.000Z",
-          storageDeletion: { state: "pending", deletedObjectCount: 0, lateUploadCheckAtIso: null, completedAtIso: null } } }) });
+      if (String(input) === `/api/self-capture/uploads/${TOKEN}/withdrawal` && init?.method === "POST") {
+        posted = true;
+        return Promise.resolve({ ok: true, json: async () => ({ ok: true, created: true, withdrawal: recorded }) });
+      }
+      if (posted && String(input) === `/api/self-capture/uploads/${TOKEN}/withdrawal`) return Promise.resolve({ ok: true,
+        json: async () => ({ ok: true, withdrawn: true, withdrawal: recorded }) });
       return fetcher(input, init);
     });
     vi.stubGlobal("fetch", fetchMock);
@@ -390,7 +397,12 @@ describe("video first owner return", () => {
     fireEvent.click(screen.getByRole("button", { name: "Yes, withdraw permission" }));
     expect(await screen.findByText("Recording permission withdrawn.")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "‹ Back" }));
-    expect(await screen.findByText("Recording permission was withdrawn. This link no longer accepts footage.")).toBeInTheDocument();
+    // The page then shows only what is true now (round 5): the withdrawal's own words and the one way to reach us;
+    // no "video saved" card, no workspace, nothing that no longer acts.
+    expect(await screen.findByText("Recording permission withdrawn.")).toBeVisible();
+    expect(screen.getByText(/Withdrawal is not deletion/)).toBeVisible();
+    expect(screen.getByRole("link", { name: "Contact Blueprint about this job ›" })).toHaveAttribute("href", "mailto:hello@tryblueprint.io");
+    expect(screen.queryByText(/Your video is saved|Video received|Planning details|Job settings ›/)).toBeNull();
     // A withdrawn recording takes no footage on this link again, so "keep this link to upload" is not said.
     expect(screen.queryByText(/Keep this link/)).toBeNull();
     expect(videoUpload.send).not.toHaveBeenCalled();
@@ -1322,6 +1334,7 @@ describe("the site's answer leads its job page", () => {
     expect(screen.queryByText("Manage opportunity sharing (optional)")).toBeNull();
     expect(screen.queryByRole("button", { name: "Edit your answers" })).toBeNull();
     expect(screen.getByText(/Withdrawal is not deletion/)).toBeVisible();
+    expect(screen.queryByText(/Your video is saved|Video received\.|Planning details/)).toBeNull();
   });
 
   it("puts the proof in simulation inside the answer from the workspace's one workflow read", async () => {

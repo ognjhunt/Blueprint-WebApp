@@ -25,11 +25,17 @@ export const SHARED_LISTED = "✓ Shared. We'll email you when a company replies
 const askedUnlisted = (date: string) => `You asked on ${date}. Blueprint will set up your job card and email you.`;
 /** The card is listed, but under the older sharing box, which does not share the answer: said so, and the button is back. */
 export const SHARED_WITHOUT_ANSWER = "Your job is shared without this answer. Press the button to share the answer too.";
+/** Shared under an older sentence (v1 or v2), which shares the paper check only, while a test result exists. */
+export const SHARED_PAPER_ONLY = "Your shared job shows the paper check. Press the button to share the test result too.";
 /**
  * Where the job card stands, read from the owner's own listing: on with the answer (a with-answer statement), on
  * without it (the older box), or off. Null until it is read; the stored answer's `jobCardListed` then decides.
  */
-export type CardState = "with_answer" | "without_answer" | "off" | null;
+/**
+ * Where the job card stands: shared with the answer under v3 (later test results included), shared under v1 or v2
+ * (the paper check only), shared without the answer, or off.
+ */
+export type CardState = "with_answer" | "with_paper_answer" | "without_answer" | "off" | null;
 export const READING_LINE = "We're watching your video.";
 export const READING_HELPER = "We'll email you when it's ready.";
 export const EDIT_JOB_LABEL = "Change my job description";
@@ -123,14 +129,17 @@ function cannotLine(reason: string | null): string | null {
  * One button: find a company. One click is the site's explicit choice to share what the line under it says; asked
  * once, it says so instead. When the page has a step the site must take first, the button stays, quiet.
  */
-function Introduction({ token, answer, onRequested, quiet, card }: { token: string; answer: SiteAnswerView; onRequested?: () => void; quiet: boolean; card: CardState }) {
+function Introduction({ token, answer, onRequested, quiet, card, testResult = false }: { token: string; answer: SiteAnswerView;
+  onRequested?: () => void; quiet: boolean; card: CardState; testResult?: boolean }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [requested, setRequested] = useState<{ at: string; listed: boolean } | null>(null);
   const asked = requested?.at ?? answer.introductionRequestedAtIso;
   // This page's own press is the latest word; until then, the owner's listing as read, then the stored card.
-  const state: "with_answer" | "without_answer" | "off" = requested ? (requested.listed ? "with_answer" : "off")
+  const read: Exclude<CardState, null> = requested ? (requested.listed ? "with_answer" : "off")
     : card ?? (answer.jobCardListed === true ? "with_answer" : "off");
+  // Shared under an older sentence: it shows the paper check, which is all there is to share until a test result exists.
+  const state = read === "with_paper_answer" ? (testResult ? "paper_only" : "with_answer") : read;
   async function ask() {
     if (busy) return;
     setBusy(true); setError("");
@@ -148,9 +157,9 @@ function Introduction({ token, answer, onRequested, quiet, card }: { token: stri
     } catch { setError(INTRODUCTION_FAILED); }
     finally { setBusy(false); }
   }
-  if (asked && state !== "without_answer") return <BareGroup><BareDone>{state === "with_answer" ? SHARED_LISTED : askedUnlisted(dateInWords(asked))}</BareDone></BareGroup>;
+  if (asked && state !== "without_answer" && state !== "paper_only") return <BareGroup><BareDone>{state === "with_answer" ? SHARED_LISTED : askedUnlisted(dateInWords(asked))}</BareDone></BareGroup>;
   return <BareGroup>
-    {asked && <BareNotice role="status">{SHARED_WITHOUT_ANSWER}</BareNotice>}
+    {asked && <BareNotice role="status">{state === "paper_only" ? SHARED_PAPER_ONLY : SHARED_WITHOUT_ANSWER}</BareNotice>}
     <BareButton onClick={() => void ask()} disabled={busy} quiet={quiet} helper={FIND_COMPANY_CONSENT}>{busy ? "Sending…" : FIND_COMPANY_LABEL}</BareButton>
     {error && <p role="alert">{error}</p>}
   </BareGroup>;
@@ -197,6 +206,7 @@ function TestHead({ result }: { result: Exclude<TestResult, null> }) {
   if (result.kind === "no_clear_winner") return <BareGroup>
     <h2 className="bare-label" id="site-answer-title">Tested on your job</h2>
     <BareBig sub={testSubLine(result) ?? undefined}>No clear winner yet</BareBig>
+    {result.setupFlag && <BareNotice>{PLAIN_SETUP_CAVEAT}</BareNotice>}
   </BareGroup>;
   if (result.kind === "none_finished") return <BareGroup>
     <h2 className="bare-label" id="site-answer-title">Tested on your job</h2>
@@ -269,7 +279,7 @@ export function SiteAnswer({ token, answer, proof, onIntroductionRequested, onEd
   const fits = Boolean(pick) && (pick!.verdict === "fits" || pick!.verdict === "fits_on_paper") && !sceneNo;
   const test = testResultOf(proof);
   const action = answer.nextStep.kind === "introduction"
-    ? <Introduction token={token} answer={answer} onRequested={onIntroductionRequested} quiet={quietAction} card={card} /> : null;
+    ? <Introduction token={token} answer={answer} onRequested={onIntroductionRequested} quiet={quietAction} card={card} testResult={Boolean(test)} /> : null;
   const sceneNotice = sceneNo && pick ? <BareNotice>{sceneSaysNoFit(pick.name)}</BareNotice> : null;
 
   if (test) return <section className="site-answer-bare" aria-label="Your answer">

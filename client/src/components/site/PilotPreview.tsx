@@ -19,7 +19,7 @@ type Scene = (props: { t: number }) => JSX.Element;
 /**
  * One illustrative answer, drawn as a small version of the real answer screen (bare bones, 2026-11-11): the site's
  * answer is the simulation test result (owner's premise, 2026-11-11), so each example shows which option did best on
- * the job, or that none clearly did yet, or "held" for a kind of job that cannot be tested yet. The results are
+ * the job, or that none clearly did yet, or that the test is still running. The results are
  * invented, so no example names a real product: every option is a made-up, neutral name.
  */
 type Example = {
@@ -432,34 +432,43 @@ function Palletizing({ t }: { t: number }) {
   );
 }
 
-// Every name, job and result below is made up for illustration. The numbers vary from example to example, and one
-// example has no clear winner, so the set does not suggest there is always one.
-const HELD = "We can't test this kind of job yet. We keep it and hold it.";
+// Every name, job and result below is made up for illustration. Each job is one our simulation test can run today
+// (review, 2026-11-11): one light object, well under 3 kg, picked up and put down within an arm's reach. The numbers
+// vary, one example has no clear winner and one is still being tested, so the set does not suggest there is always
+// a winner.
 const DID_BEST = "Did best on your job";
 const examples: Example[] = [
-  { site: "Packaging", embodiment: "Fixed robot arm", job: "Stacking 12 kg cartons from a conveyor onto a pallet", Art: Palletizing,
+  { site: "Packaging", embodiment: "Fixed robot arm", job: "Packing small boxes, under 1 kg each, from a conveyor into a carton", Art: Palletizing,
     result: { label: DID_BEST, name: "Robot B + AI software 2" },
     ticks: [{ key: "tries", state: "yes", text: "Did your job in 8 of 10 tries" },
       { key: "ahead", state: "yes", text: "Ahead of the 3 other AI robots we tested" }],
     sure: { filled: 2, word: "Fairly sure" } },
-  { site: "Warehouse", embodiment: "Humanoid robot", job: "Moving light totes from a shelf to a cart a few steps away", Art: Warehouse,
+  { site: "Warehouse", embodiment: "Humanoid robot", job: "Picking small parcels off a shelf into a tote within arm's reach", Art: Warehouse,
     result: { label: DID_BEST, name: "Robot D + AI software 1" },
     ticks: [{ key: "tries", state: "yes", text: "Did your job in 6 of 10 tries" },
       { key: "ahead", state: "yes", text: "Ahead of the 2 other AI robots we tested" }],
     sure: { filled: 1, word: "Not sure yet" } },
-  { site: "Café", embodiment: "Fixed robot arm", job: "Moving clean cups from the dish rack to the counter", Art: Cafe,
+  { site: "Café", embodiment: "Fixed robot arm", job: "Moving clean cups from the dish rack onto a tray", Art: Cafe,
     result: { label: "Tested on your job", name: "No clear winner yet" },
     ticks: [{ key: "tries", state: "yes", text: "Robot A and Robot C each did it in 5 of 10 tries" },
       { key: "close", state: "unsure", text: "Too close to tell apart yet" }],
     sure: { filled: 1, word: "Not sure yet" } },
-  { site: "Laundromat", embodiment: "Wheeled humanoid", job: "Folding towels for wash-and-fold orders", Art: Laundromat, held: HELD },
-  { site: "Factory", embodiment: "Mobile manipulator", job: "Loading small blanks into a machine 6 m from the conveyor", Art: Factory,
+  { site: "Laundromat", embodiment: "Wheeled humanoid", job: "Stacking folded towels onto a shelf", Art: Laundromat,
+    result: { label: DID_BEST, name: "Robot F + AI software 2" },
+    ticks: [{ key: "tries", state: "yes", text: "Did your job in 7 of 10 tries" },
+      { key: "ahead", state: "yes", text: "Ahead of the 1 other AI robot we tested" }],
+    sure: { filled: 2, word: "Fairly sure" } },
+  { site: "Factory", embodiment: "Mobile manipulator", job: "Placing small parts from a conveyor into a fixture", Art: Factory,
     result: { label: DID_BEST, name: "Robot E + AI software 3" },
     ticks: [{ key: "tries", state: "yes", text: "Did your job in 9 of 10 tries" },
       { key: "ahead", state: "yes", text: "Ahead of the 4 other AI robots we tested" }],
     sure: { filled: 3, word: "Sure" } },
-  { site: "Hotel", embodiment: "Mobile robot", job: "Moving linen carts from the laundry room to each floor", Art: Hotel, held: HELD },
-  { site: "Lab", embodiment: "Fixed robot arm", job: "Opening the sample drawer before each batch", Art: Lab, held: HELD },
+  { site: "Hotel", embodiment: "Mobile robot", job: "Placing folded napkins onto a tray", Art: Hotel,
+    result: { label: DID_BEST, name: "Robot A + AI software 1" },
+    ticks: [{ key: "tries", state: "yes", text: "Did your job in 7 of 10 tries" }], sure: { filled: 1, word: "Not sure yet" } },
+  { site: "Lab", embodiment: "Fixed robot arm", job: "Placing sample tubes into a rack", Art: Lab,
+    result: { label: "Testing now", name: "4 AI robots" },
+    ticks: [{ key: "pending", state: "unsure", text: "The result appears here when the tests finish" }] },
 ];
 
 /** The examples the home page rotates through. */

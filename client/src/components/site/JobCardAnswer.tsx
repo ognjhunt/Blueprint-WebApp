@@ -2,10 +2,13 @@ import { useEffect, useRef, useState } from "react";
 import type { User } from "firebase/auth";
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
 import { EVIDENCE_LEVEL_LABELS, JOB_CARD_LIMITS, JOB_CARD_LIMITS_TESTED, JOB_CARD_LIMITS_TESTING, SURENESS_STEPS, evidenceScopeLabel, type AnswerBasis, type AnswerEvidence } from "@/lib/siteAnswer";
-import { BareBack, BareBig, BareFine, BareParts, BareGroup, BareLead, BareLinks, BareRows, BareSureness, BareTicks } from "@/components/bare/Bare";
+import { BareBack, BareBig, BareFine, BareNotice, BareParts, BareGroup, BareLead, BareLinks, BareRows, BareSureness, BareTicks } from "@/components/bare/Bare";
 import { liftUpTo, ticksOf } from "./SiteAnswer";
 import { optionParts } from "@/lib/simulationProof";
 import type { JobCardAnswerRobot, JobCardAnswerSummary, TaskCardDetail } from "@/types/taskBrowse";
+
+/** The site's set-up notice, said about the site for a company reading the card. */
+const CARD_SETUP_CAVEAT = "This result may come from how we set up the simulation of the site, not from the robots.";
 
 export const JOB_CARD_ANSWER_TITLE = "Blueprint's answer for this job";
 
@@ -38,10 +41,12 @@ function CardTestHead({ test }: { test: NonNullable<JobCardAnswerSummary["test"]
     <BareBig as="p" sub="on the job, in a simulation of the site.">{`${test.entered} AI ${test.entered === 1 ? "robot" : "robots"}`}</BareBig>
   </BareGroup>;
   const did = `${top.succeeded} of ${top.scored} ${top.scored === 1 ? "try" : "tries"}`;
+  // A set-up flag is said beside every test result, as on the site's own screen.
+  const setup = test.setupFlag ? <BareNotice>{CARD_SETUP_CAVEAT}</BareNotice> : null;
   if (test.kind === "no_clear_winner") return <BareGroup><p className="bare-label">Tested on the job</p>
-    <BareBig as="p" sub={`Top: ${top.label}, did the job in ${did}.`}>No clear winner yet</BareBig></BareGroup>;
+    <BareBig as="p" sub={`Top: ${top.label}, did the job in ${did}.`}>No clear winner yet</BareBig>{setup}</BareGroup>;
   if (test.kind === "none_finished") return <BareGroup><p className="bare-label">Tested on the job</p>
-    <BareBig as="p" sub={top.furthestText ? `Closest: ${top.label} ${top.furthestText}.` : `${test.options.length} AI ${test.options.length === 1 ? "robot" : "robots"} tried; none finished the job.`}>None finished yet</BareBig></BareGroup>;
+    <BareBig as="p" sub={top.furthestText ? `Closest: ${top.label} ${top.furthestText}.` : `${test.options.length} AI ${test.options.length === 1 ? "robot" : "robots"} tried; none finished the job.`}>None finished yet</BareBig>{setup}</BareGroup>;
   const others = test.options.length - 1;
   const step = test.kind === "winner" ? (test.wording === "did_best" ? 2 : 1) : 0;
   const sure = SURENESS_STEPS[Math.max(0, step - (test.setupFlag ? 1 : 0))];

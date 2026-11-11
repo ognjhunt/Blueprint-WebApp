@@ -81,7 +81,12 @@ export function buildNotYetEmail(params: {
 }): QualificationEmail {
   const { firstName, siteName, triage } = params;
   const blockers = triage.blockers.filter(Boolean);
+  // Screening says "not now" only when a gate blocks (`triageGateAnswers`), so a reply always has a condition to
+  // name; one without would end on an empty list, and is never built.
+  if (!blockers.length) throw new Error("not_yet_email_without_blockers");
   const site = siteName?.trim();
+  const counted = blockers.length === 1 ? "One of our screening conditions does not hold"
+    : `${blockers.length === 2 ? "Two" : blockers.length === 3 ? "Three" : blockers.length} of our screening conditions do not hold`;
 
   const subject = "Your job, and what would have to change";
 
@@ -90,10 +95,10 @@ export function buildNotYetEmail(params: {
     emailGreeting(firstNameOf(firstName)),
     "",
     site
-      ? `Thanks for describing the job at ${site}. One of our screening conditions does not hold there today:`
-      : "Thanks for describing the job. One of our screening conditions does not hold at the site today:",
+      ? `Thanks for describing the job at ${site}. ${counted} there today:`
+      : `Thanks for describing the job. ${counted} at the site today:`,
     "",
-    blockers.length ? bulletList(blockers) : "",
+    bulletList(blockers),
     "",
     "That is a not-yet rather than a no. We keep your job on file; if any of this changes, reply to this email and we pick it back up. No call needed.",
     "",
@@ -356,6 +361,8 @@ export function buildQualificationEmail(params: {
   if (!triage) return null;
 
   if (triage.disposition === "not_now") {
+    // A record without a stored blocker (from before blockers were kept) has nothing to name: send nothing.
+    if (!triage.blockers.some(Boolean)) return null;
     return buildNotYetEmail({
       firstName: params.firstName,
       siteName: params.siteName,

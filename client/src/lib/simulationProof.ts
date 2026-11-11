@@ -138,11 +138,12 @@ export interface SimulationOption {
   id: string;
   /** "Franka arm + π0.5". */
   label: string;
-  /** The AI software's own name, "π0.5". */
-  software: string;
+  /** The AI software's own name, "π0.5", or null for a policy not in our closed list (named "AI robot A"). */
+  software: string | null;
   /** Who makes the software, or null when the catalog does not say. */
   maker: string | null;
-  robot: SimulatedRobot;
+  /** The robot it ran on, from the closed list, or null when the list does not name the policy. */
+  robot: SimulatedRobot | null;
   succeeded: number;
   scored: number;
   rangeText: string | null;
@@ -157,11 +158,13 @@ export interface SimulationOption {
 export interface SimulationOptions {
   /** In the display order (`optionsOf`). Row 1 is the one the answer leads with. */
   options: SimulationOption[];
-  /** Scored learned rows whose robot is not confirmed: never ranked, said apart, with their counts. */
-  unconfirmed: Array<{ policy: string; maker: string | null; succeeded: number; scored: number }>;
   /** "did_best" or "was_ahead" from the probability rule only; null when there is no winner. */
   winner: "did_best" | "was_ahead" | null;
-  /** How many AI options were entered for this run (learned rows, scored or not; never scripted or reference rows). */
+  /**
+   * How many AI options are in this test: learned rows that were scored, are running, or are still going to run.
+   * Rows that will never run (unavailable, infeasible, blocked, deferred) are not counted. The page, the card and the
+   * email all say this one number.
+   */
   entered: number;
   /** About how many tries each scored option had (the median), or null before any. */
   triesEach: number | null;
@@ -314,6 +317,10 @@ function plannedButNotRun(row: Candidate): boolean {
 
 const PREPARING_STATES = new Set(["queued", "pending", "waitlisted", "preparing", "launching", "unavailable"]);
 const RUNNING_CANDIDATE_STATES = new Set(["launching", "running", "reconciliation_required"]);
+/** A row that is running or still going to run; unavailable, infeasible, blocked and deferred rows will not. */
+const STILL_TO_RUN = new Set(["pending", "waitlisted", "preparing", "launching", "running", "reconciliation_required"]);
+/** The name of an option whose policy our closed list does not name, with a letter: "AI robot A". */
+export const UNLISTED_OPTION = "AI robot";
 
 const isRecord = (value: unknown): value is Record<string, any> => Boolean(value) && typeof value === "object" && !Array.isArray(value);
 const count = (value: unknown) => (typeof value === "number" && Number.isInteger(value) && value >= 0 ? value : 0);
@@ -601,21 +608,18 @@ export function optionsOf(evaluation: JobManagedEvidenceSummary | null): Simulat
   const learned = all.filter(row => !scripted(row) && !references.has(String(row.candidateId ?? "")));
   const scored = learned.filter(row => count(row.scored) > 0);
   const options: SimulationOption[] = [];
+  // Every scored learned row is an option: options are compared across robots, so the robot is needed only for the
+  // name. A policy our closed list does not name is "AI robot A", "AI robot B" (never a stored name), in id order.
   const unlistedIds = [...new Set(scored.filter(row => !isListed(row)).map(row => String(row.candidateId ?? "")))].sort();
-  const unconfirmed: SimulationOptions["unconfirmed"] = [];
   for (const row of scored) {
     const id = String(row.candidateId ?? "");
     const known = simulationPolicyFor(id);
     const succeeded = Math.min(count(row.succeeded), count(row.scored));
-    if (!known.robot) {
-      unconfirmed.push({ policy: unlistedIds.length > 1 ? `${UNNAMED_POLICY} (${letterOf(unlistedIds.indexOf(id))})` : known.policy,
-        maker: known.maker, succeeded, scored: count(row.scored) });
-      continue;
-    }
     const reached = furthestOf(row.progress, count(row.scored));
     const progress: unknown = row.progress;
     const approach = isRecord(progress) && isRecord(progress.closestApproachM) ? Number(progress.closestApproachM.median) : NaN;
-    options.push({ id, label: `${known.robot.short} + ${known.policy}`, software: known.policy, maker: known.maker, robot: known.robot,
+    options.push({ id, label: known.robot ? `${known.robot.short} + ${known.policy}` : `${UNLISTED_OPTION} ${letterOf(unlistedIds.indexOf(id))}`,
+      software: known.robot ? known.policy : null, maker: known.robot ? known.maker : null, robot: known.robot,
       succeeded, scored: count(row.scored), rangeText: succeeded > 0 ? rangeTextOf(row.successRange) : null,
       furthest: reached?.furthest ?? null, furthestText: reached?.text ?? null, furthestDetail: reached?.detail ?? null,
       closestM: Number.isFinite(approach) ? approach : null });
@@ -631,10 +635,10 @@ export function optionsOf(evaluation: JobManagedEvidenceSummary | null): Simulat
   const ahead = leader && options.length > 1 && leader.succeeded > 0
     ? Math.min(...options.slice(1).map(entry => probabilityAhead(leader, entry))) : 0;
   const winner = ahead >= CLEAR - THRESHOLD_TOLERANCE ? "did_best" : ahead >= AHEAD - THRESHOLD_TOLERANCE ? "was_ahead" : null;
-  const tries = options.map(entry => entry.scored).concat(unconfirmed.map(entry => entry.scored)).sort((a, b) => a - b);
+  const tries = options.map(entry => entry.scored).sort((a, b) => a - b);
   const notes = [...new Set((Array.isArray(screening?.setupNotes) ? screening!.setupNotes : []).filter((note): note is string => typeof note === "string" && Boolean(note.trim())))];
   return {
-    options, unconfirmed, winner, entered: learned.length,
+    options, winner, entered: learned.filter(row => count(row.scored) > 0 || STILL_TO_RUN.has(String(row.state ?? ""))).length,
     triesEach: tries.length ? tries[Math.floor((tries.length - 1) / 2)] : null,
     didNotRun: learned.filter(plannedButNotRun).length,
     setupFlag: evaluation?.outcomeCaveat === "scene_setup" || notes.includes(SCENE_SETUP_CAVEAT),
@@ -778,7 +782,5 @@ export function testNotRunLine(proof: SimulationProof | null | undefined): strin
     return waiting && PLAIN_WAITING[waiting] ? `Simulation test: ${PLAIN_WAITING[waiting]}` : null;
   }
   if (proof.options.options.length) return null;
-  return proof.options.unconfirmed.length
-    ? "The simulation test ran, but we couldn't confirm which robot each AI program ran on, so none is compared."
-    : "The simulation test finished, but no AI robot could be scored in it.";
+  return "The simulation test finished, but no AI robot could be scored in it.";
 }

@@ -43,8 +43,10 @@ async function startWithVideo(page: Page, email: string, shot?: string) {
   await page.goto("/contact/site-operator", { waitUntil: "networkidle" });
   await page.locator("#start-method-upload").click();
   await page.locator("#start-footage").setInputFiles(VIDEO);
-  await page.locator("#start-region").selectOption("us");
+  // The country is asked for only when needed: pressing the button with no address asks for it.
   await page.locator("#start-email").fill(email);
+  await page.getByRole("button", { name: /^(Send video|Next: film the job|Save my job)$/ }).click();
+  await page.locator("#start-region").selectOption("us");
   await expect(page.locator("#start-task")).toHaveValue("");
   if (shot) await page.screenshot({ path: path.join(SHOTS, shot), fullPage: true });
   await page.getByRole("button", { name: /^(Send video|Next: film the job|Save my job)$/ }).click();

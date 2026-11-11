@@ -1,4 +1,5 @@
 import { devices, expect, test, type Page } from "@playwright/test";
+import { bareRhythmFindings } from "./helpers/bare-rhythm";
 import { SCENE_NOTE_BEYOND_REACH, allZeroEvaluation, preparingEvaluation, readyAnswer, winnerEvaluation } from "../client/tests/fixtures/siteAnswer";
 
 /**
@@ -205,6 +206,22 @@ test("the answer, its details and the job settings read at phone width without s
   await context.close();
 });
 
+/** The withdrawn and before-the-video modes of the same job, as the server sends them; registered after mockJob, so they win. */
+async function mockMode(page: Page, mode: "withdrawn" | "film") {
+  await page.route(`**/api/self-capture/uploads/${token}/status`, route => route.fulfill({ json: mode === "withdrawn"
+    ? { ok: true, state: "held", detail: "Recording permission was withdrawn. This link no longer accepts footage.", blockers: [], openQuestions: [],
+      holdReason: "recording_consent_withdrawn", captureReceived: true }
+    : { ok: true, state: "open", captureReceived: false, uploadState: "awaiting_upload", accepts: ["mov", "mp4"], expiresAt: "2026-11-18T00:00:00Z" } }));
+  await page.route(`**/api/self-capture/uploads/${token}/withdrawal`, route => route.fulfill({ json: mode === "withdrawn"
+    ? { ok: true, withdrawn: true, withdrawal: { state: "withdrawn", requestedAtIso: "2026-11-11T16:00:00Z", pipelineAcknowledged: true,
+      deletionConfirmed: false, legalHold: false, storageDeletion: { state: "pending", deletedObjectCount: 0, lateUploadCheckAtIso: null, completedAtIso: null } } }
+    : { ok: true, withdrawn: false } }));
+  await page.route(`**/api/site-task-brief/${token}/status`, route => route.fulfill({ json: { ok: true, scope: "owner", captureReceived: mode === "withdrawn",
+    answer: null, claimUrl: null, sceneViewUrl: null, status: mode === "withdrawn"
+      ? { decision: "ended", headline: "Recording permission was withdrawn.", operatorAction: null, missingViews: [], nextUpdateIso: null }
+      : { decision: "record", headline: "Film the work area to start your job.", operatorAction: null, missingViews: [], nextUpdateIso: null } } }));
+}
+
 /** The fixture's leader with other counts, for the states the rhythm check walks through. */
 const withCounts = (pairs: Array<[number, number]>) => ({ ...simulationRun, screening: { ...simulationRun.screening, candidates: simulationRun.screening.candidates
   .map((row, index) => pairs[index] ? { ...row, scored: pairs[index][1], succeeded: pairs[index][0], failed: pairs[index][1] - pairs[index][0] } : row) } });
@@ -213,7 +230,9 @@ const withCounts = (pairs: Array<[number, number]>) => ({ ...simulationRun, scre
  * The bare-bones rhythm (bare.css, at its top), checked on a phone for every answer state rather than by eye: no
  * two different kinds of block closer than 8 px, and no text centred except the filled button's own label.
  */
-const RHYTHM_STATES: Array<{ name: string; evaluation: unknown; hash?: string }> = [
+const RHYTHM_STATES: Array<{ name: string; evaluation: unknown; hash?: string; mode?: "withdrawn" | "film" }> = [
+  { name: "recording permission withdrawn", evaluation: null, mode: "withdrawn" },
+  { name: "before the video", evaluation: null, mode: "film" },
   { name: "paper check", evaluation: null },
   { name: "was ahead", evaluation: simulationRun },
   { name: "did best", evaluation: withCounts([[10, 10]]) },
@@ -230,31 +249,13 @@ for (const state of RHYTHM_STATES) {
     const context = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: "block" });
     const page = await context.newPage();
     await mockJob(page, { evaluation: state.evaluation });
-    await page.goto(`/capture-upload/${token}?video=existing${state.hash ?? ""}`);
-    await page.locator(state.hash ? ".site-answer-details h1, .bare-screen h1" : ".site-answer-bare .bare-big, .site-answer-bare .bare-lead").first().waitFor();
+    if (state.mode) await mockMode(page, state.mode);
+    await page.goto(`/capture-upload/${token}${state.mode === "film" ? "" : "?video=existing"}${state.hash ?? ""}`);
+    await page.locator(state.mode === "withdrawn" ? ".bare-withdrawn [role=status]" : state.mode === "film" ? ".bare-upload-alt"
+      : state.hash ? ".site-answer-details h1, .bare-screen h1" : ".site-answer-bare .bare-big, .site-answer-bare .bare-lead").first().waitFor();
     if (!state.hash && state.evaluation) await page.locator(".site-answer-bare h2.bare-label", { hasText: /tested|did best|was ahead|testing now/i }).waitFor();
     if (state.hash === "#details/test") await page.getByRole("region", { name: "Ranked", exact: true }).waitFor();
-    const found = await page.evaluate(() => {
-      const KINDS = [".bare-label", ".bare-big", ".bare-sub", ".bare-lead", ".bare-job", ".bare-tick", ".bare-sure-line", ".bare-helper", ".bare-notice",
-        ".bare-done", ".bare-button", ".bare-quiet-button", ".bare-links", ".bare-fine", ".bare-back", ".bare-rows-title", ".bare-row", ".bare-menu", "h1"];
-      const root = [...document.querySelectorAll<HTMLElement>(".bare-screen")].find(node => node.getBoundingClientRect().height > 0)!;
-      const blocks = [...root.querySelectorAll<HTMLElement>(KINDS.join(","))]
-        .filter(node => node.getBoundingClientRect().height > 0 && getComputedStyle(node).visibility !== "hidden")
-        .filter((node, _, all) => !all.some(other => other !== node && other.contains(node)))
-        .map(node => ({ kind: KINDS.find(kind => node.matches(kind))!, text: (node.textContent ?? "").trim().slice(0, 40), box: node.getBoundingClientRect() }));
-      const tight: string[] = [];
-      for (let i = 1; i < blocks.length; i++) {
-        const [before, after] = [blocks[i - 1], blocks[i]];
-        if (before.kind === after.kind || after.box.top < before.box.bottom - 1) continue;
-        const gap = after.box.top - before.box.bottom;
-        if (gap < 7.5) tight.push(`${before.kind} "${before.text}" → ${after.kind} "${after.text}": ${gap.toFixed(1)} px`);
-      }
-      const centred = [...root.querySelectorAll<HTMLElement>("*")].filter(node => node.getBoundingClientRect().height > 0
-        && [...node.childNodes].some(child => child.nodeType === Node.TEXT_NODE && child.textContent!.trim())
-        && getComputedStyle(node).textAlign === "center" && !node.closest(".bare-button"))
-        .map(node => `${node.tagName.toLowerCase()}.${node.className} "${(node.textContent ?? "").trim().slice(0, 40)}"`);
-      return { tight, centred, blocks: blocks.length };
-    });
+    const found = await bareRhythmFindings(page);
     expect(found.blocks).toBeGreaterThanOrEqual(3);
     expect(found.tight, "blocks of different kinds closer than 8 px").toEqual([]);
     expect(found.centred, "centred text other than the filled button's label").toEqual([]);

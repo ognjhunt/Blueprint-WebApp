@@ -60,6 +60,7 @@ ul.bare-ticks { list-style: none; margin: 0; padding: 0; }
 .bare-back { text-decoration: none; color: var(--bare-muted); font-size: 16px; }
 /* A quiet control that wraps stays left-aligned with the text around it (a button centres by default). */
 .bare-quiet-button, .bare-link, .bare-back { text-align: left; justify-content: flex-start; }
+.bare-screen button:not(.bare-button):not(.ms-button), .bare-screen .ms-text-link, .bare-screen .site-answer-quiet-button { text-align: left; }
 .bare-helper { font-size: 14px; line-height: 1.45; color: var(--bare-muted); }
 .bare-links { display: flex; flex-wrap: wrap; gap: var(--bare-s2) var(--bare-s4); margin-top: var(--bare-s4); }
 .bare-link { text-decoration: none; border-bottom: 1px solid var(--bare-ink); }
@@ -105,3 +106,13 @@ ul.bare-menu { list-style: none; margin: var(--bare-s4) 0 0; padding: 0; border-
 .bare-screen .job-settings-workspace .job-planning-details > summary::-webkit-details-marker { display: none; }
 .bare-screen .job-settings-workspace .job-planning-details > summary::after { content: "›"; font-size: 24px; color: var(--bare-muted); }
 .bare-screen .job-settings-workspace .job-planning-details > summary .ms-field-hint { display: none; }
+
+/* Before the video: the camera 16 px under the title, its notice 12 px under the button; the upload alternative is
+   its own group, its lines 16 px apart. */
+.bare-screen .bare-film { margin-top: var(--bare-s3); }
+.bare-screen .bare-film > * + * { margin-top: var(--bare-s12); }
+.bare-screen .bare-upload-alt > * + * { margin-top: var(--bare-s3); }
+/* Withdrawn: the withdrawal's own words, in small type, under its one bold line. */
+.bare-screen .bare-withdrawn .owner-withdrawal { margin-top: 0; }
+.bare-screen .bare-withdrawn [role="status"] > * + * { margin-top: var(--bare-s2); }
+.bare-screen .bare-withdrawn .ms-field-hint { font-size: 14px; line-height: 1.45; color: var(--bare-muted); }

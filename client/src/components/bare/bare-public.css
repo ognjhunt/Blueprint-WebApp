@@ -104,6 +104,8 @@ ol.bare-steps { list-style: none; margin: 0; padding: 0; counter-reset: bare-ste
 /* Auth screens: the bare form beside the kept illustration; on a phone the illustration is a short band. */
 .auth-shell.auth-bare h1 { font-size: 30px; font-weight: 500; letter-spacing: -.7px; line-height: 1.15; }
 .auth-shell.auth-bare .auth-description { font-size: 17px; margin-top: var(--bare-s2, 8px); }
+/* The rhythm on the auth screens: a paragraph and the buttons keep 16 px between them, either way round. */
+.auth-shell.auth-bare .auth-description + .auth-form, .auth-shell.auth-bare .auth-form + .auth-description { margin-top: var(--bare-s3, 16px); }
 @media (max-width: 760px) {
   .auth-shell.auth-bare .auth-art { display: flex; position: relative; top: 0; height: 140px; overflow: hidden; order: -1; margin: 0 -20px; }
   .auth-shell.auth-bare .auth-art .robot-scene { max-width: 260px; }

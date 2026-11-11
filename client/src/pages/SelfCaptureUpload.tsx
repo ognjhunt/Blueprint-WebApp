@@ -12,7 +12,7 @@ import { SuccessThresholds, isSuccessThresholds, type SuccessThresholdsView } fr
 import { RobotAccess, isRobotAccess, type RobotAccessView } from "@/components/site/RobotAccess";
 import { NextTaskUpdate } from "@/components/site/NextTaskUpdate";
 import { SiteAnswer, SiteAnswerDetail, SiteAnswerDetails, EDIT_JOB_LABEL, NEW_VIDEO_LABEL, type CardState, type DetailScreen } from "@/components/site/SiteAnswer";
-import { isJobCardAnswerStatementVersion } from "@/lib/jobCardAnswerConsent";
+import { isJobCardAnswerStatementVersion, jobCardStatementSharesTestResults } from "@/lib/jobCardAnswerConsent";
 import { BareBack, BareLinks, BareMenu, BareNotice, BareScreen } from "@/components/bare/Bare";
 import { REASON_UNSIZED, isSiteAnswer, type SiteAnswer as SiteAnswerView } from "@/lib/siteAnswer";
 import { projectSimulationProof } from "@/lib/simulationProof";
@@ -683,7 +683,9 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
       .then((data: { listing?: { enabled?: boolean; consentVersion?: unknown } | null } | null) => {
         if (!alive || !data || !("listing" in data)) return;
         const listing = data.listing;
-        setCard(listing?.enabled === true ? (isJobCardAnswerStatementVersion(listing.consentVersion) ? "with_answer" : "without_answer") : "off");
+        // v3 shares later test results; v1 and v2 share the paper check only; the older box shares no answer.
+        setCard(listing?.enabled !== true ? "off" : jobCardStatementSharesTestResults(listing.consentVersion) ? "with_answer"
+          : isJobCardAnswerStatementVersion(listing.consentVersion) ? "with_paper_answer" : "without_answer");
       }).catch(() => { /* The stored answer's own flag stands. */ });
     return () => { alive = false; };
   }, [askedAt, scope, token, view, statusRefresh]);
@@ -837,6 +839,9 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
       detail: "Recording permission was withdrawn. This link no longer accepts footage.",
       blockers: [], openQuestions: [], holdReason: "recording_consent_withdrawn" }); }} />
   ) : null;
+  // Once a withdrawal is known the page shows only that: no saved-video card, workspace or controls that no longer act.
+  const recordingWithdrawn = scope === "owner" && Boolean(withdrawal)
+    && (withdrawn || (link.status === "held" && link.holdReason === "recording_consent_withdrawn"));
   // Before the video, the guided recorder (on a phone) or the handoff link (on a computer) is the page's one filled
   // button; the upload of a file already made is then the quiet alternative. A link opened for an existing video leads with it.
   const cameraLeads = !existingVideoOnly && !saved;
@@ -924,7 +929,13 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
       <BareScreen>
       {view === "details" && answer ? <SiteAnswerDetails answer={answer} proof={proof} onBack={closeView} onOpen={screen => openView(`details/${screen}`)} />
         : view.startsWith("details/") && answer ? <SiteAnswerDetail answer={answer} proof={proof} screen={view.slice(8) as DetailScreen} onBack={closeView} />
-        : view === "settings" && settingsOpen ? settingsScreen : <>
+        : view === "settings" && settingsOpen ? settingsScreen
+        : recordingWithdrawn ? <>
+          {/* Withdrawn: only what is true now, the withdrawal's own words in small type, and what still does something. */}
+          <h1>Your job</h1>
+          <div className="bare-group bare-withdrawn">{withdrawal}</div>
+          <BareLinks links={[{ key: "contact", label: "Contact Blueprint about this job", href: "mailto:hello@tryblueprint.io" }]} />
+        </> : <>
       <h1>
         {link.status === "held" || saved ? "Your job" : existingVideoOnly ? "Upload your existing video" : onAPhone ? "Film the work area" : "Upload or record your job"}
       </h1>
@@ -1136,6 +1147,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
                   format our reconstruction accepts and steps aside to the file
                   picker below otherwise — then one line of how, and everything
                   else optional and beneath it. */}
+              <div className="bare-film">
               <CaptureRecorder
                 token={token}
                 checklist={shotList}
@@ -1143,7 +1155,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
               />
 
               {/* What to tell people stays in view (privacy); how to film is one tap away. */}
-              <p className="ms-field-hint" style={{ marginTop: "12px" }}>{FILMING_NOTICE}</p>
+              <p className="ms-field-hint">{FILMING_NOTICE}</p>
               <details className="bare-how-to">
                 <summary>How to film ›</summary>
                 <p className="ms-field-hint">
@@ -1151,12 +1163,14 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
                   happens, from a few heights. Ideally the scene is still, with nobody in frame; if work is going on, film anyway.
                 </p>
               </details>
+              </div>
             </>
           )}
 
           {!saved && (
             <>
-              <p className="ms-field-hint" style={{ marginTop: "20px" }}>
+            <div className="bare-group bare-upload-alt">
+              <p className="ms-field-hint">
                 {existingVideoOnly ? "Upload your original .mov or .mp4 file from this device." : onAPhone
                   ? "Already have a video of the work area? Upload it instead."
                   : "Already have the recording on this computer? Upload a .mov or .mp4 file."}
@@ -1220,6 +1234,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
                   Try the selected video again
                 </button>
               )}
+            </div>
               {existingVideoOnly && <details style={{ marginTop: "20px" }}>
                 <summary>Open this job on another device (optional)</summary>
                 <p className="ms-field-hint">Use this if your existing video is on another device. This opens the same job; no new recording is required.</p>

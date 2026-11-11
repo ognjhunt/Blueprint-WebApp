@@ -12,7 +12,7 @@ for (const width of [1440, 390]) {
     await expect(page.getByLabel('Work email', { exact: true })).toHaveCount(0);
     await expect(page.getByLabel('Password', { exact: true })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Continue with Google' })).toHaveCount(0);
-    await expect(page.getByRole('link', { name: 'Show us a site task' })).toHaveAttribute('href', '/contact/site-operator');
+    await expect(page.getByRole('link', { name: 'Start a job' })).toHaveAttribute('href', '/contact/site-operator');
     await expect(page.getByRole('link', { name: /Register robot-team interest/ })).toHaveAttribute('href', '/contact/robot-team');
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   });

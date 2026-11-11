@@ -85,6 +85,26 @@ function ClearDraftControl({status,onClear,disabled=false}:{status:ClearStatus;o
   </>;
 }
 
+export const STATEMENTS_CHANGED = "The wording on this form has changed since you last pressed the button. Read it, then press the button again.";
+
+/**
+ * Whether a saved submission carries the statement versions this form sends now, for the kind of job it is (with a
+ * video or without). `shortConsent` is the switch position (`START_FORM_SHORT_CONSENT`).
+ */
+export function pendingStatementsCurrent(body: string, shortConsent: boolean = START_FORM_SHORT_CONSENT): boolean {
+  try {
+    const sent = JSON.parse(body) as { descriptionOnly?: unknown; descriptionAuthority?: { statementVersion?: unknown };
+      consentAttestation?: { statementVersion?: unknown } | null };
+    const withVideo = sent.descriptionOnly === false;
+    const description = !shortConsent ? DESCRIPTION_AUTHORITY_VERSION
+      : withVideo ? DESCRIPTION_AUTHORITY_WITH_VIDEO_VERSION : DESCRIPTION_AUTHORITY_NO_VIDEO_VERSION;
+    const recording = withVideo ? (shortConsent ? RECORDING_RIGHTS_STATEMENT_SHORT_VERSION : RECORDING_RIGHTS_STATEMENT_VERSION) : null;
+    return sent.descriptionAuthority?.statementVersion === description && (sent.consentAttestation?.statementVersion ?? null) === recording;
+  } catch {
+    return false;
+  }
+}
+
 export function SiteCaptureStart({ onSavedChange }: { onSavedChange?: (saved: boolean) => void } = {}) {
   const { currentUser, loading } = useAuth();
   const authoring = typeof window === "undefined" ? "default"
@@ -274,7 +294,9 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
   // no country. Once asked it stays, so a person can change it. A recovered draft that chose one shows it.
   const [countryAsked, setCountryAsked] = useState(Boolean(initial.draft.regionManuallySet));
   // The optional details and the full statements are their own screens, in the URL's hash (the job page's pattern).
-  const subScreens = useRef(["details", "agreeing"] as const).current;
+  // "What you're agreeing to" is a screen only while the short consent line is shown; otherwise its hash is unknown
+  // and falls back to the form, never a blank screen.
+  const subScreens = useRef(START_FORM_SHORT_CONSENT ? ["details", "agreeing"] as const : ["details"] as const).current;
   const { screen, open: openScreen, close: closeScreen } = useHashScreen(subScreens);
   const headingRef = useFocusHeading(screen);
   // Asked because it changes what we say next, not to route them into a
@@ -387,6 +409,15 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
 
   async function submit(event?: React.FormEvent<HTMLFormElement>) {
     event?.preventDefault();
+    // A saved submission is resent byte for byte only under the statements the form shows now. One recorded under
+    // other statements is not sent: the person reads the current ones and presses the button again.
+    if (recovery.current.pending && !pendingStatementsCurrent(recovery.current.pending.body)) {
+      const stale = recovery.current.pending.body;
+      await retain({ ...recovery.current, pending: null }, stale);
+      setPending(null);
+      setState({ status: "failed", message: STATEMENTS_CHANGED });
+      return;
+    }
     const retained = recovery.current.pending;
     if (recoveryUnavailable || operationInFlight.current || state.status === "working" || loading
       || (!retained && claudeAuthoringRequested && !claudeConsent)

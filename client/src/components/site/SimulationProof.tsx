@@ -1,4 +1,3 @@
-import { UNNAMED_POLICY } from "@/data/simulationPolicies";
 import { BareRows } from "@/components/bare/Bare";
 import {
   GAP_COULD_BE_CHANCE, GAP_UNLIKELY_CHANCE, PLAIN_SETUP_CAVEAT, SCENE_SETUP_CAVEAT, testNotRunLine,
@@ -8,8 +7,6 @@ import { SIMULATION_ACCURACY_ROWS } from "@/data/simulationAccuracy";
 
 type Row = NonNullable<SimulationProofView["policyComparison"]>["rows"][number];
 
-/** At the start of a row, the plain phrase for a policy not in our list starts with a capital. */
-const rowName = (name: string) => (name.startsWith(UNNAMED_POLICY) ? `A${name.slice(1)}` : name);
 const tries = (succeeded: number, scored: number) => `${succeeded} of ${scored} ${scored === 1 ? "try" : "tries"}`;
 
 const PLAIN_STATE = { preparing: "Getting ready.", running: "Running now." } as const;
@@ -36,12 +33,11 @@ export const setupCaveatShown = (proof: SimulationProofView | null | undefined) 
 
 /**
  * The simulation test as a ranked list, on its own details screen: one lead line, then one row per option in the
- * display order (its maker, its count, and how far it got when it finished none), the rows we could not compare,
- * the set-up notes, and what was planned but did not run. Every fact of the projection's comparison is here as rows.
+ * display order (its maker, its count, and how far it got when it finished none), the set-up notes, and what was planned but did not run. Every fact of the projection's comparison is here as rows.
  */
 export function SimulationTestRows({ proof }: { proof: SimulationProofView }) {
-  const { options, unconfirmed, winner, triesEach, didNotRun, setupNotes } = proof.options;
-  const ran = options.length + unconfirmed.length;
+  const { options, winner, triesEach, didNotRun, setupNotes } = proof.options;
+  const ran = options.length;
   return <BareRows title="Ranked" rows={[
     ...(ran ? [{ key: "lead", value: `We ran ${ran} AI ${ran === 1 ? "robot" : "robots"} on your job, about ${triesEach} ${triesEach === 1 ? "try" : "tries"} each, in a simulation of your site.` }] : []),
     ...options.map((option, index) => ({ key: option.id, label: <>{index + 1}. {option.label}{option.maker && <span className="bare-helper"> · {option.maker}</span>}</>,
@@ -49,8 +45,6 @@ export function SimulationTestRows({ proof }: { proof: SimulationProofView }) {
         {option.succeeded === 0 && option.furthestDetail && <span className="bare-helper"> · {option.furthestDetail}</span>}
         {index === 0 && winner && <strong> · {winner === "did_best" ? "Did best" : "Ahead"}</strong>}</> })),
     ...(winner ? [{ key: "gap", value: winner === "did_best" ? GAP_UNLIKELY_CHANCE : GAP_COULD_BE_CHANCE }] : []),
-    ...unconfirmed.map((row, index) => ({ key: `unconfirmed-${index}`, label: rowName(row.policy),
-      value: `Finished ${tries(row.succeeded, row.scored)} · on a robot we could not confirm, not compared` })),
     ...(didNotRun > 0 ? [{ key: "did-not-run", value: `${didNotRun} more AI ${didNotRun === 1 ? "robot was" : "robots were"} planned but did not run. Job settings › Simulation details says why.` }] : []),
   ]}>
     {setupNotes.map(note => <p key={note} className="bare-notice">{note === SCENE_SETUP_CAVEAT ? PLAIN_SETUP_CAVEAT : note}</p>)}

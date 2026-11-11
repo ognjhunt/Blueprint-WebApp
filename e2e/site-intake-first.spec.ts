@@ -26,6 +26,9 @@ for (const width of [1440, 390]) {
     });
     await page.goto("/signup/business?buyerType=site_operator");
     await expect(page).toHaveURL(/\/contact\/site-operator$/);
+    // The country is asked for only when needed: pressing the button with no address asks for it.
+    await page.locator("#start-email").fill("qa@example.invalid");
+    await page.getByRole("button", { name: /^(Send video|Next: film the job|Save my job)$/ }).click();
     await page.locator("#start-region").selectOption("us");
     await expect(page.locator("#start-location")).not.toHaveAttribute("required", "");
     await expect(page.locator("#start-location")).toHaveValue("");

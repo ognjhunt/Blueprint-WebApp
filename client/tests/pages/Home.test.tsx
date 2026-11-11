@@ -19,12 +19,19 @@ describe("Site-led homepage", () => {
     expect(screen.getByText("We check pick-up-and-put-down jobs. Not a test at your site, or a safety check.")).toBeInTheDocument();
     // The example: real robot names, made-up jobs, marked as an example.
     expect(screen.getAllByRole("tab").map(tab => tab.textContent)).toEqual(["Packaging", "Warehouse", "Café", "Laundromat", "Factory", "Lab"]);
-    const heldTabs = screen.getAllByRole("tab").filter(tab => { fireEvent.click(tab); return /Held\./.test(screen.getByRole("tabpanel").textContent ?? ""); });
-    expect(heldTabs.map(tab => tab.textContent)).toEqual(["Laundromat", "Lab"]);
+    // Every example is a job our simulation test can run today: one light object, picked up and put down within an
+    // arm's reach (review, 2026-11-11). No heavy loads, no pallets loaded, no long carries.
+    for (const tab of screen.getAllByRole("tab")) {
+      fireEvent.click(tab);
+      const text = screen.getByRole("tabpanel").textContent ?? "";
+      for (const kg of text.match(/(\d+(?:\.\d+)?) kg/g) ?? []) expect(parseFloat(kg), `${tab.textContent}: ${kg}`).toBeLessThanOrEqual(2);
+      for (const m of text.match(/(\d+(?:\.\d+)?) m\b/g) ?? []) expect(parseFloat(m), `${tab.textContent}: ${m}`).toBeLessThanOrEqual(1);
+      expect(text, tab.textContent!).not.toMatch(/onto a pallet|steps away|Held\./i);
+    }
     fireEvent.click(screen.getByRole("tab", { name: "Packaging" }));
     const panel = screen.getByRole("tabpanel");
     // The answer a site gets is the test result (owner, 2026-11-11). The results are invented, so the names are made up.
-    expect(panel).toHaveTextContent(/Example.*12 kg cartons.*pallet.*Did best on your job.*Robot B \+ AI software 2.*Did your job in 8 of 10 tries.*Ahead of the 3 other AI robots we tested.*How sure are we\?.*Fairly sure/);
+    expect(panel).toHaveTextContent(/Example.*small boxes.*carton.*Did best on your job.*Robot B \+ AI software 2.*Did your job in 8 of 10 tries.*Ahead of the 3 other AI robots we tested.*How sure are we\?.*Fairly sure/);
     expect(panel).not.toHaveTextContent(/Universal Robots|UR20|FANUC|Unitree|Hello Robot|Stretch/);
     expect(panel).not.toHaveTextContent(/Ornua|Bob.s Red Mill|Verla|Georgia Nut|Danish Crown|Napco/);
     expect(panel).not.toHaveTextContent(/cycle time|Pilot price|Budget|%/i);
@@ -39,13 +46,13 @@ describe("Site-led homepage", () => {
   });
 
   it.each([
-    ["Packaging", /fixed robot arm/i, /cartons.*conveyor.*pallet.*Did best on your job.*Robot B \+ AI software 2.*8 of 10 tries/i],
-    ["Warehouse", /humanoid robot/i, /totes.*shelf.*cart.*Did best on your job.*Robot D \+ AI software 1.*6 of 10 tries.*Not sure yet/i],
-    ["Café", /fixed robot arm/i, /clean cups.*dish rack.*counter.*Tested on your job.*No clear winner yet.*5 of 10 tries/i],
+    ["Packaging", /fixed robot arm/i, /small boxes.*conveyor.*carton.*Did best on your job.*Robot B \+ AI software 2.*8 of 10 tries/i],
+    ["Warehouse", /humanoid robot/i, /small parcels.*shelf.*tote.*Did best on your job.*Robot D \+ AI software 1.*6 of 10 tries.*Not sure yet/i],
+    ["Café", /fixed robot arm/i, /clean cups.*dish rack.*tray.*Tested on your job.*No clear winner yet.*5 of 10 tries/i],
     // Jobs that are not one solid object picked up and put down are held, as the real answer does.
-    ["Laundromat", /wheeled humanoid/i, /folding towels.*wash-and-fold.*Answer.*Held\..*can't test this kind of job yet/i],
-    ["Factory", /mobile manipulator/i, /small blanks.*machine.*Did best on your job.*Robot E \+ AI software 3.*9 of 10 tries/i],
-    ["Lab", /fixed robot arm/i, /opening the sample drawer before each batch.*Answer.*Held\./i],
+    ["Laundromat", /wheeled humanoid/i, /folded towels.*shelf.*Did best on your job.*Robot F \+ AI software 2.*7 of 10 tries/i],
+    ["Factory", /mobile manipulator/i, /small parts.*fixture.*Did best on your job.*Robot E \+ AI software 3.*9 of 10 tries/i],
+    ["Lab", /fixed robot arm/i, /sample tubes.*rack.*Testing now.*4 AI robots/i],
   ])("pairs the %s example with its answer and matching illustration", (site, embodiment, task) => {
     render(<Home />);
     const tab = screen.getByRole("tab", { name: site });
@@ -132,7 +139,7 @@ describe("Site-led homepage", () => {
       const stillFrame = art.innerHTML;
       act(() => { vi.advanceTimersByTime(31000); });
       expect(screen.getByRole("tab", { name: "Laundromat" })).toHaveAttribute("aria-selected", "true");
-      expect(screen.getByRole("tabpanel")).toHaveTextContent(/folding towels/i);
+      expect(screen.getByRole("tabpanel")).toHaveTextContent(/folded towels/i);
       expect(art.innerHTML).toBe(stillFrame);
     } finally {
       matchMedia.mockRestore();

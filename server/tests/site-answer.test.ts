@@ -633,6 +633,32 @@ describe("a robot that moves is checked on how high and how low its hand goes", 
     expect(far.ruledOut.map((row) => row.name)).toEqual(["UR10e"]);
   });
 
+  // An unknown margin is not a comfortable margin (review, 2026-11-11): a moving robot's height check has no headroom
+  // figure, so it never counts as comfortable, and on a carry a fixed arm can serve the fixed arm comes first.
+  it("names a fixed arm that passes, tight or comfortable, ahead of any moving robot on a short carry", () => {
+    const arm = (id: string, payload: number) => robot(id, "fixed_arm", { reach: 1.3, payload });
+    const settled = robot("settled_rover", "wheeled_humanoid", { top: 2.2, bottom: 0, payload: 30 });
+    const job = measuredJob(0.8, 1.0, 0.5);
+    // How much the arm must carry: the object and a standard gripper.
+    const probe = composeSiteAnswer({ ...job, catalog: withModels(arm("probe_arm", 100)) })!;
+    const need = Math.max(...(probe.pick!.checks.find((check) => check.key === "payload")!.need!.match(/[\d.]+/g) ?? []).map(Number));
+    const tight = arm("tight_arm", Math.round(need * 1.03 * 100) / 100);
+    const tightAnswer = composeSiteAnswer({ ...job, catalog: withModels(settled, tight) })!;
+    expect(tightAnswer.pick!.modelId).toBe("tight_arm");
+    expect(tightAnswer.pick!.checks.find((check) => check.key === "payload")!.text).toMatch(/This is a tight fit\.$/);
+    expect(tightAnswer.runnerUp!.modelId).toBe("settled_rover");
+    const roomy = composeSiteAnswer({ ...job, catalog: withModels(settled, arm("roomy_arm", 30)) })!;
+    expect(roomy.pick!.modelId).toBe("roomy_arm");
+  });
+
+  it("keeps a moving robot that passes ahead of one with unknown heights when the spots are beyond a fixed arm", () => {
+    const settled = robot("settled_rover", "wheeled_humanoid", { top: 2.2, bottom: 0, payload: 30 });
+    const unknownHeights = robot("unknown_heights", "humanoid", { reach: 0.9, payload: 30 });
+    const answer = composeSiteAnswer({ ...measuredJob(0.8, 1.0, 3.0), catalog: withModels(unknownHeights, settled) })!;
+    expect(answer.pick!.modelId).toBe("settled_rover");
+    expect(answer.runnerUp!.modelId).toBe("unknown_heights");
+  });
+
   it("labels a wheeled humanoid as one and links its listed working heights", () => {
     const answer = composeSiteAnswer({ ...measuredJob(0.8, 1.2), catalog: withModels(robot("rover", "wheeled_humanoid", { top: 2.2, bottom: 0 })) })!;
     expect(answer.pick!.formLabel).toBe("Wheeled humanoid");

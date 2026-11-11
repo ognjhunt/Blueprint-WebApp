@@ -11,7 +11,8 @@
  * older card checkbox does not mention the answer, so a card listed or re-saved
  * under it never carries one, and an `introduction_request` stored before the
  * statement was recorded never does either. Who may see the card at all is still `teamJobAccess`; this never
- * widens it.
+ * widens it. A test result (or any simulation line) goes on the card only under v3, the statement that names later
+ * test results (`jobCardTestResultShared`); under v1 or v2 the card carries the paper check.
  *
  * ## What it carries
  *
@@ -27,7 +28,7 @@
  */
 import type { AnswerRobot, SiteAnswer } from "../../client/src/lib/siteAnswer";
 import type { JobCardAnswerRobot, JobCardAnswerSummary } from "../../client/src/types/taskBrowse";
-import { isJobCardAnswerStatementVersion } from "../../client/src/lib/jobCardAnswerConsent";
+import { isJobCardAnswerStatementVersion, jobCardStatementSharesTestResults } from "../../client/src/lib/jobCardAnswerConsent";
 import { testHeadline, testResultOf, type SimulationProof } from "../../client/src/lib/simulationProof";
 import { TIGHT_FIT_SENTENCE } from "../../client/src/lib/siteAnswer";
 import { logger } from "../logger";
@@ -45,6 +46,16 @@ export function jobCardAnswerShared(record: unknown): boolean {
   return Boolean(intro) && typeof intro!.requested_at_iso === "string" && Boolean(intro!.requested_at_iso)
     && isJobCardAnswerStatementVersion(intro!.statement_version)
     && Boolean(listing) && isJobCardAnswerStatementVersion(listing!.consentVersion);
+}
+
+/**
+ * The site agreed to share later test results: its recorded choice and the card's current consent are both v3.
+ * Under v1 or v2 the card carries the paper check only, never a test result, even one that arrives later.
+ */
+export function jobCardTestResultShared(record: unknown): boolean {
+  const stored = record as { introduction_request?: Record<string, unknown>; public_task_listing?: Record<string, unknown> } | null | undefined;
+  return jobCardAnswerShared(record) && jobCardStatementSharesTestResults(stored?.introduction_request?.statement_version)
+    && jobCardStatementSharesTestResults(stored?.public_task_listing?.consentVersion);
 }
 
 const SITE_WORDS: Array<[RegExp, string]> = [
@@ -142,6 +153,8 @@ export async function loadJobCardAnswer(id: string, record: unknown): Promise<Jo
     if (!answer) return null;
     let simulation: string | null = null;
     let proof: SimulationProof | null = null;
+    // Under v1 or v2 the card is the paper check: no test result and no simulation line.
+    if (!jobCardTestResultShared(record)) return projectJobCardAnswer(answer, null, null);
     try {
       const [{ readSiteManagedEvidence }, { projectSimulationProof }] = await Promise.all([
         import("./siteManagedEvidence"), import("../../client/src/lib/simulationProof")]);

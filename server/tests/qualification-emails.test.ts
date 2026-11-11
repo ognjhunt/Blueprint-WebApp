@@ -22,6 +22,8 @@ import {
   encryptInboundRequestForStorage,
 } from "../utils/field-encryption";
 import type { SiteTaskTriageSummary } from "../types/inbound-request";
+import { triageGateAnswers } from "../../client/src/lib/gateTriage";
+import { gateFields } from "../../client/src/data/siteTaskQualification";
 
 function triage(overrides: Partial<SiteTaskTriageSummary> = {}): SiteTaskTriageSummary {
   return {
@@ -59,15 +61,43 @@ describe("the not-yet reply", () => {
     expect(email.body).toMatch(/No call needed/i);
   });
 
-  it("still reads sensibly when the blocker list is empty", () => {
-    const email = buildNotYetEmail({
-      firstName: "",
-      triage: triage({ blockers: [] }),
-    });
-    // A blank name greets plainly, never with a placeholder.
-    expect(email.body.startsWith("Hi,\n")).toBe(true);
-    expect(email.body).not.toContain("Hi there");
-    expect(email.body).toContain("does not hold at the site today");
+  // Review, 2026-11-11: the opening counts the conditions it is about to list, and never ends on an empty list.
+  it("counts the conditions it lists: one, or how many", () => {
+    const one = buildNotYetEmail({ firstName: "", triage: triage() });
+    expect(one.body).toContain("One of our screening conditions does not hold at the site today:");
+    expect(one.body.startsWith("Hi,\n")).toBe(true);
+    expect(one.body).not.toContain("Hi there");
+    const two = buildNotYetEmail({ firstName: "Dana", siteName: "Riverside DC", triage: triage({
+      blockers: ["Outside Texas — Expansion beyond Texas.", "People in the space all day — No clear window."] }) });
+    expect(two.body).toContain("Two of our screening conditions do not hold there today:");
+    expect(two.body).toContain("- Outside Texas — Expansion beyond Texas.\n- People in the space all day — No clear window.");
+    const five = buildNotYetEmail({ firstName: "Dana", triage: triage({ blockers: ["a", "b", "c", "d", "e"].map(letter => `Gate ${letter} — detail`) }) });
+    expect(five.body).toContain("5 of our screening conditions do not hold at the site today:");
+  });
+
+  it("is never built without a condition to name, so no empty list is ever sent", () => {
+    expect(() => buildNotYetEmail({ firstName: "Dana", triage: triage({ blockers: [] }) })).toThrow("not_yet_email_without_blockers");
+    expect(() => buildNotYetEmail({ firstName: "Dana", triage: triage({ blockers: ["", ""] }) })).toThrow("not_yet_email_without_blockers");
+    // The reply picker sends nothing for a "not now" with no stored blocker (a record from before blockers were kept).
+    expect(buildQualificationEmail({ firstName: "Dana", triage: triage({ blockers: [] }) })).toBeNull();
+  });
+
+  it("is only reached with a blocker: screening says not now only when a gate blocks", () => {
+    // Every gate answered with each of its options in turn, under both capture modes: not_now always carries a blocker.
+    for (const captureMode of ["site_visit", "self_capture"] as const) {
+      for (const field of gateFields) {
+        for (const option of field.options) {
+          const answers: Record<string, string> = {};
+          for (const other of gateFields) {
+            const clear = other.options.find((entry) => entry.verdict === "clear");
+            if (clear) answers[other.id] = clear.value;
+          }
+          answers[field.id] = option.value;
+          const result = triageGateAnswers(answers, gateFields, captureMode);
+          if (result.disposition === "not_now") expect(result.blockers.length, `${field.id}=${option.value}`).toBeGreaterThan(0);
+        }
+      }
+    }
   });
 });
 
