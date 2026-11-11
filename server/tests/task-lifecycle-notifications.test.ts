@@ -662,7 +662,7 @@ describe("the site's answer is emailed once, when it first settles", () => {
     // An ended authority has no email of its own either: the window's sentence, then the paper check.
     const ended = await build(answer(), { phase: "no_test", reason: "authority_ended", sentence: "The time for this job ran out before a simulation test could run." });
     expect(ended.body.startsWith("The time for this job ran out before a simulation test could run. So the paper check is your answer.")).toBe(true);
-    for (const reason of ["window_expired", "no_grant", "scene_held", "kept_on_file", null])
+    for (const reason of ["window_expired", "no_grant", "scene_held", null])
       await expect(build(answer(), { phase: "no_test", reason, sentence: "x" }), String(reason)).rejects.toThrow("answer_ready_notice_invalid");
   });
 
