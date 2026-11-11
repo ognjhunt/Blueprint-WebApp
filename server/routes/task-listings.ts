@@ -4,7 +4,7 @@ import { z } from "zod";
 import rateLimit from "express-rate-limit";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { verifyCaptureUploadToken } from "../utils/captureUploadToken";
-import { listingConsentVersion, taskListingSchema, taskListingDraft } from "../utils/taskListingDetails";
+import { LISTING_CONSENT_VERSIONS, listingConsentVersion, taskListingSchema, taskListingDraft } from "../utils/taskListingDetails";
 import { humanDecisionDigest } from "../utils/human-reply-admission";
 import { getBrief } from "../utils/siteTaskBrief";
 import { enqueueTaskLifecycleNotification, notifyIfOpenForEvaluations } from "../utils/taskLifecycleNotifications";
@@ -64,7 +64,10 @@ export type OwnerTaskListingGrant = z.infer<typeof grantSchema>;
  * sharing" and the job page's "Find a deployment company" both record it here,
  * so consent is recorded one way.
  */
-export async function applyOwnerTaskListing(requestId: string, grant: OwnerTaskListingGrant): Promise<{ wentLive: string | null }> {
+export async function applyOwnerTaskListing(requestId: string, grant: OwnerTaskListingGrant,
+  options: { consentVersion?: (typeof LISTING_CONSENT_VERSIONS)[number] } = {}): Promise<{ wentLive: string | null }> {
+  const consentVersion = options.consentVersion && LISTING_CONSENT_VERSIONS.includes(options.consentVersion)
+    ? options.consentVersion : listingConsentVersion;
   const parsed = grantSchema.safeParse(grant);
   if (!parsed.success) throw new Error("listing_grant_invalid");
   if (!db) throw new Error("listing_unavailable");
@@ -92,7 +95,7 @@ export async function applyOwnerTaskListing(requestId: string, grant: OwnerTaskL
       public_task_listing: {
       wentLiveIso: wentLive ?? current.data()?.public_task_listing?.wentLiveIso ?? null,
       enabled: parsed.data.enabled, details: parsed.data.details,
-      consentVersion: parsed.data.consent ? listingConsentVersion : null, approvedAtIso: parsed.data.consent ? new Date().toISOString() : null,
+      consentVersion: parsed.data.consent ? consentVersion : null, approvedAtIso: parsed.data.consent ? new Date().toISOString() : null,
       reviewRequired: !parsed.data.enabled && current.data()?.public_task_listing?.reviewRequired === true,
       briefRevision: revision,
       approvedBy: "signed_owner_link",

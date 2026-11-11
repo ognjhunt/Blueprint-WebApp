@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { withCsrfHeader } from "@/lib/csrf";
+import { JOB_CARD_ANSWER_STATEMENT } from "@/lib/jobCardAnswerConsent";
 import type { SimulationProof as SimulationProofView } from "@/lib/simulationProof";
 import { SimulationProof } from "./SimulationProof";
 import {
@@ -17,7 +18,8 @@ const BASIS_LABELS: Readonly<Record<AnswerBasis, string>> = {
 
 const INTRODUCTION_FAILED = "We could not send your request just now. Try again shortly.";
 export const FIND_COMPANY_LABEL = "Find a deployment company for this job";
-export const FIND_COMPANY_CONSENT = "This shares an anonymised summary of your job and this answer with deployment companies Blueprint has approved. Your video, address and contacts stay private.";
+/** Rendered from the statement the introduction route records, so the two never drift. */
+export const FIND_COMPANY_CONSENT = JOB_CARD_ANSWER_STATEMENT;
 const askedListed = (date: string) => `You asked on ${date}. Your job card is now visible to approved deployment companies, and Blueprint will email you when one responds.`;
 const askedUnlisted = (date: string) => `You asked on ${date}. Blueprint will set up your job card and email you.`;
 

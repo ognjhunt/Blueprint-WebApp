@@ -25,6 +25,11 @@ export function SimulationProof({ proof }: { proof: SimulationProofView }) {
   const done = proof.state === "done";
   // The headline already says the comparison's first sentence; only what it adds is repeated below.
   const line = comparison && comparison.line !== proof.headline && !comparison.separated ? comparison.line : null;
+  // Which robot the policies ran on is said where the results are, not only at the foot of the section,
+  // so a result is never read as a test of the picked robot.
+  const otherRobot = done && comparison && !comparison.sameRobotAsPick
+    ? proof.forThisJob.find(item => item.includes(comparison.robotName)) ?? null : null;
+  const forThisJob = proof.forThisJob.filter(item => item !== otherRobot);
   return <section className="site-answer-proof" aria-labelledby="simulation-proof-title">
     <h3 id="simulation-proof-title">Proof in simulation</h3>
     <p className="site-proof-headline">{proof.headline}</p>
@@ -34,6 +39,7 @@ export function SimulationProof({ proof }: { proof: SimulationProofView }) {
     </>}
     {done && comparison && <>
       <h4>Control policies on your job</h4>
+      {otherRobot && <p className="site-proof-robot">{otherRobot}</p>}
       {line && <p>{line}</p>}
       {!comparison.separated && comparison.sceneNotes.length > 0 && <ul className="site-proof-notes">
         {comparison.sceneNotes.map(note => <li key={note}>{note}</li>)}
@@ -56,9 +62,9 @@ export function SimulationProof({ proof }: { proof: SimulationProofView }) {
       <ul className="site-proof-sources">{proof.accuracy.sources.map(source => <li key={source.url}>
         <a className="ms-text-link" href={source.url} target="_blank" rel="noreferrer">{source.title}</a>
       </li>)}</ul>
-      {proof.forThisJob.length > 0 && <>
+      {forThisJob.length > 0 && <>
         <p className="site-proof-for-job">For your job:</p>
-        <ul>{proof.forThisJob.map(item => <li key={item}>{item}</li>)}</ul>
+        <ul>{forThisJob.map(item => <li key={item}>{item}</li>)}</ul>
       </>}
     </>}
   </section>;

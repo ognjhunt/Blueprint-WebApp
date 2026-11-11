@@ -16,6 +16,10 @@ Object.assign(env, {
   APP_URL: `http://127.0.0.1:${port}`, RELIABILITY_APP_PORT: String(port),
   CODEX_LOCAL_AVAILABLE: '0', BLUEPRINT_DISABLE_OPS_AUTOMATION_SCHEDULER: '1', BLUEPRINT_SITE_VIDEO_EVIDENCE_ENABLED: '0',
   BLUEPRINT_BETA_ENABLED: 'false',
+  // One disposable emulator day carries every suite case. The production
+  // default (5 a day) stays in betaAbuseCaps; per-IP and per-email caps keep
+  // their defaults, so each case still exercises the real cap logic.
+  BLUEPRINT_INTAKE_DAILY_LIMIT: '1000',
   VITE_FIREBASE_API_KEY: 'local-fixture-key', VITE_FIREBASE_AUTH_DOMAIN: 'localhost', VITE_FIREBASE_PROJECT_ID: project,
   VITE_FIREBASE_STORAGE_BUCKET: `${project}.appspot.com`, VITE_FIREBASE_MESSAGING_SENDER_ID: '123456', VITE_FIREBASE_APP_ID: '1:123456:web:fixture',
 });
