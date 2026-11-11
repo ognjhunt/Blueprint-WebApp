@@ -62,7 +62,10 @@ const VIDEO_LENGTH_BAND = [0.75, 1.33] as const;
 const CYCLE_SLOW_FRACTION = 0.1;
 const CYCLE_EXTRA_PATH_M = 0.6;
 const CYCLE_ALLOWANCE_S = 4;
-const HEADROOM_CAP = 0.5;
+// Margin beyond a fifth of the robot's rating does not make the job more likely to
+// work; it adds size, cost and guarding. So headroom counts up to 0.2, and past that
+// the smaller robot comes first.
+const HEADROOM_CAP = 0.2;
 
 const BODY_FORM: Record<BodyType, keyof typeof ROBOT_FORM_COPY> = {
   fixed_arm: "fixed_base_arm",

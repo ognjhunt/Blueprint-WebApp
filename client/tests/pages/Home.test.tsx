@@ -17,9 +17,15 @@ describe("Site-led homepage", () => {
     // One example of the deliverable, clearly marked, instead of staged imagery.
     expect(screen.getAllByRole("tab").map(tab => tab.textContent)).toEqual(["Warehouse", "Café", "Laundromat", "Factory", "Hotel", "Lab"]);
     const panel = screen.getByRole("tabpanel");
-    expect(panel).toHaveTextContent(/Job.*full totes.*Possible approach.*Humanoid robot.*Evidence needed.*Site video.*simulation results.*Budget.*before any pilot.*Pilot price.*deployment company.*Support/);
+    // The example is an answer: the job, the pick, a runner-up, one ruled out with its
+    // reason, the proof in simulation, how sure and the next step (owner, 2026-11-11).
+    expect(panel).toHaveTextContent(/Job.*light totes.*Most likely fits.*Unitree G1.*Runner-up.*Stretch 3.*Ruled out.*UR5e.*0\.85 m reach.*Who uses it.*each with its source.*Proof in simulation.*control policy did best.*how much that result can be trusted.*How sure.*Low.*Next step.*anonymised job card.*approved/);
+    expect(screen.getByRole("heading", { name: "One job. One answer, with its proof." })).toBeInTheDocument();
+    expect(screen.getByText("Illustrative answer")).toBeInTheDocument();
     expect(screen.getByText(/not available offers or measured results/)).toBeInTheDocument();
-    expect(panel).not.toHaveTextContent(/Passed on your task/);
+    expect(screen.getByText(/the jobs, distances, weights and answers are made up for illustration/)).toBeInTheDocument();
+    // The old pilot-plan rows are gone, and no example invents a score, a customer or a price.
+    expect(panel).not.toHaveTextContent(/Passed on your task|Pilot price|Budget|Delivery scope|\d+ of \d+ tries|%/);
     expect(screen.queryByText("Book this pilot")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("tab", { name: "Café" }));
     expect(screen.getByRole("tabpanel")).toHaveTextContent(/dish rack/);
@@ -29,19 +35,19 @@ describe("Site-led homepage", () => {
   });
 
   it.each([
-    ["Warehouse", /humanoid robot/i, /full totes.*packing line.*outbound carts/i],
-    ["Café", /fixed robot arm/i, /clean cups.*dish rack.*counter/i],
-    ["Laundromat", /wheeled humanoid/i, /folding towels.*wash-and-fold/i],
-    ["Factory", /mobile manipulator/i, /loading blanks.*CNC machine.*unloading finished parts/i],
-    ["Hotel", /mobile robot/i, /linen carts.*laundry room.*each floor/i],
-    ["Lab", /fixed robot arm/i, /opening the sample drawer before each batch/i],
-  ])("pairs the %s example with its robot and matching illustration", (site, embodiment, task) => {
+    ["Warehouse", /humanoid robot/i, /light totes.*shelf.*outbound cart.*Most likely fits.*Unitree G1, a walking humanoid robot/i],
+    ["Café", /fixed robot arm/i, /clean cups.*dish rack.*counter.*Most likely fits.*FANUC CRX-10iA, a fixed robot arm.*1\.249 m.*10 kg/i],
+    // Jobs that are not one solid object picked up and put down are held, as the real answer does.
+    ["Laundromat", /wheeled humanoid/i, /folding towels.*wash-and-fold.*Answer.*Held.*Folding cloth is another kind of job/i],
+    ["Factory", /mobile manipulator/i, /loading small blanks.*CNC machine.*unloading finished parts.*Most likely fits.*Stretch 3, a mobile manipulator/i],
+    ["Hotel", /mobile robot/i, /linen carts.*laundry room.*each floor.*Answer.*Held.*Towing a cart/i],
+    ["Lab", /fixed robot arm/i, /opening the sample drawer before each batch.*Answer.*Held.*Opening a drawer/i],
+  ])("pairs the %s example with its answer and matching illustration", (site, embodiment, task) => {
     render(<Home />);
     const tab = screen.getByRole("tab", { name: site });
     fireEvent.click(tab);
     expect(tab).toHaveAttribute("aria-selected", "true");
     const panel = screen.getByRole("tabpanel", { name: site });
-    expect(panel).toHaveTextContent(embodiment);
     expect(panel).toHaveTextContent(task);
     const illustration = screen.getByRole("img", { name: new RegExp(`${site} example`, "i") });
     expect(illustration).toHaveAccessibleName(embodiment);
@@ -125,7 +131,7 @@ describe("Site-led homepage", () => {
       const stillFrame = art.innerHTML;
       act(() => { vi.advanceTimersByTime(31000); });
       expect(screen.getByRole("tab", { name: "Laundromat" })).toHaveAttribute("aria-selected", "true");
-      expect(screen.getByRole("tabpanel")).toHaveTextContent(/wheeled humanoid/i);
+      expect(screen.getByRole("tabpanel")).toHaveTextContent(/folding towels/i);
       expect(art.innerHTML).toBe(stillFrame);
     } finally {
       matchMedia.mockRestore();
@@ -133,16 +139,19 @@ describe("Site-led homepage", () => {
     }
   });
 
-  it("shows three customer steps from video through simulation to a pilot", () => {
+  // Owner direction, 2026-11-11: video, then the answer, then proof in simulation, then a deployment company.
+  it("shows four customer steps from video through the answer and simulation to a deployment company", () => {
     render(<Home />);
     const steps = within(screen.getByRole("list")).getAllByRole("listitem");
-    expect(steps).toHaveLength(3);
-    expect(steps[0]).toHaveTextContent(/Show us the work.*analyze the video.*draft a job brief/);
-    // Blueprint runs the candidates itself and shows a bounded estimate or "held" (owner, 2026-10-28).
-    expect(steps[1]).toHaveTextContent(/Compare robots in simulation.*test robots and policies on the job ourselves.*estimate of what’s likely to work.*“held”/i);
-    expect(steps[2]).toHaveTextContent(/Pilot it on your site.*work alongside a deployment company.*measure the result against your criteria/);
-    expect(screen.getByRole("region", { name: "From a recurring job to a measured pilot." })).not.toHaveTextContent(/screening runs|scored in full|comparable proposals|recommend the approach/i);
-    expect(screen.getByRole("region", { name: "From a recurring job to a measured pilot." })).not.toHaveTextContent(/robot teams?/i);
+    expect(steps).toHaveLength(4);
+    expect(steps[0]).toHaveTextContent(/Send a video of the job.*email and a video.*draft the job description from the video/);
+    expect(steps[1]).toHaveTextContent(/See which robot fits.*published specifications.*most likely fits.*runner-up.*ruled out and why.*with sources.*how sure we are/i);
+    expect(steps[2]).toHaveTextContent(/Proof in simulation.*simulation of your site.*control policies.*which did best.*how much that result can be trusted.*“held”/i);
+    expect(steps[3]).toHaveTextContent(/Find a deployment company.*anonymised job card.*approved.*agree any pilot directly/);
+    const method = screen.getByRole("region", { name: "From one video to a robot that fits." });
+    expect(method).not.toHaveTextContent(/screening|scored in full|comparable proposals|recommend the approach|candidates?|episodes?|embodiment/i);
+    expect(method).not.toHaveTextContent(/robot teams?/i);
+    expect(screen.getByText(/the software that drives a robot/)).toBeInTheDocument();
     expect(screen.getByText(/A simulation result is an estimate/)).toBeInTheDocument();
   });
 
