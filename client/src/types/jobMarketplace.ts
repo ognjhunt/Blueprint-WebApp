@@ -63,6 +63,17 @@ export interface JobEvidenceSummary {
 export type JobScreeningOutcome = "estimate" | "reference_only" | "held_capability" | "held_unprepared" | "infeasible" | "no_match"
   | "held_setup" | "held_budget" | "held_scene_check" | "awaiting_spend_approval" | "setup_repair" | "superseded";
 
+/** A stage of the pick-and-place ladder, in order (Pipeline grader `policy_episode_progress.v1`). */
+export type JobScreeningProgressStage = "approached" | "contact" | "moved" | "lifted" | "translated" | "placed" | "released_and_settled";
+/**
+ * How far a candidate's graded episodes got: per stage, in ladder order, how many achieved it (never
+ * increasing down the ladder). `approached` is first only when it was measured, and then the closest
+ * approach comes with it. Facts, never a rank.
+ */
+export interface JobScreeningProgress { graded: number; stages: Array<{ stage: JobScreeningProgressStage; episodes: number }>; meanScore: number;
+  /** How close, in metres, the grasp point came to the object over the graded tries; only with the `approached` stage. */
+  closestApproachM?: { median: number; min: number } }
+
 export interface JobManagedEvidenceSummary {
   runId: string;
   state: string;
@@ -85,6 +96,8 @@ export interface JobManagedEvidenceSummary {
     scored: number; succeeded: number; failed: number; void: number; blockers: string[];
     /** Where the success rate likely lies (a Wilson interval, whole percents); only on rows with scored episodes. */
     successRange?: { lowerPercent: number; upperPercent: number; confidencePercent: number };
+    /** How far its graded episodes got (publication v4); absent when the publication has none. */
+    progress?: JobScreeningProgress;
     executionEvidence?: { execution_evidence_kind: "learned_policy" | "scripted_simulator_state_baseline";
       action_source: "learned_policy" | "scripted_simulator_state"; scripted_rollout_count: number;
       learned_policy_rollout_count: number; scripted_controller_invoked: boolean; candidate_policy_queried: boolean };

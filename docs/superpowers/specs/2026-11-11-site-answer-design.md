@@ -159,6 +159,21 @@ simulation"; the simulation email repeats its sentences word for word.
   the simulation was held (for budget, the scene check or a set-up problem), it
   says what happened to the simulation and never that policies ran. A seeded
   generated-input test checks these rules over thousands of random results.
+- **How far each policy got is said as a fact, never as a ranking.**
+  Publication `beta_policy_screening_publication.v4` may carry, on a
+  learned-policy row, the Pipeline grader's `progress`
+  (`policy_episode_progress.v1`): how many graded tries reached each stage of
+  a closed, ordered ladder (got within reach, touched, moved, lifted, carried
+  toward where it goes, put in place, put in place and let go; "within reach"
+  only when every try measured it). The WebApp refuses it on v1 to v3 and
+  refuses a v4 whose `progress` breaks the ladder or its counts, so the
+  Pipeline sends v3 instead; it is never dropped quietly. Each row takes its
+  furthest stage, said only in the closed phrases of `simulationProof.ts`.
+  When no compared policy completed the job, the could-not-rank sentence gains
+  "How far each got: …" with each compared row's count, and the email repeats
+  it; when one did, the line is unchanged and only rows that completed nothing
+  say how far they got. The order, the winner, "did best" and "ahead" rest on
+  completed tries alone, and the job card's one line stays the first sentence.
 - **Accuracy is stated with its sources and conditions**
   (`client/src/data/simulationAccuracy.ts`): in one direct published test the
   simulated ranking matched the real one in 8 of 9 comparisons, and simulated

@@ -86,6 +86,36 @@ describe("tested in simulation", () => {
     expect(policyRows()).not.toMatch(/PolaRiS/i);
   });
 
+  it("all at zero with progress: says how far each got, in plain words, under the could-not-rank headline", () => {
+    const ladder = ["approached", "contact", "moved", "lifted", "translated", "placed", "released_and_settled"] as const;
+    const progress = (graded: number, counts: number[]) => ({ graded, meanScore: 0,
+      stages: ladder.map((stage, index) => ({ stage, episodes: counts[index] })) });
+    const counts: Record<string, number[]> = { pi05_droid: [9, 6, 5, 4, 2, 0, 0], groot_n17_droid: [3, 0, 0, 0, 0, 0, 0] };
+    const graded = { ...allZeroEvaluation, screening: { ...allZeroEvaluation.screening!, candidates: allZeroEvaluation.screening!.candidates.map(row =>
+      counts[row.candidateId] ? { ...row, progress: progress(row.scored, counts[row.candidateId]) } : row) } };
+    const { proof, container } = renderProof({ evaluation: [graded], pick });
+    expect(proof.headline).toBe(NO_POLICY_COMPLETED);
+    expect(screen.getByText(NO_POLICY_COMPLETED)).toBeVisible();
+    expect(screen.getByText("How far each got: π0.5 carried the object toward where it goes in 2 of 9 tries; "
+      + "GR00T N1.7 got within reach of the object in 3 of 10 tries.")).toBeVisible();
+    // Said once, in the sentence, not again on the rows; and nothing is marked on it.
+    expect(policyRows()).not.toMatch(/object/);
+    expect(screen.queryByText("Did best")).toBeNull();
+    expect(screen.queryByText("Ahead")).toBeNull();
+    expect(container.textContent).not.toMatch(BANNED);
+  });
+
+  it("with a policy that completed the job: the row of one that completed nothing says how far it got", () => {
+    const rows = winnerEvaluation.screening!.candidates.map(row => row.candidateId === "groot_n17_droid"
+      ? { ...row, succeeded: 0, failed: 10, progress: { graded: 10, meanScore: 0, stages: ["contact", "moved", "lifted", "translated", "placed",
+        "released_and_settled"].map((stage, index) => ({ stage: stage as "contact", episodes: [6, 4, 0, 0, 0, 0][index] })) } } : row);
+    renderProof({ evaluation: [{ ...winnerEvaluation, screening: { ...winnerEvaluation.screening!, candidates: rows } }], pick });
+    const items = within(screen.getByRole("list", { name: "Control policies tried" })).getAllByRole("listitem");
+    const groot = items.find(item => item.textContent!.startsWith("GR00T N1.7"))!;
+    expect(groot.textContent).toMatch(/0 of 10 tries · moved the object in 4 of 10 tries$/);
+    expect(screen.queryByText(/How far each got/)).toBeNull();
+  });
+
   it.each([
     ["not_started", null, "The simulation of your site has not started yet."],
     ["preparing", [preparingEvaluation], "We are preparing the simulation of your site."],

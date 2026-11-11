@@ -150,6 +150,19 @@ describe("GET /api/site-worlds/tasks/:taskId", () => {
     expect(body.item.answerSummary.simulation).toBe("The simulated scene failed the check we run before testing robots, so no robot was tested in it.");
   });
 
+  it("keeps the simulation line to the page's first sentence when the page also says how far each policy got", async () => {
+    put(job());
+    const progress = (counts: number[]) => ({ graded: 10, meanScore: 0, stages: ["approached", "contact", "moved", "lifted", "translated",
+      "placed", "released_and_settled"].map((stage, index) => ({ stage, episodes: counts[index] })) });
+    const row = (candidateId: string, counts: number[]) => ({ candidateId, name: candidateId, state: "completed", planned: 10, scored: 10,
+      succeeded: 0, failed: 10, void: 0, blockers: [], progress: progress(counts) });
+    seams.managed.mockImplementation(async () => ({ managedEvidence: [{ current: true, state: "completed", outcome: "estimate",
+      screening: { candidates: [row("pi05_droid", [9, 6, 5, 4, 2, 0, 0]), row("groot_n17_droid", [3, 0, 0, 0, 0, 0, 0])] } }] }));
+    const { body } = await get(`/tasks/${ID}`);
+    expect(body.item.answerSummary.simulation).toBe("The simulation ran, but no policy completed the job in it, so it could not rank them.");
+    expect(JSON.stringify(body)).not.toMatch(/How far each got|within reach|carried the object/);
+  });
+
   it("keeps the answer when the simulation line cannot be read", async () => {
     put(job());
     seams.managed.mockImplementation(async () => { throw new Error("index missing"); });
