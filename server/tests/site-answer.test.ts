@@ -232,9 +232,9 @@ describe("composeSiteAnswer", () => {
     expect(answer.ruledOut.length + answer.ruledOutMore).toBe(22);
     expect(answer.ruledOut[0].reason).toContain("more than the 2.4 m an arm that stays in one place can serve");
     expect(answer.ruledOut[0].estimated).toBe(false);
-    expect(answer.pick!.formLabel).toBe("Arm on a wheeled base");
+    expect(answer.pick!.formLabel).toBe("Arm on a base that moves");
     // The job gives no heights, so a robot that moves is not settled on how high and low its hand goes.
-    expect(answer.runnerUp!.formLabel).toBe("Arm on a wheeled base");
+    expect(answer.runnerUp!.formLabel).toBe("Arm on a base that moves");
     expect(answer.pick!.checks.find((check) => check.key === "reach")).toMatchObject({ measure: "height", outcome: "unknown" });
     expect(answer.headline).toBe("No robot clearly fits yet. The closest is Hello Robot Stretch 3.");
   });
@@ -570,17 +570,17 @@ describe("a robot that moves is checked on how high and how low its hand goes", 
 
   it("passes when both heights are inside the published range, and says so with both sides' figures", () => {
     const check = heightOf(measuredJob(0.8, 1.2), robot("rover", "wheeled_humanoid", { top: 2.2, bottom: 0 }));
-    expect(check).toMatchObject({ outcome: "pass", measure: "height", basis: "site_measured", estimated: false, has: "floor–2.2 m" });
-    expect(check.text).toMatch(/^Height: it is picked up at .+ and put down at .+, so the hand must work at about 80 cm–1\.2 m above the floor\. This robot's hand reaches from the floor to 2\.2 m above the floor\.$/);
+    expect(check).toMatchObject({ outcome: "pass", measure: "height", basis: "site_measured", estimated: false, has: "0–2.2 m" });
+    expect(check.text).toMatch(/^Height: it is picked up at .+ and put down at .+, so the hand must work at about 80 cm–1\.2 m above the floor\. The maker lists its working height as 0 to 2\.2 m\.$/);
   });
 
   it("fails a height wholly above the highest or wholly below the lowest, naming the spot", () => {
     const high = heightOf(measuredJob(0.8, 2.0), robot("tall", "mobile_manipulator", { top: 1.8, bottom: 0.3 }));
     expect(high.outcome).toBe("fail");
-    expect(high.text).toContain("The spot where it is put down is about 2 m. That is higher than this robot's hand reaches.");
+    expect(high.text).toContain("The spot where it is put down is about 2 m. That is above the highest working height the maker lists.");
     const low = heightOf(measuredJob(0.1, 1.0), robot("short", "humanoid", { top: 1.8, bottom: 0.3 }));
     expect(low.outcome).toBe("fail");
-    expect(low.text).toContain("The spot where it is picked up is about 10 cm. That is lower than this robot's hand reaches.");
+    expect(low.text).toContain("The spot where it is picked up is about 10 cm. That is below the lowest working height the maker lists.");
   });
 
   it("gives each unknown case its own sentence", () => {
@@ -591,19 +591,19 @@ describe("a robot that moves is checked on how high and how low its hand goes", 
     expect(spans).toMatchObject({ outcome: "unknown", measure: "height", estimated: true, basis: "video_estimate" });
     expect(spans.text).toMatch(/The height estimated from your video spans this robot's limit, so we can't say yet\.$/);
     expect(heightOf(measuredJob(null, null), both).text)
-      .toBe("Height: we don't know yet how high your two spots are. This robot's hand reaches from the floor to 1.9 m above the floor.");
+      .toBe("Height: we don't know yet how high your two spots are. The maker lists its working height as 0 to 1.9 m.");
     expect(heightOf(measuredJob(null, 1.0), both).text).toMatch(/^Height: we don't know yet how high the spot where it is picked up is\./);
     expect(heightOf(measuredJob(1.0, null), both).text).toMatch(/^Height: we don't know yet how high the spot where it is put down is\./);
     const topOnly = heightOf(measuredJob(0.8, 1.2), robot("top_only", "mobile_manipulator", { top: 1.8 }));
     expect(topOnly).toMatchObject({ outcome: "unknown", has: "up to 1.8 m" });
-    expect(topOnly.text).toMatch(/This robot's hand reaches up to 1\.8 m above the floor\. The maker publishes how high this robot's hand reaches but not how low, so we can't say yet\.$/);
+    expect(topOnly.text).toMatch(/The maker lists its working height only as up to 1\.8 m\. It lists how high this robot works but not how low, so we can't say yet\.$/);
     const bottomOnly = heightOf(measuredJob(0.8, 1.2), robot("bottom_only", "mobile_manipulator", { bottom: 0 }));
-    expect(bottomOnly).toMatchObject({ outcome: "unknown", has: "down to the floor" });
-    expect(bottomOnly.text).toMatch(/The maker publishes how low this robot's hand reaches but not how high, so we can't say yet\.$/);
+    expect(bottomOnly).toMatchObject({ outcome: "unknown", has: "starting at 0" });
+    expect(bottomOnly.text).toMatch(/The maker lists its working height only as starting at 0\. It lists how low this robot works but not how high, so we can't say yet\.$/);
     // A one-end robot whose known end already rules a spot out fails on it.
     expect(heightOf(measuredJob(0.8, 2.0), robot("top_only", "mobile_manipulator", { top: 1.8 })).outcome).toBe("fail");
     expect(heightOf(measuredJob(0.8, 1.2), robot("neither", "humanoid", { reach: 0.9 }))).toMatchObject({ outcome: "unknown", has: null,
-      text: "Height: this robot moves between the spots, so what limits it is how high and how low its hand goes, and the maker publishes neither." });
+      text: "Height: this robot moves between the spots, so what limits it is how high and how low its hand goes, and the maker lists no working height." });
   });
 
   it("keeps the distance check, and its measure, for an arm that stays in one place", () => {
@@ -633,10 +633,10 @@ describe("a robot that moves is checked on how high and how low its hand goes", 
     expect(far.ruledOut.map((row) => row.name)).toEqual(["UR10e"]);
   });
 
-  it("labels a wheeled humanoid as one and links its published hand heights", () => {
+  it("labels a wheeled humanoid as one and links its listed working heights", () => {
     const answer = composeSiteAnswer({ ...measuredJob(0.8, 1.2), catalog: withModels(robot("rover", "wheeled_humanoid", { top: 2.2, bottom: 0 })) })!;
     expect(answer.pick!.formLabel).toBe("Wheeled humanoid");
-    expect(answer.pick!.specs).toContainEqual({ label: "Hand height", display: "floor–2.2 m", sourceUrl: "https://example.com/sheet.pdf" });
+    expect(answer.pick!.specs).toContainEqual({ label: "Working height", display: "0–2.2 m", sourceUrl: "https://example.com/sheet.pdf" });
   });
 });
 
@@ -869,7 +869,7 @@ describe("every sentence has a precondition in the data (generated inputs)", () 
           expect(movers!.facts.map((fact) => fact.label), check.text).toEqual(expect.arrayContaining(["Height where it is picked up", "Height where it is put down"]));
         } else {
           counts.heightUnknown++;
-          expect(check.text, check.text).toMatch(/(so we can't say yet|publishes neither|we don't know yet how high .+)\./);
+          expect(check.text, check.text).toMatch(/(so we can't say yet|lists no working height|we don't know yet how high .+)\./);
         }
         for (const value of [check.need, check.has]) {
           if (value === null || value === undefined) continue;
@@ -879,7 +879,7 @@ describe("every sentence has a precondition in the data (generated inputs)", () 
       for (const row of movers?.ruledOut ?? []) {
         if (!row.reason.startsWith("Height: ")) continue;
         counts.heightFail++;
-        expect(row.reason).toMatch(/That is (higher|lower) than this robot's hand reaches\./);
+        expect(row.reason).toMatch(/That is (above the highest|below the lowest) working height the maker lists\./);
       }
       const answer = composeSiteAnswer(job);
       if (!answer) continue;
@@ -922,7 +922,7 @@ describe("every sentence has a precondition in the data (generated inputs)", () 
       // A ruled-out robot's reason is a failed check's sentence, and a fail never shows a need below the limit.
       for (const row of answer.ruledOut) {
         expect(row.reason, label).toMatch(/^(Reach|Height|Payload|Cycle time): /);
-        if (row.reason.startsWith("Height: ")) expect(row.reason, label).toMatch(/That is (higher|lower) than this robot's hand reaches\./);
+        if (row.reason.startsWith("Height: ")) expect(row.reason, label).toMatch(/That is (above the highest|below the lowest) working height the maker lists\./);
         expect(row.reason, label).not.toMatch(NOT_A_FAIL);
         const figures = shown(row.reason);
         if (figures) { expect(figures.lo, row.reason).toBeGreaterThanOrEqual(figures.limit); counts.failShown++; }

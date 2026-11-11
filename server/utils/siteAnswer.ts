@@ -82,6 +82,12 @@ const BODY_FORM: Record<BodyType, keyof typeof ROBOT_FORM_COPY> = {
   wheeled_humanoid: "wheeled_humanoid",
 };
 
+/**
+ * The catalog files an arm on any base that moves as `mobile_manipulator`, wheeled or legged (Spot), so the
+ * answer does not use the form copy's "Arm on a wheeled base" for it.
+ */
+export const MOVING_BASE_ARM_LABEL = "Arm on a base that moves";
+
 type Band = { lo: number; hi: number };
 type Outcome = AnswerCheck["outcome"];
 
@@ -156,8 +162,8 @@ interface Job {
  * height of each spot. Each sentence below is said only for the input it names.
  */
 
-/** The maker publishes neither hand height. */
-export const HEIGHT_NO_FIGURES = "Height: this robot moves between the spots, so what limits it is how high and how low its hand goes, and the maker publishes neither.";
+/** The maker lists no working height. */
+export const HEIGHT_NO_FIGURES = "Height: this robot moves between the spots, so what limits it is how high and how low its hand goes, and the maker lists no working height.";
 /** The job gives neither spot's height (the robot's hand heights follow). */
 export const HEIGHT_JOB_UNKNOWN_BOTH = "Height: we don't know yet how high your two spots are.";
 /** The job gives the put-down height but not the pick-up height. */
@@ -165,27 +171,32 @@ export const HEIGHT_JOB_UNKNOWN_PICK = "Height: we don't know yet how high the s
 /** The job gives the pick-up height but not the put-down height. */
 export const HEIGHT_JOB_UNKNOWN_PLACE = "Height: we don't know yet how high the spot where it is put down is.";
 /** Both heights are within the end the maker publishes, but it does not publish the other end. */
-export const HEIGHT_ONLY_TOP = "The maker publishes how high this robot's hand reaches but not how low, so we can't say yet.";
-export const HEIGHT_ONLY_BOTTOM = "The maker publishes how low this robot's hand reaches but not how high, so we can't say yet.";
+export const HEIGHT_ONLY_TOP = "It lists how high this robot works but not how low, so we can't say yet.";
+export const HEIGHT_ONLY_BOTTOM = "It lists how low this robot works but not how high, so we can't say yet.";
 /** Why a height check with both figures is unknown: a spot's height band spans the hand's limit. */
 const HEIGHT_SPANS_VIDEO = "The height estimated from your video spans this robot's limit, so we can't say yet.";
 const HEIGHT_SPANS_SITE = "Your heights span this robot's limit, so we can't say yet.";
-/** A spot is wholly above the highest, or wholly below the lowest, hand height. */
-export const HEIGHT_TOO_HIGH = "That is higher than this robot's hand reaches.";
-export const HEIGHT_TOO_LOW = "That is lower than this robot's hand reaches.";
+/** A spot is wholly above the highest, or wholly below the lowest, working height the maker lists. */
+export const HEIGHT_TOO_HIGH = "That is above the highest working height the maker lists.";
+export const HEIGHT_TOO_LOW = "That is below the lowest working height the maker lists.";
 
-/** The hand's published range in words: "from the floor to 2.2 m above the floor", "up to 1.8 m above the floor". */
-function handRangeText(top: number | null, bottom: number | null): string {
-  const low = bottom === null ? null : bottom === 0 ? "the floor" : `${specLength(bottom)} above the floor`;
-  if (top !== null && low !== null) return `from ${low} to ${specLength(top)} above the floor`;
-  if (top !== null) return `up to ${specLength(top)} above the floor`;
-  return `down to ${low}`;
+/*
+ * What the maker lists, in its own terms: some makers state a height above the floor, others a vertical
+ * workspace starting at 0 (and Galbot's is for the wrist centre), so the sentence says "working height as
+ * the maker lists it", never that the hand reaches it.
+ */
+const workingLow = (bottom: number) => (bottom === 0 ? "0" : specLength(bottom));
+
+/** The listed range in words: "0 to 2.2 m", "only as up to 1.8 m", "only as starting at 0". */
+function workingRangeText(top: number | null, bottom: number | null): string {
+  if (top !== null && bottom !== null) return `${workingLow(bottom)} to ${specLength(top)}`;
+  return top !== null ? `only as up to ${specLength(top)}` : `only as starting at ${workingLow(bottom!)}`;
 }
 
-/** The hand's range as the short `has` figure, in the sentence's own words: "floor–2.2 m", "up to 1.8 m", "down to 40 cm". */
-function handRangeShort(top: number | null, bottom: number | null): string {
-  if (top !== null && bottom !== null) return `${bottom === 0 ? "floor" : specLength(bottom)}–${specLength(top)}`;
-  return top !== null ? `up to ${specLength(top)}` : `down to ${bottom === 0 ? "the floor" : specLength(bottom!)}`;
+/** The listed range as the short `has` figure, in the sentence's own words: "0–2.2 m", "up to 1.8 m", "starting at 40 cm". */
+function workingRangeShort(top: number | null, bottom: number | null): string {
+  if (top !== null && bottom !== null) return `${workingLow(bottom)}–${specLength(top)}`;
+  return top !== null ? `up to ${specLength(top)}` : `starting at ${workingLow(bottom!)}`;
 }
 
 /** A height band in words, the floor named as such. */
@@ -391,8 +402,8 @@ function heightCheck(model: SpecModel, job: Job): Checked {
   const unknown = (text: string, has: string | null): Checked =>
     ({ check: { ...unknownCheck("reach", text, has), measure: "height" }, headroom: null });
   if (top === null && bottom === null) return unknown(HEIGHT_NO_FIGURES, null);
-  const hand = `This robot's hand reaches ${handRangeText(top, bottom)}.`;
-  const has = handRangeShort(top, bottom);
+  const hand = `The maker lists its working height ${top !== null && bottom !== null ? "as " : ""}${workingRangeText(top, bottom)}.`;
+  const has = workingRangeShort(top, bottom);
   const { pick, place } = job.facts;
   if (!pick || !place) {
     const missing = !pick && !place ? HEIGHT_JOB_UNKNOWN_BOTH : !pick ? HEIGHT_JOB_UNKNOWN_PICK : HEIGHT_JOB_UNKNOWN_PLACE;
@@ -580,15 +591,15 @@ function robotOf(rated: Rated): AnswerRobot {
   const payload = figureValue(model, "rated_payload_kg");
   const payloadUrl = figureSource(model, "rated_payload_kg");
   if (payload !== null && payloadUrl) specs.push({ label: "Rated payload", display: kgText(payload), sourceUrl: payloadUrl });
-  // A robot that moves is checked on its hand heights: the page links them like the reach.
+  // A robot that moves is checked on its listed working heights: the page links them like the reach.
   const [top, bottom] = [figureValue(model, HAND_HEIGHT_FIGURES.max), figureValue(model, HAND_HEIGHT_FIGURES.min)];
   const heightUrl = figureSource(model, HAND_HEIGHT_FIGURES.max) ?? figureSource(model, HAND_HEIGHT_FIGURES.min);
   if (model.body_type !== "fixed_arm" && (top !== null || bottom !== null) && heightUrl) {
-    specs.push({ label: "Hand height", display: handRangeShort(top, bottom), sourceUrl: heightUrl });
+    specs.push({ label: "Working height", display: workingRangeShort(top, bottom), sourceUrl: heightUrl });
   }
   return {
     modelId: model.model_id, name: model.name, manufacturer: model.manufacturer,
-    formLabel: ROBOT_FORM_COPY[BODY_FORM[model.body_type]].label,
+    formLabel: model.body_type === "mobile_manipulator" ? MOVING_BASE_ARM_LABEL : ROBOT_FORM_COPY[BODY_FORM[model.body_type]].label,
     verdict: rated.verdict, sceneChecked: rated.sceneChecked, specs, evidence: rated.evidence.slice(0, 2),
     // The pick and the runner-up say when a check passed with little to spare.
     checks: rated.checks.map((check) => (rated.tight.has(check.key) ? { ...check, text: `${check.text}${TIGHT_FIT}` } : check)),
