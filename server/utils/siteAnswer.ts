@@ -295,11 +295,12 @@ function reachCheck(model: SpecModel, job: Job, toolLength: number | null): Chec
       headroom: null };
   }
   const need = { lo: job.span.lo / 2 + toolLength + REACH_MARGIN_M, hi: job.span.hi / 2 + toolLength + REACH_MARGIN_M };
-  return {
-    check: { key: "reach", outcome: within(need, reach), estimated, basis,
-      text: `Reach: your two spots are ${job.spanText}, so an arm standing between them needs ${lengthRange(need)}. This arm reaches ${specLength(reach)}.` },
-    headroom: (reach - need.hi) / reach,
-  };
+  const outcome = within(need, reach);
+  // A need that straddles the limit is said as too close to call: its rounded ends could read as a pass or a tie.
+  const text = outcome === "unknown"
+    ? `Reach: your two spots are ${job.spanText}. This arm reaches ${specLength(reach)}, which is too close to call on these figures for an arm standing between them.`
+    : `Reach: your two spots are ${job.spanText}, so an arm standing between them needs ${lengthRange(need)}. This arm reaches ${specLength(reach)}.`;
+  return { check: { key: "reach", outcome, estimated, basis, text }, headroom: (reach - need.hi) / reach };
 }
 
 function payloadCheck(model: SpecModel, job: Job, toolMass: number | null): Checked {
@@ -317,9 +318,13 @@ function payloadCheck(model: SpecModel, job: Job, toolMass: number | null): Chec
   const gripper = fixed && tool > 0 ? `, plus about ${kgText(tool)} for a standard gripper` : "";
   // The total is said in the rating's own precision, so the sentence never reads against its outcome.
   const carry = Number.isFinite(need.hi) ? `, so it must carry ${kgRange(need)}` : "";
+  const outcome = within(need, payload);
+  // A need that straddles the rating is said as too close to call: its rounded ends could read as a pass or a tie.
+  const text = outcome === "unknown"
+    ? `Payload: your object weighs ${cite(mass)}${gripper}. ${noun} is rated for ${kgText(payload)}, which is too close to call on these figures.`
+    : `Payload: your object weighs ${cite(mass)}${gripper}${carry}. ${noun} is rated for ${kgText(payload)}.`;
   return {
-    check: { key: "payload", outcome: within(need, payload), estimated: job.massEstimated, basis: mass.source as AnswerBasis,
-      text: `Payload: your object weighs ${cite(mass)}${gripper}${carry}. ${noun} is rated for ${kgText(payload)}.` },
+    check: { key: "payload", outcome, estimated: job.massEstimated, basis: mass.source as AnswerBasis, text },
     headroom: Number.isFinite(need.hi) ? (payload - need.hi) / payload : -1,
   };
 }
@@ -334,8 +339,11 @@ function cycleCheck(model: SpecModel, job: Job): AnswerCheck | null {
     lo: (2 * job.span.lo) / speed,
     hi: (2 * (job.span.hi + CYCLE_EXTRA_PATH_M)) / (CYCLE_SLOW_FRACTION * speed) + CYCLE_ALLOWANCE_S,
   };
-  return { key: "cycle_time", outcome: within(need, job.cycleTarget), estimated: job.spanEstimated, basis: spanBasis(job),
-    text: `${target} With a published top speed of ${figure(speed)} m/s and your spots ${job.spanText}, a cycle takes between about ${secondsText(need.lo)} and ${secondsText(need.hi)} on paper.` };
+  const outcome = within(need, job.cycleTarget);
+  return { key: "cycle_time", outcome, estimated: job.spanEstimated, basis: spanBasis(job),
+    text: outcome === "unknown"
+      ? `${target} With a published top speed of ${figure(speed)} m/s and your spots ${job.spanText}, whether one cycle fits in that time is too close to call on these figures.`
+      : `${target} With a published top speed of ${figure(speed)} m/s and your spots ${job.spanText}, a cycle takes between about ${secondsText(need.lo)} and ${secondsText(need.hi)} on paper.` };
 }
 
 type SceneRow = PublicRobotFit["models"][number];
@@ -478,7 +486,9 @@ function confidenceOf(pick: Rated | null, job: Job, familyLabel: string): SiteAn
   if (pick.verdict === "possible") reasons.push("Some of its checks could not be settled on the numbers we have.");
   if (pick.sceneChecked) reasons.push("Its reach was checked in the scene rebuilt from your video.");
   const top = pick.evidence[0];
-  const subject = top?.scope === "family" && top.family ? `robots in the ${top.family} family` : "this robot";
+  // The source's own words for the family, with "family" added only when they do not already say what it is.
+  const familyWords = top?.family && /\b(series|family|line)$/i.test(top.family.trim()) ? top.family.trim() : `${top?.family} family`;
+  const subject = top?.scope === "family" && top.family ? `robots in the ${familyWords}` : "this robot";
   if (!top) reasons.push("We found no documented use of this robot on this kind of job.");
   else if (top.level === "production") reasons.push(`We found documented production use of ${subject} for ${familyLabel}.`);
   else if (top.level === "pilot") reasons.push(`We found a documented pilot of ${subject} for ${familyLabel}.`);
@@ -554,8 +564,7 @@ export function composeSiteAnswer(inputs: SiteAnswerInputs): SiteAnswer | null {
   const summary = typeof brief?.summary === "string" && !isPlaceholderSummary(brief.summary) ? brief.summary.trim() : null;
   const drafted = Boolean(summary) && !brief?.confirmedAtIso && !request.site_task_brief_confirmed_at
     && isRecord(request.capture_task_statement_draft) && request.capture_task_statement_draft.state === "drafted";
-  // The job's own sentences: the summary and its success line. They are the site's when it typed or
-  // confirmed them; a summary drafted from the video is the reader's words, not the site's.
+  // The job's own sentences, read only to say whether the job has more than one step.
   const success = isRecord(brief?.successCriteria) ? text(brief!.successCriteria.successDefinition) : null;
   const jobSentences = [summary, success].filter((entry): entry is string => Boolean(entry));
   const scope = scopeOf(fitInputs, jobSentences);

@@ -336,10 +336,10 @@ router.post("/:token/introduction-request", csrfProtection, async (req, res) => 
           await store.runTransaction(async tx => {
             const listing = (await tx.get(ref)).data()?.public_task_listing;
             if (listing?.enabled !== true || listing.consentVersion === JOB_CARD_ANSWER_STATEMENT_VERSION) return;
-            // A merge touches these two fields only: the details, revision, thumbnail and go-live time stay as
-            // they are, and no team alert is written (the card is not going live, and this button emails no one).
-            tx.set(ref, { public_task_listing: { consentVersion: JOB_CARD_ANSWER_STATEMENT_VERSION,
-              approvedAtIso: new Date().toISOString() } }, { merge: true });
+            // A merge touches this one field only. The card's published date (`approvedAtIso`, the library's sort
+            // key), details, revision, thumbnail and go-live time stay as they are; the time of the site's choice is
+            // `introduction_request.requested_at_iso`. No team alert is written: the card is not going live.
+            tx.set(ref, { public_task_listing: { consentVersion: JOB_CARD_ANSWER_STATEMENT_VERSION } }, { merge: true });
           });
         }
       } else {

@@ -80,7 +80,7 @@ test("the answer leads the job page and carries what was tested in simulation, o
   const proof = answer.getByRole("region", { name: "Tested in simulation" });
   await expect(proof).toBeVisible();
   // 7 of 10 against 3 of 10 is about 0.96 under the probability rule: ahead, and the gap could still be chance.
-  await expect(proof.getByText(/^In a simulation of your site, π0\.5, an AI control policy from Physical Intelligence, was ahead: it completed the job in 7 of 10 tries, against 3 of 10 for the next best, GR00T N1\.7\.$/)).toBeVisible();
+  await expect(proof.getByText(/^In a simulation of your site, on a Franka research arm, π0\.5, an AI control policy from Physical Intelligence, was ahead: it completed the job in 7 of 10 tries, against 3 of 10 for the next best, GR00T N1\.7\.$/)).toBeVisible();
   await expect(proof.getByText(/^With this few tries the gap could still be chance\./)).toBeVisible();
   const [runnerUpBox, proofBox, ruledOutBox] = await Promise.all([answer.getByRole("article", { name: "Runner-up" }).boundingBox(),
     proof.boundingBox(), answer.getByText(/^Ruled out \(/).boundingBox()]);

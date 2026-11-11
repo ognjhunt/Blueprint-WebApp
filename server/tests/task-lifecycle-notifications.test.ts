@@ -366,7 +366,7 @@ describe("a finished simulation's email says what the job page's simulation resu
     const notice = await build(proof, "https://example.invalid/app/tasks/req-1");
     expect(notice.subject).toBe("Your simulation result is ready");
     expect(notice.body.startsWith(`${proof.policyComparison!.line}\n\n`)).toBe(true);
-    expect(notice.body).toBe("In a simulation of your site, π0.5, an AI control policy from Physical Intelligence, was ahead: it completed the job in 4 of 5 tries, "
+    expect(notice.body).toBe("In a simulation of your site, on a Franka research arm, π0.5, an AI control policy from Physical Intelligence, was ahead: it completed the job in 4 of 5 tries, "
       + "against 1 of 5 for GR00T N1.7. With this few tries the gap could still be chance.\n\n"
       + "In published tests on research robots, a simulation built from a scan of the scene picked the better of two policies in 8 of 9 comparisons, and simulated scores tracked real ones closely (a correlation of about 0.9 on average). "
       + "The conditions and sources are on your job page. Nothing is needed from you.\n\n"
@@ -376,10 +376,10 @@ describe("a finished simulation's email says what the job page's simulation resu
     expect(notice.body).not.toContain("private-owner-link");
     // "Did best" only when the gap is unlikely to be chance, and never a "proof".
     const clear = await build(await proofOf(evaluation([["pi05_droid", 9, 10], ["groot_n17_droid", 2, 10]])));
-    expect(clear.body).toMatch(/^In a simulation of your site, π0\.5, .+ did best: it completed the job in 9 of 10 tries, against 2 of 10 for GR00T N1\.7\. A gap this size is unlikely to be chance\.\n\n/);
+    expect(clear.body).toMatch(/^In a simulation of your site, on a Franka research arm, π0\.5, .+ did best: it completed the job in 9 of 10 tries, against 2 of 10 for GR00T N1\.7\. A gap this size is unlikely to be chance\.\n\n/);
     const close = await build(await proofOf(evaluation([["pi05_droid", 1, 1], ["groot_n17_droid", 0, 1]])));
     expect(close.subject).toBe("Your simulation result is ready");
-    expect(close.body).toMatch(/^No clear difference between the policies yet\. Tries that completed the job in a simulation of your site: π0\.5, 1 of 1; GR00T N1\.7, 0 of 1\./);
+    expect(close.body).toMatch(/^No clear difference yet between the policies tried on a Franka research arm in a simulation of your site\. Tries that completed the job: π0\.5, 1 of 1; GR00T N1\.7, 0 of 1\./);
     for (const email of [notice, clear, close]) expect(`${email.subject} ${email.body}`).not.toMatch(/\bproo?f|\bprove/i);
   });
 

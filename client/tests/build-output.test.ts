@@ -89,7 +89,7 @@ describe("build output", () => {
     expect(html).toContain("Fixed arms, humanoids, wheeled humanoids and mobile manipulators can all be considered if the specific setup is compatible.");
     expect(html).toContain("Warehouse walkthrough contents");
     expect(html).toContain("The video is required to reconstruct your site and run the evaluation.");
-    expect(html).toContain("Compare suitable robots and policies in simulation.");
+    expect(html).toContain("Check the robots and compare policies in simulation.");
     expect(html).toContain("See what works on your job.");
     expect(html).not.toContain("Compare delivery proposals");
     expect(html).not.toContain('id="evaluation-example"');

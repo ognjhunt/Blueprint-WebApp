@@ -10,7 +10,9 @@ const rowName = (name: string) => (name === UNNAMED_POLICY ? "An AI control poli
 function PolicyRow({ row, separated }: { row: Row; separated: boolean }) {
   return <li className={row.chosen ? "site-proof-row site-proof-best" : "site-proof-row"}>
     <span className="site-proof-name"><strong>{rowName(row.policy)}</strong>{row.maker && <span className="ms-field-hint"> from {row.maker}</span>}</span>
-    <span>{row.succeeded} of {row.scored} {row.scored === 1 ? "try" : "tries"}{row.rangeText && <span className="ms-field-hint"> · {row.rangeText}</span>}</span>
+    <span>{row.succeeded} of {row.scored} {row.scored === 1 ? "try" : "tries"}{row.rangeText && <span className="ms-field-hint"> · {row.rangeText}</span>}
+      {/* A row left out of the comparison says which robot it ran on. */}
+      {!row.compared && <span className="ms-field-hint"> · on {row.robot ?? "a robot we could not confirm"}, not compared</span>}</span>
     {row.chosen && <span className="site-proof-mark">{separated ? "Did best" : "Ahead"}</span>}
   </li>;
 }

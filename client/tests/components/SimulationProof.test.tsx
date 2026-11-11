@@ -24,7 +24,7 @@ describe("tested in simulation", () => {
     const { proof, container } = renderProof({ evaluation: [winnerEvaluation], robotFit, pick });
     const section = screen.getByRole("region", { name: "Tested in simulation" });
     expect(within(section).getByText(proof.headline)).toBeVisible();
-    expect(proof.headline).toBe("In a simulation of your site, π0.5, an AI control policy from Physical Intelligence, was ahead: it completed the job in 7 of 10 tries, against 3 of 10 for the next best, GR00T N1.7.");
+    expect(proof.headline).toBe("In a simulation of your site, on a Franka research arm, π0.5, an AI control policy from Physical Intelligence, was ahead: it completed the job in 7 of 10 tries, against 3 of 10 for the next best, GR00T N1.7.");
     expect(within(section).getByText(`${GAP_COULD_BE_CHANCE} The others: MolmoAct 2, 2 of 10.`)).toBeVisible();
     expect(screen.getByRole("heading", { name: "Your robot in your scene" })).toBeVisible();
     expect(screen.getByText(/the Universal Robots UR10e reaches the pick-up and put-down points with a clear arm path/)).toBeVisible();

@@ -160,6 +160,24 @@ const cycleMeasurementSchema = z
  * the same reading gates reconstruction, and a bad guess must never block it.
  * The bounds only reject the impossible; they say nothing about any robot.
  */
+/**
+ * Everything the reader may say is done to the object besides carrying it. A closed list: these words reach a
+ * sentence on the site's page ("Your job also involves folding"), so no free text from a model ever does.
+ */
+export const OTHER_ACTIONS = ["folding", "pouring", "wiping", "sweeping", "scrubbing", "fastening", "assembling", "inserting",
+  "cutting", "welding", "painting", "spraying", "sanding", "polishing", "mixing", "sewing", "tying", "peeling", "opening",
+  "closing", "pressing", "filling", "capping", "labelling", "wrapping", "inspecting", "cleaning"] as const;
+export type OtherAction = (typeof OTHER_ACTIONS)[number];
+const OTHER_ACTION_SET: ReadonlySet<string> = new Set(OTHER_ACTIONS);
+
+/** The allowed actions in a value, item by item, each once, at most three: a junk item never discards a valid one. */
+export function otherActionsOf(value: unknown): OtherAction[] {
+  if (!Array.isArray(value)) return [];
+  const kept = value.filter((item): item is string => typeof item === "string")
+    .map((item) => item.trim().toLowerCase()).filter((item) => OTHER_ACTION_SET.has(item));
+  return [...new Set(kept)].slice(0, 3) as OtherAction[];
+}
+
 const estimate = (min: number, max: number) => z.number().finite().min(min).max(max).nullable().catch(null);
 
 export const jobEstimatesSchema = z.object({
@@ -172,7 +190,7 @@ export const jobEstimatesSchema = z.object({
   /** What is done to the object: whether a reach-and-payload check means anything for this job. */
   job_kind: z.enum(["pick_and_place", "palletizing", "machine_tending", "other"]).nullable().catch(null),
   /** Anything done to the object besides carrying it, as -ing words ("folding"). */
-  other_actions: z.array(z.string().trim().min(1).max(40)).max(3).catch([]),
+  other_actions: z.unknown().optional().transform(otherActionsOf),
   /** From where the object is picked up to where it is put down. */
   pick_to_place_m: estimate(0, 50),
   pick_height_m: estimate(0, 4),
@@ -207,8 +225,8 @@ Blueprint never asks the site to measure anything, so estimate what a robot woul
 - object: the main item the job handles, in a few words. object_largest_side_m: its largest side, in metres.
 - object_mass_kg_low and object_mass_kg_high: a plausible weight range from its size, its material, how full it looks and how it is lifted (one hand or two, the effort it takes).
 - object_surface: matte, shiny, transparent or mixed, from how it looks.
-- job_kind: what is done to the object. pick_and_place: one solid object is picked up and put down somewhere else. palletizing: boxes or bags are stacked into a shipping load, or taken off one. machine_tending: parts are loaded into or unloaded from a machine. other: the job mainly does something else to the object (folding, pouring, wiping, fastening, assembling, cutting, opening). null if the video does not show the job.
-- other_actions: up to three words ending in -ing for anything done to the object besides carrying it, or an empty list.
+- job_kind: what is done to the object, judged from the footage and the job's description together. pick_and_place: one solid object is picked up and put down somewhere else. palletizing: boxes or bags are stacked into a shipping load, or taken off one. machine_tending: parts are loaded into or unloaded from a machine. other: the job mainly does something else to the object than carrying it: it is changed, joined, cleaned, opened or filled. null: the footage does not show the job.
+- other_actions: anything done to the object besides carrying it, using only these words: ${OTHER_ACTIONS.join(", ")}. At most three; an empty list when there is none. Never any other word.
 - pick_to_place_m: how far the object travels from where it is picked up to where it is put down. pick_height_m and place_height_m: the height above the floor of the surface it is picked from and of the one it is put on.
 - front_clearance_m: the open floor in front of the surface the object is picked from, where a robot could stand. 0 when there is none.
 - other_items_likely: up to five other kinds of item this station probably handles that the clip does not show, such as other sizes or variants of the same product, as plain nouns. Never a brand, company or robot. Empty when nothing suggests any.

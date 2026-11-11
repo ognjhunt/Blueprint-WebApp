@@ -2,6 +2,14 @@ import '@testing-library/jest-dom';
 import { afterEach, beforeEach, vi } from "vitest";
 import type { ReactNode } from "react";
 
+// No unit test may start a live Firebase client from a shell that holds credentials: this setup runs before
+// every test file loads, so a test that imports the Firebase Admin module without a mock finds none. A test that
+// needs one sets its own value. BLUEPRINT_TEST_ALLOW_LIVE_FIREBASE=1 keeps the shell's on purpose.
+if (process.env.BLUEPRINT_TEST_ALLOW_LIVE_FIREBASE !== "1") {
+  delete process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+  delete process.env.GOOGLE_APPLICATION_CREDENTIALS;
+}
+
 // react-helmet-async's <Helmet> requires a <HelmetProvider> ancestor; without one its
 // context default is `{}`, so HelmetDispatcher.init() crashes on `helmetInstances.add()`.
 // Page/component tests render pages standalone (no app-level provider). Mock the shared

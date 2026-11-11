@@ -15,9 +15,10 @@ describe("How it works", () => {
     const answer = screen.getByRole("region", { name: "See which robot fits." });
     expect(answer).toHaveTextContent(/real robot models against the job by their published specifications.*most likely fits.*runner-up.*ruled out and why.*with sources.*how sure we are/);
     expect(answer).toHaveTextContent(/not a test of a robot at your site/);
-    const evaluation = screen.getByRole("region", { name: "Compare suitable robots and policies in simulation." });
+    const evaluation = screen.getByRole("region", { name: "Check the robots and compare policies in simulation." });
     // No unsourced claim about policies served through APIs (rewritten from asserting that sentence).
-    expect(evaluation).toHaveTextContent(/on the job in the reconstructed work area\. If a system/);
+    expect(evaluation).toHaveTextContent(/checks each suitable robot's reach and arm path, and compares public control policies \(the software that drives a robot\) on the job on a research arm/);
+    expect(evaluation).toHaveTextContent(/illustration only.*Today the policies Blueprint compares run on one research arm/);
     expect(evaluation).toHaveTextContent(/its technology provider supplies it; you do not need to find or invite anyone/);
     expect(evaluation).toHaveTextContent(/control policies \(the software that drives a robot\)/);
     expect(evaluation).toHaveTextContent(/Every policy is scored against the same placement criteria/);

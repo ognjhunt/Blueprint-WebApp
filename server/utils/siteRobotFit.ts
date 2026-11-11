@@ -61,6 +61,7 @@ import {
 } from "../../client/src/data/robotFit";
 import { UNIT_LABELS, type EntryUnit } from "../../client/src/data/siteMeasurements";
 import { robotFitRankingOutputSchema, type RobotFitRankingInput } from "../agents/tasks/robot-fit-ranking";
+import { otherActionsOf, type OtherAction } from "../agents/tasks/site-video-evidence";
 import type { AgentResult, AgentTask } from "../agents/types";
 import type { RobotTeamRecord } from "../types/robot-team-registry";
 import { gateAnswersOnFile } from "./gateAnswersOnFile";
@@ -261,8 +262,8 @@ export interface VideoEstimates {
   surface: "matte" | "shiny" | "transparent" | "mixed" | null;
   /** What the reader saw done to the object; null when it did not say (and on older readings). */
   jobKind: "pick_and_place" | "palletizing" | "machine_tending" | "other" | null;
-  /** Anything done to the object besides carrying it, as plain -ing words; [] on older readings. */
-  otherActions: string[];
+  /** Anything done to the object besides carrying it, from the reader's closed list; [] on older readings. */
+  otherActions: OtherAction[];
   pickToPlaceM: number | null;
   pickHeightM: number | null;
   placeHeightM: number | null;
@@ -278,16 +279,6 @@ function bounded(value: unknown, min: number, max: number, exclusiveMin = false)
 
 const SURFACE_VALUES = new Set(["matte", "shiny", "transparent", "mixed"]);
 const JOB_KIND_VALUES = new Set(["pick_and_place", "palletizing", "machine_tending", "other"]);
-
-/**
- * An action the reader named, as a plain lower-case -ing word or two ("folding", "screwing on"), or
- * nothing: it reaches a sentence on the site's page, so anything else is dropped.
- */
-function actionWord(item: unknown): string | null {
-  if (typeof item !== "string") return null;
-  const word = item.replace(/\s+/g, " ").trim().toLowerCase();
-  return /^[a-z]{2,}ing(?: [a-z]{2,20})?$/.test(word) && word.length <= 40 ? word : null;
-}
 
 /**
  * An unseen item as a plain noun phrase, or nothing: the name reaches the site's
@@ -313,8 +304,8 @@ function estimatesOf(raw: unknown): VideoEstimates | null {
       ? value.object_surface as VideoEstimates["surface"] : null,
     jobKind: typeof value.job_kind === "string" && JOB_KIND_VALUES.has(value.job_kind)
       ? value.job_kind as VideoEstimates["jobKind"] : null,
-    otherActions: [...new Set((Array.isArray(value.other_actions) ? value.other_actions : [])
-      .map(actionWord).filter((item): item is string => Boolean(item)))].slice(0, 3),
+    // Stored documents are untrusted too: only the reader's closed list of actions survives.
+    otherActions: otherActionsOf(value.other_actions),
     pickToPlaceM: bounded(value.pick_to_place_m, 0, 50, true),
     pickHeightM: bounded(value.pick_height_m, 0, 4),
     placeHeightM: bounded(value.place_height_m, 0, 4),

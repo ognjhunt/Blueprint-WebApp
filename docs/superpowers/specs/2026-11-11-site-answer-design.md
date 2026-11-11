@@ -93,27 +93,18 @@ returns `answer: null` and carries on.
   needs every check of the pick passed, none on a video estimate, and
   documented production use.
 
-**The kind of job.** The fit check covers jobs where one solid object is
-carried from one place to another, and what is done decides it, never what the
-object is called. In this order: a job sentence the site typed or confirmed,
-by its verbs; else the video reader's own `job_kind` (`pick_and_place`,
-`palletizing`, `machine_tending` or `other`, which also gives the job family);
-else the verbs in the reader's sentences; else an object and a distance or a
-height counts as a carry. A word counts as a verb only where grammar makes it one,
-and when the rule is unsure it says nothing, so the reader's `job_kind` or the
-numbers decide. A carrying word (pick, place, move, load, take, drop and so on)
-counts in any form unless a determiner comes right before it ("the load"); an
-other-action word (fold, pour, screw, open, press and so on) counts only as an
--ing form not after a determiner or a carrying word, a base or -s form followed
-by an object word ("fold the towels"), a base form opening a sentence with no
-carrying word ("Fold towels"), or a past form after "is", "are", "get" and the
-like ("towels are folded"), so an object's name ("screws", "paint cans", "the
-hydraulic press") never decides. Only other verbs and no carrying verb: the answer
-says it can't check robots against the job. Both: it checks the carry and says
-what else the job involves, as it does for the reader's `other_actions`. A job
-sentence with more than one step adds that the check covers one carry.
-Whether the simulation can score a job never decides whether the fit check
-runs.
+**The kind of job.** No word list decides anything about the job: the video
+reader, which watched the job and read the site's description, says its kind
+(`job_kind`), and "other" means the answer says it can't check robots against
+the job, while a carrying kind is checked and gives the job family (pick and
+place when the reader says none). When the reader does not say (an older
+reading, or footage that did not show the job), the check runs on the numbers
+and its standing note says what it covers; a job sentence with more than one
+step adds that the check covers one carry. What else the job involves comes
+only from the reader's `other_actions`, a closed list of words declared once in
+`server/agents/tasks/site-video-evidence.ts` (`OTHER_ACTIONS`), so no free text
+from a model reaches the page, and whether the simulation can score a job
+never decides whether the fit check runs.
 
 ## How the simulation result is made
 
@@ -186,9 +177,9 @@ card's current listing consent is that same statement. A card listed, or later
 re-saved, under the older card box carries no answer, and no answer is composed
 for it. The latest consent the site gave governs: when the card is already on
 under the older box and the site presses the button, only the listing's consent
-version and its time move to the with-answer statement (the owner's reviewed
-card, its revision, thumbnail and go-live time are untouched, and no company is
-alerted), so the card then carries the answer until the site re-saves it under
+version moves to the with-answer statement (the owner's reviewed card, its
+published date, revision, thumbnail and go-live time are untouched, the choice's
+time is the request's own, and no company is alerted), so the card then carries the answer until the site re-saves it under
 the older box. At intake, sharing is an unticked box.
 
 ## Emails

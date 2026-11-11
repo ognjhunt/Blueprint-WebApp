@@ -193,6 +193,28 @@ describe("composeSiteAnswer", () => {
     expect(seen.fail).toBeGreaterThan(10);
   });
 
+  it("says a check whose need straddles the limit is too close to call, never with figures that read as a pass or a tie", () => {
+    const only = (id: string) => ({ ...robotSpecCatalog(), models: robotSpecCatalog().models.filter((model) => model.model_id === id) });
+    // 29.1–30 kg plus the gripper against the UR30's 30 kg: the need straddles the rating.
+    const payload = composeSiteAnswer({ ...inputs({ estimates: estimates({ object_mass_kg_low: 29.1, object_mass_kg_high: 30 }) }),
+      catalog: only("universal_robots_ur30") })!.pick!.checks.find((check) => check.key === "payload")!;
+    expect(payload.outcome).toBe("unknown");
+    expect(payload.text).toBe("Payload: your object weighs about 29–30 kg (estimated from your video), plus about 0.9 kg for a standard gripper. This arm is rated for 30 kg, which is too close to call on these figures.");
+    const reach = composeSiteAnswer({ ...inputs({ estimates: estimates({ pick_to_place_m: 2.0 }) }), catalog: only("universal_robots_ur10e") })!
+      .pick!.checks.find((check) => check.key === "reach")!;
+    expect(reach.outcome).toBe("unknown");
+    expect(reach.text).toBe("Reach: your two spots are about 2 m apart (estimated from your video). This arm reaches 1.3 m, which is too close to call on these figures for an arm standing between them.");
+  });
+
+  it("names a robot family in the source's own words, adding \"family\" only when they do not already say it", () => {
+    const one = (family: string) => composeSiteAnswer({ ...inputs(), catalog: { ...robotSpecCatalog(),
+      models: robotSpecCatalog().models.filter((model) => model.model_id === "fanuc_crx_10ia") },
+    evidenceFor: lookupOf([evidenceRow({ id: "f", manufacturer: "FANUC", applies_to: ["fanuc_crx_10ia"], names: "family", family })]) })!
+      .confidence.reasons;
+    expect(one("CRX series")).toContain("We found documented production use of robots in the CRX series for pick and place.");
+    expect(one("CRX")).toContain("We found documented production use of robots in the CRX family for pick and place.");
+  });
+
   it("rules out arms that stay in one place when the spots are too far apart, and says the job needs a robot that moves", () => {
     const answer = compose({ measurements: measurements({ pick_to_place_distance: reading(3, "m", 3) }),
       brief: { requestId: "job-1", summary: "Carry parts across the cell", operatorTaskDetails: { item_weight: "1 kg" } } });
@@ -485,121 +507,65 @@ describe("each check takes its outcome from the best source for its own quantity
   });
 });
 
-describe("the action decides the kind of job", () => {
+describe("the reader decides the kind of job; no word list does", () => {
   const typed = (summary: string, extra: Parameters<typeof inputs>[0] = {}) => compose({ brief: { requestId: "job-1", summary, confirmedAtIso: null }, ...extra });
   const ALSO = (word: string) => `Your job also involves ${word}; this checks only the picking up and putting down.`;
-  /** The reader's words and fields alone: no sentence from the site. */
-  const read = (fields: Record<string, unknown>) => compose({ brief: { requestId: "job-1", summary: "Your site task" }, estimates: estimates(fields) });
+  const alsoLines = (answer: ReturnType<typeof compose>) => answer.unknowns.filter((line) => line.startsWith("Your job also involves"));
+  const SENTENCES = ["Load parts into the CNC machine", "Move water bottles from the conveyor to the shelf",
+    "Pick bolts and place them on the tray", "Paint cans go from the shelf to the cart.", "Sewing kits go into cartons.",
+    "Press parts go to the rack.", "Open-top bins go from the line to the dock.", "Welding rods are moved to the station.",
+    "Folding chairs are stacked against the wall.", "Take screws from the bin and drop them in the tray",
+    "Fold the towels", "Screw the cap onto the bottle"];
 
-  it("assesses machine tending, carrying and pick-and-place sentences", () => {
-    const cnc = typed("Load parts into the CNC machine");
-    expect(cnc).toMatchObject({ state: "ready", job: { family: "machine_tending", familyLabel: "machine tending" } });
-    expect(typed("Move water bottles from the conveyor to the shelf").state).toBe("ready");
-    expect(typed("Pick bolts and place them on the tray").state).toBe("ready");
-    for (const answer of [cnc, typed("Pick bolts and place them on the tray")]) {
-      expect(answer.unknowns.some((line) => line.startsWith("Your job also involves"))).toBe(false);
+  it("assesses every typed sentence on its numbers when the reader gives no kind, and adds nothing from the words", () => {
+    for (const sentence of SENTENCES) {
+      const answer = typed(sentence);
+      expect(answer.state, sentence).toBe("ready");
+      expect(alsoLines(answer), sentence).toEqual([]);
+      // With no kind from the reader, the job family is pick and place, whatever the sentence names.
+      expect(answer.job.family, sentence).toBe("pick_place");
     }
-    // The same jobs in the reader's own words, with no sentence from the site.
-    expect(read({ object: "water bottle", basis: "A person moves each water bottle from a conveyor to a shelf." }).state).toBe("ready");
-    expect(read({ object: "bolt", basis: "A worker picks bolts from a bin and places them on a tray." }).state).toBe("ready");
-    expect(read({ object: "part", basis: "An operator loads parts into the CNC machine." }))
-      .toMatchObject({ state: "ready", job: { family: "machine_tending" } });
   });
 
-  it("cannot assess a job that does something else to the object, whatever numbers the reading gave", () => {
-    for (const sentence of ["Fold the towels", "Screw the cap onto the bottle"]) {
-      expect(typed(sentence), sentence).toMatchObject({ state: "cannot_assess", headline: "We can't check robots against this job yet.",
-        reason: OTHER_KIND, pick: null, runnerUp: null, approach: null, nextStep: { kind: "none" } });
+  it("cannot assess a job the reader says is another kind, whatever the sentence says", () => {
+    for (const sentence of [...SENTENCES, "Your site task"]) {
+      expect(typed(sentence, { estimates: estimates({ job_kind: "other" }) }), sentence).toMatchObject({ state: "cannot_assess",
+        headline: "We can't check robots against this job yet.", reason: OTHER_KIND, pick: null, runnerUp: null, approach: null,
+        nextStep: { kind: "none" } });
     }
-    expect(read({ object: "towel", basis: "A person folds the towels on a table." })).toMatchObject({ state: "cannot_assess", reason: OTHER_KIND });
-    expect(read({ object: "cap", basis: "A worker screws the caps onto bottles." })).toMatchObject({ state: "cannot_assess", reason: OTHER_KIND });
-    // Where grammar does not make the word a verb ("folds towels": a verb, or a noun before a noun), the rule
-    // says nothing and the numbers decide; the reader's own kind of job is the better judge.
-    expect(read({ object: "towel", basis: "A person folds towels on a table." }).state).toBe("ready");
-    expect(read({ object: "towel", basis: "A person folds towels on a table.", job_kind: "other" }).state).toBe("cannot_assess");
-    // A linked video's summary counts as the reader's words too.
-    expect(compose({ brief: null, estimates: estimates({ basis: "A person stands at a table." }),
-      request: { site_video_evidence: { summary: "Staff fold the laundry at a counter." } } })).toMatchObject({ state: "cannot_assess", reason: OTHER_KIND });
     // The simulation's own reason sentences never reach the answer.
-    expect(typed("Fold the towels").reason).not.toMatch(/evaluation preparation|simulation|hold your job/i);
+    expect(typed("Fold the towels", { estimates: estimates({ job_kind: "other" }) }).reason).not.toMatch(/evaluation preparation|simulation|hold your job/i);
   });
 
-  it("assesses a job that carries the object and does something else too, and says what else", () => {
-    const answer = typed("Open the box and place the bottles on the shelf");
-    expect(answer.state).toBe("ready");
-    expect(answer.unknowns).toContain(ALSO("opening"));
-    const both = typed("Fold each towel and stack it on the shelf");
-    expect(both.state).toBe("ready");
-    expect(both.unknowns).toContain(ALSO("folding"));
-    expect(read({ object: "towel", basis: "A person folds the towels and stacks them on a shelf." }).unknowns).toContain(ALSO("folding"));
+  it("says what else the job involves only from the reader's closed list", () => {
+    const folding = typed("Move towels to the shelf", { estimates: estimates({ job_kind: "pick_and_place", other_actions: ["folding"] }) });
+    expect(folding.state).toBe("ready");
+    expect(alsoLines(folding)).toEqual([ALSO("folding")]);
+    const mixed = typed("Move towels to the shelf", { estimates: estimates({ job_kind: "pick_and_place",
+      other_actions: ["nothing", "picking up", "packaging", "string", "folding"] }) });
+    expect(alsoLines(mixed)).toEqual([ALSO("folding")]);
+    expect(alsoLines(typed("Move towels", { estimates: estimates({ other_actions: ["opening", "pressing"] }) })))
+      .toEqual([ALSO("opening and pressing")]);
   });
 
-  it("does not count a verb used as a noun or a describing word", () => {
-    const press = typed("Load parts into the press");
-    expect(press).toMatchObject({ state: "ready", job: { family: "machine_tending" } });
-    expect(press.unknowns.some((line) => /pressing/.test(line))).toBe(false);
-    expect(typed("Move a pack of bottles to the shelf").unknowns.some((line) => line.startsWith("Your job also involves"))).toBe(false);
-    expect(typed("Put the boxes close to the door").unknowns.some((line) => /closing/.test(line))).toBe(false);
-    expect(typed("Place bottles into open crates").unknowns.some((line) => /opening/.test(line))).toBe(false);
-    // A noun alone never decides: the object's name says nothing about what is done to it.
-    expect(typed("The press").state).toBe("ready");
+  it("takes the job family from the reader's kind, and pick and place otherwise", () => {
+    expect(typed("Move pressure washers to the shelf.").job).toMatchObject({ family: "pick_place", familyLabel: "pick and place" });
+    expect(typed("Move pressure washers to the shelf.", { estimates: estimates({ job_kind: "machine_tending" }) }).job)
+      .toMatchObject({ family: "machine_tending", familyLabel: "machine tending" });
+    expect(typed("Move water bottles from the pallet to the shelf").job.family).toBe("pick_place");
+    expect(typed("Move boxes", { estimates: estimates({ job_kind: "palletizing" }) }).job.family).toBe("palletizing");
   });
 
-  it("counts a word as a verb only where grammar makes it one, and never lets an object's name decide", () => {
-    const noAlso = (answer: ReturnType<typeof compose>) => answer.unknowns.filter((line) => line.startsWith("Your job also involves"));
-    for (const sentence of ["Take screws from the bin and drop them in the tray", "Sort screws by size into the trays",
-      "Stock spray bottles on the shelf", "Paint cans are moved from the pallet to the shelf", "Tend the hydraulic press",
-      "Move boxes to open crates", "Place parts close to the door"]) {
-      const answer = typed(sentence);
-      expect(answer.state, sentence).toBe("ready");
-      expect(noAlso(answer), sentence).toEqual([]);
-    }
-    for (const [sentence, word] of [["We need help with loading boxes after opening them", "opening"],
-      ["Pick up the cap and screw it on", "screwing"], ["Towels are folded and stacked on the cart", "folding"]]) {
-      const answer = typed(sentence);
-      expect(answer.state, sentence).toBe("ready");
-      expect(noAlso(answer), sentence).toEqual([ALSO(word)]);
-    }
-    for (const sentence of ["Fold towels", "Fold the towels", "Wipe down each table", "Screw the cap onto the bottle"]) {
-      expect(typed(sentence), sentence).toMatchObject({ state: "cannot_assess", reason: OTHER_KIND, pick: null });
-    }
-  });
-
-  it("takes the reader's kind of job when the site has typed no sentence", () => {
-    expect(read({ job_kind: "other" })).toMatchObject({ state: "cannot_assess", reason: OTHER_KIND, pick: null });
-    // A sentence drafted from the video is the reader's, not the site's: the reader's kind still decides.
-    expect(compose({ brief: { requestId: "job-1", summary: "Move the towels", confirmedAtIso: null },
-      request: { capture_task_statement_draft: { state: "drafted" } }, estimates: estimates({ job_kind: "other" }) }))
-      .toMatchObject({ state: "cannot_assess", reason: OTHER_KIND });
-    const pallet = read({ job_kind: "palletizing", basis: "A person moves boxes." });
-    expect(pallet).toMatchObject({ state: "ready", job: { family: "palletizing", familyLabel: "palletizing" } });
-    expect(read({ job_kind: "machine_tending" }).job.family).toBe("machine_tending");
-    expect(read({ job_kind: "pick_and_place", basis: "A person folds towels." }).state).toBe("ready");
-    // The reader's other actions add to what the job also involves; a carrying word is not one.
-    const extra = read({ job_kind: "pick_and_place", other_actions: ["peeling", "stacking", "<b>x</b>"] });
-    expect(extra.unknowns).toContain(ALSO("peeling"));
-    expect(extra.unknowns.filter((line) => line.startsWith("Your job also involves"))).toHaveLength(1);
-  });
-
-  it("puts a sentence the site typed or confirmed before the reader", () => {
-    expect(typed("Move cartons to the shelf", { estimates: estimates({ job_kind: "other" }) }).state).toBe("ready");
-    expect(typed("Fold the towels", { estimates: estimates({ job_kind: "pick_and_place" }) }))
-      .toMatchObject({ state: "cannot_assess", reason: OTHER_KIND });
-    // The site's sentence gives the job family; the reader's kind gives it only when it decided.
-    expect(typed("Move cartons to the shelf", { estimates: estimates({ job_kind: "palletizing" }) }).job.family).toBe("pick_place");
-  });
-
-  it("reads a stored reading without the new fields as before: the verb rule, then the numbers rule", () => {
-    const legacy = estimates();
-    expect(legacy).not.toHaveProperty("job_kind");
-    expect(read({}).state).toBe("ready");
-    // No verb in the reading's words: an object and a distance is a pick and a place.
-    expect(read({ basis: "Sized against a doorway and the conveyor." }).state).toBe("ready");
-    // No number at all: the video could not size the job.
-    expect(read({ basis: "Sized against a doorway.", object_largest_side_m: null, object_mass_kg_low: null, object_mass_kg_high: null,
-      pick_to_place_m: null })).toMatchObject({ state: "cannot_assess", reason: "The video did not show the job clearly enough for us to size it." });
-    // A junk kind reads as none.
-    expect(read({ job_kind: "dancing" }).state).toBe("ready");
+  it("reads a stored reading without the new fields on its numbers, and junk fields as none", () => {
+    expect(estimates()).not.toHaveProperty("job_kind");
+    expect(compose({ brief: { requestId: "job-1", summary: "Your site task" } }).state).toBe("ready");
+    expect(compose({ brief: null, estimates: estimates({ basis: "A person folds towels." }) }).state).toBe("ready");
+    expect(compose({ brief: { requestId: "job-1", summary: "Your site task" }, estimates: estimates({ object_largest_side_m: null,
+      object_mass_kg_low: null, object_mass_kg_high: null, pick_to_place_m: null }) }))
+      .toMatchObject({ state: "cannot_assess", reason: "The video did not show the job clearly enough for us to size it." });
+    const junk = typed("Move boxes", { estimates: estimates({ job_kind: "dancing", other_actions: "folding" }) });
+    expect(junk.state).toBe("ready");
+    expect(alsoLines(junk)).toEqual([]);
   });
 });
 
@@ -681,14 +647,13 @@ describe("every sentence has a precondition in the data (generated inputs)", () 
   /** Sentences that describe a check that was not failed: never a reason a robot is ruled out. */
   const NOT_A_FAIL = /we don't know yet|publishes no|could not settle|could not size|is not checked against|was not checked|is not published/;
 
-  it("never reads an object's name as another action after a carrying verb", () => {
-    const CARRY = ["Move", "Take", "Pick", "Load", "Stack", "Sort", "Carry", "Drop", "Bring", "Place", "Transfer", "Unload"];
-    const LOOK_ALIKES = ["screws", "paints", "sprays", "presses", "mixes", "ties", "cuts", "pulls"];
-    const TAILS = ["", " to the shelf", " into the tray", " from the bin onto the cart", " off the conveyor"];
+  it("never refuses a job because of its sentence when the reader gives no kind", () => {
+    const WORDS = ["fold", "screws", "paint", "press", "open", "move", "the", "towels", "cans", "into", "Weld", "bins", "go", "are",
+      "folded", "cutting", "boards", "pour", "water", "on", "shelf", "and", "drop", "them", "sew", "kits"];
     for (let index = 0; index < 500; index++) {
-      const sentence = `${pick(CARRY)} ${pick(LOOK_ALIKES)}${pick(TAILS)}`;
+      const sentence = Array.from({ length: 2 + Math.floor(random() * 8) }, () => pick(WORDS)).join(" ");
       const answer = compose({ brief: { requestId: "job-1", summary: sentence, confirmedAtIso: null } });
-      expect(answer.state, sentence).not.toBe("cannot_assess");
+      expect(answer.state, sentence).toBe("ready");
       expect(answer.unknowns.some((line) => line.startsWith("Your job also involves")), sentence).toBe(false);
     }
   });
@@ -754,7 +719,7 @@ describe("every sentence has a precondition in the data (generated inputs)", () 
 describe("composeSiteAnswer with the shipped evidence and catalog", () => {
   it("picks a model with documented production palletizing for 8–11 kg cartons with spots 1.6 m apart, every row quoted and linked", () => {
     const base = inputs({ estimates: estimates({ object: "carton", object_mass_kg_low: 8, object_mass_kg_high: 11, pick_to_place_m: 1.6,
-      basis: "A person stacks cartons from the conveyor onto a pallet." }),
+      job_kind: "palletizing", basis: "A person stacks cartons from the conveyor onto a pallet." }),
     brief: { requestId: "job-1", summary: "Stack cartons from the conveyor onto the pallet", confirmedAtIso: null } });
     const { evidenceFor: _fixture, ...shipped } = base;
     const answer = composeSiteAnswer(shipped)!;

@@ -56,8 +56,9 @@ function generate(random: ReturnType<typeof prng>, index: number): Generated {
     const name = kind === "reference" ? `${REFERENCE_NAME} ${i}` : kind === "scripted" ? `${SCRIPTED_NAME} ${i}`
       : kind === "unknown" ? random.pick(UNKNOWN_NAMES) : candidateId;
     // Mostly sane counts, sometimes junk: more successes than tries, negatives, fractions, strings.
-    let scored: unknown = random.chance(0.3) ? 0 : random.int(1, 12);
-    let succeeded: unknown = random.int(0, Number(scored) || 0);
+    // Few tries often, so a row with one or two tries can set the leader's smallest chance.
+    let scored: unknown = random.chance(0.3) ? 0 : random.chance(0.35) ? random.int(1, 2) : random.int(1, 40);
+    let succeeded: unknown = random.chance(0.3) ? Number(scored) || 0 : random.int(0, Number(scored) || 0);
     if (random.chance(0.05)) succeeded = Number(scored) + 3;
     if (random.chance(0.03)) scored = -2;
     if (random.chance(0.03)) succeeded = 1.5;
@@ -112,6 +113,7 @@ describe("every sentence of the simulation result has a precondition in the data
     let compared = 0;
     let winners = 0;
     let separated = 0;
+    let mixedRobots = 0;
     for (let index = 0; index < 2500; index += 1) {
       const { input, ranked } = generate(random, index);
       const proof = projectSimulationProof(input);
@@ -129,25 +131,48 @@ describe("every sentence of the simulation result has a precondition in the data
       // No reference or scripted row is ever ranked, and the rows are exactly the scored policies.
       expect(comparison.rows.some(row => row.policy.startsWith(REFERENCE_NAME) || row.policy.startsWith(SCRIPTED_NAME)), context).toBe(false);
       expect(comparison.rows.map(row => [row.succeeded, row.scored]).sort(), context).toEqual(ranked.map(row => [row.succeeded, row.scored]).sort());
-      // Ordered by the mean of each rate's posterior, so the first row is the leader.
-      for (let i = 1; i < comparison.rows.length; i += 1) expect(mean(comparison.rows[i - 1]), context).toBeGreaterThanOrEqual(mean(comparison.rows[i]));
+      // Only policies that ran on one robot are compared: the compared rows come first, all on the same
+      // robot, and that robot is the one most scored rows ran on. The rest are never chosen.
+      const onOneRobot = comparison.rows.filter(row => row.compared);
+      const elsewhere = comparison.rows.filter(row => !row.compared);
+      expect(comparison.rows, context).toEqual([...onOneRobot, ...elsewhere]);
+      expect(new Set(onOneRobot.map(row => row.robot)).size, context).toBeLessThanOrEqual(1);
+      const groups = new Map<string, number>();
+      for (const row of comparison.rows) groups.set(String(row.robot), (groups.get(String(row.robot)) ?? 0) + 1);
+      if (onOneRobot.length && onOneRobot[0].robot) {
+        mixedRobots += elsewhere.length ? 1 : 0;
+        expect(onOneRobot[0].robot, context).toBe(comparison.robotName);
+        for (const [robot, n] of groups) if (robot !== "null") expect(onOneRobot.length, context).toBeGreaterThanOrEqual(n);
+      }
+      for (const row of elsewhere) expect(row.chosen, context).toBe(false);
+      // Ordered by the mean of each rate's posterior within each group, so the first row is the leader.
+      for (const group of [onOneRobot, elsewhere]) {
+        for (let i = 1; i < group.length; i += 1) expect(mean(group[i - 1]), context).toBeGreaterThanOrEqual(mean(group[i]));
+      }
 
-      // A winner only at P ≥ AHEAD, separated only at P ≥ CLEAR, and both whenever the rule says so on a finished run.
-      const [leader, next] = comparison.rows;
-      const p = leader && next && leader.succeeded > 0 ? probabilityAhead(leader, next) : 0;
+      // A winner only when the leader's smallest chance of beating any other compared row is ≥ AHEAD;
+      // separated only when it is ≥ CLEAR; and both whenever the rule says so on a finished run.
+      const [leader] = onOneRobot;
+      const p = leader && onOneRobot.length > 1 && leader.succeeded > 0
+        ? Math.min(...onOneRobot.slice(1).map(row => probabilityAhead(leader, row))) : 0;
+      const TOLERANCE = 1e-6;
       if (comparison.winner) {
         winners += 1;
-        expect(p, context).toBeGreaterThanOrEqual(AHEAD);
+        expect(p, context).toBeGreaterThanOrEqual(AHEAD - TOLERANCE);
         expect(comparison.winner.policy, context).toBe(leader.policy);
       }
       if (comparison.separated) {
         separated += 1;
-        expect(p, context).toBeGreaterThanOrEqual(CLEAR);
+        expect(p, context).toBeGreaterThanOrEqual(CLEAR - TOLERANCE);
         expect(comparison.winner, context).not.toBeNull();
       }
       if (proof.state === "done") {
-        expect(Boolean(comparison.winner), context).toBe(p >= AHEAD);
-        expect(comparison.separated, context).toBe(p >= CLEAR);
+        expect(Boolean(comparison.winner), context).toBe(p >= AHEAD - TOLERANCE);
+        expect(comparison.separated, context).toBe(p >= CLEAR - TOLERANCE);
+        // A ranking sentence names the robot the onOneRobot policies ran on, whenever it is known.
+        if (onOneRobot[0]?.robot && /did best|was ahead|No clear difference|scored one policy/.test(comparison.line)) {
+          expect(comparison.line.split(/(?<=\.)\s/)[0], context).toContain(onOneRobot[0].robot);
+        }
       }
       // Only the named winner's row is marked.
       expect(comparison.rows.filter(row => row.chosen).length, context).toBe(comparison.winner ? 1 : 0);
@@ -159,8 +184,8 @@ describe("every sentence of the simulation result has a precondition in the data
       // The counts in the sentence are the rows' counts, in the rows' order.
       const said = [...comparison.line.matchAll(/(\d+) of (\d+)/g)].map(match => [Number(match[1]), Number(match[2])]);
       if (said.length) expect(said, context).toEqual(comparison.rows.map(row => [row.succeeded, row.scored]).slice(0, said.length));
-      if (proof.state === "done" && comparison.rows.some(row => row.succeeded > 0)) {
-        expect(said.length, context).toBe(comparison.rows.length);
+      if (proof.state === "done" && onOneRobot.some(row => row.succeeded > 0)) {
+        expect(said.length, context).toBe(onOneRobot.length);
         expect(proof.headline, context).toBe(comparison.line.split(/(?<=\.)\s/)[0]);
       }
       // "Did best" and "was ahead" only with a winner; "did best" only when separated.
@@ -173,5 +198,6 @@ describe("every sentence of the simulation result has a precondition in the data
     expect(compared).toBeGreaterThan(500);
     expect(winners).toBeGreaterThan(20);
     expect(separated).toBeGreaterThan(5);
+    expect(mixedRobots).toBeGreaterThan(20);
   }, 60_000);
 });

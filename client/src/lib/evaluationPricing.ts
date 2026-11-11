@@ -46,7 +46,7 @@ export const siteAssessment = {
   summary: "One answer for one recurring job at one site: the robot that most likely fits, and what a simulation of its site found.",
   covers: [
     "A job brief drafted from your video and reviewed with you: objects, cycle, exceptions, timing and required outcomes.",
-    "A site simulation reconstructed from your video, with compatible robots and policies evaluated against the job criteria.",
+    "A site simulation reconstructed from your video, where suitable robots are checked for reach and arm path and public control policies are compared on the job on a research arm.",
     "Which robot most likely fits your job and how sure we are, then how control policies compared on it in the simulation and whether one was clearly ahead, or “held” when we can't simulate that kind of job yet.",
     "Blueprint works alongside a deployment company on your site; you approve the pilot's price, support and acceptance criteria.",
   ],

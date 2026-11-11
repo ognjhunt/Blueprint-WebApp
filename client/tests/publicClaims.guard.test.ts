@@ -28,6 +28,7 @@ const FILES = [
   "client/src/components/site/WarehousePilotSequence.tsx",
   "client/src/components/site/Footer.tsx",
   "client/src/components/site/MinimalSiteLayout.tsx",
+  "client/src/components/site/PartnerDetail.tsx",
   "client/src/components/site/SiteAnswer.tsx",
   "client/src/components/site/SimulationProof.tsx",
   "client/src/components/site/JobCardAnswer.tsx",

@@ -27,7 +27,7 @@ vi.mock("../../client/src/lib/firebaseAdmin", async () => {
 });
 vi.mock("../logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() } }));
 
-const { siteVideoEvidenceOutputSchema, siteVideoEvidenceTask } = await import("../agents/tasks/site-video-evidence");
+const { siteVideoEvidenceOutputSchema, siteVideoEvidenceTask, OTHER_ACTIONS } = await import("../agents/tasks/site-video-evidence");
 const { summariseVideoEvidence } = await import("../utils/siteVideoEvidence");
 const { captureCoverageOutputSchema, captureCoverageTask } = await import("../agents/tasks/capture-coverage");
 const { createReadinessBriefToken, readinessBriefPathFor, verifyReadinessBriefToken } = await import("../utils/readinessBriefToken");
@@ -73,15 +73,18 @@ describe("the reader's job estimates", () => {
       .toEqual({ ...older, job_kind: null, other_actions: [] });
     const odd = siteVideoEvidenceOutputSchema.parse(output({ job_estimates: { ...ESTIMATES, job_kind: "dancing", other_actions: "folding" } }));
     expect(odd.job_estimates).toMatchObject({ job_kind: null, other_actions: [] });
+    // A closed list, item by item: a junk item never discards the valid ones, and at most three are kept.
     const many = siteVideoEvidenceOutputSchema.parse(output({ job_estimates: { ...ESTIMATES, job_kind: "other",
-      other_actions: ["folding", "wiping", "peeling", "pouring"] } }));
-    expect(many.job_estimates).toMatchObject({ job_kind: "other", other_actions: [] });
-    expect(siteVideoEvidenceOutputSchema.parse(output({ job_estimates: { ...ESTIMATES, other_actions: [" folding "] } })).job_estimates)
+      other_actions: ["folding", "nothing", "picking up", 7, "wiping", "packaging", "peeling", "pouring"] } }));
+    expect(many.job_estimates).toMatchObject({ job_kind: "other", other_actions: ["folding", "wiping", "peeling"] });
+    expect(siteVideoEvidenceOutputSchema.parse(output({ job_estimates: { ...ESTIMATES, other_actions: [" Folding ", "string"] } })).job_estimates)
       .toMatchObject({ other_actions: ["folding"] });
     const prompt = JSON.stringify(siteVideoEvidenceTask.build_prompt({ requestId: "job-1", taskVideoUrl: "https://example.test/v.mp4",
       operatorAnswers: {} }));
-    expect(prompt).toContain("job_kind: what is done to the object.");
-    expect(prompt).toContain("other_actions: up to three words ending in -ing");
+    expect(prompt).toContain("job_kind: what is done to the object, judged from the footage and the job's description together.");
+    expect(prompt).toContain("other: the job mainly does something else to the object than carrying it: it is changed, joined, cleaned, opened or filled.");
+    expect(prompt).toContain("null: the footage does not show the job.");
+    expect(prompt).toContain(`using only these words: ${OTHER_ACTIONS.join(", ")}.`);
   });
 
   it("still refuses a reading with keys outside its contract", () => {

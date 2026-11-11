@@ -56,6 +56,7 @@ function job(extra: Record<string, unknown> = {}) {
     capture_coverage: { covers_scene: true },
     walkthrough_job_estimates: { capture_id: `walkthrough-${ID}`, job_estimates: {
       object: "carton", object_largest_side_m: 0.4, object_mass_kg_low: 8, object_mass_kg_high: 11, object_surface: "matte",
+      job_kind: "palletizing",
       pick_to_place_m: 1.6, pick_height_m: null, place_height_m: null, front_clearance_m: 1.5,
       other_items_likely: ["Acme invoices"], cycle_seconds: null,
       basis: "A person in a red jacket stacks cartons from the conveyor by the loading dock at 12 Elm Street." } },

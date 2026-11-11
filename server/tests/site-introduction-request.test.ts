@@ -141,12 +141,12 @@ describe("POST /:token/introduction-request", () => {
 
     expect((await ask()).body).toMatchObject({ ok: true, listed: true });
     const after = row("inboundRequests/req-1");
-    // Only the consent and its time change: the owner's reviewed card is byte for byte as it was.
+    // Only the consent changes: the owner's reviewed card, and its published date, are byte for byte as they were.
     expect(after.public_task_listing.consentVersion).toBe(JOB_CARD_ANSWER_STATEMENT_VERSION);
-    expect(after.public_task_listing.approvedAtIso).not.toBe(listing.approvedAtIso);
-    const { consentVersion: _c, approvedAtIso: _a, ...rest } = after.public_task_listing;
-    const { consentVersion: _c0, approvedAtIso: _a0, ...before } = listing;
+    const { consentVersion: _c, ...rest } = after.public_task_listing;
+    const { consentVersion: _c0, ...before } = listing;
     expect(JSON.stringify(rest)).toBe(JSON.stringify(before));
+    expect(after.public_task_listing.approvedAtIso).toBe("2026-11-01T00:00:00.000Z");
     expect(after.introduction_request.statement_version).toBe(JOB_CARD_ANSWER_STATEMENT_VERSION);
     // The card is not going live: no team alert intent, no team email, no go-live notice.
     expect(after).not.toHaveProperty("newJobAlertFanout");

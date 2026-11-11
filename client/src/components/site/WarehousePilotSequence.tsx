@@ -21,8 +21,8 @@ const contents = [
   ["robot-answer", "See which robot fits"],
   ["workspace-reconstruction", "Reconstruct the workspace"],
   ["task-objects", "Prepare the objects"],
-  ["robot-comparison", "Test control policies"],
-  ["recommendation", "See what did best"],
+  ["robot-comparison", "Check the robot, compare policies"],
+  ["recommendation", "See how they compared"],
   ["on-site-testing", "Test on site"],
   ["pilot-decision", "Decide what comes next"],
 ] as const;
@@ -65,7 +65,7 @@ export function WarehousePilotSequence() {
         <section className="ms-pilot-step" id="workspace-reconstruction" aria-labelledby="workspace-reconstruction-title">
           <p className="ms-eyebrow">03 · Reconstruction</p>
           <h3 id="workspace-reconstruction-title">Recreate the same work area.</h3>
-          <p>Blueprint reconstructs your work area from the video. The bench, shelving and nearby equipment become a simulation of your site, where we test robot reach, clearance and task performance.</p>
+          <p>Blueprint reconstructs your work area from the video. The bench, shelving and nearby equipment become a simulation of your site, where we check the suitable robots&apos; reach and arm path.</p>
           <PilotImage src="/illustrations/warehouse-pilot/02-workspace-reconstruction.webp" alt="A point-cloud-style reconstruction of the same warehouse, with the bench, supply tote, blue cases, tray and shelving preserved." caption="The warehouse becomes a digital workspace for preparing the task." />
         </section>
 
@@ -78,10 +78,10 @@ export function WarehousePilotSequence() {
 
         <section className="ms-pilot-step" id="robot-comparison" aria-labelledby="robot-comparison-title">
           <p className="ms-eyebrow">05 · Evaluation</p>
-          <h3 id="robot-comparison-title">Compare suitable robots and policies in simulation.</h3>
-          <p>Blueprint tests control policies (the software that drives a robot) on the job in the reconstructed work area. If a system needs access or an integration, its technology provider supplies it; you do not need to find or invite anyone. Every policy is scored against the same placement criteria. For arms that are programmed rather than driven by a policy, the simulation checks reach and path.</p>
-          <p>For each option, you see what was tested, which placements succeeded and where it failed, and how much that result can be trusted, so the result reflects your actual job.</p>
-          <p className="ms-pilot-disclosure">The three evaluations below use illustrative policy labels and outcomes. A simulated pass is an estimate; it never certifies real performance or safety.</p>
+          <h3 id="robot-comparison-title">Check the robots and compare policies in simulation.</h3>
+          <p>In the reconstructed work area, Blueprint checks each suitable robot&apos;s reach and arm path, and compares public control policies (the software that drives a robot) on the job on a research arm. Every policy is scored against the same placement criteria. If a system needs access or an integration, its technology provider supplies it; you do not need to find or invite anyone.</p>
+          <p>For each policy, you see what was tested, which placements succeeded and where it failed, and how much that result can be trusted, so the result reflects your actual job.</p>
+          <p className="ms-pilot-disclosure">The three pictures below are an illustration only, with made-up policy labels and outcomes; they show different robots to explain how a result reads. Today the policies Blueprint compares run on one research arm. A simulated pass is an estimate; it never certifies real performance or safety.</p>
           <div className="ms-pilot-comparison">
             <h4>A · Fixed arm</h4>
             <PilotImage src="/illustrations/warehouse-pilot/04-fixed-arm.webp" alt="Illustrative fixed-arm setup A, labeled Policy A-01 with a cross; one blue case remains on the bench outside the empty tray pocket." caption="Example A: the case remains outside the pocket, so the placement criterion is not met." />
