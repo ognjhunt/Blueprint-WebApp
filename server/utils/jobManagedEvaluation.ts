@@ -16,12 +16,12 @@ import { parsePipelinePolicyCanaryPublication } from "./policyCanaryWebappSyncCo
 import { isScreeningHeldOutcome, parseBetaPolicyScreeningPublication, screeningCandidateRows, screeningCandidateState,
   screeningEstimateCountSentence,
   screeningEstimateRows, screeningExecutionEvidence, screeningJobCeilingRow, screeningOutcome, screeningOutcomeCaveat, screeningOutcomeSentence,
-  SCREENING_PUBLICATION_V1, SCREENING_PUBLICATION_V2, SCREENING_PUBLICATION_V3, SCREENING_REPLANNED_BLOCKER,
-  screeningReviewVideos, type BetaPolicyScreeningPublication, type ScreeningExecutionEvidence, type ScreeningOutcome,
+  SCREENING_PUBLICATION_V1, SCREENING_PUBLICATION_V2, SCREENING_PUBLICATION_V3, SCREENING_PUBLICATION_V4, SCREENING_REPLANNED_BLOCKER,
+  screeningProgress, screeningReviewVideos, type BetaPolicyScreeningPublication, type ScreeningExecutionEvidence, type ScreeningOutcome,
   type ScreeningOutcomeCaveat, type ScreeningReviewVideos } from "./betaPolicyScreeningContract";
 import { screeningSetupNotes } from "./screeningSetupFlagSentences";
 import { projectCandidateSelection } from "./betaCandidateSelection";
-import type { JobCandidateSelection } from "../../client/src/types/jobMarketplace";
+import type { JobCandidateSelection, JobScreeningProgress } from "../../client/src/types/jobMarketplace";
 import { assertWebsiteCaptureBindingInTransaction, resolveWebsiteCaptureBinding } from "./websiteCaptureBinding";
 import { familyNativePreparationReference, preparationPhaseMatchesTask } from "./taskFamilySceneIntake";
 import { navigationPreparationReference } from "./navigationSceneIntake";
@@ -271,6 +271,8 @@ export type ManagedJobEvidenceSummary = {
     candidates: Array<{ candidateId: string; name: string; state: string; planned: number;
     scored: number; succeeded: number; failed: number; void: number; blockers: string[]; configurationDigest?: string;
     successRange?: ScreeningSuccessRange; executionEvidence?: ScreeningExecutionEvidence;
+    /** How far the row's graded episodes got (publication v4); absent when the publication has none. */
+    progress?: JobScreeningProgress;
     practiceRuns?: ScreeningPracticeRun[] }>; selection?: JobCandidateSelection;
     /** What Blueprint's own checks recorded about the scene the run used, in plain sentences, never codes. */
     setupNotes?: string[] };
@@ -351,9 +353,10 @@ export function projectManagedJobEvidence(
   if (!result || result.record_id !== run.result_record_id) return base;
   const publication = publicationFromResultRecord(result);
   if (!publication) return base;
-  if ([SCREENING_PUBLICATION_V3, SCREENING_PUBLICATION_V2, SCREENING_PUBLICATION_V1].includes(String(publication.schema_version))) {
+  if ([SCREENING_PUBLICATION_V4, SCREENING_PUBLICATION_V3, SCREENING_PUBLICATION_V2, SCREENING_PUBLICATION_V1]
+    .includes(String(publication.schema_version))) {
     // The automatic run under the site's allowance is the job's evaluation
-    // (owner decision 2026-10-28). Retained v1 rows read the same way; v3 adds set-up flags.
+    // (owner decision 2026-10-28). Retained v1 rows read the same way; v3 adds set-up flags, v4 progress.
     const value = parseBetaPolicyScreeningPublication(publication);
     if (!value || value.campaign_id !== runId || run.run_kind !== "beta_policy_screening"
       || value.publication_digest !== run.publication_digest || value.revision !== run.publication_revision
@@ -409,6 +412,8 @@ export function projectManagedJobEvidence(
         state: screeningCandidateState(row), planned: row.episodes_planned, scored: row.episodes_scored, succeeded: row.episodes_succeeded,
         failed: row.episodes_failed, void: row.episodes_void, blockers: row.blockers,
         ...(row.episodes_scored > 0 ? { successRange: screeningSuccessRange(row.episodes_succeeded, row.episodes_scored) } : {}),
+        // How far its graded episodes got (v4): facts the page states, never a rank.
+        ...(row.progress ? { progress: screeningProgress(row)! } : {}),
         ...practiceRuns(kept.get(row.candidate_id)) })),
         ...(selection ? { selection } : {}), ...(setupNotes.length ? { setupNotes } : {}) } };
   }

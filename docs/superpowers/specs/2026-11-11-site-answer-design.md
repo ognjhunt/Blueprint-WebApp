@@ -159,6 +159,36 @@ simulation"; the simulation email repeats its sentences word for word.
   the simulation was held (for budget, the scene check or a set-up problem), it
   says what happened to the simulation and never that policies ran. A seeded
   generated-input test checks these rules over thousands of random results.
+- **How far each policy got is said as a fact, never as a ranking.**
+  Publication `beta_policy_screening_publication.v4` may carry, on a
+  learned-policy row, the Pipeline grader's `progress`
+  (`policy_episode_progress.v1`): how many graded tries reached each stage of
+  a closed, ordered ladder (got its gripper within 2 cm, touched, moved,
+  lifted, lifted and carried, put in place, put in place and let go). The
+  first stage is there only when every try measured it, and then with the
+  median and minimum closest approach of the grasp point to the object,
+  `closest_approach_m`. The 2 cm is the grader version's own threshold, kept
+  beside that version in `client/src/data/screeningProgressGrader.ts`; "carried"
+  names no direction, because the grader checks only the distance moved. A
+  row that reached no stage and has that distance says it "did not get its
+  gripper within 2 cm of the object; it typically came within about {N} cm of
+  it" (the median, whole centimetres, at least 1; metres with one decimal from
+  100 cm). In the list below, and on its row, the same reads "{policy} did not
+  get its gripper within 2 cm of the object in any of its {g} tries, typically
+  coming within about {N} cm of it", or without the distance "did not touch
+  the object in any of its {g} tries" ("in its one try" for one); a row that
+  reached a stage gives its count, "moved the object in 4 of 10 tries". When
+  fewer tries were graded than scored, the figure is never worded as the
+  policy's total: "in 4 of the 9 tries we could grade", "in any of the 9 tries
+  we could grade", "in the one try we could grade". The WebApp refuses it on v1 to v3 and
+  refuses a v4 whose `progress` breaks the ladder or its counts, so the
+  Pipeline sends v3 instead; it is never dropped quietly. Each row takes its
+  furthest stage, said only in the closed phrases of `simulationProof.ts`.
+  When no compared policy completed the job, the could-not-rank sentence gains
+  "How far each got: …" with each compared row's count, and the email repeats
+  it; when one did, the line is unchanged and only rows that completed nothing
+  say how far they got. The order, the winner, "did best" and "ahead" rest on
+  completed tries alone, and the job card's one line stays the first sentence.
 - **Accuracy is stated with its sources and conditions**
   (`client/src/data/simulationAccuracy.ts`): in one direct published test the
   simulated ranking matched the real one in 8 of 9 comparisons, and simulated

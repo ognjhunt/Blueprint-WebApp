@@ -365,7 +365,7 @@ describe("a signed payload this release cannot parse", () => {
   }
   /** A publication of a version after this release, sealed by the Pipeline as every publication is. */
   const future = (change: Record<string, unknown> = {}) => sealScreening({ ...rebound(pipelineV3),
-    schema_version: "beta_policy_screening_publication.v4", evidence_note: "a field this release does not know", ...change });
+    schema_version: "beta_policy_screening_publication.v5", evidence_note: "a field this release does not know", ...change });
 
   it("is quarantined once, alerted once and refused as schema_not_accepted; nothing is ingested", async () => {
     const payload = future();
@@ -376,7 +376,7 @@ describe("a signed payload this release cannot parse", () => {
     const [[path, kept]] = quarantined();
     expect(path).toBe(`${PIPELINE_PAYLOAD_QUARANTINE_COLLECTION}/beta_policy_screening_publication-${payload.publication_digest.slice(7)}`);
     expect(kept).toMatchObject({ schema_version: "pipeline_payload_quarantine.v1", kind: "beta_policy_screening_publication",
-      payload_digest: payload.publication_digest, declared_schema_version: "beta_policy_screening_publication.v4",
+      payload_digest: payload.publication_digest, declared_schema_version: "beta_policy_screening_publication.v5",
       accepted: false, seen_count: 1, payload_truncated: false, payload_json: JSON.stringify(payload) });
     expect(kept.parse_issues.length).toBeGreaterThan(0);
     expect(kept.parse_issues[0]).toMatchObject({ path: "schema_version" });

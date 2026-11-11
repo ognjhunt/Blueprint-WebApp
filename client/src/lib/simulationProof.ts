@@ -13,16 +13,69 @@
  * branch that checked it happened. Zero successes is never an estimate; a
  * comparison from a few tries is a probability, said by one fixed rule
  * (`probabilityAhead`, `CLEAR`, `AHEAD`); a run that could not finish is said
- * about the simulation, never about the site's job.
+ * about the simulation, never about the site's job. How far each policy got
+ * (`furthest`, from the Pipeline's graded stages) is said as a fact, from a
+ * closed list of phrases, and never ranks, chooses or orders a policy.
  */
 import type { RobotFitView } from "../components/site/RobotFit";
 import { SIMULATION_ACCURACY } from "../data/simulationAccuracy";
+import { APPROACHED_WITHIN_CM } from "../data/screeningProgressGrader";
 import { SIMULATION_POLICIES, UNNAMED_POLICY, simulationPolicyFor, type SimulatedRobot } from "../data/simulationPolicies";
 import { sameRobot } from "./robotNameMatch";
 import type { AnswerRobot } from "./siteAnswer";
-import type { JobManagedEvidenceSummary, JobScreeningOutcome } from "../types/jobMarketplace";
+import type { JobManagedEvidenceSummary, JobScreeningOutcome, JobScreeningProgressStage } from "../types/jobMarketplace";
 
 export type SimulationProofState = "not_started" | "preparing" | "running" | "done" | "could_not_run";
+export type ProgressStage = JobScreeningProgressStage;
+
+/** The pick-and-place ladder, in order. `approached` is first only when the run measured it. */
+export const PROGRESS_LADDER: readonly ProgressStage[] = ["approached", "contact", "moved", "lifted", "translated", "placed", "released_and_settled"];
+/** What each stage says, past tense: the only words a site reads about how far a policy got. */
+export const PROGRESS_PHRASES: Readonly<Record<ProgressStage, string>> = {
+  // The grader version's own threshold (`screeningProgressGrader.ts`), said as a distance.
+  approached: `got its gripper within ${APPROACHED_WITHIN_CM} cm of the object`,
+  contact: "touched the object",
+  moved: "moved the object",
+  lifted: "lifted the object",
+  // Moved, once lifted, at least the grader's distance in any direction: no direction is claimed.
+  translated: "lifted and carried the object",
+  placed: "put the object in place",
+  released_and_settled: "put the object in place and let go",
+};
+/** No stage reached, on a ladder that measured the approach. */
+export const PROGRESS_NOT_APPROACHED = `did not get its gripper within ${APPROACHED_WITHIN_CM} cm of the object`;
+/** No stage reached, on a ladder that starts at contact. */
+export const PROGRESS_NOT_TOUCHED = "did not touch the object";
+/**
+ * How close a policy that reached no stage typically came, from the median closest approach in metres:
+ * whole centimetres, at least 1; from 100 cm up, metres with one decimal. Rounded half up on the
+ * Pipeline's 4-decimal metres, in whole tenths of a millimetre so no float error moves it.
+ */
+function distanceText(medianM: number): string {
+  const tenthsOfMm = Math.round(medianM * 10_000);
+  const cm = Math.max(1, Math.floor((tenthsOfMm + 50) / 100));
+  return cm >= 100 ? `${(Math.floor((tenthsOfMm + 500) / 1000) / 10).toFixed(1)} m` : `${cm} cm`;
+}
+/** The row's phrase for a policy that reached no stage, with how close it typically came. */
+export function closestApproachText(medianM: number): string {
+  return `${PROGRESS_NOT_APPROACHED}; it typically came within about ${distanceText(medianM)} of it`;
+}
+/**
+ * The tries a progress phrase is said of. When every scored try was graded they are the policy's tries:
+ * "in 4 of 10 tries", "in any of its 10 tries", "in its one try". When fewer were graded (a missing trace
+ * or a grading error) the figure is never worded as the policy's total: "in 4 of the 9 tries we could
+ * grade", "in any of the 9 tries we could grade", "in the one try we could grade".
+ */
+function someOfTries(n: number, graded: number, scored: number): string {
+  if (graded === scored) return `in ${triesText(n, graded)}`;
+  return graded === 1 ? "in the one try we could grade" : `in ${n} of the ${graded} tries we could grade`;
+}
+function anyOfTries(graded: number, scored: number): string {
+  if (graded === scored) return graded === 1 ? "in its one try" : `in any of its ${graded} tries`;
+  return graded === 1 ? "in the one try we could grade" : `in any of the ${graded} tries we could grade`;
+}
+/** The start of the sentence that says how far each compared policy got when none completed the job. */
+export const HOW_FAR_EACH_GOT = "How far each got:";
 
 export interface SimulationProof {
   state: SimulationProofState;
@@ -37,7 +90,21 @@ export interface SimulationProof {
      * one we could not confirm: shown with their robot, `compared: false`, never ranked or chosen.
      */
     rows: Array<{ policy: string; maker: string | null; succeeded: number; scored: number;
-      rangeText: string | null; chosen: boolean; compared: boolean; robot: string | null }>;
+      rangeText: string | null; chosen: boolean; compared: boolean; robot: string | null;
+      /** The deepest stage at least one graded try reached; null without progress data or when none did. */
+      furthest: { stage: ProgressStage; episodes: number; graded: number } | null;
+      /** How far it got, from `PROGRESS_PHRASES` only; null without progress data. */
+      furthestText: string | null;
+      /**
+       * The same with its tries, as the "How far each got" list and the row say it after the policy's name:
+       * "moved the object in 4 of 10 tries", "did not touch the object in any of its 10 tries"; null without progress data.
+       */
+      furthestDetail: string | null;
+      /**
+       * True when the row itself says `furthestText`: some policy completed the job, this one completed
+       * nothing, and the comparison sentence does not already say how far it got.
+       */
+      furthestShown: boolean }>;
     /** The leader, named only when P(leader beats every other compared policy) ≥ `AHEAD`, each pair weighed. */
     winner: { policy: string; maker: string | null } | null;
     /** The smallest P(leader beats another compared policy) ≥ `CLEAR`: a gap this size is unlikely to be chance. */
@@ -207,6 +274,46 @@ const policyPhrase = (row: { policy: string; maker: string | null }) =>
   row.maker ? `${row.policy}, an AI control policy from ${row.maker},` : row.policy;
 const triesText = (succeeded: number, scored: number) => `${succeeded} of ${scored} ${scored === 1 ? "try" : "tries"}`;
 
+/**
+ * How far a row got, read only from well-formed progress: the ladder in order (with or without
+ * `approached`), whole counts that never increase down it, none above the graded tries, and no more
+ * graded tries than scored ones. Anything else says nothing. `episodes` is the number of tries the
+ * phrase is true of: those that reached the furthest stage, or every graded try when none reached any.
+ */
+function furthestOf(progress: unknown, scored: number): { furthest: { stage: ProgressStage; episodes: number; graded: number } | null;
+  text: string; detail: string } | null {
+  if (!isRecord(progress) || !Array.isArray(progress.stages)) return null;
+  const graded = progress.graded;
+  if (typeof graded !== "number" || !Number.isInteger(graded) || graded < 1 || graded > scored) return null;
+  const stages = progress.stages as unknown[];
+  const ladder = stages.length === PROGRESS_LADDER.length ? PROGRESS_LADDER : PROGRESS_LADDER.slice(1);
+  if (stages.length !== ladder.length) return null;
+  // The closest approach comes exactly with the `approached` stage, well formed.
+  const approach = progress.closestApproachM;
+  if ((ladder[0] === "approached") !== (approach !== undefined)) return null;
+  const metres = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value) && value >= 0;
+  if (approach !== undefined && (!isRecord(approach) || !metres(approach.median) || !metres(approach.min) || approach.min > approach.median)) return null;
+  let previous = graded;
+  let furthest: { stage: ProgressStage; episodes: number; graded: number } | null = null;
+  for (let index = 0; index < ladder.length; index += 1) {
+    const entry = stages[index];
+    if (!isRecord(entry) || entry.stage !== ladder[index]) return null;
+    const episodes = entry.episodes;
+    if (typeof episodes !== "number" || !Number.isInteger(episodes) || episodes < 0 || episodes > previous) return null;
+    previous = episodes;
+    if (episodes > 0) furthest = { stage: ladder[index], episodes, graded };
+  }
+  if (furthest) {
+    const text = PROGRESS_PHRASES[furthest.stage];
+    return { furthest, text, detail: `${text} ${someOfTries(furthest.episodes, graded, scored)}` };
+  }
+  // A row that reached no stage says so of all its tries, and how close it typically came when that was measured.
+  if (isRecord(approach)) return { furthest: null, text: closestApproachText(approach.median as number),
+    detail: `${PROGRESS_NOT_APPROACHED} ${anyOfTries(graded, scored)}, typically coming within about ${distanceText(approach.median as number)} of it` };
+  const text = ladder[0] === "approached" ? PROGRESS_NOT_APPROACHED : PROGRESS_NOT_TOUCHED;
+  return { furthest: null, text, detail: `${text} ${anyOfTries(graded, scored)}` };
+}
+
 /** The current job evaluation: the newest current one with an outcome or results, else the newest current one. */
 export function currentEvaluation(evaluation: SimulationProofInput["evaluation"]): JobManagedEvidenceSummary | null {
   const list = (Array.isArray(evaluation) ? evaluation : evaluation ? [evaluation] : []).filter(isRecord) as JobManagedEvidenceSummary[];
@@ -307,6 +414,15 @@ function comparisonOf(evaluation: JobManagedEvidenceSummary, state: SimulationPr
   const notes = [...new Set([...(screening?.setupNotes ?? []).filter(note => typeof note === "string" && note.trim()),
     ...(evaluation.outcomeCaveat === "scene_setup" ? [SCENE_SETUP_CAVEAT] : [])])];
   const counted = (entries: typeof scored) => entries.map(entry => `${entry.policy}, ${entry.succeeded} of ${entry.scored}`).join("; ");
+  // How far each row got: facts read from its own progress, never used to order, rank or choose a row.
+  const reached = new Map(scored.map(entry => [entry, furthestOf(entry.row.progress, entry.scored)]));
+  const comparedReached = ranked.filter(entry => reached.get(entry));
+  // Said only on a finished run in which no compared policy completed the job.
+  const howFar = !couldNotRun && robot && !anySuccess && comparedReached.length
+    ? `${HOW_FAR_EACH_GOT} ${comparedReached.map(entry => {
+      return `${entry.policy} ${reached.get(entry)!.detail}`;
+    }).join("; ")}.` : null;
+  const someCompleted = scored.some(entry => entry.succeeded > 0);
 
   let line: string;
   if (couldNotRun) line = couldNotRun;
@@ -329,6 +445,7 @@ function comparisonOf(evaluation: JobManagedEvidenceSummary, state: SimulationPr
   } else {
     line = `No clear difference yet between the policies tried on ${robot.name} in a simulation of your site. Tries that completed the job: ${counted(ranked)}.`;
   }
+  if (howFar) line += ` ${howFar}`;
   if (!couldNotRun && elsewhere.length) line += ` ${elsewhereSentence(elsewhere.map(entry => entry.robot))}`;
 
   const didNotRun = policies.filter(plannedButNotRun).length;
@@ -337,7 +454,11 @@ function comparisonOf(evaluation: JobManagedEvidenceSummary, state: SimulationPr
     succeeded: entry.succeeded, scored: entry.scored,
     // A likely range only beside a row that has a success: zero successes is never an estimate.
     rangeText: entry.succeeded > 0 ? rangeTextOf(entry.row.successRange) : null,
-    chosen: compared && entry === winnerEntry, compared, robot: entry.robot?.name ?? null });
+    chosen: compared && entry === winnerEntry, compared, robot: entry.robot?.name ?? null,
+    furthest: reached.get(entry)?.furthest ?? null, furthestText: reached.get(entry)?.text ?? null,
+    furthestDetail: reached.get(entry)?.detail ?? null,
+    furthestShown: Boolean(reached.get(entry)) && !couldNotRun && someCompleted && entry.succeeded === 0
+      && !(howFar && compared) });
   return {
     robotName: named?.name ?? "the simulated robot",
     sameRobotAsPick: Boolean(named && pick && named.modelId === pick.modelId),

@@ -13,10 +13,16 @@
  * a zero-success estimate they may explain carries a caveat instead
  * (`screeningOutcomeCaveat`). The Pipeline still sends v2 to a release that
  * does not accept v3, so v1 and v2 stay accepted as they were.
+ *
+ * v4 is v3 plus one optional field on a learned-policy candidate: `progress`, how far its graded
+ * episodes got along the pick-and-place ladder (contact, motion, lift, carry, placement), from the
+ * Pipeline's own grader. Facts only: nothing ranks, chooses or holds on it. The Pipeline sends v3
+ * without it to a release that does not accept v4, so v1 to v3 stay accepted as they were.
  */
 import { z } from "zod";
 import { crossRuntimeArtifactDigest, crossRuntimeDigest } from "./crossRuntimeCanonical";
-import type { JobScreeningOutcome } from "../../client/src/types/jobMarketplace";
+import type { JobScreeningOutcome, JobScreeningProgress, JobScreeningProgressStage } from "../../client/src/types/jobMarketplace";
+import { SCREENING_PROGRESS_GRADER_VERSION } from "../../client/src/data/screeningProgressGrader";
 
 const identifier = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$/);
 const digest = z.string().regex(/^sha256:[a-f0-9]{64}$/);
@@ -49,6 +55,11 @@ export const screeningExecutionEvidenceFields = ["execution_evidence_kind", "act
 export const SCREENING_PUBLICATION_V1 = "beta_policy_screening_publication.v1";
 export const SCREENING_PUBLICATION_V2 = "beta_policy_screening_publication.v2";
 export const SCREENING_PUBLICATION_V3 = "beta_policy_screening_publication.v3";
+export const SCREENING_PUBLICATION_V4 = "beta_policy_screening_publication.v4";
+/** Publications that may carry set-up flags and the campaign's scene check verdict. */
+const FLAGGED_PUBLICATIONS: ReadonlySet<string> = new Set([SCREENING_PUBLICATION_V3, SCREENING_PUBLICATION_V4]);
+/** Publications that may carry practice-run videos. */
+const JOB_EVALUATION_PUBLICATIONS: ReadonlySet<string> = new Set([SCREENING_PUBLICATION_V2, SCREENING_PUBLICATION_V3, SCREENING_PUBLICATION_V4]);
 /** One typed flag: a lowercase code with at most three typed qualifiers (Pipeline `FLAG_CODE`). Never text. */
 const flagCode = z.string().regex(/^[a-z][a-z0-9_]{0,127}(?::[a-z0-9_]{1,96}){0,3}$/);
 const SCREENING_FLAGS_MAX = 64;
@@ -60,6 +71,61 @@ const sceneFeasibility = z.object({ status: z.enum(["clear", "flagged", "unknown
   flags: z.array(flagCode).max(SCREENING_FLAGS_MAX).refine(sortedUnique, "Flags must be sorted and unique") }).strict()
   .refine(value => (value.status === "flagged") === (value.flags.length > 0), "Only a flagged scene check names flags");
 export type ScreeningSceneFeasibility = z.infer<typeof sceneFeasibility>;
+
+/**
+ * How far a candidate's graded episodes got (v4 only), from the Pipeline's grader at a published
+ * version: its thresholds and ladder are fixed by `grader_version`, never tuned per job. The ladder is
+ * the closed list below, in order; `approached` is first and present only when every graded episode
+ * measured its closest approach, otherwise the ladder starts at `contact`. A stage counts only when
+ * every earlier stage did, so each stage's `episodes` (the graded episodes that achieved it) never
+ * increases down the ladder, and `mean_score` is the mean share of the ladder an episode achieved.
+ * `closest_approach_m` (Amendment 1) is the median and minimum, in metres, of how close the grasp
+ * point came to the object over the graded episodes; it is present exactly when the ladder has
+ * `approached`, the stage that measures it. Facts about the run, never a ranking: nothing chooses,
+ * holds or orders a candidate on it.
+ */
+/** The grader version, kept beside the threshold it fixes (`client/src/data/screeningProgressGrader.ts`). */
+export { SCREENING_PROGRESS_GRADER_VERSION } from "../../client/src/data/screeningProgressGrader";
+export const SCREENING_PROGRESS_STAGES = ["approached", "contact", "moved", "lifted", "translated", "placed",
+  "released_and_settled"] as const satisfies readonly JobScreeningProgressStage[];
+export type ScreeningProgressStage = typeof SCREENING_PROGRESS_STAGES[number];
+/**
+ * A non-negative figure the Pipeline writes with at most 4 decimals (`mean_score`, the closest approach in
+ * metres): its value times 10 000 is a whole number, up to float error in the decimal it was read from.
+ */
+const fourDecimals = (max: number) => z.number().finite().min(0).max(max)
+  .refine(value => Math.abs(value * 10_000 - Math.round(value * 10_000)) < 1e-6, "At most 4 decimals");
+/** `mean_score` is rounded to 4 decimals by the Pipeline: half a unit of the last place, plus float slack. */
+const PROGRESS_MEAN_TOLERANCE = 0.00005 + 1e-9;
+const progress = z.object({
+  grader_version: z.literal(SCREENING_PROGRESS_GRADER_VERSION),
+  episodes_graded: count.min(1),
+  stages: z.array(z.object({ stage: z.enum(SCREENING_PROGRESS_STAGES), episodes: count }).strict()).min(6).max(7),
+  mean_score: fourDecimals(1),
+  closest_approach_m: z.object({ median: fourDecimals(100), min: fourDecimals(100) }).strict()
+    .refine(value => value.min <= value.median, "The closest approach's minimum cannot exceed its median").optional(),
+}).strict().superRefine((value, ctx) => {
+  const ids = value.stages.map(entry => entry.stage);
+  const ladder = ids.length === SCREENING_PROGRESS_STAGES.length ? SCREENING_PROGRESS_STAGES : SCREENING_PROGRESS_STAGES.slice(1);
+  if (ids.length !== ladder.length || ids.some((id, index) => id !== ladder[index])) {
+    ctx.addIssue({ code: "custom", path: ["stages"], message: "Progress stages must be the ladder, in order" });
+    return;
+  }
+  // The distance is what `approached` is measured from: carried exactly when that stage is.
+  if ((ladder[0] === "approached") !== (value.closest_approach_m !== undefined)) {
+    ctx.addIssue({ code: "custom", path: ["closest_approach_m"], message: "The closest approach comes exactly with the approached stage" });
+  }
+  if (value.stages.some((entry, index) => entry.episodes > value.episodes_graded
+    || (index > 0 && entry.episodes > value.stages[index - 1].episodes))) {
+    ctx.addIssue({ code: "custom", path: ["stages"], message: "Progress counts must not increase down the ladder or exceed the graded episodes" });
+    return;
+  }
+  // Each episode achieves a prefix of the ladder, so the mean share is the stage counts over graded × ladder.
+  const share = value.stages.reduce((sum, entry) => sum + entry.episodes, 0) / (value.episodes_graded * ladder.length);
+  if (Math.abs(value.mean_score - share) > PROGRESS_MEAN_TOLERANCE)
+    ctx.addIssue({ code: "custom", path: ["mean_score"], message: "Progress mean score must restate the stage counts" });
+});
+export type ScreeningProgress = z.infer<typeof progress>;
 
 const candidate = z.object({
   candidate_id: identifier, configuration_digest: digest, display_name: z.string().trim().min(1).max(200),
@@ -74,6 +140,8 @@ const candidate = z.object({
   // v3 only (refused on v1 and v2 below): what the run's camera gate, a humanoid row's spawn check and
   // the free CPU scene check recorded for this row.
   observation_quality_flags: flagList.optional(), setup_quality_flags: flagList.optional(), scene_check_flags: flagList.optional(),
+  // v4 only (refused on v1 to v3 below): how far this learned-policy row's graded episodes got.
+  progress: progress.optional(),
 }).strict().superRefine((row, ctx) => {
   const expectedRate = row.episodes_scored ? row.episodes_succeeded / row.episodes_scored : null;
   if (row.episodes_succeeded + row.episodes_failed !== row.episodes_scored
@@ -99,6 +167,12 @@ const candidate = z.object({
           || row.episodes_scored > row.learned_policy_rollout_count! || row.episodes_scored > 0 && row.candidate_policy_queried !== true)) {
       ctx.addIssue({ code: "custom", message: "Screening execution kind and witnessed episode evidence disagree" });
     }
+  }
+  // Progress is only ever on a learned-policy row (never a scripted baseline or the known-good control; a row
+  // with no recorded execution kind reads as a policy, as it always has), and only for episodes it scored.
+  if (row.progress && (row.execution_evidence_kind === "scripted_simulator_state_baseline"
+    || row.progress.episodes_graded > row.episodes_scored)) {
+    ctx.addIssue({ code: "custom", path: ["progress"], message: "Progress is only for a learned-policy row's scored episodes" });
   }
 });
 
@@ -144,21 +218,26 @@ const publicationFields = {
 };
 const jobEvaluationFields = { ...publicationFields, purpose: z.literal("job_evaluation"), claim_ceiling: z.literal("simulation_estimate"),
   review_videos: z.array(candidateReviewVideos).min(1).max(256).optional() };
+const progressJobEvaluationPublication = z.object({ ...jobEvaluationFields, schema_version: z.literal(SCREENING_PUBLICATION_V4),
+  scene_feasibility: sceneFeasibility }).strict();
 const flaggedJobEvaluationPublication = z.object({ ...jobEvaluationFields, schema_version: z.literal(SCREENING_PUBLICATION_V3),
   scene_feasibility: sceneFeasibility }).strict();
 const jobEvaluationPublication = z.object({ ...jobEvaluationFields, schema_version: z.literal(SCREENING_PUBLICATION_V2) }).strict();
 const retainedPublication = z.object({ ...publicationFields, schema_version: z.literal(SCREENING_PUBLICATION_V1),
   purpose: z.literal("screening"), claim_ceiling: z.literal("diagnostic_policy_execution"), recommendation_eligible: z.literal(false) }).strict();
 export const betaPolicyScreeningPublicationSchema = z.discriminatedUnion("schema_version",
-  [flaggedJobEvaluationPublication, jobEvaluationPublication, retainedPublication])
+  [progressJobEvaluationPublication, flaggedJobEvaluationPublication, jobEvaluationPublication, retainedPublication])
   .superRefine((value, ctx) => {
   if (value.schema_version === SCREENING_PUBLICATION_V1
     && value.candidates.some(row => screeningExecutionEvidenceFields.some(key => row[key] !== undefined))) {
     ctx.addIssue({ code: "custom", path: ["candidates"], message: "Typed execution evidence requires publication v2" });
   }
-  if (value.schema_version !== SCREENING_PUBLICATION_V3
+  if (!FLAGGED_PUBLICATIONS.has(value.schema_version)
     && value.candidates.some(row => screeningRowFlagFields.some(key => row[key] !== undefined))) {
     ctx.addIssue({ code: "custom", path: ["candidates"], message: "Set-up flags require publication v3" });
+  }
+  if (value.schema_version !== SCREENING_PUBLICATION_V4 && value.candidates.some(row => row.progress !== undefined)) {
+    ctx.addIssue({ code: "custom", path: ["candidates"], message: "Progress requires publication v4" });
   }
   const budget = value.budget;
   if (![budget.limit_usd, budget.committed_upper_bound_usd, budget.spent_upper_bound_usd, budget.reserved_usd]
@@ -190,11 +269,19 @@ export const betaPolicyScreeningPublicationSchema = z.discriminatedUnion("schema
 });
 /** The practice-run videos a publication carries; none for a retained v1 one. */
 export function screeningReviewVideos(value: { schema_version: string; review_videos?: ScreeningReviewVideos[] }) {
-  return value.schema_version === SCREENING_PUBLICATION_V2 || value.schema_version === SCREENING_PUBLICATION_V3 ? value.review_videos ?? [] : [];
+  return JOB_EVALUATION_PUBLICATIONS.has(value.schema_version) ? value.review_videos ?? [] : [];
 }
 /** The free CPU scene check's verdict for the campaign; null for a publication that carries none (v1, v2). */
 export function screeningSceneFeasibility(value: { schema_version: string; scene_feasibility?: ScreeningSceneFeasibility }) {
-  return value.schema_version === SCREENING_PUBLICATION_V3 ? value.scene_feasibility ?? null : null;
+  return FLAGGED_PUBLICATIONS.has(value.schema_version) ? value.scene_feasibility ?? null : null;
+}
+/** A row's progress, in the projection's shape; undefined for a row (or a publication before v4) without it. */
+export function screeningProgress(row: { progress?: ScreeningProgress }): JobScreeningProgress | undefined {
+  const value = row.progress;
+  return value ? { graded: value.episodes_graded,
+    stages: value.stages.map(entry => ({ stage: entry.stage, episodes: entry.episodes })), meanScore: value.mean_score,
+    ...(value.closest_approach_m ? { closestApproachM: { median: value.closest_approach_m.median, min: value.closest_approach_m.min } } : {}) }
+    : undefined;
 }
 export type BetaPolicyScreeningPublication = z.infer<typeof betaPolicyScreeningPublicationSchema>;
 export type ScreeningExecutionEvidence = Required<Pick<BetaPolicyScreeningPublication["candidates"][number],
@@ -509,14 +596,15 @@ export function screeningCampaignIdentity(value: BetaPolicyScreeningPublication)
 }
 
 /**
- * A candidate row's evidence: everything but its set-up flags. The flags are notes about the scene the
- * row ran in, so a later revision may state them for a result this site already holds (a campaign first
- * accepted as v2) and the Pipeline's v2 form of a revision, which cannot carry them, is still accepted
- * after a v3 one. The counts, the status and the result digest never change.
+ * A candidate row's evidence: everything but its set-up flags and its progress. The flags are notes about
+ * the scene the row ran in, and progress is read from the row's own sealed episodes by the Pipeline's
+ * grader, so a later revision may state either for a result this site already holds (a campaign first
+ * accepted as v2 or v3) and the Pipeline's older form of a revision, which cannot carry them, is still
+ * accepted after a newer one. The counts, the status and the result digest never change.
  */
 type ScreeningCandidateRow = BetaPolicyScreeningPublication["candidates"][number];
 const evidenceRow = ({ observation_quality_flags: _observation, setup_quality_flags: _setup, scene_check_flags: _scene,
-  ...evidence }: ScreeningCandidateRow) => evidence;
+  progress: _progress, ...evidence }: ScreeningCandidateRow) => evidence;
 
 /** Retried or delayed deliveries cannot rewrite a campaign or its completed candidate results. */
 export function screeningPublicationTransition(previous: BetaPolicyScreeningPublication, next: BetaPolicyScreeningPublication) {

@@ -8,7 +8,8 @@ import { describe, expect, it } from "vitest";
 import { readyAnswer } from "../fixtures/siteAnswer";
 import { SIMULATION_POLICIES, UNNAMED_POLICY } from "@/data/simulationPolicies";
 import type { AnswerRobot } from "@/lib/siteAnswer";
-import { AHEAD, CLEAR, probabilityAhead, projectSimulationProof, type SimulationProof } from "@/lib/simulationProof";
+import { AHEAD, CLEAR, HOW_FAR_EACH_GOT, PROGRESS_LADDER, PROGRESS_NOT_APPROACHED, PROGRESS_NOT_TOUCHED, PROGRESS_PHRASES,
+  probabilityAhead, projectSimulationProof, type SimulationProof } from "@/lib/simulationProof";
 import type { JobManagedEvidenceSummary, JobScreeningOutcome } from "@/types/jobMarketplace";
 
 type Candidate = NonNullable<JobManagedEvidenceSummary["screening"]>["candidates"][number];
@@ -44,12 +45,57 @@ const STATES = ["completed", "deferred", "blocked", "running", "pending", "unava
 const ur10e = readyAnswer.pick!;
 const franka: AnswerRobot = { ...ur10e, modelId: "franka_emika_panda", name: "Panda (FER)", manufacturer: "Franka Robotics" };
 
-interface Generated { input: Parameters<typeof projectSimulationProof>[0]; ranked: Array<{ succeeded: number; scored: number }> }
+interface Generated { input: Parameters<typeof projectSimulationProof>[0]; ranked: Array<{ succeeded: number; scored: number }>;
+  /** Each policy row's progress as generated, well formed or not. */
+  progress: unknown[] }
 
-function generate(random: ReturnType<typeof prng>, index: number): Generated {
+/**
+ * Progress for a row, from its own generator so the rest of the sequence is the one it always was: mostly
+ * well formed (with or without `approached`, counts that never increase), sometimes junk (counts that
+ * increase or exceed the graded tries, unknown or reordered stages, more graded tries than scored ones).
+ */
+function generateProgress(random: ReturnType<typeof prng>, scored: number): unknown {
+  if (random.chance(0.45)) return undefined;
+  const ladder = random.chance(0.5) ? PROGRESS_LADDER : PROGRESS_LADDER.slice(1);
+  const graded = random.chance(0.05) ? scored + 1 : random.int(scored > 0 ? 1 : 0, Math.max(scored, 0));
+  let previous = graded;
+  const stages = ladder.map(stage => {
+    const episodes = random.chance(0.15) ? 0 : random.int(0, previous);
+    previous = episodes;
+    return { stage, episodes };
+  });
+  if (random.chance(0.04)) stages[stages.length - 1].episodes = graded + 2;
+  if (random.chance(0.03)) stages.reverse();
+  if (random.chance(0.03)) stages[1] = { stage: "grasped" as never, episodes: 0 };
+  // The closest approach: with `approached` as a rule, sometimes missing, misplaced or malformed.
+  const median = random.pick([0, 0.004, 0.0429, 0.065, 0.2, 0.995, 1.37]);
+  const approach = random.chance(0.05) ? { median, min: median + 0.01 } : { median, min: Math.min(median, 0.001) };
+  const carries = ladder.length === 7 ? !random.chance(0.05) : random.chance(0.05);
+  return { graded, stages, meanScore: 0.5, ...(carries ? { closestApproachM: approach } : {}) };
+}
+/** The deepest stage a well-formed progress reached, or undefined when it is not well formed; null when it reached none. */
+function deepestOf(value: unknown, scored: number): { stage: string; episodes: number; graded: number } | null | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const { graded, stages } = value as { graded: number; stages: Array<{ stage: string; episodes: number }> };
+  if (!Number.isInteger(graded) || graded < 1 || graded > scored || !Array.isArray(stages)) return undefined;
+  const ladder = stages.length === 7 ? PROGRESS_LADDER : PROGRESS_LADDER.slice(1);
+  const approach = (value as { closestApproachM?: { median: number; min: number } }).closestApproachM;
+  if ((ladder[0] === "approached") !== (approach !== undefined) || (approach && approach.min > approach.median)) return undefined;
+  if (stages.length !== ladder.length || stages.some((entry, index) => entry.stage !== ladder[index]
+    || !Number.isInteger(entry.episodes) || entry.episodes < 0 || entry.episodes > (index ? stages[index - 1].episodes : graded))) return undefined;
+  const reached = stages.filter(entry => entry.episodes > 0);
+  return reached.length ? { ...reached[reached.length - 1], graded } : null;
+}
+const CLOSED_PHRASES = new Set([...Object.values(PROGRESS_PHRASES), PROGRESS_NOT_APPROACHED, PROGRESS_NOT_TOUCHED]);
+/** The one phrase with a figure in it: how close a policy that reached no stage typically came. */
+const DISTANCE = /^did not get its gripper within 2 cm of the object; it typically came within about (?:[1-9]\d? cm|\d+\.\d m) of it$/;
+const closed = (text: string) => CLOSED_PHRASES.has(text) || DISTANCE.test(text);
+
+function generate(random: ReturnType<typeof prng>, index: number, progressRandom = prng(index + 7)): Generated {
   const rows: Candidate[] = [];
   const references: string[] = [];
   const ranked: Array<{ succeeded: number; scored: number }> = [];
+  const progress: unknown[] = [];
   const count = random.int(0, 6);
   for (let i = 0; i < count; i += 1) {
     const kind = random.pick(["known", "known", "unknown", "reference", "scripted"] as const);
@@ -67,7 +113,11 @@ function generate(random: ReturnType<typeof prng>, index: number): Generated {
     const range = random.chance(0.7)
       ? { lowerPercent: random.int(-10, 60), upperPercent: random.int(40, 120), confidencePercent: 95 }
       : random.chance(0.5) ? { lowerPercent: Number.NaN, upperPercent: 50, confidencePercent: 95 } : undefined;
+    const generatedProgress = kind === "reference" || kind === "scripted" ? undefined
+      : generateProgress(progressRandom, typeof scored === "number" ? scored : 0);
+    if (generatedProgress !== undefined) progress.push(generatedProgress);
     rows.push({ candidateId, name, state: random.pick(STATES), planned: random.int(0, 10), scored: scored as number, succeeded: succeeded as number,
+      ...(generatedProgress !== undefined ? { progress: generatedProgress as never } : {}),
       failed: 0, void: 0, blockers: random.chance(0.2) ? ["site_screening_budget_insufficient"] : [],
       ...(range ? { successRange: range } : {}),
       ...(kind === "scripted" ? { executionEvidence: { execution_evidence_kind: "scripted_simulator_state_baseline" as const,
@@ -92,14 +142,15 @@ function generate(random: ReturnType<typeof prng>, index: number): Generated {
   };
   const robotFit = random.chance(0.5) ? { models: [{ name: random.pick(["UR10e", "Panda (FER)", "Other"]),
     manufacturer: random.pick(["Universal Robots", "Franka Robotics"]), verdict: random.pick(["fits", "fits_spec", "doesnt_fit", "unknown"] as const), openChecks: [] }] } : null;
-  return { input: { evaluation: random.chance(0.05) ? null : evaluation, robotFit, pick: random.pick([ur10e, franka, null]), scaleMeasured: random.chance(0.3) }, ranked };
+  return { input: { evaluation: random.chance(0.05) ? null : evaluation, robotFit, pick: random.pick([ur10e, franka, null]), scaleMeasured: random.chance(0.3) },
+    ranked, progress };
 }
 
 /** Every sentence the result can show or email. */
 function sentencesOf(proof: SimulationProof): string[] {
   const comparison = proof.policyComparison;
   return [proof.headline, proof.robotCheck?.line ?? "", ...proof.forThisJob, comparison?.line ?? "", comparison?.didNotRunLine ?? "",
-    ...(comparison?.rows ?? []).flatMap(row => [row.policy, row.maker ?? "", row.rangeText ?? ""])].filter(Boolean);
+    ...(comparison?.rows ?? []).flatMap(row => [row.policy, row.maker ?? "", row.rangeText ?? "", row.furthestText ?? ""])].filter(Boolean);
 }
 
 /** Words that say a policy was run, tried, completed the job, or compared. */
@@ -119,8 +170,12 @@ describe("every sentence of the simulation result has a precondition in the data
     let separated = 0;
     let mixedRobots = 0;
     let unknownOnly = 0;
+    let howFar = 0;
+    let rowShown = 0;
+    let distances = 0;
+    let partlyGraded = 0;
     for (let index = 0; index < 2500; index += 1) {
-      const { input, ranked } = generate(random, index);
+      const { input, ranked, progress } = generate(random, index);
       const proof = projectSimulationProof(input);
       const sentences = sentencesOf(proof);
       const comparison = proof.policyComparison;
@@ -199,8 +254,87 @@ describe("every sentence of the simulation result has a precondition in the data
       // A likely range only beside a row with at least one success.
       for (const row of comparison.rows) if (row.rangeText) expect(row.succeeded, context).toBeGreaterThan(0);
 
-      // The counts in the sentence are the rows' counts, in the rows' order.
-      const said = [...comparison.line.matchAll(/(\d+) of (\d+)/g)].map(match => [Number(match[1]), Number(match[2])]);
+      // How far each got: facts only. Never said without progress data, counts equal to the rows' data,
+      // phrases only from the closed mapping, never a deeper stage than the data, and nothing ranked on it.
+      const [ranking, howFarSentence] = comparison.line.split(` ${HOW_FAR_EACH_GOT} `);
+      const wellFormed = progress.filter(value => deepestOf(value, Number.MAX_SAFE_INTEGER) !== undefined);
+      if (!wellFormed.length) expect(howFarSentence, context).toBeUndefined();
+      for (const row of comparison.rows) {
+        if (row.furthestText !== null) expect(closed(row.furthestText), context).toBe(true);
+        expect(row.furthestDetail === null, context).toBe(row.furthestText === null);
+        if (row.furthestText && DISTANCE.test(row.furthestText)) distances += 1;
+        // The distance is said only for a row that reached no stage.
+        if (row.furthest) expect(row.furthestText, context).not.toMatch(/typically/);
+        else expect(row.furthest, context).toBeNull();
+        if (row.furthest) {
+          // Some generated row's data reached exactly this stage, with these counts, and went no deeper.
+          expect(progress.some(value => JSON.stringify(deepestOf(value, row.scored)) === JSON.stringify(row.furthest)), context).toBe(true);
+          expect(row.furthestText, context).toBe(PROGRESS_PHRASES[row.furthest.stage]);
+          expect(row.furthest.episodes, context).toBeGreaterThan(0);
+          expect(row.furthest.episodes, context).toBeLessThanOrEqual(row.furthest.graded);
+          expect(row.furthest.graded, context).toBeLessThanOrEqual(row.scored);
+        }
+        if (row.furthestDetail !== null) {
+          // The tries a phrase is said of are the row's graded tries, and "we could grade" says so exactly
+          // when fewer were graded than scored.
+          let graded: number;
+          if (row.furthest) {
+            const { stage, episodes } = row.furthest;
+            graded = row.furthest.graded;
+            expect(row.furthestDetail, context).toBe(`${PROGRESS_PHRASES[stage]} ${graded === row.scored
+              ? `in ${episodes} of ${graded} ${graded === 1 ? "try" : "tries"}`
+              : graded === 1 ? "in the one try we could grade" : `in ${episodes} of the ${graded} tries we could grade`}`);
+          } else {
+            // Reached nothing: said of all its graded tries, and how close it came only when the phrase says so.
+            const match = row.furthestDetail.match(/^(did not touch the object|did not get its gripper within 2 cm of the object) in (?:its one try|any of its (\d+) tries|the one try we could grade|any of the (\d+) tries we could grade)(?:, typically coming within about (.+) of it)?$/);
+            expect(match, context).not.toBeNull();
+            graded = Number(match![2] ?? match![3] ?? 1);
+            expect(graded === 1 ? !match![2] && !match![3] : graded > 1, context).toBe(true);
+            expect(progress.some(value => deepestOf(value, row.scored) === null && (value as { graded: number }).graded === graded), context).toBe(true);
+            expect(row.furthestText, context).toBe(match![4] ? `${match![1]}; it typically came within about ${match![4]} of it` : match![1]);
+          }
+          expect(graded, context).toBeLessThanOrEqual(row.scored);
+          expect(/we could grade/.test(row.furthestDetail), context).toBe(graded < row.scored);
+          if (graded < row.scored) partlyGraded += 1;
+        }
+        if (row.furthestShown) {
+          rowShown += 1;
+          expect(row.furthestDetail, context).not.toBeNull();
+          expect(row.furthestDetail, context).not.toMatch(/did not .* in \d+ of \d+ tr/);
+          expect(row.succeeded, context).toBe(0);
+          expect(comparison.rows.some(other => other.succeeded > 0), context).toBe(true);
+        }
+      }
+      if (howFarSentence !== undefined) {
+        howFar += 1;
+        const onRobot = comparison.rows.filter(row => row.compared);
+        expect(proof.state, context).toBe("done");
+        expect(onRobot.some(row => row.succeeded > 0), context).toBe(false);
+        const named = onRobot.filter(row => row.furthestText !== null);
+        const parts = howFarSentence.split(/(?<=\.) /)[0].replace(/\.$/, "").split("; ");
+        expect(parts.length, context).toBe(named.length);
+        parts.forEach((part, i) => {
+          const row = named[i];
+          // Each item is the policy and the row's own detail, which restates its phrase with its tries.
+          expect(part, context).toBe(`${row.policy} ${row.furthestDetail}`);
+        });
+        // The headline stays the first sentence, which says nothing about progress.
+        expect(proof.headline, context).not.toContain(HOW_FAR_EACH_GOT);
+      }
+      // Without any progress the comparison is exactly the same: order, marks, winner and every word before it.
+      if (input.evaluation) {
+        const stripped = projectSimulationProof({ ...input, evaluation: { ...input.evaluation, screening: { ...input.evaluation.screening!,
+          candidates: input.evaluation.screening!.candidates.map(({ progress: _progress, ...row }) => row) } } }).policyComparison!;
+        expect(comparison.rows.map(row => [row.policy, row.succeeded, row.scored, row.chosen, row.compared, row.robot]), context)
+          .toEqual(stripped.rows.map(row => [row.policy, row.succeeded, row.scored, row.chosen, row.compared, row.robot]));
+        expect([comparison.winner, comparison.separated], context).toEqual([stripped.winner, stripped.separated]);
+        expect(stripped.line.startsWith(ranking), context).toBe(true);
+        expect(comparison.line.replace(` ${HOW_FAR_EACH_GOT} ${howFarSentence?.split(/(?<=\.) /)[0] ?? ""}`, ""), context)
+          .toBe(stripped.line);
+      }
+
+      // The counts in the ranking sentence are the rows' counts, in the rows' order.
+      const said = [...ranking.matchAll(/(\d+) of (\d+)/g)].map(match => [Number(match[1]), Number(match[2])]);
       if (said.length) expect(said, context).toEqual(comparison.rows.map(row => [row.succeeded, row.scored]).slice(0, said.length));
       if (proof.state === "done" && onOneRobot.some(row => row.succeeded > 0)) {
         expect(said.length, context).toBe(onOneRobot.length);
@@ -218,5 +352,9 @@ describe("every sentence of the simulation result has a precondition in the data
     expect(separated).toBeGreaterThan(5);
     expect(mixedRobots).toBeGreaterThan(20);
     expect(unknownOnly).toBeGreaterThan(20);
+    expect(howFar).toBeGreaterThan(8);
+    expect(rowShown).toBeGreaterThan(20);
+    expect(distances).toBeGreaterThan(20);
+    expect(partlyGraded).toBeGreaterThan(20);
   }, 60_000);
 });
