@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 /**
  * Country permission is explicit when no optional address establishes it.
- * An inferred country is not asked twice; a street address is required only
- * for a requested Blueprint filming visit.
+ * An inferred country is not asked twice; no street address is required
+ * (Blueprint filming visits are retired, 2026-11-11).
  */
 import { act, fireEvent, render as renderView, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -432,19 +432,20 @@ it("starts the film-on-a-phone path with only a country and an email", async () 
   expect(sent).not.toHaveProperty("publicTaskListing");
 });
 
-it("asks a visit for its street address and email, not a typed task", async () => {
+it("asks no typed task and no street address, and says it will reply when no job link comes back", async () => {
   fetchMock.mockImplementation(async (_url: string, init?: { method?: string }) => ({ ok: true, status: 201,
     json: async () => init?.method === "POST" ? { captureUrl: null } : { features: [] } }));
   await renderReady(<SiteCaptureStart />);
-  fireEvent.click(document.querySelector("#start-method-visit")!);
   expect(document.querySelector("#start-task")).not.toBeRequired();
-  expect(screen.getByText("We draft the job description from the video we take on the visit. Add a sentence if you want to.")).toBeInTheDocument();
+  expect(document.querySelector("#start-location")).not.toBeRequired();
+  expect(screen.getByText("We draft the job description from your video. Add a sentence if you want to.")).toBeInTheDocument();
   fireEvent.change(document.querySelector("#start-location")!, { target: { value: "100 Congress Ave, Austin, TX" } });
   fireEvent.change(document.querySelector("#start-email")!, { target: { value: "owner@example.test" } });
   fireEvent.submit(screen.getByRole("form"));
-  await screen.findByRole("heading", { name: "We have it." });
+  await screen.findByRole("heading", { name: "We have your site." });
+  expect(screen.getByText("We will reply to owner@example.test with the link to film or upload the video.")).toBeInTheDocument();
   const sent = JSON.parse(postsTo("/api/inbound-request")[0][1].body);
-  expect(sent).toMatchObject({ taskStatement: "", captureMode: "site_visit", descriptionOnly: true, consentAttestation: null,
+  expect(sent).toMatchObject({ taskStatement: "", captureMode: "self_capture", descriptionOnly: true, consentAttestation: null,
     siteLocation: "100 Congress Ave, Austin, TX" });
   expect(sent).not.toHaveProperty("taskConfirmation");
 });

@@ -1169,6 +1169,13 @@ describe("the site's answer leads its job page", () => {
       outcome: { category: "insufficient_evidence", basis: "missing_evidence", title: "We need a new video of the job.",
         reason: "The video ends before the carton is put down.", scope: "The saved video.", nextStep: "Film the whole carry once more.",
         actionOwner: "site", evidence: [] } }],
+    // Main's ask for a smaller video in the same job (`largeVideoRecaptureOutcome`): never hidden by an answer.
+    ["the video was too large to process", { decision: "insufficient_evidence", headline: "We need a new video to build the simulation of your site",
+      outcome: { category: "insufficient_evidence", basis: "missing_evidence", title: "We need a new video to build the simulation of your site",
+        reason: "Your video is too large for us to process.",
+        scope: "This is for the simulation of your site only. It is not a finding about any robot or about your site, and your answer stays on your job page.",
+        nextStep: "Please film a shorter clip, or record at 1080p. Then send us the new video.",
+        actionOwner: "site", evidence: [{ label: "Video size check", digest: `sha256:${"b".repeat(64)}` }] } }],
     ["the site has a step of its own", { decision: "save_account", headline: "Save this job to an account to continue." }],
     ["Blueprint names a step for the site", { decision: "processing_failure", headline: "Upload a longer video.", operatorAction: "Upload a longer video of the pallet." }],
     ["recording permission was withdrawn", { headline: "Your video is saved. Recording consent was withdrawn, so we can no longer review the video or show the scene preview." }],
