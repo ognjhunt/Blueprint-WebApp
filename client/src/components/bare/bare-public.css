@@ -1,0 +1,111 @@
+/*
+ * Bare bones, public parts (BareForm.tsx and the public site chrome). Same tokens and 4 / 8 / 16 / 32 / 48 scale as
+ * bare.css; nothing here changes a bare.css rule.
+ */
+.bare-page { padding: 0 20px 48px; }
+.bare-page .bare-screen h1:focus { outline: none; }
+
+/* The public site's chrome: the brand and one quiet link; a footer of one quiet line. */
+.bare-site-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 64px; width: min(100% - 40px, 1120px); margin: 0 auto; }
+.bare-site-head .ms-brand { min-height: 44px; }
+.bare-site-head-link { display: inline-flex; align-items: center; min-height: 44px; font-size: 16px; color: var(--ms-muted, #5d5f58); text-decoration: none; }
+.bare-site-head-link:hover { color: var(--ms-ink, #22251e); text-decoration: underline; text-underline-offset: 4px; }
+.bare-site-foot { width: min(100% - 40px, 1120px); margin: 48px auto 0; padding: 8px 0 24px; border-top: 1px solid #cfd1c8;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0 20px; font-size: 14px; color: var(--ms-muted, #5d5f58); }
+.bare-site-foot a, .bare-site-foot button { display: inline-flex; align-items: center; min-height: 44px; padding: 0; border: 0; background: none;
+  font: inherit; color: inherit; text-decoration: none; cursor: pointer; }
+.bare-site-foot a:hover, .bare-site-foot button:hover { color: var(--ms-ink, #22251e); text-decoration: underline; text-underline-offset: 4px; }
+.bare-site-foot .bare-site-copy { margin-left: auto; }
+@media (max-width: 560px) { .bare-site-foot .bare-site-copy { margin-left: 0; width: 100%; } }
+
+/* BareSteps: a numbered strip. */
+ol.bare-steps { list-style: none; margin: 0; padding: 0; counter-reset: bare-step; }
+.bare-step { display: grid; grid-template-columns: 36px 1fr; column-gap: 12px; padding: var(--bare-s2, 8px) 0; counter-increment: bare-step; }
+.bare-step::before { content: counter(bare-step); grid-row: span 2; width: 32px; height: 32px; border-radius: 50%; border: 2px solid var(--bare-green, #203d2e);
+  box-sizing: border-box; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 600; color: var(--bare-green, #203d2e); }
+.bare-step-title { font-size: 18px; font-weight: 500; line-height: 1.35; padding-top: 3px; }
+.bare-step-line { font-size: 16px; line-height: 1.45; color: var(--bare-muted, #5d5f58); }
+
+/* BareField and its controls. */
+.bare-field { display: block; margin: var(--bare-s4, 32px) 0 0; padding: 0; border: 0; min-width: 0; }
+.bare-field > .bare-label { display: block; margin-bottom: var(--bare-s2, 8px); padding: 0; }
+.bare-field > .bare-helper, .bare-field > .bare-field-error { margin-top: var(--bare-s2, 8px); }
+.bare-field-error { font-size: 15px; color: #9c352d; }
+.bare-input, .bare-select, .bare-textarea, .bare-field .location-autocomplete input { display: block; width: 100%; min-height: 52px; padding: 12px 14px; border: 1px solid #9fa197;
+  border-radius: 4px; background: #fffffb; font: inherit; font-size: 17px; line-height: 1.4; color: var(--bare-ink, #22251e); box-sizing: border-box; }
+.bare-select { appearance: none; padding-right: 40px;
+  background-image: linear-gradient(45deg, transparent 50%, var(--bare-muted, #5d5f58) 50%), linear-gradient(135deg, var(--bare-muted, #5d5f58) 50%, transparent 50%);
+  background-position: calc(100% - 22px) 23px, calc(100% - 16px) 23px; background-size: 6px 6px; background-repeat: no-repeat; }
+.bare-textarea { min-height: 96px; resize: vertical; }
+.bare-input[aria-invalid="true"], .bare-select[aria-invalid="true"] { border-color: #9c352d; }
+
+/* BareFile: an outlined, dashed control with the real input inside it. */
+.bare-file { position: relative; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px 10px; width: 100%; min-height: 64px;
+  padding: 12px 16px; border: 1.5px dashed #8d8f86; border-radius: 4px; background: #fffffb; font-size: 17px; font-weight: 500; color: var(--bare-ink, #22251e);
+  cursor: pointer; box-sizing: border-box; text-align: center; }
+.bare-file input { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; }
+.bare-file:focus-within { outline: 2px solid var(--bare-green, #203d2e); outline-offset: 3px; }
+.bare-file small { font-weight: 400; color: var(--bare-muted, #5d5f58); font-size: 15px; }
+.bare-file-chosen { border-style: solid; border-color: var(--bare-green, #203d2e); }
+
+/* BareCheck. */
+.bare-check { display: grid; grid-template-columns: 24px 1fr; gap: 12px; align-items: start; margin-top: var(--bare-s4, 32px); min-height: 44px; font-size: 16px; cursor: pointer; }
+.bare-check input { width: 22px; height: 22px; margin: 1px 0 0; accent-color: var(--bare-green, #203d2e); }
+
+/* The consent line under a button. */
+.bare-consent { font-size: 14px; line-height: 1.45; color: var(--bare-muted, #5d5f58); }
+.bare-consent a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+.bare-quote { margin: 0; padding-left: 12px; border-left: 3px solid var(--bare-rule, #cfd1c8); }
+
+/* BareProgress. */
+.bare-progress { height: 6px; border-radius: 3px; background: var(--bare-rule, #cfd1c8); overflow: hidden; }
+.bare-progress > div { height: 100%; background: var(--bare-green, #203d2e); transition: width 200ms ease; }
+.bare-progress-wrap > * + * { margin-top: var(--bare-s2, 8px); }
+
+/* A quiet link that sits alone under a field. */
+.bare-inline-link { display: inline-flex; align-items: center; min-height: 44px; padding: 0; border: 0; border-bottom: 1px solid var(--bare-ink, #22251e);
+  background: none; font: inherit; font-size: 17px; color: var(--bare-ink, #22251e); text-decoration: none; cursor: pointer; }
+
+/* Home: the text column, and the moving example beside it on a desktop, below the button on a phone. */
+.bare-home { display: grid; grid-template-columns: minmax(0, 560px); justify-content: center; gap: 48px; width: min(100% - 40px, 1120px); margin: 0 auto; }
+.bare-home > .bare-screen { margin: 0; }
+@media (min-width: 960px) {
+  .bare-home { grid-template-columns: minmax(0, 520px) minmax(0, 480px); justify-content: space-between; align-items: start; }
+}
+.bare-home .bare-screen .bare-big { font-size: 40px; line-height: 1.08; letter-spacing: -1.1px; }
+@media (min-width: 960px) { .bare-home .bare-screen .bare-big { font-size: 52px; } }
+
+/* The example answer card (illustrative). */
+.bare-example { position: relative; border: 1px solid var(--bare-rule, #cfd1c8); border-radius: 6px; background: #fbfaf5; padding: 16px 20px 20px; }
+.bare-example-art { display: block; width: 100%; height: auto; max-height: 200px; color: var(--ms-ink, #22251e); }
+.bare-example-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; }
+.bare-example-tabs { display: flex; flex-wrap: wrap; gap: 4px; }
+.bare-example-tabs [role="tab"] { min-height: 36px; padding: 4px 10px; border: 1px solid transparent; border-radius: 999px; background: none; font: inherit;
+  font-size: 14px; color: var(--ms-muted, #5d5f58); cursor: pointer; }
+.bare-example-tabs [role="tab"][aria-selected="true"] { border-color: var(--bare-green, #203d2e); color: var(--bare-green, #203d2e); font-weight: 600; }
+.bare-example-pause { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; border: 1px solid var(--bare-rule, #cfd1c8);
+  border-radius: 50%; background: #fffffb; color: var(--ms-ink, #22251e); cursor: pointer; flex: none; }
+.bare-example-panel { margin-top: 8px; }
+.bare-example-panel .bare-label { display: block; }
+.bare-example-panel .bare-example-name { margin: 4px 0 0; font-size: 34px; line-height: 1.05; font-weight: 600; letter-spacing: -1px; }
+.bare-example-panel .bare-example-by { margin: 4px 0 0; font-size: 15px; color: var(--ms-muted, #5d5f58); }
+.bare-example-panel .bare-example-job { margin: 0 0 12px; font-size: 15px; color: var(--ms-muted, #5d5f58); }
+.bare-example-panel .bare-ticks { margin-top: 12px; }
+.bare-example-panel .bare-tick { font-size: 16px; }
+.bare-example-panel .bare-sure { margin-top: 12px; }
+.bare-example-panel .bare-sure-line { font-size: 16px; }
+.bare-example-tag { font-size: 12px; font-weight: 650; letter-spacing: .7px; text-transform: uppercase; color: var(--bare-amber, #8a6d1f); }
+.bare-example-foot { margin: 12px 0 0; font-size: 13px; line-height: 1.45; color: var(--ms-muted, #5d5f58); }
+.bare-example .ms-pilot-art-scene { transition: opacity 300ms ease; }
+
+/* Auth screens: the bare form beside the kept illustration; on a phone the illustration is a short band. */
+.auth-shell.auth-bare h1 { font-size: 30px; font-weight: 500; letter-spacing: -.7px; line-height: 1.15; }
+.auth-shell.auth-bare .auth-description { font-size: 17px; margin-top: 8px; }
+@media (max-width: 760px) {
+  .auth-shell.auth-bare .auth-art { display: flex; position: relative; top: 0; height: 140px; overflow: hidden; order: -1; margin: 0 -20px; }
+  .auth-shell.auth-bare .auth-art .robot-scene { max-width: 260px; }
+  .auth-shell.auth-bare .auth-body { min-height: 0; }
+  .auth-shell.auth-bare .auth-content { padding-block: 16px 40px; }
+  .auth-shell.auth-bare .auth-header { height: 64px; }
+  .auth-shell.auth-bare h1 { font-size: 28px; }
+}

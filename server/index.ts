@@ -561,6 +561,9 @@ app.use((req, res, next) => {
     { from: "/post-training-data-package", to: "/beta" },
     { from: "/post-training-policy-improvement-package", to: "/beta" },
     { from: "/data-packages", to: "/beta" },
+    // Bare bones (2026-11-11): "Jobs we support" folded into How it works, "About" into the Questions page.
+    { from: "/jobs-we-support", to: "/how-it-works" },
+    { from: "/about", to: "/beta#who-we-are" },
     { from: "/blog", to: "/" },
     { from: "/environments", to: "/#how-it-works" },
     { from: "/marketplace", to: "/sites" },

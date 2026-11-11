@@ -100,11 +100,11 @@ export function BareBack({ href, onClick, children = "‹ Back" }: { href?: stri
 }
 
 /** A section of a details screen: a heading, then short labelled rows (or plain lines when a row has no label). */
-export function BareRows({ title, rows, children }: {
-  title: string; rows?: Array<{ key: string; label?: ReactNode; value: ReactNode }>; children?: ReactNode;
+export function BareRows({ title, rows, children, id: sectionId }: {
+  title: string; rows?: Array<{ key: string; label?: ReactNode; value: ReactNode }>; children?: ReactNode; id?: string;
 }) {
   const id = useId();
-  return <section className="bare-rows" aria-labelledby={id}>
+  return <section className="bare-rows" aria-labelledby={id} id={sectionId}>
     <h2 className="bare-rows-title" id={id}>{title}</h2>
     {rows && rows.length > 0 && <dl>{rows.map(row => <div key={row.key} className={row.label ? "bare-row" : "bare-row bare-row-plain"}>
       {row.label && <dt>{row.label}</dt>}<dd>{row.value}</dd>

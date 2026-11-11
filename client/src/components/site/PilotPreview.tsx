@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Pause, Play } from "lucide-react";
+import { BareTicks, type BareTickState } from "@/components/bare/Bare";
 
 /**
  * What a site receives: one answer for its job (the robot that most likely
@@ -15,9 +16,15 @@ import { Pause, Play } from "lucide-react";
 
 type P = [number, number];
 type Scene = (props: { t: number }) => JSX.Element;
-/** One row of an illustrative answer: a label and its text. */
-type Row = [string, string];
-type Example = { site: string; embodiment: string; job: string; answer: Row[]; Art: Scene };
+/**
+ * One illustrative answer, drawn as a small version of the real answer screen (bare bones, 2026-11-11): the robot
+ * most likely to fit, its ticks and how sure, or "held" for a kind of job the check does not cover yet.
+ */
+type Example = {
+  site: string; embodiment: string; job: string; Art: Scene;
+  pick?: { name: string; maker: string }; ticks?: Array<{ key: string; state: BareTickState; text: string }>;
+  sure?: { filled: 1 | 2 | 3; word: string }; held?: string;
+};
 
 const LOOP = 10; // seconds per task loop; one rotation shows one full loop
 const STILL = 4.5; // the frame shown before motion starts, when paused, and under reduced motion
@@ -424,75 +431,38 @@ function Palletizing({ t }: { t: number }) {
 }
 
 // Robot names, reach and payload come from the robot spec catalog
-// (contracts/pipeline/robot-spec-catalog.v1.json). The jobs, distances, weights
-// and answers are made up; they follow the answer's rules (a fixed arm's reach
-// must span the two spots; jobs that are not one solid object picked up and put
-// down are held), but no row is a result for any site.
-const WHO_USES_IT = "Published uses of these robots on work like this, each with its source, or a plain note that we found none";
-const POLICY_PROOF = "A simulation of your site checks the robot’s reach and arm path on the job, compares public control policies on it on a research robot, and says how much that result can be trusted";
-const NEXT_STEP = "If you choose, share an anonymised job card with deployment companies Blueprint has approved";
-const HELD_NEXT = "We keep the job and count it as demand for this kind of work. Your job page shows its current stage";
-const held = (kind: string) => `Held. Our robot check covers jobs where a robot picks one solid object up and puts it down. ${kind} is another kind of job, which we can’t check robots against yet`;
-
-// The packaging example's robots, figures and ruled-out reason are all published:
-// UR20 reach 1.75 m and payload 20 kg, HC20DTP reach 1.9 m and payload 20 kg,
-// UR5e payload 5 kg (catalog above). Both arms have production palletizing rows
-// in server/data/deploymentEvidence.v2.json; no customer is named here.
+// (contracts/pipeline/robot-spec-catalog.v1.json): UR20 reach 1.75 m and payload 20 kg; Unitree G1 about 2 kg per
+// arm; FANUC CRX-10iA reach 1.249 m and payload 10 kg; Hello Robot Stretch 3 payload 2 kg. The jobs, distances,
+// weights and answers are made up; they follow the answer's rules (a fixed arm's reach must span the two spots; a
+// job that is not one solid object picked up and put down is held), but no example is a result for any site.
+const HELD = "We can't check this kind of job yet. We keep it and hold it.";
 const examples: Example[] = [
-  { site: "Packaging", embodiment: "Fixed robot arm", job: "Stacking sealed cartons, about 12 kg each, from the end of a packing conveyor onto a pallet", answer: [
-    ["Most likely fits", "Universal Robots UR20, a fixed robot arm. Published reach 1.75 m, payload 20 kg"],
-    ["Runner-up", "Yaskawa HC20DTP, a fixed robot arm. Published reach 1.9 m, payload 20 kg"],
-    ["Ruled out", "Universal Robots UR5e. Its published payload is 5 kg, less than a 12 kg carton and its gripper"],
-    ["Who uses it", "Makers and integrators have published palletizing cells built on both arms in production use, each with its source"],
-    ["Tested in simulation", "A simulation of your site checks the arm’s reach and path on the stack, and says how much that result can be trusted"],
-    ["How sure", "Fair. Both arms have documented production use for palletizing; the carton weight is estimated from the video, and telling us the weight would raise it"],
-    ["Next step", NEXT_STEP],
-  ], Art: Palletizing },
-  { site: "Warehouse", embodiment: "Humanoid robot", job: "Moving light totes, about 1.5 kg each, from a shelf to an outbound cart a few steps away", answer: [
-    ["Most likely fits", "Unitree G1, a walking humanoid robot. Published payload: about 2 kg per arm"],
-    ["Runner-up", "Hello Robot Stretch 3, an arm on a wheeled base. Published payload: 2 kg, including its gripper"],
-    ["Ruled out", "Universal Robots UR5e. It stays in one place, and its 0.85 m reach can’t span a shelf and a cart a few steps apart"],
-    ["Who uses it", WHO_USES_IT],
-    ["Tested in simulation", POLICY_PROOF],
-    ["How sure", "Low. The tote weight is estimated from the video and is close to both robots’ payload"],
-    ["Next step", NEXT_STEP],
-  ], Art: Warehouse },
-  { site: "Café", embodiment: "Fixed robot arm", job: "Moving clean cups from the dish rack to the counter, about 1.2 m away", answer: [
-    ["Most likely fits", "FANUC CRX-10iA, a fixed robot arm. Published reach 1.249 m, payload 10 kg"],
-    ["Runner-up", "Universal Robots UR10e, a fixed robot arm. Published reach 1.3 m, payload 12.5 kg"],
-    ["Ruled out", "AgileX PiPER. An arm standing between the rack and the counter needs about 0.7–1.1 m of reach; this arm reaches 0.626 m"],
-    ["Who uses it", WHO_USES_IT],
-    ["Tested in simulation", "A simulation of your site checks the arm’s reach and path on the job, and says how much that result can be trusted"],
-    ["How sure", "Low for now. The distances are estimated from the video; a measured scene of your work area would raise it"],
-    ["Next step", NEXT_STEP],
-  ], Art: Cafe },
-  { site: "Laundromat", embodiment: "Wheeled humanoid", job: "Folding towels for wash-and-fold orders", answer: [
-    ["Answer", held("Folding cloth")],
-    ["Next step", HELD_NEXT],
-  ], Art: Laundromat },
-  { site: "Factory", embodiment: "Mobile manipulator", job: "Loading small blanks, about 1 kg each, from a conveyor into a CNC machine about 6 m away, and unloading finished parts", answer: [
-    ["Most likely fits", "Hello Robot Stretch 3, a mobile manipulator: an arm on a wheeled base. Published payload: 2 kg, including its gripper"],
-    ["Runner-up", "Unitree G1, a walking humanoid robot. Published payload: about 2 kg per arm"],
-    ["Ruled out", "FANUC M-710iC/45M. It stays in one place, and even its 2.606 m reach can’t span 6 m"],
-    ["Who uses it", WHO_USES_IT],
-    ["Tested in simulation", POLICY_PROOF],
-    ["How sure", "Low. Both pass on weight, but whether they can reach into the machine is still open"],
-    ["Next step", NEXT_STEP],
-  ], Art: Factory },
-  { site: "Hotel", embodiment: "Mobile robot", job: "Moving linen carts from the laundry room to each floor", answer: [
-    ["Answer", held("Towing a cart")],
-    ["Next step", HELD_NEXT],
-  ], Art: Hotel },
-  { site: "Lab", embodiment: "Fixed robot arm", job: "Opening the sample drawer before each batch", answer: [
-    ["Answer", held("Opening a drawer")],
-    ["Next step", HELD_NEXT],
-  ], Art: Lab },
+  { site: "Packaging", embodiment: "Fixed robot arm", job: "Stacking 12 kg cartons from a conveyor onto a pallet", Art: Palletizing,
+    pick: { name: "UR20", maker: "Universal Robots" },
+    ticks: [{ key: "reach", state: "yes", text: "Reaches far enough" }, { key: "payload", state: "yes", text: "Strong enough" },
+      { key: "used", state: "yes", text: "Already used for jobs like this" }],
+    sure: { filled: 2, word: "Fairly sure" } },
+  { site: "Warehouse", embodiment: "Humanoid robot", job: "Moving 1.5 kg totes from a shelf to a cart a few steps away", Art: Warehouse,
+    pick: { name: "G1", maker: "Unitree" },
+    ticks: [{ key: "move", state: "yes", text: "Walks between the shelf and the cart" }, { key: "payload", state: "yes", text: "Strong enough" },
+      { key: "weight", state: "unsure", text: "The tote's weight is a guess" }],
+    sure: { filled: 1, word: "Not sure yet" } },
+  { site: "Café", embodiment: "Fixed robot arm", job: "Moving clean cups from the dish rack to the counter", Art: Cafe,
+    pick: { name: "CRX-10iA", maker: "FANUC" },
+    ticks: [{ key: "reach", state: "yes", text: "Reaches far enough" }, { key: "payload", state: "yes", text: "Strong enough" },
+      { key: "distance", state: "unsure", text: "The distances are guesses" }],
+    sure: { filled: 1, word: "Not sure yet" } },
+  { site: "Laundromat", embodiment: "Wheeled humanoid", job: "Folding towels for wash-and-fold orders", Art: Laundromat, held: HELD },
+  { site: "Factory", embodiment: "Mobile manipulator", job: "Loading small blanks into a machine 6 m from the conveyor", Art: Factory,
+    pick: { name: "Stretch 3", maker: "Hello Robot" },
+    ticks: [{ key: "move", state: "yes", text: "Drives between the two spots" }, { key: "payload", state: "yes", text: "Strong enough" },
+      { key: "reach", state: "unsure", text: "Reaching into the machine is not settled" }],
+    sure: { filled: 1, word: "Not sure yet" } },
+  { site: "Hotel", embodiment: "Mobile robot", job: "Moving linen carts from the laundry room to each floor", Art: Hotel, held: HELD },
+  { site: "Lab", embodiment: "Fixed robot arm", job: "Opening the sample drawer before each batch", Art: Lab, held: HELD },
 ];
 
-/**
- * The examples offered as tabs. At most two of them are held, so the card mostly shows answers;
- * the hotel scene stays in the robot animation (`RobotScene`) but is not offered as a tab.
- */
+/** The examples the home page rotates through. */
 const tabs: Example[] = examples.filter(example => example.site !== "Hotel");
 /** The scenes the robot animation beside forms plays, unchanged by the packaging example. */
 const scenes: Example[] = examples.filter(example => example.site !== "Packaging");
@@ -530,8 +500,8 @@ export function PilotPreview() {
   const [active, setActive] = useState(0);
   const [paused, setPaused] = useState(false);
   const [pinned, setPinned] = useState(false);
-  // Keyboard focus on the tabs holds the example. Hover does not: the section fills most of
-  // the screen, so a cursor resting on it after a page load stopped rotation indefinitely.
+  // Keyboard focus on the tabs holds the example. Hover does not: a cursor resting on it after a page load would
+  // stop rotation indefinitely.
   const [held, setHeld] = useState(false);
   const [inView, setInView] = useState(true);
   const artRef = useRef<SVGSVGElement>(null);
@@ -553,24 +523,18 @@ export function PilotPreview() {
   const t = useSceneClock(!paused && inView, example.site);
   const { Art } = example;
   return (
-    <section className="ms-pilot-preview" aria-labelledby="pilot-preview-title">
-      <div className="ms-pilot-preview-intro">
-        <p className="ms-eyebrow">What you get</p>
-        <h2 id="pilot-preview-title">One job. One answer, tested in simulation.</h2>
-        <p>The robot that most likely fits, a runner-up, what was ruled out and why, what a simulation of your site found and how sure we are. You choose whether to share it.</p>
-        <svg ref={artRef} className="ms-pilot-art" viewBox="0 0 320 196" role="img" aria-label={`Illustration of the ${example.site.toLowerCase()} example: ${example.embodiment.toLowerCase()}`}>
-          <g key={example.site} className="ms-pilot-art-scene">
-            <path d="M8 180 H312" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" />
-            <Art t={t} />
-          </g>
-        </svg>
-      </div>
-      <div className="ms-pilot-card">
-        <div className="ms-pilot-tabs">
-          <div role="tablist" aria-label="Example sites"
-            onFocus={() => setHeld(true)}
-            onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setHeld(false); }}
-            onKeyDown={event => {
+    <section className="bare-example" aria-label="Example answers">
+      <svg ref={artRef} className="bare-example-art" viewBox="0 0 320 196" role="img" aria-label={`Illustration of the ${example.site.toLowerCase()} example: ${example.embodiment.toLowerCase()}`}>
+        <g key={example.site} className="ms-pilot-art-scene">
+          <path d="M8 180 H312" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" />
+          <Art t={t} />
+        </g>
+      </svg>
+      <div className="bare-example-head">
+        <div role="tablist" aria-label="Example sites" className="bare-example-tabs"
+          onFocus={() => setHeld(true)}
+          onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setHeld(false); }}
+          onKeyDown={event => {
             const direction = event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
             const next = event.key === "Home" ? 0 : event.key === "End" ? tabs.length - 1 : direction ? (active + direction + tabs.length) % tabs.length : null;
             if (next === null) return;
@@ -579,29 +543,33 @@ export function PilotPreview() {
             setPinned(true);
             event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]')[next]?.focus();
           }}>
-            {tabs.map((item, i) => (
-              <button key={item.site} type="button" role="tab" id={`pilot-tab-${i}`} aria-selected={i === active} aria-controls="pilot-example" tabIndex={i === active ? 0 : -1}
-                onClick={() => { setActive(i); setPinned(true); }}>{item.site}</button>
-            ))}
-          </div>
-          <button type="button" className="ms-pilot-pause" onClick={() => { setPaused(p => !p); setPinned(false); }} aria-label={paused ? "Play examples" : "Pause examples"}>
-            {paused ? <Play size={14} aria-hidden="true" /> : <Pause size={14} aria-hidden="true" />}
-          </button>
+          {tabs.map((item, i) => (
+            <button key={item.site} type="button" role="tab" id={`pilot-tab-${i}`} aria-selected={i === active} aria-controls="pilot-example" tabIndex={i === active ? 0 : -1}
+              onClick={() => { setActive(i); setPinned(true); }}>{item.site}</button>
+          ))}
         </div>
-        <div id="pilot-example" role="tabpanel" aria-labelledby={`pilot-tab-${active}`} key={example.site} className="ms-pilot-panel">
-          <div className="ms-pilot-card-head">
-            <span>Illustrative answer</span>
-            <span className="ms-pilot-card-tag">Example</span>
-          </div>
-          <dl>
-            <div><dt>Job</dt><dd>{example.job}</dd></div>
-            {example.answer.map(([label, text]) => <div key={label}><dt>{label}</dt><dd>{text}</dd></div>)}
-          </dl>
-        </div>
-        <div className="ms-pilot-card-foot">
-          <span>Robot names, reach and payload are from each maker’s published specifications; the jobs, distances, weights and answers are made up for illustration. These examples show possible jobs and robots, not available offers or measured results. Physical performance and safety must be validated on site.</span>
-        </div>
+        <button type="button" className="bare-example-pause" onClick={() => { setPaused(p => !p); setPinned(false); }} aria-label={paused ? "Play examples" : "Pause examples"}>
+          {paused ? <Play size={14} aria-hidden="true" /> : <Pause size={14} aria-hidden="true" />}
+        </button>
       </div>
+      <div id="pilot-example" role="tabpanel" aria-labelledby={`pilot-tab-${active}`} key={example.site} className="bare-example-panel">
+        <p className="bare-example-tag">Example</p>
+        <p className="bare-example-job">{example.job}</p>
+        {example.pick ? <>
+          <p className="bare-label">The robot most likely to fit</p>
+          <p className="bare-example-name">{example.pick.name}</p>
+          <p className="bare-example-by">by {example.pick.maker}</p>
+          {example.ticks && <BareTicks label="Why it fits" items={example.ticks} />}
+          {example.sure && <div className="bare-sure"><p className="bare-sure-line">How sure are we?{" "}
+            <span className="bare-dots" aria-hidden="true">{[1, 2, 3].map(dot => <span key={dot} className={dot <= example.sure!.filled ? "bare-dot bare-dot-on" : "bare-dot"} />)}</span>{" "}
+            <strong>{example.sure.word}</strong></p></div>}
+        </> : <>
+          <p className="bare-label">Answer</p>
+          <p className="bare-example-name">Held.</p>
+          <p className="bare-example-by">{example.held}</p>
+        </>}
+      </div>
+      <p className="bare-example-foot">Robot names are real; the jobs and answers are made up.</p>
     </section>
   );
 }
