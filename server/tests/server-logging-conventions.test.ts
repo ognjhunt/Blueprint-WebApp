@@ -66,14 +66,6 @@ describe("server logging conventions", () => {
         "server/routes/api/create-checkout-session.ts",
         ["stripe_checkout_session_create_failed"],
       ],
-      [
-        "server/routes/creator.ts",
-        ["city_launch_candidate_paperclip_handoff_failed"],
-      ],
-      [
-        "server/utils/cityLaunchCandidateReview.ts",
-        ["city_launch_notification_dispatch_failed"],
-      ],
     ]);
 
     for (const [relativePath, events] of expectedEvents.entries()) {

@@ -17,11 +17,6 @@ import {
   type PipelineAttachmentSyncPayload,
 } from "../utils/pipelineAttachmentContract";
 import {
-  resolveCreatorIdForCapture,
-  upsertCreatorPayoutFromPipeline,
-} from "../utils/accounting";
-import { ensureCreatorStripeAccountId } from "../utils/stripeConnectAccounts";
-import {
   computePipelineStateTransition,
   checkHostedReviewReadiness,
   growthEventsForStamps,
@@ -1024,23 +1019,8 @@ async function upsertCaptureCreatorLinkage(params: {
   };
 
   await captureRef.set(payload, { merge: true });
-  if (creatorId) {
-    await db.collection("creatorProfiles").doc(creatorId).set(
-      {
-        creator_id: creatorId,
-        uid: creatorId,
-        last_capture_id: captureId,
-        last_site_submission_id: siteSubmissionId,
-        native_capture_identity: {
-          source: "pipeline_sync",
-          linked_at: admin.firestore.FieldValue.serverTimestamp(),
-          last_capture_id: captureId,
-        },
-        updated_at: admin.firestore.FieldValue.serverTimestamp(),
-      },
-      { merge: true },
-    );
-  }
+  // The capturer profile write (creatorProfiles) was retired with outside
+  // capturers (owner, 2026-11-11); the capture record keeps any stored creator_id.
   return { capture_id: captureId, creator_id: creatorId || null };
 }
 
@@ -1237,39 +1217,8 @@ router.post(
       updatePayload.evaluation_readiness = evaluationReadiness;
     }
 
-    const payoutRecommendationSource =
-      (stateTransition.evaluationReadiness || evaluationReadiness) && typeof (stateTransition.evaluationReadiness || evaluationReadiness) === "object"
-        ? ((stateTransition.evaluationReadiness || evaluationReadiness) as Record<string, unknown>)
-        : null;
-    const payoutRecommendation =
-      payoutRecommendationSource &&
-      typeof payoutRecommendationSource.capturer_payout_recommendation === "object"
-        ? (payoutRecommendationSource.capturer_payout_recommendation as Record<string, unknown>)
-        : null;
-    if (parsedBody.capture_id && payoutRecommendation) {
-      const creatorId = await resolveCreatorIdForCapture(
-        String(parsedBody.capture_id || ""),
-      );
-      const stripeConnectAccountId = creatorId
-        ? await ensureCreatorStripeAccountId(creatorId)
-        : null;
-      await upsertCreatorPayoutFromPipeline({
-        captureId: String(parsedBody.capture_id || ""),
-        sceneId: String(parsedBody.scene_id || "") || null,
-        captureJobId: String(parsedBody.capture_job_id || "") || null,
-        buyerRequestId: String(parsedBody.buyer_request_id || "") || null,
-        siteSubmissionId:
-          String(parsedBody.site_submission_id || parsedBody.request_id || "") || null,
-        qualificationState: String(parsedBody.qualification_state || "") || null,
-        opportunityState: String(parsedBody.opportunity_state || "") || null,
-        recommendation: payoutRecommendation,
-        recommendationUri:
-          typeof parsedBody.artifacts?.capturer_payout_recommendation_uri === "string"
-            ? parsedBody.artifacts.capturer_payout_recommendation_uri
-            : null,
-        stripeConnectAccountId,
-      });
-    }
+    // A capturer payout recommendation in the payload is ignored: capturer
+    // payouts are off (owner, 2026-11-11). No payout record is created.
 
     if (authoritativeStateUpdate) {
       updatePayload.status = finalQualificationState;

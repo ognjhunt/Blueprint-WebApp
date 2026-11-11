@@ -1,9 +1,9 @@
 /**
  * The immutable upload identity a capture registration binds to.
  *
- * One validator for every path that records it: the native registration at
- * `POST /v1/creator/captures` and the website capture-link bundle completion.
- * Both must produce the same shape — `sha256:`-prefixed digests, a `gs://`
+ * One validator for every path that has recorded it (the retired native
+ * registration at `POST /v1/creator/captures` and the capture-link bundle
+ * completion). Records must keep the same shape — `sha256:`-prefixed digests, a `gs://`
  * manifest URI inside the capture bucket, and
  * `verification_status: pending_pipeline_storage_readback` until Pipeline
  * reads the bytes back — because the storage readback and the scene-intake

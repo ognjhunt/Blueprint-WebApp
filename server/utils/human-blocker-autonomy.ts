@@ -30,7 +30,6 @@ function humanBlockerKindForTaskKind(kind: AgentTaskKind): HumanBlockerKind {
     case "inbound_qualification":
     case "post_signup_scheduling":
     case "support_triage":
-    case "payout_exception_triage":
       return "ops_commercial";
     case "preview_diagnosis":
     case "operator_thread":
@@ -46,7 +45,6 @@ function executionOwnerForTaskKind(kind: AgentTaskKind) {
     case "inbound_qualification":
     case "post_signup_scheduling":
     case "support_triage":
-    case "payout_exception_triage":
       return "ops-lead";
     case "preview_diagnosis":
     case "operator_thread":

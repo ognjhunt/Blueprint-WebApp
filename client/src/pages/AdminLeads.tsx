@@ -1,17 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  AlertCircle,
-  ArrowUpRight,
-  Building2,
-  ClipboardList,
-  ExternalLink,
-  Filter,
-  Mail,
-  RefreshCw,
-  Sparkles,
-} from "lucide-react";
+import { AlertCircle, ArrowUpRight, ClipboardList, ExternalLink, Filter, Mail, RefreshCw, Sparkles } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { analyticsEvents } from "@/lib/analytics";
 import { withCsrfHeader } from "@/lib/csrf";
@@ -133,17 +123,6 @@ interface StatsResponse {
   byRequestPath?: Record<string, number>;
 }
 
-interface CaptureHandoffResponse {
-  ok: boolean;
-  request_id: string;
-  capture_job_id: string;
-  handoff_token: string;
-  universal_link_url: string;
-  custom_scheme_url: string;
-  expires_at: string | null;
-  truth_boundary: string;
-}
-
 interface WaitlistSubmissionItem {
   id: string;
   email: string;
@@ -262,113 +241,6 @@ interface ActionQueueResponse {
   };
 }
 
-interface FieldOpsJob {
-  id: string;
-  title: string;
-  address: string;
-  status: string;
-  buyer_request_id: string | null;
-  marketplace_state: string | null;
-  rights_status: string | null;
-  capture_policy_tier: string | null;
-  field_ops: Record<string, any>;
-  site_access: Record<string, any>;
-  updated_at: string | null;
-}
-
-interface FieldOpsJobsResponse {
-  jobs: FieldOpsJob[];
-}
-
-interface CapturerCandidate {
-  uid: string;
-  name: string | null;
-  email: string | null;
-  phone_number: string | null;
-  market: string | null;
-  availability: string | null;
-  equipment: string[];
-  totalCaptures: number;
-  approvedCaptures: number;
-  avgQuality: number;
-  score: number;
-  score_breakdown: {
-    market: number;
-    availability: number;
-    equipment: number;
-    quality: number;
-    reliability: number;
-  };
-  travel_estimate_minutes: number | null;
-  travel_estimate_source: string;
-}
-
-interface CapturerCandidatesResponse {
-  candidates: CapturerCandidate[];
-}
-
-interface SiteAccessContact {
-  id?: string;
-  email: string;
-  name: string | null;
-  source: string;
-  company: string | null;
-  roleTitle: string | null;
-  phone_number?: string | null;
-  verification_status?: string | null;
-  permission_state?: string | null;
-  last_outreach_at?: string | null;
-  last_response_at?: string | null;
-  notes?: string | null;
-}
-
-interface SiteAccessContactsResponse {
-  contacts: SiteAccessContact[];
-}
-
-interface RescheduleQueueItem {
-  id: string;
-  businessName: string;
-  email: string;
-  current_date: string | null;
-  current_time: string | null;
-  requested_date: string | null;
-  requested_time: string | null;
-  requested_by: string | null;
-  status: string;
-  reason: string | null;
-}
-
-interface RescheduleQueueResponse {
-  items: RescheduleQueueItem[];
-}
-
-interface FinanceQueueItem {
-  id: string;
-  status: string;
-  creator_id: string | null;
-  capture_id: string | null;
-  stripe_payout_id: string | null;
-  failure_reason: string | null;
-  queue: string | null;
-  ops_automation: Record<string, unknown>;
-  finance_review: Record<string, unknown>;
-  updated_at: string | null;
-}
-
-interface SiteAccessContactFormState {
-  name: string;
-  email: string;
-  company: string;
-  roleTitle: string;
-  phoneNumber: string;
-  notes: string;
-}
-
-interface FinanceQueueResponse {
-  items: FinanceQueueItem[];
-}
-
 function formatDate(dateString: string) {
   const date = new Date(dateString);
   return date.toLocaleString("en-US", {
@@ -443,215 +315,6 @@ function extractCreativeAssetUri(item: ActionQueueItem) {
   return null;
 }
 
-function formatStringList(value: unknown) {
-  if (!Array.isArray(value)) {
-    return "";
-  }
-
-  return value
-    .filter((entry): entry is string => typeof entry === "string" && entry.trim().length > 0)
-    .join(", ");
-}
-
-interface CapturerApplicationItem {
-  uid: string;
-  displayName: string;
-  email: string;
-  market: string;
-  equipment: string[];
-  availability: string;
-  referralSource: string | null;
-  status: string;
-  appliedAt: string | null;
-  reviewedAt: string | null;
-  reviewedBy: string | null;
-  reviewNote: string | null;
-}
-
-interface CapturerApplicationsResponse {
-  ok: boolean;
-  applications: CapturerApplicationItem[];
-}
-
-const capturerStatusColors: Record<string, string> = {
-  pending_review: "runway-chip-open",
-  approved: "runway-chip-live",
-  rejected: "runway-chip-fail",
-};
-
-const capturerStatusLabels: Record<string, string> = {
-  pending_review: "Pending review",
-  approved: "Approved",
-  rejected: "Rejected",
-};
-
-function CapturerApplicationsSection({ isAdmin }: { isAdmin: boolean }) {
-  const queryClient = useQueryClient();
-
-  const applicationsQuery = useQuery<CapturerApplicationsResponse>({
-    queryKey: ["admin-capturer-applications"],
-    enabled: isAdmin,
-    queryFn: async () => {
-      const response = await fetch("/api/admin/capturer-applications", {
-        headers: await withCsrfHeader({}),
-      });
-      if (!response.ok) throw new Error("Failed to fetch capturer applications");
-      return response.json();
-    },
-  });
-
-  const decisionMutation = useMutation({
-    mutationFn: async ({
-      uid,
-      decision,
-      note,
-    }: {
-      uid: string;
-      decision: "approved" | "rejected";
-      note?: string;
-    }) => {
-      const response = await fetch(`/api/admin/capturer-applications/${uid}/decision`, {
-        method: "POST",
-        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
-        body: JSON.stringify({ decision, ...(note ? { note } : {}) }),
-      });
-      if (!response.ok) throw new Error("Failed to record capturer decision");
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-capturer-applications"] });
-    },
-  });
-
-  const applications = applicationsQuery.data?.applications ?? [];
-
-  const handleApprove = (application: CapturerApplicationItem) => {
-    const name = application.displayName || application.email || application.uid;
-    if (!window.confirm(`Approve ${name} as a capturer?`)) {
-      return;
-    }
-    decisionMutation.mutate({ uid: application.uid, decision: "approved" });
-  };
-
-  const handleReject = (application: CapturerApplicationItem) => {
-    const name = application.displayName || application.email || application.uid;
-    if (!window.confirm(`Reject the capturer application from ${name}?`)) {
-      return;
-    }
-    const note = window.prompt("Optional note for the record (leave blank to skip):", "");
-    if (note === null) {
-      return;
-    }
-    decisionMutation.mutate({
-      uid: application.uid,
-      decision: "rejected",
-      note: note.trim() || undefined,
-    });
-  };
-
-  return (
-    <div className="space-y-3">
-      <div className="runway-panel p-5 text-sm text-runway-mute">
-        Decisions update the applicant&apos;s status on their capture-app page.
-        First assignments are coordinated by ops after approval — approving here
-        does not create or promise an assignment.
-      </div>
-      {applicationsQuery.isLoading ? (
-        <div className="runway-panel p-6 text-runway-mute">
-          Loading capturer applications...
-        </div>
-      ) : applicationsQuery.isError ? (
-        <div className="runway-panel p-6 text-runway-mute">
-          Failed to load capturer applications. Refresh to retry.
-        </div>
-      ) : applications.length === 0 ? (
-        <div className="runway-panel p-6 text-runway-mute">
-          No capturer applications on record yet.
-        </div>
-      ) : (
-        applications.map((application) => (
-          <div
-            key={application.uid}
-            className="runway-panel p-5"
-          >
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <p className="text-lg font-medium text-runway-text">
-                  {application.displayName || application.email || application.uid}
-                </p>
-                <p className="mt-1 text-sm text-runway-mute">{application.email}</p>
-                <div className="mt-3 grid gap-1 text-sm text-runway-mute">
-                  <p>
-                    <span className="text-runway-faint">Market:</span>{" "}
-                    {application.market || "Not provided"}
-                  </p>
-                  <p>
-                    <span className="text-runway-faint">Equipment:</span>{" "}
-                    {application.equipment.length > 0
-                      ? application.equipment.join(", ")
-                      : "Not provided"}
-                  </p>
-                  <p>
-                    <span className="text-runway-faint">Availability:</span>{" "}
-                    {application.availability || "Not provided"}
-                  </p>
-                  <p>
-                    <span className="text-runway-faint">Applied:</span>{" "}
-                    {application.appliedAt
-                      ? new Date(application.appliedAt).toLocaleString()
-                      : "Unknown"}
-                  </p>
-                </div>
-              </div>
-              <span
-                className={`runway-chip ${
-                  capturerStatusColors[application.status] ||
-                  "runway-chip-quiet"
-                }`}
-              >
-                {capturerStatusLabels[application.status] || application.status}
-              </span>
-            </div>
-            {application.status === "pending_review" ? (
-              <div className="mt-4 flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleApprove(application)}
-                  disabled={decisionMutation.isPending}
-                  className="runway-cta-ghost min-h-0 px-4 py-2 text-sm disabled:opacity-60"
-                >
-                  Approve
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleReject(application)}
-                  disabled={decisionMutation.isPending}
-                  className="runway-cta-ghost min-h-0 px-4 py-2 text-sm disabled:opacity-60"
-                >
-                  Reject
-                </button>
-              </div>
-            ) : (
-              <div className="mt-4 text-sm text-runway-mute">
-                <p>
-                  Reviewed{" "}
-                  {application.reviewedAt
-                    ? new Date(application.reviewedAt).toLocaleString()
-                    : "(time not recorded)"}
-                  {application.reviewedBy ? ` by ${application.reviewedBy}` : ""}
-                </p>
-                {application.reviewNote ? (
-                  <p className="mt-1 text-runway-faint">Note: {application.reviewNote}</p>
-                ) : null}
-              </div>
-            )}
-          </div>
-        ))
-      )}
-    </div>
-  );
-}
-
 export default function AdminLeads() {
   const { currentUser, userData, tokenClaims } = useAuth();
   const [, setLocation] = useLocation();
@@ -661,32 +324,18 @@ export default function AdminLeads() {
     | "hosted_review"
     | "waitlist"
     | "approvals"
-    | "capturers"
-    | "field_ops"
     | "agent"
   >(() => ["prepare", "returned"].includes(new URLSearchParams(window.location.search).get("founder_gmail") || "") ? "approvals" : "submissions");
   const [qualificationFilter, setQualificationFilter] = useState<QualificationState | "">("");
   const [priorityFilter, setPriorityFilter] = useState<RequestPriority | "">("");
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
   const [selectedWaitlistSubmissionId, setSelectedWaitlistSubmissionId] = useState<string | null>(null);
-  const [selectedCaptureJobId, setSelectedCaptureJobId] = useState<string | null>(null);
   const [waitlistRoleFilter, setWaitlistRoleFilter] = useState("");
   const [waitlistDeviceFilter, setWaitlistDeviceFilter] = useState("");
   const [waitlistStatusFilter, setWaitlistStatusFilter] = useState("");
   const [waitlistQueueFilter, setWaitlistQueueFilter] = useState("");
   const [waitlistSearch, setWaitlistSearch] = useState("");
   const [note, setNote] = useState("");
-  const [siteAccessReviewNotes, setSiteAccessReviewNotes] = useState("");
-  const [siteAccessDecisionSummary, setSiteAccessDecisionSummary] = useState("");
-  const [siteAccessContactForm, setSiteAccessContactForm] = useState<SiteAccessContactFormState>({
-    name: "",
-    email: "",
-    company: "",
-    roleTitle: "",
-    phoneNumber: "",
-    notes: "",
-  });
-
   const isAdmin = hasAnyRole(["admin", "ops"], userData, tokenClaims);
   const effectiveLeadQueueFilter =
     activeView === "hosted_review" ? "exact_site_hosted_review_queue" : "";
@@ -790,43 +439,6 @@ export default function AdminLeads() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-submission-detail"] });
       setNote("");
-    },
-  });
-
-  const createCaptureJobMutation = useMutation({
-    mutationFn: async (requestId: string) => {
-      const response = await fetch(`/api/admin/leads/${requestId}/capture-job`, {
-        method: "POST",
-        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
-      });
-      if (!response.ok) throw new Error("Failed to create capture job");
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-submissions"] });
-      queryClient.invalidateQueries({ queryKey: ["admin-submission-detail"] });
-      // The action queue reads qualification_state; a newly requested capture
-      // changes it, so the queue must not keep showing a stale row.
-      queryClient.invalidateQueries({ queryKey: ["admin-action-queue"] });
-    },
-    onError: () => {
-      window.alert(
-        "Could not create the capture job. Check the lead's site coordinates and rights status, then try again.",
-      );
-    },
-  });
-
-  const captureHandoffMutation = useMutation({
-    mutationFn: async (requestId: string) => {
-      const response = await fetch(`/api/admin/leads/${requestId}/capture-handoff`, {
-        method: "POST",
-        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
-      });
-      if (!response.ok) throw new Error("Failed to create capture handoff");
-      return response.json() as Promise<CaptureHandoffResponse>;
-    },
-    onSuccess: (handoff) => {
-      window.location.href = handoff.custom_scheme_url;
     },
   });
 
@@ -1021,318 +633,6 @@ export default function AdminLeads() {
     },
   });
 
-  const fieldOpsJobsQuery = useQuery<FieldOpsJobsResponse>({
-    queryKey: ["admin-field-ops-jobs"],
-    enabled: isAdmin && activeView === "field_ops",
-    queryFn: async () => {
-      const response = await fetch("/api/admin/field-ops/capture-jobs?limit=50", {
-        headers: await withCsrfHeader({}),
-      });
-      if (!response.ok) throw new Error("Failed to fetch field ops jobs");
-      return response.json();
-    },
-  });
-
-  const fieldOpsCandidatesQuery = useQuery<CapturerCandidatesResponse>({
-    queryKey: ["admin-field-ops-candidates", selectedCaptureJobId],
-    enabled: isAdmin && activeView === "field_ops" && !!selectedCaptureJobId,
-    queryFn: async () => {
-      const response = await fetch(
-        `/api/admin/field-ops/capture-jobs/${selectedCaptureJobId}/candidates`,
-        {
-          headers: await withCsrfHeader({}),
-        },
-      );
-      if (!response.ok) throw new Error("Failed to fetch capturer candidates");
-      return response.json();
-    },
-  });
-
-  const siteAccessContactsQuery = useQuery<SiteAccessContactsResponse>({
-    queryKey: ["admin-field-ops-site-access-contacts", selectedCaptureJobId],
-    enabled: isAdmin && activeView === "field_ops" && !!selectedCaptureJobId,
-    queryFn: async () => {
-      const response = await fetch(
-        `/api/admin/field-ops/capture-jobs/${selectedCaptureJobId}/site-access/contacts`,
-        {
-          headers: await withCsrfHeader({}),
-        },
-      );
-      if (!response.ok) throw new Error("Failed to fetch site-access contacts");
-      return response.json();
-    },
-  });
-
-  const rescheduleQueueQuery = useQuery<RescheduleQueueResponse>({
-    queryKey: ["admin-field-ops-reschedule-queue"],
-    enabled: isAdmin && activeView === "field_ops",
-    queryFn: async () => {
-      const response = await fetch("/api/admin/field-ops/reschedule-queue", {
-        headers: await withCsrfHeader({}),
-      });
-      if (!response.ok) throw new Error("Failed to fetch reschedule queue");
-      return response.json();
-    },
-  });
-
-  const financeQueueQuery = useQuery<FinanceQueueResponse>({
-    queryKey: ["admin-field-ops-finance-queue"],
-    enabled: isAdmin && activeView === "field_ops",
-    queryFn: async () => {
-      const response = await fetch("/api/admin/field-ops/finance-queue", {
-        headers: await withCsrfHeader({}),
-      });
-      if (!response.ok) throw new Error("Failed to fetch finance queue");
-      return response.json();
-    },
-  });
-
-  const assignCapturerMutation = useMutation({
-    mutationFn: async ({
-      captureJobId,
-      creatorId,
-      sendConfirmation,
-    }: {
-      captureJobId: string;
-      creatorId: string;
-      sendConfirmation: boolean;
-    }) => {
-      const response = await fetch(
-        `/api/admin/field-ops/capture-jobs/${captureJobId}/assign-capturer`,
-        {
-          method: "POST",
-          headers: await withCsrfHeader({ "Content-Type": "application/json" }),
-          body: JSON.stringify({
-            creator_id: creatorId,
-            send_confirmation: sendConfirmation,
-          }),
-        },
-      );
-      if (!response.ok) throw new Error("Failed to assign capturer");
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-field-ops-jobs"] });
-      queryClient.invalidateQueries({ queryKey: ["admin-field-ops-candidates"] });
-    },
-  });
-
-  const sendCapturerCommMutation = useMutation({
-    mutationFn: async ({
-      captureJobId,
-      communicationType,
-    }: {
-      captureJobId: string;
-      communicationType: string;
-    }) => {
-      const response = await fetch(
-        `/api/admin/field-ops/capture-jobs/${captureJobId}/capturer-comms`,
-        {
-          method: "POST",
-          headers: await withCsrfHeader({ "Content-Type": "application/json" }),
-          body: JSON.stringify({ communication_type: communicationType }),
-        },
-      );
-      if (!response.ok) throw new Error("Failed to send capturer communication");
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-field-ops-jobs"] });
-    },
-  });
-
-  const sendSiteAccessOutreachMutation = useMutation({
-    mutationFn: async ({
-      captureJobId,
-      operatorEmail,
-      operatorName,
-      operatorCompany,
-      operatorRoleTitle,
-      operatorPhoneNumber,
-      source,
-    }: {
-      captureJobId: string;
-      operatorEmail: string;
-      operatorName?: string | null;
-      operatorCompany?: string | null;
-      operatorRoleTitle?: string | null;
-      operatorPhoneNumber?: string | null;
-      source?: string | null;
-    }) => {
-      const response = await fetch(
-        `/api/admin/field-ops/capture-jobs/${captureJobId}/site-access/outreach`,
-        {
-          method: "POST",
-          headers: await withCsrfHeader({ "Content-Type": "application/json" }),
-          body: JSON.stringify({
-            operator_email: operatorEmail,
-            operator_name: operatorName,
-            operator_company: operatorCompany,
-            operator_role_title: operatorRoleTitle,
-            operator_phone_number: operatorPhoneNumber,
-            source,
-          }),
-        },
-      );
-      if (!response.ok) throw new Error("Failed to send site-access outreach");
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-field-ops-jobs"] });
-      queryClient.invalidateQueries({ queryKey: ["admin-field-ops-site-access-contacts"] });
-    },
-  });
-
-  const updateSiteAccessStatusMutation = useMutation({
-    mutationFn: async ({
-      captureJobId,
-      status,
-      operatorEmail,
-      operatorName,
-      operatorCompany,
-      operatorRoleTitle,
-      operatorPhoneNumber,
-      notes,
-      decisionSummary,
-    }: {
-      captureJobId: string;
-      status: string;
-      operatorEmail?: string | null;
-      operatorName?: string | null;
-      operatorCompany?: string | null;
-      operatorRoleTitle?: string | null;
-      operatorPhoneNumber?: string | null;
-      notes?: string;
-      decisionSummary?: string;
-    }) => {
-      const response = await fetch(
-        `/api/admin/field-ops/capture-jobs/${captureJobId}/site-access/status`,
-        {
-          method: "PATCH",
-          headers: await withCsrfHeader({ "Content-Type": "application/json" }),
-          body: JSON.stringify({
-            status,
-            operator_email: operatorEmail,
-            operator_name: operatorName,
-            operator_company: operatorCompany,
-            operator_role_title: operatorRoleTitle,
-            operator_phone_number: operatorPhoneNumber,
-            notes,
-            decision_summary: decisionSummary,
-          }),
-        },
-      );
-      if (!response.ok) throw new Error("Failed to update site-access status");
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-field-ops-jobs"] });
-      queryClient.invalidateQueries({ queryKey: ["admin-field-ops-site-access-contacts"] });
-    },
-  });
-
-  const saveSiteAccessContactMutation = useMutation({
-    mutationFn: async ({
-      captureJobId,
-      ...payload
-    }: SiteAccessContactFormState & { captureJobId: string }) => {
-      const response = await fetch(
-        `/api/admin/field-ops/capture-jobs/${captureJobId}/site-access/contacts`,
-        {
-          method: "POST",
-          headers: await withCsrfHeader({ "Content-Type": "application/json" }),
-          body: JSON.stringify({
-            email: payload.email,
-            name: payload.name,
-            company: payload.company,
-            role_title: payload.roleTitle,
-            phone_number: payload.phoneNumber,
-            notes: payload.notes,
-            source: "manual_entry",
-            verification_status: "unverified",
-          }),
-        },
-      );
-      if (!response.ok) throw new Error("Failed to save site-access contact");
-      return response.json();
-    },
-    onSuccess: () => {
-      setSiteAccessContactForm({
-        name: "",
-        email: "",
-        company: "",
-        roleTitle: "",
-        phoneNumber: "",
-        notes: "",
-      });
-      queryClient.invalidateQueries({ queryKey: ["admin-field-ops-site-access-contacts"] });
-    },
-  });
-
-  const updateFinanceReviewMutation = useMutation({
-    mutationFn: async ({
-      payoutId,
-      reviewStatus,
-      nextAction,
-      notes,
-      ownerEmail,
-      manualActionType,
-    }: {
-      payoutId: string;
-      reviewStatus: string;
-      nextAction: string;
-      notes?: string;
-      ownerEmail?: string;
-      manualActionType?: string;
-    }) => {
-      const response = await fetch(`/api/admin/field-ops/finance-queue/${payoutId}`, {
-        method: "PATCH",
-        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
-        body: JSON.stringify({
-          review_status: reviewStatus,
-          next_action: nextAction,
-          notes,
-          owner_email: ownerEmail,
-          manual_action_type: manualActionType,
-        }),
-      });
-      if (!response.ok) throw new Error("Failed to update finance review");
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-field-ops-finance-queue"] });
-    },
-  });
-
-  const runReminderLoopMutation = useMutation({
-    mutationFn: async () => {
-      const response = await fetch("/api/admin/field-ops/automation/capturer-reminders/run", {
-        method: "POST",
-        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
-      });
-      if (!response.ok) throw new Error("Failed to run reminder loop");
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-field-ops-jobs"] });
-    },
-  });
-
-  const runOverdueReviewWatchdogMutation = useMutation({
-    mutationFn: async () => {
-      const response = await fetch("/api/admin/field-ops/automation/manual-review-watchdogs/run", {
-        method: "POST",
-        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
-      });
-      if (!response.ok) throw new Error("Failed to run overdue review watchdogs");
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-field-ops-jobs"] });
-      queryClient.invalidateQueries({ queryKey: ["admin-field-ops-finance-queue"] });
-    },
-  });
-
   const selectedLead = detailQuery.data;
   const sceneDashboardQuery = useQuery<SceneDashboardSummary>({
     queryKey: [
@@ -1409,30 +709,6 @@ export default function AdminLeads() {
     filteredWaitlistSubmissions[0] ??
     null;
   const approvalQueueItems = approvalQueueQuery.data?.items ?? [];
-  const fieldOpsJobs = fieldOpsJobsQuery.data?.jobs ?? [];
-  const selectedCaptureJob =
-    fieldOpsJobs.find((job) => job.id === selectedCaptureJobId)
-    ?? fieldOpsJobs[0]
-    ?? null;
-  const capturerCandidates = fieldOpsCandidatesQuery.data?.candidates ?? [];
-  const siteAccessContacts = siteAccessContactsQuery.data?.contacts ?? [];
-  const rescheduleQueueItems = rescheduleQueueQuery.data?.items ?? [];
-  const financeQueueItems = financeQueueQuery.data?.items ?? [];
-  const primarySiteAccessContact = siteAccessContacts[0] ?? null;
-  const selectedSiteAccess = selectedCaptureJob?.site_access ?? {};
-  const selectedDispatchReview = selectedCaptureJob?.field_ops?.dispatch_review ?? {};
-  const selectedSiteAccessOverdueReview =
-    (selectedSiteAccess.overdue_review as Record<string, unknown> | undefined) ?? {};
-  const overdueSiteAccessCount = fieldOpsJobs.filter(
-    (job) =>
-      ((job.site_access?.overdue_review as Record<string, unknown> | undefined)?.active) === true,
-  ).length;
-  const overdueFinanceCount = financeQueueItems.filter(
-    (item) =>
-      ((item.finance_review?.overdue_review as Record<string, unknown> | undefined)?.active) ===
-      true,
-  ).length;
-
   useEffect(() => {
     if ((activeView === "submissions" || activeView === "hosted_review") && leads[0]) {
       const hasSelectedLead = leads.some((lead) => lead.requestId === selectedRequestId);
@@ -1447,25 +723,6 @@ export default function AdminLeads() {
       setSelectedWaitlistSubmissionId(filteredWaitlistSubmissions[0].id);
     }
   }, [activeView, filteredWaitlistSubmissions, selectedWaitlistSubmissionId]);
-
-  useEffect(() => {
-    if (activeView === "field_ops" && !selectedCaptureJobId && fieldOpsJobs[0]) {
-      setSelectedCaptureJobId(fieldOpsJobs[0].id);
-    }
-  }, [activeView, fieldOpsJobs, selectedCaptureJobId]);
-
-  useEffect(() => {
-    setSiteAccessReviewNotes("");
-    setSiteAccessDecisionSummary("");
-    setSiteAccessContactForm({
-      name: "",
-      email: "",
-      company: "",
-      roleTitle: "",
-      phoneNumber: "",
-      notes: "",
-    });
-  }, [selectedCaptureJobId]);
 
   const statCards = useMemo(() => {
     if (activeView === "waitlist") {
@@ -1516,22 +773,6 @@ export default function AdminLeads() {
           label: "Tier 3 items",
           value: countsKnown ? approvalQueueItems.filter((item) => item.action_tier === 3).length : "—",
         },
-      ];
-    }
-
-    if (activeView === "field_ops") {
-      return [
-        { label: "Capture jobs", value: fieldOpsJobs.length },
-        {
-          label: "Pending site access",
-          value: fieldOpsJobs.filter(
-            (job) => job.site_access?.permission_state === "awaiting_response",
-          ).length,
-        },
-        { label: "Overdue site access", value: overdueSiteAccessCount },
-        { label: "Reschedules", value: rescheduleQueueItems.length },
-        { label: "Finance queue", value: financeQueueItems.length },
-        { label: "Overdue finance", value: overdueFinanceCount },
       ];
     }
 
@@ -1587,17 +828,12 @@ export default function AdminLeads() {
   }, [
     activeView,
     approvalQueueItems,
-    fieldOpsJobs,
-    financeQueueItems.length,
     approvalQueueQuery.isError,
     approvalQueueQuery.data?.summary.failed,
     approvalQueueQuery.data?.summary.pending_approval,
     approvalQueueQuery.data?.summary.total,
     filteredWaitlistSubmissions,
     leads,
-    overdueFinanceCount,
-    overdueSiteAccessCount,
-    rescheduleQueueItems.length,
     statsQuery.data,
     waitlistQuery.data?.pagination.total,
   ]);
@@ -1627,10 +863,6 @@ export default function AdminLeads() {
                   ? "Ops Intake Queue"
                   : activeView === "approvals"
                     ? "Action Ledger"
-                    : activeView === "capturers"
-                      ? "Capturer Applications"
-                    : activeView === "field_ops"
-                      ? "Field Ops"
                   : "Ops Agent Console"}
             </p>
             <h1 className="mt-2 font-display text-3xl font-semibold uppercase tracking-[0.005em] text-runway-text">
@@ -1642,10 +874,6 @@ export default function AdminLeads() {
                   ? "Waitlist and beta requests"
                   : activeView === "approvals"
                     ? "Phase 2 approvals"
-                    : activeView === "capturers"
-                      ? "Capturer applications"
-                    : activeView === "field_ops"
-                      ? "Field ops control room"
                   : "Startup operations agent"}
             </h1>
             <p className="mt-2 text-runway-mute">
@@ -1657,10 +885,6 @@ export default function AdminLeads() {
                   ? "Review structured waitlist and private beta intake without dropping into Firestore."
                   : activeView === "approvals"
                     ? "Review the Phase 2 action ledger, then approve, reject, or retry low-risk operator actions."
-                    : activeView === "capturers"
-                      ? "Review capturer signups and record approve/reject decisions. Assignments are coordinated by ops separately after approval."
-                    : activeView === "field_ops"
-                      ? "Assign capturers, send comms, work the reschedule queue, and track site-access plus finance review from one place."
                   : "Create agent threads, attach startup context, route work into Codex or Claude Code, and approve sensitive runs in one place."}
             </p>
           </div>
@@ -1675,8 +899,6 @@ export default function AdminLeads() {
                       | "hosted_review"
                       | "waitlist"
                       | "approvals"
-                      | "capturers"
-                      | "field_ops"
                       | "agent",
                   )
                 }
@@ -1694,12 +916,6 @@ export default function AdminLeads() {
                   <TabsTrigger value="approvals" className="rounded-none px-4">
                     Approvals
                   </TabsTrigger>
-                  <TabsTrigger value="capturers" className="rounded-none px-4">
-                    Capturers
-                  </TabsTrigger>
-                  <TabsTrigger value="field_ops" className="rounded-none px-4">
-                    Field Ops
-                  </TabsTrigger>
                   <TabsTrigger value="agent" className="rounded-none px-4">
                     Agent
                   </TabsTrigger>
@@ -1715,22 +931,6 @@ export default function AdminLeads() {
                     ? waitlistQuery.refetch()
                     : activeView === "approvals"
                       ? approvalQueueQuery.refetch()
-                      : activeView === "capturers"
-                        ? queryClient.invalidateQueries({
-                            queryKey: ["admin-capturer-applications"],
-                          })
-                      : activeView === "field_ops"
-                        ? Promise.all([
-                            fieldOpsJobsQuery.refetch(),
-                            rescheduleQueueQuery.refetch(),
-                            financeQueueQuery.refetch(),
-                            selectedCaptureJobId
-                              ? fieldOpsCandidatesQuery.refetch()
-                              : Promise.resolve(undefined),
-                            selectedCaptureJobId
-                              ? siteAccessContactsQuery.refetch()
-                              : Promise.resolve(undefined),
-                          ])
                     : queryClient.invalidateQueries({ queryKey: ["admin-agent-sessions"] })
               }
               className="runway-cta-ghost min-h-0 px-4 py-2 text-sm"
@@ -1754,29 +954,6 @@ export default function AdminLeads() {
                 <Sparkles className="mr-2 h-4 w-4" />
                 {runWaitlistAutomationMutation.isPending ? "Running AI triage..." : "Run AI triage"}
               </button>
-            ) : activeView === "field_ops" ? (
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => runOverdueReviewWatchdogMutation.mutate()}
-                  className="runway-cta-ghost min-h-0 px-4 py-2 text-sm"
-                  disabled={runOverdueReviewWatchdogMutation.isPending}
-                >
-                  <AlertCircle className="mr-2 h-4 w-4" />
-                  {runOverdueReviewWatchdogMutation.isPending
-                    ? "Running overdue scan..."
-                    : "Run overdue review scan"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => runReminderLoopMutation.mutate()}
-                  className="runway-cta-ghost min-h-0 px-4 py-2 text-sm"
-                  disabled={runReminderLoopMutation.isPending}
-                >
-                  <Sparkles className="mr-2 h-4 w-4" />
-                  {runReminderLoopMutation.isPending ? "Running reminders..." : "Run reminders"}
-                </button>
-              </div>
             ) : null}
           </div>
         </div>
@@ -1794,8 +971,6 @@ export default function AdminLeads() {
 
         {activeView === "agent" ? (
           <AdminAgentConsole />
-        ) : activeView === "capturers" ? (
-          <CapturerApplicationsSection isAdmin={isAdmin} />
         ) : activeView === "approvals" ? (
           <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
             <div className="space-y-3">
@@ -1936,26 +1111,6 @@ export default function AdminLeads() {
                           {item.status === "failed" ? "Retry" : "Check delivery"}
                         </button>
                       ) : null}
-                      {item.source_collection === "inboundRequests" ? (
-                        /*
-                         * One-click dispatch from the queue. The workflow already
-                         * computed the dispatch decision; this turns "approve,
-                         * then find the lead, then find the button" into one
-                         * click that publishes the capture job. The server
-                         * refuses (409) when the lead has no coordinates or is
-                         * rights-blocked, which surfaces in the catch below.
-                         */
-                        <button
-                          type="button"
-                          onClick={() => createCaptureJobMutation.mutate(item.source_doc_id)}
-                          className="runway-cta-ghost min-h-0 px-4 py-2 text-sm"
-                          disabled={createCaptureJobMutation.isPending}
-                        >
-                          {createCaptureJobMutation.isPending
-                            ? "Publishing…"
-                            : "Create capture job"}
-                        </button>
-                      ) : null}
                     </div>
                   </div>
                 ))
@@ -1971,653 +1126,6 @@ export default function AdminLeads() {
                 <p>Pending approval items stay parked until an operator approves or rejects them.</p>
                 <p>Failed actions can be retried if the executor marks them as safe to replay.</p>
                 <p>Money movement, disputes, rights, privacy, and unusual cases remain human-gated.</p>
-              </div>
-            </div>
-          </div>
-        ) : activeView === "field_ops" ? (
-          <div className="space-y-6">
-            <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
-              <div className="space-y-3">
-                {fieldOpsJobsQuery.isLoading ? (
-                  <div className="runway-panel p-6 text-runway-mute">
-                    Loading capture jobs...
-                  </div>
-                ) : fieldOpsJobs.length === 0 ? (
-                  <div className="runway-panel p-6 text-runway-mute">
-                    No capture jobs are available right now.
-                  </div>
-                ) : (
-                  fieldOpsJobs.map((job) => (
-                    <button
-                      key={job.id}
-                      type="button"
-                      onClick={() => setSelectedCaptureJobId(job.id)}
-                      className={`w-full border p-5 text-left transition-colors ${
-                        selectedCaptureJob?.id === job.id
-                          ? "border-runway-signal bg-runway-raised"
-                          : "border-runway-line bg-runway-panel hover:bg-runway-raised"
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="runway-meta">
-                            {job.marketplace_state || "capture job"}
-                          </p>
-                          <p className="mt-1 text-lg font-medium text-runway-text">{job.title}</p>
-                          <p className="mt-1 text-sm text-runway-mute">{job.address}</p>
-                        </div>
-                        <span className="runway-chip runway-chip-quiet">
-                          {job.status || "untracked"}
-                        </span>
-                      </div>
-                      <div className="runway-num mt-3 grid gap-2 text-xs text-runway-faint md:grid-cols-2">
-                        <p>
-                          Assigned:{" "}
-                          {typeof job.field_ops?.capturer_assignment?.name === "string"
-                            ? job.field_ops.capturer_assignment.name
-                            : "unassigned"}
-                        </p>
-                        <p>
-                          Site access:{" "}
-                          {typeof job.site_access?.permission_state === "string"
-                            ? job.site_access.permission_state
-                            : "not_started"}
-                        </p>
-                      </div>
-                      {job.site_access?.overdue_review?.active === true ? (
-                        <p className="mt-3 border border-runway-red-dim px-3 py-2 text-xs text-runway-red">
-                          Overdue site-access follow-up:{" "}
-                          {typeof job.site_access?.overdue_review?.reason === "string"
-                            ? job.site_access.overdue_review.reason
-                            : "Needs human follow-up."}
-                        </p>
-                      ) : null}
-                    </button>
-                  ))
-                )}
-              </div>
-
-              <div className="space-y-6">
-                {selectedCaptureJob ? (
-                  <>
-                    <div className="runway-panel p-6">
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="runway-meta">
-                            Selected capture job
-                          </p>
-                          <h2 className="mt-2 font-display text-2xl font-semibold uppercase tracking-[0.005em] text-runway-text">
-                            {selectedCaptureJob.title}
-                          </h2>
-                          <p className="mt-2 text-sm text-runway-mute">
-                            {selectedCaptureJob.address}
-                          </p>
-                        </div>
-                        <a
-                          href={selectedCaptureJob.buyer_request_id
-                            ? `#request-${selectedCaptureJob.buyer_request_id}`
-                            : "#"}
-                          className="inline-flex items-center text-sm text-runway-mute"
-                        >
-                          Request link
-                          <ArrowUpRight className="ml-2 h-4 w-4" />
-                        </a>
-                      </div>
-
-                      <div className="mt-4 grid gap-3 text-sm text-runway-body md:grid-cols-2">
-                        <p>Rights: {selectedCaptureJob.rights_status || "unknown"}</p>
-                        <p>Policy: {selectedCaptureJob.capture_policy_tier || "review_required"}</p>
-                        <p>
-                          Assigned capturer:{" "}
-                          {selectedCaptureJob.field_ops?.capturer_assignment?.name || "unassigned"}
-                        </p>
-                        <p>
-                          Site access:{" "}
-                          {selectedCaptureJob.site_access?.permission_state || "not_started"}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="runway-panel p-6">
-                      <p className="runway-eyebrow-muted">
-                        Capturer assignment
-                      </p>
-                      <div className="mt-4 border border-runway-signal-dim p-4 text-sm text-runway-signal">
-                        <p className="font-medium">Dispatch remains heuristic-only.</p>
-                        <p className="mt-1 text-runway-signal">
-                          Ranking uses stored market, equipment, availability, and capture stats. This lane does not have live calendar availability or travel-routing verification, so operators still need to confirm acceptance and logistics.
-                        </p>
-                        <p className="mt-2 text-xs text-runway-signal">
-                          Current review state: {typeof selectedDispatchReview.review_state === "string"
-                            ? selectedDispatchReview.review_state
-                            : "not recorded"}
-                        </p>
-                        {Array.isArray(selectedDispatchReview.missing_inputs) ? (
-                          <p className="mt-1 text-xs text-runway-signal">
-                            Missing inputs: {formatStringList(selectedDispatchReview.missing_inputs)}
-                          </p>
-                        ) : null}
-                      </div>
-                      <div className="mt-4 space-y-3">
-                        {capturerCandidates.map((candidate) => (
-                          <div
-                            key={candidate.uid}
-                            className="border border-runway-line p-4"
-                          >
-                            <div className="flex items-start justify-between gap-3">
-                              <div>
-                                <p className="text-sm font-medium text-runway-text">
-                                  {candidate.name || candidate.email || candidate.uid}
-                                </p>
-                                <p className="mt-1 text-xs text-runway-faint">
-                                  {candidate.market || "Unknown market"} · {candidate.availability || "Unknown availability"}
-                                </p>
-                                <p className="mt-1 text-xs text-runway-faint">
-                                  Equipment: {candidate.equipment.join(", ") || "unknown"}
-                                </p>
-                              </div>
-                              <div className="text-right">
-                                <p className="text-sm font-medium text-runway-text">
-                                  Score {candidate.score}
-                                </p>
-                                <p className="text-xs text-runway-faint">
-                                  Travel {candidate.travel_estimate_minutes ?? "?"} min
-                                </p>
-                                <p className="mt-1 text-[11px] text-runway-faint">
-                                  {candidate.travel_estimate_source === "unknown"
-                                    ? "No routing integration"
-                                    : `Source: ${candidate.travel_estimate_source}`}
-                                </p>
-                              </div>
-                            </div>
-                            <div className="runway-num mt-3 grid gap-2 text-xs text-runway-faint md:grid-cols-2">
-                              <p>Market fit: {candidate.score_breakdown.market}</p>
-                              <p>Availability fit: {candidate.score_breakdown.availability}</p>
-                              <p>Equipment fit: {candidate.score_breakdown.equipment}</p>
-                              <p>Reliability fit: {candidate.score_breakdown.reliability}</p>
-                            </div>
-                            <div className="mt-3 flex flex-wrap gap-2">
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  assignCapturerMutation.mutate({
-                                    captureJobId: selectedCaptureJob.id,
-                                    creatorId: candidate.uid,
-                                    sendConfirmation: false,
-                                  })
-                                }
-                                className="runway-cta-ghost min-h-0 px-3 py-2 text-sm"
-                              >
-                                Assign
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  assignCapturerMutation.mutate({
-                                    captureJobId: selectedCaptureJob.id,
-                                    creatorId: candidate.uid,
-                                    sendConfirmation: true,
-                                  })
-                                }
-                                className="runway-cta-ghost min-h-0 px-3 py-2 text-sm"
-                              >
-                                Assign + confirm
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="runway-panel p-6">
-                      <p className="runway-eyebrow-muted">
-                        Ops actions
-                      </p>
-                      <div className="mt-4 border border-runway-sky-dim p-4 text-sm text-runway-sky">
-                        <p className="font-medium">Site access is structured, not autonomous.</p>
-                        <p className="mt-1 text-runway-sky">
-                          Blueprint can draft the first outreach and preserve provenance on who was contacted, but access negotiations, conditional terms, privacy/legal interpretation, and denials stay with a human operator.
-                        </p>
-                      </div>
-                      <div className="mt-4 flex flex-wrap gap-2">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            sendCapturerCommMutation.mutate({
-                              captureJobId: selectedCaptureJob.id,
-                              communicationType: "reminder_48h",
-                            })
-                          }
-                          className="runway-cta-ghost min-h-0 px-3 py-2 text-sm"
-                        >
-                          Send 48h reminder
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            sendCapturerCommMutation.mutate({
-                              captureJobId: selectedCaptureJob.id,
-                              communicationType: "reminder_24h",
-                            })
-                          }
-                          className="runway-cta-ghost min-h-0 px-3 py-2 text-sm"
-                        >
-                          Send 24h reminder
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            updateSiteAccessStatusMutation.mutate({
-                              captureJobId: selectedCaptureJob.id,
-                              status: "granted",
-                              operatorEmail: primarySiteAccessContact?.email || null,
-                              operatorName: primarySiteAccessContact?.name || null,
-                              operatorCompany: primarySiteAccessContact?.company || null,
-                              operatorRoleTitle: primarySiteAccessContact?.roleTitle || null,
-                              operatorPhoneNumber: primarySiteAccessContact?.phone_number || null,
-                              notes: siteAccessReviewNotes,
-                              decisionSummary:
-                                siteAccessDecisionSummary
-                                || "Human operator confirmed that site access is granted.",
-                            })
-                          }
-                          className="runway-cta-ghost min-h-0 px-3 py-2 text-sm"
-                        >
-                          Mark site access granted
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            updateSiteAccessStatusMutation.mutate({
-                              captureJobId: selectedCaptureJob.id,
-                              status: "conditional",
-                              operatorEmail: primarySiteAccessContact?.email || null,
-                              operatorName: primarySiteAccessContact?.name || null,
-                              operatorCompany: primarySiteAccessContact?.company || null,
-                              operatorRoleTitle: primarySiteAccessContact?.roleTitle || null,
-                              operatorPhoneNumber: primarySiteAccessContact?.phone_number || null,
-                              notes: siteAccessReviewNotes,
-                              decisionSummary:
-                                siteAccessDecisionSummary
-                                || "Conditional access requires human follow-up on terms or restrictions.",
-                            })
-                          }
-                          className="runway-cta-ghost min-h-0 px-3 py-2 text-sm"
-                        >
-                          Mark conditional
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            updateSiteAccessStatusMutation.mutate({
-                              captureJobId: selectedCaptureJob.id,
-                              status: "review_required",
-                              operatorEmail: primarySiteAccessContact?.email || null,
-                              operatorName: primarySiteAccessContact?.name || null,
-                              operatorCompany: primarySiteAccessContact?.company || null,
-                              operatorRoleTitle: primarySiteAccessContact?.roleTitle || null,
-                              operatorPhoneNumber: primarySiteAccessContact?.phone_number || null,
-                              notes: siteAccessReviewNotes,
-                              decisionSummary:
-                                siteAccessDecisionSummary
-                                || "Operator review is still required before any capture is scheduled.",
-                            })
-                          }
-                          className="runway-cta-ghost min-h-0 px-3 py-2 text-sm"
-                        >
-                          Keep in review
-                        </button>
-                      </div>
-
-                      <div className="mt-6 grid gap-3 md:grid-cols-2">
-                        <label className="block">
-                          <span className="runway-label">Operator notes</span>
-                          <textarea
-                            value={siteAccessReviewNotes}
-                            onChange={(event) => setSiteAccessReviewNotes(event.target.value)}
-                            placeholder="Document access restrictions, unanswered questions, or what needs human follow-up."
-                            className="runway-input min-h-[96px]"
-                          />
-                        </label>
-                        <label className="block">
-                          <span className="runway-label">Decision summary</span>
-                          <textarea
-                            value={siteAccessDecisionSummary}
-                            onChange={(event) => setSiteAccessDecisionSummary(event.target.value)}
-                            placeholder="Capture the current human judgment: granted, conditional, denied, or still unresolved."
-                            className="runway-input min-h-[96px]"
-                          />
-                        </label>
-                      </div>
-
-                      <div className="mt-6 border border-runway-line bg-runway-black p-4 text-sm text-runway-body">
-                        <p className="font-medium text-runway-text">Current site-access review</p>
-                        {selectedSiteAccessOverdueReview.active === true ? (
-                          <p className="mt-3 border border-runway-red-dim px-3 py-2 text-sm text-runway-red">
-                            Overdue review:{" "}
-                            {typeof selectedSiteAccessOverdueReview.reason === "string"
-                              ? selectedSiteAccessOverdueReview.reason
-                              : "Human follow-up is past due."}
-                          </p>
-                        ) : null}
-                        <div className="mt-3 grid gap-2 md:grid-cols-2">
-                          <p>
-                            Workflow stage:{" "}
-                            {typeof selectedSiteAccess.workflow_stage === "string"
-                              ? selectedSiteAccess.workflow_stage
-                              : "contact_acquisition"}
-                          </p>
-                          <p>
-                            Follow-up due:{" "}
-                            {typeof selectedSiteAccess.follow_up_due_at === "string"
-                              ? formatDate(selectedSiteAccess.follow_up_due_at)
-                              : "not set"}
-                          </p>
-                          <p>
-                            Evidence required:{" "}
-                            {formatStringList(selectedSiteAccess.review_requirements?.required_evidence)
-                              || "verified contact, window, restrictions"}
-                          </p>
-                          <p>
-                            Restrictions:{" "}
-                            {formatStringList(selectedSiteAccess.restrictions) || "not documented"}
-                          </p>
-                        </div>
-                        {typeof selectedSiteAccess.human_only_boundary === "string" ? (
-                          <p className="mt-3 text-xs text-runway-faint">
-                            {selectedSiteAccess.human_only_boundary}
-                          </p>
-                        ) : null}
-                      </div>
-
-                      <div className="mt-6">
-                        <p className="text-sm font-medium text-runway-text">
-                          Site-access contacts
-                        </p>
-                        <div className="mt-3 space-y-2">
-                          {siteAccessContacts.length === 0 ? (
-                            <p className="text-sm text-runway-faint">
-                              No discovered contacts yet.
-                            </p>
-                          ) : (
-                            siteAccessContacts.map((contact) => (
-                              <div
-                                key={`${contact.source}-${contact.email}`}
-                                className="flex items-center justify-between border border-runway-line p-3"
-                              >
-                                <div>
-                                  <p className="text-sm font-medium text-runway-text">
-                                    {contact.name || contact.email}
-                                  </p>
-                                  <p className="text-xs text-runway-faint">
-                                    {contact.email} · {contact.source}
-                                    {contact.verification_status
-                                      ? ` · ${contact.verification_status}`
-                                      : ""}
-                                  </p>
-                                  {contact.company || contact.roleTitle ? (
-                                    <p className="text-xs text-runway-faint">
-                                      {[contact.company, contact.roleTitle].filter(Boolean).join(" · ")}
-                                    </p>
-                                  ) : null}
-                                  {contact.notes ? (
-                                    <p className="mt-1 text-xs text-runway-faint">{contact.notes}</p>
-                                  ) : null}
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    sendSiteAccessOutreachMutation.mutate({
-                                      captureJobId: selectedCaptureJob.id,
-                                      operatorEmail: contact.email,
-                                      operatorName: contact.name,
-                                      operatorCompany: contact.company,
-                                      operatorRoleTitle: contact.roleTitle,
-                                      operatorPhoneNumber: contact.phone_number,
-                                      source: contact.source,
-                                    })
-                                  }
-                                  className="runway-cta-ghost min-h-0 px-3 py-2 text-sm"
-                                >
-                                  Send outreach
-                                </button>
-                              </div>
-                            ))
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="mt-6 border border-runway-line p-4">
-                        <p className="text-sm font-medium text-runway-text">Add operator contact</p>
-                        <p className="mt-1 text-xs text-runway-faint">
-                          Use this when the correct contact comes from a call, email thread, or site visit rather than an existing Blueprint record.
-                        </p>
-                        <div className="mt-4 grid gap-3 md:grid-cols-2">
-                          <input
-                            value={siteAccessContactForm.name}
-                            onChange={(event) =>
-                              setSiteAccessContactForm((current) => ({
-                                ...current,
-                                name: event.target.value,
-                              }))
-                            }
-                            placeholder="Contact name"
-                            className="runway-input"
-                          />
-                          <input
-                            value={siteAccessContactForm.email}
-                            onChange={(event) =>
-                              setSiteAccessContactForm((current) => ({
-                                ...current,
-                                email: event.target.value,
-                              }))
-                            }
-                            placeholder="contact@site.com"
-                            className="runway-input"
-                          />
-                          <input
-                            value={siteAccessContactForm.company}
-                            onChange={(event) =>
-                              setSiteAccessContactForm((current) => ({
-                                ...current,
-                                company: event.target.value,
-                              }))
-                            }
-                            placeholder="Operator company"
-                            className="runway-input"
-                          />
-                          <input
-                            value={siteAccessContactForm.roleTitle}
-                            onChange={(event) =>
-                              setSiteAccessContactForm((current) => ({
-                                ...current,
-                                roleTitle: event.target.value,
-                              }))
-                            }
-                            placeholder="Role / title"
-                            className="runway-input"
-                          />
-                          <input
-                            value={siteAccessContactForm.phoneNumber}
-                            onChange={(event) =>
-                              setSiteAccessContactForm((current) => ({
-                                ...current,
-                                phoneNumber: event.target.value,
-                              }))
-                            }
-                            placeholder="Phone number"
-                            className="runway-input"
-                          />
-                          <textarea
-                            value={siteAccessContactForm.notes}
-                            onChange={(event) =>
-                              setSiteAccessContactForm((current) => ({
-                                ...current,
-                                notes: event.target.value,
-                              }))
-                            }
-                            placeholder="How this contact was obtained or what they control"
-                            className="runway-input min-h-[84px]"
-                          />
-                        </div>
-                        <div className="mt-4 flex flex-wrap gap-2">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              saveSiteAccessContactMutation.mutate({
-                                captureJobId: selectedCaptureJob.id,
-                                ...siteAccessContactForm,
-                              })
-                            }
-                            disabled={
-                              saveSiteAccessContactMutation.isPending
-                              || !siteAccessContactForm.email.trim()
-                            }
-                            className="runway-cta-ghost min-h-0 px-4 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50"
-                          >
-                            Save contact
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </>
-                ) : (
-                  <div className="runway-panel p-6 text-runway-mute">
-                    Select a capture job to view field-ops details.
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="grid gap-6 lg:grid-cols-2">
-              <div className="runway-panel p-6">
-                <p className="runway-eyebrow-muted">
-                  Reschedule queue
-                </p>
-                <div className="mt-4 space-y-3">
-                  {rescheduleQueueItems.length === 0 ? (
-                    <p className="text-sm text-runway-faint">No reschedule requests are queued.</p>
-                  ) : (
-                    rescheduleQueueItems.map((item) => (
-                      <div key={item.id} className="border border-runway-line p-4">
-                        <p className="text-sm font-medium text-runway-text">{item.businessName}</p>
-                        <p className="runway-num mt-1 text-xs text-runway-faint">
-                          {item.current_date} {item.current_time} → {item.requested_date} {item.requested_time}
-                        </p>
-                        <p className="mt-1 text-xs text-runway-faint">
-                          {item.status} · {item.requested_by || "buyer"}
-                        </p>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-
-              <div className="runway-panel p-6">
-                <p className="runway-eyebrow-muted">
-                  Finance review
-                </p>
-                <div className="mt-4 border border-runway-red-dim p-4 text-sm text-runway-red">
-                  <p className="font-medium">Execution remains human-only.</p>
-                  <p className="mt-1 text-runway-red">
-                    This queue is for evidence gathering, owner assignment, and next-step planning. Blueprint does not auto-run payouts, refunds, or dispute submissions.
-                  </p>
-                </div>
-                <div className="mt-4 space-y-3">
-                  {financeQueueItems.length === 0 ? (
-                    <p className="text-sm text-runway-faint">No finance review items are queued.</p>
-                  ) : (
-                    financeQueueItems.map((item) => {
-                      const overdueReview =
-                        (item.finance_review?.overdue_review as Record<string, unknown> | undefined)
-                        ?? {};
-
-                      return (
-                        <div key={item.id} className="border border-runway-line p-4">
-                        <p className="runway-num text-sm font-medium text-runway-text">
-                          {item.id} · {item.status}
-                        </p>
-                        <p className="mt-1 text-xs text-runway-faint">
-                          {item.failure_reason
-                            || (typeof item.ops_automation?.rationale === "string"
-                              ? item.ops_automation.rationale
-                              : "Needs manual review")}
-                        </p>
-                        <div className="runway-num mt-3 grid gap-2 text-xs text-runway-faint md:grid-cols-2">
-                          <p>
-                            Owner:{" "}
-                            {typeof item.finance_review?.owner_email === "string"
-                              ? item.finance_review.owner_email
-                              : "unassigned"}
-                          </p>
-                          <p>
-                            SLA:{" "}
-                            {typeof item.finance_review?.sla_due_at === "string"
-                              ? formatDate(item.finance_review.sla_due_at)
-                              : "not set"}
-                          </p>
-                          <p>
-                            Manual action:{" "}
-                            {typeof item.finance_review?.manual_action_type === "string"
-                              ? item.finance_review.manual_action_type
-                              : "not set"}
-                          </p>
-                          <p>
-                            Evidence:{" "}
-                            {formatStringList(item.finance_review?.required_evidence)
-                              || "stripe event details, payout linkage, operator notes"}
-                          </p>
-                        </div>
-                        {overdueReview.active === true ? (
-                          <p className="mt-3 border border-runway-red-dim px-3 py-2 text-xs text-runway-red">
-                            Overdue finance review:{" "}
-                            {typeof overdueReview.reason === "string"
-                              ? overdueReview.reason
-                              : "Manual review is past SLA."}
-                          </p>
-                        ) : null}
-                        {typeof item.finance_review?.human_only_boundary === "string" ? (
-                          <p className="mt-3 text-xs text-runway-faint">
-                            {item.finance_review.human_only_boundary}
-                          </p>
-                        ) : null}
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              updateFinanceReviewMutation.mutate({
-                                payoutId: item.id,
-                                reviewStatus: "investigating",
-                                nextAction: "Investigate payout or dispute details",
-                                ownerEmail: currentUser?.email || undefined,
-                                manualActionType: "investigation",
-                              })
-                            }
-                            className="runway-cta-ghost min-h-0 px-3 py-2 text-sm"
-                          >
-                            Assign to me + investigate
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              updateFinanceReviewMutation.mutate({
-                                payoutId: item.id,
-                                reviewStatus: "ready_for_manual_action",
-                                nextAction: "Manual finance action required",
-                                ownerEmail: currentUser?.email || undefined,
-                                manualActionType: "manual_finance_execution",
-                              })
-                            }
-                            className="runway-cta-ghost min-h-0 px-3 py-2 text-sm"
-                          >
-                            Ready for manual action
-                          </button>
-                        </div>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
               </div>
             </div>
           </div>
@@ -2768,24 +1276,6 @@ export default function AdminLeads() {
                     className="runway-cta-ghost min-h-0 px-4 py-2 text-sm"
                   >
                     Issue review link
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => createCaptureJobMutation.mutate(selectedLead.requestId)}
-                    className="runway-cta-ghost min-h-0 px-4 py-2 text-sm"
-                  >
-                    Create capture job
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => captureHandoffMutation.mutate(selectedLead.requestId)}
-                    disabled={captureHandoffMutation.isPending}
-                    className="runway-cta-ghost min-h-0 px-4 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    <ExternalLink className="mr-2 h-4 w-4" />
-                    {captureHandoffMutation.isPending
-                      ? "Opening BlueprintCapture..."
-                      : "Open in BlueprintCapture"}
                   </button>
                   <button
                     type="button"

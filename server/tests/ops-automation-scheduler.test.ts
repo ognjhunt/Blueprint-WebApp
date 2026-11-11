@@ -4,11 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const runWaitlistAutomationLoop = vi.hoisted(() => vi.fn());
 const runInboundQualificationLoop = vi.hoisted(() => vi.fn());
 const runSupportTriageLoop = vi.hoisted(() => vi.fn());
-const runPayoutExceptionTriageLoop = vi.hoisted(() => vi.fn());
 const runPreviewDiagnosisLoop = vi.hoisted(() => vi.fn());
-const runCapturerReminderLoop = vi.hoisted(() => vi.fn());
-const flagOverdueSiteAccessReviews = vi.hoisted(() => vi.fn());
-const flagOverdueFinanceReviews = vi.hoisted(() => vi.fn());
 const runGapClosureLoop = vi.hoisted(() => vi.fn());
 const runHumanReplyEmailWatcher = vi.hoisted(() => vi.fn());
 const runOperatingGraphProjectionLoop = vi.hoisted(() => vi.fn());
@@ -108,14 +104,7 @@ vi.mock("../agents", () => ({
   runWaitlistAutomationLoop,
   runInboundQualificationLoop,
   runSupportTriageLoop,
-  runPayoutExceptionTriageLoop,
   runPreviewDiagnosisLoop,
-}));
-
-vi.mock("../utils/field-ops-automation", () => ({
-  runCapturerReminderLoop,
-  flagOverdueSiteAccessReviews,
-  flagOverdueFinanceReviews,
 }));
 
 vi.mock("../utils/gap-closure", () => ({
@@ -143,11 +132,7 @@ beforeEach(() => {
   runWaitlistAutomationLoop.mockResolvedValue({ processedCount: 1, failedCount: 0 });
   runInboundQualificationLoop.mockResolvedValue({ processedCount: 2, failedCount: 0 });
   runSupportTriageLoop.mockResolvedValue({ processedCount: 3, failedCount: 0 });
-  runPayoutExceptionTriageLoop.mockResolvedValue({ processedCount: 1, failedCount: 0 });
   runPreviewDiagnosisLoop.mockResolvedValue({ processedCount: 1, failedCount: 0 });
-  runCapturerReminderLoop.mockResolvedValue({ processedCount: 1, failedCount: 0 });
-  flagOverdueSiteAccessReviews.mockResolvedValue({ processedCount: 1, failedCount: 0 });
-  flagOverdueFinanceReviews.mockResolvedValue({ processedCount: 1, failedCount: 0 });
   runGapClosureLoop.mockResolvedValue({
     processedCount: 1,
     failedCount: 0,
@@ -189,13 +174,9 @@ describe("ops automation scheduler", () => {
 
     expect(runInboundQualificationLoop).toHaveBeenCalled();
     expect(runSupportTriageLoop).toHaveBeenCalled();
-    // The capturer and field-ops lanes are retired (2026-11-11): their flags
-    // are set above and still start nothing.
+    // The capturer and field-ops lanes are retired and deleted (2026-11-11):
+    // their flags are set above and start nothing.
     expect(runWaitlistAutomationLoop).not.toHaveBeenCalled();
-    expect(runCapturerReminderLoop).not.toHaveBeenCalled();
-    expect(flagOverdueSiteAccessReviews).not.toHaveBeenCalled();
-    expect(flagOverdueFinanceReviews).not.toHaveBeenCalled();
-    expect(runPayoutExceptionTriageLoop).not.toHaveBeenCalled();
 
     stop();
   });

@@ -12,7 +12,6 @@ import { deploymentCatalogWithDigest } from "../../client/src/lib/deploymentEmbo
 import { ownerClosure } from "./fixtures/website-run-closure";
 const state = vi.hoisted(() => ({
   records: new Map<string, any>(),
-  messages: vi.fn(),
   intakes: [] as any[],
   notices: vi.fn(async () => ({ enqueued: true })),
 }));
@@ -147,9 +146,6 @@ vi.mock("../utils/field-encryption", () => ({
   encryptFieldValue: async (value: string) => `encrypted:${value}`,
   decryptFieldValue: async (value: string) => value.replace(/^encrypted:/, ""),
 }));
-vi.mock("../utils/field-ops-automation", () => ({
-  sendCapturerCommunication: state.messages,
-}));
 vi.mock("../routes/inbound-request", () => ({
   submitInboundRequest: async (req: any, res: any) => {
     state.intakes.push({
@@ -259,7 +255,6 @@ beforeEach(async () => {
   admission.mockResolvedValue(true);
   state.records.clear();
   state.intakes.length = 0;
-  state.messages.mockReset().mockResolvedValue({ state: "pending_approval" });
   state.records.set("users/site-1", {
     buyerType: "site_operator",
     name: "Site Owner",
@@ -438,7 +433,6 @@ describe("workspace access and projections", () => {
     expect((await api("/tasks/task-1", "site-2")).status).toBe(404);
     expect(preparation.read).not.toHaveBeenCalled();
     expect([...state.records]).toEqual(before);
-    expect(state.messages).not.toHaveBeenCalled();
   });
   it("shows an owner-closed run consistently in the authenticated workspace without advancing it", async () => {
     state.records.set("inboundRequests/task-1", { ...task(), website_run_closures: {
@@ -455,7 +449,6 @@ describe("workspace access and projections", () => {
     expect(viewed.status).toBe("Run closed with a conservative abstention");
     expect((await api("/tasks/task-1", "site-2")).status).toBe(404);
     expect([...state.records]).toEqual(before);
-    expect(state.messages).not.toHaveBeenCalled();
   });
   it("shows persisted reconstruction failure without exposing private provider details", async () => {
     state.records.set("inboundRequests/task-1", { ...task(),
@@ -478,7 +471,6 @@ describe("workspace access and projections", () => {
     expect(viewed.thumbnailUrl).toBeNull();
     expect([...state.records]).toEqual(before);
     expect((await api("/tasks/task-1", "site-2")).status).toBe(404);
-    expect(state.messages).not.toHaveBeenCalled();
   });
   it("shows the same Atlas closeout in the owner's job and status card before confirmation", async () => {
     const { crossRuntimeArtifactDigest } = await import("../utils/crossRuntimeCanonical");
@@ -499,7 +491,6 @@ describe("workspace access and projections", () => {
     expect(viewed.nextStep).toBe(viewed.readiness.outcome.nextStep);
     expect((await api("/tasks/task-1", "site-2")).status).toBe(404);
     expect([...state.records]).toEqual(before);
-    expect(state.messages).not.toHaveBeenCalled();
   });
   it("uses the current ready preview after a failed record is replaced", async () => {
     state.records.set("inboundRequests/task-1", { ...task(),
@@ -522,7 +513,6 @@ describe("workspace access and projections", () => {
     expect(viewed.sceneReady).toBe(true);
     expect(viewed.thumbnailUrl).toBe("https://viewer.example/current.png");
     expect([...state.records]).toEqual(before);
-    expect(state.messages).not.toHaveBeenCalled();
   });
   it("withholds persisted capture derivatives on the owner's return after withdrawal", async () => {
     state.records.set("inboundRequests/task-1", { ...task(), consent_revoked: true,
@@ -735,17 +725,6 @@ describe("workspace requests and lifecycle", () => {
     expect(projected).not.toHaveProperty("pilotRecommended");
   });
 
-  it("does not turn a provisional capturer assignment into a confirmed appointment", async () => {
-    state.records.set("inboundRequests/task-1", task());
-    state.records.set("capture_jobs/capture-1", {
-      buyer_request_id: "task-1",
-      status: "scheduled",
-      availabilityStartsAt: "2026-09-16T15:00:00Z",
-      field_ops: { dispatch_review: { manual_confirmation_required: true } },
-    });
-    const response = await (await api("/tasks/task-1", "site-1")).json();
-    expect(response.capture.status).toBe("awaiting_confirmation");
-  });
   it("does not apply current targets retroactively to an older evaluation", async () => {
     state.records.set("inboundRequests/task-1", task());
     state.records.set("inboundRequests/application-1", {
@@ -989,23 +968,6 @@ describe("workspace requests and lifecycle", () => {
     expect((await api("/evaluations", "robot-1", { ...request1, id: "application-3" })).status).toBe(404);
     expect(state.notices).not.toHaveBeenCalled();
     expect(state.intakes).toHaveLength(1);
-  });
-  it("answers 410 for every visit action and changes or sends nothing (visits retired 2026-11-11)", async () => {
-    state.records.set("inboundRequests/task-1", task());
-    state.records.set("capture_jobs/capture-1", {
-      buyer_request_id: "task-1",
-      status: "scheduled",
-      field_ops: { capturer_assignment: { creator_id: "capturer-1", name: "Jordan" } },
-    });
-    const before = JSON.stringify([...state.records.entries()]);
-    for (const body of [{ action: "cancel", message: "Site closed" }, { action: "message", message: "Use the east entrance" },
-      { action: "request", message: "Please come" }]) {
-      const response = await api("/tasks/task-1/capture", "site-1", body);
-      expect(response.status).toBe(410);
-      expect(await response.json()).toEqual({ error: "filming_visits_retired" });
-    }
-    expect(state.messages).not.toHaveBeenCalled();
-    expect(JSON.stringify([...state.records.entries()])).toBe(before);
   });
   it("no longer lets a site select a team for a pilot, and requires a pilot before deployment", async () => {
     state.records.set("inboundRequests/task-1", task());

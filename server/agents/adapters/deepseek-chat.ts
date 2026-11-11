@@ -143,7 +143,7 @@ function defaultThinkingForTask(kind: AgentTaskKind) {
 
 function defaultReasoningEffortForTask(kind: AgentTaskKind) {
   if (kind === "operator_thread" || kind === "external_harness_thread") return "max";
-  if (kind === "preview_diagnosis" || kind === "payout_exception_triage") return "high";
+  if (kind === "preview_diagnosis") return "high";
   return "low";
 }
 

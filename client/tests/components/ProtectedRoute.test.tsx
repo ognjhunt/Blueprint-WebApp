@@ -87,15 +87,23 @@ describe('ProtectedRoute', () => {
     await waitFor(() => expect(setLocationMock).toHaveBeenCalledWith("/sign-in"));
   });
 
-  it.each(["capturer", "missing-profile"])("removes the privacy exception immediately on ordinary Settings navigation: %s", kind => {
+  it("treats an account with the retired capturer role like any account", () => {
+    route.pathname = "/app"; route.search = "";
+    useAuthMock.mockReturnValue({ currentUser: { uid: "old-capturer" }, userData: { role: "capturer" }, loading: false });
+    render(<ProtectedRoute><div>Workspace content</div></ProtectedRoute>);
+    expect(screen.getByText("Workspace content")).toBeInTheDocument();
+    expect(setLocationMock).not.toHaveBeenCalled();
+  });
+
+  it.each(["missing-profile"])("removes the privacy exception immediately on ordinary Settings navigation: %s", kind => {
     route.pathname = "/settings"; route.search = "privacy=1";
-    useAuthMock.mockReturnValue({ currentUser: { uid: "privacy-owner" }, userData: kind === "capturer" ? { role: "capturer" } : null, loading: false });
+    useAuthMock.mockReturnValue({ currentUser: { uid: "privacy-owner" }, userData: null, loading: false });
     const view = render(<ProtectedRoute><div>Protected content</div></ProtectedRoute>);
     expect(screen.getByText("Protected content")).toBeInTheDocument();
     route.search = "setup=1";
     view.rerender(<ProtectedRoute><div>Protected content</div></ProtectedRoute>);
     expect(screen.queryByText("Protected content")).not.toBeInTheDocument();
-    if (kind === "capturer") expect(setLocationMock).toHaveBeenCalledWith("/capture-app");
+    void kind;
   });
 
   it.each(["/admin/jobs", "/settings"])("never waives an admin role requirement with privacy=1 on %s", pathname => {

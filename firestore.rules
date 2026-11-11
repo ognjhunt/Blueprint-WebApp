@@ -1,25 +1,21 @@
 rules_version = '2';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// CANONICAL Firestore ruleset for Firebase project `blueprint-8c1ca`.
+// Firestore ruleset for Firebase project `blueprint-8c1ca`, deployed from
+// Blueprint-WebApp.
 //
-// This file is the SINGLE canonical ruleset deployed to the (default) Firestore
-// instance. It is a SUPERSET of what both clients need:
-//   • the iOS capturer app  (BlueprintCapture)  — via the Firebase client SDK
-//   • the Blueprint WebApp                       — via the Firebase client SDK
-//
-// It MUST be kept byte-identical in both repos:
-//   • BlueprintCapture/firestore.rules
-//   • Blueprint-WebApp/firestore.rules
-// because `firebase deploy --only firestore:rules` is last-writer-wins for the
-// whole project — whichever repo deploys, the deployed rules must still permit
-// every collection each client reads/writes. See beta blocker XR-01.
+// The BlueprintCapture app is retired (owner, 2026-11-11): a person who works
+// at the site films the job in the browser, and the WebApp client SDK reads and
+// writes only `users` (and owner-scoped `scenes`). The capture app's
+// client-SDK grants (capture_jobs for assigned capturers, capture_submissions,
+// reservations, target_state, sessions, sessionEvents, referral codes and the
+// Android telemetry collections) are removed, so those collections fall to the
+// default deny. Their documents are not deleted; the Admin SDK still reads them.
 //
 // Admin-SDK access (Cloud Functions / server routes) BYPASSES these rules and
 // needs no allow rule here. Only client-SDK (rule-governed) access is modeled.
 //
-// Parity is enforced by:
-//   Blueprint-WebApp/scripts/check-firestore-rules-parity.sh
+// Guarded by Blueprint-WebApp/scripts/check-firestore-rules-parity.sh.
 // ─────────────────────────────────────────────────────────────────────────────
 
 service cloud.firestore {
@@ -45,11 +41,6 @@ service cloud.firestore {
 
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
-    }
-
-    function isAssignedCaptureJob(data) {
-      return isSignedIn() && data.get('field_ops', {})
-        .get('capturer_assignment', {}).get('creator_id', '') == request.auth.uid;
     }
 
     function isStringField(field) {
@@ -78,214 +69,15 @@ service cloud.firestore {
         .hasAny(['ownerUid', 'orgId']);
     }
 
-    function captureSubmissionClientCreateKeys() {
-      return [
-        'capture_id',
-        'scene_id',
-        'creator_id',
-        'job_id',
-        'capture_source',
-        'status',
-        'requested_outputs',
-        'has_site_identity',
-        'has_capture_topology',
-        'created_at',
-        'submitted_at',
-        'capture_job_id',
-        'buyer_request_id',
-        'site_submission_id',
-        'region_id',
-        'estimated_payout_cents',
-        'rights_profile',
-        'target_address',
-        'site_identity',
-        'city_context',
-        'target_context',
-        'raw_prefix',
-        'operational_state',
-        'lifecycle',
-        'upload_error'
-      ];
-    }
-
-    function captureSubmissionClientUpdateKeys() {
-      return [
-        'created_at',
-        'submitted_at',
-        'status',
-        'operational_state',
-        'lifecycle',
-        'upload_error'
-      ];
-    }
-
-    function captureSubmissionClientStatuses() {
-      return [
-        'submitted',
-        'upload_failed',
-        'raw_validation_failed',
-        'local_preflight_failed'
-      ];
-    }
-
-    function captureSubmissionClientAssignmentStates() {
-      return [
-        'unassigned_or_open_capture',
-        'assigned_capture_job'
-      ];
-    }
-
-    function captureSubmissionClientUploadStates() {
-      return [
-        'uploading',
-        'uploaded',
-        'failed'
-      ];
-    }
-
-    function captureSubmissionClientQaStates() {
-      return [
-        'queued',
-        'not_started',
-        'blocked_raw_validation',
-        'blocked_local_storage',
-        'blocked_local_capture_limits'
-      ];
-    }
-
-    function optionalString(data, field) {
-      return !(field in data) || data[field] is string;
-    }
-
-    function optionalTimestamp(data, field) {
-      return !(field in data) || data[field] is timestamp;
-    }
-
-    function optionalBool(data, field) {
-      return !(field in data) || data[field] is bool;
-    }
-
-    function captureSubmissionRequestStatusIsClientWritable(data) {
-      return ('status' in data)
-        && data.status in captureSubmissionClientStatuses();
-    }
-
-    function captureSubmissionExistingStatusAllowsClientUpdate(data) {
-      return !('status' in data)
-        || data.status in captureSubmissionClientStatuses();
-    }
-
-    function hasValidCaptureSubmissionOperationalState(data) {
-      return !('operational_state' in data)
-        || (
-          data.operational_state is map
-          && data.operational_state.keys().hasOnly([
-            'assignment_state',
-            'upload_state',
-            'qa_state',
-            'qa_outcome',
-            'repeat_ready'
-          ])
-          && (!('assignment_state' in data.operational_state)
-            || data.operational_state.assignment_state in captureSubmissionClientAssignmentStates())
-          && (!('upload_state' in data.operational_state)
-            || data.operational_state.upload_state in captureSubmissionClientUploadStates())
-          && (!('qa_state' in data.operational_state)
-            || data.operational_state.qa_state in captureSubmissionClientQaStates())
-          && (!('qa_outcome' in data.operational_state)
-            || data.operational_state.qa_outcome == null)
-          && optionalBool(data.operational_state, 'repeat_ready')
-        );
-    }
-
-    function hasValidCaptureSubmissionLifecycle(data) {
-      return !('lifecycle' in data)
-        || (
-          data.lifecycle is map
-          && data.lifecycle.keys().hasOnly([
-            'capture_started_at',
-            'upload_started_at',
-            'capture_uploaded_at',
-            'upload_failed_at'
-          ])
-          && optionalTimestamp(data.lifecycle, 'capture_started_at')
-          && optionalTimestamp(data.lifecycle, 'upload_started_at')
-          && optionalTimestamp(data.lifecycle, 'capture_uploaded_at')
-          && optionalTimestamp(data.lifecycle, 'upload_failed_at')
-        );
-    }
-
-    function hasValidCaptureSubmissionUploadError(data) {
-      return !('upload_error' in data)
-        || (
-          data.upload_error is map
-          && data.upload_error.keys().hasOnly([
-            'code',
-            'message',
-            'recorded_at'
-          ])
-          && optionalString(data.upload_error, 'code')
-          && optionalString(data.upload_error, 'message')
-          && optionalTimestamp(data.upload_error, 'recorded_at')
-        );
-    }
-
-    // Fields only the Pipeline (Admin SDK) may write. They are excluded from
-    // the client shape check below so that a server write does not lock the
-    // capturer out of its own document: the update rule validates the whole
-    // resulting doc, so without this exclusion the first server-written field
-    // would make every later client update fail hasOnly().
-    function captureSubmissionServerOwnedKeys() {
-      return [
-        'reconstruction'
-      ];
-    }
-
-    function hasOnlyCaptureSubmissionClientCreateKeys(data) {
-      return data.keys()
-        .removeAll(captureSubmissionServerOwnedKeys())
-        .hasOnly(captureSubmissionClientCreateKeys());
-    }
-
-    function captureSubmissionIsClientUploaded(data) {
-      return ('operational_state' in data)
-        && data.operational_state is map
-        && ('upload_state' in data.operational_state)
-        && data.operational_state.upload_state == 'uploaded';
-    }
-
-    // Client upload transitions are monotonic: once the client has reported
-    // the raw upload as fully uploaded, the record belongs to the backend.
-    // The only client write still permitted is a replayed completion write
-    // (the client never received the ack and re-sends the same terminal
-    // payload, possibly with refreshed registration timestamps) — never a
-    // regression to uploading/failed or a failure status, and never a
-    // rewrite of operational_state or upload_error after handoff.
-    function captureSubmissionUploadTransitionIsMonotonic(existing, incoming) {
-      return !captureSubmissionIsClientUploaded(existing)
-        || (captureSubmissionIsClientUploaded(incoming)
-          && incoming.status == 'submitted'
-          && incoming.diff(existing).affectedKeys()
-            .hasOnly(['created_at', 'submitted_at', 'lifecycle']));
-    }
-
-    function hasValidClientCaptureSubmissionPayload(data) {
-      return hasOnlyCaptureSubmissionClientCreateKeys(data)
-        && captureSubmissionRequestStatusIsClientWritable(data)
-        && hasValidCaptureSubmissionOperationalState(data)
-        && hasValidCaptureSubmissionLifecycle(data)
-        && hasValidCaptureSubmissionUploadError(data);
-    }
-
     // ─── Users ──────────────────────────────────────────────────────────────
     // Profile roles support onboarding only. Execution authority is assigned
     // by the Admin SDK/custom claims, never by an owner's profile write.
     function hasSafeClientProfileRoles(data) {
       return (!data.keys().hasAny(['role'])
-          || data.role in ['capturer', 'buyer', 'creator', 'customer', 'site_operator', 'robot_team', 'guest', 'user'])
+          || data.role in ['buyer', 'creator', 'customer', 'site_operator', 'robot_team', 'guest', 'user'])
         && (!data.keys().hasAny(['roles'])
           || (data.roles is list
-            && data.roles.hasOnly(['capturer', 'buyer', 'creator', 'customer', 'site_operator', 'robot_team', 'guest', 'user'])));
+            && data.roles.hasOnly(['buyer', 'creator', 'customer', 'site_operator', 'robot_team', 'guest', 'user'])));
     }
     match /users/{userId} {
       allow read: if isOwner(userId);
@@ -303,35 +95,10 @@ service cloud.firestore {
             .hasAny(['stats', 'admin', 'ops', 'accessRoles', 'structuredIntakeRequestId'])
         && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'roles'])
           || hasSafeClientProfileRoles(request.resource.data));
-      // Self-service account deletion (App Store 5.1.1(v) / GDPR erasure):
-      // the in-app flow deletes this document before removing the Auth user.
-      // Uploaded capture evidence in capture_submissions is retained per the
-      // capture policy and remains backend-managed.
+      // Self-service account deletion (GDPR erasure): the owner may delete
+      // this document before removing the Auth user. Uploaded capture evidence
+      // is retained per the capture policy and remains backend-managed.
       allow delete: if isOwner(userId);
-
-      // Referral sub-collection: owner reads only; writes are server-side only.
-      match /referrals/{referredUserId} {
-        allow read: if isOwner(userId);
-        allow write: if false;
-      }
-    }
-
-    // ─── Referral code lookup ────────────────────────────────────────────────
-    // Auth comes before the invite code step, so any authenticated user can
-    // look up whether a code is valid. Unauthenticated enumeration is blocked.
-    match /referralCodes/{code} {
-      allow read: if isSignedIn();
-      allow write: if false; // written only by server (Admin SDK)
-    }
-
-    // ─── Capture jobs (private site assignments) ────────────────────────────
-    // Documents include precise site locations and access instructions.
-    // Assignment is written only by the server; a client-owned reservation
-    // or profile role must never grant location access. Mobile list queries
-    // must constrain field_ops.capturer_assignment.creator_id to their uid.
-    match /capture_jobs/{jobId} {
-      allow read: if isAdmin() || isAssignedCaptureJob(resource.data);
-      allow write: if false;
     }
 
     // ─── WebApp server-owned control-plane records ─────────────────────────
@@ -414,158 +181,6 @@ service cloud.firestore {
         && hasValidScenePayload(request.resource.data)
         && (isAdmin() || (isSceneOwner() && sceneOwnershipUnchanged()));
       allow delete: if isAdmin() || isSceneOwner();
-    }
-
-    // ─── Capture submissions ─────────────────────────────────────────────────
-    // Clients may create their own submissions and read their own.
-    // Status transitions (approved, paid, etc.) and payout fields are
-    // written only by backend services via the Admin SDK.
-    match /capture_submissions/{captureId} {
-      allow read: if isSignedIn()
-        && resource.data.creator_id == request.auth.uid;
-      allow create: if isOwner(request.resource.data.creator_id)
-        // A device may not declare its own capture reconstructed.
-        && !request.resource.data.keys().hasAny(captureSubmissionServerOwnedKeys())
-        && hasValidClientCaptureSubmissionPayload(request.resource.data);
-      allow update: if isOwner(resource.data.creator_id)
-        && request.resource.data.creator_id == resource.data.creator_id
-        && captureSubmissionExistingStatusAllowsClientUpdate(resource.data)
-        && hasValidClientCaptureSubmissionPayload(request.resource.data)
-        && captureSubmissionUploadTransitionIsMonotonic(resource.data, request.resource.data)
-        && request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(captureSubmissionClientUpdateKeys());
-      allow delete: if false; // backend only
-    }
-
-    // ─── Reservations ───────────────────────────────────────────────────────
-    // Create requires claiming the reservation as yourself; update/delete
-    // require owning the EXISTING document (an "either side" check would let
-    // any signed-in user overwrite someone else's reservation — job squatting).
-    match /reservations/{targetId} {
-      allow read: if isOwner(resource.data.userId);
-      allow create: if isOwner(request.resource.data.userId);
-      allow update: if isOwner(resource.data.userId)
-        && isOwner(request.resource.data.userId);
-      allow delete: if isOwner(resource.data.userId);
-    }
-
-    // ─── Target state ───────────────────────────────────────────────────────
-    // Legacy state can carry the same precise coordinates as a capture job.
-    // It is not a public POI feed. Preserve owner state and assigned-job state
-    // without letting a self-created reservations document grant access.
-    match /target_state/{targetId} {
-      allow read: if isAdmin() || (isSignedIn()
-        && (resource.data.get('reservedBy', '') == request.auth.uid
-          || resource.data.get('checkedInBy', '') == request.auth.uid
-          || (exists(/databases/$(database)/documents/capture_jobs/$(targetId))
-            && isAssignedCaptureJob(get(/databases/$(database)/documents/capture_jobs/$(targetId)).data))));
-      allow write: if false;
-    }
-
-    // ─── Sessions ───────────────────────────────────────────────────────────
-    match /sessions/{sessionId} {
-      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow create: if isSignedIn()
-        && request.resource.data.userId == request.auth.uid;
-      allow update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
-    }
-
-    // ─── Session events ──────────────────────────────────────────────────────
-    match /sessionEvents/{eventId} {
-      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow create: if isSignedIn()
-        && request.resource.data.userId == request.auth.uid;
-      allow update, delete: if false;
-    }
-
-    // ─── Client telemetry (Android breadcrumb/crash transport) ──────────────
-    // Write-only from the client, scoped to the writer's own uid so one
-    // capturer can't spoof another's telemetry. Reads are backend-only.
-    // Updates allow the client's idempotent set(merge) retries on its own
-    // events; deletes are backend-only.
-    //
-    // The only client writer is the Android app's
-    // CaptureClientTelemetryService.firestorePayload (BlueprintCapture
-    // android/), which writes the same event to captureClientTelemetry and to
-    // one of clientCrashReports / clientErrorTelemetry. The field allowlist,
-    // types and lengths below match what it sends after its own sanitising
-    // (identifiers cut to 120 chars, at most 20 metadata pairs of <=240-char
-    // values, at most 24 breadcrumbs, created_at as a server timestamp), so a
-    // signed-in client cannot use these collections as unbounded storage.
-    function clientTelemetryKeys() {
-      return [
-        'event_id', 'event_type', 'severity', 'operation', 'status',
-        'occurred_at', 'app_version', 'app_build', 'os_version',
-        'device_model', 'metadata', 'breadcrumbs', 'source',
-        'beta_alert_candidate', 'platform', 'creator_id', 'session_id',
-        'capture_id', 'created_at'
-      ];
-    }
-
-    function boundedString(value, maxLength) {
-      return value is string && value.size() <= maxLength;
-    }
-
-    function optionalBoundedString(data, field, maxLength) {
-      return !(field in data) || boundedString(data[field], maxLength);
-    }
-
-    function isClientTelemetryEvent(data) {
-      return data.keys().hasOnly(clientTelemetryKeys())
-        && data.creator_id == request.auth.uid
-        && boundedString(data.event_id, 64)
-        && boundedString(data.event_type, 120)
-        && boundedString(data.severity, 120)
-        && boundedString(data.operation, 120)
-        && boundedString(data.status, 120)
-        && boundedString(data.occurred_at, 64)
-        && optionalBoundedString(data, 'app_version', 128)
-        && optionalBoundedString(data, 'app_build', 64)
-        && optionalBoundedString(data, 'os_version', 128)
-        && optionalBoundedString(data, 'device_model', 200)
-        && optionalBoundedString(data, 'source', 120)
-        && optionalBoundedString(data, 'platform', 32)
-        && optionalBoundedString(data, 'session_id', 256)
-        && optionalBoundedString(data, 'capture_id', 256)
-        && optionalBool(data, 'beta_alert_candidate')
-        && (!('metadata' in data) || (data.metadata is map && data.metadata.size() <= 20))
-        && (!('breadcrumbs' in data) || (data.breadcrumbs is list && data.breadcrumbs.size() <= 24));
-    }
-
-    // created_at is the server's clock, never the client's: set now, or (on a
-    // merge that does not resend it) left as it was.
-    function clientTelemetryCreatedAtIsServerTime(data) {
-      return !('created_at' in data) || data.created_at == request.time;
-    }
-
-    function canCreateClientTelemetry() {
-      return isSignedIn()
-        && isClientTelemetryEvent(request.resource.data)
-        && clientTelemetryCreatedAtIsServerTime(request.resource.data);
-    }
-
-    function canUpdateClientTelemetry() {
-      return isSignedIn()
-        && resource.data.creator_id == request.auth.uid
-        && isClientTelemetryEvent(request.resource.data)
-        && (clientTelemetryCreatedAtIsServerTime(request.resource.data)
-          || request.resource.data.get('created_at', null) == resource.data.get('created_at', null));
-    }
-
-    match /captureClientTelemetry/{eventId} {
-      allow read, delete: if false;
-      allow create: if canCreateClientTelemetry();
-      allow update: if canUpdateClientTelemetry();
-    }
-    match /clientCrashReports/{eventId} {
-      allow read, delete: if false;
-      allow create: if canCreateClientTelemetry();
-      allow update: if canUpdateClientTelemetry();
-    }
-    match /clientErrorTelemetry/{eventId} {
-      allow read, delete: if false;
-      allow create: if canCreateClientTelemetry();
-      allow update: if canUpdateClientTelemetry();
     }
 
     // ─── Default deny ────────────────────────────────────────────────────────

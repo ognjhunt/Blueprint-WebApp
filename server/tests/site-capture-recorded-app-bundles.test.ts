@@ -88,7 +88,8 @@ vi.mock("../utils/siteTaskBrief", async (importOriginal) => ({
   })),
 }));
 
-const { default: uploadsRouter, retiredAppBundleRoutesForTests } = await import("../routes/self-capture-uploads");
+const uploadsRouter = (await import("../routes/self-capture-uploads")).default;
+const { retiredAppBundleRoutesForTests } = await import("./helpers/retiredAppBundle");
 const { createCaptureUploadToken } = await import("../utils/captureUploadToken");
 
 const FIXTURES = join(dirname(fileURLToPath(import.meta.url)), "fixtures", "recorded-app-bundles");
@@ -137,7 +138,7 @@ beforeAll(async () => {
   const app = express();
   app.use(express.json({ limit: "8mb" }));
   // The app bundle routes answer 410 in production (2026-11-11); these tests
-  // build stored bundles through the retired handlers, mounted first.
+  // build stored bundles through the retired handlers (a test fixture), mounted first.
   app.use("/api/self-capture/uploads", retiredAppBundleRoutesForTests());
   app.use("/api/self-capture/uploads", uploadsRouter);
   server = createServer(app);

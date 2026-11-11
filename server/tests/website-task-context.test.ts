@@ -123,12 +123,6 @@ it("reads confirmation after upload and rejects unsigned or mismatched capture r
     expect(revoked.capture_rights.derived_scene_generation_allowed).toBe(false);
     expect(revoked.context_digest).not.toBe(allowed.context_digest);
     expect((await post("walkthrough-other")).status).toBe(409);
-    const reconstruction = await fetch(`http://127.0.0.1:${address.port}/creator-captures/walkthrough-req1/world/reconstruct`, {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ frames_prefix_uri: "gs://capture/unedited/frames" }),
-    });
-    expect(reconstruction.status).toBe(409);
-    expect(await reconstruction.json()).toMatchObject({ code: "website_reconstruction_pipeline_owned" });
     state.authorized = false;
     expect((await post()).status).toBe(401);
   } finally { await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve())); }

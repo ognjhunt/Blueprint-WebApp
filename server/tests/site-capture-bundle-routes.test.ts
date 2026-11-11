@@ -99,7 +99,8 @@ vi.mock("../utils/siteTaskBrief", async (importOriginal) => ({
   getBrief: vi.fn(async () => (state.brief ? { requestId: "req-1", ...state.brief } : null)),
 }));
 
-const { default: uploadsRouter, retiredAppBundleRoutesForTests } = await import("../routes/self-capture-uploads");
+const uploadsRouter = (await import("../routes/self-capture-uploads")).default;
+const { retiredAppBundleRoutesForTests } = await import("./helpers/retiredAppBundle");
 const { createCaptureUploadToken } = await import("../utils/captureUploadToken");
 const { bundleDigest } = await import("../utils/siteCaptureBundle");
 
@@ -129,7 +130,7 @@ beforeAll(async () => {
     next();
   });
   // The app bundle routes answer 410 in production (2026-11-11); these tests
-  // build stored bundles through the retired handlers, mounted first.
+  // build stored bundles through the retired handlers (a test fixture), mounted first.
   app.use("/api/self-capture/uploads", retiredAppBundleRoutesForTests());
   app.use("/api/self-capture/uploads", uploadsRouter);
   server = createServer(app);
@@ -1131,29 +1132,4 @@ it.each([false, true])("updates a completed capture under the same job and prese
   expect(sharedFakeFirestoreState.docs.get(`inboundRequests/${REQUEST_ID}`)?.active_capture_id).toBe(issued.body.captureId);
   for (const [name, digest] of original) expect(createHash("sha256").update(state.bucket.objects.get(name)!.data).digest("hex")).toBe(digest);
   expect((await api("POST", `${token("film")}/supplement`, { mode: "replacement", requestId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb" })).status).toBe(403);
-});
-
-describe("the app bundle routes are switched off (capture app not in use, 2026-11-11)", () => {
-  it("answers 410 on all three routes before reading the link, and stores or signs nothing", async () => {
-    const app = express();
-    app.use(express.json());
-    app.use("/api/self-capture/uploads", uploadsRouter);
-    const server = createServer(app);
-    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-    const address = server.address();
-    if (!address || typeof address === "string") throw new Error("no address");
-    const before = JSON.stringify([...sharedFakeFirestoreState.docs.entries()]);
-    try {
-      for (const path of ["bundle", "bundle/targets", "bundle/complete"]) {
-        const response = await fetch(`http://127.0.0.1:${address.port}/api/self-capture/uploads/any-token/${path}`, {
-          method: "POST", headers: { "content-type": "application/json" }, body: "{}",
-        });
-        expect(response.status).toBe(410);
-        expect(await response.json()).toEqual({ error: "capture_app_not_in_use" });
-      }
-      expect(JSON.stringify([...sharedFakeFirestoreState.docs.entries()])).toBe(before);
-    } finally {
-      await new Promise<void>((resolve) => server.close(() => resolve()));
-    }
-  });
 });

@@ -74,7 +74,6 @@ const AdminCompanyMetrics = lazyRoute(() => import("../pages/AdminCompanyMetrics
 const TaskEvaluationLaunchesGate = lazyRoute(
   () => import("../pages/TaskEvaluationLaunchesGate"),
 );
-const AdminCapturers = lazyRoute(() => import("../pages/AdminCapturers"));
 const AdminRobotTeamAccess = lazyRoute(() => import("../pages/AdminRobotTeamAccess"));
 const AdminJobConsole = lazyRoute(() => import("../pages/AdminJobConsole"));
 const RequestConsole = lazyRoute(() => import("../pages/RequestConsole"));
@@ -372,7 +371,6 @@ export const appRoutes: AppRoute[] = [
   { path: "/admin/submissions", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminLeads },
   { path: "/admin/submissions/:requestId", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminLeads },
   { path: "/admin/company-metrics", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminCompanyMetrics },
-  { path: "/admin/capturers", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminCapturers },
   { path: "/admin/robot-team-access", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminRobotTeamAccess },
   { path: "/admin/jobs", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminJobConsole },
 

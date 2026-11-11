@@ -12,7 +12,8 @@ import {
 
 export const LIFECYCLE_CADENCE_COLLECTION = "lifecycle_email_cadences";
 
-export type LifecyclePersona = "site_operator" | "capturer" | "robot_team";
+// The capturer persona was retired with outside capturers (owner, 2026-11-11).
+export type LifecyclePersona = "site_operator" | "robot_team";
 
 export type LifecycleCadenceStep = {
   key: string;
@@ -52,18 +53,6 @@ export const LIFECYCLE_PERSONA_CONTRACTS: Record<LifecyclePersona, PersonaContra
       "site_claim_submitted",
       "access_boundary_defined",
       "operator_reply_received",
-    ],
-  },
-  capturer: {
-    persona: "capturer",
-    agentOwner: "capturer-success-agent",
-    policyOwner: "growth-lead",
-    activationMoment: "capturer completes a first usable capture or capture-readiness step",
-    activationEventKeys: [
-      "capturer_signup_submitted",
-      "first_capture_uploaded",
-      "first_capture_passed",
-      "repeat_capture_uploaded",
     ],
   },
   robot_team: {
@@ -253,138 +242,6 @@ function operatorSteps(params: {
   ];
 }
 
-function capturerSteps(params: {
-  name: string;
-  sourceLabel: string;
-  nowIso: string;
-  agentOwner: string;
-  policyOwner: "growth-lead";
-}): LifecycleCadenceStep[] {
-  const shared = {
-    agentOwner: params.agentOwner,
-    policyOwner: params.policyOwner,
-    requiresHumanReview: true as const,
-    emailClass: "commercial_lifecycle" as const,
-  };
-  const place = params.sourceLabel || "the first site";
-  return [
-    {
-      key: "capturer_welcome_day0",
-      dayOffset: 0,
-      scheduledAt: scheduledAtForDay(params.nowIso, 0),
-      status: "pending",
-      subject: "Your first useful Blueprint capture",
-      body: sentenceList([
-        `Hi ${params.name},`,
-        "",
-        "Welcome to Blueprint Capture. The first milestone is not a perfect portfolio. It is one real capture with enough provenance to support a maintained testbed and Task Evaluation Run.",
-        "",
-        `If ${place} is the best starting point, we can route the capture toward QA and repeat-ready guidance once it exists.`,
-        "",
-        "What is the first site or route you can realistically capture?",
-      ]),
-      ctaQuestion: "What is the first site or route you can realistically capture?",
-      skipIfEventKeys: ["first_capture_uploaded", "first_capture_passed"],
-      ...shared,
-    },
-    {
-      key: "capturer_first_capture_plan_day2",
-      dayOffset: 2,
-      scheduledAt: scheduledAtForDay(params.nowIso, 2),
-      status: "pending",
-      subject: "Plan the first capture pass",
-      body: sentenceList([
-        `Hi ${params.name},`,
-        "",
-        "The cleanest first pass is a lawful, rights-safe route through one site with clear notes on device, time, and any boundary that affects downstream use.",
-        "",
-        "Blueprint can use a narrow first pass better than a broad, unlabeled upload.",
-        "",
-        "What device and site route are you planning to use first?",
-      ]),
-      ctaQuestion: "What device and site route are you planning to use first?",
-      skipIfEventKeys: ["first_capture_uploaded", "first_capture_passed"],
-      ...shared,
-    },
-    {
-      key: "capturer_unblock_day5",
-      dayOffset: 5,
-      scheduledAt: scheduledAtForDay(params.nowIso, 5),
-      status: "pending",
-      subject: "What is blocking the first upload?",
-      body: sentenceList([
-        `Hi ${params.name},`,
-        "",
-        "If the first capture has not landed yet, the useful thing is to name the blocker: device setup, site access, route uncertainty, upload trouble, or privacy concerns.",
-        "",
-        "The capturer-success lane can route the next step once the blocker is real.",
-        "",
-        "Which one blocker should we help remove first?",
-      ]),
-      ctaQuestion: "Which one blocker should we help remove first?",
-      skipIfEventKeys: ["first_capture_uploaded", "first_capture_passed"],
-      ...shared,
-    },
-    {
-      key: "capturer_day7_qa_check",
-      dayOffset: 7,
-      scheduledAt: scheduledAtForDay(params.nowIso, 7),
-      status: "pending",
-      subject: "First-week capture QA",
-      body: sentenceList([
-        `Hi ${params.name},`,
-        "",
-        "Once a capture exists, Blueprint should turn it into clear QA feedback: what passed, what needs another pass, and what provenance is strong enough for a package.",
-        "",
-        "We do not want you guessing from vague readiness language.",
-        "",
-        "Do you want the next note to focus on QA feedback or repeat-capture planning?",
-      ]),
-      ctaQuestion: "Do you want the next note to focus on QA feedback or repeat-capture planning?",
-      skipIfEventKeys: ["first_capture_passed", "repeat_capture_uploaded"],
-      ...shared,
-    },
-    {
-      key: "capturer_repeat_ready_day14",
-      dayOffset: 14,
-      scheduledAt: scheduledAtForDay(params.nowIso, 14),
-      status: "pending",
-      subject: "Repeat-ready capture work",
-      body: sentenceList([
-        `Hi ${params.name},`,
-        "",
-        "The next useful stage is repeatability: another pass at the same site, a nearby site with similar geometry, or a capture route that fills a known buyer demand signal.",
-        "",
-        "Blueprint should only ask for more capture when there is a concrete use for it.",
-        "",
-        "Which repeat path would be easiest for you this month?",
-      ]),
-      ctaQuestion: "Which repeat path would be easiest for you this month?",
-      skipIfEventKeys: ["repeat_capture_uploaded"],
-      ...shared,
-    },
-    {
-      key: "capturer_day30_reengage",
-      dayOffset: 30,
-      scheduledAt: scheduledAtForDay(params.nowIso, 30),
-      status: "pending",
-      subject: "One concrete capture next step",
-      body: sentenceList([
-        `Hi ${params.name},`,
-        "",
-        "If capture work went quiet, the next step should stay concrete: one site, one route, or one blocker to clear. No daily nudges, no generic reminders.",
-        "",
-        "Blueprint will keep the capture record truthful and only mark progress when there is real evidence.",
-        "",
-        "What is the single next capture action you want us to route around?",
-      ]),
-      ctaQuestion: "What is the single next capture action you want us to route around?",
-      skipIfEventKeys: ["repeat_capture_uploaded", "capturer_closed_loop"],
-      ...shared,
-    },
-  ];
-}
-
 function robotTeamSteps(params: {
   name: string;
   siteLabel: string;
@@ -545,9 +402,6 @@ export function buildLifecycleCadenceSteps(params: {
   if (params.persona === "site_operator") {
     return operatorSteps(base);
   }
-  if (params.persona === "capturer") {
-    return capturerSteps(base);
-  }
   return robotTeamSteps(base);
 }
 
@@ -697,6 +551,12 @@ export async function runLifecycleCadenceWorker(params?: {
     const data = doc.data() as Record<string, unknown>;
     const persona = data.persona as LifecyclePersona;
     const contract = LIFECYCLE_PERSONA_CONTRACTS[persona];
+    // A stored cadence for a retired persona (capturer, 2026-11-11) is left
+    // as it is and sends nothing.
+    if (!contract) {
+      skippedCount += 1;
+      continue;
+    }
     const email = normalizeEmail(data.email);
     const completedEventKeys = normalizeCompletedEventKeys(data.completed_event_keys);
     const steps = Array.isArray(data.steps)
@@ -920,15 +780,9 @@ export async function createLifecycleCadenceForWaitlistSubmission(params: {
   market?: string | null;
   source?: string | null;
 }) {
-  const role = normalizeString(params.role).toLowerCase();
-  const source = normalizeString(params.source).toLowerCase();
-  const persona: LifecyclePersona =
-    role.includes("capturer") || source.includes("capture")
-      ? "capturer"
-      : "robot_team";
-  const completedEventKeys = [
-    persona === "capturer" ? "capturer_signup_submitted" : "robot_team_signup_submitted",
-  ];
+  // Capturer sign-ups are closed (2026-11-11); a waitlist entry is a robot team.
+  const persona: LifecyclePersona = "robot_team";
+  const completedEventKeys = ["robot_team_signup_submitted"];
 
   return createLifecycleCadenceEnrollment({
     persona,
