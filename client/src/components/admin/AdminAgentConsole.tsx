@@ -38,11 +38,8 @@ const sessionTaskOptions: Array<{
   label: string;
   description: string;
 }> = [
-  {
-    value: "site_assessment",
-    label: "Site task assessment",
-    description: "Assess an admitted site video and operator conversation with sourced robot evidence.",
-  },
+  // "site_assessment" is no longer offered: the per-job site assessment has ended and the runtime refuses it
+  // (2026-11-11). Older sessions of that kind still display.
   {
     value: "operator_thread",
     label: "Ops agent thread",

@@ -120,3 +120,5 @@
 /* "How to film ›": a quiet link that opens the how-to in place. */
 .bare-how-to > summary { display: inline-flex; align-items: center; min-height: 44px; cursor: pointer; list-style: none; text-decoration: underline; text-underline-offset: 4px; }
 .bare-how-to > summary::-webkit-details-marker { display: none; }
+/* An older job's standalone "Tested in simulation": the bare rhythm, label → line 8 px, lines 8 px apart. */
+.bare-screen.site-proof-standalone > * + * { margin-top: var(--bare-s2, 8px); }

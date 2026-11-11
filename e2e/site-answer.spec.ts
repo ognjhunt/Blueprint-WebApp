@@ -149,7 +149,8 @@ test("when no AI robot finished the job, the answer says so with the set-up noti
   await expect(answer.getByText("No AI robot finished your job", { exact: true })).toBeVisible();
   await expect(answer.getByText("This result may come from how we set up the simulation of your site, not from the robots.", { exact: true })).toBeVisible();
   await expect(answer.getByText(/Did best|Was ahead/)).toHaveCount(0);
-  await expect(answer.getByRole("button", { name: /^On paper/ })).toBeVisible();
+  // The paper check lives under Details while a test result leads (round 7).
+  await expect(answer.getByRole("button", { name: /^On paper/ })).toHaveCount(0);
   await page.getByRole("button", { name: "See details ›" }).click();
   await page.getByRole("button", { name: "The simulation test" }).click();
   const ranked = page.getByRole("region", { name: "Ranked", exact: true });
@@ -270,7 +271,8 @@ for (const state of RHYTHM_STATES) {
     if (state.mode) await mockMode(page, state.mode);
     await page.goto(`/capture-upload/${token}${state.mode === "film" ? "" : "?video=existing"}${state.hash ?? ""}`);
     await page.locator(state.mode === "withdrawn" ? ".bare-withdrawn [role=status]" : state.mode === "film" ? ".bare-upload-alt"
-      : state.hash ? ".site-answer-details h1, .bare-screen h1" : ".site-answer-bare .bare-big, .site-answer-bare .bare-lead").first().waitFor();
+      : state.hash === "#details" ? "h1:text-is('Details')" : state.hash ? ".site-answer-details h1"
+      : ".site-answer-bare .bare-big, .site-answer-bare .bare-lead").first().waitFor();
     if (!state.hash && state.evaluation) await page.locator(".site-answer-bare h2.bare-label", { hasText: /tested|did best|was ahead|testing now|getting ready/i }).waitFor();
     if (state.hash === "#details/test") await page.getByRole("region", { name: "Ranked", exact: true }).waitFor();
     const found = await bareRhythmFindings(page);

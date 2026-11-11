@@ -169,6 +169,8 @@ describe("GET /api/site-task-brief/:token/status", () => {
     expect(body.status).toMatchObject({ decision: "processing_failure", stage: null, operatorAction: null });
     expect(body.status.outcome.actionOwner).toBe("blueprint");
     expect(body.status.outcome.reference).toBe("bp-prep-1234567890abcdef");
+    // A failure is not a simulation being built.
+    expect(body.simulationBuilding).toBe(false);
     expect(body.status.headline).not.toMatch(/are preparing|results are in/i);
     expect([...sharedFakeFirestoreState.docs]).toEqual(before);
     expect(enqueueOutbox).not.toHaveBeenCalled();
@@ -197,6 +199,8 @@ describe("GET /api/site-task-brief/:token/status", () => {
     expect(body.status.headline).toContain("Preparing it is taking longer than it should and needs review");
     expect(body.status.headline).not.toContain("our team has been told");
     expect(body.status.headline).not.toContain("we are preparing it");
+    // No status from the Pipeline: nothing says a simulation is being built.
+    expect(body.simulationBuilding).toBe(false);
     const film = createCaptureUploadToken({ requestId: "req-1", captureId: "cap-1", sceneId: "scene-1", scope: "film" });
     const filmed = await (await fetch(`${baseUrl}/api/site-task-brief/${film}/status`)).json();
     expect(JSON.stringify(filmed)).not.toContain("taking longer");
@@ -228,6 +232,9 @@ describe("GET /api/site-task-brief/:token/status", () => {
       const asked = await status();
       // The job keeps its own status; the question rides alongside it.
       expect(asked.body.status.decision).toBe("assessing");
+      // Preparation in progress: the simulation of the site is being built, so the answer screen says "Getting ready".
+      expect(asked.body.simulationBuilding).toBe(true);
+      expect((await status(createCaptureUploadToken({ requestId: "req-1", captureId: "cap-1", sceneId: "scene-1", scope: "film" }))).body.simulationBuilding).toBe(false);
       expect(asked.body.targetChoice).toEqual({ questionDigest: question.question_digest, semanticLabel: "Tote",
         guessedCandidateId: "c0123456789abcdef", candidates: [
           { id: "c0123456789abcdef", label: "Tote 1: left side, center of the view", referenceTimeMs: 4000 },

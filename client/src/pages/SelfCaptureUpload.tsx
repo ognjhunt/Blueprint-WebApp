@@ -49,6 +49,8 @@ import { receivedVideoResult, retrySelfCaptureProcessing, uploadSelfCaptureVideo
 /** Mirrors the server's `projectTaskStatus`; the shared truth about where a task stands. */
 type TaskStatus = {
   siteAdvisory?: SiteAdvisory | null;
+  /** The simulation of the site is being built (the Pipeline's preparation status, read by the server). */
+  simulationBuilding?: boolean;
   decision: string;
   headline: string;
   operatorAction: string | null;
@@ -527,6 +529,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
           setStatus({
             ...data.status,
             siteAdvisory: data.siteAdvisory ?? null,
+            simulationBuilding: data.simulationBuilding === true,
             claimUrl: data.claimUrl ?? null,
             sceneViewUrl: data.sceneViewUrl ?? null,
             captureReceived: data.captureReceived === true,
@@ -853,7 +856,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
         onEditJob={brief && scope === "owner" && !withdrawn ? openBriefEditor : undefined}
         onUpdateVideo={scope === "owner" && link.status === "valid" && !withdrawn ? () => void updateVideo() : undefined}
         quietAction={!quietCard} onShowDetails={() => openView("details")} onShowSettings={settingsOpen ? () => openView("settings") : undefined} card={card}
-        gettingReady={status?.decision === "assessing"} />}
+        gettingReady={status?.simulationBuilding === true} />}
       {answer && videoUpdateError && <BareNotice role="alert">{videoUpdateError}</BareNotice>}
       {!answer && (saved || link.status !== "valid") && statusCard}
       {!answer && workspace}

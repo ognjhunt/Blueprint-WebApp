@@ -1414,6 +1414,13 @@ router.get("/:token/status", async (req: Request, res: Response) => {
         guessedCandidateId: question.guessed_candidate_id,
         candidates: question.candidates.map(row => ({ id: row.candidate_id, label: row.label,
           referenceTimeMs: row.reference_time_ms })) } : null,
+      // The simulation of the site is being built (owner, 2026-11-11: the answer screen says "Getting ready" then):
+      // preparation in progress, or handed off and not yet testing, held or ended. Read from the Pipeline's own
+      // status, never inferred from coverage, so a job with no simulation coming never says it is getting ready.
+      simulationBuilding: payload.scope === "owner" && !request?.captureRights.consent_revoked
+        && (preparationStatus?.state === "preparing" || preparationStatus?.state === "capacity_delayed"
+          || (preparationStatus?.state === "handed_off"
+            && !["testing", "evaluated", "held", "ended"].includes(String(sceneProgression?.state ?? "")))),
       // Which robots fit the job by spec sheet: an estimate for the owner, never a physical test.
       robotFit: payload.scope === "owner" ? preparationStatus?.robotFit ?? null : null,
       // The robots checked before any spend and why none fits, for the owner only, while the job is held on it.
