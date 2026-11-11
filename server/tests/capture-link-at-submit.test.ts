@@ -2033,9 +2033,11 @@ describe("a job that once asked for a visit (visits retired 2026-11-11)", () => 
   const switchMode = (baseUrl: string, url: string) =>
     fetch(`${baseUrl}/api/self-capture/uploads/${tokenFrom(url)}/self-capture`, { method: "POST" });
 
-  it("opens a job stored as a visit straight onto the upload page, with no switch to offer", async () => {
-    // Visits are retired (2026-11-11): the stored mode stays readable, and the
-    // link is ready without anyone switching anything or booking anything.
+  it("opens a job stored as a visit straight onto the upload page, and converts it to self-capture", async () => {
+    // Visits are retired (2026-11-11): the link is ready without anyone switching or booking anything,
+    // and the stored job is converted the way the site's own switch always did. Left as a visit, its
+    // recording would be refused later (owner observation requires self-capture) and the visit-only
+    // service-area blocker would stay in its triage.
     seedRequest("req-switch", { disposition: "qualified" }, "site_visit");
     const far = "req-far";
     seedRequest(far, { disposition: "not_now", blocking_field_ids: ["serviceArea"] }, "site_visit");
@@ -2049,10 +2051,14 @@ describe("a job that once asked for a visit (visits retired 2026-11-11)", () => 
       expect(body).toMatchObject({ state: "ready", holdReason: null, selfCaptureSwitchAvailable: false });
     }
     const stored = sharedFakeFirestoreState.docs.get("inboundRequests/req-switch") as Record<string, any>;
-    expect(stored.request.capture_mode).toBe("site_visit");
+    expect(stored.request.capture_mode).toBe("self_capture");
+    expect(stored.capture_mode_switch).toMatchObject({ from: "site_visit", to: "self_capture", by: "filming_visits_retired" });
+    const farStored = sharedFakeFirestoreState.docs.get(`inboundRequests/${far}`) as Record<string, any>;
+    expect(farStored.request.capture_mode).toBe("self_capture");
+    expect(farStored.site_task_triage.blocking_field_ids).not.toContain("serviceArea");
   });
 
-  it("is the site owner's decision, and goes one way only", async () => {
+  it("is never a filmer's choice: the switch route refuses a filmer, and the retirement converts the job", async () => {
     seedRequest("req-own", { disposition: "qualified" }, "site_visit");
     seedRequest("req-self", { disposition: "qualified" }, "self_capture");
 
@@ -2070,8 +2076,10 @@ describe("a job that once asked for a visit (visits retired 2026-11-11)", () => 
     expect(codes.filmer).toBe(403);
     expect(codes.filmerOffer).toBe(false);
     expect(codes.already).toMatchObject({ switched: false, state: "ready" });
-    expect((sharedFakeFirestoreState.docs.get("inboundRequests/req-own") as Record<string, any>).request.capture_mode)
-      .toBe("site_visit");
+    // The filmer's request changed nothing; reading the link's status converted the retired visit.
+    const own = sharedFakeFirestoreState.docs.get("inboundRequests/req-own") as Record<string, any>;
+    expect(own.request.capture_mode).toBe("self_capture");
+    expect(own.capture_mode_switch.by).toBe("filming_visits_retired");
   });
 });
 

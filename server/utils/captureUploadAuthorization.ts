@@ -127,6 +127,25 @@ export async function authorizeCaptureUpload(
     return held("request_missing", "This link does not point at a submission we hold.");
   }
 
+  // Filming visits are retired (owner, 2026-11-11). A stored site job that asked for one, or that
+  // predates the question, is converted the way the site's own "I'll film it myself" switch always
+  // did: the request and brief become self-capture and the gates are re-scored under that mode.
+  // Offering the upload link alone is not enough: a recording under a stored visit is refused later
+  // (`observeWebsiteCaptureOwner` requires self-capture), and visit-only blockers would stay in its triage.
+  if (request.request?.buyerType === "site_operator" && request.request?.capture_mode !== "self_capture") {
+    try {
+      const { switchSiteToSelfCapture } = await import("./siteTaskBrief");
+      await switchSiteToSelfCapture(requestId, "filming_visits_retired");
+      const converted = await db.collection("inboundRequests").doc(requestId).get();
+      request = converted.exists ? (converted.data() as InboundRequest) : request;
+    } catch {
+      return held(
+        "store_unavailable",
+        "We cannot check this link right now. Keep your original video and try again shortly.",
+      );
+    }
+  }
+
   if (!hasCurrentRecordingConsent(request.request?.consent_attestation)) {
     return { ...held("recording_consent_required", "The site owner must confirm the current recording permission before uploading.", request),
       recordingConsentAvailable: canGrantInitialRecordingConsent(request) };
