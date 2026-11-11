@@ -269,7 +269,10 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
   // Recording permission needs a country, not a street address. An explicit
   // country can stand alone; changing the address rechecks that declaration.
   const [countryMissing, setCountryMissing] = useState(false);
-  // The form asks where the job is and takes the country from it (owner, 2026-11-11).
+  // The form asks where the job is and takes the country from it (owner, 2026-11-11). The country select is asked
+  // for only when it is needed: an address that gave no country (on leaving the field), or a press of the button with
+  // no country. Once asked it stays, so a person can change it. A recovered draft that chose one shows it.
+  const [countryAsked, setCountryAsked] = useState(Boolean(initial.draft.regionManuallySet));
   // The optional details and the full statements are their own screens, in the URL's hash (the job page's pattern).
   const subScreens = useRef(["details", "agreeing"] as const).current;
   const { screen, open: openScreen, close: closeScreen } = useHashScreen(subScreens);
@@ -322,6 +325,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
     requestId.current = other.requestId; retryToken.current = other.retryToken;
     setMethod(other.draft.method === "visit" ? "phone" : other.draft.method); setRegion(other.draft.region);
     setRegionManuallySet(other.draft.regionManuallySet);
+    setCountryAsked(Boolean(other.draft.regionManuallySet));
     setPending(other.pending);
     if (changed && resetChanged) {
       setClaudeConsent(false); setSolAgentsConsent(false); setShareListing(false);
@@ -366,7 +370,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
       requestId.current = fresh.requestId; retryToken.current = fresh.retryToken;
       setRecoveryUnavailable(false); setPending(null); setState({ status: "idle" }); setClaudeConsent(false); setSolAgentsConsent(false);
       setShareListing(false);
-      setMethod("phone"); setRegion(""); setRegionManuallySet(false); setCountryMissing(false);
+      setMethod("phone"); setRegion(""); setRegionManuallySet(false); setCountryMissing(false); setCountryAsked(false);
       setFootage(null); setFootageError(null); setCaptureReceived(false);
       setResetVersion(value => value + 1);
       // A completion is visible only after both stores commit the fresh authority.
@@ -391,7 +395,8 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
     // from someone who is supplying their own recording. Never guess a country.
     if (!retained && !region) {
       setCountryMissing(true);
-      document.querySelector<HTMLElement>("#start-region")?.focus();
+      setCountryAsked(true);
+      window.setTimeout(() => document.querySelector<HTMLElement>("#start-region")?.focus(), 0);
       return;
     }
     // No typed task is required on any path: the server accepts a job with no
@@ -740,8 +745,8 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
   const sendsVideo = method === "upload" && region !== "non_us";
   const consentLine = sendsVideo ? SITE_START_CONSENT_WITH_VIDEO : SITE_START_CONSENT_NO_VIDEO;
   const submitLabel = region === "non_us" ? "Save my job" : sendsVideo ? "Send video" : "Next: film the job";
-  // The existing rule (owner, 2026-11-11): the country select shows while the address has given no country.
-  const showCountry = !region || regionManuallySet;
+  // The country select shows once asked (above), while the address has given no country or the person chose one.
+  const showCountry = countryAsked && (!region || regionManuallySet);
   const busyLabel = uploadPercent !== null ? `Uploading video… ${uploadPercent}%` : "Working…";
   const consentWithLinks = (line: string) => {
     const [before, afterTerms] = line.split("Terms");
@@ -817,10 +822,16 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
             </div>
           )}
 
-          <BareField label="Where is the job?" htmlFor="start-location" helper="Street address or city.">
+          <BareField label="Where is the job?" htmlFor="start-location">
+            <div onBlur={(event) => {
+              // Leaving an address that gave no country: ask for the country.
+              const text = (event.target as HTMLInputElement).id === "start-location" ? (event.target as HTMLInputElement).value : "";
+              if (text.trim() && !inferLocationCountryCode(text) && !region) setCountryAsked(true);
+            }}>
             <LocationAutocomplete
               id="start-location"
               name="startLocation"
+              placeholder="Street address or city"
               defaultValue={recovery.current.draft.location}
               maxLength={300}
               onSelectionChange={(place) => {
@@ -836,6 +847,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
                 setRegion(country ? (country === "US" ? "us" : "non_us") : "");
               }}
             />
+            </div>
           </BareField>
 
           {showCountry && (

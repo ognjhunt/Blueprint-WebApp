@@ -114,6 +114,14 @@ function openDetails() {
 function region() {
   return document.querySelector("#start-region") as HTMLSelectElement | null;
 }
+/**
+ * The country select is asked for only when needed (owner, 2026-11-11): pressing the button with no country asks
+ * for it. Used where a test chooses a country with no address.
+ */
+function askCountry() {
+  if (!region()) fireEvent.submit(screen.getByRole("form"));
+  return region()!;
+}
 
 // The country is not printed any more. A US location shows neither the country select nor the
 // outside-the-US notice; a non-US one shows the notice.
@@ -180,6 +188,9 @@ describe("SiteCaptureStart and the country", () => {
   it.each(["Paris", "Georgia", "Vancouver, CA", "Austin, TX, Germany", "123 Main St", "123 Main St.", "10 High ST", "Warehouse near us"])("asks for country permission without requiring a fuller address (%s)", async (location) => {
     await renderReady(<SiteCaptureStart />);
     fireEvent.change(document.querySelector("#start-location")!, { target: { value: location } });
+    // Not while typing; on leaving an address that gave no country.
+    expect(region()).toBeNull();
+    fireEvent.blur(document.querySelector("#start-location")!);
     expect(region()).toBeInTheDocument();
     expect(screen.queryByText(nonUsNotice)).toBeNull();
     fireEvent.submit(screen.getByRole("form"));
@@ -218,6 +229,8 @@ describe("SiteCaptureStart and the country", () => {
     fireEvent.change(location, { target: { value: "Austin TX" } });
     expectInferredUnitedStates();
     fireEvent.change(location, { target: { value: "Paris" } });
+    fireEvent.blur(location);
+    expect(region()).toBeInTheDocument();
     expect(screen.queryByText(nonUsNotice)).toBeNull();
     fireEvent.change(location, { target: { value: "Paris, France" } });
     expectInferredOutsideUnitedStates();
@@ -285,10 +298,15 @@ describe("SiteCaptureStart and the country", () => {
     } finally { vi.unstubAllEnvs(); }
   });
 
-  it("offers country permission without requiring an address or guessing a country", async () => {
+  it("offers country permission without requiring an address or guessing a country, only once it is needed", async () => {
     await renderReady(<SiteCaptureStart />);
-    expect(region()).toHaveValue("");
+    // First load: three things to fill (the video or film-now, where the job is, the email), no country select.
+    expect(region()).toBeNull();
     expect(document.querySelector("#start-location")).not.toBeRequired();
+    fireEvent.submit(screen.getByRole("form"));
+    expect(region()).toHaveValue("");
+    expect(screen.getByText(/Choose the site country so/)).toBeInTheDocument();
+    expect(postsTo("/api/inbound-request")).toHaveLength(0);
   });
 
   it("takes the country from the address that was picked", async () => {
@@ -319,7 +337,7 @@ describe("SiteCaptureStart and the country", () => {
     fireEvent.submit(screen.getByRole("form"));
 
     expect(screen.getByText(/Choose the site country so/)).toBeInTheDocument();
-    expect(document.activeElement).toBe(region());
+    await waitFor(() => expect(document.activeElement).toBe(region()));
     expect(fetchMock.mock.calls.filter((call) => call[1]?.method === "POST")).toHaveLength(0);
   });
 });
@@ -332,7 +350,10 @@ it("asks where the job is, not for a street address", async () => {
   const label = document.querySelector('label[for="start-location"]')!;
   expect(label).toHaveTextContent(/^Where is the job\?/);
   expect(document.querySelector("#start-location")).not.toBeRequired();
-  expect(screen.getByText("Street address or city.")).toBeInTheDocument();
+  // One placeholder and one quiet "Use my location", not three pieces of helper text.
+  expect(document.querySelector("#start-location")).toHaveAttribute("placeholder", "Street address or city");
+  expect(screen.queryByText(/Street address or city\.|Fill your current address/)).toBeNull();
+  expect(screen.getByRole("button", { name: "Use my location" })).toBeInTheDocument();
 });
 
 it("keeps location controls out of the address field's spoken label", async () => {
@@ -441,7 +462,7 @@ it("starts the film-on-a-phone path with only a country and an email", async () 
   fetchMock.mockImplementation(async (_url: string, init?: { method?: string }) => ({ ok: true, status: 201,
     json: async () => init?.method === "POST" ? { captureUrl: "/capture-upload/phone.signed" } : { features: [] } }));
   await renderReady(<SiteCaptureStart />);
-  fireEvent.change(region()!, { target: { value: "us" } });
+  fireEvent.change(askCountry(), { target: { value: "us" } });
   fireEvent.change(document.querySelector("#start-email")!, { target: { value: "owner@example.test" } });
   fireEvent.submit(screen.getByRole("form"));
   await screen.findByRole("heading", { name: "Now film the job." });
@@ -1164,7 +1185,7 @@ describe("guest intake without account ceremony", () => {
     answer(); upload.send.mockResolvedValue({ status: "done" });
     await renderReady(<SiteCaptureStart />);
     chooseUploadNow();
-    fireEvent.change(region()!, { target: { value: "us" } });
+    fireEvent.change(askCountry(), { target: { value: "us" } });
     fireEvent.change(document.querySelector("#start-footage")!, { target: { files: [video()] } });
     fireEvent.change(document.querySelector("#start-email")!, { target: { value: "owner@example.com" } });
     describeTask("Pack cartons");
@@ -1180,7 +1201,7 @@ describe("guest intake without account ceremony", () => {
   it("retains country permission across reload without manufacturing an address", async () => {
     answer();
     const view = await renderReady(<SiteCaptureStart />);
-    fireEvent.change(region()!, { target: { value: "us" } });
+    fireEvent.change(askCountry(), { target: { value: "us" } });
     const key = siteCaptureDraftKey(null, "default");
     await waitFor(() => expect(durability.rows.get(key)?.value.draft).toMatchObject({ location: "", region: "us", regionManuallySet: true }));
     view.unmount();
@@ -1191,7 +1212,7 @@ describe("guest intake without account ceremony", () => {
   it("keeps the outside-US recording hold without requiring a city or address", async () => {
     await renderReady(<SiteCaptureStart />);
     chooseUploadNow();
-    fireEvent.change(region()!, { target: { value: "non_us" } });
+    fireEvent.change(askCountry(), { target: { value: "non_us" } });
     expectInferredOutsideUnitedStates();
     expect(document.querySelector("#start-footage")).toBeNull();
     expect(upload.send).not.toHaveBeenCalled();
