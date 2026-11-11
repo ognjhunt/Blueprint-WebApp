@@ -8,7 +8,7 @@ import {
   type BareTickState,
 } from "@/components/bare/Bare";
 import {
-  ALSO_INVOLVES_PREFIX, REASON_UNSIZED, UNKNOWN_JOB_KIND, UNKNOWN_MULTI_STEP, isScopeNote,
+  ALSO_INVOLVES_PREFIX, REASON_UNSIZED, SITE_ANSWER_LIMITS, UNKNOWN_JOB_KIND, UNKNOWN_MULTI_STEP, isScopeNote,
   type AnswerBasis, type AnswerCheck, type AnswerConfidenceLevel, type AnswerEvidence, type AnswerRobot, type SiteAnswer as SiteAnswerView,
 } from "@/lib/siteAnswer";
 
@@ -20,7 +20,7 @@ export const FIND_COMPANY_LABEL = "Find a company to set it up";
 /** Rendered from the statement the introduction route records, so the two never drift. */
 export const FIND_COMPANY_CONSENT = JOB_CARD_ANSWER_STATEMENT;
 /** The limits of the check, on the page. The email and the job card carry the full note (`SITE_ANSWER_NOTE`). */
-export const LIMITS_LINE = "Checks picking up and putting down only. Not a test at your site; it does not certify performance or safety.";
+export const LIMITS_LINE = SITE_ANSWER_LIMITS;
 const INTRODUCTION_FAILED = "We could not send your request just now. Try again shortly.";
 /** Said only when the response or the stored card says the card is listed. */
 export const SHARED_LISTED = "✓ Shared. We'll email you when a company replies.";

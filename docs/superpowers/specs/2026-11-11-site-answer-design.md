@@ -113,10 +113,9 @@ returns `answer: null` and carries on.
 - Every answer's standing note, on the page, in the email and on the job card,
   says the check covers whether a robot can pick the object up and put it down.
   The email and the job card carry the full note (`SITE_ANSWER_NOTE`). The page
-  shows one short line under its button (`SITE_ANSWER_NOTE_SHORT`: "Checks whether
-  a robot can pick your object up and put it down. Not a test at your site; it does
-  not certify performance or safety.") and the full note one tap away, beside the
-  numbers.
+  and the card's front say it in one line (`SITE_ANSWER_LIMITS`,
+  `JOB_CARD_LIMITS`): "Checks picking up and putting down only. Not a test at
+  your site; it does not certify performance or safety."
 - When the stored coverage review says the video does not cover the scene
   (`capture_coverage.covers_scene === false`), the unknowns say "Your video does not
   show the whole work area." Only that yes or no is read; the review's own words
@@ -129,42 +128,82 @@ returns `answer: null` and carries on.
 
 ## How the page shows it
 
-The job page says the answer once and short, and keeps everything else one tap
-away (owner direction, 2026-11-11: simpler, less text, easier to read):
+The job page is built bare bones (the rules below). The answer screen, top to
+bottom: "Your job" and the job sentence (grey, at most two lines; "We read your
+job as" when drafted); the label "THE ROBOT MOST LIKELY TO FIT" (or "THE CLOSEST
+ROBOT" when the pick only may fit, with "No robot clearly fits yet." under the
+maker); the model in large type and "by {maker}"; plain ticks; the lines that
+change what the answer covers; "How sure are we?" with one to three dots and one
+plain reason; one computer-test line when there is something to report; the one
+button, "Find a company to set it up", with the consent line under it; "See
+details ›" and "Job settings ›"; the limits line.
 
-- **In view**: the job sentence; the headline; two chips (the pick's verdict and
-  "How sure"); one short reason per check, built from `need` and `has` (an older
-  answer without them falls back to the published figure and "enough for your
-  job"), plus the track record's level and what its source names; "Based on
-  estimates from your video." when a check rests on one; the lines that change
-  what the answer covers (`formNote`, the unknown kind of job, what else the job
-  involves, more than one step: shared constants in `client/src/lib/siteAnswer.ts`,
-  `isScopeNote`); the one button with its sentence word for word; the short note.
-  A check that is not settled is never shown with a tick.
-- **One tap away**, in closed `<details>` whose summaries say what they hold and
-  how many: "Why the {pick}" (every check sentence, sourced figures, the track
-  record, how it would be controlled); "Other robots" (runner-up, also fit, ruled
-  out); "Why “{level}”" (reasons, the other unknowns, what would raise it);
-  "Numbers we used" (each number and where it came from, what was checked, the
-  full note).
-- **Tested in simulation** follows: its leading sentence, the scene's line about
-  the pick, whether the gap could still be chance, "Compared on {robot}, not your
-  {pick}." when the policies ran on another robot, and the scene notes stay in
-  view; the rows and how far to trust such a simulation are behind "Each policy"
-  (or "How far each policy got") and "How far to trust this".
-- **One filled button per page.** A step the site must take (a new video, an
-  account, recording permission, an ended job) comes first, and the answer's button
-  stays, quiet, with its sentence. An answer that cannot be checked offers the one
-  thing the site can do: "Update walkthrough" when the video could not be sized
-  (`REASON_UNSIZED`), else "Edit the job description".
-- Every optional control (correcting the job, a new walkthrough, planning,
-  sharing, the account, processing details, simulation details, the readiness
-  report) is in one quiet list, "More for this job", which always ends with the way
-  to withdraw recording permission.
-- The job card shows the same pattern to an approved deployment company: chips, the
-  pick and the runner-up in a line each, the simulation's line, the numbers, a
-  short note (`JOB_CARD_NOTE_SHORT`); the cited track record, the sources, the full
-  note and the unknowns are one tap away.
+- **Ticks** by data: reach, payload and cycle-time `pass` say "Reaches far
+  enough", "Strong enough", "Fast enough"; `unknown` says "Can't tell yet if …"
+  with a "?" and never a tick; a failed check never reaches the pick. The track
+  record says "Already used for jobs like this" (production), "Tried at a customer
+  for jobs like this" (pilot) or "Sold for jobs like this" (offered), each "Robots
+  like this …" when the source names only the family; no record, no line.
+- **Sureness**: low, fair, good are "Not sure yet", "Fairly sure", "Sure" with
+  one, two or three dots. The reason line names what the estimated checks rest on
+  ("We estimated the sizes and weight from your video.").
+- **Consent**: statement `public-task-card-with-answer-v2`, "Shares a summary of
+  your job and this answer, without saying who you are, with companies we've
+  approved. Your video, address and contacts stay private." It says v1 in plainer
+  words with the same four facts. The route records only v2; a choice recorded
+  under v1 still carries the answer on the card.
+- **Limits line** on the page: "Checks picking up and putting down only. Not a
+  test at your site; it does not certify performance or safety." The email and the
+  job card keep the full note (`SITE_ANSWER_NOTE`).
+- **Computer test**, one line, in plain words of the projection's own case: the
+  leader "did best" or "was ahead" (then "It could still be chance.") or "No clear
+  winner yet", always "on {the robot it ran on}", and ", not the {pick}" when it is
+  not the pick. Nothing before the test starts.
+- **Details** (`#details`, its own screen with "‹ Back"; the browser's back button
+  returns): why this robot (each check's `need` and `has`, the sources, the track
+  record, how it would be run, and "This answer is about the robot itself, not the
+  software that runs it. The software is set up when the robot is installed."),
+  other robots (the catalog's names), robots that don't fit, the numbers (called
+  estimates only when all are), what we couldn't see, to be surer, the computer
+  test in full, and what was checked.
+- **Job settings** (`#settings`): "Send a new video", "Change my job
+  description", "Share settings", "Save to my account", "Planning details",
+  "Contact Blueprint about this job", "Stop using my video".
+- The job card shows a deployment company the same screen and details.
+
+## Bare bones
+
+Owner direction, 2026-11-11: "a 10 year old should be able to understand what
+everything is / how it works … bare bones", and "this is the type of ui/ux we
+should have throughout our whole user flow". Every screen follows these rules.
+The shared parts are `client/src/components/bare/Bare.tsx` and `bare.css`.
+
+1. One idea per screen. A screen that answers two questions is two screens.
+2. One filled button, the next step. Anything else is a quiet text link, at most
+   two.
+3. About 70 words or fewer visible on a screen, everything counted.
+4. A small label, then the thing in large type.
+5. Short lines a child can read aloud and explain. No jargon; ticks and plain
+   words instead of sentences.
+6. Details live one tap away, on their own screen with "‹ Back", in short
+   labelled rows. Nothing true and sourced is deleted; it moves there.
+7. Nothing is shown until there is something to say: no empty or "not started"
+   blocks.
+8. Space: 4 / 8 / 16 / 32 / 48 px; 8 within a group, 32 between groups, 48
+   before fine print. Body 17–18 px, the answer 40 px or more, fine print 14 px.
+   A centred column at most 560 px wide. Tap targets at least 44 px tall.
+9. Every word is true for every input that produces it. A short line false for
+   some case gets a second wording for that case. Text comes from constants in
+   the repository, never from stored or model-supplied text.
+10. Never dropped: a warning that changes the meaning or a step the person must
+    take; the consent under its button, in one plain line with the recorded
+    statement's meaning (a reworded line is a new statement version); the limits
+    in one line; the way to stop. Statements agreed at intake keep their exact
+    recorded words.
+11. Same parts everywhere: a new screen is assembled from the shared parts, not
+    styled from scratch.
+12. One `h1` per screen, ordered headings, keyboard reachable, visible focus,
+    nothing by colour alone, contrast kept.
 
 ## How the simulation result is made
 

@@ -33,6 +33,8 @@ const FILES = [
   "client/src/components/site/SimulationProof.tsx",
   "client/src/components/site/JobCardAnswer.tsx",
   "client/src/components/site/TaskBrowse.tsx",
+  "client/src/components/bare/Bare.tsx",
+  "client/src/lib/jobCardAnswerConsent.ts",
   "client/src/pages/SelfCaptureUpload.tsx",
   "client/src/pages/workspace/OpeningDetail.tsx",
   "client/src/lib/simulationProof.ts",

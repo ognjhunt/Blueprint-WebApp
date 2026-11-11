@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { User } from "firebase/auth";
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
-import { EVIDENCE_LEVEL_LABELS, JOB_CARD_NOTE_SHORT, evidenceScopeLabel, type AnswerBasis, type AnswerEvidence } from "@/lib/siteAnswer";
+import { EVIDENCE_LEVEL_LABELS, JOB_CARD_LIMITS, evidenceScopeLabel, type AnswerBasis, type AnswerEvidence } from "@/lib/siteAnswer";
 import { BareBack, BareBig, BareFine, BareGroup, BareLead, BareLinks, BareRows, BareSureness, BareTicks } from "@/components/bare/Bare";
 import { ticksOf } from "./SiteAnswer";
 import type { JobCardAnswerRobot, JobCardAnswerSummary, TaskCardDetail } from "@/types/taskBrowse";
@@ -89,7 +89,7 @@ export function JobCardAnswer({ answer, titled = true }: { answer: JobCardAnswer
       {answer.simulation && <p>Computer test: {answer.simulation}</p>}
     </BareGroup>
     <BareLinks links={[{ key: "details", label: "See details", onClick: () => setDetails(true) }]} />
-    <BareFine>{JOB_CARD_NOTE_SHORT}</BareFine>
+    <BareFine>{JOB_CARD_LIMITS}</BareFine>
   </section>;
 }
 

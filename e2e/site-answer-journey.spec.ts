@@ -69,27 +69,28 @@ async function outbox(request: APIRequestContext, requestId: string) {
 
 const answer = (page: Page) => page.getByRole("region", { name: "Your answer" });
 
-/** Waits, within the page's own status polling, for the answer and checks what it says. */
+/** Waits, within the page's own status polling, for the answer and checks what it says. Returns the robot's name. */
 async function expectAnswer(page: Page) {
   const section = answer(page);
-  await expect(section.getByRole("heading", { name: "Your answer", exact: true })).toBeVisible({ timeout: 45_000 });
-  const headline = section.locator(".site-answer-headline");
-  await expect(headline).toHaveText(/^Most likely to fit: .+\.$/);
-  const pick = section.getByRole("article", { name: "Our pick" });
-  await expect(pick).toBeVisible();
-  // The pick's track record carries a published source, opened in a new tab, or says plainly that
-  // none was found for this kind of job (a carton moved to a cart is pick and place; the pick may
-  // have documented use only for palletizing). Never an invented one.
-  const sources = pick.locator(".site-answer-evidence a[href^='https://']");
-  if (await sources.count()) await expect(sources.first()).toHaveAttribute("target", "_blank");
-  else await expect(pick.getByText("We found no documented use of this robot on this kind of job.", { exact: true })).toBeVisible();
-  await expect(pick.locator(".site-answer-specs a[href^='https://']").first()).toBeVisible();
-  await expect(section.getByRole("article", { name: "Runner-up" })).toBeVisible();
-  await expect(section.getByRole("heading", { name: /^How sure we are: / })).toBeVisible();
-  const proof = section.getByRole("region", { name: "Tested in simulation" });
-  await expect(proof).toBeVisible();
-  await expect(proof).toContainText("The simulation of your site has not started yet.");
-  return (await headline.textContent())!.trim();
+  const big = section.locator(".bare-big");
+  await expect(big).toBeVisible({ timeout: 45_000 });
+  await expect(section.getByRole("heading", { level: 2 })).toHaveText(/^(The robot most likely to fit|The closest robot)$/);
+  await expect(section.locator(".bare-sub")).toHaveText(/^by .+/);
+  await expect(section).toContainText(/How sure are we\?/);
+  // Every figure and source is on the details screen: a published figure always has its source; the track
+  // record carries one, or says plainly that none was found for this kind of job (a carton moved to a cart is
+  // pick and place; the pick may have documented use only for palletizing). Never an invented one.
+  await section.getByRole("button", { name: "See details ›" }).click();
+  const why = page.getByRole("region", { name: "Why this robot" });
+  await expect(why.getByRole("link", { name: "source" }).first()).toHaveAttribute("target", "_blank");
+  if (!(await why.getByText("We found no documented use of this robot on this kind of job.").count())) {
+    await expect(why.locator("a[href^='https://']").nth(1)).toHaveAttribute("target", "_blank");
+  }
+  await expect(page.getByRole("region", { name: /^Other robots/ })).toBeVisible();
+  await page.getByRole("button", { name: "‹ Back" }).click();
+  // Before the computer test starts, the answer says nothing about it.
+  await expect(section).not.toContainText("Computer test");
+  return (await big.textContent())!.trim();
 }
 
 test.describe("desktop", () => {
@@ -102,8 +103,8 @@ test("desktop: email and video in, the answer on the job page, a deployment comp
   await link.click();
   await expect(page.getByRole("heading", { level: 1, name: "Your job", exact: true })).toBeVisible();
   // Before the video is read the answer says so, and offers nothing yet.
-  await expect(answer(page).locator(".site-answer-headline")).toHaveText("We are reading your video. Your answer will appear here.");
-  await expect(answer(page).getByRole("button", { name: "Find a deployment company for this job" })).toHaveCount(0);
+  await expect(answer(page).getByText("We're watching your video.", { exact: true })).toBeVisible();
+  await expect(answer(page).getByRole("button", { name: "Find a company to set it up" })).toHaveCount(0);
 
   const ticked = await tick(request, requestId);
   expect(ticked.finished).toBe(true);
@@ -114,16 +115,16 @@ test("desktop: email and video in, the answer on the job page, a deployment comp
   await page.screenshot({ path: path.join(SHOTS, "journey-answer-desktop.png"), fullPage: true });
 
   // (b) Find a deployment company: one click, the confirmation, and it survives a reload.
-  const find = answer(page).getByRole("button", { name: "Find a deployment company for this job", exact: true });
+  const find = answer(page).getByRole("button", { name: "Find a company to set it up", exact: true });
   await expect(find).toBeVisible();
   await expect(answer(page)).toContainText("Your video, address and contacts stay private.");
   await find.click();
-  const confirmation = answer(page).getByRole("status").filter({ hasText: /^You asked on / });
-  await expect(confirmation).toContainText("Your job card is now visible to approved deployment companies. When one responds, Blueprint will introduce you by email.");
+  const confirmation = answer(page).getByRole("status");
+  await expect(confirmation).toHaveText("✓ Shared. We'll email you when a company replies.");
   await page.screenshot({ path: path.join(SHOTS, "journey-4-requested-desktop.png"), fullPage: true });
   await page.reload();
-  await expect(answer(page).getByRole("status").filter({ hasText: /^You asked on / })).toBeVisible({ timeout: 45_000 });
-  await expect(answer(page).getByRole("button", { name: "Find a deployment company for this job" })).toHaveCount(0);
+  await expect(answer(page).getByRole("status")).toHaveText("✓ Shared. We'll email you when a company replies.", { timeout: 45_000 });
+  await expect(answer(page).getByRole("button", { name: "Find a company to set it up" })).toHaveCount(0);
 
   // (c) Exactly one answer email for this job, carrying the headline. Never delivered here.
   const rows = (await outbox(request, requestId)).filter(row => row.kind === "answer_ready");
@@ -134,15 +135,16 @@ test("desktop: email and video in, the answer on the job page, a deployment comp
   expect((await tick(request, requestId)).videoModelCalls).toBe(0);
   expect((await outbox(request, requestId)).filter(row => row.kind === "answer_ready")).toHaveLength(1);
 
-  // (e) Withdrawing recording permission takes the answer off the page.
-  await page.getByText("Withdraw recording permission", { exact: true }).click();
+  // (e) Withdrawing recording permission takes the answer off the page. The way to stop is on Job settings.
+  await answer(page).getByRole("button", { name: "Job settings ›" }).click();
+  await page.getByText("Stop using my video", { exact: true }).click();
   await page.getByRole("button", { name: "Withdraw permission…" }).click();
   await page.getByRole("button", { name: "Yes, withdraw permission" }).click();
   await expect(page.getByText("Recording permission withdrawn.", { exact: true })).toBeVisible();
   await page.reload();
   await expect(page.getByText("Recording permission withdrawn.", { exact: true })).toBeVisible({ timeout: 30_000 });
   await expect(answer(page)).toHaveCount(0);
-  await expect(page.getByText(headline, { exact: true })).toHaveCount(0);
+  await expect(page.locator(".bare-big").filter({ hasText: headline })).toHaveCount(0);
 
   expect(missing, "every API the page calls is mounted in the harness").toEqual([]);
 });

@@ -13,7 +13,7 @@
 .bare-screen p { margin: 0; }
 .bare-group { margin-top: var(--bare-s4); }
 .bare-group > * + * { margin-top: var(--bare-s2); }
-.bare-label { margin: 0; font-size: 12px; font-weight: 650; letter-spacing: .7px; text-transform: uppercase; color: var(--bare-muted); }
+.bare-label, .bare-screen .bare-label { margin: 0; font-size: 12px; font-weight: 650; letter-spacing: .7px; text-transform: uppercase; color: var(--bare-muted); }
 .bare-screen .bare-big { margin: var(--bare-s1) 0 0; font-size: 44px; line-height: 1.05; font-weight: 600; letter-spacing: -1.2px; }
 .bare-screen .bare-sub { margin-top: var(--bare-s1); font-size: 15px; color: var(--bare-muted); }
 .bare-screen .bare-lead { font-size: 22px; line-height: 1.3; font-weight: 600; letter-spacing: -.3px; }
@@ -42,7 +42,7 @@ ul.bare-ticks { list-style: none; margin: 0; padding: 0; }
 .bare-done { padding: 14px 16px; border-left: 3px solid var(--bare-green); background: #e9efe6; font-size: 17px; }
 .bare-screen .bare-fine { margin-top: var(--bare-s5); font-size: 14px; color: var(--bare-muted); }
 .bare-rows { margin-top: var(--bare-s4); }
-.bare-rows-title { margin: 0 0 var(--bare-s2); font-size: 15px; font-weight: 650; }
+.bare-rows-title, .bare-screen .bare-rows-title { margin: 0 0 var(--bare-s2); font-size: 15px; font-weight: 650; letter-spacing: 0; }
 .bare-rows dl { margin: 0; }
 .bare-row { display: grid; grid-template-columns: minmax(84px, 30%) 1fr; gap: var(--bare-s3); padding: var(--bare-s1) 0; }
 .bare-row-plain { display: block; }

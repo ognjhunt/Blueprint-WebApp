@@ -13,10 +13,13 @@ const simulationRun = { ...winnerEvaluation, screening: { ...winnerEvaluation.sc
     chosen: { candidateId: "pi05_droid", name: "π0.5 DROID", successRate: 0.7, scored: 10, succeeded: 7, configurationId: null,
       policyRouteId: null, deploymentCompanies: [], relationship: null, evidenceUrl: null, relatedTeams: [], partnerBlockers: [], registryTeams: [] },
     candidates: [{ candidateId: "pi05_droid", resultRank: 1, choiceBlocker: null }] } } };
-const FIND = "Find a deployment company for this job";
-const CONSENT = "This shares an anonymised summary of your job and this answer with deployment companies Blueprint has approved. Your video, address and contacts stay private.";
-const LISTED = "You asked on November 11, 2026. Your job card is now visible to approved deployment companies. When one responds, Blueprint will introduce you by email.";
+const FIND = "Find a company to set it up";
+const CONSENT = "Shares a summary of your job and this answer, without saying who you are, with companies we've approved. Your video, address and contacts stay private.";
+const LISTED = "✓ Shared. We'll email you when a company replies.";
 const UNLISTED = "You asked on November 11, 2026. Blueprint will set up your job card and email you.";
+/** Visible words on the page body: what a person reads before tapping anything. */
+const visibleWords = (page: Page) => page.evaluate(() => ((document.querySelector(".ms-capture-body") as HTMLElement).innerText.match(/[^\s]+/g) ?? [])
+  .filter(word => /[\p{L}\p{N}]/u.test(word)).length);
 
 const workflow = {
   schemaVersion: "job_marketplace.v1", revision: "fixture-revision", stage: "brief_agreed",
@@ -63,45 +66,39 @@ async function mockJob(page: Page, { evaluation = simulationRun as unknown, list
 
 test.use({ serviceWorkers: "block" });
 
-test("the answer leads the job page and carries what was tested in simulation, open, with the leader marked", async ({ page }) => {
+test("the answer leads the job page, bare bones: the robot, plain ticks, how sure, one computer-test line, one button", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   const { unexpected } = await mockJob(page);
   await page.goto(`/capture-upload/${token}?video=existing`);
   const answer = page.getByRole("region", { name: "Your answer" });
-  await expect(answer.getByText(readyAnswer.headline, { exact: true })).toBeVisible();
+  await expect(answer.getByText("UR10e", { exact: true })).toBeVisible();
+  await expect(answer.getByText("by Universal Robots", { exact: true })).toBeVisible();
   const titleBox = await page.getByRole("heading", { level: 1, name: "Your job" }).boundingBox();
   expect(titleBox!.y).toBeLessThan((await answer.boundingBox())!.y);
   // Nothing is asked of the site: no status card repeating a wait under the answer.
   await expect(page.getByText("We have your recording.", { exact: true })).toHaveCount(0);
   await expect(page.getByRole("region", { name: "Robot fit" })).toHaveCount(0);
   await expect(page.getByText("Blueprint will update this job as the work progresses.", { exact: true })).toHaveCount(0);
+  await expect(answer.getByRole("list", { name: "Why" })).toHaveText(/Reaches far enough.*Strong enough.*Already used for jobs like this/s);
+  // 7 of 10 against 3 of 10 is about 0.96 under the probability rule: ahead, and it could still be chance.
+  await expect(answer.getByText("Computer test: π0.5 was ahead, finishing the job in 7 of 10 tries, on a Franka research arm, not the UR10e. It could still be chance.", { exact: true })).toBeVisible();
+  await expect(page.locator(".bare-button, .ms-button").filter({ visible: true })).toHaveText([FIND]);
+  expect(await visibleWords(page)).toBeLessThanOrEqual(130);
+  const answerText = await answer.textContent();
+  expect(answerText).not.toMatch(/episode|candidate|screening|DROID|jointpos|[a-z]_[a-z]|sha256|payload|anonymi[sz]ed/i);
 
-  // The proof is part of the answer, visible without opening anything, between the runner-up and what was ruled out.
-  const proof = answer.getByRole("region", { name: "Tested in simulation" });
-  await expect(proof).toBeVisible();
-  // 7 of 10 against 3 of 10 is about 0.96 under the probability rule: ahead, and the gap could still be chance.
-  await expect(proof.getByText(/^In a simulation of your site, on a Franka research arm, π0\.5, an AI control policy from Physical Intelligence, was ahead: it completed the job in 7 of 10 tries, against 3 of 10 for the next best, GR00T N1\.7\.$/)).toBeVisible();
-  await expect(proof.getByText(/^With this few tries the gap could still be chance\./)).toBeVisible();
-  const [runnerUpBox, proofBox, ruledOutBox] = await Promise.all([answer.getByRole("article", { name: "Runner-up" }).boundingBox(),
-    proof.boundingBox(), answer.getByText(/^Ruled out \(/).boundingBox()]);
-  expect(runnerUpBox!.y + runnerUpBox!.height).toBeLessThanOrEqual(proofBox!.y);
-  expect(proofBox!.y + proofBox!.height).toBeLessThanOrEqual(ruledOutBox!.y);
-  await expect(proof.getByText("Did best")).toHaveCount(0);
-  const best = proof.getByRole("list", { name: "Control policies tried" }).getByRole("listitem").filter({ hasText: "Ahead" });
-  await expect(best).toHaveCount(1);
-  await expect(best).toContainText("π0.5 from Physical Intelligence");
-  await expect(best).toContainText("7 of 10 tries");
-  await expect(proof.getByRole("heading", { name: "How far to trust this" })).toBeVisible();
-  await expect(proof.getByRole("link", { name: "PolaRiS: Scalable Real-to-Sim Evaluations for Generalist Robot Policies" }))
-    .toHaveAttribute("target", "_blank");
-  const proofText = await proof.textContent();
-  expect(proofText).not.toMatch(/episode|candidate|screening|DROID|jointpos|[a-z]_[a-z]|sha256/i);
-
-  // Every policy's detail stays one click away, folded.
+  // Every detail is on its own screen, with a way back; the browser's back button returns too.
+  await answer.getByRole("button", { name: "See details ›" }).click();
+  await expect(page).toHaveURL(/#details$/);
+  const test = page.getByRole("region", { name: "Computer test" });
+  await expect(test).toContainText(/π0\.5 Physical IntelligenceFinished 7 of 10 tries · likely between \d+% and \d+% · Ahead/);
+  await expect(page.getByRole("link", { name: "PolaRiS: Scalable Real-to-Sim Evaluations for Generalist Robot Policies" })).toHaveAttribute("target", "_blank");
+  await page.goBack();
+  await expect(answer.getByText("UR10e", { exact: true })).toBeVisible();
+  // Every policy's set-up detail stays one screen away, folded, on Job settings.
+  await answer.getByRole("button", { name: "Job settings ›" }).click();
   const details = page.locator("summary", { hasText: "Simulation details" });
   await expect(details.locator("xpath=..")).not.toHaveAttribute("open", "");
-  await expect(page.getByText("Every policy we set up, and why any did not run.", { exact: true })).toBeVisible();
-  await expect(page.getByText(/checked against real trials/)).toHaveCount(0);
   await expect(page.getByText(simulationRun.summary, { exact: true })).toBeHidden();
   await details.click();
   await expect(page.getByText(simulationRun.summary, { exact: true })).toBeVisible();
@@ -110,18 +107,23 @@ test("the answer leads the job page and carries what was tested in simulation, o
   await expect(chosen).toBeVisible();
   expect(await chosen.evaluate(cell => { const range = document.createRange(); range.selectNodeContents(cell);
     return new Set([...range.getClientRects()].map(rect => Math.round(rect.top))).size; })).toBe(1);
+  await page.getByRole("button", { name: "‹ Back" }).click();
+  await expect(answer.getByText("UR10e", { exact: true })).toBeVisible();
   expect(unexpected).toEqual([]);
 });
 
-test("when no policy completed the job, the proof says it could not rank them, with the scene note", async ({ page }) => {
+test("when no policy completed the job, the line says so, and the details say why with the scene note", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   const { unexpected } = await mockJob(page, { evaluation: allZeroEvaluation });
   await page.goto(`/capture-upload/${token}?video=existing`);
-  const proof = page.getByRole("region", { name: "Tested in simulation" });
-  await expect(proof.getByText("The simulation ran, but no policy completed the job in it, so it could not rank them.", { exact: true })).toBeVisible();
-  await expect(proof.getByText(SCENE_NOTE_BEYOND_REACH, { exact: true })).toBeVisible();
-  await expect(proof.getByText("Did best")).toHaveCount(0);
-  await expect(proof.getByText(/likely between/)).toHaveCount(0);
+  await expect(page.getByText("Computer test: None of the robot programs finished the job, on a Franka research arm, not the UR10e.", { exact: true })).toBeVisible();
+  await expect(page.getByText("This result may come from how we set up the computer copy of your site, not from the robots.", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "See details ›" }).click();
+  const test = page.getByRole("region", { name: "Computer test" });
+  await expect(test.getByText(/^The simulation ran, but no policy completed the job in it, so it could not rank them\./)).toBeVisible();
+  await expect(test.getByText(SCENE_NOTE_BEYOND_REACH, { exact: true })).toBeVisible();
+  await expect(test.getByText(/Did best|Ahead/)).toHaveCount(0);
+  await expect(test.getByText(/likely between/)).toHaveCount(0);
   expect(unexpected).toEqual([]);
 });
 
@@ -132,6 +134,7 @@ test("the deployment-company button says what it shares, posts once and shows th
   const button = page.getByRole("button", { name: FIND, exact: true });
   await expect(button).toBeVisible();
   await expect(page.getByText(CONSENT, { exact: true })).toBeVisible();
+  await expect(button).toHaveAttribute("aria-describedby", await page.getByText(CONSENT, { exact: true }).getAttribute("id") ?? "");
   await button.dblclick();
   await expect(page.getByText(LISTED, { exact: true })).toBeVisible();
   await expect(button).toHaveCount(0);
@@ -150,26 +153,23 @@ test("when the job card could not be listed, the confirmation says Blueprint wil
   await page.goto(`/capture-upload/${token}?video=existing`);
   await page.getByRole("button", { name: FIND, exact: true }).click();
   await expect(page.getByText(UNLISTED, { exact: true })).toBeVisible();
-  await expect(page.getByText(/now visible to approved deployment companies/)).toHaveCount(0);
+  await expect(page.getByText(/Shared\./)).toHaveCount(0);
   expect(introductions).toHaveLength(1);
 });
 
-test("the answer and its proof read at phone width without scrolling sideways", async ({ browser }) => {
+test("the answer, its details and the job settings read at phone width without scrolling sideways, the button on the first screen", async ({ browser }) => {
   const { defaultBrowserType: _, ...phone } = devices["iPhone 14"];
   const context = await browser.newContext({ ...phone, serviceWorkers: "block" });
   const page = await context.newPage();
   await mockJob(page);
   await page.goto(`/capture-upload/${token}?video=existing`);
-  await expect(page.getByText(readyAnswer.headline, { exact: true })).toBeVisible();
-  await expect(page.getByRole("region", { name: "Tested in simulation" })).toBeVisible();
-  await page.getByText(/^Ruled out \(/).click();
-  await page.locator("summary", { hasText: "Simulation details" }).click();
-  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
-  expect(overflow).toBeLessThanOrEqual(0);
-  // No policy row breaks a word across lines.
-  for (const name of await page.locator(".site-proof-name strong").all()) {
-    expect(await name.evaluate(node => { const range = document.createRange(); range.selectNodeContents(node);
-      return new Set([...range.getClientRects()].map(rect => Math.round(rect.top))).size; })).toBe(1);
+  await expect(page.getByText("UR10e", { exact: true })).toBeVisible();
+  const button = await page.getByRole("button", { name: FIND }).boundingBox();
+  expect(button!.y + button!.height).toBeLessThanOrEqual(page.viewportSize()!.height);
+  for (const screen of ["See details ›", "‹ Back", "Job settings ›"]) {
+    await page.getByRole("button", { name: screen }).click();
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    expect(overflow, screen).toBeLessThanOrEqual(0);
   }
   await context.close();
 });

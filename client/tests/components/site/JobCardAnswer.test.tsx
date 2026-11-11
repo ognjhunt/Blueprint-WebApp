@@ -8,7 +8,7 @@ vi.mock("@/lib/firebaseAuthHeaders", () => ({ withFirebaseAuthHeaders: async () 
 
 const { TaskBrowse } = await import("@/components/site/TaskBrowse");
 const { JobCardAnswer, JOB_CARD_ANSWER_TITLE } = await import("@/components/site/JobCardAnswer");
-const { JOB_CARD_NOTE_SHORT, SITE_ANSWER_NOTE } = await import("@/lib/siteAnswer");
+const { JOB_CARD_LIMITS, SITE_ANSWER_NOTE } = await import("@/lib/siteAnswer");
 
 const ANSWER: JobCardAnswerSummary = {
   headline: "Most likely to fit: Universal Robots UR20.",
@@ -47,7 +47,7 @@ describe("Blueprint's answer on a job card", () => {
       .toEqual(["✓Reaches far enough", "✓Strong enough", "✓Already used for jobs like this"]);
     expect(block).toHaveTextContent("How sure are we? Fairly sure");
     expect(within(block).getByText(ANSWER.confidence.reason!)).toBeVisible();
-    expect(within(block).getByText(JOB_CARD_NOTE_SHORT)).toBeVisible();
+    expect(within(block).getByText(JOB_CARD_LIMITS)).toBeVisible();
     expect(container.textContent).not.toMatch(/Yaskawa|1\.75 m|source|The UR20 palletizes here/);
   });
 

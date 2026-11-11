@@ -127,18 +127,10 @@ export const ANSWER_CONFIDENCE_LABELS: Readonly<Record<AnswerConfidenceLevel, st
 /** The standing note under every answer: what the check covers, and what it is not. The email and the job card say it in full. */
 export const SITE_ANSWER_NOTE =
   "This checks whether a robot can pick your object up and put it down, against published robot specifications and a cited track record. It is not a test of a robot at your site and does not certify performance or safety.";
-/**
- * The same note in one short line, under the button on the job page. It keeps what the check covers
- * (picking the object up and putting it down) and what it is not; the page shows the full note one tap
- * away, beside the numbers, and the reasons above the button already say "published figures" and the
- * track record.
- */
-export const SITE_ANSWER_NOTE_SHORT =
-  "Checks whether a robot can pick your object up and put it down. Not a test at your site; it does not certify performance or safety.";
-
-/** The short note as an approved deployment company reads it on the job card; the card's full note stays one tap away. */
-export const JOB_CARD_NOTE_SHORT =
-  "Checks whether a robot can pick the object up and put it down. Not a test at the site; it does not certify performance or safety.";
+/** The limits of the check in one line, at the foot of the job page; the email and the job card keep the full note. */
+export const SITE_ANSWER_LIMITS = "Checks picking up and putting down only. Not a test at your site; it does not certify performance or safety.";
+/** The same line as an approved deployment company reads it on the card, with the full note in the card's details. */
+export const JOB_CARD_LIMITS = "Checks picking up and putting down only. Not a test at the site; it does not certify performance or safety.";
 
 /*
  * Sentences the server composes and the page treats specially, kept here so both read the same words.
