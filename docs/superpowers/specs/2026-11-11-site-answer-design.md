@@ -9,6 +9,16 @@ Owner direction, 2026-11-11. Two messages on that day set it:
    then becomes a deployment opportunity for a deployment company. The long-term
    goal is the place where robot jobs and deployment opportunities appear.
 
+A third message the same day corrected the premise, and the page now follows it
+(round 3, below): the product evaluates AI options on the site's own job. An
+option is a robot together with the camera-driven AI software that controls it
+(for example π0.5 on a Franka arm). Each option gets about ten tries in a
+simulation of the site, with things varied between tries, and the simulation
+result decides which option did best. Scripted motion is never an option; a
+scripted row only checks Blueprint's own simulation. The paper check (reach,
+strength, track record) decides what is worth entering and is the fallback
+when there is no test result.
+
 This note records what was built and why. The audit that led to it is in the
 Pipeline repo: `docs/audits/2026-11-11-first-principles-audit.md`.
 
@@ -16,18 +26,19 @@ Pipeline repo: `docs/audits/2026-11-11-first-principles-audit.md`.
 
 1. It sends an email and a video of one recurring job. Blueprint drafts the job
    description from the video.
-2. **Its answer**, minutes after the video is read: the robot that most likely
-   fits, a runner-up from another maker, what was ruled out and why, who already
-   uses those robots for work like this, how sure Blueprint is, and what the
-   video could not tell.
-3. **Tested in simulation**, when the simulation of its site has run: the
-   picked robot's reach and arm path checked in the scene rebuilt from the
-   video, and public control policies compared on its job on a research robot
-   (today the Franka research arm or the Unitree G1 humanoid), with a cited
-   statement of how far such a comparison can be trusted. The simulation
-   checks no cycle time.
-4. **A deployment company**: one button shares an anonymised job card, with the
-   answer and the simulation result, with deployment companies Blueprint has
+2. **The paper check**, minutes after the video is read: the robot that most
+   likely fits, a runner-up from another maker, what was ruled out and why, who
+   already uses those robots for work like this, how sure Blueprint is, and
+   what the video could not tell. Until a test result exists, this is the
+   answer.
+3. **The simulation test**, when it has run: AI options (robot + AI software,
+   today on the Franka research arm or the Unitree G1 humanoid) each tried on
+   its job in the simulation of its site, ranked, and, by the probability rule
+   below, the one that did best or was ahead. This is then the answer; the
+   paper check stays one tap away. A cited statement says how far such a test
+   can be trusted. The simulation checks no cycle time.
+4. **A deployment company**: one button shares an anonymised job card, carrying
+   the same headline the site sees, with deployment companies Blueprint has
    approved.
 
 The answer never waits on brief confirmation, staff sharing or the simulation.
@@ -128,48 +139,77 @@ returns `answer: null` and carries on.
 
 ## How the page shows it
 
-The job page is built bare bones (the rules below). The answer screen, top to
-bottom: "Your job" and the job sentence (grey, at most two lines; "We read your
-job as" when drafted); the label "THE ROBOT MOST LIKELY TO FIT" (or "THE CLOSEST
-ROBOT" when the pick only may fit, with "No robot clearly fits yet." under the
-maker); the model in large type and "by {maker}"; plain ticks; the lines that
-change what the answer covers; "How sure are we?" with one to three dots and one
-plain reason; one computer-test line when there is something to report; the one
-button, "Find a company to set it up", with the consent line under it; "See
-details ›" and "Job settings ›"; the limits line.
+The job page is built bare bones (the rules below). Top to bottom: "Your job"
+and the job sentence (grey, at most two lines; "We read your job as" when
+drafted); the answer screen for its state (below); the one button, "Find a
+company to set it up", with the consent line under it; "See details ›" and
+"Job settings ›"; the limits line. Reading, can't match, withdrawn and
+before-the-video screens are unchanged by round 3.
 
-- **Ticks** by data: reach, payload and cycle-time `pass` say "Reaches far
-  enough", "Strong enough", "Fast enough"; `unknown` says "Can't tell yet if …"
-  with a "?" and never a tick; a failed check never reaches the pick. The track
-  record says "Already used for jobs like this" (production), "Tried at a customer
-  for jobs like this" (pilot) or "Sold for jobs like this" (offered), each "Robots
-  like this …" when the source names only the family; no record, no line.
-- **Sureness**: low, fair, good are "Not sure yet", "Fairly sure", "Sure" with
-  one, two or three dots. The reason line names what the estimated checks rest on
-  ("We estimated the sizes and weight from your video.").
+**The answer screen, by state** (`client/src/components/site/SiteAnswer.tsx`,
+`TestHead`; the state is `testResultOf` in `client/src/lib/simulationProof.ts`):
+
+| State | Label | Large | Under it |
+|---|---|---|---|
+| Winner | "DID BEST ON YOUR JOB" or "WAS AHEAD ON YOUR JOB" | the option, "Franka arm + π0.5" | "AI software by {maker}"; ticks "Did your job in N of M tries", "Ahead of the K other AI robots we tested"; sureness |
+| One option, which did the job | "TESTED ON YOUR JOB" | the option | ticks "Did your job in N of M tries", "The only AI robot we could test on your job"; one dot |
+| Some finished, no winner | "TESTED ON YOUR JOB" | "No clear winner yet" | "Top: {option}, did your job in N of M tries." |
+| None finished | "TESTED ON YOUR JOB" | "None finished yet" | "Closest: {option} {furthest phrase}." (or "N AI robots tried; none finished your job."); the set-up notice when flagged |
+| Preparing or running | "TESTING NOW" | "{N} AI robots" | "on your job, in a simulation of your site. We'll email you." |
+| No test (held, closed, could not run, not started) | "ON PAPER, THE ROBOT MOST LIKELY TO FIT" ("ON PAPER, THE CLOSEST ROBOT") | the model | "by {maker}"; when known, "The simulation test did not run. {why}" ("did not finish" when stopped part way); the paper ticks and sureness |
+
+- In every test state the paper result is one tap away, a quiet line: "On
+  paper, most likely to fit: {maker} {model} ›" (or "On paper, the closest
+  robot: …"), opening `#details/why`.
+- **Test sureness** comes from the same rule as the label: did best is "Sure"
+  (three dots), was ahead "Fairly sure" (two), one option "Not sure yet" (one).
+  A set-up flag lowers it one step, with "Our simulation set-up may have
+  affected this result." as the reason.
+- **Paper ticks** by data: reach (`measure: "distance"`) says "Reaches far
+  enough"; reach by working height (`measure: "height"`, a robot that moves)
+  says "Reaches high and low enough"; payload "Strong enough"; cycle time "Fast
+  enough"; `unknown` says "Can't tell yet if …" with a "?" and never a tick.
+  The track record says "Already used for jobs like this" (production), "Tried
+  at a customer for jobs like this" (pilot) or "Sold for jobs like this"
+  (offered), each "Robots like this …" when the source names only the family.
+  Paper sureness: "Not sure yet", "Fairly sure", "Sure", with one plain reason
+  naming what the estimated checks rest on (sizes, heights or weight).
+- **Body type**: `mobile_manipulator` reads "Arm on a base that moves", true
+  for wheeled and legged bases alike (`client/src/data/robotFit.ts`).
 - **Consent**: statement `public-task-card-with-answer-v2`, "Shares a summary of
   your job and this answer, without saying who you are, with companies we've
-  approved. Your video, address and contacts stay private." It says v1 in plainer
-  words with the same four facts. The route records only v2; a choice recorded
-  under v1 still carries the answer on the card.
-- **Limits line** on the page: "Checks picking up and putting down only. Not a
-  test at your site; it does not certify performance or safety." The email and the
-  job card keep the full note (`SITE_ANSWER_NOTE`).
-- **Computer test**, one line, in plain words of the projection's own case: the
-  leader "did best" or "was ahead" (then "It could still be chance.") or "No clear
-  winner yet", always "on {the robot it ran on}", and ", not the {pick}" when it is
-  not the pick. Nothing before the test starts.
-- **Details** (`#details`, its own screen with "‹ Back"; the browser's back button
-  returns): why this robot (each check's `need` and `has`, the sources, the track
-  record, how it would be run, and "This answer is about the robot itself, not the
-  software that runs it. The software is set up when the robot is installed."),
-  other robots (the catalog's names), robots that don't fit, the numbers (called
-  estimates only when all are), what we couldn't see, to be surer, the computer
-  test in full, and what was checked.
+  approved. Your video, address and contacts stay private." "This answer" is
+  the screen's answer, which the card carries (below). The route records only
+  v2; a choice recorded under v1 still carries the answer on the card.
+- **Limits line**: "Checks picking up and putting down only. Not a test at
+  your site; it does not certify performance or safety." The email and the job
+  card keep the full note (`SITE_ANSWER_NOTE`).
+- **Details** (`#details`, a menu; each item its own screen with "‹ Back"; the
+  browser's back button returns to the screen it came from), in this order:
+  1. **The simulation test** (`#details/test`), a ranked list: "We ran N AI
+     robots on your job, about M tries each, in a simulation of your site.",
+     then one row per option in the display order, "{i}. {option} · {maker}"
+     with "Finished N of M tries", the likely range beside a row with a
+     success, "· Did best" or "· Ahead" on row 1 only for a winner, and, for a
+     row that finished none, how far it got; the gap sentence; rows whose
+     robot is not confirmed ("on a robot we could not confirm, not
+     compared"); "N more AI robots were planned but did not run. Job settings
+     › Simulation details says why."; set-up notes as notice lines.
+  2. **How far to trust it** (`#details/trust`): short rows with every source
+     (`SIMULATION_ACCURACY_ROWS`), and what holds for this job.
+  3. **On paper: why this robot** (`#details/why`): each check's `need` and
+     `has` (height rows read "needs N · working height H" and link the
+     "Working height" spec), the sources, the track record, the scene check,
+     and "This is the paper check: it looks at the robot's reach, strength and
+     track record, not its AI software."
+  4. Other robots; robots that don't fit; what we estimated; what we couldn't
+     see.
 - **Job settings** (`#settings`): "Send a new video", "Change my job
   description", "Share settings", "Save to my account", "Planning details",
-  "Contact Blueprint about this job", "Stop using my video".
-- The job card shows a deployment company the same screen and details.
+  "Contact Blueprint about this job", "Stop using my video", and the folded
+  "Simulation details".
+- An older job with a test and no answer shows "Tested in simulation": one line
+  (`computerTestLine`), then the ranked list and the trust rows.
 
 ## Bare bones
 
@@ -224,25 +264,32 @@ simulation"; the simulation email repeats its sentences word for word.
   control policy", with a letter ("(A)", "(B)") in a fixed order
   when there are several. Scripted rows and rows the selection marks as
   references are never ranked.
-- **A comparison from a few tries is a probability, said by one rule.** Each
-  policy's success rate, from s successes in n scored tries, is uncertain:
-  Beta(s + 1, n − s + 1). Only policies that ran on the same robot are
-  compared: the robot most scored policies ran on. Policies on another robot
-  are listed with that robot, counted in one sentence and never compared. When
-  no scored policy's robot is known, nothing is ranked: the page lists the
-  counts and says it could not confirm they ran on the same robot. The policy
-  with the highest expected rate leads, and is weighed against every other
-  compared policy by the chance that its true rate is higher
-  (`probabilityAhead`, integrated numerically); the smallest of those chances
-  decides the wording, and the sentence cites the next best. At 97.5% or more
-  (`CLEAR`) the page says it "did best" and that a gap this size is unlikely to
-  be chance. From 85% (`AHEAD`) it says it "was ahead" and that with this few
-  tries the gap could still be chance. Below 85% it says there is no clear
-  difference yet and gives each count. One try each, 1 against 0, is 5/6: no
-  clear difference; 7 of 10 against 3 of 10 is about 0.96: ahead; 9 of 10
-  against 3 of 10 is above 0.99: did best. The counts decide, not the
-  Pipeline's own choice, and a policy that never completed the job is never
-  ahead.
+- **Options, compared across robots** (`optionsOf` in `simulationProof.ts`;
+  the owner's 2026-11-11 premise withdrew the earlier same-robot rule). An
+  option is a scored learned-policy row whose policy the closed map names, so
+  its robot is confirmed: "{robot short name} + {policy}" ("Franka arm +
+  π0.5"), with the software's maker. Scripted rows, rows the selection marks
+  as references and rows whose robot is not confirmed are never options; the
+  last are listed, lettered, as not compared.
+- **One display order for every screen**: options that completed the job
+  first, by posterior mean success rate (s + 1)/(n + 2); then options that
+  finished nothing, by the deepest progress stage reached, then how many tries
+  reached it, then the closer median approach; then more scored tries; then id.
+  It is an order for display only.
+- **"Did best" and "was ahead" come only from the probability rule.** Each
+  option's success rate, from s successes in n scored tries, is
+  Beta(s + 1, n − s + 1). Row 1 is weighed against every other scored option
+  by the chance its true rate is higher (`probabilityAhead`); the smallest of
+  those chances decides. At 97.5% or more (`CLEAR`), with at least one success
+  and at least two options, it "did best"; from 85% (`AHEAD`) it "was ahead";
+  otherwise there is no winner. 7 of 10 against 3 of 10 is about 0.96: ahead;
+  9 of 10 against 3 of 10 is above 0.99: did best. An option that never
+  completed the job is never ahead. A seeded generated-input test
+  (`client/tests/components/simulationOptions.test.tsx`) checks who is an
+  option, the order, the winner rule and that the screen and the ranked list
+  say the same counts, over 400 random runs.
+- The earlier same-robot comparison sentence (`policyComparison`) still
+  exists for the simulation email, which has not moved to the options yet.
 - **Every sentence has a precondition in the data.** Nothing says a policy ran,
   was tried or completed the job unless tries were scored; a likely range
   appears only beside a row with a success. When no policy completed the job,
@@ -311,6 +358,16 @@ pick and the runner-up. It contacts no outside company and queues no alert email
 approved companies see the card when they browse the job library, and whom to
 introduce is the owner's decision.
 
+What the card carries is the screen's answer
+(`server/utils/jobCardAnswer.ts`): when the simulation test has a result or
+is running, its headline is the test's ("Did best on the job: Franka arm +
+π0.5, doing the job in 10 of 10 tries.", "Tested on the job: none finished
+yet.", "Testing now: N AI robots on the job.") and it carries the ranked
+options as closed-map names and counts only (`test`), with the paper pick
+below; otherwise the paper headline and details as before. No consent
+statement changed: the existing statements share "this answer", and this is
+the answer the site's screen shows.
+
 A card carries the answer (and the library shows its headline) only while the
 site's request was recorded under the statement that names the answer AND the
 card's current listing consent is that same statement. A card listed, or later
@@ -329,7 +386,8 @@ says: "If Blueprint runs a simulation of your site, its result appears on the
 same page." The notices that belonged to robot-team-run evaluations are
 suppressed; Blueprint runs evaluations itself.
 
-When the simulation finishes with a result, its email
+Neither email has moved to the test-led answer yet (the email files belong
+to another worker in round 3). When the simulation finishes with a result, its email
 (`server/utils/taskLifecycleNotifications.ts`) states the job page's own
 comparison sentence and scene notes, from the same projection. Its subject is
 "Your simulation result is ready" when a compared policy completed the job,

@@ -715,3 +715,48 @@ export function testHeadline(result: TestResult): string | null {
     case "none_finished": return "Tested on your job: none finished yet.";
   }
 }
+
+/**
+ * The simulation test said in words a child can read: each the plain form of the projection's own sentence for the
+ * same case (`simulationProof.ts`), so it is true whenever that one is. The projection's sentences stay in the
+ * details, word for word, and in the email.
+ */
+const PLAIN_COULD_NOT_RUN: Readonly<Partial<Record<JobScreeningOutcome, string>>> = {
+  reference_only: "Only our own test moves ran. No robot program could be tried yet.",
+  held_capability: "Our simulation test can't do this kind of job yet.",
+  held_unprepared: "The robots that could do this job aren't set up in our simulation test yet.",
+  infeasible: "In the simulation of your site, none of the robots we can test could reach the job.",
+  no_match: "None of the robots we can test matched this job. At least one couldn't reach it in the simulation of your site.",
+  held_setup: "A problem on our side stopped it.",
+  held_budget: "It reached the most the free beta can run for one job.",
+  held_scene_check: "The simulation of your site failed our check, so no robot was tested in it.",
+};
+const PLAIN_WAITING: Readonly<Partial<Record<JobScreeningOutcome, string>>> = {
+  awaiting_spend_approval: "We're deciding whether to keep testing.",
+  setup_repair: "An update on our side stopped the test before it finished. If a later test finishes, it shows here.",
+  superseded: "The test goes on in a newer run.",
+};
+/** The set-up caveat in plain words: it changes what a result means, so it is said beside the line. */
+export const PLAIN_SETUP_CAVEAT = "This result may come from how we set up the simulation of your site, not from the robots.";
+
+const outcomeOf = (table: Partial<Record<JobScreeningOutcome, string>>, sentence: string) =>
+  (Object.keys(table) as JobScreeningOutcome[]).find(key => table[key] === sentence) ?? null;
+
+/** The paper screen's one line on why the simulation test is not the answer, or null when nothing is known. */
+export function testNotRunLine(proof: SimulationProof | null | undefined): string | null {
+  if (!proof || proof.state === "not_started") return null;
+  if (proof.state === "could_not_run") {
+    const outcome = outcomeOf(COULD_NOT_RUN, proof.headline);
+    // A test stopped part way (a problem on our side, or the free beta's limit) did not finish; the others did not run.
+    const stopped = outcome === "held_setup" || outcome === "held_budget";
+    return `The simulation test did not ${stopped ? "finish" : "run"}. ${(outcome && PLAIN_COULD_NOT_RUN[outcome]) ?? ""}`.trim();
+  }
+  if (proof.state !== "done") {
+    const waiting = outcomeOf(WAITING, proof.headline);
+    return waiting && PLAIN_WAITING[waiting] ? `Simulation test: ${PLAIN_WAITING[waiting]}` : null;
+  }
+  if (proof.options.options.length) return null;
+  return proof.options.unconfirmed.length
+    ? "The simulation test ran, but we couldn't confirm which robot each AI program ran on, so none is compared."
+    : "The simulation test finished, but no AI robot could be scored in it.";
+}

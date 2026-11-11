@@ -1,11 +1,10 @@
 import { UNNAMED_POLICY } from "@/data/simulationPolicies";
 import { BareRows } from "@/components/bare/Bare";
 import {
-  COULD_NOT_RUN, GAP_COULD_BE_CHANCE, GAP_UNLIKELY_CHANCE, SCENE_SETUP_CAVEAT, WAITING,
+  GAP_COULD_BE_CHANCE, GAP_UNLIKELY_CHANCE, PLAIN_SETUP_CAVEAT, SCENE_SETUP_CAVEAT, testNotRunLine,
   testResultOf, type SimulationProof as SimulationProofView,
 } from "@/lib/simulationProof";
 import { SIMULATION_ACCURACY_ROWS } from "@/data/simulationAccuracy";
-import type { JobScreeningOutcome } from "@/types/jobMarketplace";
 
 type Row = NonNullable<SimulationProofView["policyComparison"]>["rows"][number];
 
@@ -13,50 +12,8 @@ type Row = NonNullable<SimulationProofView["policyComparison"]>["rows"][number];
 const rowName = (name: string) => (name.startsWith(UNNAMED_POLICY) ? `A${name.slice(1)}` : name);
 const tries = (succeeded: number, scored: number) => `${succeeded} of ${scored} ${scored === 1 ? "try" : "tries"}`;
 
-/**
- * The simulation test said in words a child can read: each the plain form of the projection's own sentence for the
- * same case (`simulationProof.ts`), so it is true whenever that one is. The projection's sentences stay in the
- * details, word for word, and in the email.
- */
-const PLAIN_COULD_NOT_RUN: Readonly<Partial<Record<JobScreeningOutcome, string>>> = {
-  reference_only: "Only our own test moves ran. No robot program could be tried yet.",
-  held_capability: "Our simulation test can't do this kind of job yet.",
-  held_unprepared: "The robots that could do this job aren't set up in our simulation test yet.",
-  infeasible: "In the simulation of your site, none of the robots we can test could reach the job.",
-  no_match: "None of the robots we can test matched this job. At least one couldn't reach it in the simulation of your site.",
-  held_setup: "A problem on our side stopped the test before it finished.",
-  held_budget: "The test reached the most the free beta can run for one job, before it finished.",
-  held_scene_check: "The simulation of your site failed our check, so no robot was tested in it.",
-};
-const PLAIN_WAITING: Readonly<Partial<Record<JobScreeningOutcome, string>>> = {
-  awaiting_spend_approval: "We're deciding whether to keep testing.",
-  setup_repair: "An update on our side stopped the test before it finished. If a later test finishes, it shows here.",
-  superseded: "The test goes on in a newer run.",
-};
 const PLAIN_STATE = { preparing: "Getting ready.", running: "Running now." } as const;
-/** The set-up caveat in plain words: it changes what a result means, so it is said beside the line. */
-export const PLAIN_SETUP_CAVEAT = "This result may come from how we set up the simulation of your site, not from the robots.";
-
-const outcomeOf = (table: Partial<Record<JobScreeningOutcome, string>>, sentence: string) =>
-  (Object.keys(table) as JobScreeningOutcome[]).find(key => table[key] === sentence) ?? null;
-
-export { testResultOf, type TestResult } from "@/lib/simulationProof";
-/** The paper screen's one line on why the simulation test is not the answer, or null when nothing is known. */
-export function testNotRunLine(proof: SimulationProofView | null | undefined): string | null {
-  if (!proof || proof.state === "not_started") return null;
-  if (proof.state === "could_not_run") {
-    const outcome = outcomeOf(COULD_NOT_RUN, proof.headline);
-    return `The simulation test did not run. ${(outcome && PLAIN_COULD_NOT_RUN[outcome]) ?? ""}`.trim();
-  }
-  if (proof.state !== "done") {
-    const waiting = outcomeOf(WAITING, proof.headline);
-    return waiting && PLAIN_WAITING[waiting] ? `Simulation test: ${PLAIN_WAITING[waiting]}` : null;
-  }
-  if (proof.options.options.length) return null;
-  return proof.options.unconfirmed.length
-    ? "The simulation test ran, but we couldn't confirm which robot each AI program ran on, so none is compared."
-    : "The simulation test finished, but no AI robot could be scored in it.";
-}
+export { PLAIN_SETUP_CAVEAT, testNotRunLine, testResultOf, type TestResult } from "@/lib/simulationProof";
 
 /** The one line for an older job's standalone view and its email-shaped places, by the same rules. */
 export function computerTestLine(proof: SimulationProofView | null | undefined, _pickName?: string | null): string | null {

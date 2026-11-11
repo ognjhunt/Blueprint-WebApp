@@ -314,9 +314,9 @@ test("a held result says the same plain sentence as the headline, with plain rea
   });
   await page.goto(`/capture-upload/${token}?video=existing`);
   await expect(page.getByText(`${sentence} Nothing is needed from you.`, { exact: true })).toBeVisible();
-  // The proof says, open and in one sentence about the simulation, why it could not run.
+  // The proof says, open and in one plain line, that the simulation test did not run and why.
   const proof = page.getByRole("region", { name: "Tested in simulation" });
-  await expect(proof.getByText("None of the robots the simulation can run matched this task; at least one was measured out of reach from the robot position planned in the scene built from your video.", { exact: true })).toBeVisible();
+  await expect(proof.getByText("The simulation test did not run. None of the robots we can test matched this job. At least one couldn't reach it in the simulation of your site.", { exact: true })).toBeVisible();
   expect(await proof.textContent()).not.toMatch(/[a-z]_[a-z]|your job is held|estimate|budget|\$/i);
   await page.locator("summary", { hasText: "Simulation details" }).click();
   const results = page.getByRole("region", { name: "Simulation results for your job" });
@@ -676,7 +676,7 @@ test("a run with only scripted reference baselines is not called an estimate on 
   await expect(page.getByText(`${sentence} Nothing is needed from you.`, { exact: true })).toBeVisible();
   // The proof never calls a reference-only run an estimate, and names no policy.
   const proof = page.getByRole("region", { name: "Tested in simulation" });
-  await expect(proof.getByText("The simulation scored only scripted reference checks; no AI policy could be tested in it yet.", { exact: true })).toBeVisible();
+  await expect(proof.getByText("The simulation test did not run. Only our own test moves ran. No robot program could be tried yet.", { exact: true })).toBeVisible();
   expect(await proof.textContent()).not.toMatch(/estimate|did best|tries/i);
   await page.locator("summary", { hasText: "Simulation details" }).click();
   const results = page.getByRole("region", { name: "Simulation results for your job" });

@@ -158,7 +158,7 @@ describe("the site's answer, bare bones", () => {
   it("falls back to the paper check with why the test did not run, when that is known", () => {
     render(<SiteAnswer token="owner-token" answer={readyAnswer} proof={projectSimulationProof({ evaluation: [{ ...winnerEvaluation, outcome: "held_budget" as const }], pick: readyAnswer.pick })} />);
     expect(screen.getByRole("heading", { level: 2, name: "On paper, the robot most likely to fit" })).toBeVisible();
-    expect(screen.getByText("The simulation test did not run. The test reached the most the free beta can run for one job, before it finished.")).toBeVisible();
+    expect(screen.getByText("The simulation test did not finish. It reached the most the free beta can run for one job.")).toBeVisible();
   });
 
   it("says nothing about the simulation test before it starts", () => {
