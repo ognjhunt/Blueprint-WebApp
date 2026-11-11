@@ -141,6 +141,7 @@ export function SiteAnswer({ token, answer, onIntroductionRequested }: {
     </> : <>
       <JobLine job={answer.job} />
       <PickCard robot={pick} familyLabel={answer.job.familyLabel} />
+      {answer.approach && <p className="site-answer-approach">How it would be controlled: {answer.approach.text}</p>}
       {answer.formNote && <p>{answer.formNote}</p>}
       {answer.runnerUp && <RunnerUp robot={answer.runnerUp} />}
       {answer.alsoFit.length > 0 && <p>Also fit on paper: {answer.alsoFit.map(robot => `${robot.manufacturer} ${robot.name}`).join(", ")}.</p>}

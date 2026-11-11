@@ -26,7 +26,7 @@ import {
   SCREENING, cite, digestOf, jobFactsOf, lengthText, loadRobotFitInputs, videoEvidence, type Quantity, type RobotFitInputs,
 } from "./siteRobotFit";
 import { isPlaceholderSummary, type SiteTaskBriefRecord } from "./siteTaskBrief";
-import { screenTaskScope, taskScopeReasonSentence } from "./siteTaskScope";
+import { screenTaskScope } from "./siteTaskScope";
 import { getMeasurements, type SiteTaskMeasurementRecord } from "./siteTaskMeasurements";
 import type { PublicRobotFit } from "./websitePreparationStatus";
 import { projectWebsiteCaptureRights } from "./websiteTaskContext";
@@ -181,22 +181,54 @@ export function jobFamilyOf(sentence: string | null): JobFamily {
   return "pick_place";
 }
 
-/** Null when the job is one object picked up and put down (or not yet known); else why not, in one sentence. */
-function outOfScope(request: Record<string, any>, brief: SiteTaskBriefRecord | null, facts: Facts): string | null {
+/**
+ * Kinds of job that are plainly not one solid object picked up and put down.
+ * `container`, `mobile` and `multi_step` are still a pick and a place for the
+ * fit check: the task screen describes what the simulation can score, not
+ * whether robots can be checked against the job.
+ */
+const OTHER_KIND_REASONS = new Set(["deformable", "liquid", "assembly", "closing", "push", "articulated"]);
+const REASON_OTHER_KIND = "This check covers jobs where a robot picks one solid object up and puts it down. Your job looks like another kind, which we can't check robots against yet.";
+const UNKNOWN_MULTI_STEP = "Your job has more than one step; this checks one carry.";
+
+/** The stored task screen's reason or kind, else the brief screened now. */
+function screenOf(request: Record<string, any>, brief: SiteTaskBriefRecord | null): { kind: string | null; reason: string | null } {
   const scope = isRecord(request.site_task_scope) ? request.site_task_scope : null;
-  if (scope) {
-    if (scope.supported === false) return taskScopeReasonSentence(scope.reason);
-    if (scope.supported === true && scope.kind && scope.kind !== "rigid_pick_and_place") return taskScopeReasonSentence("other");
-    if (scope.supported === true) return null;
+  if (scope && (scope.supported === true || scope.supported === false)) {
+    return { kind: typeof scope.kind === "string" ? scope.kind : null, reason: typeof scope.reason === "string" ? scope.reason : null };
   }
-  if (readingObject(request) && (facts.distance || facts.pick || facts.place)) return null;
   const summary = typeof brief?.summary === "string" ? brief.summary : null;
   const success = isRecord(brief?.successCriteria) ? text(brief!.successCriteria.successDefinition) : null;
   const screened = screenTaskScope({ summary, successDefinition: success });
-  if (screened.kind === "rigid_pick_and_place") return null;
-  if (screened.supported === false && screened.reason && screened.reason !== "unclear") return taskScopeReasonSentence(screened.reason);
-  if (screened.kind) return taskScopeReasonSentence("other");
-  return null;
+  return { kind: screened.kind, reason: screened.reason };
+}
+
+/**
+ * Whether robots can be checked against the job. The reading and the site's own
+ * numbers decide first: an object and a distance or a height is a pick and a
+ * place. Only a job that is plainly another kind cannot be assessed.
+ */
+function scopeOf(request: Record<string, any>, brief: SiteTaskBriefRecord | null, facts: Facts): { otherKind: boolean; multiStep: boolean } {
+  const screen = screenOf(request, brief);
+  const multiStep = screen.reason === "multi_step";
+  if (readingObject(request) && (facts.distance || facts.pick || facts.place)) return { otherKind: false, multiStep };
+  const otherKind = (screen.kind !== null && screen.kind !== "rigid_pick_and_place")
+    || (screen.reason !== null && OTHER_KIND_REASONS.has(screen.reason));
+  return { otherKind, multiStep };
+}
+
+const APPROACH_PROGRAMMED = "A programmed application: the installer teaches the robot this motion once.";
+const APPROACH_PROGRAMMED_ARMS = " Arms of this kind are deployed this way on jobs like yours.";
+const APPROACH_CAMERA = "The objects vary, so the robot needs camera-guided picking. Ask the deployment company how it handles each item.";
+
+/** How the pick would be controlled, reasoned only from what the video shows. */
+function approachOf(inputs: RobotFitInputs, request: Record<string, any>, pick: Rated | null): SiteAnswer["approach"] {
+  if (!pick) return null;
+  const others = videoEvidence(inputs)?.estimates?.otherItemsLikely ?? [];
+  if (others.length) return { kind: "camera_guided", text: APPROACH_CAMERA };
+  if (!readingObject(request)) return null;
+  // The deployment-practice sentence is about fixed industrial and collaborative arms only.
+  return { kind: "programmed", text: APPROACH_PROGRAMMED + (pick.model.body_type === "fixed_arm" ? APPROACH_PROGRAMMED_ARMS : "") };
 }
 
 /* ------------------------------------------------------------- the checks */
@@ -453,7 +485,8 @@ export function composeSiteAnswer(inputs: SiteAnswerInputs): SiteAnswer | null {
     schemaVersion: SITE_ANSWER_SCHEMA,
     job: { sentence: summary, drafted, family, familyLabel },
     facts: answerFacts,
-    pick: null, runnerUp: null, alsoFit: [], ruledOut: [], ruledOutMore: 0, formNote: null, unknowns: [] as string[],
+    pick: null, runnerUp: null, alsoFit: [], ruledOut: [], ruledOutMore: 0, formNote: null, approach: null,
+    unknowns: [] as string[],
     confidence: { level: "low" as const, reasons: [] as string[], raiseIt: [] as string[] },
     nextStep: { kind: "none" as const, text: "" },
     reason: null as string | null,
@@ -471,8 +504,8 @@ export function composeSiteAnswer(inputs: SiteAnswerInputs): SiteAnswer | null {
   const finish = (answer: Omit<SiteAnswer, "basisDigest">, extra: Record<string, unknown> = {}): SiteAnswer =>
     ({ ...answer, basisDigest: digestOf({ ...basis, state: answer.state, ...extra }) });
 
-  const scopeReason = outOfScope(request, brief, facts);
-  if (scopeReason) return finish({ ...base, state: "cannot_assess", headline: HEADLINE_CANNOT, reason: scopeReason });
+  const scope = scopeOf(request, brief, facts);
+  if (scope.otherKind) return finish({ ...base, state: "cannot_assess", headline: HEADLINE_CANNOT, reason: REASON_OTHER_KIND });
   if (!coverageDone(request, fitInputs) && !siteNumbers) return finish({ ...base, state: "reading", headline: HEADLINE_READING });
   if (!facts.distance && !facts.mass && !facts.size) {
     if (!coverageDone(request, fitInputs)) return finish({ ...base, state: "reading", headline: HEADLINE_READING });
@@ -510,7 +543,8 @@ export function composeSiteAnswer(inputs: SiteAnswerInputs): SiteAnswer | null {
     ruledOut,
     ruledOutMore: Math.max(0, ruled.length - ruledOut.length),
     formNote,
-    unknowns: unknownsOf(fitInputs, job),
+    approach: approachOf(fitInputs, request, pick),
+    unknowns: [...unknownsOf(fitInputs, job), ...(scope.multiStep ? [UNKNOWN_MULTI_STEP] : [])],
     confidence: confidenceOf(pick, job, familyLabel),
     nextStep: pick ? { kind: "introduction", text: NEXT_STEP_INTRODUCTION } : { kind: "none", text: "" },
   }, {

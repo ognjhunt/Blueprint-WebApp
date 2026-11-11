@@ -54,3 +54,18 @@ export function evaluationAdmissionAlertText(params: { workspaceRequestId: strin
 export async function alertOpsEvaluationNeedsAdmission(params: { workspaceRequestId: string; jobId: string; teamIds: readonly string[] }) {
   return ringOnce(`evaluation_admission:${params.workspaceRequestId}`, evaluationAdmissionAlertText(params));
 }
+
+/** One line of Blueprint's own answer text for the bell: no newlines, no code marks, bounded. */
+function answerLine(value: string | null | undefined): string {
+  return String(value ?? "").replace(/[\r\n`*_~<>]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 200) || "none";
+}
+
+export function introductionRequestAlertText(params: { requestId: string; headline: string | null; pick: string | null }): string {
+  return `:handshake: *A site asked Blueprint to find a deployment company* — job \`${safeId(params.requestId)}\`.\n`
+    + `Answer: ${answerLine(params.headline)}\nPick: ${answerLine(params.pick)}`;
+}
+
+/** A site pressed "Find a deployment company for this job". Rings once per job; it contacts no outside company. */
+export async function alertOpsIntroductionRequested(params: { requestId: string; headline: string | null; pick: string | null }) {
+  return ringOnce(`introduction_request:${params.requestId}`, introductionRequestAlertText(params));
+}

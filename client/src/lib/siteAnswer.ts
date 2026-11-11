@@ -121,6 +121,12 @@ export interface SiteAnswer {
   ruledOutMore: number;
   /** A note about the kind of robot the job needs, such as one that moves between the spots. */
   formNote: string | null;
+  /**
+   * How the pick would be controlled on this job, reasoned from what the video
+   * shows: a programmed application taught once, or camera-guided picking when
+   * the objects vary. Never a claim about a named product.
+   */
+  approach: { kind: "programmed" | "camera_guided"; text: string } | null;
   /** What the video could not tell. */
   unknowns: string[];
   confidence: { level: AnswerConfidenceLevel; reasons: string[]; raiseIt: string[] };

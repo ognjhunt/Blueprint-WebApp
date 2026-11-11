@@ -2,9 +2,9 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Pause, Play } from "lucide-react";
 
 /**
- * What a site receives: one recommended pilot, for the approach that won
- * Blueprint's own evaluation of the job's candidates, delivered by a deployment
- * company that supports it, shown for a few kinds of site. Examples, not
+ * What a site receives: one answer for its job (the robot that most likely
+ * fits, a runner-up, what was ruled out, proof in simulation, how sure, the
+ * next step), or "held", shown for a few kinds of site. Examples, not
  * bookings or results. Four original illustrative scenes are restored verbatim;
  * simulation scope is assessed per task rather than implied by the artwork.
  * Warehouse, Laundromat, Factory and Hotel source: 288822160^.
@@ -14,7 +14,9 @@ import { Pause, Play } from "lucide-react";
 
 type P = [number, number];
 type Scene = (props: { t: number }) => JSX.Element;
-type Example = { site: string; embodiment: string; tests: string; provide: string; teamProvides: string; when: string; uncertain: string; Art: Scene };
+/** One row of an illustrative answer: a label and its text. */
+type Row = [string, string];
+type Example = { site: string; embodiment: string; job: string; answer: Row[]; Art: Scene };
 
 const LOOP = 10; // seconds per task loop; one rotation shows one full loop
 const STILL = 4.5; // the frame shown before motion starts, when paused, and under reduced motion
@@ -373,13 +375,57 @@ function Lab({ t }: { t: number }) {
   );
 }
 
+// Robot names, reach and payload come from the robot spec catalog
+// (contracts/pipeline/robot-spec-catalog.v1.json). The jobs, distances, weights
+// and answers are made up; they follow the answer's rules (a fixed arm's reach
+// must span the two spots; jobs that are not one solid object picked up and put
+// down are held), but no row is a result for any site.
+const WHO_USES_IT = "Published uses of these robots on work like this, each with its source, or a plain note that we found none";
+const POLICY_PROOF = "Which control policy did best on the job in a simulation of your site, and how much that result can be trusted";
+const NEXT_STEP = "If you choose, share an anonymised job card with deployment companies Blueprint has approved";
+const HELD_NEXT = "We keep the job and count it as demand for this kind of work. Your job page shows its current stage";
+const held = (kind: string) => `Held. Our robot check covers jobs where a robot picks one solid object up and puts it down. ${kind} is another kind of job, which we can’t check robots against yet`;
+
 const examples: Example[] = [
-  { site: "Warehouse", embodiment: "Humanoid robot", tests: "Moving full totes from the packing line to outbound carts", provide: "A two-hour window, one escort, floor space by line 3", teamProvides: "Humanoid robot, setup and operation", when: "Two weeks, on dates you approve", uncertain: "Shrink-wrapped totes may need a different gripper", Art: Warehouse },
-  { site: "Café", embodiment: "Fixed robot arm", tests: "Moving clean cups from the dish rack to the counter", provide: "An after-close window and bench space by the dish station", teamProvides: "Fixed robot arm, setup and operation", when: "One week of evenings", uncertain: "Cups of very different sizes may need a second grip", Art: Cafe },
-  { site: "Laundromat", embodiment: "Wheeled humanoid", tests: "Folding towels for wash-and-fold orders", provide: "One folding table for a morning shift", teamProvides: "Wheeled humanoid, setup and operation", when: "One week, mornings only", uncertain: "Thin or tangled items may need a person", Art: Laundromat },
-  { site: "Factory", embodiment: "Mobile manipulator", tests: "Loading blanks into one CNC machine and unloading finished parts", provide: "One machine and a setup day with your maintenance lead", teamProvides: "Mobile manipulator, fixtures, setup and operation", when: "Two weeks, on one shift", uncertain: "Parts that arrive in mixed orientations", Art: Factory },
-  { site: "Hotel", embodiment: "Mobile robot", tests: "Moving linen carts from the laundry room to each floor", provide: "Service elevator access during quiet hours", teamProvides: "Mobile robot, setup and operation", when: "Two weeks, overnight", uncertain: "Busy elevators at checkout time", Art: Hotel },
-  { site: "Lab", embodiment: "Fixed robot arm", tests: "Opening the sample drawer before each batch", provide: "One bench and a quiet hour before the first batch", teamProvides: "Fixed robot arm, setup and operation", when: "One week, mornings only", uncertain: "A sticking drawer may need a firmer pull", Art: Lab },
+  { site: "Warehouse", embodiment: "Humanoid robot", job: "Moving light totes, about 1.5 kg each, from a shelf to an outbound cart a few steps away", answer: [
+    ["Most likely fits", "Unitree G1, a walking humanoid robot. Published payload: about 2 kg per arm"],
+    ["Runner-up", "Hello Robot Stretch 3, an arm on a wheeled base. Published payload: 2 kg, including its gripper"],
+    ["Ruled out", "Universal Robots UR5e. It stays in one place, and its 0.85 m reach can’t span a shelf and a cart a few steps apart"],
+    ["Who uses it", WHO_USES_IT],
+    ["Proof in simulation", POLICY_PROOF],
+    ["How sure", "Low. The tote weight is estimated from the video and is close to both robots’ payload"],
+    ["Next step", NEXT_STEP],
+  ], Art: Warehouse },
+  { site: "Café", embodiment: "Fixed robot arm", job: "Moving clean cups from the dish rack to the counter, about 1.2 m away", answer: [
+    ["Most likely fits", "FANUC CRX-10iA, a fixed robot arm. Published reach 1.249 m, payload 10 kg"],
+    ["Runner-up", "Universal Robots UR10e, a fixed robot arm. Published reach 1.3 m, payload 12.5 kg"],
+    ["Ruled out", "AgileX PiPER. An arm standing between the rack and the counter needs about 0.7–1.1 m of reach; this arm reaches 0.626 m"],
+    ["Who uses it", WHO_USES_IT],
+    ["Proof in simulation", "A simulation of your site checks the arm’s reach and path on the job, and says how much that result can be trusted"],
+    ["How sure", "Low for now. The distances are estimated from the video; a measured scene of your work area would raise it"],
+    ["Next step", NEXT_STEP],
+  ], Art: Cafe },
+  { site: "Laundromat", embodiment: "Wheeled humanoid", job: "Folding towels for wash-and-fold orders", answer: [
+    ["Answer", held("Folding cloth")],
+    ["Next step", HELD_NEXT],
+  ], Art: Laundromat },
+  { site: "Factory", embodiment: "Mobile manipulator", job: "Loading small blanks, about 1 kg each, from a conveyor into a CNC machine about 6 m away, and unloading finished parts", answer: [
+    ["Most likely fits", "Hello Robot Stretch 3, a mobile manipulator: an arm on a wheeled base. Published payload: 2 kg, including its gripper"],
+    ["Runner-up", "Unitree G1, a walking humanoid robot. Published payload: about 2 kg per arm"],
+    ["Ruled out", "FANUC M-710iC/45M. It stays in one place, and even its 2.606 m reach can’t span 6 m"],
+    ["Who uses it", WHO_USES_IT],
+    ["Proof in simulation", POLICY_PROOF],
+    ["How sure", "Low. Both pass on weight, but whether they can reach into the machine is still open"],
+    ["Next step", NEXT_STEP],
+  ], Art: Factory },
+  { site: "Hotel", embodiment: "Mobile robot", job: "Moving linen carts from the laundry room to each floor", answer: [
+    ["Answer", held("Towing a cart")],
+    ["Next step", HELD_NEXT],
+  ], Art: Hotel },
+  { site: "Lab", embodiment: "Fixed robot arm", job: "Opening the sample drawer before each batch", answer: [
+    ["Answer", held("Opening a drawer")],
+    ["Next step", HELD_NEXT],
+  ], Art: Lab },
 ];
 
 /** Seconds into the current loop. Starts at the still frame; restarts at 0 when the scene changes. */
@@ -441,8 +487,8 @@ export function PilotPreview() {
     <section className="ms-pilot-preview" aria-labelledby="pilot-preview-title">
       <div className="ms-pilot-preview-intro">
         <p className="ms-eyebrow">What you get</p>
-        <h2 id="pilot-preview-title">One job. A clear pilot plan.</h2>
-        <p>The job, a robot that could fit, the open questions and what the deployment company would provide. You choose whether to proceed.</p>
+        <h2 id="pilot-preview-title">One job. One answer, with its proof.</h2>
+        <p>The robot that most likely fits, a runner-up, what was ruled out and why, proof in a simulation of your site and how sure we are. You choose whether to share it.</p>
         <svg ref={artRef} className="ms-pilot-art" viewBox="0 0 320 196" role="img" aria-label={`Illustration of the ${example.site.toLowerCase()} example: ${example.embodiment.toLowerCase()}`}>
           <g key={example.site} className="ms-pilot-art-scene">
             <path d="M8 180 H312" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" />
@@ -475,23 +521,16 @@ export function PilotPreview() {
         </div>
         <div id="pilot-example" role="tabpanel" aria-labelledby={`pilot-tab-${active}`} key={example.site} className="ms-pilot-panel">
           <div className="ms-pilot-card-head">
-            <span>Illustrative job plan</span>
+            <span>Illustrative answer</span>
             <span className="ms-pilot-card-tag">Example</span>
           </div>
           <dl>
-            <div><dt>Job</dt><dd>{example.tests}</dd></div>
-            <div><dt>Possible approach</dt><dd>{example.embodiment}</dd></div>
-            <div><dt>Evidence needed</dt><dd>Site video, simulation results and a measured pilot at your site</dd></div>
-            <div><dt>What you provide</dt><dd>{example.provide}</dd></div>
-            <div><dt>Delivery scope</dt><dd>{example.teamProvides}</dd></div>
-            <div><dt>Budget</dt><dd>Agreed with you before any pilot</dd></div>
-            <div><dt>Pilot price</dt><dd>Quoted by the deployment company and agreed before the pilot</dd></div>
-            <div><dt>Support</dt><dd>Agreed with the deployment company</dd></div>
-            <div><dt>Still uncertain</dt><dd>{example.uncertain}</dd></div>
+            <div><dt>Job</dt><dd>{example.job}</dd></div>
+            {example.answer.map(([label, text]) => <div key={label}><dt>{label}</dt><dd>{text}</dd></div>)}
           </dl>
         </div>
         <div className="ms-pilot-card-foot">
-          <span>These examples show possible jobs and robots, not available offers or measured results. Physical performance and safety must be validated on site.</span>
+          <span>Robot names, reach and payload are from each maker’s published specifications; the jobs, distances, weights and answers are made up for illustration. These examples show possible jobs and robots, not available offers or measured results. Physical performance and safety must be validated on site.</span>
         </div>
       </div>
     </section>

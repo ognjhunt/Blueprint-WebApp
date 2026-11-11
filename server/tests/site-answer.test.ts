@@ -148,13 +148,60 @@ describe("composeSiteAnswer", () => {
     expect(answer.headline).toBe("No robot clearly fits yet. The closest is Hello Robot Stretch 3.");
   });
 
-  it("cannot assess a job that is not one object picked up and put down", () => {
-    const answer = compose({ request: { site_task_scope: { supported: false, kind: null, reason: "deformable" } } });
-    expect(answer).toMatchObject({ state: "cannot_assess", headline: "We can't check robots against this job yet.", pick: null,
-      reason: "Your job involves soft or flexible items, such as cloth, bags or cables, and needs task-specific evaluation preparation." });
-    const screened = compose({ estimates: estimates({ object: null, pick_to_place_m: null }), brief: { requestId: "job-1", summary: "Fold the towels" } });
-    expect(screened.state).toBe("cannot_assess");
+  it("cannot assess a job that is plainly not one object picked up and put down, in the fit check's own words", () => {
+    const OTHER_KIND = "This check covers jobs where a robot picks one solid object up and puts it down. Your job looks like another kind, which we can't check robots against yet.";
+    const noObject = { estimates: estimates({ object: null, pick_to_place_m: null }) };
+    for (const reason of ["deformable", "liquid", "assembly", "closing", "push", "articulated"]) {
+      const answer = compose({ ...noObject, request: { site_task_scope: { supported: false, kind: null, reason } } });
+      expect(answer).toMatchObject({ state: "cannot_assess", headline: "We can't check robots against this job yet.", pick: null,
+        reason: OTHER_KIND, approach: null });
+    }
+    const opening = compose({ ...noObject, request: { site_task_scope: { supported: true, kind: "articulated_open_close", reason: null } } });
+    expect(opening.reason).toBe(OTHER_KIND);
+    const screened = compose({ ...noObject, brief: { requestId: "job-1", summary: "Fold the towels" } });
+    expect(screened).toMatchObject({ state: "cannot_assess", reason: OTHER_KIND });
     expect(screened.nextStep.kind).toBe("none");
+    // The simulation's own reason sentences never reach the answer.
+    for (const answer of [opening, screened]) expect(answer.reason).not.toMatch(/evaluation preparation|simulation|hold your job/i);
+  });
+
+  it("assesses from the reading and the site's numbers even when the task screen says the simulation cannot score it", () => {
+    for (const reason of ["deformable", "container", "mobile", "other", "multi_step"]) {
+      const answer = compose({ request: { site_task_scope: { supported: false, kind: null, reason } } });
+      expect(answer.state).toBe("ready");
+      expect(answer.reason).toBeNull();
+    }
+  });
+
+  it("treats container, far-apart and multi-step jobs as a pick and a place, and says a multi-step job is checked one carry at a time", () => {
+    const noObject = { estimates: estimates({ object: null }) };
+    for (const reason of ["container", "mobile"]) {
+      const answer = compose({ ...noObject, request: { site_task_scope: { supported: false, kind: null, reason } } });
+      expect(answer.state).toBe("ready");
+      expect(answer.unknowns).not.toContain("Your job has more than one step; this checks one carry.");
+    }
+    const stored = compose({ ...noObject, request: { site_task_scope: { supported: false, kind: null, reason: "multi_step" } } });
+    expect(stored.state).toBe("ready");
+    expect(stored.unknowns).toContain("Your job has more than one step; this checks one carry.");
+    const withObject = compose({ request: { site_task_scope: { supported: false, kind: null, reason: "multi_step" } } });
+    expect(withObject.unknowns.at(-1)).toBe("Your job has more than one step; this checks one carry.");
+    const screened = compose({ ...noObject, brief: { requestId: "job-1", summary: "Pick up the box from the conveyor, then put it on the shelf, then scan the label" } });
+    expect(screened.state).toBe("ready");
+  });
+
+  it("says how the pick would be controlled", () => {
+    expect(compose().approach).toEqual({ kind: "programmed",
+      text: "A programmed application: the installer teaches the robot this motion once. Arms of this kind are deployed this way on jobs like yours." });
+    expect(compose({ estimates: estimates({ other_items_likely: ["plastic totes"] }) }).approach).toEqual({ kind: "camera_guided",
+      text: "The objects vary, so the robot needs camera-guided picking. Ask the deployment company how it handles each item." });
+    const none = compose({ brief: { requestId: "job-1", summary: "Move engine blocks", operatorTaskDetails: { item_weight: "500 kg" } } });
+    expect(none.pick).toBeNull();
+    expect(none.approach).toBeNull();
+    const moving = compose({ measurements: measurements({ pick_to_place_distance: reading(3, "m", 3) }),
+      brief: { requestId: "job-1", summary: "Carry parts across the cell", operatorTaskDetails: { item_weight: "1 kg" } } });
+    // The deployment-practice sentence speaks only of fixed arms.
+    expect(moving.approach).toEqual({ kind: "programmed", text: "A programmed application: the installer teaches the robot this motion once." });
+    expect(compose({ estimates: null, request: { capture_coverage: null }, brief: { requestId: "job-1", summary: "Your site task" } }).approach).toBeNull();
   });
 
   it("cannot assess a finished reading that gives no distance, weight or size", () => {
@@ -269,6 +316,27 @@ describe("composeSiteAnswer", () => {
     ];
     for (const value of junk) {
       expect(() => composeSiteAnswer(value as Inputs)).not.toThrow();
+    }
+  });
+});
+
+describe("composeSiteAnswer with the shipped evidence and catalog", () => {
+  it("picks a model with documented production palletizing for 8–11 kg cartons with spots 1.6 m apart, every row quoted and linked", () => {
+    const base = inputs({ estimates: estimates({ object: "carton", object_mass_kg_low: 8, object_mass_kg_high: 11, pick_to_place_m: 1.6,
+      basis: "A person stacks cartons from the conveyor onto a pallet." }),
+    brief: { requestId: "job-1", summary: "Stack cartons from the conveyor onto the pallet", confirmedAtIso: null } });
+    const { evidenceFor: _fixture, ...shipped } = base;
+    const answer = composeSiteAnswer(shipped)!;
+    expect(answer.state).toBe("ready");
+    expect(answer.job.family).toBe("palletizing");
+    expect(answer.pick).not.toBeNull();
+    expect(answer.pick!.evidence[0]).toMatchObject({ level: "production", scope: "model" });
+    for (const robot of [answer.pick, answer.runnerUp]) {
+      expect(robot).not.toBeNull();
+      for (const row of robot!.evidence) {
+        expect(row.quote.trim().length).toBeGreaterThan(0);
+        expect(row.sourceUrl).toMatch(/^https:\/\//);
+      }
     }
   });
 });

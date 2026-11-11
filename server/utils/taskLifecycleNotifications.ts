@@ -34,6 +34,7 @@ import { isScreeningResultOutcome, screeningEstimateCountSentence, screeningOutc
   type ScreeningOutcome, type ScreeningOutcomeCaveat } from "./betaPolicyScreeningContract";
 import { isTerminalSceneOutcomeKind, sceneOutcomeMessage, sceneOutcomeSubject,
   type TerminalSceneOutcomeKind } from "./sceneIntentOutcome";
+import { ANSWER_CONFIDENCE_LABELS, SITE_ANSWER_NOTE, type SiteAnswer } from "../../client/src/lib/siteAnswer";
 
 export type TaskLifecycleMilestone = Extract<
   OutboxKind,
@@ -55,6 +56,7 @@ export type TaskLifecycleMilestone = Extract<
   | "no_qualified_evaluation"
   | "footage_before_account"
   | "pilot_request"
+  | "answer_ready"
 >;
 
 /** A ready label without viewable assets is not a scene-ready milestone. */
@@ -182,6 +184,12 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
     // No later email follows this one, so it promises none.
     body: (url, _detail, workspaceUrl) => `${FOOTAGE_BEFORE_ACCOUNT_SENTENCE} Follow the same job:\n${workspaceUrl || url}`,
   },
+  // Once per job, when the site's answer first settles. The detail is only the
+  // answer's own sentences (`answerReadyDetail`), built from the composed answer.
+  answer_ready: {
+    subject: "Your Blueprint answer is ready",
+    body: (url, detail) => `${detail}\n\nOpen your answer:\n${url}`,
+  },
   pilot_request: {
     subject: "A partner asked to have its system evaluated on your job",
     body: (url) => `An approved partner asked to have its system evaluated on your job for a possible pilot. Your details stay private, and there is nothing for you to do for this request. We review the partner's fit, evidence and delivery capabilities before including its system in your job's evaluation. Blueprint works with a deployment company on the result, and you and that company agree any physical pilot directly.\n\nOpen your job:\n${url}`,
@@ -222,6 +230,8 @@ export async function enqueueTaskLifecycleNotification(params: {
   screeningCaveat?: ScreeningOutcomeCaveat;
   /** `scene_outcome` only: the terminal outcome's kind; its event id must name it. */
   sceneOutcomeKind?: TerminalSceneOutcomeKind;
+  /** `answer_ready` only: the settled answer the email states. */
+  siteAnswer?: SiteAnswer;
 }): Promise<{ enqueued: boolean; reason?: "store_unavailable" | "request_missing" | "contact_missing" | "consent_withdrawn"
   | "awaiting_early_hold_preview" }> {
   if (!db) return { enqueued: false, reason: "store_unavailable" };
@@ -303,6 +313,8 @@ export function buildTaskLifecycleNotification(params: {
    * it was. Its event id is the job's fixed no-grant one.
    */
   jobNoGrantEnded?: "site" | "blueprint";
+  /** `answer_ready` only: the settled answer the email states. */
+  siteAnswer?: SiteAnswer;
 }): Parameters<typeof enqueueOutbox>[0] {
   const requestId = params.requestId.trim();
   if (isWebsitePreparationNotice(params.milestone) && !/^sha256:[a-f0-9]{64}$/.test(params.eventId || "")) {
@@ -312,7 +324,8 @@ export function buildTaskLifecycleNotification(params: {
     : params.milestone === "scene_outcome"
       ? params.jobNoGrantEnded ? jobNoGrantEndedDetail(params)
         : params.jobWindowEnded ? jobWindowEndedDetail(params) : sceneOutcomeDetail(params)
-    : params.milestone === "robot_access_question" ? robotAccessQuestionDetail(params) : "";
+    : params.milestone === "robot_access_question" ? robotAccessQuestionDetail(params)
+    : params.milestone === "answer_ready" ? answerReadyDetail(params.siteAnswer) : "";
   const held = params.milestone === "preparation_needs_attention" && isEarlyTaskHoldReason(params.earlyTaskHold)
     ? params.earlyTaskHold : null;
   const recapture = !held && params.milestone === "preparation_needs_attention" && isRecaptureReason(params.recaptureReason)
@@ -334,11 +347,13 @@ export function buildTaskLifecycleNotification(params: {
     subject: params.milestone === "evaluation_outcome" && params.screeningOutcome === "estimate"
       ? "Your simulation estimate is ready"
       : params.milestone === "scene_outcome" && (params.jobWindowEnded || params.jobNoGrantEnded) ? JOB_WINDOW_ENDING_SUBJECT
-      : params.milestone === "scene_outcome" && params.sceneOutcomeKind ? sceneOutcomeSubject(params.sceneOutcomeKind) : message.subject,
+      : params.milestone === "scene_outcome" && params.sceneOutcomeKind ? sceneOutcomeSubject(params.sceneOutcomeKind)
+      : params.milestone === "answer_ready" && params.siteAnswer?.state === "cannot_assess" ? "An update on your Blueprint job"
+      : message.subject,
     body: `${message.body(url, params.milestone === "run_no_result" ? noResultObservationText(params.runProgress)
       : isWebsitePreparationNotice(params.milestone) ? preparationDetail
       : params.milestone === "evaluation_outcome" || params.milestone === "scene_outcome"
-        || params.milestone === "robot_access_question" ? outcomeDetail
+        || params.milestone === "robot_access_question" || params.milestone === "answer_ready" ? outcomeDetail
       : params.detail?.trim() ?? "", params.workspaceUrl ?? null)}\n\n${EMAIL_SIGN_OFF}`,
     replyTo: "hello@tryblueprint.io",
   };
@@ -422,6 +437,56 @@ function jobNoGrantEndedDetail(params: { eventId?: string; sceneOutcomeKind?: Te
     throw new Error("job_no_grant_ended_notice_invalid");
   }
   return jobNoGrantEndingMessage(params.jobNoGrantEnded);
+}
+
+/** The composer's sentence for a video that did not show the job clearly enough to size it (`siteAnswer.ts`). */
+const ANSWER_UNSIZED_REASON = "The video did not show the job clearly enough for us to size it.";
+
+/**
+ * Whether an answer is one the site is emailed about: a ready answer, or one
+ * that cannot be given because the job is another kind. A video that simply did
+ * not show the job clearly is not: the job page already asks the site, in one
+ * line, what the robot should do, and no second email is added on top of that.
+ */
+export function answerIsSettled(answer: SiteAnswer | null | undefined): answer is SiteAnswer {
+  if (!answer) return false;
+  if (answer.state === "ready") return true;
+  return answer.state === "cannot_assess" && Boolean(answer.reason) && answer.reason !== ANSWER_UNSIZED_REASON;
+}
+
+/**
+ * The answer email's body, in the job page's own words: the headline, the
+ * runner-up, how sure, where the simulation proof appears, the standing note.
+ * Built from the composed answer only, never caller text.
+ */
+function answerReadyDetail(answer: SiteAnswer | undefined): string {
+  if (!answerIsSettled(answer)) throw new Error("answer_ready_notice_invalid");
+  if (answer.state === "cannot_assess") return `${answer.headline} ${answer.reason}`;
+  const lines = [answer.headline];
+  if (answer.runnerUp) lines.push(`Runner-up: ${answer.runnerUp.manufacturer} ${answer.runnerUp.name}.`);
+  const reason = answer.confidence.reasons[0];
+  lines.push(`How sure we are: ${ANSWER_CONFIDENCE_LABELS[answer.confidence.level] ?? "Low"}.${reason ? ` ${reason}` : ""}`);
+  lines.push("When Blueprint runs your job in a simulation of your site, the proof appears on the same page.");
+  lines.push(SITE_ANSWER_NOTE);
+  return lines.join("\n\n");
+}
+
+/**
+ * Tell the site, once, that its answer has settled. Called right after the
+ * coverage review stores the video's estimates; the outbox key keeps it to one
+ * email per job, and dispatch reads the answer again.
+ */
+export async function notifyIfAnswerSettled(requestId: string): Promise<{ enqueued: boolean }> {
+  const { loadSiteAnswer } = await import("./siteAnswer");
+  const answer = await loadSiteAnswer(requestId);
+  if (!answerIsSettled(answer)) return { enqueued: false };
+  return enqueueTaskLifecycleNotification({ requestId, milestone: "answer_ready", siteAnswer: answer });
+}
+
+/** True while the job's answer is still a settled one. Read again at dispatch. */
+export async function answerReadyShown(requestId: string): Promise<boolean> {
+  const { loadSiteAnswer } = await import("./siteAnswer");
+  return answerIsSettled(await loadSiteAnswer(requestId));
 }
 
 /** How many of each kind of movable furniture a robot access proposal moves. */

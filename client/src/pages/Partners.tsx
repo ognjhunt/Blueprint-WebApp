@@ -13,7 +13,7 @@ export default function Partners() {
       <a className="ms-partner-path" href="/partners/deployment">
         <p className="ms-eyebrow">Install, commission and support</p>
         <h2>Deployment partners</h2>
-        <p>Review scoped jobs, propose a delivery plan and support the systems your team installs or operates.</p>
+        <p>See anonymised job cards that sites choose to share, with Blueprint&apos;s answer and its proof in simulation. Agree any pilot directly with the site and support the systems your team installs or operates.</p>
         <span className="ms-text-link">Apply as a deployment partner <ArrowRight size={19} aria-hidden="true" /></span>
       </a>
       <a className="ms-partner-path" href="/partners/technology">

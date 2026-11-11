@@ -234,6 +234,18 @@ export async function reviewCaptureCoverage(params: {
     }
   }
 
+  // The site's answer is composed from what was just stored: tell the site once it
+  // has settled. Only the site's own walkthrough settles it, and a failed notice
+  // never fails the review.
+  if (params.captureId === `walkthrough-${params.requestId}` && !additive) {
+    try {
+      const { notifyIfAnswerSettled } = await import("./taskLifecycleNotifications");
+      await notifyIfAnswerSettled(params.requestId);
+    } catch (error) {
+      logger.warn({ error, requestId: params.requestId }, "Could not queue the answer email after the coverage review");
+    }
+  }
+
   // Retain missing observations for Blueprint's recovery work. They do not
   // automatically become a request for the customer to record more footage.
 

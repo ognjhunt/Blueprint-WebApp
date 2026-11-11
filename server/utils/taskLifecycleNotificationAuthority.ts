@@ -8,7 +8,15 @@ const CAPTURE_DEPENDENT_NOTICES=new Set<OutboxKind>([
  'video_received','scene_ready','scene_tests_started','screening_cleared','screening_started','results_ready','run_no_result',
  'evaluation_outcome','scene_outcome','robot_access_question',
  'awaiting_evaluations','no_team_passed','no_qualified_evaluation','footage_before_account',
- 'brief_confirmed','coverage_shortfall','assessment_ready','input_needed',
+ 'brief_confirmed','coverage_shortfall','assessment_ready','input_needed','answer_ready',
+]);
+/** Notices about evaluations a robot team asked for (`evaluationRuns`). Blueprint runs the
+ * evaluations itself now, so these no longer belong on a site's journey. Their rows are still
+ * written, so recovery markers clear and each team still hears about its own run; they are
+ * cancelled at dispatch instead of being sent. Blueprint's own simulation (`evaluation_outcome`,
+ * `scene_outcome`, `scene_tests_started`) is unaffected. */
+const TEAM_RUN_EVALUATION_NOTICES=new Set<OutboxKind>([
+ 'results_ready','run_no_result','awaiting_evaluations','no_team_passed','no_qualified_evaluation',
 ]);
 /** Call inside the dispatch transaction before recording an external side effect.
  * Intake receipts, fresh-link renewal and separate business notices keep their
@@ -22,6 +30,8 @@ export async function taskLifecycleNotificationIsCurrent(
  // queued notices without deleting findings or changing execution authority.
  if(entry.kind==='coverage_shortfall'||entry.kind==='screening_started'
   ||entry.kind==='screening_cleared'||entry.kind==='assessment_ready')return false;
+ // The dispatch transaction is the send: a team-run evaluation notice stops there.
+ if(transaction&&TEAM_RUN_EVALUATION_NOTICES.has(entry.kind))return false;
  // Older queued ownership notices asked for an account that cannot repair
  // the recording. Keep their history, but do not dispatch that stale request.
  if(entry.kind==='footage_before_account'&&typeof entry.body==='string'
@@ -52,6 +62,11 @@ export async function taskLifecycleNotificationIsCurrent(
  if(entry.kind==='scene_tests_started'){
   const notices=await import('./taskLifecycleNotifications');
   return notices.sceneTestsStarted(entry.requestId);
+ }
+ // The answer email is sent only while the job's answer is still a settled one.
+ if(entry.kind==='answer_ready'){
+  const notices=await import('./taskLifecycleNotifications');
+  return notices.answerReadyShown(entry.requestId);
  }
  // A finished evaluation's outcome (F-01) is queued once its run ends, after
  // the consent check above. A queued notice names its outcome in its key and is

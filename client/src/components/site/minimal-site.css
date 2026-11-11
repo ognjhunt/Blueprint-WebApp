@@ -107,8 +107,8 @@
   .ms-beta-copy > p.ms-beta-free { font-size: 12px; }
 }
 .ms-method { border-top: 1px solid var(--ms-rule); border-bottom: 1px solid var(--ms-rule); padding-block: 30px; scroll-margin-top: 24px; }
-.ms-steps { list-style: none; display: grid; grid-template-columns: repeat(3, 1fr); padding: 0; margin: 0; align-items: start; }
-.ms-steps li { padding: 0 42px; border-left: 1px solid var(--ms-rule); }
+.ms-steps { list-style: none; display: grid; grid-template-columns: repeat(4, 1fr); padding: 0; margin: 0; align-items: start; }
+.ms-steps li { padding: 0 32px; border-left: 1px solid var(--ms-rule); }
 .ms-steps li:first-child { padding-left: 0; border: 0; }
 .ms-steps li:last-child { padding-right: 0; }
 .ms-steps .ms-step-head { display: flex; align-items: center; gap: 30px; min-height: 46px; font-size: 18px; letter-spacing: -.035em; margin: 0; max-width: none; color: var(--ms-ink); }

@@ -761,7 +761,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
         </label>
       )}
 
-      <p className="ms-field-hint">Send a video of one job. We draft the job description from it, build the site simulation from the video and compare robot options on that job. The assessment starts once we receive the video.</p>
+      <p className="ms-field-hint">Send a video of one job. We draft the job description from it, check real robots against the job and build a simulation of your site from the same video. The assessment starts once we receive the video.</p>
 
       <fieldset className="ms-choice">
         <legend>How will we see the task?</legend>

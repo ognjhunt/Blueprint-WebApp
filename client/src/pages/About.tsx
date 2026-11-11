@@ -3,7 +3,7 @@ import { COMPANY } from "@/data/company";
 import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 
 const description =
-  "Blueprint tests robots and policies on a business's recurring job in a simulation of its site and shows an estimate of what's likely to work. Start with the work you need done.";
+  "Blueprint checks real robots against a business's recurring job by their published specifications, tests control policies on it in a simulation of its site and says how sure it is. Start with the work you need done.";
 
 const principles = [
   "Start from the real job at a real site, not a demo.",
@@ -33,18 +33,19 @@ export default function About() {
         <h1>We start with one real job.</h1>
         <p className="ms-about-lead">
           Blueprint helps businesses find the right way to automate recurring work. You start with the job.
-          We analyze your video, reconstruct the site in simulation, test robots and policies (the AI software that
-          controls a robot) on the job, and show you an estimate of what&apos;s likely to work. Then we work alongside
-          a deployment company on your site. The beta is free for sites and partners.
+          We analyze your video, check real robot models against the job by their published specifications, and test
+          control policies (the software that drives a robot) on it in a simulation of your site. You see which robot
+          most likely fits, which policy did best and how sure we are. Then you can share the job with deployment
+          companies we&apos;ve approved. The beta is free for sites and partners.
         </p>
 
         <section>
           <h2>How it works</h2>
           <ol>
-            <li>A site sends video of recurring work. We analyze it and draft a job brief for the site to review.</li>
-            <li>We reconstruct the site in simulation and test many robots and policies on the job ourselves.</li>
-            <li>The site sees an estimate of what&apos;s likely to work, or &ldquo;held&rdquo; if we can&apos;t simulate that kind of job yet.</li>
-            <li>We work alongside a deployment company on the real site; the site agrees the pilot directly with that company.</li>
+            <li>A site sends an email and a video of recurring work. We draft the job description from the video for the site to review.</li>
+            <li>We check real robot models against the job by their published specifications and show which most likely fits, a runner-up, what was ruled out and why, who already uses those robots for work like this (with sources) and how sure we are.</li>
+            <li>We reconstruct the site in simulation and test control policies on the job ourselves. The site sees which did best and how much that result can be trusted, or &ldquo;held&rdquo; if we can&apos;t simulate that kind of job yet.</li>
+            <li>The site can share an anonymised job card with deployment companies Blueprint has approved, and agrees any pilot directly with one of them.</li>
             <li>We record the outcome so the next decision can build on what was learned.</li>
           </ol>
           <p><a href="/how-it-works">More on how it works</a> · <a href="/beta">Beta program</a></p>

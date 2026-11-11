@@ -29,6 +29,7 @@ describe("the site's answer", () => {
     expect(within(pick).getByRole("link", { name: /TEST case study: carton palletizing with the UR10e, Example Test News, March 1, 2025/ }))
       .toHaveAttribute("href", readyAnswer.pick!.evidence[0].sourceUrl);
     expect(within(pick).getByText(/for this maker, not this model by name/)).toBeVisible();
+    expect(screen.getByText(`How it would be controlled: ${readyAnswer.approach!.text}`)).toBeVisible();
 
     const runnerUp = screen.getByRole("article", { name: "Runner-up" });
     expect(within(runnerUp).getByRole("heading", { name: "Yaskawa HC20DTP" })).toBeVisible();

@@ -286,6 +286,67 @@ router.post("/:token/robot-access", csrfProtection, async (req, res) => {
   }
 });
 
+/**
+ * "Find a deployment company for this job": the owner's one explicit choice to
+ * share the job's anonymised card with approved deployment companies. Records
+ * the request once (a repeat returns the stored time), turns the job card on
+ * through the same grant "Manage opportunity sharing" records, and rings
+ * Blueprint once. It contacts no outside company itself. Owner link only.
+ */
+router.post("/:token/introduction-request", csrfProtection, async (req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+  const verified = verifyCaptureUploadToken(String(req.params.token || ""));
+  if (!verified) return res.status(404).json({ code: "capture_token_invalid", error: "That link is not valid any more." });
+  if (verified.scope !== "owner") return res.status(403).json({ code: "introduction_request_owner_required",
+    error: "Open the owner's job link to ask for this." });
+  if (!z.object({}).strict().safeParse(req.body ?? {}).success)
+    return res.status(400).json({ code: "introduction_request_invalid", error: "Press the button on your job page to ask for this." });
+  try {
+    const request = await readRequestForStatus(verified.requestId, verified.captureId, verified.sceneId);
+    if (!db || !request || request.captureRights.consent_revoked)
+      return res.status(409).json({ code: "introduction_request_unavailable", error: "This job can no longer be shared from its recording." });
+    const store = db;
+    const ref = store.collection("inboundRequests").doc(verified.requestId);
+    const requestedAtIso = await store.runTransaction(async tx => {
+      const stored = (await tx.get(ref)).data()?.introduction_request?.requested_at_iso;
+      if (typeof stored === "string" && stored) return stored;
+      const now = new Date().toISOString();
+      tx.set(ref, { introduction_request: { requested_at_iso: now, requested_by: "signed_owner_link" } }, { merge: true });
+      return now;
+    });
+    // The card goes on under the card's own consent statement version, or stays as it is when already on.
+    let listed = false;
+    try {
+      const current = (await ref.get()).data()?.public_task_listing;
+      if (current?.enabled === true) listed = true;
+      else {
+        const [{ applyOwnerTaskListing }, { anonymizedOpportunityDraft }] = await Promise.all([
+          import("./task-listings"), import("../../client/src/types/taskBrowse")]);
+        const brief = await getBrief(verified.requestId).catch(() => null);
+        const summary = brief && !isPlaceholderSummary(brief.summary) ? brief.summary : "";
+        await applyOwnerTaskListing(verified.requestId, { enabled: true, consent: true, details: anonymizedOpportunityDraft(summary) });
+        listed = true;
+      }
+    } catch (error) {
+      logger.warn({ error, requestId: verified.requestId }, "The introduction request was recorded, but the job card could not be turned on");
+    }
+    // The bell rings once per job; its own marker keeps a repeat silent.
+    try {
+      const [{ loadSiteAnswer }, { alertOpsIntroductionRequested }] = await Promise.all([
+        import("../utils/siteAnswer"), import("../utils/pilotOpsAlerts")]);
+      const answer = await loadSiteAnswer(verified.requestId).catch(() => null);
+      await alertOpsIntroductionRequested({ requestId: verified.requestId, headline: answer?.headline ?? null,
+        pick: answer?.pick ? `${answer.pick.manufacturer} ${answer.pick.name}` : null });
+    } catch (error) {
+      logger.warn({ error, requestId: verified.requestId }, "Could not ring Blueprint about an introduction request");
+    }
+    return res.json({ ok: true, requestedAtIso, listed });
+  } catch (error) {
+    logger.error({ error, requestId: verified.requestId }, "Could not record an introduction request");
+    return res.status(503).json({ code: "introduction_request_unavailable", error: "Your request could not be saved. Try again shortly." });
+  }
+});
+
 function safeSceneViewUrl(value: unknown): string | null {
   try {
     const url = new URL(String(value || ""));
