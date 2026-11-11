@@ -164,12 +164,23 @@ before-the-video screens are unchanged by round 3.
 | One option, which did the job | "TESTED ON YOUR JOB" | the option | ticks "Did your job in N of M tries", "The only AI robot we could test on your job"; one dot |
 | Some finished, no winner | "TESTED ON YOUR JOB" | "No clear winner yet" | "Top: {option}, did your job in N of M tries." |
 | None finished | "TESTED ON YOUR JOB" | "No AI robot finished your job" | "Closest: {option} {furthest phrase}." (or "N AI robots tried; none finished your job."); the set-up notice when flagged |
+| Simulation being built (preparation under way, or a run with nothing entered yet) | "GETTING READY" | "Building your simulation" | "Then we test AI robots on your job in it. We'll email you the result." |
 | Preparing or running | "TESTING NOW" | "{N} AI robots" | "on your job, in a simulation of your site. We'll email you." |
 | No test (held, closed, could not run, not started) | "ON PAPER, THE ROBOT MOST LIKELY TO FIT" ("ON PAPER, THE CLOSEST ROBOT") | the model | "by {maker}"; when known, "The simulation test did not run. {why}" ("did not finish" when stopped part way); the paper ticks and sureness |
 
-- In every test state the paper result is one tap away, a quiet line: "On
-  paper, most likely to fit: {maker} {model} ›" (or "On paper, the closest
-  robot: …"), opening `#details/why`.
+- **The first message is a receipt; the test result is the one answer** (owner,
+  2026-11-11). In every test state (getting ready, testing now, a result) the
+  answer screen shows no paper line; the paper check lives under Details ("On
+  paper: why this robot"). While getting ready or testing there is no answer
+  yet: no button, consent line or share notice, only "See details ›" and "Job
+  settings ›". The paper check leads only when no test can run or one did not
+  run. A zero is a valid result: "No AI robot finished your job".
+- The Pipeline currently reports its normal reconstruction wait as
+  `failed_retryable`, which the page cannot tell apart from a real failure in the
+  data it receives, so that state still shows the processing-failure message
+  until the Pipeline's next release labels the wait correctly.
+- "Processing details" (the per-job site assessment, now ended) appears only for
+  an older job that already has a finished assessment, with no retry.
 - **Test sureness** comes from the same rule as the label: did best is "Sure"
   (three dots), was ahead "Fairly sure" (two), one option "Not sure yet" (one).
   A set-up flag lowers it one step, with "Our simulation set-up may have
@@ -405,22 +416,26 @@ then carries the answer until the site re-saves it under the older box. At intak
 
 ## Emails
 
-`answer_ready` is sent once when the answer first settles. Subject "Your job's
-paper check is ready"; it opens "We've checked your job on paper. {headline}",
-says how sure on paper, then what happens next, in one line true for the job's
-simulation test as the page reads it: "Next, we're testing N AI robots on your
-job, in a simulation of your site. We'll email you the result.", the page's own
-line for why no test runs (then "So this paper check is your answer for now."),
-or, with nothing known yet, "If we test AI robots on your job in a simulation of
-your site, we'll email you the result." One button, the paper limits line as
-fine print.
+A job gets one receipt and exactly one answer email, whichever way it ends.
 
-When the simulation finishes with a result, its email
-(`server/utils/taskLifecycleNotifications.ts`) says the headline the page leads
-with (`testHeadline`), the line under it (`testSubLine`) and the set-up notice
-when flagged. Subject "Your simulation test has a result" when an AI robot
-finished the job, otherwise "The simulation test of your job has finished". One
-button, the tested limits line as fine print.
+- **Receipt** (`video_received`, at upload): "Your video arrived safely. Next, we
+  build a simulation of your site and test AI robots on your job in it. We'll
+  email you the result, or, if a test can't run, why not and what we found on
+  paper." It gives no answer.
+- **A test result** (`evaluation_outcome`, estimate): the page's headline
+  (`testHeadline`), the line under it (`testSubLine`) and the set-up notice when
+  flagged. Subject "Your simulation test has a result" when an AI robot finished
+  the job, otherwise "The simulation test of your job has finished"; the tested
+  limits line as fine print.
+- **No test** (`evaluation_outcome` for a held, infeasible, no-match or
+  reference-only run): the page's line for why, then "So the paper check is your
+  answer. {headline}" (with the scene note when there is one). Subject "Your
+  job's paper check is ready"; the paper limits line as fine print.
+  `preparation_ended` carries the same paper line when the simulation could not
+  be built.
+- **A job of another kind** (`answer_ready`, `cannot_assess` only): why it cannot
+  be checked. A ready paper check is never emailed on its own; an older queued
+  one is cancelled at dispatch.
 
 ## How to check it
 

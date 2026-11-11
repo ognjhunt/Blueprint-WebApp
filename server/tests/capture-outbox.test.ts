@@ -47,9 +47,9 @@ const { providerIdempotencyKey } = await import("../utils/captureOutboxRetry");
 
 function entry(overrides: Record<string, unknown> = {}) {
   return {
-    idempotencyKey: "req-1:brief_confirmed",
+    idempotencyKey: "req-1:video_received",
     requestId: "req-1",
-    kind: "brief_confirmed" as const,
+    kind: "video_received" as const,
     to: "ops@acme.example",
     subject: "s",
     body: "b",
@@ -148,7 +148,7 @@ describe("enqueuing is idempotent", () => {
   });
 
   it("keeps different events for one request as separate rows", async () => {
-    await enqueueOutbox(entry({ idempotencyKey: "req-1:brief_confirmed", kind: "brief_confirmed" }));
+    await enqueueOutbox(entry({ idempotencyKey: "req-1:video_received", kind: "video_received" }));
     await enqueueOutbox(entry({ idempotencyKey: "req-1:coverage_shortfall", kind: "coverage_shortfall" }));
 
     const rows = [...sharedFakeFirestoreState.docs.keys()].filter((key) =>
@@ -180,7 +180,7 @@ describe("delivery sends what is pending, once", () => {
     await deliverOutbox();
     const runtime = { revision: "a".repeat(40), serviceId: "srv-production", instanceId: "srv-production-instance" };
     const requestedSender = { fromEmail: "hello@tryblueprint.io", fromName: "Blueprint", replyTo: "hello@tryblueprint.io" };
-    expect(sharedFakeFirestoreState.docs.get("captureOutbox/req-1:brief_confirmed")).toMatchObject({ deliveryRuntime: runtime, requestedSender });
+    expect(sharedFakeFirestoreState.docs.get("captureOutbox/req-1:video_received")).toMatchObject({ deliveryRuntime: runtime, requestedSender });
     const receipts = [...sharedFakeFirestoreState.docs.entries()].filter(([key]) => key.includes("/deliveryReceipts/"));
     expect(receipts).toHaveLength(1);
     expect(receipts[0][1]).toMatchObject({ runtime, requestedSender, messageId: "accepted" });
@@ -241,8 +241,8 @@ describe("the claim digest of existing notices", () => {
     await enqueueOutbox(entry({ idempotencyKey: "req-1:scene_ready:run_a", kind: "scene_ready", body: "result" }));
     await deliverOutbox();
     const digest = (fields: unknown[]) => createHash("sha256").update(JSON.stringify(fields)).digest("hex");
-    expect(sharedFakeFirestoreState.docs.get("captureOutbox/req-1:brief_confirmed")).toMatchObject({ status: "sent",
-      deliveryDigest: digest(["req-1:brief_confirmed", "req-1", "brief_confirmed", "ops@acme.example", "s", "b", "hello@tryblueprint.io"]) });
+    expect(sharedFakeFirestoreState.docs.get("captureOutbox/req-1:video_received")).toMatchObject({ status: "sent",
+      deliveryDigest: digest(["req-1:video_received", "req-1", "video_received", "ops@acme.example", "s", "b", "hello@tryblueprint.io"]) });
     expect(sharedFakeFirestoreState.docs.get("captureOutbox/req-1:scene_ready:run_a")).toMatchObject({ status: "sent",
       deliveryDigest: digest(["req-1:scene_ready:run_a", "req-1", "scene_ready", "ops@acme.example", "s", "result", null]) });
   });
@@ -274,7 +274,7 @@ describe("a failed send retries, then gives up", () => {
     const summary = await deliverOutbox();
 
     expect(summary.failed).toBe(1);
-    const doc = sharedFakeFirestoreState.docs.get("captureOutbox/req-1:brief_confirmed") as Record<string, unknown>;
+    const doc = sharedFakeFirestoreState.docs.get("captureOutbox/req-1:video_received") as Record<string, unknown>;
     expect(doc.status).toBe("pending");
     expect(doc.attempts).toBe(1);
     expect(doc.lastError).toMatch(/smtp down/);
@@ -291,7 +291,7 @@ describe("a failed send retries, then gives up", () => {
 
     expect(await deliverOutbox()).toMatchObject({ exhausted: 1 });
 
-    const doc = sharedFakeFirestoreState.docs.get("captureOutbox/req-1:brief_confirmed") as Record<string, unknown>;
+    const doc = sharedFakeFirestoreState.docs.get("captureOutbox/req-1:video_received") as Record<string, unknown>;
     expect(doc).toMatchObject({ status: "failed", attempts: 1, lastError: "bad address" });
     // And a further pass does not keep trying a failed message.
     later(2 * 60 * 60 * 1000);
@@ -311,12 +311,12 @@ describe("a failed send retries, then gives up", () => {
     const second = await deliverOutbox();
 
     expect(second.sent).toBe(1);
-    const doc = sharedFakeFirestoreState.docs.get("captureOutbox/req-1:brief_confirmed") as Record<string, unknown>;
+    const doc = sharedFakeFirestoreState.docs.get("captureOutbox/req-1:video_received") as Record<string, unknown>;
     expect(doc.status).toBe("sent");
   });
 });
 
-const row = () => sharedFakeFirestoreState.docs.get("captureOutbox/req-1:brief_confirmed") as any;
+const row = () => sharedFakeFirestoreState.docs.get("captureOutbox/req-1:video_received") as any;
 const microtasks = async (count: number) => { for (let i = 0; i < count; i++) await Promise.resolve(); };
 
 describe("delivery recovery replays an ambiguous effect only with the same provider key", () => {
@@ -334,7 +334,7 @@ describe("delivery recovery replays an ambiguous effect only with the same provi
     later(61_000);
     await deliverOutbox();
     expect(row()).toMatchObject({ status: "unknown", attempts: 2 });
-    expect(sentKeys()).toEqual(Array(2).fill(providerIdempotencyKey("req-1:brief_confirmed")));
+    expect(sentKeys()).toEqual(Array(2).fill(providerIdempotencyKey("req-1:video_received")));
   });
 
   it("preserves dispatch uncertainty when the acceptance write fails, and re-sends only with the same key", async () => {
@@ -359,7 +359,7 @@ describe("delivery recovery replays an ambiguous effect only with the same provi
     later(61_000);
     await deliverOutbox();
     expect(row()).toMatchObject({ status: "sent", attempts: 2, deliveryMessageId: "accepted" });
-    expect(sentKeys()).toEqual(Array(2).fill(providerIdempotencyKey("req-1:brief_confirmed")));
+    expect(sentKeys()).toEqual(Array(2).fill(providerIdempotencyKey("req-1:video_received")));
   });
 
   it("defers a row whose dispatch marker cannot be written, without spending an attempt", async () => {

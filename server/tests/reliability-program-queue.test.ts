@@ -30,9 +30,9 @@ import { deliverOutbox, enqueueOutbox, reconcileOutboxDeliveries } from "../util
 import { recoverCaptureReviews } from "../utils/captureReviewRecovery";
 import { recordCohortCostReceipt, getCohort, type CohortCostReceipt } from "../utils/cohortEconomics";
 
-const key = "rq:brief_confirmed", path = `captureOutbox/${key}`;
+const key = "rq:video_received", path = `captureOutbox/${key}`;
 const row = () => state.docs.get(path)!;
-const baseEntry = () => ({ idempotencyKey: key, requestId: "rq", kind: "brief_confirmed" as const,
+const baseEntry = () => ({ idempotencyKey: key, requestId: "rq", kind: "video_received" as const,
   to: "fixture@example.invalid", subject: "Fixture event", body: "Fixture body" });
 const accepted = { sent: true, provider: "resend", messageId: "fake-accepted-id" };
 const rejected = { sent: false, provider: "resend", messageId: null, outcome: "not_sent" };

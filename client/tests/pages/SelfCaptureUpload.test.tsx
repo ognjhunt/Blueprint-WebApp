@@ -1137,6 +1137,20 @@ describe("the site's answer leads its job page", () => {
     });
   }
 
+  it("says it is getting ready while the job's preparation status says the simulation is being built, with nothing to share", async () => {
+    setUserAgent(DESKTOP_UA);
+    vi.stubGlobal("fetch", answerFetch({ answer: readyAnswer, decision: "assessing", headline: "We are preparing your job. Keep your original recording." }));
+    render(<SelfCaptureUpload />);
+    const answer = await screen.findByRole("region", { name: "Your answer" });
+    expect(await within(answer).findByRole("heading", { level: 2, name: "Getting ready" })).toBeVisible();
+    expect(within(answer).getByText("Building your simulation")).toBeVisible();
+    expect(within(answer).queryByRole("button", { name: "Find a company to set it up" })).toBeNull();
+    expect(within(answer).queryByText(/UR10e|On paper/)).toBeNull();
+    // The paper check is still one tap away under Details.
+    fireEvent.click(within(answer).getByRole("button", { name: "See details ›" }));
+    expect(await screen.findByRole("button", { name: "On paper: why this robot" })).toBeVisible();
+  });
+
   it("shows the answer under the title instead of the separate robot fit, with no status card repeating a wait", async () => {
     setUserAgent(DESKTOP_UA);
     vi.stubGlobal("fetch", answerFetch({ answer: readyAnswer }));
