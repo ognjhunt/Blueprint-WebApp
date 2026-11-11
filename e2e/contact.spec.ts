@@ -96,10 +96,10 @@ test("sending a video shows the one consent line, the full statements one tap aw
     return route.fulfill({ status: 202, json: { ok: true, requestId: "captured", captureUrl: null } });
   });
   await page.goto("/contact/site-operator", { waitUntil: "domcontentloaded" });
-  await expect(page.getByText("By continuing, you agree to our Terms and Privacy Policy and confirm you're allowed to share this job for the site.")).toBeVisible();
+  await expect(page.getByText("By continuing, you agree to our Terms and Privacy Policy and confirm you're allowed to share this job for the site.").filter({ visible: true })).toHaveCount(1);
   await page.getByRole("button", { name: "I have a video ›", exact: true }).click();
   const start = page.getByRole("button", { name: "Send video", exact: true });
-  await expect(page.getByText("By sending, you agree to our Terms and Privacy Policy and confirm you're allowed to film and share this site.")).toBeVisible();
+  await expect(page.getByText("By sending, you agree to our Terms and Privacy Policy and confirm you're allowed to film and share this site.").filter({ visible: true })).toHaveCount(1);
   await expect(page.locator("#start-rights")).toHaveCount(0);
   // The full statements, word for word, one tap away; back returns to the form.
   await page.getByRole("button", { name: "What you're agreeing to ›" }).click();
