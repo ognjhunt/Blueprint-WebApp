@@ -79,13 +79,13 @@ export const SIMULATION_POLICIES: Readonly<Record<string, SimulationPolicy>> = {
  * display name, a model's words) never reaches the page: an unmapped policy is only ever this phrase,
  * told apart from others by a letter where several appear ("… (A)", "… (B)").
  */
-export const UNNAMED_POLICY = "an AI control policy not in our list yet";
+export const UNNAMED_POLICY = "an unnamed AI control policy";
 
 /**
  * A candidate's plain name, through a closed mapping: a known id gives its policy, maker and robot; any
- * other id gives `UNNAMED_POLICY`, no maker and no robot. The display name is deliberately not read.
+ * other id gives `UNNAMED_POLICY`, no maker and no robot. An evaluation's stored display name is never read.
  */
-export function simulationPolicyFor(candidateId: string, _displayName?: string): { policy: string; maker: string | null; robot: SimulatedRobot | null } {
+export function simulationPolicyFor(candidateId: string): { policy: string; maker: string | null; robot: SimulatedRobot | null } {
   const known = Object.prototype.hasOwnProperty.call(SIMULATION_POLICIES, candidateId) ? SIMULATION_POLICIES[candidateId] : null;
   return known ?? { policy: UNNAMED_POLICY, maker: null, robot: null };
 }

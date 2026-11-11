@@ -98,8 +98,8 @@ describe("composeSiteAnswer", () => {
     expect(answer.pick!.specs.map((spec) => spec.label)).toEqual(["Reach", "Rated payload"]);
     expect(answer.runnerUp).toMatchObject({ manufacturer: "FANUC", name: "CRX-10iA" });
     expect(answer.alsoFit.length).toBeLessThanOrEqual(6);
-    expect(answer.job).toEqual({ sentence: "Move cartons from the conveyor to the shelf", drafted: true, family: "pick_place",
-      familyLabel: "pick and place" });
+    // The reading gives no kind of job, so none is stated; the evidence is still pick and place, which is what was checked.
+    expect(answer.job).toEqual({ sentence: "Move cartons from the conveyor to the shelf", drafted: true, family: null, familyLabel: null });
     expect(answer.facts).toContainEqual({ label: "How far the object moves", display: "about 1 m", basis: "video_estimate" });
     expect(answer.nextStep).toEqual({ kind: "introduction",
       text: "Share this job with deployment companies Blueprint has approved, and one of them can pilot it at your site." });
@@ -207,7 +207,7 @@ describe("composeSiteAnswer", () => {
     const stated = checkFor({ brief: { requestId: "job-1", summary: "Move cartons", operatorTaskDetails: { item_weight: "29.5 kg" } } },
       "universal_robots_ur30", "payload");
     expect(stated.outcome).toBe("unknown");
-    expect(stated.text).toMatch(/With the gripper's weight, your numbers span this robot's rating, so we can't say yet\.$/);
+    expect(stated.text).toMatch(/With the gripper's weight added, this is at this robot's rating, so we can't say yet\.$/);
     expect(stated.text).not.toMatch(/estimate from your video/);
   });
 
@@ -416,7 +416,7 @@ describe("composeSiteAnswer", () => {
   });
 });
 
-const OTHER_KIND = "From your video, the job looks like more than picking an object up and putting it down, which we can't check robots against yet. If the job is only moving the object from one place to another, say so in the job description and we will check again.";
+const OTHER_KIND = "From your video, the job looks like more than picking an object up and putting it down, which we can't check robots against yet. If that is not right, edit the job description to say what the robot should do, and we will read the video again.";
 type SceneRow = NonNullable<NonNullable<Inputs["robotFit"]>["models"]>[number];
 const scene = (...rows: Array<Partial<SceneRow> & { name: string; manufacturer: string }>) =>
   ({ models: rows.map((row) => ({ verdict: "fits", openChecks: [], ...row })) as SceneRow[] });
@@ -537,8 +537,8 @@ describe("the reader decides the kind of job; no word list does", () => {
       const answer = typed(sentence);
       expect(answer.state, sentence).toBe("ready");
       expect(alsoLines(answer), sentence).toEqual([]);
-      // With no kind from the reader, the job family is pick and place, whatever the sentence names.
-      expect(answer.job.family, sentence).toBe("pick_place");
+      // With no kind from the reader, no kind of job is stated, whatever the sentence names.
+      expect(answer.job, sentence).toMatchObject({ family: null, familyLabel: null });
     }
   });
 
@@ -552,7 +552,7 @@ describe("the reader decides the kind of job; no word list does", () => {
     expect(typed("Fold the towels", { estimates: estimates({ job_kind: "other" }) }).reason).not.toMatch(/evaluation preparation|simulation|hold your job/i);
     // The reason names what the reader saw, and the one thing the site can do when it disagrees.
     expect(typed("Move cartons to the shelf.", { estimates: estimates({ job_kind: "other", other_actions: ["folding", "wrapping"] }) }).reason)
-      .toBe("From your video, the job looks like more than picking an object up and putting it down (folding and wrapping), which we can't check robots against yet. If the job is only moving the object from one place to another, say so in the job description and we will check again.");
+      .toBe("From your video, the job looks like more than picking an object up and putting it down (folding and wrapping), which we can't check robots against yet. If that is not right, edit the job description to say what the robot should do, and we will read the video again.");
   });
 
   it("says first that only a carry was checked when the reader gives no kind, and nothing of the kind when it does", () => {
@@ -576,12 +576,17 @@ describe("the reader decides the kind of job; no word list does", () => {
       .toEqual([ALSO("opening and pressing")]);
   });
 
-  it("takes the job family from the reader's kind, and pick and place otherwise", () => {
-    expect(typed("Move pressure washers to the shelf.").job).toMatchObject({ family: "pick_place", familyLabel: "pick and place" });
+  it("states the kind of job only when the reader judged it a carrying kind, and checks pick-and-place evidence otherwise", () => {
+    const unjudged = typed("Move pressure washers to the shelf.");
+    expect(unjudged.job).toMatchObject({ family: null, familyLabel: null });
+    // The evidence is the pick-and-place record, and the reason says so of the evidence, not of the job.
+    expect(unjudged.confidence.reasons).toContain("We found documented production use of this robot for pick and place.");
+    expect(typed("Fold the towels", { estimates: estimates({ job_kind: "other" }) }).job).toMatchObject({ family: null, familyLabel: null });
     expect(typed("Move pressure washers to the shelf.", { estimates: estimates({ job_kind: "machine_tending" }) }).job)
       .toMatchObject({ family: "machine_tending", familyLabel: "machine tending" });
-    expect(typed("Move water bottles from the pallet to the shelf").job.family).toBe("pick_place");
-    expect(typed("Move boxes", { estimates: estimates({ job_kind: "palletizing" }) }).job.family).toBe("palletizing");
+    expect(typed("Move water bottles from the pallet to the shelf").job.family).toBeNull();
+    expect(typed("Move boxes", { estimates: estimates({ job_kind: "palletizing" }) }).job).toMatchObject({ family: "palletizing", familyLabel: "palletizing" });
+    expect(typed("Move boxes", { estimates: estimates({ job_kind: "pick_and_place" }) }).job).toMatchObject({ family: "pick_place", familyLabel: "pick and place" });
   });
 
   it("reads a stored reading without the new fields on its numbers, and junk fields as none", () => {

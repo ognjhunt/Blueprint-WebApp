@@ -16,6 +16,20 @@ const CONSENT = "This shares an anonymised summary of your job and this answer w
 const winnerProof = projectSimulationProof({ evaluation: [winnerEvaluation], pick: readyAnswer.pick });
 
 describe("the site's answer", () => {
+  it("states the kind of job only when the reader judged one: the track record heading names it, or says no kind", () => {
+    const { unmount } = render(<SiteAnswer token="owner-token" answer={readyAnswer} />);
+    expect(screen.getByRole("heading", { name: "Track record for palletizing" })).toBeVisible();
+    unmount();
+    const unjudged = { ...readyAnswer, job: { ...readyAnswer.job, family: null, familyLabel: null } };
+    const second = render(<SiteAnswer token="owner-token" answer={unjudged} />);
+    expect(screen.getByRole("heading", { name: "Track record" })).toBeVisible();
+    expect(screen.queryByText(/^Kind of job:/)).toBeNull();
+    expect(screen.queryByRole("heading", { name: /^Track record for/ })).toBeNull();
+    second.unmount();
+    render(<SiteAnswer token="owner-token" answer={cannotAssessAnswer} />);
+    expect(screen.queryByText(/^Kind of job:|pick and place/i)).toBeNull();
+  });
+
   it("leads with the pick, its checks, its sourced figures and its sourced track record", () => {
     render(<SiteAnswer token="owner-token" answer={readyAnswer} />);
     expect(screen.getByRole("heading", { name: "Your answer" })).toBeVisible();

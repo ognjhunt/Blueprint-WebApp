@@ -51,6 +51,14 @@ describe("Blueprint's answer on a job card", () => {
     expect(within(block).getByText("Offered for this kind of job · The source names this robot family (Motoman HC)")).toBeInTheDocument();
   });
 
+  it("states the kind of job only when the answer carries one", () => {
+    const { unmount } = render(<JobCardAnswer answer={ANSWER} />);
+    expect(screen.getByText("Kind of job: palletizing")).toBeInTheDocument();
+    unmount();
+    render(<JobCardAnswer answer={{ ...ANSWER, familyLabel: null }} />);
+    expect(screen.queryByText(/Kind of job/)).toBeNull();
+  });
+
   it("shows one line in the browse list only on a card that carries a headline, and the answer when opened", async () => {
     fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ access,
       items: [card({ answerHeadline: ANSWER.headline }), card({ id: "job-2", title: "Packing opportunity" })] }) });

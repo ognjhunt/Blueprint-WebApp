@@ -128,9 +128,19 @@ describe("GET /api/site-worlds/tasks/:taskId", () => {
     expect(summary.note).toBe("This checks whether a robot can pick the object up and put it down, against published robot specifications and a cited track record. It is not a test of a robot at the site and does not certify performance or safety.");
     expect(summary.unknowns[0]).toBe("We could not tell from the site's video what is done to the object; this checks only whether a robot can pick it up and put it down.");
     expect(JSON.stringify(summary)).not.toMatch(/\byour\b/i);
+    // Nobody judged the kind of job, so the card states none.
+    expect(summary.familyLabel).toBeNull();
+    // The reader says another kind: the card says it can't be checked, and states no kind of job either.
+    const other = job();
+    (other.walkthrough_job_estimates.job_estimates as Record<string, unknown>).job_kind = "other";
+    put(other);
+    const refused = (await get(`/tasks/${ID}`)).body.item.answerSummary;
+    expect(refused).toMatchObject({ headline: "We can't check robots against this job yet.", familyLabel: null, pick: null });
     // With the reader's kind of job, the card says nothing of the kind.
     put(job());
-    expect((await get(`/tasks/${ID}`)).body.item.answerSummary.unknowns.some((line: string) => line.startsWith("We could not tell"))).toBe(false);
+    const judged = (await get(`/tasks/${ID}`)).body.item.answerSummary;
+    expect(judged.unknowns.some((line: string) => line.startsWith("We could not tell"))).toBe(false);
+    expect(judged.familyLabel).toBe("palletizing");
   });
 
   it("adds one plain simulation line when the site's evaluation has one", async () => {

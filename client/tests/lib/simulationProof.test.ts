@@ -153,8 +153,8 @@ describe("projectSimulationProof", () => {
     const comparison = proof.policyComparison!;
     expect(comparison.rows.map(row => [row.policy, row.maker, row.compared])).toEqual([
       ["π0.5", "Physical Intelligence", true],
-      ["an AI control policy not in our list yet (B)", null, false],
-      ["an AI control policy not in our list yet (A)", null, false]]);
+      ["an unnamed AI control policy (B)", null, false],
+      ["an unnamed AI control policy (A)", null, false]]);
     expect(JSON.stringify(proof)).not.toMatch(/Guaranteed|Acme|production-ready/);
     expect(comparison.line).toContain("2 more policies ran on a robot we could not confirm is the same, and are not compared with these.");
     expectPlainPolicies(comparison.rows);
@@ -166,8 +166,8 @@ describe("projectSimulationProof", () => {
     const comparison = proof.policyComparison!;
     expect(comparison).toMatchObject({ winner: null, separated: false });
     expect(comparison.rows.every(row => !row.chosen && !row.compared)).toBe(true);
-    expect(comparison.line).toBe(`${ROBOT_NOT_CONFIRMED} Tries that completed the job: an AI control policy not in our list yet (A), 10 of 10; `
-      + "an AI control policy not in our list yet (B), 0 of 10.");
+    expect(comparison.line).toBe(`${ROBOT_NOT_CONFIRMED} Tries that completed the job: an unnamed AI control policy (A), 10 of 10; `
+      + "an unnamed AI control policy (B), 0 of 10.");
     expect(proof.headline).toBe(ROBOT_NOT_CONFIRMED);
     // No "we ran the public policies on …" when no robot is known.
     expect(proof.forThisJob).toEqual([SCALE_ESTIMATED]);
@@ -206,7 +206,7 @@ describe("projectSimulationProof", () => {
       const proof = projectSimulationProof({ evaluation: evaluation({}, [candidate("pi05_droid", "π0.5 DROID", 10, 6),
         candidate("unknown_id", name, 10, 2)]), pick: ur10e });
       // An unknown id has no known robot, so it is shown but not compared with the Franka policies.
-      expect(proof.policyComparison!.rows[1]).toMatchObject({ policy: "an AI control policy not in our list yet", maker: null, compared: false, robot: null, chosen: false });
+      expect(proof.policyComparison!.rows[1]).toMatchObject({ policy: "an unnamed AI control policy", maker: null, compared: false, robot: null, chosen: false });
       expect(proof.policyComparison!.line).toBe("The simulation scored one policy on a Franka research arm: π0.5 completed the job in 6 of 10 tries. "
         + "With nothing to compare it to on that robot, it could not rank policies. "
         + "1 more policy ran on a robot we could not confirm is the same, and is not compared with these.");

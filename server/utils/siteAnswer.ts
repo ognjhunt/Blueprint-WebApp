@@ -217,7 +217,7 @@ function alsoInvolves(actions: string[]): string {
  */
 function reasonOtherKind(actions: string[]): string {
   const seen = actions.length ? ` (${listInWords(actions)})` : "";
-  return `From your video, the job looks like more than picking an object up and putting it down${seen}, which we can't check robots against yet. If the job is only moving the object from one place to another, say so in the job description and we will check again.`;
+  return `From your video, the job looks like more than picking an object up and putting it down${seen}, which we can't check robots against yet. If that is not right, edit the job description to say what the robot should do, and we will read the video again.`;
 }
 
 const READER_FAMILY: Record<"pick_and_place" | "palletizing" | "machine_tending", JobFamily> = {
@@ -233,6 +233,8 @@ interface Scope {
   otherActions: string[];
   /** The reader gave no kind of job: only a carry was checked, and the answer says so. */
   kindUnknown: boolean;
+  /** The reader judged the job a carrying kind: only then is the kind of job stated. */
+  readerJudged: boolean;
   multiStep: boolean;
 }
 
@@ -246,6 +248,7 @@ function scopeOf(inputs: RobotFitInputs, jobSentences: string[]): Scope {
     family: kind && kind !== "other" ? READER_FAMILY[kind] : "pick_place",
     otherActions: estimates?.otherActions ?? [],
     kindUnknown: kind === null,
+    readerJudged: kind !== null && kind !== "other",
     multiStep: jobSentences.some((sentence) => Boolean(multiStepEvidence(sentence))),
   };
 }
@@ -286,7 +289,7 @@ type Checked = { check: AnswerCheck; headroom: number | null };
 const SPANS_VIDEO = "The estimate from your video spans this robot's limit, so we can't say yet.";
 const SPANS_SITE = "Your numbers span this robot's limit, so we can't say yet.";
 const SPANS_VIDEO_PAYLOAD = "The estimate from your video, with the gripper's weight, spans this robot's rating, so we can't say yet.";
-const SPANS_SITE_PAYLOAD = "With the gripper's weight, your numbers span this robot's rating, so we can't say yet.";
+const SPANS_SITE_PAYLOAD = "With the gripper's weight added, this is at this robot's rating, so we can't say yet.";
 const SPANS_CYCLE = "On paper a cycle may or may not fit in your target, so we can't say yet.";
 const unknownCheck = (key: AnswerCheck["key"], text: string): AnswerCheck => ({ key, outcome: "unknown", estimated: false, basis: null, text });
 
@@ -599,7 +602,9 @@ export function composeSiteAnswer(inputs: SiteAnswerInputs): SiteAnswer | null {
   const makers = new Set(catalog.models.map((model) => model.manufacturer));
   const base = {
     schemaVersion: SITE_ANSWER_SCHEMA,
-    job: { sentence: summary, drafted, family, familyLabel },
+    // The kind of job is stated only when the reader judged it a carrying kind. Otherwise nobody did: the
+    // evidence is still looked up for pick and place, since picking up and putting down is what is checked.
+    job: { sentence: summary, drafted, family: scope.readerJudged ? family : null, familyLabel: scope.readerJudged ? familyLabel : null },
     facts: answerFacts,
     pick: null, runnerUp: null, alsoFit: [], ruledOut: [], ruledOutMore: 0, formNote: null, approach: null,
     unknowns: [] as string[],

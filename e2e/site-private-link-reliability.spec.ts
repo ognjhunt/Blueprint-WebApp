@@ -258,7 +258,7 @@ test("the current simulation result leads as proof, open, while every detail and
   await page.goto(`/capture-upload/${token}?video=existing`);
   // An older job with a result and no answer: the proof stands on its own, visible without opening anything.
   const proof = page.getByRole("region", { name: "Tested in simulation" });
-  await expect(proof.getByText("The simulation scored one policy: an AI control policy not in our list yet completed the job in 2 of 3 tries.", { exact: true })).toBeVisible();
+  await expect(proof.getByText("The simulation scored one policy: an unnamed AI control policy completed the job in 2 of 3 tries.", { exact: true })).toBeVisible();
   await expect(proof.getByRole("listitem").filter({ hasText: "2 of 3 tries" })).toBeVisible();
   await expect(proof.getByRole("heading", { name: "How far to trust this" })).toBeVisible();
   // The full result is one click away, in the folded details.

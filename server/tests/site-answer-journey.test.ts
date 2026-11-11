@@ -290,7 +290,8 @@ describe("a site's answer, from an email and a video to a deployment company", (
     }
     // The sentence is the one drafted from the video, and the page says so.
     expect(ready.job).toMatchObject({ sentence: "Pick up the carton from the left of the table and place it at the end of the table",
-      drafted: true, family: "pick_place" });
+      // The scripted reading gives no kind of job, so no kind is stated.
+      drafted: true, family: null, familyLabel: null });
     expect(ready.confidence.level).not.toBe("good");
     expect(ready.facts.find((fact: { label: string }) => fact.label === "Object weight")?.basis).toBe("video_estimate");
     expect(ready.nextStep).toEqual({ kind: "introduction",
@@ -399,7 +400,7 @@ describe("a site's answer, from an email and a video to a deployment company", (
     expect(await brief.json()).toMatchObject({ ready: true, taskStatementNeeded: true });
   }, 30_000);
 
-  const OTHER_KIND = "From your video, the job looks like more than picking an object up and putting it down (folding), which we can't check robots against yet. If the job is only moving the object from one place to another, say so in the job description and we will check again.";
+  const OTHER_KIND = "From your video, the job looks like more than picking an object up and putting it down (folding), which we can't check robots against yet. If that is not right, edit the job description to say what the robot should do, and we will read the video again.";
   async function expectOtherKind(jobId: string, token: string) {
     const { answer } = await status(token);
     expect(answer).toMatchObject({ state: "cannot_assess", headline: "We can't check robots against this job yet.",

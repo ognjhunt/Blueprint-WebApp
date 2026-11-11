@@ -18,7 +18,7 @@ describe("How it works", () => {
     const evaluation = screen.getByRole("region", { name: "Check the robots and compare policies in simulation." });
     // No unsourced claim about policies served through APIs (rewritten from asserting that sentence).
     expect(evaluation).toHaveTextContent(/checks each suitable robot's reach and arm path, and compares public control policies \(the software that drives a robot\) on the job on a research arm/);
-    expect(evaluation).toHaveTextContent(/illustration only.*Today the policies Blueprint compares run on one research arm/);
+    expect(evaluation).toHaveTextContent(/illustration only.*Today the policies Blueprint compares run on a research arm or a research humanoid, never on the robots in these pictures/);
     expect(evaluation).toHaveTextContent(/its technology provider supplies it; you do not need to find or invite anyone/);
     expect(evaluation).toHaveTextContent(/control policies \(the software that drives a robot\)/);
     expect(evaluation).toHaveTextContent(/Every policy is scored against the same placement criteria/);

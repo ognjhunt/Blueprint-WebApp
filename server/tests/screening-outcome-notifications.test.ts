@@ -69,7 +69,7 @@ describe("one email per terminal outcome of the job's evaluation (F-01)", () => 
       // their counts are listed, never ranked, and the email announces no result and no trust line
       // (rewritten from "the result separates them", then from "no clear difference").
       expect(notice.subject).toBe("The simulation of your job has finished");
-      expect(notice.body).toMatch(/^We could not confirm that these policies ran on the same robot in the simulation of your site, so they are not compared\. Tries that completed the job: an AI control policy not in our list yet \(A\), 2 of 3; an AI control policy not in our list yet \(B\), 1 of 3\. Nothing is needed from you\.\n\n/);
+      expect(notice.body).toMatch(/^We could not confirm that these policies ran on the same robot in the simulation of your site, so they are not compared\. Tries that completed the job: an unnamed AI control policy \(A\), 2 of 3; an unnamed AI control policy \(B\), 1 of 3\. Nothing is needed from you\.\n\n/);
       expect(notice.body).not.toMatch(/did best|was ahead|proof/i);
       expect(notice.body).not.toContain(SIMULATION_TRUST_LINE);
     } else {

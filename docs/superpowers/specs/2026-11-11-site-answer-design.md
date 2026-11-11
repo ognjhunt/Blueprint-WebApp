@@ -95,11 +95,12 @@ returns `answer: null` and carries on.
 
 **The kind of job.** No word list decides anything about the job: the video
 reader, which watched the job and read the site's description, says its kind
-(`job_kind`), a carrying kind is checked and gives the job family (pick and
-place otherwise), and "other" is not checked, with a reason that names what the
-reader saw and asks the site to say so in its job description if the job is
-only moving the object (an edit of the description already causes a new
-reading). When the reader does not say, the check runs on the numbers and the
+(`job_kind`), a carrying kind is checked and gives the job family, which is
+stated only then (otherwise no kind of job is shown, and the pick-and-place
+track record is looked up because a carry is what is checked), and "other" is
+not checked, with a reason that names what the reader saw and asks the site, if
+that is not right, to edit the job description to say what the robot should do
+(an edit of the description already causes a new reading). When the reader does not say, the check runs on the numbers and the
 first unknown says only a carry was checked, which also keeps confidence below
 "good"; every answer's standing note, on the page, in the email and on the job
 card, says the check covers whether a robot can pick the object up and put it
@@ -123,8 +124,8 @@ simulation"; the simulation email repeats its sentences word for word.
 - **Policies are named in plain words, through a closed list**
   (`client/src/data/simulationPolicies.ts`): the policy's common name and its
   maker, never a checkpoint string, code or markup. A policy not in that list
-  is never shown by a name stored with the evaluation; it reads "an AI control
-  policy not in our list yet", with a letter ("(A)", "(B)") in a fixed order
+  is never shown by a name stored with the evaluation; it reads "an unnamed AI
+  control policy", with a letter ("(A)", "(B)") in a fixed order
   when there are several. Scripted rows and rows the selection marks as
   references are never ranked.
 - **A comparison from a few tries is a probability, said by one rule.** Each
