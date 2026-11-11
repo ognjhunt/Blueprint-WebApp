@@ -261,7 +261,8 @@ describe("build output", () => {
     expect(homeHtml).toContain("deployment companies Blueprint has approved");
     expect(homeHtml).not.toContain("Review comparable proposals");
     expect(homeHtml).toContain("Free during the beta");
-    expect(homeHtml).toContain("Which control policy did best on the job in a simulation of your site");
+    // The default example is the packaging job; its proof row is about the arm in a simulation of the site.
+    expect(homeHtml).toContain("A simulation of your site checks the arm’s reach, path and cycle time on the stack");
     expect(homeHtml).not.toContain('aria-hidden="true">Book this pilot</span>');
     // Organization and WebSite structured data ride on the homepage.
     expect(homeHtml).toContain('"@type":"Organization"');

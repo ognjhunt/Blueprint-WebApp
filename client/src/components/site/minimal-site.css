@@ -117,6 +117,9 @@
 .ms-steps summary:hover { color: var(--ms-green); }
 .ms-step-number { font-size: 28px; line-height: 1.25; letter-spacing: -.06em; }
 .ms-step-rule { flex-shrink: 0; display: block; width: 31px; height: 1px; background: currentColor; }
+/* The step title sits on its own line under its number, so the four titles line up however each wraps. */
+.ms-steps .ms-step-head { flex-wrap: wrap; row-gap: 8px; }
+.ms-steps .ms-step-head > span:last-child { flex-basis: 100%; }
 .ms-steps p { font-size: 14px; line-height: 1.65; color: var(--ms-muted); margin-top: 12px; max-width: 39ch; }
 .ms-team { padding-block: 27px 34px; display: flex; justify-content: space-between; gap: 35px; align-items: center; }
 .ms-team h2 { font-size: 18px; letter-spacing: -.03em; }

@@ -416,8 +416,8 @@ function Palletizing({ t }: { t: number }) {
         if (u >= 2.3) return <Carton key={i} c={[slot[0], 159]} opacity={1 - reset} />;
         return null;
       })}
-      {next >= 0 && <Carton c={[track(t, [[start(next) - 2.6, 330], [start(next), 236]]), 111]} />}
-      {t >= 9.6 && <Carton c={[track(t, [[9.6, 330], [10, 300]]), 111]} opacity={reset} />}
+      {next >= 0 && <Carton c={[track(t, [[start(next) - 2.6, 300], [start(next), 236]]), 111]} />}
+      {t >= 9.6 && <Carton c={[300, 111]} opacity={reset} />}
       <RobotArm shoulder={shoulder} hand={hand} l1={56} l2={56} open={open} />
     </g>
   );

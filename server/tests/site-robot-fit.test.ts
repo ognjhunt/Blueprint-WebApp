@@ -176,9 +176,9 @@ describe("the site version", () => {
       .toEqual(["Walking between spots isn't needed: the object moves 30 inches (you measured this)."]);
     const built = JSON.stringify({ needs: site.needs, forms: site.forms });
     for (const forbidden of ["1.2", "2.4", "15 kg", "25 kg", "match", "team"]) expect(built).not.toContain(forbidden);
-    expect(site.note).toContain("shows you a bounded estimate of what works");
+    expect(site.note).toContain("Blueprint then tests them in a simulation of your site");
     expect(site.note).not.toMatch(/full evaluation|recommends an approach/);
-    expect(site.note).toContain("Blueprint runs candidate robots and policies");
+    expect(site.note).not.toMatch(/candidate/);
     expect(site.note).toContain("This is a first read from your video, not a promise that any robot can do the job.");
     expect(site.note).not.toContain("match");
   });

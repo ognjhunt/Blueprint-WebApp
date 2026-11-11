@@ -77,10 +77,13 @@ async function expectAnswer(page: Page) {
   await expect(headline).toHaveText(/^Most likely to fit: .+\.$/);
   const pick = section.getByRole("article", { name: "Our pick" });
   await expect(pick).toBeVisible();
-  // The pick's track record carries a published source, opened in a new tab.
-  const source = pick.locator(".site-answer-evidence a[href^='https://']").first();
-  await expect(source).toBeVisible();
-  await expect(source).toHaveAttribute("target", "_blank");
+  // The pick's track record carries a published source, opened in a new tab, or says plainly that
+  // none was found for this kind of job (a carton moved to a cart is pick and place; the pick may
+  // have documented use only for palletizing). Never an invented one.
+  const sources = pick.locator(".site-answer-evidence a[href^='https://']");
+  if (await sources.count()) await expect(sources.first()).toHaveAttribute("target", "_blank");
+  else await expect(pick.getByText("We found no documented use of this robot on this kind of job.", { exact: true })).toBeVisible();
+  await expect(pick.locator(".site-answer-specs a[href^='https://']").first()).toBeVisible();
   await expect(section.getByRole("article", { name: "Runner-up" })).toBeVisible();
   await expect(section.getByRole("heading", { name: /^How sure we are: / })).toBeVisible();
   const proof = section.getByRole("region", { name: "Proof in simulation" });
@@ -89,6 +92,8 @@ async function expectAnswer(page: Page) {
   return (await headline.textContent())!.trim();
 }
 
+test.describe("desktop", () => {
+test.use({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 });
 test("desktop: email and video in, the answer on the job page, a deployment company asked for, one answer email", async ({ page, request }) => {
   const missing: string[] = [];
   await localOnly(page, missing);
@@ -106,6 +111,7 @@ test("desktop: email and video in, the answer on the job page, a deployment comp
   expect(ticked.videoModelCalls).toBe(1);
   const headline = await expectAnswer(page);
   await answer(page).screenshot({ path: path.join(SHOTS, "journey-3-answer-desktop.png") });
+  await page.screenshot({ path: path.join(SHOTS, "journey-answer-desktop.png"), fullPage: true });
 
   // (b) Find a deployment company: one click, the confirmation, and it survives a reload.
   const find = answer(page).getByRole("button", { name: "Find a deployment company for this job", exact: true });
@@ -139,6 +145,8 @@ test("desktop: email and video in, the answer on the job page, a deployment comp
   await expect(page.getByText(headline, { exact: true })).toHaveCount(0);
 
   expect(missing, "every API the page calls is mounted in the harness").toEqual([]);
+});
+
 });
 
 test.describe("phone", () => {
