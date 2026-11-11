@@ -872,7 +872,8 @@ describe("GET /api/site-task-brief/:token/status", () => {
     expect(body.answer.pick.verdict).toBe("fits_on_paper");
     expect([...sharedFakeFirestoreState.docs]).toEqual(before);
     expect((await status(savedRecording("published", "film").token)).body.answer).toBeNull();
-    record.request = { ...(record.request as Record<string, unknown>), consent_attestation: { revoked_at_iso: "2026-11-11T00:00:00.000Z" } };
+    const current = sharedFakeFirestoreState.docs.get("inboundRequests/req-1")!;
+    current.request = { ...(current.request as Record<string, unknown>), consent_attestation: { revoked_at_iso: "2026-11-11T00:00:00.000Z" } };
     expect((await status(owner)).body.answer).toBeNull();
   });
 
@@ -886,7 +887,9 @@ describe("GET /api/site-task-brief/:token/status", () => {
     expect(code).toBe(200);
     expect(body.answer).toBeNull();
     expect(body.status).toBeTruthy();
+    expect(spy).toHaveBeenCalledTimes(1);
     spy.mockRestore();
+    expect((await status(owner)).body.answer).toMatchObject({ schemaVersion: "site_answer.v1" });
   });
 });
 

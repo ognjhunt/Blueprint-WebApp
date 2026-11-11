@@ -107,7 +107,8 @@ function JobWorkspaceForToken({ token, preparationOutcome, currentStatusKnown = 
   // Simulation is one optional line of evidence, folded into one block, shown only when there is something in it.
   const simulation = technical || Boolean(workflow.managedEvidenceUnavailable)
     || Boolean(preparation && !(preparation.state === "available" && preparation.candidates.length === 0));
-  const results = Boolean(review) || simulation;
+  // The folded simulation block carries its own title, so "Results" heads only a written review.
+  const results = Boolean(review);
   return <section className="job-workspace" {...results ? { "aria-labelledby": "job-progress-title" } : { "aria-label": "Job progress" }}>
     {results && <h2 id="job-progress-title">Results</h2>}
     {!currentAction && <div className="job-next-action">

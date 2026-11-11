@@ -86,7 +86,7 @@ describe("the site's job workspace", () => {
     render(<JobWorkspace token="owner-token" />);
     await openSimulation();
     expect(await screen.findByText("Policy results are temporarily unavailable. Reload this page to retry.")).toBeVisible();
-    expect(screen.getByRole("heading", { name: "Results" })).toBeVisible();
+    expect(screen.getByRole("region", { name: "Job progress" })).toBeVisible();
     expect(screen.queryByRole("region", { name: "Managed policy evidence for your job" })).toBeNull();
   });
 
