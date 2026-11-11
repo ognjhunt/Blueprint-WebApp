@@ -757,7 +757,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
   const cameraLeads = !existingVideoOnly && !saved;
   const sharing = link.status === "valid" && scope === "owner" && !withdrawn ? <PublicTaskListing token={token} jobRevision={JSON.stringify(brief)}
     summaryLabel={answer || !saved ? "Share settings" : undefined}
-    publishWaits={status?.outlook ? !outlookHasAnswer(status.outlook) : false} /> : null;
+    publishWaits={!(status?.outlook && outlookHasAnswer(status.outlook))} /> : null;
   const taskStatementForm = scope === "owner" && brief && taskStatementNeeded && !withdrawn ? (
                 <form aria-label="Name the job" style={{ margin: "16px 0" }} onSubmit={(event) => {
                   event.preventDefault();

@@ -79,9 +79,68 @@ export function tickSiteAssessments(limit = 2) {
   return activePass;
 }
 
+const millisOf = (value: unknown): number | null => {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (value instanceof Date) return value.getTime();
+  if (typeof value === "string" && Number.isFinite(Date.parse(value))) return Date.parse(value);
+  const toMillis = (value as { toMillis?: () => number } | null)?.toMillis;
+  return typeof toMillis === "function" ? toMillis.call(value) : null;
+};
+
+/** The per-job assessment ended 2026-11-11 and its owner retry with it, so a run
+ * left `running` at the switch would hold the capture's inference budget (its
+ * pending call) against the video reading for ever. Whatever happened to its
+ * job or its abandonment, once the run shows no activity for a lease it is
+ * closed `cancelled`; the reading's next reservation then retires the pending
+ * call itself, keeping its cost as unknown. Every pass tries again. */
+export async function closeStaleSiteAssessmentRuns(limit = 10): Promise<number> {
+  if (!db) return 0;
+  const running = await db.collection("agentRuns").where("task_kind", "==", "site_assessment")
+    .where("status", "==", "running").limit(limit).get();
+  let closed = 0;
+  for (const row of running.docs) {
+    try {
+      const run = row.data(), captureId = run.metadata?.capture_id;
+      const jobId = run.metadata?.advisory_job_id ?? run.input?.input?.context?.advisory_job_id;
+      const job = typeof jobId === "string" && /^advisory-[a-f0-9]{64}$/.test(jobId)
+        ? (await db.collection(SITE_ASSESSMENT_JOBS).doc(jobId).get()).data() : undefined;
+      const calls = typeof captureId === "string"
+        ? (await db.collection("captureCoverageReviews").doc(`budget-${humanDecisionDigest({ capture_id: captureId })}`)
+          .collection("calls").where("run_id", "==", row.id).get()).docs.map(call => call.data()) : [];
+      const activity = [millisOf(run.started_at), millisOf(run.created_at), job?.run_id === row.id ? millisOf(job.started_at_ms) : null,
+        ...calls.flatMap(call => [millisOf(call.created_at_ms), millisOf(call.recorded_at_ms)])]
+        .filter((time): time is number => time !== null && time <= Date.now());
+      if (activity.length && Date.now() - Math.max(...activity) < RUN_LEASE_MS) continue;
+      const done = await db.runTransaction(async tx => {
+        const current = (await tx.get(row.ref)).data();
+        if (current?.status !== "running" || current.task_kind !== "site_assessment") return false;
+        tx.set(row.ref, { status: "cancelled", error: "site_assessment_retired", cancelled_at: new Date().toISOString(),
+          site_assessment_retirement: { schema_version: "site_assessment_run_retired.v1", reason: "site_assessment_ended",
+            last_activity_ms: activity.length ? Math.max(...activity) : null, lease_ms: RUN_LEASE_MS, closed_at_ms: Date.now() } },
+          { merge: true });
+        return true;
+      });
+      if (done) closed++;
+    } catch {
+      logger.warn("A stale site assessment run could not be closed; the next pass tries again");
+    }
+  }
+  return closed;
+}
+
 export async function reconcileSiteAssessments(limit = 2) {
   // Nothing below calls a model or spends, so the jobs left at cutover close
   // even with video evidence switched off; none of them may read "processing".
+  if (!db) return;
+  try { await reconcileSiteAssessmentJobs(limit); }
+  finally {
+    // After the jobs' own paths (which record a proper abandonment when they
+    // can), whatever is still running past its lease is closed.
+    await closeStaleSiteAssessmentRuns().catch(() => logger.warn("Stale site assessment runs will be closed on the next pass"));
+  }
+}
+
+async function reconcileSiteAssessmentJobs(limit: number) {
   if (!db) return;
   const pending = await automationBatch(db, db.collection(SITE_ASSESSMENT_JOBS)
     .where("state", "in", ["queued", "running", "needs_review"]), "site_assessments", limit);

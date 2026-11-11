@@ -59,11 +59,17 @@ it.each(ENDED)("retrying a failed %s sends nothing and closes the row", async ke
   expect(state.docs.get("action_ledger/row-2")).toMatchObject({ status: "rejected", ended_email: { action_key: key } });
 });
 
-it("closes an inbound screening email whose source record was lost, by its lane and shape", async () => {
+it("leaves an inbound email it cannot identify as one of the ended kinds as it was on main", async () => {
   seed("row-3", null);
-  expect(await approveAction("row-3", "ops@tryblueprint.io")).toMatchObject({ state: "rejected" });
-  expect(sendEmail).not.toHaveBeenCalled();
-  expect(state.docs.get("action_ledger/row-3")).toMatchObject({ ended_email: { action_key: "inbound_screening_email" } });
+  expect(await approveAction("row-3", "ops@tryblueprint.io")).toMatchObject({ state: "sent" });
+  expect(sendEmail).toHaveBeenCalledTimes(1);
+  expect(state.docs.get("action_ledger/row-3")).not.toHaveProperty("ended_email");
+});
+
+it("leaves an older inbound email of another kind as it was", async () => {
+  seed("row-6", "inbound_follow_up_email");
+  expect(await approveAction("row-6", "ops@tryblueprint.io")).toMatchObject({ state: "sent" });
+  expect(sendEmail).toHaveBeenCalledTimes(1);
 });
 
 it("still sends the kept can't-simulate-yet email if it ever travels through this ledger", async () => {

@@ -37,6 +37,7 @@
  * under a key fixed by the job, through the same outbox and the same dispatch checks. A job whose
  * grant arrives later is the window sweep's again.
  */
+import { OUTBOX_WENT_OUT } from "./outboxWentOut";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
 import { automationBatch } from "./automationBatch";
@@ -45,7 +46,7 @@ import { buildOutboxEntry, CAPTURE_OUTBOX_COLLECTION } from "./captureOutbox";
 import { decryptFieldValue } from "./field-encryption";
 import { sponsorshipExecutionWindowUntil, sponsorshipWindowIntake } from "./sceneExecutionWindowExtension";
 import { siteWalkthroughIdentity } from "./siteWalkthrough";
-import { buildTaskLifecycleNotification, loadPaperAnswer, workspaceTaskUrl } from "./taskLifecycleNotifications";
+import { buildTaskLifecycleNotification, paperAnswerForEnding, waitingAnswerNoticeFields, workspaceTaskUrl } from "./taskLifecycleNotifications";
 import { earlyTaskHoldOf } from "./taskPreparationOutcome";
 import { resultOutranksWindowEnding } from "./taskStatusProjection";
 import { selectWebsiteAtlasPreview } from "./websiteAtlasPreview";
@@ -83,7 +84,7 @@ const DEFAULT_BATCH = 25;
 const CONTACT_READ_GRACE_SECONDS = 24 * 3600;
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 /** Outbox states in which an email may have left, or is leaving. */
-const WENT_OUT = new Set(["dispatching", "unknown", "sent"]);
+const WENT_OUT = OUTBOX_WENT_OUT;
 
 /** Why the sweep leaves a job as it is. */
 export type JobWindowSweepSkip =
@@ -214,6 +215,7 @@ export async function sweepWebsiteJobWindow(requestId: string, nowMs = Date.now(
       .doc(first ? firstKey : websiteJobWindowEndedNoticeKey(requestId, windowEndedAt));
     let notice: WebsiteJobWindowEndingNotice = "none_window_ended_before_cutover";
     let entry: ReturnType<typeof buildOutboxEntry> | null = null;
+    let waiting: Record<string, unknown> = {};
     if (stillOwedByAnEarlierOne) notice = "queued";
     else if (owed && earlier.some(row => row.id === outboxRef.id)) notice = "none_cancelled_before_sending";
     else if (owed) {
@@ -224,26 +226,31 @@ export async function sweepWebsiteJobWindow(requestId: string, nowMs = Date.now(
         to = "";
       }
       if (EMAIL.test(to)) {
-        // The window ran out before a test result: the paper check, when there is one, is the job's one answer.
-        const siteAnswer = await loadPaperAnswer(requestId);
-        const message = buildTaskLifecycleNotification({ requestId, milestone: "scene_outcome", to,
-          eventId: websiteJobWindowEndedEventId(first ? undefined : windowEndedAt), jobWindowEnded: true,
-          ...(siteAnswer ? { siteAnswer } : {}),
-          workspaceUrl: typeof record!.account_owner_uid === "string" && record!.account_owner_uid
-            ? workspaceTaskUrl(requestId) : null });
-        if (message.idempotencyKey !== outboxRef.id) throw new Error("website_job_window_ended_notice_key_mismatch");
-        entry = buildOutboxEntry(message);
+        // The window ran out before a test result: the paper check, when there is one, is the job's one answer. While
+        // the video is still being read the email waits on the job, beside the ending, and is queued once it is read.
+        const eventId = websiteJobWindowEndedEventId(first ? undefined : windowEndedAt);
+        const paper = await paperAnswerForEnding(requestId);
+        if (paper.wait) waiting = waitingAnswerNoticeFields({ requestId, milestone: "scene_outcome", eventId, jobWindowEnded: true },
+          new Date(nowMs).toISOString(), record);
+        else {
+          const message = buildTaskLifecycleNotification({ requestId, milestone: "scene_outcome", to, eventId, jobWindowEnded: true,
+            ...(paper.answer ? { siteAnswer: paper.answer } : {}),
+            workspaceUrl: typeof record!.account_owner_uid === "string" && record!.account_owner_uid
+              ? workspaceTaskUrl(requestId) : null });
+          if (message.idempotencyKey !== outboxRef.id) throw new Error("website_job_window_ended_notice_key_mismatch");
+          entry = buildOutboxEntry(message);
+        }
         notice = "queued";
       } else {
         notice = "none_no_contact_on_file";
         logger.warn({ requestId }, "A job's window ended with no usable contact address; the job page still says so");
       }
     }
-    transaction.update(jobRef, { [WEBSITE_JOB_WINDOW_ENDING_FIELD]: sealWebsiteJobWindowEnding({ request_id: requestId,
+    transaction.update(jobRef, { ...waiting, [WEBSITE_JOB_WINDOW_ENDING_FIELD]: sealWebsiteJobWindowEnding({ request_id: requestId,
       authority_digest: grant.authority_digest, window_ended_at_epoch: windowEndedAt,
       recorded_at_iso: new Date(nowMs).toISOString(), notice }) });
     if (entry) transaction.create(outboxRef, entry);
-    return entry ? "ended_notice_queued" : "ended_no_notice";
+    return entry || Object.keys(waiting).length ? "ended_notice_queued" : "ended_no_notice";
   });
 }
 
@@ -449,6 +456,7 @@ export async function sweepWebsiteJobNoGrant(requestId: string, nowMs = Date.now
     // The key is fixed by the job: an email already in the outbox, in any state, is never queued again.
     const already = (await transaction.get(noticeRef)).exists;
     let entry: ReturnType<typeof buildOutboxEntry> | null = null;
+    let waiting: Record<string, unknown> = {};
     let notice: WebsiteJobNoGrantEndingNotice = "queued";
     if (!already) {
       let to: string;
@@ -458,16 +466,19 @@ export async function sweepWebsiteJobNoGrant(requestId: string, nowMs = Date.now
         to = "";
       }
       if (EMAIL.test(to)) {
-        // No simulation was ever built: the paper check, when there is one, is the job's one answer.
-        const siteAnswer = await loadPaperAnswer(requestId);
-        const message = buildTaskLifecycleNotification({ requestId, milestone: "scene_outcome", to,
-          eventId: WEBSITE_JOB_NO_GRANT_ENDED_EVENT_ID, jobNoGrantEnded: clock.waiting_on,
-          ...(siteAnswer ? { siteAnswer } : {}),
-          ...(ask ? { jobNoGrantReason: "video_over_ingest_limit" as const } : {}),
-          workspaceUrl: typeof record!.account_owner_uid === "string" && record!.account_owner_uid
-            ? workspaceTaskUrl(requestId) : null });
-        if (message.idempotencyKey !== noticeRef.id) throw new Error("website_job_no_grant_ended_notice_key_mismatch");
-        entry = buildOutboxEntry(message);
+        // No simulation was ever built: the paper check, when there is one, is the job's one answer (for another kind
+        // of job, the reader's reason). While the video is still being read the email waits on the job.
+        const paper = await paperAnswerForEnding(requestId);
+        const ending = { requestId, milestone: "scene_outcome" as const, eventId: WEBSITE_JOB_NO_GRANT_ENDED_EVENT_ID,
+          jobNoGrantEnded: clock.waiting_on, ...(ask ? { jobNoGrantReason: "video_over_ingest_limit" as const } : {}) };
+        if (paper.wait) waiting = waitingAnswerNoticeFields(ending, new Date(nowMs).toISOString(), record);
+        else {
+          const message = buildTaskLifecycleNotification({ ...ending, to, ...(paper.answer ? { siteAnswer: paper.answer } : {}),
+            workspaceUrl: typeof record!.account_owner_uid === "string" && record!.account_owner_uid
+              ? workspaceTaskUrl(requestId) : null });
+          if (message.idempotencyKey !== noticeRef.id) throw new Error("website_job_no_grant_ended_notice_key_mismatch");
+          entry = buildOutboxEntry(message);
+        }
       } else {
         notice = "none_no_contact_on_file";
         logger.warn({ requestId }, "A job with no grant ended with no usable contact address; the job page still says so");
@@ -475,11 +486,11 @@ export async function sweepWebsiteJobNoGrant(requestId: string, nowMs = Date.now
     }
     // The ending supersedes an unsent ask email: its own email says where the job stands.
     askEntry = null;
-    transaction.update(jobRef, { ...updates, [WEBSITE_JOB_NO_GRANT_ENDING_FIELD]: sealWebsiteJobNoGrantEnding({ request_id: requestId,
+    transaction.update(jobRef, { ...updates, ...waiting, [WEBSITE_JOB_NO_GRANT_ENDING_FIELD]: sealWebsiteJobNoGrantEnding({ request_id: requestId,
       waiting_on: clock.waiting_on, ...reason, waiting_since_epoch: clock.since_epoch, ended_at_epoch: nowEpoch,
       recorded_at_iso: new Date(nowMs).toISOString(), notice }), [WEBSITE_JOB_NO_GRANT_PAGE_DUE_FIELD]: null });
     if (entry) transaction.create(noticeRef, entry);
-    return entry ? "ended_notice_queued" : "ended_no_notice";
+    return entry || Object.keys(waiting).length ? "ended_notice_queued" : "ended_no_notice";
   });
 }
 

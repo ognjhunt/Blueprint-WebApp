@@ -13,7 +13,9 @@ import { noResultObservationText, type NoResultObservation } from "./runNoResult
  * Per-run and per-request events carry an `eventId`, so each one is its own
  * email and a retry of the same event is not.
  */
-import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
+import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
+import { createHash } from "node:crypto";
+import { OUTLOOK_SENTENCES, proofScoredAnyRobot } from "./jobOutlook";
 import { captureUploadUrlFor } from "./captureUploadToken";
 import { enqueueOutbox, CAPTURE_OUTBOX_COLLECTION, type OutboxKind } from "./captureOutbox";
 import { automationBatch } from "./automationBatch";
@@ -30,14 +32,13 @@ import { EARLY_TASK_HOLD_DETAIL, EARLY_TASK_HOLD_SENTENCES, earlyTaskHoldOf, isE
   type EarlyTaskHoldReason, type RecaptureReason } from "./taskPreparationOutcome";
 import { isWebsiteJobNoGrantEndedEventId, isWebsiteJobWindowEndedEventId } from "./websiteJobWindowEnding";
 import { selectWebsiteAtlasPreview } from "./websiteAtlasPreview";
-import { isScreeningResultOutcome, simulationOutcomeEmailSentence, storedScreeningOutcomeCaveat,
+import { isScreeningHeldOutcome, isScreeningResultOutcome, simulationOutcomeEmailSentence, storedScreeningOutcomeCaveat,
   type ScreeningOutcome, type ScreeningOutcomeCaveat } from "./betaPolicyScreeningContract";
 import { PLAIN_SETUP_CAVEAT, projectSimulationProof, testHeadline, testNotRunLine, testResultOf, testSubLine,
   type SimulationProof } from "../../client/src/lib/simulationProof";
 import { isTerminalSceneOutcomeKind, sceneOutcomeMessage, sceneOutcomeSubject,
   type TerminalSceneOutcomeKind } from "./sceneIntentOutcome";
 import { LIMITS_PAPER, LIMITS_TESTED, SURENESS_WORDS, type SiteAnswer } from "../../client/src/lib/siteAnswer";
-import { REASON_UNSIZED as ANSWER_UNSIZED_REASON } from "./siteAnswer";
 import { sceneScreenGateEnded } from "./sceneScreenGate";
 
 export type TaskLifecycleMilestone = Extract<
@@ -251,8 +252,12 @@ export async function enqueueTaskLifecycleNotification(params: {
   outlook?: { phase: string; sentence: string | null };
   /** `evaluation_outcome` estimate and `answer_ready`: the job page's simulation proof; read from the job's results when not given. */
   simulationProof?: SimulationProof | null;
+  /** `scene_outcome` only: the sweeps' endings (see `buildTaskLifecycleNotification`). */
+  jobWindowEnded?: true;
+  jobNoGrantEnded?: "site" | "blueprint";
+  jobNoGrantReason?: "video_over_ingest_limit";
 }): Promise<{ enqueued: boolean; reason?: "store_unavailable" | "request_missing" | "contact_missing" | "consent_withdrawn"
-  | "awaiting_early_hold_preview" }> {
+  | "awaiting_early_hold_preview" | "awaiting_reading" }> {
   if (!db) return { enqueued: false, reason: "store_unavailable" };
   const requestId = params.requestId.trim();
   const snapshot = await db.collection("inboundRequests").doc(requestId).get();
@@ -290,12 +295,102 @@ export async function enqueueTaskLifecycleNotification(params: {
   const { captureId: _captureId, awaitEarlyHoldUntilMs: _wait, recaptureReason: _recapture, ...notice } = params;
   const simulationProof = (params.milestone === "evaluation_outcome" || params.milestone === "answer_ready")
     && params.simulationProof === undefined ? await loadSimulationProof(requestId) : params.simulationProof;
-  // With no test result to come, the paper check is the answer: read it for the email that says so.
-  const siteAnswer = params.siteAnswer ?? ((params.milestone === "evaluation_outcome" && params.screeningOutcome !== "estimate")
-    || params.milestone === "preparation_ended" || (params.milestone === "scene_outcome" && params.sceneOutcomeKind !== "withdrawn")
-    ? await loadPaperAnswer(requestId) : undefined);
+  // An estimate whose results cannot be read yet: whether it scored an AI robot (a result) or none (an ending) is
+  // unknown, so nothing is queued; its producer keeps the intent and asks again.
+  if (params.milestone === "evaluation_outcome" && params.screeningOutcome === "estimate" && !simulationProof)
+    return { enqueued: false, reason: "awaiting_reading" };
+  const scoredNone = params.milestone === "evaluation_outcome" && params.screeningOutcome === "estimate" && !proofScoredAnyRobot(simulationProof);
+  // With no test result to come, the paper check is the answer: read it for the email that says so. While the video
+  // is still being read (or its answer cannot be read), the email waits, bounded by the reading's own limit.
+  const wantsPaper = !params.siteAnswer && ((params.milestone === "evaluation_outcome" && (params.screeningOutcome !== "estimate" || scoredNone))
+    || params.milestone === "preparation_ended" || (params.milestone === "scene_outcome" && params.sceneOutcomeKind !== "withdrawn"));
+  let siteAnswer = params.siteAnswer;
+  let paperUnread = false;
+  if (wantsPaper) {
+    const paper = await paperAnswerForEnding(requestId, waitingSinceIso(snapshot.data(), params));
+    if (paper.wait) {
+      await db.collection("inboundRequests").doc(requestId).update(waitingAnswerNoticeFields(params, new Date().toISOString(), snapshot.data()));
+      return { enqueued: false, reason: "awaiting_reading" };
+    }
+    siteAnswer = paper.answer;
+    paperUnread = paper.unread === true;
+  }
   return enqueueOutbox(buildTaskLifecycleNotification({ ...notice, simulationProof, ...(siteAnswer ? { siteAnswer } : {}), requestId, to, workspaceUrl,
-    ...(earlyTaskHold ? { earlyTaskHold } : {}), ...(recaptureReason ? { recaptureReason } : {}) }));
+    ...(paperUnread ? { paperUnread: true as const } : {}), ...(earlyTaskHold ? { earlyTaskHold } : {}), ...(recaptureReason ? { recaptureReason } : {}) }));
+}
+
+/** Where an ending's email waits while the video is still being read: one entry per email, under a digest of its key. */
+export const ANSWER_NOTICES_WAITING_FIELD = "answer_notices_waiting";
+export const ANSWER_NOTICES_WAITING_PENDING_FIELD = "answer_notices_waiting_pending";
+/** How long an ending's email waits for the video's reading before it says there is no paper check. */
+export const READING_WAIT_LIMIT_MS = 24 * 60 * 60 * 1000;
+type WaitingNoticeParams = Parameters<typeof enqueueTaskLifecycleNotification>[0];
+const noticeKeyOf = (params: Pick<WaitingNoticeParams, "requestId" | "milestone" | "eventId">) => {
+  const eventId = params.eventId?.trim().replace(/[^A-Za-z0-9._-]/g, "_").slice(0, 120);
+  return `${params.requestId.trim()}:${params.milestone}${eventId ? `:${eventId}` : ""}`;
+};
+const noticeSlotId = (key: string) => createHash("sha256").update(key).digest("hex").slice(0, 32);
+function waitingSinceIso(record: Record<string, any> | undefined, params: WaitingNoticeParams): string | undefined {
+  const entry = record?.[ANSWER_NOTICES_WAITING_FIELD]?.[noticeSlotId(noticeKeyOf(params))];
+  return typeof entry?.since_iso === "string" ? entry.since_iso : undefined;
+}
+/**
+ * The fields that keep an ending's email waiting for the video's reading: its parameters (plain values only) and when
+ * it started waiting, which is kept from the first time. Written beside the ending by its recorder, or by the queue.
+ */
+export function waitingAnswerNoticeFields(params: WaitingNoticeParams, nowIso: string, record?: Record<string, any>): Record<string, unknown> {
+  const { siteAnswer: _answer, simulationProof: _proof, outlook: _outlook, ...plain } = params;
+  const slot = noticeSlotId(noticeKeyOf(params));
+  return { [`${ANSWER_NOTICES_WAITING_FIELD}.${slot}`]: { params: JSON.parse(JSON.stringify(plain)),
+    since_iso: waitingSinceIso(record, params) ?? nowIso }, [ANSWER_NOTICES_WAITING_PENDING_FIELD]: true };
+}
+
+/**
+ * The paper check for an ending's email. While the video is still being read, or its answer cannot be read, the email
+ * waits (`wait`), up to `READING_WAIT_LIMIT_MS` from when it started waiting; after that it says plainly that there is
+ * no paper check (`unread`).
+ */
+export async function paperAnswerForEnding(requestId: string, waitingSince?: string):
+  Promise<{ wait: true } | { wait: false; answer?: SiteAnswer; unread?: true }> {
+  let answer: SiteAnswer | null | undefined;
+  let unreadable = false;
+  try { answer = await (await import("./siteAnswer")).loadSiteAnswer(requestId); }
+  catch (error) { unreadable = true; logger.warn({ error, requestId }, "Could not read the answer for an ending's email; it waits"); }
+  if (unreadable || answer?.state === "reading") {
+    const since = waitingSince ? Date.parse(waitingSince) : NaN;
+    if (!Number.isFinite(since) || Date.now() - since < READING_WAIT_LIMIT_MS) return { wait: true };
+    return { wait: false, unread: true };
+  }
+  return { wait: false, ...(answer ? { answer } : {}) };
+}
+
+/** Queue the endings' emails that waited for the video's reading, now that it may have finished. Idempotent. */
+export async function releaseWaitingAnswerNotices(requestId: string): Promise<void> {
+  if (!db) return;
+  const ref = db.collection("inboundRequests").doc(requestId);
+  const waiting = (await ref.get()).data()?.[ANSWER_NOTICES_WAITING_FIELD];
+  if (!waiting || typeof waiting !== "object") return;
+  const done: string[] = [];
+  for (const [slot, entry] of Object.entries(waiting as Record<string, { params?: WaitingNoticeParams }>)) {
+    if (!entry?.params || entry.params.requestId !== requestId) { done.push(slot); continue; }
+    try {
+      const result = entry.params.milestone === "answer_ready" ? await notifyIfAnswerSettled(requestId)
+        : await enqueueTaskLifecycleNotification(entry.params);
+      if (result.reason !== "awaiting_reading") done.push(slot);
+    } catch (error) { logger.warn({ error, requestId }, "An ending's email that waited stays waiting for the next pass"); }
+  }
+  if (!done.length) return;
+  const left = Object.keys(waiting).filter(slot => !done.includes(slot)).length;
+  await ref.update({ ...Object.fromEntries(done.map(slot => [`${ANSWER_NOTICES_WAITING_FIELD}.${slot}`, admin.firestore.FieldValue.delete()])),
+    [ANSWER_NOTICES_WAITING_PENDING_FIELD]: left > 0 });
+}
+
+/** The outbox pump's pass over endings' emails still waiting: each is queued once its reading is done or ran out. */
+export async function reconcileWaitingAnswerNotices(limit = 20): Promise<void> {
+  if (!db) return;
+  const rows = await db.collection("inboundRequests").where(ANSWER_NOTICES_WAITING_PENDING_FIELD, "==", true).limit(limit).get();
+  for (const row of rows.docs) await releaseWaitingAnswerNotices(row.id).catch(error =>
+    logger.warn({ error, requestId: row.id }, "Could not release an ending's waiting email"));
 }
 
 /** Build the existing notice without a database write or delivery. Atomic
@@ -346,6 +441,8 @@ export function buildTaskLifecycleNotification(params: {
   simulationProof?: SimulationProof | null;
   /** With `jobNoGrantEnded`: why the sweep ended it early, said in the ending's own sentence. */
   jobNoGrantReason?: "video_over_ingest_limit";
+  /** An ending's email whose video could not be read in time: it says plainly that there is no paper check. */
+  paperUnread?: true;
 }): Parameters<typeof enqueueOutbox>[0] {
   const requestId = params.requestId.trim();
   if (isWebsitePreparationNotice(params.milestone) && !/^sha256:[a-f0-9]{64}$/.test(params.eventId || "")) {
@@ -355,9 +452,11 @@ export function buildTaskLifecycleNotification(params: {
     : params.milestone === "scene_outcome"
       // An ending of the simulation (held, never built, its window ran out): its reason, then the paper check as the
       // one answer, by the same composer as the no-test email. A withdrawal is the site's own ending: no answer.
-      ? withPaperAnswer(params.jobNoGrantEnded ? jobNoGrantEndedDetail(params)
-        : params.jobWindowEnded ? jobWindowEndedDetail(params) : sceneOutcomeDetail(params),
-        params.sceneOutcomeKind === "withdrawn" ? null : params.siteAnswer)
+      ? params.sceneOutcomeKind === "withdrawn" ? sceneOutcomeDetail(params)
+        : withPaperAnswer(params.jobNoGrantEnded ? jobNoGrantEndedDetail(params)
+          : params.jobWindowEnded ? jobWindowEndedDetail(params) : sceneOutcomeDetail(params),
+          paperLine(params.siteAnswer, { hold: params.sceneOutcomeKind === "held" && !params.jobWindowEnded && !params.jobNoGrantEnded,
+            unread: params.paperUnread }))
     : params.milestone === "robot_access_question" ? robotAccessQuestionDetail(params)
     : params.milestone === "answer_ready" ? answerReadyDetail(params.siteAnswer, params.outlook) : "";
   const held = params.milestone === "preparation_needs_attention" && isEarlyTaskHoldReason(params.earlyTaskHold)
@@ -372,14 +471,18 @@ export function buildTaskLifecycleNotification(params: {
   const reference = /^bp-prep-[a-f0-9]{16}$/.test(params.correlationId || "") ? `Reference: ${params.correlationId}.` : "";
   // A stopped simulation means no test result will come: the paper check, when there is one, is the answer.
   const preparationDetail = params.milestone === "preparation_ended"
-    ? [preparationEndedSentence(params.terminalReason), paperAnswerLine(params.siteAnswer), reference].filter(Boolean).join(" ") : reference;
+    ? [preparationEndedSentence(params.terminalReason), paperLine(params.siteAnswer, { hold: false, unread: params.paperUnread }), reference]
+      .filter(Boolean).join(" ") : reference;
+  // A finished test that scored no AI robot is an ending, so its email takes the paper slot (review, 2026-11-11).
+  const scoredNone = params.milestone === "evaluation_outcome" && params.screeningOutcome === "estimate" && !proofScoredAnyRobot(params.simulationProof);
   return {
     idempotencyKey: `${requestId}:${params.milestone}${eventId ? `:${eventId}` : ""}`,
     requestId,
     kind: params.milestone,
     ...(isWebsitePreparationNotice(params.milestone) ? {preparationEventId: params.eventId} : {}),
+    ...(scoredNone ? { answerSlot: "paper" as const } : {}),
     to: params.to,
-    subject: params.milestone === "evaluation_outcome" && params.screeningOutcome === "estimate"
+    subject: params.milestone === "evaluation_outcome" && params.screeningOutcome === "estimate" && !scoredNone
       ? estimateSubject(params.simulationProof)
       : params.milestone === "evaluation_outcome" && paperAnswerLine(params.siteAnswer) ? PAPER_ANSWER_SUBJECT
       : params.milestone === "scene_outcome" && params.jobNoGrantEnded === "site" ? JOB_NO_GRANT_SITE_ENDING_SUBJECT
@@ -477,7 +580,7 @@ async function loadSimulationProof(requestId: string): Promise<SimulationProof |
  */
 function evaluationOutcomeDetail(params: { eventId?: string; screeningOutcome?: ScreeningOutcome;
   screeningCounts?: { ran: number; total: number; scored: number }; screeningCaveat?: ScreeningOutcomeCaveat;
-  simulationProof?: SimulationProof | null; siteAnswer?: SiteAnswer }): string {
+  simulationProof?: SimulationProof | null; siteAnswer?: SiteAnswer; paperUnread?: true }): string {
   const outcome = params.screeningOutcome;
   const counts = params.screeningCounts;
   if (!isScreeningResultOutcome(outcome) || !new RegExp(`^${outcome}-[a-f0-9]{24}$`).test(params.eventId ?? "")
@@ -485,31 +588,46 @@ function evaluationOutcomeDetail(params: { eventId?: string; screeningOutcome?: 
     || (counts && ![counts.ran, counts.total, counts.scored].every(value => Number.isSafeInteger(value) && value >= 0))) {
     throw new Error("evaluation_outcome_notice_invalid");
   }
-  // An estimate is the page's test result, under the page's tested limits line; the other outcomes keep theirs.
-  if (outcome === "estimate") {
+  // An estimate that scored an AI robot is the page's test result, under the page's tested limits line.
+  if (outcome === "estimate" && proofScoredAnyRobot(params.simulationProof)) {
     return `${estimateDetail(params.simulationProof, storedScreeningOutcomeCaveat(params.screeningCaveat))}\n\n${finePrint(LIMITS_TESTED)}`;
   }
-  // No test result: the page's own line for why, then the paper check as the answer (the one answer email).
-  const why = testNotRunLine(params.simulationProof) ?? simulationOutcomeEmailSentence(outcome);
-  const paper = paperAnswerLine(params.siteAnswer);
-  return paper ? `${why} ${paper}\n\n${finePrint(LIMITS_PAPER)}`
-    : `${why} Nothing is needed from you.\n\n${finePrint(SIMULATION_DISCLAIMER)}`;
+  // No test result (a hold, another stop, or a finished test that scored no AI robot): why, then the paper check as
+  // the answer. Only a hold can still be followed by a test result, so only its email says one would be emailed.
+  const why = outcome === "estimate" ? OUTLOOK_SENTENCES.no_ai_robot_scored
+    : testNotRunLine(params.simulationProof) ?? simulationOutcomeEmailSentence(outcome);
+  const paper = paperLine(params.siteAnswer, { hold: isScreeningHeldOutcome(outcome), unread: params.paperUnread });
+  return paperAnswerLine(params.siteAnswer) ? `${why} ${paper}\n\n${finePrint(LIMITS_PAPER)}`
+    : `${why} ${paper} Nothing is needed from you.\n\n${finePrint(SIMULATION_DISCLAIMER)}`;
 }
 
-/** An ending's own reason, then the paper check as the answer when there is one. */
-function withPaperAnswer(reason: string, answer: SiteAnswer | null | undefined): string {
-  const paper = paperAnswerLine(answer);
-  return paper ? `${reason} ${paper}` : reason;
+/** An ending's own reason, then its paper-check line. */
+function withPaperAnswer(reason: string, paper: string): string {
+  return `${reason} ${paper}`;
 }
 
-/** The paper check said as the answer, when no test result will come: the composer's own headline. */
-function paperAnswerLine(answer: SiteAnswer | null | undefined): string | null {
-  // Never final: a test result may still come, and it would replace this.
+/** The paper check said as the answer, or null when there is none: the composer's own headline. */
+function paperAnswerLine(answer: SiteAnswer | null | undefined, hold = false): string | null {
   return answer?.state === "ready" && answer.pick
-    ? `So for now the paper check is your answer. ${answer.headline}${answer.sceneNote ? ` ${answer.sceneNote}` : ""} ${PAPER_LATER}` : null;
+    ? `So ${hold ? "for now " : ""}the paper check is your answer. ${answer.headline}${answer.sceneNote ? ` ${answer.sceneNote}` : ""}${hold ? ` ${PAPER_LATER}` : ""}`
+    : null;
 }
-/** The paper-check answer's last sentence: it is never final. */
+/**
+ * An ending email's line about the paper check (review, 2026-11-11): the paper check as the answer when there is one,
+ * else a plain statement that there is none, and why when the reader said why. "If a test result comes later" is said
+ * only after a hold, the one ending after which a test can still come.
+ */
+function paperLine(answer: SiteAnswer | null | undefined, options: { hold: boolean; unread?: boolean }): string {
+  if (options.unread) return NO_PAPER_UNREAD;
+  const paper = paperAnswerLine(answer, options.hold);
+  if (paper) return paper;
+  const why = answer?.state === "cannot_assess" && answer.reason ? ` ${answer.reason}` : "";
+  return `${NO_PAPER_CHECK}${why}`;
+}
+/** A hold's paper-check answer ends with this: a test result may still come. */
 export const PAPER_LATER = "If a test result comes later, we'll email it.";
+export const NO_PAPER_CHECK = "There is no paper check for this job.";
+export const NO_PAPER_UNREAD = "We could not finish reading your video, so there is no paper check for this job.";
 
 /**
  * The job page's own sentence for a terminal scene outcome and its closing
@@ -548,58 +666,58 @@ function jobNoGrantEndedDetail(params: { eventId?: string; sceneOutcomeKind?: Te
   return jobNoGrantEndingMessage(params.jobNoGrantEnded, params.jobNoGrantReason);
 }
 
-/**
- * Whether an answer is one the site is emailed about: a ready answer, or one
- * that cannot be given because the job is another kind. A video that simply did
- * not show the job clearly is not: the job page already asks the site, in one
- * line, what the robot should do, and no second email is added on top of that.
- */
-export function answerIsSettled(answer: SiteAnswer | null | undefined): answer is SiteAnswer {
-  if (!answer) return false;
-  if (answer.state === "ready") return true;
-  return answer.state === "cannot_assess" && Boolean(answer.reason) && answer.reason !== ANSWER_UNSIZED_REASON;
-}
+/** The endings whose only email is `answer_ready`: each recorded by the code that calls `notifyIfAnswerSettled`. */
+const ANSWER_READY_ENDINGS: ReadonlySet<string> = new Set(["unsized", "robot_fit_only", "run_ended"]);
 
 /**
- * The paper-check answer for an ending that has no email of its own (the unsized video, the geometry-only robot fit
- * end, a simulation built but never tested, a run that ended with no publication, a job never given a grant) and for a
- * job of another kind. The outlook decides it (`jobOutlook`), at queue and again at dispatch; the answer slot keeps
- * it to one paper-check answer per job, whichever ending's email goes first.
+ * The paper-check answer for an ending that has no email of its own: the video reader's final "cannot size this
+ * job" (the coverage review records it), the robot-fit-only end (the preparation status), and a run that ended with
+ * no publication (the evaluation ingest). Each is final, so the email never says a test result may follow.
  */
 function answerReadyDetail(answer: SiteAnswer | undefined, outlook: JobOutlookView | null | undefined): string {
   if (!answerEmailDue(answer, outlook)) throw new Error("answer_ready_notice_invalid");
-  // No paper check exists for a job the reader could not match or size: the reader's reason is the answer. An unsized
-  // video can still be tested once the site describes the job, so that email says a later result would follow.
-  if (answer.state === "cannot_assess") return `${answer.headline}\n\n${answer.reason}${outlook!.phase === "no_test" ? ` ${PAPER_LATER}` : ""}`;
-  return `${outlook!.sentence ?? "A simulation test has not run on your job."} ${paperAnswerLine(answer)}\n\n${finePrint(LIMITS_PAPER)}`;
+  if (answer.state === "cannot_assess") return `${answer.headline}\n\n${answer.reason}`;
+  return `${outlook!.sentence ?? "A simulation test has not run on your job."} ${paperLine(answer, { hold: false })}\n\n${finePrint(LIMITS_PAPER)}`;
 }
-type JobOutlookView = { phase: string; sentence: string | null };
+type JobOutlookView = { phase: string; reason?: string | null; sentence: string | null };
 
-/** The answer is one this email gives: an ending with no test result (the paper check), or another kind of job. */
+/** The answer email is due: the outlook is one of its recorded endings, and the answer is read. */
 export function answerEmailDue(answer: SiteAnswer | null | undefined, outlook: JobOutlookView | null | undefined): answer is SiteAnswer {
-  if (!answer || !outlook) return false;
-  if (outlook.phase === "cannot_match") return answerIsSettled(answer) && answer.state === "cannot_assess";
-  // Every ending with no test result gets this email, the unsized video among them (review, 2026-11-11).
-  return outlook.phase === "no_test" && (answer.state === "cannot_assess" ? Boolean(answer.reason) : answer.state === "ready" && Boolean(answer.pick));
+  if (!answer || !outlook || answer.state === "reading") return false;
+  if (outlook.phase !== "no_test" || !ANSWER_READY_ENDINGS.has(String(outlook.reason))) return false;
+  return answer.state === "cannot_assess" ? Boolean(answer.reason) : Boolean(answer.pick) || answer.state === "ready";
 }
 
 /**
- * Give the site its paper-check answer once an ending is recorded and no test result exists. Called where an ending
- * is recorded (the coverage review, the preparation status, the job page's own read of its outlook); the outbox key
- * keeps it to one, and dispatch reads the outlook again.
+ * Queue the paper-check answer for one of `ANSWER_READY_ENDINGS`, called by the code that records it, in the same
+ * step. Never from a page read or a status poll. When the outlook cannot be read for certain, or the video is still
+ * being read, the email waits on the job (`releaseWaitingAnswerNotices`) and is queued once both are known.
  */
-export async function notifyIfAnswerSettled(requestId: string): Promise<{ enqueued: boolean }> {
-  const [{ loadSiteAnswer }, { loadJobOutlook }] = await Promise.all([import("./siteAnswer"), import("./jobOutlook")]);
-  const answer = await loadSiteAnswer(requestId);
-  const outlook = await loadJobOutlook(requestId).catch(() => null);
-  if (!answerEmailDue(answer, outlook)) return { enqueued: false };
-  return enqueueTaskLifecycleNotification({ requestId, milestone: "answer_ready", siteAnswer: answer, outlook: outlook! });
+export async function notifyIfAnswerSettled(requestId: string): Promise<{ enqueued: boolean; reason?: string }> {
+  const [{ loadSiteAnswer }, { loadJobOutlookDecision }] = await Promise.all([import("./siteAnswer"), import("./jobOutlook")]);
+  const answer = await loadSiteAnswer(requestId).catch(() => undefined);
+  const decision = await loadJobOutlookDecision(requestId).catch(() => null);
+  if (!decision?.certain || answer === undefined || answer?.state === "reading") {
+    if (db) await db.collection("inboundRequests").doc(requestId).update(
+      waitingAnswerNoticeFields({ requestId, milestone: "answer_ready" }, new Date().toISOString(),
+        (await db.collection("inboundRequests").doc(requestId).get()).data())).catch(() => undefined);
+    return { enqueued: false, reason: "awaiting_reading" };
+  }
+  if (!answerEmailDue(answer, decision.outlook)) return { enqueued: false };
+  return enqueueTaskLifecycleNotification({ requestId, milestone: "answer_ready", siteAnswer: answer, outlook: decision.outlook });
 }
 
-/** True while the outlook still calls for this email. Read again at dispatch. */
+/**
+ * Read again at dispatch: true while the outlook still calls for this email. Only a recorded fact cancels the row:
+ * when the outlook or the answer cannot be read for certain this throws, and the row stays queued for a later pass.
+ */
 export async function answerReadyShown(requestId: string): Promise<boolean> {
-  const [{ loadSiteAnswer }, { loadJobOutlook }] = await Promise.all([import("./siteAnswer"), import("./jobOutlook")]);
-  return answerEmailDue(await loadSiteAnswer(requestId), await loadJobOutlook(requestId).catch(() => null));
+  const [{ loadSiteAnswer }, { loadJobOutlookDecision }] = await Promise.all([import("./siteAnswer"), import("./jobOutlook")]);
+  const decision = await loadJobOutlookDecision(requestId);
+  if (!decision.certain) throw new Error("answer_ready_outlook_unknown");
+  const answer = await loadSiteAnswer(requestId);
+  if (answer?.state === "reading") throw new Error("answer_ready_answer_unknown");
+  return answerEmailDue(answer, decision.outlook);
 }
 
 /** How many of each kind of movable furniture a robot access proposal moves. */

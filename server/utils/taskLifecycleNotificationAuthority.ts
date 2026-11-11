@@ -4,6 +4,7 @@ import {projectWebsiteCaptureRights} from './websiteTaskContext';
 import type {OutboxKind} from './captureOutbox';
 import {canNotifyCurrentWebsitePreparationIssue} from './websitePreparationStatus';
 import {decryptFieldValue} from './field-encryption';
+import {OUTBOX_WENT_OUT} from './outboxWentOut';
 const CAPTURE_DEPENDENT_NOTICES=new Set<OutboxKind>([
  'video_received','scene_ready','scene_tests_started','screening_cleared','screening_started','results_ready','run_no_result',
  'evaluation_outcome','scene_outcome','robot_access_question',
@@ -20,53 +21,64 @@ const TEAM_RUN_EVALUATION_NOTICES=new Set<OutboxKind>([
 ]);
 /**
  * The answer emails, by slot (review, 2026-11-11): per job at most one paper-check answer and at most one test
- * result. A paper-check answer is never sent after a test result; a test result may follow a paper-check answer (the
- * answer changed, and the site must hear it). Only rows that were actually sent count: a claimed row later cancelled
- * or failed never blocks the answer. The site's own withdrawal gives no answer.
+ * result. A paper-check answer is never sent after a test result; a test result may follow a paper-check answer. A
+ * slot is filled by a row that went out or may have (`OUTBOX_WENT_OUT`: dispatching, unknown, sent). The check runs
+ * in the dispatch transaction that marks the row `dispatching`, so two dispatchers cannot both claim one slot. The
+ * site's own endings (withdrawal, a run it closed) give no answer.
  */
 export type AnswerSlot = "paper" | "result";
-export function answerSlotOf(kind: OutboxKind, idempotencyKey: string | undefined): AnswerSlot | null {
+export function answerSlotOf(kind: OutboxKind, idempotencyKey: string | undefined, stored?: unknown): AnswerSlot | null {
  const key=idempotencyKey??'';
- if(kind==='evaluation_outcome')return /:estimate-/.test(key)?'result':'paper';
+ if(kind==='evaluation_outcome'){
+  // A finished test that scored no AI robot is an ending, so its email is a paper answer, as stored on its row.
+  if(stored==='paper')return 'paper';
+  return /:estimate-/.test(key)?'result':'paper';
+ }
  if(kind==='answer_ready'||kind==='preparation_ended')return 'paper';
  if(kind==='scene_outcome')return /:withdrawn-/.test(key)?null:'paper';
  // The "we can't simulate this kind of job yet" email and the other-kind answer share the paper slot.
  if(kind==='screening_not_now'&&key.endsWith(':brief-screening:task-not-yet-supported'))return 'paper';
  return null;
 }
-/** Pure: whether a row already sent fills this email's slot (or, for the paper slot, a test result was sent). */
-export function answerSlotTaken(rows: Array<{kind: OutboxKind; idempotencyKey: string; status: string}>, kind: OutboxKind,
- idempotencyKey: string | undefined): boolean {
- const slot=answerSlotOf(kind,idempotencyKey);
+type SlotRow={kind: OutboxKind; idempotencyKey: string; status: string; answerSlot?: unknown};
+/** Pure: whether a row that went out (or may have) fills this email's slot (or, for the paper slot, a test result did). */
+export function answerSlotTaken(rows: SlotRow[], kind: OutboxKind, idempotencyKey: string | undefined, stored?: unknown): boolean {
+ const slot=answerSlotOf(kind,idempotencyKey,stored);
  if(!slot)return false;
  return rows.some(row=>{
-  if(row.idempotencyKey===idempotencyKey||row.status!=='sent')return false;
-  const taken=answerSlotOf(row.kind,row.idempotencyKey);
+  if(row.idempotencyKey===idempotencyKey||!OUTBOX_WENT_OUT.has(row.status))return false;
+  const taken=answerSlotOf(row.kind,row.idempotencyKey,row.answerSlot);
   return taken===slot||(slot==='paper'&&taken==='result');
  });
 }
-async function answerSlotFilled(requestId:string,kind:OutboxKind,idempotencyKey:string|undefined,transaction?:FirebaseFirestore.Transaction):Promise<boolean>{
+async function answerSlotFilled(requestId:string,kind:OutboxKind,idempotencyKey:string|undefined,stored:unknown,
+ transaction?:FirebaseFirestore.Transaction):Promise<boolean>{
  if(!db)throw new Error('capture_notification_authority_unavailable');
  const query=db.collection('captureOutbox').where('requestId','==',requestId);
  const rows=transaction?await transaction.get(query):await query.get();
  return answerSlotTaken(rows.docs.map(row=>{const value=row.data()??{};
-  return {kind:value.kind,idempotencyKey:typeof value.idempotencyKey==='string'?value.idempotencyKey:row.id,status:String(value.status)};}),kind,idempotencyKey);
+  return {kind:value.kind,idempotencyKey:typeof value.idempotencyKey==='string'?value.idempotencyKey:row.id,status:String(value.status),
+   answerSlot:value.answerSlot};}),kind,idempotencyKey,stored);
 }
-/** The site closed its own run: no answer email. */
-async function closedByOwner(requestId:string,transaction?:FirebaseFirestore.Transaction):Promise<boolean>{
+/**
+ * The site ended the job itself (withdrew recording permission, or closed its run): no answer email. A closure record
+ * that does not read is unknown, so this throws and the row stays queued for a later pass; it is never cancelled on it.
+ */
+async function endedBySite(requestId:string,transaction?:FirebaseFirestore.Transaction):Promise<boolean>{
  if(!db)throw new Error('capture_notification_authority_unavailable');
  const ref=db.collection('inboundRequests').doc(requestId);
  const record=(transaction?await transaction.get(ref):await ref.get()).data();
  if(!record)return false;
+ if(projectWebsiteCaptureRights(record).consent_revoked)return true;
  const [{websiteRunClosure},{siteWalkthroughIdentity}]=await Promise.all([import('./websiteRunClosure'),import('./siteWalkthrough')]);
- try{return Boolean(websiteRunClosure(record,requestId,siteWalkthroughIdentity(requestId,record).captureId));}catch{return false;}
+ return Boolean(websiteRunClosure(record,requestId,siteWalkthroughIdentity(requestId,record).captureId));
 }
 /** Call inside the dispatch transaction before recording an external side effect.
  * Intake receipts, fresh-link renewal and separate business notices keep their
  * existing authority checks; this grants no deletion/cancellation claim.
  * A missing capture source denies dispatch. A read failure stays recoverable. */
 export async function taskLifecycleNotificationIsCurrent(
- entry:{kind:OutboxKind;requestId:string;preparationEventId?:string;to?:string;body?:string;idempotencyKey?:string},
+ entry:{kind:OutboxKind;requestId:string;preparationEventId?:string;to?:string;body?:string;idempotencyKey?:string;answerSlot?:unknown},
  transaction?:FirebaseFirestore.Transaction,
 ):Promise<boolean>{
  // Coverage repair and candidate starts are internal work. Suppress old
@@ -82,8 +94,9 @@ export async function taskLifecycleNotificationIsCurrent(
   &&entry.idempotencyKey!==`${entry.requestId}:brief-screening:task-not-yet-supported`)return false;
  // The answer slots: at most one paper-check answer and one test result per job, never a paper check after a result,
  // and none once the site closed its own run.
- if(answerSlotOf(entry.kind,entry.idempotencyKey)&&(await answerSlotFilled(entry.requestId,entry.kind,entry.idempotencyKey,transaction)
-  ||await closedByOwner(entry.requestId,transaction)))return false;
+ // Checked once the row exists (its key names the email); queueing without a key is decided at dispatch.
+ if(entry.idempotencyKey!==undefined&&answerSlotOf(entry.kind,entry.idempotencyKey,entry.answerSlot)&&(await endedBySite(entry.requestId,transaction)
+  ||await answerSlotFilled(entry.requestId,entry.kind,entry.idempotencyKey,entry.answerSlot,transaction)))return false;
  // The dispatch transaction is the send: a team-run evaluation notice stops there.
  if(transaction&&TEAM_RUN_EVALUATION_NOTICES.has(entry.kind))return false;
  // Older queued ownership notices asked for an account that cannot repair

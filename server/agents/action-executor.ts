@@ -437,9 +437,9 @@ const KEPT_SCREENING_SUBJECTS: ReadonlySet<string> = new Set([
 ]);
 
 /** The ended email a ledger row carries, if any. The row stores no action
- * key, so it is read from the source request's phase-2 history; a row whose
- * history was lost is still an inbound screening email by its lane and shape,
- * unless it is the kept email. */
+ * key, so it is read from the source request's phase-2 history. Only a row
+ * positively identified there as one of the ended kinds is closed; a row that
+ * cannot be identified behaves as it always did. */
 async function endedEmailActionKey(ledgerDocId: string, data: Record<string, any>): Promise<string | null> {
   if (data.action_type !== "send_email" || isCommunicationsPayload(data.action_payload ?? {})
     || data.lane !== "inbound" || data.source_collection !== "inboundRequests") return null;
@@ -452,8 +452,8 @@ async function endedEmailActionKey(ledgerDocId: string, data: Record<string, any
   }
   const record = Array.isArray(history) ? history.find((row: any) => row?.ledger_doc_id === ledgerDocId
     || (typeof data.idempotency_key === "string" && row?.idempotency_key === data.idempotency_key)) : undefined;
-  if (record && typeof record.action_key === "string") return ENDED_INBOUND_EMAIL_ACTION_KEYS.has(record.action_key) ? record.action_key : null;
-  return "inbound_screening_email";
+  return record && typeof record.action_key === "string" && ENDED_INBOUND_EMAIL_ACTION_KEYS.has(record.action_key)
+    ? record.action_key : null;
 }
 
 /** Close an ended email's row instead of sending it, with the reason the admin sees. */

@@ -265,8 +265,11 @@ export async function reviewCaptureCoverage(params: {
   // never fails the review.
   if (params.captureId === `walkthrough-${params.requestId}` && !additive) {
     try {
-      const { notifyIfAnswerSettled } = await import("./taskLifecycleNotifications");
+      // The reading is done: an unsized video is recorded here (its one email), and an ending's email that waited
+      // for this reading is queued now with the paper check.
+      const { notifyIfAnswerSettled, releaseWaitingAnswerNotices } = await import("./taskLifecycleNotifications");
       await notifyIfAnswerSettled(params.requestId);
+      await releaseWaitingAnswerNotices(params.requestId);
     } catch (error) {
       logger.warn({ error, requestId: params.requestId }, "Could not queue the answer email after the coverage review");
     }

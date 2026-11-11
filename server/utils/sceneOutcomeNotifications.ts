@@ -13,6 +13,7 @@
  * The event id is the outcome's kind and its own digest, so the same outcome
  * read again on a later poll is the same email, never a second one.
  */
+import { OUTBOX_WENT_OUT } from "./outboxWentOut";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
 import { automationBatch } from "./automationBatch";
@@ -20,7 +21,7 @@ import { crossRuntimeDigest } from "./crossRuntimeCanonical";
 import { isTerminalSceneOutcomeKind, parseSceneOutcomeNoticeIntent } from "./sceneIntentOutcome";
 
 /** Outbox states in which an email may have left, or is leaving. */
-const WENT_OUT = new Set(["dispatching", "unknown", "sent"]);
+const WENT_OUT = OUTBOX_WENT_OUT;
 
 /** Whether a job evaluation outcome email (F-01) went out for this job: it supersedes a scene outcome email. */
 export async function screeningOutcomeNoticeSent(requestId: string): Promise<boolean> {

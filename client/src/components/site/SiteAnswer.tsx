@@ -296,7 +296,7 @@ export function SiteAnswer({ token, answer, proof, onIntroductionRequested, onEd
   const fits = Boolean(pick) && (pick!.verdict === "fits" || pick!.verdict === "fits_on_paper");
   // Sharing follows the outlook: offered only once there is an answer (a result, or the paper check after an ending).
   // A run the site closed itself is not an answer: it shows the paper check and the Shared line, never the button.
-  const action = answer.nextStep.kind === "introduction" && (!outlook || outlookHasAnswer(outlook))
+  const action = answer.nextStep.kind === "introduction" && Boolean(outlook && outlookHasAnswer(outlook))
     ? <Introduction token={token} answer={answer} onRequested={onIntroductionRequested} quiet={quietAction} card={card} testResult={phase === "result"} /> : null;
   const sceneNotice = answer.sceneNote && pick ? <BareNotice>{answer.sceneNote}</BareNotice> : null;
 

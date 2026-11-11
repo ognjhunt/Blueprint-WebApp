@@ -201,7 +201,14 @@ it("keeps unknown interrupted provider work for review instead of redispatching"
       expect(state.docs.get(runPath)).toMatchObject({ status: "cancelled", error: "site_assessment_process_interrupted",
         advisory_abandonment: { schema_version: "site_assessment_abandonment.v1", admission_token: admission.receipt.admission_token } });
       expect([...state.docs.entries()].filter(([path]) => path.startsWith("captureCoverageReviews/"))).toEqual(before.filter(([path]) => path !== runPath));
-    } else expect([...state.docs.entries()].filter(([path]) => path.startsWith("captureCoverageReviews/") || path === runPath)).toEqual(before);
+    } else if (!["foreign-run", "future"].includes(progress)) expect([...state.docs.entries()].filter(([path]) => path.startsWith("captureCoverageReviews/") || path === runPath)).toEqual(before);
+    else {
+      // No proper abandonment was possible, and no call of the run's own shows
+      // activity within a lease (here, none of its own, or one dated ahead): the retirement sweep closes it (2026-11-11) so it
+      // can never hold the video reading's budget.
+      expect(state.docs.get(runPath), progress).toMatchObject({ status: "cancelled", error: "site_assessment_retired" });
+      expect([...state.docs.entries()].filter(([path]) => path.startsWith("captureCoverageReviews/"))).toEqual(before.filter(([path]) => path !== runPath));
+    }
     expect(state.docs.get(callPath)?.state, progress).toBe(progress === "recorded" ? "recorded" : progress === "unknown" ? "unknown" : "admitted");
     expect(seams.run).not.toHaveBeenCalled();
   }
