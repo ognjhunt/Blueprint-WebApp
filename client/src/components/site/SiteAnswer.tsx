@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { withCsrfHeader } from "@/lib/csrf";
-import { JOB_CARD_ANSWER_STATEMENT } from "@/lib/jobCardAnswerConsent";
+import { JOB_CARD_ANSWER_STATEMENT, JOB_CARD_ANSWER_STATEMENT_VERSION } from "@/lib/jobCardAnswerConsent";
 import type { SimulationProof as SimulationProofView } from "@/lib/simulationProof";
 import { SimulationProof } from "./SimulationProof";
 import {
@@ -20,7 +20,7 @@ const INTRODUCTION_FAILED = "We could not send your request just now. Try again 
 export const FIND_COMPANY_LABEL = "Find a deployment company for this job";
 /** Rendered from the statement the introduction route records, so the two never drift. */
 export const FIND_COMPANY_CONSENT = JOB_CARD_ANSWER_STATEMENT;
-const askedListed = (date: string) => `You asked on ${date}. Your job card is now visible to approved deployment companies, and Blueprint will email you when one responds.`;
+const askedListed = (date: string) => `You asked on ${date}. Your job card is now visible to approved deployment companies. When one responds, Blueprint will introduce you by email.`;
 const askedUnlisted = (date: string) => `You asked on ${date}. Blueprint will set up your job card and email you.`;
 
 /** A date in words. A bare `YYYY-MM-DD` is read as that calendar day, whatever the viewer's time zone. */
@@ -112,9 +112,11 @@ function Introduction({ token, answer, onRequested }: { token: string; answer: S
     try {
       const response = await fetch(`/api/site-task-brief/${encodeURIComponent(token)}/introduction-request`, {
         method: "POST", headers: await withCsrfHeader({ "Content-Type": "application/json" }), referrerPolicy: "no-referrer",
-        body: "{}",
+        body: JSON.stringify({ statementVersion: JOB_CARD_ANSWER_STATEMENT_VERSION }),
       });
       const result = await response.json().catch(() => null);
+      // A 409 says why in the server's words (for example, the wording on the page changed); the button stays.
+      if (response.status === 409 && typeof result?.error === "string") { setError(result.error); return; }
       if (!response.ok || result?.ok !== true) throw new Error(INTRODUCTION_FAILED);
       setListed(result.listed !== false);
       setRequestedAt(typeof result.requestedAtIso === "string" ? result.requestedAtIso : new Date().toISOString());

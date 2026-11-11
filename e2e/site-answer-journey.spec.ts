@@ -113,7 +113,7 @@ test("desktop: email and video in, the answer on the job page, a deployment comp
   await expect(answer(page)).toContainText("Your video, address and contacts stay private.");
   await find.click();
   const confirmation = answer(page).getByRole("status").filter({ hasText: /^You asked on / });
-  await expect(confirmation).toContainText("Your job card is now visible to approved deployment companies");
+  await expect(confirmation).toContainText("Your job card is now visible to approved deployment companies. When one responds, Blueprint will introduce you by email.");
   await page.screenshot({ path: path.join(SHOTS, "journey-4-requested-desktop.png"), fullPage: true });
   await page.reload();
   await expect(answer(page).getByRole("status").filter({ hasText: /^You asked on / })).toBeVisible({ timeout: 45_000 });

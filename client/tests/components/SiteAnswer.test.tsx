@@ -120,8 +120,8 @@ describe("the site's answer", () => {
     const button = screen.getByRole("button", { name: FIND });
     fireEvent.click(button);
     fireEvent.click(button);
-    expect(await screen.findByRole("status")).toHaveTextContent("You asked on November 11, 2026. Your job card is now visible to approved deployment companies, and Blueprint will email you when one responds.");
-    expect(fetchMock.mock.calls[0][1]).toMatchObject({ body: "{}" });
+    expect(await screen.findByRole("status")).toHaveTextContent("You asked on November 11, 2026. Your job card is now visible to approved deployment companies. When one responds, Blueprint will introduce you by email.");
+    expect(fetchMock.mock.calls[0][1]).toMatchObject({ body: JSON.stringify({ statementVersion: "public-task-card-with-answer-v1" }) });
     expect(screen.queryByText(CONSENT)).toBeNull();
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(fetchMock).toHaveBeenCalledWith("/api/site-task-brief/owner%20token/introduction-request", expect.objectContaining({
@@ -147,9 +147,19 @@ describe("the site's answer", () => {
     expect(document.body.textContent).not.toMatch(/introduction_request_failed/);
   });
 
+  it("shows the server's sentence and keeps the button when the wording has changed", async () => {
+    const changed = "The wording on this page has changed. Reload the page to read it, then press the button again.";
+    fetchMock.mockResolvedValue(response({ code: "introduction_request_statement_changed", error: changed }, 409));
+    render(<SiteAnswer token="owner-token" answer={readyAnswer} />);
+    fireEvent.click(screen.getByRole("button", { name: FIND }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(changed);
+    expect(screen.getByRole("button", { name: FIND })).toBeEnabled();
+    expect(screen.queryByRole("status")).toBeNull();
+  });
+
   it("shows a stored request instead of the button", () => {
     render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, introductionRequestedAtIso: "2026-11-10T09:00:00.000Z" }} />);
-    expect(screen.getByRole("status")).toHaveTextContent("You asked on November 10, 2026. Your job card is now visible to approved deployment companies, and Blueprint will email you when one responds.");
+    expect(screen.getByRole("status")).toHaveTextContent("You asked on November 10, 2026. Your job card is now visible to approved deployment companies. When one responds, Blueprint will introduce you by email.");
     expect(screen.queryByRole("button")).toBeNull();
   });
 });

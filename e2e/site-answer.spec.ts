@@ -15,7 +15,7 @@ const simulationRun = { ...winnerEvaluation, screening: { ...winnerEvaluation.sc
     candidates: [{ candidateId: "pi05_droid", resultRank: 1, choiceBlocker: null }] } } };
 const FIND = "Find a deployment company for this job";
 const CONSENT = "This shares an anonymised summary of your job and this answer with deployment companies Blueprint has approved. Your video, address and contacts stay private.";
-const LISTED = "You asked on November 11, 2026. Your job card is now visible to approved deployment companies, and Blueprint will email you when one responds.";
+const LISTED = "You asked on November 11, 2026. Your job card is now visible to approved deployment companies. When one responds, Blueprint will introduce you by email.";
 const UNLISTED = "You asked on November 11, 2026. Blueprint will set up your job card and email you.";
 
 const workflow = {

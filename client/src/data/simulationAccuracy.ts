@@ -27,8 +27,8 @@ export interface SimulationAccuracy {
 }
 
 export const SIMULATION_ACCURACY: SimulationAccuracy = {
-  statement: "In one published head-to-head study, a simulation built from a scan of each scene picked the same better policy as tests on the real robot in 8 of 9 scene and task comparisons. With holes or stray specks added to the scan it fell to 7 of 9, and with 30% of the scan's images removed at random, to 6 of 9. In two other studies, simulated success rates tracked real ones with a correlation of about 0.9 on average and 0.81 in the worst scene, and of 0.77 to 0.96 depending on how the scene was rebuilt.",
-  conditions: "Those studies tested research robots and research AI policies in carefully scanned scenes. In two of them, printed markers placed in the scene fixed its true size or lined the simulation up with the real one, and in one the simulated robot's movement was tuned to the real robot and the policies were given a little extra training in simulation. Where those conditions do not hold, agreement can be lower, as the first study found when it damaged or thinned out its scans.",
+  statement: "In published tests on research robots, a simulation built from a scan of the scene picked the better of two policies in 8 of 9 comparisons, and simulated scores tracked real ones closely (a correlation of about 0.9 on average). With a damaged or thinned-out scan, the same test fell to 7 or 6 of 9.",
+  conditions: "Those tests used research robots and AI policies in carefully scanned scenes, most with printed markers that fixed the scene's true size, and in one the simulated robot's motion was tuned to match the real one. Where those conditions do not hold, agreement can be lower.",
   sources: [
     // Opened 2026-11-11 (abs and html). Title confirmed. Quotes: "Clean simulation reproduces the observed real policy
     // ranking in 8 of 9 scene–task comparisons (88.9%)." and "Agreement is 7/9 under holes and floaters and 6/9 under

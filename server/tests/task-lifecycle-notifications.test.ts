@@ -364,7 +364,7 @@ describe("a finished simulation's email says what the job page's simulation proo
       "https://example.invalid/app/tasks/req-1");
     expect(notice.subject).toBe("Your simulation proof is ready");
     expect(notice.body).toBe("In a simulation of your site, π0.5, an AI control policy from Physical Intelligence, did best: it completed the job in 4 of 5 tries.\n\n"
-      + "In one published head-to-head study, a simulation built from a scan of each scene picked the same better policy as tests on the real robot in 8 of 9 scene and task comparisons. "
+      + "In published tests on research robots, a simulation built from a scan of the scene picked the better of two policies in 8 of 9 comparisons, and simulated scores tracked real ones closely (a correlation of about 0.9 on average). "
       + "The conditions and sources are on your job page. Nothing is needed from you.\n\n"
       + "A simulation is not a physical test, and it never certifies physical performance or safety.\n\n"
       + "See the result in your workspace:\nhttps://example.invalid/app/tasks/req-1\n\n" + EMAIL_SIGN_OFF);
