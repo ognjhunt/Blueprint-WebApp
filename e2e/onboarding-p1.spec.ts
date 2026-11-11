@@ -187,7 +187,9 @@ test("desktop owner opens video capture with one status and explicit public card
   const instruction = await page.getByText("Already have the recording on this computer? Upload a .mov or .mp4 file.").boundingBox();
   expect(upload!.y - instruction!.y).toBeLessThan(110);
   await screenshot(page, "desktop-capture");
-  await page.getByText("Manage opportunity sharing (optional)", { exact: true }).click();
+  // Sharing is a job setting: one quiet link from the capture page, then its row.
+  await page.getByRole("button", { name: "Job settings ›" }).click();
+  await page.getByText("Share settings", { exact: true }).click();
   const form = page.getByRole("form", { name: "Public job card" });
   await form.getByLabel("Describe the job without naming your site").fill(card.title);
   await form.getByLabel("Job type", { exact: true }).fill("Palletizing");
