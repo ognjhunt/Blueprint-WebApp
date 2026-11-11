@@ -122,3 +122,95 @@ for (const receipt of ["not-received", "received-pending"] as const) test(`brows
     await rm(profile, { recursive: true, force: true });
   }
 });
+
+/**
+ * The start form on a phone, as the owner met it (2026-11-11): "Use my location", then an email we cannot send to.
+ * Every API and the address lookup are answered in the browser. Screenshots go to BLUEPRINT_SHOTS when it is set.
+ */
+test.describe("the start form on a phone", () => {
+  test.use({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true,
+    geolocation: { latitude: 30.4417, longitude: -97.7206 }, permissions: ["geolocation"] });
+  const FILLED = "4201 West Parmer Lane, Austin, Texas, United States";
+  const shots = process.env.BLUEPRINT_SHOTS;
+  async function open(page: import("@playwright/test").Page, posts: string[], answer: (body: string) => { status: number; json: unknown } = () => ({ status: 201, json: { captureUrl: null } })) {
+    await page.context().route("**/*", async route => {
+      const url = new URL(route.request().url());
+      if (url.pathname === "/api/inbound-request") { const body = route.request().postData()!; posts.push(body); return route.fulfill(answer(body)); }
+      if (url.pathname === "/api/csrf") return route.fulfill({ json: { csrfToken: "synthetic" } });
+      if (url.hostname === "photon.komoot.io" && url.pathname === "/reverse") return route.fulfill({ json: { features: [{ properties: {
+        housenumber: "4201", street: "West Parmer Lane", city: "Austin", state: "Texas", country: "United States", countrycode: "US" } }] } });
+      if (url.pathname.startsWith("/api/") || url.hostname === "photon.komoot.io") return route.fulfill({ json: {} });
+      if (url.hostname !== "127.0.0.1") return route.abort();
+      return route.continue();
+    });
+    await page.goto("/contact/site-operator");
+    await page.locator("#start-email").waitFor();
+  }
+  async function useMyLocation(page: import("@playwright/test").Page) {
+    await page.getByRole("button", { name: "Use my location" }).click();
+    await expect(page.locator("#start-location")).toHaveValue(FILLED);
+    await expect(page.getByText("Current address filled. Check it before continuing.")).toBeVisible();
+  }
+
+  test("takes the country from \"Use my location\" and keeps it after a refusal", async ({ page }) => {
+    const posts: string[] = [];
+    await open(page, posts, () => ({ status: 422, json: { message: "Correct task" } }));
+    await useMyLocation(page);
+    await expect(page.locator("#start-region")).toHaveCount(0);
+    if (shots) await page.screenshot({ path: `${shots}/public-04e-use-my-location.png`, fullPage: true });
+    await page.locator("#start-email").fill("owner@example.invalid");
+    await page.getByRole("button", { name: "Next: film the job" }).click();
+    await expect(page.getByText("Correct task")).toBeVisible();
+    await expect(page.locator("#start-region")).toHaveCount(0);
+    expect(JSON.parse(posts[0])).toMatchObject({ siteLocation: FILLED, captureRegion: "us" });
+  });
+
+  for (const [shot, email, sentence] of [
+    ["public-04b-email-gmail-short", "yeet@gmail.com", "Gmail addresses have 6 to 30 letters or numbers before @gmail.com. Check yours."],
+    ["public-04c-email-temporary", "yeet@mailinator.com", "We can't send to a temporary email address. Use one you check."],
+    ["public-04d-email-check", "owner@example", "Check your email address."],
+  ] as const) test(`says why ${email} cannot be used, under the email field, before anything is sent`, async ({ page }) => {
+    const posts: string[] = [];
+    await open(page, posts);
+    await useMyLocation(page);
+    await page.locator("#start-email").fill(email);
+    await page.getByRole("button", { name: "Next: film the job" }).click();
+    const error = page.locator("#start-email-error");
+    await expect(error).toHaveText(sentence);
+    await expect(page.locator("#start-email")).toBeFocused();
+    await expect(page.locator("#start-email")).toHaveAttribute("aria-invalid", "true");
+    // Directly under the field, 8 px below it.
+    const [field, line] = await Promise.all([page.locator("#start-email").boundingBox(), error.boundingBox()]);
+    expect(Math.round(line!.y - (field!.y + field!.height))).toBeGreaterThanOrEqual(8);
+    await expect(page.getByText(/Job reference/)).toHaveCount(0);
+    await expect(page.locator("#start-region")).toHaveCount(0);
+    expect(posts).toHaveLength(0);
+    if (shots) await page.screenshot({ path: `${shots}/${shot}.png`, fullPage: true });
+  });
+
+  test("hides the bot trap from people: no text, no keyboard stop, no autofill", async ({ page }) => {
+    const posts: string[] = [];
+    await open(page, posts);
+    const text = await page.locator("body").innerText();
+    expect(text).not.toMatch(/Leave this field/i);
+    // Select everything and copy, as a person would.
+    await page.keyboard.press("ControlOrMeta+A");
+    const copied = await page.evaluate(() => String(window.getSelection()));
+    expect(copied).not.toMatch(/Leave this field/i);
+    // An autofill-like fill: every input a person can see gets a value; the trap is not among them.
+    const inputs = page.locator('form input:not([type="file"]):not([type="checkbox"]):not([type="hidden"])');
+    for (let index = 0; index < await inputs.count(); index++) {
+      const input = inputs.nth(index);
+      if (await input.isVisible() && await input.isEditable()) await input.fill(index === 0 ? "Austin, TX" : "owner@example.invalid");
+    }
+    await expect(page.locator('input[name="honeypot"]')).toHaveValue("");
+    await expect(page.locator('input[name="honeypot"]')).toBeHidden();
+    // Not in what a screen reader is given, and never reached with the Tab key.
+    expect(JSON.stringify(await page.locator("form").ariaSnapshot())).not.toMatch(/honeypot|Leave this field/i);
+    await page.locator("#start-location").focus();
+    for (let step = 0; step < 25; step++) {
+      await page.keyboard.press("Tab");
+      expect(await page.evaluate(() => (document.activeElement as HTMLInputElement | null)?.name)).not.toBe("honeypot");
+    }
+  });
+});

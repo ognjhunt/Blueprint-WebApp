@@ -160,7 +160,11 @@ describe("GET /api/site-task-brief/:token/status", () => {
     expect(sharedFakeFirestoreState.docs.get("inboundRequests/req-1")).not.toHaveProperty("website_run_closures");
   });
 
+  /** A read answer for the job, so the outlook is decided past `reading`. */
+  const withReadAnswer = async () => vi.spyOn(await import("../utils/siteAnswer"), "loadSiteAnswer")
+    .mockResolvedValue({ schemaVersion: "site_answer.v1", state: "ready", reason: null } as never);
   it("PREP-UI-001 shows verified preparation failure through the customer handler", async () => {
+    const answer = await withReadAnswer();
     sharedFakeFirestoreState.docs.set("captureUploadSessions/cap-1", { website_preparation: { selector: {} } });
     const before = structuredClone([...sharedFakeFirestoreState.docs]);
     const { code, body } = await status();
@@ -169,8 +173,11 @@ describe("GET /api/site-task-brief/:token/status", () => {
     expect(body.status).toMatchObject({ decision: "processing_failure", stage: null, operatorAction: null });
     expect(body.status.outcome.actionOwner).toBe("blueprint");
     expect(body.status.outcome.reference).toBe("bp-prep-1234567890abcdef");
-    // A failure is not a simulation being built.
-    expect(body.simulationBuilding).toBe(false);
+    // A retryable failure is not an ending: the outlook stays building and says a step failed (review 2026-11-11).
+    // Rewritten from the retired `simulationBuilding: false`, which the outlook decision replaced.
+    expect(body.outlook).toEqual({ phase: "building", reason: "step_failed",
+      sentence: "A step failed and we're working on it. We'll email you the result." });
+    answer.mockRestore();
     expect(body.status.headline).not.toMatch(/are preparing|results are in/i);
     expect([...sharedFakeFirestoreState.docs]).toEqual(before);
     expect(enqueueOutbox).not.toHaveBeenCalled();
@@ -190,6 +197,7 @@ describe("GET /api/site-task-brief/:token/status", () => {
     expect(enqueueOutbox).not.toHaveBeenCalled();
   });
   it("PREP-UI-005 an upload with no status past the watch bound is not shown as being prepared", async () => {
+    const answer = await withReadAnswer();
     sharedFakeFirestoreState.docs.set("captureUploadSessions/cap-1", { website_preparation_watch: {
       schema_version: "website_preparation_watch.v1", request_id: "req-1", capture_id: "walkthrough-req-1",
       kind: "awaiting_first_status", state: null, terminal_reason: null, attempt_count: null,
@@ -199,8 +207,11 @@ describe("GET /api/site-task-brief/:token/status", () => {
     expect(body.status.headline).toContain("Preparing it is taking longer than it should and needs review");
     expect(body.status.headline).not.toContain("our team has been told");
     expect(body.status.headline).not.toContain("we are preparing it");
-    // No status from the Pipeline: nothing says a simulation is being built.
-    expect(body.simulationBuilding).toBe(false);
+    // No status from the Pipeline yet. The outlook decision counts the time before the first status as building
+    // (the job window bounds it), while the status line still says it needs review. Rewritten from the retired
+    // `simulationBuilding: false`, which the outlook decision replaced.
+    expect(body.outlook).toEqual({ phase: "building", reason: null, sentence: null });
+    answer.mockRestore();
     const film = createCaptureUploadToken({ requestId: "req-1", captureId: "cap-1", sceneId: "scene-1", scope: "film" });
     const filmed = await (await fetch(`${baseUrl}/api/site-task-brief/${film}/status`)).json();
     expect(JSON.stringify(filmed)).not.toContain("taking longer");
@@ -228,13 +239,15 @@ describe("GET /api/site-task-brief/:token/status", () => {
     const original = preparation.read.getMockImplementation();
     preparation.read.mockImplementation(async () => ({ state: "preparing", correlationId: "bp-prep-1234567890abcdef", question }));
     preparation.question.mockImplementation(async () => ({ selector, question }));
+    const readAnswer = await withReadAnswer();
     try {
       const asked = await status();
       // The job keeps its own status; the question rides alongside it.
       expect(asked.body.status.decision).toBe("assessing");
       // Preparation in progress: the simulation of the site is being built, so the answer screen says "Getting ready".
-      expect(asked.body.simulationBuilding).toBe(true);
-      expect((await status(createCaptureUploadToken({ requestId: "req-1", captureId: "cap-1", sceneId: "scene-1", scope: "film" }))).body.simulationBuilding).toBe(false);
+      expect(asked.body.outlook).toEqual({ phase: "building", reason: null, sentence: null });
+      // The outlook is the owner's: a film link gets none.
+      expect((await status(createCaptureUploadToken({ requestId: "req-1", captureId: "cap-1", sceneId: "scene-1", scope: "film" }))).body.outlook).toBeNull();
       expect(asked.body.targetChoice).toEqual({ questionDigest: question.question_digest, semanticLabel: "Tote",
         guessedCandidateId: "c0123456789abcdef", candidates: [
           { id: "c0123456789abcdef", label: "Tote 1: left side, center of the view", referenceTimeMs: 4000 },
@@ -281,6 +294,7 @@ describe("GET /api/site-task-brief/:token/status", () => {
     } finally {
       preparation.read.mockImplementation(original!);
       preparation.question.mockImplementation(async () => null);
+      readAnswer.mockRestore();
     }
   });
 

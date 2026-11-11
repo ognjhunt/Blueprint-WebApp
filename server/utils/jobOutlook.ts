@@ -20,6 +20,7 @@
  */
 import { RUN_ENDED_WITHOUT_RESULT, testNotRunLine, type SimulationProof } from "../../client/src/lib/simulationProof";
 import { REASON_UNSIZED, type SiteAnswer } from "../../client/src/lib/siteAnswer";
+import { sceneScreenGateEnded } from "./sceneScreenGate";
 
 export { OUTLOOK_SENTENCES, type JobOutlook, type JobOutlookReason, type JobPhase } from "../../client/src/lib/jobOutlook";
 import { OUTLOOK_SENTENCES, type JobOutlook, type JobOutlookReason, type JobPhase } from "../../client/src/lib/jobOutlook";
@@ -127,7 +128,9 @@ export async function loadJobOutlook(requestId: string): Promise<JobOutlook> {
     answer: outlookAnswerOf(answer),
     windowEnded: Boolean(recordedWebsiteJobWindowEnding(record)),
     noGrantEnded: Boolean(recordedWebsiteJobNoGrantEnding(record, requestId)),
-    grantRefused: !record.website_scene_sponsorship && !session?.website_preparation && record.site_task_triage?.disposition === "not_now",
+    // The screen gates nothing for a job carrying the 2026-11-11 marker: such a job is built, so it is never refused.
+    grantRefused: !record.website_scene_sponsorship && !session?.website_preparation && record.site_task_triage?.disposition === "not_now"
+      && !sceneScreenGateEnded(record, requestId),
     preparation, scene, proof,
   });
 }

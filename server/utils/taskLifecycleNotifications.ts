@@ -38,6 +38,7 @@ import { isTerminalSceneOutcomeKind, sceneOutcomeMessage, sceneOutcomeSubject,
   type TerminalSceneOutcomeKind } from "./sceneIntentOutcome";
 import { LIMITS_PAPER, LIMITS_TESTED, SURENESS_WORDS, type SiteAnswer } from "../../client/src/lib/siteAnswer";
 import { REASON_UNSIZED as ANSWER_UNSIZED_REASON } from "./siteAnswer";
+import { sceneScreenGateEnded } from "./sceneScreenGate";
 
 export type TaskLifecycleMilestone = Extract<
   OutboxKind,
@@ -758,7 +759,8 @@ export async function footageBeforeAccountShown(requestId: string): Promise<bool
     stage: null,
     screening: consentRevoked ? null
       : await loadSceneScreening(requestId, passMarkForJob(record as never, brief as never)).catch(() => null),
-    site_task_triage: record.site_task_triage ?? null,
+    // A job carrying the 2026-11-11 marker is built whatever the screen says: no screen sentence in its status.
+    site_task_triage: sceneScreenGateEnded(record, requestId) ? null : record.site_task_triage ?? null,
     site_task_scope: record.site_task_scope ?? null,
     account_owner_uid: typeof record.account_owner_uid === "string" && record.account_owner_uid ? record.account_owner_uid : null,
     jobAccess: teamJobAccess(record),

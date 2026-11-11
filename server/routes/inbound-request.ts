@@ -27,6 +27,7 @@ import { deliverIntakeOpsNoticeAtIntake, initialIntakeOpsNotice } from "../utils
 import { admitInboundQualificationRun } from "../utils/inboundQualificationGate";
 import { logger } from "../logger";
 import { isValidEmailAddress } from "../utils/validation";
+import { checkEmail, EMAIL_REFUSAL_SENTENCES, type EmailRefusal } from "../../client/src/lib/emailAddress";
 import { getRateLimitRedisClient, isRedisCommandReady, withRedisTimeout } from "../utils/rate-limit-redis";
 import { encryptInboundRequestForStorage } from "../utils/field-encryption";
 import { createRequestReviewToken, createSiteClaimToken } from "../utils/request-review-auth";
@@ -387,16 +388,6 @@ const VALID_DISPLAY_ADVISORY_HINTS: DisplayAdvisoryScanHint[] = [
 ];
 const DISPLAY_CAPTURE_PRIVACY_REMINDER =
   "Capture only approved areas. Avoid private, restricted, or sensitive content.";
-
-// Known disposable email domains (extend as needed)
-const DISPOSABLE_EMAIL_DOMAINS = [
-  "mailinator.com",
-  "tempmail.com",
-  "throwaway.email",
-  "guerrillamail.com",
-  "10minutemail.com",
-  "yopmail.com",
-];
 
 const DEV_INBOUND_REQUEST_LOG = path.join(
   os.tmpdir(),
@@ -1002,19 +993,14 @@ function buyerReviewUrl(requestId: string, token: string) {
 }
 
 /**
- * Validate email format and check for disposable domains
+ * Whether we can send the job link to this address: the shared rule the start form also checks before sending
+ * (`client/src/lib/emailAddress.ts`). Any address the site reads is fine; a throwaway-address domain is not, because
+ * the link would be gone within minutes. The reason code lets the form put the sentence under the email field.
  */
-function validateEmail(email: string): { valid: boolean; error?: string } {
-  if (!isValidEmailAddress(email)) {
-    return { valid: false, error: "Invalid email format" };
-  }
-
-  const domain = email.split("@")[1]?.toLowerCase();
-  if (DISPOSABLE_EMAIL_DOMAINS.includes(domain)) {
-    return { valid: false, error: "Please use a work email address" };
-  }
-
-  return { valid: true };
+function validateEmail(email: string): { valid: true } | { valid: false; reason: EmailRefusal; error: string } {
+  const checked = checkEmail(email);
+  if (checked.ok) return { valid: true };
+  return { valid: false, reason: checked.reason, error: EMAIL_REFUSAL_SENTENCES[checked.reason] };
 }
 
 /**
@@ -1177,6 +1163,8 @@ export async function submitInboundRequest(req: Request, res: Response) {
         requestId: payload.requestId,
         status: "submitted",
         message: emailValidation.error,
+        field: "email",
+        code: emailValidation.reason,
       } satisfies SubmitInboundRequestResponse);
     }
 

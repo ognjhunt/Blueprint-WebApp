@@ -32,6 +32,7 @@ import type { InboundRequest } from "../types/inbound-request";
 import { entryPrice, screeningRound } from "../../client/src/lib/evaluationPricing";
 import { DEVELOPMENT_OFFERS, developmentOfferForTeam } from "./controlledDevelopmentOffer";
 import { teamJobAccess } from "./teamJobAccess";
+import { SCENE_SCREEN_GATE_ENDED_FIELD, SCENE_SCREEN_GATE_ENDED_SCHEMA } from "./sceneScreenGate";
 
 /**
  * The runnable-scene rule lives with the rest of the robot-team job predicate
@@ -87,20 +88,24 @@ export function screeningRunEpisodes(): number {
  *   site is sold, so the first team to buy a run is not the one who finds out
  *   integration does not work. It fails closed: unverified is held back.
  *
- * The disposition stays the indexed query and the rest is filtered in memory:
- * the query is already capped, and a three-field composite index for a check
- * that runs on at most 500 documents buys nothing.
+ * Since the owner's decision of 2026-11-11 the disposition decides nothing for
+ * a job whose video arrived after it (`scene_screen_gate_ended`), so those are
+ * read by their marker beside the `qualified` query; the rest is filtered in
+ * memory by the same `teamJobAccess` the job library uses.
  */
-async function loadRunnableSites(limit: number): Promise<InboundRequest[]> {
+export async function loadRunnableSites(limit: number): Promise<InboundRequest[]> {
   if (!db) return [];
 
-  const snapshot = await db
-    .collection("inboundRequests")
-    .where("site_task_triage.disposition", "==", "qualified")
-    .limit(Math.max(1, Math.min(limit, 500)))
-    .get();
+  // Jobs uploaded after the owner's decision of 2026-11-11 carry the marker and
+  // are supply whatever the screen said; older jobs still need `qualified`.
+  const capped = Math.max(1, Math.min(limit, 500));
+  const [qualified, ungated] = await Promise.all([
+    db.collection("inboundRequests").where("site_task_triage.disposition", "==", "qualified").limit(capped).get(),
+    db.collection("inboundRequests").where(`${SCENE_SCREEN_GATE_ENDED_FIELD}.schema_version`, "==", SCENE_SCREEN_GATE_ENDED_SCHEMA).limit(capped).get(),
+  ]);
+  const unique = new Map([...qualified.docs, ...ungated.docs].map((doc) => [doc.id, doc]));
 
-  return snapshot.docs
+  return [...unique.values()].slice(0, capped)
     .map((doc) => doc.data() as InboundRequest)
     // The same answer the job library, the opening page and the evaluation
     // request give: a site job the site listed and has not paused or

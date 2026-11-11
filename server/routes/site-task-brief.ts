@@ -98,6 +98,7 @@ import { bookingUrl } from "../utils/bookingLink";
 import { notifySlackScreeningCallNeeded } from "../utils/slack";
 import { emailGreeting } from "../utils/emailLayout";
 import { storedWebsiteScenePreview, websiteScenePreviewViewerUrl } from "../utils/websiteScenePreview";
+import { sceneScreenGateEnded } from "../utils/sceneScreenGate";
 
 const router = Router();
 
@@ -427,6 +428,8 @@ async function readRequestForStatus(requestId: string, captureId = `walkthrough-
   /** When the claim saved the job to that account; absent for a job started signed in. */
   claimed_at_iso?: string | null;
   site_task_triage?: { disposition?: string | null } | null;
+  /** The job was filmed after the screen stopped gating (2026-11-11 marker). */
+  screenGateEnded?: boolean;
   site_task_scope?: { supported?: unknown; reason?: unknown } | null;
   siteName?: string | null;
   captureRights: ReturnType<typeof projectWebsiteCaptureRights>;
@@ -490,6 +493,8 @@ async function readRequestForStatus(requestId: string, captureId = `walkthrough-
       capture_owner_bound_at_iso: data.capture_owner_bound_at_iso as string} : {}),
     claimed_at_iso: typeof data.claimed_at_iso === "string" ? data.claimed_at_iso : null,
     site_task_triage: (data.site_task_triage as SiteTaskTriageSummary | undefined) ?? null,
+    // The screen gates nothing for a job filmed after 2026-11-11: its status follows the outlook, not the screen.
+    screenGateEnded: sceneScreenGateEnded(data, requestId),
     // Stored plaintext fields, which is what the access predicate reads.
     jobAccess: (() => { try { return teamJobAccess(data); } catch { return null; } })(),
     recommended: Boolean(data.pilot_recommendation),
@@ -1359,7 +1364,7 @@ router.get("/:token/status", async (req: Request, res: Response) => {
         sceneProgression,
         stage,
         screening: request?.captureRights.consent_revoked ? null : screening,
-        site_task_triage: request?.site_task_triage ?? null,
+        site_task_triage: request?.screenGateEnded ? null : request?.site_task_triage ?? null,
         site_task_scope: request?.site_task_scope ?? null,
         bookingUrl: bookingUrl(),
         account_owner_uid: request?.account_owner_uid ?? null,
@@ -1473,7 +1478,8 @@ async function statusOutlook(params: { requestId: string; captureId: string; rec
       answer: outlookAnswerOf(params.answer as never),
       windowEnded: Boolean(recordedWebsiteJobWindowEnding(record)),
       noGrantEnded: Boolean(recordedWebsiteJobNoGrantEnding(record, params.requestId)),
-      grantRefused: !record.website_scene_sponsorship && !params.preparation && record.site_task_triage?.disposition === "not_now",
+      grantRefused: !record.website_scene_sponsorship && !params.preparation && record.site_task_triage?.disposition === "not_now"
+        && !sceneScreenGateEnded(record, params.requestId),
       preparation: params.preparation ? { state: params.preparation.state,
         geometryOnlyEnd: params.preparation.state === "awaiting_inputs" && params.preparation.robotFit?.route === "geometry_only" } : null,
       scene: params.scene ? { state: params.scene.state } : null,

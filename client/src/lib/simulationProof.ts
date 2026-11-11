@@ -673,7 +673,8 @@ export function projectSimulationProof(input: SimulationProofInput): SimulationP
   const pick = isRecord(input?.pick) ? input.pick : null;
   const state = stateOf(evaluation);
   const outcome = evaluation?.outcome ?? null;
-  const couldNotRun = state === "could_not_run" && outcome ? COULD_NOT_RUN[outcome] ?? null : null;
+  // A run that ended with no publication says so, and its counts are never worded as a ranking.
+  const couldNotRun = state === "could_not_run" ? (outcome ? COULD_NOT_RUN[outcome] ?? null : RUN_ENDED_WITHOUT_RESULT) : null;
   const comparison = evaluation ? comparisonOf(evaluation, state, pick, couldNotRun) : null;
   const references = referenceIds(evaluation?.screening);
   const scoredPolicies = evaluation && Array.isArray(evaluation.screening?.candidates)

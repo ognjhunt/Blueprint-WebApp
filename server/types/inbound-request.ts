@@ -1379,6 +1379,8 @@ export interface SubmitInboundRequestResponse {
   message?: string;
   /** Machine-readable refusal reason, e.g. `intake_global_daily_limit`. */
   code?: string;
+  /** The form field a refusal is about, when the site can fix it there (`email`); `code` then names the reason. */
+  field?: "email";
   /**
    * The site's own link to this submission, issued whatever the screen said.
    *

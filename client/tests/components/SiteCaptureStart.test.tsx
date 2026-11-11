@@ -60,10 +60,10 @@ vi.mock("@/lib/siteCaptureDurability", () => ({
     const current = durability.rows.get(key);
     if (!replaceIdentity && current && (current.retired || current.value?.requestId !== value.requestId
       || current.value?.retryToken !== value.retryToken)) throw new Error("Fixture durability transaction aborted");
-    const { task, location, email, method, region, regionManuallySet, privateHandling, jobFrequency, purchaseReadiness } = value.draft;
+    const { task, location, email, method, region, regionManuallySet, regionFromPlace, privateHandling, jobFrequency, purchaseReadiness } = value.draft;
     durability.rows.set(key, { retired: false, value: {
       version: value.version, savedAt: value.savedAt, requestId: value.requestId, retryToken: value.retryToken,
-      draft: { task, location, email, method, region, regionManuallySet, ...(privateHandling === true ? { privateHandling } : {}), ...(jobFrequency ? { jobFrequency } : {}), ...(purchaseReadiness ? { purchaseReadiness } : {}) },
+      draft: { task, location, email, method, region, regionManuallySet, ...(regionFromPlace ? { regionFromPlace } : {}), ...(privateHandling === true ? { privateHandling } : {}), ...(jobFrequency ? { jobFrequency } : {}), ...(purchaseReadiness ? { purchaseReadiness } : {}) },
       pending: value.pending ? { body: value.pending.body, endpoint: value.pending.endpoint, acknowledged: value.pending.acknowledged } : null,
     } });
   },
@@ -203,8 +203,9 @@ describe("SiteCaptureStart and the country", () => {
     await renderReady(<SiteCaptureStart />);
     expect(document.querySelector("#start-location")).toHaveValue(address);
     expect(screen.getByRole("button", { name: "Use my location" })).toBeInTheDocument();
-    // A restored draft cannot tell a chosen place from an older guess, so the country is asked for again.
-    expect(region()).toHaveValue("");
+    // The address came from "Use my location" and is unedited, so the restored draft keeps its country (owner,
+    // 2026-11-11): the country select does not appear.
+    expectInferredUnitedStates();
   });
 
   // Privacy gate (review, 2026-11-11): "Perth, WA", "Vancouver, WA" and "Washington" read as US from the text alone.
@@ -1407,5 +1408,222 @@ describe("with the one-line consent switched off", () => {
     expect(JSON.parse(postsTo("/api/inbound-request")[0][1].body)).toMatchObject({
       captureRegion: "non_us", descriptionAuthority: { granted: true, statementVersion: "2026-10-06.v1" }, consentAttestation: null });
     for (const [, init] of fetchMock.mock.calls) expect(String(init?.body ?? "")).not.toContain("2026-11-11");
+  });
+});
+
+/**
+ * Where the job is, not the country (owner, 2026-11-11). Every path that knows the country keeps it, so the country
+ * select does not appear: a chosen suggestion, "Use my location", and a draft restored in the same browser whose
+ * address was resolved that way and has not been edited since. Typed text still never resolves one.
+ */
+describe("the country a place gave is kept", () => {
+  const FILLED = "4201 West Parmer Lane, Austin, Texas, United States";
+  function locate(properties: Record<string, unknown> = { housenumber: "4201", street: "West Parmer Lane", city: "Austin", state: "Texas", country: "United States", countrycode: "US" }) {
+    vi.stubGlobal("navigator", { ...navigator, geolocation: { getCurrentPosition: (success: PositionCallback) => success({ coords: { latitude: 30.44, longitude: -97.72 } } as GeolocationPosition) } });
+    return properties;
+  }
+  function serve(reverse: Record<string, unknown>, posts: Array<{ status: number; body: unknown }>) {
+    const queue = [...posts];
+    fetchMock.mockImplementation(async (url: string, init?: { method?: string }) => {
+      if (init?.method === "POST") { const next = queue.shift() ?? { status: 200, body: { captureUrl: null } };
+        return { ok: next.status < 400, status: next.status, json: async () => next.body }; }
+      return String(url).includes("/reverse") ? photon([reverse]) : photon([]);
+    });
+  }
+  async function useMyLocation() {
+    fireEvent.click(screen.getByRole("button", { name: "Use my location" }));
+    await waitFor(() => expect(document.querySelector("#start-location")).toHaveValue(FILLED));
+  }
+
+  // The owner's screenshot: "Use my location", an email the server refused, and then the country select. Submitting
+  // re-read the frozen draft, and a restored draft dropped any country it had not been given in the select.
+  it("keeps it after the server refuses the submission (the reproduced fault)", async () => {
+    serve(locate(), [{ status: 422, body: { message: "Correct task" } }]);
+    await renderReady(<SiteCaptureStart />);
+    await useMyLocation();
+    expectInferredUnitedStates();
+    fireEvent.change(document.querySelector("#start-email")!, { target: { value: "owner@example.test" } });
+    fireEvent.submit(screen.getByRole("form"));
+    await screen.findByText("Correct task");
+    expect(region()).toBeNull();
+    fireEvent.submit(screen.getByRole("form"));
+    await waitFor(() => expect(postsTo("/api/inbound-request")).toHaveLength(2));
+    expect(JSON.parse(postsTo("/api/inbound-request")[1][1].body)).toMatchObject({ siteLocation: FILLED, captureRegion: "us" });
+  });
+
+  it("keeps it from \"Use my location\" across a reload while the address is unedited", async () => {
+    serve(locate(), []);
+    const first = await renderReady(<SiteCaptureStart />);
+    await useMyLocation();
+    const key = siteCaptureDraftKey(null, "default");
+    await waitFor(() => expect(JSON.parse(localStorage.getItem(key)!).draft).toMatchObject({ location: FILLED, region: "us", regionFromPlace: FILLED }));
+    first.unmount();
+    await renderReady(<SiteCaptureStart />);
+    expect(document.querySelector("#start-location")).toHaveValue(FILLED);
+    expectInferredUnitedStates();
+  });
+
+  it("keeps it from a chosen suggestion across a reload, and asks once the restored address is edited", async () => {
+    fetchMock.mockResolvedValue(photon([{ name: "Munich", country: "Germany", countrycode: "DE" }]));
+    const first = await renderReady(<SiteCaptureStart />);
+    fireEvent.change(document.querySelector("#start-location")!, { target: { value: "munich" } });
+    fireEvent.click(await screen.findByText("Munich, Germany"));
+    await waitFor(expectInferredOutsideUnitedStates);
+    const key = siteCaptureDraftKey(null, "default");
+    await waitFor(() => expect(JSON.parse(localStorage.getItem(key)!).draft).toMatchObject({ location: "Munich, Germany", region: "non_us" }));
+    first.unmount();
+    await renderReady(<SiteCaptureStart />);
+    expectInferredOutsideUnitedStates();
+    expect(region()).toBeNull();
+    fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Munich, Germany, Bavaria" } });
+    expect(region()).toHaveValue("");
+    expect(screen.queryByText(nonUsNotice)).toBeNull();
+  });
+
+  it("does not keep it for a restored draft whose address was edited after the place was chosen", async () => {
+    serve(locate(), []);
+    const first = await renderReady(<SiteCaptureStart />);
+    await useMyLocation();
+    fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Perth, WA" } });
+    const key = siteCaptureDraftKey(null, "default");
+    await waitFor(() => expect(JSON.parse(localStorage.getItem(key)!).draft).toMatchObject({ location: "Perth, WA", region: "" }));
+    first.unmount();
+    await renderReady(<SiteCaptureStart />);
+    expect(region()).toHaveValue("");
+    fireEvent.submit(screen.getByRole("form"));
+    expect(postsTo("/api/inbound-request")).toHaveLength(0);
+  });
+
+  it("does not keep a stored country whose place label no longer matches the address (a stale write)", async () => {
+    const key = siteCaptureDraftKey(null, "default");
+    const first = await renderReady(<SiteCaptureStart />);
+    fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Perth, WA" } });
+    await waitFor(() => expect(JSON.parse(localStorage.getItem(key)!).draft).toMatchObject({ location: "Perth, WA" }));
+    first.unmount();
+    const stored = JSON.parse(localStorage.getItem(key)!);
+    const draft = { ...stored.draft, region: "us", regionManuallySet: false, regionFromPlace: "Perth, Western Australia, Australia" };
+    localStorage.setItem(key, JSON.stringify({ ...stored, draft }));
+    durability.rows.set(key, { retired: false, value: { ...stored, draft } });
+    await renderReady(<SiteCaptureStart />);
+    expect(region()).toHaveValue("");
+  });
+
+  it("keeps it when the location preference is cleared after the address was filled", async () => {
+    serve(locate(), []);
+    await renderReady(<SiteCaptureStart />);
+    await useMyLocation();
+    fireEvent.click(screen.getByRole("button", { name: "Clear location preference" }));
+    expect(document.querySelector("#start-location")).toHaveValue(FILLED);
+    expectInferredUnitedStates();
+  });
+
+  it("asks for it when \"Use my location\" finds an address with no country", async () => {
+    serve(locate({ housenumber: "4201", street: "West Parmer Lane", city: "Austin", state: "Texas", country: "United States" }), []);
+    await renderReady(<SiteCaptureStart />);
+    await useMyLocation();
+    fireEvent.submit(screen.getByRole("form"));
+    expect(region()).toHaveValue("");
+    expect(postsTo("/api/inbound-request")).toHaveLength(0);
+  });
+});
+
+/**
+ * An email we cannot send to is said plainly, under the email field, and nothing is sent (owner's screenshot,
+ * 2026-11-11: "Invalid email format" above the button, then a job reference).
+ */
+describe("an email we cannot send to", () => {
+  function fillWith(email: string) {
+    fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Austin, TX" } });
+    chooseCountry("us");
+    fireEvent.change(document.querySelector("#start-email")!, { target: { value: email } });
+  }
+  function expectUnderEmail(sentence: string) {
+    const input = document.querySelector("#start-email")!;
+    const error = document.querySelector("#start-email-error")!;
+    expect(error).toHaveTextContent(sentence);
+    expect(error).toHaveClass("bare-field-error");
+    expect(error.closest(".bare-field")).toBe(input.closest(".bare-field"));
+    expect(input).toHaveAttribute("aria-invalid", "true");
+    expect(input.getAttribute("aria-describedby")).toContain("start-email-error");
+    expect(screen.queryByText(/Job reference/)).toBeNull();
+  }
+
+  it.each([
+    ["yeet@gmail.com", "Gmail addresses have 6 to 30 letters or numbers before @gmail.com. Check yours."],
+    ["yeet@mailinator.com", "We can't send to a temporary email address. Use one you check."],
+    ["owner@example", "Check your email address."],
+  ])("checks %s in the browser before anything is sent", async (email, sentence) => {
+    fetchMock.mockResolvedValue(photon([]));
+    await renderReady(<SiteCaptureStart />);
+    fillWith(email);
+    fireEvent.submit(screen.getByRole("form"));
+    expectUnderEmail(sentence);
+    await waitFor(() => expect(document.activeElement).toBe(document.querySelector("#start-email")));
+    expect(fetchMock.mock.calls.filter((call) => call[1]?.method === "POST")).toHaveLength(0);
+    // Correcting the address clears the sentence and sends.
+    fireEvent.change(document.querySelector("#start-email")!, { target: { value: "yeeter@gmail.com" } });
+    expect(document.querySelector("#start-email-error")).toBeNull();
+    fetchMock.mockImplementation(async (_url: string, init?: { method?: string }) => init?.method === "POST"
+      ? { ok: true, status: 201, json: async () => ({ captureUrl: null }) } : photon([]));
+    fireEvent.submit(screen.getByRole("form"));
+    await waitFor(() => expect(postsTo("/api/inbound-request")).toHaveLength(1));
+    expect(JSON.parse(postsTo("/api/inbound-request")[0][1].body).email).toBe("yeeter@gmail.com");
+  });
+
+  it("puts the server's email refusal under the field, by its reason, with no job reference", async () => {
+    fetchMock.mockImplementation(async (_url: string, init?: { method?: string }) => init?.method === "POST"
+      ? { ok: false, status: 400, json: async () => ({ ok: false, field: "email", code: "temporary_address", message: "Something else" }) } : photon([]));
+    await renderReady(<SiteCaptureStart />);
+    fillWith("owner@example.test");
+    fireEvent.submit(screen.getByRole("form"));
+    await waitFor(() => expect(document.querySelector("#start-email-error")).not.toBeNull());
+    expectUnderEmail("We can't send to a temporary email address. Use one you check.");
+    await waitFor(() => expect(document.activeElement).toBe(document.querySelector("#start-email")));
+    expect(screen.queryByRole("button", { name: /Recover saved job/ })).toBeNull();
+    expect(region()).toHaveValue("us");
+  });
+
+  it("keeps the job reference for a failure the site cannot fix", async () => {
+    fetchMock.mockImplementation(async (_url: string, init?: { method?: string }) => init?.method === "POST"
+      ? { ok: false, status: 400, json: async () => ({ ok: false, message: "Recording permission was not confirmed, so the request cannot be accepted" }) } : photon([]));
+    await renderReady(<SiteCaptureStart />);
+    fillWith("owner@example.test");
+    fireEvent.submit(screen.getByRole("form"));
+    await screen.findByText(/Recording permission was not confirmed/);
+    expect(screen.getByText(/Job reference: capture-/)).toBeInTheDocument();
+    expect(document.querySelector("#start-email-error")).toBeNull();
+  });
+});
+
+/** The bot trap: invisible to people in every way, still caught when a script fills it. */
+describe("the bot trap", () => {
+  function trap() { return document.querySelector<HTMLInputElement>('input[name="honeypot"]')!; }
+
+  it("gives people nothing to read, copy, reach or autofill", async () => {
+    await renderReady(<SiteCaptureStart />);
+    const form = screen.getByRole("form");
+    expect(form.textContent).not.toMatch(/Leave this field|honeypot/i);
+    expect(document.querySelector('label[for="' + trap().id + '"]')).toBeNull();
+    // Out of the layout altogether, so it is never copied, never autofilled and never shown; and named for nothing a
+    // browser would autofill.
+    const box = trap().closest("[data-bot-trap]") as HTMLElement;
+    expect(box).toHaveAttribute("aria-hidden", "true");
+    expect(box.style.display).toBe("none");
+    expect(trap()).toHaveAttribute("tabindex", "-1");
+    expect(trap()).toHaveAttribute("autocomplete", "off");
+    expect(trap().id).not.toMatch(/web|url|site|name|mail|phone|address|company/i);
+  });
+
+  it("still sends a filled trap to the server, which answers a script with a fake success", async () => {
+    fetchMock.mockImplementation(async (_url: string, init?: { method?: string }) => init?.method === "POST"
+      ? { ok: true, status: 201, json: async () => ({ captureUrl: null }) } : photon([]));
+    await renderReady(<SiteCaptureStart />);
+    fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Austin, TX" } });
+    chooseCountry("us");
+    fireEvent.change(document.querySelector("#start-email")!, { target: { value: "owner@example.test" } });
+    fireEvent.change(trap(), { target: { value: "https://spam.example" } });
+    fireEvent.submit(screen.getByRole("form"));
+    await waitFor(() => expect(postsTo("/api/inbound-request")).toHaveLength(1));
+    expect(JSON.parse(postsTo("/api/inbound-request")[0][1].body).honeypot).toBe("https://spam.example");
   });
 });

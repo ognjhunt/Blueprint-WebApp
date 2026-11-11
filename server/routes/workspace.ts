@@ -90,6 +90,7 @@ import { offersTeamEvaluation, TEAM_POLICY_BLOCKER_MESSAGES, teamPolicyBlocker, 
 import { notCountedReason } from "../utils/pilotRecommendationEvidence";
 import { footageArrivedBeforeAccount, savedWalkthrough, siteWalkthroughIdentity } from "../utils/siteWalkthrough";
 import { isSiteVideoEvidenceEnabled } from "../config/env";
+import { sceneScreenGateEnded } from "../utils/sceneScreenGate";
 
 const router = Router();
 const id = z
@@ -701,7 +702,9 @@ async function hydrateTask(requestId: string, record: Record<string, any>) {
         sceneProgression,
         stage,
         screening: await loadSceneScreening(requestId, passMarkForJob(record, brief as never)).catch(() => null),
-        site_task_triage: (record.site_task_triage as { disposition?: string | null } | undefined) ?? null,
+        // A job carrying the 2026-11-11 marker is built whatever the screen says: no screen sentence in its status.
+        site_task_triage: sceneScreenGateEnded(record, requestId) ? null
+          : (record.site_task_triage as { disposition?: string | null } | undefined) ?? null,
         site_task_scope: (record.site_task_scope as { supported?: unknown; reason?: unknown } | undefined) ?? null,
         bookingUrl: bookingUrl(),
         jobAccess: teamJobAccess(record),

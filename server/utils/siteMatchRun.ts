@@ -33,6 +33,7 @@ import { logger } from "../logger";
 import type { InboundRequest } from "../types/inbound-request";
 import { listMatchableRobotTeams, toMatchCandidate } from "./robotTeamRegistry";
 import { gateAnswersOnFile } from "./gateAnswersOnFile";
+import { sceneScreenGateEnded } from "./sceneScreenGate";
 
 /** A compact, storable record of a match run, for a reviewer and for the email. */
 export interface SiteMatchSummaryRecord {
@@ -102,7 +103,10 @@ export async function runSiteMatch(
   // because both buyer types share one intake and one triage function.
   if (request.request?.buyerType === "robot_team") return null;
 
-  if (request.site_task_triage?.disposition !== "qualified") return null;
+  // The screen gates nothing for a job uploaded after the owner's decision of
+  // 2026-11-11; older jobs still need `qualified`.
+  if (request.site_task_triage?.disposition !== "qualified"
+    && !sceneScreenGateEnded(request as unknown as Record<string, any>, request.requestId)) return null;
 
   const teams = await listMatchableRobotTeams();
   if (!teams.length) {

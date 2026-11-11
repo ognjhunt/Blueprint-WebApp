@@ -377,7 +377,9 @@ export async function publishBrowserPending(selected: BrowserPending): Promise<v
       }
       // A job's original video arriving now is past the screen's gate (owner
       // decision 2026-11-11). Stamped once, in this commit; a job published
-      // before the change never gets it and stays held for the owner.
+      // before the change never gets it and stays held for the owner. A fresh
+      // re-upload of an old job's original video gets it too, which is meant:
+      // the site sent a new video after the change.
       const screenGateEnded = value.capture_id === `walkthrough-${value.request_id}` && !request?.[SCENE_SCREEN_GATE_ENDED_FIELD]
         ? { [SCENE_SCREEN_GATE_ENDED_FIELD]: sceneScreenGateEndedMarker(value.request_id, new Date().toISOString()) } : {};
       transaction.set(requestRef, { active_capture_id: value.capture_id, ...screenGateEnded }, { merge: true });

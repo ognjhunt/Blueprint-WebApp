@@ -195,8 +195,9 @@ describe("the site's answer, bare bones", () => {
 
   it("says it is getting ready while the simulation of the site is being built, with only the two links", () => {
     // The page's preparation status says the build is under way, before any evaluation exists.
+    // The server's outlook says the job is on its way to a simulation; the page shows the screen for that phase.
     const { unmount } = render(<SiteAnswer token="owner-token" answer={readyAnswer} proof={projectSimulationProof({ evaluation: [], pick: readyAnswer.pick })}
-      gettingReady onShowDetails={() => {}} onShowSettings={() => {}} />);
+      outlook={{ phase: "building", reason: null, sentence: null }} onShowDetails={() => {}} onShowSettings={() => {}} />);
     const answer = screen.getByRole("region", { name: "Your answer" });
     expect(within(answer).getByRole("heading", { level: 2, name: "Getting ready" })).toBeVisible();
     expect(within(answer).getByText("Building your simulation")).toHaveClass("bare-big");
@@ -212,7 +213,7 @@ describe("the site's answer, bare bones", () => {
     const { unmount: second } = render(<SiteAnswer token="owner-token" answer={readyAnswer} proof={queued} />);
     expect(screen.getByRole("heading", { level: 2, name: "Getting ready" })).toBeVisible();
     second();
-    render(<SiteAnswer token="owner-token" answer={readyAnswer} gettingReady
+    render(<SiteAnswer token="owner-token" answer={readyAnswer}
       proof={projectSimulationProof({ evaluation: [{ ...winnerEvaluation, outcome: "held_capability" as const }], pick: readyAnswer.pick })} />);
     expect(screen.getByRole("heading", { level: 2, name: "On paper, the robot most likely to fit" })).toBeVisible();
     expect(screen.getByRole("button", { name: FIND })).toBeVisible();

@@ -1,4 +1,6 @@
-import validator from "validator";
+import { EMAIL_VALIDATION_OPTIONS, isDeliverableEmailFormat } from "../../client/src/lib/emailAddress";
+
+export { EMAIL_VALIDATION_OPTIONS };
 
 export interface WaitlistData {
   name?: string;
@@ -24,16 +26,9 @@ export interface ValidationError { // Added export to make it available if neede
   message: string;
 }
 
-export const EMAIL_VALIDATION_OPTIONS: validator.IsEmailOptions = {
-  allow_display_name: false,
-  allow_ip_domain: false,
-  allow_utf8_local_part: false,
-  domain_specific_validation: true,
-  require_tld: true,
-};
-
+/** The shared rule (`client/src/lib/emailAddress.ts`), so the browser and the server agree on every address. */
 export function isValidEmailAddress(email: string): boolean {
-  return validator.isEmail(email, EMAIL_VALIDATION_OPTIONS);
+  return isDeliverableEmailFormat(email);
 }
 
 export function isValidPhoneNumber(phone: string): boolean {
@@ -76,7 +71,7 @@ export function validateWaitlistData(
   if (requestBody.email && typeof requestBody.email === 'string') {
     const emailValue = requestBody.email.trim();
     if (!isValidEmailAddress(emailValue)) {
-      errors.push({ field: 'email', message: 'Invalid email format.' });
+      errors.push({ field: 'email', message: 'Check your email address.' });
     }
   } else if (requiredFields.includes('email') && (!requestBody.email || !String(requestBody.email).trim())) {
      // This case is already covered by the general required field check,

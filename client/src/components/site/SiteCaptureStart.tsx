@@ -13,6 +13,7 @@ import {
   type CaptureRegion,
 } from "@/data/captureResidency";
 import { analyticsEvents } from "@/lib/analytics";
+import { checkEmail, EMAIL_REFUSAL_SENTENCES, isEmailRefusal } from "@/lib/emailAddress";
 import { withCsrfHeader } from "@/lib/csrf";
 import { withAppCheckHeader } from "@/lib/appCheck";
 import { PRIVACY_URL, TERMS_URL } from "@/lib/legalAcceptance";
@@ -63,7 +64,8 @@ type State =
       uploadMessage: string | null;
       processingRetryAvailable: boolean;
     }
-  | { status: "failed"; message: string };
+  // `reference: false` for a refusal the site fixes itself, which shows no job reference (a support handle).
+  | { status: "failed"; message: string; reference?: false };
 
 function formatBytes(bytes: number) {
   if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
@@ -84,7 +86,15 @@ function ClearDraftControl({status,onClear,disabled=false}:{status:ClearStatus;o
   </>;
 }
 
-const restoredRegion = (draft: { region: CaptureRegion | ""; regionManuallySet: boolean }) => (draft.regionManuallySet ? draft.region : "");
+type RestorableDraft = { location?: string; region: CaptureRegion | ""; regionManuallySet: boolean; regionFromPlace?: string };
+/**
+ * The place label a restored country came from, when the draft's address still reads exactly that label: the country
+ * was taken from a chosen suggestion or "Use my location" and the text has not been edited since. Typed text never
+ * carries one, and an older draft (no label) cannot tell a place's country from a guess, so it has none.
+ */
+const restoredPlace = (draft: RestorableDraft) =>
+  !draft.regionManuallySet && draft.region && draft.regionFromPlace && draft.regionFromPlace === draft.location ? draft.regionFromPlace : null;
+const restoredRegion = (draft: RestorableDraft) => (draft.regionManuallySet || restoredPlace(draft) ? draft.region : "");
 const restoredCountryAsked = (draft: { location?: string; regionManuallySet: boolean }) =>
   Boolean(draft.regionManuallySet) || Boolean(draft.location?.trim());
 
@@ -287,10 +297,12 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
   // (owner, 2026-11-11), so a draft saved with "visit" reopens as "phone".
   const [method, setMethod] = useState<"upload" | "phone">(initial.draft.method === "visit" ? "phone" : initial.draft.method);
   const selfRecording = method === "phone";
-  // A restored draft keeps only a country the person chose in the select: a country taken from a place cannot be
-  // told apart from an older guess from typed text, so it is asked for again.
+  // A restored draft keeps a country the person chose in the select, or one a place gave while its address is unedited
+  // (`restoredPlace`). Anything else is asked for again: an older draft may hold a guess from typed text.
   const [region, setRegion] = useState<CaptureRegion | "">(restoredRegion(initial.draft));
   const [regionManuallySet, setRegionManuallySet] = useState(initial.draft.regionManuallySet);
+  // The label of the place whose country `region` holds, saved with the draft so a reload can keep it.
+  const [regionPlace, setRegionPlace] = useState<string | null>(restoredPlace(initial.draft));
   // Recording permission needs a country, not a street address. An explicit
   // country can stand alone; changing the address rechecks that declaration.
   const [countryMissing, setCountryMissing] = useState(false);
@@ -298,6 +310,8 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
   // is asked for only when it is needed: typed text with no chosen place, or a press of the button with no country.
   // Once asked it stays, so a person can change it. A recovered draft that chose one shows it.
   const [countryAsked, setCountryAsked] = useState(restoredCountryAsked(initial.draft));
+  // Why we cannot send to the typed email, said under the field (checked here first, then by the server).
+  const [emailError, setEmailError] = useState<string | null>(null);
   // The optional details and the full statements are their own screens, in the URL's hash (the job page's pattern).
   // "What you're agreeing to" is a screen only while the short consent line is shown; otherwise its hash is unknown
   // and falls back to the form, never a blank screen.
@@ -351,7 +365,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
     recovery.current = other;
     requestId.current = other.requestId; retryToken.current = other.retryToken;
     setMethod(other.draft.method === "visit" ? "phone" : other.draft.method); setRegion(restoredRegion(other.draft));
-    setRegionManuallySet(other.draft.regionManuallySet);
+    setRegionManuallySet(other.draft.regionManuallySet); setRegionPlace(restoredPlace(other.draft));
     setCountryAsked(restoredCountryAsked(other.draft));
     setPending(other.pending);
     if (changed && resetChanged) {
@@ -371,9 +385,11 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
       ...(field("startReadiness") ? { purchaseReadiness: field("startReadiness") as SiteCaptureRecovery["draft"]["purchaseReadiness"] } : {}),
       method, region: place ? (place.countryCode ? (place.countryCode === "US" ? "us" : "non_us") : "") : region,
       regionManuallySet: place ? false : regionManuallySet,
+      ...((place ? (place.countryCode ? place.label : null) : regionManuallySet ? null : regionPlace) ? {
+        regionFromPlace: place ? place.label : regionPlace! } : {}),
     } });
   }
-  useEffect(() => { retainDraft(); }, [interactive, method, region, regionManuallySet]);
+  useEffect(() => { retainDraft(); }, [interactive, method, region, regionManuallySet, regionPlace]);
   useEffect(() => {
     const onStorage = (event: StorageEvent) => {
       if (event.key !== storageKey || operationInFlight.current) return;
@@ -395,9 +411,9 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
       setStorageAvailable(true);
       recovery.current = fresh;
       requestId.current = fresh.requestId; retryToken.current = fresh.retryToken;
-      setRecoveryUnavailable(false); setPending(null); setState({ status: "idle" }); setClaudeConsent(false); setSolAgentsConsent(false);
+      setRecoveryUnavailable(false); setPending(null); setState({ status: "idle" }); setEmailError(null); setClaudeConsent(false); setSolAgentsConsent(false);
       setShareListing(false);
-      setMethod("phone"); setRegion(""); setRegionManuallySet(false); setCountryMissing(false); setCountryAsked(false);
+      setMethod("phone"); setRegion(""); setRegionManuallySet(false); setRegionPlace(null); setCountryMissing(false); setCountryAsked(false);
       setFootage(null); setFootageError(null); setCaptureReceived(false);
       setResetVersion(value => value + 1);
       // A completion is visible only after both stores commit the fresh authority.
@@ -422,7 +438,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
       const stale = recovery.current.pending.body;
       await retain({ ...recovery.current, pending: null }, stale);
       setPending(null);
-      setState({ status: "failed", message: STATEMENTS_CHANGED });
+      setState({ status: "failed", message: STATEMENTS_CHANGED, reference: false });
       return;
     }
     const retained = recovery.current.pending;
@@ -431,12 +447,17 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
       || (!retained && solAgentsRequested && !solAgentsConsent)) return;
     // Keep the existing capture-region permission without requiring an address
     // from someone who is supplying their own recording. Never guess a country.
-    if (!retained && !region) {
-      setCountryMissing(true);
-      setCountryAsked(true);
-      window.setTimeout(() => document.querySelector<HTMLElement>("#start-region")?.focus(), 0);
+    // The email is checked here with the server's own rule, so an address we cannot send to never creates a request.
+    const typedEmail = !retained && !currentUser ? checkEmail(String(new FormData(formRef.current!).get("startEmail") ?? "")) : null;
+    const emailRefusal = typedEmail && !typedEmail.ok ? typedEmail.reason : null;
+    if (!retained && (!region || emailRefusal)) {
+      if (!region) { setCountryMissing(true); setCountryAsked(true); }
+      setEmailError(emailRefusal ? EMAIL_REFUSAL_SENTENCES[emailRefusal] : null);
+      if (state.status === "failed") setState({ status: "idle" });
+      window.setTimeout(() => document.querySelector<HTMLElement>(!region ? "#start-region" : "#start-email")?.focus(), 0);
       return;
     }
+    setEmailError(null);
     // No typed task is required on any path: the server accepts a job with no
     // description under the description authority (film later) or
     // the recording grant (a video attached now), and drafts it from the video.
@@ -563,6 +584,8 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
         claimUrl?: string | null;
         message?: string;
         error?: string;
+        field?: unknown;
+        code?: unknown;
       };
 
       if (!active.current) return;
@@ -573,6 +596,14 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
           await retain({ ...frozen.value, pending: null }, body); setPending(recovery.current.pending);
         }
         analyticsEvents.contactFormError("capture_start");
+        // An email the server cannot send to: the sentence goes under the email field, which takes focus. The site
+        // fixes it there, so no job reference is shown.
+        if (result.field === "email" && isEmailRefusal(result.code) && !currentUser && [400, 422].includes(response.status)) {
+          setEmailError(EMAIL_REFUSAL_SENTENCES[result.code]);
+          setState({ status: "idle" });
+          window.setTimeout(() => document.querySelector<HTMLElement>("#start-email")?.focus(), 0);
+          return;
+        }
         setState({
           status: "failed",
           message:
@@ -871,6 +902,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
                 setCountryMissing(false);
                 setRegionManuallySet(false);
                 setRegion(place?.countryCode ? (place.countryCode === "US" ? "us" : "non_us") : "");
+                setRegionPlace(place?.countryCode ? place.label : null);
                 if (place) retainDraft(place);
               }}
               onInputChange={(text) => {
@@ -879,6 +911,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
                 setCountryMissing(false);
                 setRegionManuallySet(false);
                 setRegion("");
+                setRegionPlace(null);
                 if (text.trim()) setCountryAsked(true);
               }}
             />
@@ -892,6 +925,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
                 onChange={(event) => {
                   setRegion(event.target.value as CaptureRegion | "");
                   setRegionManuallySet(true);
+                  setRegionPlace(null);
                   setCountryMissing(false);
                 }}>
                 <option value="">Choose the site country</option>
@@ -903,9 +937,10 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
           {region === "non_us" && <div className="bare-group"><BareNotice>{captureRegionNotice}</BareNotice></div>}
 
           {!currentUser && (
-            <BareField label="Your email" htmlFor="start-email" helper="We send your private job link here.">
+            <BareField label="Your email" htmlFor="start-email" helper="We send your private job link here." error={emailError}>
               <BareInput id="start-email" name="startEmail" type="email" defaultValue={recovery.current.draft.email} required autoComplete="email" maxLength={320}
-                aria-describedby="start-email-help" />
+                aria-describedby={describedBy("start-email", { helper: true, error: emailError })} aria-invalid={emailError ? true : undefined}
+                onChange={() => { if (emailError) setEmailError(null); }} />
             </BareField>
           )}
           {currentUser && workspaceType !== undefined && <p className="bare-helper bare-group">{siteWorkspace
@@ -916,15 +951,17 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
             <button type="button" className="bare-link" onClick={() => openScreen("details")}>Add details (optional) ›</button>
           </div>
 
-          {/* Bot bait: hidden from people, honoured by the server. */}
-          <div aria-hidden="true" style={{ position: "absolute", left: "-9999px", top: "-9999px" }}>
-            <label htmlFor="start-website-hp">Leave this field empty</label>
-            <input id="start-website-hp" name="honeypot" type="text" tabIndex={-1} autoComplete="off" />
+          {/* Bot bait, honoured by the server. Out of the layout (display: none), so a person never sees, copies, reaches
+              or hears it and a browser never autofills it; no label, and an id and name no autofill reads as a field it
+              knows. A script that fills every input still fills it. */}
+          <div data-bot-trap aria-hidden="true" style={{ display: "none" }}>
+            <input id="start-hp" name="honeypot" type="text" tabIndex={-1} autoComplete="off" defaultValue="" />
           </div>
 
           {state.status === "failed" && !pending && <div className="bare-group">
             <p role="alert" className="bare-field-error">{state.message}</p>
-            <p className="bare-helper">Job reference: {requestId.current}</p>
+            {/* Only where the site can do nothing itself and support would need it. */}
+            {state.reference !== false && <p className="bare-helper">Job reference: {requestId.current}</p>}
           </div>}
 
           <div className="bare-group">

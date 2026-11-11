@@ -1354,3 +1354,45 @@ describe("inbound request: public-form payload contract", () => {
     }
   });
 });
+
+describe("an email it cannot send to", () => {
+  function sitePayload(requestId: string, email: string) {
+    return { ...buildPayload(requestId, email), accountSignup: false,
+      descriptionOnly: true, descriptionAuthority: { granted: true, statementVersion: "2026-10-06.v1" },
+      consentAttestation: null, captureRegion: "us", captureMode: "self_capture" };
+  }
+
+  // The same table as client/tests/lib/emailAddress.test.ts: the browser and the server give the same answer.
+  it.each([
+    ["yeet@gmail.com", "gmail_name_length", "Gmail addresses have 6 to 30 letters or numbers before @gmail.com. Check yours."],
+    ["yeet+longertag@gmail.com", "gmail_name_length", "Gmail addresses have 6 to 30 letters or numbers before @gmail.com. Check yours."],
+    ["yeet@googlemail.com", "gmail_name_length", "Gmail addresses have 6 to 30 letters or numbers before @gmail.com. Check yours."],
+    ["yeet@mailinator.com", "temporary_address", "We can't send to a temporary email address. Use one you check."],
+    ["jöhn@example.com", "invalid", "Check your email address."],
+    ["owner@example", "invalid", "Check your email address."],
+  ])("answers %s with the email field, the reason and its sentence, and saves nothing", async (email, code, message) => {
+    process.env.NODE_ENV = "development";
+    vi.resetModules();
+    const { server, baseUrl } = await startRouterServer();
+    try {
+      const requestId = `email-refused-${crypto.randomUUID()}`;
+      const response = await fetch(`${baseUrl}/`, { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(sitePayload(requestId, email)) });
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject({ ok: false, field: "email", code, message });
+      expect(fs.existsSync(devLogPath) && fs.readFileSync(devLogPath, "utf8").includes(requestId)).toBeFalsy();
+    } finally { await stopServer(server); }
+  });
+
+  it.each(["yeeter@gmail.com", "yeet@outlook.com", "yeeter+jobs@gmail.com", "yeeter@googlemail.com", "YEETER@GMAIL.COM"])(
+    "accepts %s", async (email) => {
+      process.env.NODE_ENV = "development";
+      vi.resetModules();
+      const { server, baseUrl } = await startRouterServer();
+      try {
+        const response = await fetch(`${baseUrl}/`, { method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(sitePayload(`email-accepted-${crypto.randomUUID()}`, email)) });
+        expect(response.status).toBe(201);
+      } finally { await stopServer(server); }
+    });
+});
