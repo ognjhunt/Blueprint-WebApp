@@ -67,7 +67,11 @@ function generateProgress(random: ReturnType<typeof prng>, scored: number): unkn
   if (random.chance(0.04)) stages[stages.length - 1].episodes = graded + 2;
   if (random.chance(0.03)) stages.reverse();
   if (random.chance(0.03)) stages[1] = { stage: "grasped" as never, episodes: 0 };
-  return { graded, stages, meanScore: 0.5 };
+  // The closest approach: with `approached` as a rule, sometimes missing, misplaced or malformed.
+  const median = random.pick([0, 0.004, 0.0429, 0.065, 0.2, 0.995, 1.37]);
+  const approach = random.chance(0.05) ? { median, min: median + 0.01 } : { median, min: Math.min(median, 0.001) };
+  const carries = ladder.length === 7 ? !random.chance(0.05) : random.chance(0.05);
+  return { graded, stages, meanScore: 0.5, ...(carries ? { closestApproachM: approach } : {}) };
 }
 /** The deepest stage a well-formed progress reached, or undefined when it is not well formed; null when it reached none. */
 function deepestOf(value: unknown, scored: number): { stage: string; episodes: number; graded: number } | null | undefined {
@@ -75,12 +79,17 @@ function deepestOf(value: unknown, scored: number): { stage: string; episodes: n
   const { graded, stages } = value as { graded: number; stages: Array<{ stage: string; episodes: number }> };
   if (!Number.isInteger(graded) || graded < 1 || graded > scored || !Array.isArray(stages)) return undefined;
   const ladder = stages.length === 7 ? PROGRESS_LADDER : PROGRESS_LADDER.slice(1);
+  const approach = (value as { closestApproachM?: { median: number; min: number } }).closestApproachM;
+  if ((ladder[0] === "approached") !== (approach !== undefined) || (approach && approach.min > approach.median)) return undefined;
   if (stages.length !== ladder.length || stages.some((entry, index) => entry.stage !== ladder[index]
     || !Number.isInteger(entry.episodes) || entry.episodes < 0 || entry.episodes > (index ? stages[index - 1].episodes : graded))) return undefined;
   const reached = stages.filter(entry => entry.episodes > 0);
   return reached.length ? { ...reached[reached.length - 1], graded } : null;
 }
 const CLOSED_PHRASES = new Set([...Object.values(PROGRESS_PHRASES), PROGRESS_NOT_APPROACHED, PROGRESS_NOT_TOUCHED]);
+/** The one phrase with a figure in it: how close a policy that reached no stage typically came. */
+const DISTANCE = /^did not get within reach of the object; it typically came within about (?:[1-9]\d? cm|\d+\.\d m) of it$/;
+const closed = (text: string) => CLOSED_PHRASES.has(text) || DISTANCE.test(text);
 
 function generate(random: ReturnType<typeof prng>, index: number, progressRandom = prng(index + 7)): Generated {
   const rows: Candidate[] = [];
@@ -163,6 +172,7 @@ describe("every sentence of the simulation result has a precondition in the data
     let unknownOnly = 0;
     let howFar = 0;
     let rowShown = 0;
+    let distances = 0;
     for (let index = 0; index < 2500; index += 1) {
       const { input, ranked, progress } = generate(random, index);
       const proof = projectSimulationProof(input);
@@ -249,7 +259,10 @@ describe("every sentence of the simulation result has a precondition in the data
       const wellFormed = progress.filter(value => deepestOf(value, Number.MAX_SAFE_INTEGER) !== undefined);
       if (!wellFormed.length) expect(howFarSentence, context).toBeUndefined();
       for (const row of comparison.rows) {
-        if (row.furthestText !== null) expect(CLOSED_PHRASES.has(row.furthestText), context).toBe(true);
+        if (row.furthestText !== null) expect(closed(row.furthestText), context).toBe(true);
+        if (row.furthestText && DISTANCE.test(row.furthestText)) distances += 1;
+        // The distance is said only for a row that reached no stage.
+        if (row.furthest) expect(row.furthestText, context).not.toMatch(/typically|cm|\bm of it/);
         else expect(row.furthest, context).toBeNull();
         if (row.furthest) {
           // Some generated row's data reached exactly this stage, with these counts, and went no deeper.
@@ -275,9 +288,10 @@ describe("every sentence of the simulation result has a precondition in the data
         expect(parts.length, context).toBe(named.length);
         parts.forEach((part, i) => {
           const row = named[i];
-          const match = part.match(/^(.*) in (\d+) of (\d+) tr(?:y|ies)$/);
+          const match = part.match(/^(.*) in (\d+) of (\d+) tr(?:y|ies)(?:, and (it typically came within about .* of it))?$/);
           expect(match, context).not.toBeNull();
-          expect(match![1], context).toBe(`${row.policy} ${row.furthestText}`);
+          // The row's own phrase, with the count after what was reached and before how close it came.
+          expect(match![4] ? `${match![1]}; ${match![4]}` : match![1], context).toBe(`${row.policy} ${row.furthestText}`);
           const [n, graded] = [Number(match![2]), Number(match![3])];
           expect(n, context).toBeLessThanOrEqual(graded);
           if (row.furthest) expect([n, graded], context).toEqual([row.furthest.episodes, row.furthest.graded]);
@@ -319,5 +333,6 @@ describe("every sentence of the simulation result has a precondition in the data
     expect(unknownOnly).toBeGreaterThan(20);
     expect(howFar).toBeGreaterThan(8);
     expect(rowShown).toBeGreaterThan(20);
+    expect(distances).toBeGreaterThan(20);
   }, 60_000);
 });
