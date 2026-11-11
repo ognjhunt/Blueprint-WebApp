@@ -246,6 +246,8 @@ export async function enqueueTaskLifecycleNotification(params: {
   sceneOutcomeKind?: TerminalSceneOutcomeKind;
   /** `answer_ready` only: the settled answer the email states. */
   siteAnswer?: SiteAnswer;
+  /** `answer_ready` only: the job's outlook (`jobOutlook`), whose ending sentence the paper-check answer opens with. */
+  outlook?: { phase: string; sentence: string | null };
   /** `evaluation_outcome` estimate and `answer_ready`: the job page's simulation proof; read from the job's results when not given. */
   simulationProof?: SimulationProof | null;
 }): Promise<{ enqueued: boolean; reason?: "store_unavailable" | "request_missing" | "contact_missing" | "consent_withdrawn"
@@ -337,6 +339,8 @@ export function buildTaskLifecycleNotification(params: {
   jobNoGrantEnded?: "site" | "blueprint";
   /** `answer_ready` only: the settled answer the email states. */
   siteAnswer?: SiteAnswer;
+  /** `answer_ready` only: the job's outlook (`jobOutlook`), whose ending sentence the paper-check answer opens with. */
+  outlook?: { phase: string; sentence: string | null };
   /** `evaluation_outcome` estimate and `answer_ready`: the job page's simulation proof, or null when it could not be read. */
   simulationProof?: SimulationProof | null;
   /** With `jobNoGrantEnded`: why the sweep ended it early, said in the ending's own sentence. */
@@ -354,7 +358,7 @@ export function buildTaskLifecycleNotification(params: {
         : params.jobWindowEnded ? jobWindowEndedDetail(params) : sceneOutcomeDetail(params),
         params.sceneOutcomeKind === "withdrawn" ? null : params.siteAnswer)
     : params.milestone === "robot_access_question" ? robotAccessQuestionDetail(params)
-    : params.milestone === "answer_ready" ? answerReadyDetail(params.siteAnswer) : "";
+    : params.milestone === "answer_ready" ? answerReadyDetail(params.siteAnswer, params.outlook) : "";
   const held = params.milestone === "preparation_needs_attention" && isEarlyTaskHoldReason(params.earlyTaskHold)
     ? params.earlyTaskHold : null;
   const recapture = !held && params.milestone === "preparation_needs_attention" && isRecaptureReason(params.recaptureReason)
@@ -499,9 +503,12 @@ function withPaperAnswer(reason: string, answer: SiteAnswer | null | undefined):
 
 /** The paper check said as the answer, when no test result will come: the composer's own headline. */
 function paperAnswerLine(answer: SiteAnswer | null | undefined): string | null {
+  // Never final: a test result may still come, and it would replace this.
   return answer?.state === "ready" && answer.pick
-    ? `So the paper check is your answer. ${answer.headline}${answer.sceneNote ? ` ${answer.sceneNote}` : ""}` : null;
+    ? `So for now the paper check is your answer. ${answer.headline}${answer.sceneNote ? ` ${answer.sceneNote}` : ""} ${PAPER_LATER}` : null;
 }
+/** The paper-check answer's last sentence: it is never final. */
+export const PAPER_LATER = "If a test result comes later, we'll email it.";
 
 /**
  * The job page's own sentence for a terminal scene outcome and its closing
@@ -553,38 +560,42 @@ export function answerIsSettled(answer: SiteAnswer | null | undefined): answer i
 }
 
 /**
- * The answer email for a job of another kind: the composer's headline and its reason. That is the job's one answer,
- * since no test can run on it. A ready answer is never emailed here (owner, 2026-11-11): the site has its receipt
- * (`video_received`), and its one answer email is the test result, or the paper check when no test can run
- * (`evaluation_outcome`, `preparation_ended`).
+ * The paper-check answer for an ending that has no email of its own (the unsized video, the geometry-only robot fit
+ * end, a simulation built but never tested, a run that ended with no publication, a job never given a grant) and for a
+ * job of another kind. The outlook decides it (`jobOutlook`), at queue and again at dispatch; the answer slot keeps
+ * it to one paper-check answer per job, whichever ending's email goes first.
  */
-function answerReadyDetail(answer: SiteAnswer | undefined): string {
-  if (!answerEmailDue(answer)) throw new Error("answer_ready_notice_invalid");
-  return `${answer.headline}\n\n${answer.reason}`;
+function answerReadyDetail(answer: SiteAnswer | undefined, outlook: JobOutlookView | null | undefined): string {
+  if (!answerEmailDue(answer, outlook)) throw new Error("answer_ready_notice_invalid");
+  if (answer.state === "cannot_assess") return `${answer.headline}\n\n${answer.reason}`;
+  return `${outlook!.sentence ?? "A simulation test has not run on your job."} ${paperAnswerLine(answer)}\n\n${finePrint(LIMITS_PAPER)}`;
 }
+type JobOutlookView = { phase: string; sentence: string | null };
 
-/** The answer is one this email gives: a job of another kind, which no test can run on. */
-export function answerEmailDue(answer: SiteAnswer | null | undefined): answer is SiteAnswer {
-  return answerIsSettled(answer) && answer.state === "cannot_assess";
+/** The answer is one this email gives: an ending with no test result (the paper check), or another kind of job. */
+export function answerEmailDue(answer: SiteAnswer | null | undefined, outlook: JobOutlookView | null | undefined): answer is SiteAnswer {
+  if (!answerIsSettled(answer) || !outlook) return false;
+  return outlook.phase === "cannot_match" ? answer.state === "cannot_assess"
+    : outlook.phase === "no_test" && (answer.state === "cannot_assess" || Boolean(answer.pick));
 }
 
 /**
- * Tell the site, once, that its answer has settled. Called right after the
- * coverage review stores the video's estimates; the outbox key keeps it to one
- * email per job, and dispatch reads the answer again.
+ * Give the site its paper-check answer once an ending is recorded and no test result exists. Called where an ending
+ * is recorded (the coverage review, the preparation status, the job page's own read of its outlook); the outbox key
+ * keeps it to one, and dispatch reads the outlook again.
  */
 export async function notifyIfAnswerSettled(requestId: string): Promise<{ enqueued: boolean }> {
-  const { loadSiteAnswer } = await import("./siteAnswer");
+  const [{ loadSiteAnswer }, { loadJobOutlook }] = await Promise.all([import("./siteAnswer"), import("./jobOutlook")]);
   const answer = await loadSiteAnswer(requestId);
-  if (!answerEmailDue(answer)) return { enqueued: false };
-  return enqueueTaskLifecycleNotification({ requestId, milestone: "answer_ready", siteAnswer: answer });
+  const outlook = await loadJobOutlook(requestId).catch(() => null);
+  if (!answerEmailDue(answer, outlook)) return { enqueued: false };
+  return enqueueTaskLifecycleNotification({ requestId, milestone: "answer_ready", siteAnswer: answer, outlook: outlook! });
 }
 
-/** True while the job's answer is still one this email gives. Read again at dispatch, so an older queued email for a
- * ready answer is cancelled rather than sent. */
+/** True while the outlook still calls for this email. Read again at dispatch. */
 export async function answerReadyShown(requestId: string): Promise<boolean> {
-  const { loadSiteAnswer } = await import("./siteAnswer");
-  return answerEmailDue(await loadSiteAnswer(requestId));
+  const [{ loadSiteAnswer }, { loadJobOutlook }] = await Promise.all([import("./siteAnswer"), import("./jobOutlook")]);
+  return answerEmailDue(await loadSiteAnswer(requestId), await loadJobOutlook(requestId).catch(() => null));
 }
 
 /** How many of each kind of movable furniture a robot access proposal moves. */

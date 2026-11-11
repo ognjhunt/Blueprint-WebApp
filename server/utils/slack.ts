@@ -82,11 +82,12 @@ export async function notifySlackCapturePrivacyEscalation(options: {
 }
 
 /**
- * Tell ops a confirmed site needs a screening call before its scene is built.
+ * Tell ops a confirmed site's screen left questions open.
  *
- * Blueprint funds a scene only for a `qualified` site, so a
- * `needs_conversation` site waits on this call. The request's `ops.next_step`
- * is the record; this is the bell, on the channel ops already reads.
+ * A note for staff, not a gate: since the owner's decision of 2026-11-11 a job
+ * whose video arrives after the change gets its scene whatever the screen says.
+ * The request's `ops.next_step` is the record; this is the bell, on the channel
+ * ops already reads.
  */
 export async function notifySlackScreeningCallNeeded(options: {
   requestId: string;
@@ -103,7 +104,7 @@ export async function notifySlackScreeningCallNeeded(options: {
     ? options.openQuestions.map((question) => `• ${question}`).join("\n")
     : "• Unanswered gates on the brief";
   const text =
-    `:telephone_receiver: *Site needs a screening call before its scene is built* — request \`${options.requestId}\`\n`
+    `:telephone_receiver: *Site screen left questions open (a note; it does not hold the scene)* — request \`${options.requestId}\`\n`
     + `${agenda}\nRecord the outcome: ${adminUrl}`;
   return sendSlackMessage(text, webhookUrl);
 }

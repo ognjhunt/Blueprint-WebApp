@@ -313,6 +313,14 @@ router.post("/:token/introduction-request", csrfProtection, async (req, res) => 
     const request = await readRequestForStatus(verified.requestId, verified.captureId, verified.sceneId);
     if (!db || !request || request.captureRights.consent_revoked)
       return res.status(409).json({ code: "introduction_request_unavailable", error: "This job can no longer be shared from its recording." });
+    // Sharing follows the job's outlook: offered only once the job has an answer (a test result, or the paper check
+    // after an ending). A job already shared keeps its record: pressing again records the current sentence.
+    if (!(typeof request.answerSource?.introduction_request === "object" && request.answerSource.introduction_request)) {
+      const { loadJobOutlook, outlookHasAnswer } = await import("../utils/jobOutlook");
+      const outlook = await loadJobOutlook(verified.requestId);
+      if (!outlookHasAnswer(outlook)) return res.status(409).json({ code: "introduction_waits_for_answer", phase: outlook.phase,
+        error: "You can share this job once it has an answer. We'll email you when it does." });
+    }
     const store = db;
     const ref = store.collection("inboundRequests").doc(verified.requestId);
     const requestedAtIso = await store.runTransaction(async tx => {
@@ -1393,6 +1401,15 @@ router.get("/:token/status", async (req: Request, res: Response) => {
     const ownerAnswer = await siteAnswerForStatus(payload.scope === "owner" && request && !request.captureRights.consent_revoked
       ? { requestId: payload.requestId, request: request.answerSource, brief, videoReceived: hasStoredCapture,
         robotFit: preparationStatus?.robotFit ?? null } : null);
+    const outlook = payload.scope === "owner" && request ? await statusOutlook({ requestId: payload.requestId, captureId: payload.captureId,
+      record: request.answerSource, consentRevoked: request.captureRights.consent_revoked, answer: ownerAnswer,
+      preparation: preparationStatus, scene: sceneProgression }) : null;
+    // An ending with no email of its own (a run that ended with no publication, a simulation built but never tested,
+    // no grant) gives the site its paper-check answer when it is first seen. Idempotent by key; never fails the read.
+    if (outlook && (outlook.phase === "no_test" || outlook.phase === "cannot_match")) {
+      void import("../utils/taskLifecycleNotifications").then(({ notifyIfAnswerSettled }) => notifyIfAnswerSettled(payload.requestId))
+        .catch(() => undefined);
+    }
     return res.status(200).json({
       ok: true,
       scope: payload.scope,
@@ -1429,9 +1446,7 @@ router.get("/:token/status", async (req: Request, res: Response) => {
       // Which robot most likely fits the job, for the owner only: a fit check against published specifications.
       answer: ownerAnswer,
       // The job's outlook (`jobOutlook`): the one decision the page shows its screen from, for the owner only.
-      outlook: payload.scope === "owner" && request ? await statusOutlook({ requestId: payload.requestId, captureId: payload.captureId,
-        record: request.answerSource, consentRevoked: request.captureRights.consent_revoked, answer: ownerAnswer,
-        preparation: preparationStatus, scene: sceneProgression }) : null,
+      outlook,
     });
   } catch (error) {
     logger.error({ error, requestId: payload.requestId }, "Could not load task status");

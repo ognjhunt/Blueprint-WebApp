@@ -24,6 +24,8 @@ const REASONS: Record<string, string> = {
   candidate_infeasible_measured_geometry: MEASURED,
   team_embodiment_station_out_of_reach: MEASURED,
   task_kind_not_supported_by_candidate: "Not built for this kind of task.",
+  // A try the Pipeline did not count because the AI robot's software was not running (`policy_server_unavailable`).
+  policy_server_unavailable: "Not counted: the AI robot's software was not running.",
   task_kind_support_unverified: "Not yet shown to handle this kind of task.",
   candidate_disabled: "Switched off in our simulator for now.",
   commercial_use_not_admitted: "Not yet licensed for this use.",

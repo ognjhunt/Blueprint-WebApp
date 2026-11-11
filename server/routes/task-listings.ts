@@ -46,6 +46,14 @@ router.route("/owner/:token")
     // Drafting and publishing the reviewed card are free and distinct grants.
     if (!db) return res.status(503).json({ error: "Listing unavailable" });
     try {
+      // Publishing follows the job's outlook: a card goes live only once the job has an answer. Hiding never waits,
+      // and a card already live may be edited.
+      if (parsed.data.enabled && (await db.collection("inboundRequests").doc(res.locals.requestId).get()).data()?.public_task_listing?.enabled !== true) {
+        const { loadJobOutlook, outlookHasAnswer } = await import("../utils/jobOutlook");
+        const outlook = await loadJobOutlook(res.locals.requestId);
+        if (!outlookHasAnswer(outlook)) return res.status(409).json({ code: "share_waits_for_answer", phase: outlook.phase,
+          error: "You can share this job once it has an answer. We'll email you when it does." });
+      }
       await applyOwnerTaskListing(res.locals.requestId, parsed.data);
       return res.json({ ok: true });
     } catch (error) {

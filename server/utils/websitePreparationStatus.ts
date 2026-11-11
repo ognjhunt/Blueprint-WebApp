@@ -463,6 +463,11 @@ export async function syncWebsitePreparationStatus(raw: unknown, deps = defaultD
   const selector = websitePreparationSelectorSchema.parse(raw);
   const {latest, authority} = await boundedRead(signal => latestVerified(selector, deps, signal));
   await deps.commit(selector, latest, authority);
+  // A geometry-only job ends at its robot fit check: that ending gives the site its paper-check answer now.
+  if (latest.state === "awaiting_inputs" && "robot_fit" in latest && latest.robot_fit?.route === "geometry_only") {
+    void import("./taskLifecycleNotifications").then(({ notifyIfAnswerSettled }) => notifyIfAnswerSettled(selector.request_id))
+      .catch(() => undefined);
+  }
   return latest;
 }
 async function fresh(captureId: string, requestId: string, deps: WebsitePreparationDeps) {

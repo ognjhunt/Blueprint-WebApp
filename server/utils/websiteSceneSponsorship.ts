@@ -1,4 +1,5 @@
 import { websitePreparationCaptureId, websitePreparationRenewal, websitePreparationRevision } from "./websitePreparationRevision";
+import { sceneScreenGateEnded } from "./sceneScreenGate";
 import { websiteCaptureOwnerUid } from "./websiteCaptureOwner";
 import { MULTI_STEP_TASK_HOLD, multiStepTaskHold } from "./siteTaskScope";
 import { websiteDevelopmentTestEnvironment } from "./websiteDevelopmentTest";
@@ -330,14 +331,15 @@ export function websiteSceneSponsorship(input: {
   }
   // Scene preparation proceeds while site questions remain open. This does not
   // update triage or qualify a robot deployment.
-  // Legacy/native intake retains its existing site screen:
-  // a `not_now` site is blocked by an answer only the site can change, and a
-  // `needs_conversation` site builds after the call records its outcome. The
-  // refusal is typed so the Pipeline holds the capture and retries rather than
-  // failing it. Checked when the grant is first made, never on an existing
-  // grant, so spend already authorized still settles.
+  // The four-conditions screen no longer gates the simulation (owner decision
+  // 2026-11-11): a job whose video arrived after the change gets its grant
+  // whatever the screen's disposition, which stays a note for staff. A job
+  // uploaded before it keeps the old refusal, typed so the Pipeline holds the
+  // capture and retries, until the owner decides about it. Checked when the
+  // grant is first made, never on an existing grant, so spend already
+  // authorized still settles.
   if (input.record.site_task_triage?.disposition !== "qualified"
-    && !developmentSiteTest && !preparationOnly) {
+    && !developmentSiteTest && !preparationOnly && !sceneScreenGateEnded(input.record, input.requestId)) {
     throw new Error("website_scene_site_not_qualified");
   }
   // The brief screen's task-kind reading (`site_task_scope`) is a display and demand hint,

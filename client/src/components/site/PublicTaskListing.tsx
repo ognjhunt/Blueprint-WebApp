@@ -6,10 +6,15 @@ import { TaskFacts } from "./TaskFacts";
 const blank: TaskListingDetails = { title: "", taskFamily: "", siteType: "", region: "", objects: "", cycleTarget: "", pilotTiming: "", pilotBudget: "", pilotPriceStatus: "target_budget", pilotConditions: "", ongoingTarget: "", opportunity: "not_seeking" };
 
 /** Listing authorization is separate from capture rights; reviewed edits retain their own consent. */
-export function PublicTaskListing(props: { token: string; jobRevision?: string; summaryLabel?: string }) {
+/** Said in place of the publish box while the job has no answer yet (building or testing). */
+export const SHARE_AFTER_ANSWER = "You can share this job once it has an answer. We'll email you when it does.";
+
+export function PublicTaskListing(props: { token: string; jobRevision?: string; summaryLabel?: string;
+  /** The job has no answer yet (the outlook is reading, building or testing): publishing waits; hiding never does. */
+  publishWaits?: boolean }) {
   return <PublicTaskListingForToken key={props.token} {...props} />;
 }
-function PublicTaskListingForToken({ token, jobRevision, summaryLabel = "Manage opportunity sharing (optional)" }: { token: string; jobRevision?: string; summaryLabel?: string }) {
+function PublicTaskListingForToken({ token, jobRevision, summaryLabel = "Manage opportunity sharing (optional)", publishWaits = false }: { token: string; jobRevision?: string; summaryLabel?: string; publishWaits?: boolean }) {
   const dirty = useRef(false);
   const [revision, setRevision] = useState<string>();
   const [error, setError] = useState("");
@@ -85,11 +90,13 @@ function PublicTaskListingForToken({ token, jobRevision, summaryLabel = "Manage 
         </select></label>
         <TaskThumbnailEditor existing={existingThumbnail} onChange={png => { dirty.current = true; setThumbnailPng(png); setConsent(false); setState("idle"); }} />
         <div className="ms-task-preview" aria-label="Public card preview"><p className="ms-field-hint">Public preview · {opportunityLabels[details.opportunity]}</p><div className="ms-task-heading"><h3>{details.title || "Your job"}</h3><TaskThumbnail src={previewThumbnail ? `data:image/png;base64,${previewThumbnail}` : null} title={details.title || "Your job"} taskFamily={details.taskFamily} /></div><p>{details.taskFamily}</p><TaskFacts details={details} /></div>
+        {publishWaits && !published ? <p className="ms-field-hint">{SHARE_AFTER_ANSWER}</p> : <>
         <label className="ms-check-row"><input type="checkbox" checked={enabled} onChange={e => { dirty.current = true; setEnabled(e.target.checked); setConsent(false); }} />Show this card in the job library</label>
         {enabled && details.opportunity === "open" && <p className="ms-field-hint">Opening the job to a pilot is free. Any later work needs separately agreed scope and cost. <a href="/beta#scope" target="_blank" rel="noreferrer">Beta program scope</a></p>}
         <label className="ms-check-row"><input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} required={enabled} />I reviewed the text and thumbnail for identifying details and am authorized to make them public. I can remove this card here at any time.</label>
         <button className="ms-button" disabled={state === "saving"}>{state === "saving" ? "Saving…" : enabled ? "Publish reviewed card" : "Save private draft"}</button>
         {state === "saved" && <p role="status">{enabled ? "Public card saved. Listing pauses and rights restrictions still apply." : "Your card is hidden."}</p>}
+        </>}
         {state === "error" && <p role="alert">{error}</p>}
       </form>}
   </details>;

@@ -18,26 +18,48 @@ const CAPTURE_DEPENDENT_NOTICES=new Set<OutboxKind>([
 const TEAM_RUN_EVALUATION_NOTICES=new Set<OutboxKind>([
  'results_ready','run_no_result','awaiting_evaluations','no_team_passed','no_qualified_evaluation',
 ]);
-/** The emails that give a job its answer: a test result or the paper check (evaluation outcome, the answer email
- * for a job of another kind, a stopped preparation, and every ending of the simulation except the site's own
- * withdrawal, which gives none). */
-const ANSWER_EMAIL_KINDS=new Set<OutboxKind>(['evaluation_outcome','answer_ready','preparation_ended','scene_outcome']);
-export function isAnswerEmail(kind:OutboxKind,idempotencyKey:string|undefined):boolean{
- if(!ANSWER_EMAIL_KINDS.has(kind))return false;
- return !(kind==='scene_outcome'&&/:withdrawn-/.test(idempotencyKey??''));
+/**
+ * The answer emails, by slot (review, 2026-11-11): per job at most one paper-check answer and at most one test
+ * result. A paper-check answer is never sent after a test result; a test result may follow a paper-check answer (the
+ * answer changed, and the site must hear it). Only rows that were actually sent count: a claimed row later cancelled
+ * or failed never blocks the answer. The site's own withdrawal gives no answer.
+ */
+export type AnswerSlot = "paper" | "result";
+export function answerSlotOf(kind: OutboxKind, idempotencyKey: string | undefined): AnswerSlot | null {
+ const key=idempotencyKey??'';
+ if(kind==='evaluation_outcome')return /:estimate-/.test(key)?'result':'paper';
+ if(kind==='answer_ready'||kind==='preparation_ended')return 'paper';
+ if(kind==='scene_outcome')return /:withdrawn-/.test(key)?null:'paper';
+ // The "we can't simulate this kind of job yet" email and the other-kind answer share the paper slot.
+ if(kind==='screening_not_now'&&key.endsWith(':brief-screening:task-not-yet-supported'))return 'paper';
+ return null;
 }
-/** Statuses of an outbox row that went out, or may have. */
-const SENT_OR_MAYBE=new Set(['sent','dispatching','unknown','claimed']);
-/** Pure: whether another answer email for the job, among its outbox rows, went out or may have. */
-export function answerEmailAlreadyOut(rows:Array<{kind:OutboxKind;idempotencyKey:string;status:string}>,idempotencyKey:string|undefined):boolean{
- return rows.some(row=>row.idempotencyKey!==idempotencyKey&&SENT_OR_MAYBE.has(row.status)&&isAnswerEmail(row.kind,row.idempotencyKey));
+/** Pure: whether a row already sent fills this email's slot (or, for the paper slot, a test result was sent). */
+export function answerSlotTaken(rows: Array<{kind: OutboxKind; idempotencyKey: string; status: string}>, kind: OutboxKind,
+ idempotencyKey: string | undefined): boolean {
+ const slot=answerSlotOf(kind,idempotencyKey);
+ if(!slot)return false;
+ return rows.some(row=>{
+  if(row.idempotencyKey===idempotencyKey||row.status!=='sent')return false;
+  const taken=answerSlotOf(row.kind,row.idempotencyKey);
+  return taken===slot||(slot==='paper'&&taken==='result');
+ });
 }
-async function anotherAnswerEmailSent(requestId:string,idempotencyKey:string|undefined,transaction?:FirebaseFirestore.Transaction):Promise<boolean>{
+async function answerSlotFilled(requestId:string,kind:OutboxKind,idempotencyKey:string|undefined,transaction?:FirebaseFirestore.Transaction):Promise<boolean>{
  if(!db)throw new Error('capture_notification_authority_unavailable');
  const query=db.collection('captureOutbox').where('requestId','==',requestId);
  const rows=transaction?await transaction.get(query):await query.get();
- return answerEmailAlreadyOut(rows.docs.map(row=>{const value=row.data()??{};
-  return {kind:value.kind,idempotencyKey:typeof value.idempotencyKey==='string'?value.idempotencyKey:row.id,status:String(value.status)};}),idempotencyKey);
+ return answerSlotTaken(rows.docs.map(row=>{const value=row.data()??{};
+  return {kind:value.kind,idempotencyKey:typeof value.idempotencyKey==='string'?value.idempotencyKey:row.id,status:String(value.status)};}),kind,idempotencyKey);
+}
+/** The site closed its own run: no answer email. */
+async function closedByOwner(requestId:string,transaction?:FirebaseFirestore.Transaction):Promise<boolean>{
+ if(!db)throw new Error('capture_notification_authority_unavailable');
+ const ref=db.collection('inboundRequests').doc(requestId);
+ const record=(transaction?await transaction.get(ref):await ref.get()).data();
+ if(!record)return false;
+ const [{websiteRunClosure},{siteWalkthroughIdentity}]=await Promise.all([import('./websiteRunClosure'),import('./siteWalkthrough')]);
+ try{return Boolean(websiteRunClosure(record,requestId,siteWalkthroughIdentity(requestId,record).captureId));}catch{return false;}
 }
 /** Call inside the dispatch transaction before recording an external side effect.
  * Intake receipts, fresh-link renewal and separate business notices keep their
@@ -58,9 +80,10 @@ export async function taskLifecycleNotificationIsCurrent(
  if(entry.kind==='pilot_request'||entry.kind==='brief_confirmed'||entry.kind==='input_needed')return false;
  if(entry.kind==='screening_not_now'
   &&entry.idempotencyKey!==`${entry.requestId}:brief-screening:task-not-yet-supported`)return false;
- // One answer email per job (owner, 2026-11-11): a test result, or the paper check when no test can run, said by
- // whichever ending comes first. Once one has gone out (or may have), every other answer email is cancelled.
- if(isAnswerEmail(entry.kind,entry.idempotencyKey)&&await anotherAnswerEmailSent(entry.requestId,entry.idempotencyKey,transaction))return false;
+ // The answer slots: at most one paper-check answer and one test result per job, never a paper check after a result,
+ // and none once the site closed its own run.
+ if(answerSlotOf(entry.kind,entry.idempotencyKey)&&(await answerSlotFilled(entry.requestId,entry.kind,entry.idempotencyKey,transaction)
+  ||await closedByOwner(entry.requestId,transaction)))return false;
  // The dispatch transaction is the send: a team-run evaluation notice stops there.
  if(transaction&&TEAM_RUN_EVALUATION_NOTICES.has(entry.kind))return false;
  // Older queued ownership notices asked for an account that cannot repair

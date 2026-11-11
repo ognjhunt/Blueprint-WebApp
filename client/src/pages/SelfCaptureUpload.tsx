@@ -13,6 +13,7 @@ import { RobotAccess, isRobotAccess, type RobotAccessView } from "@/components/s
 import { NextTaskUpdate } from "@/components/site/NextTaskUpdate";
 import { SiteAnswer, SiteAnswerDetail, SiteAnswerDetails, EDIT_JOB_LABEL, NEW_VIDEO_LABEL, type CardState, type DetailScreen } from "@/components/site/SiteAnswer";
 import { isJobCardAnswerStatementVersion, jobCardStatementSharesTestResults } from "@/lib/jobCardAnswerConsent";
+import { outlookHasAnswer, type JobOutlook } from "@/lib/jobOutlook";
 import { BareBack, BareLinks, BareMenu, BareNotice, BareScreen } from "@/components/bare/Bare";
 import { REASON_UNSIZED, isSiteAnswer, type SiteAnswer as SiteAnswerView } from "@/lib/siteAnswer";
 import { projectSimulationProof } from "@/lib/simulationProof";
@@ -49,8 +50,8 @@ import { receivedVideoResult, retrySelfCaptureProcessing, uploadSelfCaptureVideo
 /** Mirrors the server's `projectTaskStatus`; the shared truth about where a task stands. */
 type TaskStatus = {
   siteAdvisory?: SiteAdvisory | null;
-  /** The simulation of the site is being built (the Pipeline's preparation status, read by the server). */
-  simulationBuilding?: boolean;
+  /** The job's outlook, decided once on the server: the answer screen and sharing follow its phase. */
+  outlook?: JobOutlook | null;
   decision: string;
   headline: string;
   operatorAction: string | null;
@@ -529,7 +530,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
           setStatus({
             ...data.status,
             siteAdvisory: data.siteAdvisory ?? null,
-            simulationBuilding: data.simulationBuilding === true,
+            outlook: data.outlook ?? null,
             claimUrl: data.claimUrl ?? null,
             sceneViewUrl: data.sceneViewUrl ?? null,
             captureReceived: data.captureReceived === true,
@@ -755,7 +756,8 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
   // button; the upload of a file already made is then the quiet alternative. A link opened for an existing video leads with it.
   const cameraLeads = !existingVideoOnly && !saved;
   const sharing = link.status === "valid" && scope === "owner" && !withdrawn ? <PublicTaskListing token={token} jobRevision={JSON.stringify(brief)}
-    summaryLabel={answer || !saved ? "Share settings" : undefined} /> : null;
+    summaryLabel={answer || !saved ? "Share settings" : undefined}
+    publishWaits={status?.outlook ? !outlookHasAnswer(status.outlook) : false} /> : null;
   const taskStatementForm = scope === "owner" && brief && taskStatementNeeded && !withdrawn ? (
                 <form aria-label="Name the job" style={{ margin: "16px 0" }} onSubmit={(event) => {
                   event.preventDefault();
@@ -856,7 +858,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
         onEditJob={brief && scope === "owner" && !withdrawn ? openBriefEditor : undefined}
         onUpdateVideo={scope === "owner" && link.status === "valid" && !withdrawn ? () => void updateVideo() : undefined}
         quietAction={!quietCard} onShowDetails={() => openView("details")} onShowSettings={settingsOpen ? () => openView("settings") : undefined} card={card}
-        gettingReady={status?.simulationBuilding === true} />}
+        outlook={status?.outlook ?? null} />}
       {answer && videoUpdateError && <BareNotice role="alert">{videoUpdateError}</BareNotice>}
       {!answer && (saved || link.status !== "valid") && statusCard}
       {!answer && workspace}

@@ -10,6 +10,7 @@ import type { ProbedVideoMetadata } from "./selfCaptureMediaMetadata";
 import type { WrittenManifest, WrittenObject } from "./websiteCaptureDelivery";
 import type { CapturePrivacyProducerSource } from "./capturePrivacyRecord";
 import { websitePreparationUploadWatchFields } from "./websitePreparationWatch";
+import { SCENE_SCREEN_GATE_ENDED_FIELD, sceneScreenGateEndedMarker } from "./sceneScreenGate";
 
 export interface BrowserPending {
   schema_version: "website_browser_pending.v1";
@@ -374,7 +375,12 @@ export async function publishBrowserPending(selected: BrowserPending): Promise<v
         if (request?.active_capture_id && ![link.supplement.parent_capture_id, value.capture_id].includes(request.active_capture_id))
           throw new Error("capture_update_superseded");
       }
-      transaction.set(requestRef, { active_capture_id: value.capture_id }, { merge: true });
+      // A job's original video arriving now is past the screen's gate (owner
+      // decision 2026-11-11). Stamped once, in this commit; a job published
+      // before the change never gets it and stays held for the owner.
+      const screenGateEnded = value.capture_id === `walkthrough-${value.request_id}` && !request?.[SCENE_SCREEN_GATE_ENDED_FIELD]
+        ? { [SCENE_SCREEN_GATE_ENDED_FIELD]: sceneScreenGateEndedMarker(value.request_id, new Date().toISOString()) } : {};
+      transaction.set(requestRef, { active_capture_id: value.capture_id, ...screenGateEnded }, { merge: true });
       // The preparation watch starts with the upload (beta L3/L6), so an upload
       // the Pipeline never reports on still reaches an operator.
       transaction.set(ref, { browser_pending_delivery: { ...value, state: "published" },

@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { withCsrfHeader } from "@/lib/csrf";
 import { JOB_CARD_ANSWER_STATEMENT, JOB_CARD_ANSWER_STATEMENT_VERSION } from "@/lib/jobCardAnswerConsent";
+import type { JobOutlook, JobPhase } from "@/lib/jobOutlook";
 import { GAP_COULD_BE_CHANCE, GAP_UNLIKELY_CHANCE, optionParts, testSubLine, type SimulationOption, type SimulationProof as SimulationProofView } from "@/lib/simulationProof";
 import { PLAIN_SETUP_CAVEAT, SimulationTestRows, TrustRows, setupCaveatShown, testNotRunLine, testResultOf, type TestResult } from "./SimulationProof";
 import {
@@ -178,7 +179,8 @@ export interface SiteAnswerProps {
   /** Where the job card stands, from the owner's listing; null until read. */
   card?: CardState;
   /** The simulation of the site is being built (the page's preparation status): "Getting ready". */
-  gettingReady?: boolean;
+  /** The job's outlook, decided once on the server (`server/utils/jobOutlook.ts`): the screen follows its phase. */
+  outlook?: JobOutlook | null;
 }
 
 const SURE_STEPS = SURENESS_STEPS;
@@ -242,13 +244,20 @@ function TestHead({ result }: { result: Exclude<TestResult, null> }) {
  * keep one button with its line, two quiet links and the limits line.
  */
 export function SiteAnswer({ token, answer, proof, onIntroductionRequested, onEditJob, onUpdateVideo, quietAction = false,
-  onShowDetails, onShowSettings, card = null, gettingReady = false }: SiteAnswerProps) {
+  onShowDetails, onShowSettings, card = null, outlook = null }: SiteAnswerProps) {
   const pick = answer.state === "ready" ? answer.pick : null;
+  // The phase is the server's (one decision for the page, sharing and emails). Without one (an older server) the page
+  // reads what it has: the answer's state and the simulation proof.
+  const test = testResultOf(proof);
+  const phase: JobPhase = outlook?.phase ?? (answer.state === "reading" ? "reading" : answer.state === "cannot_assess" ? "cannot_match"
+    : test?.kind === "testing" ? "testing" : test ? "result"
+    : proof?.state !== "could_not_run" && !testNotRunLine(proof) && (proof?.state === "preparing" || proof?.state === "running") ? "building"
+    : "no_test");
   const links = [onShowDetails && answer.state !== "reading" ? { key: "details", label: "See details", onClick: onShowDetails } : null,
     onShowSettings ? { key: "settings", label: "Job settings", onClick: onShowSettings } : null].filter(Boolean) as Array<{ key: string; label: string; onClick: () => void }>;
   const notices = scopeLines(answer);
 
-  if (answer.state === "reading") return <section className="site-answer-bare" aria-label="Your answer">
+  if (answer.state === "reading" || phase === "reading") return <section className="site-answer-bare" aria-label="Your answer">
     <BareGroup>
       <h2 className="bare-label" id="site-answer-title">Your answer</h2>
       <div className="bare-spinner" aria-hidden="true" />
@@ -258,7 +267,7 @@ export function SiteAnswer({ token, answer, proof, onIntroductionRequested, onEd
     <BareLinks links={links} />
   </section>;
 
-  if (answer.state === "cannot_assess") {
+  if (answer.state === "cannot_assess" && phase !== "building" && phase !== "testing" && phase !== "result") {
     const fix = answer.reason === REASON_UNSIZED ? onUpdateVideo && { label: NEW_VIDEO_LABEL, run: onUpdateVideo } : onEditJob && { label: EDIT_JOB_LABEL, run: onEditJob };
     const reason = cannotLine(answer.reason);
     return <section className="site-answer-bare" aria-label="Your answer">
@@ -276,36 +285,46 @@ export function SiteAnswer({ token, answer, proof, onIntroductionRequested, onEd
   // The verdict and the scene's contrary finding are the server's, decided once (`server/utils/siteAnswer.ts`), so
   // the page, the job card and the emails say the same. The page never overrides them.
   const fits = Boolean(pick) && (pick!.verdict === "fits" || pick!.verdict === "fits_on_paper");
-  const test = testResultOf(proof);
+  // Sharing follows the outlook: offered only once there is an answer (a result, or the paper check after an ending).
   const action = answer.nextStep.kind === "introduction"
-    ? <Introduction token={token} answer={answer} onRequested={onIntroductionRequested} quiet={quietAction} card={card} testResult={Boolean(test)} /> : null;
+    ? <Introduction token={token} answer={answer} onRequested={onIntroductionRequested} quiet={quietAction} card={card} testResult={phase === "result"} /> : null;
+  // A job already shared stays shared, and says so, in every phase.
+  const shared = answer.introductionRequestedAtIso && (card === "with_answer" || card === "with_paper_answer" || (card === null && answer.jobCardListed))
+    ? <BareGroup><BareDone>{SHARED_LISTED}</BareDone></BareGroup> : null;
   const sceneNotice = answer.sceneNote && pick ? <BareNotice>{answer.sceneNote}</BareNotice> : null;
 
-  // The simulation of the site is being built (the page's preparation status, or a run not yet testing anything):
-  // the test result will be the answer, so nothing is offered or shared yet.
-  const building = !test && proof?.state !== "could_not_run" && !testNotRunLine(proof)
-    && (gettingReady || proof?.state === "preparing" || proof?.state === "running");
-  if (building) return <section className="site-answer-bare" aria-label="Your answer">
+  // The simulation of the site is being built: the test result will be the answer, so nothing new is offered.
+  if (phase === "building") return <section className="site-answer-bare" aria-label="Your answer">
     <BareGroup>
       <h2 className="bare-label" id="site-answer-title">Getting ready</h2>
-      <BareBig sub={GETTING_READY_LINE}>Building your simulation</BareBig>
+      <BareBig sub={outlook?.reason === "step_failed" && outlook.sentence ? outlook.sentence : GETTING_READY_LINE}>Building your simulation</BareBig>
     </BareGroup>
     {notices.length > 0 && <BareGroup label="Before you rely on this">{notices.map(line => <BareNotice key={line}>{line}</BareNotice>)}</BareGroup>}
+    {shared}
     <BareLinks links={links} />
     <BareFine>{LIMITS_GETTING_READY}</BareFine>
   </section>;
 
-  // A test result is the answer; the paper check lives under Details. While testing there is no answer yet, so
-  // nothing is offered or shared.
-  if (test) return <section className="site-answer-bare" aria-label="Your answer">
-    <TestHead result={test} />
+  // While testing there is no answer yet, so nothing new is offered.
+  if (phase === "testing") return <section className="site-answer-bare" aria-label="Your answer">
+    <TestHead result={test?.kind === "testing" ? test : { kind: "testing", entered: proof?.options.entered ?? 0 }} />
     {notices.length > 0 && <BareGroup label="Before you rely on this">{notices.map(line => <BareNotice key={line}>{line}</BareNotice>)}</BareGroup>}
-    {test.kind !== "testing" && action}
+    {shared}
     <BareLinks links={links} />
-    <BareFine>{test.kind === "testing" ? LIMITS_TESTING : LIMITS_TESTED}</BareFine>
+    <BareFine>{LIMITS_TESTING}</BareFine>
   </section>;
 
-  const notRun = testNotRunLine(proof);
+  // A test result is the answer; the paper check lives under Details.
+  if (phase === "result" && test && test.kind !== "testing") return <section className="site-answer-bare" aria-label="Your answer">
+    <TestHead result={test} />
+    {notices.length > 0 && <BareGroup label="Before you rely on this">{notices.map(line => <BareNotice key={line}>{line}</BareNotice>)}</BareGroup>}
+    {action}
+    <BareLinks links={links} />
+    <BareFine>{LIMITS_TESTED}</BareFine>
+  </section>;
+
+  // The paper check leads: the server's reason sentence for the ending, else the proof's own line.
+  const notRun = (phase === "no_test" ? outlook?.sentence : null) ?? testNotRunLine(proof);
   if (!pick) return <section className="site-answer-bare" aria-label="Your answer">
     <BareGroup>
       <h2 className="bare-label" id="site-answer-title">On paper</h2>

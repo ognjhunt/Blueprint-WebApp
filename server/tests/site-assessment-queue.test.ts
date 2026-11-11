@@ -331,3 +331,20 @@ it.each(["withdrawn", "source_changed", "privacy_blocked", "disabled", "not_regi
     expect(seams.run).not.toHaveBeenCalled();
   },
 );
+
+// Owner decision 2026-11-11: the screen stops gating the simulation for jobs
+// whose video arrives after the change; publication is that marker.
+it("stamps the screen-gate cutover marker once, on the original video's first publication only", async () => {
+  await publishBrowserPending(pending);
+  const marker = state.docs.get(`inboundRequests/${pending.request_id}`)?.scene_screen_gate_ended;
+  expect(marker).toMatchObject({ schema_version: "scene_screen_gate_ended.v1", decision: "owner_2026_11_11", capture_id: pending.capture_id });
+  expect(Number.isFinite(Date.parse(marker.published_at_iso))).toBe(true);
+  await publishBrowserPending(pending);
+  expect(state.docs.get(`inboundRequests/${pending.request_id}`)?.scene_screen_gate_ended).toEqual(marker);
+});
+
+it("does not stamp a job whose video was already published before the change", async () => {
+  state.docs.set(`captureUploadSessions/${pending.capture_id}`, { browser_pending_delivery: { ...pending, state: "published" } });
+  await publishBrowserPending(pending);
+  expect(state.docs.get(`inboundRequests/${pending.request_id}`)).not.toHaveProperty("scene_screen_gate_ended");
+});
