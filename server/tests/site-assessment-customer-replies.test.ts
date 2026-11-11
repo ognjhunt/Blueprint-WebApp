@@ -69,84 +69,22 @@ describe("verified customer reply continuation — OFFLINE / NO MODEL-QUALITY EV
     await expect(loadAssessmentCustomerStatements(f.db, f.requestId, raw, kind === "wrong-recipient" ? "other@example.com" : "site@example.com"))
       .rejects.toThrow("site_assessment_customer_statement_binding_invalid");
   });
-  it("creates one new source/context job while preserving the completed result and unknown charge", async () => {
-    const f = fixture(), preserved = JSON.stringify([f.db.records.get(`siteAssessmentJobs/${f.jobId}`), f.db.records.get("agentRuns/previous-run"),
-      f.db.records.get("captureCoverageReviews/historical/calls/unknown")]);
-    const result = await f.db.runTransaction(async (tx: FirebaseFirestore.Transaction) => {
-      const next = await prepareCustomerReplySiteAssessment(f.db, tx, f.requestId, f.record, [f.ref]); next.commit(); return next.state;
-    });
-    expect(result).toBe("queued");
-    const current = f.db.records.get(`inboundRequests/${f.requestId}`), next = f.db.records.get(`siteAssessmentJobs/${current.site_advisory.job_id}`);
-    expect(current.site_advisory.job_id).not.toBe(f.jobId);
-    expect(next).toMatchObject({ state: "queued", source_key: f.job.source_key, context_digest: advisoryContextDigest(current, null) });
-    expect(JSON.stringify([f.db.records.get(`siteAssessmentJobs/${f.jobId}`), f.db.records.get("agentRuns/previous-run"),
-      f.db.records.get("captureCoverageReviews/historical/calls/unknown")])).toBe(preserved);
-    const repeated = await f.db.runTransaction(async (tx: FirebaseFirestore.Transaction) => {
-      const next = await prepareCustomerReplySiteAssessment(f.db, tx, f.requestId, current, [f.ref]); next.commit(); return next.state;
-    });
-    expect(repeated).toBe("already_current");
-    expect([...f.db.records.keys()].filter(path => path.startsWith("siteAssessmentJobs/"))).toHaveLength(2);
-  });
-  it.each(["running", "failed-run", "withdrawn", "replaced-source"])("leaves %s work untouched rather than overriding source/claim controls", async kind => {
+  // The per-job site assessment ended (owner decision 2026-11-11).
+  it.each(["completed", "running", "failed-run", "withdrawn"])("a verified reply queues no assessment and writes nothing (%s)", async kind => {
     const f = fixture();
     if (kind === "running") f.db.records.get(`siteAssessmentJobs/${f.jobId}`).state = "running";
     if (kind === "failed-run") f.db.records.get("agentRuns/previous-run").status = "failed";
     if (kind === "withdrawn") f.record.consent_revoked = true;
-    if (kind === "replaced-source") f.db.records.get(`captureUploadSessions/${f.captureId}`).browser_pending_delivery.video.generation = "33";
+    const before = JSON.stringify([...f.db.records]);
     await f.db.runTransaction(async (tx: FirebaseFirestore.Transaction) => {
-      const next = await prepareCustomerReplySiteAssessment(f.db, tx, f.requestId, f.record, [f.ref]); expect(next.state).not.toBe("queued"); next.commit();
+      const next = await prepareCustomerReplySiteAssessment(f.db, tx, f.requestId, f.record, [f.ref]); expect(next.state).toBe("disabled"); next.commit();
     });
-    expect(f.db.records.get(`inboundRequests/${f.requestId}`).site_advisory.job_id).toBe(f.jobId);
+    expect(JSON.stringify([...f.db.records])).toBe(before);
     expect(f.record).not.toHaveProperty("site_assessment_customer_statements");
-    expect(f.db.records.get(`inboundRequests/${f.requestId}/customerStatements/${f.ref.statement_id}`)).not.toHaveProperty("assessmentAdmission");
-    expect([...f.db.records.keys()].filter(path => path.startsWith("siteAssessmentJobs/"))).toHaveLength(1);
   });
   it("rejects duplicate refs and malformed binding identities", () => {
     const f = fixture();
     expect(() => assessmentCustomerStatementRefs({ site_assessment_customer_statements: [f.ref, f.ref] })).toThrow();
     expect(() => assessmentCustomerStatementRefs({ site_assessment_customer_statements: [{ ...f.ref, statement_id: "../other" }] })).toThrow();
-  });
-  it("preserves legacy current refs on a repeat and stamps their prior job when genuinely new evidence arrives", async () => {
-    const f = fixture(), path = `inboundRequests/${f.requestId}/customerStatements/${f.ref.statement_id}`;
-    await f.db.runTransaction(async (tx: FirebaseFirestore.Transaction) => {
-      const result = await prepareCustomerReplySiteAssessment(f.db, tx, f.requestId, f.record, [f.ref]); result.commit();
-    });
-    const current = f.db.records.get(`inboundRequests/${f.requestId}`), previousId = current.site_advisory.job_id;
-    delete f.db.records.get(path).assessmentAdmission;
-    const previous = f.db.records.get(`siteAssessmentJobs/${previousId}`);
-    previous.state = "completed"; current.site_advisory.state = "completed";
-    f.db.records.set(`agentRuns/${previous.run_id}`, { status: "completed", task_kind: "site_assessment" });
-    const before = JSON.stringify([...f.db.records]);
-    await f.db.runTransaction(async (tx: FirebaseFirestore.Transaction) => {
-      const result = await prepareCustomerReplySiteAssessment(f.db, tx, f.requestId, current, [f.ref]);
-      expect(result.state).toBe("already_current"); result.commit();
-    });
-    expect(JSON.stringify([...f.db.records])).toBe(before);
-    const nextStatement = { ...f.statement, messageId: "reply-2", source: "gmail:thread-1:reply-2" };
-    const nextRef = { statement_id: communicationsDigest({ messageId: "reply-2" }), digest: siteCustomerStatementDigest(nextStatement) };
-    const nextPath = `inboundRequests/${f.requestId}/customerStatements/${nextRef.statement_id}`;
-    f.db.records.set(nextPath, nextStatement);
-    await f.db.runTransaction(async (tx: FirebaseFirestore.Transaction) => {
-      const result = await prepareCustomerReplySiteAssessment(f.db, tx, f.requestId, current, [f.ref, nextRef]);
-      expect(result.state).toBe("queued"); result.commit();
-    });
-    const latest = f.db.records.get(`inboundRequests/${f.requestId}`);
-    expect(f.db.records.get(path).assessmentAdmission.job_id).toBe(previousId);
-    expect(f.db.records.get(nextPath).assessmentAdmission.job_id).toBe(latest.site_advisory.job_id);
-    expect(siteCustomerStatementDigest(f.db.records.get(path))).toBe(f.ref.digest);
-    expect(siteCustomerStatementDigest(f.db.records.get(nextPath))).toBe(nextRef.digest);
-  });
-  it.each(["changed-digest", "invalid-job", "extra-authority"])("rejects %s durable reply admission without writing a job or resetting unknown spend", async kind => {
-    const f = fixture(), row = f.db.records.get(`inboundRequests/${f.requestId}/customerStatements/${f.ref.statement_id}`);
-    row.assessmentAdmission = { schema_version: "site_customer_statement_admission.v1", statement_digest: f.ref.digest,
-      job_id: f.jobId, source_key: f.job.source_key };
-    if (kind === "changed-digest") row.assessmentAdmission.statement_digest = "d".repeat(64);
-    if (kind === "invalid-job") row.assessmentAdmission.job_id = "../another-job";
-    if (kind === "extra-authority") row.assessmentAdmission.executionAuthorized = true;
-    const before = JSON.stringify([...f.db.records]);
-    await expect(f.db.runTransaction(async (tx: FirebaseFirestore.Transaction) => {
-      const result = await prepareCustomerReplySiteAssessment(f.db, tx, f.requestId, f.record, [f.ref]); result.commit();
-    })).rejects.toThrow("site_assessment_customer_statement_binding_invalid");
-    expect(JSON.stringify([...f.db.records])).toBe(before);
   });
 });

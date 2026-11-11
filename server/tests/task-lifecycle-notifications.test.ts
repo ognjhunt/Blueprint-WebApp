@@ -57,7 +57,8 @@ describe("task lifecycle notifications", () => {
     expect(row.kind).toBe("video_received");
     // Bare bones (2026-11-11): one idea, one button, no sign-off.
     expect(row.subject).toBe("We have your video");
-    expect(row.body).toBe(`Your video arrived safely.\n\nNext, we watch it and email you.\n\nOpen your job:\n${row.body.split("Open your job:\n")[1]}`);
+    // The receipt says what happens next, true whichever way the job goes, and gives no answer.
+    expect(row.body).toBe(`Your video arrived safely. Next, we build a simulation of your site and test AI robots on your job in it. We'll email you the result, or, if a test can't run, why not and what we found on paper.\n\nOpen your job:\n${row.body.split("Open your job:\n")[1]}`);
     expect(`${row.subject} ${row.body}`).not.toMatch(/confirm|create an account|save this site to your account|proposal/i);
     expect(row.body).toMatch(/\/capture-upload\//);
     expect([...sharedFakeFirestoreState.docs.keys()].filter(key => key.startsWith("captureOutbox/"))).toHaveLength(1);
@@ -630,50 +631,26 @@ describe("the site's answer is emailed once, when it first settles", () => {
     captureUrl: "https://tryblueprint.io/capture-upload/owner-token" });
   beforeEach(() => { composedAnswer.current = null; });
 
-  // Rewritten in round 4: the email no longer leads with the paper pick as the answer. It says the first check is on
-  // paper, how sure, and what happens next with the simulation test, true for each case, then one button and the
-  // paper limits line as fine print.
-  it("says the first check is on paper, how sure, and what happens next, with one button and the paper limits", async () => {
-    const notice = await build(answer());
-    expect(notice.idempotencyKey).toBe("req-1:answer_ready");
-    expect(notice.subject).toBe("Your job's paper check is ready");
-    expect(notice.body).toBe([
-      "We've checked your job on paper. Most likely to fit: Universal Robots UR10e.",
-      "How sure we are, on paper: Fairly sure. The weight and distances are estimated from your video.",
-      // Nothing is known about a test yet: what we do if one runs, never a promise that it will.
-      "If we test AI robots on your job in a simulation of your site, we'll email you the result.",
-      "Open your job:\nhttps://tryblueprint.io/capture-upload/owner-token",
-      "[fine] A paper check, not a test at your site. Pick-up-and-put-down jobs only. It does not certify performance or safety.",
-    ].join("\n\n"));
-    expect(notice.body).not.toMatch(/episode|candidate|screening|checkpoint|embodiment/i);
-    expect(notice.body.match(/:\nhttps?:\/\//g)).toHaveLength(1);
-    expect((await build(answer({ runnerUp: null }))).body).not.toMatch(/Runner-up/);
+  // Rewritten in round 7 (owner, 2026-11-11): the first message is the upload receipt; a ready paper check is never
+  // emailed on its own. The one answer email is the test result, or the paper check when no test can run.
+  it("never builds an answer email for a ready paper check", async () => {
+    await expect(build(answer())).rejects.toThrow("answer_ready_notice_invalid");
   });
 
-  it("says AI robots are being tested and we'll email the result, or why no test runs, from the job page's own lines", async () => {
+  it("gives the paper check as the one answer when the test cannot run, with the page's reason and the scene note", async () => {
+    const { buildTaskLifecycleNotification } = await import("../utils/taskLifecycleNotifications");
     const { projectSimulationProof } = await import("../../client/src/lib/simulationProof");
-    const { preparingEvaluation, winnerEvaluation } = await import("../../client/tests/fixtures/siteAnswer");
-    const withProof = async (evaluation: unknown) => (await import("../utils/taskLifecycleNotifications")).buildTaskLifecycleNotification({
-      requestId: "req-1", milestone: "answer_ready", to: "owner@example.com", siteAnswer: answer() as never,
-      simulationProof: projectSimulationProof({ evaluation: [evaluation] as never, pick: null }),
-      captureUrl: "https://tryblueprint.io/capture-upload/owner-token" });
-    const running = await withProof({ ...preparingEvaluation, state: "running",
-      screening: { candidates: preparingEvaluation.screening!.candidates.map(row => ({ ...row, state: "running" })) } });
-    expect(running.body).toContain("\n\nNext, we're testing 2 AI robots on your job, in a simulation of your site. We'll email you the result.\n\n");
-    const held = await withProof({ ...winnerEvaluation, outcome: "held_capability" });
-    expect(held.body).toContain("\n\nThe simulation test did not run. Our simulation test can't do this kind of job yet. So this paper check is your answer for now.\n\n");
-    for (const notice of [running, held]) {
-      expect(notice.subject).toBe("Your job's paper check is ready");
-      expect(notice.body.startsWith("We've checked your job on paper. ")).toBe(true);
-      expect(notice.body).not.toMatch(/If we test/);
-    }
-  });
-
-  it("says the scene's contrary finding beside a verdict resting on the site's own measurement, as the page and the card do", async () => {
+    const { winnerEvaluation } = await import("../../client/tests/fixtures/siteAnswer");
     const note = "The simulation of your site found that the UR10e does not fit. This check uses your own measurement instead, which we trust more.";
-    const notice = await build(answer({ sceneNote: note }));
-    expect(notice.body.startsWith(`We've checked your job on paper. Most likely to fit: Universal Robots UR10e.\n\n${note}\n\n`)).toBe(true);
-    expect((await build(answer())).body).not.toContain("does not fit");
+    const notice = buildTaskLifecycleNotification({ requestId: "req-1", to: "owner@example.com", milestone: "evaluation_outcome",
+      eventId: `held_capability-${"a".repeat(24)}`, screeningOutcome: "held_capability", siteAnswer: answer({ sceneNote: note }) as never,
+      simulationProof: projectSimulationProof({ evaluation: [{ ...winnerEvaluation, outcome: "held_capability" }] as never, pick: null }),
+      captureUrl: "https://tryblueprint.io/capture-upload/owner-token" });
+    expect(notice.subject).toBe("Your job's paper check is ready");
+    expect(notice.body.startsWith("The simulation test did not run. Our simulation test can't do this kind of job yet. "
+      + `So the paper check is your answer. Most likely to fit: Universal Robots UR10e. ${note}\n\n`)).toBe(true);
+    expect(notice.body.endsWith("[fine] A paper check, not a test at your site. Pick-up-and-put-down jobs only. It does not certify performance or safety.")).toBe(true);
+    expect(notice.body.match(/:\nhttps?:\/\//g)).toHaveLength(1);
   });
 
   it("tells a job of another kind why, under its own subject, and never builds the unsized case", async () => {
@@ -686,28 +663,30 @@ describe("the site's answer is emailed once, when it first settles", () => {
     await expect(build(undefined)).rejects.toThrow("answer_ready_notice_invalid");
   });
 
-  it("is queued once per job, only while the answer is settled", async () => {
+  it("is queued once per job, only for a job of another kind, and a ready answer's older queued email is cancelled", async () => {
     const { notifyIfAnswerSettled } = await import("../utils/taskLifecycleNotifications");
     const { taskLifecycleNotificationIsCurrent } = await import("../utils/taskLifecycleNotificationAuthority");
     expect((await notifyIfAnswerSettled("req-1")).enqueued).toBe(false);
     composedAnswer.current = unsized();
     expect((await notifyIfAnswerSettled("req-1")).enqueued).toBe(false);
+    // A ready paper check: the receipt went at upload; the answer comes with the test.
     composedAnswer.current = answer();
+    expect((await notifyIfAnswerSettled("req-1")).enqueued).toBe(false);
+    composedAnswer.current = otherKind();
     expect((await notifyIfAnswerSettled("req-1")).enqueued).toBe(true);
     expect((await notifyIfAnswerSettled("req-1")).enqueued).toBe(false);
     expect([...sharedFakeFirestoreState.docs.keys()].filter(key => key.startsWith("captureOutbox/"))).toEqual(["captureOutbox/req-1:answer_ready"]);
-    expect(sharedFakeFirestoreState.docs.get("captureOutbox/req-1:answer_ready")).toMatchObject({ kind: "answer_ready", to: "owner@example.com" });
-    // Dispatch reads the answer again.
+    // Dispatch reads the answer again: an email queued for a ready answer before this change is cancelled.
     const notice = { kind: "answer_ready" as const, requestId: "req-1", idempotencyKey: "req-1:answer_ready" };
     expect(await taskLifecycleNotificationIsCurrent(notice)).toBe(true);
-    composedAnswer.current = answer({ state: "reading" });
+    composedAnswer.current = answer();
     expect(await taskLifecycleNotificationIsCurrent(notice)).toBe(false);
   });
 
   it("is never queued or sent once recording consent is withdrawn", async () => {
     const { notifyIfAnswerSettled } = await import("../utils/taskLifecycleNotifications");
     const { deliverOutbox } = await import("../utils/captureOutbox");
-    composedAnswer.current = answer();
+    composedAnswer.current = otherKind();
     sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { contact: { email: "encrypted:owner@example.com" }, consent_revoked: true });
     expect(await notifyIfAnswerSettled("req-1")).toEqual({ enqueued: false, reason: "consent_withdrawn" });
     // A queued one is cancelled at dispatch.

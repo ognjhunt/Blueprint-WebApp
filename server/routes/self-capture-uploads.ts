@@ -71,7 +71,6 @@ import {
   recordSiteCaptureUploadIdentity,
   siteCaptureBundleClaimed,
 } from "../utils/siteCaptureUploadIdentity";
-import { retrySiteAssessment, tickSiteAssessments } from "../utils/siteAssessmentQueue";
 import { capturedWriteIdentity, type WrittenObject } from "../utils/websiteCaptureDelivery";
 import { browserPendingDecisionKey, storedCapturePrivacyCleared, loadBrowserPending, prepareLegacyBrowserFinish,
   releaseBrowserUpload, reserveBrowserUpload, loadBrowserStoredUpload,
@@ -649,39 +648,12 @@ router.post("/:token/withdrawal", async (req: Request, res: Response) => {
   }
 });
 
-/** Explicit owner action. The durable helper retains uncertain exposure and
- * admits only the remaining slots of the already-authorized programme. */
-router.post("/:token/advisory-retry", async (req: Request, res: Response) => {
+/** Retired: the owner's "Try assessment again". */
+router.post("/:token/advisory-retry", (_req: Request, res: Response) => {
+  // The per-job site assessment ended (owner decision 2026-11-11), and its
+  // retry with it. A page still showing the old button gets a typed answer.
   res.setHeader("Cache-Control", "no-store");
-  const token = String(req.params.token || ""), payload = verifyCaptureUploadToken(token);
-  if (!payload) return res.status(404).json({ error: "This upload link is not valid or has expired." });
-  if (payload.scope !== "owner" || payload.supplement || payload.captureId !== `walkthrough-${payload.requestId}`
-    || payload.sceneId !== `site-${payload.requestId}`) return res.status(403).json({
-    code: "advisory_retry_not_authorized", error: "Use the job owner's current link to retry this assessment." });
-  const input = z.object({ expected_job_id: z.string().regex(/^advisory-[a-f0-9]{64}$/),
-    expected_run_id: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$/), retry_identity: z.string().uuid() }).strict().safeParse(req.body);
-  if (!input.success) return res.status(400).json({ code: "advisory_retry_invalid",
-    error: "Refresh this job page to recover its assessment and retry identity, then try again." });
-  try {
-    const outcome = await retrySiteAssessment({ requestId: payload.requestId,
-      expectedJobId: input.data.expected_job_id, expectedRunId: input.data.expected_run_id, retryIdentity: input.data.retry_identity,
-      assertAccess: (freshRequest: Record<string, any>) => {
-        const current = verifyCaptureUploadToken(token);
-        if (!current || current.scope !== "owner" || current.supplement || current.requestId !== payload.requestId
-          || current.captureId !== payload.captureId || current.sceneId !== payload.sceneId
-          || !projectWebsiteCaptureRights(freshRequest).derived_scene_generation_allowed) throw Error("advisory_retry_not_authorized");
-      } });
-    const response = res.json({ ok: true, ...outcome });
-    if (outcome.state === "queued" || outcome.state === "running")
-      void tickSiteAssessments(1).catch(() => logger.warn("Site advisory retry wake unavailable"));
-    return response;
-  } catch (error) {
-    const code = error instanceof Error && ["advisory_retry_unavailable", "advisory_retry_conflict", "advisory_retry_not_authorized"].includes(error.message)
-      ? error.message : "advisory_retry_unavailable";
-    const status = code === "advisory_retry_not_authorized" ? 403 : error instanceof Error && error.message === "advisory_retry_conflict" ? 409
-      : error instanceof Error && error.message === "advisory_retry_unavailable" ? 409 : 503;
-    return res.status(status).json({ code, error: "Your recording is saved. We could not restart this assessment. Refresh this job page and check its status." });
-  }
+  return res.status(410).json({ ok: false, code: "advisory_retry_retired" });
 });
 
 /** Replay a retained producer, never upload bytes or grant a new paid run. */

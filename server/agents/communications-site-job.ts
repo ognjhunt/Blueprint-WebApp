@@ -12,7 +12,7 @@ import { loadCurrentSiteAssessmentView } from "../utils/siteAssessmentPublic";
 import { projectCurrentSiteJobDecision } from "../utils/siteJobDecision";
 import { brandedEmail, emailGreeting, EMAIL_SIGN_OFF } from "../utils/emailLayout";
 import { assessmentCustomerStatementRefs, siteCustomerStatementDigest } from "../utils/siteCustomerStatements";
-import { prepareCustomerReplySiteAssessment, tickSiteAssessments } from "../utils/siteAssessmentQueue";
+import { prepareCustomerReplySiteAssessment } from "../utils/siteAssessmentQueue";
 import { resolveSiteJobRuntimeAuthorization, reserveSiteJobDraft, settleExistingSiteJobDraftUsage } from "./communications-site-job-runtime";
 
 /** The existing communications agent, attached to an inbound job rather than an
@@ -438,8 +438,6 @@ export async function refreshSiteJobReplies(db: FirebaseFirestore.Firestore, req
   } else if (verified.length) {
     assessmentContinuation = "customer_suppressed";
   }
-  // Only the ordinary production worker consumes the durable new job. Tests
-  // and local assessment experiments never call this email-ingestion path.
-  if (assessmentContinuation === "queued") void tickSiteAssessments(1);
+  // A reply starts no assessment: it ended (owner decision 2026-11-11).
   return { saved, nextOwner: "Blueprint", reviewRequired: saved > 0, assessmentContinuation };
 }

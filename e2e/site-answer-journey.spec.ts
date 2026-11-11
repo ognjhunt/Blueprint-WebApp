@@ -133,14 +133,13 @@ test("desktop: email and video in, the answer on the job page, a deployment comp
   await expect(answer(page).getByRole("status")).toHaveText("✓ Shared. We'll email you when a company replies.", { timeout: 45_000 });
   await expect(answer(page).getByRole("button", { name: "Find a company to set it up" })).toHaveCount(0);
 
-  // (c) Exactly one answer email for this job, carrying the headline. Never delivered here.
-  const rows = (await outbox(request, requestId)).filter(row => row.kind === "answer_ready");
-  expect(rows).toHaveLength(1);
-  expect(rows[0].idempotencyKey).toBe(`${requestId}:answer_ready`);
-  expect(rows[0].body).toContain(headline);
-  // A second pass of the review settles nothing new and queues no second email.
+  // (c) No answer email for the paper check (round 7, owner 2026-11-11): the receipt went at upload, and the one
+  // answer email is the test result, or the paper check when no test can run. Never delivered here.
+  expect((await outbox(request, requestId)).filter(row => row.kind === "answer_ready")).toHaveLength(0);
+  expect(headline).toBeTruthy();
+  // A second pass of the review settles nothing new and queues no email.
   expect((await tick(request, requestId)).videoModelCalls).toBe(0);
-  expect((await outbox(request, requestId)).filter(row => row.kind === "answer_ready")).toHaveLength(1);
+  expect((await outbox(request, requestId)).filter(row => row.kind === "answer_ready")).toHaveLength(0);
 
   // (e) Withdrawing recording permission takes the answer off the page. The way to stop is on Job settings.
   await answer(page).getByRole("button", { name: "Job settings ›" }).click();

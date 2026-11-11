@@ -9,9 +9,6 @@ import { crossRuntimeDigest } from "./crossRuntimeCanonical";
 import type { ProbedVideoMetadata } from "./selfCaptureMediaMetadata";
 import type { WrittenManifest, WrittenObject } from "./websiteCaptureDelivery";
 import type { CapturePrivacyProducerSource } from "./capturePrivacyRecord";
-import { logger } from "../logger";
-import { isSiteVideoEvidenceEnabled } from "../config/env";
-import { enqueueNewPublishedSiteAssessment } from "./siteAssessmentQueue";
 import { websitePreparationUploadWatchFields } from "./websitePreparationWatch";
 
 export interface BrowserPending {
@@ -353,7 +350,7 @@ export async function loadBrowserPending(captureId: string): Promise<BrowserPend
 export async function publishBrowserPending(selected: BrowserPending): Promise<void> {
   if (!db) throw new Error("browser_pending_unavailable");
   const ref = db.collection(SITE_CAPTURE_SESSIONS_COLLECTION).doc(selected.capture_id);
-  const newlyPublished = await db.runTransaction(async (transaction) => {
+  await db.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(ref);
     const value = snapshot.data()?.browser_pending_delivery;
     if (!validPending(value) || !sameDelivery(value, selected)) throw new Error("browser_pending_changed");
@@ -377,7 +374,6 @@ export async function publishBrowserPending(selected: BrowserPending): Promise<v
         if (request?.active_capture_id && ![link.supplement.parent_capture_id, value.capture_id].includes(request.active_capture_id))
           throw new Error("capture_update_superseded");
       }
-      await enqueueNewPublishedSiteAssessment(transaction, value);
       transaction.set(requestRef, { active_capture_id: value.capture_id }, { merge: true });
       // The preparation watch starts with the upload (beta L3/L6), so an upload
       // the Pipeline never reports on still reaches an operator.
@@ -387,11 +383,6 @@ export async function publishBrowserPending(selected: BrowserPending): Promise<v
     }
     return false;
   });
-  // Dispatch begins only after durable publication; the HTTP upload response
-  // does not wait for providers. Return visits can wake retained queued work.
-  if (newlyPublished && isWebsiteCaptureId(selected.request_id, selected.scene_id, selected.capture_id) && isSiteVideoEvidenceEnabled()) {
-    void import("./siteAssessmentQueue").then(({ tickSiteAssessments }) => tickSiteAssessments(1)).catch(() => {
-      logger.warn("Site advisory publication wake-up unavailable");
-    });
-  }
+  // Publication starts no site assessment: it ended for new jobs (owner
+  // decision 2026-11-11). The video reading starts from the Pipeline.
 }

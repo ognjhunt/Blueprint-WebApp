@@ -88,17 +88,19 @@ test("the simulation test leads the job page, bare bones: the option, plain tick
   await expect(answer).toContainText("How sure are we? Fairly sure");
   await expect(page.locator(".bare-button, .ms-button").filter({ visible: true })).toHaveText([FIND]);
   // About 70 words is the aim; the consent line (25 words) and the limits line (19) may not be dropped, and a
-  // drafted job sentence and the paper line add theirs. This pins it from growing.
+  // drafted job sentence adds its own. This pins it from growing.
   expect(await visibleWords(page)).toBeLessThanOrEqual(140);
   const answerText = await answer.textContent();
   expect(answerText).not.toMatch(/episode|candidate|screening|DROID|jointpos|[a-z]_[a-z]|sha256|payload|anonymi[sz]ed/i);
 
-  // The paper check is one tap away, on its own screen, with a way back.
-  await answer.getByRole("button", { name: "On paper: UR10e ›" }).click();
+  // The paper check lives under Details (round 7): no "On paper" line on the answer screen.
+  await expect(answer.getByText(/^On paper/)).toHaveCount(0);
+  await answer.getByRole("button", { name: "See details ›" }).click();
+  await page.getByRole("button", { name: "On paper: why this robot" }).click();
   await expect(page).toHaveURL(/#details\/why$/);
   await expect(page.getByRole("heading", { level: 1, name: "On paper: why this robot" })).toBeFocused();
-  await page.getByRole("button", { name: "‹ Back" }).click();
-  await expect(answer.getByRole("button", { name: /^On paper: / })).toBeFocused();
+  await page.goBack();
+  await page.goBack();
 
   // Every detail is on its own screen, with a way back; the browser's back button returns too.
   await answer.getByRole("button", { name: "See details ›" }).click();
@@ -155,6 +157,21 @@ test("when no AI robot finished the job, the answer says so with the set-up noti
   await expect(ranked.getByText(SCENE_NOTE_BEYOND_REACH, { exact: true })).toBeVisible();
   await expect(ranked.getByText(/Did best|Ahead/)).toHaveCount(0);
   await expect(ranked.getByText(/likely between/)).toHaveCount(0);
+  expect(unexpected).toEqual([]);
+});
+
+test("while the simulation of the site is being built, the answer says so, with only the two links and nothing to share", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const { unexpected } = await mockJob(page, { evaluation: { ...preparingEvaluation, screening: { candidates: [] } } });
+  await page.goto(`/capture-upload/${token}?video=existing`);
+  const answer = page.getByRole("region", { name: "Your answer" });
+  await expect(answer.getByRole("heading", { level: 2, name: "Getting ready" })).toBeVisible();
+  await expect(answer.getByText("Building your simulation", { exact: true })).toBeVisible();
+  await expect(answer.getByText("Then we test AI robots on your job in it. We'll email you the result.", { exact: true })).toBeVisible();
+  await expect(answer.getByRole("navigation", { name: "More" })).toHaveText("See details ›Job settings ›");
+  await expect(page.getByRole("button", { name: FIND })).toHaveCount(0);
+  await expect(page.getByText(CONSENT, { exact: true })).toHaveCount(0);
+  await expect(answer.getByText(/UR10e|On paper/)).toHaveCount(0);
   expect(unexpected).toEqual([]);
 });
 
@@ -241,6 +258,7 @@ const RHYTHM_STATES: Array<{ name: string; evaluation: unknown; hash?: string; m
   { name: "none finished, with the set-up notice", evaluation: allZeroEvaluation },
   { name: "none finished", evaluation: { ...allZeroEvaluation, outcomeCaveat: undefined, screening: { ...allZeroEvaluation.screening!, setupNotes: [] } } },
   { name: "testing now", evaluation: preparingEvaluation },
+  { name: "getting ready", evaluation: { ...preparingEvaluation, screening: { candidates: [] } } },
   { name: "the ranked test screen", evaluation: simulationRun, hash: "#details/test" },
   { name: "the details menu", evaluation: simulationRun, hash: "#details" },
 ];
@@ -253,7 +271,7 @@ for (const state of RHYTHM_STATES) {
     await page.goto(`/capture-upload/${token}${state.mode === "film" ? "" : "?video=existing"}${state.hash ?? ""}`);
     await page.locator(state.mode === "withdrawn" ? ".bare-withdrawn [role=status]" : state.mode === "film" ? ".bare-upload-alt"
       : state.hash ? ".site-answer-details h1, .bare-screen h1" : ".site-answer-bare .bare-big, .site-answer-bare .bare-lead").first().waitFor();
-    if (!state.hash && state.evaluation) await page.locator(".site-answer-bare h2.bare-label", { hasText: /tested|did best|was ahead|testing now/i }).waitFor();
+    if (!state.hash && state.evaluation) await page.locator(".site-answer-bare h2.bare-label", { hasText: /tested|did best|was ahead|testing now|getting ready/i }).waitFor();
     if (state.hash === "#details/test") await page.getByRole("region", { name: "Ranked", exact: true }).waitFor();
     const found = await bareRhythmFindings(page);
     expect(found.blocks).toBeGreaterThanOrEqual(3);

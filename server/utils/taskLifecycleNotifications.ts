@@ -489,7 +489,8 @@ function evaluationOutcomeDetail(params: { eventId?: string; screeningOutcome?: 
 
 /** The paper check said as the answer, when no test result will come: the composer's own headline. */
 function paperAnswerLine(answer: SiteAnswer | null | undefined): string | null {
-  return answer?.state === "ready" && answer.pick ? `So the paper check is your answer. ${answer.headline}` : null;
+  return answer?.state === "ready" && answer.pick
+    ? `So the paper check is your answer. ${answer.headline}${answer.sceneNote ? ` ${answer.sceneNote}` : ""}` : null;
 }
 
 /**

@@ -297,16 +297,12 @@ describe("a site's answer, from an email and a video to a deployment company", (
     expect(ready.nextStep).toEqual({ kind: "introduction",
       text: "Share this job with deployment companies Blueprint has approved, and one of them can pilot it at your site." });
 
-    // 4. Exactly one answer email, with the headline and the private link; a second review adds none.
-    const [email] = answerNotices(jobId);
-    expect(answerNotices(jobId)).toHaveLength(1);
-    expect(email).toMatchObject({ key: `captureOutbox/${jobId}:answer_ready`, subject: "Your job's paper check is ready" });
-    expect(email.body).toContain(ready.headline);
-    const link = email.body.match(/https?:\/\/\S+\/capture-upload\/(\S+)/);
-    expect(link, "the email carries the private job link").not.toBeNull();
-    expect(verifyCaptureUploadToken(link![1])).toMatchObject({ requestId: jobId, scope: "owner" });
+    // 4. No answer email for the paper check (round 7, owner 2026-11-11): the site had its receipt at upload, and its
+    // one answer email is the test result, or the paper check when no test can run. A second review adds none.
+    expect(answerNotices(jobId)).toHaveLength(0);
+    void verifyCaptureUploadToken;
     await readVideoAgain(jobId);
-    expect(answerNotices(jobId)).toHaveLength(1);
+    expect(answerNotices(jobId)).toHaveLength(0);
     expect(seams.sendEmail).not.toHaveBeenCalled();
 
     // 5. The site weighs one carton and saves it where the page saves its readings.
@@ -323,7 +319,7 @@ describe("a site's answer, from an email and a video to a deployment company", (
     const payload = weighed.pick.checks.find((check: { key: string }) => check.key === "payload");
     expect(payload.estimated).toBe(false);
     expect(payload.text).toContain("4 kg");
-    expect(answerNotices(jobId)).toHaveLength(1);
+    expect(answerNotices(jobId)).toHaveLength(0);
 
     // 6. "Find a deployment company for this job": recorded once, card listed under its consent version, one alert.
     const asked = await post(`/api/site-task-brief/${token}/introduction-request`, { statementVersion: JOB_CARD_ANSWER_STATEMENT_VERSION });
@@ -353,7 +349,7 @@ describe("a site's answer, from an email and a video to a deployment company", (
     expect(await listTaskBrowseCards()).toEqual([]);
     // The withdrawal hides the card through the job's own state; the stored grant itself is left as it was.
     expect(doc(`inboundRequests/${jobId}`).public_task_listing.enabled).toBe(true);
-    expect(answerNotices(jobId)).toHaveLength(1);
+    expect(answerNotices(jobId)).toHaveLength(0);
   }, 60_000);
 
   it("reads a video-only job's video once, even though the reading drafts the job's name; a site's own edit reads it again", async () => {
@@ -370,10 +366,10 @@ describe("a site's answer, from an email and a video to a deployment company", (
     expect(doc(`inboundRequests/${jobId}`)).toMatchObject({ capture_coverage_pending: false,
       capture_coverage_review: { state: "completed" } });
     expect(doc(`inboundRequests/${jobId}`).walkthrough_job_estimates.job_estimates.object).toBe("carton");
-    expect(answerNotices(jobId)).toHaveLength(1);
+    expect(answerNotices(jobId)).toHaveLength(0);
 
     // The site corrects the sentence on its page: as before this change, its own words are a new brief,
-    // and the queue reads the video once more against them. Still one answer email.
+    // and the queue reads the video once more against them. Still no paper-check email.
     const confirmed = await post(`/api/site-task-brief/${token}/confirm`, { confirmedBy: "Site manager",
       summary: "Pick up each carton from the conveyor and place it on the shelf" });
     expect(confirmed.status, await confirmed.clone().text()).toBe(200);
@@ -383,7 +379,7 @@ describe("a site's answer, from an email and a video to a deployment company", (
     expect(doc(`inboundRequests/${jobId}`).capture_coverage_pending).toBe(false);
     for (let pass = 0; pass < 3; pass += 1) await reconcileCoverageReviews();
     expect(coverageCalls()).toBe(2);
-    expect(answerNotices(jobId)).toHaveLength(1);
+    expect(answerNotices(jobId)).toHaveLength(0);
   }, 60_000);
 
   it("sends no answer email when the video did not show the job, and the page asks for one line", async () => {
@@ -446,7 +442,8 @@ describe("a site's answer, from an email and a video to a deployment company", (
     const { answer } = await status(token);
     expect(answer.state).toBe("ready");
     expect(answer.headline).toMatch(/^Most likely to fit: /);
-    expect(answerNotices(jobId).map(row => row.subject)).toEqual(["Your job's paper check is ready"]);
+    // A ready paper check is not emailed on its own: the answer comes with the test.
+    expect(answerNotices(jobId)).toEqual([]);
   }, 30_000);
 
 });

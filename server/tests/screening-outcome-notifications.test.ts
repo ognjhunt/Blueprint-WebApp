@@ -55,13 +55,17 @@ describe("one email per terminal outcome of the job's evaluation (F-01)", () => 
     expect(send).toHaveBeenCalledTimes(1);
     const notice = state.docs.get(key(outcome)) as Record<string, string>;
     expect(notice).toMatchObject({ status: "sent", kind: "evaluation_outcome", to: "owner@example.com" });
-    if (outcome !== "estimate") expect(notice.body.startsWith(simulationOutcomeEmailSentence(outcome as ScreeningOutcome))).toBe(true);
+    // Rewritten in round 7: a run that did not give a test result says the job page's own line for why
+    // (`testNotRunLine`), then, when the job has a paper check, gives it as the one answer.
+    const paper = notice.body.includes("So the paper check is your answer.");
+    if (outcome !== "estimate") expect(notice.body, notice.body).toMatch(/^The simulation test did not (run|finish)\. /);
+    void simulationOutcomeEmailSentence;
     // The site already has its answer: the email never says the job is held, and never names internal terms.
     expect(notice.body).not.toMatch(/\bheld\b|your job is|episodes|candidates|screening/i);
     expect(notice.body).not.toMatch(/introduction|reply to this email/i);
     // An estimate's fine print is the job page's tested limits line; the other outcomes keep the simulation disclaimer.
     expect(notice.body).toMatch(outcome === "estimate" ? /Tested in a simulation, not at your site\. .+ It does not certify performance or safety\./
-      : /never certifies physical performance or safety/);
+      : paper ? /A paper check, not a test at your site\. .+ It does not certify performance or safety\./ : /never certifies physical performance or safety/);
     expect(notice.body).toMatch(/on your private job page:\nhttps?:\/\/\S+\/capture-upload\//);
     // Everything before the link: no code, operator instruction or budget, which are Blueprint's own.
     const words = notice.body.slice(0, notice.body.indexOf("on your private job page"));
@@ -74,7 +78,7 @@ describe("one email per terminal outcome of the job's evaluation (F-01)", () => 
       expect(notice.body).not.toMatch(/did best|was ahead|proof/i);
       expect(notice.body).not.toContain(SIMULATION_TRUST_LINE);
     } else {
-      expect(notice.subject).toBe("An update on the simulation of your job");
+      expect(notice.subject).toBe(paper ? "Your job's paper check is ready" : "An update on the simulation of your job");
       expect(notice.body).not.toMatch(/estimate|proof|result is ready/);
     }
     expect(run().outcome_notification_pending).toBe(false);

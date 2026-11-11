@@ -80,18 +80,13 @@ beforeEach(() => {
 });
 
 describe("the answer email after the coverage review", () => {
-  it("queues exactly one answer_ready for a ready answer, and none on a second review", async () => {
+  // Rewritten in round 7 (owner, 2026-11-11): the first message is the upload receipt, and the one answer email is
+  // the test result, or the paper check when no test can run. A ready paper check is never emailed on its own.
+  it("queues no answer email for a ready paper check, on the first review or a second", async () => {
     source.agent.mockResolvedValue({ status: "completed", output: output(ESTIMATES) });
     await reviewCaptureCoverage(params());
     await reviewCaptureCoverage(params());
-    const rows = outboxRows();
-    expect(rows.map(([key]) => key)).toEqual(["captureOutbox/r1:answer_ready"]);
-    const row = rows[0][1] as Record<string, string>;
-    // The paper check, said as the paper check (round 4): never the answer before a test.
-    expect(row).toMatchObject({ kind: "answer_ready", to: "site@synthetic.invalid", subject: "Your job's paper check is ready" });
-    expect(row.body).toMatch(/^We've checked your job on paper\. (Most likely to fit: |No robot clearly fits yet\. |None of the )/);
-    expect(row.body).toMatch(/How sure we are, on paper: (Sure|Fairly sure|Not sure yet)\./);
-    expect(row.body).toMatch(/\/capture-upload\//);
+    expect(outboxRows().map(([key]) => key)).toEqual([]);
     expect(send).not.toHaveBeenCalled();
   });
 
