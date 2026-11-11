@@ -111,3 +111,22 @@ describe("the answer email after the coverage review", () => {
     expect(outboxRows()).toHaveLength(0);
   });
 });
+
+// Reference job, 2026-11-11: a read refused because another call for the same capture holds the one-at-a-time budget
+// is a wait, not a failed read; the queue is told so it does not spend an attempt on it.
+describe("a read that meets another call in flight for the same capture", () => {
+  it("tells the queue it waited, and stores nothing", async () => {
+    source.agent.mockRejectedValue(new Error("gemini_video_failed: coverage_budget_call_in_flight"));
+    const onWaiting = vi.fn();
+    await expect(reviewCaptureCoverage({ ...params(), onWaiting })).resolves.toBeNull();
+    expect(onWaiting).toHaveBeenCalledWith("coverage_budget_call_in_flight");
+    expect(sharedFakeFirestoreState.docs.get("inboundRequests/r1")).not.toHaveProperty("capture_coverage");
+  });
+
+  it("does not call a real model failure a wait", async () => {
+    source.agent.mockRejectedValue(new Error("gemini_video_failed: provider_timeout"));
+    const onWaiting = vi.fn();
+    await expect(reviewCaptureCoverage({ ...params(), onWaiting })).resolves.toBeNull();
+    expect(onWaiting).not.toHaveBeenCalled();
+  });
+});
