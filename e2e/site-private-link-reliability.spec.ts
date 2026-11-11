@@ -258,12 +258,13 @@ test("the current simulation result leads as proof, open, while every detail and
   await page.goto(`/capture-upload/${token}?video=existing`);
   // An older job with a result and no answer: the proof stands on its own, visible without opening anything.
   const proof = page.getByRole("region", { name: "Tested in simulation" });
-  await expect(proof.getByText("Simulation test: Only one robot program could be scored, so there is nothing to compare it with.", { exact: true })).toBeVisible();
-  // The projection's own sentence, word for word, and the program's count, in short rows under it.
-  const result = proof.getByRole("region", { name: "Simulation test", exact: true });
-  await expect(result.getByText("The simulation scored one policy: an unnamed AI control policy completed the job in 2 of 3 tries. With nothing to compare it to, it could not rank policies.", { exact: true })).toBeVisible();
-  await expect(result.getByText(/^Finished 2 of 3 tries/)).toBeVisible();
-  await expect(proof.getByRole("heading", { name: "How far to trust it" })).toBeVisible();
+  // Its one scored program is not in the closed map, so its robot is unconfirmed: never an option, never compared.
+  await expect(proof.getByText("The simulation test ran, but we couldn't confirm which robot each AI program ran on, so none is compared.", { exact: true })).toBeVisible();
+  // The program's count, as a row of the ranked list, said as not compared.
+  const result = proof.getByRole("region", { name: "Ranked", exact: true });
+  await expect(result).toContainText("We ran 1 AI robot on your job, about 3 tries each, in a simulation of your site.");
+  await expect(result).toContainText("An unnamed AI control policyFinished 2 of 3 tries · on a robot we could not confirm, not compared");
+  await expect(proof.getByRole("region", { name: "Published tests", exact: true })).toBeVisible();
   // The full result is one click away, in the folded details.
   const details = page.locator("summary", { hasText: "Simulation details" });
   await expect(details.locator("xpath=..")).not.toHaveAttribute("open", "");

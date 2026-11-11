@@ -31,7 +31,7 @@ test("the example answer sits beside the text on a desktop and below the button 
     await page.evaluate(() => document.fonts.ready);
     const card = page.locator(".bare-example");
     await expect(card.getByRole("tabpanel")).toContainText("Example");
-    await expect(card).toContainText("Robot names are real; the jobs and answers are made up.");
+    await expect(card).toContainText("The names, jobs and results are made up.");
     await expect(card.getByRole("tab", { name: "Packaging", exact: true })).toHaveAttribute("aria-selected", "true");
     const examples = [
       ["Packaging", "Fixed robot arm"], ["Warehouse", "Humanoid robot"], ["Café", "Fixed robot arm"],

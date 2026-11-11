@@ -68,28 +68,36 @@ async function mockJob(page: Page, { evaluation = simulationRun as unknown, list
 
 test.use({ serviceWorkers: "block" });
 
-test("the answer leads the job page, bare bones: the robot, plain ticks, how sure, one computer-test line, one button", async ({ page }) => {
+test("the simulation test leads the job page, bare bones: the option, plain ticks, how sure, the paper pick a tap away, one button", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   const { unexpected } = await mockJob(page);
   await page.goto(`/capture-upload/${token}?video=existing`);
   const answer = page.getByRole("region", { name: "Your answer" });
-  await expect(answer.getByText("UR10e", { exact: true })).toBeVisible();
-  await expect(answer.getByText("by Universal Robots", { exact: true })).toBeVisible();
+  // 7 of 10 against 3 of 10 is about 0.96 under the probability rule: ahead, not "did best".
+  await expect(answer.getByRole("heading", { level: 2, name: "Was ahead on your job" })).toBeVisible();
+  await expect(answer.getByText("Franka arm + π0.5", { exact: true })).toBeVisible();
+  await expect(answer.getByText("AI software by Physical Intelligence", { exact: true })).toBeVisible();
   const titleBox = await page.getByRole("heading", { level: 1, name: "Your job" }).boundingBox();
   expect(titleBox!.y).toBeLessThan((await answer.boundingBox())!.y);
   // Nothing is asked of the site: no status card repeating a wait under the answer.
   await expect(page.getByText("We have your recording.", { exact: true })).toHaveCount(0);
   await expect(page.getByRole("region", { name: "Robot fit" })).toHaveCount(0);
   await expect(page.getByText("Blueprint will update this job as the work progresses.", { exact: true })).toHaveCount(0);
-  await expect(answer.getByRole("list", { name: "Why" })).toHaveText(/Reaches far enough.*Strong enough.*Already used for jobs like this/s);
-  // 7 of 10 against 3 of 10 is about 0.96 under the probability rule: ahead, and it could still be chance.
-  await expect(answer.getByText("Simulation test: π0.5 was ahead, finishing the job in 7 of 10 tries, on a Franka research arm, not the UR10e. It could still be chance.", { exact: true })).toBeVisible();
+  await expect(answer.getByRole("list", { name: "Why" })).toHaveText(/Did your job in 7 of 10 tries.*Ahead of the 2 other AI robots we tested/s);
+  await expect(answer).toContainText("How sure are we? Fairly sure");
   await expect(page.locator(".bare-button, .ms-button").filter({ visible: true })).toHaveText([FIND]);
   // About 70 words is the aim; the consent line (25 words) and the limits line (19) may not be dropped, and a
-  // drafted job sentence and a computer-test line add theirs. Measured 136 here; this pins it from growing.
+  // drafted job sentence and the paper line add theirs. This pins it from growing.
   expect(await visibleWords(page)).toBeLessThanOrEqual(140);
   const answerText = await answer.textContent();
   expect(answerText).not.toMatch(/episode|candidate|screening|DROID|jointpos|[a-z]_[a-z]|sha256|payload|anonymi[sz]ed/i);
+
+  // The paper check is one tap away, on its own screen, with a way back.
+  await answer.getByRole("button", { name: "On paper, most likely to fit: Universal Robots UR10e ›" }).click();
+  await expect(page).toHaveURL(/#details\/why$/);
+  await expect(page.getByRole("heading", { level: 1, name: "On paper: why this robot" })).toBeFocused();
+  await page.getByRole("button", { name: "‹ Back" }).click();
+  await expect(answer.getByRole("button", { name: /^On paper, most likely to fit/ })).toBeFocused();
 
   // Every detail is on its own screen, with a way back; the browser's back button returns too.
   await answer.getByRole("button", { name: "See details ›" }).click();
@@ -97,16 +105,21 @@ test("the answer leads the job page, bare bones: the robot, plain ticks, how sur
   await expect(page.getByRole("heading", { level: 1, name: "Details" })).toBeFocused();
   await page.getByRole("button", { name: "The simulation test" }).click();
   await expect(page).toHaveURL(/#details\/test$/);
-  const test = page.getByRole("region", { name: "Simulation test", exact: true });
-  await expect(test).toContainText(/π0\.5 Physical IntelligenceFinished 7 of 10 tries · likely between \d+% and \d+% · Ahead/);
+  const ranked = page.getByRole("region", { name: "Ranked", exact: true });
+  await expect(ranked).toContainText("We ran 3 AI robots on your job, about 10 tries each, in a simulation of your site.");
+  await expect(ranked.locator("dt").filter({ hasText: /^\d+\. / })).toHaveText(["1. Franka arm + π0.5 · Physical Intelligence",
+    "2. Franka arm + GR00T N1.7 · NVIDIA", "3. Franka arm + MolmoAct 2 · Ai2"]);
+  await expect(ranked).toContainText("1 more AI robot was planned but did not run. Job settings › Simulation details says why.");
+  await expect(ranked).toContainText(/Finished 7 of 10 tries · likely between \d+% and \d+% · Ahead/);
   await page.goBack();
   await expect(page.getByRole("button", { name: "The simulation test" })).toBeFocused();
   await page.getByRole("button", { name: "How far to trust it" }).click();
+  await expect(page.getByRole("region", { name: "Published tests", exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "PolaRiS: Scalable Real-to-Sim Evaluations for Generalist Robot Policies" })).toHaveAttribute("target", "_blank");
   await page.goBack();
   await page.goBack();
   await expect(answer.getByRole("button", { name: "See details ›" })).toBeFocused();
-  await expect(answer.getByText("UR10e", { exact: true })).toBeVisible();
+  await expect(answer.getByText("Franka arm + π0.5", { exact: true })).toBeVisible();
   // Every policy's set-up detail stays one screen away, folded, on Job settings.
   await answer.getByRole("button", { name: "Job settings ›" }).click();
   const details = page.locator("summary", { hasText: "Simulation details" });
@@ -120,23 +133,27 @@ test("the answer leads the job page, bare bones: the robot, plain ticks, how sur
   expect(await chosen.evaluate(cell => { const range = document.createRange(); range.selectNodeContents(cell);
     return new Set([...range.getClientRects()].map(rect => Math.round(rect.top))).size; })).toBe(1);
   await page.getByRole("button", { name: "‹ Back" }).click();
-  await expect(answer.getByText("UR10e", { exact: true })).toBeVisible();
+  await expect(answer.getByText("Franka arm + π0.5", { exact: true })).toBeVisible();
   expect(unexpected).toEqual([]);
 });
 
-test("when no policy completed the job, the line says so, and the details say why with the scene note", async ({ page }) => {
+test("when no AI robot finished the job, the answer says so with the set-up notice, and the ranked list says why", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   const { unexpected } = await mockJob(page, { evaluation: allZeroEvaluation });
   await page.goto(`/capture-upload/${token}?video=existing`);
-  await expect(page.getByText("Simulation test: None of the robot programs finished the job, on a Franka research arm, not the UR10e.", { exact: true })).toBeVisible();
-  await expect(page.getByText("This result may come from how we set up the simulation of your site, not from the robots.", { exact: true })).toBeVisible();
+  const answer = page.getByRole("region", { name: "Your answer" });
+  await expect(answer.getByRole("heading", { level: 2, name: "Tested on your job" })).toBeVisible();
+  await expect(answer.getByText("None finished yet", { exact: true })).toBeVisible();
+  await expect(answer.getByText("This result may come from how we set up the simulation of your site, not from the robots.", { exact: true })).toBeVisible();
+  await expect(answer.getByText(/Did best|Was ahead/)).toHaveCount(0);
+  await expect(answer.getByRole("button", { name: /^On paper, / })).toBeVisible();
   await page.getByRole("button", { name: "See details ›" }).click();
   await page.getByRole("button", { name: "The simulation test" }).click();
-  const test = page.getByRole("region", { name: "Simulation test", exact: true });
-  await expect(test.getByText(/^The simulation ran, but no policy completed the job in it, so it could not rank them\./)).toBeVisible();
-  await expect(test.getByText(SCENE_NOTE_BEYOND_REACH, { exact: true })).toBeVisible();
-  await expect(test.getByText(/Did best|Ahead/)).toHaveCount(0);
-  await expect(test.getByText(/likely between/)).toHaveCount(0);
+  const ranked = page.getByRole("region", { name: "Ranked", exact: true });
+  await expect(ranked).toContainText("Finished 0 of 9 tries");
+  await expect(ranked.getByText(SCENE_NOTE_BEYOND_REACH, { exact: true })).toBeVisible();
+  await expect(ranked.getByText(/Did best|Ahead/)).toHaveCount(0);
+  await expect(ranked.getByText(/likely between/)).toHaveCount(0);
   expect(unexpected).toEqual([]);
 });
 
@@ -177,7 +194,7 @@ test("the answer, its details and the job settings read at phone width without s
   const page = await context.newPage();
   await mockJob(page);
   await page.goto(`/capture-upload/${token}?video=existing`);
-  await expect(page.getByText("UR10e", { exact: true })).toBeVisible();
+  await expect(page.getByText("Franka arm + π0.5", { exact: true })).toBeVisible();
   const button = await page.getByRole("button", { name: FIND }).boundingBox();
   expect(button!.y + button!.height).toBeLessThanOrEqual(page.viewportSize()!.height);
   for (const screen of ["See details ›", "‹ Back", "Job settings ›"]) {

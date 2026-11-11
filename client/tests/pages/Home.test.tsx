@@ -23,10 +23,15 @@ describe("Site-led homepage", () => {
     expect(heldTabs.map(tab => tab.textContent)).toEqual(["Laundromat", "Lab"]);
     fireEvent.click(screen.getByRole("tab", { name: "Packaging" }));
     const panel = screen.getByRole("tabpanel");
-    expect(panel).toHaveTextContent(/Example.*12 kg cartons.*pallet.*The robot most likely to fit.*UR20.*by Universal Robots.*Reaches far enough.*Strong enough.*Already used for jobs like this.*How sure are we\?.*Fairly sure/);
+    // The answer a site gets is the test result (owner, 2026-11-11). The results are invented, so the names are made up.
+    expect(panel).toHaveTextContent(/Example.*12 kg cartons.*pallet.*Did best on your job.*Robot B \+ AI software 2.*Did your job in 8 of 10 tries.*Ahead of the 3 other AI robots we tested.*How sure are we\?.*Fairly sure/);
+    expect(panel).not.toHaveTextContent(/Universal Robots|UR20|FANUC|Unitree|Hello Robot|Stretch/);
     expect(panel).not.toHaveTextContent(/Ornua|Bob.s Red Mill|Verla|Georgia Nut|Danish Crown|Napco/);
-    expect(panel).not.toHaveTextContent(/cycle time|Pilot price|Budget|\d+ of \d+ tries|%/i);
-    expect(screen.getByText("Robot names are real; the jobs and answers are made up.")).toBeInTheDocument();
+    expect(panel).not.toHaveTextContent(/cycle time|Pilot price|Budget|%/i);
+    expect(screen.getByText("The names, jobs and results are made up.")).toBeInTheDocument();
+    // Not every example has a winner.
+    fireEvent.click(screen.getByRole("tab", { name: "Café" }));
+    expect(screen.getByRole("tabpanel")).toHaveTextContent(/Tested on your job.*No clear winner yet/);
     fireEvent.click(screen.getByRole("tab", { name: "Café" }));
     expect(screen.getByRole("tabpanel")).toHaveTextContent(/dish rack/);
     expect(screen.getByRole("img", { name: /café example/i })).toBeInTheDocument();
@@ -34,12 +39,12 @@ describe("Site-led homepage", () => {
   });
 
   it.each([
-    ["Packaging", /fixed robot arm/i, /cartons.*conveyor.*pallet.*most likely to fit.*UR20.*by Universal Robots/i],
-    ["Warehouse", /humanoid robot/i, /totes.*shelf.*cart.*most likely to fit.*G1.*by Unitree.*Not sure yet/i],
-    ["Café", /fixed robot arm/i, /clean cups.*dish rack.*counter.*most likely to fit.*CRX-10iA.*by FANUC/i],
+    ["Packaging", /fixed robot arm/i, /cartons.*conveyor.*pallet.*Did best on your job.*Robot B \+ AI software 2.*8 of 10 tries/i],
+    ["Warehouse", /humanoid robot/i, /totes.*shelf.*cart.*Did best on your job.*Robot D \+ AI software 1.*6 of 10 tries.*Not sure yet/i],
+    ["Café", /fixed robot arm/i, /clean cups.*dish rack.*counter.*Tested on your job.*No clear winner yet.*5 of 10 tries/i],
     // Jobs that are not one solid object picked up and put down are held, as the real answer does.
-    ["Laundromat", /wheeled humanoid/i, /folding towels.*wash-and-fold.*Answer.*Held\..*can't check this kind of job yet/i],
-    ["Factory", /mobile manipulator/i, /small blanks.*machine.*most likely to fit.*Stretch 3.*by Hello Robot/i],
+    ["Laundromat", /wheeled humanoid/i, /folding towels.*wash-and-fold.*Answer.*Held\..*can't test this kind of job yet/i],
+    ["Factory", /mobile manipulator/i, /small blanks.*machine.*Did best on your job.*Robot E \+ AI software 3.*9 of 10 tries/i],
     ["Lab", /fixed robot arm/i, /opening the sample drawer before each batch.*Answer.*Held\./i],
   ])("pairs the %s example with its answer and matching illustration", (site, embodiment, task) => {
     render(<Home />);

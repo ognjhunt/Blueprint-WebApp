@@ -17,12 +17,14 @@ import { BareTicks, type BareTickState } from "@/components/bare/Bare";
 type P = [number, number];
 type Scene = (props: { t: number }) => JSX.Element;
 /**
- * One illustrative answer, drawn as a small version of the real answer screen (bare bones, 2026-11-11): the robot
- * most likely to fit, its ticks and how sure, or "held" for a kind of job the check does not cover yet.
+ * One illustrative answer, drawn as a small version of the real answer screen (bare bones, 2026-11-11): the site's
+ * answer is the simulation test result (owner's premise, 2026-11-11), so each example shows which option did best on
+ * the job, or that none clearly did yet, or "held" for a kind of job that cannot be tested yet. The results are
+ * invented, so no example names a real product: every option is a made-up, neutral name.
  */
 type Example = {
   site: string; embodiment: string; job: string; Art: Scene;
-  pick?: { name: string; maker: string }; ticks?: Array<{ key: string; state: BareTickState; text: string }>;
+  result?: { label: string; name: string }; ticks?: Array<{ key: string; state: BareTickState; text: string }>;
   sure?: { filled: 1 | 2 | 3; word: string }; held?: string;
 };
 
@@ -430,34 +432,32 @@ function Palletizing({ t }: { t: number }) {
   );
 }
 
-// Robot names, reach and payload come from the robot spec catalog
-// (contracts/pipeline/robot-spec-catalog.v1.json): UR20 reach 1.75 m and payload 20 kg; Unitree G1 about 2 kg per
-// arm; FANUC CRX-10iA reach 1.249 m and payload 10 kg; Hello Robot Stretch 3 payload 2 kg. The jobs, distances,
-// weights and answers are made up; they follow the answer's rules (a fixed arm's reach must span the two spots; a
-// job that is not one solid object picked up and put down is held), but no example is a result for any site.
-const HELD = "We can't check this kind of job yet. We keep it and hold it.";
+// Every name, job and result below is made up for illustration. The numbers vary from example to example, and one
+// example has no clear winner, so the set does not suggest there is always one.
+const HELD = "We can't test this kind of job yet. We keep it and hold it.";
+const DID_BEST = "Did best on your job";
 const examples: Example[] = [
   { site: "Packaging", embodiment: "Fixed robot arm", job: "Stacking 12 kg cartons from a conveyor onto a pallet", Art: Palletizing,
-    pick: { name: "UR20", maker: "Universal Robots" },
-    ticks: [{ key: "reach", state: "yes", text: "Reaches far enough" }, { key: "payload", state: "yes", text: "Strong enough" },
-      { key: "used", state: "yes", text: "Already used for jobs like this" }],
+    result: { label: DID_BEST, name: "Robot B + AI software 2" },
+    ticks: [{ key: "tries", state: "yes", text: "Did your job in 8 of 10 tries" },
+      { key: "ahead", state: "yes", text: "Ahead of the 3 other AI robots we tested" }],
     sure: { filled: 2, word: "Fairly sure" } },
-  { site: "Warehouse", embodiment: "Humanoid robot", job: "Moving 1.5 kg totes from a shelf to a cart a few steps away", Art: Warehouse,
-    pick: { name: "G1", maker: "Unitree" },
-    ticks: [{ key: "move", state: "yes", text: "Walks between the shelf and the cart" }, { key: "payload", state: "yes", text: "Strong enough" },
-      { key: "weight", state: "unsure", text: "The tote's weight is a guess" }],
+  { site: "Warehouse", embodiment: "Humanoid robot", job: "Moving light totes from a shelf to a cart a few steps away", Art: Warehouse,
+    result: { label: DID_BEST, name: "Robot D + AI software 1" },
+    ticks: [{ key: "tries", state: "yes", text: "Did your job in 6 of 10 tries" },
+      { key: "ahead", state: "yes", text: "Ahead of the 2 other AI robots we tested" }],
     sure: { filled: 1, word: "Not sure yet" } },
   { site: "Café", embodiment: "Fixed robot arm", job: "Moving clean cups from the dish rack to the counter", Art: Cafe,
-    pick: { name: "CRX-10iA", maker: "FANUC" },
-    ticks: [{ key: "reach", state: "yes", text: "Reaches far enough" }, { key: "payload", state: "yes", text: "Strong enough" },
-      { key: "distance", state: "unsure", text: "The distances are guesses" }],
+    result: { label: "Tested on your job", name: "No clear winner yet" },
+    ticks: [{ key: "tries", state: "yes", text: "Robot A and Robot C each did it in 5 of 10 tries" },
+      { key: "close", state: "unsure", text: "Too close to tell apart yet" }],
     sure: { filled: 1, word: "Not sure yet" } },
   { site: "Laundromat", embodiment: "Wheeled humanoid", job: "Folding towels for wash-and-fold orders", Art: Laundromat, held: HELD },
   { site: "Factory", embodiment: "Mobile manipulator", job: "Loading small blanks into a machine 6 m from the conveyor", Art: Factory,
-    pick: { name: "Stretch 3", maker: "Hello Robot" },
-    ticks: [{ key: "move", state: "yes", text: "Drives between the two spots" }, { key: "payload", state: "yes", text: "Strong enough" },
-      { key: "reach", state: "unsure", text: "Reaching into the machine is not settled" }],
-    sure: { filled: 1, word: "Not sure yet" } },
+    result: { label: DID_BEST, name: "Robot E + AI software 3" },
+    ticks: [{ key: "tries", state: "yes", text: "Did your job in 9 of 10 tries" },
+      { key: "ahead", state: "yes", text: "Ahead of the 4 other AI robots we tested" }],
+    sure: { filled: 3, word: "Sure" } },
   { site: "Hotel", embodiment: "Mobile robot", job: "Moving linen carts from the laundry room to each floor", Art: Hotel, held: HELD },
   { site: "Lab", embodiment: "Fixed robot arm", job: "Opening the sample drawer before each batch", Art: Lab, held: HELD },
 ];
@@ -555,11 +555,10 @@ export function PilotPreview() {
       <div id="pilot-example" role="tabpanel" aria-labelledby={`pilot-tab-${active}`} key={example.site} className="bare-example-panel">
         <p className="bare-example-tag">Example</p>
         <p className="bare-example-job">{example.job}</p>
-        {example.pick ? <>
-          <p className="bare-label">The robot most likely to fit</p>
-          <p className="bare-example-name">{example.pick.name}</p>
-          <p className="bare-example-by">by {example.pick.maker}</p>
-          {example.ticks && <BareTicks label="Why it fits" items={example.ticks} />}
+        {example.result ? <>
+          <p className="bare-label">{example.result.label}</p>
+          <p className="bare-example-name">{example.result.name}</p>
+          {example.ticks && <BareTicks label="The test" items={example.ticks} />}
           {example.sure && <div className="bare-sure"><p className="bare-sure-line">How sure are we?{" "}
             <span className="bare-dots" aria-hidden="true">{[1, 2, 3].map(dot => <span key={dot} className={dot <= example.sure!.filled ? "bare-dot bare-dot-on" : "bare-dot"} />)}</span>{" "}
             <strong>{example.sure.word}</strong></p></div>}
@@ -569,7 +568,7 @@ export function PilotPreview() {
           <p className="bare-example-by">{example.held}</p>
         </>}
       </div>
-      <p className="bare-example-foot">Robot names are real; the jobs and answers are made up.</p>
+      <p className="bare-example-foot">The names, jobs and results are made up.</p>
     </section>
   );
 }

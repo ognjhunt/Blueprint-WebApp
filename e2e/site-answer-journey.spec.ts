@@ -75,14 +75,14 @@ async function expectAnswer(page: Page) {
   const big = section.locator(".bare-big");
   await expect(big).toBeVisible({ timeout: 45_000 });
   // The scripted reading (one carton, 1.6 m, a stated weight) gives a pick that fits on its published figures.
-  await expect(section.getByRole("heading", { level: 2 })).toHaveText("The robot most likely to fit");
+  await expect(section.getByRole("heading", { level: 2 })).toHaveText("On paper, the robot most likely to fit");
   await expect(section.locator(".bare-sub")).toHaveText(/^by .+/);
   await expect(section).toContainText(/How sure are we\?/);
   // Every figure and source is on the details screen: a published figure always has its source; the track
   // record carries one, or says plainly that none was found for this kind of job (a carton moved to a cart is
   // pick and place; the pick may have documented use only for palletizing). Never an invented one.
   await section.getByRole("button", { name: "See details ›" }).click();
-  await page.getByRole("button", { name: "Why this robot" }).click();
+  await page.getByRole("button", { name: "On paper: why this robot" }).click();
   const why = page.locator(".site-answer-details");
   await expect(why.getByRole("link", { name: "source" }).first()).toHaveAttribute("target", "_blank");
   if (!(await why.getByText("We found no documented use of this robot on this kind of job.").count())) {

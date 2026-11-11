@@ -24,6 +24,13 @@ vi.mock("@/lib/csrf", () => ({
   withCsrfHeader: async (headers: Record<string, string>) => headers,
 }));
 const upload = vi.hoisted(() => ({ send: vi.fn(), retry: vi.fn() }));
+// The one-line consent is a switch, off until the Pipeline accepts its recording version (START_FORM_SHORT_CONSENT).
+// Most tests here cover it on; the "switch off" block below covers the default that ships.
+const consentSwitch = vi.hoisted(() => ({ short: true }));
+vi.mock("@/lib/siteStartConsent", async (importOriginal) => {
+  const original = await importOriginal<typeof import("@/lib/siteStartConsent")>();
+  return { ...original, get START_FORM_SHORT_CONSENT() { return consentSwitch.short; } };
+});
 vi.mock("@/lib/selfCaptureVideo", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/selfCaptureVideo")>()),
   uploadSelfCaptureVideo: upload.send,
@@ -70,6 +77,7 @@ function photon(properties: Record<string, unknown>[]) {
 }
 
 beforeEach(() => {
+  consentSwitch.short = true;
   // A sub-screen lives in the URL's hash; every test starts on the form itself.
   window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
   resetClientEnvCacheForTests();
@@ -743,6 +751,8 @@ describe("SiteCaptureStart and a video that already exists", () => {
   // evaluation on this job starts from this exact body, never a hand-built record.
   // It is a new guest site's body; the signed private job link authorizes upload.
   it("sends the exact body the request-step journey starts from", async () => {
+    // The journey starts from what production sends today: the switch off.
+    consentSwitch.short = false;
     account.user = null;
     answerPosts({ captureUrl });
     upload.send.mockResolvedValue({ status: "done" });
@@ -1221,4 +1231,66 @@ it("keeps the form to the fields it needs, and the reply time off it", async () 
   expect(screen.queryByText(REPLY_TIMELINE)).toBeNull();
   const start = screen.getByRole("button", { name: "Next: film the job" });
   expect(start.nextElementSibling).toHaveTextContent(SITE_START_CONSENT_NO_VIDEO);
+});
+
+// The default that ships (owner, 2026-11-11): the switch stays off until the Pipeline accepts recording-rights
+// 2026-11-11.v3. The recorded statements are quoted word for word under the button, and no request carries a
+// 2026-11-11 version.
+describe("with the one-line consent switched off (the default)", () => {
+  beforeEach(() => { consentSwitch.short = false; });
+
+  it("is off by default in the shipped module", async () => {
+    const actual = await vi.importActual<typeof import("@/lib/siteStartConsent")>("@/lib/siteStartConsent");
+    expect(actual.START_FORM_SHORT_CONSENT).toBe(false);
+  });
+
+  it.each([["film it next", false], ["send a video now", true]])("quotes the recorded statements under the button and records today's versions (%s)", async (_label, withVideo) => {
+    fetchMock.mockImplementation(async (url: string, init?: { method?: string }) => init?.method === "POST"
+      ? { ok: true, status: 201, json: async () => ({ captureUrl: "/capture-upload/tok.signed" }) }
+      : String(url).includes("/status") ? { ok: true, json: async () => ({ captureReceived: false, uploadState: "not_received" }) } : photon([]));
+    upload.send.mockResolvedValue({ status: "done" });
+    await renderReady(<SiteCaptureStart />);
+    if (withVideo) {
+      fireEvent.click(screen.getByRole("button", { name: "I have a video ›" }));
+      fireEvent.change(document.querySelector("#start-footage")!, { target: { files: [new File(["frames"], "cycle.mov", { type: "video/quicktime" })] } });
+    }
+    const button = screen.getByRole("button", { name: withVideo ? "Send video" : "Next: film the job" });
+    const block = document.querySelector("[data-consent-statements]")!;
+    expect(button.nextElementSibling).toContainElement(block as HTMLElement);
+    expect(block).toHaveTextContent(`By pressing ${withVideo ? "Send video" : "Next: film the job"}, you agree to our Terms and Privacy Policy and confirm:`);
+    expect(block).toHaveTextContent("“I am authorized to share this job description with Blueprint on behalf of the site.”");
+    if (withVideo) {
+      expect(block).toHaveTextContent(`“${RECORDING_RIGHTS_STATEMENT}”`);
+      expect(block).toHaveTextContent("Only upload footage you may share. People seen or heard in it must know it is shared with Blueprint, so avoid clips with conversations. We remove sound before any automated review.");
+    } else {
+      expect(block).not.toHaveTextContent(RECORDING_RIGHTS_STATEMENT);
+    }
+    expect(document.querySelector("[data-consent-line]")).toBeNull();
+    expect(screen.queryByRole("button", { name: "What you're agreeing to ›" })).toBeNull();
+    fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Austin, TX" } });
+    fireEvent.change(document.querySelector("#start-email")!, { target: { value: "owner@example.test" } });
+    fireEvent.submit(screen.getByRole("form"));
+    await waitFor(() => expect(postsTo("/api/inbound-request")).toHaveLength(1));
+    const body = postsTo("/api/inbound-request")[0][1].body as string;
+    expect(JSON.parse(body)).toMatchObject({
+      descriptionAuthority: { granted: true, statementVersion: "2026-10-06.v1" },
+      consentAttestation: withVideo ? { granted: true, statementVersion: "2026-11-02.v2" } : null,
+    });
+    // No request of any kind carries a 2026-11-11 statement version while the switch is off.
+    for (const [, init] of fetchMock.mock.calls) expect(String(init?.body ?? "")).not.toContain("2026-11-11");
+  });
+
+  it("says the same for a site outside the US, with no recording statement", async () => {
+    fetchMock.mockImplementation(async (_url: string, init?: { method?: string }) => init?.method === "POST"
+      ? { ok: true, status: 201, json: async () => ({ captureUrl: null }) } : photon([]));
+    await renderReady(<SiteCaptureStart />);
+    fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Berlin, Germany" } });
+    fireEvent.change(document.querySelector("#start-email")!, { target: { value: "owner@example.test" } });
+    expect(document.querySelector("[data-consent-statements]")).toHaveTextContent("By pressing Save my job, you agree to our Terms and Privacy Policy and confirm:");
+    fireEvent.submit(screen.getByRole("form"));
+    await waitFor(() => expect(postsTo("/api/inbound-request")).toHaveLength(1));
+    expect(JSON.parse(postsTo("/api/inbound-request")[0][1].body)).toMatchObject({
+      captureRegion: "non_us", descriptionAuthority: { granted: true, statementVersion: "2026-10-06.v1" }, consentAttestation: null });
+    for (const [, init] of fetchMock.mock.calls) expect(String(init?.body ?? "")).not.toContain("2026-11-11");
+  });
 });

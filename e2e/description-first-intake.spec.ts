@@ -71,7 +71,7 @@ for (const device of ["desktop", "mobile"] as const) {
       await expect(page.getByRole("link", { name: "Open my job", exact: true })).toHaveCount(0);
       expect(mutations).toHaveLength(1);
       expect(mutations[0].body).toMatchObject({ taskStatement: "Move sealed cartons from a conveyor onto a pallet.",
-        taskConfirmation: { granted: true, statementVersion: "2026-11-07.v1" }, descriptionOnly: true, descriptionAuthority: { granted: true, statementVersion: "2026-11-11.v3" }, consentAttestation: null, hasExistingFootage: false });
+        taskConfirmation: { granted: true, statementVersion: "2026-11-07.v1" }, descriptionOnly: true, descriptionAuthority: { granted: true, statementVersion: "2026-10-06.v1" }, consentAttestation: null, hasExistingFootage: false });
       expect(mutations[0].body.matchFee).toBeUndefined();
       await shot("saved");
       await captureLink.click();

@@ -248,8 +248,8 @@ describe("build output", () => {
     expect(homeHtml).toContain("Free during the beta");
     expect(homeHtml).toContain("We check pick-up-and-put-down jobs. Not a test at your site, or a safety check.");
     // The moving example is a small answer screen, marked as an example; it promises no cycle-time check.
-    expect(homeHtml).toContain("The robot most likely to fit");
-    expect(homeHtml).toContain("Robot names are real; the jobs and answers are made up.");
+    expect(homeHtml).toContain("Did best on your job");
+    expect(homeHtml).toContain("The names, jobs and results are made up.");
     expect(homeHtml).not.toContain("cycle time");
     expect(homeHtml).not.toContain("One job. A clear pilot plan.");
     expect(homeHtml).not.toContain("Review comparable proposals");
