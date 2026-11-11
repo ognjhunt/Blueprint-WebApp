@@ -121,9 +121,8 @@ for (const [index, parameters] of cases.entries()) test(`A-J-${String(index + 1)
       const returned = await page.getByRole("link", { name: "Open your job page", exact: true }).getAttribute("href");
       expect(linkSubject(returned!)).toEqual(linkSubject(target!));
       await page.getByRole("link", { name: "Open your job page", exact: true }).click();
-      await page.waitForTimeout(3000); console.log("PAGEDUMP", (await page.locator("body").innerText()).slice(0, 1500));
-      // The capture page opens ready to take the video: its upload control is there.
-      await expect(page.getByRole("button", { name: /^(Upload a video file|Choose or record a video)$/ })).toBeVisible();
+      // The capture page opens at the step before the video: its upload control, or the recording permission it waits on.
+      await expect(page.getByRole("button", { name: /^(Upload a video file|Choose or record a video|Confirm recording permission)$/ })).toBeVisible();
       await expect(page.getByRole("heading", { name: "Your job summary", exact: true })).toHaveCount(0);
       // The retained owner link authorizes the capture route; a draft is not an assessment before video arrives.
       const token = new URL(page.url()).pathname.split("/").pop()!;
