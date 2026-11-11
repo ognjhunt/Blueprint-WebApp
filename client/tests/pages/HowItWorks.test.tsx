@@ -27,7 +27,9 @@ describe("How it works", () => {
     expect(evaluation).not.toHaveTextContent(/using APIs/);
     const result = screen.getByRole("region", { name: "See what works on your job." });
     expect(result).toHaveTextContent(/No approved budget is needed to start/);
-    expect(result).toHaveTextContent(/which did best in a simulation of your site.*how much that result can be trusted.*“held”/);
+    // The comparison may find no clear difference, so the page promises how they compared, not a winner.
+    expect(result).toHaveTextContent(/how the setups compared in a simulation of your site and whether one was clearly ahead.*how much that result can be trusted.*“held”/);
+    expect(result).not.toHaveTextContent(/which did best/);
     expect(result).toHaveTextContent(/anonymised job card.*deployment companies Blueprint has approved/);
     expect(result).toHaveTextContent(/agree any pilot's price and terms directly with one of them/);
     expect(result).not.toHaveTextContent(/delivery proposals|comparable|invite those companies|recommends the approach/i);

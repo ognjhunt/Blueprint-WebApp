@@ -511,11 +511,15 @@ describe("the action decides the kind of job", () => {
       expect(typed(sentence), sentence).toMatchObject({ state: "cannot_assess", headline: "We can't check robots against this job yet.",
         reason: OTHER_KIND, pick: null, runnerUp: null, approach: null, nextStep: { kind: "none" } });
     }
-    expect(read({ object: "towel", basis: "A person folds towels on a table." })).toMatchObject({ state: "cannot_assess", reason: OTHER_KIND });
-    expect(read({ object: "cap", basis: "A worker screws caps onto bottles." })).toMatchObject({ state: "cannot_assess", reason: OTHER_KIND });
+    expect(read({ object: "towel", basis: "A person folds the towels on a table." })).toMatchObject({ state: "cannot_assess", reason: OTHER_KIND });
+    expect(read({ object: "cap", basis: "A worker screws the caps onto bottles." })).toMatchObject({ state: "cannot_assess", reason: OTHER_KIND });
+    // Where grammar does not make the word a verb ("folds towels": a verb, or a noun before a noun), the rule
+    // says nothing and the numbers decide; the reader's own kind of job is the better judge.
+    expect(read({ object: "towel", basis: "A person folds towels on a table." }).state).toBe("ready");
+    expect(read({ object: "towel", basis: "A person folds towels on a table.", job_kind: "other" }).state).toBe("cannot_assess");
     // A linked video's summary counts as the reader's words too.
     expect(compose({ brief: null, estimates: estimates({ basis: "A person stands at a table." }),
-      request: { site_video_evidence: { summary: "Staff fold laundry at a counter." } } })).toMatchObject({ state: "cannot_assess", reason: OTHER_KIND });
+      request: { site_video_evidence: { summary: "Staff fold the laundry at a counter." } } })).toMatchObject({ state: "cannot_assess", reason: OTHER_KIND });
     // The simulation's own reason sentences never reach the answer.
     expect(typed("Fold the towels").reason).not.toMatch(/evaluation preparation|simulation|hold your job/i);
   });
@@ -527,7 +531,7 @@ describe("the action decides the kind of job", () => {
     const both = typed("Fold each towel and stack it on the shelf");
     expect(both.state).toBe("ready");
     expect(both.unknowns).toContain(ALSO("folding"));
-    expect(read({ object: "towel", basis: "A person folds towels and stacks them on a shelf." }).unknowns).toContain(ALSO("folding"));
+    expect(read({ object: "towel", basis: "A person folds the towels and stacks them on a shelf." }).unknowns).toContain(ALSO("folding"));
   });
 
   it("does not count a verb used as a noun or a describing word", () => {
@@ -539,6 +543,26 @@ describe("the action decides the kind of job", () => {
     expect(typed("Place bottles into open crates").unknowns.some((line) => /opening/.test(line))).toBe(false);
     // A noun alone never decides: the object's name says nothing about what is done to it.
     expect(typed("The press").state).toBe("ready");
+  });
+
+  it("counts a word as a verb only where grammar makes it one, and never lets an object's name decide", () => {
+    const noAlso = (answer: ReturnType<typeof compose>) => answer.unknowns.filter((line) => line.startsWith("Your job also involves"));
+    for (const sentence of ["Take screws from the bin and drop them in the tray", "Sort screws by size into the trays",
+      "Stock spray bottles on the shelf", "Paint cans are moved from the pallet to the shelf", "Tend the hydraulic press",
+      "Move boxes to open crates", "Place parts close to the door"]) {
+      const answer = typed(sentence);
+      expect(answer.state, sentence).toBe("ready");
+      expect(noAlso(answer), sentence).toEqual([]);
+    }
+    for (const [sentence, word] of [["We need help with loading boxes after opening them", "opening"],
+      ["Pick up the cap and screw it on", "screwing"], ["Towels are folded and stacked on the cart", "folding"]]) {
+      const answer = typed(sentence);
+      expect(answer.state, sentence).toBe("ready");
+      expect(noAlso(answer), sentence).toEqual([ALSO(word)]);
+    }
+    for (const sentence of ["Fold towels", "Fold the towels", "Wipe down each table", "Screw the cap onto the bottle"]) {
+      expect(typed(sentence), sentence).toMatchObject({ state: "cannot_assess", reason: OTHER_KIND, pick: null });
+    }
   });
 
   it("takes the reader's kind of job when the site has typed no sentence", () => {
@@ -656,6 +680,18 @@ describe("every sentence has a precondition in the data (generated inputs)", () 
   const MODEL_IDS = catalog.models.map((model) => model.model_id);
   /** Sentences that describe a check that was not failed: never a reason a robot is ruled out. */
   const NOT_A_FAIL = /we don't know yet|publishes no|could not settle|could not size|is not checked against|was not checked|is not published/;
+
+  it("never reads an object's name as another action after a carrying verb", () => {
+    const CARRY = ["Move", "Take", "Pick", "Load", "Stack", "Sort", "Carry", "Drop", "Bring", "Place", "Transfer", "Unload"];
+    const LOOK_ALIKES = ["screws", "paints", "sprays", "presses", "mixes", "ties", "cuts", "pulls"];
+    const TAILS = ["", " to the shelf", " into the tray", " from the bin onto the cart", " off the conveyor"];
+    for (let index = 0; index < 500; index++) {
+      const sentence = `${pick(CARRY)} ${pick(LOOK_ALIKES)}${pick(TAILS)}`;
+      const answer = compose({ brief: { requestId: "job-1", summary: sentence, confirmedAtIso: null } });
+      expect(answer.state, sentence).not.toBe("cannot_assess");
+      expect(answer.unknowns.some((line) => line.startsWith("Your job also involves")), sentence).toBe(false);
+    }
+  });
 
   it("holds over a few thousand random jobs", () => {
     const counts = { answers: 0, ready: 0, cannot: 0, passShown: 0, failShown: 0, good: 0, scene: 0 };

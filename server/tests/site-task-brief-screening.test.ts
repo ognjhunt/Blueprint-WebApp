@@ -203,7 +203,7 @@ describe("the confirmation says what our screen decided", () => {
     expect(sent.body).toMatch(/^Hi Dana,/);
     expect(sent.body).toMatch(/upload it here: http\S+\/capture-upload\//);
     expect(sent.body).toMatch(/test robots and policies on your job ourselves/);
-    expect(sent.body).toMatch(/which robot most likely fits and which control policy did best in the simulation, or “held” if we can't simulate that kind of job yet/);
+    expect(sent.body).toMatch(/which robot most likely fits and how control policies compared on your job in the simulation, including whether one was clearly ahead, or “held” if we can't simulate that kind of job yet/);
     expect(sent.body).toMatch(/share the job with deployment companies we have approved\. You agree any physical pilot's scope, price, timing and acceptance criteria directly with that company/);
     expect(sent.body).toMatch(/If nothing fits, we explain what is missing/);
     expect(sent.body).toMatch(/free during the beta/);

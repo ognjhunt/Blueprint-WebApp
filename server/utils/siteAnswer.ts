@@ -214,57 +214,94 @@ export function jobFamilyOf(sentence: string | null): JobFamily {
  * Nouns and the simulation's scope reasons never decide.
  */
 
+/*
+ * The verb rule: a word counts as a verb only where grammar makes it one, and when unsure the rule says nothing,
+ * leaving the decision to the reader's `job_kind` or the numbers rule. A carrying word counts in any form unless a
+ * determiner comes right before it ("the load"), and another-action word counts only as an -ing form not after a
+ * determiner or a carrying word, a base or -s form followed by an object word ("fold the towels"), a base form
+ * opening a sentence with no carrying word ("Fold towels"), or a past form after "is", "are", "get" and the like.
+ */
+
 /** Verbs that carry an object from one place to another. */
 const CARRY_VERBS = ["pick", "place", "put", "move", "transfer", "load", "unload", "stack", "unstack", "lift", "carry",
-  "pack", "unpack", "palletize", "palletise", "depalletize", "depalletise", "sort", "stock", "restock", "feed", "tend"];
+  "pack", "unpack", "palletize", "palletise", "depalletize", "depalletise", "sort", "stock", "restock", "feed", "tend",
+  "take", "bring", "remove", "grab", "drop", "deliver", "retrieve", "collect", "fetch"];
 /** Verbs that do something else to the object. */
 const OTHER_VERBS = ["fold", "pour", "wipe", "sweep", "mop", "scrub", "screw", "unscrew", "tighten", "assemble", "insert",
   "cut", "weld", "paint", "spray", "sand", "polish", "stir", "mix", "sew", "tie", "peel", "open", "close", "push", "press",
   "pull", "twist"];
 /** Verbs whose last consonant doubles before -ing and -ed. */
-const DOUBLED = new Set(["put", "cut", "stir", "mop", "scrub"]);
-const IRREGULAR: Record<string, string[]> = { feed: ["fed"], sweep: ["swept"], sew: ["sewn"], tie: ["tying"] };
+const DOUBLED = new Set(["put", "cut", "stir", "mop", "scrub", "grab", "drop"]);
+/** Irregular forms, by kind. */
+const IRREGULAR: Record<string, { ed?: string[]; ing?: string }> = {
+  feed: { ed: ["fed"] }, sweep: { ed: ["swept"] }, sew: { ed: ["sewn"] }, tie: { ing: "tying" },
+  put: { ed: ["put"] }, cut: { ed: ["cut"] }, take: { ed: ["took", "taken"] }, bring: { ed: ["brought"] },
+};
 
-/** A verb's forms: the base, -s, -ed and -ing, with the usual spelling changes. */
-function inflections(base: string): string[] {
-  const stem = DOUBLED.has(base) ? base + base.slice(-1) : base.endsWith("e") ? base.slice(0, -1) : base;
-  const forms = [base, ...(IRREGULAR[base] ?? [])];
-  if (/[^aeiou]y$/.test(base)) forms.push(`${base.slice(0, -1)}ies`, `${base.slice(0, -1)}ied`, `${base}ing`);
-  else forms.push(/(s|x|z|ch|sh)$/.test(base) ? `${base}es` : `${base}s`, base.endsWith("e") ? `${base}d` : `${stem}ed`, `${stem}ing`);
-  return forms;
-}
+type FormKind = "base" | "s" | "ed" | "ing";
+
 /** The -ing word a site reads for an action ("opening"). */
 function ingOf(base: string): string {
-  if (IRREGULAR[base]?.some((form) => form.endsWith("ing"))) return IRREGULAR[base].find((form) => form.endsWith("ing"))!;
+  if (IRREGULAR[base]?.ing) return IRREGULAR[base].ing!;
   if (/[^aeiou]y$/.test(base)) return `${base}ing`;
   return `${DOUBLED.has(base) ? base + base.slice(-1) : base.endsWith("e") ? base.slice(0, -1) : base}ing`;
 }
-const formsOf = (verbs: string[]) => new Map(verbs.flatMap((base) => inflections(base).map((form) => [form, base] as const)));
+
+/** A verb's forms with their kind: the base, -s, -ed (and irregular past) and -ing, with the usual spelling changes. */
+function inflections(base: string): Array<[string, FormKind]> {
+  const stem = DOUBLED.has(base) ? base + base.slice(-1) : base.endsWith("e") ? base.slice(0, -1) : base;
+  const consonantY = /[^aeiou]y$/.test(base);
+  const s = consonantY ? `${base.slice(0, -1)}ies` : /(s|x|z|ch|sh)$/.test(base) ? `${base}es` : `${base}s`;
+  const ed = IRREGULAR[base]?.ed ?? [consonantY ? `${base.slice(0, -1)}ied` : base.endsWith("e") ? `${base}d` : `${stem}ed`];
+  return [[base, "base"], [s, "s"], ...ed.map((form): [string, FormKind] => [form, "ed"]), [ingOf(base), "ing"]];
+}
+function formsOf(verbs: string[]): Map<string, { base: string; kinds: Set<FormKind> }> {
+  const forms = new Map<string, { base: string; kinds: Set<FormKind> }>();
+  for (const base of verbs) {
+    for (const [form, kind] of inflections(base)) {
+      const entry = forms.get(form) ?? { base, kinds: new Set<FormKind>() };
+      entry.kinds.add(kind);
+      forms.set(form, entry);
+    }
+  }
+  return forms;
+}
 const CARRY_FORMS = formsOf(CARRY_VERBS);
 const OTHER_FORMS = formsOf(OTHER_VERBS);
 const CARRY_INGS = new Set(CARRY_VERBS.map(ingOf));
-/**
- * A word right after one of these is used as a noun or a describing word, not as a verb: "into the press",
- * "a pack of bottles", "the lift", "into open crates". "to" is not among them: "to fold" is a verb.
- */
-const NOT_A_VERB_AFTER = new Set(["the", "a", "an", "this", "that", "each", "every", "per", "of", "our", "its",
-  "in", "into", "onto", "on", "from", "with", "at", "by", "inside", "near", "beside", "under", "over"]);
-/** "close to" and "close by" say where, not what is done. */
-const NOT_A_VERB_BEFORE: Record<string, Set<string>> = { close: new Set(["to", "by"]) };
+/** A word right after one of these is a noun or a describing word: "the load", "a folding table". */
+const DETERMINERS = new Set(["the", "a", "an", "this", "that", "these", "those", "each", "every", "per", "of", "our", "its",
+  "their", "your", "my", "some", "any", "no"]);
+/** A word that, right after a base or -s form, makes it a verb with an object: "fold the towels", "wipe it". */
+const OBJECT_WORDS = new Set(["the", "a", "an", "each", "every", "it", "them", "this", "that", "these", "those", "its", "their", "all"]);
+/** A past form right after one of these is a verb: "towels are folded". */
+const PASSIVE = new Set(["is", "are", "was", "were", "be", "been", "being", "get", "gets", "got"]);
 
 type VerbReading = { carry: boolean; others: string[] };
 
-/** The carry verbs and the other verbs a sentence uses as verbs, in any form. */
-function verbsIn(sentence: string): VerbReading {
-  const words = sentence.toLowerCase().split(/[^a-z]+/).filter(Boolean);
+/** The carrying verbs and the other verbs a text uses as verbs, by the positions above. */
+function verbsIn(text: string): VerbReading {
   let carry = false;
   const others: string[] = [];
-  words.forEach((word, index) => {
-    if (index > 0 && NOT_A_VERB_AFTER.has(words[index - 1])) return;
-    if (CARRY_FORMS.has(word)) { carry = true; return; }
-    const base = OTHER_FORMS.get(word);
-    if (base && !NOT_A_VERB_BEFORE[base]?.has(words[index + 1] ?? "")) others.push(ingOf(base));
-  });
+  for (const sentence of text.toLowerCase().split(/[.!?;\n]+/)) {
+    const words = sentence.split(/[^a-z]+/).filter(Boolean);
+    const isCarry = (index: number) => index >= 0 && CARRY_FORMS.has(words[index])
+      && !(index > 0 && DETERMINERS.has(words[index - 1]));
+    const sentenceCarries = words.some((_, index) => isCarry(index));
+    carry ||= sentenceCarries;
+    words.forEach((word, index) => {
+      const other = OTHER_FORMS.get(word);
+      if (!other) return;
+      const before = index > 0 ? words[index - 1] : null;
+      const after = words[index + 1] ?? null;
+      const kinds = other.kinds;
+      const asVerb = (kinds.has("ing") && !(before && DETERMINERS.has(before)) && !isCarry(index - 1))
+        || ((kinds.has("base") || kinds.has("s")) && after !== null && OBJECT_WORDS.has(after))
+        || (kinds.has("base") && index === 0 && !sentenceCarries)
+        || (kinds.has("ed") && before !== null && PASSIVE.has(before));
+      if (asVerb) others.push(ingOf(other.base));
+    });
+  }
   return { carry, others: [...new Set(others)] };
 }
 

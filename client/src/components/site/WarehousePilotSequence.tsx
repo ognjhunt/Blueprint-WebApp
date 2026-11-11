@@ -99,7 +99,7 @@ export function WarehousePilotSequence() {
         <section className="ms-pilot-step" id="recommendation" aria-labelledby="recommendation-title">
           <p className="ms-eyebrow">06 · Result</p>
           <h3 id="recommendation-title">See what works on your job.</h3>
-          <p>You see which did best in a simulation of your site (in this example, setup B) and how much that result can be trusted, or &ldquo;held&rdquo; if we can&apos;t simulate that kind of job yet. Then, if you choose, you share an anonymised job card, with the answer and the simulation result, with deployment companies Blueprint has approved. You agree any pilot&apos;s price and terms directly with one of them.</p>
+          <p>You see how the setups compared in a simulation of your site and whether one was clearly ahead (in this example, setup B), and how much that result can be trusted, or &ldquo;held&rdquo; if we can&apos;t simulate that kind of job yet. Then, if you choose, you share an anonymised job card, with the answer and the simulation result, with deployment companies Blueprint has approved. You agree any pilot&apos;s price and terms directly with one of them.</p>
           <p>No approved budget is needed to start. Blueprint&apos;s simulation and results are free during the beta, and Blueprint takes no cut of the pilot.</p>
         </section>
 

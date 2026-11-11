@@ -437,7 +437,7 @@ const held = (kind: string) => `Held. Our robot check covers jobs where a robot 
 // The packaging example's robots, figures and ruled-out reason are all published:
 // UR20 reach 1.75 m and payload 20 kg, HC20DTP reach 1.9 m and payload 20 kg,
 // UR5e payload 5 kg (catalog above). Both arms have production palletizing rows
-// in server/data/deploymentEvidence.v1.json; no customer is named here.
+// in server/data/deploymentEvidence.v2.json; no customer is named here.
 const examples: Example[] = [
   { site: "Packaging", embodiment: "Fixed robot arm", job: "Stacking sealed cartons, about 12 kg each, from the end of a packing conveyor onto a pallet", answer: [
     ["Most likely fits", "Universal Robots UR20, a fixed robot arm. Published reach 1.75 m, payload 20 kg"],

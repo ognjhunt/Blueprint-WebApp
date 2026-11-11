@@ -99,10 +99,16 @@ object is called. In this order: a job sentence the site typed or confirmed,
 by its verbs; else the video reader's own `job_kind` (`pick_and_place`,
 `palletizing`, `machine_tending` or `other`, which also gives the job family);
 else the verbs in the reader's sentences; else an object and a distance or a
-height counts as a carry. Carrying verbs (pick, place, move, load, stack and
-so on) and other verbs (fold, pour, screw, open, press and so on) count in any
-form, but not when used as a noun or a describing word ("into the press", "a
-pack of", "open crates"). Only other verbs and no carrying verb: the answer
+height counts as a carry. A word counts as a verb only where grammar makes it one,
+and when the rule is unsure it says nothing, so the reader's `job_kind` or the
+numbers decide. A carrying word (pick, place, move, load, take, drop and so on)
+counts in any form unless a determiner comes right before it ("the load"); an
+other-action word (fold, pour, screw, open, press and so on) counts only as an
+-ing form not after a determiner or a carrying word, a base or -s form followed
+by an object word ("fold the towels"), a base form opening a sentence with no
+carrying word ("Fold towels"), or a past form after "is", "are", "get" and the
+like ("towels are folded"), so an object's name ("screws", "paint cans", "the
+hydraulic press") never decides. Only other verbs and no carrying verb: the answer
 says it can't check robots against the job. Both: it checks the carry and says
 what else the job involves, as it does for the reader's `other_actions`. A job
 sentence with more than one step adds that the check covers one carry.
