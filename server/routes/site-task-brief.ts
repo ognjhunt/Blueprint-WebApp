@@ -1073,9 +1073,7 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
           stage: "brief_confirmed",
           nextStep: walkthrough?.received ? { kind: "footage_received", taskUrl: jobUrl }
             : !walkthrough ? { kind: "job_page", taskUrl: jobUrl }
-            : result.brief.captureMode === "site_visit"
-              ? { kind: "capturer_visit", taskUrl: jobUrl }
-              : { kind: "self_capture", uploadUrl: jobUrl },
+            : { kind: "self_capture", uploadUrl: jobUrl },
           accountNeeded: !request.account_owner_uid,
           ...(request.jobAccess ? { jobCardPublished: request.jobAccess.reason !== "not_listed" } : {}),
         });

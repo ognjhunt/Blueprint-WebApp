@@ -23,7 +23,8 @@ describe("signed-in state on public pages", () => {
 
     auth.userData = { role: "capturer" };
     rerender(<MinimalSiteLayout>page</MinimalSiteLayout>);
-    expect(screen.getAllByRole("link", { name: "Your workspace" })[0]).toHaveAttribute("href", "/capture-app/account");
+    // The capturer role is retired (2026-11-11): routed like everyone else.
+    expect(screen.getAllByRole("link", { name: "Finish onboarding" })[0]).toHaveAttribute("href", "/onboarding");
     auth.userData = { finishedOnboarding: false };
     rerender(<MinimalSiteLayout>page</MinimalSiteLayout>);
     expect(screen.getAllByRole("link", { name: "Finish onboarding" })[0]).toHaveAttribute("href", "/onboarding");

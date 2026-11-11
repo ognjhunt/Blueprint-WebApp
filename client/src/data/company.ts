@@ -17,7 +17,10 @@ export const COMPANY = {
     privacy: "privacy@tryblueprint.io",
     legal: "legal@tryblueprint.io",
   },
-  /** Where Blueprint staff can visit a site in person. Self-capture works anywhere. */
+  /**
+   * Where Blueprint staff used to visit a site in person. Filming visits are
+   * retired (2026-11-11); only the frozen previous legal versions print this.
+   */
   visitServiceArea: "Austin metro",
 } as const;
 

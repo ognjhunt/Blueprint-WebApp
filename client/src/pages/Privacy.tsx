@@ -15,7 +15,7 @@ export const privacyPolicySections = [
   {
     title: "Site footage",
     body:
-      "When a site films its job, or Blueprint staff film it during an in-person visit, we receive the video and photos, when and where they were taken, and the phone's motion and depth data where available. A phone video can show people and can include sound, such as conversations nearby. We keep the original upload as received, including any sound, for the uses and retention periods in this policy. We remove the sound before any automated review of the footage and before sending it to an AI or 3D-processing provider, and we do not analyze speech. We and our listed processing providers use the footage to draft the job brief, review the job, rebuild the work area as a simulated scene, and run the evaluations the site allows. We do not remove people from job footage. We blur faces in the frames we send to World Labs to rebuild the work area; the other listed providers receive the footage, with its sound removed, or frames from it as recorded, which can show people, including hands or arms performing the job. We ask sites to avoid screens and paperwork and may blur or remove those details when practical.",
+      "When a site films its job, we receive the video and photos, when and where they were taken, and the phone's motion and depth data where available. A phone video can show people and can include sound, such as conversations nearby. We keep the original upload as received, including any sound, for the uses and retention periods in this policy. We remove the sound before any automated review of the footage and before sending it to an AI or 3D-processing provider, and we do not analyze speech. We and our listed processing providers use the footage to draft the job brief, review the job, rebuild the work area as a simulated scene, and run the evaluations the site allows. We do not remove people from job footage. We blur faces in the frames we send to World Labs to rebuild the work area; the other listed providers receive the footage, with its sound removed, or frames from it as recorded, which can show people, including hands or arms performing the job. We ask sites to avoid screens and paperwork and may blur or remove those details when practical.",
     icon: Waypoints,
   },
   {
@@ -51,13 +51,6 @@ export const capturePrivacyAnnex = [
   ["Physical pilot records", "If the site and the robot team agree to share pilot outcomes with Blueprint, those permissions set what operating records we receive, who may see them, and the permitted uses. A simulation result does not become a physical result without actual trial evidence."],
 ];
 
-/** Filming by Blueprint staff, which some sites ask for instead of filming themselves. */
-export const inPersonVisitPrivacy = [
-  ["What we record", "Only the job and work area the site agreed to before the visit: the task as it is done, the objects, and the surrounding layout, with the same phone video, photos, motion and depth data as a self-filmed capture. We avoid people's faces, screens, paperwork and restricted areas where we can."],
-  ["People on site", "The site tells its staff and anyone else present that filming will happen, and obtains any permission the law or its own policies require, before we start. Anyone who does not want to appear can step out of the work area, and our staff will pause filming on request."],
-  ["Your rights", "Footage from a visit is handled exactly like footage a site films itself: the same uses, sharing limits, retention and rights to access, correct or delete it. People shown in the footage can make requests to us directly."],
-] as const;
-
 export const rolePrivacyAnnex = [
   {
     title: "Robot teams",
@@ -86,7 +79,7 @@ export const betaRetentionSchedule = [
   {
     record: "Site footage and capture data",
     defaultWindow: "Existing recordings keep their original retention terms; longer retention requires separate authorization",
-    notes: "The video, photos, timestamps, motion and depth data, the frames and blurred copies we make from them and store with them, and the record of the site's authority and privacy review, including footage filmed by Blueprint staff. Recordings collected under our previous policy keep its 180 days after the job closes schedule, subject to applicable legal holds. Publishing this update, reaching its effective date, or accepting it later does not extend that period for existing recordings. A proposed period of at least 7 years for newly collected recordings requires legal review and the notice and authorization applicable to those recordings before it can apply. Our storage does not currently delete originals automatically on a schedule; that configuration does not override the applicable retention terms. Withdrawal and verified deletion requests use our deletion process, after we confirm the request and check for any legal hold. When a site withdraws permission, we stop using the recording from that moment.",
+    notes: "The video, photos, timestamps, motion and depth data, the frames and blurred copies we make from them and store with them, and the record of the site's authority and privacy review. Recordings collected under our previous policy keep its 180 days after the job closes schedule, subject to applicable legal holds. Publishing this update, reaching its effective date, or accepting it later does not extend that period for existing recordings. A proposed period of at least 7 years for newly collected recordings requires legal review and the notice and authorization applicable to those recordings before it can apply. Our storage does not currently delete originals automatically on a schedule; that configuration does not override the applicable retention terms. Withdrawal and verified deletion requests use our deletion process, after we confirm the request and check for any legal hold. When a site withdraws permission, we stop using the recording from that moment.",
   },
   {
     record: "Temporary processing files",
@@ -230,12 +223,8 @@ export default function Privacy() {
       </section>
 
       <section>
-        <h2>In-person filming visits</h2>
-        <p>
-          Where we offer it (currently the {COMPANY.visitServiceArea}), a site can ask Blueprint staff to film its job
-          instead of filming it themselves.
-        </p>
-        <LegalRows rows={inPersonVisitPrivacy} />
+        <h2>Earlier filming visits</h2>
+        <p>Video from an earlier Blueprint filming visit is handled like uploaded video.</p>
       </section>
 
       <section>

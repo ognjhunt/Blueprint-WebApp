@@ -764,50 +764,25 @@ describe("SelfCaptureUpload once robot teams have run", () => {
 });
 
 describe("SelfCaptureUpload for a site that asked for a visit", () => {
-  it.each([false, true])("offers self-recording while preserving any required recording permission (%s)", async (needsConsent) => {
+  it("shows the ordinary film-it-yourself page, with no visit wording or switch (visits retired 2026-11-11)", async () => {
     setUserAgent(
       "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/126.0 Safari/537.36",
     );
-    const calls: Array<{ url: string; method: string }> = [];
-    let switched = false;
-    const ready = { ok: true, state: needsConsent ? "held" : "ready", recordingConsentAvailable: needsConsent,
-      holdReason: needsConsent ? "recording_consent_required" : null, detail: "Confirm recording permission.",
-      accepts: ["mov", "mp4"], expiresAt: "2099-01-01T00:00:00Z" };
-    vi.stubGlobal("fetch", vi.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+    vi.stubGlobal("fetch", vi.fn().mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
-      const method = init?.method ?? "GET";
-      calls.push({ url, method });
       if (url === `/api/site-task-brief/${TOKEN}`) return Promise.resolve({ ok: true, json: async () => ({ ready: false, scope: "owner" }) });
-      if (url.endsWith(`/api/self-capture/uploads/${TOKEN}/self-capture`)) {
-        switched = true;
-        return Promise.resolve({ ok: true, json: async () => ({ ...ready, switched: true }) });
-      }
       if (url.endsWith(`/api/self-capture/uploads/${TOKEN}/status`)) {
-        if (switched) return Promise.resolve({ ok: true, json: async () => ready });
-        return Promise.resolve({ ok: true, json: async () => ({
-          ok: true, state: "held", holdReason: "capturer_visit_scheduled",
-          detail: "This site is set up for a capturer visit rather than a self-recorded walkthrough.",
-          blockers: [], openQuestions: [], selfCaptureSwitchAvailable: true,
-        }) });
+        // Even if a status still offered the old switch, the page has no visit to offer.
+        return Promise.resolve({ ok: true, json: async () => ({ ok: true, state: "ready", holdReason: null,
+          accepts: ["mov", "mp4"], expiresAt: "2099-01-01T00:00:00Z", selfCaptureSwitchAvailable: true }) });
       }
       return mockFetch()(input);
     }));
     render(<SelfCaptureUpload />);
 
-    const button = await screen.findByRole("button", { name: "I'll film it myself instead" });
-    expect(screen.getByText(/Visits are booked by hand, so they take longer/)).toBeInTheDocument();
-    // The rule's internal wording is replaced by the offer, not shown beside it.
-    expect(screen.queryByText(/set up for a capturer visit/)).not.toBeInTheDocument();
-    fireEvent.click(button);
-
-    if (needsConsent) {
-      expect(await screen.findByRole("region", { name: "Confirm recording permission" })).toBeVisible();
-      expect(screen.getByRole("button", { name: "Confirm recording permission" })).toBeDisabled();
-      expect(screen.queryByRole("button", { name: "Upload a video file" })).not.toBeInTheDocument();
-    } else {
-      expect(await screen.findByRole("heading", { name: "Point your phone at this." })).toBeInTheDocument();
-    }
-    expect(calls).toContainEqual({ url: `/api/self-capture/uploads/${TOKEN}/self-capture`, method: "POST" });
+    expect(await screen.findByRole("heading", { name: "Point your phone at this." })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "I'll film it myself instead" })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Visits|Austin metro|someone to come/i)).not.toBeInTheDocument();
   });
 
   it("does not offer the switch unless the server does", async () => {

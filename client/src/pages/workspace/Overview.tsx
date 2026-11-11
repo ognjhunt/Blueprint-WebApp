@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link } from "wouter";
-import { useWorkspace, dateLabel } from "@/lib/workspace";
+import { useWorkspace } from "@/lib/workspace";
 import {
   Frame,
   ActionLink,
@@ -47,9 +47,7 @@ export function TaskRows({ tasks }: { tasks: WorkspaceTask[] }) {
             <p>
               {task.results.length
                 ? `${task.results.filter((result) => result.successRate !== null).length} results · ${new Set(task.results.map((result) => result.teamAlias)).size} submitters${task.results.some((result) => result.targetsMet !== null) ? ` · ${task.results.filter((result) => result.targetsMet).length} ${task.results.filter((result) => result.targetsMet).length === 1 ? "meets" : "meet"} recorded targets` : ""}`
-                : task.capture?.startsAt
-                  ? `Capture ${dateLabel(task.capture.startsAt)}`
-                  : "Capture and evaluation planning"}
+                : "Capture and evaluation planning"}
             </p>
             <p className="ws-note">
               <TargetLine terms={task.terms} />
@@ -63,25 +61,6 @@ export function TaskRows({ tasks }: { tasks: WorkspaceTask[] }) {
     </div>
   );
 }
-function Countdown({ date }: { date: string }) {
-  const [now, setNow] = useState(Date.now());
-  useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), 60000);
-    return () => clearInterval(timer);
-  }, []);
-  const minutes = Math.ceil((Date.parse(date) - now) / 60000);
-  return (
-    <>
-      {minutes <= 0
-        ? "Scheduled time has arrived"
-        : minutes < 60
-          ? `In ${minutes} min`
-          : minutes < 1440
-            ? `In ${Math.floor(minutes / 60)} hr ${minutes % 60} min`
-            : `In ${Math.ceil(minutes / 1440)} days`}
-    </>
-  );
-}
 export default function Overview() {
   const query = useWorkspace(),
     site = query.data?.role === "site_operator",
@@ -89,16 +68,6 @@ export default function Overview() {
     evaluations = (query.data?.evaluations || []).filter(
       (item) => !item.archived,
     );
-  const nextVisit = tasks
-    .filter(
-      (task) =>
-        task.capture?.startsAt &&
-        ["scheduled", "confirmed"].includes(task.capture.status) &&
-        Date.parse(task.capture.startsAt) > Date.now() - 3600000,
-    )
-    .sort((a, b) =>
-      a.capture!.startsAt!.localeCompare(b.capture!.startsAt!),
-    )[0];
   const nextResult = evaluations.find(
     (item) => item.successRate !== null && !item.outcome,
   );
@@ -118,22 +87,7 @@ export default function Overview() {
     >
       {site ? (
         <>
-          {nextVisit ? (
-            <section className="ws-next">
-              <div>
-                <p className="ws-kicker">Up next</p>
-                <h2>Capture visit</h2>
-                <p>{dateLabel(nextVisit.capture!.startsAt, true)}</p>
-                <p className="ws-muted">
-                  <Countdown date={nextVisit.capture!.startsAt!} /> ·{" "}
-                  {nextVisit.siteName}
-                </p>
-              </div>
-              <ActionLink href={`/app/tasks/${nextVisit.id}?tab=capture`}>
-                Manage visit
-              </ActionLink>
-            </section>
-          ) : tasks.some((task) => task.status === "Review results") ? (
+          {tasks.some((task) => task.status === "Review results") ? (
             <section className="ws-next">
               <div>
                 <p className="ws-kicker">Up next</p>

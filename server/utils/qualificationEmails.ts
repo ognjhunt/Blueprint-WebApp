@@ -244,12 +244,6 @@ export function buildLetsTalkEmail(params: {
 export type QualifiedNextStep =
   /** An upload link was issued. The site films it themselves. */
   | { kind: "self_capture"; uploadUrl: string }
-  /**
-   * The site asked for someone to film it. Whether anyone can reach the site is
-   * a human answer, so the email promises a reply rather than a visit, and
-   * offers the site's own link first when there is one.
-   */
-  | { kind: "capturer_visit"; taskUrl?: string }
   /** Held. We say we are reviewing rather than inventing a next step. */
   | { kind: "held" }
   /** The walkthrough is already saved, so there is nothing to film. */
@@ -266,14 +260,6 @@ function qualifiedNextStepLine(nextStep: QualifiedNextStep | undefined, calendly
   }
   if (nextStep?.kind === "self_capture") {
     return `Next, film the work area on a phone and upload it here: ${nextStep.uploadUrl}\n\nIt takes about a minute, and you do not need an app or a call.`;
-  }
-  if (nextStep?.kind === "capturer_visit") {
-    // No city is named or assumed. Whether a visit is possible depends on where
-    // the site is, and that is a person's answer, not a sentence in a template.
-    const visit = "You asked for someone to film the work area. We will reply to tell you whether a visit is possible for your location and, if it is, to agree a time.";
-    return nextStep.taskUrl
-      ? `${visit} If you would rather not wait, you can film it yourself in about a minute on any phone: open ${nextStep.taskUrl} and choose "I'll film it myself instead".`
-      : visit;
   }
   if (nextStep?.kind === "held") {
     // Deliberately no link and no promise. Something upstream wanted a person,

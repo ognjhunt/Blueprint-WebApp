@@ -9,7 +9,8 @@ the authenticated request receipt, admin review queue, and local route/UI tests.
 ## What the application does
 
 - Users open **Settings → Delete my account and data**, or
-  `/settings?privacy=1`. Capturer accounts link there too. This page does not
+  `/settings?privacy=1`. Accounts that still carry the retired capturer role
+  use the same page. This page does not
   require workspace setup or an approved robot-team application.
 - POST `/api/account-deletion` requires a Firebase ID token verified with
   revocation checking, CSRF, a sign-in within five minutes, and `DELETE`

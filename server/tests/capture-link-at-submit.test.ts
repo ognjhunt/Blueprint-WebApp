@@ -1683,10 +1683,11 @@ describe("the privacy question is asked before anything is derived", () => {
   });
 
   it("never reaches the privacy screen for a site that is not allowed to upload", async () => {
-    // Authorization first: a held submission should not cost a model call. A
-    // failed screen no longer holds a self-capture, so this uses the hold that
-    // still exists -- a site set up for a capturer visit.
+    // Authorization first: a held submission should not cost a model call.
+    // Visits are retired, so this uses a hold that still exists: a site
+    // outside the region the beta is cleared to collect from.
     seedRequest("req-unauthorized", { disposition: "not_now" }, "site_visit");
+    (sharedFakeFirestoreState.docs.get("inboundRequests/req-unauthorized") as Record<string, any>).request.capture_region = "non_us";
 
     await withRoutes((baseUrl) => uploadFor(baseUrl, "req-unauthorized"));
 
@@ -1750,9 +1751,9 @@ describe("a link is a destination, not a permission", () => {
     expect(result.body.code).toBe("gates_inferred");
   });
 
-  it("refuses an upload when the site was set up for a capturer visit", async () => {
-    // Two channels produce different manifests and different costs. The channel
-    // was decided once; the link must not be a way around it.
+  it("takes the upload of a job stored as a visit like any other (visits retired 2026-11-11)", async () => {
+    // A job that once asked for a visit must not dead-end: its link is the
+    // ordinary film-it-yourself upload. The tiny body fails later, on content.
     seedRequest("req-visit", { disposition: "qualified" }, "site_visit");
 
     const body = await withRoutes(async (baseUrl) => {
@@ -1766,7 +1767,8 @@ describe("a link is a destination, not a permission", () => {
       return (await response.json()) as Record<string, unknown>;
     });
 
-    expect(body.code).toBe("capturer_visit_scheduled");
+    expect(body.code).not.toBe("capturer_visit_scheduled");
+    expect(body.code).toBe("video_content_not_recognized");
   });
 
   it("refuses an upload from a region the beta is not cleared to collect from", async () => {
@@ -1915,17 +1917,10 @@ describe("a link is a destination, not a permission", () => {
 /* ----------------------------------------------- what the page is told */
 
 describe("one link, two pages", () => {
-  it("reports held with the site's own words when something really is in the way", async () => {
-    // A capturer visit is still gated, so the held page still has a job. The
-    // screen verdict no longer produces it; the channel does.
-    seedRequest(
-      "req-held",
-      {
-        disposition: "not_now",
-        blockers: ["You told us there is no access window. A capture needs 40 minutes in the space."],
-      },
-      "site_visit",
-    );
+  it("reports held with a reason the site can act on when something really is in the way", async () => {
+    // Visits are retired, so the hold that remains is the region one.
+    seedRequest("req-held", { disposition: "not_now" }, "site_visit");
+    (sharedFakeFirestoreState.docs.get("inboundRequests/req-held") as Record<string, any>).request.capture_region = "non_us";
 
     const body = await withRoutes(async (baseUrl) => {
       const token = tokenFrom(captureUploadUrlFor("req-held"));
@@ -1935,8 +1930,8 @@ describe("one link, two pages", () => {
     });
 
     expect(body.state).toBe("held");
-    expect(body.holdReason).toBe("not_qualified");
-    expect(String(body.blockers)).toContain("no access window");
+    expect(body.holdReason).toBe("capture_region_unapproved");
+    expect(body.selfCaptureSwitchAvailable).toBe(false);
   });
 
   it("reports ready for a cleared site", async () => {
@@ -1990,13 +1985,13 @@ describe("one link, two pages", () => {
 
   it("turns the same link live when the thing in the way resolves", async () => {
     // The whole reason a held link is worth issuing: nobody sends a second one.
-    // Shown on the visit path, which is where a hold still comes from.
     seedRequest("req-flip", { disposition: "needs_conversation" }, "site_visit");
+    (sharedFakeFirestoreState.docs.get("inboundRequests/req-flip") as Record<string, any>).request.capture_region = "non_us";
     const url = captureUploadUrlFor("req-flip");
 
     await expect(authorizeCaptureUpload("req-flip")).resolves.toMatchObject({ allowed: false });
 
-    seedRequest("req-flip", { disposition: "qualified" }, "self_capture");
+    seedRequest("req-flip", { disposition: "needs_conversation" }, "site_visit");
 
     await expect(authorizeCaptureUpload("req-flip")).resolves.toMatchObject({ allowed: true });
     // Same URL throughout.
@@ -2030,7 +2025,7 @@ describe("failing closed", () => {
   });
 });
 
-describe("a site that asked for a visit can film it itself instead", () => {
+describe("a job that once asked for a visit (visits retired 2026-11-11)", () => {
   const status = (baseUrl: string, url: string) =>
     fetch(`${baseUrl}/api/self-capture/uploads/${tokenFrom(url)}`).then(
       (response) => response.json() as Promise<Record<string, unknown>>,
@@ -2038,67 +2033,32 @@ describe("a site that asked for a visit can film it itself instead", () => {
   const switchMode = (baseUrl: string, url: string) =>
     fetch(`${baseUrl}/api/self-capture/uploads/${tokenFrom(url)}/self-capture`, { method: "POST" });
 
-  it("turns a link held for a visit into an upload page, with nobody booking anything", async () => {
+  it("opens a job stored as a visit straight onto the upload page, and converts it to self-capture", async () => {
+    // Visits are retired (2026-11-11): the link is ready without anyone switching or booking anything,
+    // and the stored job is converted the way the site's own switch always did. Left as a visit, its
+    // recording would be refused later (owner observation requires self-capture) and the visit-only
+    // service-area blocker would stay in its triage.
     seedRequest("req-switch", { disposition: "qualified" }, "site_visit");
-    const url = captureUploadUrlFor("req-switch");
+    const far = "req-far";
+    seedRequest(far, { disposition: "not_now", blocking_field_ids: ["serviceArea"] }, "site_visit");
 
-    const result = await withRoutes(async (baseUrl) => {
-      const before = await status(baseUrl, url);
-      const response = await switchMode(baseUrl, url);
-      return { before, after: (await response.json()) as Record<string, unknown>, code: response.status };
-    });
+    const result = await withRoutes(async (baseUrl) => ({
+      near: await status(baseUrl, captureUploadUrlFor("req-switch")),
+      far: await status(baseUrl, captureUploadUrlFor(far)),
+    }));
 
-    expect(result.before).toMatchObject({
-      state: "held",
-      holdReason: "capturer_visit_scheduled",
-      selfCaptureSwitchAvailable: true,
-    });
-    expect(result.code).toBe(200);
-    expect(result.after).toMatchObject({ switched: true, state: "ready", selfCaptureSwitchAvailable: false });
+    for (const body of [result.near, result.far]) {
+      expect(body).toMatchObject({ state: "ready", holdReason: null, selfCaptureSwitchAvailable: false });
+    }
     const stored = sharedFakeFirestoreState.docs.get("inboundRequests/req-switch") as Record<string, any>;
     expect(stored.request.capture_mode).toBe("self_capture");
-    expect(stored.capture_mode_switch).toMatchObject({ from: "site_visit", to: "self_capture", by: "site_owner_link" });
+    expect(stored.capture_mode_switch).toMatchObject({ from: "site_visit", to: "self_capture", by: "filming_visits_retired" });
+    const farStored = sharedFakeFirestoreState.docs.get(`inboundRequests/${far}`) as Record<string, any>;
+    expect(farStored.request.capture_mode).toBe("self_capture");
+    expect(farStored.site_task_triage.blocking_field_ids).not.toContain("serviceArea");
   });
 
-  it("clears the visit-only service-area block, and keeps what a call already settled", async () => {
-    sharedFakeFirestoreState.docs.set("inboundRequests/req-far", {
-      requestId: "req-far",
-      account_owner_uid: "site-owner",
-      request: {
-        buyerType: "site_operator",
-        consent_attestation: { granted: true, statement_version: "2026-09-18.v1", recorded_at_iso: "2026-01-01T00:00:00Z" },
-        capture_mode: "site_visit",
-        capture_region: "us",
-        siteTaskGates: { serviceArea: "outside_texas" },
-      },
-      site_task_triage: {
-        disposition: "not_now",
-        blocking_field_ids: ["serviceArea"],
-        blockers: ["Outside Texas — a visit cannot reach it"],
-        open_questions: [],
-        unanswered_field_ids: [],
-        incomplete: false,
-        evaluated_at: "2026-09-17T00:00:00.000Z",
-        call_resolution: {
-          cleared_field_ids: [], answered_field_ids: [], resolved_by: "ops",
-          resolved_at: "2026-09-18T00:00:00.000Z", note: "called",
-        },
-      },
-    });
-    const url = captureUploadUrlFor("req-far");
-
-    const after = await withRoutes(async (baseUrl) => {
-      expect(await status(baseUrl, url)).toMatchObject({ holdReason: "not_qualified", selfCaptureSwitchAvailable: true });
-      return (await (await switchMode(baseUrl, url)).json()) as Record<string, unknown>;
-    });
-
-    expect(after.state).toBe("ready");
-    const triage = (sharedFakeFirestoreState.docs.get("inboundRequests/req-far") as Record<string, any>).site_task_triage;
-    expect(triage.blocking_field_ids).not.toContain("serviceArea");
-    expect(triage.call_resolution).toMatchObject({ note: "called" });
-  });
-
-  it("is the site owner's decision, and goes one way only", async () => {
+  it("is never a filmer's choice: the switch route refuses a filmer, and the retirement converts the job", async () => {
     seedRequest("req-own", { disposition: "qualified" }, "site_visit");
     seedRequest("req-self", { disposition: "qualified" }, "self_capture");
 
@@ -2116,8 +2076,10 @@ describe("a site that asked for a visit can film it itself instead", () => {
     expect(codes.filmer).toBe(403);
     expect(codes.filmerOffer).toBe(false);
     expect(codes.already).toMatchObject({ switched: false, state: "ready" });
-    expect((sharedFakeFirestoreState.docs.get("inboundRequests/req-own") as Record<string, any>).request.capture_mode)
-      .toBe("site_visit");
+    // The filmer's request changed nothing; reading the link's status converted the retired visit.
+    const own = sharedFakeFirestoreState.docs.get("inboundRequests/req-own") as Record<string, any>;
+    expect(own.request.capture_mode).toBe("self_capture");
+    expect(own.capture_mode_switch.by).toBe("filming_visits_retired");
   });
 });
 

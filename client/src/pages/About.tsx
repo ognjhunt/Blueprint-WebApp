@@ -62,7 +62,7 @@ export default function About() {
           <dl className="ms-about-facts">
             <div><dt>Company</dt><dd>{COMPANY.legalName}</dd></div>
             <div><dt>Mailing address</dt><dd>{COMPANY.mailingAddress}</dd></div>
-            <div><dt>Where we work</dt><dd>Sites in the United States film their own job. In-person capture visits: {COMPANY.visitServiceArea}.</dd></div>
+            <div><dt>Where we work</dt><dd>Sites in the United States film their own job.</dd></div>
             <div><dt>Contact</dt><dd><a href={`mailto:${COMPANY.emails.hello}`}>{COMPANY.emails.hello}</a></dd></div>
             <div><dt>Privacy</dt><dd><a href={`mailto:${COMPANY.emails.privacy}`}>{COMPANY.emails.privacy}</a></dd></div>
           </dl>

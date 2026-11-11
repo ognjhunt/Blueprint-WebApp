@@ -176,6 +176,7 @@ describe("ops automation scheduler", () => {
   it("starts enabled workers and triggers their loops", async () => {
     vi.stubEnv("BLUEPRINT_WAITLIST_AUTOMATION_ENABLED", "1");
     vi.stubEnv("BLUEPRINT_INBOUND_AUTOMATION_ENABLED", "1");
+    vi.stubEnv("BLUEPRINT_CAPTURER_REMINDER_ENABLED", "1");
     vi.stubEnv("BLUEPRINT_SUPPORT_TRIAGE_ENABLED", "1");
     vi.stubEnv("BLUEPRINT_SITE_ACCESS_OVERDUE_WATCHDOG_ENABLED", "1");
     vi.stubEnv("BLUEPRINT_FINANCE_REVIEW_OVERDUE_WATCHDOG_ENABLED", "1");
@@ -186,11 +187,14 @@ describe("ops automation scheduler", () => {
 
     await vi.advanceTimersByTimeAsync(60_000);
 
-    expect(runWaitlistAutomationLoop).toHaveBeenCalled();
     expect(runInboundQualificationLoop).toHaveBeenCalled();
     expect(runSupportTriageLoop).toHaveBeenCalled();
-    expect(flagOverdueSiteAccessReviews).toHaveBeenCalledWith({ limit: 50 });
-    expect(flagOverdueFinanceReviews).toHaveBeenCalledWith({ limit: 50 });
+    // The capturer and field-ops lanes are retired (2026-11-11): their flags
+    // are set above and still start nothing.
+    expect(runWaitlistAutomationLoop).not.toHaveBeenCalled();
+    expect(runCapturerReminderLoop).not.toHaveBeenCalled();
+    expect(flagOverdueSiteAccessReviews).not.toHaveBeenCalled();
+    expect(flagOverdueFinanceReviews).not.toHaveBeenCalled();
     expect(runPayoutExceptionTriageLoop).not.toHaveBeenCalled();
 
     stop();

@@ -34,7 +34,6 @@ import { submitInboundRequest } from "./inbound-request";
 import { verifySiteClaimToken } from "../utils/request-review-auth";
 import { projectTeamJobOpening, teamJobAccess } from "../utils/teamJobAccess";
 import { passMarkForJob } from "../utils/pilotRecommendationEvidence";
-import { sendCapturerCommunication } from "../utils/field-ops-automation";
 import {
   object,
   text,
@@ -1538,83 +1537,12 @@ router.patch(
     return res.json({ ok: true });
   }),
 );
-router.post(
-  "/tasks/:taskId/capture",
-  handle(async (req, res) => {
-    const item = await ownedTask(req.params.taskId, res);
-    const input = z
-      .object({
-        action: z.enum(["request", "reschedule", "cancel", "message"]),
-        startsAt: z.string().datetime().optional(),
-        message: z.string().trim().min(1).max(2000),
-      })
-      .strict()
-      .parse(req.body);
-    if (
-      input.action === "reschedule" &&
-      (!input.startsAt || Date.parse(input.startsAt) <= Date.now())
-    )
-      refuse(400, "Choose a future date and time.");
-    const task = await hydrateTask(req.params.taskId, item.record);
-    if (task.archived) refuse(409, "This job is closed.");
-    if (input.action === "message") {
-      if (!task.capture?.canMessage)
-        refuse(409, "A capturer has not been assigned yet.");
-      const receipt = await sendCapturerCommunication({
-        captureJobId: task.capture.id,
-        communicationType: "custom",
-        subject: `Site message: ${task.siteName}`,
-        body: input.message,
-        triggeredBy: identity(res).uid,
-      });
-      return res.json({
-        ok: true,
-        status: receipt.state,
-        message:
-          receipt.state === "sent"
-            ? "Message sent."
-            : "Message queued for capture coordination.",
-      });
-    }
-    if (
-      ["cancel", "reschedule"].includes(input.action) &&
-      task.capture &&
-      ["completed", "approved", "paid", "cancelled", "rejected"].includes(
-        task.capture.status,
-      )
-    )
-      refuse(409, "This visit has ended. Request another capture instead.");
-    if (input.action !== "request" && !task.capture)
-      refuse(409, "No capture visit is linked to this job.");
-    await item.ref.update({
-      "workspace_task.captureChange": {
-        action: input.action,
-        startsAt: input.startsAt || null,
-        status: "pending_review",
-        requestedBy: identity(res).uid,
-        requestedAt: new Date().toISOString(),
-      },
-      "ops.next_step": `Site requested capture ${input.action}. Review the request notes.`,
-    });
-    await item.ref.collection("notes").add({
-      content: await encryptFieldValue(
-        `Capture ${input.action}: ${input.startsAt || ""}\n${input.message}`,
-      ),
-      authorUid: identity(res).uid,
-      authorEmail: identity(res).email,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      workspace_note: true,
-    });
-    return res.json({
-      ok: true,
-      status: "pending_review",
-      message:
-        input.action === "cancel"
-          ? "Cancellation requested. Your visit remains scheduled until confirmed."
-          : "Request saved. Capture coordination will confirm the visit details.",
-    });
-  }),
-);
+// Blueprint filming visits are retired (owner, 2026-11-11): there is no visit
+// to request, reschedule or cancel and no capturer to message. Answer before
+// any read, write or message, so nothing is stored and nobody is contacted.
+router.post("/tasks/:taskId/capture", (_req, res) => {
+  res.status(410).json({ error: "filming_visits_retired" });
+});
 /** Owner-only withdrawal. The same effect backs the signed owner link; deletion
  * is reported only once the deletion worker's receipt confirms it. */
 router.post("/tasks/:taskId/recording-consent/withdraw", handle(async (req, res) => {

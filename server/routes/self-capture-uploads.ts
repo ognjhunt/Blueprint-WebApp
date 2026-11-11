@@ -541,7 +541,8 @@ async function respondCaptureUploadStatus(req: Request, res: Response, recoverLe
       detail: authorization.detail ?? uploadStatus.processingHold?.detail ?? null,
       blockers: authorization.blockers,
       openQuestions: authorization.openQuestions,
-      selfCaptureSwitchAvailable: authorization.captureMode === "site_visit" && payload.scope === "owner",
+      // Visits are retired (2026-11-11): every job films through this link.
+      selfCaptureSwitchAvailable: false,
       recordingConsentAvailable: payload.scope === "owner" && authorization.recordingConsentAvailable === true,
     });
   } catch {
@@ -809,7 +810,8 @@ router.post("/:token/self-capture", async (req: Request, res: Response) => {
     detail: authorization.detail,
     blockers: authorization.blockers,
     openQuestions: authorization.openQuestions,
-    selfCaptureSwitchAvailable: authorization.captureMode === "site_visit",
+    // Visits are retired (2026-11-11): every job films through this link.
+    selfCaptureSwitchAvailable: false,
     recordingConsentAvailable: authorization.recordingConsentAvailable === true,
   });
 });
@@ -1284,47 +1286,65 @@ router.post("/:token/supplement", async (req, res) => {
     return res.status(409).json({ code, error: "Your original video is saved. We could not start this update. Refresh the job and try again." });
   }
 });
-router.post("/:token/bundle", async (req: Request, res: Response) => {
-  const gate = await bundleGate(req, res);
-  if (!gate) return;
-  try {
-    const outcome = await acceptBundlePlan(gate.payload, req.body, gate.deps);
-    res.setHeader("Cache-Control", "no-store");
-    if (outcome.retryAfterSeconds) res.setHeader("Retry-After", String(outcome.retryAfterSeconds));
-    return res.status(outcome.status).json(outcome.body);
-  } catch (error) {
-    logger.error({ error, captureId: gate.payload.captureId }, "Could not accept an app bundle plan");
-    return res.status(503).json({ error: "We could not start your upload. It will be retried." });
-  }
-});
+// The app bundle routes served only the BlueprintCapture phone app, which is
+// not in use (owner, 2026-11-11); browser uploads never call them. They answer
+// 410 before the token is read, so nothing is stored or signed. The bundle
+// logic (siteCaptureBundle.ts) stays for the later deletion.
+for (const path of ["/:token/bundle", "/:token/bundle/targets", "/:token/bundle/complete"]) {
+  router.post(path, (_req: Request, res: Response) => {
+    res.status(410).json({ error: "capture_app_not_in_use" });
+  });
+}
 
-router.post("/:token/bundle/targets", async (req: Request, res: Response) => {
-  const gate = await bundleGate(req, res);
-  if (!gate) return;
-  try {
-    const outcome = await mintMoreTargets(gate.payload, req.body, gate.deps);
-    res.setHeader("Cache-Control", "no-store");
-    if (outcome.retryAfterSeconds) res.setHeader("Retry-After", String(outcome.retryAfterSeconds));
-    return res.status(outcome.status).json(outcome.body);
-  } catch (error) {
-    logger.error({ error, captureId: gate.payload.captureId }, "Could not mint app bundle upload targets");
-    return res.status(503).json({ error: "We could not continue your upload. It will be retried." });
-  }
-});
-
-router.post("/:token/bundle/complete", async (req: Request, res: Response) => {
-  const gate = await bundleGate(req, res);
-  if (!gate) return;
-  try {
-    const outcome = await completeBundle(gate.payload, req.body, gate.deps);
-    if (outcome.status === 201) await activateCaptureSupplement(gate.payload);
-    res.setHeader("Cache-Control", "no-store");
-    return res.status(outcome.status).json(outcome.body);
-  } catch (error) {
-    logger.error({ error, captureId: gate.payload.captureId }, "Could not complete an app bundle upload");
-    return res.status(503).json({ error: "We could not finish your upload. It will be retried." });
-  }
-});
+/**
+ * The retired app bundle handlers, mounted only by tests. Bundles the app
+ * stored before 2026-11-11 can still be finished by the status recovery above,
+ * and these tests create such bundles through the original handlers. Production
+ * never mounts this router.
+ */
+export function retiredAppBundleRoutesForTests() {
+  const retired = Router();
+  retired.post("/:token/bundle", async (req: Request, res: Response) => {
+    const gate = await bundleGate(req, res);
+    if (!gate) return;
+    try {
+      const outcome = await acceptBundlePlan(gate.payload, req.body, gate.deps);
+      res.setHeader("Cache-Control", "no-store");
+      if (outcome.retryAfterSeconds) res.setHeader("Retry-After", String(outcome.retryAfterSeconds));
+      return res.status(outcome.status).json(outcome.body);
+    } catch (error) {
+      logger.error({ error, captureId: gate.payload.captureId }, "Could not accept an app bundle plan");
+      return res.status(503).json({ error: "We could not start your upload. It will be retried." });
+    }
+  });
+  retired.post("/:token/bundle/targets", async (req: Request, res: Response) => {
+    const gate = await bundleGate(req, res);
+    if (!gate) return;
+    try {
+      const outcome = await mintMoreTargets(gate.payload, req.body, gate.deps);
+      res.setHeader("Cache-Control", "no-store");
+      if (outcome.retryAfterSeconds) res.setHeader("Retry-After", String(outcome.retryAfterSeconds));
+      return res.status(outcome.status).json(outcome.body);
+    } catch (error) {
+      logger.error({ error, captureId: gate.payload.captureId }, "Could not mint app bundle upload targets");
+      return res.status(503).json({ error: "We could not continue your upload. It will be retried." });
+    }
+  });
+  retired.post("/:token/bundle/complete", async (req: Request, res: Response) => {
+    const gate = await bundleGate(req, res);
+    if (!gate) return;
+    try {
+      const outcome = await completeBundle(gate.payload, req.body, gate.deps);
+      if (outcome.status === 201) await activateCaptureSupplement(gate.payload);
+      res.setHeader("Cache-Control", "no-store");
+      return res.status(outcome.status).json(outcome.body);
+    } catch (error) {
+      logger.error({ error, captureId: gate.payload.captureId }, "Could not complete an app bundle upload");
+      return res.status(503).json({ error: "We could not finish your upload. It will be retried." });
+    }
+  });
+  return retired;
+}
 
 /** Phone-camera image formats a site will actually send. */
 const ALLOWED_IMAGE_EXTENSIONS = new Set(["jpg", "jpeg", "png", "heic", "heif", "webp"]);

@@ -19,7 +19,13 @@
  * here that can turn a `needs_conversation` into a capture, which is what makes
  * removing the human safe rather than merely faster.
  *
- * ## Two channels, and why geography only binds one
+ * ## One channel since 2026-11-11
+ *
+ * Blueprint filming visits are retired (owner, 2026-11-11). Every dispatch is
+ * the site's own upload link; the history below explains the checks that
+ * remain.
+ *
+ * ## Two channels, and why geography only binds one (history)
  *
  * A site that records its own workcell needs an upload link. A site that wants
  * someone to come needs a person in a van, and that person is in Austin. The
@@ -41,7 +47,6 @@
 
 import {
   defaultCaptureMode,
-  isCaptureMode,
   type CaptureMode,
 } from "../../client/src/data/siteTaskQualification";
 import type { TriageDisposition } from "../../client/src/lib/gateTriage";
@@ -55,10 +60,12 @@ import {
 } from "../../client/src/data/captureResidency";
 
 export type CaptureChannel =
-  /** The site films it. We send an upload link; no account, no scheduling. */
-  | "self_capture_upload"
-  /** A capturer is dispatched. Austin metro only, because someone drives. */
-  | "capturer_visit";
+  /**
+   * The site films it. We send an upload link; no account, no scheduling.
+   * The only channel since 2026-11-11. `capturer_visit` may still appear in
+   * stored `capture_dispatch.channel` values written before then.
+   */
+  | "self_capture_upload";
 
 export type CaptureDispatchDecision =
   | { dispatch: true; channel: CaptureChannel; captureMode: CaptureMode }
@@ -197,61 +204,14 @@ export function decideCaptureDispatch(input: CaptureDispatchInput): CaptureDispa
   // So an unscreened site may record. It is not sellable until the gates are
   // resolved — that part is unchanged — but resolving them is now a later
   // conversation rather than a toll gate in front of our own supply.
-  if (input.captureMode === "self_capture") {
-    return {
-      dispatch: true,
-      captureMode: "self_capture",
-      channel: "self_capture_upload",
-    };
-  }
-
-  /* --------------------------------------------- from here, a visit only */
-
-  // Everything below guards a capturer travelling to an address, and a
-  // reconstruction committed on answers nobody has stood in a room to check.
-
-  if (input.disposition !== "qualified") {
-    return input.disposition === "needs_conversation"
-      ? {
-          dispatch: false,
-          holdReason: "needs_conversation",
-          detail:
-            "Marginal answers are the ones a form could not settle, so sending someone on them would be guessing.",
-        }
-      : {
-          dispatch: false,
-          holdReason: "not_qualified",
-          detail: `Disposition is ${input.disposition ?? "unknown"}; a visit starts only on a clean pass.`,
-        };
-  }
-
-  // Belt and braces. `triageGateAnswers` already refuses to return `qualified`
-  // with anything unanswered, but this is the last thing before real money
-  // moves, so it re-checks rather than trusting an invariant it does not own.
-  if (input.unanswered?.length) {
-    return {
-      dispatch: false,
-      holdReason: "gates_incomplete",
-      detail: `Unanswered gates: ${input.unanswered.join(", ")}.`,
-    };
-  }
-
-  if (!isCaptureMode(input.captureMode)) {
-    // A submission from before the question existed. Falling back to
-    // `site_visit` would silently dispatch a capturer for a site that may be
-    // anywhere, so this holds instead and asks.
-    return {
-      dispatch: false,
-      holdReason: "capture_mode_missing",
-      detail:
-        "No capture mode recorded. Ask the site whether they will record it themselves before dispatching anyone.",
-    };
-  }
-
+  // Blueprint filming visits are retired (owner, 2026-11-11): the site films
+  // its own job, whatever mode it chose before. A stored `site_visit`, or a
+  // record from before the question, is offered the same upload link, so no
+  // job is left waiting for a visit that will not happen.
   return {
     dispatch: true,
-    captureMode: input.captureMode,
-    channel: "capturer_visit",
+    captureMode: "self_capture",
+    channel: "self_capture_upload",
   };
 }
 
@@ -261,8 +221,9 @@ export function decideCaptureDispatch(input: CaptureDispatchInput): CaptureDispa
  * Self-capture requests never publish a job, so the marketplace narrows to the
  * visits that actually need a driver instead of being the only way in.
  */
-export function publishesCapturerJob(decision: CaptureDispatchDecision): boolean {
-  return decision.dispatch && decision.channel === "capturer_visit";
+export function publishesCapturerJob(_decision: CaptureDispatchDecision): boolean {
+  // Visits are retired (2026-11-11); no submission publishes a capturer job.
+  return false;
 }
 
 /** Human-readable trail for the request record. */
@@ -270,9 +231,7 @@ export function describeCaptureDispatch(decision: CaptureDispatchDecision): stri
   if (!decision.dispatch) {
     return `held (${decision.holdReason}): ${decision.detail}`;
   }
-  return decision.channel === "self_capture_upload"
-    ? "dispatched: upload link sent to the site, no visit required"
-    : "dispatched: capturer job published for an on-site visit";
+  return "dispatched: upload link sent to the site, no visit required";
 }
 
 export { defaultCaptureMode };

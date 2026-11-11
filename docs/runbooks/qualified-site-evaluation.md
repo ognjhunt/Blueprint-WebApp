@@ -47,8 +47,8 @@ For cohort 1 the site produced the source measurements (founder decision,
 in `siteTaskMeasurements/{requestId}`. Since 2026-10-20 the site sends its video
 and nothing else (founder direction), so its job page no longer asks for
 readings. Readings already on file still export as below. Who produces the
-source measurements for a new job is an open founder decision, for example
-Blueprint staff on a site visit. The video reader's `job_estimates` are never
+source measurements for a new job is an open founder decision (Blueprint
+filming visits are retired, 2026-11-11). The video reader's `job_estimates` are never
 source measurements: they come from the same footage the scene is built from,
 so they cannot check it. Open **Site measurements**
 in the admin job console, or call

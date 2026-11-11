@@ -52,14 +52,14 @@ describe("capture starts without anybody noticing a queue", () => {
     });
   });
 
-  it("holds a submission stored before capture mode was asked, rather than assuming a visit", () => {
-    // The stricter reading. Defaulting here would send somebody driving to an
-    // address on the strength of a field that was never filled in.
+  it("offers the upload link to a submission stored before capture mode was asked", () => {
+    // Visits are retired (2026-11-11): nobody is sent anywhere, so there is no
+    // stricter reading to fall back to.
     const decision = decideDispatchForRequest(
       request({ request: { capture_region: "us" } as InboundRequest["request"] }),
       false,
     );
-    expect(decision).toMatchObject({ dispatch: false, holdReason: "capture_mode_missing" });
+    expect(decision).toMatchObject({ dispatch: true, channel: "self_capture_upload" });
   });
 
   it("refuses to dispatch a converted outbound request on gates nobody confirmed", () => {

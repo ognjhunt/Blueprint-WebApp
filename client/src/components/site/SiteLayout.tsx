@@ -4,7 +4,6 @@ import { MinimalSiteLayout } from "./MinimalSiteLayout";
 import { isMinimalPublicPath } from "@/data/minimalPublicSite";
 import { Header } from "./Header";
 import { Footer } from "./Footer";
-import { CaptureAppDock } from "./CaptureAppDock";
 
 export function SiteLayout({ children }: PropsWithChildren) {
   const [location] = useLocation();
@@ -17,7 +16,6 @@ export function SiteLayout({ children }: PropsWithChildren) {
       <main id="main-content" className="relative z-0 flex-1">
         {children}
       </main>
-      <CaptureAppDock />
       <Footer />
     </div>
   );

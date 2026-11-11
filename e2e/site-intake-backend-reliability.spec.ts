@@ -4,7 +4,8 @@ import os from "node:os";
 import path from "node:path";
 
 /** Real application handlers and Firestore/Storage emulators. No providers or mail. */
-const cases = ["phone", "visit"].flatMap(method => ["Austin, TX", "Toronto, Canada"].flatMap(location =>
+// Blueprint filming visits are retired (2026-11-11), so only the phone path remains.
+const cases = ["phone"].flatMap(method => ["Austin, TX", "Toronto, Canada"].flatMap(location =>
   ["draft-reload", "lost-response", "saved-reload", "second-tab", "browser-restart"].map(boundary => ({ method, location, boundary }))));
 for (const [index, parameters] of cases.entries()) test(`A-J-${String(index + 1).padStart(3, "0")} ${JSON.stringify(parameters)}`, async ({}, testInfo) => {
   const profile = await mkdtemp(path.join(os.tmpdir(), "blueprint-reliability-browser-"));
@@ -83,7 +84,7 @@ for (const [index, parameters] of cases.entries()) test(`A-J-${String(index + 1)
     const canRecord = parameters.location.startsWith("Austin") && parameters.method === "phone";
     const expectSaved = async () => {
       await expect(page.getByRole("heading", { name: !parameters.location.startsWith("Austin") ? "We have your site."
-        : parameters.method === "visit" ? "We have it." : "Film the work area.", exact: true })).toBeVisible();
+        : "Film the work area.", exact: true })).toBeVisible();
       await expect(page.getByRole("link", { name: "Open your job and assessment", exact: true })).toHaveCount(0);
     };
     await expectSaved();
