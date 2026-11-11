@@ -185,7 +185,10 @@ test("desktop owner opens video capture with one status and explicit public card
   await expect(page.getByRole("button", { name: "Open the camera" })).toHaveCount(0);
   const upload = await page.getByRole("button", { name: "Upload a video file" }).boundingBox();
   const instruction = await page.getByText("Already have the recording on this computer? Upload a .mov or .mp4 file.").boundingBox();
-  expect(upload!.y - instruction!.y).toBeLessThan(110);
+  // The upload is its own group (round 5 rhythm): its line, the footage notice and the button, 16 px apart. The button
+  // stays right under its two lines, never pushed down the page (rewritten from < 110 px, which predates the rhythm).
+  expect(upload!.y - instruction!.y).toBeLessThan(140);
+  expect(upload!.y).toBeGreaterThan(instruction!.y + instruction!.height + 15);
   await screenshot(page, "desktop-capture");
   // Sharing is a job setting: one quiet link from the capture page, then its row.
   await page.getByRole("button", { name: "Job settings ›" }).click();
