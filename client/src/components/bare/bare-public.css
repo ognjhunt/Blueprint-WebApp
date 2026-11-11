@@ -109,3 +109,26 @@ ol.bare-steps { list-style: none; margin: 0; padding: 0; counter-reset: bare-ste
   .auth-shell.auth-bare .auth-header { height: 64px; }
   .auth-shell.auth-bare h1 { font-size: 28px; }
 }
+
+/* Existing forms (partner and company applications) inside a bare screen: the same controls and one filled button. */
+.bare-forms .ms-form { display: block; }
+.bare-forms .ms-form fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
+.bare-forms .ms-form .ms-form-row { display: block; }
+.bare-forms .ms-form label:not(.ms-check-row) { display: block; margin-top: var(--bare-s4, 32px); font-size: 12px; font-weight: 650; letter-spacing: .7px;
+  text-transform: uppercase; color: var(--bare-muted, #5d5f58); }
+.bare-forms .ms-form label:not(.ms-check-row) > input, .bare-forms .ms-form label:not(.ms-check-row) > textarea, .bare-forms .ms-form label:not(.ms-check-row) > select {
+  display: block; width: 100%; margin-top: var(--bare-s2, 8px); min-height: 52px; padding: 12px 14px; border: 1px solid #9fa197; border-radius: 4px;
+  background: #fffffb; font: inherit; font-size: 17px; font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--bare-ink, #22251e); box-sizing: border-box; }
+.bare-forms .ms-form textarea { min-height: 96px; }
+.bare-forms .ms-form details { margin-top: var(--bare-s4, 32px); }
+.bare-forms .ms-form details > summary { display: inline-flex; align-items: center; min-height: 44px; font-size: 17px; cursor: pointer;
+  border-bottom: 1px solid var(--bare-ink, #22251e); list-style: none; }
+.bare-forms .ms-form details > summary::-webkit-details-marker { display: none; }
+.bare-forms .ms-form .ms-check-row { display: grid; grid-template-columns: 24px 1fr; gap: 12px; margin-top: var(--bare-s4, 32px); font-size: 16px; }
+.bare-forms .ms-form .ms-check-row input { width: 22px; height: 22px; accent-color: var(--bare-green, #203d2e); }
+.bare-forms .ms-form .ms-form-note { margin-top: var(--bare-s2, 8px); font-size: 14px; color: var(--bare-muted, #5d5f58); }
+.bare-forms .ms-form .ms-button, .bare-forms .ms-form button[type="submit"] { display: flex; width: 100%; min-height: 52px; margin-top: var(--bare-s4, 32px);
+  align-items: center; justify-content: center; gap: 8px; padding: 12px 16px; border: 0; border-radius: 4px; background: var(--bare-green, #203d2e);
+  color: var(--bare-paper, #f6f5ef); font: inherit; font-size: 17px; font-weight: 500; cursor: pointer; }
+.bare-forms .ms-form .ms-button svg { display: none; }
+.bare-forms .ms-partner-receipt h2 { font-size: 22px; font-weight: 600; margin: 0 0 8px; }

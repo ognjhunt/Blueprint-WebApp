@@ -87,8 +87,8 @@ export function BareLinks({ links }: { links: BareLinkItem[] }) {
   if (!shown.length) return null;
   return <nav className="bare-links" aria-label="More">
     {shown.map(link => link.href
-      ? <a key={link.key} className="bare-link" href={link.href}>{link.label} ›</a>
-      : <button key={link.key} type="button" className="bare-link" onClick={link.onClick}>{link.label} ›</button>)}
+      ? <a key={link.key} className="bare-link" href={link.href} data-opens={link.key}>{link.label} ›</a>
+      : <button key={link.key} type="button" className="bare-link" onClick={link.onClick} data-opens={link.key}>{link.label} ›</button>)}
   </nav>;
 }
 
@@ -118,8 +118,8 @@ export function BareMenu({ items, label }: { items: Array<{ key: string; label: 
   return <ul className="bare-menu" aria-label={label}>
     {items.map(item => <li key={item.key}>
       {item.body ?? (item.href
-        ? <a className="bare-menu-item" href={item.href}>{item.label}</a>
-        : <button type="button" className="bare-menu-item" onClick={item.onClick}>{item.label}</button>)}
+        ? <a className="bare-menu-item" href={item.href} data-opens={item.key}>{item.label}</a>
+        : <button type="button" className="bare-menu-item" onClick={item.onClick} data-opens={item.key}>{item.label}</button>)}
     </li>)}
   </ul>;
 }

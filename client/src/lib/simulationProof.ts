@@ -80,7 +80,8 @@ export const HOW_FAR_EACH_GOT = "How far each got:";
 export interface SimulationProof {
   state: SimulationProofState;
   headline: string;
-  robotCheck: { line: string; pickChecked: boolean | null } | null;
+  /** `doesNotFit`: the scene says the pick does not fit on a check it decides (reach, where it stands, access). */
+  robotCheck: { line: string; pickChecked: boolean | null; doesNotFit: boolean } | null;
   policyComparison: {
     /** In a sentence: "a Franka research arm". */
     robotName: string;
@@ -335,19 +336,30 @@ function stateOf(evaluation: JobManagedEvidenceSummary | null): SimulationProofS
   return PREPARING_STATES.has(evaluation.state) ? "preparing" : evaluation.state === "running" ? "running" : "preparing";
 }
 
+/** The checks the measured scene decides: where the arm can stand and what it can reach (as `server/utils/siteAnswer.ts` reads them). */
+export const SCENE_GEOMETRY_CHECKS: ReadonlySet<string> = new Set(["reach", "stance", "access"]);
+
 function robotCheckOf(robotFit: SimulationProofInput["robotFit"], pick: AnswerRobot | null): SimulationProof["robotCheck"] {
   const models = Array.isArray(robotFit?.models) ? robotFit!.models.filter(isRecord) : [];
   if (!models.length) return null;
-  if (!pick) return { line: `The scene rebuilt from your video was checked against ${models.length} robot${models.length === 1 ? "" : "s"}.`, pickChecked: null };
+  if (!pick) return { line: `The scene rebuilt from your video was checked against ${models.length} robot${models.length === 1 ? "" : "s"}.`, pickChecked: null, doesNotFit: false };
   const name = pickName(pick);
   const row = models.find(entry => typeof entry.name === "string" && typeof entry.manufacturer === "string"
     && typeof pick.name === "string" && typeof pick.manufacturer === "string" && sameRobot(entry, pick));
-  if (!row) return { line: `The scene rebuilt from your video has not been checked against the ${name} yet.`, pickChecked: false };
+  if (!row) return { line: `The scene rebuilt from your video has not been checked against the ${name} yet.`, pickChecked: false, doesNotFit: false };
   switch (row.verdict) {
-    case "fits": return { line: `In the scene rebuilt from your video, the ${name} reaches the pick-up and put-down points with a clear arm path.`, pickChecked: true };
-    case "fits_spec": return { line: `In the scene rebuilt from your video, the ${name} fits on its published figures; its arm path there has not been confirmed.`, pickChecked: true };
-    case "doesnt_fit": return { line: `In the scene rebuilt from your video, the ${name} does not fit.`, pickChecked: true };
-    default: return { line: `In the scene rebuilt from your video, whether the ${name} fits is not settled yet.`, pickChecked: false };
+    case "fits": return { line: `In the scene rebuilt from your video, the ${name} reaches the pick-up and put-down points with a clear arm path.`, pickChecked: true, doesNotFit: false };
+    case "fits_spec": return { line: `In the scene rebuilt from your video, the ${name} fits on its published figures; its arm path there has not been confirmed.`, pickChecked: true, doesNotFit: false };
+    case "doesnt_fit": {
+      // The scene decides only where the arm can stand and what it can reach (`SCENE_GEOMETRY_CHECKS`, as the answer's
+      // composer reads it). A "doesn't fit" that rests only on other checks (weight, cycle time) is the composer's to
+      // decide from published figures, so the scene line says what the scene did check, never "does not fit".
+      const open = Array.isArray(row.openChecks) ? row.openChecks.filter(check => typeof check === "string") : [];
+      if (open.length > 0 && !open.some(check => SCENE_GEOMETRY_CHECKS.has(check)))
+        return { line: `In the scene rebuilt from your video, the ${name} was not ruled out on reach or where it can stand.`, pickChecked: true, doesNotFit: false };
+      return { line: `In the scene rebuilt from your video, the ${name} does not fit.`, pickChecked: true, doesNotFit: true };
+    }
+    default: return { line: `In the scene rebuilt from your video, whether the ${name} fits is not settled yet.`, pickChecked: false, doesNotFit: false };
   }
 }
 

@@ -1,31 +1,37 @@
-import { ArrowRight } from "lucide-react";
+import { BareBack, BareButton, BareFine, BareGroup, BareLabel, BareLinks, BareScreen, BareTicks } from "@/components/bare/Bare";
 import { SEO } from "@/components/SEO";
+import { PARTNERS_SEO_DESCRIPTION } from "@/lib/publicCopy";
 
+/**
+ * For robot companies, bare bones: one question ("Can my company see these jobs?") and one button. The answer rides
+ * on a card only when the site shared it (design note, "The deployment opportunity"), so the tick says so.
+ */
 export default function Partners() {
   return <>
-    <SEO title="Partners | Blueprint" description="Help deliver real work. Join Blueprint as a deployment partner, or make your robot hardware, policies or model APIs available for assessment." canonical="/partners" />
-    <section className="ms-partner-intro ms-container" aria-labelledby="partners-title">
-      <p className="ms-eyebrow">For partners</p>
-      <h1 id="partners-title">Help deliver real work.</h1>
-      <p className="ms-partner-lead">Connect your capabilities to a customer's job. Tell us what you can provide, where it fits and who takes responsibility for delivery.</p>
-    </section>
-    <section className="ms-partner-paths ms-container" aria-label="Choose your partner role">
-      <a className="ms-partner-path" href="/partners/deployment">
-        <p className="ms-eyebrow">Install, commission and support</p>
-        <h2>Deployment partners</h2>
-        <p>See anonymised job cards that sites choose to share, with Blueprint&apos;s answer and its simulation result. Agree any pilot directly with the site and support the systems your team installs or operates.</p>
-        <span className="ms-text-link">Apply as a deployment partner <ArrowRight size={19} aria-hidden="true" /></span>
-      </a>
-      <a className="ms-partner-path" href="/partners/technology">
-        <p className="ms-eyebrow">Hardware, policies and model APIs</p>
-        <h2>Robot technology providers</h2>
-        <p>Make your system available for assessment on compatible jobs, with a defined interface and clear evidence.</p>
-        <span className="ms-text-link">Make your system available <ArrowRight size={19} aria-hidden="true" /></span>
-      </a>
-    </section>
-    <section className="ms-partner-footer ms-container" aria-label="How partnerships work">
-      <p>A company can do both. Choose your main role and describe the other in your application. Applications and approved evaluations are free during the beta; job invitations and access follow review.</p>
-      <p>Already approved? <a href="/sign-in">Sign in to your workspace</a>. Have work at your own site? <a href="/contact/site-operator">Submit a job</a>.</p>
-    </section>
+    <SEO title="For robot companies | Blueprint" description={PARTNERS_SEO_DESCRIPTION} canonical="/partners" />
+    <div className="bare-page">
+      <BareScreen>
+        <BareBack href="/" />
+        <BareGroup>
+          <BareLabel>For robot companies</BareLabel>
+          <h1>See jobs that sites choose to share.</h1>
+        </BareGroup>
+        <BareGroup>
+          <BareTicks label="What you see" items={[
+            { key: "summary", state: "yes", text: "A summary of the job, without the site's name" },
+            { key: "answer", state: "yes", text: "Our answer, when the site shares it" },
+            { key: "free", state: "yes", text: "Free during the beta" },
+          ]} />
+        </BareGroup>
+        <BareGroup>
+          <BareButton href="/contact/robot-team" helper="We approve each company by hand and email you. You agree any work with the site directly.">Apply to see jobs</BareButton>
+        </BareGroup>
+        <BareLinks links={[
+          { key: "deployment", label: "Set robots up for sites", href: "/partners/deployment" },
+          { key: "technology", label: "Make robots or robot software", href: "/partners/technology" },
+        ]} />
+        <BareFine>Our answers are a fit check and a simulation. Not a test at the site, and not a safety check.</BareFine>
+      </BareScreen>
+    </div>
   </>;
 }
