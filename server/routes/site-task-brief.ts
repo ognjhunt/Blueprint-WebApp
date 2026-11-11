@@ -300,12 +300,14 @@ router.post("/:token/introduction-request", csrfProtection, async (req, res) => 
   if (!verified) return res.status(404).json({ code: "capture_token_invalid", error: "That link is not valid any more." });
   if (verified.scope !== "owner") return res.status(403).json({ code: "introduction_request_owner_required",
     error: "Open the owner's job link to ask for this." });
-  const body = z.object({ statementVersion: z.string().trim().min(1).max(100).optional() }).strict().safeParse(req.body ?? {});
+  // The page sends the version of the sentence it showed under the button; without it there is no record
+  // of what the site agreed to, so nothing is recorded or listed.
+  const body = z.object({ statementVersion: z.string().trim().min(1).max(100) }).strict().safeParse(req.body ?? {});
   if (!body.success)
     return res.status(400).json({ code: "introduction_request_invalid", error: "Press the button on your job page to ask for this." });
   // The consent recorded is the sentence the page showed. A page showing an older one is refused before
-  // anything is recorded or listed; a page that sends no version (older pages) gets today's sentence.
-  if (body.data.statementVersion !== undefined && body.data.statementVersion !== JOB_CARD_ANSWER_STATEMENT_VERSION)
+  // anything is recorded or listed.
+  if (body.data.statementVersion !== JOB_CARD_ANSWER_STATEMENT_VERSION)
     return res.status(409).json({ code: "introduction_request_statement_changed",
       error: "The wording on this page has changed. Reload the page to read it, then press the button again." });
   try {
@@ -323,12 +325,24 @@ router.post("/:token/introduction-request", csrfProtection, async (req, res) => 
         statement_version: JOB_CARD_ANSWER_STATEMENT_VERSION, statement_text: JOB_CARD_ANSWER_STATEMENT } }, { merge: true });
       return now;
     });
-    // The card goes on under the statement the site just agreed to, or stays as it is when already on.
+    // The card goes on under the statement the site just agreed to. A card already on keeps everything the
+    // owner reviewed; only its consent moves to this statement, since the latest consent the site gave governs.
     let listed = false;
     try {
       const current = (await ref.get()).data()?.public_task_listing;
-      if (current?.enabled === true) listed = true;
-      else {
+      if (current?.enabled === true) {
+        listed = true;
+        if (current.consentVersion !== JOB_CARD_ANSWER_STATEMENT_VERSION) {
+          await store.runTransaction(async tx => {
+            const listing = (await tx.get(ref)).data()?.public_task_listing;
+            if (listing?.enabled !== true || listing.consentVersion === JOB_CARD_ANSWER_STATEMENT_VERSION) return;
+            // A merge touches this one field only. The card's published date (`approvedAtIso`, the library's sort
+            // key), details, revision, thumbnail and go-live time stay as they are; the time of the site's choice is
+            // `introduction_request.requested_at_iso`. No team alert is written: the card is not going live.
+            tx.set(ref, { public_task_listing: { consentVersion: JOB_CARD_ANSWER_STATEMENT_VERSION } }, { merge: true });
+          });
+        }
+      } else {
         const [{ applyOwnerTaskListing }, { anonymizedOpportunityDraft }] = await Promise.all([
           import("./task-listings"), import("../../client/src/types/taskBrowse")]);
         const brief = await getBrief(verified.requestId).catch(() => null);

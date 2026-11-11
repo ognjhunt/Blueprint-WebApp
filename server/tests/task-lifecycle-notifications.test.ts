@@ -339,7 +339,7 @@ it.each(["results_ready", "run_no_result", "no_team_passed", "no_qualified_evalu
   expect(notice.body).not.toMatch(/create.*account|save.*account|results open in.*account|confirm.*brief/i);
 });
 
-describe("a finished simulation's email says what the job page's simulation proof says", () => {
+describe("a finished simulation's email says what the job page's simulation result says", () => {
   const evaluation = (rows: Array<[string, number, number]>, extra: Record<string, unknown> = {}) => ({
     runId: "run-1", state: "completed", current: true, resultDigest: null, outcome: "estimate", summary: "", nextAction: "",
     limitations: [], href: "#", ...extra,
@@ -358,18 +358,29 @@ describe("a finished simulation's email says what the job page's simulation proo
   };
   const banned = /episodes|candidates|screening|pi05_droid|groot_n17|estimate|reply to this email|introduc|pilot/i;
 
-  it("names the winning policy in plain words, with its count and how far to trust it, when the result separates them", async () => {
+  // Rewritten from "names the winning policy ... when the result separates them": 4 of 5 against 1 of 5 is about
+  // 0.96 under the probability rule, so the email says the leader was ahead, in the page's own sentence.
+  it("states the page's comparison sentence word for word, with how far to trust it, when some policy completed the job", async () => {
     const { EMAIL_SIGN_OFF } = await import("../utils/emailLayout");
-    const notice = await build(await proofOf(evaluation([["pi05_droid", 4, 5], ["groot_n17_droid", 1, 5]])),
-      "https://example.invalid/app/tasks/req-1");
-    expect(notice.subject).toBe("Your simulation proof is ready");
-    expect(notice.body).toBe("In a simulation of your site, π0.5, an AI control policy from Physical Intelligence, did best: it completed the job in 4 of 5 tries.\n\n"
+    const proof = await proofOf(evaluation([["pi05_droid", 4, 5], ["groot_n17_droid", 1, 5]]));
+    const notice = await build(proof, "https://example.invalid/app/tasks/req-1");
+    expect(notice.subject).toBe("Your simulation result is ready");
+    expect(notice.body.startsWith(`${proof.policyComparison!.line}\n\n`)).toBe(true);
+    expect(notice.body).toBe("In a simulation of your site, on a Franka research arm, π0.5, an AI control policy from Physical Intelligence, was ahead: it completed the job in 4 of 5 tries, "
+      + "against 1 of 5 for GR00T N1.7. With this few tries the gap could still be chance.\n\n"
       + "In published tests on research robots, a simulation built from a scan of the scene picked the better of two policies in 8 of 9 comparisons, and simulated scores tracked real ones closely (a correlation of about 0.9 on average). "
       + "The conditions and sources are on your job page. Nothing is needed from you.\n\n"
       + "A simulation is not a physical test, and it never certifies physical performance or safety.\n\n"
       + "See the result in your workspace:\nhttps://example.invalid/app/tasks/req-1\n\n" + EMAIL_SIGN_OFF);
     expect(notice.body).not.toMatch(banned);
     expect(notice.body).not.toContain("private-owner-link");
+    // "Did best" only when the gap is unlikely to be chance, and never a "proof".
+    const clear = await build(await proofOf(evaluation([["pi05_droid", 9, 10], ["groot_n17_droid", 2, 10]])));
+    expect(clear.body).toMatch(/^In a simulation of your site, on a Franka research arm, π0\.5, .+ did best: it completed the job in 9 of 10 tries, against 2 of 10 for GR00T N1\.7\. A gap this size is unlikely to be chance\.\n\n/);
+    const close = await build(await proofOf(evaluation([["pi05_droid", 1, 1], ["groot_n17_droid", 0, 1]])));
+    expect(close.subject).toBe("Your simulation result is ready");
+    expect(close.body).toMatch(/^No clear difference yet between the policies tried on a Franka research arm in a simulation of your site\. Tries that completed the job: π0\.5, 1 of 1; GR00T N1\.7, 0 of 1\./);
+    for (const email of [notice, clear, close]) expect(`${email.subject} ${email.body}`).not.toMatch(/\bproo?f|\bprove/i);
   });
 
   it("says it could not rank them, with its scene notes and no pilot offer, when no policy completed the job", async () => {
@@ -379,7 +390,7 @@ describe("a finished simulation's email says what the job page's simulation proo
     expect(notice.body.startsWith(`The simulation ran, but no policy completed the job in it, so it could not rank them. ${note} Nothing is needed from you.\n\n`
       + "A simulation is not a physical test, and it never certifies physical performance or safety.")).toBe(true);
     expect(notice.body).not.toMatch(banned);
-    expect(notice.body).not.toMatch(/did best|proof is ready|deployment company/i);
+    expect(notice.body).not.toMatch(/did best|was ahead|result is ready|proof|deployment company/i);
   });
 
   it("says only that the simulation finished when the job's results could not be read, and what a stored caveat shows", async () => {
@@ -599,7 +610,7 @@ describe("the site's answer is emailed once, when it first settles", () => {
     formNote: null, approach: null, unknowns: [],
     confidence: { level: "fair", reasons: ["The weight and distances are estimated from your video.", "Second reason."], raiseIt: [] },
     nextStep: { kind: "introduction", text: "" }, reason: null,
-    note: "This is a fit check against published robot specifications and a cited track record. It is not a test of a robot at your site and does not certify performance or safety.",
+    note: "This checks whether a robot can pick your object up and put it down, against published robot specifications and a cited track record. It is not a test of a robot at your site and does not certify performance or safety.",
     checked: { models: 22, makers: 13, specsRetrievedOn: "2026-11-11" }, introductionRequestedAtIso: null, jobCardListed: false, basisDigest: "sha256:x",
     ...changes,
   });
@@ -612,7 +623,7 @@ describe("the site's answer is emailed once, when it first settles", () => {
     captureUrl: "https://tryblueprint.io/capture-upload/owner-token" });
   beforeEach(() => { composedAnswer.current = null; });
 
-  it("states the pick, the runner-up, how sure, where the proof appears, the note and the private link", async () => {
+  it("states the pick, the runner-up, how sure, where the simulation result appears, the note and the private link", async () => {
     const notice = await build(answer());
     expect(notice.idempotencyKey).toBe("req-1:answer_ready");
     expect(notice.subject).toBe("Your Blueprint answer is ready");
@@ -620,7 +631,7 @@ describe("the site's answer is emailed once, when it first settles", () => {
       "Most likely to fit: Universal Robots UR10e.",
       "Runner-up: FANUC CRX-10iA.",
       "How sure we are: Fair. The weight and distances are estimated from your video.",
-      "When Blueprint runs your job in a simulation of your site, the proof appears on the same page.",
+      "If Blueprint runs a simulation of your site, its result appears on the same page.",
       answer().note,
       "Open your answer:\nhttps://tryblueprint.io/capture-upload/owner-token",
       "— The Blueprint team",

@@ -15,17 +15,22 @@ describe("How it works", () => {
     const answer = screen.getByRole("region", { name: "See which robot fits." });
     expect(answer).toHaveTextContent(/real robot models against the job by their published specifications.*most likely fits.*runner-up.*ruled out and why.*with sources.*how sure we are/);
     expect(answer).toHaveTextContent(/not a test of a robot at your site/);
-    const evaluation = screen.getByRole("region", { name: "Compare suitable robots and policies in simulation." });
-    expect(evaluation).toHaveTextContent(/using APIs or other supported access/);
+    const evaluation = screen.getByRole("region", { name: "Check the robots and compare policies in simulation." });
+    // No unsourced claim about policies served through APIs (rewritten from asserting that sentence).
+    expect(evaluation).toHaveTextContent(/checks each suitable robot's reach and arm path, and compares public control policies \(the software that drives a robot\) on the job on a research robot/);
+    expect(evaluation).toHaveTextContent(/illustration only.*Today the policies Blueprint compares run on a research robot, never on the robots in these pictures/);
     expect(evaluation).toHaveTextContent(/its technology provider supplies it; you do not need to find or invite anyone/);
     expect(evaluation).toHaveTextContent(/control policies \(the software that drives a robot\)/);
     expect(evaluation).toHaveTextContent(/Every policy is scored against the same placement criteria/);
     expect(evaluation).not.toHaveTextContent(/candidates?|episodes?/i);
     expect(evaluation).not.toHaveTextContent(/screening runs|finalists|scored in full/i);
-    expect(evaluation).toHaveTextContent(/estimate, not proof of real performance or safety/);
+    expect(evaluation).toHaveTextContent(/estimate; it never certifies real performance or safety/);
+    expect(evaluation).not.toHaveTextContent(/using APIs/);
     const result = screen.getByRole("region", { name: "See what works on your job." });
     expect(result).toHaveTextContent(/No approved budget is needed to start/);
-    expect(result).toHaveTextContent(/which did best in a simulation of your site.*how much that result can be trusted.*“held”/);
+    // The comparison may find no clear difference, so the page promises how they compared, not a winner.
+    expect(result).toHaveTextContent(/how the setups compared in a simulation of your site and whether one was clearly ahead.*how much that result can be trusted.*“held”/);
+    expect(result).not.toHaveTextContent(/which did best/);
     expect(result).toHaveTextContent(/anonymised job card.*deployment companies Blueprint has approved/);
     expect(result).toHaveTextContent(/agree any pilot's price and terms directly with one of them/);
     expect(result).not.toHaveTextContent(/delivery proposals|comparable|invite those companies|recommends the approach/i);

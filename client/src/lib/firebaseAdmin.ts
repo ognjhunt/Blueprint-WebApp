@@ -55,17 +55,20 @@ export { ADC_CONTEXT_ENV_KEYS } from "./adcContextEnvKeys";
 
 /**
  * A browser-test server must never reach a live project. Playwright sets
- * BLUEPRINT_E2E=1 for the server it starts. A cloud session or a developer
- * shell can hold a live service account, and without this refusal that test
- * server would read and write production data (found on 2026-11-11). Servers
- * pointed at the local emulators are unaffected, and
- * BLUEPRINT_E2E_ALLOW_LIVE_FIREBASE=1 allows a live project on purpose.
+ * BLUEPRINT_E2E=1 for the server it starts. Such a server initialises Firebase
+ * Admin only when it is pointed at BOTH local emulators (Firestore and
+ * Storage; a server with only one would send the other's traffic to a live
+ * project), or when BLUEPRINT_E2E_ALLOW_LIVE_FIREBASE=1 allows a live project
+ * on purpose. Otherwise it runs with no database, whatever credentials the
+ * machine holds: a service account, a key file, or application-default
+ * credentials alike (found on 2026-11-11: a cloud session's live credentials).
+ * Servers started without BLUEPRINT_E2E=1 are unaffected.
  */
 export function browserTestServerMustNotUseLiveFirebase(env: NodeJS.ProcessEnv = process.env): boolean {
   if (env.BLUEPRINT_E2E !== "1") return false;
   if (env.BLUEPRINT_E2E_ALLOW_LIVE_FIREBASE === "1") return false;
-  if (env.FIRESTORE_EMULATOR_HOST?.trim()) return false;
-  return Boolean(env.FIREBASE_SERVICE_ACCOUNT_JSON?.trim() || env.GOOGLE_APPLICATION_CREDENTIALS?.trim());
+  const emulatorBacked = Boolean(env.FIRESTORE_EMULATOR_HOST?.trim() && env.FIREBASE_STORAGE_EMULATOR_HOST?.trim());
+  return !emulatorBacked;
 }
 
 function initializeFirebaseAdmin() {
@@ -76,8 +79,9 @@ function initializeFirebaseAdmin() {
 
   if (browserTestServerMustNotUseLiveFirebase()) {
     console.warn(
-      "Firebase Admin SDK: not initialised. This is a browser-test server (BLUEPRINT_E2E=1) and a live "
-      + "credential is present. Set BLUEPRINT_E2E_ALLOW_LIVE_FIREBASE=1 only to use a live project on purpose.",
+      "Firebase Admin SDK: not initialised. This is a browser-test server (BLUEPRINT_E2E=1) that is not pointed "
+      + "at both the Firestore and the Storage emulator. Set BLUEPRINT_E2E_ALLOW_LIVE_FIREBASE=1 only to use a live "
+      + "project on purpose.",
     );
     return null;
   }

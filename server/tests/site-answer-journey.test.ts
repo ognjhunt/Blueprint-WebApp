@@ -26,6 +26,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import { sharedFakeFirestoreState as state } from "./helpers/fake-firestore";
 import { sharedUploadBucket } from "./helpers/fake-upload-bucket";
 import { siteCaptureStartSubmission } from "./helpers/siteCaptureStartSubmission";
+import { JOB_CARD_ANSWER_STATEMENT_VERSION } from "../../client/src/lib/jobCardAnswerConsent";
 
 const seams = vi.hoisted(() => ({
   /** The scripted video-model reply for each capture, keyed by capture id. */
@@ -122,12 +123,15 @@ const CARTON = reading({ ...NOTHING, object: "carton", object_largest_side_m: 0.
 "Pick up the carton from the left of the table and place it at the end of the table");
 /** SYNTHETIC: the clip never shows the work. */
 const NO_JOB = reading({ ...NOTHING, basis: "SYNTHETIC reading: the job was not in view." }, null);
-/** SYNTHETIC: a person folds towels at a table; nothing is carried from one spot to another. */
-const TOWELS = reading({ ...NOTHING, object_surface: "matte",
-  basis: "SYNTHETIC reading: a person folds towels on a table and stacks them." }, null);
+/**
+ * SYNTHETIC: a person folds towels at a table; nothing is carried from one spot to another. The reader says
+ * so in its own field (`job_kind: "other"`, folding) as well as in its words.
+ */
+const TOWELS = reading({ ...NOTHING, object_surface: "matte", job_kind: "other", other_actions: ["folding"],
+  basis: "SYNTHETIC reading: a person folds towels on a table." }, null);
 /** SYNTHETIC: the same towel job, with the object named and a height the reader gave. The numbers must not make it a pick. */
-const TOWELS_WITH_HEIGHT = reading({ ...NOTHING, object: "towel", object_surface: "matte", pick_height_m: 0.9,
-  basis: "SYNTHETIC reading: a person folds towels on a table and stacks them." }, null);
+const TOWELS_WITH_HEIGHT = reading({ ...NOTHING, object: "towel", object_surface: "matte", pick_height_m: 0.9, job_kind: "other",
+  other_actions: ["folding"], basis: "SYNTHETIC reading: a person folds towels on a table." }, null);
 // The bases say "reading", not "fixture": the task screen reads "fixture" as an assembly job.
 
 /* ------------------------------------------------------------ the site's steps, as the page sends them */
@@ -286,7 +290,8 @@ describe("a site's answer, from an email and a video to a deployment company", (
     }
     // The sentence is the one drafted from the video, and the page says so.
     expect(ready.job).toMatchObject({ sentence: "Pick up the carton from the left of the table and place it at the end of the table",
-      drafted: true, family: "pick_place" });
+      // The scripted reading gives no kind of job, so no kind is stated.
+      drafted: true, family: null, familyLabel: null });
     expect(ready.confidence.level).not.toBe("good");
     expect(ready.facts.find((fact: { label: string }) => fact.label === "Object weight")?.basis).toBe("video_estimate");
     expect(ready.nextStep).toEqual({ kind: "introduction",
@@ -321,7 +326,7 @@ describe("a site's answer, from an email and a video to a deployment company", (
     expect(answerNotices(jobId)).toHaveLength(1);
 
     // 6. "Find a deployment company for this job": recorded once, card listed under its consent version, one alert.
-    const asked = await post(`/api/site-task-brief/${token}/introduction-request`, {});
+    const asked = await post(`/api/site-task-brief/${token}/introduction-request`, { statementVersion: JOB_CARD_ANSWER_STATEMENT_VERSION });
     expect(asked.status, await asked.clone().text()).toBe(200);
     const first = await asked.json();
     expect(first).toEqual({ ok: true, requestedAtIso: NOW.toISOString(), listed: true });
@@ -336,7 +341,7 @@ describe("a site's answer, from an email and a video to a deployment company", (
     expect(introductionAlerts()).toHaveLength(1);
     expect((await status(token)).answer).toMatchObject({ introductionRequestedAtIso: NOW.toISOString(), jobCardListed: true });
     vi.setSystemTime(new Date(NOW.getTime() + 60_000));
-    const again = await post(`/api/site-task-brief/${token}/introduction-request`, {});
+    const again = await post(`/api/site-task-brief/${token}/introduction-request`, { statementVersion: JOB_CARD_ANSWER_STATEMENT_VERSION });
     expect(await again.json()).toEqual({ ok: true, requestedAtIso: NOW.toISOString(), listed: true });
     expect(introductionAlerts()).toHaveLength(1);
     vi.setSystemTime(NOW);
@@ -395,7 +400,7 @@ describe("a site's answer, from an email and a video to a deployment company", (
     expect(await brief.json()).toMatchObject({ ready: true, taskStatementNeeded: true });
   }, 30_000);
 
-  const OTHER_KIND = "This check covers jobs where a robot picks one solid object up and puts it down. Your job looks like another kind, which we can't check robots against yet.";
+  const OTHER_KIND = "From your video, the job looks like more than picking an object up and putting it down (folding), which we can't check robots against yet. If that is not right, edit the job description to say what the robot should do, and we will read the video again.";
   async function expectOtherKind(jobId: string, token: string) {
     const { answer } = await status(token);
     expect(answer).toMatchObject({ state: "cannot_assess", headline: "We can't check robots against this job yet.",
@@ -410,7 +415,7 @@ describe("a site's answer, from an email and a video to a deployment company", (
 
   it("says a job of another kind cannot be checked, in the fit check's own words, with one update email", async () => {
     // The towel job is named in the form's optional task line.
-    const { jobId, token } = await startJob("Fold each towel and stack it on the shelf");
+    const { jobId, token } = await startJob("Fold the towels");
     expect(doc(`inboundRequests/${jobId}`).site_task_scope).toMatchObject({ supported: false, reason: "deformable" });
     await sendVideo(token);
     await readVideo(jobId, TOWELS);
@@ -418,7 +423,7 @@ describe("a site's answer, from an email and a video to a deployment company", (
   }, 30_000);
 
   it("gives no robot pick to a typed towel job even when the reading names the object and a height", async () => {
-    const { jobId, token } = await startJob("Fold each towel and stack it on the shelf");
+    const { jobId, token } = await startJob("Fold the towels");
     await sendVideo(token);
     await readVideo(jobId, TOWELS_WITH_HEIGHT);
     await expectOtherKind(jobId, token);

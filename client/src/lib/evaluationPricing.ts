@@ -43,11 +43,11 @@ export const pilotReplacementPolicy =
 export const siteAssessment = {
   amount: betaFeeUsd,
   unit: "during the beta",
-  summary: "One answer for one recurring job at one site: the robot that most likely fits, and its proof in simulation.",
+  summary: "One answer for one recurring job at one site: the robot that most likely fits, and what a simulation of its site found.",
   covers: [
     "A job brief drafted from your video and reviewed with you: objects, cycle, exceptions, timing and required outcomes.",
-    "A site simulation reconstructed from your video, with compatible robots and policies evaluated against the job criteria.",
-    "Which robot most likely fits your job and how sure we are, then which control policy did best in the simulation, or “held” when we can't simulate that kind of job yet.",
+    "A site simulation reconstructed from your video, where suitable robots are checked for reach and arm path and public control policies are compared on the job on a research robot.",
+    "Which robot most likely fits your job and how sure we are, then how control policies compared on it in the simulation and whether one was clearly ahead, or “held” when we can't simulate that kind of job yet.",
     "Blueprint works alongside a deployment company on your site; you approve the pilot's price, support and acceptance criteria.",
   ],
   allIn:

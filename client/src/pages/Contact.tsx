@@ -54,7 +54,7 @@ export default function Contact() {
             <p>We review your robot's capabilities against a real site task, then email the next step. Your application remains pending until manual approval. Applying or creating an account does not grant access. Approved teams see anonymized cards authorized when sites start a job; sites can edit or hide them afterward.</p>
             <p>Blueprint runs each evaluation itself, comparing candidate robots and policies in a site simulation reconstructed from the site's video. You supply access to your policy or robot, or the integration needed to run it. Each evaluation is a bounded estimate for the site. Teams do not run their own evaluations of a site's job.</p>
             <p>Before an evaluation, confirm the task, robot and gripper, observation and action interfaces, and any adapter work. You serve your policy at one HTTPS URL that accepts a bearer token, and register it as a policy endpoint with that token; containers and private checkpoints are not admitted. Blueprint first screens every candidate with up to 10 episodes; a full evaluation is 200 hidden episodes and runs only with Blueprint&rsquo;s approval.</p>
-            <p>Access is free during the beta. Any physical pilot's scope, price, dates and terms are agreed between the site and the deployment company directly; Blueprint takes no cut. Approval does not guarantee a run or a deployment.</p>
+            <p>Access is free during the beta. Any physical pilot's scope, price, dates and terms are agreed between the site and the deployment company directly; Blueprint takes no cut. Approval does not promise a run or a deployment.</p>
             <p><a href="/agent-access.openapi.json">Technical API reference</a> · <a href="mailto:hello@tryblueprint.io">Ask about job fit or integration</a></p>
           </details>
           <p className="ms-field-hint" style={{ marginTop: "24px" }}>
@@ -92,10 +92,10 @@ export default function Contact() {
             {savedJob ? <p className="ms-field-hint">Your private job link shows the brief, progress, follow-up questions and the next decision. Keep it to return.</p> : <><p className="ms-field-hint">
               We analyze your video and draft a brief for you to correct.
               We check real robot models against the job by their published specifications and show which most likely fits and how sure we are.
-              We then reconstruct your work area in simulation and test control policies (the software that drives a robot) on the job ourselves,
+              We then reconstruct your work area in simulation, check the picked robot&apos;s reach and arm path there and compare public control policies (the software that drives a robot) on the job on a research robot,
               or mark it &ldquo;held&rdquo; if we can&apos;t simulate that kind of job yet.
               If you choose, you share an anonymised job card with deployment companies Blueprint has approved; you agree any pilot contract directly with one of them.
-              Simulation is an estimate, not proof of physical performance or safety.
+              A simulation result is an estimate; it never certifies physical performance or safety.
             </p>
             <p className="ms-field-hint">
               Where we work: in the US, you record the walkthrough yourself. Outside the US, we set

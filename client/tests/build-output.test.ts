@@ -89,7 +89,7 @@ describe("build output", () => {
     expect(html).toContain("Fixed arms, humanoids, wheeled humanoids and mobile manipulators can all be considered if the specific setup is compatible.");
     expect(html).toContain("Warehouse walkthrough contents");
     expect(html).toContain("The video is required to reconstruct your site and run the evaluation.");
-    expect(html).toContain("Compare suitable robots and policies in simulation.");
+    expect(html).toContain("Check the robots and compare policies in simulation.");
     expect(html).toContain("See what works on your job.");
     expect(html).not.toContain("Compare delivery proposals");
     expect(html).not.toContain('id="evaluation-example"');
@@ -253,7 +253,7 @@ describe("build output", () => {
     const robotHtml = fs.readFileSync(distPath("contact/robot-team/index.html"), "utf8");
     expect(homeHtml).toContain("Find the right way to automate your work.");
     expect(homeHtml).toContain("Start with a video; we draft the job description from it.");
-    expect(homeHtml).toContain("One job. One answer, with its proof.");
+    expect(homeHtml).toContain("One job. One answer, tested in simulation.");
     expect(homeHtml).toContain("Illustrative answer");
     expect(homeHtml).not.toContain("One job. A clear pilot plan.");
     expect(homeHtml).not.toContain("Quoted by the deployment company and agreed before the pilot");
@@ -261,8 +261,10 @@ describe("build output", () => {
     expect(homeHtml).toContain("deployment companies Blueprint has approved");
     expect(homeHtml).not.toContain("Review comparable proposals");
     expect(homeHtml).toContain("Free during the beta");
-    // The default example is the packaging job; its proof row is about the arm in a simulation of the site.
-    expect(homeHtml).toContain("A simulation of your site checks the arm’s reach, path and cycle time on the stack");
+    // The default example is the packaging job; its simulation row is about the arm in a simulation of the site,
+    // and promises no cycle-time check the simulation does not make.
+    expect(homeHtml).toContain("A simulation of your site checks the arm’s reach and path on the stack");
+    expect(homeHtml).not.toContain("path and cycle time on the stack");
     expect(homeHtml).not.toContain('aria-hidden="true">Book this pilot</span>');
     // Organization and WebSite structured data ride on the homepage.
     expect(homeHtml).toContain('"@type":"Organization"');

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { User } from "firebase/auth";
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
-import { ANSWER_CONFIDENCE_LABELS, EVIDENCE_LEVEL_LABELS, type AnswerBasis, type AnswerEvidence } from "@/lib/siteAnswer";
+import { ANSWER_CONFIDENCE_LABELS, EVIDENCE_LEVEL_LABELS, evidenceScopeLabel, type AnswerBasis, type AnswerEvidence } from "@/lib/siteAnswer";
 import type { JobCardAnswerRobot, JobCardAnswerSummary, TaskCardDetail } from "@/types/taskBrowse";
 
 export const JOB_CARD_ANSWER_TITLE = "Blueprint's answer for this job";
@@ -38,7 +38,7 @@ function Robot({ robot, role }: { robot: JobCardAnswerRobot; role: "Pick" | "Run
     </p>}
     {robot.evidence.length
       ? robot.evidence.map(item => <div key={item.sourceUrl} className="site-answer-evidence">
-        <p className="job-eyebrow">{EVIDENCE_LEVEL_LABELS[item.level]}{item.scope === "maker" ? " (for this maker, not this model by name)" : ""}</p>
+        <p className="job-eyebrow">{EVIDENCE_LEVEL_LABELS[item.level]} · {evidenceScopeLabel(item)}</p>
         <p>{item.summary}</p>
         <blockquote>“{item.quote}”</blockquote>
         <p className="ms-field-hint">Source: <SourceLink evidence={item} /></p>

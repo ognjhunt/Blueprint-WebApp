@@ -405,23 +405,31 @@ function finishedComparison(proof: SimulationProof | null | undefined) {
   return proof?.state === "done" ? proof.policyComparison : null;
 }
 
-/** "Proof" only when the result separates the policies; otherwise the simulation has simply finished. */
+/**
+ * True when a policy the page compares completed the job: the same rows the comparison sentence rests
+ * on. A success on a row that is not compared (another robot, or one we could not confirm) does not
+ * make a result to announce.
+ */
+const hasSuccess = (proof: SimulationProof | null | undefined) =>
+  Boolean(finishedComparison(proof)?.rows.some(row => row.compared && row.succeeded > 0));
+
+/** "A result" when some policy completed the job; otherwise the simulation has simply finished. */
 function estimateSubject(proof: SimulationProof | null | undefined): string {
-  return finishedComparison(proof)?.separated ? "Your simulation proof is ready" : "The simulation of your job has finished";
+  return hasSuccess(proof) ? "Your simulation result is ready" : "The simulation of your job has finished";
 }
 
 /**
  * A finished simulation, from the same projection the job page uses (`projectSimulationProof`): the
- * proof's headline and how far to trust it when the policies were separated; otherwise what it found
- * and its scene notes, never called an estimate and with no offer of a pilot.
+ * page's own comparison sentence, word for word, and its scene notes; with how far to trust a ranking
+ * when some policy completed the job. When none did, what it found, never called an estimate and with
+ * no offer of a pilot.
  */
 function estimateDetail(proof: SimulationProof | null | undefined, caveat: ScreeningOutcomeCaveat | null): string {
   const comparison = finishedComparison(proof);
-  if (comparison?.separated) return `${proof!.headline}\n\n${SIMULATION_TRUST_LINE} Nothing is needed from you.`;
-  // Without the proof, a stored caveat still says what happened: it is only ever set when no policy succeeded.
-  const said = comparison ? [comparison.line, ...comparison.sceneNotes]
-    : caveat ? [NO_POLICY_COMPLETED, screeningCaveatSentence(caveat)] : [SIMULATION_FINISHED];
-  return `${[...new Set(said)].join(" ")} Nothing is needed from you.`;
+  // Without the result, a stored caveat still says what happened: it is only ever set when no policy succeeded.
+  const said = [...new Set(comparison ? [comparison.line, ...comparison.sceneNotes]
+    : caveat ? [NO_POLICY_COMPLETED, screeningCaveatSentence(caveat)] : [SIMULATION_FINISHED])].join(" ");
+  return hasSuccess(proof) ? `${said}\n\n${SIMULATION_TRUST_LINE} Nothing is needed from you.` : `${said} Nothing is needed from you.`;
 }
 
 /** The job's simulation proof as its page shows it, or null when the results cannot be read. Never fails the notice. */
@@ -431,7 +439,7 @@ async function loadEstimateProof(requestId: string): Promise<SimulationProof | n
     const { managedEvidence } = await readSiteManagedEvidence(requestId);
     return projectSimulationProof({ evaluation: managedEvidence as never, pick: null });
   } catch (error) {
-    logger.warn({ error, requestId }, "Could not read the simulation proof for the result email; it says the simulation finished");
+    logger.warn({ error, requestId }, "Could not read the simulation result for the result email; it says the simulation finished");
     return null;
   }
 }
@@ -508,7 +516,7 @@ export function answerIsSettled(answer: SiteAnswer | null | undefined): answer i
 
 /**
  * The answer email's body, in the job page's own words: the headline, the
- * runner-up, how sure, where the simulation proof appears, the standing note.
+ * runner-up, how sure, where the simulation result appears, the standing note.
  * Built from the composed answer only, never caller text.
  */
 function answerReadyDetail(answer: SiteAnswer | undefined): string {
@@ -518,7 +526,7 @@ function answerReadyDetail(answer: SiteAnswer | undefined): string {
   if (answer.runnerUp) lines.push(`Runner-up: ${answer.runnerUp.manufacturer} ${answer.runnerUp.name}.`);
   const reason = answer.confidence.reasons[0];
   lines.push(`How sure we are: ${ANSWER_CONFIDENCE_LABELS[answer.confidence.level] ?? "Low"}.${reason ? ` ${reason}` : ""}`);
-  lines.push("When Blueprint runs your job in a simulation of your site, the proof appears on the same page.");
+  lines.push("If Blueprint runs a simulation of your site, its result appears on the same page.");
   lines.push(SITE_ANSWER_NOTE);
   return lines.join("\n\n");
 }

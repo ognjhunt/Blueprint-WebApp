@@ -61,6 +61,7 @@ import {
 } from "../../client/src/data/robotFit";
 import { UNIT_LABELS, type EntryUnit } from "../../client/src/data/siteMeasurements";
 import { robotFitRankingOutputSchema, type RobotFitRankingInput } from "../agents/tasks/robot-fit-ranking";
+import { otherActionsOf, type OtherAction } from "../agents/tasks/site-video-evidence";
 import type { AgentResult, AgentTask } from "../agents/types";
 import type { RobotTeamRecord } from "../types/robot-team-registry";
 import { gateAnswersOnFile } from "./gateAnswersOnFile";
@@ -259,6 +260,10 @@ export interface VideoEstimates {
   largestSideM: number | null;
   massKg: { low: number; high: number } | null;
   surface: "matte" | "shiny" | "transparent" | "mixed" | null;
+  /** What the reader saw done to the object; null when it did not say (and on older readings). */
+  jobKind: "pick_and_place" | "palletizing" | "machine_tending" | "other" | null;
+  /** Anything done to the object besides carrying it, from the reader's closed list; [] on older readings. */
+  otherActions: OtherAction[];
   pickToPlaceM: number | null;
   pickHeightM: number | null;
   placeHeightM: number | null;
@@ -273,6 +278,7 @@ function bounded(value: unknown, min: number, max: number, exclusiveMin = false)
 }
 
 const SURFACE_VALUES = new Set(["matte", "shiny", "transparent", "mixed"]);
+const JOB_KIND_VALUES = new Set(["pick_and_place", "palletizing", "machine_tending", "other"]);
 
 /**
  * An unseen item as a plain noun phrase, or nothing: the name reaches the site's
@@ -296,6 +302,10 @@ function estimatesOf(raw: unknown): VideoEstimates | null {
     massKg: ends[0] !== null && ends[1] !== null ? { low: Math.min(ends[0], ends[1]), high: Math.max(ends[0], ends[1]) } : null,
     surface: typeof value.object_surface === "string" && SURFACE_VALUES.has(value.object_surface)
       ? value.object_surface as VideoEstimates["surface"] : null,
+    jobKind: typeof value.job_kind === "string" && JOB_KIND_VALUES.has(value.job_kind)
+      ? value.job_kind as VideoEstimates["jobKind"] : null,
+    // Stored documents are untrusted too: only the reader's closed list of actions survives.
+    otherActions: otherActionsOf(value.other_actions),
     pickToPlaceM: bounded(value.pick_to_place_m, 0, 50, true),
     pickHeightM: bounded(value.pick_height_m, 0, 4),
     placeHeightM: bounded(value.place_height_m, 0, 4),
@@ -320,6 +330,8 @@ function mergeEstimates(first: VideoEstimates | null, second: VideoEstimates | n
     largestSideM: first.largestSideM ?? second.largestSideM,
     massKg: first.massKg ?? second.massKg,
     surface: first.surface ?? second.surface,
+    jobKind: first.jobKind ?? second.jobKind,
+    otherActions: first.otherActions.length ? first.otherActions : second.otherActions,
     pickToPlaceM: first.pickToPlaceM ?? second.pickToPlaceM,
     pickHeightM: first.pickHeightM ?? second.pickHeightM,
     placeHeightM: first.placeHeightM ?? second.placeHeightM,

@@ -1,19 +1,24 @@
 /**
- * Proof in simulation, in plain words: what the simulation of the site has
- * shown so far about the robot the answer picked and about which AI control
- * policy did best, with what published studies say about how far such a
- * simulation agrees with a real test, and which of their conditions hold here.
+ * "Tested in simulation", in plain words: what the simulation of the site has
+ * shown so far about the robot the answer picked (its reach and arm path in the
+ * scene rebuilt from the video) and how public AI control policies compared on
+ * the job, with what published studies say about how far such a simulation
+ * agrees with a real test, and which of their conditions hold here.
  *
  * A pure projection of what the job page already loads: the job evaluation
  * summary (`/api/job-workflow/owner/:token`, `JobManagedEvidenceSummary`), the
  * status read's measured-scene robot table (`robotFit`) and the answer's pick.
- * Used by the page and, later, by email. It never claims more than the data:
- * zero successes is never an estimate, a tie is never a winner, and a run that
- * could not finish is said about the simulation, never about the site's job.
+ * Used by the page and by the simulation email. It never claims more than the
+ * data: every sentence that says something happened is emitted only by the
+ * branch that checked it happened. Zero successes is never an estimate; a
+ * comparison from a few tries is a probability, said by one fixed rule
+ * (`probabilityAhead`, `CLEAR`, `AHEAD`); a run that could not finish is said
+ * about the simulation, never about the site's job.
  */
 import type { RobotFitView } from "../components/site/RobotFit";
 import { SIMULATION_ACCURACY } from "../data/simulationAccuracy";
-import { SIMULATION_POLICIES, simulationPolicyFor, type SimulatedRobot } from "../data/simulationPolicies";
+import { SIMULATION_POLICIES, UNNAMED_POLICY, simulationPolicyFor, type SimulatedRobot } from "../data/simulationPolicies";
+import { sameRobot } from "./robotNameMatch";
 import type { AnswerRobot } from "./siteAnswer";
 import type { JobManagedEvidenceSummary, JobScreeningOutcome } from "../types/jobMarketplace";
 
@@ -27,10 +32,15 @@ export interface SimulationProof {
     /** In a sentence: "a Franka research arm". */
     robotName: string;
     sameRobotAsPick: boolean;
+    /**
+     * The compared rows (all on one robot) first, leader on top, then rows that ran on another robot or
+     * one we could not confirm: shown with their robot, `compared: false`, never ranked or chosen.
+     */
     rows: Array<{ policy: string; maker: string | null; succeeded: number; scored: number;
-      rangeText: string | null; chosen: boolean }>;
+      rangeText: string | null; chosen: boolean; compared: boolean; robot: string | null }>;
+    /** The leader, named only when P(leader beats every other compared policy) ≥ `AHEAD`, each pair weighed. */
     winner: { policy: string; maker: string | null } | null;
-    /** Some policy succeeded, and the best is not tied with every other scored policy. */
+    /** The smallest P(leader beats another compared policy) ≥ `CLEAR`: a gap this size is unlikely to be chance. */
     separated: boolean;
     line: string;
     sceneNotes: string[];
@@ -60,6 +70,88 @@ export interface SimulationProofInput {
 }
 
 export const NO_POLICY_COMPLETED = "The simulation ran, but no policy completed the job in it, so it could not rank them.";
+/** A finished simulation in which no policy has a scored try: it says nothing ran. */
+export const NO_POLICY_SCORED = "The simulation finished, but no policy could be scored in it.";
+/** Said when no scored policy's robot is known: their counts are listed and never ranked. */
+export const ROBOT_NOT_CONFIRMED = "We could not confirm that these policies ran on the same robot in the simulation of your site, so they are not compared.";
+export const GAP_UNLIKELY_CHANCE = "A gap this size is unlikely to be chance.";
+export const GAP_COULD_BE_CHANCE = "With this few tries the gap could still be chance.";
+
+/**
+ * How sure the comparison of the leader with every other policy run on the same robot must be before
+ * the page says so: the smallest of those chances decides. With s
+ * successes in n scored tries, a policy's success rate is uncertain: Beta(s + 1, n − s + 1) from a
+ * uniform prior. P(leader's rate > next best's rate) at or above `CLEAR` says the leader "did best";
+ * at or above `AHEAD` it "was ahead", and the gap could still be chance; below `AHEAD` there is no
+ * clear difference. 1 of 1 against 0 of 1 is 5/6 (no clear difference); 7 of 10 against 3 of 10 is
+ * about 0.96 (ahead); 9 of 10 against 3 of 10 is above 0.99 (did best).
+ */
+export const CLEAR = 0.975;
+export const AHEAD = 0.85;
+/** Numeric slack for the thresholds: a pair whose exact probability is 0.85 or 0.975 stays on the line. */
+const THRESHOLD_TOLERANCE = 1e-6;
+
+/** Lanczos approximation of ln Γ(x) for x > 0 (g = 7, nine coefficients): about 15 significant digits. */
+const LANCZOS = [0.99999999999980993, 676.5203681218851, -1259.1392167224028, 771.32342877765313, -176.61502916214059,
+  12.507343278686905, -0.13857109526572012, 9.9843695780195716e-6, 1.5056327351493116e-7];
+function logGamma(x: number): number {
+  if (x < 0.5) return Math.log(Math.PI / Math.sin(Math.PI * x)) - logGamma(1 - x);
+  const z = x - 1;
+  let sum = LANCZOS[0];
+  for (let i = 1; i < 9; i += 1) sum += LANCZOS[i] / (z + i);
+  const t = z + 7.5;
+  return 0.5 * Math.log(2 * Math.PI) + (z + 0.5) * Math.log(t) - t + Math.log(sum);
+}
+/** k·ln(x), with 0·ln(0) = 0. */
+const xLogY = (k: number, y: number) => (k === 0 ? 0 : k * Math.log(y));
+const logBeta = (a: number, b: number) => logGamma(a) + logGamma(b) - logGamma(a + b);
+/** Density of Beta(a, b) at x, given ln B(a, b). */
+const betaPdf = (x: number, a: number, b: number, lnB: number) => Math.exp(xLogY(a - 1, x) + xLogY(b - 1, 1 - x) - lnB);
+/**
+ * Cumulative Beta(a, b) at x for whole a, b ≥ 1: P(Binomial(a + b − 1, x) ≥ a), summed term by term in
+ * logs (each term from the one before), so no term overflows or is lost to underflow at the start.
+ */
+function betaCdf(x: number, a: number, b: number): number {
+  if (x <= 0) return 0;
+  if (x >= 1) return 1;
+  const m = a + b - 1;
+  const lnX = Math.log(x);
+  const ln1X = Math.log(1 - x);
+  let lnTerm = logGamma(m + 1) - logGamma(a + 1) - logGamma(m - a + 1) + a * lnX + (m - a) * ln1X;
+  let total = 0;
+  for (let j = a; j <= m; j += 1) {
+    total += Math.exp(lnTerm);
+    lnTerm += Math.log((m - j) / (j + 1)) + lnX - ln1X;
+  }
+  return Math.min(1, total);
+}
+/** Even number of Simpson intervals on [0, 1]. */
+const SIMPSON_INTERVALS = 2000;
+const tally = (value: { succeeded: number; scored: number }) => {
+  const scored = count(value?.scored);
+  return { scored, succeeded: Math.min(count(value?.succeeded), scored) };
+};
+
+/**
+ * P(A's success rate > B's), each rate Beta(s + 1, n − s + 1) from s successes in n scored tries (a
+ * uniform prior): ∫ pdf_A(x) · cdf_B(x) dx over [0, 1], by Simpson's rule on a fixed grid. Equal counts
+ * give 0.5; P(A > B) + P(B > A) = 1.
+ */
+export function probabilityAhead(a: { succeeded: number; scored: number }, b: { succeeded: number; scored: number }): number {
+  const A = tally(a);
+  const B = tally(b);
+  const [aA, bA, aB, bB] = [A.succeeded + 1, A.scored - A.succeeded + 1, B.succeeded + 1, B.scored - B.succeeded + 1];
+  const lnB = logBeta(aA, bA);
+  const h = 1 / SIMPSON_INTERVALS;
+  let sum = 0;
+  for (let i = 0; i <= SIMPSON_INTERVALS; i += 1) {
+    const x = i * h;
+    const weight = i === 0 || i === SIMPSON_INTERVALS ? 1 : i % 2 ? 4 : 2;
+    const density = betaPdf(x, aA, bA, lnB);
+    if (density > 0) sum += weight * density * betaCdf(x, aB, bB);
+  }
+  return Math.min(1, Math.max(0, (sum * h) / 3));
+}
 export const SCALE_ESTIMATED = "The scale of your scene was estimated from your video, not measured.";
 /** Said by the server beside a zero-success result whose scene our checks flagged (`screeningOutcomeCaveat`). */
 const SCENE_SETUP_CAVEAT = "Our scene check found a possible set-up cause, so this result may reflect how we set the scene up more than the robots.";
@@ -109,7 +201,6 @@ const PREPARING_STATES = new Set(["queued", "pending", "waitlisted", "preparing"
 const RUNNING_CANDIDATE_STATES = new Set(["launching", "running", "reconciliation_required"]);
 
 const isRecord = (value: unknown): value is Record<string, any> => Boolean(value) && typeof value === "object" && !Array.isArray(value);
-const norm = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 const count = (value: unknown) => (typeof value === "number" && Number.isInteger(value) && value >= 0 ? value : 0);
 const pickName = (pick: AnswerRobot) => `${pick.manufacturer} ${pick.name}`;
 const policyPhrase = (row: { policy: string; maker: string | null }) =>
@@ -143,7 +234,7 @@ function robotCheckOf(robotFit: SimulationProofInput["robotFit"], pick: AnswerRo
   if (!pick) return { line: `The scene rebuilt from your video was checked against ${models.length} robot${models.length === 1 ? "" : "s"}.`, pickChecked: null };
   const name = pickName(pick);
   const row = models.find(entry => typeof entry.name === "string" && typeof entry.manufacturer === "string"
-    && norm(entry.manufacturer) === norm(pick.manufacturer) && norm(entry.name) === norm(pick.name));
+    && typeof pick.name === "string" && typeof pick.manufacturer === "string" && sameRobot(entry, pick));
   if (!row) return { line: `The scene rebuilt from your video has not been checked against the ${name} yet.`, pickChecked: false };
   switch (row.verdict) {
     case "fits": return { line: `In the scene rebuilt from your video, the ${name} reaches the pick-up and put-down points with a clear arm path.`, pickChecked: true };
@@ -160,8 +251,20 @@ function simulatedRobot(rows: Array<{ robot: SimulatedRobot | null }>): Simulate
   return [...tally.values()].sort((a, b) => b.n - a.n)[0]?.robot ?? null;
 }
 
+/** True when the candidate id is in our closed mapping of policies. */
+const isListed = (row: Candidate) => Object.prototype.hasOwnProperty.call(SIMULATION_POLICIES, String(row.candidateId ?? ""));
+/** A, B, … Z, then AA, AB, … */
+const letterOf = (index: number): string => (index < 26 ? "" : letterOf(Math.floor(index / 26) - 1)) + String.fromCharCode(65 + (index % 26));
+
 /** Selection blockers that mark a reference row: shown, never ranked or chosen. */
 const REFERENCE_BLOCKERS: ReadonlySet<string> = new Set(["development_only_reference", "scripted_baseline_reference_only"]);
+/** Candidate ids the selection marks as references. */
+function referenceIds(screening: JobManagedEvidenceSummary["screening"] | null | undefined): Set<string> {
+  const selection = isRecord(screening) && isRecord(screening.selection) ? screening.selection : null;
+  return new Set((Array.isArray(selection?.candidates) ? selection!.candidates : [])
+    .filter(entry => isRecord(entry) && REFERENCE_BLOCKERS.has(String(entry.choiceBlocker)))
+    .map(entry => String(entry.candidateId)));
+}
 
 function comparisonOf(evaluation: JobManagedEvidenceSummary, state: SimulationProofState, pick: AnswerRobot | null,
   couldNotRun: string | null): SimulationProof["policyComparison"] {
@@ -169,76 +272,133 @@ function comparisonOf(evaluation: JobManagedEvidenceSummary, state: SimulationPr
   const all = (Array.isArray(screening?.candidates) ? screening!.candidates : []).filter(isRecord) as Candidate[];
   // Scripted reference rows and the known-good control are checks, not policies. Rows the selection marks
   // as references (development-only or scripted-baseline) are shown elsewhere but never ranked or named the winner.
-  const references = new Set((Array.isArray(screening?.selection?.candidates) ? screening!.selection!.candidates : [])
-    .filter(entry => isRecord(entry) && REFERENCE_BLOCKERS.has(String(entry.choiceBlocker)))
-    .map(entry => String(entry.candidateId)));
+  const references = referenceIds(screening);
   const policies = all.filter(row => !scripted(row) && !references.has(String(row.candidateId ?? "")));
   if (!policies.length || (state !== "done" && state !== "could_not_run")) return null;
-  const scored = policies.filter(row => count(row.scored) > 0).map(row => ({ row, ...simulationPolicyFor(String(row.candidateId ?? ""), String(row.name ?? "")),
+  const scored = policies.filter(row => count(row.scored) > 0).map(row => ({ row, ...simulationPolicyFor(String(row.candidateId ?? "")),
     succeeded: Math.min(count(row.succeeded), count(row.scored)), scored: count(row.scored) }));
-  const rate = (entry: { succeeded: number; scored: number }) => entry.succeeded / entry.scored;
-  scored.sort((a, b) => rate(b) - rate(a) || b.succeeded - a.succeeded || b.scored - a.scored);
-  const best = scored[0] ?? null;
-  const others = scored.slice(1);
-  const anySuccess = scored.some(entry => entry.succeeded > 0);
-  const separated = Boolean(best) && anySuccess && others.length > 0 && others.some(entry => rate(entry) !== rate(best!));
-  const top = best ? scored.filter(entry => rate(entry) === rate(best)) : [];
-  const selection = screening?.selection;
-  const selected = selection?.status === "chosen" && selection.chosen ? scored.find(entry => entry.row.candidateId === selection.chosen!.candidateId) ?? null : null;
-  const winnerEntry = separated ? (selected && rate(selected) === rate(best!) ? selected : top.length === 1 ? best : null) : null;
+  // Ordered by the mean of each rate's Beta(s + 1, n − s + 1): 9 of 10 leads 1 of 1. Ties keep the
+  // policy with more scored tries first, then the evaluation's own order.
+  const mean = (entry: { succeeded: number; scored: number }) => (entry.succeeded + 1) / (entry.scored + 2);
+  scored.sort((a, b) => mean(b) - mean(a) || b.scored - a.scored);
+  // Policies not in our mapping are never shown by a stored name; several are told apart by a letter,
+  // in the order of their ids so the same run always gives the same letters.
+  const unlisted = [...new Set(scored.filter(entry => !isListed(entry.row)).map(entry => String(entry.row.candidateId ?? "")))].sort();
+  if (unlisted.length > 1) for (const entry of scored) {
+    if (!isListed(entry.row)) entry.policy = `${UNNAMED_POLICY} (${letterOf(unlisted.indexOf(String(entry.row.candidateId ?? "")))})`;
+  }
+  // A comparison is among policies that ran on the same robot: the one most scored rows ran on. A row
+  // on another robot, or on one we cannot name, is shown and counted but never ranked, never in the
+  // comparison and never chosen. When no scored row's robot is known, nothing is ranked.
+  const robot = simulatedRobot(scored);
+  const ranked = robot ? scored.filter(entry => entry.robot?.modelId === robot.modelId) : [];
+  const elsewhere = robot ? scored.filter(entry => entry.robot?.modelId !== robot.modelId) : [];
+  const leader = ranked[0] ?? null;
+  const next = ranked[1] ?? null;
+  const anySuccess = ranked.some(entry => entry.succeeded > 0);
+  // The wording rests on the leader against EVERY other ranked policy: the smallest chance that it beats
+  // one of them. The counts decide, never the Pipeline's own `selection.chosen`. A policy that never
+  // completed the job is never ahead. The tolerance keeps integration error from moving a pair whose
+  // exact probability sits on a threshold.
+  const ahead = leader && next && leader.succeeded > 0
+    ? Math.min(...ranked.slice(1).map(entry => probabilityAhead(leader, entry))) : 0;
+  const separated = ahead >= CLEAR - THRESHOLD_TOLERANCE;
+  const winnerEntry = ahead >= AHEAD - THRESHOLD_TOLERANCE ? leader : null;
   const notes = [...new Set([...(screening?.setupNotes ?? []).filter(note => typeof note === "string" && note.trim()),
     ...(evaluation.outcomeCaveat === "scene_setup" ? [SCENE_SETUP_CAVEAT] : [])])];
+  const counted = (entries: typeof scored) => entries.map(entry => `${entry.policy}, ${entry.succeeded} of ${entry.scored}`).join("; ");
 
   let line: string;
   if (couldNotRun) line = couldNotRun;
-  else if (!scored.length) line = "The simulation finished, but no policy could be scored in it.";
-  else if (!anySuccess) line = NO_POLICY_COMPLETED;
-  else if (separated && winnerEntry) {
-    const rest = scored.filter(entry => entry !== winnerEntry);
-    line = `In a simulation of your site, ${policyPhrase(winnerEntry)} did best: it completed the job in ${triesText(winnerEntry.succeeded, winnerEntry.scored)}.`
-      + (rest.length ? ` The others: ${rest.map(entry => `${entry.policy}, ${entry.succeeded} of ${entry.scored}`).join("; ")}.` : "");
-  } else if (separated) {
-    const rest = scored.filter(entry => !top.includes(entry));
-    line = `In a simulation of your site, ${top.map(entry => entry.policy).join(" and ")} did equally well, ahead of the others: each completed the job in ${Math.round(rate(best!) * 100)}% of its tries.`
-      + (rest.length ? ` The others: ${rest.map(entry => `${entry.policy}, ${entry.succeeded} of ${entry.scored}`).join("; ")}.` : "");
-  } else if (others.length) {
-    line = `The simulation ran, but the policies completed the job equally often, so it could not rank them: ${scored.map(entry => `${entry.policy}, ${entry.succeeded} of ${entry.scored}`).join("; ")}.`;
+  else if (!scored.length) line = NO_POLICY_SCORED;
+  else if (!scored.some(entry => entry.succeeded > 0)) line = NO_POLICY_COMPLETED;
+  else if (!robot) {
+    line = scored.length === 1
+      ? `The simulation scored one policy: ${scored[0].policy} completed the job in ${triesText(scored[0].succeeded, scored[0].scored)}. With nothing to compare it to, it could not rank policies.`
+      : `${ROBOT_NOT_CONFIRMED} Tries that completed the job: ${counted(scored)}.`;
+  } else if (!anySuccess) line = `No policy run on ${robot.name} completed the job in the simulation of your site, so it could not rank them.`;
+  else if (!next) {
+    line = `The simulation scored one policy on ${robot.name}: ${leader!.policy} completed the job in ${triesText(leader!.succeeded, leader!.scored)}. `
+      + "With nothing to compare it to on that robot, it could not rank policies.";
+  } else if (winnerEntry) {
+    const against = `against ${next.succeeded} of ${next.scored} for ${ranked.length > 2 ? "the next best, " : ""}${next.policy}`;
+    const rest = ranked.slice(2);
+    line = `In a simulation of your site, on ${robot.name}, ${policyPhrase(leader!)} ${separated ? "did best" : "was ahead"}: it completed the job in `
+      + `${triesText(leader!.succeeded, leader!.scored)}, ${against}. ${separated ? GAP_UNLIKELY_CHANCE : GAP_COULD_BE_CHANCE}`
+      + (rest.length ? ` The others: ${counted(rest)}.` : "");
   } else {
-    line = `The simulation scored one policy: ${best!.policy} completed the job in ${triesText(best!.succeeded, best!.scored)}. With nothing to compare it to, it could not rank policies.`;
+    line = `No clear difference yet between the policies tried on ${robot.name} in a simulation of your site. Tries that completed the job: ${counted(ranked)}.`;
   }
+  if (!couldNotRun && elsewhere.length) line += ` ${elsewhereSentence(elsewhere.map(entry => entry.robot))}`;
 
   const didNotRun = policies.filter(plannedButNotRun).length;
-  const robot = simulatedRobot(scored.length ? scored : policies.map(row => simulationPolicyFor(String(row.candidateId ?? ""), String(row.name ?? ""))));
+  const named = robot ?? simulatedRobot(policies.map(row => simulationPolicyFor(String(row.candidateId ?? ""))));
+  const toRow = (entry: (typeof scored)[number], compared: boolean) => ({ policy: entry.policy, maker: entry.maker,
+    succeeded: entry.succeeded, scored: entry.scored,
+    // A likely range only beside a row that has a success: zero successes is never an estimate.
+    rangeText: entry.succeeded > 0 ? rangeTextOf(entry.row.successRange) : null,
+    chosen: compared && entry === winnerEntry, compared, robot: entry.robot?.name ?? null });
   return {
-    robotName: robot?.name ?? "the simulated robot",
-    sameRobotAsPick: Boolean(robot && pick && robot.modelId === pick.modelId),
-    rows: scored.map(entry => ({ policy: entry.policy, maker: entry.maker, succeeded: entry.succeeded, scored: entry.scored,
-      // A likely range only beside a result that has a success: zero successes is never an estimate.
-      rangeText: anySuccess && entry.row.successRange
-        ? `likely between ${entry.row.successRange.lowerPercent}% and ${entry.row.successRange.upperPercent}%` : null,
-      chosen: entry === winnerEntry })),
+    robotName: named?.name ?? "the simulated robot",
+    sameRobotAsPick: Boolean(named && pick && named.modelId === pick.modelId),
+    // The compared rows first, leader on top; then the rows on another robot.
+    rows: robot ? [...ranked.map(entry => toRow(entry, true)), ...elsewhere.map(entry => toRow(entry, false))]
+      : scored.map(entry => toRow(entry, false)),
     winner: winnerEntry ? { policy: winnerEntry.policy, maker: winnerEntry.maker } : null,
     separated,
     line,
     sceneNotes: notes,
     didNotRun,
+    // "More" only beside policies that were scored; otherwise none ran.
     didNotRunLine: didNotRun > 0
-      ? `${didNotRun} more ${didNotRun === 1 ? "policy was" : "policies were"} planned and did not run. “Simulation details” further down says why.`
+      ? `${didNotRun}${scored.length ? " more" : ""} ${didNotRun === 1 ? "policy was" : "policies were"} planned and did not run. “Simulation details” further down says why.`
       : null,
   };
 }
 
-/** What is known for this job about the studies' conditions, without inventing any. */
-function forThisJobOf(state: SimulationProofState, pick: AnswerRobot | null, scaleMeasured: boolean, robot: SimulatedRobot | null): string[] {
+/**
+ * One sentence per robot for policies left out of the comparison: "1 more policy ran on a Unitree G1
+ * humanoid, a different robot, and is not compared with these." A robot we cannot name is said so.
+ */
+function elsewhereSentence(robots: Array<SimulatedRobot | null>): string {
+  const groups = new Map<string, { robot: SimulatedRobot | null; n: number }>();
+  for (const robot of robots) {
+    const key = robot?.modelId ?? "";
+    groups.set(key, { robot, n: (groups.get(key)?.n ?? 0) + 1 });
+  }
+  return [...groups.values()].map(({ robot, n }) => `${n} more ${n === 1 ? "policy" : "policies"} ran on `
+    + `${robot ? `${robot.name}, a different robot,` : "a robot we could not confirm is the same,"} and ${n === 1 ? "is" : "are"} not compared with these.`).join(" ");
+}
+
+/** "likely between 40% and 95%", only from a well-formed range. */
+function rangeTextOf(range: Candidate["successRange"]): string | null {
+  if (!isRecord(range)) return null;
+  const { lowerPercent: lower, upperPercent: upper } = range as { lowerPercent: unknown; upperPercent: unknown };
+  const percent = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 100;
+  if (!percent(lower) || !percent(upper) || lower > upper) return null;
+  return `likely between ${Math.round(lower)}% and ${Math.round(upper)}%`;
+}
+
+/**
+ * What is known for this job about the studies' conditions, without inventing any. `robot` is the robot
+ * the scored policies ran on, null when no policy has a scored try: "we ran" is said only after a run.
+ */
+function forThisJobOf(state: SimulationProofState, pick: AnswerRobot | null, scaleMeasured: boolean, robot: SimulatedRobot | null,
+  mixed = false): string[] {
   if (state === "not_started") return [];
   const lines: string[] = [];
   if (!scaleMeasured) lines.push(SCALE_ESTIMATED);
   if (pick && robot && robot.modelId !== pick.modelId) {
     const noun = robot.kind === "arm" ? "arm" : "robot";
     const policiesForPick = Object.values(SIMULATION_POLICIES).some(entry => entry.robot.modelId === pick.modelId);
-    lines.push(policiesForPick
-      ? `We ran the public policies on the ${noun} they are trained for, ${robot.name}, in a simulation of your site, not on the ${pickName(pick)}.`
-      : `We have no public AI policy to run on the ${pickName(pick)}, so we ran the public policies on the ${noun} they are trained for, ${robot.name}, in a simulation of your site.`);
+    // When some scored policy ran on another robot, say only what is true of the compared ones.
+    lines.push(mixed
+      ? policiesForPick
+        ? `The policies compared here are the ones that run on ${robot.name}; they ran on that ${noun} in a simulation of your site, not on the ${pickName(pick)}.`
+        : `We have no public AI policy to run on the ${pickName(pick)}. The policies compared here are the ones that run on ${robot.name}, in a simulation of your site.`
+      : policiesForPick
+        ? `We ran the public policies on the ${noun} they are trained for, ${robot.name}, in a simulation of your site, not on the ${pickName(pick)}.`
+        : `We have no public AI policy to run on the ${pickName(pick)}, so we ran the public policies on the ${noun} they are trained for, ${robot.name}, in a simulation of your site.`);
   }
   return lines;
 }
@@ -251,11 +411,15 @@ export function projectSimulationProof(input: SimulationProofInput): SimulationP
   const outcome = evaluation?.outcome ?? null;
   const couldNotRun = state === "could_not_run" && outcome ? COULD_NOT_RUN[outcome] ?? null : null;
   const comparison = evaluation ? comparisonOf(evaluation, state, pick, couldNotRun) : null;
-  const allPolicies = evaluation && Array.isArray(evaluation.screening?.candidates)
-    ? (evaluation.screening!.candidates.filter(isRecord) as Candidate[]).filter(row => !scripted(row))
+  const references = referenceIds(evaluation?.screening);
+  const scoredPolicies = evaluation && Array.isArray(evaluation.screening?.candidates)
+    ? (evaluation.screening!.candidates.filter(isRecord) as Candidate[])
+      .filter(row => !scripted(row) && !references.has(String(row.candidateId ?? "")) && count(row.scored) > 0)
     : [];
-  const robot = simulatedRobot(allPolicies.map(row => simulationPolicyFor(String(row.candidateId ?? ""), String(row.name ?? ""))));
-  const headline = state === "done" ? (comparison?.line.split(/(?<=\.)\s/)[0] ?? NO_POLICY_COMPLETED)
+  const scoredRobots = scoredPolicies.map(row => simulationPolicyFor(String(row.candidateId ?? "")));
+  const robot = simulatedRobot(scoredRobots);
+  const mixed = Boolean(robot) && scoredRobots.some(entry => entry.robot?.modelId !== robot!.modelId);
+  const headline = state === "done" ? (comparison?.line.split(/(?<=\.)\s/)[0] ?? NO_POLICY_SCORED)
     : state === "could_not_run" ? couldNotRun ?? "The simulation could not run."
       : (outcome && WAITING[outcome]) ?? HEADLINES[state];
   return {
@@ -265,6 +429,6 @@ export function projectSimulationProof(input: SimulationProofInput): SimulationP
     policyComparison: comparison,
     accuracy: { statement: SIMULATION_ACCURACY.statement, conditions: SIMULATION_ACCURACY.conditions,
       sources: SIMULATION_ACCURACY.sources.map(source => ({ ...source })) },
-    forThisJob: forThisJobOf(state, pick, input?.scaleMeasured === true, robot),
+    forThisJob: forThisJobOf(state, pick, input?.scaleMeasured === true, robot, mixed),
   };
 }

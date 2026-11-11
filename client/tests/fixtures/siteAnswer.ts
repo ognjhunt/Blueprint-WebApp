@@ -36,9 +36,9 @@ export const readyAnswer: SiteAnswer = {
     verdict: "fits_on_paper",
     sceneChecked: false,
     checks: [
-      { key: "reach", outcome: "pass", estimated: true,
+      { key: "reach", outcome: "pass", estimated: true, basis: "video_estimate",
         text: "Reach: your two spots are about 1.6 m apart (estimated from your video), so an arm standing between them needs about 0.9–1.2 m. This arm reaches 1.3 m." },
-      { key: "payload", outcome: "pass", estimated: true,
+      { key: "payload", outcome: "pass", estimated: true, basis: "video_estimate",
         text: "Weight: each carton is about 8–11 kg (estimated from your video), about 9–12 kg with the gripper. This arm lifts 12.5 kg." },
     ],
     specs: [
@@ -46,14 +46,14 @@ export const readyAnswer: SiteAnswer = {
       { label: "Rated payload", display: "12.5 kg", sourceUrl: "https://specs.example.test/universal-robots/ur10e#payload" },
     ],
     evidence: [
-      { level: "production", scope: "model",
+      { level: "production", scope: "model", family: null,
         summary: "A test distributor runs UR10e arms on its end-of-line carton palletizing.",
         quote: "Four UR10e cells now palletize every carton leaving our TEST line, two shifts a day.",
         sourceUrl: "https://news.example.test/case-studies/ur10e-carton-palletizing",
         sourceTitle: "TEST case study: carton palletizing with the UR10e",
         publisher: "Example Test News", publishedOn: "2025-03-01" },
-      { level: "offered", scope: "maker",
-        summary: "The maker markets its arms for palletizing.",
+      { level: "offered", scope: "family", family: "e-Series",
+        summary: "The maker markets its e-Series arms for palletizing.",
         quote: "Our TEST palletizing kit pairs with any e-Series arm.",
         sourceUrl: "https://maker.example.test/applications/palletizing",
         sourceTitle: "TEST palletizing application page",
@@ -68,9 +68,9 @@ export const readyAnswer: SiteAnswer = {
     verdict: "fits_on_paper",
     sceneChecked: false,
     checks: [
-      { key: "reach", outcome: "pass", estimated: true,
+      { key: "reach", outcome: "pass", estimated: true, basis: "video_estimate",
         text: "Reach: an arm standing between your spots needs about 0.9–1.2 m. This arm reaches 1.7 m." },
-      { key: "payload", outcome: "pass", estimated: true,
+      { key: "payload", outcome: "pass", estimated: true, basis: "video_estimate",
         text: "Weight: about 9–12 kg with the gripper. This arm lifts 20 kg." },
     ],
     specs: [
@@ -78,7 +78,7 @@ export const readyAnswer: SiteAnswer = {
       { label: "Rated payload", display: "20 kg", sourceUrl: "https://specs.example.test/yaskawa/hc20dtp#payload" },
     ],
     evidence: [
-      { level: "pilot", scope: "model",
+      { level: "pilot", scope: "model", family: null,
         summary: "A test integrator piloted the HC20DTP on case palletizing at a named customer.",
         quote: "The TEST pilot ran the HC20DTP on mixed cases for six weeks.",
         sourceUrl: "https://integrator.example.test/blog/hc20-case-palletizing-pilot",

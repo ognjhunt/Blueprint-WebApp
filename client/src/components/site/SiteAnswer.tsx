@@ -4,7 +4,7 @@ import { JOB_CARD_ANSWER_STATEMENT, JOB_CARD_ANSWER_STATEMENT_VERSION } from "@/
 import type { SimulationProof as SimulationProofView } from "@/lib/simulationProof";
 import { SimulationProof } from "./SimulationProof";
 import {
-  ANSWER_CONFIDENCE_LABELS, ANSWER_VERDICT_LABELS, EVIDENCE_LEVEL_LABELS,
+  ANSWER_CONFIDENCE_LABELS, ANSWER_VERDICT_LABELS, EVIDENCE_LEVEL_LABELS, evidenceScopeLabel,
   type AnswerBasis, type AnswerEvidence, type AnswerRobot, type SiteAnswer as SiteAnswerView,
 } from "@/lib/siteAnswer";
 
@@ -56,7 +56,7 @@ function PickCard({ robot, familyLabel }: { robot: AnswerRobot; familyLabel: str
     <h4>{familyLabel ? `Track record for ${familyLabel}` : "Track record"}</h4>
     {robot.evidence.length
       ? robot.evidence.map(item => <div key={item.sourceUrl} className="site-answer-evidence">
-        <p className="job-eyebrow">{EVIDENCE_LEVEL_LABELS[item.level]}{item.scope === "maker" ? " (for this maker, not this model by name)" : ""}</p>
+        <p className="job-eyebrow">{EVIDENCE_LEVEL_LABELS[item.level]} · {evidenceScopeLabel(item)}</p>
         <p>{item.summary}</p>
         <blockquote>“{item.quote}”</blockquote>
         <p className="ms-field-hint">Source: <SourceLink evidence={item} /></p>
@@ -74,7 +74,7 @@ function RunnerUp({ robot }: { robot: AnswerRobot }) {
     <p className="ms-field-hint">{robot.formLabel} · {ANSWER_VERDICT_LABELS[robot.verdict]}</p>
     <Specs robot={robot} />
     {evidence
-      ? <p>{EVIDENCE_LEVEL_LABELS[evidence.level]}: {evidence.summary} <span className="ms-field-hint">Source: <SourceLink evidence={evidence} /></span></p>
+      ? <p>{EVIDENCE_LEVEL_LABELS[evidence.level]}: {evidence.summary} <span className="ms-field-hint">{evidenceScopeLabel(evidence)}. Source: <SourceLink evidence={evidence} /></span></p>
       : <p className="ms-field-hint">We found no documented use of this robot on this kind of job.</p>}
   </article>;
 }

@@ -56,6 +56,7 @@ function job(extra: Record<string, unknown> = {}) {
     capture_coverage: { covers_scene: true },
     walkthrough_job_estimates: { capture_id: `walkthrough-${ID}`, job_estimates: {
       object: "carton", object_largest_side_m: 0.4, object_mass_kg_low: 8, object_mass_kg_high: 11, object_surface: "matte",
+      job_kind: "palletizing",
       pick_to_place_m: 1.6, pick_height_m: null, place_height_m: null, front_clearance_m: 1.5,
       other_items_likely: ["Acme invoices"], cycle_seconds: null,
       basis: "A person in a red jacket stacks cartons from the conveyor by the loading dock at 12 Elm Street." } },
@@ -118,6 +119,30 @@ describe("GET /api/site-worlds/tasks/:taskId", () => {
     expect(summary.simulation).toBeNull();
   });
 
+  it("tells a company what was checked: the standing note always, and that only a carry was checked when the reader gave no kind", async () => {
+    const record = job();
+    delete (record.walkthrough_job_estimates.job_estimates as Record<string, unknown>).job_kind;
+    put(record);
+    const { body } = await get(`/tasks/${ID}`);
+    const summary = body.item.answerSummary;
+    expect(summary.note).toBe("This checks whether a robot can pick the object up and put it down, against published robot specifications and a cited track record. It is not a test of a robot at the site and does not certify performance or safety.");
+    expect(summary.unknowns[0]).toBe("We could not tell from the site's video what is done to the object; this checks only whether a robot can pick it up and put it down.");
+    expect(JSON.stringify(summary)).not.toMatch(/\byour\b/i);
+    // Nobody judged the kind of job, so the card states none.
+    expect(summary.familyLabel).toBeNull();
+    // The reader says another kind: the card says it can't be checked, and states no kind of job either.
+    const other = job();
+    (other.walkthrough_job_estimates.job_estimates as Record<string, unknown>).job_kind = "other";
+    put(other);
+    const refused = (await get(`/tasks/${ID}`)).body.item.answerSummary;
+    expect(refused).toMatchObject({ headline: "We can't check robots against this job yet.", familyLabel: null, pick: null });
+    // With the reader's kind of job, the card says nothing of the kind.
+    put(job());
+    const judged = (await get(`/tasks/${ID}`)).body.item.answerSummary;
+    expect(judged.unknowns.some((line: string) => line.startsWith("We could not tell"))).toBe(false);
+    expect(judged.familyLabel).toBe("palletizing");
+  });
+
   it("adds one plain simulation line when the site's evaluation has one", async () => {
     put(job());
     seams.managed.mockImplementation(async () => ({ managedEvidence: [{ current: true, state: "completed", outcome: "held_scene_check" }] }));
@@ -150,6 +175,18 @@ describe("GET /api/site-worlds/tasks/:taskId", () => {
     expect(body.item.answerSummary).toBeUndefined();
   });
 
+  it("has no answer once the card's current consent is the older box, though the site asked under the statement", async () => {
+    // The site pressed the button, then re-saved its card through "Manage opportunity sharing": the card's
+    // consent now is the older box, which does not name the answer.
+    put(job({ public_task_listing: { ...job().public_task_listing, consentVersion: "public-task-card-v1" } }));
+    const { status, body } = await get(`/tasks/${ID}`);
+    expect(status).toBe(200);
+    expect(body.item.answerSummary).toBeUndefined();
+    expect(body.item.answerHeadline).toBeUndefined();
+    const list = await get("/tasks");
+    expect(list.body.items.find((item: { id: string }) => item.id === ID).answerHeadline).toBeUndefined();
+  });
+
   it("refuses a viewer the library refuses, and a card that is not listed", async () => {
     put(job());
     seams.allowed = false;
@@ -175,6 +212,8 @@ describe("GET /api/site-worlds/tasks/:taskId", () => {
 
 describe("GET /api/site-worlds/tasks", () => {
   it("shows the headline alone on a shared card, and nothing on another", async () => {
+    const { loadSiteAnswer } = await import("../utils/siteAnswer");
+    vi.mocked(loadSiteAnswer).mockClear();
     put(job());
     sharedFakeFirestoreState.docs.set("inboundRequests/req-plain", { ...job(), requestId: "req-plain",
       public_task_listing: { ...job().public_task_listing, consentVersion: "public-task-card-v1" }, introduction_request: undefined });
@@ -186,5 +225,7 @@ describe("GET /api/site-worlds/tasks", () => {
     expect(plain).toBeTruthy();
     expect(plain.answerHeadline).toBeUndefined();
     expect(seams.managed).not.toHaveBeenCalled();
+    // The answer is composed for the consenting card only.
+    expect(vi.mocked(loadSiteAnswer).mock.calls.map(call => call[0])).toEqual([ID]);
   });
 });

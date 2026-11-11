@@ -31,10 +31,16 @@ export type AnswerBasis = "site_measured" | "site_stated" | "video_observed" | "
 export interface AnswerCheck {
   key: "reach" | "payload" | "cycle_time";
   outcome: "pass" | "fail" | "unknown";
-  /** One plain sentence naming the site's number and the robot's number. */
+  /** One plain sentence naming the site's number, where it came from, and the robot's number. */
   text: string;
   /** The check rests on an estimate from the video. */
   estimated: boolean;
+  /**
+   * Where the site's side of the check came from: the best source for this check's own quantity
+   * (the site's measurement or statement, the scene rebuilt from its video, or the video reading).
+   * Null when the check could not be made for lack of that quantity or of the robot's figure.
+   */
+  basis: AnswerBasis | null;
 }
 
 export const EVIDENCE_LEVELS = ["production", "pilot", "offered"] as const;
@@ -48,8 +54,13 @@ export const EVIDENCE_LEVEL_LABELS: Readonly<Record<EvidenceLevel, string>> = {
 
 export interface AnswerEvidence {
   level: EvidenceLevel;
-  /** Whether the source names this model, or only its maker. */
-  scope: "model" | "maker";
+  /**
+   * What the source names: this exact model, or the robot family it belongs to (`family` says which).
+   * A source that names neither is never evidence.
+   */
+  scope: "model" | "family";
+  /** The family the source names, in its own words, when `scope` is "family"; otherwise null. */
+  family: string | null;
   /** Blueprint's one-sentence paraphrase. */
   summary: string;
   /** Word for word from the source. */
@@ -58,6 +69,13 @@ export interface AnswerEvidence {
   sourceTitle: string;
   publisher: string;
   publishedOn: string | null;
+}
+
+/** What the source names, as the page says it: "names this model" or "names this robot family (GoFa)". */
+export function evidenceScopeLabel(evidence: Pick<AnswerEvidence, "scope" | "family">): string {
+  return evidence.scope === "family"
+    ? `The source names this robot family${evidence.family ? ` (${evidence.family})` : ""}`
+    : "The source names this model";
 }
 
 export type AnswerVerdict = "fits" | "fits_on_paper" | "possible" | "ruled_out";
@@ -76,7 +94,7 @@ export interface AnswerRobot {
   /** The robot's build in plain words, such as "One arm that stays in one place". */
   formLabel: string;
   verdict: AnswerVerdict;
-  /** The verdict came from the scene rebuilt from the site's video. */
+  /** The reach check was decided in the scene rebuilt from the site's video. */
   sceneChecked: boolean;
   checks: AnswerCheck[];
   /** Published figures shown beside the pick, each with its source. */
@@ -94,8 +112,9 @@ export const ANSWER_CONFIDENCE_LABELS: Readonly<Record<AnswerConfidenceLevel, st
   low: "Low",
 };
 
+/** The standing note under every answer: what the check covers, and what it is not. */
 export const SITE_ANSWER_NOTE =
-  "This is a fit check against published robot specifications and a cited track record. It is not a test of a robot at your site and does not certify performance or safety.";
+  "This checks whether a robot can pick your object up and put it down, against published robot specifications and a cited track record. It is not a test of a robot at your site and does not certify performance or safety.";
 
 export interface SiteAnswer {
   schemaVersion: typeof SITE_ANSWER_SCHEMA;

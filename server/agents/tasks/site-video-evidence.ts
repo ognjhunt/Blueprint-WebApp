@@ -160,6 +160,24 @@ const cycleMeasurementSchema = z
  * the same reading gates reconstruction, and a bad guess must never block it.
  * The bounds only reject the impossible; they say nothing about any robot.
  */
+/**
+ * Everything the reader may say is done to the object besides carrying it. A closed list: these words reach a
+ * sentence on the site's page ("Your job also involves folding"), so no free text from a model ever does.
+ */
+export const OTHER_ACTIONS = ["folding", "pouring", "wiping", "sweeping", "scrubbing", "fastening", "assembling",
+  "cutting", "welding", "painting", "spraying", "sanding", "polishing", "mixing", "sewing", "tying", "peeling", "opening",
+  "closing", "pressing", "capping", "labelling", "wrapping", "inspecting", "cleaning"] as const;
+export type OtherAction = (typeof OTHER_ACTIONS)[number];
+const OTHER_ACTION_SET: ReadonlySet<string> = new Set(OTHER_ACTIONS);
+
+/** The allowed actions in a value, item by item, each once, at most three: a junk item never discards a valid one. */
+export function otherActionsOf(value: unknown): OtherAction[] {
+  if (!Array.isArray(value)) return [];
+  const kept = value.filter((item): item is string => typeof item === "string")
+    .map((item) => item.trim().toLowerCase()).filter((item) => OTHER_ACTION_SET.has(item));
+  return [...new Set(kept)].slice(0, 3) as OtherAction[];
+}
+
 const estimate = (min: number, max: number) => z.number().finite().min(min).max(max).nullable().catch(null);
 
 export const jobEstimatesSchema = z.object({
@@ -169,6 +187,10 @@ export const jobEstimatesSchema = z.object({
   object_mass_kg_low: estimate(0.001, 2000),
   object_mass_kg_high: estimate(0.001, 2000),
   object_surface: z.enum(["matte", "shiny", "transparent", "mixed"]).nullable().catch(null),
+  /** What is done to the object: whether a reach-and-payload check means anything for this job. */
+  job_kind: z.enum(["pick_and_place", "palletizing", "machine_tending", "other"]).nullable().catch(null),
+  /** Anything done to the object besides carrying it, as -ing words ("folding"). */
+  other_actions: z.unknown().optional().transform(otherActionsOf),
   /** From where the object is picked up to where it is put down. */
   pick_to_place_m: estimate(0, 50),
   pick_height_m: estimate(0, 4),
@@ -203,12 +225,14 @@ Blueprint never asks the site to measure anything, so estimate what a robot woul
 - object: the main item the job handles, in a few words. object_largest_side_m: its largest side, in metres.
 - object_mass_kg_low and object_mass_kg_high: a plausible weight range from its size, its material, how full it looks and how it is lifted (one hand or two, the effort it takes).
 - object_surface: matte, shiny, transparent or mixed, from how it looks.
+- job_kind: what is done to the object, judged from the footage and the job's description together. pick_and_place: one solid object is picked up and put down somewhere else. palletizing: boxes or bags are stacked into a shipping load, or taken off one. machine_tending: parts are loaded into or unloaded from a machine. other: the job mainly changes the object itself (it is folded, cut, joined, fastened, cleaned or coated) rather than moving it. Putting objects into a container, into a machine or onto a stack is carrying. null: the footage does not show the job.
+- other_actions: anything done to the object besides carrying it, using only these words: ${OTHER_ACTIONS.join(", ")}. At most three; an empty list when there is none. Never any other word.
 - pick_to_place_m: how far the object travels from where it is picked up to where it is put down. pick_height_m and place_height_m: the height above the floor of the surface it is picked from and of the one it is put on.
 - front_clearance_m: the open floor in front of the surface the object is picked from, where a robot could stand. 0 when there is none.
 - other_items_likely: up to five other kinds of item this station probably handles that the clip does not show, such as other sizes or variants of the same product, as plain nouns. Never a brand, company or robot. Empty when nothing suggests any.
 - cycle_seconds: your best estimate of one full cycle, from complete or partial cycles and the pace of the motions you saw.
 - basis: one or two sentences on what you sized and weighed things against.
-- Use the job's description only to know which object and which two spots the job is about, never as a number.
+- Use the job's description to know which object, which two spots and what is to be done to it; never take a number from it.
 - Give null for any estimate the footage gives no basis for. A wild guess is worse than null.`;
 
 export const JOB_ESTIMATES_RETURN_SHAPE = {
@@ -217,6 +241,8 @@ export const JOB_ESTIMATES_RETURN_SHAPE = {
   object_mass_kg_low: null,
   object_mass_kg_high: null,
   object_surface: "matte | shiny | transparent | mixed | null",
+  job_kind: "pick_and_place | palletizing | machine_tending | other | null",
+  other_actions: [],
   pick_to_place_m: null,
   pick_height_m: null,
   place_height_m: null,
@@ -369,7 +395,7 @@ ${JOB_ESTIMATES_INSTRUCTIONS}
 Hard limits:
 - Never describe any individual person: no appearance, clothing, role, gender, age, or anything identifying. people_present is a count and a spatial relationship only.
 - Set privacy_flag=true if the footage centres on identifiable people rather than on the work. This is an observation, not a hold or a site verdict.
-- Never infer from taskDescription. If prose says one thing and you did not see it, that is not_visible.
+- Never infer an observation from taskDescription. If prose says one thing and you did not see it, that observation is not_visible. (job_kind in job_estimates is the one field that reads the description too.)
 - You are not deciding whether the site qualifies. You are reporting observables. Something else combines them.`,
       returnShape: {
         footage_status: "usable | partially_usable | unusable",

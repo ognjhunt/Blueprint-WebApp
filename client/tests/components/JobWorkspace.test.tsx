@@ -74,7 +74,7 @@ describe("the site's job workspace", () => {
     // Nothing to show yet: no empty "Results" heading and no simulation block.
     expect(screen.queryByRole("heading", { name: "Results" })).toBeNull();
     expect(screen.queryByText("Simulation details")).toBeNull();
-    expect(screen.queryByRole("region", { name: "Proof in simulation" })).toBeNull();
+    expect(screen.queryByRole("region", { name: "Tested in simulation" })).toBeNull();
     expect(screen.queryByRole("list", { name: "Job milestones" })).not.toBeInTheDocument();
     expect(screen.queryByText("Brief agreed")).not.toBeInTheDocument();
     expect(screen.queryByText("Options assessed")).not.toBeInTheDocument();
@@ -300,7 +300,7 @@ it("shares its one workflow read with the page and shows a proof handed back, op
   const onWorkflow = vi.fn();
   const proof = projectSimulationProof({ evaluation: [winnerEvaluation], pick: null });
   render(<JobWorkspace token="owner-token" onWorkflow={onWorkflow} proof={proof} />);
-  const section = await screen.findByRole("region", { name: "Proof in simulation" });
+  const section = await screen.findByRole("region", { name: "Tested in simulation" });
   expect(section.closest("details")).toBeNull();
   expect(within(section).getByText(proof.headline)).toBeVisible();
   await waitFor(() => expect(onWorkflow).toHaveBeenCalledWith(loaded));

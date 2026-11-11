@@ -184,13 +184,13 @@ describe("site screening emails", () => {
       const { body } = buildQualifiedEmail({ firstName: "Dana", nextStep });
       expect(body).toMatch(/review the job brief, required output and site constraints/);
       expect(body).toMatch(/build a simulation of your work area and test robots and policies on your job ourselves/);
-      expect(body).toMatch(/You see which robot most likely fits and which control policy did best in the simulation/);
+      expect(body).toMatch(/You see which robot most likely fits and how control policies compared on your job in the simulation, including whether one was clearly ahead/);
       expect(body).toMatch(/share the job with deployment companies we have approved/);
       expect(body).not.toMatch(/finalists' full scoring|review their proposals/);
       expect(body).toMatch(/If nothing fits, we explain what is missing/);
       expect(body).not.toMatch(/book the pilot in one step|We prepare a simplified simulation/);
       expect(body).toMatch(/free during the beta/);
-      expect(body).toMatch(/not proof of how a robot will perform/);
+      expect(body).toMatch(/it never certifies how a robot will perform/);
     }
   });
 });

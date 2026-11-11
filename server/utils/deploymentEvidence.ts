@@ -1,49 +1,71 @@
 /**
- * Deployment evidence: who has put a robot model, or its maker's robots, to
- * work on a kind of job, each row quoted word for word from a public source.
+ * Deployment evidence: who has put a robot model to work on a kind of job,
+ * each row quoted word for word from a public source.
  *
- * `server/data/deploymentEvidence.v1.json`. Levels:
- * - `production`: in ongoing commercial use at a named customer or site, or a
- *   stated count of units or cycles, on this kind of job;
- * - `pilot`: a named customer trial or a dated integrator case study;
- * - `offered`: the maker or an integrator markets the model for this kind of
- *   job, with no named customer.
+ * `server/data/deploymentEvidence.v2.json` (`deployment_evidence.v2`). The
+ * schema makes the wrong record impossible to write:
  *
- * `model_ids` lists catalog ids only where the source names that model; an
- * empty list is maker-level and applies to that maker's models. A row with no
- * source, quote, level, job family or maker is dropped, never shown, and its
- * valid siblings stay usable.
+ * - `applies_to`: the catalog models the row is evidence for. Never empty;
+ *   every id must exist in the robot spec catalog and belong to the row's
+ *   maker. There are no maker-wide rows: a source that names neither a catalog
+ *   model nor its family is not a row.
+ * - `names`: `model` when the quote names that exact model; `family` when it
+ *   names the family those models belong to, given in `family` (present
+ *   exactly then).
+ * - `customer`: the end customer's name, `"unnamed"` when the source reports
+ *   live production without naming it, or null.
+ * - `level`: `production` = in ongoing use at an end customer (a customer is
+ *   required, named or "unnamed"); `pilot` = a trial at a named end customer
+ *   (a name is required); `offered` = marketed for the job, including an
+ *   integrator's product built on the arm, with no end customer (null).
+ *   Whether a quote's wording shows ongoing use or volume is the reviewer's
+ *   call, not the schema's.
+ *
+ * A row that breaks any rule is dropped, never shown, and listed in
+ * `rejected`; its valid siblings stay usable.
  */
 import { z } from "zod";
 
 import {
   EVIDENCE_LEVELS, JOB_FAMILIES, type AnswerEvidence, type EvidenceLevel, type JobFamily,
 } from "../../client/src/lib/siteAnswer";
-import evidenceJson from "../data/deploymentEvidence.v1.json";
-import type { BodyType } from "./robotSpecCatalog";
+import evidenceJson from "../data/deploymentEvidence.v2.json";
+import { robotSpecCatalog, type RobotSpecCatalog } from "./robotSpecCatalog";
+
+export const DEPLOYMENT_EVIDENCE_SCHEMA = "deployment_evidence.v2" as const;
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+const words = (max: number) => z.string().trim().min(1).max(max);
 
 export const deploymentEvidenceRowSchema = z.object({
-  id: z.string().min(1).max(120),
-  manufacturer: z.string().trim().min(1).max(120),
-  model_ids: z.array(z.string().regex(/^[a-z0-9_]{1,80}$/)).max(40).default([]),
-  /** Optional: a maker-level row that speaks only of one kind of robot. */
-  body_type: z.enum(["fixed_arm", "mobile_manipulator", "humanoid"]).nullable().optional(),
+  id: words(120),
+  manufacturer: words(120),
+  applies_to: z.array(z.string().regex(/^[a-z0-9_]{1,80}$/)).min(1).max(40)
+    .refine((ids) => new Set(ids).size === ids.length, "a model is listed twice"),
+  names: z.enum(["model", "family"]),
+  family: words(120).nullable(),
+  customer: words(200).nullable(),
   job_family: z.enum(JOB_FAMILIES),
   level: z.enum(EVIDENCE_LEVELS),
-  summary: z.string().trim().min(1).max(400),
-  quote: z.string().trim().min(1).max(1200),
+  summary: words(400),
+  quote: words(1200),
   source_url: z.string().url().refine((url) => /^https?:\/\//.test(url), "http(s) only"),
-  source_title: z.string().trim().min(1).max(300),
-  publisher: z.string().trim().min(1).max(200),
+  source_title: words(300),
+  publisher: words(200),
   published_on: isoDate.nullable().optional(),
   retrieved_on: isoDate.optional(),
-}).passthrough();
+}).strict().superRefine((row, context) => {
+  const issue = (path: string, message: string) => context.addIssue({ code: z.ZodIssueCode.custom, path: [path], message });
+  if (row.names === "family" && row.family === null) issue("family", "a row that names a family says which");
+  if (row.names === "model" && row.family !== null) issue("family", "a row that names the model has no family");
+  if (row.level === "production" && row.customer === null) issue("customer", "production use needs an end customer");
+  if (row.level === "pilot" && (row.customer === null || row.customer === "unnamed")) issue("customer", "a pilot needs a named end customer");
+  if (row.level === "offered" && row.customer !== null) issue("customer", "an offer has no end customer");
+});
 export type DeploymentEvidenceRow = z.infer<typeof deploymentEvidenceRowSchema>;
 
 const fileSchema = z.object({
-  schema_version: z.literal("deployment_evidence.v1"),
+  schema_version: z.literal(DEPLOYMENT_EVIDENCE_SCHEMA),
   retrieved_on: isoDate,
   rows: z.array(z.unknown()),
 }).passthrough();
@@ -55,51 +77,62 @@ export interface DeploymentEvidence {
   rejected: Array<{ index: number; id: string | null; issue: string }>;
 }
 
-/** Validate the file: a wrong schema throws; each malformed row is dropped and listed. */
-export function parseDeploymentEvidence(raw: unknown): DeploymentEvidence {
+/** Every model the row applies to is in the catalog and made by the row's maker; else why not. */
+function catalogIssues(row: DeploymentEvidenceRow, catalog: RobotSpecCatalog): string[] {
+  const byId = new Map(catalog.models.map((model) => [model.model_id, model]));
+  return row.applies_to.flatMap((id) => {
+    const model = byId.get(id);
+    if (!model) return [`applies_to: ${id} is not in the robot catalog`];
+    return model.manufacturer === row.manufacturer ? [] : [`applies_to: ${id} is made by ${model.manufacturer}, not ${row.manufacturer}`];
+  });
+}
+
+/**
+ * Validate the file against the robot catalog: a wrong schema version throws; each row that breaks a rule
+ * is dropped and listed, and a repeated id keeps only its first row.
+ */
+export function parseDeploymentEvidence(raw: unknown, catalog: RobotSpecCatalog = robotSpecCatalog()): DeploymentEvidence {
   const file = fileSchema.parse(raw);
   const rows: DeploymentEvidenceRow[] = [];
   const rejected: DeploymentEvidence["rejected"] = [];
+  const seen = new Set<string>();
   file.rows.forEach((row, index) => {
+    const id = row && typeof row === "object" && typeof (row as { id?: unknown }).id === "string" ? (row as { id: string }).id : null;
     const parsed = deploymentEvidenceRowSchema.safeParse(row);
-    if (parsed.success) rows.push(parsed.data);
-    else {
-      const id = row && typeof row === "object" && typeof (row as { id?: unknown }).id === "string" ? (row as { id: string }).id : null;
-      rejected.push({ index, id, issue: parsed.error.issues.map((issue) => `${issue.path.join(".") || "row"}: ${issue.message}`).join("; ") });
-    }
+    const issues = parsed.success
+      ? [...catalogIssues(parsed.data, catalog), ...(seen.has(parsed.data.id) ? ["id: repeated"] : [])]
+      : parsed.error.issues.map((issue) => `${issue.path.join(".") || "row"}: ${issue.message}`);
+    if (parsed.success && !issues.length) {
+      rows.push(parsed.data);
+      seen.add(parsed.data.id);
+    } else rejected.push({ index, id, issue: issues.join("; ") });
   });
   return { retrievedOn: file.retrieved_on, rows, rejected };
 }
 
 export const EVIDENCE_RANK: Readonly<Record<EvidenceLevel, number>> = { production: 3, pilot: 2, offered: 1 };
 
-export type EvidenceLookup = (modelId: string, manufacturer: string, bodyType: BodyType | string, jobFamily: JobFamily) => AnswerEvidence[];
-
-const sameMaker = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
+export type EvidenceLookup = (modelId: string, jobFamily: JobFamily) => AnswerEvidence[];
 
 /**
- * A lookup over the given rows: rows for this model and this kind of job,
- * strongest first (level, then model before maker, then id), each once.
+ * A lookup over the given rows: the rows that apply to this model on this kind of job, strongest first
+ * (level, then a source that names the model before one that names its family, then id), each once.
  */
 export function evidenceLookup(rows: readonly DeploymentEvidenceRow[]): EvidenceLookup {
-  return (modelId, manufacturer, bodyType, jobFamily) => rows
-    .filter((row) => row.job_family === jobFamily && sameMaker(row.manufacturer, manufacturer))
-    .map((row) => {
-      if (row.model_ids.length) return row.model_ids.includes(modelId) ? { row, scope: "model" as const } : null;
-      return !row.body_type || row.body_type === bodyType ? { row, scope: "maker" as const } : null;
-    })
-    .filter((entry): entry is { row: DeploymentEvidenceRow; scope: "model" | "maker" } => Boolean(entry))
-    .sort((a, b) => EVIDENCE_RANK[b.row.level] - EVIDENCE_RANK[a.row.level]
-      || (a.scope === b.scope ? 0 : a.scope === "model" ? -1 : 1) || a.row.id.localeCompare(b.row.id))
-    .map(({ row, scope }) => ({
-      level: row.level, scope, summary: row.summary, quote: row.quote, sourceUrl: row.source_url,
+  return (modelId, jobFamily) => rows
+    .filter((row) => row.job_family === jobFamily && row.applies_to.includes(modelId))
+    .sort((a, b) => EVIDENCE_RANK[b.level] - EVIDENCE_RANK[a.level]
+      || (a.names === b.names ? 0 : a.names === "model" ? -1 : 1) || a.id.localeCompare(b.id))
+    .map((row) => ({
+      level: row.level, scope: row.names, family: row.names === "family" ? row.family : null,
+      summary: row.summary, quote: row.quote, sourceUrl: row.source_url,
       sourceTitle: row.source_title, publisher: row.publisher, publishedOn: row.published_on ?? null,
     }));
 }
 
 let cached: { evidence: DeploymentEvidence; lookup: EvidenceLookup } | null = null;
 
-/** The shipped evidence, validated once per process. */
+/** The shipped evidence, validated against the mirrored catalog once per process. */
 export function deploymentEvidence(): DeploymentEvidence {
   if (!cached) {
     const evidence = parseDeploymentEvidence(evidenceJson as unknown);
@@ -109,7 +142,7 @@ export function deploymentEvidence(): DeploymentEvidence {
 }
 
 /** The shipped evidence for one model on one kind of job, strongest first. */
-export function evidenceFor(modelId: string, manufacturer: string, bodyType: BodyType | string, jobFamily: JobFamily): AnswerEvidence[] {
+export function evidenceFor(modelId: string, jobFamily: JobFamily): AnswerEvidence[] {
   deploymentEvidence();
-  return cached!.lookup(modelId, manufacturer, bodyType, jobFamily);
+  return cached!.lookup(modelId, jobFamily);
 }

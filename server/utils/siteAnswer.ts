@@ -5,8 +5,9 @@
  * Composed on every read from documents that already exist: the job request
  * (the video reader's estimates, the task screen), the brief, the site's own
  * readings, the mirrored robot spec catalog and the cited deployment evidence.
- * When the scene rebuilt from the video has been checked, its verdict for a
- * model replaces the one read from the video.
+ * Each check takes its outcome from the best source for its own quantity: the
+ * site's numbers first, then the scene rebuilt from the video (reach only), then
+ * the video's estimates. A robot's verdict comes only from its checks.
  *
  * Every rule here is fixed: no person and no model picks the robot. Every
  * sentence names the site's number with where it came from and the robot's
@@ -20,13 +21,14 @@ import {
   type SiteAnswer,
 } from "../../client/src/lib/siteAnswer";
 import { REQUIREMENT_SOURCE_LABELS, ROBOT_FORM_COPY, type RequirementSource } from "../../client/src/data/robotFit";
+import { sameRobot } from "../../client/src/lib/robotNameMatch";
 import { EVIDENCE_RANK, evidenceFor as shippedEvidenceFor, type EvidenceLookup } from "./deploymentEvidence";
 import { figureSource, figureValue, robotSpecCatalog, type BodyType, type RobotSpecCatalog, type SpecModel } from "./robotSpecCatalog";
 import {
   SCREENING, cite, digestOf, jobFactsOf, lengthText, loadRobotFitInputs, videoEvidence, type Quantity, type RobotFitInputs,
 } from "./siteRobotFit";
 import { isPlaceholderSummary, type SiteTaskBriefRecord } from "./siteTaskBrief";
-import { screenTaskScope } from "./siteTaskScope";
+import { multiStepEvidence } from "./siteTaskScope";
 import { getMeasurements, type SiteTaskMeasurementRecord } from "./siteTaskMeasurements";
 import type { PublicRobotFit } from "./websitePreparationStatus";
 import { projectWebsiteCaptureRights } from "./websiteTaskContext";
@@ -54,7 +56,6 @@ const HEADLINE_CANNOT = "We can't check robots against this job yet.";
 /** The reason for a video that did not show the job clearly enough to size it; the answer email keys on it. */
 export const REASON_UNSIZED = "The video did not show the job clearly enough for us to size it.";
 const NEXT_STEP_INTRODUCTION = "Share this job with deployment companies Blueprint has approved, and one of them can pilot it at your site.";
-const SCENE_RULED_OUT = "Ruled out in the scene rebuilt from your video.";
 /** Wrist and mounting margin an arm standing between the spots needs beyond half the span. */
 const REACH_MARGIN_M = 0.10;
 /** A length the video reader estimated as one figure is checked across this band. */
@@ -186,84 +187,73 @@ function readingObject(request: Record<string, any>): string | null {
   return text(isRecord(walkthrough) ? walkthrough.object : null) ?? text(isRecord(link) ? link.object : null);
 }
 
-function readingText(request: Record<string, any>): string | null {
-  const walkthrough = isRecord(request.walkthrough_job_estimates) ? request.walkthrough_job_estimates.job_estimates : null;
-  const parts = [readingObject(request), text(isRecord(walkthrough) ? walkthrough.basis : null),
-    text(isRecord(request.site_video_evidence) ? request.site_video_evidence.summary : null)].filter(Boolean);
-  return parts.length ? parts.join(" ") : null;
-}
+/* ------------------------------------------------------------- the kind of job */
 
-export function jobFamilyOf(sentence: string | null): JobFamily {
-  const value = (sentence ?? "").toLowerCase();
-  if (/pallet/.test(value)) return "palletizing";
-  if (/\b(machine|cnc|lathe|mill|press|mould|mold|injection|tend)/.test(value)) return "machine_tending";
-  return "pick_place";
-}
-
-/**
- * Kinds of job that are plainly not one solid object picked up and put down.
- * `container`, `mobile` and `multi_step` are still a pick and a place for the
- * fit check: the task screen describes what the simulation can score, not
- * whether robots can be checked against the job.
+/*
+ * No word list decides anything about the job. The video reader, which watched
+ * the job and read the site's description, says what kind it is (`job_kind`):
+ * "other" means robots cannot be checked against it; a carrying kind means they
+ * can, and it gives the job family. When the reader does not say (an older
+ * reading, or footage that did not show the job), the check runs on the numbers,
+ * the first unknown says only a carry was checked, and the standing note says
+ * what every answer covers. What else the job involves comes only from the
+ * reader's `other_actions`, a closed list.
  */
-const OTHER_KIND_REASONS = new Set(["deformable", "liquid", "assembly", "closing", "push", "articulated"]);
-const REASON_OTHER_KIND = "This check covers jobs where a robot picks one solid object up and puts it down. Your job looks like another kind, which we can't check robots against yet.";
+
 const UNKNOWN_MULTI_STEP = "Your job has more than one step; this checks one carry.";
+/** The reader did not say what is done to the object: said first, so the answer never passes for more than a carry. */
+export const UNKNOWN_JOB_KIND = "We could not tell from your video what is done to the object; this checks only whether a robot can pick it up and put it down.";
 
-type Screen = { kind: string | null; reason: string | null };
+const listInWords = (items: string[]) =>
+  items.length > 1 ? `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}` : items[0];
 
-function isOtherKind(screen: Screen): boolean {
-  return (screen.kind !== null && screen.kind !== "rigid_pick_and_place")
-    || (screen.reason !== null && OTHER_KIND_REASONS.has(screen.reason));
-}
-
-/** The stored task screen, when the job has one. */
-function storedScreen(request: Record<string, any>): Screen | null {
-  const scope = isRecord(request.site_task_scope) ? request.site_task_scope : null;
-  if (!scope || (scope.supported !== true && scope.supported !== false)) return null;
-  return { kind: typeof scope.kind === "string" ? scope.kind : null, reason: typeof scope.reason === "string" ? scope.reason : null };
-}
-
-/** The brief's own words: the typed or drafted summary and its success line. Placeholders say nothing. */
-function briefTexts(brief: SiteTaskBriefRecord | null): string[] {
-  const summary = typeof brief?.summary === "string" && !isPlaceholderSummary(brief.summary) ? brief.summary : null;
-  const success = isRecord(brief?.successCriteria) ? text(brief!.successCriteria.successDefinition) : null;
-  return [summary, success].filter((entry): entry is string => Boolean(entry && entry.trim()));
+function alsoInvolves(actions: string[]): string {
+  return `Your job also involves ${listInWords(actions)}; this checks only the picking up and putting down.`;
 }
 
 /**
- * The video reading's own sentences: the coverage review's basis, and a linked
- * video's summary and basis. The object's bare name is not screened on its own:
- * the task screen's word lists are written for sentences, and a bare noun reads
- * wrongly ("water bottle" as a liquid, "bolt" as assembly).
+ * Why a job the reader says is another kind cannot be checked, with what the reader saw, and the one thing the
+ * site can do: a summary edit causes a new reading.
  */
-function readingTexts(request: Record<string, any>): string[] {
-  const walkthrough = isRecord(request.walkthrough_job_estimates) ? request.walkthrough_job_estimates.job_estimates : null;
-  const link = isRecord(request.site_video_evidence) ? request.site_video_evidence : null;
-  return [text(isRecord(walkthrough) ? walkthrough.basis : null), text(link?.summary),
-    text(isRecord(link?.job_estimates) ? link!.job_estimates.basis : null)].filter((entry): entry is string => Boolean(entry));
+function reasonOtherKind(actions: string[]): string {
+  const seen = actions.length ? ` (${listInWords(actions)})` : "";
+  return `From your video, the job looks like more than picking an object up and putting it down${seen}, which we can't check robots against yet. If that is not right, edit the job description to say what the robot should do, and we will read the video again.`;
 }
 
-/**
- * Whether robots can be checked against the job, in this order: when the stored
- * scope or a screen of any text describing the job (the brief, the reading's own
- * words) says the job is plainly another kind, it cannot be assessed, whatever
- * numbers the reading gave. Otherwise an object and a distance or a height is a
- * pick and a place (the caller runs the fit check, or says the job could not be
- * sized when there is no number).
- */
-function scopeOf(request: Record<string, any>, brief: SiteTaskBriefRecord | null): { otherKind: boolean; multiStep: boolean } {
-  const stored = storedScreen(request);
-  const briefScreens = briefTexts(brief).map((summary) => screenTaskScope({ summary }));
-  const readingScreens = readingTexts(request).map((summary) => screenTaskScope({ summary }));
-  const otherKind = [stored, ...briefScreens, ...readingScreens].some((screen) => screen !== null && isOtherKind(screen));
-  // More than one step is the site's description of its job: the stored scope, else its brief.
-  const multiStep = stored ? stored.reason === "multi_step" : briefScreens.some((screen) => screen.reason === "multi_step");
-  return { otherKind, multiStep };
+const READER_FAMILY: Record<"pick_and_place" | "palletizing" | "machine_tending", JobFamily> = {
+  pick_and_place: "pick_place", palletizing: "palletizing", machine_tending: "machine_tending",
+};
+
+interface Scope {
+  /** The reader says the job mainly does something else to the object: no robot can be checked against it. */
+  otherKind: boolean;
+  /** The job family: the reader's kind of job when it gives one, otherwise pick and place. */
+  family: JobFamily;
+  /** What else is done to the object besides carrying it, from the reader's closed list. */
+  otherActions: string[];
+  /** The reader gave no kind of job: only a carry was checked, and the answer says so. */
+  kindUnknown: boolean;
+  /** The reader judged the job a carrying kind: only then is the kind of job stated. */
+  readerJudged: boolean;
+  multiStep: boolean;
+}
+
+/** Whether robots can be checked against the job, from the reader's own kind of job. */
+function scopeOf(inputs: RobotFitInputs, jobSentences: string[]): Scope {
+  const estimates = videoEvidence(inputs)?.estimates ?? null;
+  const kind = estimates?.jobKind ?? null;
+  const otherKind = kind === "other";
+  return {
+    otherKind,
+    family: kind && kind !== "other" ? READER_FAMILY[kind] : "pick_place",
+    otherActions: estimates?.otherActions ?? [],
+    kindUnknown: kind === null,
+    readerJudged: kind !== null && kind !== "other",
+    multiStep: jobSentences.some((sentence) => Boolean(multiStepEvidence(sentence))),
+  };
 }
 
 const APPROACH_PROGRAMMED = "A programmed application: the installer teaches the robot this motion once.";
-const APPROACH_PROGRAMMED_ARMS = " Arms of this kind are deployed this way on jobs like yours.";
 const APPROACH_CAMERA = "The objects vary, so the robot needs camera-guided picking. Ask the deployment company how it handles each item.";
 
 /** How the pick would be controlled, reasoned only from what the video shows. */
@@ -272,8 +262,7 @@ function approachOf(inputs: RobotFitInputs, request: Record<string, any>, pick: 
   const others = videoEvidence(inputs)?.estimates?.otherItemsLikely ?? [];
   if (others.length) return { kind: "camera_guided", text: APPROACH_CAMERA };
   if (!readingObject(request)) return null;
-  // The deployment-practice sentence is about fixed industrial and collaborative arms only.
-  return { kind: "programmed", text: APPROACH_PROGRAMMED + (pick.model.body_type === "fixed_arm" ? APPROACH_PROGRAMMED_ARMS : "") };
+  return { kind: "programmed", text: APPROACH_PROGRAMMED };
 }
 
 /* ------------------------------------------------------------- the checks */
@@ -281,8 +270,10 @@ function approachOf(inputs: RobotFitInputs, request: Record<string, any>, pick: 
 interface Rated {
   model: SpecModel;
   verdict: AnswerVerdict;
+  /** The reach check was decided (passed or failed) in the scene rebuilt from the video. */
   sceneChecked: boolean;
   checks: AnswerCheck[];
+  /** The first failed check: what rules the robot out. */
   reason: { text: string; estimated: boolean } | null;
   evidence: AnswerEvidence[];
   headroom: number;
@@ -292,50 +283,59 @@ interface Rated {
   tight: Set<AnswerCheck["key"]>;
 }
 
-function reachCheck(model: SpecModel, job: Job, toolLength: number | null): { check: AnswerCheck; headroom: number | null } {
+type Checked = { check: AnswerCheck; headroom: number | null };
+
+/** Why a check with figures is unknown: its need spans the robot's limit. Said after the figures. */
+const SPANS_VIDEO = "The estimate from your video spans this robot's limit, so we can't say yet.";
+const SPANS_SITE = "Your numbers span this robot's limit, so we can't say yet.";
+const SPANS_VIDEO_PAYLOAD = "The estimate from your video, with the gripper's weight, spans this robot's rating, so we can't say yet.";
+const SPANS_SITE_PAYLOAD = "With the gripper's weight added, this is at this robot's rating, so we can't say yet.";
+const SPANS_CYCLE = "On paper a cycle may or may not fit in your target, so we can't say yet.";
+const unknownCheck = (key: AnswerCheck["key"], text: string): AnswerCheck => ({ key, outcome: "unknown", estimated: false, basis: null, text });
+
+/** Where the span between the two spots came from. */
+const spanBasis = (job: Job): AnswerBasis => (job.spanEstimated ? "video_estimate" : job.facts.distance!.source as AnswerBasis);
+
+function reachCheck(model: SpecModel, job: Job, toolLength: number | null): Checked {
   const reach = figureValue(model, "max_reach_m");
   const estimated = job.spanEstimated;
   if (model.body_type !== "fixed_arm") {
     const arm = reach !== null ? ` Its arm reaches ${specLength(reach)}.` : "";
-    return { check: { key: "reach", outcome: "unknown", estimated: false,
-      text: `Reach: this robot moves between the spots, so its reach is not checked against the distance on paper.${arm}` }, headroom: null };
+    return { check: unknownCheck("reach", `Reach: this robot moves between the spots, so its reach is not checked against the distance on paper.${arm}`),
+      headroom: null };
   }
-  if (reach === null) {
-    return { check: { key: "reach", outcome: "unknown", estimated: false, text: "Reach: the maker publishes no reach figure for this arm." }, headroom: null };
-  }
+  if (reach === null) return { check: unknownCheck("reach", "Reach: the maker publishes no reach figure for this arm."), headroom: null };
   if (!job.span || !job.spanText) {
-    return { check: { key: "reach", outcome: "unknown", estimated: false,
-      text: `Reach: we don't know yet how far apart your two spots are. This arm reaches ${specLength(reach)}.` }, headroom: null };
+    return { check: unknownCheck("reach", `Reach: we don't know yet how far apart your two spots are. This arm reaches ${specLength(reach)}.`),
+      headroom: null };
   }
+  const basis = spanBasis(job);
   if (job.span.lo > SCREENING.fixedSpanMaxM) {
-    return { check: { key: "reach", outcome: "fail", estimated,
+    return { check: { key: "reach", outcome: "fail", estimated, basis,
       text: `Reach: your two spots are ${job.spanText}, more than the ${lengthText(SCREENING.fixedSpanMaxM)} an arm that stays in one place can serve. This arm reaches ${specLength(reach)}.` },
       headroom: null };
   }
   if (toolLength === null) {
-    return { check: { key: "reach", outcome: "unknown", estimated,
+    return { check: { key: "reach", outcome: "unknown", estimated, basis,
       text: `Reach: your two spots are ${job.spanText}. The gripper's length is not published, so we could not size the reach. This arm reaches ${specLength(reach)}.` },
       headroom: null };
   }
   const need = { lo: job.span.lo / 2 + toolLength + REACH_MARGIN_M, hi: job.span.hi / 2 + toolLength + REACH_MARGIN_M };
-  return {
-    check: { key: "reach", outcome: within(need, reach), estimated,
-      text: `Reach: your two spots are ${job.spanText}, so an arm standing between them needs ${lengthRange(need)}. This arm reaches ${specLength(reach)}.` },
-    headroom: (reach - need.hi) / reach,
-  };
+  const outcome = within(need, reach);
+  // An unknown says why it is unknown, so its figures never read as a pass or a fail.
+  const text = `Reach: your two spots are ${job.spanText}, so an arm standing between them needs ${lengthRange(need)}. This arm reaches ${specLength(reach)}.`
+    + (outcome === "unknown" ? ` ${estimated ? SPANS_VIDEO : SPANS_SITE}` : "");
+  return { check: { key: "reach", outcome, estimated, basis, text }, headroom: (reach - need.hi) / reach };
 }
 
-function payloadCheck(model: SpecModel, job: Job, toolMass: number | null): { check: AnswerCheck; headroom: number | null } {
+function payloadCheck(model: SpecModel, job: Job, toolMass: number | null): Checked {
   const payload = figureValue(model, "rated_payload_kg");
   const fixed = model.body_type === "fixed_arm";
   const noun = fixed ? "This arm" : "This robot";
-  if (payload === null) {
-    return { check: { key: "payload", outcome: "unknown", estimated: false, text: "Payload: the maker publishes no rated payload for this robot." }, headroom: null };
-  }
+  if (payload === null) return { check: unknownCheck("payload", "Payload: the maker publishes no rated payload for this robot."), headroom: null };
   const mass = job.facts.mass;
   if (!mass || !job.mass) {
-    return { check: { key: "payload", outcome: "unknown", estimated: false,
-      text: `Payload: we don't know yet how heavy your object is. ${noun} is rated for ${kgText(payload)}.` }, headroom: null };
+    return { check: unknownCheck("payload", `Payload: we don't know yet how heavy your object is. ${noun} is rated for ${kgText(payload)}.`), headroom: null };
   }
   const tool = fixed ? toolMass ?? 0 : 0;
   // A lighter gripper may be fitted, so only the object's own weight can rule a model out.
@@ -343,9 +343,13 @@ function payloadCheck(model: SpecModel, job: Job, toolMass: number | null): { ch
   const gripper = fixed && tool > 0 ? `, plus about ${kgText(tool)} for a standard gripper` : "";
   // The total is said in the rating's own precision, so the sentence never reads against its outcome.
   const carry = Number.isFinite(need.hi) ? `, so it must carry ${kgRange(need)}` : "";
+  const outcome = within(need, payload);
+  // An unknown says why it is unknown, so its figures never read as a pass or a fail. The gripper's weight is
+  // added at the heavy end only, so a single weight the site gave can straddle the rating too.
+  const text = `Payload: your object weighs ${cite(mass)}${gripper}${carry}. ${noun} is rated for ${kgText(payload)}.`
+    + (outcome === "unknown" ? ` ${job.massEstimated ? SPANS_VIDEO_PAYLOAD : SPANS_SITE_PAYLOAD}` : "");
   return {
-    check: { key: "payload", outcome: within(need, payload), estimated: job.massEstimated,
-      text: `Payload: your object weighs ${cite(mass)}${gripper}${carry}. ${noun} is rated for ${kgText(payload)}.` },
+    check: { key: "payload", outcome, estimated: job.massEstimated, basis: mass.source as AnswerBasis, text },
     headroom: Number.isFinite(need.hi) ? (payload - need.hi) / payload : -1,
   };
 }
@@ -354,57 +358,99 @@ function cycleCheck(model: SpecModel, job: Job): AnswerCheck | null {
   if (job.cycleTarget === null) return null;
   const target = `Cycle time: you want one cycle in ${secondsText(job.cycleTarget)} (${sourceLabel("site_stated")}).`;
   const speed = figureValue(model, "max_tcp_speed_m_s");
-  if (speed === null || speed <= 0) {
-    return { key: "cycle_time", outcome: "unknown", estimated: false, text: `${target} The maker publishes no top speed for this robot.` };
-  }
-  if (!job.span) {
-    return { key: "cycle_time", outcome: "unknown", estimated: false, text: `${target} We don't know yet how far apart your two spots are.` };
-  }
+  if (speed === null || speed <= 0) return unknownCheck("cycle_time", `${target} The maker publishes no top speed for this robot.`);
+  if (!job.span) return unknownCheck("cycle_time", `${target} We don't know yet how far apart your two spots are.`);
   const need = {
     lo: (2 * job.span.lo) / speed,
     hi: (2 * (job.span.hi + CYCLE_EXTRA_PATH_M)) / (CYCLE_SLOW_FRACTION * speed) + CYCLE_ALLOWANCE_S,
   };
-  return { key: "cycle_time", outcome: within(need, job.cycleTarget), estimated: job.spanEstimated,
-    text: `${target} With a published top speed of ${figure(speed)} m/s and your spots ${job.spanText}, a cycle takes between about ${secondsText(need.lo)} and ${secondsText(need.hi)} on paper.` };
+  const outcome = within(need, job.cycleTarget);
+  return { key: "cycle_time", outcome, estimated: job.spanEstimated, basis: spanBasis(job),
+    text: `${target} With a published top speed of ${figure(speed)} m/s and your spots ${job.spanText}, a cycle takes between about ${secondsText(need.lo)} and ${secondsText(need.hi)} on paper.`
+      + (outcome === "unknown" ? ` ${SPANS_CYCLE}` : "") };
 }
 
-const norm = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+type SceneRow = PublicRobotFit["models"][number];
 
-function sceneVerdict(robotFit: SceneRobotFit | undefined, model: SpecModel) {
+/** The measured scene's row for this model, matched by maker and name. */
+function sceneRowOf(robotFit: SceneRobotFit | undefined, model: SpecModel): SceneRow | null {
   const rows = Array.isArray(robotFit?.models) ? robotFit!.models : [];
-  const row = rows.find((entry) => isRecord(entry) && typeof entry.name === "string" && typeof entry.manufacturer === "string"
-    && norm(entry.manufacturer) === norm(model.manufacturer) && norm(entry.name) === norm(model.name));
-  return row?.verdict ?? null;
+  return rows.find((entry) => isRecord(entry) && typeof entry.name === "string" && typeof entry.manufacturer === "string"
+    && sameRobot(entry, model)) ?? null;
 }
 
+/** Checks in the scene that are about where the arm can stand and what it can reach. */
+const SCENE_GEOMETRY_CHECKS = new Set(["reach", "stance", "access"]);
+
+/**
+ * The reach check from the measured scene, or null when the scene does not decide it. The scene measures
+ * geometry; it knows nothing better about weight, so a scene "doesn't fit" decides reach only when this
+ * composer's own payload check passes (and, when the row lists what failed, a geometry check is among them).
+ */
+function sceneReach(row: SceneRow | null, model: SpecModel, payload: AnswerCheck): AnswerCheck | null {
+  if (!row) return null;
+  const reach = figureValue(model, "max_reach_m");
+  const figureText = reach !== null ? ` It reaches ${specLength(reach)}.` : "";
+  const open = Array.isArray(row.openChecks) ? row.openChecks : [];
+  const scene = (outcome: AnswerCheck["outcome"], text: string): AnswerCheck =>
+    ({ key: "reach", outcome, estimated: false, basis: "scene_measured", text: `${text}${figureText}` });
+  switch (row.verdict) {
+    case "fits":
+      return scene("pass", "Reach: checked in the scene rebuilt from your video: this robot reaches both spots with a clear arm path.");
+    case "fits_spec":
+      return scene("pass", "Reach: sized in the scene rebuilt from your video: both spots are within this robot's published reach. Its arm path was not checked.");
+    case "doesnt_fit":
+      if (payload.outcome !== "pass" || (open.length > 0 && !open.some((check) => SCENE_GEOMETRY_CHECKS.has(check)))) return null;
+      return scene("fail", "Reach: ruled out in the scene rebuilt from your video: this robot could not reach both spots from a clear place to stand.");
+    case "unknown":
+      return open.includes("reach")
+        ? scene("unknown", "Reach: the scene rebuilt from your video could not settle whether this robot reaches both spots.")
+        : null;
+    default:
+      return null;
+  }
+}
+
+/**
+ * Each check takes its outcome from the best source for its own quantity, in the order of trust:
+ * site-measured or site-stated, then the scene measured from the video, then the video estimate.
+ * Payload is always this composer's check on the best weight. Reach is the scene's when the scene has the
+ * model and the site gave no distance of its own; otherwise this composer's. The verdict comes only from the
+ * combined checks; nothing is copied over them.
+ */
 function rateModel(model: SpecModel, job: Job, catalog: RobotSpecCatalog, robotFit: SceneRobotFit | undefined,
   evidence: AnswerEvidence[]): Rated {
   const toolLength = figureValue(catalog.default_tool, "length_m");
   const toolMass = figureValue(catalog.default_tool, "mass_kg");
-  const reach = reachCheck(model, job, toolLength);
   const payload = payloadCheck(model, job, toolMass);
+  const own = reachCheck(model, job, toolLength);
+  const siteSpan = Boolean(job.span && job.facts.distance && !job.spanEstimated
+    && (job.facts.distance.source === "site_measured" || job.facts.distance.source === "site_stated"));
+  const fromScene = siteSpan ? null : sceneReach(sceneRowOf(robotFit, model), model, payload.check);
+  const reach: Checked = fromScene ? { check: fromScene, headroom: null } : own;
   const cycle = cycleCheck(model, job);
   const checks = [reach.check, payload.check, ...(cycle ? [cycle] : [])];
   const failed = checks.find((entry) => entry.outcome === "fail") ?? null;
-  let verdict: AnswerVerdict = failed ? "ruled_out" : checks.every((entry) => entry.outcome === "pass") ? "fits_on_paper" : "possible";
-  let reason = failed ? { text: failed.text, estimated: failed.estimated } : null;
-  const scene = sceneVerdict(robotFit, model);
-  if (scene) {
-    verdict = scene === "fits" ? "fits" : scene === "fits_spec" ? "fits_on_paper" : scene === "doesnt_fit" ? "ruled_out" : "possible";
-    reason = verdict === "ruled_out" ? { text: SCENE_RULED_OUT, estimated: false } : null;
-  }
+  const sceneFits = fromScene?.outcome === "pass" && sceneRowOf(robotFit, model)?.verdict === "fits";
+  const verdict: AnswerVerdict = failed ? "ruled_out"
+    : checks.every((entry) => entry.outcome === "pass") ? (sceneFits ? "fits" : "fits_on_paper") : "possible";
   const headroom = Math.max(-1, Math.min(HEADROOM_CAP, reach.headroom ?? 0, payload.headroom ?? 0));
   const margins = [[reach.check, reach.headroom], [payload.check, payload.headroom]] as const;
   const comfortable = margins.every(([, room]) => room === null || room >= COMFORTABLE_HEADROOM);
   const tight = new Set(margins.filter(([check, room]) => check.outcome === "pass" && room !== null && room < COMFORTABLE_HEADROOM)
     .map(([check]) => check.key));
-  return { model, verdict, sceneChecked: Boolean(scene), checks, reason, evidence, headroom, comfortable, tight };
+  return {
+    model, verdict, checks, evidence, headroom, comfortable, tight,
+    sceneChecked: fromScene !== null && fromScene.outcome !== "unknown",
+    reason: failed ? { text: failed.text, estimated: failed.estimated } : null,
+  };
 }
 
 /* ------------------------------------------------------------- ranking */
 
 const VERDICT_RANK: Record<AnswerVerdict, number> = { fits: 3, fits_on_paper: 2, possible: 1, ruled_out: 0 };
 const evidenceRank = (rated: Rated) => (rated.evidence[0] ? EVIDENCE_RANK[rated.evidence[0].level] : 0);
+/** A source that names the model before one that names only its family. */
 const scopeRank = (rated: Rated) => (rated.evidence[0]?.scope === "model" ? 0 : 1);
 
 /** The least machine first: no capability the job does not need. */
@@ -448,7 +494,7 @@ const displayName = (model: { manufacturer: string; name: string }) => `${model.
 
 /* ------------------------------------------------------------- confidence */
 
-function confidenceOf(pick: Rated | null, job: Job, familyLabel: string): SiteAnswer["confidence"] {
+function confidenceOf(pick: Rated | null, job: Job, familyLabel: string, kindUnknown: boolean): SiteAnswer["confidence"] {
   const raiseIt: string[] = [];
   if (!job.facts.mass || job.massEstimated) raiseIt.push("Tell us the object's weight.");
   if (!job.facts.distance || job.spanEstimated) raiseIt.push("Tell us how far apart the two spots are.");
@@ -462,16 +508,21 @@ function confidenceOf(pick: Rated | null, job: Job, familyLabel: string): SiteAn
     .filter(Boolean);
   if (parts.length) reasons.push(`The ${parts.join(" and ")} ${parts.length > 1 || parts[0] === "distances" ? "are" : "is"} estimated from your video.`);
   if (pick.verdict === "possible") reasons.push("Some of its checks could not be settled on the numbers we have.");
-  if (pick.sceneChecked) reasons.push("It was checked against the scene rebuilt from your video.");
+  if (pick.sceneChecked) reasons.push("Its reach was checked in the scene rebuilt from your video.");
   const top = pick.evidence[0];
-  const subject = top?.scope === "maker" ? `${pick.model.manufacturer} robots` : "this robot";
+  // The source's own words for the family, with "family" added only when they do not already say what it is.
+  const familyWords = top?.family && /\b(series|family|line)$/i.test(top.family.trim()) ? top.family.trim() : `${top?.family} family`;
+  const subject = top?.scope === "family" && top.family ? `robots in the ${familyWords}` : "this robot";
   if (!top) reasons.push("We found no documented use of this robot on this kind of job.");
   else if (top.level === "production") reasons.push(`We found documented production use of ${subject} for ${familyLabel}.`);
   else if (top.level === "pilot") reasons.push(`We found a documented pilot of ${subject} for ${familyLabel}.`);
   else reasons.push(`We found ${subject} offered for ${familyLabel}, with no named customer.`);
 
   const fits = pick.verdict === "fits" || pick.verdict === "fits_on_paper";
-  const level = fits && !estimatedKeys.size && top?.level === "production" ? "good"
+  // "Good" rests on no estimate and no unknown: every check passed on the site's or the scene's numbers.
+  const settled = pick.checks.every((entry) => entry.outcome === "pass" && !entry.estimated);
+  // Nor on an unknown kind of job: then only a carry was checked.
+  const level = fits && settled && !kindUnknown && top?.level === "production" ? "good"
     : fits && ((top && EVIDENCE_RANK[top.level] >= EVIDENCE_RANK.pilot) || pick.sceneChecked) ? "fair" : "low";
   return { level, reasons, raiseIt };
 }
@@ -538,7 +589,11 @@ export function composeSiteAnswer(inputs: SiteAnswerInputs): SiteAnswer | null {
   const summary = typeof brief?.summary === "string" && !isPlaceholderSummary(brief.summary) ? brief.summary.trim() : null;
   const drafted = Boolean(summary) && !brief?.confirmedAtIso && !request.site_task_brief_confirmed_at
     && isRecord(request.capture_task_statement_draft) && request.capture_task_statement_draft.state === "drafted";
-  const family = jobFamilyOf(summary ?? readingText(request));
+  // The job's own sentences, read only to say whether the job has more than one step.
+  const success = isRecord(brief?.successCriteria) ? text(brief!.successCriteria.successDefinition) : null;
+  const jobSentences = [summary, success].filter((entry): entry is string => Boolean(entry));
+  const scope = scopeOf(fitInputs, jobSentences);
+  const family = scope.family;
   const familyLabel = JOB_FAMILY_LABELS[family];
 
   const answerFacts: SiteAnswer["facts"] = known.map((entry) => ({ label: entry.label, display: entry.display, basis: entry.source as AnswerBasis }));
@@ -547,7 +602,9 @@ export function composeSiteAnswer(inputs: SiteAnswerInputs): SiteAnswer | null {
   const makers = new Set(catalog.models.map((model) => model.manufacturer));
   const base = {
     schemaVersion: SITE_ANSWER_SCHEMA,
-    job: { sentence: summary, drafted, family, familyLabel },
+    // The kind of job is stated only when the reader judged it a carrying kind. Otherwise nobody did: the
+    // evidence is still looked up for pick and place, since picking up and putting down is what is checked.
+    job: { sentence: summary, drafted, family: scope.readerJudged ? family : null, familyLabel: scope.readerJudged ? familyLabel : null },
     facts: answerFacts,
     pick: null, runnerUp: null, alsoFit: [], ruledOut: [], ruledOutMore: 0, formNote: null, approach: null,
     unknowns: [] as string[],
@@ -565,12 +622,12 @@ export function composeSiteAnswer(inputs: SiteAnswerInputs): SiteAnswer | null {
     scope: isRecord(request.site_task_scope) ? { supported: request.site_task_scope.supported ?? null,
       kind: request.site_task_scope.kind ?? null, reason: request.site_task_scope.reason ?? null } : null,
     videoReceived: Boolean(inputs.videoReceived), catalog: catalog.retrieved_on,
+    reader: { jobKind: videoEvidence(fitInputs)?.estimates?.jobKind ?? null, otherActions: scope.otherActions },
   };
   const finish = (answer: Omit<SiteAnswer, "basisDigest">, extra: Record<string, unknown> = {}): SiteAnswer =>
     ({ ...answer, basisDigest: digestOf({ ...basis, state: answer.state, ...extra }) });
 
-  const scope = scopeOf(request, brief);
-  if (scope.otherKind) return finish({ ...base, state: "cannot_assess", headline: HEADLINE_CANNOT, reason: REASON_OTHER_KIND });
+  if (scope.otherKind) return finish({ ...base, state: "cannot_assess", headline: HEADLINE_CANNOT, reason: reasonOtherKind(scope.otherActions) });
   if (!coverageDone(request, fitInputs) && !siteNumbers) return finish({ ...base, state: "reading", headline: HEADLINE_READING });
   if (!facts.distance && !facts.mass && !facts.size) {
     if (!coverageDone(request, fitInputs)) return finish({ ...base, state: "reading", headline: HEADLINE_READING });
@@ -579,7 +636,7 @@ export function composeSiteAnswer(inputs: SiteAnswerInputs): SiteAnswer | null {
 
   const rated = catalog.models.map((model) => {
     let evidence: AnswerEvidence[] = [];
-    try { evidence = lookup(model.model_id, model.manufacturer, model.body_type, family) ?? []; } catch { evidence = []; }
+    try { evidence = lookup(model.model_id, family) ?? []; } catch { evidence = []; }
     return rateModel(model, job, catalog, inputs.robotFit, Array.isArray(evidence) ? evidence : []);
   });
   const candidates = rated.filter((entry) => entry.verdict !== "ruled_out").sort(compareRated(job));
@@ -589,12 +646,16 @@ export function composeSiteAnswer(inputs: SiteAnswerInputs): SiteAnswer | null {
   const alsoFit = candidates.filter((entry) => entry !== pick && entry !== runnerUp && (entry.verdict === "fits" || entry.verdict === "fits_on_paper"))
     .slice(0, 6).map(({ model }) => ({ name: model.name, manufacturer: model.manufacturer }));
   const ruledOut = ruled.slice(0, 8).map(({ model, reason }) => ({ name: model.name, manufacturer: model.manufacturer,
-    reason: reason?.text ?? SCENE_RULED_OUT, estimated: reason?.estimated ?? false }));
+    // A robot is ruled out only by a failed check, and that check's sentence is the reason.
+    reason: reason!.text, estimated: reason!.estimated }));
 
   const headline = !pick ? `None of the ${catalog.models.length} robots we checked fits this job on the numbers we have.`
     : pick.verdict === "possible" ? `No robot clearly fits yet. The closest is ${displayName(pick.model)}.`
       : `Most likely to fit: ${displayName(pick.model)}.`;
-  const formNote = job.span && job.span.lo > SCREENING.fixedSpanMaxM && job.spanText
+  // Said only while no arm that stays in one place passed its reach check (the measured scene can show one does).
+  const fixedArmReaches = rated.some((entry) => entry.model.body_type === "fixed_arm"
+    && entry.checks.some((check) => check.key === "reach" && check.outcome === "pass"));
+  const formNote = job.span && job.span.lo > SCREENING.fixedSpanMaxM && job.spanText && !fixedArmReaches
     ? `Your two spots are ${job.spanText}, so the job needs a robot that moves between them, such as an arm on a wheeled base.`
     : null;
 
@@ -609,8 +670,10 @@ export function composeSiteAnswer(inputs: SiteAnswerInputs): SiteAnswer | null {
     ruledOutMore: Math.max(0, ruled.length - ruledOut.length),
     formNote,
     approach: approachOf(fitInputs, request, pick),
-    unknowns: [...unknownsOf(fitInputs, job), ...(scope.multiStep ? [UNKNOWN_MULTI_STEP] : [])],
-    confidence: confidenceOf(pick, job, familyLabel),
+    unknowns: [...(scope.kindUnknown ? [UNKNOWN_JOB_KIND] : []), ...unknownsOf(fitInputs, job),
+      ...(scope.otherActions.length ? [alsoInvolves(scope.otherActions)] : []),
+      ...(scope.multiStep ? [UNKNOWN_MULTI_STEP] : [])],
+    confidence: confidenceOf(pick, job, familyLabel, scope.kindUnknown),
     nextStep: pick ? { kind: "introduction", text: NEXT_STEP_INTRODUCTION } : { kind: "none", text: "" },
   }, {
     verdicts: rated.map((entry) => [entry.model.model_id, entry.verdict, entry.sceneChecked,

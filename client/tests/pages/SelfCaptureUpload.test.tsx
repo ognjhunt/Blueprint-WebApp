@@ -1194,14 +1194,15 @@ describe("the site's answer leads its job page", () => {
     vi.stubGlobal("fetch", fetchMock);
     render(<SelfCaptureUpload />);
     const answer = await screen.findByRole("region", { name: "Your answer" });
-    const proof = await screen.findByRole("region", { name: "Proof in simulation" });
+    const proof = await screen.findByRole("region", { name: "Tested in simulation" });
     expect(answer.contains(proof)).toBe(true);
     expect(proof.closest("details")).toBeNull();
-    expect(proof.textContent).toMatch(/π0\.5, an AI control policy from Physical Intelligence, did best/);
+    // The fixture's 7 of 10 against 3 of 10 is "ahead" under the probability rule, not "did best".
+    expect(proof.textContent).toMatch(/π0\.5, an AI control policy from Physical Intelligence, was ahead/);
     // The status read's measured scene reaches the proof too.
     expect(proof.textContent).toMatch(/In the scene rebuilt from your video, the Universal Robots UR10e reaches/);
     expect(screen.getByText("Simulation details").closest("details")).not.toHaveAttribute("open");
-    expect(screen.getAllByRole("region", { name: "Proof in simulation" })).toHaveLength(1);
+    expect(screen.getAllByRole("region", { name: "Tested in simulation" })).toHaveLength(1);
     const reads = fetchMock.mock.calls.filter(([input]) => String(input).startsWith("/api/job-workflow/owner/"));
     expect(reads).toHaveLength(1);
   });
@@ -1210,7 +1211,7 @@ describe("the site's answer leads its job page", () => {
     setUserAgent(DESKTOP_UA);
     vi.stubGlobal("fetch", answerFetch({ answer: null, workflow: jobWorkflow([allZeroEvaluation]) }));
     render(<SelfCaptureUpload />);
-    const proof = await screen.findByRole("region", { name: "Proof in simulation" });
+    const proof = await screen.findByRole("region", { name: "Tested in simulation" });
     expect(screen.queryByRole("region", { name: "Your answer" })).toBeNull();
     expect(proof.closest("details")).toBeNull();
     expect(proof.textContent).toMatch(/could not rank them/);

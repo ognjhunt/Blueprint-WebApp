@@ -63,7 +63,7 @@ async function mockJob(page: Page, { evaluation = simulationRun as unknown, list
 
 test.use({ serviceWorkers: "block" });
 
-test("the answer leads the job page and carries the proof in simulation, open, with the winner marked", async ({ page }) => {
+test("the answer leads the job page and carries what was tested in simulation, open, with the leader marked", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   const { unexpected } = await mockJob(page);
   await page.goto(`/capture-upload/${token}?video=existing`);
@@ -77,14 +77,17 @@ test("the answer leads the job page and carries the proof in simulation, open, w
   await expect(page.getByText("Blueprint will update this job as the work progresses.", { exact: true })).toHaveCount(0);
 
   // The proof is part of the answer, visible without opening anything, between the runner-up and what was ruled out.
-  const proof = answer.getByRole("region", { name: "Proof in simulation" });
+  const proof = answer.getByRole("region", { name: "Tested in simulation" });
   await expect(proof).toBeVisible();
-  await expect(proof.getByText(/^In a simulation of your site, π0\.5, an AI control policy from Physical Intelligence, did best: it completed the job in 7 of 10 tries\.$/)).toBeVisible();
+  // 7 of 10 against 3 of 10 is about 0.96 under the probability rule: ahead, and the gap could still be chance.
+  await expect(proof.getByText(/^In a simulation of your site, on a Franka research arm, π0\.5, an AI control policy from Physical Intelligence, was ahead: it completed the job in 7 of 10 tries, against 3 of 10 for the next best, GR00T N1\.7\.$/)).toBeVisible();
+  await expect(proof.getByText(/^With this few tries the gap could still be chance\./)).toBeVisible();
   const [runnerUpBox, proofBox, ruledOutBox] = await Promise.all([answer.getByRole("article", { name: "Runner-up" }).boundingBox(),
     proof.boundingBox(), answer.getByText(/^Ruled out \(/).boundingBox()]);
   expect(runnerUpBox!.y + runnerUpBox!.height).toBeLessThanOrEqual(proofBox!.y);
   expect(proofBox!.y + proofBox!.height).toBeLessThanOrEqual(ruledOutBox!.y);
-  const best = proof.getByRole("list", { name: "Control policies tried" }).getByRole("listitem").filter({ hasText: "Did best" });
+  await expect(proof.getByText("Did best")).toHaveCount(0);
+  const best = proof.getByRole("list", { name: "Control policies tried" }).getByRole("listitem").filter({ hasText: "Ahead" });
   await expect(best).toHaveCount(1);
   await expect(best).toContainText("π0.5 from Physical Intelligence");
   await expect(best).toContainText("7 of 10 tries");
@@ -114,7 +117,7 @@ test("when no policy completed the job, the proof says it could not rank them, w
   await page.setViewportSize({ width: 1440, height: 900 });
   const { unexpected } = await mockJob(page, { evaluation: allZeroEvaluation });
   await page.goto(`/capture-upload/${token}?video=existing`);
-  const proof = page.getByRole("region", { name: "Proof in simulation" });
+  const proof = page.getByRole("region", { name: "Tested in simulation" });
   await expect(proof.getByText("The simulation ran, but no policy completed the job in it, so it could not rank them.", { exact: true })).toBeVisible();
   await expect(proof.getByText(SCENE_NOTE_BEYOND_REACH, { exact: true })).toBeVisible();
   await expect(proof.getByText("Did best")).toHaveCount(0);
@@ -158,7 +161,7 @@ test("the answer and its proof read at phone width without scrolling sideways", 
   await mockJob(page);
   await page.goto(`/capture-upload/${token}?video=existing`);
   await expect(page.getByText(readyAnswer.headline, { exact: true })).toBeVisible();
-  await expect(page.getByRole("region", { name: "Proof in simulation" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Tested in simulation" })).toBeVisible();
   await page.getByText(/^Ruled out \(/).click();
   await page.locator("summary", { hasText: "Simulation details" }).click();
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);

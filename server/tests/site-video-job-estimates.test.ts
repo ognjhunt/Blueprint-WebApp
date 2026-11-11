@@ -27,7 +27,7 @@ vi.mock("../../client/src/lib/firebaseAdmin", async () => {
 });
 vi.mock("../logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() } }));
 
-const { siteVideoEvidenceOutputSchema, siteVideoEvidenceTask } = await import("../agents/tasks/site-video-evidence");
+const { siteVideoEvidenceOutputSchema, siteVideoEvidenceTask, OTHER_ACTIONS } = await import("../agents/tasks/site-video-evidence");
 const { summariseVideoEvidence } = await import("../utils/siteVideoEvidence");
 const { captureCoverageOutputSchema, captureCoverageTask } = await import("../agents/tasks/capture-coverage");
 const { createReadinessBriefToken, readinessBriefPathFor, verifyReadinessBriefToken } = await import("../utils/readinessBriefToken");
@@ -36,6 +36,7 @@ const { createRequestReviewToken, verifyRequestReviewToken } = await import("../
 
 const ESTIMATES = {
   object: "sealed carton", object_largest_side_m: 0.45, object_mass_kg_low: 3, object_mass_kg_high: 5, object_surface: "matte",
+  job_kind: "palletizing", other_actions: [] as string[],
   pick_to_place_m: 0.9, pick_height_m: 0.8, place_height_m: 0.15, front_clearance_m: 1.3,
   other_items_likely: ["smaller cartons"], cycle_seconds: 40, basis: "Sized against a standard pallet.",
 };
@@ -64,6 +65,30 @@ describe("the reader's job estimates", () => {
       expect(siteVideoEvidenceOutputSchema.parse(output({ job_estimates: broken })).job_estimates).toBeNull();
     }
     expect(siteVideoEvidenceOutputSchema.parse(output()).job_estimates).toBeUndefined();
+  });
+
+  it("reads what is done to the object, and a reading made before it was asked as null and an empty list", () => {
+    const { job_kind: _kind, other_actions: _actions, ...older } = ESTIMATES;
+    expect(siteVideoEvidenceOutputSchema.parse(output({ job_estimates: older })).job_estimates)
+      .toEqual({ ...older, job_kind: null, other_actions: [] });
+    const odd = siteVideoEvidenceOutputSchema.parse(output({ job_estimates: { ...ESTIMATES, job_kind: "dancing", other_actions: "folding" } }));
+    expect(odd.job_estimates).toMatchObject({ job_kind: null, other_actions: [] });
+    // A closed list, item by item: a junk item never discards the valid ones, and at most three are kept.
+    const many = siteVideoEvidenceOutputSchema.parse(output({ job_estimates: { ...ESTIMATES, job_kind: "other",
+      other_actions: ["folding", "nothing", "inserting", "picking up", 7, "filling", "wiping", "packaging", "peeling", "pouring"] } }));
+    expect(many.job_estimates).toMatchObject({ job_kind: "other", other_actions: ["folding", "wiping", "peeling"] });
+    expect(siteVideoEvidenceOutputSchema.parse(output({ job_estimates: { ...ESTIMATES, other_actions: [" Folding ", "string"] } })).job_estimates)
+      .toMatchObject({ other_actions: ["folding"] });
+    const prompt = JSON.stringify(siteVideoEvidenceTask.build_prompt({ requestId: "job-1", taskVideoUrl: "https://example.test/v.mp4",
+      operatorAnswers: {} }));
+    expect(prompt).toContain("job_kind: what is done to the object, judged from the footage and the job's description together.");
+    expect(prompt).toContain("other: the job mainly changes the object itself (it is folded, cut, joined, fastened, cleaned or coated) rather than moving it. Putting objects into a container, into a machine or onto a stack is carrying.");
+    expect(prompt).toContain("Use the job's description to know which object, which two spots and what is to be done to it; never take a number from it.");
+    // Putting a part into a machine, or parts into a tote, is the carry being checked: never "another action".
+    expect(OTHER_ACTIONS).not.toContain("inserting");
+    expect(OTHER_ACTIONS).not.toContain("filling");
+    expect(prompt).toContain("null: the footage does not show the job.");
+    expect(prompt).toContain(`using only these words: ${OTHER_ACTIONS.join(", ")}.`);
   });
 
   it("still refuses a reading with keys outside its contract", () => {
