@@ -18,6 +18,27 @@ const CAPTURE_DEPENDENT_NOTICES=new Set<OutboxKind>([
 const TEAM_RUN_EVALUATION_NOTICES=new Set<OutboxKind>([
  'results_ready','run_no_result','awaiting_evaluations','no_team_passed','no_qualified_evaluation',
 ]);
+/** The emails that give a job its answer: a test result or the paper check (evaluation outcome, the answer email
+ * for a job of another kind, a stopped preparation, and every ending of the simulation except the site's own
+ * withdrawal, which gives none). */
+const ANSWER_EMAIL_KINDS=new Set<OutboxKind>(['evaluation_outcome','answer_ready','preparation_ended','scene_outcome']);
+export function isAnswerEmail(kind:OutboxKind,idempotencyKey:string|undefined):boolean{
+ if(!ANSWER_EMAIL_KINDS.has(kind))return false;
+ return !(kind==='scene_outcome'&&/:withdrawn-/.test(idempotencyKey??''));
+}
+/** Statuses of an outbox row that went out, or may have. */
+const SENT_OR_MAYBE=new Set(['sent','dispatching','unknown','claimed']);
+/** Pure: whether another answer email for the job, among its outbox rows, went out or may have. */
+export function answerEmailAlreadyOut(rows:Array<{kind:OutboxKind;idempotencyKey:string;status:string}>,idempotencyKey:string|undefined):boolean{
+ return rows.some(row=>row.idempotencyKey!==idempotencyKey&&SENT_OR_MAYBE.has(row.status)&&isAnswerEmail(row.kind,row.idempotencyKey));
+}
+async function anotherAnswerEmailSent(requestId:string,idempotencyKey:string|undefined,transaction?:FirebaseFirestore.Transaction):Promise<boolean>{
+ if(!db)throw new Error('capture_notification_authority_unavailable');
+ const query=db.collection('captureOutbox').where('requestId','==',requestId);
+ const rows=transaction?await transaction.get(query):await query.get();
+ return answerEmailAlreadyOut(rows.docs.map(row=>{const value=row.data()??{};
+  return {kind:value.kind,idempotencyKey:typeof value.idempotencyKey==='string'?value.idempotencyKey:row.id,status:String(value.status)};}),idempotencyKey);
+}
 /** Call inside the dispatch transaction before recording an external side effect.
  * Intake receipts, fresh-link renewal and separate business notices keep their
  * existing authority checks; this grants no deletion/cancellation claim.
@@ -37,6 +58,9 @@ export async function taskLifecycleNotificationIsCurrent(
  if(entry.kind==='pilot_request'||entry.kind==='brief_confirmed'||entry.kind==='input_needed')return false;
  if(entry.kind==='screening_not_now'
   &&entry.idempotencyKey!==`${entry.requestId}:brief-screening:task-not-yet-supported`)return false;
+ // One answer email per job (owner, 2026-11-11): a test result, or the paper check when no test can run, said by
+ // whichever ending comes first. Once one has gone out (or may have), every other answer email is cancelled.
+ if(isAnswerEmail(entry.kind,entry.idempotencyKey)&&await anotherAnswerEmailSent(entry.requestId,entry.idempotencyKey,transaction))return false;
  // The dispatch transaction is the send: a team-run evaluation notice stops there.
  if(transaction&&TEAM_RUN_EVALUATION_NOTICES.has(entry.kind))return false;
  // Older queued ownership notices asked for an account that cannot repair

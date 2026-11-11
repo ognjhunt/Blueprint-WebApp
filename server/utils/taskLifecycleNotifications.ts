@@ -289,7 +289,8 @@ export async function enqueueTaskLifecycleNotification(params: {
     && params.simulationProof === undefined ? await loadSimulationProof(requestId) : params.simulationProof;
   // With no test result to come, the paper check is the answer: read it for the email that says so.
   const siteAnswer = params.siteAnswer ?? ((params.milestone === "evaluation_outcome" && params.screeningOutcome !== "estimate")
-    || params.milestone === "preparation_ended" ? await loadPaperAnswer(requestId) : undefined);
+    || params.milestone === "preparation_ended" || (params.milestone === "scene_outcome" && params.sceneOutcomeKind !== "withdrawn")
+    ? await loadPaperAnswer(requestId) : undefined);
   return enqueueOutbox(buildTaskLifecycleNotification({ ...notice, simulationProof, ...(siteAnswer ? { siteAnswer } : {}), requestId, to, workspaceUrl,
     ...(earlyTaskHold ? { earlyTaskHold } : {}), ...(recaptureReason ? { recaptureReason } : {}) }));
 }
@@ -347,8 +348,11 @@ export function buildTaskLifecycleNotification(params: {
   }
   const outcomeDetail = params.milestone === "evaluation_outcome" ? evaluationOutcomeDetail(params)
     : params.milestone === "scene_outcome"
-      ? params.jobNoGrantEnded ? jobNoGrantEndedDetail(params)
-        : params.jobWindowEnded ? jobWindowEndedDetail(params) : sceneOutcomeDetail(params)
+      // An ending of the simulation (held, never built, its window ran out): its reason, then the paper check as the
+      // one answer, by the same composer as the no-test email. A withdrawal is the site's own ending: no answer.
+      ? withPaperAnswer(params.jobNoGrantEnded ? jobNoGrantEndedDetail(params)
+        : params.jobWindowEnded ? jobWindowEndedDetail(params) : sceneOutcomeDetail(params),
+        params.sceneOutcomeKind === "withdrawn" ? null : params.siteAnswer)
     : params.milestone === "robot_access_question" ? robotAccessQuestionDetail(params)
     : params.milestone === "answer_ready" ? answerReadyDetail(params.siteAnswer) : "";
   const held = params.milestone === "preparation_needs_attention" && isEarlyTaskHoldReason(params.earlyTaskHold)
@@ -439,7 +443,7 @@ function estimateDetail(proof: SimulationProof | null | undefined, caveat: Scree
 }
 
 /** The job's composed answer, for an email that gives the paper check as the answer; undefined when it cannot be read. */
-async function loadPaperAnswer(requestId: string): Promise<SiteAnswer | undefined> {
+export async function loadPaperAnswer(requestId: string): Promise<SiteAnswer | undefined> {
   try {
     const { loadSiteAnswer } = await import("./siteAnswer");
     return (await loadSiteAnswer(requestId)) ?? undefined;
@@ -485,6 +489,12 @@ function evaluationOutcomeDetail(params: { eventId?: string; screeningOutcome?: 
   const paper = paperAnswerLine(params.siteAnswer);
   return paper ? `${why} ${paper}\n\n${finePrint(LIMITS_PAPER)}`
     : `${why} Nothing is needed from you.\n\n${finePrint(SIMULATION_DISCLAIMER)}`;
+}
+
+/** An ending's own reason, then the paper check as the answer when there is one. */
+function withPaperAnswer(reason: string, answer: SiteAnswer | null | undefined): string {
+  const paper = paperAnswerLine(answer);
+  return paper ? `${reason} ${paper}` : reason;
 }
 
 /** The paper check said as the answer, when no test result will come: the composer's own headline. */

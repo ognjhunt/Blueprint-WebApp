@@ -45,7 +45,7 @@ import { buildOutboxEntry, CAPTURE_OUTBOX_COLLECTION } from "./captureOutbox";
 import { decryptFieldValue } from "./field-encryption";
 import { sponsorshipExecutionWindowUntil, sponsorshipWindowIntake } from "./sceneExecutionWindowExtension";
 import { siteWalkthroughIdentity } from "./siteWalkthrough";
-import { buildTaskLifecycleNotification, workspaceTaskUrl } from "./taskLifecycleNotifications";
+import { buildTaskLifecycleNotification, loadPaperAnswer, workspaceTaskUrl } from "./taskLifecycleNotifications";
 import { earlyTaskHoldOf } from "./taskPreparationOutcome";
 import { resultOutranksWindowEnding } from "./taskStatusProjection";
 import { selectWebsiteAtlasPreview } from "./websiteAtlasPreview";
@@ -224,8 +224,11 @@ export async function sweepWebsiteJobWindow(requestId: string, nowMs = Date.now(
         to = "";
       }
       if (EMAIL.test(to)) {
+        // The window ran out before a test result: the paper check, when there is one, is the job's one answer.
+        const siteAnswer = await loadPaperAnswer(requestId);
         const message = buildTaskLifecycleNotification({ requestId, milestone: "scene_outcome", to,
           eventId: websiteJobWindowEndedEventId(first ? undefined : windowEndedAt), jobWindowEnded: true,
+          ...(siteAnswer ? { siteAnswer } : {}),
           workspaceUrl: typeof record!.account_owner_uid === "string" && record!.account_owner_uid
             ? workspaceTaskUrl(requestId) : null });
         if (message.idempotencyKey !== outboxRef.id) throw new Error("website_job_window_ended_notice_key_mismatch");
@@ -455,8 +458,11 @@ export async function sweepWebsiteJobNoGrant(requestId: string, nowMs = Date.now
         to = "";
       }
       if (EMAIL.test(to)) {
+        // No simulation was ever built: the paper check, when there is one, is the job's one answer.
+        const siteAnswer = await loadPaperAnswer(requestId);
         const message = buildTaskLifecycleNotification({ requestId, milestone: "scene_outcome", to,
           eventId: WEBSITE_JOB_NO_GRANT_ENDED_EVENT_ID, jobNoGrantEnded: clock.waiting_on,
+          ...(siteAnswer ? { siteAnswer } : {}),
           ...(ask ? { jobNoGrantReason: "video_over_ingest_limit" as const } : {}),
           workspaceUrl: typeof record!.account_owner_uid === "string" && record!.account_owner_uid
             ? workspaceTaskUrl(requestId) : null });

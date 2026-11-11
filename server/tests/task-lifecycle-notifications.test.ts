@@ -520,13 +520,14 @@ describe("a website job's scene outcome is emailed once (C-04)", () => {
     const first = await sealed("setup_repair", true, "stalled");
     await intake(first);
     await deliverOutbox();
-    // A later intake for the same capture ends again: a different outcome, its own one email.
+    // A later intake for the same capture ends again. Rewritten in round 7: the first ending already gave the job its
+    // one answer email (the paper check), so a second ending sends no second answer.
     const second = await sealed("held", true, "policy_capability_unavailable");
     await intake(second, { created_at_iso: "2026-10-25T00:00:00Z" }, "scene-2");
     await deliverOutbox();
-    expect(rows().map(([path]) => path.split(":").pop())).toEqual([`setup_repair-${first.outcome_digest.slice(7)}`,
-      `held-${second.outcome_digest.slice(7)}`]);
-    expect(send).toHaveBeenCalledTimes(2);
+    expect(rows().filter(([, row]) => (row as { status?: string }).status === "sent").map(([path]) => path.split(":").pop()))
+      .toEqual([`setup_repair-${first.outcome_digest.slice(7)}`]);
+    expect(send).toHaveBeenCalledTimes(1);
   });
 
   it("is cancelled when recording permission is withdrawn, or the page no longer shows the outcome", async () => {
@@ -743,5 +744,86 @@ describe("the site's answer is emailed once, when it first settles", () => {
     for (const row of ended) expect(sharedFakeFirestoreState.docs.get(`captureOutbox/${row.key}`)).toMatchObject({ status: "cancelled" });
     expect(send).toHaveBeenCalledTimes(1);
     expect(send.mock.calls[0][0].subject).toBe("Your job: we are preparing its evaluation");
+  });
+});
+
+// Round 7 (owner, 2026-11-11): every way a job can end gives it exactly one answer email, the test result or the
+// paper check with the true reason, except the site's own ending (withdrawn, or a run it closed), which gives none.
+describe("one answer email for every way a job ends", () => {
+  const paperAnswer = { schemaVersion: "site_answer.v1", state: "ready", headline: "Most likely to fit: Universal Robots UR10e.",
+    pick: { modelId: "ur10e", name: "UR10e", manufacturer: "Universal Robots" }, sceneNote: null } as never;
+  const PAPER = "So the paper check is your answer. Most likely to fit: Universal Robots UR10e.";
+  const build = async (params: Record<string, unknown>) => (await import("../utils/taskLifecycleNotifications")).buildTaskLifecycleNotification({
+    requestId: "req-1", to: "owner@example.com", captureUrl: "https://tryblueprint.io/capture-upload/owner-token", ...params } as never);
+  const digest = `sha256:${"d".repeat(64)}`;
+
+  it("gives the paper check, after the ending's true reason, when the simulation is held, could not be built, or its window ran out", async () => {
+    const { sceneOutcomeNoticeEventId } = await import("../utils/sceneIntentOutcome");
+    for (const [label, params] of [
+      ["scene held", { milestone: "scene_outcome", sceneOutcomeKind: "held", eventId: sceneOutcomeNoticeEventId("held", digest) }],
+      ["simulation not built", { milestone: "scene_outcome", sceneOutcomeKind: "setup_repair", eventId: sceneOutcomeNoticeEventId("setup_repair", digest) }],
+      ["window expired", { milestone: "scene_outcome", eventId: "job_window_ended", jobWindowEnded: true }],
+      ["never started", { milestone: "scene_outcome", eventId: "job_no_grant_ended", jobNoGrantEnded: "blueprint" }],
+    ] as const) {
+      const without = await build(params);
+      const notice = await build({ ...params, siteAnswer: paperAnswer });
+      // The reason is said first, unchanged; the paper check follows it as the answer, in the no-test email's words.
+      const reason = without.body.split("\n\n")[0];
+      expect(notice.body.startsWith(`${reason} ${PAPER}`), label).toBe(true);
+      expect(without.body, label).not.toContain("paper check is your answer");
+      expect(notice.body.match(/:\nhttps?:\/\//g), label).toHaveLength(1);
+    }
+    // A preparation that stopped for good: its reason, then the paper check.
+    const stopped = await build({ milestone: "preparation_ended", eventId: `sha256:${"e".repeat(64)}`, siteAnswer: paperAnswer });
+    expect(stopped.body).toMatch(new RegExp(`^We could not finish building the simulation of your site, and we have stopped trying\\..*${PAPER.replace(/[.]/g, "\\.")}`, "s"));
+    // The site's own withdrawal gives no answer, even when one exists.
+    const withdrawn = await build({ milestone: "scene_outcome", sceneOutcomeKind: "withdrawn",
+      eventId: sceneOutcomeNoticeEventId("withdrawn", digest), siteAnswer: paperAnswer });
+    expect(withdrawn.body).not.toContain("paper check is your answer");
+  });
+
+  it("walks every terminal path and sends exactly one answer email, or none when the site ended the job itself", async () => {
+    const { answerEmailAlreadyOut, isAnswerEmail } = await import("../utils/taskLifecycleNotificationAuthority");
+    const key = (kind: string, event: string) => `req-1:${kind}:${event}`;
+    // Every email each ending can queue, in the order they can arrive (from the code: the evaluation outcome at run
+    // end, a stopped preparation, the scene intent's ending, the window sweep's endings, the other-kind answer).
+    const PATHS: Record<string, Array<{ kind: any; idempotencyKey: string }>> = {
+      "test result": [{ kind: "evaluation_outcome", idempotencyKey: key("evaluation_outcome", "estimate-a") },
+        { kind: "scene_outcome", idempotencyKey: key("scene_outcome", "job_window_ended") }],
+      "test held, closed or could not run": [{ kind: "evaluation_outcome", idempotencyKey: key("evaluation_outcome", "held_capability-a") },
+        { kind: "scene_outcome", idempotencyKey: key("scene_outcome", "held-b") }],
+      "simulation build failed": [{ kind: "preparation_ended", idempotencyKey: key("preparation_ended", "sha256:x") },
+        { kind: "scene_outcome", idempotencyKey: key("scene_outcome", "setup_repair-c") },
+        { kind: "scene_outcome", idempotencyKey: key("scene_outcome", "job_window_ended") }],
+      "simulation never built": [{ kind: "scene_outcome", idempotencyKey: key("scene_outcome", "job_no_grant_ended") }],
+      "scene outcome held": [{ kind: "scene_outcome", idempotencyKey: key("scene_outcome", "held-d") },
+        { kind: "evaluation_outcome", idempotencyKey: key("evaluation_outcome", "estimate-e") }],
+      "job window expired": [{ kind: "scene_outcome", idempotencyKey: key("scene_outcome", "job_window_ended") }],
+      "job of another kind": [{ kind: "answer_ready", idempotencyKey: key("answer_ready", "") },
+        { kind: "scene_outcome", idempotencyKey: key("scene_outcome", "job_window_ended") }],
+      // The site's own endings: its run closed (no outcome email; the sweep skips it), or permission withdrawn.
+      "run closed by the owner": [],
+      "recording permission withdrawn": [{ kind: "scene_outcome", idempotencyKey: key("scene_outcome", "withdrawn-f") }],
+    };
+    const EXPECTED: Record<string, number> = { "run closed by the owner": 0, "recording permission withdrawn": 0 };
+    for (const [path, candidates] of Object.entries(PATHS)) {
+      const rows: Array<{ kind: any; idempotencyKey: string; status: string }> = [];
+      for (const candidate of candidates) {
+        const sends = !isAnswerEmail(candidate.kind, candidate.idempotencyKey) || !answerEmailAlreadyOut(rows, candidate.idempotencyKey);
+        rows.push({ ...candidate, status: sends ? "sent" : "cancelled" });
+      }
+      const answers = rows.filter(row => row.status === "sent" && isAnswerEmail(row.kind, row.idempotencyKey));
+      expect(answers.length, path).toBe(EXPECTED[path] ?? 1);
+    }
+  });
+
+  it("cancels a second answer email at dispatch once one has gone out", async () => {
+    const { taskLifecycleNotificationIsCurrent } = await import("../utils/taskLifecycleNotificationAuthority");
+    sharedFakeFirestoreState.docs.set("captureOutbox/req-1:evaluation_outcome:held_capability-a", { requestId: "req-1",
+      kind: "evaluation_outcome", idempotencyKey: "req-1:evaluation_outcome:held_capability-a", status: "sent" });
+    expect(await taskLifecycleNotificationIsCurrent({ kind: "scene_outcome", requestId: "req-1",
+      idempotencyKey: "req-1:scene_outcome:job_window_ended" })).toBe(false);
+    expect(await taskLifecycleNotificationIsCurrent({ kind: "answer_ready", requestId: "req-1",
+      idempotencyKey: "req-1:answer_ready" })).toBe(false);
   });
 });
