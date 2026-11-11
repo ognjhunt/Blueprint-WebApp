@@ -179,7 +179,7 @@ it("v6 shows the early robot fit hold: which robots were checked and why none fi
   expect(projected.outcome).toMatchObject({category: "robot_incompatibility", basis: "conservative_pre_spend_fit_check",
     title: "The simulation is held: none of the robots we can simulate fits this job yet", actionOwner: "blueprint",
     evidence: [{label: "Robot fit check before any spend", digest: `sha256:${"f".repeat(64)}`}]});
-  expect(projected.outcome!.reason).toBe("None of the 136 robot setups we checked fits this job. The main reason: the robot "
+  expect(projected.outcome!.reason).toBe("None of the 136 robot setups we can simulate fits this job. The main reason: the robot "
     + "arms were ruled out on reach. Measured from your scene, the spot where the object is picked up or put down is farther "
     + "than the arm can reach from any place it could be mounted level with the lower work surface.");
   expect(projected.outcome!.scope).toMatch(/before any paid work.*estimate.*no robot was tried/);
@@ -227,7 +227,7 @@ it("v6 says none fits, and no more, when the hold names a cause it does not know
   h.ledger(v6("awaiting_inputs", precheck({hold_reason: "website_robot_fit_none:payload"}), robotFitNone));
   await syncWebsitePreparationStatus(selector, h.deps);
   const projected = await loadCurrentWebsitePreparationStatus("r1", "walkthrough-r1", h.deps);
-  expect(projected.outcome!.reason).toBe("None of the 136 robot setups we checked fits this job.");
+  expect(projected.outcome!.reason).toBe("None of the 136 robot setups we can simulate fits this job.");
 });
 it("v6 still parses a task kind it does not know, and keeps it display-only", async () => {
   const h = harness();

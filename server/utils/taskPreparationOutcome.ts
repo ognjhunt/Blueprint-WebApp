@@ -54,7 +54,7 @@ function robotFitHold(receipt: Extract<PreparationOutcomeReceipt, { reason: "rob
   const bound = precheck && precheck.precheckDigest === receipt.evidence_digest ? precheck : null;
   const cause = robotFitHoldCause(bound?.holdReason);
   const total = bound ? bound.counts.fit + bound.counts.noFit + bound.counts.unknown + bound.counts.unavailable : 0;
-  const checked = total > 0 ? `None of the ${total} robot setups we checked fits this job` : "None of the robot setups we checked fits this job";
+  const checked = total > 0 ? `None of the ${total} robot setups we can simulate fits this job` : "None of the robot setups we can simulate fits this job";
   return {
     category: "robot_incompatibility", basis: receipt.basis,
     title: "The simulation is held: none of the robots we can simulate fits this job yet",

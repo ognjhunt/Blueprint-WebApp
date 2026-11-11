@@ -376,7 +376,7 @@ test("a job no robot we run fits is held, naming the robots checked and why, fro
   }, writes);
   await page.goto(`/capture-upload/${token}?video=existing`);
   await expect(page.getByText("The simulation is held: none of the robots we can simulate fits this job yet", { exact: true }).first()).toBeVisible();
-  await expect(page.getByText(/None of the 136 robot setups we checked fits this job\. The main reason: the robot arms were ruled out on reach/).first()).toBeVisible();
+  await expect(page.getByText(/None of the 136 robot setups we can simulate fits this job\. The main reason: the robot arms were ruled out on reach/).first()).toBeVisible();
   const checked = page.getByRole("region", { name: "Robots checked before any spend" });
   await expect(checked.getByRole("heading", { name: "Robots we checked" })).toBeVisible();
   await expect(checked.getByText("136 robot setups (a robot and the software that drives it): 8 ruled out, 128 not available for this job.")).toBeVisible();

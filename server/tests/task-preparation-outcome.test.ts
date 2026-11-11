@@ -103,7 +103,7 @@ describe("source-bound preparation closeout", () => {
     const outcome = projectPreparationOutcome(receipt, { holdReason: `website_robot_fit_none:${cause}`, precheckDigest: sha,
       counts: { fit: 0, noFit: 3, unknown: 0, unavailable: 2 } });
     expect(outcome.title).toBe("The simulation is held: none of the robots we can simulate fits this job yet");
-    expect(outcome.reason).toMatch(/^None of the 5 robot setups we checked fits this job\. The main reason: /);
+    expect(outcome.reason).toMatch(/^None of the 5 robot setups we can simulate fits this job\. The main reason: /);
     expect(outcome.reason).toMatch(sentence);
     expect(outcome.scope).toMatch(/before any paid work.*no robot was tried.*does not show that no robot could ever do it/);
     const projected = projectTaskStatus({ ...base, preparationStatus: { state: "awaiting_inputs", correlationId: null, outcome } });
@@ -111,7 +111,7 @@ describe("source-bound preparation closeout", () => {
     // A precheck bound to other evidence lends the hold no cause.
     expect(projectPreparationOutcome(receipt, { holdReason: `website_robot_fit_none:${cause}`,
       precheckDigest: `sha256:${"b".repeat(64)}`, counts: { fit: 0, noFit: 3, unknown: 0, unavailable: 2 } }).reason)
-      .toBe("None of the robot setups we checked fits this job.");
+      .toBe("None of the robot setups we can simulate fits this job.");
   });
   it("keeps the robot fit hold out of the v3-v5 vocabulary", () => {
     const value = { category: "robot_incompatibility", reason: "robot_fit_none", basis: "conservative_pre_spend_fit_check",

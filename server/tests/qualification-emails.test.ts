@@ -116,7 +116,7 @@ describe("choosing a reply", () => {
       triage: triage({ disposition: "qualified", blockers: [], blocking_field_ids: [] }),
     });
     expect(email?.variant).toBe("qualified");
-    expect(email?.body).toMatch(/work alongside a deployment company on your site/);
+    expect(email?.body).toMatch(/share the job with deployment companies we have approved/);
     expect(email?.body).not.toMatch(/\bmatch|\bteams? on our list|budget/i);
   });
 
@@ -236,10 +236,10 @@ describe("the qualified reply", () => {
     expect(email.body).toContain("upload it here: https://example.test/capture-upload/abc");
     // Blueprint runs the candidates itself and shows a bounded estimate or "held" (owner, 2026-10-28).
     expect(email.body).toMatch(/build a simulation of your work area and test robots and policies on your job ourselves/);
-    expect(email.body).toMatch(/You see an estimate of what's likely to work, or “held” if we can't simulate that kind of job yet/);
-    expect(email.body).toMatch(/We then work alongside a deployment company on your site/);
+    expect(email.body).toMatch(/You see which robot most likely fits and which control policy did best in the simulation, or “held” if we can't simulate that kind of job yet/);
+    expect(email.body).toMatch(/You can then share the job with deployment companies we have approved/);
     expect(email.body).not.toMatch(/Screening runs are diagnostic|full scoring|review their proposals/);
-    expect(email.body).toMatch(/If no candidate is suitable, we explain what is missing/);
+    expect(email.body).toMatch(/If nothing fits, we explain what is missing/);
     expect(email.body).not.toMatch(/robot teams?/i);
     expect(email.body).toMatch(/free during the beta/);
     expect(email.body).toMatch(/not proof of how a robot will perform/);
