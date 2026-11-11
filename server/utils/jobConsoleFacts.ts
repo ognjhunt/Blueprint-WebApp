@@ -9,6 +9,7 @@ import { projectWebsiteCaptureRights } from "./websiteTaskContext";
 import { criteriaChangedSinceRequest, passMarkForJob, type PassMark } from "./pilotRecommendationEvidence";
 import { iso, object, text } from "./workspace-projection";
 import { teamJobAccess } from "./teamJobAccess";
+import { sceneScreenGateEnded } from "./sceneScreenGate";
 import { sceneRunnableReadiness } from "./sceneRunnableReadiness";
 import { disclosedUnknownGates, gateAnswersOnFile } from "./gateAnswersOnFile";
 import { assessReadiness } from "../../client/src/lib/siteTaskReadiness";
@@ -209,7 +210,11 @@ export function listingStateOf(record: Record<string, any>): ListingState {
  */
 export function sceneHoldOf(record: Record<string, any>): SceneHold | null {
   if (!record.site_task_brief_confirmed_at) return "brief_unconfirmed";
-  const disposition = object(record.site_task_triage).disposition;
+  // The screen holds nothing for a job uploaded after the owner's decision of
+  // 2026-11-11; its reading stays a note on the job's screening line, so the
+  // hold named here is the scene's own.
+  const disposition = sceneScreenGateEnded(record, text(record.requestId) || "") ? "qualified"
+    : object(record.site_task_triage).disposition;
   if (disposition === "needs_conversation") {
     return object(record.site_task_clarification).state === "review_required" ? "clarification_review" : "screening_call";
   }

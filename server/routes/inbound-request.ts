@@ -994,8 +994,9 @@ function buyerReviewUrl(requestId: string, token: string) {
 
 /**
  * Whether we can send the job link to this address: the shared rule the start form also checks before sending
- * (`client/src/lib/emailAddress.ts`). Any address the site reads is fine; a throwaway-address domain is not, because
- * the link would be gone within minutes. The reason code lets the form put the sentence under the email field.
+ * (`client/src/lib/emailAddress.ts`). Any well-formed address is accepted (a Gmail name of an unusual length is only a
+ * hint in the browser, never a refusal); a malformed one is refused, and so is a throwaway-address domain, since each
+ * job costs money to build. The reason code lets the form put the sentence under the email field.
  */
 function validateEmail(email: string): { valid: true } | { valid: false; reason: EmailRefusal; error: string } {
   const checked = checkEmail(email);

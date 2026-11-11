@@ -1362,14 +1362,12 @@ describe("an email it cannot send to", () => {
       consentAttestation: null, captureRegion: "us", captureMode: "self_capture" };
   }
 
-  // The same table as client/tests/lib/emailAddress.test.ts: the browser and the server give the same answer.
+  // The same table as client/tests/lib/emailAddress.test.ts: the browser and the server agree on refused versus accepted.
   it.each([
-    ["yeet@gmail.com", "gmail_name_length", "Gmail addresses have 6 to 30 letters or numbers before @gmail.com. Check yours."],
-    ["yeet+longertag@gmail.com", "gmail_name_length", "Gmail addresses have 6 to 30 letters or numbers before @gmail.com. Check yours."],
-    ["yeet@googlemail.com", "gmail_name_length", "Gmail addresses have 6 to 30 letters or numbers before @gmail.com. Check yours."],
     ["yeet@mailinator.com", "temporary_address", "We can't send to a temporary email address. Use one you check."],
     ["jöhn@example.com", "invalid", "Check your email address."],
     ["owner@example", "invalid", "Check your email address."],
+    ["plainaddress", "invalid", "Check your email address."],
   ])("answers %s with the email field, the reason and its sentence, and saves nothing", async (email, code, message) => {
     process.env.NODE_ENV = "development";
     vi.resetModules();
@@ -1384,15 +1382,20 @@ describe("an email it cannot send to", () => {
     } finally { await stopServer(server); }
   });
 
-  it.each(["yeeter@gmail.com", "yeet@outlook.com", "yeeter+jobs@gmail.com", "yeeter@googlemail.com", "YEETER@GMAIL.COM"])(
-    "accepts %s", async (email) => {
+  // Accepted, including every address the browser only hints about (a Gmail name of an unusual length).
+  it.each(["yeet@gmail.com", "yeet+longertag@gmail.com", "yeet@googlemail.com", "a.b.c@gmail.com", "a.b.c.d.e.f@gmail.com",
+    "yee_ter@gmail.com", "yeeter@gmail.com", "yeet@outlook.com", "yeeter+jobs@gmail.com", "YEETER@GMAIL.COM"])(
+    "accepts %s and saves the job", async (email) => {
       process.env.NODE_ENV = "development";
       vi.resetModules();
       const { server, baseUrl } = await startRouterServer();
       try {
+        const requestId = `email-accepted-${crypto.randomUUID()}`;
         const response = await fetch(`${baseUrl}/`, { method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(sitePayload(`email-accepted-${crypto.randomUUID()}`, email)) });
+          body: JSON.stringify(sitePayload(requestId, email)) });
         expect(response.status).toBe(201);
+        const row = fs.readFileSync(devLogPath, "utf8").trim().split("\n").map(line => JSON.parse(line)).find(row => row.requestId === requestId);
+        expect(row).toBeTruthy();
       } finally { await stopServer(server); }
     });
 });

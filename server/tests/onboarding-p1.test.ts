@@ -20,6 +20,11 @@ const { isRunnableTask } = await import("../utils/teamEvalCandidates");
 const { ensureTaskStatusUpdate, TASK_STATUS_UPDATES } = await import("../utils/taskStatusUpdates");
 const { deliverOutbox } = await import("../utils/captureOutbox");
 const { createCaptureUploadToken } = await import("../utils/captureUploadToken");
+// Sharing follows the job's outlook (review, 2026-11-11). These tests are about cards on jobs that have an answer,
+// so the outlook is a test result unless a test sets another phase.
+const outlookPhase = vi.hoisted(() => ({ value: "result" as string }));
+vi.mock("../utils/jobOutlook", async importOriginal => ({ ...await importOriginal<typeof import("../utils/jobOutlook")>(),
+  loadJobOutlook: vi.fn(async () => ({ phase: outlookPhase.value, reason: null, sentence: null })) }));
 const router = (await import("../routes/task-listings")).default;
 const publicRouter = (await import("../routes/site-worlds")).default;
 const thumbnail = () => PNG.sync.write({ width: 24, height: 15, data: Buffer.alloc(24 * 15 * 4, 160) }).toString("base64");
@@ -33,7 +38,7 @@ const record = (patch: Record<string, unknown> = {}) => ({
   pipeline: { artifacts: { worldlabs_world_manifest_uri: "gs://private/scene.json" } },
   evaluation_readiness: { runtime_launchable: true, benchmark_coverage_status: "ready" }, ...patch,
 } as unknown as InboundRequest);
-beforeEach(() => { state.docs.clear(); sendEmail.mockReset().mockResolvedValue({ sent: true, messageId: "fake", provider: "fake" }); });
+beforeEach(() => { outlookPhase.value = "result"; state.docs.clear(); sendEmail.mockReset().mockResolvedValue({ sent: true, messageId: "fake", provider: "fake" }); });
 afterEach(() => vi.useRealTimers());
 
 describe("public task disclosure", () => {
@@ -144,6 +149,20 @@ describe("owner authorization and durable demand", () => {
     state.docs.set("inboundRequests/req1", { ...doc(), pilot_recommendation: { id: "rec_1", teamName: "Acme Robotics" } } as never);
     expect((await book({ recommendationId: "rec_1", authorized: true })).status).toBe(404);
     expect(doc().pilot_booking).toBeUndefined();
+  });
+  it.each(["reading", "building", "testing"])("refuses to turn a card on while the job is %s, and keeps a card already live", async phase => {
+    outlookPhase.value = phase;
+    const post = (enabled: boolean) => fetch(`${base}/owner/${token("owner")}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ enabled, details, consent: true }) });
+    state.docs.set("inboundRequests/req1", record({ public_task_listing: undefined }) as never);
+    const refused = await post(true);
+    expect(refused.status).toBe(409);
+    expect(await refused.json()).toMatchObject({ code: "share_waits_for_answer", phase });
+    expect((state.docs.get("inboundRequests/req1") as any).public_task_listing).toBeUndefined();
+    expect([...state.docs.keys()].filter(key => key.includes(":listing_live:"))).toEqual([]);
+    // A card already shared stays shared and editable in every phase.
+    state.docs.set("inboundRequests/req1", record() as never);
+    expect((await post(true)).status).toBe(200);
+    expect((state.docs.get("inboundRequests/req1") as any).public_task_listing.enabled).toBe(true);
   });
   it("emails the site once when its card goes live, and again only if it is switched off and on", async () => {
     const post = (enabled: boolean) => fetch(`${base}/owner/${token("owner")}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ enabled, details, consent: true }) });

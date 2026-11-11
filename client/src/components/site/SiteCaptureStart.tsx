@@ -13,7 +13,7 @@ import {
   type CaptureRegion,
 } from "@/data/captureResidency";
 import { analyticsEvents } from "@/lib/analytics";
-import { checkEmail, EMAIL_REFUSAL_SENTENCES, isEmailRefusal } from "@/lib/emailAddress";
+import { checkEmail, EMAIL_HINT_SENTENCES, EMAIL_REFUSAL_SENTENCES, isEmailRefusal } from "@/lib/emailAddress";
 import { withCsrfHeader } from "@/lib/csrf";
 import { withAppCheckHeader } from "@/lib/appCheck";
 import { PRIVACY_URL, TERMS_URL } from "@/lib/legalAcceptance";
@@ -312,6 +312,10 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
   const [countryAsked, setCountryAsked] = useState(restoredCountryAsked(initial.draft));
   // Why we cannot send to the typed email, said under the field (checked here first, then by the server).
   const [emailError, setEmailError] = useState<string | null>(null);
+  // An address we accept but that is likely mistyped (a Gmail name of an unusual length): said in the helper's place,
+  // never blocking. Shown when the person leaves the field or presses the button.
+  const [emailHint, setEmailHint] = useState<string | null>(null);
+  const hintFor = (value: string) => { const checked = checkEmail(value); return checked.ok && checked.hint ? EMAIL_HINT_SENTENCES[checked.hint] : null; };
   // The optional details and the full statements are their own screens, in the URL's hash (the job page's pattern).
   // "What you're agreeing to" is a screen only while the short consent line is shown; otherwise its hash is unknown
   // and falls back to the form, never a blank screen.
@@ -411,7 +415,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
       setStorageAvailable(true);
       recovery.current = fresh;
       requestId.current = fresh.requestId; retryToken.current = fresh.retryToken;
-      setRecoveryUnavailable(false); setPending(null); setState({ status: "idle" }); setEmailError(null); setClaudeConsent(false); setSolAgentsConsent(false);
+      setRecoveryUnavailable(false); setPending(null); setState({ status: "idle" }); setEmailError(null); setEmailHint(null); setClaudeConsent(false); setSolAgentsConsent(false);
       setShareListing(false);
       setMethod("phone"); setRegion(""); setRegionManuallySet(false); setRegionPlace(null); setCountryMissing(false); setCountryAsked(false);
       setFootage(null); setFootageError(null); setCaptureReceived(false);
@@ -450,6 +454,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
     // The email is checked here with the server's own rule, so an address we cannot send to never creates a request.
     const typedEmail = !retained && !currentUser ? checkEmail(String(new FormData(formRef.current!).get("startEmail") ?? "")) : null;
     const emailRefusal = typedEmail && !typedEmail.ok ? typedEmail.reason : null;
+    if (typedEmail) setEmailHint(typedEmail.ok && typedEmail.hint ? EMAIL_HINT_SENTENCES[typedEmail.hint] : null);
     if (!retained && (!region || emailRefusal)) {
       if (!region) { setCountryMissing(true); setCountryAsked(true); }
       setEmailError(emailRefusal ? EMAIL_REFUSAL_SENTENCES[emailRefusal] : null);
@@ -937,10 +942,11 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
           {region === "non_us" && <div className="bare-group"><BareNotice>{captureRegionNotice}</BareNotice></div>}
 
           {!currentUser && (
-            <BareField label="Your email" htmlFor="start-email" helper="We send your private job link here." error={emailError}>
+            <BareField label="Your email" htmlFor="start-email" helper={emailHint ?? "We send your private job link here."} error={emailError}>
               <BareInput id="start-email" name="startEmail" type="email" defaultValue={recovery.current.draft.email} required autoComplete="email" maxLength={320}
                 aria-describedby={describedBy("start-email", { helper: true, error: emailError })} aria-invalid={emailError ? true : undefined}
-                onChange={() => { if (emailError) setEmailError(null); }} />
+                onChange={() => { if (emailError) setEmailError(null); if (emailHint) setEmailHint(null); }}
+                onBlur={(event) => setEmailHint(hintFor(event.currentTarget.value))} />
             </BareField>
           )}
           {currentUser && workspaceType !== undefined && <p className="bare-helper bare-group">{siteWorkspace
