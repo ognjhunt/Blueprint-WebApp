@@ -97,7 +97,7 @@ describe.each([
     expect(await sweepAt(0)).toEqual({ examined: 1, ended: 0, noticesQueued: 0, failed: 0 });
     // The clock starts now, not at the job's creation months ago.
     expect(job().website_job_no_grant_clock).toEqual({ schema_version: "website_job_no_grant_clock.v1", request_id: "job-one",
-      waiting_on: waitingOn, since_epoch: NOW / 1000, window_seconds: WINDOW });
+      waiting_on: waitingOn, since_epoch: NOW / 1000, window_seconds: WINDOW, capture_id: "walkthrough-job-one" });
     expect(job().website_job_no_grant_page_due_at_ms).toBe(waitingOn === "blueprint" ? at(24 * HOUR) : null);
 
     // Not yet due: quiet.

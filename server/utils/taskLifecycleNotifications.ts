@@ -26,7 +26,7 @@ import { drainPendingWebsitePreparationNotifications } from "./websitePreparatio
 import { preparationEndedSentence } from "./taskStatusProjection";
 import { EARLY_TASK_HOLD_DETAIL, EARLY_TASK_HOLD_SENTENCES, earlyTaskHoldOf, isEarlyTaskHoldReason,
   FOOTAGE_BEFORE_ACCOUNT_SENTENCE, JOB_WINDOW_ENDING_MESSAGE, JOB_WINDOW_ENDING_SUBJECT, jobNoGrantEndingMessage,
-  isRecaptureReason, RECAPTURE_SENTENCES, RECAPTURE_TITLE, recaptureReasonOf,
+  isRecaptureReason, LARGE_VIDEO_RECAPTURE_SENTENCES, RECAPTURE_SENTENCES, RECAPTURE_TITLE, recaptureReasonOf,
   type EarlyTaskHoldReason, type RecaptureReason } from "./taskPreparationOutcome";
 import { isWebsiteJobNoGrantEndedEventId, isWebsiteJobWindowEndedEventId } from "./websiteJobWindowEnding";
 import { selectWebsiteAtlasPreview } from "./websiteAtlasPreview";
@@ -54,6 +54,7 @@ export type TaskLifecycleMilestone = Extract<
   | "no_team_passed"
   | "no_qualified_evaluation"
   | "footage_before_account"
+  | "video_too_large"
   | "pilot_request"
 >;
 
@@ -174,6 +175,11 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
     subject: "Your job's evaluations finished, with no result that counts yet",
     // Never a failure: diagnostic, unqualified or unscored runs count neither way.
     body: (url, _detail, workspaceUrl) => `The evaluations of your job so far have finished, but none can support a recommendation yet. They were diagnostic runs, ran before your scene was ready for scored evaluations, could not be scored against your pass mark, or ended before any episode was recorded. So none counts as a pass or a fail. Nothing is needed from you. We email you when a scored evaluation finishes.\n\n${whereRunsAre(url, workspaceUrl, "See each run")}`,
+  },
+  video_too_large: {
+    // The job page's new-video ask, said the same way (`LARGE_VIDEO_RECAPTURE_SENTENCES`).
+    subject: RECAPTURE_TITLE,
+    body: (url) => `${LARGE_VIDEO_RECAPTURE_SENTENCES.reason} ${LARGE_VIDEO_RECAPTURE_SENTENCES.nextStep}\n\nOpen your job:\n${url}`,
   },
   footage_before_account: {
     subject: "Your video arrived before your job was saved to an account",
@@ -303,6 +309,8 @@ export function buildTaskLifecycleNotification(params: {
    * it was. Its event id is the job's fixed no-grant one.
    */
   jobNoGrantEnded?: "site" | "blueprint";
+  /** With `jobNoGrantEnded`: why the sweep ended it early, said in the ending's own sentence. */
+  jobNoGrantReason?: "video_over_ingest_limit";
 }): Parameters<typeof enqueueOutbox>[0] {
   const requestId = params.requestId.trim();
   if (isWebsitePreparationNotice(params.milestone) && !/^sha256:[a-f0-9]{64}$/.test(params.eventId || "")) {
@@ -416,12 +424,15 @@ function jobWindowEndedDetail(params: { eventId?: string; sceneOutcomeKind?: Ter
 
 /** The job page's own sentence for a job that never received a grant, ended by the same sweep. Fixed text. */
 function jobNoGrantEndedDetail(params: { eventId?: string; sceneOutcomeKind?: TerminalSceneOutcomeKind;
-  jobWindowEnded?: true; jobNoGrantEnded?: "site" | "blueprint" }): string {
+  jobWindowEnded?: true; jobNoGrantEnded?: "site" | "blueprint"; jobNoGrantReason?: "video_over_ingest_limit" }): string {
   if (!isWebsiteJobNoGrantEndedEventId(params.eventId) || params.sceneOutcomeKind !== undefined || params.jobWindowEnded
     || (params.jobNoGrantEnded !== "site" && params.jobNoGrantEnded !== "blueprint")) {
     throw new Error("job_no_grant_ended_notice_invalid");
   }
-  return jobNoGrantEndingMessage(params.jobNoGrantEnded);
+  if (params.jobNoGrantReason !== undefined && params.jobNoGrantReason !== "video_over_ingest_limit") {
+    throw new Error("job_no_grant_ended_notice_invalid");
+  }
+  return jobNoGrantEndingMessage(params.jobNoGrantEnded, params.jobNoGrantReason);
 }
 
 /** How many of each kind of movable furniture a robot access proposal moves. */

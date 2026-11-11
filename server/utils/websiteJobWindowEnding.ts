@@ -13,7 +13,7 @@
  * owner-approved extension granted afterwards is honoured.
  */
 import { z } from "zod";
-import { crossRuntimeArtifactDigest, matchesCrossRuntimeArtifactDigest } from "./crossRuntimeCanonical";
+import { crossRuntimeArtifactDigest, crossRuntimeDigest, matchesCrossRuntimeArtifactDigest } from "./crossRuntimeCanonical";
 
 export const WEBSITE_JOB_WINDOW_ENDING_FIELD = "website_job_window_ending";
 export const WEBSITE_JOB_WINDOW_ENDING_SCHEMA = "website_job_window_ending.v1";
@@ -119,6 +119,8 @@ const clockSchema = z.object({
   waiting_on: z.enum(WEBSITE_JOB_NO_GRANT_WAITS),
   since_epoch: z.number().int().positive(),
   window_seconds: z.number().int().positive(),
+  /** The active capture the wait is about; absent on clocks started before it was recorded. */
+  capture_id: id.optional(),
   /** When the ops monitor paged this wait; absent until it has. */
   paged_at_iso: z.string().datetime().optional(),
 }).strict();
@@ -146,10 +148,20 @@ export const WEBSITE_JOB_NO_GRANT_ENDING_NOTICES = [
 ] as const;
 export type WebsiteJobNoGrantEndingNotice = typeof WEBSITE_JOB_NO_GRANT_ENDING_NOTICES[number];
 
+/**
+ * Why a no-grant job ended, when the ending names it. Absent on every other ending.
+ * - `video_over_ingest_limit`: the site was asked for a smaller video (`WEBSITE_LARGE_VIDEO_ASK_FIELD`)
+ *   and none arrived while the site's clock ran.
+ */
+export const WEBSITE_JOB_NO_GRANT_ENDING_REASONS = ["video_over_ingest_limit"] as const;
+export type WebsiteJobNoGrantEndingReason = typeof WEBSITE_JOB_NO_GRANT_ENDING_REASONS[number];
+
 const noGrantEndingSchema = z.object({
   schema_version: z.literal("website_job_no_grant_ending.v1"),
   request_id: id,
   waiting_on: z.enum(WEBSITE_JOB_NO_GRANT_WAITS),
+  /** Optional and additive: an ending without it reads as before. */
+  reason: z.enum(WEBSITE_JOB_NO_GRANT_ENDING_REASONS).optional(),
   waiting_since_epoch: z.number().int().positive(),
   ended_at_epoch: z.number().finite().positive(),
   recorded_at_iso: z.string().datetime(),
@@ -184,3 +196,39 @@ export const websiteJobNoGrantEndedNoticeKey = (requestId: string) =>
   `${requestId.trim()}:scene_outcome:${WEBSITE_JOB_NO_GRANT_ENDED_EVENT_ID}`;
 export const isWebsiteJobNoGrantEndedNoticeKey = (requestId: string, idempotencyKey: string) =>
   idempotencyKey === websiteJobNoGrantEndedNoticeKey(requestId);
+
+/**
+ * The new-video ask for a job whose active capture's video was too large for frame extraction
+ * (`websiteLargeVideoBlock.ts`). Only the no-grant sweep writes it, beside the marker it read, and
+ * clears it once the marker no longer speaks for the job's active capture (a replacement became
+ * active, or the marker went). The job page shows the ask while it names the active capture.
+ */
+export const WEBSITE_LARGE_VIDEO_ASK_FIELD = "website_large_video_ask";
+const largeVideoAskSchema = z.object({
+  schema_version: z.literal("website_large_video_ask.v1"),
+  request_id: id,
+  capture_id: id,
+  raw_video_object: z.string().min(1).max(512),
+  raw_video_size_bytes: z.number().int().positive(),
+  /** Binds the ask to this capture and blocked video; it names the ask's one email. */
+  ask_digest: sha,
+  recorded_at_iso: z.string().datetime(),
+}).strict();
+export type WebsiteLargeVideoAsk = z.infer<typeof largeVideoAskSchema>;
+
+export function newWebsiteLargeVideoAsk(value: Omit<WebsiteLargeVideoAsk, "schema_version" | "ask_digest">): WebsiteLargeVideoAsk {
+  const ask_digest = crossRuntimeDigest({ capture_id: value.capture_id, raw_video_object: value.raw_video_object,
+    raw_video_size_bytes: value.raw_video_size_bytes });
+  return largeVideoAskSchema.parse({ schema_version: "website_large_video_ask.v1", ...value, ask_digest });
+}
+/** The recorded ask for this job's capture, or null: none, unreadable, or about another capture. */
+export function websiteLargeVideoAsk(record: Record<string, any> | undefined, requestId: string,
+  captureId: string): WebsiteLargeVideoAsk | null {
+  const parsed = largeVideoAskSchema.safeParse(record?.[WEBSITE_LARGE_VIDEO_ASK_FIELD]);
+  return parsed.success && parsed.data.request_id === requestId && parsed.data.capture_id === captureId ? parsed.data : null;
+}
+/** The ask's one email, once per capture and blocked video: the key names both through the ask digest. */
+export const websiteLargeVideoAskEventId = (ask: Pick<WebsiteLargeVideoAsk, "capture_id" | "ask_digest">) =>
+  `${ask.capture_id}.${ask.ask_digest.slice(7, 23)}`;
+export const websiteLargeVideoAskNoticeKey = (requestId: string, ask: Pick<WebsiteLargeVideoAsk, "capture_id" | "ask_digest">) =>
+  `${requestId.trim()}:video_too_large:${websiteLargeVideoAskEventId(ask)}`;
