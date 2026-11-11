@@ -6,10 +6,11 @@
  * A card carries the answer only when the site pressed "Find a deployment
  * company for this job" and its choice was recorded under the statement that
  * names the answer (`introduction_request.statement_version`, see
- * `client/src/lib/jobCardAnswerConsent.ts`). The older card checkbox does not
- * mention the answer, so a card listed only under it never carries one, and an
- * `introduction_request` stored before the statement was recorded never does
- * either. Who may see the card at all is still `teamJobAccess`; this never
+ * `client/src/lib/jobCardAnswerConsent.ts`) AND the card's current listing
+ * consent (`public_task_listing.consentVersion`) is that same statement. The
+ * older card checkbox does not mention the answer, so a card listed or re-saved
+ * under it never carries one, and an `introduction_request` stored before the
+ * statement was recorded never does either. Who may see the card at all is still `teamJobAccess`; this never
  * widens it.
  *
  * ## What it carries
@@ -29,11 +30,19 @@ import type { JobCardAnswerRobot, JobCardAnswerSummary } from "../../client/src/
 import { isJobCardAnswerStatementVersion } from "../../client/src/lib/jobCardAnswerConsent";
 import { logger } from "../logger";
 
-/** The site chose, under the statement that names the answer, to share it with the card. */
+/**
+ * The site chose, under the statement that names the answer, to share it with the card, and the card is
+ * still listed under that statement. Both must hold: the request records the choice, and the listing's
+ * CURRENT consent records what the card shares now. When the site later re-saves its card under the older
+ * box ("Manage opportunity sharing"), the card's consent no longer names the answer and it stops carrying it.
+ */
 export function jobCardAnswerShared(record: unknown): boolean {
-  const intro = (record as { introduction_request?: Record<string, unknown> } | null | undefined)?.introduction_request;
+  const stored = record as { introduction_request?: Record<string, unknown>; public_task_listing?: Record<string, unknown> } | null | undefined;
+  const intro = stored?.introduction_request;
+  const listing = stored?.public_task_listing;
   return Boolean(intro) && typeof intro!.requested_at_iso === "string" && Boolean(intro!.requested_at_iso)
-    && isJobCardAnswerStatementVersion(intro!.statement_version);
+    && isJobCardAnswerStatementVersion(intro!.statement_version)
+    && Boolean(listing) && isJobCardAnswerStatementVersion(listing!.consentVersion);
 }
 
 const SITE_WORDS: Array<[RegExp, string]> = [

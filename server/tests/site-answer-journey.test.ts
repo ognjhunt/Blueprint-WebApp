@@ -26,6 +26,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import { sharedFakeFirestoreState as state } from "./helpers/fake-firestore";
 import { sharedUploadBucket } from "./helpers/fake-upload-bucket";
 import { siteCaptureStartSubmission } from "./helpers/siteCaptureStartSubmission";
+import { JOB_CARD_ANSWER_STATEMENT_VERSION } from "../../client/src/lib/jobCardAnswerConsent";
 
 const seams = vi.hoisted(() => ({
   /** The scripted video-model reply for each capture, keyed by capture id. */
@@ -321,7 +322,7 @@ describe("a site's answer, from an email and a video to a deployment company", (
     expect(answerNotices(jobId)).toHaveLength(1);
 
     // 6. "Find a deployment company for this job": recorded once, card listed under its consent version, one alert.
-    const asked = await post(`/api/site-task-brief/${token}/introduction-request`, {});
+    const asked = await post(`/api/site-task-brief/${token}/introduction-request`, { statementVersion: JOB_CARD_ANSWER_STATEMENT_VERSION });
     expect(asked.status, await asked.clone().text()).toBe(200);
     const first = await asked.json();
     expect(first).toEqual({ ok: true, requestedAtIso: NOW.toISOString(), listed: true });
@@ -336,7 +337,7 @@ describe("a site's answer, from an email and a video to a deployment company", (
     expect(introductionAlerts()).toHaveLength(1);
     expect((await status(token)).answer).toMatchObject({ introductionRequestedAtIso: NOW.toISOString(), jobCardListed: true });
     vi.setSystemTime(new Date(NOW.getTime() + 60_000));
-    const again = await post(`/api/site-task-brief/${token}/introduction-request`, {});
+    const again = await post(`/api/site-task-brief/${token}/introduction-request`, { statementVersion: JOB_CARD_ANSWER_STATEMENT_VERSION });
     expect(await again.json()).toEqual({ ok: true, requestedAtIso: NOW.toISOString(), listed: true });
     expect(introductionAlerts()).toHaveLength(1);
     vi.setSystemTime(NOW);

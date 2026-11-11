@@ -1,7 +1,7 @@
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import type { InboundRequest } from "../types/inbound-request";
 import type { TaskBrowseCard, TaskCardDetail } from "../../client/src/types/taskBrowse";
-import { loadJobCardAnswer, loadJobCardAnswerHeadline } from "./jobCardAnswer";
+import { jobCardAnswerShared, loadJobCardAnswer, loadJobCardAnswerHeadline } from "./jobCardAnswer";
 import { taskThumbnailUrl, teamJobAccess } from "./teamJobAccess";
 
 /**
@@ -24,14 +24,17 @@ export function projectTaskBrowseCard(id: string, record: InboundRequest): TaskB
     thumbnailUrl: taskThumbnailUrl(id, record) };
 }
 
-/** `withAnswerHeadlines` adds the answer's headline to a card whose site chose to share its answer (`jobCardAnswer.ts`). */
+/**
+ * `withAnswerHeadlines` adds the answer's headline to a card whose site chose to share its answer and whose
+ * current listing consent still names it (`jobCardAnswerShared`). No answer is composed for any other card.
+ */
 export async function listTaskBrowseCards(options: { withAnswerHeadlines?: boolean } = {}): Promise<TaskBrowseCard[]> {
   if (!db) throw new Error("Task library unavailable");
   const snapshot = await db.collection("inboundRequests")
     .where("public_task_listing.enabled", "==", true).limit(200).get();
   const cards = await Promise.all(snapshot.docs.map(async doc => {
     const card = projectTaskBrowseCard(doc.id, doc.data() as InboundRequest);
-    if (!card || !options.withAnswerHeadlines) return card;
+    if (!card || !options.withAnswerHeadlines || !jobCardAnswerShared(doc.data())) return card;
     const headline = await loadJobCardAnswerHeadline(doc.id, doc.data());
     return headline ? { ...card, answerHeadline: headline } : card;
   }));

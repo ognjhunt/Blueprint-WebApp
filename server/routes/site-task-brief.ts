@@ -300,12 +300,14 @@ router.post("/:token/introduction-request", csrfProtection, async (req, res) => 
   if (!verified) return res.status(404).json({ code: "capture_token_invalid", error: "That link is not valid any more." });
   if (verified.scope !== "owner") return res.status(403).json({ code: "introduction_request_owner_required",
     error: "Open the owner's job link to ask for this." });
-  const body = z.object({ statementVersion: z.string().trim().min(1).max(100).optional() }).strict().safeParse(req.body ?? {});
+  // The page sends the version of the sentence it showed under the button; without it there is no record
+  // of what the site agreed to, so nothing is recorded or listed.
+  const body = z.object({ statementVersion: z.string().trim().min(1).max(100) }).strict().safeParse(req.body ?? {});
   if (!body.success)
     return res.status(400).json({ code: "introduction_request_invalid", error: "Press the button on your job page to ask for this." });
   // The consent recorded is the sentence the page showed. A page showing an older one is refused before
-  // anything is recorded or listed; a page that sends no version (older pages) gets today's sentence.
-  if (body.data.statementVersion !== undefined && body.data.statementVersion !== JOB_CARD_ANSWER_STATEMENT_VERSION)
+  // anything is recorded or listed.
+  if (body.data.statementVersion !== JOB_CARD_ANSWER_STATEMENT_VERSION)
     return res.status(409).json({ code: "introduction_request_statement_changed",
       error: "The wording on this page has changed. Reload the page to read it, then press the button again." });
   try {

@@ -45,7 +45,10 @@ const owner = () => createCaptureUploadToken({ requestId: "req-1", captureId: "w
 const film = () => createCaptureUploadToken({ requestId: "req-1", captureId: "walkthrough-req-1", sceneId: "site-req-1", scope: "film" });
 const row = (key: string) => sharedFakeFirestoreState.docs.get(key) as Record<string, any>;
 
-async function ask(token = owner(), csrf = true, body: unknown = {}) {
+/** The page always sends the version of the sentence it showed. */
+const SHOWN = () => ({ statementVersion: JOB_CARD_ANSWER_STATEMENT_VERSION });
+
+async function ask(token = owner(), csrf = true, body: unknown = SHOWN()) {
   const response = await fetch(`${baseUrl}/api/site-task-brief/${token}/introduction-request`, {
     method: "POST", body: JSON.stringify(body), headers: { "content-type": "application/json",
       ...(csrf ? { cookie: "csrf_token=introduction-test", "x-csrf-token": "introduction-test" } : {}) } });
@@ -138,16 +141,19 @@ describe("POST /:token/introduction-request", () => {
       requested_by: "signed_owner_link" });
   });
 
-  it("records the statement the page showed: today's version is accepted, as is no version from an older page", async () => {
+  it("records the statement the page showed, and refuses a request that names none, recording and listing nothing", async () => {
+    // Without the version there is no record of what the site agreed to.
+    const unnamed = await ask(owner(), true, {});
+    expect(unnamed).toEqual({ status: 400, body: { code: "introduction_request_invalid",
+      error: "Press the button on your job page to ask for this." } });
+    expect(row("inboundRequests/req-1").introduction_request).toBeUndefined();
+    expect(row("inboundRequests/req-1").public_task_listing).toBeUndefined();
+    expect(sendSlackMessage).not.toHaveBeenCalled();
+    expect((await ask(owner(), true, { statementVersion: "" })).status).toBe(400);
     const current = await ask(owner(), true, { statementVersion: JOB_CARD_ANSWER_STATEMENT_VERSION });
     expect(current).toMatchObject({ status: 200, body: { ok: true, listed: true } });
     expect(row("inboundRequests/req-1").introduction_request).toMatchObject({ statement_version: JOB_CARD_ANSWER_STATEMENT_VERSION,
       statement_text: FIND_COMPANY_CONSENT });
-    // An older page sends {}: it is recorded under today's statement, as before.
-    delete row("inboundRequests/req-1").introduction_request;
-    const older = await ask(owner(), true, {});
-    expect(older).toMatchObject({ status: 200, body: { ok: true } });
-    expect(row("inboundRequests/req-1").introduction_request.statement_version).toBe(JOB_CARD_ANSWER_STATEMENT_VERSION);
   });
 
   it("refuses a page that showed another statement, recording and listing nothing, and asks it to reload", async () => {

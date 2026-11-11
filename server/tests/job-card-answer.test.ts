@@ -150,6 +150,18 @@ describe("GET /api/site-worlds/tasks/:taskId", () => {
     expect(body.item.answerSummary).toBeUndefined();
   });
 
+  it("has no answer once the card's current consent is the older box, though the site asked under the statement", async () => {
+    // The site pressed the button, then re-saved its card through "Manage opportunity sharing": the card's
+    // consent now is the older box, which does not name the answer.
+    put(job({ public_task_listing: { ...job().public_task_listing, consentVersion: "public-task-card-v1" } }));
+    const { status, body } = await get(`/tasks/${ID}`);
+    expect(status).toBe(200);
+    expect(body.item.answerSummary).toBeUndefined();
+    expect(body.item.answerHeadline).toBeUndefined();
+    const list = await get("/tasks");
+    expect(list.body.items.find((item: { id: string }) => item.id === ID).answerHeadline).toBeUndefined();
+  });
+
   it("refuses a viewer the library refuses, and a card that is not listed", async () => {
     put(job());
     seams.allowed = false;
@@ -175,6 +187,8 @@ describe("GET /api/site-worlds/tasks/:taskId", () => {
 
 describe("GET /api/site-worlds/tasks", () => {
   it("shows the headline alone on a shared card, and nothing on another", async () => {
+    const { loadSiteAnswer } = await import("../utils/siteAnswer");
+    vi.mocked(loadSiteAnswer).mockClear();
     put(job());
     sharedFakeFirestoreState.docs.set("inboundRequests/req-plain", { ...job(), requestId: "req-plain",
       public_task_listing: { ...job().public_task_listing, consentVersion: "public-task-card-v1" }, introduction_request: undefined });
@@ -186,5 +200,7 @@ describe("GET /api/site-worlds/tasks", () => {
     expect(plain).toBeTruthy();
     expect(plain.answerHeadline).toBeUndefined();
     expect(seams.managed).not.toHaveBeenCalled();
+    // The answer is composed for the consenting card only.
+    expect(vi.mocked(loadSiteAnswer).mock.calls.map(call => call[0])).toEqual([ID]);
   });
 });
