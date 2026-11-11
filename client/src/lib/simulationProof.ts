@@ -318,6 +318,11 @@ function plannedButNotRun(row: Candidate): boolean {
 }
 
 const PREPARING_STATES = new Set(["queued", "pending", "waitlisted", "preparing", "launching", "unavailable"]);
+/** Run states that end a run without a publication: nothing more comes from it. */
+export const TERMINAL_RUN_STATES: ReadonlySet<string> = new Set(["failed", "blocked", "cancelled", "closed",
+  "forward_terminal_blocked", "control_plane_terminal_blocked"]);
+/** The headline of a run that ended with no publication. */
+export const RUN_ENDED_WITHOUT_RESULT = "The simulation run ended before it gave a result.";
 const RUNNING_CANDIDATE_STATES = new Set(["launching", "running", "reconciliation_required"]);
 /** A row that is running or still going to run; unavailable, infeasible, blocked and deferred rows will not. */
 const STILL_TO_RUN = new Set(["pending", "waitlisted", "preparing", "launching", "running", "reconciliation_required"]);
@@ -395,6 +400,8 @@ function stateOf(evaluation: JobManagedEvidenceSummary | null): SimulationProofS
   if (outcome === "estimate") return "done";
   if (outcome && COULD_NOT_RUN[outcome]) return "could_not_run";
   if (outcome) return "preparing";
+  // A run that ended with no publication gave no result and is not still coming (review, 2026-11-11): never "preparing".
+  if (TERMINAL_RUN_STATES.has(String(evaluation.state))) return "could_not_run";
   const candidates = (Array.isArray(evaluation.screening?.candidates) ? evaluation.screening!.candidates : []).filter(isRecord) as Candidate[];
   if (candidates.some(row => RUNNING_CANDIDATE_STATES.has(row.state) || count(row.scored) > 0)) return "running";
   return PREPARING_STATES.has(evaluation.state) ? "preparing" : evaluation.state === "running" ? "running" : "preparing";
@@ -677,7 +684,7 @@ export function projectSimulationProof(input: SimulationProofInput): SimulationP
   const robot = simulatedRobot(scoredRobots);
   const mixed = Boolean(robot) && scoredRobots.some(entry => entry.robot?.modelId !== robot!.modelId);
   const headline = state === "done" ? (comparison?.line.split(/(?<=\.)\s/)[0] ?? NO_POLICY_SCORED)
-    : state === "could_not_run" ? couldNotRun ?? "The simulation could not run."
+    : state === "could_not_run" ? couldNotRun ?? RUN_ENDED_WITHOUT_RESULT
       : (outcome && WAITING[outcome]) ?? HEADLINES[state];
   return {
     state,
@@ -787,6 +794,7 @@ export function testNotRunLine(proof: SimulationProof | null | undefined): strin
   if (!proof || proof.state === "not_started") return null;
   if (proof.state === "could_not_run") {
     const outcome = outcomeOf(COULD_NOT_RUN, proof.headline);
+    if (proof.headline === RUN_ENDED_WITHOUT_RESULT) return "The simulation test stopped before it gave a result.";
     // A test stopped part way (a problem on our side, or the free beta's limit) did not finish; the others did not run.
     const stopped = outcome === "held_setup" || outcome === "held_budget";
     return `The simulation test did not ${stopped ? "finish" : "run"}. ${(outcome && PLAIN_COULD_NOT_RUN[outcome]) ?? ""}`.trim();

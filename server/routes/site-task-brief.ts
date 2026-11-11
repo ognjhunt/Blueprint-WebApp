@@ -1390,6 +1390,9 @@ router.get("/:token/status", async (req: Request, res: Response) => {
     // The per-job site assessment ended (owner decision 2026-11-11): the
     // status never advertises a retry and wakes no queue. The fields stay,
     // constant, so older pages keep reading the same shape.
+    const ownerAnswer = await siteAnswerForStatus(payload.scope === "owner" && request && !request.captureRights.consent_revoked
+      ? { requestId: payload.requestId, request: request.answerSource, brief, videoReceived: hasStoredCapture,
+        robotFit: preparationStatus?.robotFit ?? null } : null);
     return res.status(200).json({
       ok: true,
       scope: payload.scope,
@@ -1414,13 +1417,6 @@ router.get("/:token/status", async (req: Request, res: Response) => {
         guessedCandidateId: question.guessed_candidate_id,
         candidates: question.candidates.map(row => ({ id: row.candidate_id, label: row.label,
           referenceTimeMs: row.reference_time_ms })) } : null,
-      // The simulation of the site is being built (owner, 2026-11-11: the answer screen says "Getting ready" then):
-      // preparation in progress, or handed off and not yet testing, held or ended. Read from the Pipeline's own
-      // status, never inferred from coverage, so a job with no simulation coming never says it is getting ready.
-      simulationBuilding: payload.scope === "owner" && !request?.captureRights.consent_revoked
-        && (preparationStatus?.state === "preparing" || preparationStatus?.state === "capacity_delayed"
-          || (preparationStatus?.state === "handed_off"
-            && !["testing", "evaluated", "held", "ended"].includes(String(sceneProgression?.state ?? "")))),
       // Which robots fit the job by spec sheet: an estimate for the owner, never a physical test.
       robotFit: payload.scope === "owner" ? preparationStatus?.robotFit ?? null : null,
       // The robots checked before any spend and why none fits, for the owner only, while the job is held on it.
@@ -1431,15 +1427,48 @@ router.get("/:token/status", async (req: Request, res: Response) => {
       // Whether to move named furniture out of the robot's way in the simulation, for the owner only.
       robotAccess: payload.scope === "owner" && !request?.captureRights.consent_revoked ? robotAccess : null,
       // Which robot most likely fits the job, for the owner only: a fit check against published specifications.
-      answer: await siteAnswerForStatus(payload.scope === "owner" && request && !request.captureRights.consent_revoked
-        ? { requestId: payload.requestId, request: request.answerSource, brief, videoReceived: hasStoredCapture,
-          robotFit: preparationStatus?.robotFit ?? null } : null),
+      answer: ownerAnswer,
+      // The job's outlook (`jobOutlook`): the one decision the page shows its screen from, for the owner only.
+      outlook: payload.scope === "owner" && request ? await statusOutlook({ requestId: payload.requestId, captureId: payload.captureId,
+        record: request.answerSource, consentRevoked: request.captureRights.consent_revoked, answer: ownerAnswer,
+        preparation: preparationStatus, scene: sceneProgression }) : null,
     });
   } catch (error) {
     logger.error({ error, requestId: payload.requestId }, "Could not load task status");
     return res.status(503).json({ error: "The status could not be loaded", code: "task_status_unavailable" });
   }
 });
+
+/**
+ * The job's outlook from what the status read already holds (its record, the verified preparation status and scene
+ * progression, the composed answer) plus the job's simulation proof. Never fails the status read: null on error.
+ */
+async function statusOutlook(params: { requestId: string; captureId: string; record: Record<string, unknown>; consentRevoked: boolean;
+  answer: unknown; preparation: { state: string; robotFit?: { route?: string } | null } | null; scene: { state: string } | null }) {
+  try {
+    const [{ jobOutlook, outlookAnswerOf }, { websiteRunClosure }, { recordedWebsiteJobWindowEnding, recordedWebsiteJobNoGrantEnding },
+      { readSiteManagedEvidence }, { projectSimulationProof }] = await Promise.all([
+      import("../utils/jobOutlook"), import("../utils/websiteRunClosure"), import("../utils/websiteJobWindowEnding"),
+      import("../utils/siteManagedEvidence"), import("../../client/src/lib/simulationProof")]);
+    const { managedEvidence } = await readSiteManagedEvidence(params.requestId).catch(() => ({ managedEvidence: [] as unknown[] }));
+    const record = params.record as Record<string, any>;
+    return jobOutlook({
+      consentRevoked: params.consentRevoked,
+      closedByOwner: Boolean(websiteRunClosure(record, params.requestId, params.captureId)),
+      answer: outlookAnswerOf(params.answer as never),
+      windowEnded: Boolean(recordedWebsiteJobWindowEnding(record)),
+      noGrantEnded: Boolean(recordedWebsiteJobNoGrantEnding(record, params.requestId)),
+      grantRefused: !record.website_scene_sponsorship && !params.preparation && record.site_task_triage?.disposition === "not_now",
+      preparation: params.preparation ? { state: params.preparation.state,
+        geometryOnlyEnd: params.preparation.state === "awaiting_inputs" && params.preparation.robotFit?.route === "geometry_only" } : null,
+      scene: params.scene ? { state: params.scene.state } : null,
+      proof: managedEvidence.length ? projectSimulationProof({ evaluation: managedEvidence as never, pick: null }) : null,
+    });
+  } catch (error) {
+    logger.warn({ error, requestId: params.requestId }, "Could not read the job's outlook");
+    return null;
+  }
+}
 
 /* ------------------------------------------------------- task item inventory */
 
