@@ -1,0 +1,98 @@
+import { render, screen, within } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
+import { SimulationProof } from "@/components/site/SimulationProof";
+import { NO_POLICY_COMPLETED, projectSimulationProof } from "@/lib/simulationProof";
+import { SIMULATION_ACCURACY } from "@/data/simulationAccuracy";
+import { SCENE_NOTE_BEYOND_REACH, allZeroEvaluation, preparingEvaluation, readyAnswer, winnerEvaluation } from "../fixtures/siteAnswer";
+
+const pick = readyAnswer.pick!;
+const robotFit = { models: [{ name: "UR10e", manufacturer: "Universal Robots", verdict: "fits" as const, openChecks: [] }] };
+/** Words a site manager should never meet in the proof, and anything that looks like a raw code. */
+const BANNED = /episode|candidate|screening|embodiment|checkpoint|DROID|jointpos|[a-z]_[a-z]|sha256/i;
+/** A paper may be called PolaRiS in its title; a policy's name never says so. */
+const policyRows = () => screen.queryByRole("list", { name: "Control policies tried" })?.textContent ?? "";
+
+const renderProof = (input: Parameters<typeof projectSimulationProof>[0]) => {
+  const proof = projectSimulationProof(input);
+  return { proof, ...render(<SimulationProof proof={proof} />) };
+};
+
+describe("proof in simulation", () => {
+  it("names the policy that did best, with every row, the robot check and how far to trust it", () => {
+    const { proof, container } = renderProof({ evaluation: [winnerEvaluation], robotFit, pick });
+    const section = screen.getByRole("region", { name: "Proof in simulation" });
+    expect(within(section).getByText(proof.headline)).toBeVisible();
+    expect(proof.headline).toMatch(/^In a simulation of your site, π0\.5, an AI control policy from Physical Intelligence, did best/);
+    expect(screen.getByRole("heading", { name: "Your robot in your scene" })).toBeVisible();
+    expect(screen.getByText(/the Universal Robots UR10e reaches the pick-up and put-down points with a clear arm path/)).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Control policies on your job" })).toBeVisible();
+    const rows = within(screen.getByRole("list", { name: "Control policies tried" })).getAllByRole("listitem");
+    expect(rows.map(row => row.textContent)).toEqual([
+      expect.stringMatching(/^π0\.5 from Physical Intelligence7 of 10 tries · likely between \d+% and \d+%Did best$/),
+      expect.stringMatching(/^GR00T N1\.7 from NVIDIA3 of 10 tries/),
+      expect.stringMatching(/^MolmoAct 2 from Ai22 of 10 tries/),
+    ]);
+    expect(within(rows[0]).getByText("Did best")).toBeVisible();
+    expect(within(rows[1]).queryByText("Did best")).toBeNull();
+    expect(screen.getByText(/^1 other policy we set up did not run/)).toBeVisible();
+    expect(container.textContent).not.toMatch(BANNED);
+    expect(policyRows()).not.toMatch(/PolaRiS/i);
+  });
+
+  it("renders the published accuracy, its conditions, its sources as links and what holds for this job", () => {
+    renderProof({ evaluation: [winnerEvaluation], pick });
+    expect(screen.getByRole("heading", { name: "How far to trust this" })).toBeVisible();
+    expect(screen.getByText(SIMULATION_ACCURACY.statement)).toBeVisible();
+    expect(screen.getByText(SIMULATION_ACCURACY.conditions)).toBeVisible();
+    for (const source of SIMULATION_ACCURACY.sources) {
+      const link = screen.getByRole("link", { name: source.title });
+      expect(link).toHaveAttribute("href", source.url);
+      expect(link).toHaveAttribute("target", "_blank");
+      expect(link).toHaveAttribute("rel", "noreferrer");
+    }
+    expect(screen.getByText("For your job:")).toBeVisible();
+    expect(screen.getByText("The scale of your scene was estimated from your video, not measured.")).toBeVisible();
+    expect(screen.getByText(/^We have no public AI policy to run on the Universal Robots UR10e, so we ran the public policies/)).toBeVisible();
+  });
+
+  it("all at zero: says it could not rank them, with the scene notes right under it and no winner", () => {
+    const { container } = renderProof({ evaluation: [allZeroEvaluation], pick });
+    expect(screen.getByText(NO_POLICY_COMPLETED)).toBeVisible();
+    expect(screen.queryByText("Did best")).toBeNull();
+    const note = screen.getByText(SCENE_NOTE_BEYOND_REACH);
+    const list = screen.getByRole("list", { name: "Control policies tried" });
+    expect(note.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(within(list).getAllByRole("listitem")).toHaveLength(4);
+    // Zero successes is never an estimate and never offers a pilot.
+    expect(container.textContent).not.toMatch(/likely between|pilot/i);
+    for (const text of [screen.getByText(NO_POLICY_COMPLETED).textContent, policyRows(), note.textContent]) expect(text).not.toMatch(/estimate/i);
+    expect(container.textContent).not.toMatch(BANNED);
+    expect(policyRows()).not.toMatch(/PolaRiS/i);
+  });
+
+  it.each([
+    ["not_started", null, "The simulation of your site has not started yet."],
+    ["preparing", [preparingEvaluation], "We are preparing the simulation of your site."],
+    ["running", [{ ...preparingEvaluation, state: "running", screening: { candidates: [{ ...preparingEvaluation.screening!.candidates[0], state: "running" }] } }],
+      "The simulation of your site is running."],
+    ["could_not_run", [{ ...winnerEvaluation, outcome: "held_capability" as const }], "The simulation can't model this kind of task yet."],
+  ] as const)("says %s in one short line, with no results or study figures", (state, evaluation, line) => {
+    const { proof, container } = renderProof({ evaluation, pick });
+    expect(proof.state).toBe(state);
+    expect(screen.getByRole("heading", { name: "Proof in simulation" })).toBeVisible();
+    expect(screen.getByText(line)).toBeVisible();
+    expect(screen.queryByRole("heading", { name: "Control policies on your job" })).toBeNull();
+    expect(screen.queryByRole("heading", { name: "How far to trust this" })).toBeNull();
+    expect(screen.queryByRole("link")).toBeNull();
+    expect(container.textContent).not.toMatch(/your job is held|^Held/i);
+    expect(container.textContent).not.toMatch(BANNED);
+  });
+
+  it("never shows a working name as a policy's name", () => {
+    const evaluation = { ...winnerEvaluation, screening: { candidates: [winnerEvaluation.screening!.candidates[0],
+      { ...winnerEvaluation.screening!.candidates[1], candidateId: "unknown-id", name: "Current candidate" }] } };
+    const { container } = renderProof({ evaluation: [evaluation], pick });
+    expect(screen.getByText("A policy we could not name")).toBeVisible();
+    expect(container.textContent).not.toMatch(BANNED);
+  });
+});

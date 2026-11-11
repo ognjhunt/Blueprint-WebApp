@@ -3,6 +3,7 @@
  * link points at `example.test`, and no quote or figure here is a real claim.
  */
 import { SITE_ANSWER_NOTE, SITE_ANSWER_SCHEMA, type SiteAnswer } from "../../src/lib/siteAnswer";
+import type { JobManagedEvidenceSummary as Evaluation } from "../../src/types/jobMarketplace";
 
 const DIGEST = `sha256:${"c".repeat(64)}`;
 
@@ -166,3 +167,48 @@ export const readingAnswer: SiteAnswer = {
   headline: "We are reading your video. Your answer will appear here.",
   reason: null,
 };
+
+/**
+ * Job evaluations as `/api/job-workflow/owner/:token` sends them, for the proof
+ * in simulation. TEST DATA ONLY: no figure here is a real result.
+ */
+type EvaluationCandidate = NonNullable<Evaluation["screening"]>["candidates"][number];
+
+function evaluationCandidate(candidateId: string, name: string, scored: number, succeeded: number,
+  overrides: Partial<EvaluationCandidate> = {}): EvaluationCandidate {
+  return { candidateId, name, state: scored > 0 ? "completed" : "deferred", planned: 10, scored, succeeded,
+    failed: scored - succeeded, void: 0, blockers: [],
+    ...(scored > 0 && succeeded > 0 ? { successRange: { lowerPercent: Math.round((succeeded / scored) * 60), upperPercent: Math.min(100, Math.round((succeeded / scored) * 100) + 20), confidencePercent: 95 } } : {}),
+    ...overrides };
+}
+
+function evaluationOf(runId: string, overrides: Partial<Evaluation>, candidates: EvaluationCandidate[]): Evaluation {
+  return { runId, state: "completed", current: true, resultDigest: `sha256:${"d".repeat(64)}`, outcome: "estimate",
+    summary: "Your job's simulation estimate: the scored tries are below.", nextAction: "Nothing is needed from you.",
+    limitations: ["Simulation does not certify physical performance or safety."], href: `#managed-evidence-${runId}`,
+    screening: { candidates }, ...overrides };
+}
+
+export const SCENE_NOTE_BEYOND_REACH = "Our scene check measured one step of the job as beyond a robot arm's reach from where it stands in the scene.";
+
+export const winnerEvaluation: Evaluation = evaluationOf("fixture-winner", {}, [
+  evaluationCandidate("pi05_droid", "π0.5 DROID", 10, 7),
+  evaluationCandidate("groot_n17_droid", "GR00T N1.7 DROID", 10, 3),
+  evaluationCandidate("molmoact2_droid", "MolmoAct 2 DROID", 10, 2),
+  evaluationCandidate("cosmos3_edge_policy_droid", "Cosmos 3 Edge Policy DROID", 0, 0, { blockers: ["site_screening_budget_insufficient"] }),
+]);
+
+export const allZeroEvaluation: Evaluation = evaluationOf("fixture-all-zero", { outcomeCaveat: "scene_setup" }, [
+  evaluationCandidate("pi05_droid", "π0.5 DROID", 9, 0),
+  evaluationCandidate("pi0_droid_jointpos_polaris", "π0 DROID joint position (PolaRiS)", 10, 0),
+  evaluationCandidate("pi0_fast_droid_jointpos_polaris", "π0-FAST DROID joint position (PolaRiS)", 10, 0),
+  evaluationCandidate("groot_n17_droid", "GR00T N1.7 DROID", 10, 0),
+  evaluationCandidate("molmoact2_droid", "MolmoAct 2 DROID", 0, 0, { state: "blocked", blockers: ["policy_canary_session_setup_failed:policy_load"] }),
+]);
+allZeroEvaluation.screening!.setupNotes = [SCENE_NOTE_BEYOND_REACH];
+
+export const preparingEvaluation: Evaluation = evaluationOf("fixture-preparing", { state: "queued", outcome: null, resultDigest: null,
+  summary: "Blueprint is preparing the simulation." }, [
+  evaluationCandidate("pi05_droid", "π0.5 DROID", 0, 0, { state: "pending" }),
+  evaluationCandidate("groot_n17_droid", "GR00T N1.7 DROID", 0, 0, { state: "pending" }),
+]);

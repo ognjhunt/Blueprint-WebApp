@@ -43,3 +43,18 @@
 .site-answer-next { margin: 20px 0 0; }
 .site-answer-next p:not(.job-eyebrow) { margin: 0 0 12px; }
 .site-answer-next p[role="status"] { margin: 0; }
+/* Proof in simulation, inside the answer (or on its own for an older job). */
+.site-answer-proof { border: 1px solid var(--ms-rule, #babdb3); background: var(--ms-paper, #f6f5ef); padding: 18px; margin: 16px 0; overflow-wrap: break-word; }
+.site-answer-proof p { margin: 0 0 8px; }
+.site-answer-proof .site-proof-headline { font-size: 17px; font-weight: 600; line-height: 1.45; }
+.site-answer-proof h4 { margin: 18px 0 6px; font-size: 15px; font-weight: 600; }
+.site-answer-proof ul.site-proof-rows { list-style: none; padding-left: 0; margin: 8px 0; }
+.site-proof-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 12px; padding: 8px 0; border-top: 1px solid var(--ms-rule, #babdb3); }
+.site-answer-proof li.site-proof-row + li { margin-top: 0; }
+.site-proof-name { flex: 1 1 12rem; }
+.site-proof-best .site-proof-name strong { color: var(--ms-green, #203d2e); }
+.site-proof-mark { font-size: 12px; font-weight: 650; text-transform: uppercase; letter-spacing: .5px; color: var(--ms-paper, #f6f5ef); background: var(--ms-green, #203d2e); padding: 1px 8px; }
+.site-answer-proof .site-proof-notes, .site-answer-proof .site-proof-sources { margin: 4px 0 10px; }
+.site-answer-proof .site-proof-for-job { margin: 12px 0 0; font-weight: 600; }
+.site-answer-standalone { margin: 0 0 20px; padding: 0; }
+.site-answer-next .site-answer-consent { margin: 10px 0 0; }

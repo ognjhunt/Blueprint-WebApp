@@ -13,6 +13,8 @@ import { RobotAccess, isRobotAccess, type RobotAccessView } from "@/components/s
 import { NextTaskUpdate } from "@/components/site/NextTaskUpdate";
 import { SiteAnswer } from "@/components/site/SiteAnswer";
 import { isSiteAnswer, type SiteAnswer as SiteAnswerView } from "@/lib/siteAnswer";
+import { projectSimulationProof } from "@/lib/simulationProof";
+import type { JobManagedEvidenceSummary, JobMarketplaceWorkflow } from "@/types/jobMarketplace";
 /**
  * The page an operator or filmer opens from a private job link.
  *
@@ -29,7 +31,7 @@ import { isSiteAnswer, type SiteAnswer as SiteAnswerView } from "@/lib/siteAnswe
  * two-minute wait is how someone decides the page is broken and closes it.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { CaptureHandoffQr } from "@/components/site/CaptureHandoffQr";
 import { CaptureRecorder, type ChecklistItem } from "@/components/site/CaptureRecorder";
@@ -76,6 +78,11 @@ type TaskStatus = {
   /** The site's answer: which robot most likely fits, for the owner only. A fit check, never a physical test. */
   answer?: SiteAnswerView | null;
 };
+
+/** Decisions that ask something of the site, or end the job: the status card stays for them under any answer. */
+const SITE_DECISIONS = new Set(["add_views", "ended", "save_account", "footage_before_account", "not_now", "call_needed", "record"]);
+/** A privacy or rights notice is never hidden: recording permission, consent, a withdrawal or an unconfirmed processing hold. */
+const RIGHTS_NOTICE = /consent|permission|withdr|rights|not been confirmed/i;
 
 function isTargetChoice(value: unknown): value is TaskTargetChoiceView {
   const item = value as Partial<TaskTargetChoiceView> | null;
@@ -179,6 +186,9 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
   const [assessmentRetryMessage, setAssessmentRetryMessage] = useState<string | null>(null);
   const assessmentRetryIntent = useRef<{ key: string; identity: string } | null>(null);
   const [statusRefresh, setStatusRefresh] = useState(0);
+  // The job workspace's own workflow read, shared with the page: the proof in simulation makes no request of its own.
+  const [evaluations, setEvaluations] = useState<JobManagedEvidenceSummary[] | null>(null);
+  const onWorkflow = useCallback((workflow: JobMarketplaceWorkflow) => setEvaluations(workflow.managedEvidence ?? []), []);
   const [recordingConsent, setRecordingConsent] = useState(false);
   const [savingConsent, setSavingConsent] = useState(false);
   const [consentError, setConsentError] = useState<string | null>(null);
@@ -617,10 +627,23 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
   // forms below become an optional correction of the job we read from the video.
   const answer = saved && scope === "owner" && currentStatusKnown ? status?.answer ?? null : null;
   const answerSettled = answer?.state === "ready" || answer?.state === "cannot_assess";
+  // Proof in simulation: part of the answer, or on its own where an older job has evaluations and no answer.
+  const robotFit = status?.robotFit ?? null;
+  const answerPick = answer?.state === "ready" ? answer.pick : null;
+  const proof = useMemo(() => evaluations && (answer || evaluations.length > 0)
+    ? projectSimulationProof({ evaluation: evaluations, robotFit, pick: answerPick }) : null, [evaluations, answer, answerPick, robotFit]);
+  // Under a settled answer the status card keeps only what the site still has to do or know: a step of its
+  // own, a new video, an account, recording permission or a withdrawal, or an ended job. Waits on the
+  // simulation are the proof section's to say, so the card does not repeat them as if the job were waiting.
+  const siteStillHasSomething = !answerSettled || link.status !== "valid" || upload.status === "held" || Boolean(status && (
+    (status.operatorAction && !optionalCorrectionHint) || status.outcome?.actionOwner === "site"
+    || SITE_DECISIONS.has(status.decision) || RIGHTS_NOTICE.test(`${status.headline} ${status.outcome?.reason ?? ""}`)));
+  const quietCard = !siteStillHasSomething;
 
   // One current update. Saved jobs show it before results; a fresh capture
   // keeps the recorder first. Optional corrections do not become next steps.
-  const statusCard = status && currentStatusKnown ? (
+  const statusCard = status && currentStatusKnown
+    && (!quietCard || status.siteAdvisory || status.sceneViewUrl || (status.claimUrl && !accountHold)) ? (
     <div
       style={{
         border: "1px solid var(--ms-rule)",
@@ -629,7 +652,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
         background: "var(--ms-paper)",
       }}
     >
-      <strong>{status.outcome ? status.headline : upload.status === "processing_pending" || upload.status === "held"
+      {!quietCard && <><strong>{status.outcome ? status.headline : upload.status === "processing_pending" || upload.status === "held"
         ? "Your video is saved."
         : optionalCorrectionHint ? preparationUpdate
         : existingVideoOnly && !saved && status.decision !== "add_views"
@@ -641,7 +664,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
         </p>
       )}
       <TaskOutcomeNotice showTitle={false} outcome={status.outcome} />
-      {status.decision !== "ended" && !answerSettled && <NextTaskUpdate nextUpdateIso={status.nextUpdateIso} />}
+      {status.decision !== "ended" && !answerSettled && <NextTaskUpdate nextUpdateIso={status.nextUpdateIso} />}</>}
       <SiteAdvisoryReport advisory={status.siteAdvisory}>
       {scope === "owner" && link.status === "valid" && status.siteAdvisory?.state === "needs_review"
         && status.assessment_retry_available === true && status.assessment_job_id && status.assessment_run_id && (
@@ -733,10 +756,10 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
         {link.status === "held" || saved ? "Your job" : existingVideoOnly ? "Upload your existing video" : onAPhone ? "Film the work area" : "Upload or record your job"}
       </h1>
 
-      {answer && <SiteAnswer token={token} answer={answer} onIntroductionRequested={() => setStatusRefresh(value => value + 1)} />}
+      {answer && <SiteAnswer token={token} answer={answer} proof={proof} onIntroductionRequested={() => setStatusRefresh(value => value + 1)} />}
       {(saved || link.status !== "valid") && statusCard}
       {saved && (link.status === "valid" || link.status === "held") && scope === "owner"
-        && <JobWorkspace token={token} preparationOutcome={status?.outcome} resultSuperseded={status?.resultSuperseded} currentStatusKnown={currentStatusKnown} currentNextAction={currentStatusKnown && status ? optionalCorrectionHint
+        && <JobWorkspace token={token} onWorkflow={onWorkflow} proof={answer ? null : proof} preparationOutcome={status?.outcome} resultSuperseded={status?.resultSuperseded} currentStatusKnown={currentStatusKnown} currentNextAction={currentStatusKnown && status ? optionalCorrectionHint
           ? {text: preparationUpdate, owner: "blueprint"}
           : {text: status.operatorAction || status.headline, owner: status.operatorAction || status.decision === "confirm_brief" ? "site" : "blueprint"} : undefined} />}
       {saved && scope === "owner" && currentStatusKnown && status?.targetChoice

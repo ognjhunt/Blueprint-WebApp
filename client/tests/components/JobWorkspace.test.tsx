@@ -3,6 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { JobWorkspace } from "@/components/site/JobWorkspace";
 import type { JobMarketplaceWorkflow } from "@/types/jobMarketplace";
 import { processingFailure } from "../../../server/utils/taskPreparationOutcome";
+import { projectSimulationProof } from "@/lib/simulationProof";
+import { winnerEvaluation } from "../fixtures/siteAnswer";
 
 vi.mock("@/lib/csrf", () => ({ withCsrfHeader: async (headers: Record<string, string>) => ({ ...headers, "X-CSRF-Token": "local-test" }) }));
 const fetchMock = vi.fn();
@@ -16,11 +18,12 @@ function workflow(overrides: Partial<JobMarketplaceWorkflow> = {}): JobMarketpla
   };
 }
 const response = (value: unknown, status = 200) => ({ ok: status >= 200 && status < 300, status, json: async () => value });
-/** Simulation is folded into one block, collapsed until the site opens it. */
+/** Every policy and test detail is folded into one block, collapsed until the site opens it. */
 async function openSimulation() {
-  const summary = await screen.findByText("Simulation evidence");
+  const summary = await screen.findByText("Simulation details");
   expect(summary.closest("details")).not.toHaveAttribute("open");
-  expect(screen.getByText("Simulation runs for this job, where we made any. They have not been checked against real trials.")).toBeVisible();
+  expect(screen.getByText("Every policy we set up, and why any did not run.")).toBeVisible();
+  expect(screen.queryByText(/checked against real trials/)).toBeNull();
   fireEvent.click(summary);
 }
 
@@ -70,7 +73,8 @@ describe("the site's job workspace", () => {
     expect(await screen.findByRole("region", { name: "Job progress" })).toBeVisible();
     // Nothing to show yet: no empty "Results" heading and no simulation block.
     expect(screen.queryByRole("heading", { name: "Results" })).toBeNull();
-    expect(screen.queryByText("Simulation evidence")).toBeNull();
+    expect(screen.queryByText("Simulation details")).toBeNull();
+    expect(screen.queryByRole("region", { name: "Proof in simulation" })).toBeNull();
     expect(screen.queryByRole("list", { name: "Job milestones" })).not.toBeInTheDocument();
     expect(screen.queryByText("Brief agreed")).not.toBeInTheDocument();
     expect(screen.queryByText("Options assessed")).not.toBeInTheDocument();
@@ -288,4 +292,20 @@ it("leaves the parent's current update in one place without repeating a stale wo
   expect(screen.getAllByText(current)).toHaveLength(1);
   expect(screen.queryByText("Confirm the old brief.")).not.toBeInTheDocument();
   expect(screen.queryByText("Next action · You")).not.toBeInTheDocument();
+});
+
+it("shares its one workflow read with the page and shows a proof handed back, open, above the folded details", async () => {
+  const loaded = workflow({ briefAgreed: true, managedEvidence: [winnerEvaluation] });
+  fetchMock.mockResolvedValue(response(loaded));
+  const onWorkflow = vi.fn();
+  const proof = projectSimulationProof({ evaluation: [winnerEvaluation], pick: null });
+  render(<JobWorkspace token="owner-token" onWorkflow={onWorkflow} proof={proof} />);
+  const section = await screen.findByRole("region", { name: "Proof in simulation" });
+  expect(section.closest("details")).toBeNull();
+  expect(within(section).getByText(proof.headline)).toBeVisible();
+  await waitFor(() => expect(onWorkflow).toHaveBeenCalledWith(loaded));
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+  const details = screen.getByText("Simulation details").closest("details")!;
+  expect(details).not.toHaveAttribute("open");
+  expect(section.compareDocumentPosition(details) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 });

@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { withCsrfHeader } from "@/lib/csrf";
+import type { SimulationProof as SimulationProofView } from "@/lib/simulationProof";
+import { SimulationProof } from "./SimulationProof";
 import {
   ANSWER_CONFIDENCE_LABELS, ANSWER_VERDICT_LABELS, EVIDENCE_LEVEL_LABELS,
   type AnswerBasis, type AnswerEvidence, type AnswerRobot, type SiteAnswer as SiteAnswerView,
@@ -14,6 +16,10 @@ const BASIS_LABELS: Readonly<Record<AnswerBasis, string>> = {
 };
 
 const INTRODUCTION_FAILED = "We could not send your request just now. Try again shortly.";
+export const FIND_COMPANY_LABEL = "Find a deployment company for this job";
+export const FIND_COMPANY_CONSENT = "This shares an anonymised summary of your job and this answer with deployment companies Blueprint has approved. Your video, address and contacts stay private.";
+const askedListed = (date: string) => `You asked on ${date}. Your job card is now visible to approved deployment companies, and Blueprint will email you when one responds.`;
+const askedUnlisted = (date: string) => `You asked on ${date}. Blueprint will set up your job card and email you.`;
 
 /** A date in words. A bare `YYYY-MM-DD` is read as that calendar day, whatever the viewer's time zone. */
 function dateInWords(value: string): string {
@@ -87,11 +93,16 @@ function JobLine({ job }: { job: SiteAnswerView["job"] }) {
     : <>Your job: “{sentence}”.</>}</p>;
 }
 
-/** One button: ask Blueprint for an introduction. Asked once, it says so and the date. */
+/**
+ * One button: find a deployment company. One click is the site's explicit choice to share an
+ * anonymised summary with approved companies; asked once, it says so and the date.
+ */
 function Introduction({ token, answer, onRequested }: { token: string; answer: SiteAnswerView; onRequested?: () => void }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [requestedAt, setRequestedAt] = useState<string | null>(null);
+  // Only a response that says the card is not listed changes the confirmation; a stored request reads as listed.
+  const [listed, setListed] = useState(true);
   const asked = requestedAt ?? answer.introductionRequestedAtIso;
   async function ask() {
     if (busy) return;
@@ -103,6 +114,7 @@ function Introduction({ token, answer, onRequested }: { token: string; answer: S
       });
       const result = await response.json().catch(() => null);
       if (!response.ok || result?.ok !== true) throw new Error(INTRODUCTION_FAILED);
+      setListed(result.listed !== false);
       setRequestedAt(typeof result.requestedAtIso === "string" ? result.requestedAtIso : new Date().toISOString());
       onRequested?.();
     } catch { setError(INTRODUCTION_FAILED); }
@@ -111,12 +123,12 @@ function Introduction({ token, answer, onRequested }: { token: string; answer: S
   return <div className="job-next-action site-answer-next">
     <p className="job-eyebrow">Next step</p>
     {asked
-      ? <p role="status">You asked for an introduction on {dateInWords(asked)}. Blueprint will reply by email.</p>
+      ? <p role="status">{(listed ? askedListed : askedUnlisted)(dateInWords(asked))}</p>
       : <>
-        <p>{answer.nextStep.text}</p>
         <button type="button" className="ms-button" disabled={busy} onClick={() => void ask()}>
-          {busy ? "Sending…" : "Ask for an introduction"}
+          {busy ? "Sending…" : FIND_COMPANY_LABEL}
         </button>
+        <p className="ms-field-hint site-answer-consent">{FIND_COMPANY_CONSENT}</p>
         {error && <p role="alert">{error}</p>}
       </>}
   </div>;
@@ -124,11 +136,11 @@ function Introduction({ token, answer, onRequested }: { token: string; answer: S
 
 /**
  * The site's answer, at the top of its job page: which robot most likely fits
- * the job, the runner-up, what was ruled out, how sure we are and one next
- * step. While there is no pick it says why, and offers no button.
+ * the job, the runner-up, the proof in simulation, what was ruled out, how sure
+ * we are and one next step. While there is no pick it says why, and offers no button.
  */
-export function SiteAnswer({ token, answer, onIntroductionRequested }: {
-  token: string; answer: SiteAnswerView; onIntroductionRequested?: () => void;
+export function SiteAnswer({ token, answer, proof, onIntroductionRequested }: {
+  token: string; answer: SiteAnswerView; proof?: SimulationProofView | null; onIntroductionRequested?: () => void;
 }) {
   const pick = answer.state === "ready" ? answer.pick : null;
   return <section className="site-answer" aria-labelledby="site-answer-title">
@@ -137,6 +149,7 @@ export function SiteAnswer({ token, answer, onIntroductionRequested }: {
     {!pick ? <>
       {answer.reason && <p>{answer.reason}</p>}
       {answer.formNote && <p>{answer.formNote}</p>}
+      {proof && <SimulationProof proof={proof} />}
       <Facts facts={answer.facts} />
     </> : <>
       <JobLine job={answer.job} />
@@ -145,6 +158,7 @@ export function SiteAnswer({ token, answer, onIntroductionRequested }: {
       {answer.formNote && <p>{answer.formNote}</p>}
       {answer.runnerUp && <RunnerUp robot={answer.runnerUp} />}
       {answer.alsoFit.length > 0 && <p>Also fit on paper: {answer.alsoFit.map(robot => `${robot.manufacturer} ${robot.name}`).join(", ")}.</p>}
+      {proof && <SimulationProof proof={proof} />}
       {answer.ruledOut.length > 0 && <details className="ms-task-interest">
         <summary>Ruled out ({answer.ruledOut.length + answer.ruledOutMore})</summary>
         <ul>{answer.ruledOut.map(robot => <li key={`${robot.manufacturer} ${robot.name}`}>

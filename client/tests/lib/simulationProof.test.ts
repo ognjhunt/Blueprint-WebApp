@@ -130,7 +130,7 @@ describe("projectSimulationProof", () => {
     const other = projectSimulationProof({ evaluation: WINNER, pick: ur10e });
     expect(other.policyComparison!.sameRobotAsPick).toBe(false);
     expect(other.forThisJob).toEqual([SCALE_ESTIMATED,
-      "No public AI policy exists yet for the Universal Robots UR10e. We ran the public policies on the arm they are trained for, a Franka research arm, in a simulation of your site."]);
+      "We have no public AI policy to run on the Universal Robots UR10e, so we ran the public policies on the arm they are trained for, a Franka research arm, in a simulation of your site."]);
     const same = projectSimulationProof({ evaluation: WINNER, pick: franka, scaleMeasured: true });
     expect(same.policyComparison!.sameRobotAsPick).toBe(true);
     expect(same.forThisJob).toEqual([]);

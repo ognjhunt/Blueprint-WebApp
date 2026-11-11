@@ -205,7 +205,7 @@ function forThisJobOf(state: SimulationProofState, pick: AnswerRobot | null, sca
     const policiesForPick = Object.values(SIMULATION_POLICIES).some(entry => entry.robot.modelId === pick.modelId);
     lines.push(policiesForPick
       ? `We ran the public policies on the ${noun} they are trained for, ${robot.name}, in a simulation of your site, not on the ${pickName(pick)}.`
-      : `No public AI policy exists yet for the ${pickName(pick)}. We ran the public policies on the ${noun} they are trained for, ${robot.name}, in a simulation of your site.`);
+      : `We have no public AI policy to run on the ${pickName(pick)}, so we ran the public policies on the ${noun} they are trained for, ${robot.name}, in a simulation of your site.`);
   }
   return lines;
 }
