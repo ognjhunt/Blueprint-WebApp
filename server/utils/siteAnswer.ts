@@ -187,132 +187,17 @@ function readingObject(request: Record<string, any>): string | null {
   return text(isRecord(walkthrough) ? walkthrough.object : null) ?? text(isRecord(link) ? link.object : null);
 }
 
-function readingText(request: Record<string, any>): string | null {
-  const walkthrough = isRecord(request.walkthrough_job_estimates) ? request.walkthrough_job_estimates.job_estimates : null;
-  const parts = [readingObject(request), text(isRecord(walkthrough) ? walkthrough.basis : null),
-    text(isRecord(request.site_video_evidence) ? request.site_video_evidence.summary : null)].filter(Boolean);
-  return parts.length ? parts.join(" ") : null;
-}
-
-export function jobFamilyOf(sentence: string | null): JobFamily {
-  const value = (sentence ?? "").toLowerCase();
-  if (/pallet/.test(value)) return "palletizing";
-  if (/\b(machine|cnc|lathe|mill|press|mould|mold|injection|tend)/.test(value)) return "machine_tending";
-  return "pick_place";
-}
-
 /* ------------------------------------------------------------- the kind of job */
 
 /*
- * Whether a reach-and-payload check means anything depends on what is DONE to
- * the object (carried from one place to another), never on what it is called.
- * In this order:
- *   1. a job sentence the site typed or confirmed, by the verb rule;
- *   2. else the video reader's own `job_kind` (the model that watched the job);
- *   3. else the verb rule on the reader's sentences, then the numbers rule (an
- *      object and a distance or a height is a pick and a place).
- * Nouns and the simulation's scope reasons never decide.
+ * No word list decides anything about the job. The video reader, which watched
+ * the job and read the site's description, says what kind it is (`job_kind`):
+ * "other" means robots cannot be checked against it; a carrying kind means they
+ * can, and it gives the job family. When the reader does not say (an older
+ * reading, or footage that did not show the job), the check runs on the numbers
+ * and the standing note says what it covers. What else the job involves comes
+ * only from the reader's `other_actions`, a closed list.
  */
-
-/*
- * The verb rule: a word counts as a verb only where grammar makes it one, and when unsure the rule says nothing,
- * leaving the decision to the reader's `job_kind` or the numbers rule. A carrying word counts in any form unless a
- * determiner comes right before it ("the load"), and another-action word counts only as an -ing form not after a
- * determiner or a carrying word, a base or -s form followed by an object word ("fold the towels"), a base form
- * opening a sentence with no carrying word ("Fold towels"), or a past form after "is", "are", "get" and the like.
- */
-
-/** Verbs that carry an object from one place to another. */
-const CARRY_VERBS = ["pick", "place", "put", "move", "transfer", "load", "unload", "stack", "unstack", "lift", "carry",
-  "pack", "unpack", "palletize", "palletise", "depalletize", "depalletise", "sort", "stock", "restock", "feed", "tend",
-  "take", "bring", "remove", "grab", "drop", "deliver", "retrieve", "collect", "fetch"];
-/** Verbs that do something else to the object. */
-const OTHER_VERBS = ["fold", "pour", "wipe", "sweep", "mop", "scrub", "screw", "unscrew", "tighten", "assemble", "insert",
-  "cut", "weld", "paint", "spray", "sand", "polish", "stir", "mix", "sew", "tie", "peel", "open", "close", "push", "press",
-  "pull", "twist"];
-/** Verbs whose last consonant doubles before -ing and -ed. */
-const DOUBLED = new Set(["put", "cut", "stir", "mop", "scrub", "grab", "drop"]);
-/** Irregular forms, by kind. */
-const IRREGULAR: Record<string, { ed?: string[]; ing?: string }> = {
-  feed: { ed: ["fed"] }, sweep: { ed: ["swept"] }, sew: { ed: ["sewn"] }, tie: { ing: "tying" },
-  put: { ed: ["put"] }, cut: { ed: ["cut"] }, take: { ed: ["took", "taken"] }, bring: { ed: ["brought"] },
-};
-
-type FormKind = "base" | "s" | "ed" | "ing";
-
-/** The -ing word a site reads for an action ("opening"). */
-function ingOf(base: string): string {
-  if (IRREGULAR[base]?.ing) return IRREGULAR[base].ing!;
-  if (/[^aeiou]y$/.test(base)) return `${base}ing`;
-  return `${DOUBLED.has(base) ? base + base.slice(-1) : base.endsWith("e") ? base.slice(0, -1) : base}ing`;
-}
-
-/** A verb's forms with their kind: the base, -s, -ed (and irregular past) and -ing, with the usual spelling changes. */
-function inflections(base: string): Array<[string, FormKind]> {
-  const stem = DOUBLED.has(base) ? base + base.slice(-1) : base.endsWith("e") ? base.slice(0, -1) : base;
-  const consonantY = /[^aeiou]y$/.test(base);
-  const s = consonantY ? `${base.slice(0, -1)}ies` : /(s|x|z|ch|sh)$/.test(base) ? `${base}es` : `${base}s`;
-  const ed = IRREGULAR[base]?.ed ?? [consonantY ? `${base.slice(0, -1)}ied` : base.endsWith("e") ? `${base}d` : `${stem}ed`];
-  return [[base, "base"], [s, "s"], ...ed.map((form): [string, FormKind] => [form, "ed"]), [ingOf(base), "ing"]];
-}
-function formsOf(verbs: string[]): Map<string, { base: string; kinds: Set<FormKind> }> {
-  const forms = new Map<string, { base: string; kinds: Set<FormKind> }>();
-  for (const base of verbs) {
-    for (const [form, kind] of inflections(base)) {
-      const entry = forms.get(form) ?? { base, kinds: new Set<FormKind>() };
-      entry.kinds.add(kind);
-      forms.set(form, entry);
-    }
-  }
-  return forms;
-}
-const CARRY_FORMS = formsOf(CARRY_VERBS);
-const OTHER_FORMS = formsOf(OTHER_VERBS);
-const CARRY_INGS = new Set(CARRY_VERBS.map(ingOf));
-/** A word right after one of these is a noun or a describing word: "the load", "a folding table". */
-const DETERMINERS = new Set(["the", "a", "an", "this", "that", "these", "those", "each", "every", "per", "of", "our", "its",
-  "their", "your", "my", "some", "any", "no"]);
-/** A word that, right after a base or -s form, makes it a verb with an object: "fold the towels", "wipe it". */
-const OBJECT_WORDS = new Set(["the", "a", "an", "each", "every", "it", "them", "this", "that", "these", "those", "its", "their", "all"]);
-/** A past form right after one of these is a verb: "towels are folded". */
-const PASSIVE = new Set(["is", "are", "was", "were", "be", "been", "being", "get", "gets", "got"]);
-
-type VerbReading = { carry: boolean; others: string[] };
-
-/** The carrying verbs and the other verbs a text uses as verbs, by the positions above. */
-function verbsIn(text: string): VerbReading {
-  let carry = false;
-  const others: string[] = [];
-  for (const sentence of text.toLowerCase().split(/[.!?;\n]+/)) {
-    const words = sentence.split(/[^a-z]+/).filter(Boolean);
-    const isCarry = (index: number) => index >= 0 && CARRY_FORMS.has(words[index])
-      && !(index > 0 && DETERMINERS.has(words[index - 1]));
-    const sentenceCarries = words.some((_, index) => isCarry(index));
-    carry ||= sentenceCarries;
-    words.forEach((word, index) => {
-      const other = OTHER_FORMS.get(word);
-      if (!other) return;
-      const before = index > 0 ? words[index - 1] : null;
-      const after = words[index + 1] ?? null;
-      const kinds = other.kinds;
-      const asVerb = (kinds.has("ing") && !(before && DETERMINERS.has(before)) && !isCarry(index - 1))
-        || ((kinds.has("base") || kinds.has("s")) && after !== null && OBJECT_WORDS.has(after))
-        || (kinds.has("base") && index === 0 && !sentenceCarries)
-        || (kinds.has("ed") && before !== null && PASSIVE.has(before));
-      if (asVerb) others.push(ingOf(other.base));
-    });
-  }
-  return { carry, others: [...new Set(others)] };
-}
-
-/** The verb rule over some sentences: assess (with what else is done), not assessable, or no verdict. */
-function verbRule(sentences: string[]): { decision: "assess" | "other"; others: string[] } | null {
-  const readings = sentences.map(verbsIn);
-  const carry = readings.some((reading) => reading.carry);
-  const others = [...new Set(readings.flatMap((reading) => reading.others))];
-  if (carry) return { decision: "assess", others };
-  return others.length ? { decision: "other", others } : null;
-}
 
 const REASON_OTHER_KIND = "This check covers jobs where a robot picks one solid object up and puts it down. Your job looks like another kind, which we can't check robots against yet.";
 const UNKNOWN_MULTI_STEP = "Your job has more than one step; this checks one carry.";
@@ -326,46 +211,27 @@ const READER_FAMILY: Record<"pick_and_place" | "palletizing" | "machine_tending"
   pick_and_place: "pick_place", palletizing: "palletizing", machine_tending: "machine_tending",
 };
 
-/**
- * The video reading's own sentences: the coverage review's basis, and a linked
- * video's summary and basis. The object's bare name is never read on its own.
- */
-function readingTexts(request: Record<string, any>): string[] {
-  const walkthrough = isRecord(request.walkthrough_job_estimates) ? request.walkthrough_job_estimates.job_estimates : null;
-  const link = isRecord(request.site_video_evidence) ? request.site_video_evidence : null;
-  return [text(isRecord(walkthrough) ? walkthrough.basis : null), text(link?.summary),
-    text(isRecord(link?.job_estimates) ? link!.job_estimates.basis : null)].filter((entry): entry is string => Boolean(entry));
-}
-
 interface Scope {
-  /** The job is plainly another kind: no robot can be checked against it. */
+  /** The reader says the job mainly does something else to the object: no robot can be checked against it. */
   otherKind: boolean;
-  /** The reader's kind of job, when it decided; it then also gives the job family. */
-  readerFamily: JobFamily | null;
-  /** What else is done to the object besides carrying it, as -ing words. */
+  /** The job family: the reader's kind of job when it gives one, otherwise pick and place. */
+  family: JobFamily;
+  /** What else is done to the object besides carrying it, from the reader's closed list. */
   otherActions: string[];
   multiStep: boolean;
 }
 
-/** Whether robots can be checked against the job, by the precedence above. */
-function scopeOf(inputs: RobotFitInputs, request: Record<string, any>, siteSentences: string[], jobSentences: string[]): Scope {
+/** Whether robots can be checked against the job, from the reader's own kind of job. */
+function scopeOf(inputs: RobotFitInputs, jobSentences: string[]): Scope {
   const estimates = videoEvidence(inputs)?.estimates ?? null;
-  // The reader's other actions add to what the job also involves; a carrying word is not another action.
-  const readerActions = (estimates?.otherActions ?? []).filter((word) => !CARRY_INGS.has(word));
-  const multiStep = jobSentences.some((sentence) => Boolean(multiStepEvidence(sentence)));
-  const scope = (otherKind: boolean, others: string[], readerFamily: JobFamily | null = null): Scope =>
-    ({ otherKind, readerFamily, otherActions: otherKind ? [] : [...new Set([...others, ...readerActions])], multiStep });
-  const site = verbRule(siteSentences);
-  if (site) return scope(site.decision === "other", site.others);
   const kind = estimates?.jobKind ?? null;
-  if (kind === "other") return scope(true, []);
-  if (kind) return scope(false, [], READER_FAMILY[kind]);
-  const reading = verbRule(readingTexts(request));
-  if (reading) return scope(reading.decision === "other", reading.others);
-  // The numbers rule: an object and a distance or a height is a pick and a place. Without them nothing has
-  // said the job is another kind either, so it is not ruled out here: the caller then says the job could not be
-  // sized, or that the video is still being read.
-  return scope(false, []);
+  const otherKind = kind === "other";
+  return {
+    otherKind,
+    family: kind && kind !== "other" ? READER_FAMILY[kind] : "pick_place",
+    otherActions: otherKind ? [] : estimates?.otherActions ?? [],
+    multiStep: jobSentences.some((sentence) => Boolean(multiStepEvidence(sentence))),
+  };
 }
 
 const APPROACH_PROGRAMMED = "A programmed application: the installer teaches the robot this motion once.";
@@ -692,8 +558,8 @@ export function composeSiteAnswer(inputs: SiteAnswerInputs): SiteAnswer | null {
   // confirmed them; a summary drafted from the video is the reader's words, not the site's.
   const success = isRecord(brief?.successCriteria) ? text(brief!.successCriteria.successDefinition) : null;
   const jobSentences = [summary, success].filter((entry): entry is string => Boolean(entry));
-  const scope = scopeOf(fitInputs, request, drafted ? [] : jobSentences, jobSentences);
-  const family = scope.readerFamily ?? jobFamilyOf(summary ?? readingText(request));
+  const scope = scopeOf(fitInputs, jobSentences);
+  const family = scope.family;
   const familyLabel = JOB_FAMILY_LABELS[family];
 
   const answerFacts: SiteAnswer["facts"] = known.map((entry) => ({ label: entry.label, display: entry.display, basis: entry.source as AnswerBasis }));
