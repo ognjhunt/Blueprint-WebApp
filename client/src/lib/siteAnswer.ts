@@ -144,6 +144,8 @@ export const UNKNOWN_MULTI_STEP = "Your job has more than one step; this checks 
 export const ALSO_INVOLVES_PREFIX = "Your job also involves ";
 /** The end of that line. */
 export const ALSO_INVOLVES_SUFFIX = "; this checks only the picking up and putting down.";
+/** The end of a passed check's sentence when it has little to spare (server/utils/siteAnswer.ts `TIGHT_FIT` says " " + this). */
+export const TIGHT_FIT_SENTENCE = "This is a tight fit.";
 /** The stored coverage review says the video does not cover the scene. */
 export const UNKNOWN_SCENE_NOT_COVERED = "Your video does not show the whole work area.";
 /** Why a finished reading gave nothing to size; the answer email keys on it, and the page offers a new video. */

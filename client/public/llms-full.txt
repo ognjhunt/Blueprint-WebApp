@@ -1,23 +1,21 @@
 # Blueprint
 
-> Find the right way to automate your work. Send an email and a video of one recurring job. Blueprint checks real robots against it by their published specifications and a cited track record, shows you the one that most likely fits and how sure it is, checks its reach and arm path in a simulation of your site, and then lets you share the job with deployment companies it has approved.
+> Which robot could do your job? Send an email and a video of one job that repeats. Blueprint tests the top robots on your job in a simulation of your site, shows you which did best and how sure it is, from published specifications and a cited track record, and then lets you share the job with companies it has approved to set robots up.
 
 Blueprint starts with video of recurring work and drafts the job description from it. The site's answer comes first, minutes after the video is read: the robot that most likely fits, a runner-up from another maker, what was ruled out and why, published uses of those robots on similar work, and how sure Blueprint is. Blueprint then reconstructs the site in simulation, checks the picked robot's reach and arm path there and compares public control policies on the job on a research robot, and shows what the simulation found with a cited statement of how far that can be trusted, or “held” for the simulation when it can't simulate that kind of job yet; the answer stays on the job page either way. Video is required before the site assessment can continue; a description alone does not replace it. With one click the site can share an anonymised job card, with the answer and the simulation result, with deployment companies Blueprint has approved, and Blueprint works alongside a deployment company on the real site. Customers contract with the deployment company, which installs and supports the system. Deployment partners and robot technology providers have separate reviewed application paths. The beta remains free for sites and partners, with no Blueprint cut of physical pilot costs. Simulation is a bounded estimate and never certifies physical performance or safety. Customer-reported pilot outcomes remain separate from authoritative scientific Physical Outcome Joins.
 
 ## Public pages
 
-- [Jobs we support](https://tryblueprint.io/jobs-we-support)
-- [For partners](https://tryblueprint.io/partners)
+- [For robot companies](https://tryblueprint.io/partners)
 - [Deployment partners](https://tryblueprint.io/partners/deployment)
 - [Technology providers](https://tryblueprint.io/partners/technology)
 
 - [Home](https://tryblueprint.io/)
 - [How it works](https://tryblueprint.io/how-it-works)
-- [Beta program](https://tryblueprint.io/beta)
-- [Show us a task (sites)](https://tryblueprint.io/contact/site-operator)
+- [Questions: cost, jobs that fit, privacy, who we are](https://tryblueprint.io/beta)
+- [Start a job (sites)](https://tryblueprint.io/contact/site-operator)
 - [Robot teams: apply for access](https://tryblueprint.io/contact/robot-team)
 - [Job library](https://tryblueprint.io/sites)
-- [About](https://tryblueprint.io/about)
 - [Privacy](https://tryblueprint.io/privacy)
 - [Terms](https://tryblueprint.io/terms)
 

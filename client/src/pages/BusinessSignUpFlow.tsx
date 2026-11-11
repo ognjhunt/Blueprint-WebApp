@@ -12,8 +12,8 @@ export default function BusinessSignUpFlow() {
   const destination = siteSignupDestination(search);
   return <AuthLayout>
     <MarketingRedirect to={destination} preserveQuery={false} />
-    <h1>Start with your site and job</h1>
-    <p className="auth-subtitle">Show us the work, then save it to your account.</p>
-    <p><a className="auth-primary" href={destination}>Show us a task</a></p>
+    <h1>Start a job</h1>
+    <p className="auth-description">Send a video of the job first. You can save it to an account after.</p>
+    <p><a className="auth-primary" href={destination}>Start a job</a></p>
   </AuthLayout>;
 }

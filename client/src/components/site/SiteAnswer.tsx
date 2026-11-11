@@ -2,13 +2,13 @@ import { useState, type ReactNode } from "react";
 import { withCsrfHeader } from "@/lib/csrf";
 import { JOB_CARD_ANSWER_STATEMENT, JOB_CARD_ANSWER_STATEMENT_VERSION } from "@/lib/jobCardAnswerConsent";
 import type { SimulationProof as SimulationProofView } from "@/lib/simulationProof";
-import { ComputerTestDetails, PLAIN_SETUP_CAVEAT, computerTestLine, setupCaveatShown } from "./SimulationProof";
+import { PLAIN_SETUP_CAVEAT, SimulationTestRows, TrustRows, computerTestLine, setupCaveatShown } from "./SimulationProof";
 import {
-  BareBack, BareBig, BareButton, BareDone, BareFine, BareGroup, BareLabel, BareLead, BareLinks, BareNotice, BareRows, BareSureness, BareTicks,
+  BareBack, BareBig, BareButton, BareDone, BareFine, BareGroup, BareLabel, BareLead, BareLinks, BareMenu, BareNotice, BareRows, BareSureness, BareTicks,
   type BareTickState,
 } from "@/components/bare/Bare";
 import {
-  ALSO_INVOLVES_PREFIX, REASON_UNSIZED, SITE_ANSWER_LIMITS, UNKNOWN_JOB_KIND, UNKNOWN_MULTI_STEP, isScopeNote,
+  ALSO_INVOLVES_PREFIX, REASON_UNSIZED, SITE_ANSWER_LIMITS, TIGHT_FIT_SENTENCE, UNKNOWN_JOB_KIND, UNKNOWN_MULTI_STEP, isScopeNote,
   type AnswerBasis, type AnswerCheck, type AnswerConfidenceLevel, type AnswerEvidence, type AnswerRobot, type SiteAnswer as SiteAnswerView,
 } from "@/lib/siteAnswer";
 
@@ -25,6 +25,13 @@ const INTRODUCTION_FAILED = "We could not send your request just now. Try again 
 /** Said only when the response or the stored card says the card is listed. */
 export const SHARED_LISTED = "✓ Shared. We'll email you when a company replies.";
 const askedUnlisted = (date: string) => `You asked on ${date}. Blueprint will set up your job card and email you.`;
+/** The card is listed, but under the older sharing box, which does not share the answer: said so, and the button is back. */
+export const SHARED_WITHOUT_ANSWER = "Your job is shared without this answer. Press the button to share the answer too.";
+/**
+ * Where the job card stands, read from the owner's own listing: on with the answer (a with-answer statement), on
+ * without it (the older box), or off. Null until it is read; the stored answer's `jobCardListed` then decides.
+ */
+export type CardState = "with_answer" | "without_answer" | "off" | null;
 export const READING_LINE = "We're watching your video.";
 export const READING_HELPER = "We'll email you when it's ready.";
 export const EDIT_JOB_LABEL = "Change my job description";
@@ -60,10 +67,15 @@ export function evidenceTick(evidence: Pick<AnswerEvidence, "level" | "scope"> |
   return family ? "Robots like this are sold for jobs like this" : "Sold for jobs like this";
 }
 
-export function ticksOf(checks: Array<Pick<AnswerCheck, "key" | "outcome">>, evidence: Pick<AnswerEvidence, "level" | "scope"> | undefined) {
+/** A passed check with little to spare: the server ends its sentence with this (`TIGHT_FIT_SENTENCE`), or the card says so. */
+export const isTight = (check: { text?: string; tight?: boolean }) =>
+  check.tight === true || (typeof check.text === "string" && check.text.endsWith(` ${TIGHT_FIT_SENTENCE}`));
+
+export function ticksOf(checks: Array<Pick<AnswerCheck, "key" | "outcome"> & { text?: string; tight?: boolean }>, evidence: Pick<AnswerEvidence, "level" | "scope"> | undefined) {
   const items: Array<{ key: string; state: BareTickState; text: string }> = checks
     .filter(check => check.outcome !== "fail")
-    .map(check => ({ key: check.key, state: check.outcome === "pass" ? "yes" : "unsure", text: (check.outcome === "pass" ? CHECK_PASS : CHECK_OPEN)[check.key] }));
+    .map(check => ({ key: check.key, state: check.outcome === "pass" ? "yes" : "unsure",
+      text: check.outcome === "pass" ? `${CHECK_PASS[check.key]}${isTight(check) ? ", only just" : ""}` : CHECK_OPEN[check.key] }));
   const record = evidenceTick(evidence);
   return record ? [...items, { key: "evidence", state: "yes" as const, text: record }] : items;
 }
@@ -103,12 +115,14 @@ function cannotLine(reason: string | null): string | null {
  * One button: find a company. One click is the site's explicit choice to share what the line under it says; asked
  * once, it says so instead. When the page has a step the site must take first, the button stays, quiet.
  */
-function Introduction({ token, answer, onRequested, quiet }: { token: string; answer: SiteAnswerView; onRequested?: () => void; quiet: boolean }) {
+function Introduction({ token, answer, onRequested, quiet, card }: { token: string; answer: SiteAnswerView; onRequested?: () => void; quiet: boolean; card: CardState }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [requested, setRequested] = useState<{ at: string; listed: boolean } | null>(null);
   const asked = requested?.at ?? answer.introductionRequestedAtIso;
-  const listed = requested ? requested.listed : answer.jobCardListed === true;
+  // This page's own press is the latest word; until then, the owner's listing as read, then the stored card.
+  const state: "with_answer" | "without_answer" | "off" = requested ? (requested.listed ? "with_answer" : "off")
+    : card ?? (answer.jobCardListed === true ? "with_answer" : "off");
   async function ask() {
     if (busy) return;
     setBusy(true); setError("");
@@ -126,8 +140,9 @@ function Introduction({ token, answer, onRequested, quiet }: { token: string; an
     } catch { setError(INTRODUCTION_FAILED); }
     finally { setBusy(false); }
   }
-  if (asked) return <BareGroup><BareDone>{listed ? SHARED_LISTED : askedUnlisted(dateInWords(asked))}</BareDone></BareGroup>;
+  if (asked && state !== "without_answer") return <BareGroup><BareDone>{state === "with_answer" ? SHARED_LISTED : askedUnlisted(dateInWords(asked))}</BareDone></BareGroup>;
   return <BareGroup>
+    {asked && <BareNotice role="status">{SHARED_WITHOUT_ANSWER}</BareNotice>}
     <BareButton onClick={() => void ask()} disabled={busy} quiet={quiet} helper={FIND_COMPANY_CONSENT}>{busy ? "Sending…" : FIND_COMPANY_LABEL}</BareButton>
     {error && <p role="alert">{error}</p>}
   </BareGroup>;
@@ -143,14 +158,19 @@ export interface SiteAnswerProps {
   quietAction?: boolean;
   onShowDetails?: () => void;
   onShowSettings?: () => void;
+  /** Where the job card stands, from the owner's listing; null until read. */
+  card?: CardState;
 }
+
+/** The scene's negative line about the pick, in plain words: it changes what the answer means, so it is never details-only. */
+export const sceneSaysNoFit = (name: string) => `In a simulation of your site, the ${name} does not fit.`;
 
 /**
  * The answer screen: the robot most likely to fit (or the closest), why in a few plain ticks, how sure, one button
  * with its line, two quiet links and the limits line. Everything else is on the details screen.
  */
 export function SiteAnswer({ token, answer, proof, onIntroductionRequested, onEditJob, onUpdateVideo, quietAction = false,
-  onShowDetails, onShowSettings }: SiteAnswerProps) {
+  onShowDetails, onShowSettings, card = null }: SiteAnswerProps) {
   const pick = answer.state === "ready" ? answer.pick : null;
   const links = [onShowDetails && answer.state !== "reading" ? { key: "details", label: "See details", onClick: onShowDetails } : null,
     onShowSettings ? { key: "settings", label: "Job settings", onClick: onShowSettings } : null].filter(Boolean) as Array<{ key: string; label: string; onClick: () => void }>;
@@ -186,7 +206,10 @@ export function SiteAnswer({ token, answer, proof, onIntroductionRequested, onEd
     </section>;
   }
 
-  const fits = pick.verdict === "fits" || pick.verdict === "fits_on_paper";
+  // The scene's own "does not fit" (on reach or where it stands) wins over a fit on published figures: the answer
+  // then calls it the closest robot, and says why, so the screen and the details never disagree.
+  const sceneNo = proof?.robotCheck?.doesNotFit === true;
+  const fits = (pick.verdict === "fits" || pick.verdict === "fits_on_paper") && !sceneNo;
   const sure = SURE[answer.confidence.level];
   return <section className="site-answer-bare" aria-label="Your answer">
     <BareGroup>
@@ -195,14 +218,16 @@ export function SiteAnswer({ token, answer, proof, onIntroductionRequested, onEd
     </BareGroup>
     <BareGroup>
       <BareTicks label="Why" items={ticksOf(pick.checks, pick.evidence[0])} />
+      {sceneNo && <BareNotice>{sceneSaysNoFit(pick.name)}</BareNotice>}
       {notices.map(line => <BareNotice key={line}>{line}</BareNotice>)}
     </BareGroup>
     <BareGroup>
-      <BareSureness filled={sure.filled} word={sure.word} reason={sureReason(pick)} />
+      {/* The reason is the server's own first reason for its sureness (`confidence.reasons`, composed in server/utils/siteAnswer.ts). */}
+      <BareSureness filled={sure.filled} word={sure.word} reason={answer.confidence.reasons[0] ?? sureReason(pick)} />
       {testLine && <p>{testLine}</p>}
       {setupCaveatShown(proof) && <BareNotice>{PLAIN_SETUP_CAVEAT}</BareNotice>}
     </BareGroup>
-    {answer.nextStep.kind === "introduction" && <Introduction token={token} answer={answer} onRequested={onIntroductionRequested} quiet={quietAction} />}
+    {answer.nextStep.kind === "introduction" && <Introduction token={token} answer={answer} onRequested={onIntroductionRequested} quiet={quietAction} card={card} />}
     <BareLinks links={links} />
     <BareFine>{LIMITS_LINE}</BareFine>
   </section>;
@@ -210,25 +235,31 @@ export function SiteAnswer({ token, answer, proof, onIntroductionRequested, onEd
 
 const BASIS_WORDS: Readonly<Record<AnswerBasis, string>> = {
   site_measured: "you measured this", site_stated: "you told us", video_observed: "seen in your video",
-  video_estimate: "estimated from your video", scene_measured: "sized in a computer copy of your site",
+  video_estimate: "estimated from your video", scene_measured: "sized in a simulation of your site",
 };
 
 function SourceLink({ href, children }: { href: string; children: ReactNode }) {
   return <a href={href} target="_blank" rel="noreferrer">{children}</a>;
 }
 
+/** "about 3–4.9 kg" → "up to 4.9 kg": the top of the range a passed check needs. */
+export const liftUpTo = (need: string) => need.replace(/^about /, "up to ").replace(/^up to ([\d.]+)–/, "up to ");
+
 /** One check as a row: the job's side and the robot's, the very figures of its sentence, with the robot's source. */
 function checkRow(check: AnswerCheck, robot: AnswerRobot) {
   const spec = robot.specs.find(entry => entry.label === (check.key === "reach" ? "Reach" : check.key === "payload" ? "Rated payload" : ""));
   const label = check.key === "reach" ? "Reach" : check.key === "payload" ? "Strength" : "Speed";
   const open = check.outcome === "unknown" ? "Can't tell yet. " : "";
+  const tight = check.outcome === "pass" && isTight(check) ? " · only just enough" : "";
   let figures: string;
   if (check.need === undefined && check.has === undefined) figures = check.text;
-  else if (check.key === "reach" && check.basis === "scene_measured") figures = `checked in a computer copy of your site${check.has ? ` · reaches ${check.has}` : ""}`;
+  else if (check.key === "reach" && check.basis === "scene_measured") figures = `checked in a simulation of your site${check.has ? ` · reaches ${check.has}` : ""}`;
   else if (check.key === "reach") figures = [check.need && `needs ${check.need}`, check.has && `reaches ${check.has}`].filter(Boolean).join(" · ") || check.text;
-  else if (check.key === "payload") figures = [check.need && `needs to lift ${check.need.replace(/^about /, "up to ").replace(/^up to ([\d.]+)–/, "up to ")}`, check.has && `lifts up to ${check.has}`].filter(Boolean).join(" · ") || check.text;
+  // A pass needs at most the top of the range; a check not settled says the whole range that straddles the rating.
+  else if (check.key === "payload") figures = [check.need && `needs to lift ${check.outcome === "pass" ? liftUpTo(check.need) : check.need}`,
+    check.has && `lifts up to ${check.has}`].filter(Boolean).join(" · ") || check.text;
   else figures = [check.need && `your target ${check.need}`, check.has && `takes ${check.has} on paper`].filter(Boolean).join(" · ") || check.text;
-  return { key: check.key, label, value: <>{open}{figures}{spec && <> (<SourceLink href={spec.sourceUrl}>source</SourceLink>)</>}</> };
+  return { key: check.key, label, value: <>{open}{figures}{tight}{spec && <> (<SourceLink href={spec.sourceUrl}>source</SourceLink>)</>}</> };
 }
 
 /** How the pick would be run, by the server's own kind (`answer.approach.kind`), in the words of its sentence made plain. */
@@ -241,39 +272,81 @@ const LEVEL_WORDS: Readonly<Record<AnswerEvidence["level"], string>> = {
   production: "In real use at a customer", pilot: "Tried at a named customer", offered: "Sold for this kind of job, no customer named",
 };
 
-/** The details screen: every true and sourced thing the answer rests on, in short labelled rows. */
-export function SiteAnswerDetails({ answer, proof, onBack }: { answer: SiteAnswerView; proof?: SimulationProofView | null; onBack: () => void }) {
+export type DetailScreen = "why" | "others" | "ruled-out" | "estimated" | "unseen" | "test" | "trust";
+const DETAIL_TITLES: Readonly<Record<DetailScreen, string>> = {
+  why: "Why this robot", others: "Other robots", "ruled-out": "Robots that don't fit", estimated: "What we estimated",
+  unseen: "What we couldn't see", test: "The simulation test", trust: "How far to trust it",
+};
+
+/** Which detail screens have something to say, in the menu's order. */
+export function detailScreens(answer: SiteAnswerView, proof?: SimulationProofView | null): DetailScreen[] {
+  const pick = answer.state === "ready" ? answer.pick : null;
+  const hasTest = Boolean(proof && proof.state !== "not_started");
+  return ([
+    (pick || (answer.reason && answer.state !== "ready")) && "why",
+    (answer.runnerUp || answer.alsoFit.length || answer.state === "ready") && "others",
+    answer.ruledOut.length > 0 && "ruled-out",
+    answer.facts.length > 0 && "estimated",
+    (answer.unknowns.some(line => !isScopeNote(line)) || answer.confidence.raiseIt.length || answer.confidence.reasons.length) && "unseen",
+    hasTest && "test",
+    hasTest && proof!.state === "done" && "trust",
+  ].filter(Boolean)) as DetailScreen[];
+}
+
+/** The details menu: one row per small screen, each with "‹ Back". */
+export function SiteAnswerDetails({ answer, proof, onBack, onOpen }: {
+  answer: SiteAnswerView; proof?: SimulationProofView | null; onBack: () => void; onOpen: (screen: DetailScreen) => void;
+}) {
+  const screens = detailScreens(answer, proof);
+  return <div className="site-answer-details">
+    <BareBack onClick={onBack} />
+    <h1 tabIndex={-1}>Details</h1>
+    <BareMenu label="Details" items={screens.map(screen => ({ key: screen, label: DETAIL_TITLES[screen], onClick: () => onOpen(screen) }))} />
+  </div>;
+}
+
+/** One detail screen: short labelled rows; the sourced sentences said word for word. */
+export function SiteAnswerDetail({ answer, proof, screen, onBack }: {
+  answer: SiteAnswerView; proof?: SimulationProofView | null; screen: DetailScreen; onBack: () => void;
+}) {
   const pick = answer.state === "ready" ? answer.pick : null;
   const others = [answer.runnerUp, ...answer.alsoFit.map(robot => ({ ...robot, verdict: "fits_on_paper" as const }))].filter(Boolean) as Array<{ manufacturer: string; name: string; verdict: AnswerRobot["verdict"] }>;
   const allFit = others.every(robot => robot.verdict === "fits" || robot.verdict === "fits_on_paper");
   const allEstimated = answer.facts.length > 0 && answer.facts.every(fact => fact.basis === "video_estimate");
   // The scope lines are said on the answer screen, beside the ticks; the rest of what the video could not show is here.
   const otherUnknowns = answer.unknowns.filter(line => !isScopeNote(line));
-  return <div className="site-answer-details">
-    <BareBack onClick={onBack} />
-    <h1>Details</h1>
-    {answer.reason && answer.state !== "ready" && <BareRows title="Why we can't check it yet" rows={[{ key: "reason", value: answer.reason }]} />}
-    {pick && <BareRows title="Why this robot" rows={[
-      { key: "name", label: "Robot", value: `${pick.manufacturer} ${pick.name} · ${pick.formLabel}` },
-      ...pick.checks.map(check => checkRow(check, pick)),
-      ...pick.evidence.map((item, index) => ({ key: `evidence-${index}`, label: index === 0 ? "Used for jobs like this" : "Also",
-        value: <>{item.summary} <span className="bare-helper">{LEVEL_WORDS[item.level]}; the source names {item.scope === "family" ? `robots like it${item.family ? ` (${item.family})` : ""}` : "this model"}. <SourceLink href={item.sourceUrl}>{item.sourceTitle}, {item.publisher}</SourceLink></span></> })),
-      ...(pick.evidence.length ? [] : [{ key: "no-evidence", label: "Used for jobs like this", value: "We found no documented use of this robot on this kind of job." }]),
-      ...(answer.approach ? [{ key: "approach", label: "How it would be run", value: APPROACH_WORDS[answer.approach.kind] }] : []),
-      { key: "robot-not-software", value: ROBOT_NOT_SOFTWARE },
-    ]} />}
-    {others.length > 0 && <BareRows title={allFit ? "Other robots that fit" : "Other robots"} rows={others.map((robot, index) => ({
-      key: `${robot.manufacturer} ${robot.name}`, value: <>{robot.manufacturer} {robot.name}{index === 0 && answer.runnerUp && !allFit && robot.verdict === "possible" && <span className="bare-helper"> · may fit</span>}</> }))} />}
-    {answer.ruledOut.length > 0 && <BareRows title={`Robots that don't fit (${answer.ruledOut.length + answer.ruledOutMore})`} rows={[
-      ...answer.ruledOut.map(robot => ({ key: `${robot.manufacturer} ${robot.name}`, label: `${robot.manufacturer} ${robot.name}`, value: robot.reason })),
-      ...(answer.ruledOutMore > 0 ? [{ key: "more", value: `And ${answer.ruledOutMore} more.` }] : []),
-    ]} />}
-    {answer.facts.length > 0 && <BareRows title={allEstimated ? "What we estimated from your video" : "The numbers we used"}
-      rows={answer.facts.map(fact => ({ key: fact.label, label: fact.label, value: <>{fact.display}{!allEstimated && <span className="bare-helper"> ({BASIS_WORDS[fact.basis]})</span>}</> }))} />}
-    {otherUnknowns.length > 0 && <BareRows title="What we couldn't see" rows={otherUnknowns.map(line => ({ key: line, value: line }))} />}
+  const title = screen === "others" && allFit && others.length ? "Other robots that fit" : screen === "estimated" && !allEstimated ? "The numbers we used" : DETAIL_TITLES[screen];
+  let body: ReactNode = null;
+  if (screen === "why") body = pick ? <BareRows title={pick.manufacturer + " " + pick.name} rows={[
+    { key: "form", label: "Kind", value: pick.formLabel },
+    ...pick.checks.map(check => checkRow(check, pick)),
+    ...pick.evidence.map((item, index) => ({ key: `evidence-${index}`, label: index === 0 ? "Used for jobs like this" : "Also",
+      value: <>{item.summary} <span className="bare-helper">{LEVEL_WORDS[item.level]}; the source names {item.scope === "family" ? `robots like it${item.family ? ` (${item.family})` : ""}` : "this model"}. <SourceLink href={item.sourceUrl}>{item.sourceTitle}, {item.publisher}</SourceLink></span></> })),
+    ...(pick.evidence.length ? [] : [{ key: "no-evidence", label: "Used for jobs like this", value: "We found no documented use of this robot on this kind of job." }]),
+    ...(answer.approach ? [{ key: "approach", label: "How it would be run", value: APPROACH_WORDS[answer.approach.kind] }] : []),
+    { key: "robot-not-software", value: ROBOT_NOT_SOFTWARE },
+  ]} /> : <BareRows title="Why we can't check it yet" rows={[{ key: "reason", value: answer.reason }]} />;
+  if (screen === "others") body = <BareRows title="Robots" rows={[
+    ...others.map((robot, index) => ({ key: `${robot.manufacturer} ${robot.name}`,
+      value: <>{robot.manufacturer} {robot.name}{index === 0 && answer.runnerUp && !allFit && robot.verdict === "possible" && <span className="bare-helper"> · may fit</span>}</> })),
+    ...(answer.state === "ready" ? [{ key: "checked", value: `We checked ${answer.checked.models} robots from ${answer.checked.makers} makers, using their published figures from ${dateInWords(answer.checked.specsRetrievedOn)}.` }] : []),
+  ]} />;
+  if (screen === "ruled-out") body = <BareRows title={`${answer.ruledOut.length + answer.ruledOutMore} robots`} rows={[
+    ...answer.ruledOut.map(robot => ({ key: `${robot.manufacturer} ${robot.name}`, label: `${robot.manufacturer} ${robot.name}`, value: robot.reason })),
+    ...(answer.ruledOutMore > 0 ? [{ key: "more", value: `And ${answer.ruledOutMore} more.` }] : []),
+  ]} />;
+  if (screen === "estimated") body = <BareRows title={allEstimated ? "From your video" : "Where each came from"}
+    rows={answer.facts.map(fact => ({ key: fact.label, label: fact.label, value: <>{fact.display}{!allEstimated && <span className="bare-helper"> ({BASIS_WORDS[fact.basis]})</span>}</> }))} />;
+  if (screen === "unseen") body = <>
+    {otherUnknowns.length > 0 && <BareRows title="We couldn't see" rows={otherUnknowns.map(line => ({ key: line, value: line }))} />}
     {answer.confidence.raiseIt.length > 0 && <BareRows title="To be surer" rows={answer.confidence.raiseIt.map(line => ({ key: line, value: line }))} />}
     {pick && answer.confidence.reasons.length > 0 && <BareRows title="How sure we are" rows={answer.confidence.reasons.map(line => ({ key: line, value: line }))} />}
-    {proof && proof.state !== "not_started" && <ComputerTestDetails proof={proof} />}
-    {answer.state === "ready" && <p className="bare-rows">We checked {answer.checked.models} robots from {answer.checked.makers} makers, using their published figures from {dateInWords(answer.checked.specsRetrievedOn)}.</p>}
+  </>;
+  if (screen === "test" && proof) body = <SimulationTestRows proof={proof} />;
+  if (screen === "trust" && proof) body = <TrustRows proof={proof} />;
+  return <div className="site-answer-details">
+    <BareBack onClick={onBack} />
+    <h1 tabIndex={-1}>{title}</h1>
+    {body}
   </div>;
 }

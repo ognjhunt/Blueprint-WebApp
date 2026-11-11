@@ -20,7 +20,7 @@ import { automationBatch } from "./automationBatch";
 import { logger } from "../logger";
 import { footageArrivedBeforeAccount } from "./siteWalkthrough";
 import { decryptFieldValue } from "./field-encryption";
-import { EMAIL_SIGN_OFF } from "./emailLayout";
+import { finePrint } from "./emailLayout";
 import { taskLifecycleNotificationIsCurrent } from "./taskLifecycleNotificationAuthority";
 import { drainPendingWebsitePreparationNotifications } from "./websitePreparationStatus";
 import { preparationEndedSentence } from "./taskStatusProjection";
@@ -36,7 +36,10 @@ import { NO_POLICY_COMPLETED, projectSimulationProof, type SimulationProof } fro
 import { SIMULATION_ACCURACY } from "../../client/src/data/simulationAccuracy";
 import { isTerminalSceneOutcomeKind, sceneOutcomeMessage, sceneOutcomeSubject,
   type TerminalSceneOutcomeKind } from "./sceneIntentOutcome";
-import { ANSWER_CONFIDENCE_LABELS, SITE_ANSWER_NOTE, type SiteAnswer } from "../../client/src/lib/siteAnswer";
+import { SITE_ANSWER_NOTE, type SiteAnswer } from "../../client/src/lib/siteAnswer";
+
+/** How sure, in the job page's own words (`SiteAnswer.tsx`'s sureness map). Keep the two in step. */
+const ANSWER_SURENESS_WORDS: Readonly<Record<string, string>> = { low: "Not sure yet", fair: "Fairly sure", good: "Sure" };
 import { REASON_UNSIZED as ANSWER_UNSIZED_REASON } from "./siteAnswer";
 
 export type TaskLifecycleMilestone = Extract<
@@ -96,53 +99,53 @@ export function workspaceTaskUrl(requestId: string): string {
  * same job results without adding an account step.
  */
 function whereRunsAre(url: string, workspaceUrl: string | null, action: string): string {
-  return workspaceUrl
-    ? `${action} in your workspace:\n${workspaceUrl}`
-    : `${action} on your private job page:\n${url}`;
+  return `${action}:\n${workspaceUrl || url}`;
 }
 
+// Bare bones (2026-11-11): each notice says one thing in at most three short lines, then one button
+// ("Label:\nURL"); a line the site must read but that is not the news is fine print (`finePrint`).
 const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string, detail: string, workspaceUrl: string | null) => string }> = {
   preparation_needs_attention: {
-    subject: "An update on your Blueprint job preparation",
-    body: (url, detail) => `Job preparation needs our team's review. Keep your original recording. Open your job to see the latest status and next step.${detail ? ` ${detail}` : ""}\n\nOpen your job:\n${url}`,
+    subject: "An update on your Blueprint job",
+    body: (url, detail) => `Building the simulation of your site needs a look from our team. Keep your original video; nothing else is needed from you.${detail ? `\n\n${finePrint(detail)}` : ""}\n\nOpen your job:\n${url}`,
   },
   // One per terminal transition. The detail is only a fixed reason sentence and a reference.
   preparation_ended: {
-    subject: "We stopped preparing your Blueprint scene",
-    body: (url, detail) => `We could not finish building the scene preview for your job, and we have stopped trying.${detail ? ` ${detail}` : ""} Nothing more is needed from you. This needs our team's review. Keep your original recording. Your job page shows the latest status.\n\nOpen your job:\n${url}`,
+    subject: "We stopped building the simulation of your site",
+    body: (url, detail) => `We could not finish building the simulation of your site, and we have stopped trying.${detail ? ` ${detail}` : ""}\n\nNothing is needed from you. Keep your original video.\n\nOpen your job:\n${url}`,
   },
   task_received: {
-    subject: "We have your Blueprint job — here is your link",
-    body: (url) => `Thanks for sending us your job. This private link shows the same job and lets you correct details if you choose. Once your video arrives, Blueprint handles reconstruction and evaluation and updates this job with the results. If your video is not uploaded yet, use your job page to record or upload it after arranging filming permission. It opens your site's job without a password, so please don't forward it.\n\nOpen your job:\n${url}`,
+    subject: "Your Blueprint job link",
+    body: (url) => `We have your job.\n\nIf you haven't sent the video yet, send it from your job page. This link opens your job without a password, so please don't forward it.\n\nOpen your job:\n${url}`,
   },
   video_received: {
-    subject: "We received your Blueprint walkthrough",
-    body: (url) => `Your walkthrough arrived safely. Blueprint handles reconstruction and evaluation from the recording. Your job page will show the reconstruction and results as they become available. You can review or correct job details at any time.\n\nOpen your job:\n${url}`,
+    subject: "We have your video",
+    body: (url) => `Your video arrived safely.\n\nNext, we watch it and email you.\n\nOpen your job:\n${url}`,
   },
   scene_ready: {
-    subject: "Your Blueprint scene is ready to view",
-    body: (url) => `Your scene is ready: a 3D reconstruction of the work area you filmed. You can look around it on your job page.\n\nOpen your job:\n${url}`,
+    subject: "Your 3D view of the work area is ready",
+    body: (url) => `You can look around the work area you filmed on your job page.\n\nOpen your job:\n${url}`,
   },
   // Owner decision 2026-10-22: "ready" only once the task objects are in and
   // our first internal test has started, never when the room alone is built.
   scene_tests_started: {
-    subject: "Your Blueprint scene is ready",
-    body: (url) => `Your scene is ready: a simulation of the work area you filmed, with your task's objects in place. We are running our first tests on it now. Nothing is needed from you for these tests, and we will email you at the next step.\n\nOpen your job:\n${url}`,
+    subject: "The simulation of your site is ready",
+    body: (url) => `Your work area and its objects are in place. We are running our first tests on it now.\n\nNothing is needed from you. We will email you at the next step.\n\nOpen your job:\n${url}`,
   },
   listing_live: {
-    subject: "Your job card is in the partner job library",
+    subject: "Your job card is now shared",
     // The link below is the owner's job page, which carries the listing control.
     // A site that came in by link alone may have no account, so the account
     // workspace is not the way to hide it.
-    body: (url) => `Partners approved for the beta can now see the job card you approved. It shows only the text and image you reviewed; your contact details, footage and scene stay private. You can hide it at any time: open your job from the link below and untick "Show this card in the job library". If the link has expired, the page will send you a fresh one.\n\nOpen your job:\n${url}`,
+    body: (url) => `Approved companies can now see the job card you approved, without your name. Your video, address and contacts stay private.\n\nTo stop sharing it, open your job and untick "Show this card in the job library". If the link has expired, the page sends you a fresh one.\n\nOpen your job:\n${url}`,
   },
   screening_not_now: {
     subject: "An update on your Blueprint job",
-    body: (url) => `Something in the information we reviewed still blocks the assessment. Your job page shows what it is and what is needed. Blueprint will follow up. Reply in your job conversation with a correction, or update your job page when that information changes.\n\nOpen your job:\n${url}`,
+    body: (url) => `Something we need for your job is missing.\n\nYour job page says what, and how to send it. You can also reply to this email.\n\nOpen your job:\n${url}`,
   },
   results_ready: {
     subject: "Results are in from an evaluation of your job",
-    body: (url, detail, workspaceUrl) => `An evaluation run of one candidate in the simulation of your site has finished${detail ? `: ${detail}` : ""}. This is a simulation estimate for that one candidate, not a physical test. It never certifies physical performance or safety.\n\n${whereRunsAre(url, workspaceUrl, "See the run")}`,
+    body: (url, detail, workspaceUrl) => `An evaluation run of one candidate in the simulation of your site has finished${detail ? `: ${detail}` : ""}.\n\n${whereRunsAre(url, workspaceUrl, "See the run")}\n\n${finePrint("This is a simulation estimate for that one candidate, not a physical test. It never certifies physical performance or safety.")}`,
   },
   // One per result outcome of the job's evaluation and scene (F-01). The detail
   // is only the outcome's sentence about the simulation, or for an estimate the
@@ -162,47 +165,47 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
   // is only the page's own words for it, built from typed counts, never caller text.
   robot_access_question: {
     subject: "The simulation of your site needs one decision",
-    body: (url, detail) => `${detail}\n\nOpen your job:\n${url}`,
+    body: (url, detail) => `${detail}\n\nChoose on your job page:\n${url}`,
   },
   run_no_result: {
     subject: "An evaluation run ended without a result",
-    body: (url, detail, workspaceUrl) => `An evaluation run in the simulation of your site ended without a complete scored result. ${detail || noResultObservationText()} Reply if you need help understanding what happened.\n\n${whereRunsAre(url, workspaceUrl, "Review the run")}`,
+    body: (url, detail, workspaceUrl) => `An evaluation run in the simulation of your site ended without a complete scored result. ${detail || noResultObservationText()}\n\n${whereRunsAre(url, workspaceUrl, "Review the run")}`,
   },
   awaiting_evaluations: {
     subject: "Your job is ready for evaluation",
-    body: (url) => `Your job is ready for evaluation in a simplified simulation of your task, informed by your footage. Next, Blueprint tests robots and policies on it. Approved partners, who see only its anonymized card, can also ask to have their systems evaluated. Your job page shows where the evaluations stand. Nothing is needed from you.\n\nOpen your job:\n${url}`,
+    body: (url) => `Your job is ready for evaluation in a simplified simulation of your task, informed by your footage. Nothing is needed from you.\n\nOpen your job:\n${url}`,
   },
   no_team_passed: {
     subject: "No evaluation of your job has passed yet",
     // `detail` is what would change that (`qualifiedGap`), as /beta promises.
-    body: (url, detail, workspaceUrl) => `Every simulation evaluation of your job so far has finished, and none passed. ${detail || "We need stronger evidence for this tested configuration."} Blueprint will assess what further evidence or another candidate would help the decision, and while your job card stays published, approved partners can still ask for their systems to be evaluated. Nothing is needed from you for these completed runs.\n\n${whereRunsAre(url, workspaceUrl, "See each run")}`,
+    body: (url, detail, workspaceUrl) => `Every simulation evaluation of your job so far has finished, and none passed. ${detail || "We need stronger evidence for this tested configuration."} Nothing is needed from you.\n\n${whereRunsAre(url, workspaceUrl, "See each run")}`,
   },
   no_qualified_evaluation: {
     subject: "Your job's evaluations finished, with no result that counts yet",
     // Never a failure: diagnostic, unqualified or unscored runs count neither way.
-    body: (url, _detail, workspaceUrl) => `The evaluations of your job so far have finished, but none can support a recommendation yet. They were diagnostic runs, ran before your scene was ready for scored evaluations, could not be scored against your pass mark, or ended before any episode was recorded. So none counts as a pass or a fail. Nothing is needed from you. We email you when a scored evaluation finishes.\n\n${whereRunsAre(url, workspaceUrl, "See each run")}`,
+    body: (url, _detail, workspaceUrl) => `The evaluations of your job so far have finished, but none can support a recommendation yet, so none counts as a pass or a fail. Nothing is needed from you.\n\n${whereRunsAre(url, workspaceUrl, "See each run")}`,
   },
   video_too_large: {
     // The job page's new-video ask, said the same way (`LARGE_VIDEO_RECAPTURE_SENTENCES`).
     subject: RECAPTURE_TITLE,
-    body: (url) => `${LARGE_VIDEO_RECAPTURE_SENTENCES.reason} ${LARGE_VIDEO_RECAPTURE_SENTENCES.nextStep}\n\nOpen your job:\n${url}`,
+    body: (url) => `${LARGE_VIDEO_RECAPTURE_SENTENCES.reason}\n\n${LARGE_VIDEO_RECAPTURE_SENTENCES.nextStep}\n\nSend a new video:\n${url}`,
   },
   footage_before_account: {
-    subject: "Your video arrived before your job was saved to an account",
+    subject: "About your video",
     // Owner decision 2026-10-18: said once, plainly. A re-upload cannot help on
     // Pipeline main, so it is never asked for.
     // No later email follows this one, so it promises none.
-    body: (url, _detail, workspaceUrl) => `${FOOTAGE_BEFORE_ACCOUNT_SENTENCE} Follow the same job:\n${workspaceUrl || url}`,
+    body: (url, _detail, workspaceUrl) => `${FOOTAGE_BEFORE_ACCOUNT_SENTENCE}\n\nFollow the same job:\n${workspaceUrl || url}`,
   },
   // Once per job, when the site's answer first settles. The detail is only the
   // answer's own sentences (`answerReadyDetail`), built from the composed answer.
   answer_ready: {
     subject: "Your Blueprint answer is ready",
-    body: (url, detail) => `${detail}\n\nOpen your answer:\n${url}`,
+    body: (url, detail) => `${detail}\n\nSee your answer:\n${url}`,
   },
   pilot_request: {
     subject: "A partner asked to have its system evaluated on your job",
-    body: (url) => `An approved partner asked to have its system evaluated on your job for a possible pilot. Your details stay private, and there is nothing for you to do for this request. We review the partner's fit, evidence and delivery capabilities before including its system in your job's evaluation. Blueprint works with a deployment company on the result, and you and that company agree any physical pilot directly.\n\nOpen your job:\n${url}`,
+    body: (url) => `An approved partner asked to have its system evaluated on your job for a possible pilot. Your details stay private, and nothing is needed from you.\n\nYou and a deployment company agree any physical pilot directly.\n\nOpen your job:\n${url}`,
   },
 };
 
@@ -373,7 +376,7 @@ export function buildTaskLifecycleNotification(params: {
       : isWebsitePreparationNotice(params.milestone) ? preparationDetail
       : params.milestone === "evaluation_outcome" || params.milestone === "scene_outcome"
         || params.milestone === "robot_access_question" || params.milestone === "answer_ready" ? outcomeDetail
-      : params.detail?.trim() ?? "", params.workspaceUrl ?? null)}\n\n${EMAIL_SIGN_OFF}`,
+      : params.detail?.trim() ?? "", params.workspaceUrl ?? null)}`,
     replyTo: "hello@tryblueprint.io",
   };
 }
@@ -382,7 +385,7 @@ export function buildTaskLifecycleNotification(params: {
 function recaptureCopy(reason: RecaptureReason): (typeof copy)[TaskLifecycleMilestone] {
   return {
     subject: RECAPTURE_TITLE,
-    body: (url, detail) => `${RECAPTURE_SENTENCES[reason].reason} ${RECAPTURE_SENTENCES[reason].nextStep}${detail ? ` ${detail}` : ""}\n\nOpen your job:\n${url}`,
+    body: (url, detail) => `${RECAPTURE_SENTENCES[reason].reason}\n\n${RECAPTURE_SENTENCES[reason].nextStep}${detail ? `\n\n${finePrint(detail)}` : ""}\n\nSend a new video:\n${url}`,
   };
 }
 
@@ -390,7 +393,7 @@ function recaptureCopy(reason: RecaptureReason): (typeof copy)[TaskLifecycleMile
 function earlyTaskHoldCopy(reason: EarlyTaskHoldReason): (typeof copy)[TaskLifecycleMilestone] {
   return {
     subject: "The simulation of your job is on hold",
-    body: (url, detail) => `${EARLY_TASK_HOLD_SENTENCES[reason]} ${EARLY_TASK_HOLD_DETAIL} Nothing is needed from you. Keep your original recording. Your job page shows the latest status.${detail ? ` ${detail}` : ""}\n\nOpen your job:\n${url}`,
+    body: (url, detail) => `${EARLY_TASK_HOLD_SENTENCES[reason]} ${EARLY_TASK_HOLD_DETAIL}\n\nNothing is needed from you. Keep your original video.${detail ? `\n\n${finePrint(detail)}` : ""}\n\nOpen your job:\n${url}`,
   };
 }
 
@@ -462,7 +465,7 @@ function evaluationOutcomeDetail(params: { eventId?: string; screeningOutcome?: 
   const result = outcome === "estimate"
     ? estimateDetail(params.simulationProof, storedScreeningOutcomeCaveat(params.screeningCaveat))
     : `${simulationOutcomeEmailSentence(outcome)} Nothing is needed from you.`;
-  return `${result}\n\n${SIMULATION_DISCLAIMER}`;
+  return `${result}\n\n${finePrint(SIMULATION_DISCLAIMER)}`;
 }
 
 /**
@@ -521,14 +524,16 @@ export function answerIsSettled(answer: SiteAnswer | null | undefined): answer i
  */
 function answerReadyDetail(answer: SiteAnswer | undefined): string {
   if (!answerIsSettled(answer)) throw new Error("answer_ready_notice_invalid");
-  if (answer.state === "cannot_assess") return `${answer.headline} ${answer.reason}`;
-  const lines = [answer.headline];
-  if (answer.runnerUp) lines.push(`Runner-up: ${answer.runnerUp.manufacturer} ${answer.runnerUp.name}.`);
+  if (answer.state === "cannot_assess") return `${answer.headline}\n\n${answer.reason}`;
+  // Bare bones: the headline, how sure (the job page's words), where the simulation appears, then the full
+  // standing note as fine print. The runner-up is one tap away on the page.
   const reason = answer.confidence.reasons[0];
-  lines.push(`How sure we are: ${ANSWER_CONFIDENCE_LABELS[answer.confidence.level] ?? "Low"}.${reason ? ` ${reason}` : ""}`);
-  lines.push("If Blueprint runs a simulation of your site, its result appears on the same page.");
-  lines.push(SITE_ANSWER_NOTE);
-  return lines.join("\n\n");
+  return [
+    answer.headline,
+    `How sure we are: ${ANSWER_SURENESS_WORDS[answer.confidence.level] ?? "Not sure yet"}.${reason ? ` ${reason}` : ""}`,
+    "If Blueprint runs a simulation of your site, its result appears on the same page.",
+    finePrint(SITE_ANSWER_NOTE),
+  ].join("\n\n");
 }
 
 /**
@@ -571,12 +576,11 @@ function robotAccessQuestionDetail(params: { eventId?: string; robotAccessCounts
   const what = rows.filter(([, count]) => count > 0).map(([kind, count]) => `${count} ${kind}${count === 1 ? "" : "s"}`)
     .join(" and ");
   const one = total === 1;
-  return `The simulation of your site needs one decision from you. In the simulation, the robot arm can't stand close `
-    + `enough to reach the job because ${what} ${one ? "is" : "are"} in the way.\n\n`
-    + `Blueprint can move ${one ? "it" : "them"} out of the robot's way in the simulation. Only the simulation changes; `
-    + "your site and your video stay as they are. Results stay estimates, not a physical test.\n\n"
+  return `In the simulation, ${what} ${one ? "is" : "are"} in the robot arm's way, so it can't stand close enough to reach the job.\n\n`
+    + `We can move ${one ? "it" : "them"}, in the simulation only. Your site and your video stay as they are.\n\n`
     + `On your job page, choose "${one ? "Move it in the simulation" : "Move them in the simulation"}" or `
-    + `"${one ? "Keep it where it is" : "Keep them where they are"}". Nothing changes until you answer.`;
+    + `"${one ? "Keep it where it is" : "Keep them where they are"}". Nothing changes until you answer.\n\n`
+    + finePrint("Results stay estimates, not a physical test.");
 }
 
 /**

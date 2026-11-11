@@ -1000,10 +1000,8 @@ router.post("/:token/fresh-link", async (req: Request, res: Response) => {
       to: request.contactEmail,
       subject: "Your new Blueprint job link",
       body: [
-        emailGreeting(request.contactFirstName),
         "Here is a fresh private link to your job. It opens your job without a password, so please don't forward it.",
         `Open your job:\n${captureUploadUrlFor(requestId, "owner")}`,
-        EMAIL_SIGN_OFF,
       ].join("\n\n"),
       replyTo: "ops@tryblueprint.io",
     });

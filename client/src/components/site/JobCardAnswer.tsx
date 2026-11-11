@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { User } from "firebase/auth";
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
 import { EVIDENCE_LEVEL_LABELS, JOB_CARD_LIMITS, evidenceScopeLabel, type AnswerBasis, type AnswerEvidence } from "@/lib/siteAnswer";
 import { BareBack, BareBig, BareFine, BareGroup, BareLead, BareLinks, BareRows, BareSureness, BareTicks } from "@/components/bare/Bare";
-import { ticksOf } from "./SiteAnswer";
+import { liftUpTo, ticksOf } from "./SiteAnswer";
 import type { JobCardAnswerRobot, JobCardAnswerSummary, TaskCardDetail } from "@/types/taskBrowse";
 
 export const JOB_CARD_ANSWER_TITLE = "Blueprint's answer for this job";
@@ -36,9 +36,11 @@ const SURE: Readonly<Record<JobCardAnswerSummary["confidence"]["level"], { fille
 /** Each check as a row: the job's figure and the robot's, the very strings of the site's check sentence. */
 function checkValue(check: NonNullable<JobCardAnswerRobot["checks"]>[number]): string {
   const open = check.outcome === "unknown" ? "Can't tell yet. " : check.outcome === "fail" ? "Not enough. " : "";
-  if (check.key === "reach") return open + [check.need && `needs ${check.need}`, check.has && `reaches ${check.has}`].filter(Boolean).join(" · ");
-  if (check.key === "payload") return open + [check.need && `needs to lift ${check.need.replace(/^about /, "up to ").replace(/^up to ([\d.]+)–/, "up to ")}`,
-    check.has && `lifts up to ${check.has}`].filter(Boolean).join(" · ");
+  if (check.key === "reach") return open + [check.need && `needs ${check.need}`, check.has && `reaches ${check.has}`].filter(Boolean).join(" · ")
+    + (check.outcome === "pass" && check.tight ? " · only just enough" : "");
+  // A pass needs at most the top of the range; a check not settled says the whole range that straddles the rating.
+  if (check.key === "payload") return open + [check.need && `needs to lift ${check.outcome === "pass" ? liftUpTo(check.need) : check.need}`,
+    check.has && `lifts up to ${check.has}`].filter(Boolean).join(" · ") + (check.outcome === "pass" && check.tight ? " · only just enough" : "");
   return open + [check.need && `the site's target ${check.need}`, check.has && `takes ${check.has} on paper`].filter(Boolean).join(" · ");
 }
 const CHECK_NAMES = { reach: "Reach", payload: "Strength", cycle_time: "Speed" } as const;
@@ -63,12 +65,21 @@ function RobotRows({ robot, role }: { robot: JobCardAnswerRobot; role: string })
  */
 export function JobCardAnswer({ answer, titled = true }: { answer: JobCardAnswerSummary; titled?: boolean }) {
   const [details, setDetails] = useState(false);
+  // Focus follows the view: into the details on the way in, back to "See details" on the way out.
+  const root = useRef<HTMLElement>(null);
+  const opened = useRef(false);
+  useEffect(() => {
+    if (!opened.current) return;
+    if (details) root.current?.focus();
+    else root.current?.querySelector<HTMLElement>('[data-opens="details"]')?.focus();
+  }, [details]);
+  const show = (next: boolean) => { opened.current = true; setDetails(next); };
   const pick = answer.pick;
   const fits = pick ? /^Fits/.test(pick.verdictLabel) : false;
   const sure = SURE[answer.confidence.level];
   const allEstimated = answer.facts.length > 0 && answer.facts.every(fact => fact.basis === "video_estimate");
-  if (details) return <section className="bare-screen site-card-answer" aria-label={JOB_CARD_ANSWER_TITLE}>
-    <BareBack onClick={() => setDetails(false)} />
+  if (details) return <section className="bare-screen site-card-answer" aria-label={JOB_CARD_ANSWER_TITLE} ref={root} tabIndex={-1}>
+    <BareBack onClick={() => show(false)} />
     {answer.pick && <RobotRows robot={answer.pick} role={fits ? "Pick" : "Closest"} />}
     {answer.runnerUp && <RobotRows robot={answer.runnerUp} role="Runner-up" />}
     {answer.facts.length > 0 && <BareRows title={allEstimated ? "Estimated from the site's video" : "The numbers"} rows={answer.facts.map(fact => ({
@@ -77,7 +88,7 @@ export function JobCardAnswer({ answer, titled = true }: { answer: JobCardAnswer
     {answer.simulation && <BareRows title="Computer test" rows={[{ key: "simulation", value: answer.simulation }]} />}
     <BareFine>{answer.note}</BareFine>
   </section>;
-  return <section className="bare-screen site-card-answer" aria-label={JOB_CARD_ANSWER_TITLE}>
+  return <section className="bare-screen site-card-answer" aria-label={JOB_CARD_ANSWER_TITLE} ref={root} tabIndex={-1}>
     {titled && <h3 className="bare-label">{JOB_CARD_ANSWER_TITLE}</h3>}
     {pick ? <BareGroup>
       <p className="bare-label">{fits ? "The robot most likely to fit" : "The closest robot"}</p>
@@ -88,7 +99,7 @@ export function JobCardAnswer({ answer, titled = true }: { answer: JobCardAnswer
       <BareSureness filled={sure.filled} word={sure.word} reason={answer.confidence.reason} />
       {answer.simulation && <p>Computer test: {answer.simulation}</p>}
     </BareGroup>
-    <BareLinks links={[{ key: "details", label: "See details", onClick: () => setDetails(true) }]} />
+    <BareLinks links={[{ key: "details", label: "See details", onClick: () => show(true) }]} />
     <BareFine>{JOB_CARD_LIMITS}</BareFine>
   </section>;
 }

@@ -11,7 +11,8 @@ import { RobotFitHold, isRobotFitHold, type RobotFitHoldView } from "@/component
 import { SuccessThresholds, isSuccessThresholds, type SuccessThresholdsView } from "@/components/site/SuccessThresholds";
 import { RobotAccess, isRobotAccess, type RobotAccessView } from "@/components/site/RobotAccess";
 import { NextTaskUpdate } from "@/components/site/NextTaskUpdate";
-import { SiteAnswer, SiteAnswerDetails, EDIT_JOB_LABEL, NEW_VIDEO_LABEL } from "@/components/site/SiteAnswer";
+import { SiteAnswer, SiteAnswerDetail, SiteAnswerDetails, EDIT_JOB_LABEL, NEW_VIDEO_LABEL, type CardState, type DetailScreen } from "@/components/site/SiteAnswer";
+import { isJobCardAnswerStatementVersion } from "@/lib/jobCardAnswerConsent";
 import { BareBack, BareLinks, BareMenu, BareNotice, BareScreen } from "@/components/bare/Bare";
 import { REASON_UNSIZED, isSiteAnswer, type SiteAnswer as SiteAnswerView } from "@/lib/siteAnswer";
 import { projectSimulationProof } from "@/lib/simulationProof";
@@ -149,6 +150,9 @@ export default function SelfCaptureUpload() {
   return <SelfCaptureUploadForToken key={token} token={token} />;
 }
 
+const DETAIL_SCREENS = ["why", "others", "ruled-out", "estimated", "unseen", "test", "trust"] as const satisfies readonly DetailScreen[];
+type View = "main" | "details" | "settings" | `details/${DetailScreen}`;
+
 function SelfCaptureUploadForToken({ token }: { token: string }) {
   const [, navigate] = useLocation();
   const [startingVideoUpdate, setStartingVideoUpdate] = useState(false);
@@ -178,27 +182,53 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
   const [link, setLink] = useState<LinkState>({ status: "checking" });
   // The answer's details and the job settings are their own screens, in the URL's hash ("#details", "#settings"):
   // the browser's back button returns from them, and a reload keeps the screen.
-  const viewOf = () => (typeof window === "undefined" ? "main" : window.location.hash === "#details" ? "details"
-    : window.location.hash === "#settings" ? "settings" : "main") as "main" | "details" | "settings";
-  const [view, setView] = useState(viewOf);
-  const pushedView = useRef(false);
+  // Each detail has its own screen under "#details/{screen}".
+  const viewOf = (): View => {
+    if (typeof window === "undefined") return "main";
+    const hash = window.location.hash.slice(1);
+    if (hash === "details" || hash === "settings") return hash;
+    if (hash.startsWith("details/") && (DETAIL_SCREENS as readonly string[]).includes(hash.slice(8))) return hash as View;
+    return "main";
+  };
+  const [view, setView] = useState<View>(viewOf);
+  const viewRef = useRef(view);
+  viewRef.current = view;
+  const pushedViews = useRef(0);
   useEffect(() => {
     const onChange = () => setView(viewOf());
     window.addEventListener("hashchange", onChange);
     window.addEventListener("popstate", onChange);
     return () => { window.removeEventListener("hashchange", onChange); window.removeEventListener("popstate", onChange); };
   }, []);
-  const openView = useCallback((next: "details" | "settings") => {
-    pushedView.current = true;
+  const openView = useCallback((next: Exclude<View, "main">) => {
+    pushedViews.current += 1;
     window.location.hash = next;
     setView(next);
     window.scrollTo?.(0, 0);
   }, []);
+  /** One screen back: a detail returns to the details menu, everything else to the job page. */
   const closeView = useCallback(() => {
-    if (pushedView.current) { pushedView.current = false; window.history.back(); }
-    else window.history.replaceState(window.history.state, "", `${window.location.pathname}${window.location.search}`);
-    setView("main");
+    const parent: View = viewRef.current.startsWith("details/") ? "details" : "main";
+    if (pushedViews.current > 0) { pushedViews.current -= 1; window.history.back(); }
+    else window.history.replaceState(window.history.state, "", `${window.location.pathname}${window.location.search}${parent === "main" ? "" : `#${parent}`}`);
+    setView(parent);
   }, []);
+  // Focus follows the screen: a deeper screen's heading on the way in; the link that opened it on the way back
+  // (the "‹ Back" link and the browser's back button alike).
+  const shownView = useRef(view);
+  useEffect(() => {
+    const previous = shownView.current;
+    shownView.current = view;
+    if (previous === view) return;
+    const depth = (value: View) => (value === "main" ? 0 : value.startsWith("details/") ? 2 : 1);
+    const opener = previous.startsWith("details/") ? previous.slice(8) : previous;
+    const timer = window.setTimeout(() => {
+      const target = depth(view) > depth(previous) ? document.querySelector<HTMLElement>(".bare-screen h1")
+        : document.querySelector<HTMLElement>(`[data-opens="${opener}"]`);
+      target?.focus();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [view]);
   const [upload, setUpload] = useState<UploadState>({ status: "idle" });
   const [fileName, setFileName] = useState<string | null>(null);
   const [existingVideoOnly, setExistingVideoOnly] = useState(() =>
@@ -633,10 +663,36 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
   const recordOnThisPage = !saved && link.status === "valid" && status?.decision === "record" && !status.outcome;
   // A withdrawn recording takes no new footage, edits or sharing: those controls are not offered once the withdrawal is known.
   const [withdrawn, setWithdrawn] = useState(false);
+  // Whether the job card carries the answer now: read from the owner's listing once the site has asked, and again
+  // whenever the page comes back to the answer (Share settings may have re-saved the card under the older box).
+  const [card, setCard] = useState<CardState>(null);
+  const askedAt = answer?.introductionRequestedAtIso ?? null;
+  useEffect(() => {
+    if (!askedAt || scope !== "owner" || view !== "main") return;
+    let alive = true;
+    void fetch(`/api/task-listings/owner/${encodeURIComponent(token)}`, { cache: "no-store" })
+      .then(response => (response.ok ? response.json() : null))
+      .then((data: { listing?: { enabled?: boolean; consentVersion?: unknown } | null } | null) => {
+        if (!alive || !data || !("listing" in data)) return;
+        const listing = data.listing;
+        setCard(listing?.enabled === true ? (isJobCardAnswerStatementVersion(listing.consentVersion) ? "with_answer" : "without_answer") : "off");
+      }).catch(() => { /* The stored answer's own flag stands. */ });
+    return () => { alive = false; };
+  }, [askedAt, scope, token, view, statusRefresh]);
 
   // One current update. Saved jobs show it before results; a fresh capture
   // keeps the recorder first. Optional corrections do not become next steps.
   // Processing details, the scene link and the optional account: in the card before an answer, in "More for this job" under one.
+  // Processing details, with the owner's "Try assessment again" when Blueprint is reviewing a processing issue.
+  const advisory = status && currentStatusKnown && status.siteAdvisory && status.siteAdvisory.state !== "authority_ended" ? <SiteAdvisoryReport advisory={status.siteAdvisory}>
+      {scope === "owner" && link.status === "valid" && status.siteAdvisory?.state === "needs_review"
+        && status.assessment_retry_available === true && status.assessment_job_id && status.assessment_run_id && (
+        <p><button type="button" className="ms-text-link" disabled={retryingAssessment || operationInFlight.current} onClick={() => void retryAssessment()}>
+          {retryingAssessment ? "Requesting assessment retry…" : "Try assessment again"}
+        </button></p>
+      )}
+      {assessmentRetryMessage && <p role="status">{assessmentRetryMessage}</p>}
+      </SiteAdvisoryReport> : null;
   const cardExtras = status && currentStatusKnown && (status.siteAdvisory || status.sceneViewUrl || (status.claimUrl && !accountHold)) ? <>
       <SiteAdvisoryReport advisory={status.siteAdvisory}>
       {scope === "owner" && link.status === "valid" && status.siteAdvisory?.state === "needs_review"
@@ -765,7 +821,10 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
       </button>}
     </details>
   ) : null;
-  const withdrawal = (link.status === "valid" || link.status === "held") && scope === "owner" ? (
+  // The way to stop exists once there is something to stop: a video, or a recording permission given (a valid link),
+  // or a withdrawal already recorded. A held link still asking for recording permission has nothing to withdraw yet.
+  const withdrawal = scope === "owner" && (link.status === "valid" || link.status === "held")
+    && (saved || link.status === "valid" || withdrawn || (link.status === "held" && link.holdReason === "recording_consent_withdrawn")) ? (
     <OwnerRecordingWithdrawal token={token} onStatus={() => setWithdrawn(true)} summaryLabel={answer || !saved ? "Stop using my video" : undefined} onWithdrawn={() => { setWithdrawn(true); setLink({ status: "held",
       detail: "Recording permission was withdrawn. This link no longer accepts footage.",
       blockers: [], openQuestions: [], holdReason: "recording_consent_withdrawn" }); }} />
@@ -819,7 +878,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
   // Job settings: every optional control, one per row; "Stop using my video" always among them.
   const settingsScreen = <>
     <BareBack onClick={closeView} />
-    <h1>Job settings</h1>
+    <h1 tabIndex={-1}>Job settings</h1>
     <BareMenu label="Job settings" items={[
       ...(scope === "owner" && link.status === "valid" && !withdrawn && saved ? [{ key: "video", label: startingVideoUpdate ? "Opening…" : NEW_VIDEO_LABEL,
         onClick: () => void updateVideo() }] : []),
@@ -828,6 +887,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
       ...(status?.claimUrl && !accountHold && !withdrawn ? [{ key: "account", label: "Save to my account", href: status.claimUrl }] : []),
       ...(status?.sceneViewUrl ? [{ key: "scene", label: "View your scene", href: status.sceneViewUrl }] : []),
       ...(processingSection ? [{ key: "processing", label: "Processing", body: processingSection }] : []),
+      ...(advisory ? [{ key: "advisory", label: "Processing details", body: advisory }] : []),
       { key: "contact", label: "Contact Blueprint about this job", href: "mailto:hello@tryblueprint.io" },
       ...(withdrawal ? [{ key: "stop", label: "Stop using my video", body: withdrawal }] : []),
     ]} />
@@ -854,7 +914,8 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
       </Helmet>
 
       <BareScreen>
-      {view === "details" && answer ? <SiteAnswerDetails answer={answer} proof={proof} onBack={closeView} />
+      {view === "details" && answer ? <SiteAnswerDetails answer={answer} proof={proof} onBack={closeView} onOpen={screen => openView(`details/${screen}`)} />
+        : view.startsWith("details/") && answer ? <SiteAnswerDetail answer={answer} proof={proof} screen={view.slice(8) as DetailScreen} onBack={closeView} />
         : view === "settings" && settingsOpen ? settingsScreen : <>
       <h1>
         {link.status === "held" || saved ? "Your job" : existingVideoOnly ? "Upload your existing video" : onAPhone ? "Film the work area" : "Upload or record your job"}
@@ -866,7 +927,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
       {answer && <SiteAnswer token={token} answer={answer} proof={proof} onIntroductionRequested={() => setStatusRefresh(value => value + 1)}
         onEditJob={brief && scope === "owner" && !withdrawn ? openBriefEditor : undefined}
         onUpdateVideo={scope === "owner" && link.status === "valid" && !withdrawn ? () => void updateVideo() : undefined}
-        quietAction={!quietCard} onShowDetails={() => openView("details")} onShowSettings={settingsOpen ? () => openView("settings") : undefined} />}
+        quietAction={!quietCard} onShowDetails={() => openView("details")} onShowSettings={settingsOpen ? () => openView("settings") : undefined} card={card} />}
       {answer && videoUpdateError && <BareNotice role="alert">{videoUpdateError}</BareNotice>}
       {!answer && (saved || link.status !== "valid") && statusCard}
       {!answer && workspace}

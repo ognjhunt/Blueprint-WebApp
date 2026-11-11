@@ -28,6 +28,7 @@
 import type { AnswerRobot, SiteAnswer } from "../../client/src/lib/siteAnswer";
 import type { JobCardAnswerRobot, JobCardAnswerSummary } from "../../client/src/types/taskBrowse";
 import { isJobCardAnswerStatementVersion } from "../../client/src/lib/jobCardAnswerConsent";
+import { TIGHT_FIT_SENTENCE } from "../../client/src/lib/siteAnswer";
 import { logger } from "../logger";
 
 /**
@@ -77,7 +78,9 @@ function robotOf(robot: AnswerRobot | null): JobCardAnswerRobot | null {
     manufacturer: robot.manufacturer, name: robot.name, verdictLabel: VERDICT_LABELS[robot.verdict] ?? "May fit",
     // Outcomes and figures only (a number and its unit, each at most a few words): the sentences say the site's
     // words ("your two spots") and stay on the site's page.
-    checks: robot.checks.map(({ key, outcome, need, has }) => ({ key, outcome,
+    checks: robot.checks.map(({ key, outcome, need, has, text }) => ({ key, outcome,
+      // A passed check with little to spare: its sentence ends so (the composer's "tight fit").
+      tight: outcome === "pass" && typeof text === "string" && text.endsWith(` ${TIGHT_FIT_SENTENCE}`),
       need: typeof need === "string" && /^[^a-z]*\d[\d\s.,–-]*(cm|m|kg|s)$/i.test(need.replace(/^about /, "")) ? need : null,
       has: typeof has === "string" && /^[^a-z]*\d[\d\s.,–-]*(cm|m|kg|s)$/i.test(has.replace(/^about /, "")) ? has : null })),
     specs: robot.specs.filter(spec => httpsUrl(spec.sourceUrl)).slice(0, 2)

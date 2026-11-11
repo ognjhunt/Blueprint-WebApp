@@ -105,7 +105,7 @@ describe("GET /api/site-worlds/tasks/:taskId", () => {
     expect(Object.keys(summary.pick).sort()).toEqual(["checks", "evidence", "manufacturer", "name", "specs", "verdictLabel"]);
     // Each check's outcome and its figures, numbers with units only, never the site's sentence.
     expect(summary.pick.checks.map((check: Record<string, unknown>) => Object.keys(check).sort()))
-      .toEqual(summary.pick.checks.map(() => ["has", "key", "need", "outcome"]));
+      .toEqual(summary.pick.checks.map(() => ["has", "key", "need", "outcome", "tight"]));
     expect(summary.pick.checks.find((check: { key: string }) => check.key === "payload")).toMatchObject({ outcome: "pass",
       need: expect.stringMatching(/kg$/), has: expect.stringMatching(/kg$/) });
     for (const spec of summary.pick.specs) expect(spec.sourceUrl).toMatch(/^https:\/\//);

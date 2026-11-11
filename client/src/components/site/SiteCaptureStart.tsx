@@ -12,7 +12,6 @@ import {
   isApprovedCaptureRegion,
   type CaptureRegion,
 } from "@/data/captureResidency";
-import { REPLY_TIMELINE } from "@/data/betaTimelines";
 import { analyticsEvents } from "@/lib/analytics";
 import { withCsrfHeader } from "@/lib/csrf";
 import { withAppCheckHeader } from "@/lib/appCheck";
@@ -617,7 +616,6 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
     }
   }
 
-  const email = (state.status === "done" ? state.email : "") || "";
   const savedLinks = (done: Extract<State, { status: "done" }>) => <>
     {done.workspaceUrl && <p className="bare-helper"><a href={done.workspaceUrl}>Saved in your workspace</a></p>}
     {done.linkOnlyNote && <p className="bare-helper">{done.linkOnlyNote}</p>}
@@ -739,7 +737,6 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
     );
   }
 
-  void email;
   const sendsVideo = method === "upload" && region !== "non_us";
   const consentLine = sendsVideo ? SITE_START_CONSENT_WITH_VIDEO : SITE_START_CONSENT_NO_VIDEO;
   const submitLabel = region === "non_us" ? "Save my job" : sendsVideo ? "Send video" : "Next: film the job";
