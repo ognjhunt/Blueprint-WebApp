@@ -644,6 +644,15 @@ describe("a not_now job created after the screen stopped gating", () => {
     expect(doc(`inboundRequests/${jobId}`).scene_screen_gate_ended).toEqual(created.scene_screen_gate_ended);
   });
 
+  it("needs_conversation: the staff next step is a note, not a call before its scene", async () => {
+    const { token, jobId } = await startJob(UNCONFIRMED_AT_UPLOAD);
+    const confirmed = await confirmBrief(token, { answers: {} });
+    expect(confirmed.disposition).toBe("needs_conversation");
+    expect(`${confirmed.screening?.headline} ${(confirmed.screening as any)?.detail}`).not.toMatch(notBuilding);
+    await vi.waitFor(() => expect(doc(`inboundRequests/${jobId}`).ops?.next_step).toMatch(/^Note only/));
+    expect((await jobStatus(token)).status.decision).not.toBe("call_needed");
+  });
+
   it("is not marked from the request body", async () => {
     const requestId = `site-footage-forged-${++sequence}`;
     const body = { ...siteCaptureStartSubmission({ requestId, retryToken: `r${requestId}`.padEnd(64, "x"),

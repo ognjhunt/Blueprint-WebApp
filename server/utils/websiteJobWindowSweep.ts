@@ -383,7 +383,9 @@ export async function sweepWebsiteJobNoGrant(requestId: string, nowMs = Date.now
   // Kept on file is a recorded ending (review, 2026-11-11): the pass that marks it queues its one paper-slot email,
   // idempotently, with the reader's reason. A "can't simulate this kind of job yet" email already sent fills the slot.
   if (early === "kept_on_file") {
-    const { notifyIfAnswerSettled } = await import("./taskLifecycleNotifications");
+    // Owed first, durably; then queued at once when it can be (the reconcile queues it otherwise).
+    const { holdAnswerNotice, notifyIfAnswerSettled } = await import("./taskLifecycleNotifications");
+    await holdAnswerNotice({ requestId, milestone: "answer_ready" });
     await notifyIfAnswerSettled(requestId).catch(error => logger.warn({ error, requestId }, "Could not queue the kept-on-file email"));
   }
   if (early) return early;

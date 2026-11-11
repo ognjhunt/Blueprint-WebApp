@@ -314,6 +314,12 @@ export async function recordCoverageFinding(
       ...(finding.sourceCaptures ? { source_captures: finding.sourceCaptures } : {}),
       reviewed_at: admin.firestore.FieldValue.serverTimestamp(), ...(binding ? { binding } : {}),
     } }, { merge: true });
+    // The reading of the job's own walkthrough is done: its answer email (if this reading recorded an ending, such as
+    // "cannot size") is owed from this same write, so a crash or a failed queue after it never loses it.
+    if (captureId === `walkthrough-${requestId}`) {
+      const { waitingAnswerNoticeFields } = await import("./taskLifecycleNotifications");
+      tx.set(ref, waitingAnswerNoticeFields({ requestId, milestone: "answer_ready" }, new Date().toISOString(), value) as never, { merge: true });
+    }
     // Replaced whole, under the same consent and source checks as the finding it came with.
     if (jobEstimates) tx.set(ref, { walkthrough_job_estimates: { capture_id: captureId, job_estimates: jobEstimates,
       reviewed_at_iso: new Date().toISOString() } }, { mergeFields: ["walkthrough_job_estimates"] });

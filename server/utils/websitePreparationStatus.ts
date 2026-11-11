@@ -399,6 +399,15 @@ const defaultDeps: WebsitePreparationDeps = {
         preparation, Date.now());
       // mergeFields replaces each named field whole: Firestore's merge would keep
       // a v2-only key such as terminal_reason under a later v1 receipt.
+      // An ended authority, or a geometry-only job's end at its fit check, is an ending: its answer email is owed from
+      // this same write, so nothing after the commit can lose it.
+      if (status.state === "authority_ended" || (status.state === "awaiting_inputs" && "robot_fit" in status
+        && status.robot_fit?.route === "geometry_only")) {
+        const { waitingAnswerNoticeFields } = await import("./taskLifecycleNotifications");
+        tx.set(store.collection("inboundRequests").doc(selector.request_id),
+          waitingAnswerNoticeFields({ requestId: selector.request_id, milestone: "answer_ready" }, new Date().toISOString(), request) as never,
+          {merge: true});
+      }
       tx.set(ref, {website_preparation: preparation,
         website_preparation_notification_pending: preparation.notification?.state === "pending",
         [WEBSITE_PREPARATION_NOTICE_OWED_FIELD]: noticeOwed(preparation, session[WEBSITE_PREPARATION_NOTICE_OWED_FIELD], Date.now()),

@@ -255,6 +255,12 @@ export async function ingestBetaPolicyScreening(publication: BetaPolicyScreening
     const restated = unsent ? screeningOutcomeNoticeIntent(publication, jobId) : null;
     const refreshed = unsent && restated && restated.event_id === unsent.event_id && restated.request_id === unsent.request_id
       ? restated : null;
+    // A run recorded as ended with no result outcome is an ending: its answer email is owed from this same write.
+    if (TERMINAL_RUN_STATES.has(String(publication.status)) && !screeningOutcome(publication) && !closed) {
+      const { waitingAnswerNoticeFields } = await import("./taskLifecycleNotifications");
+      transaction.set(store.collection("inboundRequests").doc(jobId),
+        waitingAnswerNoticeFields({ requestId: jobId, milestone: "answer_ready" }, now, job.data()) as never, { merge: true });
+    }
     transaction.set(resultRef, { schema_version: "capture_task_evaluation_run_record.v2", record_id: resultId,
       run_id: publication.campaign_id, owner_user_id: intake.request.owner.user_id, organization_id: scope.teamNamespace,
       access_visibility: "private", created_at_iso: oldResult.data()?.created_at_iso ?? now, updated_at_iso: now,

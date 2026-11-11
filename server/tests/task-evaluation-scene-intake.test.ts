@@ -489,6 +489,15 @@ it.each(["needs_conversation", "not_now", undefined])("funds a %s job uploaded a
   expect(money(grant)).toEqual(money(qualified));
 });
 
+it.each(["not_now", "needs_conversation"])("funds a %s job marked when it was created, after the change", async (disposition) => {
+  const { sceneScreenGateEndedMarker } = await import("../utils/sceneScreenGate");
+  sponsoredCapture();
+  const record = store.rows.get("inboundRequests/req1");
+  record.site_task_triage = { disposition };
+  record.scene_screen_gate_ended = sceneScreenGateEndedMarker("req1", "2026-11-11T12:00:00Z", "job_created");
+  await expect(loadWebsiteSceneSponsorship("req1", true)).resolves.toMatchObject({ request_id: "req1" });
+});
+
 it("still refuses a job uploaded after the change when no account owns its video", async () => {
   const { sceneScreenGateEndedMarker } = await import("../utils/sceneScreenGate");
   sponsoredCapture();
