@@ -221,29 +221,33 @@ const statusSchema = z
 const scenePolicyCandidate = z.object({ id: identifier, artifact_digest: digest }).strict();
 export const sceneEvaluationPolicyCandidates = z.array(scenePolicyCandidate).length(2)
   .refine((value) => value.length === 2 && value[0].id !== value[1].id);
-const sceneExecution = z
-  .object({
-    purpose: z.literal("scene_preparation").optional(),
-    max_total_spend_usd: z.number().positive().max(1000),
-    max_paid_attempts: z.number().int().min(1).max(32),
-    max_retries: z.number().int().min(0).max(3),
-    expires_at_epoch: z.number().positive(),
-    allowed_providers: z
-      .array(z.enum(["vast", "runpod", "openai", "anthropic"]))
-      .min(1)
-      .max(4)
-      .refine((v) => new Set(v).size === v.length),
-    policy_candidates: z.array(scenePolicyCandidate).max(2),
-    claim_scope: z.literal("development_only"),
-  })
-  .strict()
-  .superRefine((value, context) => {
-    const valid = value.purpose === "scene_preparation"
-      ? value.policy_candidates.length === 0
-      : sceneEvaluationPolicyCandidates.safeParse(value.policy_candidates).success;
-    if (!valid) context.addIssue({ code: z.ZodIssueCode.custom, path: ["policy_candidates"],
-      message: "Scene preparation has no robot policies; evaluation requires two distinct candidates." });
-  });
+const sceneExecutionFields = {
+  purpose: z.literal("scene_preparation").optional(),
+  max_total_spend_usd: z.number().positive().max(1000),
+  max_paid_attempts: z.number().int().min(1).max(32),
+  max_retries: z.number().int().min(0).max(3),
+  expires_at_epoch: z.number().positive(),
+  allowed_providers: z
+    .array(z.enum(["vast", "runpod", "openai", "anthropic"]))
+    .min(1)
+    .max(4)
+    .refine((v) => new Set(v).size === v.length),
+  policy_candidates: z.array(scenePolicyCandidate).max(2),
+  claim_scope: z.literal("development_only"),
+};
+function scenePolicyCandidatesMatchPurpose(value: { purpose?: "scene_preparation";
+  policy_candidates: Array<z.infer<typeof scenePolicyCandidate>> }, context: z.RefinementCtx) {
+  const valid = value.purpose === "scene_preparation"
+    ? value.policy_candidates.length === 0
+    : sceneEvaluationPolicyCandidates.safeParse(value.policy_candidates).success;
+  if (!valid) context.addIssue({ code: z.ZodIssueCode.custom, path: ["policy_candidates"],
+    message: "Scene preparation has no robot policies; evaluation requires two distinct candidates." });
+}
+const sceneExecution = z.object(sceneExecutionFields).strict().superRefine(scenePolicyCandidatesMatchPurpose);
+/** A Website sponsored intent's execution. It alone may name `automatic_budget_extension`,
+ * and only when its grant does (validateWebsiteSponsoredIntake); no other intake can claim it. */
+export const websiteSceneExecution = z.object({ ...sceneExecutionFields,
+  automatic_budget_extension: z.literal(true).optional() }).strict().superRefine(scenePolicyCandidatesMatchPurpose);
 
 export const sceneIntakeCommand = z
   .object({

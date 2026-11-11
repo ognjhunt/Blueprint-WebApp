@@ -279,6 +279,7 @@ beforeEach(() => {
 afterEach(async () => {
   delete process.env.TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON;
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
   if (server)
     await new Promise<void>((resolve) => server!.close(() => resolve()));
   server = undefined;
@@ -673,6 +674,8 @@ function navigationRequest(grant: Record<string, any>) {
 const intakeRows = () => [...store.rows.keys()].filter(key => key.startsWith("taskEvaluationSceneIntakes/"));
 
 it("queues a navigation intake with the job's own consent and rights, reserving $0 and granting no construction allowance", async () => {
+  // An unflagged grant (automatic budget extension off) refuses at the ceiling exactly as before.
+  vi.stubEnv("BLUEPRINT_WEBSITE_AUTOMATIC_BUDGET_EXTENSION", "false");
   sponsoredCapture();
   const post = await sponsoredRoute();
   const grant = await (await post("scene-sponsorship")).json();
@@ -834,6 +837,8 @@ it("still refuses an unconfirmed brief's re-issued navigation intake by name", a
 });
 
 it("grants a new prepared scene its native allowance only while the job's one ceiling has room", async () => {
+  // An unflagged grant (automatic budget extension off) refuses at the ceiling exactly as before.
+  vi.stubEnv("BLUEPRINT_WEBSITE_AUTOMATIC_BUDGET_EXTENSION", "false");
   sponsoredCapture();
   const base = (await app()).replace(/\/intakes$/, "/internal/creator-captures/walkthrough-req1");
   const post = (operation: string, extra = {}) => realFetch(`${base}/${operation}`, {

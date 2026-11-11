@@ -320,6 +320,21 @@ export const storedScreeningOutcome = (value: unknown): ScreeningOutcome | null 
   (SCREENING_OUTCOMES as readonly unknown[]).includes(value) ? value as ScreeningOutcome : null;
 
 const scriptedBaseline = (row: { execution_evidence_kind?: string }) => row.execution_evidence_kind === "scripted_simulator_state_baseline";
+/**
+ * The Pipeline's known-good control (`beta_policy_screening_known_good_control`, owner approval
+ * 2026-11-10): one scripted reference arm, reading exact positions from the simulation, run on a new
+ * website campaign's scene to show the simulated set-up can record a success. It is a check, never a
+ * candidate: it is left out of candidate lists, counts and the estimate, and its outcome is one sentence
+ * (`screeningSetupNotes`). A row is the control only when it is scripted and carries one of the control's
+ * own `known_good_control_*` set-up flags, which only a Pipeline made after that change writes; a
+ * scripted row of an earlier publication is read exactly as before.
+ */
+export const KNOWN_GOOD_CONTROL_FLAG_PREFIX = "known_good_control_";
+export const screeningKnownGoodControl = (row: { execution_evidence_kind?: string; setup_quality_flags?: readonly string[] }) =>
+  scriptedBaseline(row) && (row.setup_quality_flags ?? []).some(code => code.startsWith(KNOWN_GOOD_CONTROL_FLAG_PREFIX));
+/** The rows that are candidates: every row but the known-good control. */
+export const screeningCandidateRows = <Row extends { execution_evidence_kind?: string; setup_quality_flags?: readonly string[] }>(
+  candidates: readonly Row[]): Row[] => candidates.filter(row => !screeningKnownGoodControl(row));
 /** Rows an estimate can rest on: scored, and not a scripted reference baseline. */
 export const screeningEstimateRows = <Row extends { episodes_scored: number; execution_evidence_kind?: string }>(candidates: readonly Row[]) =>
   candidates.filter(row => row.episodes_scored > 0 && !scriptedBaseline(row));
@@ -335,7 +350,9 @@ export function screeningJobCeilingWait(candidates: ReadonlyArray<{ status: stri
   return money.length > 0 && money.every(screeningJobCeilingRow);
 }
 
-export function screeningOutcome(publication: Pick<BetaPolicyScreeningPublication, "status" | "candidates" | "budget">): ScreeningOutcome | null {
+export function screeningOutcome(value: Pick<BetaPolicyScreeningPublication, "status" | "candidates" | "budget">): ScreeningOutcome | null {
+  // The known-good control is a check, not a candidate: what the run means rests on the candidates alone.
+  const publication = { ...value, candidates: screeningCandidateRows(value.candidates) };
   const scored = publication.candidates.reduce((sum, row) => sum + row.episodes_scored, 0);
   // A run whose candidates finished with no scored episode has no estimate to show.
   const finished = publication.status === "completed" && scored === 0 ? "blocked" : publication.status;
@@ -371,11 +388,12 @@ export const storedScreeningOutcomeCaveat = (value: unknown): ScreeningOutcomeCa
   (SCREENING_OUTCOME_CAVEATS as readonly unknown[]).includes(value) ? value as ScreeningOutcomeCaveat : null;
 export function screeningOutcomeCaveat(publication: BetaPolicyScreeningPublication): ScreeningOutcomeCaveat | null {
   if (screeningOutcome(publication) !== "estimate") return null;
-  const scored = publication.candidates.filter(row => row.episodes_scored > 0);
+  const candidates = screeningCandidateRows(publication.candidates);
+  const scored = candidates.filter(row => row.episodes_scored > 0);
   if (scored.some(row => row.episodes_succeeded > 0)) return null;
   if (scored.some(row => screeningRowFlagFields.some(key => (row[key]?.length ?? 0) > 0))) return "scene_setup";
   return screeningSceneFeasibility(publication)?.status === "flagged"
-    && !publication.candidates.some(row => (row.scene_check_flags?.length ?? 0) > 0) ? "scene_setup" : null;
+    && !candidates.some(row => (row.scene_check_flags?.length ?? 0) > 0) ? "scene_setup" : null;
 }
 
 /**

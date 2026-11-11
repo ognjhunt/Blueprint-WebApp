@@ -175,39 +175,6 @@ it("the signed route returns the multi-step hold by name, so the Pipeline holds 
   } finally {await new Promise<void>((resolve,reject)=>server.close(error=>error?reject(error):resolve()));}
 });
 
-it("refuses the first grant with the expired-window answer once a job with no grant was ended; a grant issued first owns the job",async()=>{
-  const {sweepWebsiteJobWithoutGrant}=await import("../utils/websiteJobWindowSweep");
-  // The video arrived eight days ago and no grant was ever issued: past the job window counted from it.
-  const arrived=()=>state.docs.set("captureOutbox/one:video_received",{kind:"video_received",requestId:"one",status:"sent",
-    createdAtIso:new Date(Date.now()-8*86400_000).toISOString()});
-  // The sweep commits first: the ending is recorded, and the Pipeline's first grant request is refused as an expired grant is.
-  seed(packet(),false,false);arrived();
-  expect(await sweepWebsiteJobWithoutGrant("one")).toBe("ended_no_notice");
-  const ended=structuredClone(state.docs.get("inboundRequests/one") as any);
-  expect(ended.website_job_window_ending).toMatchObject({schema_version:"website_job_window_ending.v2",basis:"video_received_no_grant",request_id:"one"});
-  await expect(loadWebsiteSceneSponsorship("one",true,"walkthrough-one",prepOptions())).rejects.toThrow("consent_expired");
-  // A non-creating read is unchanged: there is still no grant to read.
-  await expect(loadWebsiteSceneSponsorship("one",false,"walkthrough-one",prepOptions())).rejects.toThrow("website_scene_sponsorship_missing");
-  const app=express();app.use(express.json());app.use((await import("../routes/internal-capture-worlds")).default);
-  const server=createServer(app);await new Promise<void>(resolve=>server.listen(0,"127.0.0.1",resolve));
-  try {
-    const refused=await fetch(`http://127.0.0.1:${(server.address() as any).port}/creator-captures/walkthrough-one/scene-sponsorship`,
-      {method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({request_id:"one",scene_id:"site-one",...prepOptions()})});
-    expect(refused.status).toBe(409);expect(await refused.json()).toEqual({code:"consent_expired"});
-  } finally {await new Promise<void>((resolve,reject)=>server.close(error=>error?reject(error):resolve()));}
-  // No grant was written, and nothing else on the job changed.
-  expect(state.docs.get("inboundRequests/one")).toEqual(ended);
-  expect(ended).not.toHaveProperty("website_scene_sponsorship");
-
-  // The grant commits first: the sweep, reading again in its own transaction, leaves the job to the granted path.
-  state.docs.clear();seed(packet(),false,false);arrived();
-  const observed=structuredClone(state.docs.get("inboundRequests/one") as any);
-  const grant=await loadWebsiteSceneSponsorship("one",true,"walkthrough-one",prepOptions());
-  expect(await sweepWebsiteJobWithoutGrant("one",Date.now(),observed)).toBe("granted");
-  expect(state.docs.get("inboundRequests/one")).not.toHaveProperty("website_job_window_ending");
-  expect(state.docs.get("inboundRequests/one")?.website_scene_sponsorship).toEqual(grant);
-});
-
 // SYNTHETIC offline preparation contract v2. Actual existing handlers, no production operations.
 function prepOptions() {
   const brief=state.docs.get("siteTaskBriefs/one") as any,record=state.docs.get("inboundRequests/one") as any;
@@ -477,6 +444,38 @@ it("v2 no-create sponsor request cannot create a missing grant and reopens an ex
   } finally {await new Promise<void>(resolve=>server.close(()=>resolve()));}
 });
 
+// Owner ask 2026-11-10: a job that never received a grant and whose no-grant ending is recorded is
+// ended for the host too. Its non-creating read and its reservations name that ending; a job with no
+// ending keeps today's answer; and a grant issued later still reopens the job.
+it("a job whose no-grant ending is recorded answers the host that it ended, and a later grant still reopens it",async()=>{
+  const { sealWebsiteJobNoGrantEnding, WEBSITE_JOB_NO_GRANT_ENDING_FIELD } = await import("../utils/websiteJobWindowEnding");
+  const { WEBSITE_JOB_NO_GRANT_ENDED_CODE } = await import("../utils/websiteSceneSponsorship");
+  seed(packet(),false,false);const app=express();app.use(express.json());app.use((await import("../routes/internal-capture-worlds")).default);
+  const server=createServer(app);await new Promise<void>(resolve=>server.listen(0,"127.0.0.1",resolve));
+  const base=`http://127.0.0.1:${(server.address() as any).port}/creator-captures/walkthrough-one`;
+  const send=(operation:string,body:any)=>fetch(`${base}/${operation}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});
+  const body={request_id:"one",scene_id:"site-one",...prepOptions()};
+  const spend=(digest:string)=>({request_id:"one",scene_id:"site-one",spend:{task_context_digest:digest,
+    allocation_binding_digest:`sha256:${"e".repeat(64)}`,resource_class:"evaluator_api",provider:"google",maximum_cost_usd:0.1,request_count:1}});
+  try {
+    // No ending recorded: today's answer, exactly.
+    const before=await send("scene-sponsorship",{...body,create:false});
+    expect(before.status).toBe(409);expect(await before.json()).toEqual({code:"website_scene_sponsorship_missing"});
+    const record=state.docs.get("inboundRequests/one") as any;
+    record[WEBSITE_JOB_NO_GRANT_ENDING_FIELD]=sealWebsiteJobNoGrantEnding({request_id:"one",waiting_on:"blueprint",
+      waiting_since_epoch:1_800_000_000,ended_at_epoch:1_800_086_400,recorded_at_iso:"2027-01-16T08:00:00.000Z",notice:"queued"});
+    const ended=await send("scene-sponsorship",{...body,create:false});
+    expect(ended.status).toBe(409);expect(await ended.json()).toEqual({code:WEBSITE_JOB_NO_GRANT_ENDED_CODE});
+    const reserve=await send("preparation-spend",spend(body.expected_task_context_digest));
+    expect(reserve.status).toBe(409);expect(await reserve.json()).toEqual({code:WEBSITE_JOB_NO_GRANT_ENDED_CODE});
+    expect(record.website_scene_sponsorship).toBeUndefined();
+    // A grant issued later reopens the job: the ending no longer speaks for it, and its reads answer again.
+    const created=await send("scene-sponsorship",body);expect(created.status).toBe(200);const grant=await created.json();
+    const reopened=await send("scene-sponsorship",{...body,create:false});
+    expect(reopened.status).toBe(200);expect(await reopened.json()).toEqual(grant);
+  } finally {await new Promise<void>(resolve=>server.close(()=>resolve()));}
+});
+
 function syntheticPreparedIntake(grant:any) {
   const content=`sha256:${"a".repeat(64)}`;
   return {schema_version:"task_evaluation_scene_intake_request.v1",submission_id:grant.capture_id,owner:grant.owner,
@@ -590,6 +589,184 @@ it("a designed subject the task adds binds like a removed one, and any other ori
   for(const invalid of ["captured_in_scene",undefined])
     expect(()=>validateWebsiteSponsoredIntake(origin(invalid),grant)).toThrow("website_scene_sponsorship_binding_invalid");
 });
+// 2026-11-10: a scene whose rented machine is lost mid-run gets one more attempt, through the signed contract.
+it("a new grant names one scene-configuration retry and the intake accepts 0 or 1, never more",async()=>{
+  seed(packet(),false,false);const grant=await loadWebsiteSceneSponsorship("one",true,"walkthrough-one",prepOptions());
+  expect(grant.scene_configuration_max_retries).toBe(1);
+  const request=syntheticPreparedIntake(grant);
+  const retries=(max_retries:unknown)=>({...request,execution:{...request.execution,max_retries}});
+  // 0 is every intent issued before the allowance existed; it must keep validating.
+  for(const accepted of [0,1]) expect(()=>validateWebsiteSponsoredIntake(retries(accepted),grant)).not.toThrow();
+  for(const refused of [2,3,-1,true,"1",undefined])
+    expect(()=>validateWebsiteSponsoredIntake(retries(refused),grant)).toThrow("website_scene_sponsorship_binding_invalid");
+  // A grant issued before the allowance names no retry: a request may not claim one against it.
+  const {scene_configuration_max_retries:_none,...earlier}=grant as any;
+  expect(()=>validateWebsiteSponsoredIntake(retries(0),earlier)).not.toThrow();
+  expect(()=>validateWebsiteSponsoredIntake(retries(1),earlier)).toThrow("website_scene_sponsorship_binding_invalid");
+});
+it("renewing a grant issued before the retry allowance restores it without one",async()=>{
+  seed(packet(),false,false);const issued=await (loadWebsiteSceneSponsorship as any)("one",true,"walkthrough-one",prepOptions());
+  const {authority_digest:_digest,scene_configuration_max_retries:_retries,...payload}=issued;
+  const legacy={...payload,authority_digest:crossRuntimeDigest(payload)};
+  (state.docs.get("inboundRequests/one") as any).website_scene_sponsorship=legacy;
+  vi.stubEnv("TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON",JSON.stringify({vast:{digest:legacy.consent.provider_terms_reference,label:"Synthetic",url:"https://example.com/terms"}}));
+  vi.spyOn(Date,"now").mockReturnValue((legacy.expires_at_epoch+10)*1000);
+  try {
+    const renewed=await renewExpiredWebsiteSceneSponsorship("one",{approved_by:"blueprint",
+      approval_reference:"owner chat approval",ack:SPONSORSHIP_RENEWAL_ACK,apply:true});
+    expect(renewed).not.toHaveProperty("scene_configuration_max_retries");
+    expect(renewed.renewal).toMatchObject({parent_authority_digest:legacy.authority_digest});
+  } finally {vi.restoreAllMocks();}
+});
+// Owner decision 2026-11-10: one hard money stop, the account's monthly limit. A flagged grant's own
+// dollar figures warn instead of refusing, only for a reservation the Pipeline asks for.
+async function withSignedRoute<T>(run:(send:(operation:string,body:unknown)=>Promise<Response>)=>Promise<T>) {
+  const app=express();app.use(express.json());app.use((await import("../routes/internal-capture-worlds")).default);
+  const server=createServer(app);await new Promise<void>(resolve=>server.listen(0,"127.0.0.1",resolve));
+  const base=`http://127.0.0.1:${(server.address() as any).port}/creator-captures/walkthrough-one`;
+  try { return await run((operation,body)=>fetch(`${base}/${operation}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)})); }
+  finally {await new Promise<void>((resolve,reject)=>server.close(error=>error?reject(error):resolve()));}
+}
+async function budgetJob() {
+  seed(packet(),false,false);const grant=await loadWebsiteSceneSponsorship("one",true,"walkthrough-one",prepOptions());
+  vi.stubEnv("TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON",JSON.stringify({vast:{digest:grant.consent.provider_terms_reference,label:"Synthetic",url:"https://example.com/terms"}}));
+  const spend=(n:string,maximum_cost_usd=0.6)=>({task_context_digest:grant.task_context_digest,allocation_binding_digest:`sha256:${n.repeat(64)}`,
+    resource_class:"gpu_render" as const,provider:"vast" as const,maximum_cost_usd,request_count:1});
+  return {grant,spend};
+}
+const alertRows=()=>[...state.docs.keys()].filter(key=>key.startsWith("opsWebsiteJobOverBudgetAlerts/"));
+it("a flagged grant passes its upstream cap on a Pipeline-requested reservation, with a note and exactly one alert",async()=>{
+  const {grant,spend}=await budgetJob();
+  expect((grant as any).automatic_budget_extension).toBe(true);
+  // The grant's own figures are unchanged: upstream $1 of a $2 preparation total, two paid attempts.
+  expect(grant).toMatchObject({upstream_max_spend_usd:1,preparation_max_total_spend_usd:2,max_paid_attempts:2});
+  await withSignedRoute(async send=>{
+    const first=await send("preparation-spend",{request_id:"one",scene_id:"site-one",spend:spend("d")});
+    expect(first.status).toBe(200);
+    const second=await send("preparation-spend",{request_id:"one",scene_id:"site-one",spend:spend("e")});
+    expect(second.status).toBe(200);expect(await second.json()).toMatchObject({status:"admitted",maximum_cost_usd:0.6});
+    const rows=(state.docs.get("inboundRequests/one") as any).website_preparation_reservations;
+    expect(rows["d".repeat(64)]).not.toHaveProperty("over_budget");
+    expect(rows["e".repeat(64)].over_budget).toMatchObject({basis:"automatic_budget_extension",sponsorship_digest:grant.authority_digest,
+      allowance:"preparation_upstream_cap",allowance_usd:1,allowance_exceeded:true,job_ceiling_exceeded:false,
+      job_reserved_or_settled_before_usd:0.6});
+    // The paid-attempt count still ends the job by itself: a third request is refused, flag or not.
+    const third=await send("preparation-spend",{request_id:"one",scene_id:"site-one",spend:spend("f",0.1)});
+    expect(third.status).toBe(409);expect(await third.json()).toEqual({code:"website_scene_preparation_budget_exhausted"});
+    // The per-reservation limit is the schema's, unchanged.
+    expect((await send("preparation-spend",{request_id:"one",scene_id:"site-one",spend:spend("a",1001)})).status).toBe(400);
+  });
+  expect(alertRows()).toHaveLength(1);
+  const alert=vi.fn(async()=>({sent:true})),email=vi.fn();
+  const deps={store:(await import("./helpers/fake-firestore")).sharedFakeFirestore as any,alert,email:email as any};
+  expect(await scanOverBudgetWebsiteJobs(deps)).toEqual({due:1,alerted:1});
+  expect(String((alert.mock.calls[0] as unknown as [string,string])[1])).toContain("request one passed its preparation allowance of $1.00");
+  expect(email).not.toHaveBeenCalled();
+  expect(await scanOverBudgetWebsiteJobs(deps)).toEqual({due:0,alerted:0});
+});
+it("a reservation the Pipeline did not request keeps every refusal on a flagged grant",async()=>{
+  const {grant,spend}=await budgetJob();
+  expect((grant as any).automatic_budget_extension).toBe(true);
+  await reserveWebsitePreparationSpend("one",spend("d"));
+  // The operator Atlas script and every other direct caller: no host account precheck, so no extension.
+  await expect(reserveWebsitePreparationSpend("one",spend("e"))).rejects.toThrow("website_scene_preparation_budget_exhausted");
+  expect((state.docs.get("inboundRequests/one") as any).website_preparation_reservations).not.toHaveProperty("e".repeat(64));
+  expect(alertRows()).toHaveLength(0);
+});
+it("with the setting off, a new grant is unflagged and refuses at its upstream cap exactly as before",async()=>{
+  vi.stubEnv("BLUEPRINT_WEBSITE_AUTOMATIC_BUDGET_EXTENSION","false");
+  const {grant,spend}=await budgetJob();
+  expect(grant).not.toHaveProperty("automatic_budget_extension");
+  await withSignedRoute(async send=>{
+    expect((await send("preparation-spend",{request_id:"one",scene_id:"site-one",spend:spend("d")})).status).toBe(200);
+    const refused=await send("preparation-spend",{request_id:"one",scene_id:"site-one",spend:spend("e")});
+    expect(refused.status).toBe(409);expect(await refused.json()).toEqual({code:"website_scene_preparation_budget_exhausted"});
+  });
+  expect(alertRows()).toHaveLength(0);
+});
+it("a flagged grant past its expiry admits nothing, even on a Pipeline-requested reservation",async()=>{
+  const {grant,spend}=await budgetJob();
+  vi.spyOn(Date,"now").mockReturnValue((grant.expires_at_epoch+10)*1000);
+  try {
+    await withSignedRoute(async send=>{
+      const refused=await send("preparation-spend",{request_id:"one",scene_id:"site-one",spend:spend("d")});
+      expect(refused.status).toBe(409);expect(await refused.json()).toEqual({code:"consent_expired"});
+    });
+  } finally {vi.restoreAllMocks();}
+});
+it("a renewal keeps what the expired grant named, whatever the setting says now",async()=>{
+  const {grant}=await budgetJob();
+  const renew=()=>renewExpiredWebsiteSceneSponsorship("one",{approved_by:"blueprint",approval_reference:"owner chat approval",
+    ack:SPONSORSHIP_RENEWAL_ACK,apply:true});
+  vi.stubEnv("BLUEPRINT_WEBSITE_AUTOMATIC_BUDGET_EXTENSION","false");
+  vi.spyOn(Date,"now").mockReturnValue((grant.expires_at_epoch+10)*1000);
+  try { expect((await renew() as any).automatic_budget_extension).toBe(true); } finally {vi.restoreAllMocks();}
+  // A grant issued before the extension names none, and its renewal names none with the setting on.
+  state.docs.clear();vi.unstubAllEnvs();
+  vi.stubEnv("BLUEPRINT_WEBSITE_SCENE_SPONSORSHIP_JSON",JSON.stringify({owner:{user_id:"blueprint",organization_id:"blueprint"},
+    upstream_max_spend_usd:1,native_max_spend_usd:1,max_total_spend_usd:2,max_paid_attempts:2,ttl_seconds:3600,provider_terms_reference:`sha256:${"c".repeat(64)}`}));
+  const {grant:issued}=await budgetJob();
+  const {authority_digest:_d,automatic_budget_extension:_e,...payload}=issued as any;
+  const legacy={...payload,authority_digest:crossRuntimeDigest(payload)};
+  (state.docs.get("inboundRequests/one") as any).website_scene_sponsorship=legacy;
+  vi.spyOn(Date,"now").mockReturnValue((legacy.expires_at_epoch+10)*1000);
+  try { expect(await renew()).not.toHaveProperty("automatic_budget_extension"); } finally {vi.restoreAllMocks();}
+});
+it("an intake names the automatic budget extension only when its grant does",async()=>{
+  const {grant}=await budgetJob();
+  const request=syntheticPreparedIntake(grant);
+  const named=(value:unknown)=>({...request,execution:{...request.execution,automatic_budget_extension:value}});
+  expect(()=>validateWebsiteSponsoredIntake(request,grant)).not.toThrow();
+  expect(()=>validateWebsiteSponsoredIntake(named(true),grant)).not.toThrow();
+  for(const refused of [false,"true",1])
+    expect(()=>validateWebsiteSponsoredIntake(named(refused),grant)).toThrow("website_scene_sponsorship_binding_invalid");
+  const {automatic_budget_extension:_none,...unflagged}=grant as any;
+  expect(()=>validateWebsiteSponsoredIntake(request,unflagged)).not.toThrow();
+  expect(()=>validateWebsiteSponsoredIntake(named(true),unflagged)).toThrow("website_scene_sponsorship_binding_invalid");
+  // Only the Website sponsored execution may carry it; every other intake schema refuses the field.
+  expect(websiteSceneExecution.safeParse(named(true).execution).success).toBe(true);
+  expect(sceneIntakeCommand.shape.execution.safeParse(named(true).execution).success).toBe(false);
+});
+// The scene intake buys nothing itself; every paid launch under it is admitted on the host.
+it.each([["flagged",true],["unflagged",false]])("a scene intake past the job ceiling on a %s grant",async(_label,flagged)=>{
+  if(!flagged) vi.stubEnv("BLUEPRINT_WEBSITE_AUTOMATIC_BUDGET_EXTENSION","false");
+  seed(packet(),false,false);state.docs.set("siteTaskItemInventories/one",{requestId:"one",items:[]});
+  const grant=await loadWebsiteSceneSponsorship("one",true,"walkthrough-one",prepOptions());
+  vi.stubEnv("TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON",JSON.stringify(Object.fromEntries(["vast","openai"].map(p=>[p,
+    {digest:grant.consent.provider_terms_reference,label:"Synthetic",url:"https://example.com/terms"}]))));
+  await withSignedRoute(async send=>{
+    expect((await send("task-item-evidence",{request_id:"one",scene_id:"site-one",task_context_digest:grant.task_context_digest,
+      evidence_digest:`sha256:${"b".repeat(64)}`,items:[]})).status).toBe(200);
+    expect((await send("visual-scene",{request_id:"one",scene_id:"site-one",task_context_digest:grant.task_context_digest,
+      world_id:"SYNTHETIC-world",operation_id:"SYNTHETIC-operation",model:"marble-1.1-plus",thumbnail_url:null,pano_url:null,
+      launch_url:"https://marble.worldlabs.ai/world/SYNTHETIC"})).status).toBe(200);
+    // The job already holds $39.50 of its $40 default ceiling; the intake's $1 construction allowance passes it.
+    const record=state.docs.get("inboundRequests/one") as any;
+    record.website_preparation_reservations={held:{admission:{maximum_cost_usd:39.5,request_count:1},settlement:{actual_cost_usd:39.5}}};
+    if(flagged){
+      // A Pipeline reservation past the upstream cap records the job's one alert for this grant first.
+      const spent=await send("preparation-spend",{request_id:"one",scene_id:"site-one",spend:{task_context_digest:grant.task_context_digest,
+        allocation_binding_digest:`sha256:${"d".repeat(64)}`,resource_class:"gpu_render",provider:"vast",maximum_cost_usd:0.4,request_count:1}});
+      expect(spent.status).toBe(200);expect(alertRows()).toHaveLength(1);
+    }
+    const response=await send("prepared-scene",{request_id:"one",scene_id:"site-one",request:syntheticPreparedIntake(grant)});
+    const alerts=alertRows();
+    if(!flagged){
+      expect(response.status).toBe(409);expect(await response.json()).toEqual({code:"website_scene_preparation_budget_exhausted"});
+      expect(alerts).toHaveLength(0);
+      return;
+    }
+    expect(response.status).toBe(202);const receipt=await response.json();
+    expect((state.docs.get(`taskEvaluationSceneIntakes/${receipt.id}`) as any).over_budget).toMatchObject({
+      basis:"automatic_budget_extension",sponsorship_digest:grant.authority_digest,allowance:"native_construction_allowance",
+      allowance_usd:1,job_ceiling_usd:40,job_ceiling_exceeded:true,job_reserved_or_settled_before_usd:39.9});
+    // Never a second alert for the same job and grant: the reservation's marker stands.
+    expect(alerts).toHaveLength(1);
+    expect((state.docs.get(alerts[0]) as any).reservation_key).toBe("d".repeat(64));
+  });
+});
+import { scanOverBudgetWebsiteJobs } from "../utils/websitePreparationOpsAlerts";
+import { websiteSceneExecution } from "../utils/taskEvaluationSceneIntake";
 it("v2 actual signed item/visual/intake handlers retain purpose through transactions and outbox replay",async()=>{
   seed(packet(),false,false);state.docs.set("siteTaskItemInventories/one",{requestId:"one",items:[]});
   const grant=await loadWebsiteSceneSponsorship("one",true,"walkthrough-one",prepOptions());

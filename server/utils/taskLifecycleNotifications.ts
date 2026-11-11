@@ -25,9 +25,10 @@ import { taskLifecycleNotificationIsCurrent } from "./taskLifecycleNotificationA
 import { drainPendingWebsitePreparationNotifications } from "./websitePreparationStatus";
 import { preparationEndedSentence } from "./taskStatusProjection";
 import { EARLY_TASK_HOLD_DETAIL, EARLY_TASK_HOLD_SENTENCES, earlyTaskHoldOf, isEarlyTaskHoldReason,
-  FOOTAGE_BEFORE_ACCOUNT_SENTENCE, JOB_WINDOW_ENDING_MESSAGE, JOB_WINDOW_ENDING_SUBJECT,
-  JOB_WINDOW_ENDING_WITHOUT_GRANT_MESSAGE, type EarlyTaskHoldReason } from "./taskPreparationOutcome";
-import { isWebsiteJobWindowEndedEventId } from "./websiteJobWindowEnding";
+  FOOTAGE_BEFORE_ACCOUNT_SENTENCE, JOB_WINDOW_ENDING_MESSAGE, JOB_WINDOW_ENDING_SUBJECT, jobNoGrantEndingMessage,
+  isRecaptureReason, RECAPTURE_SENTENCES, RECAPTURE_TITLE, recaptureReasonOf,
+  type EarlyTaskHoldReason, type RecaptureReason } from "./taskPreparationOutcome";
+import { isWebsiteJobNoGrantEndedEventId, isWebsiteJobWindowEndedEventId } from "./websiteJobWindowEnding";
 import { selectWebsiteAtlasPreview } from "./websiteAtlasPreview";
 import { isScreeningResultOutcome, screeningEstimateCountSentence, screeningOutcomeSentence, storedScreeningOutcomeCaveat,
   type ScreeningOutcome, type ScreeningOutcomeCaveat } from "./betaPolicyScreeningContract";
@@ -212,6 +213,8 @@ export async function enqueueTaskLifecycleNotification(params: {
   captureId?: string;
   /** `preparation_needs_attention` only: wait until then for the Atlas preview that would name an early task hold. */
   awaitEarlyHoldUntilMs?: number;
+  /** `preparation_needs_attention` only: the preparation stop only a new video clears, from the status's outcome. */
+  recaptureReason?: RecaptureReason;
   /** `evaluation_outcome` only: the run's result outcome, and an estimate's counts. */
   screeningOutcome?: ScreeningOutcome;
   screeningCounts?: { ran: number; total: number; scored: number };
@@ -251,9 +254,13 @@ export async function enqueueTaskLifecycleNotification(params: {
   // ended, or the wait runs out, owe the notice rather than send a generic one the page would contradict.
   if (!earlyTaskHold && params.awaitEarlyHoldUntilMs !== undefined && Date.now() < params.awaitEarlyHoldUntilMs
     && (!preview || preview.state === "processing")) return { enqueued: false, reason: "awaiting_early_hold_preview" };
-  const { captureId: _captureId, awaitEarlyHoldUntilMs: _wait, ...notice } = params;
+  // A stop only a new video clears (the preview's own, or the preparation status's): the page asks the site to
+  // film again, so the notice says the same, never that the job waits for our team.
+  const recaptureReason = earlyTaskHold ? null : recaptureReasonOf(preview)
+    ?? (isRecaptureReason(params.recaptureReason) ? params.recaptureReason : null);
+  const { captureId: _captureId, awaitEarlyHoldUntilMs: _wait, recaptureReason: _recapture, ...notice } = params;
   return enqueueOutbox(buildTaskLifecycleNotification({ ...notice, requestId, to, workspaceUrl,
-    ...(earlyTaskHold ? { earlyTaskHold } : {}) }));
+    ...(earlyTaskHold ? { earlyTaskHold } : {}), ...(recaptureReason ? { recaptureReason } : {}) }));
 }
 
 /** Build the existing notice without a database write or delivery. Atomic
@@ -284,13 +291,18 @@ export function buildTaskLifecycleNotification(params: {
   robotAccessCounts?: RobotAccessCounts;
   /** `preparation_needs_attention` only: the early task hold the job page states; the notice is then the held one. */
   earlyTaskHold?: EarlyTaskHoldReason;
+  /** `preparation_needs_attention` only: the new-video ask the job page states; the notice is then that ask. */
+  recaptureReason?: RecaptureReason;
   /**
    * `scene_outcome` only: the job's window ran out and the WebApp's sweep ended it
    * (`websiteJobWindowSweep`). Its event id is the job's fixed one, or the one naming a later window end.
    */
   jobWindowEnded?: true;
-  /** With `jobWindowEnded`: the job never received a grant, so its ending says the sentence for that basis. */
-  jobWindowEndedWithoutGrant?: true;
+  /**
+   * `scene_outcome` only: a job that never received a grant, ended by the same sweep, and whose wait
+   * it was. Its event id is the job's fixed no-grant one.
+   */
+  jobNoGrantEnded?: "site" | "blueprint";
 }): Parameters<typeof enqueueOutbox>[0] {
   const requestId = params.requestId.trim();
   if (isWebsitePreparationNotice(params.milestone) && !/^sha256:[a-f0-9]{64}$/.test(params.eventId || "")) {
@@ -298,11 +310,14 @@ export function buildTaskLifecycleNotification(params: {
   }
   const outcomeDetail = params.milestone === "evaluation_outcome" ? evaluationOutcomeDetail(params)
     : params.milestone === "scene_outcome"
-      ? params.jobWindowEnded ? jobWindowEndedDetail(params) : sceneOutcomeDetail(params)
+      ? params.jobNoGrantEnded ? jobNoGrantEndedDetail(params)
+        : params.jobWindowEnded ? jobWindowEndedDetail(params) : sceneOutcomeDetail(params)
     : params.milestone === "robot_access_question" ? robotAccessQuestionDetail(params) : "";
   const held = params.milestone === "preparation_needs_attention" && isEarlyTaskHoldReason(params.earlyTaskHold)
     ? params.earlyTaskHold : null;
-  const message = held ? earlyTaskHoldCopy(held) : copy[params.milestone];
+  const recapture = !held && params.milestone === "preparation_needs_attention" && isRecaptureReason(params.recaptureReason)
+    ? params.recaptureReason : null;
+  const message = held ? earlyTaskHoldCopy(held) : recapture ? recaptureCopy(recapture) : copy[params.milestone];
   const url = params.captureUrl ?? captureUploadUrlFor(requestId, "owner");
   const eventId = params.eventId?.trim().replace(/[^A-Za-z0-9._-]/g, "_").slice(0, 120);
   // Preparation notices never carry caller text: only a validated reference and,
@@ -318,7 +333,7 @@ export function buildTaskLifecycleNotification(params: {
     to: params.to,
     subject: params.milestone === "evaluation_outcome" && params.screeningOutcome === "estimate"
       ? "Your simulation estimate is ready"
-      : params.milestone === "scene_outcome" && params.jobWindowEnded ? JOB_WINDOW_ENDING_SUBJECT
+      : params.milestone === "scene_outcome" && (params.jobWindowEnded || params.jobNoGrantEnded) ? JOB_WINDOW_ENDING_SUBJECT
       : params.milestone === "scene_outcome" && params.sceneOutcomeKind ? sceneOutcomeSubject(params.sceneOutcomeKind) : message.subject,
     body: `${message.body(url, params.milestone === "run_no_result" ? noResultObservationText(params.runProgress)
       : isWebsitePreparationNotice(params.milestone) ? preparationDetail
@@ -326,6 +341,14 @@ export function buildTaskLifecycleNotification(params: {
         || params.milestone === "robot_access_question" ? outcomeDetail
       : params.detail?.trim() ?? "", params.workspaceUrl ?? null)}\n\n${EMAIL_SIGN_OFF}`,
     replyTo: "hello@tryblueprint.io",
+  };
+}
+
+/** A new-video ask's one email: the job page's title, reason and next step, in place of the needs-attention notice. */
+function recaptureCopy(reason: RecaptureReason): (typeof copy)[TaskLifecycleMilestone] {
+  return {
+    subject: RECAPTURE_TITLE,
+    body: (url, detail) => `${RECAPTURE_SENTENCES[reason].reason} ${RECAPTURE_SENTENCES[reason].nextStep}${detail ? ` ${detail}` : ""}\n\nOpen your job:\n${url}`,
   };
 }
 
@@ -384,12 +407,21 @@ function sceneOutcomeDetail(params: { eventId?: string; sceneOutcomeKind?: Termi
  * The job page's own sentence for a job the window sweep ended. Fixed text, and only under a
  * window-ended event id and with no scene outcome kind, so no other notice can carry it.
  */
-function jobWindowEndedDetail(params: { eventId?: string; sceneOutcomeKind?: TerminalSceneOutcomeKind;
-  jobWindowEndedWithoutGrant?: true }): string {
+function jobWindowEndedDetail(params: { eventId?: string; sceneOutcomeKind?: TerminalSceneOutcomeKind }): string {
   if (!isWebsiteJobWindowEndedEventId(params.eventId) || params.sceneOutcomeKind !== undefined) {
     throw new Error("job_window_ended_notice_invalid");
   }
-  return params.jobWindowEndedWithoutGrant ? JOB_WINDOW_ENDING_WITHOUT_GRANT_MESSAGE : JOB_WINDOW_ENDING_MESSAGE;
+  return JOB_WINDOW_ENDING_MESSAGE;
+}
+
+/** The job page's own sentence for a job that never received a grant, ended by the same sweep. Fixed text. */
+function jobNoGrantEndedDetail(params: { eventId?: string; sceneOutcomeKind?: TerminalSceneOutcomeKind;
+  jobWindowEnded?: true; jobNoGrantEnded?: "site" | "blueprint" }): string {
+  if (!isWebsiteJobNoGrantEndedEventId(params.eventId) || params.sceneOutcomeKind !== undefined || params.jobWindowEnded
+    || (params.jobNoGrantEnded !== "site" && params.jobNoGrantEnded !== "blueprint")) {
+    throw new Error("job_no_grant_ended_notice_invalid");
+  }
+  return jobNoGrantEndingMessage(params.jobNoGrantEnded);
 }
 
 /** How many of each kind of movable furniture a robot access proposal moves. */

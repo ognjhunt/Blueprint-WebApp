@@ -329,7 +329,8 @@ async function readRequestForStatus(requestId: string, captureId = `walkthrough-
   siteName?: string | null;
   captureRights: ReturnType<typeof projectWebsiteCaptureRights>;
   /** Until when Blueprint can keep working on the job; null when it cannot be read. */
-  jobWorkWindow: { untilEpoch: number | null; ended: boolean; endingRecorded?: boolean; endingWithoutGrant?: boolean } | null;
+  jobWorkWindow: { untilEpoch: number | null; ended: boolean; endingRecorded?: boolean;
+    noGrantWaitingOn?: "site" | "blueprint" } | null;
   visualReconstructionReady: boolean;
   preparationOutcome: TaskOutcome | null;
   ownerClosureOutcome: TaskOutcome | null;

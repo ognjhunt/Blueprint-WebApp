@@ -194,13 +194,21 @@ export function websiteJobCeilingSummary(ceiling: ReturnType<typeof websiteJobCe
     remaining_cost_usd: Number.isFinite(spend.total_micros) ? dollars(Math.max(0, limit - spend.total_micros)) : 0 };
 }
 
-/** Refuses new spend that would take the job past its ceiling. Reads only; the caller writes. */
-export async function assertWithinWebsiteJobCeiling(input: { record: Record<string, any>; captureId: string;
+type WebsiteJobCeilingInput = { record: Record<string, any>; captureId: string;
   requestId?: string; atlas?: { maximum_cost_usd: number } | null; reader: WebsiteJobLedgerReader;
-  additionalCostUsd: number }) {
+  additionalCostUsd: number };
+
+/** Whether new spend would take the job past its ceiling. Reads only; the caller decides and writes. */
+export async function checkWebsiteJobCeiling(input: WebsiteJobCeilingInput) {
   const ceiling = websiteJobCeiling(input);
   const spend = await websiteJobSpend(input);
-  if (spend.total_micros + micros(input.additionalCostUsd) > Math.floor(ceiling.maximum_cost_usd * 1_000_000))
-    throw new Error("website_scene_preparation_budget_exhausted");
+  const exceeded = spend.total_micros + micros(input.additionalCostUsd) > Math.floor(ceiling.maximum_cost_usd * 1_000_000);
+  return { ceiling, spend, exceeded };
+}
+
+/** Refuses new spend that would take the job past its ceiling. Reads only; the caller writes. */
+export async function assertWithinWebsiteJobCeiling(input: WebsiteJobCeilingInput) {
+  const { ceiling, spend, exceeded } = await checkWebsiteJobCeiling(input);
+  if (exceeded) throw new Error("website_scene_preparation_budget_exhausted");
   return { ceiling, spend };
 }

@@ -507,3 +507,74 @@ export async function scanHeldWebsiteEvaluations(deps: AlertDeps = {}): Promise<
   }
   return { held: held.length, alerted: await report(claims, deps, "website_evaluation_held", "Website job evaluations finished held") };
 }
+
+const OVER_BUDGET_ALERT_COLLECTION = "opsWebsiteJobOverBudgetAlerts";
+const usd = (value: unknown) => typeof value === "number" && Number.isFinite(value) ? `$${value.toFixed(2)}` : "unknown";
+
+/**
+ * Owner decision 2026-11-10: a job whose grant names the automatic budget extension is
+ * not stopped by its own dollar figures; the owner is told early instead. The reservation
+ * that first takes a job past its original budget records one marker per job and grant
+ * (reserveWebsitePreparationSpend); this pass reports it once, through the same
+ * recoverable delivery (Slack first, ops email as fallback). Internal only: nothing is
+ * sent to the site. A site that withdrew consent is not reported. The account's monthly
+ * limit is the host's; its 50/80/100% alerts are the host's own and are not repeated here.
+ */
+export async function scanOverBudgetWebsiteJobs(deps: AlertDeps = {}): Promise<{ due: number; alerted: number }> {
+  const store = deps.store === undefined ? (dbAdmin as unknown as Store | null) : deps.store;
+  if (!store) return { due: 0, alerted: 0 };
+  const now = deps.now || Date.now;
+  const rows = await store.collection(OVER_BUDGET_ALERT_COLLECTION).where("next_attempt_at_ms", "<=", now())
+    .limit(Math.max(1, Math.min(deps.limit ?? 50, 200))).get();
+  const claims: ClaimedAlert[] = [];
+  for (const row of rows.docs) {
+    const ref = store.collection(OVER_BUDGET_ALERT_COLLECTION).doc(row.id), leaseId = randomUUID();
+    const requestId = row.data()?.request_id;
+    if (typeof requestId !== "string") continue;
+    const cancel = (tx: any, delivery: WebsitePreparationAlertDelivery) => tx.set(ref, { delivery: { ...delivery,
+      state: "cancelled", lease_id: null, lease_until_ms: null }, next_attempt_at_ms: null }, { merge: true });
+    try {
+      const claimed = await store.runTransaction(async tx => {
+        const marker = (await tx.get(ref)).data() ?? {}, nowMs = now();
+        const request = (await tx.get(store.collection("inboundRequests").doc(requestId))).data();
+        if (marker.request_id !== requestId || typeof marker.next_attempt_at_ms !== "number"
+          || marker.next_attempt_at_ms > nowMs) return null;
+        const parsed = websitePreparationAlertDeliverySchema.safeParse(marker.delivery);
+        // A newer or malformed delivery record is unknown, not permission to send again.
+        if (marker.delivery !== undefined && marker.delivery !== null && !parsed.success) return null;
+        if (projectWebsiteCaptureRights(request).consent_revoked) {
+          cancel(tx, parsed.success ? parsed.data : pendingDelivery());
+          return null;
+        }
+        const delivery = claimDelivery(parsed.success ? parsed.data : pendingDelivery(), nowMs, leaseId);
+        if (!delivery) return null;
+        tx.set(ref, { delivery, next_attempt_at_ms: delivery.lease_until_ms, alerted_at_iso: null }, { merge: true });
+        return (marker.over_budget ?? {}) as Record<string, any>;
+      });
+      if (!claimed) continue;
+      const passed = [claimed.allowance_exceeded ? `its ${claimed.allowance === "atlas_allowance" ? "Atlas allowance"
+        : "preparation allowance"} of ${usd(claimed.allowance_usd)}` : null,
+      claimed.job_ceiling_exceeded ? `its job budget of ${usd(claimed.job_ceiling_usd)}` : null].filter(Boolean).join(" and ");
+      claims.push({ id: row.id, line: `- request ${requestId} passed ${passed || "its original budget"} `
+        + `(${usd(claimed.job_reserved_or_settled_before_usd)} already held or spent before this reservation). `
+        + `It continues under the account's monthly limit. ${appBaseUrl()}/admin/leads/${encodeURIComponent(requestId)}`,
+      update: action => store.runTransaction(async tx => {
+        const marker = (await tx.get(ref)).data() ?? {}, nowMs = now();
+        const request = (await tx.get(store.collection("inboundRequests").doc(requestId))).data();
+        const parsed = websitePreparationAlertDeliverySchema.safeParse(marker.delivery);
+        if (!parsed.success || parsed.data.lease_id !== leaseId || parsed.data.state !== "claimed"
+          || (parsed.data.lease_until_ms ?? 0) <= nowMs) return false;
+        if (projectWebsiteCaptureRights(request).consent_revoked) { cancel(tx, parsed.data); return false; }
+        const next = advanceDelivery(parsed.data, action, nowMs);
+        if (!next) return false;
+        tx.set(ref, { delivery: next.delivery, next_attempt_at_ms: next.due,
+          alerted_at_iso: next.delivery.acknowledged_at_iso }, { merge: true });
+        return true;
+      }) });
+    } catch (error) {
+      logger.warn({ err: error, alertId: row.id }, "Could not claim a website job over-budget alert");
+    }
+  }
+  return { due: rows.docs.length, alerted: await report(claims, deps, "website_job_over_budget",
+    "Website jobs passed their original budget (automatic budget extension)") };
+}

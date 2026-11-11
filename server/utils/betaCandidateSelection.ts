@@ -10,7 +10,7 @@
 import { z } from "zod";
 import type { JobCandidateSelection } from "../../client/src/types/jobMarketplace";
 import { crossRuntimeArtifactDigest } from "./crossRuntimeCanonical";
-import type { BetaPolicyScreeningPublication } from "./betaPolicyScreeningContract";
+import { screeningKnownGoodControl, type BetaPolicyScreeningPublication } from "./betaPolicyScreeningContract";
 
 const identifier = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$/);
 const digest = z.string().regex(/^sha256:[a-f0-9]{64}$/);
@@ -107,14 +107,16 @@ export function projectCandidateSelection(stored: unknown, publication: BetaPoli
   const teams = Array.isArray(record.registry_teams) ? record.registry_teams.filter((team): team is { id: string; name: string } =>
     typeof team?.id === "string" && typeof team?.name === "string").map(({ id, name }) => ({ id, name })) : [];
   const value = selection.chosen;
+  const control = new Set(publication.candidates.filter(screeningKnownGoodControl).map(row => row.candidate_id));
   return { status: selection.status, selectionDigest: selection.selection_digest, tiedWith: selection.tied_with,
     chosen: value && { candidateId: value.candidate_id, name: value.display_name, successRate: value.success_rate,
       scored: value.episodes_scored, succeeded: value.episodes_succeeded, configurationId: value.configuration_id,
       policyRouteId: value.policy_route_id, deploymentCompanies: value.deployment_companies, relationship: value.relationship,
       evidenceUrl: value.evidence_url, relatedTeams: value.related_teams, partnerBlockers: value.partner_blockers,
       registryTeams: teams },
-    candidates: selection.candidates.map(row => ({ candidateId: row.candidate_id, resultRank: row.result_rank ?? null,
-      choiceBlocker: row.choice_blocker })) };
+    // The known-good control is a check, never a candidate the choice could fall on.
+    candidates: selection.candidates.filter(row => !control.has(row.candidate_id)).map(row => ({ candidateId: row.candidate_id,
+      resultRank: row.result_rank ?? null, choiceBlocker: row.choice_blocker })) };
 }
 
 /** Registry rows are Blueprint's operating records; a site sees only the companies the catalog records. */

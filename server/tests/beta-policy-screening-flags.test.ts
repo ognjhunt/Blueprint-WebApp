@@ -316,6 +316,29 @@ describe("what the site reads", () => {
     expect(page.summary.startsWith(`${ESTIMATE} ${CAVEAT}`)).toBe(true);
     expect(JSON.stringify(page)).not.toContain("future_scene_check_code");
   });
+
+  it("names each estimate the scene was built on in its own sentence and leaves the counts and interval as measured", async () => {
+    const codes = ["scene_estimate:collider_registration", "scene_estimate:floor", "scene_estimate:level",
+      "scene_estimate:review_citations_dropped", "scene_estimate:splat_view_dependence_dropped",
+      "scene_estimate:surrounding_views_dropped"];
+    const sentences = codes.map(setupFlagSentence);
+    expect(new Set(sentences).size).toBe(codes.length);
+    expect(sentences).not.toContain(SETUP_FLAG_UNCLASSIFIED_SENTENCE);
+    expect(sentences.join(" ")).not.toMatch(/scene_estimate|certif|guarantee/i);
+    const plain = withRows(pipelineV3, row => (({ observation_quality_flags: _o, setup_quality_flags: _s, scene_check_flags: _c,
+      ...rest }) => rest)(row), { scene_feasibility: { status: "clear", flags: [] } });
+    const estimated = withRows(pipelineV3, row => (({ observation_quality_flags: _o, setup_quality_flags: _s, scene_check_flags: _c,
+      ...rest }) => rest)(row), { scene_feasibility: { status: "flagged", flags: codes } });
+    expect(screeningSetupNotes(estimated)).toEqual(sentences);
+    await ingestBetaPolicyScreening(estimated);
+    const page = siteView();
+    expect(page.screening!.setupNotes).toEqual(sentences);
+    expect(JSON.stringify(page)).not.toContain("scene_estimate");
+    // Nothing measured is adjusted by an estimate: each row's counts and interval are those of the same run unflagged.
+    const measured = (value: typeof plain) => value.candidates.map(row => [row.episodes_scored, row.episodes_succeeded]);
+    expect(measured(estimated)).toEqual(measured(plain));
+    expect(page.screening!.candidates.map(row => [row.scored, row.succeeded])).toEqual(measured(plain));
+  });
 });
 
 describe("a signed payload this release cannot parse", () => {

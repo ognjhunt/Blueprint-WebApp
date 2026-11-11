@@ -1,7 +1,8 @@
 import { websiteCaptureOwnerUid } from "./websiteCaptureOwner";
 /** Current-source preparation status; never a native assessment or preview verdict. */
 import { z } from "zod";
-import { preparationOutcomeSchema, preparationOutcomeV6Schema, projectPreparationOutcome, ROBOT_FIT_HOLD_PREFIX }
+import { isRecaptureReason, type RecaptureReason } from "./taskPreparationOutcome";
+import { preparationOutcomeSchema, preparationOutcomeV6Schema, preparationOutcomeV7Schema, projectPreparationOutcome, ROBOT_FIT_HOLD_PREFIX }
   from "./taskPreparationOutcome";
 import { taskTargetChoiceQuestionSchema, type TaskTargetChoiceQuestion } from "./taskTargetChoiceContract";
 import type { TaskOutcome } from "../../client/src/types/taskOutcome";
@@ -122,12 +123,18 @@ const receiptV6 = receiptV5.extend({
   outcome: preparationOutcomeV6Schema.nullable(),
   robot_fit_precheck: robotFitPrecheckSchema.nullable(),
 }).strict();
-/** Older Pipelines keep answering v1–v5; v3 adds a retained evidence finding. */
-export const websitePreparationReceiptSchema = z.union([receiptV1, receiptV2, receiptV3, receiptV4, receiptV5, receiptV6]);
+/** v7 adds the preparation stops only a new video can clear to the outcome (Pipeline `website_recapture_required`). */
+const receiptV7 = receiptV6.extend({
+  schema_version: z.literal("website_preparation_status.v7"),
+  outcome: preparationOutcomeV7Schema.nullable(),
+}).strict();
+/** Older Pipelines keep answering v1–v6; v3 adds a retained evidence finding. */
+export const websitePreparationReceiptSchema = z.union([receiptV1, receiptV2, receiptV3, receiptV4, receiptV5, receiptV6,
+  receiptV7]);
 export type WebsitePreparationReceipt = z.infer<typeof websitePreparationReceiptSchema>;
 type PreparationState = typeof statesV2[number];
-/** Asks for v6; older Pipelines cap negotiation at their newest known version (v5 and below stay accepted). */
-export const WEBSITE_PREPARATION_STATUS_VERSION = "6";
+/** Asks for v7; older Pipelines cap negotiation at their newest known version (v6 and below stay accepted). */
+export const WEBSITE_PREPARATION_STATUS_VERSION = "7";
 export const WEBSITE_PREPARATION_STATUS_VERSION_HEADER = "x-blueprint-preparation-status-version";
 /** The site's view of the robot fit table; robots that fit come first. */
 export type PublicRobotFit = {
@@ -178,7 +185,9 @@ export type WebsitePreparationIntent = {requestId: string; captureId: string; ev
   milestone: WebsitePreparationNoticeMilestone; terminalReason: WebsitePreparationTerminalReason | null;
   /** Set when this needs-attention notice may be the Pipeline's early task hold, whose reason only the separately
    * delivered Atlas preview carries: the notice waits for that preview until this time, then goes out generic. */
-  awaitEarlyHoldUntilMs?: number};
+  awaitEarlyHoldUntilMs?: number;
+  /** Set when the status's outcome is a stop only a new video clears: the notice is then the page's new-video ask. */
+  recaptureReason?: RecaptureReason};
 /**
  * How long a needs-attention notice that may be an early task hold waits for the Atlas preview naming its reason.
  * The Pipeline retries a failed preview delivery after min(3600, 30 * 2^attempts) seconds
@@ -534,6 +543,8 @@ export async function drainPendingWebsitePreparationNotifications(
       const result = await enqueue({requestId: row.selector.request_id, captureId: row.selector.capture_id,
         eventId: row.notification.eventId, correlationId: `bp-prep-${current.status.status_digest.slice(7, 23)}`,
         milestone: notice.milestone, terminalReason: terminalReasonOf(current.status),
+        ...(notice.milestone === "preparation_needs_attention" && "outcome" in current.status
+          && isRecaptureReason(current.status.outcome?.reason) ? {recaptureReason: current.status.outcome!.reason as RecaptureReason} : {}),
         ...(notice.milestone === "preparation_needs_attention" && mayBeEarlyTaskHold(current.status)
           && row.owedSinceMs !== undefined ? {awaitEarlyHoldUntilMs: row.owedSinceMs + EARLY_HOLD_PREVIEW_WAIT_MS} : {})});
       if (result === "unavailable") {pending++; continue;}

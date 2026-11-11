@@ -11,7 +11,6 @@
  */
 import { describe, expect, it, vi } from "vitest";
 import { AUTHORITY_ENDED_SENTENCE, FOOTAGE_BEFORE_ACCOUNT_SENTENCE, JOB_WINDOW_ENDED_SENTENCE, JOB_WINDOW_ENDING_MESSAGE,
-  JOB_WINDOW_ENDING_WITHOUT_GRANT_MESSAGE,
   PREPARATION_ENDED_NEXT } from "../utils/taskPreparationOutcome";
 import { waitingTimeline } from "../../client/src/data/betaTimelines";
 import { jobWorkWindowSentence, screeningOutcomeSentence } from "../utils/betaPolicyScreeningContract";
@@ -709,17 +708,6 @@ describe("a job the window sweep ended says so, whatever the Pipeline last said"
     for (const result of [{ consentRevoked: true }, { sceneProgression: { state: "evaluated" } },
       { screening: { teams: 1, queued: 1, running: 0, reported: 0, noResult: 0 } }])
       expect(view(result).decision).not.toBe("ended");
-  });
-
-  it("says the no-grant sentence for a job ended with no grant, and the granted one otherwise", () => {
-    const withoutGrant = view({ jobWorkWindow: { untilEpoch: null, ended: false, endingRecorded: true, endingWithoutGrant: true },
-      preparationStatus: { state: "unavailable", correlationId: null } });
-    expect(withoutGrant).toMatchObject({ decision: "ended", headline: JOB_WINDOW_ENDING_WITHOUT_GRANT_MESSAGE, operatorAction: null });
-    expect(JOB_WINDOW_ENDING_WITHOUT_GRANT_MESSAGE.endsWith(PREPARATION_ENDED_NEXT)).toBe(true);
-    // There was never an authorized window, a number of days, or a claim about whether work started.
-    expect(JOB_WINDOW_ENDING_WITHOUT_GRANT_MESSAGE).not.toMatch(/authori[sz]ed|\bdays?\b|\d|started|preview|we will|we'll|on hold/i);
-    expect(view({}).headline).toBe(JOB_WINDOW_ENDING_MESSAGE);
-    expect(view({ jobWorkWindow: { untilEpoch: null, ended: false, endingWithoutGrant: true } }).decision).not.toBe("ended");
   });
 
   it("is not shown without a recorded ending, or once the window is open again", () => {

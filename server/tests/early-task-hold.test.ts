@@ -15,7 +15,7 @@ vi.mock("../utils/taskLifecycleNotificationAuthority", () => ({ taskLifecycleNot
 const send = vi.hoisted(() => vi.fn());
 vi.mock("../utils/email", () => ({ sendEmail: send }));
 
-const { projectAtlasPreparationOutcome, EARLY_TASK_HOLD_SENTENCES } = await import("../utils/taskPreparationOutcome");
+const { projectAtlasPreparationOutcome, EARLY_TASK_HOLD_SENTENCES, RECAPTURE_SENTENCES } = await import("../utils/taskPreparationOutcome");
 const { selectWebsiteAtlasPreview } = await import("../utils/websiteAtlasPreview");
 const { projectTaskStatus } = await import("../utils/taskStatusProjection");
 const { enqueueTaskLifecycleNotification } = await import("../utils/taskLifecycleNotifications");
@@ -106,14 +106,33 @@ describe("the Pipeline's early task hold", () => {
     });
   }
 
-  it("keeps the needs-attention email for a job that is not early-held", async () => {
+  it("keeps the needs-attention email for a job that is not early-held and asks nothing of the site", async () => {
     sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { contact: { email: "encrypted:owner@example.com" },
-      website_atlas_previews: { "walkthrough-req-1": atlas("atlas_task_and_scene_coverage_gap") } });
+      website_atlas_previews: { "walkthrough-req-1": atlas("atlas_scene_planner_abstained") } });
     await enqueueTaskLifecycleNotification({ requestId: "req-1", captureId: "walkthrough-req-1", eventId: EVENT,
       milestone: "preparation_needs_attention" });
     const row = [...sharedFakeFirestoreState.docs.entries()].find(([key]) => key.startsWith("captureOutbox/"))![1] as Record<string, string>;
     expect(row.subject).toBe("An update on your Blueprint job preparation");
     expect(row.body).toMatch(/needs our team's review/);
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it.each(Object.keys(RECAPTURE_SENTENCES))("says what the job page says for the new-video ask %s, once", async reason => {
+    const sentences = RECAPTURE_SENTENCES[reason as keyof typeof RECAPTURE_SENTENCES];
+    const preparation = reason.startsWith("website_");
+    sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { contact: { email: "encrypted:owner@example.com" },
+      website_atlas_previews: { "walkthrough-req-1": atlas(preparation ? "atlas_scene_planner_abstained" : reason) } });
+    if (preparation) sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { contact: { email: "encrypted:owner@example.com" } });
+    const notice = { requestId: "req-1", captureId: "walkthrough-req-1", eventId: EVENT,
+      milestone: "preparation_needs_attention" as const, ...(preparation ? { recaptureReason: reason as never } : {}) };
+    await enqueueTaskLifecycleNotification(notice);
+    await enqueueTaskLifecycleNotification(notice);
+    const rows = [...sharedFakeFirestoreState.docs.entries()].filter(([key]) => key.startsWith("captureOutbox/"));
+    expect(rows).toHaveLength(1); // the same outbox key: a job already told is not told again
+    const row = rows[0][1] as Record<string, string>;
+    expect(row.subject).toBe("We need a new video of your work area");
+    expect(row.body.startsWith(`${sentences.reason} ${sentences.nextStep}`)).toBe(true);
+    expect(row.body).not.toMatch(/needs our team's review|Nothing more is needed from you|website_|atlas_/);
     expect(send).not.toHaveBeenCalled();
   });
 });

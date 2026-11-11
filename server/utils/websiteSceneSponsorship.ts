@@ -21,14 +21,13 @@ import { isTaskFamilyStrategy, websiteFamilySourceBinding } from "./taskFamilySc
 import { isNavigationStrategy, navigationIntakeTask } from "./navigationSceneIntake";
 import { websitePreparationAccounting } from "./websitePreparationAccounting";
 import { websiteCaptureInferenceAccounting } from "./websiteCaptureInferenceAccounting";
-import { assertWithinWebsiteJobCeiling, transactionJobLedgerReader, websiteJobCeiling, websiteJobCeilingSummary,
+import { checkWebsiteJobCeiling, transactionJobLedgerReader, websiteJobCeiling, websiteJobCeilingSummary,
   websiteJobSpend } from "./websiteJobCeiling";
 import { SCENE_EXECUTION_WINDOW_MAX_SECONDS, sponsorshipExecutionWindowUntil,
   sponsorshipWindowIntake } from "./sceneExecutionWindowExtension";
 import { WEBSITE_JOB_WINDOW_DEFAULT_SECONDS, WEBSITE_JOB_WINDOW_MAX_SECONDS, WEBSITE_JOB_WINDOW_MIN_SECONDS,
   issuedWebsiteJobWindowSeconds } from "./websiteJobWindow";
-import { isWebsiteJobWindowEndingWithoutGrant, recordedWebsiteJobWindowEnding,
-  recordedWebsiteJobWindowEndingWithoutGrant } from "./websiteJobWindowEnding";
+import { recordedWebsiteJobNoGrantEnding, recordedWebsiteJobWindowEnding } from "./websiteJobWindowEnding";
 
 function continuationAuthority(authority: Record<string, any>, input: {
   brief: SiteTaskBriefRecord; record: Record<string, any>; inventory?: TaskItemInventoryRecord | null;
@@ -53,6 +52,49 @@ function routingProjectionMatches(context: ReturnType<typeof projectWebsiteTaskC
 }
 
 const money = z.number().finite().positive().max(1000);
+/** The `execution.max_retries` a Website scene intent may carry. 0 is every intent
+ * issued before 2026-11-10 (still accepted); 1 lets the Pipeline give a scene whose
+ * rented machine was lost mid-run one more attempt, inside the same dollar cap and
+ * `max_paid_attempts`. A new grant names 1 (`scene_configuration_max_retries`); the
+ * Pipeline builds the intent's request from the grant it signs against, so a grant
+ * issued before this names nothing and its request stays 0. */
+export const WEBSITE_SCENE_MAX_RETRIES: readonly number[] = [0, 1];
+export const WEBSITE_SCENE_CONFIGURATION_MAX_RETRIES = 1;
+/**
+ * Owner decision 2026-11-10: one hard money stop, the account's monthly limit. A new grant
+ * names `automatic_budget_extension: true`, so the job's own dollar figures (the upstream
+ * preparation cap, its Atlas allowance and the job ceiling) are its expected budget, not a
+ * wall: a reservation the Pipeline asks for, after its own account-limit precheck, is
+ * admitted past them with a note, and ops is told once per job and grant. Grant expiry, the
+ * per-reservation limit, rights, consent and terms are unchanged. On by default; the
+ * non-secret setting `BLUEPRINT_WEBSITE_AUTOMATIC_BUDGET_EXTENSION=false` turns it off for
+ * new grants. It is read only when a grant is first issued and is never part of the hashed
+ * sponsorship policy, so no grant already issued changes. A grant issued before it names none.
+ */
+export const WEBSITE_AUTOMATIC_BUDGET_EXTENSION_SETTING = "BLUEPRINT_WEBSITE_AUTOMATIC_BUDGET_EXTENSION";
+export function websiteAutomaticBudgetExtensionEnabled() {
+  return (process.env[WEBSITE_AUTOMATIC_BUDGET_EXTENSION_SETTING] ?? "").trim().toLowerCase() !== "false";
+}
+/** The job's retained grant names the extension, verifies, and is still valid at `now`. */
+export function automaticBudgetExtensionGrant(grant: Record<string, any> | undefined, validUntil: number | undefined, now: number) {
+  if (grant?.automatic_budget_extension !== true || typeof grant.authority_digest !== "string") return false;
+  const { authority_digest: retainedDigest, ...payload } = grant;
+  return digest(payload) === retainedDigest && (validUntil ?? grant.expires_at_epoch) > now;
+}
+const OVER_BUDGET_ALERT_COLLECTION = "opsWebsiteJobOverBudgetAlerts";
+export const websiteJobOverBudgetAlertId = (requestId: string, sponsorshipDigest: string) =>
+  `${requestId}-${sponsorshipDigest.slice(7, 23)}`;
+/** Reads (inside the caller's transaction, before its writes) whether this job and grant
+ * already have their one over-budget alert, and returns the write that records it if not. */
+export async function websiteJobOverBudgetAlert(store: { collection(name: string): any },
+  transaction: { get(reference: any): Promise<any>; set(reference: any, value: any): void }, requestId: string,
+  overBudget: { sponsorship_digest: string } & Record<string, unknown>, source: Record<string, string>) {
+  const alertRef = store.collection(OVER_BUDGET_ALERT_COLLECTION)
+    .doc(websiteJobOverBudgetAlertId(requestId, overBudget.sponsorship_digest));
+  if ((await transaction.get(alertRef)).exists) return () => {};
+  return () => transaction.set(alertRef, { request_id: requestId, sponsorship_digest: overBudget.sponsorship_digest,
+    ...source, over_budget: overBudget, delivery: null, next_attempt_at_ms: Date.now(), alerted_at_iso: null });
+}
 const policySchema = z.object({
   owner: z.object({ user_id: z.string().trim().min(1), organization_id: z.string().trim().min(1) }).strict(),
   upstream_max_spend_usd: money,
@@ -84,9 +126,9 @@ function policy() {
 }
 
 /**
- * The length of the website job window in force: the configured policy's `ttl_seconds`, or the
- * default when the policy is not configured or does not read. A job with no grant is given this
- * length from when its video arrived (`websiteJobDeadlineWithoutGrant`).
+ * How long a grant issued now would stay valid: the policy's `ttl_seconds`, or the default window
+ * when the policy is not configured (an unconfigured policy is itself one reason no grant is issued).
+ * The clock of a job that never received a grant runs this long (`websiteJobWindowSweep`).
  */
 export function websiteJobWindowSeconds(): number {
   try { return policy().ttl_seconds; } catch { return WEBSITE_JOB_WINDOW_DEFAULT_SECONDS; }
@@ -173,20 +215,18 @@ export function sponsorshipValidUntil(grant: Record<string, any>, executionWindo
  * passed window while the rights still allow the work, so the end was the window and not the rights.
  * It is what holds today, not a promise that the job stops on that date. `endingRecorded` is the
  * WebApp's own stored ending for this exact grant (`websiteJobWindowSweep`), read only while the
- * window is still past: an extension granted afterwards reopens the job and hides it.
- *
- * A job whose video arrived but which never received a grant has no authorized window to show, so
- * no date and never `ended`; its stored ending (`endingWithoutGrant`) is read while it still has no
- * grant, and the page says that ending's own sentence.
+ * window is still past: an extension granted afterwards reopens the job and hides it. A job that never
+ * received a grant has no window; `endingRecorded` with `noGrantWaitingOn` is the same sweep's ending
+ * for it, read only while the job still has no grant.
  */
 export async function websiteJobWorkWindow(record: Record<string, any> | undefined,
   nowEpoch = Date.now() / 1000): Promise<{ untilEpoch: number | null; ended: boolean; endingRecorded?: true;
-    endingWithoutGrant?: true }> {
+    noGrantWaitingOn?: "site" | "blueprint" }> {
   const none = { untilEpoch: null, ended: false };
   const grant = record?.website_scene_sponsorship;
-  if (!grant) return recordedWebsiteJobWindowEndingWithoutGrant(record)
-    ? { ...none, endingRecorded: true, endingWithoutGrant: true } : none;
-  if (typeof grant.expires_at_epoch !== "number" || !Number.isFinite(grant.expires_at_epoch)) return none;
+  const noGrantEnding = recordedWebsiteJobNoGrantEnding(record);
+  if (noGrantEnding) return { ...none, endingRecorded: true, noGrantWaitingOn: noGrantEnding.waiting_on };
+  if (!grant || typeof grant.expires_at_epoch !== "number" || !Number.isFinite(grant.expires_at_epoch)) return none;
   let executionWindowUntil: number | undefined;
   if (record!.website_scene_sponsorship_execution_window) {
     try {
@@ -196,9 +236,21 @@ export async function websiteJobWorkWindow(record: Record<string, any> | undefin
   }
   const until = sponsorshipValidUntil(grant, executionWindowUntil);
   if (until > nowEpoch) return { untilEpoch: until, ended: false };
-  const ending = recordedWebsiteJobWindowEnding(record);
   return { untilEpoch: null, ended: projectWebsiteCaptureRights(record).derived_scene_generation_allowed,
-    ...(ending && !isWebsiteJobWindowEndingWithoutGrant(ending) ? { endingRecorded: true as const } : {}) };
+    ...(recordedWebsiteJobWindowEnding(record) ? { endingRecorded: true as const } : {}) };
+}
+
+/**
+ * The host asked to read a job's grant, or to reserve spend under it, and the job has none. When the
+ * job's no-grant ending is recorded (`websiteJobWindowSweep`), the answer says the job has ended, by
+ * that ending: the Pipeline then ends its own preparation as it does for `consent_expired`. Otherwise
+ * it is today's `website_scene_sponsorship_missing`. Only answers that never create a grant use it, so a
+ * grant issued later (which the ending stops speaking for) still reopens the job.
+ */
+export const WEBSITE_JOB_NO_GRANT_ENDED_CODE = "website_scene_job_no_grant_ended";
+function noGrantRefusal(record: Record<string, any>, requestId: string): Error {
+  return new Error(recordedWebsiteJobNoGrantEnding(record, requestId) ? WEBSITE_JOB_NO_GRANT_ENDED_CODE
+    : "website_scene_sponsorship_missing");
 }
 
 export function websiteSceneSponsorship(input: {
@@ -325,6 +377,8 @@ export function websiteSceneSponsorship(input: {
     upstream_max_spend_usd: configured.upstream_max_spend_usd,
     max_total_spend_usd: configured.native_max_spend_usd,
     max_paid_attempts: configured.max_paid_attempts,
+    scene_configuration_max_retries: WEBSITE_SCENE_CONFIGURATION_MAX_RETRIES,
+    ...(websiteAutomaticBudgetExtensionEnabled() ? { automatic_budget_extension: true as const } : {}),
     ...(input.renewal ? { renewal: input.renewal } : {}),
     expires_at_epoch: input.now + configured.ttl_seconds,
     consent: {
@@ -418,13 +472,7 @@ export async function loadWebsiteSceneSponsorship(requestId: string, create = fa
     if (!request.exists || !brief.exists) throw new Error("task_brief_missing");
     await assertWebsiteCaptureBindingInTransaction(transaction, requestId, captureBinding);
     const record = request.data()!;
-    if (!create && !record.website_scene_sponsorship) throw new Error("website_scene_sponsorship_missing");
-    // A job the window sweep ended with no grant was told no more work will run on it. Its first
-    // grant is refused with the answer an expired grant gets, which the Pipeline takes as the job's
-    // ending and does not retry. The sweep's write and this one are both transactions on this
-    // document, so whichever commits first decides: a grant issued first owns the job's window.
-    if (create && !record.website_scene_sponsorship && recordedWebsiteJobWindowEndingWithoutGrant(record, requestId))
-      throw new Error("consent_expired");
+    if (!create && !record.website_scene_sponsorship) throw noGrantRefusal(record, requestId);
     const purpose = options ? options.purpose : !create ? retainedWebsiteScenePurpose(record) : undefined;
     const executionWindowUntil = !create && options?.honour_execution_window === true
       && record.website_scene_sponsorship_execution_window
@@ -518,7 +566,15 @@ export async function renewExpiredWebsiteSceneSponsorship(requestId: string, inp
         approval_reference: input.approval_reference.trim() } });
     // A grant issued while preparation still waited on an assessment keeps its
     // recorded proposal as advisory context. The renewal never reads or needs one.
-    const { authority_digest: _issuedDigest, ...issuedPayload } = issued;
+    // The retry allowance and the automatic budget extension are restored as the expired
+    // grant named them (none before 2026-11-10), whatever the setting says now.
+    const { authority_digest: _issuedDigest, scene_configuration_max_retries: _retries,
+      automatic_budget_extension: _extension, ...issuedRest } = issued as Record<string, any>;
+    const issuedPayload = { ...issuedRest,
+      ...(previous.scene_configuration_max_retries === undefined ? {}
+        : { scene_configuration_max_retries: previous.scene_configuration_max_retries }),
+      ...(previous.automatic_budget_extension === undefined ? {}
+        : { automatic_budget_extension: previous.automatic_budget_extension }) };
     const renewedPayload = previous.assessment_preparation_proposal
       ? { ...issuedPayload, assessment_preparation_proposal: previous.assessment_preparation_proposal } : issuedPayload;
     const renewed = { ...renewedPayload, authority_digest: digest(renewedPayload) };
@@ -986,7 +1042,10 @@ export async function observeWebsitePreparationSpend(requestId: string, input: z
 
 /** Reserve the full quote once; retries never replenish the preparation cap. */
 export async function reserveWebsitePreparationSpend(requestId: string, input: z.infer<typeof preparationSpendRequest>,
-  captureId = `walkthrough-${requestId}`) {
+  captureId = `walkthrough-${requestId}`,
+  /** Set only by the Pipeline's signed preparation-spend route: the host checked the
+   * account's monthly limit before asking. Every other caller keeps every refusal. */
+  options: { hostRequested?: true } = {}) {
   const command = preparationSpendRequest.parse(input);
   if (!db) throw new Error("website_capture_rights_store_unavailable");
   const store = db;
@@ -1008,7 +1067,7 @@ export async function reserveWebsitePreparationSpend(requestId: string, input: z
     await assertWebsiteCaptureBindingInTransaction(transaction, requestId, captureBinding);
     const record = request.data()!;
     assertWebsiteRunOpen(record, requestId, captureId);
-    if (!record.website_scene_sponsorship && !automaticAtlas) throw new Error("website_scene_sponsorship_missing");
+    if (!record.website_scene_sponsorship && !automaticAtlas) throw noGrantRefusal(record, requestId);
     // Reservations never create a grant; only atlas-configuration does.
     const atlas = atlasRequested ? (await resolveWebsiteAtlasGrant({
       requestId, captureId, taskContextDigest: command.task_context_digest,
@@ -1061,7 +1120,7 @@ export async function reserveWebsitePreparationSpend(requestId: string, input: z
         throw new Error("provider_terms_not_configured_or_changed");
       auxiliaryConsentDigest = atlas!.authorization_digest;
     } else if (atlas && ["meta", "google"].includes(command.provider)) {
-      if (!record.website_scene_sponsorship) throw new Error("website_scene_sponsorship_missing");
+      if (!record.website_scene_sponsorship) throw noGrantRefusal(record, requestId);
       const auxiliary = websiteSceneSponsorship({ requestId, record, purpose: retainedWebsiteScenePurpose(record),
         brief: brief.data() as SiteTaskBriefRecord, inventory: inventory.exists ? inventory.data() as TaskItemInventoryRecord : null,
         captureId, captureBinding, now: Date.now() / 1000 });
@@ -1092,18 +1151,39 @@ export async function reserveWebsitePreparationSpend(requestId: string, input: z
     const reserved = usage ? micros(usage.cost) : previous.reduce((sum, row) => sum + micros(row.settlement?.actual_cost_usd ?? row.admission.maximum_cost_usd), 0);
     // Amendments and reservations belong to the original retained allowance.
     const rootAuthority = record.website_scene_sponsorship;
+    const nowEpoch = Date.now() / 1000;
+    // Owner decision 2026-11-10: on a grant naming the automatic budget extension, a
+    // reservation the Pipeline asked for (after its account-limit precheck) is not stopped
+    // by this job's own dollar figures. It needs the grant itself, verified and unexpired.
+    const extended = options.hostRequested === true && automaticBudgetExtensionGrant(rootAuthority,
+      atlas ? undefined : sponsorshipValidUntil(rootAuthority, executionWindowUntil), nowEpoch);
+    const allowanceUsd = atlas?.maximum_cost_usd ?? preparationSpendLimit(record, rootAuthority);
+    const pastAllowance = reserved + micros(command.maximum_cost_usd) > Math.floor(allowanceUsd * 1_000_000);
     // Owner decision 2026-10-30: money is the Atlas allowance's hard stop. Its
     // request counts are recorded on every reservation, never a separate ceiling.
-    // The native ledger keeps its amendable request limit for now.
-    if (reserved + micros(command.maximum_cost_usd) > Math.floor((atlas?.maximum_cost_usd
-          ?? preparationSpendLimit(record, rootAuthority)) * 1_000_000)
+    // The native ledger keeps its amendable request limit for now; it refuses on every
+    // grant, the automatic budget extension included.
+    if (pastAllowance && !extended
         || (!atlas && previous.reduce((sum, row) => sum + row.admission.request_count, 0) + command.request_count
           > preparationRequestLimit(record, rootAuthority)))
       throw new Error("website_scene_preparation_budget_exhausted");
     // Owner decision 2026-10-30: one dollar ceiling per job. The caps above stay;
     // every ledger this job spends from must also fit under the job's ceiling.
-    await assertWithinWebsiteJobCeiling({ record, captureId, requestId, atlas,
+    const job = await checkWebsiteJobCeiling({ record, captureId, requestId, atlas,
       reader: transactionJobLedgerReader(store, transaction, requestId), additionalCostUsd: command.maximum_cost_usd });
+    if (job.exceeded && !extended) throw new Error("website_scene_preparation_budget_exhausted");
+    const overBudget = extended && (pastAllowance || job.exceeded) ? {
+      schema_version: "website_job_over_budget.v1", basis: "automatic_budget_extension",
+      sponsorship_digest: rootAuthority.authority_digest,
+      allowance: atlas ? "atlas_allowance" : "preparation_upstream_cap", allowance_usd: allowanceUsd,
+      allowance_exceeded: pastAllowance, job_ceiling_usd: job.ceiling.maximum_cost_usd,
+      job_ceiling_source: job.ceiling.source, job_ceiling_exceeded: job.exceeded,
+      // An unreadable earlier hold is unknown, never a figure.
+      job_reserved_or_settled_before_usd: Number.isFinite(job.spend.total_micros) ? job.spend.total_micros / 1_000_000 : null,
+      recorded_at_epoch: nowEpoch } : null;
+    // One ops alert per job and grant, the first time it passes its original budget.
+    const recordAlert = overBudget
+      ? await websiteJobOverBudgetAlert(store, transaction, requestId, overBudget, { reservation_key: key }) : () => {};
     const admission = { ...command, schema_version: "paid_lane_admission.v1", status: "admitted",
       blockers: [], external_disclosure_allowed: true, sponsorship_digest: authority.authority_digest,
       ...(atlas ? { atlas_authorization_digest: atlas.authorization_digest,
@@ -1117,7 +1197,9 @@ export async function reserveWebsitePreparationSpend(requestId: string, input: z
         atlas?.expires_at_epoch ?? Infinity, auxiliaryExpiresAt) };
     transaction.update(ref, { website_preparation_reservations: { ...reservations,
       [key]: { command_digest: digest(command), admission,
-        observation_binding: preparationObservationBinding(requestId, captureId, command) } } });
+        observation_binding: preparationObservationBinding(requestId, captureId, command),
+        ...(overBudget ? { over_budget: overBudget } : {}) } } });
+    recordAlert();
     return admission;
   }));
 }
@@ -1251,7 +1333,12 @@ export function validateWebsiteSponsoredIntake(request: Record<string, any>, aut
     || request.execution?.max_total_spend_usd !== authority.max_total_spend_usd
     || request.execution?.max_paid_attempts !== authority.max_paid_attempts
     || request.execution?.expires_at_epoch !== authority.expires_at_epoch
-    || request.execution?.max_retries !== 0
+    // At most what THIS grant allows: a grant issued before the allowance names none, so only 0 passes.
+    || !WEBSITE_SCENE_MAX_RETRIES.includes(request.execution?.max_retries)
+    || request.execution.max_retries > (authority.scene_configuration_max_retries ?? 0)
+    // Like the retry allowance: an intent names the extension only when its grant does.
+    || request.execution.automatic_budget_extension !== undefined
+      && (request.execution.automatic_budget_extension !== true || authority.automatic_budget_extension !== true)
     || request.execution?.claim_scope !== "development_only"
     || digest(request.execution?.allowed_providers) !== digest(authority.authoring_provider === "anthropic"
       ? ["vast", "openai", "anthropic"] : ["vast", "openai"]))

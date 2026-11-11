@@ -29,7 +29,7 @@ import type { ReadinessStage } from "../../client/src/lib/siteTaskReadiness";
 import { multiStepHoldMessage, taskScopeNotYet } from "./siteTaskScope";
 import type { TaskOutcome } from "../../client/src/types/taskOutcome";
 import { AUTHORITY_ENDED_SENTENCE, FOOTAGE_BEFORE_ACCOUNT_SENTENCE, JOB_WINDOW_ENDED_SENTENCE, JOB_WINDOW_ENDING_MESSAGE,
-  JOB_WINDOW_ENDING_WITHOUT_GRANT_MESSAGE, PREPARATION_ENDED_NEXT, processingFailure } from "./taskPreparationOutcome";
+  jobNoGrantEndingMessage, PREPARATION_ENDED_NEXT, processingFailure } from "./taskPreparationOutcome";
 import { screeningOutcomeSentenceWithWindow, type ScreeningHeldOutcome, type ScreeningOutcome,
   type ScreeningOutcomeCaveat } from "./betaPolicyScreeningContract";
 import { isTerminalSceneOutcomeKind, sceneOutcomeMessage, sceneWaitMessage, type SceneOutcomeReading } from "./sceneIntentOutcome";
@@ -91,7 +91,8 @@ export type TaskDecision =
    */
   | "footage_before_account"
   /**
-   * The job is over: its work window ran out before Blueprint finished, and the
+   * The job is over: its work window ran out before Blueprint finished, or it
+   * never received a grant and waited as long as a window lasts, and the
    * WebApp's own window sweep recorded the ending (`websiteJobWindowSweep`).
    * Final, so it carries no waiting line and no step for anyone.
    */
@@ -289,8 +290,11 @@ interface TaskStatusInput {
    * last reported and whether or not it can be reached.
    */
   jobWindowEndingRecorded?: boolean;
-  /** That ending is for a job whose video arrived but which never received a grant (`websiteJobWorkWindow.endingWithoutGrant`). */
-  jobWindowEndingWithoutGrant?: boolean;
+  /**
+   * With `jobWindowEndingRecorded`: the job never received a grant, and the sweep ended it after
+   * this wait (`websiteJobWorkWindow.noGrantWaitingOn`). Said in that ending's own sentence.
+   */
+  jobNoGrantWaitingOn?: "site" | "blueprint";
   /** False when no automated footage review runs, so a person reviews it. */
   footageReviewAutomated?: boolean;
   scenePreviewReady?: boolean;
@@ -386,8 +390,8 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
   // would now be untrue, because nothing more runs for a job past its window. Only a result is
   // truer, and each of those has its own email: an estimate or an evaluation's hold, or a run.
   if (input.jobWindowEndingRecorded && !resultOutranksWindowEnding(input)) return { ...base, decision: "ended", stage: null,
-    missingViews: [], headline: input.jobWindowEndingWithoutGrant ? JOB_WINDOW_ENDING_WITHOUT_GRANT_MESSAGE : JOB_WINDOW_ENDING_MESSAGE,
-    operatorAction: null };
+    missingViews: [], operatorAction: null,
+    headline: input.jobNoGrantWaitingOn ? jobNoGrantEndingMessage(input.jobNoGrantWaitingOn) : JOB_WINDOW_ENDING_MESSAGE };
 
   // A preparation stop must not be hidden by an unconfirmed brief or a generic
   // intake gate. Actual evaluation activity/results outrank an older stop.
@@ -821,7 +825,8 @@ export function taskStatusInputFrom(record: {
   /** Recording withdrawal overrides retained derived evidence on every surface. */
   consentRevoked?: boolean;
   /** `websiteJobWorkWindow(record)`, when the caller read it. */
-  jobWorkWindow?: { untilEpoch: number | null; ended: boolean; endingRecorded?: boolean; endingWithoutGrant?: boolean } | null;
+  jobWorkWindow?: { untilEpoch: number | null; ended: boolean; endingRecorded?: boolean;
+    noGrantWaitingOn?: "site" | "blueprint" } | null;
   footageReviewAutomated?: boolean;
   scenePreviewReady?: boolean;
   visualReconstructionReady?: boolean;
@@ -861,7 +866,8 @@ export function taskStatusInputFrom(record: {
     ...(record.jobWorkWindow?.untilEpoch ? { jobWorkUntilEpoch: record.jobWorkWindow.untilEpoch } : {}),
     ...(record.jobWorkWindow?.ended === true ? { jobWindowEnded: true } : {}),
     ...(record.jobWorkWindow?.endingRecorded === true ? { jobWindowEndingRecorded: true,
-      ...(record.jobWorkWindow.endingWithoutGrant === true ? { jobWindowEndingWithoutGrant: true } : {}) } : {}),
+      ...(record.jobWorkWindow.noGrantWaitingOn === "site" || record.jobWorkWindow.noGrantWaitingOn === "blueprint"
+        ? { jobNoGrantWaitingOn: record.jobWorkWindow.noGrantWaitingOn } : {}) } : {}),
     ...(record.footageReviewAutomated === false ? { footageReviewAutomated: false } : {}),
     scenePreviewReady: Boolean(record.scenePreviewReady),
     visualReconstructionReady: record.visualReconstructionReady === true,

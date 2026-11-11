@@ -18,7 +18,16 @@ export const preparationOutcomeSchema = z.discriminatedUnion("reason", [carryPat
 export const preparationOutcomeV6Schema = z.discriminatedUnion("reason", [carryPathRejected, taskEvidenceIncomplete,
   z.object({ reason: z.literal("robot_fit_none"), category: z.literal("robot_incompatibility"),
     basis: z.literal("conservative_pre_spend_fit_check"), robot_id: z.null(), evidence_digest: digest }).strict()]);
-export type PreparationOutcomeReceipt = z.infer<typeof preparationOutcomeV6Schema>;
+/** The preparation stops only a new video can clear (Pipeline `website_recapture_required`): the reason is the
+ * stop's own code. Each has its sentences in `RECAPTURE_SENTENCES`. */
+export const PREPARATION_RECAPTURE_REASONS = ["website_front_normal_undetermined", "website_registration_ambiguous",
+  "website_registration_poor_fit", "website_registration_conflicts_provider_anchor",
+  "website_registration_anchor_deviation", "website_registration_ground_plane_inconsistent"] as const;
+/** v7 adds those stops: the preparation ended at once and the site is asked to film again. */
+export const preparationOutcomeV7Schema = z.union([preparationOutcomeV6Schema, z.object({
+  reason: z.enum(PREPARATION_RECAPTURE_REASONS), category: z.literal("insufficient_evidence"),
+  basis: z.literal("missing_evidence"), robot_id: z.null(), evidence_digest: digest }).strict()]);
+export type PreparationOutcomeReceipt = z.infer<typeof preparationOutcomeV7Schema>;
 
 /** What the v6 precheck says about a robot fit hold, when it binds to the same evidence as the outcome. */
 export type RobotFitHoldEvidence = { holdReason: string | null; precheckDigest: string;
@@ -57,6 +66,7 @@ function robotFitHold(receipt: Extract<PreparationOutcomeReceipt, { reason: "rob
 }
 
 export function projectPreparationOutcome(receipt: PreparationOutcomeReceipt, precheck?: RobotFitHoldEvidence | null): TaskOutcome {
+  if (isRecaptureReason(receipt.reason)) return recaptureNeeded(receipt.reason, receipt.evidence_digest);
   if (receipt.reason === "robot_fit_none") return robotFitHold(receipt, precheck);
   if (receipt.reason === "robot_carry_path_rejected") return {
     category: "robot_incompatibility", basis: receipt.basis, title: "The checked robot configuration was rejected",
@@ -84,8 +94,65 @@ function evidenceNeeded(reason: string, evidenceDigest: string, label: string): 
     actionOwner: "blueprint", evidence: [{ label, digest: evidenceDigest }] };
 }
 
-const COVERAGE_REASONS = new Set(["atlas_scene_planner_abstained", "atlas_task_and_scene_coverage_gap",
-  "atlas_insufficient_overlapping_distinct_views", "atlas_coverage_anchor_quality_insufficient"]);
+const COVERAGE_REASONS = new Set(["atlas_scene_planner_abstained"]);
+
+/**
+ * Stops that only a new video can clear (Pipeline `atlas_video_inputs`, `website_atlas_pipeline`): the same
+ * video gives the same answer, so the Pipeline ends the job at once instead of retrying it. Each says what
+ * the video lacked and what to film; the site acts next. Never a finding about a robot or the site.
+ */
+const OBJECT_PLACEMENT_SENTENCES = {
+  reason: "We could not place the object in our rebuild of your space: what your video shows of it did not line up with the room around it in one clear position.",
+  nextStep: "Please film again with the object clear of clutter, resting where the job starts, and move around it so it is seen from several sides. Then send us the new video.",
+} as const;
+export const RECAPTURE_SENTENCES = {
+  atlas_task_and_scene_coverage_gap: {
+    reason: "Your video does not connect the place where the job happens to the room around it: we could not find views that overlap between them.",
+    nextStep: "Please film again in one slow, continuous pass that starts on the room around the job, moves to where the job happens and keeps both in view on the way. Then send us the new video.",
+  },
+  atlas_insufficient_overlapping_distinct_views: {
+    reason: "Your video does not show the work area from enough different angles, with each view overlapping the next, for us to rebuild it.",
+    nextStep: "Please film again, moving slowly around the work area so it is seen from several angles, with each view overlapping the one before. Then send us the new video.",
+  },
+  atlas_coverage_anchor_quality_insufficient: {
+    reason: "The part of your video that shows where the job happens is too blurred, or too bright or too dark, for us to rebuild it.",
+    nextStep: "Please film again with slow, steady movement and even lighting, and hold on the place where the job happens for a few seconds. Then send us the new video.",
+  },
+  // Preparation stops (preparation status v7). Which way the object faces is read only from a side of it.
+  website_front_normal_undetermined: {
+    reason: "We could not tell from your video which way the object faces: no view we could use shows a side of it facing outward.",
+    nextStep: "Please film again and hold the front of the object in view for a few seconds, from about the height of the object. Then send us the new video.",
+  },
+  // The object's shape, as filmed, fitted the rebuilt room in no single clear place: nowhere well
+  // (poor_fit), in several places (ambiguous), better away from where the reconstruction puts it
+  // (conflicts_provider_anchor, anchor_deviation) or off its floor (ground_plane_inconsistent).
+  website_registration_ambiguous: OBJECT_PLACEMENT_SENTENCES,
+  website_registration_poor_fit: OBJECT_PLACEMENT_SENTENCES,
+  website_registration_conflicts_provider_anchor: OBJECT_PLACEMENT_SENTENCES,
+  website_registration_anchor_deviation: OBJECT_PLACEMENT_SENTENCES,
+  website_registration_ground_plane_inconsistent: OBJECT_PLACEMENT_SENTENCES,
+  atlas_scale_review_unresolved: {
+    reason: "From your video we could not work out how large the space is: nothing in it gave us a size we could rely on.",
+    nextStep: "Please film again with an object of standard size in view near where the job happens, such as a door or a tape measure laid open on the floor. Then send us the new video.",
+  },
+} as const satisfies Record<string, { reason: string; nextStep: string }>;
+export type RecaptureReason = keyof typeof RECAPTURE_SENTENCES;
+export const isRecaptureReason = (value: unknown): value is RecaptureReason =>
+  typeof value === "string" && Object.prototype.hasOwnProperty.call(RECAPTURE_SENTENCES, value);
+
+/** The title of every new-video ask; the needs-attention email for these stops uses it as its subject. */
+export const RECAPTURE_TITLE = "We need a new video of your work area";
+/** The new-video ask a verified Atlas preview names for its capture, or null. */
+export const recaptureReasonOf = (preview: WebsiteAtlasPreview | null): RecaptureReason | null =>
+  preview?.state === "needs_input" && isRecaptureReason(preview.reason) ? preview.reason : null;
+
+function recaptureNeeded(reason: RecaptureReason, evidenceDigest: string): TaskOutcome {
+  return { category: "insufficient_evidence", basis: "missing_evidence", title: RECAPTURE_TITLE,
+    reason: RECAPTURE_SENTENCES[reason].reason,
+    scope: "This video only. It is not a finding about any robot or about your site.",
+    nextStep: RECAPTURE_SENTENCES[reason].nextStep,
+    actionOwner: "site", evidence: [{ label: "Video coverage finding", digest: evidenceDigest }] };
+}
 const TASK_REASONS = new Set(["atlas_scene_subject_origin_uncertain", "atlas_scene_subject_origin_changed",
   "atlas_synthetic_subject_requires_preserved_capture"]);
 const GEOMETRY_REASONS = new Set(["atlas_preserved_completion_no_exportable_geometry",
@@ -139,14 +206,19 @@ export const JOB_WINDOW_ENDING_MESSAGE = `${JOB_WINDOW_ENDED_SENTENCE} ${JOB_WIN
 export const JOB_WINDOW_ENDING_SUBJECT = "Your Blueprint job has ended";
 
 /**
- * A job the window sweep ended whose video arrived but which never received a grant: there was never
- * an authorized window to run out, so the granted sentence would be untrue. This one is true in every
- * such case: it names no number of days (the length is configurable) and does not say whether any
- * work started (a preview may have been built). The job page and the one email both say exactly this.
+ * A job that never received a grant, ended by the same sweep once it waited as long as a grant's
+ * window lasts (`websiteJobWindowSweep`). Each says only what is true of every job in that wait and
+ * promises no follow-up. The job page and the one email (subject `JOB_WINDOW_ENDING_SUBJECT`) both say it.
+ *
+ * - The site never sent what was needed (a finished recording, or the one step a held job asks of it).
+ * - The site did its part and Blueprint never started the simulation: held, with no estimate.
  */
-export const JOB_WINDOW_UNFINISHED_WITHOUT_GRANT_SENTENCE = "This job has ended because Blueprint did not finish it "
-  + "in the time it sets for a job, and no more work will run on this job.";
-export const JOB_WINDOW_ENDING_WITHOUT_GRANT_MESSAGE = `${JOB_WINDOW_UNFINISHED_WITHOUT_GRANT_SENTENCE} ${PREPARATION_ENDED_NEXT}`;
+export const JOB_NO_GRANT_SITE_ENDING_MESSAGE = "This job has ended because we did not receive what was needed to start it "
+  + "while it was open. To have Blueprint work on this site, you can start a new job.";
+export const JOB_NO_GRANT_BLUEPRINT_ENDING_MESSAGE = "This job is held because Blueprint did not start simulating it while it "
+  + `was open, so there is no estimate. ${PREPARATION_ENDED_NEXT}`;
+export const jobNoGrantEndingMessage = (waitingOn: "site" | "blueprint") =>
+  waitingOn === "site" ? JOB_NO_GRANT_SITE_ENDING_MESSAGE : JOB_NO_GRANT_BLUEPRINT_ENDING_MESSAGE;
 
 /**
  * A video that arrived before its job was saved to an account. Nothing sends a later email about it,
@@ -175,6 +247,8 @@ export function projectAtlasPreparationOutcome(preview: WebsiteAtlasPreview | nu
   if (!preview || preview.state === "ready" || preview.state === "processing" || preview.state === "withdrawn") return null;
   const held = earlyTaskHoldOf(preview);
   if (held) return earlyTaskHoldOutcome(held, preview.preview_digest);
+  if (preview.state === "needs_input" && isRecaptureReason(preview.reason))
+    return recaptureNeeded(preview.reason, preview.preview_digest);
   if (preview.state === "needs_input" && COVERAGE_REASONS.has(preview.reason ?? ""))
     return evidenceNeeded("The available source views did not establish enough scene coverage for this task.",
       preview.preview_digest, "Scene coverage finding");
