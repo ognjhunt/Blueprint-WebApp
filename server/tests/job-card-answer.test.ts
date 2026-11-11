@@ -12,7 +12,7 @@ import express from "express";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { sharedFakeFirestoreState } from "./helpers/fake-firestore";
 import { anonymizedOpportunityDraft } from "../../client/src/types/taskBrowse";
-import { JOB_CARD_ANSWER_STATEMENT, JOB_CARD_ANSWER_STATEMENT_VERSION } from "../../client/src/lib/jobCardAnswerConsent";
+import { JOB_CARD_ANSWER_STATEMENT, JOB_CARD_ANSWER_STATEMENT_V1, JOB_CARD_ANSWER_STATEMENT_V1_VERSION, JOB_CARD_ANSWER_STATEMENT_VERSION } from "../../client/src/lib/jobCardAnswerConsent";
 
 vi.mock("../../client/src/lib/firebaseAdmin", async () => {
   const { sharedFakeFirestore, FAKE_FIELD_DELETE } = await import("./helpers/fake-firestore");
@@ -102,7 +102,12 @@ describe("GET /api/site-worlds/tasks/:taskId", () => {
     expect(summary.headline).toMatch(/^Most likely to fit: /);
     expect(summary.familyLabel).toBe("palletizing");
     expect(summary.pick).toMatchObject({ manufacturer: expect.any(String), name: expect.any(String), verdictLabel: expect.any(String) });
-    expect(Object.keys(summary.pick).sort()).toEqual(["evidence", "manufacturer", "name", "specs", "verdictLabel"]);
+    expect(Object.keys(summary.pick).sort()).toEqual(["checks", "evidence", "manufacturer", "name", "specs", "verdictLabel"]);
+    // Each check's outcome and its figures, numbers with units only, never the site's sentence.
+    expect(summary.pick.checks.map((check: Record<string, unknown>) => Object.keys(check).sort()))
+      .toEqual(summary.pick.checks.map(() => ["has", "key", "need", "outcome"]));
+    expect(summary.pick.checks.find((check: { key: string }) => check.key === "payload")).toMatchObject({ outcome: "pass",
+      need: expect.stringMatching(/kg$/), has: expect.stringMatching(/kg$/) });
     for (const spec of summary.pick.specs) expect(spec.sourceUrl).toMatch(/^https:\/\//);
     for (const row of summary.pick.evidence) expect(row.sourceUrl).toMatch(/^https:\/\//);
     expect(summary.facts.length).toBeGreaterThan(0);
@@ -141,6 +146,20 @@ describe("GET /api/site-worlds/tasks/:taskId", () => {
     const judged = (await get(`/tasks/${ID}`)).body.item.answerSummary;
     expect(judged.unknowns.some((line: string) => line.startsWith("We could not tell"))).toBe(false);
     expect(judged.familyLabel).toBe("palletizing");
+  });
+
+  it("says the site's video does not show the whole work area about the site, never in the review's own words", async () => {
+    put(job({ capture_coverage: { covers_scene: false, missing_coverage: ["The far side of the loading dock"] } }));
+    const summary = (await get(`/tasks/${ID}`)).body.item.answerSummary;
+    expect(summary.unknowns).toContain("The site's video does not show the whole work area.");
+    expect(JSON.stringify(summary)).not.toMatch(/\byour\b|far side/i);
+  });
+
+  it("still carries the answer for a choice recorded under the first wording of the statement", async () => {
+    put(job({ public_task_listing: { ...job().public_task_listing, consentVersion: JOB_CARD_ANSWER_STATEMENT_V1_VERSION },
+      introduction_request: { ...job().introduction_request, statement_version: JOB_CARD_ANSWER_STATEMENT_V1_VERSION,
+        statement_text: JOB_CARD_ANSWER_STATEMENT_V1 } }));
+    expect((await get(`/tasks/${ID}`)).body.item.answerSummary).toBeTruthy();
   });
 
   it("adds one plain simulation line when the site's evaluation has one", async () => {

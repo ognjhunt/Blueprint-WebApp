@@ -113,6 +113,9 @@ describe("composeSiteAnswer", () => {
     expect(answer.pick!.checks.find((check) => check.key === "payload")!.basis).toBe("video_estimate");
     expect(answer.pick!.checks.find((check) => check.key === "payload")!.text)
       .toBe("Payload: your object weighs about 3–4 kg (estimated from your video), plus about 0.9 kg for a standard gripper, so it must carry about 3–4.9 kg. This arm is rated for 12.5 kg.");
+    // The short figures the page shows are the sentence's own.
+    expect(reach).toMatchObject({ need: "about 64–93 cm", has: "1.3 m" });
+    expect(answer.pick!.checks.find((check) => check.key === "payload")).toMatchObject({ need: "about 3–4.9 kg", has: "12.5 kg" });
     for (const sentence of [answer.headline, ...answer.unknowns, ...answer.confidence.reasons, ...answer.ruledOut.map((row) => row.reason)]) {
       expect(sentence).not.toMatch(/safe to|guarantee|tested at your site|will work|certif|episode|candidate|screening|embodiment/i);
     }
@@ -372,6 +375,21 @@ describe("composeSiteAnswer", () => {
     expect(clear.unknowns.some((line) => line.startsWith("Safety around people"))).toBe(false);
   });
 
+  it("says the video does not show the whole work area only when the stored coverage review says so, never in its words", () => {
+    const short = compose({ request: { capture_coverage: { covers_scene: false, missing_coverage: ["The far side of the dining table"] } } });
+    expect(short.unknowns).toContain("Your video does not show the whole work area.");
+    expect(short.unknowns.join(" ")).not.toContain("far side");
+    // After the scope line that leads, before the other unknowns.
+    expect(short.unknowns.indexOf("Your video does not show the whole work area.")).toBe(short.unknowns[0] === UNKNOWN_JOB_KIND ? 1 : 0);
+    expect(compose().unknowns).not.toContain("Your video does not show the whole work area.");
+    expect(compose({ request: { capture_coverage: { covers_scene: true } } }).unknowns).not.toContain("Your video does not show the whole work area.");
+    // A stored review with no yes or no says nothing; a missing review says nothing.
+    const absent = composeSiteAnswer({ ...inputs(), request: { requestId: "job-1", request: {},
+      walkthrough_job_estimates: { capture_id: "walkthrough-job-1", job_estimates: estimates() } } })!;
+    expect(absent.unknowns).not.toContain("Your video does not show the whole work area.");
+    expect(compose({ request: { capture_coverage: { views: [] } } }).unknowns).not.toContain("Your video does not show the whole work area.");
+  });
+
   it("copies the introduction request time", () => {
     expect(compose().introductionRequestedAtIso).toBeNull();
     expect(compose({ request: { introduction_request: { requested_at_iso: NOW, requested_by: "signed_owner_link" } } })
@@ -445,7 +463,9 @@ describe("each check takes its outcome from the best source for its own quantity
     const answer = composeSiteAnswer({ ...inputs({ robotFit: scene({ ...UR10E, verdict: "fits" }) }), catalog: only("universal_robots_ur10e") })!;
     expect(answer.pick).toMatchObject({ name: "UR10e", verdict: "fits", sceneChecked: true });
     expect(checkOf(answer, "reach")).toEqual({ key: "reach", outcome: "pass", estimated: false, basis: "scene_measured",
-      text: "Reach: checked in the scene rebuilt from your video: this robot reaches both spots with a clear arm path. It reaches 1.3 m." });
+      text: "Reach: checked in the scene rebuilt from your video: this robot reaches both spots with a clear arm path. It reaches 1.3 m.",
+      // The scene decides reach by where the arm stands: no figure for the job's side, the robot's own reach for its side.
+      need: null, has: "1.3 m" });
     // The payload is still this check's own, on the video's weight.
     expect(checkOf(answer, "payload")).toMatchObject({ outcome: "pass", basis: "video_estimate", estimated: true });
     expect(answer.confidence.reasons).toContain("Its reach was checked in the scene rebuilt from your video.");
@@ -692,7 +712,7 @@ describe("every sentence has a precondition in the data (generated inputs)", () 
   });
 
   it("holds over a few thousand random jobs", () => {
-    const counts = { answers: 0, ready: 0, cannot: 0, passShown: 0, failShown: 0, good: 0, scene: 0 };
+    const counts = { answers: 0, ready: 0, cannot: 0, passShown: 0, failShown: 0, good: 0, scene: 0, figures: 0 };
     for (let index = 0; index < 3000; index++) {
       const answer = composeSiteAnswer(generated());
       if (!answer) continue;
@@ -714,6 +734,16 @@ describe("every sentence has a precondition in the data (generated inputs)", () 
           if (check.outcome !== "unknown") expect(check.basis, check.text).not.toBeNull();
           // An unknown with figures says why it is unknown, so it never reads as a pass or a fail.
           if (figures && check.outcome === "unknown") expect(check.text, check.text).toMatch(/so we can't say yet\.( This is a tight fit\.)?$/);
+          // The short figures are the sentence's own words: each one the page shows appears in the sentence as it stands.
+          for (const value of [check.need, check.has]) {
+            if (value === null || value === undefined) continue;
+            const said = value.replace(/^about /, "").split("–").map((part) => part.trim());
+            for (const part of said) expect(check.text, `${label}: ${value}`).toContain(part);
+            counts.figures++;
+          }
+          // A check decided in the scene has no figure for the job's side; one made from a distance or weight has both.
+          if (check.basis === "scene_measured") expect(check.need, check.text).toBeNull();
+          if (figures) { expect(check.need, check.text).toBeTruthy(); expect(check.has, check.text).toBeTruthy(); }
         }
       }
       // A ruled-out robot's reason is a failed check's sentence, and a fail never shows a need below the limit.

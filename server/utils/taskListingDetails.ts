@@ -1,6 +1,6 @@
 import { listingTargetingSchema } from "../../client/src/types/updatePreferences";
 import { z } from "zod";
-import { JOB_CARD_ANSWER_STATEMENT_VERSION } from "../../client/src/lib/jobCardAnswerConsent";
+import { JOB_CARD_ANSWER_STATEMENT_VERSIONS } from "../../client/src/lib/jobCardAnswerConsent";
 import type { TaskListingDetails } from "../../client/src/types/taskBrowse";
 import type { SiteTaskBriefRecord } from "./siteTaskBrief";
 
@@ -10,7 +10,7 @@ export const listingConsentVersion = "public-task-card-v1";
  * company" records the card under its own statement, which covers the card
  * and the answer (`client/src/lib/jobCardAnswerConsent.ts`).
  */
-export const LISTING_CONSENT_VERSIONS: readonly string[] = [listingConsentVersion, JOB_CARD_ANSWER_STATEMENT_VERSION];
+export const LISTING_CONSENT_VERSIONS: readonly string[] = [listingConsentVersion, ...JOB_CARD_ANSWER_STATEMENT_VERSIONS];
 /** Private suggestions only. Publication still needs the owner's exact review. */
 export function taskListingDraft(brief: SiteTaskBriefRecord | null) {
   const details: TaskListingDetails = {

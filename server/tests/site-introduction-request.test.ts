@@ -105,7 +105,9 @@ describe("POST /:token/introduction-request", () => {
     // The choice is recorded with the exact sentence shown under the button, and its version.
     expect(stored.introduction_request).toEqual({ requested_at_iso: first.body.requestedAtIso, requested_by: "signed_owner_link",
       statement_version: JOB_CARD_ANSWER_STATEMENT_VERSION, statement_text: FIND_COMPANY_CONSENT });
-    expect(JOB_CARD_ANSWER_STATEMENT_VERSION).toBe("public-task-card-with-answer-v1");
+    expect(JOB_CARD_ANSWER_STATEMENT_VERSION).toBe("public-task-card-with-answer-v2");
+    expect(FIND_COMPANY_CONSENT).toBe("Shares a summary of your job and this answer, without saying who you are, with companies we've approved. "
+      + "Your video, address and contacts stay private.");
     // The same grant "Manage opportunity sharing" records, with the anonymised card text, under the statement
     // that also names the answer: the older box's version does not cover it.
     expect(stored.public_task_listing).toMatchObject({ enabled: true, consentVersion: JOB_CARD_ANSWER_STATEMENT_VERSION,
@@ -202,6 +204,10 @@ describe("POST /:token/introduction-request", () => {
   });
 
   it("refuses a page that showed another statement, recording and listing nothing, and asks it to reload", async () => {
+    // v1 is still a valid record of a choice already made, but a page showing it now is out of date.
+    for (const version of ["public-task-card-with-answer-v0", "public-task-card-with-answer-v1"]) {
+      expect(await ask(owner(), true, { statementVersion: version }), version).toMatchObject({ status: 409 });
+    }
     const stale = await ask(owner(), true, { statementVersion: "public-task-card-with-answer-v0" });
     expect(stale).toEqual({ status: 409, body: { code: "introduction_request_statement_changed",
       error: "The wording on this page has changed. Reload the page to read it, then press the button again." } });

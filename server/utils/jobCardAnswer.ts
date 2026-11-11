@@ -55,6 +55,7 @@ const SITE_WORDS: Array<[RegExp, string]> = [
   [/\bYour job\b/g, "The job"],
   [/\byour job\b/g, "the job"],
   [/\byour (video|work area|scene)\b/g, "the site's $1"],
+  [/\bYour (video|work area|scene)\b/g, "The site's $1"],
 ];
 /** The answer's sentence said about the site, for a company reading the card. */
 export function aboutTheSite(sentence: string): string {
@@ -74,6 +75,11 @@ function robotOf(robot: AnswerRobot | null): JobCardAnswerRobot | null {
   if (!robot) return null;
   return {
     manufacturer: robot.manufacturer, name: robot.name, verdictLabel: VERDICT_LABELS[robot.verdict] ?? "May fit",
+    // Outcomes and figures only (a number and its unit, each at most a few words): the sentences say the site's
+    // words ("your two spots") and stay on the site's page.
+    checks: robot.checks.map(({ key, outcome, need, has }) => ({ key, outcome,
+      need: typeof need === "string" && /^[^a-z]*\d[\d\s.,–-]*(cm|m|kg|s)$/i.test(need.replace(/^about /, "")) ? need : null,
+      has: typeof has === "string" && /^[^a-z]*\d[\d\s.,–-]*(cm|m|kg|s)$/i.test(has.replace(/^about /, "")) ? has : null })),
     specs: robot.specs.filter(spec => httpsUrl(spec.sourceUrl)).slice(0, 2)
       .map(({ label, display, sourceUrl }) => ({ label, display, sourceUrl })),
     evidence: robot.evidence.filter(row => httpsUrl(row.sourceUrl)).slice(0, 2)

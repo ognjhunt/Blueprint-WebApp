@@ -1151,12 +1151,15 @@ describe("the site's answer leads its job page", () => {
     expect(screen.queryByText(CONFIRM_STEP)).toBeNull();
   });
 
-  it("keeps the update line while the video is still being read, and drops it once the answer is settled", async () => {
+  it("says where things stand once, in the answer's own headline, while the video is read and once it is settled", async () => {
     setUserAgent(DESKTOP_UA);
     vi.stubGlobal("fetch", answerFetch({ answer: readingAnswer }));
     const { unmount } = render(<SelfCaptureUpload />);
     expect(await screen.findByText(readingAnswer.headline)).toBeVisible();
-    expect(screen.getByText("Blueprint will update this job as the work progresses.")).toBeVisible();
+    // "We are reading your video. Your answer will appear here." is the update: no status card or update line repeats it.
+    expect(screen.queryByText("Blueprint will update this job as the work progresses.")).toBeNull();
+    expect(screen.queryByText("We have your recording.")).toBeNull();
+    expect(screen.queryByText("Video received.")).toBeNull();
     unmount();
     vi.stubGlobal("fetch", answerFetch({ answer: cannotAssessAnswer }));
     render(<SelfCaptureUpload />);
@@ -1184,8 +1187,68 @@ describe("the site's answer leads its job page", () => {
     setUserAgent(DESKTOP_UA);
     vi.stubGlobal("fetch", answerFetch({ answer: readyAnswer, ...card }));
     render(<SelfCaptureUpload />);
+    const answer = await screen.findByRole("region", { name: "Your answer" });
+    const headline = await screen.findByText(card.headline, { selector: "strong" });
+    expect(headline).toBeVisible();
+    // The site's own step comes first, and the answer's button stays, quiet, with its sentence: one filled button at most.
+    expect(headline.compareDocumentPosition(answer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const find = screen.getByRole("button", { name: "Find a deployment company for this job" });
+    expect(find).not.toHaveClass("ms-button");
+    expect(screen.getByText(/^This shares an anonymised summary of your job and this answer/)).toBeVisible();
+  });
+
+  it("puts every optional control in one quiet list under the answer, with one filled button and the way to withdraw", async () => {
+    setUserAgent(DESKTOP_UA);
+    vi.stubGlobal("fetch", answerFetch({ answer: readyAnswer }));
+    const { container } = render(<SelfCaptureUpload />);
     await screen.findByRole("region", { name: "Your answer" });
-    expect(await screen.findByText(card.headline, { selector: "strong" })).toBeVisible();
+    const more = await screen.findByRole("region", { name: "More for this job" });
+    expect(screen.getByRole("heading", { level: 2, name: "More for this job" })).toBeVisible();
+    for (const summary of ["Correct the job we read from your video (optional)", "Update walkthrough (optional)", "Withdraw recording permission"]) {
+      expect(more.contains(await screen.findByText(summary)), summary).toBe(true);
+      expect(screen.getByText(summary).closest("details")).not.toHaveAttribute("open");
+    }
+    // "Video received." is implied by the answer and not said under it.
+    expect(screen.queryByText("Video received.")).toBeNull();
+    const filled = [...container.querySelectorAll("button.ms-button")].filter(button => !button.closest("details"));
+    expect(filled.map(button => button.textContent)).toEqual(["Find a deployment company for this job"]);
+    expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
+  });
+
+  it("offers the one thing a site can do about an answer that cannot be checked, next to the reason", async () => {
+    setUserAgent(DESKTOP_UA);
+    // The video could not be sized: a new walkthrough, through the page's own update.
+    const unsized = answerFetch({ answer: cannotAssessAnswer });
+    vi.stubGlobal("fetch", unsized);
+    const { unmount } = render(<SelfCaptureUpload />);
+    expect(await screen.findByText(cannotAssessAnswer.reason!)).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Update walkthrough" }));
+    await waitFor(() => expect(unsized.mock.calls.some(([input]) => String(input).endsWith(`/api/self-capture/uploads/${TOKEN}/supplement`))).toBe(true));
+    unmount();
+    // Another kind of job: the job description, in the page's own editor, opened.
+    const other = { ...cannotAssessAnswer, reason: "From your video, the job looks like more than picking an object up and putting it down (folding), which we can't check robots against yet. If that is not right, edit the job description to say what the robot should do, and we will read the video again." };
+    vi.stubGlobal("fetch", answerFetch({ answer: other }));
+    render(<SelfCaptureUpload />);
+    expect(await screen.findByText(other.reason)).toBeVisible();
+    fireEvent.click(await screen.findByRole("button", { name: "Edit the job description" }));
+    expect(await screen.findByText("Edit your job brief")).toBeVisible();
+    expect(screen.getByText("Edit your job brief").closest("details")).toHaveAttribute("open");
+  });
+
+  it("stops offering footage, edits and sharing once a withdrawal is read back, and keeps saying what withdrawal does", async () => {
+    setUserAgent(DESKTOP_UA);
+    const base = answerFetch({ answer: null, headline: "Your video is saved. Recording consent was withdrawn, so we can no longer review the video or show the scene preview." });
+    vi.stubGlobal("fetch", vi.fn().mockImplementation((input: RequestInfo | URL) => String(input).endsWith(`/api/self-capture/uploads/${TOKEN}/withdrawal`)
+      ? Promise.resolve({ ok: true, json: async () => ({ ok: true, withdrawn: true, withdrawal: { state: "withdrawn", requestedAtIso: "2026-11-11T16:00:00Z",
+        pipelineAcknowledged: true, deletionConfirmed: false, legalHold: false,
+        storageDeletion: { state: "pending", deletedObjectCount: 0, lateUploadCheckAtIso: null, completedAtIso: null } } }) })
+      : base(input)));
+    render(<SelfCaptureUpload />);
+    expect(await screen.findByText("Recording permission withdrawn.")).toBeVisible();
+    await waitFor(() => expect(screen.queryByText("Update walkthrough (optional)")).toBeNull());
+    expect(screen.queryByText("Manage opportunity sharing (optional)")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Edit your answers" })).toBeNull();
+    expect(screen.getByText(/Withdrawal is not deletion/)).toBeVisible();
   });
 
   it("puts the proof in simulation inside the answer from the workspace's one workflow read", async () => {

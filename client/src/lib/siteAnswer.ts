@@ -41,6 +41,18 @@ export interface AnswerCheck {
    * Null when the check could not be made for lack of that quantity or of the robot's figure.
    */
   basis: AnswerBasis | null;
+  /**
+   * What the job asks of the robot, as the check's own sentence says it ("about 64–93 cm",
+   * "about 3–4.9 kg", "30 s"). Absent on older answers; null when the check has no such figure
+   * (a reach decided in the scene, or a quantity the job does not give).
+   */
+  need?: string | null;
+  /**
+   * The robot's side, as the sentence says it: its published reach or rated payload ("1.3 m",
+   * "12.5 kg"), or how long a cycle takes on paper ("1.2–31 s"). Absent on older answers; null
+   * when the maker publishes no figure.
+   */
+  has?: string | null;
 }
 
 export const EVIDENCE_LEVELS = ["production", "pilot", "offered"] as const;
@@ -112,9 +124,44 @@ export const ANSWER_CONFIDENCE_LABELS: Readonly<Record<AnswerConfidenceLevel, st
   low: "Low",
 };
 
-/** The standing note under every answer: what the check covers, and what it is not. */
+/** The standing note under every answer: what the check covers, and what it is not. The email and the job card say it in full. */
 export const SITE_ANSWER_NOTE =
   "This checks whether a robot can pick your object up and put it down, against published robot specifications and a cited track record. It is not a test of a robot at your site and does not certify performance or safety.";
+/**
+ * The same note in one short line, under the button on the job page. It keeps what the check covers
+ * (picking the object up and putting it down) and what it is not; the page shows the full note one tap
+ * away, beside the numbers, and the reasons above the button already say "published figures" and the
+ * track record.
+ */
+export const SITE_ANSWER_NOTE_SHORT =
+  "Checks whether a robot can pick your object up and put it down. Not a test at your site; it does not certify performance or safety.";
+
+/** The short note as an approved deployment company reads it on the job card; the card's full note stays one tap away. */
+export const JOB_CARD_NOTE_SHORT =
+  "Checks whether a robot can pick the object up and put it down. Not a test at the site; it does not certify performance or safety.";
+
+/*
+ * Sentences the server composes and the page treats specially, kept here so both read the same words.
+ * The scope lines change what the answer covers, so the page never folds them away.
+ */
+/** The reader did not say what is done to the object: said first, so the answer never passes for more than a carry. */
+export const UNKNOWN_JOB_KIND = "We could not tell from your video what is done to the object; this checks only whether a robot can pick it up and put it down.";
+/** The job's own sentence names more than one step. */
+export const UNKNOWN_MULTI_STEP = "Your job has more than one step; this checks one carry.";
+/** The start of the line naming what else the reader saw done to the object (from its closed list). */
+export const ALSO_INVOLVES_PREFIX = "Your job also involves ";
+/** The end of that line. */
+export const ALSO_INVOLVES_SUFFIX = "; this checks only the picking up and putting down.";
+/** The stored coverage review says the video does not cover the scene. */
+export const UNKNOWN_SCENE_NOT_COVERED = "Your video does not show the whole work area.";
+/** Why a finished reading gave nothing to size; the answer email keys on it, and the page offers a new video. */
+export const REASON_UNSIZED = "The video did not show the job clearly enough for us to size it.";
+
+/** A line of `unknowns` that changes what the answer covers: shown with the answer, never folded away. */
+export function isScopeNote(line: string): boolean {
+  return line === UNKNOWN_JOB_KIND || line === UNKNOWN_MULTI_STEP
+    || (line.startsWith(ALSO_INVOLVES_PREFIX) && line.endsWith(ALSO_INVOLVES_SUFFIX));
+}
 
 export interface SiteAnswer {
   schemaVersion: typeof SITE_ANSWER_SCHEMA;

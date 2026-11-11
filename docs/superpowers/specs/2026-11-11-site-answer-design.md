@@ -51,7 +51,12 @@ returns `answer: null` and carries on.
   standard gripper), and cycle time only when the site stated a target. Each
   check passes only if it passes at the pessimistic end of the band, fails only
   if it fails at the optimistic end, and is otherwise unknown. Every check
-  sentence names where its number came from (`AnswerCheck.basis`).
+  sentence names where its number came from (`AnswerCheck.basis`). Each check also
+  carries the figures its sentence says, as the same strings: `need` (the job's
+  side, such as "about 64–93 cm", or a cycle target) and `has` (the robot's
+  published reach or rated payload, or how long a cycle takes on paper). A reach
+  decided in the scene has no `need`. A seeded test checks that every `need` and
+  `has` appears in its sentence.
 - **Each check takes its outcome from the best source for its own quantity**,
   in the order of trust: what the site measured or stated, then the scene
   rebuilt from the video, then the video's estimate. Payload is always this
@@ -107,11 +112,59 @@ returns `answer: null` and carries on.
   pick-and-place track record is used because a carry is what was checked.
 - Every answer's standing note, on the page, in the email and on the job card,
   says the check covers whether a robot can pick the object up and put it down.
+  The email and the job card carry the full note (`SITE_ANSWER_NOTE`). The page
+  shows one short line under its button (`SITE_ANSWER_NOTE_SHORT`: "Checks whether
+  a robot can pick your object up and put it down. Not a test at your site; it does
+  not certify performance or safety.") and the full note one tap away, beside the
+  numbers.
+- When the stored coverage review says the video does not cover the scene
+  (`capture_coverage.covers_scene === false`), the unknowns say "Your video does not
+  show the whole work area." Only that yes or no is read; the review's own words
+  about what is missing are never shown.
 - What else the job involves comes only from the reader's `other_actions`, a
   closed list declared once in `server/agents/tasks/site-video-evidence.ts`
   (`OTHER_ACTIONS`).
 - Whether the simulation can score a job never decides whether the fit check
   runs.
+
+## How the page shows it
+
+The job page says the answer once and short, and keeps everything else one tap
+away (owner direction, 2026-11-11: simpler, less text, easier to read):
+
+- **In view**: the job sentence; the headline; two chips (the pick's verdict and
+  "How sure"); one short reason per check, built from `need` and `has` (an older
+  answer without them falls back to the published figure and "enough for your
+  job"), plus the track record's level and what its source names; "Based on
+  estimates from your video." when a check rests on one; the lines that change
+  what the answer covers (`formNote`, the unknown kind of job, what else the job
+  involves, more than one step: shared constants in `client/src/lib/siteAnswer.ts`,
+  `isScopeNote`); the one button with its sentence word for word; the short note.
+  A check that is not settled is never shown with a tick.
+- **One tap away**, in closed `<details>` whose summaries say what they hold and
+  how many: "Why the {pick}" (every check sentence, sourced figures, the track
+  record, how it would be controlled); "Other robots" (runner-up, also fit, ruled
+  out); "Why “{level}”" (reasons, the other unknowns, what would raise it);
+  "Numbers we used" (each number and where it came from, what was checked, the
+  full note).
+- **Tested in simulation** follows: its leading sentence, the scene's line about
+  the pick, whether the gap could still be chance, "Compared on {robot}, not your
+  {pick}." when the policies ran on another robot, and the scene notes stay in
+  view; the rows and how far to trust such a simulation are behind "Each policy"
+  (or "How far each policy got") and "How far to trust this".
+- **One filled button per page.** A step the site must take (a new video, an
+  account, recording permission, an ended job) comes first, and the answer's button
+  stays, quiet, with its sentence. An answer that cannot be checked offers the one
+  thing the site can do: "Update walkthrough" when the video could not be sized
+  (`REASON_UNSIZED`), else "Edit the job description".
+- Every optional control (correcting the job, a new walkthrough, planning,
+  sharing, the account, processing details, simulation details, the readiness
+  report) is in one quiet list, "More for this job", which always ends with the way
+  to withdraw recording permission.
+- The job card shows the same pattern to an approved deployment company: chips, the
+  pick and the runner-up in a line each, the simulation's line, the numbers, a
+  short note (`JOB_CARD_NOTE_SHORT`); the cited track record, the sources, the full
+  note and the unknowns are one tap away.
 
 ## How the simulation result is made
 

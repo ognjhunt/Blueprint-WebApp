@@ -208,12 +208,16 @@ function EvaluationTerms({ terms }: { terms: TeamEvaluationTerms }) {
   return (
     <section className="ws-section" aria-labelledby="evaluation-terms">
       <h2 id="evaluation-terms">How your evaluation runs</h2>
-      <p>Instruction your policy receives: &ldquo;{terms.instruction}&rdquo;</p>
-      <p>
-        Blueprint&rsquo;s simulator decides every episode from the task object&rsquo;s state
-        against the job&rsquo;s success contract. Results are a bounded simulation estimate;
-        they never certify physical performance or safety.
-      </p>
+      {/* The limit stays in view; how scoring works is one tap away, in the same words. */}
+      <p>Results are a bounded simulation estimate; they never certify physical performance or safety.</p>
+      <details className="ws-section">
+        <summary>Instruction and scoring</summary>
+        <p>Instruction your policy receives: &ldquo;{terms.instruction}&rdquo;</p>
+        <p>
+          Blueprint&rsquo;s simulator decides every episode from the task object&rsquo;s state
+          against the job&rsquo;s success contract.
+        </p>
+      </details>
       <details className="ws-section">
         <summary>Scored: {terms.scored.episodes} hidden cells</summary>
         <p>Drawn from these variations, the same for every team on this job:</p>

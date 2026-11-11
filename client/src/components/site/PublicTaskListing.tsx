@@ -6,10 +6,10 @@ import { TaskFacts } from "./TaskFacts";
 const blank: TaskListingDetails = { title: "", taskFamily: "", siteType: "", region: "", objects: "", cycleTarget: "", pilotTiming: "", pilotBudget: "", pilotPriceStatus: "target_budget", pilotConditions: "", ongoingTarget: "", opportunity: "not_seeking" };
 
 /** Listing authorization is separate from capture rights; reviewed edits retain their own consent. */
-export function PublicTaskListing(props: { token: string; jobRevision?: string }) {
+export function PublicTaskListing(props: { token: string; jobRevision?: string; summaryLabel?: string }) {
   return <PublicTaskListingForToken key={props.token} {...props} />;
 }
-function PublicTaskListingForToken({ token, jobRevision }: { token: string; jobRevision?: string }) {
+function PublicTaskListingForToken({ token, jobRevision, summaryLabel = "Manage opportunity sharing (optional)" }: { token: string; jobRevision?: string; summaryLabel?: string }) {
   const dirty = useRef(false);
   const [revision, setRevision] = useState<string>();
   const [error, setError] = useState("");
@@ -60,7 +60,7 @@ function PublicTaskListingForToken({ token, jobRevision }: { token: string; jobR
   const field = (key: Exclude<keyof TaskListingDetails, "targeting">, label: string, maxLength: number, required = false) =>
     <label key={key}>{label}<input value={details[key] ?? ""} maxLength={maxLength} minLength={key === "title" ? 8 : undefined} required={required}
       onChange={e => { dirty.current = true; setDetails({ ...details, [key]: e.target.value }); setConsent(false); setState("idle"); }} /></label>;
-  return <details className="ms-task-interest"><summary>Manage opportunity sharing (optional)</summary>
+  return <details className="ms-task-interest"><summary>{summaryLabel}</summary>
     {published === false && <p className="ms-field-hint" role="status">
       Your job card is not published. Sharing it lets approved partners find the job and ask for their systems to be evaluated.
       Blueprint can process your recording while the card stays private.

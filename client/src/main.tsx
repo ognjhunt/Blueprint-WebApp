@@ -6,6 +6,7 @@ import "./components/site/minimal-site.css";
 import "./components/site/marketplace-public.css";
 import "./components/site/partners.css";
 import "./components/site/job-workspace.css";
+import "./components/bare/bare.css";
 import "./components/auth/auth.css";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { HelmetProvider } from "@/lib/helmet";

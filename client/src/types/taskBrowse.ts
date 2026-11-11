@@ -38,6 +38,11 @@ export interface JobCardAnswerRobot {
   verdictLabel: string;
   /** The two published figures (reach, payload), each with its source. */
   specs: Array<{ label: string; display: string; sourceUrl: string }>;
+  /**
+   * Each check's outcome and its two figures, the strings the site's own check sentence says (`AnswerCheck.need`
+   * and `has`): numbers with their units, never the site's words. Absent on cards composed before 2026-11-11.
+   */
+  checks?: Array<{ key: "reach" | "payload" | "cycle_time"; outcome: "pass" | "fail" | "unknown"; need: string | null; has: string | null }>;
   evidence: AnswerEvidence[];
 }
 /**

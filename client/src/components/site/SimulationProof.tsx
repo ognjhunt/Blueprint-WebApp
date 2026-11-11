@@ -1,75 +1,122 @@
 import { UNNAMED_POLICY } from "@/data/simulationPolicies";
-import type { SimulationProof as SimulationProofView } from "@/lib/simulationProof";
+import { BareRows } from "@/components/bare/Bare";
+import {
+  COULD_NOT_RUN, HEADLINES, SCENE_SETUP_CAVEAT, WAITING, type SimulationProof as SimulationProofView,
+} from "@/lib/simulationProof";
+import type { JobScreeningOutcome } from "@/types/jobMarketplace";
 
 type Row = NonNullable<SimulationProofView["policyComparison"]>["rows"][number];
 
 /** At the start of a row, the plain phrase for a policy not in our list starts with a capital. */
 const rowName = (name: string) => (name.startsWith(UNNAMED_POLICY) ? `A${name.slice(1)}` : name);
+const tries = (succeeded: number, scored: number) => `${succeeded} of ${scored} ${scored === 1 ? "try" : "tries"}`;
 
-/** The leader's mark says as much as the comparison does: "Did best" only when the gap is unlikely to be chance. */
-function PolicyRow({ row, separated }: { row: Row; separated: boolean }) {
-  return <li className={row.chosen ? "site-proof-row site-proof-best" : "site-proof-row"}>
-    <span className="site-proof-name"><strong>{rowName(row.policy)}</strong>{row.maker && <span className="ms-field-hint"> from {row.maker}</span>}</span>
-    <span>{row.succeeded} of {row.scored} {row.scored === 1 ? "try" : "tries"}{row.rangeText && <span className="ms-field-hint"> · {row.rangeText}</span>}
-      {/* A row left out of the comparison says which robot it ran on. */}
-      {!row.compared && <span className="ms-field-hint"> · on {row.robot ?? "a robot we could not confirm"}, not compared</span>}
-      {/* How far a policy that completed nothing got, when another one did complete the job: a fact, never a rank. */}
-      {row.furthestShown && row.furthestDetail && <span className="ms-field-hint"> · {row.furthestDetail}</span>}</span>
-    {row.chosen && <span className="site-proof-mark">{separated ? "Did best" : "Ahead"}</span>}
-  </li>;
+/**
+ * The computer test said in words a child can read: each the plain form of the projection's own sentence for the
+ * same case (`simulationProof.ts`), so it is true whenever that one is. The projection's sentences stay in the
+ * details, word for word, and in the email.
+ */
+const PLAIN_COULD_NOT_RUN: Readonly<Partial<Record<JobScreeningOutcome, string>>> = {
+  reference_only: "Only our own test moves ran. No robot program could be tried yet.",
+  held_capability: "Our computer test can't do this kind of job yet.",
+  held_unprepared: "The robots that could do this job aren't set up in our computer test yet.",
+  infeasible: "In the computer copy of your site, none of the robots we can test could reach the job.",
+  no_match: "None of the robots we can test matched this job. At least one couldn't reach it in the computer copy of your site.",
+  held_setup: "A problem on our side stopped the test before it finished.",
+  held_budget: "The test reached the most the free trial can run for one job, before it finished.",
+  held_scene_check: "The computer copy of your site failed our check, so no robot was tested in it.",
+};
+const PLAIN_WAITING: Readonly<Partial<Record<JobScreeningOutcome, string>>> = {
+  awaiting_spend_approval: "We're deciding whether to keep testing.",
+  setup_repair: "An update on our side stopped the test before it finished. If a later test finishes, it shows here.",
+  superseded: "The test goes on in a newer run.",
+};
+const PLAIN_STATE = { preparing: "Getting ready.", running: "Running now." } as const;
+/** The set-up caveat in plain words: it changes what a result means, so it is said beside the line. */
+export const PLAIN_SETUP_CAVEAT = "This result may come from how we set up the computer copy of your site, not from the robots.";
+
+const outcomeOf = (table: Partial<Record<JobScreeningOutcome, string>>, sentence: string) =>
+  (Object.keys(table) as JobScreeningOutcome[]).find(key => table[key] === sentence) ?? null;
+
+/**
+ * The one computer-test line under the answer, or null when there is nothing to report (not started). The leader,
+ * "did best" or "was ahead" or no clear winner, is the projection's own rule; the robot the programs ran on is
+ * always named, and said not to be the pick when it is not.
+ */
+export function computerTestLine(proof: SimulationProofView | null | undefined, pickName: string | null): string | null {
+  if (!proof) return null;
+  if (proof.state === "not_started") return null;
+  if (proof.state === "could_not_run") {
+    const outcome = outcomeOf(COULD_NOT_RUN, proof.headline);
+    return `Computer test: ${(outcome && PLAIN_COULD_NOT_RUN[outcome]) ?? "It could not run."}`;
+  }
+  if (proof.state !== "done") {
+    const waiting = outcomeOf(WAITING, proof.headline);
+    if (waiting && PLAIN_WAITING[waiting]) return `Computer test: ${PLAIN_WAITING[waiting]}`;
+    return proof.headline === HEADLINES[proof.state] ? `Computer test: ${PLAIN_STATE[proof.state]}` : null;
+  }
+  const comparison = proof.policyComparison;
+  const compared = comparison?.rows.filter(row => row.compared) ?? [];
+  if (!comparison || !comparison.rows.length) return "Computer test: it finished, but no robot program could be scored.";
+  if (!compared.length) return "Computer test: we couldn't confirm the robot programs ran on the same robot, so they aren't compared.";
+  const on = `on ${comparison.robotName}${!comparison.sameRobotAsPick && pickName ? `, not the ${pickName}` : ""}`;
+  const leader = compared.find(row => row.chosen);
+  if (leader) {
+    return `Computer test: ${rowName(leader.policy)} ${comparison.separated ? "did best" : "was ahead"}, finishing the job in ${tries(leader.succeeded, leader.scored)}, ${on}.`
+      + (comparison.separated ? "" : " It could still be chance.");
+  }
+  if (compared.length === 1) return `Computer test: only one robot program could be compared, ${on}.`;
+  if (!compared.some(row => row.succeeded > 0)) return `Computer test: none of the robot programs finished the job, ${on}.`;
+  return `Computer test: no clear winner yet, ${on}.`;
+}
+
+/** Whether the line carries the set-up caveat beside it. */
+export const setupCaveatShown = (proof: SimulationProofView | null | undefined) =>
+  Boolean(proof?.state === "done" && proof.policyComparison?.sceneNotes.includes(SCENE_SETUP_CAVEAT));
+
+/**
+ * Everything the computer test found, on the details screen, in short rows: the projection's own sentences word for
+ * word, each program's count, what the scene showed about the pick, and how far such a test can be trusted, with
+ * its sources. Renders a `SimulationProof` as projected; it adds no claim of its own.
+ */
+export function ComputerTestDetails({ proof }: { proof: SimulationProofView }) {
+  const comparison = proof.policyComparison;
+  const done = proof.state === "done";
+  const rows: Row[] = comparison?.rows ?? [];
+  return <>
+    <BareRows title="Computer test" rows={[
+      { key: "result", value: comparison?.line ?? proof.headline },
+      ...(proof.robotCheck ? [{ key: "scene", value: proof.robotCheck.line }] : []),
+      ...rows.map((row, index) => ({ key: `row-${index}`, label: <>{rowName(row.policy)}{row.maker && <span className="bare-helper"> {row.maker}</span>}</>,
+        value: <>Finished {tries(row.succeeded, row.scored)}{row.rangeText && <span className="bare-helper"> · {row.rangeText}</span>}
+          {!row.compared && <span className="bare-helper"> · on {row.robot ?? "a robot we could not confirm"}, not compared</span>}
+          {/* How far a row got, where the result sentence does not already say it (the projection's rule). */}
+          {row.furthestShown && row.furthestDetail && <span className="bare-helper"> · {row.furthestDetail}</span>}
+          {row.chosen && <strong> · {comparison!.separated ? "Did best" : "Ahead"}</strong>}</> })),
+      ...(comparison?.sceneNotes ?? []).map((note, index) => ({ key: `note-${index}`, value: note })),
+      ...(comparison && comparison.didNotRun > 0
+        ? [{ key: "did-not-run", value: `${comparison.didNotRun} more robot ${comparison.didNotRun === 1 ? "program was" : "programs were"} planned but did not run. Job settings › Simulation details says why.` }] : []),
+    ]} />
+    {done && <BareRows title="How far to trust a computer test" rows={[
+      { key: "statement", value: proof.accuracy.statement },
+      { key: "conditions", value: proof.accuracy.conditions },
+      ...proof.forThisJob.map((item, index) => ({ key: `job-${index}`, value: item })),
+      ...proof.accuracy.sources.map(source => ({ key: source.url, label: "Source",
+        value: <a href={source.url} target="_blank" rel="noreferrer">{source.title}</a> })),
+    ]} />}
+  </>;
 }
 
 /**
- * "Tested in simulation", as part of the site's answer: what the simulation of
- * the site has shown about the picked robot's reach and arm path and about how
- * public AI control policies compared on the job, how far published studies say
- * such a simulation can be trusted, and which of their conditions hold for this
- * job. Renders a `SimulationProof` as projected; it adds no claim of its own.
+ * "Tested in simulation" on its own, for an older job that has evaluations and no answer to carry them: the one
+ * line, then everything behind it.
  */
-export function SimulationProof({ proof }: { proof: SimulationProofView }) {
-  const comparison = proof.policyComparison;
-  const done = proof.state === "done";
-  // The headline already says the comparison's first sentence; only what the rest adds is said below.
-  const line = comparison ? (comparison.line.startsWith(proof.headline) ? comparison.line.slice(proof.headline.length).trim() : comparison.line) || null : null;
-  // Which robot the policies ran on is said where the results are, not only at the foot of the section,
-  // so a result is never read as a test of the picked robot.
-  const otherRobot = done && comparison && !comparison.sameRobotAsPick
-    ? proof.forThisJob.find(item => item.includes(comparison.robotName)) ?? null : null;
-  const forThisJob = proof.forThisJob.filter(item => item !== otherRobot);
-  return <section className="site-answer-proof" aria-labelledby="simulation-proof-title">
-    <h3 id="simulation-proof-title">Tested in simulation</h3>
-    <p className="site-proof-headline">{proof.headline}</p>
-    {proof.robotCheck && <>
-      <h4>{proof.robotCheck.pickChecked === null ? "The robots in your scene" : "Your robot in your scene"}</h4>
-      <p>{proof.robotCheck.line}</p>
-    </>}
-    {done && comparison && <>
-      <h4>Control policies on your job</h4>
-      {otherRobot && <p className="site-proof-robot">{otherRobot}</p>}
-      {line && <p>{line}</p>}
-      {!comparison.winner && comparison.sceneNotes.length > 0 && <ul className="site-proof-notes">
-        {comparison.sceneNotes.map(note => <li key={note}>{note}</li>)}
-      </ul>}
-      {comparison.rows.length > 0 && <ul className="site-proof-rows" aria-label="Control policies tried">
-        {comparison.rows.map((row, index) => <PolicyRow key={`${index}:${row.policy}`} row={row} separated={comparison.separated} />)}
-      </ul>}
-      {comparison.winner && comparison.sceneNotes.length > 0 && <ul className="site-proof-notes">
-        {comparison.sceneNotes.map(note => <li key={note}>{note}</li>)}
-      </ul>}
-      {comparison.didNotRunLine && <p className="ms-field-hint">{comparison.didNotRunLine}</p>}
-    </>}
-    {done && <>
-      <h4>How far to trust this</h4>
-      <p>{proof.accuracy.statement}</p>
-      <p>{proof.accuracy.conditions}</p>
-      <p className="ms-field-hint">Sources:</p>
-      <ul className="site-proof-sources">{proof.accuracy.sources.map(source => <li key={source.url}>
-        <a className="ms-text-link" href={source.url} target="_blank" rel="noreferrer">{source.title}</a>
-      </li>)}</ul>
-      {forThisJob.length > 0 && <>
-        <p className="site-proof-for-job">For your job:</p>
-        <ul>{forThisJob.map(item => <li key={item}>{item}</li>)}</ul>
-      </>}
-    </>}
+export function SimulationProof({ proof, pickName = null }: { proof: SimulationProofView; pickName?: string | null }) {
+  const line = computerTestLine(proof, pickName);
+  return <section className="bare-screen site-proof-standalone" aria-labelledby="simulation-proof-title">
+    <h2 className="bare-label" id="simulation-proof-title">Tested in simulation</h2>
+    <p className="bare-lead">{line ?? proof.headline}</p>
+    {setupCaveatShown(proof) && <p className="bare-notice">{PLAIN_SETUP_CAVEAT}</p>}
+    {proof.state !== "not_started" && <ComputerTestDetails proof={proof} />}
   </section>;
 }

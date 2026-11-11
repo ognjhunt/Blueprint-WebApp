@@ -221,23 +221,23 @@ export function probabilityAhead(a: { succeeded: number; scored: number }, b: { 
 }
 export const SCALE_ESTIMATED = "The scale of your scene was estimated from your video, not measured.";
 /** Said by the server beside a zero-success result whose scene our checks flagged (`screeningOutcomeCaveat`). */
-const SCENE_SETUP_CAVEAT = "Our scene check found a possible set-up cause, so this result may reflect how we set the scene up more than the robots.";
+export const SCENE_SETUP_CAVEAT = "Our scene check found a possible set-up cause, so this result may reflect how we set the scene up more than the robots.";
 
-const HEADLINES = {
+export const HEADLINES = {
   not_started: "The simulation of your site has not started yet.",
   preparing: "We are preparing the simulation of your site.",
   running: "The simulation of your site is running.",
 } as const;
 
 /** Waiting or still in progress: said about the simulation. */
-const WAITING: Partial<Record<JobScreeningOutcome, string>> = {
+export const WAITING: Partial<Record<JobScreeningOutcome, string>> = {
   awaiting_spend_approval: "Blueprint is deciding whether to continue the simulation.",
   setup_repair: "A Blueprint update stopped the simulation before it finished. If a later run finishes, it will show here.",
   superseded: "The simulation continues in a newer run.",
 };
 
 /** One plain sentence about why the simulation could not run, from the outcome sentences, never about "your job". */
-const COULD_NOT_RUN: Partial<Record<JobScreeningOutcome, string>> = {
+export const COULD_NOT_RUN: Partial<Record<JobScreeningOutcome, string>> = {
   reference_only: "The simulation scored only scripted reference checks; no AI policy could be tested in it yet.",
   held_capability: "The simulation can't model this kind of task yet.",
   held_unprepared: "The robots that could do this task aren't set up in the simulation yet.",

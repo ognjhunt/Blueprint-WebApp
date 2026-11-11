@@ -8,7 +8,7 @@ vi.mock("@/lib/firebaseAuthHeaders", () => ({ withFirebaseAuthHeaders: async () 
 
 const { TaskBrowse } = await import("@/components/site/TaskBrowse");
 const { JobCardAnswer, JOB_CARD_ANSWER_TITLE } = await import("@/components/site/JobCardAnswer");
-const { SITE_ANSWER_NOTE } = await import("@/lib/siteAnswer");
+const { JOB_CARD_NOTE_SHORT, SITE_ANSWER_NOTE } = await import("@/lib/siteAnswer");
 
 const ANSWER: JobCardAnswerSummary = {
   headline: "Most likely to fit: Universal Robots UR20.",
@@ -36,19 +36,45 @@ const fetchMock = vi.fn();
 beforeEach(() => { fetchMock.mockReset(); vi.stubGlobal("fetch", fetchMock); });
 
 describe("Blueprint's answer on a job card", () => {
-  it("renders the pick, the runner-up, how sure, the numbers, the unknowns and the standing note", () => {
+  it("says the answer once and short: how sure, the pick and runner-up in a line each, the numbers and one short note", () => {
     render(<JobCardAnswer answer={ANSWER} />);
     const block = screen.getByRole("region", { name: JOB_CARD_ANSWER_TITLE });
-    expect(within(block).getByText(ANSWER.headline)).toBeInTheDocument();
-    expect(within(block).getByRole("heading", { name: "Universal Robots UR20" })).toBeInTheDocument();
-    expect(within(block).getByRole("heading", { name: "Yaskawa HC20DTP" })).toBeInTheDocument();
-    expect(within(block).getByRole("link", { name: "source" })).toHaveAttribute("href", "https://example.com/ur20");
-    expect(within(block).getByText(/How sure: Fair/)).toBeInTheDocument();
-    expect(within(block).getByText(/estimated from the site's video\)/)).toBeInTheDocument();
-    expect(within(block).getByText(ANSWER.note)).toBeInTheDocument();
+    expect(within(block).getByText(ANSWER.headline)).toBeVisible();
+    expect(within(within(block).getByRole("list", { name: "Summary" })).getAllByRole("listitem").map(item => item.textContent))
+      .toEqual(["Kind of job: palletizing", "How sure: Fair"]);
+    expect(within(block).getByText(ANSWER.confidence.reason!)).toBeVisible();
+    const pick = within(block).getByRole("article", { name: "Pick" });
+    expect(within(pick).getByRole("heading", { name: "Universal Robots UR20" })).toBeVisible();
+    expect(within(pick).getByText("Fits on paper · Reach 1.75 m · In production use")).toBeVisible();
+    const runnerUp = within(block).getByRole("article", { name: "Runner-up" });
+    expect(within(runnerUp).getByRole("heading", { name: "Yaskawa HC20DTP" })).toBeVisible();
+    expect(within(runnerUp).getByText("Fits on paper · Offered for this kind of job")).toBeVisible();
+    // Every number is the video's estimate here, so that is said once.
+    expect(within(within(block).getByRole("definition")).getByText("about 1.6 m")).toBeVisible();
+    expect(within(block).getByText("Estimated from the site's video.")).toBeVisible();
+    expect(within(block).getByText(JOB_CARD_NOTE_SHORT)).toBeVisible();
+    // The cited track record, the figures' sources, the full note and the unknowns: one tap away, said exactly.
+    expect(within(block).getByText(ANSWER.note)).not.toBeVisible();
+    const sources = within(block).getByText("Track record and sources").closest("details")!;
+    expect(sources).not.toHaveAttribute("open");
+    expect(within(sources.querySelector("summary")!).getByText("2 sources")).toBeVisible();
+    fireEvent.click(within(sources).getByText("Track record and sources"));
+    expect(within(sources).getByRole("link", { name: "source" })).toHaveAttribute("href", "https://example.com/ur20");
+    expect(within(sources).getByText(ANSWER.note)).toBeVisible();
     // Each source says what it names: the model itself, or the robot family it belongs to.
-    expect(within(block).getByText("In production use · The source names this model")).toBeInTheDocument();
-    expect(within(block).getByText("Offered for this kind of job · The source names this robot family (Motoman HC)")).toBeInTheDocument();
+    expect(within(sources).getByText("In production use · The source names this model")).toBeVisible();
+    expect(within(sources).getByText("Offered for this kind of job · The source names this robot family (Motoman HC)")).toBeVisible();
+    expect(within(sources).getByText("“The UR20 palletizes here.”")).toBeVisible();
+    const unknowns = within(block).getByText("What the video could not tell").closest("details")!;
+    expect(unknowns).not.toHaveAttribute("open");
+    expect(within(unknowns).getByText(ANSWER.unknowns[0])).not.toBeVisible();
+  });
+
+  it("says where each number came from when they do not all come from the video's estimate", () => {
+    render(<JobCardAnswer answer={{ ...ANSWER, facts: [...ANSWER.facts, { label: "Weight of each carton", display: "8 kg", basis: "site_stated" }] }} />);
+    expect(screen.getByText(/estimated from the site's video\)/)).toBeVisible();
+    expect(screen.getByText(/stated by the site\)/)).toBeVisible();
+    expect(screen.queryByText("Estimated from the site's video.")).toBeNull();
   });
 
   it("states the kind of job only when the answer carries one", () => {
@@ -67,6 +93,9 @@ describe("Blueprint's answer on a job card", () => {
     const shared = items.find(item => within(item).queryByText("Carton palletizing opportunity"))!;
     const plain = items.find(item => within(item).queryByText("Packing opportunity"))!;
     expect(within(plain).queryByText(new RegExp(JOB_CARD_ANSWER_TITLE))).toBeNull();
+    // No evaluation is ready on either card: their meta lines say so, and neither offers its link.
+    expect(within(plain).getByText("Evaluation not ready yet")).toBeVisible();
+    expect(within(shared).queryByRole("link", { name: "Offer your system for this job" })).toBeNull();
     const summary = within(shared).getByText(`${JOB_CARD_ANSWER_TITLE}: ${ANSWER.headline}`);
     expect(within(shared).queryByRole("region", { name: JOB_CARD_ANSWER_TITLE })).toBeNull();
 

@@ -16,7 +16,8 @@
  * confirmed or for staff to share it.
  */
 import {
-  JOB_FAMILY_LABELS, SITE_ANSWER_NOTE, SITE_ANSWER_SCHEMA,
+  ALSO_INVOLVES_PREFIX, ALSO_INVOLVES_SUFFIX, JOB_FAMILY_LABELS, REASON_UNSIZED, SITE_ANSWER_NOTE, SITE_ANSWER_SCHEMA,
+  UNKNOWN_JOB_KIND, UNKNOWN_MULTI_STEP, UNKNOWN_SCENE_NOT_COVERED,
   type AnswerBasis, type AnswerCheck, type AnswerEvidence, type AnswerRobot, type AnswerVerdict, type JobFamily,
   type SiteAnswer,
 } from "../../client/src/lib/siteAnswer";
@@ -53,8 +54,8 @@ export interface SiteAnswerInputs {
 
 const HEADLINE_READING = "We are reading your video. Your answer will appear here.";
 const HEADLINE_CANNOT = "We can't check robots against this job yet.";
-/** The reason for a video that did not show the job clearly enough to size it; the answer email keys on it. */
-export const REASON_UNSIZED = "The video did not show the job clearly enough for us to size it.";
+/** The reason for a video that did not show the job clearly enough to size it; the answer email and the page key on it. */
+export { REASON_UNSIZED, UNKNOWN_JOB_KIND };
 const NEXT_STEP_INTRODUCTION = "Share this job with deployment companies Blueprint has approved, and one of them can pilot it at your site.";
 /** Wrist and mounting margin an arm standing between the spots needs beyond half the span. */
 const REACH_MARGIN_M = 0.10;
@@ -200,15 +201,14 @@ function readingObject(request: Record<string, any>): string | null {
  * reader's `other_actions`, a closed list.
  */
 
-const UNKNOWN_MULTI_STEP = "Your job has more than one step; this checks one carry.";
-/** The reader did not say what is done to the object: said first, so the answer never passes for more than a carry. */
-export const UNKNOWN_JOB_KIND = "We could not tell from your video what is done to the object; this checks only whether a robot can pick it up and put it down.";
+// UNKNOWN_MULTI_STEP and UNKNOWN_JOB_KIND (said first, so the answer never passes for more than a carry) live in
+// `client/src/lib/siteAnswer.ts`, so the page knows them as lines that change what the answer covers.
 
 const listInWords = (items: string[]) =>
   items.length > 1 ? `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}` : items[0];
 
 function alsoInvolves(actions: string[]): string {
-  return `Your job also involves ${listInWords(actions)}; this checks only the picking up and putting down.`;
+  return `${ALSO_INVOLVES_PREFIX}${listInWords(actions)}${ALSO_INVOLVES_SUFFIX}`;
 }
 
 /**
@@ -291,7 +291,12 @@ const SPANS_SITE = "Your numbers span this robot's limit, so we can't say yet.";
 const SPANS_VIDEO_PAYLOAD = "The estimate from your video, with the gripper's weight, spans this robot's rating, so we can't say yet.";
 const SPANS_SITE_PAYLOAD = "With the gripper's weight added, this is at this robot's rating, so we can't say yet.";
 const SPANS_CYCLE = "On paper a cycle may or may not fit in your target, so we can't say yet.";
-const unknownCheck = (key: AnswerCheck["key"], text: string): AnswerCheck => ({ key, outcome: "unknown", estimated: false, basis: null, text });
+/**
+ * `need` and `has` are the figures the sentence itself says, as the same strings, so a short line built from them
+ * never reads differently from the sentence: the job's side and the robot's side, or null where there is none.
+ */
+const unknownCheck = (key: AnswerCheck["key"], text: string, has: string | null = null): AnswerCheck =>
+  ({ key, outcome: "unknown", estimated: false, basis: null, text, need: null, has });
 
 /** Where the span between the two spots came from. */
 const spanBasis = (job: Job): AnswerBasis => (job.spanEstimated ? "video_estimate" : job.facts.distance!.source as AnswerBasis);
@@ -301,31 +306,34 @@ function reachCheck(model: SpecModel, job: Job, toolLength: number | null): Chec
   const estimated = job.spanEstimated;
   if (model.body_type !== "fixed_arm") {
     const arm = reach !== null ? ` Its arm reaches ${specLength(reach)}.` : "";
-    return { check: unknownCheck("reach", `Reach: this robot moves between the spots, so its reach is not checked against the distance on paper.${arm}`),
-      headroom: null };
+    return { check: unknownCheck("reach", `Reach: this robot moves between the spots, so its reach is not checked against the distance on paper.${arm}`,
+      reach !== null ? specLength(reach) : null), headroom: null };
   }
   if (reach === null) return { check: unknownCheck("reach", "Reach: the maker publishes no reach figure for this arm."), headroom: null };
   if (!job.span || !job.spanText) {
-    return { check: unknownCheck("reach", `Reach: we don't know yet how far apart your two spots are. This arm reaches ${specLength(reach)}.`),
-      headroom: null };
+    return { check: unknownCheck("reach", `Reach: we don't know yet how far apart your two spots are. This arm reaches ${specLength(reach)}.`,
+      specLength(reach)), headroom: null };
   }
   const basis = spanBasis(job);
   if (job.span.lo > SCREENING.fixedSpanMaxM) {
     return { check: { key: "reach", outcome: "fail", estimated, basis,
-      text: `Reach: your two spots are ${job.spanText}, more than the ${lengthText(SCREENING.fixedSpanMaxM)} an arm that stays in one place can serve. This arm reaches ${specLength(reach)}.` },
+      text: `Reach: your two spots are ${job.spanText}, more than the ${lengthText(SCREENING.fixedSpanMaxM)} an arm that stays in one place can serve. This arm reaches ${specLength(reach)}.`,
+      need: null, has: specLength(reach) },
       headroom: null };
   }
   if (toolLength === null) {
     return { check: { key: "reach", outcome: "unknown", estimated, basis,
-      text: `Reach: your two spots are ${job.spanText}. The gripper's length is not published, so we could not size the reach. This arm reaches ${specLength(reach)}.` },
+      text: `Reach: your two spots are ${job.spanText}. The gripper's length is not published, so we could not size the reach. This arm reaches ${specLength(reach)}.`,
+      need: null, has: specLength(reach) },
       headroom: null };
   }
   const need = { lo: job.span.lo / 2 + toolLength + REACH_MARGIN_M, hi: job.span.hi / 2 + toolLength + REACH_MARGIN_M };
   const outcome = within(need, reach);
   // An unknown says why it is unknown, so its figures never read as a pass or a fail.
-  const text = `Reach: your two spots are ${job.spanText}, so an arm standing between them needs ${lengthRange(need)}. This arm reaches ${specLength(reach)}.`
+  const needText = lengthRange(need);
+  const text = `Reach: your two spots are ${job.spanText}, so an arm standing between them needs ${needText}. This arm reaches ${specLength(reach)}.`
     + (outcome === "unknown" ? ` ${estimated ? SPANS_VIDEO : SPANS_SITE}` : "");
-  return { check: { key: "reach", outcome, estimated, basis, text }, headroom: (reach - need.hi) / reach };
+  return { check: { key: "reach", outcome, estimated, basis, text, need: needText, has: specLength(reach) }, headroom: (reach - need.hi) / reach };
 }
 
 function payloadCheck(model: SpecModel, job: Job, toolMass: number | null): Checked {
@@ -335,21 +343,23 @@ function payloadCheck(model: SpecModel, job: Job, toolMass: number | null): Chec
   if (payload === null) return { check: unknownCheck("payload", "Payload: the maker publishes no rated payload for this robot."), headroom: null };
   const mass = job.facts.mass;
   if (!mass || !job.mass) {
-    return { check: unknownCheck("payload", `Payload: we don't know yet how heavy your object is. ${noun} is rated for ${kgText(payload)}.`), headroom: null };
+    return { check: unknownCheck("payload", `Payload: we don't know yet how heavy your object is. ${noun} is rated for ${kgText(payload)}.`, kgText(payload)),
+      headroom: null };
   }
   const tool = fixed ? toolMass ?? 0 : 0;
   // A lighter gripper may be fitted, so only the object's own weight can rule a model out.
   const need = { lo: job.mass.lo, hi: job.mass.hi + tool };
   const gripper = fixed && tool > 0 ? `, plus about ${kgText(tool)} for a standard gripper` : "";
   // The total is said in the rating's own precision, so the sentence never reads against its outcome.
-  const carry = Number.isFinite(need.hi) ? `, so it must carry ${kgRange(need)}` : "";
+  const needText = Number.isFinite(need.hi) ? kgRange(need) : null;
+  const carry = needText ? `, so it must carry ${needText}` : "";
   const outcome = within(need, payload);
   // An unknown says why it is unknown, so its figures never read as a pass or a fail. The gripper's weight is
   // added at the heavy end only, so a single weight the site gave can straddle the rating too.
   const text = `Payload: your object weighs ${cite(mass)}${gripper}${carry}. ${noun} is rated for ${kgText(payload)}.`
     + (outcome === "unknown" ? ` ${job.massEstimated ? SPANS_VIDEO_PAYLOAD : SPANS_SITE_PAYLOAD}` : "");
   return {
-    check: { key: "payload", outcome, estimated: job.massEstimated, basis: mass.source as AnswerBasis, text },
+    check: { key: "payload", outcome, estimated: job.massEstimated, basis: mass.source as AnswerBasis, text, need: needText, has: kgText(payload) },
     headroom: Number.isFinite(need.hi) ? (payload - need.hi) / payload : -1,
   };
 }
@@ -367,7 +377,9 @@ function cycleCheck(model: SpecModel, job: Job): AnswerCheck | null {
   const outcome = within(need, job.cycleTarget);
   return { key: "cycle_time", outcome, estimated: job.spanEstimated, basis: spanBasis(job),
     text: `${target} With a published top speed of ${figure(speed)} m/s and your spots ${job.spanText}, a cycle takes between about ${secondsText(need.lo)} and ${secondsText(need.hi)} on paper.`
-      + (outcome === "unknown" ? ` ${SPANS_CYCLE}` : "") };
+      + (outcome === "unknown" ? ` ${SPANS_CYCLE}` : ""),
+    // The job asks for one cycle in its target; on paper the robot takes this long.
+    need: secondsText(job.cycleTarget), has: `about ${secondsText(need.lo)}–${secondsText(need.hi)}` };
 }
 
 type SceneRow = PublicRobotFit["models"][number];
@@ -392,8 +404,10 @@ function sceneReach(row: SceneRow | null, model: SpecModel, payload: AnswerCheck
   const reach = figureValue(model, "max_reach_m");
   const figureText = reach !== null ? ` It reaches ${specLength(reach)}.` : "";
   const open = Array.isArray(row.openChecks) ? row.openChecks : [];
+  // The scene decides reach by where the arm can stand, not by a distance: there is no figure for the job's side.
   const scene = (outcome: AnswerCheck["outcome"], text: string): AnswerCheck =>
-    ({ key: "reach", outcome, estimated: false, basis: "scene_measured", text: `${text}${figureText}` });
+    ({ key: "reach", outcome, estimated: false, basis: "scene_measured", text: `${text}${figureText}`, need: null,
+      has: reach !== null ? specLength(reach) : null });
   switch (row.verdict) {
     case "fits":
       return scene("pass", "Reach: checked in the scene rebuilt from your video: this robot reaches both spots with a clear arm path.");
@@ -531,7 +545,10 @@ function confidenceOf(pick: Rated | null, job: Job, familyLabel: string, kindUnk
 
 function unknownsOf(inputs: RobotFitInputs, job: Job): string[] {
   const estimates = videoEvidence(inputs)?.estimates ?? null;
-  const unknowns = ["Whether there is floor space for the robot between the two spots."];
+  // Only the stored review's yes or no; the reviewer's own words about what is missing are never shown.
+  const coverage = isRecord(inputs.request?.capture_coverage) ? inputs.request!.capture_coverage : null;
+  const unknowns = [...(coverage?.covers_scene === false ? [UNKNOWN_SCENE_NOT_COVERED] : []),
+    "Whether there is floor space for the robot between the two spots."];
   const surface = estimates?.surface;
   unknowns.push(surface === "shiny" || surface === "transparent"
     ? `Which gripper or tool the object needs: it looks ${surface} in your video, which affects that choice.`

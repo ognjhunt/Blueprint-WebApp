@@ -11,6 +11,9 @@ import type { LibraryAccess } from "@/lib/robotTeamAccess";
 import { RobotTeamEarlyAccess } from "./RobotTeamEarlyAccess";
 import { opportunityLabels, taskStageLabels, type TaskBrowseCard } from "@/types/taskBrowse";
 
+/** Said in a job's meta line while no evaluation is ready for it (`evaluationAvailable` false). */
+export const EVALUATION_NOT_READY = "Evaluation not ready yet";
+
 /** `inWorkspace` drops the public-page extras (the agent API link) inside the signed-in app. */
 export function TaskBrowse({ inWorkspace = false }: { inWorkspace?: boolean } = {}) {
   const [items, setItems] = useState<TaskBrowseCard[]>([]);
@@ -99,10 +102,11 @@ export function TaskBrowse({ inWorkspace = false }: { inWorkspace?: boolean } = 
         <button className="ms-text-link" onClick={() => { setFamily(""); setRegion(""); setAvailability(""); }}>Clear filters</button>
       </div>}
       <ul className="ms-task-list">{filtered.map(item => <li key={item.id}>
-        <div className="ms-task-heading"><div><div className="ms-task-meta"><span>{taskStageLabels[item.stage]}</span><span>{opportunityLabels[item.opportunity]}</span></div>
+        <div className="ms-task-heading"><div><div className="ms-task-meta"><span>{taskStageLabels[item.stage]}</span><span>{opportunityLabels[item.opportunity]}</span>{!item.evaluationAvailable && <span>{EVALUATION_NOT_READY}</span>}</div>
         <h2>{item.title}</h2></div><TaskThumbnail src={item.thumbnailUrl} title={item.title} taskFamily={item.taskFamily} /></div><TaskFacts details={item} />
         {item.answerHeadline && <JobCardAnswerLine jobId={item.id} headline={item.answerHeadline} user={currentUser} />}
-        {item.evaluationAvailable ? <a className="ms-text-link" href={inWorkspace ? `/app/opportunities/${encodeURIComponent(item.id)}` : "/app"}>Offer your system for this job</a> : <p className="ms-field-hint">An evaluation is not ready yet. You can still review the shared job.</p>}
+        {/* The row's one action, when there is one; a row with no evaluation says so in its meta line. */}
+        {item.evaluationAvailable && <a className="ms-text-link" href={inWorkspace ? `/app/opportunities/${encodeURIComponent(item.id)}` : "/app"}>Offer your system for this job</a>}
         {item.opportunity === "open" && currentUser && !access?.staff && <TeamJobResponse jobId={item.id} user={currentUser} />}
       </li>)}</ul>
     </>}
