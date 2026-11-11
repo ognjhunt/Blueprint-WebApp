@@ -98,6 +98,8 @@ const restoredRegion = (draft: RestorableDraft) => (draft.regionManuallySet || r
 const restoredCountryAsked = (draft: { location?: string; regionManuallySet: boolean }) =>
   Boolean(draft.regionManuallySet) || Boolean(draft.location?.trim());
 
+const VIDEO_MISSING = "Choose the video of the job, or film it next.";
+
 export const STATEMENTS_CHANGED = "The wording on this form has changed since you last pressed the button. Read it, then press the button again.";
 
 /**
@@ -455,11 +457,15 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
     const typedEmail = !retained && !currentUser ? checkEmail(String(new FormData(formRef.current!).get("startEmail") ?? "")) : null;
     const emailRefusal = typedEmail && !typedEmail.ok ? typedEmail.reason : null;
     if (typedEmail) setEmailHint(typedEmail.ok && typedEmail.hint ? EMAIL_HINT_SENTENCES[typedEmail.hint] : null);
-    if (!retained && (!region || emailRefusal)) {
+    // The form does every check itself (`noValidate`: no browser bubble), each said under its own field, and focus
+    // goes to the first field to fix, in page order: the video, the country, the email.
+    const videoMissing = !retained && footageWanted && !footage;
+    if (!retained && (!region || emailRefusal || videoMissing)) {
       if (!region) { setCountryMissing(true); setCountryAsked(true); }
       setEmailError(emailRefusal ? EMAIL_REFUSAL_SENTENCES[emailRefusal] : null);
+      if (videoMissing) setFootageError(VIDEO_MISSING);
       if (state.status === "failed") setState({ status: "idle" });
-      window.setTimeout(() => document.querySelector<HTMLElement>(!region ? "#start-region" : "#start-email")?.focus(), 0);
+      window.setTimeout(() => document.querySelector<HTMLElement>(videoMissing ? "#start-footage" : !region ? "#start-region" : "#start-email")?.focus(), 0);
       return;
     }
     setEmailError(null);
@@ -829,7 +835,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
   };
 
   return (
-    <form key={resetVersion} ref={formRef} className="bare-start-form" method="post" onSubmit={submit} onChange={() => { if (clearStatus !== "working") setClearStatus("idle"); retainDraft(); }} aria-label="Start a site capture">
+    <form key={resetVersion} ref={formRef} className="bare-start-form" method="post" noValidate onSubmit={submit} onChange={() => { if (clearStatus !== "working") setClearStatus("idle"); retainDraft(); }} aria-label="Start a site capture">
       <div hidden={screen !== "main"}>
         <BareScreen>
           <BareBack href="/" />

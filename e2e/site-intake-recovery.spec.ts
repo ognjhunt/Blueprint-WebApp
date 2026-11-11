@@ -184,7 +184,12 @@ test.describe("the start form on a phone", () => {
   for (const [shot, email, sentence] of [
     ["public-04c-email-temporary", "yeet@mailinator.com", "We can't send to a temporary email address. Use one you check."],
     ["public-04d-email-check", "owner@example", "Check your email address."],
-  ] as const) test(`says why ${email} cannot be used, under the email field, before anything is sent`, async ({ page }) => {
+    // What the browser's own bubble used to catch, now said by the form (noValidate).
+    ["", "", "Check your email address."],
+    ["", "owner", "Check your email address."],
+    ["", "owner@", "Check your email address."],
+    ["", "a b@x.com", "Check your email address."],
+  ] as const) test(`says why "${email}" cannot be used, under the email field, before anything is sent`, async ({ page }) => {
     const posts: string[] = [];
     await open(page, posts);
     await useMyLocation(page);

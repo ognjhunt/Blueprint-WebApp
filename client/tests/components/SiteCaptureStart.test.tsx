@@ -1610,6 +1610,20 @@ describe("an email we cannot send to", () => {
     expect(region()).toHaveValue("us");
   });
 
+  it("does every check itself: no browser bubble, a missing video said under its field", async () => {
+    await renderReady(<SiteCaptureStart />);
+    expect(screen.getByRole("form")).toHaveAttribute("novalidate");
+    // Type and autocomplete stay, for the phone keyboard and autofill.
+    expect(document.querySelector("#start-email")).toHaveAttribute("type", "email");
+    expect(document.querySelector("#start-email")).toHaveAttribute("autocomplete", "email");
+    fireEvent.click(screen.getByRole("button", { name: "I have a video ›" }));
+    fillWith("owner@example.test");
+    fireEvent.submit(screen.getByRole("form"));
+    expect(document.querySelector("#start-footage-error")).toHaveTextContent("Choose the video of the job, or film it next.");
+    await waitFor(() => expect(document.activeElement).toBe(document.querySelector("#start-footage")));
+    expect(fetchMock.mock.calls.filter((call) => call[1]?.method === "POST")).toHaveLength(0);
+  });
+
   it("keeps the job reference for a failure the site cannot fix", async () => {
     fetchMock.mockImplementation(async (_url: string, init?: { method?: string }) => init?.method === "POST"
       ? { ok: false, status: 400, json: async () => ({ ok: false, message: "Recording permission was not confirmed, so the request cannot be accepted" }) } : photon([]));
