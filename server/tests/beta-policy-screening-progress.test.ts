@@ -284,7 +284,7 @@ describe("what the site reads", () => {
       closest_approach_m: { median: 0.0829, min: 0.0429 } };
     await ingestBetaPolicyScreening(v4([none, FROM_CONTACT]));
     const line = projectSimulationProof({ evaluation: [siteView()], pick: null }).policyComparison!.line;
-    const said = "How far each got: π0.5 did not get within reach of the object in 10 of 10 tries, and it typically came within about 8 cm of it; "
+    const said = "How far each got: π0.5 did not get within reach of the object in any of its 10 tries, typically coming within about 8 cm of it; "
       + "GR00T N1.7 moved the object in 1 of 10 tries.";
     expect(line).toBe(`${NO_POLICY} ${said}`);
     await deliverOutbox();

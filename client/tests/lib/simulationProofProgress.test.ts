@@ -52,7 +52,7 @@ describe("how far each policy got", () => {
     const { proof, comparison } = comparisonOf(NONE_COMPLETED);
     expect(comparison.line).toBe(`${NO_POLICY_COMPLETED} How far each got: π0.5 carried the object toward where it goes in 2 of 9 tries; `
       + "π0 got within reach of the object in 3 of 10 tries; "
-      + "GR00T N1.7 did not get within reach of the object in 10 of 10 tries, and it typically came within about 8 cm of it.");
+      + "GR00T N1.7 did not get within reach of the object in any of its 10 tries, typically coming within about 8 cm of it.");
     // The headline, the job card's one line, stays the first sentence.
     expect(proof.headline).toBe(NO_POLICY_COMPLETED);
     // A row without progress is left out of the sentence and carries no stage.
@@ -118,13 +118,35 @@ describe("how far each policy got", () => {
     expect(reached.line).not.toMatch(/cm|typically/);
   });
 
+  it("says a policy that reached no stage did so in any of its tries, or in its one try, in the list and on its row", () => {
+    const line = comparisonOf([
+      candidate("pi05_droid", 1, 0, { progress: progress(1, [0, 0, 0, 0, 0, 0, 0], 0.2) }),
+      candidate("groot_n17_droid", 1, 0, { progress: progress(1, [0, 0, 0, 0, 0, 0]) }),
+      candidate("molmoact2_droid", 10, 0, { progress: progress(10, [0, 0, 0, 0, 0, 0, 0], 1.37) }),
+    ]).comparison.line;
+    expect(line).toBe(`${NO_POLICY_COMPLETED} How far each got: `
+      + "π0.5 did not get within reach of the object in its one try, typically coming within about 20 cm of it; "
+      + "GR00T N1.7 did not touch the object in its one try; "
+      + "MolmoAct 2 did not get within reach of the object in any of its 10 tries, typically coming within about 1.4 m of it.");
+    // On a row, beside a policy that completed the job: the same words, never "in 10 of 10 tries".
+    const { comparison } = comparisonOf([
+      candidate("pi05_droid", 10, 6),
+      candidate("groot_n17_droid", 10, 0, { progress: progress(10, [0, 0, 0, 0, 0, 0, 0], 0.0829) }),
+      candidate("molmoact2_droid", 10, 0, { progress: progress(10, [0, 0, 0, 0, 0, 0]) }),
+    ]);
+    expect(comparison.rows.slice(1).map(row => [row.furthestShown, row.furthestText, row.furthestDetail])).toEqual([
+      [true, "did not get within reach of the object; it typically came within about 8 cm of it",
+        "did not get within reach of the object in any of its 10 tries, typically coming within about 8 cm of it"],
+      [true, "did not touch the object", "did not touch the object in any of its 10 tries"]]);
+  });
+
   it("reads a ladder without `approached`: it starts at contact", () => {
     const { comparison } = comparisonOf([
       candidate("pi05_droid", 10, 0, { progress: progress(10, [5, 3, 0, 0, 0, 0]) }),
       candidate("groot_n17_droid", 10, 0, { progress: progress(10, [0, 0, 0, 0, 0, 0]) }),
     ]);
     expect(comparison.line).toBe(`${NO_POLICY_COMPLETED} How far each got: π0.5 moved the object in 3 of 10 tries; `
-      + "GR00T N1.7 did not touch the object in 10 of 10 tries.");
+      + "GR00T N1.7 did not touch the object in any of its 10 tries.");
     expect(comparison.rows[0].furthest).toEqual({ stage: "moved", episodes: 3, graded: 10 });
   });
 

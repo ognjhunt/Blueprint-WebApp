@@ -14,8 +14,7 @@ function PolicyRow({ row, separated }: { row: Row; separated: boolean }) {
       {/* A row left out of the comparison says which robot it ran on. */}
       {!row.compared && <span className="ms-field-hint"> · on {row.robot ?? "a robot we could not confirm"}, not compared</span>}
       {/* How far a policy that completed nothing got, when another one did complete the job: a fact, never a rank. */}
-      {row.furthestShown && row.furthestText && <span className="ms-field-hint"> · {row.furthestText}
-        {row.furthest && ` in ${row.furthest.episodes} of ${row.furthest.graded} ${row.furthest.graded === 1 ? "try" : "tries"}`}</span>}</span>
+      {row.furthestShown && row.furthestDetail && <span className="ms-field-hint"> · {row.furthestDetail}</span>}</span>
     {row.chosen && <span className="site-proof-mark">{separated ? "Did best" : "Ahead"}</span>}
   </li>;
 }

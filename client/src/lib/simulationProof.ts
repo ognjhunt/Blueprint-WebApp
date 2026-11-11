@@ -48,12 +48,17 @@ export const PROGRESS_NOT_TOUCHED = "did not touch the object";
  * whole centimetres, at least 1; from 100 cm up, metres with one decimal. Rounded half up on the
  * Pipeline's 4-decimal metres, in whole tenths of a millimetre so no float error moves it.
  */
-export function closestApproachText(medianM: number): string {
+function distanceText(medianM: number): string {
   const tenthsOfMm = Math.round(medianM * 10_000);
   const cm = Math.max(1, Math.floor((tenthsOfMm + 50) / 100));
-  const distance = cm >= 100 ? `${(Math.floor((tenthsOfMm + 500) / 1000) / 10).toFixed(1)} m` : `${cm} cm`;
-  return `${PROGRESS_NOT_APPROACHED}; it typically came within about ${distance} of it`;
+  return cm >= 100 ? `${(Math.floor((tenthsOfMm + 500) / 1000) / 10).toFixed(1)} m` : `${cm} cm`;
 }
+/** The row's phrase for a policy that reached no stage, with how close it typically came. */
+export function closestApproachText(medianM: number): string {
+  return `${PROGRESS_NOT_APPROACHED}; it typically came within about ${distanceText(medianM)} of it`;
+}
+/** "in its one try", "in any of its 10 tries": said of a policy that reached no stage. */
+const anyOfTries = (graded: number) => (graded === 1 ? "in its one try" : `in any of its ${graded} tries`);
 /** The start of the sentence that says how far each compared policy got when none completed the job. */
 export const HOW_FAR_EACH_GOT = "How far each got:";
 
@@ -75,6 +80,11 @@ export interface SimulationProof {
       furthest: { stage: ProgressStage; episodes: number; graded: number } | null;
       /** How far it got, from `PROGRESS_PHRASES` only; null without progress data. */
       furthestText: string | null;
+      /**
+       * The same with its tries, as the "How far each got" list and the row say it after the policy's name:
+       * "moved the object in 4 of 10 tries", "did not touch the object in any of its 10 tries"; null without progress data.
+       */
+      furthestDetail: string | null;
       /**
        * True when the row itself says `furthestText`: some policy completed the job, this one completed
        * nothing, and the comparison sentence does not already say how far it got.
@@ -256,7 +266,7 @@ const triesText = (succeeded: number, scored: number) => `${succeeded} of ${scor
  * phrase is true of: those that reached the furthest stage, or every graded try when none reached any.
  */
 function furthestOf(progress: unknown, scored: number): { furthest: { stage: ProgressStage; episodes: number; graded: number } | null;
-  text: string; episodes: number; graded: number; distanceText: string | null } | null {
+  text: string; detail: string } | null {
   if (!isRecord(progress) || !Array.isArray(progress.stages)) return null;
   const graded = progress.graded;
   if (typeof graded !== "number" || !Number.isInteger(graded) || graded < 1 || graded > scored) return null;
@@ -278,12 +288,15 @@ function furthestOf(progress: unknown, scored: number): { furthest: { stage: Pro
     previous = episodes;
     if (episodes > 0) furthest = { stage: ladder[index], episodes, graded };
   }
-  if (furthest) return { furthest, text: PROGRESS_PHRASES[furthest.stage], episodes: furthest.episodes, graded, distanceText: null };
-  // A row that reached no stage says how close it typically came, when that was measured.
-  if (isRecord(approach)) return { furthest: null, text: closestApproachText(approach.median as number), episodes: graded, graded,
-    distanceText: closestApproachText(approach.median as number).slice(PROGRESS_NOT_APPROACHED.length + 2) };
-  return { furthest: null, text: ladder[0] === "approached" ? PROGRESS_NOT_APPROACHED : PROGRESS_NOT_TOUCHED, episodes: graded, graded,
-    distanceText: null };
+  if (furthest) {
+    const text = PROGRESS_PHRASES[furthest.stage];
+    return { furthest, text, detail: `${text} in ${triesText(furthest.episodes, graded)}` };
+  }
+  // A row that reached no stage says so of all its tries, and how close it typically came when that was measured.
+  if (isRecord(approach)) return { furthest: null, text: closestApproachText(approach.median as number),
+    detail: `${PROGRESS_NOT_APPROACHED} ${anyOfTries(graded)}, typically coming within about ${distanceText(approach.median as number)} of it` };
+  const text = ladder[0] === "approached" ? PROGRESS_NOT_APPROACHED : PROGRESS_NOT_TOUCHED;
+  return { furthest: null, text, detail: `${text} ${anyOfTries(graded)}` };
 }
 
 /** The current job evaluation: the newest current one with an outcome or results, else the newest current one. */
@@ -392,11 +405,7 @@ function comparisonOf(evaluation: JobManagedEvidenceSummary, state: SimulationPr
   // Said only on a finished run in which no compared policy completed the job.
   const howFar = !couldNotRun && robot && !anySuccess && comparedReached.length
     ? `${HOW_FAR_EACH_GOT} ${comparedReached.map(entry => {
-      const got = reached.get(entry)!;
-      // The count goes with what was reached; how close a row that reached nothing came follows it.
-      return got.distanceText
-        ? `${entry.policy} ${PROGRESS_NOT_APPROACHED} in ${triesText(got.episodes, got.graded)}, and ${got.distanceText}`
-        : `${entry.policy} ${got.text} in ${triesText(got.episodes, got.graded)}`;
+      return `${entry.policy} ${reached.get(entry)!.detail}`;
     }).join("; ")}.` : null;
   const someCompleted = scored.some(entry => entry.succeeded > 0);
 
@@ -432,6 +441,7 @@ function comparisonOf(evaluation: JobManagedEvidenceSummary, state: SimulationPr
     rangeText: entry.succeeded > 0 ? rangeTextOf(entry.row.successRange) : null,
     chosen: compared && entry === winnerEntry, compared, robot: entry.robot?.name ?? null,
     furthest: reached.get(entry)?.furthest ?? null, furthestText: reached.get(entry)?.text ?? null,
+    furthestDetail: reached.get(entry)?.detail ?? null,
     furthestShown: Boolean(reached.get(entry)) && !couldNotRun && someCompleted && entry.succeeded === 0
       && !(howFar && compared) });
   return {

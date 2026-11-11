@@ -260,6 +260,7 @@ describe("every sentence of the simulation result has a precondition in the data
       if (!wellFormed.length) expect(howFarSentence, context).toBeUndefined();
       for (const row of comparison.rows) {
         if (row.furthestText !== null) expect(closed(row.furthestText), context).toBe(true);
+        expect(row.furthestDetail === null, context).toBe(row.furthestText === null);
         if (row.furthestText && DISTANCE.test(row.furthestText)) distances += 1;
         // The distance is said only for a row that reached no stage.
         if (row.furthest) expect(row.furthestText, context).not.toMatch(/typically|cm|\bm of it/);
@@ -274,6 +275,8 @@ describe("every sentence of the simulation result has a precondition in the data
         }
         if (row.furthestShown) {
           rowShown += 1;
+          expect(row.furthestDetail, context).not.toBeNull();
+          expect(row.furthestDetail, context).not.toMatch(/did not .* in \d+ of \d+ tr/);
           expect(row.succeeded, context).toBe(0);
           expect(comparison.rows.some(other => other.succeeded > 0), context).toBe(true);
         }
@@ -288,14 +291,20 @@ describe("every sentence of the simulation result has a precondition in the data
         expect(parts.length, context).toBe(named.length);
         parts.forEach((part, i) => {
           const row = named[i];
-          const match = part.match(/^(.*) in (\d+) of (\d+) tr(?:y|ies)(?:, and (it typically came within about .* of it))?$/);
-          expect(match, context).not.toBeNull();
-          // The row's own phrase, with the count after what was reached and before how close it came.
-          expect(match![4] ? `${match![1]}; ${match![4]}` : match![1], context).toBe(`${row.policy} ${row.furthestText}`);
-          const [n, graded] = [Number(match![2]), Number(match![3])];
-          expect(n, context).toBeLessThanOrEqual(graded);
-          if (row.furthest) expect([n, graded], context).toEqual([row.furthest.episodes, row.furthest.graded]);
-          else expect(n, context).toBe(graded);
+          // Each item is the policy and the row's own detail, which restates its phrase with its tries.
+          expect(part, context).toBe(`${row.policy} ${row.furthestDetail}`);
+          if (row.furthest) {
+            const { episodes, graded } = row.furthest;
+            expect(row.furthestDetail, context).toBe(`${row.furthestText} in ${episodes} of ${graded} ${graded === 1 ? "try" : "tries"}`);
+          } else {
+            // Reached nothing: said of all its graded tries, and how close it came only when the phrase says so.
+            const match = row.furthestDetail!.match(/^(did not touch the object|did not get within reach of the object) in (?:its one try|any of its (\d+) tries)(?:, typically coming within about (.+) of it)?$/);
+            expect(match, context).not.toBeNull();
+            const graded = match![2] ? Number(match![2]) : 1;
+            expect(graded === 1 ? !match![2] : graded > 1, context).toBe(true);
+            expect(progress.some(value => deepestOf(value, row.scored) === null && (value as { graded: number }).graded === graded), context).toBe(true);
+            expect(row.furthestText, context).toBe(match![3] ? `${match![1]}; it typically came within about ${match![3]} of it` : match![1]);
+          }
         });
         // The headline stays the first sentence, which says nothing about progress.
         expect(proof.headline, context).not.toContain(HOW_FAR_EACH_GOT);

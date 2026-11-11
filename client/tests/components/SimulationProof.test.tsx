@@ -98,7 +98,7 @@ describe("tested in simulation", () => {
     expect(proof.headline).toBe(NO_POLICY_COMPLETED);
     expect(screen.getByText(NO_POLICY_COMPLETED)).toBeVisible();
     expect(screen.getByText("How far each got: π0.5 carried the object toward where it goes in 2 of 9 tries; "
-      + "π0 did not get within reach of the object in 10 of 10 tries, and it typically came within about 7 cm of it; "
+      + "π0 did not get within reach of the object in any of its 10 tries, typically coming within about 7 cm of it; "
       + "GR00T N1.7 got within reach of the object in 3 of 10 tries.")).toBeVisible();
     // Said once, in the sentence, not again on the rows; and nothing is marked on it.
     expect(policyRows()).not.toMatch(/object|typically/);
@@ -116,6 +116,19 @@ describe("tested in simulation", () => {
     const groot = items.find(item => item.textContent!.startsWith("GR00T N1.7"))!;
     expect(groot.textContent).toMatch(/0 of 10 tries · moved the object in 4 of 10 tries$/);
     expect(screen.queryByText(/How far each got/)).toBeNull();
+  });
+
+  it("with a policy that completed the job: a row that reached no stage says so of all its tries, with how close it came", () => {
+    const ladder = ["approached", "contact", "moved", "lifted", "translated", "placed", "released_and_settled"] as const;
+    const rows = winnerEvaluation.screening!.candidates.map(row => row.candidateId === "groot_n17_droid"
+      ? { ...row, succeeded: 0, failed: 10, progress: { graded: 10, meanScore: 0, closestApproachM: { median: 0.0829, min: 0.04 },
+        stages: ladder.map(stage => ({ stage, episodes: 0 })) } } : row);
+    renderProof({ evaluation: [{ ...winnerEvaluation, screening: { ...winnerEvaluation.screening!, candidates: rows } }], pick });
+    const items = within(screen.getByRole("list", { name: "Control policies tried" })).getAllByRole("listitem");
+    const groot = items.find(item => item.textContent!.startsWith("GR00T N1.7"))!;
+    expect(groot.textContent).toMatch(
+      /0 of 10 tries · did not get within reach of the object in any of its 10 tries, typically coming within about 8 cm of it$/);
+    expect(groot.textContent).not.toMatch(/did not .* in 10 of 10/);
   });
 
   it.each([

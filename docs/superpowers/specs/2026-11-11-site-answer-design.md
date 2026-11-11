@@ -170,7 +170,11 @@ simulation"; the simulation email repeats its sentences word for word.
   A row that reached no stage and has that distance says it "did not get
   within reach of the object; it typically came within about {N} cm of it"
   (the median, whole centimetres, at least 1; metres with one decimal from
-  100 cm). The WebApp refuses it on v1 to v3 and
+  100 cm). In the list below, and on its row, the same reads "{policy} did
+  not get within reach of the object in any of its {g} tries, typically
+  coming within about {N} cm of it", or without the distance "did not touch
+  the object in any of its {g} tries" ("in its one try" for one); a row that
+  reached a stage gives its count, "moved the object in 4 of 10 tries". The WebApp refuses it on v1 to v3 and
   refuses a v4 whose `progress` breaks the ladder or its counts, so the
   Pipeline sends v3 instead; it is never dropped quietly. Each row takes its
   furthest stage, said only in the closed phrases of `simulationProof.ts`.
