@@ -237,7 +237,8 @@ for (const mobile of [false, true]) test(`${mobile ? "phone" : "desktop"}: video
   await form.locator("#start-location").fill("Chicago, Illinois");
   await form.locator("#start-email").fill("owner@example.test");
   await expect(form.locator("#start-rights")).toHaveCount(0);
-  await expect(form.locator("#start-region")).toHaveCount(0);
+  // Typed text is never read for a country (the privacy gate): the site chooses it.
+  await form.locator("#start-region").selectOption("us");
   await form.getByRole("button", { name: /^(Send video|Next: film the job|Save my job)$/ }).click();
   await expect(page.getByRole("heading", { name: "Now film the job.", exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "Open my job", exact: true })).toHaveCount(0);

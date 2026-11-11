@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { SHARED_WITHOUT_ANSWER, SiteAnswer, SiteAnswerDetail, SiteAnswerDetails, detailScreens, evidenceTick, sureReason, ticksOf, type DetailScreen } from "@/components/site/SiteAnswer";
 import { projectSimulationProof } from "@/lib/simulationProof";
@@ -13,7 +13,7 @@ const response = (value: unknown, status = 200) => ({ ok: status >= 200 && statu
 /** Words a site manager should never meet, and anything that looks like a raw code. */
 const BANNED = /episode|candidate|screening|embodiment|checkpoint|payload|anonymi[sz]ed|deployment compan|[a-z]_[a-z]|sha256/i;
 const FIND = "Find a company to set it up";
-const CONSENT = "Shares a summary of your job and this answer, without saying who you are, with companies we've approved. Your video, address and contacts stay private.";
+const CONSENT = "Shares a summary of your job and your answer, including later test results, without saying who you are, with companies we've approved. Your video, address and contacts stay private.";
 /** The limits line, by what the headline is: the paper check, a test result, or a test still running. */
 const LIMITS = "A paper check, not a test at your site. Pick-up-and-put-down jobs only. It does not certify performance or safety.";
 const LIMITS_TESTED = "Tested in a simulation, not at your site. Pick-up-and-put-down jobs only. It does not certify performance or safety.";
@@ -148,6 +148,27 @@ describe("the site's answer, bare bones", () => {
     expect(screen.getByText("This result may come from how we set up the simulation of your site, not from the robots.")).toBeVisible();
     expect(screen.queryByText(/Did best|Was ahead/)).toBeNull();
     expect(screen.getByText(LIMITS_TESTED)).toBeVisible();
+  });
+
+  it("says the set-up notice under no clear winner when a set-up flag is raised, as the email and the card do", () => {
+    const tie = projectSimulationProof({ evaluation: [{ ...winnerEvaluation, outcomeCaveat: "scene_setup" as const, screening: { candidates: winnerEvaluation.screening!.candidates.map((row, index) =>
+      index < 2 ? { ...row, scored: 2, succeeded: 1, failed: 1 } : row) } }], pick: readyAnswer.pick });
+    render(<SiteAnswer token="owner-token" answer={readyAnswer} proof={tie} />);
+    expect(screen.getByText("No clear winner yet")).toBeVisible();
+    expect(screen.getByText("This result may come from how we set up the simulation of your site, not from the robots.")).toBeVisible();
+  });
+
+  it("offers to share the test result when the card was shared under an older sentence that shares the paper check only", () => {
+    render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, introductionRequestedAtIso: "2026-11-11T15:00:00.000Z", jobCardListed: true }}
+      proof={winnerProof} card="with_paper_answer" />);
+    expect(screen.getByText("Your shared job shows the paper check. Press the button to share the test result too.")).toBeVisible();
+    expect(screen.getByRole("button", { name: FIND })).toBeVisible();
+    cleanup();
+    // With no test result, the paper check is all there is to share: shared.
+    render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, introductionRequestedAtIso: "2026-11-11T15:00:00.000Z", jobCardListed: true }}
+      card="with_paper_answer" />);
+    expect(screen.getByText("✓ Shared. We'll email you when a company replies.")).toBeVisible();
+    expect(screen.queryByRole("button", { name: FIND })).toBeNull();
   });
 
   it("says no clear winner yet with the top option's count, and testing now while it runs", () => {
@@ -373,7 +394,7 @@ describe("finding a company", () => {
     fireEvent.click(button);
     fireEvent.click(button);
     expect(await screen.findByRole("status")).toHaveTextContent("✓ Shared. We'll email you when a company replies.");
-    expect(fetchMock.mock.calls[0][1]).toMatchObject({ body: JSON.stringify({ statementVersion: "public-task-card-with-answer-v2" }) });
+    expect(fetchMock.mock.calls[0][1]).toMatchObject({ body: JSON.stringify({ statementVersion: "public-task-card-with-answer-v3" }) });
     expect(screen.queryByText(CONSENT)).toBeNull();
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(fetchMock).toHaveBeenCalledWith("/api/site-task-brief/owner%20token/introduction-request", expect.objectContaining({

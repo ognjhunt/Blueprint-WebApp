@@ -15,7 +15,6 @@ import {
 import { analyticsEvents } from "@/lib/analytics";
 import { withCsrfHeader } from "@/lib/csrf";
 import { withAppCheckHeader } from "@/lib/appCheck";
-import { inferLocationCountryCode } from "@/lib/deploymentCoverage";
 import { PRIVACY_URL, TERMS_URL } from "@/lib/legalAcceptance";
 import { FILMING_NOTICE, FOOTAGE_UPLOAD_NOTICE } from "@/lib/footageNotice";
 import { DESCRIPTION_AUTHORITY_NO_VIDEO_VERSION, DESCRIPTION_AUTHORITY_STATEMENT, DESCRIPTION_AUTHORITY_VERSION, DESCRIPTION_AUTHORITY_WITH_VIDEO_VERSION } from "@/lib/siteSubmissionAuthority";
@@ -84,6 +83,10 @@ function ClearDraftControl({status,onClear,disabled=false}:{status:ClearStatus;o
     {status === "failed" && <p role="alert" className="bare-helper">We could not confirm that this browser's draft was cleared. Stay on this page and try again before leaving a shared device.</p>}
   </>;
 }
+
+const restoredRegion = (draft: { region: CaptureRegion | ""; regionManuallySet: boolean }) => (draft.regionManuallySet ? draft.region : "");
+const restoredCountryAsked = (draft: { location?: string; regionManuallySet: boolean }) =>
+  Boolean(draft.regionManuallySet) || Boolean(draft.location?.trim());
 
 export const STATEMENTS_CHANGED = "The wording on this form has changed since you last pressed the button. Read it, then press the button again.";
 
@@ -284,15 +287,17 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
   // (owner, 2026-11-11), so a draft saved with "visit" reopens as "phone".
   const [method, setMethod] = useState<"upload" | "phone">(initial.draft.method === "visit" ? "phone" : initial.draft.method);
   const selfRecording = method === "phone";
-  const [region, setRegion] = useState<CaptureRegion | "">(initial.draft.region);
+  // A restored draft keeps only a country the person chose in the select: a country taken from a place cannot be
+  // told apart from an older guess from typed text, so it is asked for again.
+  const [region, setRegion] = useState<CaptureRegion | "">(restoredRegion(initial.draft));
   const [regionManuallySet, setRegionManuallySet] = useState(initial.draft.regionManuallySet);
   // Recording permission needs a country, not a street address. An explicit
   // country can stand alone; changing the address rechecks that declaration.
   const [countryMissing, setCountryMissing] = useState(false);
-  // The form asks where the job is and takes the country from it (owner, 2026-11-11). The country select is asked
-  // for only when it is needed: an address that gave no country (on leaving the field), or a press of the button with
-  // no country. Once asked it stays, so a person can change it. A recovered draft that chose one shows it.
-  const [countryAsked, setCountryAsked] = useState(Boolean(initial.draft.regionManuallySet));
+  // The form asks where the job is and takes the country from the place chosen (owner, 2026-11-11). The country select
+  // is asked for only when it is needed: typed text with no chosen place, or a press of the button with no country.
+  // Once asked it stays, so a person can change it. A recovered draft that chose one shows it.
+  const [countryAsked, setCountryAsked] = useState(restoredCountryAsked(initial.draft));
   // The optional details and the full statements are their own screens, in the URL's hash (the job page's pattern).
   // "What you're agreeing to" is a screen only while the short consent line is shown; otherwise its hash is unknown
   // and falls back to the form, never a blank screen.
@@ -345,9 +350,9 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
       || recovery.current.pending?.body !== other.pending?.body;
     recovery.current = other;
     requestId.current = other.requestId; retryToken.current = other.retryToken;
-    setMethod(other.draft.method === "visit" ? "phone" : other.draft.method); setRegion(other.draft.region);
+    setMethod(other.draft.method === "visit" ? "phone" : other.draft.method); setRegion(restoredRegion(other.draft));
     setRegionManuallySet(other.draft.regionManuallySet);
-    setCountryAsked(Boolean(other.draft.regionManuallySet));
+    setCountryAsked(restoredCountryAsked(other.draft));
     setPending(other.pending);
     if (changed && resetChanged) {
       setClaudeConsent(false); setSolAgentsConsent(false); setShareListing(false);
@@ -854,11 +859,6 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
           )}
 
           <BareField label="Where is the job?" htmlFor="start-location">
-            <div onBlur={(event) => {
-              // Leaving an address that gave no country: ask for the country.
-              const text = (event.target as HTMLInputElement).id === "start-location" ? (event.target as HTMLInputElement).value : "";
-              if (text.trim() && !inferLocationCountryCode(text) && !region) setCountryAsked(true);
-            }}>
             <LocationAutocomplete
               id="start-location"
               name="startLocation"
@@ -872,13 +872,14 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
                 if (place) retainDraft(place);
               }}
               onInputChange={(text) => {
+                // Privacy gate: typed text is never read for a country ("Perth, WA" is not in the US). Only a place
+                // chosen from the suggestions, or "Use my location", resolves it; typed text asks for the country.
                 setCountryMissing(false);
                 setRegionManuallySet(false);
-                const country = inferLocationCountryCode(text);
-                setRegion(country ? (country === "US" ? "us" : "non_us") : "");
+                setRegion("");
+                if (text.trim()) setCountryAsked(true);
               }}
             />
-            </div>
           </BareField>
 
           {showCountry && (

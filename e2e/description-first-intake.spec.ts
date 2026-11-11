@@ -64,7 +64,8 @@ for (const device of ["desktop", "mobile"] as const) {
       await page.locator("#start-location").fill("Austin, TX");
       await page.locator("#start-email").fill("qa@example.invalid");
       await expect(page.locator("#start-rights")).toHaveCount(0);
-      await expect(page.locator("#start-region")).toHaveCount(0);
+      // Typed text is never read for a country (the privacy gate): the site chooses it.
+      await page.locator("#start-region").selectOption("us");
       await page.getByRole("button", { name: /^(Send video|Next: film the job|Save my job)$/ }).click();
       const captureLink = page.getByRole("link", { name: device === "mobile" ? "Open the camera" : "Open my job page ›", exact: true });
       await expect(captureLink).toBeVisible();

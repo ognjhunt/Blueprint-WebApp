@@ -19,6 +19,12 @@ import { anonymizedOpportunityDraft } from "@/types/taskBrowse";
 import { renderToString } from "react-dom/server";
 import { SITE_CAPTURE_START_FORM, siteCaptureStartSubmission } from "../../../server/tests/helpers/siteCaptureStartSubmission";
 
+/** The country, chosen in its select: typed text is never read for a country (the privacy gate). */
+function chooseCountry(value: "us" | "non_us") {
+  fireEvent.change(document.querySelector("#start-region")!, { target: { value } });
+}
+
+
 vi.mock("@/lib/analytics", () => ({ analyticsEvents: { contactFormSubmit: vi.fn(), contactFormError: vi.fn() } }));
 vi.mock("@/lib/csrf", () => ({
   withCsrfHeader: async (headers: Record<string, string>) => headers,
@@ -157,6 +163,17 @@ it.each(["gpt-6.1-sol-agents-api", "gpt-6-sol-agents-api"])(
   },
 );
 
+it("falls back to the form for #agreeing while the one-line consent is off, never a blank screen", async () => {
+  const previousUrl = window.location.href;
+  consentSwitch.short = false;
+  window.history.replaceState(null, "", "/contact/site-operator#agreeing");
+  try {
+    await renderReady(<SiteCaptureStart />);
+    expect(screen.getByRole("heading", { level: 1, name: "Start a job" })).toBeVisible();
+    expect(screen.queryByRole("heading", { level: 1, name: "What you're agreeing to" })).toBeNull();
+  } finally { window.history.replaceState(null, "", previousUrl); }
+});
+
 describe("SiteCaptureStart and the country", () => {
   it("retains the filled current address across reload even when the prior address had the same country", async () => {
     fetchMock.mockResolvedValue(photon([{ housenumber: "200", street: "East Main Street", city: "Durham", state: "NC", country: "United States", countrycode: "US" }]));
@@ -164,7 +181,8 @@ describe("SiteCaptureStart and the country", () => {
     const view = await renderReady(<SiteCaptureStart />);
     const input = document.querySelector("#start-location")!;
     fireEvent.change(input, { target: { value: "Austin, TX" } });
-    expectInferredUnitedStates();
+    // Typed text is never read for a country: it is asked for.
+    expect(region()).toHaveValue("");
     fireEvent.click(screen.getByRole("button", { name: "Use my location" }));
     const address = "200 East Main Street, Durham, NC, United States";
     await waitFor(() => expect(input).toHaveValue(address));
@@ -175,22 +193,38 @@ describe("SiteCaptureStart and the country", () => {
     await renderReady(<SiteCaptureStart />);
     expect(document.querySelector("#start-location")).toHaveValue(address);
     expect(screen.getByRole("button", { name: "Use my location" })).toBeInTheDocument();
-    expectInferredUnitedStates();
+    // A restored draft cannot tell a chosen place from an older guess, so the country is asked for again.
+    expect(region()).toHaveValue("");
   });
 
-  it.each(["Austin, TX", "austin tx", "Austin, Texas, United States", "Austin, TX 78701"])("recognizes an explicit US job location before Start (%s)", async (location) => {
+  // Privacy gate (review, 2026-11-11): "Perth, WA", "Vancouver, WA" and "Washington" read as US from the text alone.
+  // Typed text is never read for a country; it always asks, and nothing is sent until a country is chosen.
+  it.each(["Perth, WA", "Vancouver, WA", "Washington", "Austin, TX", "austin tx", "Austin, Texas, United States"])("never reads a country from typed text (%s)", async (location) => {
     await renderReady(<SiteCaptureStart />);
+    fireEvent.change(document.querySelector("#start-email")!, { target: { value: "owner@example.test" } });
     fireEvent.change(document.querySelector("#start-location")!, { target: { value: location } });
-    expectInferredUnitedStates();
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(region()).toHaveValue("");
+    expect(screen.queryByText(nonUsNotice)).toBeNull();
+    fireEvent.submit(screen.getByRole("form"));
+    expect(screen.getByText(/Choose the site country so/)).toBeInTheDocument();
+    expect(postsTo("/api/inbound-request")).toHaveLength(0);
+    expect(upload.send).not.toHaveBeenCalled();
+  });
+
+  it("asks again when a chosen place's address is edited by hand", async () => {
+    fetchMock.mockResolvedValue(photon([{ name: "Austin", state: "Texas", country: "United States", countrycode: "US" }]));
+    await renderReady(<SiteCaptureStart />);
+    const location = document.querySelector("#start-location")!;
+    fireEvent.change(location, { target: { value: "austin" } });
+    fireEvent.click(await screen.findByText("Austin, Texas, United States"));
+    await waitFor(expectInferredUnitedStates);
+    fireEvent.change(location, { target: { value: "Perth, WA" } });
+    expect(region()).toHaveValue("");
   });
 
   it.each(["Paris", "Georgia", "Vancouver, CA", "Austin, TX, Germany", "123 Main St", "123 Main St.", "10 High ST", "Warehouse near us"])("asks for country permission without requiring a fuller address (%s)", async (location) => {
     await renderReady(<SiteCaptureStart />);
     fireEvent.change(document.querySelector("#start-location")!, { target: { value: location } });
-    // Not while typing; on leaving an address that gave no country.
-    expect(region()).toBeNull();
-    fireEvent.blur(document.querySelector("#start-location")!);
     expect(region()).toBeInTheDocument();
     expect(screen.queryByText(nonUsNotice)).toBeNull();
     fireEvent.submit(screen.getByRole("form"));
@@ -199,10 +233,12 @@ describe("SiteCaptureStart and the country", () => {
     expect(postsTo("/api/workspace/capture-start")).toHaveLength(0);
   });
 
-  it.each(["Berlin, Germany", "London UK", "Toronto, Canada"])("recognizes explicit non-US geography and keeps its upload hold (%s)", async (location) => {
+  it.each(["Berlin, Germany", "London UK", "Toronto, Canada"])("keeps the upload hold once a site outside the US is chosen (%s)", async (location) => {
     await renderReady(<SiteCaptureStart />);
     chooseUploadNow();
     fireEvent.change(document.querySelector("#start-location")!, { target: { value: location } });
+    expect(region()).toHaveValue("");
+    chooseCountry("non_us");
     expectInferredOutsideUnitedStates();
     expect(screen.getByText(/Outside the US we set up the data-transfer terms/)).toBeInTheDocument();
     expect(document.querySelector("#start-footage")).toBeNull();
@@ -215,6 +251,7 @@ describe("SiteCaptureStart and the country", () => {
     await screen.findByText(/Saving to your workspace/);
     describeTask("Slide the dishwasher racks");
     fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Austin TX" } });
+    chooseCountry("us");
     fireEvent.submit(screen.getByRole("form"));
     await screen.findByRole("link", { name: "Saved in your workspace" });
     const calls = postsTo("/api/workspace/capture-start");
@@ -223,16 +260,17 @@ describe("SiteCaptureStart and the country", () => {
     expect(upload.send).not.toHaveBeenCalled();
   });
 
-  it("invalidates typed inference on an ambiguous edit and resolves explicit non-US edits", async () => {
+  it("asks again for the country after every address edit, and keeps asking once asked", async () => {
     await renderReady(<SiteCaptureStart />);
     const location = document.querySelector("#start-location")!;
     fireEvent.change(location, { target: { value: "Austin TX" } });
-    expectInferredUnitedStates();
+    chooseCountry("us");
+    expect(region()).toHaveValue("us");
     fireEvent.change(location, { target: { value: "Paris" } });
-    fireEvent.blur(location);
-    expect(region()).toBeInTheDocument();
+    expect(region()).toHaveValue("");
     expect(screen.queryByText(nonUsNotice)).toBeNull();
     fireEvent.change(location, { target: { value: "Paris, France" } });
+    chooseCountry("non_us");
     expectInferredOutsideUnitedStates();
     fireEvent.change(location, { target: { value: "" } });
     expect(region()).toBeInTheDocument();
@@ -254,7 +292,7 @@ describe("SiteCaptureStart and the country", () => {
       describeTask("Slide the racks");
       const location = document.querySelector("#start-location")!;
       fireEvent.change(location, { target: { value: "Austin TX" } });
-      expectInferredUnitedStates();
+      expect(region()).toHaveValue("");
       fireEvent.click(await screen.findByText("Berlin, Germany"));
       expect((location as HTMLInputElement).value).toBe("Berlin, Germany");
       expect(screen.queryByText(nonUsNotice)).toBeNull();
@@ -263,7 +301,9 @@ describe("SiteCaptureStart and the country", () => {
       await waitFor(() => expect(resolveDetails).toBeTypeOf("function"));
       fireEvent.change(location, { target: { value: "Austin TX" } });
       await act(async () => { resolveDetails?.({ countryCode: "DE" }); });
-      await waitFor(expectInferredUnitedStates);
+      // The late details are ignored after the edit, and the typed text resolves nothing: the country is asked for.
+      await waitFor(() => expect(region()).toHaveValue(""));
+      expect(screen.queryByText(nonUsNotice)).toBeNull();
     } finally { vi.unstubAllEnvs(); }
   });
 
@@ -289,6 +329,7 @@ describe("SiteCaptureStart and the country", () => {
       expect(postsTo("/api/inbound-request")).toHaveLength(0);
       expect(postsTo("/api/workspace/capture-start")).toHaveLength(0);
       fireEvent.change(location, { target: { value: "Austin, TX" } });
+      chooseCountry("us");
       fireEvent.submit(screen.getByRole("form"));
       await screen.findByText("Now film the job.", { selector: "h1" });
       expect(postsTo("/api/inbound-request")).toHaveLength(1);
@@ -375,7 +416,9 @@ it("clears an inferred country when the address is edited", async () => {
   fireEvent.change(location, { target: { value: "Berlin" } });
   expect(screen.queryByText(nonUsNotice)).toBeNull();
   fireEvent.change(location, { target: { value: "Berlin, Germany" } });
-  expectInferredOutsideUnitedStates();
+  // Typed text resolves nothing: the chosen place's country is gone and the country is asked for.
+  expect(region()).toHaveValue("");
+  expect(screen.queryByText(nonUsNotice)).toBeNull();
 });
 
 function signedIn(setup: { ok?: boolean; workspaceType?: string | null; siteSetupAvailable?: boolean }, posts: Array<{ ok: boolean; status?: number; body?: unknown }>) {
@@ -391,6 +434,7 @@ function signedIn(setup: { ok?: boolean; workspaceType?: string | null; siteSetu
 function fillAndSubmit() {
   describeTask("Pack cartons");
   fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Austin, TX" } });
+  chooseCountry("us");
   fireEvent.submit(screen.getByRole("form"));
 }
 
@@ -412,6 +456,7 @@ it("prepares the phone capture with explicit description authority and no record
   await screen.findByText(/Saving to your workspace/);
   describeTask("Pack cartons");
   fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Austin, TX" } });
+  chooseCountry("us");
   expect(document.querySelector("#start-description-authority")).toBeNull();
   // The line under the button is the one the site agrees to; the full statement is one tap away.
   expect(document.querySelector("[data-consent-line]")).toHaveTextContent(SITE_START_CONSENT_NO_VIDEO);
@@ -442,6 +487,7 @@ it("leaves the task optional, has no task box, and sends a typed sentence as the
   expect(document.querySelector("#start-task-confirmation")).toBeNull();
   expect(document.querySelector("#start-success")).not.toBeRequired();
   fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Austin, TX" } });
+  chooseCountry("us");
   fireEvent.change(task, { target: { value: "Pack cartons into the shipping box" } });
   fireEvent.change(document.querySelector("#start-success")!, { target: { value: "Every carton is sealed and upright" } });
   fireEvent.submit(screen.getByRole("form"));
@@ -480,6 +526,7 @@ it("asks no typed task and no street address, and says it will reply when no job
   expect(document.querySelector("#start-task")).not.toBeRequired();
   expect(document.querySelector("#start-location")).not.toBeRequired();
   fireEvent.change(document.querySelector("#start-location")!, { target: { value: "100 Congress Ave, Austin, TX" } });
+  chooseCountry("us");
   fireEvent.change(document.querySelector("#start-email")!, { target: { value: "owner@example.test" } });
   fireEvent.submit(screen.getByRole("form"));
   await screen.findByRole("heading", { name: "We have your site." });
@@ -523,6 +570,7 @@ it("asks one question about the video and sets the consent in one line under the
   expect(document.querySelector("#start-password")).toBeNull();
   describeTask("Pack cartons");
   fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Austin, TX" } });
+  chooseCountry("us");
   fireEvent.change(document.querySelector("#start-email")!, { target: { value: "fixture@example.invalid" } });
   expect(fetchMock.mock.calls.filter(call => call[1]?.method === "POST")).toHaveLength(0);
   expect(upload.send).not.toHaveBeenCalled();
@@ -543,6 +591,7 @@ it("offers no Blueprint filming visit and sends self-capture (visits retired 202
   { const toMethod = document.querySelector(`#start-method-${method}`); if (toMethod) fireEvent.click(toMethod); }
   describeTask("Pack cartons");
   fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Austin, TX" } });
+  chooseCountry("us");
   fireEvent.submit(screen.getByRole("form"));
   await screen.findByRole("link", { name: "Saved in your workspace" });
   const payload = JSON.parse(postsTo("/api/workspace/capture-start")[0][1].body);
@@ -591,6 +640,7 @@ it("lets a signed-in account with no workspace type yet send the job and its vid
   chooseUploadNow();
   fireEvent.change(document.querySelector("#start-footage")!, { target: { files: [file] } });
   fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Austin, TX" } });
+  chooseCountry("us");
   fireEvent.submit(screen.getByRole("form"));
   await screen.findByText("We have your video.", { selector: "h1" });
   expect(postsTo("/api/workspace/capture-start")).toHaveLength(1);
@@ -637,6 +687,7 @@ it("moves the laptop from the QR code to the brief once the phone's recording la
   await renderReady(<SiteCaptureStart />);
   describeTask("Pack cartons");
   fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Austin, TX" } });
+  chooseCountry("us");
   fireEvent.change(document.querySelector("#start-email")!, { target: { value: "owner@example.com" } });
   fireEvent.submit(screen.getByRole("form"));
   await screen.findByText("Now film the job.", { selector: "h1" });
@@ -688,6 +739,7 @@ describe("SiteCaptureStart and a video that already exists", () => {
     chooseUploadNow();
     if (video) fireEvent.change(document.querySelector("#start-footage")!, { target: { files: [video] } });
     fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Austin, TX" } });
+    chooseCountry("us");
     fireEvent.submit(screen.getByRole("form"));
   }
 
@@ -757,6 +809,7 @@ describe("SiteCaptureStart and a video that already exists", () => {
     chooseUploadNow();
     fireEvent.change(document.querySelector("#start-footage")!, { target: { files: [file] } });
     fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Austin, TX" } });
+    chooseCountry("us");
     fireEvent.submit(screen.getByRole("form"));
     await screen.findByText("We have your video.", { selector: "h1" });
     const submitted = JSON.parse(postsTo("/api/workspace/capture-start")[0][1].body);
@@ -782,6 +835,7 @@ describe("SiteCaptureStart and a video that already exists", () => {
     { const toUpload = document.querySelector("#start-method-upload"); if (toUpload) fireEvent.click(toUpload); };
     fireEvent.change(document.querySelector("#start-footage")!, { target: { files: [video()] } });
     fireEvent.change(document.querySelector("#start-location")!, { target: { value: SITE_CAPTURE_START_FORM.location } });
+    chooseCountry("us");
     fireEvent.change(document.querySelector("#start-email")!, { target: { value: SITE_CAPTURE_START_FORM.email } });
     // The journey is a shared job, so this site chose to share its card.
     openDetails();
@@ -936,6 +990,8 @@ it.each(intakeCases)("$caseId $method intake $location $outcome", async ({ metho
   { const toMethod = document.querySelector(`#start-method-${method}`); if (toMethod) fireEvent.click(toMethod); }
   describeTask("Move sealed cartons");
   fireEvent.change(document.querySelector("#start-location")!, { target: { value: location } });
+  // Typed text is never read for a country: the site chooses it.
+  chooseCountry(location.startsWith("Austin") ? "us" : "non_us");
   const file = document.querySelector("#start-footage");
   if (file) fireEvent.change(file, { target: { files: [new File(["synthetic"], "original.mp4", { type: "video/mp4" })] } });
   fireEvent.submit(screen.getByRole("form"));
@@ -972,6 +1028,7 @@ it("replays uncertain original answers, ignoring later edits", async () => {
   await renderReady(<SiteCaptureStart />);
   describeTask("Original task");
   fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Austin TX" } });
+  chooseCountry("us");
   fireEvent.change(document.querySelector("#start-email")!, { target: { value: "original@example.invalid" } });
   fireEvent.submit(screen.getByRole("form"));
   await screen.findByText("Uncertain save");
@@ -1013,14 +1070,33 @@ it("waits for auth resolution before reading a private anonymous draft", async (
 });
 
 
-it("recomputes an inferred country after restoring and editing a draft", async () => {
+it("keeps a chosen country across reload, and asks for it again once the address is edited", async () => {
   const first = await renderReady(<SiteCaptureStart />);
   fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Austin TX" } });
+  chooseCountry("us");
   first.unmount();
   await renderReady(<SiteCaptureStart />);
-  expectInferredUnitedStates();
+  expect(region()).toHaveValue("us");
   fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Berlin, Germany" } });
-  expectInferredOutsideUnitedStates();
+  // Editing the address re-asks: nothing is read from the typed text, so the country is empty and nothing is held.
+  expect(region()).toHaveValue("");
+  expect(screen.queryByText(nonUsNotice)).toBeNull();
+});
+
+it("never keeps a country a restored draft did not choose in the select (an older draft may hold a guess)", async () => {
+  const key = siteCaptureDraftKey(null, "default");
+  const first = await renderReady(<SiteCaptureStart />);
+  fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Perth, WA" } });
+  await waitFor(() => expect(durability.rows.get(key)?.value.draft).toMatchObject({ location: "Perth, WA" }));
+  first.unmount();
+  // An older version saved a country guessed from the text.
+  const stored = durability.rows.get(key)!.value;
+  durability.rows.set(key, { ...durability.rows.get(key)!, value: { ...stored, draft: { ...stored.draft, region: "us", regionManuallySet: false } } });
+  localStorage.setItem(key, JSON.stringify({ ...stored, draft: { ...stored.draft, region: "us", regionManuallySet: false } }));
+  await renderReady(<SiteCaptureStart />);
+  expect(region()).toHaveValue("");
+  fireEvent.submit(screen.getByRole("form"));
+  expect(postsTo("/api/inbound-request")).toHaveLength(0);
 });
 
 
@@ -1045,6 +1121,7 @@ it("preserves optional job frequency and buying stage across reload and submits 
     ["start-frequency", "200 cartons each weekday"], ["start-readiness", "ready_for_proposals"]]) {
     fireEvent.change(document.querySelector(`#${id}`)!, { target: { value } });
   }
+  chooseCountry("us");
   const key = siteCaptureDraftKey(null, "default");
   await waitFor(() => expect(durability.rows.get(key)?.value.draft).toMatchObject({
     jobFrequency: "200 cartons each weekday", purchaseReadiness: "ready_for_proposals",
@@ -1074,6 +1151,7 @@ it("A-R-033 v2 a pre-mounted tab replays the same uncertain request despite edit
   for (const [id, value] of [["start-task", "Original task"], ["start-location", "Austin TX"], ["start-email", "qa@example.invalid"]]) {
     fireEvent.change(first.container.querySelector(`#${id}`)!, { target: { value } });
   }
+  fireEvent.change(first.container.querySelector("#start-region")!, { target: { value: "us" } });
   const second = await renderReady(<SiteCaptureStart />);
   fireEvent.change(second.container.querySelector("#start-task")!, { target: { value: "Other task in stale tab" } });
   fireEvent.submit(first.container.querySelector("form")!);
@@ -1093,6 +1171,7 @@ it("RETURN-PERSISTED-RELOAD-001 keeps restored fields in both stores before subm
     ["start-email", "fixture@example.invalid"]]) {
     fireEvent.change(document.querySelector(`#${id}`)!, {target: {value}});
   }
+  chooseCountry("us");
   await act(async () => {});
   const key = "bp-site-capture:v1:anonymous:default";
   const previous = JSON.parse(localStorage.getItem(key)!);
@@ -1117,6 +1196,7 @@ it("shares an anonymised card only when the site ticks the box, and the note is 
   const task = "Acme at 123 High Street slides dishwasher racks";
   describeTask(task);
   fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Austin, TX" } });
+  chooseCountry("us");
   fireEvent.change(document.querySelector("#start-email")!, { target: { value: "owner@example.test" } });
   openDetails();
   const share = screen.getByRole("checkbox", { name: SHARE_LABEL });
@@ -1133,6 +1213,7 @@ it("shares an anonymised card only when the site ticks the box, and the note is 
   await renderReady(<SiteCaptureStart />);
   describeTask(task);
   fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Austin, TX" } });
+  chooseCountry("us");
   fireEvent.change(document.querySelector("#start-email")!, { target: { value: "owner@example.test" } });
   openDetails();
   fireEvent.click(screen.getByRole("checkbox", { name: SHARE_LABEL }));
@@ -1147,6 +1228,7 @@ it("tells a site uploading footage that people seen or heard must know, and that
   await renderReady(<SiteCaptureStart />);
   await screen.findByText(/Saving to your workspace as owner@example.com/);
   fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Austin, TX" } });
+  chooseCountry("us");
   expect(screen.queryByText(/People seen or heard in it must know/)).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "I have a video ›" }));
   expect(screen.getByText("Only upload footage you may share. People seen or heard in it must know it is shared with Blueprint, "
@@ -1178,6 +1260,7 @@ describe("guest intake without account ceremony", () => {
     { const toUpload = document.querySelector("#start-method-upload"); if (toUpload) fireEvent.click(toUpload); };
     fireEvent.change(document.querySelector("#start-footage")!,{target:{files:[video()]}});
     fireEvent.change(document.querySelector("#start-location")!,{target:{value:"Austin, TX"}});
+    chooseCountry("us");
     fireEvent.change(document.querySelector("#start-email")!,{target:{value:"Owner@Example.com"}});
     describeTask("Pack cartons");
   }
@@ -1289,6 +1372,7 @@ describe("with the one-line consent switched off (the default)", () => {
     expect(document.querySelector("[data-consent-line]")).toBeNull();
     expect(screen.queryByRole("button", { name: "What you're agreeing to ›" })).toBeNull();
     fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Austin, TX" } });
+    chooseCountry("us");
     fireEvent.change(document.querySelector("#start-email")!, { target: { value: "owner@example.test" } });
     fireEvent.submit(screen.getByRole("form"));
     await waitFor(() => expect(postsTo("/api/inbound-request")).toHaveLength(1));
@@ -1306,6 +1390,7 @@ describe("with the one-line consent switched off (the default)", () => {
       ? { ok: true, status: 201, json: async () => ({ captureUrl: null }) } : photon([]));
     await renderReady(<SiteCaptureStart />);
     fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Berlin, Germany" } });
+    chooseCountry("non_us");
     fireEvent.change(document.querySelector("#start-email")!, { target: { value: "owner@example.test" } });
     expect(document.querySelector("[data-consent-statements]")).toHaveTextContent("By pressing Save my job, you agree to our Terms and Privacy Policy and confirm:");
     fireEvent.submit(screen.getByRole("form"));

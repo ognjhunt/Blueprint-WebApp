@@ -16,11 +16,11 @@ const siteCreate = "/api/workspace/capture-start";
 /** A signed-in site account is not asked for an email. */
 async function fillSite(page: Page) {
   await fillJobDescription(page, "Move sealed cartons to the pallet");
-  await page.locator("#start-location").fill("Austin, TX");
+  await page.locator("#start-location").fill("Austin, TX"); await page.locator("#start-region").selectOption("us");
 }
 async function fill(page: Page) {
   await fillJobDescription(page, "Move sealed cartons to the pallet");
-  await page.locator("#start-location").fill("Austin, TX");
+  await page.locator("#start-location").fill("Austin, TX"); await page.locator("#start-region").selectOption("us");
   await page.locator("#start-email").fill("operator@example.test");
 }
 test.beforeEach(async ({ context }) => {

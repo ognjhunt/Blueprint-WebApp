@@ -67,11 +67,10 @@ describe("one email per terminal outcome of the job's evaluation (F-01)", () => 
     const words = notice.body.slice(0, notice.body.indexOf("on your private job page"));
     expect(words).not.toMatch(/rerun|setup blocker|owner approval|budget|\$|development only|[a-z]_[a-z]/i);
     if (outcome === "estimate") {
-      // The fixture's two policies (2 and 1 of 3) are not in our list, so their robot is not confirmed: they are
-      // never options, and the email announces no result, in the job page's own line for that case (rewritten in
-      // round 4 from the same-robot comparison sentence, to the page's test-led wording).
-      expect(notice.subject).toBe("The simulation test of your job has finished");
-      expect(notice.body).toMatch(/^The simulation test ran, but we couldn't confirm which robot each AI program ran on, so none is compared\. Nothing is needed from you\.\n\n/);
+      // The fixture's two policies (2 and 1 of 3) are not in our list: since round 5 they are options all the same,
+      // under neutral names, and 2 of 3 against 1 of 3 is no clear winner. The email says the page's headline.
+      expect(notice.subject).toBe("Your simulation test has a result");
+      expect(notice.body).toMatch(/^Tested on your job: no clear winner yet\. Top: AI robot A, did your job in 2 of 3 tries\. Nothing is needed from you\.\n\n/);
       expect(notice.body).not.toMatch(/did best|was ahead|proof/i);
       expect(notice.body).not.toContain(SIMULATION_TRUST_LINE);
     } else {
@@ -97,9 +96,9 @@ describe("one email per terminal outcome of the job's evaluation (F-01)", () => 
     await deliverOutbox();
     expect(send).toHaveBeenCalledTimes(1);
     const notice = state.docs.get(key("estimate")) as Record<string, string>;
-    // The fixture's policies are not in our list, so none is an option: the page's own line for that case.
+    // The fixture's policies are not in our list; they are options under neutral names, and none finished.
     expect(notice.subject).toBe("The simulation test of your job has finished");
-    expect(notice.body.startsWith("The simulation test ran, but we couldn't confirm which robot each AI program ran on, so none is compared. Nothing is needed from you.")).toBe(true);
+    expect(notice.body.startsWith("Tested on your job: none finished yet. 2 AI robots tried; none finished your job. Nothing is needed from you.")).toBe(true);
     expect(notice.body).not.toMatch(/estimate|proof|has a result|did best|was ahead|pilot|introduc|deployment company|episodes|candidates|screening/i);
     expect(notice.body).toMatch(/It does not certify performance or safety\./);
   });
@@ -140,7 +139,7 @@ describe("one email per terminal outcome of the job's evaluation (F-01)", () => 
     expect(state.docs.get(key("held_capability"))).toMatchObject({ status: "cancelled", attempts: 0 });
     expect(state.docs.get(key("estimate"))).toMatchObject({ status: "sent" });
     expect(send).toHaveBeenCalledTimes(1);
-    expect(send.mock.calls[0][0].subject).toBe("The simulation test of your job has finished");
+    expect(send.mock.calls[0][0].subject).toBe("Your simulation test has a result");
     expect([run().outcome_notification_pending, run("campaign-two").outcome_notification_pending]).toEqual([false, false]);
   });
 

@@ -15,7 +15,7 @@ const simulationRun = { ...winnerEvaluation, screening: { ...winnerEvaluation.sc
       policyRouteId: null, deploymentCompanies: [], relationship: null, evidenceUrl: null, relatedTeams: [], partnerBlockers: [], registryTeams: [] },
     candidates: [{ candidateId: "pi05_droid", resultRank: 1, choiceBlocker: null }] } } };
 const FIND = "Find a company to set it up";
-const CONSENT = "Shares a summary of your job and this answer, without saying who you are, with companies we've approved. Your video, address and contacts stay private.";
+const CONSENT = "Shares a summary of your job and your answer, including later test results, without saying who you are, with companies we've approved. Your video, address and contacts stay private.";
 const LISTED = "✓ Shared. We'll email you when a company replies.";
 const UNLISTED = "You asked on November 11, 2026. Blueprint will set up your job card and email you.";
 /** Visible words on the page body: what a person reads before tapping anything. */
@@ -60,7 +60,7 @@ async function mockJob(page: Page, { evaluation = simulationRun as unknown, list
       briefPath: null, tracker: { steps: [], meanwhile: null } } });
     // The card goes on under the statement that shares the answer when the request lists it, as the server does.
     if (path === `/api/task-listings/owner/${token}`) return route.fulfill({ json: { thumbnailPng: null,
-      listing: requestedAtIso && listed ? { enabled: true, consentVersion: "public-task-card-with-answer-v2" } : null } });
+      listing: requestedAtIso && listed ? { enabled: true, consentVersion: "public-task-card-with-answer-v3" } : null } });
     unexpected.push(`${method} ${path}`);
     return route.fulfill({ status: 503, json: { error: "Unstubbed local API" } });
   });

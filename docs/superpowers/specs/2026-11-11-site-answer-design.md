@@ -176,11 +176,14 @@ before-the-video screens are unchanged by round 3.
   naming what the estimated checks rest on (sizes, heights or weight).
 - **Body type**: `mobile_manipulator` reads "Arm on a base that moves", true
   for wheeled and legged bases alike (`client/src/data/robotFit.ts`).
-- **Consent**: statement `public-task-card-with-answer-v2`, "Shares a summary of
-  your job and this answer, without saying who you are, with companies we've
-  approved. Your video, address and contacts stay private." "This answer" is
-  the screen's answer, which the card carries (below). The route records only
-  v2; a choice recorded under v1 still carries the answer on the card.
+- **Consent**: statement `public-task-card-with-answer-v3`, "Shares a summary of
+  your job and your answer, including later test results, without saying who
+  you are, with companies we've approved. Your video, address and contacts stay
+  private." The route records only v3. A choice recorded under v1 or v2 (which
+  named "this answer" when the answer was the paper check) puts the paper check
+  on the card and never a test result; when a test result exists the page says
+  "Your shared job shows the paper check. Press the button to share the test
+  result too." and offers the button, which records v3.
 - **Limits line**, by what the headline is (`client/src/lib/siteAnswer.ts`): a
   test result, "Tested in a simulation, not at your site. Pick-up-and-put-down
   jobs only. It does not certify performance or safety."; while testing, "Being
@@ -275,12 +278,14 @@ simulation"; the simulation email repeats its sentences word for word.
   when there are several. Scripted rows and rows the selection marks as
   references are never ranked.
 - **Options, compared across robots** (`optionsOf` in `simulationProof.ts`;
-  the owner's 2026-11-11 premise withdrew the earlier same-robot rule). An
-  option is a scored learned-policy row whose policy the closed map names, so
-  its robot is confirmed: "{robot short name} + {policy}" ("Franka arm +
-  π0.5"), with the software's maker. Scripted rows, rows the selection marks
-  as references and rows whose robot is not confirmed are never options; the
-  last are listed, lettered, as not compared.
+  the owner's 2026-11-11 premise withdrew the earlier same-robot rule). Every
+  scored learned-policy row is an option; the robot is needed only for its name.
+  A policy the closed map names is "{robot short name} + {policy}" ("Franka arm
+  + π0.5") with the software's maker; one it does not name is "AI robot A",
+  "AI robot B" (never stored text), and ranks, counts and can lead like any
+  other. Scripted and reference rows are never options. "Testing now: N AI
+  robots" counts only rows that were scored, are running or are still going to
+  run.
 - **One display order for every screen**: options that completed the job
   first, by posterior mean success rate (s + 1)/(n + 2); then options that
   finished nothing, by the deepest progress stage reached, then how many tries

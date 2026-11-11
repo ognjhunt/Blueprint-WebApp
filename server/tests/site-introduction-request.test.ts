@@ -105,9 +105,9 @@ describe("POST /:token/introduction-request", () => {
     // The choice is recorded with the exact sentence shown under the button, and its version.
     expect(stored.introduction_request).toEqual({ requested_at_iso: first.body.requestedAtIso, requested_by: "signed_owner_link",
       statement_version: JOB_CARD_ANSWER_STATEMENT_VERSION, statement_text: FIND_COMPANY_CONSENT });
-    expect(JOB_CARD_ANSWER_STATEMENT_VERSION).toBe("public-task-card-with-answer-v2");
-    expect(FIND_COMPANY_CONSENT).toBe("Shares a summary of your job and this answer, without saying who you are, with companies we've approved. "
-      + "Your video, address and contacts stay private.");
+    expect(JOB_CARD_ANSWER_STATEMENT_VERSION).toBe("public-task-card-with-answer-v3");
+    expect(FIND_COMPANY_CONSENT).toBe("Shares a summary of your job and your answer, including later test results, without saying who you are, "
+      + "with companies we've approved. Your video, address and contacts stay private.");
     // The same grant "Manage opportunity sharing" records, with the anonymised card text, under the statement
     // that also names the answer: the older box's version does not cover it.
     expect(stored.public_task_listing).toMatchObject({ enabled: true, consentVersion: JOB_CARD_ANSWER_STATEMENT_VERSION,
@@ -181,11 +181,20 @@ describe("POST /:token/introduction-request", () => {
     expect(row("inboundRequests/req-1").public_task_listing).toEqual(listing);
   });
 
-  it("keeps an older request recorded without the statement as it is", async () => {
-    row("inboundRequests/req-1").introduction_request = { requested_at_iso: "2026-11-10T00:00:00.000Z", requested_by: "signed_owner_link" };
+  // Rewritten in round 5: a press under the sentence shown now is a new choice under it. An older request keeps the
+  // time of its first choice, and records the sentence now agreed to and when (so a card can carry later test results).
+  it.each([
+    ["recorded without a statement", {}],
+    ["recorded under v2", { statement_version: "public-task-card-with-answer-v2",
+      statement_text: "Shares a summary of your job and this answer, without saying who you are, with companies we've approved. Your video, address and contacts stay private." }],
+  ])("records the v3 sentence on a new press of an older request (%s), keeping the first choice's time", async (_name, older) => {
+    row("inboundRequests/req-1").introduction_request = { requested_at_iso: "2026-11-10T00:00:00.000Z", requested_by: "signed_owner_link", ...older };
+    row("inboundRequests/req-1").public_task_listing = { enabled: true, consentVersion: "public-task-card-with-answer-v2", details: { title: "Kept" } };
     expect((await ask()).body).toMatchObject({ ok: true, requestedAtIso: "2026-11-10T00:00:00.000Z" });
-    expect(row("inboundRequests/req-1").introduction_request).toEqual({ requested_at_iso: "2026-11-10T00:00:00.000Z",
-      requested_by: "signed_owner_link" });
+    expect(row("inboundRequests/req-1").introduction_request).toMatchObject({ requested_at_iso: "2026-11-10T00:00:00.000Z",
+      requested_by: "signed_owner_link", statement_version: JOB_CARD_ANSWER_STATEMENT_VERSION, statement_text: FIND_COMPANY_CONSENT,
+      statement_recorded_at_iso: expect.any(String) });
+    expect(row("inboundRequests/req-1").public_task_listing).toMatchObject({ consentVersion: JOB_CARD_ANSWER_STATEMENT_VERSION, details: { title: "Kept" } });
   });
 
   it("records the statement the page showed, and refuses a request that names none, recording and listing nothing", async () => {
@@ -205,7 +214,7 @@ describe("POST /:token/introduction-request", () => {
 
   it("refuses a page that showed another statement, recording and listing nothing, and asks it to reload", async () => {
     // v1 is still a valid record of a choice already made, but a page showing it now is out of date.
-    for (const version of ["public-task-card-with-answer-v0", "public-task-card-with-answer-v1"]) {
+    for (const version of ["public-task-card-with-answer-v0", "public-task-card-with-answer-v1", "public-task-card-with-answer-v2"]) {
       expect(await ask(owner(), true, { statementVersion: version }), version).toMatchObject({ status: 409 });
     }
     const stale = await ask(owner(), true, { statementVersion: "public-task-card-with-answer-v0" });

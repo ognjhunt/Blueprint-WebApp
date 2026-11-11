@@ -1,7 +1,13 @@
 // @vitest-environment jsdom
 import { act, fireEvent, render as renderView, screen, cleanup } from "@testing-library/react";
 import { beforeEach, afterEach, expect, it, vi } from "vitest";
-import { SiteCaptureStart } from "@/components/site/SiteCaptureStart";
+import { STATEMENTS_CHANGED, SiteCaptureStart, pendingStatementsCurrent } from "@/components/site/SiteCaptureStart";
+
+/** The country, chosen in its select: typed text is never read for a country (the privacy gate). */
+function chooseCountry(value: "us" | "non_us") {
+  fireEvent.change(document.querySelector("#start-region")!, { target: { value } });
+}
+
 const identity = vi.hoisted(() => ({ user: null as any }));
 vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ currentUser: identity.user, loading: false }) }));
 vi.mock("@/lib/analytics", () => ({ analyticsEvents: { contactFormSubmit: vi.fn(), contactFormError: vi.fn() } }));
@@ -43,6 +49,7 @@ function describeTask(task: string) {
 function fill(task = "Move sealed cartons") {
   describeTask(task);
   fireEvent.change(document.querySelector("#start-location")!, {target: {value: "Austin, TX"}});
+  chooseCountry("us");
   fireEvent.change(document.querySelector("#start-email")!, {target: {value: "operator@example.test"}});
 }
 function submit() { fireEvent.submit(screen.getByRole("form")); }
@@ -61,6 +68,7 @@ async function renderAsSiteOwner() {
 function fillSigned(task = "Move sealed cartons") {
   describeTask(task);
   fireEvent.change(document.querySelector("#start-location")!, {target: {value: "Austin, TX"}});
+  chooseCountry("us");
 }
 beforeEach(() => {
   durability.rows.clear();
@@ -95,6 +103,37 @@ it("RETURN-002: recovers a lost intake response across remount without another i
   fireEvent.click(await screen.findByRole("button", {name: /Recover saved job/}));
   await screen.findByRole("alert"); expect(sent).toHaveLength(2);
   expect(sent[1].body).toEqual(original);
+});
+it("RETURN-002b: a saved submission recorded under other statements is not resent; the form asks for a fresh press", async () => {
+  const view = await renderReady(<SiteCaptureStart />); fill(); submit();
+  await screen.findByRole("alert"); expect(sent).toHaveLength(1);
+  view.unmount();
+  // The saved submission was made while the one-line consent showed (2026-11-11.v3); the form now shows the full
+  // statements (the switch is off), so that body is not what the person would agree to now.
+  const swap = (body: string) => body.replace('"2026-10-06.v1"', '"2026-11-11.v3"');
+  for (const [key, row] of durability.rows) if (row.value?.pending) durability.rows.set(key, { ...row, value: { ...row.value,
+    pending: { ...row.value.pending, body: swap(row.value.pending.body) } } });
+  for (const key of Object.keys(localStorage)) {
+    const stored = JSON.parse(localStorage.getItem(key) ?? "null");
+    if (stored?.pending) localStorage.setItem(key, JSON.stringify({ ...stored, pending: { ...stored.pending, body: swap(stored.pending.body) } }));
+  }
+  await renderReady(<SiteCaptureStart />);
+  fireEvent.click(await screen.findByRole("button", {name: /Recover saved job/}));
+  expect(await screen.findByText(STATEMENTS_CHANGED)).toBeInTheDocument();
+  expect(sent).toHaveLength(1);
+});
+it("RETURN-002c: knows which statements a saved submission must carry, in both switch positions", () => {
+  const body = (description: string, recording: string | null) => JSON.stringify({ descriptionOnly: recording === null,
+    descriptionAuthority: { granted: true, statementVersion: description }, consentAttestation: recording ? { granted: true, statementVersion: recording } : null });
+  // Switch off: the full statements.
+  expect(pendingStatementsCurrent(body("2026-10-06.v1", null), false)).toBe(true);
+  expect(pendingStatementsCurrent(body("2026-11-11.v3", null), false)).toBe(false);
+  expect(pendingStatementsCurrent(body("2026-10-06.v1", "2026-11-02.v2"), false)).toBe(true);
+  // Switch on: the one-line consent's versions, by whether a video is sent.
+  expect(pendingStatementsCurrent(body("2026-11-11.v3", null), true)).toBe(true);
+  expect(pendingStatementsCurrent(body("2026-10-06.v1", null), true)).toBe(false);
+  expect(pendingStatementsCurrent(body("2026-11-11.v2", "2026-11-02.v2"), true)).toBe(false);
+  expect(pendingStatementsCurrent("not json", true)).toBe(false);
 });
 it("RETURN-003: account changes discard mounted anonymous fields and retry authority", async () => {
   const view = await renderReady(<SiteCaptureStart />); fill(); { const toUpload = document.querySelector("#start-method-upload"); if (toUpload) fireEvent.click(toUpload); };

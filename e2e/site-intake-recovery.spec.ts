@@ -22,7 +22,7 @@ test("lost create response survives reload with the same private retry identity"
   await context.tracing.start({ screenshots: true, snapshots: true });
   await page.goto("/contact/site-operator");
   await fillJobDescription(page, "Move sealed cartons onto a pallet");
-  await page.locator("#start-location").fill("Austin, TX");
+  await page.locator("#start-location").fill("Austin, TX"); await page.locator("#start-region").selectOption("us");
   await page.locator("#start-email").fill("qa@example.invalid");
   await page.getByRole("button", { name: /^(Send video|Next: film the job|Save my job)$/ }).click();
   await expect(page.getByRole("alert")).toContainText("could not reach Blueprint");
@@ -86,7 +86,7 @@ for (const receipt of ["not-received", "received-pending"] as const) test(`brows
     let page = await context.newPage();
     await page.goto("http://127.0.0.1:4181/contact/site-operator");
     await fillJobDescription(page, "Move sealed cartons onto a pallet");
-    await page.locator("#start-location").fill("Austin TX");
+    await page.locator("#start-location").fill("Austin TX"); await page.locator("#start-region").selectOption("us");
     await page.locator("#start-email").fill("qa@example.invalid");
 
     await page.locator("#start-method-upload").click();

@@ -106,7 +106,7 @@ test("sending a video quotes the recorded statements under the button and record
   await expect(statements).toContainText(`“${rights}”`);
   await expect(page.getByRole("button", { name: "What you're agreeing to ›" })).toHaveCount(0);
   await expect(page.locator("#start-rights")).toHaveCount(0);
-  await page.locator("#start-location").fill("Austin, TX");
+  await page.locator("#start-location").fill("Austin, TX"); await page.locator("#start-region").selectOption("us");
   await page.locator("#start-footage").setInputFiles({ name: "cycle.mov", mimeType: "video/quicktime", buffer: Buffer.from("frames") });
   await page.locator("#start-email").fill("owner@example.test");
   await describeTask(page);

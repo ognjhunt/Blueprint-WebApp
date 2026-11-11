@@ -258,12 +258,12 @@ test("the current simulation result leads as proof, open, while every detail and
   await page.goto(`/capture-upload/${token}?video=existing`);
   // An older job with a result and no answer: the proof stands on its own, visible without opening anything.
   const proof = page.getByRole("region", { name: "Tested in simulation" });
-  // Its one scored program is not in the closed map, so its robot is unconfirmed: never an option, never compared.
-  await expect(proof.getByText("The simulation test ran, but we couldn't confirm which robot each AI program ran on, so none is compared.", { exact: true })).toBeVisible();
-  // The program's count, as a row of the ranked list, said as not compared.
+  // Its one scored program is not in the closed map: it is an option all the same (round 5), under a neutral name.
+  await expect(proof.getByText("Simulation test: AI robot A did your job in 2 of 3 tries, the only AI robot tested.", { exact: true })).toBeVisible();
   const result = proof.getByRole("region", { name: "Ranked", exact: true });
   await expect(result).toContainText("We ran 1 AI robot on your job, about 3 tries each, in a simulation of your site.");
-  await expect(result).toContainText("An unnamed AI control policyFinished 2 of 3 tries · on a robot we could not confirm, not compared");
+  await expect(result).toContainText("1. AI robot AFinished 2 of 3 tries");
+  await expect(result).not.toContainText("Arm with suction gripper");
   await expect(proof.getByRole("region", { name: "Published tests", exact: true })).toBeVisible();
   // The full result is one click away, in the folded details.
   const details = page.locator("summary", { hasText: "Simulation details" });
@@ -494,7 +494,7 @@ test("desktop handoff recognizes retained footage without claiming processing co
   await page.goto("/contact/site-operator");
   // The optional sentence confirms the brief at submission (owner direction 2026-11-11).
   await page.getByRole("button", { name: "Add details (optional) ›" }).click(); await page.locator("#start-task").fill("Move sealed cartons onto a pallet"); await page.getByRole("button", { name: "Done", exact: true }).click();
-  await page.locator("#start-location").fill("Austin, TX");
+  await page.locator("#start-location").fill("Austin, TX"); await page.locator("#start-region").selectOption("us");
   await page.locator("#start-email").fill("operator@example.test");
   await page.getByRole("button", { name: /^(Send video|Next: film the job|Save my job)$/ }).click();
   await expect(page.getByRole("heading", { name: "Now film the job." })).toBeVisible();

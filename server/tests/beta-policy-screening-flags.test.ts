@@ -49,10 +49,10 @@ const router: any = (await import("../routes/internal-beta-policy-screening")).d
 /** The fixture's bytes. The Pipeline's `test_beta_policy_screening_publication_flags.py` pins the same value for its copy. */
 const PIPELINE_V3_FIXTURE_SHA256 = "1b95db35f7b61b89be966d2512707b3c11e7fa3c6f9f74b0cd5b34604957c8f2";
 /**
- * What the site's email says for this fixture since round 4, in the job page's own words: its policies are not in
- * our list, so no option is named, and a flagged scene adds the page's set-up notice.
+ * What the site's email says for this fixture, in the job page's own words: its two policies are not in our list,
+ * so (since round 5) they are options under neutral names, and none finished; a flagged scene adds the set-up notice.
  */
-const NOT_COMPARED = "The simulation test ran, but we couldn't confirm which robot each AI program ran on, so none is compared.";
+const NOT_COMPARED = "Tested on your job: none finished yet. 2 AI robots tried; none finished your job.";
 const PLAIN_SETUP = "This result may come from how we set up the simulation of your site, not from the robots.";
 const ESTIMATE = "Your simulation estimate is ready. It is an estimate from a simulation of your site, not a certified result.";
 const CAVEAT = "Our scene check found a possible set-up cause, so this result may reflect how we set the scene up more than the robots.";

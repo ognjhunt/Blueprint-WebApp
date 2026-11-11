@@ -30,18 +30,33 @@ describe("what the simulation test found", () => {
     expect(proofOf([lone]).options.winner).toBeNull();
   });
 
-  it("never makes an option of a scripted row, a reference row or a robot we cannot confirm", () => {
+  it("never makes an option of a scripted row; a policy our list does not name is an option with a neutral name", () => {
     const rows = [...winnerEvaluation.screening!.candidates,
       { ...winnerEvaluation.screening!.candidates[0], candidateId: "unmapped-policy", name: "Current candidate", succeeded: 10, scored: 10, failed: 0 },
       { ...winnerEvaluation.screening!.candidates[0], candidateId: "scripted-arm", name: "Scripted arm", succeeded: 10, scored: 10, failed: 0,
         executionEvidence: { execution_evidence_kind: "scripted_simulator_state_baseline" as const, action_source: "scripted_simulator_state",
           scripted_rollout_count: 10, learned_policy_rollout_count: 0, scripted_controller_invoked: true, candidate_policy_queried: false } }];
     const proof = proofOf([{ ...winnerEvaluation, screening: { candidates: rows } }]);
-    expect(proof.options.options.map(option => option.label)).toEqual(["Franka arm + π0.5", "Franka arm + GR00T N1.7", "Franka arm + MolmoAct 2"]);
-    expect(proof.options.unconfirmed).toEqual([{ policy: "an unnamed AI control policy", maker: null, succeeded: 10, scored: 10 }]);
+    // The unnamed policy did best (10 of 10): it leads, ranks and counts like any other, under a neutral name.
+    expect(proof.options.options.map(option => option.label)).toEqual(["AI robot A", "Franka arm + π0.5", "Franka arm + GR00T N1.7", "Franka arm + MolmoAct 2"]);
+    expect(testResultOf(proof)).toMatchObject({ top: { label: "AI robot A", maker: null, software: null } });
     const { container } = render(<SimulationTestRows proof={proof} />);
-    expect(container).toHaveTextContent("An unnamed AI control policyFinished 10 of 10 tries · on a robot we could not confirm, not compared");
-    expect(container.textContent).not.toMatch(/Scripted|Current candidate/);
+    expect(container).toHaveTextContent("1. AI robot AFinished 10 of 10 tries");
+    expect(container.textContent).not.toMatch(/Scripted|Current candidate|not compared|could not confirm/);
+  });
+
+  it("counts as testing only the AI robots that were scored, are running or are still going to run", () => {
+    const rows = [
+      { ...preparingEvaluation.screening!.candidates[0], candidateId: "pi05_droid", state: "running" },
+      { ...preparingEvaluation.screening!.candidates[0], candidateId: "groot_n17_droid", state: "pending" },
+      { ...preparingEvaluation.screening!.candidates[0], candidateId: "molmoact2_droid", state: "unavailable" },
+      { ...preparingEvaluation.screening!.candidates[0], candidateId: "cosmos3_edge_policy_droid", state: "infeasible" },
+      { ...preparingEvaluation.screening!.candidates[0], candidateId: "pi0_droid_jointpos_polaris", state: "blocked" },
+    ];
+    const proof = proofOf([{ ...preparingEvaluation, state: "running", screening: { candidates: rows } }]);
+    expect(proof.options.entered).toBe(2);
+    expect(testResultOf(proof)).toEqual({ kind: "testing", entered: 2 });
+    expect(testHeadline(testResultOf(proof))).toBe("Testing now: 2 AI robots on your job.");
   });
 
   it("says the headline a company reads, the same result, in a sentence", () => {

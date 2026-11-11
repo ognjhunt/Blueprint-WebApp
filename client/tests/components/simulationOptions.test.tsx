@@ -68,14 +68,25 @@ describe("the simulation test's options", () => {
       const proof = projectSimulationProof({ evaluation: [evaluation], pick: readyAnswer.pick });
       const { options, winner } = proof.options;
       const label = `run ${index}`;
-      // Only scored learned rows whose robot the closed map confirms; never scripted, reference or unmapped rows.
+      // Every scored learned row is an option (round 5: options are compared across robots, so the robot is needed
+      // only for the name); never a scripted or reference row. A policy the closed map does not name is "AI robot A".
       for (const option of options) {
-        expect(kinds.get(option.id), label).toBe("option");
+        expect(["option", "unmapped"], label).toContain(kinds.get(option.id));
         expect(option.scored, label).toBeGreaterThan(0);
-        expect(option.label, label).toBe(`${SIMULATION_POLICIES[option.id].robot.short} + ${SIMULATION_POLICIES[option.id].policy}`);
+        if (kinds.get(option.id) === "option") expect(option.label, label).toBe(`${SIMULATION_POLICIES[option.id].robot.short} + ${SIMULATION_POLICIES[option.id].policy}`);
+        else expect(option.label, label).toMatch(/^AI robot [A-Z]+$/);
       }
-      const expected = evaluation.screening!.candidates.filter(row => kinds.get(row.candidateId) === "option" && row.scored > 0).length;
-      expect(options.length, label).toBe(expected);
+      const learnedScored = evaluation.screening!.candidates.filter(row => ["option", "unmapped"].includes(kinds.get(row.candidateId)!) && row.scored > 0);
+      expect(options.length, label).toBe(learnedScored.length);
+      // The headline is consistent with every scored learned row in the data: none is better by the order, and
+      // "none finished" only when no scored learned row finished the job.
+      const anyFinished = learnedScored.some(row => row.succeeded > 0);
+      const resultNow = testResultOf(proof);
+      if (resultNow && "top" in resultNow) {
+        const best = (row: { succeeded: number; scored: number }) => (row.succeeded + 1) / (row.scored + 2);
+        if (resultNow.top.succeeded > 0) for (const row of learnedScored.filter(row => row.succeeded > 0)) expect(best(resultNow.top), label).toBeGreaterThanOrEqual(best(row) - 1e-12);
+        expect(resultNow.kind === "none_finished", label).toBe(!anyFinished);
+      }
       // The display order: options that completed the job first, by the mean success rate.
       const firstZero = options.findIndex(option => option.succeeded === 0);
       if (firstZero >= 0) expect(options.slice(firstZero).every(option => option.succeeded === 0), label).toBe(true);

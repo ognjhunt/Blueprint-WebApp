@@ -1227,7 +1227,7 @@ describe("the site's answer leads its job page", () => {
     expect(headline.compareDocumentPosition(answer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     const find = screen.getByRole("button", { name: "Find a company to set it up" });
     expect(find).toHaveClass("bare-quiet-button");
-    expect(screen.getByText(/^Shares a summary of your job and this answer, without saying who you are/)).toBeVisible();
+    expect(screen.getByText(/^Shares a summary of your job and your answer, including later test results, without saying who you are/)).toBeVisible();
   });
 
   it("puts every optional control on its own Job settings screen, and every detail on its own details screen, each with a way back", async () => {
