@@ -796,5 +796,7 @@ export function testNotRunLine(proof: SimulationProof | null | undefined): strin
     return waiting && PLAIN_WAITING[waiting] ? `Simulation test: ${PLAIN_WAITING[waiting]}` : null;
   }
   if (proof.options.options.length) return null;
-  return "The simulation test finished, but no AI robot could be scored in it.";
+  return proof.options.unidentified
+    ? "The simulation test finished, but none of its runs could be identified as an AI robot, so none is counted."
+    : "The simulation test finished, but no AI robot could be scored in it.";
 }

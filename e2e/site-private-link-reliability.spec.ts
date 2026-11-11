@@ -258,12 +258,12 @@ test("the current simulation result leads as proof, open, while every detail and
   await page.goto(`/capture-upload/${token}?video=existing`);
   // An older job with a result and no answer: the proof stands on its own, visible without opening anything.
   const proof = page.getByRole("region", { name: "Tested in simulation" });
-  // Its one scored program is not in the closed map: it is an option all the same (round 5), under a neutral name.
-  await expect(proof.getByText("Simulation test: AI robot A did your job in 2 of 3 tries, the only AI robot tested.", { exact: true })).toBeVisible();
+  // Its one scored row is not in the closed map and carries no learned-policy evidence: it cannot be identified as an
+  // AI robot (a scripted motion is never a contender), so it is never an option and is said in one plain line.
+  await expect(proof.getByText("The simulation test finished, but none of its runs could be identified as an AI robot, so none is counted.", { exact: true })).toBeVisible();
   const result = proof.getByRole("region", { name: "Ranked", exact: true });
-  await expect(result).toContainText("We ran 1 AI robot on your job, about 3 tries each, in a simulation of your site.");
-  await expect(result).toContainText("1. AI robot AFinished 2 of 3 tries");
-  await expect(result).not.toContainText("Arm with suction gripper");
+  await expect(result).toContainText("1 other run could not be identified as an AI robot, so it is not counted.");
+  await expect(result).not.toContainText(/AI robot A|Arm with suction gripper|Finished 2 of 3/);
   await expect(proof.getByRole("region", { name: "Published tests", exact: true })).toBeVisible();
   // The full result is one click away, in the folded details.
   const details = page.locator("summary", { hasText: "Simulation details" });
