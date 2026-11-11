@@ -65,7 +65,7 @@ export type OwnerTaskListingGrant = z.infer<typeof grantSchema>;
  * so consent is recorded one way.
  */
 export async function applyOwnerTaskListing(requestId: string, grant: OwnerTaskListingGrant,
-  options: { consentVersion?: (typeof LISTING_CONSENT_VERSIONS)[number] } = {}): Promise<{ wentLive: string | null }> {
+  options: { consentVersion?: string } = {}): Promise<{ wentLive: string | null }> {
   const consentVersion = options.consentVersion && LISTING_CONSENT_VERSIONS.includes(options.consentVersion)
     ? options.consentVersion : listingConsentVersion;
   const parsed = grantSchema.safeParse(grant);

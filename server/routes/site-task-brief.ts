@@ -1,3 +1,4 @@
+import { JOB_CARD_ANSWER_STATEMENT, JOB_CARD_ANSWER_STATEMENT_VERSION } from "../../client/src/lib/jobCardAnswerConsent";
 import { siteWalkthroughIdentity } from "../utils/siteWalkthrough";
 import { isWebsiteCaptureId } from "../utils/websiteCaptureIdentity";
 import { loadCurrentSiteAdvisory } from "../utils/siteAssessmentPublic";
@@ -311,10 +312,12 @@ router.post("/:token/introduction-request", csrfProtection, async (req, res) => 
       const stored = (await tx.get(ref)).data()?.introduction_request?.requested_at_iso;
       if (typeof stored === "string" && stored) return stored;
       const now = new Date().toISOString();
-      tx.set(ref, { introduction_request: { requested_at_iso: now, requested_by: "signed_owner_link" } }, { merge: true });
+      // The choice is recorded with the exact sentence the page showed under the button.
+      tx.set(ref, { introduction_request: { requested_at_iso: now, requested_by: "signed_owner_link",
+        statement_version: JOB_CARD_ANSWER_STATEMENT_VERSION, statement_text: JOB_CARD_ANSWER_STATEMENT } }, { merge: true });
       return now;
     });
-    // The card goes on under the card's own consent statement version, or stays as it is when already on.
+    // The card goes on under the statement the site just agreed to, or stays as it is when already on.
     let listed = false;
     try {
       const current = (await ref.get()).data()?.public_task_listing;
@@ -324,7 +327,8 @@ router.post("/:token/introduction-request", csrfProtection, async (req, res) => 
           import("./task-listings"), import("../../client/src/types/taskBrowse")]);
         const brief = await getBrief(verified.requestId).catch(() => null);
         const summary = brief && !isPlaceholderSummary(brief.summary) ? brief.summary : "";
-        await applyOwnerTaskListing(verified.requestId, { enabled: true, consent: true, details: anonymizedOpportunityDraft(summary) });
+        await applyOwnerTaskListing(verified.requestId, { enabled: true, consent: true, details: anonymizedOpportunityDraft(summary) },
+          { consentVersion: JOB_CARD_ANSWER_STATEMENT_VERSION });
         listed = true;
       }
     } catch (error) {
