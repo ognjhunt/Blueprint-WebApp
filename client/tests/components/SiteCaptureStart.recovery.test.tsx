@@ -158,6 +158,33 @@ it("RETURN-004: an acknowledged upload recovers without requiring lost File byte
   expect(sent).toHaveLength(2);expect(sent[1].body).toEqual(sent[0].body);expect(sender).toHaveBeenCalledTimes(1);
   sender.mockRestore();
 });
+it("RETURN-004b: an acknowledged job saved under statements the form no longer shows still opens its saved job, never cleared", async () => {
+  fetchMock.mockImplementation(async (url: string, init?: any) => {
+    if (init?.method === "POST") {sent.push({url,body:JSON.parse(init.body)}); return {ok:true,status:200,json:async()=>({captureUrl:"/capture-upload/fixture"})};}
+    return {ok:true,status:200,json:async()=>({state:"pending",captureReceived:false,features:[],workspaceType:"site_operator"})};
+  });
+  const view = await renderAsSiteOwner(); fillSigned(); submit();
+  await screen.findByRole("heading", { name: "Now film the job." });
+  view.unmount();
+  // Accepted while another statement version was shown: the server already has this job.
+  const swap = (body: string) => body.replace('"2026-10-06.v1"', '"2026-11-11.v3"');
+  let swapped = 0;
+  for (const [key, row] of durability.rows) if (row.value?.pending?.acknowledged) { swapped++; durability.rows.set(key, { ...row, value: { ...row.value,
+    pending: { ...row.value.pending, body: swap(row.value.pending.body) } } }); }
+  for (const key of Object.keys(localStorage)) {
+    const stored = JSON.parse(localStorage.getItem(key) ?? "null");
+    if (stored?.pending?.acknowledged) localStorage.setItem(key, JSON.stringify({ ...stored, pending: { ...stored.pending, body: swap(stored.pending.body) } }));
+  }
+  expect(swapped).toBeGreaterThan(0);
+  await renderAsSiteOwner();
+  fireEvent.click(await screen.findByRole("button", { name: "Return to saved job" }));
+  await screen.findByRole("heading", { name: "Now film the job." });
+  expect(screen.queryByText(STATEMENTS_CHANGED)).toBeNull();
+  // The same accepted job, exactly as before: the stored body under its own statements, never a new one.
+  expect(sent).toHaveLength(2);
+  expect(sent[1].body.descriptionAuthority.statementVersion).toBe("2026-11-11.v3");
+  expect(sent[1].body.requestId).toBe(sent[0].body.requestId);
+});
 it("ACCESS-004: late intake acceptance after account switch cannot start original video upload", async () => {
   const upload=await import("@/lib/selfCaptureVideo"); const sender=vi.spyOn(upload,"uploadSelfCaptureVideo");
   let accept!: (value:any)=>void;

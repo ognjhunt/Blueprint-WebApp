@@ -486,6 +486,21 @@ describe("each check takes its outcome from the best source for its own quantity
       text: "Reach: sized in the scene rebuilt from your video: both spots are within this robot's published reach. Its arm path was not checked. It reaches 1.3 m." });
   });
 
+  // A reach the scene measured as a pass has no headroom figure; it counts as a comfortable margin, as it did before the
+  // height check existed (bdd5bdc66), so it is not ranked below an arm that is only comfortable on paper.
+  it("ranks a fixed arm whose reach passed in the scene as it did before, against an arm comfortable on paper", () => {
+    const sheet = (value: number, unit = "m") => ({ value, unit, source_url: "https://example.com/sheet.pdf", quote: `Figure ${value} ${unit}`, conversion: null });
+    const roomy = { model_id: "roomy_paper_arm", recipe_id: null, manufacturer: "Maker Roomy", name: "ROOMY", body_type: "fixed_arm", mounting: [],
+      figures: { max_reach_m: sheet(3), rated_payload_kg: sheet(50, "kg"), max_hand_height_m: null, min_hand_height_m: null },
+      unknown_figures: {} } as unknown as ReturnType<typeof robotSpecCatalog>["models"][number];
+    const ur10e = robotSpecCatalog().models.find((model) => model.model_id === "universal_robots_ur10e")!;
+    const answer = composeSiteAnswer({ ...inputs({ estimates: estimates({ pick_to_place_m: 2.0 }), robotFit: scene({ ...UR10E, verdict: "fits_spec" }) }),
+      catalog: { ...robotSpecCatalog(), models: [roomy, ur10e] } })!;
+    expect(answer.pick!.modelId).toBe("universal_robots_ur10e");
+    expect(answer.runnerUp!.modelId).toBe("roomy_paper_arm");
+    expect(answer.pick!.checks.find((check) => check.key === "reach")).toMatchObject({ basis: "scene_measured", outcome: "pass" });
+  });
+
   it("takes reach from a scene 'doesnt_fit' as a fail only when the payload passes", () => {
     const answer = composeSiteAnswer({ ...inputs({ robotFit: scene({ ...UR10E, verdict: "doesnt_fit", openChecks: ["reach"] }) }),
       catalog: only("universal_robots_ur10e") })!;

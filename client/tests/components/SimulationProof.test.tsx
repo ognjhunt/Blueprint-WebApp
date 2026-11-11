@@ -30,9 +30,11 @@ describe("what the simulation test found", () => {
     expect(proofOf([lone]).options.winner).toBeNull();
   });
 
-  it("never makes an option of a scripted row; a policy our list does not name is an option with a neutral name", () => {
+  it("never makes an option of a scripted row; a learned policy our list does not name is an option with a neutral name", () => {
     const rows = [...winnerEvaluation.screening!.candidates,
-      { ...winnerEvaluation.screening!.candidates[0], candidateId: "unmapped-policy", name: "Current candidate", succeeded: 10, scored: 10, failed: 0 },
+      { ...winnerEvaluation.screening!.candidates[0], candidateId: "unmapped-policy", name: "Current candidate", succeeded: 10, scored: 10, failed: 0,
+        executionEvidence: { execution_evidence_kind: "learned_policy" as const, action_source: "learned_policy", scripted_rollout_count: 0,
+          learned_policy_rollout_count: 10, scripted_controller_invoked: false, candidate_policy_queried: true } },
       { ...winnerEvaluation.screening!.candidates[0], candidateId: "scripted-arm", name: "Scripted arm", succeeded: 10, scored: 10, failed: 0,
         executionEvidence: { execution_evidence_kind: "scripted_simulator_state_baseline" as const, action_source: "scripted_simulator_state",
           scripted_rollout_count: 10, learned_policy_rollout_count: 0, scripted_controller_invoked: true, candidate_policy_queried: false } }];
@@ -43,6 +45,24 @@ describe("what the simulation test found", () => {
     const { container } = render(<SimulationTestRows proof={proof} />);
     expect(container).toHaveTextContent("1. AI robot AFinished 10 of 10 tries");
     expect(container.textContent).not.toMatch(/Scripted|Current candidate|not compared|could not confirm/);
+  });
+
+  it("never makes an option of a row it cannot identify as an AI policy, even one that did the job every time", () => {
+    const base = winnerEvaluation.screening!.candidates[0];
+    const rows = [{ ...base, candidateId: "pi05_droid", succeeded: 3, scored: 10, failed: 7 },
+      // An older publication's scripted baseline: no execution kind, no reference mark, not in our list.
+      { ...base, candidateId: "pick_baseline_v1", name: "Scripted pick", succeeded: 10, scored: 10, failed: 0 },
+      // A scripted-baseline id, even with learned-policy evidence.
+      { ...base, candidateId: "scripted_pick", name: "Scripted", succeeded: 10, scored: 10, failed: 0,
+        executionEvidence: { execution_evidence_kind: "learned_policy" as const, action_source: "learned_policy", scripted_rollout_count: 0,
+          learned_policy_rollout_count: 10, scripted_controller_invoked: false, candidate_policy_queried: true } }];
+    const proof = proofOf([{ ...winnerEvaluation, screening: { candidates: rows } }]);
+    expect(proof.options.options.map(option => option.label)).toEqual(["Franka arm + π0.5"]);
+    expect(proof.options.unidentified).toBe(1);
+    expect(testResultOf(proof)).toMatchObject({ kind: "one_option", top: { label: "Franka arm + π0.5" } });
+    const { container } = render(<SimulationTestRows proof={proof} />);
+    expect(container).toHaveTextContent("1 other run could not be identified as an AI robot, so it is not counted.");
+    expect(container.textContent).not.toMatch(/AI robot A|Scripted|Did best/);
   });
 
   it("counts as testing only the AI robots that were scored, are running or are still going to run", () => {

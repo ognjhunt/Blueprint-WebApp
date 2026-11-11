@@ -414,9 +414,11 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
 
   async function submit(event?: React.FormEvent<HTMLFormElement>) {
     event?.preventDefault();
-    // A saved submission is resent byte for byte only under the statements the form shows now. One recorded under
-    // other statements is not sent: the person reads the current ones and presses the button again.
-    if (recovery.current.pending && !pendingStatementsCurrent(recovery.current.pending.body)) {
+    // A saved submission the server has not acknowledged is resent byte for byte only under the statements the form
+    // shows now. One recorded under other statements is not sent: the person reads the current ones and presses again.
+    // A submission the server already acknowledged was accepted under the statements shown then: it goes to its saved
+    // job exactly as before, never cleared or resent under this rule.
+    if (recovery.current.pending && !recovery.current.pending.acknowledged && !pendingStatementsCurrent(recovery.current.pending.body)) {
       const stale = recovery.current.pending.body;
       await retain({ ...recovery.current, pending: null }, stale);
       setPending(null);

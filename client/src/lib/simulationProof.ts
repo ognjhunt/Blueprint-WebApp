@@ -158,6 +158,8 @@ export interface SimulationOption {
 export interface SimulationOptions {
   /** In the display order (`optionsOf`). Row 1 is the one the answer leads with. */
   options: SimulationOption[];
+  /** Scored runs that could not be identified as an AI policy (not in our list, no learned-policy evidence): not counted. */
+  unidentified: number;
   /** "did_best" or "was_ahead" from the probability rule only; null when there is no winner. */
   winner: "did_best" | "was_ahead" | null;
   /**
@@ -378,6 +380,14 @@ export function currentEvaluation(evaluation: SimulationProofInput["evaluation"]
 
 type Candidate = NonNullable<JobManagedEvidenceSummary["screening"]>["candidates"][number];
 const scripted = (row: Candidate) => row.executionEvidence?.execution_evidence_kind === "scripted_simulator_state_baseline";
+/** A candidate id that names a scripted baseline, whatever its evidence says. */
+const SCRIPTED_ID = /^scripted[_-]/i;
+/**
+ * A row we positively know is a learned AI policy: our closed list names it, or its execution evidence says a learned
+ * policy ran. A scripted motion is never a contender (owner, 2026-11-11), so absence of evidence is never enough.
+ */
+const knownLearned = (row: Candidate) => !SCRIPTED_ID.test(String(row.candidateId ?? ""))
+  && (isListed(row) || row.executionEvidence?.execution_evidence_kind === "learned_policy");
 
 function stateOf(evaluation: JobManagedEvidenceSummary | null): SimulationProofState {
   if (!evaluation) return "not_started";
@@ -605,8 +615,12 @@ export function optionsOf(evaluation: JobManagedEvidenceSummary | null): Simulat
   const screening = evaluation?.screening;
   const all = (Array.isArray(screening?.candidates) ? screening!.candidates : []).filter(isRecord) as Candidate[];
   const references = referenceIds(screening);
-  const learned = all.filter(row => !scripted(row) && !references.has(String(row.candidateId ?? "")));
+  const learned = all.filter(row => !scripted(row) && !references.has(String(row.candidateId ?? "")) && knownLearned(row));
   const scored = learned.filter(row => count(row.scored) > 0);
+  // Scored rows that are not marked scripted or reference but cannot be identified as an AI policy: never options,
+  // never counted, said only as one line on the test screen.
+  const unidentified = all.filter(row => count(row.scored) > 0 && !scripted(row) && !SCRIPTED_ID.test(String(row.candidateId ?? ""))
+    && !references.has(String(row.candidateId ?? "")) && !knownLearned(row)).length;
   const options: SimulationOption[] = [];
   // Every scored learned row is an option: options are compared across robots, so the robot is needed only for the
   // name. A policy our closed list does not name is "AI robot A", "AI robot B" (never a stored name), in id order.
@@ -638,7 +652,7 @@ export function optionsOf(evaluation: JobManagedEvidenceSummary | null): Simulat
   const tries = options.map(entry => entry.scored).sort((a, b) => a - b);
   const notes = [...new Set((Array.isArray(screening?.setupNotes) ? screening!.setupNotes : []).filter((note): note is string => typeof note === "string" && Boolean(note.trim())))];
   return {
-    options, winner, entered: learned.filter(row => count(row.scored) > 0 || STILL_TO_RUN.has(String(row.state ?? ""))).length,
+    options, unidentified, winner, entered: learned.filter(row => count(row.scored) > 0 || STILL_TO_RUN.has(String(row.state ?? ""))).length,
     triesEach: tries.length ? tries[Math.floor((tries.length - 1) / 2)] : null,
     didNotRun: learned.filter(plannedButNotRun).length,
     setupFlag: evaluation?.outcomeCaveat === "scene_setup" || notes.includes(SCENE_SETUP_CAVEAT),

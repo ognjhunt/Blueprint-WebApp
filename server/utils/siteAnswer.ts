@@ -545,9 +545,9 @@ function rateModel(model: SpecModel, job: Job, catalog: RobotSpecCatalog, robotF
     : checks.every((entry) => entry.outcome === "pass") ? (sceneFits ? "fits" : "fits_on_paper") : "possible";
   const headroom = Math.max(-1, Math.min(HEADROOM_CAP, reach.headroom ?? 0, payload.headroom ?? 0));
   const margins = [[reach.check, reach.headroom], [payload.check, payload.headroom]] as const;
-  // An unknown margin is not a comfortable margin: a check with no headroom figure (a moving robot's height, a reach
-  // decided in the scene, an unknown) never counts as comfortable.
-  const comfortable = margins.every(([, room]) => room !== null && room >= COMFORTABLE_HEADROOM);
+  // A height check (a robot that moves) never counts as a comfortable margin: a hand-height range has no margin figure.
+  // Every other check counts as before: no headroom figure (a reach the scene passed, an unknown) is not held against it.
+  const comfortable = margins.every(([check, room]) => check.measure !== "height" && (room === null || room >= COMFORTABLE_HEADROOM));
   const tight = new Set(margins.filter(([check, room]) => check.outcome === "pass" && room !== null && room < COMFORTABLE_HEADROOM)
     .map(([check]) => check.key));
   return {
@@ -574,7 +574,9 @@ function formRank(body: BodyType, job: Job): number {
 
 function compareRated(job: Job) {
   return (a: Rated, b: Rated) => VERDICT_RANK[b.verdict] - VERDICT_RANK[a.verdict]
-    // Physical margin predicts a working job better than a document does: a comfortable fit first.
+    // Physical margin predicts a working job better than a document does: a comfortable fit first. Track record is
+    // ranked before body type by design, so a moving robot with a stronger cited track record can be named ahead of a
+    // fixed arm even on a short carry.
     || Number(b.comfortable) - Number(a.comfortable)
     || evidenceRank(b) - evidenceRank(a)
     || scopeRank(a) - scopeRank(b)

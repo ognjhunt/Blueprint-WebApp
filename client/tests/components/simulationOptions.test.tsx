@@ -15,6 +15,8 @@ vi.mock("@/lib/csrf", () => ({ withCsrfHeader: async (headers: Record<string, st
 type Candidate = NonNullable<JobManagedEvidenceSummary["screening"]>["candidates"][number];
 const MAPPED = Object.keys(SIMULATION_POLICIES);
 const LADDER = ["approached", "contact", "moved", "lifted", "translated", "placed", "released_and_settled"] as const;
+const LEARNED: Candidate["executionEvidence"] = { execution_evidence_kind: "learned_policy", action_source: "learned_policy",
+  scripted_rollout_count: 0, learned_policy_rollout_count: 10, scripted_controller_invoked: false, candidate_policy_queried: true };
 const SCRIPTED: Candidate["executionEvidence"] = { execution_evidence_kind: "scripted_simulator_state_baseline", action_source: "scripted_simulator_state",
   scripted_rollout_count: 10, learned_policy_rollout_count: 0, scripted_controller_invoked: true, candidate_policy_queried: false };
 
@@ -38,7 +40,9 @@ function generated(random: () => number, index: number): { evaluation: JobManage
   if (random() < 0.15) ids.push(`unmapped_${index}_b`);
   if (random() < 0.3) ids.push(`scripted_${index}`);
   for (const id of ids) {
-    const kind = id.startsWith("scripted") ? "scripted" : random() < 0.1 ? "reference" : id.startsWith("unmapped") ? "unmapped" : "option";
+    // An unmapped row is an option only with learned-policy evidence; without it ("unknown") it never is.
+    const kind = id.startsWith("scripted") ? "scripted" : random() < 0.1 ? "reference"
+      : id.startsWith("unmapped") ? (random() < 0.5 ? "unmapped" : "unknown") : "option";
     kinds.set(id, kind);
     const scored = random() < 0.15 ? 0 : int(1, 12);
     const succeeded = random() < 0.4 ? 0 : int(0, scored);
@@ -50,7 +54,9 @@ function generated(random: () => number, index: number): { evaluation: JobManage
       closestApproachM: { median: Number((random() * 0.3).toFixed(4)), min: 0 } } : undefined;
     rows.push({ candidateId: id, name: `stored name ${id}`, state: scored > 0 ? "completed" : "deferred", planned: 10, scored, succeeded,
       failed: scored - succeeded, void: 0, blockers: [], ...(progress ? { progress: progress as never } : {}),
-      ...(kind === "scripted" ? { executionEvidence: SCRIPTED } : {}) } as Candidate);
+      // Scripted rows sometimes carry no execution kind at all (an older publication): the id still marks them.
+      ...(kind === "scripted" && random() < 0.5 ? { executionEvidence: SCRIPTED } : {}),
+      ...(kind === "unmapped" ? { executionEvidence: LEARNED } : {}) } as Candidate);
     if (kind === "reference") references.push(id);
   }
   return { kinds, evaluation: { runId: `run-${index}`, state: "completed", current: true, resultDigest: null, outcome: "estimate", summary: "",
@@ -68,8 +74,8 @@ describe("the simulation test's options", () => {
       const proof = projectSimulationProof({ evaluation: [evaluation], pick: readyAnswer.pick });
       const { options, winner } = proof.options;
       const label = `run ${index}`;
-      // Every scored learned row is an option (round 5: options are compared across robots, so the robot is needed
-      // only for the name); never a scripted or reference row. A policy the closed map does not name is "AI robot A".
+      // Every scored row positively identified as a learned AI policy is an option (in the closed map, or with
+      // learned-policy evidence); never a scripted, reference or unidentified row, whatever it scored.
       for (const option of options) {
         expect(["option", "unmapped"], label).toContain(kinds.get(option.id));
         expect(option.scored, label).toBeGreaterThan(0);
@@ -78,6 +84,7 @@ describe("the simulation test's options", () => {
       }
       const learnedScored = evaluation.screening!.candidates.filter(row => ["option", "unmapped"].includes(kinds.get(row.candidateId)!) && row.scored > 0);
       expect(options.length, label).toBe(learnedScored.length);
+      expect(proof.options.unidentified, label).toBe(evaluation.screening!.candidates.filter(row => kinds.get(row.candidateId) === "unknown" && row.scored > 0).length);
       // The headline is consistent with every scored learned row in the data: none is better by the order, and
       // "none finished" only when no scored learned row finished the job.
       const anyFinished = learnedScored.some(row => row.succeeded > 0);

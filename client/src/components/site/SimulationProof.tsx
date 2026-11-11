@@ -45,6 +45,7 @@ export function SimulationTestRows({ proof }: { proof: SimulationProofView }) {
         {option.succeeded === 0 && option.furthestDetail && <span className="bare-helper"> · {option.furthestDetail}</span>}
         {index === 0 && winner && <strong> · {winner === "did_best" ? "Did best" : "Ahead"}</strong>}</> })),
     ...(winner ? [{ key: "gap", value: winner === "did_best" ? GAP_UNLIKELY_CHANCE : GAP_COULD_BE_CHANCE }] : []),
+    ...(proof.options.unidentified > 0 ? [{ key: "unidentified", value: `${proof.options.unidentified} other ${proof.options.unidentified === 1 ? "run" : "runs"} could not be identified as an AI robot, so ${proof.options.unidentified === 1 ? "it is" : "they are"} not counted.` }] : []),
     ...(didNotRun > 0 ? [{ key: "did-not-run", value: `${didNotRun} more AI ${didNotRun === 1 ? "robot was" : "robots were"} planned but did not run. Job settings › Simulation details says why.` }] : []),
   ]}>
     {setupNotes.map(note => <p key={note} className="bare-notice">{note === SCENE_SETUP_CAVEAT ? PLAIN_SETUP_CAVEAT : note}</p>)}
