@@ -136,6 +136,8 @@ export interface SiteAnswer {
   note: string;
   checked: { models: number; makers: number; specsRetrievedOn: string };
   introductionRequestedAtIso: string | null;
+  /** Whether the job card is visible to approved deployment companies, as stored. */
+  jobCardListed: boolean;
   /** sha256 of the inputs the answer was composed from. */
   basisDigest: string;
 }

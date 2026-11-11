@@ -395,6 +395,13 @@ describe("composeSiteAnswer", () => {
       .introductionRequestedAtIso).toBe(NOW);
   });
 
+  it("says whether the job card is on, as stored, and never assumes it", () => {
+    expect(compose().jobCardListed).toBe(false);
+    expect(compose({ request: { public_task_listing: { enabled: false } } }).jobCardListed).toBe(false);
+    expect(compose({ request: { public_task_listing: { enabled: "yes" } } }).jobCardListed).toBe(false);
+    expect(compose({ request: { public_task_listing: { enabled: true } } }).jobCardListed).toBe(true);
+  });
+
   it("checks a stated cycle time against the robot's published top speed", () => {
     const answer = compose({ brief: { requestId: "job-1", summary: "Move cartons to the shelf",
       successCriteria: { successDefinition: null, successRate: null, cycleTimeSeconds: 60, unknown: false } } });

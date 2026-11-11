@@ -12,6 +12,7 @@ const base = {
   note: SITE_ANSWER_NOTE,
   checked: { models: 22, makers: 13, specsRetrievedOn: "2026-11-11" },
   introductionRequestedAtIso: null,
+  jobCardListed: false,
   basisDigest: DIGEST,
 } as const;
 

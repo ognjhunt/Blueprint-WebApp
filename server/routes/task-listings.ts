@@ -63,9 +63,16 @@ export type OwnerTaskListingGrant = z.infer<typeof grantSchema>;
  * statement version, and what follows it going live. "Manage opportunity
  * sharing" and the job page's "Find a deployment company" both record it here,
  * so consent is recorded one way.
+ *
+ * `alertTeams` (default true) decides whether approved robot teams are emailed
+ * when the card goes live. With `alertTeams: false` the card is listed in the
+ * job library only: no `newJobAlertFanout` intent is written and no team alert
+ * is queued, so no outside company is emailed. The site's own `listing_live`
+ * notice and the open-for-evaluations notice still go to the site.
  */
 export async function applyOwnerTaskListing(requestId: string, grant: OwnerTaskListingGrant,
-  options: { consentVersion?: string } = {}): Promise<{ wentLive: string | null }> {
+  options: { consentVersion?: string; alertTeams?: boolean } = {}): Promise<{ wentLive: string | null }> {
+  const alertTeams = options.alertTeams !== false;
   const consentVersion = options.consentVersion && LISTING_CONSENT_VERSIONS.includes(options.consentVersion)
     ? options.consentVersion : listingConsentVersion;
   const parsed = grantSchema.safeParse(grant);
@@ -91,7 +98,8 @@ export async function applyOwnerTaskListing(requestId: string, grant: OwnerTaskL
     const previousDigest = current.data()?.public_task_listing?.thumbnailDigest ?? null;
     wentLive = parsed.data.enabled && current.data()?.public_task_listing?.enabled !== true ? new Date().toISOString() : null;
     transaction.update(ref, {
-      ...(wentLive ? { newJobAlertFanout: newJobFanoutIntent(wentLive) } : {}),
+      // The team fan-out intent is written only when teams are to be alerted; its resume sweep reads nothing else.
+      ...(wentLive && alertTeams ? { newJobAlertFanout: newJobFanoutIntent(wentLive) } : {}),
       public_task_listing: {
       wentLiveIso: wentLive ?? current.data()?.public_task_listing?.wentLiveIso ?? null,
       enabled: parsed.data.enabled, details: parsed.data.details,
@@ -108,8 +116,9 @@ export async function applyOwnerTaskListing(requestId: string, grant: OwnerTaskL
   if (wentLive) {
     await enqueueTaskLifecycleNotification({ requestId, milestone: "listing_live", eventId: wentLive })
       .catch(() => undefined);
-    // Approved robot teams hear about it too, so a recommendation never waits on a person.
-    await enqueueNewTaskAlerts({ requestId, card: parsed.data.details, wentLiveIso: wentLive })
+    // Approved robot teams are emailed only when the caller asks for it ("Manage opportunity sharing"
+    // does); "Find a deployment company" lists the card without emailing any outside company.
+    if (alertTeams) await enqueueNewTaskAlerts({ requestId, card: parsed.data.details, wentLiveIso: wentLive })
       .catch(() => undefined);
     // Publishing can be what opens a runnable job to evaluations.
     try { await notifyIfOpenForEvaluations(requestId); } catch { /* best-effort */ }

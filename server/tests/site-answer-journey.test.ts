@@ -334,7 +334,7 @@ describe("a site's answer, from an email and a video to a deployment company", (
       approvedAtIso: NOW.toISOString() });
     expect((await listTaskBrowseCards()).map(card => card.id)).toEqual([jobId]);
     expect(introductionAlerts()).toHaveLength(1);
-    expect((await status(token)).answer.introductionRequestedAtIso).toBe(NOW.toISOString());
+    expect((await status(token)).answer).toMatchObject({ introductionRequestedAtIso: NOW.toISOString(), jobCardListed: true });
     vi.setSystemTime(new Date(NOW.getTime() + 60_000));
     const again = await post(`/api/site-task-brief/${token}/introduction-request`, {});
     expect(await again.json()).toEqual({ ok: true, requestedAtIso: NOW.toISOString(), listed: true });

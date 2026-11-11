@@ -71,7 +71,7 @@ export default function Contact() {
     <>
       <SEO
         title="Submit a job | Blueprint"
-          description="Send a video of one recurring job at your site. Blueprint drafts the job description, checks real robots against it by their published specifications and tests control policies on it in a simulation of your site. No budget is required to start."
+          description="Send a video of one recurring job. Blueprint drafts the job description, checks real robots against it by their published specifications and tests control policies on it in a simulation of your site. No budget is required to start."
           canonical="/contact/site-operator"
       />
       <section className={`ms-inquiry ms-container${savedJob ? " ms-intake-saved" : ""}`}>

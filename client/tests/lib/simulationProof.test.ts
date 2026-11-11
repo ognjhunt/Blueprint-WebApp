@@ -185,6 +185,23 @@ describe("projectSimulationProof", () => {
     expect(proof.policyComparison!.didNotRunLine).toBeNull();
   });
 
+  it("never ranks or names a development-only reference the winner, even when it succeeded", () => {
+    const run = evaluation({}, [
+      candidate("pi05_droid", "π0.5 DROID", 10, 0),
+      candidate("groot_n17_droid", "GR00T N1.7 DROID", 10, 0),
+      candidate("dev_reference_policy", "Development reference policy", 10, 9),
+    ]);
+    run.screening!.selection = { status: "no_successful_candidate", selectionDigest: `sha256:${"f".repeat(64)}`, chosen: null, tiedWith: [],
+      candidates: [{ candidateId: "pi05_droid", resultRank: 1, choiceBlocker: null }, { candidateId: "groot_n17_droid", resultRank: 2, choiceBlocker: null },
+        { candidateId: "dev_reference_policy", resultRank: null, choiceBlocker: "development_only_reference" }] };
+    const comparison = projectSimulationProof({ evaluation: run, pick: ur10e }).policyComparison!;
+    expect(comparison.line).toBe(NO_POLICY_COMPLETED);
+    expect(comparison.winner).toBeNull();
+    expect(comparison.separated).toBe(false);
+    expect(comparison.rows.map(row => [row.policy, row.succeeded, row.scored])).toEqual([["π0.5", 0, 10], ["GR00T N1.7", 0, 10]]);
+    expect(comparison.rows.some(row => row.succeeded > 0)).toBe(false);
+  });
+
   it("reads the pick's verdict from the measured scene", () => {
     const fit = (verdict: "fits" | "fits_spec" | "doesnt_fit" | "unknown") => projectSimulationProof({ evaluation: null, pick: ur10e,
       robotFit: { models: [{ name: "UR10e", manufacturer: "Universal Robots", verdict, openChecks: [] }] } }).robotCheck;

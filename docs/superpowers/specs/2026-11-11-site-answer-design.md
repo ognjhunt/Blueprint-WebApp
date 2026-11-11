@@ -97,7 +97,9 @@ Pipeline repo.
 "Find a deployment company for this job" is the site's explicit choice to share.
 `POST /api/site-task-brief/:token/introduction-request` records the request,
 turns the job card on through the existing listing function with its consent
-statement, and rings the owner once. It contacts no outside company. At intake,
+statement, and rings the owner once. It contacts no outside company. Approved
+companies see the card in the job library; no alert email is sent to them from
+this button; Blueprint's owner is rung once and decides. At intake,
 sharing is an unticked box.
 
 ## Emails

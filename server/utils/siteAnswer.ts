@@ -505,6 +505,11 @@ function introductionAt(request: Record<string, any>): string | null {
   return text(intro?.requested_at_iso);
 }
 
+/** Whether the job card is on, as stored: what the confirmation under an asked introduction says. */
+function jobCardListed(request: Record<string, any>): boolean {
+  return isRecord(request.public_task_listing) && request.public_task_listing.enabled === true;
+}
+
 function coverageDone(request: Record<string, any>, inputs: RobotFitInputs): boolean {
   return Boolean(request.capture_coverage) || Boolean(videoEvidence(inputs)?.estimates);
 }
@@ -552,6 +557,7 @@ export function composeSiteAnswer(inputs: SiteAnswerInputs): SiteAnswer | null {
     note: SITE_ANSWER_NOTE,
     checked: { models: catalog.models.length, makers: makers.size, specsRetrievedOn: catalog.retrieved_on },
     introductionRequestedAtIso: introductionAt(request),
+    jobCardListed: jobCardListed(request),
   };
   const basis = {
     facts: known.map(({ key, display, source, min, max }) => ({ key, display, source, min, max })),

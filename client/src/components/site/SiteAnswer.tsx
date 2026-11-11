@@ -102,10 +102,10 @@ function JobLine({ job }: { job: SiteAnswerView["job"] }) {
 function Introduction({ token, answer, onRequested }: { token: string; answer: SiteAnswerView; onRequested?: () => void }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [requestedAt, setRequestedAt] = useState<string | null>(null);
-  // Only a response that says the card is not listed changes the confirmation; a stored request reads as listed.
-  const [listed, setListed] = useState(true);
-  const asked = requestedAt ?? answer.introductionRequestedAtIso;
+  // What this page's own request was answered with; until then, the stored request and the stored card.
+  const [requested, setRequested] = useState<{ at: string; listed: boolean } | null>(null);
+  const asked = requested?.at ?? answer.introductionRequestedAtIso;
+  const listed = requested ? requested.listed : answer.jobCardListed === true;
   async function ask() {
     if (busy) return;
     setBusy(true); setError("");
@@ -118,8 +118,8 @@ function Introduction({ token, answer, onRequested }: { token: string; answer: S
       // A 409 says why in the server's words (for example, the wording on the page changed); the button stays.
       if (response.status === 409 && typeof result?.error === "string") { setError(result.error); return; }
       if (!response.ok || result?.ok !== true) throw new Error(INTRODUCTION_FAILED);
-      setListed(result.listed !== false);
-      setRequestedAt(typeof result.requestedAtIso === "string" ? result.requestedAtIso : new Date().toISOString());
+      setRequested({ at: typeof result.requestedAtIso === "string" ? result.requestedAtIso : new Date().toISOString(),
+        listed: result.listed === true });
       onRequested?.();
     } catch { setError(INTRODUCTION_FAILED); }
     finally { setBusy(false); }

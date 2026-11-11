@@ -170,4 +170,36 @@ describe("POST /:token/introduction-request", () => {
     expect(row("inboundRequests/req-1").public_task_listing).toBeUndefined();
     expect(sendSlackMessage).toHaveBeenCalledTimes(1);
   });
+
+  it("lists the card in the job library without alerting any deployment company, and tells Blueprint so", async () => {
+    const { buildUpdatePreferences } = await import("../utils/updatePreferences");
+    const { accessRecordId } = await import("../utils/robotTeamEarlyAccess");
+    const { resumeNewJobFanout } = await import("../utils/newJobAlerts");
+    // An approved team that has opted in to new-job alerts, which "Manage opportunity sharing" would email.
+    sharedFakeFirestoreState.docs.set(`robotTeamAccess/${accessRecordId("team@example.com")}`, { name: "Ada", email: "team@example.com",
+      status: "approved", decidedAtIso: "2026-11-01T00:00:00.000Z", decidedBy: "fixture-ops", appliedAtIso: "2026-11-01T00:00:00.000Z",
+      newJobAlertsOptIn: true, updatedAtIso: "2026-11-01T00:00:00.000Z", updatePreferences: buildUpdatePreferences({ newsletter: false,
+        newJobAlerts: true, interests: {}, declaredCategories: {}, requirements: {} }, "settings") });
+    expect((await ask()).body).toMatchObject({ ok: true, listed: true });
+    const stored = row("inboundRequests/req-1");
+    expect(stored.public_task_listing).toMatchObject({ enabled: true, wentLiveIso: expect.any(String) });
+    expect(stored).not.toHaveProperty("newJobAlertFanout");
+    await resumeNewJobFanout();
+    const outbox = [...sharedFakeFirestoreState.docs].filter(([key]) => key.startsWith("captureOutbox/"));
+    expect(outbox.filter(([, entry]) => (entry as { kind?: string }).kind === "robot_team_new_task")).toEqual([]);
+    expect(enqueueOutbox.mock.calls.map(call => (call as unknown as [{ kind: string }])[0].kind)).not.toContain("robot_team_new_task");
+    // Blueprint's owner is rung once, told that no company was emailed and that alerting them is theirs to decide.
+    expect(sendSlackMessage).toHaveBeenCalledTimes(1);
+    expect((sendSlackMessage.mock.calls[0] as unknown as [string])[0])
+      .toContain("No deployment company has been emailed; whether to alert them is your decision.");
+  });
+
+  it("the ordinary listing grant still records the team alert intent when the card goes live", async () => {
+    const { applyOwnerTaskListing } = await import("../routes/task-listings");
+    const { anonymizedOpportunityDraft } = await import("../../client/src/types/taskBrowse");
+    const { wentLive } = await applyOwnerTaskListing("req-1", { enabled: true, consent: true,
+      details: anonymizedOpportunityDraft("Move cartons from the conveyor to the pallet") });
+    expect(wentLive).toEqual(expect.any(String));
+    expect(row("inboundRequests/req-1").newJobAlertFanout).toMatchObject({ eventId: wentLive, status: "pending" });
+  });
 });

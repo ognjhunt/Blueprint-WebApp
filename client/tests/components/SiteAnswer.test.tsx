@@ -158,8 +158,25 @@ describe("the site's answer", () => {
   });
 
   it("shows a stored request instead of the button", () => {
-    render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, introductionRequestedAtIso: "2026-11-10T09:00:00.000Z" }} />);
+    render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, introductionRequestedAtIso: "2026-11-10T09:00:00.000Z", jobCardListed: true }} />);
     expect(screen.getByRole("status")).toHaveTextContent("You asked on November 10, 2026. Your job card is now visible to approved deployment companies. When one responds, Blueprint will introduce you by email.");
     expect(screen.queryByRole("button")).toBeNull();
+  });
+
+  it("does not say the card is visible for a stored request whose card is not on", () => {
+    render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, introductionRequestedAtIso: "2026-11-10T09:00:00.000Z", jobCardListed: false }} />);
+    expect(screen.getByRole("status")).toHaveTextContent("You asked on November 10, 2026. Blueprint will set up your job card and email you.");
+    expect(screen.queryByText(/now visible/)).toBeNull();
+  });
+
+  it("keeps the not-listed confirmation when the page remounts it from the stored request", async () => {
+    fetchMock.mockResolvedValue(response({ ok: true, requestedAtIso: "2026-11-11T15:00:00.000Z", listed: false }));
+    const { unmount } = render(<SiteAnswer token="owner-token" answer={readyAnswer} />);
+    fireEvent.click(screen.getByRole("button", { name: FIND }));
+    expect(await screen.findByRole("status")).toHaveTextContent("Blueprint will set up your job card and email you.");
+    unmount();
+    render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, introductionRequestedAtIso: "2026-11-11T15:00:00.000Z", jobCardListed: false }} />);
+    expect(screen.getByRole("status")).toHaveTextContent("You asked on November 11, 2026. Blueprint will set up your job card and email you.");
+    expect(screen.queryByText(/now visible/)).toBeNull();
   });
 });

@@ -160,12 +160,19 @@ function simulatedRobot(rows: Array<{ robot: SimulatedRobot | null }>): Simulate
   return [...tally.values()].sort((a, b) => b.n - a.n)[0]?.robot ?? null;
 }
 
+/** Selection blockers that mark a reference row: shown, never ranked or chosen. */
+const REFERENCE_BLOCKERS: ReadonlySet<string> = new Set(["development_only_reference", "scripted_baseline_reference_only"]);
+
 function comparisonOf(evaluation: JobManagedEvidenceSummary, state: SimulationProofState, pick: AnswerRobot | null,
   couldNotRun: string | null): SimulationProof["policyComparison"] {
   const screening = evaluation.screening;
   const all = (Array.isArray(screening?.candidates) ? screening!.candidates : []).filter(isRecord) as Candidate[];
-  // Scripted reference rows and the known-good control are checks, not policies.
-  const policies = all.filter(row => !scripted(row));
+  // Scripted reference rows and the known-good control are checks, not policies. Rows the selection marks
+  // as references (development-only or scripted-baseline) are shown elsewhere but never ranked or named the winner.
+  const references = new Set((Array.isArray(screening?.selection?.candidates) ? screening!.selection!.candidates : [])
+    .filter(entry => isRecord(entry) && REFERENCE_BLOCKERS.has(String(entry.choiceBlocker)))
+    .map(entry => String(entry.candidateId)));
+  const policies = all.filter(row => !scripted(row) && !references.has(String(row.candidateId ?? "")));
   if (!policies.length || (state !== "done" && state !== "could_not_run")) return null;
   const scored = policies.filter(row => count(row.scored) > 0).map(row => ({ row, ...simulationPolicyFor(String(row.candidateId ?? ""), String(row.name ?? "")),
     succeeded: Math.min(count(row.succeeded), count(row.scored)), scored: count(row.scored) }));

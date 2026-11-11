@@ -60,13 +60,18 @@ function answerLine(value: string | null | undefined): string {
   return String(value ?? "").replace(/[\r\n`*_~<>]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 200) || "none";
 }
 
-export function introductionRequestAlertText(params: { requestId: string; headline: string | null; pick: string | null }): string {
+export type IntroductionRequestAlert = { requestId: string; headline: string | null; pick: string | null;
+  familyLabel?: string | null; runnerUp?: string | null };
+
+export function introductionRequestAlertText(params: IntroductionRequestAlert): string {
   return `:handshake: *A site asked Blueprint to find a deployment company* — job \`${safeId(params.requestId)}\`.\n`
-    + `Answer: ${answerLine(params.headline)}\nPick: ${answerLine(params.pick)}`;
+    + `Job: ${answerLine(params.familyLabel)}\nAnswer: ${answerLine(params.headline)}\nPick: ${answerLine(params.pick)}\n`
+    + `Runner-up: ${answerLine(params.runnerUp)}\n`
+    + "Its card is in the job library. No deployment company has been emailed; whether to alert them is your decision.";
 }
 
 /** A site pressed "Find a deployment company for this job". Rings once per job; it contacts no outside company. */
-export async function alertOpsIntroductionRequested(params: { requestId: string; headline: string | null; pick: string | null }) {
+export async function alertOpsIntroductionRequested(params: IntroductionRequestAlert) {
   return ringOnce(`introduction_request:${params.requestId}`, introductionRequestAlertText(params));
 }
 

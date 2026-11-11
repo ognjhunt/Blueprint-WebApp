@@ -334,7 +334,7 @@ router.post("/:token/introduction-request", csrfProtection, async (req, res) => 
         const brief = await getBrief(verified.requestId).catch(() => null);
         const summary = brief && !isPlaceholderSummary(brief.summary) ? brief.summary : "";
         await applyOwnerTaskListing(verified.requestId, { enabled: true, consent: true, details: anonymizedOpportunityDraft(summary) },
-          { consentVersion: JOB_CARD_ANSWER_STATEMENT_VERSION });
+          { consentVersion: JOB_CARD_ANSWER_STATEMENT_VERSION, alertTeams: false });
         listed = true;
       }
     } catch (error) {
@@ -346,7 +346,9 @@ router.post("/:token/introduction-request", csrfProtection, async (req, res) => 
         import("../utils/siteAnswer"), import("../utils/pilotOpsAlerts")]);
       const answer = await loadSiteAnswer(verified.requestId).catch(() => null);
       await alertOpsIntroductionRequested({ requestId: verified.requestId, headline: answer?.headline ?? null,
-        pick: answer?.pick ? `${answer.pick.manufacturer} ${answer.pick.name}` : null });
+        pick: answer?.pick ? `${answer.pick.manufacturer} ${answer.pick.name}` : null,
+        familyLabel: answer?.job.familyLabel ?? null,
+        runnerUp: answer?.runnerUp ? `${answer.runnerUp.manufacturer} ${answer.runnerUp.name}` : null });
     } catch (error) {
       logger.warn({ error, requestId: verified.requestId }, "Could not ring Blueprint about an introduction request");
     }

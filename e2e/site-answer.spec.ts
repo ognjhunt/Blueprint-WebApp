@@ -45,7 +45,7 @@ async function mockJob(page: Page, { evaluation = simulationRun as unknown, list
     if (path === `/api/site-task-brief/${token}`) return route.fulfill({ json: { ready: true, scope: "owner", account: null, brief: {
       summary: readyAnswer.job.sentence, captureMode: "self_capture", proposed: [], unresolved: [], confirmedAtIso: null } } });
     if (path === `/api/site-task-brief/${token}/status`) return route.fulfill({ json: {
-      scope: "owner", captureReceived: true, answer: { ...readyAnswer, introductionRequestedAtIso: requestedAtIso },
+      scope: "owner", captureReceived: true, answer: { ...readyAnswer, introductionRequestedAtIso: requestedAtIso, jobCardListed: requestedAtIso !== null && listed },
       status: { decision: "footage_received", headline: "We have your recording.", operatorAction: null, missingViews: [], nextUpdateIso: null } } });
     if (path === `/api/site-task-brief/${token}/introduction-request` && method === "POST") {
       introductions.push({ csrf: route.request().headers()["x-csrf-token"] });
