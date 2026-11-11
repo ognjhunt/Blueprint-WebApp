@@ -1549,7 +1549,6 @@ describe("an email we cannot send to", () => {
   }
 
   it.each([
-    ["yeet@gmail.com", "Gmail addresses have 6 to 30 letters or numbers before @gmail.com. Check yours."],
     ["yeet@mailinator.com", "We can't send to a temporary email address. Use one you check."],
     ["owner@example", "Check your email address."],
   ])("checks %s in the browser before anything is sent", async (email, sentence) => {
@@ -1568,6 +1567,34 @@ describe("an email we cannot send to", () => {
     fireEvent.submit(screen.getByRole("form"));
     await waitFor(() => expect(postsTo("/api/inbound-request")).toHaveLength(1));
     expect(JSON.parse(postsTo("/api/inbound-request")[0][1].body).email).toBe("yeeter@gmail.com");
+  });
+
+  // A Gmail name of an unusual length is likely a typo, not a known one: a hint in the helper's place, and the job is
+  // created all the same (owner, 2026-11-11).
+  it("hints about yeet@gmail.com under the field without blocking, and creates the job", async () => {
+    const HINT = "Gmail names are usually 6 to 30 characters. Check it's right; we send your job link there.";
+    fetchMock.mockImplementation(async (_url: string, init?: { method?: string }) => init?.method === "POST"
+      ? { ok: true, status: 201, json: async () => ({ captureUrl: null }) } : photon([]));
+    await renderReady(<SiteCaptureStart />);
+    fillWith("yeet@gmail.com");
+    fireEvent.blur(document.querySelector("#start-email")!);
+    const help = document.querySelector("#start-email-help")!;
+    expect(help).toHaveTextContent(HINT);
+    expect(help).toHaveClass("bare-helper");
+    expect(help).not.toHaveClass("bare-field-error");
+    expect(document.querySelector("#start-email")!.getAttribute("aria-describedby")).toContain("start-email-help");
+    expect(document.querySelector("#start-email")).not.toHaveAttribute("aria-invalid");
+    expect(document.querySelector("#start-email-error")).toBeNull();
+    fireEvent.submit(screen.getByRole("form"));
+    await waitFor(() => expect(postsTo("/api/inbound-request")).toHaveLength(1));
+    expect(JSON.parse(postsTo("/api/inbound-request")[0][1].body).email).toBe("yeet@gmail.com");
+  });
+
+  it("gives no hint for a.b.c.d.e.f@gmail.com: eleven characters, counted as Google counts them", async () => {
+    await renderReady(<SiteCaptureStart />);
+    fillWith("a.b.c.d.e.f@gmail.com");
+    fireEvent.blur(document.querySelector("#start-email")!);
+    expect(document.querySelector("#start-email-help")).toHaveTextContent("We send your private job link here.");
   });
 
   it("puts the server's email refusal under the field, by its reason, with no job reference", async () => {

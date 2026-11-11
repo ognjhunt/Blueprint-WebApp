@@ -50,9 +50,9 @@ test("keeps the bare-bones rhythm on a phone with an email error under its field
   await page.locator("#start-location").fill("Austin, TX");
   await page.getByRole("button", { name: "Next: film the job" }).click();
   await page.locator("#start-region").selectOption("us");
-  await page.locator("#start-email").fill("yeet@gmail.com");
+  await page.locator("#start-email").fill("yeet@mailinator.com");
   await page.getByRole("button", { name: "Next: film the job" }).click();
-  await expect(page.locator("#start-email-error")).toHaveText("Gmail addresses have 6 to 30 letters or numbers before @gmail.com. Check yours.");
+  await expect(page.locator("#start-email-error")).toHaveText("We can't send to a temporary email address. Use one you check.");
   expect(posts.filter(url => url.includes("/api/inbound-request"))).toEqual([]);
   const found = await bareRhythmFindings(page, ".bare-start-form .bare-screen");
   expect(found.tight, "blocks of different kinds closer than 8 px").toEqual([]);

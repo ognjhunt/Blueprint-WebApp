@@ -165,8 +165,23 @@ test.describe("the start form on a phone", () => {
     expect(JSON.parse(posts[0])).toMatchObject({ siteLocation: FILLED, captureRegion: "us" });
   });
 
+  test("hints about yeet@gmail.com under the field and still creates the job", async ({ page }) => {
+    const posts: string[] = [];
+    await open(page, posts);
+    await useMyLocation(page);
+    await page.locator("#start-email").fill("yeet@gmail.com");
+    await page.locator("#start-email").blur();
+    const help = page.locator("#start-email-help");
+    await expect(help).toHaveText("Gmail names are usually 6 to 30 characters. Check it's right; we send your job link there.");
+    await expect(help).toHaveClass(/bare-helper/);
+    await expect(page.locator("#start-email-error")).toHaveCount(0);
+    if (shots) await page.screenshot({ path: `${shots}/public-04b-email-gmail-hint.png`, fullPage: true });
+    await page.getByRole("button", { name: "Next: film the job" }).click();
+    await expect.poll(() => posts.length).toBe(1);
+    expect(JSON.parse(posts[0])).toMatchObject({ email: "yeet@gmail.com", captureRegion: "us" });
+  });
+
   for (const [shot, email, sentence] of [
-    ["public-04b-email-gmail-short", "yeet@gmail.com", "Gmail addresses have 6 to 30 letters or numbers before @gmail.com. Check yours."],
     ["public-04c-email-temporary", "yeet@mailinator.com", "We can't send to a temporary email address. Use one you check."],
     ["public-04d-email-check", "owner@example", "Check your email address."],
   ] as const) test(`says why ${email} cannot be used, under the email field, before anything is sent`, async ({ page }) => {

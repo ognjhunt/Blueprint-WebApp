@@ -215,7 +215,7 @@ async function sendVideo(token: string) {
 async function status(token: string) {
   const response = await fetch(`${base}/api/site-task-brief/${token}/status`);
   expect(response.status, await response.clone().text()).toBe(200);
-  return (await response.json()) as { captureReceived: boolean; answer: any };
+  return (await response.json()) as { captureReceived: boolean; answer: any; outlook?: any };
 }
 
 /** The coverage review worker, as the scheduler ticks it, reading the scripted reply for this job. */
@@ -321,7 +321,29 @@ describe("a site's answer, from an email and a video to a deployment company", (
     expect(payload.text).toContain("4 kg");
     expect(answerNotices(jobId)).toHaveLength(0);
 
-    // 6. "Find a deployment company for this job": recorded once, card listed under its consent version, one alert.
+    // 6. Sharing follows the job's outlook (review, 2026-11-11). With no simulation test result and nothing ending the
+    // job, it is still being built: the request is refused with a typed code, and nothing is recorded or listed.
+    const early = await post(`/api/site-task-brief/${token}/introduction-request`, { statementVersion: JOB_CARD_ANSWER_STATEMENT_VERSION });
+    expect(early.status).toBe(409);
+    expect(await early.json()).toMatchObject({ code: "introduction_waits_for_answer", phase: "building" });
+    expect(doc(`inboundRequests/${jobId}`).introduction_request).toBeUndefined();
+    expect(await listTaskBrowseCards()).toEqual([]);
+    expect(introductionAlerts()).toHaveLength(0);
+    // The job's no-grant wait ends, as the sweep records it: no test will run, so the paper check is the answer, and
+    // the site gets that one email, saying why no test ran and that a later result would be emailed too.
+    const { sealWebsiteJobNoGrantEnding, WEBSITE_JOB_NO_GRANT_ENDING_FIELD } = await import("../utils/websiteJobWindowEnding");
+    state.docs.set(`inboundRequests/${jobId}`, { ...doc(`inboundRequests/${jobId}`), [WEBSITE_JOB_NO_GRANT_ENDING_FIELD]:
+      sealWebsiteJobNoGrantEnding({ request_id: jobId, waiting_on: "blueprint", waiting_since_epoch: Math.floor(NOW.getTime() / 1000) - 86_400,
+        ended_at_epoch: Math.floor(NOW.getTime() / 1000), recorded_at_iso: NOW.toISOString(), notice: "none_age_unknown" }) });
+    expect((await status(token)).outlook).toEqual({ phase: "no_test", reason: "no_grant", sentence: "We have not built a simulation for this job." });
+    await vi.waitFor(() => expect(answerNotices(jobId)).toHaveLength(1));
+    expect(answerNotices(jobId)[0].body).toContain("We have not built a simulation for this job.");
+    expect(answerNotices(jobId)[0].body).toContain("If a test result comes later, we'll email it.");
+    await status(token);
+    expect(answerNotices(jobId)).toHaveLength(1);
+    vi.setSystemTime(NOW);
+
+    // "Find a deployment company for this job": recorded once, card listed under its consent version, one alert.
     const asked = await post(`/api/site-task-brief/${token}/introduction-request`, { statementVersion: JOB_CARD_ANSWER_STATEMENT_VERSION });
     expect(asked.status, await asked.clone().text()).toBe(200);
     const first = await asked.json();
@@ -349,7 +371,8 @@ describe("a site's answer, from an email and a video to a deployment company", (
     expect(await listTaskBrowseCards()).toEqual([]);
     // The withdrawal hides the card through the job's own state; the stored grant itself is left as it was.
     expect(doc(`inboundRequests/${jobId}`).public_task_listing.enabled).toBe(true);
-    expect(answerNotices(jobId)).toHaveLength(0);
+    // Only the one paper-check email from the ending; the withdrawal adds no answer email.
+    expect(answerNotices(jobId)).toHaveLength(1);
   }, 60_000);
 
   it("reads a video-only job's video once, even though the reading drafts the job's name; a site's own edit reads it again", async () => {
@@ -382,14 +405,21 @@ describe("a site's answer, from an email and a video to a deployment company", (
     expect(answerNotices(jobId)).toHaveLength(0);
   }, 60_000);
 
-  it("sends no answer email when the video did not show the job, and the page asks for one line", async () => {
+  // Rewritten (review, 2026-11-11): an unsized video is an ending with no test, so the site gets its one answer email
+  // saying why, where before it got none.
+  it("sends one answer email when the video did not show the job, saying why, and the page asks for one line", async () => {
     const { jobId, token } = await startJob();
     await sendVideo(token);
     await readVideo(jobId, NO_JOB);
-    const { answer } = await status(token);
+    const { answer, outlook } = await status(token);
     expect(answer).toMatchObject({ state: "cannot_assess", headline: "We can't check robots against this job yet.",
       reason: "The video did not show the job clearly enough for us to size it.", pick: null });
-    expect(answerNotices(jobId)).toHaveLength(0);
+    expect(outlook).toEqual({ phase: "no_test", reason: "unsized", sentence: "Your video didn't show the job clearly enough for us to measure it." });
+    await vi.waitFor(() => expect(answerNotices(jobId)).toHaveLength(1));
+    expect(answerNotices(jobId)[0].body).toContain(answer.reason);
+    expect(answerNotices(jobId)[0].body).not.toMatch(/Most likely to fit/);
+    await status(token);
+    expect(answerNotices(jobId)).toHaveLength(1);
     // The page's one-line question is driven by the brief read, not the answer.
     const brief = await fetch(`${base}/api/site-task-brief/${token}`);
     expect(brief.status).toBe(200);
