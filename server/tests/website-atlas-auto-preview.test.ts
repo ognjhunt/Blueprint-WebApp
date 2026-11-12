@@ -702,6 +702,29 @@ describe("owner amendment of a stored Atlas grant's figure", () => {
     store.rows.get(REQUEST).request.consent_attestation.granted = false;
     await expect(amend(authority.authorization_digest, 5, true)).rejects.toThrow("source_revoked");
   });
+
+  it("keeps rows reserved before a raise observable, replayable and settleable after it", async () => {
+    const authority = await grantedJob();
+    const held = atlasSpend({ maximum_cost_usd: .6 });
+    const settled = atlasSpend({ allocation_binding_digest: sha("2"), maximum_cost_usd: .6 });
+    await reserveWebsitePreparationSpend("req1", held);
+    await reserveWebsitePreparationSpend("req1", settled);
+    const outcome = { task_context_digest: contextDigest(), allocation_binding_digest: sha("2"),
+      provider: "world_labs_atlas" as const, outcome: "completed" as const, operation_id: "op-2", outcome_receipt_digest: sha("9") };
+    await settleWebsitePreparationSpend("req1", outcome);
+    const rows = store.rows.get(REQUEST).website_preparation_reservations;
+    expect(Object.values(rows).map((row: any) => row.admission.atlas_authorization_digest))
+      .toEqual([authority.authorization_digest, authority.authorization_digest]);
+    await amend(authority.authorization_digest, 5, true);
+    // Rows carry their own observation binding, which names no grant digest.
+    expect(await observeWebsitePreparationSpend("req1", held)).toMatchObject({ status: "reserved" });
+    expect(await observeWebsitePreparationSpend("req1", settled)).toMatchObject({ status: "reserved",
+      settlement: { outcome: "completed", actual_cost_usd: .6 } });
+    expect(await reserveWebsitePreparationSpend("req1", held)).toMatchObject({ status: "already_reserved",
+      atlas_authorization_digest: authority.authorization_digest });
+    expect(await settleWebsitePreparationSpend("req1", outcome)).toMatchObject({ status: "settled" });
+    expect((await configure({ create: false })).reserved_or_settled_cost_usd).toBe(1.2);
+  });
 });
 
 describe("one dollar ceiling per job (owner, 2026-10-30)", () => {
