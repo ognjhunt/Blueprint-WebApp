@@ -12,26 +12,40 @@
  * ONE predicate decides who may see jobs: `companyMaySeeJobs(record)` = approved, a deployment company (never a
  * technology partner), and a current acceptance. The viewer gate (`resolveViewerAccess`: library, job page, answer
  * route), every media request and introduction (`companyStillApproved`), the answer route's transaction, the automatic
- * send, and the three dispatch gates (new-job email, introduction email to the company, outcome question) all call it.
+ * send, and the dispatch gates of the new-job email and both introduction emails (`introductionMayProceed`) call it.
+ * An outcome question to a company is NOT gated on Terms: it goes while the company is still an approved deployment
+ * company (`isApprovedDeploymentCompanyRecord`, in `jobOutcomeGate.ts`), since it asks about an introduction already made.
  */
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { buildLegalAcceptanceRecord, isCurrentLegalAcceptance } from "../../client/src/lib/legalAcceptance";
 
 export const TERMS_ACCEPTANCE_REQUIRED = "terms_acceptance_required";
 
-type AccessLike = { status?: unknown; partnerRole?: unknown; termsAcceptance?: unknown } | null | undefined;
+type AccessLike = { status?: unknown; partnerRole?: unknown; termsAcceptance?: unknown; termsAcceptedByUid?: unknown } | null | undefined;
 
 /** The record holds an acceptance of the current Terms AND the current Privacy Policy. */
 export function recordHasCurrentTerms(record: { termsAcceptance?: unknown } | null | undefined): boolean {
   return isCurrentLegalAcceptance(record?.termsAcceptance);
 }
 
-/** Approved, a deployment company, and the current Terms accepted. */
+/**
+ * Approved, a deployment company, and the current Terms accepted AS A SIGNED-IN ACT of its own: the acceptance carries
+ * the accepting user's id (`termsAcceptedByUid`), written only by the signed-in accept route or copied by
+ * `syncCompanyTerms` from that same person's signed-in account acceptance. The tick on the unsigned application form
+ * (`applicationTermsAcceptance`) never satisfies it (planner, 19:50Z, G1).
+ */
 export function companyMaySeeJobs(record: AccessLike): boolean {
-  return record?.status === "approved" && record.partnerRole !== "technology" && recordHasCurrentTerms(record);
+  return record?.status === "approved" && record.partnerRole !== "technology" && recordHasCurrentTerms(record)
+    && typeof (record as { termsAcceptedByUid?: unknown }).termsAcceptedByUid === "string"
+    && Boolean((record as { termsAcceptedByUid?: string }).termsAcceptedByUid);
 }
 
-/** The acceptance an applicant gives on the application form, recorded with its time (ISO, so it survives a merge). */
+/** Approved and a deployment company, whatever its Terms state: who an outcome question may still go to (G4). */
+export function isApprovedDeploymentCompanyRecord(record: AccessLike): boolean {
+  return record?.status === "approved" && record.partnerRole !== "technology";
+}
+
+/** What the application form showed and the applicant ticked, with the time: stored on the application only. */
 export function applicationTermsAcceptance(nowIso = new Date().toISOString()) {
   return buildLegalAcceptanceRecord({ acceptedAt: nowIso });
 }
@@ -60,8 +74,9 @@ export async function recordCompanyTermsAcceptance(viewer: { uid: string; email:
 }
 
 /**
- * Keep the account and the access record in step on a signed-in visit: an acceptance the applicant gave on the
- * application (or one recorded on the account) is carried to the other, so a company accepts once. Best effort.
+ * Keep the account and the access record in step on a signed-in visit, only between the same person's own signed-in
+ * acts: a current acceptance on this account is copied to the access record (with this user's id), and one the
+ * record holds from this same user is copied to the account. Best effort.
  */
 export async function syncCompanyTerms(viewer: { uid: string }, companyId: string,
   record: { termsAcceptance?: unknown } | null): Promise<{ termsAcceptance?: unknown } | null> {
@@ -69,14 +84,15 @@ export async function syncCompanyTerms(viewer: { uid: string }, companyId: strin
   const userRef = db.collection("users").doc(viewer.uid);
   const user = (await userRef.get()).data();
   const onRecord = recordHasCurrentTerms(record);
-  const onAccount = isCurrentLegalAcceptance(user?.termsAcceptance);
-  if (onRecord && !onAccount) {
+  // An account acceptance carried over from a site's unsigned intake form is not a signed-in act of this company's.
+  const onAccount = isCurrentLegalAcceptance(user?.termsAcceptance) && user?.termsAcceptanceSource?.kind !== "site_capture_intake";
+  if (onRecord && !onAccount && (record as { termsAcceptedByUid?: unknown }).termsAcceptedByUid === viewer.uid) {
     const acceptance = record.termsAcceptance as ReturnType<typeof buildLegalAcceptanceRecord>;
     await userRef.set({ acceptedTerms: true, termsVersion: acceptance.terms_version, privacyVersion: acceptance.privacy_version,
-      termsAcceptance: acceptance, termsAcceptanceSource: { kind: "deployment_company_application", companyId } }, { merge: true });
+      termsAcceptance: acceptance, termsAcceptanceSource: { kind: "deployment_company", companyId } }, { merge: true });
   } else if (!onRecord && onAccount) {
     await db.collection("robotTeamAccess").doc(companyId).set({ termsAcceptance: user!.termsAcceptance, termsAcceptedByUid: viewer.uid }, { merge: true });
-    return { ...record, termsAcceptance: user!.termsAcceptance };
+    return { ...record, termsAcceptance: user!.termsAcceptance, termsAcceptedByUid: viewer.uid } as typeof record;
   }
   return record;
 }

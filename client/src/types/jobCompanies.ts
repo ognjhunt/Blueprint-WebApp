@@ -25,8 +25,10 @@ export interface AdminJobCompanies {
   autoSend?: { sentAtIso: string; count: number } | null;
   /** Introductions the site asked for (E6), each with its latest outcome answer (E8). */
   introductions?: Array<{ companyId: string; company: string | null; alias: string | null; requestedAtIso: string;
+    /** Set when the introduction was cancelled at dispatch: its emails not yet sent were cancelled. */
+    cancelledAtIso?: string; cancelReason?: string | null;
     latestOutcome: { by: "site" | "company"; state: string; label: string; atIso: string } | null }>;
   /** Billable events (E7): recorded, never priced or charged. */
   billableEvents?: Array<{ id: string; kind: "introduction"; companyId: string; company: string | null; atIso: string;
-    priceUsd: null; status: "recorded_no_price" }>;
+    priceUsd: null; status: "recorded_no_price" | "void" }>;
 }

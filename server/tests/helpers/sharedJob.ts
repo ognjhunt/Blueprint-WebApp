@@ -38,6 +38,7 @@ export function currentTermsAcceptance(atIso = SHARED_AT_ISO) {
     privacy_url: "/privacy", accepted_at: atIso, accepted_from_ip_hash: null };
 }
 /** A company access record that has accepted the current Terms (the check is never weakened: the record carries it). */
-export function withCurrentTerms<T extends Record<string, unknown>>(record: T): T & { termsAcceptance: ReturnType<typeof currentTermsAcceptance> } {
-  return { ...record, termsAcceptance: currentTermsAcceptance() };
+export function withCurrentTerms<T extends Record<string, unknown>>(record: T): T & { termsAcceptance: ReturnType<typeof currentTermsAcceptance>; termsAcceptedByUid: string } {
+  // Recorded by the signed-in accept route, which carries the accepting user's id.
+  return { ...record, termsAcceptance: currentTermsAcceptance(), termsAcceptedByUid: "uid-fixture-company" };
 }

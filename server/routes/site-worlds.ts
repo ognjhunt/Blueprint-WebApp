@@ -125,8 +125,11 @@ router.get("/tasks/:taskId/thumbnail", async (req, res) => {
   if (!db) return res.status(503).end();
   try {
     const id = String(req.params.taskId);
-    // The same check as the card: a signed-in approved viewer, and the whole sharing rule.
-    if (!(await libraryAccessForRequest(req)).allowed) return res.status(404).end();
+    // The same check as the card: a signed-in approved viewer, and the whole sharing rule. An approved deployment company
+    // without the current Terms gets the same 403 as every other surface, before any job is read (G5).
+    const viewerAccess = await libraryAccessForRequest(req);
+    if (viewerAccess.termsRequired) return termsRequired(res, viewerAccess);
+    if (!viewerAccess.allowed) return res.status(404).end();
     const { record, access } = await loadCompanyJobAccess(id);
     if (!record || !projectTaskBrowseCard(id, record as InboundRequest, access)?.thumbnailUrl) return res.status(404).end();
     const image = (await db.collection("taskThumbnails").doc(id).get()).data();

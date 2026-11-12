@@ -51,7 +51,7 @@ const ID = "req-site-plant";
 const AT = "2026-11-12T10:00:00.000Z";
 const sha = (email: string) => createHash("sha256").update(email.trim().toLowerCase()).digest("hex");
 function company(tag: string) {
-  return { partnerRole: "deployment", status: "approved", termsAcceptance: currentTermsAcceptance(), name: `Person ${tag}plant`, company: `${tag}PLANT Robotics`,
+  return { partnerRole: "deployment", status: "approved", termsAcceptance: currentTermsAcceptance(), termsAcceptedByUid: `uid-${tag}`, name: `Person ${tag}plant`, company: `${tag}PLANT Robotics`,
     email: `contact-${tag.toLowerCase()}@${tag.toLowerCase()}-plant.example`, website: `https://www.${tag.toLowerCase()}-plant.example/about`,
     robot: `ROBOT-${tag}-PLANT`, region: `REGION-${tag}-PLANT`, decisionNote: `NOTE-${tag}-PLANT`,
     appliedAtIso: "2026-11-01T00:00:00.000Z", updatedAtIso: "2026-11-01T00:00:00.000Z", decidedAtIso: "2026-11-02T00:00:00.000Z" };

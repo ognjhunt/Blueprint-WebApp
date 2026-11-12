@@ -143,5 +143,24 @@ describe("JobFacts", () => {
     expect(choice).not.toHaveAttribute("aria-disabled");
     expect(document.activeElement).toBe(choice);
   });
+
+  // Ported from the independent check (review-jobfacts.test.tsx).
+  it("two presses in the same tick, on two choices, send one request; focus stays after a failure", async () => {
+    let release!: (r: Response) => void;
+    const fetchMock = vi.fn(() => new Promise<Response>(resolve => { release = resolve; }));
+    vi.stubGlobal("fetch", fetchMock);
+    render(<JobFacts token="tok" facts={null} />);
+    const a = screen.getByRole("button", { name: "Not sure" });
+    const b = screen.getByRole("button", { name: /^Under 5 kg/ });
+    a.focus();
+    fireEvent.click(a); fireEvent.click(b); fireEvent.keyDown(b, { key: "Enter" });
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    expect(a).toHaveAttribute("aria-disabled", "true");
+    expect(b).toHaveAttribute("aria-disabled", "true");
+    release(new Response(JSON.stringify({ ok: false }), { status: 500 }));
+    expect(await screen.findByRole("alert")).toBeTruthy();
+    expect(document.activeElement).toBe(a);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
 });
 

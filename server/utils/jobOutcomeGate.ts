@@ -10,6 +10,7 @@
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { FINAL_OUTCOME_STATES, isOutcomeState, type OutcomeState } from "../../client/src/lib/jobOutcomeStates";
 import { loadCompanyJobAccess } from "./teamJobAccess";
+import { isApprovedDeploymentCompanyRecord } from "./companyTerms";
 import { projectWebsiteCaptureRights } from "./websiteTaskContext";
 import type { OutcomeSide } from "./jobOutcomeToken";
 
@@ -28,6 +29,8 @@ export interface IntroductionLike {
   siteShared?: unknown;
   companyShared?: unknown;
   outcomes?: unknown;
+  /** Set when the introduction was cancelled at dispatch (G3): neither side is asked anything about it. */
+  cancelledAtIso?: unknown;
 }
 
 /** The recorded answers that are well formed, in the order they were recorded. */
@@ -40,8 +43,9 @@ export function outcomesOf(introduction: IntroductionLike | null | undefined): O
     .map(item => ({ by: item.by, state: item.state, atIso: item.atIso }));
 }
 
-/** Either side said "Installed" or "Not going ahead": nothing more is asked. */
+/** Either side said "Installed" or "Not going ahead", or the introduction was cancelled: nothing more is asked. */
 export function outcomeQuestionsEnded(introduction: IntroductionLike | null | undefined): boolean {
+  if (typeof introduction?.cancelledAtIso === "string") return true;
   return outcomesOf(introduction).some(record => FINAL_OUTCOME_STATES.has(record.state));
 }
 
@@ -100,6 +104,14 @@ export async function outcomeQuestionIsCurrent(entry: { kind: string; requestId:
   const introRef = jobRef.collection(INTRODUCTIONS_SUBCOLLECTION).doc(parsed.companyId);
   const [job, intro] = tx ? [await tx.get(jobRef), await tx.get(introRef)] : [await jobRef.get(), await introRef.get()];
   if (!job.exists || !intro.exists) return false;
+  if (parsed.side === "company") {
+    // A company is asked only while it is still an approved deployment company. A stale Terms acceptance does not
+    // stop the question: it is about an introduction already made (planner, 19:50Z, G4). The site's questions are
+    // unaffected by the company's state.
+    const companyRef = db.collection("robotTeamAccess").doc(parsed.companyId);
+    const company = tx ? await tx.get(companyRef) : await companyRef.get();
+    if (!isApprovedDeploymentCompanyRecord(company.exists ? company.data() as Record<string, unknown> : null)) return false;
+  }
   if (!await jobTakesOutcomeQuestions(entry.requestId, job.data() as Record<string, unknown>, tx)) return false;
   return !outcomeQuestionsEnded(intro.data() as IntroductionLike);
 }

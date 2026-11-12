@@ -110,8 +110,8 @@ describe("the Pipeline's company simulation callback", () => {
     expect(await publish(first)).toEqual({ status: 409, body: { code: "website_company_simulation_request_missing" } });
   });
 
-  // A record that fails the schema is a named refusal (409 `website_company_simulation_invalid`), so the Pipeline records
-  // it instead of offering the same record on every pass.
+  // A record that fails the schema gets one of the contract's answers (409 `website_company_simulation_invalid`), not a
+  // 400 outside it. It is not a rights refusal, so the Pipeline retries it on its next pass.
   it("refuses a package over the contract's 512 MiB, a different format, and a member name outside the zip", async () => {
     seed();
     expect(MAX_COMPANY_SIMULATION_BYTES).toBe(536_870_912);
@@ -142,7 +142,7 @@ describe("the Pipeline's company simulation callback", () => {
 });
 
 describe("the Pipeline's company clip callback: a record that fails its schema is a named refusal", () => {
-  it("answers 409 website_company_clip_invalid, never a 400 the Pipeline would retry on every pass", async () => {
+  it("answers 409 website_company_clip_invalid, one of the contract's answers, never a 400 outside it", async () => {
     seed();
     for (const clip of [{ schema_version: "website_company_clip.v1", capture_id: CAPTURE }, { fps: 60 }, null]) {
       const response = await realFetch(`${base}/creator-captures/${CAPTURE}/company-clip`, { method: "POST",

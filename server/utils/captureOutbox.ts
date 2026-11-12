@@ -1,5 +1,5 @@
 import { jobAlertIsCurrent, type JobAlertContext } from "./newJobAlerts";
-import { introductionEmailIsCurrent } from "./jobIntroductionGate";
+import { introductionEmailCheck } from "./jobIntroductionGate";
 import { outcomeQuestionIsCurrent } from "./jobOutcomeGate";
 import { withdrawalNoticeIsCurrent } from "./withdrawalCompanyNotice";
 import { enqueueDueTaskStatusUpdates, acknowledgeTaskStatusUpdate, taskStatusUpdateIsCurrent } from "./taskStatusUpdates";
@@ -166,6 +166,19 @@ const RETIRED_KINDS: ReadonlySet<string> = new Set(["pilot_recommended", "pilot_
   "results_ready", "run_no_result", "awaiting_evaluations", "no_team_passed", "no_qualified_evaluation"]);
 
 const DELIVERY_LEASE_MS = 5 * 60 * 1000;
+
+/**
+ * The two introduction emails carry both sides' names and contact details in their body (and the other side's email as
+ * the reply address). The introduction record holds them encrypted at rest; the outbox row holds them in plain text
+ * only until it is sent or cancelled: the same write that marks it so clears `subject`, `body` and `replyTo`. Everything else the
+ * outbox needs (key, kind, recipient, status, attempts, timestamps, receipts) stays. A row not yet sent keeps its body,
+ * because the sender needs it.
+ */
+const INTRODUCTION_KINDS: ReadonlySet<string> = new Set(["introduction_made_company", "introduction_made_site"]);
+function clearedIntroductionDetails(entry: Pick<OutboxEntry, "kind">): Row {
+  // The subject goes too: the site's one names the company ("Meet {company}").
+  return INTRODUCTION_KINDS.has(entry.kind) ? { subject: "", body: "", replyTo: null, detailsClearedAtIso: nowIso() } : {};
+}
 
 // Render previews inherit the application's bindings, but must never consume
 // shared customer delivery intents, including through opportunistic callers.
@@ -497,12 +510,17 @@ async function deliverRow(doc: FirebaseFirestore.QueryDocumentSnapshot,
       // still describe the provider effect and are never recast as cancelled.
       const currentCaptureNotice = await taskLifecycleNotificationIsCurrent(entry, tx);
       const currentJobAlert = await jobAlertIsCurrent(entry, tx);
-      const currentIntroduction = await introductionEmailIsCurrent(entry, tx);
+      const introduction = await introductionEmailCheck(entry, tx);
+      const currentIntroduction = introduction.current;
       const currentOutcomeQuestion = await outcomeQuestionIsCurrent(entry, tx);
       const currentWithdrawalNotice = await withdrawalNoticeIsCurrent(entry, tx);
       if (accessNotice === "obsolete" || !currentNotice || retired || !currentCaptureNotice || !currentJobAlert
-        || !currentIntroduction || !currentOutcomeQuestion || !currentWithdrawalNotice)
-        return stop({ status: "cancelled" }, "notice_not_current");
+        || !currentIntroduction || !currentOutcomeQuestion || !currentWithdrawalNotice) {
+        // An introduction that may no longer go ahead is cancelled as a whole (G3): the other email, the record and its
+        // billable event, in this transaction. Not from a row whose earlier dispatch may already have reached someone.
+        if (!currentIntroduction && !uncertain) introduction.cancel?.(tx);
+        return stop({ status: "cancelled", ...clearedIntroductionDetails(entry) }, "notice_not_current");
+      }
       const nowMs = Date.now();
       tx.set(doc.ref, { status: "dispatching", attempts: entry.attempts + 1,
         deliveryRuntime: runtime, requestedSender: CUSTOMER_JOB_EMAIL_IDENTITY,
@@ -573,7 +591,7 @@ async function deliverRow(doc: FirebaseFirestore.QueryDocumentSnapshot,
         : uncertain ? { ...retryEnded("provider_refused"), lastError: `delivery_outcome_unknown_provider_refused: ${refusal}` }
           : outcome === "permanent" ? { status: "failed", lastError: refusal, nextAttemptAtMs: null }
             : retryLaterFields(current, nowMs, refusal);
-    tx.set(doc.ref, { ...next, sentAtIso: outcome === "sent" ? nowIso() : null,
+    tx.set(doc.ref, { ...next, ...(next.status === "sent" ? clearedIntroductionDetails(entry) : {}), sentAtIso: outcome === "sent" ? nowIso() : null,
       deliveryProvider: result.provider, deliveryMessageId: result.messageId }, { merge: true });
     return next;
   });

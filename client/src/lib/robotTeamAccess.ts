@@ -1,4 +1,5 @@
 import { withCsrfHeader } from "@/lib/csrf";
+import { PRIVACY_VERSION, TERMS_VERSION } from "@/lib/legalAcceptance";
 
 /** Mirrors `LibraryAccess` on the server. */
 export interface LibraryAccess {
@@ -8,6 +9,8 @@ export interface LibraryAccess {
   emailVerified: boolean;
   allowed: boolean;
   staff: boolean;
+  /** An approved deployment company that must agree to the current Terms and Privacy Policy first. */
+  termsRequired?: boolean;
 }
 
 export interface EarlyAccessApplication {
@@ -47,7 +50,8 @@ export async function applyForEarlyAccess(application: EarlyAccessApplication): 
   const response = await fetch("/api/robot-team-access/apply", {
     method: "POST",
     headers: await withCsrfHeader({ "Content-Type": "application/json" }),
-    body: JSON.stringify(application),
+    // The versions of the Terms and Privacy Policy the form shows, recorded on the application as what was shown.
+    body: JSON.stringify({ ...application, termsVersion: TERMS_VERSION, privacyVersion: PRIVACY_VERSION }),
   });
   const body = (await response.json().catch(() => ({}))) as {
     status?: LibraryAccess["status"]; notificationStatus?: AccessNotificationStatus; error?: string;

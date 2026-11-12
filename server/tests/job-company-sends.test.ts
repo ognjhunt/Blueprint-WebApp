@@ -66,7 +66,7 @@ const sha = (email: string) => createHash("sha256").update(email.trim().toLowerC
 function companyRecord(tag: string, extra: Record<string, unknown> = {}) {
   return {
     // Approved companies here have accepted the current Terms (planner, 18:50Z).
-    termsAcceptance: currentTermsAcceptance(),
+    termsAcceptance: currentTermsAcceptance(), termsAcceptedByUid: `uid-${tag}`,
     partnerRole: "deployment", supportedSystems: `SYSTEMS-${tag}-PLANT`, name: `Person ${tag}plant`,
     email: `contact-${tag.toLowerCase()}@${tag.toLowerCase()}-plant.example`, company: `${tag}PLANT Robotics`,
     website: `https://www.${tag.toLowerCase()}-plant.example/about`, robot: `ROBOT-${tag}-PLANT`, workWanted: `WORK-${tag}-PLANT`,

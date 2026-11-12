@@ -69,6 +69,11 @@ export function containsContactDetails(text: string): boolean {
 export interface KnownSiteIdentity {
   /** Personal or organisation names (site name, organisation, contact name, submitter name): each becomes "the site". */
   names: Array<string | null | undefined>;
+  /**
+   * The site's own name and its organisation's name (also in `names`): each distinctive word of four or more letters
+   * is also removed on its own, where the sentence writes it with a capital first letter.
+   */
+  organisations?: Array<string | null | undefined>;
   /** Addresses as the site typed them: each whole, and each line or comma-separated part, is removed. */
   addresses: Array<string | null | undefined>;
   /** Emails and phone numbers the site gave: each becomes `[removed]`. */
@@ -78,32 +83,85 @@ export interface KnownSiteIdentity {
 const COUNTRY_WORDS = new Set(["us", "usa", "u.s.", "u.s.a.", "united states", "united states of america", "america", "uk", "u.k.",
   "united kingdom", "great britain", "england", "canada", "mexico", "germany", "france", "australia", "ireland", "netherlands"]);
 
+/** Accents folded (NFKD, combining marks dropped), look-alikes normalised, zero-width characters dropped. */
+function fold(text: string): string {
+  return text.normalize("NFKC").replace(ZERO_WIDTH, "").normalize("NFKD").replace(/\p{M}+/gu, "").normalize("NFC");
+}
+
+const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/** A word of a held name: one of six or more letters may be written with separators between its letters ("Zebra
+ * Plant", "Z.E.B.R.A.P.L.A.N.T."). */
+function wordPattern(word: string): string {
+  return /^\p{L}{6,}$/u.test(word) ? [...word].map(escapeRegExp).join("[\\s._-]*") : escapeRegExp(word);
+}
+
+/** Street words and their short forms, so a held "Quokka Lane" also finds "Quokka Ln". */
+const STREET_FORMS: ReadonlyArray<readonly string[]> = [["street", "st"], ["avenue", "ave"], ["road", "rd"], ["lane", "ln"],
+  ["drive", "dr"], ["boulevard", "blvd"], ["highway", "hwy"], ["parkway", "pkwy"], ["court", "ct"], ["place", "pl"], ["square", "sq"]];
+function streetFormPattern(word: string): string | null {
+  const forms = STREET_FORMS.find(list => list.includes(word.toLowerCase()));
+  return forms ? `(?:${forms.join("|")})\\.?` : null;
+}
+
 /** A known value as a pattern: case-insensitive, any whitespace or punctuation (or none) between its words. */
 function knownValuePattern(value: string, withPlaceWord = false): RegExp | null {
-  const words = value.normalize("NFKC").replace(ZERO_WIDTH, "").split(/[^\p{L}\p{N}@]+/u).filter(Boolean);
+  const words = fold(value).split(/[^\p{L}\p{N}@]+/u).filter(Boolean);
   if (!words.length || words.join("").length < 3) return null;
-  const escaped = words.map(word => word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  const escaped = words.map(word => (withPlaceWord ? streetFormPattern(word) : null) ?? wordPattern(word));
   // A leading "+" or "(" of a phone number, and a place word right before an address ("at", "on", "from" …), go with it.
   return new RegExp(`${withPlaceWord ? "(?:\\b(?:at|on|in|near|from)\\s+)?" : ""}[+(]?(?<![\\p{L}\\p{N}])${escaped.join("[\\s\\p{P}\\p{S}]*")}(?![\\p{L}\\p{N}])`, "giu");
 }
 
 /** The parts of a typed address worth removing on their own: lines and comma parts of three or more characters that
- * are not just a country or a number. */
+ * are not just a country or a number, and a postal code it holds (five digits) alone. */
 function addressParts(address: string): string[] {
-  return address.split(/[\n,;]+/).map(part => part.trim())
+  const parts = address.split(/[\n,;]+/).map(part => part.trim())
     .filter(part => part.length >= 3 && !/^[\d\s#-]+$/.test(part) && !COUNTRY_WORDS.has(part.toLowerCase().replace(/\s+/g, " ")));
+  // The street without its number ("Quokka Lane" from "77 Quokka Lane"), so a mention without the number goes too.
+  const streets = parts.map(part => /^\d+[A-Za-z]?\s+(.*\S)$/.exec(part)?.[1]).filter((rest): rest is string => typeof rest === "string"
+    && rest.split(/\s+/).length >= 2);
+  return [...parts, ...streets, ...(address.match(/\b\d{5}(?:-\d{4})?\b/g) ?? [])];
+}
+
+/** Generic words of a business name: never removed on their own (with the street and scene words). */
+const GENERIC_NAME_WORDS = new Set(["foods", "food", "logistics", "group", "company", "warehouse", "fresh", "services", "supply",
+  "store", "market", "kitchen", "laundry", "hotel", "farm", "works", "systems", "solutions", "industries", "holdings", "inc", "llc",
+  "ltd", "corp", "corporation", "limited", "plant", "factory", "center", "centre", "distribution", "the", "and",
+  "street", "avenue", "road", "lane", "boulevard", "highway", "parkway", "drive", "court", "place", "square", "terrace", "way",
+  "boxes", "cartons", "totes", "pallets", "items", "parts", "bins", "shifts", "hours", "minutes", "line", "dock", "site"]);
+
+/** A distinctive word of the site's or organisation's name, alone, only where the sentence capitalises it ("Acme"). */
+function capitalisedWordPattern(word: string): RegExp | null {
+  const folded = fold(word);
+  if (!/^\p{L}{4,}$/u.test(folded) || GENERIC_NAME_WORDS.has(folded.toLowerCase())) return null;
+  const [first, ...rest] = [...folded];
+  const tail = rest.map(letter => `[${escapeRegExp(letter.toLowerCase())}${escapeRegExp(letter.toUpperCase())}]`).join("");
+  return new RegExp(`(?<![\\p{L}\\p{N}])${escapeRegExp(first.toUpperCase())}${tail}(?![\\p{L}\\p{N}])`, "gu");
 }
 
 /** Street-shaped text even when we do not hold it: a number, one to four words and a street word, an optional unit and
  * postal code. Words like "place", "way" or "court" count only when written as a name ("Mill Place"), so "pick 2 totes
  * and place them" is untouched; the middle words never include little joining words ("and", "the", "on" …). */
 const STREET_WORDS_ANY = "street|avenue|ave|road|rd|lane|boulevard|blvd|highway|hwy|parkway|pkwy";
-const STREET_WORDS_NAMED = "St|Ln|Dr|Drive|Way|Court|Ct|Place|Pl|Square|Sq|Terrace";
+const STREET_WORDS_NAMED = "Ln|Dr|Way|Ct|Pl|Square|Sq|Terrace";
+/** Street words that are also ordinary job words ("10 Drive units", "1 Place", "15 Court files", "5 St Bernards"): a
+ * street only with a capitalised name word right before them ("Mill Place"), or a unit or postal code after. */
+const STREET_WORDS_WEAK = "Drive|Place|Court|St";
 const MIDDLE = "(?!(?:and|or|the|a|an|to|on|in|of|at|by|for|from|onto|into|then|up|down|per|with|each|every|boxes|cartons|totes|pallets|items|parts|bins|shifts|hours|minutes|kg|lb|cm|mm|m)\\b)[\\p{L}][\\p{L}'.-]*";
 const LEAD = "(?:\\b(?:[Aa]t|[Oo]n|[Ii]n|[Nn]ear|[Ff]rom)\\s+)?";
-const UNIT_AND_POSTAL = "(?:\\s*,?\\s*(?:[Uu]nit|[Ss]uite|[Ss]te|[Aa]pt|[Aa]partment|#)\\s*[\\w-]+)?(?:\\s*,?\\s*\\d{5}(?:-\\d{4})?)?";
+/** A unit or suite with its number ("Suite 5", "Unit 4B", "#12"; never "units"), and a postal code. */
+const UNIT = "(?:(?:[Uu]nit|[Ss]uite|[Ss]te|[Aa]pt|[Aa]partment)\\b\\.?\\s*#?\\s*|#\\s*)[\\w-]*\\d[\\w-]*";
+const POSTAL = "\\d{5}(?:-\\d{4})?(?![\\p{L}\\p{N}])";
+const UNIT_AND_POSTAL = `(?:\\s*,?\\s*${UNIT})?(?:\\s*,?\\s*${POSTAL})?`;
 const STREET = new RegExp(
   `${LEAD}(?<![\\p{L}\\p{N}])\\d{1,6}[A-Za-z]?\\s+(?:${MIDDLE}\\s+){0,3}(?:${STREET_WORDS_NAMED})\\b${UNIT_AND_POSTAL}`, "gu");
+const NAME_WORD = "[\\p{Lu}][\\p{L}'.-]*";
+const STREET_WEAK_NAMED = new RegExp(
+  `${LEAD}(?<![\\p{L}\\p{N}])\\d{1,6}[A-Za-z]?\\s+(?:${MIDDLE}\\s+){0,2}${NAME_WORD}\\s+(?:${STREET_WORDS_WEAK})\\b${UNIT_AND_POSTAL}`, "gu");
+const STREET_WEAK_WITH_UNIT = new RegExp(
+  `${LEAD}(?<![\\p{L}\\p{N}])\\d{1,6}[A-Za-z]?\\s+(?:${MIDDLE}\\s+){0,3}(?:${STREET_WORDS_WEAK})\\b`
+  + `(?:\\s*,?\\s*${UNIT}|\\s*,?\\s*${POSTAL})+`, "gu");
 const STREET_ANY_CASE = new RegExp(
   `${LEAD}(?<![\\p{L}\\p{N}])\\d{1,6}[A-Za-z]?\\s+(?:${MIDDLE}\\s+){0,3}(?:${STREET_WORDS_ANY})\\b${UNIT_AND_POSTAL}`, "giu");
 
@@ -124,11 +182,16 @@ function tidy(text: string): string {
  * `[removed]`), then street-shaped text we do not hold, then any other email, phone number or link
  * (`removeContactDetails`).
  *
- * The remaining limit, plainly: a name the site never gave us anywhere else, or an address written in an unusual way
- * (no number, no street word, spelled out), can still get through. Ordinary numbers and quantities are kept.
+ * Matching folds accents on both sides, lets a held name word of six or more letters be written with separators
+ * between its letters ("Zebra Plant", "Z.E.B.R.A.P.L.A.N.T."), finds a held street in its short form ("Quokka Ln") and a
+ * held postal code alone, and removes each distinctive word (four or more letters, not a generic business word) of the
+ * site's or organisation's name on its own where the sentence writes it with a capital first letter ("Acme").
+ *
+ * The remaining limit, exactly: nicknames, abbreviations, landmarks, a reordered address and a street with no street
+ * word can still get through. Ordinary numbers and quantities are kept.
  */
 export function removeIdentifyingDetails(text: string, known: KnownSiteIdentity): string {
-  let out = text.normalize("NFKC").replace(ZERO_WIDTH, "");
+  let out = fold(text);
   const values = (list: Array<string | null | undefined>) => list.filter((value): value is string => typeof value === "string" && value.trim().length > 0);
   // Longest first, so a whole address or a full name goes before its parts.
   const byLength = (list: string[]) => [...new Set(list)].sort((a, b) => b.length - a.length);
@@ -144,12 +207,16 @@ export function removeIdentifyingDetails(text: string, known: KnownSiteIdentity)
     const pattern = knownValuePattern(value);
     if (pattern) out = out.replace(pattern, "the site");
   }
-  out = out.replace(STREET_ANY_CASE, "").replace(STREET, "");
+  for (const word of new Set(values(known.organisations ?? []).flatMap(name => name.split(/[^\p{L}\p{N}]+/u)))) {
+    const pattern = capitalisedWordPattern(word);
+    if (pattern) out = out.replace(pattern, "the site");
+  }
+  out = out.replace(STREET_ANY_CASE, "").replace(STREET, "").replace(STREET_WEAK_NAMED, "").replace(STREET_WEAK_WITH_UNIT, "");
   out = out.replace(/\bthe site(\s+the site)+\b/gi, "the site");
   return tidy(removeContactDetails(out));
 }
 
 /** Whether `removeIdentifyingDetails` would change the text: the site's page may then say `CONTACT_DETAILS_REMOVED_LINE`. */
 export function identifyingDetailsRemoved(text: string, known: KnownSiteIdentity): boolean {
-  return removeIdentifyingDetails(text, known) !== tidy(text.normalize("NFKC").replace(ZERO_WIDTH, ""));
+  return removeIdentifyingDetails(text, known) !== tidy(fold(text));
 }

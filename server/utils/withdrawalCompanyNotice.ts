@@ -1,13 +1,14 @@
 /**
  * The deletion notice the Terms and Privacy Policy promise (review M4; planner, 2026-11-12, 18:00Z): when a site's
- * withdrawal is first recorded, ONE email to each approved deployment company the job was sent to (its `companySends`
- * rows), asking it to delete any copy it saved. Outbox kind `job_withdrawn_company`, one row per job and company
+ * withdrawal is first recorded, ONE email to EVERY company the job was sent to (its standing `companySends` rows),
+ * whatever that company's state now (suspended, Terms not accepted, a technology partner), asking it to delete any
+ * copy it saved; never to a company it was not sent to (planner, 19:50Z, G6). Outbox kind `job_withdrawn_company`, one row per job and company
  * (idempotency key `{requestId}:job_withdrawn_company:{companyId}`).
  *
  * It carries nothing of the site: no name, address, contact or the site's own sentence. Only the date the job was sent
  * and the job's category title, as the category-only listing record holds it. It is a notice, not an update, so it is
- * sent whatever the company's optional-updates choice is; it is not sent to a company that is no longer approved, and
- * that is checked again at dispatch (`withdrawalNoticeIsCurrent`).
+ * sent whatever the company's optional-updates choice is. At dispatch (`withdrawalNoticeIsCurrent`) it is checked
+ * only that the job was sent to that company.
  *
  * The rows are planned inside the withdrawal's own transaction (`recordWebsiteCaptureWithdrawal`): all reads first,
  * then the writes, so the notice is as durable as the withdrawal itself.
@@ -40,13 +41,9 @@ function dateInWords(iso: string): string {
     : date.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric", timeZone: "UTC" });
 }
 
-function isApprovedDeploymentCompany(record: Record<string, any> | undefined): boolean {
-  return record?.status === "approved" && record.partnerRole !== "technology";
-}
-
 /**
- * Reads only (call before the transaction's first write): the outbox rows to create, one per approved deployment
- * company the job was sent to that has no row yet. The caller creates them with `tx.set(row.ref, row.data)`.
+ * Reads only (call before the transaction's first write): the outbox rows to create, one per company the job was
+ * sent to that has no row yet. The caller creates them with `tx.set(row.ref, row.data)`.
  */
 export async function planWithdrawalCompanyNotices(tx: Tx, requestId: string, record: Record<string, any> | undefined):
   Promise<Array<{ ref: FirebaseFirestore.DocumentReference; data: Record<string, unknown> }>> {
@@ -69,7 +66,7 @@ export async function planWithdrawalCompanyNotices(tx: Tx, requestId: string, re
   for (const [companyId, sentAtIso] of [...firstSent.entries()].sort(([a], [b]) => a.localeCompare(b))) {
     const company = (await tx.get(store.collection("robotTeamAccess").doc(companyId))).data();
     const to = typeof company?.email === "string" ? company.email.trim().toLowerCase() : "";
-    if (!isApprovedDeploymentCompany(company) || !EMAIL.test(to)) continue;
+    if (!EMAIL.test(to)) continue;
     const ref = store.collection(CAPTURE_OUTBOX_COLLECTION).doc(withdrawalCompanyKey(requestId, companyId));
     if ((await tx.get(ref)).exists) continue;
     planned.push({ ref, data: buildOutboxEntry({ idempotencyKey: ref.id, requestId, kind: WITHDRAWAL_COMPANY_KIND as never, to,
@@ -78,13 +75,14 @@ export async function planWithdrawalCompanyNotices(tx: Tx, requestId: string, re
   return planned;
 }
 
-/** The dispatch check: sent only while the company is still an approved deployment company. Every other kind passes. */
+/** The dispatch check: sent only to a company the job was sent to (a standing send), whatever its state. Every other kind passes. */
 export async function withdrawalNoticeIsCurrent(entry: { kind: string; requestId: string; idempotencyKey?: string },
   tx?: Tx): Promise<boolean> {
   if (entry.kind !== WITHDRAWAL_COMPANY_KIND) return true;
   const prefix = `${entry.requestId}:${WITHDRAWAL_COMPANY_KIND}:`;
   const companyId = entry.idempotencyKey?.startsWith(prefix) ? entry.idempotencyKey.slice(prefix.length) : "";
   if (!companyId || !db) return false;
-  const ref = db.collection("robotTeamAccess").doc(companyId);
-  return isApprovedDeploymentCompany((tx ? await tx.get(ref) : await ref.get()).data());
+  const sends = db.collection("inboundRequests").doc(entry.requestId).collection("companySends").limit(5000);
+  const rows = tx ? await tx.get(sends) : await sends.get();
+  return rows.docs.some(doc => doc.data()?.companyId === companyId && !doc.data()?.voidedAtIso);
 }

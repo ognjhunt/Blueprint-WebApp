@@ -399,7 +399,10 @@ export function projectSiteCompanyActivity(input: { aliases: Record<string, stri
     if (send.sentBy === "system" || !letter) continue;
     entries.push({ kind: "sent", alias: companyAliasName(letter), atIso });
   }
-  const introductions = new Map((input.introductions ?? []).map(row => [row.id, row.data]));
+  // An introduction cancelled at dispatch (G3) is as if it was never made: it does not count toward the three and the
+  // answer shows without it. It is not offered again for that company (its emails' keys are spent).
+  const cancelled = new Set((input.introductions ?? []).filter(row => typeof row.data.cancelledAtIso === "string").map(row => row.id));
+  const introductions = new Map((input.introductions ?? []).filter(row => !cancelled.has(row.id)).map(row => [row.id, row.data]));
   const used = introductions.size;
   for (const response of input.responses) {
     const letter = input.aliases[response.id];
@@ -410,7 +413,7 @@ export function projectSiteCompanyActivity(input: { aliases: Record<string, stri
     const intro = introductions.get(response.id);
     const introducedAtIso = intro ? instant(intro.requestedAtIso) : null;
     const company = intro ? introducedCompany(intro) : undefined;
-    const canIntroduce = !intro && input.listed === true && used < MAX_INTRODUCTIONS_PER_JOB
+    const canIntroduce = !intro && !cancelled.has(response.id) && input.listed === true && used < MAX_INTRODUCTIONS_PER_JOB
       && answerConsentsToIntroduction(response.data) && Boolean(input.approvedDeploymentCompanies?.has(response.id));
     entries.push({ kind: "answered", alias: companyAliasName(letter), atIso, state, canIntroduce,
       ...(introducedAtIso ? { introducedAtIso } : {}), ...(company ? { company } : {}) });
@@ -438,7 +441,8 @@ export async function loadSiteCompanyActivity(requestId: string): Promise<SiteCo
   // The introduced companies' details are decrypted here, only for the site's own page (`introductionShared.ts`).
   const { openShared } = await import("./introductionShared");
   const opened = await Promise.all(introductions.map(async row => ({ id: row.id,
-    data: { ...row.data, companyShared: await openShared(row.data.companyShared) } })));
+    data: typeof row.data.cancelledAtIso === "string" ? { cancelledAtIso: row.data.cancelledAtIso }
+      : { ...row.data, companyShared: await openShared(row.data.companyShared) } })));
   return projectSiteCompanyActivity({ aliases: storedAliases(record), sends: sends.map(row => row.data), responses,
     introductions: opened, listed: access.listed,
     approvedDeploymentCompanies: new Set(approved.filter(row => companyMaySeeJobs(row.data)).map(row => row.id)) });
@@ -507,6 +511,7 @@ export async function loadAdminJobCompanies(requestId: string): Promise<AdminJob
     const latest = latestOutcome(data as never).latest;
     return { companyId: id, company: text(companyShared.company) ?? text(names.get(id)?.company), alias: text(data.alias),
       requestedAtIso: String(data.requestedAtIso ?? ""),
+      ...(typeof data.cancelledAtIso === "string" ? { cancelledAtIso: data.cancelledAtIso, cancelReason: text(data.cancelReason) } : {}),
       latestOutcome: latest ? { by: latest.by, state: latest.state, atIso: latest.atIso,
         label: (OUTCOME_STATE_LABELS as Record<string, string>)[latest.state] ?? latest.state } : null };
   }).sort((a, b) => a.requestedAtIso.localeCompare(b.requestedAtIso));

@@ -240,7 +240,8 @@ export function JobCompaniesConsole({ requestId, currentUser }: { requestId: str
                 {panel.introductions.map((row) => (
                   <li key={row.companyId}>
                     {row.company ?? row.companyId}{row.alias ? ` (Company ${row.alias})` : ""} · asked {dateLabel(row.requestedAtIso)}
-                    {" · "}{row.latestOutcome ? `${row.latestOutcome.label} (${row.latestOutcome.by}, ${dateLabel(row.latestOutcome.atIso)})` : "no outcome yet"}
+                    {" · "}{row.cancelledAtIso ? `cancelled ${dateLabel(row.cancelledAtIso)}${row.cancelReason ? ` (${row.cancelReason})` : ""}; emails not yet sent were cancelled`
+                      : row.latestOutcome ? `${row.latestOutcome.label} (${row.latestOutcome.by}, ${dateLabel(row.latestOutcome.atIso)})` : "no outcome yet"}
                   </li>
                 ))}
               </ul>
@@ -253,7 +254,7 @@ export function JobCompaniesConsole({ requestId, currentUser }: { requestId: str
             {!panel.billableEvents?.length ? <p className="text-sm text-runway-mute">None.</p> : (
               <ul className="grid gap-1 text-sm text-runway-body">
                 {panel.billableEvents.map((event) => (
-                  <li key={event.id}>Introduction · {event.company ?? event.companyId} · {dateLabel(event.atIso)} · recorded, no price</li>
+                  <li key={event.id}>Introduction · {event.company ?? event.companyId} · {dateLabel(event.atIso)} · {event.status === "void" ? "void, not counted" : "recorded, no price"}</li>
                 ))}
               </ul>
             )}

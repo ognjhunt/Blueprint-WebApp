@@ -109,6 +109,8 @@ export async function knownSiteIdentity(record: Record<string, any>): Promise<Kn
   return {
     names: [placeholder(siteName), company, first && last ? `${first} ${last}` : null, first, last,
       plain(record.siteName), plain(record.submitterName), plain(record.contactFirstName), plain(record.contactName)],
+    // The site's and the organisation's own names: their distinctive words are removed alone too, when capitalised.
+    organisations: [placeholder(siteName), company, plain(record.siteName)],
     addresses: [placeholder(siteLocation), formatted, city, postal, plain(record.site_address)],
     contacts: [email, phone, plain(record.contactEmail), plain(record.contactPhone)],
   };

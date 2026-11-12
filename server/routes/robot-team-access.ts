@@ -48,6 +48,9 @@ export const applicationSchema = z
     pilotPackage: optionalText(1200),
     testSite: optionalText(300),
     acceptedTerms: z.literal(true),
+    // The versions the form showed (G2): a missing or stale version is refused as the accept route refuses it.
+    termsVersion: z.string().max(40).optional(),
+    privacyVersion: z.string().max(40).optional(),
     optionalUpdates: z.boolean().optional(),
   })
   .strict();
@@ -60,17 +63,21 @@ router.post("/apply", applyLimiter, async (req: Request, res: Response) => {
       code: "application_invalid",
     });
   }
-  const { acceptedTerms: _accepted, ...fields } = parsed.data;
+  if (parsed.data.termsVersion !== TERMS_VERSION || parsed.data.privacyVersion !== PRIVACY_VERSION)
+    return res.status(400).json(TERMS_ACCEPTANCE_INVALID);
+  const { acceptedTerms: _accepted, termsVersion: _terms, privacyVersion: _privacy, ...fields } = parsed.data;
   const application = { ...fields, supportedSystems: Object.prototype.hasOwnProperty.call(req.body, "supportedSystems")
     ? fields.supportedSystems : undefined };
   try {
     // An unavailable library remains unknown to the fit checklist. Admission is manual.
     const listed = await listTaskBrowseCards().catch(() => []);
     const fit = assessAccessFit(application, listed.map((card) => ({ title: card.title, region: card.region })));
-    // The applicant agreed to the Terms and Privacy Policy on this form: recorded with the versions and the time, and
-    // carried to the account when the company is approved and signs in, so it does not accept twice.
-    const { record, created, notification } = await recordAccessApplication(application, { fit,
-      termsAcceptance: applicationTermsAcceptance() });
+    // The tick on this unsigned form is recorded on the application as what it is (the versions it showed and the
+    // time). It never lets a company see a job: every company agrees once, signed in, on its first visit (G1).
+    const { record, created, unchanged, notification } = await recordAccessApplication(application, { fit,
+      applicationTermsAcceptance: applicationTermsAcceptance() });
+    // A decided record is left as it is, and the answer is the same as for a new application (G1).
+    if (unchanged) return res.status(202).json({ status: "applied", notificationStatus: "queued" });
     // Registration records interest; only the existing staff decision/invite routes grant admission.
     const current = record;
     const autoApproved = false;
@@ -111,12 +118,13 @@ router.post("/invitation", applyLimiter, async (req: Request, res: Response) => 
  * An approved deployment company accepts the current Terms and Privacy Policy before it sees any job. Recorded on its
  * account and its access record (`companyTerms.ts`), with the versions taken from the server, never the client.
  */
+const TERMS_ACCEPTANCE_INVALID = { error: "Agree to the current Terms and Privacy Policy.", code: "terms_acceptance_invalid" };
 const acceptTermsSchema = z.object({ acceptedTerms: z.literal(true), termsVersion: z.literal(TERMS_VERSION),
   privacyVersion: z.literal(PRIVACY_VERSION) }).strict();
 router.post("/accept-terms", applyLimiter, verifyFirebaseToken, async (req: Request, res: Response) => {
   const user = res.locals.firebaseUser;
   if (!acceptTermsSchema.safeParse(req.body).success)
-    return res.status(400).json({ error: "Agree to the current Terms and Privacy Policy.", code: "terms_acceptance_invalid" });
+    return res.status(400).json(TERMS_ACCEPTANCE_INVALID);
   if (!user?.uid || !user.email || user.email_verified !== true)
     return res.status(403).json({ error: "Use your approved company's verified account.", code: "terms_acceptance_account_required" });
   try {

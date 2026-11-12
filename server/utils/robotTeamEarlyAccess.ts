@@ -68,10 +68,14 @@ export interface RobotTeamAccessRecord extends RobotTeamAccessApplication {
   /** The teams this approval covers. Written only by `bindAccessApprovalToTeam`. */
   teamIds?: string[];
   /**
-   * The Terms and Privacy Policy acceptance (`buildLegalAcceptanceRecord`): given on the application form, or by the
-   * account on its first visit. Jobs are shown only while it is the current versions (`companyTerms.ts`).
+   * The Terms and Privacy Policy acceptance (`buildLegalAcceptanceRecord`), written only by the signed-in accept route
+   * (or copied from the same person's signed-in account acceptance), with `termsAcceptedByUid`. Jobs are shown only
+   * while it is the current versions (`companyTerms.ts`).
    */
   termsAcceptance?: unknown;
+  termsAcceptedByUid?: string;
+  /** What the unsigned application form showed and the applicant ticked: a record on the application, nothing more. */
+  applicationTermsAcceptance?: unknown;
 }
 
 /** What a viewer of the task library is allowed to see, and why. */
@@ -124,14 +128,14 @@ export async function getAccessRecordForEmail(email: string | null | undefined):
 }
 
 /**
- * Record an application. A second application from the same address updates
- * the details but never undoes a decision: an approved team stays approved,
- * and a declined one is reopened for review.
+ * Record an application from the unsigned form. A second application from the
+ * same address replaces the details only while the first is still pending; a
+ * decided record (approved, declined) is left exactly as it is.
  */
 export async function recordAccessApplication(
   application: RobotTeamAccessApplication,
-  options: { fit?: AccessFit | null; termsAcceptance?: unknown } = {},
-): Promise<{ record: RobotTeamAccessRecord; created: boolean; notification: AccessEmailNotification }> {
+  options: { fit?: AccessFit | null; applicationTermsAcceptance?: unknown } = {},
+): Promise<{ record: RobotTeamAccessRecord; created: boolean; unchanged?: true; notification: AccessEmailNotification }> {
   if (!db) throw new Error("firestore_unavailable");
   const { prepareAccessEmail } = await import("./robotTeamAccessEmails");
   const email = normalizeAccessEmail(application.email);
@@ -140,6 +144,13 @@ export async function recordAccessApplication(
   return db.runTransaction(async (tx) => {
     const existing = await tx.get(ref);
     const prior = existing.exists ? (existing.data() as RobotTeamAccessRecord) : null;
+    // The form is unsigned: an application for an email whose record has been decided (approved, declined, a
+    // technology partner, anything but pending) changes NOTHING on it, and sends nothing. The route answers exactly as
+    // for a new application, so it does not reveal that the email is known (planner, 19:50Z, G1).
+    if (prior && prior.status !== "applied") {
+      return { record: prior, created: false, unchanged: true as const,
+        notification: { status: "queued", outboxStatus: "pending", outboxId: null } };
+    }
     const record: RobotTeamAccessRecord = {
       ...application,
       partnerRole: application.partnerRole ?? prior?.partnerRole ?? null,
@@ -153,21 +164,17 @@ export async function recordAccessApplication(
       pilotPackage: application.pilotPackage ?? null,
       source: prior?.source ?? "application",
       fit: options.fit ?? null,
-      status: prior?.status === "approved" ? "approved" : "applied",
+      status: "applied",
       appliedAtIso: prior?.appliedAtIso ?? now,
       updatedAtIso: now,
-      decidedAtIso: prior?.status === "approved" ? prior.decidedAtIso : null,
-      decidedBy: prior?.status === "approved" ? prior.decidedBy : null,
-      decisionNote: prior?.status === "approved" ? prior.decisionNote : null,
-      // The Terms the applicant accepted on this application, with its time; else the one already on record.
-      ...(options.termsAcceptance ? { termsAcceptance: options.termsAcceptance }
-        : prior?.termsAcceptance ? { termsAcceptance: prior.termsAcceptance } : {}),
-      // The teams an approval already covers survive a re-application.
-      ...(prior?.status === "approved" && prior.teamIds?.length ? { teamIds: prior.teamIds } : {}),
+      decidedAtIso: null,
+      decidedBy: null,
+      decisionNote: null,
+      // What the form showed and the applicant ticked, with the time: a record on the application only. It never lets a
+      // company see a job; only the signed-in "I agree" does (`companyTerms.ts`).
+      ...(options.applicationTermsAcceptance ? { applicationTermsAcceptance: options.applicationTermsAcceptance } : {}),
     };
-    const notice = await prepareAccessEmail(tx, { recordId: ref.id, record,
-      kind: record.status === "approved" ? "robot_team_access_approved" : "robot_team_access_received",
-      resend: record.status === "approved" });
+    const notice = await prepareAccessEmail(tx, { recordId: ref.id, record, kind: "robot_team_access_received", resend: false });
     tx.set(ref, record);
     notice.write();
     return { record, created: !prior, notification: notice.notification };
@@ -467,8 +474,9 @@ export async function resolveViewerAccess(viewer: ViewerIdentity): Promise<Libra
     } catch (error) {
       logger.warn({ error }, "Could not bind the approved account to its team; treating as not approved");
     }
-    // The current Terms and Privacy Policy must be accepted before any job is seen (`companyTerms.ts`). An acceptance
-    // given on the application, or recorded on the account, is carried to the other first.
+    // The current Terms and Privacy Policy must be accepted, signed in, before any job is seen (`companyTerms.ts`). A
+    // current acceptance this same person gave signed in on the account is carried to the record first; the tick on the
+    // application form never is (G1).
     if (allowed) {
       const { companyMaySeeJobs, syncCompanyTerms } = await import("./companyTerms");
       const synced = await syncCompanyTerms({ uid: viewer.uid }, accessRecordId(viewer.email), record).catch(() => record);

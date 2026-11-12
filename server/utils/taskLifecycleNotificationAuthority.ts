@@ -160,14 +160,10 @@ export async function taskLifecycleNotificationIsCurrent(
    const prefix=`${entry.requestId}:introduction_made_site:`;
    if(!entry.idempotencyKey.startsWith(prefix))return false;
    const companyId=entry.idempotencyKey.slice(prefix.length);
-   const introRef=ref.collection('introductions').doc(companyId);
-   if(!(transaction?await transaction.get(introRef):await introRef.get()).exists)return false;
-   // The company must still be an approved deployment company (review must-fix 2): never after a suspension.
-   const {isApprovedDeploymentCompany}=await import('./jobCompanies');
-   const {ROBOT_TEAM_ACCESS_COLLECTION}=await import('./robotTeamEarlyAccess');
-   const companyRef=db.collection(ROBOT_TEAM_ACCESS_COLLECTION).doc(companyId);
-   const company=(transaction?await transaction.get(companyRef):await companyRef.get()).data();
-   return isApprovedDeploymentCompany(company as never);
+   // The one predicate both introduction emails use (G3): on record and not cancelled, the job shared, and the company
+   // an approved deployment company with a current signed-in acceptance of the Terms.
+   const {introductionMayProceed}=await import('./jobIntroductionGate');
+   return (await introductionMayProceed(entry.requestId,companyId,transaction)).ok;
   }
   const {companyNoticeStillTrue}=await import('./jobCompanies');
   return companyNoticeStillTrue(entry.requestId,entry.kind,entry.idempotencyKey,snapshot.data()??{},transaction);

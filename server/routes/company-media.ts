@@ -29,8 +29,27 @@ const router = Router();
  * error (a reset connection) ends only this response, in an error; a company that goes away destroys the body, which
  * cancels the upstream read. Never `.pipe()`, which leaves the source's error unhandled and can take the process down.
  */
+/** How long a company media read may go without a byte from the Pipeline before it ends, as the artifact proxy has. */
+export const COMPANY_MEDIA_IDLE_TIMEOUT_MS = 30_000;
+const idleTimeoutMs = () => {
+  const configured = Number(process.env.COMPANY_MEDIA_IDLE_TIMEOUT_MS);
+  return Number.isFinite(configured) && configured > 0 ? configured : COMPANY_MEDIA_IDLE_TIMEOUT_MS;
+};
+
 export function sendThrough(body: Readable, res: Response, context: { jobId: string; kind: "clip" | "simulation" }): void {
+  // A Pipeline that stalls mid-body ends this response and, through the pipeline, cancels the upstream read.
+  const limit = idleTimeoutMs();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const arm = () => {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => body.destroy(Object.assign(new Error("company_media_idle_timeout"),
+      { code: "company_media_idle_timeout" })), limit);
+    timer.unref?.();
+  };
+  body.on("data", arm);
+  arm();
   pipeline(body, res, error => {
+    if (timer) clearTimeout(timer);
     if (!error) return;
     logger.warn({ jobId: context.jobId, kind: context.kind, code: (error as NodeJS.ErrnoException).code ?? null },
       "A company media stream ended early");

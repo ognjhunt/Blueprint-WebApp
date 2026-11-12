@@ -7,7 +7,8 @@
  * `company-response-2026-11-12`), enforces at most three introductions per job, and writes, all or nothing:
  * - `inboundRequests/{id}/introductions/{companyId}` = `{ schemaVersion: 1, alias, requestedAtIso, by: "site",
  *   siteShared: { name, contactName, email, phone?, location }, companyShared: { company, contactName, email, website? },
- *   each field encrypted at rest (`introductionShared.ts`),
+ *   each field encrypted at rest (`introductionShared.ts`; this covers the introduction record; the two emails' outbox
+ *   rows hold the details in plain text until each is sent or cancelled, when `captureOutbox.ts` clears them),
  *   outcomes: [] }` (`outcomes` is appended to by the outcome questions, E8; never rewritten here);
  * - the billable event (E7, `billableEvents.ts`): no price, nothing charged;
  * - the email to the company (`introduction_made_company`), with the site's details and the job link;
@@ -81,6 +82,9 @@ async function siteDetailsOf(record: Record<string, any>, decrypt: (value: unkno
     phone: null, location: location && location !== "Location pending" ? location : null };
 }
 
+/** Enough to count the three that stand past any that were cancelled. */
+const INTRODUCTION_READ_LIMIT = 50;
+
 export async function requestIntroduction(input: { requestId: string; alias: string; actor: "site";
   /** The recorded statement beside "Introduce us" the site agreed to: it must be the current one. */
   statementVersion?: string | null },
@@ -103,7 +107,8 @@ export async function requestIntroduction(input: { requestId: string; alias: str
       await tx.get(store.collection(ROBOT_TEAM_ACCESS_COLLECTION).doc(companyId)),
       await tx.get(jobRef.collection(COMPANY_RESPONSES_COLLECTION).doc(companyId)),
       await tx.get(jobRef.collection(INTRODUCTIONS_COLLECTION).doc(companyId)),
-      await tx.get(jobRef.collection(INTRODUCTIONS_COLLECTION).limit(MAX_INTRODUCTIONS_PER_JOB + 1))];
+      await tx.get(jobRef.collection(INTRODUCTIONS_COLLECTION).limit(INTRODUCTION_READ_LIMIT))];
+    // One introduction per company per job. One cancelled at dispatch (G3) is not made again: its emails' keys are spent.
     if (introSnap.exists) return { ok: false, reason: "already_introduced" };
     const company = companySnap.data() as RobotTeamAccessRecord | undefined;
     if (!company || !companyMaySeeJobs(company)) return { ok: false, reason: "company_not_approved" };
@@ -111,9 +116,10 @@ export async function requestIntroduction(input: { requestId: string; alias: str
     // A standing `interested` or `tested_can_do` answer (E9).
     if (!INTRODUCIBLE_RESPONSE_STATES.includes(answer?.state)) return { ok: false, reason: "not_interested" };
     if (!answerConsentsToIntroduction(answer)) return { ok: false, reason: "consent_missing" };
-    // The count lives on the job document, which this transaction has read: two presses at once both write it, so
-    // Firestore retries one of them and it sees the other's count. The collection count is a floor for older jobs.
-    const used = Math.max(introductions.size, Number.isInteger(record.introductions_used) ? Number(record.introductions_used) : 0);
+    // The count is the introductions on record that were not cancelled (a cancelled one does not count toward the three,
+    // G3). Both presses of a race write the job document, which this transaction has read, so Firestore retries one of
+    // them and it sees the other's introduction.
+    const used = introductions.docs.filter(doc => typeof doc.data()?.cancelledAtIso !== "string").length;
     if (used >= MAX_INTRODUCTIONS_PER_JOB) return { ok: false, reason: "limit_reached" };
     const companyEmail = String(company.email ?? "").trim().toLowerCase();
     const companyShared = { company: text(company.company) ?? "", contactName: text(company.name) ?? "", email: companyEmail,
@@ -128,7 +134,8 @@ export async function requestIntroduction(input: { requestId: string; alias: str
       by: input.actor,
       // Not personal, so stored plainly: the recorded statement the site agreed to by pressing the button.
       statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION,
-      // Both sides' details are encrypted at rest (`introductionShared.ts`); the emails below use the plain values.
+      // Both sides' details are encrypted at rest on this record (`introductionShared.ts`). The emails below use the plain
+      // values; their outbox rows are cleared of them once sent or cancelled (`captureOutbox.ts`).
       siteShared: await sealShared({ name: site.name, contactName: site.contactName, email: site.email, phone: site.phone,
         location: site.location }),
       companyShared: await sealShared(companyShared), outcomes: [] });

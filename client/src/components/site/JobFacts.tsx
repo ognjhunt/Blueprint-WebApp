@@ -56,10 +56,13 @@ export function JobFacts({ token, facts, onSaved }: {
 
   const advance = () => { setChanging(index => index === null ? null : index + 1 >= total ? null : index + 1); setMoved(count => count + 1); };
 
+  // A save in flight, read synchronously: two presses in the same tick (before a re-render) send one request.
+  const saving = useRef(false);
   async function choose(key: JobFactKey, code: string) {
-    if (status === "saving") return;
+    if (saving.current || status === "saving") return;
     // The answer already chosen: moving on, nothing to save.
     if (answers[key] === code) { advance(); return; }
+    saving.current = true;
     setStatus("saving"); setError("");
     try {
       const response = await fetch(`/api/job-facts/${encodeURIComponent(token)}`, {
@@ -77,6 +80,8 @@ export function JobFacts({ token, facts, onSaved }: {
       // A failed save stays on the same question, in Change mode too, and says so.
       setStatus("error");
       setError(cause instanceof Error && cause.message ? cause.message : JOB_FACTS_NOT_SAVED);
+    } finally {
+      saving.current = false;
     }
   }
 

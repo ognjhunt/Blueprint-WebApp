@@ -119,7 +119,7 @@ function job(extra: Record<string, unknown> = {}) {
 }
 
 function company(tag: string, extra: Record<string, unknown> = {}) {
-  return { partnerRole: "deployment", termsAcceptance: currentTermsAcceptance(), name: `Person ${tag}`, email: `contact@${tag.toLowerCase()}.example`, company: `${tag} Robotics`,
+  return { partnerRole: "deployment", termsAcceptance: currentTermsAcceptance(), termsAcceptedByUid: `uid-contact@${tag.toLowerCase()}.example`, name: `Person ${tag}`, email: `contact@${tag.toLowerCase()}.example`, company: `${tag} Robotics`,
     website: `https://${tag.toLowerCase()}.example`, robot: "arm", workWanted: "pick", region: null, status: "approved",
     newJobAlertsOptIn: true, appliedAtIso: "2026-11-01T00:00:00.000Z", updatedAtIso: "2026-11-01T00:00:00.000Z",
     decidedAtIso: "2026-11-02T00:00:00.000Z", decidedBy: "ops", decisionNote: null, ...extra };
@@ -559,6 +559,51 @@ describe("introductions (E6) and money (E7)", () => {
     expect(activity.entries.find(entry => entry.alias === "Company D")).toMatchObject({ canIntroduce: false });
   });
 
+  it("clears both sides' details from the introduction emails' outbox rows once sent; a failed try keeps them for the retry", async () => {
+    await interested(NORTH);
+    expect(await requestIntroduction({ requestId: ID, alias: "A", actor: "site", statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION }))
+      .toMatchObject({ ok: true });
+    const rows = () => outbox().filter(row => row.kind === "introduction_made_company" || row.kind === "introduction_made_site");
+    expect(rows()).toHaveLength(2);
+    // The first try fails with a provider error that can be retried: the rows keep their full bodies.
+    const introTo = new Set([NORTH.email, SITE.email]);
+    seams.sendEmail.mockImplementation(async (message: Record<string, unknown>) => introTo.has(String(message.to))
+      ? { sent: false, provider: "resend", messageId: null, failure: "transient", error: new Error("rate limited") } as never
+      : { sent: true, provider: "resend", messageId: "accepted" });
+    await deliverOutbox({ limit: 50 });
+    seams.sendEmail.mockImplementation(async () => ({ sent: true, provider: "resend", messageId: "accepted" }));
+    for (const row of rows()) {
+      expect(row.status).toBe("pending");
+      expect(String(row.body)).toContain(row.kind === "introduction_made_company" ? SITE.email : NORTH.email);
+    }
+    // The retry sends the full email, then the row holds neither side's details.
+    for (const row of rows()) state.docs.set(`captureOutbox/${row.key}`, { ...state.docs.get(`captureOutbox/${row.key}`), nextAttemptAtMs: 0 });
+    seams.sendEmail.mockClear();
+    await deliverOutbox({ limit: 50 });
+    const sentBodies = seams.sendEmail.mock.calls.map(([message]) => JSON.stringify(message));
+    expect(sentBodies.some(body => body.includes(SITE.name) && body.includes(SITE.email))).toBe(true);
+    expect(sentBodies.some(body => body.includes(NORTH.email))).toBe(true);
+    for (const row of rows()) {
+      expect(row.status).toBe("sent");
+      expect(row).toMatchObject({ subject: "", body: "", replyTo: null });
+      // The row keeps its own recipient (`to`), which the outbox needs; the other side's details are gone.
+      const { to: _to, ...rest } = row as Record<string, unknown>;
+      const raw = JSON.stringify(rest);
+      for (const planted of [SITE.name, SITE.email, SITE.address, `${SITE.first} ${SITE.last}`, NORTH.email, NORTH.company, NORTH.name])
+        expect(raw).not.toContain(planted);
+    }
+  });
+
+  it("clears them too when an introduction email is cancelled", async () => {
+    await interested(NORTH);
+    await requestIntroduction({ requestId: ID, alias: "A", actor: "site", statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION }, { siteEmail });
+    patchJob({ consent_revoked: true });
+    await deliverOutbox({ limit: 50 });
+    const row = outbox().find(entry => entry.kind === "introduction_made_company")!;
+    expect(row).toMatchObject({ status: "cancelled", body: "", replyTo: null });
+    expect(JSON.stringify(row)).not.toContain(SITE.email);
+  });
+
   it("cancels the company's introduction email at dispatch once the site has withdrawn", async () => {
     await interested(NORTH);
     await requestIntroduction({ requestId: ID, alias: "A", actor: "site", statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION }, { siteEmail });
@@ -844,6 +889,28 @@ describe("a company media stream whose upstream fails or whose company goes away
     // The server is still up and serves the next request.
     expect((await page()).status).toBe(200);
   });
+
+  it.each(cases)("%s: a Pipeline that stalls mid-body ends the response at the idle timeout and cancels the upstream read",
+    async (_name, kind, range) => {
+      vi.stubEnv("COMPANY_MEDIA_IDLE_TIMEOUT_MS", "200");
+      state.docs.set(`captureUploadSessions/${CAPTURE}`, { ...state.docs.get(`captureUploadSessions/${CAPTURE}`), company_simulation: simulationPackage() });
+      const item = (await page()).body.item;
+      const bytes = kind === "clip" ? CLIP_BYTES : ZIP_BYTES;
+      const digest = kind === "clip" ? String(companyClip().digest) : ZIP_DIGEST;
+      let made: ReturnType<typeof upstream> | null = null;
+      serveUpstream((_url, asked) => {
+        made = upstream([bytes.subarray(0, 4), bytes.subarray(4, 8)], "hang");
+        return { status: asked ? 206 : 200, body: made.stream, headers: { "content-length": String(bytes.length), "x-blueprint-artifact-sha256": digest,
+          ...(asked ? { "content-range": `bytes 0-${bytes.length - 1}/${bytes.length}` } : {}) } };
+      });
+      const url = kind === "clip" ? item.video.url : item.simulationDownload.url;
+      const started = Date.now();
+      expect(await readsToError(url, range ? { range } : {})).toBe(true);
+      expect(Date.now() - started).toBeLessThan(4000);
+      await vi.waitFor(() => expect(made?.state.cancelled).toBe(true), { timeout: 3000 });
+      await settle();
+      expect(uncaught).toEqual([]);
+    });
 
   it.each(cases)("%s: a company that goes away cancels the upstream read", async (_name, kind, range) => {
     state.docs.set(`captureUploadSessions/${CAPTURE}`, { ...state.docs.get(`captureUploadSessions/${CAPTURE}`), company_simulation: simulationPackage() });

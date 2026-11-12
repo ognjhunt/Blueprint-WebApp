@@ -5,6 +5,7 @@
  *
  * `billableEvents/{id}` = `{ kind: "introduction", requestId, companyId, atIso, priceUsd: null, status: "recorded_no_price" }`,
  * written in the introduction's own transaction. The id is fixed per job and company, so an event is recorded once.
+ * An introduction cancelled at dispatch marks its event `status: "void"` (kept, never counted).
  */
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 
@@ -16,12 +17,15 @@ export interface BillableEvent {
   companyId: string;
   atIso: string;
   priceUsd: null;
-  status: "recorded_no_price";
+  /** "void": the introduction was cancelled at dispatch (G3). The event is kept and never counted. */
+  status: "recorded_no_price" | "void";
+  voidedAtIso?: string;
+  voidReason?: string;
 }
 
 export const billableEventId = (requestId: string, companyId: string) => `introduction-${requestId}-${companyId}`;
 
-export function buildIntroductionBillableEvent(requestId: string, companyId: string, atIso: string): BillableEvent {
+export function buildIntroductionBillableEvent(requestId: string, companyId: string, atIso: string): BillableEvent & { status: "recorded_no_price" } {
   return { kind: "introduction", requestId, companyId, atIso, priceUsd: null, status: "recorded_no_price" };
 }
 
