@@ -33,7 +33,6 @@ import {
   JobCompaniesError, loadAdminJobCompanies, recordCompanyResponseByOperator, recordCompanySend, setOperatorListingHold, voidCompanySend,
   type OperatorActor,
 } from "../utils/jobCompanies";
-import { COMPANY_RESPONSE_STATES } from "../../client/src/lib/companyResponses";
 
 const router = Router();
 router.use(requireAdminRole);
@@ -280,7 +279,8 @@ router.post("/:requestId/companies/sends/:sendId/void", async (req: Request, res
 
 const responseBody = z.object({
   companyId,
-  state: z.enum(COMPANY_RESPONSE_STATES),
+  // A tested answer is the company's own, on the job's page (E9); an operator records only the three others.
+  state: z.enum(["interested", "declined", "needs_something"]),
   inputs: z.string().trim().max(2000).default(""),
 }).strict();
 

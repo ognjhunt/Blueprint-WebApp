@@ -22,17 +22,36 @@ test("How it works opens its own page from the home page's quiet link", async ({
   }
 });
 
-// The animated example of an invented result is removed (frame of 2026-11-12), and nothing replaces it: the home page
-// is one text column that never overflows.
-test("the home page is one text column, with no example, and does not overflow", async ({ page }) => {
+// The moving example card is back where it was (owner, 2026-11-12: "can we add it back in where we had it?"), marked as
+// an example: beside the text on a desktop, below the button on a phone.
+test("the example card sits beside the text on a desktop and below the button on a phone, without overflowing", async ({ page }) => {
   for (const width of [320, 390, 768, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     await page.goto("/");
     await page.evaluate(() => document.fonts.ready);
-    await expect(page.locator(".bare-example")).toHaveCount(0);
-    await expect(page.getByRole("tablist")).toHaveCount(0);
-    await expect(page.locator(".bare-home .bare-button")).toBeVisible();
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    const card = page.getByRole("region", { name: "Example of a job page once deployment companies answer" });
+    await expect(card.getByRole("tabpanel")).toContainText("Example");
+    await expect(card).toContainText("Everything in this example is made up.");
+    await expect(card.getByRole("tab", { name: "Warehouse", exact: true })).toHaveAttribute("aria-selected", "true");
+    const examples = [
+      ["Warehouse", "Humanoid robot"], ["Café", "Fixed robot arm"], ["Laundromat", "Wheeled humanoid"],
+      ["Factory", "Mobile manipulator"], ["Hotel", "Mobile robot"], ["Lab", "Fixed robot arm"],
+    ];
+    await expect(card.getByRole("tab")).toHaveText(examples.map(([site]) => site));
+    for (const [site, embodiment] of examples) {
+      await card.getByRole("tab", { name: site, exact: true }).click();
+      await expect(card.getByRole("tabpanel", { name: site, exact: true })).toContainText(/Example.*Sent to \d deployment companies/);
+      await expect(page.getByRole("img", { name: `Illustration of the ${site.toLowerCase()} example: ${embodiment.toLowerCase()}`, exact: true })).toBeVisible();
+    }
+    const layout = await page.evaluate(() => ({
+      button: document.querySelector(".bare-home .bare-button")!.getBoundingClientRect(),
+      steps: document.querySelector(".bare-home .bare-steps")!.getBoundingClientRect(),
+      card: document.querySelector(".bare-example")!.getBoundingClientRect(),
+      overflow: document.documentElement.scrollWidth > innerWidth,
+    }));
+    expect(layout.overflow).toBe(false);
+    if (width >= 960) expect(layout.card.left).toBeGreaterThan(Math.max(layout.button.right, layout.steps.right));
+    else expect(layout.card.top).toBeGreaterThan(layout.button.bottom);
   }
 });
 

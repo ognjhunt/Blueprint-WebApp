@@ -29,6 +29,8 @@ export interface TaskBrowseCard extends TaskListingDetails {
   costUsd: number | null;
   publishedAtIso: string;
   thumbnailUrl: string | null;
+  /** The company's page for this job (`/jobs/:jobId`). */
+  jobUrl?: string;
   /** The answer's headline, only when the site chose to share its answer with the card. */
   answerHeadline?: string;
 }
@@ -114,4 +116,44 @@ export function anonymizedOpportunityDraft(description: string): TaskListingDeta
           : /pick|place|transfer|move/.test(text) ? ["Material handling opportunity", "Material handling", ""]
             : ["Work assessment opportunity", "To be determined", ""];
   return { title: category[0], taskFamily: category[1], objects: category[2], siteType: "", region: "", cycleTarget: "", pilotTiming: "", pilotBudget: "", pilotPriceStatus: "target_budget", pilotConditions: "", ongoingTarget: "", opportunity: "open" };
+}
+
+/** One first-look row in words (`client/src/lib/firstLookWords.ts`), as the company's page shows it. */
+export interface CompanyFirstLookRow { verdict: "fits" | "does_not_fit" | "conditional" | "not_rated"; text: string; robot: string | null }
+
+/**
+ * The company's page for one job (package E, E3), for a signed-in approved company only. Never the site's name, typed
+ * address, email, phone or submitter name: only the site's own sentence for the job, its quick answers, the country,
+ * and the job packet's parts, each when it exists.
+ */
+export interface CompanyJobPage {
+  schemaVersion: "company_job_page.v1";
+  id: string;
+  /** The category title ("Material handling opportunity"). */
+  title: string;
+  taskFamily: string;
+  publishedAtIso: string;
+  /** The site's own sentence for the job. */
+  sentence: string;
+  /** The site's quick answers in words, one line each (`jobFactsInWords`). */
+  jobFacts: string[];
+  /** The country only, or null when the site gave none we can read. */
+  country: string | null;
+  /** The sound-free company clip behind a short ticket, or "The video is being prepared." */
+  video: { state: "ready"; url: string; width: number; height: number; durationSeconds: number | null } | { state: "preparing" };
+  /** "Download the simulation" (E9): the job's simulation package behind a short ticket, or "not finished yet". */
+  simulationDownload: { state: "ready"; url: string } | { state: "not_finished" };
+  /** The simulation of the site in the viewer, behind a short ticket, or "not finished yet". */
+  simulation: { state: "ready"; viewerUrl: string } | { state: "not_finished" };
+  /** The first look (and the early trial's result inside it, `test`), or null while there is none. */
+  firstLook: JobCardAnswerSummary | null;
+  /** The first look's robots in plain words, resolved with the site's weight answer where it can be. */
+  firstLookRows: CompanyFirstLookRow[];
+  /** "And 27 more." when the first look rated more robots than it lists; null otherwise. */
+  firstLookMore?: string | null;
+  /** This company's own answer on this job, if any. */
+  myAnswer: { state: "interested" | "declined" | "needs_something" | "tested_can_do" | "tested_cannot_yet"; inputs: string; updatedAtIso: string;
+    statementVersion: string | null } | null;
+  /** The line under the form, and the version recorded with an answer. */
+  responseStatement: { version: string; text: string };
 }

@@ -10,7 +10,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import SelfCaptureUpload from "@/pages/SelfCaptureUpload";
-import { RECORDING_RIGHTS_STATEMENT } from "@/lib/recordingRightsStatement";
+import { RECORDING_RIGHTS_STATEMENT_V4 } from "@/lib/recordingRightsStatement";
 import { processingFailure } from "../../../server/utils/taskPreparationOutcome";
 import { allZeroEvaluation, cannotAssessAnswer, readingAnswer, readyAnswer, serverOutlookFor, winnerEvaluation } from "../fixtures/siteAnswer";
 import { projectSimulationProof } from "@/lib/simulationProof";
@@ -297,27 +297,26 @@ describe("video first owner return", () => {
     render(<SelfCaptureUpload />);
     const permission = await screen.findByRole("region", { name: "Confirm recording permission" });
     expect(permission.closest("details")).toBeNull();
-    expect(permission).toHaveTextContent(/need your video to build the site simulation/);
+    expect(permission).toHaveTextContent(/need your video to build the simulation of your site and the job packet deployment companies answer from/);
     expect(screen.queryByRole("heading", { name: "Your job summary" })).not.toBeInTheDocument();
     // Said before the grant: people in the work area are told, and sound is not analysed.
-    expect(screen.getByText(/Tell people in the work area that you are filming for Blueprint, and avoid filming conversations\. We remove sound before any automated review\./)).toBeInTheDocument();
-    const button = screen.getByRole("button", { name: "Confirm recording permission" });
-    expect(button).toBeDisabled();
+    expect(screen.getByText(/Tell people nearby that the video goes to Blueprint and to deployment companies we approve\. Avoid conversations: we remove the sound\./)).toBeInTheDocument();
+    // Recording statement v4, word for word, directly above the one button that agrees to it (2026-11-12): pressing it is the act.
+    const button = screen.getByRole("button", { name: "Agree and continue" });
     expect(fetcher.mock.calls.filter(call => call[1]?.method === "POST")).toHaveLength(0);
-    // The box is labelled with exactly the sentence its version records.
+    // The line is exactly the sentence its version records.
     // Nothing to withdraw yet: no recording permission given and no video, so "Stop using my video" is not offered.
     expect(screen.queryByText("Stop using my video")).toBeNull();
     expect(screen.queryByText("Withdraw recording permission")).toBeNull();
-    const box = screen.getByRole("checkbox", { name: RECORDING_RIGHTS_STATEMENT });
-    expect(permission).toContainElement(box);
+    expect(within(permission).getByText(RECORDING_RIGHTS_STATEMENT_V4)).toBeVisible();
+    expect(within(permission).queryByRole("checkbox")).toBeNull();
     expect(permission).not.toHaveTextContent(/robot teams/i);
-    fireEvent.click(box);
     fireEvent.click(button);
     await screen.findByRole("button", { name: "Upload a video file" });
     const posts = fetcher.mock.calls.filter(call => call[1]?.method === "POST");
     expect(posts).toHaveLength(1);
     expect(posts[0][0]).toContain("/recording-consent");
-    expect(JSON.parse(posts[0][1]!.body as string)).toEqual({ granted: true, statementVersion: "2026-11-02.v2" });
+    expect(JSON.parse(posts[0][1]!.body as string)).toEqual({ granted: true, statementVersion: "2026-11-12.v4" });
     expect(videoUpload.send).not.toHaveBeenCalled();
     expect(videoUpload.retry).not.toHaveBeenCalled();
   });
@@ -366,7 +365,7 @@ describe("video first owner return", () => {
     setUserAgent("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148 Safari/604.1");
     vi.stubGlobal("fetch", ownerFetch(false));
     render(<SelfCaptureUpload />);
-    expect(await screen.findByText(/^Tell people in the work area that you are filming for Blueprint/)).toBeVisible();
+    expect(await screen.findByText(/^Tell people nearby that the video goes to Blueprint/)).toBeVisible();
     const howTo = screen.getByText("How to film ›").closest("details")!;
     expect(howTo).not.toHaveAttribute("open");
     expect(screen.getByText(/^Move slowly and overlap your passes/)).not.toBeVisible();
@@ -1135,7 +1134,7 @@ describe("the site's answer leads its job page", () => {
     render(<SelfCaptureUpload />);
     const job = await screen.findByRole("region", { name: "Your job" });
     expect(await within(job).findByText("We're building the simulation of your site.")).toBeVisible();
-    expect(within(job).getByText("We're building your job packet. Nothing has been shared.")).toBeVisible();
+    expect(within(job).getByText("Your job is not shared with any company yet.")).toBeVisible();
     expect(within(job).queryByRole("button", { name: "Share my job" })).toBeNull();
     // The first look shows while the simulation is built; it does not wait for a trial.
     expect(within(job).getByText("On paper, the robot most likely to fit: Universal Robots UR10e.")).toBeVisible();
@@ -1204,11 +1203,9 @@ describe("the site's answer leads its job page", () => {
     const answer = await screen.findByRole("region", { name: "Your job" });
     const headline = await screen.findByText(card.headline, { selector: "strong" });
     expect(headline).toBeVisible();
-    // The site's own step comes first, and the share button stays, quiet, with its sentence: one filled button at most.
+    // The site's own step comes first; there is no share button (sharing is the service, 2026-11-12).
     expect(headline.compareDocumentPosition(answer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    const find = screen.getByRole("button", { name: "Share my job" });
-    expect(find).toHaveClass("bare-quiet-button");
-    expect(screen.getByText(/^Shares a summary of your job and your answer, including later test results, without saying who you are/)).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Share my job" })).toBeNull();
   });
 
   it("puts every optional control on its own Job settings screen, and every detail on its own details screen, each with a way back", async () => {
@@ -1217,8 +1214,8 @@ describe("the site's answer leads its job page", () => {
     vi.stubGlobal("fetch", answerFetch({ answer: readyAnswer }));
     const { container } = render(<SelfCaptureUpload />);
     await screen.findByRole("region", { name: "Your job" });
-    // The job page: one filled button, two quiet links, one h1.
-    expect([...container.querySelectorAll(".bare-button, .ms-button")].map(button => button.textContent)).toEqual(["Share my job"]);
+    // The job page: no filled button (no share step), two quiet links, one h1.
+    expect([...container.querySelectorAll(".bare-button, .ms-button")].map(button => button.textContent)).toEqual([]);
     expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
     expect(screen.queryByText("Video received.")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Job settings ›" }));
@@ -1226,7 +1223,7 @@ describe("the site's answer leads its job page", () => {
     expect(await screen.findByRole("heading", { level: 1, name: "Job settings" })).toBeVisible();
     const settings = screen.getByRole("list", { name: "Job settings" });
     expect(within(settings).getAllByRole("listitem").map(item => item.querySelector("summary, a, button")?.textContent)).toEqual([
-      "Send a new video", "Change my job description", "Share settings", "Contact Blueprint about this job", "Stop using my video"]);
+      "Send a new video", "Change my job description", "Contact Blueprint about this job", "Stop using my video"]);
     expect(within(settings).getByText("Stop using my video").closest("details")).not.toHaveAttribute("open");
     expect(screen.queryByRole("region", { name: "Your job" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "‹ Back" }));
@@ -1248,12 +1245,12 @@ describe("the site's answer leads its job page", () => {
     window.history.replaceState(null, "", "/capture-upload/test");
   });
 
-  // Review, 2026-11-12: the page says what the server decided is true of the card (`answer.sharing`), not a guess.
-  it("says the summary is shared, or shared but hidden, as the server decided, and offers no button either way", async () => {
+  // Sharing is the service (2026-11-12): the page says what the server decided (`answer.sharing`), with no share button.
+  it("says the job is shared, or shared but not visible right now, as the server decided, and offers no button either way", async () => {
     setUserAgent(DESKTOP_UA);
     for (const [sharing, line] of [
-      [{ state: "visible", sharedAtIso: "2026-11-10T09:00:00.000Z" }, "Shared on November 10, 2026. Deployment companies we approve can see a summary of your job. Nothing more is needed from you."],
-      [{ state: "not_visible", sharedAtIso: "2026-11-10T09:00:00.000Z" }, "You shared a summary of your job on November 10, 2026. It is not visible to companies right now."],
+      [{ state: "visible", sharedAtIso: "2026-11-10T09:00:00.000Z" }, "We share your job with the deployment companies we approve."],
+      [{ state: "not_visible", sharedAtIso: "2026-11-10T09:00:00.000Z" }, "Your job is not visible to companies right now."],
     ] as const) {
       vi.stubGlobal("fetch", answerFetch({ answer: { ...readyAnswer, jobCardListed: true, sharing } }));
       const { unmount } = render(<SelfCaptureUpload />);
@@ -1261,6 +1258,39 @@ describe("the site's answer leads its job page", () => {
       expect(screen.queryByRole("button", { name: "Share my job" })).toBeNull();
       unmount();
     }
+  });
+
+  // PACKAGE_E E1: the few quick questions sit directly under the job sentence, on the owner's page only.
+  it("mounts the few quick questions directly under the job sentence", async () => {
+    setUserAgent(DESKTOP_UA);
+    const drafted = { ...readyAnswer, job: { ...readyAnswer.job, sentence: "Stack cartons onto the pallet", drafted: true },
+      sharing: { state: "visible", sharedAtIso: "2026-11-12T10:00:00.000Z" } };
+    vi.stubGlobal("fetch", answerFetch({ answer: drafted }));
+    render(<SelfCaptureUpload />);
+    const sentence = await screen.findByText(/We read your job as:/);
+    const facts = await screen.findByTestId("job-facts");
+    expect(sentence.nextElementSibling).toBe(facts);
+    expect(facts.compareDocumentPosition(screen.getByRole("region", { name: "Your job" })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("asks no quick questions on an older job, whose page asks for the current statement first", async () => {
+    setUserAgent(DESKTOP_UA);
+    const older = { ...readyAnswer, sharing: { state: "not_shared", sharedAtIso: null, olderStatement: true } };
+    vi.stubGlobal("fetch", answerFetch({ answer: older }));
+    render(<SelfCaptureUpload />);
+    await screen.findByRole("button", { name: "Agree and send my job" });
+    expect(screen.queryByTestId("job-facts")).toBeNull();
+  });
+
+  it("puts the quick questions below the page's action when one waits on the site", async () => {
+    setUserAgent(DESKTOP_UA);
+    const shared = { ...readyAnswer, sharing: { state: "visible", sharedAtIso: "2026-11-12T10:00:00.000Z" } };
+    vi.stubGlobal("fetch", answerFetch({ answer: shared, decision: "save_account", headline: "Save this job to an account to continue." }));
+    render(<SelfCaptureUpload />);
+    const step = await screen.findByText("Save this job to an account to continue.", { selector: "strong" });
+    const facts = await screen.findByTestId("job-facts");
+    expect(step.compareDocumentPosition(facts) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByRole("region", { name: "Your job" }).compareDocumentPosition(facts) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it("offers an older job's finished processing details from Job settings under an answer, with no retry", async () => {

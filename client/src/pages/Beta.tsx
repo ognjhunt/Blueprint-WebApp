@@ -23,7 +23,7 @@ export default function Beta() {
           <BareRows id="scope" title="For sites" rows={[
             { key: "cost", label: "Cost", value: <>Free for sites. <a href="/refunds">Refunds and cancellations</a></> },
             { key: "reply", label: "Reply", value: REPLY_TIMELINE },
-            { key: "jobs", label: "Jobs", value: "One job that repeats, with known objects. Pick-up-and-put-down jobs fit best; other jobs we keep and hold." },
+            { key: "jobs", label: "Jobs", value: "One job that repeats, with known objects. Pick-up-and-put-down jobs fit best; other jobs still go to companies, and their simulation waits until we can build one." },
           ]} />
           <BareRows title="Your job packet" rows={[
             { key: "packet", label: "What's in it", value: "Your sentence for the job, a first look on paper, a simulation of your site, and what counts as done." },
@@ -32,13 +32,14 @@ export default function Beta() {
             { key: "isnt", label: "It isn't", value: "A test at your site. It does not certify performance or safety." },
           ]} />
           <BareRows title="Deployment companies" rows={[
-            { key: "responses", label: "Responses", value: "A company can say it is interested or that the job is not a fit. We can't promise any will say yes." },
+            { key: "responses", label: "Responses", value: "A company can say it is interested, that the job is not a fit, or that it would need something. We can't promise any will say yes." },
+            { key: "meet", label: "Meeting a company", value: "Beside each interested company, press Introduce us. We give each of you the other's details. Up to three for each job." },
             { key: "company", label: "Setting it up", value: "You agree any work and its terms with the company directly." },
           ]} />
           <BareRows title="Your video" rows={[
-            { key: "private", label: "Your video", value: "It stays private. Companies see a summary of your job, without your name or address." },
-            { key: "sharing", label: "Sharing", value: "Only if you choose to: on the start form, or with the button on your job page." },
-            { key: "stop", label: "Stopping", value: "You can stop us using your video at any time, from your job page." },
+            { key: "private", label: "Your video", value: "We share it, without its sound, with the deployment companies we approve, so they can decide whether they can do your job. Your name, address and contact details go to a company only if you ask for an introduction." },
+            { key: "sharing", label: "Sharing", value: "It is part of sending a job. A job started before 12 November 2026 is shared only if you agree on its job page." },
+            { key: "stop", label: "Stopping", value: "You can stop us using your video at any time, from your job page. Your job then leaves every company's view at once." },
           ]} />
           <BareRows id="who-we-are" title="Who we are" rows={[
             { key: "company", label: "Company", value: COMPANY.legalName },

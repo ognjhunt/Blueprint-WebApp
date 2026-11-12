@@ -13,8 +13,6 @@ vi.mock("../logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.
 const sendEmail = vi.hoisted(() => vi.fn());
 vi.mock("../utils/email", () => ({ sendEmail }));
 const router = (await import("../routes/admin-robot-teams")).default;
-const listingRouter = (await import("../routes/task-listings")).default;
-const { createCaptureUploadToken } = await import("../utils/captureUploadToken");
 
 describe("recording Blueprint's reviewed job decision", () => {
   let server: Server; let base: string;
@@ -23,7 +21,7 @@ describe("recording Blueprint's reviewed job decision", () => {
     state.docs.set("inboundRequests/req1", { requestId: "req1", contact: { email: "owner@example.test" } } as never);
     const app = express(); app.use(express.json());
     app.use((req, res, next) => { if (req.headers["x-fixture-reviewer"]) res.locals.firebaseUser = { uid: "synthetic-reviewer" }; next(); });
-    app.use(router); app.use(listingRouter);
+    app.use(router);
     server = createServer(app); await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
     base = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
   });
@@ -47,13 +45,6 @@ describe("recording Blueprint's reviewed job decision", () => {
     const admin = await (await fetch(`${base}/recommendations/req1`)).json();
     expect(admin.assessment).toEqual(safe); expect(admin.decision.nextAction).toBe("Measure pull force");
     expect(JSON.stringify(admin)).not.toMatch(/Internal analysis test paragraph|Internal rationale test paragraph|compatibleDecisionAssessments|decisionAssessment|decisionEvidence|packetSha256|qualificationSha256/);
-    const token = createCaptureUploadToken({ requestId: "req1", sceneId: "site-req1", captureId: "walkthrough-req1", scope: "owner" });
-    const owner = await (await fetch(`${base}/owner/${token}`)).json();
-    // The owner card route no longer carries the decision or any pilot booking state.
-    expect(owner).not.toHaveProperty("decision");
-    expect(owner).not.toHaveProperty("recommendation");
-    expect(owner).not.toHaveProperty("pilotBooking");
-    expect(JSON.stringify(owner)).not.toMatch(/Internal analysis test paragraph|Internal rationale test paragraph|compatibleDecisionAssessments|decisionAssessment|decisionEvidence|packetSha256|qualificationSha256/);
     const clarification = await (await import("../utils/siteTaskClarifications")).readSiteClarification("req1");
     expect(clarification).toMatchObject({ needed: true, questions: ["Which final state is required? — Defines success"] });
     expect(JSON.stringify(clarification)).not.toContain("Internal");
@@ -81,8 +72,6 @@ describe("recording Blueprint's reviewed job decision", () => {
     const post = (path: string) => fetch(`${base}${path}`, { method: "POST", headers: { "content-type": "application/json", "x-fixture-reviewer": "yes" }, body: JSON.stringify({ recommendationId: "rec_1", authorized: true }) });
     for (const path of ["/recommendations/req1", "/recommendations/req1/reconcile", "/recommendations/req1/coordination"]) expect((await post(path)).status).toBe(404);
     expect((await fetch(`${base}/jobs/req1/evaluations`)).status).toBe(404);
-    const token = createCaptureUploadToken({ requestId: "req1", sceneId: "site-req1", captureId: "walkthrough-req1", scope: "owner" });
-    expect((await post(`/owner/${token}/book`)).status).toBe(404);
     expect(state.docs.get("inboundRequests/req1")).not.toHaveProperty("pilot_recommendation");
     expect(state.docs.get("inboundRequests/req1")).not.toHaveProperty("pilot_booking");
     expect([...state.docs.keys()].filter(key => key.startsWith("captureOutbox/"))).toEqual([]);

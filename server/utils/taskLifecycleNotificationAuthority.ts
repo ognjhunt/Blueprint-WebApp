@@ -11,7 +11,7 @@ const CAPTURE_DEPENDENT_NOTICES=new Set<OutboxKind>([
  'video_received','scene_ready','scene_tests_started','screening_cleared','screening_started',
  'evaluation_outcome','scene_outcome','robot_access_question','footage_before_account',
  'brief_confirmed','coverage_shortfall','assessment_ready','input_needed','answer_ready','video_too_large',
- 'listing_live','job_sent','company_answered',
+ 'listing_live','job_sent','company_answered','introduction_made_site',
 ]);
 /**
  * The answer emails, by slot (review, 2026-11-11): per job at most one paper-check answer and at most one test
@@ -95,6 +95,16 @@ export async function taskLifecycleNotificationIsCurrent(
  // "can't simulate this kind of job yet" email shares the `screening_not_now`
  // kind and is kept, by its own fixed key.
  if(entry.kind==='pilot_request'||entry.kind==='brief_confirmed'||entry.kind==='input_needed')return false;
+ // "Meet {company}" (PACKAGE_E E6; planner 20:35Z, H2): one commit point. It may go only once the company's email is
+ // definitely sent, and from then on it goes whatever has changed since (a withdrawal, a hold, a suspension, a stale
+ // acceptance): the company holds the site's details and the site must be told who has them. Before that point the one
+ // predicate decides (`siteIntroductionEmailState`). Checked first, so no later rule of this function can stop it.
+ if(entry.kind==='introduction_made_site'){
+  const prefix=`${entry.requestId}:introduction_made_site:`;
+  if(!entry.idempotencyKey?.startsWith(prefix))return false;
+  const {siteIntroductionEmailState}=await import('./jobIntroductionGate');
+  return (await siteIntroductionEmailState(entry.requestId,entry.idempotencyKey.slice(prefix.length),transaction)).state==='go';
+ }
  if(entry.kind==='screening_not_now'
   &&entry.idempotencyKey!==`${entry.requestId}:brief-screening:task-not-yet-supported`)return false;
  // That kept notice is still the site's to hear only while the job is the site's: not after it withdrew or closed it.
@@ -143,14 +153,17 @@ export async function taskLifecycleNotificationIsCurrent(
  // "Deployment companies we approve can now see a summary of your job": sent only while that is true, by the one
  // predicate that decides what a company can see (paused or closed by the site, held by Blueprint, or under a rights hold, it is not).
  if(entry.kind==='listing_live'){
-  const {teamJobAccess}=await import('./teamJobAccess');
-  return teamJobAccess(snapshot.data()??null).listed;
+  // The whole rule a company's own reads use (review M1): the job sentence and an authority end included.
+  const {loadCompanyJobAccess}=await import('./teamJobAccess');
+  return (await loadCompanyJobAccess(entry.requestId,snapshot.data()??null,transaction)).access.listed;
  }
  // A company was sent the job, or answered it (package C1): sent only while the summary is visible to companies by the
  // same predicate, and while what the email says still stands (the send not voided, the answer unchanged).
  if(entry.kind==='job_sent'||entry.kind==='company_answered'){
-  const {teamJobAccess}=await import('./teamJobAccess');
-  if(!teamJobAccess(snapshot.data()??null).listed)return false;
+  // The whole sharing rule, with the facts outside the record (the brief, the preparation state): an operator hold, a rights
+  // hold, the site closing its job or an authority end each stop these emails.
+  const {loadCompanyJobAccess}=await import('./teamJobAccess');
+  if(!(await loadCompanyJobAccess(entry.requestId,snapshot.data()??null,transaction)).access.listed)return false;
   if(entry.idempotencyKey===undefined)return true;
   const {companyNoticeStillTrue}=await import('./jobCompanies');
   return companyNoticeStillTrue(entry.requestId,entry.kind,entry.idempotencyKey,snapshot.data()??{},transaction);

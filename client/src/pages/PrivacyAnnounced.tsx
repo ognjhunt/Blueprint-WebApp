@@ -1,0 +1,353 @@
+import { Shield, SlidersHorizontal, SquareStack, Waypoints } from "lucide-react";
+import { SEO } from "@/components/SEO";
+import { openCookieSettings } from "@/components/CookieConsent";
+import { COMPANY } from "@/data/company";
+import { legalEffectiveDate } from "@/lib/legalAcceptance";
+
+/**
+ * FROZEN RECORD: the Privacy Policy published ahead on 2026-11-11 under version 2026-11-25.1 (effective date November 25,
+ * 2026). It never took effect: on 2026-11-12 the owner's sharing change ("sharing is the service") replaced it, before
+ * that date, with version 2026-11-12.1. New acceptances recorded 2026-11-25.1 between those days, so its text is kept
+ * here word for word as the record of what they read. It is not routed. Do not edit it.
+ */
+const ANNOUNCED_PRIVACY_VERSION = "2026-11-25.1";
+
+const privacyPolicySections = [
+  {
+    title: "What we collect",
+    body:
+      "What you give us: your name, work email, company, role and phone number; the site and job you describe; your answers to the job brief; account details; and messages you send us. If a site and a robot team agree to share a physical pilot's outcomes with Blueprint, we may also receive its scope, milestones and operating measurements under those permissions. Robot teams also give us details of their robots and policies, and the endpoints or container images we run. Blueprint takes no payments during the beta; Stripe holds the records of payments made before it. What we collect automatically: your IP address, browser and device type, pages you visit, and errors the site runs into.",
+    icon: SquareStack,
+  },
+  {
+    title: "Site footage",
+    body:
+      "When a site films its job, we receive the video and photos, when and where they were taken, and the phone's motion and depth data where available. A phone video can show people and can include sound, such as conversations nearby. We keep the original upload as received, including any sound, for the uses and retention periods in this policy. We remove the sound before any automated review of the footage and before sending it to an AI or 3D-processing provider, and we do not analyze speech. We and our listed processing providers use the footage to draft the job brief, review the job, rebuild the work area as a simulated scene, and run the evaluations the site allows. We do not remove people from job footage. We blur faces in the frames we send to World Labs to rebuild the work area; the other listed providers receive the footage, with its sound removed, or frames from it as recorded, which can show people, including hands or arms performing the job. We ask sites to avoid screens and paperwork and may blur or remove those details when practical.",
+    icon: Waypoints,
+  },
+  {
+    title: "How we use it",
+    body:
+      "To run the Service: to reply to you, set up your job or account, draft the job brief, rebuild scenes, run robot teams' evaluations, recommend a pilot, record physical-pilot outcomes only under the parties' agreed permissions, send the emails you need (such as a job update or an evaluation result), keep the Service secure and prevent fraud, understand how the site is used so we can improve it, and meet our legal obligations. We do not sell personal information, and we do not use your footage to train AI models without your written agreement. The only use that California law could treat as sharing for cross-context behavioral advertising is the optional marketing cookies described below, which are off unless you turn them on.",
+    icon: Shield,
+  },
+  {
+    title: "Your choices",
+    body:
+      "Depending on where you live, you can ask to access, correct, delete or get a copy of your personal information, object to or restrict how we use it, and withdraw consent you gave, including consent to use your footage. You can also change your cookie choices at any time, and we treat a Global Privacy Control signal from your browser as a choice to keep analytics and marketing cookies off.",
+    icon: SlidersHorizontal,
+  },
+] as const;
+
+const capturePrivacyAnnex = [
+  // Site-facing copy states this as an absolute: "Robot teams never receive
+  // your recording." This row used to make it conditional ("buyer visibility
+  // depends on listing rights and privacy state"), which meant the document a
+  // site reads before consenting disagreed with what it reads before starting
+  // a job. The absolute is the true one, so the conditional goes.
+  ["Raw walkthrough media", "Your recording is used inside Blueprint to draft the job brief, review the job and rebuild the work area. It is never delivered to a robot team or anyone else outside Blueprint and its listed processing providers. No listing right, order form or other agreement gives access to the recording itself."],
+  // Stated because "they never get the recording" is necessary and not
+  // sufficient: a policy served through an endpoint has to be sent something to
+  // look at, and what it is sent is derived from the site.
+  ["What a robot team's policy is sent", "Images rendered from the reconstructed scene, never the walkthrough. Those images can still show layout, equipment and stock, so they are kept and shared on the same terms as the scene, and they are not licensed for training unless a written agreement says so."],
+  ["People in job footage", "We do not remove people from job footage. We blur faces in the frames we send to World Labs to rebuild the work area; otherwise Blueprint and the listed processing providers process the footage, with its sound removed, and frames from it as recorded, for job review, scene preparation and evaluation. You must have authority to submit the footage, tell people in the work area that you are recording and sharing the video with Blueprint, and obtain any permission the law requires from people who can be seen or heard."],
+  ["Sound", "Phone videos can record sound, including conversations; Blueprint's browser recorder films without it. We keep an uploaded original as received, remove the sound before any automated review or before sending footage to an AI or 3D-processing provider, and do not analyze speech. Avoid filming conversations, and turn sound off where your camera allows."],
+  ["Screens and paperwork", "Avoided when filming where practical, and blurred or removed when practical before a robot team sees anything derived from the site."],
+  ["Location", "Used to tie a result to the right site, and to keep restricted areas you mark out of the scene."],
+  ["Robot team sharing", "Robot teams approved for beta can see the anonymized job card authorized when you start the job, until you hide it; a job started without a card stays unlisted. Robot teams also see their own results. The scene, what their policy is sent and the results are shared only as your listing or a written agreement allows. The raw walkthrough is outside the scope of all of them."],
+  ["Physical pilot records", "If the site and the robot team agree to share pilot outcomes with Blueprint, those permissions set what operating records we receive, who may see them, and the permitted uses. A simulation result does not become a physical result without actual trial evidence."],
+];
+
+const rolePrivacyAnnex = [
+  {
+    title: "Robot teams",
+    body: "Your account holds your team's details, the robots and policies you register, the evaluations you are invited to and their results, and your API keys. Evaluation results on a site's job are shared with that site under your team alias, and a passed evaluation can lead to Blueprint recommending your team; your policy itself stays private. Results and records from before the free beta keep their original sharing restrictions.",
+  },
+  {
+    title: "Sites",
+    body: "Your job holds your contact details, the site's address, the job brief, your footage, the areas you mark as restricted, and whether robot teams can see a card for the job.",
+  },
+];
+
+/** What starts the retention clock for a job's records. */
+const jobClosedDefinition =
+  "A job closes on the earliest of: the site owner asking us to close or delete the job; the site owner withdrawing permission to use the recording (for the footage, from that moment); or 12 months passing with no activity on the job from the site, a robot team or Blueprint. Hiding the job card from robot teams stops new evaluations but does not by itself close the job.";
+
+/**
+ * The one retention schedule. It replaced a second, vaguer list that sat above
+ * it and disagreed with it.
+ *
+ * Storage configuration describes implementation, not permission to extend
+ * the earlier site-facing promise. A later account acceptance never changes
+ * the terms of existing footage. The remaining notice/legal review and
+ * scheduled-deletion gap are tracked in the counsel packet.
+ */
+const betaRetentionSchedule = [
+  {
+    record: "Site footage and capture data",
+    defaultWindow: "Existing recordings keep their original retention terms; longer retention requires separate authorization",
+    notes: "The video, photos, timestamps, motion and depth data, the frames and blurred copies we make from them and store with them, and the record of the site's authority and privacy review. Recordings collected under our previous policy keep its 180 days after the job closes schedule, subject to applicable legal holds. Publishing this update, reaching its effective date, or accepting it later does not extend that period for existing recordings. A proposed period of at least 7 years for newly collected recordings requires legal review and the notice and authorization applicable to those recordings before it can apply. Our storage does not currently delete originals automatically on a schedule; that configuration does not override the applicable retention terms. Withdrawal and verified deletion requests use our deletion process, after we confirm the request and check for any legal hold. When a site withdraws permission, we stop using the recording from that moment.",
+  },
+  {
+    record: "Temporary processing files",
+    defaultWindow: "14 days after they are created",
+    notes: "Scratch files from rebuilding a scene or blurring footage that sit in our temporary processing storage, unless a legal hold applies. Frames and blurred copies stored with the capture are kept like the capture.",
+  },
+  {
+    record: "Scenes, evaluation results, pilot records and reports",
+    defaultWindow: "365 days after the job closes or the contract ends",
+    notes: "The rebuilt scene, the images robot policies were sent, evaluation results, recommendations, booking records and reports. Physical pilot measurements are included only under a separate agreement, which may set a different retention period and permitted use.",
+  },
+  {
+    record: "Account and contact details",
+    defaultWindow: "While your account or job is open",
+    notes: "Deleted or anonymized after you close your account, your job closes, or we complete a verified deletion request, unless a record below still needs them.",
+  },
+  {
+    record: "Support and privacy requests",
+    defaultWindow: "90 days after the request is closed",
+    notes: "The messages and the record of what we did.",
+  },
+  {
+    record: "Payment, tax, security and legal records",
+    defaultWindow: "As long as the law requires",
+    notes: "Includes records of payments made before the free beta. US tax records are typically kept for up to 7 years. Records under a legal hold, or needed to investigate fraud or a security incident, are kept until the matter is resolved.",
+  },
+] as const;
+
+const privacyRightsRequestSteps = [
+  `Email ${COMPANY.emails.privacy} from the address on your account, or include enough detail for us to find your records and confirm they are yours. Tell us what you would like us to do.`,
+  "We acknowledge your request within 10 business days and complete it within 30 calendar days of confirming your identity. If we need longer, we tell you why.",
+  "We may keep some information when the law requires it, or when it is needed for a payment record, a legal claim, fraud prevention or security. If so, we tell you what we kept and why.",
+  "We do not charge for a request, and we do not treat you differently for making one. An authorized agent can make a request for you with your written permission.",
+] as const;
+
+/** California (CCPA as amended by the CPRA). */
+const californiaPrivacyRows = [
+  ["Selling", "We do not sell personal information, and we have not sold it in the past 12 months. We do not knowingly sell or share the personal information of anyone under 16."],
+  ["Sharing for advertising", "If you turn on marketing cookies, Google Analytics may use them to measure whether our outreach and ads work. California law can treat that as sharing personal information for cross-context behavioral advertising. It happens only after you turn marketing cookies on, and you can turn them off at any time in cookie settings."],
+  ["Global Privacy Control", "If your browser sends a Global Privacy Control signal, we treat it as your request to opt out of sale and sharing: analytics and marketing cookies stay off and are not pre-selected. You can still turn them on yourself in cookie settings."],
+  ["Sensitive information", "We do not use sensitive personal information to infer characteristics about you, and we use it only as needed to provide the Service."],
+  ["Your rights", "California residents can ask to know, access, correct or delete their personal information and to opt out of sale or sharing, as described above, without being treated differently for asking."],
+] as const;
+
+/** Every provider that can receive personal information, by what it does. */
+const privacySubprocessorCategories = [
+  {
+    category: "Hosting and storage",
+    providers: [
+      ["Google Cloud and Firebase", "Accounts and sign-in, database, file storage, hosting"],
+      ["Render", "Application and API hosting and background jobs"],
+      ["Backblaze B2", "Storage for uploaded footage"],
+      ["DigitalOcean", "Hosting for our internal operations tools, which can receive the company and job details from a request"],
+    ],
+  },
+  {
+    category: "Payment records",
+    providers: [["Stripe", "Records, receipts and refunds of payments made before the free beta. No new charges are made during the beta."]],
+  },
+  {
+    category: "Email and communication",
+    providers: [
+      ["Resend", "Sending the emails the Service sends you"],
+      ["Google Workspace", "Our email and documents"],
+      ["Slack", "Internal alerts to our team, which can include your name, email and job"],
+      ["Notion", "Internal operations and support records"],
+      ["Twilio", "Calls to our phone line, including the caller's number and what they say or key in, and text messages that send a filming link to a phone number you give us"],
+      ["ElevenLabs", "Speaking our voice assistant's replies and, if you talk to the assistant, processing that conversation"],
+    ],
+  },
+  {
+    category: "Analytics and error monitoring",
+    providers: [
+      ["Google Analytics", "Website analytics, with cookies only if you allow analytics or marketing cookies"],
+      ["PostHog", "Product analytics, with cookies only if you allow analytics"],
+      ["Sentry", "Error reports from the website, which can include your browser, IP address and the page you were on"],
+    ],
+  },
+  {
+    category: "Maps and content delivery",
+    providers: [
+      ["Google Maps Platform", "Address suggestions when you type a site's location"],
+      ["Photon (Komoot)", "Address suggestions when Google's are unavailable"],
+      ["Google Fonts and Cloudflare (cdnjs)", "Deliver fonts and open-source scripts to your browser, which receive your IP address"],
+    ],
+  },
+  {
+    category: "Abuse prevention",
+    providers: [["Google reCAPTCHA Enterprise, through Firebase App Check", "Confirming that a job submission or footage upload comes from our website rather than an automated script"]],
+  },
+  {
+    category: "AI, 3D processing and compute",
+    providers: [
+      ["OpenAI", "Reading the job description and frames from a site capture to draft the job brief and prepare the simulated scene, drafting replies, and sorting incoming requests"],
+      ["Google Gemini", "Watching site footage, with its sound removed, and frames from it to draft and check the job brief and to find what the simulated scene needs"],
+      ["Meta", "Outlining objects and areas in site footage, with its sound removed, to prepare the simulated scene"],
+      ["Anthropic", "Drafting the job brief from capture frames only when a site explicitly chooses that option, and drafting and sorting internal work where we configure it"],
+      ["DeepSeek", "Drafting and sorting internal work, where we configure it"],
+      ["World Labs", "Rebuilding a work area as a 3D scene from site footage, with its sound removed"],
+      ["Vast.ai", "Cloud GPU servers that rebuild scenes and run simulated evaluations"],
+    ],
+  },
+] as const;
+
+const betaResidencyTransferRows = [
+  {
+    label: "Where we operate",
+    detail:
+      "Blueprint's beta serves sites and robot teams in the United States, and our providers process data mainly in the United States.",
+  },
+  {
+    label: "Outside the United States",
+    detail:
+      "If you contact us from outside the United States, your information is transferred to and processed in the United States. We work with a site or team outside the United States only under signed transfer terms, such as standard contractual clauses.",
+  },
+  {
+    label: "Provider limits",
+    detail:
+      "Each provider receives only what it needs for the function listed above, under contract, and may not use it for its own purposes. We do not send site footage to any provider as general training data.",
+  },
+] as const;
+
+export default function PrivacyAnnounced() {
+  return <>
+    <SEO title="Privacy Policy | Blueprint" description={`How ${COMPANY.legalName} collects, uses and protects information on tryblueprint.io and in the Blueprint service.`} canonical="/privacy" noIndex />
+    <article className="ms-legal ms-container">
+      <h1>Privacy Policy</h1>
+      <p>Version 2026-11-25.1, announced for {legalEffectiveDate(ANNOUNCED_PRIVACY_VERSION)}. It never took effect.</p>
+      <p>
+        This policy explains how {COMPANY.legalName} (&ldquo;Blueprint&rdquo;, &ldquo;we&rdquo;), {COMPANY.mailingAddress},
+        handles personal information on tryblueprint.io, in the private job links we send, in Blueprint accounts
+        and through our API. Blueprint is responsible for that information.
+      </p>
+      {privacyPolicySections.map((section) => <section key={section.title}><h2>{section.title}</h2><p>{section.body}</p></section>)}
+
+      <section>
+        <h2>Site footage in detail</h2>
+        <LegalRows rows={capturePrivacyAnnex} />
+        {rolePrivacyAnnex.map((item) => <div key={item.title}><h3>{item.title}</h3><p>{item.body}</p></div>)}
+      </section>
+
+      <section>
+        <h2>Earlier filming visits</h2>
+        <p>Video from an earlier Blueprint filming visit is handled like uploaded video.</p>
+      </section>
+
+      <section>
+        <h2>Cookies and similar technologies</h2>
+        <p>
+          Essential cookies and browser storage keep you signed in, protect forms from forgery, remember your cookie
+          choices and keep an unsent job draft on your device. They are always on, because the site does not work without them.
+        </p>
+        <p>
+          Analytics cookies, from Google Analytics and PostHog, tell us which pages are used so we can improve them.
+          Marketing cookies let Google Analytics measure whether our outreach works. Both are off until you allow them,
+          and neither is pre-selected. Google Analytics, PostHog and optional analytics events sent to our own servers
+          stay off until you allow the corresponding category. Session recording is disabled. Necessary service and
+          security requests still run. If your browser sends a Global Privacy Control signal, we keep both off unless you
+          turn them on yourself.
+        </p>
+        <p>
+          You can change your choice at any time:{" "}
+          <button type="button" className="ms-inline-link" onClick={openCookieSettings}>open cookie settings</button>
+          {" "}(also in the footer of every page).
+        </p>
+      </section>
+
+      <section>
+        <h2>Who we share it with</h2>
+        <p>
+          We share personal information with the providers below, only for the function listed and under contract. A
+          site sees an alias for each robot team and its results, and the name of the team Blueprint recommends; robot
+          teams approved for beta see the anonymized job card authorized when the site starts a job, until the site
+          hides it.
+          We may also disclose information when the law requires it, to protect people&rsquo;s safety or our rights, or
+          as part of a merger or sale of the business, in which case this policy continues to apply to it.
+        </p>
+        {privacySubprocessorCategories.map((group) => (
+          <div key={group.category}>
+            <h3>{group.category}</h3>
+            <LegalRows rows={group.providers} />
+          </div>
+        ))}
+      </section>
+
+      <section>
+        <h2>AI in the Service</h2>
+        <p>
+          Frames from a site capture, together with the job description, are processed by AI model providers acting as
+          our sub-processors to draft the job brief. By default that is OpenAI, with Google Gemini reviewing the footage;
+          Anthropic receives frames only when a site explicitly chooses that option. We also use the providers listed
+          above to rebuild scenes and sort incoming requests. We send each provider only what the step needs, footage
+          goes to them with its sound removed, the provider may not use it for its own purposes, and we do not give any
+          of them your footage as training data.
+        </p>
+      </section>
+
+      <section>
+        <h2>How long we keep it</h2>
+        <p>{jobClosedDefinition}</p>
+        <LegalRows rows={betaRetentionSchedule.map((item) => [item.record, `${item.defaultWindow}. ${item.notes}`])} />
+      </section>
+
+      <section>
+        <h2>Your rights and how to use them</h2>
+        <p>
+          To request deletion of your account and personal data, open <a href="/settings?privacy=1">account deletion in Settings</a>.
+          You can view your request reference and status there. Submitting the request starts our review; it does not mean
+          your account is already closed or every copy is erased. We review shared site and team records, provider copies,
+          backups and any required retention before confirming the outcome. You can also email us, including if you cannot sign in.
+        </p>
+        {privacyRightsRequestSteps.map((step) => <p key={step}>{step}</p>)}
+      </section>
+
+      <section>
+        <h2>California privacy rights</h2>
+        <p>
+          This section applies to California residents under the California Consumer Privacy Act, as amended by the
+          California Privacy Rights Act.
+        </p>
+        <LegalRows rows={californiaPrivacyRows} />
+      </section>
+
+      <section><h2>Where your information is processed</h2><LegalRows rows={betaResidencyTransferRows.map((item) => [item.label, item.detail])} /></section>
+
+      <section>
+        <h2>Security</h2>
+        <p>
+          We encrypt information in transit and at rest, additionally encrypt contact details in our database, and limit
+          access to the people who need it. No system is perfectly secure; if a breach affects your
+          information, we will tell you as the law requires.
+        </p>
+        <p>
+          When you submit a job or upload footage on our website, we use Firebase App Check with Google reCAPTCHA
+          Enterprise to confirm the request comes from our site rather than an automated script. reCAPTCHA collects
+          hardware and software information, such as device and browser data and your IP address, and sends it to Google,
+          whose use of it is governed by Google&apos;s Privacy Policy and Terms of Service.
+        </p>
+      </section>
+
+      <section>
+        <h2>Children</h2>
+        <p>The Service is for businesses and is not directed to anyone under 18. We do not knowingly collect information from children.</p>
+      </section>
+
+      <section>
+        <h2>Changes to this policy</h2>
+        <p>We will post any update here with its effective date, and email account holders before a material change takes effect.</p>
+      </section>
+
+      <section>
+        <h2>Contact</h2>
+        <p>
+          Privacy questions and requests: <a href={`mailto:${COMPANY.emails.privacy}`}>{COMPANY.emails.privacy}</a>.
+          By post: {COMPANY.legalName}, {COMPANY.mailingAddress}.
+        </p>
+      </section>
+    </article>
+  </>;
+}
+
+function LegalRows({ rows }: { rows: ReadonlyArray<ReadonlyArray<string>> }) {
+  return <dl className="ms-legal-rows">{rows.map(([label, detail]) => <div key={label}><dt>{label}</dt><dd>{detail}</dd></div>)}</dl>;
+}

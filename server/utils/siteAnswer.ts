@@ -36,7 +36,8 @@ import { getMeasurements, type SiteTaskMeasurementRecord } from "./siteTaskMeasu
 import type { PublicRobotFit } from "./websitePreparationStatus";
 import { projectWebsiteCaptureRights } from "./websiteTaskContext";
 import { teamJobAccess } from "./teamJobAccess";
-import { isJobCardAnswerStatementVersion, jobCardStatementSharesTestResults } from "../../client/src/lib/jobCardAnswerConsent";
+import { jobIsShared } from "./jobSharedListing";
+import { hasCurrentRecordingConsent } from "./recordingConsent";
 
 /** The Pipeline's model table from the measured scene, as the status read projects it. */
 export type SceneRobotFit = Pick<PublicRobotFit, "models"> | null;
@@ -60,7 +61,7 @@ const HEADLINE_READING = "We are reading your video. Your first look will appear
 const HEADLINE_CANNOT = "We can't check robots against this job yet.";
 /** The reason for a video that did not show the job clearly enough to size it; the answer email and the page key on it. */
 export { REASON_UNSIZED, UNKNOWN_JOB_KIND };
-const NEXT_STEP_INTRODUCTION = "Share a summary of this job with deployment companies Blueprint has approved.";
+const NEXT_STEP_INTRODUCTION = "Deployment companies we approve can answer about this job.";
 /** Wrist and mounting margin an arm standing between the spots needs beyond half the span. */
 const REACH_MARGIN_M = 0.10;
 /** A length the video reader estimated as one figure is checked across this band. */
@@ -703,28 +704,36 @@ function introductionAt(request: Record<string, any>): string | null {
   return text(intro?.requested_at_iso);
 }
 
-/** Whether the job card is on, as stored: what the confirmation under an asked introduction says. */
+/** Whether the job's listing record is on, as stored (it may still be hidden: see `sharing`). */
 function jobCardListed(request: Record<string, any>): boolean {
   return isRecord(request.public_task_listing) && request.public_task_listing.enabled === true;
 }
 
+/** Why a shared job is not in front of companies yet, as opposed to held: the video check or the job sentence. */
+const PREPARING_REASONS = new Set<string>(["privacy_screen_pending", "no_job_sentence", "not_listed"]);
+
 /**
- * Where the job's summary stands with deployment companies: shared when the site turned its card on (on the start form,
- * from Share settings or with "Share my job"), and visible only when the one predicate that decides what an approved
- * company can see (`teamJobAccess`) says the card is listed. The date is when the site chose to share.
+ * Where the job stands with deployment companies (2026-11-12, sharing is the service). A job is shared if, and only if,
+ * its site accepted recording statement v4 or later and its listing record was written (`jobSharedListing.ts`):
+ * - `visible`: the one predicate that decides what an approved company can see (`teamJobAccess`) lists it;
+ * - `preparing`: shared, and not in front of companies until its video passes the privacy check;
+ * - `not_visible`: shared, but held (Blueprint's hold, a rights hold, the site closed it);
+ * - `not_shared`: never shared. `olderStatement` says the site agreed to an older statement and its page offers v4.
+ * The date is when the site accepted the statement that shares the job.
  */
-export function jobSharingOf(request: Record<string, any>): JobSharing {
-  if (!jobCardListed(request)) return { state: "not_shared", sharedAtIso: null };
+export function jobSharingOf(request: Record<string, any>,
+  /** The whole rule's answer (`loadCompanyJobAccess`), when the caller read it; else the record-only rule. */
+  wholeAccess?: { listed: boolean; reason: string | null }): JobSharing {
+  if (!jobIsShared(request)) {
+    const older = isRecord(request.request) && request.request.buyerType === "site_operator"
+      && hasCurrentRecordingConsent(request.request.consent_attestation) && !projectWebsiteCaptureRights(request).consent_revoked;
+    return older ? { state: "not_shared", sharedAtIso: null, olderStatement: true } : { state: "not_shared", sharedAtIso: null };
+  }
   const listing = request.public_task_listing as Record<string, unknown>;
-  const sharedAtIso = introductionAt(request) ?? text(listing.approvedAtIso) ?? text(listing.wentLiveIso);
-  // What the site agreed the card carries, read as `jobCardAnswer.ts` reads it to build the card.
-  const intro = isRecord(request.introduction_request) ? request.introduction_request : null;
-  const answerShared = Boolean(text(intro?.requested_at_iso)) && isJobCardAnswerStatementVersion(intro?.statement_version)
-    && isJobCardAnswerStatementVersion(listing.consentVersion);
-  const trialShared = answerShared && jobCardStatementSharesTestResults(intro?.statement_version)
-    && jobCardStatementSharesTestResults(listing.consentVersion);
-  return { state: teamJobAccess(request).listed ? "visible" : "not_visible", sharedAtIso,
-    leavesOut: { firstLook: !answerShared, trialResult: !trialShared } };
+  const sharedAtIso = text(listing.approvedAtIso) ?? text(listing.wentLiveIso);
+  const access = wholeAccess ?? teamJobAccess(request);
+  if (access.listed) return { state: "visible", sharedAtIso };
+  return { state: access.reason && PREPARING_REASONS.has(access.reason) ? "preparing" : "not_visible", sharedAtIso };
 }
 
 function coverageDone(request: Record<string, any>, inputs: RobotFitInputs): boolean {

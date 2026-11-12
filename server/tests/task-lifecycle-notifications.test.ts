@@ -19,8 +19,13 @@ vi.mock("../utils/field-encryption", () => ({
 }));
 const jobAccess = vi.hoisted(() => ({ evaluationAvailable: false, listed: true }));
 // A record on a rights hold is not listed, as the real predicate says; every other record follows `jobAccess`.
-vi.mock("../utils/teamJobAccess", () => ({ teamJobAccess: (record?: { pipeline?: { rights_review_status?: string } }) =>
-  record?.pipeline?.rights_review_status === "needs_review" ? { listed: false, evaluationAvailable: false, reason: "rights_needs_review" } : jobAccess }));
+vi.mock("../utils/teamJobAccess", () => {
+  const teamJobAccess = (record?: { pipeline?: { rights_review_status?: string } }) =>
+    record?.pipeline?.rights_review_status === "needs_review" ? { listed: false, evaluationAvailable: false, reason: "rights_needs_review" } : jobAccess;
+  // The whole rule (review M1) reads the same stub here; its own facts are tested with it.
+  return { teamJobAccess, loadCompanyJobAccess: async (_id: string, record?: Record<string, unknown> | null) =>
+    ({ record: record ?? null, access: teamJobAccess(record as never) }) };
+});
 const send = vi.hoisted(() => vi.fn());
 vi.mock("../utils/email", () => ({ sendEmail: send }));
 // The site's answer, as the composer would give it; null until a test sets one.
@@ -131,11 +136,11 @@ describe('withdrawal fences capture-derived notices without suppressing recovery
  });
 });
 
-// Review, 2026-11-12: "Your job summary is shared" goes out once, at the first moment the summary is visible to approved
+// Review, 2026-11-12: "Your job is with deployment companies" goes out once, at the first moment the summary is visible to approved
 // companies (whenever that is), never before and never twice.
 describe("the summary-shared email follows visibility", () => {
   const owe = () => { (sharedFakeFirestoreState.docs.get("inboundRequests/req-1") as Record<string, any>).summary_shared_notice = { owed: true }; };
-  const sentSubjects = () => send.mock.calls.map(call => (call[0] as { subject: string }).subject).filter(subject => subject === "Your job summary is shared");
+  const sentSubjects = () => send.mock.calls.map(call => (call[0] as { subject: string }).subject).filter(subject => subject === "Your job is with deployment companies");
   const pass = async () => {
     const { reconcileSummarySharedNotices } = await import("../utils/taskLifecycleNotifications");
     const { deliverOutbox } = await import("../utils/captureOutbox");
@@ -178,7 +183,7 @@ describe("the summary-shared email follows visibility", () => {
   // visible yet stay owed; and the sweep pages through every owed row, so no number of stuck rows hides another.
   const owedJob = (id: string, extra: Record<string, unknown> = {}) => sharedFakeFirestoreState.docs.set(`inboundRequests/${id}`, {
     contact: { email: `encrypted:${id}@example.com` }, request: { buyerType: "site_operator" }, summary_shared_notice: { owed: true }, ...extra });
-  const sentTo = () => send.mock.calls.filter(call => (call[0] as { subject: string }).subject === "Your job summary is shared")
+  const sentTo = () => send.mock.calls.filter(call => (call[0] as { subject: string }).subject === "Your job is with deployment companies")
     .map(call => (call[0] as { to: string }).to);
 
   it("reaches a sendable row behind 25 rows that are not visible, in the same or the next pass", async () => {
@@ -261,11 +266,15 @@ describe("listing notices describe the free beta", () => {
       captureUrl: "https://tryblueprint.io/capture-upload/owner-token", detail });
   };
 
-  // The frame of 2026-11-12: the one email when a summary becomes visible, true and promising nothing.
-  it("tells the site its summary is shared, and that its video stays private", async () => {
+  // Sharing is the service (2026-11-12, PACKAGE_D D1.3): the one email when the job first becomes visible, true and
+  // promising nothing, with how to withdraw.
+  it("tells the site its job is with deployment companies, what stays with us, and how to stop", async () => {
     const notice = await build("listing_live");
-    expect(notice.subject).toBe("Your job summary is shared");
-    expect(notice.body.startsWith("Deployment companies we approve can now see a summary of your job. Your video, address and contacts stay private.\n\nOpen your job:\n")).toBe(true);
+    expect(notice.subject).toBe("Your job is with deployment companies");
+    expect(notice.body.startsWith("Deployment companies we approve can now see your job. We don't share your name, address or contact details "
+      + "with a deployment company unless you ask for an introduction to it. Your job page shows any answer.\n\n"
+      + "To stop, open your job page, choose Job settings, then Stop using my video. Your job then leaves every company's view at once.\n\nOpen your job:\n")).toBe(true);
+    expect(notice.body).not.toMatch(/summary|stays? private/i);
     expect(notice.body).toContain("https://tryblueprint.io/capture-upload/owner-token");
     expect(notice.body).not.toMatch(/Blueprint account|\/app\/tasks/);
   });
@@ -282,8 +291,8 @@ describe("listing notices describe the free beta", () => {
     const { buildTaskLifecycleNotification } = await import("../utils/taskLifecycleNotifications");
     const notice = buildTaskLifecycleNotification({ requestId: "req-1", milestone: "pilot_request", to: "owner@example.com",
       captureUrl: "https://tryblueprint.io/capture-upload/owner-token" });
-    expect(notice.body).toContain("You and a deployment company agree any physical pilot directly.");
-    expect(notice.body).not.toMatch(/you choose|option|proposal|\bbook/i);
+    // Never sent (refused at dispatch); its words claim nothing about what stays private.
+    expect(notice.body).not.toMatch(/you choose|option|proposal|\bbook|stay private/i);
   });
 });
 
@@ -711,7 +720,7 @@ describe("the site's answer is emailed once, when it first settles", () => {
     const notice = await build(answer(), { phase: "no_test", reason: "run_ended", sentence: "Our early trial stopped before it gave a result." });
     expect(notice.subject).toBe("Your first look is ready");
     expect(notice.body.startsWith("Our early trial stopped before it gave a result. "
-      + "On paper, the robot most likely to fit: Universal Robots UR10e. From published specifications and where it has been used. You can share a summary of your job with deployment companies from your job page.\n\n")).toBe(true);
+      + "On paper, the robot most likely to fit: Universal Robots UR10e. From published specifications and where it has been used.\n\n")).toBe(true);
     expect(notice.body).not.toContain("If our early trial gives a result later");
     // An ended authority has no email of its own either: the window's sentence, then the paper check.
     const ended = await build(answer(), { phase: "no_test", reason: "authority_ended", sentence: "The time for this job ran out before our early trial could run." });

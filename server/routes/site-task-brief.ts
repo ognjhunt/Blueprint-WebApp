@@ -1,7 +1,9 @@
-import { SHARE_REFUSAL_SENTENCES, shareRefusalReason } from "../../client/src/lib/jobOutlook";
 import { destinationPictureUrl } from "../utils/websiteDestinationPicture";
 import { placeKindOf } from "../utils/taskTargetChoiceContract";
-import { JOB_CARD_ANSWER_STATEMENT, JOB_CARD_ANSWER_STATEMENT_VERSION } from "../../client/src/lib/jobCardAnswerConsent";
+import { readJobFacts } from "../utils/jobFacts";
+import { loadFirstLookWords } from "../utils/firstLookTable";
+import { INTRODUCTION_FAILED, INTRODUCTION_REFUSAL_SENTENCES, INTRODUCTION_REQUEST_STATEMENT_VERSION, INTRODUCTION_STATEMENT_CHANGED,
+  isIntroductionRefusalReason, type IntroductionRefusalReason } from "../../client/src/lib/siteIntroductions";
 import { siteWalkthroughIdentity } from "../utils/siteWalkthrough";
 import { isWebsiteCaptureId } from "../utils/websiteCaptureIdentity";
 import { loadCurrentSiteAdvisory } from "../utils/siteAssessmentPublic";
@@ -264,115 +266,45 @@ router.post("/:token/robot-access", csrfProtection, async (req, res) => {
 });
 
 /**
- * "Find a deployment company for this job": the owner's one explicit choice to
- * share the job's anonymised card with approved deployment companies. Records
- * the request once (a repeat returns the stored time), turns the job card on
- * through the same grant "Manage opportunity sharing" records, and rings
- * Blueprint once. It contacts no outside company itself. Owner link only.
+ * "Introduce us" (PACKAGE_E E6): the site asks for an introduction to one deployment company that answered Interested.
+ * `requestIntroduction` (`server/utils/jobIntroductions.ts`) re-checks everything in one transaction, records the
+ * introduction and queues both emails; this route only checks the owner's link and says each refusal in one sentence.
+ * The body names the company by its alias on this job, never by anything else. Owner link only.
  */
-router.post("/:token/introduction-request", csrfProtection, async (req, res) => {
+router.post("/:token/introductions", csrfProtection, async (req, res) => {
   res.setHeader("Cache-Control", "no-store");
   const verified = verifyCaptureUploadToken(String(req.params.token || ""));
   if (!verified) return res.status(404).json({ code: "capture_token_invalid", error: "That link is not valid any more." });
-  if (verified.scope !== "owner") return res.status(403).json({ code: "introduction_request_owner_required",
+  if (verified.scope !== "owner") return res.status(403).json({ code: "introduction_owner_required",
     error: "Open the owner's job link to ask for this." });
-  // The page sends the version of the sentence it showed under the button; without it there is no record
-  // of what the site agreed to, so nothing is recorded or listed.
-  const body = z.object({ statementVersion: z.string().trim().min(1).max(100) }).strict().safeParse(req.body ?? {});
-  if (!body.success)
-    return res.status(400).json({ code: "introduction_request_invalid", error: "Press the button on your job page to ask for this." });
-  // The consent recorded is the sentence the page showed. A page showing an older one is refused before
-  // anything is recorded or listed.
-  if (body.data.statementVersion !== JOB_CARD_ANSWER_STATEMENT_VERSION)
-    return res.status(409).json({ code: "introduction_request_statement_changed",
-      error: "The wording on this page has changed. Reload the page to read it, then press the button again." });
-  // Sharing follows the job's outlook: only once the job has an answer (a test result, or the paper check after a
-  // recorded ending). When the outlook cannot be read for certain it is "not yet", never a server error.
-  const waits = (phase: string) => {
-    const reason = shareRefusalReason(phase);
-    return res.status(409).json({ code: "introduction_waits_for_answer", phase, reason, error: SHARE_REFUSAL_SENTENCES[reason] });
-  };
-  const decision = await import("../utils/jobOutlook").then(({ loadJobOutlookDecision }) => loadJobOutlookDecision(verified.requestId))
-    .catch(() => null);
-  const alreadyAsked = await (db?.collection("inboundRequests").doc(verified.requestId).get()
-    .then(snapshot => Boolean(snapshot.data()?.introduction_request)).catch(() => false) ?? false);
-  if (!alreadyAsked) {
-    if (!decision || !decision.certain) return waits(decision?.outlook.phase ?? "building");
-    const { outlookHasAnswer } = await import("../utils/jobOutlook");
-    if (!outlookHasAnswer(decision.outlook)) return waits(decision.outlook.phase);
-  }
+  const body = z.object({ alias: z.string().trim().regex(/^Company [A-Z]{1,3}$|^[A-Z]{1,3}$/),
+    statementVersion: z.string().trim().max(100).optional() }).strict().safeParse(req.body ?? {});
+  if (!body.success) return res.status(400).json({ code: "introduction_invalid", error: "Press the button beside the company on your job page." });
+  // Pressing the button is the agreement its sentence records (planner, 18:25Z): a page without that sentence, or with
+  // another wording (an old tab), is refused before anything is recorded.
+  if (body.data.statementVersion !== INTRODUCTION_REQUEST_STATEMENT_VERSION)
+    return res.status(409).json({ ok: false, code: "introduction_statement_changed", error: INTRODUCTION_STATEMENT_CHANGED });
+  const alias = body.data.alias.replace(/^Company /, "");
   try {
-    const request = await readRequestForStatus(verified.requestId, verified.captureId, verified.sceneId);
-    if (!db || !request || request.captureRights.consent_revoked)
-      return res.status(409).json({ code: "introduction_request_unavailable", error: "This job can no longer be shared from its recording." });
-    const store = db;
-    const ref = store.collection("inboundRequests").doc(verified.requestId);
-    const requestedAtIso = await store.runTransaction(async tx => {
-      const intro = (await tx.get(ref)).data()?.introduction_request;
-      const stored = intro?.requested_at_iso;
-      if (typeof stored === "string" && stored) {
-        // A site that chose under an older sentence and presses again under this one records the new sentence and
-        // when it was shown; the time of its first choice stays.
-        if (intro.statement_version !== JOB_CARD_ANSWER_STATEMENT_VERSION) tx.set(ref, { introduction_request: {
-          statement_version: JOB_CARD_ANSWER_STATEMENT_VERSION, statement_text: JOB_CARD_ANSWER_STATEMENT,
-          statement_recorded_at_iso: new Date().toISOString() } }, { merge: true });
-        return stored;
+    const { requestIntroduction } = await import("../utils/jobIntroductions");
+    const result = await requestIntroduction({ requestId: verified.requestId, alias, actor: "site",
+      statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION });
+    if (result.ok) return res.json({ ok: true, introducedAtIso: result.introducedAtIso });
+    if ((result.reason as string) === "statement_not_current")
+      return res.status(409).json({ ok: false, code: "introduction_statement_changed", error: INTRODUCTION_STATEMENT_CHANGED });
+    let reason: IntroductionRefusalReason = isIntroductionRefusalReason(result.reason) ? result.reason : "not_listed";
+    // A withdrawn job is said for good, never "right now" (review S8).
+    if (reason === "not_listed") {
+      const record = (await db?.collection("inboundRequests").doc(verified.requestId).get().catch(() => null))?.data();
+      if (record) {
+        const { projectWebsiteCaptureRights } = await import("../utils/websiteTaskContext");
+        if (projectWebsiteCaptureRights(record).consent_revoked || record.capture_withdrawal) reason = "withdrawn";
       }
-      const now = new Date().toISOString();
-      // The choice is recorded with the exact sentence the page showed under the button.
-      tx.set(ref, { introduction_request: { requested_at_iso: now, requested_by: "signed_owner_link",
-        statement_version: JOB_CARD_ANSWER_STATEMENT_VERSION, statement_text: JOB_CARD_ANSWER_STATEMENT } }, { merge: true });
-      return now;
-    });
-    // The card goes on under the statement the site just agreed to. A card already on keeps everything the
-    // owner reviewed; only its consent moves to this statement, since the latest consent the site gave governs.
-    let listed = false;
-    try {
-      const current = (await ref.get()).data()?.public_task_listing;
-      if (current?.enabled === true) {
-        listed = true;
-        if (current.consentVersion !== JOB_CARD_ANSWER_STATEMENT_VERSION) {
-          await store.runTransaction(async tx => {
-            const listing = (await tx.get(ref)).data()?.public_task_listing;
-            if (listing?.enabled !== true || listing.consentVersion === JOB_CARD_ANSWER_STATEMENT_VERSION) return;
-            // A merge touches this one field only. The card's published date (`approvedAtIso`, the library's sort
-            // key), details, revision, thumbnail and go-live time stay as they are; the time of the site's choice is
-            // `introduction_request.requested_at_iso`. No team alert is written: the card is not going live.
-            tx.set(ref, { public_task_listing: { consentVersion: JOB_CARD_ANSWER_STATEMENT_VERSION } }, { merge: true });
-          });
-        }
-      } else {
-        const [{ applyOwnerTaskListing }, { anonymizedOpportunityDraft }] = await Promise.all([
-          import("./task-listings"), import("../../client/src/types/taskBrowse")]);
-        const brief = await getBrief(verified.requestId).catch(() => null);
-        const summary = brief && !isPlaceholderSummary(brief.summary) ? brief.summary : "";
-        await applyOwnerTaskListing(verified.requestId, { enabled: true, consent: true, details: anonymizedOpportunityDraft(summary) },
-          { consentVersion: JOB_CARD_ANSWER_STATEMENT_VERSION });
-        listed = true;
-      }
-    } catch (error) {
-      logger.warn({ error, requestId: verified.requestId }, "The introduction request was recorded, but the job card could not be turned on");
     }
-    // The bell rings once per job; its own marker keeps a repeat silent.
-    try {
-      const [{ loadSiteAnswer }, { alertOpsIntroductionRequested }] = await Promise.all([
-        import("../utils/siteAnswer"), import("../utils/pilotOpsAlerts")]);
-      const answer = await loadSiteAnswer(verified.requestId).catch(() => null);
-      await alertOpsIntroductionRequested({ requestId: verified.requestId, headline: answer?.headline ?? null,
-        pick: answer?.pick ? `${answer.pick.manufacturer} ${answer.pick.name}` : null,
-        familyLabel: answer?.job.familyLabel ?? null,
-        runnerUp: answer?.runnerUp ? `${answer.runnerUp.manufacturer} ${answer.runnerUp.name}` : null });
-    } catch (error) {
-      logger.warn({ error, requestId: verified.requestId }, "Could not ring Blueprint about an introduction request");
-    }
-    // What the site's page says next follows what a company can actually see (`teamJobAccess`), read again now.
-    const sharing = await Promise.all([ref.get(), import("../utils/siteAnswer")])
-      .then(([snapshot, { jobSharingOf }]) => jobSharingOf(snapshot.data() ?? {}))
-      .catch(() => ({ state: "not_shared" as const, sharedAtIso: null }));
-    return res.json({ ok: true, requestedAtIso, listed, sharing });
+    return res.status(409).json({ ok: false, code: "introduction_refused", reason, error: INTRODUCTION_REFUSAL_SENTENCES[reason] });
   } catch (error) {
-    logger.error({ error, requestId: verified.requestId }, "Could not record an introduction request");
-    return res.status(503).json({ code: "introduction_request_unavailable", error: "Your request could not be saved. Try again shortly." });
+    logger.error({ error, requestId: verified.requestId }, "Could not record an introduction");
+    return res.status(503).json({ ok: false, code: "introduction_unavailable", error: INTRODUCTION_FAILED });
   }
 });
 
@@ -1248,8 +1180,18 @@ async function siteAnswerForStatus(params: { requestId: string; request: Record<
     const answer = await loadSiteAnswer(params.requestId, { request: params.request, brief: (params.brief ?? null) as never,
       videoReceived: params.videoReceived, robotFit: (params.robotFit ?? null) as never });
     if (!answer) return null;
-    // Which approved companies the job was sent to and what each answered, by alias only (`projectSiteCompanyActivity`):
-    // never a company's name, email, website or words. A read that fails shows none, never a broken page.
+    // Where the job stands with companies, by the whole rule a company's own reads use (review M1).
+    const whole = await import("../utils/teamJobAccess").then(({ loadCompanyJobAccess }) =>
+      loadCompanyJobAccess(params.requestId, params.request as Record<string, any>)).catch(() => null);
+    if (whole) {
+      const { jobSharingOf } = await import("../utils/siteAnswer");
+      Object.assign(answer, { sharing: jobSharingOf(params.request as Record<string, any>, whole.access) });
+    }
+    // Which approved companies the job was sent to and what each answered, by alias until the site asks for an
+    // introduction (`jobCompanies.ts`): a company's name and contact details only for a company it was introduced to,
+    // never a company's words. Only for a job shared under the current statement: an older job shows none. A read that
+    // fails shows none, never a broken page.
+    if (answer.sharing.state === "not_shared") return answer;
     const companies = await import("../utils/jobCompanies").then(({ loadSiteCompanyActivity }) => loadSiteCompanyActivity(params.requestId))
       .catch(error => { logger.warn({ error, requestId: params.requestId }, "Could not read the job's company activity"); return null; });
     return companies ? { ...answer, companies } : answer;
@@ -1482,6 +1424,11 @@ router.get("/:token/status", async (req: Request, res: Response) => {
       robotAccess: payload.scope === "owner" && !request?.captureRights.consent_revoked ? robotAccess : null,
       // Which robot most likely fits the job, for the owner only: a fit check against published specifications.
       answer: ownerAnswer,
+      // The site's tap answers to the few quick questions (PACKAGE_E E1), for the owner only.
+      jobFacts: payload.scope === "owner" && request && !request.captureRights.consent_revoked ? readJobFacts(request.answerSource) : null,
+      // The first look as the Pipeline's published table words it (conditional rows said plainly), for the owner only.
+      firstLookTable: payload.scope === "owner" && request && !request.captureRights.consent_revoked
+        ? await loadFirstLookWords(payload.requestId, request.answerSource).catch(() => null) : null,
       // The job's outlook (`jobOutlook`): the one decision the page shows its screen from, for the owner only.
       outlook,
     });

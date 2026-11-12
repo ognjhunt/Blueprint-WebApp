@@ -28,15 +28,16 @@ describe("public managed-pilot copy", () => {
       <MinimalSiteLayout><Home /></MinimalSiteLayout>,
     );
 
-    expect(screen.getByRole("heading", { level: 1, name: "Film a job once. We turn it into a job packet." })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Get repetitive work done by robots." })).toBeInTheDocument();
     // One filled action on the page: the header is the brand and one quiet link.
     expect(screen.getAllByRole("link", { name: "Start a job" })).toHaveLength(1);
     expect(screen.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/sign-in");
     expect(container).toHaveTextContent(/Send a video of one job that repeats/);
-    expect(container).toHaveTextContent(/We turn it into a job packet: what the job is, a first look at which robots could fit, and a simulation of your site\./);
-    expect(container).toHaveTextContent(/With your permission, robot deployment companies we approve can see a summary of it\. Your video stays private\./);
+    expect(container).toHaveTextContent(/We send the job to robot deployment companies we approve and build a simulation of your site for them to test\./);
+    expect(container).toHaveTextContent(/Their answers come back to you: interested, can do, not a fit, or would need something\. You pick up to three to meet\./);
     expect(container).toHaveTextContent(/Free for sites/);
-    expect(container).toHaveTextContent(/We take pick-up-and-put-down jobs best\. Nothing here is a test at your site or a safety check\./);
+    // Owner, 2026-11-12: the fine line goes from the home page and the footer ("is this just outdated?").
+    expect(container).not.toHaveTextContent(/pick-up-and-put-down jobs best|a test at your site or a safety check/);
     // The frame of 2026-11-12: no invented result, no claim that the trial is the answer, no price.
     expect(container).not.toHaveTextContent(/which did best|top AI robots|AI robot|Find a company to set it up|during the beta/i);
     expect(container).not.toHaveTextContent(/A clear pilot plan|estimate of what’s likely to work/i);

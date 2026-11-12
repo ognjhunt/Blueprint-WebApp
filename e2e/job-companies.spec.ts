@@ -106,9 +106,12 @@ test("the operator records a send, an emailed answer and a hold on the job's Dep
   expect(errors).toEqual([]);
 });
 
-test("a signed-in company answers a job in the library with the third choice, and is told what the site sees", async ({ page }) => {
+test("a signed-in company opens a job from the library, watches the video and answers on the job's page", async ({ page }) => {
   const errors = await blockOutside(page);
   const answers: unknown[] = [];
+  const videoRequests: string[] = [];
+  const statement = "The site is told your answer. If you answer Interested or Tested it: can do and the site asks for an introduction, we give the site your company's name and your contact details, and give you theirs.";
+  const videoUrl = `/api/company-media/jobs/${JOB}/video.mp4?capture=walkthrough-${JOB}&viewer=${NORTH}&expires=1&signature=x`;
   await page.route("**/api/**", async route => {
     const request = route.request();
     const url = new URL(request.url());
@@ -117,28 +120,49 @@ test("a signed-in company answers a job in the library with the third choice, an
     if (url.pathname === "/api/site-worlds/tasks") return route.fulfill({ json: {
       access: { gated: true, status: "approved", signedIn: true, emailVerified: true, allowed: true, staff: false },
       items: [{ id: JOB, title: "Carton palletizing opportunity", taskFamily: "Pallet handling", siteType: "", region: "", objects: "Cartons",
-        cycleTarget: "", pilotTiming: "", pilotBudget: "", opportunity: "open", stage: "capture", evaluationAvailable: false, costUsd: null,
-        publishedAtIso: "2026-11-11T10:00:00.000Z", thumbnailUrl: null }] } });
+        cycleTarget: "", pilotTiming: "", pilotBudget: "", opportunity: "open", stage: "preparing", evaluationAvailable: false, costUsd: null,
+        publishedAtIso: "2026-11-12T10:00:00.000Z", thumbnailUrl: null, jobUrl: `/jobs/${JOB}` }] } });
+    if (url.pathname === `/api/site-worlds/jobs/${JOB}`) return route.fulfill({ json: { item: {
+      schemaVersion: "company_job_page.v1", id: JOB, title: "Carton palletizing opportunity", taskFamily: "Pallet handling",
+      publishedAtIso: "2026-11-12T10:00:00.000Z", sentence: "Stack 12 kg cartons from the conveyor onto the pallet.",
+      jobFacts: ["Weight: 5 to 15 kg (11 to 33 lb)"], country: "United States",
+      video: { state: "ready", url: videoUrl, width: 640, height: 360, durationSeconds: 1 },
+      simulation: { state: "not_finished" }, firstLook: null,
+      firstLookRows: [{ verdict: "conditional", text: "Fits if the item weighs under 20 kg.", robot: "Universal Robots UR20" }],
+      myAnswer: null, responseStatement: { version: "company-response-2026-11-12", text: statement } } } });
+    if (url.pathname === `/api/company-media/jobs/${JOB}/video.mp4`) {
+      videoRequests.push(url.search);
+      return route.fulfill({ status: 200, headers: { "content-type": "video/mp4", "cache-control": "private, no-store" }, body: Buffer.from("not-a-real-mp4") });
+    }
     if (url.pathname === `/api/site-worlds/tasks/${JOB}/interest` && request.method() === "POST") {
       answers.push(request.postDataJSON());
-      return route.fulfill({ json: { ok: true, nextAction: "Blueprint will review your inputs. Interest reserves no capacity and creates no physical commitment." } });
+      return route.fulfill({ json: { ok: true, nextAction: "Your answer is saved. The site is told your answer. Answering commits nobody." } });
     }
     return route.fulfill({ status: 503, json: { error: "No live API calls in browser fixture" } });
   });
 
   await page.setViewportSize({ width: 1280, height: 900 });
-  // The address Blueprint emails a company: the library, at the job.
-  await page.goto(`/contact/robot-team#job-${JOB}`);
+  await page.goto("/contact/robot-team");
   const row = page.locator(`li#job-${JOB}`);
   await expect(row).toBeVisible();
-  await row.getByText("Respond about this job", { exact: true }).click();
-  const form = row.getByRole("form", { name: "Respond about this job" });
-  await expect(form.getByRole("combobox").locator("option")).toHaveText(["Interested", "Not a fit", "Would need something"]);
-  await expect(form.getByText("The site is told your response, not your company's name or your words.", { exact: true })).toBeVisible();
-  await form.getByRole("combobox").selectOption("needs_something");
-  await form.getByRole("textbox").fill("A second gripper for the cartons.");
-  await form.getByRole("button", { name: "Save response" }).click();
-  await expect(form.getByRole("status")).toHaveText(/^Blueprint will review your inputs\./);
-  expect(answers).toEqual([{ state: "needs_something", inputs: "A second gripper for the cartons." }]);
+  await expect(row.getByRole("form")).toHaveCount(0);
+  await row.getByRole("link", { name: "Open the job and answer" }).click();
+  await expect(page).toHaveURL(new RegExp(`/jobs/${JOB}$`));
+  await expect(page.getByRole("heading", { name: "Carton palletizing opportunity" })).toBeVisible();
+  await expect(page.getByText("Stack 12 kg cartons from the conveyor onto the pallet.")).toBeVisible();
+  await expect(page.getByText("Weight: 5 to 15 kg (11 to 33 lb)")).toBeVisible();
+  await expect(page.getByText("The simulation of the site is not finished yet.")).toBeVisible();
+  const video = page.getByLabel("The site's video, without sound");
+  await expect(video).toHaveAttribute("src", videoUrl);
+  await expect(video).toHaveAttribute("controlsList", /nodownload/);
+  await expect.poll(() => videoRequests.length).toBeGreaterThan(0);
+
+  const form = page.getByRole("form", { name: "Answer about this job" });
+  await expect(form.getByText(statement, { exact: true })).toBeVisible();
+  await form.getByLabel("Interested").check();
+  await form.getByRole("textbox").fill("We palletize cartons like these today.");
+  await form.getByRole("button", { name: "Send answer" }).click();
+  await expect(form.getByRole("status")).toHaveText(/^Your answer is saved\./);
+  expect(answers).toEqual([{ state: "interested", inputs: "We palletize cartons like these today.", statementVersion: "company-response-2026-11-12" }]);
   expect(errors).toEqual([]);
 });

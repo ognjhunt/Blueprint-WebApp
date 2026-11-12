@@ -125,7 +125,7 @@ for (const [index, parameters] of cases.entries()) test(`A-J-${String(index + 1)
       await page.getByRole("link", { name: "Open my job page ›", exact: true }).click();
       // Every case that reaches the job page here is a phone job in Austin, which waits on the owner's recording
       // permission before any video: that step, and no upload control yet.
-      await expect(page.getByRole("button", { name: "Confirm recording permission", exact: true })).toBeVisible();
+      await expect(page.getByRole("button", { name: "Agree and continue", exact: true })).toBeVisible();
       await expect(page.getByRole("button", { name: /^(Upload a video file|Choose or record a video)$/ })).toHaveCount(0);
       await expect(page.getByRole("heading", { name: "Your job summary", exact: true })).toHaveCount(0);
       // The retained owner link authorizes the capture route; a draft is not an assessment before video arrives.

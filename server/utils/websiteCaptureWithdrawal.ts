@@ -90,6 +90,10 @@ export async function recordWebsiteCaptureWithdrawal(params: {
     const runs = await transaction.get(db!.collection("evaluationRuns").where("sceneId", "==", params.requestId));
     params.authorize(record);
     if (record?.capture_withdrawal) return { withdrawal: record.capture_withdrawal, created: false };
+    // The deletion notice to each approved company the job was sent to (review M4): planned with the withdrawal's own
+    // reads, written with its writes, so it is as durable as the withdrawal.
+    const { planWithdrawalCompanyNotices } = await import("./withdrawalCompanyNotice");
+    const notices = await planWithdrawalCompanyNotices(transaction, params.requestId, record);
     const withdrawal = { state: "uploads_stopped_cleanup_pending", requestedAtIso: new Date().toISOString(),
       requestedBy: params.requestedBy, requestId: params.requestId,
       sceneId: `site-${params.requestId}`, captureId: `walkthrough-${params.requestId}`,
@@ -101,6 +105,7 @@ export async function recordWebsiteCaptureWithdrawal(params: {
       workspace_task: { paused: true }, briefReviewPending: false,
       capture_coverage_pending: false, coverageReviewPending: false,
       capture_withdrawal: withdrawal, captureWithdrawalPending: true, captureDeletionPending: true }, { merge: true });
+    for (const notice of notices) transaction.set(notice.ref, notice.data);
     for (const run of runs.docs) if (run.data().state === "requested") transaction.set(run.ref, {
       cancellationRequested: true, dispatchPending: false,
       cancellationReason: "site_recording_consent_withdrawn", settlementDueAtMs: 0,
@@ -111,6 +116,13 @@ export async function recordWebsiteCaptureWithdrawal(params: {
   // reason the withdrawal fails. The stored scene preview reference goes with the deletion worker's pass.
   await forgetPracticeRunVideos(params.requestId).catch(() => undefined);
   await forgetWebsiteScenePreviews(params.requestId).catch(() => undefined);
+  // The Pipeline takes its company copies back within a minute rather than at its next read. Best effort, not awaited.
+  if (recorded.created) {
+    try {
+      const { recheckCaptureInBackground } = await import("./pipelineCompanyRecheck");
+      recheckCaptureInBackground(params.requestId, String(recorded.withdrawal.captureId ?? `walkthrough-${params.requestId}`));
+    } catch { /* never a reason the withdrawal fails */ }
+  }
   return recorded;
 }
 

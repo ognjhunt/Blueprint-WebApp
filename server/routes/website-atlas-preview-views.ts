@@ -12,6 +12,7 @@ import {
 } from "../utils/websiteAtlasPreviewView";
 import {
   SCENE_PREVIEW_VIEW_SOURCE,
+  verifyWebsiteScenePreviewCompanyViewTicket,
   verifyWebsiteScenePreviewViewTicket,
   viewableWebsiteScenePreview,
   websiteScenePreviewViewerFiles,
@@ -33,9 +34,13 @@ router.get("/:requestId/:captureId/:file(scene.ply|settings.json)", async (req, 
   const scene = req.query.source === SCENE_PREVIEW_VIEW_SOURCE;
   if (req.get("sec-fetch-dest") === "document" || req.get("sec-fetch-mode") === "navigate")
     return res.status(403).json({ error: "Open the 3D preview from your job page.", code: "website_atlas_preview_view_only" });
+  // A company's ticket (package E, E3) names its viewer; the site's own ticket does not.
+  const companyViewer = scene && req.query.viewer !== undefined ? String(req.query.viewer) : null;
   if (!WEBSITE_ATLAS_REQUEST_ID.test(requestId) || !WEBSITE_ATLAS_CAPTURE_ID.test(captureId)
-    || !(scene ? verifyWebsiteScenePreviewViewTicket : verifyWebsiteAtlasPreviewViewTicket)(
-      requestId, captureId, req.query.expires, req.query.signature))
+    || !(companyViewer !== null
+      ? verifyWebsiteScenePreviewCompanyViewTicket(requestId, captureId, companyViewer, req.query.expires, req.query.signature)
+      : (scene ? verifyWebsiteScenePreviewViewTicket : verifyWebsiteAtlasPreviewViewTicket)(
+        requestId, captureId, req.query.expires, req.query.signature)))
     return res.status(404).json(unavailable);
   if (!db) return res.status(503).json({ error: "3D preview store is unavailable" });
   let record: Record<string, any> | undefined;
@@ -43,6 +48,14 @@ router.get("/:requestId/:captureId/:file(scene.ply|settings.json)", async (req, 
   try {
     record = (await db.collection("inboundRequests").doc(requestId).get()).data();
     if (scene) session = (await db.collection("captureUploadSessions").doc(captureId).get()).data();
+    // Every company request re-reads the whole sharing rule and the company's approval, and the capture must still be
+    // the job's current one.
+    if (companyViewer !== null) {
+      const refusal = await (await import("../utils/companyJobPage")).companyMediaRefusal(requestId, captureId, companyViewer, record);
+      if (refusal === "terms_acceptance_required") return res.status(403).json({ code: refusal,
+        error: "Before you see jobs, read and agree to our Terms and Privacy Policy." });
+      if (refusal) return res.status(404).json(unavailable);
+    }
   } catch {
     return res.status(503).json({ error: "3D preview store is unavailable" });
   }

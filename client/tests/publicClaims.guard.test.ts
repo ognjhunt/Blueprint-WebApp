@@ -75,7 +75,6 @@ const FRAME_FILES = [
   "client/src/components/site/NextTaskUpdate.tsx",
   "client/src/components/site/OwnerRecordingWithdrawal.tsx",
   "client/src/components/site/PartnerApplication.tsx",
-  "client/src/components/site/PublicTaskListing.tsx",
   "client/src/components/site/RobotAccess.tsx",
   "client/src/components/site/RobotFit.tsx",
   "client/src/components/site/RobotFitHold.tsx",
@@ -112,7 +111,6 @@ const FRAME_FILES = [
   "server/utils/siteAnswer.ts",
   "server/utils/siteTaskScope.ts",
   "server/routes/site-task-brief.ts",
-  "server/routes/task-listings.ts",
   "client/index.html",
   // Package C1: the company's response route, the send and answer records, and the operator's panel.
   "server/routes/site-worlds.ts",
@@ -159,6 +157,8 @@ const RULES: Rule[] = [
 /** A rule a file may break because the file holds a recorded statement that must stay word for word. */
 const ALLOWED_IN: Record<string, ReadonlySet<string>> = {
   "client/src/lib/jobCardAnswerConsent.ts": new Set(["the old frame's \"your answer\""]),
+  // The company's recorded response statement (PACKAGE_E E5, `company-response-2026-11-12`), word for word.
+  "client/src/lib/companyResponses.ts": new Set(["the old frame's \"your answer\""]),
   // A site's reply to a question these components ask ("Saving your answer…"), not the old frame's "your answer".
   "client/src/components/site/TaskClarification.tsx": new Set(["the old frame's \"your answer\""]),
   "client/src/components/site/TaskDestinationChoice.tsx": new Set(["the old frame's \"your answer\""]),
@@ -243,7 +243,7 @@ describe("public words claim only what the code does", () => {
 
   it.each([
     ["client/index.html", "<meta name=\"description\" content=\"We test the top AI robots on your job.\" />"],
-    ["server/routes/task-listings.ts", "res.status(409).json({ error: \"We test the top AI robots on your job.\" });"],
+    ["server/routes/site-task-brief.ts", "res.status(409).json({ error: \"We test the top AI robots on your job.\" });"],
   ])("scans %s in its own format", (planted, sample) => {
     expect(publicClaimFindings(file => (file === planted ? sample : "")).map(finding => finding.split(": ")[1]))
       .toContain("the old frame's \"top AI robots\"");

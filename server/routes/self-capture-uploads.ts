@@ -47,7 +47,10 @@ import {
 import { authorizeCaptureUpload } from "../utils/captureUploadAuthorization";
 import { canGrantInitialRecordingConsent } from "../utils/descriptionAuthority";
 import { hasCurrentRecordingConsent } from "../utils/recordingConsent";
-import { RECORDING_RIGHTS_STATEMENT_VERSIONS } from "../../client/src/lib/recordingRightsStatement";
+import { RECORDING_RIGHTS_STATEMENT_VERSIONS, isSharingRecordingStatementVersion } from "../../client/src/lib/recordingRightsStatement";
+import { recordingConsentWrite } from "../utils/jobSharedListing";
+import { recheckCaptureInBackground } from "../utils/pipelineCompanyRecheck";
+import { decryptFieldValue } from "../utils/field-encryption";
 import { screenCaptureForPrivacy } from "../utils/capturePrivacyScreen";
 import { resumeHeldPrivacyScreen } from "../utils/capturePrivacyResume";
 import { enqueueCoverageReview } from "../utils/captureCoverageQueue";
@@ -559,33 +562,57 @@ async function respondCaptureUploadStatus(req: Request, res: Response, recoverLe
 router.get("/:token/status", (req, res) => respondCaptureUploadStatus(req, res, false));
 router.get("/:token", (req, res) => respondCaptureUploadStatus(req, res, true));
 
-/** An owner can authorize future footage after describing the job. No upload,
- * processing, listing, fee or old-receipt consent is authorized by this write. */
+/**
+ * An owner can authorize future footage after describing the job, and an older job can take the current statement.
+ * Recording statement v4 (2026-11-12) says the job is shared with the deployment companies Blueprint approves, so
+ * accepting it here writes the listing record (`server/utils/jobSharedListing.ts`): for a job started without a video,
+ * and for a job under an older statement, whose older grant v4 replaces and keeps as a record. No upload, processing,
+ * fee or old-receipt consent is authorized by this write.
+ */
 router.post("/:token/recording-consent", async (req: Request, res: Response) => {
   const payload = verifyCaptureUploadToken(String(req.params.token || ""));
   if (!payload) return res.status(404).json({ error: "This job link is not valid or has expired." });
   if (payload.scope !== "owner") return res.status(403).json({ error: "Use the site owner's job link to confirm recording permission." });
-  // A closed set: a job page opened before the v2 sentence still sends v1.
+  // A closed set: a job page opened before the v4 sentence still sends an older version.
   const parsed = z.object({ granted: z.literal(true), statementVersion: z.enum(RECORDING_RIGHTS_STATEMENT_VERSIONS) }).strict().safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Review the recording permission and explicitly confirm it." });
   // Recorded as the version of the sentence the owner actually confirmed.
   const statementVersion = parsed.data.statementVersion;
   if (!dbAdmin) return res.status(503).json({ error: "We could not save recording permission. Try again shortly." });
   try {
+    let captureExists = false;
     const outcome = await dbAdmin.runTransaction(async tx => {
       const ref = dbAdmin!.collection("inboundRequests").doc(payload.requestId);
       const snap = await tx.get(ref), record = snap.data();
-      if (!snap.exists) return "missing";
-      if (record?.request?.buyerType === "site_operator" && hasCurrentRecordingConsent(record.request.consent_attestation)
-        && !projectWebsiteCaptureRights(record).consent_revoked) return "existing";
-      if (!canGrantInitialRecordingConsent(record)) return "held";
-      tx.set(ref, { request: { consent_attestation: { granted: true, statement_version: statementVersion,
-        recorded_at_iso: new Date().toISOString(), recorded_by: "signed_owner_link" } } }, { merge: true });
-      return "granted";
+      if (!snap.exists || !record) return "missing";
+      // Whether the job already has a capture: then the Pipeline is told at once (below).
+      captureExists = (await tx.get(dbAdmin!.collection("captureUploadSessions").doc(payload.captureId))).exists;
+      let taskStatement: string | null = null;
+      try { taskStatement = record.request?.taskStatement ? String(await decryptFieldValue(record.request.taskStatement as never)) : null; }
+      catch { taskStatement = null; }
+      const write = recordingConsentWrite({ record, statementVersion, atIso: new Date().toISOString(), taskStatement,
+        hasCurrentGrant: hasCurrentRecordingConsent(record.request?.consent_attestation),
+        canGrantInitial: canGrantInitialRecordingConsent(record), revoked: projectWebsiteCaptureRights(record).consent_revoked });
+      if (write.outcome === "held") return "held";
+      if (write.request) tx.set(ref, { request: write.request }, { merge: true });
+      if (write.listing) tx.update(ref, write.listing as FirebaseFirestore.UpdateData<FirebaseFirestore.DocumentData>);
+      if (write.unpause) tx.set(ref, { workspace_task: { paused: false, unpaused_by: "recording_statement" } }, { merge: true });
+      return write.outcome;
     });
+    // A statement that shares was just recorded on a job with a capture: the Pipeline rereads its permission now, not in
+    // hours. Best effort, not awaited (`pipelineCompanyRecheck.ts`).
+    if ((outcome === "granted" || outcome === "upgraded") && captureExists && isSharingRecordingStatementVersion(statementVersion))
+      try { recheckCaptureInBackground(payload.requestId, payload.captureId); } catch { /* never the person's failure */ }
+    // A job shared just now goes to the approved companies at once if it is already listed; the sweep catches the rest.
+    if (outcome === "granted" || outcome === "upgraded" || outcome === "existing") {
+      // Fire and forget, like the Pipeline call: the person never waits for the send (review S7).
+      void import("../utils/jobAutoSend").then(({ sendJobToCompaniesIfListed }) => sendJobToCompaniesIfListed(payload.requestId))
+        .catch(() => undefined);
+    }
     if (outcome === "missing") return res.status(404).json({ error: "This link does not point at a job we hold." });
     if (outcome === "held") return res.status(409).json({ error: "Recording permission needs review. Contact hello@tryblueprint.io with your job link." });
-    return res.json({ ok: true });
+    // `granted` (a first grant), `upgraded` (v4 replaced an older grant, kept in `consent_attestation_earlier`) or `existing`.
+    return res.json({ ok: true, outcome });
   } catch (error) {
     logger.warn({ requestId: payload.requestId }, "Could not save initial recording permission");
     return res.status(503).json({ error: "We could not save recording permission. Try again shortly." });

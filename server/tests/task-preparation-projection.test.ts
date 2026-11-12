@@ -162,7 +162,8 @@ describe("preparation that waits on capacity or ends for good (beta L3/L6)", () 
     expect(status.headline).not.toContain("we are preparing it");
     expect(projectTaskStatus({ ...base } as never).headline).toContain("we are preparing it");
   });
-  it("a scene that stopped after hand-off says so, ahead of an unpublished card", () => {
+  // Sharing is the service (2026-11-12): there is no job card to publish, so no status names that step.
+  it("a scene that stopped after hand-off says so, and an unlisted job adds no publishing step", () => {
     const ended = projectTaskStatus({ ...base, scenePreviewReady: true, listed: false,
       preparationStatus: { state: "handed_off", correlationId: reference }, sceneProgression: { state: "ended" } } as never);
     expect(ended.decision).toBe("processing_failure");
@@ -170,7 +171,8 @@ describe("preparation that waits on capacity or ends for good (beta L3/L6)", () 
     expect(ended.headline).not.toContain("our team has been told");
     const waiting = projectTaskStatus({ ...base, scenePreviewReady: true, listed: false,
       preparationStatus: { state: "handed_off", correlationId: reference }, sceneProgression: { state: "waiting" } } as never);
-    expect(waiting.decision).toBe("not_listed");
+    expect(waiting.decision).toBe("assessing");
+    expect(waiting.headline).not.toMatch(/job card/);
     const open = projectTaskStatus({ ...base, scenePreviewReady: true,
       preparationStatus: { state: "handed_off", correlationId: reference }, sceneProgression: { state: "waiting" } } as never);
     expect(open.headline).toContain("waiting on our team; nothing is needed from you");
@@ -195,10 +197,9 @@ describe("preparation that waits on capacity or ends for good (beta L3/L6)", () 
     expect(built.decision).toBe("assessing");
     expect(built.headline).toBe("We are preparing your job for simulation. Nothing is needed from you.");
     expect(built.headline).not.toMatch(/ready/i);
-    // An unpublished card is still the site's own step, and says the scene is ready.
+    // An unlisted job says the same: there is no card for the site to publish.
     const unlisted = projectTaskStatus({ ...handedOff, listed: false, sceneProgression: { state: "testing" } } as never);
-    expect(unlisted.decision).toBe("not_listed");
-    expect(unlisted.headline).toContain("Your scene is ready, and we are running our first tests on it. Your job card is not published");
+    expect(unlisted).toEqual(testing);
     expect(projectTaskStatus({ ...handedOff, listed: false, sceneProgression: { state: "completed" } } as never).decision)
       .not.toBe("not_listed");
   });
@@ -233,15 +234,16 @@ describe("preparation that waits on capacity or ends for good (beta L3/L6)", () 
     if (outcome !== "held_capability") expect(headline).not.toMatch(/can't (simulate|model) this kind of/);
     if (outcome !== "estimate") expect(headline).not.toMatch(/estimate is ready/);
   });
-  it("an unpublished card keeps the outcome sentence ahead of the publishing step", () => {
+  it("an unlisted job keeps the outcome sentence, with no publishing step", () => {
     const handedOff = { ...base, listed: false, preparationStatus: { state: "handed_off", correlationId: reference } };
     for (const [sceneProgression, outcome] of [[{ state: "held", heldReason: "no_match" }, "no_match"],
       [{ state: "held", heldReason: "reference_only" }, "reference_only"], [{ state: "evaluated" }, "estimate"]] as const) {
       const status = projectTaskStatus({ ...handedOff, sceneProgression } as never);
-      expect(status.decision).toBe("not_listed");
+      expect(status.decision).not.toBe("not_listed");
       const said = isScreeningHeldOutcome(outcome) ? `${simulationOutcomeEmailSentence(outcome)} Your first look stays on your job page.`
         : screeningOutcomeSentence(outcome);
-      expect(status.headline.startsWith(`${said} Your job card is not published`)).toBe(true);
+      expect(status.headline.startsWith(said)).toBe(true);
+      expect(status.headline).not.toMatch(/job card/);
     }
   });
   it("consent withdrawal and earlier gates still win over an ending", () => {
@@ -335,7 +337,7 @@ describe("the Pipeline's one outcome for the job's scene (C-04)", () => {
     // An ending is said ahead of the optional card; a hold keeps its sentence first, like any evaluation hold.
     const unlisted = project(progression(kind, true, reasonCode), { listed: false, scenePreviewReady: true });
     expect(unlisted.headline.startsWith(kind === "held" ? sentence.replace(" Nothing is needed from you.", "") : sentence)).toBe(true);
-    expect(unlisted.decision).toBe(kind === "held" ? "not_listed" : "footage_received");
+    expect(unlisted.decision).toBe(kind === "held" ? "assessing" : "footage_received");
     // Consent withdrawal still wins over every ending.
     expect(project(progression(kind, true, reasonCode), { consentRevoked: true }).headline).toMatch(/consent was withdrawn/);
   });
@@ -356,9 +358,9 @@ describe("the Pipeline's one outcome for the job's scene (C-04)", () => {
     if (contact) expect(status.operatorAction).toContain(contact);
     else expect(status.operatorAction).toBeNull();
     expect(`${status.headline} ${status.operatorAction ?? ""}`).not.toContain(reasonCode);
-    // A wait on the site is its one step, ahead of the optional card; a wait on us stays behind the card.
+    // Listed or not, a wait says the same (no card to publish since 2026-11-12).
     const unlisted = project(progression(kind, false, reasonCode), { listed: false, scenePreviewReady: true });
-    expect(unlisted.decision).toBe(kind === "awaiting_site" ? "assessing" : "not_listed");
+    expect(unlisted.decision).toBe("assessing");
   });
 
   it("an older Pipeline's ended or waiting scene reads as it did before", () => {

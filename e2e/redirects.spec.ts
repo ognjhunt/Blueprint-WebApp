@@ -19,7 +19,7 @@ test("legacy environments route redirects to proof instead of the removed catalo
 
   await expect(page).toHaveURL(/\/#how-it-works$/);
   await expect(
-    page.getByRole("heading", { name: /Film a job once\. We turn it into a job packet/i }),
+    page.getByRole("heading", { name: /Get repetitive work done by robots/i }),
   ).toBeVisible();
 });
 
@@ -91,7 +91,7 @@ test("public routes work with trailing slashes", async ({ page }) => {
   await expect(page).toHaveURL(/\/#how-it-works$/);
   await expect(
     page.getByRole("heading", {
-      name: /Film a job once\. We turn it into a job packet/i,
+      name: /Get repetitive work done by robots/i,
     }),
   ).toBeVisible();
 });
@@ -102,7 +102,7 @@ test("FAQ redirects to the compact method section", async ({ page }) => {
   await expect(page).toHaveURL(/\/#how-it-works$/);
   await expect(
     page.getByRole("heading", {
-      name: /Film a job once\. We turn it into a job packet/i,
+      name: /Get repetitive work done by robots/i,
     }),
   ).toBeVisible();
 });

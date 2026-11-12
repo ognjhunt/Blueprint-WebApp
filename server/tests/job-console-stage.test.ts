@@ -371,7 +371,8 @@ describe("projectJobFacts", () => {
       withdrawal: { state: "none" },
     });
     // `enabled: true` alone is not a card grant teams are shown, so the console does not invite them.
-    expect(result.teamAccess).toEqual({ listed: false, evaluationAvailable: false, reason: "not_listed", sceneHold: null });
+    // Without a recording grant under the current statement the job is not shared (2026-11-12).
+    expect(result.teamAccess).toEqual({ listed: false, evaluationAvailable: false, reason: "older_statement", sceneHold: null });
     expect(deriveJobStage(result)).toMatchObject({ stage: "listing", actionOwner: "site" });
   });
 
@@ -384,9 +385,10 @@ describe("projectJobFacts", () => {
         createdAt: "2026-10-01T00:00:00.000Z",
         account_owner_uid: "owner-1",
         request: { buyerType: "site_operator", capture_mode: "self_capture",
-          consent_attestation: { granted: true, statement_version: "2026-09-18.v1", recorded_at_iso: "2026-10-01T00:00:00.000Z" } },
-        public_task_listing: { enabled: true, consentVersion: "public-task-card-v1", approvedAtIso: "2026-10-01T00:00:00.000Z",
+          consent_attestation: { granted: true, statement_version: "2026-11-12.v4", recorded_at_iso: "2026-10-01T00:00:00.000Z" } },
+        public_task_listing: { enabled: true, consentVersion: "job-shared-2026-11-12", approvedAtIso: "2026-10-01T00:00:00.000Z",
           details: anonymizedOpportunityDraft("Pack cartons into totes") },
+        capture_privacy_screen: { capture_id: "walkthrough-job-1", proceeded: true, eligibility: "eligible" },
         site_task_brief_confirmed_at: "2026-10-02T00:00:00.000Z",
         siteTaskGates: answers,
         site_task_triage: { disposition: "qualified" },
@@ -437,13 +439,15 @@ describe("projectJobFacts", () => {
     it("carries every other closed reason through unchanged", () => {
       const reasons: Array<[(record: Record<string, any>) => void, TeamAccessReason]> = [
         [r => { r.public_task_listing.enabled = false; }, "not_listed"],
-        [r => { r.workspace_task = { paused: true }; }, "operator_paused"],
+        [r => { r.workspace_task = { archived: true }; }, "closed_by_site"],
         [r => { r.evidence_tier = "development_only"; }, "development_only"],
         [r => { r.evaluation_readiness.rights_review_status = "needs_review"; }, "rights_needs_review"],
         [r => { r.pipeline.rights_review_status = "blocked"; }, "rights_blocked"],
         [r => { r.request.pilotOpportunity = { requested: true, visibility: "private" }; }, "kept_private"],
         // The admin's decrypted view rebuilds `request` without the recording grant: why the stored record is read.
-        [r => { delete r.request.consent_attestation; }, "recording_consent_missing"],
+        [r => { delete r.request.consent_attestation; }, "older_statement"],
+        [r => { r.capture_privacy_screen = { proceeded: false, eligibility: "pending" }; }, "privacy_screen_pending"],
+        [r => { r.website_run_closures = { "walkthrough-job-1": { closed_at_iso: "2026-10-05T00:00:00.000Z" } }; }, "closed_by_site"],
       ];
       for (const [change, reason] of reasons) {
         const result = without(change);

@@ -15,7 +15,8 @@
  * application stays approved. Approvals given before this binding existed are
  * bound to the account's teams the first time they are used.
  *
- * Opening up later is one switch: `BLUEPRINT_ROBOT_TEAM_EARLY_ACCESS=0`.
+ * `BLUEPRINT_ROBOT_TEAM_EARLY_ACCESS` no longer opens anything: since jobs are shared in full (2026-11-12), the
+ * library, a job's page and its media need a signed-in, verified, approved account whatever the setting says.
  */
 import { createHash } from "node:crypto";
 
@@ -66,6 +67,15 @@ export interface RobotTeamAccessRecord extends RobotTeamAccessApplication {
   decisionNote: string | null;
   /** The teams this approval covers. Written only by `bindAccessApprovalToTeam`. */
   teamIds?: string[];
+  /**
+   * The Terms and Privacy Policy acceptance (`buildLegalAcceptanceRecord`), written only by the signed-in accept route
+   * (or copied from the same person's signed-in account acceptance), with `termsAcceptedByUid`. Jobs are shown only
+   * while it is the current versions (`companyTerms.ts`).
+   */
+  termsAcceptance?: unknown;
+  termsAcceptedByUid?: string;
+  /** What the unsigned application form showed and the applicant ticked: a record on the application, nothing more. */
+  applicationTermsAcceptance?: unknown;
 }
 
 /** What a viewer of the task library is allowed to see, and why. */
@@ -80,6 +90,8 @@ export interface LibraryAccess {
   allowed: boolean;
   /** Blueprint staff (admin/ops), who also see records no team is shown. */
   staff: boolean;
+  /** An approved deployment company that must accept the current Terms and Privacy Policy before it sees any job. */
+  termsRequired?: boolean;
 }
 
 const APP_URL = () => (process.env.APP_URL || "https://tryblueprint.io").replace(/\/+$/, "");
@@ -116,14 +128,14 @@ export async function getAccessRecordForEmail(email: string | null | undefined):
 }
 
 /**
- * Record an application. A second application from the same address updates
- * the details but never undoes a decision: an approved team stays approved,
- * and a declined one is reopened for review.
+ * Record an application from the unsigned form. A second application from the
+ * same address replaces the details only while the first is still pending; a
+ * decided record (approved, declined) is left exactly as it is.
  */
 export async function recordAccessApplication(
   application: RobotTeamAccessApplication,
-  options: { fit?: AccessFit | null } = {},
-): Promise<{ record: RobotTeamAccessRecord; created: boolean; notification: AccessEmailNotification }> {
+  options: { fit?: AccessFit | null; applicationTermsAcceptance?: unknown } = {},
+): Promise<{ record: RobotTeamAccessRecord; created: boolean; unchanged?: true; notification: AccessEmailNotification }> {
   if (!db) throw new Error("firestore_unavailable");
   const { prepareAccessEmail } = await import("./robotTeamAccessEmails");
   const email = normalizeAccessEmail(application.email);
@@ -132,6 +144,13 @@ export async function recordAccessApplication(
   return db.runTransaction(async (tx) => {
     const existing = await tx.get(ref);
     const prior = existing.exists ? (existing.data() as RobotTeamAccessRecord) : null;
+    // The form is unsigned: an application for an email whose record has been decided (approved, declined, a
+    // technology partner, anything but pending) changes NOTHING on it, and sends nothing. The route answers exactly as
+    // for a new application, so it does not reveal that the email is known (planner, 19:50Z, G1).
+    if (prior && prior.status !== "applied") {
+      return { record: prior, created: false, unchanged: true as const,
+        notification: { status: "queued", outboxStatus: "pending", outboxId: null } };
+    }
     const record: RobotTeamAccessRecord = {
       ...application,
       partnerRole: application.partnerRole ?? prior?.partnerRole ?? null,
@@ -145,18 +164,17 @@ export async function recordAccessApplication(
       pilotPackage: application.pilotPackage ?? null,
       source: prior?.source ?? "application",
       fit: options.fit ?? null,
-      status: prior?.status === "approved" ? "approved" : "applied",
+      status: "applied",
       appliedAtIso: prior?.appliedAtIso ?? now,
       updatedAtIso: now,
-      decidedAtIso: prior?.status === "approved" ? prior.decidedAtIso : null,
-      decidedBy: prior?.status === "approved" ? prior.decidedBy : null,
-      decisionNote: prior?.status === "approved" ? prior.decisionNote : null,
-      // The teams an approval already covers survive a re-application.
-      ...(prior?.status === "approved" && prior.teamIds?.length ? { teamIds: prior.teamIds } : {}),
+      decidedAtIso: null,
+      decidedBy: null,
+      decisionNote: null,
+      // What the form showed and the applicant ticked, with the time: a record on the application only. It never lets a
+      // company see a job; only the signed-in "I agree" does (`companyTerms.ts`).
+      ...(options.applicationTermsAcceptance ? { applicationTermsAcceptance: options.applicationTermsAcceptance } : {}),
     };
-    const notice = await prepareAccessEmail(tx, { recordId: ref.id, record,
-      kind: record.status === "approved" ? "robot_team_access_approved" : "robot_team_access_received",
-      resend: record.status === "approved" });
+    const notice = await prepareAccessEmail(tx, { recordId: ref.id, record, kind: "robot_team_access_received", resend: false });
     tx.set(ref, record);
     notice.write();
     return { record, created: !prior, notification: notice.notification };
@@ -435,7 +453,9 @@ export async function resolveViewerAccess(viewer: ViewerIdentity): Promise<Libra
   const signedIn = Boolean(viewer);
   const emailVerified = Boolean(viewer?.emailVerified);
   const staff = Boolean(viewer?.isOps);
-  if (!gated || staff) return { gated, status: "approved", signedIn, emailVerified, allowed: true, staff };
+  if (staff) return { gated, status: "approved", signedIn, emailVerified, allowed: true, staff };
+  // Jobs are shared in full with approved deployment companies (2026-11-12), so the open value of
+  // BLUEPRINT_ROBOT_TEAM_EARLY_ACCESS never admits anyone: every viewer must be signed in, verified and approved.
   if (!viewer) return { gated, status: "none", signedIn, emailVerified, allowed: false, staff };
 
   let record: RobotTeamAccessRecord | null = null;
@@ -446,14 +466,27 @@ export async function resolveViewerAccess(viewer: ViewerIdentity): Promise<Libra
   }
   const status = record?.status ?? "none";
   let allowed = false;
-  if (status === "approved" && emailVerified && viewer.uid && viewer.email) {
+  // Jobs are shared with approved DEPLOYMENT companies (the v4 statement): a technology partner sees no site job.
+  let termsRequired = false;
+  if (status === "approved" && record?.partnerRole !== "technology" && emailVerified && viewer.uid && viewer.email) {
     try {
       allowed = Boolean(await ensureApprovedTeamForAccount({ uid: viewer.uid, email: viewer.email, verified: true }));
     } catch (error) {
       logger.warn({ error }, "Could not bind the approved account to its team; treating as not approved");
     }
+    // The current Terms and Privacy Policy must be accepted, signed in, before any job is seen (`companyTerms.ts`). A
+    // current acceptance this same person gave signed in on the account is carried to the record first; the tick on the
+    // application form never is (G1).
+    if (allowed) {
+      const { companyMaySeeJobs, syncCompanyTerms } = await import("./companyTerms");
+      const synced = await syncCompanyTerms({ uid: viewer.uid }, accessRecordId(viewer.email), record).catch(() => record);
+      if (!companyMaySeeJobs({ ...record, ...(synced ?? {}) } as RobotTeamAccessRecord & { termsAcceptance?: unknown })) {
+        allowed = false;
+        termsRequired = true;
+      }
+    }
   }
-  return { gated, status, signedIn, emailVerified, allowed, staff };
+  return { gated, status, signedIn, emailVerified, allowed, staff, ...(termsRequired ? { termsRequired } : {}) };
 }
 
 /**
@@ -461,7 +494,7 @@ export async function resolveViewerAccess(viewer: ViewerIdentity): Promise<Libra
  * stands. The contact email a team typed at registration proves nothing.
  */
 export async function teamHasEarlyAccess(teamId: string): Promise<boolean> {
-  if (!isRobotTeamEarlyAccessGated()) return true;
+  // The open value of the switch admits nobody (2026-11-12): the team's own approval decides.
   try {
     const team = await getRobotTeam(teamId);
     if (!team) return false;

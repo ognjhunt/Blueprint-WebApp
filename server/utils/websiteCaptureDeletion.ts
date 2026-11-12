@@ -39,6 +39,7 @@ import { canonicalArtifactDigest } from "./taskCandidateContract";
 import { createAutomationLeaderLease, type AutomationLeaderLease } from "./automationLeaderLease";
 import { deriveWebsiteWithdrawalState, websiteWithdrawalCommand } from "./websiteCaptureWithdrawal";
 import { deleteWebsiteScenePreviews } from "./websiteScenePreview";
+import { deleteWebsiteCompanyClips } from "./websiteCompanyClip";
 
 export const DELETION_RECEIPTS_COLLECTION = "websiteCaptureDeletionReceipts";
 /** Mirrors SIGNED_URL_TTL_MS in siteCaptureBundleService.ts. */
@@ -235,6 +236,9 @@ async function runPass(work: Claim, deps: DeletionDeps) {
     // this job. The Pipeline's own withdrawal deletion removes the archived bytes.
     const scenePreviewsDeleted = await deleteWebsiteScenePreviews(work.requestId,
       [`walkthrough-${work.requestId}`, ...supplements]);
+    // The company clip's and the simulation package's stored references too (company clip contract, section 3; E9);
+    // the Pipeline deletes their bytes.
+    await deleteWebsiteCompanyClips(work.requestId, [`walkthrough-${work.requestId}`, ...supplements]);
     const listed = await listOwned(deps.bucket, prefixes, MAX_OBJECTS_PER_PASS);
     // Resumable sessions are minted only after an app bundle plan is stored.
     nativePlanSeen = nativePlanSeen || listed.objects.some(object => object.prefix.endsWith("/upload/"))

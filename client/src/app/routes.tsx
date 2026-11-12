@@ -42,6 +42,8 @@ function lazyRoute<P = any>(
 
 const HowItWorks = lazyRoute(() => import("../pages/HowItWorks"));
 const Partners = lazyRoute(() => import("../pages/Partners"));
+const JobOutcomeThanks = lazyRoute(() => import("../pages/JobOutcomeThanks"));
+const CompanyJob = lazyRoute(() => import("../pages/CompanyJob"));
 // Keep the historical Pricing component for a later commercial release.
 const Beta = lazyRoute(() => import("../pages/Beta"));
 const Home = lazyRoute(() => import("../pages/Home"));
@@ -222,6 +224,7 @@ export const appRoutes: AppRoute[] = [
   // The link in a dispatch email. Bare shell and no nav: whoever opens this was
   // sent here to do one thing, and has no account to navigate with.
   { path: "/capture-upload/:token", layout: "public", shell: "bare", component: SelfCaptureUpload },
+  { path: "/job-outcome/thanks", layout: "public", shell: "bare", component: JobOutcomeThanks },
   { path: "/claim/:token", layout: "public", shell: "bare", component: ClaimSite },
   { path: "/capture-app", layout: "public", shell: "bare", component: SiteOperatorCaptureRedirect },
   { path: "/capture-app/account", layout: "public", component: SiteOperatorCaptureRedirect },
@@ -269,6 +272,8 @@ export const appRoutes: AppRoute[] = [
   { path: "/case-studies", layout: "public", component: LegacyProofStoryRedirect },
   { path: "/contact", layout: "public", component: ContactRedirect },
   { path: "/contact/robot-team", layout: "public", component: Contact },
+  // The company's page for one job (package E, E3): signed-in, approved companies only; the server decides.
+  { path: "/jobs/:jobId", layout: "public", shell: "bare", component: CompanyJob },
   { path: "/contact/site-operator", layout: "public", component: Contact },
   { path: "/help", layout: "public", component: HelpRedirect },
   { path: "/help/contact", layout: "public", component: HelpRedirect },

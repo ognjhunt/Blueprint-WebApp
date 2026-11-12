@@ -10,7 +10,7 @@ import type { JobCardAnswerRobot, JobCardAnswerSummary, TaskCardDetail } from "@
 /** The site's set-up notice, said about the site for a company reading the card. */
 const CARD_SETUP_CAVEAT = "This result may come from how we set up the simulation of the site, not from the robots.";
 
-export const JOB_CARD_ANSWER_TITLE = "Blueprint's summary of this job";
+export const JOB_CARD_ANSWER_TITLE = "Our first look at this job";
 
 /** Where a number came from, said about the site for a company reading the card. */
 const BASIS_LABELS: Readonly<Record<AnswerBasis, string>> = {
@@ -172,7 +172,7 @@ export function JobCardAnswerLine({ jobId, headline, user }: { jobId: string; he
   return <details className="ms-task-interest" onToggle={event => { if ((event.currentTarget as HTMLDetailsElement).open) void load(); }}>
     <summary>{JOB_CARD_ANSWER_TITLE}: {headline}</summary>
     {state === "loading" && <p role="status">Loading…</p>}
-    {state === "error" && <p role="alert">The summary could not be loaded. Try again shortly.</p>}
-    {state === "ready" && (answer ? <JobCardAnswer answer={answer} titled={false} /> : <p className="ms-field-hint">This summary is no longer shared.</p>)}
+    {state === "error" && <p role="alert">The first look could not be loaded. Try again shortly.</p>}
+    {state === "ready" && (answer ? <JobCardAnswer answer={answer} titled={false} /> : <p className="ms-field-hint">This job is no longer shared.</p>)}
   </details>;
 }

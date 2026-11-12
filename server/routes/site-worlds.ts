@@ -10,48 +10,71 @@ import {
   listPublicConfiguredSceneOfferings,
 } from "../utils/configuredScenePublicOffering";
 import { readConfiguredSceneThumbnail } from "../utils/configuredSceneThumbnail";
-import { libraryAccessForRequest } from "../utils/robotTeamLibraryAccess";
+import { companyViewerForRequest, libraryAccessForRequest } from "../utils/robotTeamLibraryAccess";
+import { loadCompanyJobAccess } from "../utils/teamJobAccess";
+import { loadCompanyJobPage } from "../utils/companyJobPage";
+import { companyMaySeeJobs, TERMS_ACCEPTANCE_REQUIRED } from "../utils/companyTerms";
+import { TERMS_PROMPT } from "../../client/src/lib/companyResponses";
 
 import { z } from "zod";
 import verifyFirebaseToken from "../middleware/verifyFirebaseToken";
 import { csrfProtection } from "../middleware/csrf";
 import { accessRecordId, getAccessRecordForEmail } from "../utils/robotTeamEarlyAccess";
 import { humanDecisionDigest } from "../utils/human-reply-admission";
-import { logger } from "../logger";
-import { COMPANY_RESPONSE_STATES } from "../../client/src/lib/companyResponses";
+import { COMPANY_RESPONSE_STATEMENT_VERSION, COMPANY_RESPONSE_STATES, TESTED_RESPONSE_STATES } from "../../client/src/lib/companyResponses";
 import { prepareCompanyAnswerInTransaction } from "../utils/jobCompanies";
 import { captureUploadUrlFor } from "../utils/captureUploadToken";
 const router = Router();
-const isRecord = (value: unknown): value is Record<string, unknown> => Boolean(value) && typeof value === "object" && !Array.isArray(value);
-/** One bell per company and job: the company's stored name, else its admitted account. */
-function companyKey(company: unknown, email: string): string {
-  const name = typeof company === "string" ? company.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") : "";
-  return name ? `company-${name}` : `account-${accessRecordId(email)}`;
+
+/**
+ * An approved deployment company that has not accepted the current Terms and Privacy Policy: 403 with its own code and
+ * the prompt, and nothing of any job (not even a count).
+ */
+function termsRequired(res: Response, access: { gated: boolean; status: string; signedIn: boolean; emailVerified: boolean; staff: boolean }) {
+  return res.status(403).json({ code: TERMS_ACCEPTANCE_REQUIRED, error: TERMS_PROMPT,
+    access: { gated: access.gated, status: access.status, signedIn: access.signedIn, emailVerified: access.emailVerified,
+      allowed: false, staff: access.staff, termsRequired: true } });
 }
 const interestSchema = z.object({ state: z.enum(COMPANY_RESPONSE_STATES),
-  inputs: z.string().trim().min(4).max(2000) }).strict();
+  inputs: z.string().trim().min(4).max(2000),
+  // The line the company saw under the form (E5); stored on the answer.
+  statementVersion: z.literal(COMPANY_RESPONSE_STATEMENT_VERSION) }).strict();
 router.post("/tasks/:taskId/interest", csrfProtection, verifyFirebaseToken, async (req, res) => {
   const input = interestSchema.safeParse(req.body), user = res.locals.firebaseUser;
-  if (!input.success) return res.status(400).json({ error: "Give your decision and the inputs you know." });
-  if (!user?.email || user.email_verified !== true) return res.status(403).json({ error: "Use your admitted team's verified account." });
+  if (!input.success) return res.status(400).json({ error: "Choose an answer and add a few words about it." });
+  if (!user?.email || user.email_verified !== true) return res.status(403).json({ error: "Use your approved company's verified account." });
   if (!db) return res.status(503).json({ error: "Job unavailable" });
   try {
     const access = await getAccessRecordForEmail(user.email);
-    if (access?.status !== "approved") return res.status(403).json({ error: "Manual team admission is required." });
+    if (access?.status !== "approved" || access.partnerRole === "technology")
+      return res.status(403).json({ error: "Only an approved deployment company can answer." });
+    // The current Terms and Privacy Policy first (`companyTerms.ts`).
+    if (!companyMaySeeJobs(access as never))
+      return res.status(403).json({ error: TERMS_PROMPT, code: TERMS_ACCEPTANCE_REQUIRED });
     const taskId = String(req.params.taskId), ref = db.collection("inboundRequests").doc(taskId);
-    const source = (await ref.get()).data(), card = source && projectTaskBrowseCard(taskId, source as InboundRequest);
-    if (!card || card.opportunity !== "open") return res.status(409).json({ error: "This job is not open to interest." });
-    const row = { ...input.data, email: user.email.toLowerCase(), company: access.company, submittedBy: user.uid,
+    const before = await loadCompanyJobAccess(taskId);
+    if (!before.record || !before.access.listed) return res.status(409).json({ error: "This job is not open to answers." });
+    const source = before.record;
+    // The two tested answers need the job's simulation package (E9).
+    if (TESTED_RESPONSE_STATES.includes(input.data.state)) {
+      const { siteWalkthroughIdentity } = await import("../utils/siteWalkthrough");
+      const { captureId } = siteWalkthroughIdentity(taskId, source);
+      const { storedCompanySimulation } = await import("../utils/websiteCompanySimulation");
+      if (!storedCompanySimulation((await db.collection("captureUploadSessions").doc(captureId).get()).data(), captureId))
+        return res.status(409).json({ error: "This job has no simulation to test yet." });
+    }
+    const row = { state: input.data.state, inputs: input.data.inputs, statementVersion: input.data.statementVersion,
+      email: user.email.toLowerCase(), company: access.company, submittedBy: user.uid,
       recordedBy: "company" as const, updatedAtIso: new Date().toISOString() };
     const companyId = accessRecordId(user.email);
-    // The company's alias on this job (package C1), assigned with its first answer if it was never sent the job:
-    // the site is told "Company A", never the name.
-    // The site's email is written in the same transaction as the answer: it exists if and only if the answer does.
+    // The company's alias on this job (package C1), assigned with its first answer: the site is told "Company A",
+    // never the name. The site's email is written in the same transaction as the answer.
     const captureUrl = captureUploadUrlFor(taskId, "owner");
     await db.runTransaction(async tx => {
-      const current = (await tx.get(ref)).data();
-      if (!current || humanDecisionDigest(current.public_task_listing) !== humanDecisionDigest(source!.public_task_listing)
-        || !projectTaskBrowseCard(taskId, current as InboundRequest)) throw new Error("job_changed");
+      const { record: current, access: now } = await loadCompanyJobAccess(taskId, undefined, tx);
+      const company = await tx.get(db!.collection("robotTeamAccess").doc(companyId));
+      if (!current || humanDecisionDigest(current.public_task_listing) !== humanDecisionDigest(source.public_task_listing)
+        || !now.listed || !companyMaySeeJobs(company.data())) throw new Error("job_changed");
       const interestRef = ref.collection("robotTeamInterest").doc(companyId);
       const prior = (await tx.get(interestRef)).data();
       if (prior && humanDecisionDigest({ ...prior, updatedAtIso: null }) === humanDecisionDigest({ ...row, updatedAtIso: null })) return;
@@ -59,22 +82,23 @@ router.post("/tasks/:taskId/interest", csrfProtection, verifyFirebaseToken, asyn
       prepared.write();
       tx.set(interestRef, row);
     });
-    // A site that asked Blueprint to find a deployment company: a person here makes the introduction,
-    // so the first response from each company rings once. Neither the site nor the company is contacted.
-    if (isRecord(source?.introduction_request)) {
-      try {
-        const [{ loadSiteAnswer }, { alertOpsCompanyResponded }] = await Promise.all([
-          import("../utils/siteAnswer"), import("../utils/pilotOpsAlerts")]);
-        const answer = await loadSiteAnswer(taskId).catch(() => null);
-        await alertOpsCompanyResponded({ requestId: taskId, companyKey: companyKey(access.company, user.email),
-          company: typeof access.company === "string" ? access.company : null, state: input.data.state,
-          headline: answer?.headline ?? null });
-      } catch (error) {
-        logger.warn({ error, requestId: taskId }, "Could not ring Blueprint about a company's response");
-      }
-    }
-    return res.json({ ok: true, state: input.data.state, nextAction: "Blueprint will review your inputs. Interest reserves no capacity and creates no physical commitment." });
-  } catch { return res.status(409).json({ error: "The job changed or your decision could not be saved. Reopen the job before trying again." }); }
+    return res.json({ ok: true, state: input.data.state,
+      nextAction: "Saved. The site is told this answer under an alias. Answering commits nobody." });
+  } catch { return res.status(409).json({ error: "The job changed or the answer could not be saved. Reopen the job before trying again." }); }
+});
+
+// The company's page for one job (E3): signed-in, approved accounts only, whatever the early-access switch says.
+router.get("/jobs/:taskId", async (req, res) => {
+  res.set("Cache-Control", "private, no-store");
+  res.set("Vary", "Authorization");
+  try {
+    const { access, viewer } = await companyViewerForRequest(req);
+    if (access.termsRequired) return termsRequired(res, access);
+    if (!access.allowed || !viewer) return res.status(404).json({ error: "This job is not available.", access });
+    const page = await loadCompanyJobPage(String(req.params.taskId), { companyId: viewer.companyId });
+    if (!page) return res.status(404).json({ error: "This job is not available.", access });
+    return res.json({ item: page, access });
+  } catch { return res.status(503).json({ error: "This job could not be loaded." }); }
 });
 
 
@@ -101,9 +125,13 @@ router.get("/tasks/:taskId/thumbnail", async (req, res) => {
   if (!db) return res.status(503).end();
   try {
     const id = String(req.params.taskId);
-    const snap = await db.collection("inboundRequests").doc(id).get();
-    const record = snap.data();
-    if (!record || !projectTaskBrowseCard(id, record as InboundRequest)?.thumbnailUrl) return res.status(404).end();
+    // The same check as the card: a signed-in approved viewer, and the whole sharing rule. An approved deployment company
+    // without the current Terms gets the same 403 as every other surface, before any job is read (G5).
+    const viewerAccess = await libraryAccessForRequest(req);
+    if (viewerAccess.termsRequired) return termsRequired(res, viewerAccess);
+    if (!viewerAccess.allowed) return res.status(404).end();
+    const { record, access } = await loadCompanyJobAccess(id);
+    if (!record || !projectTaskBrowseCard(id, record as InboundRequest, access)?.thumbnailUrl) return res.status(404).end();
     const image = (await db.collection("taskThumbnails").doc(id).get()).data();
     if (!image || image.consentVersion !== "public-task-thumbnail-v1"
       || image.digest !== record.public_task_listing.thumbnailDigest) return res.status(404).end();
@@ -120,6 +148,7 @@ router.get("/tasks", async (req, res) => {
   res.set("Vary", "Authorization");
   try {
     const access = await libraryAccessForRequest(req);
+    if (access.termsRequired) return termsRequired(res, access);
     if (!access.allowed) return res.json({ items: [], access });
     return res.json({ items: await listTaskBrowseCards({ withAnswerHeadlines: true }), access });
   } catch { return res.status(503).json({ error: "The job library could not be loaded." }); }
@@ -132,6 +161,7 @@ router.get("/tasks/:taskId", async (req, res) => {
   res.set("Vary", "Authorization");
   try {
     const access = await libraryAccessForRequest(req);
+    if (access.termsRequired) return termsRequired(res, access);
     if (!access.allowed) return res.status(404).json({ error: "This job is not in the job library." });
     const item = await readTaskCardDetail(String(req.params.taskId));
     if (!item) return res.status(404).json({ error: "This job is not in the job library." });

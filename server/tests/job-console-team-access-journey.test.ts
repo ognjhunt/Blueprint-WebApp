@@ -121,6 +121,9 @@ async function startJob(options: { keepPrivate?: boolean; task?: string; without
       sourcePageUrl: "https://tryblueprint.io/contact/site-operator", keepPrivate: options.keepPrivate, task: options.task,
       withoutTaskConfirmation: options.withoutTaskConfirmation, email: `${requestId}@example.test` })) });
   expect(response.status, await response.clone().text()).toBe(201);
+  // The video passed the privacy screen (2026-11-12: a shared job is listed only after it); its own tests are elsewhere.
+  const record = doc(`inboundRequests/${requestId}`) as Record<string, unknown>;
+  state.docs.set(`inboundRequests/${requestId}`, { ...record, capture_privacy_screen: { proceeded: true, eligibility: "eligible" } });
   return requestId;
 }
 /** Blueprint's queued brief review, as the ops scheduler runs it. */
@@ -269,8 +272,9 @@ type Closed = {
 };
 
 const closedJobs: Closed[] = [
-  { label: "kept private on the start form", start: { keepPrivate: true }, reason: "not_listed",
-    expected: { stage: "listing", nextAction: "Kept private: waiting on site to publish the public card", actionOwner: "site" } },
+  // The long form records the older statements, which do not share a job (2026-11-12): not shared until the site accepts v4.
+  { label: "kept private on the start form", start: { keepPrivate: true }, reason: "older_statement",
+    expected: { stage: "listing", nextAction: "Not shared: waiting on site to accept the current statement on its job page", actionOwner: "site" } },
   // The owner link (`task-listings.ts`) turns the card off.
   { label: "card hidden by the site", change: id => patch(id, r => { r.public_task_listing.enabled = false; }), reason: "not_listed",
     expected: { stage: "listing", nextAction: "Public card hidden by the site", actionOwner: "site" } },
@@ -279,10 +283,9 @@ const closedJobs: Closed[] = [
     change: id => patch(id, r => { r.public_task_listing = { ...r.public_task_listing, enabled: false, reviewRequired: true }; }),
     expected: { stage: "listing", nextAction: "Waiting on site to re-approve the public card", actionOwner: "site" } },
   // The workspace listing control (`POST /tasks/:id/listing`).
-  { label: "paused by the site", change: id => patch(id, r => { r.workspace_task = { ...r.workspace_task, paused: true }; }),
-    reason: "operator_paused", expected: { stage: "listing", nextAction: "Listing paused by the site", actionOwner: "site" } },
+  // The old workspace "close" is the site closing its job (must-fix 3): closed to every company, and the console says so.
   { label: "closed by the site", change: id => patch(id, r => { r.workspace_task = { ...r.workspace_task, archived: true }; }),
-    reason: "operator_paused", expected: { stage: "closed", nextAction: "No action: the site archived this job", actionOwner: "none" } },
+    reason: "closed_by_site", expected: { stage: "closed", nextAction: "No action: the site archived this job", actionOwner: "none" } },
   { label: "rights awaiting the Pipeline review", readiness: { rights_review_status: "needs_review" }, reason: "rights_needs_review",
     expected: { stage: "not_open", nextAction: "Rights review pending: review the capture's rights and privacy", actionOwner: "blueprint" } },
   { label: "rights blocked by the Pipeline review", readiness: { rights_review_status: "blocked" }, reason: "rights_blocked",
@@ -294,9 +297,10 @@ const closedJobs: Closed[] = [
   // Only a submission without the task box (2026-11-07) leaves the brief unconfirmed.
   { label: "brief not yet confirmed by the site", start: { withoutTaskConfirmation: true }, confirmed: false, reason: "scene_not_runnable",
     expected: { stage: "brief_review", nextAction: "Waiting on site to confirm the brief", actionOwner: "site" } },
+  // Without a recording grant there is no v4 grant either, so the job is not shared at all (E2), and the site's step is v4.
   { label: "no current recording grant", change: id => patch(id, r => { r.request.consent_attestation = null; }),
-    reason: "recording_consent_missing",
-    expected: { stage: "not_open", nextAction: "Waiting on site to grant current recording permission", actionOwner: "site" } },
+    reason: "older_statement",
+    expected: { stage: "listing", nextAction: "Not shared: waiting on site to accept the current statement on its job page", actionOwner: "site" } },
   { label: "retired dossier kept the job private", reason: "kept_private",
     change: id => patch(id, r => { r.request.pilotOpportunity = { requested: true, visibility: "private" }; }),
     expected: { stage: "not_open", actionOwner: "blueprint",
@@ -306,8 +310,9 @@ const closedJobs: Closed[] = [
       approvedRobotTeamEmails: ["robot-named@example.test"] }; }),
     expected: { stage: "not_open", actionOwner: "blueprint",
       nextAction: "Retired dossier names only certain teams: ask the site whether every approved team may see it" } },
-  // Withdrawal also pauses the job, which `teamJobAccess` checks first; the console's withdrawal step outranks both.
-  { label: "recording permission withdrawn", reason: "operator_paused", change: async id => {
+  // Withdrawal also pauses the job; `teamJobAccess` finds it by its own fields first (`consent_withdrawn`), and the
+  // console's withdrawal step outranks everything.
+  { label: "recording permission withdrawn", reason: "consent_withdrawn", change: async id => {
     const { recordWebsiteCaptureWithdrawal } = await import("../utils/websiteCaptureWithdrawal");
     await recordWebsiteCaptureWithdrawal({ requestId: id, requestedBy: "site-owner-fixture", authorize: () => undefined });
   }, expected: { stage: "withdrawn", nextAction: "Confirm the capture withdrawal reached the Pipeline", actionOwner: "blueprint" } },
@@ -329,6 +334,24 @@ describe("a job the brief screen does not recognise opens like any other", () =>
     expect(row).toMatchObject({ stage: "awaiting_teams", actionOwner: "blueprint",
       nextAction: "Invite approved robot teams to evaluate this job" });
     expect(await accessAgrees(jobId, row)).toMatchObject({ evaluationAvailable: true, reason: null });
+  });
+});
+
+// A pause set by the site's retired pause control no longer closes a job (planner, 15:07Z; must-fix 3): under E2 there is
+// no site pause, and a job paused before 2026-11-12 must not be stranded: every approved company sees it. Paid runs (robot
+// teams running their own software, "later") still respect the pause, so no evaluation is offered.
+describe("a job its site paused before today is not stranded", () => {
+  it("is listed for companies, and offers no run", async () => {
+    const jobId = await startJob({});
+    await completeBriefReview();
+    await confirm(jobId, successCriteria);
+    await pipelineSync(jobId, {});
+    patch(jobId, r => { r.workspace_task = { ...r.workspace_task, paused: true }; });
+    const row = await consoleRow(jobId);
+    expect(await accessAgrees(jobId, row)).toMatchObject({ listed: true, evaluationAvailable: false, reason: "scene_not_runnable" });
+    expect(row.teamAccess).toMatchObject({ listed: true, evaluationAvailable: false });
+    expect(row.stage).not.toBe("awaiting_teams");
+    expect((await listedRow(jobId))?.nextAction).toBe(row.nextAction);
   });
 });
 

@@ -18,5 +18,17 @@ export interface AdminJobCompanies {
   responses: Array<{ companyId: string; company: string | null; email: string | null; alias: string | null;
     state: CompanyResponseState | null; inputs: string; updatedAtIso: string | null;
     /** `before_c1`: an answer given before the site could see answers; it is never shown to the site. */
-    recordedBy: "company" | "operator" | "before_c1" }>;
+    recordedBy: "company" | "operator" | "before_c1";
+    /** The line the company answered under (`company-response-2026-11-12`), or null for an older or operator-recorded answer. */
+    statementVersion?: string | null }>;
+  /** The automatic send (package E, E4): when the job went to every approved deployment company, and to how many. */
+  autoSend?: { sentAtIso: string; count: number } | null;
+  /** Introductions the site asked for (E6), each with its latest outcome answer (E8). */
+  introductions?: Array<{ companyId: string; company: string | null; alias: string | null; requestedAtIso: string;
+    /** Set when the introduction was cancelled at dispatch: its emails not yet sent were cancelled. */
+    cancelledAtIso?: string; cancelReason?: string | null;
+    latestOutcome: { by: "site" | "company"; state: string; label: string; atIso: string } | null }>;
+  /** Billable events (E7): recorded, never priced or charged. */
+  billableEvents?: Array<{ id: string; kind: "introduction"; companyId: string; company: string | null; atIso: string;
+    priceUsd: null; status: "recorded_no_price" | "void" }>;
 }

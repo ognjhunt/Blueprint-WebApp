@@ -41,6 +41,7 @@ import { isTerminalSceneOutcomeKind, sceneOutcomeMessage, sceneOutcomeSubject,
 import { FIRST_LOOK_SOURCE, LIMITS_PAPER, LIMITS_TESTED, SURENESS_WORDS, firstLookSentence, type SiteAnswer } from "../../client/src/lib/siteAnswer";
 import { sceneScreenGateEnded } from "./sceneScreenGate";
 import { COMPANY_RESPONSE_LABELS, isCompanyResponseState, type CompanyResponseState } from "../../client/src/lib/companyResponses";
+import { JOB_FACTS_NUDGE } from "../../client/src/lib/jobFacts";
 
 export type TaskLifecycleMilestone = Extract<
   OutboxKind,
@@ -54,6 +55,7 @@ export type TaskLifecycleMilestone = Extract<
   | "listing_live"
   | "job_sent"
   | "company_answered"
+  | "introduction_made_site"
   | "screening_not_now"
   | "evaluation_outcome"
   | "scene_outcome"
@@ -116,6 +118,18 @@ const CAPACITY_ENDED_COPY = {
   subject: "We could not prepare your job in time",
   body: (url: string, detail: string) => `${CAPACITY_ENDED_HEADLINE}${detail ? ` ${detail}` : ""}\n\nNothing is needed from you. Keep your original video.\n\nOpen your job:\n${url}`,
 };
+/** The `listing_live` email (PACKAGE_D D1.3 as amended by PACKAGE_E). */
+export const LISTING_LIVE_SUBJECT = "Your job is with deployment companies";
+export const LISTING_LIVE_SENTENCES = "Deployment companies we approve can now see your job. We don't share your name, address or "
+  + "contact details with a deployment company unless you ask for an introduction to it. Your job page shows any answer.";
+/** How a site stops sharing: the withdrawal is on its job page. */
+export const HOW_TO_WITHDRAW = "To stop, open your job page, choose Job settings, then Stop using my video. Your job then leaves every company's view at once.";
+/** The `job_sent` email's sentence (PACKAGE_E E4): one per job, with the count. */
+export const jobSentSentence = (count: number) => Number.isInteger(count) && count > 0
+  ? `Your job is with ${count} deployment ${count === 1 ? "company" : "companies"}.` : "Your job is with deployment companies.";
+/** The one `job_sent` per job (PACKAGE_E E4): its event id (the company side's `AUTO_SEND_EVENT_ID`). */
+export const JOB_SENT_EVENT_ID = "companies";
+
 const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string, detail: string, workspaceUrl: string | null) => string }> = {
   // The job that asked for a new video moved on with the one the site sent (review, 2026-11-12). Fixed text.
   preparation_resumed: {
@@ -151,22 +165,30 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
     subject: "The simulation of your site is ready",
     body: (url) => `Your work area and its objects are in place. Nothing is needed from you.\n\nOpen your job:\n${url}`,
   },
-  // The one email when a site's summary becomes visible to approved deployment companies (frame of 2026-11-12), however
-  // it was shared: Share settings or "Share my job". Read again at dispatch: sent only while the summary is visible.
+  // The one email when a site's job first becomes visible to approved deployment companies (sharing is the service,
+  // 2026-11-12). Read again at dispatch: sent only while the job is visible.
   listing_live: {
-    subject: "Your job summary is shared",
-    body: (url) => `Deployment companies we approve can now see a summary of your job. Your video, address and contacts stay private.\n\nOpen your job:\n${url}`,
+    subject: LISTING_LIVE_SUBJECT,
+    body: (url) => `${LISTING_LIVE_SENTENCES}\n\n${HOW_TO_WITHDRAW}\n\nOpen your job:\n${url}`,
   },
-  // Package C1: Blueprint sent the summary to a deployment company by hand, and recorded it. One per send; read again
-  // at dispatch (`companyNoticeStillTrue`): sent only while the summary is visible and the send stands.
+  // Once per job (PACKAGE_E E4): when the job is first sent to the approved deployment companies. The detail is only
+  // the count, a whole number; read again at dispatch: sent only while the job is visible.
   job_sent: {
-    subject: "Your job was sent to a deployment company",
-    body: (url) => `We sent the summary of your job to a deployment company we approved. Your video, address and contacts stay private. Your job page shows any answer.\n\nOpen your job:\n${url}`,
+    subject: "Your job was sent to deployment companies",
+    body: (url, detail) => `${jobSentSentence(Number(detail))} Your job page shows any answer.\n\nOpen your job:\n${url}`,
   },
-  // One per company and answer, never the company's name or words: the detail is only a fixed label.
+  // One per company and answer, never the company's name or words: the detail is only a fixed label, and for
+  // "Would need something" the one nudge toward the job page's quick questions (PACKAGE_E E1).
   company_answered: {
     subject: "A deployment company answered",
-    body: (url, detail) => `A deployment company answered about your job: ${detail}. Your job page has the details.\n\nOpen your job:\n${url}`,
+    body: (url, detail) => `A deployment company answered about your job: ${detail}. Your job page has the details.${
+      detail === COMPANY_RESPONSE_LABELS.needs_something ? ` ${JOB_FACTS_NUDGE}` : ""}\n\nOpen your job:\n${url}`,
+  },
+  // The site asked for an introduction (PACKAGE_E E6). Built only by `buildIntroductionMadeSiteNotification`, whose
+  // body is the introduced company's details; this entry is its fallback and never names anyone.
+  introduction_made_site: {
+    subject: "Meet the deployment company",
+    body: (url) => `We've given them your details. Reply to them directly.\n\nOpen your job:\n${url}`,
   },
   screening_not_now: {
     subject: "An update on your Blueprint job",
@@ -212,7 +234,7 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
   },
   pilot_request: {
     subject: "A partner asked to have its system evaluated on your job",
-    body: (url) => `An approved partner asked to have its system evaluated on your job for a possible pilot. Your details stay private, and nothing is needed from you.\n\nYou and a deployment company agree any physical pilot directly.\n\nOpen your job:\n${url}`,
+    body: (url) => `An approved partner asked about your job. Nothing is needed from you.\n\nOpen your job:\n${url}`,
   },
 };
 
@@ -255,6 +277,8 @@ export async function enqueueTaskLifecycleNotification(params: {
   sceneOutcomeKind?: TerminalSceneOutcomeKind;
   /** `company_answered` only: the company's answer; the email states its fixed label, nothing else of the company. */
   companyAnswerState?: CompanyResponseState;
+  /** `job_sent` only: how many approved deployment companies the job was sent to. */
+  companyCount?: number;
   /** `answer_ready` only: the settled answer the email states. */
   siteAnswer?: SiteAnswer;
   /** `answer_ready` only: the job's outlook (`jobOutlook`), whose ending sentence the paper-check answer opens with. */
@@ -491,6 +515,8 @@ export function buildTaskLifecycleNotification(params: {
   jobNoGrantEnded?: "site" | "blueprint";
   /** `company_answered` only: the company's answer; the email states its fixed label, nothing else of the company. */
   companyAnswerState?: CompanyResponseState;
+  /** `job_sent` only: how many approved deployment companies the job was sent to. */
+  companyCount?: number;
   /** `answer_ready` only: the settled answer the email states. */
   siteAnswer?: SiteAnswer;
   /** `answer_ready` only: the job's outlook (`jobOutlook`), whose ending sentence the paper-check answer opens with. */
@@ -555,12 +581,57 @@ export function buildTaskLifecycleNotification(params: {
       : message.subject,
     body: finePrintLast(`${message.body(url, isWebsitePreparationNotice(params.milestone) ? preparationDetail
       : params.milestone === "company_answered" ? COMPANY_RESPONSE_LABELS[params.companyAnswerState!]
-      : params.milestone === "job_sent" ? ""
+      : params.milestone === "job_sent" ? String(params.companyCount ?? "")
       : params.milestone === "evaluation_outcome" || params.milestone === "scene_outcome"
         || params.milestone === "robot_access_question" || params.milestone === "answer_ready" ? outcomeDetail
       : params.detail?.trim() ?? "", params.workspaceUrl ?? null)}`),
     replyTo: "hello@tryblueprint.io",
   };
+}
+
+/** One line of a company's details for an email: no line breaks, bounded. */
+function detailLine(value: unknown, max = 200): string {
+  return typeof value === "string" ? value.replace(/[\r\n\t]+/g, " ").replace(/\s{2,}/g, " ").trim().slice(0, max) : "";
+}
+
+/** The `introduction_made_site` email's subject and body (PACKAGE_E E6): the introduced company's own details, nothing else. */
+export function introductionMadeSiteCopy(company: { name: string; contactName?: string | null; email: string; website?: string | null },
+  url: string, answerLabel?: string | null): { subject: string; body: string } {
+  const name = detailLine(company.name, 120) || "the deployment company";
+  // The company's own stored answer, in its fixed label (review M2); with none, no answer is claimed.
+  const label = detailLine(answerLabel, 60);
+  const lines = [
+    label ? `${name} answered ${label} about your job, and you asked us to introduce you.` : `You asked us to introduce you to ${name}.`,
+    "",
+    ...(detailLine(company.contactName) ? [`Contact: ${detailLine(company.contactName)}`] : []),
+    `Email: ${detailLine(company.email)}`,
+    ...(detailLine(company.website) ? [`Website: ${detailLine(company.website)}`] : []),
+    "",
+    "We've given them your details. Reply to them directly.",
+    "",
+    `Open your job:\n${url}`,
+  ];
+  return { subject: `Meet ${name}`, body: lines.join("\n") };
+}
+
+/**
+ * The site's email when it asked for an introduction (PACKAGE_E E6), for `requestIntroduction` to queue inside its
+ * transaction. One per company and job; read again at dispatch (`taskLifecycleNotificationAuthority.ts`): sent only
+ * while the job is visible to companies and the introduction is on record.
+ */
+export function buildIntroductionMadeSiteNotification(params: { requestId: string; to: string; companyId: string;
+  company: { name: string; contactName?: string | null; email: string; website?: string | null }; captureUrl?: string;
+  answerLabel?: string | null }): Parameters<typeof enqueueOutbox>[0] {
+  const requestId = params.requestId.trim();
+  const companyId = params.companyId.trim().replace(/[^A-Za-z0-9._-]/g, "_").slice(0, 120);
+  if (!companyId) throw new Error("introduction_company_invalid");
+  const url = params.captureUrl ?? captureUploadUrlFor(requestId, "owner");
+  const { subject, body } = introductionMadeSiteCopy(params.company, url, params.answerLabel);
+  const companyEmail = detailLine(params.company.email);
+  return { idempotencyKey: `${requestId}:introduction_made_site:${companyId}`, requestId, kind: "introduction_made_site",
+    to: params.to, subject, body,
+    // "Reply to them directly": a reply goes to the company.
+    replyTo: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(companyEmail) ? companyEmail : "hello@tryblueprint.io" };
 }
 
 /** A new-video ask's one email: the job page's title, reason and next step, in place of the needs-attention notice. */
@@ -693,8 +764,6 @@ function paperAnswerLine(answer: SiteAnswer | null | undefined, hold = false): s
     ? `${firstLookSentence(answer.pick)} ${FIRST_LOOK_SOURCE}${answer.sceneNote ? ` ${answer.sceneNote}` : ""}${hold ? ` ${PAPER_LATER}` : ""}`
     : null;
 }
-/** Said after the first look when the site may now share its job (the job page offers the button exactly then). */
-export const SHARE_FROM_JOB_PAGE = "You can share a summary of your job with deployment companies from your job page.";
 /**
  * An ending email's line about the paper check (review, 2026-11-11): the paper check as the answer when there is one,
  * else a plain statement that there is none, and why when the reader said why. "If a test result comes later" is said
@@ -763,8 +832,8 @@ function answerReadyDetail(answer: SiteAnswer | undefined, outlook: JobOutlookVi
   if (unread && outlook && endingEmailDue(outlook)) return `${outlook.sentence ?? ""} ${NO_PAPER_UNREAD}`.trim();
   if (!answerEmailDue(answer, outlook)) throw new Error("answer_ready_notice_invalid");
   // Kept on file: its own sentence, then plainly whether there is a paper check, with the reader's reason.
-  // The job page offers sharing exactly when the first look names a robot and the ending lets it (`outlookHasAnswer`).
-  const share = paperAnswerLine(answer) && answer.nextStep.kind === "introduction" ? ` ${SHARE_FROM_JOB_PAGE}` : "";
+  // Sharing is the service (2026-11-12): there is no share step to point to.
+  const share = "";
   if (outlook!.reason === "kept_on_file") return `${outlook!.sentence} ${paperLine(answer, { hold: false })}${share}`;
   if (answer.state === "cannot_assess") return `${answer.headline}\n\n${answer.reason}`;
   return `${outlook!.sentence ?? "Our early trial has not run on your job."} ${paperLine(answer, { hold: false })}${share}\n\n${finePrint(LIMITS_PAPER)}`;
@@ -1074,8 +1143,9 @@ export async function notifySummarySharedIfVisible(requestId: string): Promise<{
     await ref.set({ summary_shared_notice: { owed: false, settled_reason: settled, settled_at_iso: new Date().toISOString() } }, { merge: true });
     return { enqueued: false, reason: settled };
   }
-  const { teamJobAccess } = await import("./teamJobAccess");
-  if (!teamJobAccess(record).listed) return { enqueued: false, reason: "not_visible" };
+  // The whole rule a company's own reads use (review M1), so this never says companies can see a job they cannot.
+  const { loadCompanyJobAccess } = await import("./teamJobAccess");
+  if (!(await loadCompanyJobAccess(requestId, record)).access.listed) return { enqueued: false, reason: "not_visible" };
   const attempt = attempts + 1;
   await ref.set({ summary_shared_notice: { owed: true, attempts: attempt } }, { merge: true });
   const result = await enqueueTaskLifecycleNotification({ requestId, milestone: "listing_live", eventId: `summary-${attempt}` });

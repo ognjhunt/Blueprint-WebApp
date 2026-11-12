@@ -6,17 +6,16 @@ import { Pause, Play } from "lucide-react";
  * result, product or booking is shown or implied. Warehouse, Laundromat, Factory and Hotel source: 288822160^.
  * Café and Lab retain their current artwork and motion. Preserve that artwork and motion when revising copy.
  *
- * It used to share a file with the home page's animated example of an invented result ("PilotPreview"), which was
- * removed with the frame of 2026-11-12.
+ * The home page's example card (`PilotPreview.tsx`, back on 2026-11-12 at the owner's request) plays the same scenes
+ * and clock from here.
  */
 
 type P = [number, number];
 type Scene = (props: { t: number }) => JSX.Element;
-type Illustration = { site: string; embodiment: string; Art: Scene };
+export type Illustration = { site: string; embodiment: string; Art: Scene };
 
-
-const LOOP = 10; // seconds per task loop; one rotation shows one full loop
-const STILL = 4.5; // the frame shown before motion starts, when paused, and under reduced motion
+export const LOOP = 10; // seconds per task loop; one rotation shows one full loop
+export const STILL = 4.5; // the frame shown before motion starts, when paused, and under reduced motion
 
 const ink = { fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round" } as const;
 const tint = "#dfe6de";
@@ -373,7 +372,7 @@ function Lab({ t }: { t: number }) {
 }
 
 /** The scenes the robot animation beside forms plays, in order. */
-const scenes: Illustration[] = [
+export const scenes: readonly Illustration[] = [
   { site: "Warehouse", embodiment: "Humanoid robot", Art: Warehouse },
   { site: "Café", embodiment: "Fixed robot arm", Art: Cafe },
   { site: "Laundromat", embodiment: "Wheeled humanoid", Art: Laundromat },
@@ -383,7 +382,7 @@ const scenes: Illustration[] = [
 ];
 
 /** Seconds into the current loop. Starts at the still frame; restarts at 0 when the scene changes. */
-function useSceneClock(running: boolean, scene: string) {
+export function useSceneClock(running: boolean, scene: string) {
   const [t, setT] = useState(STILL);
   const tRef = useRef(STILL);
   const first = useRef(true);

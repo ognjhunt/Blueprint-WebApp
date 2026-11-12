@@ -69,11 +69,38 @@ ol.bare-steps { list-style: none; margin: 0; padding: 0; counter-reset: bare-ste
   background: none; font: inherit; font-size: 17px; color: var(--bare-ink, #22251e); text-decoration: none; cursor: pointer; text-align: left; justify-content: flex-start; }
 .bare-site-foot button { text-align: left; }
 
-/* Home: one text column. */
-.bare-home { display: grid; grid-template-columns: minmax(0, 560px); justify-content: center; width: min(100% - 40px, 1120px); margin: 0 auto; }
+/* Home: the text column, and the moving example beside it on a desktop, below the button on a phone (11 Nov layout,
+   restored 2026-11-12). */
+.bare-home { display: grid; grid-template-columns: minmax(0, 560px); justify-content: center; gap: 48px; width: min(100% - 40px, 1120px); margin: 0 auto; }
 .bare-home > .bare-screen { margin: 0; }
-.bare-home .bare-screen .bare-big { font-size: 36px; line-height: 1.1; letter-spacing: -1px; }
-@media (min-width: 960px) { .bare-home .bare-screen .bare-big { font-size: 44px; } }
+@media (min-width: 960px) {
+  .bare-home { grid-template-columns: minmax(0, 520px) minmax(0, 480px); justify-content: space-between; align-items: start; }
+}
+.bare-home .bare-screen .bare-big { font-size: 40px; line-height: 1.08; letter-spacing: -1.1px; }
+@media (min-width: 960px) { .bare-home .bare-screen .bare-big { font-size: 52px; } }
+
+/* The example card (illustrative): a small job page once deployment companies answer. */
+.bare-example { position: relative; border: 1px solid var(--bare-rule, #cfd1c8); border-radius: 6px; background: #fbfaf5; padding: 16px 20px 20px; }
+.bare-example-art { display: block; width: 100%; height: auto; max-height: 200px; color: var(--ms-ink, #22251e); }
+.bare-example-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; }
+.bare-example-tabs { display: flex; flex-wrap: wrap; gap: 4px; }
+.bare-example-tabs [role="tab"] { min-height: 36px; padding: 4px 10px; border: 1px solid transparent; border-radius: 999px; background: none; font: inherit;
+  font-size: 14px; color: var(--ms-muted, #5d5f58); cursor: pointer; }
+.bare-example-tabs [role="tab"][aria-selected="true"] { border-color: var(--bare-green, #203d2e); color: var(--bare-green, #203d2e); font-weight: 600; }
+.bare-example-pause { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; border: 1px solid var(--bare-rule, #cfd1c8);
+  border-radius: 50%; background: #fffffb; color: var(--ms-ink, #22251e); cursor: pointer; flex: none; }
+.bare-example-panel { margin-top: 8px; }
+.bare-example-panel .bare-example-name { margin: 8px 0 0; font-size: 24px; line-height: 1.1; font-weight: 600; letter-spacing: -.6px; }
+.bare-example-panel .bare-example-by { margin: 12px 0 0; font-size: 16px; color: var(--ms-muted, #5d5f58); }
+.bare-example-panel .bare-example-job { margin: 0 0 4px; font-size: 15px; color: var(--ms-muted, #5d5f58); }
+.bare-example-answers { list-style: none; margin: 12px 0 0; padding: 0; }
+.bare-example-answers > li { padding: 4px 0; font-size: 16px; color: var(--ms-ink, #22251e); border-top: 1px solid var(--bare-rule, #cfd1c8); }
+.bare-example-answers > li:first-child { border-top: 0; }
+.bare-example-tag { font-size: 12px; font-weight: 650; letter-spacing: .7px; text-transform: uppercase; color: var(--bare-amber, #8a6d1f); }
+.bare-example-foot { margin: 16px 0 0; font-size: 13px; line-height: 1.45; color: var(--ms-muted, #5d5f58); }
+.bare-example .ms-pilot-art-scene { transition: opacity 300ms ease; }
+/* The shared tokens where a bare part sits outside a .bare-screen (the home example). */
+.bare-example { --bare-rule: #cfd1c8; --bare-green: var(--ms-green, #203d2e); --bare-amber: #8a6d1f; }
 
 
 /* Auth screens: the bare form beside the kept illustration; on a phone the illustration is a short band. */

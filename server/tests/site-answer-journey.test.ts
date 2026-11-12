@@ -295,7 +295,7 @@ describe("a site's answer, from an email and a video to a deployment company", (
     expect(ready.confidence.level).not.toBe("good");
     expect(ready.facts.find((fact: { label: string }) => fact.label === "Object weight")?.basis).toBe("video_estimate");
     expect(ready.nextStep).toEqual({ kind: "introduction",
-      text: "Share a summary of this job with deployment companies Blueprint has approved." });
+      text: "Deployment companies we approve can answer about this job." });
 
     // 4. No answer email for the paper check (round 7, owner 2026-11-11): the site had its receipt at upload, and its
     // one answer email is the test result, or the paper check when no test can run. A second review adds none.
@@ -321,14 +321,15 @@ describe("a site's answer, from an email and a video to a deployment company", (
     expect(payload.text).toContain("4 kg");
     expect(answerNotices(jobId)).toHaveLength(0);
 
-    // 6. Sharing follows the job's outlook (review, 2026-11-11). With no simulation test result and nothing ending the
-    // job, it is still being built: the request is refused with a typed code, and nothing is recorded or listed.
+    // 6. Sharing is the service (2026-11-12): there is no share step. The old route is gone, and this job, started under
+    // the long statements (not v4), is not shared: its page offers v4 once and lists it nowhere.
     const early = await post(`/api/site-task-brief/${token}/introduction-request`, { statementVersion: JOB_CARD_ANSWER_STATEMENT_VERSION });
-    expect(early.status).toBe(409);
-    expect(await early.json()).toMatchObject({ code: "introduction_waits_for_answer", phase: "building" });
+    expect(early.status).toBe(404);
     expect(doc(`inboundRequests/${jobId}`).introduction_request).toBeUndefined();
+    expect(doc(`inboundRequests/${jobId}`).public_task_listing).toBeUndefined();
     expect(await listTaskBrowseCards()).toEqual([]);
     expect(introductionAlerts()).toHaveLength(0);
+    expect((await status(token)).answer.sharing).toEqual({ state: "not_shared", sharedAtIso: null, olderStatement: true });
     // The job's no-grant wait ends: the sweep sees the wait, and a window later records the ending and queues its one
     // email, which says why no test ran and gives the paper check as the answer for now.
     const { sweepWebsiteJobNoGrant } = await import("../utils/websiteJobWindowSweep");
@@ -344,40 +345,16 @@ describe("a site's answer, from an email and a video to a deployment company", (
     // Reading the page again queues no second answer email.
     await status(token);
     expect(paperEmails()).toHaveLength(1);
-    // "Find a deployment company for this job": recorded once, card listed under its consent version, one alert.
-    const asked = await post(`/api/site-task-brief/${token}/introduction-request`, { statementVersion: JOB_CARD_ANSWER_STATEMENT_VERSION });
-    expect(asked.status, await asked.clone().text()).toBe(200);
-    const first = await asked.json();
-    // What the page says next is read back from the predicate that decides what a company can see.
-    expect(first).toEqual({ ok: true, requestedAtIso: NOW.toISOString(), listed: true,
-      sharing: { state: "visible", sharedAtIso: NOW.toISOString(), leavesOut: { firstLook: false, trialResult: false } } });
-    const { listingConsentVersion } = await import("../utils/taskListingDetails");
-    const recorded = doc(`inboundRequests/${jobId}`).introduction_request;
-    expect(recorded).toMatchObject({ requested_at_iso: NOW.toISOString(), requested_by: "signed_owner_link" });
-    // The card is granted under the statement version the route records with the request (the card's own when none).
-    expect(doc(`inboundRequests/${jobId}`).public_task_listing).toMatchObject({ enabled: true,
-      consentVersion: recorded.statement_version ?? listingConsentVersion, approvedBy: "signed_owner_link",
-      approvedAtIso: NOW.toISOString() });
-    expect((await listTaskBrowseCards()).map(card => card.id)).toEqual([jobId]);
-    expect(introductionAlerts()).toHaveLength(1);
-    expect((await status(token)).answer).toMatchObject({ introductionRequestedAtIso: NOW.toISOString(), jobCardListed: true });
-    vi.setSystemTime(new Date(NOW.getTime() + 60_000));
-    const again = await post(`/api/site-task-brief/${token}/introduction-request`, { statementVersion: JOB_CARD_ANSWER_STATEMENT_VERSION });
-    expect(await again.json()).toEqual({ ok: true, requestedAtIso: NOW.toISOString(), listed: true,
-      sharing: { state: "visible", sharedAtIso: NOW.toISOString(), leavesOut: { firstLook: false, trialResult: false } } });
-    expect(introductionAlerts()).toHaveLength(1);
-    vi.setSystemTime(NOW);
-
     // 7. The site withdraws recording permission from its owner link: no answer, and no card for companies.
     const withdrawn = await post(`/api/self-capture/uploads/${token}/withdrawal`, { confirm: "withdraw_recording_permission" });
     expect(withdrawn.status, await withdrawn.clone().text()).toBe(202);
     expect((await status(token)).answer).toBeNull();
     expect(await listTaskBrowseCards()).toEqual([]);
-    // The withdrawal hides the card through the job's own state; the stored grant itself is left as it was.
-    expect(doc(`inboundRequests/${jobId}`).public_task_listing.enabled).toBe(true);
+    // Never shared, so no listing record exists to close.
+    expect(doc(`inboundRequests/${jobId}`).public_task_listing).toBeUndefined();
     // Only the one paper-check email from the ending; the withdrawal adds no answer email.
     expect(answerNotices(jobId)).toHaveLength(0);
-    expect(notices(jobId).filter(row => !["task_received", "video_received"].includes(row.kind)).map(row => row.kind)).toEqual(["scene_outcome", "listing_live"]);
+    expect(notices(jobId).filter(row => !["task_received", "video_received"].includes(row.kind)).map(row => row.kind)).toEqual(["scene_outcome"]);
   }, 60_000);
 
   it("reads a video-only job's video once, even though the reading drafts the job's name; a site's own edit reads it again", async () => {
@@ -507,7 +484,7 @@ describe("a site's answer, from an email and a video to a deployment company", (
     expect((await status(token)).outlook).toMatchObject({ phase: "cannot_match", reason: "kept_on_file" });
     const kept = answerNotices(jobId);
     expect(kept).toHaveLength(1);
-    expect(kept[0].body).toContain(`We can't build a simulation for this kind of job yet. We've kept your job on file. On paper, the robot most likely to fit: Universal Robots UR10e. From published specifications and where it has been used. You can share a summary of your job with deployment companies from your job page.`);
+    expect(kept[0].body).toContain(`We can't build a simulation for this kind of job yet. We've kept your job on file. On paper, the robot most likely to fit: Universal Robots UR10e. From published specifications and where it has been used.`);
     expect(kept[0].body).not.toMatch(/test result comes later/);
   }, 30_000);
 

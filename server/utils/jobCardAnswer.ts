@@ -1,61 +1,31 @@
 /**
- * Blueprint's answer on a job card, for approved deployment companies.
+ * Blueprint's first look (and the early trial's result) on a shared job, for approved deployment companies.
  *
- * ## Only with the site's choice
- *
- * A card carries the answer only when the site pressed "Find a deployment
- * company for this job" and its choice was recorded under the statement that
- * names the answer (`introduction_request.statement_version`, see
- * `client/src/lib/jobCardAnswerConsent.ts`) AND the card's current listing
- * consent (`public_task_listing.consentVersion`) is that same statement. The
- * older card checkbox does not mention the answer, so a card listed or re-saved
- * under it never carries one, and an `introduction_request` stored before the
- * statement was recorded never does either. Who may see the card at all is still `teamJobAccess`; this never
- * widens it. A test result (or any simulation line) goes on the card only under v3, the statement that names later
- * test results (`jobCardTestResultShared`); under v1 or v2 the card carries the paper check.
- *
- * ## What it carries
- *
- * Composed at read time from `loadSiteAnswer`: the headline, the job family,
- * the sizes, weights and distances the answer rests on, the pick and the
- * runner-up (names, verdict, two published figures and the cited evidence),
- * how sure in one reason, and what the video could not tell. Never the site's
- * own sentence, name, address, contacts or video. Free text the video reader
- * wrote about other objects is replaced by the plain sentence.
- *
- * The answer is written to the site ("your video"); on the card it is said
- * about the site instead. If anything fails, the card goes out without it.
+ * Composed at read time from `loadSiteAnswer`: the headline, the job family, the sizes, weights and distances the
+ * answer rests on, the pick and the runner-up (names, verdict, two published figures and the cited evidence), how sure
+ * in one reason, and what the video could not tell. Never the site's name, address or contacts. Free text the video
+ * reader wrote about other objects is replaced by the plain sentence. The answer is written to the site ("your
+ * video"); here it is said about the site instead. If anything fails, the job goes out without it.
  */
 import type { AnswerRobot, SiteAnswer } from "../../client/src/lib/siteAnswer";
 import type { JobCardAnswerRobot, JobCardAnswerSummary } from "../../client/src/types/taskBrowse";
-import { isJobCardAnswerStatementVersion, jobCardStatementSharesTestResults } from "../../client/src/lib/jobCardAnswerConsent";
+import { sharedJobListing } from "./taskListingDetails";
 import { testHeadline, testResultOf, type SimulationProof } from "../../client/src/lib/simulationProof";
 import { TIGHT_FIT_SENTENCE } from "../../client/src/lib/siteAnswer";
 import { logger } from "../logger";
 
 /**
- * The site chose, under the statement that names the answer, to share it with the card, and the card is
- * still listed under that statement. Both must hold: the request records the choice, and the listing's
- * CURRENT consent records what the card shares now. When the site later re-saves its card under the older
- * box ("Manage opportunity sharing"), the card's consent no longer names the answer and it stops carrying it.
+ * The first look and the early trial's result go to companies with the job (2026-11-12, sharing is the service): a job
+ * listed under `job-shared-2026-11-12` carries them. Who may see the job at all is still `teamJobAccess`; this never
+ * widens it. Cards under the older share statements (v1 to v3) are no longer listed, so their gates are gone.
  */
 export function jobCardAnswerShared(record: unknown): boolean {
-  const stored = record as { introduction_request?: Record<string, unknown>; public_task_listing?: Record<string, unknown> } | null | undefined;
-  const intro = stored?.introduction_request;
-  const listing = stored?.public_task_listing;
-  return Boolean(intro) && typeof intro!.requested_at_iso === "string" && Boolean(intro!.requested_at_iso)
-    && isJobCardAnswerStatementVersion(intro!.statement_version)
-    && Boolean(listing) && isJobCardAnswerStatementVersion(listing!.consentVersion);
+  return sharedJobListing(record) !== null;
 }
 
-/**
- * The site agreed to share later test results: its recorded choice and the card's current consent are both v3.
- * Under v1 or v2 the card carries the paper check only, never a test result, even one that arrives later.
- */
+/** The early trial's result goes with the first look for a shared job. */
 export function jobCardTestResultShared(record: unknown): boolean {
-  const stored = record as { introduction_request?: Record<string, unknown>; public_task_listing?: Record<string, unknown> } | null | undefined;
-  return jobCardAnswerShared(record) && jobCardStatementSharesTestResults(stored?.introduction_request?.statement_version)
-    && jobCardStatementSharesTestResults(stored?.public_task_listing?.consentVersion);
+  return jobCardAnswerShared(record);
 }
 
 const SITE_WORDS: Array<[RegExp, string]> = [
@@ -144,18 +114,27 @@ export async function loadJobCardAnswerHeadline(id: string, record: unknown): Pr
 
 /**
  * The card's answer with one line from the simulation, when the site's
- * evaluation summary has one. Null without the site's choice or on any failure.
+ * evaluation summary has one. Null without a shared job or on any failure.
  */
 export async function loadJobCardAnswer(id: string, record: unknown): Promise<JobCardAnswerSummary | null> {
-  if (!jobCardAnswerShared(record)) return null;
+  return (await loadJobCardAnswerWithRobots(id, record)).summary;
+}
+
+/**
+ * The same, with the site answer's two robots as they stand (for the first look's rows in words on the company's
+ * page, `firstLookRowFromAnswerRobot`). Robots carry names, verdicts and checks only.
+ */
+export async function loadJobCardAnswerWithRobots(id: string, record: unknown):
+  Promise<{ summary: JobCardAnswerSummary | null; robots: AnswerRobot[] }> {
+  if (!jobCardAnswerShared(record)) return { summary: null, robots: [] };
   try {
     const { loadSiteAnswer } = await import("./siteAnswer");
     const answer = await loadSiteAnswer(id);
-    if (!answer) return null;
+    if (!answer) return { summary: null, robots: [] };
+    const robots = answer.state === "ready" || answer.state === "cannot_assess"
+      ? [answer.pick, answer.runnerUp].filter((robot): robot is AnswerRobot => Boolean(robot)) : [];
     let simulation: string | null = null;
     let proof: SimulationProof | null = null;
-    // Under v1 or v2 the card is the paper check: no test result and no simulation line.
-    if (!jobCardTestResultShared(record)) return projectJobCardAnswer(answer, null, null);
     try {
       const [{ readSiteManagedEvidence }, { projectSimulationProof }] = await Promise.all([
         import("./siteManagedEvidence"), import("../../client/src/lib/simulationProof")]);
@@ -165,9 +144,9 @@ export async function loadJobCardAnswer(id: string, record: unknown): Promise<Jo
     } catch (error) {
       logger.warn({ error, requestId: id }, "Could not read the simulation line for a job card");
     }
-    return projectJobCardAnswer(answer, simulation, proof);
+    return { summary: projectJobCardAnswer(answer, simulation, proof), robots };
   } catch (error) {
     logger.warn({ error, requestId: id }, "Could not compose the answer for a job card");
-    return null;
+    return { summary: null, robots: [] };
   }
 }

@@ -63,10 +63,11 @@ describe("site-content route", () => {
       expect(payload.summary).not.toMatch(/judge|evaluate the packet|receive the packet/i);
       expect(payload.summary).toContain("a first look on paper (the robot most likely to fit, from published specifications and a cited track record)");
       expect(payload.summary).toContain("this early trial is not the site's answer and does not predict what a deployment company's robot would do");
-      expect(payload.summary).toContain("deployment companies Blueprint approves by hand can see a summary of the job: the kind of job, a first look at which robots could fit, and the early trial's result where one exists");
-      expect(payload.summary).toContain("A company sees only the summary the site approved. It never sees the video or the simulation, and the site's video stays private.");
+      // Sharing is the service (2026-11-12): the job packet goes to approved companies; contact details only by introduction.
+      expect(payload.summary).toContain("Blueprint sends each job automatically to the deployment companies it has approved: the site's description of the job, its video without sound, the simulation, what counts as done, the first look and the early trial's result where one exists.");
+      expect(payload.summary).toContain("A site's name, address and contact details go to a company only when the site asks for an introduction.");
+      expect(payload.summary).not.toMatch(/stays private|only the summary/);
       expect(payload.summary).not.toMatch(/never sees? the site's own sentence/);
-      expect(payload.summary).toContain("the site's video stays private");
       expect(payload.summary).not.toMatch(/proves it|which did best|top AI robots|paper check/);
       expect(JSON.stringify(payload.pages)).not.toMatch(/\$\s?\d/);
       expect(JSON.stringify(payload)).not.toMatch(/compare delivery proposals|full evaluation|join by invitation|evaluated free when invited/);

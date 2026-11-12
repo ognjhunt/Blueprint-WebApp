@@ -2,15 +2,16 @@ import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import type { InboundRequest } from "../types/inbound-request";
 import type { LibraryJobStage, TaskBrowseCard, TaskCardDetail } from "../../client/src/types/taskBrowse";
 import { jobCardAnswerShared, loadJobCardAnswer, loadJobCardAnswerHeadline } from "./jobCardAnswer";
-import { taskThumbnailUrl, teamJobAccess } from "./teamJobAccess";
+import { loadCompanyJobAccess, taskThumbnailUrl, teamJobAccess, type TeamJobAccess, type TeamJobAccessContext } from "./teamJobAccess";
+import { JOB_SHARED_LISTING_VERSION } from "./taskListingDetails";
 
 /**
- * The job card approved robot teams see in the library. Whether it appears,
- * and whether it offers an evaluation, is `teamJobAccess`: the same answer the
- * opening page and the evaluation request give.
+ * The job card approved deployment companies see in the library: category title and stage only. Whether it appears is
+ * `teamJobAccess`. Pass the access `loadCompanyJobAccess` decided (the whole E2 rule), or a context; without either,
+ * the two checks that live outside the record are skipped (see `teamJobAccess`).
  */
-export function projectTaskBrowseCard(id: string, record: InboundRequest): TaskBrowseCard | null {
-  const access = teamJobAccess(record);
+export function projectTaskBrowseCard(id: string, record: InboundRequest, decided?: TeamJobAccess | TeamJobAccessContext): TaskBrowseCard | null {
+  const access = decided && "listed" in decided ? decided : teamJobAccess(record, decided as TeamJobAccessContext | undefined);
   if (!access.listed) return null;
   const raw = record as unknown as Record<string, any>;
   const ready = access.evaluationAvailable;
@@ -20,7 +21,7 @@ export function projectTaskBrowseCard(id: string, record: InboundRequest): TaskB
     // A free beta evaluation costs the team nothing; the deprecated entry
     // price is never quoted (CLAUDE.md), so an open job reports 0.
     evaluationAvailable: ready, costUsd: ready ? 0 : null,
-    publishedAtIso: raw.public_task_listing.approvedAtIso,
+    publishedAtIso: raw.public_task_listing.approvedAtIso, jobUrl: `/jobs/${encodeURIComponent(id)}`,
     thumbnailUrl: taskThumbnailUrl(id, record) };
 }
 
@@ -59,10 +60,12 @@ export async function libraryJobStage(id: string, record: Record<string, any>): 
  */
 export async function listTaskBrowseCards(options: { withAnswerHeadlines?: boolean } = {}): Promise<TaskBrowseCard[]> {
   if (!db) throw new Error("Task library unavailable");
+  // Only jobs shared under the current listing record can be listed (E2); older cards are not read at all.
   const snapshot = await db.collection("inboundRequests")
-    .where("public_task_listing.enabled", "==", true).limit(200).get();
+    .where("public_task_listing.consentVersion", "==", JOB_SHARED_LISTING_VERSION).limit(200).get();
   const cards = await Promise.all(snapshot.docs.map(async (doc): Promise<TaskBrowseCard | null> => {
-    const listed = projectTaskBrowseCard(doc.id, doc.data() as InboundRequest);
+    const { access } = await loadCompanyJobAccess(doc.id, doc.data());
+    const listed = projectTaskBrowseCard(doc.id, doc.data() as InboundRequest, access);
     const card: TaskBrowseCard | null = listed ? { ...listed, simulationStage: await libraryJobStage(doc.id, doc.data()) } : null;
     if (!card || !options.withAnswerHeadlines || !jobCardAnswerShared(doc.data())) return card;
     const headline = await loadJobCardAnswerHeadline(doc.id, doc.data());
@@ -75,8 +78,8 @@ export async function listTaskBrowseCards(options: { withAnswerHeadlines?: boole
 /** One listed card as an approved company opens it, with the answer when the site shared it. Null when not listed. */
 export async function readTaskCardDetail(id: string): Promise<TaskCardDetail | null> {
   if (!db) throw new Error("Task library unavailable");
-  const record = (await db.collection("inboundRequests").doc(id).get()).data();
-  const listed = record ? projectTaskBrowseCard(id, record as InboundRequest) : null;
+  const { record, access } = await loadCompanyJobAccess(id);
+  const listed = record ? projectTaskBrowseCard(id, record as InboundRequest, access) : null;
   if (!listed || !record) return null;
   const card = { ...listed, simulationStage: await libraryJobStage(id, record) };
   const answerSummary = await loadJobCardAnswer(id, record);

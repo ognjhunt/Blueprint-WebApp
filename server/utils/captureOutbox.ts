@@ -1,4 +1,7 @@
 import { jobAlertIsCurrent, type JobAlertContext } from "./newJobAlerts";
+import { companyIntroductionEmailEnd, HELD_STATUS, introductionEmailCheck, settleHeldSiteIntroductions } from "./jobIntroductionGate";
+import { outcomeQuestionIsCurrent } from "./jobOutcomeGate";
+import { withdrawalNoticeIsCurrent } from "./withdrawalCompanyNotice";
 import { enqueueDueTaskStatusUpdates, acknowledgeTaskStatusUpdate, taskStatusUpdateIsCurrent } from "./taskStatusUpdates";
 /**
  * Durable delivery for site lifecycle and evaluation notices once enqueued.
@@ -108,10 +111,19 @@ export type OutboxKind =
   | "robot_team_access_received"
   | "robot_team_access_approved"
   | "robot_team_access_not_yet"
-  /** To approved robot teams, when a site lists a new task card. */
-  | "robot_team_new_task";
+  /** To an approved deployment company that asked for job emails, when a job is shared (package E, E4): once per job. */
+  | "robot_team_new_task"
+  /** To the company the site chose, with the site's details (E6): once per introduction. */
+  | "introduction_made_company"
+  /** To the site, with the company's details (E6; words by the site side): once per introduction. */
+  | "introduction_made_site"
+  /** The timed one-click outcome question after an introduction (E8). */
+  | "job_outcome_question"
+  /** To each approved company a withdrawn job was sent to: delete any copy (review M4, `withdrawalCompanyNotice.ts`). */
+  | "job_withdrawn_company";
 
-export type OutboxStatus = "pending" | "claimed" | "dispatching" | "unknown" | "sent" | "failed" | "cancelled" | "review_required";
+/** `held`: the site's "Meet {company}" email, waiting for the company's introduction email to be sent (H2). */
+export type OutboxStatus = "pending" | "claimed" | "dispatching" | "unknown" | "sent" | "failed" | "cancelled" | "review_required" | "held";
 
 export interface OutboxEntry {
   idempotencyKey: string;
@@ -155,6 +167,19 @@ const RETIRED_KINDS: ReadonlySet<string> = new Set(["pilot_recommended", "pilot_
   "results_ready", "run_no_result", "awaiting_evaluations", "no_team_passed", "no_qualified_evaluation"]);
 
 const DELIVERY_LEASE_MS = 5 * 60 * 1000;
+
+/**
+ * The two introduction emails carry both sides' names and contact details in their body (and the other side's email as
+ * the reply address). The introduction record holds them encrypted at rest; the outbox row holds them in plain text
+ * only until it is sent or cancelled: the same write that marks it so clears `subject`, `body` and `replyTo`. Everything else the
+ * outbox needs (key, kind, recipient, status, attempts, timestamps, receipts) stays. A row not yet sent keeps its body,
+ * because the sender needs it.
+ */
+const INTRODUCTION_KINDS: ReadonlySet<string> = new Set(["introduction_made_company", "introduction_made_site"]);
+function clearedIntroductionDetails(entry: Pick<OutboxEntry, "kind">): Row {
+  // The subject goes too: the site's one names the company ("Meet {company}").
+  return INTRODUCTION_KINDS.has(entry.kind) ? { subject: "", body: "", replyTo: null, detailsClearedAtIso: nowIso() } : {};
+}
 
 // Render previews inherit the application's bindings, but must never consume
 // shared customer delivery intents, including through opportunistic callers.
@@ -362,6 +387,10 @@ export async function deliverOutbox(params?: { limit?: number }): Promise<Outbox
     await reconcileTaskEvaluationNotificationRetries(db, limit);
   } catch (error) { logger.warn({ error }, "Could not reconcile notification acknowledgements"); }
   await reconcileOutboxDeliveries(limit);
+  // Held "Meet {company}" rows are decided from the facts every pass (J1), before the due rows are read, so a row
+  // released here goes in this same pass.
+  try { await settleHeldSiteIntroductions(limit, Date.now(), MAX_UNDELIVERED_AGE_MS, undeliveredAgeMs); }
+  catch (error) { logger.warn({ error }, "Could not decide the held introduction emails; the next pass will"); }
   const nowMs = Date.now();
   const rows = await dueRows("pending", limit, nowMs);
   // Re-sends come after first sends, and a failure to read them stops neither.
@@ -486,8 +515,22 @@ async function deliverRow(doc: FirebaseFirestore.QueryDocumentSnapshot,
       // still describe the provider effect and are never recast as cancelled.
       const currentCaptureNotice = await taskLifecycleNotificationIsCurrent(entry, tx);
       const currentJobAlert = await jobAlertIsCurrent(entry, tx);
-      if (accessNotice === "obsolete" || !currentNotice || retired || !currentCaptureNotice || !currentJobAlert)
-        return stop({ status: "cancelled" }, "notice_not_current");
+      const introduction = await introductionEmailCheck(entry, tx);
+      const currentIntroduction = introduction.current;
+      // The site's "Meet {company}" waits for the company's email to be sent (H2). Not an attempt, not a cancellation.
+      if (introduction.hold) {
+        if (!uncertain) tx.set(doc.ref, { status: HELD_STATUS, lastError: "waiting_for_company_email", nextAttemptAtMs: null }, { merge: true });
+        return false;
+      }
+      const currentOutcomeQuestion = await outcomeQuestionIsCurrent(entry, tx);
+      const currentWithdrawalNotice = await withdrawalNoticeIsCurrent(entry, tx);
+      if (accessNotice === "obsolete" || !currentNotice || retired || !currentCaptureNotice || !currentJobAlert
+        || !currentIntroduction || !currentOutcomeQuestion || !currentWithdrawalNotice) {
+        // An introduction that may no longer go ahead is cancelled as a whole (G3): the other email, the record and its
+        // billable event, in this transaction. Not from a row whose earlier dispatch may already have reached someone.
+        if (!currentIntroduction && !uncertain) introduction.cancel?.(tx);
+        return stop({ status: "cancelled", ...clearedIntroductionDetails(entry) }, "notice_not_current");
+      }
       const nowMs = Date.now();
       tx.set(doc.ref, { status: "dispatching", attempts: entry.attempts + 1,
         deliveryRuntime: runtime, requestedSender: CUSTOMER_JOB_EMAIL_IDENTITY,
@@ -508,9 +551,11 @@ async function deliverRow(doc: FirebaseFirestore.QueryDocumentSnapshot,
       const current = (await tx.get(doc.ref)).data();
       if (current?.status !== claimedStatus || current.deliveryToken !== token) return;
       const deferred = { ...current, deliveryDeferrals: (Number(current.deliveryDeferrals) || 0) + 1 };
-      tx.set(doc.ref, { deliveryDeferrals: deferred.deliveryDeferrals, ...(uncertain
-        ? unknownOutcomeFields(deferred, Date.now())
-        : retryLaterFields(deferred, Date.now(), "delivery_check_unavailable")) }, { merge: true });
+      const fields = uncertain ? unknownOutcomeFields(deferred, Date.now()) : retryLaterFields(deferred, Date.now(), "delivery_check_unavailable");
+      // A company introduction email that ages out here was never sent: the introduction is cancelled as a whole (J1).
+      const introductionEnd = fields.status === "failed" ? await companyIntroductionEmailEnd(entry, tx) : null;
+      tx.set(doc.ref, { deliveryDeferrals: deferred.deliveryDeferrals, ...fields }, { merge: true });
+      introductionEnd?.failed(tx);
     });
     summary.failed += 1;
     return;
@@ -536,8 +581,13 @@ async function deliverRow(doc: FirebaseFirestore.QueryDocumentSnapshot,
   const attempts = entry.attempts + 1;
   const outcome = deliveryOutcome(result);
   const refusal = result.error instanceof Error ? result.error.message : String(result.error ?? "send failed");
+  let releasedSiteRow: FirebaseFirestore.DocumentReference | null = null;
   const applied = await store.runTransaction(async tx => {
     const current = (await tx.get(doc.ref)).data();
+    // The company's introduction email: what its end means for the introduction, read now (reads before writes).
+    const introductionEnd = outcome === "sent" || outcome === "permanent" || outcome === "transient"
+      ? await companyIntroductionEmailEnd(entry, tx) : null;
+    releasedSiteRow = null;
     // Keep the old effect's receipt even if a successor changed the message.
     // The digest binds private bytes without copying them into the receipt.
     tx.set(doc.ref.collection("deliveryReceipts").doc(token), {
@@ -558,11 +608,24 @@ async function deliverRow(doc: FirebaseFirestore.QueryDocumentSnapshot,
         : uncertain ? { ...retryEnded("provider_refused"), lastError: `delivery_outcome_unknown_provider_refused: ${refusal}` }
           : outcome === "permanent" ? { status: "failed", lastError: refusal, nextAttemptAtMs: null }
             : retryLaterFields(current, nowMs, refusal);
-    tx.set(doc.ref, { ...next, sentAtIso: outcome === "sent" ? nowIso() : null,
+    tx.set(doc.ref, { ...next, ...(next.status === "sent" ? clearedIntroductionDetails(entry) : {}), sentAtIso: outcome === "sent" ? nowIso() : null,
       deliveryProvider: result.provider, deliveryMessageId: result.messageId }, { merge: true });
+    // One commit point (H2): the company's email is sent, so the introduction is made and the site's email is released.
+    if (introductionEnd && next.status === "sent" && introductionEnd.sent(tx)) releasedSiteRow = introductionEnd.siteRow;
+    // Definitely not sent and not tried again: the company never got the site's details, so nothing was introduced.
+    if (introductionEnd && next.status === "failed") introductionEnd.failed(tx);
     return next;
   });
   if (!applied) return;
+  if (releasedSiteRow) {
+    // The released "Meet {company}" goes in this same pass.
+    const released = await (releasedSiteRow as FirebaseFirestore.DocumentReference).get();
+    if (released.exists) {
+      summary.examined += 1;
+      await deliverRow(released as FirebaseFirestore.QueryDocumentSnapshot, runtime, summary)
+        .catch(error => logger.warn({ error, key: released.id }, "The released introduction email waits for the next pass"));
+    }
+  }
   if (applied.status === "sent") {
     try { await acknowledgeTaskStatusUpdate(entry); }
     catch (error) { logger.warn({ error }, "Status deadline will advance on the next reconciliation"); }

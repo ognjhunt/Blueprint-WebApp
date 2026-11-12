@@ -456,15 +456,13 @@ describe("what a waiting job is waiting on", () => {
     expect(rateOnly.headline).not.toMatch(/cycle time/);
   });
 
-  it("tells a site whose card is not published that partners cannot see the job or ask to be evaluated on it", () => {
+  // Sharing is the service (2026-11-12): no status asks a site to publish a job card.
+  it("never asks a site to publish a job card, listed or not", () => {
     const input = taskStatusInputFrom({ briefDrafted: true, stage: null, jobAccess: { evaluationAvailable: false, reason: "not_listed" } });
     expect(input.listed).toBe(false);
     const status = projectTaskStatus({ ...ready, listed: input.listed });
-    expect(status.decision).toBe("not_listed");
-    expect(status.headline).toMatch(/approved partners cannot see this job in the job library or ask to have their systems evaluated on it/);
-    expect(status.headline).not.toMatch(/cannot lead to a recommended pilot/);
-    expect(status.operatorAction).toMatch(/publish its job card/);
-    expect(projectTaskStatus({ ...ready, listed: true }).decision).toBe("assessing");
+    expect(status.decision).toBe("assessing");
+    expect(JSON.stringify(status)).not.toMatch(/publish its job card|job card is not published/);
   });
 });
 

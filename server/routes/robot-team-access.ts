@@ -13,9 +13,13 @@ import { z } from "zod";
 import { logger } from "../logger";
 import { assessAccessFit } from "../utils/robotTeamAccessFit";
 import {
+  accessRecordId,
   recordAccessApplication,
   requestAccessInvitation,
 } from "../utils/robotTeamEarlyAccess";
+import { applicationTermsAcceptance, recordCompanyTermsAcceptance } from "../utils/companyTerms";
+import { PRIVACY_VERSION, TERMS_VERSION } from "../../client/src/lib/legalAcceptance";
+import verifyFirebaseToken from "../middleware/verifyFirebaseToken";
 import { libraryAccessForRequest } from "../utils/robotTeamLibraryAccess";
 import { notifySlackRobotTeamAccessApplication } from "../utils/slack";
 import { listTaskBrowseCards } from "../utils/taskBrowse";
@@ -44,6 +48,9 @@ export const applicationSchema = z
     pilotPackage: optionalText(1200),
     testSite: optionalText(300),
     acceptedTerms: z.literal(true),
+    // The versions the form showed (G2): a missing or stale version is refused as the accept route refuses it.
+    termsVersion: z.string().max(40).optional(),
+    privacyVersion: z.string().max(40).optional(),
     optionalUpdates: z.boolean().optional(),
   })
   .strict();
@@ -56,14 +63,21 @@ router.post("/apply", applyLimiter, async (req: Request, res: Response) => {
       code: "application_invalid",
     });
   }
-  const { acceptedTerms: _accepted, ...fields } = parsed.data;
+  if (parsed.data.termsVersion !== TERMS_VERSION || parsed.data.privacyVersion !== PRIVACY_VERSION)
+    return res.status(400).json(TERMS_ACCEPTANCE_INVALID);
+  const { acceptedTerms: _accepted, termsVersion: _terms, privacyVersion: _privacy, ...fields } = parsed.data;
   const application = { ...fields, supportedSystems: Object.prototype.hasOwnProperty.call(req.body, "supportedSystems")
     ? fields.supportedSystems : undefined };
   try {
     // An unavailable library remains unknown to the fit checklist. Admission is manual.
     const listed = await listTaskBrowseCards().catch(() => []);
     const fit = assessAccessFit(application, listed.map((card) => ({ title: card.title, region: card.region })));
-    const { record, created, notification } = await recordAccessApplication(application, { fit });
+    // The tick on this unsigned form is recorded on the application as what it is (the versions it showed and the
+    // time). It never lets a company see a job: every company agrees once, signed in, on its first visit (G1).
+    const { record, created, unchanged, notification } = await recordAccessApplication(application, { fit,
+      applicationTermsAcceptance: applicationTermsAcceptance() });
+    // A decided record is left as it is, and the answer is the same as for a new application (G1).
+    if (unchanged) return res.status(202).json({ status: "applied", notificationStatus: "queued" });
     // Registration records interest; only the existing staff decision/invite routes grant admission.
     const current = record;
     const autoApproved = false;
@@ -98,6 +112,29 @@ router.post("/invitation", applyLimiter, async (req: Request, res: Response) => 
     return res.status(503).json({ error: "The link could not be sent. Try again shortly.", code: "invitation_request_unavailable" });
   }
   return res.status(202).json({ ok: true, message: "If that address is approved, check its inbox for your invitation. If it does not arrive, contact hello@tryblueprint.io." });
+});
+
+/**
+ * An approved deployment company accepts the current Terms and Privacy Policy before it sees any job. Recorded on its
+ * account and its access record (`companyTerms.ts`), with the versions taken from the server, never the client.
+ */
+const TERMS_ACCEPTANCE_INVALID = { error: "Agree to the current Terms and Privacy Policy.", code: "terms_acceptance_invalid" };
+const acceptTermsSchema = z.object({ acceptedTerms: z.literal(true), termsVersion: z.literal(TERMS_VERSION),
+  privacyVersion: z.literal(PRIVACY_VERSION) }).strict();
+router.post("/accept-terms", applyLimiter, verifyFirebaseToken, async (req: Request, res: Response) => {
+  const user = res.locals.firebaseUser;
+  if (!acceptTermsSchema.safeParse(req.body).success)
+    return res.status(400).json(TERMS_ACCEPTANCE_INVALID);
+  if (!user?.uid || !user.email || user.email_verified !== true)
+    return res.status(403).json({ error: "Use your approved company's verified account.", code: "terms_acceptance_account_required" });
+  try {
+    const recorded = await recordCompanyTermsAcceptance({ uid: user.uid, email: user.email }, accessRecordId(user.email));
+    if (!recorded) return res.status(403).json({ error: "Only an approved deployment company can accept here.", code: "terms_acceptance_not_approved" });
+    return res.json({ ok: true, termsVersion: TERMS_VERSION, privacyVersion: PRIVACY_VERSION });
+  } catch (error) {
+    logger.warn({ error }, "Could not record a company's Terms acceptance");
+    return res.status(503).json({ error: "Your agreement could not be saved. Try again shortly.", code: "terms_acceptance_unavailable" });
+  }
 });
 
 /** The caller's own access state, for the page to decide what to show. */

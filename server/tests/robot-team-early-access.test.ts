@@ -12,7 +12,7 @@ import express from "express";
 import { createServer, type Server } from "node:http";
 
 import { sharedFakeFirestoreState as state, sharedFakeFirestore as store } from "./helpers/fake-firestore";
-import { listedTaskCard } from "./helpers/listedTaskCard";
+import { currentTermsAcceptance, passedPrivacyScreen, sharedJobListing, sharedRecordingGrant } from "./helpers/sharedJob";
 
 const tokens = vi.hoisted(() => new Map<string, Record<string, unknown>>());
 const slack = vi.hoisted(() => vi.fn(async () => ({ sent: true })));
@@ -59,24 +59,28 @@ const application = {
   pilotPackage: "Two-week onsite trial, indicative $20,000, six-week lead time",
   acceptedTerms: true,
 };
+/** The versions of the Terms and Privacy Policy the form shows; it sends them with every application (G2). */
+const SHOWN = { termsVersion: "2026-11-12.1", privacyVersion: "2026-11-12.1" };
+/** What the application form sends. */
+const form = { ...application, ...SHOWN };
 
 describe("partner application roles", () => {
   it("records delivery role and supported systems without erasing them on a legacy reapplication", async () => {
     const response = await fetch(`${base}/api/robot-team-access/apply`, {
       method: "POST", headers: { ...CSRF, "content-type": "application/json" },
-      body: JSON.stringify({ ...application, partnerRole: "deployment", supportedSystems: "Franka and YAM", region: "Austin and surrounding central Texas sites" }),
+      body: JSON.stringify({ ...form, partnerRole: "deployment", supportedSystems: "Franka and YAM", region: "Austin and surrounding central Texas sites" }),
     });
     expect(response.status).toBe(202);
     const id = early.accessRecordId(application.email);
     expect(state.docs.get(`${early.ROBOT_TEAM_ACCESS_COLLECTION}/${id}`)).toMatchObject({ partnerRole: "deployment", supportedSystems: "Franka and YAM", status: "applied" });
-    const repeated = await fetch(`${base}/api/robot-team-access/apply`, { method: "POST", headers: { ...CSRF, "content-type": "application/json" }, body: JSON.stringify(application) });
+    const repeated = await fetch(`${base}/api/robot-team-access/apply`, { method: "POST", headers: { ...CSRF, "content-type": "application/json" }, body: JSON.stringify(form) });
     expect(repeated.status).toBe(202);
     expect(state.docs.get(`${early.ROBOT_TEAM_ACCESS_COLLECTION}/${id}`)).toMatchObject({ partnerRole: "deployment", supportedSystems: "Franka and YAM", status: "applied" });
   });
 
   it("rejects unsafe website schemes rather than storing clickable script links", async () => {
     const response = await fetch(`${base}/api/robot-team-access/apply`, { method: "POST", headers: { ...CSRF, "content-type": "application/json" },
-      body: JSON.stringify({ ...application, website: "javascript:alert(1)", partnerRole: "technology" }) });
+      body: JSON.stringify({ ...form, website: "javascript:alert(1)", partnerRole: "technology" }) });
     expect(response.status).toBe(400);
     expect(state.docs.size).toBe(0);
   });
@@ -100,10 +104,13 @@ async function withApp() {
 }
 
 function listedSite(id: string) {
+  state.docs.set(`siteTaskBriefs/${id}`, { requestId: id, summary: "Move totes between two stations", confirmedAtIso: null } as never);
   state.docs.set(`inboundRequests/${id}`, {
     requestId: id,
-    request: { buyerType: "site_operator", siteName: "PRIVATE SITE", siteLocation: "PRIVATE ADDRESS" },
-    public_task_listing: listedTaskCard(),
+    request: { buyerType: "site_operator", siteName: "PRIVATE SITE", siteLocation: "PRIVATE ADDRESS",
+      consent_attestation: sharedRecordingGrant() },
+    public_task_listing: sharedJobListing("Move totes between two stations"),
+    capture_privacy_screen: passedPrivacyScreen(id),
     site_task_triage: { disposition: "qualified" },
   } as never);
 }
@@ -112,6 +119,8 @@ function approve(email: string) {
   const now = "2026-09-23T00:00:00.000Z";
   state.docs.set(`${early.ROBOT_TEAM_ACCESS_COLLECTION}/${early.accessRecordId(email)}`, {
     ...application, email: email.toLowerCase(), status: "approved",
+    // An approved company that has accepted the current Terms (the gate is unchanged; the record carries it).
+    termsAcceptance: currentTermsAcceptance(), termsAcceptedByUid: "uid-approved-fixture",
     appliedAtIso: now, updatedAtIso: now, decidedAtIso: now, decidedBy: "ops@tryblueprint.io", decisionNote: null,
   } as never);
 }
@@ -165,6 +174,17 @@ describe("who sees the job library", () => {
     expect(JSON.stringify(body.items)).not.toMatch(/PRIVATE/);
   });
 
+  // The site agreed to share its job with robot deployment companies: an approved technology partner sees no job.
+  it("shows an approved technology partner no job", async () => {
+    approve("ada@arm.example");
+    const key = `${early.ROBOT_TEAM_ACCESS_COLLECTION}/${early.accessRecordId("ada@arm.example")}`;
+    state.docs.set(key, { ...(state.docs.get(key) as object), partnerRole: "technology" } as never);
+    tokens.set("tech", { uid: "u1", email: "ada@arm.example", email_verified: true });
+    const body = await tasks("tech");
+    expect(body.access).toMatchObject({ status: "approved", allowed: false });
+    expect(body.items).toEqual([]);
+  });
+
   it("refuses an approved email that is not verified, since anyone can type an address", async () => {
     approve("ada@arm.example");
     tokens.set("unverified", { uid: "u1", email: "ada@arm.example", email_verified: false });
@@ -183,9 +203,13 @@ describe("who sees the job library", () => {
     expect(body.items).toEqual([]);
   });
 
-  it("opens to everyone when early access is switched off", async () => {
-    vi.stubEnv("BLUEPRINT_ROBOT_TEAM_EARLY_ACCESS", "0");
-    expect((await tasks()).items).toHaveLength(1);
+  // Jobs are shared in full since 2026-11-12, so the open value of the switch admits nobody who is not approved.
+  it.each(["0", "false", "no", "off", "open"])("admits no anonymous viewer when the switch is set to %s", async value => {
+    vi.stubEnv("BLUEPRINT_ROBOT_TEAM_EARLY_ACCESS", value);
+    const body = await tasks();
+    expect(body.items).toEqual([]);
+    expect(body.access).toMatchObject({ allowed: false, signedIn: false });
+    expect(JSON.stringify(body)).not.toMatch(/PRIVATE|Move totes|Material handling/);
   });
 });
 
@@ -193,7 +217,7 @@ describe("who sees the job library", () => {
 describe("applying", () => {
   it("requires CSRF, records one application per email, and sends one receipt", async () => {
     const post = (headers: Record<string, string>) => fetch(`${base}/api/robot-team-access/apply`, {
-      method: "POST", headers: { "content-type": "application/json", ...headers }, body: JSON.stringify(application),
+      method: "POST", headers: { "content-type": "application/json", ...headers }, body: JSON.stringify(form),
     });
     expect((await post({})).status).toBe(403);
     const first = await post(CSRF);
@@ -206,7 +230,13 @@ describe("applying", () => {
     expect(records[0][1]).toMatchObject({
       email: "ada@arm.example", status: "applied",
       pilotPackage: "Two-week onsite trial, indicative $20,000, six-week lead time",
+      // What the form showed and the applicant ticked, with the time: on the application only (G1, G2).
+      applicationTermsAcceptance: { accepted_terms: true, terms_version: "2026-11-12.1", privacy_version: "2026-11-12.1",
+        terms_url: "/terms", privacy_url: "/privacy", accepted_at: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/) },
     });
+    // The tick on the unsigned form is never an acceptance that lets a company see a job.
+    expect(records[0][1]).not.toHaveProperty("termsAcceptance");
+    expect(records[0][1]).not.toHaveProperty("termsAcceptedByUid");
     const receipts = [...state.docs.entries()].filter(([key]) => key.startsWith("captureOutbox/robot_team_access_received"));
     expect(receipts).toHaveLength(1);
     expect(receipts[0][1]).toMatchObject({ to: "ada@arm.example" });
@@ -216,16 +246,59 @@ describe("applying", () => {
   it("rejects an application missing what matching needs", async () => {
     const response = await fetch(`${base}/api/robot-team-access/apply`, {
       method: "POST", headers: { "content-type": "application/json", ...CSRF },
-      body: JSON.stringify({ ...application, robot: "" }),
+      body: JSON.stringify({ ...form, robot: "" }),
     });
     expect(response.status).toBe(400);
   });
 
-  it("never undoes an approval, and reopens a declined application for review", async () => {
-    approve("ada@arm.example");
-    expect((await early.recordAccessApplication({ ...application, website: null, region: null })).record.status).toBe("approved");
-    await early.decideAccessApplication({ id: early.accessRecordId("ada@arm.example"), status: "declined", note: null, decidedBy: "ops" });
-    expect((await early.recordAccessApplication({ ...application, website: null, region: null })).record.status).toBe("applied");
+  it("refuses a form that does not send the versions it showed, or sends stale ones, with the accept route's error", async () => {
+    for (const body of [application, { ...form, termsVersion: "2026-11-02.1" }, { ...form, privacyVersion: "2026-11-02.1" },
+      { ...form, termsVersion: undefined }]) {
+      const response = await fetch(`${base}/api/robot-team-access/apply`, { method: "POST",
+        headers: { "content-type": "application/json", ...CSRF }, body: JSON.stringify(body) });
+      expect(response.status).toBe(400);
+      expect(await response.json()).toEqual({ error: "Agree to the current Terms and Privacy Policy.", code: "terms_acceptance_invalid" });
+    }
+    expect([...state.docs.keys()].some(key => key.startsWith("robotTeamAccess/"))).toBe(false);
+  });
+
+  it("replaces a pending application's details, and nothing else", async () => {
+    const post = (body: Record<string, unknown>) => fetch(`${base}/api/robot-team-access/apply`, { method: "POST",
+      headers: { "content-type": "application/json", ...CSRF }, body: JSON.stringify({ ...form, ...body }) });
+    expect((await post({})).status).toBe(202);
+    expect((await post({ company: "Arm Co Two" })).status).toBe(202);
+    const record = state.docs.get(`robotTeamAccess/${early.accessRecordId("ada@arm.example")}`) as Record<string, unknown>;
+    expect(record).toMatchObject({ status: "applied", company: "Arm Co Two" });
+    expect(record).not.toHaveProperty("termsAcceptance");
+  });
+
+  // The rule (planner, 19:50Z): a company's acceptance exists only as a signed-in act of its own; nothing an unsigned
+  // request sends can create, replace or carry one, or change a record that has been decided.
+  it.each([
+    ["an approved deployment company that never accepted", { status: "approved", partnerRole: "deployment" }],
+    ["an approved deployment company that accepted", { status: "approved", partnerRole: "deployment",
+      termsAcceptance: currentTermsAcceptance(), termsAcceptedByUid: "uid-ada" }],
+    ["an approved technology partner", { status: "approved", partnerRole: "technology" }],
+    ["a declined application", { status: "declined", partnerRole: "deployment" }],
+  ])("leaves %s exactly as it is and answers as for a new application", async (_label, decided) => {
+    const id = early.accessRecordId("ada@arm.example");
+    const now = "2026-09-23T00:00:00.000Z";
+    const stored = { ...application, email: "ada@arm.example", ...decided, appliedAtIso: now, updatedAtIso: now,
+      decidedAtIso: now, decidedBy: "ops@tryblueprint.io", decisionNote: null };
+    state.docs.set(`robotTeamAccess/${id}`, stored as never);
+    const before = new Map(state.docs);
+    const fresh = await fetch(`${base}/api/robot-team-access/apply`, { method: "POST", headers: { "content-type": "application/json", ...CSRF },
+      body: JSON.stringify({ ...form, email: "someone-new@arm.example" }) });
+    const newAnswer = { status: fresh.status, body: await fresh.json() };
+    state.docs.clear();
+    for (const [key, value] of before) state.docs.set(key, value);
+    const response = await fetch(`${base}/api/robot-team-access/apply`, { method: "POST", headers: { "content-type": "application/json", ...CSRF },
+      body: JSON.stringify({ ...form, company: "Mallory Corp", name: "Mallory", partnerRole: "deployment" }) });
+    expect({ status: response.status, body: await response.json() }).toEqual(newAnswer);
+    expect(state.docs.get(`robotTeamAccess/${id}`)).toEqual(stored);
+    expect([...state.docs.keys()].filter(key => !before.has(key))).toEqual([]);
+    const { companyMaySeeJobs } = await import("../utils/companyTerms");
+    expect(companyMaySeeJobs(state.docs.get(`robotTeamAccess/${id}`) as never)).toBe(Boolean((decided as { termsAcceptedByUid?: string }).termsAcceptedByUid));
   });
 });
 
@@ -246,7 +319,9 @@ describe("the review queue", () => {
 
   it("approves once, emails the next step, and the approved email then sees the library", async () => {
     tokens.set("ops", { uid: "ops", email: "ops@tryblueprint.io", email_verified: true, ops: true });
-    await early.recordAccessApplication({ ...application, website: null, region: null });
+    // As the application form records it: the tick is stored on the application only.
+    const { applicationTermsAcceptance } = await import("../utils/companyTerms");
+    await early.recordAccessApplication({ ...application, website: null, region: null }, { applicationTermsAcceptance: applicationTermsAcceptance() });
     const id = early.accessRecordId("ada@arm.example");
 
     const response = await decide("ops", id, "approved");
@@ -258,8 +333,22 @@ describe("the review queue", () => {
 
     listedSite("site-1");
     tokens.set("ada", { uid: "u1", email: "ada@arm.example", email_verified: true });
+    // The real viewer gate (not mocked here): the tick on the form does not open the library. The company agrees once,
+    // signed in, on its first visit.
+    const before = await fetch(`${base}/api/site-worlds/tasks`, { headers: { Authorization: "Bearer ada" } });
+    expect(before.status).toBe(403);
+    const refused = await before.json() as Record<string, unknown>;
+    expect(refused).toMatchObject({ code: "terms_acceptance_required" });
+    expect(JSON.stringify(refused)).not.toMatch(/site-1|Move totes|PRIVATE/);
+    expect(state.docs.get("users/u1")).toBeUndefined();
+    const accepted = await fetch(`${base}/api/robot-team-access/accept-terms`, { method: "POST",
+      headers: { "content-type": "application/json", Authorization: "Bearer ada", ...CSRF },
+      body: JSON.stringify({ acceptedTerms: true, ...SHOWN }) });
+    expect(accepted.status).toBe(200);
+    expect(state.docs.get(`robotTeamAccess/${id}`)).toMatchObject({ termsAcceptedByUid: "u1" });
     const library = await fetch(`${base}/api/site-worlds/tasks`, { headers: { Authorization: "Bearer ada" } });
     expect(((await library.json()) as { items: unknown[] }).items).toHaveLength(1);
+    expect(state.docs.get("users/u1")).toMatchObject({ acceptedTerms: true, termsVersion: "2026-11-12.1", privacyVersion: "2026-11-12.1" });
   });
 
   it("says a polite \"not yet\" by default, and nothing when the reviewer will reply", async () => {
@@ -295,7 +384,7 @@ describe("the review queue", () => {
 
 describe("the fit checklist", () => {
   const apply = (body: Record<string, unknown>) => fetch(`${base}/api/robot-team-access/apply`, {
-    method: "POST", headers: { "content-type": "application/json", ...CSRF }, body: JSON.stringify(body),
+    method: "POST", headers: { "content-type": "application/json", ...CSRF }, body: JSON.stringify({ ...SHOWN, ...body }),
   });
   const outbox = (kind: string) => [...state.docs.entries()].filter(([key]) => key.startsWith(`captureOutbox/${kind}`));
   const listFive = () => ["a", "b", "c", "d", "e"].forEach((id) => listedSite(`site-${id}`));
@@ -324,7 +413,9 @@ describe("the fit checklist", () => {
     const receipt = outbox("robot_team_access_received");
     expect(receipt).toHaveLength(1);
     expect(String((receipt[0][1] as { body: string }).body)).toContain("approval is pending");
-    expect(record.fit.checks[2]).toMatchObject({ id: "open_tasks_in_region", passed: true });
+    // A shared job's card carries no free-text region since 2026-11-12 (the company page shows the country only), so
+    // the region check cannot match a card; it never decided an approval.
+    expect(record.fit.checks[2]).toMatchObject({ id: "open_tasks_in_region", passed: false });
   });
 
   it("leaves anything short of a clear fit, or a switched-off rule, to a person", async () => {
@@ -366,6 +457,16 @@ describe("inviting a team after a call", () => {
 
     listedSite("site-1");
     tokens.set("ada", { uid: "u1", email: "ada@arm.example", email_verified: true });
+    // Invited after a call, it never saw the application form: it accepts the current Terms once, on its first visit.
+    const firstVisit = await fetch(`${base}/api/site-worlds/tasks`, { headers: { Authorization: "Bearer ada" } });
+    expect(firstVisit.status).toBe(403);
+    const refused = await firstVisit.json() as Record<string, unknown>;
+    expect(refused).toMatchObject({ code: "terms_acceptance_required", access: { allowed: false, termsRequired: true } });
+    expect(refused).not.toHaveProperty("items");
+    const accepted = await fetch(`${base}/api/robot-team-access/accept-terms`, { method: "POST",
+      headers: { Authorization: "Bearer ada", "content-type": "application/json", ...CSRF },
+      body: JSON.stringify({ acceptedTerms: true, termsVersion: "2026-11-12.1", privacyVersion: "2026-11-12.1" }) });
+    expect(accepted.status).toBe(200);
     const library = await fetch(`${base}/api/site-worlds/tasks`, { headers: { Authorization: "Bearer ada" } });
     expect(((await library.json()) as { items: unknown[] }).items).toHaveLength(1);
   });
@@ -423,10 +524,10 @@ describe("access decisions and their durable email intent", () => {
 
   it("does not acknowledge an application whose receipt could not commit; retry saves both", async () => {
     failOutboxWriteOnce();
-    expect((await post("/api/robot-team-access/apply", application)).status).toBe(503);
+    expect((await post("/api/robot-team-access/apply", form)).status).toBe(503);
     expect(state.docs.has(recordKey())).toBe(false);
     expect(notices("robot_team_access_received")).toHaveLength(0);
-    expect(await (await post("/api/robot-team-access/apply", application)).json())
+    expect(await (await post("/api/robot-team-access/apply", form)).json())
       .toMatchObject({ status: "applied", notificationStatus: "queued" });
     expect(notices("robot_team_access_received")).toHaveLength(1);
   });
