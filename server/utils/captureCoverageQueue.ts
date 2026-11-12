@@ -26,6 +26,28 @@ function briefStillReviewed(request: Record<string, any> | undefined, currentBri
     && draft.drafted_brief_digest === currentBriefDigest;
 }
 
+/** Why a reading bound to `binding` may not read the video now. */
+export type CoverageClearanceRefusal = "recording_consent_not_current" | "privacy_decision_not_proceeded"
+  | "capture_changed" | "source_changed" | "brief_changed";
+
+/**
+ * The current-clearance checks a reading must pass, read inside the same transaction that claims it: the site's
+ * recording consent is current, the privacy decision proceeded for this capture, and the source and the brief are the
+ * ones the reading was bound to. Null when it may read; otherwise the first reason it may not. The queue's claim and
+ * the owner's requeue both use this one function.
+ */
+export function coverageClearanceRefusal(request: Record<string, any> | undefined, brief: unknown,
+  binding: { source: unknown; brief_digest: string }, captureId: string): CoverageClearanceRefusal | null {
+  const privacy = request?.capture_privacy_source_bound_decision || request?.capture_privacy_screen;
+  if (!hasCurrentRecordingConsent(request?.request?.consent_attestation)) return "recording_consent_not_current";
+  if (privacy?.proceeded !== true) return "privacy_decision_not_proceeded";
+  if (privacy.capture_id !== captureId) return "capture_changed";
+  if (!privacy.producer_source?.key || humanDecisionDigest(privacy.producer_source) !== humanDecisionDigest(binding.source))
+    return "source_changed";
+  if (humanDecisionDigest(brief) !== binding.brief_digest) return "brief_changed";
+  return null;
+}
+
 /** Real failed reads before the review is handed to a person. Waiting for another call never counts toward it. */
 export const COVERAGE_REVIEW_MAX_ATTEMPTS = 3;
 /**
@@ -124,11 +146,7 @@ export async function reconcileCoverageReviews(limit = 10, options: { notifyOwne
     const claim = await db.runTransaction(async tx => {
       const [row, currentRequest, currentBrief] = await Promise.all([tx.get(jobRef), tx.get(request.ref), tx.get(db!.collection("siteTaskBriefs").doc(request.id))]);
       const current = currentRequest.data();
-      const currentPrivacy = current?.capture_privacy_source_bound_decision || current?.capture_privacy_screen;
-      if (!hasCurrentRecordingConsent(current?.request?.consent_attestation)
-        || currentPrivacy?.proceeded !== true || currentPrivacy.capture_id !== params.captureId
-        || humanDecisionDigest(currentPrivacy.producer_source) !== humanDecisionDigest(binding.source)
-        || humanDecisionDigest(currentBrief.data()) !== binding.brief_digest) return null;
+      if (coverageClearanceRefusal(current, currentBrief.data(), binding, params.captureId)) return null;
       const job = row.data();
       const legacyBudget = current?.capture_coverage_legacy_budget;
       const inherited = legacyBudget?.source_key === privacy.producer_source.key ? legacyBudget : null;
