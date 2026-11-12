@@ -124,7 +124,8 @@ function addressParts(address: string): string[] {
   return [...parts, ...streets, ...(address.match(/\b\d{5}(?:-\d{4})?\b/g) ?? [])];
 }
 
-/** Generic words of a business name: never removed on their own (with the street and scene words). */
+/** Words that never identify a site on their own, so never removed alone (the full name still is): generic business,
+ * street, workplace and place words, months, weekdays and compass directions. The one list of them. */
 const GENERIC_NAME_WORDS = new Set(["foods", "food", "logistics", "group", "company", "warehouse", "fresh", "services", "supply",
   "store", "market", "kitchen", "laundry", "hotel", "farm", "works", "systems", "solutions", "industries", "holdings", "inc", "llc",
   "ltd", "corp", "corporation", "limited", "plant", "factory", "center", "centre", "distribution", "the", "and",
@@ -134,9 +135,14 @@ const GENERIC_NAME_WORDS = new Set(["foods", "food", "logistics", "group", "comp
   "january", "february", "march", "april", "june", "july", "august", "september", "october", "november", "december",
   "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
   "north", "south", "east", "west", "northeast", "northwest", "southeast", "southwest",
-  "northern", "southern", "eastern", "western"]);
+  "northern", "southern", "eastern", "western",
+  // Ordinary workplace and place words (planner, 2026-11-12, H3): everyday sentences stay whole.
+  "station", "robot", "bay", "cell", "zone", "aisle", "shelf", "rack", "tote", "box", "pallet", "conveyor", "machine",
+  "press", "oven", "counter", "safety", "quality", "central", "main", "national", "american", "united", "general", "first",
+  "global", "pacific", "atlantic", "metro", "city", "valley", "mountain", "river", "lake", "coast", "green", "blue", "red",
+  "gold", "silver", "royal", "premier", "express", "direct", "quick", "clean", "bright", "smart"]);
 
-/** Whether a match at `offset` is the first word of a sentence, where a capital letter is no evidence of a name. */
+/** Whether a match at `offset` starts a sentence, so its replacement keeps the capital ("The site handles it."). */
 function startsSentence(text: string, offset: number): boolean {
   const before = text.slice(0, offset).replace(/["'“‘(\[\s]+$/u, "");
   return before.length === 0 || /[.!?:;\n]$/.test(before);
@@ -201,12 +207,13 @@ function tidy(text: string): string {
  * held postal code alone, and removes each distinctive word (four or more letters, not a generic business word) of the
  * site's or organisation's name on its own where the sentence writes it with a capital first letter ("Acme").
  *
- * The capitalised-word rule does not apply to the first word of a sentence (a capital there is no evidence), nor to
- * months, weekdays and compass directions.
+ * The capitalised-word rule applies wherever the word is capitalised, the first word of a sentence included; it never
+ * applies to the ordinary words in `GENERIC_NAME_WORDS` (business, street, workplace and place words, months, weekdays,
+ * compass directions).
  *
- * The remaining limit, exactly: nicknames, abbreviations, landmarks, a reordered address, a street with no street word,
- * a state or region spelled differently from the record, and one word of the name alone as the first word of a
- * sentence ("Acme runs two shifts.") can still get through. Ordinary numbers and quantities are kept.
+ * The remaining limit, exactly: nicknames, abbreviations, landmarks, a reordered address, a street with no street word
+ * and a state or region spelled differently from the record can still get through. Ordinary numbers and quantities are
+ * kept.
  */
 export function removeIdentifyingDetails(text: string, known: KnownSiteIdentity): string {
   let out = fold(text);
@@ -223,13 +230,14 @@ export function removeIdentifyingDetails(text: string, known: KnownSiteIdentity)
   }
   for (const value of byLength(values(known.names))) {
     const pattern = knownValuePattern(value);
-    if (pattern) out = out.replace(pattern, "the site");
+    if (pattern) out = out.replace(pattern, (...args: unknown[]) =>
+      startsSentence(String(args[args.length - 1]), Number(args[args.length - 2])) ? "The site" : "the site");
   }
   for (const word of new Set(values(known.organisations ?? []).flatMap(name => name.split(/[^\p{L}\p{N}]+/u)))) {
     const pattern = capitalisedWordPattern(word);
-    // Not the first word of a sentence: capitalised there whatever it is.
-    if (pattern) out = out.replace(pattern, (match: string, offset: number, whole: string) =>
-      startsSentence(whole, offset) ? match : "the site");
+    // Wherever it is capitalised, the first word of a sentence included (privacy over a mangled sentence).
+    if (pattern) out = out.replace(pattern, (_match: string, offset: number, whole: string) =>
+      startsSentence(whole, offset) ? "The site" : "the site");
   }
   out = out.replace(STREET_ANY_CASE, "").replace(STREET, "").replace(STREET_WEAK_NAMED, "").replace(STREET_WEAK_WITH_UNIT, "");
   out = out.replace(/\bthe site(\s+the site)+\b/gi, "the site");

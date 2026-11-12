@@ -4,7 +4,7 @@ import { removeIdentifyingDetails } from "@/lib/contactRedaction";
 /**
  * The company reviewer's attack table (S/review-e2e/review-identity-probe.test.ts, 19:40Z), ported: each row is either
  * removed, or kept as the stated limit (nicknames, abbreviations, landmarks, a reordered address, a street with no
- * street word, a state spelled differently from the record, one word of the name alone first in a sentence). Then the ordinary sentences, which must come back unchanged.
+ * street word, a state spelled differently from the record). Then the ordinary sentences, which must come back unchanged.
  */
 const known = { names: ["ZEBRAPLANT Foods", "Acme Logistics", "Wilhelmina Zebraplant", "Wilhelmina", "Zebraplant"],
   organisations: ["ZEBRAPLANT Foods", "Acme Logistics"],
@@ -30,6 +30,7 @@ const removed: string[] = [
   "Ask Mr. Zebraplant.",
   "Stack cartons at ACME LOGISTICS.",
   "Stack cartons at Acme.",
+  "Acme handles it.",
   "Postal 62704.",
   "Email owner at site-plant dot example.",
   "Call 415-555-0134.",
@@ -44,8 +45,6 @@ const keptAsLimit: Array<[string, string, RegExp]> = [
   ["a nickname", "Ask Mina.", /Mina/],
   ["a street with no street word", "Behind 1200 West Madison.", /1200 West Madison/],
   ["a landmark", "At Pier 39 in San Francisco.", /Pier 39 in San Francisco/],
-  // H3 (20:35Z): a capital at the start of a sentence is no evidence, so one word of the name alone there is kept.
-  ["one word of the name first in a sentence", "Acme handles it.", /^Acme handles it\.$/],
   ["a state spelled differently from the record", "We are the Springfield, Illinois site of a big grocer.", /Illinois/],
 ];
 const ordinary = [
@@ -84,21 +83,30 @@ describe("ordinary job sentences are untouched", () => {
   });
 });
 
-// Planner, 20:35Z, H3: the capitalised-word rule leaves the first word of a sentence, months, weekdays and compass
-// directions alone, and an article left before "the site" is tidied away.
-describe("capitalised common words in a site's name", () => {
+// Planner, 2026-11-12, H3 decision: privacy wins over a mangled sentence. A distinctive word of the name is removed
+// alone wherever it is capitalised, the first word of a sentence included; ordinary workplace and place words, months,
+// weekdays and directions are never removed alone, while the full name still is. An article left before "the site" goes.
+describe("capitalised words of a site's name", () => {
   const org = (name: string) => ({ names: [name], organisations: [name], addresses: [], contacts: [] });
   it.each([
+    ["Acme handles it.", "Acme Logistics", "The site handles it."],
+    ["Stack cartons at the Acme dock. Acme runs two shifts.", "Acme Logistics", "Stack cartons at the site dock. The site runs two shifts."],
+    ["Load at a Acme dock.", "Acme Logistics", "Load at the site dock."],
     ["Use the March batch.", "March Foods", "Use the March batch."],
     ["Start on Monday with the Monday crew.", "Monday Market", "Start on Monday with the Monday crew."],
     ["Carry parts North to the Line.", "North Star Foods", "Carry parts North to the Line."],
-    ["Follow the Safety rules.", "Safety Kleen", "Follow the site rules."],
     ["Station 4 takes the totes.", "Station Casinos", "Station 4 takes the totes."],
-    ["The Robot arm picks Boxes.", "Robot Boxes", "The site arm picks Boxes."],
-    ["Load at a Acme dock.", "Acme Logistics", "Load at the site dock."],
-    ["Stack cartons at the Acme dock. Acme runs two shifts.", "Acme Logistics", "Stack cartons at the site dock. Acme runs two shifts."],
+    ["Robot picks Boxes at Station 4.", "Station Casinos", "Robot picks Boxes at Station 4."],
+    ["Follow the Safety rules.", "Safety Kleen", "Follow the Safety rules."],
+    ["Work for Safety Kleen.", "Safety Kleen", "Work for the site."],
+    ["The Robot arm picks Boxes.", "Robot Boxes", "The Robot arm picks Boxes."],
+    ["Robot Boxes runs the line.", "Robot Boxes", "The site runs the line."],
   ])("%s (site %s)", (sentence, name, expected) => {
     expect(removeIdentifyingDetails(sentence, org(name))).toBe(expected);
+  });
+  it.each(ordinary)("ordinary sentences stay whole for sites named with everyday words: %s", sentence => {
+    for (const name of ["Station Casinos", "Safety Kleen", "Robot Boxes", "March Foods", "North Star Foods", "Main Street Market"])
+      expect(removeIdentifyingDetails(sentence, org(name))).toBe(sentence);
   });
   it("never leaves a doubled article before the site", () => {
     for (const sentence of ["Use the Zebraplant batch.", "Use a Zebraplant pallet.", "Work at the the Zebraplant dock."]) {

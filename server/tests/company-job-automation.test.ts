@@ -280,7 +280,7 @@ describe("the company's page for one job (E3)", () => {
       + "Cartons also come from 12 Mill Road, Unit 4. Mail OWNER@SITE-PLANT.EXAMPLE or call +1 (415) 555-0134. "
       + "We stack 12 cartons on 3 pallets in aisle 4 at station 2." });
     const { raw, body } = await page();
-    expect(body.item.sentence).toBe("Stack cartons at the site. the site runs it; ask the site. Cartons also come. "
+    expect(body.item.sentence).toBe("Stack cartons at the site. The site runs it; ask the site. Cartons also come. "
       + "Mail [removed] or call [removed]. We stack 12 cartons on 3 pallets in aisle 4 at station 2.");
     expectNoSiteIn("the job page payload", raw);
     for (const planted of ["77", "Mill Road", "Springfield", "springfield"]) expect(body.item.sentence).not.toContain(planted);

@@ -66,11 +66,11 @@ describe("removeIdentifyingDetails: the site's own known identity, and street ad
   });
 
   it.each([
-    ["the site's name in another case and spacing", "zebraplant   FOODS stacks cartons", "the site stacks cartons"],
-    ["the site's name with punctuation between its words", "Zebraplant-Foods stacks cartons", "the site stacks cartons"],
-    ["the organisation", "acme holdings owns the line", "the site owns the line"],
+    ["the site's name in another case and spacing", "zebraplant   FOODS stacks cartons", "The site stacks cartons"],
+    ["the site's name with punctuation between its words", "Zebraplant-Foods stacks cartons", "The site stacks cartons"],
+    ["the organisation", "acme holdings owns the line", "The site owns the line"],
     ["the contact's full name and first name", "Ask WILHELMINA zebraplant or wilhelmina", "Ask the site or the site"],
-    ["the submitter's name", "Dana  Submitter films it", "the site films it"],
+    ["the submitter's name", "Dana  Submitter films it", "The site films it"],
     ["the site's email and phone", "Mail OWNER@SITE-PLANT.EXAMPLE or call +1 (415) 555-0134", "Mail [removed] or call [removed]"],
     ["the address split across the sentence", "Cartons on 77 quokka lane go to the dock in Springfield.", "Cartons go to the dock."],
     ["the state and postal code part", "Ship from IL 62704 daily", "Ship daily"],
