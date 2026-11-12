@@ -3,6 +3,8 @@ import { websiteCaptureOwnerUid } from "./websiteCaptureOwner";
 /** Current-source preparation status; never a native assessment or preview verdict. */
 import { z } from "zod";
 import { isRecaptureReason, type RecaptureReason } from "./taskPreparationOutcome";
+import { KNOWN_PREPARATION_OUTCOME_REASONS, PREPARATION_RECAPTURE_REASONS, TASK_NOT_NAMED_REASON } from "./taskPreparationOutcome";
+import { noteUnknownPipelineCodes } from "./unknownPipelineCode";
 import { preparationOutcomeSchema, preparationOutcomeV6Schema, preparationOutcomeV7Schema, projectPreparationOutcome, ROBOT_FIT_HOLD_PREFIX }
   from "./taskPreparationOutcome";
 import { taskTargetChoiceQuestionSchema, type TaskTargetChoiceQuestion } from "./taskTargetChoiceContract";
@@ -184,7 +186,27 @@ export function publicRobotFitPrecheck(precheck: RobotFitPrecheckReceipt): Publi
       verdict: known(ROBOT_FIT_PRECHECK_STATUSES, row.verdict) ? row.verdict : "unknown" as const, reasons: row.reasons})),
     embodimentsTruncated: precheck.embodiments_truncated, precheckDigest: precheck.precheck_digest};
 }
+/** The codes in a receipt this release does not know, by slot, for the ops alert. */
+export function unknownPreparationCodes(status: WebsitePreparationReceipt): Array<[string, string]> {
+  const found: Array<[string, string]> = [];
+  const terminal = terminalReasonOf(status);
+  if (terminal && !known(WEBSITE_PREPARATION_TERMINAL_REASONS, terminal)) found.push(["preparation.terminal_reason", terminal]);
+  const outcome = "outcome" in status ? status.outcome : null;
+  if (outcome && !KNOWN_PREPARATION_OUTCOME_REASONS.has(outcome.reason) && !(PREPARATION_RECAPTURE_REASONS as readonly string[]).includes(outcome.reason)
+    && outcome.reason !== TASK_NOT_NAMED_REASON) found.push(["preparation.outcome.reason", outcome.reason]);
+  const fit = "robot_fit" in status ? status.robot_fit : null;
+  if (fit?.reason && !known(ROBOT_FIT_NOT_RUN_REASONS, fit.reason)) found.push(["robot_fit.reason", fit.reason]);
+  for (const row of fit?.models ?? []) if (!known(ROBOT_FIT_VERDICTS, row.verdict)) found.push(["robot_fit.verdict", row.verdict]);
+  const precheck = "robot_fit_precheck" in status ? status.robot_fit_precheck : null;
+  for (const row of precheck?.embodiments ?? []) {
+    if (!known(ROBOT_FIT_PRECHECK_EMBODIMENTS, row.embodiment)) found.push(["robot_fit_precheck.embodiment", row.embodiment]);
+    if (!known(ROBOT_FIT_PRECHECK_STATUSES, row.verdict)) found.push(["robot_fit_precheck.verdict", row.verdict]);
+  }
+  return found;
+}
 export type PublicWebsitePreparationStatus = {
+  /** The job waits for the site to name it in one sentence (`website_task_not_named`). */
+  taskNotNamed?: true;
   state: PreparationState | "unavailable"; correlationId: string | null;
   terminalReason?: WebsitePreparationTerminalReason | null;
   outcome?: TaskOutcome | null;
@@ -257,6 +279,8 @@ function noticeFor(selector: WebsitePreparationSelector, status: WebsitePreparat
   // A geometry-only job ends at its robot fit check by design: that end is its result, not a problem.
   if (status.state === "awaiting_inputs" && "robot_fit" in status && status.robot_fit?.route === "geometry_only")
     return null;
+  // A job waiting for its sentence needs the site to name it, not our team: no "needs attention" email (the page asks).
+  if ("outcome" in status && status.outcome?.reason === TASK_NOT_NAMED_REASON) return null;
   return needsAttention(status.state)
     ? {eventId: websitePreparationEventId(selector), milestone: "preparation_needs_attention"} : null;
 }
@@ -488,6 +512,7 @@ async function latestVerified(selector: WebsitePreparationSelector, deps: Websit
 export async function syncWebsitePreparationStatus(raw: unknown, deps = defaultDeps): Promise<WebsitePreparationReceipt> {
   const selector = websitePreparationSelectorSchema.parse(raw);
   const {latest, authority} = await boundedRead(signal => latestVerified(selector, deps, signal));
+  noteUnknownPipelineCodes(selector.request_id, unknownPreparationCodes(latest));
   await deps.commit(selector, latest, authority);
   // A geometry-only job ends at its robot fit check, and an ended authority ends the job before a test ran: either
   // ending gives the site its paper-check answer now, queued here where it is recorded.
@@ -513,17 +538,20 @@ export async function loadCurrentWebsitePreparationProof(requestId: string, capt
   return fresh(captureId, requestId, deps);
 }
 export async function loadCurrentWebsitePreparationStatus(requestId: string, captureId: string,
-  deps = defaultDeps): Promise<PublicWebsitePreparationStatus> {
+  deps = defaultDeps, objectName?: string | null): Promise<PublicWebsitePreparationStatus> {
   try {
     id.parse(requestId); websitePreparationSelectorSchema.shape.capture_id.parse(captureId);
     const {status} = await fresh(captureId, requestId, deps);
+    noteUnknownPipelineCodes(requestId, unknownPreparationCodes(status));
     const precheck = "robot_fit_precheck" in status && status.robot_fit_precheck
       ? publicRobotFitPrecheck(status.robot_fit_precheck) : null;
     // Customer correlation is company-derived; never trust caller supplied correlation text.
     return {state: status.state, correlationId: `bp-prep-${status.status_digest.slice(7, 23)}`,
       terminalReason: knownTerminalReason(terminalReasonOf(status)),
       ...("outcome" in status ? {outcome: status.outcome ? projectPreparationOutcome(status.outcome, precheck && {
-        holdReason: precheck.holdReason, precheckDigest: precheck.precheckDigest, counts: precheck.counts}) : null} : {}),
+        holdReason: precheck.holdReason, precheckDigest: precheck.precheckDigest, counts: precheck.counts}, objectName) : null} : {}),
+      // The job waits for its sentence (the site names it; the page asks for it).
+      ...("outcome" in status && status.outcome?.reason === TASK_NOT_NAMED_REASON ? {taskNotNamed: true} : {}),
       ...("question" in status ? {question: status.question} : {}),
       ...("robot_fit" in status ? {robotFit: status.robot_fit ? publicRobotFit(status.robot_fit) : null} : {}),
       ...("robot_fit_precheck" in status ? {robotFitPrecheck: precheck} : {})};

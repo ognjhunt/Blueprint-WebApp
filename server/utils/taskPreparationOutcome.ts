@@ -93,9 +93,9 @@ export function projectPreparationOutcome(receipt: PreparationOutcomeReceipt, pr
   if (receipt.reason === TASK_NOT_NAMED_REASON) return taskNotNamedOutcome(receipt.evidence_digest);
   if (isRecaptureReason(receipt.reason)) return recaptureNeeded(receipt.reason, receipt.evidence_digest, objectName);
   if (!KNOWN_PREPARATION_OUTCOME_REASONS.has(receipt.reason)) return unknownOutcome(receipt.evidence_digest);
-  if (receipt.reason === "robot_fit_none") return robotFitHold(receipt, precheck);
+  if (receipt.reason === "robot_fit_none") return robotFitHold(receipt as Extract<PreparationOutcomeReceipt, { reason: "robot_fit_none"; basis: "conservative_pre_spend_fit_check" }>, precheck);
   if (receipt.reason === "robot_carry_path_rejected") return {
-    category: "robot_incompatibility", basis: receipt.basis, title: "The checked robot configuration was rejected",
+    category: "robot_incompatibility", basis: "conservative_configuration_check", title: "The checked robot configuration was rejected",
     reason: "No collision-free pickup-to-placement path was found for the Franka configuration, top-down grasp and bounded set of stations checked. Paid construction and policy evaluation were not admitted by this check.",
     scope: "Conservative rejection for this prepared scene estimate and checked configuration. This is not proof that the task is impossible, that every robot would fail, or that it was tested physically.",
     nextStep: "Blueprint must review the retained geometry, scale uncertainty, grasp and station evidence before proposing another compatible configuration. Your recording and findings remain saved.",
