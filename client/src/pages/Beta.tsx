@@ -33,7 +33,7 @@ export default function Beta() {
           ]} />
           <BareRows title="Deployment companies" rows={[
             { key: "responses", label: "Responses", value: "A company can say it is interested, that the job is not a fit, or that it would need something. We can't promise any will say yes." },
-            { key: "meet", label: "Meeting a company", value: "Beside each interested company, press Introduce us. We give each of you the other's details. Up to three for each job." },
+            { key: "meet", label: "Meeting a company", value: "Beside each interested company, press Introduce us. We give each of you the other's details." },
             { key: "company", label: "Setting it up", value: "You agree any work and its terms with the company directly." },
           ]} />
           <BareRows title="Your video" rows={[

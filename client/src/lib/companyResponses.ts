@@ -49,9 +49,6 @@ export const COMPANY_RESPONSE_STATEMENT = "The site is told your answer. If you 
 /** What a company sees before it has accepted the current Terms and Privacy Policy: nothing of any job, only this. */
 export const TERMS_PROMPT = "Before you see jobs, read and agree to our Terms and Privacy Policy.";
 
-/** Introductions a site may ask for on one job. */
-export const MAX_INTRODUCTIONS_PER_JOB = 3;
-
 /** A stored alias letter ("A", "B", … "Z", "AA", …) as the site reads it. */
 export const companyAliasName = (letter: string) => `Company ${letter}`;
 
@@ -81,8 +78,8 @@ export interface SiteCompanyActivity {
   interested: boolean;
   /** The automatic send: how many approved deployment companies the job went to, and when it first went. */
   sent?: { count: number; firstAtIso: string } | null;
-  /** Introductions asked for on this job, of the most allowed. */
-  introductions?: { used: number; max: number };
+  /** Introductions made on this job (not cancelled). There is no limit per job (owner, 2026-11-12). */
+  introductions?: { used: number };
 }
 
 /** The site's sentence for the automatic send (E4). */

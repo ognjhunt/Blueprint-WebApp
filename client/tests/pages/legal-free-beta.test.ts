@@ -50,12 +50,16 @@ describe("terms for the free beta", () => {
     }
   });
 
-  it("puts the sharing version in force at once, replacing the 2026-11-25.1 version published ahead, and keeps 2026-11-02.1 frozen as the previous one", () => {
-    // Owner, 2026-11-12: sharing is the service. The version published ahead for November 25 never took effect.
-    expect(TERMS_VERSION).toBe("2026-11-12.1");
-    expect(PRIVACY_VERSION).toBe("2026-11-12.1");
+  it("puts 2026-11-12.2 in force at once, with 2026-11-12.1 as the Terms' previous version and 2026-11-25.1 a frozen record", () => {
+    // Owner, 2026-11-12: sharing is the service (2026-11-12.1), then no limit on introductions (2026-11-12.2, the same
+    // day). The version published ahead for November 25 never took effect. The Privacy Policy's text did not change in
+    // 2026-11-12.2, so its previous text is still 2026-11-02.1.
+    expect(TERMS_VERSION).toBe("2026-11-12.2");
+    expect(PRIVACY_VERSION).toBe("2026-11-12.2");
     expect(ANNOUNCED_SUPERSEDED_VERSION).toBe("2026-11-25.1");
-    expect([PREVIOUS_TERMS_VERSION, PREVIOUS_PRIVACY_VERSION]).toEqual(["2026-11-02.1", "2026-11-02.1"]);
+    expect([PREVIOUS_TERMS_VERSION, PREVIOUS_PRIVACY_VERSION]).toEqual(["2026-11-12.1", "2026-11-02.1"]);
+    // Whoever accepted 2026-11-12.1 is asked to accept 2026-11-12.2.
+    expect(acceptedVersionsAreCurrent("2026-11-12.1", "2026-11-12.1", Date.parse("2026-11-12T22:00:00Z"))).toBe(false);
     expect(legalEffectiveDate(TERMS_VERSION)).toBe("November 12, 2026");
     expect(legalUpdatePending(Date.parse("2026-11-12T08:00:00Z"))).toBe(false);
   });

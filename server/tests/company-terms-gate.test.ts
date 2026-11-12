@@ -266,6 +266,8 @@ const STALE: Array<[string, unknown, boolean]> = [
   ["an older version", { ...currentTermsAcceptance(), terms_version: "2026-11-02.1", privacy_version: "2026-11-02.1" }, true],
   ["the Terms without the Privacy Policy", { ...currentTermsAcceptance(), privacy_version: "2026-11-02.1" }, true],
   ["the Privacy Policy without the Terms", { ...currentTermsAcceptance(), terms_version: "2026-11-02.1" }, true],
+  // Owner, 2026-11-12 (~21:45Z): 2026-11-12.1, signed in, before the limit on introductions went: asked again (2026-11-12.2).
+  ["a signed-in acceptance of 2026-11-12.1", { ...currentTermsAcceptance(), terms_version: "2026-11-12.1", privacy_version: "2026-11-12.1" }, true],
   // The current versions, but not recorded by a signed-in act (no accepting user's id): the tick on the application.
   ["a current acceptance no signed-in user recorded", currentTermsAcceptance(), false],
 ];
@@ -289,7 +291,7 @@ const simPkg = () => {
 };
 const introduce = (alias: string) => requestIntroduction({ requestId: ID, alias, actor: "site",
   statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION });
-const SHOWN = { termsVersion: "2026-11-12.1", privacyVersion: "2026-11-12.1" };
+const SHOWN = { termsVersion: "2026-11-12.2", privacyVersion: "2026-11-12.2" };
 const apply = (body: Record<string, unknown>) => realFetch(`${base}/api/robot-team-access/apply`, { method: "POST",
   headers: { "content-type": "application/json" }, body: JSON.stringify({ name: "Mallory", company: "Mallory Corp", robot: "arm",
     workWanted: "pick", acceptedTerms: true, ...SHOWN, ...body }) }).then(async r => ({ status: r.status, body: await r.json() }));
@@ -354,7 +356,7 @@ describe("T2 the unsigned application form cannot create, replace or carry an ac
   it("stores what the form showed on a pending application only; it never satisfies the gate", async () => {
     expect((await apply({ email: "new-company@new.example" })).status).toBe(202);
     const record = recordOf({ email: "new-company@new.example" });
-    expect(record.applicationTermsAcceptance).toMatchObject({ terms_version: "2026-11-12.1", privacy_version: "2026-11-12.1" });
+    expect(record.applicationTermsAcceptance).toMatchObject({ terms_version: "2026-11-12.2", privacy_version: "2026-11-12.2" });
     expect(record).not.toHaveProperty("termsAcceptance");
     // Even if it were approved as it stands, the application's tick would not let it see a job.
     expect(companyMaySeeJobs({ ...record, status: "approved" } as never)).toBe(false);
@@ -380,7 +382,7 @@ describe("T3 the accept route", () => {
     expect((await post(NORTH, good)).status).toBe(200);
     const rec = recordOf(NORTH);
     // The stored acceptance is the server's own record of the current versions; the body's versions were only checked.
-    expect(rec.termsAcceptance).toMatchObject({ accepted_terms: true, terms_version: "2026-11-12.1", privacy_version: "2026-11-12.1",
+    expect(rec.termsAcceptance).toMatchObject({ accepted_terms: true, terms_version: "2026-11-12.2", privacy_version: "2026-11-12.2",
       terms_url: "/terms", privacy_url: "/privacy" });
     expect(Object.keys(rec.termsAcceptance)).not.toContain("extra");
     expect(rec.termsAcceptedByUid).toBe(`uid-${NORTH.email}`);
@@ -446,7 +448,7 @@ describe("an introduction that may no longer go ahead at dispatch is cancelled a
     expect(state.docs.get(`billableEvents/introduction-${ID}-${north()}`)).toMatchObject({ status: "void", voidReason: reason });
   }
 
-  it("T4b: an acceptance that goes stale between the request and the dispatch cancels both emails; another company can still be introduced, up to three", async () => {
+  it("T4b: an acceptance that goes stale between the request and the dispatch cancels both emails; other companies can still be introduced", async () => {
     await answer(NORTH); await answer(SOUTH); await answer(EAST); await answer(WEST);
     expect(await introduce("A")).toMatchObject({ ok: true });
     setTerms(NORTH, { ...currentTermsAcceptance(), terms_version: "2026-11-02.1" });
@@ -460,7 +462,7 @@ describe("an introduction that may no longer go ahead at dispatch is cancelled a
     expect(a.canIntroduce).toBe(false);
     expect(JSON.stringify(activity)).not.toMatch(/North Robotics|contact@north|Person North/);
     expect(activity.introductions.used).toBe(0);
-    // A cancelled introduction does not count toward the three.
+    // A cancelled introduction does not count among those made.
     seams.sendEmail.mockClear();
     for (const alias of ["B", "C", "D"]) expect(await introduce(alias)).toMatchObject({ ok: true });
     expect(await introduce("A")).toEqual({ ok: false, reason: "already_introduced" });

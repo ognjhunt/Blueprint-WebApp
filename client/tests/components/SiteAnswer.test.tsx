@@ -613,7 +613,7 @@ describe("an older job takes the current statement on its page", () => {
 // PACKAGE_E E4 and E6: under the sharing sentence, one line for the automatic send, each answer by alias, and beside each
 // company that can be introduced "Introduce us"; after an introduction, that company's details and only that company's.
 describe("the deployment companies section, with sends, answers and introductions", () => {
-  const activity = { interested: true, sent: { count: 4, firstAtIso: "2026-11-11T10:00:00.000Z" }, introductions: { used: 0, max: 3 }, entries: [
+  const activity = { interested: true, sent: { count: 4, firstAtIso: "2026-11-11T10:00:00.000Z" }, introductions: { used: 0 }, entries: [
     { kind: "answered" as const, alias: "Company B", atIso: "2026-11-12T09:00:00.000Z", state: "needs_something" as const, canIntroduce: false },
     { kind: "answered" as const, alias: "Company A", atIso: "2026-11-13T09:00:00.000Z", state: "interested" as const, canIntroduce: true },
   ] };
@@ -668,7 +668,6 @@ describe("the deployment companies section, with sends, answers and introduction
     ["not_listed", "Your job is not in front of deployment companies right now, so we cannot make an introduction."],
     ["not_interested", "This company has not answered Interested, so we cannot introduce you."],
     ["consent_missing", "This company needs to answer again before we can introduce you."],
-    ["limit_reached", "You have used your three introductions."],
     ["already_introduced", "You have already been introduced to this company."],
     ["company_not_approved", "This company can no longer be introduced."],
     ["withdrawn", "You withdrew this job, so we cannot make an introduction."],
@@ -681,7 +680,7 @@ describe("the deployment companies section, with sends, answers and introduction
   });
 
   it("after an introduction shows that company's name and contact details, and only that company's", () => {
-    const introduced = { ...activity, introductions: { used: 1, max: 3 }, entries: [
+    const introduced = { ...activity, introductions: { used: 1 }, entries: [
       { ...activity.entries[0], canIntroduce: false },
       { ...activity.entries[1], canIntroduce: false, introducedAtIso: "2026-11-14T09:00:00.000Z",
         company: { name: "Northwind Robotics", contactName: "Ada Contact", email: "ada@northwind.example", website: "https://northwind.example" } },
@@ -709,11 +708,13 @@ describe("the deployment companies section, with sends, answers and introduction
     expect(within(companies()).queryByRole("link")).toBeNull();
   });
 
-  it("says the three introductions are used, with no button, once the limit is reached", () => {
-    const full = { ...activity, introductions: { used: 3, max: 3 } };
-    render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE, companies: full }} />);
-    expect(within(companies()).getByText("You have used your three introductions.")).toBeVisible();
-    expect(within(companies()).queryAllByRole("button")).toHaveLength(0);
+  // Owner, 2026-11-12: no limit per job. However many introductions were made, "Introduce us" stays beside every answer
+  // the server says can be introduced, and nothing on the page speaks of a limit.
+  it("keeps Introduce us beside each introducible answer however many introductions were made, and names no limit", () => {
+    const many = { ...activity, introductions: { used: 8 } };
+    render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE, companies: many }} />);
+    expect(within(companies()).getAllByRole("button", { name: "Introduce us" })).toHaveLength(1);
+    expect(companies().textContent).not.toMatch(/three|limit|used your/i);
   });
 
   it("keeps the entries while not visible, and shows nothing once the job is withdrawn", () => {

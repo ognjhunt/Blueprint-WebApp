@@ -402,6 +402,25 @@ describe("workspace access and projections", () => {
     } finally { clock.mockRestore(); }
   });
 
+  // Owner, 2026-11-12 (~21:45Z): the limit of three introductions goes, so the Terms move to 2026-11-12.2. A site that
+  // accepted 2026-11-12.1 is asked to accept the current versions; nothing is recorded for it until it does.
+  it.each(["nested", "legacy"])("asks a %s account that accepted 2026-11-12.1 to accept 2026-11-12.2", async shape => {
+    const acceptance = { ...buildLegalAcceptanceRecord({ acceptedAt: "2026-11-12T12:00:00Z" }),
+      terms_version: "2026-11-12.1", privacy_version: "2026-11-12.1" };
+    const record = { ...state.records.get("users/site-1"), ...(shape === "nested"
+      ? { termsAcceptance: acceptance }
+      : { acceptedTerms: true, termsVersion: "2026-11-12.1", privacyVersion: "2026-11-12.1" }) };
+    state.records.set("users/site-1", record);
+    const retained = structuredClone(record);
+    const clock = vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-11-12T22:00:00Z"));
+    try {
+      const response = await api("/setup", "site-1");
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({ termsRequired: true });
+      expect(state.records.get("users/site-1")).toEqual(retained);
+    } finally { clock.mockRestore(); }
+  });
+
   it("withholds persisted capture derivatives on the owner's return after withdrawal", async () => {
     state.records.set("inboundRequests/task-1", { ...task(), consent_revoked: true,
       site_task_brief_confirmed_at: "2026-09-18T00:00:00Z", capture_coverage: { covers_scene: true } });

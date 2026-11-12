@@ -149,7 +149,7 @@ describe("the site's status payload, before and after an introduction", () => {
     const north = body.answer.companies.entries.find((entry: Record<string, unknown>) => entry.alias === "Company A");
     expect(north.company).toEqual({ name: NORTH.company, contactName: NORTH.name, email: NORTH.email, website: NORTH.website });
     expect(north.introducedAtIso).toBe("2026-11-12T12:00:00.000Z");
-    expect(body.answer.companies.introductions).toEqual({ used: 1, max: 3 });
+    expect(body.answer.companies.introductions).toEqual({ used: 1 });
     // The company's words, its robot, region and the operator's note never reach the site, even after.
     expectNone("status after the introduction", raw, [WORDS.north, NORTH.robot, NORTH.region, NORTH.decisionNote, ...SOUTH_PLANTED]);
   });
@@ -176,7 +176,6 @@ describe("the introductions route", () => {
     ["not_listed", "Your job is not in front of deployment companies right now, so we cannot make an introduction."],
     ["not_interested", "This company has not answered Interested, so we cannot introduce you."],
     ["consent_missing", "This company needs to answer again before we can introduce you."],
-    ["limit_reached", "You have used your three introductions."],
     ["already_introduced", "You have already been introduced to this company."],
     ["company_not_approved", "This company can no longer be introduced."],
   ])("says the refusal %s in one plain sentence", async (reason, sentence) => {

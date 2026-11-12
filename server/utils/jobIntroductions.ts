@@ -4,7 +4,9 @@
  *
  * `requestIntroduction` is one transaction that re-checks everything (the whole sharing rule, the company's approval as
  * a deployment company, a standing Interested answer the company itself gave under the current line
- * `company-response-2026-11-12`), enforces at most three introductions per job, and writes, all or nothing:
+ * `company-response-2026-11-12`), and writes, all or nothing (one introduction per company; no limit per job: owner,
+ * 2026-11-12, "if they want to talk to 1 that should be fine if they want to go through the steps with 8 that should be
+ * fine"):
  * - `inboundRequests/{id}/introductions/{companyId}` = `{ schemaVersion: 1, alias, requestedAtIso, by: "site",
  *   siteShared: { name, contactName, email, phone?, location }, companyShared: { company, contactName, email, website? },
  *   each field encrypted at rest (`introductionShared.ts`; this covers the introduction record; the two emails' outbox
@@ -18,7 +20,7 @@
  */
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
-import { COMPANY_RESPONSE_LABELS, INTRODUCIBLE_RESPONSE_STATES, MAX_INTRODUCTIONS_PER_JOB,
+import { COMPANY_RESPONSE_LABELS, INTRODUCIBLE_RESPONSE_STATES,
   type CompanyResponseState } from "../../client/src/lib/companyResponses";
 import { buildOutboxEntry, CAPTURE_OUTBOX_COLLECTION } from "./captureOutbox";
 import { buildIntroductionBillableEvent, writeIntroductionBillableEvent } from "./billableEvents";
@@ -35,7 +37,7 @@ import { decryptFieldValue } from "./field-encryption";
 import { sealShared } from "./introductionShared";
 import { INTRODUCTION_REQUEST_STATEMENT_VERSION } from "../../client/src/lib/siteIntroductions";
 
-export type IntroductionRefusal = "statement_not_current" | "not_listed" | "not_interested" | "consent_missing" | "limit_reached"
+export type IntroductionRefusal = "statement_not_current" | "not_listed" | "not_interested" | "consent_missing"
   | "already_introduced" | "company_not_approved";
 export type IntroductionResult = { ok: true; introducedAtIso: string } | { ok: false; reason: IntroductionRefusal };
 
@@ -83,8 +85,8 @@ async function siteDetailsOf(record: Record<string, any>, decrypt: (value: unkno
     phone: null, location: location && location !== "Location pending" ? location : null };
 }
 
-/** Enough to count the three that stand past any that were cancelled. */
-const INTRODUCTION_READ_LIMIT = 50;
+/** The introductions read to count those that stand (recorded on the job); far above any real count. */
+const INTRODUCTION_READ_LIMIT = 1000;
 
 export async function requestIntroduction(input: { requestId: string; alias: string; actor: "site";
   /** The recorded statement beside "Introduce us" the site agreed to: it must be the current one. */
@@ -117,11 +119,10 @@ export async function requestIntroduction(input: { requestId: string; alias: str
     // A standing `interested` or `tested_can_do` answer (E9).
     if (!INTRODUCIBLE_RESPONSE_STATES.includes(answer?.state)) return { ok: false, reason: "not_interested" };
     if (!answerConsentsToIntroduction(answer)) return { ok: false, reason: "consent_missing" };
-    // The count is the introductions on record that were not cancelled (a cancelled one does not count toward the three,
-    // G3). Both presses of a race write the job document, which this transaction has read, so Firestore retries one of
-    // them and it sees the other's introduction.
+    // There is no limit per job. The count of introductions on record that were not cancelled is kept on the job. Two
+    // presses at once both write the job document, which this transaction has read, so Firestore retries one of them,
+    // and a second press for the same company then finds its introduction (`already_introduced`).
     const used = introductions.docs.filter(doc => typeof doc.data()?.cancelledAtIso !== "string").length;
-    if (used >= MAX_INTRODUCTIONS_PER_JOB) return { ok: false, reason: "limit_reached" };
     const companyEmail = String(company.email ?? "").trim().toLowerCase();
     const companyShared = { company: text(company.company) ?? "", contactName: text(company.name) ?? "", email: companyEmail,
       ...(text(company.website) ? { website: text(company.website)! } : {}) };

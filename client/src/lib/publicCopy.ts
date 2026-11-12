@@ -20,7 +20,7 @@ export const HOME_SUB_LINE = "Film the job once. Robot deployment companies can 
 
 export const STEP_SEND = "Send a video of one job that repeats.";
 export const STEP_SIMULATE = "We send the job to robot deployment companies we approve and build a simulation of your site for them to test.";
-export const STEP_ANSWER = "Their answers come back to you: interested, can do, not a fit, or would need something. You pick up to three to meet.";
+export const STEP_ANSWER = "Their answers come back to you: interested, can do, not a fit, or would need something. You pick who to meet.";
 
 export const START_JOB = "Start a job";
 export const HOME_START_HELPER = "A video, where the job is, and an email.";

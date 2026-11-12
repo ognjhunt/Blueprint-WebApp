@@ -39,7 +39,7 @@ companies it has approved: your description, your video without its sound, the
 simulation built from it, the success rule, the first look and any early
 trial. There will be no share button, no share setting and no pause. Your
 name, street address and contact details are never shared without asking you
-first: when you ask for an introduction with one press (at most three per job),
+first: when you ask for an introduction with one press (one for each company you want to meet),
 Blueprint emails each side the other's name and contact details. A job sent under an older statement is not shown to any company until
 you accept the current one.
 
