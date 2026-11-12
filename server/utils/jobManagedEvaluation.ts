@@ -19,7 +19,7 @@ import { isScreeningHeldOutcome, parseBetaPolicyScreeningPublication, screeningC
   SCREENING_PUBLICATION_V1, SCREENING_PUBLICATION_V2, SCREENING_PUBLICATION_V3, SCREENING_PUBLICATION_V4, SCREENING_REPLANNED_BLOCKER,
   screeningProgress, screeningReviewVideos, type BetaPolicyScreeningPublication, type ScreeningExecutionEvidence, type ScreeningOutcome,
   type ScreeningOutcomeCaveat, type ScreeningReviewVideos } from "./betaPolicyScreeningContract";
-import { screeningSetupNotes } from "./screeningSetupFlagSentences";
+import { robotFactNotes, screeningSetupNotes } from "./screeningSetupFlagSentences";
 import { projectCandidateSelection } from "./betaCandidateSelection";
 import type { JobCandidateSelection, JobScreeningProgress } from "../../client/src/types/jobMarketplace";
 import { assertWebsiteCaptureBindingInTransaction, resolveWebsiteCaptureBinding } from "./websiteCaptureBinding";
@@ -270,6 +270,7 @@ export type ManagedJobEvidenceSummary = {
       | "publication_digest" | "catalog_digest" | "plan_digest">;
     candidates: Array<{ candidateId: string; name: string; state: string; planned: number;
     scored: number; succeeded: number; failed: number; void: number; blockers: string[]; configurationDigest?: string;
+    robotNotes?: string[];
     successRange?: ScreeningSuccessRange; executionEvidence?: ScreeningExecutionEvidence;
     /** How far the row's graded episodes got (publication v4); absent when the publication has none. */
     progress?: JobScreeningProgress;
@@ -415,6 +416,8 @@ export function projectManagedJobEvidence(
         ...(row.execution_evidence_kind ? { executionEvidence: screeningExecutionEvidence(row) } : {}),
         state: screeningCandidateState(row), planned: row.episodes_planned, scored: row.episodes_scored, succeeded: row.episodes_succeeded,
         failed: row.episodes_failed, void: row.episodes_void, blockers: row.blockers,
+        // Facts about this robot and the object, shown on this robot's result only (`robotFactNotes`).
+        ...(robotFactNotes(row).length ? { robotNotes: robotFactNotes(row) } : {}),
         ...(row.episodes_scored > 0 ? { successRange: screeningSuccessRange(row.episodes_succeeded, row.episodes_scored) } : {}),
         // How far its graded episodes got (v4): facts the page states, never a rank.
         ...(row.progress ? { progress: screeningProgress(row)! } : {}),

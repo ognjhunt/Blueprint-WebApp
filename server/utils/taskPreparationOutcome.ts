@@ -4,7 +4,7 @@
  */
 import { z } from "zod";
 import type { TaskOutcome } from "../../client/src/types/taskOutcome";
-import type { WebsiteAtlasPreview } from "./websiteAtlasPreview";
+import { selectWebsiteAtlasPreview, type WebsiteAtlasPreview } from "./websiteAtlasPreview";
 import { websiteLargeVideoAsk } from "./websiteJobWindowEnding";
 
 const digest = z.string().regex(/^sha256:[a-f0-9]{64}$/);
@@ -200,6 +200,12 @@ export function recaptureSentences(reason: RecaptureReason, objectName?: string 
   return name && /^[\p{L}\p{N} ,.'()-]+$/u.test(name)
     ? { reason: `We could not find ${name} in your video.`, nextStep: "Please film again with it in view. Then send us the new video." }
     : RECAPTURE_SENTENCES.website_task_object_not_observed;
+}
+
+/** The verified Atlas preview of the job's capture says the job has no sentence to prepare from. */
+export function jobAwaitsItsSentence(record: Record<string, any> | null | undefined, captureId: string): boolean {
+  const preview = record ? selectWebsiteAtlasPreview(record, captureId) : null;
+  return preview?.state === "needs_input" && preview.reason === TASK_NOT_NAMED_REASON;
 }
 
 /** The job waits for its sentence: the site names it on its job page. Not a failure, and not ours to fix. */

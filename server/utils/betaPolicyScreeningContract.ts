@@ -438,6 +438,27 @@ const scriptedBaseline = (row: { execution_evidence_kind?: string }) => row.exec
 export const KNOWN_GOOD_CONTROL_FLAG_PREFIX = "known_good_control_";
 export const screeningKnownGoodControl = (row: { execution_evidence_kind?: string; setup_quality_flags?: readonly string[] }) =>
   scriptedBaseline(row) && (row.setup_quality_flags ?? []).some(code => code.startsWith(KNOWN_GOOD_CONTROL_FLAG_PREFIX));
+/**
+ * What our scripted reference check found, from its published row: passed (at least 2 in 3 tries succeeded), partly
+ * (fewer, but at least one), failed (none), could not run (its own flag says so), or null when there is no such row
+ * or it has not ended.
+ */
+export type ScreeningReferenceCheck = "passed" | "partly" | "failed" | "could_not_run";
+export function screeningReferenceCheck(rows: readonly ScreeningCandidateRow[]): ScreeningReferenceCheck | null {
+  const control = rows.find(screeningKnownGoodControl);
+  if (!control) return null;
+  const flags = control.setup_quality_flags ?? [];
+  if (flags.some(code => /^known_good_control_(unavailable|interrupted)(:|$)/.test(code))) return "could_not_run";
+  if (control.episodes_scored > 0) {
+    if (control.episodes_succeeded === 0) return "failed";
+    return control.episodes_succeeded * 3 >= control.episodes_scored * 2 ? "passed" : "partly";
+  }
+  return flags.some(code => /^known_good_control_failed(:|$)/.test(code)) ? "failed" : null;
+}
+/** Flags that are facts about one robot and the object (`screeningSetupFlagSentences`): never a set-up doubt. */
+export const ROBOT_FACT_FLAG_CODES: ReadonlySet<string> = new Set(["task_object_wider_than_gripper", "task_object_heavier_than_grip",
+  "task_object_grip_depends_on_weight", "task_object_needs_edge_grip"]);
+export const isRobotFactFlagCode = (code: string) => ROBOT_FACT_FLAG_CODES.has(code.split(":")[0]);
 /** The rows that are candidates: every row but the known-good control. */
 export const screeningCandidateRows = <Row extends { execution_evidence_kind?: string; setup_quality_flags?: readonly string[] }>(
   candidates: readonly Row[]): Row[] => candidates.filter(row => !screeningKnownGoodControl(row));
@@ -497,7 +518,12 @@ export function screeningOutcomeCaveat(publication: BetaPolicyScreeningPublicati
   const candidates = screeningCandidateRows(publication.candidates);
   const scored = candidates.filter(row => row.episodes_scored > 0);
   if (scored.some(row => row.episodes_succeeded > 0)) return null;
-  if (scored.some(row => screeningRowFlagFields.some(key => (row[key]?.length ?? 0) > 0))) return "scene_setup";
+  // A flag about one robot and the object is a fact about that robot, never a doubt about our set-up.
+  if (scored.some(row => screeningRowFlagFields.some(key => (row[key] ?? []).some(code => !isRobotFactFlagCode(code))))) return "scene_setup";
+  // Our scripted reference check (review, 2026-11-12): when it failed, did it only partly, or could not run, a result
+  // with no success may come from how we set up the scene. A passed check removes no flag (above).
+  const reference = screeningReferenceCheck(publication.candidates);
+  if (reference === "failed" || reference === "partly" || reference === "could_not_run") return "scene_setup";
   return screeningSceneFeasibility(publication)?.status === "flagged"
     && !candidates.some(row => (row.scene_check_flags?.length ?? 0) > 0) ? "scene_setup" : null;
 }

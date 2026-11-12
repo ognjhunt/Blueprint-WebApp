@@ -28,7 +28,7 @@ import { drainPendingWebsitePreparationNotifications } from "./websitePreparatio
 import { preparationEndedSentence } from "./taskStatusProjection";
 import { EARLY_TASK_HOLD_DETAIL, EARLY_TASK_HOLD_SENTENCES, earlyTaskHoldOf, isEarlyTaskHoldReason,
   FOOTAGE_BEFORE_ACCOUNT_SENTENCE, JOB_NO_GRANT_SITE_ENDING_SUBJECT, JOB_WINDOW_ENDING_MESSAGE, JOB_WINDOW_ENDING_SUBJECT, jobNoGrantEndingMessage,
-  isRecaptureReason, LARGE_VIDEO_RECAPTURE_SENTENCES, RECAPTURE_SENTENCES, RECAPTURE_TITLE, recaptureReasonOf,
+  isRecaptureReason, LARGE_VIDEO_RECAPTURE_SENTENCES, RECAPTURE_SENTENCES, RECAPTURE_TITLE, recaptureReasonOf, TASK_NOT_NAMED_REASON,
   type EarlyTaskHoldReason, type RecaptureReason } from "./taskPreparationOutcome";
 import { isWebsiteJobNoGrantEndedEventId, isWebsiteJobWindowEndedEventId } from "./websiteJobWindowEnding";
 import { selectWebsiteAtlasPreview } from "./websiteAtlasPreview";
@@ -259,7 +259,7 @@ export async function enqueueTaskLifecycleNotification(params: {
   /** `answer_ready` only: the reading ran out, so the email says there is no paper check. */
   paperUnread?: true;
 }): Promise<{ enqueued: boolean; reason?: "store_unavailable" | "request_missing" | "contact_missing" | "consent_withdrawn"
-  | "awaiting_early_hold_preview" | "awaiting_reading" }> {
+  | "awaiting_early_hold_preview" | "awaiting_reading" | "awaiting_site_sentence" }> {
   if (!db) return { enqueued: false, reason: "store_unavailable" };
   const requestId = params.requestId.trim();
   const snapshot = await db.collection("inboundRequests").doc(requestId).get();
@@ -286,6 +286,9 @@ export async function enqueueTaskLifecycleNotification(params: {
   const preview = params.milestone === "preparation_needs_attention" && params.captureId
     ? selectWebsiteAtlasPreview(snapshot.data(), params.captureId) : null;
   const earlyTaskHold = earlyTaskHoldOf(preview);
+  // A job waiting for its sentence needs the site, not our team: no "needs attention" email; the page asks for it.
+  if (params.milestone === "preparation_needs_attention" && preview?.state === "needs_input" && preview.reason === TASK_NOT_NAMED_REASON)
+    return { enqueued: false, reason: "awaiting_site_sentence" };
   // The Pipeline delivers the preview separately and can be late: until it says how this capture's Atlas lane
   // ended, or the wait runs out, owe the notice rather than send a generic one the page would contradict.
   if (!earlyTaskHold && params.awaitEarlyHoldUntilMs !== undefined && Date.now() < params.awaitEarlyHoldUntilMs

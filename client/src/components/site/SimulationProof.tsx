@@ -43,6 +43,7 @@ export function SimulationTestRows({ proof }: { proof: SimulationProofView }) {
     ...options.map((option, index) => ({ key: option.id, label: <>{index + 1}. {option.label}{option.maker && <span className="bare-helper"> · {option.maker}</span>}</>,
       value: <>Finished {tries(option.succeeded, option.scored)}{option.rangeText && <span className="bare-helper"> · {option.rangeText}</span>}
         {option.succeeded === 0 && option.furthestDetail && <span className="bare-helper"> · {option.furthestDetail}</span>}
+        {option.notes?.map(note => <span key={note} className="bare-helper"> · {note}</span>)}
         {index === 0 && winner && <strong> · {winner === "did_best" ? "Did best" : "Ahead"}</strong>}</> })),
     ...(winner ? [{ key: "gap", value: winner === "did_best" ? GAP_UNLIKELY_CHANCE : GAP_COULD_BE_CHANCE }] : []),
     ...(proof.options.unidentified > 0 ? [{ key: "unidentified", value: `${proof.options.unidentified} other ${proof.options.unidentified === 1 ? "run" : "runs"} could not be identified as an AI robot, so ${proof.options.unidentified === 1 ? "it is" : "they are"} not counted.` }] : []),

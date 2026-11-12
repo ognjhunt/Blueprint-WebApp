@@ -54,6 +54,8 @@ export interface JobOutlookInput {
   resultUnknown?: boolean;
   /** The time the decision is made, for tests; now otherwise. */
   nowEpoch?: number;
+  /** The Pipeline says the job has no sentence to prepare from, and the site has not given one since. */
+  awaitsSiteSentence?: boolean;
 }
 
 /**
@@ -109,7 +111,8 @@ export function jobOutlook(input: JobOutlookInput): JobOutlook {
   // A live run is testing, whatever the clock says: the window's end stops it through its own authority, and the run's
   // terminal record then says so (`window_ended_during_test`).
   if (liveRun(input)) return outlook("testing");
-  return recordedEndingOf(input) ?? working();
+  // Waiting for the site to name its job: neither building nor an ending.
+  return recordedEndingOf(input) ?? (input.awaitsSiteSentence === true ? outlook("waiting_on_site", "task_not_named") : working());
 }
 
 /**
@@ -197,6 +200,7 @@ export async function loadJobOutlookDecision(requestId: string):
   const session = await dbAdmin.collection("captureUploadSessions").doc(captureId).get()
     .then(snapshot => snapshot.data()).catch(() => { uncertain = true; return undefined; });
   let preparation: JobOutlookInput["preparation"] = null;
+  let preparationTaskNotNamed = false;
   let scene: JobOutlookInput["scene"] = null;
   if (session?.website_preparation) {
     const { loadCurrentWebsitePreparationStatus } = await import("./websitePreparationStatus");
@@ -204,6 +208,7 @@ export async function loadJobOutlookDecision(requestId: string):
     // A status that cannot be read or verified is unknown, not "before its first status".
     if (!status || status.state === "unavailable") uncertain = true;
     preparation = status ? { state: status.state, geometryOnlyEnd: status.state === "awaiting_inputs" && status.robotFit?.route === "geometry_only" } : null;
+    preparationTaskNotNamed = status?.taskNotNamed === true;
     if (status?.state === "handed_off") {
       const { loadWebsiteSceneProgression } = await import("./websiteSceneProgression");
       const progression = await loadWebsiteSceneProgression(requestId, captureId).then(value => ({ value }))
@@ -239,6 +244,8 @@ export async function loadJobOutlookDecision(requestId: string):
     windowEndedAtEpoch: await import("./websiteSceneSponsorship").then(({ websiteJobWorkWindow }) => websiteJobWorkWindow(record))
       .then(window => window.endedAtEpoch ?? null).catch(() => null),
     runStoppedByWindow, resultUnknown,
+    awaitsSiteSentence: !record.site_task_brief_confirmed_at && (preparationTaskNotNamed
+      || (await import("./taskPreparationOutcome")).jobAwaitsItsSentence(record, captureId)),
     preparation, scene, proof, uncertain,
   };
   const outlook = jobOutlook(input);

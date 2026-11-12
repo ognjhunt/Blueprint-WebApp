@@ -12,7 +12,7 @@
  * `external:task_object:composition_support_...`). The sentence is that of the
  * whole code, else of its first part that has one.
  */
-import { screeningRowFlagFields, screeningSceneFeasibility, type BetaPolicyScreeningPublication } from "./betaPolicyScreeningContract";
+import { isRobotFactFlagCode, screeningRowFlagFields, screeningSceneFeasibility, type BetaPolicyScreeningPublication } from "./betaPolicyScreeningContract";
 
 export const SETUP_FLAG_UNCLASSIFIED_SENTENCE = "Our scene check raised a point we could not classify.";
 
@@ -54,7 +54,44 @@ const SETUP_FLAG_SENTENCES: ReadonlyMap<string, string> = new Map(Object.entries
   "scene_estimate:collider_registration": "The solid surfaces the robots touch in the simulated scene are an estimate: we could not fully line them up with what your video shows, so we kept only the parts that matched it.",
   "scene_estimate:review_citations_dropped": "Our review of your video pointed to some frames we could not use, so they were left out when we built the scene.",
   "scene_estimate:surrounding_views_dropped": "Some views of the area around the job were left out of the simulated scene to stay within the number of views we process, so those parts are missing from it.",
+  // Proposed wording (review, 2026-11-12): what the simulated scene guessed about the job, beside a result.
+  "scene_estimate:task_object_guessed": "We could not tell for certain from your video which object the job moves, so the simulated scene uses our best guess.",
+  "scene_estimate:target_role_kept": "We kept the object's role in the job as your job description gives it, without checking it against your video.",
+  "scene_estimate:task_review_estimated": "Parts of the job in the simulated scene come from our review of your video, which we could not confirm.",
+  "scene_estimate:destination_guessed": "We could not see in your video where the object goes, so the simulated scene uses our best guess.",
+  "scene_estimate:destination_near_start": "In the simulated scene, the place the object goes is close to where it starts, so the job may be easier there than at your site.",
+  // A run's camera and set-up checks, per camera where the code names one.
+  task_object_partly_hidden: "In the simulation, the job's object was partly hidden from one of the robot's cameras.",
+  task_target_marker_partly_hidden: "In the simulation, the mark showing where the object goes was partly hidden from one of the robot's cameras.",
+  task_object_not_in_view: "In the simulation, the job's object was not in view of one of the robot's cameras.",
+  scene_appearance_clearance_too_large: "In the simulated scene, the space around the object is larger than in your video.",
+  task_object_placement_differs_from_video: "In the simulated scene, the object does not sit exactly where your video shows it.",
+  task_object_size_differs_from_video: "In the simulated scene, the object's size differs from what your video shows.",
+  // A fault: no camera sees the object or the mark at all, so this scene cannot test robots.
+  scene_task_not_visible: "None of the robot's cameras in the simulated scene could see the job's object or the mark showing where it goes, so this scene could not test robots. This is ours to fix.",
 }));
+
+/**
+ * Facts about one robot and this object (review, 2026-11-12): shown on THAT robot's result, never as a doubt about how
+ * we set up the simulation (they never raise the set-up notice and are not set-up notes).
+ */
+const ROBOT_FACT_FLAG_SENTENCES: ReadonlyMap<string, string> = new Map(Object.entries({
+  task_object_wider_than_gripper: "The object is wider than this robot's gripper opens.",
+  task_object_heavier_than_grip: "The object is heavier than this robot's grip is rated to hold.",
+  task_object_grip_depends_on_weight: "Whether this robot can hold the object depends on its weight, which we estimated from your video.",
+  task_object_needs_edge_grip: "This robot can only hold the object by its edge.",
+}));
+const flagBase = (code: string) => code.split(":")[0];
+/** A flag that is a fact about one robot and the object, not about how we set up the scene. */
+export const isRobotFactFlag = (code: string) => isRobotFactFlagCode(code) && ROBOT_FACT_FLAG_SENTENCES.has(flagBase(code));
+/** The sentences for one row's robot facts, each once, in row order; shown on that robot's result only. */
+export function robotFactNotes(row: Partial<Record<typeof screeningRowFlagFields[number], string[]>>): string[] {
+  const codes = screeningRowFlagFields.flatMap(key => row[key] ?? []).filter(isRobotFactFlag);
+  return [...new Set(codes.map(code => ROBOT_FACT_FLAG_SENTENCES.get(flagBase(code))!))];
+}
+/** Whether a flag code is one this release has words for (a set-up note or a robot fact). */
+export const isKnownFlag = (code: string) => code === KNOWN_GOOD_CONTROL_PENDING || isRobotFactFlag(code)
+  || SETUP_FLAG_SENTENCES.has(code) || code.split(":").some(part => SETUP_FLAG_SENTENCES.has(part));
 /** The known-good control's code while it has not ended: no sentence yet. */
 const KNOWN_GOOD_CONTROL_PENDING = "known_good_control_pending";
 
@@ -71,5 +108,5 @@ export function setupFlagSentence(code: string): string {
 export function screeningSetupNotes(publication: BetaPolicyScreeningPublication): string[] {
   const codes = [...(screeningSceneFeasibility(publication)?.flags ?? []),
     ...publication.candidates.flatMap(row => screeningRowFlagFields.flatMap(key => row[key] ?? []))];
-  return [...new Set(codes.filter(code => code !== KNOWN_GOOD_CONTROL_PENDING).map(setupFlagSentence))];
+  return [...new Set(codes.filter(code => code !== KNOWN_GOOD_CONTROL_PENDING && !isRobotFactFlag(code)).map(setupFlagSentence))];
 }

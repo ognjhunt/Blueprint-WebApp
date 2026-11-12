@@ -39,14 +39,18 @@ export const sceneIntentOutcomeSchema = z.object({
   schema_version: z.literal(SCENE_INTENT_OUTCOME_SCHEMA),
   intent_id: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/),
   intent_digest: digest,
-  kind: z.enum(SCENE_INTENT_OUTCOME_KINDS),
+  // Open (review, 2026-11-12): a kind this release does not know never fails the intake's status read. Such an
+  // outcome is not adopted (`adoptedSceneOutcome`): the job keeps the state its status otherwise shows, and staff hear.
+  kind: z.string().regex(/^[a-z][a-z0-9_]{0,63}$/),
   terminal: z.boolean(),
   reason_category: reason,
   reason_code: reason,
   decided_at_epoch: z.number().finite().nonnegative(),
   outcome_digest: digest,
 }).strict();
-export type SceneIntentOutcome = z.infer<typeof sceneIntentOutcomeSchema>;
+export type SceneIntentOutcome = Omit<z.infer<typeof sceneIntentOutcomeSchema>, "kind"> & { kind: SceneIntentOutcomeKind };
+export const isKnownSceneIntentOutcomeKind = (kind: unknown): kind is SceneIntentOutcomeKind =>
+  (SCENE_INTENT_OUTCOME_KINDS as readonly unknown[]).includes(kind);
 
 /** Sealed by the Pipeline over every other field, and decided for this exact intent. */
 export function sceneIntentOutcomeBinds(outcome: SceneIntentOutcome, status: { intent_id: string; intent_digest: string }): boolean {
@@ -79,12 +83,13 @@ const RIGHTS_REVOCATION_CAUSES = new Set(["source_revoked"]);
 export function adoptedSceneOutcome(record: Record<string, any> | null | undefined): SceneIntentOutcome | null {
   const status = record?.pipeline_status;
   const parsed = sceneIntentOutcomeSchema.safeParse(status?.outcome);
-  if (!record || !parsed.success || !definedPairing(parsed.data) || status.status === "completed"
+  if (!record || !parsed.success || !isKnownSceneIntentOutcomeKind(parsed.data.kind) || !definedPairing(parsed.data as SceneIntentOutcome)
+    || status.status === "completed"
     || ["completed", "closeout_pending", "revocation_pending"].includes(record.state)) return null;
   const revokedByWebApp = record.revocation_requested === true || Boolean(record.revocation_receipt);
   if (parsed.data.kind === "withdrawn" && revokedByWebApp && !RIGHTS_REVOCATION_CAUSES.has(record.revocation_cause))
     return null;
-  return parsed.data;
+  return parsed.data as SceneIntentOutcome;
 }
 
 /** The outcome as a job page reads it: what picks the sentence, and the digest its one email is keyed by. */

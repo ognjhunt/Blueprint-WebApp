@@ -2,12 +2,14 @@
  * The job's outlook, as the server decides it once (`server/utils/jobOutlook.ts`) for the job page, the sharing
  * routes and every answer email. The page shows the screen for the phase and never works it out itself.
  */
-export type JobPhase = "reading" | "building" | "testing" | "result" | "no_test" | "cannot_match" | "ended_by_site";
+export type JobPhase = "reading" | "building" | "testing" | "result" | "no_test" | "cannot_match" | "ended_by_site"
+  /** The job waits for the site to say what the robot should do in one sentence (review, 2026-11-12). */
+  | "waiting_on_site";
 export type JobOutlookReason =
   | "permission_withdrawn" | "closed_by_owner"
   | "window_expired" | "no_grant" | "preparation_failed" | "scene_held" | "scene_stopped"
   | "run_held" | "run_ended" | "no_ai_robot_scored" | "robot_fit_only" | "unsized"
-  | "step_failed" | "other_kind" | "authority_ended" | "kept_on_file" | "job_ended" | "window_ended_during_test";
+  | "step_failed" | "other_kind" | "authority_ended" | "kept_on_file" | "job_ended" | "window_ended_during_test" | "task_not_named";
 export interface JobOutlook {
   phase: JobPhase;
   reason: JobOutlookReason | null;
@@ -26,6 +28,7 @@ export const OUTLOOK_SENTENCES: Readonly<Record<Exclude<JobOutlookReason, "run_h
   kept_on_file: "We can't test this kind of job yet. We've kept your job on file.",
   // An ended authority the Pipeline gives no reason for: true, and no claim about why.
   job_ended: "This job has ended.",
+  task_not_named: "Tell us in one sentence what the robot should do, so we can build the simulation of your job.",
   // A run the window's end stopped while it was under way.
   window_ended_during_test: "The time for this job ran out during the simulation test.",
   no_grant: "We have not built a simulation for this job.",

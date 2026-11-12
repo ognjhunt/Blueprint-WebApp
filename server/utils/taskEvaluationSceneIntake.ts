@@ -15,7 +15,7 @@ import { familyNativePreparationReference, familyPreparationMatchesTask, isTaskF
 import { isNavigationStrategy, navigationPreparationMatchesTask, navigationPreparationReference,
   NAVIGATION_PREPARED_PHASE } from "./navigationSceneIntake";
 import { effectiveSceneExecutionExpiry } from "./sceneExecutionWindowExtension";
-import { sceneIntentOutcomeBinds, sceneIntentOutcomeSchema, sceneOutcomeNoticeIntent } from "./sceneIntentOutcome";
+import { isKnownSceneIntentOutcomeKind, sceneIntentOutcomeBinds, sceneIntentOutcomeSchema, sceneOutcomeNoticeIntent } from "./sceneIntentOutcome";
 import { sendRateLimitedOpsAlert } from "./opsProcessAlerts";
 import { loadWebsiteCaptureRights } from "./websiteTaskContext";
 
@@ -1147,6 +1147,11 @@ export async function processSceneIntakeQueue(limit = 10, deps: SceneIntakeQueue
       // written with the status that carried it and queued by the outbox
       // reconciler; the same outcome read again writes nothing new.
       const notice = record.website_request_id ? sceneOutcomeNoticeIntent(row.id, { ...record, ...patch }) : null;
+      // An outcome kind this release does not know is not adopted; staff hear once per job and code.
+      const sentKind = ({ ...record, ...patch } as Record<string, any>).pipeline_status?.outcome?.kind;
+      if (record.website_request_id && typeof sentKind === "string" && !isKnownSceneIntentOutcomeKind(sentKind))
+        void import("./unknownPipelineCode").then(({ noteUnknownPipelineCode }) =>
+          noteUnknownPipelineCode(record.website_request_id, "scene_outcome.kind", sentKind));
       await storeTimeout(
         db.runTransaction(async (transaction) => {
           const latest = await transaction.get(row.ref);

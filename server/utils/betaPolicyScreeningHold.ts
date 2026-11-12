@@ -51,7 +51,9 @@ export const betaPolicyScreeningHoldSchema = z.object({
   site_id: identifier,
   source: betaPolicyScreeningSourceSchema,
   status: z.enum(["held", "released"]),
-  reason_code: z.enum(REASONS).nullable(),
+  // Open (review, 2026-11-12): a reason this release does not know never fails the ingest. It holds the job on our
+  // side with the general set-up sentence (`screeningHoldOutcome`), and staff hear once per job and code.
+  reason_code: code.nullable(),
   detail_code: code.nullable(),
   revision: z.number().int().min(1).max(Number.MAX_SAFE_INTEGER),
   generated_at: z.string().datetime({ offset: true }),
@@ -84,7 +86,10 @@ export const SCREENING_HOLD_ACCOUNT_LIMIT_DETAIL = "account_monthly_spend_limit_
 export const screeningHoldOutcome = (hold: Pick<BetaPolicyScreeningHold, "status" | "reason_code"> & { detail_code?: string | null }):
   ScreeningHeldOutcome | "awaiting_spend_approval" | null =>
   hold.status !== "held" || !hold.reason_code ? null
-    : hold.detail_code === SCREENING_HOLD_ACCOUNT_LIMIT_DETAIL ? "awaiting_spend_approval" : SCREENING_HOLD_OUTCOMES[hold.reason_code];
+    : hold.detail_code === SCREENING_HOLD_ACCOUNT_LIMIT_DETAIL ? "awaiting_spend_approval"
+    : isKnownHoldReason(hold.reason_code) ? SCREENING_HOLD_OUTCOMES[hold.reason_code] : "held_setup";
+export const isKnownHoldReason = (reason: unknown): reason is HoldReason =>
+  typeof reason === "string" && Object.prototype.hasOwnProperty.call(SCREENING_HOLD_OUTCOMES, reason);
 
 /**
  * Bind the hold to the scene intake and the job exactly as a campaign is bound
