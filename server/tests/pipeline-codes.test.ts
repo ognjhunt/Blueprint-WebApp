@@ -25,7 +25,8 @@ describe("set-up and scene flags", () => {
     ["scene_estimate:destination_near_start", "In the simulated scene, the place the object goes is close to where it starts, so the job may be easier there than at your site."],
     ["task_object_partly_hidden:wrist_left", "In the simulation, the job's object was partly hidden from one of the robot's cameras."],
     ["task_target_marker_partly_hidden:exterior_1", "In the simulation, the mark showing where the object goes was partly hidden from one of the robot's cameras."],
-    ["task_object_not_in_view:wrist", "In the simulation, the job's object was not in view of one of the robot's cameras."],
+    ["task_object_not_in_view_of_checked_cameras", "In the simulation, the job's object was not in view of the robot's cameras that we checked."],
+    ["task_target_marker_not_in_view_of_checked_cameras", "In the simulation, the mark showing where the object goes was not in view of the robot's cameras that we checked."],
     ["scene_appearance_clearance_too_large", "We could not tidy the reconstructed surface around the object, so it may look partly covered in the simulation."],
     ["task_object_size_differs_from_video", "In the simulated scene, the object's size differs from what your video shows."],
     // The Pipeline's final names (review, 2026-11-12); the two codes that no longer exist are gone.
@@ -59,7 +60,7 @@ describe("set-up and scene flags", () => {
     expect(isKnownFlag(code)).toBe(true);
   });
   it("no longer has words for the two codes the Pipeline dropped", () => {
-    for (const code of ["task_object_placement_differs_from_video", "scene_task_not_visible"]) {
+    for (const code of ["task_object_placement_differs_from_video", "scene_task_not_visible", "task_object_not_in_view"]) {
       expect(setupFlagSentence(code)).toBe(SETUP_FLAG_UNCLASSIFIED_SENTENCE);
       expect(screeningReasonLabel(code)).not.toMatch(/no camera/);
     }

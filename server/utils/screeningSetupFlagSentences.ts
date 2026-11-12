@@ -72,7 +72,10 @@ const SETUP_FLAG_SENTENCES: ReadonlyMap<string, string> = new Map(Object.entries
   // A run's camera and set-up checks, per camera where the code names one.
   task_object_partly_hidden: "In the simulation, the job's object was partly hidden from one of the robot's cameras.",
   task_target_marker_partly_hidden: "In the simulation, the mark showing where the object goes was partly hidden from one of the robot's cameras.",
-  task_object_not_in_view: "In the simulation, the job's object was not in view of one of the robot's cameras.",
+  // Only the cameras actually checked are claimed (Pipeline rename, 2026-11-12; the released Pipeline never sent the
+  // old `task_object_not_in_view` flag, so it has no words).
+  task_object_not_in_view_of_checked_cameras: "In the simulation, the job's object was not in view of the robot's cameras that we checked.",
+  task_target_marker_not_in_view_of_checked_cameras: "In the simulation, the mark showing where the object goes was not in view of the robot's cameras that we checked.",
   scene_appearance_clearance_too_large: "We could not tidy the reconstructed surface around the object, so it may look partly covered in the simulation.",
   task_object_size_differs_from_video: "In the simulated scene, the object's size differs from what your video shows.",
 }));
