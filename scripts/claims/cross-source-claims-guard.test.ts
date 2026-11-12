@@ -16,7 +16,7 @@ describe("cross-source claims guard", () => {
   it("finds unsupported capture derivation in default routes, components and API text even with a physical-proof caveat", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "blueprint-claims-surfaces-"));
     try {
-      const files = ["server/routes/site-content.ts", "client/src/components/site/Example.tsx", "client/public/agent-access.openapi.json"];
+      const files = ["server/routes/site-content.ts", "client/src/components/site/Example.tsx", "client/public/samples/example.json"];
       for (const file of files) {
         await mkdir(path.dirname(path.join(root, file)), { recursive: true });
         await writeFile(path.join(root, file), 'A simulation built from your site; not physical proof.');
@@ -184,8 +184,8 @@ describe("cross-source claims guard", () => {
     const targets = buildDefaultScanTargets(repoRoot).map((target) => target.relativePath);
 
     expect(targets).toContain("client/src/pages");
-    for (const surface of ["client/src/components", "client/public/agent-access.openapi.json", "client/public/samples",
-      "server/routes", "server/retrieval", "server/agents", "server/utils/robot-agent-contract.ts"]) {
+    for (const surface of ["client/src/components", "client/public/samples",
+      "server/routes", "server/retrieval", "server/agents"]) {
       expect(targets).toContain(surface);
     }
     expect(targets).toContain("AGENTS.md");

@@ -417,7 +417,7 @@ it("attaches Google sign-in to the submitted job without repeated intake or veri
   await screen.findByRole("heading", { name: /this site is yours/i });
   expect(mocks.workspaceRequest).toHaveBeenCalledWith(signedIn, "/claim", "POST", { token: "claim-token-123", acceptedTerms: false });
   expect(mocks.create).not.toHaveBeenCalled(); expect(mocks.sendVerification).not.toHaveBeenCalled();
-  expect(screen.getByRole("link", { name: "Open your job" })).toHaveAttribute("href", "/app/tasks/request-1");
+  expect(screen.getByRole("link", { name: "Open your jobs" })).toHaveAttribute("href", "/app");
 });
 it("refuses a Google account whose email differs from the submitted job", async () => {
   claimResponse({ ...summary, siteTermsAcceptedCurrent: true }); mocks.google.mockResolvedValue(user({ email: "other@example.com" }));

@@ -201,14 +201,6 @@ async function claim(jobId: string) {
   expect(doc(`inboundRequests/${jobId}`).account_owner_uid).toBe(uid);
 }
 
-/** The job as the site's workspace job page reads it, once the site has saved it. */
-async function workspaceTask(jobId: string) {
-  const response = await fetch(`${base}/api/workspace/tasks/${encodeURIComponent(jobId)}`, {
-    headers: { "x-fixture-user": `site-owner-${jobId}`, "x-fixture-email": `${jobId}@example.test` } });
-  expect(response.status, await response.clone().text()).toBe(200);
-  return (await response.json()) as { readiness: { decision: string; headline: string; operatorAction: string | null } | null };
-}
-
 /**
  * A submission without the task box (an older client or a direct API call)
  * keeps the draft-then-confirm flow these two suites cover. The start form
@@ -275,17 +267,14 @@ describe("a site that sends its footage before confirming its brief", () => {
     expect((await jobStatus(token)).status.decision).not.toBe("confirm_brief");
   });
 
-  it("is never asked to film on its workspace job page once its footage is in", async () => {
+  it("is never asked to film on its job page once its footage is in, after it saved the job to its account", async () => {
     const { jobId, token } = await startJob(UNCONFIRMED_AT_UPLOAD);
     await claim(jobId);
     await sendFootage(token);
     await confirmBrief(token);
     const page = (await jobStatus(token)).status;
     expect(page.decision).toBe("footage_received");
-    // The workspace job page tells the same story as the private one.
-    const { readiness } = await workspaceTask(jobId);
-    expect(readiness).toMatchObject({ decision: page.decision, headline: page.headline, operatorAction: page.operatorAction });
-    expect(`${readiness?.headline} ${readiness?.operatorAction ?? ""}`).not.toMatch(/film the work area|recording of the work area is the next step/i);
+    expect(`${page.headline} ${page.operatorAction ?? ""}`).not.toMatch(/film the work area|recording of the work area is the next step/i);
   });
 });
 
@@ -303,55 +292,10 @@ describe("a site that confirms before it films", () => {
   });
 });
 
-/**
- * Result notices use the existing private job link for a guest and the
- * workspace for an account owner; neither notice adds an account-creation step.
- */
-describe("the results emails say where a site sees its runs", () => {
-  // `no_team_passed` is sent only while it is true (every run concluded, none
-  // passed); its wording is pinned through the same builder below.
-  const notices = [
-    { milestone: "results_ready", detail: "180 of 200 simulated episodes succeeded" },
-    { milestone: "run_no_result" },
-  ] as const;
-
-  it("sends an unclaimed site to its private job without an account step", async () => {
-    const { enqueueTaskLifecycleNotification } = await import("../utils/taskLifecycleNotifications");
-    const { jobId } = await startJob();
-    for (const notice of notices) {
-      await enqueueTaskLifecycleNotification({ requestId: jobId, eventId: "run-1", ...notice });
-      const body = outbox(`${jobId}:${notice.milestone}:run-1`)?.body ?? "";
-      expect(body, notice.milestone).toMatch(/on your private job page/);
-      expect(body, notice.milestone).not.toMatch(/open in your Blueprint account|save this site to your account/);
-      expect(body, notice.milestone).toContain("/capture-upload/");
-      expect(body, notice.milestone).not.toMatch(/See it on your job page|Review the run on your job page|Your job page shows each run/);
-    }
-  });
-
-  it("sends a claimed site to its workspace, where the runs are", async () => {
-    const { enqueueTaskLifecycleNotification } = await import("../utils/taskLifecycleNotifications");
-    const { jobId } = await startJob();
-    await claim(jobId);
-    for (const notice of notices) {
-      await enqueueTaskLifecycleNotification({ requestId: jobId, eventId: "run-2", ...notice });
-      const body = outbox(`${jobId}:${notice.milestone}:run-2`)?.body ?? "";
-      expect(body, notice.milestone).toContain(`/app/tasks/${jobId}`);
-      expect(body, notice.milestone).not.toMatch(/save this site to your account/);
-    }
-  });
-});
-
-it("words the no-pass notice the same way, for unclaimed and claimed sites", async () => {
-  const { buildTaskLifecycleNotification } = await import("../utils/taskLifecycleNotifications");
-  const unclaimed = buildTaskLifecycleNotification({ requestId: "job-1", milestone: "no_team_passed", to: "site@example.test" });
-  expect(unclaimed.body).toMatch(/on your private job page/);
-  expect(unclaimed.body).toContain("/capture-upload/");
-  expect(unclaimed.body).not.toMatch(/open in your Blueprint account|save this site to your account/);
-  expect(unclaimed.body).not.toMatch(/Your job page shows each run/);
-  const claimed = buildTaskLifecycleNotification({ requestId: "job-1", milestone: "no_team_passed", to: "site@example.test",
-    workspaceUrl: "https://tryblueprint.io/app/tasks/job-1" });
-  expect(claimed.body).toContain("https://tryblueprint.io/app/tasks/job-1");
-  expect(claimed.body).not.toMatch(/save this site to your account/);
+/** A claimed site's emails link to its account's one list of jobs, which opens the job page with a fresh link. */
+it("links a claimed site's emails to its jobs in its account", async () => {
+  const { workspaceTaskUrl } = await import("../utils/taskLifecycleNotifications");
+  expect(workspaceTaskUrl("job-1")).toMatch(/^https:\/\/[^/]+\/app$/);
 });
 
 /**
@@ -480,8 +424,6 @@ describe("a site that confirms its task when it submits it", () => {
     expect(record(jobId).site_task_triage.disclosed_unknown_field_ids).toEqual(record(jobId).site_task_triage.unanswered_field_ids);
     expect(record(jobId).site_task_scope).toMatchObject({ supported: true, kind: "rigid_pick_and_place", screenedAtIso: saved.confirmedAtIso });
     expect(record(jobId).workspace_task).toEqual({ terms: { successDefinition: SUCCESS, successRate: null, cycleTimeSeconds: null } });
-    const { termsFor } = await import("../utils/workspace-projection");
-    expect(termsFor(record(jobId)).successDefinition).toBe(SUCCESS);
     const { computeRobotFitJob, loadRobotFitInputs } = await import("../utils/siteRobotFit");
     // Robot forms are rated from the scope screened at submission, not "not screened yet".
     expect(computeRobotFitJob(await loadRobotFitInputs(jobId))).toMatchObject({ rated: true, notRatedReason: null });

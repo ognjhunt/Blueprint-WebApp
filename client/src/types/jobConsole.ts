@@ -167,7 +167,6 @@ export const JOB_STAGES = [
   "listing",
   "not_open",
   "awaiting_teams",
-  "admission",
   "evaluating",
   "no_passing_run",
   "passing_run",
@@ -188,7 +187,6 @@ export const JOB_STAGE_LABELS: Record<JobStage, string> = {
   listing: "Public card",
   not_open: "Not open to teams",
   awaiting_teams: "Awaiting teams",
-  admission: "Admit evaluation",
   evaluating: "Evaluating",
   no_passing_run: "No passing run",
   passing_run: "Passing run",
@@ -239,35 +237,9 @@ export interface JobConsoleListResponse {
   stages: readonly JobStage[];
 }
 
-export interface AdmissionCandidate {
-  evaluationRequestId: string;
-  submittedAtIso: string | null;
-  admitted: boolean;
-  handoff: { runId: string; executionRequestId: string | null; approvedBy: string | null } | null;
-  ownerUid: string | null;
-  team: { teamId: string; name: string; status: string | null } | null;
-  setup: { setupId: string; name: string | null; reference: string | null; missing: boolean };
-  /** Checkpoints of the team whose reference equals the setup's: what admission will accept. */
-  matchingCheckpoints: Array<{ checkpointId: string; label: string; runtime: string; status: string }>;
-  /** Why this request cannot be admitted yet, in the founder's terms. Empty when it can. */
-  blockers: string[];
-}
-
-export interface AdmissionDefaults {
-  /** The job's own count: 200 for a team evaluation, else its offer's. Null before an offer is published. */
-  episodes: number | null;
-  sponsorCapUsd: number;
-  maxSponsorCapUsd: number;
-  reservationTtlMs: number;
-  maxAttempts: 1;
-  evidenceScope: "development_only";
-}
-
 export interface JobConsoleDetail {
   job: JobConsoleRow;
   timeline: TimelineEntry[];
   runs: ProjectedRun[];
-  admissions: AdmissionCandidate[];
-  admissionDefaults: AdmissionDefaults;
   links: { lead: string; recommendation: string };
 }

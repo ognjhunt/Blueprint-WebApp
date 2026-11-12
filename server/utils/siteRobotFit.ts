@@ -42,7 +42,6 @@ import {
   RATED_FORMS,
   REQUIREMENT_SOURCE_LABELS,
   ROBOT_FORM_COPY,
-  SITE_ROBOT_FIT_NOTE,
   type CheckOutcome,
   type FitCheck,
   type FitRequirement,
@@ -55,9 +54,7 @@ import {
   type RobotFitAttempt,
   type RobotFitJob,
   type RobotFitRanking,
-  type RobotFitSharing,
   type RobotFormRating,
-  type SiteRobotFit,
 } from "../../client/src/data/robotFit";
 import { UNIT_LABELS, type EntryUnit } from "../../client/src/data/siteMeasurements";
 import { robotFitRankingOutputSchema, type RobotFitRankingInput } from "../agents/tasks/robot-fit-ranking";
@@ -544,33 +541,13 @@ export function computeRobotFitJob(inputs: RobotFitInputs): RobotFitJob {
   };
 }
 
-/**
- * What the owner's job page shows: the job's needs and each form's verdict
- * with the reasons that set it apart. No team, count, quote, price, screening
- * limit or question: the site sends its video and nothing else.
- */
-export function projectSiteRobotFit(job: RobotFitJob): SiteRobotFit | null {
-  if (!job.rated) return null;
-  const anyKnown = job.requirements.some((entry) => ["pick_to_place_span", "object_mass", "object_size"].includes(entry.key));
-  return {
-    needs: job.needs,
-    forms: anyKnown ? job.forms.map((rating) => ({
-      id: rating.id, label: ROBOT_FORM_COPY[rating.id].label, description: ROBOT_FORM_COPY[rating.id].description,
-      verdict: rating.verdict,
-      // Passing checks repeat the needs above; the rest are what tells the forms apart.
-      reasons: rating.checks.filter((entry) => entry.outcome !== "pass").map((entry) => entry.text),
-    })) : [],
-    note: SITE_ROBOT_FIT_NOTE,
-  };
-}
-
 /* --------------------------------------------------------- team ranking */
 
 export type RobotFitRankingCandidate = RobotFitRankingInput["candidates"][number];
 export type RankRunner = (task: AgentTask<RobotFitRankingInput>) => Promise<AgentResult<unknown>>;
 
 export class RobotFitError extends Error {
-  constructor(readonly code: "job_not_found" | "consent_revoked" | "job_details_missing" | "no_candidates" | "nothing_to_share"
+  constructor(readonly code: "job_not_found" | "consent_revoked" | "job_details_missing" | "no_candidates"
     | "ranking_in_progress",
     message: string) {
     super(message);
@@ -764,7 +741,7 @@ async function defaultRunner(task: AgentTask<RobotFitRankingInput>) {
   return runAgentTask<RobotFitRankingInput, unknown>(task);
 }
 
-type Stored = { ranking?: RobotFitRanking | null; lastAttempt?: RobotFitAttempt | null; sharing?: RobotFitSharing | null;
+type Stored = { ranking?: RobotFitRanking | null; lastAttempt?: RobotFitAttempt | null;
   /** Set while a ranking run holds the job, so a second click cannot pay for a second run. */
   runningSinceIso?: string | null };
 
@@ -858,14 +835,14 @@ export async function rankTeamsForJob(requestId: string, options: { actor: strin
   return { ranking, attempt };
 }
 
-/* ------------------------------------------------------- reading and sharing */
+/* ---------------------------------------------------------------- reading */
 
 async function readStored(requestId: string): Promise<Stored> {
   if (!db) throw new Error("site_robot_fit_store_unavailable");
   return ((await db.collection(SITE_ROBOT_FIT_COLLECTION).doc(requestId).get()).data() as Stored | undefined) ?? {};
 }
 
-/** The console's view: live ratings, the stored ranking (flagged stale when its inputs moved), the last run, sharing and the site preview. */
+/** The console's view: live ratings, the stored ranking (flagged stale when its inputs moved) and the last run. */
 export async function getAdminRobotFit(requestId: string) {
   const [inputs, stored] = await Promise.all([loadRobotFitInputs(requestId), readStored(requestId)]);
   if (!inputs.request) return null;
@@ -875,26 +852,7 @@ export async function getAdminRobotFit(requestId: string) {
     const candidates = rankingCandidates(await listMatchableRobotTeams({ limit: 500 }));
     ranking = { ...stored.ranking, stale: stored.ranking.inputsDigest !== rankingDigest(rankingJob(job, inputs), candidates) };
   }
-  return { job, ranking, lastAttempt: stored.lastAttempt ?? null, sharing: stored.sharing ?? null, site: projectSiteRobotFit(job),
+  return { job, ranking, lastAttempt: stored.lastAttempt ?? null,
     consentRevoked: projectWebsiteCaptureRights(inputs.request).consent_revoked === true };
 }
 
-/** Share or stop sharing the site version. Sharing needs something to show and current consent. */
-export async function setRobotFitSharing(requestId: string, shared: boolean, options: { actor: string | null; now?: () => Date }) {
-  if (!db) throw new Error("site_robot_fit_store_unavailable");
-  const inputs = await loadRobotFitInputs(requestId);
-  if (!inputs.request) throw new RobotFitError("job_not_found", "Site job not found.");
-  if (shared) {
-    if (projectWebsiteCaptureRights(inputs.request).consent_revoked) {
-      throw new RobotFitError("consent_revoked", "Recording consent was withdrawn for this job, so nothing new is shared with the site.");
-    }
-    if (!projectSiteRobotFit(computeRobotFitJob(inputs))) {
-      throw new RobotFitError("nothing_to_share", "This job is not rated, so there is nothing to share with the site.");
-    }
-  }
-  const nowIso = (options.now ?? (() => new Date()))().toISOString();
-  const sharing: RobotFitSharing = { shared, changedAtIso: nowIso, changedBy: options.actor };
-  await db.collection(SITE_ROBOT_FIT_COLLECTION).doc(requestId)
-    .set({ schemaVersion: SCHEMA_VERSION, requestId, sharing, updatedAtIso: nowIso }, { merge: true });
-  return sharing;
-}

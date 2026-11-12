@@ -1,11 +1,13 @@
 /** ADP-009D/day-21: a saved team setup selects a separately authorized evaluation. */
 import { createHmac, randomUUID } from "node:crypto";
 import { z } from "zod";
-import { MAX_FREE_SPONSOR_CAP_USD } from "./freeBeta";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { decryptFieldValue } from "./field-encryption";
 import { sceneDigest, sceneIntakeCommand, sceneOwner } from "./taskEvaluationSceneIntake";
-import type { RobotSetup } from "../../client/src/types/workspace";
+import type { RobotDescription } from "../../client/src/types/robotDescription";
+
+/** A team's saved setup as stored (`users/{uid}/robotSetups`), read only to rebuild a queued evaluation. */
+type RobotSetup = { id: string; name: string; reference: string; robotDescription?: RobotDescription; executionBindingId?: string };
 
 const id = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$/);
 const digest = z.string().regex(/^sha256:[a-f0-9]{64}$/);
@@ -93,46 +95,4 @@ export async function rebuildTeamEvaluation(record:Record<string,any>) {
   const setup=(await loadRobotSetups(record.request.owner.user_id)).find(s=>s.id===command.setupId);
   if (!setup) throw new Error("saved_execution_setup_required");
   return buildTeamEvaluationRequest(command,context,setup,record.request.owner,record.request.consent.accepted_at_epoch);
-}
-
-/** Free beta customer price; the provider budget remains a separate internal limit. */
-export const TEAM_EVALUATION_PRICE_CENTS = 0;
-export const TEAM_EVALUATION_PROVIDER_CAP_USD = MAX_FREE_SPONSOR_CAP_USD;
-
-export function teamEvaluationTaskDetails(context:TeamEvaluationContext) {
-  const task=context.task;
-  const object=(value:unknown):Record<string,unknown>=>value && typeof value === "object" && !Array.isArray(value) ? value as Record<string,unknown> : {};
-  const label=(value:unknown)=>typeof value === "string" ? value.trim().slice(0,1000) : "";
-  const subject=object(task.subject), destination=object(task.destination), success=object(task.success);
-  const articulation=object(task.articulation);
-  const articulated=task.strategy === "articulated_open_close";
-  const objectLabel=label(subject.visible_label) || label(subject.description) || label(subject.name);
-  const partLabel=label(articulation.part_label);
-  const title=label(task.description) || label(task.title)
-    || (task.strategy === "pick_and_place" ? "Pick and place"
-      : articulated ? `Open the ${partLabel || "moving part"}` : "Evaluation");
-  const requirements:Array<{label:string;value:string}>=[];
-  if (objectLabel) requirements.push({label:articulated ? "Assembly" : "Object",value:objectLabel});
-  if (articulated && partLabel) requirements.push({label:"Part to open",value:partLabel});
-  if (articulated && label(articulation.joint_type)) requirements.push({label:"Mechanism",
-    value:articulation.joint_type === "prismatic" ? "sliding (prismatic joint)" : "hinged (revolute joint)"});
-  if (articulated && typeof articulation.estimated_usable_stroke_m === "number" && Number.isFinite(articulation.estimated_usable_stroke_m))
-    requirements.push({label:"Estimated usable stroke",value:`${articulation.estimated_usable_stroke_m} m (estimate, not measured)`});
-  if (articulated && label(articulation.lock_status)) requirements.push({label:"Lock status",value:label(articulation.lock_status)});
-  if (label(destination.visible_label)) requirements.push({label:"Destination",value:label(destination.visible_label)});
-  for (const [key,name,unit] of [
-    ["maximum_episode_seconds","Time limit","seconds"],
-    ["minimum_opening_fraction_of_estimated_stroke","Minimum opening","of usable stroke"],
-    ["minimum_hold_seconds","Hold open","seconds"],
-    ["minimum_lift_m","Minimum lift","m"],
-    ["minimum_planar_displacement_m","Minimum travel","m"],
-    ["maximum_final_planar_target_error_m","Placement tolerance","m"],
-    ["maximum_retries","Retries",""],
-    ["maximum_regrasps","Regrasps",""],
-  ]) {
-    const value=success[key];
-    if (typeof value === "number" && Number.isFinite(value)) requirements.push({label:name,
-      value:key === "minimum_opening_fraction_of_estimated_stroke" ? `${Math.round(value * 100)}% ${unit}` : `${value} ${unit}`.trim()});
-  }
-  return {title,description:label(task.instructions) || objectLabel,requirements};
 }

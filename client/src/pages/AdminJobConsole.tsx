@@ -3,7 +3,6 @@ import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-quer
 import { ArrowLeft, RefreshCw } from "lucide-react";
 
 import { Button, Card, Eyebrow, StatusChip } from "@/components/blueprint";
-import { AdmitFreeEvaluationForm } from "@/components/admin/AdmitFreeEvaluationForm";
 import { RobotFitConsole } from "@/components/admin/RobotFitConsole";
 import { JobCompaniesConsole } from "@/components/admin/JobCompaniesConsole";
 import { SiteMeasurementsConsole } from "@/components/admin/SiteMeasurementsConsole";
@@ -28,7 +27,6 @@ type Tone = "proof" | "warn" | "block" | "info" | "neutral";
 export function stageTone(stage: JobStage): Tone {
   if (stage === "passing_run" || stage === "estimate") return "proof";
   if (stage === "withdrawn" || stage === "no_passing_run" || stage === "ended") return "block";
-  if (stage === "admission") return "warn";
   if (stage === "closed" || stage === "held") return "neutral";
   return "info";
 }
@@ -177,46 +175,6 @@ function JobDetail({ requestId, onClose }: { requestId: string; onClose: () => v
           <SiteMeasurementsConsole requestId={requestId} currentUser={api.currentUser} />
           <JobWorkflowPanel key={requestId} requestId={requestId} currentUser={api.currentUser} onChanged={() => queryClient.invalidateQueries({ queryKey: ["admin-job-console"] })} />
           <RobotFitConsole key={requestId} requestId={requestId} currentUser={api.currentUser} />
-
-          <div>
-            <h3 className="runway-rule-head runway-meta">Evaluation requests</h3>
-            {!data.admissions.length ? <p className="mt-4 text-sm text-runway-mute">No robot team has asked to evaluate this job.</p> : null}
-            <div className="mt-4 grid gap-4">
-              {data.admissions.map((candidate) => (
-                <Card key={candidate.evaluationRequestId} pad="lg" className="grid gap-4">
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="min-w-0">
-                      <h4 className="text-lg font-semibold text-runway-text">{candidate.team?.name || "No bound team"}</h4>
-                      <p className="break-words text-sm text-runway-mute">
-                        Setup {candidate.setup.name || candidate.setup.setupId}
-                        {candidate.setup.reference ? <> · <span className="break-all">{candidate.setup.reference}</span></> : null}
-                      </p>
-                      <p className="runway-num mt-1 text-xs text-runway-faint">Request {candidate.evaluationRequestId} · {dateLabel(candidate.submittedAtIso)}</p>
-                    </div>
-                    <StatusChip tone={candidate.admitted ? "proof" : candidate.blockers.length ? "block" : "warn"} square>
-                      {candidate.admitted ? "Admitted" : candidate.blockers.length ? "Blocked" : "Awaiting admission"}
-                    </StatusChip>
-                  </div>
-                  {candidate.handoff ? (
-                    <p className="text-sm text-runway-body">Run <span className="runway-num text-runway-text">{candidate.handoff.runId}</span></p>
-                  ) : null}
-                  {!candidate.admitted && candidate.blockers.length ? (
-                    <ul className="grid gap-1 text-sm text-runway-red">
-                      {candidate.blockers.map((blocker) => <li key={blocker}>{blocker}</li>)}
-                    </ul>
-                  ) : null}
-                  {!candidate.admitted && candidate.team ? (
-                    <AdmitFreeEvaluationForm
-                      candidate={candidate}
-                      defaults={data.admissionDefaults}
-                      currentUser={api.currentUser}
-                      onAdmitted={() => queryClient.invalidateQueries({ queryKey: ["admin-job-console"] })}
-                    />
-                  ) : null}
-                </Card>
-              ))}
-            </div>
-          </div>
 
           <div>
             <h3 className="runway-rule-head runway-meta">Runs</h3>

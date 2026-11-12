@@ -44,7 +44,6 @@ const { TEAM_CANDIDATE_HTTPS_INTERFACE, TEAM_ROBOT_HTTPS_INTERFACE } = await imp
 const { getRobotTeam, listMatchableRobotTeams, toMatchCandidate } = await import("../utils/robotTeamRegistry");
 const { matchRobotTeam, summariseMatches } = await import("../../client/src/lib/robotMatch");
 const { runSiteMatch, summariseForStorage } = await import("../utils/siteMatchRun");
-const { projectWorkspaceTask } = await import("../utils/workspace-projection");
 const router = (await import("../routes/admin-robot-teams")).default;
 import type { RobotTeamRecord, SupplyAgreementTerm } from "../types/robot-team-registry";
 
@@ -237,15 +236,12 @@ describe("matching and site-facing counts", () => {
     expect(matchRobotTeam(site, { id: "bare", capability: {} }).willingSupply).toBe(false);
   });
 
-  it("stores the supply count for the site's workspace and never the fit count", () => {
+  it("stores the supply count apart from the fit count", () => {
     const record = summariseForStorage(summariseMatches([
       matchRobotTeam(site, toMatchCandidate(team({ id: "p1", ...clearsEverything }))),
       matchRobotTeam(site, toMatchCandidate(team({ id: "p2", ...clearsEverything }))),
     ]));
     expect(record).toMatchObject({ matchedCount: 2, supplyMatchedCount: 0, supplyMatchedTeamIds: [] });
-    expect(projectWorkspaceTask("req1", { request: {}, site_match: record }).potentialMatches).toBe(0);
-    // Older stored matches have no supply count: unknown, never the fit count.
-    expect(projectWorkspaceTask("req1", { request: {}, site_match: { matchedCount: 3 } }).potentialMatches).toBeNull();
   });
 });
 

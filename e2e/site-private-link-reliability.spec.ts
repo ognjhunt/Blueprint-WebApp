@@ -44,8 +44,6 @@ test("a saved job shows no assessment retry, and processing details only for a f
     } });
     // The site sends its video and nothing else: no item photos, measurements or follow-up questions are read.
     if (/\/(items|clarification|follow-up|measurements)$/.test(url.pathname)) asks.push(url.pathname);
-    if (url.pathname.endsWith("/readiness")) return route.fulfill({ json: { ok: true, summary: null, report: null, briefPath: null,
-      tracker: { steps: [], meanwhile: null } } });
     return route.fulfill({ status: 503, json: { error: "Unstubbed local API" } });
   });
   await page.goto(`/capture-upload/${token}?video=existing`);
@@ -512,52 +510,9 @@ test("the person filming is asked for the video and nothing else", async ({ page
   await page.screenshot({ path: info.outputPath("video-only-film-link-local-fixture.png"), fullPage: true });
 });
 
-const READINESS_NOTE = "Blueprint runs candidate robots and policies that look right for this job in a simulation of your site and shows you a bounded estimate of what works. This is a first read from your video, not a promise that any robot can do the job.";
-
-function readinessFixture(overrides: Record<string, unknown> = {}) {
-  const notNeeded = "between spots isn't needed: the object moves about 90 cm (estimated from your video).";
-  return {
-    ok: true,
-    summary: "Sort parcels onto outbound chutes",
-    tracker: { steps: [
-      { id: "video", label: "Video received", state: "done", owner: "site" },
-      { id: "brief", label: "Job brief confirmed", state: "done", owner: "site" },
-      { id: "scene", label: "Your site rebuilt in 3D", state: "in_progress", owner: "blueprint" },
-      { id: "evaluation", label: "Blueprint evaluates candidate robots and policies in simulation", state: "pending", owner: "blueprint" },
-      { id: "recommendation", label: "Blueprint shows you what works", state: "pending", owner: "blueprint" },
-    ], meanwhile: "Blueprint is rebuilding your work area in 3D from your video." },
-    briefPath: "/readiness-brief/brief-token.signature",
-    report: {
-      robotFit: {
-        needs: ["It has to pick the object up and put it down at another spot.", "It can work from one place: the object moves about 90 cm (estimated from your video)."],
-        forms: [
-          { id: "fixed_base_arm", label: "One arm on a fixed stand", description: "A single robot arm fixed in place at the work area.", verdict: "fits", reasons: [] },
-          { id: "bimanual_arm", label: "Two arms on a fixed stand", description: "Two robot arms working together from one fixed spot.", verdict: "fits", reasons: [] },
-          { id: "mobile_manipulator", label: "Arm on a wheeled base", description: "A robot arm on a base that drives between spots.", verdict: "fits", reasons: [`Driving ${notNeeded}`] },
-          { id: "wheeled_humanoid", label: "Wheeled humanoid", description: "A human-like upper body with two arms, on a wheeled base.", verdict: "fits", reasons: [`Driving ${notNeeded}`] },
-          { id: "humanoid", label: "Walking humanoid", description: "A human-shaped robot with two arms that walks on two legs.", verdict: "fits", reasons: [`Walking ${notNeeded}`] },
-          { id: "legged_manipulator", label: "Legged robot with an arm", description: "A robot that walks on legs, such as four, with an arm on top.", verdict: "fits", reasons: [`Walking ${notNeeded}`] },
-        ],
-        note: READINESS_NOTE,
-      },
-      checklist: [
-        { id: "floor_space", title: "Floor space at the station", state: "confirm", detail: "The deployment partner confirms the floor space its robot needs beside the work." },
-        { id: "power_network", title: "Power and network", state: "confirm", detail: "A power outlet near the work area, and Wi-Fi along the route for a robot that drives between spots. The deployment partner tells you exactly what its robot needs." },
-      ],
-      successFactors: [{ id: "variety", title: "How many different items",
-        detail: "Probably also handled here, though not in your video: flat envelopes, padded mailers (estimated from your video).",
-        test: "The evaluation tests the object in your rebuilt scene. Other items are checked in the pilot.", where: "pilot" }],
-      safety: ["Before a robot works at your site, ask the deployment partner for its risk assessment of the job. Robot safety follows the standards ISO 10218, adopted in the US as ANSI/A3 R15.06, and ANSI/A3 R15.08 for robots that drive between spots.",
-        "Blueprint's evaluation runs in a simulation of your site. It does not certify that any robot is safe, or that a robot will perform the same at your site."],
-      examples: [{ id: "parcel-sorting", name: "Parcel sorting",
-        sources: [{ label: "China Daily: humanoid robots move onto fast track", href: "https://global.chinadaily.com.cn/a/202606/11/WS6a2ac863a310d6866eb4dcd2.html" }] }],
-      examplesFootnote: "These are third-party deployments cited as evidence about which environments qualify. None is a Blueprint customer and none was prepared by Blueprint.",
-    },
-    ...overrides,
-  };
-}
-
-test("the owner sees only the shared robot report, folded, with nothing to fill in and no robot team named", async ({ page }, info) => {
+// The readiness report and its printable brief were removed (2026-11-12). Where the folded report used to appear (a
+// saved owner job with no answer yet), the page says where the job stands and asks for nothing.
+test("the owner of a saved job with no answer yet sees where it stands, with no readiness report", async ({ page }, info) => {
   const token = "readiness-fixture";
   const asks: string[] = [];
   await page.route("**/api/**", route => {
@@ -570,49 +525,20 @@ test("the owner sees only the shared robot report, folded, with nothing to fill 
     if (url.pathname === `/api/site-task-brief/${token}/status`) return route.fulfill({ json: { captureReceived: true,
       sceneViewUrl: "https://scene.example/view",
       status: { stage: "footage_received", headline: "Your footage is retained; review is pending." } } });
-    if (url.pathname === `/api/site-task-brief/${token}/readiness`) return route.fulfill({ json: readinessFixture() });
-    if (/\/(items|clarification|follow-up|measurements|operations)$/.test(url.pathname)) asks.push(url.pathname);
+    if (/\/(items|clarification|follow-up|measurements|operations|readiness)$/.test(url.pathname)) asks.push(url.pathname);
     return route.fulfill({ status: 503, json: { error: "Unstubbed local API" } });
   });
   await page.goto(`/capture-upload/${token}`);
-  // As little text as the site needs: one folded section, one number in its title.
-  const report = page.locator("details", { has: page.locator("summary", { hasText: "Your robot readiness report · 6 kinds of robot fit" }) });
-  await expect(report).toBeVisible();
-  await expect(report).not.toHaveAttribute("open", "");
-  await expect(page.getByRole("region", { name: "Your next steps" })).toHaveCount(0);
-  await expect(page.getByText(/How the job runs today|Add measurements/)).toHaveCount(0);
-  await page.screenshot({ path: info.outputPath("readiness-default-local-fixture.png"), fullPage: true });
-
-  await report.locator("summary").click();
-  for (const label of ["One arm on a fixed stand", "Two arms on a fixed stand", "Arm on a wheeled base", "Wheeled humanoid",
-    "Walking humanoid", "Legged robot with an arm"]) await expect(report.getByText(label, { exact: true })).toBeVisible();
-  await expect(report.getByText("Checked in the pilot, not the simulation")).toBeVisible();
-  await expect(report.getByText("Jobs like this on the public record", { exact: true })).toBeVisible();
-  await expect(report.getByRole("link", { name: "China Daily: humanoid robots move onto fast track" })).toBeVisible();
-  await expect(report.getByRole("link", { name: "Print or save the brief" })).toHaveAttribute("href", "/readiness-brief/brief-token.signature");
-  await expect(report.locator("form, input, select, textarea")).toHaveCount(0);
-  await expect(page.locator("body")).not.toContainText(/\bmatch|Galbot|Robot Era/i);
+  await expect(page.getByText("Your footage is retained; review is pending.").first()).toBeVisible();
+  await expect(page.getByText(/readiness report/i)).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Print or save the brief" })).toHaveCount(0);
   expect(asks).toEqual([]);
-  await page.screenshot({ path: info.outputPath("readiness-panel-local-fixture.png"), fullPage: true });
+  await page.screenshot({ path: info.outputPath("saved-job-no-readiness-local-fixture.png"), fullPage: true });
 });
 
-test("the robot readiness brief opens by its own read-only link and lays out the report to print", async ({ page }, info) => {
-  const briefToken = "brief-token.signature";
-  await page.route("**/api/**", route => {
-    const url = new URL(route.request().url());
-    if (url.pathname.startsWith("/api/job-workflow/owner/") && route.request().method() === "GET") return route.fulfill({ json: legacyJobWorkflow() });
-    if (url.pathname === `/api/site-task-brief/readiness-brief/${briefToken}`) return route.fulfill({ json: readinessFixture({ briefPath: null }) });
-    return route.fulfill({ status: 503, json: { error: "Unstubbed local API" } });
-  });
-  await page.goto(`/readiness-brief/${briefToken}`);
-  await expect(page.getByRole("heading", { level: 1, name: "Sort parcels onto outbound chutes" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Print or save as PDF" })).toBeVisible();
-  await expect(page.getByRole("region", { name: "Where things stand" }).getByText("Video received")).toBeVisible();
-  await expect(page.getByRole("region", { name: "Robot readiness report" }).getByText("Walking humanoid", { exact: true })).toBeVisible();
-  await expect(page.getByRole("region", { name: "What is left to check" })).toHaveCount(0);
-  await page.emulateMedia({ media: "print" });
-  await expect(page.getByRole("button", { name: "Print or save as PDF" })).toBeHidden();
-  await page.screenshot({ path: info.outputPath("readiness-brief-print-local-fixture.png"), fullPage: true });
+test("an old readiness brief link lands on the home page, carrying nothing of the link", async ({ page }) => {
+  await page.goto("/readiness-brief/brief-token.signature");
+  await expect(page).toHaveURL(/\/$/);
 });
 
 // WP-11: the fourth outcome on the job page. Only scripted reference baselines

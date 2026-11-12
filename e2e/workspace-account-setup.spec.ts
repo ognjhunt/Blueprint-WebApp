@@ -179,9 +179,8 @@ test("Settings can change workspace type without losing saved records", async ({
     .getByRole("button", { name: "Save workspace", exact: true })
     .click();
   await expect(page).toHaveURL(/\/settings$/);
-  await expect(
-    page.getByRole("tab", { name: "Robots & policies" }),
-  ).toBeVisible();
+  // A robot team's settings have no robots-and-policies tab any more (2026-11-12); its workspace line says what it is.
+  await expect(page.locator("p.ws-section", { hasText: "Robot-team workspace" })).toBeVisible();
   expect(state.workspaceType).toBe("robot_team");
   expect(JSON.stringify(state.savedRecords)).toBe(saved);
 });
@@ -213,9 +212,10 @@ for (const role of ["site_operator", "robot_team"] as const) {
     await page.goto("/settings");
     await expect(page.locator('a[href^="/admin/"]')).toHaveCount(0);
     await expect(page.getByRole("link", { name: "Open operations →" })).toHaveCount(0);
-    await page.getByRole("link", { name: "Open overview →", exact: true }).click();
+    // A site's overview is its one jobs list (2026-11-12).
+    await page.getByRole("link", { name: role === "site_operator" ? "Your jobs →" : "Open overview →", exact: true }).click();
     await expect(page).toHaveURL(/\/app$/);
-    await expect(page.getByRole("heading", { name: "Overview", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: role === "site_operator" ? "Your jobs" : "Overview", exact: true })).toBeVisible();
     await page.goto("/settings");
     if (role === "robot_team") {
       await page.getByRole("link", { name: "Task library →", exact: true }).click();

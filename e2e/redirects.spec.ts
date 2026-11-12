@@ -151,6 +151,10 @@ const retiredSurfaceRedirects: Array<[string, string]> = [
   ["/admin/company-metrics", "/"],
   ["/ops/spend", "/"],
   ["/internal/design-system", "/"],
+  // The last removal round (2026-11-12): the signed-in job pages and the printed readiness brief.
+  ["/app/tasks", "/"],
+  ["/app/tasks/job-1", "/"],
+  ["/readiness-brief/brief-token.signature", "/"],
 ];
 
 test("retired surfaces answer with one 301 to a live page", async ({ request }) => {

@@ -7,19 +7,16 @@
  * the team one email when it reports a result, or when it ends without one,
  * through the same durable, deduplicated outbox the site emails use.
  *
- * The link goes to the team's workspace, where its evaluations and their
- * results are listed. It used to point at a settings tab that no longer
- * exists, which quietly fell back to the account form, and the copy spoke
- * of a balance and a hold that the free beta does not have.
+ * No page lists a team's runs any more (robot teams running their own
+ * software is "later" in the frame of 2026-11-12), so the email carries the
+ * result itself and a reply reaches Blueprint. The copy never speaks of a
+ * balance or a hold: the free beta has neither.
  */
 import { enqueueOutbox } from "./captureOutbox";
 import { EMAIL_SIGN_OFF } from "./emailLayout";
 import { teamAccountEmail } from "./robotTeamAccounts";
 import { COMPANY } from "../../client/src/data/company";
 import { noResultObservationText, type NoResultObservation } from "./runNoResultObservation";
-
-/** The workspace overview lists active evaluations; finished ones stay under History. */
-const EVALUATIONS_URL = `${COMPANY.website}/app`;
 
 export async function notifyTeamOfRunOutcome(params: {
   teamId: string;
@@ -39,13 +36,12 @@ export async function notifyTeamOfRunOutcome(params: {
     ? [
         "Hi,",
         `Your evaluation run finished: ${result.episodesSucceeded} of ${result.episodesRun} simulated episodes succeeded. This is a simulation result on one site's job. It is an estimate, not a physical test, and not proof of performance or safety on site.`,
-        `See this evaluation and its result in your Blueprint workspace:\n${EVALUATIONS_URL}`,
+        "Reply to this email if you want the details of the run.",
         EMAIL_SIGN_OFF,
       ].join("\n\n")
     : [
         "Hi,",
-        `Your evaluation run ended without a complete scored result. ${noResultObservationText(params.outcome.kind === "no_result" ? params.outcome.progress : undefined)} Nothing is charged for it. Review the run in your workspace; reply if you need help understanding what happened.`,
-        `See your evaluations in your Blueprint workspace:\n${EVALUATIONS_URL}`,
+        `Your evaluation run ended without a complete scored result. ${noResultObservationText(params.outcome.kind === "no_result" ? params.outcome.progress : undefined)} Nothing is charged for it. Reply to this email if you need help understanding what happened.`,
         EMAIL_SIGN_OFF,
       ].join("\n\n");
   return enqueueOutbox({

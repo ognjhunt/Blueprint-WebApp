@@ -46,7 +46,6 @@ const Partners = lazyRoute(() => import("../pages/Partners"));
 const Beta = lazyRoute(() => import("../pages/Beta"));
 const Home = lazyRoute(() => import("../pages/Home"));
 const SelfCaptureUpload = lazyRoute(() => import("../pages/SelfCaptureUpload"));
-const RobotReadinessBrief = lazyRoute(() => import("../pages/RobotReadinessBrief"));
 const ClaimSite = lazyRoute(() => import("../pages/ClaimSite"));
 const BusinessSignUpFlow = lazyRoute(() => import("../pages/BusinessSignUpFlow"));
 const OnboardingChecklist = lazyRoute(() => import("../pages/OnboardingChecklist"));
@@ -73,8 +72,6 @@ const AdminJobConsole = lazyRoute(() => import("../pages/AdminJobConsole"));
 
 // Redesign — buyer app (entitlement-backed protected surfaces)
 const AppOverview = lazyRoute(() => import("../pages/workspace/Overview"));
-const WorkspaceTasks = lazyRoute(() => import("../pages/workspace/Tasks"));
-const WorkspaceTaskDetail = lazyRoute(() => import("../pages/workspace/TaskDetail"));
 const AppCaptures = lazyRoute(() => import("../pages/app/Captures"));
 const ConnectChatGPT = lazyRoute(() => import("../pages/app/ConnectChatGPT"));
 const AppEvaluationRunProgress = lazyRoute(() => import("../pages/app/EvaluationRunProgress"));
@@ -225,10 +222,6 @@ export const appRoutes: AppRoute[] = [
   // The link in a dispatch email. Bare shell and no nav: whoever opens this was
   // sent here to do one thing, and has no account to navigate with.
   { path: "/capture-upload/:token", layout: "public", shell: "bare", component: SelfCaptureUpload },
-  // The printable robot readiness brief, by its own read-only link: the owner's
-  // job link never goes on paper. Kept outside /capture-upload/*, which the
-  // retired capture app once claimed as its universal link.
-  { path: "/readiness-brief/:briefToken", layout: "public", shell: "bare", component: RobotReadinessBrief },
   { path: "/claim/:token", layout: "public", shell: "bare", component: ClaimSite },
   { path: "/capture-app", layout: "public", shell: "bare", component: SiteOperatorCaptureRedirect },
   { path: "/capture-app/account", layout: "public", component: SiteOperatorCaptureRedirect },
@@ -339,11 +332,6 @@ export const appRoutes: AppRoute[] = [
 
   // Redesign — buyer app; own app shell, no SiteLayout
   { path: "/app", layout: "protected", shell: "bare", component: AppOverview },
-  { path: "/app/tasks", layout: "protected", shell: "bare", component: WorkspaceTasks },
-  // The second site intake is gone: a task starts from the capture form, and
-  // the workspace follows it once it exists.
-  { path: "/app/tasks/new", layout: "public", shell: "bare", component: SiteOperatorCaptureRedirect },
-  { path: "/app/tasks/:taskId", layout: "protected", shell: "bare", component: WorkspaceTaskDetail },
   { path: "/app/captures", layout: "protected", shell: "bare", component: AppCaptures },
   { path: "/app/connect/chatgpt", layout: "protected", shell: "bare", component: ConnectChatGPT },
   { path: "/app/evaluation-runs/:runId", layout: "protected", shell: "bare", component: AppEvaluationRunProgress },

@@ -28,13 +28,9 @@ import healthRouter from "./routes/health";
 import errorsRouter from "./routes/errors";
 import siteContentRouter from "./routes/site-content";
 import locationAutocompleteRouter from "./routes/location-autocomplete";
-import agentAccessRouter from "./routes/agent-access";
-import agentTeamRouter from "./routes/agent-team";
-import adminFreeEvaluationsRouter from "./routes/admin-free-evaluations";
 import adminJobConsoleRouter from "./routes/admin-job-console";
 import jobWorkflowRouter from "./routes/job-workflow";
 import internalJobEvidenceRouter from "./routes/internal-job-evidence";
-import workspaceCheckpointsRouter from "./routes/workspace-checkpoints";
 import emailPreferencesRouter from "./routes/email-preferences";
 import inboundRequestRouter from "./routes/inbound-request";
 import adminLeadsRouter from "./routes/admin-leads";
@@ -113,17 +109,6 @@ export function registerRoutes(app: Express) {
   // Public content summary for external tooling.
   app.use("/api/site-content", siteContentRouter);
   app.use("/api/location-autocomplete", locationAutocompleteRouter);
-  app.use("/api/agent-access", agentAccessRouter);
-  // Team-scoped agent surface: registration, discovery, planning and budgeted
-  // spend. Auth is a revocable per-team agent key, not a person's session, and
-  // `POST /register` needs none at all — it is how a team gets a key, so
-  // requiring one would make the whole path start with an email to us.
-  //
-  // No `csrfProtection` on purpose. CSRF defends cookie-authenticated browser
-  // forms; a bearer-key API is not vulnerable to it, and applying it here would
-  // break every non-browser client, which is all of them.
-  app.use("/api/agent-team", agentTeamRouter);
-  app.use("/api/admin/free-evaluations", csrfProtection, verifyFirebaseToken, requireAdminRole, adminFreeEvaluationsRouter);
   // Founder job console: one row per site job with its loop stage. Read-only;
   // admin/ops role enforced inside the router.
   app.use("/api/admin/jobs", csrfProtection, verifyFirebaseToken, requireAdminRole, adminJobConsoleRouter);
@@ -327,9 +312,6 @@ export function registerRoutes(app: Express) {
     postSignupWorkflowsHandler,
   );
   app.use("/api/qr", csrfProtection, verifyFirebaseToken, qrLinkRouter);
-  // Session-authenticated checkpoint registration for approved robot teams.
-  // Mounted ahead of the workspace router so its prefix is never shadowed.
-  app.use("/api/workspace/checkpoints", csrfProtection, verifyFirebaseToken, workspaceCheckpointsRouter);
   app.use("/api/workspace", csrfProtection, verifyFirebaseToken, workspaceRouter);
   app.use("/api/operator-status", csrfProtection, verifyFirebaseToken, operatorStatusRouter);
 }

@@ -66,8 +66,6 @@ import {
   presentMeasurements,
   saveMeasurements,
 } from "../utils/siteTaskMeasurements";
-import { getSiteReadiness } from "../utils/siteReadiness";
-import { readinessBriefPathFor, verifyReadinessBriefToken } from "../utils/readinessBriefToken";
 import { gateFields } from "../../client/src/data/siteTaskQualification";
 import { assessReadiness } from "../../client/src/lib/siteTaskReadiness";
 import {
@@ -144,32 +142,6 @@ router.post("/:token/run-closure", csrfProtection, async (req, res) => {
   }
 });
 
-
-/**
- * The printable brief, by its read-only link (`readinessBriefToken.ts`). It
- * reads what the owner's readiness read shows and changes nothing, so a
- * printout or PDF can carry the link. Withdrawn recording consent closes it,
- * like every other read derived from the capture.
- */
-router.get("/readiness-brief/:briefToken", async (req: Request, res: Response) => {
-  res.setHeader("Cache-Control", "no-store");
-  const requestId = verifyReadinessBriefToken(String(req.params.briefToken || ""));
-  if (!requestId) {
-    return res.status(404).json({ error: "This brief link is not valid or has expired. Open the brief again from your job page." });
-  }
-  try {
-    if ((await loadWebsiteCaptureRights(requestId)).consent_revoked) {
-      return res.status(409).json({ code: "capture_processing_not_authorized",
-        error: "Recording consent was withdrawn, so this brief is no longer available." });
-    }
-    const readiness = await getSiteReadiness(requestId);
-    if (!readiness) return res.status(404).json({ error: "This job could not be found." });
-    return res.status(200).json(readiness);
-  } catch (error) {
-    logger.error({ error, requestId }, "Could not load the readiness brief");
-    return res.status(503).json({ error: "This brief could not be loaded.", code: "readiness_unavailable" });
-  }
-});
 
 router.get("/:token/clarification", async (req, res) => {
   res.setHeader("Cache-Control", "no-store");
@@ -1671,27 +1643,6 @@ router.put("/:token/measurements", async (req: Request, res: Response) => {
     }
     logger.error({ error, requestId: payload.requestId }, "Could not save site measurements");
     return res.status(503).json({ error: "The measurements could not be saved.", code: "measurements_unavailable" });
-  }
-});
-
-/**
- * The owner's readiness read: where the job stands, the robot readiness report
- * while Blueprint shares it, and a read-only link to the printable brief. The
- * site is asked for nothing. Never a team.
- */
-router.get("/:token/readiness", async (req: Request, res: Response) => {
-  const payload = verifyCaptureUploadToken(String(req.params.token || ""));
-  if (!payload) {
-    return res.status(404).json({ error: "This link is not valid or has expired." });
-  }
-  if (payload.scope !== "owner") return res.status(403).json({ error: "This link is for filming only." });
-  try {
-    const readiness = await getSiteReadiness(payload.requestId);
-    if (!readiness) return res.status(404).json({ error: "This job could not be found." });
-    return res.status(200).json({ ...readiness, briefPath: readinessBriefPathFor(payload.requestId) });
-  } catch (error) {
-    logger.error({ error, requestId: payload.requestId }, "Could not load site readiness");
-    return res.status(503).json({ error: "Your readiness report could not be loaded.", code: "readiness_unavailable" });
   }
 });
 

@@ -57,9 +57,9 @@ const CLAIM_FILES = [
  * from: every component under `client/src/components/site/` (the public pages and the job page are built from them),
  * the public pages in `client/src/app/routes.tsx` other than the legal ones, the copy libraries those import, every
  * server file that composes an email to a site or a company (`subject:` in `server/utils`, minus Blueprint's own ops
- * and founder mail), and every agent-facing answer or contract (`server/retrieval`, the agent contract and routes).
+ * and founder mail). (The agent contract, its routes and its answers were removed on 2026-11-12.)
  * These are held to the frame's bans; the claim rules (prove, guarantee, certify, cycle time) stay on `CLAIM_FILES`,
- * whose sentences are written for sites, because the agent contract states its proof boundaries in those words.
+ * whose sentences are written for sites.
  */
 const FRAME_FILES = [
   "client/src/components/site/CanvasSurfaceSync.tsx",
@@ -82,8 +82,6 @@ const FRAME_FILES = [
   "client/src/components/site/RobotTeamEarlyAccess.tsx",
   "client/src/components/site/SiteAdvisoryReport.tsx",
   "client/src/components/site/SiteLayout.tsx",
-  "client/src/components/site/SiteReadinessPanel.tsx",
-  "client/src/components/site/SiteRobotFitSection.tsx",
   "client/src/components/site/SuccessThresholds.tsx",
   "client/src/components/site/TaskBriefReview.tsx",
   "client/src/components/site/TaskClarification.tsx",
@@ -99,13 +97,11 @@ const FRAME_FILES = [
   "client/src/pages/BusinessSignUpFlow.tsx",
   "client/src/pages/NotFound.tsx",
   "client/src/pages/Refunds.tsx",
-  "client/src/pages/RobotReadinessBrief.tsx",
   "client/src/pages/RobotTeamSignUpFlow.tsx",
   "client/src/lib/jobOutlook.ts",
   "client/src/lib/screeningPlainLanguage.ts",
   "client/src/lib/captureGroundedLanguage.ts",
   "client/src/types/taskBrowse.ts",
-  "server/retrieval/agentAsk.ts",
   "server/utils/robotTeamAccessEmails.ts",
   "server/utils/accountNotice.ts",
   "server/utils/filmLinkHandoff.ts",
@@ -115,13 +111,9 @@ const FRAME_FILES = [
   "server/utils/screeningSetupFlagSentences.ts",
   "server/utils/siteAnswer.ts",
   "server/utils/siteTaskScope.ts",
-  "server/utils/robot-agent-contract.ts",
-  "server/routes/agent-access.ts",
-  "server/routes/agent-team.ts",
   "server/routes/site-task-brief.ts",
   "server/routes/task-listings.ts",
   "client/index.html",
-  "client/public/agent-access.openapi.json",
   // Package C1: the company's response route, the send and answer records, and the operator's panel.
   "server/routes/site-worlds.ts",
   "server/utils/jobCompanies.ts",
@@ -242,8 +234,8 @@ describe("public words claim only what the code does", () => {
   });
 
   // Review, 2026-11-12: planted phrases in these files gave no findings, because the guard did not scan them.
-  it.each(["server/retrieval/agentAsk.ts", "server/utils/robotTeamAccessEmails.ts", "client/src/lib/captureGroundedLanguage.ts",
-    "server/utils/robot-agent-contract.ts", "client/src/components/site/PartnerApplication.tsx"])("scans %s for the frame's bans", planted => {
+  it.each(["server/utils/robotTeamAccessEmails.ts", "client/src/lib/captureGroundedLanguage.ts",
+    "client/src/components/site/PartnerApplication.tsx"])("scans %s for the frame's bans", planted => {
     const sample = "export const P = \"We test the top AI robots on your job.\"; export const Q = \"Your answer is ready: the paper check.\";";
     expect(publicClaimFindings(file => (file === planted ? sample : "")).map(finding => finding.split(": ")[1])).toEqual([
       "the old frame's \"top AI robots\"", "the old frame's \"AI robot\"", "the old frame's \"paper check\"", "the old frame's \"your answer\""]);
@@ -251,7 +243,6 @@ describe("public words claim only what the code does", () => {
 
   it.each([
     ["client/index.html", "<meta name=\"description\" content=\"We test the top AI robots on your job.\" />"],
-    ["client/public/agent-access.openapi.json", "{ \"info\": { \"description\": \"We test the top AI robots on your job.\" } }"],
     ["server/routes/task-listings.ts", "res.status(409).json({ error: \"We test the top AI robots on your job.\" });"],
   ])("scans %s in its own format", (planted, sample) => {
     expect(publicClaimFindings(file => (file === planted ? sample : "")).map(finding => finding.split(": ")[1]))

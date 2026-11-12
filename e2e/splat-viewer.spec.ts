@@ -114,7 +114,7 @@ test("renders a site's 3D preview under the production content security policy",
   await expect(page.getByRole("alert")).toHaveCount(0);
   await expect(page.getByRole("status")).toHaveCount(0);
   // A way back to the job is always on screen; the browser's Back works too.
-  await expect(page.getByRole("link", { name: "Back to your job" })).toHaveAttribute("href", "/app/tasks/fixture-request");
+  await expect(page.getByRole("link", { name: "Back to your jobs" })).toHaveAttribute("href", "/app");
   expect(violations).toEqual([]);
 });
 
@@ -237,7 +237,7 @@ test("tells the site when its 3D preview cannot be loaded", async ({ page }) => 
   await expect(page.getByRole("alert")).toHaveText(
     "This 3D preview could not be loaded. Go back to your job page and open it again in a minute.");
   await expect(page.getByRole("status")).toHaveCount(0);
-  await expect(page.getByRole("link", { name: "Back to your job" })).toHaveAttribute("href", "/app/tasks/fixture-request");
+  await expect(page.getByRole("link", { name: "Back to your jobs" })).toHaveAttribute("href", "/app");
   expect(violations).toEqual([]);
 });
 
@@ -245,5 +245,5 @@ test("refuses a viewer link that does not come from Blueprint's view route", asy
   await page.goto(`/splat-viewer/index.html?${new URLSearchParams({ content: "https://example.com/scene.ply" })}`);
   await expect(page.getByRole("alert")).toHaveText(
     "This 3D preview link is not valid. Open the preview again from your job page.");
-  await expect(page.getByRole("link", { name: "Back to your jobs" })).toHaveAttribute("href", "/app/tasks");
+  await expect(page.getByRole("link", { name: "Back to your jobs" })).toHaveAttribute("href", "/app");
 });

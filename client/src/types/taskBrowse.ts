@@ -85,18 +85,6 @@ export interface JobCardAnswerSummary {
   note: string;
 }
 /**
- * One job as an approved robot team opens it to request an evaluation: the
- * site-approved card and nothing more. Served only while the job is open to
- * evaluation requests (`server/utils/teamJobAccess.ts`).
- */
-export interface TeamJobOpening extends TaskListingDetails {
-  id: string;
-  publishedAtIso: string;
-  thumbnailUrl: string | null;
-  /** What a team is asked to do and how it is judged, once the job's scene is ready. */
-  evaluation?: TeamEvaluationTerms | null;
-}
-/**
  * A job's team evaluation, as the Pipeline published it: 200 hidden cells from
  * the job's bounded variations, the only run a recommendation rests on.
  * Success is decided by the simulator from the task object's state.

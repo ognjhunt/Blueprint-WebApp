@@ -1,12 +1,11 @@
 /**
  * Robot fit for staff, in the job console and beside a reviewed job decision.
  *
- * Three parts. What the job needs and how every form of robot rates against
+ * Two parts. What the job needs and how every form of robot rates against
  * it (one arm, two arms, an arm on a wheeled base, wheeled and walking
  * humanoids, legged robots) are rules over the site's own data (its video,
  * the video reader's estimates and anything it told us), computed on every
- * read. The site preview is exactly what the owner's job page shows once
- * shared, and it never names a team. The researched-team ranking is a model's
+ * read. The researched-team ranking is a model's
  * reading of Blueprint's research notes, every reason quoting the research: it
  * decides whom to ask to evaluate the job, and it is reference beside the
  * evaluation when a recommendation is written, never its basis. Prospects have
@@ -25,10 +24,8 @@ import {
   type FitVerdict,
   type RobotFitAttempt,
   type RobotFitRanking,
-  type RobotFitSharing,
   type TeamFit,
 } from "@/data/robotFit";
-import { READINESS_STATE_LABELS } from "@/data/siteReadiness";
 import { withCsrfHeader } from "@/lib/csrf";
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
 
@@ -49,7 +46,7 @@ export function RobotFitConsole({ requestId, currentUser }: {
   currentUser: FirebaseUser | null;
 }) {
   const [loaded, setLoaded] = useState<Loaded>({ status: "idle" });
-  const [busy, setBusy] = useState<"ranking" | "sharing" | null>(null);
+  const [busy, setBusy] = useState<"ranking" | null>(null);
   const [actionError, setActionError] = useState("");
   const base = `/api/admin/jobs/${encodeURIComponent(requestId)}/robot-fit`;
 
@@ -78,18 +75,18 @@ export function RobotFitConsole({ requestId, currentUser }: {
   }
 
   /** Apply what an action returned at once, so a failed refresh never hides a run that already happened. */
-  function apply(patch: Partial<Pick<AdminRobotFitResponse, "ranking" | "lastAttempt" | "sharing">>) {
+  function apply(patch: Partial<Pick<AdminRobotFitResponse, "ranking" | "lastAttempt">>) {
     setLoaded((current) => (current.status === "ready" ? { status: "ready", fit: { ...current.fit, ...patch } } : current));
   }
 
-  async function act(kind: "ranking" | "sharing", body: unknown, failure: string) {
+  async function act(kind: "ranking", body: unknown, failure: string) {
     if (busy) return;
     setBusy(kind);
     setActionError("");
     try {
       const response = await fetch(`${base}/${kind}`, await authorized({ method: "POST", body: JSON.stringify(body) }, true));
       const value = await response.json().catch(() => ({})) as { error?: string; ranking?: RobotFitRanking | null;
-        attempt?: RobotFitAttempt; sharing?: RobotFitSharing };
+        attempt?: RobotFitAttempt };
       if (!response.ok) {
         setActionError(String(value.error || `${failure} (${response.status}).`));
         return;
@@ -97,7 +94,6 @@ export function RobotFitConsole({ requestId, currentUser }: {
       if (kind === "ranking" && value.attempt) {
         apply({ lastAttempt: value.attempt, ...(value.ranking ? { ranking: { ...value.ranking, stale: false } } : {}) });
       }
-      if (kind === "sharing" && value.sharing) apply({ sharing: value.sharing });
       await load(true);
     } catch {
       setActionError(`${failure}. Check your connection and try again.`);
@@ -109,7 +105,6 @@ export function RobotFitConsole({ requestId, currentUser }: {
   const fit = loaded.status === "ready" ? loaded.fit : null;
   const ranking = fit?.ranking ?? null;
   const attempt = fit?.lastAttempt ?? null;
-  const shared = fit?.sharing?.shared === true;
 
   return (
     <details onToggle={(event) => {
@@ -180,47 +175,6 @@ export function RobotFitConsole({ requestId, currentUser }: {
                 </section>
               </>
             )}
-
-            <section aria-label="What the site sees" className="grid gap-2">
-              <h4 className="runway-label">What the site sees</h4>
-              <p className="text-sm text-runway-body">
-                {shared
-                  ? `The readiness report is on the owner's job page since ${dateLabel(fit.sharing!.changedAtIso)}.`
-                  : "Not shared. The owner's job page shows no robot read until you share it."}
-              </p>
-              {fit.site ? (
-                <div className="grid gap-1 border border-runway-line p-3 text-xs text-runway-body">
-                  {fit.site.needs.map((line, index) => <p key={`site-need-${index}`}>{line}</p>)}
-                  {fit.site.forms.map((form) => (
-                    <p key={form.id}>{form.label}: {FIT_VERDICT_LABELS[form.verdict]}.{form.reasons.length ? ` ${form.reasons.join(" ")}` : ""}</p>
-                  ))}
-                  {fit.readiness?.report ? (
-                    <>
-                      {fit.readiness.report.checklist.map((item) => (
-                        <p key={item.id}>{item.title}: {READINESS_STATE_LABELS[item.state]}. {item.detail}</p>
-                      ))}
-                      {fit.readiness.report.successFactors.map((factor) => (
-                        <p key={factor.id}>Decides success: {factor.title}. {factor.detail} {factor.test}</p>
-                      ))}
-                      <p>Safety: {fit.readiness.report.safety.join(" ")}</p>
-                      {fit.readiness.report.examples.map((example) => (
-                        <p key={example.id}>On the public record: {example.name} ({example.sources.map((source) => source.label).join("; ")})</p>
-                      ))}
-                    </>
-                  ) : null}
-                  <p className="text-runway-mute">{fit.site.note}</p>
-                </div>
-              ) : <p className="text-xs text-runway-mute">Nothing to show the site for this job.</p>}
-              <div>
-                {shared ? (
-                  <Button type="button" size="sm" variant="secondary" disabled={busy !== null}
-                    onClick={() => void act("sharing", { shared: false }, "Sharing could not be changed")}>Stop sharing</Button>
-                ) : (
-                  <Button type="button" size="sm" disabled={busy !== null || !fit.site || fit.consentRevoked}
-                    onClick={() => void act("sharing", { shared: true }, "Sharing could not be changed")}>Share the readiness report with the site</Button>
-                )}
-              </div>
-            </section>
 
             <section aria-label="Researched teams" className="grid gap-3">
               <h4 className="runway-label">Researched teams (internal)</h4>

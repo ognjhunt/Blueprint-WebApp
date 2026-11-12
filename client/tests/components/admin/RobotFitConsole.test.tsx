@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 /**
- * Robot fit for staff: what the job needs, every form's rating, exactly what
- * the site would see, sharing, and the researched-team ranking with each
- * reason's quote. Loaded only when opened; actions apply what they return at
+ * Robot fit for staff: what the job needs, every form's rating, and the
+ * researched-team ranking with each reason's quote. Nothing in it reaches the
+ * site: the readiness report and its sharing were removed (2026-11-12). Loaded only when opened; actions apply what they return at
  * once, so a failed refresh never hides a run; a failed run keeps the last
  * good ranking on screen.
  */
@@ -17,7 +17,7 @@ vi.mock("@/lib/firebaseAuthHeaders", () => ({
 }));
 
 import { RobotFitConsole } from "@/components/admin/RobotFitConsole";
-import { SITE_ROBOT_FIT_NOTE, type AdminRobotFitResponse, type RobotFitRanking } from "@/data/robotFit";
+import type { AdminRobotFitResponse, RobotFitRanking } from "@/data/robotFit";
 
 const fetchMock = vi.fn();
 
@@ -49,10 +49,7 @@ function response(overrides: Partial<AdminRobotFitResponse> = {}): AdminRobotFit
       ] },
     ranking: null,
     lastAttempt: null,
-    sharing: null,
-    site: { needs: ["It has to pick the object up and put it down at another spot."], forms: [], note: SITE_ROBOT_FIT_NOTE },
     consentRevoked: false,
-    readiness: null,
     ...overrides,
   };
 }
@@ -75,7 +72,7 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("RobotFitConsole", () => {
-  it("loads nothing until opened, then shows the needs, every form's rating and the site preview", async () => {
+  it("loads nothing until opened, then shows the needs and every form's rating, with no site preview", async () => {
     fetchMock.mockResolvedValueOnce(json(response()));
     const { container } = render(<RobotFitConsole requestId="job-1" currentUser={null} />);
     expect(fetchMock).not.toHaveBeenCalled();
@@ -93,7 +90,8 @@ describe("RobotFitConsole", () => {
     expect(screen.getByText(/object weight about 3–5 kg \(estimated from your video\)/)).toBeInTheDocument();
     expect(screen.getByText("Not in the video or its estimates: whether people work near the job. The site is never asked; Blueprint settles these."))
       .toBeInTheDocument();
-    expect(screen.getByText("Not shared. The owner's job page shows no robot read until you share it.")).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "What the site sees" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /share/i })).not.toBeInTheDocument();
     expect(screen.getByText("Not ranked yet.")).toBeInTheDocument();
   });
 
@@ -107,19 +105,6 @@ describe("RobotFitConsole", () => {
     expect(await screen.findByRole("region", { name: "Robot forms" })).toBeInTheDocument();
   });
 
-  it("shares the site version", async () => {
-    fetchMock.mockResolvedValueOnce(json(response()));
-    await open();
-    const sharing = { shared: true, changedAtIso: "2026-10-20T12:00:00.000Z", changedBy: "admin-1" };
-    fetchMock.mockResolvedValueOnce(json({ sharing }));
-    fetchMock.mockResolvedValueOnce(json(response({ sharing })));
-    fireEvent.click(await screen.findByRole("button", { name: "Share the readiness report with the site" }));
-    expect(await screen.findByRole("button", { name: "Stop sharing" })).toBeInTheDocument();
-    const [url, init] = fetchMock.mock.calls[1];
-    expect(url).toBe("/api/admin/jobs/job-1/robot-fit/sharing");
-    expect(init).toMatchObject({ method: "POST", headers: { Authorization: "Bearer token", "X-CSRF-Token": "csrf" } });
-    expect(JSON.parse(init.body)).toEqual({ shared: true });
-  });
 
   it("shows a ranking the moment it returns, even when the refresh after it fails", async () => {
     fetchMock.mockResolvedValueOnce(json(response()));
@@ -155,20 +140,17 @@ describe("RobotFitConsole", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("This job has no description yet.");
   });
 
-  it("offers no ranking or sharing once consent is withdrawn", async () => {
+  it("offers no ranking once consent is withdrawn", async () => {
     fetchMock.mockResolvedValueOnce(json(response({ consentRevoked: true })));
     await open();
     expect(await screen.findByText(/Recording consent was withdrawn/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Rank researched teams" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Share the readiness report with the site" })).toBeDisabled();
   });
 
   it("says when a job is not rated", async () => {
     fetchMock.mockResolvedValueOnce(json(response({ job: { ...response().job, rated: false, forms: [], needs: [], requirements: [],
-      unknowns: [], notRatedReason: "This job's task has not been screened yet. Robot forms are rated once its brief is confirmed." },
-    site: null })));
+      unknowns: [], notRatedReason: "This job's task has not been screened yet. Robot forms are rated once its brief is confirmed." } })));
     await open();
     expect(await screen.findByText(/Robot forms are not rated for this job\. This job's task has not been screened yet/)).toBeInTheDocument();
-    expect(screen.getByText("Nothing to show the site for this job.")).toBeInTheDocument();
   });
 });

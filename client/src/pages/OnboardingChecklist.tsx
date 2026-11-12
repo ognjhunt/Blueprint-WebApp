@@ -584,24 +584,17 @@ export default function OnboardingChecklist() {
               </button>
             </div>
           )}
-          <div className="ws-task-row">
-            <div className="ws-task-copy">
-              <h3>{isRobotTeam ? "Robot & policy" : "Site & job"}</h3>
-              <p className="ws-muted">
-                {isRobotTeam
-                  ? "Set up the robot and policy you want to evaluate."
-                  : "Review the intake submitted for your site."}
-              </p>
+          {!isRobotTeam && (
+            <div className="ws-task-row">
+              <div className="ws-task-copy">
+                <h3>Site & job</h3>
+                <p className="ws-muted">Open each job on its job page from your jobs.</p>
+              </div>
+              <button className="ws-link" onClick={() => setLocation("/app")}>
+                Your jobs →
+              </button>
             </div>
-            <button
-              className="ws-link"
-              onClick={() =>
-                setLocation(isRobotTeam ? "/settings?tab=robots" : "/app/tasks")
-              }
-            >
-              Review details →
-            </button>
-          </div>
+          )}
         </section>
         <details className="ws-section">
           <summary>Intake summary & next steps</summary>

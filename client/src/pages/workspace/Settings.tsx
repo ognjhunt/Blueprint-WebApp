@@ -1,6 +1,5 @@
 import { UpdatePreferencesForm } from "@/components/workspace/UpdatePreferencesForm";
 import AccountDeletion from "@/components/AccountDeletion";
-import { useState } from "react";
 import { Link, useSearch } from "wouter";
 import { AppShell } from "@/components/blueprint/app/AppShell";
 import { WorkspaceSetup } from "@/components/workspace/WorkspaceSetup";
@@ -10,54 +9,17 @@ import {
   Frame,
   Field,
   Feedback,
-  Modal,
-  Tag,
   useAction,
 } from "@/components/workspace/WorkspaceUI";
-import { RobotDescriptionFields, readRobotDescription } from "@/components/workspace/RobotDescriptionFields";
-import { robotEmbodimentSchema, type RobotEmbodiment } from "@/types/robotEmbodiment";
-import { policyAdapterSchema, type PolicyAdapter } from "@/types/policyAdapter";
-import PolicyInterfaceGuide from "@/components/workspace/PolicyInterfaceGuide";
-import { CheckpointRegistration } from "@/components/workspace/CheckpointRegistration";
-import type { RobotSetup } from "@/types/workspace";
 function WorkspaceSettings() {
   const query = useWorkspace(),
     action = useAction(query),
-    { currentUser, userData } = useAuth(),
-    [tab, setTab] = useState(() => {
-      const requested = new URLSearchParams(window.location.search).get("tab");
-      return requested === "robots" ? requested : "account";
-    }),
-    [editing, setEditing] = useState<RobotSetup | "new" | null>(null),
-    [setupError, setSetupError] = useState(""),
-    [removing, setRemoving] = useState<RobotSetup | null>(null);
+    { currentUser } = useAuth();
   const robot = query.data?.role === "robot_team";
   return (
     <Frame query={query} active="settings" title="Settings">
       <Feedback error={action.error} notice={action.notice} />
-      {robot && (
-        <div className="ws-tabs" role="tablist" aria-label="Settings sections">
-          {[
-            ["account", "Account"],
-            ["robots", "Robots & policies"],
-          ].map(([value, label]) => (
-            <button
-              key={value}
-              role="tab"
-              aria-selected={tab === value}
-              tabIndex={tab === value ? 0 : -1}
-              onClick={() => {
-                setTab(value);
-                setEditing(null);
-              }}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      )}
-      {(tab === "account" || !robot) && (
-        <>
+      <>
           <h2>Account</h2>
           <form
             method="post"
@@ -164,12 +126,12 @@ function WorkspaceSettings() {
             </p>
             <p className="ws-muted">
               {robot
-                ? "Find site tasks, evaluate your robot, and track results."
-                : "Manage captures, job evaluations, and pilot decisions."}
+                ? "Read the job summaries shared with you and answer them."
+                : "Open each of your jobs on its job page."}
             </p>
             <div className="ws-form-actions">
               <Link className="ws-link" href="/app">
-                Open overview →
+                {robot ? "Open overview →" : "Your jobs →"}
               </Link>
               {robot && (
                 <Link className="ws-link" href="/contact/robot-team">
@@ -178,271 +140,7 @@ function WorkspaceSettings() {
               )}
             </div>
           </section>
-        </>
-      )}
-      {tab === "robots" && robot && (
-        <>
-          <div className="ws-section-title">
-            <h2>Saved setups</h2>
-            <button className="ws-primary" onClick={() => setEditing("new")}>
-              + Add setup
-            </button>
-          </div>
-          {query.data?.setups.length ? (
-            <div className="ws-table-wrap">
-              <table className="ws-table">
-                <thead>
-                  <tr>
-                    <th>Setup</th>
-                    <th>Delivery method</th>
-                    <th>Reference</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {query.data.setups.map((setup) => (
-                    <tr key={setup.id}>
-                      <td>
-                        <strong>{setup.name}</strong>
-                        <small>
-                          {setup.embodiment} · {setup.policyName}{" "}
-                          {setup.version}
-                        </small>
-                      </td>
-                      <td>
-                        <Tag>{setup.delivery}</Tag>
-                      </td>
-                      <td style={{ maxWidth: 360, overflowWrap: "anywhere" }}>
-                        {setup.reference}
-                      </td>
-                      <td>
-                        <div className="ws-setup-actions">
-                          <button onClick={() => setEditing(setup)}>
-                            Edit
-                          </button>
-                          <button onClick={() => setRemoving(setup)}>
-                            Remove
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <p className="ws-muted">
-              Save a robot and policy to use when requesting evaluations.
-            </p>
-          )}
-          {editing && (
-            <form
-              method="post"
-              className="ws-section"
-              key={typeof editing === "string" ? "new" : editing.id}
-              onSubmit={(event) => {
-                event.preventDefault();
-                const values = new FormData(event.currentTarget),
-                  value = (name: string) => String(values.get(name) || "");
-                setSetupError("");
-                let robotDescription: RobotSetup["robotDescription"];
-                try {
-                  robotDescription = readRobotDescription(values, editing!=="new" && editing.robotDescription?.source==="catalog" ? [{id:editing.robotDescription.configurationId,label:"Saved robot model",binding_digest:editing.robotDescription.configurationDigest}] : []);
-                } catch (error) {
-                  setSetupError(error instanceof Error ? error.message : "Choose a robot and policy route.");
-                  return;
-                }
-                // A declared robot is evaluated as itself; without one the policy drives the DROID Franka.
-                const manifestField = event.currentTarget.elements.namedItem("robotEmbodiment") as HTMLTextAreaElement | null;
-                let robotEmbodiment: RobotEmbodiment | undefined;
-                if (value("robotEmbodiment").trim()) {
-                  try {
-                    const parsed = robotEmbodimentSchema.safeParse(JSON.parse(value("robotEmbodiment")));
-                    if (!parsed.success) {
-                      const issue = parsed.error.issues[0];
-                      throw new Error(`${issue?.path.join(".") || "manifest"}: ${issue?.message ?? "invalid"}`);
-                    }
-                    robotEmbodiment = parsed.data;
-                  } catch (error) {
-                    manifestField?.setCustomValidity(`Robot manifest ${error instanceof SyntaxError ? "is not valid JSON" : `— ${(error as Error).message}`}`);
-                    manifestField?.reportValidity();
-                    return;
-                  }
-                }
-                let policyConfig: PolicyAdapter | undefined;
-                if (value("policyConfig").trim()) {
-                  try { policyConfig = policyAdapterSchema.parse(JSON.parse(value("policyConfig"))); }
-                  catch { setSetupError("Check the Dream model ID and its three named camera roles."); return; }
-                }
-                void action.perform(
-                  "/setups",
-                  {
-                    id:
-                      editing === "new"
-                        ? `setup-${crypto.randomUUID()}`
-                        : editing.id,
-                    name: value("name"),
-                    embodiment: value("embodiment"),
-                    policyName: value("policyName"),
-                    version: value("version"),
-                    delivery: value("delivery"),
-                    reference: value("reference"),
-                    notes: value("notes"),
-                    robotDescription,
-                    ...(editing !== "new" && editing.executionBindingId ? {executionBindingId:editing.executionBindingId} : {}),
-                    ...(robotEmbodiment ? { robotEmbodiment } : {}),
-                    ...(policyConfig ? { policyConfig } : {}),
-                  },
-                  () => setEditing(null),
-                );
-              }}
-            >
-              <h2>{editing === "new" ? "Add a setup" : "Edit setup"}</h2>
-              {setupError && <p role="alert" className="text-sm">{setupError}</p>}
-              <RobotDescriptionFields value={editing==="new"?undefined:editing.robotDescription} />
-              <div className="ws-fields ws-section">
-                {[
-                  ["name", "Setup name", "e.g. Atlas M2"],
-                  ["embodiment", "Embodiment", "e.g. Mobile manipulator"],
-                  ["policyName", "Policy name", "e.g. Packing policy"],
-                  ["version", "Version or checkpoint", "e.g. v4.2"],
-                ].map(([name, label, placeholder]) => (
-                  <Field key={name} label={label}>
-                    <input
-                      name={name}
-                      required
-                      maxLength={160}
-                      placeholder={placeholder}
-                      defaultValue={
-                        editing === "new"
-                          ? ""
-                          : String(editing[name as keyof RobotSetup] || "")
-                      }
-                    />
-                  </Field>
-                ))}
-                <Field label="Delivery method" wide>
-                  <select
-                    name="delivery"
-                    defaultValue={
-                      editing === "new" ? "checkpoint" : editing.delivery
-                    }
-                  >
-                    <option value="checkpoint">Downloadable checkpoint</option>
-                    <option value="container">Container</option>
-                    <option value="endpoint">Hosted endpoint</option>
-                  </select>
-                </Field>
-                <Field
-                  label="Reference URL"
-                  wide
-                  hint="Use an HTTPS, OCI, or Docker URL without credentials or query parameters. A hosted endpoint's token goes under Policy token below, never in the URL."
-                >
-                  <input
-                    name="reference"
-                    required
-                    maxLength={1000}
-                    defaultValue={editing === "new" ? "" : editing.reference}
-                    placeholder="https://registry.example.com/team/policy"
-                  />
-                </Field>
-              </div>
-              <details className="ws-section" open={editing !== "new" && Boolean(editing.robotEmbodiment)}>
-                <summary>Your own robot (optional)</summary>
-                <p className="ws-note">
-                  Leave empty to run your policy on Blueprint&rsquo;s simulated DROID Franka. To be evaluated on
-                  your own robot (an arm, two arms, a mobile manipulator or a wheeled or legged humanoid), paste
-                  its robot manifest (<code>blueprint.robot_embodiment.v1</code>): a USD model with its SHA-256;
-                  its base, <code>fixed</code> (it stands at the scene&rsquo;s robot station and must reach the job
-                  from there) or <code>free</code> (it starts on the floor facing the job, with its standing height,
-                  footprint, fall height and the feet or wheels it stands on); the joints your policy drives in
-                  action order, each by position or, for wheels, by velocity; your gripper&rsquo;s joints and contact
-                  links; your cameras; and your control rate (15, 30, 60 or 120 Hz). A robot the simulator cannot
-                  place is refused by name before anything runs.
-                </p>
-                <Field label="Robot manifest (JSON)" wide>
-                  <textarea
-                    name="robotEmbodiment"
-                    rows={8}
-                    maxLength={40000}
-                    spellCheck={false}
-                    onInput={(event) => event.currentTarget.setCustomValidity("")}
-                    defaultValue={editing !== "new" && editing.robotEmbodiment
-                      ? JSON.stringify(editing.robotEmbodiment, null, 2) : ""}
-                  />
-                </Field>
-              </details>
-              <PolicyInterfaceGuide />
-              <details className="ws-section" open={editing !== "new" && Boolean(editing.policyConfig)}>
-                <summary>Dream API adapter</summary>
-                <Field label="Protocol settings (JSON)" wide>
-                  <textarea name="policyConfig" rows={5} maxLength={2000} spellCheck={false}
-                    defaultValue={editing !== "new" && editing.policyConfig ? JSON.stringify(editing.policyConfig, null, 2) : ""}
-                    placeholder={'{"policy_interface_id":"dreamlabs_dream1.v1","model_id":"dreamlabs/dream-1","camera_roles":{"overhead":"overview","wrist_l":"left_wrist","wrist_r":"right_wrist"}}'} />
-                </Field>
-                <p className="ws-note">Use the exact model ID available to your Dream account and camera names from your robot manifest. Save the token in Policy token.</p>
-              </details>
-              <details className="ws-section">
-                <summary>Additional notes</summary>
-                <Field label="Notes">
-                  <textarea
-                    name="notes"
-                    maxLength={3000}
-                    defaultValue={editing === "new" ? "" : editing.notes}
-                  />
-                </Field>
-              </details>
-              <div className="ws-form-actions">
-                <button className="ws-primary" disabled={action.pending}>
-                  {action.pending ? "Saving…" : "Save setup"}
-                </button>
-                <button
-                  type="button"
-                  className="ws-link"
-                  onClick={() => setEditing(null)}
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          )}
-          <p className="ws-note">
-            Your configurations stay private to your team. Saving a reference
-            does not start a test or authorize compute.
-          </p>
-          <CheckpointRegistration setups={query.data?.setups ?? []} />
-        </>
-      )}
-      {removing && (
-        <Modal
-          title={`Remove ${removing.name}?`}
-          onClose={() => setRemoving(null)}
-        >
-          <p>
-            Existing evaluation requests keep the configuration submitted at the
-            time. This removes it from your saved setups.
-          </p>
-          <div className="ws-form-actions">
-            <button
-              className="ws-primary"
-              disabled={action.pending}
-              onClick={() =>
-                action.perform(
-                  `/setups/${removing.id}`,
-                  undefined,
-                  () => setRemoving(null),
-                  "DELETE",
-                )
-              }
-            >
-              Remove setup
-            </button>
-            <button className="ws-link" onClick={() => setRemoving(null)}>
-              Cancel
-            </button>
-          </div>
-        </Modal>
-      )}
+      </>
     </Frame>
   );
 }

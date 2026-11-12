@@ -3,7 +3,6 @@ import { automationBatch } from "./automationBatch";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
 import { isSiteEvaluation } from "./agentRunRecord";
-import { enqueueTaskLifecycleNotification, notifyIfNoTeamPassed } from "./taskLifecycleNotifications";
 import { notifyTeamOfRunOutcome } from "./robotTeamNotifications";
 import { CAPTURE_OUTBOX_COLLECTION } from "./captureOutbox";
 
@@ -32,22 +31,12 @@ export async function reconcileAgentRunNotifications(limit = 50): Promise<void> 
         continue;
       }
       const progress = { episodesRun: run.episodesRun, executionProgress: run.executionProgress };
-      if (isSiteEvaluation(run)) {
-        const site = await enqueueTaskLifecycleNotification({
-          requestId: run.sceneId, eventId: run.runId,
-          milestone: "run_no_result",
-          runProgress: progress,
-        });
-        if (!site.enqueued && site.reason) continue;
-        try { await notifyIfNoTeamPassed(run.sceneId, run.runId); } catch { /* best-effort */ }
-      }
       const team = await notifyTeamOfRunOutcome({ teamId: run.teamId, runId: run.runId,
         outcome: { kind: "no_result", progress },
       });
       if (!team.enqueued && team.reason) continue;
       const eventId = String(run.runId).replace(/[^A-Za-z0-9._-]/g, "_").slice(0, 120);
-      const expectedRows = [{ key: `team:${run.teamId}:no_result:${eventId}`, kind: "team_run_no_result", requestId: `team:${run.teamId}` },
-        ...(isSiteEvaluation(run) ? [{ key: `${run.sceneId}:run_no_result:${eventId}`, kind: "run_no_result", requestId: run.sceneId }] : [])];
+      const expectedRows = [{ key: `team:${run.teamId}:no_result:${eventId}`, kind: "team_run_no_result", requestId: `team:${run.teamId}` }];
       await db.runTransaction(async transaction => {
         const current = await transaction.get(doc.ref);
         const outbox = await Promise.all(expectedRows.map(row => transaction.get(db!.collection(CAPTURE_OUTBOX_COLLECTION).doc(row.key))));

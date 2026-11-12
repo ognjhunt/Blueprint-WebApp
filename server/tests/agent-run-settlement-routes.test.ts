@@ -1,17 +1,14 @@
 // @vitest-environment node
 /**
- * The two routes that move a robot team's held money, at the seam.
+ * The Pipeline's routes that settle a robot team's held money and record what
+ * its run showed, at the seam.
  *
- * Module tests cover the arithmetic. What they cannot cover is the wiring, and
- * the wiring is what was missing: `POST /api/agent-team/runs` reserved money
- * and returned reservation ids without writing anything a settlement pass could
- * ever find. Every unit test involved passed.
- *
- * The second case here is a different failure with the same shape. The Pipeline
- * reports `episodes_run` and `rate_usd` and the route multiplied them, but
- * `deriveBalance` books a settle at face value and does not clamp it to the
- * hold — so a wrong rate on the Pipeline side came out of a team's balance as
- * real spend, past the amount their agent authorised.
+ * Module tests cover the arithmetic. These cover the wiring: a hold taken for a
+ * run (here seeded through `authorizeAgentSpend`, as the retired agent API once
+ * did) is what a settlement pass finds. The Pipeline reports `episodes_run` and
+ * `rate_usd`, but `deriveBalance` books a settle at face value and does not
+ * clamp it to the hold, so the route must: a wrong rate on the Pipeline side
+ * must never come out of a team's balance past the amount it authorised.
  */
 import express from "express";
 import { createServer } from "node:http";
@@ -55,17 +52,6 @@ vi.mock("../../client/src/lib/firebaseAdmin", async () => {
   };
 });
 
-// One known key for one known team. The credential machinery has its own
-// tests; here it only has to resolve.
-vi.mock("../utils/robotTeamAgentKeys", () => ({
-  presentedAgentKey: (headers: Record<string, unknown>) => {
-    const raw = String(headers["authorization"] ?? "");
-    return raw.toLowerCase().startsWith("bearer ") ? raw.slice(7) : null;
-  },
-  resolveAgentKey: async (key: string | null) =>
-    key === "bpk_test" ? "team-alpha" : null,
-}));
-
 // The Pipeline signature has its own tests too. Accept, so the money logic is
 // what this file is measuring.
 vi.mock("../utils/pipelineSyncSecurity", () => ({
@@ -79,14 +65,6 @@ const admissionFixture = vi.hoisted(() => ({
   distinctRequests: false,
 }));
 
-// Admission construction has dedicated contract tests. These route tests need
-// a stable, already-prepared execution so they can exercise the purchase and
-// settlement seam without weakening the route's new pre-charge gate.
-vi.mock("../utils/selfServeAgentExecution", () => ({
-  ensureSelfServeAgentExecution: async ({ submissionKey }: { submissionKey: string }) => ({
-    prepared: true as const, requestId: `selfserve-${admissionFixture.distinctRequests ? submissionKey.replace(/-/g, "").slice(0, 32) : "a".repeat(32)}`, created: false,
-  }),
-}));
 vi.mock("../utils/agentExecutionAdmission", () => ({
   discoverAgentExecutionAdmission: vi.fn(async ({ executionRequestId }: { executionRequestId: string }) => ({
     admitted: true as const,
@@ -96,11 +74,9 @@ vi.mock("../utils/agentExecutionAdmission", () => ({
 }));
 
 async function startRoutes(): Promise<{ server: Server; baseUrl: string }> {
-  const { default: agentTeam } = await import("../routes/agent-team");
   const { default: settlement } = await import("../routes/internal-agent-run-settlement");
   const app = express();
   app.use(express.json());
-  app.use("/api/agent-team", agentTeam);
   app.use("/api/internal/pipeline", settlement);
   const server = createServer(app);
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", () => resolve()));
@@ -125,47 +101,30 @@ async function withRoutes<T>(run: (baseUrl: string) => Promise<T>): Promise<T> {
 }
 
 const TEAM = "team-alpha";
-const AUTH = { authorization: "Bearer bpk_test", "content-type": "application/json" };
 
-async function startOneTimeRun(baseUrl: string, idempotencyKey: string) {
-  const plan = await fetch(`${baseUrl}/api/agent-team/plan`, {
-    method: "POST",
-    headers: AUTH,
-    body: JSON.stringify({ checkpointId: "ckpt-1", maxRuns: 1 }),
+/** One confirmed hold for one run, dispatched to the Pipeline, as a purchase left it. */
+async function startOneTimeRun(idempotencyKey: string) {
+  const { authorizeAgentSpend } = await import("../utils/robotTeamBalance");
+  const { runIdForReservation } = await import("../utils/agentEvalRuns");
+  const { entryPrice, screeningRound } = await import("../../client/src/lib/evaluationPricing");
+  const authorization = await authorizeAgentSpend({ teamId: TEAM, amountUsd: entryPrice,
+    reason: "Evaluation ckpt-1 on site-1", idempotencyKey: `execution:${idempotencyKey}`,
+    requestedRun: { checkpointId: "ckpt-1", sceneId: "site-1", taskFamily: "tote_transfer",
+      quotedEpisodes: screeningRound.episodes,
+      executionAdmission: { envelope: { source_request_id: `selfserve-${"a".repeat(32)}` },
+        digestSha256: admissionFixture.digestSha256 } },
   });
-  expect(plan.status).toBe(200);
-  const reviewed = (await plan.json()) as {
-    executionReady: boolean;
-    planToken: string | null;
-  };
-  expect(reviewed.executionReady).toBe(true);
-  expect(reviewed.planToken).toEqual(expect.any(String));
+  if (!authorization.authorized) throw new Error(`hold refused: ${authorization.refusal}`);
+  const runId = runIdForReservation(authorization.reservationId);
+  const key = `evaluationRuns/${runId}`;
+  sharedFakeFirestoreState.docs.set(key, { ...sharedFakeFirestoreState.docs.get(key),
+    dispatchPending: false, dispatch: { state: "accepted", pipelineRunId: "pipeline-run-9" } });
+  return { reservationId: authorization.reservationId, runId, costUsd: entryPrice };
+}
 
-  const response = await fetch(`${baseUrl}/api/agent-team/runs`, {
-    method: "POST",
-    headers: AUTH,
-    body: JSON.stringify({
-      checkpointId: "ckpt-1",
-      confirm: true,
-      spendMode: "one_time",
-      planToken: reviewed.planToken,
-      idempotencyKey,
-      maxRuns: 1,
-    }),
-  });
-  if (response.ok) {
-    const body = (await response.clone().json()) as { started?: { runId: string }[] };
-    for (const run of body.started ?? []) {
-      const key = `evaluationRuns/${run.runId}`;
-      const stored = sharedFakeFirestoreState.docs.get(key) ?? {};
-      sharedFakeFirestoreState.docs.set(key, {
-        ...stored,
-        dispatchPending: false,
-        dispatch: { state: "accepted", pipelineRunId: "pipeline-run-9" },
-      });
-    }
-  }
-  return response;
+async function teamBalance() {
+  const { getTeamBalance } = await import("../utils/robotTeamBalance");
+  return getTeamBalance(TEAM);
 }
 
 /** A funded team, an enabled agent, one screened site, one checkpoint. */
@@ -265,185 +224,11 @@ beforeEach(() => {
   vi.unstubAllEnvs();
 });
 
-/* -------------------------------------------------- the reservation wiring */
-
-describe("confirming a spend leaves something that can settle it", () => {
-  it.each(["queued", "running"])("does not reserve another evaluation through repeatCompleted while the prior run is %s", async phase => {
-    await seedSpendableTeam();
-    admissionFixture.distinctRequests = true;
-    await withRoutes(async baseUrl => {
-      const initial = await startOneTimeRun(baseUrl, `initial-${phase}-evaluation`);
-      expect(initial.status).toBe(202);
-      const [prior] = (await initial.json()).started;
-      const stored = sharedFakeFirestoreState.docs.get(`evaluationRuns/${prior.runId}`)!;
-      if (phase === "queued") delete stored.dispatch;
-      else stored.dispatch = { pipelineRunId: "synthetic-running-worker", startedAtIso: new Date().toISOString() };
-      const repeat = await fetch(`${baseUrl}/api/agent-team/plan`, {
-        method: "POST", headers: AUTH,
-        body: JSON.stringify({ checkpointId: "ckpt-1", sceneId: "site-1", repeatCompleted: true, maxRuns: 1 }),
-      });
-      const plan = await repeat.json();
-      // Exercise the offered purchase on the vulnerable baseline; the fix
-      // must offer no second signed execution while this run remains active.
-      if (plan.planToken) {
-        const purchase = await fetch(`${baseUrl}/api/agent-team/runs`, {
-          method: "POST", headers: AUTH,
-          body: JSON.stringify({ checkpointId: "ckpt-1", confirm: true, spendMode: "one_time", planToken: plan.planToken,
-            idempotencyKey: `repeat-${phase}-evaluation`, maxRuns: 1 }),
-        });
-        expect(purchase.status).toBe(202);
-      }
-      const reserves = [...sharedFakeFirestoreState.docs.entries()].filter(([key, entry]) => key.startsWith("robotTeamLedger/") && entry.kind === "reserve");
-      expect(reserves).toHaveLength(1);
-      expect(reserves[0][1].amountUsd).toBe(stored.quotedUsd);
-      expect([...sharedFakeFirestoreState.docs.keys()].filter(key => key.startsWith("evaluationRuns/"))).toHaveLength(1);
-      expect(repeat.status).toBe(409);
-      expect(plan.code).toBe("repeat_completed_result_required");
-    });
-  });
-
-  it.each(["no_history", "completed_without_result", "completed_result", "completed_plus_active", "history_cap"])("checks completed result history before repeating: %s", async history => {
-    await seedSpendableTeam();
-    if (history !== "no_history") sharedFakeFirestoreState.docs.set("evaluationRuns/prior", { teamId: TEAM, checkpointId: "ckpt-1", sceneId: "site-1", state: "completed",
-      ...(history !== "completed_without_result" ? { result: { observed: { episodesRun: 5 } } } : {}) });
-    if (history === "completed_plus_active") sharedFakeFirestoreState.docs.set("evaluationRuns/active", { teamId: TEAM, checkpointId: "ckpt-1", sceneId: "site-1", state: "requested" });
-    if (history === "history_cap") for (let i=0;i<499;i++) sharedFakeFirestoreState.docs.set(`evaluationRuns/older-${i}`, { teamId: TEAM, checkpointId: "other-checkpoint", sceneId: "other-site", state: "completed" });
-    await withRoutes(async baseUrl => {
-      const response = await fetch(`${baseUrl}/api/agent-team/plan`, { method: "POST", headers: AUTH,
-        body: JSON.stringify({ checkpointId: "ckpt-1", sceneId: "site-1", repeatCompleted: true, maxRuns: 1 }) });
-      const plan = await response.json();
-      if (history === "completed_result") {
-        expect(response.status).toBe(200);
-        expect(plan.selected).toHaveLength(1);
-        expect(plan.planToken).toEqual(expect.any(String));
-      } else {
-        expect(response.status).toBe(409);
-        expect(plan.code).toBe("repeat_completed_result_required");
-      }
-    });
-  });
-
-  it("refuses a signed plan when the prepared execution changed", async () => {
-    await seedSpendableTeam();
-
-    const result = await withRoutes(async (baseUrl) => {
-      const plan = await fetch(`${baseUrl}/api/agent-team/plan`, {
-        method: "POST",
-        headers: AUTH,
-        body: JSON.stringify({ checkpointId: "ckpt-1", maxRuns: 1 }),
-      });
-      const reviewed = (await plan.json()) as { planToken: string };
-      admissionFixture.digestSha256 = `sha256:${"b".repeat(64)}`;
-      const response = await fetch(`${baseUrl}/api/agent-team/runs`, {
-        method: "POST",
-        headers: AUTH,
-        body: JSON.stringify({ checkpointId: "ckpt-1", confirm: true,
-          spendMode: "one_time", planToken: reviewed.planToken,
-          idempotencyKey: "changed-execution-plan", maxRuns: 1 }),
-      });
-      return { status: response.status, body: await response.json() as {
-        started: unknown[]; refused: { refusal: string }[];
-      } };
-    });
-
-    expect(result.status).toBe(202);
-    expect(result.body.started).toEqual([]);
-    expect(result.body.refused).toEqual([
-      expect.objectContaining({ refusal: "execution_preparation_required" }),
-    ]);
-    expect([...sharedFakeFirestoreState.docs.keys()].some(key => key.startsWith("evaluationRuns/"))).toBe(false);
-  });
-
-  it("writes a run record for every hold it takes", async () => {
-    await seedSpendableTeam();
-
-    const body = await withRoutes(async (baseUrl) => {
-      const response = await startOneTimeRun(baseUrl, "morning-plan-1");
-      expect(response.status).toBe(202);
-      return (await response.json()) as {
-        started: { runId: string; reservationId: string; costUsd: number }[];
-        holds: { expiresAfterMs: number; onExpiry: string };
-      };
-    });
-
-    expect(body.started).toHaveLength(1);
-    const [run] = body.started;
-
-    // The hold and the record name each other. Before this, only the hold
-    // existed and nothing downstream could find it.
-    const stored = sharedFakeFirestoreState.docs.get(`evaluationRuns/${run.runId}`);
-    expect(stored).toMatchObject({
-      teamId: TEAM,
-      checkpointId: "ckpt-1",
-      sceneId: "site-1",
-      reservationId: run.reservationId,
-      state: "requested",
-      moneyResolved: false,
-    });
-    // And it is queued for resolution, which is what makes it independent of
-    // anyone calling the settlement endpoint.
-    expect(typeof stored?.settlementDueAtMs).toBe("number");
-
-    // The response says what happens to the money if nothing reports back.
-    expect(body.holds.expiresAfterMs).toBeGreaterThan(0);
-    expect(body.holds.onExpiry).toContain("released in full");
-  });
-
-  it("shows the agent its own open holds and when they expire", async () => {
-    await seedSpendableTeam();
-
-    const body = await withRoutes(async (baseUrl) => {
-      await startOneTimeRun(baseUrl, "morning-plan-2");
-      const response = await fetch(`${baseUrl}/api/agent-team/runs`, { headers: AUTH });
-      expect(response.status).toBe(200);
-      return (await response.json()) as {
-        heldUsd: number;
-        runs: { state: string; holdExpiresAtIso: string | null }[];
-      };
-    });
-
-    expect(body.runs).toHaveLength(1);
-    expect(body.runs[0]?.state).toBe("requested");
-    expect(Date.parse(String(body.runs[0]?.holdExpiresAtIso))).toBeGreaterThan(Date.now());
-    expect(body.heldUsd).toBeGreaterThan(0);
-  });
-
-  it("frees a hold nothing reported on when the agent next calls", async () => {
-    await seedSpendableTeam();
-
-    const result = await withRoutes(async (baseUrl) => {
-      await startOneTimeRun(baseUrl, "morning-plan-3");
-
-      // Age the hold past its expiry. No scheduler is running in this test and
-      // no env flag is set: the agent's own next call is what clears it.
-      for (const [key, doc] of sharedFakeFirestoreState.docs.entries()) {
-        if (!key.startsWith("evaluationRuns/")) continue;
-        const record = doc as Record<string, unknown>;
-        sharedFakeFirestoreState.docs.set(key, {
-          ...record,
-          settlementDueAtMs: 1,
-          requestedAtIso: "2026-01-01T00:00:00.000Z",
-        });
-      }
-
-      const response = await fetch(`${baseUrl}/api/agent-team/me`, { headers: AUTH });
-      return (await response.json()) as { balance: { reservedUsd: number; availableUsd: number } };
-    });
-
-    expect(result.balance.reservedUsd).toBe(0);
-    expect(result.balance.availableUsd).toBe(5_000);
-  });
-});
-
-/* ------------------------------------------------------- the settlement cap */
-
 describe("the Pipeline cannot charge past what the team authorised", () => {
   it("returns a conflict when cancellation wins after settlement validation", async () => {
     await seedSpendableTeam();
     const result = await withRoutes(async (baseUrl) => {
-      const start = await startOneTimeRun(baseUrl, "cancel-race-plan");
-      const { started } = await start.json() as { started: { reservationId: string; runId: string }[] };
-      const [run] = started;
+      const run = await startOneTimeRun("cancel-race-plan");
       const original = sharedFakeFirestore.runTransaction.bind(sharedFakeFirestore);
       let injectCancellation = true;
       sharedFakeFirestore.runTransaction = (async (updateFn: (tx: any) => Promise<unknown>) => original(async (tx: any) => updateFn({
@@ -495,11 +280,7 @@ describe("the Pipeline cannot charge past what the team authorised", () => {
   async function holdThenSettle(settlementBody: Record<string, unknown>) {
     await seedSpendableTeam();
     return withRoutes(async (baseUrl) => {
-      const start = await startOneTimeRun(baseUrl, "plan-settle");
-      const started = (await start.json()) as {
-        started: { reservationId: string; runId: string; costUsd: number }[];
-      };
-      const [run] = started.started;
+      const run = await startOneTimeRun("plan-settle");
 
       const settled = await fetch(`${baseUrl}/api/internal/pipeline/agent-run-settlements`, {
         method: "POST",
@@ -514,13 +295,11 @@ describe("the Pipeline cannot charge past what the team authorised", () => {
         }),
       });
 
-      const me = await fetch(`${baseUrl}/api/agent-team/me`, { headers: AUTH });
       return {
         quotedUsd: run.costUsd,
         runId: run.runId,
         settlement: (await settled.json()) as Record<string, unknown>,
-        balance: ((await me.json()) as { balance: { spentUsd: number; reservedUsd: number } })
-          .balance,
+        balance: await teamBalance(),
       };
     });
   }
@@ -592,18 +371,13 @@ describe("the Pipeline cannot charge past what the team authorised", () => {
     expect(FAKE_FIELD_DELETE in (stored ?? {})).toBe(false);
   });
 
-  it("records what the run showed, and hands the team a way to read it", async () => {
+  it("records what the run showed", async () => {
     // The loop that was never closed: money settled and results went nowhere.
-    // `recordEvaluationOutcome` and `recordMeasuredCapability` had no caller,
-    // and no route on the agent surface could return a result.
+    // `recordEvaluationOutcome` and `recordMeasuredCapability` had no caller.
     await seedSpendableTeam();
 
     const seen = await withRoutes(async (baseUrl) => {
-      const start = await startOneTimeRun(baseUrl, "plan-result");
-      const { started } = (await start.json()) as {
-        started: { reservationId: string; runId: string }[];
-      };
-      const [run] = started;
+      const run = await startOneTimeRun("plan-result");
 
       const reported = await fetch(`${baseUrl}/api/internal/pipeline/agent-run-results`, {
         method: "POST",
@@ -619,14 +393,7 @@ describe("the Pipeline cannot charge past what the team authorised", () => {
         }),
       });
       expect(reported.status).toBe(200);
-
-      const list = await fetch(`${baseUrl}/api/agent-team/results`, { headers: AUTH });
-      const one = await fetch(`${baseUrl}/api/agent-team/results/${run.runId}`, { headers: AUTH });
-      return {
-        reported: (await reported.json()) as Record<string, unknown>,
-        list: (await list.json()) as { runs: Record<string, unknown>[] },
-        one: (await one.json()) as Record<string, unknown>,
-      };
+      return { runId: run.runId, reported: (await reported.json()) as Record<string, unknown> };
     });
 
     // The observation and the claim are kept apart, and the claim is the
@@ -634,25 +401,7 @@ describe("the Pipeline cannot charge past what the team authorised", () => {
     // "better than 99%".
     expect(seen.reported.observed).toMatchObject({ episodesRun: 200, episodesSucceeded: 198 });
     expect(seen.reported.claimed).toMatchObject({ cycleTime: "thirty_to_two_min" });
-
-    expect(seen.list.runs).toHaveLength(1);
-    expect(seen.list.runs[0]?.resultStatus).toBe("reported");
-    expect(seen.one.resultStatus).toBe("reported");
-    expect((seen.one.result as { note?: string })?.note).toMatch(/two drops/i);
-  });
-
-  it("says a run is awaiting its result rather than leaving a bare null", async () => {
-    await seedSpendableTeam();
-
-    const list = await withRoutes(async (baseUrl) => {
-      await startOneTimeRun(baseUrl, "plan-pending");
-      const response = await fetch(`${baseUrl}/api/agent-team/results`, { headers: AUTH });
-      return (await response.json()) as { runs: { resultStatus: string; result: unknown }[] };
-    });
-
-    // A run with no result is not a run that found nothing.
-    expect(list.runs[0]?.resultStatus).toBe("awaiting_result");
-    expect(list.runs[0]?.result).toBeNull();
+    expect(sharedFakeFirestoreState.docs.get(`evaluationRuns/${seen.runId}`)?.result?.note).toMatch(/two drops/i);
   });
 
   it("refuses more successes than episodes rather than clamping them", async () => {
@@ -661,8 +410,7 @@ describe("the Pipeline cannot charge past what the team authorised", () => {
     await seedSpendableTeam();
 
     const result = await withRoutes(async (baseUrl) => {
-      const start = await startOneTimeRun(baseUrl, "plan-impossible");
-      const { started } = (await start.json()) as { started: { reservationId: string }[] };
+      const started = [await startOneTimeRun("plan-impossible")];
       const response = await fetch(`${baseUrl}/api/internal/pipeline/agent-run-results`, {
         method: "POST",
         headers: { "content-type": "application/json" },

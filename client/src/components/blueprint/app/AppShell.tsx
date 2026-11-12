@@ -28,7 +28,6 @@ export interface AppShellProps {
   publicView?: boolean;
   role?: WorkspaceRole;
   organization?: string;
-  hasOwnedSites?: boolean;
 }
 function handleWorkspaceTabs(event: KeyboardEvent<HTMLDivElement>) {
   const target = event.target as HTMLElement;
@@ -63,7 +62,6 @@ export function AppShell({
   publicView = false,
   role,
   organization,
-  hasOwnedSites = false,
 }: AppShellProps) {
   const { currentUser, userData, logout } = useAuth();
   const signInHref = resultSignInHref(typeof window === "undefined" ? "" : window.location.pathname);
@@ -89,19 +87,17 @@ export function AppShell({
       ]
     : isSite
       ? [
-          ["overview", "Overview", "/app"],
-          ["tasks", "Tasks", "/app/tasks"],
+          ["overview", "Your jobs", "/app"],
           ["settings", "Settings", "/settings"],
         ]
       : [
           ["overview", "Overview", "/app"],
-          ...(hasOwnedSites ? [["tasks", "Owned sites", "/app/tasks"]] : []),
           ["opportunities", "Task library", "/contact/robot-team"],
           ["settings", "Settings", "/settings"],
         ];
   const selected = ["captures", "packs"].includes(active)
     ? isSite
-      ? "tasks"
+      ? "overview"
       : "opportunities"
     : ["policies", "entitlements", "data"].includes(active)
       ? "settings"

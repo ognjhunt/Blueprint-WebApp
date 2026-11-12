@@ -15,8 +15,8 @@
  * Historical paid-run planning price.
  *
  * @deprecated historical; not charged during the free beta. Kept only because
- * server-side cost accounting (`cohortEconomics.ts`, `teamEvalCandidates.ts`)
- * still prices the compute behind an evaluation against it. No public surface
+ * server-side cost accounting (`cohortEconomics.ts`) still prices the compute
+ * behind an evaluation against it. No public surface
  * may quote it.
  */
 export const entryPrice = 99;

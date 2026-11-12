@@ -3,8 +3,8 @@
  *
  * Rehearsal, clearly labeled: intake -> capture link -> upload a real video
  * file -> privacy-screen state observed -> brief confirmed as the owner ->
- * status polled while the server-side stages run -> robot team registered and
- * given a free plan. Steps that require a human (physically filming) or a
+ * status polled while the server-side stages run. (The robot-team leg, through
+ * the agent API, was removed with that API on 2026-11-12.) Steps that require a human (physically filming) or a
  * credential held outside this repo (PIPELINE_SYNC_TOKEN for reconstruction)
  * are reported as exactly that, not skipped silently.
  *
@@ -163,48 +163,6 @@ if (token) {
   } catch (error) {
     note(`STATUS POLL FAILED: ${String(error).slice(0, 200)}`);
   }
-}
-
-// ------------------------------------- F. robot team: register (free) and plan (free)
-try {
-  const reg = await fetch(`${BASE}/api/agent-team/register`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      teamName: `Rehearsal Robotics ${stamp}`,
-      contactEmail: `beta-rehearsal+robot-${stamp}@tryblueprint.io`,
-      taskFamily: "pick_and_place",
-      capabilityDescription: "Automated beta-rehearsal registration; no hardware behind this checkpoint yet.",
-      checkpoint: {
-        label: "rehearsal-checkpoint",
-        runtime: "policy_endpoint",
-        reference: "https://rehearsal.invalid/checkpoint",
-      },
-    }),
-  });
-  const regBody = await reg.json().catch(() => ({}));
-  note(`agent-team/register -> ${reg.status} keys=${Object.keys(regBody).join(",")}`);
-  check(reg.ok, "robot team registered through the public agent API");
-
-  const apiKey = regBody.agentKey || regBody.apiKey || regBody.key;
-  const teamId = regBody.teamId || regBody.id;
-  if (apiKey) {
-    const plan = await fetch(`${BASE}/api/agent-team/plan`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({}),
-    });
-    const planBody = await plan.json().catch(() => ({}));
-    note(
-      `agent-team/plan -> ${plan.status} candidates=${planBody.candidates?.length ?? "?"} ` +
-        `top=${planBody.candidates?.[0]?.siteName ?? planBody.candidates?.[0]?.site_name ?? "-"}`,
-    );
-    check(plan.ok, "free ranked plan produced on production");
-  } else {
-    note(`no api key in register response; plan leg needs manual check. body=${JSON.stringify(regBody).slice(0, 300)}`);
-  }
-} catch (error) {
-  note(`ROBOT TEAM LEG FAILED: ${String(error).slice(0, 300)}`);
 }
 
 await browser.close();

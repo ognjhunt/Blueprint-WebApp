@@ -1,23 +1,20 @@
 // @vitest-environment node
 /**
- * Audit A (2026-10-18): what a site hears once every evaluation of its job has
- * finished without a pass.
+ * Audit A (2026-10-18): what a site's job page says once every evaluation of
+ * its job has finished without a pass. (The emails for it went with robot
+ * teams' runs on 2026-11-12.)
  *
  * A diagnostic, unqualified or unscored run is "ineligible" evidence, and must
- * never be called a failure, so `no_team_passed` still requires none. That left
- * a site whose runs were all ineligible with silence. It now hears one truthful
- * notice: none can support a recommendation yet, and we email when a qualified
- * evaluation finishes. A qualified evaluation that did not pass now says what
- * would change that: how far the closest one fell short of the job's pass mark.
+ * never be called a failure, so `no_team_passed` still requires none. A
+ * qualified evaluation that did not pass says what would change that: how far
+ * the closest one fell short of the job's pass mark.
  *
  * The job is not hand-built: it starts from the real `POST /api/inbound-request`
  * with the exact body the public start form sends
  * (`helpers/siteCaptureStartSubmission.ts`). The runs are written as admission
  * and the Pipeline's report write them (the shared synthetic qualified run in
  * `helpers/recommendation-evidence.ts`, made diagnostic or short of the pass
- * mark). The site's notices come from the real `notifyIfNoTeamPassed`, which
- * every run conclusion calls, and are read from the durable outbox; its page
- * reads the real `GET /api/site-task-brief/:token/status`.
+ * mark). The page reads the real `GET /api/site-task-brief/:token/status`.
  *
  * Substituted: Firebase persistence and Cloud Storage, outbound email delivery,
  * Slack, analytics and model calls.
@@ -122,11 +119,6 @@ function recordRun(jobId: string, runId: string, kind: "diagnostic" | "short" | 
   state.docs.set(`evaluationRuns/${runId}`, run);
 }
 
-async function concluded(jobId: string, runId: string) {
-  const { notifyIfNoTeamPassed } = await import("../utils/taskLifecycleNotifications");
-  return notifyIfNoTeamPassed(jobId, runId);
-}
-
 async function jobStatus(token: string) {
   const response = await fetch(`${base}/api/site-task-brief/${token}/status`);
   expect(response.status, await response.clone().text()).toBe(200);
@@ -134,49 +126,24 @@ async function jobStatus(token: string) {
 }
 
 describe("when every evaluation of a job has finished without a pass", () => {
-  it("tells the site, once, that none can support a recommendation yet, and never calls it a failure", async () => {
+  it("says on the job page that none can support a recommendation yet, and emails nothing", async () => {
     const { jobId, token } = await startJob();
     recordRun(jobId, "run-diagnostic-1", "diagnostic");
-    await concluded(jobId, "run-diagnostic-1");
-    const notice = outbox(`${jobId}:no_qualified_evaluation`);
-    expect(notice?.kind).toBe("no_qualified_evaluation");
-    expect(notice?.body).toMatch(/none can support a recommendation yet/);
-    expect(notice?.body).toMatch(/We email you when a scored evaluation finishes/);
-    expect(`${notice?.subject}\n${notice?.body}`).not.toMatch(/passed|failed|without passing/i);
-    // Never the no-pass notice for ineligible evidence.
-    expect(queuedKinds(jobId)).not.toContain("no_team_passed");
-
-    // A second diagnostic run is the same state, not a second email.
     recordRun(jobId, "run-diagnostic-2", "diagnostic");
-    await concluded(jobId, "run-diagnostic-2");
-    expect(queuedKinds(jobId).filter(kind => kind === "no_qualified_evaluation")).toHaveLength(1);
-
     const status = await jobStatus(token);
     expect(status.decision).toBe("no_qualified_evaluation");
     expect(status.headline).toMatch(/2 runs could not be scored against your pass mark/);
+    // The team-run emails left the site's journey (2026-11-12).
+    expect(queuedKinds(jobId)).not.toContain("no_qualified_evaluation");
+    expect(queuedKinds(jobId)).not.toContain("no_team_passed");
   });
 
-  it("tells the site what would change a qualified evaluation that did not pass", async () => {
+  it("says on the job page what would change a qualified evaluation that did not pass", async () => {
     const { jobId, token } = await startJob();
     recordRun(jobId, "run-short", "short");
-    await concluded(jobId, "run-short");
-    const notice = outbox(`${jobId}:no_team_passed:run-short`);
-    expect(notice?.kind).toBe("no_team_passed");
-    expect(notice?.body).toMatch(/The closest scored evaluation succeeded in 172 of 200 episodes \(86%\); your pass mark is 90%\./);
-    expect(notice?.body).toMatch(/To pass in this simulation, a candidate needs to reach 90%/);
-    expect(queuedKinds(jobId)).not.toContain("no_qualified_evaluation");
-
     const status = await jobStatus(token);
     expect(status.decision).toBe("no_team_passed");
     expect(status.headline).toMatch(/172 of 200 episodes \(86%\); your pass mark is 90%/);
-  });
-
-  it("sends neither while a qualified evaluation passed", async () => {
-    const { jobId } = await startJob();
-    recordRun(jobId, "run-pass", "pass");
-    recordRun(jobId, "run-diagnostic", "diagnostic");
-    await concluded(jobId, "run-diagnostic");
-    expect(queuedKinds(jobId)).not.toContain("no_qualified_evaluation");
     expect(queuedKinds(jobId)).not.toContain("no_team_passed");
   });
 });

@@ -14,8 +14,7 @@ import { COMPANY_RESPONSE_LABELS, COMPANY_RESPONSE_STATES, RESPONSE_PRIVACY_LINE
 
 /** Said in a job's meta line while no evaluation is ready for it (`evaluationAvailable` false). */
 
-/** `inWorkspace` drops the public-page extras (the agent API link) inside the signed-in app. */
-export function TaskBrowse({ inWorkspace = false }: { inWorkspace?: boolean } = {}) {
+export function TaskBrowse() {
   const [items, setItems] = useState<TaskBrowseCard[]>([]);
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [retry, setRetry] = useState(0);
@@ -118,7 +117,7 @@ export function TaskBrowse({ inWorkspace = false }: { inWorkspace?: boolean } = 
       </li>)}</ul>
     </>}
     <p className="ms-field-hint">Nothing is charged today.</p>
-    <p className="ms-field-hint">{!inWorkspace && <><a href="/agent-access.openapi.json">Agent API (OpenAPI spec, JSON)</a> · </>}<a href="mailto:hello@tryblueprint.io">Talk to a person</a></p>
+    <p className="ms-field-hint"><a href="mailto:hello@tryblueprint.io">Talk to a person</a></p>
   </section>;
 }
 

@@ -44,8 +44,7 @@ const { draftBrief, saveBrief, getBrief, confirmBrief, recordSiteTaskCallOutcome
   "../utils/siteTaskBrief"
 );
 const { assessReadiness } = await import("../../client/src/lib/siteTaskReadiness");
-const { isRunnableTask } = await import("../utils/teamEvalCandidates");
-const { teamJobAccess } = await import("../utils/teamJobAccess");
+const { isRunnableTask, teamJobAccess } = await import("../utils/teamJobAccess");
 const { sceneScreenGateEndedMarker } = await import("../utils/sceneScreenGate");
 const { RECORDING_CONSENT_VERSION } = await import("../utils/recordingConsent");
 const { gateFields } = await import("../../client/src/data/siteTaskQualification");
@@ -168,9 +167,9 @@ describe("the join: a confirmed, reconstructed site is runnable supply", () => {
       any
     >;
 
-    // The site-readiness half of what `loadRunnableSites` runs, with a scene
+    // The site-readiness half of what runnable supply needs, with a scene
     // now present. This is the operator's side: brief confirmed, gates
-    // answered, scene reconstructed. `loadRunnableSites` then adds one more
+    // answered, scene reconstructed. `isRunnableTask` then adds one more
     // gate on our side -- `sceneRunnableReadiness`, that an evaluation can
     // actually run against the scene -- which the funnel does not produce and
     // is covered in scene-runnable-readiness.test.ts.
@@ -293,29 +292,6 @@ describe("a shared job's access does not depend on the screen after the cutover"
     expect(teamJobAccess({ ...after, consent_revoked: true })).toMatchObject({ evaluationAvailable: false, reason: "consent_withdrawn" });
     expect(teamJobAccess({ ...after, workspace_task: { paused: true } })).toMatchObject({ evaluationAvailable: false });
     expect(teamJobAccess({ ...after, public_task_listing: undefined })).toMatchObject({ listed: false, evaluationAvailable: false });
-  });
-
-  it("offers a not_now job with the marker in the runnable supply, and leaves one without it out", async () => {
-    const { loadRunnableSites } = await import("../utils/teamEvalCandidates");
-    const blocked = await sharedJob({ ...allClear(), sceneStability: "reconfigured" });
-    sharedFakeFirestoreState.docs.set(`inboundRequests/${REQUEST}`, blocked);
-    expect((await loadRunnableSites(50)).map(site => site.requestId)).toEqual([]);
-    sharedFakeFirestoreState.docs.set(`inboundRequests/${REQUEST}`, { ...blocked, scene_screen_gate_ended: marker() });
-    expect((await loadRunnableSites(50)).map(site => site.requestId)).toEqual([REQUEST]);
-    sharedFakeFirestoreState.docs.set(`inboundRequests/${REQUEST}`, { ...blocked, scene_screen_gate_ended: marker(), consent_revoked: true });
-    expect(await loadRunnableSites(50)).toEqual([]);
-  });
-
-  it("keeps marked jobs in supply when qualified rows fill the cap, in document-id order", async () => {
-    const { loadRunnableSites } = await import("../utils/teamEvalCandidates");
-    const qualified = await sharedJob(allClear());
-    const blocked = await sharedJob({ ...allClear(), sceneStability: "reconfigured" });
-    sharedFakeFirestoreState.docs.delete(`inboundRequests/${REQUEST}`);
-    for (const id of ["job-a", "job-c", "job-d"]) sharedFakeFirestoreState.docs.set(`inboundRequests/${id}`, { ...qualified, requestId: id });
-    sharedFakeFirestoreState.docs.set("inboundRequests/job-b", { ...blocked, requestId: "job-b",
-      scene_screen_gate_ended: sceneScreenGateEndedMarker("job-b", "2026-11-12T00:00:00Z") });
-    expect((await loadRunnableSites(2)).map(site => site.requestId)).toEqual(["job-a", "job-b"]);
-    expect((await loadRunnableSites(10)).map(site => site.requestId)).toEqual(["job-a", "job-b", "job-c", "job-d"]);
   });
 
   it("matches robot teams to a not_now job only once the marker is on it", async () => {

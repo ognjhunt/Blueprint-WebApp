@@ -1,4 +1,3 @@
-import { noResultObservationText, type NoResultObservation } from "./runNoResultObservation";
 /**
  * Durable, deduplicated notices for every real event on a site's task.
  *
@@ -56,14 +55,9 @@ export type TaskLifecycleMilestone = Extract<
   | "job_sent"
   | "company_answered"
   | "screening_not_now"
-  | "results_ready"
-  | "run_no_result"
   | "evaluation_outcome"
   | "scene_outcome"
   | "robot_access_question"
-  | "awaiting_evaluations"
-  | "no_team_passed"
-  | "no_qualified_evaluation"
   | "footage_before_account"
   | "video_too_large"
   | "pilot_request"
@@ -91,20 +85,23 @@ export function reconstructionIsViewable(record: {
   });
 }
 
-/** The site's job in its workspace, where run results open once the site is claimed. */
-export function workspaceTaskUrl(requestId: string): string {
+/**
+ * The account's "Your jobs" list, for a claimed site: it opens the job page with a fresh link, where an emailed
+ * link would have expired. The request id is unused: the list holds every job of the account.
+ */
+export function workspaceTaskUrl(_requestId: string): string {
   const origin = (process.env.VITE_PUBLIC_APP_URL?.trim() || process.env.APP_URL?.trim() || "https://tryblueprint.io")
     .replace(/\/+$/, "");
-  return `${origin}/app/tasks/${encodeURIComponent(requestId)}`;
+  return `${origin}/app`;
 }
 
 /**
- * A claimed site may use its workspace. The private owner link shows the
- * same job results without adding an account step.
+ * A claimed site opens its job page from its account. The private owner link
+ * shows the same job without adding an account step.
  */
 function whereRunsAre(url: string, workspaceUrl: string | null, action: string): string {
   return workspaceUrl
-    ? `${action} in your workspace:\n${workspaceUrl}`
+    ? `${action === "Open your job" ? action : `${action} on your job page,`} from your account:\n${workspaceUrl}`
     : `${action} on your private job page:\n${url}`;
 }
 
@@ -175,10 +172,6 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
     subject: "An update on your Blueprint job",
     body: (url) => `Something we need for your job is missing.\n\nYour job page says what, and how to send it. You can also reply to this email.\n\nOpen your job:\n${url}`,
   },
-  results_ready: {
-    subject: "Results are in from an evaluation of your job",
-    body: (url, detail, workspaceUrl) => `An evaluation run of one candidate in the simulation of your site has finished${detail ? `: ${detail}` : ""}.\n\n${whereRunsAre(url, workspaceUrl, "See the run")}\n\n${finePrint("This is a simulation estimate for that one candidate, not a physical test. It never certifies physical performance or safety.")}`,
-  },
   // One per result outcome of the job's evaluation and scene (F-01). The detail
   // is only the outcome's sentence about the simulation, or for an estimate the
   // job page's own simulation proof, and the results disclaimer, built from typed
@@ -198,24 +191,6 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
   robot_access_question: {
     subject: "The simulation of your site needs one decision",
     body: (url, detail) => `${detail}\n\nChoose on your job page:\n${url}`,
-  },
-  run_no_result: {
-    subject: "An evaluation run ended without a result",
-    body: (url, detail, workspaceUrl) => `An evaluation run in the simulation of your site ended without a complete scored result. ${detail || noResultObservationText()}\n\n${whereRunsAre(url, workspaceUrl, "Review the run")}`,
-  },
-  awaiting_evaluations: {
-    subject: "Your job is ready for evaluation",
-    body: (url) => `Your job is ready for evaluation in a simplified simulation of your task, informed by your footage. Nothing is needed from you.\n\nOpen your job:\n${url}`,
-  },
-  no_team_passed: {
-    subject: "No evaluation of your job has passed yet",
-    // `detail` is what would change that (`qualifiedGap`), as /beta promises.
-    body: (url, detail, workspaceUrl) => `Every simulation evaluation of your job so far has finished, and none passed. ${detail || "We need stronger evidence for this tested configuration."} Nothing is needed from you.\n\n${whereRunsAre(url, workspaceUrl, "See each run")}`,
-  },
-  no_qualified_evaluation: {
-    subject: "Your job's evaluations finished, with no result that counts yet",
-    // Never a failure: diagnostic, unqualified or unscored runs count neither way.
-    body: (url, _detail, workspaceUrl) => `The evaluations of your job so far have finished, but none can support a recommendation yet, so none counts as a pass or a fail. Nothing is needed from you. We email you when a scored evaluation finishes.\n\n${whereRunsAre(url, workspaceUrl, "See each run")}`,
   },
   video_too_large: {
     // The job page's new-video ask, said the same way (`LARGE_VIDEO_RECAPTURE_SENTENCES`).
@@ -259,7 +234,6 @@ export async function enqueueTaskLifecycleNotification(params: {
   /** One clause of event detail for the body, e.g. "12 of 50 episodes succeeded". */
   detail?: string;
   correlationId?: string;
-  runProgress?: NoResultObservation;
   /** `preparation_ended` only: the Pipeline's typed reason; unknown values add nothing. */
   terminalReason?: string | null;
   /** Preparation notices: the capture they are about, so an early task hold is told as held. */
@@ -484,7 +458,6 @@ export function buildTaskLifecycleNotification(params: {
   detail?: string;
   correlationId?: string;
   captureUrl?: string;
-  runProgress?: NoResultObservation;
   /** `preparation_ended` only: rendered through a fixed sentence per known reason. */
   terminalReason?: string | null;
   /** The job in the site's workspace, when the site is claimed. Run notices send it there. */
@@ -580,8 +553,7 @@ export function buildTaskLifecycleNotification(params: {
       : params.milestone === "scene_outcome" && params.sceneOutcomeKind ? sceneOutcomeSubject(params.sceneOutcomeKind)
       : params.milestone === "answer_ready" && params.siteAnswer?.state === "cannot_assess" ? "An update on your Blueprint job"
       : message.subject,
-    body: finePrintLast(`${message.body(url, params.milestone === "run_no_result" ? noResultObservationText(params.runProgress)
-      : isWebsitePreparationNotice(params.milestone) ? preparationDetail
+    body: finePrintLast(`${message.body(url, isWebsitePreparationNotice(params.milestone) ? preparationDetail
       : params.milestone === "company_answered" ? COMPANY_RESPONSE_LABELS[params.companyAnswerState!]
       : params.milestone === "job_sent" ? ""
       : params.milestone === "evaluation_outcome" || params.milestone === "scene_outcome"
@@ -914,89 +886,6 @@ function robotAccessQuestionDetail(params: { eventId?: string; robotAccessCounts
     + finePrint("Results stay estimates, not a physical test.");
 }
 
-/**
- * Tell the site, once, that its job is open for evaluation and no evaluation
- * has been requested yet. Read from the stored record by the same predicate the job
- * library uses, so it is sent only when it is true. Callers that may have just
- * opened a job (a Pipeline sync, a published card) call this; it is a no-op
- * otherwise, and the outbox key keeps it to one email per job.
- */
-export async function notifyIfOpenForEvaluations(_requestId: string): Promise<{ enqueued: boolean }> {
-  // Frame of 2026-11-12: no company can request an evaluation any more, so "Your job is ready for evaluation" is never
-  // queued. A site whose summary becomes visible hears it once, by `listing_live`. Rows queued before this change are
-  // cancelled at dispatch (`TEAM_RUN_EVALUATION_NOTICES`), never sent.
-  return { enqueued: false };
-}
-
-/** True while the job is open to evaluation requests and no team has requested one. Read again at dispatch. */
-export async function openAndAwaitingEvaluations(requestId: string): Promise<boolean> {
-  if (!db) return false;
-  const snapshot = await db.collection("inboundRequests").doc(requestId).get();
-  const { teamJobAccess } = await import("./teamJobAccess");
-  if (!snapshot.exists || !teamJobAccess(snapshot.data()).evaluationAvailable) return false;
-  const { loadSceneScreening } = await import("./agentEvalRuns");
-  return (await loadSceneScreening(requestId)).teams === 0;
-}
-
-/**
- * After a site evaluation concludes, when nothing is in flight, nothing passed
- * the job's pass mark and no pilot is recommended:
- *
- * - every concluded run qualified and fell short: tell the site no team has
- *   passed yet, and what would change that (the closest run's gap). Keyed by
- *   the run that concluded, so each run is at most one;
- * - no reported run can count either way (diagnostic, unqualified or
- *   unscored): tell the site once that none can support a recommendation yet.
- *   Never "no team passed": that would call it a failure.
- */
-export async function notifyIfNoTeamPassed(requestId: string, concludedRunId: string): Promise<{ enqueued: boolean }> {
-  const settled = await settledWithoutPass(requestId);
-  if (settled?.state === "no_team_passed") {
-    const { qualifiedGap } = await import("./taskStatusProjection");
-    const gap = qualifiedGap(settled.screening.closestQualified);
-    return enqueueTaskLifecycleNotification({ requestId, milestone: "no_team_passed", eventId: concludedRunId,
-      detail: gap.shortfall ? `${gap.shortfall} To pass in this simulation, a candidate needs to ${gap.requirement}.` : undefined });
-  }
-  if (settled?.state === "no_qualified_evaluation") {
-    return enqueueTaskLifecycleNotification({ requestId, milestone: "no_qualified_evaluation" });
-  }
-  return { enqueued: false };
-}
-
-/** The job's runs against its own pass mark, or null while a recommendation stands or the job is missing. */
-async function settledScreening(requestId: string) {
-  if (!db) return null;
-  const snapshot = await db.collection("inboundRequests").doc(requestId).get();
-  const record = snapshot.data();
-  if (!snapshot.exists || !record || record.pilot_recommendation) return null;
-  const [{ getBrief }, { passMarkForJob }, { loadSceneScreening }] = await Promise.all([
-    import("./siteTaskBrief"), import("./pilotRecommendationEvidence"), import("./agentEvalRuns")]);
-  return loadSceneScreening(requestId, passMarkForJob(record, await getBrief(requestId) as never));
-}
-
-/** Which settled state the job is in, if any. The same rules as the job page (`projectTaskStatus`). */
-async function settledWithoutPass(requestId: string) {
-  const screening = await settledScreening(requestId);
-  if (!screening || screening.queued + screening.running > 0 || screening.passed !== 0) return null;
-  const ineligible = screening.ineligible ?? 0;
-  if (screening.reported > 0 && screening.noResult === 0 && ineligible === 0)
-    return { state: "no_team_passed" as const, screening };
-  // Runs that only ended without an observed episode each sent their own
-  // run_no_result notice; the page still shows this state for them.
-  if (ineligible > 0 && screening.reported - ineligible === 0)
-    return { state: "no_qualified_evaluation" as const, screening };
-  return null;
-}
-
-/** True while every site evaluation has concluded, none passed and no pilot is recommended. Read again at dispatch. */
-export async function noTeamHasPassed(requestId: string): Promise<boolean> {
-  return (await settledWithoutPass(requestId))?.state === "no_team_passed";
-}
-
-/** True while every site evaluation has concluded and none can support a recommendation. Read again at dispatch. */
-export async function noQualifiedEvaluationYet(requestId: string): Promise<boolean> {
-  return (await settledWithoutPass(requestId))?.state === "no_qualified_evaluation";
-}
 
 /** Existing outbox tick repairs a lost enqueue; fresh readback gates dispatch again. */
 export async function reconcileWebsitePreparationNotifications(limit = 1): Promise<void> {

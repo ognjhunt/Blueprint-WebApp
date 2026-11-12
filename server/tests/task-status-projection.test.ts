@@ -12,7 +12,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { AUTHORITY_ENDED_SENTENCE, FOOTAGE_BEFORE_ACCOUNT_SENTENCE, JOB_WINDOW_ENDED_SENTENCE, JOB_WINDOW_ENDING_MESSAGE,
   PREPARATION_ENDED_NEXT } from "../utils/taskPreparationOutcome";
-import { waitingTimeline } from "../../client/src/data/betaTimelines";
 import { jobWorkWindowSentence, screeningOutcomeSentence } from "../utils/betaPolicyScreeningContract";
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({ dbAdmin: null }));
 import { projectWebsiteRunClosure } from "../utils/websiteRunClosure";
@@ -693,8 +692,6 @@ describe("a job the window sweep ended says so, whatever the Pipeline last said"
     expect(status).toMatchObject({ decision: "ended", headline: JOB_WINDOW_ENDING_MESSAGE, operatorAction: null, stage: null,
       missingViews: [], nextUpdateIso: null });
     expect(status.outcome).toBeUndefined();
-    // No waiting line follows an ending on the workspace page.
-    expect(waitingTimeline(status.decision)).toBeNull();
   });
 
   it("gives way only to a withdrawal, an owner closure and a result", () => {

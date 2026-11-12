@@ -1,13 +1,12 @@
 /**
  * The founder's job console: one row per site job, with its loop stage and
  * the next action. Read-only. Every write it links to goes through an
- * existing endpoint with its own checks (free-evaluation admission, the
- * recommendation form, the lead page). Three writes live here. The
- * site-measurement export keeps an immutable copy of exactly what it exported,
- * so the evidence handed to the Pipeline stays recoverable. Robot fit keeps a
- * team ranking (a model call staff ask for) and whether the site may see its
- * robot-form read. The export and the ranking are refused once recording
- * consent is withdrawn, and nothing new is shared with the site after that.
+ * existing endpoint with its own checks (the recommendation form, the lead
+ * page). Three writes live here. The site-measurement export keeps an
+ * immutable copy of exactly what it exported, so the evidence handed to the
+ * Pipeline stays recoverable. Robot fit keeps a team ranking (a model call
+ * staff ask for). The export and the ranking are refused once recording
+ * consent is withdrawn.
  * Deployment companies (package C1) records, by hand, which approved companies
  * Blueprint sent the job to and what each answered, and holds the job back from
  * every company when needed (`server/utils/jobCompanies.ts`). The product sends
@@ -28,8 +27,7 @@ import {
   presentMeasurementsForAdmin,
   retainSourceMeasurementExport,
 } from "../utils/siteTaskMeasurements";
-import { RobotFitError, getAdminRobotFit, rankTeamsForJob, setRobotFitSharing } from "../utils/siteRobotFit";
-import { getReadinessPreview } from "../utils/siteReadiness";
+import { RobotFitError, getAdminRobotFit, rankTeamsForJob } from "../utils/siteRobotFit";
 import { loadWebsiteCaptureRights } from "../utils/websiteTaskContext";
 import {
   JobCompaniesError, loadAdminJobCompanies, recordCompanyResponseByOperator, recordCompanySend, setOperatorListingHold, voidCompanySend,
@@ -173,18 +171,17 @@ function robotFitErrorResponse(res: Response, error: RobotFitError) {
 
 /**
  * Robot fit: the job's needs and every robot form's rating (rules over the
- * site's own data, computed now), the last team ranking (flagged stale when the
- * job or the research notes changed since), sharing, and the exact site preview.
+ * site's own data, computed now) and the last team ranking (flagged stale when
+ * the job or the research notes changed since).
  */
 router.get("/:requestId/robot-fit", async (req: Request, res: Response) => {
   const parsed = requestId.safeParse(req.params.requestId);
   if (!parsed.success) return res.status(400).json({ error: "Invalid job id." });
   try {
-    const [fit, readiness] = await Promise.all([getAdminRobotFit(parsed.data), getReadinessPreview(parsed.data)]);
+    const fit = await getAdminRobotFit(parsed.data);
     if (!fit) return res.status(404).json({ error: "Site job not found." });
     res.set("Cache-Control", "no-store");
-    // The readiness report as the site would see it once shared, and what the job takes today.
-    return res.json({ ...fit, readiness });
+    return res.json(fit);
   } catch (error) {
     logger.error({ err: error, requestId: parsed.data }, "Robot fit read failed");
     return res.status(503).json({ error: "Robot fit is unavailable. Try again." });
@@ -208,26 +205,6 @@ router.post("/:requestId/robot-fit/ranking", async (req: Request, res: Response)
     if (error instanceof RobotFitError) return robotFitErrorResponse(res, error);
     logger.error({ err: error, requestId: parsed.data }, "Robot fit ranking failed");
     return res.status(503).json({ error: "The team ranking could not be run. Try again." });
-  }
-});
-
-const sharingBody = z.object({ shared: z.boolean() }).strict();
-
-/** Show or hide the robot-form read on the owner's job page. It never names a team. */
-router.post("/:requestId/robot-fit/sharing", async (req: Request, res: Response) => {
-  const parsed = requestId.safeParse(req.params.requestId);
-  const body = sharingBody.safeParse(req.body);
-  if (!parsed.success || !body.success) return res.status(400).json({ error: "Send whether the site may see robot fit." });
-  try {
-    const actor = res.locals.firebaseUser?.uid ?? null;
-    const sharing = await setRobotFitSharing(parsed.data, body.data.shared, { actor });
-    logger.info({ requestId: parsed.data, actor, shared: sharing.shared }, "Robot fit sharing changed");
-    res.set("Cache-Control", "no-store");
-    return res.json({ sharing });
-  } catch (error) {
-    if (error instanceof RobotFitError) return robotFitErrorResponse(res, error);
-    logger.error({ err: error, requestId: parsed.data }, "Robot fit sharing change failed");
-    return res.status(503).json({ error: "Sharing could not be changed. Try again." });
   }
 });
 

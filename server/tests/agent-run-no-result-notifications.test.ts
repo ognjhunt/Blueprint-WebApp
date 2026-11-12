@@ -22,15 +22,15 @@ const cases = [
   { label: "positive partial progress", progress: partial, episodesRun: 23,
     expected: /25 attempted; 23 scored \(5 succeeded, 18 failed\); 2 void/, extra: /counts are incomplete/ },
   { label: "unmeasured zero", progress: { ...zero, measurement_complete: false }, episodesRun: 0,
-    expected: /Episode progress is unknown/, extra: /Review the run/ },
+    expected: /Episode progress is unknown/, extra: /Nothing is charged for it/ },
   { label: "legacy missing progress", progress: undefined, episodesRun: 0,
-    expected: /Episode progress is unknown/, extra: /Review the run/ },
+    expected: /Episode progress is unknown/, extra: /Nothing is charged for it/ },
   { label: "legacy scored-only progress", progress: undefined, episodesRun: 23,
     expected: /23 scored episodes were reported/, extra: /total attempted and void counts are unknown/ },
   { label: "inconsistent progress", progress: { ...partial, scored_episode_count: 28 }, episodesRun: 0,
-    expected: /Episode progress is unknown/, extra: /Review the run/ },
+    expected: /Episode progress is unknown/, extra: /Nothing is charged for it/ },
   { label: "confirmed zero", progress: zero, episodesRun: 0,
-    expected: /No episode was attempted/, extra: /Review the run/ },
+    expected: /No episode was attempted/, extra: /Nothing is charged for it/ },
 ];
 
 beforeEach(() => {
@@ -45,20 +45,19 @@ describe("durable no-result recovery", () => {
     notificationPending: true, notificationIntent: { kind: "no_result" }, executionProgress: partial,
   });
 
-  it("retains recovery until both audiences have their durable notice", async () => {
+  it("retains recovery until the team has its durable notice, and never queues one for the site", async () => {
     seed();
     teamEmail.mockResolvedValueOnce(null);
     await reconcileAgentRunNotifications();
     expect(state.docs.get("evaluationRuns/run")?.notificationPending).toBe(true);
-    const siteNotice = structuredClone(state.docs.get("captureOutbox/site:run_no_result:run"));
-    expect(siteNotice).toMatchObject({ kind: "run_no_result" });
     expect(state.docs.has("captureOutbox/team:team:no_result:run")).toBe(false);
     // The durable scan wraps its cursor before revisiting a pending row.
     await reconcileAgentRunNotifications();
     await reconcileAgentRunNotifications();
     expect(state.docs.get("evaluationRuns/run")?.notificationPending).toBe(false);
-    expect(state.docs.get("captureOutbox/site:run_no_result:run")).toEqual(siteNotice);
     expect(state.docs.get("captureOutbox/team:team:no_result:run")).toMatchObject({ kind: "team_run_no_result" });
+    // A team's run left the site's journey (2026-11-12): no site row.
+    expect([...state.docs.keys()].filter(key => key.startsWith("captureOutbox/site:"))).toEqual([]);
     expect(sender).not.toHaveBeenCalled();
   });
 
@@ -84,7 +83,7 @@ describe("durable no-result recovery", () => {
 });
 
 describe.each(["immediate", "recovered"])("%s no-result notifications", delivery => {
-  it.each(cases)("preserves $label for both audiences and on retry", async ({ progress, episodesRun, expected, extra }) => {
+  it.each(cases)("preserves $label for the team and on retry", async ({ progress, episodesRun, expected, extra }) => {
     const run = { runId: "run", sceneId: "site", teamId: "team", evaluationPurpose: "pilot",
       state: delivery === "immediate" ? "requested" : "blocked", episodesRun,
       requestedAtIso: new Date().toISOString(), moneyResolved: false,
@@ -99,8 +98,8 @@ describe.each(["immediate", "recovered"])("%s no-result notifications", delivery
     await reconcileAgentRunNotifications();
     await reconcileAgentRunNotifications();
     const notices = [...state.docs.entries()].filter(([key]) => key.startsWith("captureOutbox/")).map(([, row]) => row);
-    expect(notices).toHaveLength(2);
-    expect(notices.map(row => row.to).sort()).toEqual(["site@example.test", "team@example.test"]);
+    expect(notices).toHaveLength(1);
+    expect(notices.map(row => row.to)).toEqual(["team@example.test"]);
     for (const notice of notices) {
       expect(notice.body).toMatch(/ended without a complete scored result/);
       expect(notice.body).toMatch(expected);

@@ -3,13 +3,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { sharedFakeFirestore as store, sharedFakeFirestoreState as state } from "./helpers/fake-firestore";
 import { listedTaskCard } from "./helpers/listedTaskCard";
 import { RECORDING_CONSENT_VERSION } from "../utils/recordingConsent";
-import { buildPolicyRunLicense } from "../utils/policyRunLicense";
 
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({ dbAdmin: store,
   default: { firestore: { FieldValue: { serverTimestamp: () => "server-time" } } } }));
 vi.mock("../logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() } }));
 const notice = vi.hoisted(() => vi.fn());
-vi.mock("../utils/taskLifecycleNotifications", () => ({ enqueueTaskLifecycleNotification: notice, notifyIfNoTeamPassed: vi.fn() }));
+vi.mock("../utils/taskLifecycleNotifications", () => ({ enqueueTaskLifecycleNotification: notice }));
 const { markRunStarted, heartbeatRun } = await import("../utils/agentEvalRuns");
 const claim = { runId: "run", pipelineRunId: "worker", executionAdmissionDigest: `sha256:${"a".repeat(64)}` };
 const source = () => state.docs.get("inboundRequests/application") as Record<string, any>;
@@ -18,8 +17,10 @@ const job = () => state.docs.get("inboundRequests/scene") as Record<string, any>
 
 beforeEach(() => {
   state.docs.clear(); notice.mockReset(); notice.mockResolvedValue({ enqueued: true });
-  const license = buildPolicyRunLicense({ ownerUid: "owner", requestId: "application", opportunityId: "scene",
-    setupId: "setup", setup: { reference: "https://policy.example.test", version: "v1" } });
+  // The grant a team's evaluation request once recorded (`blueprint.policy_run_license.v1`), as stored on runs on record.
+  const license = { schemaVersion: "blueprint.policy_run_license.v1", grantedByUid: "owner", requestId: "application",
+    opportunityId: "scene", setupId: "setup", setupDigest: `sha256:${"d".repeat(64)}`,
+    grantedAtIso: new Date(Date.now() - 60_000).toISOString() };
   state.docs.set("inboundRequests/application", { account_owner_uid: "owner", workspace_evaluation: {
     opportunityId: "scene", setupId: "setup", policyRunLicense: structuredClone(license) } });
   state.docs.set("inboundRequests/scene", {

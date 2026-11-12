@@ -427,7 +427,7 @@ describe("a reported run settles for what it ran", () => {
     expect(balance.availableUsd).toBe(1_000);
   });
 
-  it("retries the deterministic site outbox intent on a repeated no-result receipt", async () => {
+  it("queues no site notice for a team's run that ended without a result (2026-11-12)", async () => {
     const { run } = await fundedTeamWithOneHold();
     const runs = collectionStore("evaluationRuns");
     runs.set(run.runId, { ...runs.get(run.runId), evaluationPurpose: "pilot" });
@@ -436,9 +436,7 @@ describe("a reported run settles for what it ran", () => {
     await reportRunOutcome({ runId: run.runId, state: "blocked", episodesRun: 0, note: "scene would not load" });
     await reportRunOutcome({ runId: run.runId, state: "blocked", episodesRun: 0, note: "scene would not load" });
 
-    expect(lifecycleNotice).toHaveBeenCalledTimes(2);
-    expect(lifecycleNotice).toHaveBeenCalledWith({ requestId: "scene-1", milestone: "run_no_result", eventId: run.runId,
-      runProgress: { episodesRun: 0, executionProgress: undefined } });
+    expect(lifecycleNotice).not.toHaveBeenCalled();
   });
 
   it("reports an outcome as due immediately rather than waiting for expiry", async () => {

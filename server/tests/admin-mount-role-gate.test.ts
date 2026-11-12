@@ -93,8 +93,9 @@ afterAll(async () => {
 describe("admin mounts in server/routes.ts", () => {
   it("finds the admin mounts", () => {
     // 14 since the capturer-application and field-ops mounts were deleted (2026-11-11);
-    // 13 since the company-metrics mount was deleted (2026-11-12).
-    expect(mounts.length).toBeGreaterThanOrEqual(13);
+    // 13 since the company-metrics mount was deleted (2026-11-12); 12 since the
+    // free-evaluation admission mount, which approved a team's run, was deleted (2026-11-12).
+    expect(mounts.length).toBeGreaterThanOrEqual(12);
     expect(mounts.map((mount) => mount.path)).toContain("/api/admin/sla");
   });
 

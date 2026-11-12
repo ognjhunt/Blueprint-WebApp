@@ -2,8 +2,8 @@
  * Where one site job stands in the beta loop, and what moves it next.
  *
  * The loop, in order: a site shows one job (intake, brief, capture, public
- * card); approved robot teams ask to evaluate it; Blueprint admits each free
- * evaluation; runs report; on a passing run, Blueprint works with a deployment
+ * card); runs on record report (a team's request to run its own software, and
+ * Blueprint's admission of it, were removed on 2026-11-12); on a passing run, Blueprint works with a deployment
  * company, and the site and the company agree any pilot directly. Since
  * 2026-10-26 Blueprint also runs the candidates itself: its scene preparation,
  * its screening and the screening's outcome come from the projection the job
@@ -43,10 +43,6 @@ type Step = Pick<JobStageResult, "stage" | "nextAction" | "actionOwner">;
 
 function plural(count: number, one: string, many = `${one}s`) {
   return `${count} ${count === 1 ? one : many}`;
-}
-
-function teamLabel(name: string | null | undefined) {
-  return name && name.trim() ? name.trim() : "the requesting team";
 }
 
 function step(stage: JobStage, nextAction: string, actionOwner: ActionOwner): Step {
@@ -209,18 +205,9 @@ export function deriveJobStage(facts: JobFacts): JobStageResult {
   // Evaluation loop.
   const { runs, evaluations } = facts;
   const active = runs.queued + runs.running;
-  if (evaluations.pendingAdmission > 0 && runs.passing > 0) {
-    attention.push(`${plural(evaluations.pendingAdmission, "evaluation request")} awaiting admission`);
-  }
   if (runs.passing > 0) {
     noteClosed();
     return result("passing_run", `Work with a deployment company on the passing result (${plural(runs.passing, "passing run")})`, "blueprint");
-  }
-  if (evaluations.pendingAdmission > 0) {
-    const first = evaluations.pending[0];
-    const more = evaluations.pendingAdmission > 1 ? ` (+${evaluations.pendingAdmission - 1} more)` : "";
-    noteClosed();
-    return result("admission", `Admit evaluation for ${teamLabel(first?.teamName)}${more}`, "blueprint");
   }
   if (active > 0) {
     const parts = [runs.running ? `${runs.running} running` : "", runs.queued ? `${runs.queued} queued` : ""]
@@ -235,7 +222,7 @@ export function deriveJobStage(facts: JobFacts): JobStageResult {
     // Another team can come in only while the job is open; otherwise the step is whatever closed it.
     return closed
       ? result("no_passing_run", `No passing evaluation yet (${detail}). ${closed.nextAction}`, closed.actionOwner)
-      : result("no_passing_run", `No passing evaluation yet (${detail}): invite or admit another team`, "blueprint");
+      : result("no_passing_run", `No passing evaluation yet (${detail}): send the job to another deployment company`, "blueprint");
   }
   if (evaluations.admitted > 0) {
     noteClosed();

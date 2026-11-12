@@ -1,12 +1,10 @@
 // @vitest-environment node
 /**
- * Audit B (2026-10-18): a site waiting on Blueprint or on a robot team is told
- * how long that stage usually takes, in the words the start form and /beta use
- * (`client/src/data/betaTimelines.ts`). The job page picks the line from its
- * status decision, so this follows one job through the real status route and
- * checks each decision it reaches maps to the right line, or to none for a step
- * that is the site's own. A renamed decision would otherwise drop the line from
- * the page without any test noticing.
+ * Audit B (2026-10-18): one job followed through the real status route, from
+ * the site's own steps to waiting on Blueprint and on a deployment company,
+ * checking the decision the job page reads at each stage. (The waiting-time
+ * lines the signed-in job page showed for these decisions went with that page
+ * on 2026-11-12.)
  *
  * Nothing here is a hand-built job record. The job starts from the real
  * `POST /api/inbound-request` handler with the exact body the public start form
@@ -17,8 +15,7 @@
  * saves the job through the real `POST /api/workspace/claim`; the Pipeline
  * reports the scene through the real, signed
  * `POST /api/internal/pipeline/attachments`. The private job page reads the real
- * `GET /api/site-task-brief/:token/status`, and the workspace job page the real
- * `GET /api/workspace/tasks/:taskId`.
+ * `GET /api/site-task-brief/:token/status`.
  *
  * Substituted: Firebase persistence, Cloud Storage and ID-token verification
  * (the site owner is a fixture principal), outbound email delivery, Slack,
@@ -30,12 +27,6 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import { sharedFakeFirestoreState as state } from "./helpers/fake-firestore";
 import { sharedUploadBucket } from "./helpers/fake-upload-bucket";
 import { siteCaptureStartSubmission } from "./helpers/siteCaptureStartSubmission";
-import {
-  EVALUATION_START_TIMELINE,
-  REPLY_TIMELINE,
-  SIMULATION_BUILD_TIMELINE,
-  waitingTimeline,
-} from "../../client/src/data/betaTimelines";
 
 // This route suite uses signature-only transport fixtures. The real local
 // media probe and a genuine no-metadata upload are covered separately.
@@ -230,35 +221,26 @@ async function pipelineSync(jobId: string, options: { runnable?: boolean } = {})
   expect(response.status, await response.clone().text()).toBe(200);
 }
 
-/** What the private job page reads, and the timeline line it shows for that status. */
+/** The decision the private job page reads for its status. */
 async function pageWait(token: string) {
   const response = await fetch(`${base}/api/site-task-brief/${token}/status`);
   expect(response.status, await response.clone().text()).toBe(200);
   const { status } = await response.json() as { status: { decision: string } };
-  return { decision: status.decision, wait: waitingTimeline(status.decision) };
+  return status.decision;
 }
 
-/** What the workspace job page reads once the job is saved, and the line it shows. */
-async function workspaceWait(jobId: string) {
-  const response = await fetch(`${base}/api/workspace/tasks/${encodeURIComponent(jobId)}`, {
-    headers: { "x-fixture-user": owner(jobId), "x-fixture-email": `${jobId}@example.test` } });
-  expect(response.status, await response.clone().text()).toBe(200);
-  const { readiness } = await response.json() as { readiness: { decision: string } | null };
-  return { decision: readiness?.decision ?? null, wait: waitingTimeline(readiness?.decision) };
-}
-
-describe("the job page says how long each waiting stage usually takes", () => {
-  it("adds no wait while the next step is the site's own", async () => {
+describe("the job page's status follows each waiting stage", () => {
+  it("asks for the site's own step while it is next", async () => {
     // The task box confirmed the brief at upload (2026-11-07): filming is next.
-    expect(await pageWait((await startJob()).token)).toEqual({ decision: "record", wait: null });
+    expect(await pageWait((await startJob()).token)).toEqual("record");
     // A submission without the box still asks for the site's one click.
     const { token } = await startJob({ withoutTaskConfirmation: true });
-    expect(await pageWait(token)).toEqual({ decision: "confirm_brief", wait: null });
+    expect(await pageWait(token)).toEqual("confirm_brief");
     await completeBriefReview();
-    expect(await pageWait(token)).toEqual({ decision: "confirm_brief", wait: null });
+    expect(await pageWait(token)).toEqual("confirm_brief");
     // The source is already bound: recording can proceed without account setup.
     await confirmBrief(token);
-    expect(await pageWait(token)).toEqual({ decision: "record", wait: null });
+    expect(await pageWait(token)).toEqual("record");
   });
 
   it("follows a saved job from its footage review to waiting for a robot team", async () => {
@@ -267,25 +249,21 @@ describe("the job page says how long each waiting stage usually takes", () => {
     await claim(jobId);
     await sendFootage(token);
     await confirmBrief(token);
-    // Footage is in and ours to review, on both job pages.
-    const reviewing = { decision: "footage_received", wait: REPLY_TIMELINE };
+    // Footage is in and ours to review.
+    const reviewing = "footage_received";
     expect(await pageWait(token)).toEqual(reviewing);
-    expect(await workspaceWait(jobId)).toEqual(reviewing);
 
     await footageCoversTheScene(jobId);
-    const building = { decision: "assessing", wait: SIMULATION_BUILD_TIMELINE };
+    const building = "assessing";
     expect(await pageWait(token)).toEqual(building);
-    expect(await workspaceWait(jobId)).toEqual(building);
 
     // The scene is rebuilt, but no run can start on it yet: still building.
     await pipelineSync(jobId, { runnable: false });
     expect(await pageWait(token)).toEqual(building);
-    expect(await workspaceWait(jobId)).toEqual(building);
 
     // Launchable and scoreable: robot teams can take it up, on no promised date.
     await pipelineSync(jobId);
-    const awaitingTeams = { decision: "awaiting_teams", wait: EVALUATION_START_TIMELINE };
+    const awaitingTeams = "awaiting_teams";
     expect(await pageWait(token)).toEqual(awaitingTeams);
-    expect(await workspaceWait(jobId)).toEqual(awaitingTeams);
   });
 });

@@ -30,25 +30,6 @@ const LIVE_OPPORTUNITY_STATES = new Set<OpportunityState>([
 
 type ArtifactJson = Record<string, unknown> | null;
 
-function buildAgentCommerceSummary(siteWorldId: string): NonNullable<SiteWorldCard["agentCommerce"]> {
-  const encodedSiteWorldId = encodeURIComponent(siteWorldId);
-  return {
-    packageSku: `site-world-package-${siteWorldId}`,
-    hostedSessionSku: `hosted-session-${siteWorldId}`,
-    quoteHref: `/api/agent-access/commerce/quote?siteWorldId=${encodedSiteWorldId}&product=hosted_session_rental`,
-    dryRunCheckoutHref: "/api/agent-access/commerce/dry-run-checkout",
-    entitlementReadinessHref: `/api/agent-access/commerce/entitlement-readiness?siteWorldId=${encodedSiteWorldId}`,
-    truthLabels: ["dry_run_order", "request_gated", "protected_robot_team"],
-  };
-}
-
-function withAgentCommerce(record: SiteWorldCard): SiteWorldCard {
-  return {
-    ...record,
-    agentCommerce: record.agentCommerce || buildAgentCommerceSummary(record.id),
-  };
-}
-
 function resolvePresentationWorldManifestUri(pipeline?: PipelineAttachment): string | null {
   const explicit = String(pipeline?.artifacts.presentation_world_manifest_uri || "").trim();
   if (explicit) {
@@ -1346,7 +1327,7 @@ export async function listPublicSiteWorlds(limit = 24): Promise<SiteWorldCard[]>
     }
   }
 
-  return Array.from(deduped.values()).slice(0, limit).map(withAgentCommerce);
+  return Array.from(deduped.values()).slice(0, limit);
 }
 
 export async function getPublicSiteWorldById(id: string): Promise<SiteWorldCard | null> {
@@ -1373,17 +1354,17 @@ export async function getPublicSiteWorldById(id: string): Promise<SiteWorldCard 
           )) as InboundRequest;
           const worldLabsPreview = await buildWorldLabsPreviewFromPipeline(decrypted.pipeline);
           if (worldLabsPreview) {
-            return withAgentCommerce({
+            return {
               ...liveOrStaticRecord,
               worldLabsPreview,
-            });
+            };
           }
         } catch {
-          return withAgentCommerce(liveOrStaticRecord);
+          return liveOrStaticRecord;
         }
       }
     }
-    return withAgentCommerce(liveOrStaticRecord);
+    return liveOrStaticRecord;
   }
 
   return null;

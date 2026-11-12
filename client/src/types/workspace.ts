@@ -1,49 +1,5 @@
 import type { UpdatePreferences } from "./updatePreferences";
-import type { SiteAdvisory } from "./siteAdvisory";
-import type { TaskOutcome } from "./taskOutcome";
-import type { RobotDescription } from "./robotDescription";
-import type { RobotEmbodiment } from "./robotEmbodiment";
-import type { PolicyAdapter } from "./policyAdapter";
-import type { SitePilotIntent, SiteVisitAnswer } from "@/data/sitePilotIntent";
 export type WorkspaceRole = "site_operator" | "robot_team";
-export type TaskTargets = {
-  successRate: number | null;
-  cycleTimeSeconds: number | null;
-};
-export type TaskTerms = TaskTargets & {
-  pilotBudgetUsd: number | null;
-  deploymentBudgetUsd: number | null;
-  targetDate: string | null;
-  successDefinition: string;
-};
-export type RobotSetup = {
-  robotDescription?: RobotDescription;
-  /** The team's own robot and cameras for evaluation; absent means the DROID Franka. */
-  robotEmbodiment?: RobotEmbodiment;
-  policyConfig?: PolicyAdapter;
-  executionBindingId?: string;
-  id: string;
-  name: string;
-  embodiment: string;
-  policyName: string;
-  version: string;
-  delivery: "checkpoint" | "container" | "endpoint";
-  reference: string;
-  notes: string;
-  updatedAt: string;
-};
-export type WorkspaceResult = {
-  id: string;
-  teamAlias: string;
-  status: string;
-  successRate: number | null;
-  cycleTimeSeconds: number | null;
-  sampleCount: number | null;
-  evidenceLabel: string;
-  targetsMet: boolean | null;
-  selected: boolean;
-  runId?: string | null;
-};
 /**
  * A development-only 3D preview made from the site's own recording (beta,
  * unscaled). Absent once recording consent is withdrawn. `statusText` is plain
@@ -63,93 +19,20 @@ export type AtlasPreviewView = {
   /** View-only, in the vendored SuperSplat viewer: a ready preview with a splat. */
   viewAvailable: boolean;
 };
+/** One row of the account's "Your jobs" list; the job page holds everything else. */
 export type WorkspaceTask = {
-  siteAdvisory?: SiteAdvisory | null;
-  recordingPermissionWithdrawn?: boolean;
-  recordingWithdrawalStatus?: string | null;
   id: string;
   title: string;
   siteName: string;
   location: string;
-  siteType: string;
-  status: string;
-  nextStep: string | null;
-  terms: TaskTerms;
-  pilotIntent?: SitePilotIntent | null;
-  visibility: "private" | "anonymized" | "approved_robot_teams";
-  published: boolean;
   archived: boolean;
-  /** The owner hid the task from robot teams (the listing control). */
-  paused?: boolean;
-  /** Filmed by the site itself, or by a Blueprint visit. */
-  captureMode?: "self_capture" | "site_visit" | null;
-  /** The task card in the robot-team library, as the owner approved it. */
-  listing?: { approved: boolean; live: boolean } | null;
-  /** The reconstructed scene can be opened from the task page. */
-  sceneReady?: boolean;
-  /** A real image of the task (scene preview or approved card); null falls back to an illustration. */
-  thumbnailUrl?: string | null;
-  /** The owner's development-only 3D preview of the recording, when one exists. */
-  atlasPreview?: AtlasPreviewView | null;
-  potentialMatches: number | null;
-  results: WorkspaceResult[];
-  pilot: {
-    state: string;
-    selectedResultId: string | null;
-    notes: string | null;
-    siteVisitAnswer?: SiteVisitAnswer | null;
-  };
-  /**
-   * Where the task stands on the assessment ladder, when it is a site task.
-   *
-   * Optional because this type is shared with the robot-team role, and because
-   * a task with no brief drafted has no readiness yet. Projected from the same
-   * `projectTaskStatus` the account-free page uses, so the two surfaces cannot
-   * disagree about one task.
-   */
-  readiness?: {
-    outcome?: TaskOutcome | null;
-    decision: string;
-    headline: string;
-    operatorAction: string | null;
-    missingViews: string[];
-    nextUpdateIso: string | null;
-    /** A corrected object selection replaced the job's earlier results (`projectTaskStatus`). */
-    resultSuperseded?: boolean;
-  } | null;
-  createdAt: string | null;
-};
-export type EpisodeOutcomeRow = {
-  cell_id: string;
-  family: string | null;
-  outcome: "success" | "failure" | "void";
-  reason: string;
-};
-export type WorkspaceEvaluation = WorkspaceResult & {
-  /** A Task Evaluation run record exists at `/app/runs/:runId`. A free evaluation has none. */
-  hasRunRecord?: boolean;
-  /** Null when the result counts toward a recommendation (its numbers aside); otherwise why it never can. */
-  notCountedReason?: string | null;
-  /** The 95% interval around the success rate, in percent, when episodes were scored. */
-  successRateInterval?: [number, number] | null;
-  /** The team's own run, one row per episode. */
-  episodeOutcomes?: EpisodeOutcomeRow[];
-  taskId: string | null;
-  title: string;
-  siteType: string;
-  location: string | null;
-  setupName: string | null;
-  terms: TaskTargets;
-  outcome: string | null;
-  archived: boolean;
+  recordingPermissionWithdrawn: boolean;
   createdAt: string | null;
 };
 export type WorkspaceSnapshot = {
   role: WorkspaceRole;
   profile: { name: string; organization: string; email: string; updatePreferences?: UpdatePreferences | null };
   tasks: WorkspaceTask[];
-  evaluations: WorkspaceEvaluation[];
-  setups: RobotSetup[];
 };
 
 export type WorkspaceAccountSetup = {
