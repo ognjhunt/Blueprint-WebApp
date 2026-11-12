@@ -1,121 +1,63 @@
 # AI Agent Onboarding Runbook
 
-Status: Active for Blueprint-WebApp agent onboarding.
-Owner: `blueprint-cto` with Chief of Staff and Notion Manager Agent.
-Audience: Codex, Claude, Hermes-backed Paperclip agents, Notion agents, and external coding agents operating in this repo.
-Review cadence: Monthly and after any agent source-of-truth failure.
+Audience: Codex, Claude and any other coding agent working in this repo.
 
 ## Mission
 
-An AI agent in `Blueprint-WebApp` exists to improve buyer, licensing, ops, hosted-access, and autonomous-org surfaces without weakening capture provenance, rights/privacy truth, hosted-session truth, or execution accountability.
+Help a site turn a video of one job into a job packet that approved deployment
+companies can evaluate without a visit, and show the site where its job stands
+and the responses. The frame is the shared block of `PLATFORM_CONTEXT.md`
+(owner direction 2026-11-12). Today a deployment company receives a summary of
+a job only; a site's video and simulation stay private until the owner sets a
+new permission.
 
-## Required Read Order
+## Read Order
 
 1. `AGENTS.md`
-2. `README.md`
-3. `PLATFORM_CONTEXT.md`
-4. `WORLD_MODEL_STRATEGY_CONTEXT.md`
-5. `AUTONOMOUS_ORG.md`
-6. `DEPLOYMENT.md`
-7. `docs/architecture/source-of-truth-map.md`
-8. `docs/architecture/command-safety-matrix.md`
-9. `docs/architecture/ai-onboarding-map.md`
-10. `docs/architecture/refactor-hotspots.md`
-11. relevant nested `AGENTS.md`
+2. `PLATFORM_CONTEXT.md`
+3. the nearest nested `AGENTS.md`
+4. `docs/architecture/command-safety-matrix.md` before any command with live side effects
+5. `docs/architecture/ai-onboarding-map.md` and `docs/architecture/source-of-truth-map.md` for orientation
+
+Do not use `docs/archive/` to decide what to build or how to word anything.
 
 ## Source-Of-Truth Rules
 
-- Repo files define doctrine, code contracts, policies, and implementation state.
-- Paperclip defines execution ownership, issue state, routines, blockers, and closeouts.
-- Notion is workspace/review/visibility.
-- Firebase/Firestore, Stripe, Render, Redis, GitHub, provider APIs, and app logs own their live domains.
-- Capture truth comes from raw capture/provenance/rights artifacts, not generated summaries.
+- Repo files define doctrine, code contracts, policies and implementation state.
+- Notion is workspace, review and visibility.
+- Firebase/Firestore, Stripe, Render, Redis, GitHub, provider APIs and app logs own their live domains.
+- Capture truth comes from the uploaded video and its provenance and rights records, not generated summaries.
 - Generated outputs are support artifacts only.
+- The Paperclip org is retired (`AUTONOMOUS_ORG.md`). No Paperclip role approves anything.
 
 ## Safe Start
-
-Every implementation run starts with:
 
 ```bash
 git status --short
 ```
 
-Then inspect relevant untracked or dirty files before editing. Preserve unrelated user work.
+Inspect untracked or dirty files before editing. Preserve unrelated work.
 
-## Command Safety
-
-Read `docs/architecture/command-safety-matrix.md` before running anything with live or external side effects.
-
-Safe defaults:
-
-```bash
-npm run check
-scripts/paperclip/validate-agent-kits.sh
-```
-
-Run the onboarding unfinished-marker scan from the validation packet before claiming the docs set is clean.
-
-Do not run live sends, production deploys, Render env imports, provider writes, payment mutations, payroll operations, or broad Paperclip repair scripts unless the task explicitly authorizes that side effect.
+Do not run live sends, production deploys, Render env imports, provider writes,
+payment mutations or Paperclip repair scripts unless the task explicitly
+authorizes that side effect. Ask the owner first before sending email to
+outside people, charging money or deleting retained data.
 
 ## Notion Rules
 
-Use supported Notion connector/API paths. Do not scrape Notion HTML, private Notion APIs, or browser cookies.
+Use supported Notion connector/API paths. Do not scrape Notion HTML, private
+Notion APIs or browser cookies. Fetch before updating, preserve child pages and
+databases, and mark missing figures as source-needed, never invented.
 
-When editing Notion:
+## Words
 
-- fetch before updating;
-- preserve child pages and databases;
-- avoid broad moves/deletes without proven replacement identity;
-- mark live KPI gaps as source-needed, not invented values;
-- mirror repo docs into Notion for human readability, but keep repo/Paperclip as execution truth.
-
-## Paperclip Rules
-
-For autonomous closeout claims, use `docs/autonomous-loop-evidence-checklist-2026-05-03.md`.
-
-Closeouts must include:
-
-- work performed;
-- evidence path;
-- verification command/result;
-- remaining gaps or blockers;
-- owner for follow-up;
-- source-of-truth system.
-
-## Product Language Rules
-
-Use Blueprint-native framing:
-
-- capture-first;
-- real-site robot-evaluation/data-package first;
-- Task Evaluation Run artifacts and qualifying evidence artifacts, including explicit permitted-use metadata;
-- hosted access;
-- rights/privacy/provenance truth;
-- qualification/readiness as optional support layers.
-
-Do not reframe the company as qualification-first, model-checkpoint-first, generic marketplace-first, or readiness-report-first.
-
-## High-Risk Files
-
-From `docs/architecture/refactor-hotspots.md`, treat these as high-risk:
-
-- `ops/paperclip/plugins/blueprint-automation/src/worker.ts`
-- `server/utils/cityLaunchExecutionHarness.ts`
-- `server/routes/site-world-sessions.ts`
-- `client/src/pages/AdminLeads.tsx`
-- `client/src/pages/app/Runs.tsx`
-- `client/src/pages/app/RunDetail.tsx`
-- `server/agents/runtime.ts`
-- `server/routes/admin-leads.ts`
-
-Use targeted tests and pure extraction slices before moving side-effecting logic.
+"Deployment company" (not vendor, integrator or OEM), "job packet", "first
+look", "simulation of your site", "early trial", "responses". Say only what is
+true today: V1 is by hand, no price is stated, no deployment company is named,
+nothing promises a response.
 
 ## Done Definition
 
-An agent is done only when:
-
-- the requested artifact/change exists;
-- source-of-truth boundaries are preserved;
-- validation ran or the reason it could not run is explicit;
-- Notion/Paperclip mirrors do not overstate live truth;
-- remaining legal, HR, security, rights, or live-source gaps are explicit.
+An agent is done only when the requested change exists, validation ran (or the
+reason it could not is stated), and remaining privacy, rights or money gaps are
+explicit.

@@ -1,5 +1,7 @@
 # Blueprint communications agent
 
+> **Frame, 2026-11-12.** The customer is the deployment company; sites pay nothing; no price is stated. Every approach to an outside company needs the owner's go-ahead first; do not send without it. Today a deployment company receives a summary of a job only. Current frame: the shared block of PLATFORM_CONTEXT.md.
+
 This portable Agents API consumer drafts first-touch outreach and answers real,
 correlated replies on Blueprint infrastructure. Research remains a separate role.
 It saves drafts in the existing `action_ledger` and `outboundProspects` records;

@@ -1,3 +1,5 @@
+> **Superseded 2026-11-12.** This describes a frame the owner replaced. Current frame: the shared block of PLATFORM_CONTEXT.md.
+
 # Site readiness report: an expert's first read of a site's job
 
 Status: approved by the founder on 2026-10-20 ("do all of these and implement

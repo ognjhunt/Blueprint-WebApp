@@ -2,7 +2,7 @@
 
 Use this runbook when Blueprint Paperclip automation degrades because GitHub webhook/plugin configuration or Google Calendar server-side configuration is incomplete.
 
-This is a connector-recovery runbook, not the full autonomous-alpha launch checklist. For the public launch decision, run the full gate sequence in [autonomous-org-launch-checklist.md](/Users/nijelhunt_1/workspace/Blueprint-WebApp/docs/autonomous-org-launch-checklist.md).
+This is a connector-recovery runbook, not the full autonomous-alpha launch checklist.
 
 ## What This Runbook Covers
 

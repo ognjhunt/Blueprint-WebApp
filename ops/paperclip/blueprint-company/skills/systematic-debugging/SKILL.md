@@ -1,27 +1,8 @@
 ---
 name: systematic-debugging
-description: Adapted from obra/superpowers. Use for bugs, regressions, failing checks, and unexpected behavior. Root cause first, fixes second.
+description: Retired 2026-11-12. Do not use.
 ---
 
-# Systematic Debugging
+# systematic-debugging (retired)
 
-No fixes without root cause.
-
-## Process
-
-1. Reproduce the issue with a real command, route, or user flow.
-2. Narrow the failure boundary:
-   - input
-   - subsystem
-   - repo
-   - recent change
-3. Gather concrete evidence from logs, tests, diffs, and runtime behavior.
-4. State the most likely root cause before editing code.
-5. Apply the smallest fix that addresses that cause.
-6. Re-run the reproduction path and one adjacent regression check.
-
-## Guardrails
-
-- Do not stack speculative fixes.
-- Do not claim success from code inspection alone.
-- If the issue is not reproducible yet, keep investigating instead of patching blindly.
+This skill is retired as of 2026-11-12. Do nothing with it: start no work, send nothing, change nothing. Blueprint's current frame is the shared block of PLATFORM_CONTEXT.md at the repository root. The old text is in `docs/archive/2026-11-12-pre-packet/ops/paperclip/blueprint-company/skills/systematic-debugging/`.

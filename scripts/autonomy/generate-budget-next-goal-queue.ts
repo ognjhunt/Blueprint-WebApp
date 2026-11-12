@@ -176,7 +176,7 @@ function queue(): NextGoal[] {
       success_criteria: [
         "Public Launch Ready copy remains polished and conversion-oriented.",
         "Unsupported operational claims are blocked or scoped precisely.",
-        "Buyer route findings are tied back to capture-first, real-site evaluation and policy-improvement doctrine.",
+        "Route findings are tied back to the 2026-11-12 frame in the shared block of PLATFORM_CONTEXT.md (the job packet).",
       ],
       blocked_claims: [
         "No customer, payment, rights, hosted-session fulfillment, or Operational Launch Ready claim.",

@@ -3,28 +3,26 @@ schema: agentcompanies/v1
 kind: company
 slug: blueprint-autonomous-operations
 name: Blueprint Autonomous Operations
-description: Multi-repo autonomous company package for Blueprint's webapp, capture pipeline, and capture clients.
+description: Retired 2026-11-12. Every role does nothing and every routine is paused.
 version: 1.0.0
 license: MIT
 authors:
   - name: Blueprint
 goals:
-  - Strengthen Blueprint's capture-first, real-site robot-evaluation and policy-improvement platform across the webapp, capture pipeline, and capture clients.
+  - None. This organisation is retired as of 2026-11-12; start no work.
 ---
 
-Blueprint Autonomous Operations exists to coordinate Codex, Claude, and Hermes-backed agents across the three Blueprint repos without manual session babysitting.
+This organisation is retired as of 2026-11-12. Every role's instruction files
+say "do nothing" and every routine is paused. No role approves anything; the
+founder does.
 
-Operating priorities:
+What Blueprint does now (the shared block of `PLATFORM_CONTEXT.md` is the
+source): a site films a job once; Blueprint turns it into a job packet that any
+robot deployment company can evaluate without visiting, sends it to deployment
+companies it has approved, and tells the site who will take the job and on what
+evidence. Today a deployment company receives a summary of a job only; a site's
+video and simulation stay private until the owner sets a new permission. The
+only hard stops are privacy, rights and money.
 
-1. Strengthen real-site capture supply and quality.
-2. Improve site-specific world-model packages and hosted-session delivery.
-3. Protect rights, privacy, provenance, and truthful product contracts.
-4. Improve buyer, operator, and internal ops surfaces that make the outputs easy to use.
-5. Keep model backends replaceable.
-
-Non-goals:
-
-- turning Blueprint into a qualification-first company
-- coupling the platform to one model provider
-- presenting generated downstream artifacts as primary truth
-- letting agent-specific defaults silently introduce new primary services or fork source-of-truth systems
+The old company description is in
+`docs/archive/2026-11-12-pre-packet/ops/paperclip/blueprint-company/COMPANY.md`.

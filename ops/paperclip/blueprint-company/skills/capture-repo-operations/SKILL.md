@@ -1,34 +1,8 @@
 ---
 name: capture-repo-operations
-description: Operating guidance and validation commands for the BlueprintCapture repo.
+description: Retired 2026-11-12. Do not use.
 ---
 
-# Capture Repo Operations
+# capture-repo-operations (retired)
 
-Primary repo:
-
-- `/Users/nijelhunt_1/workspace/BlueprintCapture`
-
-Read first:
-
-- `/Users/nijelhunt_1/workspace/BlueprintCapture/AGENTS.md`
-- `/Users/nijelhunt_1/workspace/BlueprintCapture/CLAUDE.md`
-- `/Users/nijelhunt_1/workspace/BlueprintCapture/PLATFORM_CONTEXT.md`
-- `/Users/nijelhunt_1/workspace/BlueprintCapture/WORLD_MODEL_STRATEGY_CONTEXT.md`
-
-Useful commands:
-
-```bash
-xcodebuild -project BlueprintCapture.xcodeproj -scheme BlueprintCapture -derivedDataPath build/DerivedData
-cd cloud/extract-frames && npm test
-./scripts/archive_external_alpha.sh --validate-config-only
-./scripts/android_alpha_readiness.sh --validate-config-only
-```
-
-Focus areas:
-
-- truthful capture flow
-- bundle correctness
-- upload reliability
-- bridge compatibility
-- rollout and release validation
+This skill is retired as of 2026-11-12. Do nothing with it: start no work, send nothing, change nothing. Blueprint's current frame is the shared block of PLATFORM_CONTEXT.md at the repository root. The old text is in `docs/archive/2026-11-12-pre-packet/ops/paperclip/blueprint-company/skills/capture-repo-operations/`.

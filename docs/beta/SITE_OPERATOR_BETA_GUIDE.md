@@ -7,49 +7,30 @@ You do not need an account, a budget or a chosen robot.
 ## What happens
 
 1. **Email and video.** Send a .mov or .mp4 of one full cycle of the job and
-   the work area around it. Upload existing footage, or record it with our
-   guidance. Keep the private job link that the form returns. We also email it
-   to you.
-2. **Brief.** Blueprint drafts the job brief from your video. Open your private
-   job link, read the brief and correct what matters. "I don't know" is an
-   acceptable answer.
-3. **Simulation.** Blueprint builds a simulation of your site. It runs the
-   candidate robot policies on your job in that simulation. You do not need to
-   do anything in this step.
-4. **Result.** Your job page shows one plain sentence for the outcome. We email
-   you once when your job reaches a result.
+   the work area around it. Keep the private job link that the form returns.
+   We also email it to you.
+2. **Job packet.** Blueprint turns your video into a job packet: your sentence
+   for the job, a first look on paper at which robots could fit, a simulation
+   of your site, and what counts as done. Sometimes we also run an early trial
+   of openly available robot software in the simulation. It is our own trial,
+   not a prediction of any deployment company's robot.
+3. **Deployment companies.** With your permission, Blueprint shares a summary
+   of your job with deployment companies it has approved by hand. Your job page
+   says where the job stands: not yet sent, sent and waiting, or the responses
+   given. We can't promise any company will respond or say yes.
 
 Blueprint does not refuse a job because of its task kind. If information is
-missing, we tell you what is missing. We only ask for measurements or other
-details when they change the simulation.
+missing, we tell you what is missing.
 
-## What the result means
+A simulation is not a measurement of your real site. It never certifies
+physical performance or safety. Any work is agreed between you and the
+deployment company. Blueprint charges sites nothing.
 
-Your job page shows one of these sentences:
+## What a deployment company sees
 
-| Sentence on your job page | What it means |
-|---|---|
-| "Your simulation estimate is ready. It is an estimate from a simulation of your site, not a certified result." | Blueprint ran candidates on your job. The page shows how many ran and how many episodes were scored. |
-| "Held: we can't simulate this kind of job yet. It counts as demand for what we build next." | Blueprint accepted the job but cannot simulate it yet. |
-| "Held: the robots that could do this job aren't set up in our simulator yet. It counts as demand for what we build next." | The robots that fit the job are not in the simulator yet. |
-| "Held: from the robot position planned in the scene built from your video, none of the robots we can simulate could reach this task." | Reach was measured in the scene, and no robot could reach the task. |
-| "No match: none of the robots we can simulate matched this job. ..." | No robot matched. At least one was measured out of reach. |
-| "No estimate yet: only scripted reference baselines were scored, ..." | No learned policy could run on your job yet. |
-| "Simulation evaluation in progress. ..." | Blueprint is still at work. Nothing is needed from you. |
-
-A simulation estimate is not a measurement of your real site. It never
-certifies physical performance or safety.
-
-After the result, Blueprint works alongside a deployment company on your real
-site. The deployment company quotes the on-site work, the equipment and the
-support. You approve those costs and agree the contract with the deployment
-company directly. Blueprint charges nothing during the beta and takes no cut.
-
-## Your job card
-
-Approved robot teams see an anonymized summary of your job. Your video, your
-address and your contacts stay private. You can edit or hide the card from your
-job page.
+A summary of your job, without your name or address. Your video, your address
+and your contacts stay private. You can edit or hide the summary from your job
+page.
 
 ## Footage and permission
 
@@ -74,12 +55,12 @@ What Blueprint does with your video:
   Do not put credentials or sensitive footage in a support email. Keep your
   original file until your job page confirms receipt.
 
-The private job link gives control of the job. Keep it private. Approval of
-your job card does not make your footage public.
+The private job link gives control of the job. Keep it private. Sharing your
+job summary does not make your footage public.
 
 To withdraw recording permission, open your private job link and choose
 **Withdraw recording permission**, then confirm. New uploads are refused, the
-job pauses, queued evaluations are asked to cancel, and approved partners can
+job pauses, queued evaluations are asked to cancel, and approved deployment companies can
 no longer see the job.
 
 Withdrawal is not deletion. A copy of the recording and any results already

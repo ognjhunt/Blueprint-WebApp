@@ -7,7 +7,7 @@ Review cadence: After each hire and quarterly.
 
 ## Welcome
 
-Blueprint builds the buyer, licensing, ops, and evidence-access system for real-site Task Evaluation Runs. The company is capture-first and real-site-task first: real-site capture evidence, rights/privacy/provenance controls, maintained testbeds, Task Evaluation Runs, bounded decisions or abstentions, and buyer workflows are the core. Post-training is only a permitted use of qualifying evidence.
+A site films one job once. Blueprint turns the video into a job packet that robot deployment companies can evaluate without visiting, sends it to deployment companies Blueprint has approved, and tells the site who will take the job and on what evidence. Sites pay nothing; no price is stated. The full frame is the shared block of `PLATFORM_CONTEXT.md` (owner direction 2026-11-12).
 
 Your first job is to understand where truth lives before changing anything.
 
@@ -18,22 +18,18 @@ Read in order:
 1. `README.md`
 2. `AGENTS.md`
 3. `PLATFORM_CONTEXT.md`
-4. `WORLD_MODEL_STRATEGY_CONTEXT.md`
-5. `AUTONOMOUS_ORG.md`
-6. `docs/architecture/source-of-truth-map.md`
-7. `docs/architecture/command-safety-matrix.md`
-8. this document
-9. your role scorecard in `docs/onboarding/role-scorecards-and-30-60-90.md`
-10. the relevant policy docs in `docs/company/`
+4. `docs/architecture/source-of-truth-map.md`
+5. `docs/architecture/command-safety-matrix.md`
+6. this document
+7. the relevant policy docs in `docs/company/`
 
 ## First-Day Goals
 
 By the end of day one, you should know:
 
-- what Blueprint sells and what it does not claim;
-- the difference between capture truth, package artifacts, readiness outputs, and generated support material;
+- what Blueprint does and what it does not claim;
+- the difference between the site's video, the job packet, the early trial and generated support material;
 - which repo owns which part of the system;
-- why Paperclip is execution truth;
 - why Notion is the workspace/review/visibility surface;
 - which systems you can access and which require approval;
 - who your manager is and what your first-week outcome is.
@@ -69,13 +65,9 @@ Do not:
 
 Use repo files for doctrine, code, contracts, policy drafts, and implementation evidence.
 
-### Paperclip
-
-Use Paperclip for execution ownership, blockers, delegated runs, closeout evidence, and routine state.
-
 ### Notion
 
-Use Notion for onboarding workspace, review, dashboards, and human-readable visibility. Notion should link back to repo/Paperclip evidence.
+Use Notion for onboarding workspace, review, dashboards, and human-readable visibility. Notion should link back to repo evidence.
 
 ### Slack/Email
 
@@ -100,13 +92,12 @@ Manager should schedule:
 - founder/CEO context session when practical;
 - product doctrine walkthrough;
 - security/access walkthrough;
-- Paperclip/Notion source-of-truth walkthrough;
+- Notion source-of-truth walkthrough;
 - role-specific buddy or reviewer.
 
 ## Evidence Paths
 
 - New-hire paperwork: HR/PEO/payroll systems.
-- Role plan: `docs/onboarding/role-scorecards-and-30-60-90.md`.
 - Manager checklist: `docs/onboarding/manager-onboarding-checklist.md`.
 - Policy packet: `docs/company/`.
-- Work execution: Paperclip and repo/app evidence.
+- Work execution: repo/app evidence.

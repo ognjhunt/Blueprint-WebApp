@@ -1,115 +1,53 @@
 # Product Marketing Context
 
-> **Capture, 2026-11-11.** No capture app is in use, and nobody else films for a
-> site: no outside capturers, Blueprint filming visits, capturer marketplace or
-> capturer payouts. A person who works at the site films the job on their own
-> phone and uploads it in the browser. Where this document describes the
-> `BlueprintCapture` app, capturers, visits or payouts, that is history. See
-> "How Capture Works" in `PLATFORM_CONTEXT.md`.
+*Updated 2026-11-12. The frame is the shared block of `PLATFORM_CONTEXT.md`;
+where this file and that block differ, the block is right.*
 
-*Last updated: 2026-05-15*
+## Product
 
-## Product Overview
-**One-liner:** Blueprint turns real-site captures into site-specific world-model packages, hosted sessions, and rights-safe delivery workflows for robot teams.
-**What it does:** Blueprint captures indoor sites, preserves provenance and rights metadata, packages those captures into exact-site world-model products, and exposes them through buyer, licensing, and hosted-session surfaces. The web product supports buyer discovery, request intake, commercial follow-up, and operator-facing access/commercialization workflows when that extra lane is useful.
-**Product category:** Site-specific world-model platform; exact-site robotics evaluation and delivery platform.
-**Product type:** Two-sided marketplace plus B2B software and services.
-**Business model:** Paid world-model packages, hosted access, data and licensing packages, and managed follow-on support. Pricing is not yet codified in this repo and should not be invented in copy.
+**One-liner:** A site films a job once. Blueprint turns it into a job packet
+that any robot deployment company can evaluate without visiting, sends it to
+deployment companies it has approved, and tells the site who will take the job
+and on what evidence.
 
-## Target Audience
-**Target companies:** Robotics, autonomy, simulation, and deployment teams working on real indoor environments. Secondary audience: site operators who need access, rights, privacy, or commercialization coordination.
-**Decision-makers:** Robotics founders, deployment leads, autonomy leads, simulation/data leads, technical program managers, and operations leaders tied to site rollouts.
-**Primary use case:** A robot team needs a truthful, exact-site package or hosted session before spending more time on-site, commissioning new capture work, or pushing a deployment forward.
-**Jobs to be done:**
-- Turn a real facility into an exact-site world-model product a robot team can review and use.
-- Package site-grounded evidence, provenance, and rights metadata into a buyer-usable commercial workflow.
-- Support access, privacy, and commercialization handoffs when a site operator must be involved.
-**Use cases:**
-- Hosted exact-site evaluation before deeper deployment work.
-- Site-specific package delivery for simulation, review, or data-licensing needs.
-- Buyer request intake for new capture, deeper evaluation, or managed follow-on work.
+**Our edge:** the site side: real jobs arriving as videos. The simulation of the
+site is how a job becomes testable without a visit; it is a means, not the
+product.
 
-## Personas
-| Persona | Cares about | Challenge | Value we promise |
-|---------|-------------|-----------|------------------|
-| Robot-team champion | Technical truth, speed, exact-site usefulness | Generic demos and abstract benchmarks do not answer whether a real site is workable | Site-specific packages and hosted sessions grounded in real capture |
-| Robot-team decision maker | Commercial confidence, delivery clarity, operational friction | Hard to justify spend without proof tied to a real site and workflow | A buyer surface that makes capture-backed outputs legible and purchasable |
-| Site operator | Access control, privacy, rights, commercialization clarity | Robotics interest can create governance and permissions risk | Optional operator workflows that clarify gates without pretending operator approval is always required |
-| Capturer | Real work, trustworthy workflow, clear activation path | Supply marketplaces often overpromise and under-support quality | A capture-first workflow tied to real downstream buyer demand and quality expectations |
+**The job packet:** the site's own sentence for the job and its constraints; the
+video with the site's rights recorded; the first look on paper (which kinds of
+robot most likely fit, from published specifications and a cited track
+record); the simulation of the site with the job's object in it; the success
+rule; and, where one exists, the result of our early trial of openly available
+robot software. The early trial is not the site's answer and does not predict a
+deployment company's robot.
 
-## Problems & Pain Points
-**Core problem:** Robot teams need site-specific world-model products tied to real facilities, but most options are generic, under-proven, or disconnected from rights-safe capture provenance.
-**Why alternatives fall short:**
-- Generic simulation or benchmark products are not exact-site.
-- Capture tools alone do not solve packaging, hosted access, or buyer workflow.
-- Qualification-heavy motions can stall useful work before truthful exact-site evidence is available.
-**What it costs them:** Slower deployments, wasted on-site cycles, weaker internal buy-in, and fragile commercialization workflows.
-**Emotional tension:** Buyers do not want to bet on synthetic certainty; operators do not want unclear access or privacy risk; capturers do not want low-signal marketplace volume.
+**Today:** a deployment company receives a summary of a job only. A site's
+video and simulation stay private until the owner sets a new permission.
 
-## Competitive Landscape
-**Direct:** Matterport, Polycam, Luma AI-style capture products, and emerging capture-to-digital-twin offerings — they capture space, but they do not clearly own the exact-site world-model buyer workflow for robot teams.
-**Secondary:** Omniverse / Isaac-style simulation stacks, world-model providers, and bespoke enterprise evaluation shops — they solve adjacent technical problems but usually start after site-grounded evidence already exists.
-**Indirect:** Internal ops teams, manual site surveys, and one-off consulting workflows — they can move a project forward, but they do not scale into a reusable exact-site product motion.
+## Who it is for
 
-## Differentiation
-**Key differentiators:**
-- Capture-first, world-model-product-first posture
-- Rights-safe and provenance-safe packaging
-- Site-specific packages and hosted sessions instead of generic benchmarks
-- Stable buyer and ops workflows that survive backend model swaps
-**How we do it differently:** Blueprint treats capture, provenance, packaging, licensing, and hosted access as one commercial product system rather than as disconnected capture, model, and review tools.
-**Why that's better:** The buyer gets a truthful exact-site artifact they can evaluate now, while Blueprint stays flexible about model backends later.
-**Why customers choose us:** We anchor the product in real-site evidence, not generic simulation claims or qualification theater.
+| Party | Role | What they get | Pays? |
+|---|---|---|---|
+| Site | The user | One video in; a first look, a simulation of their site, and the responses of deployment companies. | No. Free. |
+| Deployment company | The customer | Qualified jobs they would not otherwise see, in one format. | Not decided. No price is stated anywhere. |
 
-## Objections
-| Objection | Response |
-|-----------|----------|
-| "Do you already cover my exact site?" | Blueprint can support existing site packages or start from a capture request; the truth should stay tied to actual coverage, not promise generic readiness. |
-| "Is this just another qualification layer?" | Qualification is a support layer. The primary value is site-specific world-model packages and hosted access grounded in real capture. |
-| "Can you guarantee commercialization or permissions?" | No. Operator, privacy, rights, and contract decisions remain human-gated and explicit. |
+## V1
 
-**Anti-persona:** Teams looking for purely synthetic demos, generalized benchmark marketing, or guaranteed site/operator outcomes without real capture, rights review, and delivery constraints.
+By hand: Blueprint carries each packet to five to ten deployment companies and
+collects their responses. Every approach to an outside company needs the
+owner's go-ahead first. No deployment company is named in public copy.
 
-## Switching Dynamics
-**Push:** Current options are generic, hard to trust, and disconnected from the exact site.
-**Pull:** Blueprint offers a site-grounded package and hosted workflow tied to real capture provenance.
-**Habit:** Teams default to internal surveys, ad hoc data wrangling, or existing simulation tooling even when it is too generic.
-**Anxiety:** Buyers worry the product will overclaim readiness; operators worry about privacy, rights, and governance; capturers worry about low-quality demand.
+## Rules for copy
 
-## Customer Language
-**How they describe the problem:**
-- "We need to know if this exact site is workable before we waste more time."
-- "A generic demo does not tell us what happens in our facility."
-- "We need something we can review with the team without reopening discovery from scratch."
-**How they describe us:**
-- No reliable verbatim customer phrasing is captured in this repo yet.
-**Words to use:** exact-site, site-specific, hosted session, world-model package, provenance, rights-safe, real capture, buyer workflow.
-**Words to avoid:** marketplace-first, qualification-first, guaranteed readiness, ground truth for generated outputs, universal operator approval.
-**Glossary:**
-| Term | Meaning |
-|------|---------|
-| Exact-site product | A package or hosted workflow tied to a real captured facility |
-| Hosted session | A buyer-usable session for reviewing or working with a site-specific package |
-| Provenance | Timestamps, poses, device metadata, and rights/privacy context that anchor capture truth |
+- Don't make things up. Every sentence is true on the day it ships.
+- No price, no promise of a response, no named customer or company.
+- Never say or imply that a company sees a site's video or simulation.
+- Do not call a packet or a trial "proof"; a simulation never certifies
+  physical performance or safety.
 
-## Brand Voice
-**Tone:** Technical, direct, truthful, commercially serious.
-**Style:** Clear over clever; grounded in evidence and operational reality.
-**Personality:** Exact, pragmatic, trustworthy, restrained, site-grounded.
+## Words
 
-## Proof Points
-**Metrics:** No externally safe proof metrics are confirmed in this repo yet.
-**Customers:** No customer logo set should be assumed from this repo.
-**Testimonials:**
-> No approved testimonial language captured yet.
-**Value themes:**
-| Theme | Proof |
-|-------|-------|
-| Exact-site truth | Platform doctrine and product flows center real capture, provenance, and hosted delivery |
-| Replaceable model backend | Strategy context explicitly treats model providers as swappable |
-| Rights-safe commercialization | Operator, privacy, and licensing gates are explicit in the web and ops surfaces |
-
-## Goals
-**Business goal:** Turn real capture coverage into qualified buyer demand, packaged world-model revenue, and durable two-sided marketplace momentum.
-**Conversion action:** High-intent robot-team or site-specific request submission that can progress into hosted evaluation, package delivery, or capture work.
-**Current metrics:** PostHog and GA exist, but the repo does not yet show complete step-level instrumentation for the main signup and request funnels.
+"Deployment company" (not vendor, integrator or OEM), "job packet", "first
+look", "simulation of your site", "early trial", "responses". Say **job** to
+customers.

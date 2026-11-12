@@ -1,54 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-WORKSPACE_ROOT="/Users/nijelhunt_1/workspace/Blueprint-WebApp"
+WORKSPACE_ROOT="${BLUEPRINT_WEBAPP_ROOT:-/Users/nijelhunt_1/workspace/Blueprint-WebApp}"
 AGENTS_ROOT="${WORKSPACE_ROOT}/ops/paperclip/blueprint-company/agents"
 
-STRICT_SECTION_AGENTS=(
-  "blueprint-ceo"
-  "blueprint-chief-of-staff"
-  "blueprint-cto"
-  "ops-lead"
-  "growth-lead"
-  "notion-manager-agent"
-  "notion-reconciler"
-  "investor-relations-agent"
-  "community-updates-agent"
-  "workspace-digest-publisher"
-  "metrics-reporter"
-  "buyer-solutions-agent"
-  "buyer-success-agent"
-  "intake-agent"
-  "site-catalog-agent"
-  "market-intel-agent"
-  "supply-intel-agent"
-  "capturer-growth-agent"
-  "city-launch-agent"
-  "demand-intel-agent"
-  "robot-team-growth-agent"
-  "city-demand-agent"
-  "site-operator-partnership-agent"
-  "solutions-engineering-agent"
-  "security-procurement-agent"
-  "revenue-ops-pricing-agent"
-  "analytics-agent"
-  "beta-launch-commander"
-  "capture-qa-agent"
-  "capturer-success-agent"
-  "conversion-agent"
-  "docs-agent"
-  "field-ops-agent"
-  "finance-support-agent"
-  "outbound-sales-agent"
-  "public-space-review-agent"
-  "rights-provenance-agent"
-  "webapp-codex"
-  "webapp-review"
-  "pipeline-codex"
-  "pipeline-review"
-  "capture-codex"
-  "capture-review"
-)
+# Every role was retired on 2026-11-12 (AUTONOMOUS_ORG.md). A running agent reads these files by
+# path, so each must say "do nothing" and carry no working instruction.
+RETIRED_LINE="This role is retired as of 2026-11-12. Do nothing: start no work, send nothing, change nothing."
 
 required_files=(
   "AGENTS.md"
@@ -56,8 +14,6 @@ required_files=(
   "Tools.md"
   "Heartbeat.md"
 )
-
-strict_agents_regex="$(printf '%s\n' "${STRICT_SECTION_AGENTS[@]}" | paste -sd'|' -)"
 
 fail() {
   echo "Agent kit validation failed: $*" >&2
@@ -145,42 +101,13 @@ while IFS= read -r agent_dir; do
     [ -f "${agent_dir}/${file_name}" ] || fail "${agent_slug} is missing ${file_name}"
   done
 
-  agents_file="${agent_dir}/AGENTS.md"
-  if grep -Fq "## Paperclip Runtime Safety" "$agents_file"; then
-    require_literal "$agents_file" 'npm exec tsx -- scripts/paperclip/paperclip-heartbeat-snapshot.ts --assigned-open --plain' "the shared Paperclip read fallback"
-    require_literal "$agents_file" 'npm exec tsx -- scripts/paperclip/paperclip-heartbeat-snapshot.ts --heartbeat-context --issue-id "$PAPERCLIP_TASK_ID" --plain' "the shared Paperclip issue-context fallback"
-    require_literal "$agents_file" 'Do not invent ad hoc `/api/runs` probes or hand-written `jq` filters.' "the no-ad-hoc-run-probe rule"
-  fi
-
-  if [[ "$agent_slug" =~ ^(${strict_agents_regex})$ ]]; then
-    soul_file="${agent_dir}/Soul.md"
-    tools_file="${agent_dir}/Tools.md"
-    heartbeat_file="${agent_dir}/Heartbeat.md"
-
-    require_literal "$agents_file" "Primary scope:" "the primary scope section"
-    require_literal "$agents_file" "Default behavior:" "the default behavior section"
-    require_literal "$agents_file" "What is NOT your job:" "the non-goals section"
-    require_literal "$agents_file" "Software boundary:" "the software-boundary section"
-    require_literal "$agents_file" "Delegation visibility rule:" "the delegation-visibility rule"
-
-    require_heading "$soul_file" "## Why You Exist"
-    require_heading "$soul_file" "## What You Care About"
-    require_heading "$soul_file" "## Excellent Judgment In This Role"
-    require_heading "$soul_file" "## Never Compromise"
-    require_heading "$soul_file" "## Traps To Avoid"
-
-    require_heading "$tools_file" "## Primary Sources"
-    require_heading "$tools_file" "## Actions You Own"
-    require_heading "$tools_file" "## Handoff Partners"
-    require_heading "$tools_file" "## Trust Model"
-    require_heading "$tools_file" "## Do Not Use Casually"
-
-    require_heading "$heartbeat_file" "## Triggered Runs \\(Primary\\)"
-    require_heading "$heartbeat_file" "## Scheduled Runs"
-    require_heading "$heartbeat_file" "## Stage Model"
-    require_heading "$heartbeat_file" "## Block Conditions"
-    require_heading "$heartbeat_file" "## Escalation Conditions"
-  fi
+  for file_name in "${required_files[@]}"; do
+    kit_file="${agent_dir}/${file_name}"
+    require_literal "$kit_file" "$RETIRED_LINE" "the retirement line"
+    if grep -Eq 'PAPERCLIP_API_KEY|PATCH /api/issues|^## (Triggered Runs|Scheduled Runs|Primary Sources|Actions You Own|Why You Exist)|Primary scope:' "$kit_file"; then
+      fail "${kit_file} is retired but still carries a working instruction"
+    fi
+  done
 done < <(find "$AGENTS_ROOT" -mindepth 1 -maxdepth 1 -type d | sort)
 
 echo "Agent kit validation passed."

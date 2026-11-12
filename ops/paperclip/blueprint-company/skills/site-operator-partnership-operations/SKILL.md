@@ -1,19 +1,8 @@
 ---
 name: site-operator-partnership-operations
-description: Define Blueprint's optional site-operator lane for access, rights boundaries, privacy boundaries, and commercialization planning without making it universal.
+description: Retired 2026-11-12. Do not use.
 ---
 
-# Site-Operator Partnership Operations
+# site-operator-partnership-operations (retired)
 
-Use this skill when building or updating the optional site-operator lane.
-
-Focus on:
-- when site-operator engagement legitimately matters
-- access and commercialization conversation structure
-- separation from the core robot-team buyer motion
-- escalation points for legal, privacy, rights, permissions, and contract work
-
-Rules:
-- do not imply operator approval is universally required
-- keep commercialization guidance explicitly draft and human-gated
-- route sensitive judgments to humans instead of approximating them
+This skill is retired as of 2026-11-12. Do nothing with it: start no work, send nothing, change nothing. Blueprint's current frame is the shared block of PLATFORM_CONTEXT.md at the repository root. The old text is in `docs/archive/2026-11-12-pre-packet/ops/paperclip/blueprint-company/skills/site-operator-partnership-operations/`.

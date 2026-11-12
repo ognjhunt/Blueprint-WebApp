@@ -41,7 +41,7 @@
 
 If an agent receives a data-access, correction, or deletion request:
 
-1. Escalate immediately using the handoff protocol in [HANDOFF_PROTOCOL.md](/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/HANDOFF_PROTOCOL.md).
+1. Escalate immediately to the founder.
 2. Do not attempt to fulfill the request autonomously in Phase 1.
 3. Log the requester identity, request type, received timestamp, and relevant document ids.
 4. Acknowledge receipt only if the workflow already allows that communication and keep the response factual.

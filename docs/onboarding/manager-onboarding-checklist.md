@@ -7,7 +7,7 @@ Review cadence: After each onboarding cycle and quarterly.
 
 ## Purpose
 
-Managers own the new hire's ramp. HR, IT, Paperclip, Notion, and repo docs support onboarding, but the manager owns role clarity, first-week structure, and 30/60/90 outcomes.
+Managers own the new hire's ramp. HR, IT, Notion, and repo docs support onboarding, but the manager owns role clarity, first-week structure, and 30/60/90 outcomes.
 
 ## Pre-Start
 
@@ -23,11 +23,11 @@ Managers own the new hire's ramp. HR, IT, Paperclip, Notion, and repo docs suppo
 ## Day One
 
 - Welcome and role context.
-- Review product doctrine: capture-first, real-site robot-evaluation/data-package first.
-- Explain repo/Paperclip/Notion boundaries.
+- Review the frame: the shared block of `PLATFORM_CONTEXT.md` (the job packet).
+- Explain repo/Notion boundaries.
 - Confirm payroll/HR paperwork path is in motion.
 - Verify access to company email/chat/calendar/Notion.
-- Verify role-specific repo/Paperclip/tool access or record blockers.
+- Verify role-specific repo/tool access or record blockers.
 - Review code of conduct, security, remote work, and access policy.
 - Walk through first task and success criteria.
 
@@ -39,15 +39,14 @@ Managers own the new hire's ramp. HR, IT, Paperclip, Notion, and repo docs suppo
 - Confirm access/equipment status.
 - Review first task evidence and feedback.
 - Confirm no unsupported promises were made around benefits, payroll, equity, PTO, or product readiness.
-- Record source-needed gaps in Paperclip or Notion with owner.
+- Record source-needed gaps in Notion with owner.
 
 ## First 30 Days
 
-- New hire can explain Blueprint's product stack.
+- New hire can explain the job packet and where a job stands.
 - New hire can identify the right source of truth for work state, docs, code, live metrics, and Notion mirrors.
 - New hire has shipped or completed a scoped contribution.
 - Manager has delivered direct feedback.
-- Role scorecard has been reviewed and adjusted.
 
 ## First 60 Days
 
@@ -59,7 +58,7 @@ Managers own the new hire's ramp. HR, IT, Paperclip, Notion, and repo docs suppo
 ## First 90 Days
 
 - New hire owns role outcomes with normal supervision.
-- Manager has completed a 90-day review against the scorecard.
+- Manager has completed a 90-day review.
 - Any access, policy, source-needed, or role-scope gaps have named owners.
 
 ## AI-Agent Variant
@@ -68,15 +67,12 @@ For an AI agent:
 
 - confirm agent kit or instruction source;
 - confirm allowed tools and disallowed side effects;
-- confirm Paperclip issue/routine ownership;
 - confirm Notion readable/writable surfaces;
-- run or inspect agent-kit validation where relevant;
 - verify closeout evidence shape before granting broader autonomy.
 
 ## Evidence Paths
 
 - Manager checklist: this document or approved HR system.
-- Role plan: `docs/onboarding/role-scorecards-and-30-60-90.md`.
-- Access: restricted tracker or Paperclip issue.
-- Work execution: Paperclip issue/run and repo/app evidence.
+- Access: restricted tracker.
+- Work execution: repo/app evidence.
 - Human-facing mirror: Notion Company Handbook & Onboarding.

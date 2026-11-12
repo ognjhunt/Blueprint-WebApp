@@ -1,20 +1,8 @@
 ---
 name: city-demand-operations
-description: Adapt Blueprint's generic robot-team demand playbook into city-specific buyer plans, readiness scorecards, and dependency maps.
+description: Retired 2026-11-12. Do not use.
 ---
 
-# City Demand Operations
+# city-demand-operations (retired)
 
-Use this skill when building or updating a city-specific demand plan.
-
-Focus on:
-- buyer-cluster mapping by city
-- facility and proof-fit hypotheses
-- optional site-operator opportunities
-- instrumentation, ops, and commercialization dependencies
-- readiness sequencing and blockers
-
-Rules:
-- treat each city plan as a hypothesis, not a claim of live demand
-- make missing data and human approvals explicit
-- route implementation dependencies to the correct downstream agents
+This skill is retired as of 2026-11-12. Do nothing with it: start no work, send nothing, change nothing. Blueprint's current frame is the shared block of PLATFORM_CONTEXT.md at the repository root. The old text is in `docs/archive/2026-11-12-pre-packet/ops/paperclip/blueprint-company/skills/city-demand-operations/`.

@@ -1,6 +1,6 @@
 # Scripts Agent Guide
 
-This directory contains local checks, build helpers, launch gates, city-launch runners, GTM runners, human-reply tools, graphify refresh, Render helpers, and Paperclip host tooling.
+This directory contains local checks, build helpers, launch gates, human-reply tools, graphify refresh, Render helpers, and Paperclip host tooling.
 
 Read [`docs/architecture/command-safety-matrix.md`](../docs/architecture/command-safety-matrix.md) before running anything outside simple local checks.
 
@@ -9,12 +9,11 @@ Agent discovery: use this file for `scripts/**` details, but root `AGENTS.md` an
 Local conventions:
 
 - Prefer read-only/audit commands before repair, apply, send, deploy, or sync commands.
-- Treat `scripts/city-launch/`, `scripts/gtm/`, `scripts/human-replies/`, `scripts/render/`, and `scripts/paperclip/` as side-effect capable.
+- Treat `scripts/human-replies/`, `scripts/render/`, and `scripts/paperclip/` as side-effect capable.
 - Do not run commands that send email, mutate provider state, deploy, import env, wake live Paperclip routines, or write Notion/Firebase/Stripe state unless the task explicitly asks for it.
 - Use dry-run flags when available and keep output artifacts under existing report/output paths.
 - If code files changed, run `bash scripts/graphify/run-webapp-architecture-pilot.sh --no-viz` before closeout.
-- Migration, export, backup and release helpers follow root AGENTS.md's permanent
-  provider-portability rule: keep company-controlled canonical storage, stable
+- Provider portability: migration, export, backup and release helpers keep company-controlled canonical storage, stable
   Blueprint IDs, standard formats, manifests/hashes/provenance and a documented
   replacement-agent recovery route. An optional Library delivery copy must not
   become the production source or sole retained artifact; private transfer to

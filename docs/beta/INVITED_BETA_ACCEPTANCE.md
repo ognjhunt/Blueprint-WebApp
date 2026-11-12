@@ -1,3 +1,5 @@
+> **Superseded 2026-11-12.** This describes a frame the owner replaced. Current frame: the shared block of PLATFORM_CONTEXT.md.
+
 # Beta acceptance and operating checklist
 
 Updated 2026-11-02 for the owner's model of 2026-10-28 (tracker H-01). The

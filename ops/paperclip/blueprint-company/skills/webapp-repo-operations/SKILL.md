@@ -1,35 +1,8 @@
 ---
 name: webapp-repo-operations
-description: Operating guidance and validation commands for the Blueprint-WebApp repo.
+description: Retired 2026-11-12. Do not use.
 ---
 
-# WebApp Repo Operations
+# webapp-repo-operations (retired)
 
-Primary repo:
-
-- `/Users/nijelhunt_1/workspace/Blueprint-WebApp`
-
-Read first:
-
-- `/Users/nijelhunt_1/workspace/Blueprint-WebApp/AGENTS.md`
-- `/Users/nijelhunt_1/workspace/Blueprint-WebApp/CLAUDE.md`
-- `/Users/nijelhunt_1/workspace/Blueprint-WebApp/PLATFORM_CONTEXT.md`
-- `/Users/nijelhunt_1/workspace/Blueprint-WebApp/WORLD_MODEL_STRATEGY_CONTEXT.md`
-
-Useful commands:
-
-```bash
-npm run check
-npm run build
-npm run test:coverage
-npm run test:e2e
-npm run smoke:agent
-npm run smoke:launch
-```
-
-Focus areas:
-
-- buyer-facing product flows
-- hosted-session surfaces
-- licensing and ops workflows
-- truthful marketing and product language
+This skill is retired as of 2026-11-12. Do nothing with it: start no work, send nothing, change nothing. Blueprint's current frame is the shared block of PLATFORM_CONTEXT.md at the repository root. The old text is in `docs/archive/2026-11-12-pre-packet/ops/paperclip/blueprint-company/skills/webapp-repo-operations/`.

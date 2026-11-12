@@ -5,7 +5,7 @@ agents:
   blueprint-ceo:
     role: ceo
     icon: crown
-    capabilities: Strategy, prioritization, delegation, and company-wide governance.
+    capabilities: Retired 2026-11-12.
     adapter:
       type: hermes_local
       config:
@@ -34,9 +34,7 @@ agents:
   blueprint-chief-of-staff:
     role: cto
     icon: target
-    capabilities: >-
-      Continuous managerial runtime for Blueprint. Tracks what finished, what stalled, and what needs follow-through
-      across executive, ops, growth, and repo lanes. Uses Paperclip as the source of truth and Hermes for continuity.
+    capabilities: Retired 2026-11-12.
     adapter:
       type: hermes_local
       config:
@@ -71,10 +69,7 @@ agents:
   notion-manager-agent:
     role: engineer
     icon: book-open
-    capabilities: >-
-      Sole owner of Blueprint Notion hygiene. Repairs event-driven drift, enforces deterministic idempotency, and keeps
-      broad sweeps paused until duplicate and stale-page rules are stable. Only auto-mutates Blueprint-managed pages and
-      known Hub surfaces.
+    capabilities: Retired 2026-11-12.
     adapter:
       type: hermes_local
       config:
@@ -97,10 +92,7 @@ agents:
   notion-reconciler:
     role: engineer
     icon: database
-    capabilities: >-
-      Paused legacy compatibility shim for the former Notion Reconciler pilot. All active Notion reconciliation now
-      belongs to notion-manager-agent. Keep only for backward-compatible issue and action handling until old references
-      are retired.
+    capabilities: Retired 2026-11-12.
     adapter:
       type: hermes_local
       config:
@@ -123,7 +115,7 @@ agents:
   blueprint-cto:
     role: cto
     icon: circuit-board
-    capabilities: Cross-repo technical planning, delegation, and execution oversight.
+    capabilities: Retired 2026-11-12.
     adapter:
       type: codex_local
       config:
@@ -163,7 +155,7 @@ agents:
   webapp-codex:
     role: engineer
     icon: code
-    capabilities: Implementation specialist for Blueprint-WebApp.
+    capabilities: Retired 2026-11-12.
     adapter:
       type: codex_local
       config:
@@ -211,7 +203,7 @@ agents:
   webapp-review:
     role: engineer
     icon: search
-    capabilities: Review and planning specialist for Blueprint-WebApp.
+    capabilities: Retired 2026-11-12.
     adapter:
       type: codex_local
       config:
@@ -252,7 +244,7 @@ agents:
   webapp-ci-watch:
     role: engineer
     icon: activity
-    capabilities: Lightweight CI monitoring and unblock triage for Blueprint-WebApp.
+    capabilities: Retired 2026-11-12.
     adapter:
       type: hermes_local
       config:
@@ -277,7 +269,7 @@ agents:
   pipeline-codex:
     role: engineer
     icon: cpu
-    capabilities: Implementation specialist for BlueprintCapturePipeline.
+    capabilities: Retired 2026-11-12.
     adapter:
       type: codex_local
       config:
@@ -325,7 +317,7 @@ agents:
   pipeline-review:
     role: engineer
     icon: microscope
-    capabilities: Review and planning specialist for BlueprintCapturePipeline.
+    capabilities: Retired 2026-11-12.
     adapter:
       type: codex_local
       config:
@@ -365,7 +357,7 @@ agents:
   pipeline-ci-watch:
     role: engineer
     icon: activity
-    capabilities: Lightweight CI monitoring and unblock triage for BlueprintCapturePipeline.
+    capabilities: Retired 2026-11-12.
     adapter:
       type: hermes_local
       config:
@@ -391,7 +383,7 @@ agents:
   capture-codex:
     role: engineer
     icon: wrench
-    capabilities: Implementation specialist for BlueprintCapture.
+    capabilities: Retired 2026-11-12.
     adapter:
       type: codex_local
       config:
@@ -438,7 +430,7 @@ agents:
   capture-review:
     role: engineer
     icon: eye
-    capabilities: Review and planning specialist for BlueprintCapture.
+    capabilities: Retired 2026-11-12.
     adapter:
       type: codex_local
       config:
@@ -478,7 +470,7 @@ agents:
   capture-ci-watch:
     role: engineer
     icon: activity
-    capabilities: Lightweight CI monitoring and unblock triage for BlueprintCapture.
+    capabilities: Retired 2026-11-12.
     adapter:
       type: hermes_local
       config:
@@ -504,10 +496,7 @@ agents:
   ops-lead:
     role: cto
     icon: bullseye
-    capabilities: >-
-      Coordinates all Blueprint product operations. Routes work between intake, QA, scheduling, and finance agents.
-      Produces daily ops summary and escalates blockers to CEO. Read skill file at ops/paperclip/skills/ops-lead.md
-      before every routine.
+    capabilities: Retired 2026-11-12.
     adapter:
       type: hermes_local
       config:
@@ -531,9 +520,7 @@ agents:
   intake-agent:
     role: engineer
     icon: inbox
-    capabilities: >-
-      Processes capturer waitlist applications and buyer inbound requests. Classifies, scores readiness, detects missing
-      info, drafts responses. Read skill file at ops/paperclip/skills/intake-agent.md before every routine.
+    capabilities: Retired 2026-11-12.
     adapter:
       type: hermes_local
       config:
@@ -552,9 +539,7 @@ agents:
   capture-qa-agent:
     role: engineer
     icon: search
-    capabilities: >-
-      Reviews pipeline outputs for quality, completeness, and privacy compliance. Flags recapture needs and drafts
-      payout recommendations. Read skill file at ops/paperclip/skills/capture-qa-agent.md before every routine.
+    capabilities: Retired 2026-11-12.
     adapter:
       type: hermes_local
       config:
@@ -571,9 +556,7 @@ agents:
   field-ops-agent:
     role: engineer
     icon: calendar
-    capabilities: >-
-      Coordinates capture scheduling, capturer assignment, calendar management, timezone normalization, and reminders.
-      Read skill file at ops/paperclip/skills/field-ops-agent.md before every routine.
+    capabilities: Retired 2026-11-12.
     adapter:
       type: hermes_local
       config:
@@ -590,9 +573,7 @@ agents:
   finance-support-agent:
     role: engineer
     icon: dollar-sign
-    capabilities: >-
-      Monitors Stripe health, triages payout issues, handles support inbox, and drafts responses. Read skill file at
-      ops/paperclip/skills/finance-support-agent.md before every routine.
+    capabilities: Retired 2026-11-12.
     adapter:
       type: hermes_local
       config:
@@ -610,11 +591,7 @@ agents:
   growth-lead:
     role: cto
     icon: trending-up
-    capabilities: >-
-      Coordinates a reduced growth core: analytics, conversion, market intelligence, demand intelligence, and one
-      city-demand loop. Keeps all other growth lanes paused or event-driven until evidence justifies restart. Read
-      skill file at ops/paperclip/skills/growth-lead.md before every routine. Owns lifecycle cadence policy, human
-      review routing, and suppression posture for persona email cadences.
+    capabilities: Retired 2026-11-12.
     adapter:
       type: hermes_local
       config:
@@ -647,10 +624,7 @@ agents:
   conversion-agent:
     role: engineer
     icon: flask-conical
-    capabilities: >-
-      Runs autoresearch-style experiment loop on webapp and capture app. Tests CTAs, onboarding flows, signup copy, and
-      pricing layout. Read skill file at ops/paperclip/skills/conversion-agent.md and steering file at
-      ops/paperclip/programs/conversion-agent-program.md before every routine.
+    capabilities: Retired 2026-11-12.
     adapter:
       type: codex_local
       config:
@@ -688,10 +662,7 @@ agents:
   analytics-agent:
     role: engineer
     icon: bar-chart
-    capabilities: >-
-      Owns Blueprint's KPI contract across Firestore, Stripe, PostHog/GA4, and Paperclip. Detects anomalies, publishes
-      decision-grade reports, and escalates blocked metrics instead of inventing them. Read skill file at
-      ops/paperclip/skills/analytics-agent.md before every routine.
+    capabilities: Retired 2026-11-12.
     adapter:
       type: hermes_local
       config:
@@ -715,10 +686,7 @@ agents:
   investor-relations-agent:
     role: engineer
     icon: file-text
-    capabilities: >-
-      Produces Blueprint's monthly investor update from real month-over-month metrics, shipped work, risks, asks, and
-      operating context. Drafts investor-relations blog and investor email artifacts without live publishing. Read the
-      investor program file and humanizer skill before every substantial run.
+    capabilities: Retired 2026-11-12.
     adapter:
       type: hermes_local
       config:
@@ -748,11 +716,7 @@ agents:
   community-updates-agent:
     role: engineer
     icon: newspaper
-    capabilities: >-
-      Produces Blueprint's weekly community update for users, capturers, robot teams, and partners. Turns real shipped
-      work, capture progress, partner activity, and open asks into a concise blog-plus-email draft without making live
-      claims or publishing automatically. Persona cadence owners may reference the weekly update only when it contains
-      stage-relevant proof. Read the community program file and humanizer skill before every substantial run.
+    capabilities: Retired 2026-11-12.
     adapter:
       type: hermes_local
       config:
@@ -785,10 +749,7 @@ agents:
   metrics-reporter:
     role: engineer
     icon: target
-    capabilities: >-
-      Paused legacy compatibility shim for the former Metrics Reporter pilot. All active recurring KPI and internal
-      metrics reporting now belongs to analytics-agent. Keep only for backward-compatible issue and action handling
-      until old references are retired.
+    capabilities: Retired 2026-11-12.
     adapter:
       type: hermes_local
       config:
@@ -812,10 +773,7 @@ agents:
   workspace-digest-publisher:
     role: engineer
     icon: file-code
-    capabilities: >-
-      Notion-facing Paperclip/Hermes pilot that compresses weekly Blueprint workspace activity into an internal digest
-      draft. Reads Knowledge, Growth Studio, and selected Work Queue views, writes draft roundup pages in Knowledge,
-      creates optional follow-up work items, and mirrors runs into Blueprint Agent Runs.
+    capabilities: Retired 2026-11-12.
     adapter:
       type: hermes_local
       config:
@@ -839,10 +797,7 @@ agents:
   market-intel-agent:
     role: engineer
     icon: globe
-    capabilities: >-
-      Autoresearch-pattern agent for business intelligence. Researches competitors, market trends, papers, pricing, and
-      regulations. Read skill file at ops/paperclip/skills/market-intel-agent.md and steering file at
-      ops/paperclip/programs/market-intel-program.md before every routine.
+    capabilities: Retired 2026-11-12.
     adapter:
       type: hermes_local
       config:
@@ -875,11 +830,7 @@ agents:
   supply-intel-agent:
     role: engineer
     icon: map
-    capabilities: >-
-      Studies historical and current marketplace supply playbooks with focus on channel economics, referrals,
-      incentives, and city-seeding tactics. Feeds Blueprint-specific findings into capturer-growth and city-launch
-      planning. Read skill file at ops/paperclip/skills/supply-intel-agent.md and steering file at
-      ops/paperclip/programs/supply-intel-agent-program.md before every routine.
+    capabilities: Retired 2026-11-12.
     adapter:
       type: hermes_local
       config:
@@ -908,10 +859,7 @@ agents:
   capturer-growth-agent:
     role: engineer
     icon: megaphone
-    capabilities: >-
-      Converts supply-intel findings into Blueprint's reusable capturer acquisition playbook, channel strategy, and
-      internal execution queue. Read skill file at ops/paperclip/skills/capturer-growth-agent.md and steering file at
-      ops/paperclip/programs/capturer-growth-agent-program.md before every routine.
+    capabilities: Retired 2026-11-12.
     adapter:
       type: hermes_local
       config:
@@ -946,10 +894,7 @@ agents:
   public-space-review-agent:
     role: engineer
     icon: target
-    capabilities: >-
-      Reviews public-facing city-launch candidate batches and promotes evidence-backed common-access locations into
-      approved capture targets without treating them as rights-cleared, payable, or derived-world-model-ready.
-      Runs the deterministic public candidate reviewer before posting batch outcomes.
+    capabilities: Retired 2026-11-12.
     adapter:
       type: hermes_local
       config:
@@ -969,11 +914,7 @@ agents:
   city-launch-agent:
     role: engineer
     icon: map-pinned
-    capabilities: >-
-      Maintains city-specific launch plans for Blueprint's capturer marketplace using the generic playbook plus
-      supply-intel findings. Starts with Austin and San Francisco. Read skill file at
-      ops/paperclip/skills/city-launch-agent.md and steering file at ops/paperclip/programs/city-launch-agent-program.md
-      before every routine.
+    capabilities: Retired 2026-11-12.
     adapter:
       type: hermes_local
       config:
@@ -1004,11 +945,7 @@ agents:
   demand-intel-agent:
     role: engineer
     icon: radar
-    capabilities: >-
-      Studies how robot teams and adjacent technical buyers generate demand for exact-site world models and hosted
-      access. Feeds Blueprint-specific findings into robot-team-growth, site-operator-partnership, and city-demand
-      planning. Read skill file at ops/paperclip/skills/demand-intel-agent.md and steering file at
-      ops/paperclip/programs/demand-intel-agent-program.md before every routine.
+    capabilities: Retired 2026-11-12.
     adapter:
       type: hermes_local
       config:
@@ -1043,11 +980,7 @@ agents:
   robot-team-growth-agent:
     role: engineer
     icon: bot
-    capabilities: >-
-      Converts demand-intel findings into Blueprint's reusable robot-team demand playbook, proof-pack structure,
-      hosted-session demo motion, lifecycle cadence drafts, and internal execution queue. Read skill file at
-      ops/paperclip/skills/robot-team-growth-agent.md and steering file at
-      ops/paperclip/programs/robot-team-growth-agent-program.md before every routine.
+    capabilities: Retired 2026-11-12.
     adapter:
       type: hermes_local
       config:
@@ -1075,10 +1008,7 @@ agents:
   site-operator-partnership-agent:
     role: engineer
     icon: handshake
-    capabilities: >-
-      Maintains Blueprint's optional site-operator lane for access, rights/privacy boundaries, and commercialization
-      planning plus operator lifecycle cadence drafts without making approval universal. Read skill file at ops/paperclip/skills/site-operator-partnership-agent.md
-      and steering file at ops/paperclip/programs/site-operator-partnership-agent-program.md before every routine.
+    capabilities: Retired 2026-11-12.
     adapter:
       type: hermes_local
       config:
@@ -1108,10 +1038,7 @@ agents:
   beta-launch-commander:
     role: engineer
     icon: rocket
-    capabilities: >-
-      Cross-repo release orchestrator for Blueprint beta. Runs preflight checks across Capture, Pipeline, and WebApp.
-      Produces go/no-go recommendations with evidence. Coordinates freeze, rollback, and incident response during
-      releases.
+    capabilities: Retired 2026-11-12.
     adapter:
       type: codex_local
       config:
@@ -1142,10 +1069,7 @@ agents:
   buyer-solutions-agent:
     role: engineer
     icon: briefcase
-    capabilities: >-
-      Single commercial journey owner from qualified inbound to proof-ready commercial motion. Interprets messy buyer
-      requests, tracks through capture matching, packaging, and proof delivery, and keeps pricing or technical support
-      inside one buyer thread.
+    capabilities: Retired 2026-11-12.
     adapter:
       type: hermes_local
       config:
@@ -1175,12 +1099,7 @@ agents:
   solutions-engineering-agent:
     role: engineer
     icon: plug
-    capabilities: >-
-      Owns technical buyer enablement from proof-ready to implementation-ready. Translates buyer goals, stack
-      constraints, hosted-session needs, eval design, and deployment questions into explicit integration checklists,
-      technical proof plans, and unblock recommendations. Read skill file at
-      ops/paperclip/skills/solutions-engineering-agent.md and steering file at
-      ops/paperclip/programs/solutions-engineering-agent-program.md before every routine.
+    capabilities: Retired 2026-11-12.
     adapter:
       type: hermes_local
       config:
@@ -1210,9 +1129,7 @@ agents:
   rights-provenance-agent:
     role: engineer
     icon: shield
-    capabilities: >-
-      Trust and compliance gatekeeper. Reviews consent, rights, privacy processing, provenance chain, and
-      commercialization scope before any capture or package is released to buyers. Fail-closed by default.
+    capabilities: Retired 2026-11-12.
     adapter:
       type: hermes_local
       config:
@@ -1229,11 +1146,7 @@ agents:
   security-procurement-agent:
     role: engineer
     icon: lock
-    capabilities: >-
-      Drafts Blueprint's buyer-facing security, architecture, data-handling, and procurement responses from real repo
-      and system evidence. Keeps enterprise review work moving without making legal, compliance, or certification claims
-      Blueprint cannot support. Read skill file at ops/paperclip/skills/security-procurement-agent.md and steering file
-      at ops/paperclip/programs/security-procurement-agent-program.md before every routine.
+    capabilities: Retired 2026-11-12.
     adapter:
       type: hermes_local
       config:
@@ -1259,11 +1172,7 @@ agents:
   capturer-success-agent:
     role: engineer
     icon: heart
-    capabilities: >-
-      Owns capturer activation and retention. Guides approved capturers through first capture, translates QA feedback
-      into actionable recapture instructions, monitors activity patterns, and identifies systemic platform issues from
-      individual capturer struggles. Owns capturer lifecycle cadence drafts and skips stale basics when capture evidence
-      already exists.
+    capabilities: Retired 2026-11-12.
     adapter:
       type: hermes_local
       config:
@@ -1289,11 +1198,7 @@ agents:
   city-demand-agent:
     role: engineer
     icon: compass
-    capabilities: >-
-      Maintains city-specific buyer demand plans for Blueprint's robot-team motion using the generic playbook plus
-      demand-intel findings. Starts with Austin and San Francisco. Read skill file at
-      ops/paperclip/skills/city-demand-agent.md and steering file at ops/paperclip/programs/city-demand-agent-program.md
-      before every routine.
+    capabilities: Retired 2026-11-12.
     adapter:
       type: hermes_local
       config:
@@ -1328,10 +1233,7 @@ agents:
   site-catalog-agent:
     role: engineer
     icon: package
-    capabilities: >-
-      Product listing manager for Blueprint's site-world catalog. Creates and maintains accurate, discoverable listings
-      when packages clear QA and rights. Ensures descriptions match reality, categories are useful, and the catalog has
-      no stale or fabricated entries.
+    capabilities: Retired 2026-11-12.
     adapter:
       type: hermes_local
       config:
@@ -1361,10 +1263,7 @@ agents:
   outbound-sales-agent:
     role: engineer
     icon: phone
-    capabilities: >-
-      Business development representative for robot team outreach. Consumes demand-intel and market-intel signals,
-      researches prospects, drafts personalized outreach, tracks conversations, and hands off qualified leads to
-      buyer-solutions-agent. Quality over volume.
+    capabilities: Retired 2026-11-12.
     adapter:
       type: hermes_local
       config:
@@ -1399,9 +1298,7 @@ agents:
   buyer-success-agent:
     role: engineer
     icon: star
-    capabilities: >-
-      Lightweight post-delivery buyer support lane. Operates event-driven on support, onboarding, feedback, and churn
-      signals until active buyer volume is high enough to justify a standing cadence.
+    capabilities: Retired 2026-11-12.
     adapter:
       type: hermes_local
       config:
@@ -1429,11 +1326,7 @@ agents:
   revenue-ops-pricing-agent:
     role: engineer
     icon: calculator
-    capabilities: >-
-      Owns pricing system hygiene across packaging, quote support, discount guardrails, and revenue-ops analysis.
-      Contributes inside buyer-solutions threads without taking over buyer ownership or making live pricing or contract
-      commitments. Read skill file at ops/paperclip/skills/revenue-ops-pricing-agent.md and steering file at
-      ops/paperclip/programs/revenue-ops-pricing-agent-program.md before every routine.
+    capabilities: Retired 2026-11-12.
     adapter:
       type: hermes_local
       config:
@@ -1462,10 +1355,7 @@ agents:
   docs-agent:
     role: engineer
     icon: book-open
-    capabilities: >-
-      Cross-repo documentation owner. Monitors code changes across all 3 repos and keeps capture guides, API docs,
-      onboarding materials, and internal platform docs in sync with reality. Each update is minimal and
-      accuracy-focused.
+    capabilities: Retired 2026-11-12.
     adapter:
       type: codex_local
       config:
@@ -1591,35 +1481,35 @@ tasks:
     priority: high
     projectWorkspaceKey: blueprint-executive-ops
   ceo-daily-review:
-    status: active
+    status: paused
     priority: high
     projectWorkspaceKey: blueprint-executive-ops
   chief-of-staff-continuous-loop:
-    status: active
+    status: paused
     priority: high
     projectWorkspaceKey: blueprint-executive-ops
   founder-morning-brief:
-    status: active
+    status: paused
     priority: high
     projectWorkspaceKey: blueprint-executive-ops
   founder-daily-accountability-report:
-    status: active
+    status: paused
     priority: high
     projectWorkspaceKey: blueprint-executive-ops
   founder-eod-brief:
-    status: active
+    status: paused
     priority: high
     projectWorkspaceKey: blueprint-executive-ops
   founder-friday-operating-recap:
-    status: active
+    status: paused
     priority: high
     projectWorkspaceKey: blueprint-executive-ops
   founder-weekly-gaps-report:
-    status: active
+    status: paused
     priority: high
     projectWorkspaceKey: blueprint-executive-ops
   cto-cross-repo-triage:
-    status: active
+    status: paused
     priority: high
     projectWorkspaceKey: blueprint-webapp
   webapp-codex-bootstrap:
@@ -1647,31 +1537,31 @@ tasks:
     priority: high
     projectWorkspaceKey: blueprint-capture
   webapp-autonomy-loop:
-    status: active
+    status: paused
     priority: high
     projectWorkspaceKey: blueprint-webapp
   recursive-agent-improvement-loop:
-    status: active
+    status: paused
     priority: medium
     projectWorkspaceKey: blueprint-webapp
   webapp-review-loop:
-    status: active
+    status: paused
     priority: medium
     projectWorkspaceKey: blueprint-webapp
   pipeline-autonomy-loop:
-    status: active
+    status: paused
     priority: high
     projectWorkspaceKey: blueprint-capture-pipeline
   pipeline-review-loop:
-    status: active
+    status: paused
     priority: medium
     projectWorkspaceKey: blueprint-capture-pipeline
   capture-autonomy-loop:
-    status: active
+    status: paused
     priority: high
     projectWorkspaceKey: blueprint-capture
   capture-review-loop:
-    status: active
+    status: paused
     priority: medium
     projectWorkspaceKey: blueprint-capture
   ops-lead-bootstrap:
@@ -1699,11 +1589,11 @@ tasks:
     priority: high
     projectWorkspaceKey: blueprint-executive-ops
   exact-site-hosted-review-gtm-pilot:
-    status: active
+    status: paused
     priority: high
     projectWorkspaceKey: blueprint-webapp
   exact-site-hosted-review-buyer-loop:
-    status: active
+    status: paused
     priority: high
     projectWorkspaceKey: blueprint-webapp
   conversion-agent-bootstrap:
@@ -1771,7 +1661,7 @@ tasks:
     priority: high
     projectWorkspaceKey: blueprint-webapp
   buyer-solutions-active-pipeline-review:
-    status: active
+    status: paused
     priority: high
     projectWorkspaceKey: blueprint-webapp
   security-procurement-agent-bootstrap:
@@ -1795,7 +1685,7 @@ tasks:
     priority: medium
     projectWorkspaceKey: blueprint-executive-ops
   investor-relations-monthly:
-    status: active
+    status: paused
     priority: high
     projectWorkspaceKey: blueprint-executive-ops
   community-updates-weekly:
@@ -1843,7 +1733,7 @@ tasks:
     priority: medium
     projectWorkspaceKey: blueprint-executive-ops
   demand-intel-weekly:
-    status: active
+    status: paused
     priority: high
     projectWorkspaceKey: blueprint-executive-ops
   robot-team-growth-weekly:
@@ -1863,7 +1753,7 @@ tasks:
     priority: medium
     projectWorkspaceKey: blueprint-executive-ops
   city-demand-weekly:
-    status: active
+    status: paused
     priority: high
     projectWorkspaceKey: blueprint-executive-ops
   city-demand-refresh:
@@ -1871,11 +1761,11 @@ tasks:
     priority: medium
     projectWorkspaceKey: blueprint-executive-ops
   solutions-engineering-active-delivery-review:
-    status: active
+    status: paused
     priority: high
     projectWorkspaceKey: blueprint-webapp
   security-procurement-active-reviews:
-    status: active
+    status: paused
     priority: high
     projectWorkspaceKey: blueprint-executive-ops
   revenue-ops-pricing-weekly:
@@ -1883,7 +1773,7 @@ tasks:
     priority: high
     projectWorkspaceKey: blueprint-executive-ops
   docs-agent-sweep:
-    status: active
+    status: paused
     priority: medium
     projectWorkspaceKey: blueprint-executive-ops
 routines:
@@ -1897,6 +1787,7 @@ routines:
         cronExpression: 35 8 * * 1-5
         timezone: America/New_York
   chief-of-staff-continuous-loop:
+    status: paused
     agent: blueprint-chief-of-staff
     priority: high
     concurrencyPolicy: coalesce_if_active
@@ -1906,6 +1797,7 @@ routines:
         cronExpression: 0 9,13,17 * * 1-5
         timezone: America/New_York
   cto-cross-repo-triage:
+    status: paused
     priority: high
     concurrencyPolicy: coalesce_if_active
     catchUpPolicy: skip_missed
@@ -1914,6 +1806,7 @@ routines:
         cronExpression: 15 15 * * 1,3,5
         timezone: America/New_York
   webapp-autonomy-loop:
+    status: paused
     priority: high
     concurrencyPolicy: coalesce_if_active
     catchUpPolicy: skip_missed
@@ -1922,6 +1815,7 @@ routines:
         cronExpression: 15 11 * * 1,3,5
         timezone: America/New_York
   recursive-agent-improvement-loop:
+    status: paused
     agent: webapp-codex
     priority: medium
     concurrencyPolicy: coalesce_if_active
@@ -1931,6 +1825,7 @@ routines:
         cronExpression: 25 6 * * *
         timezone: America/New_York
   webapp-review-loop:
+    status: paused
     priority: medium
     concurrencyPolicy: coalesce_if_active
     catchUpPolicy: skip_missed
@@ -1939,6 +1834,7 @@ routines:
         cronExpression: 45 11 * * 1,3,5
         timezone: America/New_York
   pipeline-autonomy-loop:
+    status: paused
     priority: high
     concurrencyPolicy: coalesce_if_active
     catchUpPolicy: skip_missed
@@ -1947,6 +1843,7 @@ routines:
         cronExpression: 15 12 * * 1,3,5
         timezone: America/New_York
   pipeline-review-loop:
+    status: paused
     priority: medium
     concurrencyPolicy: coalesce_if_active
     catchUpPolicy: skip_missed
@@ -1955,6 +1852,7 @@ routines:
         cronExpression: 45 12 * * 1,3,5
         timezone: America/New_York
   capture-autonomy-loop:
+    status: paused
     priority: high
     concurrencyPolicy: coalesce_if_active
     catchUpPolicy: skip_missed
@@ -1963,6 +1861,7 @@ routines:
         cronExpression: 15 13 * * 1,3,5
         timezone: America/New_York
   capture-review-loop:
+    status: paused
     priority: medium
     concurrencyPolicy: coalesce_if_active
     catchUpPolicy: skip_missed
@@ -1971,6 +1870,7 @@ routines:
         cronExpression: 45 13 * * 1,3,5
         timezone: America/New_York
   ops-lead-morning:
+    status: paused
     agent: ops-lead
     priority: high
     concurrencyPolicy: coalesce_if_active
@@ -1990,6 +1890,7 @@ routines:
         cronExpression: 45 14 * * 1-5
         timezone: America/New_York
   intake-agent-hourly:
+    status: paused
     agent: intake-agent
     priority: medium
     concurrencyPolicy: coalesce_if_active
@@ -1999,6 +1900,7 @@ routines:
         cronExpression: 45 10,15 * * 1-5
         timezone: America/New_York
   capture-qa-daily:
+    status: paused
     agent: capture-qa-agent
     priority: medium
     concurrencyPolicy: coalesce_if_active
@@ -2020,6 +1922,7 @@ routines:
         cronExpression: 20 7 * * 2,4
         timezone: America/New_York
   finance-support-daily:
+    status: paused
     agent: finance-support-agent
     priority: medium
     concurrencyPolicy: coalesce_if_active
@@ -2039,6 +1942,7 @@ routines:
         cronExpression: 0 10 * * 1-5
         timezone: America/New_York
   exact-site-hosted-review-buyer-loop:
+    status: paused
     agent: growth-lead
     priority: high
     concurrencyPolicy: coalesce_if_active
@@ -2048,6 +1952,7 @@ routines:
         cronExpression: 20 10 * * 1-5
         timezone: America/New_York
   growth-lead-weekly:
+    status: paused
     agent: growth-lead
     priority: high
     concurrencyPolicy: coalesce_if_active
@@ -2067,6 +1972,7 @@ routines:
         cronExpression: 0 6 * * 1-5
         timezone: America/New_York
   analytics-weekly:
+    status: paused
     agent: analytics-agent
     priority: medium
     concurrencyPolicy: coalesce_if_active
@@ -2256,6 +2162,7 @@ routines:
         cronExpression: 30 11 * * 1-5
         timezone: America/New_York
   conversion-weekly:
+    status: paused
     agent: conversion-agent
     priority: medium
     concurrencyPolicy: coalesce_if_active
@@ -2275,6 +2182,7 @@ routines:
         cronExpression: 40 7 * * 1-5
         timezone: America/New_York
   market-intel-weekly:
+    status: paused
     agent: market-intel-agent
     priority: medium
     concurrencyPolicy: coalesce_if_active
@@ -2324,6 +2232,7 @@ routines:
         cronExpression: 15 9 * * 4
         timezone: America/New_York
   public-space-review-daily:
+    status: paused
     agent: public-space-review-agent
     priority: high
     concurrencyPolicy: coalesce_if_active
@@ -2363,6 +2272,7 @@ routines:
         cronExpression: 30 7 * * 1-5
         timezone: America/New_York
   demand-intel-weekly:
+    status: paused
     agent: demand-intel-agent
     priority: high
     concurrencyPolicy: coalesce_if_active
@@ -2412,6 +2322,7 @@ routines:
         cronExpression: 15 12 * * 4
         timezone: America/New_York
   city-demand-weekly:
+    status: paused
     agent: city-demand-agent
     priority: high
     concurrencyPolicy: coalesce_if_active
@@ -2431,6 +2342,7 @@ routines:
         cronExpression: 15 13 * * 4
         timezone: America/New_York
   buyer-solutions-active-pipeline-review:
+    status: paused
     agent: buyer-solutions-agent
     priority: high
     concurrencyPolicy: coalesce_if_active
@@ -2440,6 +2352,7 @@ routines:
         cronExpression: 15 10 * * 1-5
         timezone: America/New_York
   solutions-engineering-active-delivery-review:
+    status: paused
     agent: solutions-engineering-agent
     priority: high
     concurrencyPolicy: coalesce_if_active
@@ -2449,6 +2362,7 @@ routines:
         cronExpression: 45 13 * * 1,4
         timezone: America/New_York
   security-procurement-active-reviews:
+    status: paused
     agent: security-procurement-agent
     priority: high
     concurrencyPolicy: coalesce_if_active
@@ -2468,6 +2382,7 @@ routines:
         cronExpression: 30 10 * * 2
         timezone: America/New_York
   docs-agent-sweep:
+    status: paused
     agent: docs-agent
     priority: medium
     concurrencyPolicy: coalesce_if_active

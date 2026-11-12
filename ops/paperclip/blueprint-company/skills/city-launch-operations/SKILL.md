@@ -1,20 +1,8 @@
 ---
 name: city-launch-operations
-description: Adapt Blueprint's generic capturer growth playbook into city-specific launch plans, readiness scorecards, and dependency maps.
+description: Retired 2026-11-12. Do not use.
 ---
 
-# City Launch Operations
+# city-launch-operations (retired)
 
-Use this skill when building or updating a city-specific launch plan.
-
-Focus on:
-- city readiness scoring
-- channel fit by city
-- operational dependencies
-- instrumentation gaps
-- launch sequencing and blockers
-
-Rules:
-- treat each city plan as a hypothesis, not a claim of launch readiness
-- make missing data and human approvals explicit
-- route implementation dependencies to the correct downstream agents
+This skill is retired as of 2026-11-12. Do nothing with it: start no work, send nothing, change nothing. Blueprint's current frame is the shared block of PLATFORM_CONTEXT.md at the repository root. The old text is in `docs/archive/2026-11-12-pre-packet/ops/paperclip/blueprint-company/skills/city-launch-operations/`.

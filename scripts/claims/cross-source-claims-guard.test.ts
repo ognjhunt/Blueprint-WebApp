@@ -40,6 +40,41 @@ describe("cross-source claims guard", () => {
       await rm(root, { recursive: true, force: true });
     }
   });
+  it("flags the frames replaced on 2026-11-12 in doctrine files, allows a line that says they no longer hold, and skips the archive", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "blueprint-claims-frame-"));
+    try {
+      const archived = "docs/archive/2026-11-12-pre-packet/AGENTS.md";
+      await mkdir(path.join(root, path.dirname(archived)), { recursive: true });
+      await writeFile(path.join(root, "AGENTS.md"), [
+        "The site gets one answer: which did best.",
+        "Blueprint tests the top AI robots on the job.",
+        "Blueprint takes no cut.",
+        "The site's answer is no longer which did best (replaced 2026-11-12).",
+        "A site films a job once; Blueprint turns it into a job packet.",
+      ].join("\n"));
+      await writeFile(path.join(root, archived), "The site gets one answer: which did best.");
+      const result = await scanClaims({ rootDir: root, targets: ["AGENTS.md", "docs/archive"], writeReports: false });
+      expect(result.findings.map((finding) => [finding.file, finding.line, finding.type])).toEqual([
+        ["AGENTS.md", 1, "stale_root_doctrine"],
+        ["AGENTS.md", 2, "stale_root_doctrine"],
+        ["AGENTS.md", 3, "stale_root_doctrine"],
+      ]);
+      expect(result.scannedFiles.some((file) => file.includes("2026-11-12-pre-packet"))).toBe(false);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("scans every default doctrine target that exists and nothing under the archive", async () => {
+    const result = await scanClaims({ rootDir: repoRoot, writeReports: false });
+    const scanned = result.scannedFiles.map((file) => path.relative(repoRoot, file).split(path.sep).join("/"));
+    expect(scanned.some((file) => file.startsWith("docs/archive/2026-11-12-pre-packet/"))).toBe(false);
+    for (const file of ["AGENTS.md", "CLAUDE.md", "PLATFORM_CONTEXT.md", "AUTONOMOUS_ORG.md", "client/src/AGENTS.md", ".agents/product-marketing.md", "ops/paperclip/blueprint-company/COMPANY.md"]) {
+      expect(scanned, `${file} must be scanned`).toContain(file);
+    }
+    expect(scanned.filter((file) => file.startsWith("ops/paperclip/blueprint-company/agents/")).length).toBeGreaterThan(0);
+  });
+
   it("blocks the required operational-proof drift negative controls", async () => {
     const result = await scanClaims({
       rootDir: repoRoot,

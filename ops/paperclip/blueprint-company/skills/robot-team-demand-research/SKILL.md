@@ -1,21 +1,8 @@
 ---
 name: robot-team-demand-research
-description: Research how robotics, autonomy, simulation/data, and world-model businesses generated real technical-buyer demand for exact-site products.
+description: Retired 2026-11-12. Do not use.
 ---
 
-# Robot-Team Demand Research
+# robot-team-demand-research (retired)
 
-Use this skill when researching how robot teams and adjacent technical buyers actually discover, evaluate, and buy site-specific world-model products or similar infrastructure.
-
-Focus on:
-- robot-team demand channels
-- technical buyer proof thresholds
-- hosted-demo and packaging expectations
-- procurement and deployment triggers
-- city and vertical demand signals
-
-Rules:
-- prefer operator evidence over recycled GTM commentary
-- do not invent pipeline, TAM, urgency, or win-rate claims
-- keep robot-team buyers primary and site operators secondary
-- separate "interesting market signal" from "usable for Blueprint now"
+This skill is retired as of 2026-11-12. Do nothing with it: start no work, send nothing, change nothing. Blueprint's current frame is the shared block of PLATFORM_CONTEXT.md at the repository root. The old text is in `docs/archive/2026-11-12-pre-packet/ops/paperclip/blueprint-company/skills/robot-team-demand-research/`.

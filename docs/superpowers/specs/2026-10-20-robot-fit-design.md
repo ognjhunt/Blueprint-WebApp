@@ -1,3 +1,5 @@
+> **Superseded 2026-11-12.** This describes a frame the owner replaced. Current frame: the shared block of PLATFORM_CONTEXT.md.
+
 # Robot fit: what a job needs, which robots suit it, and which teams to ask
 
 Status: approved by the founder on 2026-10-20 ("build the robot-fit section

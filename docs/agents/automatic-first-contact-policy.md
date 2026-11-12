@@ -1,3 +1,5 @@
+> **Superseded 2026-11-12.** This describes a frame the owner replaced. Current frame: the shared block of PLATFORM_CONTEXT.md. Every approach to an outside company now needs the owner's go-ahead first.
+
 # Bounded automatic first contact
 
 Blueprint may introduce itself to a verified public business contact at a

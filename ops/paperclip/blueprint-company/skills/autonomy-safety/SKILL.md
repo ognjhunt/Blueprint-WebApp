@@ -1,17 +1,8 @@
 ---
 name: autonomy-safety
-description: Guardrails for bounded autonomous work, truthful reporting, and safe cross-repo execution.
+description: Retired 2026-11-12. Do not use.
 ---
 
-# Autonomy Safety
+# autonomy-safety (retired)
 
-Use this skill for every autonomous task.
-
-Rules:
-
-- Prefer specific, bounded work over vague exploration loops.
-- Run the smallest meaningful validation that matches the change.
-- Do not invent product state, customer data, providers, or readiness.
-- When a task crosses repo boundaries, explicitly inspect the touched contracts.
-- Report concrete file paths, commands run, and remaining risk back into the Paperclip issue.
-- If the best next step is delegation, delegate clearly instead of continuing aimlessly.
+This skill is retired as of 2026-11-12. Do nothing with it: start no work, send nothing, change nothing. Blueprint's current frame is the shared block of PLATFORM_CONTEXT.md at the repository root. The old text is in `docs/archive/2026-11-12-pre-packet/ops/paperclip/blueprint-company/skills/autonomy-safety/`.

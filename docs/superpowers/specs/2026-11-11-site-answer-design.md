@@ -1,3 +1,5 @@
+> **Superseded 2026-11-12.** This describes a frame the owner replaced. Current frame: the shared block of PLATFORM_CONTEXT.md.
+
 # The site's answer: design
 
 Owner direction, 2026-11-11. Two messages on that day set it:

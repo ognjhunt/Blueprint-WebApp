@@ -26,7 +26,7 @@ Do not use this for ordinary feature work unless the feature itself is about aut
 
 1. **Anchor the run**
    - Run `git status --short` first and preserve unrelated dirty work.
-   - Read the repo doctrine requested by the issue, especially `AGENTS.md`, `PLATFORM_CONTEXT.md`, `WORLD_MODEL_STRATEGY_CONTEXT.md`, `AUTONOMOUS_ORG.md`, `docs/architecture/command-safety-matrix.md`, and `docs/autonomous-loop-evidence-checklist-2026-05-03.md`.
+   - Read the repo doctrine requested by the issue, especially `AGENTS.md`, `PLATFORM_CONTEXT.md` and `docs/architecture/command-safety-matrix.md`. Do not use `docs/archive/` as current.
    - Use `graphify-out/GRAPH_REPORT.md` only as a navigation aid, never as product truth.
 
 2. **Run the local baseline**
@@ -69,9 +69,8 @@ Do not use this for ordinary feature work unless the feature itself is about aut
 
 ## Repo-Specific Gotchas
 
-- `Blueprint-WebApp` is buyer, licensing, ops, and hosted access for capture-backed site-specific world-model products. Do not reframe it as qualification-first or model-checkpoint-first.
-- Public pages may be polished and present-tense, but exact claims about customers, rights, payments, provider execution, city coverage, hosted fulfillment, or live availability need owning-system proof.
-- Paperclip is execution state; Notion is workspace/review visibility; repo docs are doctrine; Firestore/Stripe/Render/Redis/provider systems own their specific live facts.
+- `Blueprint-WebApp` is the site side of the job packet (the shared block of `PLATFORM_CONTEXT.md`). Public copy says only what is true today and promises nothing.
+- The Paperclip org is retired; Notion is workspace/review visibility; repo docs are doctrine; Firestore/Stripe/Render/Redis/provider systems own their specific live facts.
 - AutoAgent is an offline harness-optimization lab for `waitlist_triage`, `support_triage`, and `preview_diagnosis`. Live Firestore export is opt-in only.
 - Existing dirty files may be user or agent work. Do not revert or normalize them while landing a narrow improvement.
 - A no-change result is not waste if it is explicitly classified, backed by evidence, and suppresses future repeated runs. It is waste when it consumes a full run and leaves no durable suppression or proof trail.

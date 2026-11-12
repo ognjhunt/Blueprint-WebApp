@@ -1,22 +1,8 @@
 ---
 name: test-driven-development
-description: Adapted from obra/superpowers. Use for behavior-changing implementation work so the expected behavior is captured before the fix or feature lands.
+description: Retired 2026-11-12. Do not use.
 ---
 
-# Test-Driven Development
+# test-driven-development (retired)
 
-Use this skill when behavior is changing and the repo has a meaningful place to express that behavior in tests.
-
-## Process
-
-1. Identify the smallest failing test or assertion that proves the intended behavior.
-2. Write or update that test first.
-3. Run it and confirm it fails for the right reason.
-4. Implement the minimum code required to make it pass.
-5. Re-run the targeted test plus one adjacent regression check.
-
-## Guardrails
-
-- Do not add production code before you have a failing proof of the behavior.
-- If the repo has no sensible automated test surface for the change, document that explicitly.
-- Keep tests specific to the behavior you are changing.
+This skill is retired as of 2026-11-12. Do nothing with it: start no work, send nothing, change nothing. Blueprint's current frame is the shared block of PLATFORM_CONTEXT.md at the repository root. The old text is in `docs/archive/2026-11-12-pre-packet/ops/paperclip/blueprint-company/skills/test-driven-development/`.

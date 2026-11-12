@@ -1,39 +1,0 @@
-Prompt: so i need help brainstorming the customizing the UX when it comes to adding AR elements to the space. what is a realistic way that this can be achieved when editing online? so the way they'll be loaded for the customer is to load in spatial anchors based on local positioning or even maybe global gps coordinates (when outdoors). How can i have it so certain AR elemtns can be added to specific spots throughout the location/store layout. so example if i want to add an info card in the middle of aisle 16, then that'd be possible  Create something like this:  1. Define the AR Space in the Web Editor
-The web editor should allow users to upload or define their store layout, which can serve as the virtual template for placing AR elements.
-Key Features for Web Editor:
-1. Store Layout Map:
-    * Allow users to upload a blueprint (image, CAD file, etc.) or use a grid/map to define the store's layout.
-    * Alternatively, prepopulate a layout using data from scanning (e.g., RoomPlan for indoors).
-2. Interactive Placement of AR Elements:
-    * Drag-and-drop interface to place elements (e.g., info cards, 3D models, animations).
-    * Use a scaled grid or a mock 3D environment for positioning.
-3. Anchor Types:
-    * Spatial Anchors: For precise indoor placement using ARKit/ARCore anchors.
-    * GPS Coordinates: For outdoor locations (lat/long + elevation for multi-floor locations).
-    * Proximity Triggers: For elements activated based on user proximity.
-4. Customization Options:
-    * Add text, images, or videos to elements.
-    * Set size, orientation, and visibility conditions (e.g., always visible, visible within proximity).
-5. Preview Mode:
-    * Offer a 2D or 3D preview for users to visualize how elements will appear when viewed through AR devices.
-  Lets see how this works with like a store layout and then brainstorm some other ideas if i dont like the output  Maybe this could be an approach for part of it  UX for Adding AR Elements in Web Editor
-Example Workflow:
-1. Upload a Layout:
-    * Drag-and-drop a floor plan image or auto-import from scanning.
-2. Place Elements:
-    * Drag AR elements (e.g., info cards, 3D objects) onto the layout.
-    * Assign anchor points (dragging to approximate locations on the layout).
-3. Set Properties:
-    * Add text, images, or videos.
-    * Define conditions (e.g., proximity, time of day).
-4. Preview:
-    * Render a virtual 3D preview of the store with AR elements overlaid.
-5. Save to Blueprint:
-    * Save metadata to the backend (Firebase or another service).
-
-Technologies for Implementation
-Frontend (Web Editor):
-* Use a 3D visualization library like:
-    * Three.js (for web-based previews).
-
-don’t work on the preview/3d visualization aspect yet - ust the layout + ar element placements + conditions

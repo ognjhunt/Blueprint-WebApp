@@ -1,25 +1,8 @@
 ---
 name: receiving-code-review
-description: Adapted from obra/superpowers. Use when review feedback arrives and needs technical validation before implementation or pushback.
+description: Retired 2026-11-12. Do not use.
 ---
 
-# Receiving Code Review
+# receiving-code-review (retired)
 
-Treat review comments as technical claims to verify, not social cues to satisfy.
-
-## Process
-
-1. Restate the review request in concrete technical terms.
-2. Check the current code, tests, and runtime behavior before agreeing.
-3. Decide whether the feedback is:
-   - correct and actionable
-   - partially correct but needs a narrower fix
-   - incorrect for this codebase
-4. Implement one validated item at a time.
-5. Re-test the affected behavior before resolving the thread or closing the issue.
-
-## Guardrails
-
-- Do not blindly agree before checking the code.
-- Do not reject feedback without specific repo evidence.
-- Keep the response factual and short.
+This skill is retired as of 2026-11-12. Do nothing with it: start no work, send nothing, change nothing. Blueprint's current frame is the shared block of PLATFORM_CONTEXT.md at the repository root. The old text is in `docs/archive/2026-11-12-pre-packet/ops/paperclip/blueprint-company/skills/receiving-code-review/`.

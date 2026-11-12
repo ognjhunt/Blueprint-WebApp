@@ -115,7 +115,7 @@ their original create payload; communications jobs retain their frozen input
 reference/hash. Provider agent/session IDs are optional provenance, not the
 only recoverable business artifact. Existing standard-format company-storage
 exports and their manifests remain the portable export route described in
-`docs/architecture/research-outreach-learning-layer.md`.
+`docs/archive/2026-11-12-pre-packet/docs/architecture/research-outreach-learning-layer.md`.
 
 A replacement agent reads the exact Git commit, verifies the Firestore
 content hashes and existing authorized scope, then replays a saved native

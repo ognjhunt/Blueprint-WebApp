@@ -1,25 +1,8 @@
 ---
 name: subagent-driven-development
-description: Adapted from obra/superpowers. Use when executing a written implementation plan whose tasks can be delegated as independent work items in the current session.
+description: Retired 2026-11-12. Do not use.
 ---
 
-# Subagent-Driven Development
+# subagent-driven-development (retired)
 
-Use this skill when a plan already exists and the work benefits from isolated implementation lanes.
-
-## Process
-
-1. Start from an explicit written plan.
-2. Split the plan into tasks with disjoint ownership whenever possible.
-3. Delegate one fresh execution lane per task.
-4. After each lane finishes, check:
-   - requirement coverage
-   - code quality
-   - verification evidence
-5. Integrate only after those checks pass.
-
-## Guardrails
-
-- Do not use this skill without a real plan.
-- Do not dispatch parallel edits into the same file set.
-- Keep each delegated task outcome concrete: files changed, checks run, blockers found.
+This skill is retired as of 2026-11-12. Do nothing with it: start no work, send nothing, change nothing. Blueprint's current frame is the shared block of PLATFORM_CONTEXT.md at the repository root. The old text is in `docs/archive/2026-11-12-pre-packet/ops/paperclip/blueprint-company/skills/subagent-driven-development/`.
