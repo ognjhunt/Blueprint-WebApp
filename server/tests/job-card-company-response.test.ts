@@ -3,9 +3,10 @@
  * "Respond about this job" on a job card reaches a person at Blueprint: when an
  * approved company first responds on a job whose site asked Blueprint to find a
  * deployment company, the owner is rung once, with the job, the company's
- * stored name and the answer's headline. Neither the site nor the company is
- * contacted. OFFLINE: the real route against the fake Firestore; Slack, email
- * and the signed-in account are fakes.
+ * stored name and the answer's headline. The company is not contacted; the site
+ * is queued one email that says only that a company answered, and how.
+ * OFFLINE: the real route against the fake Firestore; Slack, email and the
+ * signed-in account are fakes.
  */
 import { createServer, type Server } from "node:http";
 import express from "express";
@@ -105,9 +106,13 @@ describe("POST /api/site-worlds/tasks/:taskId/interest", () => {
     expect(bells()[0]).toContain("Company: Northwind Automation (is interested)");
     expect(bells()[0]).toContain(`First look: ${headline}`);
     expect(bells()[0]).not.toMatch(/owner@example\.com|lee@robots\.example|conveyor/);
-    // A person makes the introduction: no email to the site or the company.
+    // A person makes the introduction: nothing is sent to the company. The site is queued one email (package C1), by
+    // alias and fixed label only: never the company's name, its address or its words.
     expect(seams.sendEmail).not.toHaveBeenCalled();
-    expect([...sharedFakeFirestoreState.docs.keys()].some(key => key.startsWith("captureOutbox/"))).toBe(false);
+    const queued = [...sharedFakeFirestoreState.docs.entries()].filter(([key]) => key.startsWith("captureOutbox/"));
+    expect(queued.map(([key]) => key)).toEqual([`captureOutbox/${ID}:company_answered:A-interested`]);
+    expect(queued[0][1]).toMatchObject({ to: "owner@example.com", subject: "A deployment company answered" });
+    expect(JSON.stringify(queued)).not.toMatch(/Northwind|lee@robots\.example|UR20/);
   });
 
   it("does not ring again when the same company responds again, even with other inputs or from a colleague", async () => {

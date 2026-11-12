@@ -63,6 +63,7 @@ const CLOSED_REASON_LABELS: Record<TeamAccessReason, string> = {
   restricted_to_named_teams: "the retired dossier names only certain teams",
   operator_paused: "paused by the site",
   consent_withdrawn: "recording permission withdrawn",
+  blueprint_hold: "Blueprint stopped showing it to companies",
   development_only: "a development capture",
   rights_blocked: "the rights review blocked the capture",
   rights_needs_review: "the rights review has not cleared the capture",
@@ -108,6 +109,7 @@ export function closedJobStep(facts: JobFacts): Step {
   switch (reason) {
     case "not_listed": return listingStep(facts.listing.state);
     case "operator_paused": return step("listing", "Listing paused by the site", "site");
+    case "blueprint_hold": return step("listing", "Shown to no company: Blueprint stopped showing this job (Deployment companies, below)", "blueprint");
     case "kept_private":
       return step("not_open", "Private under the retired dossier: ask the site whether approved teams may see it", "blueprint");
     case "restricted_to_named_teams":

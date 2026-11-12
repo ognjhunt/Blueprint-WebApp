@@ -47,6 +47,7 @@ export type TeamAccessReason =
   | "restricted_to_named_teams"
   | "operator_paused"
   | "consent_withdrawn"
+  | "blueprint_hold"
   | "development_only"
   | "rights_blocked"
   | "rights_needs_review"

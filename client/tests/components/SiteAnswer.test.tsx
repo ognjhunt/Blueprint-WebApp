@@ -703,3 +703,49 @@ describe("sharing the job with deployment companies", () => {
     expect(screen.queryByText(/No robot finished|Tried in our trial/)).toBeNull();
   });
 });
+
+// Package C1: under the sharing sentence, each send and each answer by alias, in date order; Blueprint's own sentence
+// under an answer; and once a company is interested, that we will write about next steps. Never a company's name.
+describe("the deployment companies section, with sends and answers", () => {
+  const activity = { interested: true, entries: [
+    { kind: "sent" as const, alias: "Company A", atIso: "2026-11-11T10:00:00.000Z" },
+    { kind: "answered" as const, alias: "Company B", atIso: "2026-11-12T09:00:00.000Z", state: "needs_something" as const, noteForSite: null },
+    { kind: "answered" as const, alias: "Company A", atIso: "2026-11-13T09:00:00.000Z", state: "interested" as const,
+      noteForSite: "They can visit in two weeks." },
+  ] };
+  const lines = () => within(companies()).getAllByRole("listitem").map(item => item.textContent);
+
+  it("lists them under the sharing sentence, by alias, date and label, and says we will write about next steps", () => {
+    render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE, companies: activity }} />);
+    expect(within(companies()).getByText(sharedOn("November 10, 2026"))).toBeVisible();
+    expect(lines()).toEqual(["Sent to Company A on November 11, 2026.", "Company B answered on November 12, 2026: Would need something.",
+      "Company A answered on November 13, 2026: Interested.They can visit in two weeks."]);
+    expect(within(companies()).getByText("They can visit in two weeks.")).toBeVisible();
+    expect(within(companies()).getByText("We will write to you about next steps.")).toBeVisible();
+    expect(companies().textContent).not.toMatch(BANNED);
+  });
+
+  it("says nothing about next steps until a company is interested, and keeps the entries while not visible", () => {
+    render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...HIDDEN, companies: { interested: false, entries: [
+      { kind: "sent", alias: "Company A", atIso: "2026-11-11T10:00:00.000Z" },
+      { kind: "answered", alias: "Company A", atIso: "2026-11-12T10:00:00.000Z", state: "declined", noteForSite: null }] } }} />);
+    expect(within(companies()).getByRole("status")).toHaveTextContent(notVisible("November 10, 2026"));
+    expect(lines()).toEqual(["Sent to Company A on November 11, 2026.", "Company A answered on November 12, 2026: Not a fit."]);
+    expect(within(companies()).queryByText("We will write to you about next steps.")).toBeNull();
+  });
+
+  it("shows no entry, and no list, when there is none, when the shape is wrong, or once the job ended", () => {
+    const { unmount } = render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE, companies: { interested: false, entries: [] } }} />);
+    expect(within(companies()).queryByRole("list")).toBeNull();
+    unmount();
+    const { unmount: second } = render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE,
+      companies: { interested: true, entries: [{ kind: "answered", alias: "Company A", atIso: "x", state: "maybe" }] } as never }} />);
+    expect(within(companies()).queryByRole("list")).toBeNull();
+    second();
+    render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...HIDDEN, companies: activity }} proof={null}
+      outlook={{ phase: "ended_by_site", reason: "permission_withdrawn", sentence: "Permission to use your video was withdrawn, so this job has stopped." }} />);
+    expect(within(companies()).getByText(NOTHING_IS_SHARED)).toBeVisible();
+    expect(within(companies()).queryByRole("list")).toBeNull();
+    expect(within(companies()).queryByText("We will write to you about next steps.")).toBeNull();
+  });
+});

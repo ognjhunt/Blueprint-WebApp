@@ -13,6 +13,7 @@ import {
   firstLookSentence, isScopeNote,
   type AnswerBasis, type AnswerCheck, type AnswerConfidenceLevel, type AnswerEvidence, type AnswerRobot, type JobSharing, type SiteAnswer as SiteAnswerView,
 } from "@/lib/siteAnswer";
+import { NEXT_STEPS_LINE, companyAnswered, isSiteCompanyActivity, sentToCompany, type SiteCompanyActivity } from "@/lib/companyResponses";
 
 /*
  * The site's job page below its title, bare bones (frame of 2026-11-12). Four sections, in order: where the job
@@ -30,7 +31,7 @@ const INTRODUCTION_FAILED = "We could not send your request just now. Try again 
 /** Shared, and the one predicate that decides what an approved company can see (`teamJobAccess`) says it is listed. */
 export const sharedOn = (date: string | null) =>
   `${date ? `Shared on ${date}.` : "Shared."} Deployment companies we approve can see a summary of your job. Nothing more is needed from you.`;
-/** Shared, but not visible to companies right now: paused by Blueprint, or a rights hold. */
+/** Shared, but not visible to companies right now: the site paused or closed the job, Blueprint stopped showing it to companies (the operator hold), or a rights hold. */
 export const sharedNotVisible = (date: string | null) =>
   `${date ? `You shared a summary of your job on ${date}.` : "You shared a summary of your job."} It is not visible to companies right now.`;
 /** The job packet is still being built (the video is being read, the simulation is being built or the trial runs). */
@@ -145,6 +146,26 @@ function cannotLine(reason: string | null): string | null {
   return reason;
 }
 
+/**
+ * Under the sharing sentence: each send and each answer, in date order, by alias only ("Company A"), with Blueprint's
+ * own sentence under an answer when there is one, and, once a company is interested, that we will write about next
+ * steps (the introduction is made by hand). Nothing here is a company's name or words: the server sends none
+ * (`projectSiteCompanyActivity`).
+ */
+function CompanyEntries({ activity }: { activity: SiteCompanyActivity | undefined }) {
+  if (!isSiteCompanyActivity(activity) || activity.entries.length === 0) return null;
+  return <>
+    <ul className="site-job-company-entries" aria-label="Sent and answered" style={{ listStyle: "none", padding: 0, margin: 0 }}>
+      {activity.entries.map((entry, index) => <li key={`${entry.kind}-${entry.alias}-${entry.atIso}-${index}`}>
+        <BareLead>{entry.kind === "sent" ? sentToCompany(entry.alias, dateInWords(entry.atIso))
+          : companyAnswered(entry.alias, dateInWords(entry.atIso), entry.state)}</BareLead>
+        {entry.kind === "answered" && entry.noteForSite && <BareFine>{entry.noteForSite}</BareFine>}
+      </li>)}
+    </ul>
+    {activity.interested && <BareLead>{NEXT_STEPS_LINE}</BareLead>}
+  </>;
+}
+
 /** One section of the page, headed, so each is its own region. */
 function Section({ id, title, children }: { id: string; title: string; children: ReactNode }) {
   return <section className="site-answer-section" aria-labelledby={id}>
@@ -220,7 +241,9 @@ function Companies({ token, answer, onRequested, quiet, offer, building, waiting
     {button}
   </BareGroup>;
   else body = <BareGroup><BareLead>{waitingOnSite ? PACKET_WAITS_ON_SITE : building ? PACKET_BUILDING : NOTHING_SHARED}</BareLead></BareGroup>;
-  return <Section id="site-job-companies" title={SECTION_COMPANIES}>{body}</Section>;
+  // A withdrawn job, or a closed one whose summary is not visible, shows nothing more ("Nothing is shared.").
+  const ends = ended === "withdrawn" || (ended === "closed" && sharing.state !== "visible");
+  return <Section id="site-job-companies" title={SECTION_COMPANIES}>{body}{!ends && <CompanyEntries activity={answer.companies} />}</Section>;
 }
 
 export interface SiteAnswerProps {

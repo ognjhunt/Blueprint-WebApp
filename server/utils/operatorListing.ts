@@ -21,3 +21,17 @@ export function operatorListingPaused(
   // closed its task stayed listed and buyable.
   return task?.paused === true || task?.archived === true;
 }
+
+/**
+ * Blueprint's own hold: the operator stopped showing the job to companies from the job console ("Stop showing this
+ * job to companies", package C1). `teamJobAccess` reads it, so the library card, the response route and the site's
+ * own sentence ("not visible right now") all follow it. Null when the job is not held.
+ */
+export function operatorListingHold(
+  request: InboundRequest | Record<string, unknown> | null | undefined,
+): { atIso: string; by: string | null; reason: string | null } | null {
+  const hold = (request as { operator_listing_hold?: Record<string, unknown> } | null | undefined)?.operator_listing_hold;
+  if (!hold || typeof hold !== "object" || hold.held !== true) return null;
+  const text = (value: unknown) => typeof value === "string" && value.trim() ? value.trim() : null;
+  return { atIso: String(hold.atIso ?? ""), by: text(hold.byEmail) ?? text(hold.by), reason: text(hold.reason) };
+}

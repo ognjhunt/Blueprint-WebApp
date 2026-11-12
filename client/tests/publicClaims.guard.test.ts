@@ -46,6 +46,8 @@ const CLAIM_FILES = [
   "server/utils/captureOutbox.ts",
   "server/utils/qualificationEmails.ts",
   "client/src/lib/evaluationPricing.ts",
+  // Package C1: what a site and a company read about sends and answers.
+  "client/src/lib/companyResponses.ts",
   "client/public/llms.txt",
   "client/public/llms-full.txt",
 ] as const;
@@ -120,6 +122,11 @@ const FRAME_FILES = [
   "server/routes/task-listings.ts",
   "client/index.html",
   "client/public/agent-access.openapi.json",
+  // Package C1: the company's response route, the send and answer records, and the operator's panel.
+  "server/routes/site-worlds.ts",
+  "server/utils/jobCompanies.ts",
+  "client/src/types/jobCompanies.ts",
+  "client/src/components/admin/JobCompaniesConsole.tsx",
 ] as const;
 
 const FILES = [...CLAIM_FILES, ...FRAME_FILES] as const;
@@ -164,6 +171,9 @@ const ALLOWED_IN: Record<string, ReadonlySet<string>> = {
   "client/src/components/site/TaskClarification.tsx": new Set(["the old frame's \"your answer\""]),
   "client/src/components/site/TaskDestinationChoice.tsx": new Set(["the old frame's \"your answer\""]),
   "client/src/components/site/TaskTargetChoice.tsx": new Set(["the old frame's \"your answer\""]),
+  // A deployment company's own answer, under its response form (package C1, the planner's wording, on the owner's list
+  // to confirm): "The site is told your answer, not your company's name or your words." Not the old frame's "your answer".
+  "client/src/lib/companyResponses.ts": new Set(["the old frame's \"your answer\""]),
   // The same questions' save errors ("Your answer could not be saved.").
   "server/routes/site-task-brief.ts": new Set(["the old frame's \"your answer\""]),
 };

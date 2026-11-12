@@ -76,15 +76,15 @@ export async function alertOpsIntroductionRequested(params: IntroductionRequestA
 }
 
 export function companyResponseAlertText(params: { requestId: string; company: string | null; state: string; headline: string | null }): string {
-  const said = params.state === "declined" ? "declined" : "is interested";
+  const said = params.state === "declined" ? "declined" : params.state === "needs_something" ? "would need something" : "is interested";
   return `:incoming_envelope: *An approved company responded about a job its site asked us to find a deployment company for* — `
     + `job \`${safeId(params.requestId)}\`.\nCompany: ${answerLine(params.company)} (${said})\nFirst look: ${answerLine(params.headline)}\n`
-    + "A person at Blueprint makes the introduction; nothing was sent to the site or the company.";
+    + "A person at Blueprint makes the introduction. The site is told the answer under an alias, never the company's name; nothing was sent to the company.";
 }
 
 /**
  * An approved company first responded on the card of a job whose site asked to find a deployment
- * company. Rings once per company and job; it emails neither the site nor the company.
+ * company. Rings once per company and job; it emails no company (the site's own email says only an alias and the answer).
  */
 export async function alertOpsCompanyResponded(params: { requestId: string; companyKey: string; company: string | null;
   state: string; headline: string | null }) {

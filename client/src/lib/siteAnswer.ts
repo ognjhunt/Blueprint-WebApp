@@ -13,6 +13,8 @@
  * Design: docs/superpowers/specs/2026-11-11-site-answer-design.md.
  */
 
+import type { SiteCompanyActivity } from "./companyResponses";
+
 export const SITE_ANSWER_SCHEMA = "site_answer.v1" as const;
 
 /** The kind of job, which keys the deployment evidence. */
@@ -244,9 +246,14 @@ export interface SiteAnswer {
   /**
    * Where the job's summary stands with deployment companies, decided on the server by the same predicate that decides
    * what a company can see (`teamJobAccess`): not shared; shared and visible to approved companies; or shared but not
-   * visible right now (paused by Blueprint, or a rights hold). A site shares on the start form or from its job page.
+   * visible right now (the site paused or closed the job, Blueprint stopped showing it to companies, or a rights hold). A site shares on the start form or from its job page.
    */
   sharing: JobSharing;
+  /**
+   * The approved deployment companies Blueprint sent the job to and what each answered, by alias only
+   * (`server/utils/jobCompanies.ts`, `projectSiteCompanyActivity`). Only on the owner's status read; absent elsewhere.
+   */
+  companies?: SiteCompanyActivity;
   /** sha256 of the inputs the answer was composed from. */
   basisDigest: string;
 }

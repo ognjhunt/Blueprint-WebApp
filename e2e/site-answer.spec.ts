@@ -41,10 +41,11 @@ const workflow = {
   nextAction: "Blueprint is preparing your job.", actionOwner: "blueprint", review: null,
 };
 
-async function mockJob(page: Page, { evaluation = simulationRun as unknown, listed = true }: { evaluation?: unknown; listed?: boolean } = {}) {
+async function mockJob(page: Page, { evaluation = simulationRun as unknown, listed = true, sharedAtIso = null as string | null,
+  companies }: { evaluation?: unknown; listed?: boolean; sharedAtIso?: string | null; companies?: unknown } = {}) {
   const introductions: Array<{ csrf: string | undefined }> = [];
   const unexpected: string[] = [];
-  let requestedAtIso: string | null = null;
+  let requestedAtIso: string | null = sharedAtIso;
   await page.route("**/*", route => new URL(route.request().url()).hostname === "127.0.0.1"
     ? route.continue() : route.fulfill({ status: 204, body: "" }));
   await page.route("**/api/**", async route => {
@@ -62,7 +63,9 @@ async function mockJob(page: Page, { evaluation = simulationRun as unknown, list
     if (path === `/api/site-task-brief/${token}/status`) return route.fulfill({ json: {
       scope: "owner", captureReceived: true, answer: { ...readyAnswer, introductionRequestedAtIso: requestedAtIso, jobCardListed: requestedAtIso !== null && listed,
         // The server's own reading of what a company can see (`jobSharingOf`).
-        sharing: requestedAtIso !== null && listed ? { state: "visible", sharedAtIso: requestedAtIso } : { state: "not_shared", sharedAtIso: null } },
+        sharing: requestedAtIso !== null && listed ? { state: "visible", sharedAtIso: requestedAtIso } : { state: "not_shared", sharedAtIso: null },
+        // Package C1: sends and answers, by alias only, as the server projects them (`projectSiteCompanyActivity`).
+        ...(companies ? { companies } : {}) },
       // The job's outlook as the server decides it for this answer and evaluation (the page renders by it).
       outlook: serverOutlookFor(readyAnswer, projectSimulationProof({ evaluation: (evaluation ? [evaluation] : []) as never, pick: null })),
       status: { decision: "footage_received", headline: "We have your recording.", operatorAction: null, missingViews: [], nextUpdateIso: null } } });
@@ -233,6 +236,31 @@ test("when the request is saved but nothing is listed, the page says the summary
     .toHaveText("You shared a summary of your job on November 11, 2026. It is not visible to companies right now.");
   await expect(page.getByText(/could not send|can see a summary/)).toHaveCount(0);
   expect(introductions).toHaveLength(1);
+});
+
+// Package C1: under the sharing sentence, each send and answer by alias, date and fixed label; Blueprint's own sentence
+// under an answer; and, once a company is interested, that we will write about next steps. Never a company's name.
+test("the deployment companies section lists each send and answer by alias, with Blueprint's note and the next step", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const { unexpected } = await mockJob(page, { sharedAtIso: "2026-11-11T15:00:00.000Z", companies: { interested: true, entries: [
+    { kind: "sent", alias: "Company A", atIso: "2026-11-12T10:00:00.000Z" },
+    { kind: "answered", alias: "Company B", atIso: "2026-11-12T12:00:00.000Z", state: "needs_something", noteForSite: null },
+    { kind: "answered", alias: "Company A", atIso: "2026-11-13T09:00:00.000Z", state: "interested", noteForSite: "They can visit in two weeks." },
+  ] } });
+  await page.goto(`/capture-upload/${token}?video=existing`);
+  const companies = page.getByRole("region", { name: "Deployment companies" });
+  await expect(companies.getByRole("status")).toHaveText(LISTED);
+  await expect(companies.getByRole("list", { name: "Sent and answered" }).getByRole("listitem")).toHaveText([
+    "Sent to Company A on November 12, 2026.",
+    "Company B answered on November 12, 2026: Would need something.",
+    "Company A answered on November 13, 2026: Interested.They can visit in two weeks.",
+  ]);
+  await expect(companies.getByText("We will write to you about next steps.", { exact: true })).toBeVisible();
+  // The order on the page: the sharing sentence, then the entries, then the next step.
+  const order = await companies.locator("p").allTextContents();
+  expect(order.indexOf(LISTED)).toBeLessThan(order.indexOf("Sent to Company A on November 12, 2026."));
+  expect(order.indexOf("Sent to Company A on November 12, 2026.")).toBeLessThan(order.indexOf("We will write to you about next steps."));
+  expect(unexpected).toEqual([]);
 });
 
 test("the job page, its details and the job settings read at phone width without scrolling sideways, the button on the first screen", async ({ browser }) => {

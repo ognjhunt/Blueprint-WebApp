@@ -1273,8 +1273,14 @@ async function siteAnswerForStatus(params: { requestId: string; request: Record<
   if (!params) return null;
   try {
     const { loadSiteAnswer } = await import("../utils/siteAnswer");
-    return await loadSiteAnswer(params.requestId, { request: params.request, brief: (params.brief ?? null) as never,
+    const answer = await loadSiteAnswer(params.requestId, { request: params.request, brief: (params.brief ?? null) as never,
       videoReceived: params.videoReceived, robotFit: (params.robotFit ?? null) as never });
+    if (!answer) return null;
+    // Which approved companies the job was sent to and what each answered, by alias only (`projectSiteCompanyActivity`):
+    // never a company's name, email, website or words. A read that fails shows none, never a broken page.
+    const companies = await import("../utils/jobCompanies").then(({ loadSiteCompanyActivity }) => loadSiteCompanyActivity(params.requestId))
+      .catch(error => { logger.warn({ error, requestId: params.requestId }, "Could not read the job's company activity"); return null; });
+    return companies ? { ...answer, companies } : answer;
   } catch (error) {
     logger.warn({ error, requestId: params.requestId }, "Could not compose the site's answer");
     return null;

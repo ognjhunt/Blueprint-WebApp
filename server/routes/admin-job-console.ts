@@ -8,6 +8,10 @@
  * team ranking (a model call staff ask for) and whether the site may see its
  * robot-form read. The export and the ranking are refused once recording
  * consent is withdrawn, and nothing new is shared with the site after that.
+ * Deployment companies (package C1) records, by hand, which approved companies
+ * Blueprint sent the job to and what each answered, and holds the job back from
+ * every company when needed (`server/utils/jobCompanies.ts`). The product sends
+ * nothing to a company.
  */
 import { Router, type Request, type Response } from "express";
 import { z } from "zod";
@@ -27,6 +31,11 @@ import {
 import { RobotFitError, getAdminRobotFit, rankTeamsForJob, setRobotFitSharing } from "../utils/siteRobotFit";
 import { getReadinessPreview } from "../utils/siteReadiness";
 import { loadWebsiteCaptureRights } from "../utils/websiteTaskContext";
+import {
+  JobCompaniesError, loadAdminJobCompanies, recordCompanyResponseByOperator, recordCompanySend, setOperatorListingHold, voidCompanySend,
+  type OperatorActor,
+} from "../utils/jobCompanies";
+import { COMPANY_RESPONSE_STATES, SITE_NOTE_MAX } from "../../client/src/lib/companyResponses";
 
 const router = Router();
 router.use(requireAdminRole);
@@ -219,6 +228,122 @@ router.post("/:requestId/robot-fit/sharing", async (req: Request, res: Response)
     if (error instanceof RobotFitError) return robotFitErrorResponse(res, error);
     logger.error({ err: error, requestId: parsed.data }, "Robot fit sharing change failed");
     return res.status(503).json({ error: "Sharing could not be changed. Try again." });
+  }
+});
+
+/* ------------------------------------------------------- deployment companies */
+
+function jobCompaniesErrorResponse(res: Response, error: JobCompaniesError) {
+  const status = error.code === "job_not_found" || error.code === "send_not_found" ? 404
+    : error.code === "note_invalid" ? 400 : error.code === "store_unavailable" ? 503 : 409;
+  return res.status(status).json({ code: error.code, error: error.message });
+}
+
+function operatorOf(res: Response): OperatorActor {
+  const user = res.locals.firebaseUser as { uid?: string; email?: string } | undefined;
+  return { uid: typeof user?.uid === "string" ? user.uid : null, email: typeof user?.email === "string" ? user.email : null };
+}
+
+/** The panel: sharing in words, the hold, the library address, approved companies, sends and answers (admin only). */
+router.get("/:requestId/companies", async (req: Request, res: Response) => {
+  const parsed = requestId.safeParse(req.params.requestId);
+  if (!parsed.success) return res.status(400).json({ error: "Invalid job id." });
+  try {
+    const panel = await loadAdminJobCompanies(parsed.data);
+    if (!panel) return res.status(404).json({ error: "Site job not found." });
+    res.set("Cache-Control", "no-store");
+    return res.json(panel);
+  } catch (error) {
+    if (error instanceof JobCompaniesError) return jobCompaniesErrorResponse(res, error);
+    logger.error({ err: error, requestId: parsed.data }, "Job companies read failed");
+    return res.status(503).json({ error: "Deployment companies are unavailable. Try again." });
+  }
+});
+
+const companyId = z.string().regex(/^[a-f0-9]{64}$/);
+const sendBody = z.object({ companyId }).strict();
+
+/** Record that the operator sent this job's library address to an approved deployment company, from their own mailbox. */
+router.post("/:requestId/companies/sends", async (req: Request, res: Response) => {
+  const parsed = requestId.safeParse(req.params.requestId);
+  const body = sendBody.safeParse(req.body);
+  if (!parsed.success || !body.success) return res.status(400).json({ error: "Choose an approved deployment company." });
+  try {
+    const actor = operatorOf(res);
+    const send = await recordCompanySend(parsed.data, body.data.companyId, actor);
+    logger.info({ requestId: parsed.data, actor: actor.uid, sendId: send.sendId, alias: send.alias }, "Company send recorded");
+    res.set("Cache-Control", "no-store");
+    return res.json({ send });
+  } catch (error) {
+    if (error instanceof JobCompaniesError) return jobCompaniesErrorResponse(res, error);
+    logger.error({ err: error, requestId: parsed.data }, "Company send failed");
+    return res.status(503).json({ error: "The send could not be recorded. Try again." });
+  }
+});
+
+const sendId = z.string().regex(/^[A-Za-z0-9-]{1,64}$/);
+
+/** Void a mistaken send: it stays on record and the site no longer sees it. */
+router.post("/:requestId/companies/sends/:sendId/void", async (req: Request, res: Response) => {
+  const parsed = requestId.safeParse(req.params.requestId);
+  const send = sendId.safeParse(req.params.sendId);
+  if (!parsed.success || !send.success || (req.body && Object.keys(req.body).length)) return res.status(400).json({ error: "Invalid send." });
+  try {
+    const actor = operatorOf(res);
+    const voided = await voidCompanySend(parsed.data, send.data, actor);
+    logger.info({ requestId: parsed.data, actor: actor.uid, sendId: send.data }, "Company send voided");
+    res.set("Cache-Control", "no-store");
+    return res.json({ voided });
+  } catch (error) {
+    if (error instanceof JobCompaniesError) return jobCompaniesErrorResponse(res, error);
+    logger.error({ err: error, requestId: parsed.data }, "Company send void failed");
+    return res.status(503).json({ error: "The send could not be voided. Try again." });
+  }
+});
+
+const responseBody = z.object({
+  companyId,
+  state: z.enum(COMPANY_RESPONSE_STATES),
+  inputs: z.string().trim().max(2000).default(""),
+  noteForSite: z.string().trim().max(SITE_NOTE_MAX).nullable().optional(),
+}).strict();
+
+/** Record an answer a company gave by email: their words for Blueprint only, and an optional sentence for the site. */
+router.post("/:requestId/companies/responses", async (req: Request, res: Response) => {
+  const parsed = requestId.safeParse(req.params.requestId);
+  const body = responseBody.safeParse(req.body);
+  if (!parsed.success || !body.success) return res.status(400).json({ error: "Choose the company and its answer." });
+  try {
+    const actor = operatorOf(res);
+    const recorded = await recordCompanyResponseByOperator(parsed.data, { companyId: body.data.companyId, state: body.data.state,
+      inputs: body.data.inputs, noteForSite: body.data.noteForSite ? body.data.noteForSite : null }, actor);
+    logger.info({ requestId: parsed.data, actor: actor.uid, alias: recorded.alias, state: body.data.state }, "Company response recorded by operator");
+    res.set("Cache-Control", "no-store");
+    return res.json({ response: recorded });
+  } catch (error) {
+    if (error instanceof JobCompaniesError) return jobCompaniesErrorResponse(res, error);
+    logger.error({ err: error, requestId: parsed.data }, "Company response record failed");
+    return res.status(503).json({ error: "The answer could not be recorded. Try again." });
+  }
+});
+
+const holdBody = z.object({ held: z.boolean(), reason: z.string().trim().max(500).optional() }).strict();
+
+/** "Stop showing this job to companies" / "Show again": Blueprint's own hold, read by `teamJobAccess`. */
+router.post("/:requestId/companies/hold", async (req: Request, res: Response) => {
+  const parsed = requestId.safeParse(req.params.requestId);
+  const body = holdBody.safeParse(req.body);
+  if (!parsed.success || !body.success) return res.status(400).json({ error: "Send whether to stop showing this job to companies." });
+  try {
+    const actor = operatorOf(res);
+    const hold = await setOperatorListingHold(parsed.data, body.data.held, body.data.reason || null, actor);
+    logger.info({ requestId: parsed.data, actor: actor.uid, held: hold.held }, "Operator listing hold changed");
+    res.set("Cache-Control", "no-store");
+    return res.json({ hold });
+  } catch (error) {
+    if (error instanceof JobCompaniesError) return jobCompaniesErrorResponse(res, error);
+    logger.error({ err: error, requestId: parsed.data }, "Operator listing hold change failed");
+    return res.status(503).json({ error: "The hold could not be changed. Try again." });
   }
 });
 
