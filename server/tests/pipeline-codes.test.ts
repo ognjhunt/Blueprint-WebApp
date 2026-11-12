@@ -39,12 +39,12 @@ describe("set-up and scene flags", () => {
     ["known_good_control_passed:2_of_3", "Before testing robots, a scripted reference arm that reads exact positions from the simulation completed the job, so the simulated scene can record a success."],
     ["known_good_control_unavailable:backend", "We have no scripted reference that runs in the simulator this job used yet, so nothing confirmed beforehand that the simulated scene can record a success."],
     ["scene_estimate:support_guessed", "We could not find the surface the object rests on in your video, so the simulated scene uses the nearest one."],
-    ["scene_estimate:capability_unassessed", "We could not work out on paper what each robot can do in this scene. We test them anyway."],
-    ["scene_estimate:robot_fit_none:reach", "On paper, none of the robots fits this job, so a low result is expected. We test them anyway. The most common reason: the arm cannot reach the job from any position we found."],
-    ["scene_estimate:robot_fit_none:task_kind", "On paper, none of the robots fits this job, so a low result is expected. We test them anyway. The most common reason: the robot's software does not list this kind of job."],
-    ["scene_estimate:robot_fit_none:gpu_memory", "On paper, none of the robots fits this job, so a low result is expected. We test them anyway. The most common reason: the robot's software needs more computing memory than any machine we rent."],
-    ["scene_estimate:robot_fit_none:no_candidate_available", "On paper, none of the robots fits this job, so a low result is expected. We test them anyway. No robot was available from our catalog."],
-    ["scene_estimate:robot_fit_none:brand_new_cause", "On paper, none of the robots fits this job, so a low result is expected. We test them anyway."],
+    ["scene_estimate:capability_unassessed", "We could not work out on paper what each robot can do in this scene."],
+    ["scene_estimate:robot_fit_none:reach", "On paper, none of the robots fits this job. The most common reason: the arm cannot reach the job from any position we found."],
+    ["scene_estimate:robot_fit_none:task_kind", "On paper, none of the robots fits this job. The most common reason: the robot's software does not list this kind of job."],
+    ["scene_estimate:robot_fit_none:gpu_memory", "On paper, none of the robots fits this job. The most common reason: the robot's software needs more computing memory than any machine we rent."],
+    ["scene_estimate:robot_fit_none:no_candidate_available", "On paper, none of the robots fits this job. No robot was available from our catalog."],
+    ["scene_estimate:robot_fit_none:brand_new_cause", "On paper, none of the robots fits this job."],
     ["known_good_control_unavailable:task_kind", "We have no scripted reference for this kind of job yet, so nothing confirmed beforehand that the simulated scene can record a success."],
   ])("says %s in plain words, never the code", (code, sentence) => {
     expect(setupFlagSentence(code)).toBe(sentence);
@@ -62,7 +62,7 @@ describe("set-up and scene flags", () => {
   });
   it("says the fixed arm's reach on that robot's row only, never as a set-up note", () => {
     const code = "fixed_arm_reach_cannot_span_pick_and_place";
-    expect(robotFactNotes({ scene_check_flags: [code] })).toEqual(["On paper, this robot's arm cannot reach both the pick-up and the put-down place from one position. We test it anyway."]);
+    expect(robotFactNotes({ scene_check_flags: [code] })).toEqual(["On paper, this robot's arm cannot reach both the pick-up and the put-down place from one position."]);
     expect(isRobotFactFlag(code)).toBe(true);
     expect(isKnownFlag(code)).toBe(true);
   });

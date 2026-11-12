@@ -73,8 +73,8 @@ const SETUP_FLAG_SENTENCES: ReadonlyMap<string, string> = new Map(Object.entries
   "scene_estimate:support_height_differs_from_picture": "In the simulated scene, the object rests slightly above or below the surface the cameras show.",
   "scene_estimate:support_guessed": "We could not find the surface the object rests on in your video, so the simulated scene uses the nearest one.",
   // Our paper check gave no verdict (no arm enabled, no clear standing place, or out of reach from every place found).
-  // Never says a test already ran: these notes also show on publications where none has (review, 2026-11-12).
-  "scene_estimate:capability_unassessed": "We could not work out on paper what each robot can do in this scene. We test them anyway.",
+  // Never says a test runs: these notes also show on publications where nothing is or ever will be tested.
+  "scene_estimate:capability_unassessed": "We could not work out on paper what each robot can do in this scene.",
   // A run's camera and set-up checks, per camera where the code names one.
   task_object_partly_hidden: "In the simulation, the job's object was partly hidden from one of the robot's cameras.",
   task_target_marker_partly_hidden: "In the simulation, the mark showing where the object goes was partly hidden from one of the robot's cameras.",
@@ -95,7 +95,7 @@ const ROBOT_FACT_FLAG_SENTENCES: ReadonlyMap<string, string> = new Map(Object.en
   task_object_heavier_than_grip: "The object is heavier than this robot's grip is rated to hold.",
   task_object_grip_depends_on_weight: "Whether this robot can hold the object depends on its weight, which we estimated from your video.",
   task_object_needs_edge_grip: "This robot can only hold the object by its edge.",
-  fixed_arm_reach_cannot_span_pick_and_place: "On paper, this robot's arm cannot reach both the pick-up and the put-down place from one position. We test it anyway.",
+  fixed_arm_reach_cannot_span_pick_and_place: "On paper, this robot's arm cannot reach both the pick-up and the put-down place from one position.",
 }));
 /** The box-fit flags (`task_object_box_fit_*`): one sentence for the family. */
 const BOX_FIT_PREFIX = "task_object_box_fit_";
@@ -106,7 +106,7 @@ const BOX_FIT_SENTENCE = "In the simulated scene, the object's size or outline d
  */
 const ROBOT_FIT_NONE_PREFIX = "scene_estimate:robot_fit_none";
 // The Pipeline names the cause that ruled out the MOST robots, not all of them.
-export const ROBOT_FIT_NONE_SENTENCE = "On paper, none of the robots fits this job, so a low result is expected. We test them anyway.";
+export const ROBOT_FIT_NONE_SENTENCE = "On paper, none of the robots fits this job.";
 export const ROBOT_FIT_NONE_CAUSES: Readonly<Record<string, string>> = {
   reach: "The most common reason: the arm cannot reach the job from any position we found.",
   task_kind: "The most common reason: the robot's software does not list this kind of job.",

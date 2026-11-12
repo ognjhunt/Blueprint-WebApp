@@ -272,6 +272,28 @@ describe("no new video is needed after all", () => {
     expect(row.body).not.toContain("PRIVATE");
   });
 });
+// Review, 2026-11-12: both part-6 endings publish in failed_retryable; the notice carries the ending, so its email
+// says the page's own words for it.
+it.each([
+  [{category: "insufficient_evidence", reason: "website_preparation_not_possible", cause: "website_assembly_whole_object_coverage_required",
+    basis: "missing_evidence", robot_id: null, evidence_digest: `sha256:${"e".repeat(64)}`},
+    {reason: "website_preparation_not_possible", cause: "website_assembly_whole_object_coverage_required"}],
+  [{category: "processing_failure", reason: "website_preparation_retries_spent", basis: "execution_failure", robot_id: null,
+    evidence_digest: `sha256:${"e".repeat(64)}`}, {reason: "website_preparation_retries_spent"}],
+])("a failed_retryable status with a part-6 ending owes its needs-attention notice with that ending (%#)", async (outcome, ending) => {
+  const h = harness();
+  h.ledger(v7("failed_retryable", outcome));
+  await syncWebsitePreparationStatus(selector, h.deps);
+  const projected = await loadCurrentWebsitePreparationStatus("r1", "walkthrough-r1", h.deps);
+  expect(projected.state).toBe("failed_retryable");
+  expect(await drainPendingWebsitePreparationNotifications(h.enqueue, h.deps)).toEqual({enqueued: 1, pending: 0});
+  expect(h.enqueue).toHaveBeenCalledWith(expect.objectContaining({milestone: "preparation_needs_attention", preparationEnding: ending}));
+  const email = buildTaskLifecycleNotification({requestId: "r1", milestone: "preparation_needs_attention",
+    eventId: websitePreparationEventId(selector), preparationEnding: ending as never, to: "owner@example.test"});
+  expect(email.body).toContain(projected.outcome!.reason);
+  expect(email.body).toContain(projected.outcome!.nextStep);
+  expect(email.body).not.toMatch(/review/i);
+});
 // Rewritten (review, 2026-11-12): a reason this release does not know never fails the read; a known reason must keep
 // its own shape, and v6 still refuses a v7 stop.
 it("v6 does not accept a v7 stop, and v7 reads a new reason it does not know instead of refusing it", () => {

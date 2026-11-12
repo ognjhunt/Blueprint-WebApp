@@ -1,7 +1,8 @@
 /** The one optional in-job question (website_preparation_status.v4): preparation already went on with
  * its best supported guess of the object the robot moves; the site may confirm it, pick another found
  * object (the same job reruns from retained work) or say none of these (same-job walkthrough update).
- * Mirrors contracts/pipeline/website-task-target-choice.v1.schema.json. Candidates are opaque ids
+ * Mirrors contracts/pipeline/website-task-target-choice.v1.schema.json (both kinds, exactly; a place question that
+ * misses that shape is read as one this release does not know). Candidates are opaque ids
  * and position labels the Pipeline derived from segmentation masks; no image or pixel data. */
 import { z } from "zod";
 
@@ -48,9 +49,10 @@ export const taskDestinationChoiceQuestionSchema = z.object({
     candidate_id: placeCandidateId,
     label: z.string().min(1).max(120),
     reference_time_ms: z.number().int().min(0).max(86_400_000).nullable(),
-  }).passthrough()).min(2).max(4),
-  picture: z.object({ png_sha256: digest, frame_id: z.string().min(1).max(128) }).passthrough().optional(),
-}).passthrough().refine(value => new Set(value.candidates.map(row => row.candidate_id)).size === value.candidates.length
+  }).strict()).min(2).max(4),
+  // Required, as the Pipeline's schema has it (2026-11-12): the places are told apart only on the picture.
+  picture: z.object({ png_sha256: digest, frame_id: z.string().min(1).max(128) }).strict(),
+}).strict().refine(value => new Set(value.candidates.map(row => row.candidate_id)).size === value.candidates.length
   && value.candidates.some(row => row.candidate_id === value.guessed_candidate_id), "candidate ids repeat or miss the guess");
 export type TaskDestinationChoiceQuestion = z.infer<typeof taskDestinationChoiceQuestionSchema>;
 

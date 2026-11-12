@@ -217,6 +217,8 @@ describe('negative answer, retained history and a later owner clarification', ()
 describe("cross-repo contract", () => {
   it("mirrors the Pipeline schema byte for byte and its examples parse here", () => {
     const mirror = fs.readFileSync(MIRROR);
+    // Pinned, so a mirror change is deliberate even where the Pipeline checkout is absent (CI).
+    expect(createHash("sha256").update(mirror).digest("hex")).toBe("3c6ff368f1b3bc12825cc76ea1d253f34c22a44f74449a2e6b2f29b3ac307b83");
     if (fs.existsSync(PIPELINE))
       expect(createHash("sha256").update(fs.readFileSync(PIPELINE)).digest("hex"))
         .toBe(createHash("sha256").update(mirror).digest("hex"));
@@ -274,11 +276,15 @@ describe("the place question", () => {
     await syncWebsitePreparationStatus(selector, old);
     expect((await loadCurrentWebsitePreparationStatus("r1", "walkthrough-r1", old)).question).toEqual(question);
   });
+  // Rewritten (review, 2026-11-12): the reader takes exactly the Pipeline schema's place question; an extra key is a
+  // place question that misses that shape: still never a failed read, but not shown.
   it("never fails the read for an extra key, or a question kind this release does not know (not shown)", async () => {
     const extra = { ...place, later_key: true, candidates: (place as any).candidates.map((row: object) => ({ ...row, more: 1 })) };
     const deps = preparation(receipt("preparing", extra as never));
     await syncWebsitePreparationStatus(selector, deps);
-    expect((await loadCurrentWebsitePreparationStatus("r1", "walkthrough-r1", deps)).question?.question_digest).toBe(place.question_digest);
+    const shown = await loadCurrentWebsitePreparationStatus("r1", "walkthrough-r1", deps);
+    expect(shown.state).toBe("preparing");
+    expect(shown.question).toBeNull();
     const strange = preparation(receipt("preparing", { kind: "brand_new_question", question_digest: `sha256:${"6".repeat(64)}` } as never));
     await syncWebsitePreparationStatus(selector, strange);
     const read = await loadCurrentWebsitePreparationStatus("r1", "walkthrough-r1", strange);
@@ -295,6 +301,8 @@ describe("the place question", () => {
     ["no sentence", (({ sentence: _s, ...rest }: any) => rest)(place)],
     ["an object's id", { ...place, candidates: [(place as any).candidates[0], { ...(place as any).candidates[1], candidate_id: "c0000000000000000" }] }],
     ["a bad picture digest", { ...place, picture: { png_sha256: "sha256:short", frame_id: "f" } }],
+    ["no picture", (({ picture: _p, ...rest }: any) => rest)(place)],
+    ["an extra key", { ...place, later_key: 1 }],
   ])("syncs the status with a place question that has %s, shows no question and tells staff once", async (_label, malformed) => {
     const alerts = await import("../utils/unknownPipelineCode");
     const noted = vi.spyOn(alerts, "noteUnknownPipelineCodes").mockResolvedValue(undefined);
