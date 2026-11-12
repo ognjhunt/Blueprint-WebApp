@@ -26,6 +26,8 @@ describe("TaskDestinationChoice", () => {
     expect(screen.getByText("We will test moving the tote from here to here.")).toBeTruthy();
     expect(screen.getByRole("img").getAttribute("src")).toBe(view.pictureUrl);
     expect(screen.getByText(/We will use Place A\. Nothing is needed from you/)).toBeTruthy();
+    // As the Pipeline draws it: A, the guess, in green; the others in blue, each with its letter.
+    expect(screen.getByText("Orange: where it starts. Each letter marks a place the object could go. A, in green, is our guess.")).toBeTruthy();
     expect(screen.queryByRole("radio")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "This is right" }));
     await waitFor(() => expect(onAnswered).toHaveBeenCalled());

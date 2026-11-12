@@ -154,7 +154,7 @@ export const PREPARATION_NOT_POSSIBLE_CAUSES: Readonly<Record<string, string>> =
  * Nothing here says the job is looked at or tried again: no code confirmed yet does either (review, 2026-11-12).
  */
 export const PREPARATION_NOT_POSSIBLE_SENTENCES = {
-  title: "We cannot prepare the simulation of your job yet",
+  title: "We cannot prepare the simulation of your job",
   /** After a cause's own sentence. */
   withCause: "We cannot prepare the simulation of your job, so it has stopped.",
   /** With no cause, or one without words. */

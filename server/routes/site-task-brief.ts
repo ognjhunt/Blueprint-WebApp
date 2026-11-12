@@ -1475,6 +1475,8 @@ router.get("/:token/status", async (req: Request, res: Response) => {
       // The optional place question (2026-11-12): ids and place kinds only; the picture through its 15-minute ticket.
       // Answered: the page says only that it has the answer.
       destinationAnswered: payload.scope === "owner" && placeAnswer !== null,
+      // The site picked another place: results tested before it say so on the page (nothing else changes).
+      destinationCorrected: payload.scope === "owner" && placeAnswer === "other_candidate",
       // Only with its picture (the places are told apart by the letters drawn on it): without one, nothing is asked.
       destinationChoice: destinationPicture && question?.kind === "task_destination_choice" ? {
         questionDigest: question.question_digest, objectLabel: question.semantic_label,

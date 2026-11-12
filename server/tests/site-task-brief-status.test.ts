@@ -339,6 +339,8 @@ describe("GET /api/site-task-brief/:token/status", () => {
       const after = await status(owner);
       expect(after.body.destinationChoice ?? null).toBeNull();
       expect(after.body.destinationAnswered).toBe(true);
+      // Another place chosen: the page may say results were tested on the earlier place (the client shows it with results).
+      expect(after.body.destinationCorrected).toBe(true);
       // A place answer changes nothing else the page says: no superseded results, no "updating".
       expect(after.body.status).toEqual(plain.body.status);
       expect(after.body.outlook).toEqual(plain.body.outlook);

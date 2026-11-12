@@ -305,6 +305,49 @@ test("the place question shows its picture and sentence, This is right needs not
   expect(unexpected).toEqual([]);
 });
 
+// Review, 2026-11-12: results tested on a place the site has since corrected say so beside the result, and nothing else
+// changes. Confirming the guess, or a correction with no results yet, shows no such line.
+for (const [name, evaluation, choice, caveat] of [
+  ["results, then another place chosen", simulationRun, "other", true],
+  ["results, then the guess confirmed", simulationRun, "confirm", false],
+  ["another place chosen, no results yet", null, "other", false],
+] as const) {
+  test(`the place answer beside the result: ${name}`, async ({ page }) => {
+    const { unexpected } = await mockJob(page, { evaluation });
+    const posted: Array<{ choice: { kind: string } }> = [];
+    const picture = "/api/website-destination-pictures/job-one/walkthrough-job-one/place.png?digest=sha256%3A" + "5".repeat(64) + "&expires=1&signature=" + "a".repeat(64);
+    await page.route(`**/api/site-task-brief/${token}/status`, route => route.fulfill({ json: { scope: "owner", captureReceived: true,
+      answer: readyAnswer, outlook: serverOutlookFor(readyAnswer, projectSimulationProof({ evaluation: (evaluation ? [evaluation] : []) as never, pick: null })),
+      destinationAnswered: posted.length > 0, destinationCorrected: posted[0]?.choice.kind === "other_candidate",
+      destinationChoice: posted.length ? null : { questionDigest: `sha256:${"3".repeat(64)}`, objectLabel: "Carton",
+        guessedCandidateId: "p0123456789abcdef", pictureUrl: picture,
+        candidates: [{ id: "p0123456789abcdef", place: "named_place" }, { id: "pfedcba9876543210", place: "surface_end" }] },
+      status: { decision: "footage_received", headline: "We have your recording.", operatorAction: null, missingViews: [], nextUpdateIso: null } } }));
+    await page.route("**/api/website-destination-pictures/**", route => route.fulfill({ contentType: "image/png",
+      body: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=", "base64") }));
+    await page.route(`**/api/site-task-brief/${token}/task-target-choice`, route => {
+      posted.push(route.request().postDataJSON());
+      return route.fulfill({ json: { ok: true, choice: posted[0].choice.kind } });
+    });
+    await page.goto(`/capture-upload/${token}?video=existing`);
+    const region = page.getByRole("region", { name: "Where the object goes" });
+    await expect(region.getByRole("img")).toBeVisible();
+    const line = page.getByText("These results were tested with the place you have since corrected.");
+    await expect(line).toHaveCount(0);
+    if (choice === "other") {
+      await region.getByRole("button", { name: "The place is wrong" }).click();
+      await region.getByLabel("Place B").click();
+      await region.getByRole("button", { name: "Use this place" }).click();
+    } else await region.getByRole("button", { name: "This is right" }).click();
+    await expect(page.getByRole("region", { name: "Where the object goes" }).getByRole("status"))
+      .toHaveText("We have your answer about where the object goes.");
+    await expect(line).toHaveCount(caveat ? 1 : 0);
+    // Nothing else changes: no "updating", no superseded wording.
+    await expect(page.getByText(/updating this job|superseded/i)).toHaveCount(0);
+    expect(unexpected).toEqual([]);
+  });
+}
+
 /** The withdrawn and before-the-video modes of the same job, as the server sends them; registered after mockJob, so they win. */
 async function mockMode(page: Page, mode: "withdrawn" | "film") {
   await page.route(`**/api/self-capture/uploads/${token}/status`, route => route.fulfill({ json: mode === "withdrawn"

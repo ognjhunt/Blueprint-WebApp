@@ -41,7 +41,7 @@ const SETUP_FLAG_SENTENCES: ReadonlyMap<string, string> = new Map(Object.entries
   known_good_control_passed: "Before testing robots, a scripted reference arm that reads exact positions from the simulation completed the job, so the simulated scene can record a success.",
   known_good_control_failed: "A scripted reference arm that reads exact positions from the simulation did not complete the job in the simulated scene, so a low result here may reflect our simulation rather than the robots.",
   known_good_control_unavailable: "We have no scripted reference for this kind of job yet, so nothing confirmed beforehand that the simulated scene can record a success.",
-  "known_good_control_unavailable:embodiment": "We have no scripted reference for the robots tested on this job yet, so nothing confirmed beforehand that the simulated scene can record a success.",
+  "known_good_control_unavailable:embodiment": "We have no scripted reference for the robots chosen for this job yet, so nothing confirmed beforehand that the simulated scene can record a success.",
   "known_good_control_unavailable:budget": "We did not run our scripted reference check, so that this job's budget could go to testing robots; nothing confirmed beforehand that the simulated scene can record a success.",
   known_good_control_interrupted: "Our scripted reference check did not finish, so it could not confirm that the simulated scene can record a success.",
   // The Pipeline's next flags carry the counts (`known_good_control_partly:1_of_3`) and a reason for an unavailable

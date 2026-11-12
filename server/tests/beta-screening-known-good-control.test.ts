@@ -123,7 +123,7 @@ describe("the known-good control row", () => {
     ["known_good_control_interrupted", INTERRUPTED], ["known_good_control_unavailable:task_kind", UNAVAILABLE],
     // Rewritten (review, 2026-11-12): a check with no reference for the simulator used has its own sentence.
     ["known_good_control_unavailable:backend", "We have no scripted reference that runs in the simulator this job used yet, so nothing confirmed beforehand that the simulated scene can record a success."],
-    ["known_good_control_unavailable:embodiment", "We have no scripted reference for the robots tested on this job yet, so nothing confirmed beforehand that the simulated scene can record a success."],
+    ["known_good_control_unavailable:embodiment", "We have no scripted reference for the robots chosen for this job yet, so nothing confirmed beforehand that the simulated scene can record a success."],
     ["known_good_control_unavailable:budget", "We did not run our scripted reference check, so that this job's budget could go to testing robots; nothing confirmed beforehand that the simulated scene can record a success."],
     // A pass or fail of the same check made earlier for the same scene reads as that outcome.
     ["known_good_control_passed:reused", PASSED], ["known_good_control_failed:reused", FAILED],

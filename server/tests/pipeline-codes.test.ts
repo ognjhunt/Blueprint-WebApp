@@ -243,12 +243,12 @@ describe("the part-6 preparation endings", () => {
       "Nothing is needed from you now. Your recording is saved."],
   ])("words a not-possible ending for cause %s, and never promises a later look", async (cause, reason, nextStep) => {
     const outcome = await read({ ...base, cause });
-    expect(outcome).toMatchObject({ title: "We cannot prepare the simulation of your job yet", actionOwner: "blueprint", reason, nextStep });
+    expect(outcome).toMatchObject({ title: "We cannot prepare the simulation of your job", actionOwner: "blueprint", reason, nextStep });
     expect(JSON.stringify(outcome)).not.toMatch(/brand_new_blocker|review|look at it again|try again each/i);
   });
   it("reads an extra key, and words retries spent plainly", async () => {
     expect((await read({ ...base, cause: "support_surface_not_found_under_subject", later_key: 1 })).title)
-      .toBe("We cannot prepare the simulation of your job yet");
+      .toBe("We cannot prepare the simulation of your job");
     const spent = await read({ category: "processing_failure", reason: "website_preparation_retries_spent", basis: "execution_failure",
       robot_id: null, evidence_digest: sha });
     expect(spent).toMatchObject({ title: "We could not finish preparing your job",
