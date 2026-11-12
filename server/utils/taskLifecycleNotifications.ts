@@ -793,7 +793,16 @@ export async function answerReadyShown(requestId: string, idempotencyKey?: strin
   if (decision.resultUnknown) throw new Error("answer_ready_result_unknown");
   const keyed = idempotencyKey?.startsWith(`${requestId}:answer_ready:`) ? idempotencyKey.slice(`${requestId}:answer_ready:`.length) : null;
   const matches = (outlook: JobOutlook | null) => Boolean(outlook && (!keyed || outlook.reason === keyed));
-  const answer = await loadSiteAnswer(requestId);
+  let unreadable = false;
+  const answer = await loadSiteAnswer(requestId).catch(() => { unreadable = true; return undefined; });
+  // An answer that cannot be read is treated as one still being read: the email stands while the job's recorded ending
+  // is one it carries and its key names. With no such ending the failure is unknown, never a cancel: it throws, and
+  // the row stays queued.
+  if (unreadable) {
+    const ending = decision.ending;
+    if (!ending || !endingEmailDue(ending) || !matches(ending)) throw new Error("answer_ready_answer_unreadable");
+    return !(ending.reason === "kept_on_file" && await keptOnFileAlreadyTold(requestId));
+  }
   // An email queued after the reading ran out stands while its recorded ending does.
   if (answer?.state === "reading") {
     const ending = decision.ending;
