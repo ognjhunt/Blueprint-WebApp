@@ -9,7 +9,7 @@
  * from every company (the library card and the response form close, and the site's page says it is not visible right
  * now) until "Show again". Every write records who and when.
  */
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { User as FirebaseUser } from "firebase/auth";
 
 import { Button, StatusChip } from "@/components/blueprint";
@@ -34,6 +34,8 @@ export function JobCompaniesConsole({ requestId, currentUser }: { requestId: str
   const [actionError, setActionError] = useState("");
   const [copied, setCopied] = useState(false);
   const base = `/api/admin/jobs/${encodeURIComponent(requestId)}/companies`;
+  // Only the latest read is applied: an older read that finishes late never replaces what an action just wrote.
+  const latestLoad = useRef(0);
 
   async function authorized(init: RequestInit = {}, json = false): Promise<RequestInit> {
     return { ...init, credentials: "include",
@@ -41,17 +43,19 @@ export function JobCompaniesConsole({ requestId, currentUser }: { requestId: str
   }
 
   async function load(quiet = false) {
+    const ticket = ++latestLoad.current;
     if (!quiet) setLoaded({ status: "loading" });
     try {
       const response = await fetch(base, await authorized());
       const value = await response.json().catch(() => ({})) as Partial<AdminJobCompanies> & { error?: string };
+      if (ticket !== latestLoad.current) return;
       if (!response.ok || !value.sharing) {
         if (!quiet) setLoaded({ status: "failed", message: String(value.error || `Request failed (${response.status})`) });
         return;
       }
       setLoaded({ status: "ready", panel: value as AdminJobCompanies });
     } catch {
-      if (!quiet) setLoaded({ status: "failed", message: "Deployment companies could not be loaded." });
+      if (!quiet && ticket === latestLoad.current) setLoaded({ status: "failed", message: "Deployment companies could not be loaded." });
     }
   }
 
