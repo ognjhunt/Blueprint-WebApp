@@ -711,13 +711,15 @@ describe("the site's answer is emailed once, when it first settles", () => {
     composedAnswer.current = unsized();
     expect((await notifyIfAnswerSettled("req-1")).enqueued).toBe(true);
     expect((await notifyIfAnswerSettled("req-1")).enqueued).toBe(false);
-    expect(outbox()).toEqual(["captureOutbox/req-1:answer_ready"]);
-    const notice = { kind: "answer_ready" as const, requestId: "req-1", idempotencyKey: "req-1:answer_ready" };
+    expect(outbox()).toEqual(["captureOutbox/req-1:answer_ready:unsized"]);
+    // One row per ending: the key names the ending it answers (review, 2026-11-11).
+    const notice = { kind: "answer_ready" as const, requestId: "req-1", idempotencyKey: "req-1:answer_ready:unsized" };
     expect(await taskLifecycleNotificationIsCurrent(notice)).toBe(true);
-    // A failed read elsewhere never hides the recorded ending (review, 2026-11-11): still current.
+    // Results that cannot be read may hold a published result: for an email that is "result unknown", never "no
+    // result" (review, 2026-11-11, N9). The check throws, so the row stays queued; it never cancels or sends.
     const evidence = await import("../utils/siteManagedEvidence");
     const failing = vi.spyOn(evidence, "readSiteManagedEvidence").mockRejectedValueOnce(new Error("unavailable"));
-    expect(await taskLifecycleNotificationIsCurrent(notice)).toBe(true);
+    await expect(taskLifecycleNotificationIsCurrent(notice)).rejects.toThrow("answer_ready_result_unknown");
     failing.mockRestore();
     // A transient failure of the job's own read is unknown: the check throws (the row stays queued), it never cancels,
     // and the next pass sends it.
@@ -736,7 +738,7 @@ describe("the site's answer is emailed once, when it first settles", () => {
     composedAnswer.current = unsized();
     expect((await notifyIfAnswerSettled("req-1")).enqueued).toBe(true);
     expect((await notifyIfAnswerSettled("req-1")).enqueued).toBe(false);
-    expect([...sharedFakeFirestoreState.docs.keys()].filter(key => key.startsWith("captureOutbox/"))).toEqual(["captureOutbox/req-1:answer_ready"]);
+    expect([...sharedFakeFirestoreState.docs.keys()].filter(key => key.startsWith("captureOutbox/"))).toEqual(["captureOutbox/req-1:answer_ready:unsized"]);
   });
 
   it("is never queued or sent once recording consent is withdrawn", async () => {
@@ -747,14 +749,14 @@ describe("the site's answer is emailed once, when it first settles", () => {
     sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { ...job, consent_revoked: true });
     // The outlook is the site's own ending, so no answer email is due (rewritten from the queue's own refusal reason,
     // which the outlook check now comes before).
-    expect(await notifyIfAnswerSettled("req-1")).toEqual({ enqueued: false });
+    expect(await notifyIfAnswerSettled("req-1")).toEqual({ enqueued: false, reason: "ended_by_site" });
     // A queued one is cancelled at dispatch.
     sharedFakeFirestoreState.docs.set("inboundRequests/req-1", job);
     expect((await notifyIfAnswerSettled("req-1")).enqueued).toBe(true);
     sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { ...job, consent_revoked: true });
     await deliverOutbox();
     expect(send).not.toHaveBeenCalled();
-    expect(sharedFakeFirestoreState.docs.get("captureOutbox/req-1:answer_ready")).toMatchObject({ status: "cancelled" });
+    expect(sharedFakeFirestoreState.docs.get("captureOutbox/req-1:answer_ready:unsized")).toMatchObject({ status: "cancelled" });
   });
 
   it("cancels the robot-team evaluation notices at dispatch, keeping their rows, and keeps Blueprint's own", async () => {
@@ -958,9 +960,9 @@ describe("one answer email for every way a job ends", () => {
     // Still reading: releasing leaves it waiting.
     await releaseWaitingAnswerNotices("req-1");
     expect(outbox()).toEqual([]);
-    // Read: it is queued once, with the paper check, and the wait is cleared.
+    // Read: once its next try is due, it is queued with the paper check, and the wait is cleared.
     composedAnswer.current = paperAnswer;
-    await releaseWaitingAnswerNotices("req-1");
+    await releaseWaitingAnswerNotices("req-1", Date.now() + 60 * 60 * 1000);
     expect(outbox().map(([key]) => key)).toEqual(["captureOutbox/req-1:scene_outcome:job_window_ended"]);
     expect(outbox()[0][1].body).toContain(PAPER);
     expect(job().answer_notices_waiting_pending).toBe(false);
@@ -970,7 +972,7 @@ describe("one answer email for every way a job ends", () => {
     await enqueueTaskLifecycleNotification(ending);
     const [slot] = Object.keys(job()[ANSWER_NOTICES_WAITING_FIELD]);
     job()[ANSWER_NOTICES_WAITING_FIELD][slot].since_iso = new Date(Date.now() - READING_WAIT_LIMIT_MS - 1000).toISOString();
-    await releaseWaitingAnswerNotices("req-1");
+    await releaseWaitingAnswerNotices("req-1", Date.now() + 60 * 60 * 1000);
     expect(outbox()[0][1].body).toContain("We could not finish reading your video, so there is no paper check for this job.");
   });
 
@@ -1031,46 +1033,88 @@ describe("one answer email for every way a job ends", () => {
     expect(await keptOnFileAlreadyTold("req-1")).toBe(true);
   });
 
-  it("queues every owed answer email from the pump, oldest first, by the recorder's key, and keeps one written meanwhile", async () => {
+  it("queues every owed answer email from the pump by the recorder's key, and bounds the reading's wait", async () => {
     const { reconcileWaitingAnswerNotices, waitingAnswerNoticeFields, READING_WAIT_LIMIT_MS } = await import("../utils/taskLifecycleNotifications");
     const outbox = () => [...sharedFakeFirestoreState.docs.keys()].filter(key => key.startsWith("captureOutbox/"));
+    const owe = () => sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { ...job(),
+      ...waitingAnswerNoticeFields({ requestId: "req-1", milestone: "answer_ready" }, new Date().toISOString(), job()) });
     // A recorder wrote the owed entry beside its ending, then crashed before queueing: the pump queues it.
+    composedAnswer.current = { schemaVersion: "site_answer.v1", state: "cannot_assess", headline: "We can't check robots against this job yet.",
+      pick: null, reason: "The video did not show the job clearly enough for us to size it." };
+    const job = () => sharedFakeFirestoreState.docs.get("inboundRequests/req-1") as Record<string, any>;
+    owe();
+    await reconcileWaitingAnswerNotices();
+    expect(outbox()).toEqual(["captureOutbox/req-1:answer_ready:unsized"]);
+    expect(job().answer_notices_next_ms).toBe(0);
+    // While the video is being read it stays owed; past the reading's limit it goes, saying there is no paper check.
+    composedAnswer.current = { state: "reading" };
+    const outlookModule = await import("../utils/jobOutlook");
+    const ending = { phase: "no_test", reason: "run_ended", sentence: "The simulation test stopped before it gave a result." } as const;
+    const decided = vi.spyOn(outlookModule, "loadJobOutlookDecision").mockResolvedValue({
+      outlook: { phase: "reading", reason: null, sentence: null }, certain: true, ending, resultUnknown: false });
+    try {
+      owe();
+      await reconcileWaitingAnswerNotices();
+      expect(outbox()).toEqual(["captureOutbox/req-1:answer_ready:unsized"]);
+      const [slot] = Object.keys(job().answer_notices_waiting);
+      job().answer_notices_waiting[slot].since_iso = new Date(Date.now() - READING_WAIT_LIMIT_MS - 1000).toISOString();
+      await reconcileWaitingAnswerNotices(20, Date.now() + 60 * 60 * 1000);
+      expect(outbox()).toContain("captureOutbox/req-1:answer_ready:run_ended");
+      expect((sharedFakeFirestoreState.docs.get("captureOutbox/req-1:answer_ready:run_ended") as any).body)
+        .toContain("The simulation test stopped before it gave a result. We could not finish reading your video, so there is no paper check for this job.");
+    } finally { decided.mockRestore(); }
+  });
+
+  // N2: an owed email that cannot go now never blocks the others: it is tried again after a back-off.
+  it("never lets stuck owed emails starve a deliverable one, and closes one still owed past its limit with an alert", async () => {
+    const { reconcileWaitingAnswerNotices, waitingAnswerNoticeFields, OWED_LIMIT_MS } = await import("../utils/taskLifecycleNotifications");
+    const { dbAdmin } = await import("../../client/src/lib/firebaseAdmin");
+    const now = Date.now();
+    // Six jobs whose answer stays "reading" (stuck), owed earlier than one deliverable job.
+    const ids = ["stuck-1", "stuck-2", "stuck-3", "stuck-4", "stuck-5", "stuck-6"];
+    ids.forEach((id, index) => sharedFakeFirestoreState.docs.set(`inboundRequests/${id}`, { request: { buyerType: "site_operator" },
+      contact: { email: "encrypted:owner@example.com" }, ...waitingAnswerNoticeFields({ requestId: id, milestone: "answer_ready" },
+        new Date(now - 10_000 + index).toISOString(), {}) }));
+    sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { ...sharedFakeFirestoreState.docs.get("inboundRequests/req-1"),
+      ...waitingAnswerNoticeFields({ requestId: "req-1", milestone: "answer_ready" }, new Date(now - 1_000).toISOString(), {}) });
+    const siteAnswer = await import("../utils/siteAnswer");
+    const reading = vi.spyOn(siteAnswer, "loadSiteAnswer").mockImplementation(async (id: string) => id === "req-1"
+      ? { schemaVersion: "site_answer.v1", state: "cannot_assess", headline: "We can't check robots against this job yet.",
+        pick: null, reason: "The video did not show the job clearly enough for us to size it." } as never : { state: "reading" } as never);
+    try {
+      // Five jobs per pass: the first pass tries five stuck ones and moves them back; the second reaches the rest.
+      await reconcileWaitingAnswerNotices(5, now);
+      await reconcileWaitingAnswerNotices(5, now + 1);
+      expect(sharedFakeFirestoreState.docs.has("captureOutbox/req-1:answer_ready:unsized")).toBe(true);
+      const stuck = sharedFakeFirestoreState.docs.get("inboundRequests/stuck-1") as Record<string, any>;
+      expect(stuck.answer_notices_next_ms).toBeGreaterThan(now);
+      // Past the limit, a stuck one is closed with a typed reason, not left for ever.
+      await reconcileWaitingAnswerNotices(10, now + OWED_LIMIT_MS + 1);
+      const closed = sharedFakeFirestoreState.docs.get("inboundRequests/stuck-1") as Record<string, any>;
+      expect(closed.answer_notices_next_ms).toBe(0);
+      expect(closed.answer_notices_closed).toEqual([expect.objectContaining({ key: "stuck-1:answer_ready", reason: "owed_email_unresolved" })]);
+      void dbAdmin;
+    } finally { reading.mockRestore(); }
+  });
+
+  // N3: an owed email is removed only when its row exists; a failed create leaves it owed.
+  it("keeps an owed email owed when its row could not be created, and removes it once the row exists", async () => {
+    const { reconcileWaitingAnswerNotices, waitingAnswerNoticeFields } = await import("../utils/taskLifecycleNotifications");
     composedAnswer.current = { schemaVersion: "site_answer.v1", state: "cannot_assess", headline: "We can't check robots against this job yet.",
       pick: null, reason: "The video did not show the job clearly enough for us to size it." };
     const job = () => sharedFakeFirestoreState.docs.get("inboundRequests/req-1") as Record<string, any>;
     sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { ...job(),
       ...waitingAnswerNoticeFields({ requestId: "req-1", milestone: "answer_ready" }, new Date().toISOString(), job()) });
-    await reconcileWaitingAnswerNotices();
-    expect(outbox()).toEqual(["captureOutbox/req-1:answer_ready"]);
-    expect(job().answer_notices_waiting_since_ms).toBe(0);
-    // While the video is being read it stays owed; past the reading's limit it goes, saying there is no paper check.
-    sharedFakeFirestoreState.docs.delete("captureOutbox/req-1:answer_ready");
-    composedAnswer.current = { state: "reading" };
-    const outlookModule = await import("../utils/jobOutlook");
-    const ending = { phase: "no_test", reason: "run_ended", sentence: "The simulation test stopped before it gave a result." } as const;
-    const decided = vi.spyOn(outlookModule, "loadJobOutlookDecision").mockResolvedValue({
-      outlook: { phase: "reading", reason: null, sentence: null }, certain: true, ending });
-    try {
-      const old = new Date(Date.now() - READING_WAIT_LIMIT_MS - 1000).toISOString();
-      sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { ...job(),
-        ...waitingAnswerNoticeFields({ requestId: "req-1", milestone: "answer_ready" }, new Date().toISOString(), job()) });
-      await reconcileWaitingAnswerNotices();
-      expect(outbox()).toEqual([]);
-      const [slot] = Object.keys(job().answer_notices_waiting);
-      job().answer_notices_waiting[slot].since_iso = old;
-      await reconcileWaitingAnswerNotices();
-      expect(outbox()).toEqual(["captureOutbox/req-1:answer_ready"]);
-      expect((sharedFakeFirestoreState.docs.get("captureOutbox/req-1:answer_ready") as any).body)
-        .toContain("The simulation test stopped before it gave a result. We could not finish reading your video, so there is no paper check for this job.");
-    } finally { decided.mockRestore(); }
-    // Oldest first: the pump reads jobs in the order their oldest owed email started.
-    for (const [id, ago] of [["req-new", 1_000], ["req-old", 5_000_000]] as const)
-      sharedFakeFirestoreState.docs.set(`inboundRequests/${id}`, { answer_notices_waiting_since_ms: Date.now() - ago, answer_notices_waiting: {} });
-    const { dbAdmin } = await import("../../client/src/lib/firebaseAdmin");
-    const order = (await dbAdmin!.collection("inboundRequests").where("answer_notices_waiting_since_ms", ">", 0)
-      .orderBy("answer_notices_waiting_since_ms").get()).docs.map(doc => doc.id);
-    expect(order).toEqual(["req-old", "req-new"]);
+    const outbox = await import("../utils/captureOutbox");
+    const failing = vi.spyOn(outbox, "enqueueOutbox").mockResolvedValueOnce({ enqueued: false });
+    try { await reconcileWaitingAnswerNotices(); } finally { failing.mockRestore(); }
+    expect(sharedFakeFirestoreState.docs.has("captureOutbox/req-1:answer_ready:unsized")).toBe(false);
+    expect(Object.keys(job().answer_notices_waiting)).toHaveLength(1);
+    await reconcileWaitingAnswerNotices(20, Date.now() + 60 * 60 * 1000);
+    expect(sharedFakeFirestoreState.docs.has("captureOutbox/req-1:answer_ready:unsized")).toBe(true);
+    expect(job().answer_notices_waiting).toEqual({});
   });
+
 
   it("cancels the kept can't-simulate-yet email at dispatch after the site withdrew or closed its run", async () => {
     const { taskLifecycleNotificationIsCurrent } = await import("../utils/taskLifecycleNotificationAuthority");

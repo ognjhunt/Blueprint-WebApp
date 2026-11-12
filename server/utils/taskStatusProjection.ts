@@ -249,14 +249,15 @@ export function sceneProgressionOutcome(progression: TaskSceneProgression | null
  * stored, and one that arrives after the ending is the same ending, whose email is not sent twice.
  */
 export function resultOutranksWindowEnding(input: { screening?: SceneScreening | null;
-  sceneProgression?: TaskSceneProgression | null }): boolean {
+  sceneProgression?: TaskSceneProgression | null }, options: { pastLiveGrace?: boolean } = {}): boolean {
   const runs = input.screening;
-  if (runs && runs.queued + runs.running + runs.reported + runs.noResult > 0) return true;
+  // A run record that says queued or running outranks the window's end only while it can still be live: the Pipeline
+  // stops it at the deadline, so past the grace (`LIVE_RUN_GRACE_SECONDS`) it is stale (review, 2026-11-11). A stored
+  // scene that says "testing" with no run record is never evidence of a live test.
+  const live = options.pastLiveGrace ? 0 : (runs?.queued ?? 0) + (runs?.running ?? 0);
+  if (runs && live + runs.reported + runs.noResult > 0) return true;
   const scene = input.sceneProgression;
-  // A test under way outranks the window's end too (review, 2026-11-11): the window's end stops the run through its
-  // authority, and the run's own terminal record then tells the site.
-  return scene?.state === "evaluated" || scene?.state === "testing" && !scene.progressOutcome
-    || scene?.state === "held" && !scene.sceneOutcome;
+  return scene?.state === "evaluated" || scene?.state === "held" && !scene.sceneOutcome;
 }
 
 /** One sentence per reason the Pipeline can give; an unknown reason adds nothing. */
@@ -396,7 +397,8 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
   // and an owner closure above say so first. Every waiting, in-progress or needs-review state below
   // would now be untrue, because nothing more runs for a job past its window. Only a result is
   // truer, and each of those has its own email: an estimate or an evaluation's hold, or a run.
-  if (input.jobWindowEndingRecorded && !resultOutranksWindowEnding(input)) return { ...base, decision: "ended", stage: null,
+  // A recorded ending means the sweep found no live run within the grace, so only a finished result outranks it here.
+  if (input.jobWindowEndingRecorded && !resultOutranksWindowEnding(input, { pastLiveGrace: true })) return { ...base, decision: "ended", stage: null,
     missingViews: [], operatorAction: null,
     headline: input.jobNoGrantWaitingOn ? jobNoGrantEndingMessage(input.jobNoGrantWaitingOn, input.jobNoGrantReason)
       : JOB_WINDOW_ENDING_MESSAGE };

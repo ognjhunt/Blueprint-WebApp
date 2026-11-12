@@ -46,9 +46,22 @@ export interface JobOutlookInput {
   proof: SimulationProof | null;
   /** Something the decision needs could not be read. An unknown is never an ending, and never hides a recorded one. */
   uncertain?: boolean;
-  /** The job's grant window has passed (`websiteJobWorkWindow`). */
-  windowPassed?: boolean;
+  /** When the job's grant window ended, if it has (`websiteJobWorkWindow`); null while it is open or with no grant. */
+  windowEndedAtEpoch?: number | null;
+  /** The current run's own record says the window's end stopped it (`beta_screening_authority_expired`). */
+  runStoppedByWindow?: boolean;
+  /** The job's results could not be read: a result may exist. */
+  resultUnknown?: boolean;
+  /** The time the decision is made, for tests; now otherwise. */
+  nowEpoch?: number;
 }
+
+/**
+ * How long after the job's window ends a run record that still says "running" counts as live. The Pipeline stops a
+ * run at that deadline (`beta_screening_authority_expired`, its screening control); past this grace the record is
+ * stale, and the window's ending applies like any other.
+ */
+export const LIVE_RUN_GRACE_SECONDS = 6 * 60 * 60;
 
 /**
  * Whether a finished test scored at least one AI robot: only that is a result. A finished test that scored none is an
@@ -99,9 +112,17 @@ export function jobOutlook(input: JobOutlookInput): JobOutlook {
   return recordedEndingOf(input) ?? working();
 }
 
-/** A run queued with its plan or running, or a scene that reports a test under way. */
-const liveRun = (input: JobOutlookInput) => input.proof?.state === "running"
-  || (input.proof?.state === "preparing" && input.proof.options.entered > 0) || (input.scene?.state === "testing" && !input.scene.waiting);
+/**
+ * A run is live only on positive evidence: a run record in a running state (or queued with its plan), and never past
+ * the job's window plus the grace the Pipeline takes to stop it. A stored scene that says "testing" with no run record
+ * is not evidence.
+ */
+const liveRun = (input: JobOutlookInput) => {
+  const running = input.proof?.state === "running" || (input.proof?.state === "preparing" && input.proof.options.entered > 0);
+  const now = input.nowEpoch ?? Date.now() / 1000;
+  const stale = typeof input.windowEndedAtEpoch === "number" && now > input.windowEndedAtEpoch + LIVE_RUN_GRACE_SECONDS;
+  return running && !stale;
+};
 
 /**
  * The job's recorded ending, or null, whatever the answer's state: each test is a positive record, and nothing
@@ -118,19 +139,20 @@ export function recordedEndingOf(input: JobOutlookInput): JobOutlook | null {
 function recordedEnding(input: JobOutlookInput,
   outlook: (phase: JobPhase, reason?: JobOutlookReason | null, sentence?: string | null) => JobOutlook): JobOutlook | null {
   const { proof, answer } = input;
+  if (proofScoredAnyRobot(proof)) return null;
   if (proof?.state === "done") return outlook("no_test", "no_ai_robot_scored", testNotRunLine(proof) ?? undefined);
   if (proof?.state === "could_not_run") {
     const ended = proof.headline === RUN_ENDED_WITHOUT_RESULT;
-    // A run that ended after the job's time ran out: the window's end stopped it, and it says so.
-    if (ended && input.windowPassed === true) return outlook("no_test", "window_ended_during_test");
+    // Only the run's own record that the window's end stopped it says so; anything else gives the run's own line.
+    if (ended && input.runStoppedByWindow === true) return outlook("no_test", "window_ended_during_test");
     return outlook("no_test", ended ? "run_ended" : "run_held", testNotRunLine(proof));
   }
   if (input.scene?.state === "held") return outlook("no_test", "scene_held");
   if (input.scene?.state === "ended") return outlook("no_test", "scene_stopped");
   if (input.preparation?.state === "failed_terminal") return outlook("no_test", "preparation_failed");
   // The Pipeline's status names no reason for an ended authority. A revoked source is the site's own withdrawal,
-  // decided above; a job whose time ran out says so; anything else says only that the job ended.
-  if (input.preparation?.state === "authority_ended") return outlook("no_test", input.windowPassed === true ? "authority_ended" : "job_ended");
+  // decided above; a job whose window ending is recorded says its time ran out; anything else says only that it ended.
+  if (input.preparation?.state === "authority_ended") return outlook("no_test", input.windowEnded === true ? "authority_ended" : "job_ended");
   if (input.windowEnded === true) return outlook("no_test", "window_expired");
   if (input.keptOnFile === true) return outlook("cannot_match", "kept_on_file");
   if (input.noGrantEnded === true) return answer?.state === "cannot_assess" && !answer.unsized && answer.reason
@@ -162,7 +184,7 @@ export async function loadJobOutlook(requestId: string): Promise<JobOutlook> {
  * false. Throws only when the job's own record cannot be read.
  */
 export async function loadJobOutlookDecision(requestId: string):
-  Promise<{ outlook: JobOutlook; certain: boolean; ending: JobOutlook | null }> {
+  Promise<{ outlook: JobOutlook; certain: boolean; ending: JobOutlook | null; resultUnknown: boolean }> {
   const [{ siteWalkthroughIdentity }, { projectWebsiteCaptureRights }, { websiteRunClosure },
     { recordedWebsiteJobWindowEnding, recordedWebsiteJobNoGrantEnding }, { loadSiteAnswer }] = await Promise.all([
     import("./siteWalkthrough"), import("./websiteTaskContext"),
@@ -191,13 +213,18 @@ export async function loadJobOutlookDecision(requestId: string):
     }
   }
   let proof: SimulationProof | null = null;
+  let resultUnknown = false;
+  let runStoppedByWindow = false;
   try {
     const [{ readSiteManagedEvidence }, { projectSimulationProof }] = await Promise.all([
       import("./siteManagedEvidence"), import("../../client/src/lib/simulationProof")]);
     const { managedEvidence, managedEvidenceUnavailable } = await readSiteManagedEvidence(requestId);
-    if (managedEvidenceUnavailable) uncertain = true;
+    if (managedEvidenceUnavailable) { uncertain = true; resultUnknown = true; }
     proof = managedEvidence.length ? projectSimulationProof({ evaluation: managedEvidence as never, pick: null }) : null;
-  } catch { uncertain = true; }
+    const current = managedEvidence.find(item => item.current) ?? managedEvidence[0];
+    runStoppedByWindow = Boolean(current?.screening?.candidates?.some(row => (row.blockers ?? [])
+      .some(code => String(code).split(":")[0] === "beta_screening_authority_expired")));
+  } catch { uncertain = true; resultUnknown = true; }
   const answer = await loadSiteAnswer(requestId).catch(() => null);
   // A closure record that does not read is unknown: neither closed nor open.
   let closedByOwner = false;
@@ -209,11 +236,12 @@ export async function loadJobOutlookDecision(requestId: string):
     windowEnded: Boolean(recordedWebsiteJobWindowEnding(record)),
     noGrantEnded: Boolean(recordedWebsiteJobNoGrantEnding(record, requestId)),
     keptOnFile: (await import("./websiteJobWindowSweep")).websiteJobKeptOnFile(record),
-    windowPassed: await import("./websiteSceneSponsorship").then(({ websiteJobWorkWindow }) => websiteJobWorkWindow(record))
-      .then(window => window.ended).catch(() => false),
+    windowEndedAtEpoch: await import("./websiteSceneSponsorship").then(({ websiteJobWorkWindow }) => websiteJobWorkWindow(record))
+      .then(window => window.endedAtEpoch ?? null).catch(() => null),
+    runStoppedByWindow, resultUnknown,
     preparation, scene, proof, uncertain,
   };
   const outlook = jobOutlook(input);
   // A recorded fact (the site's own ending, a result, a recorded ending) is certain whatever else could not be read.
-  return { outlook, certain: !uncertain || RECORDED_PHASES.has(outlook.phase), ending: recordedEndingOf(input) };
+  return { outlook, certain: !uncertain || RECORDED_PHASES.has(outlook.phase), ending: recordedEndingOf(input), resultUnknown };
 }

@@ -221,7 +221,7 @@ export function sponsorshipValidUntil(grant: Record<string, any>, executionWindo
  * for it, read only while the job still has no grant.
  */
 export async function websiteJobWorkWindow(record: Record<string, any> | undefined,
-  nowEpoch = Date.now() / 1000): Promise<{ untilEpoch: number | null; ended: boolean; endingRecorded?: true;
+  nowEpoch = Date.now() / 1000): Promise<{ untilEpoch: number | null; ended: boolean; endedAtEpoch?: number; endingRecorded?: true;
     noGrantWaitingOn?: "site" | "blueprint"; noGrantReason?: "video_over_ingest_limit" }> {
   const none = { untilEpoch: null, ended: false };
   const grant = record?.website_scene_sponsorship;
@@ -238,7 +238,7 @@ export async function websiteJobWorkWindow(record: Record<string, any> | undefin
   }
   const until = sponsorshipValidUntil(grant, executionWindowUntil);
   if (until > nowEpoch) return { untilEpoch: until, ended: false };
-  return { untilEpoch: null, ended: projectWebsiteCaptureRights(record).derived_scene_generation_allowed,
+  return { untilEpoch: null, ended: projectWebsiteCaptureRights(record).derived_scene_generation_allowed, endedAtEpoch: until,
     ...(recordedWebsiteJobWindowEnding(record) ? { endingRecorded: true as const } : {}) };
 }
 

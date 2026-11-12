@@ -197,7 +197,16 @@ describe("a job the no-grant clock must leave alone", () => {
     expect(job()).not.toHaveProperty("website_job_no_grant_clock");
     expect(job()).not.toHaveProperty("website_job_no_grant_ending");
     expect(Object.values(job().answer_notices_waiting).map((entry: any) => entry.params)).toEqual([{ requestId: "job-one", milestone: "answer_ready" }]);
-    expect(job().answer_notices_waiting_since_ms).toBeGreaterThan(0);
+    expect(job().answer_notices_next_ms).toBeGreaterThan(0);
+    // Marked once: a later pass neither writes the job nor loads the outlook again.
+    expect(job().kept_on_file_answer_owed_at_iso).toEqual(expect.any(String));
+    const before = structuredClone(job());
+    const outlook = await import("../utils/jobOutlook");
+    const loads = vi.spyOn(outlook, "loadJobOutlookDecision");
+    expect(await sweepWebsiteJobNoGrant("job-one", at(WINDOW * 4))).toBe("kept_on_file");
+    expect(loads).not.toHaveBeenCalled();
+    loads.mockRestore();
+    expect(job()).toEqual(before);
   });
 
   it("leaves an already-ended job untouched", async () => {

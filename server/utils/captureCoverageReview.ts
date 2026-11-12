@@ -317,9 +317,8 @@ export async function recordCoverageFinding(
     } }, { merge: true });
     // The reading of the job's own walkthrough is done: its answer email (if this reading recorded an ending, such as
     // "cannot size") is owed from this same write, so a crash or a failed queue after it never loses it.
-    if (captureId === `walkthrough-${requestId}`) {
-      tx.set(ref, waitingAnswerNoticeFields({ requestId, milestone: "answer_ready" }, new Date().toISOString(), value) as never, { merge: true });
-    }
+    // For the capture actually reviewed (the job's current one, checked above), a replacement video included.
+    tx.set(ref, waitingAnswerNoticeFields({ requestId, milestone: "answer_ready" }, new Date().toISOString(), value) as never, { merge: true });
     // Replaced whole, under the same consent and source checks as the finding it came with.
     if (jobEstimates) tx.set(ref, { walkthrough_job_estimates: { capture_id: captureId, job_estimates: jobEstimates,
       reviewed_at_iso: new Date().toISOString() } }, { mergeFields: ["walkthrough_job_estimates"] });

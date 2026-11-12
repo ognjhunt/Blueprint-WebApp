@@ -15,7 +15,7 @@ import { noResultObservationText, type NoResultObservation } from "./runNoResult
  */
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { createHash } from "node:crypto";
-import { OUTLOOK_SENTENCES, proofScoredAnyRobot } from "./jobOutlook";
+import { OUTLOOK_SENTENCES, proofScoredAnyRobot, type JobOutlook } from "./jobOutlook";
 import { captureUploadUrlFor } from "./captureUploadToken";
 import { enqueueOutbox, CAPTURE_OUTBOX_COLLECTION, type OutboxKind } from "./captureOutbox";
 import { automationBatch } from "./automationBatch";
@@ -321,20 +321,43 @@ export async function enqueueTaskLifecycleNotification(params: {
     ...(paperUnread ? { paperUnread: true as const } : {}), ...(earlyTaskHold ? { earlyTaskHold } : {}), ...(recaptureReason ? { recaptureReason } : {}) }));
 }
 
-import { ANSWER_NOTICES_WAITING_FIELD, ANSWER_NOTICES_WAITING_PENDING_FIELD, ANSWER_NOTICES_WAITING_SINCE_FIELD,
-  READING_WAIT_LIMIT_MS, mapFields, waitingAnswerNoticeFields, waitingMap, waitingSinceIso } from "./answerNoticeOwed";
+import { ANSWER_NOTICES_CLOSED_FIELD, ANSWER_NOTICES_WAITING_FIELD, ANSWER_NOTICES_WAITING_PENDING_FIELD, ANSWER_NOTICES_WAITING_SINCE_FIELD, OWED_LIMIT_MS,
+  READING_WAIT_LIMIT_MS, mapFields, noticeKeyOf, owedRetryDelayMs, waitingAnswerNoticeFields, waitingMap, waitingSinceIso,
+  type WaitingEntry } from "./answerNoticeOwed";
 export { ANSWER_NOTICES_WAITING_FIELD, ANSWER_NOTICES_WAITING_PENDING_FIELD, ANSWER_NOTICES_WAITING_SINCE_FIELD,
   READING_WAIT_LIMIT_MS, waitingAnswerNoticeFields } from "./answerNoticeOwed";
 type WaitingNoticeParams = Parameters<typeof enqueueTaskLifecycleNotification>[0];
 /** Keep an answer email owed on the job, reading and writing the waiting map in one transaction. */
-export async function holdAnswerNotice(params: WaitingNoticeParams): Promise<void> {
+export async function holdAnswerNotice(params: WaitingNoticeParams, extra: Record<string, unknown> = {}): Promise<void> {
   if (!db) throw new Error("answer_notice_store_unavailable");
   const ref = db.collection("inboundRequests").doc(params.requestId);
   await db.runTransaction(async transaction => {
     const record = (await transaction.get(ref)).data();
     if (!record) return;
-    transaction.update(ref, waitingAnswerNoticeFields(params, new Date().toISOString(), record) as never);
+    transaction.update(ref, { ...waitingAnswerNoticeFields(params, new Date().toISOString(), record), ...extra } as never);
   });
+}
+
+/** How one try of an owed email ended: its row exists, it is no longer owed (with why), or it is tried again later. */
+type OwedTry = { outcome: "delivered" } | { outcome: "settled"; reason: string } | { outcome: "retry" };
+/** Final reasons from the queue: the email is no longer owed (the site ended the job, or there is no one to send to). */
+const SETTLED_REASONS: ReadonlySet<string> = new Set(["consent_withdrawn", "request_missing", "contact_missing", "not_due",
+  "kept_already_told", "ended_by_site"]);
+async function rowExists(key: string): Promise<boolean> {
+  return Boolean(db && (await db.collection(CAPTURE_OUTBOX_COLLECTION).doc(key).get()).exists);
+}
+/** One try of one owed entry. An entry is delivered only when its row exists; a failed create stays owed (N3). */
+async function tryOwed(requestId: string, entry: WaitingEntry): Promise<OwedTry> {
+  if (entry.params.milestone === "answer_ready") {
+    const result = await notifyIfAnswerSettled(requestId, entry.since_iso, { hold: false });
+    if (result.key && (result.enqueued || await rowExists(result.key))) return { outcome: "delivered" };
+    if (result.reason && SETTLED_REASONS.has(result.reason)) return { outcome: "settled", reason: result.reason };
+    return { outcome: "retry" };
+  }
+  const result = await enqueueTaskLifecycleNotification(entry.params as never);
+  if (await rowExists(noticeKeyOf(entry.params))) return { outcome: "delivered" };
+  if (result.reason && SETTLED_REASONS.has(result.reason)) return { outcome: "settled", reason: result.reason };
+  return { outcome: "retry" };
 }
 
 /**
@@ -356,35 +379,57 @@ export async function paperAnswerForEnding(requestId: string, waitingSince?: str
   return { wait: false, ...(answer ? { answer } : {}) };
 }
 
-/** Queue the answer emails owed on one job, each by the key its recorder would have used. Idempotent. */
-export async function releaseWaitingAnswerNotices(requestId: string): Promise<void> {
+/**
+ * Try every due owed entry on one job, by the key its recorder would have used. Idempotent. An entry is removed only
+ * when its row exists or it is settled; one that cannot go now is tried again after a back-off, and one still owed
+ * past `OWED_LIMIT_MS` is closed with a typed reason and an alert, so every entry has a final outcome.
+ */
+export async function releaseWaitingAnswerNotices(requestId: string, nowMs = Date.now()): Promise<void> {
   if (!db) return;
   const ref = db.collection("inboundRequests").doc(requestId);
   const waiting = waitingMap((await ref.get()).data());
-  const done = new Map<string, string>();
-  for (const [slot, entry] of Object.entries(waiting).sort(([, a], [, b]) => String(a?.since_iso).localeCompare(String(b?.since_iso)))) {
-    if (!entry?.params || entry.params.requestId !== requestId) { done.set(slot, String(entry?.since_iso)); continue; }
-    try {
-      const result = entry.params.milestone === "answer_ready" ? await notifyIfAnswerSettled(requestId, entry.since_iso)
-        : await enqueueTaskLifecycleNotification(entry.params as never);
-      if (result.reason !== "awaiting_reading") done.set(slot, entry.since_iso);
-    } catch (error) { logger.warn({ error, requestId }, "An owed answer email stays owed for the next pass"); }
+  const results = new Map<string, { since: string; result: OwedTry | { outcome: "closed"; reason: string } }>();
+  for (const [slot, entry] of Object.entries(waiting).sort(([, a], [, b]) => Number(a?.next_ms) - Number(b?.next_ms))) {
+    if (!entry?.params || entry.params.requestId !== requestId) { results.set(slot, { since: String(entry?.since_iso), result: { outcome: "settled", reason: "invalid" } }); continue; }
+    if (Number(entry.next_ms) > nowMs) continue;
+    let result: OwedTry = { outcome: "retry" };
+    try { result = await tryOwed(requestId, entry); }
+    catch (error) { logger.warn({ error, requestId }, "An owed answer email stays owed for the next pass"); }
+    if (result.outcome === "retry" && nowMs - Date.parse(entry.since_iso) >= OWED_LIMIT_MS) {
+      logger.error({ requestId, key: noticeKeyOf(entry.params), sinceIso: entry.since_iso },
+        "An owed answer email could not be sent within its limit; it is closed and needs a person");
+      results.set(slot, { since: entry.since_iso, result: { outcome: "closed", reason: "owed_email_unresolved" } });
+    } else results.set(slot, { since: entry.since_iso, result });
   }
-  if (!done.size) return;
-  // Removed from the map as it is now, and only the entry this pass processed: one written meanwhile stays.
+  if (!results.size) return;
+  // Written to the map as it is now, and only for the entry this pass tried: one written meanwhile stays as written.
   await db.runTransaction(async transaction => {
-    const current = waitingMap((await transaction.get(ref)).data());
-    const left = Object.fromEntries(Object.entries(current).filter(([slot, entry]) => done.get(slot) !== entry?.since_iso));
-    transaction.update(ref, mapFields(left));
+    const record = (await transaction.get(ref)).data();
+    const current = waitingMap(record);
+    const closed: Array<Record<string, string>> = Array.isArray(record?.[ANSWER_NOTICES_CLOSED_FIELD]) ? [...record![ANSWER_NOTICES_CLOSED_FIELD]] : [];
+    const next: Record<string, WaitingEntry> = {};
+    for (const [slot, entry] of Object.entries(current)) {
+      const tried = results.get(slot);
+      if (!tried || tried.since !== entry?.since_iso) { next[slot] = entry; continue; }
+      if (tried.result.outcome === "retry") {
+        const attempts = (Number(entry.attempts) || 0) + 1;
+        next[slot] = { ...entry, attempts, next_ms: nowMs + owedRetryDelayMs(attempts) };
+      } else if (tried.result.outcome === "closed") {
+        closed.push({ key: noticeKeyOf(entry.params), reason: tried.result.reason, closed_at_iso: new Date(nowMs).toISOString() });
+      }
+    }
+    // mergeFields replaces each named field whole, so a removed entry is gone (a plain merge would keep it).
+    transaction.set(ref, { ...mapFields(next), [ANSWER_NOTICES_CLOSED_FIELD]: closed } as never,
+      { mergeFields: [ANSWER_NOTICES_WAITING_FIELD, ANSWER_NOTICES_WAITING_PENDING_FIELD, ANSWER_NOTICES_WAITING_SINCE_FIELD, ANSWER_NOTICES_CLOSED_FIELD] });
   });
 }
 
-/** The outbox pump's pass over owed answer emails, oldest first, so a stuck one never starves the rest. */
-export async function reconcileWaitingAnswerNotices(limit = 20): Promise<void> {
+/** The outbox pump's pass over owed answer emails: the jobs whose next try is due, earliest first. */
+export async function reconcileWaitingAnswerNotices(limit = 20, nowMs = Date.now()): Promise<void> {
   if (!db) return;
   const rows = await db.collection("inboundRequests").where(ANSWER_NOTICES_WAITING_SINCE_FIELD, ">", 0)
-    .orderBy(ANSWER_NOTICES_WAITING_SINCE_FIELD).limit(limit).get();
-  for (const row of rows.docs) await releaseWaitingAnswerNotices(row.id).catch(error =>
+    .where(ANSWER_NOTICES_WAITING_SINCE_FIELD, "<=", nowMs).orderBy(ANSWER_NOTICES_WAITING_SINCE_FIELD).limit(limit).get();
+  for (const row of rows.docs) await releaseWaitingAnswerNotices(row.id, nowMs).catch(error =>
     logger.warn({ error, requestId: row.id }, "Could not release an owed answer email"));
 }
 
@@ -700,41 +745,63 @@ const endingEmailDue = (outlook: JobOutlookView) =>
  * step. Never from a page read or a status poll. When the outlook cannot be read for certain, or the video is still
  * being read, the email waits on the job (`releaseWaitingAnswerNotices`) and is queued once both are known.
  */
-export async function notifyIfAnswerSettled(requestId: string, waitingSince?: string): Promise<{ enqueued: boolean; reason?: string }> {
+export async function notifyIfAnswerSettled(requestId: string, waitingSince?: string, options: { hold?: boolean } = {}):
+  Promise<{ enqueued: boolean; reason?: string; key?: string }> {
   const [{ loadSiteAnswer }, { loadJobOutlookDecision }, { keptOnFileAlreadyTold }] = await Promise.all([import("./siteAnswer"),
     import("./jobOutlook"), import("./taskLifecycleNotificationAuthority")]);
   const answer = await loadSiteAnswer(requestId).catch(() => undefined);
   const decision = await loadJobOutlookDecision(requestId).catch(() => null);
-  const owe = async () => { await holdAnswerNotice({ requestId, milestone: "answer_ready" }).catch(() => undefined);
+  // Owed, not sent: written durably unless the caller is the reconcile, which keeps the entry it is trying.
+  const owe = async () => { if (options.hold !== false) await holdAnswerNotice({ requestId, milestone: "answer_ready" }).catch(() => undefined);
     return { enqueued: false, reason: "awaiting_reading" }; };
   if (!decision) return owe();
+  // The site's own ending: no answer email (checked on every branch, the reading-limit one included).
+  if (decision.outlook.phase === "ended_by_site") return { enqueued: false, reason: "ended_by_site" };
+  // A result may exist when the results could not be read: "result unknown" is never "no result" for an email.
+  if (decision.resultUnknown) return owe();
+  const queue = async (outlook: JobOutlook, extra: { siteAnswer?: SiteAnswer; paperUnread?: true }) => {
+    // Kept on file, after the start form's notice for the same reason already went out: not a second time.
+    if (outlook.reason === "kept_on_file" && await keptOnFileAlreadyTold(requestId)) return { enqueued: false, reason: "kept_already_told" };
+    // One row per ending (its reason in the key): a later, different ending is never blocked by an earlier row.
+    const result = await enqueueTaskLifecycleNotification({ requestId, milestone: "answer_ready", eventId: String(outlook.reason),
+      outlook, ...extra });
+    return { ...result, key: `${requestId}:answer_ready:${outlook.reason}` };
+  };
   if (answer === undefined || answer?.state === "reading") {
     // The reading has its limit: past it, the recorded ending's email goes, saying there is no paper check.
     const since = Date.parse(waitingSince ?? "");
     const ending = decision.ending;
     if (ending && endingEmailDue(ending) && Number.isFinite(since) && Date.now() - since >= READING_WAIT_LIMIT_MS)
-      return enqueueTaskLifecycleNotification({ requestId, milestone: "answer_ready", outlook: ending, paperUnread: true });
+      return queue(ending, { paperUnread: true });
     return owe();
   }
   if (!decision.certain) return owe();
-  if (!answerEmailDue(answer, decision.outlook)) return { enqueued: false };
-  // Kept on file, after the start form's notice for the same reason already went out: not a second time.
-  if (decision.outlook.reason === "kept_on_file" && await keptOnFileAlreadyTold(requestId)) return { enqueued: false };
-  return enqueueTaskLifecycleNotification({ requestId, milestone: "answer_ready", siteAnswer: answer, outlook: decision.outlook });
+  if (!answerEmailDue(answer, decision.outlook)) return { enqueued: false, reason: "not_due" };
+  return queue(decision.outlook, { siteAnswer: answer });
 }
 
 /**
- * Read again at dispatch: true while the outlook still calls for this email. Only a recorded fact cancels the row:
- * when the outlook cannot be read for certain this throws, and the row stays queued for a later pass.
+ * Read again at dispatch: true while the outlook still calls for this email, for the ending its key names. Only a
+ * recorded fact cancels the row: when the outlook cannot be read for certain, or the results cannot be read, this
+ * throws and the row stays queued for a later pass.
  */
-export async function answerReadyShown(requestId: string): Promise<boolean> {
+export async function answerReadyShown(requestId: string, idempotencyKey?: string): Promise<boolean> {
   const [{ loadSiteAnswer }, { loadJobOutlookDecision }, { keptOnFileAlreadyTold }] = await Promise.all([import("./siteAnswer"),
     import("./jobOutlook"), import("./taskLifecycleNotificationAuthority")]);
   const decision = await loadJobOutlookDecision(requestId);
+  if (decision.outlook.phase === "ended_by_site") return false;
+  if (decision.resultUnknown) throw new Error("answer_ready_result_unknown");
+  const keyed = idempotencyKey?.startsWith(`${requestId}:answer_ready:`) ? idempotencyKey.slice(`${requestId}:answer_ready:`.length) : null;
+  const matches = (outlook: JobOutlook | null) => Boolean(outlook && (!keyed || outlook.reason === keyed));
   const answer = await loadSiteAnswer(requestId);
   // An email queued after the reading ran out stands while its recorded ending does.
-  if (answer?.state === "reading") return Boolean(decision.ending && endingEmailDue(decision.ending));
+  if (answer?.state === "reading") {
+    const ending = decision.ending;
+    if (!ending || !endingEmailDue(ending) || !matches(ending)) return false;
+    return !(ending.reason === "kept_on_file" && await keptOnFileAlreadyTold(requestId));
+  }
   if (!decision.certain) throw new Error("answer_ready_outlook_unknown");
+  if (!matches(decision.outlook)) return false;
   if (decision.outlook.reason === "kept_on_file" && await keptOnFileAlreadyTold(requestId)) return false;
   return answerEmailDue(answer, decision.outlook);
 }

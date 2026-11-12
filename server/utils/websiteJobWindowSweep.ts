@@ -37,6 +37,7 @@
  * under a key fixed by the job, through the same outbox and the same dispatch checks. A job whose
  * grant arrives later is the window sweep's again.
  */
+import { LIVE_RUN_GRACE_SECONDS } from "./jobOutlook";
 import { OUTBOX_WENT_OUT } from "./outboxWentOut";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
@@ -147,13 +148,13 @@ function recordedForWindow(record: Record<string, any> | undefined, windowEndedA
  * unreachable, which is when this sweep matters most). Throws when it cannot be read, so the
  * job is left for the next pass rather than ended on a guess.
  */
-async function storedOutcome(requestId: string, record: Record<string, any>): Promise<JobWindowSweepSkip | null> {
+async function storedOutcome(requestId: string, record: Record<string, any>, pastLiveGrace = false): Promise<JobWindowSweepSkip | null> {
   const captureId = siteWalkthroughIdentity(requestId, record).captureId;
   const [{ readWebsiteSceneProgression }, { loadSceneScreening }] = await Promise.all([
     import("./websiteSceneProgression"), import("./agentEvalRuns")]);
   const sceneProgression = await readWebsiteSceneProgression(requestId, captureId);
   const screening = await loadSceneScreening(requestId);
-  if (resultOutranksWindowEnding({ screening, sceneProgression })) return "result_recorded";
+  if (resultOutranksWindowEnding({ screening, sceneProgression }, { pastLiveGrace })) return "result_recorded";
   // The Pipeline's own terminal outcome for the scene (C-04) has its own one email.
   if (sceneProgression?.sceneOutcome?.terminal) return "outcome_told";
   const status = (await db!.collection(SESSIONS).doc(captureId).get()).data()?.website_preparation?.status;
@@ -186,7 +187,10 @@ export async function sweepWebsiteJobWindow(requestId: string, nowMs = Date.now(
     if (!(observedEnd <= nowEpoch)) return "window_open";
     if (recordedForWindow(observed, observedEnd)) return "ending_recorded";
   }
-  const outcome = await storedOutcome(requestId, observed!);
+  // Past the window plus the grace the Pipeline takes to stop a run, a run record that still says running is stale.
+  const ended = await windowEnd(observed!, plainReader).catch(() => NaN);
+  const outcome = await storedOutcome(requestId, observed!,
+    Number.isFinite(ended) && nowEpoch > ended + LIVE_RUN_GRACE_SECONDS);
   if (outcome) return outcome;
   const observedGrant = observed!.website_scene_sponsorship.authority_digest;
   const firstKey = websiteJobWindowEndedNoticeKey(requestId);
@@ -336,6 +340,9 @@ function noGrantSkip(record: Record<string, any> | undefined, requestId: string)
  * A job of a kind we can't simulate yet, with no grant: kept on file, a recorded ending (review, 2026-11-11). Its one
  * email is the "can't simulate this kind of job yet" one, queued where the job's scope is recorded.
  */
+/** When the kept-on-file answer email was first marked owed: set once, so the sweep never marks it again. */
+export const KEPT_ON_FILE_OWED_FIELD = "kept_on_file_answer_owed_at_iso";
+
 export function websiteJobKeptOnFile(record: Record<string, any> | undefined): boolean {
   const scope = record?.site_task_scope;
   return Boolean(record && !record.website_scene_sponsorship && scope?.supported === false
@@ -382,10 +389,11 @@ export async function sweepWebsiteJobNoGrant(requestId: string, nowMs = Date.now
   const early = noGrantSkip(observed, requestId);
   // Kept on file is a recorded ending (review, 2026-11-11): the pass that marks it queues its one paper-slot email,
   // idempotently, with the reader's reason. A "can't simulate this kind of job yet" email already sent fills the slot.
-  if (early === "kept_on_file") {
-    // Owed first, durably; then queued at once when it can be (the reconcile queues it otherwise).
+  // Once per job: the pass that first sees it marks the email owed (with the mark, in one transaction); later passes
+  // skip, and the reconcile delivers or settles the owed entry.
+  if (early === "kept_on_file" && !observed?.[KEPT_ON_FILE_OWED_FIELD]) {
     const { holdAnswerNotice, notifyIfAnswerSettled } = await import("./taskLifecycleNotifications");
-    await holdAnswerNotice({ requestId, milestone: "answer_ready" });
+    await holdAnswerNotice({ requestId, milestone: "answer_ready" }, { [KEPT_ON_FILE_OWED_FIELD]: new Date(nowMs).toISOString() });
     await notifyIfAnswerSettled(requestId).catch(error => logger.warn({ error, requestId }, "Could not queue the kept-on-file email"));
   }
   if (early) return early;
@@ -612,8 +620,9 @@ export async function websiteJobWindowEndingShown(requestId: string, idempotency
   if (websiteRunClosure(record, requestId, captureId)) return false;
   const [{ readWebsiteSceneProgression }, { loadSceneScreening }] = await Promise.all([
     import("./websiteSceneProgression"), import("./agentEvalRuns")]);
+  // The ending is recorded, so the sweep found no live run within the grace: only a finished result outranks it.
   if (resultOutranksWindowEnding({ screening: await loadSceneScreening(requestId),
-    sceneProgression: await readWebsiteSceneProgression(requestId, captureId) })) return false;
+    sceneProgression: await readWebsiteSceneProgression(requestId, captureId) }, { pastLiveGrace: true })) return false;
   const told = await db.collection(CAPTURE_OUTBOX_COLLECTION).where("requestId", "==", requestId).get();
   return !told.docs.some(row => row.id !== idempotencyKey
     && ["evaluation_outcome", "scene_outcome"].includes(String(row.data()?.kind ?? ""))
@@ -638,8 +647,9 @@ export async function websiteJobNoGrantEndingShown(requestId: string, idempotenc
   if (websiteRunClosure(record, requestId, captureId)) return false;
   const [{ readWebsiteSceneProgression }, { loadSceneScreening }] = await Promise.all([
     import("./websiteSceneProgression"), import("./agentEvalRuns")]);
+  // The ending is recorded, so the sweep found no live run within the grace: only a finished result outranks it.
   if (resultOutranksWindowEnding({ screening: await loadSceneScreening(requestId),
-    sceneProgression: await readWebsiteSceneProgression(requestId, captureId) })) return false;
+    sceneProgression: await readWebsiteSceneProgression(requestId, captureId) }, { pastLiveGrace: true })) return false;
   const told = await db.collection(CAPTURE_OUTBOX_COLLECTION).where("requestId", "==", requestId).get();
   return !told.docs.some(row => row.id !== idempotencyKey
     && ["evaluation_outcome", "scene_outcome"].includes(String(row.data()?.kind ?? ""))

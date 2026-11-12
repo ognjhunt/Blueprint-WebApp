@@ -153,7 +153,7 @@ export async function taskLifecycleNotificationIsCurrent(
  // The answer email is sent only while the job's answer is still a settled one.
  if(entry.kind==='answer_ready'){
   const notices=await import('./taskLifecycleNotifications');
-  return notices.answerReadyShown(entry.requestId);
+  return notices.answerReadyShown(entry.requestId,entry.idempotencyKey);
  }
  // A finished evaluation's outcome (F-01) is queued once its run ends, after
  // the consent check above. A queued notice names its outcome in its key and is
