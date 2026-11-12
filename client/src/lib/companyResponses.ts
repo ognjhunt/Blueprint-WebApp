@@ -46,6 +46,9 @@ export const COMPANY_RESPONSE_STATEMENT_VERSION = "company-response-2026-11-12";
 export const COMPANY_RESPONSE_STATEMENT = "The site is told your answer. If you answer Interested or Tested it: can do and the "
   + "site asks for an introduction, we give the site your company's name and your contact details, and give you theirs.";
 
+/** What a company sees before it has accepted the current Terms and Privacy Policy: nothing of any job, only this. */
+export const TERMS_PROMPT = "Before you see jobs, read and agree to our Terms and Privacy Policy.";
+
 /** Introductions a site may ask for on one job. */
 export const MAX_INTRODUCTIONS_PER_JOB = 3;
 

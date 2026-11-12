@@ -123,4 +123,25 @@ describe("JobFacts", () => {
     expect(screen.getByText("1 of 5")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Under 5 kg (11 lb)" })).toHaveAttribute("aria-pressed", "true");
   });
+
+  // Review: a disabled button drops keyboard focus while a save runs, and nothing puts it back after a failure.
+  it("keeps keyboard focus on the chosen button while saving and after a failed save, and ignores a second press meanwhile", async () => {
+    let release!: (response: Response) => void;
+    const fetchMock = vi.fn(() => new Promise<Response>(resolve => { release = resolve; }));
+    vi.stubGlobal("fetch", fetchMock);
+    render(<JobFacts token="tok" facts={null} />);
+    const choice = screen.getByRole("button", { name: "Not sure" });
+    choice.focus();
+    fireEvent.click(choice);
+    await waitFor(() => expect(choice).toHaveAttribute("aria-disabled", "true"));
+    expect(choice).not.toBeDisabled();
+    expect(document.activeElement).toBe(choice);
+    fireEvent.click(choice);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    release(new Response(JSON.stringify({ ok: false, error: "Not saved." }), { status: 503 }));
+    expect(await screen.findByRole("alert")).toBeTruthy();
+    expect(choice).not.toHaveAttribute("aria-disabled");
+    expect(document.activeElement).toBe(choice);
+  });
 });
+

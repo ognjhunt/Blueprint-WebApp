@@ -20,7 +20,7 @@ export const withdrawalCompanyKey = (requestId: string, companyId: string) => `$
 export const WITHDRAWAL_COMPANY_SUBJECT = "A job you were sent has been withdrawn";
 export const withdrawalCompanyBody = (date: string, title: string) =>
   `A site has withdrawn a job you were sent on ${date}: ${title}. It has left your job library. If you saved its video or `
-  + "its simulation, delete your copy now. You agreed to this when you were approved.";
+  + "its simulation, delete your copy now.";
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 type Tx = FirebaseFirestore.Transaction;

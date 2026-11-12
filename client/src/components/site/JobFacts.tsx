@@ -89,7 +89,9 @@ export function JobFacts({ token, facts, onSaved }: {
       <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
         {JOB_FACT_CHOICES[current].map(choice => {
           const chosen = answers[current] === choice.code;
-          return <button key={choice.code} type="button" aria-pressed={chosen} disabled={status === "saving"}
+          // `aria-disabled`, not `disabled`, while a save runs: a disabled button drops keyboard focus, and nothing would put
+          // it back after a failed save. `choose` ignores a press while saving.
+          return <button key={choice.code} type="button" aria-pressed={chosen} aria-disabled={status === "saving" || undefined}
             onClick={() => void choose(current, choice.code)} style={{
               display: "inline-flex", alignItems: "center", minHeight: "44px", padding: "6px 12px", font: "inherit", color: "inherit",
               background: "transparent", border: `1px solid ${chosen ? "currentColor" : "rgba(127,127,127,0.45)"}`, borderRadius: "999px",

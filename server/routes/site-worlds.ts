@@ -13,6 +13,8 @@ import { readConfiguredSceneThumbnail } from "../utils/configuredSceneThumbnail"
 import { companyViewerForRequest, libraryAccessForRequest } from "../utils/robotTeamLibraryAccess";
 import { loadCompanyJobAccess } from "../utils/teamJobAccess";
 import { loadCompanyJobPage } from "../utils/companyJobPage";
+import { companyMaySeeJobs, TERMS_ACCEPTANCE_REQUIRED } from "../utils/companyTerms";
+import { TERMS_PROMPT } from "../../client/src/lib/companyResponses";
 
 import { z } from "zod";
 import verifyFirebaseToken from "../middleware/verifyFirebaseToken";
@@ -23,6 +25,16 @@ import { COMPANY_RESPONSE_STATEMENT_VERSION, COMPANY_RESPONSE_STATES, TESTED_RES
 import { prepareCompanyAnswerInTransaction } from "../utils/jobCompanies";
 import { captureUploadUrlFor } from "../utils/captureUploadToken";
 const router = Router();
+
+/**
+ * An approved deployment company that has not accepted the current Terms and Privacy Policy: 403 with its own code and
+ * the prompt, and nothing of any job (not even a count).
+ */
+function termsRequired(res: Response, access: { gated: boolean; status: string; signedIn: boolean; emailVerified: boolean; staff: boolean }) {
+  return res.status(403).json({ code: TERMS_ACCEPTANCE_REQUIRED, error: TERMS_PROMPT,
+    access: { gated: access.gated, status: access.status, signedIn: access.signedIn, emailVerified: access.emailVerified,
+      allowed: false, staff: access.staff, termsRequired: true } });
+}
 const interestSchema = z.object({ state: z.enum(COMPANY_RESPONSE_STATES),
   inputs: z.string().trim().min(4).max(2000),
   // The line the company saw under the form (E5); stored on the answer.
@@ -36,6 +48,9 @@ router.post("/tasks/:taskId/interest", csrfProtection, verifyFirebaseToken, asyn
     const access = await getAccessRecordForEmail(user.email);
     if (access?.status !== "approved" || access.partnerRole === "technology")
       return res.status(403).json({ error: "Only an approved deployment company can answer." });
+    // The current Terms and Privacy Policy first (`companyTerms.ts`).
+    if (!companyMaySeeJobs(access as never))
+      return res.status(403).json({ error: TERMS_PROMPT, code: TERMS_ACCEPTANCE_REQUIRED });
     const taskId = String(req.params.taskId), ref = db.collection("inboundRequests").doc(taskId);
     const before = await loadCompanyJobAccess(taskId);
     if (!before.record || !before.access.listed) return res.status(409).json({ error: "This job is not open to answers." });
@@ -59,7 +74,7 @@ router.post("/tasks/:taskId/interest", csrfProtection, verifyFirebaseToken, asyn
       const { record: current, access: now } = await loadCompanyJobAccess(taskId, undefined, tx);
       const company = await tx.get(db!.collection("robotTeamAccess").doc(companyId));
       if (!current || humanDecisionDigest(current.public_task_listing) !== humanDecisionDigest(source.public_task_listing)
-        || !now.listed || company.data()?.status !== "approved" || company.data()?.partnerRole === "technology") throw new Error("job_changed");
+        || !now.listed || !companyMaySeeJobs(company.data())) throw new Error("job_changed");
       const interestRef = ref.collection("robotTeamInterest").doc(companyId);
       const prior = (await tx.get(interestRef)).data();
       if (prior && humanDecisionDigest({ ...prior, updatedAtIso: null }) === humanDecisionDigest({ ...row, updatedAtIso: null })) return;
@@ -78,6 +93,7 @@ router.get("/jobs/:taskId", async (req, res) => {
   res.set("Vary", "Authorization");
   try {
     const { access, viewer } = await companyViewerForRequest(req);
+    if (access.termsRequired) return termsRequired(res, access);
     if (!access.allowed || !viewer) return res.status(404).json({ error: "This job is not available.", access });
     const page = await loadCompanyJobPage(String(req.params.taskId), { companyId: viewer.companyId });
     if (!page) return res.status(404).json({ error: "This job is not available.", access });
@@ -129,6 +145,7 @@ router.get("/tasks", async (req, res) => {
   res.set("Vary", "Authorization");
   try {
     const access = await libraryAccessForRequest(req);
+    if (access.termsRequired) return termsRequired(res, access);
     if (!access.allowed) return res.json({ items: [], access });
     return res.json({ items: await listTaskBrowseCards({ withAnswerHeadlines: true }), access });
   } catch { return res.status(503).json({ error: "The job library could not be loaded." }); }
@@ -141,6 +158,7 @@ router.get("/tasks/:taskId", async (req, res) => {
   res.set("Vary", "Authorization");
   try {
     const access = await libraryAccessForRequest(req);
+    if (access.termsRequired) return termsRequired(res, access);
     if (!access.allowed) return res.status(404).json({ error: "This job is not in the job library." });
     const item = await readTaskCardDetail(String(req.params.taskId));
     if (!item) return res.status(404).json({ error: "This job is not in the job library." });

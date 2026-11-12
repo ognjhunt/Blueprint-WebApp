@@ -31,4 +31,15 @@ describe("a job in the library", () => {
     expect(within(row).queryByRole("form")).toBeNull();
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
+
+  it("shows only the Terms prompt, and no job or count, to a company that has not accepted the current Terms", async () => {
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 403, json: async () => ({ code: "terms_acceptance_required",
+      error: "Before you see jobs, read and agree to our Terms and Privacy Policy.", access: { ...access, allowed: false, termsRequired: true } }) });
+    render(<TaskBrowse />);
+    expect(await screen.findByText("Before you see jobs, read and agree to our Terms and Privacy Policy.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "I agree to the Terms and Privacy Policy" })).toBeInTheDocument();
+    expect(screen.queryAllByRole("listitem")).toHaveLength(0);
+    expect(screen.queryByText(/\d+ jobs?/)).toBeNull();
+  });
 });
+

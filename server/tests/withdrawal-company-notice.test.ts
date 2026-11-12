@@ -58,7 +58,7 @@ describe("the withdrawal's deletion notice to companies", () => {
     const north = notices.find(row => row.to === "north@co.example")!;
     expect(north).toMatchObject({ status: "pending", subject: WITHDRAWAL_COMPANY_SUBJECT,
       body: "A site has withdrawn a job you were sent on November 12, 2026: Pallet handling opportunity. It has left your job library. "
-        + "If you saved its video or its simulation, delete your copy now. You agreed to this when you were approved." });
+        + "If you saved its video or its simulation, delete your copy now." });
     // Plant and prove: nothing of the site reaches any notice.
     const text = JSON.stringify(notices);
     for (const planted of PLANTED) expect(text, planted).not.toContain(planted);

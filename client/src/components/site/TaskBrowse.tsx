@@ -7,13 +7,14 @@ import { useOptionalAuth } from "@/contexts/AuthContext";
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
 import type { LibraryAccess } from "@/lib/robotTeamAccess";
 import { RobotTeamEarlyAccess } from "./RobotTeamEarlyAccess";
+import { CompanyTermsPrompt } from "./CompanyTermsPrompt";
 import { libraryStageLabels, opportunityLabels, type TaskBrowseCard } from "@/types/taskBrowse";
 
 /** Said in a job's meta line while no evaluation is ready for it (`evaluationAvailable` false). */
 
 export function TaskBrowse() {
   const [items, setItems] = useState<TaskBrowseCard[]>([]);
-  const [state, setState] = useState<"loading" | "ready" | "error">("loading");
+  const [state, setState] = useState<"loading" | "ready" | "error" | "terms">("loading");
   const [retry, setRetry] = useState(0);
   const [family, setFamily] = useState("");
   const [region, setRegion] = useState("");
@@ -33,6 +34,11 @@ export function TaskBrowse() {
     // request carries the signed-in account when there is one.
     withFirebaseAuthHeaders(currentUser).catch(() => ({})).then(headers =>
       fetch("/api/site-worlds/tasks", { signal: controller.signal, headers })).then(async response => {
+      // An approved company that has not accepted the current Terms: the prompt, and nothing about any job.
+      if (response.status === 403) {
+        const body = await response.json().catch(() => ({}));
+        if (body?.code === "terms_acceptance_required") { if (!controller.signal.aborted) setState("terms"); return; }
+      }
       if (!response.ok) throw new Error("unavailable");
       const data = await response.json();
       if (controller.signal.aborted) return;
@@ -62,6 +68,8 @@ export function TaskBrowse() {
     return <RobotTeamEarlyAccess access={null} email={null} />;
   }
   if (state === "loading") return <section aria-label="Job library"><p role="status">Loading…</p></section>;
+  if (state === "terms" && currentUser) return <section aria-label="Job library">
+    <CompanyTermsPrompt user={currentUser} onAccepted={() => setRetry(retry + 1)} /></section>;
   if (state === "error") return <section aria-label="Job library"><div role="alert"><p>The job library could not be loaded.</p>
     <button className="ms-button" onClick={() => setRetry(retry + 1)}>Try again</button>
     <p><a href="mailto:hello@tryblueprint.io">Email us about a job or your application</a></p></div></section>;

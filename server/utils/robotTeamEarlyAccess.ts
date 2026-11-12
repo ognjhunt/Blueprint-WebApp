@@ -67,6 +67,11 @@ export interface RobotTeamAccessRecord extends RobotTeamAccessApplication {
   decisionNote: string | null;
   /** The teams this approval covers. Written only by `bindAccessApprovalToTeam`. */
   teamIds?: string[];
+  /**
+   * The Terms and Privacy Policy acceptance (`buildLegalAcceptanceRecord`): given on the application form, or by the
+   * account on its first visit. Jobs are shown only while it is the current versions (`companyTerms.ts`).
+   */
+  termsAcceptance?: unknown;
 }
 
 /** What a viewer of the task library is allowed to see, and why. */
@@ -81,6 +86,8 @@ export interface LibraryAccess {
   allowed: boolean;
   /** Blueprint staff (admin/ops), who also see records no team is shown. */
   staff: boolean;
+  /** An approved deployment company that must accept the current Terms and Privacy Policy before it sees any job. */
+  termsRequired?: boolean;
 }
 
 const APP_URL = () => (process.env.APP_URL || "https://tryblueprint.io").replace(/\/+$/, "");
@@ -123,7 +130,7 @@ export async function getAccessRecordForEmail(email: string | null | undefined):
  */
 export async function recordAccessApplication(
   application: RobotTeamAccessApplication,
-  options: { fit?: AccessFit | null } = {},
+  options: { fit?: AccessFit | null; termsAcceptance?: unknown } = {},
 ): Promise<{ record: RobotTeamAccessRecord; created: boolean; notification: AccessEmailNotification }> {
   if (!db) throw new Error("firestore_unavailable");
   const { prepareAccessEmail } = await import("./robotTeamAccessEmails");
@@ -152,6 +159,9 @@ export async function recordAccessApplication(
       decidedAtIso: prior?.status === "approved" ? prior.decidedAtIso : null,
       decidedBy: prior?.status === "approved" ? prior.decidedBy : null,
       decisionNote: prior?.status === "approved" ? prior.decisionNote : null,
+      // The Terms the applicant accepted on this application, with its time; else the one already on record.
+      ...(options.termsAcceptance ? { termsAcceptance: options.termsAcceptance }
+        : prior?.termsAcceptance ? { termsAcceptance: prior.termsAcceptance } : {}),
       // The teams an approval already covers survive a re-application.
       ...(prior?.status === "approved" && prior.teamIds?.length ? { teamIds: prior.teamIds } : {}),
     };
@@ -450,14 +460,25 @@ export async function resolveViewerAccess(viewer: ViewerIdentity): Promise<Libra
   const status = record?.status ?? "none";
   let allowed = false;
   // Jobs are shared with approved DEPLOYMENT companies (the v4 statement): a technology partner sees no site job.
+  let termsRequired = false;
   if (status === "approved" && record?.partnerRole !== "technology" && emailVerified && viewer.uid && viewer.email) {
     try {
       allowed = Boolean(await ensureApprovedTeamForAccount({ uid: viewer.uid, email: viewer.email, verified: true }));
     } catch (error) {
       logger.warn({ error }, "Could not bind the approved account to its team; treating as not approved");
     }
+    // The current Terms and Privacy Policy must be accepted before any job is seen (`companyTerms.ts`). An acceptance
+    // given on the application, or recorded on the account, is carried to the other first.
+    if (allowed) {
+      const { companyMaySeeJobs, syncCompanyTerms } = await import("./companyTerms");
+      const synced = await syncCompanyTerms({ uid: viewer.uid }, accessRecordId(viewer.email), record).catch(() => record);
+      if (!companyMaySeeJobs({ ...record, ...(synced ?? {}) } as RobotTeamAccessRecord & { termsAcceptance?: unknown })) {
+        allowed = false;
+        termsRequired = true;
+      }
+    }
   }
-  return { gated, status, signedIn, emailVerified, allowed, staff };
+  return { gated, status, signedIn, emailVerified, allowed, staff, ...(termsRequired ? { termsRequired } : {}) };
 }
 
 /**

@@ -22,7 +22,8 @@ import { COMPANY_RESPONSE_LABELS, INTRODUCIBLE_RESPONSE_STATES, MAX_INTRODUCTION
 import { buildOutboxEntry, CAPTURE_OUTBOX_COLLECTION } from "./captureOutbox";
 import { buildIntroductionBillableEvent, writeIntroductionBillableEvent } from "./billableEvents";
 import { COMPANY_RESPONSES_COLLECTION, INTRODUCTIONS_COLLECTION, answerConsentsToIntroduction, companyJobUrl,
-  isApprovedDeploymentCompany, storedAliases } from "./jobCompanies";
+  storedAliases } from "./jobCompanies";
+import { companyMaySeeJobs } from "./companyTerms";
 import { introductionCompanyEmail, type IntroductionSiteDetails } from "./robotTeamAccessEmails";
 import { ROBOT_TEAM_ACCESS_COLLECTION, type RobotTeamAccessRecord } from "./robotTeamEarlyAccess";
 import { loadCompanyJobAccess } from "./teamJobAccess";
@@ -105,7 +106,7 @@ export async function requestIntroduction(input: { requestId: string; alias: str
       await tx.get(jobRef.collection(INTRODUCTIONS_COLLECTION).limit(MAX_INTRODUCTIONS_PER_JOB + 1))];
     if (introSnap.exists) return { ok: false, reason: "already_introduced" };
     const company = companySnap.data() as RobotTeamAccessRecord | undefined;
-    if (!company || !isApprovedDeploymentCompany(company)) return { ok: false, reason: "company_not_approved" };
+    if (!company || !companyMaySeeJobs(company)) return { ok: false, reason: "company_not_approved" };
     const answer = answerSnap.data();
     // A standing `interested` or `tested_can_do` answer (E9).
     if (!INTRODUCIBLE_RESPONSE_STATES.includes(answer?.state)) return { ok: false, reason: "not_interested" };

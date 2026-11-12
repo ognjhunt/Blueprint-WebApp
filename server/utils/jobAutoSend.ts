@@ -15,7 +15,8 @@
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
 import { buildOutboxEntry, CAPTURE_OUTBOX_COLLECTION } from "./captureOutbox";
-import { AUTO_SEND_EVENT_ID, COMPANY_SENDS_COLLECTION, companyJobUrl, isApprovedDeploymentCompany, prepareSiteNotice } from "./jobCompanies";
+import { AUTO_SEND_EVENT_ID, COMPANY_SENDS_COLLECTION, companyJobUrl, prepareSiteNotice } from "./jobCompanies";
+import { companyMaySeeJobs } from "./companyTerms";
 import { newJobEmail } from "./robotTeamAccessEmails";
 import { ROBOT_TEAM_ACCESS_COLLECTION, type RobotTeamAccessRecord } from "./robotTeamEarlyAccess";
 import { loadCompanyJobAccess } from "./teamJobAccess";
@@ -50,7 +51,9 @@ export async function sendJobToApprovedCompanies(requestId: string, now: () => D
     const approved = await tx.get(store.collection(ROBOT_TEAM_ACCESS_COLLECTION).where("status", "==", "approved"));
     const companies = approved.docs
       .map(doc => ({ id: doc.id, data: (doc.data() ?? {}) as RobotTeamAccessRecord }))
-      .filter(row => /^[a-f0-9]{64}$/.test(row.id) && isApprovedDeploymentCompany(row.data))
+      // Only companies that may see jobs: approved, deployment, and the current Terms accepted. A company that has not
+      // accepted gets no row, no email and is not counted; once it accepts, the job is in its library like any other.
+      .filter(row => /^[a-f0-9]{64}$/.test(row.id) && companyMaySeeJobs(row.data))
       .sort((a, b) => a.id.localeCompare(b.id));
     if (!companies.length) return { sent: false, reason: "no_companies" };
     // Reads first: each opted-in company's saved preference and suppression, and the site's notice row.

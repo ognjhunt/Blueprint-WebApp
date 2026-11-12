@@ -101,4 +101,23 @@ describe("the company's page for one job", () => {
       ["interested", "declined", "needs_something", "tested_can_do", "tested_cannot_yet"]);
     expect(within(form).getByLabelText("Tested it: can do")).toBeInTheDocument();
   });
+
+  it("asks a company that has not accepted the current Terms to agree, shows nothing of the job, then loads it", async () => {
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 403, json: async () => ({ code: "terms_acceptance_required",
+      error: "Before you see jobs, read and agree to our Terms and Privacy Policy." }) });
+    render(<CompanyJob />);
+    expect(await screen.findByText("Before you see jobs, read and agree to our Terms and Privacy Policy.")).toBeInTheDocument();
+    const prompt = screen.getByRole("region", { name: "Terms and Privacy Policy" });
+    expect(within(prompt).getByRole("link", { name: "Terms" })).toHaveAttribute("href", "/terms");
+    expect(within(prompt).getByRole("link", { name: "Privacy Policy" })).toHaveAttribute("href", "/privacy");
+    expect(screen.queryByRole("heading", { name: "Carton palletizing opportunity" })).toBeNull();
+    fetchMock.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ ok: true }) });
+    fetchMock.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ item: item() }) });
+    fireEvent.click(screen.getByRole("button", { name: "I agree to the Terms and Privacy Policy" }));
+    expect(await screen.findByRole("heading", { name: "Carton palletizing opportunity" })).toBeInTheDocument();
+    const [path, init] = fetchMock.mock.calls[1] as [string, RequestInit];
+    expect(path).toBe("/api/robot-team-access/accept-terms");
+    expect(JSON.parse(String(init.body))).toEqual({ acceptedTerms: true, termsVersion: "2026-11-12.1", privacyVersion: "2026-11-12.1" });
+  });
 });
+

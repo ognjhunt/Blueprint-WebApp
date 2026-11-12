@@ -5,6 +5,7 @@
  * (`taskLifecycleNotificationAuthority.ts`); it passes here. Every other kind passes.
  */
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
+import { companyMaySeeJobs } from "./companyTerms";
 
 export const INTRODUCTION_COMPANY_KIND = "introduction_made_company";
 export const introductionCompanyKey = (requestId: string, companyId: string) => `${requestId}:${INTRODUCTION_COMPANY_KIND}:${companyId}`;
@@ -23,7 +24,8 @@ export async function introductionEmailIsCurrent(entry: { kind: string; requestI
   if (!intro.exists) return false;
   // The company must still be an approved deployment company.
   const record = company.data();
-  if (record?.status !== "approved" || record.partnerRole === "technology") return false;
+  // Approved, a deployment company, and the current Terms accepted (`companyMaySeeJobs`).
+  if (!companyMaySeeJobs(record)) return false;
   // The whole sharing rule, as on every company-facing read: a withdrawal, an operator hold, a rights hold, an authority
   // end or the site closing its job each stop the site's details from going out.
   const { loadCompanyJobAccess } = await import("./teamJobAccess");

@@ -31,3 +31,13 @@ export function sharedJobFields(requestId: string, request: Record<string, unkno
     capture_privacy_screen: passedPrivacyScreen(requestId),
   };
 }
+
+/** An approved company's acceptance of the CURRENT Terms and Privacy Policy, as `buildLegalAcceptanceRecord` writes it. */
+export function currentTermsAcceptance(atIso = SHARED_AT_ISO) {
+  return { accepted_terms: true, terms_version: "2026-11-12.1", privacy_version: "2026-11-12.1", terms_url: "/terms",
+    privacy_url: "/privacy", accepted_at: atIso, accepted_from_ip_hash: null };
+}
+/** A company access record that has accepted the current Terms (the check is never weakened: the record carries it). */
+export function withCurrentTerms<T extends Record<string, unknown>>(record: T): T & { termsAcceptance: ReturnType<typeof currentTermsAcceptance> } {
+  return { ...record, termsAcceptance: currentTermsAcceptance() };
+}

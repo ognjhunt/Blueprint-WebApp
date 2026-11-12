@@ -13,6 +13,7 @@
  * - the introductions route says each refusal in one plain sentence, and answers only the owner's link;
  * - each site email is checked again at dispatch: never after a withdrawal, never while the job is not visible.
  */
+import { currentTermsAcceptance } from "./helpers/sharedJob";
 import express from "express";
 import { createHash } from "node:crypto";
 import { createServer, type Server } from "node:http";
@@ -50,7 +51,7 @@ const ID = "req-site-plant";
 const AT = "2026-11-12T10:00:00.000Z";
 const sha = (email: string) => createHash("sha256").update(email.trim().toLowerCase()).digest("hex");
 function company(tag: string) {
-  return { partnerRole: "deployment", status: "approved", name: `Person ${tag}plant`, company: `${tag}PLANT Robotics`,
+  return { partnerRole: "deployment", status: "approved", termsAcceptance: currentTermsAcceptance(), name: `Person ${tag}plant`, company: `${tag}PLANT Robotics`,
     email: `contact-${tag.toLowerCase()}@${tag.toLowerCase()}-plant.example`, website: `https://www.${tag.toLowerCase()}-plant.example/about`,
     robot: `ROBOT-${tag}-PLANT`, region: `REGION-${tag}-PLANT`, decisionNote: `NOTE-${tag}-PLANT`,
     appliedAtIso: "2026-11-01T00:00:00.000Z", updatedAtIso: "2026-11-01T00:00:00.000Z", decidedAtIso: "2026-11-02T00:00:00.000Z" };

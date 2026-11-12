@@ -7,6 +7,7 @@ import { withCsrfHeader } from "@/lib/csrf";
 import { COMPANY_RESPONSE_LABELS, COMPANY_RESPONSE_STATES, TESTED_RESPONSE_STATES, type CompanyResponseState } from "@/lib/companyResponses";
 import { JobCardAnswer } from "@/components/site/JobCardAnswer";
 import { MinimalSiteLayout } from "@/components/site/MinimalSiteLayout";
+import { CompanyTermsPrompt } from "@/components/site/CompanyTermsPrompt";
 import type { CompanyJobPage } from "@/types/taskBrowse";
 
 /** Said while the sound-free copy of the site's video is not ready. */
@@ -37,7 +38,7 @@ function CompanyJobBody() {
   const { jobId = "" } = useParams();
   const auth = useOptionalAuth();
   const user = auth?.currentUser ?? null;
-  const [state, setState] = useState<"loading" | "ready" | "missing" | "signed_out" | "error">("loading");
+  const [state, setState] = useState<"loading" | "ready" | "missing" | "signed_out" | "error" | "terms">("loading");
   const [page, setPage] = useState<CompanyJobPage | null>(null);
   const [retry, setRetry] = useState(0);
   useEffect(() => {
@@ -48,6 +49,10 @@ function CompanyJobBody() {
       .then(async response => {
         if (cancelled) return;
         if (response.status === 404) { setState("missing"); return; }
+        if (response.status === 403) {
+          const body = await response.json().catch(() => ({})) as { code?: string };
+          if (body.code === "terms_acceptance_required") { setState("terms"); return; }
+        }
         if (!response.ok) throw new Error("unavailable");
         const body = await response.json() as { item?: CompanyJobPage };
         if (!body.item) throw new Error("invalid");
@@ -57,6 +62,7 @@ function CompanyJobBody() {
   }, [jobId, user?.uid, retry, auth?.loading]);
 
   if (state === "loading") return <div className="ms-page"><p role="status">Loading…</p></div>;
+  if (state === "terms" && user) return <div className="ms-page"><CompanyTermsPrompt user={user} onAccepted={() => setRetry(retry + 1)} /></div>;
   if (state === "signed_out") return <div className="ms-page"><h1>Sign in to see this job</h1>
     <p>Jobs are shown to deployment companies Blueprint has approved. <a href="/contact/robot-team">Sign in or apply</a>.</p></div>;
   if (state === "missing") return <div className="ms-page"><h1>This job is not available</h1>

@@ -39,6 +39,7 @@ import {
 } from "../../client/src/lib/companyResponses";
 import { ROBOT_TEAM_ACCESS_COLLECTION, type RobotTeamAccessRecord } from "./robotTeamEarlyAccess";
 import { teamJobAccess, type TeamJobClosedReason } from "./teamJobAccess";
+import { companyMaySeeJobs } from "./companyTerms";
 import { projectWebsiteCaptureRights } from "./websiteTaskContext";
 import type { AdminJobCompanies } from "../../client/src/types/jobCompanies";
 export type { AdminJobCompanies };
@@ -149,8 +150,8 @@ export async function recordCompanySend(requestId: string, companyId: string, ac
     const { loadCompanyJobAccess } = await import("./teamJobAccess");
     if (!(await loadCompanyJobAccess(requestId, record, tx)).access.listed)
       throw new JobCompaniesError("not_visible", "This job is not shared and visible to companies right now, so it cannot be sent.");
-    if (!companySnap.exists || !isApprovedDeploymentCompany(companySnap.data() as RobotTeamAccessRecord))
-      throw new JobCompaniesError("company_not_approved", "Only an approved deployment company can be sent a job.");
+    if (!companySnap.exists || !companyMaySeeJobs(companySnap.data()))
+      throw new JobCompaniesError("company_not_approved", "Only an approved deployment company that has accepted the current Terms can be sent a job.");
     const plan = planAlias(record, companyId);
     // The site's email, written in this same transaction: it exists if and only if the send is recorded.
     const notice = await prepareSiteNotice(tx, requestId, record, { milestone: "job_sent", eventId: `send-${sendId}` }, captureUrl);
@@ -440,7 +441,7 @@ export async function loadSiteCompanyActivity(requestId: string): Promise<SiteCo
     data: { ...row.data, companyShared: await openShared(row.data.companyShared) } })));
   return projectSiteCompanyActivity({ aliases: storedAliases(record), sends: sends.map(row => row.data), responses,
     introductions: opened, listed: access.listed,
-    approvedDeploymentCompanies: new Set(approved.filter(row => isApprovedDeploymentCompany(row.data as RobotTeamAccessRecord)).map(row => row.id)) });
+    approvedDeploymentCompanies: new Set(approved.filter(row => companyMaySeeJobs(row.data)).map(row => row.id)) });
 }
 
 /* ------------------------------------------------------------- the operator's panel */
@@ -481,7 +482,7 @@ export async function loadAdminJobCompanies(requestId: string): Promise<AdminJob
   if (!job.exists || !record) return null;
   const aliases = storedAliases(record);
   const names = new Map<string, Partial<RobotTeamAccessRecord>>(approvedRows.map(row => [row.id, row.data as RobotTeamAccessRecord]));
-  const companies = approvedRows.filter(row => isApprovedDeploymentCompany(row.data as RobotTeamAccessRecord))
+  const companies = approvedRows.filter(row => companyMaySeeJobs(row.data))
     .map(row => ({ id: row.id, company: String(row.data.company ?? ""), email: String(row.data.email ?? "") }))
     .sort((a, b) => a.company.localeCompare(b.company));
   const sends = sendRows

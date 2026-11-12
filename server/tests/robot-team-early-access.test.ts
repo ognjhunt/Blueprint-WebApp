@@ -12,7 +12,7 @@ import express from "express";
 import { createServer, type Server } from "node:http";
 
 import { sharedFakeFirestoreState as state, sharedFakeFirestore as store } from "./helpers/fake-firestore";
-import { passedPrivacyScreen, sharedJobListing, sharedRecordingGrant } from "./helpers/sharedJob";
+import { currentTermsAcceptance, passedPrivacyScreen, sharedJobListing, sharedRecordingGrant } from "./helpers/sharedJob";
 
 const tokens = vi.hoisted(() => new Map<string, Record<string, unknown>>());
 const slack = vi.hoisted(() => vi.fn(async () => ({ sent: true })));
@@ -115,6 +115,8 @@ function approve(email: string) {
   const now = "2026-09-23T00:00:00.000Z";
   state.docs.set(`${early.ROBOT_TEAM_ACCESS_COLLECTION}/${early.accessRecordId(email)}`, {
     ...application, email: email.toLowerCase(), status: "approved",
+    // An approved company that has accepted the current Terms (the gate is unchanged; the record carries it).
+    termsAcceptance: currentTermsAcceptance(),
     appliedAtIso: now, updatedAtIso: now, decidedAtIso: now, decidedBy: "ops@tryblueprint.io", decisionNote: null,
   } as never);
 }
@@ -224,6 +226,9 @@ describe("applying", () => {
     expect(records[0][1]).toMatchObject({
       email: "ada@arm.example", status: "applied",
       pilotPackage: "Two-week onsite trial, indicative $20,000, six-week lead time",
+      // The Terms and Privacy versions the applicant accepted on the form, with the time (planner, 18:50Z).
+      termsAcceptance: { accepted_terms: true, terms_version: "2026-11-12.1", privacy_version: "2026-11-12.1",
+        terms_url: "/terms", privacy_url: "/privacy", accepted_at: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/) },
     });
     const receipts = [...state.docs.entries()].filter(([key]) => key.startsWith("captureOutbox/robot_team_access_received"));
     expect(receipts).toHaveLength(1);
@@ -264,7 +269,9 @@ describe("the review queue", () => {
 
   it("approves once, emails the next step, and the approved email then sees the library", async () => {
     tokens.set("ops", { uid: "ops", email: "ops@tryblueprint.io", email_verified: true, ops: true });
-    await early.recordAccessApplication({ ...application, website: null, region: null });
+    // As the application form records it: the Terms accepted on the form travel with the application.
+    const { applicationTermsAcceptance } = await import("../utils/companyTerms");
+    await early.recordAccessApplication({ ...application, website: null, region: null }, { termsAcceptance: applicationTermsAcceptance() });
     const id = early.accessRecordId("ada@arm.example");
 
     const response = await decide("ops", id, "approved");
@@ -278,6 +285,8 @@ describe("the review queue", () => {
     tokens.set("ada", { uid: "u1", email: "ada@arm.example", email_verified: true });
     const library = await fetch(`${base}/api/site-worlds/tasks`, { headers: { Authorization: "Bearer ada" } });
     expect(((await library.json()) as { items: unknown[] }).items).toHaveLength(1);
+    // The application's acceptance was carried to the account on the first visit: it does not accept twice.
+    expect(state.docs.get("users/u1")).toMatchObject({ acceptedTerms: true, termsVersion: "2026-11-12.1", privacyVersion: "2026-11-12.1" });
   });
 
   it("says a polite \"not yet\" by default, and nothing when the reviewer will reply", async () => {
@@ -386,6 +395,16 @@ describe("inviting a team after a call", () => {
 
     listedSite("site-1");
     tokens.set("ada", { uid: "u1", email: "ada@arm.example", email_verified: true });
+    // Invited after a call, it never saw the application form: it accepts the current Terms once, on its first visit.
+    const firstVisit = await fetch(`${base}/api/site-worlds/tasks`, { headers: { Authorization: "Bearer ada" } });
+    expect(firstVisit.status).toBe(403);
+    const refused = await firstVisit.json() as Record<string, unknown>;
+    expect(refused).toMatchObject({ code: "terms_acceptance_required", access: { allowed: false, termsRequired: true } });
+    expect(refused).not.toHaveProperty("items");
+    const accepted = await fetch(`${base}/api/robot-team-access/accept-terms`, { method: "POST",
+      headers: { Authorization: "Bearer ada", "content-type": "application/json", ...CSRF },
+      body: JSON.stringify({ acceptedTerms: true, termsVersion: "2026-11-12.1", privacyVersion: "2026-11-12.1" }) });
+    expect(accepted.status).toBe(200);
     const library = await fetch(`${base}/api/site-worlds/tasks`, { headers: { Authorization: "Bearer ada" } });
     expect(((await library.json()) as { items: unknown[] }).items).toHaveLength(1);
   });

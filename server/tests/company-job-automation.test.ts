@@ -26,7 +26,7 @@ import path from "node:path";
 import { createServer, type Server } from "node:http";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { sharedFakeFirestoreState as state } from "./helpers/fake-firestore";
-import { passedPrivacyScreen, sharedJobListing, sharedRecordingGrant } from "./helpers/sharedJob";
+import { currentTermsAcceptance, passedPrivacyScreen, sharedJobListing, sharedRecordingGrant } from "./helpers/sharedJob";
 import { INTRODUCTION_REQUEST_STATEMENT_VERSION } from "../../client/src/lib/siteIntroductions";
 import { COMPANY_RESPONSE_STATEMENT, COMPANY_RESPONSE_STATEMENT_VERSION } from "../../client/src/lib/companyResponses";
 import { crossRuntimeArtifactDigest } from "../utils/crossRuntimeCanonical";
@@ -60,8 +60,11 @@ vi.mock("../utils/robotTeamLibraryAccess", async () => {
     const companyId = accessRecordId(account.email);
     const record = (await sharedFakeFirestore.collection("robotTeamAccess").doc(companyId).get()).data();
     // As the real gate (`resolveViewerAccess`): approved, and a deployment company, never a technology partner.
-    const allowed = record?.status === "approved" && record.partnerRole !== "technology";
-    return { access: { gated: true, status: record?.status ?? "none", signedIn: true, emailVerified: true, allowed, staff: false },
+    const { companyMaySeeJobs } = await import("../utils/companyTerms");
+    const deployment = record?.status === "approved" && record.partnerRole !== "technology";
+    const allowed = companyMaySeeJobs(record);
+    return { access: { gated: true, status: record?.status ?? "none", signedIn: true, emailVerified: true, allowed, staff: false,
+      ...(deployment && !allowed ? { termsRequired: true } : {}) },
       viewer: { uid: account.uid, email: account.email, companyId, staff: false } };
   };
   return { companyViewerForRequest: viewerFor, libraryAccessForRequest: async (req: express.Request) => (await viewerFor(req)).access };
@@ -80,6 +83,7 @@ vi.mock("../utils/websiteScenePreview", async importOriginal => ({ ...await impo
 const { default: worldsRouter } = await import("../routes/site-worlds");
 const { default: mediaRouter } = await import("../routes/company-media");
 const { default: viewsRouter } = await import("../routes/website-atlas-preview-views");
+const { default: accessRouter } = await import("../routes/robot-team-access");
 const { sendJobToApprovedCompanies, sweepAutomaticSends } = await import("../utils/jobAutoSend");
 const { requestIntroduction } = await import("../utils/jobIntroductions");
 const { loadSiteCompanyActivity } = await import("../utils/jobCompanies");
@@ -115,7 +119,7 @@ function job(extra: Record<string, unknown> = {}) {
 }
 
 function company(tag: string, extra: Record<string, unknown> = {}) {
-  return { partnerRole: "deployment", name: `Person ${tag}`, email: `contact@${tag.toLowerCase()}.example`, company: `${tag} Robotics`,
+  return { partnerRole: "deployment", termsAcceptance: currentTermsAcceptance(), name: `Person ${tag}`, email: `contact@${tag.toLowerCase()}.example`, company: `${tag} Robotics`,
     website: `https://${tag.toLowerCase()}.example`, robot: "arm", workWanted: "pick", region: null, status: "approved",
     newJobAlertsOptIn: true, appliedAtIso: "2026-11-01T00:00:00.000Z", updatedAtIso: "2026-11-01T00:00:00.000Z",
     decidedAtIso: "2026-11-02T00:00:00.000Z", decidedBy: "ops", decisionNote: null, ...extra };
@@ -241,6 +245,7 @@ beforeEach(async () => {
   app.use("/api/site-worlds", worldsRouter);
   app.use("/api/company-media", mediaRouter);
   app.use("/api/website-atlas-preview-views", viewsRouter);
+  app.use("/api/robot-team-access", accessRouter);
   server = createServer(app);
   await new Promise<void>(resolve => server.listen(0, "127.0.0.1", () => resolve()));
   const address = server.address();
@@ -996,6 +1001,89 @@ describe("the simulation download against COMPANY_SIMULATION_CONTRACT.md section
       company_simulation: { ...simulationPackage(), size_bytes: 600_000_000 } });
     expect((await page()).body.item.simulationDownload).toEqual({ state: "not_finished" });
     expect((await answer(NORTH, { state: "tested_can_do" })).status).toBe(409);
+  });
+});
+
+/* ----------------------------------------------------------------- the current Terms before any job (planner, 18:50Z) */
+
+describe("a company must accept the current Terms and Privacy Policy before it sees any job", () => {
+  const variants: Array<[string, Record<string, unknown>]> = [
+    ["no acceptance", { termsAcceptance: undefined }],
+    ["an older version", { termsAcceptance: { ...currentTermsAcceptance(), terms_version: "2026-11-02.1", privacy_version: "2026-11-02.1" } }],
+    ["only the Terms, not the Privacy Policy", { termsAcceptance: { ...currentTermsAcceptance(), privacy_version: "2026-11-02.1" } }],
+  ];
+  const withoutTerms = (patch: Record<string, unknown>) => {
+    const record: Record<string, unknown> = { ...NORTH, ...patch };
+    if (patch.termsAcceptance === undefined) delete record.termsAcceptance;
+    state.docs.set(`robotTeamAccess/${sha(NORTH.email)}`, record);
+  };
+  async function accept(record = NORTH) {
+    const response = await realFetch(`${base}/api/robot-team-access/accept-terms`, { method: "POST",
+      headers: { ...signIn(record), "content-type": "application/json" },
+      body: JSON.stringify({ acceptedTerms: true, termsVersion: "2026-11-12.1", privacyVersion: "2026-11-12.1" }) });
+    return { status: response.status, body: await response.json() as Record<string, any> };
+  }
+
+  it.each(variants)("with %s: every surface answers terms_acceptance_required and carries nothing of any job; after accepting, all work", async (_name, patch) => {
+    state.docs.set(`captureUploadSessions/${CAPTURE}`, { ...state.docs.get(`captureUploadSessions/${CAPTURE}`), company_simulation: simulationPackage() });
+    const item = (await page()).body.item;
+    withoutTerms(patch);
+    const refusals = [await list(), await page()].map(({ status, raw }) => ({ status, raw }));
+    for (const url of [item.video.url, item.simulationDownload.url, sceneContentUrl(item.simulation.viewerUrl)]) {
+      const read = await media(url, { "sec-fetch-dest": "empty" });
+      refusals.push({ status: read.status, raw: read.bytes.toString() });
+    }
+    const answered = await answer(NORTH);
+    refusals.push({ status: answered.status, raw: JSON.stringify(answered.body) });
+    for (const refusal of refusals) {
+      expect(refusal.status).toBe(403);
+      expect(JSON.parse(refusal.raw)).toMatchObject({ code: "terms_acceptance_required",
+        error: "Before you see jobs, read and agree to our Terms and Privacy Policy." });
+      // Plant-and-prove: nothing of any job, not even a count.
+      expect(refusal.raw).not.toMatch(/req-e2|Carton|palletiz|items|Stack|United States|video\.mp4|simulation\.zip|PK-ZIP|0123456789/);
+      expectNoSiteIn("the refusal", refusal.raw);
+    }
+    expect(state.docs.has(`inboundRequests/${ID}/robotTeamInterest/${sha(NORTH.email)}`)).toBe(false);
+    // Accepting records the current versions on the account and the access record, then everything works.
+    expect(await accept()).toMatchObject({ status: 200, body: { ok: true, termsVersion: "2026-11-12.1", privacyVersion: "2026-11-12.1" } });
+    expect(state.docs.get(`users/uid-${NORTH.email}`)).toMatchObject({ acceptedTerms: true, termsVersion: "2026-11-12.1",
+      privacyVersion: "2026-11-12.1", termsAcceptance: { accepted_terms: true, terms_version: "2026-11-12.1" } });
+    expect((state.docs.get(`robotTeamAccess/${sha(NORTH.email)}`) as Record<string, any>).termsAcceptance)
+      .toMatchObject({ accepted_terms: true, terms_version: "2026-11-12.1", privacy_version: "2026-11-12.1" });
+    expect((await page()).status).toBe(200);
+    expect((await list()).body.items).toHaveLength(1);
+    expect((await media(item.video.url)).status).toBe(200);
+    expect((await answer(NORTH)).status).toBe(200);
+  });
+
+  it("refuses the accept route to anyone who is not an approved deployment company", async () => {
+    expect((await accept(TECH)).status).toBe(403);
+    expect((await accept(PENDING)).status).toBe(403);
+  });
+
+  it("the automatic send and the dispatch gates leave out a company that has not accepted", async () => {
+    withoutTerms({ termsAcceptance: undefined });
+    const result = await sendJobToApprovedCompanies(ID);
+    // Five of the six deployment companies: NORTH is not counted, gets no row and no email.
+    expect(result).toMatchObject({ sent: true, count: 5 });
+    expect(state.docs.has(`inboundRequests/${ID}/companySends/system-${sha(NORTH.email)}`)).toBe(false);
+    expect(outbox().filter(row => row.kind === "robot_team_new_task").map(row => row.to)).not.toContain(NORTH.email);
+    // A new-job email queued while it had accepted, and an introduction to it, are cancelled at dispatch once its
+    // acceptance is no longer current.
+    state.docs.set(`robotTeamAccess/${sha(NORTH.email)}`, NORTH);
+    state.docs.set(`captureOutbox/robot_team_new_task:${ID}:${sha(NORTH.email)}`, { idempotencyKey: `robot_team_new_task:${ID}:${sha(NORTH.email)}`,
+      requestId: ID, kind: "robot_team_new_task", to: NORTH.email, subject: "New job on Blueprint", body: "x", status: "pending", attempts: 0,
+      nextAttemptAtMs: 0, jobAlert: { schema: "job-alert-2026-11-12", jobId: ID, companyId: sha(NORTH.email) } });
+    await interested(NORTH);
+    expect(await requestIntroduction({ requestId: ID, alias: "A", actor: "site", statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION },
+      { siteEmail })).toMatchObject({ ok: true });
+    withoutTerms({ termsAcceptance: { ...currentTermsAcceptance(), terms_version: "2026-11-02.1" } });
+    await deliverOutbox({ limit: 50 });
+    expect(outbox().find(row => row.kind === "robot_team_new_task" && row.to === NORTH.email)).toMatchObject({ status: "cancelled" });
+    expect(outbox().find(row => row.kind === "introduction_made_company")).toMatchObject({ status: "cancelled" });
+    expect(seams.sendEmail.mock.calls.map(([message]) => message.to)).not.toContain(NORTH.email);
+    // And no new introduction can be asked for it.
+    expect((await loadSiteCompanyActivity(ID)).entries.find(entry => entry.alias === "Company A")).toMatchObject({ canIntroduce: false });
   });
 });
 

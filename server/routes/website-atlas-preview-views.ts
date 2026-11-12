@@ -50,8 +50,12 @@ router.get("/:requestId/:captureId/:file(scene.ply|settings.json)", async (req, 
     if (scene) session = (await db.collection("captureUploadSessions").doc(captureId).get()).data();
     // Every company request re-reads the whole sharing rule and the company's approval, and the capture must still be
     // the job's current one.
-    if (companyViewer !== null && !(await (await import("../utils/companyJobPage")).companyMediaAllowed(requestId, captureId, companyViewer, record)))
-      return res.status(404).json(unavailable);
+    if (companyViewer !== null) {
+      const refusal = await (await import("../utils/companyJobPage")).companyMediaRefusal(requestId, captureId, companyViewer, record);
+      if (refusal === "terms_acceptance_required") return res.status(403).json({ code: refusal,
+        error: "Before you see jobs, read and agree to our Terms and Privacy Policy." });
+      if (refusal) return res.status(404).json(unavailable);
+    }
   } catch {
     return res.status(503).json({ error: "3D preview store is unavailable" });
   }

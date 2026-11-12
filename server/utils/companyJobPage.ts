@@ -23,16 +23,18 @@ import { viewableWebsiteScenePreview, websiteScenePreviewCompanyViewerUrl } from
 import { loadJobCardAnswerWithRobots } from "./jobCardAnswer";
 import { logger } from "../logger";
 import { decryptFieldValue } from "./field-encryption";
+import { companyMaySeeJobs } from "./companyTerms";
 
 /**
  * The company still stands approved as a deployment company (never a technology partner: the site agreed to share its
- * job with robot deployment companies). Read on every page, media request and introduction.
+ * job with robot deployment companies) AND has accepted the current Terms and Privacy Policy (`companyMaySeeJobs`).
+ * Read on every page, media request and introduction.
  */
 export async function companyStillApproved(companyId: string, tx?: FirebaseFirestore.Transaction): Promise<boolean> {
   if (!db || !/^[a-f0-9]{64}$/.test(companyId)) return false;
   const ref = db.collection("robotTeamAccess").doc(companyId);
   const record = (tx ? await tx.get(ref) : await ref.get()).data();
-  return record?.status === "approved" && record.partnerRole !== "technology";
+  return companyMaySeeJobs(record);
 }
 
 /**
@@ -41,9 +43,21 @@ export async function companyStillApproved(companyId: string, tx?: FirebaseFires
  */
 export async function companyMediaAllowed(requestId: string, captureId: string, companyId: string,
   record?: Record<string, any> | null): Promise<boolean> {
-  const [{ record: job, access }, approved] = await Promise.all([
-    loadCompanyJobAccess(requestId, record === undefined ? undefined : record ?? null), companyStillApproved(companyId)]);
-  return Boolean(job) && access.listed && approved && siteWalkthroughIdentity(requestId, job ?? undefined).captureId === captureId;
+  return (await companyMediaRefusal(requestId, captureId, companyId, record)) === null;
+}
+
+/**
+ * The same check, saying why: null when allowed; `terms_acceptance_required` for an approved deployment company that
+ * has not accepted the current Terms (checked first, so the answer says nothing about the job); else `unavailable`.
+ */
+export async function companyMediaRefusal(requestId: string, captureId: string, companyId: string,
+  record?: Record<string, any> | null): Promise<null | "terms_acceptance_required" | "unavailable"> {
+  if (!db || !/^[a-f0-9]{64}$/.test(companyId)) return "unavailable";
+  const company = (await db.collection("robotTeamAccess").doc(companyId).get()).data();
+  if (company?.status === "approved" && company.partnerRole !== "technology" && !companyMaySeeJobs(company)) return "terms_acceptance_required";
+  if (!companyMaySeeJobs(company)) return "unavailable";
+  const { record: job, access } = await loadCompanyJobAccess(requestId, record === undefined ? undefined : record ?? null);
+  return Boolean(job) && access.listed && siteWalkthroughIdentity(requestId, job ?? undefined).captureId === captureId ? null : "unavailable";
 }
 
 const REGION_NAMES = new Intl.DisplayNames(["en"], { type: "region" });

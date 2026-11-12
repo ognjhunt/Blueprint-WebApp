@@ -17,7 +17,8 @@ import { pipeline, type Readable } from "node:stream";
 
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
-import { companyMediaAllowed } from "../utils/companyJobPage";
+import { companyMediaRefusal } from "../utils/companyJobPage";
+import { TERMS_PROMPT } from "../../client/src/lib/companyResponses";
 import { fetchCompanySimulation, storedCompanySimulation, verifyCompanySimulationTicket } from "../utils/websiteCompanySimulation";
 import { fetchCompanyClip, forwardableRange, storedCompanyClip, verifyCompanyClipTicket } from "../utils/websiteCompanyClip";
 
@@ -47,7 +48,9 @@ router.get("/jobs/:jobId/video.mp4", async (req, res) => {
     return res.status(404).json({ error: "The video is not available.", code: "company_clip_unavailable" });
   if (!db) return res.status(503).json({ error: "The video is not available right now." });
   try {
-    if (!(await companyMediaAllowed(jobId, captureId, viewer)))
+    const refusal = await companyMediaRefusal(jobId, captureId, viewer);
+    if (refusal === "terms_acceptance_required") return res.status(403).json({ error: TERMS_PROMPT, code: refusal });
+    if (refusal)
       return res.status(404).json({ error: "The video is not available.", code: "company_clip_unavailable" });
     const clip = storedCompanyClip((await db.collection("captureUploadSessions").doc(captureId).get()).data(), captureId);
     if (!clip) return res.status(404).json({ error: "The video is not available.", code: "company_clip_unavailable" });
@@ -83,7 +86,9 @@ router.get("/jobs/:jobId/simulation.zip", async (req, res) => {
   if (!verifyCompanySimulationTicket(jobId, captureId, viewer, req.query.expires, req.query.signature)) return unavailable();
   if (!db) return res.status(503).json({ error: "The simulation is not available right now. Try again in a few minutes." });
   try {
-    if (!(await companyMediaAllowed(jobId, captureId, viewer))) return unavailable();
+    const refusal = await companyMediaRefusal(jobId, captureId, viewer);
+    if (refusal === "terms_acceptance_required") return res.status(403).json({ error: TERMS_PROMPT, code: refusal });
+    if (refusal) return unavailable();
     const reference = storedCompanySimulation((await db.collection("captureUploadSessions").doc(captureId).get()).data(), captureId);
     if (!reference) return unavailable();
     const read = await fetchCompanySimulation(jobId, reference, forwardableRange(req.get("range")));

@@ -9,6 +9,7 @@ import type { OutboxEntry } from './captureOutbox';
 import { savedUpdatePreferences } from './updatePreferences';
 import { accessRecordId, type RobotTeamAccessRecord } from './robotTeamEarlyAccess';
 import { loadCompanyJobAccess } from './teamJobAccess';
+import { companyMaySeeJobs } from './companyTerms';
 
 /** The context a new-job email carries. Rows queued before 2026-11-12 carry another shape and are never sent. */
 export const NEW_JOB_ALERT_SCHEMA = 'job-alert-2026-11-12';
@@ -46,7 +47,8 @@ export async function jobAlertIsCurrent(entry: Pick<OutboxEntry, 'kind' | 'to' |
   ]);
   if (suppressedForJobAlerts(suppression.data())) return false;
   const record = contact.data() as RobotTeamAccessRecord | undefined;
-  if (!record || record.status !== 'approved' || record.partnerRole === 'technology'
+  // An approved deployment company that has accepted the current Terms (`companyMaySeeJobs`): no link it cannot open.
+  if (!record || !companyMaySeeJobs(record)
     || String(record.email ?? '').trim().toLowerCase() !== email) return false;
   const user = record.preferencesAccountUid
     ? (await tx.get(db.collection('users').doc(record.preferencesAccountUid))).data() : null;
