@@ -1189,16 +1189,19 @@ export const SUMMARY_SHARED_SWEEP_CURSOR = "outboxSweepState/summary_shared_noti
 export async function reconcileSummarySharedNotices(limit = 20): Promise<void> {
   if (!db) return;
   const cursorRef = db.doc(SUMMARY_SHARED_SWEEP_CURSOR);
-  const cursor = (await cursorRef.get()).data()?.after;
+  const stored = (await cursorRef.get()).data()?.after;
+  const cursor = typeof stored === "string" && stored ? stored : null;
   let query = db.collection("inboundRequests").where("summary_shared_notice.owed", "==", true).orderBy("__name__").limit(limit);
-  if (typeof cursor === "string" && cursor) query = query.startAfter(cursor);
+  if (cursor) query = query.startAfter(cursor);
   const owed = await query.get();
   for (const doc of owed.docs) {
     try { await notifySummarySharedIfVisible(doc.id); }
     catch (error) { logger.warn({ error, requestId: doc.id }, "Could not settle a summary-shared notice"); }
   }
-  // A short page is the end of the list: the next pass starts from the beginning.
-  await cursorRef.set({ after: owed.docs.length < limit ? null : owed.docs[owed.docs.length - 1].id }, { merge: true });
+  // A short page is the end of the list: the next pass starts from the beginning. Written only when it changes (a
+  // missing document reads as null), so a pass with nothing owed writes nothing.
+  const next = owed.docs.length < limit ? null : owed.docs[owed.docs.length - 1].id;
+  if (next !== cursor) await cursorRef.set({ after: next }, { merge: true });
 }
 
 export async function reconcileSceneReadyNotifications(limit = 20): Promise<void> {

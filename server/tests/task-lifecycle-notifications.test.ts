@@ -207,6 +207,36 @@ describe("the summary-shared email follows visibility", () => {
     expect((sharedFakeFirestoreState.docs.get("inboundRequests/a-stuck-00") as Record<string, any>).summary_shared_notice.owed).toBe(true);
   });
 
+  it("writes no document on a pass with nothing owed, and writes the cursor only when it moves", async () => {
+    const { reconcileSummarySharedNotices, SUMMARY_SHARED_SWEEP_CURSOR } = await import("../utils/taskLifecycleNotifications");
+    const { sharedFakeFirestore } = await import("./helpers/fake-firestore");
+    const cursorWrites: unknown[] = [];
+    const realDoc = sharedFakeFirestore.doc.bind(sharedFakeFirestore);
+    const spy = vi.spyOn(sharedFakeFirestore, "doc").mockImplementation((docPath: string) => {
+      const ref = realDoc(docPath);
+      if (docPath !== SUMMARY_SHARED_SWEEP_CURSOR) return ref;
+      const set = ref.set.bind(ref);
+      return Object.assign(Object.create(ref), { set: (value: unknown, options?: unknown) => { cursorWrites.push(value); return set(value, options); } });
+    });
+    try {
+      sharedFakeFirestoreState.docs.delete("inboundRequests/req-1");
+      const before = [...sharedFakeFirestoreState.docs.keys()].sort();
+      await reconcileSummarySharedNotices(2); await reconcileSummarySharedNotices(2);
+      expect([...sharedFakeFirestoreState.docs.keys()].sort()).toEqual(before);
+      expect(cursorWrites).toEqual([]);
+      // Three rows not visible yet, two per pass: written when it advances, cleared once at the end, then left alone.
+      for (const id of ["a-1", "a-2", "a-3"]) owedJob(id, { pipeline: { rights_review_status: "needs_review" } });
+      await reconcileSummarySharedNotices(2);
+      expect(cursorWrites).toEqual([{ after: "a-2" }]);
+      await reconcileSummarySharedNotices(2);
+      expect(cursorWrites).toEqual([{ after: "a-2" }, { after: null }]);
+      sharedFakeFirestoreState.docs.delete("inboundRequests/a-3");
+      sharedFakeFirestoreState.docs.delete("inboundRequests/a-2");
+      await reconcileSummarySharedNotices(2); await reconcileSummarySharedNotices(2);
+      expect(cursorWrites).toEqual([{ after: "a-2" }, { after: null }]);
+    } finally { spy.mockRestore(); }
+  });
+
   it("settles a withdrawn job's row with its reason and never emails it", async () => {
     jobAccess.listed = true;
     owedJob("req-1", { request: { buyerType: "site_operator", consent_attestation: { withdrawn_at_iso: "2026-11-12T00:00:00.000Z" } } });
