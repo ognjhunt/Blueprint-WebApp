@@ -86,7 +86,7 @@ export function PartnerApplication({ role }: { role: PartnerRole }) {
           </label>
           <label>Company website<input name="website" type="url" pattern="https?://.+" autoComplete="url" maxLength={300} placeholder="https://example.com" title="Enter a website beginning with https:// or http://" /></label>
         </details>
-        <label className="ms-check-row"><input name="optionalUpdates" type="checkbox" />You may email me about jobs that could fit, and Blueprint updates. Optional; unsubscribe anytime.</label>
+        <label className="ms-check-row"><input name="optionalUpdates" type="checkbox" />Email me relevant job opportunities and Blueprint updates. Optional; unsubscribe anytime.</label>
       </fieldset>
       <p className="ms-form-note">By applying, you agree to our <a href={TERMS_URL}>Terms of Service</a> and <a href={PRIVACY_URL}>Privacy Policy</a>. Application notices are separate from optional updates.</p>
       {error && <p role="alert">{error} Your entries are still here. You can also <a href="mailto:hello@tryblueprint.io">contact us</a>.</p>}

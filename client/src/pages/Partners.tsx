@@ -7,8 +7,8 @@ import { FOR_DEPLOYMENT_COMPANIES, PARTNERS_SEO_DESCRIPTION } from "@/lib/public
  * For deployment companies, bare bones (frame of 2026-11-12): what a company gets for each job, how it is approved,
  * what it sends back, and the application form itself (folded in from the old `/partners/deployment` page). Every
  * permission a site has recorded so far keeps its video private, so the page says only what a summary carries: the
- * kind of job, the first look and the early trial's result where one exists; never the site's own sentence, the
- * success rule, the video or the simulation. No price is stated.
+ * kind of job, the first look and the early trial's result where one exists, as the site approved it; never the
+ * video or the simulation. No price is stated.
  */
 export default function Partners() {
   return <>
