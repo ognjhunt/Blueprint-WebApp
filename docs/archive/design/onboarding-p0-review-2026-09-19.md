@@ -2,8 +2,8 @@
 
 Scope: F1–F3 review, integration with F4–F8 and thumbnails, and the user-requested
 Pipeline executor dependency before merge. P2 is deferred. This directly supports
-ADP partner admission, authorization and inspectable evaluation evidence. No new
-ADP backlog identifier or day gate was supplied; the named blockers are the
+partner admission, authorization and inspectable evaluation evidence. The named
+blockers are the
 onboarding audit's F1–F8, and the completion artifacts are WebApp PR #617 and
 Pipeline PR #1981 with offline regression evidence.
 

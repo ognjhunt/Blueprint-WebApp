@@ -1,6 +1,6 @@
 # Manipulation embodiments and method page
 
-Owner-directed follow-through to the site-led website. ADP-010 / partner-proof day 7: make the partner-intake method discoverable and welcome robotics teams across manipulation embodiments without claiming universal runtime support or physical validation.
+Owner-directed follow-through to the site-led website. Make the partner-intake method discoverable and welcome robotics teams across manipulation embodiments without claiming universal runtime support or physical validation.
 
 `/how-it-works` is a real, prerendered page. Header links and the homepage's method link open it directly. The compact homepage steps remain expandable.
 

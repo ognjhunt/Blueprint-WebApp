@@ -5,7 +5,7 @@ with Firestore ownership, privacy-bounded agent snapshots, Sheets review exports
 and Notion learning summaries.
 
 Issue/run: delegated thread `01a0ef70-d046-74f6-9434-a19e5456b0ef`;
-owning Paperclip/ADP issue and day gate are pending parent confirmation. The
+owning Paperclip issue and day gate are pending parent confirmation. The
 missing linkage is explicitly tracked in PR787 review `discussion_r4158703082`;
 no backlog item, issue closure or gate completion is inferred from these tests.
 This owner-approved work supports partner research/learning and does not
@@ -96,7 +96,7 @@ with exact thread/sender/recipient/RFC checks. Seven negative controls still
 quarantine invalid identities. Legacy reply meaning remains unknown and no raw
 reply text enters the snapshot.
 
-`discussion_r4158703082`: confirmed missing ADP/day linkage in the supplied
+`discussion_r4158703082`: confirmed missing issue/day linkage in the supplied
 delegation. Parent confirmation is requested; this record no longer claims
 completed program closeout while that linkage is absent.
 

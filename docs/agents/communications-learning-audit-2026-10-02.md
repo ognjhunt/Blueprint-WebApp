@@ -1,6 +1,6 @@
 # Communications and shared-learning repair checkpoint
 
-Scope: owner-requested audit items 2 and 3, supporting ADP partner intake,
+Scope: owner-requested audit items 2 and 3, supporting partner intake,
 authorization and evidence review. Day gate: pre-outreach review; the current
 direction is draft-only. Observed blockers are the inline agent configuration
 drift, the unconnected private research-worker learning bridge, and incomplete

@@ -5,10 +5,7 @@ WebApp and Pipeline, and demonstrate completeness before closing the goal.
 Scope is website capture. Existing iOS capture is not the default entry path.
 All rows start unproven; contracts and mocked tests alone do not prove live execution.
 
-Program mapping: ADP-009B (public day 14 removal/replacement rehearsal), ADP-021
-and ADP-022 (partner day 21 capture and registration), ADP-030/040/050
-(partner day 28 task, replica and robot integration). This owner-directed work
-adds the website precursor without upgrading synthetic evidence to physical proof.
+This owner-directed work adds the website precursor without upgrading synthetic evidence to physical proof.
 
 ## Acceptance matrix
 
@@ -250,7 +247,7 @@ scene-configuration run rather than new simulator code:
 | 10 | `rigid_replacement_authoring` (`content_agents_rigid_replacement` or Astra CAD/Blender) then `replacement_static_qualification` |
 | 11 | `replacement_native_import_qualification` and `native_task_scene_assembly` with frame registration |
 | 12 | stage-3 physics bounds, physical property review, and the `bounded_physics` policy-run cells |
-| 13 | native import driver, native task execution admission, ADP-009D hold (negative) and scripted differential-IK (positive) controls |
+| 13 | native import driver, native task execution admission, the earlier policy hold (negative) and scripted differential-IK (positive) controls |
 | 14 | `publish_configured_scene_revision` → WebApp configured-scene offering and thumbnail (the `/app/packs/:launchId/evaluate` page was removed on 2026-11-12) |
 
 No MuJoCo harness is introduced. Local CPU smoke remains non-proof by doctrine.

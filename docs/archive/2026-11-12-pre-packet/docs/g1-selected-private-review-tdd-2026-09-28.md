@@ -1,6 +1,6 @@
 # Selected G1 private review: reviewed TDD slice
 
-Owner-directed G1 extension of ADP-050 Day 28 and ADP-060 evidence delivery.
+Owner-directed G1 extension of evidence delivery.
 Pipeline's fixed four-policy review cannot represent one selected team policy.
 Accept the separate `native_g1_team_private_review.v1` record on the existing
 private ingest/read/ticket routes and existing G1 review page. Retain the old

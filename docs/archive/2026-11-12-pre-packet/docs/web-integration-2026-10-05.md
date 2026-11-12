@@ -6,8 +6,7 @@ This integration joins the free-beta/recording-consent repair at
 The observed blocker was eight merge conflicts plus automatically merged
 competing recovery paths. The completion artifact is this integration commit
 and its local regression evidence. This is workflow/authorization work in the
-ADP partner-intake lane; it does not promote the ADP-009 gate or any scientific
-or physical outcome.
+partner-intake lane; it does not promote any scientific or physical outcome.
 
 ## Resolution
 

@@ -1,6 +1,6 @@
 # Saved physical robot descriptions
 
-ADP-009D / day-21: a robot team's physical model and policy reference must remain separate inputs to evaluation. The observed blocker is a saved setup containing only an embodiment label, which cannot establish placement or distinguish a custom robot from the executable Franka binding.
+A robot team's physical model and policy reference must remain separate inputs to evaluation. The observed blocker is a saved setup containing only an embodiment label, which cannot establish placement or distinguish a custom robot from the executable Franka binding.
 
 The minimal UI reuses the existing Add setup form on the task page and Robots & policies settings. Select an available catalog model or supply a URDF, USD or MJCF HTTPS reference, base type, and optional gripper/camera/mounting details. These are private encrypted workspace inputs. Task details, price ($25), setup selection, start, status and results remain on one task page. Saving never starts compute or charges a customer.
 

@@ -2,7 +2,7 @@
 
 State: done (local implementation and focused verification; root owns integration/release).
 
-Objective: close the observed crash window between recording the site's pilot booking and retaining its required confirmation. Local run `booking-notification-2026-10-07`, part of the authorized 48-hour closeout; external issue ID, detailed execution budget and separate ADP backlog/day-gate identifiers were not supplied. This is the active partner authorization/workflow path, not a new listing or growth feature.
+Objective: close the observed crash window between recording the site's pilot booking and retaining its required confirmation. Local run `booking-notification-2026-10-07`, part of the authorized 48-hour closeout; external issue ID and detailed execution budget were not supplied. This is the active partner authorization/workflow path, not a new listing or growth feature.
 
 `POST /api/task-listings/owner/:token/book` previously committed `pilot_booking`, then awaited a best-effort `pilot_booked` enqueue whose failure was swallowed. A committed booking could therefore lose its confirmation. A server crash is now bounded by a single transaction: booking and canonical outbox intent both commit, or neither new record does. The existing outbox pump handles delivery separately.
 

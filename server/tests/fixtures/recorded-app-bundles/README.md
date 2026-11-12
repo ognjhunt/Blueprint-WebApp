@@ -30,5 +30,5 @@ fixture BlueprintCapture (extract-frames) and BlueprintCapturePipeline
 
 Truth boundary: synthetic content only. No customer, person or physical site
 is represented; the pixels are a generated gradient. Owner-directed work in
-the website self-capture lane (ADP-009B, `development_only`); it unblocks no
-gate and qualifies nothing.
+the website self-capture lane (`development_only`); it unblocks no gate and
+qualifies nothing.

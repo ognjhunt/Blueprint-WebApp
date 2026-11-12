@@ -1,6 +1,6 @@
 # Assessment to existing preparation handoff
 
-Owner-authorized October 8 scope; ADP-010 / partner day-14 preparation. Observed
+Owner-authorized October 8 scope; partner preparation. Observed
 blocker: a completed constructive assessment still failed
 `website_scene_site_not_qualified`, and the original upload notification could
 expire before assessment completed. Completion artifacts are the existing
@@ -58,7 +58,7 @@ communications evidence and release records.
 
 Owner direction 2026-10-27: assess arbitrary tasks against what current robot
 teams can do, using the existing capability database. This extends the beta's
-video/task-analysis step; it does not widen Arm Decision Proof's proof scope.
+video/task-analysis step.
 
 The database is already connected and documented in
 [`research/task-assessment-audit-2026-10-07.md`](research/task-assessment-audit-2026-10-07.md).

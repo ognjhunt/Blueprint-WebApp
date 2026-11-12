@@ -17,10 +17,13 @@ Read:
 The frame:
 
 - A site films a job once. Blueprint turns it into a job packet that any robot deployment company can evaluate without visiting, sends it to deployment companies Blueprint has approved, and tells the site who will take the job and on what evidence.
-- Sites pay nothing. Deployment companies are the customer. No price is stated anywhere.
+- Sites pay nothing. Deployment companies are the customer and will pay; how is not decided. Each introduction is recorded as a billable event. Nothing is charged and no price is stated until the owner sets one.
 - The simulation of the site is a means, not the product. Blueprint's own test of openly available robot software is an early trial inside the packet, never the site's answer.
-- Today a deployment company receives a summary of a job only. A site's video and simulation stay private until the owner sets a new permission.
-- Every approach to an outside company needs the owner's go-ahead first.
+- Sharing is the service. A site that sends a job agrees once, in the statement it accepts (recording statement `2026-11-12.v4` or later), that Blueprint shares the job with the deployment companies it has approved: the site's description, its video without its sound, the simulation built from it, the success rule, the first look and any early trial. There is no share button, no share setting and no pause. A job under an older statement is not shown to any company until its site accepts the current one. The website change for this is in build.
+- A site's name, street address and contact details are never shared without asking the site first. The site asks for an introduction with one press, at most three per job; Blueprint then gives each side the other's name and contact details by email. Nothing else shares them.
+- No person at Blueprint stands between a site's video and an introduction. When a job is ready it is shown to every approved deployment company, and those that asked for job emails are told. People act only where their own decision is the point: a site sends, confirms, asks for an introduction and can withdraw; a company applies and answers; Blueprint approves a company once. The website change for this is in build.
+- After an introduction both sides are asked, at 14, 45 and 90 days, what happened; the answer is recorded on the job.
+- A withdrawal removes the job from every company's view at once. A copy a company already saved cannot be taken back; the company is asked to delete it.
 - Nothing promises a response that has not been given.
 - The only hard stops are privacy, rights and money. Everything else is flagged and keeps going.
 - Don't make things up. Unknown stays unknown.

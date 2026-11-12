@@ -1,4 +1,4 @@
-> **Superseded 2026-11-12.** This describes a frame the owner replaced. Current frame: the shared block of PLATFORM_CONTEXT.md. Every approach to an outside company now needs the owner's go-ahead first.
+> **Superseded 2026-11-12.** This describes a frame the owner replaced. Current frame: the shared block of PLATFORM_CONTEXT.md. Contacting a company that Blueprint has not approved is outreach and needs the owner's word first.
 
 # Bounded automatic first contact
 

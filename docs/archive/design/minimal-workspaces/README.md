@@ -1,6 +1,6 @@
 # Minimal signed-in workspaces
 
-Owner-directed scope, September 13, 2026: extend the shipped minimal public/auth design through both sides of Blueprint. This is the explicit scope change for the customer workspace; it does not change the shared ADP scientific program or any paid-resource authorization. The observed blocker was the old single-record operator overview, disconnected policy-reference page, and inconsistent onboarding/private-page design. Completion is a working, role-scoped workflow with browser evidence, not a mock dashboard.
+Owner-directed scope, September 13, 2026: extend the shipped minimal public/auth design through both sides of Blueprint. This is the explicit scope change for the customer workspace; it does not change any paid-resource authorization. The observed blocker was the old single-record operator overview, disconnected policy-reference page, and inconsistent onboarding/private-page design. Completion is a working, role-scoped workflow with browser evidence, not a mock dashboard.
 
 ## Design references
 

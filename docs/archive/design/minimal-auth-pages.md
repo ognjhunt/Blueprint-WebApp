@@ -1,6 +1,6 @@
 # Minimal authentication pages — September 11, 2026
 
-Owner-directed extension of the public website theme to sign-in, create-account, and password reset. ADP-010 / partner-admission gate: the account entry points visibly contradicted the approved website and buried forms under promotional panels. The completion artifact is the matching responsive auth flow with preserved account/intake behavior.
+Owner-directed extension of the public website theme to sign-in, create-account, and password reset. Partner-admission gate: the account entry points visibly contradicted the approved website and buried forms under promotional panels. The completion artifact is the matching responsive auth flow with preserved account/intake behavior.
 
 The shared AuthLayout uses ivory, dark green, DM Sans, a simple wordmark, essential account/legal links, and one generated packing illustration. Mobile prioritizes the form and omits decorative artwork. Existing business and capturer signup steps, payloads, role selection, access permissions, and Terms/Privacy acceptance remain intact. Password reset keeps a neutral outcome for unknown accounts and provider failures. Sign-in prevents concurrent email/Google submissions; forms use POST as their non-JavaScript fallback so credentials are not placed in a URL.
 

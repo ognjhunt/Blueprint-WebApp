@@ -14,7 +14,7 @@ The actual isolated outer worker preserved two same-source retryable attempts, s
 
 On exact WebApp `3f911025`, the 19-case supplemental projector set has eight failed checks and eleven passing precedence controls before the repair. The same 19 pass after the change, with 34 existing neighbors passing separately in the combined 53-check run. This is local pure projection evidence only; current-source transport, notification recovery and joined execution are still under implementation. Frozen 300 infrastructure and 120 judgment denominators receive no additional coverage credit.
 
-No numeric ADP backlog/day gate was supplied. The observed blocker is source-bound preparation failure delivery on the authorized reliability goal; the completion artifacts will be reviewed source, matched joined traces, required checks and exact release receipts. Until those exist, this slice is incomplete. Current production release verification remains recorded in the program release ledger.
+The observed blocker is source-bound preparation failure delivery on the authorized reliability goal; the completion artifacts will be reviewed source, matched joined traces, required checks and exact release receipts. Until those exist, this slice is incomplete. Current production release verification remains recorded in the program release ledger.
 
 The 12:30 UTC contract correction adds a typed, exact-source acceptance emitted only after the WebApp transaction commits. An arbitrary HTTP 200 no longer acknowledges delivery. Earlier author receipts remain historical; the matched cases must pass at the final corrected source. This strengthens the delivery acceptance rule without changing the original coverage floors or severity classifications.
 

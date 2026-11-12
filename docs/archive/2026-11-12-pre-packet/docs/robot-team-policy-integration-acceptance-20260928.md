@@ -1,7 +1,6 @@
 # Robot-team policy integration acceptance scope
 
-Owner: Nijel Hunt. Program: Arm Decision Proof v1.
-Backlog: ADP-011 / day 7 admission; ADP-050 / day 28 execution and delivery.
+Owner: Nijel Hunt.
 
 Owner scope update, 2026-09-28: build, commit, merge and deploy the integration
 capabilities, including live proof runs. New test development and unrelated

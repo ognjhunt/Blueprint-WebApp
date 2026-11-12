@@ -2,7 +2,7 @@
 
 State: done (repo-local implementation and focused verification).
 
-Objective: preserve site-claim authority across navigation and remove protected content when the current session no longer permits it, within the authorized 48-hour reliability closeout. Local run: `site-ux-2026-10-07`; external issue identifier and detailed execution budget were not supplied. ADP linkage: partner admission and authorization; no additional ADP backlog identifier or day-gate assignment was supplied. Base: `efd2e6858`.
+Objective: preserve site-claim authority across navigation and remove protected content when the current session no longer permits it, within the authorized 48-hour reliability closeout. Local run: `site-ux-2026-10-07`; external issue identifier and detailed execution budget were not supplied. Linkage: partner admission and authorization. Base: `efd2e6858`.
 
 ## Actual journey and boundaries
 

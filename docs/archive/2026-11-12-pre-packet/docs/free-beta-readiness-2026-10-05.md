@@ -1,7 +1,7 @@
 # Free beta implementation and release evidence
 
 This change addresses the owner-requested beta audit of 5 October 2026. It is
-not a launch approval. ADP context: development evaluation admission, rights,
+not a launch approval. Context: development evaluation admission, rights,
 bounded execution, and inspectable evidence; existing scenes remain
 `development_only`. No physical or partner qualification is inferred.
 

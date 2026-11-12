@@ -6,7 +6,7 @@ review and a broad `source_support_verified` flag cannot establish site-linked
 task or human-workflow truth. Retained real contact examples below remain useful
 contact regressions; they do not independently qualify an actionable lead.
 
-Owner-authorized repair for the ADP partner-intake blocker: real official Contact
+Owner-authorized repair for the partner-intake blocker: real official Contact
 pages and US site addresses were being rejected by literal phrase matching, and
 the existing Codex report could not truthfully supply an Agents API session.
 Completion artifact: reviewed source admission, source-bound first-contact

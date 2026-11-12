@@ -1,6 +1,6 @@
 # Synthetic company-policy admission proof
 
-ADP-011, Day 7 partner admission, no-spend precursor to ADP-050 Day 28 policy execution. A Blueprint-owned CPU policy was admitted through the actual WebApp route and durable outbox, forwarded over signed HTTP to the actual Pipeline intake, pulled from Blueprint's private Artifact Registry, exercised under runsc, and torn down. The retained Pipeline terminal receipt is `qualified_dry_run_no_real_observation` with no blockers and `cleanup_complete=true`.
+A no-spend rehearsal of partner policy admission and execution. A Blueprint-owned CPU policy was admitted through the actual WebApp route and durable outbox, forwarded over signed HTTP to the actual Pipeline intake, pulled from Blueprint's private Artifact Registry, exercised under runsc, and torn down. The retained Pipeline terminal receipt is `qualified_dry_run_no_real_observation` with no blockers and `cleanup_complete=true`.
 
 The local bridge uses the existing development route-proof authentication and a real Firestore emulator; it does not establish production Firebase authentication, production Firestore or KMS behavior. Candidate metadata and the encrypted credential are stored separately; the actual broker acknowledges the bound pull and deletes the credential ciphertext. The sandbox executor invokes real Docker commands, digest inspection, security profiles, network probes, Unix-socket HTTP requests, schema validation and cleanup readbacks.
 

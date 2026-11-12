@@ -1,6 +1,6 @@
 # Operator diagnostic result registration
 
-ADP-009D, day-28 public-scene rehearsal. An operator may run a newly confirmed
+Public-scene rehearsal. An operator may run a newly confirmed
 task on previously published scene geometry. Existing canary submission would
 launch a second run and bind the old task, so it cannot register this result.
 

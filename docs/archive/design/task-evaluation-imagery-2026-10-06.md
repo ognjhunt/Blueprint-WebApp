@@ -1,6 +1,6 @@
 # One job, from capture to evaluation
 
-Owner-directed launch follow-through to the public partner-intake surface. ADP-010 / partner-proof day 7: explain the same bounded site task across capture and evaluation without depicting generated illustrations as customer, simulator or physical proof.
+Owner-directed launch follow-through to the public partner-intake surface. Explain the same bounded site task across capture and evaluation without depicting generated illustrations as customer, simulator or physical proof.
 
 The homepage retains “One recurring job. A measured robot pilot.” and replaces the rotating robot showcase with two simultaneous views of the same workstation: a worker recording the task, and a fixed arm in a cutaway evaluation scene. The task question and site-defined criteria are visible beneath the pair. The job-assessment action stays primary; the robot-team beta link is immediately beside it. Specific time, success and tolerance numbers are left to the task brief.
 

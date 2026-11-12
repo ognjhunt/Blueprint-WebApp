@@ -102,7 +102,7 @@ On 15 October 2026 BlueprintCapture #86 merged (`6124b09`), and so did Pipeline 
 | P0-7 | process fixed in code; supply still the founder's | A team counts as willing supply only with all three recorded agreements (supported interface, a free evaluation on a real job, the pilot if it passes), each with a date, an evidence reference and the recording operator. A typed `engaged` without them is read back as the earlier status; recommendations, the site's team count and the site-assessment agent ignore such teams. Runbook: `docs/beta/ROBOT_TEAM_SUPPLY_AGREEMENTS.md`. | Founder: contact teams (a sourced prospect packet and outreach draft were given privately) and record agreements. No team is recorded as willing today. |
 | P0-8 | fixed in code | Screening email, robot-team result emails, the agent API and OpenAPI, CLI help, outreach templates and the workspace "potential matches" line now describe the free beta. `claims:guard` covers the server message surfaces. | — |
 | P1-5 | mostly fixed in code | Durable daily caps (Firestore, all or nothing, idempotent, subjects stored only as HMAC keys) on intake (global, per IP, per mailbox; `BLUEPRINT_INTAKE_DAILY_LIMIT=0` is the kill switch), first-touch emails and filmer handoffs, upload bytes (per job and global), and model-review spend (per review and daily). Uploads must carry a real MP4 or QuickTime header. Firebase App Check is staged, off by default. Storage owner paths and client telemetry are bounded in the shared rules. | Run `scripts/apply_firestore_ttl_policies.sh`; set the App Check site key, run `monitor`, then `enforce` (`docs/runbooks/beta-monitoring.md`); set provider-side budget caps; iOS bundle routes need App Attest before App Check can cover them. |
-| D1 | done | The shared doctrine names two active programs, the free beta's evaluated, recommended pilot and Arm Decision Proof v1, in all three repos. | — |
+| D1 | done | The shared doctrine names the free beta's evaluated, recommended pilot as an active program in all three repos. | — |
 | Hardening | fixed in code | Lead-enrichment fetches are pinned to the resolved public address; the client IP is read through a configured proxy-hop count (`BLUEPRINT_TRUST_PROXY_HOPS`); admin access granted only by a profile document is logged. | Founder: turn off the profile-document fallback once the log check is clean. |
 
 ## 1. The promise, reduced to what must be true
@@ -320,11 +320,7 @@ The gaps:
 
 ### L4 — Willing robot teams on a supported robot: **unproven, and narrower than the page implies**
 
-- **No admitted partner on record.** Pipeline
-  `docs/arm_decision_proof_v1/ADP_010_BLOCKER_ACTION_PACKET.md` records
-  "admitted partner count: `0`". It names ten missing pieces of partner
-  evidence, among them two runnable candidates, task owner, and integration
-  inventory. The file has not changed since. The beta acceptance packet says
+- **No admitted partner on record.** The beta acceptance packet says
   "Neither a registry entry nor a fixture proves a team is willing for a live
   pilot" (`docs/beta/INVITED_BETA_ACCEPTANCE.md`).
 - **The registry seed is prospects, correctly.**
@@ -339,8 +335,7 @@ The gaps:
   record the audited October 14 baseline, not a current blanket exclusion.
   - The website runtime supports a Franka arm with a Robotiq 2F-85 on the
     DROID interface.
-  - Unitree G1 exists as a development registry for one retained scene
-    (Pipeline `docs/arm_decision_proof_v1/G1_TEAM_CAMPAIGN_REGISTRY.md`).
+  - Unitree G1 exists as a development registry for one retained scene.
   - `/for-robot-teams` says "Tell us what your robot can do", and the home
     page example shows a humanoid moving totes. A mobile-manipulator,
     AMR or humanoid team that applies today cannot be evaluated, and nothing
@@ -614,7 +609,7 @@ smallest fix.
 
 | # | Decision | Why it blocks |
 |---|---|---|
-| D1 | **Reconcile Pipeline doctrine with the beta.** Pipeline `AGENTS.md` makes Arm Decision Proof v1 the sole program, freezes multi-site, throughput and marketplace work, and keeps the fixed-arm rigid-object envelope as the build target. | P0-6, P1-7 and any second concurrent site are exactly that frozen work. Without an amendment (cross-repo, through `BlueprintCapturePipeline/doctrine/` and the lock in all three repos), Pipeline lanes are correct to decline them. |
+| D1 | **Reconcile Pipeline doctrine with the beta.** Pipeline `AGENTS.md` freezes multi-site, throughput and marketplace work, and keeps the fixed-arm rigid-object envelope as the build target. | P0-6, P1-7 and any second concurrent site are exactly that frozen work. Without an amendment (cross-repo, through `BlueprintCapturePipeline/doctrine/` and the lock in all three repos), Pipeline lanes are correct to decline them. |
 | D2 | **What the beta promises now:** keep it founder-invited until the engine is proven, or reword the open public promise (§6). | Sign-up is open today for an outcome no site can yet reach. |
 | D3 | **Who arranges the pilot after booking:** Blueprint introduces and coordinates, or the site and team agree directly. | Public copy says one thing and the product the other (P1-4). |
 | D4 | **Robot forms in scope for the beta:** Franka-only, stated publicly, or an owner focus decision to fund another form. | Determines the copy, the intake screen and which teams to sign (P1-2, P0-7). |

@@ -5,7 +5,7 @@ Objective: prevent overlapping site request/worker delivery and ambiguous provid
 Issue/run id: local `queues-recovery`; no Paperclip issue supplied.
 Budget/timeout context: no provider spend, production writes or outreach authorized; seeded runner bounded to 640 schedules, eight callers and two passes per caller.
 Stage reached: isolated implementation and offline tests; integration/release belongs to the root coordinator.
-ADP scope: durable partner-intake/evaluation workflow state and evidence review. Numeric backlog/day gate was not supplied; this report does not invent one.
+Scope: durable partner-intake/evaluation workflow state and evidence review.
 
 ## Journey and failure
 

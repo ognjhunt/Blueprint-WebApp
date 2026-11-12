@@ -10,9 +10,8 @@ const read = (file: string) => fs.readFileSync(path.resolve(root, file), "utf-8"
 /**
  * The shared blocks are guarded by `doctrine:verify`. This pins the short
  * repo-local guidance around them (owner direction 2026-11-12): what Blueprint
- * does (the job packet), that a deployment company receives a summary only
- * until the owner sets a new permission, and that privacy, rights and money are
- * the only hard stops.
+ * does (the job packet), that sharing is the service with no share button,
+ * setting or pause, and that privacy, rights and money are the only hard stops.
  */
 describe("platform context preamble", () => {
   const contents = read("PLATFORM_CONTEXT.md");
@@ -26,17 +25,16 @@ describe("platform context preamble", () => {
       .toBe(lock.blocks.SHARED_PLATFORM_CONTEXT.canonical_sha256);
   });
 
-  it("describes the job packet and the day-one limit on what is shared", () => {
+  it("describes the job packet and that sharing is the service", () => {
     const preamble = contents.slice(0, contents.indexOf("<!-- SHARED_PLATFORM_CONTEXT_START -->"));
     expect(preamble).toMatch(/job\s+packet/i);
     expect(preamble).toMatch(/deployment\s+company/i);
     expect(preamble).toMatch(/early\s+trial/i);
-    expect(preamble).toMatch(/summary\s+of\s+a\s+job\s+only/i);
-    expect(preamble).toMatch(/video\s+and\s+simulation\s+stay\s+private/i);
+    expect(preamble).toMatch(/sharing\s+is\s+the\s+service/i);
+    expect(preamble).toMatch(/no\s+share\s+button,\s+no\s+share\s+setting\s+and\s+no\s+pause/i);
     expect(preamble).toMatch(/no\s+price\s+is\s+stated/i);
     const block = extractBlock(contents, "SHARED_PLATFORM_CONTEXT");
     expect(block).toMatch(/### The Only Hard Stops/);
-    expect(block).toMatch(/Arm Decision Proof v1/);
     expect(block).toMatch(/never certify physical\s+performance or safety/i);
   });
 

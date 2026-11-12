@@ -32,6 +32,17 @@ A summary of your job, without your name or address. Your video, your address
 and your contacts stay private. You can edit or hide the summary from your job
 page.
 
+This is changing; the website change is in build. Sharing will be the service:
+a site that sends a job under the new statement (recording statement
+`2026-11-12.v4`) agrees once that Blueprint shares the job with the deployment
+companies it has approved: your description, your video without its sound, the
+simulation built from it, the success rule, the first look and any early
+trial. There will be no share button, no share setting and no pause. Your
+name, street address and contact details are never shared without asking you
+first: when you ask for an introduction with one press (at most three per job),
+Blueprint emails each side the other's name and contact details. A job sent under an older statement is not shown to any company until
+you accept the current one.
+
 ## Footage and permission
 
 Only send footage that you are authorized to share. Before you film:

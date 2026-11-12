@@ -12,7 +12,7 @@ Scope: the free beta's site intake → consent/capture → job brief → invited
 
 Keep discovery and carefully supervised onboarding distinct from a proven evaluated-pilot service. Run the first consented cohort as the acceptance exercise below; expand distribution after the evidence-backed outcome is actually demonstrated. A failure or abstention is a valid evaluation outcome. Do not manufacture a pass to meet a launch metric.
 
-The shortest path is one supported real job, one willing compatible team, one qualified scene and one inspectable execution. It does not require every robot form, autonomous operations, payments, a complete digital facility, or completion of Arm Decision Proof's physical-validation program. Broad owner-approved artwork and robot applications can remain; operational compatibility is checked for the particular model, policy interface, scene and task.
+The shortest path is one supported real job, one willing compatible team, one qualified scene and one inspectable execution. It does not require every robot form, autonomous operations, payments, or a complete digital facility. Broad owner-approved artwork and robot applications can remain; operational compatibility is checked for the particular model, policy interface, scene and task.
 
 ## Evidence baseline
 
@@ -168,7 +168,6 @@ Useful beta metrics are elapsed time between these stages, jobs waiting on Bluep
 - Payments, subscriptions, balances, top-ups and pricing experiments; the beta is free.
 - Supporting every illustrated robot configuration or unscored task family before one demand-led job works.
 - Full automation of review, qualification, scheduling, retention and partner recruitment where an accountable manual process is adequate for the first cohort.
-- Completion of ADP's physical holdout before offering bounded simulation estimates; physical-validation claims still require its evidence.
 - More dashboards, another datastore or a second operating platform.
 
 ## Verification, ruled-out findings and recovery

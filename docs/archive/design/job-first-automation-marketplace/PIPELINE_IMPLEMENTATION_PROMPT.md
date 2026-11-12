@@ -30,7 +30,6 @@ Read the nearest `AGENTS.md` and these focused sources first:
 - Pipeline: `website_scene_handoff.py`, `website_scene_runtime_inputs.py`, `site_package_orchestrator.py`, and the existing video-analysis/reconstruction path. Follow the real source video into the package; do not rebuild it.
 - Pipeline: `task_evaluation_run_control_plane.py`, `task_evaluation_run_state.py`, `task_evaluation_run_webapp_sync.py`, `site_task_testbed_webapp_sync.py`, `physical_outcome_learning.py`, and the existing launch/admission path.
 - Pipeline: `docs/webapp_handoff/decision-evidence-router.v1/`, `docs/architecture/task-site-measurement-routing.md`, `task_site_measurement_routing.py`, `site_task_fidelity_profile_templates.py`, and the existing simulation qualifier.
-- Pipeline: `docs/arm_decision_proof_v1/README.md`, `POLICY_CANDIDATE_REGISTRY.md`, `PERSISTENT_POLICY_PAIR.md`, `EXACT_WORKCELL_VARIATION_MATRIX.md`, and `policy_integration_runners_20260928.md`.
 
 Do targeted discovery from those seams. Do not turn this into an unrelated architecture audit or load the entire historical evidence archive.
 
@@ -161,7 +160,7 @@ Pin immutable checkpoints where available. For hosted models, retain the stronge
 
 The commercial job may screen many possible solutions and shortlist a few. It must not launch a Cartesian product of all robots and policies. Do inexpensive compatibility, delivery, and economics screening first. Evaluate the unresolved, relevant alternatives.
 
-The current Arm Decision Proof protocol compares **exactly two frozen candidates** on its defined fixed-arm workcell distribution, then uses held-out physical evidence. Preserve that protocol, its immutable identities, matched conditions/seeds/resets, and prospective record. Its restrictions are not a reason to force every commercial job into a two-policy simulation. Conversely, this product change is not permission to silently widen the scientific proof protocol. Put shortlist orchestration above the bounded evaluation when needed.
+Do not force every commercial job into a two-policy simulation. Put shortlist orchestration above the bounded evaluation when needed.
 
 Same-body policy comparisons and complete-system comparisons answer different questions. If hardware, sensors, tooling or labor differs, retain those differences and report full-system behavior/cost. Do not present a universal policy ranking. Keep task/site/configuration-specific scope and uncertainty.
 
@@ -191,7 +190,7 @@ If evidence reference fields are needed beyond the current short commercial summ
 
 The customer chooses the exact current proposal. Only after both parties agree may the existing agreement record be created. Pipeline completion must never auto-select a proposal, award a contract, create agreement references, or start physical work. Installation, operating or labor budgets are not resource allocation permission.
 
-For pilot outcomes, preserve `customer_reported` provenance and the existing permission requirement. A customer's note, “met criteria” flag, units/hour, or uploaded video can be useful operational input. It is not automatically an authoritative `PhysicalOutcomeJoin`, cannot adjudicate the ADP proof, and cannot recalibrate a method alone.
+For pilot outcomes, preserve `customer_reported` provenance and the existing permission requirement. A customer's note, “met criteria” flag, units/hour, or uploaded video can be useful operational input. It is not automatically an authoritative `PhysicalOutcomeJoin` and cannot recalibrate a method alone.
 
 Where independently authoritative physical evidence is available and permitted, use the existing `physical_outcome_learning.py` join process. Bind exact decision, testbed, configuration, condition and physical artifact identities. Preserve source authority, retention/use rights, and immutable joins. If those requirements are absent, retain a reported outcome and a clear limitation rather than manufacturing the join.
 
@@ -205,7 +204,7 @@ The WebApp implementation intentionally left locked shared blocks and their dige
 
 Do not hand-edit shared generated blocks, recalculate only a local lock to hide drift, or claim all repos were synchronized when one was absent. Obtain/read the missing sibling through existing authorized repo access if possible. If a repo is genuinely inaccessible, finish independent code work and report the exact remaining sync dependency.
 
-Keep Arm Decision Proof active as the bounded scientific proof track. Preserve its physical-validation authority, historical evidence counts, and frozen proof definitions. Change the customer journey, not historical truth. Keep world models as optional internal methods with bounded roles. No universal-runtime, new-embodiment, provider-bakeoff, or post-training research campaign is required by this product request.
+Change the customer journey, not historical truth. Keep world models as optional internal methods with bounded roles. No universal-runtime, new-embodiment, provider-bakeoff, or post-training research campaign is required by this product request.
 
 ## 12. Execution and completion
 

@@ -1,6 +1,6 @@
 # Result consumer follow-up completion matrix
 
-This is the local implementation closeout for ADP-007 / ADP-004 supporting ADP-009D public-scene day 28. It supersedes the unresolved implementation/coverage entries in the first-pass [audit](website-result-consumer-20260907.md). No merge, push, deployment, provider allocation, policy/model call, profile publication, or live email send is part of this closeout.
+This is the local implementation closeout for the public-scene rehearsal. It supersedes the unresolved implementation/coverage entries in the first-pass [audit](website-result-consumer-20260907.md). No merge, push, deployment, provider allocation, policy/model call, profile publication, or live email send is part of this closeout.
 
 Base main was re-fetched and remained `5b07fe48e93cabf2a758b7740aab3d6594cbdd10`. The first local repair is `29bf82389a751c94e401959c47105a442e7fc9a9`. Follow-up fixes remain on `codex/website-result-audit-20260907-24c1` in `/private/tmp/website-result-audit-20260907-24c1`. Exported `checks.json` and `INTEGRATION.json` identify the exact final tested commit and working-tree state.
 

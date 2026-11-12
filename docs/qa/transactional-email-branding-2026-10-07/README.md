@@ -112,7 +112,7 @@ workflow must bring both web and worker live at the green merged SHA. Verify
 delivery, or new test send as a read-only release probe.
 
 Source thread: `01a0fe81-486b-7714-9e81-983a66bd80c4`.
-ADP backlog/day gate and task budget were not supplied; this is the owner's
+Task budget was not supplied; this is the owner's
 explicit branding request for the existing partner/job intake receipts.
 Remaining gates are screenshot pixels and coordinated release, not new
 user approval for the already-authorized implementation.

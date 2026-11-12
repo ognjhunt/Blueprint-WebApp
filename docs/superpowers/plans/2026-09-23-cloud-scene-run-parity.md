@@ -223,7 +223,7 @@
 
 - [ ] Write `docs/OPERATOR_DOOR.md`: purpose, threat model, endpoints, scopes, secret layers, install, token issue (hash-only transfer), revocation, upgrade, rollback, and removal.
 - [ ] Run all `tests/test_operator_door*.py`, the edited contract tests, `ruff check` on changed files, `bash -n` on scripts, and `python -m blueprint_pipeline.impacted_test_selection`.
-- [ ] Push `claude/cloud-operator-door` and open the PR with the ADP framing (blocker: cloud sessions cannot observe or deploy; smallest reversible change: standalone door plus one Caddy route).
+- [ ] Push `claude/cloud-operator-door` and open the PR with the usual framing (blocker: cloud sessions cannot observe or deploy; smallest reversible change: standalone door plus one Caddy route).
 
 ## Part B: WebApp cloud tooling
 
