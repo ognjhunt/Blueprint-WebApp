@@ -36,7 +36,22 @@ const idleTimeoutMs = () => {
   return Number.isFinite(configured) && configured > 0 ? configured : COMPANY_MEDIA_IDLE_TIMEOUT_MS;
 };
 
-export function sendThrough(body: Readable, res: Response, context: { jobId: string; kind: "clip" | "simulation" }): void {
+/**
+ * The overall limit on one company download (planner, 20:55Z, J3), the video and the simulation alike: from the moment
+ * the bytes were first asked of the Pipeline. Past it the response ends and the upstream read is cancelled, so a Pipeline
+ * that trickles cannot hold a connection for ever. A resumed download asks again with a range.
+ */
+export const COMPANY_MEDIA_DEADLINE_MS = 30 * 60 * 1000;
+const deadlineMs = () => {
+  const configured = Number(process.env.COMPANY_MEDIA_DEADLINE_MS);
+  return Number.isFinite(configured) && configured > 0 ? configured : COMPANY_MEDIA_DEADLINE_MS;
+};
+
+export function sendThrough(body: Readable, res: Response, context: { jobId: string; kind: "clip" | "simulation"; askedAtMs?: number }): void {
+  const askedAtMs = context.askedAtMs ?? Date.now();
+  const deadline = setTimeout(() => body.destroy(Object.assign(new Error("company_media_deadline"), { code: "company_media_deadline" })),
+    Math.max(0, askedAtMs + deadlineMs() - Date.now()));
+  deadline.unref?.();
   // The timer measures ONLY the Pipeline's silence while we are asking it for bytes (planner, 20:35Z, H1). Time spent
   // waiting for the company to read (the response needs to drain, so `pipeline` has paused the upstream) does not count:
   // the timer stops while paused and starts again when the upstream is resumed. A Pipeline that stalls while we read
@@ -62,6 +77,7 @@ export function sendThrough(body: Readable, res: Response, context: { jobId: str
   arm();
   pipeline(body, res, error => {
     stop();
+    clearTimeout(deadline);
     body.off("data", arm); body.off("pause", stop); body.off("resume", arm); res.off("drain", arm);
     if (!error) return;
     logger.warn({ jobId: context.jobId, kind: context.kind, code: (error as NodeJS.ErrnoException).code ?? null },
@@ -86,6 +102,7 @@ router.get("/jobs/:jobId/video.mp4", async (req, res) => {
       return res.status(404).json({ error: "The video is not available.", code: "company_clip_unavailable" });
     const clip = storedCompanyClip((await db.collection("captureUploadSessions").doc(captureId).get()).data(), captureId);
     if (!clip) return res.status(404).json({ error: "The video is not available.", code: "company_clip_unavailable" });
+    const askedAtMs = Date.now();
     const read = await fetchCompanyClip(jobId, clip, forwardableRange(req.get("range")));
     if (!read.ok) {
       if (read.status === 416) {
@@ -96,7 +113,7 @@ router.get("/jobs/:jobId/video.mp4", async (req, res) => {
       return res.status(503).json({ error: "The video is not available right now. Try again in a few minutes." });
     }
     res.status(read.status).set({ ...read.headers, "Content-Disposition": "inline" });
-    sendThrough(read.body, res, { jobId, kind: "clip" });
+    sendThrough(read.body, res, { jobId, kind: "clip", askedAtMs });
   } catch (error) {
     logger.warn({ error, jobId }, "Company clip unavailable");
     if (!res.headersSent) return res.status(503).json({ error: "The video is not available right now. Try again in a few minutes." });
@@ -123,6 +140,7 @@ router.get("/jobs/:jobId/simulation.zip", async (req, res) => {
     if (refusal) return unavailable();
     const reference = storedCompanySimulation((await db.collection("captureUploadSessions").doc(captureId).get()).data(), captureId);
     if (!reference) return unavailable();
+    const askedAtMs = Date.now();
     const read = await fetchCompanySimulation(jobId, reference, forwardableRange(req.get("range")));
     if (!read.ok) {
       if (read.status === 416) {
@@ -134,7 +152,7 @@ router.get("/jobs/:jobId/simulation.zip", async (req, res) => {
       return res.status(503).json({ error: "The simulation is not available right now. Try again in a few minutes." });
     }
     res.status(read.status).set(read.headers);
-    sendThrough(read.body, res, { jobId, kind: "simulation" });
+    sendThrough(read.body, res, { jobId, kind: "simulation", askedAtMs });
   } catch (error) {
     logger.warn({ error, jobId }, "Company simulation unavailable");
     if (!res.headersSent) return res.status(503).json({ error: "The simulation is not available right now. Try again in a few minutes." });

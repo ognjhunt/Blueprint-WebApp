@@ -571,6 +571,100 @@ describe("one commit point: the company's email first, then the site's, which th
     }
   });
 
+  // Planner, 20:55Z, J1: a held row is decided from the facts every pass, never only from the company row's own step.
+  async function expectWholeCancellation(reason: string) {
+    expect(rows().site).toMatchObject({ status: "cancelled", subject: "", body: "", replyTo: null });
+    expect(state.docs.get(`inboundRequests/${ID}/introductions/${north()}`)).toMatchObject({ cancelReason: reason, siteShared: null, companyShared: null });
+    expect(state.docs.get(`billableEvents/introduction-${ID}-${north()}`)).toMatchObject({ status: "void" });
+    expect(order()).not.toContain("site");
+    const activity = await loadSiteCompanyActivity(ID);
+    const a = activity.entries.find(entry => entry.kind === "answered" && entry.alias === "Company A") as Record<string, any>;
+    expect(a).toMatchObject({ introductionCancelled: true, canIntroduce: false });
+    expect(a).not.toHaveProperty("company");
+    expect(JSON.stringify(activity)).not.toMatch(/North Robotics|contact@north|Person North/);
+    expect(activity.introductions.used).toBe(0);
+  }
+
+  it("J1: a company row cancelled by another path: the next pass cancels the introduction as a whole", async () => {
+    await answer(NORTH);
+    expect(await introduce("A")).toMatchObject({ ok: true });
+    const key = `captureOutbox/${rows().company!.key}`;
+    state.docs.set(key, { ...state.docs.get(key) as object, status: "cancelled", lastError: "some_other_check" });
+    seams.sendEmail.mockClear();
+    await deliverOutbox({ limit: 50 });
+    await deliverOutbox({ limit: 50 });
+    await expectWholeCancellation("company_email_failed");
+  });
+
+  it("J1: a company row missing altogether: the next pass cancels the introduction as a whole", async () => {
+    await answer(NORTH);
+    expect(await introduce("A")).toMatchObject({ ok: true });
+    state.docs.delete(`captureOutbox/${rows().company!.key}`);
+    seams.sendEmail.mockClear();
+    await deliverOutbox({ limit: 50 });
+    await expectWholeCancellation("company_email_missing");
+  });
+
+  it("J1: a company row that ages out through the deferral path (its check keeps throwing) cancels the introduction", async () => {
+    await answer(NORTH);
+    expect(await introduce("A")).toMatchObject({ ok: true });
+    const key = `captureOutbox/${rows().company!.key}`;
+    state.docs.set(key, { ...state.docs.get(key) as object, createdAtIso: "2020-01-01T00:00:00.000Z", createdAtMs: 1 });
+    // The dispatch check cannot be evaluated: reading the company's record throws (the store briefly unreachable).
+    const record = recordOf(NORTH);
+    state.docs.set(`robotTeamAccess/${north()}`, { get status(): string { throw new Error("store_unavailable"); } });
+    seams.sendEmail.mockClear();
+    await deliverOutbox({ limit: 50 });
+    state.docs.set(`robotTeamAccess/${north()}`, record);
+    expect(rows().company).toMatchObject({ status: "failed" });
+    expect(String(rows().company!.lastError)).toMatch(/delivery_retry_age_exceeded/);
+    await expectWholeCancellation("company_email_failed");
+  });
+
+  it("J1: a held row past the outbox's maximum age, its company row still unsent, is cancelled the same way", async () => {
+    await answer(NORTH);
+    expect(await introduce("A")).toMatchObject({ ok: true });
+    const siteKey = `captureOutbox/${rows().site!.key}`, companyKey = `captureOutbox/${rows().company!.key}`;
+    state.docs.set(siteKey, { ...state.docs.get(siteKey) as object, createdAtIso: "2020-01-01T00:00:00.000Z" });
+    // The company's row is not due (a long backoff), so only the held-row decision can end it.
+    state.docs.set(companyKey, { ...state.docs.get(companyKey) as object, nextAttemptAtMs: Date.now() + 60 * 60 * 1000 });
+    seams.sendEmail.mockClear();
+    await deliverOutbox({ limit: 50 });
+    expect(rows().company).toMatchObject({ status: "cancelled" });
+    await expectWholeCancellation("company_email_not_sent");
+  });
+
+  it("J1: a held row whose company row may have reached the company (outcome unknown) keeps holding, even when old", async () => {
+    await answer(NORTH);
+    expect(await introduce("A")).toMatchObject({ ok: true });
+    const siteKey = `captureOutbox/${rows().site!.key}`, companyKey = `captureOutbox/${rows().company!.key}`;
+    state.docs.set(siteKey, { ...state.docs.get(siteKey) as object, createdAtIso: "2020-01-01T00:00:00.000Z" });
+    state.docs.set(companyKey, { ...state.docs.get(companyKey) as object, status: "unknown", deliveryRetryEnded: "window_closed", nextAttemptAtMs: null });
+    await deliverOutbox({ limit: 50 });
+    expect(rows().site).toMatchObject({ status: "held" });
+    expect(state.docs.get(`billableEvents/introduction-${ID}-${north()}`)).toMatchObject({ status: "recorded_no_price" });
+  });
+
+  it("J1: a company row marked sent by another path releases the held row on the next pass", async () => {
+    await answer(NORTH);
+    expect(await introduce("A")).toMatchObject({ ok: true });
+    const key = `captureOutbox/${rows().company!.key}`;
+    state.docs.set(key, { ...state.docs.get(key) as object, status: "sent", subject: "", body: "", replyTo: null });
+    seams.sendEmail.mockClear();
+    await deliverOutbox({ limit: 50 });
+    expect(rows().site).toMatchObject({ status: "sent" });
+    expect(order()).toEqual(["site"]);
+  });
+
+  it("three dispatchers racing still send each email once, the company's first", async () => {
+    await answer(NORTH);
+    expect(await introduce("A")).toMatchObject({ ok: true });
+    seams.sendEmail.mockClear();
+    await Promise.all([deliverOutbox({ limit: 50 }), deliverOutbox({ limit: 50 }), deliverOutbox({ limit: 50 })]);
+    await deliverOutbox({ limit: 50 });
+    expect(order()).toEqual(["company", "site"]);
+  });
+
   it("a company email that definitely fails cancels the introduction as a whole; the site's page says so", async () => {
     await answer(NORTH);
     expect(await introduce("A")).toMatchObject({ ok: true });

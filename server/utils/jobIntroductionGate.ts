@@ -15,6 +15,9 @@
  * - Once the company's email IS sent, the introduction is made: the site's email goes whatever has changed since,
  *   because the company now holds the site's details and the site must be told who has them; the billable event stands.
  *   (`taskLifecycleNotificationAuthority.ts` asks `siteIntroductionEmailState` for the site's row.)
+ * - A held site row never depends on the company row's own step having run (20:55Z, J1): every dispatch pass decides
+ *   each held row from the facts (`settleHeldSiteIntroductions`), and a company row that ages out in the outbox's
+ *   deferral path ends the introduction there too.
  * Every other kind passes.
  */
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
@@ -32,7 +35,7 @@ const NOT_YET_SENT = new Set(["pending", "claimed", "review_required", "held"]);
 export const HELD_STATUS = "held";
 
 export type IntroductionStopReason = "introduction_missing" | "introduction_cancelled" | "job_withdrawn" | "job_not_shared"
-  | "company_not_approved" | "company_email_failed" | "company_email_missing";
+  | "company_not_approved" | "company_email_failed" | "company_email_missing" | "company_email_not_sent";
 
 /** The one predicate both introduction emails' dispatch checks call. Reads only; inside a transaction pass `tx`. */
 export async function introductionMayProceed(requestId: string, companyId: string, tx?: FirebaseFirestore.Transaction):
@@ -171,6 +174,87 @@ export async function companyIntroductionEmailEnd(entry: { kind: string; request
         subject: "", body: "", replyTo: null, detailsClearedAtIso: atIso }, { merge: true });
     },
   };
+}
+
+/** Reads (call before any write): the writes that cancel an introduction as a whole, for `reason`. */
+async function introductionCancellation(tx: FirebaseFirestore.Transaction, requestId: string, companyId: string,
+  reason: IntroductionStopReason): Promise<(tx: FirebaseFirestore.Transaction) => void> {
+  const store = db!;
+  const { BILLABLE_EVENTS_COLLECTION, billableEventId } = await import("./billableEvents");
+  const introRef = store.collection("inboundRequests").doc(requestId).collection("introductions").doc(companyId);
+  const eventRef = store.collection(BILLABLE_EVENTS_COLLECTION).doc(billableEventId(requestId, companyId));
+  const rowRefs = [introductionCompanyKey(requestId, companyId), introductionSiteEmailKey(requestId, companyId)]
+    .map(key => store.collection("captureOutbox").doc(key));
+  const intro = await tx.get(introRef), event = await tx.get(eventRef);
+  const rows: FirebaseFirestore.DocumentSnapshot[] = [];
+  for (const ref of rowRefs) rows.push(await tx.get(ref));
+  return write => {
+    const atIso = new Date().toISOString();
+    if (intro.exists && typeof intro.data()?.cancelledAtIso !== "string") {
+      write.set(introRef, { cancelledAtIso: atIso, cancelReason: reason, siteShared: null, companyShared: null }, { merge: true });
+      if (event.exists) write.set(eventRef, { status: "void", voidedAtIso: atIso, voidReason: reason }, { merge: true });
+    }
+    rows.forEach((row, index) => {
+      if (row.exists && NOT_YET_SENT.has(String(row.data()?.status))) write.set(rowRefs[index], { status: "cancelled",
+        lastError: "introduction_cancelled", subject: "", body: "", replyTo: null, detailsClearedAtIso: atIso }, { merge: true });
+    });
+  };
+}
+
+/**
+ * Planner, 20:55Z, J1: a held "Meet {company}" row never depends on another row's code path having run. Each dispatch
+ * pass decides every held row from the facts, in its own transaction:
+ * - the company's email is sent: the row is released (pending, due now);
+ * - the introduction cannot go ahead (the one predicate fails before the send, or the company's row is failed, cancelled
+ *   or missing): the introduction is cancelled as a whole (rows cancelled and cleared, record marked, event void);
+ * - otherwise it keeps holding, but never past the outbox's own maximum age (`maxAgeMs`, from the row's creation): then
+ *   it is cancelled the same way (`company_email_not_sent`). The one exception is a company row whose dispatch may have
+ *   reached the company (`dispatching`, or `unknown`): cancelling would tell the site "We did not give them your details"
+ *   when that may be false, so it keeps holding until that row's own outcome is settled.
+ */
+export async function settleHeldSiteIntroductions(limit: number, nowMs: number, maxAgeMs: number,
+  ageOf: (row: Record<string, unknown>, nowMs: number) => number): Promise<{ released: number; cancelled: number }> {
+  if (!db) return { released: 0, cancelled: 0 };
+  const store = db;
+  const held = await store.collection("captureOutbox").where("status", "==", HELD_STATUS).limit(limit).get();
+  const outcome = { released: 0, cancelled: 0 };
+  for (const doc of held.docs) {
+    try {
+      const result = await store.runTransaction(async tx => {
+        const row = (await tx.get(doc.ref)).data();
+        if (row?.status !== HELD_STATUS || row.kind !== INTRODUCTION_SITE_EMAIL_KIND) return "skipped" as const;
+        const entry = { kind: String(row.kind), requestId: String(row.requestId), idempotencyKey: String(row.idempotencyKey ?? doc.id) };
+        const companyId = introductionEmailCompany(entry);
+        if (!companyId) {
+          tx.set(doc.ref, { status: "cancelled", lastError: "introduction_cancelled", subject: "", body: "", replyTo: null,
+            detailsClearedAtIso: new Date(nowMs).toISOString() }, { merge: true });
+          return "cancelled" as const;
+        }
+        const state = await siteIntroductionEmailState(entry.requestId, companyId, tx);
+        if (state.state === "go") {
+          tx.set(doc.ref, { status: "pending", nextAttemptAtMs: null, lastError: null, releasedAtIso: new Date(nowMs).toISOString() },
+            { merge: true });
+          return "released" as const;
+        }
+        let reason: IntroductionStopReason;
+        if (state.state === "cancel") reason = state.reason;
+        else {
+          if (ageOf(row, nowMs) <= maxAgeMs) return "held" as const;
+          const companyRow = (await tx.get(store.collection("captureOutbox").doc(introductionCompanyKey(entry.requestId, companyId)))).data();
+          if (companyRow?.status === "dispatching" || companyRow?.status === "unknown") return "held" as const;
+          reason = "company_email_not_sent";
+        }
+        const cancel = await introductionCancellation(tx, entry.requestId, companyId, reason);
+        cancel(tx);
+        return "cancelled" as const;
+      });
+      if (result === "released") outcome.released += 1;
+      if (result === "cancelled") outcome.cancelled += 1;
+    } catch {
+      // Decided again on the next pass.
+    }
+  }
+  return outcome;
 }
 
 /** True for every other kind; for an introduction email, true only while `introductionMayProceed` holds. */

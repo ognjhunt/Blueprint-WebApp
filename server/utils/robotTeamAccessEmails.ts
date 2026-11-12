@@ -233,7 +233,7 @@ export function introductionCompanyEmail(params: { site: IntroductionSiteDetails
       "",
       `The job: ${params.jobUrl}`,
       "",
-      "We have given the site your company's name and your contact details. Reply to them directly.",
+      "We are sending the site your company's name and your contact details now. Reply to them directly.",
       "",
       EMAIL_SIGN_OFF,
     ].join("\n"),

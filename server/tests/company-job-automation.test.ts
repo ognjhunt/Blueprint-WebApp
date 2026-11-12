@@ -476,6 +476,9 @@ describe("introductions (E6) and money (E7)", () => {
     expect(toCompany).toMatchObject({ key: `${ID}:introduction_made_company:${companyId}`, to: NORTH.email,
       subject: "A site wants to talk about its job", replyTo: SITE.email });
     for (const detail of [SITE.name, `${SITE.first} ${SITE.last}`, SITE.email, SITE.address, `/jobs/${ID}`]) expect(toCompany.body).toContain(detail);
+    // The company's email goes first (H2), so it says the site's email is on its way, not that it has gone (J2).
+    expect(toCompany.body).toContain("We are sending the site your company's name and your contact details now. Reply to them directly.");
+    expect(toCompany.body).not.toMatch(/We have given the site/);
     expect(outbox().find(row => row.kind === "introduction_made_site")).toMatchObject({ key: `${ID}:introduction_made_site:${companyId}`,
       to: SITE.email, subject: "Meet the company", replyTo: NORTH.email });
     // Nothing else a company can see names the site.
@@ -997,6 +1000,65 @@ describe("a company media stream whose upstream fails or whose company goes away
     expect(result.ended).toBe(true);
     expect(createHash("sha256").update(result.body).digest("hex")).toBe(createHash("sha256").update(bytes).digest("hex"));
   }, 20_000);
+
+  // Planner, 20:55Z, J3: one overall deadline per download, so a Pipeline that trickles is ended.
+  it.each(slowCases)("%s: a Pipeline that trickles past the overall deadline is ended and its read cancelled", async (_name, kind, range) => {
+    vi.stubEnv("COMPANY_MEDIA_IDLE_TIMEOUT_MS", "300");
+    vi.stubEnv("COMPANY_MEDIA_DEADLINE_MS", "600");
+    state.docs.set(`captureUploadSessions/${CAPTURE}`, { ...state.docs.get(`captureUploadSessions/${CAPTURE}`), company_simulation: simulationPackage() });
+    const item = (await page()).body.item;
+    const bytes = kind === "clip" ? CLIP_BYTES : ZIP_BYTES;
+    const digest = kind === "clip" ? String(companyClip().digest) : ZIP_DIGEST;
+    const trickle = { cancelled: false };
+    serveUpstream((_url, asked) => {
+      const part = asked ? bytes.subarray(1) : bytes;
+      let at = 0;
+      return { status: asked ? 206 : 200, headers: { "content-length": String(part.length), "x-blueprint-artifact-sha256": digest,
+        ...(asked ? { "content-range": `bytes 1-${bytes.length - 1}/${bytes.length}` } : {}) },
+        // One byte every 100 ms: never quiet long enough for the idle timer, and far slower than the deadline allows.
+        body: new ReadableStream<Uint8Array>({ async pull(controller) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+          if (at >= part.length) return controller.close();
+          controller.enqueue(new Uint8Array(part.subarray(at, at + 1))); at += 1; },
+          cancel() { trickle.cancelled = true; } }) };
+    });
+    const url = kind === "clip" ? item.video.url : item.simulationDownload.url;
+    const started = Date.now();
+    expect(await readsToError(url, range ? { range } : {})).toBe(true);
+    expect(Date.now() - started).toBeGreaterThanOrEqual(500);
+    expect(Date.now() - started).toBeLessThan(4000);
+    await vi.waitFor(() => expect(trickle.cancelled).toBe(true), { timeout: 3000 });
+    await settle();
+    expect(uncaught).toEqual([]);
+  });
+
+  // Planner, 20:55Z, J4: the drain half of the idle timer on its own. The upstream here ignores pause (as if it kept
+  // sending), so the only thing that can stop the timer is the response needing drain while the company is not reading.
+  it("does not count the Pipeline's quiet while the response needs drain (the drain half alone)", async () => {
+    vi.stubEnv("COMPANY_MEDIA_IDLE_TIMEOUT_MS", "100");
+    const { Readable, Writable } = await import("node:stream");
+    const { finished } = await import("node:stream/promises");
+    const { sendThrough } = await import("../routes/company-media");
+    const body = new Readable({ read() {} });
+    body.pause = function () { return this; };
+    let reading: () => void = () => undefined;
+    const companyReads = new Promise<void>(resolve => { reading = resolve; });
+    let received = 0;
+    const res = new Writable({ highWaterMark: 4, write(chunk: Buffer, _encoding, callback) {
+      received += chunk.length; void companyReads.then(() => callback()); } });
+    sendThrough(body, res as never, { jobId: ID, kind: "clip" });
+    body.push(Buffer.alloc(64, 1));
+    body.push(Buffer.alloc(64, 2));
+    // The company does not read for four times the idle timeout, and the Pipeline sends nothing meanwhile.
+    await new Promise(resolve => setTimeout(resolve, 400));
+    expect(res.writableNeedDrain).toBe(true);
+    expect(body.destroyed).toBe(false);
+    reading();
+    body.push(Buffer.alloc(64, 3));
+    body.push(null);
+    await finished(res);
+    expect(received).toBe(192);
+  });
 
   it.each(cases)("%s: a company that goes away cancels the upstream read", async (_name, kind, range) => {
     state.docs.set(`captureUploadSessions/${CAPTURE}`, { ...state.docs.get(`captureUploadSessions/${CAPTURE}`), company_simulation: simulationPackage() });

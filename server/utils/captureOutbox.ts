@@ -1,5 +1,5 @@
 import { jobAlertIsCurrent, type JobAlertContext } from "./newJobAlerts";
-import { companyIntroductionEmailEnd, HELD_STATUS, introductionEmailCheck } from "./jobIntroductionGate";
+import { companyIntroductionEmailEnd, HELD_STATUS, introductionEmailCheck, settleHeldSiteIntroductions } from "./jobIntroductionGate";
 import { outcomeQuestionIsCurrent } from "./jobOutcomeGate";
 import { withdrawalNoticeIsCurrent } from "./withdrawalCompanyNotice";
 import { enqueueDueTaskStatusUpdates, acknowledgeTaskStatusUpdate, taskStatusUpdateIsCurrent } from "./taskStatusUpdates";
@@ -387,6 +387,10 @@ export async function deliverOutbox(params?: { limit?: number }): Promise<Outbox
     await reconcileTaskEvaluationNotificationRetries(db, limit);
   } catch (error) { logger.warn({ error }, "Could not reconcile notification acknowledgements"); }
   await reconcileOutboxDeliveries(limit);
+  // Held "Meet {company}" rows are decided from the facts every pass (J1), before the due rows are read, so a row
+  // released here goes in this same pass.
+  try { await settleHeldSiteIntroductions(limit, Date.now(), MAX_UNDELIVERED_AGE_MS, undeliveredAgeMs); }
+  catch (error) { logger.warn({ error }, "Could not decide the held introduction emails; the next pass will"); }
   const nowMs = Date.now();
   const rows = await dueRows("pending", limit, nowMs);
   // Re-sends come after first sends, and a failure to read them stops neither.
@@ -547,9 +551,11 @@ async function deliverRow(doc: FirebaseFirestore.QueryDocumentSnapshot,
       const current = (await tx.get(doc.ref)).data();
       if (current?.status !== claimedStatus || current.deliveryToken !== token) return;
       const deferred = { ...current, deliveryDeferrals: (Number(current.deliveryDeferrals) || 0) + 1 };
-      tx.set(doc.ref, { deliveryDeferrals: deferred.deliveryDeferrals, ...(uncertain
-        ? unknownOutcomeFields(deferred, Date.now())
-        : retryLaterFields(deferred, Date.now(), "delivery_check_unavailable")) }, { merge: true });
+      const fields = uncertain ? unknownOutcomeFields(deferred, Date.now()) : retryLaterFields(deferred, Date.now(), "delivery_check_unavailable");
+      // A company introduction email that ages out here was never sent: the introduction is cancelled as a whole (J1).
+      const introductionEnd = fields.status === "failed" ? await companyIntroductionEmailEnd(entry, tx) : null;
+      tx.set(doc.ref, { deliveryDeferrals: deferred.deliveryDeferrals, ...fields }, { merge: true });
+      introductionEnd?.failed(tx);
     });
     summary.failed += 1;
     return;
