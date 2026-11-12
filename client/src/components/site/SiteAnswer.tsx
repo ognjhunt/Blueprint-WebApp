@@ -3,7 +3,7 @@ import { withCsrfHeader } from "@/lib/csrf";
 import { RECORDING_RIGHTS_STATEMENT_V4, RECORDING_RIGHTS_STATEMENT_V4_VERSION } from "@/lib/recordingRightsStatement";
 import { type JobOutlook, type JobPhase } from "@/lib/jobOutlook";
 import {
-  INTRODUCE_LABEL, INTRODUCTIONS_USED, INTRODUCTION_REQUEST_STATEMENT_VERSION, INTRODUCTION_STATEMENT_CHANGED, INTRODUCTION_FAILED, INTRODUCTION_REFUSAL_SENTENCES, introduceSentence, introducedOn,
+  INTRODUCE_LABEL, INTRODUCTIONS_USED, INTRODUCTION_CANCELLED, INTRODUCTION_REQUEST_STATEMENT_VERSION, INTRODUCTION_STATEMENT_CHANGED, INTRODUCTION_FAILED, INTRODUCTION_REFUSAL_SENTENCES, introduceSentence, introducedOn,
   isIntroductionRefusalReason,
 } from "@/lib/siteIntroductions";
 import { GAP_COULD_BE_CHANCE, GAP_UNLIKELY_CHANCE, optionParts, testSubLine, type SimulationOption, type SimulationProof as SimulationProofView } from "@/lib/simulationProof";
@@ -205,6 +205,8 @@ function CompanyEntries({ token, activity, onIntroduced }: { token: string; acti
           : companyAnswered(entry.alias, dateInWords(entry.atIso), entry.state)}</BareLead>
         {entry.kind === "answered" && entry.company && typeof entry.company.name === "string" && typeof entry.company.email === "string"
           && <IntroducedDetails entry={entry} />}
+        {entry.kind === "answered" && !entry.company && entry.introductionCancelled === true
+          && <p className="bare-helper">{INTRODUCTION_CANCELLED}</p>}
         {entry.kind === "answered" && !entry.company && entry.canIntroduce === true && !limitReached && <>
           <BareButton onClick={() => void introduce(entry.alias)} disabled={busy !== null} helper={introduceSentence(entry.alias)}>
             {busy === entry.alias ? "Asking…" : INTRODUCE_LABEL}</BareButton>

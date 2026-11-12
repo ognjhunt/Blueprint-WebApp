@@ -1,4 +1,5 @@
 import { NO_ANSWERS_YET } from "@/lib/companyResponses";
+import { INTRODUCTION_CANCELLED } from "@/lib/siteIntroductions";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NOTHING_IS_SHARED, NOT_SHARED_YET, NOT_VISIBLE_LINE, OLDER_JOB_AGREE, OLDER_JOB_LINES, SHARED_LINE, SiteAnswer as SiteAnswerScreen, SiteAnswerDetail, SiteAnswerDetails, detailScreens, evidenceTick, sureReason, ticksOf, type DetailScreen } from "@/components/site/SiteAnswer";
@@ -693,6 +694,19 @@ describe("the deployment companies section, with sends, answers and introduction
     expect(within(companies()).queryAllByRole("button")).toHaveLength(0);
     // Company B, not introduced, stays an alias.
     expect(lines()[0]).toBe("Company B answered on November 12, 2026: Would need something.");
+  });
+
+  // Planner, 20:35Z, H2: an introduction cancelled before the company's email went says so, beside that answer only.
+  it("says beside a cancelled introduction that it could not go ahead and nothing was given, with no button and no company", () => {
+    const cancelled = { ...activity, entries: [activity.entries[0],
+      { ...activity.entries[1], canIntroduce: false, introductionCancelled: true }] };
+    render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE, companies: cancelled }} />);
+    expect(lines()[1]).toContain("Company A answered on November 13, 2026: Interested.");
+    expect(lines()[1]).toContain(INTRODUCTION_CANCELLED);
+    expect(INTRODUCTION_CANCELLED).toBe("This introduction could not go ahead. We did not give them your details.");
+    expect(lines()[0]).not.toContain(INTRODUCTION_CANCELLED);
+    expect(within(companies()).queryAllByRole("button")).toHaveLength(0);
+    expect(within(companies()).queryByRole("link")).toBeNull();
   });
 
   it("says the three introductions are used, with no button, once the limit is reached", () => {

@@ -95,6 +95,16 @@ export async function taskLifecycleNotificationIsCurrent(
  // "can't simulate this kind of job yet" email shares the `screening_not_now`
  // kind and is kept, by its own fixed key.
  if(entry.kind==='pilot_request'||entry.kind==='brief_confirmed'||entry.kind==='input_needed')return false;
+ // "Meet {company}" (PACKAGE_E E6; planner 20:35Z, H2): one commit point. It may go only once the company's email is
+ // definitely sent, and from then on it goes whatever has changed since (a withdrawal, a hold, a suspension, a stale
+ // acceptance): the company holds the site's details and the site must be told who has them. Before that point the one
+ // predicate decides (`siteIntroductionEmailState`). Checked first, so no later rule of this function can stop it.
+ if(entry.kind==='introduction_made_site'){
+  const prefix=`${entry.requestId}:introduction_made_site:`;
+  if(!entry.idempotencyKey?.startsWith(prefix))return false;
+  const {siteIntroductionEmailState}=await import('./jobIntroductionGate');
+  return (await siteIntroductionEmailState(entry.requestId,entry.idempotencyKey.slice(prefix.length),transaction)).state==='go';
+ }
  if(entry.kind==='screening_not_now'
   &&entry.idempotencyKey!==`${entry.requestId}:brief-screening:task-not-yet-supported`)return false;
  // That kept notice is still the site's to hear only while the job is the site's: not after it withdrew or closed it.
@@ -149,22 +159,12 @@ export async function taskLifecycleNotificationIsCurrent(
  }
  // A company was sent the job, or answered it (package C1): sent only while the summary is visible to companies by the
  // same predicate, and while what the email says still stands (the send not voided, the answer unchanged).
- if(entry.kind==='job_sent'||entry.kind==='company_answered'||entry.kind==='introduction_made_site'){
+ if(entry.kind==='job_sent'||entry.kind==='company_answered'){
   // The whole sharing rule, with the facts outside the record (the brief, the preparation state): an operator hold, a rights
   // hold, the site closing its job or an authority end each stop these emails.
   const {loadCompanyJobAccess}=await import('./teamJobAccess');
   if(!(await loadCompanyJobAccess(entry.requestId,snapshot.data()??null,transaction)).access.listed)return false;
-  if(entry.idempotencyKey===undefined)return entry.kind!=='introduction_made_site';
-  // "Meet {company}" (PACKAGE_E E6): only while the introduction is on record.
-  if(entry.kind==='introduction_made_site'){
-   const prefix=`${entry.requestId}:introduction_made_site:`;
-   if(!entry.idempotencyKey.startsWith(prefix))return false;
-   const companyId=entry.idempotencyKey.slice(prefix.length);
-   // The one predicate both introduction emails use (G3): on record and not cancelled, the job shared, and the company
-   // an approved deployment company with a current signed-in acceptance of the Terms.
-   const {introductionMayProceed}=await import('./jobIntroductionGate');
-   return (await introductionMayProceed(entry.requestId,companyId,transaction)).ok;
-  }
+  if(entry.idempotencyKey===undefined)return true;
   const {companyNoticeStillTrue}=await import('./jobCompanies');
   return companyNoticeStillTrue(entry.requestId,entry.kind,entry.idempotencyKey,snapshot.data()??{},transaction);
  }

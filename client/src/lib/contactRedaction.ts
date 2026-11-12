@@ -129,7 +129,18 @@ const GENERIC_NAME_WORDS = new Set(["foods", "food", "logistics", "group", "comp
   "store", "market", "kitchen", "laundry", "hotel", "farm", "works", "systems", "solutions", "industries", "holdings", "inc", "llc",
   "ltd", "corp", "corporation", "limited", "plant", "factory", "center", "centre", "distribution", "the", "and",
   "street", "avenue", "road", "lane", "boulevard", "highway", "parkway", "drive", "court", "place", "square", "terrace", "way",
-  "boxes", "cartons", "totes", "pallets", "items", "parts", "bins", "shifts", "hours", "minutes", "line", "dock", "site"]);
+  "boxes", "cartons", "totes", "pallets", "items", "parts", "bins", "shifts", "hours", "minutes", "line", "dock", "site",
+  // Months, weekdays and compass directions are written with a capital anyway ("the March batch", "carry it North").
+  "january", "february", "march", "april", "june", "july", "august", "september", "october", "november", "december",
+  "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
+  "north", "south", "east", "west", "northeast", "northwest", "southeast", "southwest",
+  "northern", "southern", "eastern", "western"]);
+
+/** Whether a match at `offset` is the first word of a sentence, where a capital letter is no evidence of a name. */
+function startsSentence(text: string, offset: number): boolean {
+  const before = text.slice(0, offset).replace(/["'“‘(\[\s]+$/u, "");
+  return before.length === 0 || /[.!?:;\n]$/.test(before);
+}
 
 /** A distinctive word of the site's or organisation's name, alone, only where the sentence capitalises it ("Acme"). */
 function capitalisedWordPattern(word: string): RegExp | null {
@@ -173,7 +184,10 @@ function tidy(text: string): string {
     // …or before another place word ("at to the dock" once "at 12 Mill Road" is gone).
     .replace(/\b(at|in|near|on)\s+(?=(?:to|from|in|on|at)\b)/gi, "")
     .replace(/\s+([,.;:!?])/g, "$1").replace(/([,;:])(\s*[,;:])+/g, "$1").replace(/\(\s*\)/g, "")
-    .replace(/[,;:]\s*\./g, ".").replace(/\s{2,}/g, " ").replace(/^[\s,;:]+|[\s,;:]+$/g, "");
+    .replace(/[,;:]\s*\./g, ".").replace(/\s{2,}/g, " ").replace(/^[\s,;:]+|[\s,;:]+$/g, "")
+    // An article left before "the site" ("the the site", "a the site", "at the the site"); a capital is kept.
+    .replace(/\b(?:(?:the|a|an)\s+)+(?=the site\b)/gi, (articles: string) => /^[A-Z]/.test(articles) ? "\u0000" : "")
+    .replace(/\u0000the site/g, "The site");
 }
 
 /**
@@ -187,8 +201,12 @@ function tidy(text: string): string {
  * held postal code alone, and removes each distinctive word (four or more letters, not a generic business word) of the
  * site's or organisation's name on its own where the sentence writes it with a capital first letter ("Acme").
  *
- * The remaining limit, exactly: nicknames, abbreviations, landmarks, a reordered address and a street with no street
- * word can still get through. Ordinary numbers and quantities are kept.
+ * The capitalised-word rule does not apply to the first word of a sentence (a capital there is no evidence), nor to
+ * months, weekdays and compass directions.
+ *
+ * The remaining limit, exactly: nicknames, abbreviations, landmarks, a reordered address, a street with no street word,
+ * a state or region spelled differently from the record, and one word of the name alone as the first word of a
+ * sentence ("Acme runs two shifts.") can still get through. Ordinary numbers and quantities are kept.
  */
 export function removeIdentifyingDetails(text: string, known: KnownSiteIdentity): string {
   let out = fold(text);
@@ -209,7 +227,9 @@ export function removeIdentifyingDetails(text: string, known: KnownSiteIdentity)
   }
   for (const word of new Set(values(known.organisations ?? []).flatMap(name => name.split(/[^\p{L}\p{N}]+/u)))) {
     const pattern = capitalisedWordPattern(word);
-    if (pattern) out = out.replace(pattern, "the site");
+    // Not the first word of a sentence: capitalised there whatever it is.
+    if (pattern) out = out.replace(pattern, (match: string, offset: number, whole: string) =>
+      startsSentence(whole, offset) ? match : "the site");
   }
   out = out.replace(STREET_ANY_CASE, "").replace(STREET, "").replace(STREET_WEAK_NAMED, "").replace(STREET_WEAK_WITH_UNIT, "");
   out = out.replace(/\bthe site(\s+the site)+\b/gi, "the site");

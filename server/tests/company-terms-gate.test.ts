@@ -496,18 +496,97 @@ describe("an introduction that may no longer go ahead at dispatch is cancelled a
     await expectCancelled("job_not_shared");
   });
 
-  it("when one email already went out, the other is still cancelled with the rest", async () => {
+});
+
+/** Planner, 20:35Z, H2: one commit point for an introduction, so no sentence either side receives can be false. */
+describe("one commit point: the company's email first, then the site's, which then always goes (H2)", () => {
+  const north = () => sha(NORTH.email);
+  const rows = () => ({ company: outbox().find(r => r.kind === "introduction_made_company" && r.key.endsWith(north())),
+    site: outbox().find(r => r.kind === "introduction_made_site" && r.key.endsWith(north())) });
+  const order = () => seams.sendEmail.mock.calls.map(([message]) => message.to === NORTH.email ? "company"
+    : message.to === SITE.email && /Meet/.test(String(message.subject)) ? "site" : "other").filter(kind => kind !== "other");
+  const due = () => { for (const row of outbox()) state.docs.set(`captureOutbox/${row.key}`, { ...state.docs.get(`captureOutbox/${row.key}`) as object, nextAttemptAtMs: 0 }); };
+  const transientFor = (to: string) => seams.sendEmail.mockImplementation(async (message: Record<string, unknown>) => message.to === to
+    ? { sent: false, provider: "resend", messageId: null, failure: "transient", error: new Error("rate limited") } as never
+    : { sent: true, provider: "resend", messageId: "accepted" });
+  afterEach(() => { seams.sendEmail.mockImplementation(async () => ({ sent: true, provider: "resend", messageId: "accepted" })); });
+
+  it("holds the site's email until the company's is sent, then sends it in the same pass", async () => {
     await answer(NORTH);
     expect(await introduce("A")).toMatchObject({ ok: true });
-    // The company's email went out first; the company is then suspended before the site's.
-    const companyKey = rows().company!.key;
-    state.docs.set(`captureOutbox/${companyKey}`, { ...(state.docs.get(`captureOutbox/${companyKey}`) as object), status: "sent",
-      subject: "", body: "", replyTo: null });
-    state.docs.set(`robotTeamAccess/${north()}`, { ...recordOf(NORTH), status: "declined" });
+    expect(rows().site).toMatchObject({ status: "held" });
+    seams.sendEmail.mockClear();
+    await deliverOutbox({ limit: 50 });
+    expect(order()).toEqual(["company", "site"]);
+    expect(rows().company).toMatchObject({ status: "sent" });
+    expect(rows().site).toMatchObject({ status: "sent" });
+  });
+
+  it("a company row that fails transiently keeps the site's row waiting; both go on the retry, the company's first", async () => {
+    await answer(NORTH);
+    expect(await introduce("A")).toMatchObject({ ok: true });
+    transientFor(NORTH.email);
+    seams.sendEmail.mockClear();
+    await deliverOutbox({ limit: 50 });
+    expect(rows().company).toMatchObject({ status: "pending" });
+    expect(rows().site).toMatchObject({ status: "held" });
+    expect(order()).toEqual(["company"]);
+    seams.sendEmail.mockImplementation(async () => ({ sent: true, provider: "resend", messageId: "accepted" }));
+    seams.sendEmail.mockClear();
+    due();
+    await deliverOutbox({ limit: 50 });
+    expect(order()).toEqual(["company", "site"]);
+    expect(rows().site).toMatchObject({ status: "sent" });
+    expect(state.docs.get(`billableEvents/introduction-${ID}-${north()}`)).toMatchObject({ status: "recorded_no_price" });
+  });
+
+  it.each([
+    ["the company is suspended", () => state.docs.set(`robotTeamAccess/${sha(NORTH.email)}`, { ...recordOf(NORTH), status: "declined" }), true],
+    ["the company's acceptance goes stale", () => setTerms(NORTH, { ...currentTermsAcceptance(), terms_version: "2026-11-02.1" }), true],
+    ["the job is withdrawn", () => patchJob({ consent_revoked: true }), false],
+    ["the job is held", () => patchJob({ operator_listing_hold: { held: true } }), true],
+  ])("once the company's email is sent and then %s: the site's email still goes, the event stands", async (_label, stop, pageShown) => {
+    await answer(NORTH);
+    expect(await introduce("A")).toMatchObject({ ok: true });
+    // The company's email is sent; the site's then fails once, so it is still owed when the stop happens.
+    transientFor(SITE.email);
     await deliverOutbox({ limit: 50 });
     expect(rows().company).toMatchObject({ status: "sent" });
+    expect(rows().site).toMatchObject({ status: "pending" });
+    stop();
+    seams.sendEmail.mockImplementation(async () => ({ sent: true, provider: "resend", messageId: "accepted" }));
+    seams.sendEmail.mockClear();
+    due();
+    await deliverOutbox({ limit: 50 });
+    expect(rows().site).toMatchObject({ status: "sent" });
+    const meet = seams.sendEmail.mock.calls.find(([message]) => message.to === SITE.email && /Meet/.test(String(message.subject)));
+    expect(String(meet?.[0].text)).toContain(NORTH.email);
+    expect(state.docs.get(`billableEvents/introduction-${ID}-${north()}`)).toMatchObject({ status: "recorded_no_price" });
+    const intro = state.docs.get(`inboundRequests/${ID}/introductions/${north()}`) as Record<string, any>;
+    expect(intro).not.toHaveProperty("cancelledAtIso");
+    if (pageShown) {
+      const a = (await loadSiteCompanyActivity(ID)).entries.find(entry => entry.kind === "answered" && entry.alias === "Company A") as Record<string, any>;
+      expect(a.company).toMatchObject({ email: NORTH.email });
+      expect(a).not.toHaveProperty("introductionCancelled");
+    }
+  });
+
+  it("a company email that definitely fails cancels the introduction as a whole; the site's page says so", async () => {
+    await answer(NORTH);
+    expect(await introduce("A")).toMatchObject({ ok: true });
+    seams.sendEmail.mockImplementation(async (message: Record<string, unknown>) => message.to === NORTH.email
+      ? { sent: false, provider: "resend", messageId: null, failure: "permanent", error: new Error("address rejected") } as never
+      : { sent: true, provider: "resend", messageId: "accepted" });
+    seams.sendEmail.mockClear();
+    await deliverOutbox({ limit: 50 });
+    expect(rows().company).toMatchObject({ status: "failed" });
     expect(rows().site).toMatchObject({ status: "cancelled", subject: "", body: "", replyTo: null });
+    expect(order()).toEqual(["company"]);
+    expect(state.docs.get(`inboundRequests/${ID}/introductions/${north()}`)).toMatchObject({ cancelReason: "company_email_failed" });
     expect(state.docs.get(`billableEvents/introduction-${ID}-${north()}`)).toMatchObject({ status: "void" });
+    const a = (await loadSiteCompanyActivity(ID)).entries.find(entry => entry.kind === "answered" && entry.alias === "Company A") as Record<string, any>;
+    expect(a).toMatchObject({ introductionCancelled: true, canIntroduce: false });
+    expect(a).not.toHaveProperty("company");
   });
 });
 

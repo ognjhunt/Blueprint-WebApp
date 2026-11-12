@@ -285,24 +285,40 @@ describe("the emails to the site", () => {
     expect(none.body).not.toMatch(/answered/);
   });
 
-  it("are checked again at dispatch: never after a withdrawal, never while the job is not visible", async () => {
+  it("are checked again at dispatch: never after a withdrawal, never while the job is not visible; Meet waits for the company's email", async () => {
     const companyId = sha(NORTH.email);
     const entry = (kind: string, idempotencyKey?: string) => ({ requestId: ID, kind: kind as never, ...(idempotencyKey ? { idempotencyKey } : {}) });
     expect(await taskLifecycleNotificationIsCurrent(entry("listing_live"))).toBe(true);
-    // "Meet {company}" needs the introduction on record.
-    expect(await taskLifecycleNotificationIsCurrent(entry("introduction_made_site", `${ID}:introduction_made_site:${companyId}`))).toBe(false);
+    // "Meet {company}" (planner, 20:35Z, H2 and H4): one commit point. It may go only once the company's introduction
+    // email is definitely sent; from then on it goes whatever has changed since. Weakening this gate fails here.
+    const site = () => taskLifecycleNotificationIsCurrent(entry("introduction_made_site", `${ID}:introduction_made_site:${companyId}`));
+    const companyRow = (status: string | null) => status === null
+      ? state.docs.delete(`captureOutbox/${ID}:introduction_made_company:${companyId}`)
+      : state.docs.set(`captureOutbox/${ID}:introduction_made_company:${companyId}`, { kind: "introduction_made_company", requestId: ID, status });
+    expect(await site()).toBe(false);
     state.docs.set(`inboundRequests/${ID}/introductions/${companyId}`, { schemaVersion: 1, alias: "A" });
-    expect(await taskLifecycleNotificationIsCurrent(entry("introduction_made_site", `${ID}:introduction_made_site:${companyId}`))).toBe(true);
+    // On record, but the company's email has not gone (none, waiting, being handed over, uncertain, cancelled, failed).
+    for (const status of [null, "pending", "claimed", "held", "dispatching", "unknown", "review_required", "cancelled", "failed"]) {
+      companyRow(status);
+      expect(await site(), `company row ${status}`).toBe(false);
+    }
+    companyRow("sent");
+    expect(await site()).toBe(true);
     expect(await taskLifecycleNotificationIsCurrent(entry("introduction_made_site"))).toBe(false);
-    // Never once the company is suspended, or when it is a technology partner (review must-fix 2).
-    for (const record of [{ ...NORTH, status: "declined" }, { ...NORTH, partnerRole: "technology" }]) {
+    expect(await taskLifecycleNotificationIsCurrent(entry("introduction_made_site", `${ID}:introduction_made_site:${"f".repeat(64)}`))).toBe(false);
+    // Once the company's email is sent, a suspension, a technology partner, a stale acceptance or the site closing its job
+    // does not stop the site being told who holds its details.
+    for (const record of [{ ...NORTH, status: "declined" }, { ...NORTH, partnerRole: "technology" }, { ...NORTH, termsAcceptance: null }]) {
       state.docs.set(`robotTeamAccess/${companyId}`, record);
-      expect(await taskLifecycleNotificationIsCurrent(entry("introduction_made_site", `${ID}:introduction_made_site:${companyId}`))).toBe(false);
+      expect(await site()).toBe(true);
     }
     state.docs.set(`robotTeamAccess/${companyId}`, NORTH);
-    // Never after the site closes its job (a run closure on record).
     state.docs.set(`inboundRequests/${ID}`, sharedJob({ website_run_closures: { [`walkthrough-${ID}`]: { closed_at_iso: AT } } }));
-    expect(await taskLifecycleNotificationIsCurrent(entry("introduction_made_site", `${ID}:introduction_made_site:${companyId}`))).toBe(false);
+    expect(await site()).toBe(true);
+    expect(await taskLifecycleNotificationIsCurrent(entry("listing_live"))).toBe(false);
+    // Before the company's email is sent, the one predicate decides: the same stops cancel it.
+    companyRow("pending");
+    expect(await site()).toBe(false);
     state.docs.set(`inboundRequests/${ID}`, sharedJob());
     for (const [label, patch] of [
       ["withdrawn", { consent_revoked: true }],
@@ -310,10 +326,15 @@ describe("the emails to the site", () => {
       ["under a rights hold", { evaluation_readiness: { rights_review_status: "blocked" } }],
     ] as const) {
       state.docs.set(`inboundRequests/${ID}`, sharedJob(patch));
-      for (const kind of ["listing_live", "job_sent", "company_answered", "introduction_made_site"]) {
-        const key = kind === "introduction_made_site" ? `${ID}:introduction_made_site:${companyId}` : kind === "job_sent" ? `${ID}:job_sent:companies` : undefined;
+      for (const kind of ["listing_live", "job_sent", "company_answered"]) {
+        const key = kind === "job_sent" ? `${ID}:job_sent:companies` : undefined;
         expect(await taskLifecycleNotificationIsCurrent(entry(kind, key)), `${kind} when ${label}`).toBe(false);
       }
+      // "Meet {company}": stopped while the company's email has not gone; sent once it has.
+      companyRow("pending");
+      expect(await site(), `introduction_made_site when ${label}, company's email not sent`).toBe(false);
+      companyRow("sent");
+      expect(await site(), `introduction_made_site when ${label}, company's email sent`).toBe(true);
     }
   });
 });

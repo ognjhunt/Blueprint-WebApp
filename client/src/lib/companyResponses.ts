@@ -70,7 +70,9 @@ export type SiteCompanyEntry =
       /** When the site asked for the introduction. */
       introducedAtIso?: string;
       /** Only after the introduction. */
-      company?: IntroducedCompany };
+      company?: IntroducedCompany;
+      /** The site asked for an introduction that could not go ahead: the company's email never went. */
+      introductionCancelled?: boolean };
 
 /** What the site's job page receives about companies. */
 export interface SiteCompanyActivity {

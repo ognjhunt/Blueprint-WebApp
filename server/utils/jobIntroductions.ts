@@ -25,6 +25,7 @@ import { buildIntroductionBillableEvent, writeIntroductionBillableEvent } from "
 import { COMPANY_RESPONSES_COLLECTION, INTRODUCTIONS_COLLECTION, answerConsentsToIntroduction, companyJobUrl,
   storedAliases } from "./jobCompanies";
 import { companyMaySeeJobs } from "./companyTerms";
+import { HELD_STATUS } from "./jobIntroductionGate";
 import { introductionCompanyEmail, type IntroductionSiteDetails } from "./robotTeamAccessEmails";
 import { ROBOT_TEAM_ACCESS_COLLECTION, type RobotTeamAccessRecord } from "./robotTeamEarlyAccess";
 import { loadCompanyJobAccess } from "./teamJobAccess";
@@ -151,9 +152,12 @@ export async function requestIntroduction(input: { requestId: string; alias: str
       const message = siteEmail({ jobUrl: captureUploadUrlFor(input.requestId, "owner"), company: { name: companyShared.company,
         contactName: companyShared.contactName, email: companyEmail, website: companyShared.website ?? null },
         answerLabel: COMPANY_RESPONSE_LABELS[answer!.state as CompanyResponseState] });
-      tx.create(siteRowRef, buildOutboxEntry({ idempotencyKey: siteRowRef.id, requestId: input.requestId,
+      // One commit point (H2): the site's "Meet {company}" is held until the company's email is sent. With no company
+      // email to send, it is left pending, and its dispatch check cancels the introduction as a whole.
+      const siteEntry = buildOutboxEntry({ idempotencyKey: siteRowRef.id, requestId: input.requestId,
         kind: INTRODUCTION_SITE_KIND, to: site.email, subject: message.subject, body: message.body,
-        replyTo: EMAIL.test(companyEmail) ? companyEmail : "hello@tryblueprint.io" }));
+        replyTo: EMAIL.test(companyEmail) ? companyEmail : "hello@tryblueprint.io" });
+      tx.create(siteRowRef, EMAIL.test(companyEmail) ? { ...siteEntry, status: HELD_STATUS } : siteEntry);
     } else if (!EMAIL.test(site.email)) {
       logger.warn({ requestId: input.requestId }, "The site has no usable email; its introduction email is not queued");
     }

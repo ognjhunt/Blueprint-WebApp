@@ -1,5 +1,5 @@
 import { jobAlertIsCurrent, type JobAlertContext } from "./newJobAlerts";
-import { introductionEmailCheck } from "./jobIntroductionGate";
+import { companyIntroductionEmailEnd, HELD_STATUS, introductionEmailCheck } from "./jobIntroductionGate";
 import { outcomeQuestionIsCurrent } from "./jobOutcomeGate";
 import { withdrawalNoticeIsCurrent } from "./withdrawalCompanyNotice";
 import { enqueueDueTaskStatusUpdates, acknowledgeTaskStatusUpdate, taskStatusUpdateIsCurrent } from "./taskStatusUpdates";
@@ -122,7 +122,8 @@ export type OutboxKind =
   /** To each approved company a withdrawn job was sent to: delete any copy (review M4, `withdrawalCompanyNotice.ts`). */
   | "job_withdrawn_company";
 
-export type OutboxStatus = "pending" | "claimed" | "dispatching" | "unknown" | "sent" | "failed" | "cancelled" | "review_required";
+/** `held`: the site's "Meet {company}" email, waiting for the company's introduction email to be sent (H2). */
+export type OutboxStatus = "pending" | "claimed" | "dispatching" | "unknown" | "sent" | "failed" | "cancelled" | "review_required" | "held";
 
 export interface OutboxEntry {
   idempotencyKey: string;
@@ -512,6 +513,11 @@ async function deliverRow(doc: FirebaseFirestore.QueryDocumentSnapshot,
       const currentJobAlert = await jobAlertIsCurrent(entry, tx);
       const introduction = await introductionEmailCheck(entry, tx);
       const currentIntroduction = introduction.current;
+      // The site's "Meet {company}" waits for the company's email to be sent (H2). Not an attempt, not a cancellation.
+      if (introduction.hold) {
+        if (!uncertain) tx.set(doc.ref, { status: HELD_STATUS, lastError: "waiting_for_company_email", nextAttemptAtMs: null }, { merge: true });
+        return false;
+      }
       const currentOutcomeQuestion = await outcomeQuestionIsCurrent(entry, tx);
       const currentWithdrawalNotice = await withdrawalNoticeIsCurrent(entry, tx);
       if (accessNotice === "obsolete" || !currentNotice || retired || !currentCaptureNotice || !currentJobAlert
@@ -569,8 +575,13 @@ async function deliverRow(doc: FirebaseFirestore.QueryDocumentSnapshot,
   const attempts = entry.attempts + 1;
   const outcome = deliveryOutcome(result);
   const refusal = result.error instanceof Error ? result.error.message : String(result.error ?? "send failed");
+  let releasedSiteRow: FirebaseFirestore.DocumentReference | null = null;
   const applied = await store.runTransaction(async tx => {
     const current = (await tx.get(doc.ref)).data();
+    // The company's introduction email: what its end means for the introduction, read now (reads before writes).
+    const introductionEnd = outcome === "sent" || outcome === "permanent" || outcome === "transient"
+      ? await companyIntroductionEmailEnd(entry, tx) : null;
+    releasedSiteRow = null;
     // Keep the old effect's receipt even if a successor changed the message.
     // The digest binds private bytes without copying them into the receipt.
     tx.set(doc.ref.collection("deliveryReceipts").doc(token), {
@@ -593,9 +604,22 @@ async function deliverRow(doc: FirebaseFirestore.QueryDocumentSnapshot,
             : retryLaterFields(current, nowMs, refusal);
     tx.set(doc.ref, { ...next, ...(next.status === "sent" ? clearedIntroductionDetails(entry) : {}), sentAtIso: outcome === "sent" ? nowIso() : null,
       deliveryProvider: result.provider, deliveryMessageId: result.messageId }, { merge: true });
+    // One commit point (H2): the company's email is sent, so the introduction is made and the site's email is released.
+    if (introductionEnd && next.status === "sent" && introductionEnd.sent(tx)) releasedSiteRow = introductionEnd.siteRow;
+    // Definitely not sent and not tried again: the company never got the site's details, so nothing was introduced.
+    if (introductionEnd && next.status === "failed") introductionEnd.failed(tx);
     return next;
   });
   if (!applied) return;
+  if (releasedSiteRow) {
+    // The released "Meet {company}" goes in this same pass.
+    const released = await (releasedSiteRow as FirebaseFirestore.DocumentReference).get();
+    if (released.exists) {
+      summary.examined += 1;
+      await deliverRow(released as FirebaseFirestore.QueryDocumentSnapshot, runtime, summary)
+        .catch(error => logger.warn({ error, key: released.id }, "The released introduction email waits for the next pass"));
+    }
+  }
   if (applied.status === "sent") {
     try { await acknowledgeTaskStatusUpdate(entry); }
     catch (error) { logger.warn({ error }, "Status deadline will advance on the next reconciliation"); }

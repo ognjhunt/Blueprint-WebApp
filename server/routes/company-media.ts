@@ -37,19 +37,32 @@ const idleTimeoutMs = () => {
 };
 
 export function sendThrough(body: Readable, res: Response, context: { jobId: string; kind: "clip" | "simulation" }): void {
-  // A Pipeline that stalls mid-body ends this response and, through the pipeline, cancels the upstream read.
+  // The timer measures ONLY the Pipeline's silence while we are asking it for bytes (planner, 20:35Z, H1). Time spent
+  // waiting for the company to read (the response needs to drain, so `pipeline` has paused the upstream) does not count:
+  // the timer stops while paused and starts again when the upstream is resumed. A Pipeline that stalls while we read
+  // still ends this response within the timeout, and the pipeline cancels its read.
   const limit = idleTimeoutMs();
   let timer: ReturnType<typeof setTimeout> | undefined;
+  const waitingForCompany = () => body.isPaused() || res.writableNeedDrain;
+  const stop = () => { if (timer) clearTimeout(timer); timer = undefined; };
   const arm = () => {
-    if (timer) clearTimeout(timer);
-    timer = setTimeout(() => body.destroy(Object.assign(new Error("company_media_idle_timeout"),
-      { code: "company_media_idle_timeout" })), limit);
+    stop();
+    if (body.destroyed || waitingForCompany()) return;
+    timer = setTimeout(() => {
+      timer = undefined;
+      if (waitingForCompany()) return;
+      body.destroy(Object.assign(new Error("company_media_idle_timeout"), { code: "company_media_idle_timeout" }));
+    }, limit);
     timer.unref?.();
   };
   body.on("data", arm);
+  body.on("pause", stop);
+  body.on("resume", arm);
+  res.on("drain", arm);
   arm();
   pipeline(body, res, error => {
-    if (timer) clearTimeout(timer);
+    stop();
+    body.off("data", arm); body.off("pause", stop); body.off("resume", arm); res.off("drain", arm);
     if (!error) return;
     logger.warn({ jobId: context.jobId, kind: context.kind, code: (error as NodeJS.ErrnoException).code ?? null },
       "A company media stream ended early");

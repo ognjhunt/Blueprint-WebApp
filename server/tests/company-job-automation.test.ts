@@ -573,9 +573,11 @@ describe("introductions (E6) and money (E7)", () => {
     await deliverOutbox({ limit: 50 });
     seams.sendEmail.mockImplementation(async () => ({ sent: true, provider: "resend", messageId: "accepted" }));
     for (const row of rows()) {
-      expect(row.status).toBe("pending");
+      // The company's row waits to be retried; the site's waits, held, for the company's to be sent (H2).
+      expect(row.status).toBe(row.kind === "introduction_made_company" ? "pending" : "held");
       expect(String(row.body)).toContain(row.kind === "introduction_made_company" ? SITE.email : NORTH.email);
     }
+    expect(seams.sendEmail.mock.calls.some(([message]) => message.to === SITE.email && /Meet/.test(String(message.subject)))).toBe(false);
     // The retry sends the full email, then the row holds neither side's details.
     for (const row of rows()) state.docs.set(`captureOutbox/${row.key}`, { ...state.docs.get(`captureOutbox/${row.key}`), nextAttemptAtMs: 0 });
     seams.sendEmail.mockClear();
@@ -916,6 +918,85 @@ describe("a company media stream whose upstream fails or whose company goes away
       await settle();
       expect(uncaught).toEqual([]);
     });
+
+  /** A healthy upstream of `size` bytes, in 64 KiB pieces as fast as it is asked; the package names its true digest. */
+  function healthyUpstream(kind: "clip" | "simulation", size: number) {
+    const bytes = Buffer.alloc(size, 7);
+    const digest = `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
+    if (kind === "clip") {
+      const { clip_digest: _old, ...value } = companyClip() as Record<string, unknown>;
+      const clip = { ...value, digest, size_bytes: size };
+      state.docs.set(`captureUploadSessions/${CAPTURE}`, { ...state.docs.get(`captureUploadSessions/${CAPTURE}`),
+        company_clip: { ...clip, clip_digest: crossRuntimeArtifactDigest(clip, "clip_digest") } });
+    } else {
+      state.docs.set(`captureUploadSessions/${CAPTURE}`, { ...state.docs.get(`captureUploadSessions/${CAPTURE}`),
+        company_simulation: simulationPackage({ digest, size_bytes: size }) });
+    }
+    serveUpstream((_url, asked) => {
+      const match = asked ? /^bytes=(\d+)-(\d*)$/.exec(asked) : null;
+      const first = match ? Number(match[1]) : 0, last = match?.[2] ? Number(match[2]) : size - 1;
+      const part = bytes.subarray(first, last + 1);
+      let at = 0;
+      const stream = new ReadableStream<Uint8Array>({ pull(controller) {
+        if (at >= part.length) return controller.close();
+        const next = part.subarray(at, at + 64 * 1024); at += next.length; controller.enqueue(new Uint8Array(next));
+      } });
+      return { status: match ? 206 : 200, body: stream, headers: { "content-length": String(part.length), "x-blueprint-artifact-sha256": digest,
+        "content-type": kind === "clip" ? "video/mp4" : "application/zip",
+        ...(match ? { "content-range": `bytes ${first}-${last}/${size}` } : {}) } };
+    });
+    return { bytes };
+  }
+  /** Read with node's client: pause first for `firstPauseMs`, then after every piece for `eachPauseMs`. */
+  async function readSlowly(url: string, headers: Record<string, string>, firstPauseMs: number, eachPauseMs = 0) {
+    const http = await import("node:http");
+    return new Promise<{ status: number; body: Buffer; ended: boolean }>(resolve => {
+      const pieces: Buffer[] = [];
+      const request = http.get(`${base}${url}`, { headers: { "sec-fetch-dest": "video", ...headers } }, response => {
+        const done = (ended: boolean) => resolve({ status: response.statusCode ?? 0, body: Buffer.concat(pieces), ended });
+        response.pause();
+        setTimeout(() => response.resume(), firstPauseMs);
+        response.on("data", (piece: Buffer) => {
+          pieces.push(piece);
+          if (eachPauseMs) { response.pause(); setTimeout(() => response.resume(), eachPauseMs); }
+        });
+        response.on("end", () => done(true));
+        response.on("error", () => done(false));
+        response.on("aborted", () => done(false));
+      });
+      request.on("error", () => resolve({ status: 0, body: Buffer.alloc(0), ended: false }));
+    });
+  }
+  const slowCases: Array<[string, "clip" | "simulation", string | null]> = [
+    ["the video, whole file", "clip", null], ["the video, a range", "clip", "bytes=1-"],
+    ["the simulation, whole file", "simulation", null], ["the simulation, a range", "simulation", "bytes=1-"],
+  ];
+
+  // Planner, 20:35Z, H1: time spent waiting for the company to read does not count toward the idle timeout.
+  it.each(slowCases)("%s: a company that pauses longer than the idle timeout still gets every byte", async (_name, kind, range) => {
+    vi.stubEnv("COMPANY_MEDIA_IDLE_TIMEOUT_MS", "300");
+    const { bytes } = healthyUpstream(kind, 16 * 1024 * 1024);
+    const item = (await page()).body.item;
+    const url = kind === "clip" ? item.video.url : item.simulationDownload.url;
+    const result = await readSlowly(url, range ? { range } : {}, 1500);
+    const expected = range ? bytes.subarray(1) : bytes;
+    expect(result.status).toBe(range ? 206 : 200);
+    expect(result.ended).toBe(true);
+    expect(result.body.length).toBe(expected.length);
+    expect(createHash("sha256").update(result.body).digest("hex")).toBe(createHash("sha256").update(expected).digest("hex"));
+    await settle();
+    expect(uncaught).toEqual([]);
+  }, 20_000);
+
+  it.each(slowCases.filter(([, , range]) => range === null))("%s: a slow company that reads steadily still completes", async (_name, kind) => {
+    vi.stubEnv("COMPANY_MEDIA_IDLE_TIMEOUT_MS", "300");
+    const { bytes } = healthyUpstream(kind, 2 * 1024 * 1024);
+    const item = (await page()).body.item;
+    const url = kind === "clip" ? item.video.url : item.simulationDownload.url;
+    const result = await readSlowly(url, {}, 0, 40);
+    expect(result.ended).toBe(true);
+    expect(createHash("sha256").update(result.body).digest("hex")).toBe(createHash("sha256").update(bytes).digest("hex"));
+  }, 20_000);
 
   it.each(cases)("%s: a company that goes away cancels the upstream read", async (_name, kind, range) => {
     state.docs.set(`captureUploadSessions/${CAPTURE}`, { ...state.docs.get(`captureUploadSessions/${CAPTURE}`), company_simulation: simulationPackage() });

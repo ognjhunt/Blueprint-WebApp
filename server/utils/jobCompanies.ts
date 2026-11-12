@@ -416,7 +416,9 @@ export function projectSiteCompanyActivity(input: { aliases: Record<string, stri
     const canIntroduce = !intro && !cancelled.has(response.id) && input.listed === true && used < MAX_INTRODUCTIONS_PER_JOB
       && answerConsentsToIntroduction(response.data) && Boolean(input.approvedDeploymentCompanies?.has(response.id));
     entries.push({ kind: "answered", alias: companyAliasName(letter), atIso, state, canIntroduce,
-      ...(introducedAtIso ? { introducedAtIso } : {}), ...(company ? { company } : {}) });
+      ...(introducedAtIso ? { introducedAtIso } : {}), ...(company ? { company } : {}),
+      // Cancelled before the company's email went (H2), so the site's details were never given to it.
+      ...(cancelled.has(response.id) ? { introductionCancelled: true } : {}) });
   }
   entries.sort((a, b) => a.atIso.localeCompare(b.atIso) || (a.kind === b.kind ? 0 : a.kind === "sent" ? -1 : 1));
   return { entries, interested: entries.some(entry => entry.kind === "answered" && INTRODUCIBLE_RESPONSE_STATES.includes(entry.state)),
