@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Pause, Play } from "lucide-react";
-import { COMPANY_RESPONSE_LABELS, companyAliasName, type CompanyResponseState } from "@/lib/companyResponses";
-import { EXAMPLE_CARD_NAME, EXAMPLE_FOOT, EXAMPLE_NO_ANSWERS, EXAMPLE_TAG, exampleSentTo } from "@/lib/publicCopy";
+import { COMPANY_RESPONSE_LABELS, companyAliasName, NO_ANSWERS_YET, type CompanyResponseState } from "@/lib/companyResponses";
+import { EXAMPLE_CARD_NAME, EXAMPLE_FOOT, EXAMPLE_TAG, exampleSentTo } from "@/lib/publicCopy";
 import { LOOP, scenes, useSceneClock, type Illustration } from "@/components/site/RobotScene";
 
 /**
@@ -96,7 +96,7 @@ export function PilotPreview() {
               <li key={ALIASES[i]}>{companyAliasName(ALIASES[i])} · {COMPANY_RESPONSE_LABELS[state]}</li>
             ))}
           </ul>
-          : <p className="bare-example-by">{EXAMPLE_NO_ANSWERS}</p>}
+          : <p className="bare-example-by">{NO_ANSWERS_YET}</p>}
       </div>
       <p className="bare-example-foot">{EXAMPLE_FOOT}</p>
     </section>

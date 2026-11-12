@@ -31,7 +31,7 @@ test("the example card sits beside the text on a desktop and below the button on
     await page.evaluate(() => document.fonts.ready);
     const card = page.getByRole("region", { name: "Example of a job page once deployment companies answer" });
     await expect(card.getByRole("tabpanel")).toContainText("Example");
-    await expect(card).toContainText("The sites, jobs and answers are made up.");
+    await expect(card).toContainText("Everything in this example is made up.");
     await expect(card.getByRole("tab", { name: "Warehouse", exact: true })).toHaveAttribute("aria-selected", "true");
     const examples = [
       ["Warehouse", "Humanoid robot"], ["Café", "Fixed robot arm"], ["Laundromat", "Wheeled humanoid"],

@@ -18,6 +18,9 @@ describe("How it works", () => {
     expect(screen.getByText("Free for sites.")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Questions ›" })).toHaveAttribute("href", "/beta");
     expect(screen.getByText(/Best for one job that repeats, with known objects, where something is picked up and put down/)).toBeInTheDocument();
+    // A job whose kind we cannot simulate yet is still sent; only its simulation waits (teamJobAccess: no simulation required).
+    expect(screen.getByText(/Other jobs still go to companies; their simulation waits until we can build one\./)).toBeInTheDocument();
+    expect(container.textContent).not.toMatch(/keep and hold/);
     // The fine line is gone (owner, 2026-11-12: "why do we have this??? ... is this just outdated?").
     expect(screen.queryByText(/We take pick-up-and-put-down jobs best/)).toBeNull();
     expect(screen.queryByRole("img")).toBeNull();

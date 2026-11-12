@@ -30,8 +30,8 @@ describe("Site-led homepage", () => {
     const steps = within(screen.getByRole("list", { name: "How it works" })).getAllByRole("listitem");
     expect(steps.map(step => step.textContent)).toEqual([
       "Send a video of one job that repeats.",
-      "We build a simulation of your site and send the job to robot deployment companies we approve.",
-      "Their answers come back to you: interested, can do, not a fit, or would need something. You pick who to meet.",
+      "We send the job to robot deployment companies we approve and build a simulation of your site for them to test.",
+      "Their answers come back to you: interested, can do, not a fit, or would need something. You pick up to three to meet.",
     ]);
     expect(screen.getByRole("list", { name: "How it works" })).toHaveAttribute("id", "how-it-works");
   });
@@ -41,7 +41,7 @@ describe("Site-led homepage", () => {
   it("marks every example as an example and uses only the real answer labels", () => {
     render(<Home />);
     const card = screen.getByRole("region", { name: "Example of a job page once deployment companies answer" });
-    expect(within(card).getByText("The sites, jobs and answers are made up.")).toBeInTheDocument();
+    expect(within(card).getByText("Everything in this example is made up.")).toBeInTheDocument();
     expect(within(card).getAllByRole("tab").map(tab => tab.textContent)).toEqual(SITES);
     const labels = Object.values(COMPANY_RESPONSE_LABELS);
     const counts = new Set<number>();

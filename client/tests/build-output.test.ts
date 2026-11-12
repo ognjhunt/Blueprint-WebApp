@@ -232,7 +232,11 @@ describe("build output", () => {
     expect(llmsFull).toContain("A simulation is a bounded estimate and never certifies physical performance or safety.");
     // Sharing is the service (2026-11-12): the job packet goes to approved companies; contact details only by introduction.
     expect(llmsFull).toContain("Each job comes as a job packet: the site's description of the job, its video without sound, a first look at which robots could fit, the simulation of the site, what counts as done, and our early trial's result where one exists.");
-    expect(llmsFull).toContain("When a company is interested, the site can ask for an introduction, and each gets the other's contact details.");
+    // The five answers as the site sees them, and what an introduction gives each side (review, 2026-11-12).
+    expect(llmsFull).toContain("Blueprint sends each job automatically to the deployment companies it has approved.");
+    expect(llmsFull).toContain("\"Interested\", \"Not a fit\", \"Would need something\", \"Tested it: can do\" or \"Tested it: cannot yet\"");
+    expect(llmsFull).toContain("After an introduction the company gets the site's name, address and contact details, and the site gets the company's name and contact details.");
+    expect(llmsFull).not.toMatch(/approves by hand\. Each job|Some jobs are held/);
     expect(llmsFull).not.toMatch(/only the summary the site approved|never sees the video/);
     expect(llms).toContain("https://tryblueprint.io/beta");
     // The home page's words (owner, 2026-11-12 ~19:15Z: the outcome, not "job packet"), the trial labelled.
@@ -253,14 +257,14 @@ describe("build output", () => {
     const robotHtml = fs.readFileSync(distPath("contact/robot-team/index.html"), "utf8");
     expect(homeHtml).toContain("Get repetitive work done by robots.");
     expect(homeHtml).toContain("Film the job once. Robot deployment companies can test it on a simulation of your site and tell you if they can do it.");
-    expect(homeHtml).toContain("We build a simulation of your site and send the job to robot deployment companies we approve.");
-    expect(homeHtml).toContain("Their answers come back to you: interested, can do, not a fit, or would need something. You pick who to meet.");
+    expect(homeHtml).toContain("We send the job to robot deployment companies we approve and build a simulation of your site for them to test.");
+    expect(homeHtml).toContain("Their answers come back to you: interested, can do, not a fit, or would need something. You pick up to three to meet.");
     expect(homeHtml).toContain("Free for sites");
     // The fine line is gone (owner, 2026-11-12: "why do we have this???: We take pick-up-and-put-down jobs best.
     // Nothing here is a test at your site or a safety check. is this just outdated?"); the Terms keep their own sentence.
     expect(homeHtml).not.toContain("We take pick-up-and-put-down jobs best.");
     // The example card is back (owner, 2026-11-12), marked as an example; the old invented results are not.
-    expect(homeHtml).toContain("The sites, jobs and answers are made up.");
+    expect(homeHtml).toContain("Everything in this example is made up.");
     expect(homeHtml).not.toMatch(/Did best on your job|The names, jobs and results are made up|top AI robots|which did best|How sure are we|Free during the beta/);
     expect(homeHtml).not.toContain("cycle time");
     expect(homeHtml).not.toContain("One job. A clear pilot plan.");

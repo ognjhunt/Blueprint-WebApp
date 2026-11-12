@@ -1,3 +1,4 @@
+import { NO_ANSWERS_YET } from "@/lib/companyResponses";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NOTHING_IS_SHARED, NOT_SHARED_YET, NOT_VISIBLE_LINE, OLDER_JOB_AGREE, OLDER_JOB_LINES, SHARED_LINE, SiteAnswer as SiteAnswerScreen, SiteAnswerDetail, SiteAnswerDetails, detailScreens, evidenceTick, sureReason, ticksOf, type DetailScreen } from "@/components/site/SiteAnswer";
@@ -630,6 +631,26 @@ describe("the deployment companies section, with sends, answers and introduction
       .toHaveAttribute("id", buttons[0].getAttribute("aria-describedby"));
     expect(companies().textContent).not.toMatch(/NOTE-PLANT|WORDS-PLANT|We will write to you/);
     expect(companies().textContent).not.toMatch(BANNED);
+  });
+
+  // "No answers yet." is said only when it is true: sent to at least one company, and no company has answered. The home
+  // page's example card uses the same constant (review, 2026-11-12).
+  it("says No answers yet under the send line while no company has answered", () => {
+    const waiting = { interested: false, sent: { count: 5, firstAtIso: "2026-11-11T10:00:00.000Z" }, entries: [] };
+    render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE, companies: waiting }} />);
+    expect(within(companies()).getByText("Sent to 5 deployment companies on November 11, 2026.")).toBeVisible();
+    expect(within(companies()).getByText(NO_ANSWERS_YET)).toBeVisible();
+  });
+
+  it("does not say No answers yet once any company has answered", () => {
+    render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE, companies: activity }} />);
+    expect(within(companies()).queryByText(NO_ANSWERS_YET)).toBeNull();
+  });
+
+  it("does not say No answers yet when the job has not been sent", () => {
+    const unsent = { interested: false, sent: null, entries: [] };
+    render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE, companies: unsent }} />);
+    expect(screen.queryByText(NO_ANSWERS_YET)).toBeNull();
   });
 
   it("asks for the introduction by alias, then shows what the server reads back", async () => {

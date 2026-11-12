@@ -18,7 +18,7 @@ import {
   type AnswerBasis, type AnswerCheck, type AnswerConfidenceLevel, type AnswerEvidence, type AnswerRobot, type JobSharing, type SiteAnswer as SiteAnswerView,
 } from "@/lib/siteAnswer";
 import type { FirstLookWords } from "@/lib/firstLookWords";
-import { companyAnswered, isSiteCompanyActivity, sentToCompanies, sentToCompany, type SiteCompanyActivity, type SiteCompanyEntry } from "@/lib/companyResponses";
+import { companyAnswered, isSiteCompanyActivity, NO_ANSWERS_YET, sentToCompanies, sentToCompany, type SiteCompanyActivity, type SiteCompanyEntry } from "@/lib/companyResponses";
 
 /*
  * The site's job page below its title, bare bones (frame of 2026-11-12). Four sections, in order: where the job
@@ -198,6 +198,7 @@ function CompanyEntries({ token, activity, onIntroduced }: { token: string; acti
   const interestedWaiting = activity.entries.some(entry => entry.kind === "answered" && INTRODUCIBLE.includes(entry.state) && !entry.company);
   return <>
     {sent && <BareLead>{sentToCompanies(sent.count, dateInWords(sent.firstAtIso))}</BareLead>}
+    {sent && !activity.entries.some(entry => entry.kind === "answered") && <p className="bare-helper">{NO_ANSWERS_YET}</p>}
     {activity.entries.length > 0 && <ul className="site-job-company-entries" aria-label="Sent and answered" style={{ listStyle: "none", padding: 0, margin: 0 }}>
       {activity.entries.map((entry, index) => <li key={`${entry.kind}-${entry.alias}-${entry.atIso}-${index}`}>
         <BareLead>{entry.kind === "sent" ? sentToCompany(entry.alias, dateInWords(entry.atIso))

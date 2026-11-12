@@ -18,8 +18,8 @@ test("homepage says the outcome, shows three steps, offers one button and the ex
   const steps = main.getByRole("list", { name: "How it works" }).getByRole("listitem");
   await expect(steps).toHaveCount(3);
   await expect(steps.nth(0)).toContainText("Send a video of one job that repeats.");
-  await expect(steps.nth(1)).toContainText("We build a simulation of your site and send the job to robot deployment companies we approve.");
-  await expect(steps.nth(2)).toContainText("Their answers come back to you: interested, can do, not a fit, or would need something. You pick who to meet.");
+  await expect(steps.nth(1)).toContainText("We send the job to robot deployment companies we approve and build a simulation of your site for them to test.");
+  await expect(steps.nth(2)).toContainText("Their answers come back to you: interested, can do, not a fit, or would need something. You pick up to three to meet.");
   await expect(main.getByRole("link", { name: "How it works ›" })).toHaveAttribute("href", "/how-it-works");
   await expect(main.getByRole("link", { name: "Deploy robots? See how jobs reach you ›" })).toHaveAttribute("href", "/partners");
   await expect(main.getByRole("tabpanel")).toContainText("Example");

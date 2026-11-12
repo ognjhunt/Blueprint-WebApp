@@ -23,7 +23,7 @@ describe("the questions page", () => {
     expect(packet).toHaveTextContent(/Your sentence for the job, a first look on paper, a simulation of your site, and what counts as done\./);
     expect(packet).toHaveTextContent(/It is a trial, not a prediction of any company's robot\./);
     expect(packet).toHaveTextContent(/It does not certify performance or safety\./);
-    expect(screen.getByRole("region", { name: "For sites" })).toHaveTextContent(/other jobs we keep and hold/);
+    expect(screen.getByRole("region", { name: "For sites" })).toHaveTextContent(/other jobs still go to companies, and their simulation waits until we can build one\./);
     expect(packet).not.toHaveTextContent(/proof|guarantee|which did best|AI robot/i);
   });
 

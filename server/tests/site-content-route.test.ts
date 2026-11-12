@@ -64,7 +64,7 @@ describe("site-content route", () => {
       expect(payload.summary).toContain("a first look on paper (the robot most likely to fit, from published specifications and a cited track record)");
       expect(payload.summary).toContain("this early trial is not the site's answer and does not predict what a deployment company's robot would do");
       // Sharing is the service (2026-11-12): the job packet goes to approved companies; contact details only by introduction.
-      expect(payload.summary).toContain("Blueprint shares each job with the deployment companies it approves by hand: the site's description of the job, its video without sound, the simulation, what counts as done, the first look and the early trial's result where one exists.");
+      expect(payload.summary).toContain("Blueprint sends each job automatically to the deployment companies it has approved: the site's description of the job, its video without sound, the simulation, what counts as done, the first look and the early trial's result where one exists.");
       expect(payload.summary).toContain("A site's name, address and contact details go to a company only when the site asks for an introduction.");
       expect(payload.summary).not.toMatch(/stays private|only the summary/);
       expect(payload.summary).not.toMatch(/never sees? the site's own sentence/);

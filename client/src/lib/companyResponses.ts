@@ -87,11 +87,20 @@ export interface SiteCompanyActivity {
 export const sentToCompanies = (count: number, date: string) =>
   `Sent to ${count} deployment ${count === 1 ? "company" : "companies"} on ${date}.`;
 
+/**
+ * Under the send line while the job has gone to at least one company and none has answered. The home page's example
+ * card shows the same state with the same constant, so the example says only what a real job page says.
+ */
+export const NO_ANSWERS_YET = "No answers yet.";
+
 /** The site's sentences. */
 export const sentToCompany = (alias: string, date: string) => `Sent to ${alias} on ${date}.`;
 export const companyAnswered = (alias: string, date: string, state: CompanyResponseState) =>
   `${alias} answered on ${date}: ${COMPANY_RESPONSE_LABELS[state]}.`;
-/** When any company is interested: the introduction is made by a person, by hand. */
+/**
+ * Kept from before. The introduction itself is automatic once the site presses "Introduce us": Blueprint gives each
+ * side the other's details by email, with no person in between.
+ */
 export const NEXT_STEPS_LINE = "We will write to you about next steps.";
 
 /** A cheap shape check for the job page: anything else is dropped, never shown. */

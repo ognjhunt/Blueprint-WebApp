@@ -19,8 +19,8 @@ export const HOME_TITLE = "Get repetitive work done by robots.";
 export const HOME_SUB_LINE = "Film the job once. Robot deployment companies can test it on a simulation of your site and tell you if they can do it.";
 
 export const STEP_SEND = "Send a video of one job that repeats.";
-export const STEP_SIMULATE = "We build a simulation of your site and send the job to robot deployment companies we approve.";
-export const STEP_ANSWER = "Their answers come back to you: interested, can do, not a fit, or would need something. You pick who to meet.";
+export const STEP_SIMULATE = "We send the job to robot deployment companies we approve and build a simulation of your site for them to test.";
+export const STEP_ANSWER = "Their answers come back to you: interested, can do, not a fit, or would need something. You pick up to three to meet.";
 
 export const START_JOB = "Start a job";
 export const HOME_START_HELPER = "A video, where the job is, and an email.";
@@ -37,10 +37,10 @@ export const HOW_STEPS = [
 ] as const;
 
 /** What used to be the "Jobs we support" page, in one line. */
-export const JOBS_THAT_FIT = "Best for one job that repeats, with known objects, where something is picked up and put down. Other jobs we keep and hold until we can build a simulation for them.";
+export const JOBS_THAT_FIT = "Best for one job that repeats, with known objects, where something is picked up and put down. Other jobs still go to companies; their simulation waits until we can build one.";
 
 export const HOME_SEO_TITLE = "Blueprint | Get repetitive work done by robots.";
-export const HOME_SEO_DESCRIPTION = "Film one job that repeats; we build a simulation of your site and send the job to robot deployment companies we approve, so they can test it and tell you if they can do it. Free for sites.";
+export const HOME_SEO_DESCRIPTION = "Film one job that repeats; we send it to robot deployment companies we approve and build a simulation of your site, so they can test it and tell you if they can do it. Free for sites.";
 
 /**
  * The home page's moving example card: what a site sees on its job page once companies answer. Everything on it is
@@ -49,8 +49,7 @@ export const HOME_SEO_DESCRIPTION = "Film one job that repeats; we build a simul
 export const EXAMPLE_TAG = "Example";
 export const EXAMPLE_CARD_NAME = "Example of a job page once deployment companies answer";
 export const exampleSentTo = (count: number) => `Sent to ${count} deployment ${count === 1 ? "company" : "companies"}`;
-export const EXAMPLE_NO_ANSWERS = "No answers yet.";
-export const EXAMPLE_FOOT = "The sites, jobs and answers are made up.";
+export const EXAMPLE_FOOT = "Everything in this example is made up.";
 export const HOW_SEO_DESCRIPTION = "One video of a job that repeats becomes a job packet: your sentence for the job, a first look on paper, a simulation of your site, and what counts as done. Approved deployment companies see it and answer. Free for sites.";
 export const QUESTIONS_SEO_DESCRIPTION = "What Blueprint costs a site, how fast we reply, which jobs fit, what deployment companies see and how they respond, what stays private, and who we are.";
 export const START_SEO_DESCRIPTION = "Start a job with a video of the work, where the job is, and an email. Blueprint turns it into a job packet: a first look at which robots could fit and a simulation of your site. Free for sites.";
