@@ -12,7 +12,7 @@ describe("How it works", () => {
     expect(steps).toHaveLength(4);
     expect(steps[0]).toHaveTextContent(/Your video\s*One job that repeats, filmed on any phone\./);
     expect(steps[1]).toHaveTextContent(/Your job packet\s*Your sentence for the job, a first look on paper, a simulation of your site, and what counts as done\./);
-    expect(steps[2]).toHaveTextContent(/Deployment companies\s*With your permission, companies we approve can see a summary of your job\. We approve each company by hand\. Your video stays private\./);
+    expect(steps[2]).toHaveTextContent(/Deployment companies\s*We share your job, with its video, with deployment companies we approve\. We approve each company by hand\. They answer, and you choose which to meet\./);
     expect(steps[3]).toHaveTextContent(/Early trial\s*Sometimes we also try openly available robot software in the simulation\. It is a trial, not a prediction of any company's robot\./);
     expect(screen.getAllByRole("link", { name: "Start a job" })).toHaveLength(1);
     expect(screen.getByText("Free for sites.")).toBeInTheDocument();

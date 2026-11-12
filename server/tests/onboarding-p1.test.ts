@@ -25,15 +25,15 @@ const { createCaptureUploadToken } = await import("../utils/captureUploadToken")
 const outlookPhase = vi.hoisted(() => ({ value: "result" as string }));
 vi.mock("../utils/jobOutlook", async importOriginal => ({ ...await importOriginal<typeof import("../utils/jobOutlook")>(),
   loadJobOutlookDecision: vi.fn(async () => ({ outlook: { phase: outlookPhase.value, reason: null, sentence: null }, certain: true })) }));
-const router = (await import("../routes/task-listings")).default;
 const publicRouter = (await import("../routes/site-worlds")).default;
 const thumbnail = () => PNG.sync.write({ width: 24, height: 15, data: Buffer.alloc(24 * 15 * 4, 160) }).toString("base64");
 const details = { title: "Move cartons from conveyor to pallet", taskFamily: "Palletizing", region: "US Midwest", siteType: "Warehouse", objects: "Sealed cartons", cycleTarget: "12 seconds", pilotTiming: "October", pilotBudget: "", opportunity: "past" };
 const record = (patch: Record<string, unknown> = {}) => ({
   requestId: "req1", contact: { email: "owner@example.test", firstName: "PRIVATE PERSON" },
   request: { buyerType: "site_operator", taskStatement: "PRIVATE TASK", siteName: "PRIVATE SITE", siteLocation: "PRIVATE ADDRESS", capture_mode: "self_capture", siteTaskGates: { sceneStability: "stable", taskShape: "single", objectVariety: "under_10", deploymentTimeline: "this_quarter", accessWindow: "scheduled" },
-    consent_attestation: { granted: true, statement_version: "2026-09-18.v1", recorded_at_iso: "2026-09-19T00:00:00.000Z" } },
-  public_task_listing: { enabled: true, consentVersion: "public-task-card-v1", approvedAtIso: "2026-09-19T00:00:00.000Z", details },
+    consent_attestation: { granted: true, statement_version: "2026-11-12.v4", recorded_at_iso: "2026-09-19T00:00:00.000Z" } },
+  public_task_listing: { enabled: true, consentVersion: "job-shared-2026-11-12", approvedAtIso: "2026-09-19T00:00:00.000Z", details },
+  capture_privacy_screen: { capture_id: "walkthrough-req1", proceeded: true, eligibility: "eligible", screened_at_iso: "2026-09-19T00:00:00.000Z" },
   site_task_triage: { disposition: "qualified" }, site_task_brief_confirmed_at: "2026-09-19T00:00:00.000Z",
   pipeline: { artifacts: { worldlabs_world_manifest_uri: "gs://private/scene.json" } },
   evaluation_readiness: { runtime_launchable: true, benchmark_coverage_status: "ready" }, ...patch,
@@ -42,28 +42,34 @@ beforeEach(() => { outlookPhase.value = "result"; state.docs.clear(); sendEmail.
 afterEach(() => vi.useRealTimers());
 
 describe("public task disclosure", () => {
-  it("publishes only previewed fields, with no contact, intake, storage or footage", () => {
+  it("publishes only the closed category of the job, with no contact, intake, storage, footage or stored free text", () => {
     const card = projectTaskBrowseCard("req1", record());
-    expect(card).toMatchObject({ title: details.title, opportunity: "past", evaluationAvailable: true, stage: "ready", costUsd: 0 });
-    expect(JSON.stringify(card)).not.toMatch(/PRIVATE|gs:\/\/|email|contact|worldlabs/);
+    // The stored title is free text, so the card shows the neutral category (2026-11-12: never trust stored text).
+    expect(card).toMatchObject({ title: "Work assessment opportunity", opportunity: "open", evaluationAvailable: true, stage: "ready", costUsd: 0 });
+    expect(JSON.stringify(card)).not.toMatch(/PRIVATE|gs:\/\/|email|contact|worldlabs|Move cartons|US Midwest|Warehouse|Sealed cartons/);
   });
-  it("keeps proposed site terms distinct from an exploratory budget", () => {
-    const proposed = { ...details, pilotBudget: "$20,000", pilotPriceStatus: "site_offer", pilotConditions: "Four weeks including setup and support", ongoingTarget: "$5,000 per month" };
-    expect(projectTaskBrowseCard("req1", record({ public_task_listing: {
-      enabled: true, consentVersion: "public-task-card-v1", approvedAtIso: "2026-09-19T00:00:00.000Z", details: proposed,
-    } }))).toMatchObject(proposed);
+  it("rebuilds a shared card from its category and never shows the site's proposed terms or any stored text", () => {
+    const proposed = { ...details, title: "Carton palletizing opportunity", pilotBudget: "$20,000", pilotPriceStatus: "site_offer",
+      pilotConditions: "PLANTED Four weeks including setup and support", ongoingTarget: "$5,000 per month" };
+    const card = projectTaskBrowseCard("req1", record({ public_task_listing: {
+      enabled: true, consentVersion: "job-shared-2026-11-12", approvedAtIso: "2026-09-19T00:00:00.000Z", details: proposed } }));
+    expect(card).toMatchObject({ title: "Carton palletizing opportunity", taskFamily: "Pallet handling", objects: "Cartons",
+      pilotBudget: "", pilotConditions: "", ongoingTarget: "", region: "", siteType: "" });
+    expect(JSON.stringify(card)).not.toMatch(/PLANTED|\$20,000|\$5,000|US Midwest|Warehouse/);
     expect(taskListingSchema.parse({ ...proposed, pilotBudget: "" }).pilotBudget).toBe("");
     expect(taskListingSchema.parse({ ...proposed, pilotBudget: undefined }).pilotBudget).toBe("");
-    expect(approvedTaskDetails(record())).toMatchObject({ pilotBudget: "", opportunity: "past" });
   });
   it.each([
     { public_task_listing: undefined }, { public_task_listing: { enabled: true, details } },
-    { workspace_task: { paused: true } }, { debug: { autoCreatedByPipeline: true } },
+    { workspace_task: { archived: true } }, { debug: { autoCreatedByPipeline: true } },
     { evidence_tier: "development_only" }, { pipeline: { rights_review_status: "blocked" } },
     // Where the Pipeline sync actually reports its rights verdict.
     { evaluation_readiness: { runtime_launchable: true, benchmark_coverage_status: "ready", rights_review_status: "needs_review" } },
     { consent_revoked: true },
-  ])("does not expose unconsented, paused, development or restricted records: %j", patch => {
+    // A card under an older statement, or a video that has not passed the privacy screen (2026-11-12).
+    { public_task_listing: { enabled: true, consentVersion: "public-task-card-v1", approvedAtIso: "2026-09-19T00:00:00.000Z", details } },
+    { capture_privacy_screen: { eligibility: "rejected", proceeded: false } },
+  ])("does not expose unconsented, closed, development or restricted records: %j", patch => {
     expect(projectTaskBrowseCard("req1", record(patch))).toBeNull();
   });
   it("public interest in a pilot cannot make an unproven scene runnable", () => {
@@ -71,16 +77,18 @@ describe("public task disclosure", () => {
     expect(projectTaskBrowseCard("req1", source)).toMatchObject({ stage: "preparing", evaluationAvailable: false, costUsd: null });
     expect(isRunnableTask(source)).toBe(false);
   });
-  it("shows capture progress separately and hides paused historical scenes from paid supply", () => {
-    expect(projectTaskBrowseCard("req1", record({ pipeline: null, evaluation_readiness: null }))).toMatchObject({ stage: "capture", evaluationAvailable: false });
+  it("shows capture progress separately and keeps closed scenes out of paid supply", () => {
+    // A listed job's video has passed the privacy screen (2026-11-12), so it is never still at "capture".
+    expect(projectTaskBrowseCard("req1", record({ pipeline: null, evaluation_readiness: null }))).toMatchObject({ stage: "preparing", evaluationAvailable: false });
+    // A pause no longer hides the job from companies (must-fix 3) but still keeps it out of paid runs, as does a close.
+    expect(isRunnableTask(record({ workspace_task: { archived: true } }))).toBe(false);
     expect(isRunnableTask(record({ workspace_task: { paused: true } }))).toBe(false);
   });
-  it("does not hide an authorized task because a retired privacy screen rejected it", () => {
-    expect(projectTaskBrowseCard("req1", record({
-      capture_privacy_screen: { eligibility: "rejected" },
-    }))).toMatchObject({ id: "req1", stage: "ready" });
+  it("lists a job whose video passed the privacy screen", () => {
+    expect(projectTaskBrowseCard("req1", record())).toMatchObject({ id: "req1", stage: "ready" });
   });
   it("listing reads share the same admission and withdrawal checks", async () => {
+    state.docs.set("siteTaskBriefs/req1", { requestId: "req1", summary: "Move cartons from the conveyor to a pallet" } as never);
     state.docs.set("inboundRequests/req1", record() as never);
     expect(await listTaskBrowseCards()).toHaveLength(1);
     state.docs.set("inboundRequests/req1", record({ public_task_listing: { enabled: false } }) as never);
@@ -120,96 +128,8 @@ describe("timed check-ins are retired", () => {
   });
 });
 
-describe("owner authorization and durable demand", () => {
-  let server: Server; let base: string;
-  beforeEach(async () => {
-    const app = express(); app.use(express.json({ limit: "1mb" })); app.use(router); app.use("/public", publicRouter);
-    server = createServer(app); await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
-    base = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
-    state.docs.set("inboundRequests/req1", record() as never);
-  });
-  afterEach(async () => { await new Promise<void>(resolve => server.close(() => resolve())); });
-  const token = (scope: "owner" | "film") => createCaptureUploadToken({ requestId: "req1", sceneId: "s", captureId: "c", scope });
-  it("rejects film-only grants and unreviewed owner grants; allows an owner to withdraw", async () => {
-    const post = (scope: "owner" | "film", body: unknown) => fetch(`${base}/owner/${token(scope)}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
-    expect((await post("film", { enabled: true, details, consent: true })).status).toBe(403);
-    expect((await post("owner", { enabled: true, details, consent: false })).status).toBe(400);
-    expect((await post("owner", { enabled: false, details, consent: true })).status).toBe(200);
-    expect(await listTaskBrowseCards()).toHaveLength(0);
-  });
-  it("opens a card to evaluations for free and offers no pilot booking", async () => {
-    const post = (body: unknown) => fetch(`${base}/owner/${token("owner")}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
-    const book = (body: unknown) => fetch(`${base}/owner/${token("owner")}/book`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
-    const doc = () => state.docs.get("inboundRequests/req1") as { public_task_listing: Record<string, unknown>; pilot_booking?: unknown };
-    const open = { ...details, opportunity: "open" };
-    // Opening is free: no fee step and no fee record.
-    expect((await post({ enabled: true, details: open, consent: true })).status).toBe(200);
-    expect(doc().public_task_listing).not.toHaveProperty("matchFee");
-    // Booking a recommended pilot is retired, even for a stored recommendation.
-    state.docs.set("inboundRequests/req1", { ...doc(), pilot_recommendation: { id: "rec_1", teamName: "Acme Robotics" } } as never);
-    expect((await book({ recommendationId: "rec_1", authorized: true })).status).toBe(404);
-    expect(doc().pilot_booking).toBeUndefined();
-  });
-  // Review, 2026-11-12: "Your job summary is shared" goes out once, at the first moment the summary is visible, and
-  // never twice (it used to go again when the card was switched off and on).
-  it("emails the site once when its card goes live, and not again when it is switched off and on", async () => {
-    const post = (enabled: boolean) => fetch(`${base}/owner/${token("owner")}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ enabled, details, consent: true }) });
-    const live = () => [...state.docs.keys()].filter(key => key.startsWith("captureOutbox/req1:listing_live:"));
-    state.docs.set("inboundRequests/req1", record({ public_task_listing: undefined }) as never);
-    expect((await post(true)).status).toBe(200);
-    expect(live()).toHaveLength(1);
-    expect((await post(true)).status).toBe(200);
-    expect(live()).toHaveLength(1);
-    await post(false);
-    await new Promise(resolve => setTimeout(resolve, 2));
-    await post(true);
-    expect(live()).toHaveLength(1);
-  });
-  it("queues no automatic new-job email for an open card, even to opted-in approved robot teams", async () => {
-    const { accessRecordId } = await import("../utils/robotTeamEarlyAccess");
-    const { buildUpdatePreferences } = await import("../utils/updatePreferences");
-    const team = (email: string, status: string, optIn = true) => state.docs.set(`robotTeamAccess/${accessRecordId(email)}`, {
-      name: "Ada Lovelace", email, company: "Arm Co", status, newJobAlertsOptIn: optIn,
-      updatePreferences: buildUpdatePreferences({ newsletter: false, newJobAlerts: optIn, interests: {}, declaredCategories: {}, requirements: {} }, "settings"),
-      appliedAtIso: "2026-09-23T00:00:00.000Z", updatedAtIso: "2026-09-23T00:00:00.000Z",
-    } as never);
-    team("ada@arm.example", "approved");
-    team("grace@arm.example", "approved");
-    team("mallory@arm.example", "declined");
-    team("optout@arm.example", "approved", false);
-    team("suppressed@arm.example", "approved");
-    state.docs.set("email_suppressions/suppressed@arm.example", { suppressed_scopes: ["optional_updates"] });
-    state.docs.set("inboundRequests/req1", record({ public_task_listing: undefined }) as never);
-    const alerts = () => [...state.docs.entries()].filter(([key, value]) => key.startsWith("captureOutbox/") && value.kind === "robot_team_new_task" && value.requestId === "req1");
-    const post = () => fetch(`${base}/owner/${token("owner")}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ enabled: true, details: { ...details, opportunity: "open" }, consent: true }) });
-    // The frame of 2026-11-12: the automatic "New site job" email no longer sends to anyone (every approach to an
-    // outside company needs the owner's go-ahead); it used to go to the two opted-in approved teams here.
-    expect((await post()).status).toBe(200);
-    expect(alerts()).toEqual([]);
-    expect((await post()).status).toBe(200);
-    expect(alerts()).toEqual([]);
-  });
-  it("requires photo permission, serves sanitized approved pixels, and revokes access on pause or withdrawal", async () => {
-    const post = (body: unknown) => fetch(`${base}/owner/${token("owner")}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
-    const grant = { enabled: true, consent: true, details, thumbnailPng: thumbnail() };
-    expect((await post(grant)).status).toBe(400);
-    expect((await post({ ...grant, thumbnailConsent: true })).status).toBe(200);
-    const response = await fetch(`${base}/public/tasks/req1/thumbnail`);
-    expect(response.status).toBe(200); expect(response.headers.get("cache-control")).toBe("no-store");
-    expect(response.headers.get("content-type")).toContain("image/png");
-    expect(Buffer.from(await response.arrayBuffer()).toString("base64")).toBe(sanitizeTaskThumbnail(grant.thumbnailPng).pngBase64);
-    expect((await listTaskBrowseCards())[0].thumbnailUrl).toBe("/api/site-worlds/tasks/req1/thumbnail");
-    const saved = state.docs.get("inboundRequests/req1")!;
-    state.docs.set("inboundRequests/req1", { ...saved, workspace_task: { paused: true } });
-    expect((await fetch(`${base}/public/tasks/req1/thumbnail`)).status).toBe(404);
-    state.docs.set("inboundRequests/req1", saved);
-    expect((await post({ ...grant, enabled: false, thumbnailConsent: true })).status).toBe(200);
-    expect((await fetch(`${base}/public/tasks/req1/thumbnail`)).status).toBe(404);
-    expect((await post({ ...grant, thumbnailPng: null })).status).toBe(200);
-    expect(state.docs.has("taskThumbnails/req1")).toBe(false);
-    expect((await listTaskBrowseCards())[0].thumbnailUrl).toBeNull();
-  });
-});
+// The owner's Share settings route (`task-listings.ts`) and its card, thumbnail and "summary is shared" tests were
+// removed with it on 2026-11-12: sharing is the service, agreed once with recording statement v4.
 
 // Add a valid PNG text chunk to prove that re-encoding drops location-like metadata.
 describe("task thumbnail metadata", () => {

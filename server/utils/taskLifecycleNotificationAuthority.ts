@@ -11,7 +11,7 @@ const CAPTURE_DEPENDENT_NOTICES=new Set<OutboxKind>([
  'video_received','scene_ready','scene_tests_started','screening_cleared','screening_started',
  'evaluation_outcome','scene_outcome','robot_access_question','footage_before_account',
  'brief_confirmed','coverage_shortfall','assessment_ready','input_needed','answer_ready','video_too_large',
- 'listing_live','job_sent','company_answered',
+ 'listing_live','job_sent','company_answered','introduction_made_site',
 ]);
 /**
  * The answer emails, by slot (review, 2026-11-11): per job at most one paper-check answer and at most one test
@@ -148,10 +148,26 @@ export async function taskLifecycleNotificationIsCurrent(
  }
  // A company was sent the job, or answered it (package C1): sent only while the summary is visible to companies by the
  // same predicate, and while what the email says still stands (the send not voided, the answer unchanged).
- if(entry.kind==='job_sent'||entry.kind==='company_answered'){
-  const {teamJobAccess}=await import('./teamJobAccess');
-  if(!teamJobAccess(snapshot.data()??null).listed)return false;
-  if(entry.idempotencyKey===undefined)return true;
+ if(entry.kind==='job_sent'||entry.kind==='company_answered'||entry.kind==='introduction_made_site'){
+  // The whole sharing rule, with the facts outside the record (the brief, the preparation state): an operator hold, a rights
+  // hold, the site closing its job or an authority end each stop these emails.
+  const {loadCompanyJobAccess}=await import('./teamJobAccess');
+  if(!(await loadCompanyJobAccess(entry.requestId,snapshot.data()??null,transaction)).access.listed)return false;
+  if(entry.idempotencyKey===undefined)return entry.kind!=='introduction_made_site';
+  // "Meet {company}" (PACKAGE_E E6): only while the introduction is on record.
+  if(entry.kind==='introduction_made_site'){
+   const prefix=`${entry.requestId}:introduction_made_site:`;
+   if(!entry.idempotencyKey.startsWith(prefix))return false;
+   const companyId=entry.idempotencyKey.slice(prefix.length);
+   const introRef=ref.collection('introductions').doc(companyId);
+   if(!(transaction?await transaction.get(introRef):await introRef.get()).exists)return false;
+   // The company must still be an approved deployment company (review must-fix 2): never after a suspension.
+   const {isApprovedDeploymentCompany}=await import('./jobCompanies');
+   const {ROBOT_TEAM_ACCESS_COLLECTION}=await import('./robotTeamEarlyAccess');
+   const companyRef=db.collection(ROBOT_TEAM_ACCESS_COLLECTION).doc(companyId);
+   const company=(transaction?await transaction.get(companyRef):await companyRef.get()).data();
+   return isApprovedDeploymentCompany(company as never);
+  }
   const {companyNoticeStillTrue}=await import('./jobCompanies');
   return companyNoticeStillTrue(entry.requestId,entry.kind,entry.idempotencyKey,snapshot.data()??{},transaction);
  }

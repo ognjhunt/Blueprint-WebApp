@@ -244,9 +244,8 @@ export interface SiteAnswer {
   /** Whether the job card is switched on, as stored (it may still be hidden: see `sharing`). */
   jobCardListed: boolean;
   /**
-   * Where the job's summary stands with deployment companies, decided on the server by the same predicate that decides
-   * what a company can see (`teamJobAccess`): not shared; shared and visible to approved companies; or shared but not
-   * visible right now (the site paused or closed the job, Blueprint stopped showing it to companies, or a rights hold). A site shares on the start form or from its job page.
+   * Where the job stands with deployment companies, decided on the server by the same predicate that decides what a
+   * company can see (`teamJobAccess`). A job is shared when its site accepted recording statement v4 or later.
    */
   sharing: JobSharing;
   /**
@@ -258,16 +257,17 @@ export interface SiteAnswer {
   basisDigest: string;
 }
 
-export type JobSharingState = "not_shared" | "visible" | "not_visible";
+/**
+ * Sharing is the service (2026-11-12): `visible` (approved companies can see the job), `preparing` (shared, waiting for
+ * the video check), `not_visible` (shared, held right now) or `not_shared`.
+ */
+export type JobSharingState = "not_shared" | "preparing" | "visible" | "not_visible";
 export interface JobSharing {
   state: JobSharingState;
+  /** When the site accepted the statement that shares the job. */
   sharedAtIso: string | null;
-  /**
-   * What the shared summary leaves out under the statement the site agreed to (review, 2026-11-12): a site that shared
-   * on the start form agreed to the card without the first look; one that pressed the button under statement v1 or v2
-   * agreed to the first look only, never a later trial result. Absent on answers composed before it existed.
-   */
-  leavesOut?: { firstLook: boolean; trialResult: boolean };
+  /** Not shared, and the site agreed to an older statement: its page offers the current one (recording v4) once. */
+  olderStatement?: boolean;
 }
 
 const isString = (value: unknown): value is string => typeof value === "string";
@@ -282,5 +282,6 @@ export function isSiteAnswer(value: unknown): value is SiteAnswer {
     && isRecord(value.job) && Array.isArray(value.facts) && Array.isArray(value.alsoFit)
     && Array.isArray(value.ruledOut) && Array.isArray(value.unknowns)
     && isRecord(value.confidence) && isRecord(value.nextStep) && isRecord(value.checked)
-    && isRecord(value.sharing) && (value.sharing.state === "not_shared" || value.sharing.state === "visible" || value.sharing.state === "not_visible");
+    && isRecord(value.sharing) && (value.sharing.state === "not_shared" || value.sharing.state === "preparing"
+      || value.sharing.state === "visible" || value.sharing.state === "not_visible");
 }

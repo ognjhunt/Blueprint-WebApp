@@ -1,4 +1,6 @@
-import taskListingsRouter from "./routes/task-listings";
+import companyMediaRouter from "./routes/company-media";
+import jobFactsRouter from "./routes/job-facts";
+import jobOutcomesRouter from "./routes/job-outcomes";
 import robotTeamAccessRouter from "./routes/robot-team-access";
 import accountInvitationsRouter from "./routes/account-invitations";
 import accountDeletionRouter from "./routes/account-deletion";
@@ -154,7 +156,11 @@ export function registerRoutes(app: Express) {
   app.use("/api/internal/human-replies", internalHumanRepliesRouter);
   app.post("/api/paperclip/ops-firestore-relay", paperclipOpsFirestoreRelayHandler);
   app.use("/api/slack", slackEventsRouter);
-  app.use("/api/task-listings", taskListingsRouter);
+  // The job's video for an approved deployment company (package E, E3): a ticket bound to the viewer, re-checked per range.
+  app.use("/api/company-media", companyMediaRouter);
+  // The site's quick answers (CSRF inside the router) and the outcome questions' signed links (the token is the credential).
+  app.use("/api/job-facts", jobFactsRouter);
+  app.use("/api/job-outcomes", jobOutcomesRouter);
   // Robot-team early access: the public application, and the review queue.
   app.use("/api/robot-team-access", csrfProtection, robotTeamAccessRouter);
   app.use("/api/account-invitations", csrfProtection, accountInvitationsRouter);

@@ -2,6 +2,7 @@ import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { buildOutboxEntry, CAPTURE_OUTBOX_COLLECTION, type OutboxStatus } from "./captureOutbox";
 import { rowAwaitsDelivery } from "./captureOutboxRetry";
 import { EMAIL_SIGN_OFF, emailGreeting } from "./emailLayout";
+import { appendCommercialEmailFooter } from "./email-suppression";
 import { robotTeamAccountInvitation } from "./accountInvitations";
 import type { RobotTeamAccessRecord } from "./robotTeamEarlyAccess";
 
@@ -64,7 +65,7 @@ export function accessApprovedEmail(record: RobotTeamAccessRecord) {
       "This invitation is bound to your approved email and expires in seven days. If it expires, ask for a new link at:",
       `${base}/contact/robot-team`,
       "",
-      `Once you are signed in, the job library at ${base}/contact/robot-team shows summaries of the site jobs shared with approved companies. For each one you can tell us you are interested or that it is not a fit.`,
+      `Once you are signed in, the job library at ${base}/contact/robot-team shows the jobs sites share with approved companies. Open a job to see what the site filmed and what we have found so far, and answer: interested, not a fit, or would need something.`,
       "",
       ...(invited ? [] : [
         call
@@ -192,25 +193,49 @@ export async function prepareAccessEmail(transaction: FirebaseFirestore.Transact
     write: () => { transaction.create(ref, entry); } };
 }
 
-type ListedCard = { title: string; taskFamily?: string; siteType?: string; region?: string };
+/** The new-job email's fixed words (package E, E4). Nothing about the site: no name, place, contact or sentence. */
+export const NEW_JOB_EMAIL_SUBJECT = "New job on Blueprint";
+export const NEW_JOB_EMAIL_BODY = "A site has filmed a job and is looking for a deployment company. Watch the video and answer in a minute: "
+  + "interested, not a fit, or would need something.";
+const NEW_JOB_ALERTS_LINE = "You chose relevant new-job alerts. Change your preferences in Settings or unsubscribe below.";
 
-/** The alert an approved team gets when a site lists a task. Card text only. */
-export function newTaskEmail(record: Pick<RobotTeamAccessRecord, "name">, card: ListedCard) {
-  const facts = [card.taskFamily, card.siteType, card.region].map((value) => String(value || "").trim()).filter(Boolean);
+/** The email an approved deployment company that asked for job emails gets when a job is shared: the job's link only. */
+export function newJobEmail(params: { to: string; jobUrl: string }) {
   return {
-    subject: `New site job on Blueprint: ${card.title}`,
+    subject: NEW_JOB_EMAIL_SUBJECT,
+    body: appendCommercialEmailFooter({ text: [NEW_JOB_EMAIL_BODY, "", params.jobUrl, "", NEW_JOB_ALERTS_LINE].join("\n"),
+      email: params.to, scope: "optional_updates" }),
+  };
+}
+
+/** The site's details as the introduction gives them to the one company the site chose (E6). */
+export interface IntroductionSiteDetails { name: string; contactName: string | null; email: string; phone: string | null; location: string | null }
+
+/** The email to the company when a site asks for an introduction (E6): the site's details and the job link. */
+export function introductionCompanyEmail(params: { site: IntroductionSiteDetails; jobUrl: string; contactName?: string | null;
+  /** The company's stored answer the introduction followed, worded by its fixed label. */
+  answerLabel: string }) {
+  const { site } = params;
+  // The typed location is said once: a workspace job may store it as the site's name too.
+  const location = site.location && site.location !== site.name ? site.location : null;
+  return {
+    subject: "A site wants to talk about its job",
     body: [
-      emailGreeting(firstName(record.name)),
+      emailGreeting(params.contactName ? firstName(params.contactName) : null),
       "",
-      `A site just shared a new job: ${card.title}${facts.length ? ` (${facts.join(", ")})` : ""}.`,
+      `You answered ${params.answerLabel} to a job on Blueprint, and the site has asked for an introduction. Here are its details:`,
       "",
-      "See the card and start an evaluation run from the job library:",
-      `${APP_URL()}/contact/robot-team`,
+      `Site: ${site.name}`,
+      ...(site.contactName ? [`Contact: ${site.contactName}`] : []),
+      `Email: ${site.email}`,
+      ...(site.phone ? [`Phone: ${site.phone}`] : []),
+      ...(location ? [`Where it is: ${location}`] : []),
       "",
-      "You chose relevant new-job alerts. Change your preferences in Settings or unsubscribe below.",
+      `The job: ${params.jobUrl}`,
+      "",
+      "We have given the site your company's name and your contact details. Reply to them directly.",
       "",
       EMAIL_SIGN_OFF,
     ].join("\n"),
   };
 }
-

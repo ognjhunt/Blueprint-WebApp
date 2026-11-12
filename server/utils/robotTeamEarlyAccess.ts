@@ -15,7 +15,8 @@
  * application stays approved. Approvals given before this binding existed are
  * bound to the account's teams the first time they are used.
  *
- * Opening up later is one switch: `BLUEPRINT_ROBOT_TEAM_EARLY_ACCESS=0`.
+ * `BLUEPRINT_ROBOT_TEAM_EARLY_ACCESS` no longer opens anything: since jobs are shared in full (2026-11-12), the
+ * library, a job's page and its media need a signed-in, verified, approved account whatever the setting says.
  */
 import { createHash } from "node:crypto";
 
@@ -435,7 +436,9 @@ export async function resolveViewerAccess(viewer: ViewerIdentity): Promise<Libra
   const signedIn = Boolean(viewer);
   const emailVerified = Boolean(viewer?.emailVerified);
   const staff = Boolean(viewer?.isOps);
-  if (!gated || staff) return { gated, status: "approved", signedIn, emailVerified, allowed: true, staff };
+  if (staff) return { gated, status: "approved", signedIn, emailVerified, allowed: true, staff };
+  // Jobs are shared in full with approved deployment companies (2026-11-12), so the open value of
+  // BLUEPRINT_ROBOT_TEAM_EARLY_ACCESS never admits anyone: every viewer must be signed in, verified and approved.
   if (!viewer) return { gated, status: "none", signedIn, emailVerified, allowed: false, staff };
 
   let record: RobotTeamAccessRecord | null = null;
@@ -446,7 +449,8 @@ export async function resolveViewerAccess(viewer: ViewerIdentity): Promise<Libra
   }
   const status = record?.status ?? "none";
   let allowed = false;
-  if (status === "approved" && emailVerified && viewer.uid && viewer.email) {
+  // Jobs are shared with approved DEPLOYMENT companies (the v4 statement): a technology partner sees no site job.
+  if (status === "approved" && record?.partnerRole !== "technology" && emailVerified && viewer.uid && viewer.email) {
     try {
       allowed = Boolean(await ensureApprovedTeamForAccount({ uid: viewer.uid, email: viewer.email, verified: true }));
     } catch (error) {
@@ -461,7 +465,7 @@ export async function resolveViewerAccess(viewer: ViewerIdentity): Promise<Libra
  * stands. The contact email a team typed at registration proves nothing.
  */
 export async function teamHasEarlyAccess(teamId: string): Promise<boolean> {
-  if (!isRobotTeamEarlyAccessGated()) return true;
+  // The open value of the switch admits nobody (2026-11-12): the team's own approval decides.
   try {
     const team = await getRobotTeam(teamId);
     if (!team) return false;

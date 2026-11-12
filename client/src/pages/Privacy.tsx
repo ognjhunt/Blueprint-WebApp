@@ -5,66 +5,71 @@ import { CurrentLegalVersionNote } from "@/components/site/LegalVersionNotes";
 import { COMPANY } from "@/data/company";
 import { PRIVACY_VERSION, legalEffectiveDate } from "@/lib/legalAcceptance";
 
+/**
+ * The sharing promises (owner, 2026-11-12), written out here so this page's digest pins its own words. They match the
+ * Terms word for word (`client/tests/pages/privacy-promise-consistency.test.ts`).
+ */
+export const SHARING_SENTENCE = "Starting a job means we share it with robot deployment companies we've approved, so they can judge it without a visit. We share your description of the job, your video without its sound, the simulation we build from it, what counts as the job done, our first look at which robots fit, and the result of any early trial we run.";
+export const CONTACT_DETAILS_SENTENCE = "We do not share your name, your street address or your contact details with a deployment company unless you ask for an introduction to it.";
+export const COMPANY_USE_SENTENCE = "A deployment company may use your job only to decide whether it can do it. It may not pass it on, use it to train software, or keep it after we ask it to delete it.";
+export const WITHDRAWAL_SENTENCE = "You can withdraw your job at any time. It then leaves every company's view at once, and we ask any company that saved a copy to delete it. We cannot take back a copy a company has already saved.";
+export const OLDER_JOB_SENTENCE = "A job started before 12 November 2026 is not shown to companies unless you accept the current statement on its page.";
+export const COMPANY_ALIAS_SENTENCE = "A site sees your answer under an alias. It sees your company's name and your contact details only when it asks for an introduction after you answered Interested or Tested it: can do.";
+
 export const privacyPolicySections = [
   {
     title: "What we collect",
     body:
-      "What you give us: your name, work email, company, role and phone number; the site and job you describe; your answers to the job brief; account details; and messages you send us. If a site and a robot team agree to share a physical pilot's outcomes with Blueprint, we may also receive its scope, milestones and operating measurements under those permissions. Robot teams also give us details of their robots and policies, and the endpoints or container images we run. Blueprint takes no payments during the beta; Stripe holds the records of payments made before it. What we collect automatically: your IP address, browser and device type, pages you visit, and errors the site runs into.",
+      "What you give us: your name, work email, company, role and phone number; the site and job you describe; your answers to the job brief; account details; and messages you send us. If a site and a deployment company agree to share a physical pilot's outcomes with Blueprint, we may also receive its scope, milestones and operating measurements under those permissions. Deployment companies give us their company's name, a contact name, email and website, and their answers about jobs. Blueprint takes no payments during the beta; Stripe holds the records of payments made before it. What we collect automatically: your IP address, browser and device type, pages you visit, and errors the site runs into.",
     icon: SquareStack,
   },
   {
     title: "Site footage",
     body:
-      "When a site films its job, we receive the video and photos, when and where they were taken, and the phone's motion and depth data where available. A phone video can show people and can include sound, such as conversations nearby. We keep the original upload as received, including any sound, for the uses and retention periods in this policy. We remove the sound before any automated review of the footage and before sending it to an AI or 3D-processing provider, and we do not analyze speech. We and our listed processing providers use the footage to draft the job brief, review the job, rebuild the work area as a simulated scene, and run the evaluations the site allows. We do not remove people from job footage. We blur faces in the frames we send to World Labs to rebuild the work area; the other listed providers receive the footage, with its sound removed, or frames from it as recorded, which can show people, including hands or arms performing the job. We ask sites to avoid screens and paperwork and may blur or remove those details when practical.",
+      `When a site films its job, we receive the video and photos, when and where they were taken, and the phone's motion and depth data where available. A phone video can show people and can include sound, such as conversations nearby. We keep the original upload as received, including any sound, for the uses and retention periods in this policy. We remove the sound before any automated review of the footage, before sending it to an AI or 3D-processing provider, and before a deployment company sees it, and we do not analyze speech. We and our listed processing providers use the footage to draft the job brief, review the job, rebuild the work area as a simulated scene, and run our early trial. ${SHARING_SENTENCE} We do not remove people from job footage. We blur faces in the frames we send to World Labs to rebuild the work area; the other listed providers receive the footage, with its sound removed, or frames from it as recorded, which can show people, including hands or arms performing the job. Companies see your video as you filmed it, without its sound. We ask sites to avoid screens and paperwork.`,
     icon: Waypoints,
   },
   {
     title: "How we use it",
     body:
-      "To run the Service: to reply to you, set up your job or account, draft the job brief, rebuild scenes, run robot teams' evaluations, recommend a pilot, record physical-pilot outcomes only under the parties' agreed permissions, send the emails you need (such as a job update or an evaluation result), keep the Service secure and prevent fraud, understand how the site is used so we can improve it, and meet our legal obligations. We do not sell personal information, and we do not use your footage to train AI models without your written agreement. The only use that California law could treat as sharing for cross-context behavioral advertising is the optional marketing cookies described below, which are off unless you turn them on.",
+      "To run the Service: to reply to you, set up your job or account, draft the job brief, rebuild scenes, run our early trial, share each job with the deployment companies we approve, make the introductions a site asks for, record physical-pilot outcomes only under the parties' agreed permissions, send the emails you need (such as a job update or a company's answer), keep the Service secure and prevent fraud, understand how the site is used so we can improve it, and meet our legal obligations. We do not sell personal information, and we do not use your footage to train AI models without your written agreement. The only use that California law could treat as sharing for cross-context behavioral advertising is the optional marketing cookies described below, which are off unless you turn them on.",
     icon: Shield,
   },
   {
     title: "Your choices",
     body:
-      "Depending on where you live, you can ask to access, correct, delete or get a copy of your personal information, object to or restrict how we use it, and withdraw consent you gave, including consent to use your footage. You can also change your cookie choices at any time, and we treat a Global Privacy Control signal from your browser as a choice to keep analytics and marketing cookies off.",
+      `Depending on where you live, you can ask to access, correct, delete or get a copy of your personal information, object to or restrict how we use it, and withdraw consent you gave, including consent to use your footage. ${WITHDRAWAL_SENTENCE} You can also change your cookie choices at any time, and we treat a Global Privacy Control signal from your browser as a choice to keep analytics and marketing cookies off.`,
     icon: SlidersHorizontal,
   },
 ] as const;
 
 export const capturePrivacyAnnex = [
-  // Site-facing copy states this as an absolute: "Robot teams never receive
-  // your recording." This row used to make it conditional ("buyer visibility
-  // depends on listing rights and privacy state"), which meant the document a
-  // site reads before consenting disagreed with what it reads before starting
-  // a job. The absolute is the true one, so the conditional goes.
-  ["Raw walkthrough media", "Your recording is used inside Blueprint to draft the job brief, review the job and rebuild the work area. It is never delivered to a robot team or anyone else outside Blueprint and its listed processing providers. No listing right, order form or other agreement gives access to the recording itself."],
-  // Stated because "they never get the recording" is necessary and not
-  // sufficient: a policy served through an endpoint has to be sent something to
-  // look at, and what it is sent is derived from the site.
-  ["What a robot team's policy is sent", "Images rendered from the reconstructed scene, never the walkthrough. Those images can still show layout, equipment and stock, so they are kept and shared on the same terms as the scene, and they are not licensed for training unless a written agreement says so."],
-  ["People in job footage", "We do not remove people from job footage. We blur faces in the frames we send to World Labs to rebuild the work area; otherwise Blueprint and the listed processing providers process the footage, with its sound removed, and frames from it as recorded, for job review, scene preparation and evaluation. You must have authority to submit the footage, tell people in the work area that you are recording and sharing the video with Blueprint, and obtain any permission the law requires from people who can be seen or heard."],
-  ["Sound", "Phone videos can record sound, including conversations; Blueprint's browser recorder films without it. We keep an uploaded original as received, remove the sound before any automated review or before sending footage to an AI or 3D-processing provider, and do not analyze speech. Avoid filming conversations, and turn sound off where your camera allows."],
-  ["Screens and paperwork", "Avoided when filming where practical, and blurred or removed when practical before a robot team sees anything derived from the site."],
-  ["Location", "Used to tie a result to the right site, and to keep restricted areas you mark out of the scene."],
-  ["Robot team sharing", "Robot teams approved for beta can see the anonymized job card authorized when you start the job, until you hide it; a job started without a card stays unlisted. Robot teams also see their own results. The scene, what their policy is sent and the results are shared only as your listing or a written agreement allows. The raw walkthrough is outside the scope of all of them."],
-  ["Physical pilot records", "If the site and the robot team agree to share pilot outcomes with Blueprint, those permissions set what operating records we receive, who may see them, and the permitted uses. A simulation result does not become a physical result without actual trial evidence."],
+  // Sharing is the service (owner, 2026-11-12): the video goes, without its sound, to the deployment companies Blueprint
+  // approves, only so they can judge the job. Name, address and contacts go only through an introduction the site asks for.
+  ["Your video", `Your recording is used inside Blueprint to draft the job brief, review the job and rebuild the work area. It is shared, without its sound, only with the robot deployment companies we approve, and only so they can judge the job. ${COMPANY_USE_SENTENCE}`],
+  ["People in job footage", "We do not remove people from job footage. We blur faces in the frames we send to World Labs to rebuild the work area; otherwise Blueprint and the listed processing providers process the footage, with its sound removed, and frames from it as recorded, for job review and building the simulation. Companies see your video as you filmed it, without its sound. You must have authority to submit the footage, tell people in the work area that you are recording and sharing the video with Blueprint and with the robot deployment companies we approve, and obtain any permission the law requires from people who can be seen or heard."],
+  ["Sound", "Phone videos can record sound, including conversations; Blueprint's browser recorder films without it. We keep an uploaded original as received, remove the sound before any automated review, before sending footage to an AI or 3D-processing provider and before a deployment company sees it, and do not analyze speech. Avoid filming conversations, and turn sound off where your camera allows."],
+  ["Screens and paperwork", "Avoid them when filming where practical: companies see your video as you filmed it."],
+  ["Location", "Used to tie a result to the right site, and to keep restricted areas you mark out of the scene. A deployment company sees the country of the job, not the address you typed."],
+  ["Deployment companies", `${SHARING_SENTENCE} ${CONTACT_DETAILS_SENTENCE} ${OLDER_JOB_SENTENCE}`],
+  ["Withdrawal", WITHDRAWAL_SENTENCE],
+  ["Physical pilot records", "If the site and the deployment company agree to share pilot outcomes with Blueprint, those permissions set what operating records we receive, who may see them, and the permitted uses. A simulation result does not become a physical result without actual trial evidence."],
 ];
 
 export const rolePrivacyAnnex = [
   {
-    title: "Robot teams",
-    body: "Your account holds your team's details, the robots and policies you register, the evaluations you are invited to and their results, and your API keys. Evaluation results on a site's job are shared with that site under your team alias, and a passed evaluation can lead to Blueprint recommending your team; your policy itself stays private. Results and records from before the free beta keep their original sharing restrictions.",
+    title: "Deployment companies",
+    body: `Your account holds your company's name, the contact details you give us and your answers about jobs. ${COMPANY_ALIAS_SENTENCE} When a site asks for an introduction, we give you the site's name and contact details. Results and records from before the free beta keep their original sharing restrictions.`,
   },
   {
     title: "Sites",
-    body: "Your job holds your contact details, the site's address, the job brief, your footage, the areas you mark as restricted, and whether robot teams can see a card for the job.",
+    body: "Your job holds your contact details, the site's address, the job brief, your footage, the areas you mark as restricted, the answers deployment companies gave and the introductions you asked for.",
   },
 ];
 
 /** What starts the retention clock for a job's records. */
 export const jobClosedDefinition =
-  "A job closes on the earliest of: the site owner asking us to close or delete the job; the site owner withdrawing permission to use the recording (for the footage, from that moment); or 12 months passing with no activity on the job from the site, a robot team or Blueprint. Hiding the job card from robot teams stops new evaluations but does not by itself close the job.";
+  "A job closes on the earliest of: the site owner asking us to close or delete the job; the site owner withdrawing permission to use the recording (for the footage, from that moment); or 12 months passing with no activity on the job from the site, a deployment company or Blueprint.";
 
 /**
  * The one retention schedule. It replaced a second, vaguer list that sat above
@@ -89,7 +94,7 @@ export const betaRetentionSchedule = [
   {
     record: "Scenes, evaluation results, pilot records and reports",
     defaultWindow: "365 days after the job closes or the contract ends",
-    notes: "The rebuilt scene, the images robot policies were sent, evaluation results, recommendations, booking records and reports. Physical pilot measurements are included only under a separate agreement, which may set a different retention period and permitted use.",
+    notes: "The rebuilt scene, early trial results, the answers deployment companies gave, introductions and reports. Physical pilot measurements are included only under a separate agreement, which may set a different retention period and permitted use.",
   },
   {
     record: "Account and contact details",
@@ -188,12 +193,12 @@ export const betaResidencyTransferRows = [
   {
     label: "Where we operate",
     detail:
-      "Blueprint's beta serves sites and robot teams in the United States, and our providers process data mainly in the United States.",
+      "Blueprint's beta serves sites and deployment companies in the United States, and our providers process data mainly in the United States.",
   },
   {
     label: "Outside the United States",
     detail:
-      "If you contact us from outside the United States, your information is transferred to and processed in the United States. We work with a site or team outside the United States only under signed transfer terms, such as standard contractual clauses.",
+      "If you contact us from outside the United States, your information is transferred to and processed in the United States. We work with a site or company outside the United States only under signed transfer terms, such as standard contractual clauses.",
   },
   {
     label: "Provider limits",
@@ -211,8 +216,8 @@ export default function Privacy() {
       <CurrentLegalVersionNote document="privacy" />
       <p>
         This policy explains how {COMPANY.legalName} (&ldquo;Blueprint&rdquo;, &ldquo;we&rdquo;), {COMPANY.mailingAddress},
-        handles personal information on tryblueprint.io, in the private job links we send, in Blueprint accounts
-        and through our API. Blueprint is responsible for that information.
+        handles personal information on tryblueprint.io, in the private job links we send and in Blueprint accounts.
+        Blueprint is responsible for that information.
       </p>
       {privacyPolicySections.map((section) => <section key={section.title}><h2>{section.title}</h2><p>{section.body}</p></section>)}
 
@@ -251,10 +256,12 @@ export default function Privacy() {
       <section>
         <h2>Who we share it with</h2>
         <p>
-          We share personal information with the providers below, only for the function listed and under contract. A
-          site sees an alias for each robot team and its results, and the name of the team Blueprint recommends; robot
-          teams approved for beta see the anonymized job card authorized when the site starts a job, until the site
-          hides it.
+          We share personal information with the providers below, only for the function listed and under contract.
+          We also share each job with the robot deployment companies we approve. They receive it as the job&rsquo;s
+          recipients, not as our providers: the site&rsquo;s description of the job, its video without its sound, the
+          simulation, what counts as the job done, our first look and any early trial result, only so they can judge
+          the job. A site&rsquo;s name and contact details go to a company only when the site asks for an introduction
+          to it, and the site then receives the company&rsquo;s name and contact details.
           We may also disclose information when the law requires it, to protect people&rsquo;s safety or our rights, or
           as part of a merger or sale of the business, in which case this policy continues to apply to it.
         </p>
@@ -289,7 +296,7 @@ export default function Privacy() {
         <p>
           To request deletion of your account and personal data, open <a href="/settings?privacy=1">account deletion in Settings</a>.
           You can view your request reference and status there. Submitting the request starts our review; it does not mean
-          your account is already closed or every copy is erased. We review shared site and team records, provider copies,
+          your account is already closed or every copy is erased. We review site and company records, provider copies,
           backups and any required retention before confirming the outcome. You can also email us, including if you cannot sign in.
         </p>
         {privacyRightsRequestSteps.map((step) => <p key={step}>{step}</p>)}

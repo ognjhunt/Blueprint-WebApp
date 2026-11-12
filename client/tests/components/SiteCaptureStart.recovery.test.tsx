@@ -110,7 +110,7 @@ it("RETURN-002b: a saved submission recorded under other statements is not resen
   view.unmount();
   // The saved submission was made under the long form (2026-10-06.v1); the form now shows the one-line consent (the
   // shipped default since 2026-11-11), so that body is not what the person would agree to now.
-  const swap = (body: string) => body.replace('"2026-11-11.v3"', '"2026-10-06.v1"');
+  const swap = (body: string) => body.replace('"2026-11-12.v5"', '"2026-10-06.v1"');
   for (const [key, row] of durability.rows) if (row.value?.pending) durability.rows.set(key, { ...row, value: { ...row.value,
     pending: { ...row.value.pending, body: swap(row.value.pending.body) } } });
   for (const key of Object.keys(localStorage)) {
@@ -129,10 +129,13 @@ it("RETURN-002c: knows which statements a saved submission must carry, in both s
   expect(pendingStatementsCurrent(body("2026-10-06.v1", null), false)).toBe(true);
   expect(pendingStatementsCurrent(body("2026-11-11.v3", null), false)).toBe(false);
   expect(pendingStatementsCurrent(body("2026-10-06.v1", "2026-11-02.v2"), false)).toBe(true);
-  // Switch on: the one-line consent's versions, by whether a video is sent.
-  expect(pendingStatementsCurrent(body("2026-11-11.v3", null), true)).toBe(true);
+  // Switch on: the one-line consent's versions, by whether a video is sent (2026-11-12: v4 with a video, v5 without).
+  expect(pendingStatementsCurrent(body("2026-11-12.v5", null), true)).toBe(true);
+  expect(pendingStatementsCurrent(body("2026-11-12.v4", "2026-11-12.v4"), true)).toBe(true);
+  // A body saved under the 2026-11-11 line, before sharing was the service, is asked to be pressed again.
+  expect(pendingStatementsCurrent(body("2026-11-11.v3", null), true)).toBe(false);
+  expect(pendingStatementsCurrent(body("2026-11-11.v2", "2026-11-11.v3"), true)).toBe(false);
   expect(pendingStatementsCurrent(body("2026-10-06.v1", null), true)).toBe(false);
-  expect(pendingStatementsCurrent(body("2026-11-11.v2", "2026-11-02.v2"), true)).toBe(false);
   expect(pendingStatementsCurrent("not json", true)).toBe(false);
 });
 it("RETURN-003: account changes discard mounted anonymous fields and retry authority", async () => {
@@ -167,7 +170,7 @@ it("RETURN-004b: an acknowledged job saved under statements the form no longer s
   await screen.findByRole("heading", { name: "Now film the job." });
   view.unmount();
   // Accepted while the long form was shown (2026-10-06.v1): the server already has this job.
-  const swap = (body: string) => body.replace('"2026-11-11.v3"', '"2026-10-06.v1"');
+  const swap = (body: string) => body.replace('"2026-11-12.v5"', '"2026-10-06.v1"');
   let swapped = 0;
   for (const [key, row] of durability.rows) if (row.value?.pending?.acknowledged) { swapped++; durability.rows.set(key, { ...row, value: { ...row.value,
     pending: { ...row.value.pending, body: swap(row.value.pending.body) } } }); }

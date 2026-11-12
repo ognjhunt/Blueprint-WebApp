@@ -111,6 +111,13 @@ export async function recordWebsiteCaptureWithdrawal(params: {
   // reason the withdrawal fails. The stored scene preview reference goes with the deletion worker's pass.
   await forgetPracticeRunVideos(params.requestId).catch(() => undefined);
   await forgetWebsiteScenePreviews(params.requestId).catch(() => undefined);
+  // The Pipeline takes its company copies back within a minute rather than at its next read. Best effort, not awaited.
+  if (recorded.created) {
+    try {
+      const { recheckCaptureInBackground } = await import("./pipelineCompanyRecheck");
+      recheckCaptureInBackground(params.requestId, String(recorded.withdrawal.captureId ?? `walkthrough-${params.requestId}`));
+    } catch { /* never a reason the withdrawal fails */ }
+  }
   return recorded;
 }
 

@@ -8,7 +8,6 @@ import nodeFetch from "node-fetch";
 import { createServer } from "node:http";
 import { sharedFakeFirestore as store, sharedFakeFirestoreState as state } from "../../../server/tests/helpers/fake-firestore";
 import { TaskBriefReview } from "@/components/site/TaskBriefReview";
-import { PublicTaskListing } from "@/components/site/PublicTaskListing";
 import { SiteAdvisoryReport } from "@/components/site/SiteAdvisoryReport";
 
 vi.mock("@/lib/csrf", () => ({ withCsrfHeader: async (headers: Record<string, string>) => headers }));
@@ -32,8 +31,7 @@ vi.mock("../../../server/utils/siteAssessmentPublic", async original => {
   return { ...module, loadCurrentSiteAdvisory: vi.fn(async () => view.customerAdvisory),
     loadCurrentSiteAssessmentView: vi.fn(async () => view) };
 });
-// Sharing follows the job's outlook (review, 2026-11-11). This journey first sees the refusal for a job with no answer,
-// then gives the job an answer, as a recorded ending would, and publishes.
+// The job's outlook can be set by a test (kept from the earlier share step; sharing no longer waits for it).
 const outlookOverride = vi.hoisted(() => ({ phase: null as null | string }));
 vi.mock("../../../server/utils/jobOutlook", async original => {
   const module = await original<typeof import("../../../server/utils/jobOutlook")>();
@@ -42,7 +40,7 @@ vi.mock("../../../server/utils/jobOutlook", async original => {
     : module.loadJobOutlookDecision(requestId)) };
 });
 const briefRouter = (await import("../../../server/routes/site-task-brief")).default;
-const listingRouter = (await import("../../../server/routes/task-listings")).default;
+const { buildJobSharedListing } = await import("../../../server/utils/jobSharedListing");
 const teamRouter = (await import("../../../server/routes/site-worlds")).default;
 const adminRouter = (await import("../../../server/routes/admin-robot-teams")).default;
 const { draftBrief, saveBrief, confirmBrief } = await import("../../../server/utils/siteTaskBrief");
@@ -50,7 +48,7 @@ const { createCaptureUploadToken } = await import("../../../server/utils/capture
 const { accessRecordId } = await import("../../../server/utils/robotTeamEarlyAccess");
 afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
-it("joins the existing job, bounded review, team interest and Blueprint's reviewed decision", async () => {
+it("joins the existing job, bounded review, sharing under v4 and Blueprint's reviewed decision", async () => {
   state.docs.clear();
   state.docs.set("inboundRequests/req-1", { requestId: "req-1", contact: { firstName: "Dana", email: "owner@example.test" },
     request: { buyerType: "site_operator", capture_mode: "self_capture", taskStatement: "Move cartons onto a pallet" },
@@ -60,7 +58,7 @@ it("joins the existing job, bounded review, team interest and Blueprint's review
     { fieldId: "sceneStability", value: "stable", basis: "observation", reading: "Station position in this clip only", atSeconds: 2, confidence: 0.9 },
   ] });
   await saveBrief(initial);
-  const app = express(); app.use(express.json()); app.use("/api/site-task-brief", briefRouter); app.use("/api/task-listings", listingRouter); app.use("/api/admin/robot-teams", adminRouter); app.use("/api/site-worlds", teamRouter);
+  const app = express(); app.use(express.json()); app.use("/api/site-task-brief", briefRouter); app.use("/api/admin/robot-teams", adminRouter); app.use("/api/site-worlds", teamRouter);
   const server = createServer(app); await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
   const base = `http://127.0.0.1:${(server.address() as { port: number }).port}`, originalFetch = nodeFetch as unknown as typeof globalThis.fetch;
   const token = createCaptureUploadToken({ requestId: "req-1", captureId: "walkthrough-req-1", sceneId: "site-req-1", scope: "owner" });
@@ -85,24 +83,12 @@ it("joins the existing job, bounded review, team interest and Blueprint's review
     const clarification = await (await request(`/api/site-task-brief/${token}/clarification`)).json();
     expect(clarification.questions.join(" ")).toMatch(/robot evaluation/);
     review.unmount();
-    const listing = render(<PublicTaskListing token={token} />);
-    const title = await screen.findByLabelText(/describe the job/i);
-    expect(title).toHaveValue("Move cartons onto a pallet");
-    fireEvent.change(title, { target: { value: "Public customer-edited job title" } });
-    fireEvent.click(screen.getByRole("button", { name: /save private draft/i }));
-    await screen.findByText(/your card is hidden/i);
-    expect(job().public_task_listing.enabled).toBe(false);
-    fireEvent.change(screen.getByLabelText(/pilot availability/i), { target: { value: "open" } });
-    fireEvent.click(screen.getByLabelText(/show this card/i));
-    expect(screen.getByLabelText(/authorized to make them public/i)).toBeRequired();
-    fireEvent.click(screen.getByLabelText(/authorized to make them public/i));
-    fireEvent.click(screen.getByRole("button", { name: /publish reviewed card/i }));
-    // No answer yet (the video has not been read): publishing waits, and the card stays hidden.
-    expect(await screen.findByRole("alert")).toHaveTextContent("You can share your job once its job packet is ready.");
-    expect(job().public_task_listing.enabled).toBe(false);
-    outlookOverride.phase = "no_test";
-    fireEvent.click(screen.getByRole("button", { name: /publish reviewed card/i }));
-    await screen.findByText(/Public card saved/i); listing.unmount();
+    // Sharing is the service (2026-11-12): no Share settings. The site agrees to recording statement v4, which writes the
+    // listing record, and the job is in front of approved companies once its video has passed the privacy check.
+    state.docs.set("inboundRequests/req-1", { ...job(), request: { ...job().request,
+      consent_attestation: { granted: true, statement_version: "2026-11-12.v4", recorded_at_iso: "2026-11-12T10:00:00.000Z" } },
+      public_task_listing: buildJobSharedListing({ taskStatement: "Move cartons onto a pallet", atIso: "2026-11-12T10:00:00.000Z" }),
+      capture_privacy_screen: { proceeded: true, eligibility: "eligible" } });
     const draft = await (await request("/api/admin/robot-teams/recommendations/req-1")).json();
     expect(draft.assessment, JSON.stringify(draft)).toBeTruthy();
     expect(draft.assessment).not.toHaveProperty("decisionEvidence");
@@ -119,19 +105,10 @@ it("joins the existing job, bounded review, team interest and Blueprint's review
     expect((await request("/api/admin/robot-teams/recommendations/req-1/decision", decision)).status).toBe(200);
     expect(job().customer_decision).toMatchObject({ recommendation: decision.recommendation, nextAction: decision.nextAction });
     expect((await (await request("/api/admin/robot-teams/recommendations/req-1")).json()).decision).toMatchObject({ recommendation: decision.recommendation });
-    const teamResponse = (body: unknown) => originalFetch(`${base}/api/site-worlds/tasks/req-1/interest`, { method: "POST", headers: { "content-type": "application/json", "x-csrf-token": "fixture-csrf", cookie: "csrf_token=fixture-csrf", authorization: "Bearer fixture" }, body: JSON.stringify(body) });
-    const interest = { state: "interested", inputs: "Simulated provider can scope this carton transfer" };
-    participant.email = "unadmitted@example.test";
-    expect((await teamResponse(interest)).status).toBe(403);
-    participant.email = "team@example.test";
-    // A team can no longer commit to a recommended pilot; the old state is refused.
-    expect((await teamResponse({ ...interest, state: "committed" })).status).toBe(400);
-    expect((await teamResponse(interest)).status).toBe(200);
-    expect((await teamResponse(interest)).status).toBe(200);
-    expect([...state.docs.keys()].filter(key => key.startsWith("inboundRequests/req-1/robotTeamInterest/"))).toHaveLength(1);
-    // Material corrections retain the public customer edits, deliberately pausing the card.
+    // A company's answer on the shared job is the company side's route, tested with it (`server/tests/job-company-sends.test.ts`).
+    // A correction of the brief does not hide a shared job (there is no pause any more).
     await confirmBrief({ requestId: "req-1", confirmedBy: "Dana", successCriteria: { successDefinition: "Carton reaches pallet intact", successRate: 98, cycleTimeSeconds: 20, unknown: false } });
-    expect(job().public_task_listing).toMatchObject({ enabled: false, reviewRequired: true, details: { title: "Public customer-edited job title" } });
+    expect(job().public_task_listing).toMatchObject({ enabled: true, consentVersion: "job-shared-2026-11-12" });
     expect(job().pilot_booking).toBeUndefined();
     expect(state.docs.has("inboundRequests/req-2")).toBe(false);
   } finally { await new Promise<void>(resolve => server.close(() => resolve())); }

@@ -19,6 +19,7 @@ import {
   PREVIOUS_TERMS_VERSION,
   PRIVACY_VERSION,
   TERMS_VERSION,
+  ANNOUNCED_SUPERSEDED_VERSION,
   acceptedVersionsAreCurrent,
   legalEffectiveAtMs,
   legalEffectiveDate,
@@ -39,40 +40,38 @@ describe("terms for the free beta", () => {
     expect(privacy).not.toMatch(/to flag privacy issues/);
   });
 
-  it("counts the corrected 2026-11-02 text under either date until the revision takes effect, never the text that said people were removed", () => {
-    const pending = Date.parse("2026-11-12T20:00:00Z");
+  it("counts only the 2026-11-12 sharing version once it is in force: every older acceptance is asked again", () => {
     const after = legalEffectiveAtMs(TERMS_VERSION);
-    expect(acceptedVersionsAreCurrent(TERMS_VERSION, PRIVACY_VERSION, pending)).toBe(true);
     expect(acceptedVersionsAreCurrent(TERMS_VERSION, PRIVACY_VERSION, after)).toBe(true);
-    for (const [termsVersion, privacyVersion] of [["2026-11-15.4", "2026-11-15.5"], [PREVIOUS_TERMS_VERSION, PREVIOUS_PRIVACY_VERSION]]) {
-      expect(acceptedVersionsAreCurrent(termsVersion, privacyVersion, pending)).toBe(true);
+    for (const [termsVersion, privacyVersion] of [["2026-11-15.4", "2026-11-15.5"], [PREVIOUS_TERMS_VERSION, PREVIOUS_PRIVACY_VERSION],
+      [ANNOUNCED_SUPERSEDED_VERSION, ANNOUNCED_SUPERSEDED_VERSION], ["2026-11-15.3", "2026-11-15.4"]]) {
       expect(acceptedVersionsAreCurrent(termsVersion, privacyVersion, after)).toBe(false);
-    }
-    for (const [termsVersion, privacyVersion] of [["2026-11-15.3", "2026-11-15.4"], ["2026-11-15.2", "2026-11-15.4"]]) {
-      expect(acceptedVersionsAreCurrent(termsVersion, privacyVersion, pending)).toBe(false);
+      expect(acceptedVersionsAreCurrent(termsVersion, privacyVersion, Date.parse("2026-11-20T00:00:00Z"))).toBe(false);
     }
   });
 
-  it("publishes the 2026-11-11 revision ahead and keeps the 2026-11-02 text frozen as the previous version", () => {
-    // Owner, 2026-11-11: filming visits retired. The effective date is a placeholder for the owner.
-    expect(TERMS_VERSION).toBe("2026-11-25.1");
-    expect(PRIVACY_VERSION).toBe("2026-11-25.1");
+  it("puts the sharing version in force at once, replacing the 2026-11-25.1 version published ahead, and keeps 2026-11-02.1 frozen as the previous one", () => {
+    // Owner, 2026-11-12: sharing is the service. The version published ahead for November 25 never took effect.
+    expect(TERMS_VERSION).toBe("2026-11-12.1");
+    expect(PRIVACY_VERSION).toBe("2026-11-12.1");
+    expect(ANNOUNCED_SUPERSEDED_VERSION).toBe("2026-11-25.1");
     expect([PREVIOUS_TERMS_VERSION, PREVIOUS_PRIVACY_VERSION]).toEqual(["2026-11-02.1", "2026-11-02.1"]);
-    expect(legalEffectiveDate(TERMS_VERSION)).toBe("November 25, 2026");
-    expect(legalUpdatePending(Date.parse("2026-11-25T07:59:59Z"))).toBe(true);
-    expect(legalUpdatePending(Date.parse("2026-11-25T08:00:00Z"))).toBe(false);
+    expect(legalEffectiveDate(TERMS_VERSION)).toBe("November 12, 2026");
+    expect(legalUpdatePending(Date.parse("2026-11-12T08:00:00Z"))).toBe(false);
   });
 
   it("charges nothing and invoices nothing", () => {
-    expect(terms).toMatch(/the evaluation and its result cost the site nothing/);
+    expect(terms).toMatch(/our early trial and sharing your job with deployment companies cost the site nothing/);
     expect(terms).toMatch(/no Blueprint fee, invoice or payment step/);
+    // The money sentence stays word for word (owner, 2026-11-12).
+    expect(terms).toContain("Blueprint charges no fee for and takes no percentage of any pilot or deployment. If the site goes ahead, the site and the deployment company agree the physical pilot's dates, scope and any price directly, and the deployment company or its integrator contracts for the physical work.");
     expect(terms).not.toMatch(/\$2,500|\$99\b|invoices the site|No pilot, no fee/);
     expect(terms).not.toMatch(/refund your fee/i);
   });
 
-  it("has Blueprint run the evaluation and keeps the pilot between the site and the deployment company", () => {
-    expect(terms).toMatch(/run candidate robot policies in that simulation ourselves/);
-    expect(terms).toMatch(/Teams do not run their own evaluations of a site's job/);
+  it("has Blueprint run the early trial and keeps the pilot between the site and the deployment company", () => {
+    expect(terms).toMatch(/run openly available robot software in that simulation ourselves as an early trial/);
+    expect(terms).toMatch(/Deployment companies do not run their own software on a site's job in our simulation/);
     expect(terms).toMatch(/site and the deployment company agree the physical pilot/);
     expect(terms).not.toMatch(/recommended pilot|invite robot teams|book the recommended/i);
     expect(terms).toMatch(/takes no percentage of any pilot or deployment/);
@@ -89,8 +88,10 @@ describe("terms for the free beta", () => {
     expect(law?.paragraphs?.[0]).toMatch(/laws of the State of Delaware/);
   });
 
-  it("disables paid evaluations and top-ups for robot teams", () => {
+  it("disables paid evaluations and top-ups, and drops what the removal made untrue (API keys, agent actions, policies)", () => {
     expect(terms).toMatch(/no paid private evaluations, balances, top-ups or checkout/);
+    expect(terms).not.toMatch(/API key|our published API|actions an agent takes|policies you were not entitled|container images|Teams do not run/);
+    expect(privacy).not.toMatch(/robot teams' evaluations|Robot team sharing|endpoints or container images|through our API/);
   });
 });
 
@@ -145,7 +146,7 @@ describe("recording notice, sound and the listing choice", () => {
 
   it("requires notice to people seen or heard and recommends avoiding conversations", () => {
     expect(terms).toMatch(/Share only footage you are authorized to share/);
-    expect(terms).toMatch(/tell the people in the work area that you are recording and that the video will be shared with Blueprint/);
+    expect(terms).toMatch(/tell the people in the work area that you are recording and that the video will be shared with Blueprint and with the robot deployment companies we approve/);
     expect(terms).toMatch(/from people who can be seen or heard/);
     expect(terms).toMatch(/avoid recording conversations and turn sound off/);
     expect(annex).toMatch(/tell people in the work area that you are recording and sharing the video with Blueprint/);
@@ -170,10 +171,10 @@ describe("recording notice, sound and the listing choice", () => {
     expect(abuse.providers[0][1]).toMatch(/job submission or footage upload/);
   });
 
-  // Owner decision 2026-10-22: the start form offers no keep-private choice.
-  it("describes the job card every started job authorizes, and no keep-private choice", () => {
-    expect(terms).toMatch(/Starting a job authorizes Blueprint to publish an anonymized job card/);
-    expect(terms).toMatch(/You can hide it at any time/);
+  // Owner, 2026-11-12: sharing is the service; no share choice, no hiding, only withdrawal.
+  it("describes the sharing every started job carries, and no keep-private or hide choice", () => {
+    expect(terms).toMatch(/Starting a job means we share it with robot deployment companies we've approved/);
+    expect(terms).not.toMatch(/You can hide it at any time|anonymized job card/);
     expect(`${terms}${privacy}`).not.toMatch(/keep the job private instead|keeps a job private when starting|chose to keep/);
     expect(`${terms}${annex}`).not.toMatch(/previously chose private handling|previously marked private/);
   });

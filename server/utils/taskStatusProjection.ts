@@ -751,16 +751,8 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
   if (sceneWait?.operatorAction) {
     return { ...base, decision: "assessing", headline: `${previewReady}${sceneWait.headline}`, operatorAction: sceneWait.operatorAction };
   }
-  if ((input.scenePreviewReady || sceneTesting) && input.listed === false) {
-    return {
-      ...base,
-      decision: "not_listed",
-      headline: `${resultHeadline ?? (sceneTesting ? "Your scene is ready, and we are running our first tests on it." : "Your scene preview is ready.")} Your job card is not published, so approved partners cannot see this job in the job library or ask to have their systems evaluated on it.`,
-      operatorAction: "To share it with partners approved for the beta, publish its job card from your job page.",
-    };
-  }
-
-  // Publishing the card above is still the site's own step; this wait is ours.
+  // Sharing is the service (2026-11-12): there is no job card for the site to publish, so no status asks for one.
+  // This wait is ours.
   if (input.sceneProgression?.state === "waiting") {
     return {
       ...base,

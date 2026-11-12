@@ -158,15 +158,14 @@ describe("GET /api/admin/jobs", () => {
   });
 
   it("filters by stage and searches by site name", async () => {
-    // A current card grant, but no current recording grant: listed, and still not open to teams.
+    // A card under the older statement is not shared (2026-11-12): the site's next step is to accept the current one.
     siteJob("job-a", "2026-10-02T00:00:00.000Z", { public_task_listing: { enabled: true, consentVersion: "public-task-card-v1",
       approvedAtIso: "2026-10-02T00:00:00.000Z", details: anonymizedOpportunityDraft("Pack cartons into totes") } });
-    siteJob("job-b", "2026-10-01T00:00:00.000Z", { public_task_listing: null });
+    siteJob("job-b", "2026-10-01T00:00:00.000Z", { public_task_listing: null, operator_listing_hold: { held: true } });
     const byStage = await (await fetch(`${baseUrl}?stage=listing`, admin)).json();
-    expect(byStage.jobs.map((job: Row) => job.requestId)).toEqual(["job-b"]);
-    const notOpen = await (await fetch(`${baseUrl}?stage=not_open`, admin)).json();
-    expect(notOpen.jobs.map((job: Row) => [job.requestId, job.nextAction])).toEqual([
-      ["job-a", "Waiting on site to grant current recording permission"]]);
+    expect(byStage.jobs.map((job: Row) => [job.requestId, job.nextAction])).toEqual([
+      ["job-a", "Not shared: waiting on site to accept the current statement on its job page"],
+      ["job-b", "Shown to no company: Blueprint stopped showing this job (Deployment companies, below)"]]);
     const bySearch = await (await fetch(`${baseUrl}?q=${encodeURIComponent("site JOB-A")}`, admin)).json();
     expect(bySearch.jobs.map((job: Row) => job.requestId)).toEqual(["job-a"]);
   });

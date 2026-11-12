@@ -1,4 +1,3 @@
-import { anonymizedOpportunityDraft } from "@/types/taskBrowse";
 import { isLikelyPhone } from "@/lib/device";
 /** Show the work; explanatory text is optional when capture is authorized. */
 import { useEffect, useRef, useState } from "react";
@@ -18,10 +17,10 @@ import { withCsrfHeader } from "@/lib/csrf";
 import { withAppCheckHeader } from "@/lib/appCheck";
 import { PRIVACY_URL, TERMS_URL } from "@/lib/legalAcceptance";
 import { FILMING_NOTICE, FOOTAGE_UPLOAD_NOTICE } from "@/lib/footageNotice";
-import { DESCRIPTION_AUTHORITY_NO_VIDEO_VERSION, DESCRIPTION_AUTHORITY_STATEMENT, DESCRIPTION_AUTHORITY_VERSION, DESCRIPTION_AUTHORITY_WITH_VIDEO_VERSION } from "@/lib/siteSubmissionAuthority";
-import { RECORDING_RIGHTS_STATEMENT, RECORDING_RIGHTS_STATEMENT_SHORT_VERSION, RECORDING_RIGHTS_STATEMENT_VERSION } from "@/lib/recordingRightsStatement";
+import { DESCRIPTION_AUTHORITY_NO_VIDEO_V5_VERSION, DESCRIPTION_AUTHORITY_STATEMENT, DESCRIPTION_AUTHORITY_VERSION, DESCRIPTION_AUTHORITY_WITH_VIDEO_V4_VERSION } from "@/lib/siteSubmissionAuthority";
+import { RECORDING_RIGHTS_STATEMENT, RECORDING_RIGHTS_STATEMENT_V4_VERSION, RECORDING_RIGHTS_STATEMENT_VERSION } from "@/lib/recordingRightsStatement";
 import { TASK_CONFIRMATION_STATEMENT, TASK_CONFIRMATION_VERSION } from "@/lib/taskConfirmationStatement";
-import { SITE_START_CONSENT_NO_VIDEO, SITE_START_CONSENT_WITH_VIDEO, START_FORM_SHORT_CONSENT } from "@/lib/siteStartConsent";
+import { AGREEING_ALSO_LINE, SITE_START_CONSENT_NO_VIDEO_V5, SITE_START_CONSENT_WITH_VIDEO_V4, START_FORM_SHORT_CONSENT } from "@/lib/siteStartConsent";
 import { BareBack, BareButton, BareGroup, BareLabel, BareLinks, BareNotice, BareScreen, BareTicks } from "@/components/bare/Bare";
 import { BareCheck, BareField, BareFile, BareInput, BareProgress, BareSelect, BareSubmit, BareTextarea, describedBy,
   useFocusHeading, useHashScreen } from "@/components/bare/BareForm";
@@ -112,8 +111,8 @@ export function pendingStatementsCurrent(body: string, shortConsent: boolean = S
       consentAttestation?: { statementVersion?: unknown } | null };
     const withVideo = sent.descriptionOnly === false;
     const description = !shortConsent ? DESCRIPTION_AUTHORITY_VERSION
-      : withVideo ? DESCRIPTION_AUTHORITY_WITH_VIDEO_VERSION : DESCRIPTION_AUTHORITY_NO_VIDEO_VERSION;
-    const recording = withVideo ? (shortConsent ? RECORDING_RIGHTS_STATEMENT_SHORT_VERSION : RECORDING_RIGHTS_STATEMENT_VERSION) : null;
+      : withVideo ? DESCRIPTION_AUTHORITY_WITH_VIDEO_V4_VERSION : DESCRIPTION_AUTHORITY_NO_VIDEO_V5_VERSION;
+    const recording = withVideo ? (shortConsent ? RECORDING_RIGHTS_STATEMENT_V4_VERSION : RECORDING_RIGHTS_STATEMENT_VERSION) : null;
     return sent.descriptionAuthority?.statementVersion === description && (sent.consentAttestation?.statementVersion ?? null) === recording;
   } catch {
     return false;
@@ -363,7 +362,6 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
   // Owner direction 2026-11-11: an email and a video start a job; the sentence
   // is optional and typing it is the confirmation. Sharing an anonymised card
   // is the site's explicit choice. Never retained: each submission chooses afresh.
-  const [shareListing, setShareListing] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
   function adoptRecovery(other: SiteCaptureRecovery, resetChanged = true) {
     const changed = recovery.current.requestId !== other.requestId
@@ -375,7 +373,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
     setCountryAsked(restoredCountryAsked(other.draft));
     setPending(other.pending);
     if (changed && resetChanged) {
-      setClaudeConsent(false); setSolAgentsConsent(false); setShareListing(false);
+      setClaudeConsent(false); setSolAgentsConsent(false);
       setFootage(null); setResetVersion(value => value + 1);
     }
   }
@@ -418,7 +416,6 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
       recovery.current = fresh;
       requestId.current = fresh.requestId; retryToken.current = fresh.retryToken;
       setRecoveryUnavailable(false); setPending(null); setState({ status: "idle" }); setEmailError(null); setEmailHint(null); setClaudeConsent(false); setSolAgentsConsent(false);
-      setShareListing(false);
       setMethod("phone"); setRegion(""); setRegionManuallySet(false); setRegionPlace(null); setCountryMissing(false); setCountryAsked(false);
       setFootage(null); setFootageError(null); setCaptureReceived(false);
       setResetVersion(value => value + 1);
@@ -511,9 +508,8 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
           // brief is drafted from the video and the site confirms it later.
           ...(read("startTask") ? { taskConfirmation: { granted: true, statementVersion: TASK_CONFIRMATION_VERSION } } : {}),
           ...(read("startSuccess") ? { successCriteria: { successDefinition: read("startSuccess") } } : {}),
-          // Shared with approved robot teams only when the site ticks the box;
-          // it can share or hide the card later from its job page.
-          ...(shareListing ? { publicTaskListing: { consent: true, statementVersion: "public-task-card-v1", details: anonymizedOpportunityDraft(read("startTask")) } } : {}),
+          // Sharing is the service (2026-11-12): no share box. The job is shared with approved deployment companies
+          // because recording statement v4, the line under the button, says so; the server writes the listing record.
           // Screening happens after the first submission. Buying context is
           // optional and cannot turn into a gate or a spending authorization.
           siteTaskGates: {},
@@ -535,11 +531,11 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
           descriptionAuthority: {
             granted: true,
             statementVersion: !START_FORM_SHORT_CONSENT ? DESCRIPTION_AUTHORITY_VERSION
-              : footageWanted ? DESCRIPTION_AUTHORITY_WITH_VIDEO_VERSION : DESCRIPTION_AUTHORITY_NO_VIDEO_VERSION,
+              : footageWanted ? DESCRIPTION_AUTHORITY_WITH_VIDEO_V4_VERSION : DESCRIPTION_AUTHORITY_NO_VIDEO_V5_VERSION,
           },
           consentAttestation: footageWanted ? {
             granted: true,
-            statementVersion: START_FORM_SHORT_CONSENT ? RECORDING_RIGHTS_STATEMENT_SHORT_VERSION : RECORDING_RIGHTS_STATEMENT_VERSION,
+            statementVersion: START_FORM_SHORT_CONSENT ? RECORDING_RIGHTS_STATEMENT_V4_VERSION : RECORDING_RIGHTS_STATEMENT_VERSION,
           } : null,
           ...(claudeAuthoringRequested ? { claudeAuthoringConsent: {
             granted: claudeConsent,
@@ -823,7 +819,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
   }
 
   const sendsVideo = method === "upload" && region !== "non_us";
-  const consentLine = sendsVideo ? SITE_START_CONSENT_WITH_VIDEO : SITE_START_CONSENT_NO_VIDEO;
+  const consentLine = sendsVideo ? SITE_START_CONSENT_WITH_VIDEO_V4 : SITE_START_CONSENT_NO_VIDEO_V5;
   const submitLabel = region === "non_us" ? "Save my job" : sendsVideo ? "Send video" : "Next: film the job";
   // The country select shows once asked (above), while the address has given no country or the person chose one.
   const showCountry = countryAsked && (!region || regionManuallySet);
@@ -1035,10 +1031,6 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
                 <option value="ready_for_proposals">Ready to run a pilot</option>
               </BareSelect>
             </BareField>
-            {/* Sharing is an explicit, unticked choice; the job page can change it later. */}
-            <BareCheck id="start-share-listing" name="startShareListing" checked={shareListing} onChange={setShareListing}>
-              Also share an anonymised summary of this job with robot companies Blueprint has approved (optional)
-            </BareCheck>
           </fieldset>
           <BareGroup>
             <BareButton onClick={closeScreen}>Done</BareButton>
@@ -1050,14 +1042,9 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
         <BareScreen>
           <BareBack onClick={closeScreen} />
           {screen === "agreeing" && <h1 ref={headingRef} tabIndex={-1}>What you're agreeing to</h1>}
-          <BareGroup>
-            <p>{consentLine}</p>
-            <p className="bare-helper">That line stands for these, word for word:</p>
-          </BareGroup>
           <BareGroup label="Statements">
-            <BareLabel as="h2">You confirm</BareLabel>
-            <blockquote className="bare-quote">“{DESCRIPTION_AUTHORITY_STATEMENT}”</blockquote>
-            {sendsVideo && <blockquote className="bare-quote">“{RECORDING_RIGHTS_STATEMENT}”</blockquote>}
+            <BareLabel as="h2">You agree</BareLabel>
+            <blockquote className="bare-quote">“{consentLine}”</blockquote>
           </BareGroup>
           {sendsVideo && <BareGroup>
             <BareLabel as="h2">Your video</BareLabel>
@@ -1069,7 +1056,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
           </BareGroup>
           <BareGroup>
             <BareLabel as="h2">Also</BareLabel>
-            <p>Our <a href={TERMS_URL} target="_blank" rel="noreferrer">Terms</a> and <a href={PRIVACY_URL} target="_blank" rel="noreferrer">Privacy Policy</a>. Your video, address and contacts stay private.</p>
+            <p>{consentWithLinks(AGREEING_ALSO_LINE)}</p>
           </BareGroup>
           <BareLinks links={[{ key: "back", label: "Back to the form", onClick: closeScreen }]} />
         </BareScreen>

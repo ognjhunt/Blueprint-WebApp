@@ -76,6 +76,13 @@ vi.mock("node:fs/promises", async importOriginal => {
   } };
 });
 
+// Accepting recording statement v4 asks for the automatic send at once (PACKAGE_E E4); the send itself is tested with it.
+const autoSend = vi.hoisted(() => vi.fn(async () => null));
+vi.mock("../utils/jobAutoSend", () => ({ sendJobToCompaniesIfListed: autoSend }));
+// The Pipeline is told at once when a job's permission changes (planner, 16:35Z); the call itself is tested on its own.
+const recheck = vi.hoisted(() => vi.fn());
+vi.mock("../utils/pipelineCompanyRecheck", () => ({ recheckCaptureInBackground: recheck, askPipelineToRecheckCapture: vi.fn() }));
+
 vi.mock("../../client/src/lib/firebaseAdmin", async () => {
   const { sharedFakeFirestore, FAKE_FIELD_DELETE } = await import("./helpers/fake-firestore");
   const { Readable, Writable } = await import("node:stream");
@@ -351,6 +358,114 @@ describe("description-only owner can explicitly authorize future footage", () =>
     await withRoutes(async baseUrl => {
       expect((await consent(baseUrl, "req-description-denied", body)).status).toBe(400);
       expect(written.size).toBe(0);
+    });
+  });
+  // Sharing is the service (2026-11-12): recording statement v4 says the job is shared with approved deployment
+  // companies, so accepting it on the job page writes the listing record (PACKAGE_D D1.1, D1.3).
+  const V4 = { granted: true, statementVersion: "2026-11-12.v4" };
+  const LISTING = { enabled: true, consentVersion: "job-shared-2026-11-12", approvedBy: "recording_statement",
+    recordingStatementVersion: "2026-11-12.v4", thumbnailDigest: null, reviewRequired: false };
+  const doc = (requestId: string) => sharedFakeFirestoreState.docs.get(`inboundRequests/${requestId}`) as Record<string, any>;
+  it("a job started without a video records v4 when its video is agreed to, and is shared", async () => {
+    seedDescription("req-v4-novideo");
+    await withRoutes(async baseUrl => {
+      const response = await consent(baseUrl, "req-v4-novideo", V4);
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({ ok: true, outcome: "granted" });
+      const record = doc("req-v4-novideo");
+      expect(record.request.consent_attestation).toMatchObject({ granted: true, statement_version: "2026-11-12.v4", recorded_by: "signed_owner_link" });
+      expect(record.public_task_listing).toMatchObject(LISTING);
+      expect(record.public_task_listing.approvedAtIso).toBe(record.request.consent_attestation.recorded_at_iso);
+      expect(record.summary_shared_notice).toEqual({ owed: true });
+      expect(record.terms_acceptance).toMatchObject({ accepted_terms: true, terms_version: "2026-11-12.1", privacy_version: "2026-11-12.1" });
+    });
+  });
+  it.each(["2026-09-18.v1", "2026-11-02.v2", "2026-11-11.v3"])("an older job (%s) taking v4 records v4, keeps the older grant and is shared", async older => {
+    const requestId = `req-v4-older-${older.replace(/\W/g, "-")}`;
+    const record = seedDescription(requestId);
+    record.request.consent_attestation = { granted: true, statement_version: older, recorded_at_iso: "2026-11-01T00:00:00.000Z" };
+    record.public_task_listing = { enabled: true, consentVersion: "public-task-card-v1", approvedAtIso: "2026-11-01T00:00:00.000Z",
+      details: { title: "Old card", region: "OLD-REGION-PLANT" } };
+    const before = structuredClone(record.request.consent_attestation);
+    await withRoutes(async baseUrl => {
+      const response = await consent(baseUrl, requestId, V4);
+      expect(await response.json()).toEqual({ ok: true, outcome: "upgraded" });
+      const after = doc(requestId);
+      expect(after.request.consent_attestation).toMatchObject({ granted: true, statement_version: "2026-11-12.v4" });
+      expect(after.request.consent_attestation_earlier).toEqual([before]);
+      expect(after.public_task_listing).toMatchObject(LISTING);
+      expect(after.summary_shared_notice).toEqual({ owed: true });
+      // v4 again: nothing more is recorded.
+      const again = await consent(baseUrl, requestId, V4);
+      expect(await again.json()).toEqual({ ok: true, outcome: "existing" });
+      expect(doc(requestId).request.consent_attestation_earlier).toHaveLength(1);
+      // An older version posted after v4 never replaces it.
+      expect(await (await consent(baseUrl, requestId, { granted: true, statementVersion: older })).json()).toEqual({ ok: true, outcome: "existing" });
+      expect(doc(requestId).request.consent_attestation.statement_version).toBe("2026-11-12.v4");
+    });
+  });
+  it("lifts a pause the site set before sharing was the service, and asks for the automatic send", async () => {
+    const record = seedDescription("req-v4-paused");
+    record.request.consent_attestation = { granted: true, statement_version: "2026-11-02.v2", recorded_at_iso: "2026-11-01T00:00:00.000Z" };
+    record.workspace_task = { paused: true, pilotIntent: "kept" };
+    autoSend.mockClear();
+    await withRoutes(async baseUrl => {
+      expect(await (await consent(baseUrl, "req-v4-paused", V4)).json()).toEqual({ ok: true, outcome: "upgraded" });
+      expect(doc("req-v4-paused").workspace_task).toMatchObject({ paused: false, pilotIntent: "kept" });
+      expect(autoSend).toHaveBeenCalledWith("req-v4-paused");
+    });
+  });
+  it("leaves the pause alone for an older statement, and never unpauses a withdrawn job", async () => {
+    const record = seedDescription("req-v4-paused-old");
+    record.request.consent_attestation = null;
+    record.workspace_task = { paused: true };
+    const withdrawn = seedDescription("req-v4-paused-withdrawn");
+    withdrawn.request.consent_attestation = { granted: true, statement_version: "2026-11-02.v2", recorded_at_iso: "2026-11-01T00:00:00.000Z" };
+    withdrawn.workspace_task = { paused: true };
+    withdrawn.consent_revoked = true;
+    await withRoutes(async baseUrl => {
+      expect((await consent(baseUrl, "req-v4-paused-old", { granted: true, statementVersion: "2026-11-02.v2" })).status).toBe(200);
+      expect(doc("req-v4-paused-old").workspace_task).toEqual({ paused: true });
+      expect((await consent(baseUrl, "req-v4-paused-withdrawn", V4)).status).toBe(409);
+      expect(doc("req-v4-paused-withdrawn").workspace_task).toEqual({ paused: true });
+    });
+  });
+  it("tells the Pipeline once when v4 is recorded on a job that has a capture, and not for a job without one", async () => {
+    const withCapture = seedDescription("req-v4-capture");
+    withCapture.request.consent_attestation = { granted: true, statement_version: "2026-11-11.v3", recorded_at_iso: "2026-11-01T00:00:00.000Z" };
+    sharedFakeFirestoreState.docs.set("captureUploadSessions/walkthrough-req-v4-capture", { capture_id: "walkthrough-req-v4-capture" });
+    seedDescription("req-v4-nocapture");
+    recheck.mockClear();
+    await withRoutes(async baseUrl => {
+      expect((await consent(baseUrl, "req-v4-capture", V4)).status).toBe(200);
+      expect(recheck).toHaveBeenCalledTimes(1);
+      expect(recheck).toHaveBeenCalledWith("req-v4-capture", "walkthrough-req-v4-capture");
+      // v4 again changes nothing, so nothing is said again.
+      expect((await consent(baseUrl, "req-v4-capture", V4)).status).toBe(200);
+      expect(recheck).toHaveBeenCalledTimes(1);
+      expect((await consent(baseUrl, "req-v4-nocapture", V4)).status).toBe(200);
+      expect(recheck).toHaveBeenCalledTimes(1);
+    });
+  });
+  it("answers the site even when telling the Pipeline throws", async () => {
+    const record = seedDescription("req-v4-recheck-fails");
+    record.request.consent_attestation = { granted: true, statement_version: "2026-11-11.v3", recorded_at_iso: "2026-11-01T00:00:00.000Z" };
+    sharedFakeFirestoreState.docs.set("captureUploadSessions/walkthrough-req-v4-recheck-fails", { capture_id: "x" });
+    recheck.mockImplementationOnce(() => { throw new Error("pipeline down"); });
+    await withRoutes(async baseUrl => {
+      const response = await consent(baseUrl, "req-v4-recheck-fails", V4);
+      expect(response.status).toBe(200);
+      expect(doc("req-v4-recheck-fails").request.consent_attestation.statement_version).toBe("2026-11-12.v4");
+    });
+  });
+  it("refuses v4 on a withdrawn job and writes nothing", async () => {
+    const record = seedDescription("req-v4-withdrawn");
+    record.request.consent_attestation = { granted: true, statement_version: "2026-11-11.v3", recorded_at_iso: "2026-11-01T00:00:00.000Z" };
+    record.consent_revoked = true;
+    const original = structuredClone(record);
+    await withRoutes(async baseUrl => {
+      expect((await consent(baseUrl, "req-v4-withdrawn", V4)).status).toBe(409);
+      expect(doc("req-v4-withdrawn")).toEqual(original);
     });
   });
   it("refuses a film-only link", async () => {

@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  DESCRIPTION_AUTHORITY_NO_VIDEO_V5_VERSION,
   DESCRIPTION_AUTHORITY_NO_VIDEO_VERSION,
+  DESCRIPTION_AUTHORITY_WITH_VIDEO_V4_VERSION,
   DESCRIPTION_AUTHORITY_STATEMENT,
   DESCRIPTION_AUTHORITY_STATEMENTS,
   DESCRIPTION_AUTHORITY_VERSION,
@@ -9,7 +11,7 @@ import {
   DESCRIPTION_AUTHORITY_WITH_VIDEO_VERSION,
   isDescriptionAuthorityVersion,
 } from "@/lib/siteSubmissionAuthority";
-import { SITE_START_CONSENT_NO_VIDEO, SITE_START_CONSENT_WITH_VIDEO } from "@/lib/siteStartConsent";
+import { SITE_START_CONSENT_NO_VIDEO, SITE_START_CONSENT_NO_VIDEO_V5, SITE_START_CONSENT_WITH_VIDEO, SITE_START_CONSENT_WITH_VIDEO_V4 } from "@/lib/siteStartConsent";
 
 /**
  * A stored description authority names the exact sentence the site saw where it pressed. The start form's one line
@@ -25,17 +27,24 @@ describe("description authority statement", () => {
       "2026-10-06.v1": DESCRIPTION_AUTHORITY_STATEMENT,
       "2026-11-11.v2": SITE_START_CONSENT_WITH_VIDEO,
       "2026-11-11.v3": SITE_START_CONSENT_NO_VIDEO,
+      "2026-11-12.v4": SITE_START_CONSENT_WITH_VIDEO_V4,
+      "2026-11-12.v5": SITE_START_CONSENT_NO_VIDEO_V5,
     });
+    // Sharing is the service (2026-11-12): the start form records these now.
+    expect(DESCRIPTION_AUTHORITY_WITH_VIDEO_V4_VERSION).toBe("2026-11-12.v4");
+    expect(DESCRIPTION_AUTHORITY_NO_VIDEO_V5_VERSION).toBe("2026-11-12.v5");
+    expect(SITE_START_CONSENT_NO_VIDEO_V5).toBe("By continuing, you agree to our Terms and Privacy Policy and confirm you're allowed to share this job for the site. We share your job with robot deployment companies we've approved.");
+    expect(SITE_START_CONSENT_NO_VIDEO_V5).not.toMatch(/film/);
     expect(SITE_START_CONSENT_WITH_VIDEO).toBe("By sending, you agree to our Terms and Privacy Policy and confirm you're allowed to film and share this site.");
     expect(SITE_START_CONSENT_NO_VIDEO).toBe("By continuing, you agree to our Terms and Privacy Policy and confirm you're allowed to share this job for the site.");
     // No filming claim where no video is sent.
     expect(SITE_START_CONSENT_NO_VIDEO).not.toMatch(/film/);
   });
 
-  it("accepts exactly the three versions", () => {
-    expect(DESCRIPTION_AUTHORITY_VERSIONS).toEqual(["2026-10-06.v1", "2026-11-11.v2", "2026-11-11.v3"]);
+  it("accepts exactly the five versions", () => {
+    expect(DESCRIPTION_AUTHORITY_VERSIONS).toEqual(["2026-10-06.v1", "2026-11-11.v2", "2026-11-11.v3", "2026-11-12.v4", "2026-11-12.v5"]);
     for (const version of DESCRIPTION_AUTHORITY_VERSIONS) expect(isDescriptionAuthorityVersion(version)).toBe(true);
-    for (const other of ["2026-10-06.v2", "2026-11-11.v4", "2026-11-02.v2", " 2026-10-06.v1", "", null, undefined, 1]) {
+    for (const other of ["2026-10-06.v2", "2026-11-11.v4", "2026-11-12.v3", "2026-11-02.v2", " 2026-10-06.v1", "", null, undefined, 1]) {
       expect(isDescriptionAuthorityVersion(other)).toBe(false);
     }
   });

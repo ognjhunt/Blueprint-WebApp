@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { LEAVES_OUT_BOTH, LEAVES_OUT_FIRST_LOOK, LEAVES_OUT_TRIAL, NOTHING_IS_SHARED, PACKET_BUILDING, PACKET_WAITS_ON_SITE, NOTHING_SHARED, SiteAnswer as SiteAnswerScreen, SiteAnswerDetail, SiteAnswerDetails, detailScreens, evidenceTick, sureReason, ticksOf, type DetailScreen } from "@/components/site/SiteAnswer";
+import { NOTHING_IS_SHARED, NOT_SHARED_YET, NOT_VISIBLE_LINE, OLDER_JOB_AGREE, OLDER_JOB_LINES, SHARED_LINE, SiteAnswer as SiteAnswerScreen, SiteAnswerDetail, SiteAnswerDetails, detailScreens, evidenceTick, sureReason, ticksOf, type DetailScreen } from "@/components/site/SiteAnswer";
 import { projectSimulationProof } from "@/lib/simulationProof";
 import { REASON_UNSIZED, UNKNOWN_JOB_KIND, UNKNOWN_MULTI_STEP, type AnswerRobot } from "@/lib/siteAnswer";
 import { allZeroEvaluation, cannotAssessAnswer, noPickAnswer, preparingEvaluation, readingAnswer, readyAnswer, serverOutlookFor, winnerEvaluation } from "../fixtures/siteAnswer";
@@ -28,16 +28,13 @@ const BANNED = /episode|candidate|screening|embodiment|checkpoint|payload|anonym
 /** "Your answer" as a heading or a claim; the recorded statement's own "your answer" stays word for word. */
 const YOUR_ANSWER = /Your answer/;
 const FIND = "Share my job";
-const QUESTION = "May we share a summary of your job with deployment companies we approve?";
 /** The recorded statement, word for word: the share step's own words around it changed, it did not. */
-const CONSENT = "Shares a summary of your job and your answer, including later test results, without saying who you are, with companies we've approved. Your video, address and contacts stay private.";
 /** The job page's one limits line, in every state. */
 const LIMITS = "Nothing here is a test at your site. Pick-up-and-put-down jobs only. It does not certify performance or safety.";
 const TRIAL_LINE = "This is our own trial of openly available robot software. It does not predict what a deployment company's robot would do.";
 const FIRST_LOOK = "On paper, the robot most likely to fit: Universal Robots UR10e.";
 const SOURCE = "From published specifications and where it has been used.";
-const sharedOn = (date: string) => `Shared on ${date}. Deployment companies we approve can see a summary of your job. Nothing more is needed from you.`;
-const notVisible = (date: string) => `You shared a summary of your job on ${date}. It is not visible to companies right now.`;
+const V4 = "By sending, you agree to our Terms and Privacy Policy and confirm you're allowed to film and share this site. We share your job, including this video and the simulation we build from it, with robot deployment companies we've approved.";
 /** The server's sharing state (`jobSharingOf`), as the answer carries it. */
 const VISIBLE = { sharing: { state: "visible" as const, sharedAtIso: "2026-11-10T09:00:00.000Z" }, jobCardListed: true };
 const HIDDEN = { sharing: { state: "not_visible" as const, sharedAtIso: "2026-11-10T09:00:00.000Z" }, jobCardListed: true };
@@ -61,11 +58,9 @@ describe("the job page's sections, bare bones", () => {
     const page = screen.getByRole("region", { name: "Your job" });
     // The sections in order; with nothing to say about the simulation or a trial, neither section is shown.
     expect([...page.querySelectorAll("h2")].map(node => node.textContent)).toEqual(["Deployment companies", "First look"]);
-    // The share question, the one button and the recorded statement directly under it.
-    expect(within(companies()).getByText(QUESTION)).toBeVisible();
-    const button = within(companies()).getByRole("button", { name: FIND });
-    expect(button).toHaveClass("bare-button");
-    expect(within(companies()).getByText(CONSENT)).toHaveAttribute("id", button.getAttribute("aria-describedby"));
+    // Sharing is the service (2026-11-12): no share question and no button; a job with no sharing statement says so.
+    expect(within(companies()).getByText(NOT_SHARED_YET)).toBeVisible();
+    expect(screen.queryByRole("button", { name: FIND })).toBeNull();
     // The first look in one sentence, then where it comes from.
     expect(within(firstLook()).getByText(FIRST_LOOK)).toBeVisible();
     expect(within(firstLook()).getByText(SOURCE)).toBeVisible();
@@ -80,7 +75,7 @@ describe("the job page's sections, bare bones", () => {
     expect(container.textContent).not.toMatch(/1\.3 m|12\.5 kg|Yaskawa|source/);
     expect(container.textContent).not.toMatch(BANNED);
     expect(container.textContent).not.toMatch(YOUR_ANSWER);
-    expect(container.querySelectorAll(".bare-button")).toHaveLength(1);
+    expect(container.querySelectorAll(".bare-button")).toHaveLength(0);
   });
 
   it("calls a robot that only may fit the closest robot, and says none clearly fits", () => {
@@ -157,9 +152,8 @@ describe("the job page's sections, bare bones", () => {
       .toEqual(["✓Did the job in 7 of 10 tries", "✓Ahead of the 2 other robots we tried"]);
     expect(trial).toHaveTextContent("How sure are we? Fairly sure");
     expect(within(trial).getByText("With this few tries the gap could still be chance.")).toBeVisible();
-    // Sharing is offered with its recorded statement, as before a trial result existed.
-    expect(within(companies()).getByRole("button", { name: FIND })).toBeVisible();
-    expect(within(companies()).getByText(CONSENT)).toBeVisible();
+    // No share button with a trial result either (sharing is the service).
+    expect(within(companies()).queryByRole("button", { name: FIND })).toBeNull();
     expect(within(page).getByText(LIMITS)).toBeVisible();
     expect(page.textContent).not.toMatch(BANNED);
   });
@@ -218,9 +212,8 @@ describe("the job page's sections, bare bones", () => {
     expect(within(runningTrial).getByText("2 robots")).toHaveClass("bare-big");
     expect(within(runningTrial).getByText("in the simulation of your site. We'll email you when it finishes.")).toBeVisible();
     // The job packet is still being built: no button, no statement; the first look stands.
-    expect(within(companies()).getByText(PACKET_BUILDING)).toBeVisible();
+    expect(within(companies()).getByText(NOT_SHARED_YET)).toBeVisible();
     expect(screen.queryByRole("button", { name: FIND })).toBeNull();
-    expect(screen.queryByText(CONSENT)).toBeNull();
     expect(within(firstLook()).getByText(FIRST_LOOK)).toBeVisible();
   });
 
@@ -228,12 +221,11 @@ describe("the job page's sections, bare bones", () => {
     // The server's outlook says the job is on its way to a simulation; the page shows the sections for that phase.
     const { unmount } = render(<SiteAnswer token="owner-token" answer={readyAnswer} proof={projectSimulationProof({ evaluation: [], pick: readyAnswer.pick })}
       outlook={{ phase: "building", reason: null, sentence: null }} onShowDetails={() => {}} onShowSettings={() => {}} />);
-    expect(within(companies()).getByText("We're building your job packet. Nothing has been shared.")).toBeVisible();
+    expect(within(companies()).getByText(NOT_SHARED_YET)).toBeVisible();
     expect(within(region("Simulation of your site")).getByText("We're building the simulation of your site.")).toBeVisible();
     expect(within(firstLook()).getByText(FIRST_LOOK)).toBeVisible();
     expect(screen.getByRole("navigation", { name: "More" })).toHaveTextContent("See details ›Job settings ›");
     expect(screen.queryByRole("button", { name: FIND })).toBeNull();
-    expect(screen.queryByText(CONSENT)).toBeNull();
     expect(document.querySelector("details.site-trial")).toBeNull();
     expect(screen.getByText(LIMITS)).toBeVisible();
     unmount();
@@ -245,7 +237,7 @@ describe("the job page's sections, bare bones", () => {
     render(<SiteAnswer token="owner-token" answer={readyAnswer}
       proof={projectSimulationProof({ evaluation: [{ ...winnerEvaluation, outcome: "held_capability" as const }], pick: readyAnswer.pick })} />);
     expect(within(firstLook()).getByText(FIRST_LOOK)).toBeVisible();
-    expect(screen.getByRole("button", { name: FIND })).toBeVisible();
+    expect(screen.queryByRole("button", { name: FIND })).toBeNull();
     expect(screen.getByText("Our early trial did not run. Our trial can't do this kind of job yet.")).toBeVisible();
   });
 
@@ -262,10 +254,8 @@ describe("the job page's sections, bare bones", () => {
     render(<SiteAnswer token="owner-token" answer={readyAnswer} proof={null}
       outlook={{ phase: "waiting_on_site", reason: "task_not_named", sentence: "Tell us in one sentence what the robot should do, so we can build the simulation of your job." }} />);
     expect(screen.getByText("Tell us in one sentence what the robot should do, so we can build the simulation of your job.")).toBeVisible();
-    // Review, 2026-11-12: while the job waits for its sentence, the section says what comes next, not "we're building".
-    expect(within(companies()).getByText(PACKET_WAITS_ON_SITE)).toBeVisible();
-    expect(PACKET_WAITS_ON_SITE).toBe("Tell us what the job is and we will build its job packet.");
-    expect(screen.queryByText(PACKET_BUILDING)).toBeNull();
+    // Sharing is the service: no share step while the job waits for its sentence.
+    expect(within(companies()).getByText(NOT_SHARED_YET)).toBeVisible();
     expect(screen.queryByRole("button", { name: FIND })).toBeNull();
   });
 
@@ -281,7 +271,7 @@ describe("the job page's sections, bare bones", () => {
   // Rule 1 (review, 2026-11-11): when unsure, the job is still being worked on, so nothing is offered to share.
   it("says the packet is being built and offers no button when no outlook came", () => {
     const { unmount } = render(<SiteAnswerScreen token="owner-token" answer={readyAnswer} proof={null} outlook={null} />);
-    expect(within(companies()).getByText(PACKET_BUILDING)).toBeVisible();
+    expect(within(companies()).getByText(NOT_SHARED_YET)).toBeVisible();
     expect(screen.getByText("We're building the simulation of your site.")).toBeVisible();
     expect(screen.queryByRole("button", { name: FIND })).toBeNull();
     unmount();
@@ -303,73 +293,57 @@ describe("the job page's sections, bare bones", () => {
 
   it("says what is true of the card on the other-kind and no-pick screens, and while building", () => {
     const { unmount } = render(<SiteAnswer token="owner-token" answer={{ ...cannotAssessAnswer, ...VISIBLE }} />);
-    expect(within(companies()).getByText(sharedOn("November 10, 2026"))).toBeVisible();
+    expect(within(companies()).getByText(SHARED_LINE)).toBeVisible();
     unmount();
     const { unmount: second } = render(<SiteAnswer token="owner-token" answer={{ ...noPickAnswer, ...HIDDEN }}
       outlook={{ phase: "no_test", reason: "no_grant", sentence: "We have not built a simulation for this job." }} />);
-    expect(within(companies()).getByText(notVisible("November 10, 2026"))).toBeVisible();
+    expect(within(companies()).getByText(NOT_VISIBLE_LINE)).toBeVisible();
     second();
     // Shared at the start (the start form's opt-in), while the packet is still being built: shared, no button.
     render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE }} outlook={{ phase: "building", reason: null, sentence: null }} />);
-    expect(within(companies()).getByText(sharedOn("November 10, 2026"))).toBeVisible();
-    expect(screen.queryByText(PACKET_BUILDING)).toBeNull();
+    expect(within(companies()).getByText(SHARED_LINE)).toBeVisible();
+    expect(screen.queryByText(NOT_SHARED_YET)).toBeNull();
     expect(screen.queryByRole("button", { name: FIND })).toBeNull();
   });
-  // The independent review's states (2026-11-12): the section says what is true of the card in every phase, and the
-  // button and its question show only when nothing is shared and sharing is allowed.
+  // Sharing is the service (2026-11-12): in every phase the section says what is true of the job, with no share button.
   describe.each([
     ["building", { answer: readyAnswer, proof: projectSimulationProof({ evaluation: [preparingEvaluation], pick: readyAnswer.pick }),
-      outlook: { phase: "building" as const, reason: null, sentence: null } }, PACKET_BUILDING, false],
+      outlook: { phase: "building" as const, reason: null, sentence: null } }, false],
     ["held, kept on file", { answer: cannotAssessAnswer, proof: null, outlook: { phase: "cannot_match" as const, reason: "kept_on_file" as const,
-      sentence: "We can't build a simulation for this kind of job yet. We've kept your job on file." } }, NOTHING_SHARED, false],
+      sentence: "We can't build a simulation for this kind of job yet. We've kept your job on file." } }, false],
     ["with a first look", { answer: readyAnswer, proof: null, outlook: { phase: "no_test" as const, reason: "window_expired" as const,
-      sentence: "The time for this job ran out before our early trial could run." } }, null, true],
+      sentence: "The time for this job ran out before our early trial could run." } }, false],
     ["with a trial result", { answer: readyAnswer, proof: projectSimulationProof({ evaluation: [winnerEvaluation], pick: readyAnswer.pick }),
-      outlook: { phase: "result" as const, reason: null, sentence: null } }, null, true],
-    ["with a zero", { answer: readyAnswer, proof: projectSimulationProof({ evaluation: [allZeroEvaluation], pick: readyAnswer.pick }),
-      outlook: { phase: "result" as const, reason: null, sentence: null } }, null, true],
+      outlook: { phase: "result" as const, reason: null, sentence: null } }, false],
     ["closed by its owner", { answer: readyAnswer, proof: null, outlook: { phase: "ended_by_site" as const, reason: "closed_by_owner" as const,
-      sentence: "You closed this job's simulation run." } }, NOTHING_IS_SHARED, false, "shared", NOTHING_IS_SHARED],
+      sentence: "You closed this job's simulation run." } }, "closed"],
     ["withdrawn", { answer: readyAnswer, proof: projectSimulationProof({ evaluation: [winnerEvaluation], pick: readyAnswer.pick }),
       outlook: { phase: "ended_by_site" as const, reason: "permission_withdrawn" as const,
-        sentence: "Permission to use your video was withdrawn, so this job has stopped." } }, NOTHING_IS_SHARED, false, NOTHING_IS_SHARED, NOTHING_IS_SHARED],
-  ] as const)("the deployment companies section, %s", (_, page, notShared, offered, visibleSays?: string, hiddenSays?: string) => {
+        sentence: "Permission to use your video was withdrawn, so this job has stopped." } }, "withdrawn"],
+  ] as const)("the deployment companies section, %s", (_, page, ended) => {
     const show = (sharing: object) => render(<SiteAnswer token="owner-token" answer={{ ...page.answer, ...sharing }} proof={page.proof}
       outlook={page.outlook} />);
-    it("not shared: says so, or asks when sharing is allowed", () => {
-      show({});
-      if (offered) {
-        expect(within(companies()).getByText(QUESTION)).toBeVisible();
-        expect(within(companies()).getByRole("button", { name: FIND })).toBeVisible();
-      } else {
-        expect(within(companies()).getByText(notShared!)).toBeVisible();
-        expect(screen.queryByRole("button", { name: FIND })).toBeNull();
-        expect(screen.queryByText(QUESTION)).toBeNull();
-      }
-      expect(companies().textContent).not.toMatch(/^Shared|You shared|can see a summary/);
-    });
-    it("shared and visible: says companies can see it, with no button (a withdrawn job shares nothing)", () => {
+    it("shared and visible: says we share the job, with no share button (a withdrawn job shares nothing)", () => {
       show(VISIBLE);
-      if (visibleSays && visibleSays !== "shared") {
-        expect(within(companies()).getByText(visibleSays)).toBeVisible();
-        expect(companies().textContent).not.toMatch(/can see a summary|not visible/);
-        return;
-      }
-      expect(within(companies()).getByRole("status")).toHaveTextContent(sharedOn("November 10, 2026"));
-      expect(screen.queryByRole("button", { name: FIND })).toBeNull();
-      expect(screen.queryByText(QUESTION)).toBeNull();
-      expect(companies().textContent).not.toMatch(/Nothing has been shared|not visible/);
+      if (ended === "withdrawn") { expect(within(companies()).getByText(NOTHING_IS_SHARED)).toBeVisible(); return; }
+      expect(within(companies()).getByText(SHARED_LINE)).toBeVisible();
+      expect(within(companies()).queryAllByRole("button")).toHaveLength(0);
+      expect(companies().textContent).not.toMatch(/summary|not visible|Nothing/);
     });
-    it("shared but hidden right now: says it is not visible, never that companies can see it (closed or withdrawn: nothing is shared)", () => {
+    it("shared but held: says it is not visible right now (closed or withdrawn: nothing is shared)", () => {
       show(HIDDEN);
-      if (hiddenSays) {
-        expect(within(companies()).getByText(hiddenSays)).toBeVisible();
-        expect(companies().textContent).not.toMatch(/can see a summary|right now/);
-        return;
-      }
-      expect(within(companies()).getByRole("status")).toHaveTextContent(notVisible("November 10, 2026"));
-      expect(companies().textContent).not.toMatch(/can see a summary|Nothing has been shared/);
-      expect(screen.queryByRole("button", { name: FIND })).toBeNull();
+      if (ended) { expect(within(companies()).getByText(NOTHING_IS_SHARED)).toBeVisible(); expect(companies().textContent).not.toMatch(/right now/); return; }
+      expect(within(companies()).getByRole("status")).toHaveTextContent(NOT_VISIBLE_LINE);
+      expect(within(companies()).queryAllByRole("button")).toHaveLength(0);
+    });
+    it("an older job: says what changed and offers the current statement once, with no company section", () => {
+      show({ sharing: { state: "not_shared", sharedAtIso: null, olderStatement: true }, companies: {
+        interested: true, entries: [{ kind: "answered", alias: "Company A", atIso: "2026-11-11T10:00:00.000Z", state: "interested" }] } });
+      if (ended) { expect(within(companies()).getByText(NOTHING_IS_SHARED)).toBeVisible(); return; }
+      expect(within(companies()).getByText(OLDER_JOB_LINES)).toBeVisible();
+      expect(within(companies()).getByRole("button", { name: OLDER_JOB_AGREE })).toBeVisible();
+      expect(within(companies()).getByText(V4)).toBeVisible();
+      expect(companies().textContent).not.toContain("Company A");
     });
   });
   it("says a failed step while building, and the ending's reason with the first look after an ending", () => {
@@ -382,7 +356,7 @@ describe("the job page's sections, bare bones", () => {
       outlook={{ phase: "no_test", reason: "no_grant", sentence: "We have not built a simulation for this job." }} />);
     expect(within(firstLook()).getByText(FIRST_LOOK)).toBeVisible();
     expect(within(region("Simulation of your site")).getByText("We have not built a simulation for this job.")).toBeVisible();
-    expect(screen.getByRole("button", { name: FIND })).toBeVisible();
+    expect(screen.queryByRole("button", { name: FIND })).toBeNull();
     second();
     // A run the site closed itself: the first look with the reason, nothing shared and no button.
     render(<SiteAnswer token="owner-token" answer={readyAnswer} proof={null}
@@ -410,7 +384,7 @@ describe("the job page's sections, bare bones", () => {
     expect(within(firstLook()).getByText("We're watching your video.")).toBeVisible();
     expect(screen.getByText("Your job page shows it when it is ready.")).toBeVisible();
     expect(container.textContent).not.toMatch(/email/i);
-    expect(within(companies()).getByText(PACKET_BUILDING)).toBeVisible();
+    expect(within(companies()).getByText(NOT_SHARED_YET)).toBeVisible();
     expect(screen.getByRole("navigation", { name: "More" })).toHaveTextContent("Job settings ›");
     expect(screen.queryByText(/See details/)).toBeNull();
     expect(container.textContent).not.toMatch(/minute|second|hour/i);
@@ -423,7 +397,7 @@ describe("the job page's sections, bare bones", () => {
     expect(cannotAssessAnswer.reason).toBe(REASON_UNSIZED);
     expect(within(firstLook()).getByText(cannotAssessAnswer.headline)).toBeVisible();
     expect(screen.getByText("Your video didn't show the job clearly enough for us to measure it.")).toBeVisible();
-    expect(within(companies()).getByText(NOTHING_SHARED)).toBeVisible();
+    expect(within(companies()).getByText(NOT_SHARED_YET)).toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: "Send a new video" }));
     expect(onUpdateVideo).toHaveBeenCalledTimes(1);
     unmount();
@@ -440,7 +414,7 @@ describe("the job page's sections, bare bones", () => {
     expect(within(firstLook()).getByText(noPickAnswer.headline)).toBeVisible();
     expect(screen.getByText(noPickAnswer.reason!)).toBeVisible();
     expect(screen.getByText(noPickAnswer.formNote!)).toBeVisible();
-    expect(within(companies()).getByText(NOTHING_SHARED)).toBeVisible();
+    expect(within(companies()).getByText(NOT_SHARED_YET)).toBeVisible();
     expect(screen.queryByRole("button")).toBeNull();
   });
 
@@ -596,104 +570,34 @@ describe("the first look and the simulation of the site never disagree", () => {
   });
 });
 
-describe("sharing the job with deployment companies", () => {
-  it("asks once and then says what the route read back: visible to approved companies", async () => {
-    const onRequested = vi.fn();
-    fetchMock.mockResolvedValue(response({ ok: true, requestedAtIso: "2026-11-11T15:00:00.000Z", listed: true,
-      sharing: { state: "visible", sharedAtIso: "2026-11-11T15:00:00.000Z" } }));
-    render(<SiteAnswer token="owner token" answer={readyAnswer} onIntroductionRequested={onRequested} />);
-    const button = screen.getByRole("button", { name: FIND });
+describe("an older job takes the current statement on its page", () => {
+  const older = { ...readyAnswer, sharing: { state: "not_shared" as const, sharedAtIso: null, olderStatement: true } };
+  it("records recording statement v4, the sentence shown above the button, and then says the job is shared", async () => {
+    fetchMock.mockResolvedValue(response({ ok: true }));
+    const changed = vi.fn();
+    render(<SiteAnswer token="owner token" answer={older} onIntroductionRequested={changed} />);
+    const button = within(companies()).getByRole("button", { name: OLDER_JOB_AGREE });
+    expect(within(companies()).getByText(V4)).toHaveAttribute("id", button.getAttribute("aria-describedby"));
     fireEvent.click(button);
-    fireEvent.click(button);
-    expect(await screen.findByRole("status")).toHaveTextContent(sharedOn("November 11, 2026"));
-    // What the route records is unchanged: the same statement version.
-    expect(fetchMock.mock.calls[0][1]).toMatchObject({ body: JSON.stringify({ statementVersion: "public-task-card-with-answer-v3" }) });
-    expect(screen.queryByText(CONSENT)).toBeNull();
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(fetchMock).toHaveBeenCalledWith("/api/site-task-brief/owner%20token/introduction-request", expect.objectContaining({
-      method: "POST", referrerPolicy: "no-referrer", headers: expect.objectContaining({ "X-CSRF-Token": "local-test" }) }));
-    expect(screen.queryByRole("button", { name: FIND })).toBeNull();
-    expect(onRequested).toHaveBeenCalledTimes(1);
+    expect(await within(companies()).findByText(SHARED_LINE)).toBeVisible();
+    expect(fetchMock).toHaveBeenCalledWith("/api/self-capture/uploads/owner%20token/recording-consent", expect.objectContaining({ method: "POST",
+      body: JSON.stringify({ granted: true, statementVersion: "2026-11-12.v4" }) }));
+    expect(changed).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("button", { name: OLDER_JOB_AGREE })).toBeNull();
   });
-  it("says the summary is not visible when the route reads it back hidden, or when the request was saved but nothing is listed", async () => {
-    fetchMock.mockResolvedValue(response({ ok: true, requestedAtIso: "2026-11-11T15:00:00.000Z", listed: true,
-      sharing: { state: "not_visible", sharedAtIso: "2026-11-11T15:00:00.000Z" } }));
-    const { unmount } = render(<SiteAnswer token="owner-token" answer={readyAnswer} />);
-    fireEvent.click(screen.getByRole("button", { name: FIND }));
-    expect(await screen.findByRole("status")).toHaveTextContent(notVisible("November 11, 2026"));
-    expect(screen.queryByText(/can see a summary/)).toBeNull();
-    unmount();
-    // Review, 2026-11-12: the request is saved, so the page never says it could not send it.
-    fetchMock.mockResolvedValue(response({ ok: true, requestedAtIso: "2026-11-11T15:00:00.000Z", listed: false,
-      sharing: { state: "not_shared", sharedAtIso: null } }));
+
+  it("keeps the button with the server's sentence when the agreement cannot be saved", async () => {
+    fetchMock.mockResolvedValue(response({ error: "Recording permission needs review. Contact hello@tryblueprint.io with your job link." }, 409));
+    render(<SiteAnswer token="owner-token" answer={older} />);
+    fireEvent.click(screen.getByRole("button", { name: OLDER_JOB_AGREE }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Recording permission needs review.");
+    expect(screen.getByRole("button", { name: OLDER_JOB_AGREE })).toBeEnabled();
+  });
+
+  it("offers nothing to a job with no sharing statement and no older one (no video yet)", () => {
     render(<SiteAnswer token="owner-token" answer={readyAnswer} />);
-    fireEvent.click(screen.getByRole("button", { name: FIND }));
-    expect(await screen.findByRole("status")).toHaveTextContent(notVisible("November 11, 2026"));
-    expect(screen.queryByRole("alert")).toBeNull();
-    expect(screen.queryByRole("button", { name: FIND })).toBeNull();
-  });
-
-  // Review, 2026-11-12: a summary shared on the start form, or under statement v1 or v2, says what it leaves out, and
-  // the existing button with the current recorded statement adds it.
-  it.each([
-    ["shared on the start form, with a first look", { firstLook: true, trialResult: true }, null, LEAVES_OUT_FIRST_LOOK],
-    ["shared on the start form, with a trial result", { firstLook: true, trialResult: true }, "result", LEAVES_OUT_BOTH],
-    ["shared under v1, with a trial result", { firstLook: false, trialResult: true }, "result", LEAVES_OUT_TRIAL],
-    ["shared under v2, with a trial result", { firstLook: false, trialResult: true }, "result", LEAVES_OUT_TRIAL],
-    ["shared under v1, with no trial result", { firstLook: false, trialResult: true }, null, null],
-    ["shared under v3", { firstLook: false, trialResult: false }, "result", null],
-  ] as const)("says what a summary %s leaves out, and offers to add it", async (_, leavesOut, trial, line) => {
-    const answer = { ...readyAnswer, jobCardListed: true, sharing: { state: "visible" as const, sharedAtIso: "2026-11-10T09:00:00.000Z", leavesOut } };
-    const outlook = trial ? { phase: "result" as const, reason: null, sentence: null } : { phase: "no_test" as const, reason: "window_expired" as const, sentence: "x" };
-    render(<SiteAnswer token="owner-token" answer={answer} proof={trial ? winnerProof : null} outlook={outlook} />);
-    expect(within(companies()).getByRole("status")).toHaveTextContent(sharedOn("November 10, 2026"));
-    if (!line) { expect(screen.queryByRole("button", { name: FIND })).toBeNull(); return; }
-    expect(within(companies()).getByText(line)).toBeVisible();
-    expect(within(companies()).getByText(CONSENT)).toBeVisible();
-    fetchMock.mockResolvedValue(response({ ok: true, requestedAtIso: "2026-11-12T09:00:00.000Z", listed: true,
-      sharing: { state: "visible", sharedAtIso: "2026-11-10T09:00:00.000Z", leavesOut: { firstLook: false, trialResult: false } } }));
-    fireEvent.click(within(companies()).getByRole("button", { name: FIND }));
-    // The same route, the same recorded statement and version.
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
-    expect(fetchMock.mock.calls[0][1]).toMatchObject({ body: JSON.stringify({ statementVersion: "public-task-card-with-answer-v3" }) });
-    await waitFor(() => expect(screen.queryByText(line)).toBeNull());
-    expect(screen.getByText(sharedOn("November 10, 2026"))).toBeVisible();
-  });
-
-  it("keeps the button with one plain sentence when the request fails", async () => {
-    fetchMock.mockResolvedValue(response({ error: "introduction_request_failed" }, 500));
-    render(<SiteAnswer token="owner-token" answer={readyAnswer} />);
-    fireEvent.click(screen.getByRole("button", { name: FIND }));
-    expect(await screen.findByRole("alert")).toHaveTextContent("We could not send your request just now. Try again shortly.");
-    expect(screen.getByRole("button", { name: FIND })).toBeEnabled();
-    expect(document.body.textContent).not.toMatch(/introduction_request_failed/);
-  });
-
-  it("shows the server's sentence and keeps the button when the wording has changed", async () => {
-    const changed = "The wording on this page has changed. Reload the page to read it, then press the button again.";
-    fetchMock.mockResolvedValue(response({ code: "introduction_request_statement_changed", error: changed }, 409));
-    render(<SiteAnswer token="owner-token" answer={readyAnswer} />);
-    fireEvent.click(screen.getByRole("button", { name: FIND }));
-    expect(await screen.findByRole("alert")).toHaveTextContent(changed);
-    expect(screen.getByRole("button", { name: FIND })).toBeEnabled();
-    expect(screen.queryByRole("status")).toBeNull();
-  });
-
-  it("words a refusal by its reason: a closed job, a job waiting for its sentence, or a packet not ready", async () => {
-    for (const [reason, sentence] of [["job_closed", "This job is closed, so it cannot be shared."],
-      ["needs_job_sentence", "Tell us what the job is first. Then you can share it."],
-      ["packet_not_ready", "You can share your job once its job packet is ready."]] as const) {
-      fetchMock.mockResolvedValue(response({ code: "introduction_waits_for_answer", reason, error: "x" }, 409));
-      const { unmount } = render(<SiteAnswer token="owner-token" answer={readyAnswer} />);
-      fireEvent.click(screen.getByRole("button", { name: FIND }));
-      expect(await screen.findByRole("alert"), reason).toHaveTextContent(sentence);
-      unmount();
-    }
-  });
-  it("keeps the button, quiet, with its line, when the site has a step to take first", () => {
-    render(<SiteAnswer token="owner-token" answer={readyAnswer} quietAction />);
-    expect(screen.getByRole("button", { name: FIND })).toHaveClass("bare-quiet-button");
-    expect(screen.getByText(CONSENT)).toBeVisible();
+    expect(within(companies()).getByText(NOT_SHARED_YET)).toBeVisible();
+    expect(within(companies()).queryAllByRole("button")).toHaveLength(0);
   });
 
   it("keeps a first look that cannot be checked as it is, whatever the early trial found", () => {
@@ -704,49 +608,115 @@ describe("sharing the job with deployment companies", () => {
   });
 });
 
-// Package C1: under the sharing sentence, each send and each answer by alias, in date order, and once a company is
-// interested, that we will write about next steps. No free text from anyone: never a company's name, never a note.
-describe("the deployment companies section, with sends and answers", () => {
-  const activity = { interested: true, entries: [
-    { kind: "sent" as const, alias: "Company A", atIso: "2026-11-11T10:00:00.000Z" },
-    { kind: "answered" as const, alias: "Company B", atIso: "2026-11-12T09:00:00.000Z", state: "needs_something" as const },
-    { kind: "answered" as const, alias: "Company A", atIso: "2026-11-13T09:00:00.000Z", state: "interested" as const },
+// PACKAGE_E E4 and E6: under the sharing sentence, one line for the automatic send, each answer by alias, and beside each
+// company that can be introduced "Introduce us"; after an introduction, that company's details and only that company's.
+describe("the deployment companies section, with sends, answers and introductions", () => {
+  const activity = { interested: true, sent: { count: 4, firstAtIso: "2026-11-11T10:00:00.000Z" }, introductions: { used: 0, max: 3 }, entries: [
+    { kind: "answered" as const, alias: "Company B", atIso: "2026-11-12T09:00:00.000Z", state: "needs_something" as const, canIntroduce: false },
+    { kind: "answered" as const, alias: "Company A", atIso: "2026-11-13T09:00:00.000Z", state: "interested" as const, canIntroduce: true },
   ] };
   const lines = () => within(companies()).getAllByRole("listitem").map(item => item.textContent);
 
-  it("lists them under the sharing sentence, by alias, date and label, and says we will write about next steps", () => {
-    // A stray field on an entry (a note, as an older server might send) is never rendered.
-    const stray = { ...activity, entries: activity.entries.map(entry => ({ ...entry, noteForSite: "NOTE-PLANT never shown." })) };
+  it("says the one send line and each answer by alias, and offers Introduce us with its sentence only where it can be pressed", () => {
+    const stray = { ...activity, entries: activity.entries.map(entry => ({ ...entry, noteForSite: "NOTE-PLANT never shown.", words: "WORDS-PLANT" })) };
     render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE, companies: stray as never }} />);
-    expect(within(companies()).getByText(sharedOn("November 10, 2026"))).toBeVisible();
-    expect(lines()).toEqual(["Sent to Company A on November 11, 2026.", "Company B answered on November 12, 2026: Would need something.",
-      "Company A answered on November 13, 2026: Interested."]);
-    expect(companies().textContent).not.toContain("NOTE-PLANT");
-    expect(within(companies()).getByText("We will write to you about next steps.")).toBeVisible();
+    expect(within(companies()).getByText(SHARED_LINE)).toBeVisible();
+    expect(within(companies()).getByText("Sent to 4 deployment companies on November 11, 2026.")).toBeVisible();
+    expect(lines()[0]).toBe("Company B answered on November 12, 2026: Would need something.");
+    expect(lines()[1]).toContain("Company A answered on November 13, 2026: Interested.");
+    const buttons = within(companies()).getAllByRole("button", { name: "Introduce us" });
+    expect(buttons).toHaveLength(1);
+    expect(within(companies()).getByText("We give Company A your name and contact details, and give you theirs."))
+      .toHaveAttribute("id", buttons[0].getAttribute("aria-describedby"));
+    expect(companies().textContent).not.toMatch(/NOTE-PLANT|WORDS-PLANT|We will write to you/);
     expect(companies().textContent).not.toMatch(BANNED);
   });
 
-  it("says nothing about next steps until a company is interested, and keeps the entries while not visible", () => {
-    render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...HIDDEN, companies: { interested: false, entries: [
-      { kind: "sent", alias: "Company A", atIso: "2026-11-11T10:00:00.000Z" },
-      { kind: "answered", alias: "Company A", atIso: "2026-11-12T10:00:00.000Z", state: "declined" }] } }} />);
-    expect(within(companies()).getByRole("status")).toHaveTextContent(notVisible("November 10, 2026"));
-    expect(lines()).toEqual(["Sent to Company A on November 11, 2026.", "Company A answered on November 12, 2026: Not a fit."]);
-    expect(within(companies()).queryByText("We will write to you about next steps.")).toBeNull();
+  it("asks for the introduction by alias, then shows what the server reads back", async () => {
+    fetchMock.mockResolvedValue(response({ ok: true, introducedAtIso: "2026-11-14T09:00:00.000Z" }));
+    const changed = vi.fn();
+    render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE, companies: activity }} onIntroductionRequested={changed} />);
+    fireEvent.click(within(companies()).getByRole("button", { name: "Introduce us" }));
+    await waitFor(() => expect(changed).toHaveBeenCalledTimes(1));
+    expect(fetchMock).toHaveBeenCalledWith("/api/site-task-brief/owner-token/introductions", expect.objectContaining({ method: "POST",
+      body: JSON.stringify({ alias: "A" }) }));
   });
 
-  it("shows no entry, and no list, when there is none, when the shape is wrong, or once the job ended", () => {
-    const { unmount } = render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE, companies: { interested: false, entries: [] } }} />);
-    expect(within(companies()).queryByRole("list")).toBeNull();
+  it.each([
+    ["not_listed", "Your job is not in front of deployment companies right now, so we cannot make an introduction."],
+    ["not_interested", "This company has not answered Interested, so we cannot introduce you."],
+    ["consent_missing", "This company needs to answer again before we can introduce you."],
+    ["limit_reached", "You have used your three introductions."],
+    ["already_introduced", "You have already been introduced to this company. Their details are on this page and in your email."],
+    ["company_not_approved", "This company can no longer be introduced."],
+  ])("says a refusal (%s) in one plain sentence and keeps the button", async (reason, sentence) => {
+    fetchMock.mockResolvedValue(response({ ok: false, reason, error: "server words" }, 409));
+    render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE, companies: activity }} />);
+    fireEvent.click(within(companies()).getByRole("button", { name: "Introduce us" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(sentence);
+    expect(screen.getByRole("button", { name: "Introduce us" })).toBeEnabled();
+  });
+
+  it("after an introduction shows that company's name and contact details, and only that company's", () => {
+    const introduced = { ...activity, introductions: { used: 1, max: 3 }, entries: [
+      { ...activity.entries[0], canIntroduce: false },
+      { ...activity.entries[1], canIntroduce: false, introducedAtIso: "2026-11-14T09:00:00.000Z",
+        company: { name: "Northwind Robotics", contactName: "Ada Contact", email: "ada@northwind.example", website: "https://northwind.example" } },
+    ] };
+    render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE, companies: introduced }} />);
+    expect(within(companies()).getByText("You were introduced to Northwind Robotics on November 14, 2026.")).toBeVisible();
+    expect(within(companies()).getByRole("link", { name: "ada@northwind.example" })).toHaveAttribute("href", "mailto:ada@northwind.example");
+    expect(within(companies()).getByText("Ada Contact")).toBeVisible();
+    expect(within(companies()).getByRole("link", { name: "https://northwind.example" })).toBeVisible();
+    expect(within(companies()).queryAllByRole("button")).toHaveLength(0);
+    // Company B, not introduced, stays an alias.
+    expect(lines()[0]).toBe("Company B answered on November 12, 2026: Would need something.");
+  });
+
+  it("says the three introductions are used, with no button, once the limit is reached", () => {
+    const full = { ...activity, introductions: { used: 3, max: 3 } };
+    render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE, companies: full }} />);
+    expect(within(companies()).getByText("You have used your three introductions.")).toBeVisible();
+    expect(within(companies()).queryAllByRole("button")).toHaveLength(0);
+  });
+
+  it("keeps the entries while not visible, and shows nothing once the job is withdrawn", () => {
+    const { unmount } = render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...HIDDEN, companies: activity }} />);
+    expect(within(companies()).getByRole("status")).toHaveTextContent(NOT_VISIBLE_LINE);
+    expect(lines()).toHaveLength(2);
     unmount();
-    const { unmount: second } = render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE,
-      companies: { interested: true, entries: [{ kind: "answered", alias: "Company A", atIso: "x", state: "maybe" }] } as never }} />);
-    expect(within(companies()).queryByRole("list")).toBeNull();
-    second();
     render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...HIDDEN, companies: activity }} proof={null}
       outlook={{ phase: "ended_by_site", reason: "permission_withdrawn", sentence: "Permission to use your video was withdrawn, so this job has stopped." }} />);
     expect(within(companies()).getByText(NOTHING_IS_SHARED)).toBeVisible();
     expect(within(companies()).queryByRole("list")).toBeNull();
-    expect(within(companies()).queryByText("We will write to you about next steps.")).toBeNull();
+  });
+
+  it("shows no entry, and no list, when there is none or the shape is wrong", () => {
+    const { unmount } = render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE, companies: { interested: false, entries: [] } }} />);
+    expect(within(companies()).queryByRole("list")).toBeNull();
+    unmount();
+    render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE,
+      companies: { interested: true, entries: [{ kind: "answered", alias: "Company A", atIso: "x", state: "maybe" }] } as never }} />);
+    expect(within(companies()).queryByRole("list")).toBeNull();
+  });
+});
+
+// The Pipeline's first-look table (third worker's `firstLookWords`): when the status carries it, its rows replace the
+// robot rows, each robot then its sentence, then "And N more." when the list was cut.
+describe("the first look from the published table", () => {
+  it("lists each robot with its sentence, a conditional row said plainly, and how many more", () => {
+    render(<SiteAnswer token="owner-token" answer={readyAnswer} firstLookTable={{ rows: [
+      { verdict: "fits", text: "Fits.", robot: "Universal Robots UR10e" },
+      { verdict: "conditional", text: "Fits if the item weighs under 11.6 kg.", robot: "FANUC CRX-10iA" },
+    ], more: "And 24 more." }} />);
+    const rows = within(firstLook()).getAllByRole("listitem").map(item => item.textContent);
+    expect(rows).toEqual(["Universal Robots UR10e Fits.", "FANUC CRX-10iA Fits if the item weighs under 11.6 kg."]);
+    expect(within(firstLook()).getByText("And 24 more.")).toBeVisible();
+    expect(within(firstLook()).queryByText(FIRST_LOOK)).toBeNull();
+  });
+
+  it("keeps today's first look when there is no table", () => {
+    render(<SiteAnswer token="owner-token" answer={readyAnswer} firstLookTable={null} />);
+    expect(within(firstLook()).getByText(FIRST_LOOK)).toBeVisible();
   });
 });

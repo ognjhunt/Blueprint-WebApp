@@ -1,8 +1,7 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { sharedFakeFirestore as store, sharedFakeFirestoreState as state } from "./helpers/fake-firestore";
-import { listedTaskCard } from "./helpers/listedTaskCard";
-import { RECORDING_CONSENT_VERSION } from "../utils/recordingConsent";
+import { passedPrivacyScreen, sharedJobListing, sharedRecordingGrant } from "./helpers/sharedJob";
 
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({ dbAdmin: store,
   default: { firestore: { FieldValue: { serverTimestamp: () => "server-time" } } } }));
@@ -24,12 +23,12 @@ beforeEach(() => {
   state.docs.set("inboundRequests/application", { account_owner_uid: "owner", workspace_evaluation: {
     opportunityId: "scene", setupId: "setup", policyRunLicense: structuredClone(license) } });
   state.docs.set("inboundRequests/scene", {
-    request: { buyerType: "site_operator", capture_mode: "self_capture", consent_attestation: {
-      granted: true, statement_version: RECORDING_CONSENT_VERSION, recorded_at_iso: "2026-10-01T00:00:00Z" } },
+    request: { buyerType: "site_operator", capture_mode: "self_capture", consent_attestation: sharedRecordingGrant("2026-10-01T00:00:00Z") },
+    capture_privacy_screen: passedPrivacyScreen("scene"),
     siteTaskGates: { sceneStability: "stable", taskShape: "single", objectVariety: "under_10",
       deploymentTimeline: "this_quarter", accessWindow: "scheduled" },
     site_task_triage: { disposition: "qualified" }, site_task_brief_confirmed_at: "2026-10-01T00:00:00Z",
-    public_task_listing: listedTaskCard(), pipeline: { artifacts: { worldlabs_world_manifest_uri: "gs://fixture/world.json" } },
+    public_task_listing: sharedJobListing(), pipeline: { artifacts: { worldlabs_world_manifest_uri: "gs://fixture/world.json" } },
     evaluation_readiness: { runtime_launchable: true, benchmark_coverage_status: "ready" },
   });
   state.docs.set("evaluationRuns/run", { runId: "run", teamId: "team", sceneId: "scene", checkpointId: "checkpoint",

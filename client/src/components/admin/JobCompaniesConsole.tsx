@@ -1,9 +1,11 @@
 /**
  * Deployment companies, for staff, on the job console (package C1, 2026-11-12).
  *
- * V1 is by hand: the operator emails an approved deployment company the job's address in the job library from their
- * own mailbox, and records the send here. The product sends nothing to a company. A company answers in the library or
- * by email; an emailed answer is recorded here, only for a company the job was sent to. The site is told each send and
+ * Automatic since 2026-11-12 (package E): a listed job goes to every approved deployment company by itself, the
+ * companies that asked are emailed, a company answers on the job's page, and the site asks for introductions itself.
+ * This panel shows that: the automatic send, every send, answers, introductions with their latest outcome, and the
+ * billable events (recorded, never priced). The operator may still record a send by hand and an answer a company sent
+ * by email. The site is told each send and
  * answer under an alias ("Company A") and a fixed label, never a company's name or words, and no note: anything else
  * for the site, the operator writes to it directly. "Stop showing this job to companies" holds the job back
  * from every company (the library card and the response form close, and the site's page says it is not visible right
@@ -13,7 +15,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { User as FirebaseUser } from "firebase/auth";
 
 import { Button, StatusChip } from "@/components/blueprint";
-import { COMPANY_RESPONSE_LABELS, COMPANY_RESPONSE_STATES, type CompanyResponseState } from "@/lib/companyResponses";
+import { COMPANY_RESPONSE_LABELS, COMPANY_RESPONSE_STATES, TESTED_RESPONSE_STATES, type CompanyResponseState } from "@/lib/companyResponses";
 import { withCsrfHeader } from "@/lib/csrf";
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
 import type { AdminJobCompanies } from "@/types/jobCompanies";
@@ -129,12 +131,14 @@ export function JobCompaniesConsole({ requestId, currentUser }: { requestId: str
             <span>{panel.sharing.words}</span>
           </p>
           <p className="text-xs text-runway-mute">
-            The site is told each send and answer under an alias ("Company A"), never a company's name or its words. The
-            product sends nothing to a company: you email the address below from your own mailbox.
+            The site is told how many companies its job went to and each answer under an alias ("Company A"), never a
+            company's name or its words, until it asks for an introduction.
+            {panel.autoSend ? ` Sent automatically to ${panel.autoSend.count} deployment ${panel.autoSend.count === 1 ? "company" : "companies"} on ${dateLabel(panel.autoSend.sentAtIso)}.`
+              : " Not sent automatically yet: it goes out once the job is shared and visible and a deployment company is approved."}
           </p>
 
           <div className="grid gap-2">
-            <p className="text-sm text-runway-body">The job in the job library (an approved company opens it signed in):</p>
+            <p className="text-sm text-runway-body">The job's page (an approved company opens it signed in):</p>
             <p className="flex flex-wrap items-center gap-2">
               <code className="break-all text-xs text-runway-text" aria-label="Job library address">{panel.libraryUrl}</code>
               <Button type="button" size="sm" variant="secondary" onClick={() => void copyAddress(panel.libraryUrl)}>
@@ -193,7 +197,7 @@ export function JobCompaniesConsole({ requestId, currentUser }: { requestId: str
                   <li key={send.sendId} className="flex flex-wrap items-center gap-2">
                     <span className={send.voidedAtIso ? "line-through text-runway-mute" : undefined}>
                       {send.company ?? send.companyId}{send.alias ? ` (Company ${send.alias} to the site)` : ""} · {dateLabel(send.sentAtIso)}
-                      {send.sentBy ? ` · by ${send.sentBy}` : ""}
+                      {send.sentBy === "system" ? " · automatic" : send.sentBy ? ` · by ${send.sentBy}` : ""}
                     </span>
                     {send.voidedAtIso ? <span className="text-xs text-runway-mute">Voided {dateLabel(send.voidedAtIso)}{send.voidedBy ? ` by ${send.voidedBy}` : ""}</span> : (
                       <Button type="button" size="sm" variant="secondary" disabled={busy}
@@ -220,10 +224,36 @@ export function JobCompaniesConsole({ requestId, currentUser }: { requestId: str
                     {row.inputs ? <blockquote className="border-l-2 border-runway-line pl-3 text-xs text-runway-mute">“{row.inputs}”</blockquote> : null}
                     <p className="text-xs text-runway-faint">
                       {dateLabel(row.updatedAtIso)} · {row.recordedBy === "operator" ? "recorded by Blueprint from an email"
-                        : row.recordedBy === "company" ? "answered in the job library"
+                        : row.recordedBy === "company" ? (row.statementVersion ? "answered on the job's page (consents to an introduction)" : "answered in the job library before 2026-11-12")
                           : "answered before sites could see answers: never shown to the site"}
                     </p>
                   </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
+          <section aria-label="Introductions" className="grid gap-2">
+            <h4 className="runway-label">Introductions</h4>
+            {!panel.introductions?.length ? <p className="text-sm text-runway-mute">The site has not asked for an introduction.</p> : (
+              <ul className="grid gap-2 text-sm text-runway-body">
+                {panel.introductions.map((row) => (
+                  <li key={row.companyId}>
+                    {row.company ?? row.companyId}{row.alias ? ` (Company ${row.alias})` : ""} · asked {dateLabel(row.requestedAtIso)}
+                    {" · "}{row.latestOutcome ? `${row.latestOutcome.label} (${row.latestOutcome.by}, ${dateLabel(row.latestOutcome.atIso)})` : "no outcome yet"}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
+          <section aria-label="Billable events" className="grid gap-2">
+            <h4 className="runway-label">Billable events</h4>
+            <p className="text-xs text-runway-mute">Each introduction is recorded. No price is set and nothing is charged.</p>
+            {!panel.billableEvents?.length ? <p className="text-sm text-runway-mute">None.</p> : (
+              <ul className="grid gap-1 text-sm text-runway-body">
+                {panel.billableEvents.map((event) => (
+                  <li key={event.id}>Introduction · {event.company ?? event.companyId} · {dateLabel(event.atIso)} · recorded, no price</li>
                 ))}
               </ul>
             )}
@@ -241,7 +271,8 @@ export function JobCompaniesConsole({ requestId, currentUser }: { requestId: str
               </label>
               <label className="grid gap-1 text-xs text-runway-mute">Answer
                 <select name="state" className="runway-input" defaultValue="interested" disabled={panel.consentRevoked}>
-                  {COMPANY_RESPONSE_STATES.map((state) => <option key={state} value={state}>{COMPANY_RESPONSE_LABELS[state]}</option>)}
+                  {/* A tested answer is the company's own, on the job's page, after downloading the simulation (E9). */}
+                  {COMPANY_RESPONSE_STATES.filter((state) => !TESTED_RESPONSE_STATES.includes(state)).map((state) => <option key={state} value={state}>{COMPANY_RESPONSE_LABELS[state]}</option>)}
                 </select>
               </label>
             </div>

@@ -23,3 +23,19 @@ export const SITE_START_CONSENT_WITH_VIDEO =
 /** The same line where no video is sent with the form (film it next, or a site outside the region we take video from). */
 export const SITE_START_CONSENT_NO_VIDEO =
   "By continuing, you agree to our Terms and Privacy Policy and confirm you're allowed to share this job for the site.";
+
+/**
+ * Sharing is the service (owner, 2026-11-12): the line under "Send video" from now on, recorded as recording rights and
+ * description authority `2026-11-12.v4`, and on the job page as the agreement for a job started without a video or
+ * under an older statement. The lines above stay as the records of what earlier sites agreed to.
+ */
+export const SITE_START_CONSENT_WITH_VIDEO_V4 =
+  "By sending, you agree to our Terms and Privacy Policy and confirm you're allowed to film and share this site. "
+  + "We share your job, including this video and the simulation we build from it, with robot deployment companies we've approved.";
+/** The same where no video is sent with the form: description authority `2026-11-12.v5`. */
+export const SITE_START_CONSENT_NO_VIDEO_V5 =
+  "By continuing, you agree to our Terms and Privacy Policy and confirm you're allowed to share this job for the site. "
+  + "We share your job with robot deployment companies we've approved.";
+/** The "also" line on the agreeing screen (PACKAGE_E). Not a recorded statement. */
+export const AGREEING_ALSO_LINE =
+  "Our Terms and Privacy Policy. We don't share your name, address or contact details unless you ask for an introduction.";

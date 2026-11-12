@@ -19,7 +19,8 @@ import { createServer, type Server } from "node:http";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { sharedFakeFirestore, sharedFakeFirestoreState as state } from "./helpers/fake-firestore";
 import { anonymizedOpportunityDraft } from "../../client/src/types/taskBrowse";
-import { JOB_CARD_ANSWER_STATEMENT, JOB_CARD_ANSWER_STATEMENT_VERSION } from "../../client/src/lib/jobCardAnswerConsent";
+import { sharedJobFields } from "./helpers/sharedJob";
+import { COMPANY_RESPONSE_STATEMENT_VERSION } from "../../client/src/lib/companyResponses";
 
 vi.mock("../../client/src/lib/firebaseAdmin", async () => {
   const { sharedFakeFirestore, FAKE_FIELD_DELETE } = await import("./helpers/fake-firestore");
@@ -88,16 +89,12 @@ function job(extra: Record<string, unknown> = {}) {
   return {
     requestId: ID,
     contact: { email: "encrypted:owner@site.example" },
-    request: { buyerType: "site_operator", capture_mode: "self_capture" },
+    ...sharedJobFields(ID, { capture_mode: "self_capture" }),
     capture_coverage: { covers_scene: true },
     walkthrough_job_estimates: { capture_id: `walkthrough-${ID}`, job_estimates: {
       object: "carton", object_largest_side_m: 0.4, object_mass_kg_low: 8, object_mass_kg_high: 11, object_surface: "matte",
       pick_to_place_m: 1.6, pick_height_m: null, place_height_m: null, front_clearance_m: 1.5,
       other_items_likely: [], cycle_seconds: null, basis: "A person stacks cartons onto a pallet." } },
-    public_task_listing: { enabled: true, consentVersion: JOB_CARD_ANSWER_STATEMENT_VERSION, approvedAtIso: "2026-11-11T10:00:00.000Z",
-      approvedBy: "signed_owner_link", details: anonymizedOpportunityDraft("Stack cartons onto the pallet") },
-    introduction_request: { requested_at_iso: "2026-11-11T10:00:00.000Z", requested_by: "signed_owner_link",
-      statement_version: JOB_CARD_ANSWER_STATEMENT_VERSION, statement_text: JOB_CARD_ANSWER_STATEMENT },
     ...extra,
   };
 }
@@ -114,7 +111,8 @@ const adminPost = async (path: string, body: unknown, headers: Record<string, st
 const panel = async () => (await fetch(`${base}/api/admin/jobs/${ID}/companies`, { headers: admin })).json() as Promise<Record<string, any>>;
 async function companyAnswers(record: typeof NORTH, body: Record<string, unknown>) {
   seams.company = { uid: `uid-${record.email}`, email: record.email, email_verified: true };
-  const response = await fetch(`${base}/api/site-worlds/tasks/${ID}/interest`, { method: "POST", body: JSON.stringify(body),
+  const response = await fetch(`${base}/api/site-worlds/tasks/${ID}/interest`, { method: "POST",
+    body: JSON.stringify({ statementVersion: COMPANY_RESPONSE_STATEMENT_VERSION, ...body }),
     headers: { "content-type": "application/json", cookie: "csrf_token=c1-test", "x-csrf-token": "c1-test" } });
   return { status: response.status, body: await response.json() as Record<string, any> };
 }
@@ -178,7 +176,7 @@ describe("the operator's Deployment companies panel", () => {
     const read = await panel();
     expect(read.sharing).toMatchObject({ state: "shared_visible", words: "Shared and visible to approved companies." });
     expect(read.companies.map((row: { id: string }) => row.id).sort()).toEqual([sha(NORTH.email), sha(SOUTH.email)].sort());
-    expect(read.libraryUrl).toMatch(new RegExp(`/contact/robot-team#job-${ID}$`));
+    expect(read.libraryUrl).toMatch(new RegExp(`/jobs/${ID}$`));
     expect(read).toMatchObject({ hold: null, consentRevoked: false, sends: [], responses: [] });
   });
 
@@ -191,7 +189,8 @@ describe("the operator's Deployment companies panel", () => {
     expect(await adminPost("/sends", { companyId: sha(NORTH.email) })).toMatchObject({ status: 409, body: { code: "not_visible" } });
     patchJob({ public_task_listing: job().public_task_listing, evaluation_readiness: { rights_review_status: "needs_review" } });
     expect(await adminPost("/sends", { companyId: sha(NORTH.email) })).toMatchObject({ status: 409, body: { code: "not_visible" } });
-    patchJob({ evaluation_readiness: {}, workspace_task: { paused: true } });
+    // The site closed its job with the old workspace control (`archived`): closed. A site-set `paused` alone no longer closes.
+    patchJob({ evaluation_readiness: {}, workspace_task: { archived: true } });
     expect(await adminPost("/sends", { companyId: sha(NORTH.email) })).toMatchObject({ status: 409, body: { code: "not_visible" } });
     patchJob({ workspace_task: {}, consent_revoked: true });
     expect(await adminPost("/sends", { companyId: sha(NORTH.email) })).toMatchObject({ status: 409, body: { code: "consent_withdrawn" } });
@@ -247,9 +246,13 @@ describe("what the site receives", () => {
     const { raw, body } = await siteStatus();
     const entries = body.answer.companies.entries as Array<Record<string, unknown>>;
     expect(body.answer.companies.interested).toBe(true);
-    expect(Object.keys(body.answer.companies).sort()).toEqual(["entries", "interested"]);
+    expect(Object.keys(body.answer.companies).sort()).toEqual(["entries", "interested", "introductions", "sent"]);
+    expect(body.answer.companies.sent).toMatchObject({ count: 1 });
+    expect(body.answer.companies.introductions).toEqual({ used: 0, max: 3 });
     expect(entries.map(entry => Object.keys(entry).sort())).toEqual([["alias", "atIso", "kind"],
-      ["alias", "atIso", "kind", "state"], ["alias", "atIso", "kind", "state"]]);
+      ["alias", "atIso", "canIntroduce", "kind", "state"], ["alias", "atIso", "canIntroduce", "kind", "state"]]);
+    // An answer an operator recorded from an email carries no consent to an introduction (E5).
+    expect(entries.map(entry => entry.canIntroduce)).toEqual([undefined, false, false]);
     expect(entries.map(({ kind, alias, state: answer }) => ({ kind, alias, answer }))).toEqual([
       { kind: "sent", alias: "Company A", answer: undefined },
       { kind: "answered", alias: "Company B", answer: "needs_something" },
@@ -259,13 +262,13 @@ describe("what the site receives", () => {
 
     // The emails: one per send, one per company and answer, each by the fixed words.
     const subjects = sent().map(message => message.subject).filter(subject => subject !== "Your job summary is shared");
-    expect(subjects.sort()).toEqual(["A deployment company answered", "A deployment company answered", "Your job was sent to a deployment company"].sort());
+    expect(subjects.sort()).toEqual(["A deployment company answered", "A deployment company answered", "Your job was sent to deployment companies"].sort());
     const rows = outbox().filter(row => row.kind === "job_sent" || row.kind === "company_answered");
     expect(rows.map(row => row.key).sort()).toEqual([`captureOutbox/${ID}:company_answered:A-interested`,
       `captureOutbox/${ID}:company_answered:B-needs_something`, `captureOutbox/${ID}:job_sent:send-${send.body.send.sendId}`].sort());
     const bodyOf = (key: string) => rows.find(row => row.key === `captureOutbox/${ID}:${key}`)!.body;
-    expect(bodyOf(`job_sent:send-${send.body.send.sendId}`)).toMatch(/^We sent the summary of your job to a deployment company we approved\. Your video, address and contacts stay private\. Your job page shows any answer\.\n\nOpen your job:\nhttps:\/\/\S+\/capture-upload\/\S+$/);
-    expect(bodyOf("company_answered:B-needs_something")).toMatch(/^A deployment company answered about your job: Would need something\. Your job page has the details\.\n\nOpen your job:\nhttps:\/\/\S+$/);
+    expect(bodyOf(`job_sent:send-${send.body.send.sendId}`)).toMatch(/^Your job is with deployment companies\. Your job page shows any answer\.\n\nOpen your job:\nhttps:\/\/\S+\/capture-upload\/\S+$/);
+    expect(bodyOf("company_answered:B-needs_something")).toMatch(/^A deployment company answered about your job: Would need something\. Your job page has the details\. A few quick answers on your job page may be all they need\.\n\nOpen your job:\nhttps:\/\/\S+$/);
     expect(bodyOf("company_answered:A-interested")).toMatch(/^A deployment company answered about your job: Interested\. Your job page has the details\./);
     expect(rows.every(row => row.status === "sent")).toBe(true);
     expectNoCompanyIn("the site's emails", siteEmailText());
@@ -299,7 +302,8 @@ describe("what the site receives", () => {
     expectNoCompanyIn("the projection", JSON.stringify(activity));
     expect(JSON.stringify(activity)).not.toContain("NOTE-PLANT");
     expect(activity).toEqual({ interested: true, entries: [{ kind: "sent", alias: "Company A", atIso: "2026-11-12T00:00:00.000Z" },
-      { kind: "answered", alias: "Company A", atIso: "2026-11-12T01:00:00.000Z", state: "interested" }] });
+      { kind: "answered", alias: "Company A", atIso: "2026-11-12T01:00:00.000Z", state: "interested", canIntroduce: false }],
+      sent: { count: 1, firstAtIso: "2026-11-12T00:00:00.000Z" }, introductions: { used: 0, max: 3 } });
   });
 
   it("never shows an answer given before this change (no recordedBy), gives it no alias, and the status read writes nothing", async () => {
@@ -308,10 +312,10 @@ describe("what the site receives", () => {
       email: SOUTH.email, company: SOUTH.company, submittedBy: "uid-south", updatedAtIso: "2026-11-10T00:00:00.000Z" });
     expect(projectSiteCompanyActivity({ aliases: { [sha(SOUTH.email)]: "A" }, sends: [],
       responses: [{ id: sha(SOUTH.email), data: state.docs.get(`inboundRequests/${ID}/robotTeamInterest/${sha(SOUTH.email)}`) as never }] }))
-      .toEqual({ entries: [], interested: false });
+      .toMatchObject({ entries: [], interested: false });
     const before = JSON.stringify([...state.docs.entries()].filter(([key]) => !key.startsWith("captureOutbox/")));
     const { body } = await siteStatus();
-    expect(body.answer.companies).toEqual({ entries: [], interested: false });
+    expect(body.answer.companies).toMatchObject({ entries: [], interested: false, sent: null });
     await siteStatus();
     // Nothing the status read could write changed: no alias, no record.
     expect(JSON.stringify([...state.docs.entries()].filter(([key]) => !key.startsWith("captureOutbox/")))).toBe(before);
@@ -323,9 +327,9 @@ describe("what the site receives", () => {
     const send = await adminPost("/sends", { companyId: sha(NORTH.email) });
     await adminPost(`/sends/${send.body.send.sendId}/void`, {});
     await deliverOutbox();
-    expect(sent().map(message => message.subject)).not.toContain("Your job was sent to a deployment company");
+    expect(sent().map(message => message.subject)).not.toContain("Your job was sent to deployment companies");
     expect(outbox().find(row => row.kind === "job_sent")).toMatchObject({ status: "cancelled" });
-    expect((await siteStatus()).body.answer.companies).toEqual({ entries: [], interested: false });
+    expect((await siteStatus()).body.answer.companies).toMatchObject({ entries: [], interested: false, sent: null });
   });
 });
 
@@ -341,7 +345,7 @@ describe("Blueprint's hold", () => {
     // Nothing can be sent, and the queued send email is not delivered while held.
     expect(await adminPost("/sends", { companyId: sha(SOUTH.email) })).toMatchObject({ status: 409, body: { code: "not_visible" } });
     await deliverOutbox();
-    expect(sent().map(message => message.subject)).not.toContain("Your job was sent to a deployment company");
+    expect(sent().map(message => message.subject)).not.toContain("Your job was sent to deployment companies");
     expect(outbox().find(row => row.kind === "job_sent")).toMatchObject({ status: "cancelled" });
     // The site's page says the existing "not visible right now" sentence (its state), and still lists the send.
     const held = (await siteStatus()).body.answer;
@@ -367,7 +371,7 @@ describe("a withdrawn job", () => {
       .toMatchObject({ status: 409, body: { code: "consent_withdrawn" } });
     await deliverOutbox();
     expect(outbox().filter(row => row.kind === "job_sent" || row.kind === "company_answered")).toEqual([]);
-    expect(sent().map(message => message.subject)).not.toEqual(expect.arrayContaining(["Your job was sent to a deployment company"]));
+    expect(sent().map(message => message.subject)).not.toEqual(expect.arrayContaining(["Your job was sent to deployment companies"]));
     expect(sent().map(message => message.subject)).not.toContain("A deployment company answered");
     expect([...state.docs.keys()].filter(key => key.includes("/companySends/") || key.includes("/robotTeamInterest/"))).toEqual([]);
   });
@@ -385,7 +389,7 @@ describe("a withdrawn job", () => {
     expect(raw).not.toMatch(/Company [A-Z]|"companies"|"entries"/);
     // The loader itself shows nothing for a withdrawn job, whatever its caller does.
     const { loadSiteCompanyActivity } = await import("../utils/jobCompanies");
-    expect(await loadSiteCompanyActivity(ID)).toEqual({ entries: [], interested: false });
+    expect(await loadSiteCompanyActivity(ID)).toMatchObject({ entries: [], interested: false, sent: null });
     expect(await adminPost("/responses", { companyId: sha(NORTH.email), state: "interested", inputs: WORDS.north }))
       .toMatchObject({ status: 409, body: { code: "consent_withdrawn" } });
     expect(await adminPost("/sends", { companyId: sha(NORTH.email) })).toMatchObject({ status: 409, body: { code: "consent_withdrawn" } });

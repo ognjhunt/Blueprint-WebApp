@@ -12,10 +12,10 @@ import { resetClientEnvCacheForTests } from "@/lib/client-env";
 import { SiteCaptureStart } from "@/components/site/SiteCaptureStart";
 import { siteCaptureDraftKey } from "@/lib/siteCaptureDraft";
 import { RECORDING_RIGHTS_STATEMENT } from "@/lib/recordingRightsStatement";
-import { SITE_START_CONSENT_NO_VIDEO, SITE_START_CONSENT_WITH_VIDEO } from "@/lib/siteStartConsent";
+import { SITE_START_CONSENT_NO_VIDEO_V5 as SITE_START_CONSENT_NO_VIDEO, SITE_START_CONSENT_WITH_VIDEO_V4 as SITE_START_CONSENT_WITH_VIDEO } from "@/lib/siteStartConsent";
 import { TASK_CONFIRMATION_STATEMENT, TASK_CONFIRMATION_VERSION } from "@/lib/taskConfirmationStatement";
+/** The share box the start form had until 2026-11-12: sharing is now the service, said in the line under the button. */
 const SHARE_LABEL = "Also share an anonymised summary of this job with robot companies Blueprint has approved (optional)";
-import { anonymizedOpportunityDraft } from "@/types/taskBrowse";
 import { renderToString } from "react-dom/server";
 import { SITE_CAPTURE_START_FORM, siteCaptureStartSubmission } from "../../../server/tests/helpers/siteCaptureStartSubmission";
 
@@ -471,11 +471,10 @@ it("prepares the phone capture with explicit description authority and no record
   expect(document.querySelector("#start-description-authority")).toBeNull();
   // The line under the button is the one the site agrees to; the full statement is one tap away.
   expect(document.querySelector("[data-consent-line]")).toHaveTextContent(SITE_START_CONSENT_NO_VIDEO);
-  expect(screen.getByText(/I am authorized to share this job description/)).toBeInTheDocument();
   fireEvent.submit(screen.getByRole("form"));
   await screen.findByRole("heading", { name: "Now film the job." });
   const payload = JSON.parse(postsTo("/api/workspace/capture-start")[0][1].body);
-  expect(payload).toMatchObject({ descriptionOnly: true, descriptionAuthority: { granted: true, statementVersion: "2026-11-11.v3" }, consentAttestation: null });
+  expect(payload).toMatchObject({ descriptionOnly: true, descriptionAuthority: { granted: true, statementVersion: "2026-11-12.v5" }, consentAttestation: null });
   expect(payload.matchFee).toBeUndefined();
   expect(upload.send).not.toHaveBeenCalled();
   expect(screen.getByRole("link", { name: "Open my job page ›" })).toHaveAttribute("href", "/capture-upload/tok.signed");
@@ -525,7 +524,7 @@ it("starts the film-on-a-phone path with only a country and an email", async () 
   await screen.findByRole("heading", { name: "Now film the job." });
   const sent = JSON.parse(postsTo("/api/inbound-request")[0][1].body);
   expect(sent).toMatchObject({ taskStatement: "", captureMode: "self_capture", captureRegion: "us", descriptionOnly: true,
-    descriptionAuthority: { granted: true, statementVersion: "2026-11-11.v3" }, consentAttestation: null, acceptedTerms: true });
+    descriptionAuthority: { granted: true, statementVersion: "2026-11-12.v5" }, consentAttestation: null, acceptedTerms: true });
   expect(sent).not.toHaveProperty("taskConfirmation");
   expect(sent).not.toHaveProperty("publicTaskListing");
 });
@@ -565,8 +564,9 @@ it("asks one question about the video and sets the consent in one line under the
   // Sending the video is the grant, so no separate box: one line under the button, and the full statements,
   // word for word, on "What you're agreeing to".
   expect(document.querySelector("#start-rights")).toBeNull();
-  // The one box on the form is the optional, unticked sharing choice, on the details screen.
-  expect(Array.from(document.querySelectorAll("input[type=checkbox]")).map(box => box.id)).toEqual(["start-share-listing"]);
+  // No box on the form: sharing is the service, said in the one line under the button (2026-11-12).
+  expect(Array.from(document.querySelectorAll("input[type=checkbox]")).map(box => box.id)).toEqual([]);
+  expect(screen.queryByRole("checkbox", { name: SHARE_LABEL })).toBeNull();
   const start = screen.getByRole("button", { name: "Send video" });
   const line = document.querySelector("[data-consent-line]")!;
   expect(line).toHaveTextContent(SITE_START_CONSENT_WITH_VIDEO);
@@ -574,8 +574,9 @@ it("asks one question about the video and sets the consent in one line under the
   expect(start).toHaveAttribute("aria-describedby", line.parentElement!.id);
   fireEvent.click(screen.getByRole("button", { name: "What you're agreeing to ›" }));
   expect(screen.getByRole("heading", { name: "What you're agreeing to" })).toBeInTheDocument();
-  expect(screen.getByText(`“${RECORDING_RIGHTS_STATEMENT}”`)).toBeVisible();
-  expect(screen.getByText("“I am authorized to share this job description with Blueprint on behalf of the site.”")).toBeVisible();
+  // The one line is the statement recorded (v4): shown word for word, with the "also" line.
+  expect(screen.getByText(`“${SITE_START_CONSENT_WITH_VIDEO}”`)).toBeVisible();
+  expect(screen.getByText(/We don't share your name, address or contact details unless you ask for an introduction\./)).toBeVisible();
   // A guest's account comes from its email, so the video is asked for here.
   expect(document.querySelector("#start-footage")).toBeRequired();
   expect(document.querySelector("#start-password")).toBeNull();
@@ -783,14 +784,14 @@ describe("SiteCaptureStart and a video that already exists", () => {
     await renderAsSiteAccount();
     chooseUploadNow();
     expect(document.querySelector("#start-footage")).not.toBeNull();
-    expect(screen.getByText(`“${RECORDING_RIGHTS_STATEMENT}”`)).toBeInTheDocument();
+    expect(screen.getByText(`“${SITE_START_CONSENT_WITH_VIDEO}”`)).toBeInTheDocument();
 
     fireEvent.change(document.querySelector("#start-location")!, { target: { value: "munich" } });
     fireEvent.click(await screen.findByText("Munich, Germany"));
 
     await screen.findByText(/Hold on to the video for now/);
     expect(document.querySelector("#start-footage")).toBeNull();
-    expect(screen.queryByText(`“${RECORDING_RIGHTS_STATEMENT}”`)).toBeNull();
+    expect(screen.queryByText(`“${SITE_START_CONSENT_WITH_VIDEO}”`)).toBeNull();
   });
 
   it("creates the task, then sends the video through the capture link", async () => {
@@ -805,7 +806,7 @@ describe("SiteCaptureStart and a video that already exists", () => {
     expect(JSON.parse(init.body)).toMatchObject({ captureMode: "self_capture", hasExistingFootage: true, captureRegion: "us" });
     expect(JSON.parse(init.body).filmerContact).toBeUndefined();
     expect(JSON.parse(init.body)).not.toHaveProperty("budgetBucket");
-    expect(JSON.parse(init.body).consentAttestation).toEqual({ granted: true, statementVersion: "2026-11-11.v3" });
+    expect(JSON.parse(init.body).consentAttestation).toEqual({ granted: true, statementVersion: "2026-11-12.v4" });
     expect(upload.send).toHaveBeenCalledWith("tok.signed", file, expect.any(Function));
     expect(screen.getByRole("link", { name: "Open my job" })).toHaveAttribute("href", captureUrl);
   });
@@ -825,7 +826,7 @@ describe("SiteCaptureStart and a video that already exists", () => {
     await screen.findByText("We have your video.", { selector: "h1" });
     const submitted = JSON.parse(postsTo("/api/workspace/capture-start")[0][1].body);
     expect(submitted).toMatchObject({ taskStatement: "", descriptionOnly: false, hasExistingFootage: true,
-      siteTaskGates: {}, siteTaskSpec: {}, consentAttestation: { granted: true, statementVersion: "2026-11-11.v3" } });
+      siteTaskGates: {}, siteTaskSpec: {}, consentAttestation: { granted: true, statementVersion: "2026-11-12.v4" } });
     expect(submitted).not.toHaveProperty("taskConfirmation");
     expect(submitted).not.toHaveProperty("publicTaskListing");
     expect(submitted).not.toHaveProperty("successCriteria");
@@ -836,8 +837,7 @@ describe("SiteCaptureStart and a video that already exists", () => {
   // evaluation on this job starts from this exact body, never a hand-built record.
   // It is a new guest site's body; the signed private job link authorizes upload.
   it("sends the exact body the request-step journey starts from", async () => {
-    // The journey starts from what production sends today: the switch off.
-    consentSwitch.short = false;
+    // The journey starts from what production sends today: the one-line consent, recording v4 (shares the job).
     account.user = null;
     answerPosts({ captureUrl });
     upload.send.mockResolvedValue({ status: "done" });
@@ -848,9 +848,7 @@ describe("SiteCaptureStart and a video that already exists", () => {
     fireEvent.change(document.querySelector("#start-location")!, { target: { value: SITE_CAPTURE_START_FORM.location } });
     chooseCountry("us");
     fireEvent.change(document.querySelector("#start-email")!, { target: { value: SITE_CAPTURE_START_FORM.email } });
-    // The journey is a shared job, so this site chose to share its card.
-    openDetails();
-    fireEvent.click(screen.getByRole("checkbox", { name: SHARE_LABEL }));
+    // No share box: the line under the button (v4) shares the job.
     fireEvent.submit(screen.getByRole("form"));
     await screen.findByRole("heading", { name: "We have your video." });
     const sent = JSON.parse(postsTo("/api/inbound-request")[0][1].body);
@@ -1199,10 +1197,13 @@ it("RETURN-PERSISTED-RELOAD-001 keeps restored fields in both stores before subm
     retryToken: previous.retryToken, taskStatement: "Restored task"});
 });
 
-// Sharing is the site's explicit choice (owner direction 2026-11-11): one unticked box. The card is
-// generated by the same function the server checks the grant against; the job page can change it later.
-it("shares an anonymised card only when the site ticks the box, and the note is true either way", async () => {
-  fetchMock.mockImplementation(async () => ({ ok: true, json: async () => ({ captureUrl: "https://tryblueprint.io/capture-upload/fixture", captureRegion: "us" }) }));
+// Sharing is the service (owner, 2026-11-12): no share box. With a video the form records recording and description
+// authority v4, which share the job; without one, description authority v5; never a card grant of its own.
+it("submits under v4 with a video and v5 without one, with no share box and no card grant", async () => {
+  fetchMock.mockImplementation(async (url: string, init?: { method?: string }) => init?.method === "POST"
+    ? { ok: true, status: 201, json: async () => ({ captureUrl: "/capture-upload/tok.signed" }) }
+    : String(url).includes("/status") ? { ok: true, json: async () => ({ captureReceived: false, uploadState: "not_received" }) } : photon([]));
+  upload.send.mockResolvedValue({ status: "done" });
   const first = await renderReady(<SiteCaptureStart />);
   const task = "Acme at 123 High Street slides dishwasher racks";
   describeTask(task);
@@ -1210,28 +1211,31 @@ it("shares an anonymised card only when the site ticks the box, and the note is 
   chooseCountry("us");
   fireEvent.change(document.querySelector("#start-email")!, { target: { value: "owner@example.test" } });
   openDetails();
-  const share = screen.getByRole("checkbox", { name: SHARE_LABEL });
-  expect(share).not.toBeChecked();
-  expect(share).not.toBeRequired();
-  expect(screen.getByText(/Your video, address and contacts stay private\./)).toBeInTheDocument();
+  expect(screen.queryByRole("checkbox", { name: SHARE_LABEL })).toBeNull();
+  expect(document.querySelector("[data-consent-line]")).toHaveTextContent(SITE_START_CONSENT_NO_VIDEO);
   fireEvent.submit(screen.getByRole("form"));
   await screen.findByRole("heading", { name: "Now film the job." });
-  expect(JSON.parse(postsTo("/api/inbound-request")[0][1].body)).not.toHaveProperty("publicTaskListing");
+  const noVideo = JSON.parse(postsTo("/api/inbound-request")[0][1].body);
+  expect(noVideo).toMatchObject({ descriptionOnly: true, descriptionAuthority: { granted: true, statementVersion: "2026-11-12.v5" }, consentAttestation: null });
+  expect(noVideo).not.toHaveProperty("publicTaskListing");
   first.unmount();
   localStorage.clear(); durability.rows.clear();
   window.history.replaceState(null, "", window.location.pathname);
 
   await renderReady(<SiteCaptureStart />);
   describeTask(task);
+  fireEvent.click(screen.getByRole("button", { name: "I have a video ›" }));
+  fireEvent.change(document.querySelector("#start-footage")!, { target: { files: [new File(["frames"], "cycle.mov", { type: "video/quicktime" })] } });
   fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Austin, TX" } });
   chooseCountry("us");
   fireEvent.change(document.querySelector("#start-email")!, { target: { value: "owner@example.test" } });
-  openDetails();
-  fireEvent.click(screen.getByRole("checkbox", { name: SHARE_LABEL }));
+  expect(document.querySelector("[data-consent-line]")).toHaveTextContent(SITE_START_CONSENT_WITH_VIDEO);
   fireEvent.submit(screen.getByRole("form"));
-  await screen.findByRole("heading", { name: "Now film the job." });
-  const body = JSON.parse(postsTo("/api/inbound-request")[1][1].body);
-  expect(body.publicTaskListing).toEqual({ consent: true, statementVersion: "public-task-card-v1", details: anonymizedOpportunityDraft(task) });
+  await waitFor(() => expect(postsTo("/api/inbound-request")).toHaveLength(2));
+  const withVideo = JSON.parse(postsTo("/api/inbound-request")[1][1].body);
+  expect(withVideo).toMatchObject({ descriptionOnly: false, descriptionAuthority: { granted: true, statementVersion: "2026-11-12.v4" },
+    consentAttestation: { granted: true, statementVersion: "2026-11-12.v4" } });
+  expect(withVideo).not.toHaveProperty("publicTaskListing");
 });
 
 it("tells a site uploading footage that people seen or heard must know, and that sound is removed", async () => {
@@ -1242,8 +1246,7 @@ it("tells a site uploading footage that people seen or heard must know, and that
   chooseCountry("us");
   expect(screen.queryByText(/People seen or heard in it must know/)).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "I have a video ›" }));
-  expect(screen.getByText("Only upload footage you may share. People seen or heard in it must know it is shared with Blueprint, "
-    + "so avoid clips with conversations. We remove sound before any automated review.")).toBeInTheDocument();
+  expect(screen.getByText("Only upload footage you may share. People in it must know it goes to Blueprint and to deployment companies we approve. Avoid conversations: we remove the sound.")).toBeInTheDocument();
 });
 
 it("offers account setup only after the site and job have been saved", async () => {
@@ -1375,7 +1378,7 @@ describe("with the one-line consent switched off", () => {
     expect(block).toHaveTextContent("“I am authorized to share this job description with Blueprint on behalf of the site.”");
     if (withVideo) {
       expect(block).toHaveTextContent(`“${RECORDING_RIGHTS_STATEMENT}”`);
-      expect(block).toHaveTextContent("Only upload footage you may share. People seen or heard in it must know it is shared with Blueprint, so avoid clips with conversations. We remove sound before any automated review.");
+      expect(block).toHaveTextContent("Only upload footage you may share. People in it must know it goes to Blueprint and to deployment companies we approve. Avoid conversations: we remove the sound.");
     } else {
       expect(block).not.toHaveTextContent(RECORDING_RIGHTS_STATEMENT);
     }

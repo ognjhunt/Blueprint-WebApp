@@ -11,6 +11,7 @@
  * rule (2026-10-26) a held job is accepted, told we are preparing its
  * evaluation and counted as demand; nothing is refused by keyword.
  */
+import { sharedJobFields } from "./helpers/listedTaskCard";
 import { describe, expect, it } from "vitest";
 import {
   MULTI_STEP_TASK_HOLD, SUPPORTED_TASK_LINES, SUPPORTED_TASK_SCOPE, multiStepEvidence, multiStepHoldMessage, multiStepTaskHold,
@@ -248,11 +249,8 @@ describe("multiStepEvidence", () => {
 });
 
 describe("a job we cannot score", () => {
-  const listed = {
-    request: { buyerType: "site_operator", consent_attestation: undefined },
-    public_task_listing: { enabled: true, consentVersion: "public-task-card-v1", approvedAtIso: "2026-10-01T00:00:00Z",
-      details: { title: "Folding towels", taskFamily: "Recurring work", siteType: "", region: "", objects: "", cycleTarget:"",pilotTiming:"",pilotBudget:"", opportunity: "open" } },
-  };
+  // A job shared under the current rule (2026-11-12).
+  const listed = sharedJobFields();
 
   it("never holds an evaluation on the scope hint: the job's own scene decides", () => {
     const unrecognised = teamJobAccess({ ...listed, site_task_scope: { supported: false, reason: "deformable" } });

@@ -29,6 +29,8 @@ import { startWebsiteCaptureDeletionWorker } from "./utils/websiteCaptureDeletio
 import { startWebsiteJobWindowSweepWorker } from "./utils/websiteJobWindowSweep";
 import { installProcessErrorHandlers } from "./utils/opsProcessAlerts";
 import { startWorkerHeartbeat } from "./utils/workerHeartbeat";
+import { startAutomaticSendWorker } from "./utils/jobAutoSend";
+import { startJobOutcomeQuestionWorker } from "./utils/jobOutcomes";
 import { announceAutonomousLanesAtBoot } from "./utils/automationLaneSummary";
 
 const launchForwardOnly = () =>
@@ -86,6 +88,10 @@ export function startWorker(): WorkerHandle {
   // Runs in launch-forward-only mode too: a job whose window ran out is ended and its site told
   // even when the Pipeline is unreachable and the ops scheduler is off.
   const stopWebsiteJobWindowSweep = startWebsiteJobWindowSweepWorker();
+  // Every listed job goes to every approved deployment company once (package E, E4); the sweep catches a missed moment.
+  const stopAutomaticSends = startAutomaticSendWorker();
+  // The timed outcome questions after an introduction (package E, E8).
+  const stopJobOutcomeQuestions = startJobOutcomeQuestionWorker();
   // The web process alerts when this goes stale (betaOpsMonitor, /health/worker).
   const stopHeartbeat = startWorkerHeartbeat();
 
@@ -101,6 +107,8 @@ export function startWorker(): WorkerHandle {
     stopWebsiteWithdrawals();
     stopWebsiteDeletions();
     stopWebsiteJobWindowSweep();
+    stopAutomaticSends();
+    stopJobOutcomeQuestions();
     const communicationsStopped = stopCommunicationsWorker();
     stopScheduler();
     await Promise.all([researchWorker.stop(), communicationsStopped, stopSavedRecoveryWorker()]);

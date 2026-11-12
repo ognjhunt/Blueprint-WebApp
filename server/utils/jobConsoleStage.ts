@@ -58,6 +58,11 @@ const CLOSED_REASON_LABELS: Record<TeamAccessReason, string> = {
   kept_private: "the retired dossier keeps it private",
   restricted_to_named_teams: "the retired dossier names only certain teams",
   operator_paused: "paused by the site",
+  older_statement: "sent under an older statement, so not shared",
+  privacy_screen_pending: "the video has not passed the privacy screen yet",
+  no_job_sentence: "the site has not said what the job is yet",
+  authority_ended: "Blueprint's authority to work on it ended",
+  closed_by_site: "the site closed the job",
   consent_withdrawn: "recording permission withdrawn",
   blueprint_hold: "Blueprint stopped showing it to companies",
   development_only: "a development capture",
@@ -105,6 +110,11 @@ export function closedJobStep(facts: JobFacts): Step {
   switch (reason) {
     case "not_listed": return listingStep(facts.listing.state);
     case "operator_paused": return step("listing", "Listing paused by the site", "site");
+    case "older_statement": return step("listing", "Not shared: waiting on site to accept the current statement on its job page", "site");
+    case "privacy_screen_pending": return step("capture", "Not shared yet: the video is waiting on the privacy screen", "none");
+    case "no_job_sentence": return step("brief_review", "Not shared yet: waiting on site to say what the job is", "site");
+    case "authority_ended": return step("not_open", `No action: ${CLOSED_REASON_LABELS[reason]}`, "none");
+    case "closed_by_site": return step("not_open", `No action: ${CLOSED_REASON_LABELS[reason]}`, "none");
     case "blueprint_hold": return step("listing", "Shown to no company: Blueprint stopped showing this job (Deployment companies, below)", "blueprint");
     case "kept_private":
       return step("not_open", "Private under the retired dossier: ask the site whether approved teams may see it", "blueprint");

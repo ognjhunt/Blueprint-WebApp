@@ -30,13 +30,18 @@ describe("the questions page", () => {
   it("promises no response from a company", () => {
     render(<Beta />);
     expect(screen.getByRole("region", { name: "Deployment companies" }))
-      .toHaveTextContent("A company can say it is interested or that the job is not a fit. We can't promise any will say yes.");
+      .toHaveTextContent("A company can say it is interested, that the job is not a fit, or that it would need something. We can't promise any will say yes.");
+    expect(screen.getByRole("region", { name: "Deployment companies" }))
+      .toHaveTextContent("Beside each interested company, press Introduce us. We give each of you the other's details. Up to three for each job.");
   });
 
-  it("keeps the video private, says how to stop, and says who we are", () => {
+  it("says who sees the video, what stays with us, how to stop, and who we are", () => {
     render(<Beta />);
-    expect(screen.getByRole("region", { name: "Your video" }))
-      .toHaveTextContent(/It stays private\. Companies see a summary of your job, without your name or address\..*stop us using your video at any time/);
+    const video = screen.getByRole("region", { name: "Your video" });
+    expect(video).toHaveTextContent(/We share it, without its sound, with the deployment companies we approve, so they can decide whether they can do your job\. Your name, address and contact details go to a company only if you ask for an introduction\./);
+    expect(video).toHaveTextContent(/A job started before 12 November 2026 is shared only if you agree on its job page\./);
+    expect(video).toHaveTextContent(/stop us using your video at any time, from your job page\. Your job then leaves every company's view at once\./);
+    expect(video).not.toHaveTextContent(/stays private|summary/);
     const who = screen.getByRole("region", { name: "Who we are" });
     expect(who).toHaveAttribute("id", "who-we-are");
     expect(who).toHaveTextContent(COMPANY.legalName);

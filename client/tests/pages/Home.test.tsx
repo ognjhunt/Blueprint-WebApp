@@ -23,13 +23,13 @@ describe("Site-led homepage", () => {
     expect(container.textContent).not.toMatch(/did best|AI robot|Example|\$\s?\d|beta/i);
   });
 
-  it("shows three steps from the video through the job packet to a shared summary, the video kept private", () => {
+  it("shows three steps from the video through the job packet to the deployment companies we approve", () => {
     render(<Home />);
     const steps = within(screen.getByRole("list", { name: "How it works" })).getAllByRole("listitem");
     expect(steps.map(step => step.textContent)).toEqual([
       "Send a video of one job that repeats.",
       "We turn it into a job packet: what the job is, a first look at which robots could fit, and a simulation of your site.",
-      "With your permission, robot deployment companies we approve can see a summary of it. Your video stays private.",
+      "We share it with robot deployment companies we approve, and they answer. Your name and contact details go to a company only if you ask to meet it.",
     ]);
     expect(screen.getByRole("list", { name: "How it works" })).toHaveAttribute("id", "how-it-works");
   });

@@ -12,7 +12,7 @@ import express from "express";
 import { createServer, type Server } from "node:http";
 
 import { sharedFakeFirestoreState as state, sharedFakeFirestore as store } from "./helpers/fake-firestore";
-import { listedTaskCard } from "./helpers/listedTaskCard";
+import { passedPrivacyScreen, sharedJobListing, sharedRecordingGrant } from "./helpers/sharedJob";
 
 const tokens = vi.hoisted(() => new Map<string, Record<string, unknown>>());
 const slack = vi.hoisted(() => vi.fn(async () => ({ sent: true })));
@@ -100,10 +100,13 @@ async function withApp() {
 }
 
 function listedSite(id: string) {
+  state.docs.set(`siteTaskBriefs/${id}`, { requestId: id, summary: "Move totes between two stations", confirmedAtIso: null } as never);
   state.docs.set(`inboundRequests/${id}`, {
     requestId: id,
-    request: { buyerType: "site_operator", siteName: "PRIVATE SITE", siteLocation: "PRIVATE ADDRESS" },
-    public_task_listing: listedTaskCard(),
+    request: { buyerType: "site_operator", siteName: "PRIVATE SITE", siteLocation: "PRIVATE ADDRESS",
+      consent_attestation: sharedRecordingGrant() },
+    public_task_listing: sharedJobListing("Move totes between two stations"),
+    capture_privacy_screen: passedPrivacyScreen(id),
     site_task_triage: { disposition: "qualified" },
   } as never);
 }
@@ -165,6 +168,17 @@ describe("who sees the job library", () => {
     expect(JSON.stringify(body.items)).not.toMatch(/PRIVATE/);
   });
 
+  // The site agreed to share its job with robot deployment companies: an approved technology partner sees no job.
+  it("shows an approved technology partner no job", async () => {
+    approve("ada@arm.example");
+    const key = `${early.ROBOT_TEAM_ACCESS_COLLECTION}/${early.accessRecordId("ada@arm.example")}`;
+    state.docs.set(key, { ...(state.docs.get(key) as object), partnerRole: "technology" } as never);
+    tokens.set("tech", { uid: "u1", email: "ada@arm.example", email_verified: true });
+    const body = await tasks("tech");
+    expect(body.access).toMatchObject({ status: "approved", allowed: false });
+    expect(body.items).toEqual([]);
+  });
+
   it("refuses an approved email that is not verified, since anyone can type an address", async () => {
     approve("ada@arm.example");
     tokens.set("unverified", { uid: "u1", email: "ada@arm.example", email_verified: false });
@@ -183,9 +197,13 @@ describe("who sees the job library", () => {
     expect(body.items).toEqual([]);
   });
 
-  it("opens to everyone when early access is switched off", async () => {
-    vi.stubEnv("BLUEPRINT_ROBOT_TEAM_EARLY_ACCESS", "0");
-    expect((await tasks()).items).toHaveLength(1);
+  // Jobs are shared in full since 2026-11-12, so the open value of the switch admits nobody who is not approved.
+  it.each(["0", "false", "no", "off", "open"])("admits no anonymous viewer when the switch is set to %s", async value => {
+    vi.stubEnv("BLUEPRINT_ROBOT_TEAM_EARLY_ACCESS", value);
+    const body = await tasks();
+    expect(body.items).toEqual([]);
+    expect(body.access).toMatchObject({ allowed: false, signedIn: false });
+    expect(JSON.stringify(body)).not.toMatch(/PRIVATE|Move totes|Material handling/);
   });
 });
 
@@ -324,7 +342,9 @@ describe("the fit checklist", () => {
     const receipt = outbox("robot_team_access_received");
     expect(receipt).toHaveLength(1);
     expect(String((receipt[0][1] as { body: string }).body)).toContain("approval is pending");
-    expect(record.fit.checks[2]).toMatchObject({ id: "open_tasks_in_region", passed: true });
+    // A shared job's card carries no free-text region since 2026-11-12 (the company page shows the country only), so
+    // the region check cannot match a card; it never decided an approval.
+    expect(record.fit.checks[2]).toMatchObject({ id: "open_tasks_in_region", passed: false });
   });
 
   it("leaves anything short of a clear fit, or a switched-off rule, to a person", async () => {

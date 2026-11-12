@@ -849,16 +849,16 @@ describe("GET /api/site-task-brief/:token/status", () => {
     expect(body.status.operatorAction).toBe("Review the results.");
   });
 
-  it("tells the owner when its job card is not published", async () => {
+  // Sharing is the service (2026-11-12): no status asks the site to publish a job card.
+  it("never asks the owner to publish a job card", async () => {
     const request = sharedFakeFirestoreState.docs.get("inboundRequests/req-1")!;
     sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { ...request, public_task_listing: { ...listedTaskCard(), enabled: false } });
     sharedFakeFirestoreState.docs.set("captureUploadSessions/cap-1", {
       world_reconstruction: { state: "ready", assets: { launchUrl: "https://viewer.example/world-1", panoUrl: null } },
     });
     const { body } = await status();
-    expect(body.status.decision).toBe("not_listed");
-    expect(body.status.operatorAction).toMatch(/publish its job card/);
-    expect(body.status.nextUpdateIso).toBeNull();
+    expect(body.status.decision).not.toBe("not_listed");
+    expect(JSON.stringify(body.status)).not.toMatch(/publish its job card|job card is not published/);
   });
 
   it("offers no claim link once an account owns the site", async () => {

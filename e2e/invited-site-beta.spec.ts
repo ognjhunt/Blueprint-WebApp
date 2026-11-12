@@ -109,7 +109,7 @@ for (const width of [390, 1440]) {
     await expect(page.getByRole("heading", { name: "Now film the job.", exact: true })).toBeVisible();
     await page.getByRole("link", { name: "Open my job page ›", exact: true }).click();
     await expect(page.getByRole("region", { name: "Confirm recording permission", exact: true })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Confirm recording permission", exact: true })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "Agree and continue", exact: true })).toBeEnabled();
     await expect(page.getByRole("heading", { name: "Your job summary", exact: true })).toHaveCount(0);
     await expect(page.getByText("Confirm your task: the one step that lets Blueprint run it", { exact: true })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Add footage when you are ready (optional)", exact: true })).toHaveCount(0);
@@ -165,7 +165,7 @@ for (const width of [390, 1440]) {
     await page.reload();
     await expect(page.getByText("Recording permission was withdrawn; processing is held.", { exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "Retry processing", exact: true })).toHaveCount(0);
-    await expect(page.getByRole("button", { name: "Confirm recording permission", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Agree and continue", exact: true })).toHaveCount(0);
     expect(unexpected).toEqual([]);
   });
 }
