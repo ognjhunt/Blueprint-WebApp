@@ -97,6 +97,11 @@ function preparationRowMicros(row: any) {
   if (row?.settlement !== undefined) return amount(settled) ? micros(settled) : Infinity;
   return amount(held) ? micros(held) : Infinity;
 }
+/** The part of a row that can be read: an unreadable settlement is bounded by its readable hold (a settlement never passes it). */
+function readablePreparationRowMicros(row: any) {
+  const value = preparationRowMicros(row), held = row?.admission?.maximum_cost_usd;
+  return Number.isFinite(value) ? value : amount(held) ? micros(held) : 0;
+}
 
 /** The Pipeline's own status shows the intent can start no further attempt. */
 function pipelineEnded(status: Record<string, any> | undefined) {
@@ -121,6 +126,12 @@ function attemptMicros(attempt: any) {
   if (attempt?.retained_spend_usd === undefined) return live;
   return Math.max(live, amount(attempt.retained_spend_usd) ? micros(attempt.retained_spend_usd) : Infinity);
 }
+function readableAttemptMicros(attempt: any) {
+  const finite = (value: number) => Number.isFinite(value) ? value : 0;
+  const live = attempt?.status === "cancelled_before_execution" ? 0
+    : amount(attempt?.maximum_spend_usd) ? micros(attempt.maximum_spend_usd) : 0;
+  return Math.max(live, amount(attempt?.retained_spend_usd) ? finite(micros(attempt.retained_spend_usd)) : 0);
+}
 
 /**
  * A sponsored scene intake grants native construction its own allowance
@@ -141,9 +152,11 @@ function attemptMicros(attempt: any) {
  * allowance (owner, 2026-11-07): it counts only what the Pipeline reports its
  * attempts hold, which is nothing, since the Pipeline reserves none for it.
  */
-function nativeIntakeMicros(intake: Record<string, any>) {
+function nativeIntakeMicros(intake: Record<string, any>, readableOnly = false) {
   const status = intake.pipeline_status, attempts = Array.isArray(status?.attempts) ? status.attempts : [];
-  const reserved = attempts.reduce((sum: number, attempt: any) => sum + attemptMicros(attempt), 0);
+  // Readable only: what the readable figures alone say (an unreadable attempt figure or allowance adds nothing).
+  const attemptValue = (attempt: any) => readableOnly ? readableAttemptMicros(attempt) : attemptMicros(attempt);
+  const reserved = attempts.reduce((sum: number, attempt: any) => sum + attemptValue(attempt), 0);
   if (isNavigationStrategy(intake.request?.task?.strategy)) return reserved;
   const settledReported = attempts.some((attempt: any) => attempt?.retained_spend_usd !== undefined);
   const granted = intake.request?.execution?.max_total_spend_usd;
@@ -151,6 +164,7 @@ function nativeIntakeMicros(intake: Record<string, any>) {
   // The Pipeline refuses any reservation that would take the intent's holds past
   // this (extended) budget, so it bounds what native construction can spend.
   const budget = amount(granted) ? Math.max(micros(granted), amount(extended) ? micros(extended) : 0) : Infinity;
+  if (readableOnly && !Number.isFinite(budget)) return reserved;
   const maySpend = !intake.receipt && intake.forwarding_started === true;
   const unissued = !intake.receipt && !maySpend && ["revoked", "expired", "blocked"].includes(intake.state);
   const ended = intake.closeout_complete === true || intake.state === "completed"
@@ -189,8 +203,9 @@ function screeningMicros(rows: Array<{ run: Record<string, any>; result: Record<
  * What the job holds or spent on each ledger, counted exactly as before (an unbounded hold is
  * unbounded; an unreadable screening result counts the $30 site limit). Owner decision 2026-11-11:
  * beside it, `readable_total_micros` is what the records that can be read add up to (an unreadable
- * one counts nothing there; screening counts the latest valid publication), which is what the job's safety limit refuses on, and `unreadable` names
- * each record whose figure cannot be read, so a person is told (`spend_unreadable`).
+ * figure counts nothing there, but the readable figures beside it in the same record or ledger still
+ * count; screening counts the latest valid publication), which is what the job's safety limit refuses
+ * on, and `unreadable` names each record whose figure cannot be read, so a person is told (`spend_unreadable`).
  */
 export async function websiteJobSpend(input: { record: Record<string, any>; reader: WebsiteJobLedgerReader }) {
   const unreadable: string[] = [];
@@ -198,13 +213,14 @@ export async function websiteJobSpend(input: { record: Record<string, any>; read
   const preparation = Object.entries(input.record.website_preparation_reservations ?? {})
     .reduce((sum: number, [key, row]) => {
       const value = preparationRowMicros(row);
-      if (Number.isFinite(value)) readable += value; else unreadable.push(`preparation reservation ${key}`);
+      readable += readablePreparationRowMicros(row);
+      if (!Number.isFinite(value)) unreadable.push(`preparation reservation ${key}`);
       return sum + value;
     }, 0);
   const native = (await input.reader.sceneIntakes()).reduce((sum, intake) => {
     const value = nativeIntakeMicros(intake);
-    if (Number.isFinite(value)) readable += value;
-    else unreadable.push(`scene intake ${String(intake?.command?.submission_id ?? intake?.request?.submission_id ?? "with no submission id")}`);
+    readable += Number.isFinite(value) ? value : nativeIntakeMicros(intake, true);
+    if (!Number.isFinite(value)) unreadable.push(`scene intake ${String(intake?.command?.submission_id ?? intake?.request?.submission_id ?? "with no submission id")}`);
     return sum + value;
   }, 0);
   const screening = screeningMicros(await input.reader.screeningRuns(), unreadable);

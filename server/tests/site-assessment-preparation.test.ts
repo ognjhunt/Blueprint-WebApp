@@ -834,6 +834,26 @@ it.each([["flagged",true],["unflagged",false]])("a malformed hold on a %s grant 
   expect(messages).toContain("A website job's spend cannot be read");
   expect(messages).toContain("request one: this job's spend cannot be read: preparation reservation broken.");
 });
+// Review of #1274: a valid result committing $120 beside an unreadable one is still past the $100 safety limit.
+it("refuses a flagged $1 build when a valid result already commits $120 beside an unreadable one",async()=>{
+  const {spend}=await budgetJob();
+  const record=state.docs.get("inboundRequests/one") as any;
+  record.website_atlas_grants={"walkthrough-one":{maximum_cost_usd:25}};
+  const {screeningFixture,sealScreening}=await import("./fixtures/beta-policy-screening");
+  const valid=sealScreening({...screeningFixture().publication,budget:{currency:"USD",limit_usd:"150",committed_upper_bound_usd:"120",
+    spent_upper_bound_usd:"120",reserved_usd:"0"}});
+  state.docs.set("taskEvaluationPolicyRuns/valid",{run_kind:"beta_policy_screening",job_evidence_binding:{job_id:"one"},result_record_id:"valid-result"});
+  state.docs.set("captureTaskEvaluationRuns/valid-result",{publication:valid});
+  state.docs.set("taskEvaluationPolicyRuns/broken",{run_kind:"beta_policy_screening",job_evidence_binding:{job_id:"one"},result_record_id:"broken-result"});
+  await withSignedRoute(async send=>{
+    const refused=await send("preparation-spend",{request_id:"one",scene_id:"site-one",spend:spend("d",1)});
+    expect(refused.status).toBe(409);expect(await refused.json()).toEqual({code:"website_scene_preparation_budget_exhausted"});
+  });
+  expect((state.docs.get("opsWebsiteJobOverBudgetAlerts/one-safety-limit") as any).safety_limit)
+    .toMatchObject({safety_limit_usd:100,job_reserved_or_settled_before_usd:120});
+  expect((state.docs.get("opsWebsiteJobOverBudgetAlerts/one-spend-unreadable") as any).spend_unreadable.records)
+    .toEqual(["screening result broken-result"]);
+});
 it("reports a job's safety-limit refusal once, as a safety limit",async()=>{
   vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_GRANT_POLICY_JSON",grantPolicy(100));
   const {spend}=await budgetJob();
