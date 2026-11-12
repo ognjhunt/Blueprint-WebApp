@@ -532,6 +532,8 @@ test("the owner of a saved job with no answer yet sees where it stands, with no 
   await expect(page.getByText("Your footage is retained; review is pending.").first()).toBeVisible();
   await expect(page.getByText(/readiness report/i)).toHaveCount(0);
   await expect(page.getByRole("link", { name: "Print or save the brief" })).toHaveCount(0);
+  // The owner's page never names a robot team or matches one to the job (privacy; the site sees only aliases).
+  await expect(page.locator("body")).not.toContainText(/\bmatch|Galbot|Robot Era/i);
   expect(asks).toEqual([]);
   await page.screenshot({ path: info.outputPath("saved-job-no-readiness-local-fixture.png"), fullPage: true });
 });

@@ -122,13 +122,13 @@ describe("Route registration", () => {
     }
   });
 
-  it("sends the retired signed-in job pages and the readiness brief to the home page", () => {
+  it("sends the retired signed-in job pages to the jobs list and the readiness brief home", () => {
     // The last removal round (2026-11-12): one "Your jobs" list at /app; no printed readiness brief.
     const source = fs.readFileSync(path.resolve(process.cwd(), "client/src/app/routes.tsx"), "utf-8");
     for (const route of ["/app/tasks", "/app/tasks/:taskId", "/readiness-brief/:briefToken"])
       expect(source).not.toContain(`path: "${route}"`);
-    expect(minimalMarketingRedirects["/app/tasks"]).toBe("/");
-    expect(minimalMarketingRedirects["/app/tasks/:taskId"]).toBe("/");
+    expect(minimalMarketingRedirects["/app/tasks"]).toBe("/app");
+    expect(minimalMarketingRedirects["/app/tasks/:taskId"]).toBe("/app");
     expect(minimalMarketingRedirects["/app/tasks/new"]).toBe("/contact/site-operator");
     expect(minimalMarketingRedirects["/readiness-brief/:briefToken"]).toBe("/");
     expect(matchAppRoute("/app/tasks/job-1")?.path).toBe("/app/tasks/:taskId");

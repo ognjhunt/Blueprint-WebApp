@@ -281,8 +281,9 @@ test("a site's jobs list opens each open job on its job page, and nothing else",
   await expect(page).toHaveURL(/\/capture-upload\/fixture-task-1$/);
 });
 
-test("an old signed-in job page link lands on the home page", async ({ page }) => {
+test("an old signed-in job page link lands on the jobs list", async ({ page }) => {
   await seed(page, "site_operator");
   await page.goto("/app/tasks/task-1");
-  await expect(page).toHaveURL(/\/$/);
+  await expect(page).toHaveURL(/\/app$/);
+  await expect(page.getByRole("heading", { level: 1, name: "Your jobs" })).toBeVisible();
 });

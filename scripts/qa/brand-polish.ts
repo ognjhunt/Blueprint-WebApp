@@ -220,9 +220,10 @@ const signupRedirectRoute: PublicQaRoute = {
 export const publicQaRoutes: PublicQaRoute[] = [
   ...canonicalPublicQaRoutes,
   signupRedirectRoute,
-  ...Object.entries(minimalMarketingRedirects).map(([path, target]) => {
-    const canonical = canonicalPublicQaRoutes.find((route) => route.path === target.split("#")[0])!;
-    return { ...canonical, label: `${path} (redirect)`, path };
+  // Only redirects that land on a public page; /app/tasks lands on the signed-in jobs list (2026-11-12).
+  ...Object.entries(minimalMarketingRedirects).flatMap(([path, target]) => {
+    const canonical = canonicalPublicQaRoutes.find((route) => route.path === target.split("#")[0]);
+    return canonical ? [{ ...canonical, label: `${path} (redirect)`, path }] : [];
   }),
 ];
 
