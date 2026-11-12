@@ -12,7 +12,7 @@
  * `external:task_object:composition_support_...`). The sentence is that of the
  * whole code, else of its first part that has one.
  */
-import { isRobotFactFlagCode, screeningRowFlagFields, screeningSceneFeasibility, type BetaPolicyScreeningPublication } from "./betaPolicyScreeningContract";
+import { isRobotFactFlagCode, screeningReferenceCheck, screeningRowFlagFields, screeningSceneFeasibility, type BetaPolicyScreeningPublication } from "./betaPolicyScreeningContract";
 
 export const SETUP_FLAG_UNCLASSIFIED_SENTENCE = "Our scene check raised a point we could not classify.";
 
@@ -44,6 +44,8 @@ const SETUP_FLAG_SENTENCES: ReadonlyMap<string, string> = new Map(Object.entries
   "known_good_control_unavailable:embodiment": "We have no scripted reference for the robots tested on this job yet, so nothing confirmed beforehand that the simulated scene can record a success.",
   "known_good_control_unavailable:budget": "We did not run our scripted reference check, so that this job's budget could go to testing robots; nothing confirmed beforehand that the simulated scene can record a success.",
   known_good_control_interrupted: "Our scripted reference check did not finish, so it could not confirm that the simulated scene can record a success.",
+  // Said from the check's counts, never from its flag (review, 2026-11-12): it did the job once in three tries.
+  known_good_control_partly: "A scripted reference arm that reads exact positions from the simulation did the job only once in three tries in the simulated scene, so a low result here may partly reflect our simulation rather than the robots.",
   // A run's own record that an AI robot's software stopped mid-test (Pipeline `session_policy_server_lost`).
   session_policy_server_lost: "This AI robot's software stopped during the test, so only some tries were counted.",
   // What the simulated scene was built on that was estimated, not observed (Pipeline `atlas_scene_estimates`,
@@ -56,15 +58,15 @@ const SETUP_FLAG_SENTENCES: ReadonlyMap<string, string> = new Map(Object.entries
   "scene_estimate:surrounding_views_dropped": "Some views of the area around the job were left out of the simulated scene to stay within the number of views we process, so those parts are missing from it.",
   // Proposed wording (review, 2026-11-12): what the simulated scene guessed about the job, beside a result.
   "scene_estimate:task_object_guessed": "We could not tell for certain from your video which object the job moves, so the simulated scene uses our best guess.",
-  "scene_estimate:target_role_kept": "We kept the object's role in the job as your job description gives it, without checking it against your video.",
+  "scene_estimate:target_role_kept": "We could not tell whether one of the things in your video is part of the job, so the simulated scene leaves it where it is.",
   "scene_estimate:task_review_estimated": "Parts of the job in the simulated scene come from our review of your video, which we could not confirm.",
-  "scene_estimate:destination_guessed": "We could not see in your video where the object goes, so the simulated scene uses our best guess.",
+  "scene_estimate:destination_guessed": "We could not tell exactly where the object should go, so the simulated scene uses our best guess.",
   "scene_estimate:destination_near_start": "In the simulated scene, the place the object goes is close to where it starts, so the job may be easier there than at your site.",
   // A run's camera and set-up checks, per camera where the code names one.
   task_object_partly_hidden: "In the simulation, the job's object was partly hidden from one of the robot's cameras.",
   task_target_marker_partly_hidden: "In the simulation, the mark showing where the object goes was partly hidden from one of the robot's cameras.",
   task_object_not_in_view: "In the simulation, the job's object was not in view of one of the robot's cameras.",
-  scene_appearance_clearance_too_large: "In the simulated scene, the space around the object is larger than in your video.",
+  scene_appearance_clearance_too_large: "We could not tidy the reconstructed surface around the object, so it may look partly covered in the simulation.",
   task_object_placement_differs_from_video: "In the simulated scene, the object does not sit exactly where your video shows it.",
   task_object_size_differs_from_video: "In the simulated scene, the object's size differs from what your video shows.",
   // A fault: no camera sees the object or the mark at all, so this scene cannot test robots.
@@ -106,7 +108,13 @@ export function setupFlagSentence(code: string): string {
  * first, then each candidate's own flags in row order. Each sentence once; none when nothing was flagged.
  */
 export function screeningSetupNotes(publication: BetaPolicyScreeningPublication): string[] {
+  // The reference check's sentence follows its counts (`screeningReferenceCheck`), never its passed or failed flag:
+  // a released Pipeline flags 1 of 3 as passed.
+  const reference = screeningReferenceCheck(publication.candidates);
+  const counted = reference === "passed" || reference === "partly" || reference === "failed";
   const codes = [...(screeningSceneFeasibility(publication)?.flags ?? []),
-    ...publication.candidates.flatMap(row => screeningRowFlagFields.flatMap(key => row[key] ?? []))];
+    ...publication.candidates.flatMap(row => screeningRowFlagFields.flatMap(key => (row[key] ?? [])
+      .filter(code => !(counted && /^known_good_control_(passed|failed)(:|$)/.test(code)))
+      .map(code => counted && /^known_good_control_/.test(code) ? `known_good_control_${reference}` : code)))];
   return [...new Set(codes.filter(code => code !== KNOWN_GOOD_CONTROL_PENDING && !isRobotFactFlag(code)).map(setupFlagSentence))];
 }
