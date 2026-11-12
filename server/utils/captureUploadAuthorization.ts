@@ -79,6 +79,10 @@ export const SITE_ACCOUNT_REQUIRED_DETAIL = "Save this job to your account befor
 /** The hold for a job whose video arrived before it was saved to an account. */
 export const FOOTAGE_BEFORE_ACCOUNT = "footage_before_account";
 export const FOOTAGE_BEFORE_ACCOUNT_DETAIL = FOOTAGE_BEFORE_ACCOUNT_SENTENCE;
+/** The read-only hold for a stored site job that still has to be converted to self-capture. */
+export const CAPTURE_MODE_NOT_CONVERTED = "capture_mode_not_converted";
+export const CAPTURE_MODE_NOT_CONVERTED_DETAIL = "This job still asks for a filming visit, which is retired. It is switched to "
+  + "the site filming the job itself the first time the site's link is checked or the video queue next considers the job.";
 
 function held(
   holdReason: string,
@@ -104,6 +108,8 @@ function held(
  */
 export async function authorizeCaptureUpload(
   requestId: string,
+  /** `readOnly`: answer without writing anything; a job that would need converting is held instead of converted. */
+  options: { readOnly?: boolean } = {},
 ): Promise<CaptureUploadAuthorization> {
   if (!db) {
     return held(
@@ -133,6 +139,7 @@ export async function authorizeCaptureUpload(
   // Offering the upload link alone is not enough: a recording under a stored visit is refused later
   // (`observeWebsiteCaptureOwner` requires self-capture), and visit-only blockers would stay in its triage.
   if (request.request?.buyerType === "site_operator" && request.request?.capture_mode !== "self_capture") {
+    if (options.readOnly === true) return held(CAPTURE_MODE_NOT_CONVERTED, CAPTURE_MODE_NOT_CONVERTED_DETAIL, request);
     try {
       const { switchSiteToSelfCapture } = await import("./siteTaskBrief");
       await switchSiteToSelfCapture(requestId, "filming_visits_retired");

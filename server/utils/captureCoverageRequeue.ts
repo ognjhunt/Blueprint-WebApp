@@ -9,7 +9,7 @@
  */
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { humanDecisionDigest } from "./human-reply-admission";
-import { authorizeCaptureUpload } from "./captureUploadAuthorization";
+import { CAPTURE_MODE_NOT_CONVERTED, CAPTURE_MODE_NOT_CONVERTED_DETAIL, authorizeCaptureUpload } from "./captureUploadAuthorization";
 import { ANSWER_NOTICES_WAITING_FIELD, waitingMap } from "./answerNoticeOwed";
 import { COVERAGE_REVIEW_MAX_ATTEMPTS, coverageClearanceRefusal, type CoverageClearanceRefusal } from "./captureCoverageQueue";
 
@@ -25,7 +25,7 @@ const RUNNING_TRUSTED_MS = 30 * 60_000;
 export type CoverageRequeueRefusal = "approval_required" | "request_missing" | "not_exhausted" | "review_job_missing"
   | "review_job_mismatch" | "review_running" | "review_completed" | "attempts_remaining" | "coverage_already_recorded"
   | "capture_superseded" | "requeue_limit_reached" | "requeue_history_unreadable" | "capture_not_authorized"
-  | "model_call_in_flight" | CoverageClearanceRefusal;
+  | "model_call_in_flight" | "capture_mode_not_converted" | CoverageClearanceRefusal;
 export type CoverageRequeueCheck = { check: string; passed: boolean };
 export type CoverageRequeueChange = { document: string; field: string; from: unknown; to: unknown };
 export type CoverageRequeueResult = {
@@ -60,8 +60,10 @@ export async function requeueExhaustedCoverageReview(requestId: string, options:
   const record = (check: string, passed: boolean) => { checks.push({ check, passed }); return passed; };
   if (apply && !record("approval_given", Boolean(approval?.approvedBy.trim() && approval.approvalEvidence.trim())))
     return refuse("approval_required");
-  // The same rights check the queue makes before each claim, read the same way, before the transaction.
-  const authorized = (await authorizeCaptureUpload(requestId)).allowed;
+  // The same rights check the queue makes before each claim, before the transaction, but read-only: neither a preview
+  // nor an apply ever converts a stored visit job (the site's link or the queue does that by itself).
+  const authorization = await authorizeCaptureUpload(requestId, { readOnly: true });
+  const authorized = authorization.allowed;
   const requestRef = store.collection("inboundRequests").doc(requestId);
   return store.runTransaction(async tx => {
     const requestSnap = await tx.get(requestRef);
@@ -107,6 +109,10 @@ export async function requeueExhaustedCoverageReview(requestId: string, options:
       // The function returns the first failing check: later ones are not known to pass, so they are recorded as not run.
       if (clearance === name) { record(`clearance:${name}`, false); return refuse(name, flags); }
       record(`clearance:${name}`, true);
+    }
+    if (authorization.holdReason === CAPTURE_MODE_NOT_CONVERTED) {
+      record("capture_mode_converted", false);
+      return refuse("capture_mode_not_converted", [...flags, CAPTURE_MODE_NOT_CONVERTED_DETAIL]);
     }
     if (!record("capture_upload_authorized", authorized)) return refuse("capture_not_authorized");
 

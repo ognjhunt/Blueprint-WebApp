@@ -7,7 +7,14 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const seams = vi.hoisted(() => ({ review: vi.fn(), authorized: { allowed: true } }));
+const seams = vi.hoisted(() => ({ review: vi.fn(), authorized: { allowed: true }, realAuthorization: false,
+  /** Stands in for the live conversion of a stored visit job: it writes, as the real one does. */
+  switchMode: vi.fn(async (requestId: string) => {
+    const { sharedFakeFirestoreState } = await import("./helpers/fake-firestore");
+    const key = `inboundRequests/${requestId}`, record = sharedFakeFirestoreState.docs.get(key) as Record<string, any>;
+    sharedFakeFirestoreState.docs.set(key, { ...record, request: { ...record.request, capture_mode: "self_capture" } });
+    sharedFakeFirestoreState.docs.set(`siteTaskBriefs/${requestId}`, { ...sharedFakeFirestoreState.docs.get(`siteTaskBriefs/${requestId}`), captureMode: "self_capture" });
+  }) }));
 
 vi.mock("../../client/src/lib/firebaseAdmin", async () => {
   const fake = await import("./helpers/fake-firestore");
@@ -16,16 +23,21 @@ vi.mock("../../client/src/lib/firebaseAdmin", async () => {
 });
 vi.mock("../config/env", async () => ({ ...await vi.importActual("../config/env"), isSiteVideoEvidenceEnabled: () => true }));
 vi.mock("../utils/captureCoverageReview", () => ({ reviewCaptureCoverage: seams.review }));
-vi.mock("../utils/siteTaskBrief", async () => ({ getBrief: async (id: string) =>
+vi.mock("../utils/siteTaskBrief", async () => ({ switchSiteToSelfCapture: seams.switchMode, getBrief: async (id: string) =>
   (await import("./helpers/fake-firestore")).sharedFakeFirestoreState.docs.get(`siteTaskBriefs/${id}`) || null }));
 vi.mock("../utils/captureFootageReview", () => ({ findPriorFootageReview: async () => ({ state: "none" }) }));
 vi.mock("../utils/siteTaskBriefReading", () => ({ mergeFootageIntoBrief: vi.fn() }));
-vi.mock("../utils/captureUploadAuthorization", () => ({ authorizeCaptureUpload: async () => seams.authorized }));
+vi.mock("../utils/captureUploadAuthorization", async () => {
+  const actual = await vi.importActual<typeof import("../utils/captureUploadAuthorization")>("../utils/captureUploadAuthorization");
+  return { ...actual, authorizeCaptureUpload: async (id: string, options?: { readOnly?: boolean }) =>
+    seams.realAuthorization ? actual.authorizeCaptureUpload(id, options) : { holdReason: null, ...seams.authorized } };
+});
 vi.mock("../utils/betaAbuseCaps", () => ({ modelReviewHeadroom: async () => ({ available: true }) }));
 vi.mock("../agents/adapters/site-assessment-budget", () => ({ GEMINI_VIDEO_CALL_RESERVATION_USD: 0.12 }));
 vi.mock("../logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() } }));
 
 import { sharedFakeFirestoreState as state } from "./helpers/fake-firestore";
+import { authorizeCaptureUpload } from "../utils/captureUploadAuthorization";
 import { RECORDING_CONSENT_VERSION } from "../utils/recordingConsent";
 import { coverageClearanceRefusal, reconcileCoverageReviews } from "../utils/captureCoverageQueue";
 import { humanDecisionDigest } from "../utils/human-reply-admission";
@@ -88,6 +100,8 @@ beforeEach(() => {
   state.docs.clear();
   seams.review.mockReset();
   seams.authorized = { allowed: true };
+  seams.realAuthorization = false;
+  seams.switchMode.mockClear();
   seedJob();
 });
 afterEach(() => { vi.useRealTimers(); });
@@ -235,6 +249,38 @@ describe("refusals, each writing nothing", () => {
     expect(await requeueExhaustedCoverageReview("req-1", { apply: true, approval: { approvedBy: " ", approvalEvidence: "x" } }))
       .toMatchObject({ outcome: "refused", reason: "approval_required" });
     expect(snapshot()).toBe(before);
+  });
+});
+
+describe("a stored job that still asks for a filming visit", () => {
+  /** Every document and collection the fake store holds, the queue's cursor included. */
+  const everything = () => JSON.stringify([...state.docs.entries()].sort());
+  beforeEach(async () => {
+    await exhaustByFailures();
+    seams.realAuthorization = true;
+    patchRequest({ request: { ...request().request, capture_mode: "site_visit" } });
+  });
+
+  it("is refused by a preview that writes nothing at all, and says what converts it", async () => {
+    const before = everything();
+    const result = await requeueExhaustedCoverageReview("req-1");
+    expect(result).toMatchObject({ outcome: "refused", reason: "capture_mode_not_converted", changes: [] });
+    expect(result.flags.join(" ")).toMatch(/first time the site's link is checked or the video queue next considers the job/);
+    expect(seams.switchMode).not.toHaveBeenCalled();
+    expect(everything()).toBe(before);
+  });
+
+  it("is refused by an apply that writes nothing and never converts it", async () => {
+    const before = everything();
+    expect(await apply()).toMatchObject({ outcome: "refused", reason: "capture_mode_not_converted", changes: [] });
+    expect(seams.switchMode).not.toHaveBeenCalled();
+    expect(everything()).toBe(before);
+  });
+
+  it("is still converted by every other caller, which uses the default path", async () => {
+    await authorizeCaptureUpload("req-1");
+    expect(seams.switchMode).toHaveBeenCalledWith("req-1", "filming_visits_retired");
+    expect(request().request.capture_mode).toBe("self_capture");
   });
 });
 
