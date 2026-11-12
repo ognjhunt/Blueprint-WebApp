@@ -147,7 +147,6 @@ it.each([
   ["a check that did not run but lists robots", robotFit("geometry_only", {status: "not_run",
     reason: "task_family_not_modelled", evidence_label: null, counts: null, table_digest: null})],
   ["a physical verdict", robotFit("full", {evidence_label: "physical_test"})],
-  ["an unknown verdict", robotFit("full", {models: [{name: "X", manufacturer: "Y", verdict: "probably", open_checks: []}]})],
 ])("v5 with %s is refused, never shown", (_name, fit) => {
   expect(websitePreparationReceiptSchema.safeParse(v5("handed_off", robotFit("full"))).success).toBe(true);
   expect(websitePreparationReceiptSchema.safeParse(v5("handed_off", fit)).success).toBe(false);
@@ -214,13 +213,78 @@ it("the needs-attention notice for a v7 new-video stop carries its reason, so th
     recaptureReason: "website_front_normal_undetermined", eventId: websitePreparationEventId(selector)}));
   expect(h.enqueue.mock.calls[0][0]).not.toHaveProperty("awaitEarlyHoldUntilMs");
 });
-it("v6 does not accept a v7 stop, and v7 accepts no other new reason", () => {
+// Rewritten (review, 2026-11-12): a reason this release does not know never fails the read; a known reason must keep
+// its own shape, and v6 still refuses a v7 stop.
+it("v6 does not accept a v7 stop, and v7 reads a new reason it does not know instead of refusing it", () => {
   const stop = {category: "insufficient_evidence", reason: "website_registration_poor_fit", basis: "missing_evidence",
     robot_id: null, evidence_digest: `sha256:${"e".repeat(64)}`};
   expect(websitePreparationReceiptSchema.safeParse(v6("awaiting_inputs", null, stop)).success).toBe(false);
   expect(websitePreparationReceiptSchema.safeParse(v7("awaiting_inputs", stop)).success).toBe(true);
   expect(websitePreparationReceiptSchema.safeParse(v7("awaiting_inputs",
-    {...stop, reason: "website_registration_anchor_frame_invalid"})).success).toBe(false);
+    {...stop, reason: "website_registration_anchor_frame_invalid"})).success).toBe(true);
+  // A known reason with the wrong shape is still refused (structure, not vocabulary).
+  expect(websitePreparationReceiptSchema.safeParse(v7("awaiting_inputs", {...stop, robot_id: "franka_panda"})).success).toBe(false);
+  expect(websitePreparationReceiptSchema.safeParse(v7("awaiting_inputs", {...stop, evidence_digest: "sha256:short"})).success).toBe(false);
+});
+
+// Review, 2026-11-12: never throw on a code the website does not know.
+describe("a code the website does not know never breaks the read", () => {
+  it("reads an outcome reason it does not know as one general sentence, keeps the job's state, and tells staff once", async () => {
+    const alerts = await import("../utils/unknownPipelineCode");
+    const noted = vi.spyOn(alerts, "noteUnknownPipelineCode").mockResolvedValue(true);
+    try {
+      const h = harness();
+      h.ledger(v7("awaiting_inputs", {category: "insufficient_evidence", reason: "website_brand_new_stop", basis: "missing_evidence",
+        robot_id: null, evidence_digest: `sha256:${"e".repeat(64)}`}));
+      await syncWebsitePreparationStatus(selector, h.deps);
+      const projected = await loadCurrentWebsitePreparationStatus("r1", "walkthrough-r1", h.deps);
+      expect(projected.state).toBe("awaiting_inputs");
+      expect(projected.outcome).toMatchObject({ title: "The preparation of your simulation stopped",
+        reason: "Preparing the simulation of your site stopped, for a reason this page can't describe yet. Our team has been told." });
+      expect(JSON.stringify(projected)).not.toContain("website_brand_new_stop");
+      expect(noted).toHaveBeenCalledWith("r1", "preparation.outcome.reason", "website_brand_new_stop");
+    } finally { noted.mockRestore(); }
+  });
+  it("reads unknown robot-fit reasons, verdicts, robot bodies and terminal reasons without failing", async () => {
+    const fit = robotFit("full", {models: [{name: "X", manufacturer: "Y", verdict: "probably", open_checks: []}]});
+    expect(websitePreparationReceiptSchema.safeParse(v5("handed_off", fit)).success).toBe(true);
+    const h = harness();
+    h.ledger(v5("handed_off", fit));
+    await syncWebsitePreparationStatus(selector, h.deps);
+    expect((await loadCurrentWebsitePreparationStatus("r1", "walkthrough-r1", h.deps)).robotFit?.models[0].verdict).toBe("unknown");
+    const notRun = robotFit("geometry_only", {status: "not_run", reason: "brand_new_reason", evidence_label: null, counts: null,
+      models: [], table_digest: null});
+    expect(websitePreparationReceiptSchema.safeParse(v5("handed_off", notRun)).success).toBe(true);
+    const body = precheck({embodiments: [{embodiment: "new_robot_body_v1", verdict: "maybe", reasons: ["reach"], fit_candidates: 0}]});
+    expect(websitePreparationReceiptSchema.safeParse(v6("awaiting_inputs", body, robotFitNone)).success).toBe(true);
+    const h2 = harness();
+    h2.ledger(v6("awaiting_inputs", body, robotFitNone));
+    await syncWebsitePreparationStatus(selector, h2.deps);
+    expect((await loadCurrentWebsitePreparationStatus("r1", "walkthrough-r1", h2.deps)).robotFitPrecheck?.embodiments).toEqual([]);
+  });
+  it.each(["website_task_object_not_observed", "website_capture_frames_unusable"])("asks for a new video for %s", async reason => {
+    expect(websitePreparationReceiptSchema.safeParse(v7("awaiting_inputs", {category: "insufficient_evidence", reason,
+      basis: "missing_evidence", robot_id: null, evidence_digest: `sha256:${"e".repeat(64)}`})).success).toBe(true);
+    const h3 = harness();
+    h3.ledger(v7("awaiting_inputs", {category: "insufficient_evidence", reason, basis: "missing_evidence", robot_id: null,
+      evidence_digest: `sha256:${"e".repeat(64)}`}));
+    await syncWebsitePreparationStatus(selector, h3.deps);
+    const projected = await loadCurrentWebsitePreparationStatus("r1", "walkthrough-r1", h3.deps, "the blue tote");
+    expect(projected.outcome).toMatchObject({ title: "We need a new video to build the simulation of your site", actionOwner: "site",
+      reason: reason === "website_task_object_not_observed" ? "We could not find the blue tote in your video." : "We could not use any of the frames in your video.",
+      nextStep: reason === "website_task_object_not_observed" ? "Please film again with it in view. Then send us the new video."
+        : "Please film again slowly, in good light. Then send us the new video." });
+  });
+  it("asks the site for its sentence when the job is not named, and sends no needs-attention email for it", async () => {
+    const h = harness();
+    h.ledger(v7("awaiting_inputs", {category: "insufficient_evidence", reason: "website_task_not_named", basis: "missing_evidence",
+      robot_id: null, evidence_digest: `sha256:${"e".repeat(64)}`}));
+    await syncWebsitePreparationStatus(selector, h.deps);
+    expect(h.stored!.notification).toBeNull();
+    const projected = await loadCurrentWebsitePreparationStatus("r1", "walkthrough-r1", h.deps);
+    expect(projected).toMatchObject({ taskNotNamed: true, outcome: { title: "Tell us the job in one sentence", actionOwner: "site" } });
+    expect(JSON.stringify(projected)).not.toMatch(/review|nothing else is needed/i);
+  });
 });
 it("v6 says none fits, and no more, when the hold names a cause it does not know", async () => {
   const h = harness();
@@ -263,8 +327,6 @@ it.each([
   ["a reason on a check that fits", v6("preparing", precheck({status: "fit", counts: {fit: 1, no_fit: 0, unknown: 0, unavailable: 0}}))],
   ["a hold while a candidate is undecided", v6("awaiting_inputs", precheck({counts: {fit: 0, no_fit: 1, unknown: 1, unavailable: 0}}))],
   ["a physical verdict", v6("awaiting_inputs", precheck({evidence_label: "physical_test"}))],
-  ["an unknown robot body", v6("awaiting_inputs", precheck({embodiments: [{embodiment: "sketch_bot", verdict: "no_fit",
-    reasons: ["reach"], fit_candidates: 0}]}))],
   ["a hold reason outside its prefix", v6("awaiting_inputs", precheck({hold_reason: "robot_fit_none:reach"}))],
   ["a hold whose precheck fits", v6("awaiting_inputs", precheck({status: "fit", hold_reason: null,
     counts: {fit: 1, no_fit: 0, unknown: 0, unavailable: 0}}), robotFitNone)],

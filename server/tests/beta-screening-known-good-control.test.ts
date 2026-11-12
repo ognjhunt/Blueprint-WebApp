@@ -7,7 +7,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { parseBetaPolicyScreeningPublication, screeningCandidateRows, screeningEstimateRows, screeningKnownGoodControl,
-  screeningOutcome, screeningOutcomeCaveat, type BetaPolicyScreeningPublication } from "../utils/betaPolicyScreeningContract";
+  screeningOutcome, screeningOutcomeCaveat, screeningReferenceCheck, type BetaPolicyScreeningPublication } from "../utils/betaPolicyScreeningContract";
 import { encodeTaskEvaluationRunPublication } from "../utils/taskEvaluationRunPublicationStorage";
 import { projectManagedJobEvidence } from "../utils/jobManagedEvaluation";
 import { screeningOutcomeNoticeIntent } from "../utils/screeningOutcomeNotifications";
@@ -122,13 +122,39 @@ describe("the known-good control row", () => {
     expect(screeningOutcome(value)).toBe("held_setup");
   });
 
-  it("does not add the scene caveat for a control's own flag", () => {
-    const base = sealScreening({ ...finished(), candidates: finished().candidates.map(row => row.status === "completed"
-      ? { ...row, episodes_succeeded: 0, episodes_failed: row.episodes_scored, success_rate: 0 } : row) });
-    const value = parseBetaPolicyScreeningPublication(withControl(base, controlRow("known_good_control_failed", { scored: 3, succeeded: 0 })))!;
+  // Rewritten (review, 2026-11-12): the reference check now drives the set-up notice on a result with no success: it
+  // shows when the check failed, did only partly, or could not run, and a passed check removes no other flag.
+  const noSuccess = () => sealScreening({ ...finished(), candidates: finished().candidates.map(row => row.status === "completed"
+    ? { ...row, episodes_succeeded: 0, episodes_failed: row.episodes_scored, success_rate: 0 } : row) });
+  it.each([
+    ["failed (0 of 3)", controlRow("known_good_control_failed", { scored: 3, succeeded: 0 }), "failed", "scene_setup"],
+    ["partly (1 of 3)", controlRow("known_good_control_passed", { scored: 3, succeeded: 1 }), "partly", "scene_setup"],
+    ["could not run", controlRow("known_good_control_unavailable"), "could_not_run", "scene_setup"],
+    ["interrupted", controlRow("known_good_control_interrupted", null), "could_not_run", "scene_setup"],
+    ["passed (2 of 3)", controlRow("known_good_control_passed", { scored: 3, succeeded: 2 }), "passed", null],
+    ["passed (3 of 3)", controlRow("known_good_control_passed", { scored: 3, succeeded: 3 }), "passed", null],
+  ] as const)("adds the set-up notice to a result with no success when the reference check %s", (_label, row, check, caveat) => {
+    const value = parseBetaPolicyScreeningPublication(withControl(noSuccess(), row as never))!;
     expect(screeningOutcome(value)).toBe("estimate");
-    expect(screeningOutcomeCaveat(value)).toBe(screeningOutcomeCaveat(base));
-    expect(screeningSetupNotes(value)).toEqual([FAILED]);
+    expect(screeningReferenceCheck(value.candidates)).toBe(check);
+    expect(screeningOutcomeCaveat(value)).toBe(caveat);
+  });
+  it("keeps a camera flag's notice when the reference check passed, and adds none to a result with a success", () => {
+    const flagged = sealScreening({ ...noSuccess(), schema_version: "beta_policy_screening_publication.v3",
+      scene_feasibility: { status: "unknown", flags: [] }, candidates: noSuccess().candidates.map((row, index) => index === 0
+        ? { ...row, observation_quality_flags: ["task_object_partly_hidden:wrist"] } : row) });
+    const passed = parseBetaPolicyScreeningPublication(withControl(flagged, controlRow("known_good_control_passed", { scored: 3, succeeded: 3 })))!;
+    expect(screeningOutcomeCaveat(passed)).toBe("scene_setup");
+    const succeeded = parseBetaPolicyScreeningPublication(withControl(finished(), controlRow("known_good_control_failed", { scored: 3, succeeded: 0 })))!;
+    expect(screeningOutcomeCaveat(succeeded)).toBeNull();
+  });
+  it("never raises the notice for a fact about one robot and the object", () => {
+    const facts = sealScreening({ ...noSuccess(), schema_version: "beta_policy_screening_publication.v3",
+      scene_feasibility: { status: "unknown", flags: [] }, candidates: noSuccess().candidates.map((row, index) => index === 0
+        ? { ...row, setup_quality_flags: ["task_object_needs_edge_grip", "task_object_wider_than_gripper"] } : row) });
+    const value = parseBetaPolicyScreeningPublication(facts)!;
+    expect(screeningOutcomeCaveat(value)).toBeNull();
+    expect(screeningSetupNotes(value)).toEqual([]);
   });
 });
 

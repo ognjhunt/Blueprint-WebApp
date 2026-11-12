@@ -107,6 +107,9 @@ export async function ingestBetaPolicyScreeningHold(hold: BetaPolicyScreeningHol
   if (typeof selected.website_request_id !== "string" || typeof selected.source_session_id !== "string")
     throw new Error("screening_scene_intake_unavailable");
   const selectedJob = (await store.collection("inboundRequests").doc(selected.website_request_id).get()).data();
+  if (hold.reason_code && !isKnownHoldReason(hold.reason_code))
+    void import("./unknownPipelineCode").then(({ noteUnknownPipelineCode }) =>
+      noteUnknownPipelineCode(selected.website_request_id, "screening_hold.reason_code", hold.reason_code!));
   const screeningCapture = selectedJob?.job_evidence_source ? { captureId: selected.source_session_id }
     : await readManagedScreeningCapture(selected.website_request_id, selected.source_session_id);
   const runRef = store.collection("taskEvaluationPolicyRuns").doc(hold.hold_id);
