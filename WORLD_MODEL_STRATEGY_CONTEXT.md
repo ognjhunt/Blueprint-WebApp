@@ -1,30 +1,15 @@
 # World Model Strategy Context
 
-## Owner decision — October 28, 2026
+The current frame is the shared block of `PLATFORM_CONTEXT.md` (owner
+direction 2026-11-12): the job packet is the unit of the product. The
+simulation of the site is how a job becomes testable without a visit; it is a
+means, not the product. Blueprint's own test of openly available robot software
+is an early trial inside the packet, never the site's answer. Where the block
+below says otherwise, the frame is right. Earlier owner directions (2026-10-21,
+2026-10-28) are history in git.
 
-The delivery-proposal choice in the October 21 direction below is retired,
-together with the site-facing pilot recommendation and booking. Blueprint shows
-the site a bounded simulation estimate and works with a deployment company; the
-site and that company agree any pilot directly. The rest of the October 21
-direction stands.
-
-## Current owner direction — October 21, 2026
-
-The owner approved the job-first automation buying journey and then clarified: “we cant continue on without a video” and “a description could even come from the video analysis - we've already built this.” The existing capture-to-simulation product remains the foundation. Do not interpret the job-first direction as permission to replace video with a mandatory written description or to skip the site simulation and evaluation.
-
-The journey is: submit or record video of one recurring job; use the existing video analysis to draft the description and brief; prepare the capture-backed site simulation; compare supported robot/policy configurations; obtain comparable delivery proposals; let the customer choose; agree a physical pilot; record its outcome. A capture setup or saved draft may exist before upload, but assessment cannot continue without actual video. Blueprint should run accessible policies itself; a technology team supplies access or an integration when needed. Inviting every team to run its own test is not required.
-
-Keep the existing example and how-it-works experience and modify it to explain this journey. Preserve the approved illustrations, working capture/analysis/simulation paths, and simple UI. Deployment partners and technology providers have separate reviewed intake paths. The beta stays free, with no new fees, payments, provider spend, automatic contract award, or change to existing privacy permissions.
-
-Commercial proposal selection is not a signed pilot agreement. A customer-reported outcome is not a scientific Physical Outcome Join. Existing evaluation admission, compatibility, rights, provenance and scientific proof controls remain binding.
-
-The cross-repo shared blocks and lock are generated from `BlueprintCapturePipeline/doctrine/` using its canonical synchronization process. They incorporate the later video-required correction and durable six-stage direction across all three repos. Do not hand-edit a generated block or its lock locally; change canonical fragments and synchronize the repos together. The owner's clarification preserves the capture-first foundation.
-
-Implementation scope and verification: `docs/archive/design/job-first-automation-marketplace/IMPLEMENTATION.md`.
-
-
-
-> Repo-authoritative mirror of Blueprint world-model strategy. Reconcile material changes with Blueprint Knowledge.
+The shared block is generated from `BlueprintCapturePipeline/doctrine/`. Do not
+hand-edit it or its lock here.
 
 <!-- SHARED_WORLD_MODEL_STRATEGY_START -->
 ## Strategic Doctrine
@@ -32,17 +17,15 @@ Implementation scope and verification: `docs/archive/design/job-first-automation
 ### Strategy
 
 All backend and infrastructure choices serve the two active programs: the
-**free beta's job-first automation service** and **Arm Decision Proof v1**.
-The owner direction of 2026-10-21 makes dependable work at an acceptable total
-cost the buying decision. The later same-day correction requires retained job
-video before assessment and automatic description drafting from the existing
-video analysis. Reuse capture, reconstruction, site-package and task-testbed
-paths; do not replace them with text-only advice or supplier matching. Identify
-a few complete, executable and supportable configurations and real delivery
-partners. Run matched independently scored policies within existing authority,
-reuse valid source-bound artifacts, and use physical trials when physical truth
-is needed. Missing inputs or capabilities stay explicit. Keep the separate
-prospective fixed-arm proof and its exactly two frozen candidates unchanged.
+**free beta's job packet** and **Arm Decision Proof v1**. The owner direction
+of 2026-11-12 makes the job packet the unit of the product. The simulation of
+the site is how a job becomes testable without a visit; it is a means, not the
+product. Reuse capture, reconstruction and site-package paths to build it.
+Blueprint's own test of openly available robot software is an early trial
+inside the packet, never the site's answer. Hardening the automatic test for
+every kind of job, several objects or unattended scale is paused. Keep the
+separate prospective fixed-arm proof and its exactly two frozen candidates
+unchanged.
 
 World models, classical simulators, reconstruction systems, 3DGS renderers,
 SimReady tools, analytic geometry, learned evaluators, and physical evidence are
@@ -70,15 +53,11 @@ The first exact fixed-arm/DROID-compatible route does not admit every robot,
 and a fidelity template is not a runtime adapter. Atlas and unavailable hosted
 APIs remain unavailable. Reuse existing intent/outbox/lease and reconciliation
 mechanisms for durable at-least-once delivery and restart recovery; an ambiguous
-timeout cannot justify another paid run. Scientific source revisions and
-commercial quote revisions have different applicability rules.
+timeout cannot justify another paid run.
 
-Commercial screening and proposal revision remain above bounded scientific
-evaluation. A regional delivery gap can remove an offer without inventing a
-scientific failure. Keep exact technical applicability separate from changing
-quote prices or buying budgets. Reuse cannot turn correlated prior evidence
-into independent repeated proof; reported pilot outcomes cannot recalibrate a
-method without an authoritative Physical Outcome Join.
+Reuse cannot turn correlated prior evidence into independent repeated proof;
+reported outcomes cannot recalibrate a method without an authoritative
+Physical Outcome Join.
 
 ### Arm Decision Proof: Public Evidence Ladder First, Fresh Partner Site Last
 

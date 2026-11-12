@@ -10,7 +10,7 @@ Review cadence: Quarterly, and before the first hire in any new state or country
 
 This handbook gives Blueprint humans and managers one operating baseline for how work gets done, how people are treated, and where company truth lives.
 
-Blueprint is a capture-first, real-site-task evaluation company. We build the system that turns real-site capture evidence into one Task Evaluation Run, maintained testbeds, evidence-bound results, licensing, and buyer/ops workflows. Post-training is only a permitted use of qualifying evidence; historical hosted access and world-model language are compatibility or support-artifact wording, not separate public offers. This handbook must not be used to rewrite product doctrine, promise legal terms that have not been reviewed, or treat Notion as the execution record.
+A site films a job once. Blueprint turns the video into a job packet that robot deployment companies can evaluate without visiting, sends it to deployment companies it has approved, and tells the site who will take the job and on what evidence. The full frame is the shared block of `PLATFORM_CONTEXT.md`. This handbook must not be used to rewrite product doctrine, promise legal terms that have not been reviewed, or treat Notion as the execution record.
 
 ## Source Of Truth
 
@@ -55,7 +55,7 @@ Nothing in this draft creates a contract for continued employment, a guaranteed 
 
 Blueprint expects:
 
-- truthful product language around capture, rights, privacy, provenance, and hosted sessions;
+- truthful product language around capture, rights, privacy, provenance and the job packet;
 - respectful behavior in all work channels;
 - secure handling of customer, capture, employee, and company information;
 - evidence-backed decisions rather than invented status;

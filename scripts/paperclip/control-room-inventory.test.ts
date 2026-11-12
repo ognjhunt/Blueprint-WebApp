@@ -215,8 +215,8 @@ describe("Paperclip control-room inventory", () => {
       ),
     ).toEqual([]);
     expect(inventory.routineCount).toBe(62);
-    // field-ops-daily paused with filming visits (2026-11-11).
-    expect(inventory.routineStatusCounts).toEqual({ active: 25, paused: 37 });
+    // Every Paperclip role retired and every routine paused (2026-11-12, AUTONOMOUS_ORG.md).
+    expect(inventory.routineStatusCounts).toEqual({ paused: 62 });
     const ciOptionalHostResolvedAliases = new Set(["browse", "vercel-react-best-practices"]);
     expect(
       inventory.desiredSkillAliasMappings.filter(
@@ -244,7 +244,7 @@ describe("Paperclip control-room inventory", () => {
     );
   });
 
-  it("registers the recursive improvement routine as dry-run report-only by default", async () => {
+  it("keeps the retired recursive improvement routine paused, with a do-nothing task and no live command", async () => {
     const inventory = buildControlRoomInventory();
     const routine = inventory.routineRows.find(
       (row) => row.slug === "recursive-agent-improvement-loop",
@@ -263,21 +263,13 @@ describe("Paperclip control-room inventory", () => {
 
     expect(routine).toMatchObject({
       agent: "webapp-codex",
-      status: "active",
+      status: "paused",
       priority: "medium",
       concurrencyPolicy: "coalesce_if_active",
       catchUpPolicy: "skip_missed",
       cadence: "25 6 * * * America/New_York",
     });
-    expect(task).toContain("npm run autoagent:recursive-improve -- --dry-run");
-    expect(task).toContain("output/autoagent/recursive-improvement/latest/report.md");
-    expect(task).toContain("`status`, `proof_paths`, `next_action`, `retry_condition`, and `residual_risk`");
-    expect(task).toContain("no_change_report_only");
-    expect(task).toContain("no new failure family, no new proof path, no generated fixture, the same held reason, and the same selected candidate");
-    expect(task).toContain(
-      "Do not run `--auto-apply-low-risk`, `--apply-canary`, or `--apply-rollback`",
-    );
-    expect(task).toContain("central-policy-approved low-risk AutoAgent lanes");
+    expect(task).toMatch(/^Retired 2026-11-12\. Do nothing: start no work, send nothing, change nothing\./);
     expect(routineConfig).toContain("cronExpression: 25 6 * * *");
 
     const disallowedLiveCommands = [

@@ -1,3 +1,5 @@
+> **Superseded 2026-11-12.** This describes a frame the owner replaced. Current frame: the shared block of PLATFORM_CONTEXT.md.
+
 > Historical acceptance evidence, retained unchanged below. Release identities, holds, fees and commands in this snapshot are not current operating instructions. Use [the current checklist](./INVITED_BETA_ACCEPTANCE.md).
 
 # Invited beta acceptance and operating checklist

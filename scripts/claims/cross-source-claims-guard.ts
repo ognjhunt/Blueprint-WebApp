@@ -84,6 +84,8 @@ const EXCLUDED_PATH_PARTS = new Set([
 ]);
 
 const EXCLUDED_RELATIVE_PREFIXES = [
+  // Everything that described Blueprint before the 2026-11-12 frame. Its README says it is out of date.
+  "docs/archive/2026-11-12-pre-packet/",
   "client/src/pages/Admin",
   "client/src/pages/admin-",
   "ops/paperclip/external/",
@@ -132,12 +134,21 @@ const ROOT_DOCTRINE_FILES = new Set([
   "PLATFORM_CONTEXT.md",
   "WORLD_MODEL_STRATEGY_CONTEXT.md",
   "AUTONOMOUS_ORG.md",
+  "CLAUDE.md",
   "client/src/AGENTS.md",
+  "server/AGENTS.md",
+  "scripts/AGENTS.md",
+  "ops/paperclip/AGENTS.md",
+  ".agents/product-marketing.md",
+  "docs/onboarding/ai-agent-onboarding-runbook.md",
+  "docs/architecture/ai-onboarding-map.md",
+  "docs/architecture/source-of-truth-map.md",
+  "docs/beta/README.md",
+  "docs/beta/SITE_OPERATOR_BETA_GUIDE.md",
   "docs/ai-tooling-adoption-implementation-2026-04-07.md",
   "docs/ai-skills-governance-2026-04-07.md",
   "knowledge/compiled/docs-synthesis/core-system-framing.md",
   "knowledge/compiled/playbooks/platform-doctrine.md",
-  "ops/paperclip/AGENT_EMPLOYEE_AUDIT.md",
   "ops/paperclip/blueprint-company/COMPANY.md",
   "scripts/autonomy/generate-budget-next-goal-queue.ts",
   "scripts/qa/brand-polish.ts",
@@ -312,7 +323,32 @@ function hasWorldModelSupportContext(line: string) {
   );
 }
 
+// Frames the owner replaced on or before 2026-11-12 (the site's answer was "which did best";
+// earlier, "capture-first", the job-first service, the recommended pilot). A line may name one
+// only to say it no longer holds.
+const STALE_FRAME_PATTERNS = [
+  /\bsite gets one answer\b/i,
+  /\bwhich did best\b/i,
+  /\btests? the top AI robots\b/i,
+  /\bsimulation test(?:'s)? result is the site'?s answer\b/i,
+  /\bjob-first automation service\b/i,
+  /\bevaluated, recommended pilot\b/i,
+  /\bcapture-first\b/i,
+  /\bsite-world-first\b/i,
+  /\bruns the candidate robot policies\b/i,
+  /\bBlueprint takes no cut\b/i,
+];
+const STALE_FRAME_NEGATION = /\b(not|never|no longer|replaced|replaces|retired|superseded|history|historical|instead of|before 2026-11-12)\b/i;
+
+function hasStaleFramePhrase(line: string) {
+  return STALE_FRAME_PATTERNS.some((pattern) => pattern.test(line));
+}
+
 function hasStaleRootDoctrineClaim(line: string) {
+  if (hasStaleFramePhrase(line)) {
+    return !STALE_FRAME_NEGATION.test(line);
+  }
+
   if (/\b(world[- ]model[- ]product[- ]first|world model product first)\b/i.test(line)) {
     return true;
   }
@@ -370,12 +406,12 @@ const rules: ClaimRule[] = [
   {
     type: "stale_root_doctrine",
     ownerProofRequired:
-      "Current doctrine: Blueprint sells one real-site Task Evaluation Run; world-model, simulation, provider, and post-training language is claim-scoped evidence or permitted-use support inside the run.",
+      "Current doctrine (owner direction 2026-11-12, the shared block of PLATFORM_CONTEXT.md): a site films a job once; Blueprint turns it into a job packet that approved deployment companies can evaluate without a visit; the site's answer is their responses. The simulation is a means, not the product; Blueprint's own test of openly available robot software is an early trial inside the packet, never the site's answer. No price is stated.",
     safeReplacement:
-      "Use `capture-first and real-site Task Evaluation Run first`; describe world models as qualified evidence methods inside scoped runs, not a product or guaranteed proof.",
+      "Describe the job packet, the first look, the simulation of the site and the responses of deployment companies; call our own test an early trial of openly available robot software; state no price and promise no response.",
     matches: (line, context) =>
       isRootDoctrineFile(context.relativeFile) && hasStaleRootDoctrineClaim(line),
-    allowed: (line) => hasGuardrailContext(line) || hasWorldModelSupportContext(line),
+    allowed: (line) => !hasStaleFramePhrase(line) && (hasGuardrailContext(line) || hasWorldModelSupportContext(line)),
   },
   {
     type: "unsupported_hosted_session_proof",
@@ -576,12 +612,21 @@ export function buildDefaultScanTargets(rootDir = process.cwd()): ScanTarget[] {
     ["PLATFORM_CONTEXT.md", "root_doctrine"],
     ["WORLD_MODEL_STRATEGY_CONTEXT.md", "root_doctrine"],
     ["AUTONOMOUS_ORG.md", "root_doctrine"],
+    ["CLAUDE.md", "root_doctrine"],
     ["client/src/AGENTS.md", "root_doctrine"],
+    ["server/AGENTS.md", "root_doctrine"],
+    ["scripts/AGENTS.md", "root_doctrine"],
+    ["ops/paperclip/AGENTS.md", "root_doctrine"],
+    [".agents/product-marketing.md", "root_doctrine"],
+    ["docs/onboarding/ai-agent-onboarding-runbook.md", "root_doctrine"],
+    ["docs/architecture/ai-onboarding-map.md", "root_doctrine"],
+    ["docs/architecture/source-of-truth-map.md", "root_doctrine"],
+    ["docs/beta/README.md", "root_doctrine"],
+    ["docs/beta/SITE_OPERATOR_BETA_GUIDE.md", "root_doctrine"],
     ["docs/ai-tooling-adoption-implementation-2026-04-07.md", "root_doctrine"],
     ["docs/ai-skills-governance-2026-04-07.md", "root_doctrine"],
     ["knowledge/compiled/docs-synthesis/core-system-framing.md", "root_doctrine"],
     ["knowledge/compiled/playbooks/platform-doctrine.md", "root_doctrine"],
-    ["ops/paperclip/AGENT_EMPLOYEE_AUDIT.md", "root_doctrine"],
     ["ops/paperclip/blueprint-company/COMPANY.md", "root_doctrine"],
     ["ops/paperclip/blueprint-company/agents", "root_doctrine"],
     ["ops/paperclip/blueprint-company/skills", "root_doctrine"],

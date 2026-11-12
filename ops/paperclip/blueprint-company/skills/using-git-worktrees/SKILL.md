@@ -1,22 +1,8 @@
 ---
 name: using-git-worktrees
-description: Adapted from obra/superpowers. Use when feature work or issue work needs isolation from the current workspace or branch.
+description: Retired 2026-11-12. Do not use.
 ---
 
-# Using Git Worktrees
+# using-git-worktrees (retired)
 
-Use a separate worktree when the current workspace is noisy, risky, or already occupied by another lane.
-
-## Process
-
-1. Confirm the issue really benefits from workspace isolation.
-2. Pick a worktree directory and branch name tied to the issue.
-3. Create the worktree before making changes.
-4. Verify the new worktree points at the intended branch and repo state.
-5. Do the implementation and validation in that isolated tree.
-
-## Guardrails
-
-- Do not create a worktree for tiny one-file follow-ups unless isolation matters.
-- Avoid hidden branch drift; verify the branch before starting edits.
-- Keep the Paperclip issue linked to the worktree branch.
+This skill is retired as of 2026-11-12. Do nothing with it: start no work, send nothing, change nothing. Blueprint's current frame is the shared block of PLATFORM_CONTEXT.md at the repository root. The old text is in `docs/archive/2026-11-12-pre-packet/ops/paperclip/blueprint-company/skills/using-git-worktrees/`.

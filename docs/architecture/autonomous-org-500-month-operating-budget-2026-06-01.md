@@ -1,3 +1,5 @@
+> **Superseded 2026-11-12.** This describes a frame the owner replaced. Current frame: the shared block of PLATFORM_CONTEXT.md. The spend limits recorded here are unchanged.
+
 # Autonomous Org $500/Month Operating Budget
 
 Date: 2026-06-01
@@ -173,7 +175,7 @@ P2 pause or event-trigger:
 
 ## Zero-Based Agent Tier Overlay
 
-Current zero-based design packet: `docs/goals/2026-06-10-autonomous-org-zero-based-spine.md`.
+Current zero-based design packet: `docs/archive/2026-11-12-pre-packet/docs/goals/2026-06-10-autonomous-org-zero-based-spine.md` (history).
 
 The budget compression above remains the declared config envelope, but future changes should not defend the historical org chart. Start from the current wedge and keep only roles that move product/proof, demand/sales, or reliability.
 

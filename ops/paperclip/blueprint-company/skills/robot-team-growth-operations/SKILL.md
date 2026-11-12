@@ -1,20 +1,8 @@
 ---
 name: robot-team-growth-operations
-description: Turn robot-team demand research into Blueprint-specific buyer playbooks, proof packs, funnel definitions, and internal execution queues.
+description: Retired 2026-11-12. Do not use.
 ---
 
-# Robot-Team Growth Operations
+# robot-team-growth-operations (retired)
 
-Use this skill when converting demand research into Blueprint's reusable robot-team buyer motion.
-
-Focus on:
-- ICP and segment design
-- message hierarchy
-- proof-pack design
-- hosted-session demo flow
-- internal execution queues for conversion, analytics, intake, ops, and finance support
-
-Rules:
-- optimize for qualified technical buyers, not vanity lead volume
-- preserve truthful language about coverage, hosted access, and provenance
-- keep pricing, contracts, and procurement judgment behind human gates
+This skill is retired as of 2026-11-12. Do nothing with it: start no work, send nothing, change nothing. Blueprint's current frame is the shared block of PLATFORM_CONTEXT.md at the repository root. The old text is in `docs/archive/2026-11-12-pre-packet/ops/paperclip/blueprint-company/skills/robot-team-growth-operations/`.

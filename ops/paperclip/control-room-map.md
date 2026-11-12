@@ -1,3 +1,5 @@
+> **Superseded 2026-11-12.** This describes a frame the owner replaced. Current frame: the shared block of PLATFORM_CONTEXT.md.
+
 # Blueprint Paperclip Control-Room Map
 
 Date: 2026-05-30
@@ -49,7 +51,7 @@ Current authored inventory from `ops/paperclip/blueprint-company/.paperclip.yaml
 
 ## Zero-Based Operating Spine
 
-Canonical design packet: `docs/goals/2026-06-10-autonomous-org-zero-based-spine.md`.
+Canonical design packet: `docs/archive/2026-11-12-pre-packet/docs/goals/2026-06-10-autonomous-org-zero-based-spine.md` (history).
 
 The current autonomous org should be evaluated from zero against three loops only:
 

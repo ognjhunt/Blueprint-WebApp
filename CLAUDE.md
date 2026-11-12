@@ -2,12 +2,15 @@
 
 Read [`AGENTS.md`](AGENTS.md); it applies to every agent.
 
-In short: email and video in; Blueprint tests the top AI robots (a robot plus
-the AI software that controls it) on the job in a simulation of the site, and
-the site gets one answer: which did best, or "held". Until a test result exists
-the site sees a first look on paper (the robot that most likely fits, from
-published specifications and a cited track record). Then it can share the job
-with approved deployment companies. The only hard stops are
+In short: email and video in. Blueprint turns the video into a job packet that
+approved deployment companies can evaluate without a visit and, with the
+site's permission, sends it to them; the site sees their responses: who will
+take the job, who will not, and why. Until responses exist the site sees the
+first look on paper, the simulation of its site and where the job stands. Our
+own early trial of openly available robot software is supporting evidence,
+never the answer. Today a deployment company receives a summary of a job only;
+a site's video and simulation stay private until the owner sets a new
+permission. The site pays nothing; no price is stated. The only hard stops are
 privacy, rights and money; everything else is flagged and keeps going. Don't
 make things up. Never edit inside a shared block of `PLATFORM_CONTEXT.md`.
 

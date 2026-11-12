@@ -79,21 +79,6 @@ sources:
     notes:
       - Target and approval readiness can justify proof work; actual money movement still requires human approval.
 
-  - id: city_launch_scorecards_preflight
-    label: City-launch scorecards and preflight outputs
-    channelId: paid_city_ads
-    budgetLine: Paid city/launch experiments
-    ownerSystem: city-launch scorecard/preflight artifacts
-    adapter: city_launch_scorecards
-    localPath: ops/paperclip/playbooks/city-launch-durham-nc-scorecard-windows.json
-    proofLevel: repo-local-export
-    staleAfterHours: 168
-    canAffectAllocation: true
-    missingInputs:
-      - Founder-approved city posture, live send approval, and ad/spend proof before activation
-    notes:
-      - City-launch scorecards can request a human approval packet; they must not activate a city or launch ads.
-
   - id: analytics_posthog_export
     label: Analytics / PostHog export or manual fixture
     channelId: analytics

@@ -141,7 +141,7 @@ guard or replace the reviewed portable package. Communications owns its runtime
 adapter and must consume this contract without overwriting research worker code.
 
 Research QA/publication consumes the existing durable snapshot/work-item and
-digest-bound delivery/receipt contract in `docs/daily-research-render-integration.md`.
+digest-bound delivery/receipt contract in `docs/archive/2026-11-12-pre-packet/docs/daily-research-render-integration.md`.
 Agents own QA, duplicate checks and publication; dot only observes. Before canary,
 resolve the file-discovery preflight correction, guarded publication bindings and exact cleanup history. The previously unclassified
 smoke session was verified idle with one completed root turn and no environment;

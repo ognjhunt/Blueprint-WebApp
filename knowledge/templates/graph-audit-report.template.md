@@ -2,8 +2,8 @@
 authority: draft
 source_system: repo
 source_urls:
-  - "repo:///docs/graphify-adoption-implementation-2026-04-07.md"
-  - "repo:///docs/graphify-pilot-corpus-policy-2026-04-07.md"
+  - "repo:///docs/archive/2026-11-12-pre-packet/docs/graphify-adoption-implementation-2026-04-07.md"
+  - "repo:///docs/archive/2026-11-12-pre-packet/docs/graphify-pilot-corpus-policy-2026-04-07.md"
 last_verified_at: 2026-04-07
 owner: webapp-codex
 sensitivity: internal

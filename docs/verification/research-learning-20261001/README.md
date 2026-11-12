@@ -23,7 +23,7 @@ reconciliation and a separate parent-coordinated stage.
 - `offline-dry-run.json`: exact CLI output; no reconciliation errors, 26 staged
   append candidates, eight prospects, no live cutover. Snapshot/content hash:
   `e0694453bc60cf66e47534cf75f9057e84d84aaaec7316625b198a947b92f132`.
-- `../../architecture/research-outreach-learning-layer.md`: field ownership,
+- `../../archive/2026-11-12-pre-packet/docs/architecture/research-outreach-learning-layer.md`: field ownership,
   normalized schema/read contract, denominators, privacy and migration steps.
 - `../../../server/research-learning/`: strict event contract, immutable history,
   scoped/hash-checked snapshots, read-only source adapter, descriptive planner,

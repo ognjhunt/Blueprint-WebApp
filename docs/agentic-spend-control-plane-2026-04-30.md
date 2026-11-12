@@ -15,7 +15,7 @@ Existing repo surfaces already provide the policy base:
 - `server/utils/cityLaunchPolicy.ts` defines city budget tiers and operator auto-approval caps.
 - `server/utils/cityLaunchLedgers.ts` records city budget events.
 - `server/routes/admin-growth.ts` exposes city-launch ledger records.
-- `docs/founder-inbox-contract-2026-04-20.md` gates irreversible budget decisions outside the written envelope.
+- `docs/archive/2026-11-12-pre-packet/docs/founder-inbox-contract-2026-04-20.md` (history) gates irreversible budget decisions outside the written envelope.
 
 ## Decision
 

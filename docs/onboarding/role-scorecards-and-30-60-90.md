@@ -1,3 +1,5 @@
+> **Superseded 2026-11-12.** This describes a frame the owner replaced. Current frame: the shared block of PLATFORM_CONTEXT.md.
+
 # Role Scorecards And 30/60/90 Plans
 
 Status: Active onboarding draft.

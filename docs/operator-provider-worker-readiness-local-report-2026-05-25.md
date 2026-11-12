@@ -1,3 +1,5 @@
+> **Superseded 2026-11-12.** This describes a frame the owner replaced. Current frame: the shared block of PLATFORM_CONTEXT.md.
+
 # Local Operator Provider And Worker Readiness
 
 Generated: 2026-05-25

@@ -1,22 +1,8 @@
 ---
 name: supply-marketplace-research
-description: Research and compare real supply-side marketplace launch playbooks, channel economics, and city-seeding patterns.
+description: Retired 2026-11-12. Do not use.
 ---
 
-# Supply Marketplace Research
+# supply-marketplace-research (retired)
 
-Use this skill when researching how marketplaces built local worker / contributor supply.
-
-Focus on:
-- supply acquisition channels
-- referral loops
-- launch sequencing by city
-- incentives and trust systems
-- quality controls
-- what scaled vs what only looked good in screenshots
-
-Rules:
-- prefer public evidence over retold startup mythology
-- do not invent unit economics
-- separate "worked for them" from "usable for Blueprint"
-- keep recommendations truthful to Blueprint's capturer marketplace and current scale
+This skill is retired as of 2026-11-12. Do nothing with it: start no work, send nothing, change nothing. Blueprint's current frame is the shared block of PLATFORM_CONTEXT.md at the repository root. The old text is in `docs/archive/2026-11-12-pre-packet/ops/paperclip/blueprint-company/skills/supply-marketplace-research/`.

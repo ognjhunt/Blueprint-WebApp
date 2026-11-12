@@ -1,3 +1,5 @@
+> **Superseded 2026-11-12.** This describes a frame the owner replaced. Current frame: the shared block of PLATFORM_CONTEXT.md.
+
 # Beta launch audit — October 18, 2026
 
 Owner request: “audit and deeply analyze our website to see what is still needed before we launch our beta — first principles thinking — from both our website and our pipeline (BlueprintCapturePipeline).”

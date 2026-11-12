@@ -474,7 +474,7 @@ Launch-critical note:
 - Before enabling required live robot-eval forwarding, run `npm run pipeline:forwarding:preflight -- --require-forwarding`. Add `-- --probe-intake-audit` only when the Pipeline intake service is up and `ROBOT_EVAL_JOB_REQUEST_FORWARD_TOKEN` matches `BLUEPRINT_LIVE_PIPELINE_INTAKE_TOKEN`; WebApp signs the probe and forwarded POSTs with timestamp/nonce HMAC headers instead of sending the token as bearer auth. The probe performs a read-only `GET /api/live-pipeline/intake-audit`, writes a redacted report under `output/pipeline/robot_eval_job_requests/forwarding_preflight.json`, and does not queue a job, allocate GPUs, or prove simulator execution.
 - For a route-level proof after preflight, `npm run pipeline:first-gpu:route-forwarding-proof -- --forward-url <pipeline-intake-url> ...` starts a local WebApp route and POSTs a non-rehearsal request through `/api/robot-eval/job-requests`. Use a local/staging intake URL unless a live Pipeline staging side effect is explicitly intended; this still does not prove production deployment, GPU allocation, simulator execution, safety, or 90%+ sim-only policy-ranking agreement.
 
-### Redis (server, recommended for live hosted sessions)
+### Redis (server, recommended for live session state)
 - Optional but recommended: `REDIS_URL`
 - Optional: `RATE_LIMIT_REDIS_URL` if you want rate limiting isolated from session live-state storage
 

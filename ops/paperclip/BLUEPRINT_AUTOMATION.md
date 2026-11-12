@@ -1,3 +1,5 @@
+> **Superseded 2026-11-12.** This describes a frame the owner replaced. Current frame: the shared block of PLATFORM_CONTEXT.md.
+
 # Blueprint Paperclip Automation
 
 ## What This Adds
@@ -28,9 +30,9 @@ The automation loop is deliberately grounded in real repo state and truthful pro
 
 The autonomous-org unification program now freezes three canonical contracts in this repo:
 
-- [Autonomous Org Cross-Repo Operating Graph Contract](../../docs/autonomous-org-cross-repo-operating-graph-2026-04-20.md)
-- [Founder Inbox Contract](../../docs/founder-inbox-contract-2026-04-20.md)
-- [Company Metrics Contract](../../docs/company-metrics-contract-2026-04-20.md)
+- [Autonomous Org Cross-Repo Operating Graph Contract](../../docs/archive/2026-11-12-pre-packet/docs/autonomous-org-cross-repo-operating-graph-2026-04-20.md)
+- [Founder Inbox Contract](../../docs/archive/2026-11-12-pre-packet/docs/founder-inbox-contract-2026-04-20.md)
+- [Company Metrics Contract](../../docs/archive/2026-11-12-pre-packet/docs/company-metrics-contract-2026-04-20.md)
 
 For Paperclip automation, these contracts mean:
 

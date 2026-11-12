@@ -1,26 +1,8 @@
 ---
 name: requesting-code-review
-description: Adapted from obra/superpowers. Use after meaningful implementation work to request a focused review against requirements and regressions.
+description: Retired 2026-11-12. Do not use.
 ---
 
-# Requesting Code Review
+# requesting-code-review (retired)
 
-Use this skill when a change is ready for an explicit review pass.
-
-## Process
-
-1. Summarize what changed, why it changed, and what should now be true.
-2. Point the reviewer at the exact issue, plan, or requirement set.
-3. Include the narrowest useful diff or file set.
-4. Ask for review against:
-   - correctness
-   - regressions
-   - requirement coverage
-   - missing tests or verification
-5. Feed the findings back into the issue before closing it.
-
-## Guardrails
-
-- Request review early enough that fixing findings is still cheap.
-- Do not ask for a generic "LGTM"; ask for review against specific requirements.
-- Keep the review scope small when the change is small.
+This skill is retired as of 2026-11-12. Do nothing with it: start no work, send nothing, change nothing. Blueprint's current frame is the shared block of PLATFORM_CONTEXT.md at the repository root. The old text is in `docs/archive/2026-11-12-pre-packet/ops/paperclip/blueprint-company/skills/requesting-code-review/`.

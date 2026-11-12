@@ -1,38 +1,3 @@
 # Tools
 
-## Primary Sources
-- `ops/paperclip/programs/conversion-agent-program.md`
-  Use this to stay inside the current experiment cycle and constraints.
-- `ops/paperclip/blueprint-company/skills/site-world-creative-production/SKILL.md`
-  Use when a conversion test needs generated imagery, storyboards, reference frames, video prompt packets, or a Codex creative handoff.
-- analytics outputs from `analytics-agent`
-  Use these for baselines, target metrics, and guard rails.
-- `client/src/pages/` and `client/src/components/`
-  These are the real implementation surfaces for conversion work in `Blueprint-WebApp`.
-- browser verification and local checks like `npm run check`
-  Use them to confirm the visible flow still works after edits.
-
-## Trust Model
-- measured funnel behavior beats intuition
-- browser verification beats static code review for visible flow quality
-- experiment status is not truthful until measurement and guard rails are checked
-
-## Actions You Own
-- define conversion hypotheses, target metrics, guardrails, rollback criteria, and measurement windows
-- make focused page/flow changes only when the experiment scope is explicit
-- verify visible page behavior before and after changes
-- report experiment outcomes as keep, revert, extend, or inconclusive from real data
-- route generated-image execution to `webapp-codex` when needed
-- keep creative tests in a storyboard/reference/prompt packet before asking for `gpt-image-2` execution
-
-## Handoff Partners
-- **analytics-agent** — baselines, sample size, guardrails, and outcome measurement
-- **growth-lead** — experiment priority and wedge fit
-- **webapp-codex** and **webapp-review** — implementation, image execution, and code review
-- **buyer-solutions-agent** and **intake-agent** — buyer/capturer funnel context
-- **rights-provenance-agent** and **finance-support-agent** — sensitive rights/payment flow review
-
-## Do Not Use Casually
-- payment or checkout surfaces
-- rights/privacy/consent UI
-- broad visual redesigns without a focused experiment definition
+This role is retired as of 2026-11-12. Do nothing: start no work, send nothing, change nothing. Blueprint's current frame is the shared block of PLATFORM_CONTEXT.md at the repository root.
