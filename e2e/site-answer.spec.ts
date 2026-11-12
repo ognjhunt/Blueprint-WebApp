@@ -83,7 +83,7 @@ async function mockJob(page: Page, { evaluation = simulationRun as unknown, shar
     }
     if (path === `/api/site-task-brief/${token}/introductions` && method === "POST") {
       introductions.push({ csrf: route.request().headers()["x-csrf-token"], body: route.request().postDataJSON() });
-      return route.fulfill({ status: 409, json: { ok: false, code: "introduction_refused", reason: "limit_reached", error: "x" } });
+      return route.fulfill({ status: 409, json: { ok: false, code: "introduction_refused", reason: "already_introduced", error: "x" } });
     }
     if (path === `/api/site-task-brief/${token}/readiness`) return route.fulfill({ json: { ok: true, summary: null, report: null,
       briefPath: null, tracker: { steps: [], meanwhile: null } } });
@@ -247,7 +247,7 @@ test("a shared job that is held says it is not visible right now", async ({ page
 test("the deployment companies section says the send line, each answer by alias, and offers Introduce us", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   const { introductions, unexpected } = await mockJob(page, { sharing: { state: "visible", sharedAtIso: "2026-11-11T15:00:00.000Z" },
-    companies: { interested: true, sent: { count: 3, firstAtIso: "2026-11-12T10:00:00.000Z" }, introductions: { used: 0, max: 3 }, entries: [
+    companies: { interested: true, sent: { count: 3, firstAtIso: "2026-11-12T10:00:00.000Z" }, introductions: { used: 0 }, entries: [
       { kind: "answered", alias: "Company B", atIso: "2026-11-12T12:00:00.000Z", state: "needs_something", canIntroduce: false },
       { kind: "answered", alias: "Company A", atIso: "2026-11-13T09:00:00.000Z", state: "interested", canIntroduce: true },
     ] } });
@@ -260,7 +260,7 @@ test("the deployment companies section says the send line, each answer by alias,
   await expect(companies.getByText("We give Company A your name, address and contact details, and give you theirs.", { exact: true })).toBeVisible();
   await expect(companies.getByText("We will write to you about next steps.")).toHaveCount(0);
   await companies.getByRole("button", { name: "Introduce us" }).click();
-  await expect(companies.getByRole("alert")).toHaveText("You have used your three introductions.");
+  await expect(companies.getByRole("alert")).toHaveText("You have already been introduced to this company.");
   expect(introductions).toEqual([{ csrf: "fixture", body: { alias: "A", statementVersion: "introduction-request-2026-11-12" } }]);
   expect(unexpected).toEqual([]);
 });

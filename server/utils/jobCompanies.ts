@@ -34,7 +34,7 @@ import { randomUUID } from "node:crypto";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
 import {
-  COMPANY_RESPONSE_STATEMENT_VERSION, COMPANY_RESPONSE_STATES, INTRODUCIBLE_RESPONSE_STATES, MAX_INTRODUCTIONS_PER_JOB, companyAliasName, isCompanyResponseState,
+  COMPANY_RESPONSE_STATEMENT_VERSION, COMPANY_RESPONSE_STATES, INTRODUCIBLE_RESPONSE_STATES, companyAliasName, isCompanyResponseState,
   type CompanyResponseState, type IntroducedCompany, type SiteCompanyActivity, type SiteCompanyEntry,
 } from "../../client/src/lib/companyResponses";
 import { ROBOT_TEAM_ACCESS_COLLECTION, type RobotTeamAccessRecord } from "./robotTeamEarlyAccess";
@@ -399,7 +399,7 @@ export function projectSiteCompanyActivity(input: { aliases: Record<string, stri
     if (send.sentBy === "system" || !letter) continue;
     entries.push({ kind: "sent", alias: companyAliasName(letter), atIso });
   }
-  // An introduction cancelled at dispatch (G3) is as if it was never made: it does not count toward the three and the
+  // An introduction cancelled at dispatch (G3) is as if it was never made: it does not count among those made and the
   // answer shows without it. It is not offered again for that company (its emails' keys are spent).
   const cancelled = new Set((input.introductions ?? []).filter(row => typeof row.data.cancelledAtIso === "string").map(row => row.id));
   const introductions = new Map((input.introductions ?? []).filter(row => !cancelled.has(row.id)).map(row => [row.id, row.data]));
@@ -413,7 +413,7 @@ export function projectSiteCompanyActivity(input: { aliases: Record<string, stri
     const intro = introductions.get(response.id);
     const introducedAtIso = intro ? instant(intro.requestedAtIso) : null;
     const company = intro ? introducedCompany(intro) : undefined;
-    const canIntroduce = !intro && !cancelled.has(response.id) && input.listed === true && used < MAX_INTRODUCTIONS_PER_JOB
+    const canIntroduce = !intro && !cancelled.has(response.id) && input.listed === true
       && answerConsentsToIntroduction(response.data) && Boolean(input.approvedDeploymentCompanies?.has(response.id));
     entries.push({ kind: "answered", alias: companyAliasName(letter), atIso, state, canIntroduce,
       ...(introducedAtIso ? { introducedAtIso } : {}), ...(company ? { company } : {}),
@@ -423,7 +423,7 @@ export function projectSiteCompanyActivity(input: { aliases: Record<string, stri
   entries.sort((a, b) => a.atIso.localeCompare(b.atIso) || (a.kind === b.kind ? 0 : a.kind === "sent" ? -1 : 1));
   return { entries, interested: entries.some(entry => entry.kind === "answered" && INTRODUCIBLE_RESPONSE_STATES.includes(entry.state)),
     sent: sentTo.size && firstAtIso ? { count: sentTo.size, firstAtIso } : null,
-    introductions: { used, max: MAX_INTRODUCTIONS_PER_JOB } };
+    introductions: { used } };
 }
 
 /**
@@ -434,7 +434,7 @@ export async function loadSiteCompanyActivity(requestId: string): Promise<SiteCo
   const store = requireDb();
   const jobRef = store.collection(JOBS).doc(requestId);
   const record = (await jobRef.get()).data();
-  const empty = { entries: [], interested: false, sent: null, introductions: { used: 0, max: MAX_INTRODUCTIONS_PER_JOB } };
+  const empty = { entries: [], interested: false, sent: null, introductions: { used: 0 } };
   if (!record || projectWebsiteCaptureRights(record).consent_revoked) return empty;
   const [sends, responses, introductions, approved, { access }] = await Promise.all([readAll(jobRef.collection(COMPANY_SENDS_COLLECTION)),
     readAll(jobRef.collection(COMPANY_RESPONSES_COLLECTION)), readAll(jobRef.collection(INTRODUCTIONS_COLLECTION)),

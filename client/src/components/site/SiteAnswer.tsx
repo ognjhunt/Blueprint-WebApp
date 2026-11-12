@@ -3,7 +3,7 @@ import { withCsrfHeader } from "@/lib/csrf";
 import { RECORDING_RIGHTS_STATEMENT_V4, RECORDING_RIGHTS_STATEMENT_V4_VERSION } from "@/lib/recordingRightsStatement";
 import { type JobOutlook, type JobPhase } from "@/lib/jobOutlook";
 import {
-  INTRODUCE_LABEL, INTRODUCTIONS_USED, INTRODUCTION_CANCELLED, INTRODUCTION_REQUEST_STATEMENT_VERSION, INTRODUCTION_STATEMENT_CHANGED, INTRODUCTION_FAILED, INTRODUCTION_REFUSAL_SENTENCES, introduceSentence, introducedOn,
+  INTRODUCE_LABEL, INTRODUCTION_CANCELLED, INTRODUCTION_REQUEST_STATEMENT_VERSION, INTRODUCTION_STATEMENT_CHANGED, INTRODUCTION_FAILED, INTRODUCTION_REFUSAL_SENTENCES, introduceSentence, introducedOn,
   isIntroductionRefusalReason,
 } from "@/lib/siteIntroductions";
 import { GAP_COULD_BE_CHANCE, GAP_UNLIKELY_CHANCE, optionParts, testSubLine, type SimulationOption, type SimulationProof as SimulationProofView } from "@/lib/simulationProof";
@@ -168,9 +168,6 @@ function CompanyEntries({ token, activity, onIntroduced }: { token: string; acti
   if (!isSiteCompanyActivity(activity)) return null;
   const sent = activity.sent && Number.isInteger(activity.sent.count) && activity.sent.count > 0 && typeof activity.sent.firstAtIso === "string"
     ? activity.sent : null;
-  const used = activity.introductions && Number.isInteger(activity.introductions.used) ? activity.introductions.used : 0;
-  const max = activity.introductions && Number.isInteger(activity.introductions.max) ? activity.introductions.max : 3;
-  const limitReached = used >= max;
   if (!sent && activity.entries.length === 0) return null;
   async function introduce(alias: string) {
     if (busy) return;
@@ -193,9 +190,8 @@ function CompanyEntries({ token, activity, onIntroduced }: { token: string; acti
     } catch { setErrors(current => ({ ...current, [alias]: INTRODUCTION_FAILED })); }
     finally { setBusy(null); }
   }
-  // "Introduce us" is offered beside an answer the server says can be introduced (`interested`, or `tested_can_do`, E9).
-  const INTRODUCIBLE: readonly string[] = ["interested", "tested_can_do"];
-  const interestedWaiting = activity.entries.some(entry => entry.kind === "answered" && INTRODUCIBLE.includes(entry.state) && !entry.company);
+  // "Introduce us" is offered beside each answer the server says can be introduced (`interested`, or `tested_can_do`,
+  // E9), with no limit per job (owner, 2026-11-12).
   return <>
     {sent && <BareLead>{sentToCompanies(sent.count, dateInWords(sent.firstAtIso))}</BareLead>}
     {sent && !activity.entries.some(entry => entry.kind === "answered") && <p className="bare-helper">{NO_ANSWERS_YET}</p>}
@@ -207,14 +203,13 @@ function CompanyEntries({ token, activity, onIntroduced }: { token: string; acti
           && <IntroducedDetails entry={entry} />}
         {entry.kind === "answered" && !entry.company && entry.introductionCancelled === true
           && <p className="bare-helper">{INTRODUCTION_CANCELLED}</p>}
-        {entry.kind === "answered" && !entry.company && entry.canIntroduce === true && !limitReached && <>
+        {entry.kind === "answered" && !entry.company && entry.canIntroduce === true && <>
           <BareButton onClick={() => void introduce(entry.alias)} disabled={busy !== null} helper={introduceSentence(entry.alias)}>
             {busy === entry.alias ? "Asking…" : INTRODUCE_LABEL}</BareButton>
           {errors[entry.alias] && <p role="alert">{errors[entry.alias]}</p>}
         </>}
       </li>)}
     </ul>}
-    {limitReached && interestedWaiting && <BareNotice>{INTRODUCTIONS_USED}</BareNotice>}
   </>;
 }
 

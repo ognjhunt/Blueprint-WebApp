@@ -41,7 +41,7 @@ follows it, not this file.
 
 ## How it runs
 
-No person at Blueprint stands between a site's video and an introduction. When a job is ready it is shown to every approved deployment company, and those that asked for job emails are told. People act only where their own decision is the point: a site sends, confirms, asks for an introduction and can withdraw; a company applies and answers; Blueprint approves a company once. The site asks for an introduction with one press, at most three per job; Blueprint then gives each side the other's name and contact details by email. Nothing else shares them. After an introduction both sides are asked, at 14, 45 and 90 days, what happened; the answer is recorded on the job. The website does not
+No person at Blueprint stands between a site's video and an introduction. When a job is ready it is shown to every approved deployment company, and those that asked for job emails are told. People act only where their own decision is the point: a site sends, confirms, asks for an introduction and can withdraw; a company applies and answers; Blueprint approves a company once. The site asks for an introduction with one press for each company it wants to meet; Blueprint then gives each side the other's name and contact details by email. Nothing else shares them. After an introduction both sides are asked, at 14, 45 and 90 days, what happened; the answer is recorded on the job. The website does not
 do this yet; the change is in build. No deployment company is named in public copy.
 
 ## Rules for copy

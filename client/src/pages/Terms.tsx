@@ -42,7 +42,7 @@ export const termsSections: readonly Section[] = [
       "Avoid recording screens, documents and restricted areas where you can.",
       "You grant Blueprint a non-exclusive license to use your footage, photos and job details to provide the Service for your job: to review them, build the simulation, run our early trial, show you the results, and share your job with the deployment companies we approve as this section describes. We do not license your recording to anyone for training without your written agreement.",
       SHARING_SENTENCE,
-      `${CONTACT_DETAILS_SENTENCE} A deployment company's answer reaches you under an alias. When you ask for an introduction to a company that answered Interested or Tested it: can do, we give it your name, your address and your contact details, and give you its name and contact details. You can ask for up to three introductions for each job.`,
+      `${CONTACT_DETAILS_SENTENCE} A deployment company's answer reaches you under an alias. When you ask for an introduction to a company that answered Interested or Tested it: can do, we give it your name, your address and your contact details, and give you its name and contact details.`,
       COMPANY_USE_SENTENCE,
       WITHDRAWAL_SENTENCE,
       OLDER_JOB_SENTENCE,

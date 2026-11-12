@@ -15,7 +15,7 @@
  *   `requestIntroduction`;
  * - the automatic send is idempotent and emails only an approved deployment company that asked for job emails and is
  *   not suppressed;
- * - `requestIntroduction` returns each refusal in its case, refuses a fourth, and writes the introduction, the
+ * - `requestIntroduction` returns each refusal in its case, has no limit per job, and writes the introduction, the
  *   billable event and both emails in one transaction.
  */
 import express from "express";
@@ -486,7 +486,7 @@ describe("introductions (E6) and money (E7)", () => {
     expectNoSiteIn("every email to a company but the chosen one", JSON.stringify(outbox().filter(row => row.to !== NORTH.email && row.to !== SITE.email)));
     // The site's view now carries the company's details on that answer only.
     const activity = await loadSiteCompanyActivity(ID);
-    expect(activity.introductions).toEqual({ used: 1, max: 3 });
+    expect(activity.introductions).toEqual({ used: 1 });
     expect(activity.entries).toEqual([expect.objectContaining({ alias: "Company A", canIntroduce: false,
       introducedAtIso: "2026-11-12T15:00:00.000Z", company: { name: NORTH.company, contactName: NORTH.name, email: NORTH.email, website: NORTH.website } })]);
   });
@@ -551,15 +551,21 @@ describe("introductions (E6) and money (E7)", () => {
     expect(toSite.at(-1)).toContain("Interested");
   });
 
-  it("allows three introductions per job and refuses a fourth", async () => {
-    await interested(NORTH, SOUTH, EAST, WEST);
-    for (const alias of ["A", "B", "C"]) expect(await requestIntroduction({ requestId: ID, alias, actor: "site", statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION }, { siteEmail })).toMatchObject({ ok: true });
-    expect(await requestIntroduction({ requestId: ID, alias: "D", actor: "site", statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION }, { siteEmail })).toEqual({ ok: false, reason: "limit_reached" });
-    expect([...state.docs.keys()].filter(key => key.startsWith(`inboundRequests/${ID}/introductions/`))).toHaveLength(3);
-    expect([...state.docs.keys()].filter(key => key.startsWith("billableEvents/"))).toHaveLength(3);
+  // Owner, 2026-11-12: "if they want to talk to 1 that should be fine if they want to go through the steps with 8 that
+  // should be fine". No limit per job; still one introduction per company.
+  it("has no limit per job: introduces every company that answered Interested, each once, each with its billable event", async () => {
+    await interested(NORTH, SOUTH, EAST, WEST, MUTED);
+    for (const alias of ["A", "B", "C", "D"]) expect(await requestIntroduction({ requestId: ID, alias, actor: "site", statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION }, { siteEmail })).toMatchObject({ ok: true });
+    const before = await loadSiteCompanyActivity(ID);
+    expect(before.introductions).toEqual({ used: 4 });
+    expect(before.entries.find(entry => entry.alias === "Company E")).toMatchObject({ canIntroduce: true });
+    expect(await requestIntroduction({ requestId: ID, alias: "E", actor: "site", statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION }, { siteEmail })).toMatchObject({ ok: true });
+    expect(await requestIntroduction({ requestId: ID, alias: "B", actor: "site", statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION }, { siteEmail })).toEqual({ ok: false, reason: "already_introduced" });
+    expect([...state.docs.keys()].filter(key => key.startsWith(`inboundRequests/${ID}/introductions/`))).toHaveLength(5);
+    expect([...state.docs.keys()].filter(key => key.startsWith("billableEvents/"))).toHaveLength(5);
     const activity = await loadSiteCompanyActivity(ID);
-    expect(activity.introductions).toEqual({ used: 3, max: 3 });
-    expect(activity.entries.find(entry => entry.alias === "Company D")).toMatchObject({ canIntroduce: false });
+    expect(activity.introductions).toEqual({ used: 5 });
+    expect(activity.entries.every(entry => entry.kind !== "answered" || entry.canIntroduce === false)).toBe(true);
   });
 
   it("clears both sides' details from the introduction emails' outbox rows once sent; a failed try keeps them for the retry", async () => {
@@ -783,16 +789,16 @@ describe("review findings (must-fix and should-fix)", () => {
 
   it("should-fix: the count is the standing introductions, and two presses at once both write the job document", async () => {
     await interested(NORTH, SOUTH);
-    // Three standing introductions to other companies: a fourth is refused. One cancelled at dispatch (G3) frees its place.
+    // Three standing introductions to other companies and one cancelled at dispatch (G3): no limit refuses, and the
+    // count kept on the job is the standing ones.
     for (const other of ["x", "y", "z"]) state.docs.set(`inboundRequests/${ID}/introductions/${other.repeat(64)}`,
       { requestedAtIso: "2026-11-12T00:00:00.000Z", outcomes: [] });
-    expect(await requestIntroduction({ requestId: ID, alias: "A", actor: "site", statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION }, { siteEmail })).toEqual({ ok: false, reason: "limit_reached" });
-    state.docs.set(`inboundRequests/${ID}/introductions/${"x".repeat(64)}`, { requestedAtIso: "2026-11-12T00:00:00.000Z",
+    state.docs.set(`inboundRequests/${ID}/introductions/${"w".repeat(64)}`, { requestedAtIso: "2026-11-12T00:00:00.000Z",
       cancelledAtIso: "2026-11-12T01:00:00.000Z", cancelReason: "company_not_approved", outcomes: [] });
-    state.docs.delete(`inboundRequests/${ID}/introductions/${"y".repeat(64)}`);
-    state.docs.delete(`inboundRequests/${ID}/introductions/${"z".repeat(64)}`);
     expect(await requestIntroduction({ requestId: ID, alias: "A", actor: "site", statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION }, { siteEmail })).toMatchObject({ ok: true });
-    expect(jobDoc().introductions_used).toBe(1);
+    expect(jobDoc().introductions_used).toBe(4);
+    for (const other of ["x", "y", "z", "w"]) state.docs.delete(`inboundRequests/${ID}/introductions/${other.repeat(64)}`);
+    patchJob({ introductions_used: 1 });
     const both = await Promise.all(["B", "B"].map(alias => requestIntroduction({ requestId: ID, alias, actor: "site", statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION }, { siteEmail })));
     expect(both.filter(result => result.ok)).toHaveLength(1);
     expect(jobDoc().introductions_used).toBe(2);
@@ -1235,7 +1241,7 @@ describe("a company must accept the current Terms and Privacy Policy before it s
   async function accept(record = NORTH) {
     const response = await realFetch(`${base}/api/robot-team-access/accept-terms`, { method: "POST",
       headers: { ...signIn(record), "content-type": "application/json" },
-      body: JSON.stringify({ acceptedTerms: true, termsVersion: "2026-11-12.1", privacyVersion: "2026-11-12.1" }) });
+      body: JSON.stringify({ acceptedTerms: true, termsVersion: "2026-11-12.2", privacyVersion: "2026-11-12.2" }) });
     return { status: response.status, body: await response.json() as Record<string, any> };
   }
 
@@ -1260,11 +1266,11 @@ describe("a company must accept the current Terms and Privacy Policy before it s
     }
     expect(state.docs.has(`inboundRequests/${ID}/robotTeamInterest/${sha(NORTH.email)}`)).toBe(false);
     // Accepting records the current versions on the account and the access record, then everything works.
-    expect(await accept()).toMatchObject({ status: 200, body: { ok: true, termsVersion: "2026-11-12.1", privacyVersion: "2026-11-12.1" } });
-    expect(state.docs.get(`users/uid-${NORTH.email}`)).toMatchObject({ acceptedTerms: true, termsVersion: "2026-11-12.1",
-      privacyVersion: "2026-11-12.1", termsAcceptance: { accepted_terms: true, terms_version: "2026-11-12.1" } });
+    expect(await accept()).toMatchObject({ status: 200, body: { ok: true, termsVersion: "2026-11-12.2", privacyVersion: "2026-11-12.2" } });
+    expect(state.docs.get(`users/uid-${NORTH.email}`)).toMatchObject({ acceptedTerms: true, termsVersion: "2026-11-12.2",
+      privacyVersion: "2026-11-12.2", termsAcceptance: { accepted_terms: true, terms_version: "2026-11-12.2" } });
     expect((state.docs.get(`robotTeamAccess/${sha(NORTH.email)}`) as Record<string, any>).termsAcceptance)
-      .toMatchObject({ accepted_terms: true, terms_version: "2026-11-12.1", privacy_version: "2026-11-12.1" });
+      .toMatchObject({ accepted_terms: true, terms_version: "2026-11-12.2", privacy_version: "2026-11-12.2" });
     expect((await page()).status).toBe(200);
     expect((await list()).body.items).toHaveLength(1);
     expect((await media(item.video.url)).status).toBe(200);

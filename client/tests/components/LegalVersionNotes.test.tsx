@@ -22,7 +22,10 @@ afterEach(() => {
 });
 
 // 2026-11-12 (sharing is the service): the new version 2026-11-12.1 took effect at once, replacing the version published
-// ahead for November 25 before that date, so no update is announced; the notes say which version replaced which.
+// ahead for November 25 before that date, so no update is announced; the notes say which version replaced which. Later the
+// same day 2026-11-12.2 replaced 2026-11-12.1 at once (owner: no limit on introductions), so the Terms' previous version
+// is now 2026-11-12.1 (effective November 12); the Privacy Policy's text did not change, so its previous one is still
+// 2026-11-02.1.
 describe("legal update notice", () => {
   it("announces nothing while no update is pending", () => {
     at(new Date("2026-11-12T12:00:00Z"));
@@ -39,7 +42,7 @@ describe("legal update notice", () => {
   it("links each version to the other and says which one applies", () => {
     at(new Date("2026-11-12T12:00:00Z"));
     render(<><CurrentLegalVersionNote document="terms" /><PreviousLegalVersionNote document="privacy" /></>);
-    expect(screen.getByText(/This version replaced the/)).toHaveTextContent("(effective November 2, 2026).");
+    expect(screen.getByText(/This version replaced the/)).toHaveTextContent("(effective November 12, 2026).");
     expect(screen.getByRole("link", { name: "previous version" })).toHaveAttribute("href", "/terms/previous");
     expect(screen.getByText(/This version applied until November 12, 2026/)).toHaveTextContent("current Privacy Policy took effect.");
     expect(screen.getByRole("link", { name: "current Privacy Policy" })).toHaveAttribute("href", "/privacy");

@@ -36,8 +36,23 @@
  *   versions the next time it is checked (`acceptedVersionsAreCurrent` is false for them; `server/routes/workspace.ts`).
  * The permission to share a job never rests on the Terms alone: it rests on recording statement v4.
  */
-export const TERMS_VERSION = "2026-11-12.1";
-export const PRIVACY_VERSION = "2026-11-12.1";
+/*
+ * 2026-11-12, later the same day (owner: "if they want to talk to 1 that should be fine if they want to go through the
+ * steps with 8 that should be fine"). Version 2026-11-12.2 removes one sentence from the Terms, "You can ask for up to
+ * three introductions for each job.", and changes nothing else. It takes effect at once, as 2026-11-12.1 did. The text of
+ * 2026-11-12.1 is frozen at `client/src/pages/TermsPrevious.tsx` (/terms/previous). The Privacy Policy shares the version
+ * id, so it moves to 2026-11-12.2 with its text unchanged: Privacy 2026-11-12.1 and 2026-11-12.2 are the same words
+ * (the same `Privacy.tsx`, same digest).
+ *
+ * Who it binds, and how, exactly as for 2026-11-12.1: only by an act of the person's own.
+ * - A site starting a job from this release accepts it under the start form's line.
+ * - A signed-in account whose recorded acceptance is 2026-11-12.1 (or older) is asked to accept the current versions the
+ *   next time it is checked (`acceptedVersionsAreCurrent` is false for it; `server/routes/workspace.ts`).
+ * - A deployment company whose access record holds 2026-11-12.1 sees the Terms prompt and presses "I agree" again
+ *   (`server/utils/companyTerms.ts`); until then `companyMaySeeJobs` is false for it.
+ */
+export const TERMS_VERSION = "2026-11-12.2";
+export const PRIVACY_VERSION = "2026-11-12.2";
 /**
  * Published ahead on 2026-11-11 for November 25 and replaced before it took effect. Acceptances recorded under it keep
  * it; its text is frozen at `client/src/pages/TermsAnnounced.tsx` and `PrivacyAnnounced.tsx` (not routed). It no
@@ -54,8 +69,12 @@ export const ANNOUNCED_SUPERSEDED_VERSION = "2026-11-25.1";
  * notice Terms section 12 promises can be given before it takes effect. The
  * date is a placeholder for the owner to confirm; no notice is sent by code.
  */
-export const PREVIOUS_TERMS_VERSION = "2026-11-02.1";
+/** 2026-11-12.2: the Terms in force before it are 2026-11-12.1. The Privacy Policy's text did not change between
+ * 2026-11-12.1 and 2026-11-12.2, so its previous text is still the one of 2026-11-02.1. */
+export const PREVIOUS_TERMS_VERSION = "2026-11-12.1";
 export const PREVIOUS_PRIVACY_VERSION = "2026-11-02.1";
+/** The Terms that were "previous" until 2026-11-12.2: kept byte for byte at `client/src/pages/TermsEarlier.tsx`, not routed. */
+export const EARLIER_TERMS_VERSION = "2026-11-02.1";
 
 /**
  * SHA-256 of each legal page's source file, pinned to the version above it. A change to a page's text needs a new
@@ -63,17 +82,18 @@ export const PREVIOUS_PRIVACY_VERSION = "2026-11-02.1";
  * version and this digest are updated together.
  */
 export const LEGAL_PAGE_DIGESTS = {
-  "client/src/pages/Terms.tsx": { version: TERMS_VERSION, sha256: "e3ce4d98b176b3f35a9983b2a0ecbbc46b88a8bab7c7335a2391270fcbba3b47" },
+  "client/src/pages/Terms.tsx": { version: TERMS_VERSION, sha256: "44b0d966c803df4699ecc20c2dbd9a20f229d99395f9b57eee524a7f0774cc86" },
   "client/src/pages/Privacy.tsx": { version: PRIVACY_VERSION, sha256: "b4507322dc8b084a704689bae96c83704da9f885f24b1b0a19eee98e885b80bf" },
   "client/src/pages/TermsAnnounced.tsx": { version: ANNOUNCED_SUPERSEDED_VERSION, sha256: "2a56699800d45d0ce2d63598021799a7abbc3027612b1cdfaaf9c0c98cf2cd97" },
   "client/src/pages/PrivacyAnnounced.tsx": { version: ANNOUNCED_SUPERSEDED_VERSION, sha256: "ae47ecfdb9bbf404ac0d070c02816d2a99f7d4460616e8b06435fbbcb3f115f9" },
-  "client/src/pages/TermsPrevious.tsx": { version: PREVIOUS_TERMS_VERSION, sha256: "37a4885464a275f5236ed3dd0edee9b148bbeea9bdc80b6ab7f7b9a4dfb8d7bb" },
+  "client/src/pages/TermsPrevious.tsx": { version: PREVIOUS_TERMS_VERSION, sha256: "ccb2fb154ddab8e8c052c5870ca13084e461d4f2815c2eb8c7f5454ffbc12f27" },
+  "client/src/pages/TermsEarlier.tsx": { version: EARLIER_TERMS_VERSION, sha256: "37a4885464a275f5236ed3dd0edee9b148bbeea9bdc80b6ab7f7b9a4dfb8d7bb" },
   "client/src/pages/PrivacyPrevious.tsx": { version: PREVIOUS_PRIVACY_VERSION, sha256: "cad7fcac5cc1ec468ab74471a13a5e61a208b697deafd97b4039f01ab38eab3c" },
 } as const;
 /** The versions the digests above were recorded against; a version bump without a new digest fails the same test. */
 export const LEGAL_PAGE_DIGEST_VERSIONS = {
-  terms: "2026-11-12.1", privacy: "2026-11-12.1", previousTerms: "2026-11-02.1", previousPrivacy: "2026-11-02.1",
-  announced: "2026-11-25.1",
+  terms: "2026-11-12.2", privacy: "2026-11-12.2", previousTerms: "2026-11-12.1", previousPrivacy: "2026-11-02.1",
+  announced: "2026-11-25.1", earlierTerms: "2026-11-02.1",
 } as const;
 
 /**

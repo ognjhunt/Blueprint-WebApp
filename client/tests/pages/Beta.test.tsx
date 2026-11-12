@@ -32,7 +32,7 @@ describe("the questions page", () => {
     expect(screen.getByRole("region", { name: "Deployment companies" }))
       .toHaveTextContent("A company can say it is interested, that the job is not a fit, or that it would need something. We can't promise any will say yes.");
     expect(screen.getByRole("region", { name: "Deployment companies" }))
-      .toHaveTextContent("Beside each interested company, press Introduce us. We give each of you the other's details. Up to three for each job.");
+      .toHaveTextContent("Beside each interested company, press Introduce us. We give each of you the other's details.");
   });
 
   it("says who sees the video, what stays with us, how to stop, and who we are", () => {

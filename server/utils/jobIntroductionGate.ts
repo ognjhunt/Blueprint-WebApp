@@ -10,8 +10,8 @@
  *   When it fails, the introduction is cancelled as a whole (`introductionEmailCheck`'s `cancel`, applied by the outbox
  *   in the same transaction after all its reads): both rows not yet sent are cancelled and cleared of both sides'
  *   details; the introduction record is marked cancelled with the reason and time and its sealed details are removed;
- *   the billable event is marked void (kept, never counted). A cancelled introduction does not count toward the job's
- *   three, and the site's page says beside that company's answer that it could not go ahead.
+ *   the billable event is marked void (kept, never counted). A cancelled introduction does not count among the job's
+ *   introductions, and the site's page says beside that company's answer that it could not go ahead.
  * - Once the company's email IS sent, the introduction is made: the site's email goes whatever has changed since,
  *   because the company now holds the site's details and the site must be told who has them; the billable event stands.
  *   (`taskLifecycleNotificationAuthority.ts` asks `siteIntroductionEmailState` for the site's row.)

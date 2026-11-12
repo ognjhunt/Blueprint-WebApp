@@ -258,7 +258,7 @@ describe("build output", () => {
     expect(homeHtml).toContain("Get repetitive work done by robots.");
     expect(homeHtml).toContain("Film the job once. Robot deployment companies can test it on a simulation of your site and tell you if they can do it.");
     expect(homeHtml).toContain("We send the job to robot deployment companies we approve and build a simulation of your site for them to test.");
-    expect(homeHtml).toContain("Their answers come back to you: interested, can do, not a fit, or would need something. You pick up to three to meet.");
+    expect(homeHtml).toContain("Their answers come back to you: interested, can do, not a fit, or would need something. You pick who to meet.");
     expect(homeHtml).toContain("Free for sites");
     // The fine line is gone (owner, 2026-11-12: "why do we have this???: We take pick-up-and-put-down jobs best.
     // Nothing here is a test at your site or a safety check. is this just outdated?"); the Terms keep their own sentence.

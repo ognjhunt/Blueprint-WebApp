@@ -250,7 +250,7 @@ describe("what the site receives", () => {
     expect(body.answer.companies.interested).toBe(true);
     expect(Object.keys(body.answer.companies).sort()).toEqual(["entries", "interested", "introductions", "sent"]);
     expect(body.answer.companies.sent).toMatchObject({ count: 1 });
-    expect(body.answer.companies.introductions).toEqual({ used: 0, max: 3 });
+    expect(body.answer.companies.introductions).toEqual({ used: 0 });
     expect(entries.map(entry => Object.keys(entry).sort())).toEqual([["alias", "atIso", "kind"],
       ["alias", "atIso", "canIntroduce", "kind", "state"], ["alias", "atIso", "canIntroduce", "kind", "state"]]);
     // An answer an operator recorded from an email carries no consent to an introduction (E5).
@@ -305,7 +305,7 @@ describe("what the site receives", () => {
     expect(JSON.stringify(activity)).not.toContain("NOTE-PLANT");
     expect(activity).toEqual({ interested: true, entries: [{ kind: "sent", alias: "Company A", atIso: "2026-11-12T00:00:00.000Z" },
       { kind: "answered", alias: "Company A", atIso: "2026-11-12T01:00:00.000Z", state: "interested", canIntroduce: false }],
-      sent: { count: 1, firstAtIso: "2026-11-12T00:00:00.000Z" }, introductions: { used: 0, max: 3 } });
+      sent: { count: 1, firstAtIso: "2026-11-12T00:00:00.000Z" }, introductions: { used: 0 } });
   });
 
   it("never shows an answer given before this change (no recordedBy), gives it no alias, and the status read writes nothing", async () => {

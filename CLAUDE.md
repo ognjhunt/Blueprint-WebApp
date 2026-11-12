@@ -11,7 +11,7 @@ first look on paper, the simulation of its site and where the job stands. Our
 own early trial of openly available robot software is supporting evidence,
 never the answer. A site's name, street address and contact details are never
 shared without asking the site first. The site asks for an introduction with
-one press, at most three per job; Blueprint then gives each side the other's
+one press for each company it wants to meet; Blueprint then gives each side the other's
 name and contact details by email. No person at Blueprint stands between a
 site's video and an introduction. The website change for this is in build. The
 site pays nothing. Deployment companies will pay; how is not decided, and no

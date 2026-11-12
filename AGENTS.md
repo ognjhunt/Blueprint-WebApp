@@ -28,8 +28,7 @@ yet sent, sent and waiting, or no response yet. Nothing promises a response
 that has not been given. A packet is not held for the simulation: it goes
 when the video and the first look exist, and says plainly what is not
 finished. No deployment company is required to test in the simulation. When
-several are interested the site decides: up to three introductions per job,
-in the order the companies answered. After an introduction both sides are asked, at 14, 45 and 90 days, what happened; the answer is recorded on the job.
+several are interested the site decides which of them to meet. After an introduction both sides are asked, at 14, 45 and 90 days, what happened; the answer is recorded on the job.
 
 Sharing is the service. A site that sends a job agrees once, in the statement
 it accepts (recording statement `2026-11-12.v4` or later), that Blueprint
@@ -46,7 +45,7 @@ The website does not work this way yet: it still has a share step and the
 older statements. That change is in build; until it ships, no site has
 accepted `2026-11-12.v4`.
 
-No person at Blueprint stands between a site's video and an introduction. When a job is ready it is shown to every approved deployment company, and those that asked for job emails are told. People act only where their own decision is the point: a site sends, confirms, asks for an introduction and can withdraw; a company applies and answers; Blueprint approves a company once. The site asks for an introduction with one press, at most three per job; Blueprint then gives each side the other's name and contact details by email. Nothing else shares them. The website does not do this yet: the
+No person at Blueprint stands between a site's video and an introduction. When a job is ready it is shown to every approved deployment company, and those that asked for job emails are told. People act only where their own decision is the point: a site sends, confirms, asks for an introduction and can withdraw; a company applies and answers; Blueprint approves a company once. The site asks for an introduction with one press for each company it wants to meet; Blueprint then gives each side the other's name and contact details by email. Nothing else shares them. The website does not do this yet: the
 automatic sends, the introduction press and the follow-up questions are in
 build.
 

@@ -60,7 +60,7 @@ const application = {
   acceptedTerms: true,
 };
 /** The versions of the Terms and Privacy Policy the form shows; it sends them with every application (G2). */
-const SHOWN = { termsVersion: "2026-11-12.1", privacyVersion: "2026-11-12.1" };
+const SHOWN = { termsVersion: "2026-11-12.2", privacyVersion: "2026-11-12.2" };
 /** What the application form sends. */
 const form = { ...application, ...SHOWN };
 
@@ -231,7 +231,7 @@ describe("applying", () => {
       email: "ada@arm.example", status: "applied",
       pilotPackage: "Two-week onsite trial, indicative $20,000, six-week lead time",
       // What the form showed and the applicant ticked, with the time: on the application only (G1, G2).
-      applicationTermsAcceptance: { accepted_terms: true, terms_version: "2026-11-12.1", privacy_version: "2026-11-12.1",
+      applicationTermsAcceptance: { accepted_terms: true, terms_version: "2026-11-12.2", privacy_version: "2026-11-12.2",
         terms_url: "/terms", privacy_url: "/privacy", accepted_at: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/) },
     });
     // The tick on the unsigned form is never an acceptance that lets a company see a job.
@@ -348,7 +348,7 @@ describe("the review queue", () => {
     expect(state.docs.get(`robotTeamAccess/${id}`)).toMatchObject({ termsAcceptedByUid: "u1" });
     const library = await fetch(`${base}/api/site-worlds/tasks`, { headers: { Authorization: "Bearer ada" } });
     expect(((await library.json()) as { items: unknown[] }).items).toHaveLength(1);
-    expect(state.docs.get("users/u1")).toMatchObject({ acceptedTerms: true, termsVersion: "2026-11-12.1", privacyVersion: "2026-11-12.1" });
+    expect(state.docs.get("users/u1")).toMatchObject({ acceptedTerms: true, termsVersion: "2026-11-12.2", privacyVersion: "2026-11-12.2" });
   });
 
   it("says a polite \"not yet\" by default, and nothing when the reviewer will reply", async () => {
@@ -465,7 +465,7 @@ describe("inviting a team after a call", () => {
     expect(refused).not.toHaveProperty("items");
     const accepted = await fetch(`${base}/api/robot-team-access/accept-terms`, { method: "POST",
       headers: { Authorization: "Bearer ada", "content-type": "application/json", ...CSRF },
-      body: JSON.stringify({ acceptedTerms: true, termsVersion: "2026-11-12.1", privacyVersion: "2026-11-12.1" }) });
+      body: JSON.stringify({ acceptedTerms: true, termsVersion: "2026-11-12.2", privacyVersion: "2026-11-12.2" }) });
     expect(accepted.status).toBe(200);
     const library = await fetch(`${base}/api/site-worlds/tasks`, { headers: { Authorization: "Bearer ada" } });
     expect(((await library.json()) as { items: unknown[] }).items).toHaveLength(1);
