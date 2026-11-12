@@ -96,6 +96,19 @@ export function taskTargetSelectionApplies(session: Record<string, any> | null |
 }
 
 /**
+ * Whether results from this scene intake were prepared before the site picked another place for the object: the
+ * intake's `request.task.subject.website_preparation_revision.corrections_digest` is not the job's current
+ * `taskTargetSelection(session).correctionsDigest` (object corrections and the place, as the Pipeline binds them).
+ * False without a place correction, and for results prepared with it.
+ */
+export function predatesPlaceCorrection(session: Record<string, any> | null | undefined, intake: Record<string, any> | null | undefined) {
+  const selection = taskTargetSelection(session);
+  if (selection.placeAnswer !== "other_candidate") return false;
+  const prepared = intake?.request?.task?.subject?.website_preparation_revision?.corrections_digest ?? null;
+  return prepared !== selection.correctionsDigest;
+}
+
+/**
  * The site's stored answer about the OBJECT, for the question the Pipeline currently reports, or null. A place answer
  * is never one (2026-11-12): it is `currentPlaceAnswer`'s, and it changes nothing the page says about the job.
  */

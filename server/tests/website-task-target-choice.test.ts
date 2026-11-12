@@ -14,7 +14,7 @@ import { projectTaskStatus } from "../utils/taskStatusProjection";
 import { isKnownTaskChoiceQuestion, taskTargetChoiceQuestionSchema, type TaskTargetChoiceQuestion } from "../utils/taskTargetChoiceContract";
 import { loadCurrentWebsitePreparationStatus, mergeWebsitePreparationStatus, syncWebsitePreparationStatus,
   type StoredWebsitePreparation, type WebsitePreparationDeps, type WebsitePreparationSelector } from "../utils/websitePreparationStatus";
-import { answerTaskTargetChoice, currentPlaceAnswer, currentTaskTargetChoiceAnswer, parseStoredTaskTargetChoice,
+import { answerTaskTargetChoice, currentPlaceAnswer, predatesPlaceCorrection, currentTaskTargetChoiceAnswer, parseStoredTaskTargetChoice,
   buildTaskTargetChoiceAnswer, commitTaskTargetChoiceAnswer, taskTargetSelection, taskTargetSelectionApplies,
   readTaskTargetChoiceForPipeline, taskTargetChoiceAnswerSchema, type TaskTargetChoiceAnswer,
   type TaskTargetChoiceDeps } from "../utils/websiteTaskTargetChoice";
@@ -379,5 +379,43 @@ describe("a place answer and an object answer", () => {
   });
   it("a place answer alone keeps the scene made before it", () => {
     expect(taskTargetSelectionApplies(session(placeOther), { request: { task: { task_id: "x" } } })).toBe(true);
+  });
+});
+
+// Review, 2026-11-12: the caveat is about the displayed results, decided from their own preparation revision.
+describe("results prepared before a place correction", () => {
+  const HERE = "p0123456789abcdef", THERE = "pfedcba9876543210";
+  const place = { kind: "task_destination_choice", question_digest: `sha256:${"3".repeat(64)}`, target_id: "destination.place",
+    semantic_label: "Tote", sentence: "x", candidate_set_digest: `sha256:${"4".repeat(64)}`, guessed_candidate_id: HERE,
+    candidates: [{ candidate_id: HERE, label: "a", reference_time_ms: 0 }, { candidate_id: THERE, label: "b", reference_time_ms: 0 }],
+    picture: { png_sha256: `sha256:${"5".repeat(64)}`, frame_id: "f" } } as unknown as TaskTargetChoiceQuestion;
+  const placeOther = buildTaskTargetChoiceAnswer(selector, place, { kind: "other_candidate", candidate_id: THERE }, "2026-11-12T10:00:00.000Z");
+  const placeConfirm = buildTaskTargetChoiceAnswer(selector, place, { kind: "confirm_guess", candidate_id: HERE }, "2026-11-12T10:00:00.000Z");
+  const objectOther = buildTaskTargetChoiceAnswer(selector, question, { kind: "other_candidate", candidate_id: OTHER }, "2026-11-12T09:00:00.000Z");
+  const session = (...answers: TaskTargetChoiceAnswer[]) => ({ website_preparation: { selector },
+    website_task_target_choice: answers.at(-1), website_task_target_choices: Object.fromEntries(answers.map(row => [row.question_digest, row])) });
+  const intake = (digest: string | null) => ({ request: { task: { subject: digest ? { website_preparation_revision: { corrections_digest: digest } } : {} } } });
+  const placeOnly = crossRuntimeDigest({ corrections: [], destination_place: { target_id: "destination.place",
+    question_digest: place.question_digest, candidate_id: THERE } });
+  const objectOnly = crossRuntimeDigest({ corrections: [{ target_id: "target-1", question_digest: question.question_digest, candidate_id: OTHER }] });
+  const combined = crossRuntimeDigest({ corrections: [{ target_id: "target-1", question_digest: question.question_digest, candidate_id: OTHER }],
+    destination_place: { target_id: "destination.place", question_digest: place.question_digest, candidate_id: THERE } });
+  it("marks results from before the correction, and not results prepared with it", () => {
+    expect(predatesPlaceCorrection(session(placeOther), intake(null))).toBe(true);
+    expect(predatesPlaceCorrection(session(placeOther), intake(placeOnly))).toBe(false);
+  });
+  it("follows the results displayed: old ones are marked, their replacement is not", () => {
+    const answered = session(placeOther);
+    expect([intake(null), intake(placeOnly)].map(row => predatesPlaceCorrection(answered, row))).toEqual([true, false]);
+  });
+  it("binds an object and a place correction together by the combined digest", () => {
+    const both = session(objectOther, placeOther);
+    expect(predatesPlaceCorrection(both, intake(objectOnly))).toBe(true);
+    expect(predatesPlaceCorrection(both, intake(combined))).toBe(false);
+  });
+  it("marks nothing when the guess was confirmed or nothing was answered about the place", () => {
+    expect(predatesPlaceCorrection(session(placeConfirm), intake(null))).toBe(false);
+    expect(predatesPlaceCorrection(session(objectOther), intake(null))).toBe(false);
+    expect(predatesPlaceCorrection({ website_preparation: { selector } }, intake(null))).toBe(false);
   });
 });

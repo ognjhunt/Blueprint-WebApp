@@ -26,7 +26,7 @@ import { assertWebsiteCaptureBindingInTransaction, resolveWebsiteCaptureBinding 
 import { familyNativePreparationReference, preparationPhaseMatchesTask } from "./taskFamilySceneIntake";
 import { navigationPreparationReference } from "./navigationSceneIntake";
 import { assertWebsiteRunOpen } from "./websiteRunClosure";
-import { taskTargetSelectionApplies } from "./websiteTaskTargetChoice";
+import { predatesPlaceCorrection, taskTargetSelectionApplies } from "./websiteTaskTargetChoice";
 import { WILSON_CONFIDENCE_PERCENT, wilsonLowerBound, wilsonUpperBound } from "./successRateConfidence";
 
 export const jobManagedEvidenceBindingSchema = z.object({
@@ -259,6 +259,8 @@ export function assertManagedOfferingForJob(
 
 export type ManagedJobEvidenceSummary = {
   runId: string; state: string; current: boolean; resultDigest: string | null;
+  /** These results were prepared before the site picked another place for the object (`currentManagedScreeningScope`). */
+  placeCorrectedSince?: true;
   /** A job evaluation's outcome (`screeningOutcome`); null while it still runs. */
   outcome?: ScreeningOutcome | null;
   /** What the outcome's sentence adds (`screeningOutcomeCaveat`); the summary already says it. */
@@ -481,7 +483,9 @@ async function currentManagedScreeningScope(args: {
     const scope = managedJobTask({ binding: { job_id: jobId, brief_digest: currentBriefDigest }, record, brief,
       inventory, sourceSession, allowProposedScreening: true, screeningCapture: capture });
     assertScreeningSceneSource(publication, intake, scope, revisionOfferings);
-    return scope;
+    // Results prepared before the site picked another place (2026-11-12): their preparation revision's corrections
+    // digest is not the job's current one (object corrections and the place, as the Pipeline binds it).
+    return { ...scope, predatesPlaceCorrection: predatesPlaceCorrection(selectionSession, intake) };
   } catch (error) {
     if (!(error instanceof Error) || !(/^job_[a-z_]+$/.test(error.message)
       || ["screening_scene_source_mismatch", "screening_scene_revision_unbound", "website_run_closed_by_owner",
@@ -539,9 +543,12 @@ export async function loadManagedJobEvidence(jobId: string, currentBriefDigest: 
         inventory: inventory.exists ? inventory.data() as TaskItemInventoryRecord : null,
         sourceSession, read: reference => reference.get() });
     }
-    return projectManagedJobEvidence(document.id, run, scientificResult, jobId, currentBriefDigest,
+    const row = projectManagedJobEvidence(document.id, run, scientificResult, jobId, currentBriefDigest,
       run.run_kind === "beta_policy_screening" ? screeningScope?.taskContextDigest ?? null : uncorrectedSelectionApplies ? taskContextDigest : null,
       run.run_kind === "beta_policy_screening" ? screeningScope?.sourceFingerprint ?? null : sourceFingerprint);
+    // Server-decided, per result: shown beside exactly these results. An unreadable revision gives no scope, so no line.
+    return row && screeningScope && (screeningScope as { predatesPlaceCorrection?: boolean }).predatesPlaceCorrection
+      ? { ...row, placeCorrectedSince: true as const } : row;
   }));
   return rows.filter((row): row is ManagedJobEvidenceSummary => row !== null);
 }

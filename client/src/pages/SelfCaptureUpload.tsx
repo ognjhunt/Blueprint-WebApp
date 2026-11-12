@@ -17,7 +17,7 @@ import { isJobCardAnswerStatementVersion, jobCardStatementSharesTestResults } fr
 import { outlookHasAnswer, type JobOutlook } from "@/lib/jobOutlook";
 import { BareBack, BareLinks, BareMenu, BareNotice, BareScreen } from "@/components/bare/Bare";
 import { REASON_UNSIZED, isSiteAnswer, type SiteAnswer as SiteAnswerView } from "@/lib/siteAnswer";
-import { projectSimulationProof } from "@/lib/simulationProof";
+import { currentEvaluation, projectSimulationProof } from "@/lib/simulationProof";
 import type { JobManagedEvidenceSummary, JobMarketplaceWorkflow } from "@/types/jobMarketplace";
 /**
  * The page an operator or filmer opens from a private job link.
@@ -72,7 +72,6 @@ type TaskStatus = {
   targetChoice?: TaskTargetChoiceView | null;
   destinationChoice?: TaskDestinationChoiceView | null;
   destinationAnswered?: boolean;
-  destinationCorrected?: boolean;
   /** Which robots fit the job by spec sheet, for the owner only: an estimate, never a physical test. */
   robotFit?: RobotFitView | null;
   /** The robots checked before any spend and why none fits, for the owner only, while the job is held on it. */
@@ -542,7 +541,6 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
             targetChoice: data.scope === "owner" && isTargetChoice(data.targetChoice) ? data.targetChoice : null,
             destinationChoice: data.scope === "owner" && isDestinationChoice(data.destinationChoice) ? data.destinationChoice : null,
             destinationAnswered: data.scope === "owner" && data.destinationAnswered === true,
-            destinationCorrected: data.scope === "owner" && data.destinationCorrected === true,
             robotFit: data.scope === "owner" && isRobotFit(data.robotFit) ? data.robotFit : null,
             robotFitHold: data.scope === "owner" && isRobotFitHold(data.robotFitHold) ? data.robotFitHold : null,
             successThresholds: data.scope === "owner" && isSuccessThresholds(data.successThresholds) ? data.successThresholds : null,
@@ -592,7 +590,9 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
   const proof = useMemo(() => evaluations && (answer || evaluations.length > 0)
     ? projectSimulationProof({ evaluation: evaluations, robotFit, pick: answerPick }) : null, [evaluations, answer, answerPick, robotFit]);
   // Results tested before the site picked another place for the object say so, wherever they show as current.
-  const placeCaveat = status?.destinationCorrected === true && Boolean(proof?.options.options.some(option => option.scored > 0))
+  // The results the page shows decide it, from their own preparation revision (server-decided per result).
+  const placeCaveat = evaluations && currentEvaluation(evaluations)?.placeCorrectedSince === true
+    && Boolean(proof?.options.options.some(option => option.scored > 0))
     ? <BareNotice>{DESTINATION_CORRECTED_AFTER_RESULTS}</BareNotice> : null;
   // Under an answer (still reading, or settled) the status card keeps only what the site still has to do or know: a step of its
   // own, a new video, an account, recording permission or a withdrawal, or an ended job. Waits on the

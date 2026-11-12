@@ -305,20 +305,24 @@ test("the place question shows its picture and sentence, This is right needs not
   expect(unexpected).toEqual([]);
 });
 
-// Review, 2026-11-12: results tested on a place the site has since corrected say so beside the result, and nothing else
-// changes. Confirming the guess, or a correction with no results yet, shows no such line.
-for (const [name, evaluation, choice, caveat] of [
-  ["results, then another place chosen", simulationRun, "other", true],
-  ["results, then the guess confirmed", simulationRun, "confirm", false],
-  ["another place chosen, no results yet", null, "other", false],
+// Review, 2026-11-12: results prepared before the site corrected the place say so beside them, and nothing else changes.
+// The server decides it per result from the result's own preparation revision (`placeCorrectedSince`); the page shows
+// it beside exactly those results. Replacement results prepared with the corrected place carry no line.
+for (const [name, evaluation, choice, predates, caveat] of [
+  ["results from before the correction", simulationRun, "other", true, true],
+  ["replacement results prepared with the corrected place", simulationRun, "other", false, false],
+  ["results, then the guess confirmed", simulationRun, "confirm", false, false],
+  ["another place chosen, no results yet", null, "other", false, false],
 ] as const) {
   test(`the place answer beside the result: ${name}`, async ({ page }) => {
     const { unexpected } = await mockJob(page, { evaluation });
     const posted: Array<{ choice: { kind: string } }> = [];
     const picture = "/api/website-destination-pictures/job-one/walkthrough-job-one/place.png?digest=sha256%3A" + "5".repeat(64) + "&expires=1&signature=" + "a".repeat(64);
+    await page.route(`**/api/job-workflow/owner/${token}`, route => route.fulfill({ json: { ...workflow,
+      managedEvidence: evaluation ? [{ ...evaluation, ...(posted.length && predates ? { placeCorrectedSince: true } : {}) }] : [] } }));
     await page.route(`**/api/site-task-brief/${token}/status`, route => route.fulfill({ json: { scope: "owner", captureReceived: true,
       answer: readyAnswer, outlook: serverOutlookFor(readyAnswer, projectSimulationProof({ evaluation: (evaluation ? [evaluation] : []) as never, pick: null })),
-      destinationAnswered: posted.length > 0, destinationCorrected: posted[0]?.choice.kind === "other_candidate",
+      destinationAnswered: posted.length > 0,
       destinationChoice: posted.length ? null : { questionDigest: `sha256:${"3".repeat(64)}`, objectLabel: "Carton",
         guessedCandidateId: "p0123456789abcdef", pictureUrl: picture,
         candidates: [{ id: "p0123456789abcdef", place: "named_place" }, { id: "pfedcba9876543210", place: "surface_end" }] },
@@ -339,6 +343,10 @@ for (const [name, evaluation, choice, caveat] of [
       await region.getByLabel("Place B").click();
       await region.getByRole("button", { name: "Use this place" }).click();
     } else await region.getByRole("button", { name: "This is right" }).click();
+    await expect(page.getByRole("region", { name: "Where the object goes" }).getByRole("status"))
+      .toHaveText("We have your answer about where the object goes.");
+    // The results the page shows, read again: the line follows their own revision.
+    await page.reload();
     await expect(page.getByRole("region", { name: "Where the object goes" }).getByRole("status"))
       .toHaveText("We have your answer about where the object goes.");
     await expect(line).toHaveCount(caveat ? 1 : 0);
