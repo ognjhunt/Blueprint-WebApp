@@ -164,7 +164,7 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
   // at dispatch (`companyNoticeStillTrue`): sent only while the summary is visible and the send stands.
   job_sent: {
     subject: "Your job was sent to a deployment company",
-    body: (url) => `We sent the summary of your job to a deployment company we approved. Your video, address and contacts stay private. Your job page shows who has answered.\n\nOpen your job:\n${url}`,
+    body: (url) => `We sent the summary of your job to a deployment company we approved. Your video, address and contacts stay private. Your job page shows any answer.\n\nOpen your job:\n${url}`,
   },
   // One per company and answer, never the company's name or words: the detail is only a fixed label.
   company_answered: {

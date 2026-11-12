@@ -40,7 +40,7 @@ beforeEach(() => {
     if (url === `${base}/sends/send-1/void`) { panel.sends[0].voidedAtIso = "2026-11-12T11:00:00.000Z"; panel.sends[0].voidedBy = "ops@tryblueprint.io"; return json({}); }
     if (url === `${base}/responses`) {
       panel.responses.push({ companyId: NORTH, company: "North Robotics", email: "sales@north.example", alias: "A", state: body.state,
-        inputs: body.inputs, noteForSite: body.noteForSite, updatedAtIso: "2026-11-12T12:00:00.000Z", recordedBy: "operator" });
+        inputs: body.inputs, updatedAtIso: "2026-11-12T12:00:00.000Z", recordedBy: "operator" });
       return json({ response: { alias: "A" } });
     }
     if (url === `${base}/hold`) {
@@ -72,26 +72,28 @@ describe("the Deployment companies panel", () => {
     expect(within(sends).queryByRole("button", { name: "Void" })).toBeNull();
   });
 
-  it("records an emailed answer with the company's words and a note for the site, and refuses a note that is not one plain sentence", async () => {
+  it("records an emailed answer with the company's words, only for a company the job was sent to, and has no note for the site", async () => {
+    const { unmount } = render(<JobCompaniesConsole requestId="job-a" currentUser={{ uid: "founder" } as never} />);
+    let form = await within(section()).findByRole("form", { name: "Record a response" });
+    // Not sent to anyone yet: no company to choose, and the panel says why.
+    expect(within(form).getAllByRole("combobox")[0].querySelectorAll("option:not([disabled])")).toHaveLength(0);
+    expect(within(form).getByText(/Record a send first/)).toBeInTheDocument();
+    unmount();
+    panel.sends.push({ sendId: "send-1", companyId: NORTH, company: "North Robotics", alias: "A", sentAtIso: "2026-11-12T10:00:00.000Z",
+      sentBy: "ops@tryblueprint.io", voidedAtIso: null, voidedBy: null });
     render(<JobCompaniesConsole requestId="job-a" currentUser={{ uid: "founder" } as never} />);
-    const form = await within(section()).findByRole("form", { name: "Record a response" });
+    form = await within(section()).findByRole("form", { name: "Record a response" });
     const [company, state] = within(form).getAllByRole("combobox");
     fireEvent.change(company, { target: { value: NORTH } });
     fireEvent.change(state, { target: { value: "needs_something" } });
     expect(within(state).getAllByRole("option").map(option => option.textContent)).toEqual(["Interested", "Not a fit", "Would need something"]);
+    expect(within(form).queryByLabelText(/Note/)).toBeNull();
     fireEvent.change(within(form).getByLabelText(/Their words/), { target: { value: "We would need a second gripper." } });
-    fireEvent.change(within(form).getByLabelText(/Note for the site/), { target: { value: "Two sentences. Not one." } });
-    fireEvent.submit(form);
-    expect(await within(section()).findByRole("alert")).toHaveTextContent(/one plain sentence/);
-    expect(posts).toEqual([]);
-    fireEvent.change(within(form).getByLabelText(/Note for the site/), { target: { value: "They asked for a photo of the gripper area." } });
     fireEvent.submit(form);
     const responses = within(section()).getByRole("region", { name: "Responses" });
     expect(await within(responses).findByText("“We would need a second gripper.”")).toBeInTheDocument();
-    expect(within(responses).getByText("Shown to the site: They asked for a photo of the gripper area.")).toBeInTheDocument();
     expect(within(responses).getByText("Would need something")).toBeInTheDocument();
-    expect(posts).toEqual([{ path: "/responses", body: { companyId: NORTH, state: "needs_something",
-      inputs: "We would need a second gripper.", noteForSite: "They asked for a photo of the gripper area." } }]);
+    expect(posts).toEqual([{ path: "/responses", body: { companyId: NORTH, state: "needs_something", inputs: "We would need a second gripper." } }]);
   });
 
   it("stops showing the job to companies, disables sends while held, and shows it again", async () => {

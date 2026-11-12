@@ -14,24 +14,27 @@
  * - `inboundRequests/{id}/companySends/{sendId}`: `{ schemaVersion: 1, companyId, sentAtIso, sentBy, sentByEmail,
  *   voidedAtIso?, voidedBy? }`. Never deleted; a mistaken send is voided.
  * - `inboundRequests/{id}/robotTeamInterest/{companyId}`: the answer, one per company (`companyId` is the id of the
- *   approved record in `robotTeamAccess`). `recordedBy` says who recorded it; `noteForSite` is Blueprint's one
- *   sentence for the site, written only by an operator.
- * - `company_aliases` on the job: `{ [companyId]: "A" | "B" | … }`, assigned in a transaction the first time a
- *   company is sent the job or answers it, and never reassigned.
+ *   approved record in `robotTeamAccess`). `recordedBy` says who recorded it ("company" or "operator"). An answer
+ *   without it was given before this code, when the product said nothing reached the site: it is never shown to a
+ *   site and gets no alias.
+ * - `company_aliases` on the job: `{ [companyId]: "A" | "B" | … }`, assigned only inside the transaction that records
+ *   a send or an answer, the first time a company is sent the job or answers it, and never reassigned. Reading the
+ *   site's page writes nothing.
  * - `operator_listing_hold` on the job: Blueprint stopped showing the job to companies (`teamJobAccess` reads it).
  *
  * ## The privacy rule, by construction
  *
  * The site agreed its summary goes to approved companies "without saying who you are", and a company that a site
  * sees "an alias for each robot team". `projectSiteCompanyActivity` is the only way company records reach the site:
- * it builds a closed `SiteCompanyActivity` field by field from the alias letter, the dates, the state and Blueprint's
- * own note, and reads no other field. A company's name, email, website and words never enter it.
+ * it builds a closed `SiteCompanyActivity` field by field from the alias letter, the dates and the state, and reads no
+ * other field. No free text from anyone reaches the site's page: not the company's name, email, website or words,
+ * and no note of Blueprint's (a note could name the company; an operator with something to say writes to the site).
  */
 import { randomUUID } from "node:crypto";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
 import {
-  companyAliasName, isCompanyResponseState, isSiteNote,
+  companyAliasName, isCompanyResponseState,
   type CompanyResponseState, type SiteCompanyActivity, type SiteCompanyEntry,
 } from "../../client/src/lib/companyResponses";
 import { ROBOT_TEAM_ACCESS_COLLECTION, type RobotTeamAccessRecord } from "./robotTeamEarlyAccess";
@@ -46,7 +49,7 @@ export const COMPANY_RESPONSES_COLLECTION = "robotTeamInterest";
 const JOBS = "inboundRequests";
 
 export type JobCompaniesErrorCode = "job_not_found" | "not_visible" | "company_not_approved" | "send_not_found"
-  | "consent_withdrawn" | "note_invalid" | "store_unavailable";
+  | "consent_withdrawn" | "not_sent" | "store_unavailable";
 
 export class JobCompaniesError extends Error {
   constructor(readonly code: JobCompaniesErrorCode, message: string) {
@@ -162,28 +165,20 @@ export async function voidCompanySend(requestId: string, sendId: string, actor: 
   });
 }
 
-/** Whether Blueprint's note for the site names the company: refused, since the site is never told who it is. */
-function noteNamesCompany(note: string, company: Partial<RobotTeamAccessRecord>): boolean {
-  const lower = note.toLowerCase();
-  const website = text(company.website)?.toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/.*$/, "");
-  return [text(company.company), text(company.email), website, text(company.name)]
-    .some(value => Boolean(value) && value!.length >= 2 && lower.includes(value!.toLowerCase()));
-}
-
 /**
- * Record an answer a company gave by email. Their words are kept for Blueprint only; the optional note is one plain
- * sentence for the site, which may not name the company. Refused after the site withdrew its permission.
+ * Record an answer a company gave by email. Their words are kept for Blueprint only. Refused for a withdrawn job, for
+ * a company that is not an approved deployment company, and for one with no standing (not voided) send on this job:
+ * an answer the operator records is always about a job Blueprint sent that company.
  */
 export async function recordCompanyResponseByOperator(requestId: string, input: { companyId: string;
-  state: CompanyResponseState; inputs: string; noteForSite: string | null }, actor: OperatorActor,
+  state: CompanyResponseState; inputs: string }, actor: OperatorActor,
 now: () => Date = () => new Date()): Promise<{ alias: string; updatedAtIso: string }> {
   const store = requireDb();
-  if (input.noteForSite !== null && !isSiteNote(input.noteForSite))
-    throw new JobCompaniesError("note_invalid", "The note for the site must be one plain sentence of at most 240 characters, with no link or email address.");
   const jobRef = store.collection(JOBS).doc(requestId);
   const companyRef = store.collection(ROBOT_TEAM_ACCESS_COLLECTION).doc(input.companyId);
   const result = await store.runTransaction(async tx => {
-    const [jobSnap, companySnap] = [await tx.get(jobRef), await tx.get(companyRef)];
+    const [jobSnap, companySnap, sendRows] = [await tx.get(jobRef), await tx.get(companyRef),
+      await tx.get(jobRef.collection(COMPANY_SENDS_COLLECTION).where("companyId", "==", input.companyId))];
     const record = jobSnap.data();
     if (!jobSnap.exists || !record) throw new JobCompaniesError("job_not_found", "Site job not found.");
     if (projectWebsiteCaptureRights(record).consent_revoked)
@@ -191,18 +186,17 @@ now: () => Date = () => new Date()): Promise<{ alias: string; updatedAtIso: stri
     const company = companySnap.data() as RobotTeamAccessRecord | undefined;
     if (!company || !isApprovedDeploymentCompany(company))
       throw new JobCompaniesError("company_not_approved", "Only an approved deployment company's answer can be recorded.");
-    if (input.noteForSite && noteNamesCompany(input.noteForSite, company))
-      throw new JobCompaniesError("note_invalid", "The note for the site may not name the company: the site is told an alias only.");
+    if (!sendRows.docs.some(doc => !text(doc.data()?.voidedAtIso)))
+      throw new JobCompaniesError("not_sent", "This job was not sent to that company (or the send was voided), so its answer cannot be recorded here.");
     const alias = aliasInTransaction(tx, jobRef, record, input.companyId);
     const updatedAtIso = now().toISOString();
     tx.set(jobRef.collection(COMPANY_RESPONSES_COLLECTION).doc(input.companyId), {
       state: input.state, inputs: input.inputs, email: company.email ?? null, company: company.company ?? null,
-      recordedBy: "operator", recordedByUid: actor.uid, recordedByEmail: actor.email,
-      noteForSite: input.noteForSite, updatedAtIso,
+      recordedBy: "operator", recordedByUid: actor.uid, recordedByEmail: actor.email, updatedAtIso,
     });
     return { alias, updatedAtIso };
   });
-  await notifySite(requestId, { milestone: "company_answered", eventId: `${result.alias}-${input.state}`, companyAnswerState: input.state });
+  await notifySite(requestId, { milestone: "company_answered", eventId: answerEventId(result.alias, input.state), companyAnswerState: input.state });
   return result;
 }
 
@@ -214,9 +208,16 @@ export function assignAliasInTransaction(tx: Tx, jobRef: FirebaseFirestore.Docum
   return aliasInTransaction(tx, jobRef, record, companyId);
 }
 
+/**
+ * The answer email's key: one email per company per state, ever. An answer that goes back to an earlier state (a
+ * company interested, then not a fit, then interested again) is shown on the site's page as it stands, but is not
+ * emailed again: the second "interested" has the key of the first.
+ */
+const answerEventId = (alias: string, state: CompanyResponseState) => `${alias}-${state}`;
+
 /** After a company's own answer: the one email that tells the site. Never fails the caller. */
 export async function notifySiteOfCompanyAnswer(requestId: string, alias: string, state: CompanyResponseState): Promise<void> {
-  await notifySite(requestId, { milestone: "company_answered", eventId: `${alias}-${state}`, companyAnswerState: state });
+  await notifySite(requestId, { milestone: "company_answered", eventId: answerEventId(alias, state), companyAnswerState: state });
 }
 
 /**
@@ -282,10 +283,10 @@ const instant = (value: unknown): string | null =>
   typeof value === "string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?Z$/.test(value) ? value : null;
 
 /**
- * The site's view of company activity on its job: built field by field from the alias letter, the dates, the state
- * and Blueprint's own note (only when an operator recorded the answer, and only when it is one plain sentence). It
- * reads no other field of a send or an answer, so a company's name, email, website and words cannot reach the site.
- * A voided send, and a record without an alias, is not shown. In date order; a send before an answer on the same day.
+ * The site's view of company activity on its job: built field by field from the alias letter, the dates and the state.
+ * It reads no other field of a send or an answer, so no free text (a company's name, email, website or words, or any
+ * note) can reach the site. A voided send, a record without an alias, and an answer recorded before this code (no
+ * `recordedBy`) are not shown. In date order; a send before an answer at the same instant.
  */
 export function projectSiteCompanyActivity(input: { aliases: Record<string, string>;
   sends: ReadonlyArray<Data>; responses: ReadonlyArray<{ id: string; data: Data }> }): SiteCompanyActivity {
@@ -300,18 +301,17 @@ export function projectSiteCompanyActivity(input: { aliases: Record<string, stri
     const letter = input.aliases[response.id];
     const atIso = instant(response.data.updatedAtIso);
     const state = response.data.state;
-    if (!letter || !atIso || !isCompanyResponseState(state)) continue;
-    const note = response.data.recordedBy === "operator" && isSiteNote(response.data.noteForSite) ? response.data.noteForSite : null;
-    entries.push({ kind: "answered", alias: companyAliasName(letter), atIso, state, noteForSite: note });
+    const recordedBy = response.data.recordedBy;
+    if (!letter || !atIso || !isCompanyResponseState(state) || (recordedBy !== "company" && recordedBy !== "operator")) continue;
+    entries.push({ kind: "answered", alias: companyAliasName(letter), atIso, state });
   }
   entries.sort((a, b) => a.atIso.localeCompare(b.atIso) || (a.kind === b.kind ? 0 : a.kind === "sent" ? -1 : 1));
   return { entries, interested: entries.some(entry => entry.kind === "answered" && entry.state === "interested") };
 }
 
 /**
- * Read the job's sends and answers and project them for the site. A company recorded before aliases existed (an
- * answer from the library, earlier) is given its alias here, once, in the order it first appeared, so the site sees
- * every answer that exists.
+ * Read the job's sends and answers and project them for the site. Reads only: it writes nothing, ever (aliases are
+ * assigned where a send or an answer is recorded). A withdrawn job shows nothing.
  */
 export async function loadSiteCompanyActivity(requestId: string): Promise<SiteCompanyActivity> {
   const store = requireDb();
@@ -320,27 +320,8 @@ export async function loadSiteCompanyActivity(requestId: string): Promise<SiteCo
     jobRef.collection(COMPANY_SENDS_COLLECTION).limit(200).get(), jobRef.collection(COMPANY_RESPONSES_COLLECTION).limit(200).get()]);
   const record = job.data();
   if (!record || projectWebsiteCaptureRights(record).consent_revoked) return { entries: [], interested: false };
-  const sends = sendRows.docs.map(doc => doc.data() as Data);
-  const responses = responseRows.docs.map(doc => ({ id: doc.id, data: doc.data() as Data }));
-  let aliases = storedAliases(record);
-  const firstSeen = new Map<string, string>();
-  for (const send of sends) if (typeof send.companyId === "string") firstSeen.set(send.companyId,
-    [firstSeen.get(send.companyId), text(send.sentAtIso) ?? ""].filter(Boolean).sort()[0] ?? "");
-  for (const response of responses) firstSeen.set(response.id,
-    [firstSeen.get(response.id), text(response.data.updatedAtIso) ?? ""].filter(Boolean).sort()[0] ?? "");
-  const missing = [...firstSeen.entries()].filter(([id]) => !aliases[id]).sort((a, b) => a[1].localeCompare(b[1])).map(([id]) => id);
-  if (missing.length) {
-    aliases = await store.runTransaction(async tx => {
-      const current = (await tx.get(jobRef)).data() ?? {};
-      let working = { ...current };
-      for (const id of missing) {
-        const alias = aliasInTransaction(tx, jobRef, working, id);
-        working = { ...working, company_aliases: { ...storedAliases(working), [id]: alias } };
-      }
-      return storedAliases(working);
-    });
-  }
-  return projectSiteCompanyActivity({ aliases, sends, responses });
+  return projectSiteCompanyActivity({ aliases: storedAliases(record), sends: sendRows.docs.map(doc => doc.data() as Data),
+    responses: responseRows.docs.map(doc => ({ id: doc.id, data: doc.data() as Data })) });
 }
 
 /* ------------------------------------------------------------- the operator's panel */
@@ -387,8 +368,9 @@ export async function loadAdminJobCompanies(requestId: string): Promise<AdminJob
   const responses = responseRows.docs.map(doc => ({ id: doc.id, data: doc.data() as Data }))
     .map(({ id, data }) => ({ companyId: id, company: text(data.company), email: text(data.email), alias: aliases[id] ?? null,
       state: isCompanyResponseState(data.state) ? data.state : null, inputs: typeof data.inputs === "string" ? data.inputs : "",
-      noteForSite: text(data.noteForSite), updatedAtIso: text(data.updatedAtIso),
-      recordedBy: data.recordedBy === "operator" ? "operator" as const : "company" as const }))
+      updatedAtIso: text(data.updatedAtIso),
+      recordedBy: data.recordedBy === "operator" ? "operator" as const : data.recordedBy === "company" ? "company" as const
+        : "before_c1" as const }))
     .sort((a, b) => String(a.updatedAtIso).localeCompare(String(b.updatedAtIso)));
   return { sharing: sharingInWords(record), hold: operatorListingHold(record),
     consentRevoked: projectWebsiteCaptureRights(record).consent_revoked === true, libraryUrl: libraryJobUrl(requestId),

@@ -3,9 +3,10 @@
  *
  * What each side agreed to decides what crosses: a site's summary goes to approved companies "without saying who you
  * are", and a site sees "an alias for each robot team", never a company's name. So the site is told an alias
- * ("Company A", "Company B", in the order each company first appeared on that job), a date, one of three fixed labels
- * and, at most, one sentence Blueprint wrote for it. Never the company's name, email, website or its own words. The
- * types below are the whole of what the site's job page receives about companies; nothing else is added to them.
+ * ("Company A", "Company B", in the order each company first appeared on that job), a date and one of three fixed
+ * labels. No free text from anyone reaches the site's page: never the company's name, email, website or its own words,
+ * and no note of Blueprint's either (a note could name the company). The types below are the whole of what the site's
+ * job page receives about companies; nothing else is added to them.
  */
 
 /** The three answers a company can give. `declined` is the stored name of "Not a fit" (kept from before). */
@@ -23,7 +24,7 @@ export function isCompanyResponseState(value: unknown): value is CompanyResponse
 }
 
 /** Under the company's response form in the job library. */
-export const RESPONSE_PRIVACY_LINE = "The site is told your answer, not your company's name or your words.";
+export const RESPONSE_PRIVACY_LINE = "The site is told your response, not your company's name or your words.";
 
 /** A stored alias letter ("A", "B", … "Z", "AA", …) as the site reads it. */
 export const companyAliasName = (letter: string) => `Company ${letter}`;
@@ -31,28 +32,12 @@ export const companyAliasName = (letter: string) => `Company ${letter}`;
 /** One line of the site's "Deployment companies" section. Nothing here comes from a company. */
 export type SiteCompanyEntry =
   | { kind: "sent"; alias: string; atIso: string }
-  | { kind: "answered"; alias: string; atIso: string; state: CompanyResponseState; noteForSite: string | null };
+  | { kind: "answered"; alias: string; atIso: string; state: CompanyResponseState };
 
 /** What the site's job page receives about companies: its entries in date order, and whether any company is interested. */
 export interface SiteCompanyActivity {
   entries: SiteCompanyEntry[];
   interested: boolean;
-}
-
-/** The longest note Blueprint may write for the site under a company's answer. */
-export const SITE_NOTE_MAX = 240;
-
-/**
- * Whether a note is one plain sentence: one line, at most 240 characters, ending in a full stop, question mark or
- * exclamation mark, with no second sentence, no markup, no link and no email address.
- */
-export function isSiteNote(value: unknown): value is string {
-  if (typeof value !== "string") return false;
-  const note = value.trim();
-  if (!note || note !== value || note.length > SITE_NOTE_MAX) return false;
-  if (/[\r\n<>]/.test(note) || /https?:\/\/|www\.|@/i.test(note)) return false;
-  if (!/[.!?]$/.test(note)) return false;
-  return !/[.!?]\s+\S/.test(note.slice(0, -1));
 }
 
 /** The site's sentences. */

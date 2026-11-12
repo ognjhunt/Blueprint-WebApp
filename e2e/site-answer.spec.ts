@@ -238,14 +238,14 @@ test("when the request is saved but nothing is listed, the page says the summary
   expect(introductions).toHaveLength(1);
 });
 
-// Package C1: under the sharing sentence, each send and answer by alias, date and fixed label; Blueprint's own sentence
-// under an answer; and, once a company is interested, that we will write about next steps. Never a company's name.
-test("the deployment companies section lists each send and answer by alias, with Blueprint's note and the next step", async ({ page }) => {
+// Package C1: under the sharing sentence, each send and answer by alias, date and fixed label, and, once a company is
+// interested, that we will write about next steps. No free text from anyone: never a company's name, never a note.
+test("the deployment companies section lists each send and answer by alias, and the next step", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   const { unexpected } = await mockJob(page, { sharedAtIso: "2026-11-11T15:00:00.000Z", companies: { interested: true, entries: [
     { kind: "sent", alias: "Company A", atIso: "2026-11-12T10:00:00.000Z" },
-    { kind: "answered", alias: "Company B", atIso: "2026-11-12T12:00:00.000Z", state: "needs_something", noteForSite: null },
-    { kind: "answered", alias: "Company A", atIso: "2026-11-13T09:00:00.000Z", state: "interested", noteForSite: "They can visit in two weeks." },
+    { kind: "answered", alias: "Company B", atIso: "2026-11-12T12:00:00.000Z", state: "needs_something" },
+    { kind: "answered", alias: "Company A", atIso: "2026-11-13T09:00:00.000Z", state: "interested" },
   ] } });
   await page.goto(`/capture-upload/${token}?video=existing`);
   const companies = page.getByRole("region", { name: "Deployment companies" });
@@ -253,7 +253,7 @@ test("the deployment companies section lists each send and answer by alias, with
   await expect(companies.getByRole("list", { name: "Sent and answered" }).getByRole("listitem")).toHaveText([
     "Sent to Company A on November 12, 2026.",
     "Company B answered on November 12, 2026: Would need something.",
-    "Company A answered on November 13, 2026: Interested.They can visit in two weeks.",
+    "Company A answered on November 13, 2026: Interested.",
   ]);
   await expect(companies.getByText("We will write to you about next steps.", { exact: true })).toBeVisible();
   // The order on the page: the sharing sentence, then the entries, then the next step.

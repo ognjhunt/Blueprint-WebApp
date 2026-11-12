@@ -58,7 +58,7 @@ test("the operator records a send, an emailed answer and a hold on the job's Dep
       if (path === `${base}/sends`) panel.sends.push({ sendId: "send-1", companyId: NORTH, company: "North Robotics", alias: "A",
         sentAtIso: "2026-11-12T10:00:00.000Z", sentBy: "operator-qa@tryblueprint.local", voidedAtIso: null, voidedBy: null });
       if (path === `${base}/responses`) panel.responses.push({ companyId: NORTH, company: "North Robotics", email: "sales@north.example",
-        alias: "A", state: body.state, inputs: body.inputs, noteForSite: body.noteForSite, updatedAtIso: "2026-11-12T11:00:00.000Z", recordedBy: "operator" });
+        alias: "A", state: body.state, inputs: body.inputs, updatedAtIso: "2026-11-12T11:00:00.000Z", recordedBy: "operator" });
       if (path === `${base}/hold`) {
         panel.hold = body.held ? { atIso: "2026-11-12T12:00:00.000Z", by: "operator-qa@tryblueprint.local", reason: null } : null;
         panel.sharing = body.held ? { state: "shared_not_visible", reason: "blueprint_hold",
@@ -85,12 +85,11 @@ test("the operator records a send, an emailed answer and a hold on the job's Dep
   await responseForm.getByRole("combobox", { name: /^Company/ }).selectOption(NORTH);
   await responseForm.getByRole("combobox", { name: /^Answer/ }).selectOption("needs_something");
   await responseForm.getByLabel(/Their words/).fill("We would need a second gripper.");
-  await responseForm.getByLabel(/Note for the site/).fill("They asked for a photo of the gripper area.");
   await responseForm.getByRole("button", { name: "Record the response" }).click();
   const responses = section.getByRole("region", { name: "Responses" });
   await expect(responses).toContainText("Would need something");
   await expect(responses).toContainText("“We would need a second gripper.”");
-  await expect(responses).toContainText("Shown to the site: They asked for a photo of the gripper area.");
+  await expect(responseForm.getByRole("textbox", { name: /Note/ })).toHaveCount(0);
 
   await section.getByRole("button", { name: "Stop showing this job to companies" }).click();
   await expect(section.getByText("Shared, but not visible to companies right now: Blueprint stopped showing it.", { exact: true })).toBeVisible();
@@ -100,8 +99,7 @@ test("the operator records a send, an emailed answer and a hold on the job's Dep
 
   expect(posts).toEqual([
     { path: "/sends", body: { companyId: NORTH } },
-    { path: "/responses", body: { companyId: NORTH, state: "needs_something", inputs: "We would need a second gripper.",
-      noteForSite: "They asked for a photo of the gripper area." } },
+    { path: "/responses", body: { companyId: NORTH, state: "needs_something", inputs: "We would need a second gripper." } },
     { path: "/hold", body: { held: true } },
     { path: "/hold", body: { held: false } },
   ]);
@@ -136,7 +134,7 @@ test("a signed-in company answers a job in the library with the third choice, an
   await row.getByText("Respond about this job", { exact: true }).click();
   const form = row.getByRole("form", { name: "Respond about this job" });
   await expect(form.getByRole("combobox").locator("option")).toHaveText(["Interested", "Not a fit", "Would need something"]);
-  await expect(form.getByText("The site is told your answer, not your company's name or your words.", { exact: true })).toBeVisible();
+  await expect(form.getByText("The site is told your response, not your company's name or your words.", { exact: true })).toBeVisible();
   await form.getByRole("combobox").selectOption("needs_something");
   await form.getByRole("textbox").fill("A second gripper for the cartons.");
   await form.getByRole("button", { name: "Save response" }).click();

@@ -30,7 +30,7 @@ describe("a company's response on a job in the library", () => {
     const form = within(row).getByRole("form", { name: "Respond about this job" });
     expect(within(form).getAllByRole("option").map(option => [option.getAttribute("value"), option.textContent])).toEqual([
       ["interested", "Interested"], ["declined", "Not a fit"], ["needs_something", "Would need something"]]);
-    expect(within(form).getByText("The site is told your answer, not your company's name or your words.")).toBeInTheDocument();
+    expect(within(form).getByText("The site is told your response, not your company's name or your words.")).toBeInTheDocument();
 
     fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ ok: true, nextAction: "Blueprint will review your inputs." }) });
     fireEvent.change(within(form).getByRole("combobox"), { target: { value: "needs_something" } });

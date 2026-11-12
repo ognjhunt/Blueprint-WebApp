@@ -147,10 +147,9 @@ function cannotLine(reason: string | null): string | null {
 }
 
 /**
- * Under the sharing sentence: each send and each answer, in date order, by alias only ("Company A"), with Blueprint's
- * own sentence under an answer when there is one, and, once a company is interested, that we will write about next
- * steps (the introduction is made by hand). Nothing here is a company's name or words: the server sends none
- * (`projectSiteCompanyActivity`).
+ * Under the sharing sentence: each send and each answer, in date order, by alias only ("Company A"), and, once a
+ * company is interested, that we will write about next steps (the introduction is made by hand). No free text from
+ * anyone is shown here: the server sends none (`projectSiteCompanyActivity`).
  */
 function CompanyEntries({ activity }: { activity: SiteCompanyActivity | undefined }) {
   if (!isSiteCompanyActivity(activity) || activity.entries.length === 0) return null;
@@ -159,7 +158,6 @@ function CompanyEntries({ activity }: { activity: SiteCompanyActivity | undefine
       {activity.entries.map((entry, index) => <li key={`${entry.kind}-${entry.alias}-${entry.atIso}-${index}`}>
         <BareLead>{entry.kind === "sent" ? sentToCompany(entry.alias, dateInWords(entry.atIso))
           : companyAnswered(entry.alias, dateInWords(entry.atIso), entry.state)}</BareLead>
-        {entry.kind === "answered" && entry.noteForSite && <BareFine>{entry.noteForSite}</BareFine>}
       </li>)}
     </ul>
     {activity.interested && <BareLead>{NEXT_STEPS_LINE}</BareLead>}

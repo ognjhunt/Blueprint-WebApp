@@ -35,7 +35,7 @@ import {
   JobCompaniesError, loadAdminJobCompanies, recordCompanyResponseByOperator, recordCompanySend, setOperatorListingHold, voidCompanySend,
   type OperatorActor,
 } from "../utils/jobCompanies";
-import { COMPANY_RESPONSE_STATES, SITE_NOTE_MAX } from "../../client/src/lib/companyResponses";
+import { COMPANY_RESPONSE_STATES } from "../../client/src/lib/companyResponses";
 
 const router = Router();
 router.use(requireAdminRole);
@@ -235,7 +235,7 @@ router.post("/:requestId/robot-fit/sharing", async (req: Request, res: Response)
 
 function jobCompaniesErrorResponse(res: Response, error: JobCompaniesError) {
   const status = error.code === "job_not_found" || error.code === "send_not_found" ? 404
-    : error.code === "note_invalid" ? 400 : error.code === "store_unavailable" ? 503 : 409;
+    : error.code === "store_unavailable" ? 503 : 409;
   return res.status(status).json({ code: error.code, error: error.message });
 }
 
@@ -305,10 +305,9 @@ const responseBody = z.object({
   companyId,
   state: z.enum(COMPANY_RESPONSE_STATES),
   inputs: z.string().trim().max(2000).default(""),
-  noteForSite: z.string().trim().max(SITE_NOTE_MAX).nullable().optional(),
 }).strict();
 
-/** Record an answer a company gave by email: their words for Blueprint only, and an optional sentence for the site. */
+/** Record an answer a company gave by email, about a job Blueprint sent it: their words for Blueprint only. */
 router.post("/:requestId/companies/responses", async (req: Request, res: Response) => {
   const parsed = requestId.safeParse(req.params.requestId);
   const body = responseBody.safeParse(req.body);
@@ -316,7 +315,7 @@ router.post("/:requestId/companies/responses", async (req: Request, res: Respons
   try {
     const actor = operatorOf(res);
     const recorded = await recordCompanyResponseByOperator(parsed.data, { companyId: body.data.companyId, state: body.data.state,
-      inputs: body.data.inputs, noteForSite: body.data.noteForSite ? body.data.noteForSite : null }, actor);
+      inputs: body.data.inputs }, actor);
     logger.info({ requestId: parsed.data, actor: actor.uid, alias: recorded.alias, state: body.data.state }, "Company response recorded by operator");
     res.set("Cache-Control", "no-store");
     return res.json({ response: recorded });

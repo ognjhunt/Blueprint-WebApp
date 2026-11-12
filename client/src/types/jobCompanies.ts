@@ -16,6 +16,7 @@ export interface AdminJobCompanies {
   sends: Array<{ sendId: string; companyId: string; company: string | null; alias: string | null; sentAtIso: string;
     sentBy: string | null; voidedAtIso: string | null; voidedBy: string | null }>;
   responses: Array<{ companyId: string; company: string | null; email: string | null; alias: string | null;
-    state: CompanyResponseState | null; inputs: string; noteForSite: string | null; updatedAtIso: string | null;
-    recordedBy: "company" | "operator" }>;
+    state: CompanyResponseState | null; inputs: string; updatedAtIso: string | null;
+    /** `before_c1`: an answer given before the site could see answers; it is never shown to the site. */
+    recordedBy: "company" | "operator" | "before_c1" }>;
 }

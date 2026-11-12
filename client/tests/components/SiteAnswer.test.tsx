@@ -704,23 +704,24 @@ describe("sharing the job with deployment companies", () => {
   });
 });
 
-// Package C1: under the sharing sentence, each send and each answer by alias, in date order; Blueprint's own sentence
-// under an answer; and once a company is interested, that we will write about next steps. Never a company's name.
+// Package C1: under the sharing sentence, each send and each answer by alias, in date order, and once a company is
+// interested, that we will write about next steps. No free text from anyone: never a company's name, never a note.
 describe("the deployment companies section, with sends and answers", () => {
   const activity = { interested: true, entries: [
     { kind: "sent" as const, alias: "Company A", atIso: "2026-11-11T10:00:00.000Z" },
-    { kind: "answered" as const, alias: "Company B", atIso: "2026-11-12T09:00:00.000Z", state: "needs_something" as const, noteForSite: null },
-    { kind: "answered" as const, alias: "Company A", atIso: "2026-11-13T09:00:00.000Z", state: "interested" as const,
-      noteForSite: "They can visit in two weeks." },
+    { kind: "answered" as const, alias: "Company B", atIso: "2026-11-12T09:00:00.000Z", state: "needs_something" as const },
+    { kind: "answered" as const, alias: "Company A", atIso: "2026-11-13T09:00:00.000Z", state: "interested" as const },
   ] };
   const lines = () => within(companies()).getAllByRole("listitem").map(item => item.textContent);
 
   it("lists them under the sharing sentence, by alias, date and label, and says we will write about next steps", () => {
-    render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE, companies: activity }} />);
+    // A stray field on an entry (a note, as an older server might send) is never rendered.
+    const stray = { ...activity, entries: activity.entries.map(entry => ({ ...entry, noteForSite: "NOTE-PLANT never shown." })) };
+    render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE, companies: stray as never }} />);
     expect(within(companies()).getByText(sharedOn("November 10, 2026"))).toBeVisible();
     expect(lines()).toEqual(["Sent to Company A on November 11, 2026.", "Company B answered on November 12, 2026: Would need something.",
-      "Company A answered on November 13, 2026: Interested.They can visit in two weeks."]);
-    expect(within(companies()).getByText("They can visit in two weeks.")).toBeVisible();
+      "Company A answered on November 13, 2026: Interested."]);
+    expect(companies().textContent).not.toContain("NOTE-PLANT");
     expect(within(companies()).getByText("We will write to you about next steps.")).toBeVisible();
     expect(companies().textContent).not.toMatch(BANNED);
   });
@@ -728,7 +729,7 @@ describe("the deployment companies section, with sends and answers", () => {
   it("says nothing about next steps until a company is interested, and keeps the entries while not visible", () => {
     render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...HIDDEN, companies: { interested: false, entries: [
       { kind: "sent", alias: "Company A", atIso: "2026-11-11T10:00:00.000Z" },
-      { kind: "answered", alias: "Company A", atIso: "2026-11-12T10:00:00.000Z", state: "declined", noteForSite: null }] } }} />);
+      { kind: "answered", alias: "Company A", atIso: "2026-11-12T10:00:00.000Z", state: "declined" }] } }} />);
     expect(within(companies()).getByRole("status")).toHaveTextContent(notVisible("November 10, 2026"));
     expect(lines()).toEqual(["Sent to Company A on November 11, 2026.", "Company A answered on November 12, 2026: Not a fit."]);
     expect(within(companies()).queryByText("We will write to you about next steps.")).toBeNull();

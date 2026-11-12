@@ -171,9 +171,6 @@ const ALLOWED_IN: Record<string, ReadonlySet<string>> = {
   "client/src/components/site/TaskClarification.tsx": new Set(["the old frame's \"your answer\""]),
   "client/src/components/site/TaskDestinationChoice.tsx": new Set(["the old frame's \"your answer\""]),
   "client/src/components/site/TaskTargetChoice.tsx": new Set(["the old frame's \"your answer\""]),
-  // A deployment company's own answer, under its response form (package C1, the planner's wording, on the owner's list
-  // to confirm): "The site is told your answer, not your company's name or your words." Not the old frame's "your answer".
-  "client/src/lib/companyResponses.ts": new Set(["the old frame's \"your answer\""]),
   // The same questions' save errors ("Your answer could not be saved.").
   "server/routes/site-task-brief.ts": new Set(["the old frame's \"your answer\""]),
 };

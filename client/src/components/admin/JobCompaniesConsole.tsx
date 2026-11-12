@@ -3,8 +3,9 @@
  *
  * V1 is by hand: the operator emails an approved deployment company the job's address in the job library from their
  * own mailbox, and records the send here. The product sends nothing to a company. A company answers in the library or
- * by email; an emailed answer is recorded here. The site is told each send and answer under an alias ("Company A"),
- * never a company's name or words; those stay on this page. "Stop showing this job to companies" holds the job back
+ * by email; an emailed answer is recorded here, only for a company the job was sent to. The site is told each send and
+ * answer under an alias ("Company A") and a fixed label, never a company's name or words, and no note: anything else
+ * for the site, the operator writes to it directly. "Stop showing this job to companies" holds the job back
  * from every company (the library card and the response form close, and the site's page says it is not visible right
  * now) until "Show again". Every write records who and when.
  */
@@ -12,7 +13,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import type { User as FirebaseUser } from "firebase/auth";
 
 import { Button, StatusChip } from "@/components/blueprint";
-import { COMPANY_RESPONSE_LABELS, COMPANY_RESPONSE_STATES, SITE_NOTE_MAX, isSiteNote, type CompanyResponseState } from "@/lib/companyResponses";
+import { COMPANY_RESPONSE_LABELS, COMPANY_RESPONSE_STATES, type CompanyResponseState } from "@/lib/companyResponses";
 import { withCsrfHeader } from "@/lib/csrf";
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
 import type { AdminJobCompanies } from "@/types/jobCompanies";
@@ -79,6 +80,8 @@ export function JobCompaniesConsole({ requestId, currentUser }: { requestId: str
 
   const panel = loaded.status === "ready" ? loaded.panel : null;
   const visible = panel?.sharing.state === "shared_visible";
+  // An emailed answer is recorded only for a company with a standing (not voided) send; the route refuses any other.
+  const sentTo = panel ? panel.companies.filter(company => panel.sends.some(send => send.companyId === company.id && !send.voidedAtIso)) : [];
 
   async function onSend(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -94,13 +97,8 @@ export function JobCompaniesConsole({ requestId, currentUser }: { requestId: str
     const data = new FormData(form);
     const companyId = String(data.get("companyId") || "");
     const state = String(data.get("state") || "") as CompanyResponseState;
-    const note = String(data.get("noteForSite") || "").trim();
     if (!companyId) { setActionError("Choose the company that answered."); return; }
-    if (note && !isSiteNote(note)) {
-      setActionError(`The note for the site must be one plain sentence of at most ${SITE_NOTE_MAX} characters, with no link or email address.`);
-      return;
-    }
-    if (await act("/responses", { companyId, state, inputs: String(data.get("inputs") || ""), noteForSite: note || null },
+    if (await act("/responses", { companyId, state, inputs: String(data.get("inputs") || "") },
       "The answer could not be recorded")) form.reset();
   }
 
@@ -216,9 +214,10 @@ export function JobCompaniesConsole({ requestId, currentUser }: { requestId: str
                       </StatusChip>
                     </p>
                     {row.inputs ? <blockquote className="border-l-2 border-runway-line pl-3 text-xs text-runway-mute">“{row.inputs}”</blockquote> : null}
-                    {row.noteForSite ? <p className="text-xs text-runway-body">Shown to the site: {row.noteForSite}</p> : null}
                     <p className="text-xs text-runway-faint">
-                      {dateLabel(row.updatedAtIso)} · {row.recordedBy === "operator" ? "recorded by Blueprint from an email" : "answered in the job library"}
+                      {dateLabel(row.updatedAtIso)} · {row.recordedBy === "operator" ? "recorded by Blueprint from an email"
+                        : row.recordedBy === "company" ? "answered in the job library"
+                          : "answered before sites could see answers: never shown to the site"}
                     </p>
                   </li>
                 ))}
@@ -228,11 +227,12 @@ export function JobCompaniesConsole({ requestId, currentUser }: { requestId: str
 
           <form className="grid gap-2" aria-label="Record a response" onSubmit={(event) => void onResponse(event)}>
             <h4 className="runway-label">Record a response a company sent by email</h4>
+            {!sentTo.length ? <p className="text-xs text-runway-mute">Record a send first: an answer is recorded only for a company the job was sent to.</p> : null}
             <div className="flex flex-wrap items-end gap-2">
-              <label className="grid gap-1 text-xs text-runway-mute">Company
+              <label className="grid gap-1 text-xs text-runway-mute">Company (one this job was sent to)
                 <select name="companyId" className="runway-input min-w-[16rem]" defaultValue="" disabled={panel.consentRevoked}>
                   <option value="" disabled>Choose a company</option>
-                  {panel.companies.map((company) => <option key={company.id} value={company.id}>{company.company || company.email} · {company.email}</option>)}
+                  {sentTo.map((company) => <option key={company.id} value={company.id}>{company.company || company.email} · {company.email}</option>)}
                 </select>
               </label>
               <label className="grid gap-1 text-xs text-runway-mute">Answer
@@ -243,9 +243,6 @@ export function JobCompaniesConsole({ requestId, currentUser }: { requestId: str
             </div>
             <label className="grid gap-1 text-xs text-runway-mute">Their words (staff only, never shown to the site)
               <textarea name="inputs" maxLength={2000} className="runway-input" disabled={panel.consentRevoked} />
-            </label>
-            <label className="grid gap-1 text-xs text-runway-mute">Note for the site (optional: one plain sentence, no company name)
-              <input name="noteForSite" maxLength={SITE_NOTE_MAX} className="runway-input" disabled={panel.consentRevoked} />
             </label>
             <div>
               <Button type="submit" size="sm" disabled={busy || panel.consentRevoked}>Record the response</Button>
