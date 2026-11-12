@@ -2958,12 +2958,14 @@ describe("the intent's outcome (C-04)", () => {
       blockers: ["website_task_family_unknown"], outcome: sceneOutcome("held", true, "task_family_unsupported") });
     respond(fetcher, held);
     expect(await scenePipelineRequest(request, "scene-one")).toEqual(held);
-    // A reason added later still parses; only the kind is a closed set.
+    // A reason added later still parses, and so does a kind added later (review, 2026-11-12): the status read never
+    // fails on it; such an outcome is simply not adopted (`adoptedSceneOutcome`).
     respond(fetcher, pipelineStatus(request, { outcome: sceneOutcome("setup_repair", false, "a_later_reason",
       { reason_category: "a_later_category" }) }));
     await expect(scenePipelineRequest(request, "scene-one")).resolves.toMatchObject({ outcome: { reason_code: "a_later_reason" } });
+    respond(fetcher, pipelineStatus(request, { outcome: sceneOutcome("finished", true, "task_family_unsupported") }));
+    await expect(scenePipelineRequest(request, "scene-one")).resolves.toMatchObject({ outcome: { kind: "finished" } });
     for (const outcome of [
-      sceneOutcome("finished", true, "task_family_unsupported"),
       { ...sceneOutcome("held", true, "task_family_unsupported"), detail: "extra" },
       sceneOutcome("held", "yes", "task_family_unsupported"),
       sceneOutcome("held", true, "Task-Family Unsupported"),

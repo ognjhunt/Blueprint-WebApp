@@ -229,6 +229,24 @@ describe("the site's answer, bare bones", () => {
     expect(screen.getByRole("button", { name: FIND })).toBeVisible();
   });
 
+  // Review, 2026-11-12: a job waiting for its sentence asks for it, and offers nothing else.
+  it("asks for the job in one sentence while the job waits on the site, with no button", () => {
+    render(<SiteAnswer token="owner-token" answer={readyAnswer} proof={null}
+      outlook={{ phase: "waiting_on_site", reason: "task_not_named", sentence: "Tell us in one sentence what the robot should do, so we can build the simulation of your job." }} />);
+    expect(screen.getByText("Tell us in one sentence what the robot should do, so we can build the simulation of your job.")).toBeVisible();
+    expect(screen.queryByRole("button", { name: FIND })).toBeNull();
+    expect(screen.queryByText(/On paper|Building your simulation/)).toBeNull();
+  });
+
+  it("shows a fact about one robot and the object on that robot's own row only", () => {
+    const evaluation = { ...winnerEvaluation, screening: { ...winnerEvaluation.screening!, candidates: winnerEvaluation.screening!.candidates
+      .map((row, index) => index === 0 ? { ...row, robotNotes: ["The object is wider than this robot's gripper opens."] } : row) } };
+    const proof = projectSimulationProof({ evaluation: [evaluation] as never, pick: readyAnswer.pick });
+    const notes = proof.options.options.map(option => option.notes ?? []);
+    expect(notes.filter(list => list.length)).toEqual([["The object is wider than this robot's gripper opens."]]);
+    expect(proof.options.setupNotes ?? []).not.toContain("The object is wider than this robot's gripper opens.");
+  });
+
   // Rule 1 (review, 2026-11-11): when unsure, the job is still being worked on.
   it("shows the working screen, never the paper check or the button, when no outlook came", () => {
     const { unmount } = render(<SiteAnswerScreen token="owner-token" answer={readyAnswer} proof={null} outlook={null} />);
