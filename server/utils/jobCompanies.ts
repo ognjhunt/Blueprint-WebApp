@@ -43,6 +43,7 @@ import { projectWebsiteCaptureRights } from "./websiteTaskContext";
 import type { AdminJobCompanies } from "../../client/src/types/jobCompanies";
 export type { AdminJobCompanies };
 import { operatorListingHold } from "./operatorListing";
+import { captureUploadUrlFor } from "./captureUploadToken";
 
 export const COMPANY_SENDS_COLLECTION = "companySends";
 export const COMPANY_RESPONSES_COLLECTION = "robotTeamInterest";
@@ -86,18 +87,20 @@ export function storedAliases(record: Data | null | undefined): Record<string, s
 }
 
 /**
- * The company's alias on this job: the stored one, or the next letter, written in the caller's transaction (after its
- * reads). Never reassigned.
+ * The company's alias on this job: the stored one, or the next letter. Pure: the caller writes a new one with
+ * `writeAlias` in the same transaction, after all its reads. Never reassigned.
  */
-function aliasInTransaction(tx: Tx, jobRef: FirebaseFirestore.DocumentReference, record: Data, companyId: string): string {
+function planAlias(record: Data, companyId: string): { alias: string; isNew: boolean } {
   const aliases = storedAliases(record);
-  if (aliases[companyId]) return aliases[companyId];
+  if (aliases[companyId]) return { alias: aliases[companyId], isNew: false };
   const taken = new Set(Object.values(aliases));
   let index = Object.keys(aliases).length;
   while (taken.has(aliasLetter(index))) index += 1;
-  const alias = aliasLetter(index);
-  tx.set(jobRef, { company_aliases: { [companyId]: alias } }, { merge: true });
-  return alias;
+  return { alias: aliasLetter(index), isNew: true };
+}
+
+function writeAlias(tx: Tx, jobRef: FirebaseFirestore.DocumentReference, companyId: string, plan: { alias: string; isNew: boolean }) {
+  if (plan.isNew) tx.set(jobRef, { company_aliases: { [companyId]: plan.alias } }, { merge: true });
 }
 
 /* ------------------------------------------------------------- companies */
@@ -130,7 +133,8 @@ export async function recordCompanySend(requestId: string, companyId: string, ac
   const jobRef = store.collection(JOBS).doc(requestId);
   const companyRef = store.collection(ROBOT_TEAM_ACCESS_COLLECTION).doc(companyId);
   const sendId = randomUUID();
-  const result = await store.runTransaction(async tx => {
+  const captureUrl = captureUploadUrlFor(requestId, "owner");
+  return store.runTransaction(async tx => {
     const [jobSnap, companySnap] = [await tx.get(jobRef), await tx.get(companyRef)];
     const record = jobSnap.data();
     if (!jobSnap.exists || !record) throw new JobCompaniesError("job_not_found", "Site job not found.");
@@ -140,14 +144,16 @@ export async function recordCompanySend(requestId: string, companyId: string, ac
       throw new JobCompaniesError("not_visible", "This job is not shared and visible to companies right now, so it cannot be sent.");
     if (!companySnap.exists || !isApprovedDeploymentCompany(companySnap.data() as RobotTeamAccessRecord))
       throw new JobCompaniesError("company_not_approved", "Only an approved deployment company can be sent a job.");
-    const alias = aliasInTransaction(tx, jobRef, record, companyId);
+    const plan = planAlias(record, companyId);
+    // The site's email, written in this same transaction: it exists if and only if the send is recorded.
+    const notice = await prepareSiteNotice(tx, requestId, record, { milestone: "job_sent", eventId: `send-${sendId}` }, captureUrl);
     const sentAtIso = now().toISOString();
+    writeAlias(tx, jobRef, companyId, plan);
     tx.set(jobRef.collection(COMPANY_SENDS_COLLECTION).doc(sendId), { schemaVersion: 1, companyId, sentAtIso,
       sentBy: actor.uid, sentByEmail: actor.email });
-    return { sendId, alias, sentAtIso };
+    notice?.();
+    return { sendId, alias: plan.alias, sentAtIso };
   });
-  await notifySite(requestId, { milestone: "job_sent", eventId: `send-${sendId}` });
-  return result;
 }
 
 /** Void a mistaken send. It stays on record; the site no longer sees it. */
@@ -176,7 +182,8 @@ now: () => Date = () => new Date()): Promise<{ alias: string; updatedAtIso: stri
   const store = requireDb();
   const jobRef = store.collection(JOBS).doc(requestId);
   const companyRef = store.collection(ROBOT_TEAM_ACCESS_COLLECTION).doc(input.companyId);
-  const result = await store.runTransaction(async tx => {
+  const captureUrl = captureUploadUrlFor(requestId, "owner");
+  return store.runTransaction(async tx => {
     const [jobSnap, companySnap, sendRows] = [await tx.get(jobRef), await tx.get(companyRef),
       await tx.get(jobRef.collection(COMPANY_SENDS_COLLECTION).where("companyId", "==", input.companyId))];
     const record = jobSnap.data();
@@ -188,24 +195,18 @@ now: () => Date = () => new Date()): Promise<{ alias: string; updatedAtIso: stri
       throw new JobCompaniesError("company_not_approved", "Only an approved deployment company's answer can be recorded.");
     if (!sendRows.docs.some(doc => !text(doc.data()?.voidedAtIso)))
       throw new JobCompaniesError("not_sent", "This job was not sent to that company (or the send was voided), so its answer cannot be recorded here.");
-    const alias = aliasInTransaction(tx, jobRef, record, input.companyId);
+    const plan = planAlias(record, input.companyId);
+    const notice = await prepareSiteNotice(tx, requestId, record, { milestone: "company_answered",
+      eventId: answerEventId(plan.alias, input.state), companyAnswerState: input.state }, captureUrl);
     const updatedAtIso = now().toISOString();
+    writeAlias(tx, jobRef, input.companyId, plan);
     tx.set(jobRef.collection(COMPANY_RESPONSES_COLLECTION).doc(input.companyId), {
       state: input.state, inputs: input.inputs, email: company.email ?? null, company: company.company ?? null,
       recordedBy: "operator", recordedByUid: actor.uid, recordedByEmail: actor.email, updatedAtIso,
     });
-    return { alias, updatedAtIso };
+    notice?.();
+    return { alias: plan.alias, updatedAtIso };
   });
-  await notifySite(requestId, { milestone: "company_answered", eventId: answerEventId(result.alias, input.state), companyAnswerState: input.state });
-  return result;
-}
-
-/**
- * The company's own answer from the job library assigns its alias in the route's transaction (the route reads the
- * job first), so a company that answers without a send still appears to the site in order.
- */
-export function assignAliasInTransaction(tx: Tx, jobRef: FirebaseFirestore.DocumentReference, record: Data, companyId: string): string {
-  return aliasInTransaction(tx, jobRef, record, companyId);
 }
 
 /**
@@ -215,9 +216,17 @@ export function assignAliasInTransaction(tx: Tx, jobRef: FirebaseFirestore.Docum
  */
 const answerEventId = (alias: string, state: CompanyResponseState) => `${alias}-${state}`;
 
-/** After a company's own answer: the one email that tells the site. Never fails the caller. */
-export async function notifySiteOfCompanyAnswer(requestId: string, alias: string, state: CompanyResponseState): Promise<void> {
-  await notifySite(requestId, { milestone: "company_answered", eventId: answerEventId(alias, state), companyAnswerState: state });
+/**
+ * The company's own answer from the job library, inside the route's transaction (call after the route's own reads,
+ * before its writes): the company's alias (assigned with its first answer if it was never sent the job) and the site's
+ * email, written atomically with the answer. Returns the alias and a function that performs both writes.
+ */
+export async function prepareCompanyAnswerInTransaction(tx: Tx, jobRef: FirebaseFirestore.DocumentReference, requestId: string,
+  record: Data, companyId: string, state: CompanyResponseState, captureUrl: string): Promise<{ alias: string; write: () => void }> {
+  const plan = planAlias(record, companyId);
+  const notice = await prepareSiteNotice(tx, requestId, record, { milestone: "company_answered",
+    eventId: answerEventId(plan.alias, state), companyAnswerState: state }, captureUrl);
+  return { alias: plan.alias, write: () => { writeAlias(tx, jobRef, companyId, plan); notice?.(); } };
 }
 
 /**
@@ -239,14 +248,32 @@ export async function setOperatorListingHold(requestId: string, held: boolean, r
 
 /* ------------------------------------------------------------- the site's emails */
 
-async function notifySite(requestId: string, params: { milestone: "job_sent" | "company_answered"; eventId: string;
-  companyAnswerState?: CompanyResponseState }): Promise<void> {
-  try {
-    const { enqueueTaskLifecycleNotification } = await import("./taskLifecycleNotifications");
-    await enqueueTaskLifecycleNotification({ requestId, ...params });
-  } catch (error) {
-    logger.warn({ error, requestId, milestone: params.milestone }, "Could not queue the site's company email");
+/**
+ * The site's email about a send or an answer, as a durable intent of the transaction that records it
+ * (`buildOutboxEntry`, as `robotTeamAccessEmails.prepareAccessEmail` does): the row exists if and only if the activity
+ * committed. Read inside the transaction (after the caller's reads, before any write); returns the write, or null when
+ * there is nothing to queue: the row already exists (one per key), the job is not visible to companies or was withdrawn
+ * at this moment, or the site has no usable email. Whether it is still true is decided again at dispatch
+ * (`taskLifecycleNotificationIsCurrent`): held, hidden or withdrawn by then, it is cancelled, never sent.
+ */
+async function prepareSiteNotice(tx: Tx, requestId: string, record: Data, params: { milestone: "job_sent" | "company_answered";
+  eventId: string; companyAnswerState?: CompanyResponseState }, captureUrl: string): Promise<(() => void) | null> {
+  const store = requireDb();
+  const { buildTaskLifecycleNotification } = await import("./taskLifecycleNotifications");
+  const { buildOutboxEntry, CAPTURE_OUTBOX_COLLECTION } = await import("./captureOutbox");
+  const { decryptFieldValue } = await import("./field-encryption");
+  const key = buildTaskLifecycleNotification({ requestId, to: "", captureUrl, ...params }).idempotencyKey;
+  const ref = store.collection(CAPTURE_OUTBOX_COLLECTION).doc(key);
+  const existing = await tx.get(ref);
+  if (existing.exists) return null;
+  if (projectWebsiteCaptureRights(record).consent_revoked || !teamJobAccess(record).listed) return null;
+  const to = String(await decryptFieldValue(record.contact?.email ?? "")).trim();
+  const notice = buildTaskLifecycleNotification({ requestId, to, captureUrl, ...params });
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
+    logger.warn({ requestId, milestone: params.milestone }, "The site has no usable email; its company email is not queued");
+    return null;
   }
+  return () => tx.create(ref, buildOutboxEntry(notice));
 }
 
 /**
@@ -274,6 +301,29 @@ export async function companyNoticeStillTrue(requestId: string, kind: "job_sent"
   const ref = jobRef.collection(COMPANY_RESPONSES_COLLECTION).doc(companyId);
   const response = (transaction ? await transaction.get(ref) : await ref.get()).data();
   return response?.state === match[2];
+}
+
+/* ------------------------------------------------------------- reading every row */
+
+/** Rows per page when reading a job's sends and answers, or the approved companies. Small in tests. */
+let pageSize = 200;
+export function setJobCompaniesPageSizeForTests(size: number): void { pageSize = Math.max(1, Math.floor(size)); }
+
+/**
+ * Every document a query matches, in document-id order, page by page: never a first page taken as the whole record
+ * (`server/AGENTS.md`: page relevant history rather than stopping at a result count).
+ */
+async function readAll(query: FirebaseFirestore.Query): Promise<Array<{ id: string; data: Data }>> {
+  const rows: Array<{ id: string; data: Data }> = [];
+  let after: string | null = null;
+  for (;;) {
+    let page = query.orderBy("__name__").limit(pageSize);
+    if (after) page = page.startAfter(after);
+    const snapshot = await page.get();
+    for (const doc of snapshot.docs) rows.push({ id: doc.id, data: (doc.data() ?? {}) as Data });
+    if (snapshot.docs.length < pageSize) return rows;
+    after = snapshot.docs[snapshot.docs.length - 1].id;
+  }
 }
 
 /* ------------------------------------------------------------- what the site sees */
@@ -316,12 +366,11 @@ export function projectSiteCompanyActivity(input: { aliases: Record<string, stri
 export async function loadSiteCompanyActivity(requestId: string): Promise<SiteCompanyActivity> {
   const store = requireDb();
   const jobRef = store.collection(JOBS).doc(requestId);
-  const [job, sendRows, responseRows] = await Promise.all([jobRef.get(),
-    jobRef.collection(COMPANY_SENDS_COLLECTION).limit(200).get(), jobRef.collection(COMPANY_RESPONSES_COLLECTION).limit(200).get()]);
-  const record = job.data();
+  const record = (await jobRef.get()).data();
   if (!record || projectWebsiteCaptureRights(record).consent_revoked) return { entries: [], interested: false };
-  return projectSiteCompanyActivity({ aliases: storedAliases(record), sends: sendRows.docs.map(doc => doc.data() as Data),
-    responses: responseRows.docs.map(doc => ({ id: doc.id, data: doc.data() as Data })) });
+  const [sends, responses] = await Promise.all([readAll(jobRef.collection(COMPANY_SENDS_COLLECTION)),
+    readAll(jobRef.collection(COMPANY_RESPONSES_COLLECTION))]);
+  return projectSiteCompanyActivity({ aliases: storedAliases(record), sends: sends.map(row => row.data), responses });
 }
 
 /* ------------------------------------------------------------- the operator's panel */
@@ -350,22 +399,22 @@ export function sharingInWords(record: Data): AdminJobCompanies["sharing"] {
 export async function loadAdminJobCompanies(requestId: string): Promise<AdminJobCompanies | null> {
   const store = requireDb();
   const jobRef = store.collection(JOBS).doc(requestId);
-  const [job, sendRows, responseRows, approved] = await Promise.all([jobRef.get(),
-    jobRef.collection(COMPANY_SENDS_COLLECTION).limit(200).get(), jobRef.collection(COMPANY_RESPONSES_COLLECTION).limit(200).get(),
-    store.collection(ROBOT_TEAM_ACCESS_COLLECTION).where("status", "==", "approved").limit(500).get()]);
+  const [job, sendRows, responseRows, approvedRows] = await Promise.all([jobRef.get(),
+    readAll(jobRef.collection(COMPANY_SENDS_COLLECTION)), readAll(jobRef.collection(COMPANY_RESPONSES_COLLECTION)),
+    readAll(store.collection(ROBOT_TEAM_ACCESS_COLLECTION).where("status", "==", "approved"))]);
   const record = job.data();
   if (!job.exists || !record) return null;
   const aliases = storedAliases(record);
-  const names = new Map<string, Partial<RobotTeamAccessRecord>>(approved.docs.map(doc => [doc.id, doc.data() as RobotTeamAccessRecord]));
-  const companies = approved.docs.filter(doc => isApprovedDeploymentCompany(doc.data() as RobotTeamAccessRecord))
-    .map(doc => ({ id: doc.id, company: String(doc.data().company ?? ""), email: String(doc.data().email ?? "") }))
+  const names = new Map<string, Partial<RobotTeamAccessRecord>>(approvedRows.map(row => [row.id, row.data as RobotTeamAccessRecord]));
+  const companies = approvedRows.filter(row => isApprovedDeploymentCompany(row.data as RobotTeamAccessRecord))
+    .map(row => ({ id: row.id, company: String(row.data.company ?? ""), email: String(row.data.email ?? "") }))
     .sort((a, b) => a.company.localeCompare(b.company));
-  const sends = sendRows.docs.map(doc => ({ id: doc.id, data: doc.data() as Data }))
+  const sends = sendRows
     .map(({ id, data }) => ({ sendId: id, companyId: String(data.companyId ?? ""), company: text(names.get(String(data.companyId))?.company),
       alias: aliases[String(data.companyId)] ?? null, sentAtIso: String(data.sentAtIso ?? ""), sentBy: text(data.sentByEmail) ?? text(data.sentBy),
       voidedAtIso: text(data.voidedAtIso), voidedBy: text(data.voidedBy) }))
     .sort((a, b) => a.sentAtIso.localeCompare(b.sentAtIso));
-  const responses = responseRows.docs.map(doc => ({ id: doc.id, data: doc.data() as Data }))
+  const responses = responseRows
     .map(({ id, data }) => ({ companyId: id, company: text(data.company), email: text(data.email), alias: aliases[id] ?? null,
       state: isCompanyResponseState(data.state) ? data.state : null, inputs: typeof data.inputs === "string" ? data.inputs : "",
       updatedAtIso: text(data.updatedAtIso),
