@@ -154,7 +154,7 @@ export const LIMITS_JOB_PAGE = "Nothing here is a test at your site. Pick-up-and
 export function firstLookSentence(pick: Pick<AnswerRobot, "manufacturer" | "name" | "verdict">): string {
   const robot = `${pick.manufacturer} ${pick.name}`;
   return pick.verdict === "fits" || pick.verdict === "fits_on_paper"
-    ? `On paper, the robot most likely to fit: ${robot}.` : `On paper, the closest robot: ${robot}. No robot clearly fits yet.`;
+    ? `On paper, the robot most likely to fit: ${robot}.` : `On paper, the closest robot: ${robot}. No robot clearly fits.`;
 }
 /** What the first look rests on, said under it. */
 export const FIRST_LOOK_SOURCE = "From published specifications and where it has been used.";

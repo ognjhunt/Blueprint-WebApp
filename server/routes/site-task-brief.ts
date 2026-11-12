@@ -316,7 +316,7 @@ router.post("/:token/introduction-request", csrfProtection, async (req, res) => 
   // Sharing follows the job's outlook: only once the job has an answer (a test result, or the paper check after a
   // recorded ending). When the outlook cannot be read for certain it is "not yet", never a server error.
   const waits = (phase: string) => res.status(409).json({ code: "introduction_waits_for_answer", phase,
-    error: "You can share this job once it has an answer. We'll email you when it does." });
+    error: "You can share your job once its job packet is ready." });
   const decision = await import("../utils/jobOutlook").then(({ loadJobOutlookDecision }) => loadJobOutlookDecision(verified.requestId))
     .catch(() => null);
   const alreadyAsked = await (db?.collection("inboundRequests").doc(verified.requestId).get()

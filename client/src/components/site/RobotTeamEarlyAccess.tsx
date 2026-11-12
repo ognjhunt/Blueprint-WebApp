@@ -134,7 +134,7 @@ function ApplicationForm({ email }: { email: string | null }) {
       <label>A site or customer you would want to test at <span className="ms-field-hint">(optional)</span>
         <input key={siteHint} disabled={!interactive} name="testSite" defaultValue={siteHint} placeholder="e.g. the warehouse you are piloting with" maxLength={300} />
       </label>
-      <label className="ms-check-row"><input type="checkbox" name="optionalUpdates" disabled={!interactive} /> Email me relevant new jobs and Blueprint updates (optional). Unsubscribe anytime. Application notices are separate.</label>
+      <label className="ms-check-row"><input type="checkbox" name="optionalUpdates" disabled={!interactive} /> You may email me about jobs that could fit, and Blueprint updates (optional). Unsubscribe anytime. Application notices are separate.</label>
       <p className="ms-field-hint">
         By applying, you agree to our <a href={TERMS_URL}>Terms of Service</a> and <a href={PRIVACY_URL}>Privacy Policy</a>.
       </p>
@@ -154,7 +154,7 @@ export function RobotTeamEarlyAccess({ access, email }: { access: LibraryAccess 
     try {
       const user = await currentAuthUser();
       if (!user || !email || user.email?.toLowerCase() !== email.toLowerCase()) throw new Error("account_changed");
-      await sendAccountVerification(user, `${window.location.origin}/sites`);
+      await sendAccountVerification(user, `${window.location.origin}/contact/robot-team`);
       setVerification("sent");
     } catch {
       setVerification("error");

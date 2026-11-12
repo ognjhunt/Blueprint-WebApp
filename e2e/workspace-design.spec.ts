@@ -385,17 +385,12 @@ for (const role of ["site_operator", "robot_team"] as const) {
               ["/app/tasks", "Your tasks"],
               ["/app/tasks/task-1", "Pack cartons into totes"],
               ["/app/tasks/task-1?tab=capture", "Pack cartons into totes"],
-              ["/app/history", "History"],
               ["/settings", "Settings"],
               ["/app/captures", "Captures"],
             ]
           : [
               ["/app", "Overview"],
               ["/onboarding", "Finish setup"],
-              ["/app/library", "Task library"],
-              ["/app/opportunities/task-1", opening.title],
-              ["/app/evaluations/application-1", "Pack cartons into totes"],
-              ["/app/history", "History"],
               ["/settings", "Settings"],
               ["/settings?tab=robots", "Settings"],
             ];
@@ -446,10 +441,10 @@ for (const role of ["site_operator", "robot_team"] as const) {
       if (width === 390) {
         await page.getByRole("button", { name: "Open navigation" }).click();
         await expect(page.getByRole("navigation")).toBeVisible();
-        // Both personas get four: Overview, Tasks or Task library, History, Settings.
+        // Both personas get three: Overview, Tasks or Task library, Settings.
         await expect(
           page.getByRole("navigation").getByRole("link"),
-        ).toHaveCount(4);
+        ).toHaveCount(3);
       }
     });
   }
@@ -529,44 +524,6 @@ test("site reviews results and continues to the pilot on the job page", async ({
   // Blueprint works alongside a deployment company; the site is offered no proposal or booking action.
   await expect(page.getByText(/No pilot is planned yet\. When the simulation shows what works, Blueprint works alongside a deployment company on your site\./)).toBeVisible();
   await expect(page.getByRole("button", { name: /Review the proposal|Book/ })).toHaveCount(0);
-});
-test("robot team saves a setup and requests an evaluation from an opening", async ({
-  page,
-}) => {
-  await seed(page, "robot_team");
-  await page.goto("/settings?tab=robots");
-  await page.getByRole("button", { name: "+ Add setup" }).click();
-  await page.getByRole("combobox", { name: "Robot model", exact: true }).selectOption("model");
-  await page.getByLabel("Robot model URL", { exact: true }).fill("https://example.com/robot.urdf");
-  await page.getByLabel("Setup name", { exact: true }).fill("Atlas M3");
-  await page.getByLabel("Embodiment", { exact: true }).fill("Fixed arm");
-  await page.getByLabel("Policy name", { exact: true }).fill("Packing");
-  await page.getByLabel("Version or checkpoint", { exact: true }).fill("v5");
-  await page
-    .getByLabel("Reference URL", { exact: true })
-    .fill("https://example.com/policy-v5");
-  await page.getByRole("button", { name: "Save setup" }).click();
-  await expect(page.getByText("Atlas M3", { exact: true })).toBeVisible();
-  await page.goto("/app/opportunities/task-1");
-  await page
-    .getByLabel("Robot & policy", { exact: true })
-    .selectOption({ label: "Atlas M3 · Packing v5" });
-  await page.getByRole("checkbox", { name: /free during the beta/ }).check();
-  await page.getByRole("checkbox", { name: /license Blueprint to run this policy/ }).check();
-  await page.getByRole("button", { name: "Request evaluation →" }).click();
-  await expect(page).toHaveURL(/\/app\/evaluations\/application-/);
-  await expect(page.getByText("Review pending", { exact: true })).toBeVisible();
-  await expect(page.getByText(/Your request is saved/)).toBeVisible();
-});
-test("a job that is not open shows no request form", async ({ page }) => {
-  await seed(page, "robot_team");
-  await page.goto("/app/opportunities/task-2");
-  await expect(
-    page.getByRole("heading", { name: "Opening unavailable" }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("button", { name: "Request evaluation →" }),
-  ).toHaveCount(0);
 });
 test("empty workspaces and API errors are clear and do not invent records", async ({
   page,

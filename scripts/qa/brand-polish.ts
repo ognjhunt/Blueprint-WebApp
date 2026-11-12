@@ -1,7 +1,6 @@
 import { minimalMarketingRedirects } from "../../client/src/data/minimalPublicSite";
 
 /** Slug of the job record the brand-polish spec serves from a route mock. */
-export const brandPolishSiteFixtureSlug = "brand-polish-sample";
 
 export type QaViewport = {
   name: "desktop" | "mobile";
@@ -206,10 +205,6 @@ const canonicalPublicQaRoutes: PublicQaRoute[] = [
   { label: "Robot team job library", path: "/contact/robot-team", canonicalPath: "/contact/robot-team", expectedHeading: "Apply to see jobs", requiredCtas: [{ label: "Start a job", hrefStartsWith: "/contact/site-operator" }] },
   { label: "Privacy", path: "/privacy", canonicalPath: "/privacy", expectedHeading: "Privacy Policy", requiredCtas: [] },
   { label: "Terms", path: "/terms", canonicalPath: "/terms", expectedHeading: "Terms of Service", requiredCtas: [] },
-  { label: "Job library", path: "/sites", canonicalPath: "/sites", expectedHeading: "Job library", minVisibleTextLength: 200, requiredCtas: [] },
-  // A fixture record served by the spec's route mock; detail pages are dynamic.
-  { label: "Job record", path: `/sites/${brandPolishSiteFixtureSlug}`, canonicalPath: `/sites/${brandPolishSiteFixtureSlug}`, expectedHeading: "Brand polish sample warehouse", minVisibleTextLength: 300, requiredCtas: [{ label: "Offer your system for this job", hrefStartsWith: "/contact/robot-team" }] },
-  { label: "Robot team beta guide", path: "/beta/buyer-guide", canonicalPath: "/beta/buyer-guide", expectedHeading: "Robot team beta guide", requiredCtas: [{ label: "Apply for access", hrefStartsWith: "/contact/robot-team" }] },
   { label: "Sign in", path: "/sign-in", canonicalPath: "/sign-in", expectedHeading: "Sign in", minVisibleTextLength: 150, expectNoIndex: true, requiredCtas: [] },
   { label: "Reset password", path: "/forgot-password", canonicalPath: "/forgot-password", expectedHeading: "Reset your password", minVisibleTextLength: 150, expectNoIndex: true, requiredCtas: [] },
   { label: "Not found", path: "/this-page-does-not-exist", canonicalPath: "/this-page-does-not-exist", expectedHeading: "That page isn’t here.", minVisibleTextLength: 100, expectNoIndex: true, expectCanonical: false, acceptedStatuses: [404, 200], requiredCtas: [] },

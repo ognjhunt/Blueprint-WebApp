@@ -46,7 +46,7 @@ describe("agent grounded ask", () => {
 
     const pricing = await answerAgentQuestion({ question: "How much does it cost?" });
     expect(pricing.bestAnswer?.id).toBe("pricing");
-    expect(pricing.bestAnswer?.answer).toMatch(/^Free during the beta\./);
+    expect(pricing.bestAnswer?.answer).toMatch(/^Free for sites\. Nothing is charged today\./);
     expect(pricing.bestAnswer?.answer).toMatch(/Blueprint takes no cut/);
   });
 

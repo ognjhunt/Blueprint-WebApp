@@ -23,7 +23,6 @@ const child = spawn(
   [
     "playwright",
     "test",
-    "e2e/task-evaluation-run.spec.ts",
     "e2e/capture-task-review.spec.ts",
     "--reporter=line",
   ],

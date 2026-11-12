@@ -27,10 +27,10 @@ export const SHARE_QUESTION = "May we share a summary of your job with deploymen
 /** Rendered from the statement the introduction route records, so the two never drift. */
 export const FIND_COMPANY_CONSENT = JOB_CARD_ANSWER_STATEMENT;
 const INTRODUCTION_FAILED = "We could not send your request just now. Try again shortly.";
-/** Said only when the response or the stored card says the card is listed, with the date the site chose to share. */
-export const sharedOn = (date: string) => `Shared on ${date} with the deployment companies we've approved. Nothing more is needed from you.`;
-/** The site asked, but its summary is not listed yet: a person at Blueprint lists it. */
-const askedUnlisted = (date: string) => `You asked on ${date} to share a summary of your job. Blueprint will share it with the deployment companies we've approved.`;
+/** Said only when the response or the stored card says the summary is listed (visible to approved deployment companies; nobody is emailed). */
+export const sharedOn = (date: string) => `Shared on ${date}. Deployment companies we approve can see a summary of your job. Nothing more is needed from you.`;
+/** The site asked, but its summary is not listed: said as a fact, with no promise. */
+const askedUnlisted = (date: string) => `You asked on ${date} to share a summary of your job.`;
 /** The card is listed, but under the older sharing box, which does not share the first look: said so, and the button is back. */
 export const SHARED_WITHOUT_ANSWER = "Your shared summary leaves out the first look. Press the button to add it.";
 /** Shared under an older sentence (v1 or v2), which shares the first look only, while an early trial result exists. */

@@ -172,7 +172,7 @@ function WorkspaceSettings() {
                 Open overview →
               </Link>
               {robot && (
-                <Link className="ws-link" href="/app/library">
+                <Link className="ws-link" href="/contact/robot-team">
                   Task library →
                 </Link>
               )}

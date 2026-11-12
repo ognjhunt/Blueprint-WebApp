@@ -90,8 +90,6 @@ describe("canvasSurfaceFor", () => {
       "/how-it-works",
       "/contact/site-operator",
       "/contact/robot-team",
-      "/sites",
-      "/sites/some-site",
       "/privacy",
       "/terms",
       "/sign-in",
@@ -99,7 +97,6 @@ describe("canvasSurfaceFor", () => {
       "/forgot-password",
       "/app",
       "/app/tasks/abc123",
-      "/requests/req_1/evidence",
       "/settings",
     ]) {
       expect(canvasSurfaceFor(pathname), pathname).toBe("light");
@@ -115,7 +112,6 @@ describe("canvasSurfaceFor", () => {
       "/admin/leads",
       "/ops/spend",
       "/internal/design-system",
-      "/beta/buyer-guide",
     ]) {
       expect(canvasSurfaceFor(pathname), pathname).toBe("dark");
     }
@@ -126,8 +122,8 @@ describe("canvasSurfaceFor", () => {
   });
 
   it("ignores trailing slashes, query strings, and hashes", () => {
-    expect(canvasSurfaceFor("/sites/")).toBe("light");
-    expect(canvasSurfaceFor("/sites?ref=nav")).toBe("light");
+    expect(canvasSurfaceFor("/partners/")).toBe("light");
+    expect(canvasSurfaceFor("/partners?ref=nav")).toBe("light");
     expect(canvasSurfaceFor("/#how-it-works")).toBe("light");
     expect(canvasSurfaceFor("/contact/site-operator?persona=x#form")).toBe("light");
   });

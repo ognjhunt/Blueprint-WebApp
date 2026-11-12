@@ -7,7 +7,7 @@ const blank: TaskListingDetails = { title: "", taskFamily: "", siteType: "", reg
 
 /** Listing authorization is separate from capture rights; reviewed edits retain their own consent. */
 /** Said in place of the publish box while the job has no answer yet (building or testing). */
-export const SHARE_AFTER_ANSWER = "You can share this job once it has an answer. We'll email you when it does.";
+export const SHARE_AFTER_ANSWER = "You can share your job once its job packet is ready.";
 
 export function PublicTaskListing(props: { token: string; jobRevision?: string; summaryLabel?: string;
   /** The job has no answer yet (the outlook is reading, building or testing): publishing waits; hiding never does. */

@@ -7,7 +7,6 @@ import {
   Empty,
   Tag,
   TargetLine,
-  EvaluationTable,
 } from "@/components/workspace/WorkspaceUI";
 import type { WorkspaceTask } from "@/types/workspace";
 /** The task's own image when we have one, else the shared illustration. */
@@ -64,13 +63,7 @@ export function TaskRows({ tasks }: { tasks: WorkspaceTask[] }) {
 export default function Overview() {
   const query = useWorkspace(),
     site = query.data?.role === "site_operator",
-    tasks = (query.data?.tasks || []).filter((task) => !task.archived),
-    evaluations = (query.data?.evaluations || []).filter(
-      (item) => !item.archived,
-    );
-  const nextResult = evaluations.find(
-    (item) => item.successRate !== null && !item.outcome,
-  );
+    tasks = (query.data?.tasks || []).filter((task) => !task.archived);
   return (
     <Frame
       query={query}
@@ -78,7 +71,7 @@ export default function Overview() {
       title="Overview"
       action={
         <ActionLink
-          href={site ? "/app/tasks/new" : "/app/library"}
+          href={site ? "/app/tasks/new" : "/contact/robot-team"}
           primary
         >
           {site ? "Show us a task" : "Task library"}
@@ -137,48 +130,14 @@ export default function Overview() {
               <TaskRows tasks={tasks.slice(0, 4)} />
             </section>
           )}
-          {nextResult && (
-            <section className="ws-next">
-              <div>
-                <p className="ws-kicker">Up next</p>
-                <h2>Review your results</h2>
-                <p>{nextResult.title} · Evaluation complete</p>
-                <p className="ws-muted">
-                  Your result is ready. Blueprint shares it with the site as a bounded estimate.
-                </p>
-              </div>
-              <ActionLink href={`/app/evaluations/${nextResult.id}`}>
-                View result
-              </ActionLink>
-            </section>
-          )}
-          <section>
-            <div className="ws-section-title">
-              <h2>Active evaluations</h2>
-            </div>
-            {evaluations.length ? (
-              <EvaluationTable evaluations={evaluations} />
-            ) : (
-              <Empty
-                title="Find your next pilot"
-                href="/app/library"
-                action="Task library"
-              >
-                Explore site tasks, save your robot and policy, and request an
-                evaluation.
-              </Empty>
-            )}
-          </section>
-          {evaluations.length > 0 && (
-            <section className="ws-next ws-section">
-              <div>
-                <h2>Ready for another task?</h2>
-                <p className="ws-muted">
-                  Pick a task and evaluate a saved robot and policy.
-                </p>
-              </div>
-              <ActionLink href="/app/library">Task library</ActionLink>
-            </section>
+          {tasks.length === 0 && (
+            <Empty
+              title="Find site jobs"
+              href="/contact/robot-team"
+              action="Task library"
+            >
+              Site jobs are in the task library.
+            </Empty>
           )}
         </>
       )}

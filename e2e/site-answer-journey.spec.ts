@@ -160,10 +160,10 @@ test("desktop: email and video in, the answer on the job page, a deployment comp
   const reply = await posted;
   expect(reply.status(), await reply.text()).toBe(200);
   const confirmation = answer(page).getByRole("status");
-  await expect(confirmation).toHaveText(/^Shared on .+ with the deployment companies we've approved\. Nothing more is needed from you\.$/);
+  await expect(confirmation).toHaveText(/^Shared on .+\. Deployment companies we approve can see a summary of your job\. Nothing more is needed from you\.$/);
   await page.screenshot({ path: path.join(SHOTS, "journey-4-requested-desktop.png"), fullPage: true });
   await page.reload();
-  await expect(answer(page).getByRole("status")).toHaveText(/^Shared on .+ with the deployment companies we've approved\. Nothing more is needed from you\.$/, { timeout: 45_000 });
+  await expect(answer(page).getByRole("status")).toHaveText(/^Shared on .+\. Deployment companies we approve can see a summary of your job\. Nothing more is needed from you\.$/, { timeout: 45_000 });
   await expect(answer(page).getByRole("button", { name: "Share my job" })).toHaveCount(0);
 
   // (c) One email, queued by the sweep that recorded the ending (review, 2026-11-11): why no simulation was built, and

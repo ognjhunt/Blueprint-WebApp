@@ -113,7 +113,7 @@ export function buildRobotAgentAccessManifest() {
         runtimes: ["policy_endpoint", "customer_hosted", "container_image", "controller_adapter", "model_artifact", "skill_trace"],
         modelUpload: "Multipart model, interface JSON, and optional label. The approved ONNX runner is onnx_state_mlp_cpu_v1; upload requires a verified account bound to the team.",
         privateCredentials: "After registering a checkpoint, attach {kind:registry,username,secret} for a private container/controller image or {kind:bearer,token} for an HTTPS policy. Account-bound team ownership is required. Responses contain a version reference only. DELETE revokes that version.",
-        newEvaluation: "Offer your policy on a job from the workspace; Blueprint runs it free during the beta. Execution requires Blueprint's approval of the exact team, policy, task and sponsor limits.",
+        newEvaluation: "Running your own software on a site's job is not offered yet; ask about a job at /contact/robot-team. Nothing is charged today. Any future execution requires Blueprint's approval of the exact team, policy, task and sponsor limits.",
         observationAccess: "Blueprint retains scene files and the scoring harness. Controlled policies receive the permitted observations and return actions. Compatible task, robot, and runner profiles are required; a skill trace alone is not execution evidence.",
       },
       /**
@@ -138,7 +138,7 @@ export function buildRobotAgentAccessManifest() {
 
       },
       spendModel: {
-        summary: "Evaluations are free during the beta and Blueprint runs each one itself; nothing is charged to the team. Paid and private runs are disabled. Blueprint-funded execution requires separately authorized limits.",
+        summary: "Nothing is charged today; Blueprint runs any evaluation itself. Paid and private runs are disabled. Blueprint-funded execution requires separately authorized limits.",
       },
     },
     siteWorldSearch: {

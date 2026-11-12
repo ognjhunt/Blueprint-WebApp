@@ -137,11 +137,12 @@ for (const mobile of [false, true]) {
     await expect(page.getByRole("heading", { name: card.title })).toHaveCount(0);
     await page.getByLabel("Filter by availability").selectOption("open");
     const selected = page.getByRole("listitem").filter({ has: page.getByRole("heading", { name: card.title }) });
-    await expect(selected.getByRole("link", { name: "Offer your system for this job" })).toHaveAttribute("href", "/app");
+    // Running a company's own system on a job is "later" (frame of 2026-11-12): no link into the removed run pages.
+    await expect(selected.getByRole("link", { name: "Offer your system for this job" })).toHaveCount(0);
     await expect(selected.getByText("Site's proposed pilot price")).toBeVisible();
     await expect(selected.getByText("Four weeks including setup and provider support")).toBeVisible();
     await expect(selected.getByText("$5,000 per month")).toBeVisible();
-    await expect(page.getByText("Blueprint runs approved systems free during the beta and shares the results with the site.")).toBeVisible();
+    await expect(page.getByText("Nothing is charged today.", { exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: /Private evaluation|See what we would run|Queue these runs/ })).toHaveCount(0);
     expect(mutations).toEqual([]);
     expect(errors).toEqual([]); await context.close();
@@ -149,7 +150,7 @@ for (const mobile of [false, true]) {
 }
 
 test("an approved team's empty library says tasks are coming; an outage is not an empty library", async ({ page }) => {
-  await fixtures(page, []); await page.goto("/sites");
+  await fixtures(page, []); await page.goto("/contact/robot-team");
   await expect(page.getByText("The first site jobs are being prepared.")).toBeVisible();
   await expect(page.getByRole("form", { name: "Task preferences" })).toHaveCount(0);
   await screenshot(page, "empty-approved");
@@ -197,7 +198,7 @@ test("desktop owner opens video capture with one status and explicit public card
   // 2026-11-11) it says sharing waits for one, and offers no publish controls.
   await page.getByRole("button", { name: "Job settings ›" }).click();
   await page.getByText("Share settings", { exact: true }).click();
-  await expect(page.getByText("You can share this job once it has an answer. We'll email you when it does.")).toBeVisible();
+  await expect(page.getByText("You can share your job once its job packet is ready.")).toBeVisible();
   await expect(page.getByRole("button", { name: "Publish reviewed card" })).toHaveCount(0);
   // Once the job has its answer (here a recorded ending, the paper check), the card can be reviewed and published.
   statusOutlook = { phase: "no_test", reason: "no_grant", sentence: "We have not built a simulation for this job." };
@@ -269,7 +270,7 @@ for (const mobile of [false, true]) test(`${mobile ? "phone" : "desktop"}: video
 test("public photos fall back to illustrations when removed", async ({ page }) => {
   await fixtures(page, [{ ...card, thumbnailUrl: "/api/site-worlds/tasks/task-1/thumbnail" }]);
   await page.route("**/api/site-worlds/tasks/task-1/thumbnail", route => route.fulfill({ contentType: "image/png", body: taskPhoto }));
-  await page.goto("/sites");
+  await page.goto("/contact/robot-team");
   await expect(page.getByRole("img", { name: `Owner-approved job view: ${card.title}` })).toBeVisible();
   await expect(page.getByText("Owner-approved job photo", { exact: true })).toBeVisible();
   await page.route("**/api/site-worlds/tasks/task-1/thumbnail", route => route.fulfill({ status: 404, body: "" }));
@@ -282,7 +283,8 @@ test("free beta does not restore paid checkout controls after a reload", async (
   const mutations = await fixtures(page);
   await page.goto("/contact/robot-team");
   for (let attempt = 0; attempt < 2; attempt++) {
-    await expect(page.getByRole("link", { name: "Offer your system for this job" }).first()).toHaveAttribute("href", "/app");
+    await expect(page.getByText("Nothing is charged today.", { exact: true })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Offer your system for this job" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: /Private evaluation|See what we would run|Queue these runs/ })).toHaveCount(0);
     await expect(page.locator("#plan-hardware")).toHaveCount(0);
     expect(mutations).toEqual([]);

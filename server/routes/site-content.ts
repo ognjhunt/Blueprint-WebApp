@@ -123,15 +123,7 @@ const pages = [
   },
   { path: "/contact/site-operator", title: "Start a job", description: START_SEO_DESCRIPTION },
   { path: "/contact/robot-team", title: "Apply to see jobs", description: ROBOT_TEAM_SEO_DESCRIPTION },
-  {
-    path: "/sites",
-    title: "Job library",
-    description:
-      "Site-approved recurring jobs shared for compatible technology assessment and delivery planning.",
-  },
   { path: "/partners", title: "For deployment companies", description: PARTNERS_SEO_DESCRIPTION },
-  { path: "/partners/deployment", title: "Deployment partners", description: "Apply to set robots up for Blueprint's site jobs, and support them." },
-  { path: "/partners/technology", title: "Robot technology providers", description: "Make a robot, control software or model API available for Blueprint to test on real site jobs in simulation." },
   {
     path: "/privacy",
     title: "Privacy",

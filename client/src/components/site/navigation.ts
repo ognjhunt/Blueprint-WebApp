@@ -1,8 +1,7 @@
 // Public chrome navigation model (redesign spec: SCREENS.md "Global chrome").
 // Exported names are preserved so Header/Footer imports stay stable; targets are repointed.
 //
-// Streamlined to one product with a robot-team-first wedge. Site operators are
-// a second persona using the same Task Evaluation Run contract and intake.
+// Sites start a job; deployment companies apply on /partners (frame of 2026-11-12).
 // There is no capturer supply path: the site films its own job (2026-11-11).
 
 export const primaryNavLinks = [
@@ -26,7 +25,6 @@ export const footerProductLinks = [
   { href: "/beta", label: "Questions" },
   { href: "/contact/site-operator", label: "Start a job" },
   { href: "/partners", label: "For deployment companies" },
-  { href: "/sites", label: "Job library" },
 ];
 
 export const footerEvidenceLinks = [

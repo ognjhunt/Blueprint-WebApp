@@ -180,7 +180,7 @@ describe("public agent answers and the retired-commerce body", () => {
       for (const answer of response.answers) expectClean(`${question} -> ${answer.id}`, answer.answer, CUSTOMER_PROSE);
       expectClean(`${question} fallback`, `${response.fallback.message}\n${response.truthBoundary}`, CUSTOMER_PROSE);
     }
-    expect((await answerAgentQuestion({ question: "How much does it cost?" })).bestAnswer?.answer).toMatch(/^Free during the beta\./);
+    expect((await answerAgentQuestion({ question: "How much does it cost?" })).bestAnswer?.answer).toMatch(/^Free for sites\. Nothing is charged today\./);
   });
 
   it("returns a 410 body that does not quote or scope paid work", () => {

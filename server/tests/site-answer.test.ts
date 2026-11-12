@@ -236,7 +236,7 @@ describe("composeSiteAnswer", () => {
     // The job gives no heights, so a robot that moves is not settled on how high and low its hand goes.
     expect(answer.runnerUp!.formLabel).toBe("Arm on a base that moves");
     expect(answer.pick!.checks.find((check) => check.key === "reach")).toMatchObject({ measure: "height", outcome: "unknown" });
-    expect(answer.headline).toBe("No robot clearly fits yet. The closest is Hello Robot Stretch 3.");
+    expect(answer.headline).toBe("No robot clearly fits. The closest is Hello Robot Stretch 3.");
   });
 
   it("never lets the simulation's scope reasons decide whether robots are checked against the job", () => {

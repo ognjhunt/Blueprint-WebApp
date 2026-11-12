@@ -50,9 +50,6 @@ describe("build output", () => {
       "how-it-works/index.html",
       "beta/index.html",
       "partners/index.html",
-      "partners/deployment/index.html",
-      "partners/technology/index.html",
-      "sites/index.html",
       "contact/robot-team/index.html",
       "contact/site-operator/index.html",
       "sign-in/index.html",
@@ -181,10 +178,10 @@ describe("build output", () => {
   it("includes core public routes without fixture site detail pages in the sitemap", () => {
     const sitemap = fs.readFileSync(distPath("sitemap.xml"), "utf8");
 
-    ["/", "/how-it-works", "/beta", "/partners", "/partners/deployment", "/partners/technology", "/contact/site-operator", "/contact/robot-team", "/sites", "/privacy", "/terms", "/refunds"].forEach((route) => {
+    ["/", "/how-it-works", "/beta", "/partners", "/contact/site-operator", "/contact/robot-team", "/privacy", "/terms", "/refunds"].forEach((route) => {
       expect(sitemap).toContain(`<loc>https://tryblueprint.io${route}</loc>`);
     });
-    expect((sitemap.match(/<loc>/g) || []).length).toBe(12);
+    expect((sitemap.match(/<loc>/g) || []).length).toBe(9);
     expect(sitemap).not.toContain("<loc>https://tryblueprint.io/jobs-we-support</loc>");
     expect(sitemap).not.toContain("<loc>https://tryblueprint.io/about</loc>");
 
@@ -206,7 +203,10 @@ describe("build output", () => {
       "<loc>https://tryblueprint.io/contact</loc>",
       "<loc>https://tryblueprint.io/world-models/sw-chi-01/start</loc>",
       "<loc>https://tryblueprint.io/world-models/sw-chi-01</loc>",
+      "<loc>https://tryblueprint.io/sites</loc>",
       "<loc>https://tryblueprint.io/sites/siteworld-f5fd54898cfb</loc>",
+      "<loc>https://tryblueprint.io/partners/deployment</loc>",
+      "<loc>https://tryblueprint.io/partners/technology</loc>",
     ].forEach((url) => {
       expect(sitemap).not.toContain(url);
     });
@@ -342,7 +342,7 @@ describe("build output", () => {
   it("writes the client route patterns outside the served directory for real 404s", () => {
     const file = path.resolve(process.cwd(), "dist", "app-route-patterns.json");
     const { patterns } = JSON.parse(fs.readFileSync(file, "utf8")) as { patterns: string[] };
-    expect(patterns).toEqual(expect.arrayContaining(["/", "/beta", "/sites", "/capture-upload/:token"]));
+    expect(patterns).toEqual(expect.arrayContaining(["/", "/beta", "/partners", "/capture-upload/:token"]));
     expect(fs.existsSync(distPath("app-route-patterns.json"))).toBe(false);
   });
 });

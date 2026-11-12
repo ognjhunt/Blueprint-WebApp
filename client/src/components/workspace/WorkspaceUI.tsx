@@ -15,12 +15,10 @@ import { AppShell, type AppView } from "@/components/blueprint/app/AppShell";
 import { WorkspaceSetup } from "./WorkspaceSetup";
 import {
   useWorkspace,
-  statusLabel,
   WorkspaceRequestError,
 } from "@/lib/workspace";
 import type {
   TaskTargets,
-  WorkspaceEvaluation,
   WorkspaceResult,
 } from "@/types/workspace";
 export type WorkspaceQuery = ReturnType<typeof useWorkspace>;
@@ -198,59 +196,6 @@ export function Score({ result }: { result: WorkspaceResult }) {
         </small>
       )}
     </>
-  );
-}
-export function EvaluationTable({
-  evaluations,
-}: {
-  evaluations: WorkspaceEvaluation[];
-}) {
-  return (
-    <div className="ws-table-wrap">
-      <table className="ws-table">
-        <thead>
-          <tr>
-            <th>Job</th>
-            <th>Your setup</th>
-            <th>Status</th>
-            <th>Your result</th>
-            <th>
-              <span className="sr-only">View result</span>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {evaluations.map((item) => (
-            <tr key={item.id}>
-              <td>
-                <strong>{item.title}</strong>
-                <small>{item.siteType || "Evaluation"}</small>
-              </td>
-              <td>{item.setupName || "See run details"}</td>
-              <td>
-                <Tag tone={item.selected ? "green" : "neutral"}>
-                  {item.outcome
-                    ? statusLabel(item.outcome)
-                    : item.successRate !== null
-                      ? "Awaiting site decision"
-                      : statusLabel(item.status)}
-                </Tag>
-              </td>
-              <td>
-                <Score result={item} />
-              </td>
-              <td>
-                <ActionLink
-                  href={`/app/evaluations/${encodeURIComponent(item.id)}`}
-                >
-                  View
-                </ActionLink>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
   );
 }
 export function Field({

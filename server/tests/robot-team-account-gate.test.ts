@@ -142,7 +142,8 @@ describe("free beta refuses paid entrypoints for every account", () => {
     expect(instructions).toContain("verified Blueprint account");
     expect(instructions).toContain("/settings?tab=robots");
     expect(instructions).not.toContain("tab=agent");
-    expect(instructions).toContain("/app");
+    // The robot-team workspace pages are removed (2026-11-12): nothing sends a team there.
+    expect(instructions).not.toMatch(/\/app\b/);
     expect(instructions).toContain("/contact/robot-team");
     expect(`${reply.grants.note} ${instructions}`).not.toMatch(/\/api\/agent-team\/(?:plan|runs|funding|policy)\b|can plan|can dry-run|Stripe|fund a balance|switch the agent on/i);
   });
@@ -156,9 +157,9 @@ describe("free beta refuses paid entrypoints for every account", () => {
     const reply = await response.json();
     expect(reply.checkpoint.status).toBe("registered");
     expect(reply.next).toContain("Registration does not start an evaluation");
-    expect(reply.next).toContain("Blueprint runs it free during the beta");
+    expect(reply.next).toContain("Running your own software on a site's job is not offered yet");
     expect(reply.next).toContain("verified Blueprint account");
-    expect(reply.next).toContain("/app");
+    expect(reply.next).not.toMatch(/\/app\b/);
     expect(reply.next).toContain("/contact/robot-team");
     expect(reply.next).not.toMatch(/\/api\/agent-team\/(?:plan|runs|funding|policy)\b|Stripe|fund a balance|switch the agent on/i);
   });

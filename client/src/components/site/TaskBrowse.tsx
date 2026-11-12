@@ -92,7 +92,7 @@ export function TaskBrowse({ inWorkspace = false }: { inWorkspace?: boolean } = 
     </details>}
     {libraryEmpty && <div className="ms-task-empty">
       <h2>The first site jobs are being prepared.</h2>
-      <p>Each site sees its anonymized job card before starting, can keep the job private instead, and can edit or hide the card later. We email you when a new job is listed.</p>
+      <p>Each site sees its anonymized job card before starting, can keep the job private instead, and can edit or hide the card later.</p>
     </div>}
     {state === "ready" && items.length > 0 && <>
       <p className="ms-field-hint">{filtered.length} {filtered.length === 1 ? "job" : "jobs"} · Details shared by site owners. A past job can remain available for evaluation.</p>
@@ -105,12 +105,12 @@ export function TaskBrowse({ inWorkspace = false }: { inWorkspace?: boolean } = 
         <div className="ms-task-heading"><div><div className="ms-task-meta"><span>{taskStageLabels[item.stage]}</span><span>{opportunityLabels[item.opportunity]}</span>{!item.evaluationAvailable && <span>{EVALUATION_NOT_READY}</span>}</div>
         <h2>{item.title}</h2></div><TaskThumbnail src={item.thumbnailUrl} title={item.title} taskFamily={item.taskFamily} /></div><TaskFacts details={item} />
         {item.answerHeadline && <JobCardAnswerLine jobId={item.id} headline={item.answerHeadline} user={currentUser} />}
-        {/* The row's one action, when there is one; a row with no evaluation says so in its meta line. */}
-        {item.evaluationAvailable && <a className="ms-text-link" href={inWorkspace ? `/app/opportunities/${encodeURIComponent(item.id)}` : "/app"}>Offer your system for this job</a>}
+        {/* The row's one action: the company's response (interested or not a fit). Running its own system on a job is
+            not offered (frame of 2026-11-12: "later"), so the old "Offer your system" link, into a removed area, is gone. */}
         {item.opportunity === "open" && currentUser && !access?.staff && <TeamJobResponse jobId={item.id} user={currentUser} />}
       </li>)}</ul>
     </>}
-    <p className="ms-field-hint">Blueprint runs approved systems free during the beta and shares the results with the site.</p>
+    <p className="ms-field-hint">Nothing is charged today.</p>
     <p className="ms-field-hint">{!inWorkspace && <><a href="/agent-access.openapi.json">Agent API (OpenAPI spec, JSON)</a> · </>}<a href="mailto:hello@tryblueprint.io">Talk to a person</a></p>
   </section>;
 }

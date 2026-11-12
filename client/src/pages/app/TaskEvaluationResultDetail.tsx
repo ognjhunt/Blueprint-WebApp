@@ -269,7 +269,7 @@ export default function TaskEvaluationResultDetail() {
     <AppShell active="runs" breadcrumb={`results / ${recordId || "unknown"}`} publicView={!currentUser}>
       <Helmet><title>Evaluation result · Blueprint</title><meta name="description" content="An evaluation result, its episodes, and evidence downloads." /><meta name="robots" content="noindex,nofollow,noarchive" /></Helmet>
       <div className="mx-auto flex max-w-[76rem] flex-col gap-6 px-4 py-8 lg:px-8">
-        <Link href={currentUser ? "/app/runs" : "/"} className="ws-back">← {currentUser ? "All runs" : "Blueprint"}</Link>
+        <Link href={currentUser ? "/app" : "/"} className="ws-back">← {currentUser ? "Overview" : "Blueprint"}</Link>
         {isLoading ? <BuyerAppLoadingState /> : null}
         {!isLoading && error && !result ? <BuyerAppErrorState message={error.message} /> : null}
         {!isLoading && result ? <>

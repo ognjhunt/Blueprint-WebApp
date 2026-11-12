@@ -53,7 +53,7 @@ router.route("/owner/:token")
         const decision = await loadJobOutlookDecision(res.locals.requestId).catch(() => null);
         if (!decision || !decision.certain || !outlookHasAnswer(decision.outlook))
           return res.status(409).json({ code: "share_waits_for_answer", phase: decision?.outlook.phase ?? "building",
-            error: "You can share this job once it has an answer. We'll email you when it does." });
+            error: "You can share your job once its job packet is ready." });
       }
       await applyOwnerTaskListing(res.locals.requestId, parsed.data);
       return res.json({ ok: true });

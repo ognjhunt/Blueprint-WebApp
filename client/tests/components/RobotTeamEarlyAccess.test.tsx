@@ -19,7 +19,7 @@ describe("robot-team verification from the job library", () => {
     render(<RobotTeamEarlyAccess access={{ gated: true, status: "approved", signedIn: true,
       emailVerified: false, allowed: false, staff: false }} email="eng@robot.example" />);
     fireEvent.click(screen.getByRole("button", { name: "Resend verification email" }));
-    await waitFor(() => expect(auth.send).toHaveBeenCalledWith(auth.user, `${window.location.origin}/sites`));
+    await waitFor(() => expect(auth.send).toHaveBeenCalledWith(auth.user, `${window.location.origin}/contact/robot-team`));
     expect(screen.getByRole("status")).toHaveTextContent(/verification email sent/i);
   });
 

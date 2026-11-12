@@ -18,10 +18,7 @@ import HowItWorks from "../client/src/pages/HowItWorks";
 import Beta from "../client/src/pages/Beta";
 import Home from "../client/src/pages/Home";
 import Partners from "../client/src/pages/Partners";
-import DeploymentPartners from "../client/src/pages/DeploymentPartners";
-import TechnologyProviders from "../client/src/pages/TechnologyProviders";
 import Contact from "../client/src/pages/Contact";
-import Sites from "../client/src/pages/Sites";
 import Privacy from "../client/src/pages/Privacy";
 import Terms from "../client/src/pages/Terms";
 import Refunds from "../client/src/pages/Refunds";
@@ -92,10 +89,7 @@ const staticRoutes: StaticRoute[] = [
   { path: "/", component: Home },
   { path: "/how-it-works", component: HowItWorks },
   { path: "/partners", component: Partners },
-  { path: "/partners/deployment", component: DeploymentPartners },
-  { path: "/partners/technology", component: TechnologyProviders },
   { path: "/beta", component: Beta },
-  { path: "/sites", component: Sites },
   { path: "/contact/robot-team", component: Contact },
   { path: "/contact/site-operator", component: Contact },
   { path: "/sign-in", component: Login, shell: "bare" },

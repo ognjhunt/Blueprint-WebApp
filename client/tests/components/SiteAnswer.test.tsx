@@ -36,8 +36,8 @@ const LIMITS = "Nothing here is a test at your site. Pick-up-and-put-down jobs o
 const TRIAL_LINE = "This is our own trial of openly available robot software. It does not predict what a deployment company's robot would do.";
 const FIRST_LOOK = "On paper, the robot most likely to fit: Universal Robots UR10e.";
 const SOURCE = "From published specifications and where it has been used.";
-const sharedOn = (date: string) => `Shared on ${date} with the deployment companies we've approved. Nothing more is needed from you.`;
-const askedOn = (date: string) => `You asked on ${date} to share a summary of your job. Blueprint will share it with the deployment companies we've approved.`;
+const sharedOn = (date: string) => `Shared on ${date}. Deployment companies we approve can see a summary of your job. Nothing more is needed from you.`;
+const askedOn = (date: string) => `You asked on ${date} to share a summary of your job.`;
 const region = (name: string) => screen.getByRole("region", { name });
 const companies = () => region("Deployment companies");
 const firstLook = () => region("First look");
@@ -80,11 +80,11 @@ describe("the job page's sections, bare bones", () => {
     expect(container.querySelectorAll(".bare-button")).toHaveLength(1);
   });
 
-  it("calls a robot that only may fit the closest robot, and says none clearly fits yet", () => {
-    const possible = { ...readyAnswer, headline: "No robot clearly fits yet. The closest is Universal Robots UR10e.",
+  it("calls a robot that only may fit the closest robot, and says none clearly fits", () => {
+    const possible = { ...readyAnswer, headline: "No robot clearly fits. The closest is Universal Robots UR10e.",
       pick: { ...readyAnswer.pick!, verdict: "possible" as const, checks: [{ ...readyAnswer.pick!.checks[0], outcome: "unknown" as const }, readyAnswer.pick!.checks[1]] } };
     render(<SiteAnswer token="owner-token" answer={possible} />);
-    expect(within(firstLook()).getByText("On paper, the closest robot: Universal Robots UR10e. No robot clearly fits yet.")).toBeVisible();
+    expect(within(firstLook()).getByText("On paper, the closest robot: Universal Robots UR10e. No robot clearly fits.")).toBeVisible();
     expect(within(firstLook()).getByText(SOURCE)).toBeVisible();
     // A check that is not settled is a question, never a tick.
     const items = within(screen.getByRole("list", { name: "Why" })).getAllByRole("listitem");
@@ -532,7 +532,7 @@ describe("the first look and the simulation of the site never disagree", () => {
     expect(screen.getByText(note)).toBeVisible();
     unmount();
     render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, pick: { ...readyAnswer.pick!, verdict: "possible" } }} proof={reach} />);
-    expect(screen.getByText("On paper, the closest robot: Universal Robots UR10e. No robot clearly fits yet.")).toBeVisible();
+    expect(screen.getByText("On paper, the closest robot: Universal Robots UR10e. No robot clearly fits.")).toBeVisible();
     expect(screen.queryByText(/does not fit/)).toBeNull();
   });
 

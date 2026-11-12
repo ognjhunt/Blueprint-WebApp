@@ -43,15 +43,15 @@ export const pilotReplacementPolicy =
 export const siteAssessment = {
   amount: betaFeeUsd,
   unit: "during the beta",
-  summary: "One answer for one recurring job at one site: the robot that most likely fits, and what a simulation of its site found.",
+  summary: "One job packet for one recurring job at one site: a first look at which robots could fit, a simulation of the site, and what counts as done.",
   covers: [
-    "A job brief drafted from your video and reviewed with you: objects, cycle, exceptions, timing and required outcomes.",
-    "A site simulation reconstructed from your video, where suitable robots are checked for reach and arm path and public control policies are compared on the job on a research robot.",
-    "Which robot most likely fits your job and how sure we are, then how control policies compared on it in the simulation and whether one was clearly ahead, or “held” when we can't simulate that kind of job yet.",
-    "Blueprint works alongside a deployment company on your site; you approve the pilot's price, support and acceptance criteria.",
+    "Your sentence for the job, drafted from your video if you leave it empty, and what counts as done.",
+    "A first look on paper: the robot most likely to fit, from published specifications and where it has been used.",
+    "A simulation of your site, built from your video, or “held” when we can't build one for that kind of job yet. Sometimes an early trial of openly available robot software in it, which is a trial, not a prediction of any company's robot.",
+    "With your permission, a summary of your job shared with deployment companies we approve; any work is agreed between you and the company.",
   ],
   allIn:
-    "Free during the beta. Submitting a job, the simulation, its result and pilot coordination cost nothing.",
+    "Free for sites. Nothing is charged today.",
   bounded: "A bounded estimate for your job, with its evidence limits; it never certifies physical performance or safety. You choose and approve any pilot terms.",
   /**
    * Precise about what a robot team actually receives, because the loose

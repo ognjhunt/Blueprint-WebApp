@@ -596,12 +596,8 @@
   .ms-pilot-card dl > div { grid-template-columns: 1fr; gap: 2px; }
 }
 
-/* Public job record (/sites/:slug) on the minimal shell. */
-.ms-site-detail .ms-eyebrow { margin-bottom: 14px; }
+/* A small stage pill, used by the job page's readiness and fit panels. */
 .ms-site-stage { display: inline-block; font-size: 11px; font-weight: 500; letter-spacing: .12em; text-transform: uppercase; color: var(--ms-muted); border: 1px solid var(--ms-rule); border-radius: 999px; padding: 2px 10px; }
-.ms-site-cta { margin-top: 24px; }
-.ms-site-figure { margin-top: 32px; }
-.ms-site-figure img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 10; object-fit: cover; border: 1px solid var(--ms-rule); }
 /* Terms and Privacy update notice (LegalVersionNotes.tsx), on the public site and the workspace. */
 .legal-update-banner { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 8px 16px; background: #203d2e; color: #f6f5ef; font-size: 13px; line-height: 1.5; }
 .legal-update-banner p { margin: 0; max-width: 120ch; }

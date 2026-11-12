@@ -88,7 +88,7 @@ const AGENT_KNOWLEDGE_ENTRIES: AgentKnowledgeEntry[] = [
     ],
     answer:
       "Use GET /api/site-worlds/search (MCP tool blueprint.siteWorld.search). It accepts a natural-language q plus structured filters: category, industry, city, state, siteType, taskLane, objectTags, robot, availability, readiness, and sort. Ranking combines brand/ontology aliases, lexical overlap, location/task/object signals, and embedding-based semantic similarity when available; without an embedding key it stays deterministic and flags embeddings_unavailable. Results include scores, reasons, matchedFields, exact/no-exact semantics, and a requestCandidate intake draft when no exact scanned package exists.",
-    citations: [`${CANONICAL_ORIGIN}/sites`, `${CANONICAL_ORIGIN}/agent-access.openapi.json`],
+    citations: [`${CANONICAL_ORIGIN}/agent-access.openapi.json`],
     actions: [
       {
         description: "Search by query and filters",
@@ -134,10 +134,10 @@ const AGENT_KNOWLEDGE_ENTRIES: AgentKnowledgeEntry[] = [
     aliases: ["compare delivery proposals", "choose deployment partner", "who installs", "who signs", "fixed price", "first come"],
     answer:
       "Blueprint runs the candidates in a simulation of the site and shows the site a bounded estimate of what works. When an approach works, Blueprint works alongside a deployment company that can deliver it on the real site. The deployment company states the scope, equipment and software, installation and ongoing cost, timing, support, exclusions and pilot acceptance criteria. The customer decides whether to proceed and agrees the physical work directly with the deployment company; Blueprint takes no cut. A simulation result is a bounded estimate within its stated limits and does not establish physical performance or safety.",
-    citations: [`${CANONICAL_ORIGIN}/how-it-works`, `${CANONICAL_ORIGIN}/partners/deployment`],
+    citations: [`${CANONICAL_ORIGIN}/how-it-works`, `${CANONICAL_ORIGIN}/partners`],
     actions: [
       { description: "Describe a customer job", method: "GET", endpoint: "/contact/site-operator" },
-      { description: "Apply as a deployment partner", method: "GET", endpoint: "/partners/deployment" },
+      { description: "Apply as a deployment company", method: "GET", endpoint: "/partners" },
     ],
   },
   {
@@ -193,7 +193,7 @@ const AGENT_KNOWLEDGE_ENTRIES: AgentKnowledgeEntry[] = [
     ],
     answer:
       "When search returns matchSemantics.noExactScannedPackage, use the returned requestCandidate.requestUrl or the blueprint.request.locationDraft tool to build an intake draft with a contact URL and inbound-request payload. Submitting intake records interest only — it does not grant entitlement, payment, rights clearance, provider execution, or hosted availability. Blueprint reviews the job brief and identifies which further details, capture or checks would help the decision.",
-    citations: [`${CANONICAL_ORIGIN}/contact/robot-team`, `${CANONICAL_ORIGIN}/sites`],
+    citations: [`${CANONICAL_ORIGIN}/contact/robot-team`],
     actions: [
       { description: "Build an intake-only location draft", method: "POST", endpoint: "cli: request location / mcp: blueprint.request.locationDraft", mcpTool: "blueprint.request.locationDraft" },
       { description: "Submit completed intake fields", method: "POST", endpoint: "/api/inbound-request" },
@@ -214,13 +214,12 @@ const AGENT_KNOWLEDGE_ENTRIES: AgentKnowledgeEntry[] = [
     // Stated from the one place a price, or its absence, lives.
     answer: [
       siteAssessment.allIn,
-      "Partner applications and authorized evaluations are free as well.",
       "A budget is optional to start. Before any pilot, the customer and Blueprint clarify the spending limits and required outcome. The physical pilot's scope, price and terms are agreed directly between the customer and deployment company, and Blueprint takes no cut of it.",
     ].join(" "),
     citations: [`${CANONICAL_ORIGIN}/beta`],
     actions: [
       { description: "Start a job (sites)", method: "GET", endpoint: "/contact/site-operator" },
-      { description: "Apply as a deployment or technology partner", method: "GET", endpoint: "/partners" },
+      { description: "Apply as a deployment company", method: "GET", endpoint: "/partners" },
     ],
   },
   {

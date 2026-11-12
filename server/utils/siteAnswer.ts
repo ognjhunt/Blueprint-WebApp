@@ -795,7 +795,7 @@ export function composeSiteAnswer(inputs: SiteAnswerInputs): SiteAnswer | null {
     reason: reason!.text, estimated: reason!.estimated }));
 
   const headline = !pick ? `None of the ${catalog.models.length} robots we checked fits this job on the numbers we have.`
-    : pick.verdict === "possible" ? `No robot clearly fits yet. The closest is ${displayName(pick.model)}.`
+    : pick.verdict === "possible" ? `No robot clearly fits. The closest is ${displayName(pick.model)}.`
       : `Most likely to fit: ${displayName(pick.model)}.`;
   // Said only while no arm that stays in one place passed its reach check (the measured scene can show one does).
   const fixedArmReaches = rated.some((entry) => entry.model.body_type === "fixed_arm"

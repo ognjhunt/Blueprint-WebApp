@@ -211,7 +211,7 @@ describe("GET /api/site-worlds/tasks/:taskId", () => {
         introduction_request: { ...job().introduction_request, statement_version: version, statement_text: text } }));
       // Before a result: the paper check, whatever the version.
       const before = (await get(`/tasks/${ID}`)).body.item.answerSummary;
-      expect(before.headline).toMatch(/^Most likely to fit: |^No robot clearly fits yet\.|^None of the /);
+      expect(before.headline).toMatch(/^Most likely to fit: |^No robot clearly fits\.|^None of the /);
       expect(before.test).toBeNull();
       // A result arrives after the choice.
       seams.managed.mockImplementation(async () => ({ managedEvidence: [{ current: true, state: "completed", outcome: "estimate",

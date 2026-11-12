@@ -115,7 +115,7 @@ export default function NativeG1PrivateReview() {
         <meta name="robots" content="noindex,nofollow,noarchive" />
       </Helmet>
       <div className="mx-auto flex max-w-[76rem] flex-col gap-6 px-4 py-8 lg:px-8">
-        <Link href="/app/runs" className="ws-back">← All runs</Link>
+        <Link href="/app" className="ws-back">← Overview</Link>
         {loading || query.isLoading ? <BuyerAppLoadingState /> : null}
         {!loading && !currentUser ? <p>Sign in to review this run.</p> : null}
         {query.error ? <BuyerAppErrorState message={query.error instanceof Error ? query.error.message : "Review unavailable"} /> : null}

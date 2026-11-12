@@ -2,7 +2,6 @@ import { useLocation } from "wouter";
 import { useMemo, useState } from "react";
 import {
   Bot,
-  ClipboardCheck,
   LayoutDashboard,
   LogIn,
   Menu,
@@ -75,10 +74,6 @@ export function Header() {
   const userPersona = useMemo(() => {
     // The capturer network is retired (owner, 2026-11-11): an account that
     // still carries the old capturer role is routed like everyone else.
-    const requestHref = userData?.structuredIntakeRequestId
-      ? `/requests/${encodeURIComponent(userData.structuredIntakeRequestId)}`
-      : null;
-
     if (userData?.buyerType === "site_operator") {
       return {
         label: "Site operator",
@@ -87,7 +82,6 @@ export function Header() {
         workspaceLabel: userData.finishedOnboarding ? "Open site workspace" : "Finish site onboarding",
         secondaryHref: "/contact/site-operator",
         secondaryLabel: "Submit another site",
-        requestHref,
       };
     }
 
@@ -98,7 +92,6 @@ export function Header() {
       workspaceLabel: userData?.finishedOnboarding ? "Open robot-team workspace" : "Finish robot-team onboarding",
       secondaryHref: "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=task-evaluation-run&path=task-evaluation-run&requestedOutputs=Task%20Evaluation%20Run&source=signed-in-header",
       secondaryLabel: "Request another Task Evaluation Run",
-      requestHref,
     };
   }, [userData]);
 
@@ -228,14 +221,6 @@ export function Header() {
                     {userPersona.workspaceLabel}
                   </a>
                 </DropdownMenuItem>
-                {userPersona.requestHref ? (
-                  <DropdownMenuItem asChild>
-                    <a href={userPersona.requestHref} className="flex items-center gap-2">
-                      <ClipboardCheck className="h-4 w-4" />
-                      Request room
-                    </a>
-                  </DropdownMenuItem>
-                ) : null}
                 <DropdownMenuItem asChild>
                   <a href={userPersona.secondaryHref}>
                     {userPersona.secondaryLabel}
@@ -347,15 +332,6 @@ export function Header() {
                   </p>
                   <p className="mt-1 text-sm text-runway-text">{userPersona.badge}</p>
                 </div>
-                {userPersona.requestHref ? (
-                  <a
-                    href={userPersona.requestHref}
-                    className="inline-flex min-h-11 items-center justify-center rounded-sm border border-runway-line px-4 py-2.5 text-center text-runway-text"
-                    onClick={() => setOpen(false)}
-                  >
-                    Request room
-                  </a>
-                ) : null}
                 <a
                   href={userPersona.secondaryHref}
                   className="inline-flex min-h-11 items-center justify-center rounded-sm border border-runway-line px-4 py-2.5 text-center text-runway-text"

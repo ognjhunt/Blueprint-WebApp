@@ -57,7 +57,7 @@ describe("sharing waits for the job's answer", () => {
     const refused = await post(true);
     expect(refused.status).toBe(409);
     expect(await refused.json()).toMatchObject({ code: "share_waits_for_answer", phase,
-      error: "You can share this job once it has an answer. We'll email you when it does." });
+      error: "You can share your job once its job packet is ready." });
     expect((state.docs.get("inboundRequests/req1") as any).public_task_listing).toBeUndefined();
     expect([...state.docs.keys()].filter(key => key.startsWith("captureOutbox/"))).toEqual([]);
   });

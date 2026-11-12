@@ -138,21 +138,23 @@ describe("cross-source claims guard", () => {
   });
 
   it("allows explicit negative proof-boundary lines that name blocked payment, payout, and provider claims", async () => {
-    const result = await scanClaims({
+    // The fixture states payment and payout only in the negative; the same words stated as a fact are a finding.
+    // (This used to point at server/routes/requests.ts, a removed file, and asserted nothing.)
+    const negative = await scanClaims({
       rootDir: repoRoot,
-      targets: ["server/routes/requests.ts"],
+      targets: ["scripts/claims/fixtures/allowed/payment-boundary-negative.md"],
       writeReports: false,
     });
+    expect(negative.findings.filter(finding => finding.type === "payment_or_payout_claim")).toEqual([]);
 
-    expect(result.findings).not.toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          file: "server/routes/requests.ts",
-          line: 27,
-          type: "payment_or_payout_claim",
-        }),
-      ]),
-    );
+    const positive = await scanClaims({
+      rootDir: repoRoot,
+      targets: ["scripts/claims/fixtures/negative/stale-stripe-payout-provider-doc.md"],
+      writeReports: false,
+    });
+    expect(positive.findings).toEqual(expect.arrayContaining([
+      expect.objectContaining({ file: "scripts/claims/fixtures/negative/stale-stripe-payout-provider-doc.md", line: 1, type: "payment_or_payout_claim" }),
+    ]));
   });
 
   it("renders exact file and line evidence with proof owners and safe replacements", async () => {

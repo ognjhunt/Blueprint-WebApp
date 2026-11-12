@@ -16,7 +16,6 @@ import websiteAtlasPreviewViewsRouter from "./routes/website-atlas-preview-views
 import websiteDestinationPicturesRouter from "./routes/website-destination-pictures";
 import screeningPracticeRunVideosRouter from "./routes/screening-practice-run-videos";
 import nativeG1PrivateReviewsRouter, { nativeG1PrivateReviewDownloadsRouter, nativeG1PrivateReviewIngestRouter } from "./routes/native-g1-private-reviews";
-import nativeG1TeamCampaignsRouter from "./routes/native-g1-team-campaigns";
 import postSignupWorkflowsHandler from "./routes/post-signup-workflows";
 import qrLinkRouter from "./routes/qr-link";
 import appleAssociationRouter from "./routes/apple-app-site-association";
@@ -43,12 +42,10 @@ import adminRobotTeamsRouter from "./routes/admin-robot-teams";
 import adminAgentRouter from "./routes/admin-agent";
 import adminAgentSpendRouter from "./routes/admin-agent-spend";
 import { resendWebhookHandler } from "./routes/resend-webhook";
-import adminCompanyMetricsRouter from "./routes/admin-company-metrics";
 import adminSiteWorldsRouter from "./routes/admin-site-worlds";
 import adminSlaRouter from "./routes/admin-sla";
 import analyticsIngestRouter from "./routes/analytics-ingest";
 import experimentsRouter from "./routes/experiments";
-import requestsRouter from "./routes/requests";
 import internalPipelineRouter from "./routes/internal-pipeline";
 import internalCaptureTaskControlPlaneRouter from "./routes/internal-capture-task-control-plane";
 import internalCaptureTestbedsRouter from "./routes/internal-capture-testbeds";
@@ -79,12 +76,11 @@ import siteWorldSessionsRouter, { publicSiteWorldSessionsRouter } from "./routes
 import { paperclipOpsFirestoreRelayHandler } from "./routes/paperclip-relay";
 import slackEventsRouter from "./routes/slack-events";
 import verifyFirebaseToken, { optionallyVerifyFirebaseToken } from "./middleware/verifyFirebaseToken";
-import { requireAdminRole, requireExecutionRole } from "./middleware/requireAdminRole";
+import { requireAdminRole } from "./middleware/requireAdminRole";
 import { csrfCookieHandler, csrfProtection } from "./middleware/csrf";
 import { requireAppCheck } from "./middleware/appCheck";
 import marketplaceEntitlementsRouter from "./routes/marketplace-entitlements";
 import robotEvalJobRequestsRouter from "./routes/robot-eval-job-requests";
-import companyPolicyCandidatesRouter from "./routes/company-policy-candidates";
 import internalCompanyPolicyRegistryCredentialsRouter from "./routes/internal-company-policy-registry-credentials";
 import internalCheckpointPolicyCredentialsRouter from "./routes/internal-checkpoint-policy-credentials";
 import clientRuntimeConfigAdminRouter, {
@@ -188,7 +184,6 @@ export function registerRoutes(app: Express) {
   app.use("/api/site-worlds", siteWorldsRouter);
   app.use("/api/site-worlds/sessions", publicSiteWorldSessionsRouter);
   app.use("/api/task-evaluation-runs", evaluationReadyRunsRouter);
-  app.use("/api/task-evaluation-runs", companyPolicyCandidatesRouter);
   app.use("/api/task-evaluation-runs", robotEvalJobRequestsRouter);
   app.use("/api/task-evaluation-result-downloads", taskEvaluationResultDownloadsRouter);
   app.use("/api/native-g1-review-downloads", nativeG1PrivateReviewDownloadsRouter);
@@ -221,7 +216,6 @@ export function registerRoutes(app: Express) {
   // Inbound request (lead pipeline) - public submission endpoint
   // App Check is staged by BLUEPRINT_APP_CHECK_MODE (off | monitor | enforce).
   app.use("/api/inbound-request", csrfProtection, requireAppCheck("inbound_intake"), inboundRequestRouter);
-  app.use("/api/requests", csrfProtection, requestsRouter);
   // The robot-team registry and its review queue. Operator-only: accepting a
   // proposal is the one action that turns an inferred figure into a registry
   // value, and it records who did it.
@@ -255,13 +249,6 @@ export function registerRoutes(app: Express) {
     verifyFirebaseToken,
     requireAdminRole,
     adminAgentSpendRouter,
-  );
-  app.use(
-    "/api/admin/company-metrics",
-    csrfProtection,
-    verifyFirebaseToken,
-    requireAdminRole,
-    adminCompanyMetricsRouter,
   );
   app.use(
     "/api/admin/site-worlds",
@@ -325,15 +312,6 @@ export function registerRoutes(app: Express) {
     csrfProtection,
     optionallyVerifyFirebaseToken,
     nativeG1PrivateReviewsRouter,
-  );
-  app.use(
-    "/api/native-g1-team-campaigns",
-    csrfProtection,
-    verifyFirebaseToken,
-    // G1 is a bounded operator development lane. A signed-in customer's
-    // cost acknowledgement must never authorize Blueprint provider spend.
-    requireExecutionRole,
-    nativeG1TeamCampaignsRouter,
   );
   app.use(
     "/api/capture-uploads",

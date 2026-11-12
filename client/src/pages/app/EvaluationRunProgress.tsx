@@ -195,7 +195,7 @@ export default function EvaluationRunProgress() {
   return (
     <AppShell active="runs" breadcrumb={`runs / ${decodedRunId || "evaluation"}`}>
       <Helmet><title>Evaluation run · Blueprint</title></Helmet>
-      <Link className="ws-back" href="/app/runs">← All runs</Link>
+      <Link className="ws-back" href="/app">← Overview</Link>
       {!run && !error ? <BuyerAppLoadingState /> : null}
       {error ? <div className="ws-alert" role="alert"><p>{error}</p></div> : null}
       {run ? <>

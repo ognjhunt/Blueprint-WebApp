@@ -33,9 +33,6 @@ describe("brand polish QA harness contract", () => {
     const auditedPaths = [
       ...canonicalPaths,
       "/about",
-      "/sites",
-      `/sites/${harness.brandPolishSiteFixtureSlug}`,
-      "/beta/buyer-guide",
       "/sign-in",
       "/forgot-password",
       "/this-page-does-not-exist",

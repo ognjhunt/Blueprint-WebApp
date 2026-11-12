@@ -381,7 +381,7 @@ router.post("/register", registrationRateLimiter, async (req: Request, res: Resp
         : admission.via === "invitation"
           ? "Create your verified Blueprint account from the invitation link in your approval email; this team is connected to it automatically. Then manage its checkpoints at /settings?tab=robots."
           : "Connect this team to the approved team's verified Blueprint account with this key (POST /api/workspace/robot-team/connect), then manage its checkpoints at /settings?tab=robots.",
-      "Open your workspace at /app to offer your policy on open jobs; Blueprint runs it free during the beta. Or ask about a job at /contact/robot-team.",
+      "Running your own software on a site's job is not offered yet; ask about a job at /contact/robot-team. Nothing is charged today.",
     ],
   });
 });
@@ -695,7 +695,7 @@ router.post("/checkpoints", async (req: Request, res: Response) => {
   return res.status(201).json({
     ok: true,
     checkpoint: result.checkpoint,
-    next: "Registration does not start an evaluation. Connect the team to a verified Blueprint account and manage its checkpoints at /settings?tab=robots. Open your workspace at /app to offer your policy on open jobs, or contact Blueprint at /contact/robot-team; Blueprint runs it free during the beta.",
+    next: "Registration does not start an evaluation. Connect the team to a verified Blueprint account and manage its checkpoints at /settings?tab=robots. Running your own software on a site's job is not offered yet; ask about a job at /contact/robot-team. Nothing is charged today.",
   });
 });
 

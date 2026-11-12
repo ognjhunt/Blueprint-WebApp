@@ -19,8 +19,8 @@ const FIND = "Share my job";
 const QUESTION = "May we share a summary of your job with deployment companies we approve?";
 /** The recorded statement, word for word: only the words around it changed. */
 const CONSENT = "Shares a summary of your job and your answer, including later test results, without saying who you are, with companies we've approved. Your video, address and contacts stay private.";
-const LISTED = "Shared on November 11, 2026 with the deployment companies we've approved. Nothing more is needed from you.";
-const UNLISTED = "You asked on November 11, 2026 to share a summary of your job. Blueprint will share it with the deployment companies we've approved.";
+const LISTED = "Shared on November 11, 2026. Deployment companies we approve can see a summary of your job. Nothing more is needed from you.";
+const UNLISTED = "You asked on November 11, 2026 to share a summary of your job.";
 const FIRST_LOOK = "On paper, the robot most likely to fit: Universal Robots UR10e.";
 const TRIAL_LINE = "This is our own trial of openly available robot software. It does not predict what a deployment company's robot would do.";
 /** Opens the folded early trial, as a site would. */

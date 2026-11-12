@@ -17,8 +17,8 @@ describe("free beta pricing", () => {
     expect(betaFeeUsd).toBe(0);
     expect(siteAssessment.amount).toBe(0);
     expect(formatPrice(siteAssessment.amount)).toBe("$0");
-    expect(siteAssessment.allIn).toMatch(/^Free during the beta\./);
-    expect(siteAssessment.allIn).toMatch(/pilot coordination cost nothing/i);
+    // The frame of 2026-11-12: the only money sentences are "Free for sites" and "Nothing is charged today".
+    expect(siteAssessment.allIn).toBe("Free for sites. Nothing is charged today.");
   });
 
   it("no longer exports a live site fee, booking authorization or paid-entry quote", () => {

@@ -140,7 +140,7 @@ export function JobCardAnswer({ answer, titled = true }: { answer: JobCardAnswer
     {titled && <h3 className="bare-label">{JOB_CARD_ANSWER_TITLE}</h3>}
     {pick ? <BareGroup>
       <p className="bare-label">{fits ? "The robot most likely to fit" : "The closest robot"}</p>
-      <BareBig as="p" sub={`by ${pick.manufacturer}${fits ? "" : ". No robot clearly fits yet."}${answer.familyLabel ? ` · Kind of job: ${answer.familyLabel}` : ""}`}>{pick.name}</BareBig>
+      <BareBig as="p" sub={`by ${pick.manufacturer}${fits ? "" : ". No robot clearly fits."}${answer.familyLabel ? ` · Kind of job: ${answer.familyLabel}` : ""}`}>{pick.name}</BareBig>
     </BareGroup> : <BareGroup><BareLead>{answer.headline}</BareLead></BareGroup>}
     {pick && <BareGroup><BareTicks label="Why" items={ticksOf(pick.checks ?? [], pick.evidence[0])} /></BareGroup>}
     {answer.sceneNote && <BareGroup><BareNotice>{answer.sceneNote}</BareNotice></BareGroup>}
