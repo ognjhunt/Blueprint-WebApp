@@ -94,10 +94,8 @@ for (const width of [390, 1440]) {
       if (path === "/api/task-listings/owner/synthetic-owner") return route.fulfill({ json: {
         listing: null, thumbnailPng: null,
       } });
-      // The readiness report answers for itself; this journey's job is not shared. The site sends its video and
-      // nothing else, so no item photos, measurements or follow-up questions are ever read.
-      if (path === "/api/site-task-brief/synthetic-owner/readiness" && !post) return route.fulfill({ json: { ok: true, summary: null,
-        tracker: { steps: [], meanwhile: null }, report: null, briefPath: null } });
+      // The site sends its video and nothing else, so no item photos, measurements, follow-up questions or readiness
+      // report (removed 2026-11-12) are ever read: any such request lands in `unexpected`.
       unexpected.push(`${route.request().method()} ${path}`);
       return route.fulfill({ status: 501, json: { error: "Unmapped fixture API" } });
     });

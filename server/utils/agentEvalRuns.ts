@@ -60,7 +60,6 @@ import {
   type RunDispatch,
   type RunExecutionProgress,
 } from "./agentRunRecord";
-import { enqueueTaskLifecycleNotification, notifyIfNoTeamPassed } from "./taskLifecycleNotifications";
 import { notifyTeamOfRunOutcome } from "./robotTeamNotifications";
 import type { NoResultObservation } from "./runNoResultObservation";
 import { teamJobAccess } from "./teamJobAccess";
@@ -244,17 +243,9 @@ async function recordRunOutcome(params: RunOutcomeParams & {
     return "recorded" as const;
   });
   // A terminal run without a complete result can still retain partial episode
-  // observations. Carry those observations to both audiences unchanged.
+  // observations. Carry those observations to the team unchanged.
   const ended = endedWithoutResult as { sceneId: string; teamId: string; siteVisible: boolean; progress: NoResultObservation } | null;
   if (ended) {
-    try {
-      if (ended.siteVisible) {
-        await enqueueTaskLifecycleNotification({ requestId: ended.sceneId, milestone: "run_no_result", eventId: params.runId, runProgress: ended.progress });
-        try { await notifyIfNoTeamPassed(ended.sceneId, params.runId); } catch { /* best-effort */ }
-      }
-    } catch (error) {
-      logger.warn({ error, runId: params.runId }, "Could not enqueue a no-result notice");
-    }
     try {
       await notifyTeamOfRunOutcome({ teamId: ended.teamId, runId: params.runId, outcome: { kind: "no_result", progress: ended.progress } });
     } catch (error) {

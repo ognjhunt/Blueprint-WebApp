@@ -1,13 +1,4 @@
-import {
-  useEffect,
-  useRef,
-  useState,
-  useId,
-  cloneElement,
-  isValidElement,
-  type ReactElement,
-  type ReactNode,
-} from "react";
+import { useRef, useState, useId, cloneElement, isValidElement, type ReactElement, type ReactNode } from "react";
 import { Link } from "wouter";
 import { ArrowRight } from "lucide-react";
 import { Helmet } from "@/lib/helmet";
@@ -17,10 +8,6 @@ import {
   useWorkspace,
   WorkspaceRequestError,
 } from "@/lib/workspace";
-import type {
-  TaskTargets,
-  WorkspaceResult,
-} from "@/types/workspace";
 export type WorkspaceQuery = ReturnType<typeof useWorkspace>;
 export function Frame({
   query,
@@ -44,7 +31,6 @@ export function Frame({
       active={active}
       breadcrumb={title}
       role={query.data?.role}
-      hasOwnedSites={Boolean(query.data?.tasks.length)}
       organization={query.data?.profile.organization}
       contentClassName={contentClassName}
     >
@@ -153,51 +139,6 @@ export function Tag({
     </span>
   );
 }
-export function TargetLine({ terms }: { terms: TaskTargets }) {
-  const parts = [
-    terms.successRate !== null ? `≥${terms.successRate}% success` : null,
-    terms.cycleTimeSeconds !== null
-      ? `≤${terms.cycleTimeSeconds} sec per cycle`
-      : null,
-  ].filter(Boolean);
-  return (
-    <span>
-      {parts.length ? `Target: ${parts.join(" · ")}` : "Targets to be agreed"}
-    </span>
-  );
-}
-export function Score({ result }: { result: WorkspaceResult }) {
-  return (
-    <>
-      <span>
-        {result.successRate === null
-          ? ["failed", "blocked", "abstained", "cancelled"].includes(
-              result.status,
-            )
-            ? "No scored result"
-            : [
-                  "decided",
-                  "decision_available",
-                  "completed",
-                  "complete",
-                  "partially_decided",
-                ].includes(result.status)
-              ? "See detailed results"
-              : "Results pending"
-          : `${Number(result.successRate.toFixed(1))}% success`}
-      </span>
-      {result.cycleTimeSeconds !== null && (
-        <small>{Number(result.cycleTimeSeconds.toFixed(1))} sec / cycle</small>
-      )}
-      {result.successRate !== null && (
-        <small>
-          {result.evidenceLabel}
-          {result.sampleCount !== null ? ` · ${result.sampleCount} trials` : ""}
-        </small>
-      )}
-    </>
-  );
-}
 export function Field({
   label,
   children,
@@ -225,38 +166,6 @@ export function Field({
         : children}
       {hint && <small id={`${fieldId}-hint`}>{hint}</small>}
     </div>
-  );
-}
-export function Modal({
-  title,
-  children,
-  onClose,
-}: {
-  title: string;
-  children: ReactNode;
-  onClose: () => void;
-}) {
-  const dialog = useRef<HTMLDialogElement>(null);
-  useEffect(() => {
-    const element = dialog.current;
-    element?.showModal();
-    return () => element?.close();
-  }, []);
-  return (
-    <dialog
-      ref={dialog}
-      className="ws-native-dialog"
-      onCancel={onClose}
-      aria-labelledby="workspace-dialog-title"
-    >
-      <div className="ws-section-title">
-        <h2 id="workspace-dialog-title">{title}</h2>
-        <button type="button" aria-label="Close dialog" onClick={onClose}>
-          ✕
-        </button>
-      </div>
-      {children}
-    </dialog>
   );
 }
 export function useAction(query: WorkspaceQuery) {

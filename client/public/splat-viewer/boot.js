@@ -5,7 +5,7 @@
 const NOT_VALID = "This 3D preview link is not valid. Open the preview again from your job page.";
 const NOT_LOADED = "This 3D preview could not be loaded. Go back to your job page and open it again in a minute.";
 const NO_GRAPHICS = "This browser could not show the 3D preview. Try again in an up-to-date desktop browser.";
-/** The view route's scene URL; its first segment is the job the preview belongs to. */
+/** The view route's scene URL; its first segment is the job the preview belongs to, and a link without one is refused. */
 const SCENE_URL = /^\/api\/website-atlas-preview-views\/([A-Za-z0-9][A-Za-z0-9._-]{0,119})\/[^/?]+\/scene\.ply\?/;
 
 const status = document.querySelector(".bp-status");
@@ -27,11 +27,7 @@ const job = SCENE_URL.exec(contentUrl)?.[1];
 if (!job) {
   showProblem(NOT_VALID);
 } else {
-  const back = document.querySelector(".bp-back");
-  if (back) {
-    back.href = `/app/tasks/${encodeURIComponent(job)}`;
-    back.textContent = "Back to your job";
-  }
+  // The way back is the account's one jobs list, which opens each job page (2026-11-12: no signed-in job page).
   // Ask for the scene and its start view before loading the viewer's code: on a first view
   // the server is still preparing them, and that wait now overlaps the download.
   //

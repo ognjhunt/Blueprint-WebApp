@@ -226,11 +226,11 @@ describe("build output", () => {
     expect(llms).toContain("https://tryblueprint.io/contact/site-operator");
     expect(llms).toContain("https://tryblueprint.io/partners");
     expect(llms).toContain("Applications stay pending until Blueprint approves the company by hand");
-    expect(llms).toContain("paid_evaluations_disabled");
+    // The agent API and its section went on 2026-11-12: nothing in the published text points an agent at it.
+    for (const text of [llms, llmsFull]) expect(text).not.toMatch(/agent-access|agent-team|Agent interfaces|paid_evaluations_disabled/);
     expect(llmsFull).toContain("A simulation is a bounded estimate and never certifies physical performance or safety.");
     expect(llmsFull).toContain("A company tells us whether it would take the job. A company sees only the summary the site approved. It never sees the video or the simulation.");
     expect(llmsFull).toContain("Each job comes as a summary: the kind of job, a first look at which robots could fit, and our early trial's result where one exists.");
-    expect(llmsFull).toContain("early_access_required");
     expect(llms).toContain("https://tryblueprint.io/beta");
     // The frame of 2026-11-12: a job packet, a summary shared only with the site's permission, the trial labelled.
     expect(llms).toContain("Film a job once. We turn it into a job packet.");

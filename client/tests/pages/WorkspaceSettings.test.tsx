@@ -2,7 +2,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import Settings from "@/pages/workspace/Settings";
-import { deploymentEmbodimentCatalog } from "@/lib/deploymentEmbodimentSupport";
 vi.mock("@/contexts/AuthContext", () => ({
   useAuth: () => ({
     currentUser: {
@@ -17,21 +16,19 @@ vi.mock("@/contexts/AuthContext", () => ({
 }));
 afterEach(() => vi.unstubAllGlobals());
 describe("unconfigured account settings", () => {
-  it("keeps internal planning options out of customer robot settings", async () => {
+  it("offers a robot team no robots-and-policies tab: running its own software is not offered (2026-11-12)", async () => {
     window.history.replaceState({}, "", "/settings?tab=robots");
-    const fetch = vi.fn(async (path: RequestInfo | URL) => new Response(JSON.stringify(
-      String(path).includes("/checkpoints") ? {teams:[],checkpoints:[],runtimes:[]}
-        : {role:"robot_team",profile:{name:"Robot Owner",organization:"Robot Team",email:"team@example.test"},
-          tasks:[],setups:[],evaluations:[],results:[]}), {status:200,headers:{"Content-Type":"application/json"}}));
+    const fetch = vi.fn(async () => new Response(JSON.stringify({role:"robot_team",
+      profile:{name:"Robot Owner",organization:"Robot Team",email:"team@example.test"},tasks:[]}),
+      {status:200,headers:{"Content-Type":"application/json"}}));
     vi.stubGlobal("fetch", fetch);
     const client = new QueryClient({defaultOptions:{queries:{retry:false}}});
     const view = render(<QueryClientProvider client={client}><Settings /></QueryClientProvider>);
-    fireEvent.click(await screen.findByRole("button",{name:"+ Add setup"}));
-    const source = screen.getByRole("combobox",{name:"Robot model"});
-    for (const robot of deploymentEmbodimentCatalog.embodiments) expect(screen.queryByRole("option",{name:robot.display_name})).toBeNull();
-    expect(screen.getByRole("option",{name:"Use my robot model"})).toBeInTheDocument();
-    expect(screen.queryByRole("heading",{name:"Robot and policy shortlist"})).toBeNull();
-    expect(fetch.mock.calls.some(([path])=>String(path).endsWith("/setups"))).toBe(false);
+    expect(await screen.findByRole("heading",{name:"Account"})).toBeInTheDocument();
+    expect(screen.queryByRole("tab",{name:"Robots & policies"})).toBeNull();
+    expect(screen.queryByRole("button",{name:"+ Add setup"})).toBeNull();
+    expect(screen.queryByText(/Policy token|Saved setups/)).toBeNull();
+    expect(fetch.mock.calls.some(([path])=>/\/(setups|checkpoints)\b/.test(String(path)))).toBe(false);
     view.unmount(); client.clear(); window.history.replaceState({},"","/");
   });
   it("shows editable setup and keeps capture access instead of a dead-end retry", async () => {

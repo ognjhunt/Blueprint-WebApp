@@ -65,11 +65,6 @@ const definitions = [
       "An authoritative physical observation joined to the exact decision, testbed version, method profile, and evidence artifact identifiers. A user note alone cannot recalibrate a method.",
   },
   {
-    term: "Structured robot-team test submission",
-    definition:
-      "A candidate reference inside a Task Evaluation Run. It may name a robot, policy, checkpoint, policy API, container, trace, or controller without sending client secrets or raw policy weights and without proving execution.",
-  },
-  {
     term: "Claim ceiling",
     definition:
       "The strongest conclusion supported by the current evidence. It keeps estimates, simulation, provider output, real observations, and physical results from being presented as interchangeable.",
@@ -147,8 +142,6 @@ const queryThemes = [
   "controlled digital twin evaluation",
   "real site job robot evaluation decision",
   "maintained Site-Task Testbed",
-  "compare robot policies on a real task",
-  "test robot checkpoint compatibility before field time",
   "robot task decision or abstention",
   "capture-backed robot evaluation evidence",
   "validation envelope robot evidence",
@@ -156,7 +149,6 @@ const queryThemes = [
   "next cheapest robot experiment",
   "physical evidence required for robot claims",
   "site operator job evaluation request",
-  "robot team job evaluation request",
   "simulation and world model evidence boundaries",
   "post-training eligible evidence",
   "capture provenance for robot evaluation",
@@ -210,8 +202,6 @@ router.get("/", (_req: Request, res: Response) => {
     machineReadableFiles: {
       llms: "/llms.txt",
       llmsFull: "/llms-full.txt",
-      agentAccessOpenApi: "/agent-access.openapi.json",
-      agentAccessApi: "/api/agent-access/openapi.json",
       sitemap: "/sitemap.xml",
       robots: "/robots.txt",
     },

@@ -4,18 +4,11 @@ import { authAdmin } from "../../client/src/lib/firebaseAdmin";
 import { bindVerifiedPreferenceAccount } from "./updatePreferences";
 import { logger } from "../logger";
 import { resolveAccessContext } from "./access-control";
-import { presentedAgentKey, resolveAgentKey } from "./robotTeamAgentKeys";
-import {
-  isRobotTeamEarlyAccessGated,
-  resolveViewerAccess,
-  teamHasEarlyAccess,
-  type LibraryAccess,
-} from "./robotTeamEarlyAccess";
+import { resolveViewerAccess, type LibraryAccess } from "./robotTeamEarlyAccess";
 
 /**
- * The library access for one request, from whichever credential it carries.
+ * The library access for one request, from the credential it carries.
  *
- * - A Blueprint agent key (`bpk_…`): the team's bound, verified account decides.
  * - A Firebase ID token: the verified email decides; staff always see.
  * - Nothing, or a credential that does not verify: anonymous.
  *
@@ -23,21 +16,8 @@ import {
  * stale session shows the application instead of an error.
  */
 export async function libraryAccessForRequest(req: Request): Promise<LibraryAccess> {
-  const gated = isRobotTeamEarlyAccessGated();
-  const presented = presentedAgentKey(req.headers as unknown as Record<string, unknown>);
-
-  if (presented && presented.startsWith("bpk_")) {
-    const teamId = await resolveAgentKey(presented).catch(() => null);
-    const allowed = teamId ? await teamHasEarlyAccess(teamId) : !gated;
-    return {
-      gated,
-      status: allowed ? "approved" : "none",
-      signedIn: Boolean(teamId),
-      emailVerified: allowed,
-      allowed,
-      staff: false,
-    };
-  }
+  const authorization = String(req.headers.authorization ?? "");
+  const presented = authorization.toLowerCase().startsWith("bearer ") ? authorization.slice(7).trim() : null;
 
   if (presented && authAdmin) {
     try {

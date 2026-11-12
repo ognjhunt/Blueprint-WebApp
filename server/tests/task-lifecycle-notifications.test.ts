@@ -77,19 +77,6 @@ describe("task lifecycle notifications", () => {
     expect(sharedFakeFirestoreState.docs.has("captureOutbox/req-1:screening_started")).toBe(false);
   });
 
-  it("sends each run or request its own email, and a retry of one event none", async () => {
-    await enqueueTaskLifecycleNotification({ requestId: "req-1", milestone: "results_ready", eventId: "run_a", detail: "12 of 50 simulated episodes succeeded" });
-    await enqueueTaskLifecycleNotification({ requestId: "req-1", milestone: "results_ready", eventId: "run_b" });
-    expect((await enqueueTaskLifecycleNotification({ requestId: "req-1", milestone: "results_ready", eventId: "run_a" })).enqueued).toBe(false);
-
-    const first = sharedFakeFirestoreState.docs.get("captureOutbox/req-1:results_ready:run_a") as Record<string, string>;
-    expect(first.body).toContain("12 of 50 simulated episodes succeeded");
-    expect(first.body).toMatch(/not a physical test/i);
-    // One candidate's run is a bounded estimate; there is no separate full-evaluation tier (owner, 2026-10-28).
-    expect(first.body).toMatch(/simulation estimate for that one candidate, not a physical test\. It never certifies physical performance or safety/);
-    expect(first.body).not.toMatch(/finalists|full scoring|full evaluation/);
-    expect(sharedFakeFirestoreState.docs.has("captureOutbox/req-1:results_ready:run_b")).toBe(true);
-  });
 
   it("puts the private task link in the first email, so it is not only on the success screen", async () => {
     await enqueueTaskLifecycleNotification({ requestId: "req-1", milestone: "task_received" });
@@ -122,7 +109,7 @@ it("recovers a persisted ready scene notice without another controller poll", as
 });
 
 describe('withdrawal fences capture-derived notices without suppressing recovery',()=>{
- it.each(['video_received','scene_ready','results_ready','run_no_result'] as const)('does not enqueue %s after persisted withdrawal',async milestone=>{
+ it.each(['video_received','scene_ready'] as const)('does not enqueue %s after persisted withdrawal',async milestone=>{
   sharedFakeFirestoreState.docs.set('inboundRequests/req-1',{contact:{email:'encrypted:owner@example.com'},request:{consent_attestation:{granted:false,withdrawn_at_iso:'2026-10-08T00:00:00Z'}}});
   expect(await enqueueTaskLifecycleNotification({requestId:'req-1',milestone})).toEqual({enqueued:false,reason:'consent_withdrawn'});
   expect([...sharedFakeFirestoreState.docs.keys()].some(key=>key.startsWith('captureOutbox/'))).toBe(false);
@@ -313,14 +300,6 @@ describe("a waiting job hears what it is waiting on", () => {
 
   // The frame of 2026-11-12: no company can request an evaluation, so "Your job is ready for evaluation" is never queued,
   // whatever the job's access says; the site hears its summary is shared by `listing_live` alone.
-  it("never queues the ready-for-evaluation email", async () => {
-    const { notifyIfOpenForEvaluations } = await import("../utils/taskLifecycleNotifications");
-    for (const available of [false, true]) {
-      jobAccess.evaluationAvailable = available;
-      expect((await notifyIfOpenForEvaluations("req-1")).enqueued).toBe(false);
-    }
-    expect(sharedFakeFirestoreState.docs.has("captureOutbox/req-1:awaiting_evaluations")).toBe(false);
-  });
 
   it("tells the site once its scene is ready and its first test started, only while true", async () => {
     const { notifyIfSceneTestsStarted, reconcileSceneTestsStartedNotices, notifySceneTestsStartedForLaunch } =
@@ -404,58 +383,11 @@ describe("a waiting job hears what it is waiting on", () => {
       eventId: `estimate-${"a".repeat(24)}`, screeningOutcome: "no_match" })).toThrow("evaluation_outcome_notice_invalid");
   });
 
-  it("is not sent once it has become false between enqueue and dispatch", async () => {
-    const { taskLifecycleNotificationIsCurrent } = await import("../utils/taskLifecycleNotificationAuthority");
-    jobAccess.evaluationAvailable = true;
-    const waiting = { kind: "awaiting_evaluations" as const, requestId: "req-1" };
-    expect(await taskLifecycleNotificationIsCurrent(waiting)).toBe(true);
-    run("run_q", "requested", null);
-    expect(await taskLifecycleNotificationIsCurrent(waiting)).toBe(false);
-    run("run_q", "completed", 100);
-    const none = { kind: "no_team_passed" as const, requestId: "req-1" };
-    expect(await taskLifecycleNotificationIsCurrent(none)).toBe(true);
-    run("run_p", "completed", 199);
-    expect(await taskLifecycleNotificationIsCurrent(none)).toBe(false);
-  });
 
-  it("says no team passed only when every evaluation finished below the pass mark and nothing is recommended", async () => {
-    const { notifyIfNoTeamPassed } = await import("../utils/taskLifecycleNotifications");
-    run("run_a", "completed", 120);
-    run("run_b", "blocked", null);
-    expect((await notifyIfNoTeamPassed("req-1", "run_b")).enqueued).toBe(false);
-    sharedFakeFirestoreState.docs.delete("evaluationRuns/run_b");
-    expect((await notifyIfNoTeamPassed("req-1", "run_b")).enqueued).toBe(true);
-    const row = sharedFakeFirestoreState.docs.get("captureOutbox/req-1:no_team_passed:run_b") as Record<string, string>;
-    expect(row.subject).toBe("No evaluation of your job has passed yet");
-    expect(row.body).not.toMatch(/robot teams?/i);
-    expect(row.body).toMatch(/none passed\. /);
-    expect(row.body).not.toMatch(/pilot recommendation|full evaluation/);
 
-    run("run_c", "requested", null);
-    expect((await notifyIfNoTeamPassed("req-1", "run_a")).enqueued).toBe(false);
-    run("run_c", "completed", 195);
-    expect((await notifyIfNoTeamPassed("req-1", "run_c")).enqueued).toBe(false);
-    run("run_c", "completed", 100);
-    sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { contact: { email: "encrypted:owner@example.com" }, pilot_recommendation: { id: "rec" } });
-    expect((await notifyIfNoTeamPassed("req-1", "run_c")).enqueued).toBe(false);
-  });
-
-  it("does not turn development evidence or missing measurements into a failed-policy notice", async () => {
-    const { notifyIfNoTeamPassed } = await import("../utils/taskLifecycleNotifications");
-    run("run_a", "completed", 120);
-    const value = sharedFakeFirestoreState.docs.get("evaluationRuns/run_a") as Record<string, any>;
-    value.result.evidenceScope = "development_only";
-    // It counts neither way: the site hears, once, that none can support a recommendation yet.
-    expect((await notifyIfNoTeamPassed("req-1", "run_a")).enqueued).toBe(true);
-    delete value.result.evidenceScope;
-    delete value.result.scoring.siteTaskQualification;
-    expect((await notifyIfNoTeamPassed("req-1", "run_a")).enqueued).toBe(false);
-    expect([...sharedFakeFirestoreState.docs.keys()].some(key => key.includes(":no_team_passed:"))).toBe(false);
-    expect([...sharedFakeFirestoreState.docs.keys()].filter(key => key.endsWith(":no_qualified_evaluation"))).toHaveLength(1);
-  });
 });
 
-it.each(["results_ready", "run_no_result", "no_team_passed", "no_qualified_evaluation", "evaluation_outcome"] as const)("keeps %s on the private job page without an account step", async milestone => {
+it.each(["evaluation_outcome"] as const)("keeps %s on the private job page without an account step", async milestone => {
   const { buildTaskLifecycleNotification } = await import("../utils/taskLifecycleNotifications");
   const notice = buildTaskLifecycleNotification({ requestId: "req-1", to: "owner@example.com", milestone,
     ...(milestone === "evaluation_outcome" ? { eventId: `estimate-${"a".repeat(24)}`, screeningOutcome: "estimate" as const,
@@ -493,11 +425,11 @@ describe("a finished simulation's email says what the job page's simulation resu
     const { LIMITS_TESTED } = await import("../../client/src/lib/siteAnswer");
     const { testHeadline, testResultOf } = await import("../../client/src/lib/simulationProof");
     const proof = await proofOf(evaluation([["pi05_droid", 4, 5], ["groot_n17_droid", 1, 5]]));
-    const notice = await build(proof, "https://example.invalid/app/tasks/req-1");
+    const notice = await build(proof, "https://example.invalid/app");
     expect(notice.subject).toBe("Our early trial on your job has finished");
     // 4 of 5 against 1 of 5 is about 0.96 under the probability rule: ahead, not "did best".
     expect(notice.body).toBe(`This was our own trial of openly available robot software, not a deployment company's robot. ${testHeadline(testResultOf(proof))} Nothing is needed from you.\n\n`
-      + "See the result in your workspace:\nhttps://example.invalid/app/tasks/req-1\n\n" + finePrint(LIMITS_TESTED));
+      + "See the result on your job page, from your account:\nhttps://example.invalid/app\n\n" + finePrint(LIMITS_TESTED));
     expect(notice.body.startsWith("This was our own trial of openly available robot software, not a deployment company's robot. Was ahead in our early trial: Franka arm + π0.5, doing your job in 4 of 5 tries. Nothing is needed from you.")).toBe(true);
     expect(notice.body).not.toMatch(banned);
     expect(notice.body).not.toContain("private-owner-link");
@@ -556,8 +488,8 @@ describe("a job the window sweep ended is told under its own fixed key", () => {
       + "https://example.invalid/private-owner-link");
     const claimed = buildTaskLifecycleNotification({ requestId: "req-1", to: "owner@example.com", milestone: "scene_outcome",
       eventId: "job_window_ended", jobWindowEnded: true, captureUrl: "https://example.invalid/private-owner-link",
-      workspaceUrl: "https://example.invalid/app/tasks/req-1" });
-    expect(claimed.body).toContain("Open your job in your workspace:\nhttps://example.invalid/app/tasks/req-1");
+      workspaceUrl: "https://example.invalid/app" });
+    expect(claimed.body).toContain("Open your job from your account:\nhttps://example.invalid/app");
     // Only the fixed event id, and never together with a scene outcome kind.
     for (const params of [{ eventId: `held-${"a".repeat(64)}` }, { eventId: undefined },
       { eventId: "job_window_ended", sceneOutcomeKind: "held" as const }])
@@ -881,16 +813,17 @@ describe("the site's answer is emailed once, when it first settles", () => {
     expect(sharedFakeFirestoreState.docs.get("captureOutbox/req-1:answer_ready:unsized")).toMatchObject({ status: "cancelled" });
   });
 
-  it("cancels the robot-team evaluation notices at dispatch, keeping their rows, and keeps Blueprint's own", async () => {
+  it("cancels stored rows of the retired team-run notices at dispatch, and keeps Blueprint's own", async () => {
     const { taskLifecycleNotificationIsCurrent } = await import("../utils/taskLifecycleNotificationAuthority");
     const { deliverOutbox } = await import("../utils/captureOutbox");
     const { sharedFakeFirestore } = await import("./helpers/fake-firestore");
-    await enqueueTaskLifecycleNotification({ requestId: "req-1", milestone: "results_ready", eventId: "run_a", detail: "12 of 50 simulated episodes succeeded" });
-    await enqueueTaskLifecycleNotification({ requestId: "req-1", milestone: "run_no_result", eventId: "run_b" });
-    expect(sharedFakeFirestoreState.docs.has("captureOutbox/req-1:results_ready:run_a")).toBe(true);
+    await enqueueTaskLifecycleNotification({ requestId: "req-1", milestone: "scene_ready" });
+    const [sceneKey, sceneRow] = [...sharedFakeFirestoreState.docs.entries()].find(([key]) => key.startsWith("captureOutbox/req-1:scene_ready"))!;
+    // Rows queued before robot teams' runs left the site's journey (2026-11-12) still sit in the outbox.
+    const retired = ["results_ready", "run_no_result", "awaiting_evaluations", "no_team_passed", "no_qualified_evaluation"];
+    for (const kind of retired) sharedFakeFirestoreState.docs.set(`captureOutbox/req-1:${kind}:old`, { ...(sceneRow as object),
+      kind, idempotencyKey: `req-1:${kind}:old`, subject: "Old team-run notice", body: "Old team-run notice" });
     await sharedFakeFirestore.runTransaction(async transaction => {
-      for (const kind of ["results_ready", "run_no_result", "awaiting_evaluations", "no_team_passed", "no_qualified_evaluation"] as const)
-        expect(await taskLifecycleNotificationIsCurrent({ requestId: "req-1", kind }, transaction)).toBe(false);
       expect(await taskLifecycleNotificationIsCurrent({ requestId: "req-1", kind: "scene_ready" }, transaction)).toBe(true);
       // "Can now see a summary" goes out only while the summary is visible (`teamJobAccess(...).listed`).
       jobAccess.listed = true;
@@ -899,12 +832,12 @@ describe("the site's answer is emailed once, when it first settles", () => {
       expect(await taskLifecycleNotificationIsCurrent({ requestId: "req-1", kind: "listing_live" }, transaction)).toBe(false);
       jobAccess.listed = true;
     });
-    await enqueueTaskLifecycleNotification({ requestId: "req-1", milestone: "scene_ready" });
     await deliverOutbox();
     expect(send).toHaveBeenCalledTimes(1);
     expect(send.mock.calls[0][0].subject).toBe("The simulation of your site is ready to view");
-    expect(sharedFakeFirestoreState.docs.get("captureOutbox/req-1:results_ready:run_a")).toMatchObject({ status: "cancelled" });
-    expect(sharedFakeFirestoreState.docs.get("captureOutbox/req-1:run_no_result:run_b")).toMatchObject({ status: "cancelled" });
+    expect(sharedFakeFirestoreState.docs.get(sceneKey)).toMatchObject({ status: "sent" });
+    for (const kind of retired)
+      expect(sharedFakeFirestoreState.docs.get(`captureOutbox/req-1:${kind}:old`)).toMatchObject({ status: "cancelled" });
   });
   it("cancels the ended screening and team-request emails already queued, and still sends the can't-simulate-yet one (owner decision 2026-11-11)", async () => {
     const { taskLifecycleNotificationIsCurrent } = await import("../utils/taskLifecycleNotificationAuthority");

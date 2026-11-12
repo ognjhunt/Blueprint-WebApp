@@ -55,6 +55,12 @@ export const minimalMarketingRedirects: Record<string, string> = {
   "/admin/company-metrics": "/",
   "/ops/spend": "/",
   "/internal/design-system": "/",
+  // The last removal round (2026-11-12): one "Your jobs" list at /app replaces the signed-in job pages (every site email
+  // sent before then links /app/tasks/<id>; the list opens the job page), and the printed readiness brief is gone.
+  "/app/tasks": "/app",
+  "/app/tasks/new": "/contact/site-operator",
+  "/app/tasks/:taskId": "/app",
+  "/readiness-brief/:briefToken": "/",
 };
 
 /**

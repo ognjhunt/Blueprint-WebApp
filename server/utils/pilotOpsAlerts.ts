@@ -1,10 +1,9 @@
 /**
- * A bell for ops, on the channel ops already reads: a robot team asked to
- * evaluate a job, and the free evaluation waits on a founder's admission
- * (`/api/admin/free-evaluations/:requestId/admit`).
+ * A bell for ops, on the channel ops already reads: a site asked Blueprint to
+ * find a deployment company, or an approved company responded about such a job.
  *
- * The job record is the record; this is only the bell. It carries ids and an
- * admin link, never names, emails or job text. Each event rings once: a marker
+ * The job record is the record; this is only the bell. It carries ids and
+ * Blueprint's own short text, never a site's email or contact. Each event rings once: a marker
  * document is created before the send, so a resubmitted request cannot ring
  * twice. A failed send is logged, not retried.
  */
@@ -43,16 +42,6 @@ async function ringOnce(key: string, text: string): Promise<{ sent: boolean; rea
     .catch(() => undefined);
   if (!result.sent) logger.warn({ key }, "Pilot ops alert was not delivered to Slack");
   return { sent: result.sent };
-}
-
-export function evaluationAdmissionAlertText(params: { workspaceRequestId: string; jobId: string; teamIds: readonly string[] }): string {
-  const teams = params.teamIds.length ? params.teamIds.map(id => `\`${safeId(id)}\``).join(", ") : "no account-bound team yet";
-  return `:robot_face: *Robot team asked to evaluate a job — needs founder admission* — request \`${safeId(params.workspaceRequestId)}\`, `
-    + `job \`${safeId(params.jobId)}\`, team ${teams}.\nAdmit: ${appUrl()}/admin/robot-team-access?evaluationRequest=${encodeURIComponent(safeId(params.workspaceRequestId))}`;
-}
-
-export async function alertOpsEvaluationNeedsAdmission(params: { workspaceRequestId: string; jobId: string; teamIds: readonly string[] }) {
-  return ringOnce(`evaluation_admission:${params.workspaceRequestId}`, evaluationAdmissionAlertText(params));
 }
 
 /** One line of Blueprint's own answer text for the bell: no newlines, no code marks, bounded. */

@@ -41,10 +41,7 @@ import {
   taskEvaluationLaunchPreparationRequestDigest,
 } from "../utils/taskEvaluationLaunchPreparationContract";
 
-import { buildTeamEvaluationRequest, fetchTeamEvaluationContext, loadRobotSetups,
-  teamEvaluationCommand, teamEvaluationTaskDetails, TEAM_EVALUATION_PRICE_CENTS, TEAM_EVALUATION_PROVIDER_CAP_USD } from "../utils/teamEvaluationSelection";
-import { sceneDigest, sceneOwner, sceneProviderTerms, validateSceneProviderTerms,
-  SCENE_INTAKE_COLLECTION } from "../utils/taskEvaluationSceneIntake";
+import { sceneDigest, SCENE_INTAKE_COLLECTION } from "../utils/taskEvaluationSceneIntake";
 import { assertManagedOfferingForJob, jobManagedEvidenceBindingSchema, managedJobTask, loadManagedJobEvidence, readManagedJobSourceSession,
   type JobManagedEvidenceBinding } from "../utils/jobManagedEvaluation";
 import type { TaskItemInventoryRecord } from "../utils/taskItemInventory";
@@ -402,79 +399,6 @@ router.get("/", async (_req, res) => {
   }
 });
 
-router.get("/:launchId/team-evaluation-context", async (req, res) => {
-  try {
-    const resolved = await accessibleOffering(req.params.launchId, res);
-    if (!resolved) return res.status(404).json({error:"This task is unavailable."});
-    const owner = sceneOwner(res.locals.firebaseUser || {});
-    const context = await fetchTeamEvaluationContext(req.params.launchId, owner);
-    if (context.configured_scene_revision_digest !== resolved.offering.evaluation_preparation_binding.configured_scene_revision_digest)
-      throw new Error("evaluation_selection_changed");
-    return res.json({sourceLaunchId:context.source_launch_id, sourceProfileDigest:context.source_profile_digest,
-      sceneRevisionDigest:context.configured_scene_revision_digest, configurations:context.configurations,
-      setups:await loadRobotSetups(owner.user_id), providerTerms:sceneProviderTerms(),
-      taskDetails:teamEvaluationTaskDetails(context),
-      thumbnailUrl:`/api/configured-scene-offerings/${encodeURIComponent(req.params.launchId)}/thumbnail`,
-      dataSummary:{sceneVersion:resolved.offering.scene_identity.version,
-        sceneRevisionDigest:context.configured_scene_revision_digest,
-        bundleSizeBytes:resolved.offering.evaluation_preparation_binding.configured_scene_bundle.size_bytes},
-      checkout:{priceCents:TEAM_EVALUATION_PRICE_CENTS,currency:"USD",
-        developmentNoCharge:resolved.access.isOps, paymentsEnabled:false},
-      developmentOnly:true, testEnvironment:resolved.offering.proof_boundary?.test_environment || null});
-  } catch (error) {
-    return res.status(409).json({error:error instanceof Error ? error.message : "Evaluation setup unavailable"});
-  }
-});
-
-router.post("/:launchId/team-evaluations", async (req, res) => {
-  const parsed=teamEvaluationCommand.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({error:"Choose a saved setup and confirm the evaluation."});
-  try {
-    const resolved=await accessibleOffering(req.params.launchId,res);
-    if (!resolved || parsed.data.sourceLaunchId!==req.params.launchId || !db)
-      return res.status(404).json({error:"This task is unavailable."});
-    const owner=sceneOwner(res.locals.firebaseUser || {});
-    const command=parsed.data, commandDigest=sceneDigest(command);
-    const id=`scene-${sceneDigest({owner,submission_id:command.id}).slice(7)}`;
-    const ref=db.collection(SCENE_INTAKE_COLLECTION).doc(id);
-    const prior=await withTaskEvaluationLaunchStoreTimeout(ref.get());
-    if (prior.exists) {
-      const value=prior.data()!;
-      if (value.command_digest!==commandDigest) throw new Error("idempotency_conflict");
-      return res.status(202).json({id,runId:command.id,state:value.state});
-    }
-    // Retained requests keep their original authority. New website requests use
-    // a fixed internal cap and an operator-only, no-customer-charge test lane.
-    if (command.execution.max_total_spend_usd !== TEAM_EVALUATION_PROVIDER_CAP_USD)
-      return res.status(400).json({error:"The evaluation budget is set by Blueprint."});
-    if (!resolved.access.isOps)
-      return res.status(402).json({error:"An approved free invitation is required for this task."});
-    validateSceneProviderTerms(command);
-    const context=await fetchTeamEvaluationContext(req.params.launchId,owner);
-    if (context.configured_scene_revision_digest!==resolved.offering.evaluation_preparation_binding.configured_scene_revision_digest)
-      throw new Error("evaluation_selection_changed");
-    const setup=(await loadRobotSetups(owner.user_id)).find(s=>s.id===command.setupId);
-    if (!setup) throw new Error("saved_execution_setup_required");
-    const request=buildTeamEvaluationRequest(command,context,setup,owner);
-    const record={owner_user_id:owner.user_id,organization_id:owner.organization_id,
-      source_session_id:String(context.source.binding_id),source_launch_id:context.source_launch_id,
-      purchase:{price_cents:TEAM_EVALUATION_PRICE_CENTS,currency:"USD",status:"development_no_charge"},
-      setup_id:setup.id,setup_name:setup.name,command,command_digest:commandDigest,request,
-      request_digest:sceneDigest(request),state:"forward_pending",forward_attempt_count:0,
-      next_forward_at_ms:0,created_at_iso:new Date().toISOString()};
-    await withTaskEvaluationLaunchStoreTimeout(db.runTransaction(async transaction=>{
-      const current=await transaction.get(ref);
-      if (current.exists) {
-        if (current.data()?.command_digest!==commandDigest) throw new Error("idempotency_conflict");
-      } else transaction.create(ref,record);
-    }));
-    return res.status(202).json({id,runId:command.id,state:record.state});
-  } catch (error) {
-    return res.status(409).json({error:error instanceof Error ? error.message : "Evaluation could not be queued",
-      retrySameRunId:true});
-  }
-});
-
 router.get("/:launchId/evaluation-setup", async (req, res) => {
   let resolved;
   try {
@@ -542,7 +466,7 @@ router.get("/:launchId/policy-canary-setup", async (req, res) => {
   // an equivalent balance reservation and outcome settlement.
   if (!resolved.access.isOps) return res.status(402).json(policyCanaryError(
     "POLICY_CANARY_PAYMENT_REQUIRED",
-    "Request a free evaluation from your workspace.",
+    "There is no way to request an evaluation in the product; write to hello@tryblueprint.io.",
   ));
   if (resolved.offering.status !== "configured_controls_pending") {
     return res.status(409).json(policyCanaryError(
@@ -609,7 +533,7 @@ router.post("/:launchId/policy-canary-runs", async (req, res) => {
   ));
   if (!resolved.access.isOps) return res.status(402).json(policyCanaryError(
     "POLICY_CANARY_PAYMENT_REQUIRED",
-    "Request a free evaluation from your workspace.",
+    "There is no way to request an evaluation in the product; write to hello@tryblueprint.io.",
   ));
   if (resolved.offering.status !== "configured_controls_pending") {
     return res.status(409).json(policyCanaryError(
@@ -670,7 +594,7 @@ router.post("/:launchId/evaluation-runs", async (req, res) => {
     code: "configured_scene_offering_not_found",
   });
   if (!resolved.access.isOps) return res.status(402).json({
-    error: "Request a free evaluation from your workspace.",
+    error: "There is no way to request an evaluation in the product; write to hello@tryblueprint.io.",
     code: "task_evaluation_payment_required",
     paid_execution_requested: false,
   });

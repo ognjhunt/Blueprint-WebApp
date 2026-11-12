@@ -211,9 +211,8 @@ describe("deriveJobStage", () => {
 
     it("keeps the evaluation loop's step and flags the closure when teams are already engaged", () => {
       const pending = { total: 1, pendingAdmission: 1, admitted: 0, pending: [{ requestId: "e", teamName: "Nova", setupName: null }] };
-      const admission = deriveJobStage(facts({ evaluations: pending, teamAccess: closedTo("rights_needs_review") }));
-      expect(admission).toMatchObject({ stage: "admission", nextAction: "Admit evaluation for Nova", actionOwner: "blueprint" });
-      expect(admission.attention).toEqual(["Not open to teams: the rights review has not cleared the capture"]);
+      // A team's request to run its own software leads nowhere any more (2026-11-12): no "admit" step.
+      expect(deriveJobStage(facts({ evaluations: pending, teamAccess: closedTo("rights_needs_review") })).stage).not.toBe("admission");
       expect(deriveJobStage(facts({ runs: { reported: 1, passing: 1 }, teamAccess: closedTo("operator_paused") })).attention)
         .toEqual(["Not open to teams: paused by the site"]);
       expect(deriveJobStage(facts({ runs: { running: 1 }, teamAccess: closedTo("scene_not_runnable", "scene_not_proven") })).attention)
@@ -237,23 +236,7 @@ describe("deriveJobStage", () => {
   });
 
   describe("evaluation loop", () => {
-    it("names the team awaiting admission and counts the rest", () => {
-      const result = deriveJobStage(facts({
-        listing: { state: "none" },
-        evaluations: { total: 2, pendingAdmission: 2, admitted: 0, pending: [
-          { requestId: "eval-1", teamName: "Atlas Robotics", setupName: "Arm v2" },
-          { requestId: "eval-2", teamName: null, setupName: null },
-        ] },
-      }));
-      expect(result).toMatchObject({ stage: "admission", actionOwner: "blueprint",
-        nextAction: "Admit evaluation for Atlas Robotics (+1 more)" });
-    });
 
-    it("falls back to a generic team label", () => {
-      const result = deriveJobStage(facts({ evaluations: { total: 1, pendingAdmission: 1, admitted: 0,
-        pending: [{ requestId: "eval-1", teamName: null, setupName: null }] } }));
-      expect(result.nextAction).toBe("Admit evaluation for the requesting team");
-    });
 
     it("waits while runs are queued or running", () => {
       const result = deriveJobStage(facts({ evaluations: { total: 1, pendingAdmission: 0, admitted: 1, pending: [] },
@@ -271,19 +254,15 @@ describe("deriveJobStage", () => {
         { requestId: "eval-2", teamName: "B", setupName: null }] }, runs: { reported: 3, passing: 2, belowTarget: 1 } }));
       expect(result).toMatchObject({ stage: "passing_run", actionOwner: "blueprint",
         nextAction: "Work with a deployment company on the passing result (2 passing runs)" });
-      expect(result.attention).toContain("1 evaluation request awaiting admission");
+      expect(result.attention.join(" ")).not.toMatch(/admission/);
     });
 
     it("reports when no run passed", () => {
       expect(deriveJobStage(facts({ runs: { reported: 2, belowTarget: 2 } }))).toMatchObject({
-        stage: "no_passing_run", nextAction: "No passing evaluation yet (2 runs below the pass mark): invite or admit another team" });
+        stage: "no_passing_run", nextAction: "No passing evaluation yet (2 runs below the pass mark): send the job to another deployment company" });
       expect(deriveJobStage(facts({ runs: { noResult: 1 } })).nextAction).toMatch(/1 run without a result/);
     });
 
-    it("lets a pending admission lead when nothing has passed", () => {
-      expect(deriveJobStage(facts({ runs: { reported: 1, belowTarget: 1 }, evaluations: { total: 2, pendingAdmission: 1,
-        admitted: 1, pending: [{ requestId: "e", teamName: "Nova", setupName: null }] } })).stage).toBe("admission");
-    });
   });
 
   describe("Blueprint's own scene and screening", () => {
@@ -481,7 +460,7 @@ describe("projectJobFacts", () => {
     ] }));
     expect(result.evaluations).toEqual({ total: 2, pendingAdmission: 1, admitted: 1,
       pending: [{ requestId: "eval-1", teamName: "Atlas", setupName: "Arm v2" }] });
-    expect(deriveJobStage(result).nextAction).toBe("Admit evaluation for Atlas");
+    expect(deriveJobStage(result).stage).not.toBe("admission");
   });
 
   it("classifies runs against the job's pass mark and picks the best", () => {

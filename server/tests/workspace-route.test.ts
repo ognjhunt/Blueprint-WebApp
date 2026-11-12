@@ -402,118 +402,6 @@ describe("workspace access and projections", () => {
     } finally { clock.mockRestore(); }
   });
 
-  it("leaves the progress line out, never asking a site to film, when its footage status cannot be read", async () => {
-    state.records.set("inboundRequests/task-1", { ...task(), site_task_brief_confirmed_at: "2026-09-18T00:00:00Z" });
-    state.records.set("siteTaskBriefs/task-1", { requestId: "task-1", summary: "Task reading",
-      proposed: [], unresolved: [], captureMode: "self_capture", draftedFrom: ["observation"],
-      draftedAtIso: "2026-09-17T00:00:00Z", confirmedAtIso: "2026-09-18T00:00:00Z" });
-    // Readable and empty: nothing is filmed, so filming is the site's next step.
-    expect((await (await api("/tasks/task-1", "site-1")).json()).readiness).toMatchObject({ decision: "record" });
-    // Unreadable is not "not filmed": the job still loads, without a progress line.
-    storage.readable = false;
-    const response = await api("/tasks/task-1", "site-1");
-    expect(response.status).toBe(200);
-    const viewed = await response.json();
-    expect(viewed.id).toBe("task-1");
-    expect(viewed.readiness).toBeNull();
-  });
-  it("PREP-UI-003 shows verified preparation failure only to the current owner", async () => {
-    state.records.set("inboundRequests/task-1", { ...task(),
-      site_task_brief_confirmed_at: "2026-09-18T00:00:00Z", capture_coverage: { covers_scene: true } });
-    state.records.set("siteTaskBriefs/task-1", { requestId: "task-1", summary: "Task reading",
-      proposed: [], unresolved: [], captureMode: "self_capture", draftedFrom: ["observation"],
-      draftedAtIso: "2026-09-17T00:00:00Z", confirmedAtIso: "2026-09-18T00:00:00Z" });
-    state.records.set("captureUploadSessions/walkthrough-task-1", { website_preparation: { selector: {} } });
-    const before = structuredClone([...state.records]);
-    const viewed = await (await api("/tasks/task-1", "site-1")).json();
-    expect(viewed.readiness).toMatchObject({ decision: "processing_failure", stage: null, operatorAction: null });
-    expect(viewed.readiness.outcome.actionOwner).toBe("blueprint");
-    expect(preparation.read).toHaveBeenCalledWith("task-1", "walkthrough-task-1");
-    preparation.read.mockClear();
-    expect((await api("/tasks/task-1", "site-2")).status).toBe(404);
-    expect(preparation.read).not.toHaveBeenCalled();
-    expect([...state.records]).toEqual(before);
-  });
-  it("shows an owner-closed run consistently in the authenticated workspace without advancing it", async () => {
-    state.records.set("inboundRequests/task-1", { ...task(), website_run_closures: {
-      "walkthrough-task-1": ownerClosure("task-1") } });
-    state.records.set("siteTaskBriefs/task-1", { requestId: "task-1", summary: "Task reading",
-      proposed: [], unresolved: [], captureMode: "self_capture", draftedFrom: ["observation"],
-      draftedAtIso: "2026-09-17T00:00:00Z", confirmedAtIso: null });
-    const before = structuredClone([...state.records]);
-    const response = await api("/tasks/task-1", "site-1");
-    expect(response.status).toBe(200);
-    const viewed = await response.json();
-    expect(viewed.readiness).toMatchObject({ decision: "insufficient_evidence", operatorAction: null,
-      headline: "Run closed with a conservative abstention", outcome: { actionOwner: "blueprint" } });
-    expect(viewed.status).toBe("Run closed with a conservative abstention");
-    expect((await api("/tasks/task-1", "site-2")).status).toBe(404);
-    expect([...state.records]).toEqual(before);
-  });
-  it("shows persisted reconstruction failure without exposing private provider details", async () => {
-    state.records.set("inboundRequests/task-1", { ...task(),
-      site_task_brief_confirmed_at: "2026-09-18T00:00:00Z", capture_coverage: { covers_scene: true } });
-    state.records.set("siteTaskBriefs/task-1", { requestId: "task-1", summary: "Task reading",
-      proposed: [], unresolved: [], captureMode: "self_capture", draftedFrom: ["observation"],
-      draftedAtIso: "2026-09-17T00:00:00Z", confirmedAtIso: "2026-09-18T00:00:00Z" });
-    state.records.set("captureUploadSessions/walkthrough-task-1", { world_reconstruction: {
-      state: "failed", blocker: "provider_failed", failure_reason: "private upstream detail",
-      assets: { launchUrl: "https://viewer.example/stale", thumbnailUrl: "https://viewer.example/stale.png" } } });
-    const before = structuredClone([...state.records]);
-    const response = await api("/tasks/task-1", "site-1");
-    expect(response.status).toBe(200);
-    const viewed = await response.json();
-    expect(viewed.readiness.decision).toBe("processing_failure");
-    expect(viewed.readiness.headline).toMatch(/Blueprint could not finish processing/i);
-    expect(viewed.readiness.headline).not.toMatch(/we are preparing|private upstream/);
-    expect(viewed.readiness.operatorAction).toBeNull();
-    expect(viewed.sceneReady).toBe(false);
-    expect(viewed.thumbnailUrl).toBeNull();
-    expect([...state.records]).toEqual(before);
-    expect((await api("/tasks/task-1", "site-2")).status).toBe(404);
-  });
-  it("shows the same Atlas closeout in the owner's job and status card before confirmation", async () => {
-    const { crossRuntimeArtifactDigest } = await import("../utils/crossRuntimeCanonical");
-    const preview = {schema_version: "website_atlas_preview.v1", capture_id: "walkthrough-task-1", revision: 2,
-      state: "failed", reason: "atlas_scene_planner_requires_reconciliation", updated_at_epoch: 1793109960,
-      bundle: null, splat_available: false, mesh_available: false, claim_ceiling: "development_only",
-      scale_status: "unscaled_provider_world_units"};
-    state.records.set("inboundRequests/task-1", {...task(), website_atlas_previews: {
-      "walkthrough-task-1": {...preview, preview_digest: crossRuntimeArtifactDigest(preview, "preview_digest")}}});
-    state.records.set("siteTaskBriefs/task-1", {requestId: "task-1", summary: "Task reading", proposed: [],
-      unresolved: [], captureMode: "self_capture", draftedFrom: ["observation"],
-      draftedAtIso: "2026-09-17T00:00:00Z", confirmedAtIso: null});
-    const before = structuredClone([...state.records]);
-    const viewed = await (await api("/tasks/task-1", "site-1")).json();
-    expect(viewed.readiness).toMatchObject({decision: "processing_failure", operatorAction: null,
-      outcome: {category: "processing_failure", actionOwner: "blueprint"}});
-    expect(viewed.status).toBe(viewed.readiness.outcome.title);
-    expect(viewed.nextStep).toBe(viewed.readiness.outcome.nextStep);
-    expect((await api("/tasks/task-1", "site-2")).status).toBe(404);
-    expect([...state.records]).toEqual(before);
-  });
-  it("uses the current ready preview after a failed record is replaced", async () => {
-    state.records.set("inboundRequests/task-1", { ...task(),
-      site_task_brief_confirmed_at: "2026-09-18T00:00:00Z", capture_coverage: { covers_scene: true } });
-    state.records.set("siteTaskBriefs/task-1", { requestId: "task-1", summary: "Task reading",
-      proposed: [], unresolved: [], captureMode: "self_capture", draftedFrom: ["observation"],
-      draftedAtIso: "2026-09-17T00:00:00Z", confirmedAtIso: "2026-09-18T00:00:00Z" });
-    const failed = { state: "failed", blocker: "provider_failed", failure_reason: "private upstream detail" };
-    state.records.set("captureUploadSessions/walkthrough-task-1", { world_reconstruction: failed });
-    expect((await (await api("/tasks/task-1", "site-1")).json()).readiness.headline)
-      .toMatch(/Blueprint could not finish processing/i);
-    state.records.set("captureUploadSessions/walkthrough-task-1", { world_reconstruction: {
-      ...failed, state: "ready", assets: { launchUrl: "https://viewer.example/current",
-        thumbnailUrl: "https://viewer.example/current.png" },
-    } });
-    const before = structuredClone([...state.records]);
-    const viewed = await (await api("/tasks/task-1", "site-1")).json();
-    expect(viewed.readiness.headline).toMatch(/scene preview is ready/i);
-    expect(viewed.readiness.headline).not.toMatch(/could not finish|private upstream/);
-    expect(viewed.sceneReady).toBe(true);
-    expect(viewed.thumbnailUrl).toBe("https://viewer.example/current.png");
-    expect([...state.records]).toEqual(before);
-  });
   it("withholds persisted capture derivatives on the owner's return after withdrawal", async () => {
     state.records.set("inboundRequests/task-1", { ...task(), consent_revoked: true,
       site_task_brief_confirmed_at: "2026-09-18T00:00:00Z", capture_coverage: { covers_scene: true } });
@@ -525,16 +413,15 @@ describe("workspace access and projections", () => {
     state.records.set("evaluationRuns/run-withdrawn", { runId: "run-withdrawn",teamId: "team",sceneId: "task-1",
       state: "completed",result: { observed: { episodesRun: 10, episodesSucceeded: 8 } } });
     const before = structuredClone([...state.records]);
-    const response = await api("/tasks/task-1", "site-1");
+    const response = await api("/", "site-1");
     expect(response.status).toBe(200);
-    const viewed = await response.json();
-    expect(viewed.thumbnailUrl).toBeNull();
-    expect(viewed.sceneReady).toBe(false);
-    expect(viewed.results).toEqual([]);
-    expect(viewed.readiness.headline).toMatch(/consent was withdrawn/i);
-    expect(viewed.readiness.stage).toBeNull();
+    const viewed = (await response.json()).tasks.find((item: any) => item.id === "task-1");
+    // The list row names the job and the withdrawal; nothing derived from the capture.
+    expect(viewed).toEqual({ id: "task-1", title: expect.any(String), siteName: expect.any(String),
+      location: expect.any(String), archived: false, recordingPermissionWithdrawn: true, createdAt: viewed.createdAt });
+    expect(JSON.stringify(viewed)).not.toMatch(/withdrawn\.png|viewer\.example|Derived reading/);
     expect([...state.records]).toEqual(before);
-    expect((await api("/tasks/task-1", "site-2")).status).toBe(404);
+    expect((await (await api("/", "site-2")).json()).tasks.map((item: any) => item.id)).not.toContain("task-1");
   });
   it("records only the owner's withdrawal, cancels queued work, and never claims deletion", async () => {
     state.records.set("inboundRequests/task-1", { ...task(), capture_coverage_pending: true, coverageReviewPending: true });
@@ -589,51 +476,6 @@ describe("workspace access and projections", () => {
     });
     expect((await (await api("/", "site-2")).json()).tasks).toEqual([]);
   });
-  it("gives sites anonymous metrics while excluding team identity and policy secrets", async () => {
-    state.records.set("inboundRequests/task-1", task());
-    state.records.set("inboundRequests/application-1", {
-      account_owner_uid: "robot-1",
-      workspace_evaluation: { opportunityId: "task-1", targetSnapshot: terms },
-    });
-    state.records.set("robotEvalJobRequests/run-1", run());
-    const response = await (await api("/tasks/task-1", "site-1")).json();
-    expect(response.results[0]).toMatchObject({
-      successRate: 96,
-      cycleTimeSeconds: 27,
-      targetsMet: null,
-    });
-    expect(JSON.stringify(response)).not.toMatch(
-      /SECRET|secret\.example|robot-1/,
-    );
-  });
-  it("shows robot teams only their own evaluations and never confidential source identity", async () => {
-    state.records.set("inboundRequests/task-1", task());
-    state.records.set("inboundRequests/application-1", {
-      account_owner_uid: "robot-1",
-      workspace_evaluation: {
-        opportunityId: "task-1",
-        targetSnapshot: terms,
-        setupName: "Atlas",
-      },
-      request: { taskStatement: "Anonymous packing task" },
-    });
-    state.records.set("robotEvalJobRequests/run-1", run());
-    state.records.set("robotEvalJobRequests/other", run("robot-2"));
-    const response = await (await api("/", "robot-1")).json();
-    expect(response.evaluations).toHaveLength(1);
-    expect(JSON.stringify(response)).not.toMatch(
-      /Confidential Site|123 Private|robot-2|SECRET/,
-    );
-  });
-  it("does not interpret efficiency as seconds or unknown scores as zero", async () => {
-    state.records.set("robotEvalJobRequests/run-1", {
-      ...run(),
-      pipeline_result: {},
-    });
-    const response = await (await api("/", "robot-1")).json();
-    expect(response.evaluations[0].cycleTimeSeconds).toBeNull();
-    expect(response.evaluations[0].targetsMet).toBeNull();
-  });
 });
 describe("a site finds its way back to its own task", () => {
   it("mints a fresh private task link for the owner only", async () => {
@@ -644,190 +486,13 @@ describe("a site finds its way back to its own task", () => {
     expect((await api("/tasks/task-1/task-link", "site-2", {})).status).toBe(404);
   });
 
-  it("shows the owner Blueprint's results in the site's view, and no one else", async () => {
-    state.records.set("inboundRequests/task-1", task());
-    state.records.set("siteTaskBriefs/task-1", { confirmedAtIso: "2026-09-14T10:00:00Z", summary: "Pack cartons" });
-    managedEvidence.load.mockResolvedValueOnce({ managedEvidence: [{
-      runId: "run-1", state: "completed", outcome: "estimate", current: true, resultDigest: null,
-      summary: "One candidate met the pass mark.", nextAction: "", opsNextAction: "Staff only: settle the hold",
-      limitations: [], href: "",
-      screening: { budget: { limitUsd: "15", committedUpperBoundUsd: "9", spentUpperBoundUsd: "4", reservedUsd: "5" },
-        candidates: [] },
-    }] });
-    const response = await api("/tasks/task-1/results", "site-1");
-    expect(response.status).toBe(200);
-    const [item] = (await response.json()).managedEvidence;
-    expect(item).toMatchObject({ runId: "run-1", summary: "One candidate met the pass mark." });
-    // The site never sees Blueprint's own instruction or budget figures.
-    expect(item.opsNextAction).toBeUndefined();
-    expect(item.screening.budget).toBeUndefined();
-    expect((await api("/tasks/task-1/results", "site-2")).status).toBe(404);
-  });
 
-  it("projects the listing, the capture mode, and takes a closed task off the library", async () => {
-    const { operatorListingPaused } = await import("../utils/operatorListing");
-    const record = {
-      ...task(),
-      request: { ...task().request, capture_mode: "self_capture" },
-      public_task_listing: { enabled: true },
-    };
-    state.records.set("inboundRequests/task-1", record);
-    const listed = (await (await api("/", "site-1")).json()).tasks[0];
-    expect(listed).toMatchObject({
-      captureMode: "self_capture",
-      paused: false,
-      listing: { approved: true, live: true },
-    });
-    expect(operatorListingPaused(record)).toBe(false);
-    expect(operatorListingPaused({ ...record, workspace_task: { archived: true } })).toBe(true);
-    expect(operatorListingPaused({ ...record, workspace_task: { paused: true } })).toBe(true);
-
-    state.records.set("inboundRequests/task-1", { ...record, workspace_task: { archived: true } });
-    const closed = (await (await api("/", "site-1")).json()).tasks[0];
-    expect(closed.listing).toMatchObject({ approved: true, live: false });
-  });
 });
 
 describe("workspace requests and lifecycle", () => {
-  it("can record a decision when the source task prose is encrypted", async () => {
-    const source: any = task();
-    source.workspace_task.terms.successDefinition = "";
-    source.request.taskDescription = "encrypted:Pack cartons without drops";
-    // A selection recorded before pilot booking was retired keeps its follow-through.
-    source.workspace_task.pilot = { state: "selected", selectedResultId: "qualified-run", siteVisitAnswer: "subject_to_approval" };
-    state.records.set("inboundRequests/task-1", source);
-    const response = await api("/tasks/task-1/pilot", "site-1", {
-      action: "start",
-      resultId: "qualified-run",
-      notes: "Review terms",
-    });
-    expect(response.status).toBe(200);
-    expect(state.records.get("inboundRequests/task-1").workspace_task.pilot).toMatchObject({ state: "pilot", selectedResultId: "qualified-run", siteVisitAnswer: "subject_to_approval" });
-    expect(
-      state.records.get("inboundRequests/task-1").workspace_task.pilot.notes,
-    ).toMatch(/^encrypted:/);
-    expect(
-      [...state.records.keys()].some((key) =>
-        key.startsWith("inboundRequests/task-1/notes/"),
-      ),
-    ).toBe(true);
-  });
 
-  it("reads a selection booked before the booking flow was retired as a plain selection", async () => {
-    const { projectWorkspaceTask } = await import("../utils/workspace-projection");
-    const source: any = task();
-    source.workspace_task.pilot = { state: "selected", selectedResultId: "qualified-run" };
-    source.pilot_recommendation = { id: "rec-1", evaluationRunId: "qualified-run", reviewRequired: false };
-    source.pilot_booking = { recommendationId: "rec-1", acceptedAtIso: "2026-10-08T00:00:00.000Z" };
-    const projected = projectWorkspaceTask("task-1", source);
-    expect(projected.status).toBe("Pilot selected");
-    expect(projected).not.toHaveProperty("pilotBooking");
-    expect(projected).not.toHaveProperty("pilotRecommended");
-  });
 
-  it("does not apply current targets retroactively to an older evaluation", async () => {
-    state.records.set("inboundRequests/task-1", task());
-    state.records.set("inboundRequests/application-1", {
-      account_owner_uid: "robot-1",
-      workspace_evaluation: {
-        opportunityId: "task-1",
-        targetSnapshot: { ...terms, successRate: 90 },
-      },
-    });
-    state.records.set("robotEvalJobRequests/run-1", run());
-    const response = await (await api("/tasks/task-1", "site-1")).json();
-    expect(response.results[0].status).toBe("criteria_changed");
-    expect(response.results[0].targetsMet).toBeNull();
-  });
-  it("does not promote failed or zero-sample runs into scored results", async () => {
-    const failed = run();
-    failed.status = "failed";
-    state.records.set("robotEvalJobRequests/failed", failed);
-    const empty = run();
-    empty.benchmark_projection.policy_aggregates[0].metrics.full_task_success.sample_count = 0;
-    state.records.set("robotEvalJobRequests/empty", empty);
-    const response = await (await api("/", "robot-1")).json();
-    expect(
-      response.evaluations.every(
-        (item: any) =>
-          item.successRate === null && item.cycleTimeSeconds === null,
-      ),
-    ).toBe(true);
-  });
 
-  it("uses the existing intake handler with server-owned identity and private defaults", async () => {
-    const response = await api("/tasks", "site-1", {
-      id: "task-new",
-      title: "Pack",
-      siteName: "Site",
-      location: "Austin",
-      siteType: "Fulfillment",
-      terms,
-      visibility: "private",
-      notes: "",
-    });
-    expect(response.status).toBe(201);
-    expect(state.intakes[0].metadata.account_owner_uid).toBe("site-1");
-    expect(state.intakes[0].body.email).toBe("site-1@example.com");
-    expect(state.intakes[0].body.pilotOpportunity.visibility).toBe("private");
-    expect(state.intakes[0].metadata.workspace_task).not.toHaveProperty(
-      "published",
-    );
-  });
-  it("rejects role escalation, arbitrary owner fields and invalid thresholds", async () => {
-    const body = {
-      id: "task-new",
-      title: "Pack",
-      siteName: "Site",
-      location: "Austin",
-      siteType: "Fulfillment",
-      terms,
-      visibility: "private",
-      notes: "",
-    };
-    expect((await api("/tasks", "robot-1", body)).status).toBe(403);
-    expect(
-      (await api("/tasks", "site-1", { ...body, account_owner_uid: "site-2" }))
-        .status,
-    ).toBe(400);
-    expect(
-      (
-        await api("/tasks", "site-1", {
-          ...body,
-          terms: { ...terms, successRate: 101 },
-        })
-      ).status,
-    ).toBe(400);
-  });
-  it("encrypts private setups and prevents reading or deleting another team's setup", async () => {
-    expect((await api("/setups", "robot-1", setup)).status).toBe(200);
-    expect(
-      state.records.get("users/robot-1/robotSetups/setup-1").payload,
-    ).toMatch(/^encrypted:/);
-    expect((await (await api("/", "robot-2")).json()).setups).toEqual([]);
-    await api("/setups/setup-1", "robot-2", undefined, "DELETE");
-    expect(state.records.has("users/robot-1/robotSetups/setup-1")).toBe(true);
-  });
-  it("keeps model descriptions private and prevents arbitrary runtime binding", async () => {
-    const robotDescription={source:"model",format:"urdf",reference:"https://example.test/robot.urdf",mobility:"mobile",details:"Wrist camera"};
-    const response=await api("/setups","robot-1",{...setup,robotDescription,executionBindingId:"franka"});
-    expect(response.status).toBe(200);
-    expect(await response.json()).toMatchObject({robotDescription});
-    const saved=await (await api("/","robot-1")).json();
-    expect(saved.setups[0].executionBindingId).toBeUndefined();
-    expect((await (await api("/","robot-2")).json()).setups).toEqual([]);
-    // Older clients cannot strip the physical model and reattach a different robot.
-    const legacy=await api("/setups","robot-1",{...setup,executionBindingId:"franka"});
-    expect(await legacy.json()).toMatchObject({robotDescription});
-    const again=await (await api("/","robot-1")).json();
-    expect(again.setups[0].executionBindingId).toBeUndefined();
-  });
-  it("rejects credentials and caller-supplied readiness in robot descriptions", async () => {
-    const robotDescription={source:"model",format:"usd",reference:"https://example.test/robot.usd",mobility:"fixed",details:""};
-    for(const change of [{reference:"https://example.test/robot.usd?key=secret"},{ready:true}]) {
-      expect((await api("/setups","robot-1",{...setup,robotDescription:{...robotDescription,...change}})).status).toBe(400);
-    }
-  });
   it("keeps the integration planning catalog internal to admin and ops", async () => {
     expect((await api("/deployment-embodiments", "")).status).toBe(401);
     expect((await api("/deployment-embodiments", "robot-1")).status).toBe(403);
@@ -837,154 +502,6 @@ describe("workspace requests and lifecycle", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(await response.json()).toEqual(await deploymentCatalogWithDigest());
-  });
-  it("lets staff save private planning choices without inheriting an executable setup", async () => {
-    state.records.get("users/robot-1").role = "ops";
-    const catalog = await deploymentCatalogWithDigest();
-    const robot = catalog.embodiments[0];
-    const robotDescription = { source: "support_option", embodimentId: robot.embodiment_id,
-      catalogDigest: catalog.catalog_digest, policyRouteIds: [robot.policy_routes[0].route_id] };
-    const response = await api("/setups", "robot-1", { ...setup, robotDescription, executionBindingId: "franka" });
-    expect(response.status).toBe(200);
-    const saved = await response.json();
-    expect(saved.robotDescription).toEqual(robotDescription);
-    expect(saved.executionBindingId).toBeUndefined();
-    expect((await (await api("/", "robot-2")).json()).setups).toEqual([]);
-    const legacy = await api("/setups", "robot-1", { ...setup, executionBindingId: "franka" });
-    expect((await legacy.json()).executionBindingId).toBeUndefined();
-    const readback = await (await api("/", "robot-1")).json();
-    expect(readback.setups[0].robotDescription).toEqual(robotDescription);
-  });
-  it("refuses new customer planning selections while preserving existing pending setup edits", async () => {
-    const catalog = await deploymentCatalogWithDigest(), robot = catalog.embodiments[0];
-    const robotDescription = { source: "support_option", embodimentId: robot.embodiment_id,
-      catalogDigest: catalog.catalog_digest, policyRouteIds: [robot.policy_routes[0].route_id] };
-    expect((await api("/setups", "robot-1", { ...setup, robotDescription })).status).toBe(403);
-    const pendingDescription = { ...robotDescription, catalogDigest: `sha256:${"0".repeat(64)}` };
-    state.records.set("users/robot-1/robotSetups/setup-1", { payload: `encrypted:${JSON.stringify({ ...setup, robotDescription: pendingDescription })}` });
-    for (const description of [pendingDescription, undefined]) {
-      const response = await api("/setups", "robot-1", { ...setup, robotDescription: description, executionBindingId: "franka" });
-      expect(response.status).toBe(200);
-      expect(await response.json()).toMatchObject({ robotDescription: pendingDescription });
-      expect((await (await api("/", "robot-1")).json()).setups[0].executionBindingId).toBeUndefined();
-    }
-    expect((await api("/setups", "robot-1", { ...setup, robotDescription })).status).toBe(403);
-  });
-  it("rejects stale, unknown, incompatible and duplicate planning choices", async () => {
-    state.records.get("users/robot-1").role = "ops";
-    const catalog = await deploymentCatalogWithDigest(), robot = catalog.embodiments[0];
-    const robotDescription = { source: "support_option", embodimentId: robot.embodiment_id,
-      catalogDigest: catalog.catalog_digest, policyRouteIds: [robot.policy_routes[0].route_id] };
-    for (const change of [{catalogDigest:`sha256:${"0".repeat(64)}`}, {embodimentId:"unknown"},
-      {policyRouteIds:["dreamlabs_dream1"]}, {policyRouteIds:[]},
-      {policyRouteIds:[robot.policy_routes[0].route_id,robot.policy_routes[0].route_id]}, {readiness:"verified_runnable"}])
-      expect((await api("/setups", "robot-1", { ...setup, robotDescription: { ...robotDescription, ...change } })).status).toBe(400);
-  });
-  it("rejects credential-bearing and executable references", async () => {
-    for (const reference of [
-      "javascript:alert(1)",
-      "https://user:password@example.com/policy",
-      "https://example.com/policy?token=secret",
-    ]) {
-      expect(
-        (await api("/setups", "robot-1", { ...setup, reference })).status,
-      ).toBe(400);
-    }
-  });
-  it("opens a listed, runnable job to an approved team and rechecks it on every request", async () => {
-    // What a job started from the public form carries once its scene runs:
-    // the site's card, no retired dossier, and no private intake reaches a team.
-    const card = anonymizedOpportunityDraft("Pack cartons into totes");
-    const { pilotOpportunity: _retired, ...request } = task().request;
-    const openJob = () => ({
-      ...task(),
-      request: { ...request, capture_mode: "self_capture", consent_attestation: {
-        granted: true, statement_version: "2026-09-18.v1", recorded_at_iso: "2026-09-13T10:00:00Z" } },
-      public_task_listing: { enabled: true, consentVersion: "public-task-card-v1",
-        approvedAtIso: "2026-09-13T10:00:00Z", details: card },
-      siteTaskGates: { sceneStability: "stable", taskShape: "single", objectVariety: "under_10",
-        deploymentTimeline: "this_quarter", accessWindow: "scheduled" },
-      site_task_triage: { disposition: "qualified" }, site_task_brief_confirmed_at: "2026-09-13T10:00:00Z",
-      pipeline: { artifacts: { worldlabs_world_manifest_uri: "gs://fixture/world.json" } },
-      evaluation_readiness: { runtime_launchable: true, benchmark_coverage_status: "ready", rights_review_status: "cleared" },
-    });
-    state.records.set("inboundRequests/task-1", openJob());
-    await api("/setups", "robot-1", setup);
-    const request1 = { id: "application-1", opportunityId: "task-1", setupId: "setup-1", notes: "", licenseToRun: true };
-    expect((await api("/openings/task-1", "robot-1")).status).toBe(403);
-    expect((await api("/evaluations", "robot-1", request1)).status).toBe(403);
-    const accessId = createHash("sha256").update("robot-1@example.com").digest("hex");
-    state.records.set(`robotTeamAccess/${accessId}`, { status: "approved" });
-    const opened = await api("/openings/task-1", "robot-1");
-    expect(opened.status).toBe(200);
-    const { opening } = await opened.json();
-    expect(opening).toEqual({ ...card, id: "task-1", publishedAtIso: "2026-09-13T10:00:00Z", thumbnailUrl: null, evaluation: null });
-    expect(JSON.stringify(opening)).not.toMatch(/Confidential Site|123 Private|Pack cartons"|gs:\/\/|robot-1|successRate/);
-    expect((await api("/openings/task-1", "site-1")).status).toBe(403);
-    for (const licenseToRun of [undefined, false]) {
-      const refused = await api("/evaluations", "robot-1", { ...request1, licenseToRun });
-      expect(refused.status).toBe(400);
-    }
-    expect(state.intakes).toHaveLength(0);
-    const savedSetup = state.records.get("users/robot-1/robotSetups/setup-1");
-    state.records.set("robotTeams/planning-test-team", {accountUid:"robot-1"});
-    state.records.set("robotCheckpoints/planning-test-checkpoint", {teamId:"planning-test-team",reference:"https://policy.test/action",runtime:"policy_endpoint",
-      policyCredential:{ref:"credential",kind:"bearer",expiresAtIso:"2100-01-01T00:00:00Z"}});
-    for (const robotDescription of [{source:"support_option",embodimentId:"almond_axol",catalogDigest:`sha256:${"a".repeat(64)}`,policyRouteIds:["pi_api"]},
-      {source:"model",format:"urdf",reference:"https://robot.test/arm.urdf",mobility:"fixed",details:""}]) {
-      state.records.set("users/robot-1/robotSetups/setup-1", {payload:`encrypted:${JSON.stringify({...setup,delivery:"endpoint",reference:"https://policy.test/action",robotDescription})}`});
-      const refused = await api("/evaluations", "robot-1", request1);
-      expect(refused.status).toBe(409);
-      expect((await refused.json()).code).toBe("team_evaluation_robot_integration_required");
-      expect(state.intakes).toHaveLength(0);
-    }
-    state.records.set("users/robot-1/robotSetups/setup-1", savedSetup);
-    expect((await api("/evaluations", "robot-1", request1)).status).toBe(201);
-    expect(state.intakes[0].body).toMatchObject({ taskStatement: card.title, siteName: "Private site", siteLocation: "" });
-    expect(JSON.stringify(state.intakes[0].body)).not.toMatch(/Confidential Site|123 Private/);
-    expect(state.intakes[0].metadata.workspace_evaluation).toMatchObject({
-      opportunityId: "task-1", setupId: "setup-1",
-      targetSnapshot: { successRate: terms.successRate, cycleTimeSeconds: terms.cycleTimeSeconds },
-    });
-    // A team's request sends the site no email (ended 2026-11-11); ops still hears.
-    expect(state.notices).not.toHaveBeenCalledWith(expect.objectContaining({ milestone: "pilot_request" }));
-    state.notices.mockClear();
-    // The Pipeline's rights review now holds the capture: closed on both surfaces.
-    state.records.set("inboundRequests/task-1", { ...openJob(),
-      evaluation_readiness: { runtime_launchable: true, benchmark_coverage_status: "ready", rights_review_status: "needs_review" } });
-    expect((await api("/openings/task-1", "robot-1")).status).toBe(404);
-    expect((await api("/evaluations", "robot-1", { ...request1, id: "application-2" })).status).toBe(404);
-    // A job that does not exist is refused exactly like one that is closed.
-    const missing = await api("/openings/task-missing", "robot-1");
-    expect(missing.status).toBe(404);
-    expect(await missing.json()).toMatchObject({ code: "job_not_open" });
-    // A record that passes only the retired dossier gate is not open.
-    state.records.set("inboundRequests/task-1", task());
-    expect((await api("/openings/task-1", "robot-1")).status).toBe(404);
-    expect((await api("/evaluations", "robot-1", { ...request1, id: "application-3" })).status).toBe(404);
-    expect(state.notices).not.toHaveBeenCalled();
-    expect(state.intakes).toHaveLength(1);
-  });
-  it("no longer lets a site select a team for a pilot, and requires a pilot before deployment", async () => {
-    state.records.set("inboundRequests/task-1", task());
-    state.records.set("inboundRequests/application-1", {
-      account_owner_uid: "robot-1",
-      workspace_evaluation: { opportunityId: "task-1", targetSnapshot: terms },
-    });
-    state.records.set("evaluationRuns/qualified-run", qualifiedRunForTask());
-    expect((await api("/tasks/task-1/pilot", "site-1", {
-      action: "invite", resultId: "qualified-run", notes: "Review pilot terms", siteVisitAnswer: "yes",
-    })).status).toBe(400);
-    expect(state.records.get("inboundRequests/task-1").workspace_task?.pilot?.state ?? "not_selected").toBe("not_selected");
-    expect(
-      (
-        await api("/tasks/task-1/pilot", "site-1", {
-          action: "deploy",
-          resultId: null,
-          notes: "Deploy",
-        })
-      ).status,
-    ).toBe(409);
   });
 });
 
@@ -1238,7 +755,7 @@ describe("site claim and listing control", () => {
     expect(state.records.get("users/site-1").structuredIntakeRequestId).toBe("task-1");
   });
 
-  it("lets a verified robot-team account claim its own site while keeping its role and evaluations", async () => {
+  it("lets a verified robot-team account claim its own site while keeping its role", async () => {
     const sourceTerms = buildLegalAcceptanceRecord({ acceptedAt: "2026-09-24T00:00:00Z" });
     state.records.set("users/robot-1", {
       buyerType: "robot_team", name: "Robot Owner",
@@ -1266,11 +783,9 @@ describe("site claim and listing control", () => {
     });
     const workspace = await (await api("/", "robot-1")).json();
     expect(workspace.role).toBe("robot_team");
-    expect(workspace.tasks.map((item: any) => item.id)).toContain("task-1");
-    expect(workspace.evaluations.map((item: any) => item.id)).toContain("application-1");
-    expect((await api("/tasks/task-1", "robot-1")).status).toBe(200);
-    expect((await api("/tasks/task-1/listing", "robot-1", { paused: true })).status).toBe(200);
-    expect((await api("/tasks/task-1", "robot-2")).status).toBe(404);
+    expect(workspace.tasks.map((item: any) => item.id)).toEqual(["task-1"]);
+    expect((await api("/tasks/task-1/task-link", "robot-1", {})).status).toBe(200);
+    expect((await api("/tasks/task-1/task-link", "robot-2", {})).status).toBe(404);
   });
 
   it("does not transfer stale or absent intake terms without fresh acceptance", async () => {
@@ -1351,86 +866,8 @@ describe("site claim and listing control", () => {
     expect((await api("/claim", "site-1", { token: "not-a-token" })).status).toBe(400);
   });
 
-  it("lets the owning operator pause and resume the site listing", async () => {
-    state.records.set("inboundRequests/task-1", task());
-    const paused = await api("/tasks/task-1/listing", "site-1", { paused: true });
-    expect(paused.status).toBe(200);
-    expect(state.records.get("inboundRequests/task-1").workspace_task.paused).toBe(true);
-
-    const resumed = await api("/tasks/task-1/listing", "site-1", { paused: false });
-    expect(resumed.status).toBe(200);
-    expect(state.records.get("inboundRequests/task-1").workspace_task.paused).toBe(false);
-
-    // A non-owner has no listing control: it reads as not-found, like every
-    // other task route.
-    expect((await api("/tasks/task-1/listing", "site-2", { paused: true })).status).toBe(404);
-  });
 });
 
-describe("agent screening runs on the site's task", () => {
-  it("shows a reported run as an anonymised simulation row and moves the ladder to results", async () => {
-    state.records.set("captureUploadSessions/walkthrough-task-1", { world_reconstruction: {
-      state: "failed", blocker: "provider_failed",
-    } });
-    state.records.set("inboundRequests/task-1", {
-      ...task(),
-      site_task_brief_confirmed_at: "2026-09-18T00:00:00Z",
-      capture_coverage: { covers_scene: true, missing_coverage: [], supplement_would_finish: false },
-    });
-    state.records.set("siteTaskBriefs/task-1", {
-      requestId: "task-1",
-      summary: "Pack cartons",
-      proposed: [],
-      unresolved: [],
-      captureMode: "self_capture",
-      draftedAtIso: "2026-09-17T00:00:00Z",
-      draftedFrom: ["description"],
-      confirmedAtIso: "2026-09-18T00:00:00Z",
-      confirmedBy: "Site Owner",
-      operatorAnswers: null,
-      operatorUnknown: null,
-    });
-    state.records.set("evaluationRuns/run_r1", {
-      runId: "run_r1",
-      teamId: "team-alpha",
-      checkpointId: "ckpt-secret",
-      sceneId: "task-1",
-      state: "completed",
-      requestedAtIso: "2026-09-19T00:00:00.000Z",
-      result: {
-        observed: { episodesRun: 50, episodesSucceeded: 41, successRate: 0.82, medianCycleSeconds: 38 },
-      },
-    });
-
-    state.records.set("evaluationRuns/private-secret", {
-      ...state.records.get("evaluationRuns/run_r1"), runId: "private-secret", evaluationPurpose: "private",
-    });
-    const body = await (await api("/", "site-1")).json();
-    const siteTask = body.tasks.find((item: any) => item.id === "task-1");
-    const row = siteTask.results.find((item: any) => item.id === "run_r1");
-
-    expect(row).toMatchObject({
-      evidenceLabel: "Simulation",
-      successRate: 82,
-      sampleCount: 50,
-      cycleTimeSeconds: 38,
-    });
-    expect(JSON.stringify(body)).not.toContain("team-alpha");
-    expect(JSON.stringify(body)).not.toContain("ckpt-secret");
-    // An unscored result is unknown evidence, not proof that the team failed:
-    // with nothing else in flight it cannot support a recommendation either way.
-    expect(siteTask.readiness?.decision).toBe("no_qualified_evaluation");
-    expect(siteTask.readiness?.headline).not.toMatch(/passed|failed|without passing/i);
-    expect(siteTask.readiness?.nextUpdateIso).toBeNull();
-    expect(JSON.stringify(body)).not.toContain("private-secret");
-    state.records.delete("evaluationRuns/run_r1");
-    const privateOnly = await (await api("/", "site-1")).json();
-    const privateTask = privateOnly.tasks.find((item: any) => item.id === "task-1");
-    expect(privateTask.results).toEqual([]);
-    expect(privateTask.status).not.toBe("Review results");
-    expect(privateTask.readiness?.decision).not.toBe("results");
-  });
-});
 
 
 describe("capture-first workspace intake", () => {
@@ -1494,8 +931,8 @@ describe("capture-first workspace intake", () => {
       body: { email: "site-1@example.com", buyerType: "site_operator", siteTaskGates: {}, consentAttestation: capture.consentAttestation },
       metadata: { account_owner_uid: "site-1" },
     });
-    expect((await api("/tasks/capture-owned", "site-1")).status).toBe(200);
-    expect((await api("/tasks/capture-owned", "site-2")).status).toBe(404);
+    expect((await api("/tasks/capture-owned/task-link", "site-1", {})).status).toBe(200);
+    expect((await api("/tasks/capture-owned/task-link", "site-2", {})).status).toBe(404);
   });
   it("allows a new account to create its own draft before email verification", async () => {
     const response = await fetch(`${base}/capture-start`, { method: "POST", headers: { "Content-Type": "application/json", "x-user": "site-1", "x-unverified": "1" }, body: JSON.stringify(capture) });
@@ -1514,7 +951,7 @@ describe("capture-first workspace intake", () => {
     expect(state.records.get("users/new-site")).toMatchObject({ uid: "new-site", email: "new-site@example.com",
       buyerType: "site_operator", company: "Acme Foods", acceptedTerms: true, termsVersion: TERMS_VERSION, privacyVersion: PRIVACY_VERSION,
       termsAcceptance: { accepted_terms: true, terms_version: TERMS_VERSION, privacy_version: PRIVACY_VERSION } });
-    expect((await api("/tasks/capture-owned", "new-site")).status).toBe(200);
+    expect((await api("/tasks/capture-owned/task-link", "new-site", {})).status).toBe(200);
   });
   // Ordinary sign-up writes a profile with no workspace type; it is set up the
   // same way and keeps what sign-up wrote.
@@ -1529,7 +966,7 @@ describe("capture-first workspace intake", () => {
     expect(state.intakes.at(-1)).toMatchObject({ body: { buyerType: "site_operator" }, metadata: { account_owner_uid: "new-site" } });
     expect(state.records.get("users/new-site")).toMatchObject({ name: "Dana", finishedOnboarding: false,
       buyerType: "site_operator", company: "Acme Foods", acceptedTerms: true, termsVersion: TERMS_VERSION });
-    expect((await api("/tasks/capture-owned", "new-site")).status).toBe(200);
+    expect((await api("/tasks/capture-owned/task-link", "new-site", {})).status).toBe(200);
   });
   it("sets up no account without the Terms, and never changes an existing profile", async () => {
     expect((await api("/capture-start", "new-site", capture)).status).toBe(403);
@@ -1549,142 +986,7 @@ describe("capture-first workspace intake", () => {
   });
 });
 
-it.each(["completed", "abandoned"])("keeps a %s free attempt visible without duplicate rows or cross-owner access", async runState => {
-  state.records.set("inboundRequests/task-1", task());
-  state.records.set("robotTeams/team-free", { accountUid: "robot-1" });
-  state.records.set("inboundRequests/application-free", { account_owner_uid: "robot-1",
-    workspace_evaluation: { opportunityId: "task-1", targetSnapshot: terms }, request: { taskStatement: "Packing" },
-    free_evaluation_handoff: { runId: "free-run", executionRequestId: "prepared-free" } });
-  state.records.set("robotEvalJobRequests/prepared-free", { buyer_user_id: "robot-1", status: "prepared_agent_execution" });
-  state.records.set("evaluationRuns/free-run", { runId: "free-run", teamId: "team-free", sceneId: "task-1",
-    evaluationPurpose: "pilot", quotedUsd: 0, state: runState, requestedAtIso: new Date().toISOString(),
-    executionAdmission: { digestSha256: "sha256:" + "a".repeat(64), envelope: { funding: {
-      payer: "blueprint", customer_price_usd: 0, cap_usd: 10, max_attempts: 1, approved_by: "operator",
-      approval_digest: "sha256:" + "b".repeat(64), expires_at_iso: "2100-01-01T00:00:00Z", workspace_request_id: "application-free" } } },
-    ...(runState === "completed" ? { result: { evidenceScope: "development_only", observed: { episodesRun: 1, episodesSucceeded: 1, successRate: 1, medianCycleSeconds: 20 } } } : {}) });
-  const team = await (await api("/", "robot-1")).json();
-  expect(team.evaluations).toHaveLength(1);
-  expect(team.evaluations[0]).toMatchObject({ id: "application-free", runId: "free-run", status: runState,
-    successRate: runState === "completed" ? 100 : null, targetsMet: null });
-  expect(JSON.stringify(team)).not.toContain("Confidential Site");
-  const site = await (await api("/tasks/task-1", "site-1")).json();
-  expect(site.results).toHaveLength(1);
-  expect(site.results[0]).toMatchObject(runState === "completed"
-    ? { id: "free-run", evidenceLabel: "Development simulation", targetsMet: null }
-    : { id: "application-free", status: "abandoned", successRate: null, sampleCount: null, targetsMet: null });
-  state.records.get("robotTeams/team-free").accountUid = "robot-2";
-  const unlinked = await (await api("/", "robot-1")).json();
-  expect(unlinked.evaluations[0].successRate).toBeNull();
-  expect(unlinked.evaluations[0].runId).toBeNull();
-});
 
-describe("development-only Atlas 3D preview", () => {
-  const consent = { granted: true, statement_version: "2026-09-18.v1", recorded_at_iso: "2026-09-18T00:00:00.000Z" };
-  async function preview(overrides: Record<string, unknown>) {
-    const { crossRuntimeDigest } = await import("../utils/crossRuntimeCanonical");
-    const value = { schema_version: "website_atlas_preview.v1", capture_id: "walkthrough-task-1", revision: 2,
-      state: "ready", reason: "pipeline_private_detail", updated_at_epoch: 1_761_138_000,
-      bundle: { digest: `sha256:${"a".repeat(64)}`, size_bytes: 4096, filename: "atlas-preview-walkthrough-task-1.zip" },
-      splat_available: true, mesh_available: false, claim_ceiling: "development_only",
-      scale_status: "unscaled_provider_world_units", ...overrides };
-    return { ...value, preview_digest: crossRuntimeDigest(value) };
-  }
-  function consentedTask(previews: Record<string, unknown>) {
-    const value = task();
-    state.records.set("inboundRequests/task-1", { ...value, request: { ...value.request, consent_attestation: consent },
-      website_atlas_previews: previews });
-  }
-  afterEach(() => { delete process.env.TASK_EVALUATION_RESULT_DOWNLOAD_SIGNING_SECRET; });
-
-  it.each(["unverified", "read_failed"])("retains the ready preview and Blueprint action over %s native status and raw advisory coverage", async failure => {
-    consentedTask({ "walkthrough-task-1": await preview({}) });
-    Object.assign(state.records.get("inboundRequests/task-1"), {
-      capture_coverage: { covers_scene: false, missing_coverage: ["A closer walkthrough along the shelving units"] },
-    });
-    state.records.set("captureUploadSessions/walkthrough-task-1", { website_preparation: { state: "queued" } });
-    if (failure === "read_failed") preparation.read.mockRejectedValueOnce(new Error("native projection unavailable"));
-    else preparation.read.mockResolvedValueOnce({ state: "unavailable" } as never);
-    const viewed = await (await api("/tasks/task-1", "site-1")).json();
-    expect(viewed.atlasPreview).toMatchObject({ state: "ready", downloadAvailable: false, viewAvailable: true });
-    expect(viewed.status).toBe("3D preview ready");
-    expect(viewed.readiness).toMatchObject({ decision: "preview_ready", operatorAction: null });
-    expect(viewed.readiness.headline).toMatch(/Blueprint is checking/);
-    expect(viewed.readiness.missingViews).toEqual(["A closer walkthrough along the shelving units"]);
-    expect(viewed.results).toEqual([]);
-    expect(viewed.sceneReady).not.toBe(true);
-  });
-
-  it.each(["authority_ended", "failed_terminal"])("keeps verified %s above a ready preview when the optional recording lookup fails", async nativeState => {
-    consentedTask({ "walkthrough-task-1": await preview({}) });
-    const { draftBrief } = await import("../utils/siteTaskBrief");
-    state.records.set("siteTaskBriefs/task-1", draftBrief({ requestId: "task-1", summary: "Move the carton to the pallet", captureMode: "self_capture", proposed: [] }));
-    state.records.set("captureUploadSessions/walkthrough-task-1", { website_preparation: { state: "queued" } });
-    preparation.read.mockResolvedValueOnce({ state: nativeState, correlationId: "bp-prep-1234567890abcdef" } as never);
-    storage.readable = false;
-    const viewed = await (await api("/tasks/task-1", "site-1")).json();
-    expect(viewed.atlasPreview).toMatchObject({ state: "ready", downloadAvailable: false });
-    expect(viewed.readiness.decision).not.toBe("preview_ready");
-    expect(viewed.readiness.headline).toMatch(nativeState === "authority_ended" ? /no longer authorized/i : /could not finish processing/i);
-    expect(viewed.readiness.operatorAction).toBeNull();
-    expect(viewed.results).toEqual([]);
-  });
-
-  // Owner decision 2026-10-29: Blueprint owns the reconstruction; the site sees it is ready but never downloads it.
-  it("shows the owner plain copy of a ready preview and never issues a download ticket", async () => {
-    process.env.TASK_EVALUATION_RESULT_DOWNLOAD_SIGNING_SECRET = "fixture-ticket-secret";
-    consentedTask({ "walkthrough-task-1": await preview({}) });
-    const viewed = await (await api("/tasks/task-1", "site-1")).json();
-    expect(viewed.atlasPreview).toEqual({ captureId: "walkthrough-task-1", label: "3D preview (beta, unscaled)",
-      state: "ready", statusText: "Your 3D preview is ready. Blueprint keeps the model for your job.", developmentOnly: true,
-      splatAvailable: true, meshAvailable: false, sizeBytes: 4096,
-      updatedAtIso: new Date(1_761_138_000_000).toISOString(), downloadAvailable: false, viewAvailable: true });
-    expect(JSON.stringify(viewed)).not.toContain("pipeline_private_detail");
-    const path = "/tasks/task-1/atlas-preview/download-ticket";
-    expect((await api(path, "site-2", {})).status).toBe(404);
-    const refused = await api(path, "site-1", { captureId: "walkthrough-task-1" });
-    expect(refused.status).toBe(410);
-    expect(refused.headers.get("cache-control")).toBe("private, no-store");
-    expect(await refused.json()).toMatchObject({ code: "website_atlas_preview_download_retired" });
-  });
-
-  it("issues a short-lived view ticket only for the owner's ready preview with a splat", async () => {
-    process.env.TASK_EVALUATION_RESULT_DOWNLOAD_SIGNING_SECRET = "fixture-ticket-secret";
-    const ready = await preview({});
-    consentedTask({ "walkthrough-task-1": ready });
-    viewerFiles.prepare.mockClear();
-    const path = "/tasks/task-1/atlas-preview/view-ticket";
-    expect((await api(path, "site-2", {})).status).toBe(404);
-    expect((await api(path, "site-1", { captureId: "walkthrough-task-1", extra: true })).status).toBe(400);
-    expect(viewerFiles.prepare).not.toHaveBeenCalled();
-    const ticket = await api(path, "site-1", { captureId: "walkthrough-task-1" });
-    expect(ticket.status).toBe(201);
-    expect(ticket.headers.get("cache-control")).toBe("private, no-store");
-    const { viewer_url: url } = await ticket.json();
-    const content = new URL(url, "https://webapp.invalid").searchParams.get("content");
-    expect(url.startsWith("/splat-viewer/index.html?content=")).toBe(true);
-    expect(content).toMatch(/^\/api\/website-atlas-preview-views\/task-1\/walkthrough-task-1\/scene\.ply\?expires=\d+&signature=[0-9a-f]{64}$/);
-    // Preparing the scene starts with the owner's click, so the viewer does not wait for all of it.
-    expect(viewerFiles.prepare).toHaveBeenCalledTimes(1);
-    expect(viewerFiles.prepare).toHaveBeenCalledWith("task-1", "walkthrough-task-1", ready.bundle);
-    // A preparation that fails does not fail the ticket; the viewer's own request reports it.
-    viewerFiles.prepare.mockRejectedValueOnce(new Error("website_atlas_preview_bundle_unavailable"));
-    expect((await api(path, "site-1", {})).status).toBe(201);
-    viewerFiles.prepare.mockClear();
-    consentedTask({ "walkthrough-task-1": await preview({ splat_available: false }) });
-    expect((await (await api("/tasks/task-1", "site-1")).json()).atlasPreview).toMatchObject({ viewAvailable: false });
-    expect((await api(path, "site-1", {})).status).toBe(404);
-    consentedTask({ "walkthrough-task-1": await preview({}) });
-    delete process.env.TASK_EVALUATION_RESULT_DOWNLOAD_SIGNING_SECRET;
-    expect((await api(path, "site-1", {})).status).toBe(503);
-    expect(viewerFiles.prepare).not.toHaveBeenCalled();
-  });
-
-  it("disappears as soon as recording consent is withdrawn", async () => {
-    consentedTask({ "walkthrough-task-1": await preview({}) });
-    expect((await api("/tasks/task-1/recording-consent/withdraw", "site-1", {})).status).toBe(202);
-    expect((await (await api("/tasks/task-1", "site-1")).json()).atlasPreview).toBeNull();
-  });
-});
 
 describe("practice-run videos of a job's simulation evaluation", () => {
   const consent = { granted: true, statement_version: "2026-09-18.v1", recorded_at_iso: "2026-09-18T00:00:00.000Z" };
@@ -1706,43 +1008,7 @@ describe("practice-run videos of a job's simulation evaluation", () => {
   afterEach(() => { delete process.env.TASK_EVALUATION_RESULT_DOWNLOAD_SIGNING_SECRET; });
   const path = "/tasks/task-1/practice-run-videos/view-ticket";
 
-  it("issues the owner short-lived view tickets for the run's published videos only", async () => {
-    process.env.TASK_EVALUATION_RESULT_DOWNLOAD_SIGNING_SECRET = "fixture-ticket-secret";
-    const body = await screeningRun();
-    expect((await api(path, "site-2", body)).status).toBe(404);
-    expect((await api(path, "site-1", { ...body, extra: true })).status).toBe(400);
-    expect((await api(path, "site-1", { ...body, videoIds: ["c".repeat(64)] })).status).toBe(404);
-    expect((await api(path, "site-1", { ...body, runId: "other-run" })).status).toBe(404);
-    const ticket = await api(path, "site-1", body);
-    expect(ticket.status).toBe(201);
-    expect(ticket.headers.get("cache-control")).toBe("private, no-store");
-    const { videos } = await ticket.json();
-    expect(videos.map((video: any) => video.video_id)).toEqual(body.videoIds);
-    for (const video of videos) expect(video.url).toMatch(new RegExp(`^/api/screening-practice-run-videos/task-1/${body.runId}/${body.candidateId}/${video.video_id}\\.mp4\\?expires=\\d+&signature=[0-9a-f]{64}$`));
-    delete process.env.TASK_EVALUATION_RESULT_DOWNLOAD_SIGNING_SECRET;
-    expect((await api(path, "site-1", body)).status).toBe(503);
-  });
 
-  it("issues nothing once recording consent is withdrawn, and forgets the job's cached copies", async () => {
-    const { mkdir, stat, writeFile } = await import("node:fs/promises");
-    const { dirname } = await import("node:path");
-    const { practiceRunVideoCachePath, practiceRunVideoMarkerPath } = await import("../utils/screeningPracticeRunVideos");
-    process.env.TASK_EVALUATION_RESULT_DOWNLOAD_SIGNING_SECRET = "fixture-ticket-secret";
-    const body = await screeningRun();
-    for (const videoId of body.videoIds.slice(0, 2)) {
-      await mkdir(dirname(practiceRunVideoMarkerPath("task-1", videoId)), { recursive: true });
-      await writeFile(practiceRunVideoMarkerPath("task-1", videoId), "");
-      await mkdir(dirname(practiceRunVideoCachePath(videoId)), { recursive: true });
-      await writeFile(practiceRunVideoCachePath(videoId), "cached render");
-    }
-    state.records.get("inboundRequests/task-1").request.consent_attestation.withdrawn_at_iso = "2026-11-05T12:00:00Z";
-    const refused = await api(path, "site-1", { ...body, videoIds: body.videoIds.slice(2, 3) });
-    expect(refused.status).toBe(403);
-    expect(JSON.stringify(await refused.json())).not.toContain("practice-run-videos/");
-    // Every cached copy of the job goes, not only the one asked for.
-    for (const videoId of body.videoIds.slice(0, 2))
-      await expect(stat(practiceRunVideoCachePath(videoId))).rejects.toThrow();
-  });
 
   it("forgets the job's cached copies when its recording permission is withdrawn", async () => {
     const { mkdir, stat, writeFile } = await import("node:fs/promises");

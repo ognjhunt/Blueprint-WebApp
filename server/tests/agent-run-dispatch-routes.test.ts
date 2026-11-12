@@ -36,14 +36,6 @@ vi.mock("../logger", () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }));
 
-vi.mock("../utils/robotTeamAgentKeys", () => ({
-  presentedAgentKey: (headers: Record<string, unknown>) => {
-    const raw = String(headers["authorization"] ?? "");
-    return raw.toLowerCase().startsWith("bearer ") ? raw.slice(7) : null;
-  },
-  resolveAgentKey: async (key: string | null) => (key === "bpk_test" ? "team-alpha" : null),
-}));
-
 vi.mock("../utils/pipelineSyncSecurity", () => ({
   verifyPipelineSyncRequest: () => ({ ok: true }),
   createPipelineSyncRateLimiter: () => (_req: unknown, _res: unknown, next: () => void) =>
@@ -57,11 +49,9 @@ let baseUrl: string;
 
 beforeEach(async () => {
   sharedFakeFirestoreState.docs.clear();
-  const { default: agentTeam } = await import("../routes/agent-team");
   const { default: pipeline } = await import("../routes/internal-agent-run-settlement");
   const app = express();
   app.use(express.json());
-  app.use("/api/agent-team", agentTeam);
   app.use("/api/internal/pipeline", pipeline);
   server = createServer(app);
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", () => resolve()));
@@ -135,7 +125,7 @@ describe("GET /api/internal/pipeline/agent-runs", () => {
 });
 
 describe("POST /api/internal/pipeline/agent-runs/:runId/started", () => {
-  it("claims the run once, removes it from the pending queue, and shows the team it is running", async () => {
+  it("claims the run once, removes it from the pending queue, and records it as running", async () => {
     const started = await json("/api/internal/pipeline/agent-runs/run_r1/started", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -155,12 +145,7 @@ describe("POST /api/internal/pipeline/agent-runs/:runId/started", () => {
     });
     expect(conflict.status).toBe(409);
 
-    const results = await json("/api/agent-team/results", {
-      headers: { authorization: "Bearer bpk_test" },
-    });
-    expect(results.status).toBe(200);
-    expect(results.body.runs[0].resultStatus).toBe("awaiting_result");
-    expect(results.body.runs[0].dispatch).toMatchObject({
+    expect(sharedFakeFirestoreState.docs.get("evaluationRuns/run_r1")?.dispatch).toMatchObject({
       startedAtIso: started.body.started_at_iso,
       pipelineRunId: "pipe-1",
     });

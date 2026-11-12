@@ -315,12 +315,12 @@ function ClaimSiteForToken({ token }: { token: string }) {
         <Check size={30} aria-hidden="true" />
         <h1>This site is yours.</h1>
         <p className="ms-field-hint">
-          {stage.summary.site.siteName || "Your site"} is now in your workspace. You can pause its
-          listing at any time — pausing takes it out of the job library approved partners see, and your
-          footage and rights are unchanged.
+          {stage.summary.site.siteName || "Your site"} is now in your account. Your jobs open from your
+          account. On your job page you can hide its card from the job library at any time; your footage
+          and rights are unchanged.
         </p>
-        <a className="ms-button ms-button-large" href={`/app/tasks/${encodeURIComponent(stage.summary.requestId)}`}>
-          Open your job <ArrowRight size={18} aria-hidden="true" />
+        <a className="ms-button ms-button-large" href="/app">
+          Open your jobs <ArrowRight size={18} aria-hidden="true" />
         </a>
       </Shell>
     );

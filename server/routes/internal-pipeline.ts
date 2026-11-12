@@ -49,7 +49,6 @@ import {
 import { recordBetaOpsFailureSignal } from "../utils/ops-alerts";
 import { effectiveEntitlementAccessState } from "../utils/entitlementExpiry";
 import { dispatchTransactionalNotification } from "../utils/transactional-notifications";
-import { notifyIfOpenForEvaluations } from "../utils/taskLifecycleNotifications";
 
 const router = Router();
 const pipelineSyncRateLimiter = createPipelineSyncRateLimiter();
@@ -1514,11 +1513,6 @@ router.post(
         }).catch(() => null);
       }
     }
-
-    // A sync is what usually proves a scene runnable, which opens the job for
-    // evaluation. The site hears that once; never fails the sync.
-    try { await notifyIfOpenForEvaluations(docRef.id); }
-    catch (error) { logger.warn({ error, requestId: docRef.id }, "Open-for-evaluations notice could not be checked"); }
 
     return res.json({
       ok: true,

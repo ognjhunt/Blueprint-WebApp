@@ -8,19 +8,10 @@ import {siteWalkthroughIdentity} from './siteWalkthrough';
 import {websiteRunClosure} from './websiteRunClosure';
 import {OUTBOX_WENT_OUT} from './outboxWentOut';
 const CAPTURE_DEPENDENT_NOTICES=new Set<OutboxKind>([
- 'video_received','scene_ready','scene_tests_started','screening_cleared','screening_started','results_ready','run_no_result',
- 'evaluation_outcome','scene_outcome','robot_access_question',
- 'awaiting_evaluations','no_team_passed','no_qualified_evaluation','footage_before_account',
+ 'video_received','scene_ready','scene_tests_started','screening_cleared','screening_started',
+ 'evaluation_outcome','scene_outcome','robot_access_question','footage_before_account',
  'brief_confirmed','coverage_shortfall','assessment_ready','input_needed','answer_ready','video_too_large',
  'listing_live','job_sent','company_answered',
-]);
-/** Notices about evaluations a robot team asked for (`evaluationRuns`). Blueprint runs the
- * evaluations itself now, so these no longer belong on a site's journey. Their rows are still
- * written, so recovery markers clear and each team still hears about its own run; they are
- * cancelled at dispatch instead of being sent. Blueprint's own simulation (`evaluation_outcome`,
- * `scene_outcome`, `scene_tests_started`) is unaffected. */
-const TEAM_RUN_EVALUATION_NOTICES=new Set<OutboxKind>([
- 'results_ready','run_no_result','awaiting_evaluations','no_team_passed','no_qualified_evaluation',
 ]);
 /**
  * The answer emails, by slot (review, 2026-11-11): per job at most one paper-check answer and at most one test
@@ -113,8 +104,6 @@ export async function taskLifecycleNotificationIsCurrent(
  // Checked once the row exists (its key names the email); queueing without a key is decided at dispatch.
  if(entry.idempotencyKey!==undefined&&answerSlotOf(entry.kind,entry.idempotencyKey,entry.answerSlot)&&(await endedBySite(entry.requestId,transaction)
   ||await answerSlotFilled(entry.requestId,entry.kind,entry.idempotencyKey,entry.answerSlot,transaction)))return false;
- // The dispatch transaction is the send: a team-run evaluation notice stops there.
- if(transaction&&TEAM_RUN_EVALUATION_NOTICES.has(entry.kind))return false;
  // Older queued ownership notices asked for an account that cannot repair
  // the recording. Keep their history, but do not dispatch that stale request.
  if(entry.kind==='footage_before_account'&&typeof entry.body==='string'
@@ -219,11 +208,6 @@ export async function taskLifecycleNotificationIsCurrent(
   if(entry.idempotencyKey===undefined)return true;
   const questions=await import('./websiteRobotAccessRemoval');
   return questions.robotAccessQuestionOpen(entry.requestId,entry.idempotencyKey,snapshot.data());
- }
- if(entry.kind==='awaiting_evaluations'||entry.kind==='no_team_passed'||entry.kind==='no_qualified_evaluation'){
-  const notices=await import('./taskLifecycleNotifications');
-  return entry.kind==='awaiting_evaluations'?notices.openAndAwaitingEvaluations(entry.requestId)
-   :entry.kind==='no_team_passed'?notices.noTeamHasPassed(entry.requestId):notices.noQualifiedEvaluationYet(entry.requestId);
  }
  return true;
 }

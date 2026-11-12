@@ -20,8 +20,6 @@ async function fixtures(page: Page, items: unknown[] | { gated: true } = [card, 
     else if (path === "/api/robot-team-access/apply") data = { status: "applied" };
     else if (path === "/api/csrf") data = { csrfToken: "local-only" };
     else if (path.startsWith("/api/task-listings/owner/")) data = { listing: null, ok: true };
-    else if (path === "/api/agent-team/register") data = { teamId: "team-1", agentKey: "local-fixture", checkpoint: { checkpointId: "cp-1" } };
-    else if (path === "/api/agent-team/plan") data = { selected: [{ sceneId: card.id, siteLabel: card.title, costUsd: 25, rationale: "Payload needs confirmation before execution.", details: card }], totalCostUsd: 25 };
     else if (path === "/api/inbound-request") data = { ok: true, requestId: "task-1", captureUrl: "http://127.0.0.1:42931/capture-upload/owner-fixture" };
     else if (path.startsWith("/api/self-capture/uploads/") && path.endsWith("/status")) data = { ok: true, state: "ready", uploadState: "not_received", captureReceived: false, accepts: ["mov", "mp4"], expiresAt: "2099-01-01T00:00:00Z" };
     else if (/^\/api\/self-capture\/uploads\/[^/]+$/.test(path) && req.method() === "GET") throw new Error("Receipt checks must use the pure upload status endpoint.");

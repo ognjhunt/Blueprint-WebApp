@@ -674,7 +674,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
       }
       setState({
         status: "done",
-        workspaceUrl: savedToWorkspace ? `/app/tasks/${requestId.current}` : null,
+        workspaceUrl: savedToWorkspace ? "/app" : null,
         linkOnlyNote: currentUser && !savedToWorkspace
           ? `This account is not a site workspace, so this site is saved to the link we email ${email}. You can claim it from that link later.`
           : null,

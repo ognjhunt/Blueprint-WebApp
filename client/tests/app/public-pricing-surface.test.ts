@@ -79,10 +79,10 @@ describe("the public surface carries one pricing model", () => {
     // Nothing is charged during the free beta, but server-side cost accounting
     // still prices compute against the deprecated historical entry price. The
     // two must stay one constant so the ledger cannot drift from itself.
-    const { entryPrice } = await import("@/lib/evaluationPricing");
-    const { screeningRunCostUsd } = await import("../../../server/utils/teamEvalCandidates");
-
-    expect(screeningRunCostUsd()).toBe(entryPrice);
+    // The ledger reads the one constant itself (the agent API's quote, which also did, is gone: 2026-11-12).
+    const ledger = fs.readFileSync(path.join(repoRoot, "server/utils/cohortEconomics.ts"), "utf8");
+    expect(ledger).toMatch(/import \{[^}]*\bentryPrice\b[^}]*\} from "\.\.\/\.\.\/client\/src\/lib\/evaluationPricing"/);
+    expect(ledger).not.toMatch(/\bentryPrice\s*=/);
   });
 
   it("leaves no import of the renamed pricing module behind", async () => {
@@ -95,7 +95,8 @@ describe("the public surface carries one pricing model", () => {
       encoding: "utf8",
     })
       .split("\n")
-      .filter((file) => /\.(ts|tsx)$/.test(file));
+      // A file deleted in the working tree but not yet committed holds no prose to point anyone anywhere.
+      .filter((file) => /\.(ts|tsx)$/.test(file) && fs.existsSync(path.join(repoRoot, file)));
 
     // This file names the old module in order to search for it, so it is the
     // one legitimate hit and is excluded by path rather than by a cuter needle.

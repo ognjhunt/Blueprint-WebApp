@@ -15,18 +15,3 @@ describe("the deployment company approval email", () => {
     expect(email.body).not.toMatch(/workspace|want to test at|new-job alerts|in Settings|evaluation|\$\s?\d/i);
   });
 });
-
-// Review, 2026-11-12: the agent contract and the published OpenAPI say what a company can do today.
-describe("the agent contract a company's agent reads", () => {
-  it("says running a company's own software is not offered yet, and quotes no beta pricing", async () => {
-    const fs = await import("node:fs");
-    const path = await import("node:path");
-    const published = fs.readFileSync(path.resolve(import.meta.dirname, "../../client/public/agent-access.openapi.json"), "utf8");
-    expect(published).toContain("running a company's own software on a site's job is not offered yet");
-    expect(published).toContain("Deployment companies apply at /partners");
-    expect(published).not.toMatch(/free during the beta|Evaluations are free|apply to give Blueprint access to a policy/i);
-    // Review, 2026-11-12: the description at the top of the contract said the old frame.
-    expect(published).not.toMatch(/compares public control policies|free for sites and partners|takes no cut|evaluation tools for robot teams/i);
-    expect(published).toContain("can see the summary the site approved, never the video or the simulation");
-  });
-});

@@ -12,8 +12,8 @@
  * Each job starts from the real
  * `POST /api/inbound-request` handler with the exact body the public start form
  * sends; footage goes through the real upload route; the site saves the job
- * through the real `POST /api/workspace/claim`; the pages read the real status
- * and workspace routes; the email is queued by the real reconcile. The
+ * through the real `POST /api/workspace/claim`; the page reads the real status
+ * route; the email is queued by the real reconcile. The
  * historical fixture explicitly removes the new server-bound source fields
  * before seeding old ownerless footage; current guest jobs retain them.
  *
@@ -224,14 +224,6 @@ async function legacyGuestUpload(token: string) {
   finally { legacy.guestUploadsAllowed = false; }
 }
 
-/** The job as the site's workspace job page reads it, once saved. */
-async function workspaceTask(jobId: string) {
-  const response = await fetch(`${base}/api/workspace/tasks/${encodeURIComponent(jobId)}`, {
-    headers: { "x-fixture-user": `site-owner-${jobId}`, "x-fixture-email": `${jobId}@example.test` } });
-  expect(response.status, await response.clone().text()).toBe(200);
-  return (await response.json()) as { readiness: { decision: string; headline: string; operatorAction: string | null } | null };
-}
-
 const notices = (jobId: string, kind: string) => [...state.docs.entries()]
   .filter(([key, value]) => key.startsWith("captureOutbox/") && (value as { requestId?: string; kind?: string }).requestId === jobId
     && (value as { kind?: string }).kind === kind).map(([, value]) => value as { subject: string; body: string });
@@ -282,7 +274,7 @@ async function stuckGuestBornJob() {
 }
 
 describe("a job whose video arrived before its account", () => {
-  it("says so on both job pages and in one email once the job is saved, and takes no video it cannot use", async () => {
+  it("says so on the job page and in one email once the job is saved, and takes no video it cannot use", async () => {
     const { jobId, token } = await startJob();
     await legacyGuestUpload(token);
     const sourceSession = structuredClone(doc(`captureUploadSessions/walkthrough-${jobId}`));
@@ -314,14 +306,12 @@ describe("a job whose video arrived before its account", () => {
     await confirmBrief(token);
     expect((await jobStatus(token)).status).toMatchObject({ decision: "footage_before_account", operatorAction: null });
 
-    // Saved: the same truth on both pages, with nothing asked of the site.
+    // Saved: the same truth on the job page, with nothing asked of the site.
     await claim(jobId);
     const page = await jobStatus(token);
     expect(page.status.decision).toBe("footage_before_account");
     expect((page.status as { headline?: string }).headline).toMatch(ARRIVED_BEFORE);
     expect((page.status as { operatorAction?: string | null }).operatorAction ?? null).toBeNull();
-    const { readiness } = await workspaceTask(jobId);
-    expect(readiness).toMatchObject({ decision: "footage_before_account", headline: (page.status as { headline: string }).headline });
     expect((await sendFootage(token)).body.code).toBe("footage_before_account");
     expect(doc(`captureUploadSessions/walkthrough-${jobId}`)).toEqual(sourceSession);
     expect((await sharedUploadBucket.bucket.file(rawVideo).getMetadata())[0]).toEqual(videoIdentity);

@@ -1,38 +1,14 @@
 /**
- * Owner request (2026-10-18): every surface states the beta's expected
- * timelines, each from one named constant the owner can change, and none
- * promises a recommendation date.
+ * Owner request (2026-10-18): the beta's expected timeline comes from one named
+ * constant the owner can change, and it promises no recommendation date.
  */
 import { describe, expect, it } from "vitest";
 
-import {
-  EVALUATION_START_TIMELINE,
-  REPLY_TIMELINE,
-  SIMULATION_BUILD_TIMELINE,
-  waitingTimeline,
-} from "@/data/betaTimelines";
+import { REPLY_TIMELINE } from "@/data/betaTimelines";
 
-describe("the beta's expected timelines", () => {
-  it("are the owner's three ranges, and none dates a recommendation", () => {
+describe("the beta's expected timeline", () => {
+  it("is the owner's reply range, and dates no recommendation", () => {
     expect(REPLY_TIMELINE).toBe("We usually reply within an hour.");
-    expect(SIMULATION_BUILD_TIMELINE).toMatch(/checks needed for your job/);
-    expect(SIMULATION_BUILD_TIMELINE).not.toMatch(/one to three weeks/);
-    expect(EVALUATION_START_TIMELINE).toMatch(/compatible options and delivery support/);
-    for (const line of [REPLY_TIMELINE, SIMULATION_BUILD_TIMELINE, EVALUATION_START_TIMELINE]) {
-      expect(line).not.toMatch(/recommend/i);
-    }
-  });
-
-  it("names the wait for each stage that waits on Blueprint or a robot team, and nothing for the site's own steps", () => {
-    expect(waitingTimeline("received")).toBe(REPLY_TIMELINE);
-    expect(waitingTimeline("footage_received")).toBe(REPLY_TIMELINE);
-    expect(waitingTimeline("assessing")).toBe(SIMULATION_BUILD_TIMELINE);
-    expect(waitingTimeline("awaiting_teams")).toBe(EVALUATION_START_TIMELINE);
-    // Settled evaluations: the headline already says what comes next, and its
-    // evaluations have finished, so "evaluations start" would read wrong.
-    for (const decision of ["confirm_brief", "record", "add_views", "save_account", "not_listed", "call_needed", "not_now",
-      "not_yet_supported", "screening", "results", "no_team_passed", "no_qualified_evaluation", undefined, null, "unknown"]) {
-      expect(waitingTimeline(decision)).toBeNull();
-    }
+    expect(REPLY_TIMELINE).not.toMatch(/recommend/i);
   });
 });

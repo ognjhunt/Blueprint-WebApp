@@ -30,9 +30,6 @@ vi.mock("../logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.
 const { siteVideoEvidenceOutputSchema, siteVideoEvidenceTask, OTHER_ACTIONS } = await import("../agents/tasks/site-video-evidence");
 const { summariseVideoEvidence } = await import("../utils/siteVideoEvidence");
 const { captureCoverageOutputSchema, captureCoverageTask } = await import("../agents/tasks/capture-coverage");
-const { createReadinessBriefToken, readinessBriefPathFor, verifyReadinessBriefToken } = await import("../utils/readinessBriefToken");
-const { createCaptureUploadToken, verifyCaptureUploadToken } = await import("../utils/captureUploadToken");
-const { createRequestReviewToken, verifyRequestReviewToken } = await import("../utils/request-review-auth");
 
 const ESTIMATES = {
   object: "sealed carton", object_largest_side_m: 0.45, object_mass_kg_low: 3, object_mass_kg_high: 5, object_surface: "matte",
@@ -135,27 +132,5 @@ describe("the coverage review carries the estimates for every uploaded walkthrou
     expect(prompt(false)).toContain("Never a brand, company or robot.");
     expect(prompt(true)).not.toContain("Estimating the job");
     expect(prompt(true)).toContain("job_estimates: null.");
-  });
-});
-
-describe("the printable brief's read-only link", () => {
-  it("names one job, and expires", () => {
-    expect(verifyReadinessBriefToken(createReadinessBriefToken("job-1"))).toBe("job-1");
-    expect(readinessBriefPathFor("job-1")).toMatch(/^\/readiness-brief\/[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/);
-    expect(verifyReadinessBriefToken(createReadinessBriefToken("job-1", -60))).toBeNull();
-    const [payload, signature] = createReadinessBriefToken("job-1").split(".");
-    const forged = Buffer.from(JSON.stringify({ kind: "readiness_brief", requestId: "job-2", exp: 9_999_999_999 })).toString("base64url");
-    expect(verifyReadinessBriefToken(`${forged}.${signature}`)).toBeNull();
-    expect(verifyReadinessBriefToken(`${payload}.`)).toBeNull();
-    expect(verifyReadinessBriefToken("")).toBeNull();
-  });
-
-  it("is never read as a capture or review link, and neither is read as it", () => {
-    const brief = createReadinessBriefToken("job-1");
-    expect(verifyCaptureUploadToken(brief)).toBeNull();
-    expect(verifyRequestReviewToken(brief, "job-1")).toBeNull();
-    expect(verifyReadinessBriefToken(createCaptureUploadToken({ requestId: "job-1", captureId: "walkthrough-job-1", sceneId: "site-job-1" })))
-      .toBeNull();
-    expect(verifyReadinessBriefToken(createRequestReviewToken("job-1"))).toBeNull();
   });
 });

@@ -34,7 +34,7 @@ describe("Route registration", () => {
     const paths = appRoutes.map((route) => route.path).filter(Boolean);
     expect(new Set(paths).size).toBe(paths.length);
     for (const path of Object.keys(minimalMarketingRedirects)) expect(matchAppRoute(path)?.layout).toBe("public");
-    expect(matchAppRoute("/app/tasks")?.layout).toBe("protected");
+    expect(matchAppRoute("/app")?.layout).toBe("protected");
     expect(matchAppRoute("/app/results/example")?.shell).toBe("bare");
   });
 
@@ -81,8 +81,6 @@ describe("Route registration", () => {
 
     for (const route of [
       "/app",
-      "/app/tasks",
-      "/app/tasks/:taskId",
       "/app/captures",
       "/app/evaluation-runs/:runId",
       "/app/g1-reviews/:runId",
@@ -122,6 +120,21 @@ describe("Route registration", () => {
     for (const page of ["Runs", "RunDetail", "RunIntake", "PolicyCandidateIntake", "EvaluationRunSetup", "PolicyCanarySetup", "SitePacks"]) {
       expect(source).not.toContain(`import("../pages/app/${page}")`);
     }
+  });
+
+  it("sends the retired signed-in job pages to the jobs list and the readiness brief home", () => {
+    // The last removal round (2026-11-12): one "Your jobs" list at /app; no printed readiness brief.
+    const source = fs.readFileSync(path.resolve(process.cwd(), "client/src/app/routes.tsx"), "utf-8");
+    for (const route of ["/app/tasks", "/app/tasks/:taskId", "/readiness-brief/:briefToken"])
+      expect(source).not.toContain(`path: "${route}"`);
+    expect(minimalMarketingRedirects["/app/tasks"]).toBe("/app");
+    expect(minimalMarketingRedirects["/app/tasks/:taskId"]).toBe("/app");
+    expect(minimalMarketingRedirects["/app/tasks/new"]).toBe("/contact/site-operator");
+    expect(minimalMarketingRedirects["/readiness-brief/:briefToken"]).toBe("/");
+    expect(matchAppRoute("/app/tasks/job-1")?.path).toBe("/app/tasks/:taskId");
+    expect(matchAppRoute("/app/tasks/new")?.path).toBe("/app/tasks/new");
+    for (const page of ["workspace/Tasks", "workspace/TaskDetail", "RobotReadinessBrief"])
+      expect(source).not.toContain(`import("../pages/${page}")`);
   });
 
   it("keeps ops aliases protected and off the mock-data console", () => {

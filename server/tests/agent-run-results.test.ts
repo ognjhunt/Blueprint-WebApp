@@ -561,8 +561,8 @@ describe("immutable results and repeat delivery", () => {
   });
 });
 
-describe("the site hears when a result lands", () => {
-  it("emails the site once per run, with what was observed", async () => {
+describe("a team's result stays off the site's journey (2026-11-12)", () => {
+  it("queues no site email for a team's result", async () => {
     seedRun();
     seedTeam("applied");
     sharedFakeFirestoreState.docs.set("inboundRequests/scene-1", { contact: { email: "site@example.com" } });
@@ -571,9 +571,7 @@ describe("the site hears when a result lands", () => {
     await recordRunResult({ runId: "run_res_1", report: { episodesRun: 50, episodesSucceeded: 41 } });
 
     const notices = [...sharedFakeFirestoreState.docs.entries()]
-      .filter(([key]) => key.startsWith("captureOutbox/scene-1:results_ready:"));
-    expect(notices).toHaveLength(1);
-    expect(notices[0][1]).toMatchObject({ to: "site@example.com", kind: "results_ready" });
-    expect(String((notices[0][1] as { body: string }).body)).toContain("41 of 50 simulated episodes succeeded");
+      .filter(([key]) => key.startsWith("captureOutbox/scene-1:"));
+    expect(notices).toEqual([]);
   });
 });

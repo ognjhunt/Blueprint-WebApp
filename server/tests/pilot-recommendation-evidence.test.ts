@@ -234,15 +234,17 @@ describe("robot-team identity", () => {
 describe("ops alerts", () => {
   beforeEach(() => { state.docs.clear(); slack.mockClear(); process.env.SLACK_WEBHOOK_URL = "https://hooks.example.test/fixture"; });
 
-  it("rings once per event with ids and a link only", async () => {
-    const params = { workspaceRequestId: "req_eval_1", jobId: "job_1", teamIds: ["team_acme_1a2b"] };
-    expect(await opsAlerts.alertOpsEvaluationNeedsAdmission(params)).toEqual({ sent: true });
-    expect(await opsAlerts.alertOpsEvaluationNeedsAdmission(params)).toMatchObject({ sent: false, reason: "already_rung" });
+  it("rings once per event, with ids and Blueprint's own text only", async () => {
+    const params = { requestId: "req_job_1", headline: "Most likely fit: a fixed arm", pick: null };
+    expect(await opsAlerts.alertOpsIntroductionRequested(params)).toEqual({ sent: true });
+    expect(await opsAlerts.alertOpsIntroductionRequested(params)).toMatchObject({ sent: false, reason: "already_rung" });
     expect(slack).toHaveBeenCalledTimes(1);
     const [text] = slack.mock.calls[0] as unknown as [string];
-    expect(text).toMatch(/needs founder admission.*req_eval_1.*job_1.*team_acme_1a2b/s);
-    expect(opsAlerts.evaluationAdmissionAlertText({ workspaceRequestId: "x@y.test", jobId: "job_1", teamIds: [] })).not.toContain("x@y.test");
+    expect(text).toMatch(/find a deployment company.*req_job_1/s);
+    expect(opsAlerts.introductionRequestAlertText({ requestId: "x@y.test", headline: null, pick: null })).not.toContain("x@y.test");
     delete process.env.SLACK_WEBHOOK_URL;
-    expect(await opsAlerts.alertOpsEvaluationNeedsAdmission({ workspaceRequestId: "req_eval_2", jobId: "job_2", teamIds: [] })).toMatchObject({ sent: false, reason: "webhook_unconfigured" });
+    expect(await opsAlerts.alertOpsIntroductionRequested({ requestId: "req_job_2", headline: null, pick: null }))
+      .toMatchObject({ sent: false, reason: "webhook_unconfigured" });
   });
+
 });

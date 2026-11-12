@@ -39,7 +39,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CaptureHandoffQr } from "@/components/site/CaptureHandoffQr";
 import { CaptureRecorder, type ChecklistItem } from "@/components/site/CaptureRecorder";
 import { TaskBriefReview, type DraftedBrief, type SiteAccount } from "@/components/site/TaskBriefReview";
-import { SiteReadinessPanel } from "@/components/site/SiteReadinessPanel";
 import { FilmLinkHandoff } from "@/components/site/FilmLinkHandoff";
 import { OwnerRecordingWithdrawal } from "@/components/site/OwnerRecordingWithdrawal";
 import { FILMING_NOTICE, FOOTAGE_UPLOAD_NOTICE } from "@/lib/footageNotice";
@@ -1168,11 +1167,6 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
 
             </>
           )}
-          {/* The site sends its video and nothing else (founder direction,
-              2026-10-20): no measurements, item photos or follow-up questions.
-              Blueprint infers the rest from the video. The owner sees the robot
-              readiness report here once Blueprint shares it, folded. */}
-          {saved && scope === "owner" && !answer && <SiteReadinessPanel token={token} />}
           </div>
         </>
       )}

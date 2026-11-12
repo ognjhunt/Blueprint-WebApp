@@ -1,7 +1,7 @@
 /**
  * Follow-up legs of the live lap, against the capture created in the first run.
- * Brief confirmation (owner attestation) -> status polling -> robot team
- * register + free plan.
+ * Brief confirmation (owner attestation). (The robot-team leg, through the
+ * agent API, was removed with that API on 2026-11-12.)
  */
 import { chromium } from "playwright";
 import fs from "node:fs";
@@ -38,49 +38,6 @@ try {
   note(`BRIEF CONFIRM FAILED: ${String(error).slice(0, 400)}`);
 }
 await browser.close();
-
-// Robot team: register (free) and plan (free).
-try {
-  const stamp = Date.now();
-  const reg = await fetch(`${BASE}/api/agent-team/register`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      teamName: `Rehearsal Robotics ${stamp}`,
-      contactEmail: `beta-rehearsal+robot-${stamp}@tryblueprint.io`,
-      taskFamily: "pick_and_place",
-      capabilityDescription: "Automated beta-rehearsal registration; no hardware behind this checkpoint yet.",
-      checkpoint: {
-        label: "rehearsal-checkpoint",
-        runtime: "policy_endpoint",
-        reference: "https://rehearsal.invalid/checkpoint",
-      },
-    }),
-  });
-  const regBody = await reg.json().catch(() => ({}));
-  note(`agent-team/register -> ${reg.status} keys=${Object.keys(regBody).join(",")}`);
-  note(reg.ok ? "PASS robot team registered through the public agent API" : "FAIL robot team registration");
-
-  const apiKey = regBody.agentKey;
-  if (apiKey) {
-    const plan = await fetch(`${BASE}/api/agent-team/plan`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({ checkpointId: "rehearsal-checkpoint" }),
-    });
-    const planBody = await plan.json().catch(() => ({}));
-    const candidates = planBody.candidates ?? planBody.plan?.candidates ?? [];
-    note(
-      `agent-team/plan -> ${plan.status} candidates=${candidates.length} ` +
-        `top=${candidates[0]?.siteName ?? candidates[0]?.site_name ?? "-"}`,
-    );
-    note(plan.ok ? "PASS free ranked plan produced on production" : "FAIL plan");
-  } else {
-    note(`no agentKey in register response: ${JSON.stringify(regBody).slice(0, 300)}`);
-  }
-} catch (error) {
-  note(`ROBOT LEG FAILED: ${String(error).slice(0, 300)}`);
-}
 
 fs.writeFileSync("/tmp/live-lap-followup.json", JSON.stringify(notes, null, 2));
 console.log("FOLLOW-UP DONE");

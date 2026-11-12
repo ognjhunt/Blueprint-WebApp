@@ -133,7 +133,8 @@ describe("canvasSurfaceFor", () => {
   // flashes the wrong colour.
   it("agrees with the shell every route actually renders", () => {
     const routes = parseRoutes();
-    expect(routes.length).toBeGreaterThan(100);
+    // A sanity floor that the parser still finds the table: 99 routes after the last removal round (2026-11-12).
+    expect(routes.length).toBeGreaterThan(90);
 
     const mismatches = routes
       .map((route) => ({ route, expected: renderedSurface(route) }))

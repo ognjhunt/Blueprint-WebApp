@@ -103,13 +103,6 @@ export function Header() {
       };
     }
 
-    if (location === "/agents" || location.startsWith("/developers/agents")) {
-      return {
-        href: "/agent-access.openapi.json",
-        label: "Open agent contract",
-      };
-    }
-
     return headerRequestEvaluation;
   }, [location]);
 

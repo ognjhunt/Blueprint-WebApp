@@ -375,9 +375,6 @@ jobs:
       - name: Run isolated local launch smoke
         run: npm run smoke:launch:local
 
-      - name: Run agent contract drift guard
-        run: npx vitest run scripts/agent-access/agent-access-drift-guard.test.ts
-
       - name: Upload build metadata
         if: ${{ always() && hashFiles('dist/public/version.json') != '' }}
         continue-on-error: true

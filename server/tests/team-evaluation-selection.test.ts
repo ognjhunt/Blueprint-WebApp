@@ -3,9 +3,8 @@ import { createHmac } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 const setupPayload=vi.hoisted(()=>({value:null as any}));
 vi.mock("../../client/src/lib/firebaseAdmin",()=>({dbAdmin:{collection:()=>({doc:()=>({collection:()=>({limit:()=>({get:async()=>({docs:[{id:"saved-one",data:()=>({payload:setupPayload.value})}]})})})})})}}));
-import { buildTeamEvaluationRequest, fetchTeamEvaluationContext, loadRobotSetups, teamEvaluationTaskDetails, type TeamEvaluationContext } from "../utils/teamEvaluationSelection";
+import { buildTeamEvaluationRequest, fetchTeamEvaluationContext, loadRobotSetups, type TeamEvaluationContext } from "../utils/teamEvaluationSelection";
 import { sceneDigest } from "../utils/taskEvaluationSceneIntake";
-import { TEAM_EVALUATION_PRICE_CENTS } from "../utils/teamEvaluationSelection";
 
 const sha=(c:string)=>`sha256:${c.repeat(64)}`;
 const owner={user_id:"owner",organization_id:"user:owner"};
@@ -29,10 +28,6 @@ function fixture() {
 }
 afterEach(()=>{vi.unstubAllGlobals();vi.unstubAllEnvs();});
 describe("team evaluation selection",()=>{
-  it("quotes zero customer cost for the free beta",()=>{
-    expect(TEAM_EVALUATION_PRICE_CENTS).toBe(0);
-
-  });
   it("reuses retained scene inputs under a new independent request and exact selected binding",()=>{
     const {context,command,setup}=fixture();
     const original=JSON.stringify(context);
@@ -72,16 +67,6 @@ describe("team evaluation selection",()=>{
   });
 });
 
-it("shows only supplied task requirements without exposing storage or inventing measurements",()=>{
-  const {context}=fixture();
-  context.task={strategy:"pick_and_place",subject:{description:"Blue container",private_uri:"s3://private/asset"},
-    destination:{visible_label:"Green target"},success:{maximum_episode_seconds:30,minimum_lift_m:0.02,maximum_retries:0}};
-  const details=teamEvaluationTaskDetails(context);
-  expect(details).toEqual({title:"Pick and place",description:"Blue container",requirements:[
-    {label:"Object",value:"Blue container"},{label:"Destination",value:"Green target"},
-    {label:"Time limit",value:"30 seconds"},{label:"Minimum lift",value:"0.02 m"},{label:"Retries",value:"0"}]});
-  expect(JSON.stringify(details)).not.toContain("s3://");
-});
 
 it("refuses a mismatched worker key and reads the same ciphertext once configuration matches",async()=>{
   const {encryptFieldValue}=await import("../utils/field-encryption");

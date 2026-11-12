@@ -541,7 +541,9 @@ describe("seeded concurrent delivery schedules", () => {
 
 
 describe("retired pilot notices", () => {
-  it.each(["pilot_recommended", "pilot_booked", "pilot_scheduled", "team_pilot_recommended", "team_pilot_booked", "team_pilot_scheduled"] as const)(
+  // The five team-run notices to a site went with robot teams running their own software (2026-11-12).
+  it.each(["pilot_recommended", "pilot_booked", "pilot_scheduled", "team_pilot_recommended", "team_pilot_booked", "team_pilot_scheduled",
+    "results_ready", "run_no_result", "awaiting_evaluations", "no_team_passed", "no_qualified_evaluation"] as never[])(
     "cancels a stored %s row without sending it", async kind => {
       await enqueueOutbox(entry({ kind }));
       await deliverOutbox();

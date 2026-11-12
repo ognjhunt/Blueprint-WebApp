@@ -13,14 +13,12 @@
  * `workspace_evaluation` it starts from. Each surface now reads this module:
  *
  * - the library card and its `evaluationAvailable` (`taskBrowse.ts`);
- * - the opening page API and `POST /api/workspace/evaluations`
- *   (`routes/workspace.ts`), which the notification email links lead to;
- * - free admission, re-checked when Blueprint approves the run
- *   (`freeEvaluationHandoff.ts`);
- * - the agent API's candidate list (`teamEvalCandidates.ts`);
- * - the site's own "Open for evaluations" or "Private" status (`workspace-projection.ts`);
- * - the site's waiting states and the one "robot teams can now evaluate your
- *   job" notice (`taskStatusProjection.ts`, `taskLifecycleNotifications.ts`).
+ * - the site's waiting states (`taskStatusProjection.ts`) and its sharing emails
+ *   (`taskLifecycleNotifications.ts`).
+ *
+ * (The opening page, `POST /api/workspace/evaluations`, free admission and the
+ * agent API's candidate list, which also read it, were removed on 2026-11-12:
+ * robot teams running their own software is "later".)
  *
  * ## The site's consent is the card
  *
@@ -50,7 +48,7 @@
  * module answers only for the job and never widens that gate.
  */
 import { sceneScreenGateEnded } from "./sceneScreenGate";
-import type { TaskListingDetails, TeamEvaluationTerms, TeamJobOpening } from "../../client/src/types/taskBrowse";
+import type { TaskListingDetails, TeamEvaluationTerms } from "../../client/src/types/taskBrowse";
 import type { InboundRequest } from "../types/inbound-request";
 import { assessReadiness } from "../../client/src/lib/siteTaskReadiness";
 import { approvedTaskDetails } from "./taskListingDetails";
@@ -227,18 +225,6 @@ export function taskThumbnailUrl(id: string, record: RecordLike): string | null 
     ?.public_task_listing?.thumbnailDigest;
   return typeof digest === "string" && /^[a-f0-9]{64}$/.test(digest)
     ? `/api/site-worlds/tasks/${encodeURIComponent(id)}/thumbnail` : null;
-}
-
-/**
- * The job as an approved robot team opens it to request an evaluation: the
- * site-approved card and nothing more. Null whenever the job is not open.
- */
-export function projectTeamJobOpening(id: string, record: RecordLike): TeamJobOpening | null {
-  const access = teamJobAccess(record);
-  if (!access.evaluationAvailable) return null;
-  const listing = (record as { public_task_listing: { approvedAtIso: string } }).public_task_listing;
-  return { ...access.details, id, publishedAtIso: listing.approvedAtIso, thumbnailUrl: taskThumbnailUrl(id, record),
-    evaluation: teamEvaluationTerms(record) };
 }
 
 const POLICY_INTERFACE_SUMMARIES: Record<string, { robot: "droid_franka" | "team_declared"; summary: string }> = {

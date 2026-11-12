@@ -18,13 +18,14 @@ describe("notification durability", () => {
     const run: any = { runId: "run", sceneId: "site", teamId: "team", evaluationPurpose: "pilot",
       result: { observed: { episodesRun: 10, episodesSucceeded: 8 } } };
     state.docs.set("evaluationRuns/run", { ...run, result_notification_intent: resultNotificationIntent(run, run.result), result_notification_pending: true });
-    site.mockRejectedValueOnce(new Error("injected outbox outage"));
+    team.mockRejectedValueOnce(new Error("injected outbox outage"));
     await expect(reconcileAgentRunResultNotifications()).rejects.toThrow("outbox outage");
     expect(state.docs.get("evaluationRuns/run")?.result_notification_pending).toBe(true);
-    site.mockImplementation(async () => state.docs.set("captureOutbox/site:results_ready:run", {}));
     team.mockImplementation(async () => state.docs.set("captureOutbox/team:team:result:run", {}));
     await reconcileAgentRunResultNotifications(); await reconcileAgentRunResultNotifications();
     expect(state.docs.get("evaluationRuns/run")).toMatchObject({ result: run.result, result_notification_pending: false });
+    // A team's result no longer reaches the site (2026-11-12).
+    expect(site).not.toHaveBeenCalled();
     expect(send).not.toHaveBeenCalled();
   });
   it.each(["valid", "wrong_digest", "changed_owner", "no_provider_id"])("observes %s provider evidence without another send", async condition => {

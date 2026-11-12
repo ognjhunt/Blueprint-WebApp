@@ -42,11 +42,6 @@ import {
   getTeamBalance,
   setSpendPolicy,
 } from "../utils/robotTeamBalance";
-import {
-  issueAgentKey,
-  listAgentKeys,
-  revokeAgentKey,
-} from "../utils/robotTeamAgentKeys";
 
 const router = Router();
 // Every route here is operator-only. The queue and the registry used to check
@@ -328,32 +323,15 @@ router.post("/:teamId/supply-agreement/withdraw", async (req: Request, res: Resp
 });
 
 
-/* ------------------------------------------------- the agent's account */
+/* ------------------------------------------------------- a team's account */
 
 /**
- * The operator's view of a team's account, and the levers for a team that asks
- * us to do it for them.
- *
- * ## None of this is on the critical path any more
- *
- * It used to be all of it. A team could not get a key, funds or a policy
- * without one of these routes, so the agent surface was autonomous downstream
- * of four manual steps. A team can now register itself, fund itself and set its
- * own policy; these remain for support, for teams invoiced off-platform, and
- * for correcting our own mistakes.
- *
- * ## What actually bounds an agent
- *
- * Not these routes — an earlier version of this comment claimed an agent
- * "cannot raise its own limit or top up its own balance", and both halves were
- * wrong. `PUT /api/agent-team/policy` has always let a team's key change its
- * own limits, and funding is now self-serve too.
- *
- * The real ceiling is the balance, and it is a hard one: the only entry that
- * increases it is a `credit`, and a credit comes from a real payment landing or
- * an operator here. An agent cannot credit itself by asking. The policy is
- * pacing on top of that — self-imposed, changeable by the team at any moment,
- * and useful precisely because it is not the thing stopping a runaway.
+ * The operator's view of a team's account (balance, spend policy and today's
+ * spend) and its two levers, a credit and the policy. The agent API that let a
+ * team register, fund itself and set its own policy is gone (2026-11-12); these
+ * stay as the money controls over runs already on record. The ceiling is the
+ * balance: the only entry that increases it is a credit, from a real payment
+ * landing or an operator here.
  */
 
 async function requireOps(res: Response) {
@@ -365,27 +343,13 @@ router.get("/:teamId/account", async (req: Request, res: Response) => {
   if (!(await requireOps(res))) return res.status(403).json({ error: "forbidden" });
 
   const teamId = String(req.params.teamId || "").trim();
-  const [balance, policy, spentToday, keys] = await Promise.all([
+  const [balance, policy, spentToday] = await Promise.all([
     getTeamBalance(teamId),
     getSpendPolicy(teamId),
     getSpendToday(teamId),
-    listAgentKeys(teamId),
   ]);
 
-  return res.json({
-    teamId,
-    balance,
-    policy,
-    spentTodayUsd: spentToday,
-    // Hashes only. We do not hold the keys, so there is nothing else to show.
-    keys: keys.map((key) => ({
-      keyHash: key.keyHash,
-      label: key.label,
-      createdAtIso: key.createdAtIso,
-      lastUsedAtIso: key.lastUsedAtIso,
-      revokedAtIso: key.revokedAtIso,
-    })),
-  });
+  return res.json({ teamId, balance, policy, spentTodayUsd: spentToday });
 });
 
 const creditSchema = z
@@ -442,49 +406,6 @@ router.put("/:teamId/policy", async (req: Request, res: Response) => {
 
   const teamId = String(req.params.teamId || "").trim();
   return res.json({ ok: true, policy: await setSpendPolicy({ teamId, ...parsed.data }) });
-});
-
-const keySchema = z.object({ label: z.string().trim().min(1).max(120) }).strict();
-
-/**
- * Issue an agent key. The plaintext is in this response and nowhere else.
- *
- * We store a SHA-256 and cannot show it again, which is the same reason a
- * password hash exists and matters more here because this credential moves
- * money. A team that loses it issues another.
- */
-router.post("/:teamId/agent-keys", async (req: Request, res: Response) => {
-  if (!(await requireOps(res))) return res.status(403).json({ error: "forbidden" });
-
-  const parsed = keySchema.safeParse(req.body);
-  if (!parsed.success) {
-    return res.status(400).json({ error: "A label is required", code: "key_label_required" });
-  }
-
-  const teamId = String(req.params.teamId || "").trim();
-  const issued = await issueAgentKey({ teamId, label: parsed.data.label });
-  if (!issued) {
-    return res.status(503).json({ error: "Key store is unavailable", code: "key_store_unavailable" });
-  }
-
-  return res.status(201).json({
-    ok: true,
-    teamId,
-    key: issued.key,
-    keyHash: issued.record.keyHash,
-    warning:
-      "This is the only time this key is shown. Blueprint stores a hash and cannot recover it.",
-    usage: "Authorization: Bearer <key> against /api/agent-team/*",
-  });
-});
-
-router.post("/:teamId/agent-keys/:keyHash/revoke", async (req: Request, res: Response) => {
-  if (!(await requireOps(res))) return res.status(403).json({ error: "forbidden" });
-
-  const revoked = await revokeAgentKey(String(req.params.keyHash || "").trim());
-  return revoked
-    ? res.json({ ok: true, revoked: true })
-    : res.status(404).json({ error: "not_found" });
 });
 
 export default router;

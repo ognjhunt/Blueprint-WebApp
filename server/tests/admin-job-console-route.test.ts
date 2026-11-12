@@ -128,9 +128,11 @@ describe("GET /api/admin/jobs", () => {
     expect(response.headers.get("cache-control")).toBe("no-store");
     const body = await response.json();
     expect(body.jobs.map((job: Row) => job.requestId)).toEqual(["job-a", "job-b"]);
+    // A team's request stays on record, counted, but no longer asks the operator to admit it (2026-11-12).
     expect(body.jobs[0]).toMatchObject({ siteName: "Site job-a", siteLocation: "Austin, TX", company: "Acme",
-      stage: "admission", nextAction: "Admit evaluation for Atlas", actionOwner: "blueprint",
       evaluations: { total: 1, pendingAdmission: 1, admitted: 0 } });
+    expect(body.jobs[0].stage).not.toBe("admission");
+    expect(body.stages).not.toContain("admission");
     expect(body.jobs[1]).toMatchObject({ stage: "listing", actionOwner: "site" });
     expect(body.nextCursor).toBeNull();
     expect(body.stages).toContain("passing_run");
@@ -200,57 +202,22 @@ describe("GET /api/admin/jobs/:requestId", () => {
     expect((await fetch(`${baseUrl}/eval-1`, admin)).status).toBe(404);
   });
 
-  it("lists evaluation requests with the team, setup reference and matching checkpoints", async () => {
+  it("returns the job, its timeline and its links, and no admission of a team's run (2026-11-12)", async () => {
     siteJob("job-a", "2026-10-02T00:00:00.000Z", { agent_execution_offer: { episode_count: 50 } });
     table("inboundRequests").set("eval-1", { createdAt: "2026-10-03T00:00:00.000Z", account_owner_uid: "team-owner",
       request: { buyerType: "robot_team" }, workspace_evaluation: { opportunityId: "job-a", setupId: "setup-1", setupName: "Arm v2",
         submittedAt: "2026-10-03T00:00:00.000Z" } });
-    table("inboundRequests").set("eval-2", { createdAt: "2026-10-04T00:00:00.000Z", account_owner_uid: "no-team",
-      request: { buyerType: "robot_team" }, workspace_evaluation: { opportunityId: "job-a", setupId: "setup-9" } });
-    table("robotTeams").set("team-1", { name: "Atlas", accountUid: "team-owner", status: "applied" });
-    table("users/team-owner/robotSetups").set("setup-1", { payload: JSON.stringify({ name: "Arm v2", reference: "https://policy.example.com/v2" }) });
-    state.checkpoints.push(
-      { checkpointId: "ckpt_1", teamId: "team-1", label: "v2", runtime: "policy_endpoint", reference: "https://policy.example.com/v2", status: "registered" },
-      { checkpointId: "ckpt_old", teamId: "team-1", label: "v1", runtime: "policy_endpoint", reference: "https://policy.example.com/v1", status: "registered" },
-    );
 
     const response = await fetch(`${baseUrl}/job-a`, admin);
     expect(response.status).toBe(200);
     const body = await response.json();
-    expect(body.job).toMatchObject({ requestId: "job-a", stage: "admission" });
-    expect(body.admissionDefaults).toMatchObject({ episodes: 50, sponsorCapUsd: 20, maxSponsorCapUsd: 20,
-      maxAttempts: 1, evidenceScope: "development_only" });
+    expect(body.job).toMatchObject({ requestId: "job-a" });
+    expect(body.job.stage).not.toBe("admission");
+    expect(body).not.toHaveProperty("admissions");
+    expect(body).not.toHaveProperty("admissionDefaults");
     expect(body.links).toEqual({ lead: "/admin/leads/job-a", recommendation: "/admin/robot-team-access?job=job-a" });
-    const [ready, blocked] = body.admissions;
-    expect(ready).toMatchObject({ evaluationRequestId: "eval-1", admitted: false, team: { teamId: "team-1", name: "Atlas" },
-      setup: { setupId: "setup-1", name: "Arm v2", reference: "https://policy.example.com/v2", missing: false },
-      matchingCheckpoints: [{ checkpointId: "ckpt_1", label: "v2", runtime: "policy_endpoint", status: "registered" }], blockers: [] });
-    expect(blocked.blockers).toEqual([
-      "The requesting account has no bound robot team.",
-      "The team removed or never saved the setup this request names.",
-    ]);
     expect(body.timeline.map((entry: Row) => entry.key)).toContain("admitted");
   });
 
-  it("defaults a team evaluation to its 200 episodes and names a policy it cannot call", async () => {
-    siteJob("job-t", "2026-10-02T00:00:00.000Z", { agent_execution_offer: {
-      policy_execution_profiles: ["team_evaluation_scored_v1"], episode_count: 200 } });
-    table("inboundRequests").set("eval-t", { createdAt: "2026-10-03T00:00:00.000Z", account_owner_uid: "team-owner",
-      request: { buyerType: "robot_team" }, workspace_evaluation: { opportunityId: "job-t", setupId: "setup-1" } });
-    table("robotTeams").set("team-1", { name: "Atlas", accountUid: "team-owner", status: "applied" });
-    table("users/team-owner/robotSetups").set("setup-1", { payload: JSON.stringify({ name: "Arm v2", reference: "https://policy.example.com/v2" }) });
-    const checkpoint = { teamId: "team-1", label: "v2", runtime: "policy_endpoint", reference: "https://policy.example.com/v2", status: "registered" };
-    state.checkpoints.push({ ...checkpoint, checkpointId: "ckpt_plain" });
 
-    let body = await (await fetch(`${baseUrl}/job-t`, admin)).json();
-    expect(body.admissionDefaults.episodes).toBe(200);
-    expect(body.admissions[0].blockers).toEqual([expect.stringContaining("team_evaluation_policy_credential_required")]);
-
-    state.checkpoints.push({ ...checkpoint, checkpointId: "ckpt_token",
-      policyCredential: { ref: "credential-1", kind: "bearer", expiresAtIso: "2100-01-01T00:00:00.000Z" } });
-    body = await (await fetch(`${baseUrl}/job-t`, admin)).json();
-    // The checkpoint admission accepts comes first, so it is the form's default.
-    expect(body.admissions[0]).toMatchObject({ blockers: [],
-      matchingCheckpoints: [{ checkpointId: "ckpt_token" }, { checkpointId: "ckpt_plain" }] });
-  });
 });

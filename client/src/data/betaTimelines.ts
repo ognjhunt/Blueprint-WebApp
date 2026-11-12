@@ -1,7 +1,7 @@
 /**
- * How long each beta step takes, in the words every surface uses: the start
- * form, /beta and the job page. One named constant each, so the owner can
- * change a range in one place (owner request, 2026-10-18).
+ * How long a beta step takes, in the words /beta uses. One named constant, so
+ * the owner can change it in one place (owner request, 2026-10-18). (The waiting
+ * lines of the signed-in job page went with that page on 2026-11-12.)
  *
  * Ranges, never dates, and never a result date: the result follows only when
  * Blueprint's simulation of the job reports it.
@@ -9,29 +9,3 @@
 
 /** Our reply to what a site sends: a new job, footage, written answers. */
 export const REPLY_TIMELINE = "We usually reply within an hour.";
-
-/** From a cleared, saved job and its footage to a scene Blueprint can evaluate candidates in. */
-export const SIMULATION_BUILD_TIMELINE = "We confirm the checks needed for your job and explain the next step. Timing depends on the evidence and compatible systems available.";
-
-/** Evaluations wait on compatible candidates and delivery support, so no date is promised. */
-export const EVALUATION_START_TIMELINE =
-  "We are checking compatible options and delivery support. Your job page shows who needs to act next; we email you when there is an update.";
-
-/**
- * The expected wait for a job page status (`projectTaskStatus` decisions),
- * when the job is waiting on Blueprint or on a partner. Null for the site's
- * own steps, and for stages whose headline already says what comes next.
- */
-export function waitingTimeline(decision: string | null | undefined): string | null {
-  switch (decision) {
-    case "received":
-    case "footage_received":
-      return REPLY_TIMELINE;
-    case "assessing":
-      return SIMULATION_BUILD_TIMELINE;
-    case "awaiting_teams":
-      return EVALUATION_START_TIMELINE;
-    default:
-      return null;
-  }
-}

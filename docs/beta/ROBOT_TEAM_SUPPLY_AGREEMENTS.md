@@ -108,8 +108,9 @@ Tell them only what is true today:
 - **Their policy:** the team serves its policy at one HTTPS URL that accepts
   a bearer token, and keeps its weights on its own system. It registers that
   URL as a checkpoint with runtime `policy_endpoint`, then attaches the bearer
-  token to the checkpoint (`POST /api/agent-team/checkpoints/<checkpointId>/credentials`;
-  the token lasts 30 days and is renewed by posting it again). Private
+  token to the checkpoint (that agent API and the account's policy-token form
+  were removed on 2026-11-12; a team can no longer register a checkpoint or
+  token itself). Private
   checkpoints are refused, and containers are never admitted for team
   evaluations; tell the team before they build anything else. Blueprint sends
   approved camera frames, robot state and the task instruction, and receives

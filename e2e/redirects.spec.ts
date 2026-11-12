@@ -151,7 +151,18 @@ const retiredSurfaceRedirects: Array<[string, string]> = [
   ["/admin/company-metrics", "/"],
   ["/ops/spend", "/"],
   ["/internal/design-system", "/"],
+  // The last removal round (2026-11-12): the printed readiness brief.
+  ["/readiness-brief/brief-token.signature", "/"],
 ];
+
+// The signed-in job pages (2026-11-12) go to the signed-in jobs list, which needs an account, so only the 301 is checked here.
+test("old signed-in job page links answer with one 301 to the jobs list", async ({ request }) => {
+  for (const path of ["/app/tasks", "/app/tasks/job-1"]) {
+    const response = await request.get(path, { maxRedirects: 0 });
+    expect(response.status(), path).toBe(301);
+    expect(response.headers().location, path).toBe("/app");
+  }
+});
 
 test("retired surfaces answer with one 301 to a live page", async ({ request }) => {
   for (const [path, location] of retiredSurfaceRedirects) {

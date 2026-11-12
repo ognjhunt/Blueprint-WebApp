@@ -1068,18 +1068,14 @@ describe("the site sends its video and nothing else", () => {
   });
 });
 
-describe("the robot readiness report on the owner's page", () => {
-  const READINESS = { ok: true, summary: "Sort parcels", briefPath: "/readiness-brief/brief-token.signature",
-    tracker: { steps: [{ id: "video", label: "Video received", state: "done", owner: "site" }], meanwhile: null },
-    report: { robotFit: { needs: ["It has to pick the object up and put it down at another spot."], forms: [
-      { id: "humanoid", label: "Walking humanoid", description: "", verdict: "fits", reasons: [] }], note: "A first read." },
-      checklist: [], successFactors: [], safety: ["Blueprint's evaluation runs in a simulation of your site."], examples: [], examplesFootnote: "" } };
+// The readiness report and its printable brief were removed (2026-11-12). The owner's saved job with no answer yet,
+// where the folded report used to appear once Blueprint shared it, says where the job stands, and asks for no report.
+describe("the owner's saved job before any answer", () => {
   function fetchFor(scope: "owner" | "film") {
     const fallback = mockFetch();
     return vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       if (url === `/api/site-task-brief/${TOKEN}`) return Promise.resolve({ ok: true, json: async () => ({ ok: true, ready: false, scope }) });
-      if (url.endsWith("/readiness")) return Promise.resolve({ ok: true, json: async () => READINESS });
       // Footage has arrived: the owner's page leaves description-first for the saved layout.
       if (url === `/api/site-task-brief/${TOKEN}/status`) return Promise.resolve({ ok: true, json: async () => ({ ok: true,
         status: { decision: "processing", headline: "Your video arrived.", operatorAction: null, missingViews: [],
@@ -1088,24 +1084,15 @@ describe("the robot readiness report on the owner's page", () => {
     });
   }
 
-  it("shows the owner the shared report, folded, with the brief by its own link", async () => {
+  it.each(["owner", "film"] as const)("says where the job stands on a %s link and reads no readiness report", async (scope) => {
     setUserAgent(PHONE_UA);
-    vi.stubGlobal("fetch", fetchFor("owner"));
-    render(<SelfCaptureUpload />);
-    const summary = await screen.findByText("Your robot readiness report · 1 kind of robot fits");
-    expect(summary.closest("details")).not.toHaveAttribute("open");
-    expect(screen.getByRole("link", { name: "Print or save the brief" })).toHaveAttribute("href", READINESS.briefPath);
-    expect(screen.queryByRole("heading", { name: "Your next steps" })).not.toBeInTheDocument();
-  });
-
-  it("never reads it on a film-only link", async () => {
-    setUserAgent(PHONE_UA);
-    const fetchMock = fetchFor("film");
+    const fetchMock = fetchFor(scope);
     vi.stubGlobal("fetch", fetchMock);
     render(<SelfCaptureUpload />);
     expect((await screen.findAllByText("Your video arrived.")).length).toBeGreaterThan(0);
     expect(fetchMock.mock.calls.some(([input]) => String(input).endsWith("/readiness"))).toBe(false);
-    expect(screen.queryByText(/Your robot readiness report/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/readiness report/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Print or save the brief" })).not.toBeInTheDocument();
   });
 });
 

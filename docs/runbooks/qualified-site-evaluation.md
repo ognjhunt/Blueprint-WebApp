@@ -151,62 +151,12 @@ read back that exact document. HMAC establishes the trusted publisher; the
 protected Pipeline registry and retained source evidence establish the
 qualification authority.
 
-## 4. Admit the exact team request
+## 4. Admit the exact team request (removed 2026-11-12)
 
-The verified team submits its existing workspace evaluation request with
-`licenseToRun:true`. WebApp retains
-`workspace_evaluation.policyRunLicense` under that request: grantor, request,
-site opportunity, saved setup, setup digest and grant time. Authentication to a
-policy endpoint and permission to run that policy are separate requirements.
-Changing the saved setup before admission requires a new grant for that setup.
-
-The existing admin/ops execution authority uses
-`POST /api/admin/free-evaluations/:requestId/admit`, with the normal Firebase
-authentication and CSRF protection. The request ID is the team's workspace
-evaluation request; the receipt's `scene_request_id` is the selected site job.
-In the admin job console, enter the exact published digest in **Published
-qualification receipt digest (optional)** to request simulation evidence.
-Leaving it blank selects development evidence. The server performs the same
-checks for the form and the API. The payload is:
-
-```ts
-const admissionPayload = {
-  teamId: existingTeamId,
-  checkpointId: existingCheckpointId,
-  // executionRequestId may select an existing matching prepared request.
-  episodes: 200,
-  sponsorCapUsd: approvedSponsorCapUsd,
-  expiresAtIso: approvedExpiresAtIso,
-  maxAttempts: 1,
-  evidenceScope: "simulation",
-  qualificationReceiptDigest: receipt.receipt_digest,
-};
-```
-
-Use the already authorized cap and expiry. The current internal cap ceiling is
-$20, with one attempt; it is not a customer payment or a grant of new spending
-authority. Approval expiry must fit the configured reservation window. The
-qualification must already be reviewed and remain valid through that expiry
-plus the configured execution TTL. WebApp checks the declared model/interface,
-current capture, task, testbed, team ownership and policy grant, then freezes the
-full receipt and projection in `evaluationRuns/{runId}.executionAdmission`.
-The transaction rechecks the capture, qualification and other source records
-before creating the run. The response states `customerPriceUsd:0` and
-`executionStarted:false`; admission creates the bounded dispatch request.
-
-Claims and heartbeats re-read the current policy grant and site job in their
-Firestore transaction. A revoked, removed or changed grant, or a withdrawn,
-closed or unavailable site job, refuses a new claim or heartbeat. An admitted
-setup remains frozen. Existing signed heartbeat/deadline and founder-hold
-controls govern stopping work and provider teardown; heartbeat renewal does not
-extend the hard deadline or spending authority. The stored grant's revocation
-state is enforced without adding a new revocation endpoint in this change.
-
-Before credential release, Pipeline recomputes qualification from the pinned
-sources, verifies original capture and staged robot/scene bytes, and checks the
-exact admission and validity window. Closeout repeats these checks before
-sealing a qualified outer result. Keep the existing rights, probe, provider-zero,
-strict-control, budget and hold checks intact.
+Removed. Robot teams running their own software on a site's job is "later" in
+the frame of 2026-11-12: the workspace evaluation request, its free-evaluation
+admission route and the admin console's admission form are gone. Runs already on
+record still settle and report through the Pipeline's own routes.
 
 ## 5. Inspect the result and recommendation evidence
 

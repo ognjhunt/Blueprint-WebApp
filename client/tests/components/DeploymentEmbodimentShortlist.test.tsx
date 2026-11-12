@@ -1,7 +1,6 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DeploymentEmbodimentShortlist } from "@/components/workspace/DeploymentEmbodimentShortlist";
-import { RobotDescriptionFields, readRobotDescription } from "@/components/workspace/RobotDescriptionFields";
 import { deploymentEmbodimentCatalog as catalog, downloadDeploymentEmbodimentShortlist } from "@/lib/deploymentEmbodimentSupport";
 
 vi.mock("@/lib/deploymentEmbodimentSupport", async () => ({
@@ -58,21 +57,5 @@ describe("deployment embodiment selection", () => {
     const tile = screen.getByRole("article", { name: robot.display_name });
     expect(within(tile).getByRole("img")).toHaveAccessibleName(/schematic single-arm configuration, not exact model geometry/);
     expect(within(tile).getByText("Configuration illustration")).toBeVisible();
-  });
-  it("keeps planning choices out of customer forms and preserves a saved robot identity", () => {
-    const robot = catalog.embodiments[0];
-    const saved = { source: "support_option" as const, embodimentId: robot.embodiment_id, catalogDigest: "sha256:" + "a".repeat(64), policyRouteIds: [robot.policy_routes[0].route_id] };
-    const view = render(<form><RobotDescriptionFields value={saved} /></form>);
-    expect(screen.queryByRole("group", { name: /Deployment embodiments/ })).toBeNull();
-    expect(screen.queryByRole("option", { name: catalog.embodiments[1].display_name })).toBeNull();
-    expect(screen.queryAllByRole("checkbox")).toHaveLength(0);
-    expect(screen.queryByText("Setup details")).toBeNull();
-    expect(screen.getByText(/needs simulation validation/)).toBeVisible();
-    expect(readRobotDescription(new FormData(view.container.querySelector("form")!), [])).toEqual(saved);
-  });
-  it("still rejects a planning descriptor without an explicit policy route", () => {
-    const form = new FormData();
-    form.set("robotDescriptionSource", `support:${catalog.embodiments[0].embodiment_id}`);
-    expect(() => readRobotDescription(form, [])).toThrow("Choose at least one policy route");
   });
 });

@@ -11,28 +11,12 @@
  * No index beyond Firestore's automatic single-field ones is required.
  */
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
-import { decryptFieldValue, decryptInboundRequestForAdmin } from "./field-encryption";
-import { listCheckpoints } from "./robotCheckpoints";
-import { samePolicyAdapter } from "../../client/src/types/policyAdapter";
-import { reservationTtlMs } from "./agentRunRecord";
-import { MAX_FREE_SPONSOR_CAP_USD } from "./freeBeta";
-import {
-  jobEvaluationEpisodes, offersTeamEvaluation, TEAM_POLICY_BLOCKER_MESSAGES, teamPolicyBlocker, robotSetupIntegrationBlocker,
-} from "./policyIntegration";
-import { ROBOT_TEAMS_COLLECTION, type RobotTeamRecord } from "../types/robot-team-registry";
-import { effectiveTeamStatus } from "./robotTeamSupply";
-import { object, text, iso } from "./workspace-projection";
+import { decryptInboundRequestForAdmin } from "./field-encryption";
+import { ROBOT_TEAMS_COLLECTION } from "../types/robot-team-registry";
+import { object, text } from "./workspace-projection";
 import { loadWebsiteSceneProgression } from "./websiteSceneProgression";
-import {
-  buildJobTimeline,
-  evaluationRequestAdmitted,
-  projectJobFacts,
-  projectRuns,
-  type RawEvaluationRequest,
-  type RawJobInputs,
-  type RawRun,
-} from "./jobConsoleFacts";
-import { deriveJobStage, type AdmissionCandidate, type AdmissionDefaults, type JobConsoleDetail, type JobConsoleRow, type JobStage } from "./jobConsoleStage";
+import { buildJobTimeline, projectJobFacts, projectRuns, type RawEvaluationRequest, type RawJobInputs, type RawRun } from "./jobConsoleFacts";
+import { deriveJobStage, type JobConsoleDetail, type JobConsoleRow, type JobStage } from "./jobConsoleStage";
 
 export const SCAN_LIMIT = 200;
 export const PAGE_LIMIT_MAX = 50;
@@ -191,85 +175,6 @@ export async function listJobConsoleRows(params: {
   return { rows, nextCursor, scanned: index };
 }
 
-/** `episodes` is the job's own count (`jobEvaluationEpisodes`): preparation refuses any other. */
-export const ADMISSION_DEFAULTS = (episodes: number | null): AdmissionDefaults => ({
-  episodes,
-  sponsorCapUsd: MAX_FREE_SPONSOR_CAP_USD,
-  maxSponsorCapUsd: MAX_FREE_SPONSOR_CAP_USD,
-  reservationTtlMs: reservationTtlMs(),
-  maxAttempts: 1 as const,
-  evidenceScope: "development_only" as const,
-});
-
-async function admissionCandidate(id: string, record: Record<string, any>, job: Record<string, any>): Promise<AdmissionCandidate> {
-  const selection = object(record.workspace_evaluation);
-  const ownerUid = text(record.account_owner_uid) || null;
-  const setupId = text(selection.setupId);
-  const handoff = object(record.free_evaluation_handoff);
-  const blockers: string[] = [];
-  let team: AdmissionCandidate["team"] = null;
-  let setup: AdmissionCandidate["setup"] = { setupId, name: text(selection.setupName) || null, reference: null, missing: true };
-  let matchingCheckpoints: AdmissionCandidate["matchingCheckpoints"] = [];
-  let robotEmbodiment: unknown = null;
-  let policyConfig: unknown;
-  let robotDescription: unknown = null;
-  let teamBlocker: ReturnType<typeof teamPolicyBlocker> = null;
-  if (ownerUid && db) {
-    const teams = await db.collection(ROBOT_TEAMS_COLLECTION).where("accountUid", "==", ownerUid).limit(5).get();
-    const first = teams.docs[0];
-    // The effective status: a stored "engaged" without a supply agreement is not shown as one.
-    if (first) team = { teamId: first.id, name: text(first.data().name) || first.id,
-      status: text(effectiveTeamStatus(first.data() as RobotTeamRecord)) || null };
-    if (setupId) {
-      const stored = await db.collection("users").doc(ownerUid).collection("robotSetups").doc(setupId).get();
-      if (stored.exists && stored.data()?.payload) {
-        try {
-          const payload = JSON.parse(await decryptFieldValue(stored.data()!.payload));
-          setup = { setupId, name: text(payload.name) || setup.name, reference: text(payload.reference) || null, missing: false };
-          robotEmbodiment = payload.robotEmbodiment ?? null;
-          policyConfig = payload.policyConfig;
-          robotDescription = payload.robotDescription ?? null;
-          teamBlocker = robotSetupIntegrationBlocker(payload);
-        } catch {
-          blockers.push("The saved setup could not be read.");
-        }
-      }
-    }
-    if (team && setup.reference) {
-      // A team evaluation runs only an authenticated HTTPS policy: those come first, so the
-      // form's default is one admission accepts.
-      const blockerOf = (checkpoint: Record<string, any>) =>
-        offersTeamEvaluation(job) ? teamPolicyBlocker(checkpoint, { robotEmbodiment, robotDescription }) : null;
-      const matching = (await listCheckpoints(team.teamId))
-        .filter((checkpoint) => checkpoint.reference === setup.reference
-          && samePolicyAdapter(checkpoint.policyConfig, policyConfig) && checkpoint.status !== "retired")
-        .sort((a, b) => Number(Boolean(blockerOf(a))) - Number(Boolean(blockerOf(b))));
-      teamBlocker = teamBlocker || (matching.length ? blockerOf(matching[0]) : null);
-      matchingCheckpoints = matching.map((checkpoint) => ({ checkpointId: checkpoint.checkpointId, label: checkpoint.label,
-        runtime: checkpoint.runtime, status: checkpoint.status }));
-    }
-  }
-  if (!ownerUid) blockers.push("The request has no account owner.");
-  else if (!team) blockers.push("The requesting account has no bound robot team.");
-  if (setup.missing) blockers.push("The team removed or never saved the setup this request names.");
-  if (team && setup.reference && !matchingCheckpoints.length)
-    blockers.push("No registered checkpoint matches the setup reference. Ask the team to register one under Settings → Robots & policies.");
-  if (teamBlocker) blockers.push(`Team evaluation (${teamBlocker}): ${TEAM_POLICY_BLOCKER_MESSAGES[teamBlocker]}`);
-  if (jobEvaluationEpisodes(job) === null) blockers.push("The Pipeline has not published this job's execution offer yet.");
-  return {
-    evaluationRequestId: id,
-    submittedAtIso: iso(selection.submittedAt) ?? iso(record.createdAt),
-    admitted: evaluationRequestAdmitted(record),
-    handoff: text(handoff.runId) ? { runId: text(handoff.runId),
-      executionRequestId: text(handoff.executionRequestId) || null, approvedBy: text(handoff.approvedBy) || null } : null,
-    ownerUid,
-    team,
-    setup,
-    matchingCheckpoints,
-    blockers,
-  };
-}
-
 export async function getJobConsoleDetail(requestId: string): Promise<JobConsoleDetail | null> {
   if (!db) throw new Error("job_console_store_unavailable");
   const snapshot = await db.collection("inboundRequests").doc(requestId).get();
@@ -277,13 +182,10 @@ export async function getJobConsoleDetail(requestId: string): Promise<JobConsole
   if (!isSiteJobRecord(record)) return null;
   const [inputs] = await loadInputs([{ id: requestId, data: () => record }]);
   const row = rowFromInputs(inputs);
-  const admissions = await Promise.all(inputs.evaluationRequests.map((request) => admissionCandidate(request.id, request.record, record!)));
   return {
     job: row,
     timeline: buildJobTimeline(inputs, row),
     runs: projectRuns(inputs),
-    admissions,
-    admissionDefaults: ADMISSION_DEFAULTS(jobEvaluationEpisodes(record)),
     links: {
       lead: `/admin/leads/${encodeURIComponent(requestId)}`,
       recommendation: `/admin/robot-team-access?job=${encodeURIComponent(requestId)}`,

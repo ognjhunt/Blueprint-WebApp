@@ -74,20 +74,12 @@ export type OutboxKind =
   | "screening_cleared"
   | "screening_not_now"
   | "screening_started"
-  | "results_ready"
-  | "run_no_result"
   /** The job's evaluation reached a result outcome: once per outcome and scene (F-01). */
   | "evaluation_outcome"
   /** The job's scene intent reached a terminal outcome: once per outcome digest (C-04). */
   | "scene_outcome"
   /** The owner's job page asks whether to move chairs out of the robot's way in the simulation: once per proposal digest. */
   | "robot_access_question"
-  /** Robot teams can now request an evaluation, and none has yet. */
-  | "awaiting_evaluations"
-  /** Every evaluation so far finished, none passed, none is in flight. */
-  | "no_team_passed"
-  /** Every evaluation so far finished, and none can support a recommendation either way. */
-  | "no_qualified_evaluation"
   /** The job's video arrived before it was saved to an account (owner decision 2026-10-18). */
   | "footage_before_account"
   /** The site's answer first settled after the video was read: once per job. */
@@ -155,9 +147,12 @@ export interface OutboxEntry {
   deliveryRetryEnded?: string;
 }
 
-/** Kinds whose feature is gone. A stored row of one is cancelled at dispatch, never sent. */
+/** Kinds whose feature is gone. A stored row of one is cancelled at dispatch, never sent. The team-run notices to a
+ * site (results_ready, run_no_result, awaiting_evaluations, no_team_passed, no_qualified_evaluation) went with robot
+ * teams running their own software (frame of 2026-11-12); rows queued before then are cancelled here. */
 const RETIRED_KINDS: ReadonlySet<string> = new Set(["pilot_recommended", "pilot_booked", "pilot_scheduled",
-  "team_pilot_recommended", "team_pilot_booked", "team_pilot_scheduled"]);
+  "team_pilot_recommended", "team_pilot_booked", "team_pilot_scheduled",
+  "results_ready", "run_no_result", "awaiting_evaluations", "no_team_passed", "no_qualified_evaluation"]);
 
 const DELIVERY_LEASE_MS = 5 * 60 * 1000;
 

@@ -181,37 +181,10 @@ export interface RobotFitAttempt {
   error: string | null;
 }
 
-export interface RobotFitSharing {
-  shared: boolean;
-  changedAtIso: string;
-  changedBy: string | null;
-}
-
-/** What the owner's job page shows, once shared. Fixed sentences and the site's own data only. */
-export interface SiteRobotFit {
-  needs: string[];
-  forms: Array<{ id: RatedForm; label: string; description: string; verdict: FitVerdict; reasons: string[] }>;
-  note: string;
-}
-
-export const SITE_ROBOT_FIT_NOTE =
-  "These are the kinds of robot that look right for this job from what your video shows; Blueprint then tests them in a "
-  + "simulation of your site. This is a first read from your video, not a promise that any robot can do the job.";
-
 export interface AdminRobotFitResponse {
   job: RobotFitJob;
   ranking: (RobotFitRanking & { stale: boolean }) | null;
   lastAttempt: RobotFitAttempt | null;
-  sharing: RobotFitSharing | null;
-  /** Exactly what the site would see if shared, or null when there is nothing to show. */
-  site: SiteRobotFit | null;
   consentRevoked: boolean;
-  /** The whole readiness report as the site would see it once shared. */
-  readiness: AdminReadinessPreview | null;
 }
-
-/** Imported by type only, so this module stays free of the readiness copy. */
-export type AdminReadinessPreview = {
-  report: import("./siteReadiness").SiteReadinessReport | null;
-};
 
