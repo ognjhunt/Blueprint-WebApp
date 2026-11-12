@@ -250,7 +250,12 @@ export async function loadJobOutlookDecision(requestId: string):
     windowEndedAtEpoch: await import("./websiteSceneSponsorship").then(({ websiteJobWorkWindow }) => websiteJobWorkWindow(record))
       .then(window => window.endedAtEpoch ?? null).catch(() => null),
     runStoppedByWindow, resultUnknown,
-    awaitsSiteSentence: (await import("./jobSentenceWait")).jobWaitsForItsSentence({ requestId, record, preparationTaskNotNamed }),
+    awaitsSiteSentence: await (async () => {
+      const [{ jobWaitsForItsSentence }, { getBrief, isPlaceholderSummary }] = await Promise.all([import("./jobSentenceWait"), import("./siteTaskBrief")]);
+      // An unreadable brief is no proof the site has not answered: the job is not shown as waiting on it.
+      const brief = await getBrief(requestId).then(value => ({ value }), () => null);
+      return brief !== null && jobWaitsForItsSentence({ requestId, record, brief: brief.value, preparationTaskNotNamed, isPlaceholder: isPlaceholderSummary });
+    })(),
     preparation, scene, proof, uncertain,
   };
   const outlook = jobOutlook(input);

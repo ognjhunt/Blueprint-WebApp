@@ -8,9 +8,16 @@ import { selectWebsiteAtlasPreview, type WebsiteAtlasPreview } from "./websiteAt
 import { websiteLargeVideoAsk } from "./websiteJobWindowEnding";
 
 const digest = z.string().regex(/^sha256:[a-f0-9]{64}$/);
-const carryPathRejected = z.object({ reason: z.literal("robot_carry_path_rejected"), category: z.literal("robot_incompatibility"),
+/**
+ * The outcome's category is never a reason to fail a read (review, 2026-11-12), for a known reason or an unknown one:
+ * any code-shaped value is read; the site's sentence follows the reason, and staff hear of a category this release
+ * does not know (`KNOWN_PREPARATION_OUTCOME_CATEGORIES`).
+ */
+const category = z.string().regex(/^[a-z][a-z0-9_:.-]{0,127}$/);
+export const KNOWN_PREPARATION_OUTCOME_CATEGORIES: readonly string[] = ["robot_incompatibility", "insufficient_evidence"];
+const carryPathRejected = z.object({ reason: z.literal("robot_carry_path_rejected"), category,
   basis: z.literal("conservative_configuration_check"), robot_id: z.literal("franka_panda"), evidence_digest: digest }).strict();
-const taskEvidenceIncomplete = z.object({ reason: z.literal("task_evidence_incomplete"), category: z.literal("insufficient_evidence"),
+const taskEvidenceIncomplete = z.object({ reason: z.literal("task_evidence_incomplete"), category,
   basis: z.literal("missing_evidence"), robot_id: z.null(), evidence_digest: digest }).strict();
 /**
  * An outcome whose reason this release does not know (review, 2026-11-12): it never fails the status read. Its shape
@@ -21,7 +28,7 @@ export const KNOWN_PREPARATION_OUTCOME_REASONS = new Set<string>(["robot_carry_p
   "robot_fit_none"]);
 const unknownReasonOutcome = z.object({ reason: z.string().regex(/^[a-z][a-z0-9_:.-]{0,127}$/),
   // Open too (review, 2026-11-12): a category this release does not know reads as the same general sentence.
-  category: z.string().regex(/^[a-z][a-z0-9_:.-]{0,127}$/), basis: z.string().regex(/^[a-z][a-z0-9_]{0,63}$/),
+  category, basis: z.string().regex(/^[a-z][a-z0-9_]{0,63}$/),
   robot_id: z.string().regex(/^[a-z][a-z0-9_]{0,63}$/).nullable(), evidence_digest: digest }).strict()
   .refine(value => !KNOWN_PREPARATION_OUTCOME_REASONS.has(value.reason) && !isRecaptureReason(value.reason)
     && value.reason !== TASK_NOT_NAMED_REASON, "A known reason keeps its own shape");
@@ -31,7 +38,7 @@ export const preparationOutcomeSchema = z.union([z.discriminatedUnion("reason", 
 /** v6 adds the early robot fit hold (Pipeline #3336): no robot Blueprint runs fits the task in this room,
  * decided before any spend. Its evidence is the precheck's digest. */
 export const preparationOutcomeV6Schema = z.union([z.discriminatedUnion("reason", [carryPathRejected, taskEvidenceIncomplete,
-  z.object({ reason: z.literal("robot_fit_none"), category: z.literal("robot_incompatibility"),
+  z.object({ reason: z.literal("robot_fit_none"), category,
     basis: z.literal("conservative_pre_spend_fit_check"), robot_id: z.null(), evidence_digest: digest }).strict()]),
   unknownReasonOutcome]);
 /** The preparation stops only a new video can clear (Pipeline `website_recapture_required`): the reason is the
@@ -47,9 +54,12 @@ export const PREPARATION_RECAPTURE_REASONS = ["website_front_normal_undetermined
  * `needs_input`, and by the preparation status as an outcome with this reason.
  */
 export const TASK_NOT_NAMED_REASON = "website_task_not_named";
+/** The one test of whether the Pipeline asks for the job's sentence: a preparation status or an Atlas preview. */
+export const pipelineAsksForSentence = (value: { outcome?: { reason?: unknown } | null; state?: unknown; reason?: unknown } | null | undefined) =>
+  value?.outcome?.reason === TASK_NOT_NAMED_REASON || (value?.state === "needs_input" && value.reason === TASK_NOT_NAMED_REASON);
 /** v7 adds those stops: the preparation ended at once and the site is asked to film again. */
 export const preparationOutcomeV7Schema = z.union([preparationOutcomeV6Schema, z.object({
-  reason: z.enum([...PREPARATION_RECAPTURE_REASONS, TASK_NOT_NAMED_REASON]), category: z.literal("insufficient_evidence"),
+  reason: z.enum([...PREPARATION_RECAPTURE_REASONS, TASK_NOT_NAMED_REASON]), category,
   basis: z.literal("missing_evidence"), robot_id: z.null(), evidence_digest: digest }).strict()]);
 export type PreparationOutcomeReceipt = z.infer<typeof preparationOutcomeV7Schema>;
 
@@ -219,7 +229,7 @@ export function recaptureSentences(reason: RecaptureReason, objectName?: string 
 /** The verified Atlas preview of the job's capture says the job has no sentence to prepare from. */
 export function jobAwaitsItsSentence(record: Record<string, any> | null | undefined, captureId: string): boolean {
   const preview = record ? selectWebsiteAtlasPreview(record, captureId) : null;
-  return preview?.state === "needs_input" && preview.reason === TASK_NOT_NAMED_REASON;
+  return pipelineAsksForSentence(preview as never);
 }
 
 /** The job waits for its sentence: the site names it on its job page. Not a failure, and not ours to fix. */
@@ -228,6 +238,17 @@ export const TASK_NOT_NAMED_SENTENCES = {
   reason: "We need one sentence saying what the robot should do before we can build the simulation of your job.",
   nextStep: "Write it at the top of your job page, for example \"Pick up each box and put it on the shelf.\" We start as soon as you send it.",
 } as const;
+/** The site has given its sentence and the Pipeline has not re-read the job yet. Ours, not the site's. */
+export const TASK_NAMED_SENTENCES = {
+  title: "We have your job's sentence",
+  reason: "We have the sentence you gave us, and we are starting to build the simulation of your job.",
+  nextStep: "Nothing more is needed from you.",
+} as const;
+export function taskNamedOutcome(): TaskOutcome {
+  return { category: "insufficient_evidence", basis: "missing_evidence", title: TASK_NAMED_SENTENCES.title,
+    reason: TASK_NAMED_SENTENCES.reason, scope: "This is about your job's description only. It is not a finding about any robot or about your site.",
+    nextStep: TASK_NAMED_SENTENCES.nextStep, actionOwner: "blueprint", evidence: [] };
+}
 export function taskNotNamedOutcome(evidenceDigest: string): TaskOutcome {
   return { category: "insufficient_evidence", basis: "missing_evidence", title: TASK_NOT_NAMED_SENTENCES.title,
     reason: TASK_NOT_NAMED_SENTENCES.reason,

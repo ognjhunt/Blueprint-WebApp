@@ -26,27 +26,37 @@ describe("unknown Pipeline code alerts", () => {
     seam.alert.mockImplementation(async () => { seam.inFlight++; seam.maxInFlight = Math.max(seam.maxInFlight, seam.inFlight);
       await new Promise(resolve => setTimeout(resolve, 1)); seam.inFlight--; });
   });
-  it("sends the ops alert beside the marker once per job, slot and code", async () => {
+  it("sends the ops alert once per job, slot and code, and each job gets its own", async () => {
     expect(await noteUnknownPipelineCode("job-1", "screening.flag", "brand_new")).toBe(true);
     expect(await noteUnknownPipelineCode("job-1", "screening.flag", "brand_new")).toBe(false);
-    expect(markers()).toHaveLength(1);
-    expect(seam.alert).toHaveBeenCalledTimes(1);
-    expect(seam.alert.mock.calls[0][0]).toBe("pipeline_code_unknown:screening.flag:brand_new");
+    expect(await noteUnknownPipelineCode("job-2", "screening.flag", "brand_new")).toBe(true);
+    expect(markers()).toHaveLength(2);
+    expect(seam.alert.mock.calls.map(call => call[0])).toEqual(["pipeline_code_unknown:job-1:screening.flag:brand_new",
+      "pipeline_code_unknown:job-2:screening.flag:brand_new"]);
+    expect(seam.alert.mock.calls[1][1]).toContain("job-2");
   });
   it("still records the marker when the ops alert fails", async () => {
     seam.alert.mockRejectedValueOnce(new Error("slack down"));
     expect(await noteUnknownPipelineCode("job-1", "screening.flag", "other")).toBe(true);
     expect(markers()).toHaveLength(1);
   });
-  it(`alerts at most ${5} codes per ingest, one at a time, then one summary line with the count`, async () => {
+  it("alerts at most 5 NEW codes per ingest, one at a time, then one summary alert naming the rest", async () => {
     expect(UNKNOWN_CODE_ALERTS_PER_INGEST).toBe(5);
     const found = Array.from({ length: 12 }, (_, index) => ["screening.flag", `brand_new_${index}`] as [string, string]);
     await noteUnknownPipelineCodes("job-1", [...found, found[0]]);
-    expect(seam.alert).toHaveBeenCalledTimes(5);
-    expect(markers()).toHaveLength(5);
+    expect(seam.alert).toHaveBeenCalledTimes(6);
+    expect(markers()).toHaveLength(12);
     expect(seam.maxInFlight).toBe(1);
-    const summary = seam.error.mock.calls.filter(call => call[0]?.alert === "pipeline_code_unknown_summary");
-    expect(summary).toHaveLength(1);
-    expect(summary[0][0]).toMatchObject({ more: 7 });
+    const summary = seam.alert.mock.calls[5][1] as string;
+    expect(summary).toMatch(/^The website met 7 more Pipeline codes/);
+    expect(summary).toContain("brand_new_11");
+  });
+  it("counts only codes not yet marked: a later ingest alerts a sixth new code", async () => {
+    const first = Array.from({ length: 5 }, (_, index) => ["screening.flag", `old_${index}`] as [string, string]);
+    await noteUnknownPipelineCodes("job-1", first);
+    seam.alert.mockClear();
+    await noteUnknownPipelineCodes("job-1", [...first, ["screening.flag", "sixth"]]);
+    expect(seam.alert).toHaveBeenCalledTimes(1);
+    expect(seam.alert.mock.calls[0][0]).toBe("pipeline_code_unknown:job-1:screening.flag:sixth");
   });
 });

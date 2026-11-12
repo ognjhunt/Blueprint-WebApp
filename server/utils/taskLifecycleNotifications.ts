@@ -26,6 +26,7 @@ import { finePrint, finePrintLast } from "./emailLayout";
 import { taskLifecycleNotificationIsCurrent } from "./taskLifecycleNotificationAuthority";
 import { drainPendingWebsitePreparationNotifications } from "./websitePreparationStatus";
 import { CAPACITY_ENDED_HEADLINE, preparationEndedSentence } from "./taskStatusProjection";
+import { pipelineAsksForSentence } from "./taskPreparationOutcome";
 import { EARLY_TASK_HOLD_DETAIL, EARLY_TASK_HOLD_SENTENCES, earlyTaskHoldOf, isEarlyTaskHoldReason,
   FOOTAGE_BEFORE_ACCOUNT_SENTENCE, JOB_NO_GRANT_SITE_ENDING_SUBJECT, JOB_WINDOW_ENDING_MESSAGE, JOB_WINDOW_ENDING_SUBJECT, jobNoGrantEndingMessage,
   isRecaptureReason, LARGE_VIDEO_RECAPTURE_SENTENCES, RECAPTURE_SENTENCES, RECAPTURE_TITLE, recaptureReasonOf, TASK_NOT_NAMED_REASON,
@@ -108,12 +109,12 @@ function whereRunsAre(url: string, workspaceUrl: string | null, action: string):
 // ("Label:\nURL"); a line the site must read but that is not the news is fine print (`finePrint`).
 /**
  * `preparation_ended` for `capacity_blocked` (review, 2026-11-12): every cause the Pipeline sends it for is ours (its
- * disk or staging stayed short, or the job waited for room until its grant ran out), so the email says so, says the
- * video is kept, and offers nothing the page cannot do. Staff see the code in the preparation watch.
+ * disk or staging stayed short, or the job waited for room until its grant ran out), so the email says so, asks the
+ * site to keep its original video (it cannot know the stored copy), and offers nothing the page cannot do. Staff see the code in the preparation watch.
  */
 const CAPACITY_ENDED_COPY = {
   subject: "We could not prepare your job in time",
-  body: (url: string, detail: string) => `${CAPACITY_ENDED_HEADLINE}${detail ? ` ${detail}` : ""}\n\nNothing is needed from you.\n\nOpen your job:\n${url}`,
+  body: (url: string, detail: string) => `${CAPACITY_ENDED_HEADLINE}${detail ? ` ${detail}` : ""}\n\nNothing is needed from you. Keep your original video.\n\nOpen your job:\n${url}`,
 };
 const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string, detail: string, workspaceUrl: string | null) => string }> = {
   // The job that asked for a new video moved on with the one the site sent (review, 2026-11-12). Fixed text.
@@ -303,9 +304,10 @@ export async function enqueueTaskLifecycleNotification(params: {
   const preview = params.milestone === "preparation_needs_attention" && params.captureId
     ? selectWebsiteAtlasPreview(snapshot.data(), params.captureId) : null;
   const earlyTaskHold = earlyTaskHoldOf(preview);
-  // A job waiting for its sentence needs the site, not our team: no "needs attention" email; the page asks for it.
-  if (params.milestone === "preparation_needs_attention"
-    && await (await import("./jobSentenceWait")).loadJobWaitsForItsSentence(requestId, snapshot.data()))
+  // A job the Pipeline holds for its sentence needs the site, not our team: no "needs attention" email, whether the
+  // page still asks for it or the site has already given it (the Pipeline re-reads the job within the hour).
+  if (params.milestone === "preparation_needs_attention" && (pipelineAsksForSentence(preview as never)
+    || await (await import("./jobSentenceWait")).loadJobWaitsForItsSentence(requestId, snapshot.data())))
     return { enqueued: false, reason: "awaiting_site_sentence" };
   // The Pipeline delivers the preview separately and can be late: until it says how this capture's Atlas lane
   // ended, or the wait runs out, owe the notice rather than send a generic one the page would contradict.

@@ -140,11 +140,14 @@ describe("preparation ended for good: one email per terminal transition (beta L3
     expect(unknown.body).not.toContain("provider said no");
     expect(() => buildTaskLifecycleNotification({...ended, eventId: undefined, to: "owner@example.test"})).toThrow();
   });
-  it("PREP-NOTICE-010b says a capacity_blocked ending as ours, the video kept, nothing the site did, and no limit", () => {
+  it("PREP-NOTICE-010b says a capacity_blocked ending as ours, nothing the site did, and no limit", () => {
     const row = buildTaskLifecycleNotification({...ended, terminalReason: "capacity_blocked", to: "owner@example.test"});
     expect(row.subject).toBe("We could not prepare your job in time");
+    // Rewritten (review, 2026-11-12): the email cannot know the stored copy, so it asks the site to keep its original.
     expect(row.body.startsWith("We could not start or finish preparing your job in time, for a reason on our side, and we have stopped trying. "
-      + "Nothing you did caused it. Your video is kept.")).toBe(true);
+      + "Nothing you did caused it.")).toBe(true);
+    expect(row.body).toContain("Keep your original video.");
+    expect(row.body).not.toContain("Your video is kept");
     expect(row.body).toContain("Reference: bp-prep-1234567890abcdef.");
     expect(row.body).toContain("Nothing is needed from you.");
     expect(row.body).not.toMatch(/budget|limit|capacity|month|consent|permission|expired|could not finish building/i);

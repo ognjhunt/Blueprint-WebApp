@@ -3,7 +3,7 @@ import { websiteCaptureOwnerUid } from "./websiteCaptureOwner";
 /** Current-source preparation status; never a native assessment or preview verdict. */
 import { z } from "zod";
 import { isRecaptureReason, type RecaptureReason } from "./taskPreparationOutcome";
-import { KNOWN_PREPARATION_OUTCOME_REASONS, PREPARATION_RECAPTURE_REASONS, TASK_NOT_NAMED_REASON } from "./taskPreparationOutcome";
+import { KNOWN_PREPARATION_OUTCOME_CATEGORIES, KNOWN_PREPARATION_OUTCOME_REASONS, PREPARATION_RECAPTURE_REASONS, TASK_NOT_NAMED_REASON, pipelineAsksForSentence } from "./taskPreparationOutcome";
 import { noteUnknownPipelineCodes } from "./unknownPipelineCode";
 import { logger } from "../logger";
 import { preparationOutcomeSchema, preparationOutcomeV6Schema, preparationOutcomeV7Schema, projectPreparationOutcome, ROBOT_FIT_HOLD_PREFIX }
@@ -194,10 +194,8 @@ export function unknownPreparationCodes(status: WebsitePreparationReceipt): Arra
   if (terminal && !known(WEBSITE_PREPARATION_TERMINAL_REASONS, terminal)) found.push(["preparation.terminal_reason", terminal]);
   const outcome = "outcome" in status ? status.outcome : null;
   if (outcome && !KNOWN_PREPARATION_OUTCOME_REASONS.has(outcome.reason) && !(PREPARATION_RECAPTURE_REASONS as readonly string[]).includes(outcome.reason)
-    && outcome.reason !== TASK_NOT_NAMED_REASON) {
-    found.push(["preparation.outcome.reason", outcome.reason]);
-    if (!known(["robot_incompatibility", "insufficient_evidence"], outcome.category)) found.push(["preparation.outcome.category", outcome.category]);
-  }
+    && outcome.reason !== TASK_NOT_NAMED_REASON) found.push(["preparation.outcome.reason", outcome.reason]);
+  if (outcome && !KNOWN_PREPARATION_OUTCOME_CATEGORIES.includes(outcome.category)) found.push(["preparation.outcome.category", outcome.category]);
   const fit = "robot_fit" in status ? status.robot_fit : null;
   if (fit?.reason && !known(ROBOT_FIT_NOT_RUN_REASONS, fit.reason)) found.push(["robot_fit.reason", fit.reason]);
   for (const row of fit?.models ?? []) if (!known(ROBOT_FIT_VERDICTS, row.verdict)) found.push(["robot_fit.verdict", row.verdict]);
@@ -301,7 +299,7 @@ function noticeFor(selector: WebsitePreparationSelector, status: WebsitePreparat
   if (status.state === "awaiting_inputs" && "robot_fit" in status && status.robot_fit?.route === "geometry_only")
     return null;
   // A job waiting for its sentence needs the site to name it, not our team: no "needs attention" email (the page asks).
-  if ("outcome" in status && status.outcome?.reason === TASK_NOT_NAMED_REASON) return null;
+  if (pipelineAsksForSentence(status as never)) return null;
   return needsAttention(status.state)
     ? {eventId: websitePreparationEventId(selector), milestone: "preparation_needs_attention"} : null;
 }
@@ -554,9 +552,10 @@ export async function syncWebsitePreparationStatus(raw: unknown, deps = defaultD
   const {latest, authority} = await boundedRead(signal => latestVerified(selector, deps, signal));
   // Recorded at ingest only, and only for a receipt this job has not stored before (never on a read or a replay).
   const prior = await Promise.resolve().then(() => deps.readStored(selector.capture_id)).catch(() => null);
-  if (prior?.status?.status_digest !== latest.status_digest)
-    void noteUnknownPipelineCodes(selector.request_id, unknownPreparationCodes(latest));
+  const newReceipt = prior?.status?.status_digest !== latest.status_digest;
   await deps.commit(selector, latest, authority);
+  // After the commit: a failed commit has alerted no one.
+  if (newReceipt) void noteUnknownPipelineCodes(selector.request_id, unknownPreparationCodes(latest));
   // A geometry-only job ends at its robot fit check, and an ended authority ends the job before a test ran: either
   // ending gives the site its paper-check answer now, queued here where it is recorded.
   if ((latest.state === "awaiting_inputs" && "robot_fit" in latest && latest.robot_fit?.route === "geometry_only")
@@ -593,7 +592,7 @@ export async function loadCurrentWebsitePreparationStatus(requestId: string, cap
       ...("outcome" in status ? {outcome: status.outcome ? projectPreparationOutcome(status.outcome, precheck && {
         holdReason: precheck.holdReason, precheckDigest: precheck.precheckDigest, counts: precheck.counts}, objectName) : null} : {}),
       // The job waits for its sentence (the site names it; the page asks for it).
-      ...("outcome" in status && status.outcome?.reason === TASK_NOT_NAMED_REASON ? {taskNotNamed: true} : {}),
+      ...(pipelineAsksForSentence(status as never) ? {taskNotNamed: true} : {}),
       ...("question" in status ? {question: status.question} : {}),
       ...("robot_fit" in status ? {robotFit: status.robot_fit ? publicRobotFit(status.robot_fit) : null} : {}),
       ...("robot_fit_precheck" in status ? {robotFitPrecheck: precheck} : {})};

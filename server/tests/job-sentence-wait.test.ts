@@ -25,7 +25,11 @@ vi.mock("../utils/websitePreparationStatus", () => ({
   canNotifyCurrentWebsitePreparationIssue: async () => true,
   drainPendingWebsitePreparationNotifications: async () => ({ enqueued: 0, pending: 0 }),
 }));
-const { jobWaitsForItsSentence, loadJobWaitsForItsSentence } = await import("../utils/jobSentenceWait");
+const { jobWaitsForItsSentence: decide, loadJobWaitsForItsSentence } = await import("../utils/jobSentenceWait");
+const { isPlaceholderSummary } = await import("../utils/siteTaskBrief");
+const jobWaitsForItsSentence = (input: { requestId: string; record: Record<string, any>; preparationTaskNotNamed?: boolean;
+  brief?: { summary?: string | null; confirmedAtIso?: string | null } | null }) =>
+  decide({ brief: null, ...input, isPlaceholder: isPlaceholderSummary });
 const { enqueueTaskLifecycleNotification } = await import("../utils/taskLifecycleNotifications");
 const { jobOutlook } = await import("../utils/jobOutlook");
 
@@ -62,6 +66,18 @@ describe("a job waiting for its sentence: one decision", () => {
     expect(await loadJobWaitsForItsSentence("req-1", { ...record, site_task_brief_confirmed_at: "2026-11-12T00:00:00Z" })).toBe(false);
   });
 
+  // Review, 2026-11-12: the wait ends when the site has answered, even before it confirms its brief.
+  it("a job the site has named (not confirmed) no longer waits: no ask, no form, no email", async () => {
+    const record = job({ website_atlas_previews: { "walkthrough-req-1": atlas("walkthrough-req-1") } });
+    sharedFakeFirestoreState.docs.set("inboundRequests/req-1", record);
+    expect(await loadJobWaitsForItsSentence("req-1", record)).toBe(true);
+    sharedFakeFirestoreState.docs.set("siteTaskBriefs/req-1", { summary: "Move the boxes onto the shelf.", confirmedAtIso: null });
+    expect(await loadJobWaitsForItsSentence("req-1", record)).toBe(false);
+    expect(jobWaitsForItsSentence({ requestId: "req-1", record, brief: { summary: "Move the boxes onto the shelf." } })).toBe(false);
+    expect(jobWaitsForItsSentence({ requestId: "req-1", record, brief: { summary: "" } })).toBe(true);
+    // Still no "needs attention" email: the Pipeline holds the job for a sentence the site has now given.
+    expect(await needsAttention()).toEqual({ enqueued: false, reason: "awaiting_site_sentence" });
+  });
   it("a re-filmed job reads its current capture, never the first one", async () => {
     // The first capture's preview said the job was not named; the site filmed again, and the new one has no such wait.
     const stale = job({ active_capture_id: REFILMED, website_atlas_previews: { "walkthrough-req-1": atlas("walkthrough-req-1") } });

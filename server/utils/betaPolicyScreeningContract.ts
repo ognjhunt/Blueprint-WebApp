@@ -461,7 +461,7 @@ export function screeningReferenceCheck(rows: readonly ScreeningCandidateRow[]):
 }
 /** Flags that are facts about one robot and the object (`screeningSetupFlagSentences`): never a set-up doubt. */
 export const ROBOT_FACT_FLAG_CODES: ReadonlySet<string> = new Set(["task_object_wider_than_gripper", "task_object_heavier_than_grip",
-  "task_object_grip_depends_on_weight", "task_object_needs_edge_grip"]);
+  "task_object_grip_depends_on_weight", "task_object_needs_edge_grip", "fixed_arm_reach_cannot_span_pick_and_place"]);
 export const isRobotFactFlagCode = (code: string) => ROBOT_FACT_FLAG_CODES.has(code.split(":")[0]);
 /** The rows that are candidates: every row but the known-good control. */
 export const screeningCandidateRows = <Row extends { execution_evidence_kind?: string; setup_quality_flags?: readonly string[] }>(

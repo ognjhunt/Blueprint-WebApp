@@ -1150,10 +1150,9 @@ export async function processSceneIntakeQueue(limit = 10, deps: SceneIntakeQueue
       // An outcome kind this release does not know is not adopted; staff hear once per job and code.
       const sentKind = ({ ...record, ...patch } as Record<string, any>).pipeline_status?.outcome?.kind;
       // Only when this outcome is first stored: the 60-second poll that reads it again writes nothing.
-      if (record.website_request_id && typeof sentKind === "string" && !isKnownSceneIntentOutcomeKind(sentKind)
-        && JSON.stringify(record.pipeline_status?.outcome ?? null) !== JSON.stringify(({ ...record, ...patch } as Record<string, any>).pipeline_status?.outcome ?? null))
-        void import("./unknownPipelineCode").then(({ noteUnknownPipelineCode }) =>
-          noteUnknownPipelineCode(record.website_request_id, "scene_outcome.kind", sentKind));
+      const unknownKind = record.website_request_id && typeof sentKind === "string" && !isKnownSceneIntentOutcomeKind(sentKind)
+        && JSON.stringify(record.pipeline_status?.outcome ?? null) !== JSON.stringify(({ ...record, ...patch } as Record<string, any>).pipeline_status?.outcome ?? null)
+        ? sentKind : null;
       await storeTimeout(
         db.runTransaction(async (transaction) => {
           const latest = await transaction.get(row.ref);
@@ -1173,6 +1172,9 @@ export async function processSceneIntakeQueue(limit = 10, deps: SceneIntakeQueue
             });
         }),
       );
+      // After the status is stored: a failed write has alerted no one.
+      if (unknownKind) void import("./unknownPipelineCode").then(({ noteUnknownPipelineCode }) =>
+        noteUnknownPipelineCode(record.website_request_id, "scene_outcome.kind", unknownKind));
       // A status poll can be when the site's first test on its scene started.
       // The outbox tick repairs a missed enqueue; this only makes it prompt.
       if (record.website_request_id && patch.pipeline_status) {

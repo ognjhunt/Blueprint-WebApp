@@ -44,6 +44,12 @@ const SETUP_FLAG_SENTENCES: ReadonlyMap<string, string> = new Map(Object.entries
   "known_good_control_unavailable:embodiment": "We have no scripted reference for the robots tested on this job yet, so nothing confirmed beforehand that the simulated scene can record a success.",
   "known_good_control_unavailable:budget": "We did not run our scripted reference check, so that this job's budget could go to testing robots; nothing confirmed beforehand that the simulated scene can record a success.",
   known_good_control_interrupted: "Our scripted reference check did not finish, so it could not confirm that the simulated scene can record a success.",
+  // The Pipeline's next flags carry the counts (`known_good_control_partly:1_of_3`) and a reason for an unavailable
+  // check. A control row's sentence is still said from its counts (`referenceCheckSentence`); these words are for a
+  // flag read on its own.
+  known_good_control_partly: "A scripted reference arm that reads exact positions from the simulation did the job in only some of its tries in the simulated scene, so a low result here may partly reflect our simulation rather than the robots.",
+  "known_good_control_unavailable:task_kind": "We have no scripted reference for this kind of job yet, so nothing confirmed beforehand that the simulated scene can record a success.",
+  "known_good_control_unavailable:backend": "We have no scripted reference that runs in this simulation yet, so nothing confirmed beforehand that the simulated scene can record a success.",
   // A run's own record that an AI robot's software stopped mid-test (Pipeline `session_policy_server_lost`).
   session_policy_server_lost: "This AI robot's software stopped during the test, so only some tries were counted.",
   // What the simulated scene was built on that was estimated, not observed (Pipeline `atlas_scene_estimates`,
@@ -60,15 +66,16 @@ const SETUP_FLAG_SENTENCES: ReadonlyMap<string, string> = new Map(Object.entries
   "scene_estimate:task_review_estimated": "Parts of the job in the simulated scene come from our review of your video, which we could not confirm.",
   "scene_estimate:destination_guessed": "We could not tell exactly where the object should go, so the simulated scene uses our best guess.",
   "scene_estimate:destination_near_start": "In the simulated scene, the place the object goes is close to where it starts, so the job may be easier there than at your site.",
+  // The Pipeline's final names (review, 2026-11-12).
+  "scene_estimate:registration_ambiguous": "We could not line your video up with the simulated scene with full confidence, so things may sit slightly differently from your site.",
+  "scene_estimate:placement_uncertainty": "The object's position in the simulated scene may differ from your site by a few centimetres.",
+  "scene_estimate:support_height_differs_from_picture": "In the simulated scene, the object rests slightly above or below the surface the cameras show.",
   // A run's camera and set-up checks, per camera where the code names one.
   task_object_partly_hidden: "In the simulation, the job's object was partly hidden from one of the robot's cameras.",
   task_target_marker_partly_hidden: "In the simulation, the mark showing where the object goes was partly hidden from one of the robot's cameras.",
   task_object_not_in_view: "In the simulation, the job's object was not in view of one of the robot's cameras.",
   scene_appearance_clearance_too_large: "We could not tidy the reconstructed surface around the object, so it may look partly covered in the simulation.",
-  task_object_placement_differs_from_video: "In the simulated scene, the object does not sit exactly where your video shows it.",
   task_object_size_differs_from_video: "In the simulated scene, the object's size differs from what your video shows.",
-  // A fault: no camera sees the object or the mark at all, so this scene cannot test robots.
-  scene_task_not_visible: "None of the robot's cameras in the simulated scene could see the job's object or the mark showing where it goes, so this scene could not test robots. This is ours to fix.",
 }));
 
 /**
@@ -80,7 +87,12 @@ const ROBOT_FACT_FLAG_SENTENCES: ReadonlyMap<string, string> = new Map(Object.en
   task_object_heavier_than_grip: "The object is heavier than this robot's grip is rated to hold.",
   task_object_grip_depends_on_weight: "Whether this robot can hold the object depends on its weight, which we estimated from your video.",
   task_object_needs_edge_grip: "This robot can only hold the object by its edge.",
+  fixed_arm_reach_cannot_span_pick_and_place: "From one position, this robot's arm cannot reach both where the object starts and where it goes.",
 }));
+/** The box-fit flags (`task_object_box_fit_*`): one sentence for the family. */
+const BOX_FIT_PREFIX = "task_object_box_fit_";
+const BOX_FIT_SENTENCE = "In the simulated scene, the object's size or outline differs from what your video shows.";
+const familySentence = (code: string) => code.split(":")[0].startsWith(BOX_FIT_PREFIX) ? BOX_FIT_SENTENCE : undefined;
 const flagBase = (code: string) => code.split(":")[0];
 /** A flag that is a fact about one robot and the object, not about how we set up the scene. */
 export const isRobotFactFlag = (code: string) => isRobotFactFlagCode(code) && ROBOT_FACT_FLAG_SENTENCES.has(flagBase(code));
@@ -91,13 +103,13 @@ export function robotFactNotes(row: Partial<Record<typeof screeningRowFlagFields
 }
 /** Whether a flag code is one this release has words for (a set-up note or a robot fact). */
 export const isKnownFlag = (code: string) => code === KNOWN_GOOD_CONTROL_PENDING || isRobotFactFlag(code)
-  || SETUP_FLAG_SENTENCES.has(code) || code.split(":").some(part => SETUP_FLAG_SENTENCES.has(part));
+  || SETUP_FLAG_SENTENCES.has(code) || code.split(":").some(part => SETUP_FLAG_SENTENCES.has(part)) || familySentence(code) !== undefined;
 /** The known-good control's code while it has not ended: no sentence yet. */
 const KNOWN_GOOD_CONTROL_PENDING = "known_good_control_pending";
 
 /** One plain sentence for a flag code; the generic sentence for one this release does not know. Never the code. */
 export function setupFlagSentence(code: string): string {
-  return SETUP_FLAG_SENTENCES.get(code) ?? code.split(":").map(part => SETUP_FLAG_SENTENCES.get(part)).find(Boolean)
+  return SETUP_FLAG_SENTENCES.get(code) ?? familySentence(code) ?? code.split(":").map(part => SETUP_FLAG_SENTENCES.get(part)).find(Boolean)
     ?? SETUP_FLAG_UNCLASSIFIED_SENTENCE;
 }
 

@@ -27,9 +27,17 @@ describe("set-up and scene flags", () => {
     ["task_target_marker_partly_hidden:exterior_1", "In the simulation, the mark showing where the object goes was partly hidden from one of the robot's cameras."],
     ["task_object_not_in_view:wrist", "In the simulation, the job's object was not in view of one of the robot's cameras."],
     ["scene_appearance_clearance_too_large", "We could not tidy the reconstructed surface around the object, so it may look partly covered in the simulation."],
-    ["task_object_placement_differs_from_video", "In the simulated scene, the object does not sit exactly where your video shows it."],
     ["task_object_size_differs_from_video", "In the simulated scene, the object's size differs from what your video shows."],
-    ["scene_task_not_visible:tote_1", "None of the robot's cameras in the simulated scene could see the job's object or the mark showing where it goes, so this scene could not test robots. This is ours to fix."],
+    // The Pipeline's final names (review, 2026-11-12); the two codes that no longer exist are gone.
+    ["scene_estimate:registration_ambiguous", "We could not line your video up with the simulated scene with full confidence, so things may sit slightly differently from your site."],
+    ["scene_estimate:placement_uncertainty", "The object's position in the simulated scene may differ from your site by a few centimetres."],
+    ["scene_estimate:support_height_differs_from_picture", "In the simulated scene, the object rests slightly above or below the surface the cameras show."],
+    ["task_object_box_fit_width", "In the simulated scene, the object's size or outline differs from what your video shows."],
+    ["task_object_box_fit_outline:top", "In the simulated scene, the object's size or outline differs from what your video shows."],
+    ["known_good_control_partly:1_of_3", "A scripted reference arm that reads exact positions from the simulation did the job in only some of its tries in the simulated scene, so a low result here may partly reflect our simulation rather than the robots."],
+    ["known_good_control_passed:2_of_3", "Before testing robots, a scripted reference arm that reads exact positions from the simulation completed the job, so the simulated scene can record a success."],
+    ["known_good_control_unavailable:backend", "We have no scripted reference that runs in this simulation yet, so nothing confirmed beforehand that the simulated scene can record a success."],
+    ["known_good_control_unavailable:task_kind", "We have no scripted reference for this kind of job yet, so nothing confirmed beforehand that the simulated scene can record a success."],
   ])("says %s in plain words, never the code", (code, sentence) => {
     expect(setupFlagSentence(code)).toBe(sentence);
     expect(isKnownFlag(code)).toBe(true);
@@ -44,6 +52,18 @@ describe("set-up and scene flags", () => {
       "This robot can only hold the object by its edge."]);
     for (const code of [...row.setup_quality_flags, ...row.scene_check_flags]) expect(isRobotFactFlag(code)).toBe(true);
   });
+  it("says the fixed arm's reach on that robot's row only, never as a set-up note", () => {
+    const code = "fixed_arm_reach_cannot_span_pick_and_place";
+    expect(robotFactNotes({ scene_check_flags: [code] })).toEqual(["From one position, this robot's arm cannot reach both where the object starts and where it goes."]);
+    expect(isRobotFactFlag(code)).toBe(true);
+    expect(isKnownFlag(code)).toBe(true);
+  });
+  it("no longer has words for the two codes the Pipeline dropped", () => {
+    for (const code of ["task_object_placement_differs_from_video", "scene_task_not_visible"]) {
+      expect(setupFlagSentence(code)).toBe(SETUP_FLAG_UNCLASSIFIED_SENTENCE);
+      expect(screeningReasonLabel(code)).not.toMatch(/no camera/);
+    }
+  });
   it("says only that a point was raised for a flag it does not know, and marks it unknown for staff", () => {
     expect(setupFlagSentence("brand_new_flag:camera_9")).toBe(SETUP_FLAG_UNCLASSIFIED_SENTENCE);
     expect(isKnownFlag("brand_new_flag:camera_9")).toBe(false);
@@ -54,8 +74,6 @@ describe("waits and holds", () => {
   it.each([
     ["beta_screening_work_disk_wait", "In line for processing on our side."],
     ["account_monthly_spend_job_start_wait", "In line for processing on our side."],
-    ["scene_run_in_cold_storage", "Held on our side while its saved simulation is restored. Nothing is needed from you."],
-    ["scene_task_not_visible:mark", "Not run: no camera in the simulated scene could see the job's object or where it goes. This is ours to fix."],
   ])("labels %s plainly", (code, label) => expect(screeningReasonLabel(code)).toBe(label));
   it("reads a hold reason it does not know as a hold on our side, instead of refusing the hold", () => {
     expect(isKnownHoldReason("brand_new_hold")).toBe(false);

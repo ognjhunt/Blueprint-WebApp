@@ -40,10 +40,6 @@ const REASONS: Record<string, string> = {
   // Waits on our side that need nothing from the site (review, 2026-11-12).
   beta_screening_work_disk_wait: "In line for processing on our side.",
   account_monthly_spend_job_start_wait: "In line for processing on our side.",
-  // Its saved simulation is being restored from storage before it can run.
-  scene_run_in_cold_storage: "Held on our side while its saved simulation is restored. Nothing is needed from you.",
-  // No camera in the simulated scene sees the object or its mark: that scene cannot test robots.
-  scene_task_not_visible: "Not run: no camera in the simulated scene could see the job's object or where it goes. This is ours to fix.",
   beta_screening_waiting_for_control: "Waiting to confirm this job can still run.",
   beta_screening_transport_retry_cap_exhausted: "Not run: we could not confirm this job can still run. This is ours to fix.",
   beta_screening_static_preflight_blocked: "Could not start in our simulator. This is ours to fix.",

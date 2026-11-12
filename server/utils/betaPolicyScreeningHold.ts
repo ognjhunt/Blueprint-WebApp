@@ -107,15 +107,12 @@ export async function ingestBetaPolicyScreeningHold(hold: BetaPolicyScreeningHol
   if (typeof selected.website_request_id !== "string" || typeof selected.source_session_id !== "string")
     throw new Error("screening_scene_intake_unavailable");
   const selectedJob = (await store.collection("inboundRequests").doc(selected.website_request_id).get()).data();
-  if (hold.reason_code && !isKnownHoldReason(hold.reason_code))
-    void import("./unknownPipelineCode").then(({ noteUnknownPipelineCode }) =>
-      noteUnknownPipelineCode(selected.website_request_id, "screening_hold.reason_code", hold.reason_code!));
   const screeningCapture = selectedJob?.job_evidence_source ? { captureId: selected.source_session_id }
     : await readManagedScreeningCapture(selected.website_request_id, selected.source_session_id);
   const runRef = store.collection("taskEvaluationPolicyRuns").doc(hold.hold_id);
   // The offerings that bind the intake's revision file, read outside the transaction as a campaign's are.
   const revisionOfferings = await readPreparedRevisionOfferings(selected);
-  return store.runTransaction(async transaction => {
+  const stored = await store.runTransaction(async transaction => {
     const intake = (await transaction.get(intakeRef)).data();
     const jobId = intake?.website_request_id;
     if (typeof jobId !== "string" || jobId !== selected.website_request_id || intake?.source_session_id !== screeningCapture.captureId)
@@ -168,4 +165,9 @@ export async function ingestBetaPolicyScreeningHold(hold: BetaPolicyScreeningHol
       created_at_iso: previous?.created_at_iso ?? now, updated_at_iso: now });
     return receipt(previous ? "updated" : "created", { hold_revision: hold.revision, hold_digest: hold.hold_digest });
   });
+  // After the hold is stored, and only for a new revision: a replay or a failed write alerts no one.
+  if (stored.status !== "replayed" && hold.reason_code && !isKnownHoldReason(hold.reason_code))
+    void import("./unknownPipelineCode").then(({ noteUnknownPipelineCode }) =>
+      noteUnknownPipelineCode(selected.website_request_id, "screening_hold.reason_code", hold.reason_code!));
+  return stored;
 }

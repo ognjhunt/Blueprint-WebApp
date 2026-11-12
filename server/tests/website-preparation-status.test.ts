@@ -17,6 +17,7 @@ import { canNotifyCurrentWebsitePreparationIssue, drainPendingWebsitePreparation
   type WebsitePreparationSelector, type StoredWebsitePreparation } from "../utils/websitePreparationStatus";
 
 import { buildTaskLifecycleNotification } from "../utils/taskLifecycleNotifications";
+import { taskLifecycleNotificationIsCurrent } from "../utils/taskLifecycleNotificationAuthority";
 // Production verifier controls use in-memory Firestore/GCS and a retained observer projection.
 // No real database, credentials, transport, provider or mail is used.
 const runtime = vi.hoisted(() => ({records: new Map<string, any>(), objects: new Map<string, {metadata: any; bytes: Buffer}>(),
@@ -313,6 +314,27 @@ describe("a code the website does not know never breaks the read", () => {
       expect(noted).toHaveBeenCalledTimes(1);
       expect(JSON.stringify(h.stored)).toBe(stored);
     } finally { noted.mockRestore(); }
+  });
+  it("alerts only after the receipt is committed: a commit that fails has told no one", async () => {
+    const alerts = await import("../utils/unknownPipelineCode");
+    const noted = vi.spyOn(alerts, "noteUnknownPipelineCodes").mockResolvedValue(undefined);
+    try {
+      const h = harness();
+      h.ledger(v7("awaiting_inputs", {category: "insufficient_evidence", reason: "website_brand_new_stop", basis: "missing_evidence",
+        robot_id: null, evidence_digest: `sha256:${"e".repeat(64)}`}));
+      h.race(() => h.sourceChange());
+      await expect(syncWebsitePreparationStatus(selector, h.deps)).rejects.toThrow();
+      expect(noted).not.toHaveBeenCalled();
+    } finally { noted.mockRestore(); }
+  });
+  it("never fails the read on a category it does not know, for a known reason too", async () => {
+    const h = harness();
+    h.ledger(v7("awaiting_inputs", {category: "brand_new_category", reason: "website_registration_poor_fit", basis: "missing_evidence",
+      robot_id: null, evidence_digest: `sha256:${"e".repeat(64)}`}));
+    await syncWebsitePreparationStatus(selector, h.deps);
+    const projected = await loadCurrentWebsitePreparationStatus("r1", "walkthrough-r1", h.deps);
+    expect(projected.outcome).toMatchObject({title: "We need a new video to build the simulation of your site", actionOwner: "site"});
+    expect(JSON.stringify(projected)).not.toContain("brand_new_category");
   });
   it("reads unknown robot-fit reasons, verdicts, robot bodies and terminal reasons without failing", async () => {
     const fit = robotFit("full", {models: [{name: "X", manufacturer: "Y", verdict: "probably", open_checks: []}]});
@@ -700,11 +722,49 @@ describe("no new video is needed, through the stored row", () => {
     expect(enqueue).toHaveBeenLastCalledWith(expect.objectContaining({milestone: "preparation_resumed", eventId: resumed}));
     expect(row().website_preparation.notification).toEqual({eventId: resumed, state: "enqueued"});
     expect(row().website_preparation_notification_pending).toBe(false);
+    // The dispatch check: the ask's own email went out, so this one may.
+    const askKey = `captureOutbox/r1:preparation_needs_attention:${websitePreparationEventId(f.selected).replace(":", "_")}`;
+    (f.request as any).contact = {email: "owner@example.test"};
+    const entry = {kind: "preparation_resumed", requestId: "r1", preparationEventId: resumed, to: "owner@example.test"} as never;
+    runtime.records.set(askKey, {status: "sent"});
+    expect(await taskLifecycleNotificationIsCurrent(entry)).toBe(true);
+    // The site re-filmed (a supplement is now the job's video) or closed its run: nothing follows the ask.
+    (f.request as any).active_capture_id = `supplement-${"a".repeat(40)}`;
+    expect(await taskLifecycleNotificationIsCurrent(entry)).toBe(false);
+    delete (f.request as any).active_capture_id;
     // A replay of the same status keeps it, sent; nothing more is owed.
     await syncWebsitePreparationStatus(f.selected);
     expect(row().website_preparation.notification).toEqual({eventId: resumed, state: "enqueued"});
     expect(await drain(enqueue)).toEqual({enqueued: 0, pending: 0});
     expect(enqueue).toHaveBeenCalledTimes(2);
+  });
+  it("sends nothing when the ask was queued but never went out", async () => {
+    const f = productionFixture(); f.ledger(stop(f.selected));
+    await syncWebsitePreparationStatus(f.selected);
+    const enqueue = vi.fn(async () => "enqueued" as const);
+    await drain(enqueue);
+    f.ledger(v7("handed_off", null, 4, f.selected));
+    await syncWebsitePreparationStatus(f.selected);
+    const resumed = websitePreparationResumedEventId(f.selected);
+    (f.request as any).contact = {email: "owner@example.test"};
+    const entry = {kind: "preparation_resumed", requestId: "r1", preparationEventId: resumed, to: "owner@example.test"} as never;
+    const askKey = `captureOutbox/r1:preparation_needs_attention:${websitePreparationEventId(f.selected).replace(":", "_")}`;
+    for (const status of [undefined, "pending", "failed"]) {
+      if (status) runtime.records.set(askKey, {status}); else runtime.records.delete(askKey);
+      expect(await taskLifecycleNotificationIsCurrent(entry)).toBe(false);
+    }
+    // And the ask itself is no longer current: the hand-off dropped it.
+    expect(await canNotifyCurrentWebsitePreparationIssue("r1", websitePreparationEventId(f.selected))).toBe(false);
+  });
+  it("a second capture's ask is followed for that capture only", () => {
+    const second = {...selector, completion_marker_generation: "90071992547409932"};
+    const first = mergeWebsitePreparationStatus(null, selector, stop(selector));
+    const askedAgain = mergeWebsitePreparationStatus({...first, notification: {...first.notification!, state: "enqueued"}}, second, stop(second));
+    expect(askedAgain.notification).toEqual({eventId: websitePreparationEventId(second), state: "pending"});
+    const sent = {...askedAgain, notification: {...askedAgain.notification!, state: "enqueued" as const}};
+    const resumed = mergeWebsitePreparationStatus(sent, second, v7("handed_off", null, 4, second));
+    expect(resumed.notification).toEqual({eventId: websitePreparationResumedEventId(second), state: "pending"});
+    expect(websitePreparationResumedEventId(second)).not.toBe(websitePreparationResumedEventId(selector));
   });
   it.each([
     ["the resumed id on a status that is not handed_off", (selected: WebsitePreparationSelector) =>

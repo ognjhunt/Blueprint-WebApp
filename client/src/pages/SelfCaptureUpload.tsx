@@ -780,7 +780,10 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
                     }
                   })();
                 }}>
-                  <label htmlFor="task-statement">{answer
+                  {/* When the page is asking for the sentence, the label asks too; "Optional" only for a correction. */}
+                  <label htmlFor="task-statement">{status?.outlook?.phase === "waiting_on_site"
+                    ? "In one line, what should the robot do?"
+                    : answer
                     ? "Optional: if we read the job wrong, say in one line what the robot should do."
                     : "We could not tell the job from your video. In one line, what should the robot do?"}</label>
                   <input id="task-statement" value={taskStatement} maxLength={300} required
