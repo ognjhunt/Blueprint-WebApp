@@ -37,6 +37,14 @@ export const sharedNotVisible = (date: string | null) =>
 export const PACKET_BUILDING = "We're building your job packet. Nothing has been shared.";
 /** No share is offered and none was made: true for every other state. */
 export const NOTHING_SHARED = "Nothing has been shared.";
+/** A withdrawn job, or a closed one whose summary is not visible (review, 2026-11-12). */
+export const NOTHING_IS_SHARED = "Nothing is shared.";
+/** The job waits for the site to say what it is; the page's own form asks for the sentence. */
+export const PACKET_WAITS_ON_SITE = "Tell us what the job is and we will build its job packet.";
+/** What a summary shared under an earlier statement (or on the start form) leaves out; the button adds it. */
+export const LEAVES_OUT_FIRST_LOOK = "Your shared summary does not include your first look.";
+export const LEAVES_OUT_TRIAL = "Your shared summary does not include our early trial's result.";
+export const LEAVES_OUT_BOTH = "Your shared summary does not include your first look or our early trial's result.";
 export const READING_LINE = "We're watching your video.";
 export const READING_HELPER = "Your job page shows it when it is ready.";
 export const EDIT_JOB_LABEL = "Change my job description";
@@ -152,8 +160,9 @@ function Section({ id, title, children }: { id: string; title: string; children:
  * the line under it says), else one true sentence. When the page has a step the site must take first, the button
  * stays, quiet.
  */
-function Companies({ token, answer, onRequested, quiet, offer, building }: { token: string; answer: SiteAnswerView;
-  onRequested?: () => void; quiet: boolean; offer: boolean; building: boolean }) {
+function Companies({ token, answer, onRequested, quiet, offer, building, waitingOnSite, ended, trialResult }: { token: string;
+  answer: SiteAnswerView; onRequested?: () => void; quiet: boolean; offer: boolean; building: boolean; waitingOnSite: boolean;
+  ended: "withdrawn" | "closed" | null; trialResult: boolean }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   // This page's own press is the latest word, as the route read it back; until then, the server's state.
@@ -175,23 +184,42 @@ function Companies({ token, answer, onRequested, quiet, offer, building }: { tok
       }
       if (!response.ok || result?.ok !== true) throw new Error(INTRODUCTION_FAILED);
       const after = result.sharing;
-      if (after && (after.state === "visible" || after.state === "not_visible")) setPressed({ state: after.state,
-        sharedAtIso: typeof after.sharedAtIso === "string" ? after.sharedAtIso : null });
-      else setError(INTRODUCTION_FAILED);
+      const at = typeof after?.sharedAtIso === "string" ? after.sharedAtIso : typeof result.requestedAtIso === "string" ? result.requestedAtIso : null;
+      // The request is saved: what companies can see is what the route read back. Saved but listed nowhere is "not
+      // visible right now", never "could not send" (review, 2026-11-12).
+      setPressed(after?.state === "visible"
+        ? { state: "visible", sharedAtIso: at, ...(after.leavesOut ? { leavesOut: after.leavesOut } : {}) }
+        : { state: "not_visible", sharedAtIso: at });
       onRequested?.();
     } catch { setError(INTRODUCTION_FAILED); }
     finally { setBusy(false); }
   }
   const date = sharing.sharedAtIso ? dateInWords(sharing.sharedAtIso) : null;
+  const button = <>
+    <BareButton onClick={() => void ask()} disabled={busy} quiet={quiet} helper={FIND_COMPANY_CONSENT}>{busy ? "Sending…" : FIND_COMPANY_LABEL}</BareButton>
+    {error && <p role="alert">{error}</p>}
+  </>;
   let body: ReactNode;
-  if (sharing.state === "visible") body = <BareGroup><BareDone>{sharedOn(date)}</BareDone></BareGroup>;
+  // A withdrawn job shares nothing, and a closed one whose summary is not visible says so plainly, never "not visible
+  // right now", which would suggest it may come back.
+  if (ended === "withdrawn" || (ended === "closed" && sharing.state !== "visible")) body = <BareGroup><BareLead>{NOTHING_IS_SHARED}</BareLead></BareGroup>;
+  else if (sharing.state === "visible") {
+    // What the summary leaves out under the statement the site agreed to, said only when that thing exists.
+    const leavesFirstLook = Boolean(sharing.leavesOut?.firstLook) && answer.state === "ready";
+    const leavesTrial = Boolean(sharing.leavesOut?.trialResult) && trialResult;
+    const leaves = leavesFirstLook && leavesTrial ? LEAVES_OUT_BOTH : leavesFirstLook ? LEAVES_OUT_FIRST_LOOK : leavesTrial ? LEAVES_OUT_TRIAL : null;
+    body = <BareGroup>
+      <BareDone>{sharedOn(date)}</BareDone>
+      {leaves && <BareNotice>{leaves}</BareNotice>}
+      {leaves && offer && button}
+    </BareGroup>;
+  }
   else if (sharing.state === "not_visible") body = <BareGroup><BareNotice role="status">{sharedNotVisible(date)}</BareNotice></BareGroup>;
   else if (offer) body = <BareGroup>
     <BareLead>{SHARE_QUESTION}</BareLead>
-    <BareButton onClick={() => void ask()} disabled={busy} quiet={quiet} helper={FIND_COMPANY_CONSENT}>{busy ? "Sending…" : FIND_COMPANY_LABEL}</BareButton>
-    {error && <p role="alert">{error}</p>}
+    {button}
   </BareGroup>;
-  else body = <BareGroup><BareLead>{building ? PACKET_BUILDING : NOTHING_SHARED}</BareLead></BareGroup>;
+  else body = <BareGroup><BareLead>{waitingOnSite ? PACKET_WAITS_ON_SITE : building ? PACKET_BUILDING : NOTHING_SHARED}</BareLead></BareGroup>;
   return <Section id="site-job-companies" title={SECTION_COMPANIES}>{body}</Section>;
 }
 
@@ -295,8 +323,10 @@ export function SiteAnswer({ token, answer, proof, onIntroductionRequested, onEd
   // Never while the packet is still being built (the page's own phase, which waits for a trial result to load).
   const offer = !building && answer.nextStep.kind === "introduction" && Boolean(outlook && outlookHasAnswer(outlook));
 
+  const endedBySite = phase === "ended_by_site" ? (outlook?.reason === "permission_withdrawn" ? "withdrawn" as const : "closed" as const) : null;
   const companies = <Companies token={token} answer={answer} onRequested={onIntroductionRequested} quiet={quietAction}
-    offer={offer} building={building} />;
+    offer={offer} building={building} waitingOnSite={phase === "waiting_on_site"} ended={endedBySite}
+    trialResult={phase === "result" && Boolean(test) && test!.kind !== "testing"} />;
 
   // Section 2: the first look.
   let firstLook: ReactNode;

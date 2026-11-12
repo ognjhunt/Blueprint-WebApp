@@ -1985,7 +1985,8 @@ export async function submitInboundRequest(req: Request, res: Response) {
       await createInboundRequestWithReceipt(db, requestRef, { ...encryptedInboundRequest,
         ops_notice: initialIntakeOpsNotice(opsNoticeMeta),
         ...(messageSuppression ? { intake_message_suppression: messageSuppression } : {}),
-        ...(initialPublicListing ? { public_task_listing: initialPublicListing } : {}),
+        // Shared on the start form: the "summary is shared" email is owed until the summary is first visible.
+        ...(initialPublicListing ? { public_task_listing: initialPublicListing, summary_shared_notice: { owed: true } } : {}),
         // A confirmed brief takes no later reading of its description, so it
         // queues none; its confirmation is projected onto the job instead,
         // keeping any workspace fields the intake already set.

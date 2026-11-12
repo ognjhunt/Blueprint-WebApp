@@ -142,6 +142,50 @@ describe('withdrawal fences capture-derived notices without suppressing recovery
  });
 });
 
+// Review, 2026-11-12: "Your job summary is shared" goes out once, at the first moment the summary is visible to approved
+// companies (whenever that is), never before and never twice.
+describe("the summary-shared email follows visibility", () => {
+  const owe = () => { (sharedFakeFirestoreState.docs.get("inboundRequests/req-1") as Record<string, any>).summary_shared_notice = { owed: true }; };
+  const sentSubjects = () => send.mock.calls.map(call => (call[0] as { subject: string }).subject).filter(subject => subject === "Your job summary is shared");
+  const pass = async () => {
+    const { reconcileSummarySharedNotices } = await import("../utils/taskLifecycleNotifications");
+    const { deliverOutbox } = await import("../utils/captureOutbox");
+    await reconcileSummarySharedNotices(); await deliverOutbox();
+  };
+
+  it("sends at once when the card goes live visible, and never again", async () => {
+    jobAccess.listed = true; owe();
+    await pass(); await pass();
+    expect(sentSubjects()).toHaveLength(1);
+    owe(); await pass();
+    expect(sentSubjects()).toHaveLength(1);
+  });
+
+  it("waits while the card is live but paused, sends when it is un-paused, and not again after a second pause", async () => {
+    jobAccess.listed = false; owe();
+    await pass(); await pass();
+    expect(sentSubjects()).toHaveLength(0);
+    jobAccess.listed = true; await pass();
+    expect(sentSubjects()).toHaveLength(1);
+    jobAccess.listed = false; await pass();
+    jobAccess.listed = true; owe(); await pass(); await pass();
+    expect(sentSubjects()).toHaveLength(1);
+  });
+
+  it("tries again later when an attempt was cancelled because the card was hidden before it went out", async () => {
+    const { notifySummarySharedIfVisible } = await import("../utils/taskLifecycleNotifications");
+    const { deliverOutbox } = await import("../utils/captureOutbox");
+    jobAccess.listed = true; owe();
+    expect((await notifySummarySharedIfVisible("req-1")).enqueued).toBe(true);
+    jobAccess.listed = false; await deliverOutbox();
+    expect(sentSubjects()).toHaveLength(0);
+    expect(sharedFakeFirestoreState.docs.get("captureOutbox/req-1:listing_live:summary-1")).toMatchObject({ status: "cancelled" });
+    jobAccess.listed = true; await pass();
+    expect(sentSubjects()).toHaveLength(1);
+    jobAccess.listed = true;
+  });
+});
+
 describe("listing notices describe the free beta", () => {
   const build = async (milestone: "listing_live", detail?: string) => {
     const { buildTaskLifecycleNotification } = await import("../utils/taskLifecycleNotifications");

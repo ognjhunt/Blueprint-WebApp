@@ -22,12 +22,12 @@ describe("where a site's job summary stands with deployment companies", () => {
   it("is shared and visible when the site opted in on the start form, dated when it chose to", () => {
     const record = site({ public_task_listing: { ...listedTaskCard(), approvedBy: "initial_submission" } });
     expect(teamJobAccess(record).listed).toBe(true);
-    expect(jobSharingOf(record)).toEqual({ state: "visible", sharedAtIso: "2026-09-19T00:00:00.000Z" });
+    expect(jobSharingOf(record)).toMatchObject({ state: "visible", sharedAtIso: "2026-09-19T00:00:00.000Z" });
   });
 
   it("is dated by the site's own press of Share my job when there was one", () => {
     expect(jobSharingOf(site({ public_task_listing: listedTaskCard(),
-      introduction_request: { requested_at_iso: "2026-11-10T09:00:00.000Z" } }))).toEqual({ state: "visible", sharedAtIso: "2026-11-10T09:00:00.000Z" });
+      introduction_request: { requested_at_iso: "2026-11-10T09:00:00.000Z" } }))).toMatchObject({ state: "visible", sharedAtIso: "2026-11-10T09:00:00.000Z" });
   });
 
   it.each([
@@ -37,6 +37,18 @@ describe("where a site's job summary stands with deployment companies", () => {
   ])("is shared but not visible when %s", (_, extra) => {
     const record = site({ public_task_listing: listedTaskCard(), ...extra });
     expect(teamJobAccess(record).listed).toBe(false);
-    expect(jobSharingOf(record)).toEqual({ state: "not_visible", sharedAtIso: "2026-09-19T00:00:00.000Z" });
+    expect(jobSharingOf(record)).toMatchObject({ state: "not_visible", sharedAtIso: "2026-09-19T00:00:00.000Z" });
+  });
+
+  // Review, 2026-11-12: what the shared summary leaves out under the statement the site agreed to.
+  it.each([
+    ["the start form's opt-in", {}, "public-task-card-v1", { firstLook: true, trialResult: true }],
+    ["the button under v1", { statement_version: "public-task-card-with-answer-v1" }, "public-task-card-with-answer-v1", { firstLook: false, trialResult: true }],
+    ["the button under v2", { statement_version: "public-task-card-with-answer-v2" }, "public-task-card-with-answer-v2", { firstLook: false, trialResult: true }],
+    ["the button under v3", { statement_version: "public-task-card-with-answer-v3" }, "public-task-card-with-answer-v3", { firstLook: false, trialResult: false }],
+  ])("says what a summary shared through %s leaves out", (_, intro, consentVersion, leavesOut) => {
+    const record = site({ public_task_listing: { ...listedTaskCard(), consentVersion },
+      ...(Object.keys(intro).length ? { introduction_request: { requested_at_iso: "2026-11-10T09:00:00.000Z", ...intro } } : {}) });
+    expect(jobSharingOf(record).leavesOut).toEqual(leavesOut);
   });
 });

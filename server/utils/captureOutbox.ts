@@ -327,6 +327,10 @@ export async function deliverOutbox(params?: { limit?: number }): Promise<Outbox
     await reconcileSceneReadyNotifications(limit);
   } catch (error) { logger.warn({ error }, "Could not reconcile scene-ready notices"); }
   try {
+    const { reconcileSummarySharedNotices } = await import("./taskLifecycleNotifications");
+    await reconcileSummarySharedNotices(limit);
+  } catch (error) { logger.warn({ error }, "Could not reconcile summary-shared notices"); }
+  try {
     const { reconcileWebsitePreparationNotifications } = await import("./taskLifecycleNotifications");
     await reconcileWebsitePreparationNotifications(Math.min(limit, 1));
   } catch { logger.warn({ code: "website_preparation_reconcile_unavailable" }, "Could not reconcile preparation notices"); }

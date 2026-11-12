@@ -36,6 +36,7 @@ import { getMeasurements, type SiteTaskMeasurementRecord } from "./siteTaskMeasu
 import type { PublicRobotFit } from "./websitePreparationStatus";
 import { projectWebsiteCaptureRights } from "./websiteTaskContext";
 import { teamJobAccess } from "./teamJobAccess";
+import { isJobCardAnswerStatementVersion, jobCardStatementSharesTestResults } from "../../client/src/lib/jobCardAnswerConsent";
 
 /** The Pipeline's model table from the measured scene, as the status read projects it. */
 export type SceneRobotFit = Pick<PublicRobotFit, "models"> | null;
@@ -716,7 +717,14 @@ export function jobSharingOf(request: Record<string, any>): JobSharing {
   if (!jobCardListed(request)) return { state: "not_shared", sharedAtIso: null };
   const listing = request.public_task_listing as Record<string, unknown>;
   const sharedAtIso = introductionAt(request) ?? text(listing.approvedAtIso) ?? text(listing.wentLiveIso);
-  return { state: teamJobAccess(request).listed ? "visible" : "not_visible", sharedAtIso };
+  // What the site agreed the card carries, read as `jobCardAnswer.ts` reads it to build the card.
+  const intro = isRecord(request.introduction_request) ? request.introduction_request : null;
+  const answerShared = Boolean(text(intro?.requested_at_iso)) && isJobCardAnswerStatementVersion(intro?.statement_version)
+    && isJobCardAnswerStatementVersion(listing.consentVersion);
+  const trialShared = answerShared && jobCardStatementSharesTestResults(intro?.statement_version)
+    && jobCardStatementSharesTestResults(listing.consentVersion);
+  return { state: teamJobAccess(request).listed ? "visible" : "not_visible", sharedAtIso,
+    leavesOut: { firstLook: !answerShared, trialResult: !trialShared } };
 }
 
 function coverageDone(request: Record<string, any>, inputs: RobotFitInputs): boolean {

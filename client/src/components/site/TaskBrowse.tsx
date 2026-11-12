@@ -9,7 +9,7 @@ import { useOptionalAuth } from "@/contexts/AuthContext";
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
 import type { LibraryAccess } from "@/lib/robotTeamAccess";
 import { RobotTeamEarlyAccess } from "./RobotTeamEarlyAccess";
-import { opportunityLabels, taskStageLabels, type TaskBrowseCard } from "@/types/taskBrowse";
+import { libraryStageLabels, opportunityLabels, type TaskBrowseCard } from "@/types/taskBrowse";
 
 /** Said in a job's meta line while no evaluation is ready for it (`evaluationAvailable` false). */
 
@@ -101,7 +101,7 @@ export function TaskBrowse({ inWorkspace = false }: { inWorkspace?: boolean } = 
         <button className="ms-text-link" onClick={() => { setFamily(""); setRegion(""); setAvailability(""); }}>Clear filters</button>
       </div>}
       <ul className="ms-task-list">{filtered.map(item => <li key={item.id}>
-        <div className="ms-task-heading"><div><div className="ms-task-meta"><span>{taskStageLabels[item.stage]}</span><span>{opportunityLabels[item.opportunity]}</span></div>
+        <div className="ms-task-heading"><div><div className="ms-task-meta">{item.simulationStage && <span>{libraryStageLabels[item.simulationStage]}</span>}<span>{opportunityLabels[item.opportunity]}</span></div>
         <h2>{item.title}</h2></div><TaskThumbnail src={item.thumbnailUrl} title={item.title} taskFamily={item.taskFamily} /></div><TaskFacts details={item} />
         {item.answerHeadline && <JobCardAnswerLine jobId={item.id} headline={item.answerHeadline} user={currentUser} />}
         {/* The row's one action: the company's response (interested or not a fit). Running its own system on a job is

@@ -8,7 +8,7 @@ import { verifyCaptureUploadToken } from "../utils/captureUploadToken";
 import { LISTING_CONSENT_VERSIONS, listingConsentVersion, taskListingSchema, taskListingDraft } from "../utils/taskListingDetails";
 import { humanDecisionDigest } from "../utils/human-reply-admission";
 import { getBrief } from "../utils/siteTaskBrief";
-import { enqueueTaskLifecycleNotification } from "../utils/taskLifecycleNotifications";
+import { SUMMARY_SHARED_OWED, notifySummarySharedIfVisible } from "../utils/taskLifecycleNotifications";
 import { SUPPORTED_TASK_SCOPE } from "../utils/siteTaskScope";
 
 const router = Router();
@@ -121,8 +121,9 @@ export async function applyOwnerTaskListing(requestId: string, grant: OwnerTaskL
   });
   // The site hears the moment its card goes live, once per time it is switched on.
   if (wentLive) {
-    await enqueueTaskLifecycleNotification({ requestId, milestone: "listing_live", eventId: wentLive })
-      .catch(() => undefined);
+    // Owed until the summary is first visible to approved companies, then sent once (`notifySummarySharedIfVisible`).
+    await ref.set({ summary_shared_notice: SUMMARY_SHARED_OWED }, { merge: true }).catch(() => undefined);
+    await notifySummarySharedIfVisible(requestId).catch(() => undefined);
   }
   return { wentLive };
 }

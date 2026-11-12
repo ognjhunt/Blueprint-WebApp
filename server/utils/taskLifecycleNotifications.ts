@@ -1126,6 +1126,52 @@ export async function notifySceneTestsStartedForLaunch(launchId: string): Promis
 }
 
 /** Recover scene notices even when the controller stops polling a ready world. */
+/**
+ * "Your job summary is shared" (frame of 2026-11-12): sent once, at the first moment the summary is visible to approved
+ * deployment companies, never before and never twice. A card that goes live marks the notice owed
+ * (`SUMMARY_SHARED_OWED`); this sends it when `teamJobAccess` says the card is listed, which may be at once or later
+ * (a card that went live while paused, or under a rights hold, becomes visible when that lifts). Each attempt has its
+ * own key; one that went out, or may have, settles it for good, and the dispatch check cancels an attempt that is no
+ * longer true (hidden again before it went out), after which a later attempt is made when it is visible again.
+ */
+export const SUMMARY_SHARED_OWED = { owed: true } as const;
+export const summarySharedNoticeKey = (requestId: string, attempt: number) => `${requestId}:listing_live:summary-${attempt}`;
+
+export async function notifySummarySharedIfVisible(requestId: string): Promise<{ enqueued: boolean; reason?: string }> {
+  if (!db) return { enqueued: false, reason: "unavailable" };
+  const ref = db.collection("inboundRequests").doc(requestId);
+  const record = (await ref.get()).data();
+  const notice = record?.summary_shared_notice as { owed?: boolean; attempts?: number } | undefined;
+  if (!record || notice?.owed !== true) return { enqueued: false, reason: "not_owed" };
+  const attempts = Number.isSafeInteger(notice.attempts) && notice.attempts! > 0 ? notice.attempts! : 0;
+  const { OUTBOX_WENT_OUT } = await import("./outboxWentOut");
+  const rows = await Promise.all(Array.from({ length: attempts }, (_, index) =>
+    db!.collection(CAPTURE_OUTBOX_COLLECTION).doc(summarySharedNoticeKey(requestId, index + 1)).get().then(doc => doc.data())));
+  // One went out, or may have: never a second.
+  if (rows.some(row => row && OUTBOX_WENT_OUT.has(String(row.status)))) {
+    await ref.set({ summary_shared_notice: { owed: false } }, { merge: true });
+    return { enqueued: false, reason: "already_sent" };
+  }
+  // One is waiting to go out: let it.
+  if (rows.some(row => row && !["cancelled", "failed"].includes(String(row.status)))) return { enqueued: false, reason: "queued" };
+  const { teamJobAccess } = await import("./teamJobAccess");
+  if (!teamJobAccess(record).listed) return { enqueued: false, reason: "not_visible" };
+  const attempt = attempts + 1;
+  await ref.set({ summary_shared_notice: { owed: true, attempts: attempt } }, { merge: true });
+  const result = await enqueueTaskLifecycleNotification({ requestId, milestone: "listing_live", eventId: `summary-${attempt}` });
+  return { enqueued: Boolean(result.enqueued) };
+}
+
+/** The owed "summary is shared" notices, tried each outbox pass (a card's visibility can change on any write). */
+export async function reconcileSummarySharedNotices(limit = 20): Promise<void> {
+  if (!db) return;
+  const owed = await db.collection("inboundRequests").where("summary_shared_notice.owed", "==", true).limit(limit).get();
+  for (const doc of owed.docs) {
+    try { await notifySummarySharedIfVisible(doc.id); }
+    catch (error) { logger.warn({ error, requestId: doc.id }, "Could not settle a summary-shared notice"); }
+  }
+}
+
 export async function reconcileSceneReadyNotifications(limit = 20): Promise<void> {
   if (!db) return;
   const pending = await db.collection("captureUploadSessions")

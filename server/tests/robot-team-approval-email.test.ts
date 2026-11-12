@@ -25,5 +25,8 @@ describe("the agent contract a company's agent reads", () => {
     expect(published).toContain("running a company's own software on a site's job is not offered yet");
     expect(published).toContain("Deployment companies apply at /partners");
     expect(published).not.toMatch(/free during the beta|Evaluations are free|apply to give Blueprint access to a policy/i);
+    // Review, 2026-11-12: the description at the top of the contract said the old frame.
+    expect(published).not.toMatch(/compares public control policies|free for sites and partners|takes no cut|evaluation tools for robot teams/i);
+    expect(published).toContain("can see the summary the site approved, never the video or the simulation");
   });
 });

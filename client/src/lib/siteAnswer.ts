@@ -252,7 +252,16 @@ export interface SiteAnswer {
 }
 
 export type JobSharingState = "not_shared" | "visible" | "not_visible";
-export interface JobSharing { state: JobSharingState; sharedAtIso: string | null }
+export interface JobSharing {
+  state: JobSharingState;
+  sharedAtIso: string | null;
+  /**
+   * What the shared summary leaves out under the statement the site agreed to (review, 2026-11-12): a site that shared
+   * on the start form agreed to the card without the first look; one that pressed the button under statement v1 or v2
+   * agreed to the first look only, never a later trial result. Absent on answers composed before it existed.
+   */
+  leavesOut?: { firstLook: boolean; trialResult: boolean };
+}
 
 const isString = (value: unknown): value is string => typeof value === "string";
 const isRecord = (value: unknown): value is Record<string, unknown> =>
