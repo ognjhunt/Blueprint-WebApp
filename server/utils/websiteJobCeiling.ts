@@ -169,24 +169,27 @@ function nativeIntakeMicros(intake: Record<string, any>) {
 function screeningMicros(rows: Array<{ run: Record<string, any>; result: Record<string, any> | null }>, unreadable: string[]) {
   if (rows.length === 0) return { counted: 0, readable: 0 };
   const publications = rows.map(row => row.result ? parseBetaPolicyScreeningPublication(publicationFromResultRecord(row.result)) : null);
-  if (publications.some(publication => publication === null)) {
+  // The latest snapshot among the publications that can be read; it carries the whole site ledger.
+  const valid = publications.filter((publication): publication is NonNullable<typeof publication> => publication !== null);
+  const latest = valid.reduce<typeof valid[number] | null>((best, publication) => !best
+    || Date.parse(publication.generated_at) > Date.parse(best.generated_at)
+    || Date.parse(publication.generated_at) === Date.parse(best.generated_at) && publication.revision > best.revision
+    ? publication : best, null);
+  const readable = latest ? Number(screeningMoneyMicros(latest.budget.committed_upper_bound_usd)) : 0;
+  if (valid.length < publications.length) {
     rows.forEach((row, index) => { if (publications[index] === null)
       unreadable.push(`screening result ${String(row.run?.result_record_id ?? row.run?.run_id ?? "with no record id")}`); });
-    return { counted: micros(SCREENING_LEGACY_SITE_LIMIT_USD), readable: 0 };
+    // Counted as before; what the valid ones say is still what the safety limit refuses on.
+    return { counted: micros(SCREENING_LEGACY_SITE_LIMIT_USD), readable };
   }
-  const latest = publications.reduce((best, publication) => !best
-    || Date.parse(publication!.generated_at) > Date.parse(best.generated_at)
-    || Date.parse(publication!.generated_at) === Date.parse(best.generated_at) && publication!.revision > best.revision
-    ? publication : best, null as ReturnType<typeof parseBetaPolicyScreeningPublication>)!;
-  const counted = Number(screeningMoneyMicros(latest.budget.committed_upper_bound_usd));
-  return { counted, readable: counted };
+  return { counted: readable, readable };
 }
 
 /**
  * What the job holds or spent on each ledger, counted exactly as before (an unbounded hold is
  * unbounded; an unreadable screening result counts the $30 site limit). Owner decision 2026-11-11:
  * beside it, `readable_total_micros` is what the records that can be read add up to (an unreadable
- * one counts nothing there), which is what the job's safety limit refuses on, and `unreadable` names
+ * one counts nothing there; screening counts the latest valid publication), which is what the job's safety limit refuses on, and `unreadable` names
  * each record whose figure cannot be read, so a person is told (`spend_unreadable`).
  */
 export async function websiteJobSpend(input: { record: Record<string, any>; reader: WebsiteJobLedgerReader }) {
