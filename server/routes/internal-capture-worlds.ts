@@ -27,8 +27,9 @@ import { loadWebsiteSceneSponsorship, validateWebsiteSponsoredIntake,
   validateWebsiteSponsoredProviderTerms,
   preparationSpendRequest, reserveWebsitePreparationSpend, observeWebsitePreparationSpend,
   preparationSettlementRequest, settleWebsitePreparationSpend, retainedWebsiteScenePurpose, currentWebsiteSceneContext,
-  loadWebsiteAtlasConfiguration, assertNoMultiStepTaskHold, WEBSITE_JOB_SAFETY_LIMIT_REACHED,
-  websiteJobSafetyLimitAlert, websiteJobSafetyLimitRecord } from "../utils/websiteSceneSponsorship";
+  loadWebsiteAtlasConfiguration, assertNoMultiStepTaskHold, automaticBudgetExtensionGrant,
+  websiteJobOverBudgetAlert, WEBSITE_JOB_SAFETY_LIMIT_REACHED, websiteJobSafetyLimitAlert,
+  websiteJobSafetyLimitRecord } from "../utils/websiteSceneSponsorship";
 import { SCENE_INTAKE_COLLECTION, sceneDigest, sceneIntakeCommand, websiteSceneExecution } from "../utils/taskEvaluationSceneIntake";
 import { isNavigationStrategy, navigationIntakeTask } from "../utils/navigationSceneIntake";
 import {
@@ -345,19 +346,41 @@ for (const operation of ["scene-sponsorship", "prepared-scene", "preparation-spe
         // construction its allowance only while every ledger the job spends from fits.
         // A navigation intake keeps its scene as filmed: it reserves $0 and grants no
         // construction allowance (owner, 2026-11-07), so it adds nothing to check.
-        // Owner decision 2026-11-11: the ceiling is the job's safety limit and refuses on every
-        // grant, the automatic budget extension included. The job's one safety-limit alert is
-        // recorded with the refusal, which is thrown once this transaction commits.
-        const job = isNavigationStrategy(request.task.strategy) ? null
+        // Owner decision 2026-11-10: this route records the intake and buys nothing; every paid
+        // launch under it is admitted on the host, which checks the account's monthly limit
+        // (require_paid_resource_admission). So on a grant naming the automatic budget
+        // extension the ceiling is a warning: the intake is admitted with a note, and the job's
+        // one over-budget alert for this grant is recorded if it has none yet.
+        // Owner decision 2026-11-11: on such a grant nothing passes the job's safety limit, a
+        // navigation intake included (it adds $0, so it is refused only once the job is already
+        // past the limit). The job's one safety-limit alert is recorded with the refusal, which is
+        // thrown once this transaction commits. A grant without the flag is unchanged.
+        const root = current?.website_scene_sponsorship;
+        const extended = automaticBudgetExtensionGrant(root, undefined, Date.now() / 1000);
+        const navigation = isNavigationStrategy(request.task.strategy);
+        const additional = navigation ? 0 : request.execution.max_total_spend_usd;
+        const job = navigation && !extended ? null
           : await checkWebsiteJobCeiling({ record: current ?? {}, captureId: req.params.captureId, requestId,
-            reader: transactionJobLedgerReader(db!, transaction, requestId),
-            additionalCostUsd: request.execution.max_total_spend_usd });
-        if (job?.exceeded) {
+            reader: transactionJobLedgerReader(db!, transaction, requestId), additionalCostUsd: additional });
+        if (!navigation && job?.exceeded && !extended) throw new Error("website_scene_preparation_budget_exhausted");
+        if (extended && job?.pastSafetyLimit) {
           (await websiteJobSafetyLimitAlert(db!, transaction, requestId, websiteJobSafetyLimitRecord(job,
-            { stage: "scene_intake", scene_intake_id: id, additional_cost_usd: request.execution.max_total_spend_usd })))();
+            { stage: "scene_intake", scene_intake_id: id, additional_cost_usd: additional })))();
           return true;
         }
+        const overBudget = !navigation && job?.exceeded ? {
+          schema_version: "website_job_over_budget.v1", basis: "automatic_budget_extension",
+          sponsorship_digest: root.authority_digest as string, allowance: "native_construction_allowance",
+          allowance_usd: request.execution.max_total_spend_usd, allowance_exceeded: false,
+          job_ceiling_usd: job.ceiling.maximum_cost_usd, job_ceiling_source: job.ceiling.source, job_ceiling_exceeded: true,
+          // An unreadable earlier hold is unknown, never a figure.
+          job_reserved_or_settled_before_usd: Number.isFinite(job.spend.total_micros) ? job.spend.total_micros / 1_000_000 : null,
+          recorded_at_epoch: Date.now() / 1000 } : null;
+        const recordAlert = overBudget
+          ? await websiteJobOverBudgetAlert(db!, transaction, requestId, overBudget, { scene_intake_id: id }) : () => {};
+        recordAlert();
         transaction.create(ref, {
+          ...(overBudget ? { over_budget: overBudget } : {}),
           owner_user_id: request.owner.user_id, organization_id: request.owner.organization_id,
           source_session_id: websitePreparationCaptureId(request), website_request_id: requestId,
           sponsorship_digest: authority.authority_digest,

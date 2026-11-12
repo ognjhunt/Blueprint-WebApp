@@ -67,8 +67,8 @@ export const WEBSITE_SCENE_CONFIGURATION_MAX_RETRIES = 1;
  * names `automatic_budget_extension: true`, so the job's inner dollar figures (the upstream
  * preparation cap and its Atlas allowance) are its expected budget, not a wall: a reservation
  * the Pipeline asks for, after its own account-limit precheck, is admitted past them with a
- * note, and ops is told once per job and grant. Since 2026-11-11 the job ceiling is not one of
- * them: it is the job's safety limit and refuses on every grant
+ * note, and ops is told once per job and grant. The job ceiling is passed the same way, up to the
+ * job's safety limit (owner decision 2026-11-11, `websiteJobSafetyLimitUsd`), which nothing passes
  * (`WEBSITE_JOB_SAFETY_LIMIT_REACHED`). Grant expiry, the
  * per-reservation limit, rights, consent and terms are unchanged. On by default; the
  * non-secret setting `BLUEPRINT_WEBSITE_AUTOMATIC_BUDGET_EXTENSION=false` turns it off for
@@ -100,34 +100,45 @@ export async function websiteJobOverBudgetAlert(store: { collection(name: string
     ...source, over_budget: overBudget, delivery: null, next_attempt_at_ms: Date.now(), alerted_at_iso: null });
 }
 /**
- * Owner decision 2026-11-11: the job's ceiling is one safety limit per job ($100 for new jobs),
- * whose only purpose is to stop a bug from burning the month in one job. Spend that would take the
- * job's counted total past it is refused for build and testing alike, on every grant. The refusal
- * keeps the code the Pipeline already reads as the job's ceiling reached (`job_ceiling_reached`)
- * and ends preparation on; a new code would be an unknown refusal to a released Pipeline.
+ * Owner decision 2026-11-11: each job has one safety limit (`websiteJobSafetyLimitUsd`), whose only
+ * purpose is to stop a bug from burning the month in one job. A build reservation or intake on a grant
+ * naming the automatic budget extension that would take the job's counted total past it is refused;
+ * every other rule is as before. The refusal keeps the code the Pipeline already reads as the job's
+ * ceiling reached (`job_ceiling_reached`) and ends preparation on; a new code would be an unknown
+ * refusal to a released Pipeline.
  */
 export const WEBSITE_JOB_SAFETY_LIMIT_REACHED = "website_scene_preparation_budget_exhausted";
 const SAFETY_LIMIT_REACHED = Symbol("website_job_safety_limit_reached");
-/** One alert per job, whatever grant it is on: a job that reached its safety limit needs a person to look. */
-export const websiteJobSafetyLimitAlertId = (requestId: string) => `${requestId}-safety-limit`;
+/**
+ * One ops alert per job and kind, each a job a person needs to look at: `safety_limit`, spend refused at
+ * the job's safety limit; `screening_over_safety_limit`, the Pipeline reported testing above it;
+ * `screening_job_ceiling`, testing held robots back at the job's limit (the site is told our team knows).
+ */
+export const WEBSITE_JOB_ALERT_KINDS = ["safety_limit", "screening_over_safety_limit", "screening_job_ceiling"] as const;
+export type WebsiteJobAlertKind = typeof WEBSITE_JOB_ALERT_KINDS[number];
+export const websiteJobAlertId = (requestId: string, kind: WebsiteJobAlertKind) => `${requestId}-${kind.replace(/_/g, "-")}`;
+export const websiteJobSafetyLimitAlertId = (requestId: string) => websiteJobAlertId(requestId, "safety_limit");
 export function websiteJobSafetyLimitRecord(job: { ceiling: { maximum_cost_usd: number; source: string };
-  spend: { total_micros: number } }, at: Record<string, string | number>) {
-  return { schema_version: "website_job_safety_limit.v1", job_ceiling_usd: job.ceiling.maximum_cost_usd,
-    job_ceiling_source: job.ceiling.source,
+  spend: { total_micros: number }; safetyLimitUsd: number }, at: Record<string, string | number>) {
+  return { schema_version: "website_job_safety_limit.v1", safety_limit_usd: job.safetyLimitUsd,
+    job_ceiling_usd: job.ceiling.maximum_cost_usd, job_ceiling_source: job.ceiling.source,
     // An unreadable earlier hold is unknown, never a figure.
     job_reserved_or_settled_before_usd: Number.isFinite(job.spend.total_micros) ? job.spend.total_micros / 1_000_000 : null,
     ...at, recorded_at_epoch: Date.now() / 1000 };
 }
 /** Reads (inside the caller's transaction, before its writes) whether this job already has its one
- * safety-limit alert, and returns the write that records it if not. */
-export async function websiteJobSafetyLimitAlert(store: { collection(name: string): any },
+ * alert of this kind, and returns the write that records it if not. */
+export async function websiteJobAlert(store: { collection(name: string): any },
   transaction: { get(reference: any): Promise<any>; set(reference: any, value: any): void }, requestId: string,
-  safetyLimit: Record<string, unknown>) {
-  const alertRef = store.collection(OVER_BUDGET_ALERT_COLLECTION).doc(websiteJobSafetyLimitAlertId(requestId));
+  kind: WebsiteJobAlertKind, value: Record<string, unknown>) {
+  const alertRef = store.collection(OVER_BUDGET_ALERT_COLLECTION).doc(websiteJobAlertId(requestId, kind));
   if ((await transaction.get(alertRef)).exists) return () => {};
-  return () => transaction.set(alertRef, { request_id: requestId, safety_limit: safetyLimit, delivery: null,
+  return () => transaction.set(alertRef, { request_id: requestId, [kind]: value, delivery: null,
     next_attempt_at_ms: Date.now(), alerted_at_iso: null });
 }
+export const websiteJobSafetyLimitAlert = (store: { collection(name: string): any },
+  transaction: { get(reference: any): Promise<any>; set(reference: any, value: any): void }, requestId: string,
+  safetyLimit: Record<string, unknown>) => websiteJobAlert(store, transaction, requestId, "safety_limit", safetyLimit);
 const policySchema = z.object({
   owner: z.object({ user_id: z.string().trim().min(1), organization_id: z.string().trim().min(1) }).strict(),
   upstream_max_spend_usd: money,
@@ -1270,15 +1281,16 @@ export async function reserveWebsitePreparationSpend(requestId: string, input: z
     // every ledger this job spends from must also fit under the job's ceiling.
     const job = await checkWebsiteJobCeiling({ record, captureId, requestId, atlas,
       reader: transactionJobLedgerReader(store, transaction, requestId), additionalCostUsd: command.maximum_cost_usd });
-    // Owner decision 2026-11-11: the job's ceiling is its safety limit, a fuse against a bug
-    // burning the month in one job. It refuses on every grant, the automatic budget extension
-    // included; the job's one safety-limit alert is recorded and the refusal is thrown once it commits.
-    if (job.exceeded) {
+    if (job.exceeded && !extended) throw new Error("website_scene_preparation_budget_exhausted");
+    // Owner decision 2026-11-11: past the job's ceiling a flagged grant still builds with a note, but
+    // never past its safety limit, a fuse against a bug burning the month in one job. The job's one
+    // safety-limit alert is recorded and the refusal is thrown once this transaction commits.
+    if (extended && job.pastSafetyLimit) {
       (await websiteJobSafetyLimitAlert(store, transaction, requestId, websiteJobSafetyLimitRecord(job,
         { stage: "preparation_reservation", reservation_key: key, additional_cost_usd: command.maximum_cost_usd })))();
       return SAFETY_LIMIT_REACHED;
     }
-    const overBudget = extended && pastAllowance ? {
+    const overBudget = extended && (pastAllowance || job.exceeded) ? {
       schema_version: "website_job_over_budget.v1", basis: "automatic_budget_extension",
       sponsorship_digest: rootAuthority.authority_digest,
       allowance: atlas ? "atlas_allowance" : "preparation_upstream_cap", allowance_usd: allowanceUsd,

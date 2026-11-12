@@ -12,10 +12,11 @@
  * per-ledger caps still apply inside the ceiling, and no stored reservation,
  * grant or settlement is read differently, reset or rewritten.
  *
- * Owner decision 2026-11-11: the ceiling is the job's one safety limit ($100 for new jobs), a fuse
- * against a bug burning the account's month in one job, never a judgment that a job costs too much.
- * It refuses on every grant, the automatic budget extension included, and bounds screening too:
- * there is no separate $30 screening allowance below it.
+ * Owner decision 2026-11-11: each job has one safety limit (`websiteJobSafetyLimitUsd`: its ceiling,
+ * or the grant policy's current figure if higher; $100 for new jobs), a fuse against a bug burning the
+ * account's month in one job, never a judgment that a job costs too much. Nothing passes it, the
+ * automatic budget extension included. Below it every rule is as before: testing stops at the stored
+ * ceiling, and a flagged grant's build passes the ceiling with a note.
  */
 import { websiteAtlasAuthorizationCeiling, websiteAtlasGrantPolicy } from "./websiteAtlasAuthorization";
 import { parseBetaPolicyScreeningPublication, screeningMoneyMicros } from "./betaPolicyScreeningContract";
@@ -213,12 +214,26 @@ type WebsiteJobCeilingInput = { record: Record<string, any>; captureId: string;
   requestId?: string; atlas?: { maximum_cost_usd: number } | null; reader: WebsiteJobLedgerReader;
   additionalCostUsd: number };
 
-/** Whether new spend would take the job past its ceiling. Reads only; the caller decides and writes. */
+/**
+ * The job's safety limit (owner decision 2026-11-11): its ceiling, or the configured grant policy's
+ * current figure if that is higher (the owner default when no policy is set). A job granted before the
+ * policy was raised keeps its stored ceiling for testing, and on a grant naming the automatic budget
+ * extension may build past that ceiling with a note, as before, but never past this. A policy lowered
+ * below a job's stored ceiling never lowers the job: the larger figure stands.
+ */
+export function websiteJobSafetyLimitUsd(ceiling: { maximum_cost_usd: number }) {
+  return Math.max(ceiling.maximum_cost_usd, websiteAtlasGrantPolicy()?.maximum_cost_usd ?? WEBSITE_JOB_CEILING_DEFAULT_USD);
+}
+
+/** Whether new spend would take the job past its ceiling, and past its safety limit. Reads only; the caller decides and writes. */
 export async function checkWebsiteJobCeiling(input: WebsiteJobCeilingInput) {
   const ceiling = websiteJobCeiling(input);
   const spend = await websiteJobSpend({ ...input, ceiling });
-  const exceeded = spend.total_micros + micros(input.additionalCostUsd) > Math.floor(ceiling.maximum_cost_usd * 1_000_000);
-  return { ceiling, spend, exceeded };
+  const after = spend.total_micros + micros(input.additionalCostUsd);
+  const exceeded = after > Math.floor(ceiling.maximum_cost_usd * 1_000_000);
+  const safetyLimitUsd = websiteJobSafetyLimitUsd(ceiling);
+  const pastSafetyLimit = after > Math.floor(safetyLimitUsd * 1_000_000);
+  return { ceiling, spend, exceeded, safetyLimitUsd, pastSafetyLimit };
 }
 
 /** Refuses new spend that would take the job past its ceiling. Reads only; the caller writes. */
