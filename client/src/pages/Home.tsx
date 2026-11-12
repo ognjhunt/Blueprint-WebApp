@@ -1,13 +1,15 @@
-import { BareBig, BareButton, BareFine, BareGroup, BareLabel, BareLinks, BareScreen } from "@/components/bare/Bare";
+import { BareBig, BareButton, BareGroup, BareLabel, BareLinks, BareScreen } from "@/components/bare/Bare";
 import { BareSteps } from "@/components/bare/BareForm";
+import { PilotPreview } from "@/components/site/PilotPreview";
 import { SEO } from "@/components/SEO";
-import { FOR_DEPLOYMENT_COMPANIES_LINK, HOME_LABEL, HOME_SHARE_LINE, HOME_SEO_DESCRIPTION, HOME_SEO_TITLE, HOME_START_HELPER, HOME_TITLE, PUBLIC_LIMITS,
-  START_JOB, STEP_PACKET, STEP_SEND, STEP_SHARE } from "@/lib/publicCopy";
+import { FOR_DEPLOYMENT_COMPANIES_LINK, HOME_LABEL, HOME_SEO_DESCRIPTION, HOME_SEO_TITLE, HOME_START_HELPER, HOME_SUB_LINE, HOME_TITLE,
+  START_JOB, STEP_ANSWER, STEP_SEND, STEP_SIMULATE } from "@/lib/publicCopy";
 import { organizationJsonLd, webPageJsonLd, websiteJsonLd } from "@/lib/seoStructuredData";
 
 /**
- * Home, bare bones: what happens to a site's video, in three steps, and one button (frame of 2026-11-12). The
- * animated example of an invented result that used to sit beside it is removed, not replaced.
+ * Home, bare bones: the outcome a site wants, three steps and one button (owner, 2026-11-12). The moving example card
+ * beside it (below the button on a phone) is back where it was on 11 Nov: a small version of a site's job page once
+ * deployment companies answer, marked as an example.
  */
 export default function Home() {
   return (
@@ -19,13 +21,13 @@ export default function Home() {
           <BareScreen>
             <BareGroup>
               <BareLabel>{HOME_LABEL}</BareLabel>
-              <BareBig as="h1" sub={HOME_SHARE_LINE}>{HOME_TITLE}</BareBig>
+              <BareBig as="h1" sub={HOME_SUB_LINE}>{HOME_TITLE}</BareBig>
             </BareGroup>
             <BareGroup>
               <BareSteps id="how-it-works" label="How it works" steps={[
                 { key: "send", title: STEP_SEND },
-                { key: "packet", title: STEP_PACKET },
-                { key: "share", title: STEP_SHARE },
+                { key: "simulate", title: STEP_SIMULATE },
+                { key: "answer", title: STEP_ANSWER },
               ]} />
             </BareGroup>
             <BareGroup>
@@ -35,8 +37,8 @@ export default function Home() {
               { key: "how", label: "How it works", href: "/how-it-works" },
               { key: "companies", label: FOR_DEPLOYMENT_COMPANIES_LINK, href: "/partners" },
             ]} />
-            <BareFine>{PUBLIC_LIMITS}</BareFine>
           </BareScreen>
+          <PilotPreview />
         </div>
       </div>
     </>

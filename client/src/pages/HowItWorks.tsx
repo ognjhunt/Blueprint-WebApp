@@ -1,7 +1,7 @@
-import { BareBack, BareButton, BareFine, BareGroup, BareLinks, BareScreen } from "@/components/bare/Bare";
+import { BareBack, BareButton, BareGroup, BareLinks, BareScreen } from "@/components/bare/Bare";
 import { BareSteps } from "@/components/bare/BareForm";
 import { SEO } from "@/components/SEO";
-import { HOW_SEO_DESCRIPTION, HOW_STEPS, JOBS_THAT_FIT, PUBLIC_LIMITS, START_JOB } from "@/lib/publicCopy";
+import { HOW_SEO_DESCRIPTION, HOW_STEPS, JOBS_THAT_FIT, START_JOB } from "@/lib/publicCopy";
 import { webPageJsonLd } from "@/lib/seoStructuredData";
 
 /** How it works, bare bones: what goes into a job packet and where it goes, one line each, and which jobs fit (the old "Jobs we support"). */
@@ -23,7 +23,6 @@ export default function HowItWorks() {
           <BareButton href="/contact/site-operator" helper="Free for sites.">{START_JOB}</BareButton>
         </BareGroup>
         <BareLinks links={[{ key: "questions", label: "Questions", href: "/beta" }]} />
-        <BareFine>{PUBLIC_LIMITS}</BareFine>
       </BareScreen>
     </div>
   </>;

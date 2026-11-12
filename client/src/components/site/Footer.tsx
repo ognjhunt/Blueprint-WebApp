@@ -1,5 +1,5 @@
 import { ArrowUpRight } from "lucide-react";
-
+import { HOME_SUB_LINE, HOME_TITLE } from "@/lib/publicCopy";
 
 import {
   footerCompanyLinks,
@@ -19,7 +19,7 @@ const footerColumns: FooterColumn[] = [
 ];
 
 /**
- * The footer says what Blueprint does in one line and keeps physical responsibility clear.
+ * The footer says what Blueprint does in the home page's words (2026-11-12).
  */
 export function Footer() {
   return (
@@ -35,7 +35,7 @@ export function Footer() {
               Blueprint
             </a>
             <p className="mt-7 text-sm leading-7 text-runway-mute">
-              Film a job once. We turn it into a job packet. We share it with robot deployment companies we approve, and they answer. Your name and contact details go to a company only if you ask to meet it.
+              {HOME_TITLE} {HOME_SUB_LINE}
             </p>
             <a
               href="mailto:hello@tryblueprint.io"
@@ -69,9 +69,6 @@ export function Footer() {
 
         <div className="grid gap-3 py-7 font-mono text-[10px] leading-5 text-runway-faint sm:grid-cols-[auto_1fr] sm:items-start">
           <p>&copy; {new Date().getFullYear()} Blueprint Robotics, Inc.</p>
-          <p className="sm:text-right">
-            We take pick-up-and-put-down jobs best. Nothing here is a test at your site or a safety check.
-          </p>
         </div>
       </div>
     </footer>

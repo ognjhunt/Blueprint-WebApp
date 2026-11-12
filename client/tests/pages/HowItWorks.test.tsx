@@ -18,7 +18,8 @@ describe("How it works", () => {
     expect(screen.getByText("Free for sites.")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Questions ›" })).toHaveAttribute("href", "/beta");
     expect(screen.getByText(/Best for one job that repeats, with known objects, where something is picked up and put down/)).toBeInTheDocument();
-    expect(screen.getByText("We take pick-up-and-put-down jobs best. Nothing here is a test at your site or a safety check.")).toBeInTheDocument();
+    // The fine line is gone (owner, 2026-11-12: "why do we have this??? ... is this just outdated?").
+    expect(screen.queryByText(/We take pick-up-and-put-down jobs best/)).toBeNull();
     expect(screen.queryByRole("img")).toBeNull();
     expect(container.textContent).not.toMatch(/did best|AI robot|top AI|paper check/i);
   });

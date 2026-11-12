@@ -235,8 +235,8 @@ describe("build output", () => {
     expect(llmsFull).toContain("When a company is interested, the site can ask for an introduction, and each gets the other's contact details.");
     expect(llmsFull).not.toMatch(/only the summary the site approved|never sees the video/);
     expect(llms).toContain("https://tryblueprint.io/beta");
-    // The frame of 2026-11-12: a job packet, a summary shared only with the site's permission, the trial labelled.
-    expect(llms).toContain("Film a job once. We turn it into a job packet.");
+    // The home page's words (owner, 2026-11-12 ~19:15Z: the outcome, not "job packet"), the trial labelled.
+    expect(llms).toContain("Get repetitive work done by robots.");
     expect(llms).toContain("it is not the site's answer, and it does not predict what a deployment company's robot would do");
     expect(llms).toContain("Free for sites.");
     expect(llms).not.toMatch(/top AI robots|which did best|Which robot could do your job/);
@@ -251,13 +251,17 @@ describe("build output", () => {
     const homeHtml = fs.readFileSync(distPath("index.html"), "utf8");
     const siteHtml = fs.readFileSync(distPath("contact/site-operator/index.html"), "utf8");
     const robotHtml = fs.readFileSync(distPath("contact/robot-team/index.html"), "utf8");
-    expect(homeHtml).toContain("Film a job once. We turn it into a job packet.");
-    expect(homeHtml).toContain("We turn it into a job packet: what the job is, a first look at which robots could fit, and a simulation of your site.");
-    expect(homeHtml).toContain("We share it with robot deployment companies we approve, and they answer. Your name and contact details go to a company only if you ask to meet it.");
+    expect(homeHtml).toContain("Get repetitive work done by robots.");
+    expect(homeHtml).toContain("Film the job once. Robot deployment companies can test it on a simulation of your site and tell you if they can do it.");
+    expect(homeHtml).toContain("We build a simulation of your site and send the job to robot deployment companies we approve.");
+    expect(homeHtml).toContain("Their answers come back to you: interested, can do, not a fit, or would need something. You pick who to meet.");
     expect(homeHtml).toContain("Free for sites");
-    expect(homeHtml).toContain("We take pick-up-and-put-down jobs best. Nothing here is a test at your site or a safety check.");
-    // The animated example of an invented result is removed (frame of 2026-11-12), and nothing replaces it.
-    expect(homeHtml).not.toMatch(/Did best on your job|The names, jobs and results are made up|top AI robots|which did best|Free during the beta/);
+    // The fine line is gone (owner, 2026-11-12: "why do we have this???: We take pick-up-and-put-down jobs best.
+    // Nothing here is a test at your site or a safety check. is this just outdated?"); the Terms keep their own sentence.
+    expect(homeHtml).not.toContain("We take pick-up-and-put-down jobs best.");
+    // The example card is back (owner, 2026-11-12), marked as an example; the old invented results are not.
+    expect(homeHtml).toContain("The sites, jobs and answers are made up.");
+    expect(homeHtml).not.toMatch(/Did best on your job|The names, jobs and results are made up|top AI robots|which did best|How sure are we|Free during the beta/);
     expect(homeHtml).not.toContain("cycle time");
     expect(homeHtml).not.toContain("One job. A clear pilot plan.");
     expect(homeHtml).not.toContain("Review comparable proposals");
@@ -328,7 +332,7 @@ describe("build output", () => {
     // above is reading the real public bundle, so removing one because the copy
     // moved would quietly make the whole check vacuous. "Site-funded Task
     // Evaluation Run" left the site page when it stopped leading with a screen.
-    expect(browserJavaScript).toContain("We share it with robot deployment companies we approve, and they answer.");
+    expect(browserJavaScript).toContain("Robot deployment companies can test it on a simulation of your site and tell you if they can do it.");
     expect(browserJavaScript).toContain("We write this from your video if you leave it empty.");
   });
 

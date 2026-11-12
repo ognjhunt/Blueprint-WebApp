@@ -1,6 +1,6 @@
 # Blueprint
 
-> Film a job once. We turn it into a job packet. A site sends a video of one job that repeats. Blueprint turns it into a job packet: what the job is, a first look at which robots could fit, and a simulation of the site. Blueprint shares it with the robot deployment companies it approves, and they answer. A site's name and contact details go to a company only when the site asks for an introduction. Free for sites.
+> Get repetitive work done by robots. A site films one job that repeats, once. Blueprint builds a simulation of the site and sends the job, as a job packet (what the job is, a first look at which robots could fit, and the simulation of the site), to the robot deployment companies it approves, so they can test it and tell the site if they can do it. A site's name and contact details go to a company only when the site asks for an introduction. Free for sites.
 
 The job packet holds the site's own sentence for the job, a first look on paper (the robot most likely to fit, from published specifications and where it has been used), a simulation of the site built from its video, and what counts as done. Sometimes Blueprint also tries openly available robot software on the job in that simulation; this is labelled an early trial, it is not the site's answer, and it does not predict what a deployment company's robot would do. A zero is a valid result of the trial. Some jobs are held when Blueprint can't build a simulation for that kind of job yet; the first look stays on the job page.
 
