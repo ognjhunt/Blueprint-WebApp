@@ -12,10 +12,11 @@ import oldPipelineRouter from "../routes/internal-capture-worlds";
 import { createWebsitePreparationRouter, websitePreparationRawBody } from "../routes/internal-website-preparation";
 import { canNotifyCurrentWebsitePreparationIssue, drainPendingWebsitePreparationNotifications,
   loadCurrentWebsitePreparationStatus, mergeWebsitePreparationStatus, syncWebsitePreparationStatus,
-  websitePreparationEventId, websitePreparationReceiptSchema, websitePreparationSelectorSchema,
+  websitePreparationEventId, websitePreparationReceiptSchema, websitePreparationResumedEventId, websitePreparationSelectorSchema,
   type WebsitePreparationDeps, type WebsitePreparationReceipt,
   type WebsitePreparationSelector, type StoredWebsitePreparation } from "../utils/websitePreparationStatus";
 
+import { buildTaskLifecycleNotification } from "../utils/taskLifecycleNotifications";
 // Production verifier controls use in-memory Firestore/GCS and a retained observer projection.
 // No real database, credentials, transport, provider or mail is used.
 const runtime = vi.hoisted(() => ({records: new Map<string, any>(), objects: new Map<string, {metadata: any; bytes: Buffer}>(),
@@ -183,8 +184,8 @@ it("v6 shows the early robot fit hold: which robots were checked and why none fi
     + "than the arm can reach from any place it could be mounted level with the lower work surface.");
   expect(projected.outcome!.scope).toMatch(/before any paid work.*estimate.*no robot was tried/);
 });
-function v7(state: WebsitePreparationReceipt["state"], outcome: unknown = null) {
-  const value = {...receipt(state), schema_version: "website_preparation_status.v7", terminal_reason: null,
+function v7(state: WebsitePreparationReceipt["state"], outcome: unknown = null, revision = 3, selected = selector) {
+  const value = {...receipt(state, 1, revision, selected), schema_version: "website_preparation_status.v7", terminal_reason: null,
     outcome, question: null, robot_fit: null, robot_fit_precheck: null};
   return {...value, status_digest: crossRuntimeArtifactDigest(value, "status_digest")};
 }
@@ -212,6 +213,63 @@ it("the needs-attention notice for a v7 new-video stop carries its reason, so th
   expect(h.enqueue).toHaveBeenCalledWith(expect.objectContaining({milestone: "preparation_needs_attention",
     recaptureReason: "website_front_normal_undetermined", eventId: websitePreparationEventId(selector)}));
   expect(h.enqueue.mock.calls[0][0]).not.toHaveProperty("awaitEarlyHoldUntilMs");
+});
+// Review, 2026-11-12: the Pipeline re-checks a job it asked to film again because of its own alignment step; when the
+// re-check passes, the job goes on with the video it has. The site had the "film again" email, so it gets ONE more.
+describe("no new video is needed after all", () => {
+  const ask = () => v7("awaiting_inputs", {category: "insufficient_evidence", reason: "website_registration_poor_fit",
+    basis: "missing_evidence", robot_id: null, evidence_digest: `sha256:${"e".repeat(64)}`});
+  it("sends one email when a job shown a new-video ask moves on without a new video", async () => {
+    const h = harness();
+    h.ledger(ask());
+    await syncWebsitePreparationStatus(selector, h.deps);
+    expect(await drainPendingWebsitePreparationNotifications(h.enqueue, h.deps)).toEqual({enqueued: 1, pending: 0});
+    h.ledger(v7("handed_off", null, 4));
+    await syncWebsitePreparationStatus(selector, h.deps);
+    // Recorded with the status that carries the fact.
+    expect(h.stored?.notification).toEqual({eventId: websitePreparationResumedEventId(selector), state: "pending"});
+    expect(await canNotifyCurrentWebsitePreparationIssue("r1", websitePreparationResumedEventId(selector), h.deps)).toBe(true);
+    expect(await drainPendingWebsitePreparationNotifications(h.enqueue, h.deps)).toEqual({enqueued: 1, pending: 0});
+    expect(h.enqueue).toHaveBeenLastCalledWith(expect.objectContaining({milestone: "preparation_resumed",
+      eventId: websitePreparationResumedEventId(selector)}));
+    // Never twice: a replay and later reads owe nothing more.
+    await syncWebsitePreparationStatus(selector, h.deps);
+    expect(await drainPendingWebsitePreparationNotifications(h.enqueue, h.deps)).toEqual({enqueued: 0, pending: 0});
+    expect(h.enqueue).toHaveBeenCalledTimes(2);
+  });
+  it("owes nothing when the site sent a new video (a new capture), or when the ask's email never went out", async () => {
+    const h = harness();
+    h.ledger(ask());
+    await syncWebsitePreparationStatus(selector, h.deps);
+    // The ask's email not yet queued: moving on owes no correction of it.
+    h.ledger(v7("handed_off", null, 4));
+    await syncWebsitePreparationStatus(selector, h.deps);
+    expect(h.stored?.notification?.eventId).not.toBe(websitePreparationResumedEventId(selector));
+    expect(await drainPendingWebsitePreparationNotifications(h.enqueue, h.deps)).toMatchObject({enqueued: 0});
+    expect(h.enqueue).not.toHaveBeenCalled();
+    // A new video is a new capture: its hand-off carries no ask behind it.
+    const prior = mergeWebsitePreparationStatus(null, selector, ask());
+    const asked = {...prior, notification: {...prior.notification!, state: "enqueued" as const}};
+    const refilmed = {...selector, completion_marker_generation: "90071992547409932"};
+    expect(mergeWebsitePreparationStatus(asked, refilmed, v7("handed_off", null, 4, refilmed)).notification).toBeNull();
+  });
+  it("owes nothing for an ordinary hand-off with no ask before it", async () => {
+    const h = harness();
+    h.ledger(v7("preparing"));
+    await syncWebsitePreparationStatus(selector, h.deps);
+    h.ledger(v7("handed_off", null, 4));
+    await syncWebsitePreparationStatus(selector, h.deps);
+    expect(h.stored?.notification).toBeNull();
+    expect(await drainPendingWebsitePreparationNotifications(h.enqueue, h.deps)).toEqual({enqueued: 0, pending: 0});
+    expect(h.enqueue).not.toHaveBeenCalled();
+  });
+  it("says only that no new video is needed, with the job link", () => {
+    const row = buildTaskLifecycleNotification({requestId: "r1", milestone: "preparation_resumed",
+      eventId: websitePreparationResumedEventId(selector), to: "owner@example.test", detail: "PRIVATE"});
+    expect(row.subject).toBe("No new video is needed");
+    expect(row.body).toMatch(/^No new video is needed; we are preparing your job\.\n\nOpen your job:\n/);
+    expect(row.body).not.toContain("PRIVATE");
+  });
 });
 // Rewritten (review, 2026-11-12): a reason this release does not know never fails the read; a known reason must keep
 // its own shape, and v6 still refuses a v7 stop.

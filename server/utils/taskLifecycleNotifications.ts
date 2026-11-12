@@ -49,6 +49,7 @@ export type TaskLifecycleMilestone = Extract<
   | "scene_tests_started"
   | "preparation_needs_attention"
   | "preparation_ended"
+  | "preparation_resumed"
   | "listing_live"
   | "screening_not_now"
   | "results_ready"
@@ -115,6 +116,11 @@ const CAPACITY_ENDED_COPY = {
   body: (url: string, detail: string) => `${CAPACITY_ENDED_HEADLINE}${detail ? ` ${detail}` : ""}\n\nNothing is needed from you.\n\nOpen your job:\n${url}`,
 };
 const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string, detail: string, workspaceUrl: string | null) => string }> = {
+  // The job that asked for a new video moved on with the one the site sent (review, 2026-11-12). Fixed text.
+  preparation_resumed: {
+    subject: "No new video is needed",
+    body: (url) => `No new video is needed; we are preparing your job.\n\nOpen your job:\n${url}`,
+  },
   preparation_needs_attention: {
     subject: "An update on your Blueprint job preparation",
     body: (url, detail) => `Building the simulation of your site needs our team's review. Keep your original video; nothing else is needed from you.${detail ? `\n\n${finePrint(detail)}` : ""}\n\nOpen your job:\n${url}`,
@@ -227,8 +233,8 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
  * enqueue while the outbox document id prevents a duplicate delivery intent.
  */
 /** Source/context-bound preparation notices: an exact event id and current recipient are required. */
-export function isWebsitePreparationNotice(milestone: string): milestone is "preparation_needs_attention" | "preparation_ended" {
-  return milestone === "preparation_needs_attention" || milestone === "preparation_ended";
+export function isWebsitePreparationNotice(milestone: string): milestone is "preparation_needs_attention" | "preparation_ended" | "preparation_resumed" {
+  return milestone === "preparation_needs_attention" || milestone === "preparation_ended" || milestone === "preparation_resumed";
 }
 
 export async function enqueueTaskLifecycleNotification(params: {

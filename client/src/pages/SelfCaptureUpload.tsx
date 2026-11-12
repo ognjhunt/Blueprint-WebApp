@@ -793,7 +793,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
   ) : null;
 
   const settingsOpen = scope === "owner" && (link.status === "valid" || link.status === "held");
-  const editJob = scope === "owner" && brief && !withdrawn ? <details id="job-brief-editor" open={editingBrief || taskStatementNeeded || undefined}
+  const editJob = scope === "owner" && brief && !withdrawn ? <details id="job-brief-editor" open={editingBrief || undefined}
     onToggle={event => { if ((event.currentTarget as HTMLDetailsElement).open) setEditingBrief(true); }}>
     <summary>{EDIT_JOB_LABEL}</summary>
     {taskStatementForm}
@@ -859,6 +859,8 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
         onUpdateVideo={scope === "owner" && link.status === "valid" && !withdrawn ? () => void updateVideo() : undefined}
         quietAction={!quietCard} onShowDetails={() => openView("details")} onShowSettings={settingsOpen ? () => openView("settings") : undefined} card={card}
         outlook={status?.outlook ?? null} />}
+      {/* The answer asks for the job's sentence: the form to give it sits right under it, not in the settings. */}
+      {answer && taskStatementForm}
       {answer && videoUpdateError && <BareNotice role="alert">{videoUpdateError}</BareNotice>}
       {!answer && (saved || link.status !== "valid") && statusCard}
       {!answer && workspace}

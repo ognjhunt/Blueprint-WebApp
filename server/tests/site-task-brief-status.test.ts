@@ -227,7 +227,8 @@ describe("GET /api/site-task-brief/:token/status", () => {
     expect([...sharedFakeFirestoreState.docs]).toEqual(before);
     expect(enqueueOutbox).not.toHaveBeenCalled();
   });
-  it("PREP-UI-004 an ending reaches the site as 'could not finish', with its reason and no write", async () => {
+  // Rewritten (review, 2026-11-12): a capacity_blocked ending has its own card, said as ours (`capacityEnded`).
+  it("PREP-UI-004 a capacity ending reaches the site as ours, with its reason and no write", async () => {
     sharedFakeFirestoreState.docs.set("captureUploadSessions/cap-1", { website_preparation: { selector: {} } });
     preparation.read.mockResolvedValueOnce({ state: "failed_terminal", correlationId: "bp-prep-1234567890abcdef",
       terminalReason: "capacity_blocked" } as never);
@@ -235,9 +236,9 @@ describe("GET /api/site-task-brief/:token/status", () => {
     const { code, body } = await status();
     expect(code).toBe(200);
     expect(body.status).toMatchObject({ decision: "processing_failure", stage: null, operatorAction: null });
-    expect(body.status.headline).toContain("Blueprint could not finish processing this attempt");
+    expect(body.status.headline).toBe("We could not prepare your job in time");
     expect(body.status.headline).not.toContain("our team has been told");
-    expect(body.status.outcome.reason).toContain("capacity stayed full");
+    expect(body.status.outcome.reason).toContain("for a reason on our side. Nothing you did caused it");
     expect([...sharedFakeFirestoreState.docs]).toEqual(before);
     expect(enqueueOutbox).not.toHaveBeenCalled();
   });

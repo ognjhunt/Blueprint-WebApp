@@ -4,6 +4,8 @@ import {projectWebsiteCaptureRights} from './websiteTaskContext';
 import type {OutboxKind} from './captureOutbox';
 import {canNotifyCurrentWebsitePreparationIssue} from './websitePreparationStatus';
 import {decryptFieldValue} from './field-encryption';
+import {siteWalkthroughIdentity} from './siteWalkthrough';
+import {websiteRunClosure} from './websiteRunClosure';
 import {OUTBOX_WENT_OUT} from './outboxWentOut';
 const CAPTURE_DEPENDENT_NOTICES=new Set<OutboxKind>([
  'video_received','scene_ready','scene_tests_started','screening_cleared','screening_started','results_ready','run_no_result',
@@ -117,7 +119,7 @@ export async function taskLifecycleNotificationIsCurrent(
  if(entry.kind==='footage_before_account'&&typeof entry.body==='string'
   &&/\bsave\b[^.\n]*\baccount\b/i.test(entry.body))return false;
  // Both preparation notices: current consent and recipient, and the same current event.
- if(entry.kind==='preparation_needs_attention'||entry.kind==='preparation_ended'){
+ if(entry.kind==='preparation_needs_attention'||entry.kind==='preparation_ended'||entry.kind==='preparation_resumed'){
   if(!/^sha256:[a-f0-9]{64}$/.test(entry.preparationEventId||''))return false;
   if(!db)throw new Error('website_preparation_recipient_unavailable');
   const ref=db.collection('inboundRequests').doc(entry.requestId);
@@ -127,6 +129,14 @@ export async function taskLifecycleNotificationIsCurrent(
   try{currentRecipient=String(await decryptFieldValue(snapshot.data()?.contact?.email??'')).trim();}
   catch{throw new Error('website_preparation_recipient_unavailable');}
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(currentRecipient)||currentRecipient!==entry.to)return false;
+  // "No new video is needed" only while the walkthrough that was asked about is still the job's video, and the site
+  // has not closed the job's run (review, 2026-11-12).
+  if(entry.kind==='preparation_resumed'){
+   const record=snapshot.data();
+   const captureId=`walkthrough-${entry.requestId}`;
+   if(siteWalkthroughIdentity(entry.requestId,record).captureId!==captureId)return false;
+   try{if(websiteRunClosure(record,entry.requestId,captureId))return false;}catch{return false;}
+  }
   return canNotifyCurrentWebsitePreparationIssue(entry.requestId,entry.preparationEventId!,transaction);
  }
  if(!CAPTURE_DEPENDENT_NOTICES.has(entry.kind))return true;

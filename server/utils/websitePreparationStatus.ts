@@ -220,7 +220,7 @@ export type PublicWebsitePreparationStatus = {
   /** Only from a v6 receipt: the robot fit precheck made before any spend, and its hold when none fits. */
   robotFitPrecheck?: PublicRobotFitPrecheck | null;
 };
-export type WebsitePreparationNoticeMilestone = "preparation_needs_attention" | "preparation_ended";
+export type WebsitePreparationNoticeMilestone = "preparation_needs_attention" | "preparation_ended" | "preparation_resumed";
 export type WebsitePreparationIntent = {requestId: string; captureId: string; eventId: string; correlationId: string;
   milestone: WebsitePreparationNoticeMilestone; terminalReason: WebsitePreparationTerminalReason | null;
   /** Set when this needs-attention notice may be the Pipeline's early task hold, whose reason only the separately
@@ -273,6 +273,23 @@ export function websitePreparationEventId(selector: WebsitePreparationSelector):
 /** One per terminal transition: a re-driven attempt that ends again is a new event. */
 export function websitePreparationEndedEventId(selector: WebsitePreparationSelector, attemptCount: number): string {
   return crossRuntimeDigest({ ...selector, milestone: "preparation_ended", attempt_count: attemptCount });
+}
+/** One per capture: the job it asked to film again moved on with that same video. */
+export function websitePreparationResumedEventId(selector: WebsitePreparationSelector): string {
+  return crossRuntimeDigest({ ...selector, milestone: "preparation_resumed" });
+}
+const isRecaptureAsk = (status: WebsitePreparationReceipt) => "outcome" in status && isRecaptureReason(status.outcome?.reason);
+/**
+ * The notice the stored row owes now: the status's own (`noticeFor`), or "no new video is needed" (review,
+ * 2026-11-12). That one is recorded by the merge only, at the transition: the same capture (a new video is a new
+ * capture, so it never qualifies) was asking to be filmed again, that ask's email was queued, and the status is now
+ * `handed_off`. It stays owed only while the status is still `handed_off`.
+ */
+function currentNotice(stored: Pick<StoredWebsitePreparation, "selector" | "notification">, status: WebsitePreparationReceipt):
+  {eventId: string; milestone: WebsitePreparationNoticeMilestone} | null {
+  const resumed = websitePreparationResumedEventId(stored.selector);
+  if (stored.notification?.eventId === resumed && status.state === "handed_off") return {eventId: resumed, milestone: "preparation_resumed"};
+  return noticeFor(stored.selector, status);
 }
 /** The single notice a current status calls for, if any. */
 function noticeFor(selector: WebsitePreparationSelector, status: WebsitePreparationReceipt):
@@ -335,6 +352,13 @@ export function mergeWebsitePreparationStatus(prior: StoredWebsitePreparation | 
     || status.revision === prior.status.revision && status.schema_version === prior.status.schema_version
       && status.status_digest !== prior.status.status_digest)) throw unavailable();
   const attentionId = websitePreparationEventId(selector);
+  const resumedId = websitePreparationResumedEventId(selector);
+  // The new-video ask was emailed for this same capture, and the job moved on without a new video.
+  const resumed = same && status.state === "handed_off" && isRecaptureAsk(prior.status)
+    && prior.notification?.eventId === attentionId && prior.notification.state === "enqueued";
+  if (resumed) return {selector, status, notification: {eventId: resumedId, state: "pending"}};
+  if (same && status.state === "handed_off" && prior.notification?.eventId === resumedId)
+    return {selector, status, notification: prior.notification};
   const notice = noticeFor(selector, status);
   // One durable intent per event: a replay keeps it; a newer event replaces an
   // unsent one; a state that calls for no notice keeps only the attention intent.
@@ -589,7 +613,7 @@ export async function canNotifyCurrentWebsitePreparationIssue(requestId: string,
       const {latest} = await latestVerified(match.selector, deps, signal, transaction);
       mergeWebsitePreparationStatus(match, match.selector, latest);
       // Still the same event: a needs-attention state, or the same terminal transition.
-      return noticeFor(match.selector, latest)?.eventId === eventId;
+      return currentNotice(match, latest)?.eventId === eventId;
     });
   } catch (error) {
     if ((error as Error).message === "website_preparation_authority_ended") return false;
@@ -604,7 +628,7 @@ export async function drainPendingWebsitePreparationNotifications(
   for (const row of await deps.pending(limit)) {
     try {
       const current = await fresh(row.selector.capture_id, row.selector.request_id, deps);
-      const notice = noticeFor(current.selector, current.status);
+      const notice = currentNotice(row, current.status);
       if (!notice || !row.notification || row.notification.eventId !== notice.eventId) { pending++; continue; }
       const result = await enqueue({requestId: row.selector.request_id, captureId: row.selector.capture_id,
         eventId: row.notification.eventId, correlationId: `bp-prep-${current.status.status_digest.slice(7, 23)}`,

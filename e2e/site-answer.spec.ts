@@ -229,7 +229,7 @@ test("the answer, its details and the job settings read at phone width without s
 
 // Review, 2026-11-12: a job that waits for its sentence says so AND shows the form to give it. The server decides both
 // from one function (`jobWaitsForItsSentence`); here they arrive together, as it sends them.
-test("a job waiting for its sentence shows the form to name it, open, under the answer that asks for it", async ({ page }) => {
+test("a job waiting for its sentence shows the form to name it under the answer that asks for it", async ({ page }) => {
   const { unexpected } = await mockJob(page, { evaluation: null });
   await page.route(`**/api/site-task-brief/${token}`, route => route.fulfill({ json: { ready: true, scope: "owner", account: null,
     taskStatementNeeded: true, brief: { summary: "", captureMode: "self_capture", proposed: [], unresolved: [], confirmedAtIso: null } } }));
