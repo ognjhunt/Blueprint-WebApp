@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
 import { noEstimateReason as screeningNoEstimateReason, parseBetaPolicyScreeningPublication, screeningOutcome, screeningOutcomeSentence,
-  screeningPublicationTransition, SCREENING_OUTCOMES } from "../utils/betaPolicyScreeningContract";
+  screeningPublicationTransition, screeningPublicationWithinJobCeilingSchema, SCREENING_OUTCOMES } from "../utils/betaPolicyScreeningContract";
 import { assertScreeningSceneSource } from "../utils/betaPolicyScreeningIngest";
 import { managedJobTask, preparedSceneRevisionDigest, projectManagedJobEvidence } from "../utils/jobManagedEvaluation";
 import { configuredSceneOfferingSchema } from "../utils/configuredSceneOfferingContract";
@@ -234,7 +234,7 @@ describe("automatic many-candidate job evaluation", () => {
     for (const budget of [
       { ...publication.budget, committed_upper_bound_usd: "15.000001", reserved_usd: "15.000001" },
       { ...publication.budget, committed_upper_bound_usd: "2", spent_upper_bound_usd: "1", reserved_usd: "0" },
-      { ...publication.budget, limit_usd: "30.000001" }, { ...publication.budget, reserved_usd: "NaN" },
+      { ...publication.budget, limit_usd: "1000.000001" }, { ...publication.budget, reserved_usd: "NaN" },
     ]) expect(parseBetaPolicyScreeningPublication(sealScreening({ ...publication, budget }))).toBeNull();
     expect(parseBetaPolicyScreeningPublication(sealScreening({ ...publication, candidates: [publication.candidates[0], publication.candidates[0]] }))).toBeNull();
     expect(parseBetaPolicyScreeningPublication(sealScreening({ ...publication, candidates: [{ ...publication.candidates[0], episodes_scored: 1 }] }))).toBeNull();
@@ -292,7 +292,7 @@ describe("automatic many-candidate job evaluation", () => {
     const raised = sealScreening({ ...finished, revision: 3, budget: { ...finished.budget, limit_usd: "30" } });
     expect(screeningPublicationTransition(finished, raised)).toBe("updated");
     // A limit is never above the shared ceiling, and never below what is committed.
-    expect(parseBetaPolicyScreeningPublication(sealScreening({ ...raised, budget: { ...raised.budget, limit_usd: "30.000001" } }))).toBeNull();
+    expect(parseBetaPolicyScreeningPublication(sealScreening({ ...raised, budget: { ...raised.budget, limit_usd: "1000.000001" } }))).toBeNull();
     expect(parseBetaPolicyScreeningPublication(sealScreening({ ...raised, budget: { ...raised.budget, limit_usd: "0",
       committed_upper_bound_usd: "1", spent_upper_bound_usd: "1", reserved_usd: "0" } }))).toBeNull();
     // Everything else that names the campaign is still fixed.

@@ -27,7 +27,7 @@ describe("where the job's ceiling comes from", () => {
     expect(websiteJobCeiling({ record, captureId: "capture-a" })).toEqual({ maximum_cost_usd: 25, source: "retained_atlas_grant" });
     expect(websiteJobCeiling({ record, captureId: "capture-b" }))
       .toEqual({ maximum_cost_usd: WEBSITE_JOB_CEILING_DEFAULT_USD, source: "owner_default" });
-    expect(WEBSITE_JOB_CEILING_DEFAULT_USD).toBe(40);
+    expect(WEBSITE_JOB_CEILING_DEFAULT_USD).toBe(100);
     vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_GRANT_POLICY_JSON", JSON.stringify({ ...policy, maximum_cost_usd: 30 }));
     expect(websiteJobCeiling({ record, captureId: "capture-b" })).toEqual({ maximum_cost_usd: 30, source: "atlas_grant_policy" });
   });
@@ -74,8 +74,8 @@ describe("the owner's explicit row for the job", () => {
   it("only raises the ceiling, names the smallest of several rows and ignores an unreadable setting", () => {
     vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_GRANT_POLICY_JSON", "");
     vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_AUTHORIZATIONS_JSON", JSON.stringify([
-      row("job-1", "capture-a", 130), row("job-1", "capture-a", 60), row("job-3", "capture-a", 5)]));
-    expect(websiteJobCeiling({ record: {}, captureId: "capture-a", requestId: "job-1" }).maximum_cost_usd).toBe(60);
+      row("job-1", "capture-a", 230), row("job-1", "capture-a", 160), row("job-3", "capture-a", 5)]));
+    expect(websiteJobCeiling({ record: {}, captureId: "capture-a", requestId: "job-1" }).maximum_cost_usd).toBe(160);
     // A row below today's figure caps only the Atlas allowance it authorizes.
     expect(websiteJobCeiling({ record: {}, captureId: "capture-a", requestId: "job-3" }))
       .toEqual({ maximum_cost_usd: WEBSITE_JOB_CEILING_DEFAULT_USD, source: "owner_default" });
@@ -212,14 +212,36 @@ describe("what counts against it", () => {
       blockers: [], attempts: [{ maximum_spend_usd: 3 }] } })).toBe(3_000_000);
   });
 
-  it("counts the screening site ledger once, from its latest snapshot, and an unreadable one at the site limit", async () => {
-    const spend = async (runs: Parameters<typeof reader>[1]) =>
-      (await websiteJobSpend({ record: {}, reader: reader([], runs) })).screening_micros;
+  it("counts the screening site ledger once, from its latest snapshot, and an unreadable one as all the ceiling leaves", async () => {
+    const ceiling = { maximum_cost_usd: 100 };
+    const spend = async (runs: Parameters<typeof reader>[1], record: Record<string, any> = {}) =>
+      (await websiteJobSpend({ record, ceiling, reader: reader([], runs) })).screening_micros;
     expect(await spend([])).toBe(0);
     expect(await spend([screening("3.5", "2026-10-30T10:00:00Z"), screening("1.25", "2026-10-30T11:00:00Z")])).toBe(1_250_000);
     expect(await spend([screening("3.5", "2026-10-30T11:00:00Z", 2), screening("1.25", "2026-10-30T11:00:00Z")])).toBe(3_500_000);
-    expect(await spend([screening("1.25", "2026-10-30T11:00:00Z"), { run: { run_kind: "beta_policy_screening" }, result: null }]))
-      .toBe(30_000_000);
+    const unreadable = [screening("1.25", "2026-10-30T11:00:00Z"), { run: { run_kind: "beta_policy_screening" }, result: null }];
+    // Owner decision 2026-11-11: no fixed $30 any more. It counts the ceiling less what the other ledgers hold ...
+    expect(await spend(unreadable)).toBe(100_000_000);
+    expect(await spend(unreadable, { website_preparation_reservations: { a: held(12.5) } })).toBe(87_500_000);
+    // ... never below nothing, and as unbounded when no ceiling is given to measure against.
+    expect(await spend(unreadable, { website_preparation_reservations: { a: held(130) } })).toBe(0);
+    expect((await websiteJobSpend({ record: {}, reader: reader([], unreadable) })).screening_micros).toBe(Infinity);
+  });
+
+  it("never lets an unreadable screening publication under-count: the job is full and admits nothing more", async () => {
+    const unreadable = [{ run: { run_kind: "beta_policy_screening" }, result: null }];
+    for (const [ceilingUsd, heldUsd] of [[100, 10], [25, 24.99], [25, 0], [100, 130]]) {
+      const input = { record: { website_preparation_reservations: { a: held(heldUsd) } }, captureId: "capture-a",
+        atlas: { maximum_cost_usd: ceilingUsd }, reader: reader([], unreadable) };
+      await expect(assertWithinWebsiteJobCeiling({ ...input, additionalCostUsd: 0.000001 }))
+        .rejects.toThrow("website_scene_preparation_budget_exhausted");
+      const { ceiling, spend } = { ceiling: websiteJobCeiling(input), spend: await websiteJobSpend({ ...input, ceiling: websiteJobCeiling(input) }) };
+      expect(websiteJobCeilingSummary(ceiling, spend).remaining_cost_usd).toBe(0);
+    }
+    // Before 2026-11-11 a $100 job holding $10 with an unreadable publication still had $60 to spend.
+    const input = { record: { website_preparation_reservations: { a: held(10) } }, captureId: "capture-a",
+      atlas: { maximum_cost_usd: 100 }, reader: reader([], unreadable) };
+    await expect(assertWithinWebsiteJobCeiling({ ...input, additionalCostUsd: 60 })).rejects.toThrow("budget_exhausted");
   });
 });
 

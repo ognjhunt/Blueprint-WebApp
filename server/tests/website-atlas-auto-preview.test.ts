@@ -339,12 +339,13 @@ describe("non-authorizing Atlas configuration read", () => {
       expect(alerts).toHaveLength(0);
       return;
     }
-    expect(second.status).toBe(200);
-    expect(second.body).toMatchObject({ status: "admitted", maximum_cost_usd: 1.5 });
-    expect(ledger["1".repeat(64)]).not.toHaveProperty("over_budget");
-    expect(ledger["2".repeat(64)].over_budget).toMatchObject({ basis: "automatic_budget_extension",
-      allowance: "atlas_allowance", allowance_usd: 2, allowance_exceeded: true, job_ceiling_exceeded: true });
-    expect(alerts).toHaveLength(1);
+    // Owner decision 2026-11-11: the Atlas allowance is the job's ceiling here ($2), and the ceiling is
+    // the job's safety limit. Past it the flagged job is refused too, with one safety-limit alert.
+    expect(second).toEqual({ status: 409, body: { code: "website_scene_preparation_budget_exhausted" } });
+    expect(ledger).not.toHaveProperty("2".repeat(64));
+    expect(alerts).toEqual(["opsWebsiteJobOverBudgetAlerts/req1-safety-limit"]);
+    expect(store.rows.get(alerts[0]).safety_limit).toMatchObject({ schema_version: "website_job_safety_limit.v1",
+      job_ceiling_usd: 2, job_reserved_or_settled_before_usd: 1.5, stage: "preparation_reservation", additional_cost_usd: 1.5 });
   });
 
   it("accounts each retained hold or settlement once without exposing raw record fields", async () => {

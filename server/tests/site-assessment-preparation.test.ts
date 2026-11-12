@@ -740,30 +740,61 @@ it.each([["flagged",true],["unflagged",false]])("a scene intake past the job cei
     expect((await send("visual-scene",{request_id:"one",scene_id:"site-one",task_context_digest:grant.task_context_digest,
       world_id:"SYNTHETIC-world",operation_id:"SYNTHETIC-operation",model:"marble-1.1-plus",thumbnail_url:null,pano_url:null,
       launch_url:"https://marble.worldlabs.ai/world/SYNTHETIC"})).status).toBe(200);
-    // The job already holds $39.50 of its $40 default ceiling; the intake's $1 construction allowance passes it.
+    // The job already holds $99.50 of its $100 default ceiling; the intake's $1 construction allowance passes it.
     const record=state.docs.get("inboundRequests/one") as any;
-    record.website_preparation_reservations={held:{admission:{maximum_cost_usd:39.5,request_count:1},settlement:{actual_cost_usd:39.5}}};
+    record.website_preparation_reservations={held:{admission:{maximum_cost_usd:99.5,request_count:1},settlement:{actual_cost_usd:99.5}}};
     if(flagged){
-      // A Pipeline reservation past the upstream cap records the job's one alert for this grant first.
+      // A Pipeline reservation past the upstream cap but inside the ceiling is admitted with the grant's one over-budget alert.
       const spent=await send("preparation-spend",{request_id:"one",scene_id:"site-one",spend:{task_context_digest:grant.task_context_digest,
         allocation_binding_digest:`sha256:${"d".repeat(64)}`,resource_class:"gpu_render",provider:"vast",maximum_cost_usd:0.4,request_count:1}});
       expect(spent.status).toBe(200);expect(alertRows()).toHaveLength(1);
     }
     const response=await send("prepared-scene",{request_id:"one",scene_id:"site-one",request:syntheticPreparedIntake(grant)});
+    // Owner decision 2026-11-11: the ceiling is the job's safety limit, so the intake is refused on either grant,
+    // nothing is recorded for it, and the job gets its one safety-limit alert.
+    expect(response.status).toBe(409);expect(await response.json()).toEqual({code:"website_scene_preparation_budget_exhausted"});
+    expect([...state.docs.keys()].some(key=>key.startsWith("taskEvaluationSceneIntakes/"))).toBe(false);
     const alerts=alertRows();
-    if(!flagged){
-      expect(response.status).toBe(409);expect(await response.json()).toEqual({code:"website_scene_preparation_budget_exhausted"});
-      expect(alerts).toHaveLength(0);
-      return;
-    }
-    expect(response.status).toBe(202);const receipt=await response.json();
-    expect((state.docs.get(`taskEvaluationSceneIntakes/${receipt.id}`) as any).over_budget).toMatchObject({
-      basis:"automatic_budget_extension",sponsorship_digest:grant.authority_digest,allowance:"native_construction_allowance",
-      allowance_usd:1,job_ceiling_usd:40,job_ceiling_exceeded:true,job_reserved_or_settled_before_usd:39.9});
-    // Never a second alert for the same job and grant: the reservation's marker stands.
-    expect(alerts).toHaveLength(1);
-    expect((state.docs.get(alerts[0]) as any).reservation_key).toBe("d".repeat(64));
+    expect(alerts.filter(key=>key.endsWith("-safety-limit"))).toEqual(["opsWebsiteJobOverBudgetAlerts/one-safety-limit"]);
+    expect((state.docs.get("opsWebsiteJobOverBudgetAlerts/one-safety-limit") as any).safety_limit).toMatchObject({
+      stage:"scene_intake",job_ceiling_usd:100,job_ceiling_source:"owner_default",additional_cost_usd:1,
+      job_reserved_or_settled_before_usd:flagged?99.9:99.5});
+    expect(alerts).toHaveLength(flagged?2:1);
   });
+});
+// Owner decision 2026-11-11: the job's ceiling is one safety limit per job, a real stop for the build too.
+it.each([["flagged",true],["unflagged",false]])("a Pipeline reservation on a %s grant fits its job's safety limit exactly and is refused a micro-dollar past it",async(_label,flagged)=>{
+  if(!flagged) vi.stubEnv("BLUEPRINT_WEBSITE_AUTOMATIC_BUDGET_EXTENSION","false");
+  const {grant,spend}=await budgetJob();
+  expect(Boolean((grant as any).automatic_budget_extension)).toBe(flagged);
+  // An earlier settled $24.40 Atlas-side row (no request count against the native ledger) on a job granted at $25.
+  const record=state.docs.get("inboundRequests/one") as any;
+  record.website_atlas_grants={"walkthrough-one":{maximum_cost_usd:25}};
+  record.website_preparation_reservations={atlas:{admission:{maximum_cost_usd:24.4,request_count:1,provider:"world_labs_atlas",
+    atlas_authorization_digest:`sha256:${"a".repeat(64)}`},settlement:{actual_cost_usd:24.4}}};
+  await withSignedRoute(async send=>{
+    const route=(n:string,maximum:number)=>send("preparation-spend",{request_id:"one",scene_id:"site-one",spend:spend(n,maximum)});
+    // $0.60 more is exactly $25.00: admitted (the upstream cap is $1, so no note either way).
+    expect((await route("d",0.6)).status).toBe(200);
+    const refused=await route("e",0.000001);
+    expect(refused.status).toBe(409);expect(await refused.json()).toEqual({code:"website_scene_preparation_budget_exhausted"});
+  });
+  const rows=(state.docs.get("inboundRequests/one") as any).website_preparation_reservations;
+  expect(Object.keys(rows).sort()).toEqual(["atlas","d".repeat(64)]);
+  expect(alertRows()).toEqual(["opsWebsiteJobOverBudgetAlerts/one-safety-limit"]);
+  // One alert per job: a second refusal records nothing more, and the pass reports it once, as a safety limit.
+  await withSignedRoute(async send=>{
+    expect((await send("preparation-spend",{request_id:"one",scene_id:"site-one",spend:spend("f",0.5)})).status).toBe(409);
+  });
+  expect(alertRows()).toHaveLength(1);
+  const alert=vi.fn(async()=>({sent:true})),email=vi.fn();
+  const deps={store:(await import("./helpers/fake-firestore")).sharedFakeFirestore as any,alert,email:email as any};
+  expect(await scanOverBudgetWebsiteJobs(deps)).toEqual({due:1,alerted:1});
+  const [key,message]=alert.mock.calls[0] as unknown as [string,string];
+  expect(key).toBe("website_job_safety_limit:one-safety-limit");
+  expect(message).toContain("Website jobs reached their safety limit and need a person to look");
+  expect(message).toContain("request one reached its safety limit of $25.00 ($25.00 already held or spent; $0.00 more was asked for). It was refused.");
+  expect(await scanOverBudgetWebsiteJobs(deps)).toEqual({due:0,alerted:0});
 });
 import { scanOverBudgetWebsiteJobs } from "../utils/websitePreparationOpsAlerts";
 import { websiteSceneExecution } from "../utils/taskEvaluationSceneIntake";

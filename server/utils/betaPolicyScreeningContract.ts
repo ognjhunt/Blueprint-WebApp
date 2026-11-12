@@ -32,8 +32,23 @@ export const screeningMoneyMicros = (value: string) => {
   const [whole, fraction = ""] = value.split(".");
   return BigInt(whole) * BigInt(1_000_000) + BigInt(fraction.padEnd(6, "0"));
 };
-/** The beta-screening site ledger's standing allowance, shared across a site's campaigns. */
-export const SCREENING_SITE_LIMIT_USD = 30;
+/**
+ * The beta-screening site allowance before 2026-11-11, shared across a site's campaigns. Owner decision
+ * 2026-11-11: a site's screening is bounded by its job's one safety limit (the job ceiling,
+ * `websiteJobCeiling`), not by a fixed allowance. The Pipeline still publishes this figure for a site
+ * whose campaigns were planned before then (its `LEGACY_SITE_LIMIT_USD`), so a publication at or under
+ * it is accepted on any job exactly as before.
+ */
+export const SCREENING_LEGACY_SITE_LIMIT_USD = 30;
+/**
+ * The most any publication's limit may be, whatever its job: the largest job ceiling there can be (an
+ * owner authorization row's maximum, `websiteAtlasAuthorization`). A stored publication is read against
+ * this; a new delivery is also held to its own job's ceiling (`screeningPublicationWithinJobCeilingSchema`).
+ */
+export const SCREENING_PUBLICATION_LIMIT_MAX_USD = 1000;
+/** The most a publication for a job with this ceiling may name: the ceiling, or the legacy allowance if larger. */
+export const screeningPublicationLimitBoundUsd = (jobCeilingUsd: number) =>
+  Math.max(jobCeilingUsd, SCREENING_LEGACY_SITE_LIMIT_USD);
 export const screeningTerminalCandidateStates = new Set(["completed", "blocked", "unavailable", "deferred", "infeasible"]);
 /**
  * `waitlisted`: runnable, waiting for site budget a funded candidate may
@@ -243,8 +258,8 @@ export const betaPolicyScreeningPublicationSchema = z.discriminatedUnion("schema
   if (![budget.limit_usd, budget.committed_upper_bound_usd, budget.spent_upper_bound_usd, budget.reserved_usd]
     .every(amount => dollars.safeParse(amount).success)) return;
   const limit = screeningMoneyMicros(budget.limit_usd), committed = screeningMoneyMicros(budget.committed_upper_bound_usd);
-  if (limit > BigInt(SCREENING_SITE_LIMIT_USD * 1_000_000) || screeningMoneyMicros(budget.spent_upper_bound_usd) + screeningMoneyMicros(budget.reserved_usd) !== committed
-    || committed > limit) ctx.addIssue({ code: "custom", path: ["budget"], message: `Screening must retain the shared $${SCREENING_SITE_LIMIT_USD} site ceiling` });
+  if (limit > BigInt(SCREENING_PUBLICATION_LIMIT_MAX_USD * 1_000_000) || screeningMoneyMicros(budget.spent_upper_bound_usd) + screeningMoneyMicros(budget.reserved_usd) !== committed
+    || committed > limit) ctx.addIssue({ code: "custom", path: ["budget"], message: `Screening must stay within its limit, at most $${SCREENING_PUBLICATION_LIMIT_MAX_USD}` });
   if (new Set(value.candidates.map(row => row.candidate_id)).size !== value.candidates.length)
     ctx.addIssue({ code: "custom", path: ["candidates"], message: "Candidate identities must be unique" });
   const states = new Set<string>(value.candidates.map(row => row.status));
@@ -267,6 +282,21 @@ export const betaPolicyScreeningPublicationSchema = z.discriminatedUnion("schema
     seen.add(entry.candidate_id);
   }
 });
+/**
+ * The same schema, holding a new delivery to its job's ceiling read at ingest: its limit and what it has
+ * committed may not pass `screeningPublicationLimitBoundUsd(jobCeilingUsd)`. One past it is refused the
+ * way any publication this release does not accept is (kept in quarantine, 422 `schema_not_accepted`).
+ */
+export function screeningPublicationWithinJobCeilingSchema(jobCeilingUsd: number) {
+  const boundUsd = screeningPublicationLimitBoundUsd(jobCeilingUsd);
+  const bound = BigInt(Math.floor(boundUsd * 1_000_000));
+  return betaPolicyScreeningPublicationSchema.superRefine((value, ctx) => {
+    const budget = value.budget;
+    if (![budget.limit_usd, budget.committed_upper_bound_usd].every(amount => dollars.safeParse(amount).success)) return;
+    if (screeningMoneyMicros(budget.limit_usd) > bound || screeningMoneyMicros(budget.committed_upper_bound_usd) > bound)
+      ctx.addIssue({ code: "custom", path: ["budget"], message: `Screening must stay within the job's $${boundUsd} safety limit` });
+  });
+}
 /** The practice-run videos a publication carries; none for a retained v1 one. */
 export function screeningReviewVideos(value: { schema_version: string; review_videos?: ScreeningReviewVideos[] }) {
   return JOB_EVALUATION_PUBLICATIONS.has(value.schema_version) ? value.review_videos ?? [] : [];

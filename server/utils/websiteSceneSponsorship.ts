@@ -14,7 +14,8 @@ import { crossRuntimeDigest as digest } from "./crossRuntimeCanonical";
 import { withTaskEvaluationLaunchStoreTimeout as storeTimeout } from "./taskEvaluationLaunchStore";
 import { sceneProviderTerms } from "./taskEvaluationSceneIntake";
 import { websiteAtlasRuntimePolicy, atlasAllowanceUsage, resolveWebsiteAtlasGrant, websiteAtlasAutomaticLane,
-  websiteAtlasGrantOwner, websiteAtlasGrantPolicy, websiteAtlasSourceVideoIdentity, type AtlasAuxiliaryProvider } from "./websiteAtlasAuthorization";
+  websiteAtlasGrantOwner, websiteAtlasGrantPolicy, websiteAtlasSourceVideoIdentity, type AtlasAuxiliaryProvider,
+  parseWebsiteAtlasStoredGrant, WEBSITE_ATLAS_STORED_GRANT_MAXIMUM_COST_USD } from "./websiteAtlasAuthorization";
 import { triageGateAnswers } from "../../client/src/lib/gateTriage";
 import type { TaskItemInventoryRecord } from "./taskItemInventory";
 import { assertWebsiteCaptureBindingInTransaction, resolveWebsiteCaptureBinding } from "./websiteCaptureBinding";
@@ -63,10 +64,12 @@ export const WEBSITE_SCENE_MAX_RETRIES: readonly number[] = [0, 1];
 export const WEBSITE_SCENE_CONFIGURATION_MAX_RETRIES = 1;
 /**
  * Owner decision 2026-11-10: one hard money stop, the account's monthly limit. A new grant
- * names `automatic_budget_extension: true`, so the job's own dollar figures (the upstream
- * preparation cap, its Atlas allowance and the job ceiling) are its expected budget, not a
- * wall: a reservation the Pipeline asks for, after its own account-limit precheck, is
- * admitted past them with a note, and ops is told once per job and grant. Grant expiry, the
+ * names `automatic_budget_extension: true`, so the job's inner dollar figures (the upstream
+ * preparation cap and its Atlas allowance) are its expected budget, not a wall: a reservation
+ * the Pipeline asks for, after its own account-limit precheck, is admitted past them with a
+ * note, and ops is told once per job and grant. Since 2026-11-11 the job ceiling is not one of
+ * them: it is the job's safety limit and refuses on every grant
+ * (`WEBSITE_JOB_SAFETY_LIMIT_REACHED`). Grant expiry, the
  * per-reservation limit, rights, consent and terms are unchanged. On by default; the
  * non-secret setting `BLUEPRINT_WEBSITE_AUTOMATIC_BUDGET_EXTENSION=false` turns it off for
  * new grants. It is read only when a grant is first issued and is never part of the hashed
@@ -95,6 +98,35 @@ export async function websiteJobOverBudgetAlert(store: { collection(name: string
   if ((await transaction.get(alertRef)).exists) return () => {};
   return () => transaction.set(alertRef, { request_id: requestId, sponsorship_digest: overBudget.sponsorship_digest,
     ...source, over_budget: overBudget, delivery: null, next_attempt_at_ms: Date.now(), alerted_at_iso: null });
+}
+/**
+ * Owner decision 2026-11-11: the job's ceiling is one safety limit per job ($100 for new jobs),
+ * whose only purpose is to stop a bug from burning the month in one job. Spend that would take the
+ * job's counted total past it is refused for build and testing alike, on every grant. The refusal
+ * keeps the code the Pipeline already reads as the job's ceiling reached (`job_ceiling_reached`)
+ * and ends preparation on; a new code would be an unknown refusal to a released Pipeline.
+ */
+export const WEBSITE_JOB_SAFETY_LIMIT_REACHED = "website_scene_preparation_budget_exhausted";
+const SAFETY_LIMIT_REACHED = Symbol("website_job_safety_limit_reached");
+/** One alert per job, whatever grant it is on: a job that reached its safety limit needs a person to look. */
+export const websiteJobSafetyLimitAlertId = (requestId: string) => `${requestId}-safety-limit`;
+export function websiteJobSafetyLimitRecord(job: { ceiling: { maximum_cost_usd: number; source: string };
+  spend: { total_micros: number } }, at: Record<string, string | number>) {
+  return { schema_version: "website_job_safety_limit.v1", job_ceiling_usd: job.ceiling.maximum_cost_usd,
+    job_ceiling_source: job.ceiling.source,
+    // An unreadable earlier hold is unknown, never a figure.
+    job_reserved_or_settled_before_usd: Number.isFinite(job.spend.total_micros) ? job.spend.total_micros / 1_000_000 : null,
+    ...at, recorded_at_epoch: Date.now() / 1000 };
+}
+/** Reads (inside the caller's transaction, before its writes) whether this job already has its one
+ * safety-limit alert, and returns the write that records it if not. */
+export async function websiteJobSafetyLimitAlert(store: { collection(name: string): any },
+  transaction: { get(reference: any): Promise<any>; set(reference: any, value: any): void }, requestId: string,
+  safetyLimit: Record<string, unknown>) {
+  const alertRef = store.collection(OVER_BUDGET_ALERT_COLLECTION).doc(websiteJobSafetyLimitAlertId(requestId));
+  if ((await transaction.get(alertRef)).exists) return () => {};
+  return () => transaction.set(alertRef, { request_id: requestId, safety_limit: safetyLimit, delivery: null,
+    next_attempt_at_ms: Date.now(), alerted_at_iso: null });
 }
 const policySchema = z.object({
   owner: z.object({ user_id: z.string().trim().min(1), organization_id: z.string().trim().min(1) }).strict(),
@@ -935,6 +967,70 @@ export async function amendWebsitePreparationRequestLimit(
   }));
 }
 
+const atlasGrantFigureAmendment = z.object({
+  capture_id: z.string().trim().min(1).max(200),
+  authorization_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+  maximum_cost_usd: z.number().finite().positive().max(WEBSITE_ATLAS_STORED_GRANT_MAXIMUM_COST_USD),
+  approved_by: z.string().trim().min(1),
+  approval_reference: z.string().trim().min(1).max(1000),
+}).strict();
+export const WEBSITE_ATLAS_GRANT_AMENDMENT_SCHEMA = "website_atlas_grant_figure_amendment.v1";
+
+/**
+ * Operator-only owner amendment (owner decision 2026-11-11): raises one job's stored automatic
+ * Atlas grant figure, and with it the job's ceiling (its safety limit), up to the stored grant
+ * schema's maximum. Nothing else in the grant changes: its consent, terms, source, owner, request
+ * count, approval reference and expiry stay as issued, so the Pipeline's resume check
+ * (`website_atlas_pipeline._same_authority`) reads it as the same grant with a raised figure and
+ * continues the job. An owner authorization row would replace the grant instead and stop the job's
+ * remaining Atlas work. The owner's approval is recorded in the job's amendment list with the prior
+ * and new figure and digest. Never a public or Pipeline API. `apply` false changes nothing and
+ * returns what would change; the same amendment applied again returns the stored receipt.
+ */
+export async function amendWebsiteAtlasGrantFigure(
+  requestId: string, input: z.infer<typeof atlasGrantFigureAmendment>, apply = false,
+) {
+  const command = atlasGrantFigureAmendment.parse(input);
+  if (!db) throw new Error("website_capture_rights_store_unavailable");
+  const store = db;
+  return storeTimeout(store.runTransaction(async transaction => {
+    const ref = store.collection("inboundRequests").doc(requestId);
+    const record = (await transaction.get(ref)).data();
+    const stored = record?.website_atlas_grants?.[command.capture_id];
+    if (!record || stored === undefined) throw new Error("website_atlas_grant_missing");
+    const grant = parseWebsiteAtlasStoredGrant(stored);
+    if (!grant || grant.request_id !== requestId || grant.capture_id !== command.capture_id)
+      throw new Error("website_atlas_authorization_invalid");
+    const amendments: Record<string, any>[] = Array.isArray(record.website_atlas_grant_amendments)
+      ? record.website_atlas_grant_amendments : [];
+    const last = [...amendments].reverse().find(row => row?.capture_id === command.capture_id);
+    // The same owner amendment again: the grant already carries it.
+    if (last && last.to_maximum_cost_usd === command.maximum_cost_usd && last.approval_reference === command.approval_reference
+      && last.authorization_digest === digest(grant) && grant.maximum_cost_usd === command.maximum_cost_usd)
+      return { status: "already_applied" as const, receipt: last };
+    if (digest(grant) !== command.authorization_digest
+      || command.approved_by !== record.website_scene_sponsorship?.owner?.user_id)
+      throw new Error("website_atlas_grant_amendment_binding_invalid");
+    if (grant.expires_at_epoch <= Date.now() / 1000) throw new Error("website_atlas_consent_expired");
+    if (!projectWebsiteCaptureRights(record).derived_scene_generation_allowed) throw new Error("source_revoked");
+    if (command.maximum_cost_usd <= grant.maximum_cost_usd) throw new Error("website_atlas_grant_amendment_not_increased");
+    const amended = parseWebsiteAtlasStoredGrant({ ...grant, maximum_cost_usd: command.maximum_cost_usd });
+    if (!amended) throw new Error("website_atlas_grant_amendment_out_of_bounds");
+    const value = { schema_version: WEBSITE_ATLAS_GRANT_AMENDMENT_SCHEMA, request_id: requestId,
+      capture_id: command.capture_id, approved_by: command.approved_by, approval_reference: command.approval_reference,
+      from_maximum_cost_usd: grant.maximum_cost_usd, to_maximum_cost_usd: command.maximum_cost_usd,
+      prior_authorization_digest: command.authorization_digest, authorization_digest: digest(amended),
+      approved_at_epoch: Date.now() / 1000 };
+    const receipt = { ...value, amendment_digest: digest(value) };
+    const change = { path: `inboundRequests/${requestId}.website_atlas_grants.${command.capture_id}.maximum_cost_usd`,
+      from: grant.maximum_cost_usd, to: command.maximum_cost_usd };
+    if (apply) transaction.update(ref, {
+      website_atlas_grants: { ...record.website_atlas_grants, [command.capture_id]: amended },
+      website_atlas_grant_amendments: [...amendments, receipt] });
+    return { status: apply ? "applied" as const : "preview" as const, change, receipt };
+  }));
+}
+
 function preparationObservationBinding(requestId: string, captureId: string, command: z.infer<typeof preparationSpendRequest>) {
   return { request_id: requestId, scene_id: `site-${requestId}`, capture_id: captureId,
     command_digest: digest(command), task_context_digest: command.task_context_digest,
@@ -1060,7 +1156,7 @@ export async function reserveWebsitePreparationSpend(requestId: string, input: z
   // this is exactly the existing path.
   const automaticAtlas = atlasRequested && websiteAtlasAutomaticLane({ requestId, captureId,
     taskContextDigest: command.task_context_digest, sourceVideoDigest: command.source_video_digest });
-  return storeTimeout(store.runTransaction(async transaction => {
+  const result = await storeTimeout(store.runTransaction(async transaction => {
     const ref = store.collection("inboundRequests").doc(requestId);
     const [request, brief, inventory] = await Promise.all([
       transaction.get(ref), transaction.get(store.collection(TASK_BRIEFS_COLLECTION).doc(requestId)),
@@ -1174,8 +1270,15 @@ export async function reserveWebsitePreparationSpend(requestId: string, input: z
     // every ledger this job spends from must also fit under the job's ceiling.
     const job = await checkWebsiteJobCeiling({ record, captureId, requestId, atlas,
       reader: transactionJobLedgerReader(store, transaction, requestId), additionalCostUsd: command.maximum_cost_usd });
-    if (job.exceeded && !extended) throw new Error("website_scene_preparation_budget_exhausted");
-    const overBudget = extended && (pastAllowance || job.exceeded) ? {
+    // Owner decision 2026-11-11: the job's ceiling is its safety limit, a fuse against a bug
+    // burning the month in one job. It refuses on every grant, the automatic budget extension
+    // included; the job's one safety-limit alert is recorded and the refusal is thrown once it commits.
+    if (job.exceeded) {
+      (await websiteJobSafetyLimitAlert(store, transaction, requestId, websiteJobSafetyLimitRecord(job,
+        { stage: "preparation_reservation", reservation_key: key, additional_cost_usd: command.maximum_cost_usd })))();
+      return SAFETY_LIMIT_REACHED;
+    }
+    const overBudget = extended && pastAllowance ? {
       schema_version: "website_job_over_budget.v1", basis: "automatic_budget_extension",
       sponsorship_digest: rootAuthority.authority_digest,
       allowance: atlas ? "atlas_allowance" : "preparation_upstream_cap", allowance_usd: allowanceUsd,
@@ -1205,6 +1308,8 @@ export async function reserveWebsitePreparationSpend(requestId: string, input: z
     recordAlert();
     return admission;
   }));
+  if (result === SAFETY_LIMIT_REACHED) throw new Error(WEBSITE_JOB_SAFETY_LIMIT_REACHED);
+  return result;
 }
 
 /** Planning configuration, never dispatch authority. create:false is strictly
@@ -1256,8 +1361,9 @@ export async function loadWebsiteAtlasConfiguration(requestId: string, captureId
     const usage = atlasAllowanceUsage(record.website_preparation_reservations || {});
     const policy = websiteAtlasRuntimePolicy();
     // The job's one ceiling across all of its ledgers; the allowance figures above stay Atlas-only.
-    const jobCeiling = websiteJobCeilingSummary(websiteJobCeiling({ record, captureId, requestId, atlas: authority }),
-      await websiteJobSpend({ record, reader: transactionJobLedgerReader(store, transaction, requestId) }));
+    const ceiling = websiteJobCeiling({ record, captureId, requestId, atlas: authority });
+    const jobCeiling = websiteJobCeilingSummary(ceiling,
+      await websiteJobSpend({ record, ceiling, reader: transactionJobLedgerReader(store, transaction, requestId) }));
     // First writer wins: a concurrent creation retries this transaction and then reads it.
     if (created && input.create !== false)
       transaction.update(ref, { website_atlas_grants: { ...(record.website_atlas_grants ?? {}), [captureId]: created } });

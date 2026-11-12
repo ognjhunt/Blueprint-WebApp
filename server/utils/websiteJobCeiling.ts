@@ -13,14 +13,14 @@
  * grant or settlement is read differently, reset or rewritten.
  */
 import { websiteAtlasAuthorizationCeiling, websiteAtlasGrantPolicy } from "./websiteAtlasAuthorization";
-import { parseBetaPolicyScreeningPublication, screeningMoneyMicros, SCREENING_SITE_LIMIT_USD } from "./betaPolicyScreeningContract";
+import { parseBetaPolicyScreeningPublication, screeningMoneyMicros } from "./betaPolicyScreeningContract";
 import { publicationFromResultRecord } from "./taskEvaluationRunPublicationStorage";
 import { isNavigationStrategy } from "./navigationSceneIntake";
 
-/** The owner's existing per-job ceiling for website jobs (2026-10-30). It
+/** The owner's per-job safety limit for website jobs (2026-11-11: $100, was $40). It
  * applies only when neither the job's Atlas authorization nor the configured
  * Atlas grant policy (`BLUEPRINT_WEBSITE_ATLAS_GRANT_POLICY_JSON`) names one. */
-export const WEBSITE_JOB_CEILING_DEFAULT_USD = 40;
+export const WEBSITE_JOB_CEILING_DEFAULT_USD = 100;
 
 export type WebsiteJobCeilingSource = "atlas_authorization" | "job_authorization_row" | "retained_atlas_grant"
   | "atlas_grant_policy" | "owner_default";
@@ -158,13 +158,20 @@ function nativeIntakeMicros(intake: Record<string, any>) {
 /**
  * The screening site ledger is site-wide and every publication carries its
  * whole snapshot, so the latest one counts: its spent upper bound (charged at
- * the full reservation once allocated) plus its open reservations. A run with
- * no readable publication counts the full screening site limit.
+ * the full reservation once allocated) plus its open reservations.
+ *
+ * A run with no readable publication counts the most screening could hold
+ * (owner decision 2026-11-11: screening has no fixed allowance, only the job's
+ * ceiling): all of the ceiling the job's other ledgers leave, so the job counts
+ * as full and nothing more is admitted until it reads. Without a ceiling to
+ * measure against it counts as unbounded.
  */
-function screeningMicros(rows: Array<{ run: Record<string, any>; result: Record<string, any> | null }>) {
+function screeningMicros(rows: Array<{ run: Record<string, any>; result: Record<string, any> | null }>,
+  room: { ceilingMicros?: number; otherMicros: number }) {
   if (rows.length === 0) return 0;
   const publications = rows.map(row => row.result ? parseBetaPolicyScreeningPublication(publicationFromResultRecord(row.result)) : null);
-  if (publications.some(publication => publication === null)) return micros(SCREENING_SITE_LIMIT_USD);
+  if (publications.some(publication => publication === null))
+    return room.ceilingMicros === undefined ? Infinity : Math.max(0, room.ceilingMicros - room.otherMicros);
   const latest = publications.reduce((best, publication) => !best
     || Date.parse(publication!.generated_at) > Date.parse(best.generated_at)
     || Date.parse(publication!.generated_at) === Date.parse(best.generated_at) && publication!.revision > best.revision
@@ -172,11 +179,14 @@ function screeningMicros(rows: Array<{ run: Record<string, any>; result: Record<
   return Number(screeningMoneyMicros(latest.budget.committed_upper_bound_usd));
 }
 
-export async function websiteJobSpend(input: { record: Record<string, any>; reader: WebsiteJobLedgerReader }) {
+/** What the job holds or spent on each ledger. `ceiling` is the job's ceiling, which an unreadable screening publication fills. */
+export async function websiteJobSpend(input: { record: Record<string, any>; reader: WebsiteJobLedgerReader;
+  ceiling?: { maximum_cost_usd: number } }) {
   const preparation = Object.values(input.record.website_preparation_reservations ?? {})
     .reduce((sum: number, row) => sum + preparationRowMicros(row), 0);
   const native = (await input.reader.sceneIntakes()).reduce((sum, intake) => sum + nativeIntakeMicros(intake), 0);
-  const screening = screeningMicros(await input.reader.screeningRuns());
+  const screening = screeningMicros(await input.reader.screeningRuns(), { otherMicros: preparation + native,
+    ceilingMicros: input.ceiling ? Math.floor(input.ceiling.maximum_cost_usd * 1_000_000) : undefined });
   return { preparation_micros: preparation, native_construction_micros: native, screening_micros: screening,
     total_micros: preparation + native + screening };
 }
@@ -201,7 +211,7 @@ type WebsiteJobCeilingInput = { record: Record<string, any>; captureId: string;
 /** Whether new spend would take the job past its ceiling. Reads only; the caller decides and writes. */
 export async function checkWebsiteJobCeiling(input: WebsiteJobCeilingInput) {
   const ceiling = websiteJobCeiling(input);
-  const spend = await websiteJobSpend(input);
+  const spend = await websiteJobSpend({ ...input, ceiling });
   const exceeded = spend.total_micros + micros(input.additionalCostUsd) > Math.floor(ceiling.maximum_cost_usd * 1_000_000);
   return { ceiling, spend, exceeded };
 }

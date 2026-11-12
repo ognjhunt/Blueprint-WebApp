@@ -734,10 +734,10 @@ it("queues a navigation intake with the job's own consent and rights, reserving 
   const grant = await (await post("scene-sponsorship")).json();
   expect(grant.consent.task_confirmed).toBe(true);
   const request = navigationRequest(grant);
-  // The job's ledgers already hold its whole $40 owner-default ceiling.
+  // The job's ledgers already hold its whole $100 owner-default ceiling.
   const record = store.rows.get("inboundRequests/req1");
   record.website_preparation_reservations = { ["b".repeat(64)]: { admission: { provider: "world_labs_atlas",
-    resource_class: "provider_reconstruction_api", maximum_cost_usd: 40, request_count: 1 } } };
+    resource_class: "provider_reconstruction_api", maximum_cost_usd: 100, request_count: 1 } } };
   const ledger = () => websiteJobSpend({ record: store.rows.get("inboundRequests/req1"),
     reader: transactionJobLedgerReader(dbAdmin as any, { get: (ref: any) => ref.get() }, "req1") });
   // A rigid intake still reserves its whole native allowance, so it is refused exactly as before.
@@ -759,7 +759,7 @@ it("queues a navigation intake with the job's own consent and rights, reserving 
     .filter(([key]) => key !== "accepted_by" && key !== "accepted_at_epoch")));
   // No construction allowance: the job's ledger counts nothing for it.
   expect((await ledger()).native_construction_micros).toBe(0);
-  expect((await ledger()).total_micros).toBe(40_000_000);
+  expect((await ledger()).total_micros).toBe(100_000_000);
   expect(store.rows.get("inboundRequests/req1").website_scene_sponsorship).toEqual(grant);
   // Forwarded, then completed by the Pipeline without paid configuration: still nothing counted.
   const fetcher = vi.fn(async (_url: any, init: any) => new Response(JSON.stringify(init?.body
@@ -837,7 +837,7 @@ it("takes a re-issued navigation intake as a new intake of the same capture, res
   const request = navigationRequest(grant);
   // Every ledger of the job is already spent: a navigation intake adds nothing to check.
   store.rows.get("inboundRequests/req1").website_preparation_reservations = { ["b".repeat(64)]: { admission: {
-    provider: "world_labs_atlas", resource_class: "provider_reconstruction_api", maximum_cost_usd: 40, request_count: 1 } } };
+    provider: "world_labs_atlas", resource_class: "provider_reconstruction_api", maximum_cost_usd: 100, request_count: 1 } } };
   expect((await post("prepared-scene", { request })).status).toBe(202);
   // The re-derived scene half under the capture's own submission is a changed request, refused by name.
   const changed = { ...request, task: { ...request.task, scene_revision_digest: sha("7") } };
@@ -909,17 +909,17 @@ it("grants a new prepared scene its native allowance only while the job's one ce
       max_paid_attempts: grant.max_paid_attempts, expires_at_epoch: grant.expires_at_epoch,
       allowed_providers: ["vast", "openai"], purpose: "scene_preparation", policy_candidates: [] },
   };
-  // No Atlas grant or policy names a ceiling here, so the owner default ($40) applies:
-  // $20.50 already held plus this intake's $20 native allowance does not fit.
+  // No Atlas grant or policy names a ceiling here, so the owner default ($100) applies:
+  // $80.50 already held plus this intake's $20 native allowance does not fit.
   const record = store.rows.get("inboundRequests/req1");
   record.website_preparation_reservations = { ["b".repeat(64)]: { admission: { provider: "world_labs_atlas",
-    resource_class: "provider_reconstruction_api", maximum_cost_usd: 20.5, request_count: 1 } } };
+    resource_class: "provider_reconstruction_api", maximum_cost_usd: 80.5, request_count: 1 } } };
   const refused = await post("prepared-scene", { request });
   expect(refused.status).toBe(409);
   expect(await refused.json()).toEqual({ code: "website_scene_preparation_budget_exhausted" });
   expect([...store.rows.keys()].filter(key => key.startsWith("taskEvaluationSceneIntakes/"))).toHaveLength(0);
   // Settling the hold below its maximum makes room; nothing was reset or rewritten.
-  record.website_preparation_reservations["b".repeat(64)].settlement = { actual_cost_usd: 20, status: "settled" };
+  record.website_preparation_reservations["b".repeat(64)].settlement = { actual_cost_usd: 80, status: "settled" };
   expect((await post("prepared-scene", { request })).status).toBe(202);
   // The existing intake is never re-admitted, so a replay is unaffected by later holds.
   record.website_preparation_reservations["c".repeat(64)] = { admission: { maximum_cost_usd: 5 } };
@@ -971,9 +971,9 @@ it("keeps a prepared scene's native allowance held while every delivery's respon
   expect(stored()[1]).not.toHaveProperty("pipeline_status");
   expect(fetcher).toHaveBeenCalledTimes(25);
   // A local "blocked" does not prove the Pipeline stopped: the whole $20 stays held
-  // against the owner default $40 ceiling, so only $20 of new spend fits.
-  expect((await ceiling(20)).spend.native_construction_micros).toBe(20_000_000);
-  await expect(ceiling(20.000001)).rejects.toThrow("website_scene_preparation_budget_exhausted");
+  // against the owner default $100 ceiling, so only $80 of new spend fits.
+  expect((await ceiling(80)).spend.native_construction_micros).toBe(20_000_000);
+  await expect(ceiling(80.000001)).rejects.toThrow("website_scene_preparation_budget_exhausted");
 });
 
 it.each(["scope", "success_digest", "native_digest", "runtime_digest", "context", "revoked", "expired"])("rejects changed family %s before forwarding without granting spend", async corruption => {
