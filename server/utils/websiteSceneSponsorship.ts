@@ -1279,7 +1279,7 @@ export async function reserveWebsitePreparationSpend(requestId: string, input: z
       throw new Error("website_scene_preparation_budget_exhausted");
     // Owner decision 2026-10-30: one dollar ceiling per job. The caps above stay;
     // every ledger this job spends from must also fit under the job's ceiling.
-    const job = await checkWebsiteJobCeiling({ record, captureId, requestId, atlas,
+    const job = await checkWebsiteJobCeiling({ record, captureId, requestId, atlas, extended,
       reader: transactionJobLedgerReader(store, transaction, requestId), additionalCostUsd: command.maximum_cost_usd });
     if (job.exceeded && !extended) throw new Error("website_scene_preparation_budget_exhausted");
     // Owner decision 2026-11-11: past the job's ceiling a flagged grant still builds with a note, but

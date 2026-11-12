@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { assertWithinWebsiteJobCeiling, WEBSITE_JOB_CEILING_DEFAULT_USD, websiteJobCeiling, websiteJobCeilingSummary,
+import { assertWithinWebsiteJobCeiling, checkWebsiteJobCeiling, WEBSITE_JOB_CEILING_DEFAULT_USD, websiteJobCeiling, websiteJobCeilingSummary,
   websiteJobSafetyLimitUsd, websiteJobSpend, type WebsiteJobLedgerReader } from "../utils/websiteJobCeiling";
 import { screeningFixture, sealScreening } from "./fixtures/beta-policy-screening";
 
@@ -239,6 +239,27 @@ describe("what counts against it", () => {
     // ... never below nothing, and as unbounded when no ceiling is given to measure against.
     expect(await spend(unreadable, { website_preparation_reservations: { a: held(130) } })).toBe(0);
     expect((await websiteJobSpend({ record: {}, reader: reader([], unreadable) })).screening_micros).toBe(Infinity);
+  });
+
+  it("on a flagged grant an unreadable publication fills the safety limit, the figure build stops at; unflagged is unchanged", async () => {
+    vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_GRANT_POLICY_JSON", JSON.stringify({ ...policy, maximum_cost_usd: 100 }));
+    const unreadable = [{ run: { run_kind: "beta_policy_screening" }, result: null }];
+    const input = (runs: Parameters<typeof reader>[1], additionalCostUsd: number, extended: boolean) => checkWebsiteJobCeiling({
+      record: { website_atlas_grants: { "capture-a": { maximum_cost_usd: 25 } }, website_preparation_reservations: { a: held(10) } },
+      captureId: "capture-a", reader: reader([], runs), additionalCostUsd, extended });
+    // Flagged $25 grant under a $100 policy: readable, build fits to $100 exactly and not a micro-dollar more.
+    const readable = [screening("1", "2026-10-30T11:00:00Z")];
+    expect((await input(readable, 89, true)).pastSafetyLimit).toBe(false);
+    expect((await input(readable, 89.000001, true)).pastSafetyLimit).toBe(true);
+    // Unreadable: it counts as the $100 less the $10 held, so the job is full at its safety limit.
+    const flagged = await input(unreadable, 0.000001, true);
+    expect(flagged.spend.screening_micros).toBe(90_000_000);
+    expect(flagged.pastSafetyLimit).toBe(true);
+    expect((await input(unreadable, 0, true)).pastSafetyLimit).toBe(false);
+    // Unflagged: as before, it fills the $25 ceiling, which refuses any new spend; the safety limit is not what stops it.
+    const unflagged = await input(unreadable, 0.000001, false);
+    expect(unflagged.spend.screening_micros).toBe(15_000_000);
+    expect(unflagged).toMatchObject({ exceeded: true, pastSafetyLimit: false });
   });
 
   it("never lets an unreadable screening publication under-count: the job is full and admits nothing more", async () => {

@@ -226,12 +226,17 @@ export function websiteJobSafetyLimitUsd(ceiling: { maximum_cost_usd: number }) 
 }
 
 /** Whether new spend would take the job past its ceiling, and past its safety limit. Reads only; the caller decides and writes. */
-export async function checkWebsiteJobCeiling(input: WebsiteJobCeilingInput) {
+export async function checkWebsiteJobCeiling(input: WebsiteJobCeilingInput & {
+  /** The admission is on a grant naming the automatic budget extension, so it stops at the safety limit. */
+  extended?: boolean }) {
   const ceiling = websiteJobCeiling(input);
-  const spend = await websiteJobSpend({ ...input, ceiling });
+  const safetyLimitUsd = websiteJobSafetyLimitUsd(ceiling);
+  // An unreadable screening publication fills the limit that applies to this admission: the safety limit
+  // on a flagged grant (where build stops), else the ceiling. It never under-counts against either.
+  const spend = await websiteJobSpend({ ...input,
+    ceiling: input.extended ? { maximum_cost_usd: safetyLimitUsd } : ceiling });
   const after = spend.total_micros + micros(input.additionalCostUsd);
   const exceeded = after > Math.floor(ceiling.maximum_cost_usd * 1_000_000);
-  const safetyLimitUsd = websiteJobSafetyLimitUsd(ceiling);
   const pastSafetyLimit = after > Math.floor(safetyLimitUsd * 1_000_000);
   return { ceiling, spend, exceeded, safetyLimitUsd, pastSafetyLimit };
 }

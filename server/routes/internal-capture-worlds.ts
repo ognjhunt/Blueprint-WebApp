@@ -360,7 +360,7 @@ for (const operation of ["scene-sponsorship", "prepared-scene", "preparation-spe
         const navigation = isNavigationStrategy(request.task.strategy);
         const additional = navigation ? 0 : request.execution.max_total_spend_usd;
         const job = navigation && !extended ? null
-          : await checkWebsiteJobCeiling({ record: current ?? {}, captureId: req.params.captureId, requestId,
+          : await checkWebsiteJobCeiling({ record: current ?? {}, captureId: req.params.captureId, requestId, extended,
             reader: transactionJobLedgerReader(db!, transaction, requestId), additionalCostUsd: additional });
         if (!navigation && job?.exceeded && !extended) throw new Error("website_scene_preparation_budget_exhausted");
         if (extended && job?.pastSafetyLimit) {
