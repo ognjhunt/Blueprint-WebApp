@@ -12,7 +12,6 @@ import {
   incrementInboundRequestStats,
   readInboundRequestStats,
 } from "../utils/inboundRequestStats";
-import { createRequestReviewToken } from "../utils/request-review-auth";
 import {
   OPPORTUNITY_STATES,
   QUALIFICATION_STATES,
@@ -266,12 +265,6 @@ function normalizeWaitlistSubmission(
           : null,
     },
   };
-}
-
-function buildBuyerReviewUrl(requestId: string) {
-  const token = createRequestReviewToken(requestId);
-  const baseUrl = (process.env.APP_URL || "https://tryblueprint.io").replace(/\/+$/, "");
-  return `${baseUrl}/requests/${encodeURIComponent(requestId)}?access=${encodeURIComponent(token)}`;
 }
 
 function sanitizeCsvCell(value: unknown): string {
@@ -749,11 +742,6 @@ router.get("/", requireAdmin, async (req: Request, res: Response) => {
           owner: decrypted.owner,
           ops_automation: normalizeOpsAutomationEnvelope(decrypted.ops_automation),
           structured_intake: decrypted.structured_intake,
-          buyer_review_access: {
-            buyer_review_url: decrypted.buyer_review_access?.buyer_review_url || null,
-            token_issued_at: normalizeTimestamp(decrypted.buyer_review_access?.token_issued_at),
-            last_sent_at: normalizeTimestamp(decrypted.buyer_review_access?.last_sent_at),
-          },
           ops: decrypted.ops
             ? {
                 assigned_region_id: decrypted.ops.assigned_region_id || null,
@@ -1160,11 +1148,6 @@ router.get("/:requestId", requireAdmin, async (req: Request, res: Response) => {
       owner: decrypted.owner,
       ops_automation: normalizeOpsAutomationEnvelope(decrypted.ops_automation),
       structured_intake: decrypted.structured_intake,
-      buyer_review_access: {
-        buyer_review_url: decrypted.buyer_review_access?.buyer_review_url || null,
-        token_issued_at: normalizeTimestamp(decrypted.buyer_review_access?.token_issued_at),
-        last_sent_at: normalizeTimestamp(decrypted.buyer_review_access?.last_sent_at),
-      },
       ops: decrypted.ops
         ? {
             assigned_region_id: decrypted.ops.assigned_region_id || null,
@@ -1932,79 +1915,6 @@ router.post("/:requestId/buyer-outcomes", requireAdmin, async (req: Request, res
   } catch (error) {
     logger.error({ error, requestId: req.params.requestId }, "Error recording buyer outcome");
     return res.status(500).json({ error: "Failed to record buyer outcome" });
-  }
-});
-
-router.post("/:requestId/review-link", requireAdmin, async (req: Request, res: Response) => {
-  try {
-    if (!db) {
-      return res.status(500).json({ error: "Database not available" });
-    }
-
-    const { requestId } = req.params;
-    const docRef = db.collection("inboundRequests").doc(requestId);
-    const doc = await docRef.get();
-    if (!doc.exists) {
-      return res.status(404).json({ error: "Request not found" });
-    }
-
-    const current = (doc.data() as Record<string, unknown>) || {};
-    const previousData = normalizeDecryptedRequest(
-      (await decryptInboundRequestForAdmin(
-        doc.data() as InboundRequestStored,
-      )) as InboundRequest,
-    );
-    const currentOps =
-      current.ops && typeof current.ops === "object"
-        ? (current.ops as Record<string, unknown>)
-        : {};
-    const currentProofPath =
-      currentOps.proof_path && typeof currentOps.proof_path === "object"
-        ? (currentOps.proof_path as Record<string, unknown>)
-        : {};
-    const buyer_review_url = buildBuyerReviewUrl(requestId);
-    await docRef.update({
-      buyer_review_access: {
-        buyer_review_url,
-        token_issued_at: admin.firestore.FieldValue.serverTimestamp(),
-        last_sent_at: admin.firestore.FieldValue.serverTimestamp(),
-      },
-      ops: {
-        ...currentOps,
-        proof_path: {
-          ...currentProofPath,
-          hosted_review_ready_at:
-            currentProofPath.hosted_review_ready_at
-            ?? admin.firestore.FieldValue.serverTimestamp(),
-        },
-      },
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
-
-    if (previousData.request.buyerType === "robot_team") {
-      const user = res.locals.firebaseUser!;
-      await logGrowthEvent({
-        event: "hosted_review_ready",
-        source: "server:admin_leads_review_link",
-        properties: {
-          request_id: requestId,
-          city: previousData.context?.demandCity || null,
-          hosted_mode: "review_link",
-          review_path: "buyer_review_url",
-          buyer_segment: previousData.contact?.roleTitle || null,
-        },
-        attribution: buildDemandAttributionForEvent(previousData),
-        user: {
-          uid: user.uid || null,
-          email: user.email || null,
-        },
-      }).catch(() => null);
-    }
-
-    return res.json({ ok: true, buyer_review_url });
-  } catch (error) {
-    logger.error({ error, requestId: req.params.requestId }, "Error issuing buyer review link");
-    return res.status(500).json({ error: "Failed to issue buyer review link" });
   }
 });
 

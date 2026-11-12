@@ -1,7 +1,7 @@
 import { BareBig, BareButton, BareFine, BareGroup, BareLabel, BareLinks, BareScreen } from "@/components/bare/Bare";
 import { BareSteps } from "@/components/bare/BareForm";
 import { SEO } from "@/components/SEO";
-import { FOR_DEPLOYMENT_COMPANIES_LINK, HOME_LABEL, HOME_SEO_DESCRIPTION, HOME_SEO_TITLE, HOME_START_HELPER, HOME_TITLE, PUBLIC_LIMITS,
+import { FOR_DEPLOYMENT_COMPANIES_LINK, HOME_LABEL, HOME_SHARE_LINE, HOME_SEO_DESCRIPTION, HOME_SEO_TITLE, HOME_START_HELPER, HOME_TITLE, PUBLIC_LIMITS,
   START_JOB, STEP_PACKET, STEP_SEND, STEP_SHARE } from "@/lib/publicCopy";
 import { organizationJsonLd, webPageJsonLd, websiteJsonLd } from "@/lib/seoStructuredData";
 
@@ -19,7 +19,7 @@ export default function Home() {
           <BareScreen>
             <BareGroup>
               <BareLabel>{HOME_LABEL}</BareLabel>
-              <BareBig as="h1">{HOME_TITLE}</BareBig>
+              <BareBig as="h1" sub={HOME_SHARE_LINE}>{HOME_TITLE}</BareBig>
             </BareGroup>
             <BareGroup>
               <BareSteps id="how-it-works" label="How it works" steps={[

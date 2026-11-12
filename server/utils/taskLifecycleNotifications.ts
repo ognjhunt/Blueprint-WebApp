@@ -151,12 +151,11 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
     subject: "The simulation of your site is ready",
     body: (url) => `Your work area and its objects are in place. Nothing is needed from you.\n\nOpen your job:\n${url}`,
   },
+  // The one email when a site's summary becomes visible to approved deployment companies (frame of 2026-11-12), however
+  // it was shared: Share settings or "Share my job". Read again at dispatch: sent only while the summary is visible.
   listing_live: {
-    subject: "Your job card is now shared",
-    // The link below is the owner's job page, which carries the listing control.
-    // A site that came in by link alone may have no account, so the account
-    // workspace is not the way to hide it.
-    body: (url) => `Approved companies can now see the job card you approved, without your name. Your video, address and contacts stay private.\n\nTo stop sharing it, open your job and untick "Show this card in the job library". If the link has expired, the page sends you a fresh one.\n\nOpen your job:\n${url}`,
+    subject: "Your job summary is shared",
+    body: (url) => `Deployment companies we approve can now see a summary of your job. Your video, address and contacts stay private.\n\nOpen your job:\n${url}`,
   },
   screening_not_now: {
     subject: "An update on your Blueprint job",
@@ -899,9 +898,11 @@ function robotAccessQuestionDetail(params: { eventId?: string; robotAccessCounts
  * opened a job (a Pipeline sync, a published card) call this; it is a no-op
  * otherwise, and the outbox key keeps it to one email per job.
  */
-export async function notifyIfOpenForEvaluations(requestId: string): Promise<{ enqueued: boolean }> {
-  if (!(await openAndAwaitingEvaluations(requestId))) return { enqueued: false };
-  return enqueueTaskLifecycleNotification({ requestId, milestone: "awaiting_evaluations" });
+export async function notifyIfOpenForEvaluations(_requestId: string): Promise<{ enqueued: boolean }> {
+  // Frame of 2026-11-12: no company can request an evaluation any more, so "Your job is ready for evaluation" is never
+  // queued. A site whose summary becomes visible hears it once, by `listing_live`. Rows queued before this change are
+  // cancelled at dispatch (`TEAM_RUN_EVALUATION_NOTICES`), never sent.
+  return { enqueued: false };
 }
 
 /** True while the job is open to evaluation requests and no team has requested one. Read again at dispatch. */

@@ -57,6 +57,18 @@ export const minimalMarketingRedirects: Record<string, string> = {
   "/internal/design-system": "/",
 };
 
+/**
+ * Retired URLs whose old links carried a credential in the query string (the
+ * buyer review console's `?access=` token). Their redirect drops the query so a
+ * token never travels onto another page; every other redirect keeps it.
+ */
+export const queryDroppingRedirects: ReadonlySet<string> = new Set([
+  "/requests/:requestId",
+  "/requests/:requestId/evidence",
+  "/requests/:requestId/qualification",
+  "/requests/:requestId/preview",
+]);
+
 export const minimalPublicPaths = ["/", "/how-it-works", "/partners", "/beta", "/contact/site-operator", "/contact/robot-team", "/privacy", "/terms", "/refunds", "/privacy/previous", "/terms/previous"] as const;
 
 /**

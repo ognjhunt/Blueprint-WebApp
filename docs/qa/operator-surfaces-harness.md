@@ -23,19 +23,16 @@ Known shared Google Fonts stylesheet/font requests are fulfilled by the harness 
 
 ## Covered Surfaces
 
-- `/admin/company-metrics`
-- `/requests/op-qa-ready`
-- `/requests/op-qa-ready/evidence`
-- `/requests/op-qa-ready/qualification`
-- `/requests/op-qa-provider-blocked/preview`
 - `/admin/leads`
+
+The buyer review console (`/requests/*`) and the company metrics screen
+(`/admin/company-metrics`) were removed on 2026-11-12; their old URLs redirect.
 
 ## What It Proves
 
 - The covered private/internal routes render locally from fixture-backed API responses.
 - The admin routes can be reached with `VITE_BLUEPRINT_OPERATOR_QA_FAKE_AUTH=1`, a development-only fake operator identity.
-- RequestConsole states can show ready, evidence, qualification, and provider-blocked preview states without live provider calls.
-- AdminCompanyMetrics and AdminLeads can render their core operator panels without live credentials or money-gated systems.
+- AdminLeads can render its core operator panels without live credentials or money-gated systems.
 - Any unmocked `/api/*` request is treated as a boundary violation and fails the harness.
 - Non-local live service calls are blocked. Known static font requests are stubbed locally and reported separately from blocked endpoints.
 

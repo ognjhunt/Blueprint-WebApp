@@ -19,7 +19,7 @@ import {
   ALSO_INVOLVES_PREFIX, ALSO_INVOLVES_SUFFIX, JOB_FAMILY_LABELS, REASON_UNSIZED, SITE_ANSWER_NOTE, SITE_ANSWER_SCHEMA, sceneOutrankedNote,
   UNKNOWN_JOB_KIND, UNKNOWN_MULTI_STEP, UNKNOWN_SCENE_NOT_COVERED,
   type AnswerBasis, type AnswerCheck, type AnswerEvidence, type AnswerRobot, type AnswerVerdict, type JobFamily,
-  type SiteAnswer,
+  type JobSharing, type SiteAnswer,
 } from "../../client/src/lib/siteAnswer";
 import { REQUIREMENT_SOURCE_LABELS, ROBOT_FORM_COPY, type RequirementSource } from "../../client/src/data/robotFit";
 import { sameRobot } from "../../client/src/lib/robotNameMatch";
@@ -35,6 +35,7 @@ import { multiStepEvidence } from "./siteTaskScope";
 import { getMeasurements, type SiteTaskMeasurementRecord } from "./siteTaskMeasurements";
 import type { PublicRobotFit } from "./websitePreparationStatus";
 import { projectWebsiteCaptureRights } from "./websiteTaskContext";
+import { teamJobAccess } from "./teamJobAccess";
 
 /** The Pipeline's model table from the measured scene, as the status read projects it. */
 export type SceneRobotFit = Pick<PublicRobotFit, "models"> | null;
@@ -706,6 +707,18 @@ function jobCardListed(request: Record<string, any>): boolean {
   return isRecord(request.public_task_listing) && request.public_task_listing.enabled === true;
 }
 
+/**
+ * Where the job's summary stands with deployment companies: shared when the site turned its card on (on the start form,
+ * from Share settings or with "Share my job"), and visible only when the one predicate that decides what an approved
+ * company can see (`teamJobAccess`) says the card is listed. The date is when the site chose to share.
+ */
+export function jobSharingOf(request: Record<string, any>): JobSharing {
+  if (!jobCardListed(request)) return { state: "not_shared", sharedAtIso: null };
+  const listing = request.public_task_listing as Record<string, unknown>;
+  const sharedAtIso = introductionAt(request) ?? text(listing.approvedAtIso) ?? text(listing.wentLiveIso);
+  return { state: teamJobAccess(request).listed ? "visible" : "not_visible", sharedAtIso };
+}
+
 function coverageDone(request: Record<string, any>, inputs: RobotFitInputs): boolean {
   return Boolean(request.capture_coverage) || Boolean(videoEvidence(inputs)?.estimates);
 }
@@ -760,6 +773,7 @@ export function composeSiteAnswer(inputs: SiteAnswerInputs): SiteAnswer | null {
     checked: { models: catalog.models.length, makers: makers.size, specsRetrievedOn: catalog.retrieved_on },
     introductionRequestedAtIso: introductionAt(request),
     jobCardListed: jobCardListed(request),
+    sharing: jobSharingOf(request),
   };
   const basis = {
     facts: known.map(({ key, display, source, min, max }) => ({ key, display, source, min, max })),

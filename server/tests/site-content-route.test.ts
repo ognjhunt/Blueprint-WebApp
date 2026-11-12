@@ -59,10 +59,12 @@ describe("site-content route", () => {
       // The frame of 2026-11-12: free for sites, no price stated, a job packet whose summary deployment companies
       // see only with the site's permission, the video private, and the early trial labelled as a trial.
       expect(JSON.stringify(payload)).toContain("Free for sites. Nothing is charged today.");
-      expect(payload.summary).toContain("into a job packet that robot deployment companies can judge without a visit");
+      expect(payload.summary).toContain("Blueprint turns a site's video of one recurring job into a job packet.");
+      expect(payload.summary).not.toMatch(/judge|evaluate the packet|receive the packet/i);
       expect(payload.summary).toContain("a first look on paper (the robot most likely to fit, from published specifications and a cited track record)");
       expect(payload.summary).toContain("this early trial is not the site's answer and does not predict what a deployment company's robot would do");
-      expect(payload.summary).toContain("With the site's permission, Blueprint shares a summary of the job, without the site's name or address");
+      expect(payload.summary).toContain("deployment companies Blueprint approves by hand can see a summary of the job: the kind of job, a first look at which robots could fit, and the early trial's result where one exists");
+      expect(payload.summary).toContain("They never see the site's own sentence, name, address, video or the simulation");
       expect(payload.summary).toContain("the site's video stays private");
       expect(payload.summary).not.toMatch(/proves it|which did best|top AI robots|paper check/);
       expect(JSON.stringify(payload.pages)).not.toMatch(/\$\s?\d/);

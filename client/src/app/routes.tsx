@@ -1,4 +1,4 @@
-import { minimalMarketingRedirects } from "../data/minimalPublicSite";
+import { minimalMarketingRedirects, queryDroppingRedirects } from "../data/minimalPublicSite";
 import { lazy } from "react";
 import type { ComponentType, LazyExoticComponent } from "react";
 import { MarketingRedirect } from "../pages/MarketingRedirect";
@@ -209,7 +209,7 @@ const LegacyDocsRedirect = () => (
 
 export const appRoutes: AppRoute[] = [
   ...Object.entries(minimalMarketingRedirects).map(([path, to]): AppRoute => ({
-    path, layout: "public", component: () => <MarketingRedirect to={to} />,
+    path, layout: "public", component: () => <MarketingRedirect to={to} preserveQuery={!queryDroppingRedirects.has(path)} />,
   })),
   { path: "/", layout: "public", component: Home },
   { path: "/how-it-works", layout: "public", component: HowItWorks },

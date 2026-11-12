@@ -17,7 +17,7 @@ vi.mock("../logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.
 vi.mock("../utils/field-encryption", () => ({
   decryptFieldValue: vi.fn(async (value: string) => value.replace(/^encrypted:/, "")),
 }));
-const jobAccess = vi.hoisted(() => ({ evaluationAvailable: false }));
+const jobAccess = vi.hoisted(() => ({ evaluationAvailable: false, listed: true }));
 vi.mock("../utils/teamJobAccess", () => ({ teamJobAccess: () => jobAccess }));
 const send = vi.hoisted(() => vi.fn());
 vi.mock("../utils/email", () => ({ sendEmail: send }));
@@ -149,9 +149,11 @@ describe("listing notices describe the free beta", () => {
       captureUrl: "https://tryblueprint.io/capture-upload/owner-token", detail });
   };
 
-  it("tells a link-only site how to hide its card without an account", async () => {
+  // The frame of 2026-11-12: the one email when a summary becomes visible, true and promising nothing.
+  it("tells the site its summary is shared, and that its video stays private", async () => {
     const notice = await build("listing_live");
-    expect(notice.body).toContain('untick "Show this card in the job library"');
+    expect(notice.subject).toBe("Your job summary is shared");
+    expect(notice.body.startsWith("Deployment companies we approve can now see a summary of your job. Your video, address and contacts stay private.\n\nOpen your job:\n")).toBe(true);
     expect(notice.body).toContain("https://tryblueprint.io/capture-upload/owner-token");
     expect(notice.body).not.toMatch(/Blueprint account|\/app\/tasks/);
   });
@@ -184,21 +186,15 @@ describe("a waiting job hears what it is waiting on", () => {
     ...(succeeded === null ? {} : { result: { scoring: scored(200), episodeOutcomes: syntheticEpisodeOutcomes(200, succeeded),
       observed: { episodesRun: 200, episodesSucceeded: succeeded, medianCycleSeconds: null } } }) });
 
-  it("tells the site once that its job is ready for evaluation, only while true and before any run", async () => {
+  // The frame of 2026-11-12: no company can request an evaluation, so "Your job is ready for evaluation" is never queued,
+  // whatever the job's access says; the site hears its summary is shared by `listing_live` alone.
+  it("never queues the ready-for-evaluation email", async () => {
     const { notifyIfOpenForEvaluations } = await import("../utils/taskLifecycleNotifications");
-    jobAccess.evaluationAvailable = false;
-    expect((await notifyIfOpenForEvaluations("req-1")).enqueued).toBe(false);
-    jobAccess.evaluationAvailable = true;
-    expect((await notifyIfOpenForEvaluations("req-1")).enqueued).toBe(true);
-    expect((await notifyIfOpenForEvaluations("req-1")).enqueued).toBe(false);
-    const row = sharedFakeFirestoreState.docs.get("captureOutbox/req-1:awaiting_evaluations") as Record<string, string>;
-    expect(row.subject).toBe("Your job is ready for evaluation");
-    // Blueprint runs the candidates; partners can ask to be evaluated too (owner, 2026-10-26).
-    expect(row.body).toMatch(/^Your job is ready for evaluation in a simplified simulation of your task, informed by your footage\. Nothing is needed from you\./);
-    expect(row.body).not.toMatch(/robot teams?/i);
-    sharedFakeFirestoreState.docs.delete("captureOutbox/req-1:awaiting_evaluations");
-    run("run_q", "requested", null);
-    expect((await notifyIfOpenForEvaluations("req-1")).enqueued).toBe(false);
+    for (const available of [false, true]) {
+      jobAccess.evaluationAvailable = available;
+      expect((await notifyIfOpenForEvaluations("req-1")).enqueued).toBe(false);
+    }
+    expect(sharedFakeFirestoreState.docs.has("captureOutbox/req-1:awaiting_evaluations")).toBe(false);
   });
 
   it("tells the site once its scene is ready and its first test started, only while true", async () => {
@@ -771,7 +767,12 @@ describe("the site's answer is emailed once, when it first settles", () => {
       for (const kind of ["results_ready", "run_no_result", "awaiting_evaluations", "no_team_passed", "no_qualified_evaluation"] as const)
         expect(await taskLifecycleNotificationIsCurrent({ requestId: "req-1", kind }, transaction)).toBe(false);
       expect(await taskLifecycleNotificationIsCurrent({ requestId: "req-1", kind: "scene_ready" }, transaction)).toBe(true);
+      // "Can now see a summary" goes out only while the summary is visible (`teamJobAccess(...).listed`).
+      jobAccess.listed = true;
       expect(await taskLifecycleNotificationIsCurrent({ requestId: "req-1", kind: "listing_live" }, transaction)).toBe(true);
+      jobAccess.listed = false;
+      expect(await taskLifecycleNotificationIsCurrent({ requestId: "req-1", kind: "listing_live" }, transaction)).toBe(false);
+      jobAccess.listed = true;
     });
     await enqueueTaskLifecycleNotification({ requestId: "req-1", milestone: "scene_ready" });
     await deliverOutbox();

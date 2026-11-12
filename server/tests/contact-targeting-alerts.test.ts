@@ -18,13 +18,13 @@ vi.mock('../utils/taskLifecycleNotificationAuthority', () => ({ taskLifecycleNot
 import { buildUpdatePreferences } from '../utils/updatePreferences';
 import { accessRecordId, recordAccessApplication, inviteRobotTeam } from '../utils/robotTeamEarlyAccess';
 import { categoryFacts, matchJob, matchClauses } from '../utils/contactTargeting';
-import { newJobFanoutIntent, resumeNewJobFanout, jobAlertIsCurrent } from '../utils/newJobAlerts';
+import { jobAlertIsCurrent } from '../utils/newJobAlerts';
 import { deliverOutbox } from '../utils/captureOutbox';
 const event = '2026-10-08T00:00:00.000Z';
 const preference = (extra = {}) => buildUpdatePreferences({ newsletter: false, newJobAlerts: true, interests: {}, declaredCategories: {}, requirements: {}, ...extra }, 'settings');
 function job() {
   state.docs.set('inboundRequests/job', { requestId: 'job', request: { buyerType: 'site_operator' },
-    public_task_listing: { ...listedTaskCard(), wentLiveIso: event }, newJobAlertFanout: newJobFanoutIntent(event) });
+    public_task_listing: { ...listedTaskCard(), wentLiveIso: event } });
 }
 function contact(email: string, preferences: any = preference()) {
   state.docs.set(`robotTeamAccess/${accessRecordId(email)}`, { name: 'Ada', email, status: 'approved',
@@ -52,17 +52,8 @@ describe('exact targeting with provenance', () => {
 });
 describe('existing contact/outbox safety', () => {
   // The frame of 2026-11-12: every approach to an outside company needs the owner's go-ahead first, so the automatic
-  // "New site job" email no longer sends. These replace the tests of who it was queued for (opted-in, relevant,
-  // unsuppressed, paged, rechecked at dispatch): now it is queued for no one, and a row queued before the stop is
+  // "New site job" email no longer sends, and the fan-out that queued it is gone. A row queued before the stop is
   // cancelled at dispatch without a send.
-  it('queues the automatic new-job email for no one, however relevant, opted in and approved the contact is', async () => {
-    contact('yes@example.com', preference({ interests: { regions: ['US'], industries: ['warehouse'] } }));
-    for (let i = 0; i < 120; i++) contact(`team${i}@example.com`);
-    for (let i = 0; i < 5; i++) await resumeNewJobFanout(5, 50);
-    expect(alerts()).toHaveLength(0);
-    expect((state.docs.get('inboundRequests/job')!.newJobAlertFanout as any).status).toBe('complete');
-    await deliverOutbox(); expect(send).not.toHaveBeenCalled();
-  });
   it('cancels a new-job email queued before the stop, at dispatch, without sending it', async () => {
     const email = 'ada@example.com'; contact(email);
     state.docs.set('captureOutbox/legacy-alert', { idempotencyKey: 'legacy-alert', requestId: 'job', kind: 'robot_team_new_task', to: email,

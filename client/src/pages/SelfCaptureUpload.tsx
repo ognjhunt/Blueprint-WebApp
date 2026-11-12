@@ -12,8 +12,7 @@ import { RobotFitHold, isRobotFitHold, type RobotFitHoldView } from "@/component
 import { SuccessThresholds, isSuccessThresholds, type SuccessThresholdsView } from "@/components/site/SuccessThresholds";
 import { RobotAccess, isRobotAccess, type RobotAccessView } from "@/components/site/RobotAccess";
 import { NextTaskUpdate } from "@/components/site/NextTaskUpdate";
-import { SiteAnswer, SiteAnswerDetail, SiteAnswerDetails, EDIT_JOB_LABEL, NEW_VIDEO_LABEL, VIEW_SIMULATION_LABEL, type CardState, type DetailScreen } from "@/components/site/SiteAnswer";
-import { isJobCardAnswerStatementVersion, jobCardStatementSharesTestResults } from "@/lib/jobCardAnswerConsent";
+import { SiteAnswer, SiteAnswerDetail, SiteAnswerDetails, EDIT_JOB_LABEL, NEW_VIDEO_LABEL, VIEW_SIMULATION_LABEL, type DetailScreen } from "@/components/site/SiteAnswer";
 import { outlookHasAnswer, type JobOutlook } from "@/lib/jobOutlook";
 import { BareBack, BareLinks, BareMenu, BareNotice, BareScreen } from "@/components/bare/Bare";
 import { REASON_UNSIZED, isSiteAnswer, type SiteAnswer as SiteAnswerView } from "@/lib/siteAnswer";
@@ -605,24 +604,6 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
   const recordOnThisPage = !saved && link.status === "valid" && status?.decision === "record" && !status.outcome;
   // A withdrawn recording takes no new footage, edits or sharing: those controls are not offered once the withdrawal is known.
   const [withdrawn, setWithdrawn] = useState(false);
-  // Whether the job card carries the answer now: read from the owner's listing once the site has asked, and again
-  // whenever the page comes back to the answer (Share settings may have re-saved the card under the older box).
-  const [card, setCard] = useState<CardState>(null);
-  const askedAt = answer?.introductionRequestedAtIso ?? null;
-  useEffect(() => {
-    if (!askedAt || scope !== "owner" || view !== "main") return;
-    let alive = true;
-    void fetch(`/api/task-listings/owner/${encodeURIComponent(token)}`, { cache: "no-store" })
-      .then(response => (response.ok ? response.json() : null))
-      .then((data: { listing?: { enabled?: boolean; consentVersion?: unknown } | null } | null) => {
-        if (!alive || !data || !("listing" in data)) return;
-        const listing = data.listing;
-        // v3 shares later test results; v1 and v2 share the paper check only; the older box shares no answer.
-        setCard(listing?.enabled !== true ? "off" : jobCardStatementSharesTestResults(listing.consentVersion) ? "with_answer"
-          : isJobCardAnswerStatementVersion(listing.consentVersion) ? "with_paper_answer" : "without_answer");
-      }).catch(() => { /* The stored answer's own flag stands. */ });
-    return () => { alive = false; };
-  }, [askedAt, scope, token, view, statusRefresh]);
 
   // One current update. Saved jobs show it before results; a fresh capture
   // keeps the recorder first. Optional corrections do not become next steps.
@@ -767,7 +748,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
   const cameraLeads = !existingVideoOnly && !saved;
   const sharing = link.status === "valid" && scope === "owner" && !withdrawn ? <PublicTaskListing token={token} jobRevision={JSON.stringify(brief)}
     summaryLabel={answer || !saved ? "Share settings" : undefined}
-    publishWaits={!(status?.outlook && outlookHasAnswer(status.outlook))} /> : null;
+    publishWaits={!(status?.outlook && outlookHasAnswer(status.outlook))} waitPhase={status?.outlook?.phase ?? null} /> : null;
   const taskStatementForm = scope === "owner" && brief && taskStatementNeeded && !withdrawn ? (
                 <form aria-label="Name the job" style={{ margin: "16px 0" }} onSubmit={(event) => {
                   event.preventDefault();
@@ -870,7 +851,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
       {answer && <SiteAnswer token={token} answer={answer} proof={proof} onIntroductionRequested={() => setStatusRefresh(value => value + 1)}
         onEditJob={brief && scope === "owner" && !withdrawn ? openBriefEditor : undefined}
         onUpdateVideo={scope === "owner" && link.status === "valid" && !withdrawn ? () => void updateVideo() : undefined}
-        quietAction={!quietCard} onShowDetails={() => openView("details")} onShowSettings={settingsOpen ? () => openView("settings") : undefined} card={card}
+        quietAction={!quietCard} onShowDetails={() => openView("details")} onShowSettings={settingsOpen ? () => openView("settings") : undefined}
         outlook={status?.outlook ?? null} sceneViewUrl={status?.sceneViewUrl ?? null}
         successRule={brief?.successCriteria?.unknown ? null : brief?.successCriteria?.successDefinition ?? null} />}
       {answer && placeCaveat}

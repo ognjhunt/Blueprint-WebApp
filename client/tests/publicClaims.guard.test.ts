@@ -71,7 +71,21 @@ const RULES: Rule[] = [
   // 2026-11-12, so every form is caught.
   { name: "a promise of which one did best", test: sentence => /\bwhich\b(?:\s+[^\s.;:]+){0,4}\s+did best\b/i.test(sentence) },
   { name: "cycle time in a sentence about the simulation", test: sentence => /\bcycle[- ]?times?\b/i.test(sentence) && /simulat/i.test(sentence) },
+  // The frame of 2026-11-12 (WEBSITE_DECISIONS.md): the old frame's words never reach a site or a company again.
+  { name: "the old frame's \"top AI robots\"", test: sentence => /\btop AI robots?\b/i.test(sentence) },
+  { name: "the old frame's \"AI robot\"", test: sentence => /\bAI robots?\b/i.test(sentence) },
+  { name: "the old frame's \"paper check\"", test: sentence => /\bpaper checks?\b/i.test(sentence) },
+  // Allowed only in the recorded statement, word for word (by path, in `allowedIn` below).
+  { name: "the old frame's \"your answer\"", test: sentence => /\byour answer\b/i.test(sentence) },
+  { name: "deployment companies judging the job", test: sentence => /deployment compan\w*[^.]{0,60}\bjudg|\bjudg\w*[^.]{0,60}deployment compan/i.test(sentence) },
+  // No price anywhere a site or a company reads (the legal pages are not scanned here).
+  { name: "a price", test: sentence => /[$€£]\s?\d/.test(sentence) },
 ];
+
+/** A rule a file may break because the file holds a recorded statement that must stay word for word. */
+const ALLOWED_IN: Record<string, ReadonlySet<string>> = {
+  "client/src/lib/jobCardAnswerConsent.ts": new Set(["the old frame's \"your answer\""]),
+};
 
 const ENTITIES: Record<string, string> = { apos: "'", quot: "\"", amp: "&", nbsp: " ", ldquo: "“", rdquo: "”", lsquo: "‘", rsquo: "’", rarr: "→", mdash: "—", ndash: "–" };
 const decode = (text: string) => text.replace(/&(\w+);/g, (whole, name: string) => ENTITIES[name] ?? whole);
@@ -100,7 +114,10 @@ function visibleTextOf(file: string, source: string): string[] {
     else if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
       // A property key is a name, not a sentence.
       const parent = node.parent;
-      if (!(parent && (ts.isPropertyAssignment(parent) || ts.isPropertyDeclaration(parent)) && parent.name === node)) push(node.text);
+      // A regular expression's replacement template (`[/your video/g, "the site's $1"]`) is code, not a sentence.
+      const replacement = parent && ts.isArrayLiteralExpression(parent) && parent.elements.length === 2
+        && ts.isRegularExpressionLiteral(parent.elements[0]) && parent.elements[1] === node;
+      if (!replacement && !(parent && (ts.isPropertyAssignment(parent) || ts.isPropertyDeclaration(parent)) && parent.name === node)) push(node.text);
     } else if (ts.isTemplateExpression(node)) {
       push([node.head.text, ...node.templateSpans.map(span => span.literal.text)].join(" … "));
     }
@@ -116,7 +133,7 @@ function publicClaimFindings(read: (file: string) => string): string[] {
   for (const file of FILES) {
     for (const text of visibleTextOf(file, read(file))) {
       for (const sentence of text.split(/(?<=[.!?])\s+/)) {
-        for (const rule of RULES) if (rule.test(sentence)) findings.push(`${file}: ${rule.name}: “${sentence}”`);
+        for (const rule of RULES) if (rule.test(sentence) && !ALLOWED_IN[file]?.has(rule.name)) findings.push(`${file}: ${rule.name}: “${sentence}”`);
       }
     }
   }
@@ -126,6 +143,13 @@ function publicClaimFindings(read: (file: string) => string): string[] {
 describe("public words claim only what the code does", () => {
   it("no site-facing sentence says prove, proof, guarantee, an unnegated certify, or cycle time about the simulation", () => {
     expect(publicClaimFindings(file => fs.readFileSync(path.join(ROOT, file), "utf8"))).toEqual([]);
+  });
+
+  it("lets the recorded statement keep its words, and nothing else", () => {
+    const statement = "export const S = \"Shares a summary of your job and your answer, including later test results.\";";
+    expect(publicClaimFindings(file => (file === "client/src/lib/jobCardAnswerConsent.ts" ? statement : ""))).toEqual([]);
+    expect(publicClaimFindings(file => (file === FILES[0] ? statement : "")).map(finding => finding.split(": ")[1]))
+      .toEqual(["the old frame's \"your answer\""]);
   });
 
   it("reads only what a reader sees, and catches each banned claim", () => {
@@ -145,11 +169,20 @@ describe("public words claim only what the code does", () => {
       "export const H = \"In a simulation of your site, π0.5, an AI control policy from Physical Intelligence, did best: it completed the job in 9 of 10 tries.\";",
       // The bare "which did best" was allowed for the 2026-11-11 framing only; since 2026-11-12 it is a finding too.
       "export const I = \"We test the top robots on your job, and show you which did best.\";",
+      // The reviewer's planted phrases (2026-11-12), and one of each new ban.
+      "export const J = \"We test the top AI robots on your job.\";",
+      "export const K = \"Your answer is ready: the paper check.\";",
+      "export const L = \"A job packet robot deployment companies can judge.\";",
+      "export const M = \"Each job costs $1,000 to evaluate.\";",
+      "const swap: Array<[RegExp, string]> = [[/your (video)/g, \"the site's $1\"]];",
     ].join("\n");
     const findings = publicClaimFindings(file => (file === FILES[0] ? sample : ""));
     expect(findings.map(finding => finding.split(": ")[1])).toEqual([
       "prove, proves, proven or proof", "guarantee", "certif… outside a negation",
       "cycle time in a sentence about the simulation", "prove, proves, proven or proof", "a promise of which one did best",
-      "a promise of which one did best"]);
+      "a promise of which one did best",
+      "the old frame's \"top AI robots\"", "the old frame's \"AI robot\"",
+      "the old frame's \"paper check\"", "the old frame's \"your answer\"",
+      "deployment companies judging the job", "a price"]);
   });
 });

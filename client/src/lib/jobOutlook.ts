@@ -59,3 +59,13 @@ export const OUTLOOK_HOLDS: ReadonlySet<JobOutlookReason> = new Set(["run_held",
 /** Whether the phase lets the site share its job: a trial result, the first look after an ending, or another kind. */
 export const outlookHasAnswer = (outlook: Pick<JobOutlook, "phase">) =>
   outlook.phase === "result" || outlook.phase === "no_test" || outlook.phase === "cannot_match";
+
+/** Why sharing waits, by the job's phase: the owner closed the job, the job waits for its sentence, or the packet is being built. */
+export type ShareRefusalReason = "job_closed" | "needs_job_sentence" | "packet_not_ready";
+export const SHARE_REFUSAL_SENTENCES: Readonly<Record<ShareRefusalReason, string>> = {
+  job_closed: "This job is closed, so it cannot be shared.",
+  needs_job_sentence: "Tell us what the job is first. Then you can share it.",
+  packet_not_ready: "You can share your job once its job packet is ready.",
+};
+export const shareRefusalReason = (phase: string | null | undefined): ShareRefusalReason =>
+  phase === "ended_by_site" ? "job_closed" : phase === "waiting_on_site" ? "needs_job_sentence" : "packet_not_ready";

@@ -251,7 +251,7 @@ scene-configuration run rather than new simulator code:
 | 11 | `replacement_native_import_qualification` and `native_task_scene_assembly` with frame registration |
 | 12 | stage-3 physics bounds, physical property review, and the `bounded_physics` policy-run cells |
 | 13 | native import driver, native task execution admission, ADP-009D hold (negative) and scripted differential-IK (positive) controls |
-| 14 | `publish_configured_scene_revision` → WebApp configured-scene offering, thumbnail, `/app/packs/:launchId/evaluate` |
+| 14 | `publish_configured_scene_revision` → WebApp configured-scene offering and thumbnail (the `/app/packs/:launchId/evaluate` page was removed on 2026-11-12) |
 
 No MuJoCo harness is introduced. Local CPU smoke remains non-proof by doctrine.
 

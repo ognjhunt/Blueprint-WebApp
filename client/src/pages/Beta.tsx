@@ -37,7 +37,7 @@ export default function Beta() {
           ]} />
           <BareRows title="Your video" rows={[
             { key: "private", label: "Your video", value: "It stays private. Companies see a summary of your job, without your name or address." },
-            { key: "sharing", label: "Sharing", value: "Only if you press the button on your job page." },
+            { key: "sharing", label: "Sharing", value: "Only if you choose to: on the start form, or with the button on your job page." },
             { key: "stop", label: "Stopping", value: "You can stop us using your video at any time, from your job page." },
           ]} />
           <BareRows id="who-we-are" title="Who we are" rows={[

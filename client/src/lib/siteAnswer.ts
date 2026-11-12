@@ -239,11 +239,20 @@ export interface SiteAnswer {
   note: string;
   checked: { models: number; makers: number; specsRetrievedOn: string };
   introductionRequestedAtIso: string | null;
-  /** Whether the job card is visible to approved deployment companies, as stored. */
+  /** Whether the job card is switched on, as stored (it may still be hidden: see `sharing`). */
   jobCardListed: boolean;
+  /**
+   * Where the job's summary stands with deployment companies, decided on the server by the same predicate that decides
+   * what a company can see (`teamJobAccess`): not shared; shared and visible to approved companies; or shared but not
+   * visible right now (paused by Blueprint, or a rights hold). A site shares on the start form or from its job page.
+   */
+  sharing: JobSharing;
   /** sha256 of the inputs the answer was composed from. */
   basisDigest: string;
 }
+
+export type JobSharingState = "not_shared" | "visible" | "not_visible";
+export interface JobSharing { state: JobSharingState; sharedAtIso: string | null }
 
 const isString = (value: unknown): value is string => typeof value === "string";
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -256,5 +265,6 @@ export function isSiteAnswer(value: unknown): value is SiteAnswer {
     && (value.state === "reading" || value.state === "ready" || value.state === "cannot_assess")
     && isRecord(value.job) && Array.isArray(value.facts) && Array.isArray(value.alsoFit)
     && Array.isArray(value.ruledOut) && Array.isArray(value.unknowns)
-    && isRecord(value.confidence) && isRecord(value.nextStep) && isRecord(value.checked);
+    && isRecord(value.confidence) && isRecord(value.nextStep) && isRecord(value.checked)
+    && isRecord(value.sharing) && (value.sharing.state === "not_shared" || value.sharing.state === "visible" || value.sharing.state === "not_visible");
 }

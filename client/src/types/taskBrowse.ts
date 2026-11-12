@@ -103,8 +103,8 @@ export interface TeamEvaluationTerms {
     parameterBounds: Record<string, [number, number]> };
   policyInterfaces: Array<{ policyInterfaceId: string; robot: "droid_franka" | "team_declared"; summary: string }>;
 }
-export const taskStageLabels = { capture: "Being captured", preparing: "Scene in preparation", ready: "Ready to evaluate" };
-export const opportunityLabels = { open: "Open to a pilot", past: "Past opportunity", not_seeking: "Evaluation only" };
+export const taskStageLabels = { capture: "Video received", preparing: "Simulation being built", ready: "Simulation built" };
+export const opportunityLabels = { open: "Open", past: "Past", not_seeking: "Not looking for a company yet" };
 
 /** Conservative, non-identifying text only. Never publish arbitrary intake prose. */
 export function anonymizedOpportunityDraft(description: string): TaskListingDetails {

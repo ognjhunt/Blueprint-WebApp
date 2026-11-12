@@ -488,34 +488,6 @@ export default function AdminLeads() {
     },
   });
 
-  const reviewLinkMutation = useMutation({
-    mutationFn: async (requestId: string) => {
-      const response = await fetch(`/api/admin/leads/${requestId}/review-link`, {
-        method: "POST",
-        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
-      });
-      if (!response.ok) throw new Error("Failed to issue review link");
-      return response.json() as Promise<{ buyer_review_url: string }>;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-submission-detail"] });
-      if (!selectedLead) {
-        return;
-      }
-
-      const demandAttribution = getDemandAttributionFromContext(selectedLead.context);
-      analyticsEvents.proofPathStageUpdated({
-        proofPathStage: "hosted_review_ready",
-        action: "mark",
-        eventOrigin: "admin_review_link",
-        buyerType: selectedLead.request.buyerType,
-        requestedLaneCount: selectedLead.request.requestedLanes.length,
-        demandAttribution: hasDemandAttribution(demandAttribution)
-          ? demandAttribution
-          : undefined,
-      });
-    },
-  });
   const runWaitlistAutomationMutation = useMutation({
     mutationFn: async ({
       submissionId,
@@ -1259,24 +1231,6 @@ export default function AdminLeads() {
                 </div>
 
                 <div className="flex flex-wrap gap-3">
-                  {selectedLead.buyer_review_access?.buyer_review_url ? (
-                    <a
-                      href={selectedLead.buyer_review_access.buyer_review_url}
-                      className="runway-cta-ghost min-h-0 px-4 py-2 text-sm"
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      Buyer review
-                      <ArrowUpRight className="ml-2 h-4 w-4" />
-                    </a>
-                  ) : null}
-                  <button
-                    type="button"
-                    onClick={() => reviewLinkMutation.mutate(selectedLead.requestId)}
-                    className="runway-cta-ghost min-h-0 px-4 py-2 text-sm"
-                  >
-                    Issue review link
-                  </button>
                   <button
                     type="button"
                     onClick={() => triggerPreviewMutation.mutate(selectedLead.requestId)}

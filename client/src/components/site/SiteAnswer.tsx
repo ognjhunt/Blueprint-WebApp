@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { withCsrfHeader } from "@/lib/csrf";
 import { JOB_CARD_ANSWER_STATEMENT, JOB_CARD_ANSWER_STATEMENT_VERSION } from "@/lib/jobCardAnswerConsent";
-import { outlookHasAnswer, type JobOutlook, type JobPhase } from "@/lib/jobOutlook";
+import { SHARE_REFUSAL_SENTENCES, outlookHasAnswer, type JobOutlook, type JobPhase, type ShareRefusalReason } from "@/lib/jobOutlook";
 import { GAP_COULD_BE_CHANCE, GAP_UNLIKELY_CHANCE, optionParts, testSubLine, type SimulationOption, type SimulationProof as SimulationProofView } from "@/lib/simulationProof";
 import { PLAIN_SETUP_CAVEAT, SimulationTestRows, TRIAL_LINE, TrustRows, setupCaveatShown, testNotRunLine, testResultOf, type TestResult } from "./SimulationProof";
 import {
@@ -11,7 +11,7 @@ import {
 import {
   ALSO_INVOLVES_PREFIX, FIRST_LOOK_SOURCE, REASON_UNSIZED, LIMITS_JOB_PAGE, SURENESS_STEPS, TIGHT_FIT_SENTENCE, UNKNOWN_JOB_KIND, UNKNOWN_MULTI_STEP,
   firstLookSentence, isScopeNote,
-  type AnswerBasis, type AnswerCheck, type AnswerConfidenceLevel, type AnswerEvidence, type AnswerRobot, type SiteAnswer as SiteAnswerView,
+  type AnswerBasis, type AnswerCheck, type AnswerConfidenceLevel, type AnswerEvidence, type AnswerRobot, type JobSharing, type SiteAnswer as SiteAnswerView,
 } from "@/lib/siteAnswer";
 
 /*
@@ -27,26 +27,18 @@ export const SHARE_QUESTION = "May we share a summary of your job with deploymen
 /** Rendered from the statement the introduction route records, so the two never drift. */
 export const FIND_COMPANY_CONSENT = JOB_CARD_ANSWER_STATEMENT;
 const INTRODUCTION_FAILED = "We could not send your request just now. Try again shortly.";
-/** Said only when the response or the stored card says the summary is listed (visible to approved deployment companies; nobody is emailed). */
-export const sharedOn = (date: string) => `Shared on ${date}. Deployment companies we approve can see a summary of your job. Nothing more is needed from you.`;
-/** The site asked, but its summary is not listed: said as a fact, with no promise. */
-const askedUnlisted = (date: string) => `You asked on ${date} to share a summary of your job.`;
-/** The card is listed, but under the older sharing box, which does not share the first look: said so, and the button is back. */
-export const SHARED_WITHOUT_ANSWER = "Your shared summary leaves out the first look. Press the button to add it.";
-/** Shared under an older sentence (v1 or v2), which shares the first look only, while an early trial result exists. */
-export const SHARED_PAPER_ONLY = "Your shared summary shows the first look only. Press the button to add our early trial's result.";
+/** Shared, and the one predicate that decides what an approved company can see (`teamJobAccess`) says it is listed. */
+export const sharedOn = (date: string | null) =>
+  `${date ? `Shared on ${date}.` : "Shared."} Deployment companies we approve can see a summary of your job. Nothing more is needed from you.`;
+/** Shared, but not visible to companies right now: paused by Blueprint, or a rights hold. */
+export const sharedNotVisible = (date: string | null) =>
+  `${date ? `You shared a summary of your job on ${date}.` : "You shared a summary of your job."} It is not visible to companies right now.`;
 /** The job packet is still being built (the video is being read, the simulation is being built or the trial runs). */
 export const PACKET_BUILDING = "We're building your job packet. Nothing has been shared.";
 /** No share is offered and none was made: true for every other state. */
 export const NOTHING_SHARED = "Nothing has been shared.";
-/**
- * Where the job card stands: shared with the answer under v3 (later trial results included), shared under v1 or v2
- * (the first look only), shared without it, or off. Null until it is read; the stored answer's `jobCardListed` then
- * decides.
- */
-export type CardState = "with_answer" | "with_paper_answer" | "without_answer" | "off" | null;
 export const READING_LINE = "We're watching your video.";
-export const READING_HELPER = "We'll email you when it's ready.";
+export const READING_HELPER = "Your job page shows it when it is ready.";
 export const EDIT_JOB_LABEL = "Change my job description";
 export const NEW_VIDEO_LABEL = "Send a new video";
 /** The reader's "we could not tell the kind of job" line, in plain words; said whenever the server says it. */
@@ -154,24 +146,19 @@ function Section({ id, title, children }: { id: string; title: string; children:
 }
 
 /**
- * Section 1: where the job stands with deployment companies. One button when sharing is offered (one click is the
- * site's explicit choice to share what the line under it says); once asked, it says so instead. When the page has a
- * step the site must take first, the button stays, quiet. Otherwise one true sentence: the packet is being built, or
- * nothing has been shared.
+ * Section 1: where the job stands with deployment companies, as the server decided it (`answer.sharing`, from the
+ * predicate that decides what a company can see). Shared and visible, or shared but hidden right now, says so. Not
+ * shared: the question and one button when sharing is allowed (one click is the site's explicit choice to share what
+ * the line under it says), else one true sentence. When the page has a step the site must take first, the button
+ * stays, quiet.
  */
-function Companies({ token, answer, onRequested, quiet, card, testResult, offer, building }: { token: string; answer: SiteAnswerView;
-  onRequested?: () => void; quiet: boolean; card: CardState; testResult: boolean; offer: boolean; building: boolean }) {
+function Companies({ token, answer, onRequested, quiet, offer, building }: { token: string; answer: SiteAnswerView;
+  onRequested?: () => void; quiet: boolean; offer: boolean; building: boolean }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [requested, setRequested] = useState<{ at: string; listed: boolean } | null>(null);
-  const asked = requested?.at ?? answer.introductionRequestedAtIso;
-  // This page's own press is the latest word; until then, the owner's listing as read, then the stored card.
-  const read: Exclude<CardState, null> = requested ? (requested.listed ? "with_answer" : "off")
-    : card ?? (answer.jobCardListed === true ? "with_answer" : "off");
-  // Shared under an older sentence: it shows the first look, which is all there is to share until a trial result exists.
-  const state = offer ? (read === "with_paper_answer" ? (testResult ? "paper_only" : "with_answer") : read)
-    // Where no share is offered, any listed card counts as shared.
-    : read === "off" ? "off" : "with_answer";
+  // This page's own press is the latest word, as the route read it back; until then, the server's state.
+  const [pressed, setPressed] = useState<JobSharing | null>(null);
+  const sharing = pressed ?? answer.sharing ?? { state: "not_shared" as const, sharedAtIso: null };
   async function ask() {
     if (busy) return;
     setBusy(true); setError("");
@@ -181,19 +168,25 @@ function Companies({ token, answer, onRequested, quiet, card, testResult, offer,
         body: JSON.stringify({ statementVersion: JOB_CARD_ANSWER_STATEMENT_VERSION }),
       });
       const result = await response.json().catch(() => null);
-      // A 409 says why in the server's words (for example, the wording on the page changed); the button stays.
-      if (response.status === 409 && typeof result?.error === "string") { setError(result.error); return; }
+      // A 409 says why: the page words a known reason itself, else it shows the server's sentence; the button stays.
+      if (response.status === 409 && typeof result?.error === "string") {
+        setError(result.reason in SHARE_REFUSAL_SENTENCES ? SHARE_REFUSAL_SENTENCES[result.reason as ShareRefusalReason] : result.error);
+        return;
+      }
       if (!response.ok || result?.ok !== true) throw new Error(INTRODUCTION_FAILED);
-      setRequested({ at: typeof result.requestedAtIso === "string" ? result.requestedAtIso : new Date().toISOString(), listed: result.listed === true });
+      const after = result.sharing;
+      if (after && (after.state === "visible" || after.state === "not_visible")) setPressed({ state: after.state,
+        sharedAtIso: typeof after.sharedAtIso === "string" ? after.sharedAtIso : null });
+      else setError(INTRODUCTION_FAILED);
       onRequested?.();
     } catch { setError(INTRODUCTION_FAILED); }
     finally { setBusy(false); }
   }
+  const date = sharing.sharedAtIso ? dateInWords(sharing.sharedAtIso) : null;
   let body: ReactNode;
-  if (asked && state !== "without_answer" && state !== "paper_only")
-    body = <BareGroup><BareDone>{state === "with_answer" ? sharedOn(dateInWords(asked)) : askedUnlisted(dateInWords(asked))}</BareDone></BareGroup>;
+  if (sharing.state === "visible") body = <BareGroup><BareDone>{sharedOn(date)}</BareDone></BareGroup>;
+  else if (sharing.state === "not_visible") body = <BareGroup><BareNotice role="status">{sharedNotVisible(date)}</BareNotice></BareGroup>;
   else if (offer) body = <BareGroup>
-    {asked && <BareNotice role="status">{state === "paper_only" ? SHARED_PAPER_ONLY : SHARED_WITHOUT_ANSWER}</BareNotice>}
     <BareLead>{SHARE_QUESTION}</BareLead>
     <BareButton onClick={() => void ask()} disabled={busy} quiet={quiet} helper={FIND_COMPANY_CONSENT}>{busy ? "Sending…" : FIND_COMPANY_LABEL}</BareButton>
     {error && <p role="alert">{error}</p>}
@@ -212,8 +205,6 @@ export interface SiteAnswerProps {
   quietAction?: boolean;
   onShowDetails?: () => void;
   onShowSettings?: () => void;
-  /** Where the job card stands, from the owner's listing; null until read. */
-  card?: CardState;
   /** The job's outlook, decided once on the server (`server/utils/jobOutlook.ts`): the page follows its phase. */
   outlook?: JobOutlook | null;
   /** The link to view the simulation of the site, when there is one. */
@@ -280,7 +271,7 @@ function TrialHead({ result }: { result: Exclude<TestResult, null> }) {
  * exactly when it was before: once the job's outlook has an answer and the first look names a robot.
  */
 export function SiteAnswer({ token, answer, proof, onIntroductionRequested, onEditJob, onUpdateVideo, quietAction = false,
-  onShowDetails, onShowSettings, card = null, outlook = null, sceneViewUrl = null, successRule = null }: SiteAnswerProps) {
+  onShowDetails, onShowSettings, outlook = null, sceneViewUrl = null, successRule = null }: SiteAnswerProps) {
   const pick = answer.state === "ready" ? answer.pick : null;
   // The phase is the server's (one decision for the page, sharing and emails). When unsure, the job is still being
   // worked on (review, 2026-11-11): with no outlook the page says the packet is being built and offers no button; a
@@ -304,8 +295,8 @@ export function SiteAnswer({ token, answer, proof, onIntroductionRequested, onEd
   // Never while the packet is still being built (the page's own phase, which waits for a trial result to load).
   const offer = !building && answer.nextStep.kind === "introduction" && Boolean(outlook && outlookHasAnswer(outlook));
 
-  const companies = <Companies token={token} answer={answer} onRequested={onIntroductionRequested} quiet={quietAction} card={card}
-    testResult={phase === "result"} offer={offer} building={building} />;
+  const companies = <Companies token={token} answer={answer} onRequested={onIntroductionRequested} quiet={quietAction}
+    offer={offer} building={building} />;
 
   // Section 2: the first look.
   let firstLook: ReactNode;

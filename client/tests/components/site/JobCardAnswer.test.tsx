@@ -150,8 +150,8 @@ describe("Blueprint's answer on a job card", () => {
     const shared = items.find(item => within(item).queryByText("Carton palletizing opportunity"))!;
     const plain = items.find(item => within(item).queryByText("Packing opportunity"))!;
     expect(within(plain).queryByText(new RegExp(JOB_CARD_ANSWER_TITLE))).toBeNull();
-    // No evaluation is ready on either card: their meta lines say so, and neither offers its link.
-    expect(within(plain).getByText("Evaluation not ready yet")).toBeVisible();
+    // A company cannot run anything on a job (frame of 2026-11-12): no evaluation line, and no link to offer a system.
+    expect(within(plain).queryByText(/evaluat/i)).toBeNull();
     expect(within(shared).queryByRole("link", { name: "Offer your system for this job" })).toBeNull();
     const summary = within(shared).getByText(`${JOB_CARD_ANSWER_TITLE}: ${ANSWER.headline}`);
     expect(within(shared).queryByRole("region", { name: JOB_CARD_ANSWER_TITLE })).toBeNull();

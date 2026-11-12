@@ -1,4 +1,4 @@
-import { minimalMarketingRedirects } from "../client/src/data/minimalPublicSite";
+import { minimalMarketingRedirects, queryDroppingRedirects } from "../client/src/data/minimalPublicSite";
 import express, { type Request, Response, NextFunction } from "express";
 import fs from "fs";
 import path from "path";
@@ -576,7 +576,8 @@ app.use((req, res, next) => {
   legacyPublicRedirects.forEach(({ from, to }) => {
     app.get([from, `${from}/`], (req, res) => {
       const queryStart = req.originalUrl.indexOf("?");
-      const query = queryStart >= 0 ? req.originalUrl.slice(queryStart + 1) : "";
+      // A retired link that carried a credential loses its query on the way out.
+      const query = queryStart >= 0 && !queryDroppingRedirects.has(from) ? req.originalUrl.slice(queryStart + 1) : "";
       const target = typeof to === "function" ? to(req) : to;
       const [targetPath, targetHash] = target.split("#");
       const separator = query ? (targetPath.includes("?") ? "&" : "?") : "";

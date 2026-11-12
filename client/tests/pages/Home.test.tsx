@@ -8,7 +8,7 @@ describe("Site-led homepage", () => {
   // RobotScene.test.tsx).
   it("says what happens to a site's video in one sentence, shows three steps and offers one button", () => {
     const { container } = render(<Home />);
-    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Film a job once. We turn it into a job packet robot deployment companies can judge.");
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Film a job once. We turn it into a job packet.");
     const starts = screen.getAllByRole("link", { name: "Start a job" });
     expect(starts).toHaveLength(1);
     expect(starts[0]).toHaveAttribute("href", "/contact/site-operator");
@@ -29,7 +29,7 @@ describe("Site-led homepage", () => {
     expect(steps.map(step => step.textContent)).toEqual([
       "Send a video of one job that repeats.",
       "We turn it into a job packet: what the job is, a first look at which robots could fit, and a simulation of your site.",
-      "With your permission, we share a summary of it with robot deployment companies we approve. Your video stays private.",
+      "With your permission, robot deployment companies we approve can see a summary of it. Your video stays private.",
     ]);
     expect(screen.getByRole("list", { name: "How it works" })).toHaveAttribute("id", "how-it-works");
   });

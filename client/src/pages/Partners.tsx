@@ -7,7 +7,8 @@ import { FOR_DEPLOYMENT_COMPANIES, PARTNERS_SEO_DESCRIPTION } from "@/lib/public
  * For deployment companies, bare bones (frame of 2026-11-12): what a company gets for each job, how it is approved,
  * what it sends back, and the application form itself (folded in from the old `/partners/deployment` page). Every
  * permission a site has recorded so far keeps its video private, so the page says only what a summary carries: the
- * site's sentence for the job, the first look and what counts as done. No price is stated.
+ * kind of job, the first look and the early trial's result where one exists; never the site's own sentence, the
+ * success rule, the video or the simulation. No price is stated.
  */
 export default function Partners() {
   return <>
@@ -18,7 +19,7 @@ export default function Partners() {
         <BareGroup>
           <BareLabel>{FOR_DEPLOYMENT_COMPANIES}</BareLabel>
           <h1 id="partner-title">Real jobs from real sites.</h1>
-          <p>Each job comes with the site's own sentence for it, a first look at which robots could fit, and what counts as done. You tell us whether you'd take it.</p>
+          <p>Each job comes as a summary: the kind of job, a first look at which robots could fit, and our early trial's result where one exists. You tell us whether you'd take it.</p>
         </BareGroup>
         <BareRows title="How it works" rows={[
           { key: "approval", label: "How to be approved", value: "Apply below. We approve each company by hand." },

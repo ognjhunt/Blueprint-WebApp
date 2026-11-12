@@ -1,3 +1,4 @@
+import { SHARE_REFUSAL_SENTENCES, shareRefusalReason } from "../../client/src/lib/jobOutlook";
 import { sanitizeTaskThumbnail } from "../utils/taskThumbnail";
 import { Router } from "express";
 import { z } from "zod";
@@ -7,7 +8,7 @@ import { verifyCaptureUploadToken } from "../utils/captureUploadToken";
 import { LISTING_CONSENT_VERSIONS, listingConsentVersion, taskListingSchema, taskListingDraft } from "../utils/taskListingDetails";
 import { humanDecisionDigest } from "../utils/human-reply-admission";
 import { getBrief } from "../utils/siteTaskBrief";
-import { enqueueTaskLifecycleNotification, notifyIfOpenForEvaluations } from "../utils/taskLifecycleNotifications";
+import { enqueueTaskLifecycleNotification } from "../utils/taskLifecycleNotifications";
 import { SUPPORTED_TASK_SCOPE } from "../utils/siteTaskScope";
 
 const router = Router();
@@ -53,7 +54,7 @@ router.route("/owner/:token")
         const decision = await loadJobOutlookDecision(res.locals.requestId).catch(() => null);
         if (!decision || !decision.certain || !outlookHasAnswer(decision.outlook))
           return res.status(409).json({ code: "share_waits_for_answer", phase: decision?.outlook.phase ?? "building",
-            error: "You can share your job once its job packet is ready." });
+            reason: shareRefusalReason(decision?.outlook.phase), error: SHARE_REFUSAL_SENTENCES[shareRefusalReason(decision?.outlook.phase)] });
       }
       await applyOwnerTaskListing(res.locals.requestId, parsed.data);
       return res.json({ ok: true });
@@ -76,8 +77,8 @@ export type OwnerTaskListingGrant = z.infer<typeof grantSchema>;
  * No outside company is emailed when the card goes live (frame of 2026-11-12:
  * every approach to an outside company needs the owner's go-ahead, so the
  * automatic "New site job" email to opted-in companies no longer sends). The
- * card is listed in the job library only. The site's own `listing_live` notice
- * and the open-for-evaluations notice still go to the site.
+ * card is listed in the job library only. The site hears it once, by `listing_live`, sent only while
+ * the summary is visible; no open-for-evaluations notice is sent any more.
  */
 export async function applyOwnerTaskListing(requestId: string, grant: OwnerTaskListingGrant,
   options: { consentVersion?: string } = {}): Promise<{ wentLive: string | null }> {
@@ -122,8 +123,6 @@ export async function applyOwnerTaskListing(requestId: string, grant: OwnerTaskL
   if (wentLive) {
     await enqueueTaskLifecycleNotification({ requestId, milestone: "listing_live", eventId: wentLive })
       .catch(() => undefined);
-    // Publishing can be what opens a runnable job to evaluations.
-    try { await notifyIfOpenForEvaluations(requestId); } catch { /* best-effort */ }
   }
   return { wentLive };
 }

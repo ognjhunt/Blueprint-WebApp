@@ -47,6 +47,18 @@ describe("the task page's public card", () => {
     expect(screen.queryByText(/once its job packet is ready/)).toBeNull();
   });
 
+  // Review, 2026-11-12: why sharing waits is said by the job's phase.
+  it.each([
+    ["ended_by_site", "This job is closed, so it cannot be shared."],
+    ["waiting_on_site", "Tell us what the job is first. Then you can share it."],
+    ["building", "You can share your job once its job packet is ready."],
+  ])("says why publishing waits for a job that is %s", async (phase, line) => {
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ listing: null, draft: { details: { title: "Move cartons onto a pallet", taskFamily: "Palletizing", opportunity: "not_seeking" } }, thumbnailPng: null }) });
+    render(<PublicTaskListing token="tok" publishWaits waitPhase={phase} />);
+    fireEvent.click(await screen.findByText("Manage opportunity sharing (optional)"));
+    expect(await screen.findByText(line)).toBeVisible();
+  });
+
   it("saves the card with a pilot price left unknown", async () => {
     fetchMock.mockResolvedValueOnce(savedCard("not_seeking")).mockResolvedValueOnce({ ok: true, json: async () => ({ ok: true }) });
     render(<PublicTaskListing token="tok" />);

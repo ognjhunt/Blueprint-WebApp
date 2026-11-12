@@ -1,5 +1,5 @@
 import { appRoutes, matchAppRoute } from "@/app/routes";
-import { minimalMarketingRedirects } from "@/data/minimalPublicSite";
+import { minimalMarketingRedirects, queryDroppingRedirects } from "@/data/minimalPublicSite";
 import { describe, expect, it } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
@@ -208,5 +208,15 @@ describe("Route registration", () => {
     ]) {
       expect(source).toContain(`{ path: "${route}", layout: "public", component: LegacyOfferRedirect }`);
     }
+  });
+
+  it("drops the query only on the retired buyer review links, which carried an access token", () => {
+    expect([...queryDroppingRedirects].sort()).toEqual([
+      "/requests/:requestId",
+      "/requests/:requestId/evidence",
+      "/requests/:requestId/preview",
+      "/requests/:requestId/qualification",
+    ]);
+    for (const path of queryDroppingRedirects) expect(minimalMarketingRedirects[path], path).toBe("/");
   });
 });

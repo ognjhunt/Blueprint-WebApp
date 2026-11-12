@@ -168,3 +168,17 @@ test("a browser opening a retired surface lands on its redirect", async ({ page 
     await expect(page.getByRole("heading", { level: 1 }), path).toBeVisible();
   }
 });
+
+test("an old buyer review link drops its access token on the way to the home page", async ({ request, page }) => {
+  for (const path of ["/requests/req-1", "/requests/req-1/evidence", "/requests/req-1/preview"]) {
+    const response = await request.get(`${path}?access=secret-token&x=1`, { maxRedirects: 0 });
+    expect(response.status(), path).toBe(301);
+    expect(response.headers().location, path).toBe("/");
+  }
+  await page.goto("/requests/req-1?access=secret-token", { waitUntil: "domcontentloaded" });
+  await expect(page).toHaveURL(/^[^?#]*\/\/[^/]+\/$/);
+  expect(page.url()).not.toContain("secret-token");
+  // Other retired URLs still carry their query (source context survives).
+  const kept = await request.get("/sites?source=newsletter", { maxRedirects: 0 });
+  expect(kept.headers().location).toBe("/partners?source=newsletter");
+});

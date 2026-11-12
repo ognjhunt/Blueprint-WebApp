@@ -82,7 +82,7 @@ describe("build output", () => {
   it("prerenders How it works with the job packet, and no page for the folded addresses", () => {
     const html = fs.readFileSync(distPath("how-it-works/index.html"), "utf8");
     expect(html).toContain("Your job packet");
-    expect(html).toContain("With your permission, we share a summary of your job with companies we approve.");
+    expect(html).toContain("With your permission, companies we approve can see a summary of your job.");
     expect(html).not.toMatch(/top AI robots|which did best|Find a company to set it up/);
     expect(html).not.toContain("Warehouse walkthrough contents");
     expect(fs.existsSync(distPath("jobs-we-support/index.html"))).toBe(false);
@@ -228,11 +228,12 @@ describe("build output", () => {
     expect(llms).toContain("Applications stay pending until Blueprint approves the company by hand");
     expect(llms).toContain("paid_evaluations_disabled");
     expect(llmsFull).toContain("A simulation is a bounded estimate and never certifies physical performance or safety.");
-    expect(llmsFull).toContain("The video, the simulation, the site's address and its contacts stay private.");
+    expect(llmsFull).toContain("A company never sees the site's own sentence, the success rule, the video, the simulation, the site's address or its contacts.");
+    expect(llmsFull).toContain("Each job comes as a summary: the kind of job, a first look at which robots could fit, and our early trial's result where one exists.");
     expect(llmsFull).toContain("early_access_required");
     expect(llms).toContain("https://tryblueprint.io/beta");
     // The frame of 2026-11-12: a job packet, a summary shared only with the site's permission, the trial labelled.
-    expect(llms).toContain("Film a job once. We turn it into a job packet robot deployment companies can judge.");
+    expect(llms).toContain("Film a job once. We turn it into a job packet.");
     expect(llms).toContain("it is not the site's answer, and it does not predict what a deployment company's robot would do");
     expect(llms).toContain("Free for sites.");
     expect(llms).not.toMatch(/top AI robots|which did best|Which robot could do your job/);
@@ -247,9 +248,9 @@ describe("build output", () => {
     const homeHtml = fs.readFileSync(distPath("index.html"), "utf8");
     const siteHtml = fs.readFileSync(distPath("contact/site-operator/index.html"), "utf8");
     const robotHtml = fs.readFileSync(distPath("contact/robot-team/index.html"), "utf8");
-    expect(homeHtml).toContain("Film a job once. We turn it into a job packet robot deployment companies can judge.");
+    expect(homeHtml).toContain("Film a job once. We turn it into a job packet.");
     expect(homeHtml).toContain("We turn it into a job packet: what the job is, a first look at which robots could fit, and a simulation of your site.");
-    expect(homeHtml).toContain("With your permission, we share a summary of it with robot deployment companies we approve. Your video stays private.");
+    expect(homeHtml).toContain("With your permission, robot deployment companies we approve can see a summary of it. Your video stays private.");
     expect(homeHtml).toContain("Free for sites");
     expect(homeHtml).toContain("We take pick-up-and-put-down jobs best. Nothing here is a test at your site or a safety check.");
     // The animated example of an invented result is removed (frame of 2026-11-12), and nothing replaces it.
@@ -324,7 +325,7 @@ describe("build output", () => {
     // above is reading the real public bundle, so removing one because the copy
     // moved would quietly make the whole check vacuous. "Site-funded Task
     // Evaluation Run" left the site page when it stopped leading with a screen.
-    expect(browserJavaScript).toContain("We turn it into a job packet robot deployment companies can judge.");
+    expect(browserJavaScript).toContain("With your permission, robot deployment companies we approve can see a summary of it.");
     expect(browserJavaScript).toContain("We write this from your video if you leave it empty.");
   });
 

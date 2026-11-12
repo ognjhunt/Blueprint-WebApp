@@ -15,6 +15,7 @@ const base = {
   checked: { models: 22, makers: 13, specsRetrievedOn: "2026-11-11" },
   introductionRequestedAtIso: null,
   jobCardListed: false,
+  sharing: { state: "not_shared", sharedAtIso: null },
   basisDigest: DIGEST,
 } as const;
 

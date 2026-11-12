@@ -1261,17 +1261,19 @@ describe("the site's answer leads its job page", () => {
     window.history.replaceState(null, "", "/capture-upload/test");
   });
 
-  it("says the shared summary leaves out the first look when Share settings re-saved the card under the older box, and offers the button again", async () => {
+  // Review, 2026-11-12: the page says what the server decided is true of the card (`answer.sharing`), not a guess.
+  it("says the summary is shared, or shared but hidden, as the server decided, and offers no button either way", async () => {
     setUserAgent(DESKTOP_UA);
-    window.history.replaceState(null, "", "/capture-upload/test");
-    const base = answerFetch({ answer: { ...readyAnswer, introductionRequestedAtIso: "2026-11-10T09:00:00.000Z", jobCardListed: true } });
-    vi.stubGlobal("fetch", vi.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => String(input) === `/api/task-listings/owner/${TOKEN}`
-      ? Promise.resolve({ ok: true, json: async () => ({ listing: { enabled: true, consentVersion: "public-task-card-v1" }, thumbnailPng: null }) })
-      : base(input, init)));
-    render(<SelfCaptureUpload />);
-    expect(await screen.findByText("Your shared summary leaves out the first look. Press the button to add it.")).toBeVisible();
-    expect(screen.queryByText(/^Shared on/)).toBeNull();
-    expect(screen.getByRole("button", { name: "Share my job" })).toBeVisible();
+    for (const [sharing, line] of [
+      [{ state: "visible", sharedAtIso: "2026-11-10T09:00:00.000Z" }, "Shared on November 10, 2026. Deployment companies we approve can see a summary of your job. Nothing more is needed from you."],
+      [{ state: "not_visible", sharedAtIso: "2026-11-10T09:00:00.000Z" }, "You shared a summary of your job on November 10, 2026. It is not visible to companies right now."],
+    ] as const) {
+      vi.stubGlobal("fetch", answerFetch({ answer: { ...readyAnswer, jobCardListed: true, sharing } }));
+      const { unmount } = render(<SelfCaptureUpload />);
+      expect(await screen.findByText(line)).toBeVisible();
+      expect(screen.queryByRole("button", { name: "Share my job" })).toBeNull();
+      unmount();
+    }
   });
 
   it("offers an older job's finished processing details from Job settings under an answer, with no retry", async () => {

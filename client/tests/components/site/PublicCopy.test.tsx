@@ -28,13 +28,13 @@ describe("public managed-pilot copy", () => {
       <MinimalSiteLayout><Home /></MinimalSiteLayout>,
     );
 
-    expect(screen.getByRole("heading", { level: 1, name: "Film a job once. We turn it into a job packet robot deployment companies can judge." })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Film a job once. We turn it into a job packet." })).toBeInTheDocument();
     // One filled action on the page: the header is the brand and one quiet link.
     expect(screen.getAllByRole("link", { name: "Start a job" })).toHaveLength(1);
     expect(screen.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/sign-in");
     expect(container).toHaveTextContent(/Send a video of one job that repeats/);
     expect(container).toHaveTextContent(/We turn it into a job packet: what the job is, a first look at which robots could fit, and a simulation of your site\./);
-    expect(container).toHaveTextContent(/With your permission, we share a summary of it with robot deployment companies we approve\. Your video stays private\./);
+    expect(container).toHaveTextContent(/With your permission, robot deployment companies we approve can see a summary of it\. Your video stays private\./);
     expect(container).toHaveTextContent(/Free for sites/);
     expect(container).toHaveTextContent(/We take pick-up-and-put-down jobs best\. Nothing here is a test at your site or a safety check\./);
     // The frame of 2026-11-12: no invented result, no claim that the trial is the answer, no price.

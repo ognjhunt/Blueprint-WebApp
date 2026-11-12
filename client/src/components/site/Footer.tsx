@@ -35,7 +35,7 @@ export function Footer() {
               Blueprint
             </a>
             <p className="mt-7 text-sm leading-7 text-runway-mute">
-              Film a job once. We turn it into a job packet robot deployment companies can judge. With your permission, we share a summary with companies we approve. Your video stays private.
+              Film a job once. We turn it into a job packet. With your permission, robot deployment companies we approve can see a summary of it. Your video stays private.
             </p>
             <a
               href="mailto:hello@tryblueprint.io"

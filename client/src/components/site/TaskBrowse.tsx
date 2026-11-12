@@ -12,7 +12,6 @@ import { RobotTeamEarlyAccess } from "./RobotTeamEarlyAccess";
 import { opportunityLabels, taskStageLabels, type TaskBrowseCard } from "@/types/taskBrowse";
 
 /** Said in a job's meta line while no evaluation is ready for it (`evaluationAvailable` false). */
-export const EVALUATION_NOT_READY = "Evaluation not ready yet";
 
 /** `inWorkspace` drops the public-page extras (the agent API link) inside the signed-in app. */
 export function TaskBrowse({ inWorkspace = false }: { inWorkspace?: boolean } = {}) {
@@ -85,24 +84,24 @@ export function TaskBrowse({ inWorkspace = false }: { inWorkspace?: boolean } = 
       </select></label>
       <label>Region<input aria-label="Filter by region" placeholder="Any region" value={region} maxLength={80} onChange={e => setRegion(e.target.value)} /></label>
       <label>Availability<select aria-label="Filter by availability" value={availability} onChange={e => setAvailability(e.target.value)}>
-        <option value="">Live and past</option><option value="open">Open to a pilot</option>
-        <option value="ready">Ready to evaluate</option><option value="past">Past opportunities</option>
+        <option value="">Live and past</option><option value="open">Open</option>
+        <option value="past">Past</option>
       </select></label>
     </div>
     </details>}
     {libraryEmpty && <div className="ms-task-empty">
       <h2>The first site jobs are being prepared.</h2>
-      <p>Each site sees its anonymized job card before starting, can keep the job private instead, and can edit or hide the card later.</p>
+      <p>A site chooses whether to share a summary of its job, and can hide it later.</p>
     </div>}
     {state === "ready" && items.length > 0 && <>
-      <p className="ms-field-hint">{filtered.length} {filtered.length === 1 ? "job" : "jobs"} · Details shared by site owners. A past job can remain available for evaluation.</p>
+      <p className="ms-field-hint">{filtered.length} {filtered.length === 1 ? "job" : "jobs"} · Summaries shared by sites. Tell us for each whether you'd take it.</p>
       {filtered.length === 0 && <div className="ms-task-empty">
         <h2>No jobs fit these filters.</h2>
         <p>Try a different job or region, or <a href="mailto:hello@tryblueprint.io">tell us what you need</a>.</p>
         <button className="ms-text-link" onClick={() => { setFamily(""); setRegion(""); setAvailability(""); }}>Clear filters</button>
       </div>}
       <ul className="ms-task-list">{filtered.map(item => <li key={item.id}>
-        <div className="ms-task-heading"><div><div className="ms-task-meta"><span>{taskStageLabels[item.stage]}</span><span>{opportunityLabels[item.opportunity]}</span>{!item.evaluationAvailable && <span>{EVALUATION_NOT_READY}</span>}</div>
+        <div className="ms-task-heading"><div><div className="ms-task-meta"><span>{taskStageLabels[item.stage]}</span><span>{opportunityLabels[item.opportunity]}</span></div>
         <h2>{item.title}</h2></div><TaskThumbnail src={item.thumbnailUrl} title={item.title} taskFamily={item.taskFamily} /></div><TaskFacts details={item} />
         {item.answerHeadline && <JobCardAnswerLine jobId={item.id} headline={item.answerHeadline} user={currentUser} />}
         {/* The row's one action: the company's response (interested or not a fit). Running its own system on a job is

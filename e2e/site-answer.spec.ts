@@ -20,7 +20,6 @@ const QUESTION = "May we share a summary of your job with deployment companies w
 /** The recorded statement, word for word: only the words around it changed. */
 const CONSENT = "Shares a summary of your job and your answer, including later test results, without saying who you are, with companies we've approved. Your video, address and contacts stay private.";
 const LISTED = "Shared on November 11, 2026. Deployment companies we approve can see a summary of your job. Nothing more is needed from you.";
-const UNLISTED = "You asked on November 11, 2026 to share a summary of your job.";
 const FIRST_LOOK = "On paper, the robot most likely to fit: Universal Robots UR10e.";
 const TRIAL_LINE = "This is our own trial of openly available robot software. It does not predict what a deployment company's robot would do.";
 /** Opens the folded early trial, as a site would. */
@@ -61,14 +60,17 @@ async function mockJob(page: Page, { evaluation = simulationRun as unknown, list
     if (path === `/api/site-task-brief/${token}`) return route.fulfill({ json: { ready: true, scope: "owner", account: null, brief: {
       summary: readyAnswer.job.sentence, captureMode: "self_capture", proposed: [], unresolved: [], confirmedAtIso: null } } });
     if (path === `/api/site-task-brief/${token}/status`) return route.fulfill({ json: {
-      scope: "owner", captureReceived: true, answer: { ...readyAnswer, introductionRequestedAtIso: requestedAtIso, jobCardListed: requestedAtIso !== null && listed },
+      scope: "owner", captureReceived: true, answer: { ...readyAnswer, introductionRequestedAtIso: requestedAtIso, jobCardListed: requestedAtIso !== null && listed,
+        // The server's own reading of what a company can see (`jobSharingOf`).
+        sharing: requestedAtIso !== null && listed ? { state: "visible", sharedAtIso: requestedAtIso } : { state: "not_shared", sharedAtIso: null } },
       // The job's outlook as the server decides it for this answer and evaluation (the page renders by it).
       outlook: serverOutlookFor(readyAnswer, projectSimulationProof({ evaluation: (evaluation ? [evaluation] : []) as never, pick: null })),
       status: { decision: "footage_received", headline: "We have your recording.", operatorAction: null, missingViews: [], nextUpdateIso: null } } });
     if (path === `/api/site-task-brief/${token}/introduction-request` && method === "POST") {
       introductions.push({ csrf: route.request().headers()["x-csrf-token"] });
       requestedAtIso ??= "2026-11-11T15:00:00.000Z";
-      return route.fulfill({ json: { ok: true, requestedAtIso, listed } });
+      return route.fulfill({ json: { ok: true, requestedAtIso, listed,
+        sharing: listed ? { state: "visible", sharedAtIso: requestedAtIso } : { state: "not_shared", sharedAtIso: null } } });
     }
     if (path === `/api/site-task-brief/${token}/readiness`) return route.fulfill({ json: { ok: true, summary: null, report: null,
       briefPath: null, tracker: { steps: [], meanwhile: null } } });
@@ -221,13 +223,14 @@ test("the share button asks first, carries the recorded statement, posts once an
   expect(unexpected).toEqual([]);
 });
 
-test("when the job card could not be listed, the confirmation says Blueprint will share it", async ({ page }) => {
+test("when the summary could not be listed, nothing claims it is shared and the button stays", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   const { introductions } = await mockJob(page, { listed: false });
   await page.goto(`/capture-upload/${token}?video=existing`);
   await page.getByRole("button", { name: FIND, exact: true }).click();
-  await expect(page.getByText(UNLISTED, { exact: true })).toBeVisible();
-  await expect(page.getByText(/^Shared on/)).toHaveCount(0);
+  await expect(page.getByRole("alert")).toHaveText("We could not send your request just now. Try again shortly.");
+  await expect(page.getByText(/^Shared on|can see a summary/)).toHaveCount(0);
+  await expect(page.getByRole("button", { name: FIND, exact: true })).toBeVisible();
   expect(introductions).toHaveLength(1);
 });
 

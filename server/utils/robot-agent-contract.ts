@@ -315,7 +315,7 @@ export function buildRobotAgentOpenApiContract() {
       { name: "Discovery", description: "Public site and API discovery for agents." },
       { name: "Ask", description: "Grounded, citation-backed question answering for agents." },
       { name: "Catalog", description: "Public site-world catalog and detail endpoints." },
-      { name: "Team", description: "Register an approved robot team and manage its agent key. Robot teams apply to give Blueprint access to a policy; after application review, registration needs the invitation from the approval email (or an approved account). It grants no evaluation: Blueprint runs each evaluation itself, free during the beta, after its approval." },
+      { name: "Team", description: "Register an approved deployment company's team and manage its agent key. Companies apply at /partners; after application review, registration needs the invitation from the approval email (or an approved account). It grants no evaluation: running a company's own software on a site's job is not offered yet. Nothing is charged today." },
       { name: "Legacy commerce", description: "Read-only compatibility for historical orders and entitlements; the purchase endpoints are retired and return 410." },
       { name: "Hosted sessions", description: "Compatibility lifecycle for previously entitled hosted-session records." },
     ],
@@ -339,7 +339,7 @@ export function buildRobotAgentOpenApiContract() {
           operationId: "registerRobotTeam",
           summary: "Register an approved robot team and receive an agent key.",
           description:
-            "Registration is by invitation, rate limited per address. Robot teams apply at /contact/robot-team; once Blueprint approves the application, register with the `invitation` from the approval email, or send the approved, verified Blueprint account's Firebase ID token as `Authorization: Bearer`. Without either the call is refused (401 registration_invitation_required; 403 registration_invitation_invalid or registration_not_approved), and one approval registers one team (409 registration_team_exists). The approval is bound to the team it registers. Accepts self-reported hardware maturity and deployment/support coverage as optional fields; the human form asks both because a past-task evaluation cannot establish those physical facts. Creates a team record with status self_registered and returns an agent key exactly once; only a SHA-256 is stored. Registration does not start an evaluation: each evaluation runs only after Blueprint approves the exact team, policy, and job; evaluations are free during the beta. A team evaluation calls only an HTTPS policy endpoint (runtime policy_endpoint) with a bearer token attached through /api/agent-team/checkpoints/{checkpointId}/credentials; containers and private checkpoints are not admitted. Manage keys from the team's verified Blueprint account; Blueprint issues and revokes account-bound keys on request (hello@tryblueprint.io). A lost key is re-issued to the team's contact email via /api/agent-team/keys/reissue.",
+            "Registration is by invitation, rate limited per address. Deployment companies apply at /partners; once Blueprint approves the application, register with the `invitation` from the approval email, or send the approved, verified Blueprint account's Firebase ID token as `Authorization: Bearer`. Without either the call is refused (401 registration_invitation_required; 403 registration_invitation_invalid or registration_not_approved), and one approval registers one team (409 registration_team_exists). The approval is bound to the team it registers. Accepts self-reported hardware maturity and deployment/support coverage as optional fields; the human form asks both because a past-task evaluation cannot establish those physical facts. Creates a team record with status self_registered and returns an agent key exactly once; only a SHA-256 is stored. Registration does not start an evaluation: running a company's own software on a site's job is not offered yet, and any future run would need Blueprint's approval of the exact team, policy, and job. Nothing is charged today. A team evaluation calls only an HTTPS policy endpoint (runtime policy_endpoint) with a bearer token attached through /api/agent-team/checkpoints/{checkpointId}/credentials; containers and private checkpoints are not admitted. Manage keys from the team's verified Blueprint account; Blueprint issues and revokes account-bound keys on request (hello@tryblueprint.io). A lost key is re-issued to the team's contact email via /api/agent-team/keys/reissue.",
           security: [{}],
           requestBody: {
             required: true,
@@ -685,7 +685,7 @@ export function buildRobotAgentOpenApiContract() {
           summary: "Retired standalone live checkout endpoint.",
           deprecated: true,
           description:
-            "Evaluations are free during the beta and start from a Task Evaluation Run request. This compatibility endpoint always returns 410 and creates no Stripe session, order, charge, or entitlement.",
+            "Nothing is charged today. This compatibility endpoint always returns 410 and creates no Stripe session, order, charge, or entitlement.",
           security: [{}],
           requestBody: {
             required: true,

@@ -1,4 +1,4 @@
-import { jobAlertIsCurrent, resumeNewJobFanout, type JobAlertContext } from "./newJobAlerts";
+import { jobAlertIsCurrent, type JobAlertContext } from "./newJobAlerts";
 import { enqueueDueTaskStatusUpdates, acknowledgeTaskStatusUpdate, taskStatusUpdateIsCurrent } from "./taskStatusUpdates";
 /**
  * Durable delivery for site lifecycle and evaluation notices once enqueued.
@@ -358,8 +358,6 @@ export async function deliverOutbox(params?: { limit?: number }): Promise<Outbox
     const { reconcileTaskEvaluationNotificationRetries } = await import("./taskEvaluationNotificationRetry");
     await reconcileTaskEvaluationNotificationRetries(db, limit);
   } catch (error) { logger.warn({ error }, "Could not reconcile notification acknowledgements"); }
-  try { await resumeNewJobFanout(limit); }
-  catch (error) { logger.warn({ error }, "New-job fanout will resume on a later tick"); }
   await reconcileOutboxDeliveries(limit);
   const nowMs = Date.now();
   const rows = await dueRows("pending", limit, nowMs);

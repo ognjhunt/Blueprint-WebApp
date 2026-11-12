@@ -19,7 +19,7 @@ for (const viewport of [{ width: 1536, height: 1024 }, { width: 390, height: 844
       errors.push(error.message);
     });
     for (const [name, path, heading] of [
-      ["home", "/", "Film a job once. We turn it into a job packet robot deployment companies can judge."],
+      ["home", "/", "Film a job once. We turn it into a job packet."],
       ["partners", "/partners", "Real jobs from real sites."],
       ["how", "/how-it-works", "How it works"],
       ["beta", "/beta", "Questions"],

@@ -166,7 +166,6 @@ describe("owner authorization and durable demand", () => {
   it("queues no automatic new-job email for an open card, even to opted-in approved robot teams", async () => {
     const { accessRecordId } = await import("../utils/robotTeamEarlyAccess");
     const { buildUpdatePreferences } = await import("../utils/updatePreferences");
-    const { resumeNewJobFanout } = await import("../utils/newJobAlerts");
     const team = (email: string, status: string, optIn = true) => state.docs.set(`robotTeamAccess/${accessRecordId(email)}`, {
       name: "Ada Lovelace", email, company: "Arm Co", status, newJobAlertsOptIn: optIn,
       updatePreferences: buildUpdatePreferences({ newsletter: false, newJobAlerts: optIn, interests: {}, declaredCategories: {}, requirements: {} }, "settings"),
@@ -184,10 +183,8 @@ describe("owner authorization and durable demand", () => {
     // The frame of 2026-11-12: the automatic "New site job" email no longer sends to anyone (every approach to an
     // outside company needs the owner's go-ahead); it used to go to the two opted-in approved teams here.
     expect((await post()).status).toBe(200);
-    await resumeNewJobFanout();
     expect(alerts()).toEqual([]);
     expect((await post()).status).toBe(200);
-    await resumeNewJobFanout();
     expect(alerts()).toEqual([]);
   });
   it("requires photo permission, serves sanitized approved pixels, and revokes access on pause or withdrawal", async () => {

@@ -347,7 +347,7 @@ describe("public configured-scene offerings", () => {
       evaluationAction: expect.objectContaining({
         enabled: true,
         label: "Configure evaluation",
-        href: "/app/packs/launch-evaluation-ready/evaluate",
+        href: null,
       }),
     })]);
   });
