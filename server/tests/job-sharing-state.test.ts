@@ -31,7 +31,9 @@ describe("where a site's job summary stands with deployment companies", () => {
   });
 
   it.each([
-    ["paused by Blueprint", { workspace_task: { paused: true } }],
+    ["paused by the site", { workspace_task: { paused: true } }],
+    ["closed by the site", { workspace_task: { archived: true } }],
+    ["held by Blueprint (the operator hold)", { operator_listing_hold: { held: true, atIso: "2026-11-12T00:00:00.000Z", by: "admin-1" } }],
     ["under a rights hold", { evaluation_readiness: { rights_review_status: "needs_review" } }],
     ["kept narrower by an older choice", { request: { buyerType: "site_operator", pilotOpportunity: { requested: true, visibility: "private" } } }],
   ])("is shared but not visible when %s", (_, extra) => {

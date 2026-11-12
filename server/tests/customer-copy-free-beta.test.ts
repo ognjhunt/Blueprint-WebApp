@@ -116,7 +116,7 @@ describe("site lifecycle notices", () => {
   const milestones = [
     "task_received", "video_received", "scene_ready", "preparation_needs_attention", "preparation_ended", "listing_live",
     "screening_not_now", "results_ready", "run_no_result",
-    "pilot_request",
+    "pilot_request", "job_sent", "company_answered",
   ] as const;
 
   it("never introduces platform charges or assumes a city in any notice", () => {
@@ -130,6 +130,7 @@ describe("site lifecycle notices", () => {
           eventId: milestone === "preparation_needs_attention" || milestone === "preparation_ended" ? `sha256:${"a".repeat(64)}` : undefined,
           detail,
           ...(milestone === "preparation_ended" ? { terminalReason: "budget_exhausted" } : {}),
+          ...(milestone === "company_answered" ? { companyAnswerState: "needs_something" as const } : {}),
         });
         expectClean(`${milestone} (${detail ?? "no detail"})`, `${notice.subject}\n${notice.body}`, SITE_EMAIL);
       }

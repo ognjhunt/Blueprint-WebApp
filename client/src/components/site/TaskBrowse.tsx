@@ -10,6 +10,7 @@ import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
 import type { LibraryAccess } from "@/lib/robotTeamAccess";
 import { RobotTeamEarlyAccess } from "./RobotTeamEarlyAccess";
 import { libraryStageLabels, opportunityLabels, type TaskBrowseCard } from "@/types/taskBrowse";
+import { COMPANY_RESPONSE_LABELS, COMPANY_RESPONSE_STATES, RESPONSE_PRIVACY_LINE } from "@/lib/companyResponses";
 
 /** Said in a job's meta line while no evaluation is ready for it (`evaluationAvailable` false). */
 
@@ -46,6 +47,13 @@ export function TaskBrowse({ inWorkspace = false }: { inWorkspace?: boolean } = 
       .finally(() => window.clearTimeout(timeout));
     return () => { window.clearTimeout(timeout); controller.abort(); };
   }, [retry, currentUser?.uid]);
+  // The address Blueprint emails a company is the library with the job's anchor (`#job-<id>`): once the jobs are in,
+  // the page scrolls to that job.
+  useEffect(() => {
+    if (state !== "ready" || typeof window === "undefined" || !window.location.hash.startsWith("#job-")) return;
+    const target = document.getElementById(decodeURIComponent(window.location.hash.slice(1)));
+    target?.scrollIntoView?.({ block: "start" });
+  }, [state, items]);
   const filtered = items.filter(item => (!family || item.taskFamily === family)
     && (!region || item.region.toLowerCase().includes(region.toLowerCase()))
     && (!availability || (availability === "ready" ? item.evaluationAvailable : item.opportunity === availability)));
@@ -100,11 +108,11 @@ export function TaskBrowse({ inWorkspace = false }: { inWorkspace?: boolean } = 
         <p>Try a different job or region, or <a href="mailto:hello@tryblueprint.io">tell us what you need</a>.</p>
         <button className="ms-text-link" onClick={() => { setFamily(""); setRegion(""); setAvailability(""); }}>Clear filters</button>
       </div>}
-      <ul className="ms-task-list">{filtered.map(item => <li key={item.id}>
+      <ul className="ms-task-list">{filtered.map(item => <li key={item.id} id={`job-${item.id}`}>
         <div className="ms-task-heading"><div><div className="ms-task-meta">{item.simulationStage && <span>{libraryStageLabels[item.simulationStage]}</span>}<span>{opportunityLabels[item.opportunity]}</span></div>
         <h2>{item.title}</h2></div><TaskThumbnail src={item.thumbnailUrl} title={item.title} taskFamily={item.taskFamily} /></div><TaskFacts details={item} />
         {item.answerHeadline && <JobCardAnswerLine jobId={item.id} headline={item.answerHeadline} user={currentUser} />}
-        {/* The row's one action: the company's response (interested or not a fit). Running its own system on a job is
+        {/* The row's one action: the company's response (interested, not a fit, or would need something). Running its own system on a job is
             not offered (frame of 2026-11-12: "later"), so the old "Offer your system" link, into a removed area, is gone. */}
         {item.opportunity === "open" && currentUser && !access?.staff && <TeamJobResponse jobId={item.id} user={currentUser} />}
       </li>)}</ul>
@@ -133,8 +141,9 @@ function TeamJobResponse({ jobId, user }: { jobId: string; user: User }) {
   }
   return <details><summary>Respond about this job</summary><form onSubmit={submit} className="ms-form" aria-label="Respond about this job">
     <p className="ms-field-hint">Only the shared card is available here. Give the quote basis, available timing, evidence of capability or one question needed to scope the work. Interest does not commit your team.</p>
-    <label>Your decision<select name="state"><option value="interested">Interested</option><option value="declined">Not a fit</option></select></label>
+    <label>Your decision<select name="state">{COMPANY_RESPONSE_STATES.map(state => <option key={state} value={state}>{COMPANY_RESPONSE_LABELS[state]}</option>)}</select></label>
     <label>Inputs or question<textarea name="inputs" required minLength={4} maxLength={2000} /></label>
     <button className="ms-button" disabled={saving}>{saving ? "Saving…" : "Save response"}</button>{message && <p role="status">{message}</p>}
+    <p className="ms-field-hint">{RESPONSE_PRIVACY_LINE}</p>
   </form></details>;
 }

@@ -41,6 +41,7 @@ import { isTerminalSceneOutcomeKind, sceneOutcomeMessage, sceneOutcomeSubject,
   type TerminalSceneOutcomeKind } from "./sceneIntentOutcome";
 import { FIRST_LOOK_SOURCE, LIMITS_PAPER, LIMITS_TESTED, SURENESS_WORDS, firstLookSentence, type SiteAnswer } from "../../client/src/lib/siteAnswer";
 import { sceneScreenGateEnded } from "./sceneScreenGate";
+import { COMPANY_RESPONSE_LABELS, isCompanyResponseState, type CompanyResponseState } from "../../client/src/lib/companyResponses";
 
 export type TaskLifecycleMilestone = Extract<
   OutboxKind,
@@ -52,6 +53,8 @@ export type TaskLifecycleMilestone = Extract<
   | "preparation_ended"
   | "preparation_resumed"
   | "listing_live"
+  | "job_sent"
+  | "company_answered"
   | "screening_not_now"
   | "results_ready"
   | "run_no_result"
@@ -156,6 +159,17 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
   listing_live: {
     subject: "Your job summary is shared",
     body: (url) => `Deployment companies we approve can now see a summary of your job. Your video, address and contacts stay private.\n\nOpen your job:\n${url}`,
+  },
+  // Package C1: Blueprint sent the summary to a deployment company by hand, and recorded it. One per send; read again
+  // at dispatch (`companyNoticeStillTrue`): sent only while the summary is visible and the send stands.
+  job_sent: {
+    subject: "Your job was sent to a deployment company",
+    body: (url) => `We sent the summary of your job to a deployment company we approved. Your video, address and contacts stay private. Your job page shows any answer.\n\nOpen your job:\n${url}`,
+  },
+  // One per company and answer, never the company's name or words: the detail is only a fixed label.
+  company_answered: {
+    subject: "A deployment company answered",
+    body: (url, detail) => `A deployment company answered about your job: ${detail}. Your job page has the details.\n\nOpen your job:\n${url}`,
   },
   screening_not_now: {
     subject: "An update on your Blueprint job",
@@ -265,6 +279,8 @@ export async function enqueueTaskLifecycleNotification(params: {
   screeningHoldDetail?: ScreeningHoldDetail;
   /** `scene_outcome` only: the terminal outcome's kind; its event id must name it. */
   sceneOutcomeKind?: TerminalSceneOutcomeKind;
+  /** `company_answered` only: the company's answer; the email states its fixed label, nothing else of the company. */
+  companyAnswerState?: CompanyResponseState;
   /** `answer_ready` only: the settled answer the email states. */
   siteAnswer?: SiteAnswer;
   /** `answer_ready` only: the job's outlook (`jobOutlook`), whose ending sentence the paper-check answer opens with. */
@@ -500,6 +516,8 @@ export function buildTaskLifecycleNotification(params: {
    * it was. Its event id is the job's fixed no-grant one.
    */
   jobNoGrantEnded?: "site" | "blueprint";
+  /** `company_answered` only: the company's answer; the email states its fixed label, nothing else of the company. */
+  companyAnswerState?: CompanyResponseState;
   /** `answer_ready` only: the settled answer the email states. */
   siteAnswer?: SiteAnswer;
   /** `answer_ready` only: the job's outlook (`jobOutlook`), whose ending sentence the paper-check answer opens with. */
@@ -514,6 +532,9 @@ export function buildTaskLifecycleNotification(params: {
   const requestId = params.requestId.trim();
   if (isWebsitePreparationNotice(params.milestone) && !/^sha256:[a-f0-9]{64}$/.test(params.eventId || "")) {
     throw new Error("website_preparation_event_invalid");
+  }
+  if (params.milestone === "company_answered" && !isCompanyResponseState(params.companyAnswerState)) {
+    throw new Error("company_answer_state_invalid");
   }
   const outcomeDetail = params.milestone === "evaluation_outcome" ? evaluationOutcomeDetail(params)
     : params.milestone === "scene_outcome"
@@ -561,6 +582,8 @@ export function buildTaskLifecycleNotification(params: {
       : message.subject,
     body: finePrintLast(`${message.body(url, params.milestone === "run_no_result" ? noResultObservationText(params.runProgress)
       : isWebsitePreparationNotice(params.milestone) ? preparationDetail
+      : params.milestone === "company_answered" ? COMPANY_RESPONSE_LABELS[params.companyAnswerState!]
+      : params.milestone === "job_sent" ? ""
       : params.milestone === "evaluation_outcome" || params.milestone === "scene_outcome"
         || params.milestone === "robot_access_question" || params.milestone === "answer_ready" ? outcomeDetail
       : params.detail?.trim() ?? "", params.workspaceUrl ?? null)}`),

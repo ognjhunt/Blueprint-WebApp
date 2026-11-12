@@ -5,6 +5,7 @@ import { ArrowLeft, RefreshCw } from "lucide-react";
 import { Button, Card, Eyebrow, StatusChip } from "@/components/blueprint";
 import { AdmitFreeEvaluationForm } from "@/components/admin/AdmitFreeEvaluationForm";
 import { RobotFitConsole } from "@/components/admin/RobotFitConsole";
+import { JobCompaniesConsole } from "@/components/admin/JobCompaniesConsole";
 import { SiteMeasurementsConsole } from "@/components/admin/SiteMeasurementsConsole";
 import { AccountDeletionQueue } from "@/components/admin/AccountDeletionQueue";
 import { DeploymentEmbodimentShortlist } from "@/components/workspace/DeploymentEmbodimentShortlist";
@@ -172,6 +173,7 @@ function JobDetail({ requestId, onClose }: { requestId: string; onClose: () => v
             </ol>
           </div>
 
+          <JobCompaniesConsole key={`companies-${requestId}`} requestId={requestId} currentUser={api.currentUser} />
           <SiteMeasurementsConsole requestId={requestId} currentUser={api.currentUser} />
           <JobWorkflowPanel key={requestId} requestId={requestId} currentUser={api.currentUser} onChanged={() => queryClient.invalidateQueries({ queryKey: ["admin-job-console"] })} />
           <RobotFitConsole key={requestId} requestId={requestId} currentUser={api.currentUser} />

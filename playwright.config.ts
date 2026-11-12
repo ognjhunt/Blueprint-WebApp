@@ -42,6 +42,8 @@ export default defineConfig({
         '**/workspace-design.spec.ts', '**/workspace-account-setup.spec.ts',
         '**/capture-task-review.spec.ts',
         '**/adp-agent-tasks.spec.ts',
+        // Signs in with the operator QA bypass: `npm run qa:operator -- --job-companies`.
+        '**/job-companies.spec.ts',
       ])],
   timeout: 60_000,
   expect: {

@@ -12,7 +12,7 @@ const CAPTURE_DEPENDENT_NOTICES=new Set<OutboxKind>([
  'evaluation_outcome','scene_outcome','robot_access_question',
  'awaiting_evaluations','no_team_passed','no_qualified_evaluation','footage_before_account',
  'brief_confirmed','coverage_shortfall','assessment_ready','input_needed','answer_ready','video_too_large',
- 'listing_live',
+ 'listing_live','job_sent','company_answered',
 ]);
 /** Notices about evaluations a robot team asked for (`evaluationRuns`). Blueprint runs the
  * evaluations itself now, so these no longer belong on a site's journey. Their rows are still
@@ -152,10 +152,19 @@ export async function taskLifecycleNotificationIsCurrent(
  const snapshot=transaction?await transaction.get(ref):await ref.get();
  if(!snapshot.exists||projectWebsiteCaptureRights(snapshot.data()).consent_revoked)return false;
  // "Deployment companies we approve can now see a summary of your job": sent only while that is true, by the one
- // predicate that decides what a company can see (paused by Blueprint or under a rights hold, it is not).
+ // predicate that decides what a company can see (paused or closed by the site, held by Blueprint, or under a rights hold, it is not).
  if(entry.kind==='listing_live'){
   const {teamJobAccess}=await import('./teamJobAccess');
   return teamJobAccess(snapshot.data()??null).listed;
+ }
+ // A company was sent the job, or answered it (package C1): sent only while the summary is visible to companies by the
+ // same predicate, and while what the email says still stands (the send not voided, the answer unchanged).
+ if(entry.kind==='job_sent'||entry.kind==='company_answered'){
+  const {teamJobAccess}=await import('./teamJobAccess');
+  if(!teamJobAccess(snapshot.data()??null).listed)return false;
+  if(entry.idempotencyKey===undefined)return true;
+  const {companyNoticeStillTrue}=await import('./jobCompanies');
+  return companyNoticeStillTrue(entry.requestId,entry.kind,entry.idempotencyKey,snapshot.data()??{},transaction);
  }
  // A waiting notice is sent only while what it says is still true.
  if(entry.kind==='footage_before_account'){

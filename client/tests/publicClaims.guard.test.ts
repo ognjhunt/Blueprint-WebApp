@@ -46,6 +46,8 @@ const CLAIM_FILES = [
   "server/utils/captureOutbox.ts",
   "server/utils/qualificationEmails.ts",
   "client/src/lib/evaluationPricing.ts",
+  // Package C1: what a site and a company read about sends and answers.
+  "client/src/lib/companyResponses.ts",
   "client/public/llms.txt",
   "client/public/llms-full.txt",
 ] as const;
@@ -120,6 +122,11 @@ const FRAME_FILES = [
   "server/routes/task-listings.ts",
   "client/index.html",
   "client/public/agent-access.openapi.json",
+  // Package C1: the company's response route, the send and answer records, and the operator's panel.
+  "server/routes/site-worlds.ts",
+  "server/utils/jobCompanies.ts",
+  "client/src/types/jobCompanies.ts",
+  "client/src/components/admin/JobCompaniesConsole.tsx",
 ] as const;
 
 const FILES = [...CLAIM_FILES, ...FRAME_FILES] as const;

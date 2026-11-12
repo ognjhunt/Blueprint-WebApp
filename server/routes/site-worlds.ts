@@ -18,6 +18,9 @@ import { csrfProtection } from "../middleware/csrf";
 import { accessRecordId, getAccessRecordForEmail } from "../utils/robotTeamEarlyAccess";
 import { humanDecisionDigest } from "../utils/human-reply-admission";
 import { logger } from "../logger";
+import { COMPANY_RESPONSE_STATES } from "../../client/src/lib/companyResponses";
+import { prepareCompanyAnswerInTransaction } from "../utils/jobCompanies";
+import { captureUploadUrlFor } from "../utils/captureUploadToken";
 const router = Router();
 const isRecord = (value: unknown): value is Record<string, unknown> => Boolean(value) && typeof value === "object" && !Array.isArray(value);
 /** One bell per company and job: the company's stored name, else its admitted account. */
@@ -25,7 +28,7 @@ function companyKey(company: unknown, email: string): string {
   const name = typeof company === "string" ? company.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") : "";
   return name ? `company-${name}` : `account-${accessRecordId(email)}`;
 }
-const interestSchema = z.object({ state: z.enum(["interested", "declined"]),
+const interestSchema = z.object({ state: z.enum(COMPANY_RESPONSE_STATES),
   inputs: z.string().trim().min(4).max(2000) }).strict();
 router.post("/tasks/:taskId/interest", csrfProtection, verifyFirebaseToken, async (req, res) => {
   const input = interestSchema.safeParse(req.body), user = res.locals.firebaseUser;
@@ -39,14 +42,21 @@ router.post("/tasks/:taskId/interest", csrfProtection, verifyFirebaseToken, asyn
     const source = (await ref.get()).data(), card = source && projectTaskBrowseCard(taskId, source as InboundRequest);
     if (!card || card.opportunity !== "open") return res.status(409).json({ error: "This job is not open to interest." });
     const row = { ...input.data, email: user.email.toLowerCase(), company: access.company, submittedBy: user.uid,
-      updatedAtIso: new Date().toISOString() };
+      recordedBy: "company" as const, updatedAtIso: new Date().toISOString() };
+    const companyId = accessRecordId(user.email);
+    // The company's alias on this job (package C1), assigned with its first answer if it was never sent the job:
+    // the site is told "Company A", never the name.
+    // The site's email is written in the same transaction as the answer: it exists if and only if the answer does.
+    const captureUrl = captureUploadUrlFor(taskId, "owner");
     await db.runTransaction(async tx => {
       const current = (await tx.get(ref)).data();
       if (!current || humanDecisionDigest(current.public_task_listing) !== humanDecisionDigest(source!.public_task_listing)
         || !projectTaskBrowseCard(taskId, current as InboundRequest)) throw new Error("job_changed");
-      const interestRef = ref.collection("robotTeamInterest").doc(accessRecordId(user.email!));
+      const interestRef = ref.collection("robotTeamInterest").doc(companyId);
       const prior = (await tx.get(interestRef)).data();
       if (prior && humanDecisionDigest({ ...prior, updatedAtIso: null }) === humanDecisionDigest({ ...row, updatedAtIso: null })) return;
+      const prepared = await prepareCompanyAnswerInTransaction(tx, ref, taskId, current, companyId, input.data.state, captureUrl);
+      prepared.write();
       tx.set(interestRef, row);
     });
     // A site that asked Blueprint to find a deployment company: a person here makes the introduction,

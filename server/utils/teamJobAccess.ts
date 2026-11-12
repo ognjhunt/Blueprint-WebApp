@@ -54,7 +54,7 @@ import type { TaskListingDetails, TeamEvaluationTerms, TeamJobOpening } from "..
 import type { InboundRequest } from "../types/inbound-request";
 import { assessReadiness } from "../../client/src/lib/siteTaskReadiness";
 import { approvedTaskDetails } from "./taskListingDetails";
-import { operatorListingPaused } from "./operatorListing";
+import { operatorListingHold, operatorListingPaused } from "./operatorListing";
 import { projectWebsiteCaptureRights } from "./websiteTaskContext";
 import { coverageEvidenceFrom } from "./captureCoverageEvidence";
 import { sceneRunnableReadiness } from "./sceneRunnableReadiness";
@@ -78,6 +78,8 @@ export type TeamJobClosedReason =
   | "operator_paused"
   /** The site withdrew its recording permission. */
   | "consent_withdrawn"
+  /** Blueprint stopped showing the job to companies from the job console (`operator_listing_hold`). */
+  | "blueprint_hold"
   /** A development capture, never a site's live job. */
   | "development_only"
   /** The rights review blocked the capture. */
@@ -201,6 +203,8 @@ export function teamJobAccess(record: RecordLike): TeamJobAccess {
   if (operatorListingPaused(raw)) return closed("operator_paused");
   const rights = projectWebsiteCaptureRights(raw);
   if (rights.consent_revoked) return closed("consent_withdrawn");
+  // Blueprint's own privacy control: while held, no company sees the job, and the site is told it is not visible.
+  if (operatorListingHold(raw)) return closed("blueprint_hold");
   if (raw.evidence_tier === "development_only" || raw.pipeline?.evidence_tier === "development_only")
     return closed("development_only");
   const hold = rightsHold(raw);

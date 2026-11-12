@@ -67,6 +67,10 @@ export type OutboxKind =
   /** A job shown a new-video ask moved on with no new video (the Pipeline's re-check passed): "no new video is needed". */
   | "preparation_resumed"
   | "listing_live"
+  /** Blueprint recorded that it sent the site's job summary to an approved deployment company: once per send. */
+  | "job_sent"
+  /** A deployment company answered about the site's job: once per company and answer. */
+  | "company_answered"
   | "screening_cleared"
   | "screening_not_now"
   | "screening_started"
