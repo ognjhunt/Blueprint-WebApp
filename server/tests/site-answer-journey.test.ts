@@ -350,7 +350,7 @@ describe("a site's answer, from an email and a video to a deployment company", (
     const first = await asked.json();
     // What the page says next is read back from the predicate that decides what a company can see.
     expect(first).toEqual({ ok: true, requestedAtIso: NOW.toISOString(), listed: true,
-      sharing: { state: "visible", sharedAtIso: NOW.toISOString() } });
+      sharing: { state: "visible", sharedAtIso: NOW.toISOString(), leavesOut: { firstLook: false, trialResult: false } } });
     const { listingConsentVersion } = await import("../utils/taskListingDetails");
     const recorded = doc(`inboundRequests/${jobId}`).introduction_request;
     expect(recorded).toMatchObject({ requested_at_iso: NOW.toISOString(), requested_by: "signed_owner_link" });
@@ -364,7 +364,7 @@ describe("a site's answer, from an email and a video to a deployment company", (
     vi.setSystemTime(new Date(NOW.getTime() + 60_000));
     const again = await post(`/api/site-task-brief/${token}/introduction-request`, { statementVersion: JOB_CARD_ANSWER_STATEMENT_VERSION });
     expect(await again.json()).toEqual({ ok: true, requestedAtIso: NOW.toISOString(), listed: true,
-      sharing: { state: "visible", sharedAtIso: NOW.toISOString() } });
+      sharing: { state: "visible", sharedAtIso: NOW.toISOString(), leavesOut: { firstLook: false, trialResult: false } } });
     expect(introductionAlerts()).toHaveLength(1);
     vi.setSystemTime(NOW);
 

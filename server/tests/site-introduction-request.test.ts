@@ -136,7 +136,7 @@ describe("POST /:token/introduction-request", () => {
     const first = await ask();
     expect(first.status).toBe(200);
     expect(first.body).toEqual({ ok: true, requestedAtIso: expect.any(String), listed: true,
-      sharing: { state: "visible", sharedAtIso: first.body.requestedAtIso } });
+      sharing: { state: "visible", sharedAtIso: first.body.requestedAtIso, leavesOut: { firstLook: false, trialResult: false } } });
     const stored = row("inboundRequests/req-1");
     // The choice is recorded with the exact sentence shown under the button, and its version.
     expect(stored.introduction_request).toEqual({ requested_at_iso: first.body.requestedAtIso, requested_by: "signed_owner_link",
@@ -158,7 +158,7 @@ describe("POST /:token/introduction-request", () => {
 
     const second = await ask();
     expect(second.body).toEqual({ ok: true, requestedAtIso: first.body.requestedAtIso, listed: true,
-      sharing: { state: "visible", sharedAtIso: first.body.requestedAtIso } });
+      sharing: { state: "visible", sharedAtIso: first.body.requestedAtIso, leavesOut: { firstLook: false, trialResult: false } } });
     expect(sendSlackMessage).toHaveBeenCalledTimes(1);
     expect(row("inboundRequests/req-1").public_task_listing.approvedAtIso).toBe(stored.public_task_listing.approvedAtIso);
   });

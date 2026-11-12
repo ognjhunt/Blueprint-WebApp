@@ -150,7 +150,9 @@ describe("owner authorization and durable demand", () => {
     expect((await book({ recommendationId: "rec_1", authorized: true })).status).toBe(404);
     expect(doc().pilot_booking).toBeUndefined();
   });
-  it("emails the site once when its card goes live, and again only if it is switched off and on", async () => {
+  // Review, 2026-11-12: "Your job summary is shared" goes out once, at the first moment the summary is visible, and
+  // never twice (it used to go again when the card was switched off and on).
+  it("emails the site once when its card goes live, and not again when it is switched off and on", async () => {
     const post = (enabled: boolean) => fetch(`${base}/owner/${token("owner")}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ enabled, details, consent: true }) });
     const live = () => [...state.docs.keys()].filter(key => key.startsWith("captureOutbox/req1:listing_live:"));
     state.docs.set("inboundRequests/req1", record({ public_task_listing: undefined }) as never);
@@ -161,7 +163,7 @@ describe("owner authorization and durable demand", () => {
     await post(false);
     await new Promise(resolve => setTimeout(resolve, 2));
     await post(true);
-    expect(live()).toHaveLength(2);
+    expect(live()).toHaveLength(1);
   });
   it("queues no automatic new-job email for an open card, even to opted-in approved robot teams", async () => {
     const { accessRecordId } = await import("../utils/robotTeamEarlyAccess");
