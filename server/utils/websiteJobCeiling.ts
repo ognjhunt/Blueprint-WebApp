@@ -11,6 +11,11 @@
  * holds as `budget_exhausted`. Money is the only stop added: the existing
  * per-ledger caps still apply inside the ceiling, and no stored reservation,
  * grant or settlement is read differently, reset or rewritten.
+ *
+ * Owner decision 2026-11-11: the ceiling is the job's one safety limit ($100 for new jobs), a fuse
+ * against a bug burning the account's month in one job, never a judgment that a job costs too much.
+ * It refuses on every grant, the automatic budget extension included, and bounds screening too:
+ * there is no separate $30 screening allowance below it.
  */
 import { websiteAtlasAuthorizationCeiling, websiteAtlasGrantPolicy } from "./websiteAtlasAuthorization";
 import { parseBetaPolicyScreeningPublication, screeningMoneyMicros } from "./betaPolicyScreeningContract";
