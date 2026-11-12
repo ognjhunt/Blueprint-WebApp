@@ -24,7 +24,8 @@ const RUNNING_TRUSTED_MS = 30 * 60_000;
 
 export type CoverageRequeueRefusal = "approval_required" | "request_missing" | "not_exhausted" | "review_job_missing"
   | "review_job_mismatch" | "review_running" | "review_completed" | "attempts_remaining" | "coverage_already_recorded"
-  | "capture_superseded" | "requeue_limit_reached" | "capture_not_authorized" | CoverageClearanceRefusal;
+  | "capture_superseded" | "requeue_limit_reached" | "requeue_history_unreadable" | "capture_not_authorized"
+  | "model_call_in_flight" | CoverageClearanceRefusal;
 export type CoverageRequeueCheck = { check: string; passed: boolean };
 export type CoverageRequeueChange = { document: string; field: string; from: unknown; to: unknown };
 export type CoverageRequeueResult = {
@@ -94,7 +95,10 @@ export async function requeueExhaustedCoverageReview(requestId: string, options:
     if (!record("no_reading_recorded", !request!.capture_coverage)) return refuse("coverage_already_recorded");
     if (!record("capture_still_current", !request!.active_capture_id || request!.active_capture_id === job!.captureId))
       return refuse("capture_superseded");
-    const history: Record<string, unknown>[] = Array.isArray(job!.requeue_history) ? job!.requeue_history : [];
+    // A history that cannot be read never resets the bound.
+    if (!record("requeue_history_readable", job!.requeue_history === undefined || Array.isArray(job!.requeue_history)))
+      return refuse("requeue_history_unreadable");
+    const history: Record<string, unknown>[] = job!.requeue_history ?? [];
     const flags = history.length ? [`This reading was requeued ${history.length} time(s) before.`] : [];
     if (!record("requeue_bound", history.length < COVERAGE_REVIEW_MAX_REQUEUES)) return refuse("requeue_limit_reached");
     const clearance = coverageClearanceRefusal(request, briefSnap.data(), binding, job!.captureId);
@@ -110,9 +114,14 @@ export async function requeueExhaustedCoverageReview(requestId: string, options:
     const budget = (await tx.get(budgetRef)).data();
     const pendingCall = budget?.pending_token
       ? (await tx.get(budgetRef.collection("calls").doc(String(budget.pending_token)))).data() : null;
-    if (pendingCall?.state === "admitted") flags.push(pendingCall.review_id === reviewId
-      ? "This reading's own earlier model call is still recorded in flight; the requeued reading will wait on it, and after 30 minutes each wait counts as an attempt."
-      : "Another model call for this capture is recorded in flight; the requeued reading will wait for it, and after 30 minutes each wait counts as an attempt.");
+    // The budget allows one model call per capture at a time and refuses a new one while any is recorded in flight.
+    // A requeued reading would only wait on it, count its waits after 30 minutes and use up a requeue: refused instead.
+    if (!record("no_model_call_in_flight", !budget?.pending_token)) {
+      const owner = pendingCall?.review_id === reviewId ? "this reading's own earlier call"
+        : pendingCall?.review_id ? "another reading of this capture" : pendingCall?.run_id ? "the site assessment" : "an unreadable call record";
+      return refuse("model_call_in_flight", [...flags, `A model call for this capture is recorded in flight (${owner}, state ${
+        String(pendingCall?.state ?? "missing")}). It clears when that call records its response, or when its owner has ended as failed or cancelled and the next call retires it; requeue after that.`]);
+    }
 
     const nowIso = new Date(now).toISOString();
     const waiting = waitingMap(request);

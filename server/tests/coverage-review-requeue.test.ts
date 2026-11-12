@@ -27,7 +27,8 @@ vi.mock("../logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.
 
 import { sharedFakeFirestoreState as state } from "./helpers/fake-firestore";
 import { RECORDING_CONSENT_VERSION } from "../utils/recordingConsent";
-import { reconcileCoverageReviews } from "../utils/captureCoverageQueue";
+import { coverageClearanceRefusal, reconcileCoverageReviews } from "../utils/captureCoverageQueue";
+import { humanDecisionDigest } from "../utils/human-reply-admission";
 import { COVERAGE_REQUEUE_AUDIT_COLLECTION, parseRequeueArgs, printableRequeueResult,
   requeueExhaustedCoverageReview } from "../utils/captureCoverageRequeue";
 
@@ -207,6 +208,26 @@ describe("refusals, each writing nothing", () => {
     expect(snapshot()).toBe(before);
   });
 
+  it("refuses while a model call for the capture is recorded in flight, whoever owns it, and says what clears it", async () => {
+    await exhaustByFailures();
+    const budget = `captureCoverageReviews/budget-${humanDecisionDigest({ capture_id: "walkthrough-req-1" })}`;
+    state.docs.set(budget, { capture_id: "walkthrough-req-1", pending_token: "tok-1", exposure_usd: 0.12, calls: 1 });
+    state.docs.set(`${budget}/calls/tok-1`, { state: "admitted", run_id: "run-1", review_id: null, capture_id: "walkthrough-req-1" });
+    const before = snapshot();
+    const result = await requeueExhaustedCoverageReview("req-1");
+    expect(result).toMatchObject({ outcome: "refused", reason: "model_call_in_flight", changes: [] });
+    expect(result.flags.join(" ")).toMatch(/the site assessment.*clears when that call records its response/);
+    expect(snapshot()).toBe(before);
+  });
+
+  it("refuses a requeue history it cannot read, rather than resetting the bound", async () => {
+    await exhaustByFailures();
+    patchJob({ requeue_history: { 0: { requeued_at_iso: "2026-11-11T00:00:00.000Z" } } });
+    const before = snapshot();
+    expect(await apply()).toMatchObject({ outcome: "refused", reason: "requeue_history_unreadable", changes: [] });
+    expect(snapshot()).toBe(before);
+  });
+
   it("refuses an apply without the owner's approval", async () => {
     await exhaustByFailures();
     const before = snapshot();
@@ -214,6 +235,45 @@ describe("refusals, each writing nothing", () => {
     expect(await requeueExhaustedCoverageReview("req-1", { apply: true, approval: { approvedBy: " ", approvalEvidence: "x" } }))
       .toMatchObject({ outcome: "refused", reason: "approval_required" });
     expect(snapshot()).toBe(before);
+  });
+});
+
+describe("the queue around a requeue", () => {
+  it("still skips a reading whose current source has no key, and the shared check refuses it", async () => {
+    const privacy = request().capture_privacy_source_bound_decision;
+    patchRequest({ capture_privacy_source_bound_decision: { ...privacy, producer_source: { kind: "browser_pending" } } });
+    seams.review.mockResolvedValue(FINDING);
+    await tickAfter(0);
+    expect(seams.review).not.toHaveBeenCalled();
+    expect(job()).toBeUndefined();
+    expect(request().capture_coverage_pending).toBe(true);
+    const keyless = { kind: "browser_pending" };
+    expect(coverageClearanceRefusal({ ...request(), capture_privacy_source_bound_decision: { ...privacy, producer_source: keyless } },
+      BRIEF, { source: keyless, brief_digest: humanDecisionDigest(BRIEF) }, "walkthrough-req-1")).toBe("source_changed");
+  });
+
+  it("shuts out a late finish from an old claim after the requeue", async () => {
+    let release!: (value: typeof FINDING) => void;
+    seams.review.mockResolvedValueOnce(null).mockResolvedValueOnce(null)
+      .mockImplementationOnce(() => new Promise(resolve => { release = resolve; }));
+    await tickAfter(0);
+    await tickAfter(61_000);
+    expect(job()).toMatchObject({ attempts: 2 });
+    // The third claim starts reading and hangs past its trusted window.
+    vi.setSystemTime(Date.now() + 61_000);
+    const hanging = reconcileCoverageReviews();
+    await vi.waitFor(() => expect(job()).toMatchObject({ state: "running", attempts: 3 }));
+    vi.setSystemTime(Date.now() + 31 * 60_000);
+    await reconcileCoverageReviews();
+    await reconcileCoverageReviews();
+    expect(reviewOf()).toMatchObject({ state: "review_required", reason: "automatic_review_attempts_exhausted" });
+    expect((await apply()).outcome).toBe("requeued");
+    release(FINDING);
+    await hanging;
+    expect(job()).toMatchObject({ state: "requeued", attempts: 0, claim_token: null });
+    expect(job()!.finding).toBeUndefined();
+    expect(reviewOf()).toMatchObject({ state: "requeued" });
+    expect(request().capture_coverage_pending).toBe(true);
   });
 });
 
