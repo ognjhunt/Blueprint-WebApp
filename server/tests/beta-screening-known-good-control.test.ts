@@ -88,6 +88,29 @@ describe("the known-good control row", () => {
     expect(notice.counts).toEqual(plain.counts);
   });
 
+  // Review, 2026-11-12: the next Pipeline publishes the control FIRST, with its counts in the flag. Nothing depends on
+  // its position: it is found by its own marker. The released Pipeline's row-last publications read as before.
+  it("reads the same when the control is the first row, with the next Pipeline's suffixed flag", () => {
+    const base = finished();
+    const first = (row: ReturnType<typeof controlRow>) => sealScreening({ ...base, schema_version: "beta_policy_screening_publication.v3",
+      scene_feasibility: { status: "unknown", flags: [] }, candidates: [row, ...base.candidates] });
+    const value = parseBetaPolicyScreeningPublication(first(controlRow("known_good_control_passed:3_of_3", { scored: 3, succeeded: 3 })))!;
+    expect(value).not.toBeNull();
+    expect(screeningKnownGoodControl(value.candidates[0])).toBe(true);
+    expect(screeningCandidateRows(value.candidates)).toEqual(value.candidates.slice(1));
+    expect(screeningOutcome(value)).toBe(screeningOutcome(base));
+    const row = projected(value), before = projected(base);
+    expect(row.screening!.candidates.map(item => item.candidateId)).toEqual(before.screening!.candidates.map(item => item.candidateId));
+    expect(row.summary).toBe(before.summary);
+    expect(row.screening!.setupNotes).toEqual([counted("3 of 3 scored tries in the simulated scene", "passed")]);
+    expect(screeningOutcomeNoticeIntent(value, "job-1")!.counts).toEqual(screeningOutcomeNoticeIntent(base, "job-1")!.counts);
+    const projection = projectCandidateSelection({ record: selectionFixture(value) }, value)!;
+    expect(projection.candidates.map(item => item.candidateId)).toEqual(value.candidates.slice(1).map(item => item.candidate_id));
+    const partly = parseBetaPolicyScreeningPublication(first(controlRow("known_good_control_partly:1_of_3", { scored: 3, succeeded: 1 })))!;
+    expect(screeningReferenceCheck(partly.candidates)).toBe("partly");
+    expect(screeningSetupNotes(partly)).toEqual([counted("1 of 3 scored tries in the simulated scene", "partly")]);
+  });
+
   it("is never a row the Pipeline's choice of candidate lists", () => {
     const value = parseBetaPolicyScreeningPublication(withControl(finished(), controlRow("known_good_control_passed")))!;
     const projection = projectCandidateSelection({ record: selectionFixture(value) }, value)!;

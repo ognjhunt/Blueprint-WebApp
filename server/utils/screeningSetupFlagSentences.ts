@@ -49,7 +49,6 @@ const SETUP_FLAG_SENTENCES: ReadonlyMap<string, string> = new Map(Object.entries
   // flag read on its own.
   known_good_control_partly: "A scripted reference arm that reads exact positions from the simulation did the job in only some of its tries in the simulated scene, so a low result here may partly reflect our simulation rather than the robots.",
   "known_good_control_unavailable:task_kind": "We have no scripted reference for this kind of job yet, so nothing confirmed beforehand that the simulated scene can record a success.",
-  "known_good_control_unavailable:backend": "We have no scripted reference that runs in this simulation yet, so nothing confirmed beforehand that the simulated scene can record a success.",
   // A run's own record that an AI robot's software stopped mid-test (Pipeline `session_policy_server_lost`).
   session_policy_server_lost: "This AI robot's software stopped during the test, so only some tries were counted.",
   // What the simulated scene was built on that was estimated, not observed (Pipeline `atlas_scene_estimates`,

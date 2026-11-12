@@ -36,7 +36,7 @@ describe("set-up and scene flags", () => {
     ["task_object_box_fit_outline:top", "In the simulated scene, the object's size or outline differs from what your video shows."],
     ["known_good_control_partly:1_of_3", "A scripted reference arm that reads exact positions from the simulation did the job in only some of its tries in the simulated scene, so a low result here may partly reflect our simulation rather than the robots."],
     ["known_good_control_passed:2_of_3", "Before testing robots, a scripted reference arm that reads exact positions from the simulation completed the job, so the simulated scene can record a success."],
-    ["known_good_control_unavailable:backend", "We have no scripted reference that runs in this simulation yet, so nothing confirmed beforehand that the simulated scene can record a success."],
+    ["known_good_control_unavailable:backend", "We have no scripted reference for this kind of job yet, so nothing confirmed beforehand that the simulated scene can record a success."],
     ["known_good_control_unavailable:task_kind", "We have no scripted reference for this kind of job yet, so nothing confirmed beforehand that the simulated scene can record a success."],
   ])("says %s in plain words, never the code", (code, sentence) => {
     expect(setupFlagSentence(code)).toBe(sentence);
@@ -168,4 +168,47 @@ describe("the preparation watch keeps a long reason code", () => {
 
 describe("the reference check's sentence never says a verdict its counts do not show", () => {
   it("adds nothing when no try was scored", () => expect(referenceCheckSentence(0, 0, 3)).toBeNull());
+});
+
+describe("the cold-storage hold", () => {
+  const holdRun = (detail: string | null) => ({ id: "hold-1", run: { run_kind: "beta_policy_screening_hold", team_namespace: "team",
+    state: "blocked", screening_outcome: "held_setup", hold_reason_code: "team_scene_packet_blocked", hold_detail_code: detail } });
+  const COLD = "Held on our side while the saved simulation of your job is restored. Nothing is needed from you.";
+  it("is said by its detail on the page and in its one email; any other detail keeps the reason's sentence", async () => {
+    const { sceneScreening, sceneScreeningResult } = await import("../utils/websiteSceneProgression");
+    const { projectTaskStatus } = await import("../utils/taskStatusProjection");
+    const { heldOutcomeNoticeIntent } = await import("../utils/screeningOutcomeNotifications");
+    const { simulationHoldSentence } = await import("../utils/betaPolicyScreeningContract");
+    const page = (detail: string | null) => {
+      const result = sceneScreeningResult(sceneScreening([holdRun(detail)], "team"));
+      const progression = projectWebsiteSceneProgression({ state: "completed", pipeline_status: { status: "completed" } }, result);
+      return projectTaskStatus({ briefDrafted: true, briefConfirmed: true, hasStoredCapture: true, stage: null, coversScene: null,
+        missingViews: [], supplementWouldFinish: false, sceneProgression: progression } as never).headline;
+    };
+    expect(page("scene_run_in_cold_storage")).toContain(COLD);
+    expect(page("something_new")).toContain(simulationHoldSentence("held_setup"));
+    expect(page("something_new")).not.toContain("restored");
+    const intent = heldOutcomeNoticeIntent("held_setup", "job-1", "hold-1", "scene-1", "scene_run_in_cold_storage")!;
+    expect(intent.hold_detail).toBe("scene_run_in_cold_storage");
+    const email = buildTaskLifecycleNotification({ requestId: "job-1", milestone: "evaluation_outcome", eventId: intent.event_id,
+      screeningOutcome: "held_setup", screeningHoldDetail: "scene_run_in_cold_storage", to: "owner@example.test" });
+    expect(email.body).toContain(COLD);
+    expect(heldOutcomeNoticeIntent("held_setup", "job-1", "hold-1", "scene-1")?.hold_detail).toBeUndefined();
+  });
+});
+
+describe("the scripted reference row, first or last", () => {
+  it("is recognised by its own marker with the next Pipeline's suffixed flags", async () => {
+    const { screeningKnownGoodControl, screeningReferenceCheck } = await import("../utils/betaPolicyScreeningContract");
+    const row = (flag: string, scored: number, succeeded: number) => ({ execution_evidence_kind: "scripted_simulator_state_baseline",
+      setup_quality_flags: [flag], episodes_scored: scored, episodes_succeeded: succeeded, episodes_void: 3 - scored }) as never;
+    const learned = { execution_evidence_kind: "learned_policy", setup_quality_flags: [], episodes_scored: 3, episodes_succeeded: 1 } as never;
+    for (const [flag, scored, succeeded, check] of [["known_good_control_passed:2_of_3", 3, 2, "passed"],
+      ["known_good_control_partly:1_of_3", 3, 1, "partly"], ["known_good_control_failed:0_of_3", 3, 0, "failed"],
+      ["known_good_control_unavailable:budget", 0, 0, "could_not_run"]] as const) {
+      expect(screeningKnownGoodControl(row(flag, scored, succeeded))).toBe(true);
+      expect(screeningReferenceCheck([row(flag, scored, succeeded), learned])).toBe(check);
+      expect(screeningReferenceCheck([learned, row(flag, scored, succeeded)])).toBe(check);
+    }
+  });
 });

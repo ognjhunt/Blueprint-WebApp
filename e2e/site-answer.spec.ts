@@ -242,6 +242,22 @@ test("a job waiting for its sentence shows the form to name it under the answer 
   const form = page.getByRole("form", { name: "Name the job" });
   await expect(form).toBeVisible();
   await expect(form.getByRole("textbox")).toBeVisible();
+  // The page is asking, so the label asks too: never "Optional".
+  await expect(form.locator("label")).toHaveText("In one line, what should the robot do?");
+  await expect(page.getByText(/^Optional: if we read the job wrong/)).toHaveCount(0);
+  expect(unexpected).toEqual([]);
+});
+
+// Review, 2026-11-12: once the site has given its sentence, the server says so (no ask, no form) until the Pipeline
+// re-reads the job: the page shows neither.
+test("a job the site has named shows no ask and no naming form", async ({ page }) => {
+  const { unexpected } = await mockJob(page, { evaluation: null });
+  await page.route(`**/api/site-task-brief/${token}`, route => route.fulfill({ json: { ready: true, scope: "owner", account: null,
+    taskStatementNeeded: false, brief: { summary: "Move the cartons onto the pallet.", captureMode: "self_capture", proposed: [], unresolved: [], confirmedAtIso: null } } }));
+  await page.goto(`/capture-upload/${token}?video=existing`);
+  await page.locator(".site-answer-bare .bare-big, .site-answer-bare .bare-lead").first().waitFor();
+  await expect(page.getByText("Tell us in one sentence what the robot should do, so we can build the simulation of your job.")).toHaveCount(0);
+  await expect(page.getByRole("form", { name: "Name the job" })).toHaveCount(0);
   expect(unexpected).toEqual([]);
 });
 

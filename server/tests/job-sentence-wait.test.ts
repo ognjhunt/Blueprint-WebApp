@@ -97,3 +97,20 @@ describe("a job waiting for its sentence: one decision", () => {
     expect(await loadJobWaitsForItsSentence("req-1", statusOnly)).toBe(false);
   });
 });
+
+describe("the page once the site has named its job", () => {
+  it("says we have the sentence and are starting, with no ask", async () => {
+    const { projectTaskStatus } = await import("../utils/taskStatusProjection");
+    const { taskNotNamedOutcome } = await import("../utils/taskPreparationOutcome");
+    const base = { briefDrafted: true, briefConfirmed: false, hasStoredCapture: true, stage: null, coversScene: null,
+      missingViews: [], supplementWouldFinish: false, preparationOutcome: taskNotNamedOutcome(`sha256:${"a".repeat(64)}`) };
+    const asking = projectTaskStatus(base as never);
+    expect(asking).toMatchObject({ headline: "Tell us the job in one sentence" });
+    const named = projectTaskStatus({ ...base, siteNamedTask: true } as never);
+    expect(named.headline).toBe("We have your job's sentence");
+    expect(named.outcome).toMatchObject({ actionOwner: "blueprint",
+      reason: "We have the sentence you gave us, and we are starting to build the simulation of your job.",
+      nextStep: "Nothing more is needed from you." });
+    expect(named.operatorAction).toBeNull();
+  });
+});
