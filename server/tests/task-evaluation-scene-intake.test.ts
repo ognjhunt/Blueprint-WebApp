@@ -468,6 +468,59 @@ it.each(["needs_conversation", "not_now", undefined])("funds no scene for a site
   expect((await response.json()).code).toBe("website_scene_site_not_qualified");
 });
 
+// Owner decision 2026-11-11: the screen no longer gates the simulation for a job
+// whose video arrived after the change. The jobs above, without the marker,
+// were uploaded before it and stay held for the owner to decide.
+it.each(["needs_conversation", "not_now", undefined])("funds a %s job uploaded after the screen stopped gating, with exactly a qualified job's amounts", async (disposition) => {
+  const { sceneScreenGateEndedMarker } = await import("../utils/sceneScreenGate");
+  sponsoredCapture();
+  const qualified = await loadWebsiteSceneSponsorship("req1", true);
+  sponsoredCapture();
+  const record = store.rows.get("inboundRequests/req1");
+  record.site_task_triage = disposition ? { disposition } : undefined;
+  record.scene_screen_gate_ended = sceneScreenGateEndedMarker("req1", new Date().toISOString());
+  const grant = await loadWebsiteSceneSponsorship("req1", true);
+  expect(store.rows.get("inboundRequests/req1").website_scene_sponsorship).toEqual(grant);
+  const money = (value: any) => ({ policy_digest: value.policy_digest, owner: value.owner, sponsor: value.sponsor,
+    preparation_max_total_spend_usd: value.preparation_max_total_spend_usd, upstream_max_spend_usd: value.upstream_max_spend_usd,
+    max_total_spend_usd: value.max_total_spend_usd, max_paid_attempts: value.max_paid_attempts,
+    scene_configuration_max_retries: value.scene_configuration_max_retries, automatic_budget_extension: value.automatic_budget_extension,
+    ttl: value.expires_at_epoch - value.consent.accepted_at_epoch, spend_authorized: value.consent.spend_authorized });
+  expect(money(grant)).toEqual(money(qualified));
+});
+
+it.each(["not_now", "needs_conversation"])("funds a %s job marked when it was created, after the change", async (disposition) => {
+  const { sceneScreenGateEndedMarker } = await import("../utils/sceneScreenGate");
+  sponsoredCapture();
+  const record = store.rows.get("inboundRequests/req1");
+  record.site_task_triage = { disposition };
+  record.scene_screen_gate_ended = sceneScreenGateEndedMarker("req1", "2026-11-11T12:00:00Z", "job_created");
+  await expect(loadWebsiteSceneSponsorship("req1", true)).resolves.toMatchObject({ request_id: "req1" });
+});
+
+it("still refuses a job uploaded after the change when no account owns its video", async () => {
+  const { sceneScreenGateEndedMarker } = await import("../utils/sceneScreenGate");
+  sponsoredCapture();
+  const record = store.rows.get("inboundRequests/req1");
+  record.site_task_triage = { disposition: "not_now" };
+  record.scene_screen_gate_ended = sceneScreenGateEndedMarker("req1", new Date().toISOString());
+  delete record.account_owner_uid;
+  await expect(loadWebsiteSceneSponsorship("req1", true)).rejects.toThrow("website_scene_site_unclaimed");
+  expect(store.rows.get("inboundRequests/req1").website_scene_sponsorship).toBeUndefined();
+});
+
+it("does not release a held job from a marker for another capture or a malformed one", async () => {
+  const { sceneScreenGateEndedMarker } = await import("../utils/sceneScreenGate");
+  sponsoredCapture();
+  const record = store.rows.get("inboundRequests/req1");
+  record.site_task_triage = { disposition: "not_now" };
+  for (const marker of [{ ...sceneScreenGateEndedMarker("req1", new Date().toISOString()), capture_id: "walkthrough-other" },
+    { ...sceneScreenGateEndedMarker("req1", "not a time") }, { schema_version: "scene_screen_gate_ended.v0" }]) {
+    record.scene_screen_gate_ended = marker;
+    await expect(loadWebsiteSceneSponsorship("req1", true)).rejects.toThrow("website_scene_site_not_qualified");
+  }
+});
+
 it("funds a qualified job's scene whatever kind its brief screen reads", async () => {
   // The screen's task-kind reading is a hint; the Pipeline holds a job it cannot score with a typed code.
   sponsoredCapture();

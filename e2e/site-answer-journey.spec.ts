@@ -71,6 +71,27 @@ async function outbox(request: APIRequestContext, requestId: string) {
 
 const answer = (page: Page) => page.getByRole("region", { name: "Your answer" });
 
+/**
+ * The job's no-grant wait ends, as the scheduler's sweep records it: the first pass starts the wait, a pass a window
+ * later records the ending and queues its one email. With no simulation test on the way, the paper check is the answer.
+ */
+async function endWithoutGrant(request: APIRequestContext, requestId: string) {
+  const sweep = async (atMs: number) => {
+    const response = await request.post(`${ORIGIN}/api/reliability/no-grant-sweep?requestId=${encodeURIComponent(requestId)}&atMs=${atMs}`);
+    expect(response.ok()).toBe(true);
+    return ((await response.json()) as { result: string }).result;
+  };
+  const now = Date.now();
+  expect([await sweep(now), await sweep(now + 60 * 86_400_000)]).toEqual(["clock_started", "ended_notice_queued"]);
+}
+
+/** While the simulation is being built the screen says so, and offers nothing to share yet. */
+async function expectGettingReady(page: Page) {
+  await expect(answer(page).getByRole("heading", { level: 2, name: "Getting ready" })).toBeVisible({ timeout: 45_000 });
+  await expect(answer(page).getByText("Building your simulation", { exact: true })).toBeVisible();
+  await expect(answer(page).getByRole("button", { name: "Find a company to set it up" })).toHaveCount(0);
+}
+
 /** Waits, within the page's own status polling, for the answer and checks what it says. Returns the robot's name. */
 async function expectAnswer(page: Page) {
   const section = answer(page);
@@ -117,7 +138,15 @@ test("desktop: email and video in, the answer on the job page, a deployment comp
   expect(ticked.finished).toBe(true);
   test.info().annotations.push({ type: "video-model-calls", description: String(ticked.videoModelCalls) });
   expect(ticked.videoModelCalls).toBe(1);
+  // (a) The video is read and no ending is recorded: the job is on its way to a simulation (review, 2026-11-11).
+  await expectGettingReady(page);
+  await answer(page).screenshot({ path: path.join(SHOTS, "journey-3a-getting-ready-desktop.png") });
+  expect((await outbox(request, requestId)).filter(row => !["task_received", "video_received"].includes(row.kind))).toEqual([]);
+  // The job's wait for a simulation ends with none built: the paper check is the answer, with the reason.
+  await endWithoutGrant(request, requestId);
+  await page.reload();
   const headline = await expectAnswer(page);
+  await expect(answer(page)).toContainText("We have not built a simulation for this job.");
   await answer(page).screenshot({ path: path.join(SHOTS, "journey-3-answer-desktop.png") });
   await page.screenshot({ path: path.join(SHOTS, "journey-answer-desktop.png"), fullPage: true });
 
@@ -125,7 +154,10 @@ test("desktop: email and video in, the answer on the job page, a deployment comp
   const find = answer(page).getByRole("button", { name: "Find a company to set it up", exact: true });
   await expect(find).toBeVisible();
   await expect(answer(page)).toContainText("Your video, address and contacts stay private.");
+  const posted = page.waitForResponse(response => response.url().endsWith("/introduction-request") && response.request().method() === "POST");
   await find.click();
+  const reply = await posted;
+  expect(reply.status(), await reply.text()).toBe(200);
   const confirmation = answer(page).getByRole("status");
   await expect(confirmation).toHaveText("✓ Shared. We'll email you when a company replies.");
   await page.screenshot({ path: path.join(SHOTS, "journey-4-requested-desktop.png"), fullPage: true });
@@ -133,14 +165,18 @@ test("desktop: email and video in, the answer on the job page, a deployment comp
   await expect(answer(page).getByRole("status")).toHaveText("✓ Shared. We'll email you when a company replies.", { timeout: 45_000 });
   await expect(answer(page).getByRole("button", { name: "Find a company to set it up" })).toHaveCount(0);
 
-  // (c) Exactly one answer email for this job, carrying the headline. Never delivered here.
-  const rows = (await outbox(request, requestId)).filter(row => row.kind === "answer_ready");
-  expect(rows).toHaveLength(1);
-  expect(rows[0].idempotencyKey).toBe(`${requestId}:answer_ready`);
-  expect(rows[0].body).toContain(headline);
-  // A second pass of the review settles nothing new and queues no second email.
+  // (c) One paper-check email, queued by the sweep that recorded the ending (review, 2026-11-11): why no test ran, and
+  // the paper check as the answer. Never delivered here.
+  const answers = async () => (await outbox(request, requestId)).filter(row => ["answer_ready", "scene_outcome", "evaluation_outcome", "preparation_ended"].includes(row.kind));
+  const paper = await answers();
+  expect(paper.map(row => row.idempotencyKey)).toEqual([`${requestId}:scene_outcome:job_no_grant_ended`]);
+  // A final ending: the paper check is the answer, with no promise of a later result (review, 2026-11-11).
+  expect(paper[0].body).toContain("So the paper check is your answer.");
+  expect(paper[0].body).not.toContain("If a test result comes later");
+  expect(headline).toBeTruthy();
+  // A second pass of the review settles nothing new and queues no email.
   expect((await tick(request, requestId)).videoModelCalls).toBe(0);
-  expect((await outbox(request, requestId)).filter(row => row.kind === "answer_ready")).toHaveLength(1);
+  expect(await answers()).toHaveLength(1);
 
   // (e) Withdrawing recording permission takes the answer off the page. The way to stop is on Job settings.
   await answer(page).getByRole("button", { name: "Job settings ›" }).click();
@@ -167,6 +203,9 @@ test.describe("phone", () => {
     const { link, requestId } = await startWithVideo(page, `answer-journey-phone-${Date.now()}@example.invalid`);
     await link.click();
     expect((await tick(request, requestId)).finished).toBe(true);
+    await expectGettingReady(page);
+    await endWithoutGrant(request, requestId);
+    await page.reload();
     await expectAnswer(page);
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     expect(overflow).toBeLessThanOrEqual(0);

@@ -559,3 +559,18 @@ describe("projectJobFacts", () => {
     expect(projectJobFacts(inputs({ record: { ...record, workspace_task: { paused: true } } })).listing.state).toBe("paused");
   });
 });
+
+// Owner decision 2026-11-11: the screen holds nothing for a job uploaded after it.
+describe("the console's scene hold for a job past the screen's cutover", () => {
+  it("names the real hold, never 'not now, no scene is built', and keeps older jobs as they were", async () => {
+    const { sceneHoldOf } = await import("../utils/jobConsoleFacts");
+    const { sceneScreenGateEndedMarker } = await import("../utils/sceneScreenGate");
+    const base = { requestId: "job-9", site_task_brief_confirmed_at: "2026-11-12T00:00:00Z", account_owner_uid: "owner-9" };
+    const marker = sceneScreenGateEndedMarker("job-9", "2026-11-12T00:00:00Z");
+    expect(sceneHoldOf({ ...base, site_task_triage: { disposition: "not_now" } })).toBe("not_now");
+    expect(sceneHoldOf({ ...base, site_task_triage: { disposition: "not_now" }, scene_screen_gate_ended: marker })).toBe("scene_not_built");
+    expect(sceneHoldOf({ ...base, site_task_triage: { disposition: "needs_conversation" }, scene_screen_gate_ended: marker })).toBe("scene_not_built");
+    expect(sceneHoldOf({ ...base, site_task_triage: { disposition: "not_now" }, scene_screen_gate_ended: marker,
+      pipeline: { artifacts: { worldlabs_world_manifest_uri: "gs://bucket/world.json" } } })).toBe("scene_not_proven");
+  });
+});

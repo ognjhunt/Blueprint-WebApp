@@ -66,15 +66,16 @@ describe("the desktop reflecting the phone from server state", () => {
     expect(screen.queryByText(/proposed next step/)).not.toBeInTheDocument();
   });
 
-  it.each(["needs_review", "unavailable"])("keeps an assessment %s notice visible", async state => {
+  // The per-job site assessment has ended (2026-11-11): a job queued at cutover reads as retired or unavailable and
+  // shows nothing about it, no spinner or error (rewritten from "keeps an assessment notice visible").
+  it.each(["needs_review", "unavailable", "queued", "running"])("shows nothing about an assessment that is %s", async state => {
     fetchMock.mockResolvedValue({ok: true, json: async () => ({
       status: {headline: "Recording received", stage: "review"},
       siteAdvisory: {state, sections: [], unknowns: [], nextAction: null, correlationId: "fixture-reference"},
     })});
     render(<CaptureLiveStatus compact captureUrl={CAPTURE_URL} />);
-    const notice = await screen.findByText(/Keep your original video/);
-    expect(notice.closest("details")).toBeNull();
-    expect(screen.queryByRole("link", {name: "Contact Blueprint"})).not.toBeInTheDocument();
+    expect(await screen.findByText("Recording received")).toBeVisible();
+    expect(screen.queryByText(/assessment|Keep your original video|fixture-reference|Support reference/i)).toBeNull();
   });
 
   it.each(["owner", "film"])("never shows answer forms, for signed %s authority either", async scope => {

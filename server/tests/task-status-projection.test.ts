@@ -705,9 +705,12 @@ describe("a job the window sweep ended says so, whatever the Pipeline last said"
     expect(view({ sceneProgression: { state: "held", heldReason: "held_capability" } }).headline)
       .toMatch(/^The simulation can't model this kind of task yet\./);
     expect(view({ screening: { teams: 1, queued: 0, running: 0, reported: 1, noResult: 0 } }).decision).toBe("results");
-    for (const result of [{ consentRevoked: true }, { sceneProgression: { state: "evaluated" } },
-      { screening: { teams: 1, queued: 1, running: 0, reported: 0, noResult: 0 } }])
+    for (const result of [{ consentRevoked: true }, { sceneProgression: { state: "evaluated" } }])
       expect(view(result).decision).not.toBe("ended");
+    // Rewritten (review, 2026-11-11): the sweep records the ending only when no run can still be live (past the window
+    // plus the grace the Pipeline takes to stop one), so a run record still saying queued or running is stale here.
+    for (const stale of [{ queued: 1, running: 0 }, { queued: 0, running: 1 }])
+      expect(view({ screening: { teams: 1, reported: 0, noResult: 0, ...stale } }).decision).toBe("ended");
   });
 
   it("is not shown without a recorded ending, or once the window is open again", () => {

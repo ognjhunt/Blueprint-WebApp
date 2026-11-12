@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { withCsrfHeader } from "@/lib/csrf";
 import { JOB_CARD_ANSWER_STATEMENT, JOB_CARD_ANSWER_STATEMENT_VERSION } from "@/lib/jobCardAnswerConsent";
+import { outlookHasAnswer, type JobOutlook, type JobPhase } from "@/lib/jobOutlook";
 import { GAP_COULD_BE_CHANCE, GAP_UNLIKELY_CHANCE, optionParts, testSubLine, type SimulationOption, type SimulationProof as SimulationProofView } from "@/lib/simulationProof";
 import { PLAIN_SETUP_CAVEAT, SimulationTestRows, TrustRows, setupCaveatShown, testNotRunLine, testResultOf, type TestResult } from "./SimulationProof";
 import {
@@ -8,7 +9,7 @@ import {
   type BareTickState,
 } from "@/components/bare/Bare";
 import {
-  ALSO_INVOLVES_PREFIX, REASON_UNSIZED, LIMITS_PAPER, LIMITS_TESTED, LIMITS_TESTING, SURENESS_STEPS, TIGHT_FIT_SENTENCE, UNKNOWN_JOB_KIND, UNKNOWN_MULTI_STEP, isScopeNote,
+  ALSO_INVOLVES_PREFIX, REASON_UNSIZED, LIMITS_GETTING_READY, LIMITS_PAPER, LIMITS_TESTED, LIMITS_TESTING, SURENESS_STEPS, TIGHT_FIT_SENTENCE, UNKNOWN_JOB_KIND, UNKNOWN_MULTI_STEP, isScopeNote,
   type AnswerBasis, type AnswerCheck, type AnswerConfidenceLevel, type AnswerEvidence, type AnswerRobot, type SiteAnswer as SiteAnswerView,
 } from "@/lib/siteAnswer";
 
@@ -177,14 +178,17 @@ export interface SiteAnswerProps {
   onShowSettings?: () => void;
   /** Where the job card stands, from the owner's listing; null until read. */
   card?: CardState;
-  /** Opens the paper check's own screen ("On paper: why this robot"). */
-  onShowPaper?: () => void;
+  /** The simulation of the site is being built (the page's preparation status): "Getting ready". */
+  /** The job's outlook, decided once on the server (`server/utils/jobOutlook.ts`): the screen follows its phase. */
+  outlook?: JobOutlook | null;
 }
 
 const SURE_STEPS = SURENESS_STEPS;
 /** Said under the dots when a set-up flag lowers how sure the test result is. */
 export const SETUP_LOWERS = "Our simulation set-up may have affected this result.";
 export const TESTING_LINE = "on your job, in a simulation of your site. We'll email you.";
+/** While the simulation of the site is being built, before any AI robot is tested in it. */
+export const GETTING_READY_LINE = "Then we test AI robots on your job in it. We'll email you the result.";
 
 /** "Did your job in 7 of 10 tries". */
 const didJob = (option: SimulationOption) => `Did your job in ${option.succeeded} of ${option.scored} ${option.scored === 1 ? "try" : "tries"}`;
@@ -197,7 +201,8 @@ const didJob = (option: SimulationOption) => `Did your job in ${option.succeeded
 function TestHead({ result }: { result: Exclude<TestResult, null> }) {
   if (result.kind === "testing") return <BareGroup>
     <h2 className="bare-label" id="site-answer-title">Testing now</h2>
-    <BareBig sub={TESTING_LINE}>{`${result.entered} AI ${result.entered === 1 ? "robot" : "robots"}`}</BareBig>
+    {/* An unknown count is never "0 AI robots". */}
+    <BareBig sub={TESTING_LINE}>{result.entered >= 1 ? `${result.entered} AI ${result.entered === 1 ? "robot" : "robots"}` : "AI robots"}</BareBig>
   </BareGroup>;
   const top = result.top;
   const sub = top.maker ? `AI software by ${top.maker}` : undefined;
@@ -209,7 +214,7 @@ function TestHead({ result }: { result: Exclude<TestResult, null> }) {
   if (result.kind === "none_finished") return <BareGroup>
     <h2 className="bare-label" id="site-answer-title">Tested on your job</h2>
     {/* "Closest" only when the run graded how far the top option got. */}
-    <BareBig sub={testSubLine(result) ?? undefined}>None finished yet</BareBig>
+    <BareBig sub={testSubLine(result) ?? undefined}>No AI robot finished your job</BareBig>
     {result.setupFlag && <BareNotice>{PLAIN_SETUP_CAVEAT}</BareNotice>}
   </BareGroup>;
   // A winner, or the only option tested, which did the job at least once.
@@ -240,13 +245,22 @@ function TestHead({ result }: { result: Exclude<TestResult, null> }) {
  * keep one button with its line, two quiet links and the limits line.
  */
 export function SiteAnswer({ token, answer, proof, onIntroductionRequested, onEditJob, onUpdateVideo, quietAction = false,
-  onShowDetails, onShowSettings, card = null, onShowPaper }: SiteAnswerProps) {
+  onShowDetails, onShowSettings, card = null, outlook = null }: SiteAnswerProps) {
   const pick = answer.state === "ready" ? answer.pick : null;
+  // The phase is the server's (one decision for the page, sharing and emails). When unsure, the job is still being
+  // worked on (review, 2026-11-11): with no outlook the page shows the working screen, never the paper check or the
+  // button; a result whose test has not loaded yet shows "testing".
+  const test = testResultOf(proof);
+  const working: JobPhase = test?.kind === "testing" || proof?.state === "running" ? "testing" : "building";
+  const phase: JobPhase = answer.state === "reading" || outlook?.phase === "reading" ? "reading"
+    : !outlook ? working
+    : outlook.phase === "result" && (!test || test.kind === "testing") ? "testing"
+    : outlook.phase;
   const links = [onShowDetails && answer.state !== "reading" ? { key: "details", label: "See details", onClick: onShowDetails } : null,
     onShowSettings ? { key: "settings", label: "Job settings", onClick: onShowSettings } : null].filter(Boolean) as Array<{ key: string; label: string; onClick: () => void }>;
   const notices = scopeLines(answer);
 
-  if (answer.state === "reading") return <section className="site-answer-bare" aria-label="Your answer">
+  if (answer.state === "reading" || phase === "reading") return <section className="site-answer-bare" aria-label="Your answer">
     <BareGroup>
       <h2 className="bare-label" id="site-answer-title">Your answer</h2>
       <div className="bare-spinner" aria-hidden="true" />
@@ -256,7 +270,12 @@ export function SiteAnswer({ token, answer, proof, onIntroductionRequested, onEd
     <BareLinks links={links} />
   </section>;
 
-  if (answer.state === "cannot_assess") {
+  // A job already shared says so on every screen: "Shared" when its card is on, "asked on …" when it was never listed.
+  const listedCard = card === "with_answer" || card === "with_paper_answer" || card === "without_answer" || (card === null && answer.jobCardListed);
+  const shared = answer.introductionRequestedAtIso
+    ? <BareGroup><BareDone>{listedCard ? SHARED_LISTED : askedUnlisted(dateInWords(answer.introductionRequestedAtIso))}</BareDone></BareGroup> : null;
+
+  if (answer.state === "cannot_assess" && phase !== "building" && phase !== "testing" && phase !== "result") {
     const fix = answer.reason === REASON_UNSIZED ? onUpdateVideo && { label: NEW_VIDEO_LABEL, run: onUpdateVideo } : onEditJob && { label: EDIT_JOB_LABEL, run: onEditJob };
     const reason = cannotLine(answer.reason);
     return <section className="site-answer-bare" aria-label="Your answer">
@@ -267,6 +286,7 @@ export function SiteAnswer({ token, answer, proof, onIntroductionRequested, onEd
       </BareGroup>
       {notices.length > 0 && <BareGroup label="Before you rely on this">{notices.map(line => <BareNotice key={line}>{line}</BareNotice>)}</BareGroup>}
       {fix && <BareGroup><BareButton onClick={fix.run} quiet={quietAction}>{fix.label}</BareButton></BareGroup>}
+      {shared}
       <BareLinks links={links} />
     </section>;
   }
@@ -274,26 +294,44 @@ export function SiteAnswer({ token, answer, proof, onIntroductionRequested, onEd
   // The verdict and the scene's contrary finding are the server's, decided once (`server/utils/siteAnswer.ts`), so
   // the page, the job card and the emails say the same. The page never overrides them.
   const fits = Boolean(pick) && (pick!.verdict === "fits" || pick!.verdict === "fits_on_paper");
-  const test = testResultOf(proof);
-  const action = answer.nextStep.kind === "introduction"
-    ? <Introduction token={token} answer={answer} onRequested={onIntroductionRequested} quiet={quietAction} card={card} testResult={Boolean(test)} /> : null;
+  // Sharing follows the outlook: offered only once there is an answer (a result, or the paper check after an ending).
+  // A run the site closed itself is not an answer: it shows the paper check and the Shared line, never the button.
+  const action = answer.nextStep.kind === "introduction" && Boolean(outlook && outlookHasAnswer(outlook))
+    ? <Introduction token={token} answer={answer} onRequested={onIntroductionRequested} quiet={quietAction} card={card} testResult={phase === "result"} /> : null;
   const sceneNotice = answer.sceneNote && pick ? <BareNotice>{answer.sceneNote}</BareNotice> : null;
 
-  if (test) return <section className="site-answer-bare" aria-label="Your answer">
-    <TestHead result={test} />
-    {notices.length > 0 && <BareGroup label="Before you rely on this">{notices.map(line => <BareNotice key={line}>{line}</BareNotice>)}</BareGroup>}
-    {/* The paper check, one tap away, in its own group: the model only; the maker is on the screen it opens. */}
+  // The simulation of the site is being built: the test result will be the answer, so nothing new is offered.
+  if (phase === "building") return <section className="site-answer-bare" aria-label="Your answer">
     <BareGroup>
-      <button type="button" className="bare-quiet-button" data-opens="why" onClick={onShowPaper}>
-        {pick ? `On paper${fits ? "" : ", closest"}: ${pick.name} ›` : `On paper: ${answer.headline} ›`}</button>
+      <h2 className="bare-label" id="site-answer-title">Getting ready</h2>
+      <BareBig sub={outlook?.reason === "step_failed" && outlook.sentence ? outlook.sentence : GETTING_READY_LINE}>Building your simulation</BareBig>
     </BareGroup>
-    {sceneNotice && <BareGroup>{sceneNotice}</BareGroup>}
-    {action}
+    {notices.length > 0 && <BareGroup label="Before you rely on this">{notices.map(line => <BareNotice key={line}>{line}</BareNotice>)}</BareGroup>}
+    {shared}
     <BareLinks links={links} />
-    <BareFine>{test.kind === "testing" ? LIMITS_TESTING : LIMITS_TESTED}</BareFine>
+    <BareFine>{LIMITS_GETTING_READY}</BareFine>
   </section>;
 
-  const notRun = testNotRunLine(proof);
+  // While testing there is no answer yet, so nothing new is offered.
+  if (phase === "testing") return <section className="site-answer-bare" aria-label="Your answer">
+    <TestHead result={test?.kind === "testing" ? test : { kind: "testing", entered: proof?.options?.entered ?? 0 }} />
+    {notices.length > 0 && <BareGroup label="Before you rely on this">{notices.map(line => <BareNotice key={line}>{line}</BareNotice>)}</BareGroup>}
+    {shared}
+    <BareLinks links={links} />
+    <BareFine>{LIMITS_TESTING}</BareFine>
+  </section>;
+
+  // A test result is the answer; the paper check lives under Details.
+  if (phase === "result" && test && test.kind !== "testing") return <section className="site-answer-bare" aria-label="Your answer">
+    <TestHead result={test} />
+    {notices.length > 0 && <BareGroup label="Before you rely on this">{notices.map(line => <BareNotice key={line}>{line}</BareNotice>)}</BareGroup>}
+    {action}
+    <BareLinks links={links} />
+    <BareFine>{LIMITS_TESTED}</BareFine>
+  </section>;
+
+  // The paper check leads: the server's reason sentence for the ending, else the proof's own line.
+  const notRun = (phase === "no_test" || phase === "ended_by_site" || phase === "cannot_match" ? outlook?.sentence : null) ?? testNotRunLine(proof);
   if (!pick) return <section className="site-answer-bare" aria-label="Your answer">
     <BareGroup>
       <h2 className="bare-label" id="site-answer-title">On paper</h2>
@@ -302,6 +340,7 @@ export function SiteAnswer({ token, answer, proof, onIntroductionRequested, onEd
       {notRun && <p className="bare-helper">{notRun}</p>}
     </BareGroup>
     {notices.length > 0 && <BareGroup label="Before you rely on this">{notices.map(line => <BareNotice key={line}>{line}</BareNotice>)}</BareGroup>}
+    {shared}
     <BareLinks links={links} />
     <BareFine>{LIMITS_PAPER}</BareFine>
   </section>;
@@ -323,7 +362,7 @@ export function SiteAnswer({ token, answer, proof, onIntroductionRequested, onEd
       <BareSureness filled={sure.filled} word={sure.word} reason={answer.confidence.reasons[0] ?? sureReason(pick)} />
       {setupCaveatShown(proof) && <BareNotice>{PLAIN_SETUP_CAVEAT}</BareNotice>}
     </BareGroup>
-    {action}
+    {action ?? shared}
     <BareLinks links={links} />
     <BareFine>{LIMITS_PAPER}</BareFine>
   </section>;
@@ -426,6 +465,8 @@ export function SiteAnswerDetail({ answer, proof, screen, onBack }: {
     ...(answer.approach ? [{ key: "approach", label: "How it would be run", value: APPROACH_WORDS[answer.approach.kind] }] : []),
     // What the scene rebuilt from the video showed about this robot.
     ...(proof?.robotCheck ? [{ key: "scene", label: "In the simulation", value: proof.robotCheck.line }] : []),
+    // The server's note when the site's own measurement outranks the scene: on this screen whatever leads.
+    ...(answer.sceneNote ? [{ key: "scene-note", value: answer.sceneNote }] : []),
     { key: "robot-not-software", value: ROBOT_NOT_SOFTWARE },
   ]} /> : <BareRows title="Why we can't check it yet" rows={[{ key: "reason", value: answer.reason }]} />;
   if (screen === "others") body = <BareRows title="Robots" rows={[

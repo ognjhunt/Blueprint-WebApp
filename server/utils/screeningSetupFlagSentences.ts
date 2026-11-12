@@ -44,6 +44,8 @@ const SETUP_FLAG_SENTENCES: ReadonlyMap<string, string> = new Map(Object.entries
   "known_good_control_unavailable:embodiment": "We have no scripted reference for the robots tested on this job yet, so nothing confirmed beforehand that the simulated scene can record a success.",
   "known_good_control_unavailable:budget": "We did not run our scripted reference check, so that this job's budget could go to testing robots; nothing confirmed beforehand that the simulated scene can record a success.",
   known_good_control_interrupted: "Our scripted reference check did not finish, so it could not confirm that the simulated scene can record a success.",
+  // A run's own record that an AI robot's software stopped mid-test (Pipeline `session_policy_server_lost`).
+  session_policy_server_lost: "This AI robot's software stopped during the test, so only some tries were counted.",
   // What the simulated scene was built on that was estimated, not observed (Pipeline `atlas_scene_estimates`,
   // the campaign's `scene_feasibility` flags). Each is named; nothing measured is adjusted for it.
   "scene_estimate:level": "We could not tell from your video which way is level, so the simulated scene uses our reconstruction's own estimate of level, which we could not check.",

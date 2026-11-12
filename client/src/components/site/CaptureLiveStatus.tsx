@@ -119,10 +119,8 @@ export function CaptureLiveStatus({
           <ul>{section.claims.map(claim => <li key={claim.text}>{claim.text}</li>)}</ul>
         </section>)}
       </details>}
-      {(advisory?.state === "needs_review" || advisory?.state === "unavailable") && <p>
-        {advisory.state === "needs_review" ? "We need to review an assessment issue." : "We could not check the assessment."} Keep your original video.
-      </p>}
-      {advisory?.state !== "authority_ended" && advisory?.correlationId && <details className="ms-intake-reference">
+      {/* The site assessment has ended: only an older job's finished result is shown, with its reference. */}
+      {advisory?.state === "ready" && advisory.correlationId && <details className="ms-intake-reference">
         <summary>Support reference</summary>
         <p>{advisory.correlationId}</p>
       </details>}

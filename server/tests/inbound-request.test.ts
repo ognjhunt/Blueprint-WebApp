@@ -1354,3 +1354,65 @@ describe("inbound request: public-form payload contract", () => {
     }
   });
 });
+
+describe("an email it cannot send to", () => {
+  function sitePayload(requestId: string, email: string) {
+    return { ...buildPayload(requestId, email), accountSignup: false,
+      descriptionOnly: true, descriptionAuthority: { granted: true, statementVersion: "2026-10-06.v1" },
+      consentAttestation: null, captureRegion: "us", captureMode: "self_capture" };
+  }
+
+  // The same table as client/tests/lib/emailAddress.test.ts: the browser and the server agree on refused versus accepted.
+  it.each([
+    ["yeet@mailinator.com", "temporary_address", "We can't send to a temporary email address. Use one you check."],
+    ["jöhn@example.com", "invalid", "Check your email address."],
+    ["owner@example", "invalid", "Check your email address."],
+    ["plainaddress", "invalid", "Check your email address."],
+  ])("answers %s with the email field, the reason and its sentence, and saves nothing", async (email, code, message) => {
+    process.env.NODE_ENV = "development";
+    vi.resetModules();
+    const { server, baseUrl } = await startRouterServer();
+    try {
+      const requestId = `email-refused-${crypto.randomUUID()}`;
+      const response = await fetch(`${baseUrl}/`, { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(sitePayload(requestId, email)) });
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject({ ok: false, field: "email", code, message });
+      expect(fs.existsSync(devLogPath) && fs.readFileSync(devLogPath, "utf8").includes(requestId)).toBeFalsy();
+    } finally { await stopServer(server); }
+  });
+
+  // Accepted, including every address the browser only hints about (a Gmail name of an unusual length).
+  it.each(["yeet@gmail.com", "yeet+longertag@gmail.com", "yeet@googlemail.com", "a.b.c@gmail.com", "a.b.c.d.e.f@gmail.com",
+    "yee_ter@gmail.com", "yeeter@gmail.com", "yeet@outlook.com", "yeeter+jobs@gmail.com", "YEETER@GMAIL.COM"])(
+    "accepts %s and saves the job", async (email) => {
+      process.env.NODE_ENV = "development";
+      vi.resetModules();
+      const { server, baseUrl } = await startRouterServer();
+      try {
+        const requestId = `email-accepted-${crypto.randomUUID()}`;
+        const response = await fetch(`${baseUrl}/`, { method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(sitePayload(requestId, email)) });
+        expect(response.status).toBe(201);
+        const row = fs.readFileSync(devLogPath, "utf8").trim().split("\n").map(line => JSON.parse(line)).find(row => row.requestId === requestId);
+        expect(row).toBeTruthy();
+      } finally { await stopServer(server); }
+    });
+});
+
+describe("the bot trap", () => {
+  it("answers a filled trap with a fake success and saves nothing", async () => {
+    process.env.NODE_ENV = "development";
+    vi.resetModules();
+    const { server, baseUrl } = await startRouterServer();
+    try {
+      const requestId = `bot-trap-${crypto.randomUUID()}`;
+      const response = await fetch(`${baseUrl}/`, { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...buildPayload(requestId, "owner@example.com"), honeypot: "https://spam.example" }) });
+      expect(response.status).toBe(202);
+      expect(await response.json()).toMatchObject({ ok: true });
+      expect(fs.existsSync(devLogPath) && fs.readFileSync(devLogPath, "utf8").includes(requestId)).toBeFalsy();
+      expect(sendEmail).not.toHaveBeenCalled();
+    } finally { await stopServer(server); }
+  });
+});

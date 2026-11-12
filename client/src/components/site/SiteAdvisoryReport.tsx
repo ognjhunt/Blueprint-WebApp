@@ -7,7 +7,9 @@ import type { ReactNode } from "react";
  * (founder direction, 2026-10-20). Staff see those in the job console.
  */
 export function SiteAdvisoryReport({ advisory, compact = false, children }: { advisory: SiteAdvisory | null | undefined; compact?: boolean; children?: ReactNode }) {
-  if (!advisory || advisory.state === "authority_ended") return null;
+  // The per-job site assessment has ended (2026-11-11): only an older job's finished result is shown. Any other
+  // state (a job queued at cutover now reads as retired or unavailable) shows nothing: no spinner, no error.
+  if (!advisory || advisory.state !== "ready") return null;
   return <details className={compact ? "ws-task-assessment" : "job-planning-details"} aria-label="Processing details">
     <summary>Processing details</summary>
     <p>{advisory.state === "ready" ? "Blueprint reviewed your video and job details."

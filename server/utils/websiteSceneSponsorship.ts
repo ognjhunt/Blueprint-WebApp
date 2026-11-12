@@ -1,4 +1,5 @@
 import { websitePreparationCaptureId, websitePreparationRenewal, websitePreparationRevision } from "./websitePreparationRevision";
+import { sceneScreenGateEnded } from "./sceneScreenGate";
 import { websiteCaptureOwnerUid } from "./websiteCaptureOwner";
 import { MULTI_STEP_TASK_HOLD, multiStepTaskHold } from "./siteTaskScope";
 import { websiteDevelopmentTestEnvironment } from "./websiteDevelopmentTest";
@@ -220,7 +221,7 @@ export function sponsorshipValidUntil(grant: Record<string, any>, executionWindo
  * for it, read only while the job still has no grant.
  */
 export async function websiteJobWorkWindow(record: Record<string, any> | undefined,
-  nowEpoch = Date.now() / 1000): Promise<{ untilEpoch: number | null; ended: boolean; endingRecorded?: true;
+  nowEpoch = Date.now() / 1000): Promise<{ untilEpoch: number | null; ended: boolean; endedAtEpoch?: number; endingRecorded?: true;
     noGrantWaitingOn?: "site" | "blueprint"; noGrantReason?: "video_over_ingest_limit" }> {
   const none = { untilEpoch: null, ended: false };
   const grant = record?.website_scene_sponsorship;
@@ -237,7 +238,7 @@ export async function websiteJobWorkWindow(record: Record<string, any> | undefin
   }
   const until = sponsorshipValidUntil(grant, executionWindowUntil);
   if (until > nowEpoch) return { untilEpoch: until, ended: false };
-  return { untilEpoch: null, ended: projectWebsiteCaptureRights(record).derived_scene_generation_allowed,
+  return { untilEpoch: null, ended: projectWebsiteCaptureRights(record).derived_scene_generation_allowed, endedAtEpoch: until,
     ...(recordedWebsiteJobWindowEnding(record) ? { endingRecorded: true as const } : {}) };
 }
 
@@ -330,14 +331,15 @@ export function websiteSceneSponsorship(input: {
   }
   // Scene preparation proceeds while site questions remain open. This does not
   // update triage or qualify a robot deployment.
-  // Legacy/native intake retains its existing site screen:
-  // a `not_now` site is blocked by an answer only the site can change, and a
-  // `needs_conversation` site builds after the call records its outcome. The
-  // refusal is typed so the Pipeline holds the capture and retries rather than
-  // failing it. Checked when the grant is first made, never on an existing
-  // grant, so spend already authorized still settles.
+  // The four-conditions screen no longer gates the simulation (owner decision
+  // 2026-11-11): a job whose video arrived after the change gets its grant
+  // whatever the screen's disposition, which stays a note for staff. A job
+  // uploaded before it keeps the old refusal, typed so the Pipeline holds the
+  // capture and retries, until the owner decides about it. Checked when the
+  // grant is first made, never on an existing grant, so spend already
+  // authorized still settles.
   if (input.record.site_task_triage?.disposition !== "qualified"
-    && !developmentSiteTest && !preparationOnly) {
+    && !developmentSiteTest && !preparationOnly && !sceneScreenGateEnded(input.record, input.requestId)) {
     throw new Error("website_scene_site_not_qualified");
   }
   // The brief screen's task-kind reading (`site_task_scope`) is a display and demand hint,

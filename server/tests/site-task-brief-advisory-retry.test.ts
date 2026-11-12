@@ -33,31 +33,13 @@ beforeEach(async () => {
   origin = `http://127.0.0.1:${addr.port}`;
 });
 afterEach(async () => { vi.restoreAllMocks(); server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())); });
-it("exposes only authoritative owner retry availability without mutating or waking a failed job", async () => {
+// The per-job site assessment ended (owner decision 2026-11-11): the status
+// never advertises a retry and never wakes the queue, whatever the old state.
+it.each(["needs_review", "queued", "running", "ready", "unavailable"])("advertises no retry and wakes nothing for a %s assessment", async state => {
+  seams.advisory.mockResolvedValue({ state, sections: [], correlationId: "safe-correlation" });
   const before = structuredClone([...sharedFakeFirestoreState.docs]); const response = await read(); expect(response.status).toBe(200);
-  expect(await response.json()).toMatchObject({ assessment_retry_available: true, assessment_job_id: job, assessment_run_id: run });
-  expect(seams.describe).toHaveBeenCalledExactlyOnceWith("fixture", expect.any(Function));
-  expect(seams.wake).not.toHaveBeenCalled(); expect([...sharedFakeFirestoreState.docs]).toEqual(before);
-});
-it("does not expose retry identifiers to film links or completed reports", async () => {
-  const film = await (await read(link("film"))).json(); expect(film).toMatchObject({ assessment_retry_available: false, assessment_job_id: null, assessment_run_id: null });
-  seams.advisory.mockResolvedValue({ state: "ready", sections: [] });
-  expect(await (await read()).json()).toMatchObject({ assessment_retry_available: false, assessment_job_id: null, assessment_run_id: null });
-  expect(seams.describe).not.toHaveBeenCalled(); expect(seams.wake).not.toHaveBeenCalled();
-});
-it("contains dependency failure and does not leak private helper details", async () => {
-  seams.describe.mockRejectedValue(Error("PRIVATE bearer provider message")); const response = await read(); expect(response.status).toBe(200);
-  const body = await response.json(); expect(body).toMatchObject({ assessment_retry_available: false, assessment_job_id: null, assessment_run_id: null });
-  expect(JSON.stringify(body)).not.toMatch(/PRIVATE|bearer|provider message/); expect(seams.wake).not.toHaveBeenCalled();
-});
-it.each(["withdrawn", "changed-owner", "expired"])("rechecks %s authority during the read-only transaction", async mode => {
-  const initial = Date.now(), token = link();
-  seams.describe.mockImplementation(async (_id: string, access: (r: any) => any) => {
-    if (mode === "expired") vi.spyOn(Date, "now").mockReturnValue(initial + 30 * 86400000);
-    await access({ ...raw(), ...(mode === "withdrawn" ? { consent_revoked: true } : mode === "changed-owner" ? { account_owner_uid: "different-owner" } : {}) });
-    return { available: true, job_id: job, run_id: run };
-  });
-  const response = await read(token); expect(response.status).toBe(200);
   expect(await response.json()).toMatchObject({ assessment_retry_available: false, assessment_job_id: null, assessment_run_id: null });
-  expect(seams.wake).not.toHaveBeenCalled();
+  await new Promise(resolve => setTimeout(resolve, 20));
+  expect(seams.describe).not.toHaveBeenCalled(); expect(seams.wake).not.toHaveBeenCalled();
+  expect([...sharedFakeFirestoreState.docs]).toEqual(before);
 });

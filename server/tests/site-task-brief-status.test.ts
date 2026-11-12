@@ -125,6 +125,49 @@ async function status(credential = token()) {
 }
 
 describe("GET /api/site-task-brief/:token/status", () => {
+  // Rule 2 (review, 2026-11-11): emails come from recorded events, never from a page read. A job whose ending is
+  // recorded, read again and again, queues nothing.
+  it("queues and sends nothing however often the page reads a job whose ending is recorded", async () => {
+    const answers = await import("../utils/siteAnswer");
+    const spy = vi.spyOn(answers, "loadSiteAnswer").mockResolvedValue({ schemaVersion: "site_answer.v1", state: "ready", reason: null,
+      headline: "Most likely to fit: Universal Robots UR10e.", pick: { name: "UR10e", manufacturer: "Universal Robots" } } as never);
+    try {
+      const { sealWebsiteJobNoGrantEnding, WEBSITE_JOB_NO_GRANT_ENDING_FIELD } = await import("../utils/websiteJobWindowEnding");
+      const record = sharedFakeFirestoreState.docs.get("inboundRequests/req-1")!;
+      sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { ...record, request: { ...(record.request as object), buyerType: "site_operator" },
+        [WEBSITE_JOB_NO_GRANT_ENDING_FIELD]: sealWebsiteJobNoGrantEnding({ request_id: "req-1", waiting_on: "blueprint",
+          waiting_since_epoch: 1_700_000_000, ended_at_epoch: 1_700_100_000, recorded_at_iso: "2026-11-11T00:00:00.000Z", notice: "queued" }) });
+      const before = structuredClone([...sharedFakeFirestoreState.docs]);
+      for (let read = 0; read < 3; read += 1) expect((await status()).body.outlook).toMatchObject({ phase: "no_test", reason: "no_grant" });
+      await new Promise(resolve => setTimeout(resolve, 20));
+      expect(enqueueOutbox).not.toHaveBeenCalled();
+      expect([...sharedFakeFirestoreState.docs]).toEqual(before);
+    } finally { spy.mockRestore(); }
+  });
+
+  // The four-conditions screen gates nothing for a job filmed after 2026-11-11 (owner decision): its status follows the
+  // outlook like any other job's. An older job, without the marker, keeps the screen's own text.
+  it.each(["not_now", "needs_conversation"])("follows the outlook, not the screen's %s, for a job carrying the 2026-11-11 marker", async disposition => {
+    const { sceneScreenGateEndedMarker } = await import("../utils/sceneScreenGate");
+    const answers = await import("../utils/siteAnswer");
+    const spy = vi.spyOn(answers, "loadSiteAnswer").mockResolvedValue({ schemaVersion: "site_answer.v1", state: "ready", reason: null } as never);
+    try {
+      const record = sharedFakeFirestoreState.docs.get("inboundRequests/req-1")!;
+      sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { ...record, site_task_triage: { disposition } });
+      const older = (await status()).body;
+      expect(older.status.decision).toBe(disposition === "not_now" ? "not_now" : "call_needed");
+      // Rewritten (review, 2026-11-11): the screen's refusal is not a recorded ending, so even an older job is still
+      // being worked on until its no-grant wait ends.
+      expect(older.outlook).toEqual({ phase: "building", reason: null, sentence: null });
+      sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { ...record, site_task_triage: { disposition },
+        scene_screen_gate_ended: sceneScreenGateEndedMarker("req-1", "2026-11-11T12:00:00.000Z") });
+      const marked = (await status()).body;
+      expect(marked.status.decision).not.toMatch(/^(not_now|call_needed)$/);
+      expect(marked.status.headline).not.toMatch(/aren't building|operating details/i);
+      expect(marked.outlook).toEqual({ phase: "building", reason: null, sentence: null });
+    } finally { spy.mockRestore(); }
+  });
+
   it("closes an owner's run idempotently without confirming the brief or withdrawing the video", async () => {
     const owner = savedRecording("published").token;
     const before = structuredClone(sharedFakeFirestoreState.docs.get("inboundRequests/req-1")!);
@@ -160,8 +203,14 @@ describe("GET /api/site-task-brief/:token/status", () => {
     expect(sharedFakeFirestoreState.docs.get("inboundRequests/req-1")).not.toHaveProperty("website_run_closures");
   });
 
+  /** A read answer for the job, so the outlook is decided past `reading`. */
+  const withReadAnswer = async () => vi.spyOn(await import("../utils/siteAnswer"), "loadSiteAnswer")
+    .mockResolvedValue({ schemaVersion: "site_answer.v1", state: "ready", reason: null } as never);
   it("PREP-UI-001 shows verified preparation failure through the customer handler", async () => {
+    const answer = await withReadAnswer();
     sharedFakeFirestoreState.docs.set("captureUploadSessions/cap-1", { website_preparation: { selector: {} } });
+    // The shared outlook loader reads the job's own walkthrough capture.
+    sharedFakeFirestoreState.docs.set("captureUploadSessions/walkthrough-req-1", { website_preparation: { selector: {} } });
     const before = structuredClone([...sharedFakeFirestoreState.docs]);
     const { code, body } = await status();
     expect(code).toBe(200);
@@ -169,6 +218,11 @@ describe("GET /api/site-task-brief/:token/status", () => {
     expect(body.status).toMatchObject({ decision: "processing_failure", stage: null, operatorAction: null });
     expect(body.status.outcome.actionOwner).toBe("blueprint");
     expect(body.status.outcome.reference).toBe("bp-prep-1234567890abcdef");
+    // A retryable failure is not an ending: the outlook stays building and says a step failed (review 2026-11-11).
+    // Rewritten from the retired `simulationBuilding: false`, which the outlook decision replaced.
+    expect(body.outlook).toEqual({ phase: "building", reason: "step_failed",
+      sentence: "A step failed and we're working on it. We'll email you the result." });
+    answer.mockRestore();
     expect(body.status.headline).not.toMatch(/are preparing|results are in/i);
     expect([...sharedFakeFirestoreState.docs]).toEqual(before);
     expect(enqueueOutbox).not.toHaveBeenCalled();
@@ -188,6 +242,7 @@ describe("GET /api/site-task-brief/:token/status", () => {
     expect(enqueueOutbox).not.toHaveBeenCalled();
   });
   it("PREP-UI-005 an upload with no status past the watch bound is not shown as being prepared", async () => {
+    const answer = await withReadAnswer();
     sharedFakeFirestoreState.docs.set("captureUploadSessions/cap-1", { website_preparation_watch: {
       schema_version: "website_preparation_watch.v1", request_id: "req-1", capture_id: "walkthrough-req-1",
       kind: "awaiting_first_status", state: null, terminal_reason: null, attempt_count: null,
@@ -197,6 +252,11 @@ describe("GET /api/site-task-brief/:token/status", () => {
     expect(body.status.headline).toContain("Preparing it is taking longer than it should and needs review");
     expect(body.status.headline).not.toContain("our team has been told");
     expect(body.status.headline).not.toContain("we are preparing it");
+    // No status from the Pipeline yet. The outlook decision counts the time before the first status as building
+    // (the job window bounds it), while the status line still says it needs review. Rewritten from the retired
+    // `simulationBuilding: false`, which the outlook decision replaced.
+    expect(body.outlook).toEqual({ phase: "building", reason: null, sentence: null });
+    answer.mockRestore();
     const film = createCaptureUploadToken({ requestId: "req-1", captureId: "cap-1", sceneId: "scene-1", scope: "film" });
     const filmed = await (await fetch(`${baseUrl}/api/site-task-brief/${film}/status`)).json();
     expect(JSON.stringify(filmed)).not.toContain("taking longer");
@@ -205,12 +265,17 @@ describe("GET /api/site-task-brief/:token/status", () => {
     sharedFakeFirestoreState.docs.set("captureUploadSessions/cap-1", { website_preparation: { selector: {} } });
     sharedFakeFirestoreState.docs.set("taskEvaluationSceneIntakes/scene-1", { website_request_id: "req-1",
       source_session_id: "cap-1", state: "accepted", created_at_iso: "2026-10-10T00:00:00.000Z",
-      pipeline_status: { status: "blocked", phase: "scene_configuration_failed", blockers: ["PRIVATE_detail"] } });
+      pipeline_status: { status: "blocked", phase: "policy_canary_blocked", blockers: ["PRIVATE_detail"] } });
     preparation.read.mockResolvedValueOnce({ state: "handed_off", correlationId: "bp-prep-1234567890abcdef" } as never);
     const { body } = await status();
     expect(body.status.decision).toBe("processing_failure");
     expect(body.status.outcome.actionOwner).toBe("blueprint");
     expect(JSON.stringify(body)).not.toContain("PRIVATE_detail");
+    // Rewritten (review, 2026-11-11): a failed scene configuration is one attempt the Pipeline retries, not a stop.
+    sharedFakeFirestoreState.docs.set("taskEvaluationSceneIntakes/scene-1", { ...sharedFakeFirestoreState.docs.get("taskEvaluationSceneIntakes/scene-1"),
+      pipeline_status: { status: "blocked", phase: "scene_configuration_failed", blockers: ["PRIVATE_detail"] } });
+    preparation.read.mockResolvedValueOnce({ state: "handed_off", correlationId: "bp-prep-1234567890abcdef" } as never);
+    expect((await status()).body.status.decision).not.toBe("processing_failure");
   });
   it.each(['other_candidate', 'confirm_guess'] as const)("PREP-UI-007 retires the rejected guess and permits same-job %s without requiring recording", async recoveryKind => {
     const selector = { request_id: "req-1", scene_id: "site-req-1", capture_id: "cap-1", completion_marker_generation: "17",
@@ -224,10 +289,15 @@ describe("GET /api/site-task-brief/:token/status", () => {
     const original = preparation.read.getMockImplementation();
     preparation.read.mockImplementation(async () => ({ state: "preparing", correlationId: "bp-prep-1234567890abcdef", question }));
     preparation.question.mockImplementation(async () => ({ selector, question }));
+    const readAnswer = await withReadAnswer();
     try {
       const asked = await status();
       // The job keeps its own status; the question rides alongside it.
       expect(asked.body.status.decision).toBe("assessing");
+      // Preparation in progress: the simulation of the site is being built, so the answer screen says "Getting ready".
+      expect(asked.body.outlook).toEqual({ phase: "building", reason: null, sentence: null });
+      // The outlook is the owner's: a film link gets none.
+      expect((await status(createCaptureUploadToken({ requestId: "req-1", captureId: "cap-1", sceneId: "scene-1", scope: "film" }))).body.outlook).toBeNull();
       expect(asked.body.targetChoice).toEqual({ questionDigest: question.question_digest, semanticLabel: "Tote",
         guessedCandidateId: "c0123456789abcdef", candidates: [
           { id: "c0123456789abcdef", label: "Tote 1: left side, center of the view", referenceTimeMs: 4000 },
@@ -274,6 +344,7 @@ describe("GET /api/site-task-brief/:token/status", () => {
     } finally {
       preparation.read.mockImplementation(original!);
       preparation.question.mockImplementation(async () => null);
+      readAnswer.mockRestore();
     }
   });
 
@@ -882,12 +953,14 @@ describe("GET /api/site-task-brief/:token/status", () => {
     const record = sharedFakeFirestoreState.docs.get("inboundRequests/req-1")!;
     record.walkthrough_job_estimates = { job_estimates: { pick_to_place_m: 1, object_mass_kg_low: 3 } };
     const answers = await import("../utils/siteAnswer");
-    const spy = vi.spyOn(answers, "loadSiteAnswer").mockRejectedValueOnce(new Error("boom"));
+    const spy = vi.spyOn(answers, "loadSiteAnswer").mockRejectedValue(new Error("boom"));
     const { code, body } = await status(owner);
     expect(code).toBe(200);
     expect(body.answer).toBeNull();
     expect(body.status).toBeTruthy();
-    expect(spy).toHaveBeenCalledTimes(1);
+    // The page's answer and the shared outlook loader each read it (rewritten from one read: the status route now uses
+    // the same loader as every other caller).
+    expect(spy).toHaveBeenCalled();
     spy.mockRestore();
     expect((await status(owner)).body.answer).toMatchObject({ schemaVersion: "site_answer.v1" });
   });

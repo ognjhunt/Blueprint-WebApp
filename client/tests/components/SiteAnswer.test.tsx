@@ -1,9 +1,19 @@
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { SHARED_WITHOUT_ANSWER, SiteAnswer, SiteAnswerDetail, SiteAnswerDetails, detailScreens, evidenceTick, sureReason, ticksOf, type DetailScreen } from "@/components/site/SiteAnswer";
+import { SHARED_WITHOUT_ANSWER, SiteAnswer as SiteAnswerScreen, SiteAnswerDetail, SiteAnswerDetails, detailScreens, evidenceTick, sureReason, ticksOf, type DetailScreen } from "@/components/site/SiteAnswer";
 import { projectSimulationProof } from "@/lib/simulationProof";
 import { REASON_UNSIZED, UNKNOWN_JOB_KIND, UNKNOWN_MULTI_STEP, type AnswerRobot } from "@/lib/siteAnswer";
-import { allZeroEvaluation, cannotAssessAnswer, noPickAnswer, preparingEvaluation, readingAnswer, readyAnswer, winnerEvaluation } from "../fixtures/siteAnswer";
+import { allZeroEvaluation, cannotAssessAnswer, noPickAnswer, preparingEvaluation, readingAnswer, readyAnswer, serverOutlookFor, winnerEvaluation } from "../fixtures/siteAnswer";
+import type { ComponentProps } from "react";
+
+/**
+ * The answer screen as the job page renders it: with the outlook the server sends for that answer and proof. The
+ * screen itself shows the working screen when no outlook came (review, 2026-11-11); a test about the phase passes its
+ * own outlook, or null, and that is used as given.
+ */
+function SiteAnswer(props: ComponentProps<typeof SiteAnswerScreen>) {
+  return <SiteAnswerScreen {...props} outlook={"outlook" in props ? props.outlook : serverOutlookFor(props.answer, props.proof ?? null)} />;
+}
 
 vi.mock("@/lib/csrf", () => ({ withCsrfHeader: async (headers: Record<string, string>) => ({ ...headers, "X-CSRF-Token": "local-test" }) }));
 const fetchMock = vi.fn();
@@ -17,6 +27,7 @@ const CONSENT = "Shares a summary of your job and your answer, including later t
 /** The limits line, by what the headline is: the paper check, a test result, or a test still running. */
 const LIMITS = "A paper check, not a test at your site. Pick-up-and-put-down jobs only. It does not certify performance or safety.";
 const LIMITS_TESTED = "Tested in a simulation, not at your site. Pick-up-and-put-down jobs only. It does not certify performance or safety.";
+const LIMITS_GETTING_READY = "To be tested in a simulation, not at your site. Pick-up-and-put-down jobs only. It does not certify performance or safety.";
 const LIMITS_TESTING = "Being tested in a simulation, not at your site. Pick-up-and-put-down jobs only. It does not certify performance or safety.";
 const winnerProof = projectSimulationProof({ evaluation: [winnerEvaluation], pick: readyAnswer.pick });
 const words = (text: string | null) => (text?.match(/[^\s]+/g) ?? []).filter(word => /[\p{L}\p{N}]/u.test(word)).length;
@@ -100,10 +111,9 @@ describe("the site's answer, bare bones", () => {
     expect(screen.queryByText("Your video does not show the whole work area.")).toBeNull();
   });
 
-  it("leads with the simulation test's result when there is one: the option, its count, how sure, and the paper check one tap away", () => {
-    const onShowPaper = vi.fn();
+  it("leads with the simulation test's result when there is one: the option, its count, how sure; the paper check is under Details", () => {
     // 7 of 10 against 3 of 10 and 2 of 10 is about 0.96 against the next: ahead, fairly sure, and it could still be chance.
-    render(<SiteAnswer token="owner-token" answer={readyAnswer} proof={winnerProof} onShowPaper={onShowPaper} />);
+    render(<SiteAnswer token="owner-token" answer={readyAnswer} proof={winnerProof} onShowDetails={() => {}} />);
     const answer = screen.getByRole("region", { name: "Your answer" });
     expect(within(answer).getByRole("heading", { level: 2, name: "Was ahead on your job" })).toBeVisible();
     expect(answer.querySelector(".bare-big")).toHaveTextContent(/^Franka arm \+ π0\.5$/);
@@ -114,8 +124,9 @@ describe("the site's answer, bare bones", () => {
       .toEqual(["✓Did your job in 7 of 10 tries", "✓Ahead of the 2 other AI robots we tested"]);
     expect(answer).toHaveTextContent("How sure are we? Fairly sure");
     expect(within(answer).getByText("With this few tries the gap could still be chance.")).toBeVisible();
-    fireEvent.click(within(answer).getByRole("button", { name: "On paper: UR10e ›" }));
-    expect(onShowPaper).toHaveBeenCalledTimes(1);
+    // The paper check is not on this screen (round 7): no "On paper" line; it lives under Details.
+    expect(within(answer).queryByText(/^On paper/)).toBeNull();
+    expect(within(answer).getByRole("button", { name: "See details ›" })).toBeVisible();
     // The paper ticks are not on this screen; the one button and its line are.
     expect(within(answer).queryByText("Reaches far enough")).toBeNull();
     expect(within(answer).getByRole("button", { name: FIND })).toBeVisible();
@@ -142,7 +153,7 @@ describe("the site's answer, bare bones", () => {
   it("says none finished, with the closest by how far it got, and the set-up notice", () => {
     render(<SiteAnswer token="owner-token" answer={readyAnswer} proof={projectSimulationProof({ evaluation: [allZeroEvaluation], pick: readyAnswer.pick })} />);
     expect(screen.getByRole("heading", { level: 2, name: "Tested on your job" })).toBeVisible();
-    expect(screen.getByText("None finished yet")).toHaveClass("bare-big");
+    expect(screen.getByText("No AI robot finished your job")).toHaveClass("bare-big");
     // The fixture carries no progress, so nothing is called closest.
     expect(screen.getByText("4 AI robots tried; none finished your job.")).toBeVisible();
     expect(screen.getByText("This result may come from how we set up the simulation of your site, not from the robots.")).toBeVisible();
@@ -186,6 +197,103 @@ describe("the site's answer, bare bones", () => {
     // Nothing is tested yet while it runs.
     expect(screen.getByText(LIMITS_TESTING)).toBeVisible();
     expect(screen.queryByText(LIMITS_TESTED)).toBeNull();
+    // No answer yet: no button, no consent line, no paper line.
+    expect(screen.queryByRole("button", { name: FIND })).toBeNull();
+    expect(screen.queryByText(CONSENT)).toBeNull();
+    expect(screen.queryByText(/^On paper/)).toBeNull();
+  });
+
+  it("says it is getting ready while the simulation of the site is being built, with only the two links", () => {
+    // The page's preparation status says the build is under way, before any evaluation exists.
+    // The server's outlook says the job is on its way to a simulation; the page shows the screen for that phase.
+    const { unmount } = render(<SiteAnswer token="owner-token" answer={readyAnswer} proof={projectSimulationProof({ evaluation: [], pick: readyAnswer.pick })}
+      outlook={{ phase: "building", reason: null, sentence: null }} onShowDetails={() => {}} onShowSettings={() => {}} />);
+    const answer = screen.getByRole("region", { name: "Your answer" });
+    expect(within(answer).getByRole("heading", { level: 2, name: "Getting ready" })).toBeVisible();
+    expect(within(answer).getByText("Building your simulation")).toHaveClass("bare-big");
+    expect(within(answer).getByText("Then we test AI robots on your job in it. We'll email you the result.")).toBeVisible();
+    expect(within(answer).getByRole("navigation", { name: "More" })).toHaveTextContent("See details ›Job settings ›");
+    expect(within(answer).queryByRole("button", { name: FIND })).toBeNull();
+    expect(within(answer).queryByText(CONSENT)).toBeNull();
+    expect(within(answer).queryByText(/UR10e|On paper/)).toBeNull();
+    expect(within(answer).getByText(LIMITS_GETTING_READY)).toBeVisible();
+    unmount();
+    // A run queued with nothing entered yet is getting ready too; a held run is not (the paper check leads).
+    const queued = projectSimulationProof({ evaluation: [{ ...preparingEvaluation, screening: { candidates: [] } }], pick: readyAnswer.pick });
+    const { unmount: second } = render(<SiteAnswer token="owner-token" answer={readyAnswer} proof={queued} />);
+    expect(screen.getByRole("heading", { level: 2, name: "Getting ready" })).toBeVisible();
+    second();
+    render(<SiteAnswer token="owner-token" answer={readyAnswer}
+      proof={projectSimulationProof({ evaluation: [{ ...winnerEvaluation, outcome: "held_capability" as const }], pick: readyAnswer.pick })} />);
+    expect(screen.getByRole("heading", { level: 2, name: "On paper, the robot most likely to fit" })).toBeVisible();
+    expect(screen.getByRole("button", { name: FIND })).toBeVisible();
+  });
+
+  // Rule 1 (review, 2026-11-11): when unsure, the job is still being worked on.
+  it("shows the working screen, never the paper check or the button, when no outlook came", () => {
+    const { unmount } = render(<SiteAnswerScreen token="owner-token" answer={readyAnswer} proof={null} outlook={null} />);
+    expect(screen.getByRole("heading", { level: 2, name: "Getting ready" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: FIND })).toBeNull();
+    expect(screen.queryByText(/On paper|UR10e/)).toBeNull();
+    unmount();
+    // A run under way with no outlook: testing, still nothing to share.
+    render(<SiteAnswerScreen token="owner-token" answer={readyAnswer} outlook={null}
+      proof={projectSimulationProof({ evaluation: [{ ...preparingEvaluation, state: "running" }], pick: readyAnswer.pick })} />);
+    expect(screen.getByRole("heading", { level: 2, name: "Testing now" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: FIND })).toBeNull();
+  });
+
+  it("shows testing, never the paper check, when the result has not loaded yet, and never says 0 AI robots", () => {
+    render(<SiteAnswerScreen token="owner-token" answer={readyAnswer} proof={null} outlook={{ phase: "result", reason: null, sentence: null }} />);
+    expect(screen.getByRole("heading", { level: 2, name: "Testing now" })).toBeVisible();
+    expect(screen.getByText("AI robots", { exact: true })).toBeVisible();
+    expect(screen.queryByText(/0 AI robots/)).toBeNull();
+    expect(screen.queryByRole("button", { name: FIND })).toBeNull();
+    expect(screen.queryByText(/On paper/)).toBeNull();
+  });
+
+  it("says a shared job is shared on the other-kind and no-pick screens, and that it asked, while building", () => {
+    const shared = { introductionRequestedAtIso: "2026-11-10T09:00:00.000Z", jobCardListed: true };
+    const { unmount } = render(<SiteAnswer token="owner-token" answer={{ ...cannotAssessAnswer, ...shared }} />);
+    expect(screen.getByText("✓ Shared. We'll email you when a company replies.")).toBeVisible();
+    unmount();
+    const { unmount: second } = render(<SiteAnswer token="owner-token" answer={{ ...noPickAnswer, ...shared }}
+      outlook={{ phase: "no_test", reason: "no_grant", sentence: "We have not built a simulation for this job." }} />);
+    expect(screen.getByText("✓ Shared. We'll email you when a company replies.")).toBeVisible();
+    second();
+    render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, introductionRequestedAtIso: "2026-11-10T09:00:00.000Z", jobCardListed: false }}
+      outlook={{ phase: "building", reason: null, sentence: null }} />);
+    expect(screen.getByText("You asked on November 10, 2026. Blueprint will set up your job card and email you.")).toBeVisible();
+  });
+
+  it("keeps the Shared line, and offers no button, while the job is building or testing", () => {
+    const shared = { ...readyAnswer, introductionRequestedAtIso: "2026-11-10T09:00:00.000Z", jobCardListed: true };
+    for (const phase of ["building", "testing"] as const) {
+      const { unmount } = render(<SiteAnswer token="owner-token" answer={shared} proof={projectSimulationProof({ evaluation: [], pick: readyAnswer.pick })}
+        outlook={{ phase, reason: null, sentence: null }} />);
+      expect(screen.getByText("✓ Shared. We'll email you when a company replies."), phase).toBeVisible();
+      expect(screen.queryByRole("button", { name: FIND }), phase).toBeNull();
+      unmount();
+    }
+  });
+
+  it("says a failed step while building, and the ending's reason with the paper check after an ending", () => {
+    const { unmount } = render(<SiteAnswer token="owner-token" answer={readyAnswer} proof={null}
+      outlook={{ phase: "building", reason: "step_failed", sentence: "A step failed and we're working on it. We'll email you the result." }} />);
+    expect(screen.getByText("A step failed and we're working on it. We'll email you the result.")).toBeVisible();
+    expect(screen.queryByRole("button", { name: FIND })).toBeNull();
+    unmount();
+    const { unmount: second } = render(<SiteAnswer token="owner-token" answer={readyAnswer} proof={null}
+      outlook={{ phase: "no_test", reason: "no_grant", sentence: "We have not built a simulation for this job." }} />);
+    expect(screen.getByRole("heading", { level: 2, name: "On paper, the robot most likely to fit" })).toBeVisible();
+    expect(screen.getByText("We have not built a simulation for this job.")).toBeVisible();
+    expect(screen.getByRole("button", { name: FIND })).toBeVisible();
+    second();
+    // A run the site closed itself: the paper check with the reason, and no button.
+    render(<SiteAnswer token="owner-token" answer={readyAnswer} proof={null}
+      outlook={{ phase: "ended_by_site", reason: "closed_by_owner", sentence: "You closed this job's simulation run." }} />);
+    expect(screen.getByText("You closed this job's simulation run.")).toBeVisible();
+    expect(screen.queryByRole("button", { name: FIND })).toBeNull();
   });
 
   it("falls back to the paper check with why the test did not run, when that is known", () => {
@@ -461,6 +569,6 @@ describe("finding a company", () => {
     const proof = projectSimulationProof({ evaluation: [allZeroEvaluation], pick: null });
     render(<SiteAnswer token="owner-token" answer={cannotAssessAnswer} proof={proof} />);
     expect(screen.getByText(cannotAssessAnswer.headline)).toBeVisible();
-    expect(screen.queryByText(/None finished yet|Tested on your job/)).toBeNull();
+    expect(screen.queryByText(/No AI robot finished|Tested on your job/)).toBeNull();
   });
 });

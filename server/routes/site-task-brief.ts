@@ -6,7 +6,6 @@ import { largeVideoAskOutcome, projectAtlasPreparationOutcome } from "../utils/t
 import { closeWebsiteRun, projectWebsiteRunClosure } from "../utils/websiteRunClosure";
 import { selectWebsiteAtlasPreview } from "../utils/websiteAtlasPreview";
 import type { TaskOutcome } from "../../client/src/types/taskOutcome";
-import { describeSiteAssessmentRetry } from "../utils/siteAssessmentQueue";
 /**
  * The brief an operator reads, and the confirmation that makes it binding.
  *
@@ -82,7 +81,7 @@ import { loadWebsiteSceneProgression } from "../utils/websiteSceneProgression";
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { deliverOutbox, enqueueOutbox } from "../utils/captureOutbox";
 import { decryptFieldValue } from "../utils/field-encryption";
-import { buildQualificationEmail, buildTaskNotYetSupportedEmail } from "../utils/qualificationEmails";
+import { buildTaskNotYetSupportedEmail } from "../utils/qualificationEmails";
 import { multiStepTaskHold, taskScopeNotYet } from "../utils/siteTaskScope";
 import type { SiteTaskTriageSummary } from "../types/inbound-request";
 import { isSiteVideoEvidenceEnabled } from "../config/env";
@@ -97,8 +96,9 @@ import { createSiteClaimToken } from "../utils/request-review-auth";
 import { disclosedUnknownGates, gateAnswersOnFile } from "../utils/gateAnswersOnFile";
 import { bookingUrl } from "../utils/bookingLink";
 import { notifySlackScreeningCallNeeded } from "../utils/slack";
-import { EMAIL_SIGN_OFF, emailGreeting } from "../utils/emailLayout";
+import { emailGreeting } from "../utils/emailLayout";
 import { storedWebsiteScenePreview, websiteScenePreviewViewerUrl } from "../utils/websiteScenePreview";
+import { sceneScreenGateEnded } from "../utils/sceneScreenGate";
 
 const router = Router();
 
@@ -310,6 +310,19 @@ router.post("/:token/introduction-request", csrfProtection, async (req, res) => 
   if (body.data.statementVersion !== JOB_CARD_ANSWER_STATEMENT_VERSION)
     return res.status(409).json({ code: "introduction_request_statement_changed",
       error: "The wording on this page has changed. Reload the page to read it, then press the button again." });
+  // Sharing follows the job's outlook: only once the job has an answer (a test result, or the paper check after a
+  // recorded ending). When the outlook cannot be read for certain it is "not yet", never a server error.
+  const waits = (phase: string) => res.status(409).json({ code: "introduction_waits_for_answer", phase,
+    error: "You can share this job once it has an answer. We'll email you when it does." });
+  const decision = await import("../utils/jobOutlook").then(({ loadJobOutlookDecision }) => loadJobOutlookDecision(verified.requestId))
+    .catch(() => null);
+  const alreadyAsked = await (db?.collection("inboundRequests").doc(verified.requestId).get()
+    .then(snapshot => Boolean(snapshot.data()?.introduction_request)).catch(() => false) ?? false);
+  if (!alreadyAsked) {
+    if (!decision || !decision.certain) return waits(decision?.outlook.phase ?? "building");
+    const { outlookHasAnswer } = await import("../utils/jobOutlook");
+    if (!outlookHasAnswer(decision.outlook)) return waits(decision.outlook.phase);
+  }
   try {
     const request = await readRequestForStatus(verified.requestId, verified.captureId, verified.sceneId);
     if (!db || !request || request.captureRights.consent_revoked)
@@ -420,6 +433,8 @@ async function readRequestForStatus(requestId: string, captureId = `walkthrough-
   /** When the claim saved the job to that account; absent for a job started signed in. */
   claimed_at_iso?: string | null;
   site_task_triage?: { disposition?: string | null } | null;
+  /** The job was filmed after the screen stopped gating (2026-11-11 marker). */
+  screenGateEnded?: boolean;
   site_task_scope?: { supported?: unknown; reason?: unknown } | null;
   siteName?: string | null;
   captureRights: ReturnType<typeof projectWebsiteCaptureRights>;
@@ -467,7 +482,8 @@ async function readRequestForStatus(requestId: string, captureId = `walkthrough-
     jobWorkWindow: await import("../utils/websiteSceneSponsorship")
       .then(({ websiteJobWorkWindow }) => websiteJobWorkWindow(data)).catch(() => null),
     visualReconstructionReady: preview?.state === "ready",
-    ownerClosureOutcome: projectWebsiteRunClosure(data, requestId, selectedCaptureId),
+    // A closure record that does not read is unknown: the status shows no closure rather than failing the read.
+    ownerClosureOutcome: (() => { try { return projectWebsiteRunClosure(data, requestId, selectedCaptureId); } catch { return null; } })(),
     preparationOutcome: largeVideoAskOutcome(data, requestId, selectedCaptureId) ?? projectAtlasPreparationOutcome(preview),
     siteTaskGates: gateAnswersOnFile(data),
     site_task_brief_confirmed_at: data.site_task_brief_confirmed_at,
@@ -483,6 +499,8 @@ async function readRequestForStatus(requestId: string, captureId = `walkthrough-
       capture_owner_bound_at_iso: data.capture_owner_bound_at_iso as string} : {}),
     claimed_at_iso: typeof data.claimed_at_iso === "string" ? data.claimed_at_iso : null,
     site_task_triage: (data.site_task_triage as SiteTaskTriageSummary | undefined) ?? null,
+    // The screen gates nothing for a job filmed after 2026-11-11: its status follows the outlook, not the screen.
+    screenGateEnded: sceneScreenGateEnded(data, requestId),
     // Stored plaintext fields, which is what the access predicate reads.
     jobAccess: (() => { try { return teamJobAccess(data); } catch { return null; } })(),
     recommended: Boolean(data.pilot_recommendation),
@@ -499,11 +517,29 @@ async function readRequestForStatus(requestId: string, captureId = `walkthrough-
  * confirmation response and the task page all say the same thing about the
  * other two verdicts. Null for `qualified`, which proceeds as before.
  */
-function screeningOutcome(disposition: string): {
+function screeningOutcome(disposition: string, screenGateEnded = false): {
   headline: string;
   detail: string;
   bookingUrl: string | null;
 } | null {
+  // A job uploaded after the owner's decision of 2026-11-11: the screen's
+  // reading is a note, and the scene is built whatever it says.
+  if (screenGateEnded && disposition === "not_now") {
+    return {
+      headline: "Noted: one of your answers may make a robot test less reliable at this site.",
+      detail: "This does not hold up your job: we still build its scene and test robots on it. Your job page shows the "
+        + "answer we noted; if it changes, update the brief.",
+      bookingUrl: null,
+    };
+  }
+  if (screenGateEnded && disposition === "needs_conversation") {
+    return {
+      headline: "A few questions about the site are still open.",
+      detail: "They do not hold up your job: we still build its scene and test robots on it. Answering them in "
+        + "writing below helps the test fit your site; you can leave anything you don't know.",
+      bookingUrl: null,
+    };
+  }
   if (disposition === "not_now") {
     return {
       headline: "Not yet: we are not building a scene for this site today.",
@@ -1116,19 +1152,20 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
       });
     }
 
-    // Screening occurs here for public-form sites. Queue the actual verdict
-    // before returning; the outbox can retry delivery without a timed check-in.
-    // A job we cannot score hears that instead, whatever its gate verdict: it
-    // is not opened to robot teams, so no other next step is true for it.
+    // Screening occurs here for public-form sites. Only a job we cannot score
+    // hears about it by email, whatever its gate verdict: it is not opened to
+    // robot teams, so no other next step is true for it. The outbox can retry
+    // delivery without a timed check-in.
     const scoreable = result.scope.supported;
     // A site that filmed first is never asked to film again. Unknown is not
     // "not filmed": the job page says which, and the reply does not guess.
     const walkthrough = await savedWalkthrough(payload).catch(() => null);
-    const jobUrl = captureUploadUrlFor(payload.requestId);
     let coverageMeasured = false;
+    let screenGateEnded = false;
     try {
       const request = await readRequestForStatus(payload.requestId);
       coverageMeasured = typeof request?.capture_coverage?.covers_scene === "boolean";
+      screenGateEnded = request?.screenGateEnded === true;
       // The brief can be a no-op while its notification intent is missing.
       // Reuse the durable outbox key to recover failed enqueues without
       // creating another message or changing the confirmed work.
@@ -1149,63 +1186,35 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
         });
         void deliverOutbox({ limit: 5 }).catch((error) =>
           logger.warn({ error, requestId: payload.requestId }, "Task scope email delivery deferred to outbox"));
-      } else if (request?.contactEmail) {
-        // The verdict `confirmBrief` just wrote. Its own disposition stands in
-        // for a record that has not caught up, so a qualified site always hears
-        // its next step.
-        const recorded = request.site_task_triage as SiteTaskTriageSummary | null | undefined;
-        const triage = recorded?.disposition
-          ? recorded
-          : result.disposition === "qualified"
-            ? { disposition: "qualified" } as SiteTaskTriageSummary
-            : null;
-        const firstName = request.contactFirstName || "there";
-        // No registry run here. Its only consumer was this email, and the email
-        // no longer counts teams: the reply names the next step and what
-        // follows, never who might be on the other side.
-        const email = buildQualificationEmail({
-          firstName,
-          siteName: request.siteName,
-          triage,
-          stage: "brief_confirmed",
-          nextStep: walkthrough?.received ? { kind: "footage_received", taskUrl: jobUrl }
-            : !walkthrough ? { kind: "job_page", taskUrl: jobUrl }
-            : { kind: "self_capture", uploadUrl: jobUrl },
-          accountNeeded: !request.account_owner_uid,
-          ...(request.jobAccess ? { jobCardPublished: request.jobAccess.reason !== "not_listed" } : {}),
-        });
-        await enqueueOutbox({
-          idempotencyKey: `${payload.requestId}:brief-screening:${result.disposition}`,
-          requestId: payload.requestId,
-          to: request.contactEmail,
-          kind: result.disposition === "qualified" ? "brief_confirmed" : "input_needed",
-          subject: email?.subject ?? "Your job brief is confirmed",
-          body: email?.body ?? `${emailGreeting(firstName)}\n\nYour job brief is confirmed. ${result.readiness.nextAction}\n\n${EMAIL_SIGN_OFF}`,
-        });
-        void deliverOutbox({ limit: 5 }).catch((error) =>
-          logger.warn({ error, requestId: payload.requestId }, "Screening email delivery deferred to outbox"));
       }
+      // The four-conditions screen sends no email of its own, and no fallback
+      // "brief confirmed" one (owner decision 2026-11-11). Its verdict still
+      // gates the work, and a call it needs still reaches ops below.
     } catch (error) {
       logger.error({ error, requestId: payload.requestId }, "Could not queue brief screening email");
     }
 
-    // A site that needs a call gets no scene until ops records the call, so
-    // ops has to hear about it: the request carries the next step and Slack
-    // rings. Best-effort; neither may fail the operator's confirmation.
+    // A job from before the owner's decision of 2026-11-11 that needs a call
+    // gets no scene until ops records the call, so ops has to hear about it:
+    // the request carries the next step and Slack rings. For a marked job both
+    // are a note: its scene is built whatever the screen says. Best-effort;
+    // neither may fail the operator's confirmation.
     if (!result.reusedConfirmation && scoreable && result.disposition === "needs_conversation" && db) {
       const agenda = await db.collection("inboundRequests").doc(payload.requestId).get()
         .then((snap) => (snap.data()?.site_task_triage?.open_questions as string[] | undefined) ?? [])
         .catch(() => []);
       void db.collection("inboundRequests").doc(payload.requestId)
-        .set({ ops: { next_step: "Review the owner’s written clarification or book a screening call, then record the outcome under Screening." } }, { merge: true })
+        .set({ ops: { next_step: screenGateEnded
+          ? "Note only: the screen left questions open. The scene is built whatever it says; answers or a call can still sharpen the test."
+          : "Review the owner’s written clarification or book a screening call, then record the outcome under Screening." } }, { merge: true })
         .catch((error) => logger.warn({ error, requestId: payload.requestId }, "Could not set screening call next step"));
-      void notifySlackScreeningCallNeeded({ requestId: payload.requestId, openQuestions: agenda })
+      void notifySlackScreeningCallNeeded({ requestId: payload.requestId, openQuestions: agenda, screenGateEnded })
         .catch(() => undefined);
     }
 
     return res.status(200).json({
       ok: true,
-      screening: scoreable ? screeningOutcome(result.disposition) : taskScopeOutcome(result.scope.reason),
+      screening: scoreable ? screeningOutcome(result.disposition, screenGateEnded) : taskScopeOutcome(result.scope.reason),
       // The verdict, and what it means for them next. Both, because a
       // disposition on its own tells an operator nothing they can act on.
       disposition: result.disposition,
@@ -1385,7 +1394,7 @@ router.get("/:token/status", async (req: Request, res: Response) => {
         sceneProgression,
         stage,
         screening: request?.captureRights.consent_revoked ? null : screening,
-        site_task_triage: request?.site_task_triage ?? null,
+        site_task_triage: request?.screenGateEnded ? null : request?.site_task_triage ?? null,
         site_task_scope: request?.site_task_scope ?? null,
         bookingUrl: bookingUrl(),
         account_owner_uid: request?.account_owner_uid ?? null,
@@ -1421,37 +1430,23 @@ router.get("/:token/status", async (req: Request, res: Response) => {
 
     const siteAdvisory = payload.scope === "owner"
       ? await loadCurrentSiteAdvisory(payload.requestId, payload.captureId, { expectedOwnerUid: request?.account_owner_uid ?? null }) : null;
-    // Availability is a read-only inspection of the same durable authority
-    // the explicit retry uses. An advisory failure alone never grants a run.
-    const noRetry = { available: false, job_id: null, run_id: null };
-    let retry: { available: boolean; job_id: string | null; run_id: string | null } = noRetry;
-    if (payload.scope === "owner" && !payload.supplement && request && !request.captureRights.consent_revoked
-      && payload.captureId === `walkthrough-${payload.requestId}` && payload.sceneId === `site-${payload.requestId}`
-      && siteAdvisory?.state === "needs_review") {
-      let timer: ReturnType<typeof setTimeout> | undefined;
-      try {
-        retry = await Promise.race([describeSiteAssessmentRetry(payload.requestId, fresh => {
-          const current = verifyCaptureUploadToken(String(req.params.token || ""));
-          if (!current || current.scope !== "owner" || current.supplement || current.requestId !== payload.requestId
-            || current.captureId !== payload.captureId || current.sceneId !== payload.sceneId
-            || (fresh.account_owner_uid ?? null) !== (request.account_owner_uid ?? null)
-            || !projectWebsiteCaptureRights(fresh).derived_scene_generation_allowed) throw Error("advisory_retry_not_authorized");
-        }), new Promise<typeof retry>(resolve => { timer = setTimeout(() => resolve(noRetry), 4000); })]);
-      } catch { retry = noRetry; }
-      finally { clearTimeout(timer); }
-    }
-    if (siteAdvisory?.state === "queued" || siteAdvisory?.state === "running") {
-      // Only an authorized, current-source read can wake the existing queue.
-      void import("../utils/siteAssessmentQueue").then(({ tickSiteAssessments }) => tickSiteAssessments(1))
-        .catch(() => logger.warn("Site advisory return-visit wake unavailable"));
-    }
+    // The per-job site assessment ended (owner decision 2026-11-11): the
+    // status never advertises a retry and wakes no queue. The fields stay,
+    // constant, so older pages keep reading the same shape.
+    const ownerAnswer = await siteAnswerForStatus(payload.scope === "owner" && request && !request.captureRights.consent_revoked
+      ? { requestId: payload.requestId, request: request.answerSource, brief, videoReceived: hasStoredCapture,
+        robotFit: preparationStatus?.robotFit ?? null } : null);
+    // The job's outlook, from the one shared loader every caller uses (review, 2026-11-11). A read that fails gives
+    // no outlook, and the page then shows the working screen. Reading it never queues or sends anything.
+    const outlook = payload.scope === "owner" && request
+      ? await import("../utils/jobOutlook").then(({ loadJobOutlook }) => loadJobOutlook(payload.requestId)).catch(() => null) : null;
     return res.status(200).json({
       ok: true,
       scope: payload.scope,
       siteAdvisory,
-      assessment_retry_available: retry.available,
-      assessment_job_id: retry.available ? retry.job_id : null,
-      assessment_run_id: retry.available ? retry.run_id : null,
+      assessment_retry_available: false,
+      assessment_job_id: null,
+      assessment_run_id: null,
       status,
       // Retention only: a saved recording does not prove processing started.
       captureReceived: hasStoredCapture,
@@ -1479,15 +1474,16 @@ router.get("/:token/status", async (req: Request, res: Response) => {
       // Whether to move named furniture out of the robot's way in the simulation, for the owner only.
       robotAccess: payload.scope === "owner" && !request?.captureRights.consent_revoked ? robotAccess : null,
       // Which robot most likely fits the job, for the owner only: a fit check against published specifications.
-      answer: await siteAnswerForStatus(payload.scope === "owner" && request && !request.captureRights.consent_revoked
-        ? { requestId: payload.requestId, request: request.answerSource, brief, videoReceived: hasStoredCapture,
-          robotFit: preparationStatus?.robotFit ?? null } : null),
+      answer: ownerAnswer,
+      // The job's outlook (`jobOutlook`): the one decision the page shows its screen from, for the owner only.
+      outlook,
     });
   } catch (error) {
     logger.error({ error, requestId: payload.requestId }, "Could not load task status");
     return res.status(503).json({ error: "The status could not be loaded", code: "task_status_unavailable" });
   }
 });
+
 
 /* ------------------------------------------------------- task item inventory */
 

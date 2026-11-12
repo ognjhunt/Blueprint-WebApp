@@ -1,3 +1,4 @@
+import { waitingAnswerNoticeFields } from "./answerNoticeOwed";
 import { websiteCaptureOwnerUid } from "./websiteCaptureOwner";
 /** Current-source preparation status; never a native assessment or preview verdict. */
 import { z } from "zod";
@@ -399,6 +400,14 @@ const defaultDeps: WebsitePreparationDeps = {
         preparation, Date.now());
       // mergeFields replaces each named field whole: Firestore's merge would keep
       // a v2-only key such as terminal_reason under a later v1 receipt.
+      // An ended authority, or a geometry-only job's end at its fit check, is an ending: its answer email is owed from
+      // this same write, so nothing after the commit can lose it.
+      if (status.state === "authority_ended" || (status.state === "awaiting_inputs" && "robot_fit" in status
+        && status.robot_fit?.route === "geometry_only")) {
+        tx.set(store.collection("inboundRequests").doc(selector.request_id),
+          waitingAnswerNoticeFields({ requestId: selector.request_id, milestone: "answer_ready" }, new Date().toISOString(), request) as never,
+          {merge: true});
+      }
       tx.set(ref, {website_preparation: preparation,
         website_preparation_notification_pending: preparation.notification?.state === "pending",
         [WEBSITE_PREPARATION_NOTICE_OWED_FIELD]: noticeOwed(preparation, session[WEBSITE_PREPARATION_NOTICE_OWED_FIELD], Date.now()),
@@ -463,6 +472,13 @@ export async function syncWebsitePreparationStatus(raw: unknown, deps = defaultD
   const selector = websitePreparationSelectorSchema.parse(raw);
   const {latest, authority} = await boundedRead(signal => latestVerified(selector, deps, signal));
   await deps.commit(selector, latest, authority);
+  // A geometry-only job ends at its robot fit check, and an ended authority ends the job before a test ran: either
+  // ending gives the site its paper-check answer now, queued here where it is recorded.
+  if ((latest.state === "awaiting_inputs" && "robot_fit" in latest && latest.robot_fit?.route === "geometry_only")
+    || latest.state === "authority_ended") {
+    void import("./taskLifecycleNotifications").then(({ notifyIfAnswerSettled }) => notifyIfAnswerSettled(selector.request_id))
+      .catch(() => undefined);
+  }
   return latest;
 }
 async function fresh(captureId: string, requestId: string, deps: WebsitePreparationDeps) {

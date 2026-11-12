@@ -1,3 +1,4 @@
+import { waitingAnswerNoticeFields } from "./answerNoticeOwed";
 import { humanDecisionDigest } from "./human-reply-admission";
 import { validateCaptureSupplement } from "./captureSupplement";
 import { browserPendingDecisionKey, loadBrowserPending } from "./websiteBrowserPending";
@@ -265,8 +266,11 @@ export async function reviewCaptureCoverage(params: {
   // never fails the review.
   if (params.captureId === `walkthrough-${params.requestId}` && !additive) {
     try {
-      const { notifyIfAnswerSettled } = await import("./taskLifecycleNotifications");
+      // The reading is done: an unsized video is recorded here (its one email), and an ending's email that waited
+      // for this reading is queued now with the paper check.
+      const { notifyIfAnswerSettled, releaseWaitingAnswerNotices } = await import("./taskLifecycleNotifications");
       await notifyIfAnswerSettled(params.requestId);
+      await releaseWaitingAnswerNotices(params.requestId);
     } catch (error) {
       logger.warn({ error, requestId: params.requestId }, "Could not queue the answer email after the coverage review");
     }
@@ -311,6 +315,10 @@ export async function recordCoverageFinding(
       ...(finding.sourceCaptures ? { source_captures: finding.sourceCaptures } : {}),
       reviewed_at: admin.firestore.FieldValue.serverTimestamp(), ...(binding ? { binding } : {}),
     } }, { merge: true });
+    // The reading of the job's own walkthrough is done: its answer email (if this reading recorded an ending, such as
+    // "cannot size") is owed from this same write, so a crash or a failed queue after it never loses it.
+    // For the capture actually reviewed (the job's current one, checked above), a replacement video included.
+    tx.set(ref, waitingAnswerNoticeFields({ requestId, milestone: "answer_ready" }, new Date().toISOString(), value) as never, { merge: true });
     // Replaced whole, under the same consent and source checks as the finding it came with.
     if (jobEstimates) tx.set(ref, { walkthrough_job_estimates: { capture_id: captureId, job_estimates: jobEstimates,
       reviewed_at_iso: new Date().toISOString() } }, { mergeFields: ["walkthrough_job_estimates"] });

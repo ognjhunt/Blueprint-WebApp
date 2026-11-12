@@ -15,7 +15,7 @@ import { claimCapturePrivacyScreen, recordCapturePrivacyScreen, releaseCapturePr
 import { enqueueCoverageReview } from "./captureCoverageQueue";
 import { buildBrowserDelivery, capturedWriteIdentity, captureWriteFailureDiagnostic, publishBrowserDelivery,
  type WrittenObject, type WrittenManifest, type CaptureWriteStage } from "./websiteCaptureDelivery";
-import { browserPendingDecisionKey, publishBrowserPending, recordBrowserPending, recordBrowserStoredUpload,
+import { browserPendingDecisionKey, publishBrowserPending, stampSceneScreenGateBeforeDelivery, recordBrowserPending, recordBrowserStoredUpload,
  completeBrowserStoredUploadProbe, recordBrowserVideoProbeFailure, loadBrowserPending,
  type BrowserStoredUpload, type BrowserPending, type BrowserWriteReservation } from "./websiteBrowserPending";
 import { verifiedStoredVideo, originalManifestConsent, verifiedPendingManifest, describeBrowserUpload } from "./websiteBrowserUploadStatus";
@@ -96,6 +96,8 @@ export async function writeCompletionMarker(pending: BrowserPending): Promise<vo
     captureId: pending.capture_id, rawPrefix, video: pending.video,
     manifest: pending.manifest, completedAtIso: pending.completed_at_iso,
   });
+  // The screen-gate marker first: nothing the Pipeline can act on exists yet.
+  await stampSceneScreenGateBeforeDelivery(pending);
   await enqueueCoverageReview({ requestId: pending.request_id, sceneId: pending.scene_id, captureId: pending.capture_id });
   await publishBrowserDelivery(storageAdmin.bucket(storageBucketName()), delivery);
   await publishBrowserPending(pending);

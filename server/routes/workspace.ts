@@ -75,7 +75,6 @@ import { getTeamBalance } from "../utils/robotTeamBalance";
 import { listRunsForTeam } from "../utils/agentRunResults";
 import { issueAgentKey, listAgentKeys, resolveAgentKey, revokeAgentKey } from "../utils/robotTeamAgentKeys";
 import { registerSelfServeTeam } from "../utils/robotTeamRegistry";
-import { enqueueTaskLifecycleNotification } from "../utils/taskLifecycleNotifications";
 import { alertOpsEvaluationNeedsAdmission } from "../utils/pilotOpsAlerts";
 import { accessRecordId, ensureApprovedTeamForAccount, resolveViewerAccess } from "../utils/robotTeamEarlyAccess";
 import { accountHasAdmission } from "../utils/accountInvitations";
@@ -91,6 +90,7 @@ import { offersTeamEvaluation, TEAM_POLICY_BLOCKER_MESSAGES, teamPolicyBlocker, 
 import { notCountedReason } from "../utils/pilotRecommendationEvidence";
 import { footageArrivedBeforeAccount, savedWalkthrough, siteWalkthroughIdentity } from "../utils/siteWalkthrough";
 import { isSiteVideoEvidenceEnabled } from "../config/env";
+import { sceneScreenGateEnded } from "../utils/sceneScreenGate";
 
 const router = Router();
 const id = z
@@ -702,7 +702,9 @@ async function hydrateTask(requestId: string, record: Record<string, any>) {
         sceneProgression,
         stage,
         screening: await loadSceneScreening(requestId, passMarkForJob(record, brief as never)).catch(() => null),
-        site_task_triage: (record.site_task_triage as { disposition?: string | null } | undefined) ?? null,
+        // A job carrying the 2026-11-11 marker is built whatever the screen says: no screen sentence in its status.
+        site_task_triage: sceneScreenGateEnded(record, requestId) ? null
+          : (record.site_task_triage as { disposition?: string | null } | undefined) ?? null,
         site_task_scope: (record.site_task_scope as { supported?: unknown; reason?: unknown } | undefined) ?? null,
         bookingUrl: bookingUrl(),
         jobAccess: teamJobAccess(record),
@@ -721,10 +723,6 @@ async function hydrateTask(requestId: string, record: Record<string, any>) {
   }
 
   task.siteAdvisory = consentRevoked ? null : await loadCurrentSiteAdvisory(requestId, currentCapture.captureId, { expectedOwnerUid: record.account_owner_uid ?? null });
-  if (task.siteAdvisory?.state === "queued" || task.siteAdvisory?.state === "running") {
-    void import("../utils/siteAssessmentQueue").then(({ tickSiteAssessments }) => tickSiteAssessments(1))
-      .catch(() => logger.warn("Site advisory workspace return wake unavailable"));
-  }
   if (consentRevoked) task.status = "Recording consent withdrawn";
   else if (task.readiness?.outcome) {
     task.status = task.readiness.outcome.title;
@@ -1465,13 +1463,8 @@ router.post(
       details: `Evaluation request for job ${input.opportunityId}. ${input.notes}`,
     };
     await submitInboundRequest(req, res);
-    // The site hears that a team asked about its task, once per request.
+    // A team's request sends the site no email (owner decision 2026-11-11).
     if (res.statusCode < 300) {
-      await enqueueTaskLifecycleNotification({
-        requestId: input.opportunityId,
-        milestone: "pilot_request",
-        eventId: input.id,
-      }).catch((error) => logger.warn({ error, requestId: input.opportunityId }, "Could not queue the pilot-request email"));
       // The free evaluation waits on a founder's admission; ring ops once,
       // with ids only. Never blocks or fails the team's request.
       void teamsForAccount(caller.uid)

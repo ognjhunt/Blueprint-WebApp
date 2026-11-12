@@ -569,7 +569,8 @@ it("v2 status preserves source proof and null owner on an expired prep-only gran
 });
 it("v2 status requires a real current prep grant rather than purpose alone, never a finished assessment",async()=>{
   // The fixture's assessment is still queued and its grant carries no proposal.
-  await syncWebsitePreparationStatus(purposeStatusFixture().selected);expect(runtime.txWrites).toBe(1);
+  // Two writes: the status, and the answer email the ended authority owes the job, in the same transaction (review, 2026-11-11).
+  await syncWebsitePreparationStatus(purposeStatusFixture().selected);expect(runtime.txWrites).toBe(2);
   for(const mutate of [()=>{runtime.records.get("inboundRequests/r1").website_scene_sponsorship.authority_digest=`sha256:${"0".repeat(64)}`;},
     ()=>{runtime.records.get("inboundRequests/r1").request.consent_attestation.revoked_at_iso="2026-10-28T00:00:00Z";}]) {
     const f=purposeStatusFixture();mutate();await expect(syncWebsitePreparationStatus(f.selected)).rejects.toThrow();expect(runtime.txWrites).toBe(0);
@@ -581,4 +582,23 @@ it("v2 status transaction refuses concurrent authority/account changes",async()=
     const f=purposeStatusFixture();runtime.beforeTransaction=mutate;
     await expect(syncWebsitePreparationStatus(f.selected)).rejects.toThrow();expect(runtime.txWrites).toBe(0);
   }
+});
+
+// Review, 2026-11-11: an ended authority is a recorded ending, and the sync that records it queues its paper-check
+// email in the same step, as the geometry-only end does. Other states queue nothing here.
+it("asks for the answer email where an ended authority, or the geometry-only end, is recorded, and nowhere else", async () => {
+  const notices = await import("../utils/taskLifecycleNotifications");
+  const asked = vi.spyOn(notices, "notifyIfAnswerSettled").mockResolvedValue({ enqueued: true });
+  try {
+    for (const [label, status, expected] of [["authority ended", receipt("authority_ended"), true],
+      ["geometry-only end", v5("awaiting_inputs", robotFit("geometry_only")), true],
+      ["preparing", receipt("preparing"), false]] as const) {
+      asked.mockClear();
+      const h = harness();
+      h.ledger(status);
+      await syncWebsitePreparationStatus(selector, h.deps);
+      await new Promise(resolve => setTimeout(resolve, 10));
+      expect(asked.mock.calls.map(([id]) => id), label).toEqual(expected ? ["r1"] : []);
+    }
+  } finally { asked.mockRestore(); }
 });

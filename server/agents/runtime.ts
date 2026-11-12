@@ -913,15 +913,18 @@ async function logRunEvent(
   });
 }
 
+/** The per-job site assessment ended (owner decision 2026-11-11). Every path
+ * that could start one, queued, direct or through a session, refuses it before
+ * any run record or spend. Retained records and readers are untouched. */
+function refuseRetiredSiteAssessment(kind: string): void {
+  if (kind === "site_assessment") throw new Error("site_assessment_retired");
+}
+
 async function executeTask<TInput, TOutput>(
   task: NormalizedAgentTask<TInput, TOutput>,
   host?: { runId: string; assertActive: () => Promise<void>; assertCostAllowed: () => Promise<void> },
 ): Promise<AgentResult<TOutput>> {
-  if (task.kind === "site_assessment") {
-    if (!host) throw new Error("site_assessment_host_required");
-    const { runSiteAssessmentTask } = await import("./adapters/site-assessment");
-    return runSiteAssessmentTask(task as unknown as NormalizedAgentTask, host) as Promise<AgentResult<TOutput>>;
-  }
+  refuseRetiredSiteAssessment(task.kind);
   if (requiresMutationReconciliation(task as unknown as Record<string, unknown>) && !["openai_responses", "deepseek_chat", "zai_glm"].includes(task.provider)) {
     return { status: "failed", provider: task.provider, runtime: task.runtime, model: task.model,
       tool_mode: task.tool_policy.mode, requires_approval: false, requires_human_review: true,
@@ -1501,6 +1504,9 @@ export async function runAgentTask<TInput = unknown, TOutput = unknown>(
   if (task.kind === "adp_run_operator" || task.provider === "openai_agents_api" || task.provider === "openai_agents_sdk") {
     throw new Error("adp_agent_use_admitted_task_controller");
   }
+  // The per-job site assessment ended (owner decision 2026-11-11). No path,
+  // queued or direct, may start one: refuse before any run record or spend.
+  refuseRetiredSiteAssessment(task.kind);
   const normalizedTask = normalizeTask<TInput, TOutput>(task);
   const admissionSessionId = options?.sessionId || normalizedTask.session_id;
   if (admissionSessionId && await sessionRequiresMutationReconciliation(admissionSessionId)) {
@@ -2073,6 +2079,7 @@ export async function createAgentSession(params: {
   environment_profile_id?: string | null;
   metadata?: Record<string, unknown>;
 }) {
+  refuseRetiredSiteAssessment(params.task_kind);
   const sessionId = crypto.randomUUID();
   const profile = params.agent_profile_id ? await getAgentProfile(params.agent_profile_id) : null;
   if (params.task_kind === "site_assessment" && profile && profile.task_kind !== "site_assessment") {
@@ -2183,6 +2190,7 @@ export async function sendAgentSessionMessage(params: {
   sessionId: string;
   task: AgentTask;
 }) {
+  refuseRetiredSiteAssessment(params.task.kind);
   const session = await getSession(params.sessionId);
   if (!session) {
     throw new Error("Agent session not found");

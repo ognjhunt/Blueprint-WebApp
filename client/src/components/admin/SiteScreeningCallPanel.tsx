@@ -7,8 +7,9 @@ import type { SiteScreeningSummary } from "@/types/inbound-request";
 /**
  * Where ops records what a screening call settled.
  *
- * A `needs_conversation` site gets no scene until this panel re-screens it to
- * `qualified`: Blueprint funds preparation only for sites that clear. The
+ * For a job uploaded before the owner's decision of 2026-11-11, a
+ * `needs_conversation` site gets no scene until this panel re-screens it to
+ * `qualified`. For a job uploaded after it, the screen is a note and gates nothing. The
  * server re-runs the same scorer the brief confirmation uses; this panel only
  * collects what the site said on the call.
  */
@@ -17,11 +18,14 @@ export function SiteScreeningCallPanel({
   triage,
   gatesOnFile,
   briefConfirmed,
+  screenGateEnded = false,
 }: {
   requestId: string;
   triage: SiteScreeningSummary | null | undefined;
   gatesOnFile: Record<string, string>;
   briefConfirmed: boolean;
+  /** The job's video arrived after the owner's decision of 2026-11-11: the screen gates nothing. */
+  screenGateEnded?: boolean;
 }) {
   const queryClient = useQueryClient();
   const [cleared, setCleared] = useState<string[]>([]);
@@ -67,7 +71,9 @@ export function SiteScreeningCallPanel({
       <p className="runway-meta">Screening</p>
       <p className="mt-2 text-sm text-runway-body">
         Verdict: <strong>{triage.disposition.replace(/_/g, " ")}</strong>
-        {triage.disposition === "qualified"
+        {screenGateEnded && triage.disposition !== "qualified"
+          ? " — a note: the scene is built whatever the screen says (owner decision 2026-11-11)."
+          : triage.disposition === "qualified"
           ? " — Blueprint funds the scene."
           : triage.disposition === "needs_conversation"
             ? " — no scene until a reviewer clears the open questions."

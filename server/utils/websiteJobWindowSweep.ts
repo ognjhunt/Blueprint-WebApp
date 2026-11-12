@@ -37,6 +37,8 @@
  * under a key fixed by the job, through the same outbox and the same dispatch checks. A job whose
  * grant arrives later is the window sweep's again.
  */
+import { LIVE_RUN_GRACE_SECONDS } from "./jobOutlook";
+import { OUTBOX_WENT_OUT } from "./outboxWentOut";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
 import { automationBatch } from "./automationBatch";
@@ -45,7 +47,7 @@ import { buildOutboxEntry, CAPTURE_OUTBOX_COLLECTION } from "./captureOutbox";
 import { decryptFieldValue } from "./field-encryption";
 import { sponsorshipExecutionWindowUntil, sponsorshipWindowIntake } from "./sceneExecutionWindowExtension";
 import { siteWalkthroughIdentity } from "./siteWalkthrough";
-import { buildTaskLifecycleNotification, workspaceTaskUrl } from "./taskLifecycleNotifications";
+import { buildTaskLifecycleNotification, paperAnswerForEnding, waitingAnswerNoticeFields, workspaceTaskUrl } from "./taskLifecycleNotifications";
 import { earlyTaskHoldOf } from "./taskPreparationOutcome";
 import { resultOutranksWindowEnding } from "./taskStatusProjection";
 import { selectWebsiteAtlasPreview } from "./websiteAtlasPreview";
@@ -83,7 +85,7 @@ const DEFAULT_BATCH = 25;
 const CONTACT_READ_GRACE_SECONDS = 24 * 3600;
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 /** Outbox states in which an email may have left, or is leaving. */
-const WENT_OUT = new Set(["dispatching", "unknown", "sent"]);
+const WENT_OUT = OUTBOX_WENT_OUT;
 
 /** Why the sweep leaves a job as it is. */
 export type JobWindowSweepSkip =
@@ -146,13 +148,13 @@ function recordedForWindow(record: Record<string, any> | undefined, windowEndedA
  * unreachable, which is when this sweep matters most). Throws when it cannot be read, so the
  * job is left for the next pass rather than ended on a guess.
  */
-async function storedOutcome(requestId: string, record: Record<string, any>): Promise<JobWindowSweepSkip | null> {
+async function storedOutcome(requestId: string, record: Record<string, any>, pastLiveGrace = false): Promise<JobWindowSweepSkip | null> {
   const captureId = siteWalkthroughIdentity(requestId, record).captureId;
   const [{ readWebsiteSceneProgression }, { loadSceneScreening }] = await Promise.all([
     import("./websiteSceneProgression"), import("./agentEvalRuns")]);
   const sceneProgression = await readWebsiteSceneProgression(requestId, captureId);
   const screening = await loadSceneScreening(requestId);
-  if (resultOutranksWindowEnding({ screening, sceneProgression })) return "result_recorded";
+  if (resultOutranksWindowEnding({ screening, sceneProgression }, { pastLiveGrace })) return "result_recorded";
   // The Pipeline's own terminal outcome for the scene (C-04) has its own one email.
   if (sceneProgression?.sceneOutcome?.terminal) return "outcome_told";
   const status = (await db!.collection(SESSIONS).doc(captureId).get()).data()?.website_preparation?.status;
@@ -185,7 +187,10 @@ export async function sweepWebsiteJobWindow(requestId: string, nowMs = Date.now(
     if (!(observedEnd <= nowEpoch)) return "window_open";
     if (recordedForWindow(observed, observedEnd)) return "ending_recorded";
   }
-  const outcome = await storedOutcome(requestId, observed!);
+  // Past the window plus the grace the Pipeline takes to stop a run, a run record that still says running is stale.
+  const ended = await windowEnd(observed!, plainReader).catch(() => NaN);
+  const outcome = await storedOutcome(requestId, observed!,
+    Number.isFinite(ended) && nowEpoch > ended + LIVE_RUN_GRACE_SECONDS);
   if (outcome) return outcome;
   const observedGrant = observed!.website_scene_sponsorship.authority_digest;
   const firstKey = websiteJobWindowEndedNoticeKey(requestId);
@@ -214,6 +219,7 @@ export async function sweepWebsiteJobWindow(requestId: string, nowMs = Date.now(
       .doc(first ? firstKey : websiteJobWindowEndedNoticeKey(requestId, windowEndedAt));
     let notice: WebsiteJobWindowEndingNotice = "none_window_ended_before_cutover";
     let entry: ReturnType<typeof buildOutboxEntry> | null = null;
+    let waiting: Record<string, unknown> = {};
     if (stillOwedByAnEarlierOne) notice = "queued";
     else if (owed && earlier.some(row => row.id === outboxRef.id)) notice = "none_cancelled_before_sending";
     else if (owed) {
@@ -224,23 +230,31 @@ export async function sweepWebsiteJobWindow(requestId: string, nowMs = Date.now(
         to = "";
       }
       if (EMAIL.test(to)) {
-        const message = buildTaskLifecycleNotification({ requestId, milestone: "scene_outcome", to,
-          eventId: websiteJobWindowEndedEventId(first ? undefined : windowEndedAt), jobWindowEnded: true,
-          workspaceUrl: typeof record!.account_owner_uid === "string" && record!.account_owner_uid
-            ? workspaceTaskUrl(requestId) : null });
-        if (message.idempotencyKey !== outboxRef.id) throw new Error("website_job_window_ended_notice_key_mismatch");
-        entry = buildOutboxEntry(message);
+        // The window ran out before a test result: the paper check, when there is one, is the job's one answer. While
+        // the video is still being read the email waits on the job, beside the ending, and is queued once it is read.
+        const eventId = websiteJobWindowEndedEventId(first ? undefined : windowEndedAt);
+        const paper = await paperAnswerForEnding(requestId);
+        if (paper.wait) waiting = waitingAnswerNoticeFields({ requestId, milestone: "scene_outcome", eventId, jobWindowEnded: true },
+          new Date(nowMs).toISOString(), record);
+        else {
+          const message = buildTaskLifecycleNotification({ requestId, milestone: "scene_outcome", to, eventId, jobWindowEnded: true,
+            ...(paper.answer ? { siteAnswer: paper.answer } : {}),
+            workspaceUrl: typeof record!.account_owner_uid === "string" && record!.account_owner_uid
+              ? workspaceTaskUrl(requestId) : null });
+          if (message.idempotencyKey !== outboxRef.id) throw new Error("website_job_window_ended_notice_key_mismatch");
+          entry = buildOutboxEntry(message);
+        }
         notice = "queued";
       } else {
         notice = "none_no_contact_on_file";
         logger.warn({ requestId }, "A job's window ended with no usable contact address; the job page still says so");
       }
     }
-    transaction.update(jobRef, { [WEBSITE_JOB_WINDOW_ENDING_FIELD]: sealWebsiteJobWindowEnding({ request_id: requestId,
+    transaction.update(jobRef, { ...waiting, [WEBSITE_JOB_WINDOW_ENDING_FIELD]: sealWebsiteJobWindowEnding({ request_id: requestId,
       authority_digest: grant.authority_digest, window_ended_at_epoch: windowEndedAt,
       recorded_at_iso: new Date(nowMs).toISOString(), notice }) });
     if (entry) transaction.create(outboxRef, entry);
-    return entry ? "ended_notice_queued" : "ended_no_notice";
+    return entry || Object.keys(waiting).length ? "ended_notice_queued" : "ended_no_notice";
   });
 }
 
@@ -318,9 +332,21 @@ function noGrantSkip(record: Record<string, any> | undefined, requestId: string)
   if (recordedWebsiteJobNoGrantEnding(record, requestId)) return "ending_recorded";
   if (record.capture_withdrawal || projectWebsiteCaptureRights(record).consent_revoked) return "withdrawn";
   if (websiteRunClosure(record, requestId, siteWalkthroughIdentity(requestId, record).captureId)) return "owner_closed";
-  const scope = record.site_task_scope;
-  if (scope?.supported === false && !SITE_STEP_SCOPE_REASONS.has(String(scope.reason ?? ""))) return "kept_on_file";
+  if (websiteJobKeptOnFile(record)) return "kept_on_file";
   return null;
+}
+
+/**
+ * A job of a kind we can't simulate yet, with no grant: kept on file, a recorded ending (review, 2026-11-11). Its one
+ * email is the "can't simulate this kind of job yet" one, queued where the job's scope is recorded.
+ */
+/** When the kept-on-file answer email was first marked owed: set once, so the sweep never marks it again. */
+export const KEPT_ON_FILE_OWED_FIELD = "kept_on_file_answer_owed_at_iso";
+
+export function websiteJobKeptOnFile(record: Record<string, any> | undefined): boolean {
+  const scope = record?.site_task_scope;
+  return Boolean(record && !record.website_scene_sponsorship && scope?.supported === false
+    && !SITE_STEP_SCOPE_REASONS.has(String(scope.reason ?? "")));
 }
 
 /**
@@ -361,6 +387,15 @@ export async function sweepWebsiteJobNoGrant(requestId: string, nowMs = Date.now
   const jobRef = store.collection(JOBS).doc(requestId);
   observed ??= (await jobRef.get()).data();
   const early = noGrantSkip(observed, requestId);
+  // Kept on file is a recorded ending (review, 2026-11-11): the pass that marks it queues its one paper-slot email,
+  // idempotently, with the reader's reason. A "can't simulate this kind of job yet" email already sent fills the slot.
+  // Once per job: the pass that first sees it marks the email owed (with the mark, in one transaction); later passes
+  // skip, and the reconcile delivers or settles the owed entry.
+  if (early === "kept_on_file" && !observed?.[KEPT_ON_FILE_OWED_FIELD]) {
+    const { holdAnswerNotice, notifyIfAnswerSettled } = await import("./taskLifecycleNotifications");
+    await holdAnswerNotice({ requestId, milestone: "answer_ready" }, { [KEPT_ON_FILE_OWED_FIELD]: new Date(nowMs).toISOString() });
+    await notifyIfAnswerSettled(requestId).catch(error => logger.warn({ error, requestId }, "Could not queue the kept-on-file email"));
+  }
   if (early) return early;
   const brief = await noGrantJobBrief(requestId);
   if (!brief) return "not_a_job";
@@ -446,6 +481,7 @@ export async function sweepWebsiteJobNoGrant(requestId: string, nowMs = Date.now
     // The key is fixed by the job: an email already in the outbox, in any state, is never queued again.
     const already = (await transaction.get(noticeRef)).exists;
     let entry: ReturnType<typeof buildOutboxEntry> | null = null;
+    let waiting: Record<string, unknown> = {};
     let notice: WebsiteJobNoGrantEndingNotice = "queued";
     if (!already) {
       let to: string;
@@ -455,13 +491,19 @@ export async function sweepWebsiteJobNoGrant(requestId: string, nowMs = Date.now
         to = "";
       }
       if (EMAIL.test(to)) {
-        const message = buildTaskLifecycleNotification({ requestId, milestone: "scene_outcome", to,
-          eventId: WEBSITE_JOB_NO_GRANT_ENDED_EVENT_ID, jobNoGrantEnded: clock.waiting_on,
-          ...(ask ? { jobNoGrantReason: "video_over_ingest_limit" as const } : {}),
-          workspaceUrl: typeof record!.account_owner_uid === "string" && record!.account_owner_uid
-            ? workspaceTaskUrl(requestId) : null });
-        if (message.idempotencyKey !== noticeRef.id) throw new Error("website_job_no_grant_ended_notice_key_mismatch");
-        entry = buildOutboxEntry(message);
+        // No simulation was ever built: the paper check, when there is one, is the job's one answer (for another kind
+        // of job, the reader's reason). While the video is still being read the email waits on the job.
+        const paper = await paperAnswerForEnding(requestId);
+        const ending = { requestId, milestone: "scene_outcome" as const, eventId: WEBSITE_JOB_NO_GRANT_ENDED_EVENT_ID,
+          jobNoGrantEnded: clock.waiting_on, ...(ask ? { jobNoGrantReason: "video_over_ingest_limit" as const } : {}) };
+        if (paper.wait) waiting = waitingAnswerNoticeFields(ending, new Date(nowMs).toISOString(), record);
+        else {
+          const message = buildTaskLifecycleNotification({ ...ending, to, ...(paper.answer ? { siteAnswer: paper.answer } : {}),
+            workspaceUrl: typeof record!.account_owner_uid === "string" && record!.account_owner_uid
+              ? workspaceTaskUrl(requestId) : null });
+          if (message.idempotencyKey !== noticeRef.id) throw new Error("website_job_no_grant_ended_notice_key_mismatch");
+          entry = buildOutboxEntry(message);
+        }
       } else {
         notice = "none_no_contact_on_file";
         logger.warn({ requestId }, "A job with no grant ended with no usable contact address; the job page still says so");
@@ -469,11 +511,11 @@ export async function sweepWebsiteJobNoGrant(requestId: string, nowMs = Date.now
     }
     // The ending supersedes an unsent ask email: its own email says where the job stands.
     askEntry = null;
-    transaction.update(jobRef, { ...updates, [WEBSITE_JOB_NO_GRANT_ENDING_FIELD]: sealWebsiteJobNoGrantEnding({ request_id: requestId,
+    transaction.update(jobRef, { ...updates, ...waiting, [WEBSITE_JOB_NO_GRANT_ENDING_FIELD]: sealWebsiteJobNoGrantEnding({ request_id: requestId,
       waiting_on: clock.waiting_on, ...reason, waiting_since_epoch: clock.since_epoch, ended_at_epoch: nowEpoch,
       recorded_at_iso: new Date(nowMs).toISOString(), notice }), [WEBSITE_JOB_NO_GRANT_PAGE_DUE_FIELD]: null });
     if (entry) transaction.create(noticeRef, entry);
-    return entry ? "ended_notice_queued" : "ended_no_notice";
+    return entry || Object.keys(waiting).length ? "ended_notice_queued" : "ended_no_notice";
   });
 }
 
@@ -578,8 +620,9 @@ export async function websiteJobWindowEndingShown(requestId: string, idempotency
   if (websiteRunClosure(record, requestId, captureId)) return false;
   const [{ readWebsiteSceneProgression }, { loadSceneScreening }] = await Promise.all([
     import("./websiteSceneProgression"), import("./agentEvalRuns")]);
+  // The ending is recorded, so the sweep found no live run within the grace: only a finished result outranks it.
   if (resultOutranksWindowEnding({ screening: await loadSceneScreening(requestId),
-    sceneProgression: await readWebsiteSceneProgression(requestId, captureId) })) return false;
+    sceneProgression: await readWebsiteSceneProgression(requestId, captureId) }, { pastLiveGrace: true })) return false;
   const told = await db.collection(CAPTURE_OUTBOX_COLLECTION).where("requestId", "==", requestId).get();
   return !told.docs.some(row => row.id !== idempotencyKey
     && ["evaluation_outcome", "scene_outcome"].includes(String(row.data()?.kind ?? ""))
@@ -604,8 +647,9 @@ export async function websiteJobNoGrantEndingShown(requestId: string, idempotenc
   if (websiteRunClosure(record, requestId, captureId)) return false;
   const [{ readWebsiteSceneProgression }, { loadSceneScreening }] = await Promise.all([
     import("./websiteSceneProgression"), import("./agentEvalRuns")]);
+  // The ending is recorded, so the sweep found no live run within the grace: only a finished result outranks it.
   if (resultOutranksWindowEnding({ screening: await loadSceneScreening(requestId),
-    sceneProgression: await readWebsiteSceneProgression(requestId, captureId) })) return false;
+    sceneProgression: await readWebsiteSceneProgression(requestId, captureId) }, { pastLiveGrace: true })) return false;
   const told = await db.collection(CAPTURE_OUTBOX_COLLECTION).where("requestId", "==", requestId).get();
   return !told.docs.some(row => row.id !== idempotencyKey
     && ["evaluation_outcome", "scene_outcome"].includes(String(row.data()?.kind ?? ""))

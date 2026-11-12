@@ -92,7 +92,7 @@ describe("Blueprint's answer on a job card", () => {
     // None finished, and testing now: never a winner's label.
     const { unmount: second } = render(<JobCardAnswer answer={{ ...ANSWER, test: { ...test, kind: "none_finished", wording: null,
       options: [{ ...options[1] }] } }} />);
-    expect(screen.getByText("None finished yet")).toBeVisible();
+    expect(screen.getByText("No AI robot finished the job")).toBeVisible();
     expect(screen.getByText("Closest: Franka arm + GR00T N1.7 touched the object.")).toBeVisible();
     // No set-up flag here: no notice. With one, the card says it in the site's place, as the page and email do.
     expect(screen.queryByText(/how we set up the simulation/)).toBeNull();

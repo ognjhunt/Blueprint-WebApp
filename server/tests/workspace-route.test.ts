@@ -946,12 +946,8 @@ describe("workspace requests and lifecycle", () => {
       opportunityId: "task-1", setupId: "setup-1",
       targetSnapshot: { successRate: terms.successRate, cycleTimeSeconds: terms.cycleTimeSeconds },
     });
-    // The site hears that a team asked, once per request.
-    expect(state.notices).toHaveBeenCalledWith({
-      requestId: "task-1",
-      milestone: "pilot_request",
-      eventId: "application-1",
-    });
+    // A team's request sends the site no email (ended 2026-11-11); ops still hears.
+    expect(state.notices).not.toHaveBeenCalledWith(expect.objectContaining({ milestone: "pilot_request" }));
     state.notices.mockClear();
     // The Pipeline's rights review now holds the capture: closed on both surfaces.
     state.records.set("inboundRequests/task-1", { ...openJob(),

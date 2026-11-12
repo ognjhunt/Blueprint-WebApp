@@ -13,6 +13,11 @@ export type SiteCaptureDraft = {
   purchaseReadiness?: "" | "exploring" | "planning" | "ready_for_proposals" | "unsure";
   method: "phone" | "upload" | "visit"; region: "" | "us" | "non_us";
   regionManuallySet: boolean;
+  /**
+   * The label of the place (a chosen suggestion or "Use my location") whose country set `region`. A restored draft
+   * keeps that country only while `location` still reads exactly this label: once the text is edited, it is asked.
+   */
+  regionFromPlace?: string;
   privateHandling?: boolean;
 };
 export type SiteCaptureRecovery = {
@@ -50,6 +55,7 @@ function validSiteCaptureRecovery(input: unknown): SiteCaptureRecovery | null {
       || (draft.company !== undefined && (typeof draft.company !== "string" || draft.company.length > 200))
       || (draft.jobFrequency !== undefined && (typeof draft.jobFrequency !== "string" || draft.jobFrequency.length > 120))
       || (draft.successDefinition !== undefined && (typeof draft.successDefinition !== "string" || draft.successDefinition.length > 1000))
+      || (draft.regionFromPlace !== undefined && (typeof draft.regionFromPlace !== "string" || draft.regionFromPlace.length > 300))
       || (draft.purchaseReadiness !== undefined && !["", "exploring", "planning", "ready_for_proposals", "unsure"].includes(draft.purchaseReadiness))
       || !draft || !["phone", "upload", "visit"].includes(draft.method)
       || !["", "us", "non_us"].includes(draft.region) || typeof draft.regionManuallySet !== "boolean"
@@ -92,10 +98,11 @@ export function writeSiteCaptureRecovery(key: string | null, value: SiteCaptureR
     }
     // Persist only the named recovery fields: no File objects or bearer URL
     // can ride along on a future caller's spread object.
-    const { task, location, email, company, method, region, regionManuallySet, privateHandling, jobFrequency, purchaseReadiness, successDefinition } = value.draft;
+    const { task, location, email, company, method, region, regionManuallySet, regionFromPlace, privateHandling, jobFrequency, purchaseReadiness, successDefinition } = value.draft;
     window.localStorage.setItem(key, JSON.stringify({
       version: value.version, savedAt: value.savedAt, requestId: value.requestId, retryToken: value.retryToken,
-      draft: { task, location, email, ...(company !== undefined ? { company } : {}), method, region, regionManuallySet, ...(privateHandling === true ? { privateHandling } : {}),
+      draft: { task, location, email, ...(company !== undefined ? { company } : {}), method, region, regionManuallySet,
+        ...(regionFromPlace && region && !regionManuallySet ? { regionFromPlace } : {}), ...(privateHandling === true ? { privateHandling } : {}),
         ...(jobFrequency ? { jobFrequency } : {}), ...(purchaseReadiness ? { purchaseReadiness } : {}), ...(successDefinition ? { successDefinition } : {}) },
       pending: value.pending ? { body: value.pending.body, endpoint: value.pending.endpoint, acknowledged: value.pending.acknowledged } : null,
     }));

@@ -301,4 +301,29 @@ describe("inbound qualification worker", () => {
       id: "comms-draft", state: "needs_review", sourceRef: "inboundRequests/request-1/communications/comms-draft",
     } } }, { merge: true });
   });
+
+  it.each([
+    { disposition: "qualified", blockers: [], open_questions: [] },
+    { disposition: "needs_conversation", blockers: [], open_questions: ["Cycle time — not sure"] },
+    { disposition: "not_now", blockers: ["Scene stability — reconfigured daily"], open_questions: [] },
+  ])("sends no four-conditions screening email for a $disposition site, and starts no model draft in its place (owner decision 2026-11-11)", async triage => {
+    runAgentTask.mockResolvedValue({
+      status: "completed", provider: "openclaw", runtime: "openclaw", model: "openai/gpt-5.4", tool_mode: "api",
+      requires_human_review: false, requires_approval: false,
+      output: {
+        automation_status: "completed", block_reason_code: null, retryable: false,
+        qualification_state_recommendation: "needs_more_evidence", opportunity_state_recommendation: "not_applicable",
+        confidence: 0.86, requires_human_review: false, next_action: "Ask one question.",
+        rationale: "One detail is missing.", internal_summary: "Follow up.", missing_information: ["Boundary"],
+        buyer_follow_up: { subject: "One detail", body: "Please reply with the operating boundary." },
+      },
+    });
+    executePhase2WorkflowActions.mockResolvedValue({ records: [], lastResult: null, lastState: null });
+    const { runInboundQualificationForRequest } = await import("../agents/workflows");
+    await runInboundQualificationForRequest({ ...inboundRequest, site_task_triage: triage });
+    const actions = executePhase2WorkflowActions.mock.calls[0][0].actions as Array<{ actionType: string; actionKey: string }>;
+    expect(actions.filter(action => action.actionType === "send_email")).toEqual([]);
+    expect(actions.map(action => action.actionKey).filter(key => /^inbound_.*_email$/.test(key))).toEqual([]);
+    expect(draftSiteJobCommunication).not.toHaveBeenCalled();
+  });
 });

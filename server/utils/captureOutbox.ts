@@ -128,6 +128,8 @@ export interface OutboxEntry {
   jobAlert?: JobAlertContext;
   accountNotice?: AccountNoticeContext;
   robotTeamAccessNotice?: RobotTeamAccessNoticeContext;
+  /** An answer email's slot when its content, not its key, decides it (a finished test that scored no AI robot is a paper answer). */
+  answerSlot?: "paper" | "result";
   status: OutboxStatus;
   attempts: number;
   createdAtIso: string;
@@ -249,7 +251,7 @@ function nowIso() {
  * asking. Delivery retries use the same durable intent.
  */
 export type OutboxInput = Pick<OutboxEntry,
-  "idempotencyKey" | "requestId" | "kind" | "to" | "subject" | "body" | "replyTo" | "preparationEventId" | "jobAlert" | "accountNotice" | "robotTeamAccessNotice">;
+  "idempotencyKey" | "requestId" | "kind" | "to" | "subject" | "body" | "replyTo" | "preparationEventId" | "jobAlert" | "accountNotice" | "robotTeamAccessNotice" | "answerSlot">;
 
 /** Build a durable intent for an owning business transaction. This function
  * performs no I/O; callers create the row atomically with their state change. */
@@ -338,6 +340,10 @@ export async function deliverOutbox(params?: { limit?: number }): Promise<Outbox
     const { reconcileAgentRunResultNotifications } = await import("./agentRunResultNotifications");
     await reconcileAgentRunResultNotifications(limit);
   } catch (error) { logger.warn({ error }, "Could not reconcile evaluation-result notices"); }
+  try {
+    const { reconcileWaitingAnswerNotices } = await import("./taskLifecycleNotifications");
+    await reconcileWaitingAnswerNotices(Math.min(limit, 5));
+  } catch (error) { logger.warn({ error }, "Could not release endings' emails that waited for the reading"); }
   try {
     const { reconcileScreeningOutcomeNotifications } = await import("./screeningOutcomeNotifications");
     await reconcileScreeningOutcomeNotifications(limit);

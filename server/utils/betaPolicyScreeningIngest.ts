@@ -1,3 +1,6 @@
+import { waitingAnswerNoticeFields } from "./answerNoticeOwed";
+import { TERMINAL_RUN_STATES } from "../../client/src/lib/simulationProof";
+import { logger } from "../logger";
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
@@ -200,7 +203,7 @@ export async function ingestBetaPolicyScreening(publication: BetaPolicyScreening
   const runRef = store.collection("taskEvaluationPolicyRuns").doc(publication.campaign_id);
   const resultId = `screening-${createHash("sha256").update(publication.campaign_id).digest("hex").slice(0, 32)}`;
   const resultRef = store.collection("captureTaskEvaluationRuns").doc(resultId);
-  return store.runTransaction(async transaction => {
+  const ingested = await store.runTransaction(async transaction => {
     const intake = (await transaction.get(intakeRef)).data();
     if (!intake?.website_request_id || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$/.test(intake.website_request_id))
       throw new Error("screening_scene_intake_unavailable");
@@ -253,6 +256,11 @@ export async function ingestBetaPolicyScreening(publication: BetaPolicyScreening
     const restated = unsent ? screeningOutcomeNoticeIntent(publication, jobId) : null;
     const refreshed = unsent && restated && restated.event_id === unsent.event_id && restated.request_id === unsent.request_id
       ? restated : null;
+    // A run recorded as ended with no result outcome is an ending: its answer email is owed from this same write.
+    if (TERMINAL_RUN_STATES.has(String(publication.status)) && !screeningOutcome(publication) && !closed) {
+      transaction.set(store.collection("inboundRequests").doc(jobId),
+        waitingAnswerNoticeFields({ requestId: jobId, milestone: "answer_ready" }, now, job.data()) as never, { merge: true });
+    }
     transaction.set(resultRef, { schema_version: "capture_task_evaluation_run_record.v2", record_id: resultId,
       run_id: publication.campaign_id, owner_user_id: intake.request.owner.user_id, organization_id: scope.teamNamespace,
       access_visibility: "private", created_at_iso: oldResult.data()?.created_at_iso ?? now, updated_at_iso: now,
@@ -286,6 +294,15 @@ export async function ingestBetaPolicyScreening(publication: BetaPolicyScreening
     return { status: oldRun.exists ? "updated" : "created", run_id: publication.campaign_id,
       publication_digest: publication.publication_digest, revision: publication.revision };
   });
+  // A run recorded as ended with no result outcome (failed, blocked, cancelled) is an ending: its paper-check email is
+  // queued here, where the terminal evaluation record is written (review, 2026-11-11). The answer slot keeps it to one.
+  if ((ingested.status === "created" || ingested.status === "updated") && TERMINAL_RUN_STATES.has(String(publication.status))
+    && !screeningOutcome(publication)) {
+    const { notifyIfAnswerSettled } = await import("./taskLifecycleNotifications");
+    await notifyIfAnswerSettled(selected.website_request_id).catch(error =>
+      logger.warn({ error, requestId: selected.website_request_id }, "Could not queue the email for a run that ended with no result"));
+  }
+  return ingested;
 }
 
 /**

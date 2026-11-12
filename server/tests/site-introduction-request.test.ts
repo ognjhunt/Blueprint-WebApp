@@ -33,6 +33,14 @@ const sendSlackMessage = vi.hoisted(() => vi.fn(async () => ({ sent: true })));
 vi.mock("../utils/slack", async importOriginal => ({ ...await importOriginal<typeof import("../utils/slack")>(), sendSlackMessage }));
 vi.mock("../utils/email", () => ({ sendEmail: vi.fn(async () => { throw new Error("No email is sent from tests"); }) }));
 
+// Sharing follows the job's outlook (review, 2026-11-11): these tests are about recording a request on a job that
+// has its answer, so the outlook is the paper check unless a test sets another phase.
+const outlookPhase = vi.hoisted(() => ({ value: "no_test" as string, real: false }));
+vi.mock("../utils/jobOutlook", async importOriginal => {
+  const original = await importOriginal<typeof import("../utils/jobOutlook")>();
+  return { ...original, loadJobOutlookDecision: vi.fn(async (requestId: string) => outlookPhase.real ? original.loadJobOutlookDecision(requestId)
+    : { outlook: { phase: outlookPhase.value, reason: null, sentence: null }, certain: true }) };
+});
 const briefRouter = (await import("../routes/site-task-brief")).default;
 const { createCaptureUploadToken } = await import("../utils/captureUploadToken");
 const { listingConsentVersion } = await import("../utils/taskListingDetails");
@@ -57,6 +65,8 @@ async function ask(token = owner(), csrf = true, body: unknown = SHOWN()) {
 
 beforeEach(async () => {
   vi.clearAllMocks();
+  outlookPhase.value = "no_test";
+  outlookPhase.real = false;
   vi.stubEnv("SLACK_INBOUND_WEBHOOK_URL", "https://hooks.slack.invalid/test");
   sharedFakeFirestoreState.docs.clear();
   const app = express();
@@ -78,6 +88,31 @@ afterEach(async () => {
 });
 
 describe("POST /:token/introduction-request", () => {
+  it.each(["reading", "building", "testing", "ended_by_site"])("refuses with a typed code while the job is %s, recording and listing nothing", async phase => {
+    outlookPhase.value = phase;
+    const before = structuredClone(row("inboundRequests/req-1"));
+    const response = await ask();
+    expect(response.status).toBe(409);
+    expect(response.body).toMatchObject({ code: "introduction_waits_for_answer", phase });
+    expect(row("inboundRequests/req-1")).toEqual(before);
+    expect(sendSlackMessage).not.toHaveBeenCalled();
+  });
+  it("refuses with the typed code, never a server error, when a closure record does not read", async () => {
+    // The real loader: a malformed closure is unknown, so the job is still being worked on.
+    outlookPhase.real = true;
+    sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { ...row("inboundRequests/req-1"),
+      website_run_closures: { "walkthrough-req-1": { schema_version: "website_run_closure.v1", broken: true } } });
+    const before = structuredClone(row("inboundRequests/req-1"));
+    const response = await ask();
+    expect(response.status).toBe(409);
+    expect(response.body).toMatchObject({ code: "introduction_waits_for_answer" });
+    expect(row("inboundRequests/req-1")).toEqual(before);
+    expect(sendSlackMessage).not.toHaveBeenCalled();
+  });
+  it.each(["result", "no_test", "cannot_match"])("accepts a request once the job is %s", async phase => {
+    outlookPhase.value = phase;
+    expect((await ask()).status).toBe(200);
+  });
   it("is the owner's alone", async () => {
     expect((await ask(film())).status).toBe(403);
     expect((await ask("not-a-token")).status).toBe(404);

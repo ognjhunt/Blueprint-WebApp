@@ -331,7 +331,8 @@ describe("scene progression after hand-off", () => {
     [{ state: "completed" }, "completed"],
     [{ state: "blocked", blocker: "consent_expired" }, "ended"],
     [{ state: "expired" }, "ended"],
-    [{ state: "accepted", pipeline_status: { status: "blocked", phase: "scene_configuration_failed", blockers: ["x"] } }, "ended"],
+    // Rewritten (review, 2026-11-11): a failed scene configuration is one build attempt the Pipeline retries, a wait.
+    [{ state: "accepted", pipeline_status: { status: "blocked", phase: "scene_configuration_failed", blockers: ["x"] } }, "waiting"],
     [{ state: "accepted", pipeline_status: { status: "blocked", phase: "preparation", blockers: ["retry_cap_exhausted"] } }, "ended"],
     // The Pipeline prefixes every code with the module that raised it; a spent cap ends the scene either way.
     ...["scene_progression_retry_cap_exhausted", "scene_progression_submission_retry_cap_exhausted",

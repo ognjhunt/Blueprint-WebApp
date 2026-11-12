@@ -422,6 +422,59 @@ async function routeContentValidationFailure(params: {
 }
 
 // ---------------------------------------------------------------------------
+// Ended emails (owner decision 2026-11-11)
+// ---------------------------------------------------------------------------
+
+/** The four-conditions screening replies the inbound workflow used to queue.
+ * It no longer creates them (`buildInboundActionSpecs` in workflows.ts). */
+export const ENDED_INBOUND_EMAIL_ACTION_KEYS: ReadonlySet<string> = new Set([
+  "inbound_not_yet_email", "inbound_lets_talk_email", "inbound_qualified_email",
+]);
+export const EMAIL_ENDED_REASON = "email_ended_by_owner_decision_2026_11_11";
+/** The kept "we can't simulate this kind of job yet" email, by its fixed subjects. */
+const KEPT_SCREENING_SUBJECTS: ReadonlySet<string> = new Set([
+  "Your job: we are preparing its evaluation", "Your job brief needs one sentence about the job",
+]);
+
+/** The ended email a ledger row carries, if any. The row stores no action
+ * key, so it is read from the source request's phase-2 history. Only a row
+ * positively identified there as one of the ended kinds is closed; a row that
+ * cannot be identified behaves as it always did. */
+async function endedEmailActionKey(ledgerDocId: string, data: Record<string, any>): Promise<string | null> {
+  if (data.action_type !== "send_email" || isCommunicationsPayload(data.action_payload ?? {})
+    || data.lane !== "inbound" || data.source_collection !== "inboundRequests") return null;
+  if (KEPT_SCREENING_SUBJECTS.has(String(data.action_payload?.subject ?? "").trim())) return null;
+  const sourceId = typeof data.source_doc_id === "string" ? data.source_doc_id.trim() : "";
+  let history: unknown = null;
+  if (sourceId) {
+    try { history = (await getDb().collection("inboundRequests").doc(sourceId).get()).data()?.ops_automation?.phase2_actions; }
+    catch { history = null; }
+  }
+  const record = Array.isArray(history) ? history.find((row: any) => row?.ledger_doc_id === ledgerDocId
+    || (typeof data.idempotency_key === "string" && row?.idempotency_key === data.idempotency_key)) : undefined;
+  return record && typeof record.action_key === "string" && ENDED_INBOUND_EMAIL_ACTION_KEYS.has(record.action_key)
+    ? record.action_key : null;
+}
+
+/** Close an ended email's row instead of sending it, with the reason the admin sees. */
+async function closeEndedEmail(ledgerRef: FirebaseFirestore.DocumentReference, ledgerDocId: string,
+  data: Record<string, any>, actionKey: string): Promise<ActionResult> {
+  const now = new Date();
+  await ledgerRef.update({
+    status: "rejected", rejected_by: "blueprint:owner_decision", rejected_reason: EMAIL_ENDED_REASON,
+    approval_reason: "This screening email ended on 2026-11-11 by the owner's decision; it was closed without sending.",
+    ended_email: { schema_version: "action_ledger_ended_email.v1", action_key: actionKey, ended_on: "2026-11-11",
+      reason: "owner_decision", closed_from_status: data.status ?? null, closed_at_iso: now.toISOString() },
+    updated_at: now,
+  });
+  await syncSourceDocumentState({
+    sourceCollection: data.source_collection, sourceDocId: data.source_doc_id, actionType: data.action_type,
+    actionPayload: data.action_payload, ledgerDocId, state: "rejected", rejectedReason: EMAIL_ENDED_REASON,
+  });
+  return { state: "rejected", tier: data.action_tier, ledgerDocId, error: EMAIL_ENDED_REASON };
+}
+
+// ---------------------------------------------------------------------------
 // Main entry point
 // ---------------------------------------------------------------------------
 
@@ -458,6 +511,11 @@ export async function executeAction(
       draftOutput,
       reason: contentValidation.reason || "Invalid action content",
     });
+  }
+  if (existingLedger && ["pending_approval", "failed", "auto_approved"].includes(existingLedger.status)) {
+    // A producer re-offering an ended email's retained row closes it, unsent.
+    const ended = await endedEmailActionKey(existingLedger.id, existingLedger);
+    if (ended) return closeEndedEmail(getDb().collection("action_ledger").doc(existingLedger.id), existingLedger.id, existingLedger, ended);
   }
   if (existingLedger) {
     if (existingLedger.status === "sent") {
@@ -717,6 +775,8 @@ export async function approveAction(
   if (data.status !== "pending_approval") {
     throw new Error(`Cannot approve action in state: ${data.status}`);
   }
+  const endedApproval = await endedEmailActionKey(ledgerDocId, data);
+  if (endedApproval) return closeEndedEmail(ledgerRef, ledgerDocId, data, endedApproval);
 
   if (isProspectOutreach(data) || data.action_type === "send_email" || data.action_type === "send_campaign_emails") {
     const hypothesis = communicationsHypothesisRefusal(data.action_payload, data);
@@ -965,6 +1025,8 @@ export async function retryFailedAction(
     if (data.status !== "failed") throw new Error("communications_interrupted_send_requires_reconciliation");
   }
   if (data.status !== "failed") throw new Error(`Cannot retry action in state: ${data.status}`);
+  const endedRetry = await endedEmailActionKey(ledgerDocId, data);
+  if (endedRetry) return closeEndedEmail(ledgerRef, ledgerDocId, data, endedRetry);
   if (data.execution_attempts >= 3) throw new Error("Max retries exceeded");
 
   const hypothesis = communicationsHypothesisRefusal(data.action_payload, data);

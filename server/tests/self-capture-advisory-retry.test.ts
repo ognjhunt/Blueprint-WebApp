@@ -36,42 +36,13 @@ afterEach(async () => {
 });
 const post = (link: string, input: unknown = body) => fetch(`${origin}/api/self-capture/uploads/${link}/advisory-retry`, {
   method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input), signal: AbortSignal.timeout(1500) });
-it("passes the owner's explicit retry identity to the durable helper and wakes only after its acknowledgment", async () => {
-  const response = await post(token());
-  expect(response.status).toBe(200); expect(response.headers.get("cache-control")).toBe("no-store");
-  expect(await response.json()).toEqual({ ok: true, state: "queued", job_id: jobId, run_id: "new-fenced-run" });
-  expect(seams.retry).toHaveBeenCalledWith(expect.objectContaining({ requestId: "fixture", expectedJobId: jobId,
-    expectedRunId: runId, retryIdentity: body.retry_identity, assertAccess: expect.any(Function) }));
-  expect(seams.wake).toHaveBeenCalledExactlyOnceWith(1);
-});
-it("refuses film-only, malformed and expired capabilities without a helper call or queue wake", async () => {
-  for (const [link, status] of [[token("film"), 403], ["invalid", 404], [token("owner", -1), 404]] as const) {
-    const response = await post(link); expect(response.status).toBe(status);
+// The per-job site assessment ended (owner decision 2026-11-11): its retry is gone.
+it("answers every retry with a typed 410, without a helper call or queue wake", async () => {
+  for (const [link, input] of [[token(), body], [token("film"), body], ["invalid", body], [token(), {}]] as const) {
+    const response = await post(link, input);
+    expect(response.status).toBe(410);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(await response.json()).toEqual({ ok: false, code: "advisory_retry_retired" });
   }
   expect(seams.retry).not.toHaveBeenCalled(); expect(seams.wake).not.toHaveBeenCalled();
-});
-it("rechecks current consent inside the transaction access callback", async () => {
-  seams.retry.mockImplementation(async (input: any) => { await input.assertAccess({ ...request(), consent_revoked: true }); });
-  const response = await post(token()); expect(response.status).toBe(403);
-  expect(await response.json()).toMatchObject({ code: "advisory_retry_not_authorized" });
-  expect(seams.wake).not.toHaveBeenCalled();
-});
-it("rechecks token expiry at the transaction boundary", async () => {
-  const initial = Date.now(), link = token("owner", 20);
-  seams.retry.mockImplementation(async (input: any) => { vi.spyOn(Date, "now").mockReturnValue(initial + 60_000);
-    await input.assertAccess(request()); });
-  const response = await post(link); expect(response.status).toBe(403); expect(seams.wake).not.toHaveBeenCalled();
-});
-it("does not accept a forged request scope or missing retry identity", async () => {
-  for (const input of [{ ...body, request_id: "another-customer" }, { ...body, retry_identity: "" }]) {
-    const response = await post(token(), input); expect(response.status).toBe(400);
-  }
-  expect(seams.retry).not.toHaveBeenCalled(); expect(seams.wake).not.toHaveBeenCalled();
-});
-it("contains conflicting source or dependency failures without provider prose or a queue wake", async () => {
-  for (const [error, status] of [["advisory_retry_conflict", 409], ["PRIVATE bearer https://secret.invalid", 503]] as const) {
-    seams.retry.mockRejectedValueOnce(Error(error)); const response = await post(token()); expect(response.status).toBe(status);
-    expect(JSON.stringify(await response.json())).not.toMatch(/PRIVATE|bearer|secret.invalid/);
-  }
-  expect(seams.wake).not.toHaveBeenCalled();
 });

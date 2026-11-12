@@ -45,6 +45,9 @@ const { draftBrief, saveBrief, getBrief, confirmBrief, recordSiteTaskCallOutcome
 );
 const { assessReadiness } = await import("../../client/src/lib/siteTaskReadiness");
 const { isRunnableTask } = await import("../utils/teamEvalCandidates");
+const { teamJobAccess } = await import("../utils/teamJobAccess");
+const { sceneScreenGateEndedMarker } = await import("../utils/sceneScreenGate");
+const { RECORDING_CONSENT_VERSION } = await import("../utils/recordingConsent");
 const { gateFields } = await import("../../client/src/data/siteTaskQualification");
 
 const REQUEST = "req-funnel-1";
@@ -258,6 +261,76 @@ describe("the join: a confirmed, reconstructed site is runnable supply", () => {
   });
 });
 
+// Owner decision 2026-11-11: the screen gates nothing. A job whose video
+// arrived after the change is open to an approved company whatever its
+// disposition; consent, the listing and a runnable scene still decide.
+describe("a shared job's access does not depend on the screen after the cutover", () => {
+  async function sharedJob(answers: Record<string, string>) {
+    await submitSiteTask();
+    await confirmBrief({ requestId: REQUEST, confirmedBy: "Dana", operatorAnswers: answers });
+    const stored = sharedFakeFirestoreState.docs.get(`inboundRequests/${REQUEST}`) as Record<string, any>;
+    return { ...stored,
+      request: { ...stored.request, consent_attestation: { granted: true, statement_version: RECORDING_CONSENT_VERSION, recorded_at_iso: "2026-11-11T00:00:00Z" } },
+      public_task_listing: { enabled: true, consentVersion: "public-task-card-v1", approvedAtIso: "2026-11-11T00:00:00Z",
+        details: { title: "Cartons to pallet", taskFamily: "Recurring work", siteType: "", region: "", objects: "", cycleTarget: "", pilotTiming: "", pilotBudget: "", opportunity: "open" } },
+      pipeline: { artifacts: { worldlabs_world_manifest_uri: "gs://bucket/site/world.json" } },
+      evaluation_readiness: { runtime_launchable: true, benchmark_coverage_status: "ready" } };
+  }
+  const allClear = () => Object.fromEntries(gateFields.map((field) => [field.id, clearValue(field.id)]));
+  const marker = () => sceneScreenGateEndedMarker(REQUEST, "2026-11-12T00:00:00Z");
+
+  it("opens a not_now job with the marker exactly as a qualified one, and leaves one without it closed", async () => {
+    const qualified = await sharedJob(allClear());
+    expect(qualified.site_task_triage.disposition).toBe("qualified");
+    expect(teamJobAccess(qualified)).toMatchObject({ listed: true, evaluationAvailable: true, reason: null });
+    const blocked = await sharedJob({ ...allClear(), sceneStability: "reconfigured" });
+    expect(blocked.site_task_triage.disposition).toBe("not_now");
+    expect(teamJobAccess(blocked)).toMatchObject({ evaluationAvailable: false, reason: "scene_not_runnable" });
+    const after = { ...blocked, scene_screen_gate_ended: marker() };
+    expect(teamJobAccess(after)).toEqual(teamJobAccess({ ...qualified, scene_screen_gate_ended: marker() }));
+    expect(isRunnableTask(after as never)).toBe(true);
+    // Consent, the listing and the site's own pause still decide.
+    expect(teamJobAccess({ ...after, consent_revoked: true })).toMatchObject({ evaluationAvailable: false, reason: "consent_withdrawn" });
+    expect(teamJobAccess({ ...after, workspace_task: { paused: true } })).toMatchObject({ evaluationAvailable: false });
+    expect(teamJobAccess({ ...after, public_task_listing: undefined })).toMatchObject({ listed: false, evaluationAvailable: false });
+  });
+
+  it("offers a not_now job with the marker in the runnable supply, and leaves one without it out", async () => {
+    const { loadRunnableSites } = await import("../utils/teamEvalCandidates");
+    const blocked = await sharedJob({ ...allClear(), sceneStability: "reconfigured" });
+    sharedFakeFirestoreState.docs.set(`inboundRequests/${REQUEST}`, blocked);
+    expect((await loadRunnableSites(50)).map(site => site.requestId)).toEqual([]);
+    sharedFakeFirestoreState.docs.set(`inboundRequests/${REQUEST}`, { ...blocked, scene_screen_gate_ended: marker() });
+    expect((await loadRunnableSites(50)).map(site => site.requestId)).toEqual([REQUEST]);
+    sharedFakeFirestoreState.docs.set(`inboundRequests/${REQUEST}`, { ...blocked, scene_screen_gate_ended: marker(), consent_revoked: true });
+    expect(await loadRunnableSites(50)).toEqual([]);
+  });
+
+  it("keeps marked jobs in supply when qualified rows fill the cap, in document-id order", async () => {
+    const { loadRunnableSites } = await import("../utils/teamEvalCandidates");
+    const qualified = await sharedJob(allClear());
+    const blocked = await sharedJob({ ...allClear(), sceneStability: "reconfigured" });
+    sharedFakeFirestoreState.docs.delete(`inboundRequests/${REQUEST}`);
+    for (const id of ["job-a", "job-c", "job-d"]) sharedFakeFirestoreState.docs.set(`inboundRequests/${id}`, { ...qualified, requestId: id });
+    sharedFakeFirestoreState.docs.set("inboundRequests/job-b", { ...blocked, requestId: "job-b",
+      scene_screen_gate_ended: sceneScreenGateEndedMarker("job-b", "2026-11-12T00:00:00Z") });
+    expect((await loadRunnableSites(2)).map(site => site.requestId)).toEqual(["job-a", "job-b"]);
+    expect((await loadRunnableSites(10)).map(site => site.requestId)).toEqual(["job-a", "job-b", "job-c", "job-d"]);
+  });
+
+  it("matches robot teams to a not_now job only once the marker is on it", async () => {
+    const blocked = await sharedJob({ ...allClear(), sceneStability: "reconfigured" });
+    const { runSiteMatch } = await import("../utils/siteMatchRun");
+    const { logger } = await import("../logger");
+    const reachedRegistry = () => vi.mocked(logger.info).mock.calls.filter(([, message]) => /robot-team registry is empty/.test(String(message))).length;
+    const before = reachedRegistry();
+    expect(await runSiteMatch(blocked as never)).toBeNull();
+    expect(reachedRegistry()).toBe(before);
+    await runSiteMatch({ ...blocked, scene_screen_gate_ended: marker() } as never);
+    expect(reachedRegistry()).toBe(before + 1);
+  });
+});
+
 describe("a screening call settles a needs_conversation site", () => {
   async function confirmWith(overrides: Record<string, string>, unknown: string[] = []) {
     await submitSiteTask();
@@ -313,6 +386,20 @@ describe("a screening call settles a needs_conversation site", () => {
 
     expect(result.disposition).toBe("qualified");
     expect(stored().site_task_gate_sources.taskShape).toBe("operator_stated");
+  });
+
+  it("records a not-now call outcome and sends no not-now email (owner decision 2026-11-11)", async () => {
+    const confirmed = await confirmWith({ sceneStability: "minor_drift" });
+    expect(confirmed!.disposition).toBe("needs_conversation");
+    const result = await recordSiteTaskCallOutcome({
+      requestId: REQUEST,
+      answers: { sceneStability: "reconfigured" },
+      note: "The cell is re-laid every shift.",
+      resolvedBy: "ops@tryblueprint.io",
+    });
+    expect(result.disposition).toBe("not_now");
+    expect(stored().site_task_triage.disposition).toBe("not_now");
+    expect([...sharedFakeFirestoreState.docs.keys()].filter(key => key.startsWith("captureOutbox/"))).toEqual([]);
   });
 
   it("never waves a blocker through, and never invents a disposition", async () => {

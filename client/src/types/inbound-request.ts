@@ -991,6 +991,8 @@ export interface InboundRequestDetail extends InboundRequestListItem {
   site_task_triage?: SiteScreeningSummary | null;
   site_task_gates_on_file?: Record<string, string>;
   site_task_brief_confirmed?: boolean;
+  /** The job's video arrived after the owner's decision of 2026-11-11: the screen gates nothing. */
+  site_task_screen_gate_ended?: boolean;
   context: {
     sourcePageUrl: string;
     referrer?: string | null;

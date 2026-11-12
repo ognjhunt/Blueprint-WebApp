@@ -388,7 +388,7 @@ function normalizeActionLog(log: unknown) {
 
 const createSessionSchema = z.object({
   title: z.string().min(1).max(200),
-  task_kind: z.enum(["operator_thread", "support_triage", "external_harness_thread", "site_assessment"]),
+  task_kind: z.enum(["operator_thread", "support_triage", "external_harness_thread"]),
   session_key: z.string().min(1).max(200).optional(),
   agent_profile_id: z.string().min(1).max(200).nullable().optional(),
   environment_profile_id: z.string().min(1).max(200).nullable().optional(),
@@ -396,7 +396,7 @@ const createSessionSchema = z.object({
 });
 
 const sessionMessageSchema = z.object({
-  task_kind: z.enum(["operator_thread", "external_harness_thread", "support_triage", "site_assessment"]),
+  task_kind: z.enum(["operator_thread", "external_harness_thread", "support_triage"]),
   session_key: z.string().min(1).max(200).optional(),
   input: z.record(z.string(), z.unknown()),
   tool_policy: z.record(z.string(), z.unknown()).optional(),

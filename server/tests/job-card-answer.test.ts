@@ -183,7 +183,7 @@ describe("GET /api/site-worlds/tasks/:taskId", () => {
     seams.managed.mockImplementation(async () => ({ managedEvidence: [{ current: true, state: "completed", outcome: "estimate",
       screening: { candidates: [row("pi05_droid", [9, 6, 5, 4, 2, 0, 0]), row("groot_n17_droid", [0, 0, 0, 0, 0, 0, 0])] } }] }));
     const none = (await get(`/tasks/${ID}`)).body.item;
-    expect(none.answerSummary.headline).toBe("Tested on the job: none finished yet.");
+    expect(none.answerSummary.headline).toBe("No AI robot finished the job.");
     expect(none.answerHeadline).toBe(none.answerSummary.headline);
     expect(none.answerSummary.test).toMatchObject({ kind: "none_finished", wording: null,
       options: [{ label: "Franka arm + π0.5", maker: "Physical Intelligence", succeeded: 0, scored: 10, furthestText: "lifted and carried the object" },

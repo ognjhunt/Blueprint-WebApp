@@ -32,6 +32,15 @@ vi.mock("../../../server/utils/siteAssessmentPublic", async original => {
   return { ...module, loadCurrentSiteAdvisory: vi.fn(async () => view.customerAdvisory),
     loadCurrentSiteAssessmentView: vi.fn(async () => view) };
 });
+// Sharing follows the job's outlook (review, 2026-11-11). This journey first sees the refusal for a job with no answer,
+// then gives the job an answer, as a recorded ending would, and publishes.
+const outlookOverride = vi.hoisted(() => ({ phase: null as null | string }));
+vi.mock("../../../server/utils/jobOutlook", async original => {
+  const module = await original<typeof import("../../../server/utils/jobOutlook")>();
+  return { ...module, loadJobOutlookDecision: vi.fn(async (requestId: string) => outlookOverride.phase
+    ? { outlook: { phase: outlookOverride.phase, reason: "no_grant", sentence: "We have not built a simulation for this job." }, certain: true }
+    : module.loadJobOutlookDecision(requestId)) };
+});
 const briefRouter = (await import("../../../server/routes/site-task-brief")).default;
 const listingRouter = (await import("../../../server/routes/task-listings")).default;
 const teamRouter = (await import("../../../server/routes/site-worlds")).default;
@@ -87,6 +96,11 @@ it("joins the existing job, bounded review, team interest and Blueprint's review
     fireEvent.click(screen.getByLabelText(/show this card/i));
     expect(screen.getByLabelText(/authorized to make them public/i)).toBeRequired();
     fireEvent.click(screen.getByLabelText(/authorized to make them public/i));
+    fireEvent.click(screen.getByRole("button", { name: /publish reviewed card/i }));
+    // No answer yet (the video has not been read): publishing waits, and the card stays hidden.
+    expect(await screen.findByRole("alert")).toHaveTextContent("You can share this job once it has an answer.");
+    expect(job().public_task_listing.enabled).toBe(false);
+    outlookOverride.phase = "no_test";
     fireEvent.click(screen.getByRole("button", { name: /publish reviewed card/i }));
     await screen.findByText(/Public card saved/i); listing.unmount();
     const draft = await (await request("/api/admin/robot-teams/recommendations/req-1")).json();

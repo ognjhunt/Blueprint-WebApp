@@ -120,7 +120,8 @@ describe.each([
       subject: waitingOn === "site" ? "Your Blueprint job has ended" : "The simulation of your site has stopped",
       idempotencyKey: "job-one:scene_outcome:job_no_grant_ended" });
     const body: string = outbox()[0][1].body;
-    expect(body.startsWith(`${message}\n\nOpen your job on your private job page:\nhttps://`)).toBe(true);
+    // With no paper check for the job, the email says so plainly after the ending (review, 2026-11-11).
+    expect(body.startsWith(`${message} There is no paper check for this job.\n\nOpen your job on your private job page:\nhttps://`)).toBe(true);
     expect(body).not.toMatch(/we will|we'll|our team|review|follow up|email you/i);
 
     // The job page says the same sentence, the way a window ending shows.
@@ -171,7 +172,6 @@ describe("a job the no-grant clock must leave alone", () => {
     ["closed by its owner", "owner_closed", () => seedJob({ website_run_closures: closure() })],
     ["told its preparation ended for good", "outcome_told", () => { recording.received = true; seedJob();
       docs.set("captureUploadSessions/walkthrough-job-one", { website_preparation: { status: { state: "failed_terminal", terminal_reason: "retry_exhausted" } } }); }],
-    ["kept on file until Blueprint can evaluate its kind", "kept_on_file", () => seedJob({ site_task_scope: { supported: false, reason: "door_opening" } })],
     ["with a grant (the window sweep's)", "has_grant", () => { const { job: granted } = screeningFixture();
       docs.set(JOB, { ...granted, requestId: "job-one", contact: { email: "encrypted:owner@example.com" } }); }],
     ["that is not a website job: no task brief", "not_a_job", () => seedJob({}, "job-one", false)],
@@ -186,6 +186,27 @@ describe("a job the no-grant clock must leave alone", () => {
     const after = new Map([...docs.entries()].filter(([key]) => !key.startsWith("automationCursors/")));
     expect(after).toEqual(before);
     expect(outbox()).toHaveLength(0);
+  });
+
+  // Review, 2026-11-11: kept on file is a recorded ending. The sweep starts no clock and records no no-grant ending for
+  // it, but it owes the job its answer email, durably on the job, queued once the answer can be read.
+  it("starts no clock for a job kept on file, and owes it its answer email", async () => {
+    seedJob({ site_task_scope: { supported: false, reason: "door_opening" } });
+    expect(await sweepWebsiteJobNoGrant("job-one", at(0))).toBe("kept_on_file");
+    await sweepAt(WINDOW * 3);
+    expect(job()).not.toHaveProperty("website_job_no_grant_clock");
+    expect(job()).not.toHaveProperty("website_job_no_grant_ending");
+    expect(Object.values(job().answer_notices_waiting).map((entry: any) => entry.params)).toEqual([{ requestId: "job-one", milestone: "answer_ready" }]);
+    expect(job().answer_notices_next_ms).toBeGreaterThan(0);
+    // Marked once: a later pass neither writes the job nor loads the outlook again.
+    expect(job().kept_on_file_answer_owed_at_iso).toEqual(expect.any(String));
+    const before = structuredClone(job());
+    const outlook = await import("../utils/jobOutlook");
+    const loads = vi.spyOn(outlook, "loadJobOutlookDecision");
+    expect(await sweepWebsiteJobNoGrant("job-one", at(WINDOW * 4))).toBe("kept_on_file");
+    expect(loads).not.toHaveBeenCalled();
+    loads.mockRestore();
+    expect(job()).toEqual(before);
   });
 
   it("leaves an already-ended job untouched", async () => {

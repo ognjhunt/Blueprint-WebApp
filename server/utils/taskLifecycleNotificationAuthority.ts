@@ -4,6 +4,7 @@ import {projectWebsiteCaptureRights} from './websiteTaskContext';
 import type {OutboxKind} from './captureOutbox';
 import {canNotifyCurrentWebsitePreparationIssue} from './websitePreparationStatus';
 import {decryptFieldValue} from './field-encryption';
+import {OUTBOX_WENT_OUT} from './outboxWentOut';
 const CAPTURE_DEPENDENT_NOTICES=new Set<OutboxKind>([
  'video_received','scene_ready','scene_tests_started','screening_cleared','screening_started','results_ready','run_no_result',
  'evaluation_outcome','scene_outcome','robot_access_question',
@@ -18,18 +19,97 @@ const CAPTURE_DEPENDENT_NOTICES=new Set<OutboxKind>([
 const TEAM_RUN_EVALUATION_NOTICES=new Set<OutboxKind>([
  'results_ready','run_no_result','awaiting_evaluations','no_team_passed','no_qualified_evaluation',
 ]);
+/**
+ * The answer emails, by slot (review, 2026-11-11): per job at most one paper-check answer and at most one test
+ * result. A paper-check answer is never sent after a test result; a test result may follow a paper-check answer. A
+ * slot is filled by a row that went out or may have (`OUTBOX_WENT_OUT`: dispatching, unknown, sent). The check runs
+ * in the dispatch transaction that marks the row `dispatching`, so two dispatchers cannot both claim one slot. The
+ * site's own endings (withdrawal, a run it closed) give no answer.
+ */
+export type AnswerSlot = "paper" | "result";
+export function answerSlotOf(kind: OutboxKind, idempotencyKey: string | undefined, stored?: unknown): AnswerSlot | null {
+ const key=idempotencyKey??'';
+ if(kind==='evaluation_outcome'){
+  // A finished test that scored no AI robot is an ending, so its email is a paper answer, as stored on its row.
+  if(stored==='paper')return 'paper';
+  return /:estimate-/.test(key)?'result':'paper';
+ }
+ if(kind==='answer_ready'||kind==='preparation_ended')return 'paper';
+ if(kind==='scene_outcome')return /:withdrawn-/.test(key)?null:'paper';
+ // The start form's "we can't simulate this kind of job yet" email is a notice, not an answer: it sits outside both
+ // slots and blocks nothing (review, 2026-11-11). Its one effect is that a kept-on-file answer for the same reason is
+ // not sent again (`keptOnFileAlreadyTold`).
+ return null;
+}
+type SlotRow={kind: OutboxKind; idempotencyKey: string; status: string; answerSlot?: unknown};
+/** Pure: whether a row that went out (or may have) fills this email's slot (or, for the paper slot, a test result did). */
+export function answerSlotTaken(rows: SlotRow[], kind: OutboxKind, idempotencyKey: string | undefined, stored?: unknown): boolean {
+ const slot=answerSlotOf(kind,idempotencyKey,stored);
+ if(!slot)return false;
+ return rows.some(row=>{
+  if(row.idempotencyKey===idempotencyKey||!OUTBOX_WENT_OUT.has(row.status))return false;
+  const taken=answerSlotOf(row.kind,row.idempotencyKey,row.answerSlot);
+  return taken===slot||(slot==='paper'&&taken==='result');
+ });
+}
+async function answerSlotFilled(requestId:string,kind:OutboxKind,idempotencyKey:string|undefined,stored:unknown,
+ transaction?:FirebaseFirestore.Transaction):Promise<boolean>{
+ if(!db)throw new Error('capture_notification_authority_unavailable');
+ const query=db.collection('captureOutbox').where('requestId','==',requestId);
+ const rows=transaction?await transaction.get(query):await query.get();
+ return answerSlotTaken(rows.docs.map(row=>{const value=row.data()??{};
+  return {kind:value.kind,idempotencyKey:typeof value.idempotencyKey==='string'?value.idempotencyKey:row.id,status:String(value.status),
+   answerSlot:value.answerSlot};}),kind,idempotencyKey,stored);
+}
+/**
+ * The site ended the job itself (withdrew recording permission, or closed its run): no answer email. A closure record
+ * that does not read is unknown, so this throws and the row stays queued for a later pass; it is never cancelled on it.
+ */
+async function endedBySite(requestId:string,transaction?:FirebaseFirestore.Transaction):Promise<boolean>{
+ if(!db)throw new Error('capture_notification_authority_unavailable');
+ const ref=db.collection('inboundRequests').doc(requestId);
+ const record=(transaction?await transaction.get(ref):await ref.get()).data();
+ if(!record)return false;
+ if(projectWebsiteCaptureRights(record).consent_revoked)return true;
+ const [{websiteRunClosure},{siteWalkthroughIdentity}]=await Promise.all([import('./websiteRunClosure'),import('./siteWalkthrough')]);
+ return Boolean(websiteRunClosure(record,requestId,siteWalkthroughIdentity(requestId,record).captureId));
+}
+/**
+ * The start form's "we can't simulate this kind of job yet" notice went out (or may have): a kept-on-file answer for
+ * the same job, given for the same reason, would repeat it, so it is skipped. Never any other answer.
+ */
+export async function keptOnFileAlreadyTold(requestId:string,transaction?:FirebaseFirestore.Transaction):Promise<boolean>{
+ if(!db)throw new Error('capture_notification_authority_unavailable');
+ const ref=db.collection('captureOutbox').doc(`${requestId}:brief-screening:task-not-yet-supported`);
+ const row=(transaction?await transaction.get(ref):await ref.get()).data();
+ return Boolean(row&&OUTBOX_WENT_OUT.has(String(row.status)));
+}
 /** Call inside the dispatch transaction before recording an external side effect.
  * Intake receipts, fresh-link renewal and separate business notices keep their
  * existing authority checks; this grants no deletion/cancellation claim.
  * A missing capture source denies dispatch. A read failure stays recoverable. */
 export async function taskLifecycleNotificationIsCurrent(
- entry:{kind:OutboxKind;requestId:string;preparationEventId?:string;to?:string;body?:string;idempotencyKey?:string},
+ entry:{kind:OutboxKind;requestId:string;preparationEventId?:string;to?:string;body?:string;idempotencyKey?:string;answerSlot?:unknown},
  transaction?:FirebaseFirestore.Transaction,
 ):Promise<boolean>{
  // Coverage repair and candidate starts are internal work. Suppress old
  // queued notices without deleting findings or changing execution authority.
  if(entry.kind==='coverage_shortfall'||entry.kind==='screening_started'
   ||entry.kind==='screening_cleared'||entry.kind==='assessment_ready')return false;
+ // Ended by the owner 2026-11-11: the team-request email and the four-conditions
+ // screen's emails. Rows already queued are cancelled here, not sent. The
+ // "can't simulate this kind of job yet" email shares the `screening_not_now`
+ // kind and is kept, by its own fixed key.
+ if(entry.kind==='pilot_request'||entry.kind==='brief_confirmed'||entry.kind==='input_needed')return false;
+ if(entry.kind==='screening_not_now'
+  &&entry.idempotencyKey!==`${entry.requestId}:brief-screening:task-not-yet-supported`)return false;
+ // That kept notice is still the site's to hear only while the job is the site's: not after it withdrew or closed it.
+ if(entry.kind==='screening_not_now'&&entry.idempotencyKey!==undefined&&await endedBySite(entry.requestId,transaction))return false;
+ // The answer slots: at most one paper-check answer and one test result per job, never a paper check after a result,
+ // and none once the site closed its own run.
+ // Checked once the row exists (its key names the email); queueing without a key is decided at dispatch.
+ if(entry.idempotencyKey!==undefined&&answerSlotOf(entry.kind,entry.idempotencyKey,entry.answerSlot)&&(await endedBySite(entry.requestId,transaction)
+  ||await answerSlotFilled(entry.requestId,entry.kind,entry.idempotencyKey,entry.answerSlot,transaction)))return false;
  // The dispatch transaction is the send: a team-run evaluation notice stops there.
  if(transaction&&TEAM_RUN_EVALUATION_NOTICES.has(entry.kind))return false;
  // Older queued ownership notices asked for an account that cannot repair
@@ -73,7 +153,7 @@ export async function taskLifecycleNotificationIsCurrent(
  // The answer email is sent only while the job's answer is still a settled one.
  if(entry.kind==='answer_ready'){
   const notices=await import('./taskLifecycleNotifications');
-  return notices.answerReadyShown(entry.requestId);
+  return notices.answerReadyShown(entry.requestId,entry.idempotencyKey);
  }
  // A finished evaluation's outcome (F-01) is queued once its run ends, after
  // the consent check above. A queued notice names its outcome in its key and is

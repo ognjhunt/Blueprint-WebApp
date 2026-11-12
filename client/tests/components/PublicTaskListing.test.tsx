@@ -33,6 +33,20 @@ describe("the task page's public card", () => {
     expect(screen.queryByText(/Your job card is not published/)).toBeNull();
   });
 
+  it("waits to offer publishing until the job has an answer, and keeps a card already published editable", async () => {
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ listing: null, draft: { details: { title: "Move cartons onto a pallet", taskFamily: "Palletizing", opportunity: "not_seeking" } }, thumbnailPng: null }) });
+    const { unmount } = render(<PublicTaskListing token="tok" publishWaits />);
+    fireEvent.click(await screen.findByText("Manage opportunity sharing (optional)"));
+    expect(await screen.findByText("You can share this job once it has an answer. We'll email you when it does.")).toBeVisible();
+    expect(screen.queryByRole("button", { name: /publish reviewed card/i })).toBeNull();
+    expect(screen.queryByLabelText(/show this card in the job library/i)).toBeNull();
+    unmount();
+    fetchMock.mockResolvedValueOnce(savedCard("not_seeking"));
+    render(<PublicTaskListing token="tok" publishWaits />);
+    expect(await screen.findByRole("button", { name: /publish reviewed card/i })).toBeInTheDocument();
+    expect(screen.queryByText(/once it has an answer/)).toBeNull();
+  });
+
   it("saves the card with a pilot price left unknown", async () => {
     fetchMock.mockResolvedValueOnce(savedCard("not_seeking")).mockResolvedValueOnce({ ok: true, json: async () => ({ ok: true }) });
     render(<PublicTaskListing token="tok" />);

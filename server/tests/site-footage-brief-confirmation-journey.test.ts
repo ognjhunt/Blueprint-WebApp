@@ -269,10 +269,8 @@ describe("a site that sends its footage before confirming its brief", () => {
     await claim(jobId);
     await sendFootage(token);
     expect((await confirmBrief(token)).disposition).toBe("qualified");
-    const confirmed = outbox(`${jobId}:brief-screening:qualified`);
-    expect(confirmed?.kind).toBe("brief_confirmed");
-    expect(confirmed?.body).not.toMatch(/film the work area|upload it here|Once we have footage/i);
-    expect(confirmed?.body).toMatch(/already have your footage/i);
+    // Confirming sends no email at all (owner decision 2026-11-11).
+    expect(outbox(`${jobId}:brief-screening:qualified`)).toBeUndefined();
     // The page moves past the confirmation step.
     expect((await jobStatus(token)).status.decision).not.toBe("confirm_brief");
   });
@@ -295,8 +293,8 @@ describe("a site that confirms before it films", () => {
   it("still hears the footage email it always did", async () => {
     const { jobId, token } = await startJob(UNCONFIRMED_AT_UPLOAD);
     expect((await confirmBrief(token)).disposition).toBe("qualified");
-    // Nothing filmed yet: the confirmed email asks for the walkthrough.
-    expect(outbox(`${jobId}:brief-screening:qualified`)?.body).toMatch(/film the work area/i);
+    // Confirming sends no email (owner decision 2026-11-11); the footage email still comes.
+    expect(outbox(`${jobId}:brief-screening:qualified`)).toBeUndefined();
     await claim(jobId);
     await sendFootage(token);
     const notice = outbox(`${jobId}:video_received`);
@@ -609,5 +607,72 @@ describe("a brief from before confirm-at-upload keeps its behaviour", () => {
     expect(confirmed).not.toHaveProperty("submissionConsent");
     expect((await answer("Something else")).status).toBe(200);
     expect(doc(`siteTaskBriefs/${jobId}`)).toEqual(confirmed);
+  });
+});
+
+/**
+ * Owner decision 2026-11-11: the four-conditions screen gates nothing. A job
+ * created after the change carries the marker from its first write, so the
+ * screen never holds, hides or mislabels it; a job created before the change
+ * behaves as on main until its video is published.
+ */
+describe("a not_now job created after the screen stopped gating", () => {
+  const blocking = { answers: { sceneStability: "reconfigured", taskShape: "single", objectVariety: "under_10",
+    deploymentTimeline: "this_quarter", accessWindow: "scheduled" } };
+  const notBuilding = /not building|aren't building|before we build|before (its|the|your) scene is built|no scene/i;
+
+  it("is marked at creation, never told it is not being built, not put into review by the screen, and keeps its camera link", async () => {
+    const { jobId, token } = await startJob(UNCONFIRMED_AT_UPLOAD);
+    const created = doc(`inboundRequests/${jobId}`);
+    expect(created.scene_screen_gate_ended).toMatchObject({ schema_version: "scene_screen_gate_ended.v1",
+      marked_on: "job_created", capture_id: `walkthrough-${jobId}` });
+    const confirmed = await confirmBrief(token, blocking);
+    expect(confirmed.disposition).toBe("not_now");
+    expect(`${confirmed.screening?.headline} ${(confirmed.screening as any)?.detail}`).not.toMatch(notBuilding);
+    expect(doc(`inboundRequests/${jobId}`).ops?.next_step ?? "").not.toMatch(/book a screening call/i);
+    const page = (await jobStatus(token)).status;
+    expect(page.decision).not.toBe("not_now");
+    expect(`${page.headline} ${page.operatorAction ?? ""}`).not.toMatch(notBuilding);
+    const { clampRecommendationToGates } = await import("../agents/workflows");
+    const { sceneScreenGateEnded } = await import("../utils/sceneScreenGate");
+    const stored = doc(`inboundRequests/${jobId}`);
+    expect(clampRecommendationToGates(stored.site_task_triage,
+      { qualification_state_recommendation: "qualified_ready", requires_human_review: false } as never,
+      undefined, sceneScreenGateEnded(stored, jobId))).toEqual({ qualificationState: "qualified_ready", requiresHumanReview: false });
+    await claim(jobId);
+    await sendFootage(token);
+    expect(doc(`inboundRequests/${jobId}`).scene_screen_gate_ended).toEqual(created.scene_screen_gate_ended);
+  });
+
+  it("needs_conversation: the staff next step is a note, not a call before its scene", async () => {
+    const { token, jobId } = await startJob(UNCONFIRMED_AT_UPLOAD);
+    const confirmed = await confirmBrief(token, { answers: {} });
+    expect(confirmed.disposition).toBe("needs_conversation");
+    expect(`${confirmed.screening?.headline} ${(confirmed.screening as any)?.detail}`).not.toMatch(notBuilding);
+    await vi.waitFor(() => expect(doc(`inboundRequests/${jobId}`).ops?.next_step).toMatch(/^Note only/));
+    expect((await jobStatus(token)).status.decision).not.toBe("call_needed");
+  });
+
+  it("is not marked from the request body", async () => {
+    const requestId = `site-footage-forged-${++sequence}`;
+    const body = { ...siteCaptureStartSubmission({ requestId, retryToken: `r${requestId}`.padEnd(64, "x"),
+      sourcePageUrl: "https://tryblueprint.io/contact/site-operator", email: `${requestId}@example.test` }),
+      scene_screen_gate_ended: { schema_version: "scene_screen_gate_ended.v1", decision: "owner_2026_11_11",
+        capture_id: "walkthrough-other", published_at_iso: "2020-01-01T00:00:00Z" } };
+    const response = await fetch(`${base}/api/inbound-request`, { method: "POST",
+      headers: { "content-type": "application/json", "x-forwarded-for": `198.51.100.${(sequence % 250) + 1}` }, body: JSON.stringify(body) });
+    expect(response.status).toBe(201);
+    expect(doc(`inboundRequests/${requestId}`).scene_screen_gate_ended).toMatchObject({ marked_on: "job_created", capture_id: `walkthrough-${requestId}` });
+  });
+
+  it("created before the change: behaves as on main until its video is published", async () => {
+    const { jobId, token } = await startJob(UNCONFIRMED_AT_UPLOAD);
+    delete doc(`inboundRequests/${jobId}`).scene_screen_gate_ended; // as a job written before the change
+    const confirmed = await confirmBrief(token, blocking);
+    expect(confirmed.screening?.headline).toMatch(/not building a scene/);
+    expect((await jobStatus(token)).status.decision).toBe("not_now");
+    await claim(jobId);
+    await sendFootage(token);
+    expect(doc(`inboundRequests/${jobId}`).scene_screen_gate_ended).toMatchObject({ marked_on: "video_published" });
   });
 });

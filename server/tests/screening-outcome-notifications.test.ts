@@ -55,13 +55,18 @@ describe("one email per terminal outcome of the job's evaluation (F-01)", () => 
     expect(send).toHaveBeenCalledTimes(1);
     const notice = state.docs.get(key(outcome)) as Record<string, string>;
     expect(notice).toMatchObject({ status: "sent", kind: "evaluation_outcome", to: "owner@example.com" });
-    if (outcome !== "estimate") expect(notice.body.startsWith(simulationOutcomeEmailSentence(outcome as ScreeningOutcome))).toBe(true);
+    // Rewritten in round 7: a run that did not give a test result says the job page's own line for why
+    // (`testNotRunLine`), then, when the job has a paper check, gives it as the one answer.
+    const paper = notice.body.includes("So the paper check is your answer.");
+    if (outcome !== "estimate") expect(notice.body, notice.body).toMatch(/^The simulation test did not (run|finish)\. /);
+    void simulationOutcomeEmailSentence;
     // The site already has its answer: the email never says the job is held, and never names internal terms.
     expect(notice.body).not.toMatch(/\bheld\b|your job is|episodes|candidates|screening/i);
     expect(notice.body).not.toMatch(/introduction|reply to this email/i);
     // An estimate's fine print is the job page's tested limits line; the other outcomes keep the simulation disclaimer.
-    expect(notice.body).toMatch(outcome === "estimate" ? /Tested in a simulation, not at your site\. .+ It does not certify performance or safety\./
-      : /never certifies physical performance or safety/);
+    // The fixture's estimate scored no AI robot, so it is an ending with no test result (review, 2026-11-11): its
+    // email is a paper answer, under the simulation disclaimer when the job has no paper check.
+    expect(notice.body).toMatch(paper ? /A paper check, not a test at your site\. .+ It does not certify performance or safety\./ : /never certifies physical performance or safety/);
     expect(notice.body).toMatch(/on your private job page:\nhttps?:\/\/\S+\/capture-upload\//);
     // Everything before the link: no code, operator instruction or budget, which are Blueprint's own.
     const words = notice.body.slice(0, notice.body.indexOf("on your private job page"));
@@ -69,12 +74,16 @@ describe("one email per terminal outcome of the job's evaluation (F-01)", () => 
     if (outcome === "estimate") {
       // The fixture's two rows (2 and 1 of 3) are not in our list and carry no learned-policy evidence, so they cannot
       // be identified as AI robots (a scripted motion is never a contender): no option, no result, the page's own line.
-      expect(notice.subject).toBe("The simulation test of your job has finished");
-      expect(notice.body.startsWith("The simulation test finished, but none of its runs could be identified as an AI robot, so none is counted. Nothing is needed from you.\n\n")).toBe(true);
-      expect(notice.body).not.toMatch(/did best|was ahead|proof/i);
+      // Rewritten (review, 2026-11-11): a finished test that scored no AI robot is an ending, not a result. Its email
+      // takes the paper slot, says why, and says plainly whether there is a paper check.
+      expect(notice.subject).toBe(paper ? "Your job's paper check is ready" : "An update on the simulation of your job");
+      expect(notice).toMatchObject({ answerSlot: "paper" });
+      expect(notice.body.startsWith("The simulation test finished, but none of its runs could be identified as an AI robot, so none is counted. "
+        + (paper ? "So the paper check is your answer." : "There is no paper check for this job. Nothing is needed from you.\n\n"))).toBe(true);
+      expect(notice.body).not.toMatch(/did best|was ahead|proof|test result comes later/i);
       expect(notice.body).not.toContain(SIMULATION_TRUST_LINE);
     } else {
-      expect(notice.subject).toBe("An update on the simulation of your job");
+      expect(notice.subject).toBe(paper ? "Your job's paper check is ready" : "An update on the simulation of your job");
       expect(notice.body).not.toMatch(/estimate|proof|result is ready/);
     }
     expect(run().outcome_notification_pending).toBe(false);
@@ -97,10 +106,27 @@ describe("one email per terminal outcome of the job's evaluation (F-01)", () => 
     expect(send).toHaveBeenCalledTimes(1);
     const notice = state.docs.get(key("estimate")) as Record<string, string>;
     // The fixture's rows are not in our list and carry no learned-policy evidence: none can be identified as an AI robot.
-    expect(notice.subject).toBe("The simulation test of your job has finished");
-    expect(notice.body.startsWith("The simulation test finished, but none of its runs could be identified as an AI robot, so none is counted. Nothing is needed from you.")).toBe(true);
+    // Scoring none is an ending, so the email is a paper answer (rewritten, review 2026-11-11).
+    expect(notice.subject).toBe("An update on the simulation of your job");
+    expect(notice.body.startsWith("The simulation test finished, but none of its runs could be identified as an AI robot, so none is counted. There is no paper check for this job. Nothing is needed from you.")).toBe(true);
     expect(notice.body).not.toMatch(/estimate|proof|has a result|did best|was ahead|pilot|introduc|deployment company|episodes|candidates|screening/i);
-    expect(notice.body).toMatch(/It does not certify performance or safety\./);
+    // With no paper check, the fine print is the simulation disclaimer.
+    expect(notice.body).toMatch(/never certifies physical performance or safety/);
+  });
+
+  // Rule 2 (review, 2026-11-11): a run recorded as ended with no result outcome is an ending, and the ingest that
+  // records it asks for its paper-check email in the same step. A run still going, or with a result outcome, does not.
+  it.each(["failed", "cancelled"])("asks for the paper-check email where a run that %s with no result is recorded", async runState => {
+    const notices = await import("../utils/taskLifecycleNotifications");
+    const asked = vi.spyOn(notices, "notifyIfAnswerSettled").mockResolvedValue({ enqueued: true });
+    try {
+      await ingestBetaPolicyScreening(sealScreening({ ...base, status: runState as never }));
+      expect(run().state).toBe(runState);
+      expect(asked).toHaveBeenCalledWith("job-one");
+      asked.mockClear();
+      await ingestBetaPolicyScreening(sealScreening({ ...base, campaign_id: "campaign-two" }));
+      expect(asked).not.toHaveBeenCalled();
+    } finally { asked.mockRestore(); }
   });
 
   it.each(["awaiting_spend_approval", "setup_repair", "superseded"])("sends nothing for %s", async outcome => {
@@ -139,7 +165,8 @@ describe("one email per terminal outcome of the job's evaluation (F-01)", () => 
     expect(state.docs.get(key("held_capability"))).toMatchObject({ status: "cancelled", attempts: 0 });
     expect(state.docs.get(key("estimate"))).toMatchObject({ status: "sent" });
     expect(send).toHaveBeenCalledTimes(1);
-    expect(send.mock.calls[0][0].subject).toBe("The simulation test of your job has finished");
+    // The fixture's estimate scored no AI robot: a paper answer, which still replaces the held one on the page.
+    expect(send.mock.calls[0][0].subject).toBe("An update on the simulation of your job");
     expect([run().outcome_notification_pending, run("campaign-two").outcome_notification_pending]).toEqual([false, false]);
   });
 

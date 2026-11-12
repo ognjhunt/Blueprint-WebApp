@@ -49,6 +49,7 @@
  * already enforces (an invited, approved, verified robot-team account); this
  * module answers only for the job and never widens that gate.
  */
+import { sceneScreenGateEnded } from "./sceneScreenGate";
 import type { TaskListingDetails, TeamEvaluationTerms, TeamJobOpening } from "../../client/src/types/taskBrowse";
 import type { InboundRequest } from "../types/inbound-request";
 import { assessReadiness } from "../../client/src/lib/siteTaskReadiness";
@@ -100,29 +101,41 @@ function hasBuiltScene(request: Record<string, any>): boolean {
 }
 
 /**
- * Whether a site's scene can run an evaluation: screened, confirmed,
- * reconstructed, and proven runnable.
+ * Whether a site's scene can run an evaluation: confirmed, reconstructed and
+ * proven runnable.
  *
- * ## Four conditions, and each one used to be missing or wrong
+ * ## What decides
  *
  * - **A scene has to exist.** A world manifest proves reconstruction.
  * - **The operator has to have confirmed the brief.** Otherwise the gates are
  *   our reading of their evidence rather than their answers, and a description
  *   alone could inflate supply.
- * - **Every binding gate has to be answered**, which `qualified` implies and
- *   `assessReadiness` re-checks.
+ * - **Every binding gate has to be answered**, which `assessReadiness` checks
+ *   (an answer the site disclosed as unknown counts).
  * - **An evaluation has to be able to run against the scene.**
  *   `sceneRunnableReadiness` requires an internal proof that our harness can
  *   load and step it, and fails closed: unverified is held back.
+ *
+ * The four-conditions screen's disposition decides nothing for a job whose
+ * video arrived after the owner's decision of 2026-11-11 (`sceneScreenGateEnded`);
+ * it stays a note for staff. A job uploaded before it still needs `qualified`,
+ * until the owner decides about those. The site's consent, its listing and its
+ * own pause are checked by `teamJobAccess` around this.
  *
  * Measured coverage is used where we have it, and the old inference where we
  * do not: a built scene means coverage sufficed, which is true by
  * construction. What this must never do is read "nobody checked" as "does not
  * cover", because that would silently drop supply.
  */
+/** The old screen still holds only jobs uploaded before the owner's decision of 2026-11-11. */
+export function screenAllowsSupply(request: Record<string, any>): boolean {
+  return request.site_task_triage?.disposition === "qualified"
+    || sceneScreenGateEnded(request, typeof request.requestId === "string" ? request.requestId : "");
+}
+
 export function isRunnableTask(request: InboundRequest): boolean {
   if (request.request?.buyerType === "robot_team" || operatorListingPaused(request)
-    || request.site_task_triage?.disposition !== "qualified") return false;
+    || !screenAllowsSupply(request as unknown as Record<string, any>)) return false;
   const measured = coverageEvidenceFrom(request as never);
   const readiness = assessReadiness({
     answers: gateAnswersOnFile(request),

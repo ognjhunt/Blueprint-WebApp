@@ -80,26 +80,25 @@ beforeEach(() => {
 });
 
 describe("the answer email after the coverage review", () => {
-  it("queues exactly one answer_ready for a ready answer, and none on a second review", async () => {
+  // Rewritten in round 7 (owner, 2026-11-11): the first message is the upload receipt, and the one answer email is
+  // the test result, or the paper check when no test can run. A ready paper check is never emailed on its own.
+  it("queues no answer email for a ready paper check, on the first review or a second", async () => {
     source.agent.mockResolvedValue({ status: "completed", output: output(ESTIMATES) });
     await reviewCaptureCoverage(params());
     await reviewCaptureCoverage(params());
-    const rows = outboxRows();
-    expect(rows.map(([key]) => key)).toEqual(["captureOutbox/r1:answer_ready"]);
-    const row = rows[0][1] as Record<string, string>;
-    // The paper check, said as the paper check (round 4): never the answer before a test.
-    expect(row).toMatchObject({ kind: "answer_ready", to: "site@synthetic.invalid", subject: "Your job's paper check is ready" });
-    expect(row.body).toMatch(/^We've checked your job on paper\. (Most likely to fit: |No robot clearly fits yet\. |None of the )/);
-    expect(row.body).toMatch(/How sure we are, on paper: (Sure|Fairly sure|Not sure yet)\./);
-    expect(row.body).toMatch(/\/capture-upload\//);
+    expect(outboxRows().map(([key]) => key)).toEqual([]);
     expect(send).not.toHaveBeenCalled();
   });
 
-  it("queues none when the video did not show the job clearly enough to size it", async () => {
+  // Rewritten (review, 2026-11-11): an unsized video is an ending with no test, so the review that records it queues
+  // the one answer email saying why; before, it queued none.
+  it("queues the one answer email when the video did not show the job clearly enough to size it", async () => {
     source.agent.mockResolvedValue({ status: "completed", output: output(UNSIZED) });
     await reviewCaptureCoverage(params());
     expect(sharedFakeFirestoreState.docs.get("inboundRequests/r1")?.capture_coverage).toBeDefined();
-    expect(outboxRows()).toHaveLength(0);
+    expect(outboxRows()).toHaveLength(1);
+    expect(outboxRows()[0][1]).toMatchObject({ kind: "answer_ready" });
+    expect(String((outboxRows()[0][1] as { body?: unknown }).body)).toContain("The video did not show the job clearly enough for us to size it.");
   });
 
   it("never fails the review when the answer cannot be composed", async () => {
