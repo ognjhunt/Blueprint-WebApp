@@ -1097,6 +1097,40 @@ describe("one answer email for every way a job ends", () => {
     } finally { reading.mockRestore(); }
   });
 
+  // N4: one answer row per ending, so an earlier row cancelled at dispatch never blocks a later ending's email.
+  it("keys each answer email by the ending it answers", async () => {
+    const { notifyIfAnswerSettled } = await import("../utils/taskLifecycleNotifications");
+    sharedFakeFirestoreState.docs.set("captureOutbox/req-1:answer_ready:robot_fit_only", { requestId: "req-1", kind: "answer_ready",
+      idempotencyKey: "req-1:answer_ready:robot_fit_only", status: "cancelled" });
+    composedAnswer.current = { schemaVersion: "site_answer.v1", state: "cannot_assess", headline: "We can't check robots against this job yet.",
+      pick: null, reason: "The video did not show the job clearly enough for us to size it." };
+    expect(await notifyIfAnswerSettled("req-1")).toMatchObject({ enqueued: true, key: "req-1:answer_ready:unsized" });
+    // At dispatch a row is current only for the ending its key names.
+    const { taskLifecycleNotificationIsCurrent } = await import("../utils/taskLifecycleNotificationAuthority");
+    expect(await taskLifecycleNotificationIsCurrent({ kind: "answer_ready", requestId: "req-1", idempotencyKey: "req-1:answer_ready:unsized" })).toBe(true);
+    expect(await taskLifecycleNotificationIsCurrent({ kind: "answer_ready", requestId: "req-1", idempotencyKey: "req-1:answer_ready:robot_fit_only" })).toBe(false);
+  });
+
+  // N5: the reading-limit branch applies the same checks as every other: no repeat of the start form's notice.
+  it("never repeats the kept-on-file notice after the reading's limit, nor answers a job the site ended", async () => {
+    const { notifyIfAnswerSettled, READING_WAIT_LIMIT_MS } = await import("../utils/taskLifecycleNotifications");
+    composedAnswer.current = { state: "reading" };
+    const outlookModule = await import("../utils/jobOutlook");
+    const kept = { phase: "cannot_match", reason: "kept_on_file", sentence: "We can't test this kind of job yet. We've kept your job on file." } as const;
+    const decided = vi.spyOn(outlookModule, "loadJobOutlookDecision").mockResolvedValue({
+      outlook: { phase: "reading", reason: null, sentence: null }, certain: true, ending: kept, resultUnknown: false });
+    const old = new Date(Date.now() - READING_WAIT_LIMIT_MS - 1000).toISOString();
+    try {
+      sharedFakeFirestoreState.docs.set("captureOutbox/req-1:brief-screening:task-not-yet-supported", { requestId: "req-1",
+        kind: "screening_not_now", idempotencyKey: "req-1:brief-screening:task-not-yet-supported", status: "sent" });
+      expect(await notifyIfAnswerSettled("req-1", old)).toEqual({ enqueued: false, reason: "kept_already_told" });
+      decided.mockResolvedValue({ outlook: { phase: "ended_by_site", reason: "closed_by_owner", sentence: "You closed this job's simulation run." },
+        certain: true, ending: kept, resultUnknown: false });
+      expect(await notifyIfAnswerSettled("req-1", old)).toEqual({ enqueued: false, reason: "ended_by_site" });
+    } finally { decided.mockRestore(); }
+    expect([...sharedFakeFirestoreState.docs.keys()].filter(key => key.includes(":answer_ready"))).toEqual([]);
+  });
+
   // N3: an owed email is removed only when its row exists; a failed create leaves it owed.
   it("keeps an owed email owed when its row could not be created, and removes it once the row exists", async () => {
     const { reconcileWaitingAnswerNotices, waitingAnswerNoticeFields } = await import("../utils/taskLifecycleNotifications");

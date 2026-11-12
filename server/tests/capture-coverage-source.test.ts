@@ -112,6 +112,18 @@ describe("the walkthrough's job estimates ride on its coverage review", () => {
     });
   });
 
+  // N8 (review, 2026-11-11): the answer email is owed for the capture actually reviewed, a replacement video included.
+  it("owes the job its answer email from the reading of a replacement video too", async () => {
+    const { recordCoverageFinding } = await import("../utils/captureCoverageReview");
+    const replacement = `supplement-${"b".repeat(40)}`;
+    sharedFakeFirestoreState.docs.set("inboundRequests/r1", { ...sharedFakeFirestoreState.docs.get("inboundRequests/r1"), active_capture_id: replacement });
+    await recordCoverageFinding("r1", replacement, { coversScene: true, missingCoverage: [], supplementWouldFinish: false,
+      unreadableReasons: [], confidence: 0.9 } as never);
+    const stored = sharedFakeFirestoreState.docs.get("inboundRequests/r1") as Record<string, any>;
+    expect(Object.values(stored.answer_notices_waiting).map((entry: any) => entry.params)).toEqual([{ requestId: "r1", milestone: "answer_ready" }]);
+    expect(stored.answer_notices_next_ms).toBeGreaterThan(0);
+  });
+
   it("keeps them on the job beside the finding, replaced whole on the next reading", async () => {
     source.agent.mockResolvedValueOnce({ status: "completed", output: output() });
     expect(await reviewCaptureCoverage(params())).toMatchObject({ coversScene: true });

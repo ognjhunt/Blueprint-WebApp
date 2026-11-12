@@ -324,7 +324,7 @@ export async function enqueueTaskLifecycleNotification(params: {
 import { ANSWER_NOTICES_CLOSED_FIELD, ANSWER_NOTICES_WAITING_FIELD, ANSWER_NOTICES_WAITING_PENDING_FIELD, ANSWER_NOTICES_WAITING_SINCE_FIELD, OWED_LIMIT_MS,
   READING_WAIT_LIMIT_MS, mapFields, noticeKeyOf, owedRetryDelayMs, waitingAnswerNoticeFields, waitingMap, waitingSinceIso,
   type WaitingEntry } from "./answerNoticeOwed";
-export { ANSWER_NOTICES_WAITING_FIELD, ANSWER_NOTICES_WAITING_PENDING_FIELD, ANSWER_NOTICES_WAITING_SINCE_FIELD,
+export { ANSWER_NOTICES_CLOSED_FIELD, OWED_LIMIT_MS, ANSWER_NOTICES_WAITING_FIELD, ANSWER_NOTICES_WAITING_PENDING_FIELD, ANSWER_NOTICES_WAITING_SINCE_FIELD,
   READING_WAIT_LIMIT_MS, waitingAnswerNoticeFields } from "./answerNoticeOwed";
 type WaitingNoticeParams = Parameters<typeof enqueueTaskLifecycleNotification>[0];
 /** Keep an answer email owed on the job, reading and writing the waiting map in one transaction. */
