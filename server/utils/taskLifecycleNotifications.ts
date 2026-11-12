@@ -1154,6 +1154,14 @@ export async function notifySummarySharedIfVisible(requestId: string): Promise<{
   }
   // One is waiting to go out: let it.
   if (rows.some(row => row && !["cancelled", "failed"].includes(String(row.status)))) return { enqueued: false, reason: "queued" };
+  // Never visible again: the site withdrew its permission, or closed the job (a closed job takes no further decision).
+  // Settled as not owed, with the reason, so it never holds a place in the sweep. Only not visible right now (a rights
+  // hold, a pause, a card awaiting review) stays owed.
+  const settled = await summarySharedNoticeSettledReason(record);
+  if (settled) {
+    await ref.set({ summary_shared_notice: { owed: false, settled_reason: settled, settled_at_iso: new Date().toISOString() } }, { merge: true });
+    return { enqueued: false, reason: settled };
+  }
   const { teamJobAccess } = await import("./teamJobAccess");
   if (!teamJobAccess(record).listed) return { enqueued: false, reason: "not_visible" };
   const attempt = attempts + 1;
@@ -1162,14 +1170,35 @@ export async function notifySummarySharedIfVisible(requestId: string): Promise<{
   return { enqueued: Boolean(result.enqueued) };
 }
 
-/** The owed "summary is shared" notices, tried each outbox pass (a card's visibility can change on any write). */
+/** Why an owed "summary is shared" notice can never be sent, or null while it still may be. */
+export async function summarySharedNoticeSettledReason(record: Record<string, any>): Promise<"permission_withdrawn" | "job_closed" | null> {
+  const { projectWebsiteCaptureRights } = await import("./websiteTaskContext");
+  if (projectWebsiteCaptureRights(record).consent_revoked) return "permission_withdrawn";
+  if (record.workspace_task?.archived === true) return "job_closed";
+  return null;
+}
+
+/** Where the sweep below continues from; stored so every owed row is reached across passes and restarts. */
+export const SUMMARY_SHARED_SWEEP_CURSOR = "outboxSweepState/summary_shared_notice";
+
+/**
+ * The owed "summary is shared" notices, tried each outbox pass (a card's visibility can change on any write). Pages
+ * through every owed row in document-id order, at most `limit` per pass, continuing after the last row it read and
+ * starting over once it reaches the end, so no set of rows that are not visible yet can hide another.
+ */
 export async function reconcileSummarySharedNotices(limit = 20): Promise<void> {
   if (!db) return;
-  const owed = await db.collection("inboundRequests").where("summary_shared_notice.owed", "==", true).limit(limit).get();
+  const cursorRef = db.doc(SUMMARY_SHARED_SWEEP_CURSOR);
+  const cursor = (await cursorRef.get()).data()?.after;
+  let query = db.collection("inboundRequests").where("summary_shared_notice.owed", "==", true).orderBy("__name__").limit(limit);
+  if (typeof cursor === "string" && cursor) query = query.startAfter(cursor);
+  const owed = await query.get();
   for (const doc of owed.docs) {
     try { await notifySummarySharedIfVisible(doc.id); }
     catch (error) { logger.warn({ error, requestId: doc.id }, "Could not settle a summary-shared notice"); }
   }
+  // A short page is the end of the list: the next pass starts from the beginning.
+  await cursorRef.set({ after: owed.docs.length < limit ? null : owed.docs[owed.docs.length - 1].id }, { merge: true });
 }
 
 export async function reconcileSceneReadyNotifications(limit = 20): Promise<void> {

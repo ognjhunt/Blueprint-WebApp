@@ -18,7 +18,9 @@ vi.mock("../utils/field-encryption", () => ({
   decryptFieldValue: vi.fn(async (value: string) => value.replace(/^encrypted:/, "")),
 }));
 const jobAccess = vi.hoisted(() => ({ evaluationAvailable: false, listed: true }));
-vi.mock("../utils/teamJobAccess", () => ({ teamJobAccess: () => jobAccess }));
+// A record on a rights hold is not listed, as the real predicate says; every other record follows `jobAccess`.
+vi.mock("../utils/teamJobAccess", () => ({ teamJobAccess: (record?: { pipeline?: { rights_review_status?: string } }) =>
+  record?.pipeline?.rights_review_status === "needs_review" ? { listed: false, evaluationAvailable: false, reason: "rights_needs_review" } : jobAccess }));
 const send = vi.hoisted(() => vi.fn());
 vi.mock("../utils/email", () => ({ sendEmail: send }));
 // The site's answer, as the composer would give it; null until a test sets one.
@@ -183,6 +185,55 @@ describe("the summary-shared email follows visibility", () => {
     jobAccess.listed = true; await pass();
     expect(sentSubjects()).toHaveLength(1);
     jobAccess.listed = true;
+  });
+
+  // Review, 2026-11-12: the sweep must not starve. Rows that can never be sent are settled; rows that are only not
+  // visible yet stay owed; and the sweep pages through every owed row, so no number of stuck rows hides another.
+  const owedJob = (id: string, extra: Record<string, unknown> = {}) => sharedFakeFirestoreState.docs.set(`inboundRequests/${id}`, {
+    contact: { email: `encrypted:${id}@example.com` }, request: { buyerType: "site_operator" }, summary_shared_notice: { owed: true }, ...extra });
+  const sentTo = () => send.mock.calls.filter(call => (call[0] as { subject: string }).subject === "Your job summary is shared")
+    .map(call => (call[0] as { to: string }).to);
+
+  it("reaches a sendable row behind 25 rows that are not visible, in the same or the next pass", async () => {
+    jobAccess.listed = true;
+    sharedFakeFirestoreState.docs.delete("inboundRequests/req-1");
+    for (let index = 0; index < 25; index += 1)
+      owedJob(`a-stuck-${String(index).padStart(2, "0")}`, { pipeline: { rights_review_status: "needs_review" } });
+    owedJob("z-sendable");
+    await pass();
+    if (sentTo().length === 0) await pass();
+    expect(sentTo()).toEqual(["z-sendable@example.com"]);
+    // The stuck rows are only not visible right now: they stay owed.
+    expect((sharedFakeFirestoreState.docs.get("inboundRequests/a-stuck-00") as Record<string, any>).summary_shared_notice.owed).toBe(true);
+  });
+
+  it("settles a withdrawn job's row with its reason and never emails it", async () => {
+    jobAccess.listed = true;
+    owedJob("req-1", { request: { buyerType: "site_operator", consent_attestation: { withdrawn_at_iso: "2026-11-12T00:00:00.000Z" } } });
+    await pass(); await pass();
+    expect(sentTo()).toEqual([]);
+    expect((sharedFakeFirestoreState.docs.get("inboundRequests/req-1") as Record<string, any>).summary_shared_notice)
+      .toMatchObject({ owed: false, settled_reason: "permission_withdrawn" });
+  });
+
+  it("settles a closed job's row with its reason and never emails it", async () => {
+    jobAccess.listed = true;
+    owedJob("req-1", { workspace_task: { archived: true } });
+    await pass();
+    expect(sentTo()).toEqual([]);
+    expect((sharedFakeFirestoreState.docs.get("inboundRequests/req-1") as Record<string, any>).summary_shared_notice)
+      .toMatchObject({ owed: false, settled_reason: "job_closed" });
+  });
+
+  it("emails a row on a rights hold once, after the hold lifts", async () => {
+    jobAccess.listed = true;
+    owedJob("req-1", { pipeline: { rights_review_status: "needs_review" } });
+    await pass(); await pass();
+    expect(sentTo()).toEqual([]);
+    expect((sharedFakeFirestoreState.docs.get("inboundRequests/req-1") as Record<string, any>).summary_shared_notice.owed).toBe(true);
+    (sharedFakeFirestoreState.docs.get("inboundRequests/req-1") as Record<string, any>).pipeline = { rights_review_status: "cleared" };
+    await pass(); await pass(); await pass();
+    expect(sentTo()).toEqual(["req-1@example.com"]);
   });
 });
 

@@ -116,6 +116,10 @@ const FRAME_FILES = [
   "server/utils/robot-agent-contract.ts",
   "server/routes/agent-access.ts",
   "server/routes/agent-team.ts",
+  "server/routes/site-task-brief.ts",
+  "server/routes/task-listings.ts",
+  "client/index.html",
+  "client/public/agent-access.openapi.json",
 ] as const;
 
 const FILES = [...CLAIM_FILES, ...FRAME_FILES] as const;
@@ -160,6 +164,8 @@ const ALLOWED_IN: Record<string, ReadonlySet<string>> = {
   "client/src/components/site/TaskClarification.tsx": new Set(["the old frame's \"your answer\""]),
   "client/src/components/site/TaskDestinationChoice.tsx": new Set(["the old frame's \"your answer\""]),
   "client/src/components/site/TaskTargetChoice.tsx": new Set(["the old frame's \"your answer\""]),
+  // The same questions' save errors ("Your answer could not be saved.").
+  "server/routes/site-task-brief.ts": new Set(["the old frame's \"your answer\""]),
 };
 
 const ENTITIES: Record<string, string> = { apos: "'", quot: "\"", amp: "&", nbsp: " ", ldquo: "“", rdquo: "”", lsquo: "‘", rsquo: "’", rarr: "→", mdash: "—", ndash: "–" };
@@ -234,6 +240,15 @@ describe("public words claim only what the code does", () => {
     const sample = "export const P = \"We test the top AI robots on your job.\"; export const Q = \"Your answer is ready: the paper check.\";";
     expect(publicClaimFindings(file => (file === planted ? sample : "")).map(finding => finding.split(": ")[1])).toEqual([
       "the old frame's \"top AI robots\"", "the old frame's \"AI robot\"", "the old frame's \"paper check\"", "the old frame's \"your answer\""]);
+  });
+
+  it.each([
+    ["client/index.html", "<meta name=\"description\" content=\"We test the top AI robots on your job.\" />"],
+    ["client/public/agent-access.openapi.json", "{ \"info\": { \"description\": \"We test the top AI robots on your job.\" } }"],
+    ["server/routes/task-listings.ts", "res.status(409).json({ error: \"We test the top AI robots on your job.\" });"],
+  ])("scans %s in its own format", (planted, sample) => {
+    expect(publicClaimFindings(file => (file === planted ? sample : "")).map(finding => finding.split(": ")[1]))
+      .toContain("the old frame's \"top AI robots\"");
   });
 
   it("reads only what a reader sees, and catches each banned claim", () => {
