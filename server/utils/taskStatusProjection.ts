@@ -675,7 +675,7 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
       awaiting_inputs: !fitCheckEnd
         // Rewritten (review, 2026-11-12): no staff review backs this state when it is shown (the watch alerts after it
         // stays unchanged for a day), so nothing promises one.
-        ? "Preparing your job has paused. Keep your original recording. Nothing is needed from you now."
+        ? "Job preparation needs more information. Keep your original recording. Nothing is needed from you now."
         : preparation.robotFit?.status === "completed"
           ? "Your robot fit check is ready: the robots that fit your job on paper are listed below. It is an estimate from published specs and your video; no robot has been tried on this job."
           : "Blueprint could not check robot fit for this job. The reason is below. Keep your original recording.",

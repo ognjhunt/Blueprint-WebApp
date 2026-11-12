@@ -272,6 +272,7 @@ test("the place question shows its picture and sentence, This is right needs not
   const picture = "/api/website-destination-pictures/job-one/walkthrough-job-one/place.png?digest=sha256%3A" + "5".repeat(64) + "&expires=1&signature=" + "a".repeat(64);
   await page.route(`**/api/site-task-brief/${token}/status`, route => route.fulfill({ json: { scope: "owner", captureReceived: true,
     answer: readyAnswer, outlook: serverOutlookFor(readyAnswer, projectSimulationProof({ evaluation: [] as never, pick: null })),
+    destinationAnswered: posted.length > 0,
     destinationChoice: posted.length ? null : { questionDigest: `sha256:${"3".repeat(64)}`, objectLabel: "Carton",
       guessedCandidateId: "p0123456789abcdef", pictureUrl: picture,
       candidates: [{ id: "p0123456789abcdef", place: "named_place" }, { id: "pfedcba9876543210", place: "surface_end" }] },
@@ -290,12 +291,16 @@ test("the place question shows its picture and sentence, This is right needs not
   await expect(region.getByRole("img")).toBeVisible();
   await expect(region.getByText("Nothing is needed from you: your job keeps going either way.")).toBeVisible();
   await region.getByRole("button", { name: "The place is wrong" }).click();
-  await expect(region.getByText("The other end of the same surface")).toBeVisible();
+  // Places are told apart by the letters the picture draws: never the Pipeline's words.
+  await expect(region.getByLabel("Place B")).toBeVisible();
+  await expect(region.getByText("Place A (our guess) is the one we use now.")).toBeVisible();
   await region.getByRole("button", { name: "This is right" }).click();
   await expect.poll(() => posted.length).toBe(1);
   expect(posted[0]).toEqual({ questionDigest: `sha256:${"3".repeat(64)}`, choice: { kind: "confirm_guess" } });
-  // The job's answer stays where it was; the question is gone once answered.
-  await expect(page.getByRole("region", { name: "Where the object goes" })).toHaveCount(0);
+  // The job's answer stays where it was; once answered, the page says only that.
+  await expect(page.getByRole("region", { name: "Where the object goes" }).getByRole("status"))
+    .toHaveText("We have your answer about where the object goes.");
+  await expect(page.getByRole("button", { name: "This is right" })).toHaveCount(0);
   await expect(page.locator(".site-answer-bare")).toBeVisible();
   expect(unexpected).toEqual([]);
 });

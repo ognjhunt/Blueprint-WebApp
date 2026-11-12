@@ -20,6 +20,7 @@ import { sharedFakeFirestoreState } from "./helpers/fake-firestore";
 import { listedTaskCard } from "./helpers/listedTaskCard";
 import { processingFailure } from '../utils/taskPreparationOutcome';
 
+import destinationPicturesRouter from "../routes/website-destination-pictures";
 const preparation = vi.hoisted(() => ({ read: vi.fn(async (): Promise<Record<string, unknown>> => ({
   state: "failed_retryable", correlationId: "bp-prep-1234567890abcdef",
 })), question: vi.fn(async (): Promise<unknown> => null) }));
@@ -89,6 +90,7 @@ beforeEach(async () => {
   const app = express();
   app.use(express.json());
   app.use("/api/site-task-brief", briefRouter);
+  app.use("/api/website-destination-pictures", destinationPicturesRouter);
   server = createServer(app);
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", () => resolve()));
   const address = server.address();
@@ -278,10 +280,24 @@ describe("GET /api/site-task-brief/:token/status", () => {
     preparation.read.mockResolvedValueOnce({ state: "handed_off", correlationId: "bp-prep-1234567890abcdef" } as never);
     expect((await status()).body.status.decision).not.toBe("processing_failure");
   });
-  // Review, 2026-11-12: the optional place question, beside the object question, never in place of the job's status.
-  it("PREP-UI-008 shows the place question to the owner with its private picture, and an answer clears it", async () => {
+  // Review, 2026-11-12: the optional place question, beside the object question, never in place of the job's status,
+  // and only with its picture: the status mints the picture's link, and the link opens through its own guarded route.
+  it("PREP-UI-008 shows the place question to the owner with its private picture, and an answer leaves the job's page as it was", async () => {
     vi.stubEnv("TASK_EVALUATION_RESULT_DOWNLOAD_SIGNING_SECRET", "fixture-ticket-secret");
-    const selector = { request_id: "req-1", scene_id: "site-req-1", capture_id: "cap-1", completion_marker_generation: "17",
+    vi.stubEnv("CAPTURE_LIFECYCLE_PIPELINE_BASE_URL", "https://pipeline.invalid");
+    vi.stubEnv("CAPTURE_UPLOAD_INTAKE_FORWARD_TOKEN", "isolated-read-token");
+    const PNG = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.from("frame")]);
+    const realFetch = globalThis.fetch;
+    vi.stubGlobal("fetch", vi.fn(async (url: string | URL, init?: RequestInit) => String(url).startsWith("https://pipeline.invalid/")
+      ? new Response(PNG) : realFetch(url, init)));
+    const { createHash } = await import("node:crypto");
+    const capture = "walkthrough-req-1";
+    const owner = createCaptureUploadToken({ requestId: "req-1", captureId: capture, sceneId: "scene-1" });
+    const record = sharedFakeFirestoreState.docs.get("inboundRequests/req-1") as Record<string, any>;
+    // A job whose rights allow derived scenes: only then is the picture offered at all.
+    sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { ...record, account_owner_uid: "owner1",
+      request: { ...record.request, consent_attestation: { granted: true, statement_version: "2026-09-18.v1", recorded_at_iso: "2026-09-29T00:00:00.000Z" } } });
+    const selector = { request_id: "req-1", scene_id: "site-req-1", capture_id: capture, completion_marker_generation: "17",
       producer_delivery_key: `sha256:${"a".repeat(64)}`, source_payload_sha256: "b".repeat(64),
       task_context_digest: `sha256:${"c".repeat(64)}` };
     const place = { kind: "task_destination_choice", question_digest: `sha256:${"3".repeat(64)}`, target_id: "destination.place",
@@ -289,40 +305,49 @@ describe("GET /api/site-task-brief/:token/status", () => {
       candidate_set_digest: `sha256:${"4".repeat(64)}`, guessed_candidate_id: "p0123456789abcdef", candidates: [
         { candidate_id: "p0123456789abcdef", label: "The place your job names", reference_time_ms: 2000 },
         { candidate_id: "pfedcba9876543210", label: "Some later label", reference_time_ms: 2000 }],
-      picture: { png_sha256: `sha256:${"5".repeat(64)}`, frame_id: "frame_1" } };
-    sharedFakeFirestoreState.docs.set("captureUploadSessions/cap-1", { website_preparation: { selector } });
+      picture: { png_sha256: `sha256:${createHash("sha256").update(PNG).digest("hex")}`, frame_id: "frame_1" } };
+    sharedFakeFirestoreState.docs.set(`captureUploadSessions/${capture}`, { website_preparation: { selector } });
     const original = preparation.read.getMockImplementation();
     preparation.read.mockImplementation(async () => ({ state: "preparing", correlationId: "bp-prep-1234567890abcdef", question: place }));
     preparation.question.mockImplementation(async () => ({ selector, question: place }));
     const readAnswer = await withReadAnswer();
     try {
-      const asked = await status();
-      expect(asked.body.status.decision).toBe("assessing");
-      expect(asked.body.targetChoice ?? null).toBeNull();
-      expect(asked.body.destinationChoice).toMatchObject({ questionDigest: place.question_digest, objectLabel: "Tote",
+      const plain = await status(owner);
+      expect(plain.body.status.decision).toBe("assessing");
+      expect(plain.body.targetChoice ?? null).toBeNull();
+      expect(plain.body.destinationChoice).toMatchObject({ questionDigest: place.question_digest, objectLabel: "Tote",
         guessedCandidateId: "p0123456789abcdef",
         candidates: [{ id: "p0123456789abcdef", place: "named_place" }, { id: "pfedcba9876543210", place: "other" }] });
-      // The Pipeline's sentence and labels are never sent to the page as text.
-      expect(JSON.stringify(asked.body.destinationChoice)).not.toMatch(/from here to here|Some later label|The place your job names/);
-      const picture = asked.body.destinationChoice.pictureUrl;
-      if (picture !== null) expect(picture).toMatch(/^\/api\/website-destination-pictures\/req-1\/cap-1\/place\.png\?digest=/);
-      const film = createCaptureUploadToken({ requestId: "req-1", captureId: "cap-1", sceneId: "scene-1", scope: "film" });
+      expect(JSON.stringify(plain.body.destinationChoice)).not.toMatch(/from here to here|Some later label|The place your job names/);
+      const picture = plain.body.destinationChoice.pictureUrl as string;
+      expect(picture).toMatch(/^\/api\/website-destination-pictures\/req-1\/walkthrough-req-1\/place\.png\?digest=sha256%3A[a-f0-9]{64}&expires=\d+&signature=[a-f0-9]{64}$/);
+      const opened = await realFetch(`${baseUrl}${picture}`);
+      expect(opened.status).toBe(200);
+      expect(Buffer.from(await opened.arrayBuffer()).equals(PNG)).toBe(true);
+      const film = createCaptureUploadToken({ requestId: "req-1", captureId: capture, sceneId: "scene-1", scope: "film" });
       expect((await status(film)).body.destinationChoice ?? null).toBeNull();
-      const answer = (body: unknown) => fetch(`${baseUrl}/api/site-task-brief/${token()}/task-target-choice`, {
+      // No picture, no question: it cannot be answered blind, and the job goes on.
+      const { picture: _picture, ...blind } = place;
+      preparation.read.mockImplementationOnce(async () => ({ state: "preparing", correlationId: "bp-prep-1234567890abcdef", question: blind }));
+      expect((await status(owner)).body.destinationChoice ?? null).toBeNull();
+      const answer = (body: unknown) => realFetch(`${baseUrl}/api/site-task-brief/${owner}/task-target-choice`, {
         method: "POST", body: JSON.stringify(body), headers: { "content-type": "application/json",
           cookie: "csrf_token=choice-test", "x-csrf-token": "choice-test" } });
       expect((await answer({ questionDigest: place.question_digest, choice: { kind: "none_of_these" } })).status).toBe(409);
       const saved = await answer({ questionDigest: place.question_digest, choice: { kind: "other_candidate", candidate_id: "pfedcba9876543210" } });
       expect(saved.status).toBe(200);
-      const after = await status();
+      const after = await status(owner);
       expect(after.body.destinationChoice ?? null).toBeNull();
-      // The job keeps going: an answer never holds it.
-      expect(after.body.status.operatorAction).toBeNull();
+      expect(after.body.destinationAnswered).toBe(true);
+      // A place answer changes nothing else the page says: no superseded results, no "updating".
+      expect(after.body.status).toEqual(plain.body.status);
+      expect(after.body.outlook).toEqual(plain.body.outlook);
       expect(enqueueOutbox).not.toHaveBeenCalled();
     } finally {
       readAnswer.mockRestore();
       preparation.read.mockImplementation(original!);
       preparation.question.mockImplementation(async () => null);
+      vi.unstubAllGlobals();
     }
   });
   it.each(['other_candidate', 'confirm_guess'] as const)("PREP-UI-007 retires the rejected guess and permits same-job %s without requiring recording", async recoveryKind => {

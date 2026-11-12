@@ -150,8 +150,10 @@ describe("the picture's own checks on the bytes", () => {
   });
   it("refuses a body over the limit, with no length declared", async () => {
     const big = Buffer.concat([PNG, Buffer.alloc(MAX_DESTINATION_PICTURE_BYTES)]);
-    await expect(get(() => new Response(new ReadableStream({ start(controller) { controller.enqueue(new Uint8Array(big)); controller.close(); } })),
-      sha(big))).rejects.toThrow("website_destination_picture_unavailable");
+    // Settled to a word, so a regression fails plainly instead of printing megabytes.
+    const settled = await get(() => new Response(new ReadableStream({ start(controller) { controller.enqueue(new Uint8Array(big)); controller.close(); } })),
+      sha(big)).then(() => "served", (error: Error) => error.message);
+    expect(settled).toBe("website_destination_picture_unavailable");
   });
   it("refuses a declared length over the limit before reading it", async () => {
     await expect(get(() => new Response(PNG, { headers: { "content-length": String(MAX_DESTINATION_PICTURE_BYTES + 1) } })))

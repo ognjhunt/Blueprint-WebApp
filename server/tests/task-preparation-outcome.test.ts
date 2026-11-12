@@ -68,9 +68,12 @@ describe("source-bound preparation closeout", () => {
     expect(technical!.category).toBe("processing_failure");
   });
   it("never treats a planner abstention or an assumed desk height as robot incompatibility", () => {
-    // Rewritten (review, 2026-11-12): the preview adds no card of its own (it promised a review nobody does); the
-    // preparation status's outcome speaks for the job, and it is never a robot verdict.
-    expect(projectAtlasPreparationOutcome(current(atlas("needs_input", "atlas_scene_planner_abstained")))).toBeNull();
+    // Rewritten (review, 2026-11-12): a card with no promise; the preparation status's own outcome takes its place
+    // when it has one. Never a robot verdict.
+    expect(projectAtlasPreparationOutcome(current(atlas("needs_input", "atlas_scene_planner_abstained")))).toMatchObject({
+      category: "insufficient_evidence", title: "We could not confirm the 3D scene covers your job",
+      reason: "The views in your video did not show enough of the scene for this job.",
+      nextStep: "Nothing is needed from you now. Your recording stays saved." });
     // A reason this release does not know is read, not refused (review, 2026-11-12), and it is never a robot verdict:
     // it reads as the general "stopped" sentence.
     const desk = preparationOutcomeSchema.safeParse({ category: "robot_incompatibility", reason: "desk_too_high",

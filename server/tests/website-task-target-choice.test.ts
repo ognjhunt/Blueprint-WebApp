@@ -11,10 +11,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { crossRuntimeArtifactDigest, crossRuntimeDigest } from "../utils/crossRuntimeCanonical";
 import { buildPipelineSyncSignature } from "../utils/pipelineSyncSecurity";
 import { projectTaskStatus } from "../utils/taskStatusProjection";
-import { taskTargetChoiceQuestionSchema, type TaskTargetChoiceQuestion } from "../utils/taskTargetChoiceContract";
+import { isKnownTaskChoiceQuestion, taskTargetChoiceQuestionSchema, type TaskTargetChoiceQuestion } from "../utils/taskTargetChoiceContract";
 import { loadCurrentWebsitePreparationStatus, mergeWebsitePreparationStatus, syncWebsitePreparationStatus,
   type StoredWebsitePreparation, type WebsitePreparationDeps, type WebsitePreparationSelector } from "../utils/websitePreparationStatus";
-import { answerTaskTargetChoice, currentTaskTargetChoiceAnswer, parseStoredTaskTargetChoice,
+import { answerTaskTargetChoice, currentPlaceAnswer, currentTaskTargetChoiceAnswer, parseStoredTaskTargetChoice,
   buildTaskTargetChoiceAnswer, commitTaskTargetChoiceAnswer, taskTargetSelection, taskTargetSelectionApplies,
   readTaskTargetChoiceForPipeline, taskTargetChoiceAnswerSchema, type TaskTargetChoiceAnswer,
   type TaskTargetChoiceDeps } from "../utils/websiteTaskTargetChoice";
@@ -284,9 +284,34 @@ describe("the place question", () => {
     const read = await loadCurrentWebsitePreparationStatus("r1", "walkthrough-r1", strange);
     expect(read.state).toBe("preparing");
     expect(read.question).toBeNull();
-    // Still strict where it binds: ids, digests and the guess.
-    expect(taskTargetChoiceQuestionSchema.safeParse({ ...place, guessed_candidate_id: "p9999999999999999" }).success).toBe(false);
-    expect(taskTargetChoiceQuestionSchema.safeParse({ ...place, candidates: [(place as any).candidates[0]] }).success).toBe(false);
+    // Rewritten (review, 2026-11-12): a place question that misses its shape is not shown (like an unknown kind).
+    expect(isKnownTaskChoiceQuestion({ ...place, guessed_candidate_id: "p9999999999999999" })).toBe(false);
+    expect(isKnownTaskChoiceQuestion({ ...place, candidates: [(place as any).candidates[0]] })).toBe(false);
+  });
+  // Review, 2026-11-12: a malformed place question never blocks the status; the object question stays as strict as before.
+  it.each([
+    ["five places", { ...place, candidates: [...(place as any).candidates, ...[1, 2, 3].map(i => ({ candidate_id: `p${String(i).repeat(16)}`, label: "y", reference_time_ms: 0 }))] }],
+    ["a 201-character sentence", { ...place, sentence: "a".repeat(201) }],
+    ["no sentence", (({ sentence: _s, ...rest }: any) => rest)(place)],
+    ["an object's id", { ...place, candidates: [(place as any).candidates[0], { ...(place as any).candidates[1], candidate_id: "c0000000000000000" }] }],
+    ["a bad picture digest", { ...place, picture: { png_sha256: "sha256:short", frame_id: "f" } }],
+  ])("syncs the status with a place question that has %s, shows no question and tells staff once", async (_label, malformed) => {
+    const alerts = await import("../utils/unknownPipelineCode");
+    const noted = vi.spyOn(alerts, "noteUnknownPipelineCodes").mockResolvedValue(undefined);
+    try {
+      const deps = preparation(receipt("preparing", malformed as never));
+      await syncWebsitePreparationStatus(selector, deps);
+      const read = await loadCurrentWebsitePreparationStatus("r1", "walkthrough-r1", deps);
+      expect(read.state).toBe("preparing");
+      expect(read.question).toBeNull();
+      expect(noted).toHaveBeenCalledTimes(1);
+      expect(noted.mock.calls[0][1]).toContainEqual(["preparation.question.malformed", "task_destination_choice"]);
+    } finally { noted.mockRestore(); }
+  });
+  it("keeps the object question exactly as strict as before", async () => {
+    for (const bad of [{ ...question, later: 1 }, { ...question, candidates: [] },
+      { ...question, candidates: [question.candidates[0], { ...question.candidates[1], candidate_id: "p0000000000000000" }] }])
+      await expect(syncWebsitePreparationStatus(selector, preparation(receipt("preparing", bad as never)))).rejects.toThrow();
   });
   it("confirms the place or picks another; never none of these; the binding digest is the Pipeline's", async () => {
     const confirm = choiceStore(place);
@@ -304,5 +329,47 @@ describe("the place question", () => {
     expect(taskTargetSelection(session).rejected).toBe(false);
     // A confirmed place is no correction at all.
     expect(taskTargetSelection({ website_preparation: { selector }, website_task_target_choice: confirm.stored }).correctionsDigest).toBeNull();
+  });
+});
+
+// Review, 2026-11-12: a place answer is kept apart from the object's all the way to the page.
+describe("a place answer and an object answer", () => {
+  const HERE = "p0123456789abcdef", THERE = "pfedcba9876543210";
+  const place = { kind: "task_destination_choice", question_digest: `sha256:${"3".repeat(64)}`, target_id: "destination.place",
+    semantic_label: "Tote", sentence: "x", candidate_set_digest: `sha256:${"4".repeat(64)}`, guessed_candidate_id: HERE,
+    candidates: [{ candidate_id: HERE, label: "a", reference_time_ms: 0 }, { candidate_id: THERE, label: "b", reference_time_ms: 0 }],
+    picture: { png_sha256: `sha256:${"5".repeat(64)}`, frame_id: "f" } } as unknown as TaskTargetChoiceQuestion;
+  const at = "2026-11-12T10:00:00.000Z";
+  const placeOther = buildTaskTargetChoiceAnswer(selector, place, { kind: "other_candidate", candidate_id: THERE }, at);
+  const placeConfirm = buildTaskTargetChoiceAnswer(selector, place, { kind: "confirm_guess", candidate_id: HERE }, at);
+  const objectOther = buildTaskTargetChoiceAnswer(selector, question, { kind: "other_candidate", candidate_id: OTHER }, "2026-11-12T09:00:00.000Z");
+  const session = (...answers: TaskTargetChoiceAnswer[]) => ({ website_preparation: { selector },
+    website_task_target_choice: answers.at(-1), website_task_target_choices: Object.fromEntries(answers.map(row => [row.question_digest, row])) });
+  const page = { briefDrafted: true, briefConfirmed: true, hasStoredCapture: true, stage: null, coversScene: null, missingViews: [],
+    supplementWouldFinish: false, preparationStatus: { state: "preparing" as const, correlationId: null } };
+  it.each([["another place", placeOther], ["the place confirmed", placeConfirm]])("%s is never an object correction and changes nothing on the page", (_label, answer) => {
+    for (const status of [{ state: "preparing", question: null }, { state: "preparing", question: place }]) {
+      expect(currentTaskTargetChoiceAnswer(session(answer) as never, status)).toBeNull();
+      expect(currentPlaceAnswer(session(answer) as never, status)).toBe(answer.choice.kind);
+    }
+    const plain = projectTaskStatus(page as never);
+    expect(projectTaskStatus({ ...page, targetChoiceAnswer: currentTaskTargetChoiceAnswer(session(answer) as never, { state: "preparing", question: null }) } as never)).toEqual(plain);
+    expect(JSON.stringify(plain)).not.toMatch(/updating this job|resultSuperseded/);
+  });
+  it("an object answer behaves exactly as before, also beside a place answer", () => {
+    expect(currentTaskTargetChoiceAnswer(session(objectOther) as never, { state: "preparing", question: null })).toBe("other_candidate");
+    const both = session(objectOther, placeOther);
+    expect(currentTaskTargetChoiceAnswer(both as never, { state: "preparing", question: null })).toBe("other_candidate");
+    expect(currentTaskTargetChoiceAnswer(both as never, { state: "preparing", question: place })).toBe("other_candidate");
+    expect(currentPlaceAnswer(both as never, { state: "preparing", question: null })).toBe("other_candidate");
+    const status = projectTaskStatus({ ...page, targetChoiceAnswer: "other_candidate" } as never);
+    expect(status).toMatchObject({ headline: "Blueprint is updating this job for the corrected object using your saved video.", resultSuperseded: true });
+    // Both bind the preparation as the Pipeline's own digest does.
+    expect(taskTargetSelection(both).correctionsDigest).toBe(crossRuntimeDigest({ corrections: [{ target_id: "target-1",
+      question_digest: question.question_digest, candidate_id: OTHER }], destination_place: { target_id: "destination.place",
+      question_digest: place.question_digest, candidate_id: THERE } }));
+  });
+  it("a place answer alone keeps the scene made before it", () => {
+    expect(taskTargetSelectionApplies(session(placeOther), { request: { task: { task_id: "x" } } })).toBe(true);
   });
 });

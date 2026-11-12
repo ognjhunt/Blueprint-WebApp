@@ -11,7 +11,7 @@ import { parseBetaPolicyScreeningPublication, screeningCandidateRows, screeningE
 import { encodeTaskEvaluationRunPublication } from "../utils/taskEvaluationRunPublicationStorage";
 import { projectManagedJobEvidence } from "../utils/jobManagedEvaluation";
 import { screeningOutcomeNoticeIntent } from "../utils/screeningOutcomeNotifications";
-import { SETUP_FLAG_UNCLASSIFIED_SENTENCE, screeningSetupNotes, setupFlagSentence } from "../utils/screeningSetupFlagSentences";
+import { SETUP_FLAG_UNCLASSIFIED_SENTENCE, isKnownFlag, screeningSetupNotes, setupFlagSentence } from "../utils/screeningSetupFlagSentences";
 import { projectCandidateSelection } from "../utils/betaCandidateSelection";
 import { finishedScreening, outcomePublication, screeningFixture, screeningSha, sealScreening, selectionFixture } from "./fixtures/beta-policy-screening";
 import scriptedFixture from "./fixtures/pipeline-beta-policy-screening-scripted-publication.v2.json";
@@ -237,5 +237,34 @@ describe("a scripted row from before the control", () => {
     // A learned row can never be the control, whatever it carries.
     expect(screeningKnownGoodControl({ ...controlRow("known_good_control_passed"), execution_evidence_kind: "learned_policy" })).toBe(false);
     expect(setupFlagSentence("known_good_control_something_new")).toBe(SETUP_FLAG_UNCLASSIFIED_SENTENCE);
+  });
+});
+
+// Review, 2026-11-12: the Pipeline's test stage puts the reference row first and adds counted flags; nothing reads
+// rows by position, and the codes are known.
+describe("the reference row, wherever it is, and its new flags", () => {
+  it("gives the same page when the rows are shuffled", () => {
+    const base = finished();
+    const rows = [controlRow("known_good_control_passed:3_of_3", { scored: 3, succeeded: 3 }), ...base.candidates];
+    const sealed = (candidates: readonly unknown[]) => parseBetaPolicyScreeningPublication(sealScreening({ ...base,
+      schema_version: "beta_policy_screening_publication.v3", scene_feasibility: { status: "unknown", flags: [] }, candidates } as never))!;
+    const first = projected(sealed(rows));
+    for (const order of [[...rows].reverse(), [rows[2], rows[0], ...rows.slice(3), rows[1]].filter(Boolean)]) {
+      const view = projected(sealed(order));
+      expect(view.summary).toBe(first.summary);
+      expect(view.screening!.setupNotes).toEqual(first.screening!.setupNotes);
+      expect(view.screening!.candidates.map(row => row.candidateId).sort()).toEqual(first.screening!.candidates.map(row => row.candidateId).sort());
+      expect(screeningOutcome(sealed(order))).toBe(screeningOutcome(sealed(rows)));
+    }
+  });
+  it.each(["known_good_control_passed:2_of_3", "known_good_control_passed:3_of_3", "known_good_control_partly:1_of_3",
+    "known_good_control_failed:0_of_3", "known_good_control_partly:reused"])("knows %s", code => {
+    expect(isKnownFlag(code)).toBe(true);
+  });
+  it("classes a reused partly check as partly with no counts of its own, and says the flag's sentence", () => {
+    const value = parseBetaPolicyScreeningPublication(withControl(finished(), controlRow("known_good_control_partly:reused", { scored: 0, succeeded: 0 })))!;
+    expect(value).not.toBeNull();
+    expect(screeningReferenceCheck(value.candidates)).toBe("partly");
+    expect(screeningSetupNotes(value)).toEqual([setupFlagSentence("known_good_control_partly")]);
   });
 });

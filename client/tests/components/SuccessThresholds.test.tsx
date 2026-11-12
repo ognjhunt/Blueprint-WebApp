@@ -54,9 +54,10 @@ describe("SuccessThresholds", () => {
     vi.stubGlobal("fetch", fetchMock);
     const { rerender } = render(<SuccessThresholds token="tok"
       view={{ ...view, decision: { kind: "held", reason: "wrong_goal", decidedAt: "2026-11-03T18:00:00.000Z" } }} onDecided={vi.fn()} />);
-    // Rewritten (review, 2026-11-12): nothing alerts or contacts the site here, so nothing says it does.
-    expect(screen.getByRole("status").textContent).toMatch(/the goal area is in the wrong place\. Your reason is saved with your\s+job, and these numbers stay as they are\./);
-    expect(screen.getByRole("status").textContent).not.toMatch(/will review|alerted/);
+    // Rewritten (review, 2026-11-12): staff ARE alerted (`scanHeldOwnerSuccessThresholds`), so the page says so;
+    // nothing reviews and contacts the site, so the page no longer promises that.
+    expect(screen.getByRole("status").textContent).toMatch(/the goal area is in the wrong place\. Blueprint’s team is alerted with\s+your reason\. These numbers stay as they are/);
+    expect(screen.getByRole("status").textContent).not.toMatch(/will review|contact you/);
     fireEvent.click(screen.getByRole("button", { name: "Use these goals" }));
     expect((await screen.findByRole("alert")).textContent).toMatch(/goals have changed/);
     rerender(<SuccessThresholds token="tok"

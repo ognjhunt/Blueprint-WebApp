@@ -13,7 +13,10 @@ export type TaskDestinationChoiceView = {
   pictureUrl: string | null;
 };
 
-/** The page's own words. The places are named by the letter the picture draws beside each, in the list's order. */
+/**
+ * The page's own words, except the object's name as read from the video (`objectWord`). The places are named by the
+ * letter the picture draws beside each, in the list's order.
+ */
 export const placeName = (index: number) => `Place ${String.fromCharCode(65 + index)}`;
 export const OUR_GUESS = " (our guess)";
 export const DESTINATION_SENTENCE = (object: string) => `We will test moving the ${object} from here to here.`;
@@ -22,10 +25,10 @@ export const DESTINATION_KEEPS_GOING = "Nothing is needed from you: your job kee
 export const DESTINATION_ANSWERED = "We have your answer about where the object goes.";
 
 /**
- * The object's name as read from the video (the Pipeline's `semantic_label`), shown only when it is letters, digits,
- * spaces, apostrophes and hyphens; else "object".
+ * The object's name as read from the video (the Pipeline's `semantic_label`), shown only when it is letters, digits
+ * and spaces; else "object".
  */
-export const objectWord = (label: string) => /^[A-Za-z0-9][A-Za-z0-9 '-]{0,59}$/.test(label.trim()) ? label.trim().toLowerCase() : "object";
+export const objectWord = (label: string) => /^[A-Za-z0-9][A-Za-z0-9 ]{0,59}$/.test(label.trim()) ? label.trim().toLowerCase() : "object";
 
 export function isDestinationChoice(value: unknown): value is TaskDestinationChoiceView {
   const item = value as Partial<TaskDestinationChoiceView> | null;

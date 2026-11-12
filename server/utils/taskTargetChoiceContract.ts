@@ -31,7 +31,9 @@ export const taskObjectChoiceQuestionSchema = z.object({
  * moving the {object} from here to here.", with 2 to 4 places to pick from instead, and the reference of ONE private
  * picture from the site's own video (the object outlined where it starts, the scored area in green). It is answered
  * like the object question (confirm, or another place); "none of these" has no meaning for a place. The job never
- * waits on it. Its `sentence` and labels are not shown as sent: the page words them from its own constants.
+ * waits on it. Its `sentence` and place labels are not shown: the page has its own sentence and names the places
+ * "Place A", "Place B"… in the order the picture letters them. The one word it shows from the Pipeline is the object's
+ * name as read from the video (`semantic_label`), letters, digits and spaces only (else "object").
  */
 export const TASK_DESTINATION_TARGET_ID = "destination.place";
 export const taskDestinationChoiceQuestionSchema = z.object({
@@ -52,7 +54,7 @@ export const taskDestinationChoiceQuestionSchema = z.object({
   && value.candidates.some(row => row.candidate_id === value.guessed_candidate_id), "candidate ids repeat or miss the guess");
 export type TaskDestinationChoiceQuestion = z.infer<typeof taskDestinationChoiceQuestionSchema>;
 
-/** Which place a candidate is, from the Pipeline's own fixed label for it; the page words each from its own constants. */
+/** Which place a candidate is, from the Pipeline's own fixed label for it. Kept for staff; the page names places by letter. */
 export const PLACE_KINDS = ["named_place", "words_place", "surface_end", "farthest_spot", "site_choice", "other"] as const;
 export type PlaceKind = typeof PLACE_KINDS[number];
 const PIPELINE_PLACE_LABELS: Readonly<Record<string, PlaceKind>> = {
