@@ -322,7 +322,11 @@ const OPS_NEXT_ACTION: Partial<Record<ScreeningOutcome, string>> = {
   awaiting_spend_approval: "Waiting on Blueprint: the job's limit held testing back (a run the account's monthly limit kept from starting reads the same). Check for a fault; raise the job with scripts/amend-website-atlas-grant.ts if it is right. Nothing is needed from the site.",
   setup_repair: "Rows refused for code a deploy changed are planned again at the new release by the Pipeline itself. Nothing is needed from the site.",
 };
-/** When the job's dollar ceiling, not the screening budget, is what held the candidates back. */
+/**
+ * When the job's dollar ceiling, not the screening budget, is what held the candidates back. A publication's
+ * `awaiting_spend_approval` always has such a row, so its OPS_NEXT_ACTION line above is not shown today (a hold run has no
+ * result record and never reaches here); it is kept correct for safety.
+ */
 const OPS_JOB_CEILING_NEXT_ACTION = "Owner approval needed: this job's dollar ceiling, shared by all of its spending, has too little left "
   + "to run its candidates. Raising it is the owner's money decision. Nothing is needed from the site.";
 const opsNextAction = (outcome: ScreeningOutcome, candidates: BetaPolicyScreeningPublication["candidates"]) =>

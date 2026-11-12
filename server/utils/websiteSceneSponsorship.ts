@@ -1001,8 +1001,8 @@ export const WEBSITE_ATLAS_GRANT_AMENDMENT_SCHEMA = "website_atlas_grant_figure_
 
 /**
  * Operator-only owner amendment (owner decision 2026-11-11): raises one job's stored automatic
- * Atlas grant figure, and with it the job's ceiling (its safety limit), up to the stored grant
- * schema's maximum. Nothing else in the grant changes: its consent, terms, source, owner, request
+ * Atlas grant figure, and with it the job's stored ceiling, up to the stored grant schema's maximum
+ * ($100). The job's safety limit, max(stored ceiling, $100), does not change. Nothing else in the grant changes: its consent, terms, source, owner, request
  * count, approval reference and expiry stay as issued, so the Pipeline's resume check
  * (`website_atlas_pipeline._same_authority`) reads it as the same grant with a raised figure and
  * continues the job. An owner authorization row would replace the grant instead and stop the job's
